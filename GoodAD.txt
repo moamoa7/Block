@@ -148,7 +148,8 @@ upload/banners/*
 ! 오늘의 중계 배너 삭제  today-sports7.com (자체 제작)
 ##[src*="event_banner"]
 ##.slick-track
-! - - - 쑈당몰 상단 배너 차단 해제
+! - - - 쑈당몰 (https://showdang.co.kr/) 상단 배너 차단
+
 showdang.co.kr#@#.slick-track
 
 ! 오늘의 중계 팝업 삭제  today-sports7.com (자체 제작)
