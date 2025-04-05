@@ -18,7 +18,7 @@
 ! - - - - - tracker.openwebtorrent.com
 
 
-! 인벤 오류 해결 (Adblock-Rule-Collection-Lite)
+! 인벤 등 모바일 오류 해결 (Adblock-Rule-Collection-Lite)
 @@||html-load.com
 
 
