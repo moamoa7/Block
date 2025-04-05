@@ -67,6 +67,9 @@ lol.inven.co.kr#@#article > div[style].banner
 ! 디시인사이드  실시간 베스트 등 오른쪽 배너 삭제 (자체 제작)
 ##[class^="content_box"]:not(html):not(body):not(article)
 
+! 연합뉴스 광고 제거 (자체 제작)
+##[class^="aside-box"]:not(html):not(body):not(article)
+
 !폰허브 (https://github.com/mtxadmin/ublock) - _rules
 !입장할때 18세 이상 물어보는거 패스 (2개 다 해야함)
 ##[id*="Disclaimer"]:not(html):not(body):not(article)
