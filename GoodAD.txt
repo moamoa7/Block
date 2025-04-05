@@ -152,6 +152,7 @@ upload/banners/*
 
 ! 오늘의 중계 배너 삭제  today-sports7.com (자체 제작)
 ##.slick-track
+##[src^="event_banner*"]
 ! 오늘의 중계 팝업 삭제  today-sports7.com (자체 제작)
 ###hd_pop
 
