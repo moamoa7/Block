@@ -194,6 +194,10 @@ files/new_main/*.gif
 ! 채터베이스 (https://chaturbate.com/) 입장 팝업 삭제 (자체 제작)
 ###entrance_terms_overlay
 
+! 쿠팡 등
+/ads-
+! - - - https://www.coupang.com/resources/20250403143520/np/js/modules/ads-components/dist/carousel.js
+
 
 
 ! 타 소스 가져옴
