@@ -137,6 +137,8 @@ upload/banners/*
 ##[class*="popup-pc"]:not(html):not(body):not(article)
 ! - - - mobile
 ##.w-80.relative
+! 야동그라운드 (https://yagro48.com/) 하단 배너 이미지 삭제 (자체 제작)
+##.mt-1.justify-start.items-center.flex-wrap.flex
 
 ! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/)   영상 하단내 배너 삭제 (자체 제작)
 ##.vjs-bottom-banner.vjs-bottom-banner-container
