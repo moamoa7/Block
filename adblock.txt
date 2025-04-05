@@ -1,3 +1,5 @@
+! Title: GoodAD
+
 !@@||log.tving.com
 !@@||stripchat.com
 !@@||strpst.com
