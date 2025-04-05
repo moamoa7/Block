@@ -202,8 +202,3 @@ files/new_main/*.gif
 /ads-
 ! - Adblock-Rule-Collection-Lite
 ! - - - https://www.coupang.com/resources/20250403143520/np/js/modules/ads-components/dist/carousel.js
-
-! 쿠팡 등
-/banners^$xmlhttprequest
-! - AdVoid.Full
-! - - - https://www.coupang.com/vp/products/7660428989/banners?categoryId=2317&vendorItemId=87489288057
