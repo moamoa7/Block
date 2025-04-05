@@ -18,6 +18,11 @@
 ! - - - - - tracker.openwebtorrent.com
 
 
+!쿠팡 (https://coupang.com/) 오류 해결 (자체 제작)
+@@||coupang.com^$document
+@@||coupangcdn.com^$document
+
+
 ! 인벤 등 모바일 오류 해결 (Adblock-Rule-Collection-Lite)
 @@||html-load.com
 
