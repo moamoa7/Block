@@ -77,7 +77,7 @@ srank.kr#@#+js(prevent-fetch, doubleclick.net)
 ! 리그 오브 레전드 인벤 (lol.inven.co.kr) 롤 경기 일정 보이게 하기 (자체 제작)
 !lol.inven.co.kr#@#[class^="banner"]:not(html):not(body):not(article)
 ! - - - AdVoid.Full 무력화
-!lol.inven.co.kr#@#.banner:not(html):not(body)
+lol.inven.co.kr#@#.banner:not(html):not(body)
 lol.inven.co.kr#@#.banner
 ! - - - -  List-KR 무력화
 lol.inven.co.kr#@#article > div[style].banner
