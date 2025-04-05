@@ -3,9 +3,10 @@
 
 !!! 오류 및 차단 해제
 
-!쿠팡 (https://coupang.com/) 오류 해결 (자체 제작)
-!@@||coupang.com^$document
-!@@||coupangcdn.com^$document
+!쿠팡 (https://coupang.com/) 로그인 오류 해결
+! - AdGuard Tracking Protection 해제
+@@/\.coupang\.com\/(?!resources)(?!vp)[A-Za-z0-9-_]{5,}\/(?!cart)(?!product)[A-Za-z0-9-_]+\/(?!api)(?!user)[A-Za-z0-9-_]+\/[A-Za-z0-9-_]+\/(?!products)[A-Za-z0-9-_]+/$domain=coupang.com|~mc.coupang.com|~checkout.coupang.com,script,xmlhttprequest,method=get,match-case
+@@/^https:\/\/(www|m)\.coupang\.com\/[A-Za-z0-9_]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_]+\/[A-Za-z0-9_]+(\/[A-Za-z0-9_-]+){0,5}$/$domain=coupang.com,xmlhttprequest,method=post,match-case
 
 ! 길호넷 차단 우회 (List-KR 문구 활용)
 ! 도메인을 지정하지 않으면 캡쳐에서 무한 오류남 (고스트리 쓰면 안해도 됨)
