@@ -154,6 +154,7 @@ upload/banners/*
 !##.slick-track
 !##[class^="slick-slide"]:not(html):not(body):not(article)
 ##[class^="only-pc"]:not(html):not(body):not(article)
+##[class^="mobile-banner"]:not(html):not(body):not(article)
 !##[class^="info-banner"]:not(html):not(body):not(article)
 ##.info-banner
 
