@@ -200,10 +200,9 @@ files/new_main/*.gif
 ! - - - https://www.coupang.com/resources/20250403143520/np/js/modules/ads-components/dist/carousel.js
 
 ! 쿠팡 등
-/report*.js^$script
-@@||hackerone.com/assets/static/report*.js^$script
+/banners^$xmlhttprequest
 ! - AdVoid.Full
-! - - - https://www.coupang.com/resources/20250403143520/np/js/modules/common/reporter/queryStringAppender.js
+! - - - https://www.coupang.com/vp/products/7660428989/banners?categoryId=2317&vendorItemId=87489288057
 
 
 
