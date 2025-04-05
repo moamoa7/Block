@@ -133,7 +133,7 @@ wp-content/uploads/*.gif
 ! 야동그라운드 (https://yagro48.com/) 배너 이미지 삭제 (자체 제작)
 upload/banners/*
 ! 야동그라운드 (https://yagro48.com/) 팝업 삭제 - 4시간 동안 다시 열람하지 않습니다 (자체 제작)
-##[class^="popup-pc"]:not(html):not(body):not(article)
+##[class*="popup-pc"]:not(html):not(body):not(article)
 
 ! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/)   영상 하단내 배너 삭제 (자체 제작)
 ##.vjs-bottom-banner.vjs-bottom-banner-container
