@@ -53,8 +53,8 @@ lol.inven.co.kr#@#article > div[style].banner
 ! 티비위키 (https://tvwiki19.com/) websocket 차단
 !||openwebtorrent.com
 !||linkwang.org
-! (Adblock-Rule-Collection-Lite) 로 대체
-||tracker.$xmlhttprequest,websocket,script,ping (Adblock-Rule-Collection-Lite) 로 대체
+! - - - Adblock-Rule-Collection-Lite
+||tracker.$xmlhttprequest,websocket,script,ping
 ! - - - tracker.linkwang.org
 ! - - - tracker.openwebtorrent.com
 
