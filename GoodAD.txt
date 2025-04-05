@@ -150,8 +150,6 @@ upload/banners/*
 ##.slick-track
 ! - - - 쑈당몰 (https://showdang.co.kr/) 상단 배너 차단
 
-showdang.co.kr#@#.slick-track
-
 ! 오늘의 중계 팝업 삭제  today-sports7.com (자체 제작)
 ###hd_pop
 
