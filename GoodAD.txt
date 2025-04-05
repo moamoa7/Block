@@ -192,11 +192,11 @@ files/new_main/*.gif
 !/ad/*
 !@@pic.xvideos*/ad/*
 
-! 메시티비 (messitv7.com) (배너 삭제) (자체 제작)
+! 메시티비 (messitv8.com) (배너 삭제) (자체 제작)
 ##[class*="baner"]
 /sidebanner*
 /toto/img/*
-! 메시티비 (messitv7.com) (채팅박스 삭제) (자체 제작)
+! 메시티비 (messitv8.com) (채팅박스 삭제) (자체 제작)
 ##u-chat
 
 ! 고트티비 (https://goat-v.com) 팝업 차단 (자체 제작)
