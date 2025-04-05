@@ -1,79 +1,31 @@
 ! Title: GoodAD
 
-!@@||log.tving.com
-!@@||stripchat.com
-!@@||strpst.com
-!@@||adcr.shopping.naver.com
-!@@||shop-api.e-ncp.com
 
-
-||update.liteapks.com
-||kakaotalk.new-version.download
-||stun3.l.google.com
-||global.stun.twilio.com
-!||openwebtorrent.com
-!||linkwang.org
-!- - -  ||tracker.$xmlhttprequest,websocket,script,ping (Adblock-Rule-Collection-Lite) 로 대체
-! - - - - - tracker.linkwang.org
-! - - - - - tracker.openwebtorrent.com
-
+!!! 오류 및 차단 해제
 
 !쿠팡 (https://coupang.com/) 오류 해결 (자체 제작)
 @@||coupang.com^$document
 @@||coupangcdn.com^$document
 
+! 길호넷 차단 우회 (List-KR 문구 활용)
+! 도메인을 지정하지 않으면 캡쳐에서 무한 오류남 (고스트리 쓰면 안해도 됨)
+@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
+
+! https://www.srank.kr/ 광고 차단 감지 해제 (애드가드에서는 되는대 ublock에서는 안되서 별도 처리) (List-KR 무력화)
+srank.kr#@#+js(prevent-fetch, doubleclick.net)
 
 ! 인벤 등 모바일 오류 해결 (Adblock-Rule-Collection-Lite)
 @@||html-load.com
-
-
 
 !옥션 배송조회 차단 해제 (AdVoid.Full)
 !@@/tracking.js$domain=tracking.auction.co.kr
 
 !티비위키 영상 차단 해제 (AdVoid.Full)
-!@@/videojs-chromecast.min.js^$script
+!- - - 원소스 @@/videojs-chromecast.min.js^$script
 @@/videojs-chromecast.min.js^$domain=player.bunny-frame.online
 
-
 ! cuty.io (cutyion.com) 차단 해제 (AdVoid.Full)
-!cutyion.com#@#.adsbygoogle
-! - - - cuty.io (cutyion.com) 차단 해제 (轻量广告拦截规则) (해당 사항 없음)
-! - - - cutyion.com#@#INS.adsbygoogle
-
-
-
-!길호넷 등 차단 우회 (List-KR 문구 활용)
-! 도메인을 지정하지 않으면 캡쳐에서 무한 오류남 (고스트리 쓰면 안해도 됨)
-@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
-
-
-!https://www.srank.kr/ 광고 차단 감지 해제 (애드가드에서는 되는대 ublock에서는 안되서 별도 처리) (List-KR 무력화)
-srank.kr#@#+js(prevent-fetch, doubleclick.net)
-
-
-
-!이토랜드 팝업 / 로그인 팝업 / 왼쪽 가운데 배너 삭제 (자체 제작)
-###main_popup
-###login_popup
-##.banner-box
-
-
-
-
-! 디시인사이드  실시간 베스트 등 오른쪽 배너 삭제 (자체 제작)
-##[class^="content_box"]:not(html):not(body):not(article)
-
-
-!폰허브 (https://github.com/mtxadmin/ublock) - _rules
-!입장할때 18세 이상 물어보는거 패스 (2개 다 해야함)
-##[id*="Disclaimer"]:not(html):not(body):not(article)
-##[class*="Disclaimer"]:not(html):not(body):not(article)
-
-
-! fc2ppvdb.com 입장시 18세 체크 삭제 (자체 제작)
-##[id*="ageCheck"]:not(html):not(body):not(article)
-
+cutyion.com#@#.adsbygoogle
 
 ! 리그 오브 레전드 인벤 (lol.inven.co.kr) 상단 배너 제거 (자체 제작)
 ! 이거 하면 인벤 경기 일정도 같이 사라짐 (하지 말 것)
@@ -87,6 +39,40 @@ lol.inven.co.kr#@#.banner:not(html):not(body)
 ! - - - -  List-KR 무력화
 lol.inven.co.kr#@#article > div[style].banner
 
+! supjav 영상 차단 해제 (Adblock-Rule-Collection-Lite) 해결
+! - - -  https://p16-tiktok-ads-sg.tiktokcdn.com/obj/ad-site-i18n-sg/202503315d0d1244d2cbf8b7490a9ade
+@@/obj/ad-
+
+!platinmods.com 홈페이지 깨짐 (Adblock-Rule-Collection-Lite) 해결
+@@css*_ads_
+
+
+
+!!! 차단
+
+! 티비위키 (https://tvwiki19.com/) websocket 차단
+!||openwebtorrent.com
+!||linkwang.org
+! (Adblock-Rule-Collection-Lite) 로 대체
+||tracker.$xmlhttprequest,websocket,script,ping (Adblock-Rule-Collection-Lite) 로 대체
+! - - - tracker.linkwang.org
+! - - - tracker.openwebtorrent.com
+
+!이토랜드 팝업 / 로그인 팝업 / 왼쪽 가운데 배너 삭제 (자체 제작)
+###main_popup
+###login_popup
+##.banner-box
+
+! 디시인사이드  실시간 베스트 등 오른쪽 배너 삭제 (자체 제작)
+##[class^="content_box"]:not(html):not(body):not(article)
+
+!폰허브 (https://github.com/mtxadmin/ublock) - _rules
+!입장할때 18세 이상 물어보는거 패스 (2개 다 해야함)
+##[id*="Disclaimer"]:not(html):not(body):not(article)
+##[class*="Disclaimer"]:not(html):not(body):not(article)
+
+! fc2ppvdb.com 입장시 18세 체크 삭제 (자체 제작)
+##[id*="ageCheck"]:not(html):not(body):not(article)
 
 ! AV핑보걸 / AV러브걸 XX조아 / 다시보고 배너 이미지 삭제(https://github.com/mtxadmin/ublock) - _rules 활용 (자체 제작)
 wp-content/uploads/*.png
@@ -100,7 +86,6 @@ wp-content/uploads/*.gif
 @@liteapks.com/wp-content/uploads/*.png
 @@kilho.net/wp-content/uploads/*.png
 ##[id^="imgDiv"]:not(html):not(body):not(article)
-
 
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) 배너 이미지 삭제 (List-KR 문구 활용) (자체 제작)
 !||hcdn1.maxsocdn.net^$domain=sogirl.so 활용
@@ -181,7 +166,6 @@ files/new_main/*.gif
 ! 바나나몰 bananamall.co.kr 팝업 왼쪽 삭제 (자체 제작)
 ###pop_saunpum
 
-
 ! 숲 (https://play.sooplive.co.kr) - 영상 정상인데도 버퍼링 도는 작은 동그라미 삭제
 ##.buffering
 
@@ -190,14 +174,6 @@ files/new_main/*.gif
 
 !치지직 광고 차단 안내 팝업 차단 (자체 제작)
 ##[class^="popup_"]:not(html):not(body):not(article)
-
-! 티비위키 (https://tvwiki18.com/) / 티비몬 (https://tvmon15.org/) 배너 차단 (자체 제작)
-! 치지직 - 먼지 모름
-! - - - https://api.chzzk.naver.com/service/v1/ad/display-status?pgId=d7ddd7585a271e55159ae47c0ce9a9dd&pgType=CHZZK_LIVE
-! 시네스트 차단
-! - - - https://cineaste.co.kr/data/member_image/ad/adosukhee.gif
-!/ad/*
-!@@pic.xvideos*/ad/*
 
 ! 메시티비 (messitv8.com) (배너 삭제) (자체 제작)
 ##[class*="baner"]
@@ -215,17 +191,3 @@ files/new_main/*.gif
 
 ! 채터베이스 (https://chaturbate.com/) 입장 팝업 삭제 (자체 제작)
 ###entrance_terms_overlay
-
-
-
-@@/obj/ad-
-! supjav 영상 차단 해제 (Adblock-Rule-Collection-Lite)
-! - - -  https://p16-tiktok-ads-sg.tiktokcdn.com/obj/ad-site-i18n-sg/202503315d0d1244d2cbf8b7490a9ade
-!*ad?*
-! 치지직 - 먼지 모름 (자체 제작)
-! - - - https://api.chzzk.naver.com/ad-polling/v1/lives/11570683/ad?ts=1743737960
-! - - - 디시인사이드에서 reCAPTCHA 차단함
-! - - - - - https://www.google.com/recaptcha/api2/reload?k=6LcJyr4UAAAAAOy9Q_e9sDWPSHJ_aXus4UnYLfgL
-
-@@css*_ads_
-! platinmods.com 홈페이지 깨짐 (Adblock-Rule-Collection-Lite)
