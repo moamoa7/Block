@@ -19,10 +19,10 @@ https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_f
 
 List-KR
 
-- (AdGuard)
+* (AdGuard)
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-AdGuard.txt
 
-- (uBlock Origin)
+* (uBlock Origin)
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
 
 AdGuard Japanese filter
@@ -33,3 +33,13 @@ https://filters.adtidy.org/extension/ublock/filters/224.txt
 
 AdGuard Russian filter
 https://filters.adtidy.org/extension/ublock/filters/1.txt
+
+
+
+# 사용중인 스크립트
+
+Ultra Popup Blocker
+
+홈페이지 : https://github.com/Eskander/ultra-popup-blocker
+
+설치주소 : https://update.greasyfork.org/scripts/387937/Ultra%20Popup%20Blocker.user.js
