@@ -95,7 +95,7 @@ https://filters.adtidy.org/extension/ublock/filters/1.txt
 
 # DNS
 
-GreenDNS
+※ GreenDNS
 
 홈페이지 : https://github.com/green1052/GreenDNS
 
