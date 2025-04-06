@@ -219,3 +219,8 @@ files/new_main/*.gif
 *##.ad
 ! - GOODBYEADS
 ! - - - https://poooo.ml/chat/chatroom.php
+
+! 카카오TV 등
+||127.0.0.1^$third-party,domain=~localhost|~[::1]|~[::ffff:7f00:1]
+! - 기타
+! - - - http://127.0.0.1:7283/v4/kaps/check?t=1743914305705
