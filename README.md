@@ -1,6 +1,13 @@
-# 작성 기준
+# 설명
+※ GoodAD.txt
+- 아래 사용중인 AdBlock Filter 목록 적용 후 필요하다고 생각되는 개인적인 차단 List
 
-::: 아래 필터 적용 후 개인적으로 만든 필터
+※ adguard_gallery.txt
+- 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
+- 2025년 4월 4일 이후 갑자스럽게 배포가 사라져 임시로 올려놓은 List
+
+
+# 사용중인 AdBlock Filter 목록
 
 ※ AdGuard Base filter (EasyList 제외)
 https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
