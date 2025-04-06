@@ -9,6 +9,9 @@
 
 # 사용중인 AdBlock Filter 목록
 
+※ EasyList
+https://easylist.to/easylist/easylist.txt
+
 ※ AdGuard Base filter (EasyList 제외)
 https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
 
