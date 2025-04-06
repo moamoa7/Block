@@ -76,3 +76,11 @@ https://filters.adtidy.org/extension/ublock/filters/1.txt
 홈페이지 : https://github.com/AdguardTeam/DisableAMP
 
 설치주소 : https://userscripts.adtidy.org/release/disable-amp/1.0/disable-amp.user.js
+
+※ Youtube HD Premium
+
+- 미리 선택한 해상도로 자동 전환합니다. 가능한 경우 프리미엄을 활성화합니다.
+
+홈페이지 : https://greasyfork.org/en/scripts/498145-youtube-hd-premium
+
+설치주소 : https://update.greasyfork.org/scripts/498145/Youtube HD Premium.user.js
