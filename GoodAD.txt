@@ -213,4 +213,4 @@ files/new_main/*.gif
 ! 치지직 등
 */ad-$~stylesheet
 ! - GOODBYEADS
-! - - - https://api.chzzk.naver.com/ad-polling/v1/lives/11603911/ad?ts=1743913846
+! - - - https://api.chzzk.naver.com/ad-polling/v1/lives/11603911/ad?ts=1743913846 등
