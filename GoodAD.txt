@@ -68,7 +68,10 @@ djxmaza.in#@#+js(nobab)
 ##.ad_go_wrapper
 
 ! 디시인사이드  실시간 베스트 등 오른쪽 배너 삭제 (자체 제작)
-##[class^="content_box"]:not(html):not(body):not(article)
+! - 실시간 베스트
+##.r_timebest.content_box
+! - 개념글
+##.r_recommend.content_box
 
 ! 숲 (https://play.sooplive.co.kr) - 영상 정상인데도 버퍼링 도는 작은 동그라미 삭제
 ##.buffering
