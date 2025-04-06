@@ -176,6 +176,7 @@ files/new_main/*.gif
 ###pop_saunpum
 
 ! hasha (https://hasha.in/) 팝업 차단 (Adblock-Rule-Collection-Lite)
+! - Ultra Popup Blocker 사용시 필요없음
 &sseq=*&dseq=$popup,third-party
 
 ! 숲 (https://play.sooplive.co.kr) - 영상 정상인데도 버퍼링 도는 작은 동그라미 삭제
