@@ -129,3 +129,16 @@ https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt
 https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.txt
 
 https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareAdGuardHome.txt
+
+
+# 추천 브라우저 (모바일)
+
+※ Quetta Browser
+
+홈페이지 : https://www.quetta.net/
+
+설치주소
+
+https://play.google.com/store/apps/details?id=net.quetta.browser
+
+https://apps.apple.com/us/app/quetta-ad-free-video-browser/id6504077999
