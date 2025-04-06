@@ -93,10 +93,6 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 ! 주소월드 (https://wdwd6.com/) 배너 삭제 (자체 제작)
 ##.banner_list.at-container
 
-! MiSSAV 등 오른쪽 배너 공간 삭제
-! - EasyList
-!abxxx.com,aniporn.com,missav.ai,missav.ws,missav123.com,missav888.com##div[style="width: 300px; height: 250px;"]
-
 ! AV19.org (https://av19.live/) 상단 배너 삭제 등 (자체 제작)
 ##[class$="_banner"]:not(html):not(body):not(article)
 
@@ -161,9 +157,6 @@ upload/banners/*
 
 ! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/)   영상 하단내 배너 삭제 (자체 제작)
 ##.vjs-bottom-banner.vjs-bottom-banner-container
-
-! javneon.tv 영상 위 뿌연 부분 차단 - EasyList 에서 가져옴
-##.ad-twos
 
 ! 자막야동 (https://xn--2q1bp6izol05b.com/) (https://2.jamakyadong.me/) 영상 하단 배너 삭제 (자체 제작)
 ##.unde-player-ad
