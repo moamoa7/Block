@@ -63,6 +63,9 @@ lol.inven.co.kr#@#article > div[style].banner
 ! - - - tracker.linkwang.org
 ! - - - tracker.openwebtorrent.com
 
+!티비위키 (https://tv61.wiki/) 배너 삭제 (자체 제작)
+##.custom_banner_wrap
+
 !이토랜드 팝업 / 로그인 팝업 / 왼쪽 가운데 배너 삭제 (자체 제작)
 ###main_popup
 ###login_popup
