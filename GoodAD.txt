@@ -135,9 +135,6 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 
 
 
-! supjav TV 팝업 차단
-||jwpltx.com^$third-party
-
 ! AV19.org (https://av19.live/) 상단 배너 삭제 등 (자체 제작)
 ##[class$="_banner"]:not(html):not(body):not(article)
 
