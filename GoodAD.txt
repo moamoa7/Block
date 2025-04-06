@@ -264,6 +264,8 @@ files/new_main/*.gif
 ! 치지직 등
 */ad-$~stylesheet
 ! - GOODBYEADS
+! - supajv TV 영상 차단으로 해제 필요
+@@p16-tiktok-ads-sg.tiktokcdn.com*/ad-$~stylesheet
 ! - - - https://api.chzzk.naver.com/ad-polling/v1/lives/11603911/ad?ts=1743913846 등
 
 ! POOOO 등
