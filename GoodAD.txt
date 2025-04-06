@@ -209,3 +209,8 @@ files/new_main/*.gif
 /ads-
 ! - Adblock-Rule-Collection-Lite
 ! - - - https://www.coupang.com/resources/20250403143520/np/js/modules/ads-components/dist/carousel.js
+
+! 치지직 등
+*/ad-$~stylesheet
+! - GOODBYEADS
+! - - - https://api.chzzk.naver.com/ad-polling/v1/lives/11603911/ad?ts=1743913846
