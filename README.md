@@ -83,4 +83,4 @@ https://filters.adtidy.org/extension/ublock/filters/1.txt
 
 홈페이지 : https://greasyfork.org/en/scripts/498145-youtube-hd-premium
 
-설치주소 : https://update.greasyfork.org/scripts/498145/Youtube HD Premium.user.js
+설치주소 : https://update.greasyfork.org/scripts/498145/Youtube%20HD%20Premium.user.js
