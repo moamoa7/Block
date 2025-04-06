@@ -48,13 +48,6 @@ djxmaza.in#@#+js(nobab)
 @@/devfiles.pages.dev\/img\/[a-zA-Z0-9]{8,}.jpeg/$domain=miuiflash.com|djxmaza.in|thecubexguide.com
 
 
-! supjav 영상 차단 해제 (Adblock-Rule-Collection-Lite) 해결
-! - - -  https://p16-tiktok-ads-sg.tiktokcdn.com/obj/ad-site-i18n-sg/202503315d0d1244d2cbf8b7490a9ade
-!@@/obj/ad-
-
-!platinmods.com 홈페이지 깨짐 (Adblock-Rule-Collection-Lite) 해결
-!@@css*_ads_
-
 
 
 !!! 차단
