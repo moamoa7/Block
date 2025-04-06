@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025-04-04
+! Version: 2025-04-06
 ! Description: 애드가드 필터의 일부 오차단, 안티 애드블록, 지우지 못한 광고를 해결합니다. For Adguard, uBo, Brave
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -107,6 +107,7 @@ hitomi.la##.content > div:first-child:not(:has(picture))
 humoruniv.com##[id^='naver_adpost_wrap']
 instiz.net##.hot_under
 khan.co.kr##.mAd
+kio.ac##div[forcemount]
 m.11st.co.kr###adBannerArea
 m.11st.co.kr###web2appPopup
 m.blog.naver.com###blog_fe_feed > div:has([class^='recommend_section__'])
@@ -137,6 +138,7 @@ ruliweb.com,ppomppu.co.kr##[id$='_ad']
 seoul.co.kr###rollingAdDiv
 talk.op.gg##[class]:has(> [href^='https://talk.op.gg/app-download'])
 tistory.com##figure:has([href^='https://link.coupang.com/'])
+twidouga.net#%#//scriptlet('prevent-addEventListener', 'click', 'preventDefault')
 yna.co.kr##.article > aside:has(yna-ad-script)
 yna.co.kr##.sticky[class^='aside-box']
 web.joongna.com##.pb-12
