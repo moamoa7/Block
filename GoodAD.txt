@@ -48,7 +48,7 @@ djxmaza.in#@#+js(nobab)
 
 ! 길호넷 차단 우회 (List-KR 문구 활용)
 ! - 도메인을 지정하지 않으면 캡쳐에서 무한 오류남
-! - 현재 차단 안되는것 같아 해제
+! - 현재 길호넷 접속시 차단 안하는걸로 보여 우회 처리 보류
 !@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
 
 
