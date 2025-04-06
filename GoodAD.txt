@@ -211,7 +211,8 @@ files/new_main/*.gif
 ! 소프트콘 뷰어쉽 (https://viewership.softc.one/) 팝업 삭제 (자체 제작)
 ##.fc-dialog-container
 ! 소프트콘 뷰어쉽 (https://viewership.softc.one/) 하단 배너 삭제 (자체 제작)
-##.\33 fxah093wo84
+! - Fanboy's Annoyance List
+##div[style*="box-shadow: rgb(136, 136, 136) 0px 0px 12px; color: "]
 
 ! 메시티비 (messitv8.com) (배너 삭제) (자체 제작)
 ##[class*="baner"]
