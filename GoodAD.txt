@@ -15,9 +15,6 @@
 ! https://www.srank.kr/ 광고 차단 감지 해제 (애드가드에서는 되는대 ublock에서는 안되서 별도 처리) (List-KR 무력화)
 srank.kr#@#+js(prevent-fetch, doubleclick.net)
 
-! 인벤 등 모바일 오류 해결 (Adblock-Rule-Collection-Lite)
-@@||html-load.com
-
 !옥션 배송조회 차단 해제 (AdVoid.Full)
 !@@/tracking.js$domain=tracking.auction.co.kr
 
@@ -51,6 +48,9 @@ djxmaza.in#@#+js(nobab)
 
 
 !!! 차단
+
+! 인벤 (https://inven.co.kr) 게시글 내 뜨는 안내창 삭제 (자체 제작)
+###invenAppSuggestion
 
 !이토랜드 팝업 / 로그인 팝업 / 왼쪽 가운데 배너 삭제 (자체 제작)
 ###main_popup
