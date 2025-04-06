@@ -224,3 +224,8 @@ files/new_main/*.gif
 ||127.0.0.1^$third-party,domain=~localhost|~[::1]|~[::ffff:7f00:1]
 ! - 기타
 ! - - - http://127.0.0.1:7283/v4/kaps/check?t=1743914305705
+
+! 트위치 등
+/ads/
+! - 기타
+! - - - https://assets.twitch.tv/assets/features.whispers.components.whisper-threads-bar-e6a6ec225a2e93461f1c.js
