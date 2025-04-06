@@ -91,3 +91,34 @@ https://filters.adtidy.org/extension/ublock/filters/1.txt
 홈페이지 : https://greasyfork.org/en/scripts/498145-youtube-hd-premium
 
 설치주소 : https://update.greasyfork.org/scripts/498145/Youtube%20HD%20Premium.user.js
+
+
+# DNS
+
+GreenDNS
+
+홈페이지 : https://github.com/green1052/GreenDNS
+
+서버목록 (자동)
+
+DoT : tls://anonymous.adguard.green1052.com
+
+DoH : https://adguard.green1052.com/dns-query/anonymous
+
+DoQ : quic://anonymous.adguard.green1052.com
+
+Apple Profile
+
+DoT: https://raw.githubusercontent.com/green1052/GreenDNS/refs/heads/main/profile/dot.mobileconfig
+
+DoH: https://raw.githubusercontent.com/green1052/GreenDNS/refs/heads/main/profile/doh.mobileconfig
+
+필터목록
+
+https://raw.githubusercontent.com/green1052/GreenList/master/dns.txt
+
+https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt
+
+https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.txt
+
+https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareAdGuardHome.txt
