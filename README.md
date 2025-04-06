@@ -15,6 +15,9 @@ https://easylist.to/easylist/easylist.txt
 ※ AdGuard Base filter (EasyList 제외)
 https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
 
+※ AdGuard Mobile Ads filter
+https://filters.adtidy.org/extension/ublock/filters/11.txt
+
 ※ AdVoid.Full
 https://raw.githubusercontent.com/the-advoid/ad-void/main/AdVoid.Full.txt
 
