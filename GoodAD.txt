@@ -51,6 +51,10 @@ lol.inven.co.kr#@#article > div[style].banner
 
 !!! 차단
 
+! 티비위키 ((https://tvwiki19.com/) 배너 이미지 삭제 (자체 제작)
+/ad/*
+! - - - https://tvwiki19.com/AD/sdfsdfsd%20(1).jpg 등
+
 ! 티비위키 (https://tvwiki19.com/) websocket 차단
 !||openwebtorrent.com
 !||linkwang.org
@@ -226,11 +230,6 @@ files/new_main/*.gif
 ! - - - http://127.0.0.1:7283/v4/kaps/check?t=1743914305705
 
 ! 트위치 등
-/ads/
-! - 기타
-! - - - https://assets.twitch.tv/assets/features.whispers.components.whisper-threads-bar-e6a6ec225a2e93461f1c.js
-
-! 트위치 등
--ads.
+-ads.*
 ! - Adblock-Rule-Collection-Lit
 ! - - - https://assets.twitch.tv/assets/features.video-player.components.video-ads.stream-display-ad.pushdown.portal-587b53c917359db0b154.js
