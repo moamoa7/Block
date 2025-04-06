@@ -210,7 +210,7 @@ files/new_main/*.gif
 ###entrance_terms_overlay
 
 ! 쿠팡 등
-/ads-
+!/ads-
 ! - Adblock-Rule-Collection-Lite
 ! - - - https://www.coupang.com/resources/20250403143520/np/js/modules/ads-components/dist/carousel.js
 
