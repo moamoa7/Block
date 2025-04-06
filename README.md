@@ -18,9 +18,11 @@ https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_f
 (언어 필터)
 
 List-KR
-(AdGuard)
+
+- (AdGuard)
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-AdGuard.txt
-(uBlock Origin)
+
+- (uBlock Origin)
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
 
 AdGuard Japanese filter
