@@ -229,7 +229,8 @@ files/new_main/*.gif
 ! - 기타
 ! - - - http://127.0.0.1:7283/v4/kaps/check?t=1743914305705
 
-! 트위치 등
+! 쿠팡/트위치 등
 -ads.*
 ! - Adblock-Rule-Collection-Lit
+! - - - https://www.coupang.com/resources/20250403143520/np/js/modules/ads-components/dist/carousel.js
 ! - - - https://assets.twitch.tv/assets/features.video-player.components.video-ads.stream-display-ad.pushdown.portal-587b53c917359db0b154.js
