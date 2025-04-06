@@ -70,6 +70,9 @@ lol.inven.co.kr#@#article > div[style].banner
 ##.at-title
 ###exon
 
+! 후후티비 (https://hoohootv162.xyz/) 배너 삭제 (자체 제작)
+##.rhkd
+
 !이토랜드 팝업 / 로그인 팝업 / 왼쪽 가운데 배너 삭제 (자체 제작)
 ###main_popup
 ###login_popup
