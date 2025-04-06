@@ -66,7 +66,7 @@ lol.inven.co.kr#@#article > div[style].banner
 !티비위키 (https://tv61.wiki/) 배너 삭제 (자체 제작)
 ##.custom_banner_wrap
 
-!코티비씨 (https://m45.kotbc2.com/) 배너 삭제 (자체 제작)
+!코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR) 배너 삭제 (자체 제작)
 ##.at-title
 ###exon
 
