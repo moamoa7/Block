@@ -229,3 +229,8 @@ files/new_main/*.gif
 /ads/
 ! - 기타
 ! - - - https://assets.twitch.tv/assets/features.whispers.components.whisper-threads-bar-e6a6ec225a2e93461f1c.js
+
+! 트위치 등
+-ads.
+! - Adblock-Rule-Collection-Lit
+! - - - https://assets.twitch.tv/assets/features.video-player.components.video-ads.stream-display-ad.pushdown.portal-587b53c917359db0b154.js
