@@ -215,18 +215,19 @@ upload/banners/*
 ! 오늘의 중계 팝업 삭제  today-sports7.com (자체 제작)
 ###hd_pop
 
-! 에이카 (https://19aca.com/) 배너 삭제 (자체 제작)
-##.rounded-md.object-contain.h-full.w-full
-##.rounded-md.object-cover.h-full.w-full
-! 에이카 (https://19aca.com/) 배너 삭제 후 공간 삭제 (자체 제작)
-##.w-full.gap-4.md\:grid-cols-3.md\:grid.justify-center.flex-wrap.flex
-
 ! hasha (https://hasha.in/) 팝업 차단 (Adblock-Rule-Collection-Lite)
 ! - Ultra Popup Blocker 사용시 필요없음
 &sseq=*&dseq=$popup,third-party
 
 ! 채터베이스 (https://chaturbate.com/) 입장 팝업 삭제 (자체 제작)
 ###entrance_terms_overlay
+
+! 에이카 (https://19aca.com/) 배너 삭제 (자체 제작)
+! - - - 로그인이 필요한 사이트이며 포인트까지.. 사용 하지 말 것
+##.rounded-md.object-contain.h-full.w-full
+##.rounded-md.object-cover.h-full.w-full
+! 에이카 (https://19aca.com/) 배너 삭제 후 공간 삭제 (자체 제작)
+##.w-full.gap-4.md\:grid-cols-3.md\:grid.justify-center.flex-wrap.flex
 
 
 
