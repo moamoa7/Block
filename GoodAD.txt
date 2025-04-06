@@ -9,8 +9,9 @@
 @@/^https:\/\/(www|m)\.coupang\.com\/[A-Za-z0-9_]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_]+\/[A-Za-z0-9_]+(\/[A-Za-z0-9_-]+){0,5}$/$domain=coupang.com,xmlhttprequest,method=post,match-case
 
 ! 길호넷 차단 우회 (List-KR 문구 활용)
-! 도메인을 지정하지 않으면 캡쳐에서 무한 오류남 (고스트리 쓰면 안해도 됨)
-@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
+! - 도메인을 지정하지 않으면 캡쳐에서 무한 오류남
+! - 현재 차단 안되는것 같아 해제
+!@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
 
 ! https://www.srank.kr/ 광고 차단 감지 해제 (애드가드에서는 되는대 ublock에서는 안되서 별도 처리) (List-KR 무력화)
 srank.kr#@#+js(prevent-fetch, doubleclick.net)
