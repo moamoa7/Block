@@ -214,3 +214,8 @@ files/new_main/*.gif
 */ad-$~stylesheet
 ! - GOODBYEADS
 ! - - - https://api.chzzk.naver.com/ad-polling/v1/lives/11603911/ad?ts=1743913846 등
+
+! POOOO 등
+*##.ad
+! - GOODBYEADS
+! - - - https://poooo.ml/chat/chatroom.php
