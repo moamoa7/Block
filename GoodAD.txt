@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040718
+! Version: 25040719
 
 
 !!! 오류 및 차단 해제
@@ -156,18 +156,11 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 ! fc2ppvdb.com 입장시 18세 체크 삭제 (자체 제작)
 ##[id*="ageCheck"]:not(html):not(body):not(article)
 
-! AV핑보걸 / AV러브걸 XX조아 / 다시보고 배너 이미지 삭제(https://github.com/mtxadmin/ublock) - _rules 활용 (자체 제작)
-wp-content/uploads/*.png
-wp-content/uploads/*.gif
-!/uploads/*.gif
-!AV핑크 (개별 추가)
-!/uploads/*.webp
-!@@dramaday.me/*uploads/*.webp
-!/uploads/*.png
-@@dramaday.me/wp-content/uploads/*.png
-@@liteapks.com/wp-content/uploads/*.png
-@@kilho.net/wp-content/uploads/*.png
-##[id^="imgDiv"]:not(html):not(body):not(article)
+! AV핑보걸 (https://pinkbo42.com/) / AV러브걸 (https://avlove26.com/) / XX조아 (https://xxjoa44.com/) 배너 이미지 삭제 (자체 제작)
+##tbody
+
+!AV핑크 (https://avpink34.com/) 배너 이미지 삭제 (자체 제작)
+##.fg-image
 
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) 배너 이미지 삭제 (List-KR 문구 활용) (자체 제작)
 !||hcdn1.maxsocdn.net^$domain=sogirl.so 활용
