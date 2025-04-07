@@ -1,5 +1,5 @@
 ! Title: GoodAD
-! Description: 개인적인 AdBlock List
+! Description: Personal AdBlock List
 ! Version: 25040702
 
 
