@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040724
+! Version: 25040725
 
 
 !!! 오류 및 차단 해제
@@ -57,6 +57,9 @@ djxmaza.in#@#+js(nobab)
 
 
 !!! 차단
+
+! AAGAG (aagag.com) 떠다니는 배너 삭제 (자체 제작)
+##.bottom.center.sAlert
 
 ! 인벤 (https://inven.co.kr) 게시글 하단 안내창 삭제 (자체 제작)
 ##.invenAppSuggestionInner
