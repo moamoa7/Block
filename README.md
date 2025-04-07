@@ -7,7 +7,7 @@
 - 2025년 4월 4일 이후 갑자스럽게 배포가 사라져 임시로 올려놓은 List
 - 2025년 4월 6일 필터 다시 살아남 (https://pastebin.com/raw/y5tsuMN8)
 
-<br/><br/>
+<br/>
 
 # 광고 차단 확장프로그램
 
@@ -21,7 +21,7 @@ https://github.com/gorhill/uBlock/releases/
 
 https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm
 
-<br/><br/>
+<br/>
 
 # 사용중인 Filter 목록
 
@@ -63,7 +63,7 @@ https://filters.adtidy.org/extension/ublock/filters/224.txt
 ※ AdGuard Russian filter
 https://filters.adtidy.org/extension/ublock/filters/1.txt
 
-<br/><br/>
+<br/>
 
 # 유저 스크립트
 
@@ -123,7 +123,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 
 설치주소 : https://update.greasyfork.org/scripts/498145/Youtube%20HD%20Premium.user.js
 
-<br/><br/>
+<br/>
 
 # DNS
 
@@ -155,7 +155,7 @@ https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.txt
 
 https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareAdGuardHome.txt
 
-<br/><br/>
+<br/>
 
 # 추천 브라우저 (모바일)
 
