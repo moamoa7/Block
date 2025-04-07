@@ -159,14 +159,6 @@ https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20vers
 
 # 추천 브라우저 (모바일)
 
-※ Brave
-
-설치주소
-
-https://play.google.com/store/apps/details?id=com.brave.browser
-
-https://apps.apple.com/us/app/brave-browser-search-engine/id1052879175
-
 ※ Quetta Browser
 
 홈페이지 : https://www.quetta.net/
@@ -176,6 +168,14 @@ https://apps.apple.com/us/app/brave-browser-search-engine/id1052879175
 https://play.google.com/store/apps/details?id=net.quetta.browser
 
 https://apps.apple.com/us/app/quetta-ad-free-video-browser/id6504077999
+
+※ Brave
+
+설치주소
+
+https://play.google.com/store/apps/details?id=com.brave.browser
+
+https://apps.apple.com/us/app/brave-browser-search-engine/id1052879175
 
 ※ Soul Browser
 
