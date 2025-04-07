@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040719
+! Version: 25040720
 
 
 !!! 오류 및 차단 해제
@@ -157,7 +157,15 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 ##[id*="ageCheck"]:not(html):not(body):not(article)
 
 ! AV핑보걸 (https://pinkbo42.com/) / AV러브걸 (https://avlove26.com/) / XX조아 (https://xxjoa44.com/) 배너 이미지 삭제 (자체 제작)
-##tbody
+###imgDiv > table
+###imgDiv2
+###imgDiv3
+###imgDiv4
+###imgDiv5
+###imgDiv6
+###imgDiv11
+###imgDiv12
+###imgDiv13
 
 !AV핑크 (https://avpink34.com/) 배너 이미지 삭제 (자체 제작)
 ##.fg-image
