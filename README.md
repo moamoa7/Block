@@ -1,14 +1,29 @@
 # 설명
 ※ GoodAD.txt
-- 아래 사용중인 AdBlock Filter 목록 적용 후 필요하다고 생각되는 개인적인 차단 List
+- 아래 사용중인 Filter 목록 적용 후 필요하다고 생각되는 개인적인 차단 List
 
 ※ adguard_gallery.txt
 - 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
 - 2025년 4월 4일 이후 갑자스럽게 배포가 사라져 임시로 올려놓은 List
 - 2025년 4월 6일 필터 다시 살아남 (https://pastebin.com/raw/y5tsuMN8)
 
+<br/><br/>
 
-# 사용중인 AdBlock Filter 목록
+# 광고 차단 확장프로그램
+
+※ uBlock Origin
+
+홈페이지 : https://github.com/gorhill/uBlock
+
+설치주소
+
+https://github.com/gorhill/uBlock/releases/
+
+https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm
+
+<br/><br/>
+
+# 사용중인 Filter 목록
 
 ※ EasyList
 https://easylist.to/easylist/easylist.txt
@@ -47,9 +62,18 @@ https://filters.adtidy.org/extension/ublock/filters/224.txt
 
 ※ AdGuard Russian filter
 https://filters.adtidy.org/extension/ublock/filters/1.txt
- 
- 
+
+<br/><br/>
+
 # 유저 스크립트
+
+Violentmonkey 확장프로그램 설치 후 사용
+
+홈페이지 : https://violentmonkey.github.io/
+
+설치주소 : https://violentmonkey.github.io/get-it/
+
+<br/>
 
 ※ Ultra Popup Blocker
 
@@ -99,6 +123,7 @@ https://filters.adtidy.org/extension/ublock/filters/1.txt
 
 설치주소 : https://update.greasyfork.org/scripts/498145/Youtube%20HD%20Premium.user.js
 
+<br/><br/>
 
 # DNS
 
@@ -130,6 +155,7 @@ https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.txt
 
 https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareAdGuardHome.txt
 
+<br/><br/>
 
 # 추천 브라우저 (모바일)
 
