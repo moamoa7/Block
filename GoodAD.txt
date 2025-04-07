@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040717
+! Version: 25040718
 
 
 !!! 오류 및 차단 해제
@@ -224,11 +224,6 @@ upload/banners/*
 ##[id^="tab-ad-player"]:not(html):not(body):not(article)
 ##.video-overlay
 
-! 오늘의 중계 배너 삭제  today-sports7.com (자체 제작)
-!##[src*="event_banner"]
-!##.slick-track
-! - - - 쑈당몰 (https://showdang.co.kr/) 상단 배너 차단
-
 ! 오늘의 중계 팝업 삭제  today-sports7.com (자체 제작)
 ###hd_pop
 
@@ -269,5 +264,13 @@ upload/banners/*
 ! 바나나몰 bananamall.co.kr 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작)
 ##[class*="popup"]:not(html):not(body):not(article)
 
-!쑈당몰  https://showdang.co.kr/ 팝업 삭제 (자체 제작)
-###popupCode_move_4_form
+
+
+
+!!! 차단 보류
+
+! 오늘의 중계 배너 삭제  today-sports7.com (자체 제작)
+!##[src*="event_banner"]
+!##.slick-track
+! - - - 쑈당몰 (https://showdang.co.kr/) 상단 배너 차단
+! - - - ##[class*="banner-"]:not(html):not(body):not(article) 에 의해 배너 삭제됨으로 비처리
