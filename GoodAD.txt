@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040802
+! Version: 25040803
 
 
 !!! 오류 및 차단 해제
@@ -41,6 +41,11 @@ djxmaza.in#@##featuredimage
 ! - AdGuard – Ads
 djxmaza.in#@#+js(nobab)
 @@/devfiles.pages.dev\/img\/[a-zA-Z0-9]{8,}.jpeg/$domain=miuiflash.com|djxmaza.in|thecubexguide.com
+
+! 맥스무비 게시글 열람시 오류 해결
+! - 출처 : 애드가드 갤러리 필터 (https://pastebin.com/raw/y5tsuMN8)
+||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
+
 
 
 
