@@ -29,7 +29,11 @@ https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphj
 
 구매주소 : https://www.stacksocial.com/sales/adguard-family-plan-lifetime-subscription
 
-설치주소 : https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%8B%A8%EA%B8%B0/bgnkhhnnamicmpeenaelnjfhikgbkllg
+설치주소
+
+- 윈도우 확장<br/>
+https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%8B%A8%EA%B8%B0/bgnkhhnnamicmpeenaelnjfhikgbkllg
+
 
 <br/>
 
