@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040714
+! Version: 25040715
 
 
 !!! 오류 및 차단 해제
@@ -46,7 +46,7 @@ djxmaza.in#@#+js(nobab)
 
 
 
-!!! 차단 보류
+!!! 우회 처리 보류
 
 ! 길호넷 차단 우회 (List-KR 문구 활용)
 ! - 도메인을 지정하지 않으면 캡쳐에서 무한 오류남
@@ -88,7 +88,8 @@ djxmaza.in#@#+js(nobab)
 
 !치지직 등 광고 차단 안내 팝업 차단 (자체 제작)
 !##[class^="popup_"]:not(html):not(body):not(article)
-##[class*="popup"]:not(html):not(body):not(article)
+!##[class*="popup"]:not(html):not(body):not(article)
+! - - - 바나나몰 bananamall.co.kr 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작) 와 동일하여 보류 처리
 
 ! 소프트콘 뷰어쉽 (https://viewership.softc.one/) 팝업 삭제 (자체 제작)
 ##.fc-dialog-container
