@@ -43,7 +43,6 @@ https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
 ※ Block third party font
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
 
-
 (언어 필터)
 
 ※ List-KR
