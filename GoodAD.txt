@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040727
+! Version: 25040801
 
 
 !!! 오류 및 차단 해제
@@ -141,6 +141,9 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 
 ! 주소월드 (https://wdwd6.com/) 배너 삭제 (자체 제작)
 ##.banner_list.at-container
+
+! 링크판 (https://linkpan71.com/) 배너 삭제 (자체 제작)
+##.ban1
 
 ! 링크사랑 (https://linklove54.com/) 팝업 이미지 차단 (자체 제작)
 ##[class^="miso-love-ad"]:not(html):not(body):not(article)
