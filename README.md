@@ -1,6 +1,7 @@
 # 설명
 ※ GoodAD.txt
 - 아래 사용중인 Filter 목록 적용 후 필요하다고 생각되는 개인적인 차단 List
+<br>
 
 ※ adguard_gallery.txt
 - 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
@@ -20,6 +21,15 @@
 https://github.com/gorhill/uBlock/releases/
 
 https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm
+<br><br>
+
+※ ADGUARD
+
+홈페이지 : https://adguard.com/
+
+구매주소 : https://www.stacksocial.com/sales/adguard-family-plan-lifetime-subscription
+
+설치주소 : https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%8B%A8%EA%B8%B0/bgnkhhnnamicmpeenaelnjfhikgbkllg
 
 <br/>
 
@@ -42,8 +52,9 @@ https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
 
 ※ Block third party font
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
+<br><br>
 
-(언어 필터)
+(언어) 필터
 
 ※ List-KR
 
@@ -71,8 +82,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 홈페이지 : https://violentmonkey.github.io/
 
 설치주소 : https://violentmonkey.github.io/get-it/
-
-<br/>
+<br><br>
 
 ※ Ultra Popup Blocker
 
@@ -81,6 +91,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 홈페이지 : https://github.com/Eskander/ultra-popup-blocker
 
 설치주소 : https://update.greasyfork.org/scripts/387937/Ultra%20Popup%20Blocker.user.js
+<br><br>
 
 ※ NamuLink
 
@@ -89,6 +100,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 홈페이지 : https://github.com/List-KR/NamuLink
 
 설치주소 : https://cdn.jsdelivr.net/npm/@list-kr/namulink@latest/dist/NamuLink.user.js
+<br><br>
 
 ※ tinyShield
 
@@ -97,7 +109,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 홈페이지 : https://github.com/List-KR/tinyShield
 
 설치주소 : https://cdn.jsdelivr.net/npm/@list-kr/tinyshield@latest/dist/tinyShield.user.js
-
+<br><br>
 
 ※ Bypass All Shortlinks Debloated
 
@@ -106,6 +118,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 홈페이지 : https://codeberg.org/Amm0ni4/bypass-all-shortlinks-debloated
 
 설치주소 : https://codeberg.org/Amm0ni4/bypass-all-shortlinks-debloated/raw/branch/main/Bypass_All_Shortlinks.user.js
+<br><br>
 
 ※ AMP 비활성화 by AdGuard
 - Google 검색 결과 페이지에서 AMP 페이지를 비활성화하는 매우 간단한 사용자 스크립트입니다
@@ -113,6 +126,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 홈페이지 : https://github.com/AdguardTeam/DisableAMP
 
 설치주소 : https://userscripts.adtidy.org/release/disable-amp/1.0/disable-amp.user.js
+<br><br>
 
 ※ Youtube HD Premium
 
@@ -167,6 +181,7 @@ https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20vers
 https://play.google.com/store/apps/details?id=net.quetta.browser
 
 https://apps.apple.com/us/app/quetta-ad-free-video-browser/id6504077999
+<br><br>
 
 ※ Brave
 
@@ -175,6 +190,7 @@ https://apps.apple.com/us/app/quetta-ad-free-video-browser/id6504077999
 https://play.google.com/store/apps/details?id=com.brave.browser
 
 https://apps.apple.com/us/app/brave-browser-search-engine/id1052879175
+<br><br>
 
 ※ Soul Browser
 
