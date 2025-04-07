@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040720
+! Version: 25040721
 
 
 !!! 오류 및 차단 해제
@@ -156,6 +156,9 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 ! fc2ppvdb.com 입장시 18세 체크 삭제 (자체 제작)
 ##[id*="ageCheck"]:not(html):not(body):not(article)
 
+! 조개무비 (https://v15.jogemovie.net/) 배너 이미지 삭제 (자체 제작)
+##.wpb_content_element.wpb_text_column
+
 ! AV핑보걸 (https://pinkbo42.com/) / AV러브걸 (https://avlove26.com/) / XX조아 (https://xxjoa44.com/) 배너 이미지 삭제 (자체 제작)
 ###imgDiv > table
 ###imgDiv2
@@ -166,6 +169,10 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 ###imgDiv11
 ###imgDiv12
 ###imgDiv13
+
+! AV핑유걸 (https://avpingyou18.com/)  배너 이미지 삭제 (자체 제작)
+!##[class^="bannerul"]:not(html):not(body):not(article)
+##.bannerul
 
 !AV핑크 (https://avpink34.com/) 배너 이미지 삭제 (자체 제작)
 ##.fg-image
@@ -186,10 +193,6 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 ! AV핑보걸 영상 화면 하단 배너 차단 (자체 제작)
 ! 쏘걸 (https://kr78.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
 !##.happy-under-player
-
-! AV핑유걸  배너 이미지 삭제 (자체 제작)
-!##[class^="bannerul"]:not(html):not(body):not(article)
-##.bannerul
 
 ! 자브걸 (https://kr23.javgirl.co/)  배너 이미지 삭제 (자체 제작)
 !##[class^="ad_banner"]:not(html):not(body):not(article)
