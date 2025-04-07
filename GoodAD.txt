@@ -86,8 +86,9 @@ djxmaza.in#@#+js(nobab)
 ! 숲 다시보기 (https://vod.sooplive.co.kr/) 알바몬 아이콘 삭제 (자체 제작)
 ##.adballoon_icon
 
-!치지직 광고 차단 안내 팝업 차단 (자체 제작)
-##[class^="popup_"]:not(html):not(body):not(article)
+!치지직 등 광고 차단 안내 팝업 차단 (자체 제작)
+!##[class^="popup_"]:not(html):not(body):not(article)
+##[class*="popup"]:not(html):not(body):not(article)
 
 ! 소프트콘 뷰어쉽 (https://viewership.softc.one/) 팝업 삭제 (자체 제작)
 ##.fc-dialog-container
