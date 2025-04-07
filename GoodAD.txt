@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040708
+! Version: 25040709
 
 
 !!! 오류 및 차단 해제
@@ -105,10 +105,6 @@ djxmaza.in#@#+js(nobab)
 
 ! 고트티비 (https://goat-v.com) 팝업 차단 (자체 제작)
 ##.popup-container
-
-! 티비위키 ((https://tvwiki19.com/) 배너 이미지 삭제 (자체 제작)
-/ad/*
-! - - - https://tvwiki19.com/AD/sdfsdfsd%20(1).jpg 등
 
 ! 티비위키 (https://tvwiki19.com/) websocket 차단
 !||openwebtorrent.com
