@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040704
+! Version: 25040705
 
 
 !!! 오류 및 차단 해제
