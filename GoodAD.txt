@@ -147,7 +147,8 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 
 
 ! AV19.org (https://av19.live/) 상단 배너 삭제 등 (자체 제작)
-##[class$="_banner"]:not(html):not(body):not(article)
+!##[class$="_banner"]:not(html):not(body):not(article)
+##.top_banner
 
 !폰허브 (https://github.com/mtxadmin/ublock) - _rules
 !입장할때 18세 이상 물어보는거 패스 (2개 다 해야함)
