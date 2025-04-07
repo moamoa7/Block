@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040805
+! Version: 25040806
 
 
 !!! 오류 및 차단 해제
@@ -137,6 +137,11 @@ djxmaza.in#@#+js(nobab)
 
 ! 후후티비 (https://hoohootv162.xyz/) 배너 삭제 (자체 제작)
 ##.rhkd
+
+! 티비룸 (tvroom7.org/) 팝업 삭제 (자체 제작)
+##.iziModal-overlay
+! 티비룸 (tvroom7.org/) 배너 이미지 삭제 (자체 제작)
+##.banner_
 
 !누누티비 (https://www.ntnt4.tv/) 배너 삭제 (자체 제작)
 ##.wixui-column-strip.CohWsy.comp-lhh974lu
