@@ -328,6 +328,6 @@ upload/banners/*
 web.joongna.com#@#[id^="main-banner"]:not(html):not(body):not(article)
 web.joongna.com#@#[class*="banner-"]:not(html):not(body):not(article)
 ! 중고나라 배너 이미지
-web.joongna.com@@img2.joongna.com/banner/
+@@web.joongna.com/banner^$image
 ! 중고나라 게시물 이미지
 web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
