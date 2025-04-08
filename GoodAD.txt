@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040905
+! Version: 25040906
 
 
 !!! 오류 및 차단 해제
@@ -309,6 +309,8 @@ upload/banners/*
 @@cdn-banana.bizhost.kr/banana_web_20181015/banner/d_07.gif
 cdn-banana.bizhost.kr/banner^$image
 /popup^$image
+!- 예외목록
+@@img.cgv.co.kr*/popup/*
 ! 바나나몰 bananamall.co.kr 팝업 왼쪽 삭제 (자체 제작)
 ###pop_saunpum
 ! 바나나몰 bananamall.co.kr 팝업 오른쪽 삭제 (자체 제작)
