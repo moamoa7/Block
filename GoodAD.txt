@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040906
+! Version: 25040907
 
 
 !!! 오류 및 차단 해제
@@ -310,7 +310,7 @@ upload/banners/*
 cdn-banana.bizhost.kr/banner^$image
 /popup^$image
 !- 예외목록
-@@img.cgv.co.kr*/popup/*
+!@@img.cgv.co.kr*/popup/*
 ! 바나나몰 bananamall.co.kr 팝업 왼쪽 삭제 (자체 제작)
 ###pop_saunpum
 ! 바나나몰 bananamall.co.kr 팝업 오른쪽 삭제 (자체 제작)
@@ -348,7 +348,7 @@ web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
 ! CGV 모바일 하단 강제 삭제 (자체 제작)
 ! - 팝업을 삭제하면 스크롤이 안됨
 ! - - - 하나씩 지워도 뿌여하면 나오는데 그걸 클릭하게 하면 스크롤은 가능한대 불편함
-! - - - 팝업 창 나오게 처리함으로 보류 처리
+! - - - 팝업 창 나오게 처리함으로 보류 처리 (팝업 이미지는 차단)
 !m.cgv.co.kr##[class^="home_contents_list_wrap home"]
 !m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! CGV 모바일 하단 배너 공간 삭제 (자체 제작)
