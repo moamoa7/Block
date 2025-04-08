@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040815
+! Version: 25040816
 
 
 !!! 오류 및 차단 해제
@@ -350,6 +350,8 @@ web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
 ##[id^="ad_"]:not(html):not(body):not(article)
 ##[class^="ad-"]:not(html):not(body):not(article):not(.ad-site-wrapper)
 ##[id^="ad-"]:not(html):not(body):not(article)
+##[class*="-ad-"]:not(html):not(body):not(article):not([class*="page-wrapper"])
+##[id*="-ad-"]:not(html):not(body):not(article)
 ##[class^="ads"]:not(html):not(body):not(article):not(#issue)
 ##[id$="-ads"]:not(html):not(body):not(article)
 ##[class*="-ads-"]:not(html):not(body):not(article)
@@ -358,6 +360,7 @@ web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
 ##[id*="_ads_"]:not(html):not(body):not(article)
 ##[class$="_ads"]:not(html):not(body):not(article)
 ##[id$="_ads"]:not(html):not(body):not(article)
+
 
 ##[class*="Advert"]:not(html):not(body):not(article):not(main):not(aside)
 ##[id*="Advert"]:not(html):not(body):not(article):not(main):not(aside)
