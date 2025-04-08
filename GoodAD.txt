@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040915
+! Version: 25040916
 
 
 !!! 오류 및 차단 해제
@@ -344,10 +344,10 @@ m.11st.co.kr##.slideInBottom
 m.11st.co.kr##.fadeIn.animated.dim
 
 ! 중고나라 (web.joongna.com) 복원
-! 중고나라 배너 공간
+! - - - 중고나라 배너 공간
 web.joongna.com#@#[id^="main-banner"]:not(html):not(body):not(article)
 web.joongna.com#@#[class*="banner-"]:not(html):not(body):not(article)
-! 중고나라 게시물 이미지
+! - - - 중고나라 게시물 이미지
 web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
 
 
