@@ -7,6 +7,9 @@
 - 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
 - 2025년 4월 4일 이후 갑자스럽게 배포가 사라져 임시로 올려놓은 List
 - 2025년 4월 6일 필터 다시 살아남 (https://pastebin.com/raw/y5tsuMN8)
+- 2025년 4월 8일 새로운 주소 확인<br/>
+홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter<br/>
+필터주소 :https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 
 <br/>
 
