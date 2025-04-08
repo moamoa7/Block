@@ -19,7 +19,7 @@ srank.kr#@#+js(prevent-fetch, doubleclick.net)
 !옥션 배송조회 차단 해제 (AdVoid.Full)
 @@/tracking.js$domain=tracking.auction.co.kr
 
-!티비위키 영상 차단 해제 (AdVoid.Full)
+!티비위키 영상 재생 차단 해제 (AdVoid.Full)
 !- - - 원소스 @@/videojs-chromecast.min.js^$script
 @@/videojs-chromecast.min.js^$domain=player.bunny-frame.online
 
