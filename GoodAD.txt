@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040903
+! Version: 25040905
 
 
 !!! 오류 및 차단 해제
@@ -323,6 +323,9 @@ cdn-banana.bizhost.kr/banner^$image
 /files/new_main/*.jpg
 ! 바나나몰 bananamall.co.kr 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작)
 ##[class*="popup"]:not(html):not(body):not(article)
+! - - -  예외 목록
+! - - - 강제로 하면 화면 스크롤 및 왼쪽 하단 메뉴 클릭이 안됨
+m.cgv.co.kr#@#[class*="popup"]:not(html):not(body):not(article)
 
 ! 11번가 (모바일) 하단 배너 삭제 (자체 제작)
 11st.co.kr##.slideInBottom
@@ -343,9 +346,9 @@ web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
 ! CGV 모바일 하단 강제 삭제 (자체 제작)
 ! - 팝업을 삭제하면 스크롤이 안됨
 ! - - - 하나씩 지워도 뿌여하면 나오는데 그걸 클릭하게 하면 스크롤은 가능한대 불편함
-! - - - 근데 내용을 보니 쓸데없는 내용인거 같아 지우기로 결정
-m.cgv.co.kr##[class^="home_contents_list_wrap home"]
-m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
+! - - - 팝업 창 나오게 처리함으로 보류 처리
+!m.cgv.co.kr##[class^="home_contents_list_wrap home"]
+!m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! CGV 모바일 하단 배너 공간 삭제 (자체 제작)
 ##.topBanner.home_article_wrap
 
