@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040912
+! Version: 25040913
 
 
 !!! 오류 및 차단 해제
@@ -68,6 +68,9 @@ djxmaza.in#@#+js(nobab)
 
 
 !!! 차단
+
+!기상청 (https://www.weather.go.kr/) 상단 배너 삭제 (자체 제작)
+weather.go.kr###banner_2021
 
 ! AAGAG (aagag.com) 떠다니는 배너 삭제 (자체 제작)
 ##.bottom.center.sAlert
