@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040816
+! Version: 25040817
 
 
 !!! 오류 및 차단 해제
@@ -333,35 +333,52 @@ web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
 
 ! 그 외 임시 등록
 ##[id*="promotion"]:not(html):not(body):not(article)
+
 ##[id*="-promo"]:not(html):not(body):not(article)
-##[id*="Promo"]:not(html):not(body):not(article)
-##[id*="promo"]:not(html):not(body):not(article)
-##[class*="Promo"]:not(html):not(body):not(article)
 ##[class*="-promo"]:not(html):not(body):not(article):not(.node-promoted):not(.content):not(.content__header)
+
+##[id*="Promo"]:not(html):not(body):not(article)
+##[class*="Promo"]:not(html):not(body):not(article)
+
+##[id*="promo"]:not(html):not(body):not(article)
+
+
 
 ##[id*="Banner"]:not(html):not(body):not(article)
 ##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
 
 ##[class^="AD_"]:not(html):not(body):not(article)
 ##[id^="AD_"]:not(html):not(body):not(article)
+
 ##[class^="Ad_"]:not(html):not(body):not(article)
 ##[id^="Ad_"]:not(html):not(body):not(article)
+
 ##[class^="ad_"]:not(html):not(body):not(article)
 ##[id^="ad_"]:not(html):not(body):not(article)
+
 ##[class^="ad-"]:not(html):not(body):not(article):not(.ad-site-wrapper)
 ##[id^="ad-"]:not(html):not(body):not(article)
-##[class*="-ad-"]:not(html):not(body):not(article):not([class*="page-wrapper"])
+
+!##[class*="-ad-"]:not(html):not(body):not(article):not([class*="page-wrapper"])
 ##[id*="-ad-"]:not(html):not(body):not(article)
+
 ##[class^="ads"]:not(html):not(body):not(article):not(#issue)
+##[id^="ads"]:not(html):not(body):not(article)
+
 ##[id$="-ads"]:not(html):not(body):not(article)
+##[class$="-ads"]:not(html):not(body):not(article)
+
 ##[class*="-ads-"]:not(html):not(body):not(article)
 ##[id*="-ads-"]:not(html):not(body):not(article)
+
 ##[class*="_ads_"]:not(html):not(body):not(article)
 ##[id*="_ads_"]:not(html):not(body):not(article)
+
 ##[class$="_ads"]:not(html):not(body):not(article)
 ##[id$="_ads"]:not(html):not(body):not(article)
 
-
 ##[class*="Advert"]:not(html):not(body):not(article):not(main):not(aside)
 ##[id*="Advert"]:not(html):not(body):not(article):not(main):not(aside)
+
 ##[class*="advert"]:not(html):not(body):not(article):not(main):not(aside)
+##[id*="advert"]:not(html):not(body):not(article)
