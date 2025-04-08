@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040812
+! Version: 25040813
 
 
 !!! 오류 및 차단 해제
@@ -328,6 +328,6 @@ upload/banners/*
 web.joongna.com#@#[id^="main-banner"]:not(html):not(body):not(article)
 web.joongna.com#@#[class*="banner-"]:not(html):not(body):not(article)
 ! 중고나라 배너 이미지
-@@web.joongna.com/banner^$image
+@@joongna.com/banner/
 ! 중고나라 게시물 이미지
 web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
