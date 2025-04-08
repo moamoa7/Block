@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040822
+! Version: 25040823
 
 
 !!! 오류 및 차단 해제
@@ -84,6 +84,7 @@ djxmaza.in#@#+js(nobab)
 
 ! 짱공유 (https://www.jjang0u.com/) 모바일 하단 배너 삭제 (자체 제작)
 !##.ad_area1
+! - ##[class^="ad_"]:not(html):not(body):not(article) 로 처리
 ! 짱공유 (https://www.jjang0u.com/) 왼쪽 배너 공간 삭제 (자체 제작)
 ###banner
 
