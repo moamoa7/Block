@@ -160,6 +160,7 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 
 ! 한국경제 배너 등 삭제
 ! - 출처 : 애드가드 갤러리 필터 (https://pastebin.com/raw/y5tsuMN8)
+! - https://github.com/mtxadmin/ublock - _rules 규칙 적용
 ##[class*="promotion"]:not(html):not(body):not(article)
 
 ! 주소월드 (https://wdwd6.com/) 배너 삭제 (자체 제작)
