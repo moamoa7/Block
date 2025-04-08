@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040807
+! Version: 25040808
 
 
 !!! 오류 및 차단 해제
@@ -18,6 +18,9 @@ srank.kr#@#+js(prevent-fetch, doubleclick.net)
 
 !옥션 배송조회 차단 해제 (AdVoid.Full)
 @@/tracking.js$domain=tracking.auction.co.kr
+
+! 11번가 (https://11st.co.kr/) 배너 삭제 복원 (AdVoid.Full)
+#@#.c-banner
 
 !티비위키 영상 재생 차단 해제 (AdVoid.Full)
 !- - - 원소스 @@/videojs-chromecast.min.js^$script
@@ -293,7 +296,7 @@ upload/banners/*
 @@cdn-banana.bizhost.kr/banana_web_20181015/banner/d_07.gif
 /banner^$image
 ! - - - 예외처리
-! - - - - - 11번가 배너 이미지 일부 보여야 해서 처리
+! - - - - - 11번가 배너 이미지 보여야 해서 처리
 @@cdn.011st.com*/banner/*
 /popup^$image
 ! 바나나몰 bananamall.co.kr 팝업 왼쪽 삭제 (자체 제작)
@@ -310,7 +313,3 @@ upload/banners/*
 /files/new_main/*.jpg
 ! 바나나몰 bananamall.co.kr 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작)
 ##[class*="popup"]:not(html):not(body):not(article)
-
-! 11번가 (https://11st.co.kr/) 상단 배너 부분 영역 삭제 (자체 제작)
-###carrier-9237
-###carrier-9238
