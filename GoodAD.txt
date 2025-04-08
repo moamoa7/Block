@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040916
+! Version: 25040917
 
 
 !!! 오류 및 차단 해제
@@ -77,10 +77,12 @@ djxmaza.in#@#+js(nobab)
 ! 인벤 오른쪽 하단 떠다니는 배너 삭제 (자체 제작)
 ##.roulette-open.inven-float-alarm
 
-!이토랜드 팝업 / 로그인 팝업 / 왼쪽 가운데 배너 삭제 (자체 제작)
+!이토랜드 (https://www.etoland.co.kr/) 팝업 / 로그인 팝업 / 왼쪽 가운데 배너 삭제 (자체 제작)
 ###main_popup
 ###login_popup
 ##.banner-box
+! 이토랜드 (https://www.etoland.co.kr/) 광고 게시물 삭제 (자체 제작)
+##.ad_list
 
 ! 짱공유 (https://www.jjang0u.com/) 모바일 하단 배너 삭제 (자체 제작)
 !##.ad_area1
@@ -88,10 +90,10 @@ djxmaza.in#@#+js(nobab)
 ! 짱공유 (https://www.jjang0u.com/) 왼쪽 배너 공간 삭제 (자체 제작)
 ###banner
 
-! 루리 모바일 하단 배너 삭제 (자체 제작)
+! 루리 (https://bbs.ruliweb.com/) 모바일 하단 배너 삭제 (자체 제작)
 ##.ad_go_wrapper
 
-! 디시인사이드  실시간 베스트 등 오른쪽 배너 삭제 (자체 제작)
+! 디시인사이드 (https://www.dcinside.com/)  실시간 베스트 등 오른쪽 배너 삭제 (자체 제작)
 ! - 뉴스.미디어.이슈
 ##.r_dcmedia.content_box
 ! - 실시간 베스트
@@ -105,7 +107,7 @@ djxmaza.in#@#+js(nobab)
 ! 숲 다시보기 (https://vod.sooplive.co.kr/) 알바몬 아이콘 삭제 (자체 제작)
 ##.adballoon_icon
 
-!치지직 등 광고 차단 안내 팝업 차단 (자체 제작)
+!치지직 (https://chzzk.naver.com/) 등 광고 차단 안내 팝업 차단 (자체 제작)
 !##[class^="popup_"]:not(html):not(body):not(article)
 !##[class*="popup"]:not(html):not(body):not(article)
 ! - - - 바나나몰 bananamall.co.kr 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작) 와 동일하여 보류 처리
@@ -158,10 +160,10 @@ djxmaza.in#@#+js(nobab)
 ! OP.GG (https://www.op.gg/) 하단 배너 삭제 (Adblock-Rule-Collection-Lite)
 op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 
-! 연합뉴스 광고 제거 (자체 제작)
+! 연합뉴스 (https://www.yna.co.kr/) 광고 제거 (자체 제작)
 ##[class^="aside-box"]:not(html):not(body):not(article)
 
-! 한국경제 배너 등 삭제
+! 한국경제 (https://www.hankyung.com/) 배너 등 삭제
 ! - 출처 : 애드가드 갤러리 필터 (https://pastebin.com/raw/y5tsuMN8)
 ! - https://github.com/mtxadmin/ublock - _rules 규칙 적용
 ##[class*="promotion"]:not(html):not(body):not(article)
@@ -276,13 +278,13 @@ upload/banners/*
 ##[id^="tab-ad-player"]:not(html):not(body):not(article)
 ##.video-overlay
 
-! 오늘의 중계 배너 삭제  today-sports7.com (자체 제작)
+! 오늘의 중계 (today-sports7.com) 배너 삭제 (자체 제작)
 ##[src*="event_banner"]
 !##.slick-track
 ! - - - 쑈당몰 (https://showdang.co.kr/) 상단 배너 차단
 ! - - - ##[class*="banner-"]:not(html):not(body):not(article) 에 의해 배너 삭제됨으로 비처리
 
-! 오늘의 중계 팝업 삭제  today-sports7.com (자체 제작)
+! 오늘의 중계 (today-sports7.com) 팝업 삭제  today-sports7.com (자체 제작)
 ###hd_pop
 
 ! hasha (https://hasha.in/) 팝업 차단 (Adblock-Rule-Collection-Lite)
@@ -315,7 +317,7 @@ upload/banners/*
 
 
 
-! 바나나몰 bananamall.co.kr 등 배너 이미지 삭제 (자체 제작)
+! 바나나몰 (bananamall.co.kr) 등 배너 이미지 삭제 (자체 제작)
 @@cdn-banana.bizhost.kr/banana_web_20181015/banner/logo_default_2025_bananamall.gif
 @@cdn-banana.bizhost.kr/banana_web_20181015/banner/top_new_prd.gif
 @@cdn-banana.bizhost.kr/banana_web_20181015/banner/d_07.gif
@@ -324,20 +326,20 @@ cdn-banana.bizhost.kr/banner^$image
 cdn-banana.bizhost.kr*/popup/*.gif
 cdn-banana.bizhost.kr*/popup/*.jpg
 cdn-banana.bizhost.kr*/popup/*.png
-! 바나나몰 bananamall.co.kr 팝업 왼쪽 삭제 (자체 제작)
+! 바나나몰 (bananamall.co.kr) 팝업 왼쪽 삭제 (자체 제작)
 ###pop_saunpum
-! 바나나몰 bananamall.co.kr 팝업 오른쪽 삭제 (자체 제작)
+! 바나나몰 (bananamall.co.kr) 팝업 오른쪽 삭제 (자체 제작)
 ###pop_gevent
-! 바나나몰 모바일 https://m.bananamall.co.kr/ 팝업 삭제 (자체 제작)
-##.m2-index-pop
-! 바나나몰 bananamall.co.kr 왼쪽 배너 이미지 삭제 (자체 제작)
+! 바나나몰 (bananamall.co.kr) 왼쪽 배너 이미지 삭제 (자체 제작)
 ##[class*="_banner_"]:not(html):not(body):not(article)
 ##[class*="banner-"]:not(html):not(body):not(article)
-! 바나나몰 bananamall.co.kr 양쪽 배너 이미지 삭제 (자체 제작)
+! 바나나몰 (bananamall.co.kr) 양쪽 배너 이미지 삭제 (자체 제작)
 /files/new_main/*.gif
 /files/new_main/*.jpg
-! 바나나몰 bananamall.co.kr 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작)
+! 바나나몰 (bananamall.co.kr) 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작)
 ##[class*="popup"]:not(html):not(body):not(article)
+! 바나나몰 모바일 https://m.bananamall.co.kr/ 팝업 삭제 (자체 제작)
+##.m2-index-pop
 
 ! 11번가 모바일 (m.11st.co.kr) 하단 배너 삭제 (자체 제작)
 m.11st.co.kr##.slideInBottom
