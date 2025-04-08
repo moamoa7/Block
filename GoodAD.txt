@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040910
+! Version: 25040911
 
 
 !!! 오류 및 차단 해제
@@ -309,11 +309,9 @@ upload/banners/*
 @@cdn-banana.bizhost.kr/banana_web_20181015/banner/d_07.gif
 cdn-banana.bizhost.kr/banner^$image
 !/popup^$image
-/popup/*.gif
-/popup/*.jpg
-/popup/*.png
-!- 예외목록
-!@@img.cgv.co.kr*/popup/*
+cdn-banana.bizhost.kr*/popup/*.gif
+cdn-banana.bizhost.kr*/popup/*.jpg
+cdn-banana.bizhost.kr*/popup/*.png
 ! 바나나몰 bananamall.co.kr 팝업 왼쪽 삭제 (자체 제작)
 ###pop_saunpum
 ! 바나나몰 bananamall.co.kr 팝업 오른쪽 삭제 (자체 제작)
@@ -328,13 +326,10 @@ cdn-banana.bizhost.kr/banner^$image
 /files/new_main/*.jpg
 ! 바나나몰 bananamall.co.kr 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작)
 ##[class*="popup"]:not(html):not(body):not(article)
-! - - -  예외 목록
-! - - - 강제로 하면 화면 스크롤 및 왼쪽 하단 메뉴 클릭이 안됨
-m.cgv.co.kr#@#[class*="popup"]:not(html):not(body):not(article)
 
-! 11번가 (모바일) 하단 배너 삭제 (자체 제작)
-11st.co.kr##.slideInBottom
-11st.co.kr##.fadeIn.animated.dim
+! 11번가 모바일 (m.11st.co.kr) 하단 배너 삭제 (자체 제작)
+m.11st.co.kr##.slideInBottom
+m.11st.co.kr##.fadeIn.animated.dim
 
 ! 중고나라 (web.joongna.com) 복원
 ! 중고나라 배너 공간
@@ -346,15 +341,20 @@ web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
 
 
 
-! CGV 모바일 배너 삭제 (자체 제작)
+
+
+! CGV 모바일 (m.cgv.co.kr) 팝업 차단 해제 (자체 제작)
+! - - - 강제로 하면 화면 스크롤 및 왼쪽 하단 메뉴 클릭이 안됨
+m.cgv.co.kr#@#[class*="popup"]:not(html):not(body):not(article)
+! CGV 모바일 (m.cgv.co.kr) 상단 배너 삭제 (자체 제작)
 ##.homeAdWrap
-! CGV 모바일 하단 강제 삭제 (자체 제작)
+! CGV 모바일 (m.cgv.co.kr) 일부 요소 강제 삭제 (자체 제작)
 ! - 팝업을 삭제하면 스크롤이 안됨
 ! - - - 하나씩 지워도 뿌여하면 나오는데 그걸 클릭하게 하면 스크롤은 가능한대 불편함
 ! - - - 필요 없다고 생각되서 메인 화면 일부 삭제
 m.cgv.co.kr##[class^="home_contents_list_wrap home"]
 m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
-! CGV 모바일 하단 배너 공간 삭제 (자체 제작)
+! CGV 모바일 (m.cgv.co.kr) 맨 밑 하단 배너 공간 삭제 (자체 제작)
 ##.topBanner.home_article_wrap
 
 
