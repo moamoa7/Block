@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040809
+! Version: 25040810
 
 
 !!! 오류 및 차단 해제
@@ -318,3 +318,7 @@ upload/banners/*
 /files/new_main/*.jpg
 ! 바나나몰 bananamall.co.kr 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작)
 ##[class*="popup"]:not(html):not(body):not(article)
+
+! 11번가 (모바일) 하단 배너 삭제 (자체 제작)
+11st.co.kr##.slideInBottom
+11st.co.kr##.fadeIn.animated.dim
