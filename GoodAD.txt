@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041001
+! Version: 25041002
 
 
 !!! 오류 및 차단 해제
@@ -151,7 +151,7 @@ djxmaza.in#@#+js(nobab)
 
 !코난티비 (https://conan-tv.com/) 배너 (자체 제작)
 ||conan-tv.com/img/banner.gif
-###fboardlist
+conan-tv.com###fboardlist
 
 ! 티비위키 (https://tvwiki19.com/) websocket
 !||openwebtorrent.com
