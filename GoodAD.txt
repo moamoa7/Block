@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040917
+! Version: 25040918
 
 
 !!! 오류 및 차단 해제
@@ -351,6 +351,10 @@ web.joongna.com#@#[id^="main-banner"]:not(html):not(body):not(article)
 web.joongna.com#@#[class*="banner-"]:not(html):not(body):not(article)
 ! - - - 중고나라 게시물 이미지
 web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
+
+! 쇼핑라이브 - 네이버 스토어 (https://shoppinglive.naver.com/) 팝업 차단 해제 (자체 제작)
+! - - - 강제로 하면 화면 스크롤 안되서 해제
+shoppinglive.naver.com#@#[class*="popup"]:not(html):not(body):not(article)
 
 
 
