@@ -1,6 +1,10 @@
 # 설명
 ※ GoodAD.txt
 - 아래 사용중인 Filter 목록 적용 후 필요하다고 생각되는 개인적인 차단 List
+
+```
+https://raw.githubusercontent.com/moamoa7/adblock/refs/heads/main/GoodAD.txt
+```
 <br>
 
 ※ adguard_gallery.txt
@@ -9,7 +13,9 @@
 - 2025년 4월 6일 필터 다시 살아남 (https://pastebin.com/raw/y5tsuMN8)
 - 2025년 4월 8일 새로운 주소 확인<br/>
 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter<br/>
-필터주소 :https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+```
+https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+```
 
 <br/>
 
@@ -82,6 +88,8 @@ https://filters.adtidy.org/extension/ublock/filters/1.txt
 
 <br/>
 
+※ 필터 주소 목록 모음
+
 ```
 https://easylist.to/easylist/easylist.txt
 
@@ -104,6 +112,10 @@ https://filters.adtidy.org/extension/ublock/filters/7.txt
 https://filters.adtidy.org/extension/ublock/filters/224.txt
 
 https://filters.adtidy.org/extension/ublock/filters/1.txt
+
+https://raw.githubusercontent.com/moamoa7/adblock/refs/heads/main/GoodAD.txt
+
+https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 
 ```
 
