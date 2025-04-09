@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040918
+! Version: 25040919
 
 
 !!! 오류 및 차단 해제
@@ -108,9 +108,7 @@ djxmaza.in#@#+js(nobab)
 ##.adballoon_icon
 
 !치지직 (https://chzzk.naver.com/) 등 광고 차단 안내 팝업 차단 (자체 제작)
-!##[class^="popup_"]:not(html):not(body):not(article)
-!##[class*="popup"]:not(html):not(body):not(article)
-! - - - 바나나몰 bananamall.co.kr 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작) 와 동일하여 보류 처리
+##[class^="popup_"]:not(html):not(body):not(article)
 
 ! 소프트콘 뷰어쉽 (https://viewership.softc.one/) 팝업 삭제 (자체 제작)
 ##.fc-dialog-container
@@ -336,8 +334,8 @@ cdn-banana.bizhost.kr*/popup/*.png
 ! 바나나몰 (bananamall.co.kr) 양쪽 배너 이미지 삭제 (자체 제작)
 /files/new_main/*.gif
 /files/new_main/*.jpg
-! 바나나몰 (bananamall.co.kr) 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작)
-##[class*="popup"]:not(html):not(body):not(article)
+! 바나나몰 (bananamall.co.kr) 오른쪽 하단 따라 다니는 팝업 삭제 (자체 제작) (삭제)
+!##[class*="popup"]:not(html):not(body):not(article)
 ! 바나나몰 모바일 https://m.bananamall.co.kr/ 팝업 삭제 (자체 제작)
 ##.m2-index-pop
 
@@ -351,11 +349,6 @@ web.joongna.com#@#[id^="main-banner"]:not(html):not(body):not(article)
 web.joongna.com#@#[class*="banner-"]:not(html):not(body):not(article)
 ! - - - 중고나라 게시물 이미지
 web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
-
-! 쇼핑라이브 - 네이버 스토어 (https://shoppinglive.naver.com/) 팝업 차단 해제 (자체 제작)
-! - - - 강제로 하면 화면 스크롤 안되서 해제
-shoppinglive.naver.com#@#[class*="popup"]:not(html):not(body):not(article)
-
 
 
 
