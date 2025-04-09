@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040938
+! Version: 25041001
 
 
 !!! 오류 및 차단 해제
@@ -210,6 +210,8 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ##.ban1
 ! 링크판 (https://linkpan71.com/) 팝업 (자체 제작)
 ##.layer_popup
+! ! 링크판 (https://linkpan71.com/) 모바일 하단 배너 (자체 제작)
+##[href="https://alspo5.net"]
 
 ! 링크사랑 (https://linklove54.com/) 팝업 이미지 (자체 제작)
 ##.miso-love-ad
@@ -323,6 +325,8 @@ upload/banners/*
 ###hd_pop
 ! 오늘의 중계 (today-sports7.com) 게시물내 한칸짜리 배너 (자체 제작)
 ##[src*="event_banner"]
+! 오늘의 중계 (today-sports7.com) 모바일 상단 배너 (자체 제작)
+##.live-stream.only-mobile
 
 ! hasha (https://hasha.in/) 팝업 (Adblock-Rule-Collection-Lite)
 ! - Ultra Popup Blocker 사용시 필요없음
