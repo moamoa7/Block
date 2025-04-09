@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041005
+! Version: 250410056
 
 
 !!! 오류 및 차단 해제
@@ -224,10 +224,6 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 (자체 제작)
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
-
-! XVIDEOS (https://xvideos.com/) 메인 영상 사라짐 방지 (자체 제작)
-xvideos.com#@#[class*="-ad-"]:not(html):not(body):not(article):not([class*="page-wrapper"])
-xvideos.com#@#[class*="ads"]:not(html):not(body):not(article)
 
 ! AV19.org (https://av19.live/) 상단 배너 등 (자체 제작)
 !##[class$="_banner"]:not(html):not(body):not(article)
@@ -463,20 +459,23 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 ! 지마켓 / 옥션 / G마켓
 ##[class$="-ad"]:not(html):not(body):not(article):not(#maincontent)
-
-##[class*="-ad-"]:not(html):not(body):not(article):not([class*="page-wrapper"])
+! xvideos.com 메인영상 사라짐으로 비활성 처리
+!##[class*="-ad-"]:not(html):not(body):not(article):not([class*="page-wrapper"])
 ##[id*="-ad-"]:not(html):not(body):not(article)
 
 ! 중고나라
 ##[class^="ads"]:not(html):not(body):not(article):not(#issue)
 ##[id^="ads"]:not(html):not(body):not(article)
 
-##[class*="ads"]:not(html):not(body):not(article)
+! AV19 (https://av19.live/) 영상화면 지워짐으로 비활성 처리
+! xvideos.com 메인영상 사라짐으로 비활성 처리
+!##[class*="ads"]:not(html):not(body):not(article)
 ##[id*="ads"]:not(html):not(body):not(article)
 
 ! KREAM
 ##[id$="-ads"]:not(html):not(body):not(article)
-##[class$="-ads"]:not(html):not(body):not(article)
+! AV19 (https://av19.live/) 영상화면 지워짐으로 비활성 처리
+!##[class$="-ads"]:not(html):not(body):not(article)
 
 ##[class*="-ads-"]:not(html):not(body):not(article)
 ##[id*="-ads-"]:not(html):not(body):not(article)
