@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040936
+! Version: 25040937
 
 
 !!! 오류 및 차단 해제
@@ -139,13 +139,16 @@ djxmaza.in#@#+js(nobab)
 
 ! 배트맨티비 (https://bmtv24.com/) 팝업 (자체 제작)
 ##.modal_item
+! 배트맨티비 (https://bmtv24.com/) 챗 공간 (자체 제작)
+##.chat_frame
 
 ! 놀고가닷컴 배너 (https://nolgoga365.com/) (자체 제작)
 ##[href="https://max-play999.com/"]
 ##[href="https://%EB%9D%BC%EC%9E%84%EC%A3%BC%EC%86%8C.com"]
 
 !코난티비 (https://conan-tv.com/) 배너 (자체 제작)
-###carousel_ohqljkgrneptmudsfi
+||conan-tv.com/img/banner.gif
+###fboardlist
 
 ! 티비위키 (https://tvwiki19.com/) websocket
 !||openwebtorrent.com
