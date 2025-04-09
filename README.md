@@ -82,6 +82,32 @@ https://filters.adtidy.org/extension/ublock/filters/1.txt
 
 <br/>
 
+```
+https://easylist.to/easylist/easylist.txt
+
+https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
+
+https://filters.adtidy.org/extension/ublock/filters/11.txt
+
+https://raw.githubusercontent.com/the-advoid/ad-void/main/AdVoid.Full.txt
+
+https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
+
+https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
+
+https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-AdGuard.txt
+
+https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
+
+https://filters.adtidy.org/extension/ublock/filters/7.txt
+
+https://filters.adtidy.org/extension/ublock/filters/224.txt
+
+https://filters.adtidy.org/extension/ublock/filters/1.txt
+
+```
+
+
 # 유저 스크립트
 
 Violentmonkey 확장프로그램 설치 후 사용
