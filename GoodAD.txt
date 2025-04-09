@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040922
+! Version: 25040923
 
 
 !!! 오류 및 차단 해제
@@ -177,8 +177,8 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ##.ban1
 
 ! 링크사랑 (https://linklove54.com/) 팝업 이미지 차단 (자체 제작)
-##[class^="miso-love-ad"]:not(html):not(body):not(article)
-##[id^="main-banner"]:not(html):not(body):not(article)
+##.miso-love-ad
+##.is-round-title.bg-black.carousel-inner
 
 
 
@@ -294,10 +294,10 @@ upload/banners/*
 
 ! 에이카 (https://19aca.com/) 배너 삭제 (자체 제작)
 ! - - - 로그인이 필요한 사이트이며 포인트까지.. 사용 하지 말 것
-##.rounded-md.object-contain.h-full.w-full
-##.rounded-md.object-cover.h-full.w-full
+!##.rounded-md.object-contain.h-full.w-full
+!##.rounded-md.object-cover.h-full.w-full
 ! 에이카 (https://19aca.com/) 배너 삭제 후 공간 삭제 (자체 제작)
-##.w-full.gap-4.md\:grid-cols-3.md\:grid.justify-center.flex-wrap.flex
+!##.w-full.gap-4.md\:grid-cols-3.md\:grid.justify-center.flex-wrap.flex
 
 ! 천사티비 (https://1004sweet.com/) 배너 이미지 차단 (자체 제작)
 ! - 참고 : 애드가드 갤러리 필터 (https://pastebin.com/raw/y5tsuMN8)
@@ -329,8 +329,8 @@ cdn-banana.bizhost.kr*/popup/*.png
 ! 바나나몰 (bananamall.co.kr) 팝업 오른쪽 삭제 (자체 제작)
 ###pop_gevent
 ! 바나나몰 (bananamall.co.kr) 왼쪽 배너 이미지 삭제 (자체 제작)
-##[class*="_banner_"]:not(html):not(body):not(article)
-##[class*="banner-"]:not(html):not(body):not(article)
+bananamall.co.kr##[class*="_banner_"]:not(html):not(body):not(article)
+bananamall.co.kr##[class*="banner-"]:not(html):not(body):not(article)
 ! 바나나몰 (bananamall.co.kr) 양쪽 배너 이미지 삭제 (자체 제작)
 cdn-banana.bizhost.kr/files/new_main/*.gif
 cdn-banana.bizhost.kr/files/new_main/*.jpg
@@ -345,10 +345,10 @@ m.11st.co.kr##.fadeIn.animated.dim
 
 ! 중고나라 (web.joongna.com) 복원
 ! - - - 중고나라 배너 공간
-web.joongna.com#@#[id^="main-banner"]:not(html):not(body):not(article)
-web.joongna.com#@#[class*="banner-"]:not(html):not(body):not(article)
+!web.joongna.com#@#[id^="main-banner"]:not(html):not(body):not(article)
+!web.joongna.com#@#[class*="banner-"]:not(html):not(body):not(article)
 ! - - - 중고나라 게시물 이미지
-web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
+!web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
 
 
 
@@ -369,18 +369,18 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 
 ! 그 외 임시 등록
-##[id*="promotion"]:not(html):not(body):not(article)
+!##[id*="promotion"]:not(html):not(body):not(article)
 
-##[id*="-promo"]:not(html):not(body):not(article)
-##[class*="-promo"]:not(html):not(body):not(article):not(.node-promoted):not(.content):not(.content__header)
+!##[id*="-promo"]:not(html):not(body):not(article)
+!##[class*="-promo"]:not(html):not(body):not(article):not(.node-promoted):not(.content):not(.content__header)
 
-##[id*="Promo"]:not(html):not(body):not(article)
-##[class*="Promo"]:not(html):not(body):not(article)
+!##[id*="Promo"]:not(html):not(body):not(article)
+!##[class*="Promo"]:not(html):not(body):not(article)
 
-##[id*="promo"]:not(html):not(body):not(article)
+!##[id*="promo"]:not(html):not(body):not(article)
 
-##[id*="Banner"]:not(html):not(body):not(article)
-##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
+!##[id*="Banner"]:not(html):not(body):not(article)
+!##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
 
 ##[class^="AD_"]:not(html):not(body):not(article)
 ##[id^="AD_"]:not(html):not(body):not(article)
