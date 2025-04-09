@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041004
+! Version: 25041005
 
 
 !!! 오류 및 차단 해제
@@ -434,7 +434,10 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 !##[id*="promo"]:not(html):not(body):not(article)
 
+! 옥션 / 11번가 / 티몬 - 배너 사라짐으로 인해 비활성 처리
 !##[id*="Banner"]:not(html):not(body):not(article)
+
+! 네이버스토어 / 딴지마켓 /와디즈 - 배너 사라짐으로 인해 비활성 처리
 !##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
 
 ##[class^="AD_"]:not(html):not(body):not(article)
@@ -443,34 +446,43 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ##[class^="Ad_"]:not(html):not(body):not(article)
 ##[id^="Ad_"]:not(html):not(body):not(article)
 
+!옥션
 ##[class$="_ad"]:not(html):not(body):not(article)
 ##[id$="_ad"]:not(html):not(body):not(article)
 
+!옥션
 ##[class^="ad_"]:not(html):not(body):not(article)
 ##[id^="ad_"]:not(html):not(body):not(article)
 
+! 네이버스토어 / 11번가
 ##[class*="_ad_"]:not(html):not(body):not(article)
 ##[id*="_ad_"]:not(html):not(body):not(article)
 
 ##[class^="ad-"]:not(html):not(body):not(article):not(.ad-site-wrapper)
 ##[id^="ad-"]:not(html):not(body):not(article)
 
+! 지마켓 / 옥션 / G마켓
+##[class$="-ad"]:not(html):not(body):not(article):not(#maincontent)
+
 ##[class*="-ad-"]:not(html):not(body):not(article):not([class*="page-wrapper"])
 ##[id*="-ad-"]:not(html):not(body):not(article)
 
+! 중고나라
 ##[class^="ads"]:not(html):not(body):not(article):not(#issue)
 ##[id^="ads"]:not(html):not(body):not(article)
 
-!##[class*="ads"]:not(html):not(body):not(article)
-!##[id*="ads"]:not(html):not(body):not(article)
+##[class*="ads"]:not(html):not(body):not(article)
+##[id*="ads"]:not(html):not(body):not(article)
 
-!##[id$="-ads"]:not(html):not(body):not(article)
+! KREAM
+##[id$="-ads"]:not(html):not(body):not(article)
 ##[class$="-ads"]:not(html):not(body):not(article)
 
 ##[class*="-ads-"]:not(html):not(body):not(article)
 ##[id*="-ads-"]:not(html):not(body):not(article)
 
 ##[class*="_ads_"]:not(html):not(body):not(article)
+! 중고나라
 ##[id*="_ads_"]:not(html):not(body):not(article)
 
 ##[class$="_ads"]:not(html):not(body):not(article)
