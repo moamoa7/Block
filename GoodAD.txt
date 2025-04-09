@@ -332,6 +332,15 @@ upload/banners/*
 !MISSAV (https://missvod2.com/) 배너
 ##.banner-list
 
+!야동판 (https://2.yadongpan.me/) 영상 아래 배너
+##.happy-unde-player
+
+조개파티 (https://jogaeparty139.com/) 배너
+||images2.imgbox.com*.gif
+||images2.imgbox.com*.jpg
+||images2.imgbox.com*.png
+||jogaeparty139.com/data/editor*.jpg
+
 
 
 
