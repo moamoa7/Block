@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040932
+! Version: 25040933
 
 
 !!! 오류 및 차단 해제
@@ -187,6 +187,8 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 ! 링크판 (https://linkpan71.com/) 배너 (자체 제작)
 ##.ban1
+! 링크판 (https://linkpan71.com/) 팝업 (자체 제작)
+##.layer_popup
 
 ! 링크사랑 (https://linklove54.com/) 팝업 이미지 (자체 제작)
 ##.miso-love-ad
