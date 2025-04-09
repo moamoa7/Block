@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040924
+! Version: 25040925
 
 
 !!! 오류 및 차단 해제
@@ -278,9 +278,11 @@ upload/banners/*
 
 ! 오늘의 중계 (today-sports7.com) 배너 삭제 (자체 제작)
 ##[src*="event_banner"]
+! 오늘의 중계 (today-sports7.com) 가운데 중간 배너 삭제 (자체 제작)
 ##.live-stream-banner
-
-! 오늘의 중계 (today-sports7.com) 팝업 삭제  today-sports7.com (자체 제작)
+! 오늘의 중계 (today-sports7.com) 왼쪽 배너 삭제 (자체 제작)
+##.info-banner
+! 오늘의 중계 (today-sports7.com) 팝업 삭제 (자체 제작)
 ###hd_pop
 
 ! hasha (https://hasha.in/) 팝업 차단 (Adblock-Rule-Collection-Lite)
