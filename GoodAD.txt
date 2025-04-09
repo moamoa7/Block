@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040921
+! Version: 25040922
 
 
 !!! 오류 및 차단 해제
@@ -164,7 +164,7 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 ! 한국경제 (https://www.hankyung.com/) 배너 등 삭제
 ! - 출처 : 애드가드 갤러리 필터 (https://pastebin.com/raw/y5tsuMN8)
 ! - https://github.com/mtxadmin/ublock - _rules 규칙 적용
-##[class*="promotion"]:not(html):not(body):not(article)
+hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 
 
