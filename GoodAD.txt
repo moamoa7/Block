@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041003
+! Version: 25041004
 
 
 !!! 오류 및 차단 해제
@@ -465,7 +465,7 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 !##[id*="ads"]:not(html):not(body):not(article)
 
 !##[id$="-ads"]:not(html):not(body):not(article)
-!##[class$="-ads"]:not(html):not(body):not(article)
+##[class$="-ads"]:not(html):not(body):not(article)
 
 ##[class*="-ads-"]:not(html):not(body):not(article)
 ##[id*="-ads-"]:not(html):not(body):not(article)
