@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040931
+! Version: 25040932
 
 
 !!! 오류 및 차단 해제
@@ -195,6 +195,10 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 
 
+
+! AVseeTV (https://03.avsee.ru/) 배너 이미지 (자체 제작)
+avsee.ru##.title
+avsee.ru##div.main-box:nth-of-type(1)
 
 ! XVIDEOS (https://xvideos.com/) 메인 영상 사라짐 방지 (자체 제작)
 xvideos.com#@#[class*="-ad-"]:not(html):not(body):not(article):not([class*="page-wrapper"])
