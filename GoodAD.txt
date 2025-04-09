@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040929
+! Version: 25040930
 
 
 !!! 오류 및 차단 해제
@@ -171,6 +171,8 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 ! 시사IN (https://www.sisain.co.kr/) 팝업창 (자체 제작)
 ###layer-popups
+! 시사IN (https://www.sisain.co.kr/) 구독 배너 (자체 제작)
+##.sisain_view
 
 
 
