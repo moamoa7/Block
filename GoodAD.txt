@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25040935
+! Version: 25040936
 
 
 !!! 오류 및 차단 해제
@@ -131,6 +131,9 @@ djxmaza.in#@#+js(nobab)
 
 ! VIP TV (https://viptv24.com/) 팝업 (자체 제작)
 ###popup_1
+
+! 굿라이브티비 (https://gltv88.com/) 왼쪽 배너 (자체 제작)
+##.middle-banner
 
 ! 티비위키 (https://tvwiki19.com/) websocket
 !||openwebtorrent.com
