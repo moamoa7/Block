@@ -134,6 +134,18 @@ djxmaza.in#@#+js(nobab)
 
 ! 굿라이브티비 (https://gltv88.com/) 왼쪽 배너 (자체 제작)
 ##.middle-banner
+! 굿라이브티비 (https://gltv88.com/) 왼쪽 챗 공간 (자체 제작)
+###fchat
+
+! 배트맨티비 (https://bmtv24.com/) 팝업 (자체 제작)
+##.modal_item
+
+! 놀고가닷컴 배너 (https://nolgoga365.com/) (자체 제작)
+##[href="https://max-play999.com/"]
+##[href="https://%EB%9D%BC%EC%9E%84%EC%A3%BC%EC%86%8C.com"]
+
+!코난티비 (https://conan-tv.com/) 배너 (자체 제작)
+###carousel_ohqljkgrneptmudsfi
 
 ! 티비위키 (https://tvwiki19.com/) websocket
 !||openwebtorrent.com
