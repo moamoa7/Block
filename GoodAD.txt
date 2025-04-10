@@ -1,7 +1,12 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041102
+! Version: 25041103
 
+
+!!! 애드가드 dpi 우회 설정으로 인한 오류 해결
+! - 국내 사이트 접속 안되는거 해결
+@@||*kr^$stealth=dpi
+@@||lgtwins.com^$stealth=dpi
 
 !!! 필터 오류 및 차단 해제
 
