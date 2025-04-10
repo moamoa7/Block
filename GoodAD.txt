@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041022
+! Version: 25041023
 
 
 !!! 오류 및 차단 해제
@@ -713,7 +713,8 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 !딴지일보 (https://www.ddanzi.com/) 게시물 내 이미지 안보임
 !##[class*="ad_"]:not(html):not(body):not(article)
-##[id*="ad_"]:not(html):not(body):not(article)
+! 웃긴대학 (https://web.humoruniv.com/) 상단 배너(로고 포함) 안보임
+!##[id*="ad_"]:not(html):not(body):not(article)
 
 ! xvideos.com 메인영상 사라짐으로 비활성 처리
 !##[class*="-ad"]:not(html):not(body):not(article)
