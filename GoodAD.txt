@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041018
+! Version: 25041019
 
 
 !!! 오류 및 차단 해제
@@ -560,7 +560,8 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ##[class$="_Ad_"]:not(html):not(body):not(article)
 ##[id$="_Ad_"]:not(html):not(body):not(article)
 
-##[class$="Ad"]:not(html):not(body):not(article)
+! 구글플레이 (https://play.google.com/) 앱 제목 사라짐
+!##[class$="Ad"]:not(html):not(body):not(article)
 ##[id$="Ad"]:not(html):not(body):not(article)
 
 
