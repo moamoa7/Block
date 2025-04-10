@@ -1,12 +1,19 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041106
+! Version: 25041107
+
+
+
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
+
+
+
+
 
 !!! 필터 오류 및 차단 해제
 
@@ -368,7 +375,8 @@ upload/banners/*
 ! - https://adult.contents.fc2.com/
 ##.z9KsZnYS.c-modal-101
 ! - https://fc1adult.com/
-##.confirmBox
+! - - - wavve에도 적용되어 영상이 소리만 나오는 현상 발생 - 도메인 넣는걸로 변경
+fc1adult.com##.fullscreen
 
 !MISSAV (https://missvod2.com/) 배너
 ###banner-list.banner-list
