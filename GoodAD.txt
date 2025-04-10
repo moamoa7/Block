@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041019
+! Version: 25041020
 
 
 !!! 오류 및 차단 해제
@@ -720,6 +720,7 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! xvideos.com 메인영상 사라짐으로 비활성 처리
 !##[class*="ad-"]:not(html):not(body):not(article)
 ! APKMODY (https://apkmody.com/) 다운로드 버튼 사라짐
+! 레딧 글 길 더보기 표시 안나옴
 !##[id*="ad-"]:not(html):not(body):not(article)
 
 ! xvideos.com 메인영상 사라짐으로 비활성 처리
