@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041025
+! Version: 25041101
 
 
 !!! 오류 및 차단 해제
@@ -845,7 +845,8 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 ! xvideos.com 메인영상 사라짐으로 비활성 처리
 !##[class*="-ad"]:not(html):not(body):not(article)
-##[id*="-ad"]:not(html):not(body):not(article)
+! NEXT DNS (https://my.nextdns.io/) 체크 일부 사라짐 (ad 글자 들어간 도메인들만)
+!##[id*="-ad"]:not(html):not(body):not(article)
 
 ! xvideos.com 메인영상 사라짐으로 비활성 처리
 !##[class*="ad-"]:not(html):not(body):not(article)
