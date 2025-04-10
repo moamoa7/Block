@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 250410058
+! Version: 250410059
 
 
 !!! 오류 및 차단 해제
@@ -112,6 +112,9 @@ djxmaza.in#@#+js(nobab)
 
 !치지직 (https://chzzk.naver.com/) 등 광고 차단 안내 팝업 (자체 제작)
 ##[class^="popup_"]:not(html):not(body):not(article)
+
+! KICK (https://kick.com/) 하단 쿠키 팝업 (자체 제작)
+##.z-modal
 
 ! 소프트콘 뷰어쉽 (https://viewership.softc.one/) 팝업 (자체 제작)
 ##.fc-dialog-container
@@ -351,6 +354,7 @@ upload/banners/*
 ! - https://adult.contents.fc2.com/
 ##.z9KsZnYS.c-modal-101
 ! - https://fc1adult.com/
+! - - - wavve에도 같이 적용되어 영상이 안보이고 소리만 남 (사이트명 기재)
 fc1adult.com##.fullscreen
 
 !MISSAV (https://missvod2.com/) 배너
