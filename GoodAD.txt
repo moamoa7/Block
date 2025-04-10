@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041010
+! Version: 25041011
 
 
 !!! 오류 및 차단 해제
@@ -358,7 +358,7 @@ upload/banners/*
 fc1adult.com##.fullscreen
 
 !MISSAV (https://missvod2.com/) 배너
-missvod2.com##.banner-list
+###banner-list.banner-list
 
 !야동판 (https://2.yadongpan.me/) 영상 아래 배너
 ##.happy-unde-player
