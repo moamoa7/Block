@@ -131,7 +131,7 @@ djxmaza.in#@#+js(nobab)
 ! 메시티비 (https://messitv8.com/) 배너 (자체 제작)
 ##[class*="baner"]
 /sidebanner*
-/toto/img/*
+##.d-xl-block.d-none
 ! 메시티비 (https://messitv8.com/) 채팅박스 (자체 제작)
 ##u-chat
 
