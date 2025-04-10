@@ -419,28 +419,12 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 
 
-! 그 외 임시 등록
-!##[id*="promotion"]:not(html):not(body):not(article)
-
-!##[id*="-promo"]:not(html):not(body):not(article)
-!##[class*="-promo"]:not(html):not(body):not(article):not(.node-promoted):not(.content):not(.content__header)
-
-!##[id*="Promo"]:not(html):not(body):not(article)
-!##[class*="Promo"]:not(html):not(body):not(article)
-
-!##[id*="promo"]:not(html):not(body):not(article)
+!!! 그 외 임시 등록
 
 ! 옥션 / 11번가 / 티몬 - 배너 사라짐으로 인해 비활성 처리
 !##[id*="Banner"]:not(html):not(body):not(article)
-
 ! 네이버스토어 / 딴지마켓 /와디즈 - 배너 사라짐으로 인해 비활성 처리
 !##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
-
-##[class^="AD_"]:not(html):not(body):not(article)
-##[id^="AD_"]:not(html):not(body):not(article)
-
-##[class^="Ad_"]:not(html):not(body):not(article)
-##[id^="Ad_"]:not(html):not(body):not(article)
 
 !옥션
 ##[class$="_ad"]:not(html):not(body):not(article)
