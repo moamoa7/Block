@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025-04-08
+! Version: 2025-04-10
 ! Description: 애드가드 필터의 일부 오차단, 안티 애드블록, 지우지 못한 광고를 해결합니다. For Adguard, uBo, Brave
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -15,12 +15,6 @@ naver.com,~chzzk.naver.com##+js(addEventListener-defuser, /contextmenu|selectsta
 
 ! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
 @@||namu.wiki^$generichide
-!
-namu.*##div +div[class*=' '] > * +div :not(:has([href^='#r'])):has(table:has([href^='#s']))
-!#if (adguard && (adguard_app_android || adguard_app_ios || adguard_ext_android_cb || adguard_ext_safari))
-namu.*##table:has([href^='#s']):upward(div):style(visibility: hidden !important; height: 1px !important;)
-!#endif
-!
 namu.wiki##li:has(time):not(*:has([href*='/raw/'])):upward(2)
 namu.wiki##span:has-text(더 보기):upward(2):has([target])
 
@@ -80,7 +74,6 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 auction.co.kr##.component--sponsor_link.component
 auction.co.kr##.vip-togetheritems
 avdbs.com##.ad-btn[class*='tp']
-chzzk.naver.com##[class^='popup_dimmed_']
 coinpan.com##*:has(> div[style^='width:390px; max-width:100%;'])
 coinpan.com##.flatBoard > .clearfix.title-wrap
 coinpan.com##strong:has([target='_blank'])
