@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041012
+! Version: 25041013
 
 
 !!! 오류 및 차단 해제
@@ -112,6 +112,9 @@ djxmaza.in#@#+js(nobab)
 
 ! 숲 다시보기 (https://vod.sooplive.co.kr/) 알바몬 배너 (자체 제작)
 ##.adballoon_icon
+
+! 숲 개인채널 (https://ch.sooplive.co.kr/) 팝업 (자체 제작)
+##.bs-notice_layer
 
 !치지직 (https://chzzk.naver.com/) 등 광고 차단 안내 팝업 (자체 제작)
 ##[class^="popup_"]:not(html):not(body):not(article)
