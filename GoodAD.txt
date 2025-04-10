@@ -1,9 +1,9 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041101
+! Version: 25041102
 
 
-!!! 오류 및 차단 해제
+!!! 필터 오류 및 차단 해제
 
 !쿠팡 (https://coupang.com/) 로그인 오류 해결
 ! - AdGuard Tracking Protection 해제
@@ -31,6 +31,9 @@ srank.kr#@#+js(prevent-fetch, doubleclick.net)
 
 ! cuty.io (cutyion.com) 차단 해제 (AdVoid.Full)
 cutyion.com#@#.adsbygoogle
+
+! AdGuard DNS (https://adguard-dns.io/) 대시보드 무한로딩 복원 (AdVoid.Full)
+@@/stats^$xmlhttprequest,domain=~githubunwrapped.com|~jsdelivr.com|~youtube.com|~marketplace.visualstudio.com
 
 ! 리그 오브 레전드 인벤 (lol.inven.co.kr) 상단 배너 제거 (자체 제작)
 ! 이거 하면 인벤 경기 일정도 같이 사라짐 (하지 말 것)
