@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041023
+! Version: 25041024
 
 
 !!! 오류 및 차단 해제
@@ -823,72 +823,72 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 
 
-##[class^="_pop"]:not(html):not(body):not(article)
-##[id^="_pop"]:not(html):not(body):not(article)
+##[class^="_popup"]:not(html):not(body):not(article)
+##[id^="_popup"]:not(html):not(body):not(article)
 
-##[class^="pop_"]:not(html):not(body):not(article)
-##[id^="pop_"]:not(html):not(body):not(article)
+##[class^="popup_"]:not(html):not(body):not(article)
+##[id^="popup_"]:not(html):not(body):not(article)
 
-##[class^="-pop"]:not(html):not(body):not(article)
-##[id^="-pop"]:not(html):not(body):not(article)
+##[class^="-popup"]:not(html):not(body):not(article)
+##[id^="-popup"]:not(html):not(body):not(article)
 
-##[class^="pop-"]:not(html):not(body):not(article)
-##[id^="pop-"]:not(html):not(body):not(article)
+##[class^="popup-"]:not(html):not(body):not(article)
+##[id^="popup-"]:not(html):not(body):not(article)
 
-##[class^="-pop-"]:not(html):not(body):not(article)
-##[id^="-pop-"]:not(html):not(body):not(article)
+##[class^="-popup-"]:not(html):not(body):not(article)
+##[id^="-popup-"]:not(html):not(body):not(article)
 
-##[class^="_pop_"]:not(html):not(body):not(article)
-##[id^="_pop_"]:not(html):not(body):not(article)
+##[class^="_popup_"]:not(html):not(body):not(article)
+##[id^="_popup_"]:not(html):not(body):not(article)
 
-##[class^="pop"]:not(html):not(body):not(article)
-##[id^="pop"]:not(html):not(body):not(article)
-
-
-
-##[class$="_pop"]:not(html):not(body):not(article)
-##[id$="_pop"]:not(html):not(body):not(article)
-
-##[class$="pop_"]:not(html):not(body):not(article)
-##[id$="pop_"]:not(html):not(body):not(article)
-
-##[class$="-pop"]:not(html):not(body):not(article)
-##[id$="-pop"]:not(html):not(body):not(article)
-
-##[class$="pop-"]:not(html):not(body):not(article)
-##[id$="pop-"]:not(html):not(body):not(article)
-
-##[class$="-pop-"]:not(html):not(body):not(article)
-##[id$="-pop-"]:not(html):not(body):not(article)
-
-##[class$="_pop_"]:not(html):not(body):not(article)
-##[id$="_pop_"]:not(html):not(body):not(article)
-
-##[class$="pop"]:not(html):not(body):not(article)
-##[id$="pop"]:not(html):not(body):not(article)
+##[class^="popup"]:not(html):not(body):not(article)
+##[id^="popup"]:not(html):not(body):not(article)
 
 
 
-##[class*="_pop"]:not(html):not(body):not(article)
-##[id*="_pop"]:not(html):not(body):not(article)
+##[class$="_popup"]:not(html):not(body):not(article)
+##[id$="_popup"]:not(html):not(body):not(article)
 
-##[class*="pop_"]:not(html):not(body):not(article)
-##[id*="pop_"]:not(html):not(body):not(article)
+##[class$="popup_"]:not(html):not(body):not(article)
+##[id$="popup_"]:not(html):not(body):not(article)
 
-##[class*="-pop"]:not(html):not(body):not(article)
-##[id*="-pop"]:not(html):not(body):not(article)
+##[class$="-popup"]:not(html):not(body):not(article)
+##[id$="-popup"]:not(html):not(body):not(article)
 
-##[class*="pop-"]:not(html):not(body):not(article)
-##[id*="pop-"]:not(html):not(body):not(article)
+##[class$="popup-"]:not(html):not(body):not(article)
+##[id$="popup-"]:not(html):not(body):not(article)
 
-##[class*="-pop-"]:not(html):not(body):not(article)
-##[id*="-pop-"]:not(html):not(body):not(article)
+##[class$="-popup-"]:not(html):not(body):not(article)
+##[id$="-popup-"]:not(html):not(body):not(article)
 
-##[class*="_pop_"]:not(html):not(body):not(article)
-##[id*="_pop_"]:not(html):not(body):not(article)
+##[class$="_popup_"]:not(html):not(body):not(article)
+##[id$="_popup_"]:not(html):not(body):not(article)
 
-##[class*="pop"]:not(html):not(body):not(article)
-##[id*="pop"]:not(html):not(body):not(article)
+##[class$="popup"]:not(html):not(body):not(article)
+##[id$="popup"]:not(html):not(body):not(article)
+
+
+
+##[class*="_popup"]:not(html):not(body):not(article)
+##[id*="_popup"]:not(html):not(body):not(article)
+
+##[class*="popup_"]:not(html):not(body):not(article)
+##[id*="popup_"]:not(html):not(body):not(article)
+
+##[class*="-popup"]:not(html):not(body):not(article)
+##[id*="-popup"]:not(html):not(body):not(article)
+
+##[class*="popup-"]:not(html):not(body):not(article)
+##[id*="popup-"]:not(html):not(body):not(article)
+
+##[class*="-popup-"]:not(html):not(body):not(article)
+##[id*="-popup-"]:not(html):not(body):not(article)
+
+##[class*="_popup_"]:not(html):not(body):not(article)
+##[id*="_popup_"]:not(html):not(body):not(article)
+
+##[class*="popup"]:not(html):not(body):not(article)
+##[id*="popup"]:not(html):not(body):not(article)
 
 
 
