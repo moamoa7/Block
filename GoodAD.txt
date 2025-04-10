@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041021
+! Version: 25041022
 
 
 !!! 오류 및 차단 해제
@@ -711,7 +711,8 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 !##[class*="_ad"]:not(html):not(body):not(article)
 ##[id*="_ad"]:not(html):not(body):not(article)
 
-##[class*="ad_"]:not(html):not(body):not(article)
+!딴지일보 (https://www.ddanzi.com/) 게시물 내 이미지 안보임
+!##[class*="ad_"]:not(html):not(body):not(article)
 ##[id*="ad_"]:not(html):not(body):not(article)
 
 ! xvideos.com 메인영상 사라짐으로 비활성 처리
