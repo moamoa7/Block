@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041103
+! Version: 25041105
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -258,7 +258,7 @@ avsee.ru##div.main-box:nth-of-type(1)
 ##[id*="ageCheck"]:not(html):not(body):not(article)
 
 ! 조개무비 (https://v15.jogemovie.net/) 배너 이미지 (자체 제작)
-##.wpb_content_element.wpb_text_column
+##.wp-block-gallery
 
 ! AV핑보걸 (https://pinkbo42.com/) / AV러브걸 (https://avlove26.com/) / XX조아 (https://xxjoa44.com/) 배너 이미지 (자체 제작)
 ###imgDiv > table
