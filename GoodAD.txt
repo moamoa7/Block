@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041013
+! Version: 25041014
 
 
 !!! 오류 및 차단 해제
@@ -128,11 +128,11 @@ djxmaza.in#@#+js(nobab)
 ! - Fanboy's Annoyance List
 ##div[style*="box-shadow: rgb(136, 136, 136) 0px 0px 12px; color: "]
 
-! 메시티비 (messitv8.com) 배너 (자체 제작)
+! 메시티비 (https://messitv8.com/) 배너 (자체 제작)
 ##[class*="baner"]
 /sidebanner*
 /toto/img/*
-! 메시티비 (messitv8.com) 채팅박스 (자체 제작)
+! 메시티비 (https://messitv8.com/) 채팅박스 (자체 제작)
 ##u-chat
 
 ! 고트티비 (https://goat-v.com) 팝업 (자체 제작)
