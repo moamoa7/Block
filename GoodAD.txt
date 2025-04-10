@@ -703,7 +703,7 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! https://7tv000.com/ko/ 메인 영상 이미지 안보임
 !##[class$="ad"]:not(html):not(body):not(article)
 ! Mobilism (https://forum.mobilism.org/) 로그인시 Login 버튼 없어짐
-##[id$="ad"]:not(html):not(body):not(article)
+!##[id$="ad"]:not(html):not(body):not(article)
 
 
 
