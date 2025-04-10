@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041024
+! Version: 25041025
 
 
 !!! 오류 및 차단 해제
@@ -434,19 +434,146 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 !!! 그 외 임시 등록
 
-! 옥션 / 11번가 / 티몬 - 배너 사라짐으로 인해 비활성 처리
-!##[id*="Banner"]:not(html):not(body):not(article)
-! 네이버스토어 / 딴지마켓 /와디즈 - 배너 사라짐으로 인해 비활성 처리
-!##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
+##[class^="_banner"]:not(html):not(body):not(article)
+##[id^="_banner"]:not(html):not(body):not(article)
 
-##[id*="banner"]:not(html):not(body):not(article):not(#Header)
+##[class^="banner_"]:not(html):not(body):not(article):not(#Header)
+##[id^="banners_"]:not(html):not(body):not(article):not(#Header)
+
+
+##[class^="-banner"]:not(html):not(body):not(article)
+##[id^="-banner"]:not(html):not(body):not(article)
 
 !쿠팡 배너 삭제로 인해 비활성 처리
 !##[class^="banner-"]:not(html):not(body):not(article):not(#Header)
+##[id^="banner-"]:not(html):not(body):not(article)
 
-##[class^="banner_"]:not(html):not(body):not(article):not(#Header)
+##[class^="-banner-"]:not(html):not(body):not(article)
+##[id^="-banner-"]:not(html):not(body):not(article)
 
-##[id^="banners_"]:not(html):not(body):not(article):not(#Header)
+##[class^="_banner_"]:not(html):not(body):not(article)
+##[id^="_banner_"]:not(html):not(body):not(article)
+
+##[class^="banner"]:not(html):not(body):not(article)
+##[id^="banner"]:not(html):not(body):not(article)
+
+
+
+##[class$="_banner"]:not(html):not(body):not(article)
+##[id$="_banner"]:not(html):not(body):not(article)
+
+##[class$="banner_"]:not(html):not(body):not(article)
+##[id$="banner_"]:not(html):not(body):not(article)
+
+##[class$="-banner"]:not(html):not(body):not(article)
+##[id$="-banner"]:not(html):not(body):not(article)
+
+##[class$="banner-"]:not(html):not(body):not(article)
+##[id$="banner-"]:not(html):not(body):not(article)
+
+##[class$="-banner-"]:not(html):not(body):not(article)
+##[id$="-banner-"]:not(html):not(body):not(article)
+
+##[class$="_banner_"]:not(html):not(body):not(article)
+##[id$="_banner_"]:not(html):not(body):not(article)
+
+##[class$="banner"]:not(html):not(body):not(article)
+##[id$="banner"]:not(html):not(body):not(article)
+
+
+
+##[class*="_banner"]:not(html):not(body):not(article)
+##[id*="_banner"]:not(html):not(body):not(article)
+
+##[class*="banner_"]:not(html):not(body):not(article)
+##[id*="banner_"]:not(html):not(body):not(article)
+
+##[class*="-banner"]:not(html):not(body):not(article)
+##[id*="-banner"]:not(html):not(body):not(article)
+
+##[class*="banner-"]:not(html):not(body):not(article)
+##[id*="banner-"]:not(html):not(body):not(article)
+
+##[class*="-banner-"]:not(html):not(body):not(article)
+##[id*="-banner-"]:not(html):not(body):not(article)
+
+##[class*="_banner_"]:not(html):not(body):not(article)
+##[id*="_banner_"]:not(html):not(body):not(article)
+
+##[class*="banner"]:not(html):not(body):not(article)
+##[id*="banner"]:not(html):not(body):not(article):not(#Header)
+
+
+
+
+##[class^="_Banner"]:not(html):not(body):not(article)
+##[id^="_Banner"]:not(html):not(body):not(article)
+
+##[class^="Banner_"]:not(html):not(body):not(article)
+##[id^="Banner_"]:not(html):not(body):not(article)
+
+##[class^="-Banner"]:not(html):not(body):not(article)
+##[id^="-Banner"]:not(html):not(body):not(article)
+
+##[class^="Banner-"]:not(html):not(body):not(article)
+##[id^="Banner-"]:not(html):not(body):not(article)
+
+##[class^="-Banner-"]:not(html):not(body):not(article)
+##[id^="-Banner-"]:not(html):not(body):not(article)
+
+##[class^="_Banner_"]:not(html):not(body):not(article)
+##[id^="_Banner_"]:not(html):not(body):not(article)
+
+##[class^="Banner"]:not(html):not(body):not(article)
+##[id^="Banner"]:not(html):not(body):not(article)
+
+
+
+##[class$="_Banner"]:not(html):not(body):not(article)
+##[id$="_Banner"]:not(html):not(body):not(article)
+
+##[class$="Banner_"]:not(html):not(body):not(article)
+##[id$="Banner_"]:not(html):not(body):not(article)
+
+##[class$="-Banner"]:not(html):not(body):not(article)
+##[id$="-Banner"]:not(html):not(body):not(article)
+
+##[class$="Banner-"]:not(html):not(body):not(article)
+##[id$="Banner-"]:not(html):not(body):not(article)
+
+##[class$="-Banner-"]:not(html):not(body):not(article)
+##[id$="-Banner-"]:not(html):not(body):not(article)
+
+##[class$="_Banner_"]:not(html):not(body):not(article)
+##[id$="_Banner_"]:not(html):not(body):not(article)
+
+##[class$="Banner"]:not(html):not(body):not(article)
+##[id$="Banner"]:not(html):not(body):not(article)
+
+
+
+##[class*="_Banner"]:not(html):not(body):not(article)
+##[id*="_Banner"]:not(html):not(body):not(article)
+
+##[class*="Banner_"]:not(html):not(body):not(article)
+##[id*="Banner_"]:not(html):not(body):not(article)
+
+##[class*="-Banner"]:not(html):not(body):not(article)
+##[id*="-Banner"]:not(html):not(body):not(article)
+
+##[class*="Banner-"]:not(html):not(body):not(article)
+##[id*="Banner-"]:not(html):not(body):not(article)
+
+##[class*="-Banner-"]:not(html):not(body):not(article)
+##[id*="-Banner-"]:not(html):not(body):not(article)
+
+##[class*="_Banner_"]:not(html):not(body):not(article)
+##[id*="_Banner_"]:not(html):not(body):not(article)
+
+! 네이버스토어 / 딴지마켓 /와디즈 - 배너 사라짐으로 인해 비활성 처리
+!##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
+! 옥션 / 11번가 / 티몬 - 배너 사라짐으로 인해 비활성 처리
+!##[id*="Banner"]:not(html):not(body):not(article)
 
 
 
