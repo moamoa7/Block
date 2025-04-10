@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 250410056
+! Version: 250410057
 
 
 !!! 오류 및 차단 해제
@@ -224,6 +224,9 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 (자체 제작)
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
+
+! 7MMTV (https://7tv000.com/) 상단 배너 공간
+##.a-d-block
 
 ! AV19.org (https://av19.live/) 상단 배너 등 (자체 제작)
 !##[class$="_banner"]:not(html):not(body):not(article)
