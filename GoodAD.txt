@@ -23,30 +23,8 @@
 @@/\.coupang\.com\/(?!resources)(?!vp)[A-Za-z0-9-_]{5,}\/(?!cart)(?!product)[A-Za-z0-9-_]+\/(?!api)(?!user)[A-Za-z0-9-_]+\/[A-Za-z0-9-_]+\/(?!products)[A-Za-z0-9-_]+/$domain=coupang.com|~mc.coupang.com|~checkout.coupang.com,script,xmlhttprequest,method=get,match-case
 @@/^https:\/\/(www|m)\.coupang\.com\/[A-Za-z0-9_]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_]+\/[A-Za-z0-9_]+(\/[A-Za-z0-9_-]+){0,5}$/$domain=coupang.com,xmlhttprequest,method=post,match-case
 
-! 쿠팡 (https://www.coupang.com/) 배너 일부 삭제 복원 (AdVoid.Full )
-@@/ads-*.js^$script
-
 ! https://www.srank.kr/ 광고 차단 감지 해제 (애드가드에서는 되는대 ublock에서는 안되서 별도 처리) (List-KR 무력화)
 srank.kr#@#+js(prevent-fetch, doubleclick.net)
-
-! 옥션 / 지마켓 배너 등 이미지 차단 해제 (AdVoid.Full)
-@@ad-img.gmarket.com/ads/*.$image
-
-!옥션 배송조회 차단 해제 (AdVoid.Full)
-@@/tracking.js$domain=tracking.auction.co.kr
-
-! 11번가 (https://11st.co.kr/) 배너 차단 복원 (AdVoid.Full)
-#@#.c-banner
-
-!티비위키 영상 재생 차단 해제 (AdVoid.Full)
-!- - - 원소스 @@/videojs-chromecast.min.js^$script
-@@/videojs-chromecast.min.js^$domain=player.bunny-frame.online
-
-! cuty.io (cutyion.com) 차단 해제 (AdVoid.Full)
-cutyion.com#@#.adsbygoogle
-
-! AdGuard DNS (https://adguard-dns.io/) 대시보드 무한로딩 복원 (AdVoid.Full)
-@@/stats^$xmlhttprequest,domain=~githubunwrapped.com|~jsdelivr.com|~youtube.com|~marketplace.visualstudio.com
 
 ! 리그 오브 레전드 인벤 (lol.inven.co.kr) 상단 배너 제거 (자체 제작)
 ! 이거 하면 인벤 경기 일정도 같이 사라짐 (하지 말 것)
@@ -70,17 +48,6 @@ djxmaza.in#@#+js(nobab)
 ! 맥스무비 게시글 열람시 오류 해결
 ! - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
-
-
-
-
-
-!!! 우회 처리 보류
-
-! 길호넷 차단 우회 (List-KR 문구 활용)
-! - 도메인을 지정하지 않으면 캡쳐에서 무한 오류남
-! - 현재 길호넷 접속시 차단 안하는걸로 보여 우회 처리 보류
-!@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
 
 
 
@@ -428,13 +395,6 @@ cdn-banana.bizhost.kr/files/new_main/*.jpg
 ! 11번가 모바일 (m.11st.co.kr) 하단 배너 (자체 제작)
 m.11st.co.kr##.slideInBottom
 m.11st.co.kr##.fadeIn.animated.dim
-
-! 중고나라 (web.joongna.com) 복원
-! - - - 중고나라 배너 공간
-!web.joongna.com#@#[id^="main-banner"]:not(html):not(body):not(article)
-!web.joongna.com#@#[class*="banner-"]:not(html):not(body):not(article)
-! - - - 중고나라 게시물 이미지
-!web.joongna.com#@#.rounded-md.object-cover.h-full.w-full
 
 
 
