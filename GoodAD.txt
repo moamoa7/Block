@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041204
+! Version: 25041205
 
 
 
@@ -161,6 +161,11 @@ conan-tv.com###fboardlist
 ||tracker.$xmlhttprequest,websocket,script,ping
 ! - - - tracker.linkwang.org
 ! - - - tracker.openwebtorrent.com
+
+! 티비위키/티비몬 영상 하단 배너 공간
+! - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
+##.pc-only.full
+##.mobile-only.full
 
 !티비위키 (https://tv61.wiki/) 배너
 ##.custom_banner_wrap
