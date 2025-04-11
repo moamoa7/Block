@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041202
+! Version: 25041203
 
 
 
@@ -433,7 +433,22 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ||files/img/banner/*
 !- https://sureranking.net/
 ##.banner
-! - http://mttotoinfo.com/
-##.widget-area
 ! - https://jusoyo41.com/
 ||*img/*banner.gif
+! - https://phpschool.com/
+##.main_banner
+##.right_banner
+##.main_job
+! - https://named.com/
+###leftBanner
+###rightBanner
+###sideCastBanner
+###bottomBanner
+! - https://viewsnnews.com/
+##.ads
+! - https://sportalkorea.com/
+##.common_top_ad1
+! - https://www.spojoy.com/
+###TopAdv250Rapper
+! - http://mttotoinfo.com/
+##.bannerListWidget
