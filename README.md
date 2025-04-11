@@ -57,11 +57,11 @@ https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
 ※ AdGuard Mobile Ads filter
 https://filters.adtidy.org/extension/ublock/filters/11.txt
 
-※ AdVoid.Full
-https://raw.githubusercontent.com/the-advoid/ad-void/main/AdVoid.Full.txt
+※ AdGuard Annoyances filter
+https://filters.adtidy.org/extension/ublock/filters/14.txt
 
-※ 轻量广告拦截规则
-https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
+※ uBlock filters
+https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 
 ※ Block third party font
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
@@ -97,9 +97,9 @@ https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
 
 https://filters.adtidy.org/extension/ublock/filters/11.txt
 
-https://raw.githubusercontent.com/the-advoid/ad-void/main/AdVoid.Full.txt
+https://filters.adtidy.org/extension/ublock/filters/14.txt
 
-https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
+https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
 
@@ -114,8 +114,6 @@ https://filters.adtidy.org/extension/ublock/filters/224.txt
 https://filters.adtidy.org/extension/ublock/filters/1.txt
 
 https://raw.githubusercontent.com/moamoa7/adblock/refs/heads/main/GoodAD.txt
-
-https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 
 ```
 
