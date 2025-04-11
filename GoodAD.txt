@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041110
+! Version: 25041111
 
 
 
@@ -254,9 +254,9 @@ avsee.ru##div.main-box:nth-of-type(1)
 ##.a-d-block
 
 ! Javsubs91 (https://j91.asia/) 새 창 (uBlock filters)
-##+js(abort-current-script, document.querySelectorAll, popMagic)
-##+js(prevent-setTimeout, fuckadb)
-/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
+!##+js(abort-current-script, document.querySelectorAll, popMagic)
+!##+js(prevent-setTimeout, fuckadb)
+!/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
 
 
 ! AV19.org (https://av19.live/) 상단 배너 등 (자체 제작)
