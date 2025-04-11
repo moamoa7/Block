@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041107
+! Version: 25041108
 
 
 
@@ -8,6 +8,7 @@
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
+! - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
 
@@ -67,7 +68,7 @@ djxmaza.in#@#+js(nobab)
 @@/devfiles.pages.dev\/img\/[a-zA-Z0-9]{8,}.jpeg/$domain=miuiflash.com|djxmaza.in|thecubexguide.com
 
 ! 맥스무비 게시글 열람시 오류 해결
-! - 출처 : 애드가드 갤러리 필터 (https://pastebin.com/raw/y5tsuMN8)
+! - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 
 
@@ -210,7 +211,7 @@ op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
 ##[class^="aside-box"]:not(html):not(body):not(article)
 
 ! 한국경제 (https://www.hankyung.com/) 배너 등
-! - 출처 : 애드가드 갤러리 필터 (https://pastebin.com/raw/y5tsuMN8)
+! - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - https://github.com/mtxadmin/ublock - _rules 규칙 적용
 hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
