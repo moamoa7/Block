@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041112
+! Version: 25041113
 
 
 
@@ -69,8 +69,9 @@ djxmaza.in#@#+js(nobab)
 ##.banner-box
 ! 이토랜드 (https://www.etoland.co.kr/) 광고 게시물 (자체 제작)
 ##.ad_list
-! 이토랜드 ((https://www.etoland.co.kr/) 모바일 게시물 하단 배너 (자체 제작)
-##.freePointItem
+! 이토랜드 ((https://www.etoland.co.kr/) 모바일 게시물 하단 광고 배너 (자체 제작)
+! - - - 3칸짜리 광고 배너
+##.underGoodBtn_freeRecharge
 
 
 ! 짱공유 (https://www.jjang0u.com/) 모바일 하단 배너 (자체 제작)
