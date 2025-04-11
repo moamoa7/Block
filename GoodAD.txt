@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041118
+! Version: 25041201
 
 
 
@@ -55,6 +55,13 @@ djxmaza.in#@#+js(nobab)
 
 !!! 차단
 
+! 디시인사이드 갤러리 (https://www.dcinside.com/) 미리보기 이미지 차단
+!실시간 베스트 이미지 차단
+||dccdn11.dcinside.co.kr
+! 뉴스/디시미디어/디시이슈 이미지 차단
+||cdn.inappnews.net
+||image.isplus.com/
+
 ! AAGAG (aagag.com) 떠다니는 배너
 ##.bottom.center.sAlert
 
@@ -82,14 +89,6 @@ djxmaza.in#@#+js(nobab)
 
 ! 루리 (https://bbs.ruliweb.com/) 모바일 하단 배너
 ##.ad_go_wrapper
-
-! 디시인사이드 (https://www.dcinside.com/)  실시간 베스트 등 오른쪽 배너
-! - 뉴스.미디어.이슈
-##.r_dcmedia.content_box
-! - 실시간 베스트
-##.r_timebest.content_box
-! - 개념글
-##.r_recommend.content_box
 
 ! 숲 (https://play.sooplive.co.kr) - 영상 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
