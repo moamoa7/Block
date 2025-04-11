@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041116
+! Version: 25041117
 
 
 
@@ -261,8 +261,12 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/) 오른쪽 배너
 ##[class^="banner_item"]:not(html):not(body):not(article)
 
-! AV핑보걸 오른쪽 상단 배너
+
+! 쏘걸 (https://kr78.sogirl.so/) - 입장시 18세 물어보는 팝업
+###dclm_modal_content
+###dclm_modal_screen
 ! 쏘걸 (https://kr78.sogirl.so/) - 오른쪽 상단 배너는 보이지 않으나 배너 위치만큼 삭제됨
+! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
 ##.happy-header
 ! AV핑보걸 영상 화면 하단 배너
 ! 쏘걸 (https://kr78.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
