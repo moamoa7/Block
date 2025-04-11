@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041115
+! Version: 25041116
 
 
 
@@ -99,12 +99,6 @@ djxmaza.in#@#+js(nobab)
 
 ! 숲 개인채널 (https://ch.sooplive.co.kr/) 팝업
 ##.bs-notice_layer
-
-!치지직 (https://chzzk.naver.com/) 등 광고 차단 안내 팝업
-##[class^="popup_"]:not(html):not(body):not(article)
-
-! KICK (https://kick.com/) 하단 쿠키 팝업
-##.z-modal
 
 ! 소프트콘 뷰어쉽 (https://viewership.softc.one/) 팝업
 ##.fc-dialog-container
