@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041201
+! Version: 25041202
 
 
 
@@ -106,9 +106,14 @@ djxmaza.in#@#+js(nobab)
 ##div[style*="box-shadow: rgb(136, 136, 136) 0px 0px 12px; color: "]
 
 ! 메시티비 (https://messitv8.com/) 배너
+! - - - 메인 배너 여러개
 ##[class*="baner"]
+! - - - 왼쪽 상단 배너
 /sidebanner*
-##.d-xl-block.d-none
+! - - - 스포츠 토토 배너
+##[class^="bg_gray_boxshadow_slope d-none d-md-block"]:not(html):not(body):not(article)
+! - - - 왼쪽 맨 아래 하단 배너
+##.bigwin-bn
 ! 메시티비 (https://messitv8.com/) 채팅박스
 ##u-chat
 
@@ -122,9 +127,14 @@ djxmaza.in#@#+js(nobab)
 ##.left_chat
 
 ! 굿라이브티비 (https://gltv88.com/) 왼쪽 배너
+! - 블랙티비 (https://blacktv88.com/) 적용
 ##.middle-banner
 ! 굿라이브티비 (https://gltv88.com/) 왼쪽 챗 공간
 ###fchat
+
+! 블랙티비 (https://blacktv88.com/) 왼쪽 챗 공간
+! - 굿라이브티비 (https://gltv88.com/) 적용
+##div.b-ox:nth-of-type(3)
 
 ! 배트맨티비 (https://bmtv24.com/) 팝업
 ##.modal_item
@@ -186,6 +196,13 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! 이투데이 (https://www.etoday.co.kr/) 오른쪽 배너
 ##.r_w_banner
 
+! 이데일리 (https://www.edaily.co.kr/) 상단 배너
+##.special_area
+
+! 어패럴뉴스 (https://apparelnews.co.kr/) 왼쪽 배너
+###mainLeftBanner
+! 어패럴뉴스 (https://apparelnews.co.kr/) 오른쪽 배너
+##a.side_banner
 
 
 
@@ -202,6 +219,9 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! 링크사랑 (https://linklove54.com/) 팝업 이미지
 ##.miso-love-ad
 ##.is-round-title.bg-black.carousel-inner
+
+! 주소요 (https://jusoyo41.com/) 상단 배너
+##.basic-banner-gallery
 
 
 
@@ -393,6 +413,27 @@ m.11st.co.kr##.fadeIn.animated.dim
 m.cgv.co.kr##[class^="home_contents_list_wrap home"]
 m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! CGV 모바일 (m.cgv.co.kr) 맨 밑 하단 배너 공간
+
+
+
+
+! 토렌트G (https://ttg-34.com/) 상단 배너
+###topbanner_1
 ##.topBanner.home_article_wrap
 
 
+
+
+
+!!! 기타 처리
+
+
+! 배너 이미지
+! - https://torrentboy.net/
+||files/img/banner/*
+!- https://sureranking.net/
+##.banner
+! - http://mttotoinfo.com/
+##.widget-area
+! - https://jusoyo41.com/
+||*img/*banner.gif
