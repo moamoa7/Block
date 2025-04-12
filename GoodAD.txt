@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041206
+! Version: 25041207
 
 
 
@@ -18,7 +18,7 @@
 
 !!! 필터 오류 및 차단 해제
 
-!쿠팡 (https://coupang.com/) 로그인 오류 해결
+! 쿠팡 (https://coupang.com/) 로그인 오류 해결
 ! - AdGuard Tracking Protection 해제
 @@/\.coupang\.com\/(?!resources)(?!vp)[A-Za-z0-9-_]{5,}\/(?!cart)(?!product)[A-Za-z0-9-_]+\/(?!api)(?!user)[A-Za-z0-9-_]+\/[A-Za-z0-9-_]+\/(?!products)[A-Za-z0-9-_]+/$domain=coupang.com|~mc.coupang.com|~checkout.coupang.com,script,xmlhttprequest,method=get,match-case
 @@/^https:\/\/(www|m)\.coupang\.com\/[A-Za-z0-9_]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_]+\/[A-Za-z0-9_]+(\/[A-Za-z0-9_-]+){0,5}$/$domain=coupang.com,xmlhttprequest,method=post,match-case
@@ -427,6 +427,11 @@ cdn-banana.bizhost.kr/files/new_main/*.jpg
 ! 11번가 모바일 (m.11st.co.kr) 하단 배너
 m.11st.co.kr##.slideInBottom
 m.11st.co.kr##.fadeIn.animated.dim
+
+! 와디즈 (https://www.wadiz.kr/) 메인 상단 배너 이미지 나오게 하기
+! - 개인적 취향
+! -  kr: List-KR 무력회
+@@||service.wadiz.kr/api/*/wadizad/host/keyvisual
 
 
 
