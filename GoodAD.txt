@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041306
+! Version: 25041307
 
 
 
@@ -78,7 +78,7 @@ maxmovie.com#@#.mainAd
 ! - - - 상단 배너
 ##.page_top-ad-box-sticky___7Mgh.hvNFwQ.sc-c27a807a-0
 ! - 상.하단 버튼 모양
-issuefeed.dcinside.com##button
+##button
 
 
 ! AAGAG (https://aagag.com/) 떠다니는 배너
