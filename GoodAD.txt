@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041207
+! Version: 25041208
 
 
 
@@ -319,8 +319,6 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! 쏘걸 (https://kr78.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
 !##.happy-under-player
 
-! 자브걸 (https://kr23.javgirl.co/) 배너 이미지
-##.ad_banner
 ! 자브걸 (https://kr23.javgirl.co/) 상단 오른쪽 배너 이미지
 ###header_banner
 
