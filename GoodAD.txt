@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041212
+! Version: 25041213
 
 
 
@@ -116,6 +116,51 @@ djxmaza.in#@#+js(nobab)
 
 
 
+
+
+! 티비위키 (https://tvwiki19.com/) / 티비몬 (https://tvmon15.org/)
+! - websocket 차단
+!||openwebtorrent.com
+!||linkwang.org
+! - - - Adblock-Rule-Collection-Lite
+||tracker.$xmlhttprequest,websocket,script,ping
+! - - - tracker.linkwang.org
+! - - - tracker.openwebtorrent.com
+! - 영상 하단 배너 공간
+! - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
+##[class^="full pc-only"]:not(html):not(body):not(article)
+##[class^="full mobile-only2"]:not(html):not(body):not(article)
+! - 바로 플레이버튼 나오게 변경
+###viewCover
+! - 위로 바로 가는 버튼
+! - - - 태블릿(모바일)에서 세로 감상시 전체화면 클릭시 그 위치에 있어서 없앰
+! - - - - - 티비위키
+###top_btn.sticky_top_btn.top_btn
+! - - - - - 티비몬
+###top_btn.sticky_top_btn.top_btn_sticky
+
+!코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR) 배너
+##.at-title
+###exon
+
+! 후후티비 (https://hoohootv162.xyz/) 배너
+##.rhkd
+
+! 티비룸 (tvroom7.org/) 팝업
+##.iziModal-overlay
+! 티비룸 (tvroom7.org/) 배너 이미지
+##.banner_
+
+!누누티비 (https://www.ntnt4.tv/) 배너
+##.wixui-column-strip.CohWsy.comp-lhh974lu
+
+!티비위키 (https://tv61.wiki/) 배너
+##.custom_banner_wrap
+
+
+
+
+
 ! 메시티비 (https://messitv8.com/) 배너
 ! - - - 메인 배너 여러개
 ##[class*="baner"]
@@ -159,46 +204,6 @@ djxmaza.in#@#+js(nobab)
 !코난티비 (https://conan-tv.com/) 배너
 ||conan-tv.com/img/banner.gif
 conan-tv.com###fboardlist
-
-! 티비위키 (https://tvwiki19.com/) / 티비몬 (https://tvmon15.org/)
-! - websocket 차단
-!||openwebtorrent.com
-!||linkwang.org
-! - - - Adblock-Rule-Collection-Lite
-||tracker.$xmlhttprequest,websocket,script,ping
-! - - - tracker.linkwang.org
-! - - - tracker.openwebtorrent.com
-! - 영상 하단 배너 공간
-! - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
-##[class^="full pc-only"]:not(html):not(body):not(article)
-##[class^="full mobile-only2"]:not(html):not(body):not(article)
-! - 바로 플레이버튼 나오게 변경
-###viewCover
-! - 위로 바로 가는 버튼
-! - - - 전체화면 클릭시 그 위치에 있어서 없앰
-! - - - - - 티비위키
-###top_btn.sticky_top_btn.top_btn
-! - - - - - 티비몬
-###top_btn.sticky_top_btn.top_btn_sticky
-
-!티비위키 (https://tv61.wiki/) 배너
-##.custom_banner_wrap
-!
-
-!코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR) 배너
-##.at-title
-###exon
-
-! 후후티비 (https://hoohootv162.xyz/) 배너
-##.rhkd
-
-! 티비룸 (tvroom7.org/) 팝업
-##.iziModal-overlay
-! 티비룸 (tvroom7.org/) 배너 이미지
-##.banner_
-
-!누누티비 (https://www.ntnt4.tv/) 배너
-##.wixui-column-strip.CohWsy.comp-lhh974lu
 
 
 
