@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041208
+! Version: 25041209
 
 
 
@@ -107,6 +107,12 @@ djxmaza.in#@#+js(nobab)
 
 ! 헝그리앱 (https://www.hungryapp.co.kr/) 상단 배너
 ##.bannersww
+
+! 씨네스트 (https://cineaste.co.kr/)
+! - 메인 배너
+##.main-title
+! - 오른쪽 중간 배너
+##.basic-banner
 
 
 
