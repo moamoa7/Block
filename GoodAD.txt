@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041305
+! Version: 25041306
 
 
 
@@ -67,11 +67,13 @@ maxmovie.com#@#.mainAd
 
 
 ! 디시인사이드 갤러리 (https://www.dcinside.com/)
-! - PC/모바일 디시 뉴스 (https://dctrend.ai/)
+! - PC 디시 뉴스 (https://dctrend.ai/)
 ! - - - 오른쪽 상단 배너
 ##.defaultAdBoxPc
-! - - - PC 오른쪽 하단 따라다니는 배너
+! - - - 오른쪽 하단 따라다니는 배너
 ##.toast300250
+! - 모바일 디시 뉴스 배너
+##.defaultAdBoxMo
 !- 모바일 디시 이슈 (issuefeed.dcinside.com)
 ! - - - 상단 배너
 ##.page_top-ad-box-sticky___7Mgh.hvNFwQ.sc-c27a807a-0
