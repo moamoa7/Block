@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041224
+! Version: 25041301
 
 
 
@@ -89,6 +89,16 @@ djxmaza.in#@#+js(nobab)
 
 ! 루리 (https://bbs.ruliweb.com/) 모바일 하단 배너
 ##.ad_go_wrapper
+
+! 딴지일보 (https://www.ddanzi.com/) 모바일
+! - 게시글 상단 배너(마켓 홍보)
+###banner_ddanzi_market
+! - 게시글 하단 공백
+##.ddanzi_m_club_MxC_336x280.add_display2
+
+
+
+
 
 ! 숲 (https://play.sooplive.co.kr) - 영상 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
