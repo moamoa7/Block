@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041220
+! Version: 25041221
 
 
 
@@ -507,7 +507,8 @@ m.11st.co.kr##.fadeIn.animated.dim
 
 ! 토렌트G (https://ttg-34.com/) 상단 배너
 ###topbanner_1
-##.topBanner.home_article_wrap  ! - CGV 모바일 (https://m.cgv.co.kr/) 에도 적용
+##.topBanner.home_article_wrap
+! - - - CGV 모바일 (https://m.cgv.co.kr/) 에도 적용
 
 
 
@@ -546,7 +547,8 @@ tmon.co.kr#@#.main_banner
 ##.plus_banner
 ! - https://www.blogchart.co.kr/
 ###sideBanner
-##.banner_01  ! - 롯데시네마 (https://www.lottecinema.co.kr/) 영화 홍보 배너에도 사용 
+##.banner_01
+! - - - 롯데시네마 (https://www.lottecinema.co.kr/) 영화 홍보 배너에도 적용
 ##.banner_02
 ##.banner_03
 ! - https://viewsnnews.com/
