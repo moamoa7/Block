@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041205
+! Version: 25041206
 
 
 
@@ -185,9 +185,6 @@ conan-tv.com###fboardlist
 !누누티비 (https://www.ntnt4.tv/) 배너
 ##.wixui-column-strip.CohWsy.comp-lhh974lu
 
-! OP.GG (https://www.op.gg/) 하단 배너 (Adblock-Rule-Collection-Lite)
-op.gg##body > div[style^="bottom: 0px; left: 0px; position: fixed;"]
-
 
 
 
@@ -226,6 +223,9 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 ! 이데일리 (https://www.edaily.co.kr/) 상단 배너
 ##.special_area
+
+! 게임조선 (https://gamechosun.co.kr/) 상단 배너
+##.top_event
 
 ! 어패럴뉴스 (https://apparelnews.co.kr/) 왼쪽 배너
 ###mainLeftBanner
@@ -452,6 +452,12 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 
 
+! 잡코리아 (https://www.jobkorea.co.kr/) 상단 배너
+###banner-area
+
+
+
+
 
 !!! 기타 처리
 
@@ -472,6 +478,9 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ###rightBanner
 ###sideCastBanner
 ###bottomBanner
+! - https://goodtv.co.kr/
+###main_banner
+##.plus_banner
 ! - https://www.blogchart.co.kr/
 ###sideBanner
 ##.banner_01
@@ -487,3 +496,11 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ###TopAdv250Rapper
 ! - http://mttotoinfo.com/
 ##.bannerListWidget
+! - https://www.christiantoday.co.kr/
+||*kr/data/banner/*
+
+
+
+! 팝업 이미지
+! - https://www.christiantoday.co.kr/
+##[id^="div_laypopup"]:not(html):not(body):not(article)
