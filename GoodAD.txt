@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041214
+! Version: 25041215
 
 
 
@@ -110,7 +110,7 @@ djxmaza.in#@#+js(nobab)
 
 ! 씨네스트 (https://cineaste.co.kr/)
 ! - 메인 배너
-##.main-title
+cineaste.co.kr##.main-title
 ! - 오른쪽 중간 배너
 ##.basic-banner
 
@@ -156,6 +156,9 @@ djxmaza.in#@#+js(nobab)
 
 !티비위키 (https://tv61.wiki/) 배너
 ##.custom_banner_wrap
+
+! 키노라이츠 (https://m.kinolights.com/) 팝업
+##.modal-manager
 
 
 
