@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041210
+! Version: 25041211
 
 
 
@@ -174,7 +174,10 @@ conan-tv.com###fboardlist
 ##[class^="full mobile-only2"]:not(html):not(body):not(article)
 ! - 위로 바로 가는 버튼
 ! - - - 전체화면 클릭시 그 위치에 있어서 없앰
+! - - - - - 티비위키
 ###top_btn.sticky_top_btn.top_btn
+! - - - - - 티비몬
+###top_btn.sticky_top_btn.top_btn_sticky
 
 !티비위키 (https://tv61.wiki/) 배너
 ##.custom_banner_wrap
