@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041303
+! Version: 25041304
 
 
 
@@ -18,17 +18,21 @@
 
 !!! 필터 오류 및 차단 해제
 
+
 ! 쿠팡 (https://coupang.com/) 로그인 오류 해결
 ! - AdGuard Tracking Protection 해제
 @@/\.coupang\.com\/(?!resources)(?!vp)[A-Za-z0-9-_]{5,}\/(?!cart)(?!product)[A-Za-z0-9-_]+\/(?!api)(?!user)[A-Za-z0-9-_]+\/[A-Za-z0-9-_]+\/(?!products)[A-Za-z0-9-_]+/$domain=coupang.com|~mc.coupang.com|~checkout.coupang.com,script,xmlhttprequest,method=get,match-case
 @@/^https:\/\/(www|m)\.coupang\.com\/[A-Za-z0-9_]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_]+\/[A-Za-z0-9_]+(\/[A-Za-z0-9_-]+){0,5}$/$domain=coupang.com,xmlhttprequest,method=post,match-case
 
+
 ! https://www.srank.kr/ 광고 차단 감지 해제 (애드가드에서는 되는대 ublock에서는 안되서 별도 처리) (List-KR 무력화)
 srank.kr#@#+js(prevent-fetch, doubleclick.net)
+
 
 ! 리그 오브 레전드 인벤 (lol.inven.co.kr) 상단 배너 제거
 ! 이거 하면 인벤 경기 일정도 같이 사라짐 (하지 말 것)
 !###topLinkBanner
+
 
 ! 리그 오브 레전드 인벤 (lol.inven.co.kr) 롤 경기 일정 보이게 하기
 !lol.inven.co.kr#@#[class^="banner"]:not(html):not(body):not(article)
@@ -38,12 +42,14 @@ lol.inven.co.kr#@#.banner:not(html):not(body)
 ! - - - -  List-KR 무력화
 lol.inven.co.kr#@#article > div[style].banner
 
+
 ! devuploads.com 다운 차단 해제
 ! - EasyList
 djxmaza.in#@##featuredimage
 ! - AdGuard – Ads
 djxmaza.in#@#+js(nobab)
 @@/devfiles.pages.dev\/img\/[a-zA-Z0-9]{8,}.jpeg/$domain=miuiflash.com|djxmaza.in|thecubexguide.com
+
 
 ! 맥스무비 (https://www.maxmovie.com/)
 ! - 게시글 열람시 오류 해결
@@ -59,6 +65,7 @@ maxmovie.com#@#.mainAd
 
 !!! 차단
 
+
 ! 디시인사이드 갤러리 (https://www.dcinside.com/) 미리보기 이미지 차단
 !실시간 베스트 이미지 차단
 ||dccdn11.dcinside.co.kr
@@ -66,21 +73,28 @@ maxmovie.com#@#.mainAd
 ||cdn.inappnews.net
 ||image.isplus.com/
 
-! AAGAG (aagag.com) 떠다니는 배너
+
+! AAGAG (https://aagag.com/) 떠다니는 배너
 ##.bottom.center.sAlert
 
-! 인벤 (https://inven.co.kr) 게시글 하단 안내창
+
+! 인벤 (https://inven.co.kr)
+! - 게시글 하단 안내창
 ##.invenAppSuggestionInner
-! 인벤 오른쪽 하단 떠다니는 배너
+! - 오른쪽 하단 떠다니는 배너
 ##.roulette-open.inven-float-alarm
 
-!이토랜드 (https://www.etoland.co.kr/) 팝업 / 로그인 팝업 / 왼쪽 가운데 배너
+
+!이토랜드 (https://www.etoland.co.kr/)
+! -팝업
 ###main_popup
+! - 로그인 팝업
 ###login_popup
+! - 왼쪽 가운데 배너
 ##.banner-box
-! 이토랜드 (https://www.etoland.co.kr/) 광고 게시물
+! - 게시물 내 광고글
 ##.ad_list
-! 이토랜드 ((https://www.etoland.co.kr/) 모바일 게시물 하단 광고 배너
+! - 모바일 게시물 하단 광고 배너
 ! - - - 3칸짜리 광고 배너
 ###underGoodBtn_freeRecharge
 
@@ -95,6 +109,7 @@ maxmovie.com#@#.mainAd
 ! 루리 (https://bbs.ruliweb.com/) 모바일 하단 배너
 ##.ad_go_wrapper
 
+
 ! 딴지일보 (https://www.ddanzi.com/) 모바일
 ! - 게시글 상단 배너(마켓 홍보)
 ###banner_ddanzi_market
@@ -102,26 +117,20 @@ maxmovie.com#@#.mainAd
 ##.ddanzi_m_club_MxC_336x280.add_display2
 
 
-
-
-
-! 숲 (https://play.sooplive.co.kr) - 영상 정상인데도 버퍼링 도는 작은 동그라미
-##.buffering
-
-! 숲 다시보기 (https://vod.sooplive.co.kr/) 알바몬 배너
-##.adballoon_icon
-
-! 숲 개인채널 (https://ch.sooplive.co.kr/) 팝업
-##.bs-notice_layer
-
-! 소프트콘 뷰어쉽 (https://viewership.softc.one/) 팝업
-##.fc-dialog-container
-! 소프트콘 뷰어쉽 (https://viewership.softc.one/) 하단 배너
-! - Fanboy's Annoyance List
-##div[style*="box-shadow: rgb(136, 136, 136) 0px 0px 12px; color: "]
-
 ! 헝그리앱 (https://www.hungryapp.co.kr/) 상단 배너
 ##.bannersww
+
+
+
+
+
+! 숲 ((https://sooplive.co.kr)
+! - 영상 ((https://play.sooplive.co.kr) 정상인데도 버퍼링 도는 작은 동그라미
+##.buffering
+! - 다시보기 (https://vod.sooplive.co.kr/) 알바몬 배너
+##.adballoon_icon
+! - 개인채널 (https://ch.sooplive.co.kr/) 팝업
+##.bs-notice_layer
 
 
 
@@ -148,23 +157,29 @@ maxmovie.com#@#.mainAd
 ! - - - - - 티비몬
 ###top_btn.sticky_top_btn.top_btn_sticky
 
+
 !코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR) 배너
 ##.at-title
 ###exon
 
+
 ! 후후티비 (https://hoohootv162.xyz/) 배너
 ##.rhkd
+
 
 ! 티비룸 (tvroom7.org/) 팝업
 ##.iziModal-overlay
 ! 티비룸 (tvroom7.org/) 배너 이미지
 ##.banner_
 
+
 !누누티비 (https://www.ntnt4.tv/) 배너
 ##.wixui-column-strip.CohWsy.comp-lhh974lu
 
+
 !티비위키 (https://tv61.wiki/) 배너
 ##.custom_banner_wrap
+
 
 ! 씨네스트 (https://cineaste.co.kr/)
 ! - 메인 배너
@@ -172,14 +187,17 @@ cineaste.co.kr##.main-title
 ! - 오른쪽 중간 배너
 ##.basic-banner
 
+
 ! 키노라이츠 (https://m.kinolights.com/) 팝업
 ##.modal-manager
+
 
 ! 왓챠피디아 (https://pedia.watcha.com/)
 ! - 팝업
 ##.Ou4e8aZR
 ! - 게시물내 배너
 ##.OKQiqzeA.j9pLi57W
+
 
 ! CGV 모바일 (https://m.cgv.co.kr/)
 ! - - - 팝업을 삭제하면 스크롤이 안됨
@@ -192,6 +210,7 @@ m.cgv.co.kr##[class^="home_contents_list_wrap home"]
 m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! - 무비차트 내 간편결제매니저 공간
 ##.ad
+
 
 ! 롯데시네마 (https://www.lottecinema.co.kr)
 ! - 개인적으로 필요없는 요소 (거의 대부분)
@@ -238,14 +257,18 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! 메시티비 (https://messitv8.com/) 채팅박스
 ##u-chat
 
+
 ! 고트티비 (https://goat-v.com) 팝업
 ##.popup-container
+
 
 ! VIP TV (https://viptv24.com/) 팝업
 ###popup_1
 
+
 ! 쿨티비 (https://www.cool111.com/) 챗 공간
 ##.left_chat
+
 
 ! 굿라이브티비 (https://gltv88.com/) 왼쪽 배너
 ! - 블랙티비 (https://blacktv88.com/) 적용
@@ -253,18 +276,22 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! 굿라이브티비 (https://gltv88.com/) 왼쪽 챗 공간
 ###fchat
 
+
 ! 블랙티비 (https://blacktv88.com/) 왼쪽 챗 공간
 ! - 굿라이브티비 (https://gltv88.com/) 적용
 ##div.b-ox:nth-of-type(3)
+
 
 ! 배트맨티비 (https://bmtv24.com/) 팝업
 ##.modal_item
 ! 배트맨티비 (https://bmtv24.com/) 챗 공간
 ##.chat_frame
 
+
 ! 놀고가닷컴 배너 (https://nolgoga365.com/)
 ##[href="https://max-play999.com/"]
 ##[href="https://%EB%9D%BC%EC%9E%84%EC%A3%BC%EC%86%8C.com"]
+
 
 !코난티비 (https://conan-tv.com/) 배너
 ||conan-tv.com/img/banner.gif
@@ -280,37 +307,46 @@ conan-tv.com###fboardlist
 ! - 뉴스 게시물 내 배너
 ##[class^="aside-box"]:not(html):not(body):not(article)
 
+
 ! 위키트리 (https://www.wikitree.co.kr/) 하단 배너
 ##section.container.section:nth-of-type(5)
+
 
 ! 한국경제 (https://www.hankyung.com/) 배너 등
 ! - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - https://github.com/mtxadmin/ublock - _rules 규칙 적용
 hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
+
 ! 한국경제TV (https://www.wowtv.co.kr/) 상단 배너
 ##.MainTopBig1.wrap-BannerBox
 ||*/images/banner/*
 
+
 ! MTN 머니투데이 (https://mtn.co.kr/) 배너
 ##.w_308px
 ##.d_block
+
 
 ! 시사IN (https://www.sisain.co.kr/) 팝업창
 ###layer-popups
 ! 시사IN (https://www.sisain.co.kr/) 구독 배너
 ##.sisain_view
 
+
 ! 이투데이 (https://www.etoday.co.kr/) 배너
 ##.evt_roll_banner
 ! 이투데이 (https://www.etoday.co.kr/) 오른쪽 배너
 ##.r_w_banner
 
+
 ! 이데일리 (https://www.edaily.co.kr/) 상단 배너
 ##.special_area
 
+
 ! 게임조선 (https://gamechosun.co.kr/) 상단 배너
 ##.top_event
+
 
 ! 어패럴뉴스 (https://apparelnews.co.kr/) 왼쪽 배너
 ###mainLeftBanner
@@ -322,6 +358,7 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! 주소월드 (https://wdwd6.com/) 배너
 ##.banner_list.at-container
 
+
 ! 링크판 (https://linkpan71.com/) 배너
 ##.ban1
 ! 링크판 (https://linkpan71.com/) 팝업
@@ -329,9 +366,11 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! ! 링크판 (https://linkpan71.com/) 모바일 하단 배너
 ##[href="https://alspo5.net"]
 
+
 ! 링크사랑 (https://linklove54.com/) 팝업 이미지
 ##.miso-love-ad
 ##.is-round-title.bg-black.carousel-inner
+
 
 ! 주소요 (https://jusoyo41.com/) 상단 배너
 ##.basic-banner-gallery
@@ -346,8 +385,10 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
 
+
 ! 7MMTV (https://7tv000.com/) 상단 배너 공간
 ##.a-d-block
+
 
 ! AV19.org (https://av19.live/) 상단 배너 등
 ##.top_banner
@@ -358,11 +399,14 @@ avsee.ru##div.main-box:nth-of-type(1)
 ##[id*="Disclaimer"]:not(html):not(body):not(article)
 ##[class*="Disclaimer"]:not(html):not(body):not(article)
 
+
 ! fc2ppvdb.com 입장시 18세 체크
 ##[id*="ageCheck"]:not(html):not(body):not(article)
 
+
 ! 조개무비 (https://v15.jogemovie.net/) 배너 이미지
 ##.wp-block-gallery
+
 
 ! AV핑보걸 (https://pinkbo42.com/) / AV러브걸 (https://avlove26.com/) / XX조아 (https://xxjoa44.com/) 배너 이미지
 ###imgDiv > table
@@ -377,15 +421,19 @@ avsee.ru##div.main-box:nth-of-type(1)
 ###imgDiv21
 ###imgDiv22
 
+
 ! AV핑유걸 (https://avpingyou18.com/)  배너 이미지
 !##[class^="bannerul"]:not(html):not(body):not(article)
 ##.bannerul
 
+
 !AV핑크 (https://avpink34.com/) 배너 이미지
 ##.fg-image
 
+
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) 배너 이미지
 ##.textwidget
+
 
 ! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/) 배너 이미지
 ! 믹스걸 (https://xn--369an15a89c2ov.com/) (https://kr13.mix-19.com/home) 배너 이미지
@@ -404,8 +452,10 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! 쏘걸 (https://kr78.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
 !##.happy-under-player
 
+
 ! 자브걸 (https://kr23.javgirl.co/) 상단 오른쪽 배너 이미지
 ###header_banner
+
 
 ! 야동그라운드 (https://yagro48.com/) 배너 이미지
 upload/banners/*
@@ -423,42 +473,51 @@ upload/banners/*
 ! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/) 영상 하단내 배너 테두리
 ##.vjs-bottom-banner.vjs-bottom-banner-container
 
+
 ! 자막야동 (https://xn--2q1bp6izol05b.com/) (https://2.jamakyadong.me/) 영상 하단 배너
 ##.unde-player-ad
+
 
 ! javfinder.ai 영상 오른쪽 배너 틀
 !##[class^="sidebar-ads"]:not(html):not(body):not(article)
 ##.sidebar-ads
 
-! 놀쟈 (https://www.nzyumi.com/) 18세 이상 물어보는 팝업
-##.modal18
 
-! 놀쟈 (https://www.nzyumi.com/) 영상 작은 창
+! 놀쟈 (https://www.nzyumi.com/)
+! - 18세 이상 물어보는 팝업
+##.modal18
+! - 영상 작은 창
 ##[id^="tab-ad-player"]:not(html):not(body):not(article)
 ##.video-overlay
 
-! 오늘의 중계 (today-sports7.com) 가운데 중간 배너
-##.live-stream-banner
-! 오늘의 중계 (today-sports7.com) 왼쪽 배너
-##.info-banner
-! 오늘의 중계 (today-sports7.com) 팝업
+! 오늘의 중계 (today-sports7.com)
+! - 팝업
 ###hd_pop
-! 오늘의 중계 (today-sports7.com) 게시물내 한칸짜리 배너
+! - 가운데 중간 배너
+##.live-stream-banner
+! - 왼쪽 배너
+##.info-banner
+! - 게시물내 한칸짜리 배너
 ##[src*="event_banner"]
-! 오늘의 중계 (today-sports7.com) 모바일 상단 배너
+! - 모바일 상단 배너
 ##.live-stream.only-mobile
+
 
 ! hasha (https://hasha.in/) 팝업 (Adblock-Rule-Collection-Lite)
 &sseq=*&dseq=$popup,third-party
 
+
 ! 채터베이스 (https://chaturbate.com/) 입장 팝업
 ###entrance_terms_overlay
 
-! 천사티비 (https://1004sweet.com/) 배너 이미지
-! - 참고 : 애드가드 갤러리 필터 (https://pastebin.com/raw/y5tsuMN8)
+
+! 천사티비 (https://1004sweet.com/)
+! - 배너 이미지
+! - - - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ##.external
-! 천사티비 영상 상단 텍스트 배너
+! - 영상 상단 텍스트 배너
 ##.da-above
+
 
 ! FC2 18세 이상 박스
 ! - https://adult.contents.fc2.com/
@@ -467,11 +526,14 @@ upload/banners/*
 ! - - - wavve에도 적용되어 영상이 소리만 나오는 현상 발생 - 도메인 넣는걸로 변경
 fc1adult.com##.fullscreen
 
+
 !MISSAV (https://missvod2.com/) 배너
 ###banner-list.banner-list
 
+
 !야동판 (https://2.yadongpan.me/) 영상 아래 배너
 ##.happy-unde-player
+
 
 !조개파티 (https://jogaeparty139.com/) 배너
 ||images2.imgbox.com*.gif
@@ -507,9 +569,11 @@ cdn-banana.bizhost.kr/files/new_main/*.jpg
 ! 바나나몰 모바일 https://m.bananamall.co.kr/ 팝업
 ##.m2-index-pop
 
+
 ! 11번가 모바일 (m.11st.co.kr) 하단 배너
 m.11st.co.kr##.slideInBottom
 m.11st.co.kr##.fadeIn.animated.dim
+
 
 ! 와디즈 (https://www.wadiz.kr/) 메인 상단 배너 이미지 나오게 하기
 ! - 개인적 취향
@@ -581,8 +645,3 @@ tv.kakao.com#@#.ads
 ! - https://www.christiantoday.co.kr/
 ||*kr/data/banner/*
 
-
-
-! 팝업 이미지
-! - https://www.christiantoday.co.kr/
-##[id^="div_laypopup"]:not(html):not(body):not(article)
