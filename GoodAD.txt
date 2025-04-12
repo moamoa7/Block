@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041301
+! Version: 25041302
 
 
 
@@ -81,11 +81,12 @@ djxmaza.in#@#+js(nobab)
 ###underGoodBtn_freeRecharge
 
 
-! 짱공유 (https://www.jjang0u.com/) 모바일 하단 배너
-!##.ad_area1
-! - ##[class^="ad_"]:not(html):not(body):not(article) 로 처리
-! 짱공유 (https://www.jjang0u.com/) 왼쪽 배너 공간
+! 짱공유 (https://www.jjang0u.com/)
+! - PC 왼쪽 배너 공간
 ###banner
+! - 모바일 하단 배너
+##.ad_area1
+
 
 ! 루리 (https://bbs.ruliweb.com/) 모바일 하단 배너
 ##.ad_go_wrapper
