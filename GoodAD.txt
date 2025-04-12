@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041222
+! Version: 25041223
 
 
 
@@ -553,8 +553,6 @@ tmon.co.kr#@#.main_banner
 ##.banner_03
 ! - https://viewsnnews.com/
 ##.ads
-! - - - 카카오TV 영생 재생 문제 해결
-tv.kakao.com#@#.ads
 ! - https://www.sangga114.co.kr/
 ##.banner-item
 ! - https://sportalkorea.com/
