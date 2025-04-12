@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041209
+! Version: 25041210
 
 
 
@@ -160,21 +160,25 @@ djxmaza.in#@#+js(nobab)
 ||conan-tv.com/img/banner.gif
 conan-tv.com###fboardlist
 
-! 티비위키 (https://tvwiki19.com/) websocket
+! 티비위키 (https://tvwiki19.com/) / 티비몬 (https://tvmon15.org/)
+! - websocket 차단
 !||openwebtorrent.com
 !||linkwang.org
 ! - - - Adblock-Rule-Collection-Lite
 ||tracker.$xmlhttprequest,websocket,script,ping
 ! - - - tracker.linkwang.org
 ! - - - tracker.openwebtorrent.com
-
-! 티비위키/티비몬 영상 하단 배너 공간
+! - 영상 하단 배너 공간
 ! - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 ##[class^="full pc-only"]:not(html):not(body):not(article)
 ##[class^="full mobile-only2"]:not(html):not(body):not(article)
+! - 위로 바로 가는 버튼
+! - - - 전체화면 클릭시 그 위치에 있어서 없앰
+###top_btn.sticky_top_btn.top_btn
 
 !티비위키 (https://tv61.wiki/) 배너
 ##.custom_banner_wrap
+!
 
 !코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR) 배너
 ##.at-title
@@ -497,6 +501,8 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ##.banner_03
 ! - https://viewsnnews.com/
 ##.ads
+! - - - 카카오TV 영생 재생 문제 해결
+tv.kakao.com#@#.ads
 ! - https://www.sangga114.co.kr/
 ##.banner-item
 ! - https://sportalkorea.com/
