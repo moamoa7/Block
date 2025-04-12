@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041213
+! Version: 25041214
 
 
 
@@ -494,6 +494,8 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ||*img/*banner.gif
 ! - https://phpschool.com/
 ##.main_banner
+! - - - 예외
+tmon.co.kr#@#.main_banner
 ##.right_banner
 ##.main_job
 ! - https://named.com/
