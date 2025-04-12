@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041218
+! Version: 25041219
 
 
 
@@ -180,7 +180,9 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 ! 롯데시네마 (https://www.lottecinema.co.kr)
 ! - 개인적으로 필요없는 일부 요소
-! - 스페셜관 홍보 배너
+! - - - 젤 위 영화 홍보 배너
+##.banner_type01.banner_top_wrap
+! - - - 스페셜관 홍보 배너
 ##.special.main_cont_wrap
 ! - - - 이벤트 배너
 ##.event.main_cont_wrap
