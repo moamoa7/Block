@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041217
+! Version: 25041218
 
 
 
@@ -177,6 +177,22 @@ m.cgv.co.kr##[class^="home_contents_list_wrap home"]
 m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! - 무비차트 내 간편결제매니저 공간
 ##.ad
+
+! 롯데시네마 (https://www.lottecinema.co.kr)
+! - 개인적으로 필요없는 일부 요소
+! - 스페셜관 홍보 배너
+##.special.main_cont_wrap
+! - - - 이벤트 배너
+##.event.main_cont_wrap
+! - - - 시사회.무대인사
+##.premiere.main_cont_wrap
+! - 배너
+! - - - 영화 순위 내 카드 홍보 배너
+##div.active.owl-item:nth-of-type(5)
+! - - - 하단 카드 홍보 배너
+###banner_section
+! - - - 맨 밑 하단 앱 사용 홍보 배너
+##.appbannermain_wrap
 
 
 
@@ -478,8 +494,8 @@ m.11st.co.kr##.fadeIn.animated.dim
 
 ! 토렌트G (https://ttg-34.com/) 상단 배너
 ###topbanner_1
-##.topBanner.home_article_wrap
-! - CGV 모바일 (https://m.cgv.co.kr/) 에도 적용
+##.topBanner.home_article_wrap  ! - CGV 모바일 (https://m.cgv.co.kr/) 에도 적용
+
 
 
 
@@ -517,7 +533,7 @@ tmon.co.kr#@#.main_banner
 ##.plus_banner
 ! - https://www.blogchart.co.kr/
 ###sideBanner
-##.banner_01
+##.banner_01  ! - 롯데시네마 (https://www.lottecinema.co.kr/) 영화 홍보 배너에도 사용 
 ##.banner_02
 ##.banner_03
 ! - https://viewsnnews.com/
