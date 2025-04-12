@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041211
+! Version: 25041212
 
 
 
@@ -172,6 +172,8 @@ conan-tv.com###fboardlist
 ! - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 ##[class^="full pc-only"]:not(html):not(body):not(article)
 ##[class^="full mobile-only2"]:not(html):not(body):not(article)
+! - 바로 플레이버튼 나오게 변경
+###viewCover
 ! - 위로 바로 가는 버튼
 ! - - - 전체화면 클릭시 그 위치에 있어서 없앰
 ! - - - - - 티비위키
