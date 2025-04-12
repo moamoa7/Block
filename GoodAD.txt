@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041308
+! Version: 25041309
 
 
 
@@ -77,6 +77,8 @@ maxmovie.com#@#.mainAd
 !- 모바일 디시 이슈 (issuefeed.dcinside.com)
 ! - - - 상단 배너
 ##.page_top-ad-box-sticky___7Mgh.hvNFwQ.sc-c27a807a-0
+! - - - 하단 배너
+##.hVkyiy.sc-dc027761-1
 ! - 상.하단 버튼 모양
 issuefeed.dcinside.com##button
 
