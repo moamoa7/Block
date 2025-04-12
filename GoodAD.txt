@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041221
+! Version: 25041222
 
 
 
@@ -198,7 +198,7 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! - 모바일 개인적으로 필요없는 요소 (거의 대부분)
 ##.active.mainbottombanner.layer_wrap2
 ###overlay2
-##.sectionmainbannermid
+##.section__mainbanner__mid
 ##.section__enjoyspring
 ##.type2.section__affiliatediscount
 ##.type2.section__specialhall2
