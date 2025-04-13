@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041325
+! Version: 25041326
 
 
 
@@ -65,6 +65,17 @@ maxmovie.com#@#.mainAd
 
 !!! 차단
 
+
+! 디시인사이드 갤러리 (https://www.dcinside.com/)
+! 미리보기 이미지
+! - - - 실시간 베스트 이미지
+!||dccdn11.dcinside.co.kr
+! - - - 뉴스/디시미디어/디시이슈 이미지
+! - -  - 이거 차단하면 뉴스에서도 이미지 안나옴
+||cdn.inappnews.net
+!||image.isplus.com
+||pds.joongang.co.kr
+||trend.rankify.best
 
 ! 디시인사이드 (https://dcinside.com/)
 ! - 왼쪽 탭
