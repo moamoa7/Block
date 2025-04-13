@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041405
+! Version: 25041406
 
 
 
@@ -540,8 +540,7 @@ avsee.ru##div.main-box:nth-of-type(1)
 
 
 ! AV19.org (https://av19.live/) 상단 배너 등
-||david.cdnbuzz.buzz/banner/*
-! - ##.top_banner
+##.top_banner
 ! - 영상 오른편 배너 (EasList에 포함)
 ! ##.sidebar-ads
 ! - 영상 하단 텍스트 링크
