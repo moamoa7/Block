@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041341
+! Version: 25041342
 
 
 
@@ -386,6 +386,35 @@ conan-tv.com###fboardlist
 
 
 
+! 블랙툰 최신주소 (https://www.blacktoon1.info/) - 배너
+##.wixui-section.comp-m8jy31rn.Oqnisf
+
+
+! 호두코믹스 (https://xn--hu1b88ll0ffvo7li.info/) 배너
+##.mt-4.flex-wrap.flex
+
+! 호두코믹스 시즌2 (https://hdhd425.net/)
+! - 팝업
+##.alert_windows
+! - 배너
+||blogger.googleusercontent.com/img/*/AVvXsE*
+
+! 늑대닷컴 (https://wfwf384.com/)
+! 늑대닷컴2 (https://wftoon190.com/)
+! 여우코믹스 (https://fxfx303.com/)
+! - 배너
+##.top-banner
+
+
+! 링크 비비기 (https://linkbbg.com/)
+! 온도티비 (https://01.ondotv.com/)
+! - 배너
+##.basic-banner-4
+
+
+
+
+
 ! 연합뉴스 (https://www.yna.co.kr/) 광고
 ! - 상단 배너
 ##.aside-top-bnr01
@@ -459,6 +488,10 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 ! 주소요 (https://jusoyo41.com/) 상단 배너
 ##.basic-banner-gallery
+
+
+! 주소타운 (https://www.jusotw.com/) 배너
+##.wixui-section.comp-lt8phbbp.Oqnisf
 
 
 
