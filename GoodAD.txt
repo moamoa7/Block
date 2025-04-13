@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041406
+! Version: 25041407
 
 
 
@@ -429,7 +429,7 @@ conan-tv.com###fboardlist
 
 ! 툰코 (https://tkor012.com/)
 ! - 배너
-##.main_top_bann
+##.mobile-banner.col-md-12
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
 #@#.mobile-banner
 
