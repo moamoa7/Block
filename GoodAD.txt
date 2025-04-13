@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041340
+! Version: 25041341
 
 
 
@@ -255,6 +255,10 @@ dcinside.com##section.clkhigh.grid
 ##.custom_banner_wrap
 
 
+! 도라마코리아 (https://www.dorama.kr/) 배너
+##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1fzrtxd-2
+
+
 ! 씨네스트 (https://cineaste.co.kr/)
 ! - 메인 배너
 cineaste.co.kr##.main-title
@@ -370,6 +374,13 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 !코난티비 (https://conan-tv.com/) 배너
 ||conan-tv.com/img/banner.gif
 conan-tv.com###fboardlist
+
+
+
+
+
+! Spotify (https://open.spotify.com/) 팝업
+##.ftlV6Ixmq4wkKMg7hJ1v.dialog
 
 
 
