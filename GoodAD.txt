@@ -72,7 +72,7 @@ maxmovie.com#@#.mainAd
 ||dccdn11.dcinside.co.kr
 ! - - - 뉴스/디시미디어/디시이슈 이미지
 ! - -  - 이거 차단하면 뉴스에서도 이미지 안나옴
-||cdn.inappnews.net
+!||cdn.inappnews.net
 !||image.isplus.com
 ||pds.joongang.co.kr
 !||trend.rankify.best
