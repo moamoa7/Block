@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041402
+! Version: 25041403
 
 
 
@@ -233,8 +233,10 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ###bannerList
 ! - 영상 하단 배너 공간
 ! - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
-##[class^="full pc-only"]:not(html):not(body):not(article)
-##[class^="full mobile-only2"]:not(html):not(body):not(article)
+!##[class^="full pc-only"]:not(html):not(body):not(article)
+##.pc-only.full
+!##[class^="full mobile-only2"]:not(html):not(body):not(article)
+##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
 ###viewCover
 ! - 위로 바로 가는 버튼
