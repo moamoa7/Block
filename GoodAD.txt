@@ -543,8 +543,10 @@ avsee.ru##div.main-box:nth-of-type(1)
 ##.top_banner
 ! - 영상 오른편 배너 (EasList에 포함)
 ! ##.sidebar-ads
-! - 영상 하단 텍스트 링크
-! - ###banner (짱공유에 포함)
+! - 영상 하단 배너
+###next-to-video-2
+! - 영상 하단 텍스트 배너 (짱공유에 포함)
+! - ###banner
 
 
 !폰허브 입장시 18세 이상 물어보는거 패스 (2개 다 해야함)
