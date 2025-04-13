@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041336
+! Version: 25041337
 
 
 
@@ -141,6 +141,9 @@ dcinside.com##.view-btm-con
 ! - - - 갤러리내 쿠팡 광고 부분 사라짐
 ! - - - * Blocked by AdGuard * / 부분 사라짐
 dcinside.com##section.clkhigh.grid
+
+! 디시인사이드 갤러리 글 볼때 커버이미지 안보이게
+##[class^="bgcover"]:not(html):not(body):not(article)
 
 
 ! AAGAG (https://aagag.com/) 떠다니는 배너
