@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041403
+! Version: 25041404
 
 
 
@@ -643,10 +643,6 @@ upload/banners/*
 ##[src*="event_banner"]
 ! - 모바일 상단 배너
 ##.live-stream.only-mobile
-
-
-! hasha (https://hasha.in/) 팝업 (Adblock-Rule-Collection-Lite)
-&sseq=*&dseq=$popup,third-party
 
 
 ! 채터베이스 (https://chaturbate.com/) 입장 팝업
