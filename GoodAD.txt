@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041311
+! Version: 25041312
 
 
 
@@ -69,6 +69,21 @@ gall.dcinside.com#@#.r_dcmedia
 
 !!! 차단
 
+! 디시인사이드 갤러리 (https://www.dcinside.com/)
+! 미리보기 이미지 차단
+! - - - 실시간 베스트 이미지
+||dccdn11.dcinside.co.kr
+! - - - 뉴스/디시미디어/디시이슈 이미지
+! - -  - 이거 차단하면 뉴스에서도 이미지 안나옴
+||cdn.inappnews.net/
+
+! 디시인사이드 (https://gall.dcinside.com/) 오른쪽 배너
+! - 뉴스.미디어.이슈
+!##.r_dcmedia.content_box
+! - 실시간 베스트
+!##.r_timebest.content_box
+! - 개념글
+!##.r_recommend.content_box
 
 ! 디시인사이드 갤러리 (https://www.dcinside.com/)
 ! - PC 디시 뉴스 (https://dctrend.ai/)
@@ -85,6 +100,8 @@ gall.dcinside.com#@#.r_dcmedia
 ##.hVkyiy.sc-dc027761-1
 ! - 상.하단 버튼 모양
 issuefeed.dcinside.com##button
+! - 뉴스/디시미디어/디시이슈 탭 없애기
+##.view-btm-con
 
 
 ! AAGAG (https://aagag.com/) 떠다니는 배너
