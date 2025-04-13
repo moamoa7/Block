@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041314
+! Version: 25041315
 
 
 
@@ -97,8 +97,13 @@ maxmovie.com#@#.mainAd
 ##.hVkyiy.sc-dc027761-1
 ! - 상.하단 버튼 모양
 issuefeed.dcinside.com##button
-! - 뉴스/디시미디어/디시이슈 탭 없애기
+! - 모바일 갤러리 (https://m.dcinside.com/)
+! - - - 갤러리내 뉴스/디시미디어/디시이슈 탭 없애기
 ##.view-btm-con
+! - - - 갤러리내 쿠팡 광고 부분 사라짐
+##section.clkhigh.grid
+! - - - 갤러리내 다음 검색 사라짐
+##section.grid:nth-of-type(9)
 
 
 ! AAGAG (https://aagag.com/) 떠다니는 배너
