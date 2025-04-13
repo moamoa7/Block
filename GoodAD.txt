@@ -69,7 +69,7 @@ maxmovie.com#@#.mainAd
 ! 디시인사이드 갤러리 (https://www.dcinside.com/)
 ! 미리보기 이미지
 ! - - - 실시간 베스트 이미지
-||dccdn11.dcinside.co.kr
+||dccdn11.dcinside.co.kr$image
 ! - - - 뉴스/디시미디어/디시이슈 이미지
 ! - -  - 이거 차단하면 뉴스에서도 이미지 안나옴 (차단 X)
 !||cdn.inappnews.net
@@ -80,60 +80,65 @@ maxmovie.com#@#.mainAd
 ! 디시인사이드 (https://dcinside.com/)
 ! - 왼쪽 탭
 ! - - - 실시간 베스트
-##.time_best
+dcinside.com##.time_best
 ! - - - 뉴스
-##.news_con.content
+dcinside.com##.news_con.content
 ! - - - 개념글
-##.concept_con.content
+dcinside.com##.concept_con.content
 ! - 오른쪽 탭
 ! - - - 디시트렌드 투표
-##.vote.trend
+dcinside.com##.vote.trend
 ! - - - 디시미디어/디시이슈
-##.dcmedia.content_box
+dcinside.com##.dcmedia.content_box
 ! - 모바일
 ! - - - 모조리 제외
-##.sec-wrap
-! 디시인사이드 (https://gall.dcinside.com/) 오른쪽 탭
+dcinside.com##.sec-wrap
+! 디시인사이드 갤러리 메인
+gall.dcinside.com##.cont_head
+gall.dcinside.com##.gallmain.pageing_box
+gall.dcinside.com##.recomImg.img.cont_list
+gall.dcinside.com##.recomTxt.txt.cont_list
+! 디시인사이드 해당 갤러리 이동 후 오른쪽 탭
 ! - 뉴스.미디어.이슈
-##.r_dcmedia.content_box
+gall.dcinside.com##.r_dcmedia.content_box
 ! - 실시간 베스트
-##.r_timebest.content_box
+gall.dcinside.com##.r_timebest.content_box
 ! - 개념글
-##.r_recommend.content_box
+gall.dcinside.com##.r_recommend.content_box
 ! - 서치 (search.dcinside.com) 탭
 ! - - - 뉴스 탭
-##.news_result.integrate_cont
+search.dcinside.com##.news_result.integrate_cont
 ! - - - 다음 검색 탭
-search.dcinside.com##.right_content
+search.dcinside.comsearch.dcinside.com##.right_content
 ! - - - 모바일 - 뉴스 제외
-##.news-schthum-lst
+search.dcinside.com##.news-schthum-lst
 ! - - - 모바일 - 다음 검색 제외
-##.md-tit-box
-##.outside-search-box
+search.dcinside.com##.md-tit-box
+search.dcinside.com##.outside-search-box
 
 
 ! 디시인사이드 갤러리 (https://www.dcinside.com/)
 ! - PC 디시 뉴스 (https://dctrend.ai/)
 ! - - - 오른쪽 상단 배너
-##.defaultAdBoxPc
+dctrend.ai##.defaultAdBoxPc
 ! - - - 오른쪽 하단 따라다니는 배너
-##.toast300250
+dctrend.ai##.toast300250
 ! - 모바일 디시 뉴스 배너
-##.defaultAdBoxMo
+dctrend.ai##.defaultAdBoxMo
 !- 모바일 디시 이슈 (issuefeed.dcinside.com)
 ! - - - 상단 배너
-##.page_top-ad-box-sticky___7Mgh.hvNFwQ.sc-c27a807a-0
+issuefeed.dcinside.com##.page_top-ad-box-sticky___7Mgh.hvNFwQ.sc-c27a807a-0
 ! - - - 하단 배너
-##.hVkyiy.sc-dc027761-1
+issuefeed.dcinside.com##.hVkyiy.sc-dc027761-1
 ! - 상.하단 버튼 모양
-issuefeed.dcinside.com##button
+issuefeed.dcinside.comissuefeed.dcinside.com##button
 ! - 모바일 갤러리 (https://m.dcinside.com/)
 ! - - - 갤러리내 뉴스/디시미디어/디시이슈 탭 없애기
-##.view-btm-con
+m.dcinside.com##.view-btm-con
 ! - - - 갤러리내 쿠팡 광고 부분 사라짐
-##section.clkhigh.grid
+m.dcinside.com##section.clkhigh.grid
 ! - - - 갤러리내 다음 검색 사라짐
-##section.grid:nth-of-type(9)
+m.dcinside.com##section.grid:nth-of-type(9)
 
 
 ! AAGAG (https://aagag.com/) 떠다니는 배너
