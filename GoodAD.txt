@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041318
+! Version: 25041319
 
 
 
@@ -95,6 +95,9 @@ m.dcinside.com##.container
 ##.r_timebest.content_box
 ! - 개념글
 ##.r_recommend.content_box
+! - 서치 (search.dcinside.com) 탭
+! - - - 뉴스 탭
+##.news_result.integrate_cont
 
 
 ! 디시인사이드 갤러리 (https://www.dcinside.com/)
