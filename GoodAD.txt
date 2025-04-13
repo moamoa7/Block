@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041332
+! Version: 25041333
 
 
 
@@ -144,6 +144,7 @@ dcinside.com##section.clkhigh.grid
 dcinside.com##section.grid:nth-of-type(9)
 ! - - - 갤러리 내 게시물 안 상단 공간
 dcinside.com##.imgwrap
+dcinside.com##p:nth-of-type(1)
 
 
 ! AAGAG (https://aagag.com/) 떠다니는 배너
