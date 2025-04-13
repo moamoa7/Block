@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041339
+! Version: 25041340
 
 
 
@@ -145,6 +145,11 @@ dcinside.com##section.clkhigh.grid
 
 ! AAGAG (https://aagag.com/) 떠다니는 배너
 ##.bottom.center.sAlert
+
+
+! 에펨코리아 (m.fmkorea.com) 모바일
+! - 오른쪽 하단 떠다니는 작은 배너
+###fm_alert
 
 
 ! 인벤 (https://inven.co.kr)
