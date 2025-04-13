@@ -90,8 +90,8 @@ maxmovie.com#@#.mainAd
 ! - - - 디시미디어/디시이슈
 ##.dcmedia.content_box
 ! - 모바일
-! - - - 뉴스 제외
-m.dcinside.com##.news-schthum-lst
+! - - - 모조리 제외
+##.sec-wrap
 ! 디시인사이드 (https://gall.dcinside.com/) 오른쪽 탭
 ! - 뉴스.미디어.이슈
 ##.r_dcmedia.content_box
@@ -104,6 +104,8 @@ m.dcinside.com##.news-schthum-lst
 ##.news_result.integrate_cont
 ! - - - 다음 검색 탭
 search.dcinside.com##.right_content
+! - - - 모바일 - 뉴스 제외
+##.news-schthum-lst
 
 
 ! 디시인사이드 갤러리 (https://www.dcinside.com/)
