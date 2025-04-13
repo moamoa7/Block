@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041333
+! Version: 25041334
 
 
 
@@ -135,16 +135,7 @@ issuefeed.dcinside.com##.page_top-ad-box-sticky___7Mgh.hvNFwQ.sc-c27a807a-0
 issuefeed.dcinside.com##.hVkyiy.sc-dc027761-1
 ! - 상.하단 버튼 모양
 issuefeed.dcinside.comissuefeed.dcinside.com##button
-! - 모바일 갤러리 (https://m.dcinside.com/)
-! - - - 갤러리내 뉴스/디시미디어/디시이슈 탭 없애기
-dcinside.com##.view-btm-con
-! - - - 갤러리내 쿠팡 광고 부분 사라짐
-dcinside.com##section.clkhigh.grid
-! - - - 갤러리내 다음 검색 사라짐
-dcinside.com##section.grid:nth-of-type(9)
-! - - - 갤러리 내 게시물 안 상단 공간
-dcinside.com##.imgwrap
-dcinside.com##p:nth-of-type(1)
+
 
 
 ! AAGAG (https://aagag.com/) 떠다니는 배너
