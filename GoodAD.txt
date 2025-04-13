@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041329
+! Version: 25041330
 
 
 
@@ -94,27 +94,27 @@ dcinside.com##.dcmedia.content_box
 ! - - - 모조리 제외
 dcinside.com##.sec-wrap
 ! 디시인사이드 갤러리 메인
-gall.dcinside.com##.cont_head
-gall.dcinside.com##.gallmain.pageing_box
-gall.dcinside.com##.recomImg.img.cont_list
-gall.dcinside.com##.recomTxt.txt.cont_list
+dcinside.com##.cont_head
+dcinside.com##.gallmain.pageing_box
+dcinside.com##.recomImg.img.cont_list
+dcinside.com##.recomTxt.txt.cont_list
 ! 디시인사이드 해당 갤러리 이동 후 오른쪽 탭
 ! - 뉴스.미디어.이슈
-gall.dcinside.com##.r_dcmedia.content_box
+dcinside.com##.r_dcmedia.content_box
 ! - 실시간 베스트
-gall.dcinside.com##.r_timebest.content_box
+dcinside.com##.r_timebest.content_box
 ! - 개념글
-gall.dcinside.com##.r_recommend.content_box
+dcinside.com##.r_recommend.content_box
 ! - 서치 (search.dcinside.com) 탭
 ! - - - 뉴스 탭
-search.dcinside.com##.news_result.integrate_cont
+dcinside.com##.news_result.integrate_cont
 ! - - - 다음 검색 탭
-search.dcinside.comsearch.dcinside.com##.right_content
+dcinside.comsearch.dcinside.com##.right_content
 ! - - - 모바일 - 뉴스 제외
-search.dcinside.com##.news-schthum-lst
+dcinside.com##.news-schthum-lst
 ! - - - 모바일 - 다음 검색 제외
-search.dcinside.com##.md-tit-box
-search.dcinside.com##.outside-search-box
+dcinside.com##.md-tit-box
+dcinside.com##.outside-search-box
 
 
 ! 디시인사이드 갤러리 (https://www.dcinside.com/)
