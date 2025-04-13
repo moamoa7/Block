@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041312
+! Version: 25041313
 
 
 
@@ -76,14 +76,15 @@ gall.dcinside.com#@#.r_dcmedia
 ! - - - 뉴스/디시미디어/디시이슈 이미지
 ! - -  - 이거 차단하면 뉴스에서도 이미지 안나옴
 ||cdn.inappnews.net/
+||image.isplus.com/
 
 ! 디시인사이드 (https://gall.dcinside.com/) 오른쪽 배너
 ! - 뉴스.미디어.이슈
-!##.r_dcmedia.content_box
+##.r_dcmedia.content_box
 ! - 실시간 베스트
-!##.r_timebest.content_box
+##.r_timebest.content_box
 ! - 개념글
-!##.r_recommend.content_box
+##.r_recommend.content_box
 
 ! 디시인사이드 갤러리 (https://www.dcinside.com/)
 ! - PC 디시 뉴스 (https://dctrend.ai/)
