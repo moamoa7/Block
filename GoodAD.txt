@@ -144,6 +144,7 @@ dcinside.com##section.clkhigh.grid
 
 ! 디시인사이드 갤러리 글 볼때 커버이미지 안보이게
 ##[class^="bgcover"]:not(html):not(body):not(article)
+##.imgwrap
 
 
 ! AAGAG (https://aagag.com/) 떠다니는 배너
