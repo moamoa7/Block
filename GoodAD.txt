@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041344
+! Version: 25041345
 
 
 
@@ -143,8 +143,13 @@ dcinside.com##.view-btm-con
 dcinside.com##section.clkhigh.grid
 
 
-! AAGAG (https://aagag.com/) 떠다니는 배너
+! AAGAG (https://aagag.com/)
+! - 떠다니는 배너
 ##.bottom.center.sAlert
+! - 게시물 50개마다 있는 공백 없애기
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
+
 
 
 ! 에펨코리아 (m.fmkorea.com) 모바일
