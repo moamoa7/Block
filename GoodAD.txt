@@ -473,6 +473,9 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! 어패럴뉴스 (https://apparelnews.co.kr/) 오른쪽 배너
 ##a.side_banner
 
+! ITWorld (https://www.itworld.co.kr/) 쿠키 팝업
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+##[id^='sp_message_container_']:remove()
 
 
 ! 주소월드 (https://wdwd6.com/) 배너
@@ -697,6 +700,10 @@ cdn-banana.bizhost.kr/files/new_main/*.jpg
 ! 11번가 모바일 (m.11st.co.kr) 하단 배너
 m.11st.co.kr##.slideInBottom
 m.11st.co.kr##.fadeIn.animated.dim
+
+
+! G마켓 모바일 (https://m.gmarket.co.kr/) 배너
+##.box__banner-expand
 
 
 ! 와디즈 (https://www.wadiz.kr/) 메인 상단 배너 이미지 나오게 하기
