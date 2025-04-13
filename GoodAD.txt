@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041322
+! Version: 25041323
 
 
 
@@ -106,6 +106,9 @@ maxmovie.com#@#.mainAd
 search.dcinside.com##.right_content
 ! - - - 모바일 - 뉴스 제외
 ##.news-schthum-lst
+! - - - 모바일 - 다음 검색 제외
+##.md-tit-box
+##.outside-search-box
 
 
 ! 디시인사이드 갤러리 (https://www.dcinside.com/)
