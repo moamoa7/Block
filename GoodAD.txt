@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041342
+! Version: 25041343
 
 
 
@@ -384,6 +384,16 @@ conan-tv.com###fboardlist
 
 
 
+
+
+! 뉴토끼 (https://newtoki468.com/)
+! 마나토끼 (https://manatoki468.net/)
+! 북토끼 (https://booktoki468.com/)
+! - 모바일 상단 공백 줄이기
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+[$domain=/^newtoki\d+.com/]##[style="margin-bottom: 20px;"].row.row-15
+[$domain=/^manatoki\d+.net/]##[style="margin-bottom: 20px;"].row.row-15
+[$domain=/^booktoki\d+.com/]##.col-sm-9.col-md-9.col-15
 
 
 ! 블랙툰 최신주소 (https://www.blacktoon1.info/) - 배너
