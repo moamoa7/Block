@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041401
+! Version: 25041402
 
 
 
@@ -229,6 +229,8 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ||tracker.$xmlhttprequest,websocket,script,ping
 ! - - - tracker.linkwang.org
 ! - - - tracker.openwebtorrent.com
+! - 배너
+###bannerList
 ! - 영상 하단 배너 공간
 ! - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 ##[class^="full pc-only"]:not(html):not(body):not(article)
