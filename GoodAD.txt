@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041345
+! Version: 25041401
 
 
 
@@ -8,7 +8,7 @@
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
-! - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
 
@@ -53,7 +53,7 @@ djxmaza.in#@#+js(nobab)
 
 ! 맥스무비 (https://www.maxmovie.com/)
 ! - 게시글 열람시 오류 해결
-! - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 ! - 메인 배너 복원
 ! - - - EasyList에서 차단
@@ -176,6 +176,9 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ##.banner-box
 ! - 게시물 내 광고글
 ##.ad_list
+! - 이토랜드 로고 옆 작은 배너
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+##[src*="/data/daumeditor"]
 ! - 모바일 게시물 하단 광고 배너
 ! - - - 3칸짜리 광고 배너
 ###underGoodBtn_freeRecharge
@@ -441,7 +444,7 @@ conan-tv.com###fboardlist
 
 
 ! 한국경제 (https://www.hankyung.com/) 배너 등
-! - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - https://github.com/mtxadmin/ublock - _rules 규칙 적용
 hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
@@ -648,7 +651,7 @@ upload/banners/*
 
 ! 천사티비 (https://1004sweet.com/)
 ! - 배너 이미지
-! - - - 참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ##.external
 ! - 영상 상단 텍스트 배너
 ##.da-above
