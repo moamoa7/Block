@@ -247,7 +247,10 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ###top_btn.sticky_top_btn.top_btn_sticky
 
 
-!코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR) 배너
+! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
+! 애니위크 (https://aniweek.com/)
+! 애니24 (https://ohli24.com/)
+! - 배너
 ##.at-title
 ###exon
 
@@ -411,10 +414,12 @@ conan-tv.com###fboardlist
 ##.wixui-section.comp-m8jy31rn.Oqnisf
 
 
-! 호두코믹스 (https://xn--hu1b88ll0ffvo7li.info/) 배너
+! 호두코믹스 (https://xn--hu1b88ll0ffvo7li.info/)
+! 마징가툰 (https://z65.mzgtoon.com/) 배너
 ##.mt-4.flex-wrap.flex
 
 ! 호두코믹스 시즌2 (https://hdhd425.net/)
+! 툰코 (https://tkr416.com/)
 ! - 팝업
 ##.alert_windows
 ! - 배너
@@ -428,13 +433,16 @@ conan-tv.com###fboardlist
 
 
 ! 툰코 (https://tkor012.com/)
+! 펀비 (https://funbe526.com)
 ! - 배너
 ##.mobile-banner.col-md-12
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
 #@#.mobile-banner
 
 
-! 야툰 (https://yatoon200.com/) 배너
+! 야툰 (https://yatoon200.com/)
+! 뉴툰 (https://newtoon271.com/)
+! - 배너
 ##.cate.row
 
 
@@ -704,7 +712,9 @@ fc1adult.com##.fullscreen
 ||jogaeparty139.com/data/editor*.jpg
 
 
-! 야동AVMOV (https://avmov.best/) 배너
+! 야동AVMOV (https://avmov.best/)
+! 여우코믹스 (https://fxfx303.com/)
+! - 배너
 ##center
 
 
