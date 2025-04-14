@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041507
+! Version: 25041508
 
 
 
@@ -883,6 +883,8 @@ m.11st.co.kr##.fadeIn.animated.dim
 ! - - - 예외
 ! - - - 일간스포츠 (https://isplus.com/) : 깨짐 방지
 isplus.com#@#.banner
+! - - - 리그오브레전드 인벤 (https://isplus.com/) : 롤 전적 나오게 할려구 해제
+lol.inven.co.kr#@#.banner
 ! - https://jusoyo41.com/
 ||*img/*banner.gif
 ! - https://phpschool.com/
