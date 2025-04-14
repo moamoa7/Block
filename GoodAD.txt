@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041407
+! Version: 25041408
 
 
 
@@ -434,6 +434,18 @@ conan-tv.com###fboardlist
 #@#.mobile-banner
 
 
+! 야툰 (https://yatoon200.com/) 배너
+##.cate.row
+
+
+! 나미툰 (https://namee74.com/) 배너
+##div.container_full:nth-of-type(1)
+
+
+! 조아툰 (https://joatoon64.com/) 배너
+##.base_wrapper.gap-0\.5.lg\:grid-cols-6.md\:grid-cols-5.sm\:grid-cols-4.grid-cols-3.mt-2.grid
+
+
 ! 링크 비비기 (https://linkbbg.com/)
 ! 온도티비 (https://01.ondotv.com/)
 ! - 배너
@@ -690,6 +702,10 @@ fc1adult.com##.fullscreen
 ||images2.imgbox.com*.jpg
 ||images2.imgbox.com*.png
 ||jogaeparty139.com/data/editor*.jpg
+
+
+! 야동AVMOV (https://avmov.best/) 배너
+##center
 
 
 
