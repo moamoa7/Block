@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041410
+! Version: 25041411
 
 
 
@@ -305,6 +305,8 @@ cineaste.co.kr##.main-title
 m.cgv.co.kr##[class^="home_contents_list_wrap home"]
 m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! - 무비차트 내 간편결제매니저 공간
+! - https://www.sakurajav.com/
+! - https://javhay.net/
 ##.ad
 
 
@@ -605,7 +607,10 @@ avsee.ru##div.main-box:nth-of-type(1)
 ##.fg-image
 
 
-! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) 배너 이미지
+! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
+! https://www.sakurajav.com/
+! https://javhd.icu/
+! - 배너
 ##.textwidget
 
 
@@ -621,6 +626,7 @@ avsee.ru##div.main-box:nth-of-type(1)
 ###dclm_modal_screen
 ! 쏘걸 (https://kr78.sogirl.so/) - 오른쪽 상단 배너는 보이지 않으나 배너 위치만큼 삭제됨
 ! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
+! - - - https://fc2ppv.stream/
 ##.happy-header
 ! AV핑보걸 영상 화면 하단 배너
 ! 쏘걸 (https://kr78.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
@@ -715,6 +721,10 @@ fc1adult.com##.fullscreen
 ! 야동AVMOV (https://avmov.best/)
 ! 여우코믹스 (https://fxfx303.com/)
 ! https://j-av.com/ 왼쪽 배너
+! https://javhd.icu/
+! https://159i.net/
+! https://www3.javfun.me/
+! https://fc2ppv.stream/
 ! - 배너
 ##center
 
@@ -813,7 +823,8 @@ m.11st.co.kr##.fadeIn.animated.dim
 ! 배너 이미지
 ! - https://torrentboy.net/
 ||files/img/banner/*
-!- https://sureranking.net/
+! - https://sureranking.net/
+! - https://159i.net/
 ##.banner
 ! - - - 예외
 ! - - - 일간스포츠 (https://isplus.com/) : 깨짐 방지
@@ -841,6 +852,8 @@ tmon.co.kr#@#.main_banner
 ##.banner_02
 ##.banner_03
 ! - https://viewsnnews.com/
+! - https://theporn.cc/
+! - https://www.sakurajav.com/
 ##.ads
 !- - - 카카오TV 실시간TV 제외 다른 영상 볼때 광고 차단 막혀서 안나옴 해결
 tv.kakao.com#@#.ads
