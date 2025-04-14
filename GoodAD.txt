@@ -564,6 +564,7 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! AV19.org (https://av19.live/) 상단 배너 등
 ##.top_banner
 ! - 영상 오른편 배너 (EasList에 포함)
+! https://javlemon.com/
 ! ##.sidebar-ads
 ! - 영상 하단 배너
 ###next-to-video-2
@@ -610,6 +611,10 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
 ! https://www.sakurajav.com/
 ! https://javhd.icu/
+! https://javdragon.org/
+! https://roshy.tv/
+! https://japaneseasmr.com/
+! https://minkch.com/
 ! - 배너
 ##.textwidget
 
@@ -688,6 +693,7 @@ upload/banners/*
 
 
 ! 천사티비 (https://1004sweet.com/)
+! https://minkch.com/
 ! - 배너 이미지
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ##.external
@@ -725,6 +731,12 @@ fc1adult.com##.fullscreen
 ! https://159i.net/
 ! https://www3.javfun.me/
 ! https://fc2ppv.stream/
+! https://javhay.net/
+! https://javbix.com/
+! https://javnote.com/
+! https://www.tokyomotion.net/
+! https://javlemon.com/
+! https://javbar.com/
 ! - 배너
 ##center
 
@@ -732,6 +744,18 @@ fc1adult.com##.fullscreen
 ! WatchJAVOnline (https://watchjavonline.com/)
 !- 영상 하단 배너 공간
 ##.code-block-2.code-block
+
+
+! https://goodav17.com/
+! - 영상 하단 배너
+##.ads_all
+
+
+! https://javbar.com/
+! - 영상 오른쪽 배너
+##.player-sidebar
+! - 영상내 긴 닫기 버튼
+##.pop-skip
 
 
 
