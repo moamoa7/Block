@@ -739,6 +739,9 @@ fc1adult.com##.fullscreen
 ! https://javbar.com/
 ! - 배너
 ##center
+! - 예외
+! - - - linkkf.net (가운데 제목 사라짐)
+linkkf.net@@##center
 
 
 ! WatchJAVOnline (https://watchjavonline.com/)
