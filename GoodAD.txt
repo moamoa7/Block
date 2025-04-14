@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041413
+! Version: 25041414
 
 
 
@@ -615,6 +615,7 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! https://roshy.tv/
 ! https://japaneseasmr.com/
 ! https://minkch.com/
+! https://dramaday.me/
 ! - 배너
 ##.textwidget
 
@@ -742,7 +743,7 @@ fc1adult.com##.fullscreen
 !- 예외
 ! - - - https://linkkf.net/ (가운데 링크주소 등 사라짐)
 ! - - - https://kr.linkkf.net/ (가운데 링크주소 등 사라짐)
-linkkf.net##center
+linkkf.net#@#center
 
 ! WatchJAVOnline (https://watchjavonline.com/)
 !- 영상 하단 배너 공간
