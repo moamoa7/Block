@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041512
+! Version: 25041513
 
 
 
@@ -886,6 +886,10 @@ m.11st.co.kr##.fadeIn.animated.dim
 
 ! 배너 이미지
 !- https://javfc2.xyz/ 상단 배너
+! - uBlock filters – Ads 설치시 필요없음 
+!/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
+! - AdGuard – Ads 설치시 필요없음
+!/^https?:\/\/[a-z-]{6,}\.(?:com?|pro|info|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xmlhttprequest,third-party,match-case
 ###ads
 ! - https://torrentboy.net/
 ||files/img/banner/*
