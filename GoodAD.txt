@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041418
+! Version: 25041419
 
 
 
@@ -192,9 +192,10 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 
 
 ! 루리 (https://m.ruliweb.com/) 모바일
+!- 하단 가운데 작은 박스 배너
+##.fixed_layer1
 ! - 맨밑 하단 파란색 배너
 ##.fixed_ad_wrapper
-
 
 
 ! 딴지일보 (https://www.ddanzi.com/) 모바일
