@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041416
+! Version: 25041417
 
 
 
@@ -345,11 +345,11 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 ! 메시티비 (https://messitv8.com/) 배너
 ! - - - 메인 배너 여러개
-##[class*="baner"]
+##.baner
 ! - - - 왼쪽 상단 배너
-/sidebanner*
+##.d-xl-block.d-none
 ! - - - 스포츠 토토 배너
-##[class^="bg_gray_boxshadow_slope d-none d-md-block"]:not(html):not(body):not(article)
+##div.d-md-block
 ! - - - 왼쪽 맨 아래 하단 배너
 ##.bigwin-bn
 ! 메시티비 (https://messitv8.com/) 채팅박스
