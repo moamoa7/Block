@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041508
+! Version: 25041509
 
 
 
@@ -45,12 +45,11 @@ kilho.net##[src^="https://imgdb.in/a/"]
 
 
 
-! 리그 오브 레전드 인벤 (lol.inven.co.kr) 상단 배너 제거
-! 이거 하면 인벤 경기 일정도 같이 사라짐 (하지 말 것)
-!###topLinkBanner
+! 롤 인벤 (lol.inven.co.kr) 상단 배너 제거
+###topLinkBanner
 
 
-! 리그 오브 레전드 인벤 (lol.inven.co.kr) 롤 경기일정 보이게 하기
+! 롤 인벤 (lol.inven.co.kr) 롤 경기일정 보이게 하기
 ! - - - ##.banner 예외설정은 다른곳에 작성
 ! - - - -  List-KR 무력화
 lol.inven.co.kr#@#article > div[style].banner
@@ -880,7 +879,7 @@ m.11st.co.kr##.fadeIn.animated.dim
 ! - - - 예외
 ! - - - 일간스포츠 (https://isplus.com/) : 깨짐 방지
 isplus.com#@#.banner
-! - - - 리그오브레전드 인벤 (https://isplus.com/) : 롤 경기일정 보이게 하려고 해제
+! - - - 롤 인벤 (https://isplus.com/) : 경기일정 보이게 하려고 해제
 lol.inven.co.kr#@#.banner
 ! - https://jusoyo41.com/
 ||*img/*banner.gif
