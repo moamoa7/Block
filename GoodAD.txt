@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041408
+! Version: 25041409
 
 
 
@@ -758,6 +758,27 @@ m.11st.co.kr##.fadeIn.animated.dim
 ###topbanner_1
 ##.topBanner.home_article_wrap
 ! - - - CGV 모바일 (https://m.cgv.co.kr/) 에도 적용
+
+
+! 토렌트썸 (https://torrentsome190.com/) 상단 배너
+##.pt-2.shadow-sm.max-w-7xl.w-full.mx-auto.container
+
+
+! 토다와 (https://www.todawa131.site/)
+! 토렌트릴 (https://www.torrentreel127.site/)
+! - 배너
+||i.keezip.com/ad/*
+
+
+! 토렌트탑 (https://torrenttop149.com/) 오른쪽 배너
+##.xl\:ml-2.ml-0.xl\:w-72.w-full.flex-none
+
+
+!토렌트좋다 (https://torrentzota128.com/)
+! - 상단 배너
+##.px-2.gap-2.md\:grid-cols-3.grid-cols-1.grid.max-w-7xl.w-full.mx-auto.container
+! - 오른쪽 배너
+##.xl\:mt-0.mt-2.xl\:ml-2.ml-0.xl\:w-64.w-full.flex-none
 
 
 
