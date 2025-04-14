@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041409
+! Version: 25041410
 
 
 
@@ -716,6 +716,11 @@ fc1adult.com##.fullscreen
 ! 여우코믹스 (https://fxfx303.com/)
 ! - 배너
 ##center
+
+
+! WatchJAVOnline (https://watchjavonline.com/)
+!- 영상 하단 배너 공간
+##.code-block-2.code-block
 
 
 
