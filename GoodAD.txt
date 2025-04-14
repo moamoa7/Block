@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041511
+! Version: 25041512
 
 
 
@@ -772,6 +772,7 @@ fc1adult.com##.fullscreen
 ! https://www.tokyomotion.net/
 ! https://javlemon.com/
 ! https://javbar.com/
+! https://www.inven.co.kr/
 ! - 배너
 ##center
 !- 예외
@@ -884,6 +885,8 @@ m.11st.co.kr##.fadeIn.animated.dim
 
 
 ! 배너 이미지
+!- https://javfc2.xyz/ 상단 배너
+###ads
 ! - https://torrentboy.net/
 ||files/img/banner/*
 ! - https://sureranking.net/
