@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041502
+! Version: 25041503
 
 
 
@@ -716,7 +716,9 @@ upload/banners/*
 ##.z9KsZnYS.c-modal-101
 ! - https://fc1adult.com/
 ! - - -  18세 이상 물어보는 박스
-##.confirmBox
+!##.confirmBox
+! - 위에걸로 안되서 아래걸로 변경
+##[class^="confirmBox"]:not(html):not(body):not(article)
 ! - - -  18세 이상 물어보는 박스 사라진 후 전체 화면 뿌연거 사라지게 하기
 ! - - - wavve에도 적용되어 영상이 소리만 나오는 현상 발생 - 도메인 넣는걸로 변경
 fc1adult.com##.fullscreen
