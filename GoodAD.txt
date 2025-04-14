@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041510
+! Version: 25041511
 
 
 
@@ -185,7 +185,9 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ! - - - 견적.출첵.마블
 ##.type-icon.img_banner.menuGroup
 ! - - - 인벤 사전예약
-###inven_reservation_box
+!###inven_reservation_box
+! - - - List-KR에서 인벤 사전예약 사라지게 하는거 복원
+inven.co.kr#@##inven_reservation_box
 ! - - - 브랜드 파트너이벤트
 ###modRightBrandpage
 
