@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041411
+! Version: 25041412
 
 
 
@@ -741,7 +741,7 @@ fc1adult.com##.fullscreen
 ##center
 ! - 예외
 ! - - - linkkf.net (가운데 제목 사라짐)
-linkkf.net@@##center
+linkkf.net#@#center
 
 
 ! WatchJAVOnline (https://watchjavonline.com/)
