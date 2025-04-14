@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041509
+! Version: 25041510
 
 
 
@@ -177,6 +177,17 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ##.invenAppSuggestionInner
 ! - 오른쪽 하단 떠다니는 배너
 ##.roulette-open.inven-float-alarm
+! - 오른쪽 메뉴 중 일부 삭제
+! - - - 게임 핫딜
+##.inven-games.menuGroup
+! - - - 핫딜 게시판
+##.hotdeal-list.menuGroup
+! - - - 견적.출첵.마블
+##.type-icon.img_banner.menuGroup
+! - - - 인벤 사전예약
+###inven_reservation_box
+! - - - 브랜드 파트너이벤트
+###modRightBrandpage
 
 
 !이토랜드 (https://www.etoland.co.kr/)
