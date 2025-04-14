@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041505
+! Version: 25041506
 
 
 
@@ -625,9 +625,11 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! https://roshy.tv/
 ! https://japaneseasmr.com/
 ! https://minkch.com/
-! https://dramaday.me/
 ! - 배너
 ##.textwidget
+! - 예외
+! https://dramaday.me/ 일부 텍스트 사라지나 큰 문제는 없음
+dramaday.me#@#.textwidget
 
 
 ! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/) 배너 이미지
@@ -720,7 +722,8 @@ upload/banners/*
 !##.confirmBox
 ! - - -  18세 이상 물어보는 박스 사라진 후 전체 화면 뿌연거 사라지게 하기
 ! - - - wavve에도 적용되어 영상이 소리만 나오는 현상 발생 - 도메인 넣는걸로 변경
-fc1adult.com##div.fullscreen
+! - - - AdGuard에서는 제대로 작동 안하는듯 (uBlock / 유니콘Pro 작동 ok)
+fc1adult.com##.fullscreen
 
 
 !MISSAV (https://missvod2.com/) 배너
