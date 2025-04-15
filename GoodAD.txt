@@ -440,8 +440,10 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ##[href="https://%EB%9D%BC%EC%9E%84%EC%A3%BC%EC%86%8C.com"]
 
 
-!코난티비 (https://conan-tv.com/) 배너
-||conan-tv.com/img/banner.gif
+! AVDBS (https://www.avdbs.com/) 상단 배너
+||*/img/banner/*
+
+! 코난티비 (https://conan-tv.com/) 배너
 conan-tv.com###fboardlist
 
 
@@ -591,6 +593,9 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 ! 주소요 (https://jusoyo41.com/) 상단 배너
 ##.basic-banner-gallery
+! - 오른쪽 배너 중 List-KR로 안되는 배너 1개
+! - - - 코난티비 (https://conan-tv.com/) 배너
+||*/img/*banner.gif
 
 
 ! 주소타운 (https://www.jusotw.com/) 배너
@@ -899,10 +904,6 @@ m.11st.co.kr##.fadeIn.animated.dim
 ###ads
 
 
-! - https://www.avdbs.com/
-||img/banner/*
-
-
 ! - https://sureranking.net/
 ! - https://159i.net/
 ##.banner
@@ -919,17 +920,25 @@ lol.inven.co.kr#@#.banner
 tmon.co.kr#@#.main_banner
 ##.right_banner
 ##.main_job
+
+
 ! - https://named.com/
 ###leftBanner
 ###rightBanner
 ###sideCastBanner
 ###bottomBanner
+
+
 ! - https://goodtv.co.kr/
 ###main_banner
 ##.plus_banner
+
+
 ! - https://www.blogchart.co.kr/
 ###sideBanner
 ##.banner_01
+
+
 ! - - - 롯데시네마 (https://www.lottecinema.co.kr/) 영화 홍보 배너에도 적용
 ##.banner_02
 ##.banner_03
@@ -939,14 +948,24 @@ tmon.co.kr#@#.main_banner
 ##.ads
 !- - - 카카오TV 실시간TV 제외 다른 영상 볼때 광고 차단 막혀서 안나옴 해결
 tv.kakao.com#@#.ads
+
+
 ! - https://www.sangga114.co.kr/
 ##.banner-item
+
+
 ! - https://sportalkorea.com/
 ##.common_top_ad1
+
+
 ! - https://www.spojoy.com/
 ###TopAdv250Rapper
+
+
 ! - http://mttotoinfo.com/
 ##.bannerListWidget
+
+
 ! - https://www.christiantoday.co.kr/
 ||*kr/data/banner/*
 
