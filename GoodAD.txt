@@ -727,7 +727,10 @@ avsee.ru##div.main-box:nth-of-type(1)
 ###header_banner
 
 
-! 야동그라운드 (https://yagro48.com/) 배너 이미지
+! 야동그라운드 (https://yagro48.com/)
+! 빨간비디오 (https://redvi77.com/)
+! 야동도시 (https://yacity47.com/)
+! - 배너 이미지
 upload/banners/*
 ! 야동그라운드 (https://yagro48.com/) 팝업 삭제 - 4시간 동안 다시 열람하지 않습니다
 ! - - - PC
@@ -873,11 +876,8 @@ javlemon.com##center
 ! 잠자리 (https://dragonfly63.com/)
 ! 야동타임 (https://yd-time65.com/)
 ! 삼다수 (https://samdasoo60.com/)
-! 야튜브 (https://www.yahtube15.com/)
-! 빨간비디오 (https://redvi77.com/)
-! 야동도시(https://yacity47.com/)
 ! - 전체 배너
-##.bg-black
+##.bg-black.carousel-inner
 
 
 ! 현자타임스 (https://hjtime95.com/) 배너
