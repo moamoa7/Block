@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041604
+! Version: 25041605
 
 
 
@@ -463,6 +463,8 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 
 ! AVDBS (https://www.avdbs.com/) 상단 배너
+! AV킴 (https://avkim26.com/) 상단 배너 / 영상 하단 배너
+! 야오리 (https://yaohri36.com/) 상단 배너 / 영상 하단 배너
 ||*/img/banner/*
 
 ! 코난티비 (https://conan-tv.com/) 배너
@@ -852,6 +854,13 @@ javlemon.com##center
 
 ! 야부리 시즌 2 (https://yaburi60.com/) - 상단 배너
 ##.grid-cols-2
+
+
+! 잠자리 (https://dragonfly63.com/)
+! 야동타임 (https://yd-time65.com/)
+! 삼다수 (https://samdasoo60.com/)
+! - 전체 배너
+##.bg-black
 
 
 
