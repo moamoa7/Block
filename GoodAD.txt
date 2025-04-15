@@ -718,8 +718,8 @@ upload/banners/*
 ##[id^="tab-ad-player"]:not(html):not(body):not(article)
 ##.video-overlay
 
-! 오늘의 중계 (today-sports7.com)
-! - 팝업
+! 오늘의 중계 (today-sports7.com) - 팝업
+! https://jusoyo41.com/ - 배너
 ###hd_pop
 ! - 가운데 중간 배너
 ##.live-stream-banner
@@ -897,8 +897,12 @@ m.11st.co.kr##.fadeIn.animated.dim
 ! - AdGuard – Ads 설치시 필요없음
 !/^https?:\/\/[a-z-]{6,}\.(?:com?|pro|info|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xmlhttprequest,third-party,match-case
 ###ads
-! - https://torrentboy.net/
-||files/img/banner/*
+
+
+! - https://www.avdbs.com/
+||img/banner/*
+
+
 ! - https://sureranking.net/
 ! - https://159i.net/
 ##.banner
@@ -907,8 +911,8 @@ m.11st.co.kr##.fadeIn.animated.dim
 isplus.com#@#.banner
 ! - - - 롤 인벤 (https://isplus.com/) : 경기일정 보이게 하려고 해제
 lol.inven.co.kr#@#.banner
-! - https://jusoyo41.com/
-||*img/*banner.gif
+
+
 ! - https://phpschool.com/
 ##.main_banner
 ! - - - 예외
