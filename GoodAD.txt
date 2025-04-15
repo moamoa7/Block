@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041519
+! Version: 25041520
 
 
 
@@ -724,6 +724,7 @@ upload/banners/*
 ##.video-overlay
 
 ! 오늘의 중계 (today-sports7.com) - 팝업
+! 코난티비(https://conan-tv.com/) - 팝업
 ! https://jusoyo41.com/ - 배너
 ###hd_pop
 ! - 가운데 중간 배너
