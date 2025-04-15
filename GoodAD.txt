@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041513
+! Version: 25041514
 
 
 
@@ -228,6 +228,10 @@ inven.co.kr#@##inven_reservation_box
 ###banner_ddanzi_market
 ! - 게시글 하단 공백
 ##.ddanzi_m_club_MxC_336x280.add_display2
+
+
+! 포모스 (https://www.fomos.kr/) 왼쪽 배너
+##.float-banners
 
 
 ! 헝그리앱 (https://www.hungryapp.co.kr/) 상단 배너
