@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041517
+! Version: 25041518
 
 
 
@@ -263,7 +263,8 @@ ppomppu.co.kr##.ppomCou
 ##.adballoon_icon
 ! - 개인채널 (https://ch.sooplive.co.kr/) 팝업
 ##.bs-notice_layer
-
+! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
+###FeedLayerToolTip
 
 
 
