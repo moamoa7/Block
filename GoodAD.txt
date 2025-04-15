@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041520
+! Version: 25041521
 
 
 
@@ -154,8 +154,8 @@ dcinside.com##.view-btm-con
 ! - - - * Blocked by AdGuard * / 부분 사라짐
 dcinside.com##section.clkhigh.grid
 
-! 애드가드갤러리 게시물 내 글 상단 공백 없애기
-||dcimg6.dcinside.co.kr/viewimage.php?id=2cb9d733e4c03c&no=24b0d769e1d32ca73fe885fa1bd6253157ff3ed292214aeff705fa4cd2749263db7291ff7eba34365e7035f5ee3d2166e7f83ff531e7ecfa6d52f5e30aa1b23b46146577
+
+
 
 
 ! AAGAG (https://aagag.com/)
