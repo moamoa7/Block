@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041518
+! Version: 25041519
 
 
 
@@ -259,7 +259,7 @@ ppomppu.co.kr##.ppomCou
 ! 숲 ((https://sooplive.co.kr)
 ! - 영상 ((https://play.sooplive.co.kr) 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
-! - 다시보기 (https://vod.sooplive.co.kr/) 알바몬 배너
+! - 다시보기 (https://vod.sooplive.co.kr/) 영상내 왼쪽 하단 애드벌룬 배너
 ##.adballoon_icon
 ! - 개인채널 (https://ch.sooplive.co.kr/) 팝업
 ##.bs-notice_layer
