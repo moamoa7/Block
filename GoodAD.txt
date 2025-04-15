@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041522
+! Version: 25041523
 
 
 
@@ -212,8 +212,10 @@ inven.co.kr#@##inven_reservation_box
 ###login_popup
 ! - 왼쪽 가운데 배너
 ##.banner-box
-! - 게시물 내 광고글
+! - 게시물 내 광고글 (PC)
 ##.ad_list
+! - 게시물 내 댓글 컨텐츠 (모바일)
+##.comment_extra_box
 ! - 이토랜드 로고 옆 작은 배너
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ##[src*="/data/daumeditor"]
