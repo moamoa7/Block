@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041523
+! Version: 25041601
 
 
 
@@ -813,6 +813,7 @@ javlemon.com##center
 
 
 ! https://javbar.com/
+! https://tojav.net/
 ! - 영상 오른쪽 배너
 ##.player-sidebar
 ! - 영상내 긴 닫기 버튼
