@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041601
+! Version: 25041602
 
 
 
@@ -169,9 +169,6 @@ dcinside.com##.view-btm-con
 dcinside.com##section.clkhigh.grid
 
 
-
-
-
 ! AAGAG (https://aagag.com/)
 ! - 떠다니는 배너
 ##.bottom.center.sAlert
@@ -203,6 +200,12 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 inven.co.kr#@##inven_reservation_box
 ! - - - 브랜드 파트너이벤트
 ###modRightBrandpage
+
+
+! 엠팍 (https://mlbpark.donga.com/)
+! - 맨 밑 하단 TODAY BEST BULLPEN 5번과 6번 사이 공간 없애기
+! - 출처 : https://gall.dcinside.com/adguard/399
+mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 
 
 !이토랜드 (https://www.etoland.co.kr/)
