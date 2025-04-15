@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041515
+! Version: 25041516
 
 
 
@@ -166,7 +166,6 @@ dcinside.com##section.clkhigh.grid
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 
 
-
 ! 에펨코리아 (m.fmkorea.com) 모바일
 ! - 오른쪽 하단 떠다니는 작은 배너
 ###fm_alert
@@ -244,7 +243,7 @@ ppomppu.co.kr##.ppomCou
 ! 일베 (https://www.ilbe.com/)
 ! - 오른쪽 안쪽 배너
 ##.aside-banner
-! - 오른쪽 바깥 배너
+! - 오른쪽 바깥 따라다니는 배너
 ##.right-banner
 ! - 게시글 하단 배너
 ##.cutin-banner
@@ -781,32 +780,19 @@ fc1adult.com##.fullscreen
 ||jogaeparty139.com/data/editor*.jpg
 
 
-! 야동AVMOV (https://avmov.best/)
-! 여우코믹스 (https://fxfx303.com/)
-! https://j-av.com/ 왼쪽 배너
-! https://javhd.icu/
-! https://159i.net/
-! https://www3.javfun.me/
-! https://fc2ppv.stream/
-! https://javhay.net/
-! https://javbix.com/
-! https://javnote.com/
-! https://www.tokyomotion.net/
-! https://javlemon.com/
-! https://javbar.com/
-! https://www.inven.co.kr/
-! - 배너
-##center
-!- 예외
-! - - - https://linkkf.net/ (가운데 링크주소 등 사라짐)
-! - - - https://kr.linkkf.net/ (가운데 링크주소 외 본문 모두 사라짐)
-linkkf.net#@#center
+! 야동AVMOV (https://avmov.best/) - 상단 배너
+avmov.best##center
+! 여우코믹스 (https://fxfx303.com/) - 팝업 (주소 바뀜)
+fxfx303.com##center
+! https://j-av.com/ - 모든 배너
+j-av.com##center
+! https://javlemon.com/ - 영상 아래 배너
+javlemon.com##center
 
 
 ! WatchJAVOnline (https://watchjavonline.com/)
 !- 영상 하단 배너 공간
 ##.code-block-2.code-block
-
 
 ! https://goodav17.com/
 ! - 영상 하단 배너
@@ -818,6 +804,13 @@ linkkf.net#@#center
 ##.player-sidebar
 ! - 영상내 긴 닫기 버튼
 ##.pop-skip
+
+
+! 밍키넷 (https://mingky.net/)
+! - 오른쪽 배너
+##.my-3.px-sm-0.px-3
+! - 게시글내 모든 배너
+##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
 
 
