@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041609
+! Version: 25041610
 
 
 
@@ -649,6 +649,8 @@ avsee.ru##div.main-box:nth-of-type(1)
 ##.top_banner
 ! - 영상 오른편 배너 (EasList에 포함)
 ! - https://javlemon.com/
+! - javfinder.ai 영상 오른쪽 배너 틀
+! - https://www4.javhdporn.net/ 영상 오른쪽 배너
 ! ##.sidebar-ads
 ! - 영상 하단 배너
 ###next-to-video-2
@@ -745,11 +747,6 @@ upload/banners/*
 ||com/banners/
 ! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/) 영상 하단내 배너 테두리
 ##.vjs-bottom-banner.vjs-bottom-banner-container
-
-
-! javfinder.ai 영상 오른쪽 배너 틀
-!##[class^="sidebar-ads"]:not(html):not(body):not(article)
-##.sidebar-ads
 
 
 ! 놀쟈 (https://www.nzyumi.com/)
