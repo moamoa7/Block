@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041606
+! Version: 25041607
 
 
 
@@ -335,11 +335,11 @@ ppomppu.co.kr##.ppomCou
 ##.banner_
 
 
-!누누티비 (https://www.ntnt4.tv/) 배너
+! 누누티비 (https://www.ntnt4.tv/) 배너
 ##.wixui-column-strip.CohWsy.comp-lhh974lu
 
 
-!티비위키 (https://tv61.wiki/) 배너
+! 티비위키 (https://tv61.wiki/) 배너
 ##.custom_banner_wrap
 
 
@@ -634,6 +634,7 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! - 야한TV (https://www.yatv16.me/) 배너
 ! - 섹스조아 (https://www.sexzoa52.com/) 배너
 ! - 소라밤 (https://www.sorabam38.me/) 배너
+! - AV핑유걸 (https://avpingyou18.com/) 배너
 ##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 공간
 avsee.ru##.title
@@ -669,23 +670,26 @@ avsee.ru##div.main-box:nth-of-type(1)
 ##.wp-block-gallery
 
 
-! AV핑보걸 (https://pinkbo42.com/) / AV러브걸 (https://avlove26.com/) / XX조아 (https://xxjoa44.com/) 배너 이미지
+! AV핑보걸 (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) - 주소 바뀜
+! - 배너 이미지
 ###imgDiv > table
-###imgDiv2
-###imgDiv3
-###imgDiv4
-###imgDiv5
-###imgDiv6
-###imgDiv11
-###imgDiv12
-###imgDiv13
-###imgDiv21
-###imgDiv22
+!###imgDiv2
+!###imgDiv3
+!###imgDiv4
+!###imgDiv5
+!###imgDiv6
+!###imgDiv11
+!###imgDiv12
+!###imgDiv13
+!###imgDiv21
+!###imgDiv22
 
 
-! AV핑유걸 (https://avpingyou18.com/)  배너 이미지
-!##[class^="bannerul"]:not(html):not(body):not(article)
+! AV핑유걸 (https://avpingyou18.com/)
+! - 배너 이미지
 ##.bannerul
+! - 영상 내 배너
+##.popup_image
 
 
 !AV핑크 (https://avpink34.com/) 배너 이미지
@@ -884,7 +888,9 @@ javlemon.com##center
 ##.at-title
 
 
-! sexkbj (https://sexkbj.com/) 영상내 닫기 버튼
+! sexkbj (https://sexkbj.com/)
+! AV러브걸 (https://avlove27.com/)
+! - 영상내 닫기 버튼
 ##.happy-inside-player
 
 
