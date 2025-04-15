@@ -16,6 +16,14 @@
 
 
 
+!!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 해제 
+! -출처 : Adblock-Rule-Collection-Lite
+||jsdelivr.net/npm/disable-devtool
+
+
+
+
+
 !!! 필터 오류 및 차단 해제
 
 
