@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041602
+! Version: 25041603
 
 
 
@@ -227,8 +227,9 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ###underGoodBtn_freeRecharge
 
 
-! 짱공유 (https://www.jjang0u.com/)
+! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - PC 왼쪽 배너 공간
+! - https://yako4.net/ - 영상 하단 배너 (주소 바뀜)
 ###banner
 ! - 모바일 하단 배너
 ##.ad_area1
@@ -317,8 +318,10 @@ ppomppu.co.kr##.ppomCou
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
 ! 애니위크 (https://aniweek.com/)
 ! 애니24 (https://ohli24.com/)
-! - 배너
-##.at-title
+! - 상단 배너
+##.insty
+! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
+! - 영상내 하단 배너
 ###exon
 
 
@@ -624,7 +627,8 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 
 
-! AVseeTV (https://03.avsee.ru/) 배너 이미지
+! AVseeTV (https://03.avsee.ru/) 배너 이미지 (주소 변경됨)
+! 소리바다 (https://sorabada93.com/) 배너 (주소 변경됨)
 ##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 공간
 avsee.ru##.title
@@ -638,11 +642,12 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! AV19.org (https://av19.live/) 상단 배너 등
 ##.top_banner
 ! - 영상 오른편 배너 (EasList에 포함)
-! https://javlemon.com/
+! - https://javlemon.com/
 ! ##.sidebar-ads
 ! - 영상 하단 배너
 ###next-to-video-2
-! - 영상 하단 텍스트 배너 (짱공유에 포함)
+! - 영상 하단 텍스트 배너
+! - - - 짱공유닷컴 (https://www.jjang0u.com/) 에 기재되어 비처리
 ! - ###banner
 
 
@@ -828,6 +833,14 @@ javlemon.com##center
 ##.my-3.px-sm-0.px-3
 ! - 게시글내 모든 배너
 ##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
+
+
+! 야동망고 (https://www.mango54.net/) 배너 - 주소 바뀜
+||*/images/spon/*.gif
+
+
+! 야부리 시즌 2 (https://yaburi60.com/) - 상단 배너
+##.grid-cols-2
 
 
 
