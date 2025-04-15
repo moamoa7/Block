@@ -633,6 +633,7 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! - 소리바다 (https://sorabada93.com/) 배너 (주소 변경됨)
 ! - 야한TV (https://www.yatv16.me/) 배너
 ! - 섹스조아 (https://www.sexzoa52.com/) 배너
+! - 소라밤 (https://www.sorabam38.me/) 배너
 ##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 공간
 avsee.ru##.title
@@ -869,12 +870,18 @@ javlemon.com##center
 ! 야동타임 (https://yd-time65.com/)
 ! 삼다수 (https://samdasoo60.com/)
 ! 야튜브 (https://www.yahtube15.com/)
+! 빨간비디오 (https://redvi77.com/)
+! 야동도시(https://yacity47.com/)
 ! - 전체 배너
 ##.bg-black
 
 
 ! 현자타임스 (https://hjtime95.com/) 배너
 ##.at-banner
+
+
+! 개조아 (https://dogjoa80.net/) 배너
+##.at-title
 
 
 ! sexkbj (https://sexkbj.com/) 영상내 닫기 버튼
@@ -890,6 +897,10 @@ javlemon.com##center
 ##h2.mobile-hide
 ! - 영상 옆 텍스트 배너
 ##.videoads
+
+
+! 색색티비 (https://kr145.mysstv.com/) 전체 배너
+|*/Banner/*.gif
 
 
 
