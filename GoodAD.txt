@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041603
+! Version: 25041604
 
 
 
@@ -790,8 +790,19 @@ fc1adult.com##.fullscreen
 ###banner-list.banner-list
 
 
-!야동판 (https://2.yadongpan.me/) 영상 아래 배너
+! 야동판 (https://3.yadongpan.me/) - 주소 바뀜
+! - PC 메인 전체
+! - 영상내 더 아래 배너 및 오른쪽 배너 (모바일 동일)
+###top-desktop
+! - 영상내 배너 및 닫기 버튼
+##.happy-insid-player
+! - 영상 아래 배너
 ##.happy-unde-player
+! - 모바일 상단 배너
+##.happy-header-mobile
+! - 모바일 상단 제외 전체 배너
+###top-mobile
+
 
 
 !조개파티 (https://jogaeparty139.com/) 배너
