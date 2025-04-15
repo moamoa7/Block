@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041607
+! Version: 25041609
 
 
 
@@ -673,16 +673,16 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! AV핑보걸 (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) - 주소 바뀜
 ! - 배너 이미지
 ###imgDiv > table
-!###imgDiv2
-!###imgDiv3
-!###imgDiv4
-!###imgDiv5
-!###imgDiv6
-!###imgDiv11
-!###imgDiv12
-!###imgDiv13
-!###imgDiv21
-!###imgDiv22
+###imgDiv2
+###imgDiv3
+###imgDiv4
+###imgDiv5
+###imgDiv6
+###imgDiv11
+###imgDiv12
+###imgDiv13
+###imgDiv21
+###imgDiv22
 
 
 ! AV핑유걸 (https://avpingyou18.com/)
@@ -907,6 +907,11 @@ javlemon.com##center
 
 ! 색색티비 (https://kr145.mysstv.com/) 전체 배너
 |*/Banner/*.gif
+
+
+! 야동 플레이 (https://yapl.tv/)
+! - 상단 배너 / 영상 하단 배너
+##.ad-image-list
 
 
 
