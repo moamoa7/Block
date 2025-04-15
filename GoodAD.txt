@@ -241,6 +241,15 @@ ppomppu.co.kr##.ppomCou
 ##.float-banners
 
 
+! 일베 (https://www.ilbe.com/)
+! - 오른쪽 안쪽 배너
+##.aside-banner
+! - 오른쪽 바깥 배너
+##.right-banner
+! - 게시글 하단 배너
+##.cutin-banner
+
+
 ! 헝그리앱 (https://www.hungryapp.co.kr/) 상단 배너
 ##.bannersww
 
@@ -470,6 +479,7 @@ conan-tv.com###fboardlist
 ! 늑대닷컴 (https://wfwf384.com/)
 ! 늑대닷컴2 (https://wftoon190.com/)
 ! 여우코믹스 (https://fxfx303.com/)
+! 일베 (https://www.ilbe.com)
 ! - 배너
 ##.top-banner
 
