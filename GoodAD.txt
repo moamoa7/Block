@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041605
+! Version: 25041606
 
 
 
@@ -630,7 +630,9 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 (주소 변경됨)
-! 소리바다 (https://sorabada93.com/) 배너 (주소 변경됨)
+! - 소리바다 (https://sorabada93.com/) 배너 (주소 변경됨)
+! - 야한TV (https://www.yatv16.me/) 배너
+! - 섹스조아 (https://www.sexzoa52.com/) 배너
 ##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 공간
 avsee.ru##.title
@@ -706,10 +708,14 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! 쏘걸 (https://kr78.sogirl.so/) - 오른쪽 상단 배너는 보이지 않으나 배너 위치만큼 삭제됨
 ! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
 ! - - - https://fc2ppv.stream/
+! - - - https://k4.kbjsvip.win/
 ##.happy-header
 ! AV핑보걸 영상 화면 하단 배너
 ! 쏘걸 (https://kr78.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
 !##.happy-under-player
+! - 맨 하단 배너
+! - - - AdGuard – Ads 에 있어 비처리
+!##.happy-footer
 
 
 ! 자브걸 (https://kr23.javgirl.co/) 상단 오른쪽 배너 이미지
@@ -731,10 +737,6 @@ upload/banners/*
 ||com/banners/
 ! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/) 영상 하단내 배너 테두리
 ##.vjs-bottom-banner.vjs-bottom-banner-container
-
-
-! 자막야동 (https://xn--2q1bp6izol05b.com/) (https://2.jamakyadong.me/) 영상 하단 배너
-##.unde-player-ad
 
 
 ! javfinder.ai 영상 오른쪽 배너 틀
@@ -795,15 +797,22 @@ fc1adult.com##.fullscreen
 ! 야동판 (https://3.yadongpan.me/) - 주소 바뀜
 ! - PC 메인 전체
 ! - 영상내 더 아래 배너 및 오른쪽 배너 (모바일 동일)
+! - - - 자막야동 (https://3.jamakyadong.me/) - 주소 바뀜
 ###top-desktop
 ! - 영상내 배너 및 닫기 버튼
 ##.happy-insid-player
 ! - 영상 아래 배너
 ##.happy-unde-player
 ! - 모바일 상단 배너
-##.happy-header-mobile
+! - - - AdGuard – Mobile Ads 에 포함되어 비처리
+!##.happy-header-mobile
 ! - 모바일 상단 제외 전체 배너
 ###top-mobile
+
+
+! 자막야동 (https://xn--2q1bp6izol05b.com/) (https://3.jamakyadong.me/) - 주소 바뀜
+! - 영상 하단 배너
+##.unde-player-ad
 
 
 
@@ -859,8 +868,28 @@ javlemon.com##center
 ! 잠자리 (https://dragonfly63.com/)
 ! 야동타임 (https://yd-time65.com/)
 ! 삼다수 (https://samdasoo60.com/)
+! 야튜브 (https://www.yahtube15.com/)
 ! - 전체 배너
 ##.bg-black
+
+
+! 현자타임스 (https://hjtime95.com/) 배너
+##.at-banner
+
+
+! sexkbj (https://sexkbj.com/) 영상내 닫기 버튼
+##.happy-inside-player
+
+
+! 보지넷 (https://bo-zi65.net/) 상.하 배너
+##.banners-container
+
+
+! 섹스조아 (https://www.sexzoa52.com/)
+! - 상단 오른쪽 텍스트 배너
+##h2.mobile-hide
+! - 영상 옆 텍스트 배너
+##.videoads
 
 
 
