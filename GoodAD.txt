@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041706
+! Version: 25041707
 
 
 
@@ -31,7 +31,7 @@
 
 
 
-!!! 필터 오류 및 차단 해제
+!----- 필터 오류 및 차단 해제
 
 
 ! 쿠팡 (https://coupang.com/) 로그인 오류 해결
@@ -89,7 +89,10 @@ maxmovie.com#@#.mainAd
 
 
 
-!!! 차단
+!----- 차단
+
+
+!!!!! 커뮤니티
 
 
 ! 디시인사이드 (https://www.dcinside.com/)
@@ -358,6 +361,8 @@ daum.net##nav.nav_main:nth-of-type(1)
 
 
 
+!!!!! 라이브 방송
+
 
 ! 숲 ((https://sooplive.co.kr)
 ! - 영상 ((https://play.sooplive.co.kr) 정상인데도 버퍼링 도는 작은 동그라미
@@ -370,6 +375,10 @@ daum.net##nav.nav_main:nth-of-type(1)
 ###FeedLayerToolTip
 
 
+
+
+
+!!!!! 영상
 
 
 ! 티비위키 (https://tvwiki19.com/) / 티비몬 (https://tvmon15.org/)
@@ -496,6 +505,9 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 
 
+!!!!! 스포츠TV
+
+
 ! 메시티비 (https://messitv8.com/) 배너
 ! - - - 메인 배너 여러개
 ##.baner
@@ -545,17 +557,6 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ##[href="https://%EB%9D%BC%EC%9E%84%EC%A3%BC%EC%86%8C.com"]
 
 
-! AVDBS (https://www.avdbs.com/) 상단 배너
-avdbs.com##.shw-1024-over.dbs-bnr-wrp
-
-
-! AV킴 (https://avkim26.com/) 상단 배너 / 영상 하단 배너
-! 야오리 (https://yaohri36.com/) 상단 배너 / 영상 하단 배너
-! - 규칙 해제 (ru ua uz kz : RU AdList)
-@@/img/banner/*$domain=~almicro.ru|~amusement-center.com|~belby.by|~besmart.pp.ua|~bsky.app|~chitai-gorod.ru|~flexen.tech|~frosbyte.org|~fvds.ru|~gostas-klimat.ru|~imhonet.ru|~lifestylelabel.ru|~megabitschool.ru|~miralin.ru|~mts.ru|~mtsbank.ru|~needcoolershoes.com|~rustix.io|~stavsalut.hostcrm.ru|~themelooks.org|~vavlab.ru|~webnames.ru|~xn-----6kcvbohzccf5ajf4a7e.xn--p1ai
-||*com/img/banner/*
-
-
 ! 코난티비 (https://conan-tv.com/) 배너
 conan-tv.com###fboardlist
 
@@ -563,11 +564,17 @@ conan-tv.com###fboardlist
 
 
 
+!!!!! 음악
+
+
 ! Spotify (https://open.spotify.com/) 팝업
 ##.ftlV6Ixmq4wkKMg7hJ1v.dialog
 
 
 
+
+
+!!!!! 웹툰
 
 
 ! 뉴토끼 (https://newtoki468.com/)
@@ -632,6 +639,9 @@ conan-tv.com###fboardlist
 
 
 
+!!!!! 언론
+
+
 ! 연합뉴스 (https://www.yna.co.kr/) 광고
 ! - 상단 배너
 ##.aside-top-bnr01
@@ -690,6 +700,12 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ##[id^='sp_message_container_']:remove()
 
 
+
+
+
+!!!!! 주소모음
+
+
 ! 주소월드 (https://wdwd6.com/) 배너
 ##.banner_list.at-container
 
@@ -721,6 +737,9 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 
 
+!!!!! 성인
+
+
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 (주소 변경됨)
 ! - 소리바다 (https://sorabada93.com/) 배너 (주소 변경됨)
 ! - 야한TV (https://www.yatv16.me/) 배너
@@ -731,6 +750,10 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 공간
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
+
+
+! AVDBS (https://www.avdbs.com/) 상단 배너
+avdbs.com##.shw-1024-over.dbs-bnr-wrp
 
 
 ! 7MMTV (https://7tv000.com/) 상단 배너 공간
@@ -1005,7 +1028,17 @@ javlemon.com##center
 ##.ad-image-list
 
 
+! AV킴 (https://avkim26.com/) 상단 배너 / 영상 하단 배너
+! 야오리 (https://yaohri36.com/) 상단 배너 / 영상 하단 배너
+! - 규칙 (ru ua uz kz : RU AdList)
+||img/banner/*
+! - 예외규칙
+cdn-nhncommerce.com*/img/banner/*
 
+
+
+
+!!!!! 쇼핑
 
 
 ! 바나나몰 (bananamall.co.kr) 등 배너 이미지
@@ -1076,7 +1109,14 @@ danawa.com###mdnw-main-newsRoom-container
 danawa.com###mdnw-main-dimm
 
 
+! 쑈당몰 (https://showdang.co.kr/) 팝업
+##.box
 
+
+
+
+
+!!!!! 토렌트
 
 
 ! 토렌트G (https://ttg-34.com/) 상단 배너
@@ -1107,6 +1147,9 @@ danawa.com###mdnw-main-dimm
 
 
 
+
+
+!!!!! 취업
 
 
 ! 잡코리아 (https://www.jobkorea.co.kr/) 상단 배너
