@@ -961,11 +961,15 @@ danawa.com###danawa_main_container > .main-top > .main-top__right
 ! - 커뮤니티/이벤트.체험단/자동차/샵다나와
 danawa.com##div.main__grid > .main__inner
 ! - 모바일 - 상단 배너
-danawa.com##.main-top-banner
+!danawa.com##.main-top-banner
 ! - 모바일 - 중간 배너
-danawa.com##.main_mid_banner
-! 모바일 - 쇼핑가이드
+!danawa.com##.main_mid_banner
+! - 모바일 - 쇼핑가이드
+! - - - 이걸 없애면 오늘의 특가 빼고 다 사라져서 비활성화
 !danawa.com###mdnw-main-recommend-contents-topContainer
+! - - - 아래로 분리해서 처리
+danawa.com###mdnw-main-recommend-contents-topContainer > .mc_list
+danawa.com###mdnw-main-recommend-contents-topContainer > .main_title
 ! 모바일 - 뉴스룸
 danawa.com###mdnw-main-newsRoom-container
 
