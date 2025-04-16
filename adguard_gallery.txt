@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025-04-15
+! Version: 2025-04-16
 ! Description: 애드가드 필터의 일부 오차단, 안티 애드블록, 지우지 못한 광고를 해결합니다. For Adguard, uBo, Brave
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -11,7 +11,7 @@ naver.com,~chzzk.naver.com##+js(addEventListener-defuser, /contextmenu|selectsta
 *#%#//scriptlet('prevent-fetch', 'doubleclick.net')
 *#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 *#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
-start.klauncher.kr#%#//scriptlet('set-constant', 'detected', 'undefined')
+start.klauncher.kr$$script:contains(detected)
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 
 ! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
@@ -29,7 +29,6 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 *##.popup_left
 *##[id*='powerlink']
 *##[id^='hd_pop']
-*##[target='_blank']:has([src*='/banner'])
 *##cloudflare-app
 *##div.banner_m
 *##div[class^='AD'][style]
@@ -106,13 +105,14 @@ hitomi.la##.content > div:first-child:not(:has(picture))
 instiz.net##.hot_under
 khan.co.kr##.mAd
 kio.ac##div[forcemount]
-m.11st.co.kr###adBannerArea
-m.11st.co.kr###web2appPopup
+m.11st.co.kr##div.l-grid:has([class*='c-ad'])
+m.11st.co.kr##div:has(> .c-guide-ad)
 m.blog.naver.com###blog_fe_feed > div:has([class^='recommend_section__'])
 m.cafe.daum.net##.bottom_banner
 m.cafe.naver.com###articleFeedList
 m.cafe.naver.com##.bottom.banner_add
 m.cafe.naver.com##.join_layer
+m.daum.net##.bnr_popup.bnr_layer
 m.dcinside.com###notice_list > li:not(:has([href*='javascript'])):not(:has(span.ntc-line-orange))
 m.dcinside.com##.trend-rank:style(padding-top:0px!important; padding-bottom:0px!important; )
 m.dcinside.com##section.clkhigh.grid
@@ -125,16 +125,14 @@ m.inven.co.kr##.show-ads
 mlbpark.donga.com##.coupang_cont
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
-nocutnews.co.kr###naver_banner
-ppomppu.co.kr##[src*='/banner/']
 quasarplay.com##[class*='venatus']
 quasarplay.com##[id^='mo-container-']
 quasarzone.com##[class$='-banner']
 quasarzone.com##[id^='venatus']
 ruliweb.com##.gallery.table_body
-ruliweb.com##.line_deco_bottom.board_main > div.row
 ruliweb.com,ppomppu.co.kr##[id$='_ad']
 seoul.co.kr###rollingAdDiv
+seoul.co.kr##.adBanner
 talk.op.gg##[class]:has(> [href^='https://talk.op.gg/app-download'])
 tistory.*##figure:has([href*='link.coupang.com'])
 twidouga.net##iframe[width='300'][height='250']
@@ -155,21 +153,19 @@ zod.kr##[data-href^='https://zod.kr/go/']
 ||link.coupang.com/*/TOSS$all
 ||trend.rankify.best^
 ~greend.kr##[class*='ad'][id^='AD']
+~nexon.com##[target='_blank']:has([src*='/banner'])
 
 ! 방해요소(우클릭 방지) 해제
 [$domain=/^booktoki\d+.com/]###novel_content:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 [$domain=/^manatoki\d+.net/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
 [$domain=/^newtoki\d+.com/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
+cafe.naver.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 
 ! 트래커 차단
 fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ||dcinside.com/_js/jquery/jquery.iframetracker.js
 ||dcinside.com/js/kakao.min.js
-||google.*/search$removeparam=/^(ved|uact|rlz|oq|k|sclient|iflsig|bih|biw|client|hl|cp|dpr)=/
-||graph.facebook.com^
 ||wcs.naver.net^$domain=dcinside.com
-@@||graph.facebook.com^$app=com.facebook.katana|com.instagram.android|com.myinsta.android
-@@||graph.facebook.com^$domain=fmkorea.com|facebook.com|instagram.com
 
 ! 애드가드 필터 오차단 해제
 11st.co.kr#@#div[class$="-ad"]
