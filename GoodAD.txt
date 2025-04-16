@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041704
+! Version: 25041705
 
 
 
@@ -92,7 +92,7 @@ maxmovie.com#@#.mainAd
 !!! 차단
 
 
-! 디시인사이드 갤러리 (https://www.dcinside.com/)
+! 디시인사이드 (https://www.dcinside.com/)
 ! 미리보기 이미지
 ! - - - 실시간 베스트 이미지
 ||dccdn11.dcinside.co.kr$image
@@ -103,37 +103,46 @@ maxmovie.com#@#.mainAd
 !||pds.joongang.co.kr
 !||trend.rankify.best
 
-! 디시인사이드 (https://dcinside.com/)
-! - 왼쪽 탭
-! - - - 실시간 베스트
+! 디시인사이드 (https://www.dcinside.com/)
+! - PC 메인화면
+! - - - 왼쪽 탭
+! - - - - - 실시간 베스트
 dcinside.com##.time_best
-! - - - 뉴스
+! - - - - - 뉴스
 dcinside.com##.news_con.content
-! - - - 개념글
+! - - -  - - 개념글
 dcinside.com##.concept_con.content
-! - 오른쪽 탭
-! - - - 디시트렌드 투표
+! - - - 오른쪽 탭
+! - - - - - 디시트렌드 투표
 dcinside.com##.vote.trend
-! - - - 디시미디어/디시이슈
+! - - - - - 디시미디어/디시이슈
 dcinside.com##.dcmedia.content_box
-! - 모바일
+! - 모바일 메인화면
 ! - - - 모조리 제외
 dcinside.com##.sec-wrap
-! 디시인사이드 갤러리 메인
+! 디시인사이드 갤러리 (https://gall.dcinside.com/)
+! - PC 메인화면
 dcinside.com##.cont_head
 dcinside.com##.gallmain.pageing_box
 dcinside.com##.recomImg.img.cont_list
 dcinside.com##.recomTxt.txt.cont_list
-! - 디시인사이드 모바일 갤러리 메인
+! - 모바일 메인화면
 dcinside.com##.lg-tit-box
 dcinside.com##.thum-rtg-1-slider.pd
-! 디시인사이드 해당 갤러리 이동 후 오른쪽 탭
-! - 뉴스.미디어.이슈
+! 디시인사이드 갤러리 (https://gall.dcinside.com/XXXX)
+! - PC
+! - - - 뉴스.미디어.이슈
 dcinside.com##.r_dcmedia.content_box
-! - 실시간 베스트
+! - - - 실시간 베스트
 dcinside.com##.r_timebest.content_box
-! - 개념글
+! - - - 개념글
 dcinside.com##.r_recommend.content_box
+! - 모바일
+! - - - 뉴스/디시미디어/디시이슈 탭 없애기
+dcinside.com##.view-btm-con
+! - - - 쿠팡 광고 부분 사라짐
+! - - - * Blocked by AdGuard * / 부분 사라짐
+dcinside.com##section.clkhigh.grid
 ! - 서치 (search.dcinside.com) 탭
 ! - - - 뉴스 탭
 dcinside.com##.news_result.integrate_cont
@@ -146,7 +155,7 @@ dcinside.com##.md-tit-box
 dcinside.com##.outside-search-box
 
 
-! 디시인사이드 갤러리 (https://www.dcinside.com/)
+! 디시인사이드 갤러리 (https://www.dcinside.com/) 기타
 ! - PC 디시 뉴스 (https://dctrend.ai/)
 ! - - - 오른쪽 상단 배너
 dctrend.ai##.defaultAdBoxPc
@@ -161,12 +170,6 @@ issuefeed.dcinside.com##.page_top-ad-box-sticky___7Mgh.hvNFwQ.sc-c27a807a-0
 issuefeed.dcinside.com##.hVkyiy.sc-dc027761-1
 ! - 상.하단 버튼 모양
 issuefeed.dcinside.comissuefeed.dcinside.com##button
-! - 모바일 갤러리 (https://m.dcinside.com/)
-! - - - 갤러리내 뉴스/디시미디어/디시이슈 탭 없애기
-dcinside.com##.view-btm-con
-! - - - 갤러리내 쿠팡 광고 부분 사라짐
-! - - - * Blocked by AdGuard * / 부분 사라짐
-dcinside.com##section.clkhigh.grid
 
 
 ! AAGAG (https://aagag.com/)
