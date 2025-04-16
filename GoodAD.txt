@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041708
+! Version: 25041709
 
 
 
@@ -1030,10 +1030,14 @@ javlemon.com##center
 
 ! AV킴 (https://avkim26.com/) 상단 배너 / 영상 하단 배너
 ! 야오리 (https://yaohri36.com/) 상단 배너 / 영상 하단 배너
-! - 규칙 (ru ua uz kz : RU AdList)
-||img/banner/*
-! - 예외규칙
-@@cdn-nhncommerce.com*/img/banner/*
+!||img/banner/*
+! - RU AdList에 있으나 모두에 적용되는게 아니라서 비활성화 필요
+! - RU AdList 사용하지 말것
+! - 예외규칙에 해당하는 사이트
+! - - - https://seorinexpress.com/
+! - - - 아래와 같이 변경하여 적용
+||com/img/banner/*
+
 
 
 
