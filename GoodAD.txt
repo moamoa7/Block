@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041709
+! Version: 25041710
 
 
 
@@ -219,8 +219,14 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ###main_popup
 ! - 로그인 팝업
 ###login_popup
+! - 오른쪽 사이드 배너
+##.main_right_ad
+! - 왼쪽 사이드 배너
+##.main_left_ad
 ! - 왼쪽 가운데 배너
 ##.banner-box
+! - 왼쪽 비밀 상점
+##.secret_aside_box
 ! - 게시물 내 광고글 (PC)
 ##.ad_list
 ! - 게시물 내 댓글 컨텐츠 (모바일)
