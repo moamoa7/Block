@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041714
+! Version: 25041715
 
 
 
@@ -762,8 +762,8 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 !!!!! 성인
 
 
-! AVseeTV (https://03.avsee.ru/) 배너 이미지 (주소 변경됨)
-! - 소리바다 (https://sorabada93.com/) 배너 (주소 변경됨)
+! AVseeTV (https://03.avsee.ru/) 배너 이미지
+! - 소리바다 (https://sorabada93.com/) 배너
 ! - 야한TV (https://www.yatv16.me/) 배너
 ! - 섹스조아 (https://www.sexzoa52.com/) 배너
 ! - 소라밤 (https://www.sorabam38.me/) 배너
@@ -778,8 +778,36 @@ avsee.ru##div.main-box:nth-of-type(1)
 avdbs.com##.shw-1024-over.dbs-bnr-wrp
 
 
-! 7MMTV (https://7tv000.com/) 상단 배너 공간
+! SupJav (https://supjav.com/)
+! - 영상 오른쪽 배너 공간 (EasyList)
+##.movv-ad
+
+
+! JAVGG.NEG (https://javgg.net/)
+! - 상단 배너 공간 (EasyList)
+javgg.net##.module > div[style="text-align: center;"]
+! - 영상 위 배너 공간
+##.home_iframead
+
+
+! 7MMTV (https://7tv000.com/)
+! - 상단 배너 공간
 ##.a-d-block
+!- 영상 오른쪽 배너 공간 (EasyList)
+||rmhfrtnd.com^
+_300x250_
+
+
+! 쏘걸 (https://kr79.sogirl.so/)
+! 애드블럭 우회 (uBlock filters – Ads)
+||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,xhr,redirect=googlesyndication_adsbygoogle.js:5,domain=~zipextractor.app
+! - 배너 이미지 (List-KR)
+||hcdn1.maxsocdn.net^$domain=sogirl.so
+||1.bp.blogspot.com^$domain=sogirl.so
+! - 영상 클릭시 반응없는거 해결
+||imasdk.googleapis.com^
+
+
 
 
 ! AV19.org (https://av19.live/) 상단 배너 등
@@ -1006,7 +1034,7 @@ javlemon.com##center
 
 
 ! 야부리 시즌 2 (https://yaburi60.com/) - 상단 배너
-##.grid-cols-2
+||*image-storage/banners/*$image
 
 
 ! 잠자리 (https://dragonfly63.com/)
