@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041611
+! Version: 25041612
 
 
 
@@ -968,7 +968,7 @@ danawa.com###mdnw-main-recommend-contents-topContainer
 ! 모바일 -작은 배너
 danawa.com##.main_mid_banner
 ! 모바일 - 뉴스룸
-danawa.com###mdnw-main-newsRoom-container
+danawa.com###mdnw-main-newsRoom-swiperContainer
 
 
 
