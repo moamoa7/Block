@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041707
+! Version: 25041708
 
 
 
@@ -1033,7 +1033,7 @@ javlemon.com##center
 ! - 규칙 (ru ua uz kz : RU AdList)
 ||img/banner/*
 ! - 예외규칙
-cdn-nhncommerce.com*/img/banner/*
+@@cdn-nhncommerce.com*/img/banner/*
 
 
 
