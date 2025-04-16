@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041702
+! Version: 25041703
 
 
 
@@ -284,11 +284,15 @@ naver.com##div.Layout-module__content_area___b_3TU:nth-of-type(4)
 ! - - - 위젯보드
 naver.com##.RightWidget-module__tool_area___dhpNQ
 ! - 모바일
+! - - - 출처 : https://gall.dcinside.com/adguard/567
+!naver.com##.comp_card:not(.comp_weather)
+! - - - 디시인사이드 출처로 바꿔보았으나 날씨 너무 작고 메뉴판도 나와서 변경
 ! - - - 메인 전체
-!naver.com##.type_round_card.comp_container
+naver.com##.type_round_card.comp_container
 ! - - - 메뉴판
-!naver.com##.sch_home_shortcut
-! - - - 이걸로 대체 변경
+naver.com##.sch_home_shortcut
+
+
 
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - PC 왼쪽 배너 공간
