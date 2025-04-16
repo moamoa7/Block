@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041701
+! Version: 25041702
 
 
 
@@ -208,7 +208,7 @@ inven.co.kr#@##inven_reservation_box
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 
 
-!이토랜드 (https://www.etoland.co.kr/)
+! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
 ###main_popup
 ! - 로그인 팝업
@@ -285,9 +285,75 @@ naver.com##div.Layout-module__content_area___b_3TU:nth-of-type(4)
 naver.com##.RightWidget-module__tool_area___dhpNQ
 ! - 모바일
 ! - - - 메인 전체
-naver.com##.type_round_card.comp_container
+!naver.com##.type_round_card.comp_container
 ! - - - 메뉴판
-naver.com##.sch_home_shortcut
+!naver.com##.sch_home_shortcut
+! - - - 이걸로 대체 변경
+
+! 짱공유닷컴 (https://www.jjang0u.com/)
+! - PC 왼쪽 배너 공간
+! - https://yako4.net/ - 영상 하단 배너 (주소 바뀜)
+###banner
+! - 모바일 하단 배너
+##.ad_area1
+
+
+! 루리 (https://m.ruliweb.com/) 모바일
+!- 하단 가운데 작은 박스 배너
+##.fixed_layer1
+! - 맨밑 하단 파란색 배너
+##.fixed_ad_wrapper
+
+
+! 뽐뿌
+! - 오른쪽 배너 복원 (kr: List-KR)
+ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
+! - 오른쪽 하단 배너
+ppomppu.co.kr##.ppomCou
+
+
+! 딴지일보 (https://www.ddanzi.com/) 모바일
+! - 게시글 상단 배너(마켓 홍보)
+###banner_ddanzi_market
+! - 게시글 하단 공백
+##.ddanzi_m_club_MxC_336x280.add_display2
+
+
+! 포모스 (https://www.fomos.kr/) 왼쪽 배너
+##.float-banners
+
+
+! 일베 (https://www.ilbe.com/)
+! - 오른쪽 안쪽 배너
+##.aside-banner
+! - 오른쪽 바깥 따라다니는 배너
+##.right-banner
+! - 게시글 하단 배너
+##.cutin-banner
+
+
+! 헝그리앱 (https://www.hungryapp.co.kr/) 상단 배너
+##.bannersww
+
+
+! 네이버 (https://www.naver.com/) 간단하게 보이게
+! - PC
+! - - - 왼쪽 하단 메뉴
+naver.com##.id_health.Layout-module__content_area___b_3TU
+! - - - 날씨
+naver.com##div.Layout-module__content_area___b_3TU:nth-of-type(3)
+! - - - 증시
+naver.com##div.Layout-module__content_area___b_3TU:nth-of-type(4)
+! - - - 위젯보드
+naver.com##.RightWidget-module__tool_area___dhpNQ
+! - 모바일
+! - - - 메인 전체
+!naver.com##.type_round_card.comp_container
+! - - - 메뉴판
+!naver.com##.sch_home_shortcut
+! - - - 이걸로 대체 변경
+! - - - 출처 : https://gall.dcinside.com/adguard/567
+naver.com##.comp_card:not(.comp_weather)
 
 ! 네이버 (cafe.naver.com) 카페 배너
 cafe.naver.com##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
