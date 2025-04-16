@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041629
+! Version: 25041701
 
 
 
@@ -273,9 +273,81 @@ ppomppu.co.kr##.ppomCou
 ##.bannersww
 
 
+! 네이버 (https://www.naver.com/) 간단하게 보이게
+! - PC
+! - - - 왼쪽 하단 메뉴
+naver.com##.id_health.Layout-module__content_area___b_3TU
+! - - - 날씨
+naver.com##div.Layout-module__content_area___b_3TU:nth-of-type(3)
+! - - - 증시
+naver.com##div.Layout-module__content_area___b_3TU:nth-of-type(4)
+! - - - 위젯보드
+naver.com##.RightWidget-module__tool_area___dhpNQ
+! - 모바일
+! - - - 메인 전체
+naver.com##.type_round_card.comp_container
+! - - - 메뉴판
+naver.com##.sch_home_shortcut
+
 ! 네이버 (cafe.naver.com) 카페 배너
 cafe.naver.com##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
 cafe.naver.com##.bottom.banner_add
+
+
+! 네이트 간단하게 보이게
+! - PC
+! - - - 네이트 판
+nate.com###divContentsUpper
+!  - - - 트랜드
+nate.com##.area_issue
+! - - - 추천 검색어
+nate.com##.area_ranking
+! - - - 숏폼
+nate.com##.short-form-content
+! - - - 하단 광고 배너
+nate.com##.ad_area_bottom
+! - - - 가운데 - 오늘의
+nate.com##.bizCnt > .todayBox
+! - 모바일
+! - - - 메인
+nate.com##.f2.mainContainer
+! - - - 상단 메뉴
+nate.com##.blockNavi
+
+
+! 다음 간단하게 보이게
+! - PC
+! - - - 오늘의 주요소식
+daum.net##.board_issue.board_g
+! - - - 엔터 보드
+daum.net##.board_enter.board_g
+! - - - 스포츠 보드
+daum.net##.board_sports.board_g
+! - - - 카페 보드
+daum.net##.board_cafe.board_g
+! - - - 관심키워드
+daum.net##.board_interest.board_g
+! - - - 증권
+daum.net##.box_stock.box_g
+! - - - 숏폼
+daum.net##.box_shorts.box_g
+! - - - 게임
+daum.net##.box_game.box_g
+! - - - 투게더
+daum.net##.box_together.box_g
+! - - - 랭킹
+daum.net##.box_ranking.box_g
+! - - -오늘의 포토
+daum.net##.box_todayphoto.box_g
+! - 모바일
+! - - - 팝업
+m.daum.net##.bnr_appset_v2_high.bnr_popup.bnr_layer
+! - 뉴스 전체
+daum.net##.channel_mynews.main_cont
+! - 상단 메뉴
+daum.net##.slidebox_menu
+! - 빈공간
+daum.net##nav.nav_main:nth-of-type(1)
 
 
 
