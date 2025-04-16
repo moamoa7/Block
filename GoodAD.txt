@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041610
+! Version: 25041611
 
 
 
@@ -952,6 +952,23 @@ m.11st.co.kr##.fadeIn.animated.dim
 ! - 개인적 취향
 ! -  kr: List-KR 무력회
 @@||service.wadiz.kr/api/*/wadizad/host/keyvisual
+
+
+! 다나와 (https://www.danawa.com/)
+! - 기존 List-KR 무력화
+danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-middlebnr
+! - 상단 완쪽 배너
+danawa.com###danawa_main_container > .main-top > .main-top__center
+! - 상단 오른쪽 배너
+danawa.com###danawa_main_container > .main-top > .main-top__right
+! - 커뮤니티/이벤트.체험단/자동차/샵다나와
+danawa.com##div.main__grid > .main__inner
+! 모바일 - 쇼핑가이드
+danawa.com###mdnw-main-recommend-contents-topContainer
+! 모바일 -작은 배너
+danawa.com##.main_mid_banner
+! 모바일 - 뉴스룸
+danawa.com###mdnw-main-newsRoom-container
 
 
 
