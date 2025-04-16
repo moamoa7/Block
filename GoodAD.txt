@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041619
+! Version: 25041620
 
 
 
@@ -56,11 +56,6 @@ kilho.net###d202504101
 kilho.net##.show.fade.modal-backdrop
 ! - - - - -  게시물 내 광고
 kilho.net##[src^="https://imgdb.in/a/"]
-
-
-! KLauncher 광고 차단 우회
-! 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-start.klauncher.kr$$script:contains(detected)
 
 
 ! 롤 인벤 (lol.inven.co.kr) 상단 배너 제거
