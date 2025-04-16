@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041626
+! Version: 25041627
 
 
 
@@ -472,7 +472,7 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 
 ! AV킴 (https://avkim26.com/) 상단 배너 / 영상 하단 배너
 ! 야오리 (https://yaohri36.com/) 상단 배너 / 영상 하단 배너
-||*/img/banner/*
+||*com/img/banner/*
 
 
 ! 코난티비 (https://conan-tv.com/) 배너
