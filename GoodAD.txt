@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041623
+! Version: 25041624
 
 
 
@@ -462,7 +462,7 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 
 
 ! AVDBS (https://www.avdbs.com/) 상단 배너
-avdbs.com/##.shw-1024-over.dbs-bnr-wrp
+avdbs.com##.shw-1024-over.dbs-bnr-wrp
 
 
 ! AV킴 (https://avkim26.com/) 상단 배너 / 영상 하단 배너
