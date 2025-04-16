@@ -163,6 +163,16 @@ Violentmonkey 확장프로그램 설치 후 사용
 설치주소 : https://codeberg.org/Amm0ni4/bypass-all-shortlinks-debloated/raw/branch/main/Bypass_All_Shortlinks.user.js
 <br><br>
 
+
+AdGuard Extra
+
+- 점점 더 보편화되고 있는 광고 차단 우회 시도를 차단하기 위한 사용자 스크립트(또는 브라우저 확장 프로그램)입니다
+
+홈페이지 : https://github.com/AdguardTeam/AdGuardExtra
+
+설치주소 : https://userscripts.adtidy.org/release/adguard-extra/1.0/adguard-extra.user.js
+<br><br>
+
 ※ AMP 비활성화 by AdGuard
 - Google 검색 결과 페이지에서 AMP 페이지를 비활성화하는 매우 간단한 사용자 스크립트입니다
 
@@ -178,8 +188,16 @@ Violentmonkey 확장프로그램 설치 후 사용
 홈페이지 : https://greasyfork.org/en/scripts/498145-youtube-hd-premium
 
 설치주소 : https://update.greasyfork.org/scripts/498145/Youtube%20HD%20Premium.user.js
+<br><br>
 
-<br/>
+Mobile Element Selector
+
+- 모바일 요소 선택기
+
+홈페이지 : https://greasyfork.org/en/scripts/532907-mobile-element-selector
+
+설치주소 : https://update.greasyfork.org/scripts/532907/Mobile%20Element%20Selector.user.js
+<br>
 
 # 추천 브라우저 (모바일)
 
