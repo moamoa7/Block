@@ -133,7 +133,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 
 홈페이지 : https://greasyfork.org/en/scripts/525162-pop-up-blocked
 
-설치주소 : https://update.greasyfork.org/scripts/525162/Pop-Up Blocked! (⛔).user.js
+설치주소 : https://update.greasyfork.org/scripts/525162/Pop-Up%20Blocked%21%20%28%E2%9B%94%29.user.js
 <br><br>
 
 ※ NamuLink
