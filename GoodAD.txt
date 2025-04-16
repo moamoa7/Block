@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041624
+! Version: 25041625
 
 
 
@@ -270,6 +270,10 @@ ppomppu.co.kr##.ppomCou
 
 ! 헝그리앱 (https://www.hungryapp.co.kr/) 상단 배너
 ##.bannersww
+
+
+! 네이버 (cafe.naver.com) 카페 배너
+cafe.naver.com##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
 
 
 
