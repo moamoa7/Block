@@ -127,13 +127,13 @@ Violentmonkey 확장프로그램 설치 후 사용
 설치주소 : https://violentmonkey.github.io/get-it/
 <br><br>
 
-※ Ultra Popup Blocker
+※ Pop-Up Blocked! (⛔)
 
-- 기본적으로 모든 팝업 창을 차단하도록 설계된 가벼운 팝업 차단기
+- 간단한 팝업 창 차단기
 
-홈페이지 : https://github.com/Eskander/ultra-popup-blocker
+홈페이지 : https://greasyfork.org/en/scripts/525162-pop-up-blocked
 
-설치주소 : https://update.greasyfork.org/scripts/387937/Ultra%20Popup%20Blocker.user.js
+설치주소 : https://update.greasyfork.org/scripts/525162/Pop-Up Blocked! (⛔).user.js
 <br><br>
 
 ※ NamuLink
