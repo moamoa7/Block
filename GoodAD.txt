@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041705
+! Version: 25041706
 
 
 
@@ -222,7 +222,7 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ##.ad_list
 ! - 게시물 내 댓글 컨텐츠 (모바일)
 ##.comment_extra_box
-! - 이토랜드 로고 옆 작은 배너
+! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ##[src*="/data/daumeditor"]
 ! - 모바일 게시물 하단 광고 배너
