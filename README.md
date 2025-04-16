@@ -164,7 +164,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 <br><br>
 
 
-AdGuard Extra
+※ AdGuard Extra
 
 - 점점 더 보편화되고 있는 광고 차단 우회 시도를 차단하기 위한 사용자 스크립트(또는 브라우저 확장 프로그램)입니다
 
@@ -190,7 +190,7 @@ AdGuard Extra
 설치주소 : https://update.greasyfork.org/scripts/498145/Youtube%20HD%20Premium.user.js
 <br><br>
 
-Mobile Element Selector
+※ Mobile Element Selector
 
 - 모바일 요소 선택기
 
