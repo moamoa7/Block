@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041628
+! Version: 25041629
 
 
 
@@ -21,6 +21,7 @@
 [$domain=/^booktoki\d+.com/]###novel_content:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 [$domain=/^manatoki\d+.net/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
 [$domain=/^newtoki\d+.com/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
+
 
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
 ! -출처 : Adblock-Rule-Collection-Lite
@@ -505,12 +506,14 @@ conan-tv.com###fboardlist
 ! 마징가툰 (https://z65.mzgtoon.com/) 배너
 ##.mt-4.flex-wrap.flex
 
+
 ! 호두코믹스 시즌2 (https://hdhd425.net/)
 ! 툰코 (https://tkr416.com/)
 ! - 팝업
 ##.alert_windows
 ! - 배너
 ||blogger.googleusercontent.com/img/*/AVvXsE*
+
 
 ! 늑대닷컴 (https://wfwf384.com/)
 ! 늑대닷컴2 (https://wftoon190.com/)
@@ -602,6 +605,7 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ###mainLeftBanner
 ! 어패럴뉴스 (https://apparelnews.co.kr/) 오른쪽 배너
 ##a.side_banner
+
 
 ! ITWorld (https://www.itworld.co.kr/) 쿠키 팝업
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
@@ -766,6 +770,7 @@ upload/banners/*
 ##[id^="tab-ad-player"]:not(html):not(body):not(article)
 ##.video-overlay
 
+
 ! 오늘의 중계 (today-sports7.com) - 팝업
 ! 코난티비(https://conan-tv.com/) - 팝업
 ! https://jusoyo41.com/ - 배너
@@ -851,6 +856,7 @@ javlemon.com##center
 ! WatchJAVOnline (https://watchjavonline.com/)
 !- 영상 하단 배너 공간
 ##.code-block-2.code-block
+
 
 ! https://goodav17.com/
 ! - 영상 하단 배너
@@ -949,13 +955,13 @@ cdn-banana.bizhost.kr/files/new_main/*.jpg
 ##.m2-index-pop
 
 
+! G마켓 (https://www.gmarket.co.kr/)
+gmarket.co.kr##.section__main-banner.section__main
+
+
 ! 11번가 모바일 (m.11st.co.kr) 하단 배너
 m.11st.co.kr##.slideInBottom
 m.11st.co.kr##.fadeIn.animated.dim
-
-
-! G마켓 모바일 (https://m.gmarket.co.kr/) 배너
-##.box__banner-expand
 
 
 ! 와디즈 (https://www.wadiz.kr/) 메인 상단 배너 이미지 나오게 하기
