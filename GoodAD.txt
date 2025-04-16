@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041713
+! Version: 25041714
 
 
 
@@ -1136,7 +1136,7 @@ danawa.com###mdnw-main-dimm
 
 
 ! 쑈당몰 (https://showdang.co.kr/) 팝업
-##.box
+showdang.co.kr##.box
 
 
 
