@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041625
+! Version: 25041626
 
 
 
@@ -274,6 +274,7 @@ ppomppu.co.kr##.ppomCou
 
 ! 네이버 (cafe.naver.com) 카페 배너
 cafe.naver.com##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
+cafe.naver.com##.bottom.banner_add
 
 
 
