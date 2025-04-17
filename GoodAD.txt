@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 2504177
+! Version: 25041738
 
 
 
@@ -1379,3 +1379,15 @@ tv.kakao.com#@#.ads
 ! - https://www.christiantoday.co.kr/
 ||*kr/data/banner/*
 
+
+
+
+
+! 픽팍 (https://mypikpak.com/ko/check-in) 쿠키 창
+! - Adblock-Rule-Collection-Lite
+##.cookie-wrapper:not(body):not(html)
+
+
+! SPEEDTEST (https://www.speedtest.net/) 쿠키 창
+! - AdVoid.Full
+||ziffstatic.com
