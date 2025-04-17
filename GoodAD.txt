@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041728
+! Version: 25041729
 
 
 
@@ -17,9 +17,10 @@
 
 !!! 애드블록 탐지우회/차단
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-*#%#//scriptlet('prevent-fetch', 'doubleclick.net')
-*#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
-*#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
+! - 길호넷 등 조치가 필요없어 비처리
+!*#%#//scriptlet('prevent-fetch', 'doubleclick.net')
+!*#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
+!*#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 
 
 
@@ -55,12 +56,14 @@ srank.kr#@#+js(prevent-fetch, doubleclick.net)
 
 
 ! 길호넷 (https://kilho.net/)
-! - - - 유니콘pro에서는 적용이 안되서 개별 추가
-! - - - - -  팝업
+! - 오른쪽 배너
+##.adsense
+! - 유니콘pro에서는 적용이 안되서 개별 추가
+! - - -  팝업
 kilho.net###d202504101
-! - - - - - 뿌연 화면 사라지게
+! - - - 뿌연 화면 사라지게
 kilho.net##.show.fade.modal-backdrop
-! - - - - -  게시물 내 광고
+! - - -  게시물 내 광고
 kilho.net##[src^="https://imgdb.in/a/"]
 
 
