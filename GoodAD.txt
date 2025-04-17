@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041716
+! Version: 25041717
 
 
 
@@ -820,6 +820,11 @@ _300x250_
 !##.happy-footer
 ! - 영상 클릭시 반응없는거 해결 (List-kr)
 ||imasdk.googleapis.com^
+
+
+! MISSAV (https://missav.ws/)
+! -영상 아래 배너공간 (EasyList)
+||creative.myavlive.com^
 
 
 ! AV19.org (https://av19.live/) 상단 배너 등
