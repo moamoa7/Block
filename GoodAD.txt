@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041803
+! Version: 25041804
 
 
 
@@ -423,7 +423,9 @@ twitch.tv###twilight-sticky-footer-root
 
 
 ! 소프트콘 뷰어쉽 (https://viewership.softc.one/)
-! - 팝업 및 뿌연 화면
+! - 안내 팝업 및 뿌연 화면
+viewership.softc.one##.p-4.justify-center.items-center.flex.z-50.left-0.top-0.fixed.bg-black\/50.h-lvh.w-lvw
+! - 팝업 허용 팝업
 viewership.softc.one##.fc-dialog-container
 
 
