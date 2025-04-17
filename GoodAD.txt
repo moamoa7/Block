@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041727
+! Version: 25041728
 
 
 
@@ -11,6 +11,15 @@
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
+
+
+
+
+!!! 애드블록 탐지우회/차단
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+*#%#//scriptlet('prevent-fetch', 'doubleclick.net')
+*#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
+*#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 
 
 
@@ -45,9 +54,7 @@
 srank.kr#@#+js(prevent-fetch, doubleclick.net)
 
 
-! 길호넷 (https://kilho.net/) 차단 우회 (List-KR 문구 활용)
-! - 도메인을 지정하지 않으면 캡쳐에서 무한 오류남
-@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
+! 길호넷 (https://kilho.net/)
 ! - - - 유니콘pro에서는 적용이 안되서 개별 추가
 ! - - - - -  팝업
 kilho.net###d202504101
