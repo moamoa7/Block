@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041738
+! Version: 25041739
 
 
 
@@ -49,7 +49,7 @@
 @@/^https:\/\/(www|m)\.coupang\.com\/[A-Za-z0-9_]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_]+\/[A-Za-z0-9_]+(\/[A-Za-z0-9_-]+){0,5}$/$domain=coupang.com,xmlhttprequest,method=post,match-case
 
 
-! srank (https://www.srank.kr/ 광고 차단 감지 해제
+! srank (https://www.srank.kr/) 광고 차단 감지 해제
 ! - 애드가드에서는 되는대 ublock에서는 안되서 별도 처리 (List-KR 무력화)
 srank.kr#@#+js(prevent-fetch, doubleclick.net)
 
