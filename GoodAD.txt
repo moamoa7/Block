@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041717
+! Version: 25041718
 
 
 
@@ -842,8 +842,7 @@ _300x250_
 
 
 !폰허브 입장시 18세 이상 물어보는거 패스 (2개 다 해야함)
-##[id*="Disclaimer"]:not(html):not(body):not(article)
-##[class*="Disclaimer"]:not(html):not(body):not(article)
+pornhub.com###ageDisclaimerMainBG
 
 
 ! fc2ppvdb.com 입장시 18세 체크
