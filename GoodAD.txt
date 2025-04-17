@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041806
+! Version: 25041807
 
 
 
@@ -887,8 +887,11 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! AVseeTV (https://03.avsee.ru/) 배너 이미지 공간
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
-! - 영상 플레이시 팝업 차단 (AdGuard – Ads)
-!/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,third-party,match-case
+! - 영상 플레이시 팝업 차단
+! - - - AdGuard – Ads
+/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,third-party,match-case
+! - - - uBlock filters – Ads
+!/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,3p,match-case,to=com
 
 
 ! AVDBS (https://www.avdbs.com/) 상단 배너
@@ -1363,10 +1366,10 @@ showdang.co.kr##.box
 
 
 ! 배너 이미지
-!- https://javfc2.xyz/ 상단 배너
-! - uBlock filters – Ads 설치시 필요없음 
+! - https://javfc2.xyz/ 상단 배너
+! - - - uBlock filters – Ads
 !/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
-! - AdGuard – Ads 설치시 필요없음
+! - - - AdGuard – Ads
 !/^https?:\/\/[a-z-]{6,}\.(?:com?|pro|info|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xmlhttprequest,third-party,match-case
 ###ads
 
