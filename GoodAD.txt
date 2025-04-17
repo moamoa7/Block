@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041730
+! Version: 25041731
 
 
 
@@ -15,7 +15,7 @@
 
 
 
-!!! 애드블록 탐지우회/차단
+!!! 애드블록 탐지 우회
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 *#%#//scriptlet('prevent-fetch', 'doubleclick.net')
 *#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
@@ -881,6 +881,9 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! - 입장시 18세 물어보는 팝업
 ###dclm_modal_content
 ###dclm_modal_screen
+! 애드블록 탐지 우회
+! - - - List-KR 1개 추가
+sogirl.so##+js(set-constant, DHAntiAdBlocker, true)
 ! - 배너 이미지 (List-KR)
 ||hcdn1.maxsocdn.net^$domain=sogirl.so
 ||1.bp.blogspot.com^$domain=sogirl.so
