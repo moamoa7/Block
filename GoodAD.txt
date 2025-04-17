@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041723
+! Version: 25041724
 
 
 
@@ -198,6 +198,8 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ! 인벤 (https://inven.co.kr)
 ! - 상단 배너
 ##.ad-header
+! - 상단 배너 (모바일)
+##.mobileTopAd
 !- 오른쪽 배너
 ##.ad-right2
 ! - 왼쪽 배너
@@ -211,7 +213,7 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ! - 게시글 하단 안내창
 ##.invenAppSuggestionInner
 ! - 게시글 하단 안내창 (모바일)
-##mobileTailAd_Layer
+###mobileTailAd_Layer
 ! - 오른쪽 하단 떠다니는 배너
 ##.roulette-open.inven-float-alarm
 ! - 오른쪽 메뉴 중 일부 삭제
