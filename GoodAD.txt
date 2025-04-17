@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041731
+! Version: 25041732
 
 
 
@@ -883,7 +883,7 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ###dclm_modal_screen
 ! 애드블록 탐지 우회
 ! - - - List-KR 1개 추가
-sogirl.so##+js(set-constant, DHAntiAdBlocker, true)
+||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,redirect-rule=googlesyndication_adsbygoogle.js
 ! - 배너 이미지 (List-KR)
 ||hcdn1.maxsocdn.net^$domain=sogirl.so
 ||1.bp.blogspot.com^$domain=sogirl.so
