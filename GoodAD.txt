@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041721
+! Version: 25041722
 
 
 
@@ -183,9 +183,16 @@ issuefeed.dcinside.comissuefeed.dcinside.com##button
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 
 
-! 에펨코리아 (m.fmkorea.com) 모바일
-! - 오른쪽 하단 떠다니는 작은 배너
+! 에펨코리아 (https://www.fmkorea.com/)
+! - PC
+! - - - 파워링크 배너
+##.ad_wrapper
+! - - - 오른쪽 배너
+##ins.adsbygoogle[data-ad-slot]
+! - 모바일
+! - - - 오른쪽 하단 떠다니는 작은 배너
 ###fm_alert
+
 
 
 ! 인벤 (https://inven.co.kr)
