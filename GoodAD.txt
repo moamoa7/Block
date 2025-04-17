@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041807
+! Version: 25041808
 
 
 
@@ -884,7 +884,7 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! - 소라밤 (https://www.sorabam38.me/) 배너
 ! - AV핑유걸 (https://avpingyou18.com/) 배너
 ##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
-! AVseeTV (https://03.avsee.ru/) 배너 이미지 공간
+! AVseeTV (https://04.avsee.ru/) 배너 이미지 공간
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
 ! - 영상 플레이시 팝업 차단
