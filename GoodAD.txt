@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041719
+! Version: 25041720
 
 
 
@@ -403,6 +403,38 @@ viewership.softc.one##.p-4.justify-center.items-center.flex.z-50.left-0.top-0.fi
 !!!!! 영상
 
 
+! 유튜브 (https://www.youtube.com/)
+! - AdVoid.Full
+@@||www.youtube.com^$generichide
+www.youtube.com##+js(adjust-setTimeout, [native code], 17000, 0.001)
+www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, '', propsToMatch, /\/(player|get_watch)\?/)
+www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads, '', propsToMatch, /playlist?)
+www.youtube.com##+js(json-prune-fetch-response, reelWatchSequenceResponse.entries.[-].command.reelWatchEndpoint.adClientParams.isAd entries.[-].command.reelWatchEndpoint.adClientParams.isAd, '', propsToMatch, url:/reel_watch_sequence?)
+www.youtube.com##+js(json-prune-xhr-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, '', propsToMatch, /\/player(?:\?.+)?$/)
+www.youtube.com##+js(set-constant, playerResponse.adPlacements, undefined)
+www.youtube.com##+js(set-constant, ytInitialPlayerResponse.adPlacements, undefined)
+www.youtube.com##+js(set-constant, ytInitialPlayerResponse.adSlots, undefined)
+www.youtube.com##+js(set-constant, ytInitialPlayerResponse.playerAds, undefined)
+www.youtube.com##+js(json-prune, auxiliaryUi.messageRenderers.upsellDialogRenderer)
+www.youtube.com##+js(set-constant, ytInitialPlayerResponse.auxiliaryUi.messageRenderers.upsellDialogRenderer, undefined)
+youtube.com##+js(href-sanitizer, a[href^="https://www.youtube.com/redirect?event=video_description"][href*="&q=http"], ?q)
+||doubleclick.net^
+||doubleclick.net^$xmlhttprequest,redirect-rule=noop.txt
+/youtubei/*/att/*
+!adformat=
+/generate_204^$image
+/log_event$xhr
+||google.com/log^
+/pagead^
+www.youtube.com##.ytd-in-feed-ad-layout-renderer
+youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+/cast_sender.js^$script
+youtube.com##.ytp-cards-teaser
+www.youtube.com##.ytp-featured-product
+youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+/ptracking
+
+
 ! 티비위키 (https://tvwiki19.com/) / 티비몬 (https://tvmon15.org/)
 ! - websocket 차단
 !||openwebtorrent.com
@@ -795,6 +827,9 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ##.pt-45.container
 ! - 영상 뿌연거
 ##.ad-twos.text-center
+! ST / VOE 클릭시 발생하는 영상 오른쪽 배너
+! - - - AdVoid.Full
+/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,3p,match-case,to=com
 
 
 ! JAVGG.NEG (https://javgg.net/)
@@ -857,6 +892,10 @@ _300x250_
 
 !폰허브 입장시 18세 이상 물어보는거 패스 (2개 다 해야함)
 pornhub.com###ageDisclaimerMainBG
+
+
+! FUNLOVE (https://funlove.info/) 상단 배너 공백
+funlove.info##div.boxAds:nth-of-type(1)
 
 
 ! fc2ppvdb.com 입장시 18세 체크
