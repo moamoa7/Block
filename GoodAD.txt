@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 2504176
+! Version: 2504177
 
 
 
@@ -271,7 +271,7 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - PC 왼쪽 배너 공간
-! - https://yako4.net/ - 영상 하단 배너 (주소 바뀜)
+! - https://yako4.net/ - 영상 하단 배너
 ###banner
 ! - 모바일 하단 배너
 ##.ad_area1
@@ -824,7 +824,7 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 !!!!! 성인
 
 
-! AVseeTV (https://03.avsee.ru/) 배너 이미지
+! AVseeTV (https://04.avsee.ru/) 배너 이미지
 ! - 소리바다 (https://sorabada93.com/) 배너
 ! - 야한TV (https://www.yatv16.me/) 배너
 ! - 섹스조아 (https://www.sexzoa52.com/) 배너
@@ -873,7 +873,7 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ##.home_iframead
 
 
-! 7MMTV (https://7tv000.com/)
+! 7MMTV (https://7tv033.com/)
 ! - 상단 배너 공간
 ##.a-d-block
 !- 영상 오른쪽 배너 공간 (EasyList)
@@ -942,7 +942,7 @@ pornhub.com###ageDisclaimerMainBG
 ##.wp-block-gallery
 
 
-! AV핑보걸 (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) - 주소 바뀜
+! AV핑보걸 (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/)
 ! - 배너 이미지
 ###imgDiv > table
 ###imgDiv2
@@ -968,7 +968,7 @@ pornhub.com###ageDisclaimerMainBG
 ##.fg-image
 
 
-! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) 상단 배너 - 주소 바뀜
+! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) 상단 배너
 4kjav.co##.textwidget
 
 
@@ -1054,10 +1054,10 @@ fc1adult.com##.fullscreen
 ###banner-list.banner-list
 
 
-! 야동판 (https://3.yadongpan.me/) - 주소 바뀜
+! 야동판 (https://3.yadongpan.me/)
 ! - PC 메인 전체
 ! - 영상내 더 아래 배너 및 오른쪽 배너 (모바일 동일)
-! - - - 자막야동 (https://3.jamakyadong.me/) - 주소 바뀜
+! - - - 자막야동 (https://3.jamakyadong.me/)
 ###top-desktop
 ! - 영상내 배너 및 닫기 버튼
 ##.happy-insid-player
@@ -1070,7 +1070,7 @@ fc1adult.com##.fullscreen
 ###top-mobile
 
 
-! 자막야동 (https://xn--2q1bp6izol05b.com/) (https://3.jamakyadong.me/) - 주소 바뀜
+! 자막야동 (https://xn--2q1bp6izol05b.com/) (https://3.jamakyadong.me/)
 ! - 영상 하단 배너
 ##.unde-player-ad
 
@@ -1085,7 +1085,7 @@ fc1adult.com##.fullscreen
 
 ! 야동AVMOV (https://avmov.best/) - 상단 배너
 avmov.best##center
-! 여우코믹스 (https://fxfx303.com/) - 팝업 (주소 바뀜)
+! 여우코믹스 (https://fxfx303.com/) - 팝업
 fxfx303.com##center
 ! https://j-av.com/ - 모든 배너
 j-av.com##center
@@ -1118,7 +1118,7 @@ javlemon.com##center
 ##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
 
-! 야동망고 (https://www.mango54.net/) 배너 - 주소 바뀜
+! 야동망고 (https://www.mango54.net/) 배너
 ||*/images/spon/*.gif
 
 
