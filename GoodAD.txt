@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041715
+! Version: 25041716
 
 
 
@@ -799,15 +799,27 @@ _300x250_
 
 
 ! 쏘걸 (https://kr79.sogirl.so/)
-! 애드블럭 우회 (uBlock filters – Ads)
+! - 입장시 18세 물어보는 팝업
+###dclm_modal_content
+###dclm_modal_screen
+! - 애드블럭 우회 (uBlock filters – Ads)
 ||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,xhr,redirect=googlesyndication_adsbygoogle.js:5,domain=~zipextractor.app
 ! - 배너 이미지 (List-KR)
 ||hcdn1.maxsocdn.net^$domain=sogirl.so
 ||1.bp.blogspot.com^$domain=sogirl.so
-! - 영상 클릭시 반응없는거 해결
+! - 오른쪽 상단 배너는 보이지 않으나 배너 위치만큼 삭제됨
+! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
+! - - - https://fc2ppv.stream/
+! - - - https://k4.kbjsvip.win/
+##.happy-header
+! AV핑보걸 영상 화면 하단 배너
+! 쏘걸 (https://kr78.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
+!##.happy-under-player
+! - 맨 하단 배너
+! - - - AdGuard – Ads 에 있어 비처리
+!##.happy-footer
+! - 영상 클릭시 반응없는거 해결 (List-kr)
 ||imasdk.googleapis.com^
-
-
 
 
 ! AV19.org (https://av19.live/) 상단 배너 등
@@ -872,22 +884,6 @@ _300x250_
 /img_ad/*.gif
 ! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/) 오른쪽 배너
 ##[class^="banner_item"]:not(html):not(body):not(article)
-
-
-! 쏘걸 (https://kr78.sogirl.so/) - 입장시 18세 물어보는 팝업
-###dclm_modal_content
-###dclm_modal_screen
-! 쏘걸 (https://kr78.sogirl.so/) - 오른쪽 상단 배너는 보이지 않으나 배너 위치만큼 삭제됨
-! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
-! - - - https://fc2ppv.stream/
-! - - - https://k4.kbjsvip.win/
-##.happy-header
-! AV핑보걸 영상 화면 하단 배너
-! 쏘걸 (https://kr78.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
-!##.happy-under-player
-! - 맨 하단 배너
-! - - - AdGuard – Ads 에 있어 비처리
-!##.happy-footer
 
 
 ! 자브걸 (https://kr23.javgirl.co/) 상단 오른쪽 배너 이미지
