@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041729
+! Version: 25041730
 
 
 
@@ -17,10 +17,9 @@
 
 !!! 애드블록 탐지우회/차단
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-! - 길호넷 등 조치가 필요없어 비처리
-!*#%#//scriptlet('prevent-fetch', 'doubleclick.net')
-!*#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
-!*#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
+*#%#//scriptlet('prevent-fetch', 'doubleclick.net')
+*#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
+*#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 
 
 
