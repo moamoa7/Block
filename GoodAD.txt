@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041720
+! Version: 25041721
 
 
 
@@ -48,8 +48,8 @@ srank.kr#@#+js(prevent-fetch, doubleclick.net)
 ! 길호넷 (https://kilho.net/) 차단 우회 (List-KR 문구 활용)
 ! - 도메인을 지정하지 않으면 캡쳐에서 무한 오류남
 ! - uBlock filters 추가하면 필요없음
-!||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,xhr,redirect=googlesyndication_adsbygoogle.js:5,domain=~zipextractor.app
-@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
+||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,xhr,redirect=googlesyndication_adsbygoogle.js:5,domain=~zipextractor.app
+!@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
 ! - - - 유니콘pro에서는 적용이 안되서 개별 추가
 ! - - - - -  팝업
 kilho.net###d202504101
