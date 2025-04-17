@@ -876,6 +876,7 @@ _300x250_
 ###dclm_modal_screen
 ! - 애드블럭 우회 (uBlock filters – Ads)
 ||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,xhr,redirect=googlesyndication_adsbygoogle.js:5,domain=~zipextractor.app
+||pagead2.googlesyndication.com^$xhr,redirect=noop.js
 ! - 배너 이미지 (List-KR)
 ||hcdn1.maxsocdn.net^$domain=sogirl.so
 ||1.bp.blogspot.com^$domain=sogirl.so
