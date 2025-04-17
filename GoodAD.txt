@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041726
+! Version: 25041727
 
 
 
@@ -47,9 +47,7 @@ srank.kr#@#+js(prevent-fetch, doubleclick.net)
 
 ! 길호넷 (https://kilho.net/) 차단 우회 (List-KR 문구 활용)
 ! - 도메인을 지정하지 않으면 캡쳐에서 무한 오류남
-! - uBlock filters 추가하면 필요없음
-@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,xhr,redirect=googlesyndication_adsbygoogle.js:5,domain=~zipextractor.app
-!@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
+@@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=kilho.net
 ! - - - 유니콘pro에서는 적용이 안되서 개별 추가
 ! - - - - -  팝업
 kilho.net###d202504101
@@ -839,7 +837,7 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! Javsaga (https://javsaga.ninja/)
 ! Javbull (https://javbull.tv/)
 ! - 영상 오른쪽 배너 공간 (EasyList)
-##.movv-ad
+!##.movv-ad
 
 
 ! JavNeon (https://javneon.tv/)
@@ -848,16 +846,16 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! Javbull (https://javbull.tv/)
 ! - 상단 공백
 ##.pt-45.container
-! - 영상 뿌연거
-##.ad-twos.text-center
+! - 영상 뿌연거 (EasyList)
+!##.ad-twos
 ! ST / VOE 클릭시 발생하는 영상 오른쪽 배너
 ! - - - AdVoid.Full
-/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,3p,match-case,to=com
+!/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,3p,match-case,to=com
 
 
 ! JAVGG.NEG (https://javgg.net/)
 ! - 상단 배너 공간 (EasyList)
-javgg.net##.module > div[style="text-align: center;"]
+!javgg.net##.module > div[style="text-align: center;"]
 ! - 영상 위 배너 공간
 ##.home_iframead
 
@@ -866,8 +864,8 @@ javgg.net##.module > div[style="text-align: center;"]
 ! - 상단 배너 공간
 ##.a-d-block
 !- 영상 오른쪽 배너 공간 (EasyList)
-||rmhfrtnd.com^
-_300x250_
+!||rmhfrtnd.com^
+!_300x250_
 
 
 ! 쏘걸 (https://kr79.sogirl.so/)
@@ -911,12 +909,13 @@ _300x250_
 ! - ###banner
 
 
-!폰허브 입장시 18세 이상 물어보는거 패스 (2개 다 해야함)
+!폰허브 입장시 18세 이상 물어보는거 패스
 pornhub.com###ageDisclaimerMainBG
 
 
-! FUNLOVE (https://funlove.info/) 상단 배너 공백
-funlove.info##div.boxAds:nth-of-type(1)
+! FUNLOVE (https://funlove.info/)
+! - 상단 배너 공백 (EasyList)
+!##.boxAds
 
 
 ! fc2ppvdb.com 입장시 18세 체크
