@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041804
+! Version: 25041805
 
 
 
@@ -924,6 +924,8 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !javgg.net##.module > div[style="text-align: center;"]
 ! - 영상 위 배너 공간
 ##.home_iframead
+! - 모바일에서 새창뜨는거 추가 방지 (AdGuard – Ad)
+javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set-constant, premium, undefined)
 
 
 ! 7MMTV (https://7tv033.com/)
@@ -942,21 +944,21 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! - - - List-KR 1개 추가
 ||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,redirect-rule=googlesyndication_adsbygoogle.js
 ! - 배너 이미지 (List-KR)
-||hcdn1.maxsocdn.net^$domain=sogirl.so
-||1.bp.blogspot.com^$domain=sogirl.so
+!||hcdn1.maxsocdn.net^$domain=sogirl.so
+!||1.bp.blogspot.com^$domain=sogirl.so
 ! - 오른쪽 상단 배너는 보이지 않으나 배너 위치만큼 삭제됨
 ! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
 ! - - - https://fc2ppv.stream/
 ! - - - https://k4.kbjsvip.win/
 ##.happy-header
 ! AV핑보걸 영상 화면 하단 배너
-! 쏘걸 (https://kr78.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
+! 쏘걸 (https://kr79.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
 !##.happy-under-player
 ! - 맨 하단 배너
 ! - - - AdGuard – Ads 에 있어 비처리
 !##.happy-footer
 ! - 영상 클릭시 반응없는거 해결 (List-kr)
-||imasdk.googleapis.com^
+!||imasdk.googleapis.com^
 
 
 ! MISSAV (https://missav.ws/)
