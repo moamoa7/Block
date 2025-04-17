@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041801
+! Version: 25041802
 
 
 
@@ -464,6 +464,8 @@ youtube.com##.ytp-cards-teaser
 www.youtube.com##.ytp-featured-product
 youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 /ptracking
+accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
+google.com##+js(set-local-storage-item, mapslitepromosdismissed, 1)
 
 ! - Adblock-Rule-Collection-Lite
 youtube.com#%#//scriptlet('json-prune', 'playerResponse.adPlacements playerResponse.adSlots', 'playerResponse.streamingData.serverAbrStreamingUrl')
