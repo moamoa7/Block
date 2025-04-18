@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041904
+! Version: 25041905
 
 
 
@@ -70,7 +70,8 @@ kilho.net##.show.fade.modal-backdrop
 kilho.net##[src^="https://imgdb.in/a/"]
 
 
-! 롤 인벤 (lol.inven.co.kr) 상단 배너 제거
+! 롤 인벤 (lol.inven.co.kr)
+! - 상단 배너
 ###topLinkBanner
 
 
@@ -306,7 +307,8 @@ ppomppu.co.kr##.ppomCou
 ##.ddanzi_m_club_MxC_336x280.add_display2
 
 
-! 포모스 (https://www.fomos.kr/) 왼쪽 배너
+! 포모스 (https://www.fomos.kr/)
+! - 왼쪽 배너
 ##.float-banners
 
 
@@ -497,25 +499,30 @@ youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 ###exon
 
 
-! 후후티비 (https://hoohootv162.xyz/) 배너
+! 후후티비 (https://hoohootv162.xyz/)
+! - 배너
 ##.rhkd
 
 
-! 티비룸 (tvroom7.org/) 팝업
+! 티비룸 (tvroom7.org/)
+! - 팝업
 ##.iziModal-overlay
-! 티비룸 (tvroom7.org/) 배너 이미지
+! - 배너 이미지
 ##.banner_
 
 
-! 누누티비 (https://www.ntnt4.tv/) 배너
+! 누누티비 (https://www.ntnt4.tv/)
+! - 배너
 ##.wixui-column-strip.CohWsy.comp-lhh974lu
 
 
-! 티비위키 (https://tv61.wiki/) 배너
+! 티비위키 (https://tv61.wiki/)
+! - 배너
 ##.custom_banner_wrap
 
 
-! 도라마코리아 (https://www.dorama.kr/) 배너
+! 도라마코리아 (https://www.dorama.kr/)
+! - 배너
 ##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1fzrtxd-2
 
 
@@ -526,7 +533,8 @@ cineaste.co.kr##.main-title
 ##.basic-banner
 
 
-! 키노라이츠 (https://m.kinolights.com/) 팝업
+! 키노라이츠 (https://m.kinolights.com/)
+! - 팝업
 ##.modal-manager
 
 
@@ -588,7 +596,7 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 !!!!! 스포츠TV
 
 
-! 메시티비 (https://messitv8.com/) 배너
+! 메시티비 (https://messitv8.com/)
 ! - - - 메인 배너 여러개
 ##.baner
 ! - - - 왼쪽 상단 배너
@@ -597,47 +605,56 @@ m.cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ##div.d-md-block
 ! - - - 왼쪽 맨 아래 하단 배너
 ##.bigwin-bn
-! 메시티비 (https://messitv8.com/) 채팅박스
+! 채팅박스
 ##u-chat
 
 
-! 고트티비 (https://goat-v.com) 팝업
+! 고트티비 (https://goat-v.com)
+! - 팝업
 ##.popup-container
 
 
-! VIP TV (https://viptv24.com/) 팝업
+! VIP TV (https://viptv24.com/)
+! - 팝업
 ###popup_1
 
 
-! 쿨티비 (https://www.cool111.com/) 챗 공간
+! 쿨티비 (https://www.cool111.com/)
+! - 챗 공간
 ##.left_chat
 
 
-! 굿라이브티비 (https://gltv88.com/) 왼쪽 배너
-! - 블랙티비 https://blacktv88.com/
-! - 뽐뿌 https://www.ppomppu.co.kr/ 오른쪽 배너
+! 굿라이브티비 (https://gltv88.com/)
+! 블랙티비 https://blacktv88.com/
+! 뽐뿌 (https://www.ppomppu.co.kr/)
+! - 배너
 ##.middle-banner
-! 굿라이브티비 (https://gltv88.com/) 왼쪽 챗 공간
+! 굿라이브티비 (https://gltv88.com/)
+! - 왼쪽 챗 공간
 ###fchat
 
 
-! 블랙티비 (https://blacktv88.com/) 왼쪽 챗 공간
-! - 굿라이브티비 (https://gltv88.com/) 적용
+! 블랙티비 (https://blacktv88.com/)
+! 굿라이브티비 (https://gltv88.com/)
+! - 왼쪽 챗 공간
 ##div.b-ox:nth-of-type(3)
 
 
-! 배트맨티비 (https://bmtv24.com/) 팝업
+! 배트맨티비 (https://bmtv24.com/)
+! - 팝업
 ##.modal_item
-! 배트맨티비 (https://bmtv24.com/) 챗 공간
+! - 챗 공간
 ##.chat_frame
 
 
-! 놀고가닷컴 배너 (https://nolgoga365.com/)
+! 놀고가닷컴 (https://nolgoga365.com/)
+! - 배너
 ##[href="https://max-play999.com/"]
 ##[href="https://%EB%9D%BC%EC%9E%84%EC%A3%BC%EC%86%8C.com"]
 
 
-! 코난티비 (https://conan-tv.com/) 배너
+! 코난티비 (https://conan-tv.com/)
+! - 배너
 conan-tv.com###fboardlist
 
 
@@ -647,7 +664,8 @@ conan-tv.com###fboardlist
 !!!!! 음악
 
 
-! Spotify (https://open.spotify.com/) 팝업
+! Spotify (https://open.spotify.com/)
+! - 팝업
 ##.ftlV6Ixmq4wkKMg7hJ1v.dialog
 
 
@@ -663,12 +681,14 @@ conan-tv.com###fboardlist
 [$domain=/^newtoki\d+.com/]##[style="margin-bottom: 20px;"].row.row-15
 
 
-! 블랙툰 최신주소 (https://www.blacktoon1.info/) - 배너
+! 블랙툰 최신주소 (https://www.blacktoon1.info/)
+! - 배너
 ##.wixui-section.comp-m8jy31rn.Oqnisf
 
 
 ! 호두코믹스 (https://xn--hu1b88ll0ffvo7li.info/)
-! 마징가툰 (https://z65.mzgtoon.com/) 배너
+! 마징가툰 (https://z65.mzgtoon.com/)
+! - 배너
 ##.mt-4.flex-wrap.flex
 
 
@@ -702,11 +722,13 @@ conan-tv.com###fboardlist
 ##.cate.row
 
 
-! 나미툰 (https://namee74.com/) 배너
+! 나미툰 (https://namee74.com/)
+! - 배너
 ##div.container_full:nth-of-type(1)
 
 
-! 조아툰 (https://joatoon64.com/) 배너
+! 조아툰 (https://joatoon64.com/)
+! - 배너
 ##.base_wrapper.gap-0\.5.lg\:grid-cols-6.md\:grid-cols-5.sm\:grid-cols-4.grid-cols-3.mt-2.grid
 
 
@@ -722,60 +744,70 @@ conan-tv.com###fboardlist
 !!!!! 언론
 
 
-! 연합뉴스 (https://www.yna.co.kr/) 광고
+! 연합뉴스 (https://www.yna.co.kr/)
 ! - 상단 배너
 ##.aside-top-bnr01
 ! - 뉴스 게시물 내 배너
 ##[class^="aside-box"]:not(html):not(body):not(article)
 
 
-! 위키트리 (https://www.wikitree.co.kr/) 하단 배너
+! 위키트리 (https://www.wikitree.co.kr/)
+! - 하단 배너
 ##section.container.section:nth-of-type(5)
 
 
-! 한국경제 (https://www.hankyung.com/) 배너 등
+! 한국경제 (https://www.hankyung.com/)
+! - 배너 등
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - https://github.com/mtxadmin/ublock - _rules 규칙 적용
 hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 
 
-! 한국경제TV (https://www.wowtv.co.kr/) 상단 배너
+! 한국경제TV (https://www.wowtv.co.kr/)
+! - 상단 배너
 ##.MainTopBig1.wrap-BannerBox
 ||*/images/banner/*
 
 
-! MTN 머니투데이 (https://mtn.co.kr/) 배너
+! MTN 머니투데이 (https://mtn.co.kr/)
+! - 배너
 ##.w_308px
 ##.d_block
 
 
-! 시사IN (https://www.sisain.co.kr/) 팝업창
+! 시사IN (https://www.sisain.co.kr/)
+! - 팝업창
 ###layer-popups
-! 시사IN (https://www.sisain.co.kr/) 구독 배너
+! - 구독 배너
 ##.sisain_view
 
 
-! 이투데이 (https://www.etoday.co.kr/) 배너
+! 이투데이 (https://www.etoday.co.kr/)
+! - 배너
 ##.evt_roll_banner
-! 이투데이 (https://www.etoday.co.kr/) 오른쪽 배너
+! - 오른쪽 배너
 ##.r_w_banner
 
 
-! 이데일리 (https://www.edaily.co.kr/) 상단 배너
+! 이데일리 (https://www.edaily.co.kr/)
+! - 상단 배너
 ##.special_area
 
 
-! 게임조선 (https://gamechosun.co.kr/) 상단 배너
+! 게임조선 (https://gamechosun.co.kr/)
+! - 상단 배너
 ##.top_event
 
 
-! 어패럴뉴스 (https://apparelnews.co.kr/) 왼쪽 배너
+! 어패럴뉴스 (https://apparelnews.co.kr/)
+! - 왼쪽 배너
 ###mainLeftBanner
-! 어패럴뉴스 (https://apparelnews.co.kr/) 오른쪽 배너
+! - 오른쪽 배너
 ##a.side_banner
 
 
-! ITWorld (https://www.itworld.co.kr/) 쿠키 팝업
+! ITWorld (https://www.itworld.co.kr/)
+! - 쿠키 팝업
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ##[id^='sp_message_container_']:remove()
 
@@ -786,31 +818,36 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 !!!!! 주소모음
 
 
-! 주소월드 (https://wdwd6.com/) 배너
+! 주소월드 (https://wdwd6.com/)
+! - 배너
 ##.banner_list.at-container
 
 
-! 링크판 (https://linkpan71.com/) 배너
+! 링크판 (https://linkpan71.com/)
+! - 배너
 ##.ban1
-! 링크판 (https://linkpan71.com/) 팝업
+! - 팝업
 ###layer_pop
-! ! 링크판 (https://linkpan71.com/) 모바일 하단 배너
+! - 모바일 하단 배너
 ##[href="https://alspo5.net"]
 
 
-! 링크사랑 (https://linklove54.com/) 팝업 이미지
+! 링크사랑 (https://linklove54.com/)
+! - 팝업 이미지
 ##.miso-love-ad
 ##.is-round-title.bg-black.carousel-inner
 
 
-! 주소요 (https://jusoyo41.com/) 상단 배너
+! 주소요 (https://jusoyo41.com/)
+! - 상단 배너
 ##.basic-banner-gallery
 ! - 오른쪽 배너 중 List-KR로 안되는 배너 1개
 ! - - - 코난티비 (https://conan-tv.com/) 배너
 ||*/img/*banner.gif
 
 
-! 주소타운 (https://www.jusotw.com/) 배너
+! 주소타운 (https://www.jusotw.com/)
+! - 배너
 ##.wixui-section.comp-lt8phbbp.Oqnisf
 
 
@@ -827,7 +864,8 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 ! - 소라밤 (https://www.sorabam38.me/) 배너
 ! - AV핑유걸 (https://avpingyou18.com/) 배너
 ##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
-! AVseeTV (https://04.avsee.ru/) 배너 이미지 공간
+! AVseeTV (https://04.avsee.ru/)
+! - 배너 이미지 공간
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
 ! - 영상 플레이시 팝업 차단
@@ -837,7 +875,8 @@ avsee.ru##div.main-box:nth-of-type(1)
 !/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,3p,match-case,to=com
 
 
-! AVDBS (https://www.avdbs.com/) 상단 배너
+! AVDBS (https://www.avdbs.com/)
+! - 상단 배너
 avdbs.com##.shw-1024-over.dbs-bnr-wrp
 
 
@@ -912,17 +951,17 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 ! 탑걸 (https://kr39.topgirl.co)
 ! - 영상내 광고
 ||video.twimg.com,domain=~topgirl.co
-
 ! - 영상 하단 텍스트 배너
 ##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 
 
 ! MISSAV (https://missav.ws/)
-! -영상 아래 배너공간 (EasyList)
+! - 영상 아래 배너공간 (EasyList)
 ||creative.myavlive.com^
 
 
-! AV19.org (https://av19.live/) 상단 배너 등
+! AV19.org (https://av19.live/)
+! - 상단 배너 등
 ##.top_banner
 ! - 영상 오른편 배너 (EasList에 포함)
 ! - https://javlemon.com/
@@ -936,7 +975,8 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 ! - ###banner
 
 
-!폰허브 입장시 18세 이상 물어보는거 패스
+! 폰허브 (https://www.pornhub.com/)
+! - 입장시 18세 이상 물어보는거 패스
 pornhub.com###ageDisclaimerMainBG
 
 
@@ -945,11 +985,13 @@ pornhub.com###ageDisclaimerMainBG
 !##.boxAds
 
 
-! fc2ppvdb.com 입장시 18세 체크
+! fc2ppvdb.com
+! - 입장시 18세 체크
 ##[id*="ageCheck"]:not(html):not(body):not(article)
 
 
-! 조개무비 (https://v15.jogemovie.net/) 배너 이미지
+! 조개무비 (https://v15.jogemovie.net/)
+! - 배너 이미지
 ##.wp-block-gallery
 
 
@@ -975,22 +1017,27 @@ pornhub.com###ageDisclaimerMainBG
 ##.popup_image
 
 
-!AV핑크 (https://avpink34.com/) 배너 이미지
+!AV핑크 (https://avpink34.com/)
+! - 배너 이미지
 ##.fg-image
 
 
-! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) 상단 배너
+! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
+! - 상단 배너
 4kjav.co##.textwidget
 
 
-! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/) 배너 이미지
-! 믹스걸 (https://xn--369an15a89c2ov.com/) (https://kr13.mix-19.com/home) 배너 이미지
+! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/)
+! 믹스걸 (https://xn--369an15a89c2ov.com/) (https://kr13.mix-19.com/home)
+! - 배너 이미지
 /img_ad/*.gif
-! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/) 오른쪽 배너
+! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/)
+! - 오른쪽 배너
 ##[class^="banner_item"]:not(html):not(body):not(article)
 
 
-! 자브걸 (https://kr23.javgirl.co/) 상단 오른쪽 배너 이미지
+! 자브걸 (https://kr23.javgirl.co/)
+! - 상단 오른쪽 배너 이미지
 ###header_banner
 
 
@@ -999,18 +1046,21 @@ pornhub.com###ageDisclaimerMainBG
 ! 야동도시 (https://yacity47.com/)
 ! - 배너 이미지
 upload/banners/*
-! 야동그라운드 (https://yagro48.com/) 팝업 삭제 - 4시간 동안 다시 열람하지 않습니다
+! 팝업 - 4시간 동안 다시 열람하지 않습니다
 ! - - - PC
 ##[class*="popup-pc"]:not(html):not(body):not(article)
 ! - - - mobile
 ##.w-80.relative
-! 야동그라운드 (https://yagro48.com/) 하단 배너 이미지
+! 보증업체 보기 배너
+##.rounded-md.border.p-1.w-full
+! 하단 배너 이미지
 ##.mt-1.justify-start.items-center.flex-wrap.flex
 
-! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/) 영상 하단내 배너 이미지
+! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/)
+! - 영상 하단내 배너 이미지
 !- Adblock-Rule-Collection-Lite
 ||com/banners/
-! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/) 영상 하단내 배너 테두리
+! - 영상 하단내 배너 테두리
 ##.vjs-bottom-banner.vjs-bottom-banner-container
 
 
@@ -1036,7 +1086,8 @@ upload/banners/*
 ##.live-stream.only-mobile
 
 
-! 채터베이스 (https://chaturbate.com/) 입장 팝업
+! 채터베이스 (https://chaturbate.com/)
+! - 입장 팝업
 ###entrance_terms_overlay
 
 
@@ -1061,7 +1112,8 @@ upload/banners/*
 fc1adult.com##.fullscreen
 
 
-!MISSAV (https://missvod2.com/) 배너
+!MISSAV (https://missvod2.com/)
+! - 배너
 ###banner-list.banner-list
 
 
@@ -1087,21 +1139,32 @@ fc1adult.com##.fullscreen
 
 
 
-!조개파티 (https://jogaeparty139.com/) 배너
+!조개파티 (https://jogaeparty139.com/)
+! - 배너
 ||images2.imgbox.com*.gif
 ||images2.imgbox.com*.jpg
 ||images2.imgbox.com*.png
 ||jogaeparty139.com/data/editor*.jpg
 
 
-! 야동AVMOV (https://avmov.best/) - 상단 배너
+! 야동AVMOV (https://avmov.best/)
+! - 상단 배너
 avmov.best##center
-! 여우코믹스 (https://fxfx303.com/) - 팝업
-fxfx303.com##center
-! https://j-av.com/ - 모든 배너
-j-av.com##center
-! https://javlemon.com/ - 영상 아래 배너
-javlemon.com##center
+
+
+! 여우코믹스 (https://fxfx304.com/)
+! - 팝업
+.modal-overlay
+
+
+! https://j-av.com/
+! - 모든 배너
+##.blog_title_buttons
+
+
+! https://javlemon.com/
+! - 영상 아래 배너
+##.hbrAPNSz
 
 
 ! WatchJAVOnline (https://watchjavonline.com/)
@@ -1129,11 +1192,13 @@ javlemon.com##center
 ##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
 
-! 야동망고 (https://www.mango54.net/) 배너
+! 야동망고 (https://www.mango54.net/)
+! - 배너
 ||*/images/spon/*.gif
 
 
-! 야부리 시즌 2 (https://yaburi60.com/) - 상단 배너
+! 야부리 시즌 2 (https://yaburi60.com/)
+! - 상단 배너
 ||*image-storage/banners/*$image
 
 
@@ -1144,11 +1209,13 @@ javlemon.com##center
 ##.bg-black.carousel-inner
 
 
-! 현자타임스 (https://hjtime95.com/) 배너
+! 현자타임스 (https://hjtime95.com/)
+! - 배너
 ##.at-banner
 
 
-! 개조아 (https://dogjoa80.net/) 배너
+! 개조아 (https://dogjoa80.net/)
+! - 배너
 ##.at-title
 
 
@@ -1158,7 +1225,8 @@ javlemon.com##center
 ##.happy-inside-player
 
 
-! 보지넷 (https://bo-zi65.net/) 상.하 배너
+! 보지넷 (https://bo-zi65.net/)
+! - 상.하 배너
 ##.banners-container
 
 
@@ -1169,7 +1237,8 @@ javlemon.com##center
 ##.videoads
 
 
-! 색색티비 (https://kr145.mysstv.com/) 전체 배너
+! 색색티비 (https://kr145.mysstv.com/)
+! - 전체 배너
 |*/Banner/*.gif
 
 
@@ -1178,8 +1247,9 @@ javlemon.com##center
 ##.ad-image-list
 
 
-! AV킴 (https://avkim26.com/) 상단 배너 / 영상 하단 배너
-! 야오리 (https://yaohri36.com/) 상단 배너 / 영상 하단 배너
+! AV킴 (https://avkim26.com/)
+! 야오리 (https://yaohri36.com/)
+! - 상단 배너 / 영상 하단 배너
 !||img/banner/*
 ! - RU AdList에 있으나 모두에 적용되는게 아니라서 비활성화 필요
 ! - RU AdList 사용하지 말것
