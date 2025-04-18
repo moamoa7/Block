@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041831
+! Version: 25041832
 
 
 
@@ -1227,6 +1227,9 @@ cdn-banana.bizhost.kr/files/new_main/*.jpg
 
 ! G마켓 (https://www.gmarket.co.kr/)
 gmarket.co.kr##.section__main-banner.section__main
+
+! 옥션 (https://www.auction.co.kr/)
+! - DNS 해제 필요 - ad-img.gmarket.com
 
 
 ! 11번가 모바일 (m.11st.co.kr) 하단 배너
