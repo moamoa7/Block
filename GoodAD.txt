@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041906
+! Version: 25041907
 
 
 
@@ -977,7 +977,7 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 
 ! 폰허브 (https://www.pornhub.com/)
 ! - 입장시 18세 이상 물어보는거 패스
-pornhub.com#####.elOpenMTubes.isVisibleMTubes.ageDisclaimer.containerMTubes.fadeInMTubes
+pornhub.com##.elOpenMTubes.isVisibleMTubes.ageDisclaimer.containerMTubes.fadeInMTubes
 
 
 ! FUNLOVE (https://funlove.info/)
