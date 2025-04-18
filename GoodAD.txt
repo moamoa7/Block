@@ -1,11 +1,13 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041812
+! Version: 25041813
 
 
 
 @@||*$~third-party
+@@||*$generichide
 @@||*$stealth
+@@||*$stealth=referrer
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
