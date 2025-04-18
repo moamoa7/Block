@@ -1,19 +1,12 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041822
+! Version: 25041823
 
 
 
 ! 1st-party 무력화
 @@||*$~third-party
-! 스텔스 모드 무력화
-!@@||*$stealth
-!@@||*$stealth=referrer
-! 스텔스 모드
-||*$stealth
-||*$stealth=referrer
 
-@@||smartstore.naver.com/*$generichide
 
 
 
