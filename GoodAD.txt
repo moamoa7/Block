@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041827
+! Version: 25041828
 
 
 
@@ -912,6 +912,13 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 !||imasdk.googleapis.com^
 ! - 모바일에서 배너 보이는 현상 - 공백 삭제
 ##.custom-html-widget.textwidget
+
+
+! 탑걸 (https://kr39.topgirl.co)
+! - 영상내 광고
+||video.twimg.com/ext_tw_video/
+! - 영상 하단 텍스트 배너
+##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 
 
 ! MISSAV (https://missav.ws/)
