@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041823
+! Version: 25041824
 
 
 
@@ -145,6 +145,8 @@ dcinside.com##.lg-tit-box
 dcinside.com##.thum-rtg-1-slider.pd
 ! 디시인사이드 갤러리 (https://gall.dcinside.com/XXXX)
 ! - PC
+! - - - 배너
+##.banner_box
 ! - - - 뉴스.미디어.이슈
 dcinside.com##.r_dcmedia.content_box
 ! - - - 실시간 베스트
