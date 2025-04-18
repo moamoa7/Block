@@ -1,11 +1,13 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041828
+! Version: 25041829
 
 
 
 ! 1st-party 무력화
 @@||*$~third-party
+
+@@||auction.co.kr/*$generichide
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -1405,4 +1407,11 @@ tv.kakao.com#@#.ads
 ! SPEEDTEST (https://www.speedtest.net/) 쿠키 창
 ! - AdVoid.Full
 ||ziffstatic.com
+
+
+
+
+
+! 기타 - Adblock-Rule-Collection-Lite
+ ||google.*/ads/ga-audiences?v=
 
