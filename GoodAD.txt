@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041908
+! Version: 25041909
 
 
 
@@ -952,8 +952,6 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 ! 자브걸 (https://kr23.javgirl.co/)
 ! - 영상내 광고
 ||video.twimg.com$domain=topgirl.co|javgirl.co
-
-! 탑걸 (https://kr39.topgirl.co)
 ! - 영상 하단 텍스트 배너
 ##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 
