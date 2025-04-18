@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041907
+! Version: 25041908
 
 
 
@@ -949,10 +949,21 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 
 
 ! 탑걸 (https://kr39.topgirl.co)
+! 자브걸 (https://kr23.javgirl.co/)
 ! - 영상내 광고
-||video.twimg.com,domain=~topgirl.co
+||video.twimg.com$domain=topgirl.co|javgirl.co
+
+! 탑걸 (https://kr39.topgirl.co)
 ! - 영상 하단 텍스트 배너
 ##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
+
+
+! 자브걸 (https://kr23.javgirl.co/)
+! - 상단 오른쪽 배너 이미지
+###header_banner
+! - 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
+! - - - 로그 클릭해도 반응없으므로 다른 영상 시청시 주의 요망
+||javgirl.co^$script
 
 
 ! MISSAV (https://missav.ws/)
@@ -1036,11 +1047,6 @@ pornhub.com##.elOpenMTubes.isVisibleMTubes.ageDisclaimer.containerMTubes.fadeInM
 ! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/)
 ! - 오른쪽 배너
 ##[class^="banner_item"]:not(html):not(body):not(article)
-
-
-! 자브걸 (https://kr23.javgirl.co/)
-! - 상단 오른쪽 배너 이미지
-###header_banner
 
 
 ! 야동그라운드 (https://yagro48.com/)
