@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041817
+! Version: 25041818
 
 
 
@@ -215,7 +215,7 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 !- 오른쪽 배너
 !##.ad-right2
 ! - 왼쪽 배너
-!##.ad-left
+##.ad-left
 ! - 게시글 상단 배너
 ##.googleSubjectAd
 ! - 오른쪽 하단 배너
