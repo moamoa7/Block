@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041826
+! Version: 25041827
 
 
 
@@ -457,6 +457,13 @@ youtube.com##+js(set, ytInitialPlayerResponse.adSlots, undefined)
 youtube.com##+js(set, playerResponse.adPlacements, undefined)
 youtube.com##+js(json-prune, playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots important)
 youtube.com##.ytlr-horizontal-list-renderer__items > .yt-virtual-list__container > .yt-virtual-list__item--visible.yt-virtual-list__item--selected.yt-virtual-list__item:has-text(Ad)
+! Youtube 요소 숨기기 (EasyList)
+youtube.com###masthead-ad
+youtube.com##ytd-ad-slot-renderer
+youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+youtube.com###player-ads
+www.youtube.com##.ytp-featured-product
+youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 
 
 ! 티비위키 (https://tvwiki19.com/) / 티비몬 (https://tvmon15.org/)
