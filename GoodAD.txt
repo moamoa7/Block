@@ -1,12 +1,11 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041824
+! Version: 25041825
 
 
 
 ! 1st-party 무력화
 @@||*$~third-party
-
 
 
 
@@ -18,7 +17,6 @@
 
 
 
-
 !!! 애드블록 탐지 우회
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 !*#%#//scriptlet('prevent-fetch', 'doubleclick.net')
@@ -27,13 +25,12 @@
 
 
 
-
-
 ! 방해요소(우클릭 방지) 해제
 ! 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 [$domain=/^booktoki\d+.com/]###novel_content:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 [$domain=/^manatoki\d+.net/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
 [$domain=/^newtoki\d+.com/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
+
 
 
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
@@ -47,10 +44,21 @@
 !----- 필터 오류 및 차단 해제
 
 
+! 네이버 쇼핑 (https://shopping.naver.com)
+! - 상품이 존재하지 않습니다 메시지
+! - - - AdGuard 사용시에만 나타나는 문제
+! - - - 필터 아무것도 안해도 / 추적보호 꺼도 / DNS 꺼도 동일
+! - - - 해결 방법 1
+! - - - - - 설정 - 네트워크 - HTTPS 필터링 - 예외목록 - smartstore.naver.com 등록
+! - - - 해결 방법 2
+! - - - - - uBlock Origin 사용하거나 AdGuard 사용시 네이버 로그인 후 이용하여야 함
+
+
 ! 쿠팡 (https://coupang.com/) 로그인 오류 해결
-! - AdGuard Tracking Protection 해제
-@@/\.coupang\.com\/(?!resources)(?!vp)[A-Za-z0-9-_]{5,}\/(?!cart)(?!product)[A-Za-z0-9-_]+\/(?!api)(?!user)[A-Za-z0-9-_]+\/[A-Za-z0-9-_]+\/(?!products)[A-Za-z0-9-_]+/$domain=coupang.com|~mc.coupang.com|~checkout.coupang.com,script,xmlhttprequest,method=get,match-case
-@@/^https:\/\/(www|m)\.coupang\.com\/[A-Za-z0-9_]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_]+\/[A-Za-z0-9_]+(\/[A-Za-z0-9_-]+){0,5}$/$domain=coupang.com,xmlhttprequest,method=post,match-case
+! - 1st-party 무력화 하면 아래 필요 없음
+! - - - AdGuard Tracking Protection 해제
+!@@/\.coupang\.com\/(?!resources)(?!vp)[A-Za-z0-9-_]{5,}\/(?!cart)(?!product)[A-Za-z0-9-_]+\/(?!api)(?!user)[A-Za-z0-9-_]+\/[A-Za-z0-9-_]+\/(?!products)[A-Za-z0-9-_]+/$domain=coupang.com|~mc.coupang.com|~checkout.coupang.com,script,xmlhttprequest,method=get,match-case
+!@@/^https:\/\/(www|m)\.coupang\.com\/[A-Za-z0-9_]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_]+\/[A-Za-z0-9_]+(\/[A-Za-z0-9_-]+){0,5}$/$domain=coupang.com,xmlhttprequest,method=post,match-case
 
 
 ! srank (https://www.srank.kr/) 광고 차단 감지 해제
