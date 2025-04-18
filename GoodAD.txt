@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041820
+! Version: 25041821
 
 
 
@@ -12,6 +12,8 @@
 ! 스텔스 모드
 ||*$stealth
 ||*$stealth=referrer
+
+naver.com#%#//scriptlet('set-cookie', 'ba.uuid', '0', '/', 'naver.com')
 
 
 
