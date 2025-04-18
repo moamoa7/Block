@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041910
+! Version: 25041911
 
 
 
@@ -986,7 +986,8 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 
 ! 폰허브 (https://www.pornhub.com/)
 ! - 입장시 18세 이상 물어보는거 패스
-pornhub.com##.elOpenMTubes.isVisibleMTubes.ageDisclaimer.containerMTubes.fadeInMTubes
+!pornhub.com##.elOpenMTubes.isVisibleMTubes.ageDisclaimer.containerMTubes.fadeInMTubes
+! - - - 위 소스 실행시 마우스 스크롤이 안내려감
 pornhub.com###ageDisclaimerMainBG
 
 
@@ -1020,7 +1021,7 @@ pornhub.com###ageDisclaimerMainBG
 ###imgDiv22
 
 
-XX조아 (https://xxjoa45.com/)
+! XX조아 (https://xxjoa45.com/)
 ! - 영상 광고
 ||joajoajoamoamoa.store/VAST/
 
