@@ -1406,9 +1406,3 @@ tv.kakao.com#@#.ads
 ! - AdVoid.Full
 ||ziffstatic.com
 
-
-
-
-
-! 기타 - Adblock-Rule-Collection-Lite
-||google.*/ads/ga-audiences?v=
