@@ -1,12 +1,11 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041818
+! Version: 25041819
 
 
 
 @@||*$~third-party
 @@||*$media,third-party,xmlhttprequest
-!@@||*$generichide
 @@||*$stealth
 @@||*$stealth=referrer
 
