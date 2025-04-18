@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041815
+! Version: 25041816
 
 
 
@@ -952,7 +952,7 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 ###dclm_modal_screen
 ! 애드블록 탐지 우회
 ! - - - List-KR 1개 추가
-||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,redirect-rule=googlesyndication_adsbygoogle.js
+!||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,redirect-rule=googlesyndication_adsbygoogle.js
 ! - 배너 이미지 (List-KR)
 !||hcdn1.maxsocdn.net^$domain=sogirl.so
 !||1.bp.blogspot.com^$domain=sogirl.so
