@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042002
+! Version: 25042003
 
 
 
@@ -1559,7 +1559,7 @@ tv.kakao.com#@#.ads
 
 
 
-!!!!! 팝압 차단
+!!!!! 팝압 방지
 ||emturbovid.com^$popup
 ||fc2stream.tv^$popup
 ||streamtape.com^$popup
@@ -1623,4 +1623,15 @@ tv.kakao.com#@#.ads
 ||javeve.tv^$popup
 ||javsaga.ninja^$popup
 ||javbull.tv^$popup
+||video.bestjavporn.com^$popup
+||findjav.com^$popup
+||video.javdock.com^$popup
+||video.javhdporn.net^$popup
+||hgstreamv.online^$popup
+||abystab.click^$popup
+||exodusjailhousetarantula.com^$popup
+||vidhideo.click^$popup
+||ggulfile.com^$popup
+||kinternet.kr^$popup
+||planbplus.co.kr^$popup
 
