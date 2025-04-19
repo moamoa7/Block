@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041940
+! Version: 25041941
 
 
 
@@ -708,10 +708,19 @@ conan-tv.com###fboardlist
 
 ! 늑대닷컴 (https://wfwf384.com/)
 ! 늑대닷컴2 (https://wftoon190.com/)
-! 여우코믹스 (https://fxfx303.com/)
+! 여우코믹스 (https://fxfx304.com/)
 ! 일베 (https://www.ilbe.com)
 ! - 배너
 ##.top-banner
+
+
+! 여우코믹스 (https://fxfx304.com/)
+! - 팝업
+##.modal-wrapper
+! - 안전 보증토토
+||iabn10.net/*g
+! - 보증토 클릭시 배너
+##.main-menu > .group
 
 
 ! 툰코 (https://tkor012.com/)
@@ -1203,11 +1212,6 @@ fc1adult.com##.fullscreen
 avmov.best##center
 
 
-! 여우코믹스 (https://fxfx304.com/)
-! - 팝업
-.modal-overlay
-
-
 ! https://j-av.com/
 ! - 모든 배너
 ##.blog_title_buttons
@@ -1611,3 +1615,4 @@ tv.kakao.com#@#.ads
 ||javeve.tv^$popup
 ||javsaga.ninja^$popup
 ||javbull.tv^$popup
+
