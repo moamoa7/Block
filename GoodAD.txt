@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042018
+! Version: 25042019
 
 
 
@@ -945,10 +945,6 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 
 
 ! 쏘걸 (https://kr79.sogirl.so/)
-! - Adblocker 탐지 우회
-! - - - uBlock filters – Ads
-||pagead2.googlesyndication.com^$xhr,redirect=noop.js
-||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,xhr,redirect=googlesyndication_adsbygoogle.js:5,domain=~zipextractor.app
 ! - 입장시 18세 물어보는 팝업
 ###dclm_modal_content
 ###dclm_modal_screen
