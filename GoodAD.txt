@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042004
+! Version: 25042005
 
 
 
@@ -905,7 +905,7 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! Javsaga (https://javsaga.ninja/)
 ! Javbull (https://javbull.tv/)
 ! - 영상 오른쪽 배너 공간 (EasyList)
-!##.movv-ad
+##.movv-ad
 
 
 ! JavNeon (https://javneon.tv/)
