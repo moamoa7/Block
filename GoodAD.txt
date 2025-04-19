@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041925
+! Version: 25041926
 
 
 
@@ -973,8 +973,14 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 ||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
 
 ! JAVGIGA (https://javgiga.com/)
+! JAVHD.icu (https://javhd.icu/)
 ! - 영상 팝업 차단
-!||javgiga.com/wp-includes/js/jquery/jquery.min.js$important
+! - - - javtiktok.site
+! - - - javtiktok.site/js/jquery.min.js
+! - - - javhahaha.us
+! - - - https://javhahaha.us/js/jquery.min.js
+! - - - emturbovid.com
+! - - - ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
 ||*/jquery.min.js$important
 
 
