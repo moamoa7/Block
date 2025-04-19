@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042019
+! Version: 25042020
 
 
 
@@ -964,6 +964,9 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !##.happy-footer
 ! - 영상 클릭시 반응없는거 해결 (List-kr)
 !||imasdk.googleapis.com^
+! - 모바일 상단 배너
+! - - - AdGuard – Mobile Ads 에 포함되어 비처리
+!##.happy-header-mobile
 ! - 모바일에서 배너 보이는 현상 - 공백 삭제
 ##.custom-html-widget.textwidget
 
