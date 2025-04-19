@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041934
+! Version: 25041935
 
 
 
@@ -8,7 +8,8 @@
 !@@||*$~third-party
 
 ! 팝업 사이트 차단
-|*$popup,domain=emturbovid.com|fc2stream.tv|streamtape.com|voe.sx|cybervynx.com|pemsrv.com|streamtape.to|watchadsontape.com|turbovid.xyz|javgiga.com|javtiktok.site|javhahaha.us|luluvdo.com|funlove.info|javplayer.me|embedwish.com|godkc.com|iplayerhls.com|watchadsontape.com|iplayerhls.com|ryderjet.com|filemoon.sx|pyy79.art|cybervynx.com|tapewithadblock.org|mmsi01.xyz|mmvh01.xyz|cndstream.xyz|swiftplayers.com|all3do.com
+|*$popup,domain=emturbovid.com|fc2stream.tv|streamtape.com|voe.sx|cybervynx.com|pemsrv.com|streamtape.to|watchadsontape.com|turbovid.xyz|javgiga.com|javtiktok.site|javhahaha.us|luluvdo.com|funlove.info|javplayer.me|embedwish.com|godkc.com|iplayerhls.com|watchadsontape.com|iplayerhls.com|ryderjet.com|filemoon.sx|pyy79.art|cybervynx.com|tapewithadblock.org|mmsi01.xyz|mmvh01.xyz|cndstream.xyz|swiftplayers.com|all3do.com|player.upn.one|do7go.com|strtape.cloud|listeamed.net|javedit.com
+
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
