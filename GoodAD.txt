@@ -1,6 +1,11 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041914
+! Version: 25041915
+
+
+
+! Test
+@@||instagram.com^$genericblock,generichide
 
 
 
