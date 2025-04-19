@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041938
+! Version: 25041939
 
 
 
@@ -9,7 +9,7 @@
 
 
 ! 팝업 사이트 차단
-*$popup,domain=emturbovid.com|fc2stream.tv|streamtape.com|voe.sx|cybervynx.com|pemsrv.com|streamtape.to|watchadsontape.com|turbovid.xyz|javgiga.com|javtiktok.site|javhahaha.us|luluvdo.com|funlove.info|javplayer.me|embedwish.com|godkc.com|iplayerhls.com|watchadsontape.com|ryderjet.com|filemoon.sx|pyy79.art|tapewithadblock.org|mmsi01.xyz|mmvh01.xyz|cndstream.xyz|swiftplayers.com|all3do.com|player.upn.one|do7go.com|strtape.cloud|listeamed.net|javedit.com|play.playkrx18.site|mov18plus.cloud|helvid.net|javggvideo.xyz|javlion.xyz|javsw.me|7mmtv.upns.live|stbturbo.xyz|stbhg.click|ryderjet.com|do7go.com|streamtape.net|topjav.tv|javfc2.xyz|avple.tv|manymv.com|stream.javtiful.to|tktube.com|javuncen.online|filemoon.to|javleaked.com|luluvdo.com|javdou.com|javmenu.com|jav.sb|j91.asia
+$popup,domain=emturbovid.com|fc2stream.tv|streamtape.com|voe.sx|cybervynx.com|pemsrv.com|streamtape.to|watchadsontape.com|turbovid.xyz|javgiga.com|javtiktok.site|javhahaha.us|luluvdo.com|funlove.info|javplayer.me|embedwish.com|godkc.com|iplayerhls.com|watchadsontape.com|ryderjet.com|filemoon.sx|pyy79.art|tapewithadblock.org|mmsi01.xyz|mmvh01.xyz|cndstream.xyz|swiftplayers.com|all3do.com|player.upn.one|do7go.com|strtape.cloud|listeamed.net|javedit.com|play.playkrx18.site|mov18plus.cloud|helvid.net|javggvideo.xyz|javlion.xyz|javsw.me|7mmtv.upns.live|stbturbo.xyz|stbhg.click|ryderjet.com|do7go.com|streamtape.net|topjav.tv|javfc2.xyz|avple.tv|manymv.com|stream.javtiful.to|tktube.com|javuncen.online|filemoon.to|javleaked.com|luluvdo.com|javdou.com|javmenu.com|jav.sb|j91.asia
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
