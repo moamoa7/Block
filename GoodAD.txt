@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041922
+! Version: 25041923
 
 
 
@@ -879,8 +879,10 @@ hankyung.com##[class*="promotion"]:not(html):not(body):not(article)
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
 ! - 영상 플레이시 팝업 차단
-! - - - AdGuard – Ads / uBlock filters – Ads
-/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,third-party,match-case
+! - - - uBlock filters – Ads
+!/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,3p,match-case,to=com
+! - - - Adblock-Rule-Collection-Lite
+!/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=(?:\d+|[a-z]+)&)*?id=[12]\d{6}/$script,third-party,match-case
 
 
 ! AVDBS (https://www.avdbs.com/)
