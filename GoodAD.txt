@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041929
+! Version: 25041930
 
 
 
@@ -981,7 +981,8 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 ! - - - https://javhahaha.us/js/jquery.min.js
 ! - - - emturbovid.com
 ! - - - ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
-||*/jquery.min.js$important
+!||*/jquery.min.js$important
+! - - - 설정시 영상 재생 불가
 
 
 ! MISSAV (https://missav.ws/)
