@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041941
+! Version: 25042001
 
 
 
@@ -1242,7 +1242,7 @@ avmov.best##center
 
 ! 밍키넷 (https://mingky.net/)
 ! - 오른쪽 배너
-##.my-3.px-sm-0.px-3
+##.my-3.px-sm-0.px-3 > div.mb-2.na-round.bg-light.img-wrap
 ! - 게시글내 모든 배너
 ##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
