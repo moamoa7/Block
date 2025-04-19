@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042003
+! Version: 25042004
 
 
 
@@ -1634,4 +1634,12 @@ tv.kakao.com#@#.ads
 ||ggulfile.com^$popup
 ||kinternet.kr^$popup
 ||planbplus.co.kr^$popup
+||david.cdnbuzz.buzz^$popup
+||xxembed.com^$popup
+||sexkbj.top^$popup
+||playrecord.biz^$popup
+||correctdilutetrophy.com^$popup
+||dotyruntchan.com^$popup
+||cybervynx.com^$popup
+||mingvideos.com^$popup
 
