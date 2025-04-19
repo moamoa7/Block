@@ -4,14 +4,6 @@
 
 
 
-! 1st-party 무력화
-!@@||*$~third-party
-
-
-! 팝업 사이트 차단
-$popup,domain=emturbovid.com|fc2stream.tv|streamtape.com|voe.sx|cybervynx.com|pemsrv.com|streamtape.to|watchadsontape.com|turbovid.xyz|javgiga.com|javtiktok.site|javhahaha.us|luluvdo.com|funlove.info|javplayer.me|embedwish.com|godkc.com|iplayerhls.com|watchadsontape.com|ryderjet.com|filemoon.sx|pyy79.art|tapewithadblock.org|mmsi01.xyz|mmvh01.xyz|cndstream.xyz|swiftplayers.com|all3do.com|player.upn.one|do7go.com|strtape.cloud|listeamed.net|javedit.com|play.playkrx18.site|mov18plus.cloud|helvid.net|javggvideo.xyz|javlion.xyz|javsw.me|7mmtv.upns.live|stbturbo.xyz|stbhg.click|ryderjet.com|do7go.com|streamtape.net|topjav.tv|javfc2.xyz|avple.tv|manymv.com|stream.javtiful.to|tktube.com|javuncen.online|filemoon.to|javleaked.com|luluvdo.com|javdou.com|javmenu.com|jav.sb|j91.asia|javneon.tv|evojav.pro|javeve.tv|javsaga.ninja|javbull.tv
-
-
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
@@ -1545,3 +1537,77 @@ tv.kakao.com#@#.ads
 ! 기타 - Adblock-Rule-Collection-Lite
  ||google.*/ads/ga-audiences?v=
 
+
+
+
+! 1st-party 무력화
+!@@||*$~third-party
+
+
+
+
+
+!!!!! 팝압 차단
+||emturbovid.com^$popup
+||fc2stream.tv^$popup
+||streamtape.com^$popup
+||voe.sx|cybervynx.com^$popup
+||pemsrv.com^$popup
+||streamtape.to^$popup
+||watchadsontape.com^$popup
+||turbovid.xyz^$popup
+||javgiga.com^$popup
+||javtiktok.site^$popup
+||javhahaha.us^$popup
+||luluvdo.com^$popup
+||funlove.info^$popup
+||javplayer.me^$popup
+||embedwish.com^$popup
+||godkc.com^$popup
+||iplayerhls.com^$popup
+||watchadsontape.com^$popup
+||ryderjet.com^$popup
+||filemoon.sx^$popup
+||pyy79.art^$popup
+||tapewithadblock.org^$popup
+||mmsi01.xyz^$popup
+||mmvh01.xyz^$popup
+||cndstream.xyz^$popup
+||swiftplayers.com^$popup
+||all3do.com^$popup
+||layer.upn.one^$popup
+||do7go.com^$popup
+||strtape.cloud^$popup
+||listeamed.net^$popup
+||javedit.com^$popup
+||play.playkrx18.site^$popup
+||mov18plus.cloud^$popup
+||helvid.net^$popup
+||javggvideo.xyz^$popup
+||javlion.xyz^$popup
+||javsw.me^$popup
+||7mmtv.upns.live^$popup
+||stbturbo.xyz^$popup
+||stbhg.click^$popup
+||ryderjet.com^$popup
+||do7go.com^$popup
+||streamtape.net^$popup
+||topjav.tv^$popup
+||javfc2.xyz^$popup
+||avple.tv^$popup
+||manymv.com^$popup
+||stream.javtiful.to^$popup
+||tktube.com^$popup
+||javuncen.online^$popup
+||filemoon.to^$popup
+||javleaked.com^$popup
+||luluvdo.com^$popup
+||javdou.com^$popup
+||javmenu.com^$popup
+||jav.sb^$popup
+||j91.asia^$popup
+||javneon.tv^$popup
+||evojav.pro^$popup
+||javeve.tv^$popup
+||javsaga.ninja^$popup
+||javbull.tv^$popup
