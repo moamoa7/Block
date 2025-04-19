@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042007
+! Version: 25042008
 
 
 
@@ -1564,6 +1564,8 @@ tv.kakao.com#@#.ads
 
 
 !!!!! 팝업 방지
+! - 팝업 발생하는 사이트 및 팝업은 없으나 대비용으로 영상주소 모음
+
 ||emturbovid.com^$popup
 ||fc2stream.tv^$popup
 ||streamtape.com^$popup
@@ -1581,7 +1583,6 @@ tv.kakao.com#@#.ads
 ||embedwish.com^$popup
 ||godkc.com^$popup
 ||iplayerhls.com^$popup
-||watchadsontape.com^$popup
 ||ryderjet.com^$popup
 ||filemoon.sx^$popup
 ||pyy79.art^$popup
@@ -1646,4 +1647,8 @@ tv.kakao.com#@#.ads
 ||mingvideos.com^$popup
 ||eatcells.com^$popup
 ||tsyndicate.com^$popup
+||absurdbatchconfess.com^$popup
+||lionessgrandchild.com^$popup
+||familiarpyromaniasloping.com^$popup
+||iframe.mediadelivery.net^$popup
 
