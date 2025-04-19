@@ -1,11 +1,11 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041919
+! Version: 25041921
 
 
 
 ! 1st-party 무력화
-@@||*$~third-party
+!@@||*$~third-party
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -1494,7 +1494,7 @@ tv.kakao.com#@#.ads
 ! 픽팍 (https://mypikpak.com/ko/check-in)
 ! - 쿠키 안내
 ! - https://raw.githubusercontent.com/mtxadmin/ublock/master/filters/_rules
-##[class*="cookie"]:not(html):not(body):not(article)
+!##[class*="cookie"]:not(html):not(body):not(article)
 ! - Adblock-Rule-Collection-Lite
 ##.cookie-wrapper:not(body):not(html)
 
