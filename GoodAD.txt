@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041918
+! Version: 25041919
 
 
 
@@ -1493,10 +1493,10 @@ tv.kakao.com#@#.ads
 
 ! 픽팍 (https://mypikpak.com/ko/check-in)
 ! - 쿠키 안내
-! - Adblock-Rule-Collection-Lite
-!##.cookie-wrapper:not(body):not(html)
 ! - https://raw.githubusercontent.com/mtxadmin/ublock/master/filters/_rules
 ##[class*="cookie"]:not(html):not(body):not(article)
+! - Adblock-Rule-Collection-Lite
+##.cookie-wrapper:not(body):not(html)
 
 
 ! SPEEDTEST (https://www.speedtest.net/) 쿠키 창
