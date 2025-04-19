@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042012
+! Version: 25042013
 
 
 
@@ -1646,4 +1646,6 @@ tv.kakao.com#@#.ads
 ||twinrdengine.com^$popup,important
 ||diffusedpassionquaking.com^$popup,important
 ||myavlive.com^$popup,important
+||turtleviplay.xyz^$popup,important
+||yanovideos.com^$popup,important
 
