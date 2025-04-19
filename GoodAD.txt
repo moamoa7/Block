@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041930
+! Version: 25041931
 
 
 
@@ -1075,6 +1075,11 @@ pornhub.com###ageDisclaimerMainBG
 ! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/)
 ! - 오른쪽 배너
 ##[class^="banner_item"]:not(html):not(body):not(article)
+
+
+! Jav Park (https://javpark.net/)
+! - 배너
+||creative.xlivrdr.com/widgets/v4/Universal
 
 
 ! 야동그라운드 (https://yagro48.com/)
