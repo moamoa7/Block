@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042011
+! Version: 25042012
 
 
 
@@ -933,7 +933,7 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! - 영상 위 배너 공간
 ##.home_iframead
 ! - 모바일에서 새창뜨는거 추가 방지 (AdGuard – Ad)
-javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set-constant, premium, undefined)
+!javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set-constant, premium, undefined)
 
 
 ! 7MMTV (https://7tv033.com/)
@@ -1110,7 +1110,7 @@ jpvhub.com##.css-1uaa16.MuiGrid-grid-md-3\.5.MuiGrid-grid-xs-12.MuiGrid-item.Mui
 ! 빨간비디오 (https://redvi77.com/)
 ! 야동도시 (https://yacity47.com/)
 ! - 배너 이미지
-upload/banners/*
+upload/banners/*$important
 ! 팝업 - 4시간 동안 다시 열람하지 않습니다
 ! - - - PC
 ##[class*="popup-pc"]:not(html):not(body):not(article)
