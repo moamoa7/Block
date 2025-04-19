@@ -4,9 +4,8 @@
 
 
 
-! Test
-@@||instagram.com^$badfilter
-
+! 1st-party 무력화
+@@||*$~third-party
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -97,7 +96,7 @@ djxmaza.in#@#+js(nobab)
 ! 맥스무비 (https://www.maxmovie.com/)
 ! - 게시글 열람시 오류 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
+||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js$important
 ! - 메인 배너 복원
 ! - - - EasyList에서 차단
 maxmovie.com#@#.mainAd
