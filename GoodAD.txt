@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041924
+! Version: 25041925
 
 
 
@@ -971,6 +971,11 @@ javggvideo.xyz,turtleviplay.xyz,findjav.com,stbturbo.xyz,emturbovid.com##+js(set
 ###header_banner
 ! - 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
 ||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
+
+! JAVGIGA (https://javgiga.com/)
+! - 영상 팝업 차단
+!||javgiga.com/wp-includes/js/jquery/jquery.min.js$important
+||*/jquery.min.js$important
 
 
 ! MISSAV (https://missav.ws/)
