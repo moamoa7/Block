@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042001
+! Version: 25042002
 
 
 
@@ -515,6 +515,10 @@ youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 ##.iziModal-overlay
 ! - 배너 이미지
 ##.banner_
+
+! 코리안즈 (https://koreanza6.store/)
+! - 상단 배너
+##.event8
 
 
 ! 누누티비 (https://www.ntnt4.tv/)
@@ -1136,6 +1140,8 @@ upload/banners/*
 ! 코난티비(https://conan-tv.com/) - 팝업
 ! https://jusoyo41.com/ - 배너
 ###hd_pop
+! - 상단 배너
+##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner
 ! - 가운데 중간 배너
 ##.live-stream-banner
 ! - 왼쪽 배너
@@ -1144,6 +1150,8 @@ upload/banners/*
 ##[src*="event_banner"]
 ! - 모바일 상단 배너
 ##.live-stream.only-mobile
+! - 보증업체 클릭시
+##.gallery-item-pd
 
 
 ! 채터베이스 (https://chaturbate.com/)
