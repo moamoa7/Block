@@ -1,15 +1,14 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25041933
+! Version: 25041934
 
 
 
 ! 1st-party 무력화
 !@@||*$~third-party
 
-! 팝업 유발 사이트 차단
-|*$popup,domain=emturbovid.com|fc2stream.tv|streamtape.com|voe.sx|cybervynx.com|pemsrv.com|streamtape.to|watchadsontape.com|turbovid.xyz|javgiga.com|javtiktok.site|javhahaha.us|luluvdo.com|funlove.info|javplayer.me|embedwish.com|godkc.com|iplayerhls.com|watchadsontape.com|iplayerhls.com|ryderjet.com
-
+! 팝업 사이트 차단
+|*$popup,domain=emturbovid.com|fc2stream.tv|streamtape.com|voe.sx|cybervynx.com|pemsrv.com|streamtape.to|watchadsontape.com|turbovid.xyz|javgiga.com|javtiktok.site|javhahaha.us|luluvdo.com|funlove.info|javplayer.me|embedwish.com|godkc.com|iplayerhls.com|watchadsontape.com|iplayerhls.com|ryderjet.com|filemoon.sx|pyy79.art|cybervynx.com|tapewithadblock.org|mmsi01.xyz|mmvh01.xyz|cndstream.xyz|swiftplayers.com|all3do.com
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
@@ -1090,6 +1089,13 @@ pornhub.com###ageDisclaimerMainBG
 ##.pc_ads
 ggjav.com##.align-center.row
 ###ads_4
+
+
+! JPVhub (https://www.jpvhub.com/)
+! - 영상 위 배너
+ jpvhub.com##.css-6iw57r.MuiBox-root
+! - 영상 옆 오른쪽 배너
+jpvhub.com##.css-1uaa16.MuiGrid-grid-md-3\.5.MuiGrid-grid-xs-12.MuiGrid-item.MuiGrid-root
 
 
 ! 야동그라운드 (https://yagro48.com/)
