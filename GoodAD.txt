@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042031
+! Version: 25042033
 
 
 
@@ -1653,8 +1653,3 @@ tv.kakao.com#@#.ads
 ||permsrv.com^$popup,important
 
 
-
-! Advert Block Filter 비처리
-
-@@/ad/$3p
-@@/ads/
