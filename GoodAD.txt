@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042101
+! Version: 25042102
 
 
 ! Advert Block Filter 필터 수정
@@ -1034,7 +1034,7 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 
 ! 폰허브 (https://www.pornhub.com/)
 ! - 입장시 18세 이상 물어보는거 패스
-pornhub.com##.ageDisclaimer
+!pornhub.com##.ageDisclaimer
 pornhub.com###ageDisclaimerMainBG
 ! - 모바일에서 화면 뿌연거 해결
 pornhub.com###ageDisclaimerOverlay
