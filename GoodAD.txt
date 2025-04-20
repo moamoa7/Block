@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042037
+! Version: 25042038
 
 
 
@@ -470,13 +470,6 @@ youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 
 
 ! 티비위키 (https://tvwiki19.com/) / 티비몬 (https://tvmon15.org/)
-! - websocket 차단
-!||openwebtorrent.com
-!||linkwang.org
-! - - - Adblock-Rule-Collection-Lite
-||tracker.$xmlhttprequest,websocket,script,ping
-! - - - tracker.linkwang.org
-! - - - tracker.openwebtorrent.com
 ! - 배너
 ###bannerList
 ! - 영상 하단 배너 공간
