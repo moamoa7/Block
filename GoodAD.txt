@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042035
+! Version: 25042036
 
 
 
@@ -1667,5 +1667,5 @@ $ping,third-party
 ||turtleviplay.xyz^$popup,important
 ||yanovideos.com^$popup,important
 ||permsrv.com^$popup,important
-
+||rmishe.com^$popup,important
 
