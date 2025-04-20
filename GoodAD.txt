@@ -1,11 +1,12 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042021
+! Version: 25042023
 
 
 
 ! 1st-party 무력화
-@@||*$~third-party
+! - 테스트 목적 (현재 비활성)
+!@@||*$~third-party
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -1550,10 +1551,14 @@ tv.kakao.com#@#.ads
 
 
 
-! 기타 - Adblock-Rule-Collection-Lite
- ||google.*/ads/ga-audiences?v=
+! 기타
+! - Adblock-Rule-Collection-Lite
+||play.google.com/log?
+@@://www3.doubleclick.net^|$xmlhttprequest
 
-
+! - GOODBYEADS
+*/ad-$~stylesheet
+/ads.
 
 
 
