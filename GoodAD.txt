@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042107
+! Version: 25042108
 
 
 
@@ -951,7 +951,10 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !- 영상 오른쪽 배너 공간 (EasyList)
 !||rmhfrtnd.com^
 !_300x250_
-
+! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
+##div.set_height_250
+! - 영상 클릭시 팝업 뜨는거 방지
+||jwpcdn.com/*/provider.cast.js
 
 ! 쏘걸 (https://kr79.sogirl.so/)
 ! - 입장시 18세 물어보는 팝업
@@ -978,8 +981,6 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !##.happy-header-mobile
 ! - 모바일에서 배너 보이는 현상 - 공백 삭제
 ##.custom-html-widget.textwidget
-! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
-##div.set_height_250
 
 
 ! 탑걸 (https://kr39.topgirl.co)
