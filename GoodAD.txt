@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042033
+! Version: 25042034
 
 
 
@@ -912,6 +912,8 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! Javbull (https://javbull.tv/)
 ! - 영상 오른쪽 배너 공간 (EasyList)
 ##.movv-ad
+! - 영상 차단 방지
+@@tiktokcdn.com
 
 
 ! JavNeon (https://javneon.tv/)
@@ -1552,6 +1554,18 @@ tv.kakao.com#@#.ads
 ! - AdVoid.Full
 ||ziffstatic.com
 
+
+
+
+!!!!! 기타
+/ad-$~stylesheet
+/stat/rt/js?
+-ads.
+/ads.
+$ping,third-party
+/?sentry_key=
+/generate_204?$image
+||google.com*/pagead
 
 
 
