@@ -48,6 +48,9 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 
 # 사용중인 Filter 목록
 
+※ AdBlock Filter
+https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockfilters.txt
+
 ※ EasyList
 https://easylist.to/easylist/easylist.txt
 
@@ -65,6 +68,9 @@ https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 
 ※ Block third party font
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
+
+※ Video Filters
+https://raw.githubusercontent.com/imxieke/Anti-Ads/refs/heads/master/filters/video.txt
 <br><br>
 
 (언어) 필터
