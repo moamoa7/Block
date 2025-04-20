@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042034
+! Version: 25042035
 
 
 
@@ -1004,7 +1004,18 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 
 ! MISSAV (https://missav.ws/)
 ! - 영상 아래 배너공간 (EasyList)
-||creative.myavlive.com^
+||creative.myavlive.com
+
+
+! JAVFC2.XYZ (https://javfc2.xyz/)
+! - 상단 배너 이미지
+! - - - uBlock filters – Ads
+!/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
+! - - - AdGuard – Ads
+!/^https?:\/\/[a-z-]{6,}\.(?:com?|pro|info|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xmlhttprequest,third-party,match-case
+###ads
+! - 영상 클릭 안되는거 방지
+@@/^https:\/\/[a-z][a-z][a-z][a-z][a-z][a-z][a-z][a-z]+\.com\/en\/([a-z][a-z]+\/)?([a-z][a-z]+\/)?[a-z][a-z]+\?([a-z]+=[0-9a-z]+&)*id=[12][0-9][0-9][0-9][0-9][0-9][0-9]/$script,third-party,match-case
 
 
 ! AV19.org (https://av19.live/)
@@ -1462,15 +1473,6 @@ showdang.co.kr##.box
 
 
 !!! 기타 처리
-
-
-! 배너 이미지
-! - https://javfc2.xyz/ 상단 배너
-! - - - uBlock filters – Ads
-!/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
-! - - - AdGuard – Ads
-!/^https?:\/\/[a-z-]{6,}\.(?:com?|pro|info|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xmlhttprequest,third-party,match-case
-###ads
 
 
 ! - https://sureranking.net/
