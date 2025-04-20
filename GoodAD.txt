@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042024
+! Version: 25042025
 
 
 
@@ -1558,7 +1558,6 @@ tv.kakao.com#@#.ads
 ! 기타
 ! - Adblock-Rule-Collection-Lite
 ||play.google.com/log?
-@@://www3.doubleclick.net^|$xmlhttprequest
 -ads.
 /generate_204?$image
 ||youtube.com/youtubei/v1/log_event?
@@ -1567,7 +1566,6 @@ tv.kakao.com#@#.ads
 |instagram.com/ajax/bz
 ||graph.instagram.com/logging_client_events
 |facebook.com/ajax/qm/
-@@|wss://$removeparam
 
 
 ! - GOODBYEADS
