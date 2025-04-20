@@ -1,0 +1,528 @@
+! Title: Video Filters
+! Description: Video website advertisement filtering.
+! Updated: 2025-04-20 16:24:42 RPC
+! Expires: 1 days (update frequency)
+! Homepage: https://github.com/imxieke/Anti-Ads
+! License: http://creativecommons.org/licenses/by/3.0/
+! Reporting Issues: https://github.com/imxieke/Anti-Ads/issues
+!
+!///////////////////////////////////////////////////////////////////
+!//                       .::::.
+!//                     .::::::::.
+!//                    :::::::::::
+!//                 ..:::::::::::'
+!//              '::::::::::::'
+!//                .::::::::::
+!//           '::::::::::::::..
+!//                ..::::::::::::.
+!//              ``::::::::::::::::
+!//               ::::``:::::::::'        .:::.
+!//              ::::'   ':::::'       .::::::::.
+!//            .::::'      ::::     .:::::::'::::.
+!//           .:::'       :::::  .:::::::::' ':::::.
+!//          .::'        :::::.:::::::::'      ':::::.
+!//         .::'         ::::::::::::::'         ``::::.
+!//     ...:::           ::::::::::::'              ``::.
+!//    ```` ':.          ':::::::::'                  ::::..
+!//                       '.:::::'                    ':'````..
+!//         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+!///////////////////////////////////////////////////////////////////
+##a.disabled
+##div.h5-ext-layer
+##div.m-video-play.js-play>a.m-video-bannerTitle.js-video-bannerTitle
+*.gif|$image,domain=91meijutv.com|bimiacg4.net|dk95.com|tvyb03.com|tvyun03.com
+/^http:\/\/v\.aty\.sohu\.com\/v\?cat=.*fee=0/>>>http://v.aty.sohu.com/v?cat=&act=&autoPlay=1&fee=1>>>>keyword=sohu
+/^https:\/\/s\.ssl\.qhimg\.com\/ssl\/721b2caa3e5a13b7,\S*,0ca713dbc85cee84\.js$/>>>https://1111.51xiaolu.com/360video.min.js>>>>keyword=0ca713dbc85cee84
+17173.com###vjs-ad-on-pause
+1905.com##.pauseInfoWrap:remove()
+88mv.org,91meijutv.com,olevod.com,tvyb03.com,tvyun03.com##a[target=_blank][href^=http]
+91meijutv.com##.dplayer-web-fullscreen-fix #player-sidebar
+91meijutv.com,gdzidong.com,yimj.cc##.dplayer-web-fullscreen-fix #player-sidebar-is
+@@http://s1.pplive.cn/sta.js
+@@||dd.browser.360.cn/static
+@@||js.tv.itc.cn/gg.seed.js
+@@||log.mmstat.com/eg.js^$script
+@@||shop.letv.com^
+@@||tb.mgtv.com/sdk/*/ad-sdk.js^$script
+@@||union.video.qq.com/fcgi-bin/$script,domain=qq.com
+acfun.cn##.pause-display-container,#ad-comment,#ad-player-view
+ad-survey.com
+age.tv,agedm.org##+js(noeval-if, devtoolsDetector)
+apisgame.iqiyi.com
+aty.sohu.com
+banana.le.com
+bilibili.com##.ad-report, .ad-floor
+bilibili.com##.gg-floor-module,#slide_ad,a[href^="//cm.bilibili.com"]
+bimiacg4.net##+js(acs,Object.defineProperty,location.href)
+bimiacg4.net##.tuiguang,#bkcl
+bjcathay.com
+btsow.motorcycles##a[href^="https://tellme.pw/go/jav"]
+cad.youku.com
+cctv.com###bgAd_div
+cctv.com,www.douyu.com##+js(aeld,/visibilitychange|pagehide/)
+cdn.g2ak5.com[Adblock Plus 2.0]
+cm.l.qq.com
+dandanzan.*,nnyy.in,nunuyy5.com##video:style(max-height:100%!important)
+ddys.*###sajdhfbjwhe:remove()
+ddys.*##+js(set, Object.prototype.ads, null)
+ddys.*##.cfa_popup:remove()
+ddys.*##main.site-main > div:first-child:remove()
+de.as.pptv.com
+dm84.*###qrcode
+dm84.*##.container:style(max-width: 60vw!important)
+dm84.*##.p_box:style(height:33vw!important;padding-top:0!important)
+dmmiku.*##.ads_all:remove()
+douyu.com##.Title-ad, .DropMenuList-ad, .DropPane-ad
+douyu.com,huya.com##a[href^="https://g.wan."]
+g.huya.com
+gdt.qq.com
+go.sohu.com
+huya.com###hy-ad,#hy-ab,#huya-ab
+huya.com##a[href^="https://wan."]
+ipinyou.com
+iqiyi.com##+js(set, Object.prototype.blackscreenDuration, 1)
+iqiyi.com##+js(set, QiyiPlayerProphetData.a.data, {})
+iqiyi.com##.black-screen[data-cupid=adblock-blackscreen], .qy-plist-ad
+iqiyi.com##.cupid-panel + div, div[data-adzone],#block-V
+iqiyi.com##a[href^="https://ads."]
+iwan-s.video.qq.com
+jads.co
+le.com##+js(set, isAdLoaded, true)
+le.com##.min_pause_img
+litix.io
+log1.17173.com
+m.huya.com##.ssr-wrapper>:not(.live-wrap)
+m.huya.com##.video-con:style(height:100vh!important;padding:0!important;position:static!important;)
+m.huya.com##video:style(object-fit:fill!important)
+m.iqiyi.com##+js(set, Object.prototype.adPlayerId, '')
+miaozhen.com
+news.qq.com##+js(set, SSPAd.prototype.loadAd, noopFunc)
+olevod.com###adsMaskBox
+olevod.com##.pc-ads
+pptv.com##.advView-two,#p-mark
+pub.funshion.com
+qdm88.com###gongao
+qq.com##+js(json-prune, ads ad material.video)
+reke.at.sohu.com
+rrys2019.com##.float_middel_ad_bk,#float_ad
+show.ssports.com
+sobot.com
+static.g.iqiyi.com
+statwup.huya.com
+stgowan.com
+synacast.com
+t7z.cupid.iqiyi.com
+tv.sohu.com##.x-dl-shake.x-download-panel, #playerBar > div.area ~a
+v.qq.com##.quick_games.quick_item, div.game-switch-ad
+v.qq.com##.video-card-module > .card-wrap
+v.qq.com,news.qq.com##+js(no-fetch-if, /(beacon|trace)\.qq\.com/)
+v.qq.com,news.qq.com##+js(no-xhr-if, snowflake.qq.com)
+v.youku.com##.control-phonewatch,#right-title-ad-banner, .kui-watermark-0
+va.huya.com
+wan.douyu.com
+www.bilibili.com##.pop-live-small-mode
+www.douyu.com##.ChargeTask+div, .HeaderGif-right, .HeaderGif-left
+www.douyu.com##.is-fullScreenPage .ToTopBtn, .multiBitRate-da4b60
+www.huya.com###public-screen-ab
+www.huya.com##.huya-ab
+www.huya.com##.player-banner-gift,#player-marquee-wrap
+www.huya.com##.room-footer,#player-subscribe-wap,#player-gift-wrap
+www.huya.com##.sidebar-banner, a.J_g_resource
+www.iyf.tv##.dabf,div.pggf,vg-pause-f
+www.ted.com##.gm-fp-body .justify-center.tracking-tightest
+yatu.tv##.dplayer-web-fullscreen-fix #tburl,#loadtop,[id^=myas],#myds1,#daohang
+yatu.tv,yhdm7.com,yhdm95.com,xdm530.com##+js(aopw,document.oncontextmenu)
+youku.com##[style*="width: 400px;"],[style*="width: 361px;"]
+z4a.net
+|http://html.atm.youku.com/html?p=
+|http://mark.l.qq.com/fcgi-bin/get_video_mark_all*&strAdParam=
+|http://nc.youku.com/user/~ajax/qrcodeLogin.html?
+|http://passport-log.youku.com/logsys/logstorage/
+|http://passport.youku.com/index_loginregGuide/$subdocument
+|http://static.youku.com/v*/index/js/ikuAdapterNew.js
+|http://static.youku.com/v*/index/js/tdstat.js
+|http://static.youku.com/v1.*/index/js/ikuAdapterNew.js
+|http://yk.pp.navi.youku.com/playpolicy/get.json?
+|https://imgcache.qq.com/qzone/biz/comm/js/qbs.js
+|https://tellme.pw/go/jav$popup
+||127.0.0.1^$script,domain=iqiyi.com
+||17173.com/batch_show?ads=
+||17173.com/if/$script,subdocument
+||3a119.com/js/tw.js
+||407mp3.com/js/
+||6080w.com/template/mov/js/300.js
+||66zhibo.net/d/66zhibo/66zhibo
+||680ts.com/js/bpolknm.js
+||680ts.com/js/jquery.js
+||680ts.com/js/tpolknm.js
+||a.msstatic.com/huya/main3/assets/css/room/gift.$script
+||a.msstatic.com/huya/main3/assets/img/room/gift/$important
+||a.msstatic.com/huya/main3/assets/modules/gift/$script
+||a.msstatic.com/huya/main3/components/GiftDrawEffect/$script
+||a.msstatic.com/huya/main3/components/OnTVLottery/$script
+||aixifan.com/static/*/appGuide/
+||alicdn.com/*yksdk/*sdk.js$script,domain=youku.com
+||alicdn.com/awsc/et/$script
+||api.bilibili.com/x/click-interface/click/$xhr
+||api.bilibili.com/x/web-show/res/locs?$~script
+||asimgs.pplive.cn/imgs
+||beacon.cdn.qq.com/*/beacon_web.min.js^$script
+||beacon.qq.com^$ping
+||btsow.motorcycles/app/jav$image
+||business.msstatic.com/advertiser/$image
+||cdn.aiqingyu1314.com/age/statics/js/notice.js^$script
+||cdn.huya.com/leaf/$xhr
+||da.mgtv.com/mediafiles/wiad_creative/$image
+||dd-static.jd.com^$image,domain=subaibaiys.com
+||douyucdn.cn/adxdsp/$image,media
+||float.sandai.net
+||g.alicdn.com/htmlVodP2P/$script
+||g.pptv.com/game/$subdocument
+||g.youyou234.com^
+||google.*/pagead/
+||gstatic.com/shopping?
+||gtimg.com/qqlive/
+||hdslb.com/bfs/cm/cm-sdk/static/js/bili-collect.js^$empty
+||hdslb.com/bfs/cm/cm-sdk/static/js/pc.js^$script
+||hdslb.com/bfs/seed/jinkela/short/user-fingerprint/$script
+||hdslb.com/bfs/seed/log/report/log-reporter.js^$script
+||hdslb.com^$subdocument
+||iqiyipic.com/image/20*_100000$image
+||irs01.net/
+||letvimg.com/*_gugwl/$image
+||letvimg.com/lc*_iscms/202$image
+||live-cover.msstatic.com/huyalive/*/format,webp/$image
+||mall.video.qq.com/m/activity/h5/$subdocument
+||mark.l.qq.com/fcgi-bin/get_video_mark_all?$script
+||mediamax.suning.com/adssp/sdk/$script
+||mesh.if.iqiyi.com/player/pcw/update/commonAppDownloadData^$xhr
+||midext2.cdn.huya.com/ext-web-mid/ext-web-sub-frame/$subdocument
+||miguvideo.com/mgs/common/miguplayerPlugins/prd/WWWggView.js^$script
+||msstatic.com/huya/main3/assets/modules/CommercialAdSdk/$script
+||news.ssp.qq.com/app
+||onetrust.
+||osswc.pplive.cn/cccms/$image
+||ott.cibntv.net/*/letv-wzgug/$media
+||p.gshtrl.top
+||pptstatic.iyf.tv/upload/video/202$image
+||qq.com/livemsg?
+||qunale888.com/files/h5/
+||qzonestyle.gtimg.cn/qzone/biz/ac/comm/$script
+||relive.vodfile.m1905.com/video/qiantie202$media
+||res.ab.qq.com/tab/$script
+||res.iyoowi.com/iy/iy.js?cid=
+||res.iyoowi.com/iy/iy.js?cid=[Adblock Plus 2.0]
+||security.iqiyi.com/static/cook/v1/cooksdk.js
+||shark2.douyucdn.cn/front-publish/live-*-gift-$script
+||shark2.douyucdn.cn/front-publish/live-cloud-game-master/
+||shark2.douyucdn.cn/front-publish/live-game-guess-master/
+||shark2.douyucdn.cn/front-publish/live-luckybaggift-activity-master/
+||shark2.douyucdn.cn/front-publish/live-master/js/player_first/qvbp2p_douyu$script
+||shark2.douyucdn.cn/front-publish/live-master/js/room/activity_
+||shark2.douyucdn.cn/front-publish/live-master/js/room/CloseVideoAd_$script
+||shark2.douyucdn.cn/front-publish/live-master/js/room/FreeTimeAd_$script
+||shark2.douyucdn.cn/front-publish/live-master/js/room/HappyLottery_$script
+||shark2.douyucdn.cn/front-publish/live-master/js/room/ScreenBannerAd_$script
+||shark2.douyucdn.cn/front-publish/live-master/js/room/SetofGiftPop_$script
+||shark2.douyucdn.cn/front-publish/live-master/js/room/SuspendedBallAd_$script
+||shark2.douyucdn.cn/front-publish/live-master/js/room/topBanner_$script
+||shark2.douyucdn.cn/front-publish/live-master/js/room/Xinghai$script
+||ssp.qq.com/ad^$xhr
+||ssports.iqiyi.com/app/$media,object-subrequest
+||ssports.iqiyi.com/json/shop/shopInfo
+||static.iqiyi.com/js/common/mars_v.js^$script
+||static.olelive.com/uploads/file/$image
+||static.youku.com/*/index/js/iresearch.js
+||static.youku.com/*/js/cps.js
+||staticfile.qq.com/datong/$script
+||staticfile.qq.com/qimei/$script
+||stc.iqiyipic.com/js/sdkpack/barrage
+||stc.iqiyipic.com/js/sdkpack/vippay.js
+||toutiaoimg.com/origin/$image,domain=agedm.org
+||trace.qq.com^$image,ping
+||tracker.$xhr,websocket,script,ping
+||tt27.tv/js/jsg/对联广告.js
+||tv.sohu.com/upload/csad/admaster/$image
+||tx-live-cover.msstatic.com/huyalive/*/format,webp/$image
+||v.qq.com/cache/wuji/object^$script
+||v.qq.com/pwa-sw.js^$script
+||v.qq.com/thumbplayer-offline-log.html^$subdocument
+||vfiles.gtimg.cn/tvideo/js/new_ping_video.js^$script
+||video.da.mgtv.com/$media
+||video.iqiyi.com/ws$websocket
+||vip.com/cm/youku?
+||vodxc.tv/xcimg/js/Img.Load.js
+||webconf.douyucdn.cn/resource/common/config/inter_com_w_ad_gift.json$script
+||webconf.douyucdn.cn/resource/common/gift$script
+||webrtc.github.io^$script,3p
+||wj.fspcdn.com/mat/
+||www.1905.com/uploadfile/2024/0401/20240401094429405834.jpg^$image
+||www.dmmiku.com/upload/*.png|$image
+||www.iqiyi.com/service-worker.js
+||www.yatu.tv:2082/image/*.gif^$image
+||www.yatu.tv:2082/m/images/$image
+||yoyi.com.cn^3p
+! 제목 : 비디오 필터
+! 설명 : 비디오 웹 사이트 광고 필터링.
+! 업데이트 : 2025-04-20 16:24:42 RPC
+! 만료 : 1 일 (업데이트 빈도)
+! 홈페이지 : https://github.com/imxieke/anti-ads
+! 라이센스 : http://creativecommons.org/licenses/by/3.0/
+! 보고 문제 : https://github.com/imxieke/anti-ads/issues
+!
+! /////////////////////////////////////////////////////////////////////////////////4
+! //. :::.
+! //. :::::::.
+! // :::::::::::::
+! // .. ::::::::::: '
+! // '::::::::::::'
+! //. ::::::::::::
+! // '::::::::::::: ..
+! // .. ::::::::::::.
+! //``:::::::::::::::
+! // ::::```:::::::: '. :::.
+! // :::: '':::: '. ::::::::.
+! //. :::: '::::. ::::::'::::.
+! //. ::: '::::. :::::::::' ''::::.
+! //. :: '::::. :::::::::' ':::::.
+! //. :: ':::::::::::::'``::::.
+! // ... ::::::::::::::: '``::.
+! //````` ':. ':::::::::'::: ..
+! // '. :::::' ':'````..
+! // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+! /////////////////////////////////////////////////////////////////////////////////4
+## a.disabled
+## div.h5-ext-layer
+## div.m-video-play.js-play> a.m-video-bannertitle.js-video-bannertitle
+*.gif | $ image, domain = 91meijutv.com | bimiacg4.net | dk95.com | tvyb03.com | tvyun03.com
+/^http:/ \/v\.aty \.sohu \.com.com.com.com.com.cat=.fee=0/>>> >> >> http://v.aty.sohu.com/v?cat=&atoplay=1&fee=11>>> Keyword=sohu
+/^https : \/\/s \ .ssl \ .qhimg \ .com \/ssl \/721b2caa3e5a13b7, \ s*, 0ca713dbc85cee84 \. js $/>>> https://1111.51xiaolu.com/360video.min.js >>>> 키워드 = 0ca713dbc85cee84
+17173.com ### vjs-ad-on-pause
+1905.com ##. pauseinfowrap : remove ()
+88mv.org, 91meijutv.com, olevod.com, tvyb03.com, tvyun03.com ## [target = _blank] [href^= http]
+91meijutv.com ##
+91meijutv.com, gdzidong.com, yimj.cc ##
+@@ http : //s1.pplive.cn/sta.js
+@@ || dd.browser.360.cn/static
+@@ || js.tv.itc.cn/gg.seed.js
+@@ || log.mmstat.com/eg.js^$script
+@@ || shop.letv.com^
+@@ || tb.mgtv.com/sdk/*/ad-sdk.js^$ 스크립트
+@@ || Union.video.qq.com/fcgi-bin/$script,Domain=qq.com
+ACFUN.CN ##. 일시 정지 -DISPLAY-CONTAINER,#AD-COMMENT,#AD-PLAYER-VIEW
+ad-survey.com
+age.tv, agedm.org ##+js (noeval-if, devtoolsdetector)
+apisgame.iqiyi.com
+aty.sohu.com
+바나나 .le.com
+bilibili.com ##. 광고 보고서, .ad-orfort
+bilibili.com ##. gg-floor-module,#slide_ad, a [href^= "// cm.bilibili.com"]
+bimiacg4.net ##+js (ACS, Object.DefineProperty, location.href)
+bimiacg4.net ##. Tuiguang,#bkcl
+bjcathay.com
+btsow.motorcycles ## a [href^= "https://tellme.pw/go/jav"]
+cad.youku.com
+cctv.com ### bgad_div
+cctv.com, www.douyu.com ##+js (Aeld,/VisibilityChange | PageHide/)
+cdn.g2ak5.com [Adblock + 2.0]
+cm.l.qq.com
+Dandanzan.*, nnyy.in, nunuyy5.com ## 비디오 : 스타일 (Max-Height : 100%! 중요)
+ddys.*### sajdhfbjwhee : remove ()
+ddys.*##+js (set, object.prototype.ads, null)
+ddys.*##. cfa_popup : remove ()
+ddys.*## main.site-main> div : First-Child : remove ()
+de.as.pptv.com
+dm84.*### qrcode
+DM84.*##. 컨테이너 : 스타일 (Max width : 60VW! 중요)
+DM84.*##. P_BOX : 스타일 (높이 : 33VW! 중요; 패딩 탑 : 0! 중요)
+dmmiku.*##. ads_all : remove ()
+douyu.com ##. Title-Ad, .dropmenulist-ad, .droppane-ad
+douyu.com, huya.com ## [href^= "https : //g.wan."]
+g.huya.com
+gdt.qq.com
+go.sohu.com
+huya.com ### hy-ad,#hy-ab,#huya-ab
+huya.com ## [href^= "https : // wan."]
+iPinyou.com
+iqiyi.com ##+js (set, object.prototype.blackscreenduration, 1)
+iqiyi.com ##+js (set, qiyiplayerprophetdata.a.data, {})
+iqiyi.com ##. 검은 색 화면 [data-cupid = adblock-blackscreen], .qy-plist-ad
+iqiyi.com ##. Cupid-Panel + Div, div [data-adzone],#block-v
+iqiyi.com ## a [href^= "https : // ads."]
+iwan-s.video.qq.com
+jads.co
+le.com ##+js (set, isadloaded, true)
+le.com ##. min_pause_img
+litix.io
+log1.17173.com
+m.huya.com ##.
+M.Huya.com ##. 비디오 콘 : 스타일 (높이 : 100VH! 중요; 패딩 : 0! 중요; 위치 : 정적! 중요;)
+m.huya.com ## 비디오 : 스타일 (Object-Fit : Fill! Neverial)
+m.iqiyi.com ##+js (set, object.prototype.adplayerid, '')
+miaozhen.com
+News.qq.com ##+js (set, sspad.prototype.loadad, noopfunc)
+olovod.com ### adsmaskbox
+Olevod.com ##. PC-ADS
+pptv.com ##. advview-two,#p-mark
+pub.funshion.com
+qdm88.com ### gongao
+QQ.com ##+JS (JSON-PRUNE, ADS AD MATERIAL.VIEDO)
+reke.at.sohu.com
+rrys2019.com ##. float_middel_ad_bk,#float_ad
+show.ssports.com
+sobot.com
+static.g.iqiyi.com
+statwup.huya.com
+stgowan.com
+synacast.com
+t7z.cupid.iqiyi.com
+tv.sohu.com ##. x-dl-shake.x-download-panel, #PlayerBar> div.area ~ a
+v.qq.com ##
+v.qq.com ##. 비디오 카드 모듈> .card-wrap
+v.qq.com, news.qq.com ##+js (no-fetch-if, /(BeaCon|trace) \.qq\.com/)
+v.qq.com, news.qq.com ##+js (no-xhr-if, snowflake.qq.com)
+v.youku.com ##. Control-Phonewatch,#Right-Title-Ad-Banner, .kui-watermark-0
+va.huya.com
+wan.douyu.com
+www.bilibili.com ##. Pop-Live-Small-Mode
+www.douyu.com ##. Chargetask+div, .headergif-right, .headergif-left
+www.douyu.com ##. is-fullscreenpage .totopbtn, .multibitrate-da4b60
+www.huya.com ### public-screen-ab
+www.huya.com ##. Huya-AB
+www.huya.com ##. Player-Banner-Gift,#Player-Marquee-Wrap
+www.huya.com ##. Room-Footer,#Player-Subscribe-Wap,#Player-Gift-Wrap
+www.huya.com ##. Sidebar-Banner, A.J_G_RESOURCE
+www.iyf.tv ##. dabf, div.pggf, vg-pause-f
+www.ted.com ##. gm-fp-body .justify-center.tracking-tightest
+yatu.tv ##
+yatu.tv, yhdm7.com, yhdm95.com, xdm530.com ##+js (aopw, document.oncontextmenu)
+youku.com ## [style*= "너비 : 400px;"], [style*= "width : 361px;"]
+z4a.net
+| http : //html.atm.youku.com/html? p =
+| http : //mark.l.qq.com/fcgi-bin/get_video_mark_all*&stradparam=
+| http : //nc.youku.com/user/~ajax/qrcodelogin.html?
+| http : //passport-log.youku.com/logsys/logstorage/
+| http : //passport.youku.com/index_loginregguide/$subdocument
+| http : //static.youku.com/v*/index/js/ikuadapternew.js
+| http : //static.youku.com/v*/index/js/tdstat.js
+| http : //static.youku.com/v1./index/js/ikuadapternew.js
+| http : //yk.pp.navi.youku.com/playpolicy/get.json?
+| https : //imgcache.qq.com/qzone/biz/comm/js/qbs.js
+| https : //tellme.pw/go/jav$popup
+|| 127.0.0.1^$ script, domain = iqiyi.com
+|| 17173.com/batch_show? ads =
+|| 17173.com/if/$Script, SubDocument
+|| 3a119.com/js/tw.js
+|| 407mp3.com/js/
+|| 6080w.com/template/mov/js/300.js
+|| 66zhibo.net/d/66zhibo/66zhibo
+|| 680ts.com/js/bpolknm.js
+|| 680ts.com/js/jquery.js
+|| 680ts.com/js/tpolknm.js
+|| a.msstatic.com/huya/main3/assets/css/room/gift.$script
+|| a.msstatic.com/huya/main3/assets/img/room/gift/$important
+|| a.msstatic.com/huya/main3/assets/modules/gift/$script
+|| a.msstatic.com/huya/main3/components/giftDraweffect/$Script
+|| a.msstatic.com/huya/main3/components/ontvlottery/$script
+|| aixifan.com/static/*/appguide/
+|| alicdn.com/*yksdk/*sdk.js$script,Domain=youku.com
+|| alicdn.com/awsc/et/$script
+|| api.bilibili.com/x/click-interface/click/$xhr
+|| api.bilibili.com/x/web-show/res/locs? $ ~ 스크립트
+|| asimgs.pplive.cn/imgs
+|| beacon.cdn.qq.com/*/beacon_web.min.js^$ 스크립트
+|| beacon.qq.com^$ ping
+|| btsow.motorcycles/App/jav$IMAGE
+|| business.msstatic.com/advertiser/$Image
+|| cdn.aiqingyu1314.com/age/statics/js/notice.js^$script
+|| cdn.huya.com/leaf/$xhr
+|| da.mgtv.com/mediafiles/wiad_creative/$Image
+|| dd-centatic.jd.com^$ image, domain = subaibaiys.com
+|| douyucdn.cn/adxdsp/$Image, media
+|| float.sandai.net
+|| g.alicdn.com/htmlvodp2p/$script
+|| g.pptv.com/game/$Subdocument
+|| g.youyou234.com^
+|| Google.*/pagead/
+|| gstatic.com/shopping?
+|| gtimg.com/qqlive/
+|| hdslb.com/bfs/cm/cm-sdk/static/js/bili-collect.js^$ 15
+|| hdslb.com/bfs/cm/cm-sdk/static/js/pc.js^$script
+|| hdslb.com/bfs/seed/jinkela/short/user-fingerprint/$script
+|| hdslb.com/bfs/seed/log/report/log-reporter.js^$script
+|| hdslb.com^$ 하위 문서
+|| iqiyipic.com/image/20*_100000$IMAGE
+|| irs01.net/
+|| letvimg.com/*_ gugwl/$ 이미지
+|| letvimg.com/lc*_iscms/202$IMAGE
+|| live-cover.msstatic.com/huyalive/*/format, webp/$ image
+|| mall.video.qq.com/m/activity/h5/$Subdocument
+|| Mark.l.qq.com/fcgi-bin/get_video_mark_all? $ 스크립트
+|| mediaMax.suning.com/adssp/sdk/$script
+|| mesh.if.iqiyi.com/player/pcw/update/commonappdownloaddata^$xhr
+|| midext2.cdn.huya.com/ext-web-mid/ext-web-sub-frame/$subdocument
+|| miguvideo.com/mgs/common/miguplayerplugins/prd/wwwggview.js^$script
+|| msstatic.com/huya/main3/assets/modules/commercialadsdk/$script
+|| News.ssp.qq.com/app
+|| Onetrust.
+|| osswc.pplive.cn/cccms/$Image
+|| ott.cibntv.net/*/lev-wzgug/$ media
+|| p.gshtrl.top
+|| pptstatic.iyf.tv/upload/video/202$Image
+|| qq.com/livemsg?
+|| qunale888.com/files/h5/
+|| qzonestyle.gtimg.cn/qzone/biz/ac/comm/$Script
+|| relive.vodfile.m1905.com/video/qiantie202$media
+|| res.ab.qq.com/tab/$script
+|| res.iyoowi.com/iy/iy.js? cid =
+|| res.iyoowi.com/iy/iy.js? cid = [adblock + 2.0]
+|| security.iqiyi.com/static/cook/v1/cooksdk.js
+|| shark2.douyucdn.cn/front-publish/live-*-Gift- $ 스크립트
+|| Shark2.douyucdn.cn/front-publish/live-cloud-game-master/
+|| Shark2.douyucdn.cn/front-publish/live-game-guess-master/
+|| Shark2.douyucdn.cn/front-publish/live-luckybaggift-activity-master/
+|| shark2.douyucdn.cn/front-publish/live-master/js/player_first/qvbp2p_douyu$script
+|| shark2.douyucdn.cn/front-publish/live-master/js/room/Activity_
+|| shark2.douyucdn.cn/front-publish/live-master/js/room/closevideoad_$script
+|| shark2.douyucdn.cn/front-publish/live-master/js/room/freetimead_$script
+|| shark2.douyucdn.cn/front-publish/live-master/js/room/happylottery_$script
+|| shark2.douyucdn.cn/front-publish/live-master/js/room/screenbannerad_$script
+|| shark2.douyucdn.cn/front-publish/live-master/js/room/setofgiftpop_$script
+|| shark2.douyucdn.cn/front-publish/live-master/js/room/suspendedballad_$script
+|| shark2.douyucdn.cn/front-publish/live-master/js/room/topbanner_$script
+|| shark2.douyucdn.cn/front-publish/live-master/js/room/xinghai$script
+|| ssp.qq.com/ad^$xhr
+|| ssports.iqiyi.com/app/$media,Object-Subrequest
+|| ssports.iqiyi.com/json/shop/shopinfo
+|| static.iqiyi.com/js/common/mars_v.js^$script
+|| static.olelive.com/uploads/file/$Image
+|| static.youku.com/*/index/js/iresearch.js
+|| static.youku.com/*/js/cps.js
+|| staticfile.qq.com/datong/$script
+|| staticfile.qq.com/qimei/$script
+|| stc.iqiyipic.com/js/sdkpack/barrage
+|| stc.iqiyipic.com/js/sdkpack/vippay.js
+|| toutiaoimg.com/origin/$Image,Domain=agedm.org
+|| trace.qq.com^$ 이미지, 핑
+|| 추적기. $ XHR, WebSocket, 스크립트, 핑
+|| tt27.tv/js/jsg/ 对联广告 .js
+|| tv.sohu.com/upload/csad/admaster/$Image
+|| tx-live-cover.msstatic.com/huyalive/*/format, webp/$ image
+|| v.qq.com/cache/wuji/object^$script
+|| v.qq.com/pwa-sw.js^$script
+|| v.qq.com/thumbplayer-offline-log.html^subdocument
+|| vfiles.gtimg.cn/tvideo/js/new_ping_video.js^$script
+|| video.da.mgtv.com/$media
+|| video.iqiyi.com/ws$websocket
+|| vip.com/cm/youku?
+|| vodxc.tv/xcimg/js/img.load.js
+|| webconf.douyucdn.cn/resource/common/config/inter_com_w_ad_gift.json$script
+|| webconf.douyucdn.cn/resource/common/gift$script
+|| webrtc.github.io^$ script, 3p
+|| wj.fspcdn.com/mat/
+|| www.1905.com/uploadfile/2024/0401/202404094429405834.jpg^$IMAGE
+|| www.dmmiku.com/upload/*. png | $ 이미지
+|| www.iqiyi.com/service-worker.js
+|| www.yatu.tv : 2082/image/*. gif^$ 이미지
+|| www.yatu.tv : 2082/m/images/$ 이미지
+|| yoyi.com.cn^3p
