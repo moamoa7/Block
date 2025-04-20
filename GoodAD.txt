@@ -1,10 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042043
-
-
-!#include video.txt
-
+! Version: 25042044
 
 
 ! Advert Block Filter 필터 수정
@@ -1672,3 +1668,5 @@ $ping,third-party
 ||permsrv.com^$popup,important
 ||rmishe.com^$popup,important
 
+
+!#include video.txt
