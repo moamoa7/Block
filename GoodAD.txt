@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042039
+! Version: 25042040
 
 
 
@@ -1673,3 +1673,8 @@ $ping,third-party
 ! - 예외
 @@community-uploads.highwinds-cdn.com/api/v9/community_uploads?channel_name__in[]=media&channel_name__in[]=nsfw-general&kind=landing&loc=https://hanime.tv
 @@pc-web.stream.sooplive.co.kr/*ads
+
+!||naver.com/mcollector/
+@@||naver.com/mcollector/
+! - 먼지 모르겠는대 차단해서 해제
+
