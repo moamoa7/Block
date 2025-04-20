@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042104
+! Version: 25042105
 
 
 ! Advert Block Filter 필터 수정
@@ -1547,118 +1547,6 @@ tv.kakao.com#@#.ads
 ||ziffstatic.com
 
 
-
-
-!!!!! 기타
-/ad-$~stylesheet
-/stat/rt/js?
--ads.
-/ads.
-$ping,third-party
-/?sentry_key=
-/generate_204?$image
-||google.com*/pagead
-
-
-
-
-!!!!! 팝업 방지
-! - 팝업 발생하는 사이트 및 팝업은 없으나 대비용으로 영상주소 모음
-
-||emturbovid.com^$popup,important
-||fc2stream.tv^$popup,important
-||streamtape.com^$popup,important
-||voe.sx|cybervynx.com^$popup,important
-||pemsrv.com^$popup,important
-||streamtape.to^$popup,important
-||watchadsontape.com^$popup,important
-||turbovid.xyz^$popup,important
-||javgiga.com^$popup,important
-||javtiktok.site^$popup,important
-||javhahaha.us^$popup,important
-||luluvdo.com^$popup,important
-||funlove.info^$popup,important
-||javplayer.me^$popup,important
-||embedwish.com^$popup,important
-||godkc.com^$popup,important
-||iplayerhls.com^$popup,important
-||ryderjet.com^$popup,important
-||filemoon.sx^$popup,important
-||pyy79.art^$popup,important
-||tapewithadblock.org^$popup,important
-||mmsi01.xyz^$popup,important
-||mmvh01.xyz^$popup,important
-||cndstream.xyz^$popup,important
-||swiftplayers.com^$popup,important
-||all3do.com^$popup,important
-||layer.upn.one^$popup,important
-||do7go.com^$popup,important
-||strtape.cloud^$popup,important
-||listeamed.net^$popup,important
-||javedit.com^$popup,important
-||play.playkrx18.site^$popup,important
-||mov18plus.cloud^$popup,important
-||helvid.net^$popup,important
-||javggvideo.xyz^$popup,important
-||javlion.xyz^$popup,important
-||javsw.me^$popup,important
-||7mmtv.upns.live^$popup,important
-||stbturbo.xyz^$popup,important
-||stbhg.click^$popup,important
-||ryderjet.com^$popup,important
-||do7go.com^$popup,important
-||streamtape.net^$popup,important
-||topjav.tv^$popup,important
-||avple.tv^$popup,important
-||manymv.com^$popup,important
-||stream.javtiful.to^$popup,important
-||javuncen.online^$popup,important
-||filemoon.to^$popup,important
-||javleaked.com^$popup,important
-||luluvdo.com^$popup,important
-||javdou.com^$popup,important
-||javmenu.com^$popup,important
-||jav.sb^$popup,important
-||j91.asia^$popup,important
-||javneon.tv^$popup,important
-||evojav.pro^$popup,important
-||javeve.tv^$popup,important
-||javsaga.ninja^$popup,important
-||javbull.tv^$popup,important
-||video.bestjavporn.com^$popup,important
-||findjav.com^$popup,important
-||video.javdock.com^$popup,important
-||video.javhdporn.net^$popup,important
-||hgstreamv.online^$popup,important
-||abystab.click^$popup,important
-||exodusjailhousetarantula.com^$popup,important
-||vidhideo.click^$popup,important
-||ggulfile.com^$popup,important
-||kinternet.kr^$popup,important
-||planbplus.co.kr^$popup,important
-||david.cdnbuzz.buzz^$popup,important
-||xxembed.com^$popup,important
-||sexkbj.top^$popup,important
-||playrecord.biz^$popup,important
-||correctdilutetrophy.com^$popup,important
-||dotyruntchan.com^$popup,important
-||cybervynx.com^$popup,important
-||mingvideos.com^$popup,important
-||eatcells.com^$popup,important
-||tsyndicate.com^$popup,important
-||absurdbatchconfess.com^$popup,important
-||lionessgrandchild.com^$popup,important
-||familiarpyromaniasloping.com^$popup,important
-||iframe.mediadelivery.net^$popup,important
-||newer.stream^$popup,important
-||twinrdengine.com^$popup,important
-||diffusedpassionquaking.com^$popup,important
-||myavlive.com^$popup,important
-||turtleviplay.xyz^$popup,important
-||yanovideos.com^$popup,important
-||permsrv.com^$popup,important
-||rmishe.com^$popup,important
-||stikroltiltoowi.net^$popup,important
 
 
 !#include video.txt
