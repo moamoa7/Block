@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042038
+! Version: 25042039
 
 
 
@@ -424,6 +424,7 @@ daum.net##nav.nav_main:nth-of-type(1)
 ##.bs-notice_layer
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
 ###FeedLayerToolTip
+
 
 
 ! 치지직 (https://chzzk.naver.com/)
