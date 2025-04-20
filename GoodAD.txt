@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042023
+! Version: 25042024
 
 
 
@@ -1337,6 +1337,10 @@ avmov.best##center
 @@cdn-banana.bizhost.kr/banana_web_20181015/banner/logo_default_2025_bananamall.gif
 @@cdn-banana.bizhost.kr/banana_web_20181015/banner/top_new_prd.gif
 @@cdn-banana.bizhost.kr/banana_web_20181015/banner/d_07.gif
+@@cdn-banana.bizhost.kr/files/new_main/1732509267_1.jpg
+@@cdn-banana.bizhost.kr/files/new_main/1721889366_1.jpg
+@@cdn-banana.bizhost.kr/files/new_main/1720000568_1[9].jpg
+@@cdn-banana.bizhost.kr/files/new_main/1720000568_1[7].jpg
 cdn-banana.bizhost.kr/banner^$image
 !/popup^$image
 cdn-banana.bizhost.kr*/popup/*.gif
@@ -1555,11 +1559,22 @@ tv.kakao.com#@#.ads
 ! - Adblock-Rule-Collection-Lite
 ||play.google.com/log?
 @@://www3.doubleclick.net^|$xmlhttprequest
+-ads.
+/generate_204?$image
+||youtube.com/youtubei/v1/log_event?
+||google.*/pagead/
+||youtube.com/api/stats^
+|instagram.com/ajax/bz
+||graph.instagram.com/logging_client_events
+|facebook.com/ajax/qm/
+@@|wss://$removeparam
+
 
 ! - GOODBYEADS
 */ad-$~stylesheet
 /ads.
-
+$ping,third-party
+/ads/*
 
 
 !!!!! 팝업 방지
