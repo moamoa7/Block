@@ -1,13 +1,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042036
+! Version: 25042037
 
-
-
-! 1st-party 무력화
-! - 1st party 허용
-! - 1st Party내 DNS로 차단된 광고 필터 있을시 별도 처리 필요
-!@@||*$~third-party
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -1669,3 +1663,19 @@ $ping,third-party
 ||permsrv.com^$popup,important
 ||rmishe.com^$popup,important
 
+
+
+
+
+! Advert Block Filter 비처리
+! - 홈페이지 : https://github.com/217heidai/adblockfilters
+! - https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockfilters.txt
+
+!/ad/$3p
+! - 예외
+@@cdnjs.cloudflare.com/ajax/libs/vue-lazyload/
+
+!/ads/
+! - 예외
+@@community-uploads.highwinds-cdn.com/api/v9/community_uploads?channel_name__in[]=media&channel_name__in[]=nsfw-general&kind=landing&loc=https://hanime.tv
+@@pc-web.stream.sooplive.co.kr/*ads
