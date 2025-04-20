@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042106
+! Version: 25042107
 
 
 
@@ -978,6 +978,8 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !##.happy-header-mobile
 ! - 모바일에서 배너 보이는 현상 - 공백 삭제
 ##.custom-html-widget.textwidget
+! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
+##div.set_height_250
 
 
 ! 탑걸 (https://kr39.topgirl.co)
