@@ -1,6 +1,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042105
+! Version: 25042106
+
 
 
 ! Advert Block Filter 필터 수정
@@ -12,6 +13,11 @@
 
 !/ads/
 /ads/$badfilter
+
+
+
+! 팝업 차단
+||*^$popup
 
 
 
