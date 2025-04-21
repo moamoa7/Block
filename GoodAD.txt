@@ -1,10 +1,10 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042116
+! Version: 25042117
 
 
 
-! 가본 - 팝업 및 프레임 차단
+! 기본 - 팝업 및 프레임 차단
 ! 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
 ! 숲/치지직/트위치/kick 확인
 ! 인스타/트위터/레딧 확인
@@ -200,12 +200,18 @@ _300x250_
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 
 ! 에펨코리아 (https://www.fmkorea.com/)
+! - PC
 ! -  파워링크 배너
 ##.ad_wrapper
 ! - 게시물 하단 배너
 ##.adsbygoogle
 ! - 아프리카 등 VOD 링크 차단으로 생기는 공백
 ##.video-container
+!##ins.adsbygoogle[data-ad-slot]
+! - 모바일
+! - - - 오른쪽 하단 떠다니는 작은 배너
+###fm_alert
+
 
 ! 루리 (https://m.ruliweb.com/)
 ! -  모바일
