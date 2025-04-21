@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042126
+! Version: 25042201
 
 
 
@@ -73,6 +73,18 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! - - - go.rmishe.com 발생 (현쟅탭에서) - 뒤로 가서 영상 다시 클릭해야함 (악질임)
 @@||javhahaha.us*$frame
 
+! Linkkf (https://linkkf.net)
+! - 애니 영상 시청시 필요
+@@||linkkf.net*$frame
+@@||myani.app*$frame
+
+
+! 메시티비 (https://messitv8.com/)
+! - 스포츠 실시간 감상시 필요
+@@||bigwin.livenst.com*$frame
+@@||liventv.com*$frame
+
+
 !  poooo.ml
 !  -  챗창 안보이는거 해결
 @@||poooo.ml*$frame
@@ -85,8 +97,17 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 @@||chzzk.naver.com*$frame
 @@||player.kick.com*$frame
 
+! 쏘걸 (https://kr1.4kjav.co/) / (https://kr79.sogirl.so/)
+! - 성인 영상 시청시 필요
+@@||iframe.mediadelivery.net*$frame
+
+! AV핑유걸 (https://avpingyou18.com/)
+! - 성인 영상 시청시 필요
+@@||avpingyou*.com*$frame
+
+
 ! JAVGG (https://javgg.net/)
-! -  시청시 필요
+! - 성인 영상 시청시 필요
 !@@||goofy1x.xyz*$frame
 !@@||qualification2.fun*$frame
 @@||gimmicked25.fun*$frame
@@ -412,3 +433,138 @@ instagram.com##article:has(a[href^="https://www.facebook.com/ads/"]):style(heigh
 ! FC2PPVDB (https://fc2ppvdb.com/)
 ! - 입장시 18세 체크
 ##[id*="ageCheck"]:not(html):not(body):not(article)
+
+! 쏘걸 (https://kr1.4kjav.co/) / (https://kr79.sogirl.so/)
+! - 안티애드블럭 우회 (uBlock filters – Ad)
+||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,xhr,redirect=googlesyndication_adsbygoogle.js:5,domain=~zipextractor.app
+!||pagead2.googlesyndication.com^$xhr,redirect=noop.js
+! - 입장시 18세 물어보는 팝업
+###dclm_modal_content
+###dclm_modal_screen
+! - 배너 이미지 (List-KR)
+!||hcdn1.maxsocdn.net^$domain=sogirl.so
+!||1.bp.blogspot.com^$domain=sogirl.so
+! - 상단 배너
+! - - - 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) 포함
+##.textwidget
+! - 오른쪽 상단 배너는 보이지 않으나 배너 위치만큼 삭제됨
+! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
+! - - - https://fc2ppv.stream/
+! - - - https://k4.kbjsvip.win/
+##.happy-header
+! - 영상내 닫기 버튼
+! - - - 핑보걸 (https://pinkbo43.com)
+! - - - sexkbj (https://sexkbj.com/)
+!  - - - AV러브걸 (https://avlove27.com/)
+##.happy-inside-player
+
+!  영상 하단 배너
+! - AV핑보걸 포함
+##.happy-under-player
+! - 맨 하단 배너
+##.happy-footer
+! - 영상 클릭시 반응없는거 해결 (List-kr)
+!||imasdk.googleapis.com^
+! - 모바일 상단 배너
+! - - - AdGuard – Mobile Ads 에 포함되어 비처리
+!##.happy-header-mobile
+! - 모바일에서 배너 보이는 현상 - 공백 삭제
+##.custom-html-widget.textwidget
+
+! 탑걸 (https://kr1.4kjav.co/) / (https://kr39.topgirl.co)
+! 메인 배너들
+##.ad_banner
+! - 상단 오른쪽 배너 이미지
+! - - - ! 자브걸 (https://kr23.javgirl.co/)
+###header_banner
+! 자브걸 (https://kr23.javgirl.co/)
+! - 영상내 광고
+||video.twimg.com$domain=topgirl.co|javgirl.co
+! - 영상 하단 텍스트 배너
+##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
+
+! 자브걸 (https://kr23.javgirl.co/)
+! - 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
+||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
+
+! AV핑보걸 (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/)
+! - 배너 이미지
+###imgDiv > table
+###imgDiv2
+###imgDiv3
+###imgDiv4
+###imgDiv5
+###imgDiv6
+###imgDiv11
+###imgDiv12
+###imgDiv13
+###imgDiv21
+###imgDiv22
+
+! AV핑유걸 (https://avpingyou18.com/)
+! - 배너 이미지
+##.bannerul
+! - 영상 내 배너
+##.popup_image
+! - 모바일 영상 하단 배너
+||*/pink_*/img/*-1200x300*$important
+
+! 오늘의 중계 (today-sports7.com) - 팝업
+! 코난티비(https://conan-tv.com/) - 팝업
+! https://jusoyo41.com/ - 배너
+###hd_pop
+! - 상단 배너
+##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner
+! - 가운데 중간 배너
+!##.live-stream-banner
+! - 왼쪽 배너
+##.info-banner
+! - 게시물내 한칸짜리 배너
+##[src*="event_banner"]
+! - 모바일 상단 배너
+##.live-stream.only-mobile
+! - 보증업체 클릭시
+##.gallery-item-pd
+
+! 주소요 (https://jusoyo41.com/)
+! - 상단 배너
+##.basic-banner-gallery
+! - 오른쪽 배너
+! - - - 코난티비 (https://conan-tv.com/)
+||*/data/apms/background/*
+||*/img/*banner.gif
+! -맨 하단 스크롤하면 나오는 배너
+###bottom-banner-btn
+
+! 주소월드 (https://wdwd6.com/)
+! - 배너
+##.banner_list.at-container
+
+! 링크판 (https://linkpan71.com/)
+! - 배너
+##.ban1
+! - 팝업
+###layer_pop
+! - 모바일 하단 배너
+##[href="https://alspo5.net"]
+
+! 애니라이프 (https://anilife.live/)
+- 상단 배너
+##.MainBnnWrap
+
+! APLMODY (https://apkmody.com/games)
+! - 게시물 리스트내 상.하 배너 공간
+###ad-unit-1
+###ad-unit-2
+
+! 메시티비 (https://messitv8.com/)
+! - - - 메인 배너 여러개
+##.baner
+! - - - 왼쪽 상단 배너
+##.d-xl-block.d-none
+! - - - 스포츠 토토 배너
+##div.d-md-block
+! - - - 왼쪽 맨 아래 하단 배너
+##.bigwin-bn
+! 채팅박스
+##u-chat
