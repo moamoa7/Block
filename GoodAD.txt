@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042109
+! Version: 25042110
 
 
 
@@ -12,6 +12,15 @@
 
 
 ! 허용 목록 (frame)
+
+! embed 사용
+@@||youtube.com
+@@||twitter.com
+@@||instagram.com
+
+! 레딧 (https://www.reddit.com/) 로그인시 필요
+@@||google.com
+
 ! - - - 티비위키 등 사람인거 확인할때 사용
 @@||challenges.cloudflare.com
 
@@ -270,3 +279,15 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ##*[class^="adv-group"]
 ! 파워링크 배너 (모바일)
 ! - - - List-KR 사용하면 가능
+
+
+! 짱공유닷컴 (https://www.jjang0u.com/)
+! - 메인 배너 (PC)
+###rolling-main-banner
+! - 메인/게시물 오른쪽 배너 (PC)
+##.right-banner
+! - 메인/게시물 왼쪽 따라다니는 배너 공간 (PC)
+! - https://yako4.net/ - 영상 하단 배너
+###banner
+! - 모바일 하단 배너
+##.ad_area1
