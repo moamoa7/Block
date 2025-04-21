@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042115
+! Version: 25042116
 
 
 
@@ -42,40 +42,58 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 @@||fmkorea.com*$frame
 @@||litter.catbox.moe*$frame
 
-! 레딧 (https://www.reddit.com/) 로그인시 필요
+! 레딧 (https://www.reddit.com/)
+!  - 로그인시 필요
 @@||google.com$frame
 
-! - - - 티비위키 등 사람인거 확인할때 사용
+!  티비위키 등
+! - 사람인거 확인할때 사용
 @@||challenges.cloudflare.com$frame
 
-! - - - 티비위키 / 티비몬 / 티비핫 영상 시청시 필요
+! - 티비위키 / 티비몬 / 티비핫
+! - - - 영상 시청시 필요
 @@||player.bunny-frame.online*$frame
 
-! - - - 일부 성인 영상 시청시 필요
-! - - - avseetv (https://04.avsee.ru/) 주소바뀜
+! avseetv (https://04.avsee.ru/) 주소바뀜
+! - 성인 영상 시청시 필요
 @@||avsee.ru*$frame
-! - - - supjav(https:.//supjav.com)
+!  supjav(https:.//supjav.com)
+! - 성인 영상 시청시 필요
 @@||supremejav.com*$frame
 @@||emturbovid.com*$frame
 @@||fc2stream.tv*$frame
 @@||streamtape.com*$frame
 @@||voe.sx*$frame
 @@||richardsignfish.com*$frame
-! - - - Javsubs91 (https://j91.asia/)
+! Javsubs91 (https://j91.asia/)
+! - 성인 영상 시청시 필요
 @@||streamtape.to*$frame
-! - - - Javgiga (https://javgiga.com/)
-! - - - - - go.rmishe.com 발생 (현쟅탭에서) - 뒤로 가서 영상 다시 클릭해야함 (악질임)
+! Javgiga (https://javgiga.com/)
+! - 성인 영상 시청시 필요
+! - - - go.rmishe.com 발생 (현쟅탭에서) - 뒤로 가서 영상 다시 클릭해야함 (악질임)
 @@||javhahaha.us*$frame
 
-! - - - poooo.ml 챗창 안보이는거 해결
+!  poooo.ml
+!  -  챗창 안보이는거 해결
 @@||poooo.ml*$frame
-! - - - poooo.ml 영상 시청시 필요
+!  - 영상 시청시 필요
 @@||ok.ru*$frame
+@@||player.angelthump.com*$frame
+@@||nimo.tv*$frame
+@@||ssh101.com*$frame
+@@||m.imbc.com*$frame
+@@||chzzk.naver.com*$frame
+@@||player.kick.com*$frame
 
-! JAVGG (https://javgg.net/) 시청시 필요
+! JAVGG (https://javgg.net/)
+! -  시청시 필요
 !@@||goofy1x.xyz*$frame
 !@@||qualification2.fun*$frame
 @@||gimmicked25.fun*$frame
+
+! Sukebei  (https://sukebei.nyaa.si/)
+! -  토렌트 받을때 픽팍 필요
+@@||mypikpak.com*$frame
 
 ! 티빙 (https://user.tving.com/)
 ! - - - 로그인시 필요
@@ -83,25 +101,43 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
 !  / / / / / 허용 목록 (popup) / / / / / 
 
-! - - - 네이버 쇼핑
-@@||naver.com*$popup
+! 네이버 쇼핑 (https://shopping.naver.com/)
+@@||smartstore.naver.com*$popup
+@@||shopping.naver.com*$popup
+@@||brand.naver.com*$popup
+
+! Sukebei  (https://sukebei.nyaa.si/)
+! - 이미지 확인 필요시 사용
+@@||sukebei.nyaa.si*$popup
 
 
-! 허용 목록 (websocket)
 
-! 숲 (https://play.sooplive.co.kr)실시간 방송 접속
+!  / / / / / 허용 목록 (websocket) / / / / / 
+
+! 숲 (https://play.sooplive.co.kr)
+! - 실시간 방송 접속
 @@||bridge.sooplive.co.kr*$websocket
-! 숲 (https://play.sooplive.co.kr) 채팅 사용
+! - 채팅 사용
 @@||chat*.sooplive.co.kr*$websocket
 
-! 치지직 (https://chzzk.naver.com/) 채팅 사용
+! 치지직 (https://chzzk.naver.com/)
+! - 채팅 사용
 @@||chat.naver.com*$websocket
 
-! POOOO 채팅 사용
+! POOOO
+! - 채팅 사용
 @@||chat.poooo.ml*$websocket
 
-! 트위치 (https://www.twitch.tv/) 채팅 사용
+! 트위치 (https://www.twitch.tv/)
+! - 채팅 사용
 @@||irc-ws.chat.twitch.tv*$websocket
+
+
+!  / / / / / 허용 목록 (ping) / / / / / 
+
+! 네이버 쇼핑 (https://shopping.naver.com/)
+! - ping 차단하면 상품 검색시 현재 서비스 접속이 불가합니다라며 메시지 출력
+@@||nlog.naver.com$ping
 
 
 
@@ -164,11 +200,11 @@ _300x250_
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 
 ! 에펨코리아 (https://www.fmkorea.com/)
-! - - -  파워링크 배너
+! -  파워링크 배너
 ##.ad_wrapper
-! - - - 게시물 하단 배너
+! - 게시물 하단 배너
 ##.adsbygoogle
-! - -  아프리카 등 VOD 링크 차단으로 생기는 공백
+! - 아프리카 등 VOD 링크 차단으로 생기는 공백
 ##.video-container
 
 ! 루리 (https://m.ruliweb.com/)
@@ -310,9 +346,6 @@ tvhot.site##.object-cover
 ! 파워링크 배너 (모바일)
 ! - - - List-KR 사용하면 가능
 
-
-
-
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - 메인 배너 (PC)
 ###rolling-main-banner
@@ -356,3 +389,6 @@ tvhot.site##.object-cover
 ! - 출처 : uBlock filters – Ads
 instagram.com##article:has(a[href^="https://www.facebook.com/ads/"]):style(height: 0 !important; overflow: hidden !important;)
 
+! FC2PPVDB (https://fc2ppvdb.com/)
+! - 입장시 18세 체크
+##[id*="ageCheck"]:not(html):not(body):not(article)
