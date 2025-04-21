@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042122
+! Version: 25042123
 
 
 
@@ -245,16 +245,20 @@ m.fmkorea.com##header[class="hd"] ~ .fmad_wrapper ~ *[class]:matches-css(padding
 ###advertise_naver
 
 ! 인벤 (https://www.inven.co.kr/)
+! - 게시물 하단 쿠팡 광고 (List-KR)
+inven.co.kr##+js(remove-attr, placeholder, #webzineHeadmenuF1 input[placeholder][autocomplete="off"])
 ! - 게시물 상단 공백
 ##.ad-header
 ! - 게시물 오른쪽 상단 공백
 ##ad-right2
 ! - 게시글 하단 안내창
 ##.invenAppSuggestionInner
-! - 모바일 게시물 상단 배너
-##.mobileTopAd
-! - 게시글 하단 안내창 (모바일)
-###mobileTailAd_Layer
+! - 모바일 상단 배너 (List-KR)
+m.inven.co.kr##div[class$="Ad"]
+! - 모바일 게시물 상단 배너 (List-KR)
+m.inven.co.kr##div[class^="mobileDaNs"]
+! - 모바일 맨 밑 하단 안내창 (List-LR)
+m.inven.co.kr##div[class^="mobileDaNs"]
 ! - 오른쪽 하단 떠다니는 배너
 ##.roulette-open.inven-float-alarm
 
