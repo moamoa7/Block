@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042121
+! Version: 25042122
 
 
 
@@ -251,9 +251,12 @@ m.fmkorea.com##header[class="hd"] ~ .fmad_wrapper ~ *[class]:matches-css(padding
 ##ad-right2
 ! - 게시글 하단 안내창
 ##.invenAppSuggestionInner
+! - 모바일 게시물 상단 배너
+##.mobileTopAd
 ! - 게시글 하단 안내창 (모바일)
 ###mobileTailAd_Layer
 ! - 오른쪽 하단 떠다니는 배너
+##.roulette-open.inven-float-alarm
 
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
