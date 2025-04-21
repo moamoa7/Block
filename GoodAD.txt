@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042125
+! Version: 25042126
 
 
 
@@ -218,7 +218,6 @@ m.fmkorea.com##header[class="hd"] ~ .fmad_wrapper ~ *[class]:matches-css(padding
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 ###fm_alert
 
-
 ! 루리 (https://m.ruliweb.com/)
 ! -  모바일
 ! - - - 하단 가운데 작은 박스 배너
@@ -241,14 +240,12 @@ m.fmkorea.com##header[class="hd"] ~ .fmad_wrapper ~ *[class]:matches-css(padding
 ! - 게시물 오른쪽 상단 공백
 ##.big_banner
 ! - 파워링크 배너
-!##.naver_power
-###advertise_naver
+##.naver_power
+!###advertise_naver
+! - 파워링크 (모바일)
+##.naver_power01
 
 ! 인벤 (https://www.inven.co.kr/)
-! - 게시물 하단 쿠팡 광고 (List-KR)
-!inven.co.kr##+js(remove-attr, placeholder, #webzineHeadmenuF1 input[placeholder][autocomplete="off"])
-||zicf.inven.co.kr
-!##[id^="div-gpt-ad"]
 ! - 게시물 상단 공백
 ##.ad-header
 ! - 게시물 오른쪽 상단 공백
@@ -287,6 +284,8 @@ m.inven.co.kr##div[class^="mobileDaNs"]
 ! - 모바일 게시물 하단 광고 배너
 ! - - - 3칸짜리 광고 배너
 ###underGoodBtn_freeRecharge
+! - - - 파워링크 광고
+##.power_link7-power_link_top_wrap
 
 ! 다왕 (https://damoang.net)
 ! - 게시물 왼쪽 하단 배너
