@@ -1,32 +1,51 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042111
+! Version: 25042112
 
 
 
 ! 가본 - 팝업 및 프레임 차단
-||*$popup,frame
+||*$popup,frame,ping,websocket
+
+!!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
+! -출처 : Adblock-Rule-Collection-Lite
+||jsdelivr.net/npm/disable-devtool
+
 
 ! 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
+! 숲/치지직/트위치/kick 확인
+
+
+!!! 애드가드 dpi 우회 설정으로 인한 오류 해결
+! - 국내 사이트 접속 안되는거 해결
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+@@||*kr^$stealth=dpi
+@@||lgtwins.com^$stealth=dpi
+
+
+! 길호넷 (https://kilho.net/) 광고 차단 감지 해제
+kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
+
+! srank (https://www.srank.kr/) 광고 차단 감지 해제
+@@doubleclick.net$domain=kilho.net
 
 
 
-! 허용 목록 (frame)
+!  / / / / / 허용 목록 (frame) / / / / / 
 
 ! embed 사용
-@@||youtube.com
-@@||twitter.com
-@@||instagram.com
+@@||youtube.com$frame
+@@||twitter.com$frame
+@@||instagram.com$frame
 
 ! 레딧 (https://www.reddit.com/) 로그인시 필요
-@@||google.com
+@@||google.com$frame
 
 ! - - - 티비위키 등 사람인거 확인할때 사용
-@@||challenges.cloudflare.com
+@@||challenges.cloudflare.com$frame
 
 ! - - - 티비위키 / 티비몬 / 티비핫 영상 시청시 필요
 @@||player.bunny-frame.online*$frame
-
 
 ! - - - 일부 성인 영상 시청시 필요
 ! - - - avseetv (https://04.avsee.ru/) 주소바뀜
@@ -44,7 +63,6 @@
 ! - - - - - go.rmishe.com 발생 (현쟅탭에서) - 뒤로 가서 영상 다시 클릭해야함 (악질임)
 @@||javhahaha.us*$frame
 
-
 ! - - - poooo.ml 챗창 안보이는거 해결
 @@||poooo.ml*$frame
 ! - - - poooo.ml 영상 시청시 필요
@@ -58,13 +76,31 @@
 ! - - - 로그인시 필요
 @@user.tving.com*$frame
 
-! 허용 목록 (popup)
+!  / / / / / 허용 목록 (popup) / / / / / 
+
 ! - - - 네이버 쇼핑
 @@||naver.com*$popup
 
 
+! 허용 목록 (websocket)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 숲 (https://play.sooplive.co.kr)실시간 방송 접속
+@@||bridge.sooplive.co.kr*$websocket
+! 숲 (https://play.sooplive.co.kr) 채팅 사용
+@@||chat*.sooplive.co.kr*$websocket
+
+! 치지직 (https://chzzk.naver.com/) 채팅 사용
+@@||chat.naver.com*$websocket
+
+! POOOO 채팅 사용
+@@||chat.poooo.ml*$websocket
+
+! 트위치 (https://www.twitch.tv/) 채팅 사용
+@@||irc-ws.chat.twitch.tv*$websocket
+
+
+
+!  / / / / / 차단 / / / / / 
 
 
 ! 유튜브 (https://www.youtube.com/)
@@ -83,8 +119,6 @@ youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
 youtube.com###player-ads
 www.youtube.com##.ytp-featured-product
 youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
-
-
 
 ! AVseeTV (https://04.avsee.ru/) 배너 이미지
 ! - 소리바다 (https://sorabada93.com/) 배너
@@ -117,14 +151,12 @@ _300x250_
 ! - 영상 위 배너 공간
 ##.home_iframead
 
-
 ! AAGAG (https://aagag.com/)
 ! - 떠다니는 배너
 ##.bottom.center.sAlert
 ! - 게시물 50개마다 있는 공백 없애기
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
-
 
 ! 에펨코리아 (https://www.fmkorea.com/)
 ! - - -  파워링크 배너
@@ -151,7 +183,6 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ! 뽐뿌 (https://www.ppomppu.co.kr/)
 ! - 게시물 상단 공백
 ##.ad_container
-
 
 ! 엠팍 (https://mlbpark.donga.com/)
 ! - 게시물 오른쪽 상단 공백
@@ -195,7 +226,6 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ! - - - 3칸짜리 광고 배너
 ###underGoodBtn_freeRecharge
 
-
 ! 다왕 (https://damoang.net)
 ! - 게시물 왼쪽 하단 배너
 ##.da-bn-item
@@ -229,17 +259,10 @@ kilho.net##.show.fade.modal-backdrop
 ! - - -  게시물 내 광고
 kilho.net##[src^="https://imgdb.in/a/"]
 
-! 길호넷 (https://kilho.net/) 광고 차단 감지 해제
-kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
-
-! srank (https://www.srank.kr/) 광고 차단 감지 해제
-@@doubleclick.net$domain=kilho.net
-
 ! 맥스무비 (https://www.maxmovie.com/)
 ! - 게시글 열람시 오류 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js$important
-
 
 ! 티비위키 (https://tvwiki19.com/) / 티비몬 (https://tvmon15.org/)
 ! - 배너
@@ -263,7 +286,8 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
 ! 티비핫 (https://tvhot.site/) 주소 바뀜
 ! - 티비핫 상단 배너 및 영상 상단 배너
-##.object-cover
+! - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
+tvhot.site##.object-cover
 
 ! 디시인사이드 (https://gall.dcinside.com/)
 ! - 갤러리 게시판 전체글 위 배너 (PC)
@@ -304,3 +328,10 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ##.bs-notice_layer
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
 ###FeedLayerToolTip
+
+! 픽팍 (https://mypikpak.com/ko/check-in)
+! - 쿠키 안내
+! - https://raw.githubusercontent.com/mtxadmin/ublock/master/filters/_rules
+!##[class*="cookie"]:not(html):not(body):not(article)
+! - Adblock-Rule-Collection-Lite
+##.cookie-wrapper:not(body):not(html)
