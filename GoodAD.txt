@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042112
+! Version: 25042113
 
 
 
@@ -160,7 +160,7 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 
 ! 에펨코리아 (https://www.fmkorea.com/)
 ! - - -  파워링크 배너
-!##.adpost
+##.ad_wrapper
 ! - - - 게시물 하단 배너
 ##.adsbygoogle
 ! - -  아프리카 등 VOD 링크 차단으로 생기는 공백
@@ -291,6 +291,7 @@ tvhot.site##.object-cover
 
 ! 디시인사이드 (https://gall.dcinside.com/)
 ! - 갤러리 게시판 전체글 위 배너 (PC)
+##.banner_box
 ##.ad-layer
 ! - 갤러리 오른쪽 배너
 ##.rightbanner1
