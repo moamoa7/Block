@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042103
+! Version: 25042104
 
 
 
@@ -255,3 +255,7 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! 티비핫 (https://tvhot.site/) 주소 바뀜
 ! - 티비핫 상단 배너 및 영상 상단 배너
 ##.object-cover
+
+! 디시인사이드 (https://gall.dcinside.com/)
+! - 갤러리 오른쪽 배너
+##.rightbanner1
