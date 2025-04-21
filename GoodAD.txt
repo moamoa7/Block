@@ -1,19 +1,20 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042113
+! Version: 25042114
 
 
 
 ! 가본 - 팝업 및 프레임 차단
+! 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
+! 숲/치지직/트위치/kick 확인
+! 인스타/트위터/레딧 확인
 ||*$popup,frame,ping,websocket
+
+
 
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
-
-
-! 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
-! 숲/치지직/트위치/kick 확인
 
 
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -26,6 +27,7 @@
 ! 길호넷 (https://kilho.net/) 광고 차단 감지 해제
 kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
+
 ! srank (https://www.srank.kr/) 광고 차단 감지 해제
 @@doubleclick.net$domain=kilho.net
 
@@ -33,10 +35,12 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
 !  / / / / / 허용 목록 (frame) / / / / / 
 
-! embed 사용
+! 게시물에 iframe로 사용되는 사이트
 @@||youtube.com$frame
 @@||twitter.com$frame
 @@||instagram.com$frame
+@@||fmkorea.com*$frame
+@@||litter.catbox.moe*$frame
 
 ! 레딧 (https://www.reddit.com/) 로그인시 필요
 @@||google.com$frame
@@ -67,6 +71,7 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 @@||poooo.ml*$frame
 ! - - - poooo.ml 영상 시청시 필요
 @@||ok.ru*$frame
+
 ! JAVGG (https://javgg.net/) 시청시 필요
 !@@||goofy1x.xyz*$frame
 !@@||qualification2.fun*$frame
@@ -306,6 +311,8 @@ tvhot.site##.object-cover
 ! - - - List-KR 사용하면 가능
 
 
+
+
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - 메인 배너 (PC)
 ###rolling-main-banner
@@ -336,3 +343,14 @@ tvhot.site##.object-cover
 !##[class*="cookie"]:not(html):not(body):not(article)
 ! - Adblock-Rule-Collection-Lite
 ##.cookie-wrapper:not(body):not(html)
+
+! 개드립 (https://www.dogdrip.net/)
+!  - 상단 배너
+##.ddnad-board.ddnad
+
+! 포머스
+! - 상단 가운데 떠있는?배너
+##.float-banners
+
+! 인스타 (https://www.instagram.com/)
+instagram.com##article:has(a[href^="https://www.facebook.com/ads/"]):style(height: 0 !important; overflow: hidden !important;)
