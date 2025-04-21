@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042119
+! Version: 25042120
 
 
 
@@ -209,6 +209,8 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ##.video-container
 !##ins.adsbygoogle[data-ad-slot]
 ! - 모바일
+! - - - 파워링크 배너 (List-KR)
+m.fmkorea.com##+js(json-prune, tpl apply, tpl.[].c)
 ! - - - 왼쪽. 오른쪽 배너.게시물 하단 배너
 ##iframe[src^="https://loader.fmkorea.com/_loader/loader.php"]
 ! - - - 오른쪽 하단 떠다니는 작은 배너
