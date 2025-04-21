@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042106
+! Version: 25042107
 
 
 
@@ -261,5 +261,7 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ##.gallery_box.issuebox
 ! - 갤러리 오른쪽 배너
 ##.rightbanner1
+! - 게시물글 상단 배너
+###zzbang_div
 ! - 댓글내 트렌드 홍보글
 ##.dory.ub-content
