@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042102
+! Version: 25042103
 
 
 
@@ -156,6 +156,11 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ##.ad-header
 ! - 게시물 오른쪽 상단 공백
 ##ad-right2
+! - 게시글 하단 안내창
+##.invenAppSuggestionInner
+! - 게시글 하단 안내창 (모바일)
+###mobileTailAd_Layer
+! - 오른쪽 하단 떠다니는 배너
 
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
