@@ -1,14 +1,21 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042201
+! Version: 25042202
 
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+! - 1st party 허용
+! - 1st Party내 DNS로 차단된 광고 필터 있을시 별도 처리 필요
+@@||*$~third-party,image
 
 ! 기본 - 팝업 및 프레임 차단
 ! 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
 ! 숲/치지직/트위치/kick 확인
 ! 인스타/트위터/레딧 확인
-||*$popup,frame,ping,websocket
+||*$popup,frame,ping,websocket,image
 
 
 
@@ -131,7 +138,38 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! - 이미지 확인 필요시 사용
 @@||sukebei.nyaa.si*$popup
 
+! 이토랜드 (https://www.etoland.co.kr/) 포인트 적립시 필요
+@@||etoland.co.kr*$popup
 
+
+! 네이버 관련 이미지들
+@@||pstatic.net*$image
+
+! 옥션 관련 이미지들
+@@||iacstatic.co.kr*$image
+@@||gmarket.co.kr*$image
+@@||esmplus.com*$image
+
+! 태무 관련 이미지들
+@@||kwcdn.com*$image
+
+! 디시인사이드 관련 이미지들
+@@||dcimg2.dcinside.co.kr*$image
+
+! 픽팍 출첵 (https://mypikpak.com/) 인증그림 아래 버튼 표시
+@@||gstatic.com*$image
+
+! 폰허브 (https://pornhub.com/) 영상 이미지
+@@||phncdn.com*$image
+
+! xvideo (https://fr.xvideos.com/) 영상 이미지
+@@||xvideos-cdn.com*$image
+
+! 탑걸 (https://kr39.topgirl.co/) 영상 이미지
+@@||m129.az-cdn.com/.TOPGIRL/*$image
+
+! MISSAV (https://missav.ws) 영상 이미지
+!@@||fourhoi.com*$image
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
 
@@ -568,3 +606,13 @@ instagram.com##article:has(a[href^="https://www.facebook.com/ads/"]):style(heigh
 ##.bigwin-bn
 ! 채팅박스
 ##u-chat
+
+! 씨네스트 (https://cineaste.co.kr/)
+! - 메인 배너
+cineaste.co.kr##.main-title
+! - 오른쪽 중간 배너
+##.basic-banner
+
+! MISSAV (https://missav.ws/)
+! - 오른쪽 배너
+##.mb-6.space-y-6
