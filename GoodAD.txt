@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042205
+! Version: 25042206
 
 
 
@@ -12,11 +12,12 @@
 ! - - - 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
 ! - - - 숲/치지직/트위치/kick 확인
 ! - - - 인스타/트위터/레딧 확인
-||*$popup,image,frame
-||*$ping,websocket,third-party
+||*$popup,frame
+||*$ping,websocket,font,css,third-party
+
 
 ! - 1st party 허용 (이미지만)
-@@||*$image,~third-party
+!@@||*$image,~third-party
 
 
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
@@ -68,17 +69,24 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! avseetv (https://04.avsee.ru/) 주소바뀜
 ! - 성인 영상 시청시 필요
 @@||avsee.ru*$frame
+
 !  supjav(https:.//supjav.com)
 ! - 성인 영상 시청시 필요
+! - - - TV 영상 시청시 필요 (클릭시 팝업 발생)
 @@||supremejav.com*$frame
 @@||emturbovid.com*$frame
+! - - - FST 영상 시청시 필요
 @@||fc2stream.tv*$frame
+! - - - ST 영상 시청시 필요 (팝업 발생)
 @@||streamtape.com*$frame
+! - - - VOE 영상 시청시 필요
 @@||voe.sx*$frame
 @@||richardsignfish.com*$frame
-! Javsubs91 (https://j91.asia/)
+
+! Javsubs91 (https://j91.asia/) 영상 시청시 필요
 ! - 성인 영상 시청시 필요
 @@||streamtape.to*$frame
+
 ! Javgiga (https://javgiga.com/)
 ! - 성인 영상 시청시 필요
 ! - - - go.rmishe.com 발생 (현쟅탭에서) - 뒤로 가서 영상 다시 클릭해야함 (악질임)
@@ -93,12 +101,10 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 @@||linkkf.net*$frame
 @@||myani.app*$frame
 
-
 ! 메시티비 (https://messitv8.com/)
 ! - 스포츠 실시간 감상시 필요
 @@||bigwin.livenst.com*$frame
 @@||liventv.com*$frame
-
 
 !  poooo.ml
 !  -  챗창 안보이는거 해결
@@ -120,12 +126,32 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! - 성인 영상 시청시 필요
 @@||avpingyou*.com*$frame
 
-
 ! JAVGG (https://javgg.net/)
 ! - 성인 영상 시청시 필요
-!@@||goofy1x.xyz*$frame
-!@@||qualification2.fun*$frame
-@@||gimmicked25.fun*$frame
+! - - - TB 영상 시청시 필요
+@@||javggvideo.xyz*$frame
+! - - - VH 영상 시청시 필요
+@@||javlion.xyz*$frame
+! - - - SW 영상 시청시 필요
+@@||javsw.me*$frame
+
+! XX조아 (https://xxjoa45.com/)
+! - 성인 영상 시청시 필요
+@@||*/wp-content/plugins/clean-tube-player/public/player-x.php*$frame
+
+! JVA RIDER (https://javrider.com)
+! - 성인 영상 시청시 필요
+@@||javplayers.com*$frame
+
+! 야동판 (https://3.yadongpan.me/)
+! - 성인 영상 시청시 필요
+@@||yadongpan.me/jwplayer/*$frame
+
+! 자막야동 (https://xn--2q1bp6izol05b.com/) (https://3.jamakyadong.me/)
+! - 성인 영상 시청시 필요
+@@||jamakyadong.me/jwplayer/*$frame
+
+
 
 ! Sukebei  (https://sukebei.nyaa.si/)
 ! -  토렌트 받을때 픽팍 필요
@@ -135,107 +161,46 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! - - - 로그인시 필요
 @@user.tving.com*$frame
 
-! 다음 관련 - 메인 쇼핑
-!@@||shop-redapi.daum.net*$frame
-
-
 ! 네이트 판
 @@pann.nate.com*$frame
 
+! AV핑크 (https://avpink29.com/)
+! 인증 사용
+@@recaptcha.net/recaptcha/*$frame
+
+! 옥션
+! - 마이옥션 사용시 필요
+@@escrow.auction.co.kr*$frame
+@@suggest.auction.co.kr*$frame
+
 !  / / / / / 허용 목록 (popup) / / / / / 
 
-@@||*$popup,domain=naver.com|nate.com|daum.net|aagag.com|etoland.co.kr|sukebei.nyaa.si|youtube.com|google.com|trand.co.kr
-
-! 유튜브 이미지들
-@@||ytimg.com*$image
-@@||ggpht.com*$image
-! 유튜브뮤직 이미지들
-@@||lh3.googleusercontent.com*$image
-@@||yt3.googleusercontent.com*$image
-
-! 네이버 관련 이미지들
-@@||pstatic.net*$image
-! 네이버 치지직 라이브 영상 썸네일 이미지들
-@@||livecloud-thumb.akamaized.net*$image
-
-! 트위치 라이브 영상 썸네일 이미지들
-@@||static-cdn.jtvnw.net*$image
-
-! 카카오TV 영상 썸네일 이미지들
-@@||img1.kakaocdn.net*$image
-
-! 다음 관련 이미지들 (메인)
-@@||img1.daumcdn.net*$image
-! 다음 / 네이트 관련 이미지들 (날씨 /쇼핑  등)
-@@||daumcdn.net*$image
-@@||kakaocdn.net*$image
-
-! 네이트 관련 이미지들 (메인)
-@@||nateimg.co.kr*$image
-!@@||daumcdn.net*$image
-!@@||contents-cdn.viewus.co.kr*$image
-!@@||img-books.onestore.co.kr*$image
-! 네이트판 이미지
-@@||pann.com*$image
-! 네이트 만화 이미지
-@@||img-books.onestore.co.kr*$image
-! 네이트 게임 이미지
-@@||pupugame.com*$image
-! 네이트 쇼핑 이미지
-@@||coupangcdn.com*$image
-
-! 숲 이미지
-@@||sooplive.co.kr*$image
-
-! 디시인사이드 -디시트렌드
-@@||cdn.trend.rankify.best$image
-
-! 옥션 관련 이미지들
-@@||iacstatic.co.kr*$image
-@@||gmarket.co.kr*$image
-@@||esmplus.com*$image
+@@||*$popup,domain=naver.com|nate.com|daum.net|aagag.com|etoland.co.kr|sukebei.nyaa.si|youtube.com|google.com|trand.co.kr|auction.co.kr|sooplive.co.kr
 
 
-! 태무 관련 이미지들
-@@||kwcdn.com*$image
-
-! 바나나몰 (https://www.bananamall.co.kr/?freepass=yes) 이미지
-@@||cdn-banana.bizhost.kr/banana_web_*$image
-@@||cdn-banana.bizhost.kr/files/goods/*$image
-@@||cdn-banana.bizhost.kr/banana_img/*$image
-@@||cdn-banana.bizhost.kr/files/new_main/*$image
-@@||api.wecandeo.com*$image
-@@||timgs.acs.wecandeo.com/*$image
+!  / / / / / 허용 목록 (websocket) / / / / / 
 
 
+!네이버에서 사용
+@@pm.pstatic.net*$css
 
-! 디시인사이드 관련 이미지들
-@@||dcimg2.dcinside.co.kr*$image
+! 치지직에서 사용
+@@ssl.pstatic.net*$css
 
-! trand (https://trand.co.kr)아이콘 이미지
-! - - 2개 사이트 모두 필요
-! - - - 픽팍 출첵 (https://mypikpak.com/) 인증그림 아래 버튼 표시 (gstatic.com 필요)
-@@||gstatic.com*$image
-@@||s2.googleusercontent.com*$image
+! 네이버TV에서 사용
+@@static-now.pstatic.net*$css
 
-! 폰허브 (https://pornhub.com/) 영상 이미지
-@@||phncdn.com*$image
+! 다음에서 사용
+@@t1.daumcdn.net*$css
 
-! xvideo (https://fr.xvideos.com/) 영상 이미지
-@@||xvideos-cdn.com*$image
+! 카카오TV에서 사용
+@@t1.kakaocdn.net*$css
 
-! 탑걸 (https://kr39.topgirl.co/) 영상 이미지
-@@||m129.az-cdn.com/.TOPGIRL/*$image
+! https://adguard-dns.io/ 사용
+@@st.agrd.eu*$css
 
-! MISSAV (https://missav.ws) 영상 이미지
-! - 이미지가 뭐가 문제인지 안보임
-@@||fourhoi.com*$image
-
-! FUNLOVE (https://funlove.info/) 영상 이미지
-@@||image-funlove.b-cdn.net*$image
-
-! streamtape.to 영상 이미지
-@@||thumb.tapecontent.net*$image
+! ZUM (https://search.zum.com)에서 사용
+@@search.zumst.com*$css
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
 ! 3p에 해당되지 않아 비활성 처리
@@ -354,10 +319,10 @@ m.fmkorea.com##header[class="hd"] ~ .fmad_wrapper ~ *[class]:matches-css(padding
 
 ! 딴지일보 (https://www.ddanzi.com/)
 ! - 게시글 상단 배너(마켓 홍보)
-###banner_ddanzi_market
+www.ddanzi.com###banner_ddanzi_market
 ! - 게시글 하단 공백
-##.add_display
-!##.ddanzi_m_club_MxC_336x280.add_display2
+www.ddanzi.com##.add_display
+www.ddanzi.com##.ddanzi_m_club_MxC_336x280
 
 ! 뽐뿌 (https://www.ppomppu.co.kr/)
 ! - 게시물 상단 공백
@@ -829,3 +794,55 @@ search.daum.net##.adLinkColl
 ! 바나나몰 모바일 https://m.bananamall.co.kr/ 팝업
 ##.m2-index-pop
 
+!AV핑크 (https://avpink36.com/)
+! - 배너 이미지
+##.fg-image
+
+! XX조아 (https://xxjoa45.com/)
+! - 영상 광고
+||joajoajoamoamoa.store/VAST/
+
+! JVA RIDER (https://javrider.com)
+! - 영상 오른쪽 배너 공간
+javrider.com###custom_html-5
+javrider.com###custom_html-2
+! - 영상 스킵
+javrider.com##.ready-ad.self-adContainer-control.other-ads-container
+
+! 야동판 (https://3.yadongpan.me/)
+! - PC 메인 전체
+! - 영상내 더 아래 배너 및 오른쪽 배너 (모바일 동일)
+! - - - 자막야동 (https://3.jamakyadong.me/)
+###top-desktop
+! - 영상내 배너 및 닫기 버튼
+##.happy-insid-player
+! - 영상 아래 배너
+##.happy-unde-player
+! - 모바일 상단 배너
+! - - - AdGuard – Mobile Ads 에 포함되어 비처리
+!##.happy-header-mobile
+! - 모바일 상단 제외 전체 배너
+###top-mobile
+
+
+! 자막야동 (https://xn--2q1bp6izol05b.com/) (https://3.jamakyadong.me/)
+! - 영상 하단 배너
+##.unde-player-ad
+
+! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/)
+! 믹스걸 (https://xn--369an15a89c2ov.com/) (https://kr13.mix-19.com/home)
+! - 배너 이미지
+/img_ad/*.gif
+! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://xn--369an15a89c2ov.com/)
+! - 오른쪽 배너
+##[class^="banner_item"]:not(html):not(body):not(article)
+
+! 소프트콘 뷰어쉽 (https://viewership.softc.one/)
+! - 안내 팝업 및 뿌연 화면
+viewership.softc.one##.p-4.justify-center.items-center.flex.z-50.left-0.top-0.fixed.bg-black\/50.h-lvh.w-lvw
+! - 팝업 허용 팝업
+viewership.softc.one##.fc-dialog-container
+
+! ZUM (https://zum.com/)
+! - 배너
+##.middle_inner
