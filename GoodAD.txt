@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042210
+! Version: 25042211
 
 
 
@@ -863,3 +863,7 @@ slrclub.com###rewview_list > ul.list > li:nth-of-type(6)
 ! 클리앙 (https://clien.net/)
 ! - 모바일 맨 하단 광고 12시간 안보기
 clien.net##div.nav_container > div.content_view_list
+
+! 보배
+! - 모바일 상단 배너
+bobaedream.co.kr##div.wrap > div:nth-of-type(1)
