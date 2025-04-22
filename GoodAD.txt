@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042203
+! Version: 25042204
 
 
 
@@ -366,6 +366,8 @@ m.fmkorea.com##header[class="hd"] ~ .fmad_wrapper ~ *[class]:matches-css(padding
 m.inven.co.kr##div[class$="Ad"]
 ! - 모바일 게시물 상단 배너 (List-KR)
 m.inven.co.kr##div[class^="mobileDaNs"]
+! - 모바일 게시물 하단 배너  - 댓글 바로 위 배너 (List-KR)
+||inven.co.kr/*/lib/js/zicf*.js
 ! - 모바일 맨 밑 하단 안내창 (List-LR)
 m.inven.co.kr##div[class^="mobileDaNs"]
 ! - 오른쪽 하단 떠다니는 배너
@@ -789,4 +791,3 @@ daum.net##nav.nav_main:nth-of-type(1)
 !##[class*="popup"]:not(html):not(body):not(article)
 ! 바나나몰 모바일 https://m.bananamall.co.kr/ 팝업
 ##.m2-index-pop
-
