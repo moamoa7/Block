@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042216
+! Version: 25042217
 
 
 
@@ -357,6 +357,7 @@ ppomppu.co.kr###wrap > div:nth-of-type(8)
 !###advertise_naver
 ! - 파워링크 (모바일)
 ##.naver_power01
+!mlbpark.donga.com##div[class*="naver_power"]
 
 ! 인벤 (https://www.inven.co.kr/)
 ! - 게시물 상단 공백
