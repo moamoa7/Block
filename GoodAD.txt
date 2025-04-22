@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042222
+! Version: 25042223
 
 
 
@@ -42,6 +42,31 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
 
 
+!  / / / / / 허용 목록 (font) / / / / / 
+
+@@/-icon
+@@/-icons
+@@/family=Material+Icons
+@@/glyphicons
+@@/icomoon
+@@/icon
+@@/icons
+@@/materialicons
+@@/materialsymbols
+@@/materialsymbolsoutlined
+@@/wp-content/themes$font
+@@/wp-content/uploads/fusion-icons
+@@family=Material+Icons
+@@family=Material+Symbols
+@@Material+Icons
+@@/font-awesome
+@@||fontawesome.com^
+
+! Privacy-friendly font providers
+@@||cdn.coollabs.io/fonts^
+@@||api.fonts.coollabs.io^
+@@||fonts.bunny.net^
+@@||fontlay.com^
 
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
@@ -948,4 +973,3 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! SPEEDTEST (https://www.speedtest.net/) 쿠키 창
 ! - AdVoid.Full
 ||ziffstatic.com
-
