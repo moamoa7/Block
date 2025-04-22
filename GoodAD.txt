@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042301
+! Version: 25042302
 
 
 
@@ -96,8 +96,6 @@ cutyion.com#@#.adsbygoogle
 ! - 속도 측정시 업로드 측정 불가로 인한 해제
 @@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com
 
-
-
 !  / / / / / 허용 목록 (frame) / / / / / 
 
 ! 게시물에 iframe로 사용되는 사이트
@@ -112,7 +110,7 @@ cutyion.com#@#.adsbygoogle
 
 ! 레딧 (https://www.reddit.com/)
 !  - 로그인시 필요
-@@||google.com$frame
+@@||google.com/recaptcha/$frame
 
 ! 디시인사이드 투표 사용시
 !@@||gall.dcinside.com/board/poll/vote$frame
@@ -146,6 +144,7 @@ cutyion.com#@#.adsbygoogle
 ! Javsubs91 (https://j91.asia/) 영상 시청시 필요
 ! - 성인 영상 시청시 필요
 @@||streamtape.to*$frame
+@@||watchadsontape.com*$frame
 
 ! Javgiga (https://javgiga.com/)
 ! - 성인 영상 시청시 필요
@@ -1009,3 +1008,9 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! - AdVoid.Full
 ||ziffstatic.com
 
+! Javsubs91 (https://j91.asia/) 새 창
+! - 출처 : uBlock filters
+j-pussy.com,j91.asia,japaneseasmr.com,japanfuck.com.es,japantaboo.com,japanxxxmovie.com,japteenx.com,jasmr.net,jav-torrent.org,jav-xx.com,jav.one,jav101.online,jav380.com,javbake.com,javbee.vip,javbest.xyz,javbix.com,javbob.co,javbull.tv,javcensored.net,javcl.com,javdoge.com,javenspanish.com,javfav.com,javfullmovie.com,javfun.me,javgrab.com,javhd.*,javheroine.com,javhoho.com,javhun.com,javjavhd.com,javmelon.com,javmilf.xyz,javmobile.net,javmoviexxx.com,javneon.tv,javnew.net,javopen.co,javpan.net,javpool.com,javporn.tv,javpornfull.com,javprime.net,javpro.cc,javrave.club,javraveclub.com,javrip.net,javroi.com,javsaga.ninja,javsex.guru,javsexfree.com,javstor.com,javstream.com,javsub-english.top,javtsunami.com,javtv.to,javuncensored.watch,javxxxporn.com,jizz.us,jotea.cl,jojolandsmanga.com,jpeg.pet,jpg.fishing,jpg2.su,jpvhub.com,juicy3dsex.com,jujmanga.com,jujustu-kaisen.com,justsexpictures.com##+js(acs, document.querySelectorAll, popMagic)
+
+! watchadsontape.com / streamtape 영상 클릭시 영상 위 광고 뜨는거
+*$script,3p,denyallow=google.com|gstatic.com,from=watchadsontape.com|streamtape.*
