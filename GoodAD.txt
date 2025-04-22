@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042303
+! Version: 25042304
 
 
 
@@ -436,6 +436,8 @@ ppomppu.co.kr###wrap > div:nth-of-type(8)
 ! - 파워링크 (모바일)
 ##.naver_power01
 !mlbpark.donga.com##div[class*="naver_power"]
+! - 따라다니는 모바일 메뉴버튼
+##.bt_menu_wrap
 
 ! 엠팍 (https://mlbpark.donga.com/)
 ! - 맨 밑 하단 TODAY BEST BULLPEN 5번과 6번 사이 공간 없애기
