@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042212
+! Version: 25042213
 
 
 
@@ -357,6 +357,20 @@ m.inven.co.kr##div[class^="mobileDaNs"]
 ###mobileTailAd
 ! - 오른쪽 하단 떠다니는 배너
 ##.roulette-open.inven-float-alarm
+! - 오른쪽 메뉴 중 일부 삭제
+! - - - 게임 핫딜
+!##.inven-games.menuGroup
+! - - - 핫딜 게시판
+!##.hotdeal-list.menuGroup
+! - - - 견적.출첵.마블
+!##.type-icon.img_banner.menuGroup
+! - - - 인벤 사전예약
+!###inven_reservation_box
+! - - - List-KR에서 인벤 사전예약 사라지게 하는거 복원
+!inven.co.kr#@##inven_reservation_box
+! - - - 브랜드 파트너이벤트
+!###modRightBrandpage
+
 
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
@@ -857,6 +871,7 @@ viewership.softc.one##.fc-dialog-container
 82cook.com###content > div:nth-of-type(2) > div:nth-of-type(7)
 ! 모바일 맨 밑 하단 배너 공간
 82cook.com##div.wrap > div:nth-of-type(3)
+82cook.com###content > div:nth-of-type(2) > div.read_bottom > div.read_bar
 
 ! SLR (https://www.slrclub.com/)
 ! - 모바일 댓글 사이 배너 공간
