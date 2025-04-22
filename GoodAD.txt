@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042208
+! Version: 25042209
 
 
 
@@ -352,6 +352,8 @@ m.inven.co.kr##div[class^="mobileDaNs"]
 ||inven.co.kr/*/lib/js/zicf*.js
 ! - 모바일 맨 밑 하단 안내창 (List-LR)
 m.inven.co.kr##div[class^="mobileDaNs"]
+! - 모바일 하단 안내창
+###mobileTailAd
 ! - 오른쪽 하단 떠다니는 배너
 ##.roulette-open.inven-float-alarm
 
