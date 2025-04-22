@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042309
+! Version: 25042310
 
 
 
@@ -99,11 +99,10 @@ cutyion.com#@#.adsbygoogle
 !  / / / / / 허용 목록 (frame) / / / / / 
 
 ! 게시물에 iframe로 사용되는 사이트
-@@||youtube.com$frame
-@@||twitter.com$frame
+@@||youtube.com/embed/$frame
+@@||platform.twitter.com/embed/$frame
 @@||instagram.com$frame
 @@||fmkorea.com*$frame
-@@||litter.catbox.moe*$frame
 
 ! 네이버 블로그
 @@||blog.naver.com/PostView.naver$frame
@@ -113,8 +112,7 @@ cutyion.com#@#.adsbygoogle
 @@||google.com/recaptcha/$frame
 
 ! 디시인사이드 투표 사용시
-!@@||gall.dcinside.com/board/poll/vote$frame
-@@||gall.dcinside.com$frame
+@@||gall.dcinside.com/board/poll/vote$frame
 
 !  티비위키 등
 ! - 사람인거 확인할때 사용
@@ -126,7 +124,7 @@ cutyion.com#@#.adsbygoogle
 
 ! avseetv (https://04.avsee.ru/) 주소바뀜
 ! - 성인 영상 시청시 필요
-@@||avsee.ru*$frame
+@@||avsee.ru/player/*$frame
 
 !  supjav(https:.//supjav.com)
 ! - 성인 영상 시청시 필요
@@ -236,13 +234,6 @@ cutyion.com#@#.adsbygoogle
 ! https://datanodes.to/
 @@rougthatsidhe.org*$frame
 
-! 모두의 후방 (https://data.pureugong.com/#/moduhubang)
-!@@embeds.beehiiv.com*$frame
-
-! 포머스 (https://www.fomos.kr/)
-!@@vod.sooplive.co.kr*$frame
-!@@tv.naver.com*$frame
-
 
 !  / / / / / 허용 목록 (popup) / / / / / 
 
@@ -318,15 +309,20 @@ cutyion.com#@#.adsbygoogle
 
 
 ! 유튜브 (https://www.youtube.com/)
-! 출처 : https://raw.githubusercontent.com/drtuxwang/drtuxwang.github.io/refs/heads/main/adblock.txt
-! Youtube video ads (uBlock filters - Ads)
-youtube.com##+js(set, ytInitialPlayerResponse.playerAds, undefined)
-youtube.com##+js(set, ytInitialPlayerResponse.adPlacements, undefined)
-youtube.com##+js(set, ytInitialPlayerResponse.adSlots, undefined)
-youtube.com##+js(set, playerResponse.adPlacements, undefined)
-youtube.com##+js(json-prune, playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots important)
-youtube.com##.ytlr-horizontal-list-renderer__items > .yt-virtual-list__container > .yt-virtual-list__item--visible.yt-virtual-list__item--selected.yt-virtual-list__item:has-text(Ad)
-! Youtube 요소 숨기기 (EasyList)
+!  Youtube 광고
+! - 출처 : AdBlock Filter
+@@||www.youtube.com^$generichide
+www.youtube.com#%#//scriptlet('adjust-setTimeout', '[native code]', '17000', '0.001')
+youtube.com#%#//scriptlet('json-prune', 'playerResponse.adPlacements playerResponse.adSlots', 'playerResponse.streamingData.serverAbrStreamingUrl')
+youtube.com#%#//scriptlet('json-prune-fetch-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|player\?|watch\?[tv]=|get_watch\?/')
+youtube.com#%#//scriptlet('json-prune-xhr-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|\/player(?!.*(get_drm_license))|watch\?[tv]=|get_watch\?/')
+youtube.com#%#//scriptlet('set-constant', 'google_ad_status', '1')
+youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'playerResponse.adPlacements', 'undefined')
+youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adPlacements', 'undefined')
+youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adSlots', 'undefined')
+youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.playerAds', 'undefined')
+! Youtube 요소 숨기기
+! -출처 : EasyList
 youtube.com###masthead-ad
 youtube.com##ytd-ad-slot-renderer
 youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
