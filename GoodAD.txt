@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042305
+! Version: 25042306
 
 
 
@@ -378,11 +378,13 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ! - 아프리카 등 VOD 링크 차단으로 생기는 공백
 ##.video-container
 !##ins.adsbygoogle[data-ad-slot]
+! - 댓글 하단 아래 핫딜 (List-KR)
+##div[class$="top_hotdeal"]
 ! - 모바일
 ! - - - 파워링크 배너 (List-KR)
-m.fmkorea.com##+js(json-prune, tpl apply, tpl.[].c)
+fmkorea.com##+js(json-prune, tpl apply, tpl.[].c)
 ! - - - 파워링크 공간 (List-KR)
-m.fmkorea.com##header[class="hd"] ~ .fmad_wrapper ~ *[class]:matches-css(padding: /5px 10px 20px/):matches-css(height: /^[0-9]{2,3}/):remove()
+fmkorea.com##header[class="hd"] ~ .fmad_wrapper ~ *[class]:matches-css(padding: /5px 10px 20px/):matches-css(height: /^[0-9]{2,3}/):remove()
 ! - - - 왼쪽. 오른쪽 배너.게시물 하단 배너 (List-KR)
 ##iframe[src^="https://loader.fmkorea.com/_loader/loader.php"]
 ! - - - 오른쪽 하단 떠다니는 작은 배너
