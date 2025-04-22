@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042211
+! Version: 25042212
 
 
 
@@ -855,6 +855,8 @@ viewership.softc.one##.fc-dialog-container
 ||82cook.com/banner/*
 !  모바일 게시글 하단 배너 공간
 82cook.com###content > div:nth-of-type(2) > div:nth-of-type(7)
+! 모바일 맨 밑 하단 배너 공간
+82cook.com##div.wrap > div:nth-of-type(3)
 
 ! SLR (https://www.slrclub.com/)
 ! - 모바일 댓글 사이 배너 공간
