@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042215
+! Version: 25042216
 
 
 
@@ -311,11 +311,30 @@ m.fmkorea.com##header[class="hd"] ~ .fmad_wrapper ~ *[class]:matches-css(padding
 ###fm_alert
 
 ! 루리 (https://m.ruliweb.com/)
+! - PC
+! - 상단 배너 등
+##.ad
+! - 상단 배너 공백
+##.ad_1152_96
+! - 왼쪽 따라다니는 배너
+##.nav_ad
+! - 좌.우 큰 바깥쪽 배너
+##.ad_background
+! - 게시글과 댓글 사이 배너
+##.ad_1014_254
+! - 댓글 아래 배너 공간
+##.line_deco_bottom.default.nbp_container
+! - 댓글 아래 게시판 아래 배너 공간
+##.ad_1010_250
+! - 맨 하단 배너
+##.ad_1150_290
 ! -  모바일
 ! - - - 하단 가운데 작은 박스 배너
-##.fixed_layer1
+ruliweb.com##.fixed_layer1
+! - - - 게시글과 댓글 사이 배너 공간
+ruliweb.com###board_read > div.content_wrapper > div.nbp_container.default.line_deco_bottom
 ! - - - 맨밑 하단 파란색 배너
-##.fixed_ad_wrapper
+ruliweb.com##.fixed_ad_wrapper
 
 ! 딴지일보 (https://www.ddanzi.com/)
 ! - 게시글 상단 배너(마켓 홍보)
