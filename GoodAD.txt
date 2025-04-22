@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042224
+! Version: 25042301
 
 
 
@@ -40,9 +40,17 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 @@doubleclick.net$domain=kilho.net
 
 
+! cuty.io (cutyion.com) 차단 해제
+! - AdVoid.Full
+cutyion.com#@#.adsbygoogle
+
+
+
 
 
 !  / / / / / 허용 목록 (font) / / / / / 
+
+!  출처 : https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
 
 !!! ALLOWLIST
 @@||ajax.googleapis.com/ajax/libs/webfont/$script,domain=bootsnipp.com|regexpal.com|typepad.com
@@ -98,6 +106,9 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 @@||instagram.com$frame
 @@||fmkorea.com*$frame
 @@||litter.catbox.moe*$frame
+
+! 네이버 블로그
+@@||blog.naver.com/PostView.naver$frame
 
 ! 레딧 (https://www.reddit.com/)
 !  - 로그인시 필요
@@ -223,10 +234,13 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! https://fiber.google.com/speedtest/
 @@gfiber.speedtestcustom.com*$frame
 
+! https://datanodes.to/
+@@rougthatsidhe.org*$frame
+
 
 !  / / / / / 허용 목록 (popup) / / / / / 
 
-@@||*$popup,domain=naver.com|nate.com|daum.net|aagag.com|etoland.co.kr|sukebei.nyaa.si|youtube.com|google.com|trand.co.kr|auction.co.kr|sooplive.co.kr|avdbs.com
+@@||*$popup,domain=naver.com|nate.com|daum.net|aagag.com|etoland.co.kr|sukebei.nyaa.si|youtube.com|google.com|trand.co.kr|auction.co.kr|sooplive.co.kr|avdbs.com|dramaday.me
 
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
@@ -257,6 +271,10 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
 ! https://www.speedtest.net/ 에서 사용
 @@b.cdnst.net*$css
+
+! https://cutyion.com/ 에서 사용
+@@cdn.cuty.io/css/public.css*$css
+
 
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
@@ -309,6 +327,10 @@ youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
 youtube.com###player-ads
 www.youtube.com##.ytp-featured-product
 youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+! 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
+! - 출처 : https://gall.dcinside.com/youtube/378167
+youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
+
 
 ! AVseeTV (https://04.avsee.ru/) 배너 이미지
 ! - 소리바다 (https://sorabada93.com/) 배너
