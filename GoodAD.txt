@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042220
+! Version: 25042221
 
 
 
@@ -13,7 +13,7 @@
 ! - - - 숲/치지직/트위치/kick 확인
 ! - - - 인스타/트위터/레딧 확인
 ||*$popup,frame
-||*$ping,websocket,font,css,other,third-party
+||*$ping,websocket,font,css,third-party
 
 
 ! - 1st party 허용 (이미지만)
@@ -951,3 +951,4 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! SPEEDTEST (https://www.speedtest.net/) 쿠키 창
 ! - AdVoid.Full
 ||ziffstatic.com
+
