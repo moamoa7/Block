@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042223
+! Version: 25042224
 
 
 
@@ -44,6 +44,19 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
 !  / / / / / 허용 목록 (font) / / / / / 
 
+!!! ALLOWLIST
+@@||ajax.googleapis.com/ajax/libs/webfont/$script,domain=bootsnipp.com|regexpal.com|typepad.com
+@@||amazonaws.com^$font,3p,domain=dollartree.com|plex.tv
+@@||googleapis.com/ajax/libs/webfont/$domain=presentationzen.com|typepad.com
+@@||fast.fonts.net/jsapi/$script
+@@||fonts.googleapis.com$domain=abc.xyz|advancedmd.com|android.com|blog.google|blogger.com|browser.works|chromium.org|cloud.digitalocean.com|entertrained.app|freetaxusa.com|fmoviesz.to|gaggle.fun|google.com|googlesource.com|grow.google|groq.com|loanadministration.com|myeducator.com|nerdfonts.com|presentationzen.com|reedsy.com|reliaslearning.com|shop.flipperzero.one|socialworkers.org|googleapps.com|vocabulary.com|web.dev|youtube.com
+@@||fonts.gstatic.com$domain=about.google|ai.google|android.com|bloble.io|blog.google|blogger.com|cenreader.com|chrome.com|chromium.org|cloudskillsboost.google|codingfont.com|dexscreener.com|entertrained.app|google.com|domains.google|googlesource.com|grow.google|groq.com|material.io|myeducator.com|nerdfonts.com|reedsy.com|reliaslearning.com|safety.google|skills.google|socialworkers.org|textfx.withgoogle.com|toolbox.googleapps.com|vocabulary.com|web.dev|youtube.com|zen.­unit.ms
+@@||googleusercontent.com/static/fonts/$domain=tudocelular.com
+@@||myfonts.net$domain=myfonts.com
+@@||typekit.com$font
+@@||typekit.net$script,font
+
+! Icon Packs
 @@/-icon
 @@/-icons
 @@/family=Material+Icons
@@ -973,3 +986,4 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! SPEEDTEST (https://www.speedtest.net/) 쿠키 창
 ! - AdVoid.Full
 ||ziffstatic.com
+
