@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042221
+! Version: 25042222
 
 
 
@@ -416,9 +416,6 @@ m.inven.co.kr##div[class^="mobileDaNs"]
 !inven.co.kr#@##inven_reservation_box
 ! - - - 브랜드 파트너이벤트
 !###modRightBrandpage
-
-! 인벤 게시물 오류 방지
-@@||html-load.com^
 
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
