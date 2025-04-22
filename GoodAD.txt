@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042206
+! Version: 25042207
 
 
 
@@ -846,3 +846,9 @@ viewership.softc.one##.fc-dialog-container
 ! ZUM (https://zum.com/)
 ! - 배너
 ##.middle_inner
+
+! 82쿡
+! - 배너
+||82cook.com/banner/*
+!  모바일 게시글 하단 배너 공간
+82cook.com###content > div:nth-of-type(2) > div:nth-of-type(7)
