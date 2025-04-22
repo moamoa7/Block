@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042308
+! Version: 25042309
 
 
 
@@ -237,11 +237,11 @@ cutyion.com#@#.adsbygoogle
 @@rougthatsidhe.org*$frame
 
 ! 모두의 후방 (https://data.pureugong.com/#/moduhubang)
-@@embeds.beehiiv.com*$frame
+!@@embeds.beehiiv.com*$frame
 
 ! 포머스 (https://www.fomos.kr/)
-@@vod.sooplive.co.kr*$frame
-@@tv.naver.com*$frame
+!@@vod.sooplive.co.kr*$frame
+!@@tv.naver.com*$frame
 
 
 !  / / / / / 허용 목록 (popup) / / / / / 
@@ -1039,4 +1039,3 @@ j-pussy.com,j91.asia,japaneseasmr.com,japanfuck.com.es,japantaboo.com,japanxxxmo
 
 ! watchadsontape.com / streamtape 영상 클릭시 영상 위 광고 뜨는거
 *$script,3p,denyallow=google.com|gstatic.com,from=watchadsontape.com|streamtape.*
-
