@@ -1,19 +1,19 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042218
+! Version: 25042219
 
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-! 기본 - 팝업 / 이미지 / 프레임 차단
-! 3자 - 핑 / 웹소켓 차단
+! 기본 - 팝업 / 프레임 차단
+! 3자 - 핑 / 웹소켓 / 폰트 / css / 기타 차단
 ! - - - 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
 ! - - - 숲/치지직/트위치/kick 확인
 ! - - - 인스타/트위터/레딧 확인
 ||*$popup,frame
-||*$ping,websocket,font,css,third-party
+||*$ping,websocket,font,css,other,third-party
 
 
 ! - 1st party 허용 (이미지만)
@@ -38,6 +38,17 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
 ! srank (https://www.srank.kr/) 광고 차단 감지 해제
 @@doubleclick.net$domain=kilho.net
+
+
+
+
+
+
+!  / / / / / 허용 목록 (websocket) / / / / / 
+
+! https://www.speedtest.net
+! - 속도 측정시 업로드 측정 불가로 인한 해제
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com
 
 
 
@@ -151,8 +162,6 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! - 성인 영상 시청시 필요
 @@||jamakyadong.me/jwplayer/*$frame
 
-
-
 ! Sukebei  (https://sukebei.nyaa.si/)
 ! -  토렌트 받을때 픽팍 필요
 @@||mypikpak.com*$frame
@@ -173,13 +182,16 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 @@escrow.auction.co.kr*$frame
 @@suggest.auction.co.kr*$frame
 
+! https://fiber.google.com/speedtest/
+@@gfiber.speedtestcustom.com*$frame
+
+
 !  / / / / / 허용 목록 (popup) / / / / / 
 
-@@||*$popup,domain=naver.com|nate.com|daum.net|aagag.com|etoland.co.kr|sukebei.nyaa.si|youtube.com|google.com|trand.co.kr|auction.co.kr|sooplive.co.kr
+@@||*$popup,domain=naver.com|nate.com|daum.net|aagag.com|etoland.co.kr|sukebei.nyaa.si|youtube.com|google.com|trand.co.kr|auction.co.kr|sooplive.co.kr|avdbs.com
 
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
-
 
 !네이버에서 사용
 @@pm.pstatic.net*$css
@@ -201,6 +213,13 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
 ! ZUM (https://search.zum.com)에서 사용
 @@search.zumst.com*$css
+
+! https://github.com/에서 사용
+@@github.githubassets.com*$css
+
+! https://www.speedtest.net/ 에서 사용
+@@b.cdnst.net*$css
+
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
 ! 3p에 해당되지 않아 비활성 처리
@@ -644,8 +663,6 @@ instagram.com##article:has(a[href^="https://www.facebook.com/ads/"]):style(heigh
 ##[src*="event_banner"]
 ! - 모바일 상단 배너
 ##.live-stream.only-mobile
-! - 보증업체 클릭시
-##.gallery-item-pd
 
 ! 주소요 (https://jusoyo41.com/)
 ! - 상단 배너
@@ -913,3 +930,22 @@ clien.net##div.nav_container > div.content_view_list
 ! 보배
 ! - 모바일 상단 배너
 bobaedream.co.kr##div.wrap > div:nth-of-type(1)
+
+! AVDBS (https://www.avdbs.com/)
+! - 상단 배너
+avdbs.com##.shw-1024-over.dbs-bnr-wrp
+
+
+! 밍키넷 (https://mingky.net/)
+! - 오른쪽 배너
+mingky.net##.my-3.px-sm-0.px-3 > div.mb-2.na-round.bg-light.img-wrap
+! - 게시글내 모든 배너
+mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
+
+! 야동망고 (https://www.mango54.net/)
+! - 배너
+||*/images/spon/*.gif
+
+! SPEEDTEST (https://www.speedtest.net/) 쿠키 창
+! - AdVoid.Full
+||ziffstatic.com
