@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042311
+! Version: 25042312
 
 
 
@@ -274,6 +274,9 @@ cutyion.com#@#.adsbygoogle
 
 ! trand.co.kr 에서 사용
 @@cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/*$css
+
+! Linkkf 애니TV 에서 사용
+@@cdn.jsdelivr.net/gh/756751uosmaqy/vjplayer@main/*$css
 
 
 
