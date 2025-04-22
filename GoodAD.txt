@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042214
+! Version: 25042215
 
 
 
@@ -402,7 +402,9 @@ m.inven.co.kr##div[class^="mobileDaNs"]
 
 ! 다왕 (https://damoang.net)
 ! - 게시물 왼쪽 하단 배너
-##.da-bn-item
+damoang.net##.da-bn-item
+! - 게시물 중 홍보 글
+damoang.net##li.list-group-item:has(a[href*="promotion"])
 
 ! 끌리앙 (https://www.clien.net)
 ! - 메인 화면 배너
