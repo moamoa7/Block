@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042213
+! Version: 25042214
 
 
 
@@ -327,6 +327,8 @@ www.ddanzi.com##.ddanzi_m_club_MxC_336x280
 ! 뽐뿌 (https://www.ppomppu.co.kr/)
 ! - 게시물 상단 공백
 ##.ad_container
+! - 모바일 최하단 공백
+ppomppu.co.kr###wrap > div:nth-of-type(8)
 
 ! 엠팍 (https://mlbpark.donga.com/)
 ! - 게시물 오른쪽 상단 공백
