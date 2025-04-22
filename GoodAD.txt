@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042207
+! Version: 25042208
 
 
 
@@ -847,8 +847,16 @@ viewership.softc.one##.fc-dialog-container
 ! - 배너
 ##.middle_inner
 
-! 82쿡
+! 82쿡 (https://www.82cook.com/)
 ! - 배너
 ||82cook.com/banner/*
 !  모바일 게시글 하단 배너 공간
 82cook.com###content > div:nth-of-type(2) > div:nth-of-type(7)
+
+! SLR (https://www.slrclub.com/)
+! - 모바일 댓글 사이 배너 공간
+slrclub.com###rewview_list > ul.list > li:nth-of-type(6)
+
+! 클리앙 (https://clien.net/)
+! - 모바일 맨 하단 광고 12시간 안보기
+clien.net##div.nav_container > div.content_view_list
