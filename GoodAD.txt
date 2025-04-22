@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042312
+! Version: 25042313
 
 
 
@@ -237,7 +237,7 @@ cutyion.com#@#.adsbygoogle
 
 !  / / / / / 허용 목록 (popup) / / / / / 
 
-@@||*$popup,domain=naver.com|nate.com|daum.net|aagag.com|etoland.co.kr|sukebei.nyaa.si|youtube.com|google.com|trand.co.kr|auction.co.kr|sooplive.co.kr|avdbs.com|dramaday.me|pureugong.com
+@@||*$popup,domain=naver.com|nate.com|daum.net|aagag.com|etoland.co.kr|sukebei.nyaa.si|youtube.com|google.com|trand.co.kr|auction.co.kr|sooplive.co.kr|avdbs.com|dramaday.me|pureugong.com|avsee.ru
 
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
@@ -277,6 +277,12 @@ cutyion.com#@#.adsbygoogle
 
 ! Linkkf 애니TV 에서 사용
 @@cdn.jsdelivr.net/gh/756751uosmaqy/vjplayer@main/*$css
+
+! 카카오 로그인 (https://accounts.kakao.com/) 에서 사용
+@@accounts.kakaocdn.net/_next/static/css/*$css
+
+! 구글 recaptcha 에서 사용
+@@gstatic.com/recaptcha/releases/*$css
 
 
 
@@ -1041,3 +1047,7 @@ j-pussy.com,j91.asia,japaneseasmr.com,japanfuck.com.es,japantaboo.com,japanxxxmo
 
 ! watchadsontape.com / streamtape 영상 클릭시 영상 위 광고 뜨는거
 *$script,3p,denyallow=google.com|gstatic.com,from=watchadsontape.com|streamtape.*
+
+! 더쿠 (https://theqoo.net/)
+! - 모바일 게시판 하단 광고 공백
+theqoo.net##.board_content_google_ad
