@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042304
+! Version: 25042305
 
 
 
@@ -503,6 +503,17 @@ m.inven.co.kr##div[class^="mobileDaNs"]
 ###underGoodBtn_freeRecharge
 ! - - - 파워링크 광고
 ##.power_link7-power_link_top_wrap
+! - 모바일 메뉴 일부 삭제
+! - - -  오늘의 유머 HIT 30
+etoland.co.kr###todayBest_m_mainBottom
+! - - - 최신글 (NEW)
+etoland.co.kr###latest_m_main
+! - - - HIT
+etoland.co.kr###hit_m_main
+! - - - 찐추
+etoland.co.kr###superLike_mobile
+! - - - 실시간 정보 게시판
+etoland.co.kr###info_recent_list_wrap
 
 ! 다왕 (https://damoang.net)
 ! - 게시물 왼쪽 하단 배너
