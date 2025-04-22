@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042202
+! Version: 25042203
 
 
 
@@ -9,13 +9,15 @@
 
 ! - 1st party 허용
 ! - 1st Party내 DNS로 차단된 광고 필터 있을시 별도 처리 필요
-@@||*$~third-party,image
+@@||*$~third-party,image,media
 
 ! 기본 - 팝업 및 프레임 차단
 ! 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
 ! 숲/치지직/트위치/kick 확인
 ! 인스타/트위터/레딧 확인
 ||*$popup,frame,ping,websocket,image
+
+!@@||*$popup,frame,ping,websocket,image.domain=192.168.0.1
 
 
 
@@ -80,6 +82,10 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! - - - go.rmishe.com 발생 (현쟅탭에서) - 뒤로 가서 영상 다시 클릭해야함 (악질임)
 @@||javhahaha.us*$frame
 
+! MISSAV (https://missav.ws)
+! - 모바일에서 로딩할때 필요한듯
+@@||client-rapi-missav.recombee.com*$frame
+
 ! Linkkf (https://linkkf.net)
 ! - 애니 영상 시청시 필요
 @@||linkkf.net*$frame
@@ -127,37 +133,81 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 ! - - - 로그인시 필요
 @@user.tving.com*$frame
 
+! 다음 관련 - 메인 쇼핑
+!@@||shop-redapi.daum.net*$frame
+
+
+! 네이트 판
+@@pann.nate.com*$frame
+
 !  / / / / / 허용 목록 (popup) / / / / / 
 
-! 네이버 쇼핑 (https://shopping.naver.com/)
-@@||smartstore.naver.com*$popup
-@@||shopping.naver.com*$popup
-@@||brand.naver.com*$popup
+@@||*$popup,domain=naver.com|nate.com|daum.net|aagag.com|etoland.co.kr|sukebei.nyaa.si|youtube.com|trand.co.kr
 
-! Sukebei  (https://sukebei.nyaa.si/)
-! - 이미지 확인 필요시 사용
-@@||sukebei.nyaa.si*$popup
-
-! 이토랜드 (https://www.etoland.co.kr/) 포인트 적립시 필요
-@@||etoland.co.kr*$popup
-
+! 유튜브 이미지들
+@@||ytimg.com*$image
+@@||ggpht.com*$image
 
 ! 네이버 관련 이미지들
 @@||pstatic.net*$image
+! 네이버 치지직 라이브 영상 썸네일 이미지들
+@@||livecloud-thumb.akamaized.net*$image
+
+! 트위치 라이브 영상 썸네일 이미지들
+@@||static-cdn.jtvnw.net*$image
+
+! 카카오TV 영상 썸네일 이미지들
+@@||img1.kakaocdn.net*$image
+
+! 다음 관련 이미지들 (메인)
+@@||img1.daumcdn.net*$image
+! 다음 / 네이트 관련 이미지들 (날씨 /쇼핑  등)
+@@||daumcdn.net*$image
+
+! 네이트 관련 이미지들 (메인)
+@@||nateimg.co.kr*$image
+!@@||daumcdn.net*$image
+!@@||contents-cdn.viewus.co.kr*$image
+!@@||img-books.onestore.co.kr*$image
+! 네이트판 이미지
+@@||pann.com*$image
+! 네이트 만화 이미지
+@@||img-books.onestore.co.kr*$image
+! 네이트 게임 이미지
+@@||pupugame.com*$image
+! 네이트 쇼핑 이미지
+@@||coupangcdn.com*$image
+
+! 숲 이미지
+@@||sooplive.co.kr*$image
 
 ! 옥션 관련 이미지들
 @@||iacstatic.co.kr*$image
 @@||gmarket.co.kr*$image
 @@||esmplus.com*$image
 
+
 ! 태무 관련 이미지들
 @@||kwcdn.com*$image
+
+! 바나나몰 (https://www.bananamall.co.kr/?freepass=yes) 이미지
+@@||cdn-banana.bizhost.kr/banana_web_*$image
+@@||cdn-banana.bizhost.kr/files/goods/*$image
+@@||cdn-banana.bizhost.kr/banana_img/*$image
+@@||cdn-banana.bizhost.kr/files/new_main/*$image
+@@||api.wecandeo.com*$image
+@@||timgs.acs.wecandeo.com/*$image
+
+
 
 ! 디시인사이드 관련 이미지들
 @@||dcimg2.dcinside.co.kr*$image
 
-! 픽팍 출첵 (https://mypikpak.com/) 인증그림 아래 버튼 표시
+! trand (https://trand.co.kr)아이콘 이미지
+! - - 2개 사이트 모두 필요
+! - - - 픽팍 출첵 (https://mypikpak.com/) 인증그림 아래 버튼 표시 (gstatic.com 필요)
 @@||gstatic.com*$image
+@@||s2.googleusercontent.com*$image
 
 ! 폰허브 (https://pornhub.com/) 영상 이미지
 @@||phncdn.com*$image
@@ -169,7 +219,8 @@ kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 @@||m129.az-cdn.com/.TOPGIRL/*$image
 
 ! MISSAV (https://missav.ws) 영상 이미지
-!@@||fourhoi.com*$image
+! - 이미지가 뭐가 문제인지 안보임
+@@||fourhoi.com*$image
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
 
@@ -616,3 +667,126 @@ cineaste.co.kr##.main-title
 ! MISSAV (https://missav.ws/)
 ! - 오른쪽 배너
 ##.mb-6.space-y-6
+
+! 트위치 (https://www.twitch.tv/)
+! - 상단 안내 문구
+twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
+! - 하단 회원가입 안내 문구
+twitch.tv###twilight-sticky-footer-root
+
+! 네이버 (https://www.naver.com/) 간단하게 보이게
+! - PC
+! - - - 왼쪽 하단 메뉴
+naver.com##.id_health.Layout-module__content_area___b_3TU
+! - - - 날씨
+naver.com##div.Layout-module__content_area___b_3TU:nth-of-type(3)
+! - - - 증시
+naver.com##div.Layout-module__content_area___b_3TU:nth-of-type(4)
+! - - - 위젯보드
+naver.com##.RightWidget-module__tool_area___dhpNQ
+! - 모바일
+! - - - 출처 : https://gall.dcinside.com/adguard/567
+!naver.com##.comp_card:not(.comp_weather)
+! - - - 디시인사이드 출처로 바꿔보았으나 날씨 너무 작고 메뉴판도 나와서 변경
+! - - - 메인 전체
+naver.com##.type_round_card.comp_container
+! - - - 메뉴판
+naver.com##.sch_home_shortcut
+
+! 네이버 (cafe.naver.com) 카페 배너
+cafe.naver.com##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
+cafe.naver.com##.bottom.banner_add
+
+! - 네이버 검색 (search.naver.com) 상단 광고
+search.naver.com##.brand_new_ui.section.brand_search
+
+
+! 네이트 간단하게 보이게
+! - PC
+! - - - 쇼핑
+nate.com###shopping
+nate.com##.area_shopping_today
+! - - - 네이트 판
+nate.com###divContentsUpper
+!  - - - 트랜드
+nate.com##.area_issue
+! - - - 추천 검색어
+nate.com##.area_ranking
+! - - - 숏폼
+nate.com##.short-form-content
+! - - - 하단 광고 배너
+nate.com##.ad_area_bottom
+! - - - 가운데 - 오늘의
+nate.com##.bizCnt > .todayBox
+! - 모바일
+! - - - 메인
+nate.com##.f2.mainContainer
+! - - - 상단 메뉴
+nate.com##.blockNavi
+!  - 네이트 뉴스 상단 배너
+news.nate.com###ad_sponsorBar
+! - - - 네이트판 상단 배너
+pann.nate.com##.has_brandAd.limited_ad_wrap
+
+
+! 다음 간단하게 보이게
+! - PC
+! - - - 오늘의 주요소식
+daum.net##.board_issue.board_g
+! - - - 엔터 보드
+daum.net##.board_enter.board_g
+! - - - 스포츠 보드
+daum.net##.board_sports.board_g
+! - - - 카페 보드
+daum.net##.board_cafe.board_g
+! - - - 관심키워드
+daum.net##.board_interest.board_g
+! - - - 증권
+daum.net##.box_stock.box_g
+! - - - 숏폼
+daum.net##.box_shorts.box_g
+! - - - 게임
+daum.net##.box_game.box_g
+! - - - 투게더
+daum.net##.box_together.box_g
+! - - - 랭킹
+daum.net##.box_ranking.box_g
+! - - -오늘의 포토
+daum.net##.box_todayphoto.box_g
+! - 모바일
+! - - - 팝업
+m.daum.net##.bnr_appset_v2_high.bnr_popup.bnr_layer
+! - 뉴스 전체
+daum.net##.channel_mynews.main_cont
+! - 상단 메뉴
+daum.net##.slidebox_menu
+! - 빈공간
+daum.net##nav.nav_main:nth-of-type(1)
+
+! 바나나몰 (bananamall.co.kr) 등 배너 이미지
+!@@cdn-banana.bizhost.kr/banana_web_20181015/banner/logo_default_2025_bananamall.gif
+!@@cdn-banana.bizhost.kr/banana_web_20181015/banner/top_new_prd.gif
+!@@cdn-banana.bizhost.kr/banana_web_20181015/banner/d_07.gif
+!@@cdn-banana.bizhost.kr/files/new_main/1732509267_1.jpg
+!@@cdn-banana.bizhost.kr/files/new_main/1721889366_1.jpg
+!@@cdn-banana.bizhost.kr/files/new_main/1720000568_1[9].jpg
+!@@cdn-banana.bizhost.kr/files/new_main/1720000568_1[7].jpg
+!cdn-banana.bizhost.kr/banner^$image
+!cdn-banana.bizhost.kr*/popup/*.gif
+!cdn-banana.bizhost.kr*/popup/*.jpg
+!cdn-banana.bizhost.kr*/popup/*.png
+! 바나나몰 (bananamall.co.kr) 팝업 왼쪽
+###pop_saunpum
+! 바나나몰 (bananamall.co.kr) 팝업 오른쪽
+###pop_gevent
+! 바나나몰 (bananamall.co.kr) 왼쪽 배너 이미지
+!bananamall.co.kr##[class*="_banner_"]:not(html):not(body):not(article)
+!bananamall.co.kr##[class*="banner-"]:not(html):not(body):not(article)
+! 바나나몰 (bananamall.co.kr) 양쪽 배너 이미지
+!cdn-banana.bizhost.kr/files/new_main/*.gif
+!cdn-banana.bizhost.kr/files/new_main/*.jpg
+! 바나나몰 (bananamall.co.kr) 오른쪽 하단 따라 다니는 팝업 (삭제)
+!##[class*="popup"]:not(html):not(body):not(article)
+! 바나나몰 모바일 https://m.bananamall.co.kr/ 팝업
+##.m2-index-pop
+
