@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042306
+! Version: 25042307
 
 
 
@@ -35,9 +35,9 @@
 ! 길호넷 (https://kilho.net/) 광고 차단 감지 해제
 kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
 
-
 ! srank (https://www.srank.kr/) 광고 차단 감지 해제
-@@doubleclick.net$domain=kilho.net
+! - ublock에서 List-KR 사용시 필요 (List-KR 무력화)
+srank.kr#@#+js(prevent-fetch, doubleclick.net)
 
 
 ! cuty.io (cutyion.com) 차단 해제
@@ -651,7 +651,7 @@ instagram.com##article:has(a[href^="https://www.facebook.com/ads/"]):style(heigh
 ##[id*="ageCheck"]:not(html):not(body):not(article)
 
 ! 쏘걸 (https://kr1.4kjav.co/) / (https://kr79.sogirl.so/)
-! - 안티애드블럭 우회 (uBlock filters – Ad)
+! - 안티애드블럭 우회 (uBlock filters – Ads)
 ||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,xhr,redirect=googlesyndication_adsbygoogle.js:5,domain=~zipextractor.app
 !||pagead2.googlesyndication.com^$xhr,redirect=noop.js
 ! - 입장시 18세 물어보는 팝업
@@ -1027,7 +1027,7 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ||ziffstatic.com
 
 ! Javsubs91 (https://j91.asia/) 새 창
-! - 출처 : uBlock filters
+! - 출처 : uBlock filters – Ads
 j-pussy.com,j91.asia,japaneseasmr.com,japanfuck.com.es,japantaboo.com,japanxxxmovie.com,japteenx.com,jasmr.net,jav-torrent.org,jav-xx.com,jav.one,jav101.online,jav380.com,javbake.com,javbee.vip,javbest.xyz,javbix.com,javbob.co,javbull.tv,javcensored.net,javcl.com,javdoge.com,javenspanish.com,javfav.com,javfullmovie.com,javfun.me,javgrab.com,javhd.*,javheroine.com,javhoho.com,javhun.com,javjavhd.com,javmelon.com,javmilf.xyz,javmobile.net,javmoviexxx.com,javneon.tv,javnew.net,javopen.co,javpan.net,javpool.com,javporn.tv,javpornfull.com,javprime.net,javpro.cc,javrave.club,javraveclub.com,javrip.net,javroi.com,javsaga.ninja,javsex.guru,javsexfree.com,javstor.com,javstream.com,javsub-english.top,javtsunami.com,javtv.to,javuncensored.watch,javxxxporn.com,jizz.us,jotea.cl,jojolandsmanga.com,jpeg.pet,jpg.fishing,jpg2.su,jpvhub.com,juicy3dsex.com,jujmanga.com,jujustu-kaisen.com,justsexpictures.com##+js(acs, document.querySelectorAll, popMagic)
 
 ! watchadsontape.com / streamtape 영상 클릭시 영상 위 광고 뜨는거
