@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042313
+! Version: 25042314
 
 
 
@@ -1050,4 +1050,5 @@ j-pussy.com,j91.asia,japaneseasmr.com,japanfuck.com.es,japantaboo.com,japanxxxmo
 
 ! 더쿠 (https://theqoo.net/)
 ! - 모바일 게시판 하단 광고 공백
-theqoo.net##.board_content_google_ad
+!theqoo.net##.board_content_google_ad
+theqoo.net##.document_list_google_ad_space
