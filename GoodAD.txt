@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042405
+! Version: 25042406
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -11,12 +11,8 @@
 ! - - - 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
 ! - - - 숲/치지직/트위치/kick 확인
 ! - - - 인스타/트위터/레딧 확인
-||*$popup,important
-||*$frame,ping,websocket
-!||*$popup
-!||*$font,third-party
+||*$popup,frame,ping,websocket
 !||*$font,frame,ping,websocket,third-party
-@@||*$media,script,xhr
 !
 !
 ! - 1st party 허용 (이미지만)
