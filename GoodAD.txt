@@ -1115,8 +1115,8 @@ j-pussy.com,j91.asia,japaneseasmr.com,japanfuck.com.es,japantaboo.com,japanxxxmo
 ! - 모바일 게시판 상단 광고 공백
 theqoo.net##.top_google_ad_space
 ! - 모바일 게시판 하단 광고 공백
-theqoo.net##.board_content_google_ad
-! - - -  위 소스로 해도 안되길래 아래 추가 (2개 다 들어가야 정상적으로 안보임)
+!theqoo.net##.board_content_google_ad
+! - - -  위 소스로 해도 안되길래 아래로 추가
 theqoo.net##.document_list_google_ad_space
 
 ZUM (https://zum.com/)
