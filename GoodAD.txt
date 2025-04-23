@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042403
+! Version: 25042404
 
 
 
@@ -15,7 +15,7 @@
 !||*$popup,frame,ping,websocket
 ||*$popup
 !||*$font,third-party
-|*$font,frame,ping,websocket,third-party
+||*$font,frame,ping,websocket,third-party
 
 
 ! - 1st party 허용 (이미지만)
@@ -1164,7 +1164,106 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 
 !////////// 기타 //////////!
 
+/acecounter/*
 
+! 문제 있으니 전역으로 활성화 금지
+!/ad-$~stylesheet
+/admanager.js$script
+/ads/*
+/ads.
+/adsense/*
+/fbevents.js
+
+/generate_204?$image
+/gtag/js?
+/gtm.js
+/prebidlink/*$script
+/?sentry_version=
+
+/^https:\/\/cdn\.jsdelivr\.net\/npm\/[-a-z_]{4,22}@latest\/dist\/script\.min\.js$/$script,3p
+
+
+.google-analytics.com/
+
+	
+||adop.cc^
+||api.ruliweb.com/floating_ad
+||cdn.jsdelivr.net/npm/@adshield/
+||bobaedream.co.kr/adsmov/
+||bobaedream.co.kr/direct/special/
+||clien.net/service/api/hongbo/
+||com/ads
+! 넷플릭스 지역 차단?
+! https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location
+||google.com/pagead/1p-user-list/
+||google.*/pagead/
+||googletagservices.com/tag/js/gpt.js$script,redirect=googletagservices_gpt.js
+||html-load.cc/script/$script
+||image.ruliweb.com/view/view.js?zoneid=
+||img.ruliweb.com/js/criteo.publishertag.js
+||inven.co.kr/common/lib/style/ad.css
+||inven.co.kr/common/lib/js/ad_$script
+||naver.com/jackpotlog/
+||naver.com/mcollector/
+||naver.net/wcslog.js
+||onetrust.
+||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,redirect=googlesyndication_adsbygoogle.js
+||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect=googletagservices_gpt.js
+||ssl.pstatic.net/adimg3.search/adpost/js/
+||ssl.pstatic.net/melona/libs/
+||ssl.pstatic.net/tveta/libs/
+||static.sooplive.co.kr/asset/service/ad/
+||t1.daumcdn.net/kas/static/ba.min.js
+||tracker.$xhr,websocket,script,ping
+||youtube.com/api/stats/qoe?
+||youtube.com/pagead/
+||youtube.com/ptracking?
+||youtube.com/youtubei/v1/log_event?
+
+
+
+! 문제 있으니 전역으로 활성화 금지
+!##[id^="ad"]
+##[id^="ad_"]
+##[id$="Ad"]
+##[id$="-ad"]
+##[class$="_ad"]
+! 문제 있으니 전역으로 활성화 금지
+!##[class*="_ad"]
+! 문제 있으니 전역으로 활성화 금지
+!##[class$="-ad"]
+##[class*="naver_power"]
+##[class^="banner"]
+! 옥션 상단 배너 차단/ 전역으로 활성화 금지
+!##[class$="_banner"]
+! 옥션 상단 배너 차단/ 전역으로 활성화 금지
+!##[class$="_banner"]
+##[class*="sponsor"]
+! 치치직 광고 안내 팝업 차단
+##[class^="popup"]
+
+*##.ad
+##.ad
+*##.adbox
+##.adbox
+##.adBox
+##.ads
+
+##.google-adsense
+
+##ins.adsbygoogle[data-ad-slot]
+
+##.kakao_ad_area
+
+##.div_pop
+
+
+##.videoad
+
+###adContainer
+###adbd.overdiv
+###pop
+###pop.div_pop
 
 
 
