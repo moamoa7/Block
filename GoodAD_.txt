@@ -610,18 +610,7 @@ tvhot.site##.object-cover
 ! - 모바일 하단 배너
 ##.ad_area1
 
-! 숲 ((https://sooplive.co.kr)
-! - 영상 (https://play.sooplive.co.kr)
-! - - - 정상인데도 버퍼링 도는 작은 동그라미
-##.buffering
-! - - - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
-##.tuneout
-! - 다시보기 (https://vod.sooplive.co.kr/) 영상내 왼쪽 하단 애드벌룬 배너
-##.adballoon_icon
-! - 개인채널 (https://ch.sooplive.co.kr/) 팝업
-##.bs-notice_layer
-! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
-###FeedLayerToolTip
+
 
 ! 픽팍 (https://mypikpak.com/ko/check-in)
 ! - 쿠키 안내
