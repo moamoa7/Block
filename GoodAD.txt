@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042316
+! Version: 25042317
 
 
 
@@ -242,7 +242,7 @@ cutyion.com#@#.adsbygoogle
 
 !  / / / / / 허용 목록 (popup) / / / / / 
 
-@@||*$popup,domain=naver.com|daum.net|aagag.com|etoland.co.kr|auction.co.kr|data.pureugong.com|avdbs.com|trand.co.kr|sooplive.co.kr
+@@||*$popup,domain=naver.com|daum.net|aagag.com|etoland.co.kr|auction.co.kr|data.pureugong.com|avdbs.com|trand.co.kr|sooplive.co.kr|play.coupang.com
 
 
 
@@ -1026,7 +1026,7 @@ j-pussy.com,j91.asia,japaneseasmr.com,japanfuck.com.es,japantaboo.com,japanxxxmo
 ! - 모바일 게시판 상단 광고 공백
 theqoo.net##.top_google_ad_space
 ! - 모바일 게시판 하단 광고 공백
-!theqoo.net##.board_content_google_ad
+theqoo.net##.board_content_google_ad
 ! - - -  위 소스로 해도 안되길래 아래로 추가
 theqoo.net##.document_list_google_ad_space
 
@@ -1212,4 +1212,3 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 ###adbd.overdiv
 ###pop
 ###pop.div_pop
-
