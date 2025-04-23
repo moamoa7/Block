@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042404
+! Version: 25042405
 
 
 
@@ -467,6 +467,12 @@ m.inven.co.kr##div[class^="mobileDaNs"]
 !inven.co.kr#@##inven_reservation_box
 ! - - - 브랜드 파트너이벤트
 !###modRightBrandpage
+
+
+inven.co.kr##+js(ra, placeholder, #webzineHeadmenuF1 input[placeholder][autocomplete="off"])
+
+
+
 
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
@@ -1164,6 +1170,7 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 
 !////////// 기타 //////////!
 
+
 /acecounter/*
 
 ! 문제 있으니 전역으로 활성화 금지
@@ -1264,7 +1271,6 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 ###adbd.overdiv
 ###pop
 ###pop.div_pop
-
 
 
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
