@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042318
+! Version: 25042319
 
 
 
@@ -153,7 +153,7 @@ cutyion.com#@#.adsbygoogle
 
 ! MISSAV (https://missav.ws)
 ! - 모바일에서 로딩할때 필요한듯
-!@@||client-rapi-missav.recombee.com*$frame
+@@||client-rapi-missav.recombee.com
 
 ! Linkkf (https://linkkf.net)
 ! - 애니 영상 시청시 필요
@@ -242,7 +242,7 @@ cutyion.com#@#.adsbygoogle
 
 !  / / / / / 허용 목록 (popup) / / / / / 
 
-@@||*$popup,domain=naver.com|daum.net|aagag.com|etoland.co.kr|auction.co.kr|data.pureugong.com|avdbs.com|trand.co.kr|sooplive.co.kr|play.coupang.com
+@@||*$popup,domain=google.*|naver.com|daum.net|aagag.com|etoland.co.kr|auction.co.kr|data.pureugong.com|avdbs.com|trand.co.kr|sooplive.co.kr|play.coupang.com
 
 
 
@@ -1190,9 +1190,8 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 !##[id^="ad"]
 ! 문제 있으니 전역으로 활성화 금지
 !##[class*="_ad"]
-
-
-##[class$="-ad"]
+! 문제 있으니 전역으로 활성화 금지
+!##[class$="-ad"]
 ##[class^="banner"]
 ! 옥션 상단 배너 차단/ 전역으로 활성화 금지
 !##[class$="_banner"]
