@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042404
+! Version: 25042405
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -12,7 +12,7 @@
 ! - - - 숲/치지직/트위치/kick 확인
 ! - - - 인스타/트위터/레딧 확인
 ||*$popup,important
-||*$frame,ping,websocket,important
+||*$frame,ping,websocket
 !||*$popup
 !||*$font,third-party
 !||*$font,frame,ping,websocket,third-party
