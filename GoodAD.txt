@@ -1,12 +1,11 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042401
-
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
+! Version: 25042402
+!
+!
+! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+!
+!
 ! 기본 - 팝업 / 프레임 차단
 ! 3자 - 핑 / 웹소켓 / 폰트 / css / 기타 차단
 ! - - - 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
@@ -16,90 +15,106 @@
 !||*$popup
 ||*$font,third-party
 !||*$font,frame,ping,websocket,third-party
-
-
+!
+!
 ! - 1st party 허용 (이미지만)
 !@@||*$image,~third-party
-
-
+!
+!
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
-
-
+!
+!
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
-
-
+!
+!
 ! 길호넷 (https://kilho.net/) 광고 차단 감지 해제
 kilho.net#%#//scriptlet('prevent-fetch', 'pagead2.googlesyndication.com')
-
+!
+!
 ! srank (https://www.srank.kr/) 광고 차단 감지 해제
 ! - ublock에서 List-KR 사용시 필요 (List-KR 무력화)
 srank.kr#@#+js(prevent-fetch, doubleclick.net)
-
-
+!
+1
 ! cuty.io (cutyion.com) 차단 해제
 ! - AdVoid.Full
 cutyion.com#@#.adsbygoogle
-
-
-
-
+!
+!
+!
+!
+!
 !  / / / / / 허용 목록 (frame) / / / / / 
-
+!
+!
 ! 티빙 (https://user.tving.com/)
 @@||user.tving.com/$frame
-
+!
+!
 ! 구글드라이브 (https://drive.google.com/drive/)
 !@@||drive.google.com$frame
 @@||youtube.googleapis.com/embed/$frame
-
+!
+!
 ! 네이버 카페 (https://cafe.naver.com/)
 @@||cafe.naver.com/MyCafeIntro.nhn?$frame
-
+!
+!
 ! 네이버 블로그
 @@||blog.naver.com/PostView.naver$frame
-
+!
+!
 ! 게시물에 iframe로 사용되는 사이트
 @@||youtube.com/embed/$frame
 @@||platform.twitter.com/embed/$frame
 @@||instagram.com/*/embed/$frame
-
+!
+!
 ! 포머스 (https://www.fomos.kr/) 게시물에 iframe로 사용
 @@||litter.catbox.moe/*mp4$frame
 @@||litter.catbox.moe/*gif$frame
 @@||fmkorea.com/files/*$frame
-
+!
+!
 ! 카카오TV
 @@||tv.kakao.com/embed/player/$frame
 @@||tv.kakao.com/chat/$frame
-
+!
+!
 ! 레딧 (https://www.reddit.com/)
 !  - 로그인시 필요
 @@||google.com/recaptcha/api2/anchor?$frame
-
+!
+!
 ! 짱공유 (https://www.jjang0u.com/)
 @@||.jjang0u.com/board/vidview/$frame
-
+!
+!
 ! 디시인사이드 투표 사용시
 @@||gall.dcinside.com/board/poll/vote$frame
-
+!
+!
 !  티비위키 등
 ! - 사람인거 확인할때 사용
 @@||challenges.cloudflare.com/cdn-cgi/challenge-platform/$frame
-
+!
+!
 ! - 티비위키 / 티비몬 / 티비핫
 ! - - - 영상 시청시 필요
 @@||player.bunny-frame.online/?s=$frame
-
+!
+!
 ! avseetv (https://04.avsee.ru/) 주소바뀜
 ! - 성인 영상 시청시 필요
 @@||avsee.ru/player/$frame
-
+!
+!
 !  supjav(https:.//supjav.com)
 ! JavNeon () https://javneon.tv/)
 ! - 성인 영상 시청시 필요
@@ -113,12 +128,14 @@ cutyion.com#@#.adsbygoogle
 ! - - - VOE 영상 시청시 필요
 @@||voe.sx/e/$frame
 @@||richardsignfish.com/e/$frame
-
+!
+!
 ! Javsubs91 (https://j91.asia/) 영상 시청시 필요
 ! - 성인 영상 시청시 필요
 @@||streamtape.to/e/$frame
 @@||watchadsontape.com/e/$frame
-
+!
+!
 ! Javgiga (https://javgiga.com/)
 ! - 성인 영상 시청시 필요
 ! - - - - - go.rmishe.com 발생 (현쟅탭에서) - 뒤로 가서 영상 다시 클릭해야함 (악질임)
@@ -127,7 +144,8 @@ cutyion.com#@#.adsbygoogle
 @@||wolfstream.tv/embed$frame
 @@||javuncen.xyz/e/$frame
 @@||lulu.st/e/$frame
-
+!
+!
 ! Javfinder (https://javfinder.ai/)
 ! javDoe (https://javdoe.to/)
 ! Javfree.SH (https://javfree.sh/)
@@ -140,7 +158,8 @@ cutyion.com#@#.adsbygoogle
 @@||streamwish.to/e/$frame
 @@||swiftplayers.com/e/$frame
 @@||embedwish.com/e/$frame
-
+!
+!
 ! JAVHD (https://javhd.today/)
 ! - 성인 영상 시청시 필요
 @@||turbovid.xyz/t/$frame
@@ -151,25 +170,30 @@ cutyion.com#@#.adsbygoogle
 @@||streamtape.net/e/$frame
 @@||dooood.com/e/$frame
 @@||all3do.com/e/$frame
-
+!
+!
 ! 123AV (https://123av.com/)
 ! - 성인 영상 시청시 필요
 @@||javplayer.me/e/$frame
-
+!
+!
 ! MISSAV (https://missav.ws)
 ! - 모바일에서 로딩할때 필요한듯
 @@client-rapi-missav.recombee.com
-
+!
+!
 ! Linkkf (https://linkkf.net)
 ! - 애니 영상 시청시 필요
 @@||linkkf.net/static/player/artplayer/$frame
 @@||g2.myani.app$frame
-
+!
+!
 ! 메시티비 (https://messitv8.com/)
 ! - 스포츠 실시간 감상시 필요
 @@||bigwin.livenst.com/messitv/livescore/livescore/$frame
 @@||liventv.com/player?v=$frame
-
+!
+!
 !  poooo.ml
 !  -  챗창 안보이는거 해결
 @@||poooo.ml*$frame
@@ -181,15 +205,18 @@ cutyion.com#@#.adsbygoogle
 @@||m.imbc.com*$frame
 @@||chzzk.naver.com*$frame
 @@||player.kick.com*$frame
-
+!
+!
 ! 쏘걸 (https://kr1.4kjav.co/) / (https://kr79.sogirl.so/)
 ! - 성인 영상 시청시 필요
 @@||iframe.mediadelivery.net/embed/$frame
-
+!
+!
 ! AV핑유걸 (https://avpingyou18.com/)
 ! - 성인 영상 시청시 필요
 @@||avpingyou*.com/static/player/$frame
-
+!
+!
 ! JAVGG (https://javgg.net/)
 ! - 성인 영상 시청시 필요
 ! - - - TB 영상 시청시 필요
@@ -198,23 +225,28 @@ cutyion.com#@#.adsbygoogle
 @@||javlion.xyz/embed/$frame
 ! - - - SW 영상 시청시 필요
 @@||javsw.me/e/$frame
-
+!
+!
 ! XX조아 (https://xxjoa45.com/)
 ! - 성인 영상 시청시 필요
 @@||*/wp-content/plugins/clean-tube-player/public/player-x.php*$frame
-
+!
+!
 ! JVA RIDER (https://javrider.com)
 ! - 성인 영상 시청시 필요
 @@||javplayers.com/video/$frame
-
+!
+!
 ! 야동판 (https://3.yadongpan.me/)
 ! - 성인 영상 시청시 필요
 @@||yadongpan.me/jwplayer/$frame
-
+!
+!
 ! 자막야동 (https://xn--2q1bp6izol05b.com/) (https://3.jamakyadong.me/)
 ! - 성인 영상 시청시 필요
 @@||jamakyadong.me/jwplayer/$frame
-
+!
+!
 ! 7MMTV (https://7tv033.com/)
 ! - 성인 영상 시청시 필요
 @@||7tv*.com/$frame
@@ -226,73 +258,95 @@ cutyion.com#@#.adsbygoogle
 @@||7mmtv.upns.live$frame
 ! - - -  ST (애드블럭으로 시청 불가)
 @@||tapewithadblock.org/e/$frame
-
+!
+!
 ! Sukebei  (https://sukebei.nyaa.si/)
 ! -  토렌트 받을때 픽팍 필요
 @@||mypikpak.com/drive/landing?$frame
-
+!
+!
 ! AV핑크 (https://avpink29.com/)
 ! 인증 사용
 @@recaptcha.net/recaptcha/$frame
-
+!
+!
 ! 옥션
 ! - 마이옥션 사용시 필요
 @@escrow.auction.co.kr$frame
 @@suggest.auction.co.kr$frame
-
+!
+!
 ! https://fiber.google.com/speedtest/
 @@gfiber.speedtestcustom.com$frame
-
-
-
+!
+!
+!
+!
+!
 !  / / / / / 허용 목록 (popup) / / / / / 
-
+!
+!
 @@||*$popup,domain=google.*|naver.com|daum.net|aagag.com|etoland.co.kr|auction.co.kr|data.pureugong.com|avdbs.com|trand.co.kr|sooplive.co.kr|play.coupang.com
-
-
-
+!
+!
+!
+!
+!
 !  / / / / / 허용 목록 (websocket) / / / / / 
-
+!
+!
 ! 디스코드 (https://discord.com/) 사용시 필요
 @@||127.0.0.1$websocket
 @@||gateway.discord.gg$websocket
-
+!
+!
 ! - 속도 측정시 업로드 측정 불가로 인한 해제
 @@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com
-
+!
+!
 ! 숲 (https://play.sooplive.co.kr)
 ! - 실시간 방송 접속
 @@||bridge.sooplive.co.kr$websocket
 ! - 채팅 사용
 @@||chat*.sooplive.co.kr$websocket
-
+!
+!
 ! 치지직 (https://chzzk.naver.com/)
 ! - 채팅 사용
 @@||chat.naver.com$websocket
-
+!
+!
 ! POOOO
 ! - 채팅 사용
 @@||chat.poooo.ml$websocket
-
+!
+!
 ! 트위치 (https://www.twitch.tv/)
 ! - 채팅 사용
 @@||irc-ws.chat.twitch.tv$websocket
-
+!
+!
 ! 카카오TV
 @@||ws-tv.kakao.com$websocket
-
-
+!
+!
+!
+!
+!
 !  / / / / / 허용 목록 (ping) / / / / / 
-
+!
+!
 ! 네이버 쇼핑 (https://shopping.naver.com/)
 ! - ping 차단하면 상품 검색시 현재 서비스 접속이 불가합니다라며 메시지 출력
 @@||nlog.naver.com$ping
-
-
-
+!
+!
+!
+!
+!
 !  / / / / / 차단 / / / / / 
-
-
+!
+!
 ! 유튜브 (https://www.youtube.com/)
 !  Youtube 광고
 ! - 출처 : AdBlock Filter
