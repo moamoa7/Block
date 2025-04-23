@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042407
+! Version: 25042408
 
 
 
@@ -1192,8 +1192,9 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 
 .google-analytics.com/
 
-	
+
 ||adop.cc^
+||ads.
 ||api.ruliweb.com/floating_ad
 ||cdn.jsdelivr.net/npm/@adshield/
 ||bobaedream.co.kr/adsmov/
@@ -1205,6 +1206,8 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 ||google.com/pagead/1p-user-list/
 ||google.*/pagead/
 ||googletagservices.com/tag/js/gpt.js$script,redirect=googletagservices_gpt.js
+! 인벤에서 오류나므로 비활성화
+!||html-load.cc/script/$script
 ||image.ruliweb.com/view/view.js?zoneid=
 ||img.ruliweb.com/js/criteo.publishertag.js
 ||inven.co.kr/common/lib/style/ad.css
