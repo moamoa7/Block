@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042315
+! Version: 25042316
 
 
 
@@ -12,8 +12,8 @@
 ! - - - 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
 ! - - - 숲/치지직/트위치/kick 확인
 ! - - - 인스타/트위터/레딧 확인
-||*$popup,frame
-||*$ping,websocket,font,css,third-party
+||*$popup,frame,ping,websocket
+!||*$ping,websocket,third-party
 
 
 ! - 1st party 허용 (이미지만)
@@ -47,59 +47,20 @@ cutyion.com#@#.adsbygoogle
 
 
 
-
-!  / / / / / 허용 목록 (font) / / / / / 
-
-!  출처 : https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
-
-!!! ALLOWLIST
-@@||ajax.googleapis.com/ajax/libs/webfont/$script,domain=bootsnipp.com|regexpal.com|typepad.com
-@@||amazonaws.com^$font,3p,domain=dollartree.com|plex.tv
-@@||googleapis.com/ajax/libs/webfont/$domain=presentationzen.com|typepad.com
-@@||fast.fonts.net/jsapi/$script
-@@||fonts.googleapis.com$domain=abc.xyz|advancedmd.com|android.com|blog.google|blogger.com|browser.works|chromium.org|cloud.digitalocean.com|entertrained.app|freetaxusa.com|fmoviesz.to|gaggle.fun|google.com|googlesource.com|grow.google|groq.com|loanadministration.com|myeducator.com|nerdfonts.com|presentationzen.com|reedsy.com|reliaslearning.com|shop.flipperzero.one|socialworkers.org|googleapps.com|vocabulary.com|web.dev|youtube.com
-@@||fonts.gstatic.com$domain=about.google|ai.google|android.com|bloble.io|blog.google|blogger.com|cenreader.com|chrome.com|chromium.org|cloudskillsboost.google|codingfont.com|dexscreener.com|entertrained.app|google.com|domains.google|googlesource.com|grow.google|groq.com|material.io|myeducator.com|nerdfonts.com|reedsy.com|reliaslearning.com|safety.google|skills.google|socialworkers.org|textfx.withgoogle.com|toolbox.googleapps.com|vocabulary.com|web.dev|youtube.com|zen.­unit.ms
-@@||googleusercontent.com/static/fonts/$domain=tudocelular.com
-@@||myfonts.net$domain=myfonts.com
-@@||typekit.com$font
-@@||typekit.net$script,font
-
-! Icon Packs
-@@/-icon
-@@/-icons
-@@/family=Material+Icons
-@@/glyphicons
-@@/icomoon
-@@/icon
-@@/icons
-@@/materialicons
-@@/materialsymbols
-@@/materialsymbolsoutlined
-@@/wp-content/themes$font
-@@/wp-content/uploads/fusion-icons
-@@family=Material+Icons
-@@family=Material+Symbols
-@@Material+Icons
-@@/font-awesome
-@@||fontawesome.com^
-
-! Privacy-friendly font providers
-@@||cdn.coollabs.io/fonts^
-@@||api.fonts.coollabs.io^
-@@||fonts.bunny.net^
-@@||fontlay.com^
-
-
-!  / / / / / 허용 목록 (websocket) / / / / / 
-
-! https://www.speedtest.net
-! - 속도 측정시 업로드 측정 불가로 인한 해제
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com
-
 !  / / / / / 허용 목록 (frame) / / / / / 
 
-! 네이버 카페 (https://cafe.naver.com/) 에서 사용
+! 티빙 (https://user.tving.com/)
+@@||user.tving.com/$frame
+
+! 구글드라이브 (https://drive.google.com/drive/)
+!@@||drive.google.com$frame
+@@||youtube.googleapis.com/embed/$frame
+
+! 네이버 카페 (https://cafe.naver.com/)
 @@||cafe.naver.com/MyCafeIntro.nhn?$frame
+
+! 네이버 블로그
+@@||blog.naver.com/PostView.naver$frame
 
 ! 게시물에 iframe로 사용되는 사이트
 @@||youtube.com/embed/$frame
@@ -111,9 +72,9 @@ cutyion.com#@#.adsbygoogle
 @@||litter.catbox.moe/*gif$frame
 @@||fmkorea.com/files/*$frame
 
-
-! 네이버 블로그
-@@||blog.naver.com/PostView.naver$frame
+! 카카오TV
+@@||tv.kakao.com/embed/player/$frame
+@@||tv.kakao.com/chat/$frame
 
 ! 레딧 (https://www.reddit.com/)
 !  - 로그인시 필요
@@ -190,9 +151,6 @@ cutyion.com#@#.adsbygoogle
 ! - 성인 영상 시청시 필요
 @@||javplayer.me/e/$frame
 
-
-
-
 ! MISSAV (https://missav.ws)
 ! - 모바일에서 로딩할때 필요한듯
 !@@||client-rapi-missav.recombee.com*$frame
@@ -264,8 +222,6 @@ cutyion.com#@#.adsbygoogle
 ! - - -  ST (애드블럭으로 시청 불가)
 @@||tapewithadblock.org/e/$frame
 
-
-
 ! Sukebei  (https://sukebei.nyaa.si/)
 ! -  토렌트 받을때 픽팍 필요
 @@||mypikpak.com/drive/landing?$frame
@@ -289,90 +245,43 @@ cutyion.com#@#.adsbygoogle
 @@||*$popup,domain=naver.com|daum.net|aagag.com|etoland.co.kr|auction.co.kr|data.pureugong.com|avdbs.com|trand.co.kr|sooplive.co.kr
 
 
-!  / / / / / 허용 목록 (websocket) / / / / / 
-
-! 네이버에서 사용
-@@pstatic.net$css
-
-! 다음에서 사용
-@@daumcdn.net/*.css$css
-
-! 카카오 (https://kakao.com/) 에서 사용
-@@kakaocdn.net/*/css/$css
-
-! https://adguard-dns.io/ 사용
-@@agrd.eu/*/css/$css
-
-! ZUM (https://zum.com)에서 사용
-@@zumst.com*.css$css
-@@google.com*.css$css
-
-! https://github.com/에서 사용
-@@githubassets.com/assets/*.css$css
-
-! https://www.speedtest.net/ 에서 사용
-@@b.cdnst.net/*.css$css
-
-! https://cutyion.com/ 에서 사용
-@@cdn.cuty.io/css/public.css$css
-
-! trand.co.kr 에서 사용
-@@cdnjs.cloudflare.com/*.css$css
-
-! Linkkf 애니TV 에서 사용
-@@cdn.jsdelivr.net/*.css$css
-
-! 구글 recaptcha 에서 사용
-@@gstatic.com/recaptcha/releases/$css
-
-! 인스타 (https://www.instagram.com/) 에서 사용
-@@static.cdninstagram.com/*.css$css
-
-! 쿠팡 (https://www.coupang.com/) 에서 사용
-@@front.coupangcdn.com/*/css/$css
-
-! 11번가 (https://www.11st.co.kr/) 에서 사용
-@@c.011st.com/css/$css
-
-! 알리 (https://ko.aliexpress.com/) 에서 사용
-@@assets.aliexpress-media.com/*.css$css
-
-! 테무 (https://www.temu.com/kr) 에서 사용
-@@kwcdn.com/*/css/$css
-
-! 샵백 (https://www.shopback.co.kr/) 에서 사용
-@@||static.shopback.com/*/css/$css
-
-
 
 !  / / / / / 허용 목록 (websocket) / / / / / 
-! 3p에 해당되지 않아 비활성 처리
+
+! 디스코드 (https://discord.com/) 사용시 필요
+@@||127.0.0.1$websocket
+@@||gateway.discord.gg$websocket
+
+! - 속도 측정시 업로드 측정 불가로 인한 해제
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com
 
 ! 숲 (https://play.sooplive.co.kr)
 ! - 실시간 방송 접속
-!@@||bridge.sooplive.co.kr*$websocket
+@@||bridge.sooplive.co.kr$websocket
 ! - 채팅 사용
-!@@||chat*.sooplive.co.kr*$websocket
+@@||chat*.sooplive.co.kr$websocket
 
 ! 치지직 (https://chzzk.naver.com/)
 ! - 채팅 사용
-!@@||chat.naver.com*$websocket
+@@||chat.naver.com$websocket
 
 ! POOOO
 ! - 채팅 사용
-!@@||chat.poooo.ml*$websocket
+@@||chat.poooo.ml$websocket
 
 ! 트위치 (https://www.twitch.tv/)
 ! - 채팅 사용
-!@@||irc-ws.chat.twitch.tv*$websocket
+@@||irc-ws.chat.twitch.tv$websocket
+
+! 카카오TV
+@@||ws-tv.kakao.com$websocket
 
 
 !  / / / / / 허용 목록 (ping) / / / / / 
-! 3p에 해당되지 않아 비활성 처리
 
 ! 네이버 쇼핑 (https://shopping.naver.com/)
 ! - ping 차단하면 상품 검색시 현재 서비스 접속이 불가합니다라며 메시지 출력
-!@@||nlog.naver.com$ping
+@@||nlog.naver.com$ping
 
 
 
@@ -676,6 +585,8 @@ tvhot.site##.object-cover
 ##*[class^="adv-group"]
 ! 파워링크 배너 (모바일)
 ! - - - List-KR 사용하면 가능
+! - 필요없는 이미지 차단
+||dccdn11.dcinside.co.kr
 
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - 메인 배너 (PC)
@@ -1130,6 +1041,11 @@ search.zum.com##div[id^="ad"]
 !zum.com##+js(set-constant, _ads_zum_main_initbanner_750_zum_main_br_widget_336, true)
 
 
+! 스포티파이  (https://open.spotify.com/)
+! - 쿠키
+open.spotify.com##div[data-testid="signup-bar"]
+
+
 
 
 
@@ -1237,19 +1153,45 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 
 
 
+
+
+
+
 !////////// 많이 사용되는 문법 //////////!
 
 ! 문제 있으니 전역으로 활성화 금지
 !/ad-$~stylesheet
 /ads/*
+/ads.
 /adsense/*
+/fbevents.js
+
+/generate_204?$image
 /gtag/js?
 /gtm.js
+
+.google-analytics.com/
+
+||com/ads
+! 넷플릭스 지역 차단?
+! https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location
+||google.com/pagead/1p-user-list/
+||google.*/pagead/
+||onetrust.
+||tracker.$xhr,websocket,script,ping
+||youtube.com/api/stats/qoe?
+||youtube.com/pagead/
+||youtube.com/ptracking?
+||youtube.com/youtubei/v1/log_event?
+
+
 
 ! 문제 있으니 전역으로 활성화 금지
 !##[id^="ad"]
 ! 문제 있으니 전역으로 활성화 금지
 !##[class*="_ad"]
+
+
 ##[class$="-ad"]
 ##[class^="banner"]
 ! 옥션 상단 배너 차단/ 전역으로 활성화 금지
@@ -1259,9 +1201,10 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 ##[class^="popup"]
 
 *##.ad
-
+*##.adbox
 ##.ads
 
+##.google-adsense
 
 
 ##.div_pop
