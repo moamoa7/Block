@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042405
+! Version: 25042406
 
 
 
@@ -1205,7 +1205,6 @@ zavalise.com,savefiles.com,do7go.com,uqload.*,kaa.mx,10short.com,oii.la,tpi.li,t
 ||google.com/pagead/1p-user-list/
 ||google.*/pagead/
 ||googletagservices.com/tag/js/gpt.js$script,redirect=googletagservices_gpt.js
-||html-load.cc/script/$script
 ||image.ruliweb.com/view/view.js?zoneid=
 ||img.ruliweb.com/js/criteo.publishertag.js
 ||inven.co.kr/common/lib/style/ad.css
