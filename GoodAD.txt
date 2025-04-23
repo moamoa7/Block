@@ -12,7 +12,7 @@
 ! - - - 넷플릭스 / 티빙 / 웨이브 / 쿠팡플레이 확인
 ! - - - 숲/치지직/트위치/kick 확인
 ! - - - 인스타/트위터/레딧 확인
-||*$popup,frame,ping,websocket
+||*$popup,frame,font,ping,websocket
 !||*$ping,websocket,third-party
 
 
