@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042402
+! Version: 25042403
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -13,8 +13,9 @@
 ! - - - 인스타/트위터/레딧 확인
 ||*$popup,frame,ping,websocket
 !||*$popup
-||*$font,third-party
+!||*$font,third-party
 !||*$font,frame,ping,websocket,third-party
+@@||*$media,script,xhr
 !
 !
 ! - 1st party 허용 (이미지만)
@@ -372,6 +373,64 @@ youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 ! - 출처 : https://gall.dcinside.com/youtube/378167
 youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
 !
+!
+! 숲 ((https://sooplive.co.kr)
+! - 영상 (https://play.sooplive.co.kr)
+! - - - 정상인데도 버퍼링 도는 작은 동그라미
+##.buffering
+! - - - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
+##.tuneout
+! - 다시보기 (https://vod.sooplive.co.kr/) 영상내 왼쪽 하단 애드벌룬 배너
+##.adballoon_icon
+! - 개인채널 (https://ch.sooplive.co.kr/) 팝업
+##.bs-notice_layer
+! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
+###FeedLayerToolTip
+!
+!
+! 씨네스트 (https://cineaste.co.kr/)
+! - 메인 배너
+cineaste.co.kr##.main-title
+! - 오른쪽 중간 배너
+##.basic-banner
+!
+!
+! 이토랜드 (https://www.etoland.co.kr/)
+! -팝업
+###main_popup
+! - 로그인 팝업
+###login_popup
+! - 오른쪽 사이드 배너
+!##.main_right_ad
+! - 왼쪽 사이드 배너
+!##.main_left_ad
+! - 왼쪽 가운데 배너
+!##.banner-box
+! - 왼쪽 비밀 상점
+!##.secret_aside_box
+! - 게시물 내 광고글 (PC)
+!##.ad_list
+! - 게시물 내 댓글 컨텐츠 (모바일)
+!##.comment_extra_box
+! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+##[src*="/data/daumeditor"]
+! - 모바일 게시물 하단 광고 배너
+! - - - 3칸짜리 광고 배너
+!###underGoodBtn_freeRecharge
+! - - - 파워링크 광고
+!##.power_link7-power_link_top_wrap
+! - 모바일 메뉴 일부 삭제
+! - - -  오늘의 유머 HIT 30
+!etoland.co.kr###todayBest_m_mainBottom
+! - - - 최신글 (NEW)
+!etoland.co.kr###latest_m_main
+! - - - HIT
+!etoland.co.kr###hit_m_main
+! - - - 찐추
+!etoland.co.kr###superLike_mobile
+! - - - 실시간 정보 게시판
+!etoland.co.kr###info_recent_list_wrap
 !
 !
 !
