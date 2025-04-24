@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042413
+! Version: 25042414
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -305,6 +305,9 @@ cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! -  - - - - https://www.sakurajav.com/
 ! -  - - - - https://javhay.net/
 ##.ad
+! - - - 하단 예매하기 버튼 (PC/모바일)
+! - - - - - 눌러도 예약화면이 안나옴 (왼쪽 상단 석삼자 눌러서 예매하기 클릭할 것)
+cgv.co.kr##.active.fixed_link_btn_wrap
 !
 !
 ! 토렌트 큐큐 (https://torrentqq365.com)
