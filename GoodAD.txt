@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042502
+! Version: 25042503
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -390,6 +390,6 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! - 왼쪽 배너
 ##.info-banner
 ! - 게시물내 한칸짜리 배너
-!##[src*="event_banner"]
+##[src*="event_banner"]
 ! - 모바일 상단 배너
 [$domain=/^today-sports\d+.com/]##.live-stream.only-mobile
