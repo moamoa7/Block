@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042409
+! Version: 25042410
 !
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -204,6 +204,27 @@ mlbpark.donga.com##.bt_menu_wrap
  ! - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
 !tvhot.site##.object-cover
 !||ntkimg.cloud
+
+! 와이고수 (https://m.ygosu.com/)
+! -모바일 게시글 하단 SNS 공유하기 아이콘 크기 모바일과 안맞아 없앰
+ygosu.com###sns_bar
+! 모바일 댓글 아래 아이콘 3개 모바일과 크기 안맞아 없앰
+ygosu.com##.board_view_fixed_container
+! - 없앤 그 아래 요상한 텍스트 및 아이콘도 지움
+ygosu.com##.w_per100.dp_inline_block
+ygosu.com##.pull-left.btn-group
+!
+!
+! 짱공유닷컴 (https://www.jjang0u.com/)
+! - 메인 배너 (PC)
+!###rolling-main-banner
+! - 메인/게시물 오른쪽 배너 (PC)
+!##.right-banner
+! - 메인/게시물 왼쪽 배너 공간 (PC)
+! - https://yako4.net/ - 영상 하단 배너
+###banner
+! - 모바일 하단 배너
+!##.ad_area1
 !
 !
 ! AVseeTV (https://04.avsee.ru/)
