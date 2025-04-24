@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042501
+! Version: 25042502
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -367,3 +367,29 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ###layer_pop
 ! - 모바일 하단 배너
 ##[href="https://alspo5.net"]
+!
+!
+! 링크사랑 (https://linklove54.com/)
+[$domain=/^linklove\d+.com/]##.w-box
+[$domain=/^linklove\d+.com/]##.miso-love-ad
+!
+!
+! 주소야 (https://jusoya02.com/)
+! - 안전사이트 열람 닫기 없애기
+[$domain=/^jusoya\d+.com/]##.w-banner.at-container
+!
+!
+! 오늘의 중계 (today-sports7.com) - 팝업
+! 코난티비(https://conan-tv.com/) - 팝업
+! https://jusoyo41.com/ - 배너
+###hd_pop
+! - 상단 배너
+[$domain=/^today-sports\d+.com/]##.draggable.slick-list
+! - 가운데 중간 배너
+!##.live-stream-banner
+! - 왼쪽 배너
+##.info-banner
+! - 게시물내 한칸짜리 배너
+!##[src*="event_banner"]
+! - 모바일 상단 배너
+[$domain=/^today-sports\d+.com/]##.live-stream.only-mobile
