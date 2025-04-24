@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042504
+! Version: 25042505
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -350,10 +350,11 @@ cgv.co.kr##.btnLinkFixed
 avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !
 !
-! 쏘걸 (https://kr79.sogirl.so/)
+! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
+! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
 ! - 입장시 18세 물어보는 팝업
-[$domain=/^kr\d+.sogirl.so/]###dclm_modal_content
-[$domain=/^kr\d+.sogirl.so/]###dclm_modal_screen
+sogirl.so,4kjav.co###dclm_modal_content
+sogirl.so,4kjav.co###dclm_modal_screen
 ! - 배너 이미지 (List-KR)
 !||hcdn1.maxsocdn.net^$domain=sogirl.so
 !||1.bp.blogspot.com^$domain=sogirl.so
@@ -375,6 +376,11 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !##.happy-header-mobile
 ! - 모바일에서 배너 보이는 현상 - 공백 삭제
 !##.custom-html-widget.textwidget
+!
+!
+! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
+! - 상단 배너
+4kjav.co##.textwidget
 !
 !
 ! 탑걸 (https://kr39.topgirl.co)
