@@ -931,9 +931,7 @@
  ! - 모바일 상단 배너
  bobaedream.co.kr##div.wrap > div:nth-of-type(1)
  
- ! AVDBS (https://www.avdbs.com/)
- ! - 상단 배너
- avdbs.com##.shw-1024-over.dbs-bnr-wrp
+
  
  
  ! 밍키넷 (https://mingky.net/)
