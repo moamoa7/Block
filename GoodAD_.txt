@@ -512,47 +512,6 @@
  ! - 출처 : https://gall.dcinside.com/adguard/399
  mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
  
- ! 인벤 (https://www.inven.co.kr/)
- ! - 게시물 상단 공백
- ##.ad-header
- ! - 게시물 오른쪽 상단 공백
- !##.ad-right2
- inven.co.kr###webzineBody > div.commu-wrap:first-child > aside.commu-right:last-child > div:nth-child(4)
- ! - 게시글 하단 안내창
- ##.invenAppSuggestionInner
- ! - 모바일 상단 배너 (List-KR)
- m.inven.co.kr##div[class$="Ad"]
- ! - 모바일 게시물 상단 배너 (List-KR)
- m.inven.co.kr##div[class^="mobileDaNs"]
- ! - 모바일 게시물 하단 배너  - 댓글 바로 위 배너 (List-KR)
- ||inven.co.kr/*/lib/js/zicf*.js
- ! - 모바일 맨 밑 하단 안내창 (List-LR)
- m.inven.co.kr##div[class^="mobileDaNs"]
- ! - 모바일 하단 안내창
- ###mobileTailAd
- ! - 오른쪽 하단 떠다니는 배너
- ##.roulette-open.inven-float-alarm
- ! - 오른쪽 메뉴 중 일부 삭제
- ! - - - 게임 핫딜
- !##.inven-games.menuGroup
- ! - - - 핫딜 게시판
- !##.hotdeal-list.menuGroup
- ! - - - 견적.출첵.마블
- !##.type-icon.img_banner.menuGroup
- ! - - - 인벤 사전예약
- !###inven_reservation_box
- ! - - - List-KR에서 인벤 사전예약 사라지게 하는거 복원
- !inven.co.kr#@##inven_reservation_box
- ! - - - 브랜드 파트너이벤트
- !###modRightBrandpage
- 
- 
- inven.co.kr##+js(ra, placeholder, #webzineHeadmenuF1 input[placeholder][autocomplete="off"])
- 
- 
- 
- 
- 
  
  ! 다왕 (https://damoang.net)
  ! - 게시물 왼쪽 하단 배너
