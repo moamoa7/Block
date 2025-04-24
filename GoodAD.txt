@@ -1,14 +1,11 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042418
+! Version: 25042419
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
 !
 !
-!
- ! - 1st party 허용
-@@||*$image,script,xhr,~third-party
 !
 !
 !
@@ -30,7 +27,6 @@
 *#%#//scriptlet("prevent-window-open", "", "10000", "obj")
 ! - - - 예외
 shopping.naver.com,auction.co.kr#@%#//scriptlet("prevent-window-open", "", "10000", "obj")
-
 !
 !
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
@@ -40,21 +36,15 @@ shopping.naver.com,auction.co.kr#@%#//scriptlet("prevent-window-open", "", "1000
 !
 !
 ! 쇼핑사이트 해제
-!@@||shopping.naver.com$image,media,xhr.script,document
-!@@||shopping.naver.com$image,media,xhr.script,document
-
-!@@$generichide,document,~third-party,domain=shopping.naver.com|auction.co.kr
-!@@$generichide,image,media,script,xhr,other,domain=shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr
-!@@||*$document,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com
-!@@$~third-party,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com
-!@@$image,document,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr
-!@@||*$~third-party,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr
-!@@||*$~third-party,domain=sooplive.co.kr
-
-
+@@||*$~third-party,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr
+!
+!
+!
+!
 !
 !  / / / / / 차단 / / / / / 
-
+!
+!
 ! 3자 ping / websocket 차단
 ||*$ping,websocket,third-party
 ! - 3자 websocket 차단 해제
