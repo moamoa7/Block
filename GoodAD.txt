@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042407
+! Version: 25042408
 !
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -9,7 +9,7 @@
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
 !
-! 트위치 등 로딩 지연으로 인한 애드가드 갤러리 필터 해제
+! 트위치 등 일부 사이트 무한 로딩 발생으로 인한 애드가드 갤러리 필터 해제
 #@%#//scriptlet('prevent-fetch', 'doubleclick.net')
 #@%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 #@%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
@@ -92,28 +92,65 @@ cineaste.co.kr##.main-title
 ! - 왼쪽 비밀 상점
 !##.secret_aside_box
 ! - 게시물 내 광고글 (PC)
-!##.ad_list
+##.ad_list
 ! - 게시물 내 댓글 컨텐츠 (모바일)
-!##.comment_extra_box
+!etoland.co.kr##.comment_extra_box
 ! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-##[src*="/data/daumeditor"]
+!##[src*='/data/daumeditor']
 ! - 모바일 게시물 하단 광고 배너
 ! - - - 3칸짜리 광고 배너
-!###underGoodBtn_freeRecharge
+etoland.co.kr###underGoodBtn_freeRecharge
 ! - - - 파워링크 광고
-!##.power_link7-power_link_top_wrap
+!etoland.co.kr##.power_link7-power_link_top_wrap
 ! - 모바일 메뉴 일부 삭제
 ! - - -  오늘의 유머 HIT 30
 !etoland.co.kr###todayBest_m_mainBottom
 ! - - - 최신글 (NEW)
-!etoland.co.kr###latest_m_main
+etoland.co.kr###latest_m_main
 ! - - - HIT
 !etoland.co.kr###hit_m_main
 ! - - - 찐추
-!etoland.co.kr###superLike_mobile
+etoland.co.kr###superLike_mobile
 ! - - - 실시간 정보 게시판
-!etoland.co.kr###info_recent_list_wrap
+etoland.co.kr###info_recent_list_wrap
+!
+!
+! 딴지일보 (https://www.ddanzi.com/)
+ ! - 게시글 상단 배너(마켓 홍보)
+ ddanzi.com###banner_ddanzi_market
+ ! - 게시글 하단 공백 (모바일)
+ !ddanzi.com##.add_display
+ ddanzi.com##.ddanzi_m_club_MxC_336x280
+!
+!
+! 티비위키 (https://tvwiki19.com/) / 티비몬 (https://tvmon15.org/)
+ ! - 배너
+ !###bannerList
+! ||tvwiki*.com/ad/*$important
+  ! - 티비몬 상단 배너
+ !###banner-row-1
+!||tvmon*.org/ad/*$important
+ ! - 영상 하단 배너 공간
+ ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
+ !##[class^="full pc-only"]:not(html):not(body):not(article)
+ ##.pc-only.full
+ !##[class^="full mobile-only2"]:not(html):not(body):not(article)
+ ##.mobile-only.full
+ ! - 바로 플레이버튼 나오게 변경
+ ###viewCover
+ ! - 위로 바로 가는 버튼
+ ! - - - 태블릿(모바일)에서 세로 감상시 전체화면 클릭시 그 위치에 있어서 없앰
+ ! - - - - - 티비위키
+ ###top_btn.sticky_top_btn.top_btn
+ ! - - - - - 티비몬
+ ###top_btn.sticky_top_btn.top_btn_sticky
+ 
+ ! 티비핫 (https://tvhot.site/) 주소 바뀜
+ ! - 티비핫 상단 배너 및 영상 상단 배너
+ ! - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
+!tvhot.site##.object-cover
+!||ntkimg.cloud
 !
 !
 ! AVseeTV (https://04.avsee.ru/)
@@ -123,6 +160,14 @@ cineaste.co.kr##.main-title
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
+!
+!
+! 7MMTV (https://7tv033.com/)
+ ! - 상단 배너 공간
+ ##.a-d-block
+ !- 영상 오른쪽 배너 공간 (EasyList)
+ !||rmhfrtnd.com$important
+ !_300x250_
 !
 !
 ! 토렌트 큐큐 (https://torrentqq365.com)
