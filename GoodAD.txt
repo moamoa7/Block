@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042415
+! Version: 25042416
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -20,10 +20,13 @@
 #@%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 !
 !
-! 팝업 차단
+! 팝업 방지
 !*#%#//scriptlet("prevent-window-open")
 ! - 아래껄로 재변경해봄 (출처 : https://github.com/AdguardTeam/Scriptlets/issues/145)
 *#%#//scriptlet("prevent-window-open", "", "10000", "obj")
+! - - - 예외
+shopping.naver.com,auction.co.kr#@%#//scriptlet("prevent-window-open", "", "10000", "obj")
+
 !
 !
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
@@ -82,10 +85,17 @@ youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 ###FeedLayerToolTip
 !
 !
-! 치지직 광고 영상
-||/ad$xhr
+! 치지직 (https://chzzk.naver.com/ 광고 영상
+|/ad$xhr
 ! - - -  영상(성인) 재생시 필요해서 해제 (팝업 유발 주의)
 @@p16-tiktok-ads-sg.tiktokcdn.com
+
+
+!
+
+
+! 치지직 팝업
+##[class^="popup_"]
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -324,13 +334,11 @@ cgv.co.kr##.btnLinkFixed
 ###topbanner_1
 !
 !
- ! AVDBS (https://www.avdbs.com/)
- ! - 상단 배너
- avdbs.com##.shw-1024-over.dbs-bnr-wrp
+! AVDBS (https://www.avdbs.com/)
+! - 상단 배너
+avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !
 !
 ! 색색티비 (https://kr154.mysstv.com/)
 ! - 배너 이미지 (대/소문자 구분 안함)
-||/banner/*
-! - - - 예외 사이트
-@@||/Banner/$domain=shopping.naver.com
+[$domain=/^kr\d+.mysstv.com/]##[src*='Banner']
