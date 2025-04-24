@@ -584,18 +584,7 @@
  ! - 필요없는 이미지 차단
  !||dccdn11.dcinside.co.kr
  
- ! 짱공유닷컴 (https://www.jjang0u.com/)
- ! - 메인 배너 (PC)
- ###rolling-main-banner
- ! - 메인/게시물 오른쪽 배너 (PC)
- ##.right-banner
- ! - 메인/게시물 왼쪽 따라다니는 배너 공간 (PC)
- ! - https://yako4.net/ - 영상 하단 배너
- ###banner
- ! - 모바일 하단 배너
- ##.ad_area1
- 
- 
+
  
  ! 픽팍 (https://mypikpak.com/ko/check-in)
  ! - 쿠키 안내
