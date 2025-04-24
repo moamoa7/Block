@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042417
+! Version: 25042418
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -8,7 +8,7 @@
 !
 !
  ! - 1st party 허용
-@@||*$~third-party
+@@||*$image,script,xhr,~third-party
 !
 !
 !
