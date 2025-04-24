@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042410
+! Version: 25042411
 !
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -30,6 +30,15 @@
 !
 !
 !  / / / / / 차단 / / / / / 
+
+! 3자 websocket 차단
+||*$websocket
+! - 3자 websocket 차단 해제
+! - - - 디스코드 (https://discord.com/) 연결시 필요
+@@||127.0.0.1$websocket
+@@||gateway.discord.gg$websocket
+! - - - 속도 측정시 업로드 측정 불가로 인한 해제
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com
 !
 !
 ! 유튜브 (https://www.youtube.com/)
@@ -69,6 +78,12 @@ youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 ##.bs-notice_layer
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
 ###FeedLayerToolTip
+!
+!
+! 치지직 광고 영상
+||/ad$xhr
+! - - -  영상(성인) 재생시 필요해서 해제 (팝업 유발 주의)
+@@p16-tiktok-ads-sg.tiktokcdn.com
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -167,6 +182,33 @@ mlbpark.donga.com##.bt_menu_wrap
 ! - 맨 밑 하단 TODAY BEST BULLPEN 5번과 6번 사이 공간 없애기
 ! - 출처 : https://gall.dcinside.com/adguard/399
 !mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
+
+
+! 루리 (https://m.ruliweb.com/)
+! - PC
+! - 상단 배너 등
+!##.ad
+! - 상단 배너 공백
+!##.ad_1152_96
+! - 왼쪽 따라다니는 배너
+!##.nav_ad
+! - 좌.우 큰 바깥쪽 배너
+!##.ad_background
+! - 게시글과 댓글 사이 배너
+!##.ad_1014_254
+! - 댓글 아래 배너 공간
+!##.line_deco_bottom.default.nbp_container
+! - 댓글 아래 게시판 아래 배너 공간
+!##.ad_1010_250
+! - 맨 하단 배너
+!##.ad_1150_290
+! -  모바일
+! - - - 하단 가운데 작은 박스 배너
+ruliweb.com##.fixed_layer1
+! - - - 게시글과 댓글 사이 배너 공간
+!ruliweb.com###board_read > div.content_wrapper > div.nbp_container.default.line_deco_bottom
+! - - - 맨밑 하단 파란색 배너
+ruliweb.com##.fixed_ad_wrapper
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
@@ -195,9 +237,9 @@ mlbpark.donga.com##.bt_menu_wrap
  ! - 위로 바로 가는 버튼
  ! - - - 태블릿(모바일)에서 세로 감상시 전체화면 클릭시 그 위치에 있어서 없앰
  ! - - - - - 티비위키
- ###top_btn.sticky_top_btn.top_btn
+ [$domain=/^tvwiki\d+.com/]###top_btn.sticky_top_btn.top_btn
  ! - - - - - 티비몬
- ###top_btn.sticky_top_btn.top_btn_sticky
+ [$domain=/^tvroom\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
  
  ! 티비핫 (https://tvhot.site/) 주소 바뀜
  ! - 티비핫 상단 배너 및 영상 상단 배너
@@ -254,7 +296,6 @@ avsee.ru##div.main-box:nth-of-type(1)
 [$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[target='_blank']:has([src$='.gif']):upward(1)
 !
 !
-! 치지직 광고 영상
-||/ad$xhr
-! - - -  영상(성인) 재생시 필요해서 해제 (팝업 유발 주의)
-@@p16-tiktok-ads-sg.tiktokcdn.com
+! 색색티비 (https://kr154.mysstv.com/)
+! - 배너 이미지
+##[src*='/Banner']
