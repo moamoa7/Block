@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042408
+! Version: 25042409
 !
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -114,6 +114,59 @@ etoland.co.kr###latest_m_main
 etoland.co.kr###superLike_mobile
 ! - - - 실시간 정보 게시판
 etoland.co.kr###info_recent_list_wrap
+!
+!
+! 인벤 (https://www.inven.co.kr/)
+! - 게시물 상단 공백
+!##.ad-header
+! - 게시물 오른쪽 상단 공백
+!##.ad-right2
+!inven.co.kr###webzineBody > div.commu-wrap:first-child > aside.commu-right:last-child > div:nth-child(4)
+! - 게시글 하단 안내창
+!##.invenAppSuggestionInner
+! - 모바일 상단 배너 (List-KR)
+!m.inven.co.kr##div[class$="Ad"]
+! - 모바일 게시물 상단 배너 (List-KR)
+ !m.inven.co.kr##div[class^="mobileDaNs"]
+ ! - 모바일 게시물 하단 배너  - 댓글 바로 위 배너 (List-KR)
+ !||inven.co.kr/*/lib/js/zicf*.js
+! - 모바일 맨 밑 하단 안내창 (List-LR)
+!m.inven.co.kr##div[class^="mobileDaNs"]
+! - 모바일 하단 안내창
+!###mobileTailAd
+! - 오른쪽 하단 떠다니는 배너 (모바일)
+##.roulette-open.inven-float-alarm
+! - 오른쪽 메뉴 중 일부 삭제
+! - - - 게임 핫딜
+!##.inven-games.menuGroup
+! - - - 핫딜 게시판
+!##.hotdeal-list.menuGroup
+! - - - 견적.출첵.마블
+!##.type-icon.img_banner.menuGroup
+! - - - 인벤 사전예약
+!###inven_reservation_box
+! - - - List-KR에서 인벤 사전예약 사라지게 하는거 복원
+!inven.co.kr#@##inven_reservation_box
+! - - - 브랜드 파트너이벤트
+!###modRightBrandpage
+!
+!
+! 엠팍 (https://mlbpark.donga.com/)
+! - 게시물 오른쪽 상단 공백
+!##.big_banner
+! - 파워링크 배너
+!##.naver_power
+!###advertise_naver
+! - 파워링크 (모바일)
+!##.naver_power01
+!mlbpark.donga.com##div[class*="naver_power"]
+! - 따라다니는 모바일 메뉴버튼
+mlbpark.donga.com##.bt_menu_wrap
+! 
+! 엠팍 (https://mlbpark.donga.com/)
+! - 맨 밑 하단 TODAY BEST BULLPEN 5번과 6번 사이 공간 없애기
+! - 출처 : https://gall.dcinside.com/adguard/399
+!mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
