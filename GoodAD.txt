@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042414
+! Version: 25042415
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -307,7 +307,7 @@ cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ##.ad
 ! - - - 하단 예매하기 버튼 (PC/모바일)
 ! - - - - - 눌러도 예약화면이 안나옴 (왼쪽 상단 석삼자 눌러서 예매하기 클릭할 것)
-cgv.co.kr##.active.fixed_link_btn_wrap
+cgv.co.kr##.btnLinkFixed
 !
 !
 ! 토렌트 큐큐 (https://torrentqq365.com)
