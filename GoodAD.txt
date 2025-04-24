@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042505
+! Version: 25042506
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -301,8 +301,8 @@ avsee.ru##div.main-box:nth-of-type(1)
  !- 영상 오른쪽 배너 공간 (EasyList)
  !||rmhfrtnd.com$important
  !_300x250_
-
-
+!
+!
 ! CGV (https://cgv.co.kr/)
 ! - PC
 ! - - - 하단 오른쪽 배너 공간
@@ -339,8 +339,8 @@ cgv.co.kr##.btnLinkFixed
 [$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[class*='carousel'][id]
 [$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[href*='/ad'][target='_blank']:has(img)
 [$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[target='_blank']:has([src$='.gif']):upward(1)
-
-
+!
+!
 ! 토렌트G (https://ttg-35.com/) 상단 배너
 ###topbanner_1
 !
@@ -352,9 +352,10 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !
 ! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
+! AV 핑크 (https://avpink36.com/)
 ! - 입장시 18세 물어보는 팝업
-sogirl.so,4kjav.co###dclm_modal_content
-sogirl.so,4kjav.co###dclm_modal_screen
+###dclm_modal_content
+###dclm_modal_screen
 ! - 배너 이미지 (List-KR)
 !||hcdn1.maxsocdn.net^$domain=sogirl.so
 !||1.bp.blogspot.com^$domain=sogirl.so
@@ -383,6 +384,11 @@ sogirl.so,4kjav.co###dclm_modal_screen
 4kjav.co##.textwidget
 !
 !
+!AV핑크 (https://avpink34.com/)
+! - 배너 이미지
+##.fg-image
+!
+!
 ! 탑걸 (https://kr39.topgirl.co)
 ! 자브걸 (https://kr23.javgirl.co/)
 ! - 상단 오른쪽 배너 이미지
@@ -396,6 +402,35 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! 자브걸 (https://kr23.javgirl.co/)
 ! - 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
 ||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
+!
+!
+! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/)
+! - 배너 이미지
+###imgDiv > table
+###imgDiv2
+###imgDiv3
+###imgDiv4
+###imgDiv5
+###imgDiv6
+###imgDiv11
+###imgDiv12
+###imgDiv13
+###imgDiv21
+###imgDiv22
+!
+!
+! AV핑유걸 (https://avpingyou18.com/)
+! - 배너 이미지
+##.bannerul
+! - 영상 내 배너
+##.popup_image
+! - 모바일 영상 하단 배너
+||*/pink_*/img/*-1200x300*$important
+!
+!
+! XX조아 (https://xxjoa45.com/)
+! - 영상 광고
+||joajoajoamoamoa.store/VAST/
 !
 !
 ! MISSAV (https://missvod2.com/)
