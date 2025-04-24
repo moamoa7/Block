@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042503
+! Version: 25042504
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -348,6 +348,53 @@ cgv.co.kr##.btnLinkFixed
 ! AVDBS (https://www.avdbs.com/)
 ! - 상단 배너
 avdbs.com##.shw-1024-over.dbs-bnr-wrp
+!
+!
+! 쏘걸 (https://kr79.sogirl.so/)
+! - 입장시 18세 물어보는 팝업
+[$domain=/^kr\d+.sogirl.so/]###dclm_modal_content
+[$domain=/^kr\d+.sogirl.so/]###dclm_modal_screen
+! - 배너 이미지 (List-KR)
+!||hcdn1.maxsocdn.net^$domain=sogirl.so
+!||1.bp.blogspot.com^$domain=sogirl.so
+! - 오른쪽 상단 배너는 보이지 않으나 배너 위치만큼 삭제됨
+! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
+! - - - https://fc2ppv.stream/
+! - - - https://k4.kbjsvip.win/
+!##.happy-header
+! AV핑보걸 영상 화면 하단 배너
+! 쏘걸 (https://kr79.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
+!##.happy-under-player
+! - 맨 하단 배너
+! - - - AdGuard – Ads 에 있어 비처리
+!##.happy-footer
+! - 영상 클릭시 반응없는거 해결 (List-kr)
+!||imasdk.googleapis.com^
+! - 모바일 상단 배너
+! - - - AdGuard – Mobile Ads 에 포함되어 비처리
+!##.happy-header-mobile
+! - 모바일에서 배너 보이는 현상 - 공백 삭제
+!##.custom-html-widget.textwidget
+!
+!
+! 탑걸 (https://kr39.topgirl.co)
+! 자브걸 (https://kr23.javgirl.co/)
+! - 상단 오른쪽 배너 이미지
+###header_banner
+! - 영상내 광고
+||video.twimg.com$domain=topgirl.co|javgirl.co
+! - 영상 하단 텍스트 배너
+topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
+!
+!
+! 자브걸 (https://kr23.javgirl.co/)
+! - 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
+||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
+!
+!
+! MISSAV (https://missvod2.com/)
+! - 배너
+[$domain=/^missvod\d+.com/]###banner-list.banner-list
 !
 !
 ! 색색티비 (https://kr154.mysstv.com/)
