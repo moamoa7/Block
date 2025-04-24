@@ -422,13 +422,7 @@
  ! Javbull (https://javbull.tv/)
  ! - 영상 오른쪽 배너 공간 (EasyList)
  ##.movv-ad
- 
- ! 7MMTV (https://7tv033.com/)
- ! - 상단 배너 공간
- ##.a-d-block
- !- 영상 오른쪽 배너 공간 (EasyList)
- ||rmhfrtnd.com$important
- _300x250_
+
  
  ! JAVGG.NEG (https://javgg.net/)
  ! - 영상 위 배너 공간
