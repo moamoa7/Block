@@ -1,12 +1,9 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042419
+! Version: 25042420
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
-!
-!
-!
 !
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -14,6 +11,7 @@
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
+!
 !
 ! 트위치 등 일부 사이트 무한 로딩 발생으로 인한 애드가드 갤러리 필터 해제
 #@%#//scriptlet('prevent-fetch', 'doubleclick.net')
@@ -25,7 +23,7 @@
 !*#%#//scriptlet("prevent-window-open")
 ! - 아래껄로 재변경해봄 (출처 : https://github.com/AdguardTeam/Scriptlets/issues/145)
 *#%#//scriptlet("prevent-window-open", "", "10000", "obj")
-! - - - 예외
+! - - - 예외 (팝업창 눌렀을때 반응없는 사이트들)
 shopping.naver.com,auction.co.kr#@%#//scriptlet("prevent-window-open", "", "10000", "obj")
 !
 !
