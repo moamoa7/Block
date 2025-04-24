@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042411
+! Version: 25042412
 !
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -31,14 +31,11 @@
 !
 !  / / / / / 차단 / / / / / 
 
-! 3자 websocket 차단
-||*$websocket
+! 3자 ping / websocket 차단
+||*$ping,websocket,third-party
 ! - 3자 websocket 차단 해제
 ! - - - 디스코드 (https://discord.com/) 연결시 필요
-@@||127.0.0.1$websocket
 @@||gateway.discord.gg$websocket
-! - - - 속도 측정시 업로드 측정 불가로 인한 해제
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com
 !
 !
 ! 유튜브 (https://www.youtube.com/)
@@ -297,5 +294,8 @@ avsee.ru##div.main-box:nth-of-type(1)
 !
 !
 ! 색색티비 (https://kr154.mysstv.com/)
-! - 배너 이미지
-##[src*='/Banner']
+! - 배너 이미지 (대/소문자 구분 안함)
+||/banner/*
+! - - - 예외 사이트
+@@||/Banner/$domain=shopping.naver.com
+!##[src*='/Banner/']
