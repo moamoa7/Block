@@ -1,9 +1,10 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042420
+! Version: 25042501
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+!
 !
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
@@ -20,7 +21,6 @@
 !
 !
 ! 팝업 방지
-!*#%#//scriptlet("prevent-window-open")
 ! - 아래껄로 재변경해봄 (출처 : https://github.com/AdguardTeam/Scriptlets/issues/145)
 *#%#//scriptlet("prevent-window-open", "", "10000", "obj")
 ! - - - 예외 (팝업창 눌렀을때 반응없는 사이트들)
@@ -34,7 +34,8 @@ shopping.naver.com,auction.co.kr#@%#//scriptlet("prevent-window-open", "", "1000
 !
 !
 ! 쇼핑사이트 해제
-@@||*$~third-party,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr
+!
+@@||*$image,xhr,~third-party,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr
 !
 !
 !
@@ -324,6 +325,12 @@ cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 cgv.co.kr##.btnLinkFixed
 !
 !
+! 맥스무비 (https://www.maxmovie.com/)
+! - 게시물 오류 해결
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
+!
+!
 ! 토렌트 큐큐 (https://torrentqq365.com)
 ! - 상단 배너
 ![$domain=/^torrentqq\d+.com/]##.header
@@ -348,26 +355,15 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 [$domain=/^kr\d+.mysstv.com/]##[src*='Banner']
 !
 !
+! 주소월드 (https://wdwd6.com/)
+! - 배너
+##.banner_list.at-container
 !
 !
-!
-!
-!
-!
-!
-!
-!
-!
-!
-! 테스트 공간
-! 11번가 광고
-||/ads.$xhr
-
-||/ad.$xhr
-
-||instagram.com/ajax/bz
-||instagram.com/logging_client_events
-||facebook.com/ajax/qm/
-||naver.com/jackpotlog/
-||naver.com/mcollector/
-
+! 링크판 (https://linkpan71.com/)
+! - 배너
+##.ban1
+! - 팝업
+###layer_pop
+! - 모바일 하단 배너
+##[href="https://alspo5.net"]
