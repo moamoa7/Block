@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042510
+! Version: 25042511
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -115,6 +115,14 @@ campaign2.naver.com#@#[class^="popup_"]
 cineaste.co.kr##.main-title
 ! - 오른쪽 중간 배너
 ##.basic-banner
+!
+!
+! AAGAG (https://aagag.com/)
+! - 떠다니는 배너
+##.bottom.center.sAlert
+! - 게시물 50개마다 있는 공백 없애기
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
