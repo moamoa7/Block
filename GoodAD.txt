@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042509
+! Version: 25042510
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -474,9 +474,10 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 !
 ! 색색티비 (https://kr154.mysstv.com/)
-! - 배너 이미지 (대/소문자 구분 안함)
-! - - - src*='banner"
-[$domain=/^kr\d+.mysstv.com/],[$domain=/^darkg\d+.com/]##[src*='banner']
+! - 배너 이미지 (대/소문자 구분)
+! - - - src*='Banner"
+[$domain=/^kr\d+.mysstv.com/]##[src*='Banner']
+!
 !
 ! 주소월드 (https://wdwd6.com/)
 ! - 배너
@@ -507,16 +508,16 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! 야동도시 (https://yacity47.com/)
 ! 야동공장 (https://yagong84.com/)
 ! - 배너 이미지
-[$domain=/^yagro\d+.com/],[$domain=/^redvi\d+.com/],[$domain=/^yacity\d+.com/],[$domain=/^yagong\d+.com/]##[src*='banners']
+||/storage/upload/banners/*$important
 ! - 팝업 - 4시간 동안 다시 열람하지 않습니다
 ! - - - PC
-[$domain=/^yagro\d+.com/],[$domain=/^redvi\d+.com/],[$domain=/^yacity\d+.com/],[$domain=/^yagong\d+.com/]##[class*="popup-pc"]:not(html):not(body):not(article)
+##[class*="popup-pc"]:not(html):not(body):not(article)
 ! - - - mobile
-[$domain=/^yagro\d+.com/],[$domain=/^redvi\d+.com/],[$domain=/^yacity\d+.com/]##.w-80.relative
+##.w-80.relative
 ! 보증업체 보기 배너
-[$domain=/^yagro\d+.com/],[$domain=/^redvi\d+.com/],[$domain=/^yacity\d+.com/]##.rounded-md.border.p-1.w-full
+##.rounded-md.border.p-1.w-full
 ! 하단 배너 이미지
-[$domain=/^yagro\d+.com/],[$domain=/^redvi\d+.com/],[$domain=/^yacity\d+.com/]##.mt-1.justify-start.items-center.flex-wrap.flex
+##.mt-1.justify-start.items-center.flex-wrap.flex
 !
 !
 ! 오늘의 중계 (today-sports7.com) - 팝업
