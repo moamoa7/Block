@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042516
+! Version: 25042601
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -15,17 +15,21 @@
 !
 !
 ! 트위치 등 일부 사이트 무한 로딩 발생으로 인한 애드가드 갤러리 필터 해제
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 #@%#//scriptlet('prevent-fetch', 'doubleclick.net')
+! - - - srank (https://www.srank.kr/) 광고 차단 감지 해제
+! - - - 애드가드에서는 되는대 ublock에서는 안되서 별도 처리 (List-KR 무력화)
+! - - - srank.kr#@#+js(prevent-fetch, doubleclick.net)
 #@%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 #@%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 !
-
+!
 ! 팝업 방지
 ! - 출처 : https://github.com/AdguardTeam/Scriptlets/issues/145
 ! - - - https://javgiga.com/ 여기는 /go.rmishe.com/smartpop/ 고질적으로 나옴
 ! - - - - -  다만 아래 스크립트로 인해 새창이 아닌 본창에 뜸
 ! - - - - -  10000(10초)  - 바꾼다고 시간 지나면 팝업이 생긴다거나 안눌리는 팝업이 눌러진다거나 그런건 아닌듯
-!*#%#//scriptlet("prevent-window-open", "", "10", "obj")
+!*#%#//scriptlet("prevent-window-open", "", "10000", "obj")
 ! - - - 예외 (팝업 메뉴를 눌렀을때 안떠서 해제해야 하는 사이트들 )
 !shopping.naver.com,auction.co.kr,etoland.co.kr,new-m.pay.naver.com#@%#//scriptlet("prevent-window-open", "", "10000", "obj")
 !
@@ -78,6 +82,15 @@ youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 !youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
 !
 !
+! 소프트콘 뷰어쉽 (https://viewership.softc.one/)
+! - 안내 팝업 및 뿌연 화면
+viewership.softc.one##.p-4.justify-center.items-center.flex.z-50.left-0.top-0.fixed.bg-black\/50.h-lvh.w-lvw
+! - 팝업 허용 팝업
+viewership.softc.one##.fc-dialog-container
+! - 하단 배너
+! - - - Fanboy's Annoyance List
+##div[style*="box-shadow: rgb(136, 136, 136) 0px 0px 12px; color: "]
+!
 ! 숲 ((https://sooplive.co.kr)
 ! - 영상 (https://play.sooplive.co.kr)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
@@ -93,19 +106,18 @@ youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 !
 !
 ! 치지직 (https://chzzk.naver.com/ 광고 영상
-|/ad$xhr
+!|/ad$xhr
 ! - - -  영상(성인) 재생시 필요해서 해제 (팝업 유발 주의)
-@@p16-tiktok-ads-sg.tiktokcdn.com
-
-
+!@@p16-tiktok-ads-sg.tiktokcdn.com
 !
-
-
+!
 ! 치지직 팝업
-##[class^="popup_"]
+!##[class^="popup_"]
+! - 맞는건 위 스크립트지만 전역으로 해볼려고 아래로 변경
+##[class*="popup"]
 ! - 예외
 ! - - -  포인트 얻기 위함
-campaign2.naver.com#@#[class^="popup_"]
+!campaign2.naver.com#@#[class^="popup_"]
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -121,6 +133,19 @@ cineaste.co.kr##.main-title
 ! - 게시물 50개마다 있는 공백 없애기
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
+!
+!
+! 에펨코리아 (https://www.fmkorea.com/)
+! - PC
+! - - - 파워링크 배너
+!##.ad_wrapper
+! - - - 오른쪽 배너
+!##ins.adsbygoogle[data-ad-slot]
+! - 모바일
+! - - - 오른쪽 하단 떠다니는 작은 배너
+###fm_alert
+! - 아프리카 탭 게시물 중 VOD iframe 없애기
+##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
@@ -142,7 +167,7 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 !etoland.co.kr##.comment_extra_box
 ! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-!##[src*='/data/daumeditor']
+etoland.co.kr##[src*="/data/daumeditor"]
 ! - 모바일 게시물 하단 광고 배너
 ! - - - 3칸짜리 광고 배너
 etoland.co.kr###underGoodBtn_freeRecharge
@@ -583,43 +608,240 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 
 ! https://tvwiki20.com/
 ! https://tvmon15.org/
+! https://www.inven.co.kr/
 ##[src*="/AD/"]
 
 ! https://www.sooplive.co.kr/ (bj 방)
 ! https://04.avsee.ru/ 영상
+! https://damoang.net/
 ##[src*="/ad/"]
 
+! https://mlbpark.donga.com/
+! https://www.inven.co.kr/
 ##[src*="/ads/"]
 
+! 치지직 영상 안나옴
+! 숲 영상 위 검색 사라짐/ 채팅창 사라짐 / 하단 모든 정보 사라짐 / 로딩 돌아가는거 안보임
+! 티비위키 / 티비몬 영상 이미지 전부 안보임
+! https://fr.xvideos.com/
+! https://supjav.com/
+! https://04.avsee.ru/
+! https://javfc2.xyz/
+! https://tvhot.site/
+! https://javgiga.com/ 영상 이미지 안보임
+! 네이버tv영상 안보임 (소리만 나옴)
+!##[class*="ad"]
 
-##[href*="banner"]
+! https://www.sooplive.co.kr/
+! https://www.etoland.co.kr/
+! https://7tv033.com/
+! https://kr40.topgirl.co/
+! https://kr79.sogirl.so/
+! https://www.avdbs.com/
+! https://fr.pornhub.com/
+! https://www.nate.com/
+##[class^="ad"]
 
-##[href*="banners"]
+
+! https://www.daum.net/
+! https://www.ddanzi.com/
+##[class*="_ad"]
+
+! https://search.zum.com/
+##[class^="ad_"]
+
+! https://search.zum.com/
+! https://poooo.ml/
+! https://www.nate.com/
+! https://www.daum.net/
+! https://www.ddanzi.com/ 게시글 안보임
+!##[class*="ad_"]
+
+! https://www.etoland.co.kr/
+##[class$="_ad"]
+
+! https://search.zum.com/
+! https://www.nate.com/
+##[class*="_ad"]
+
+! https://supjav.com/
+##[class$="-ad"]
+
+! https://www.sooplive.co.kr/
+! https://kr40.topgirl.co/
+##[class^="ad_"]
+
+! https://search.zum.com/
+! https://www.nate.com/
+##[class^="_ad_"]
+
+! https://www.inven.co.kr/
+##[class^="ad-"]
+
+! https://chzzk.naver.com/
+! https://tv.naver.com/
+##[class*="-ad-"]
+
+! https://bbs.ruliweb.com/
+##[class*="_ad_"]
+
+! https://www.slrclub.com/
+##[id$="-ad"]
+
+! https://fr.xvideos.com/
+! https://www.naver.com/
+##[id^="ad-"]
+
+! https://www.naver.com/
+##[id*="-ad-"]
+
+! https://missav.ws/
+! https://search.zum.com/
+##[id*="_ad_"]
+
+! https://www.naver.com/
+! https://www.nate.com/
+##[id^="ad_"]
+
+! https://missav.ws/
+##[id$="-ads"]
+
+! https://aagag.com/
+##[id*="_ads_"]
+
+! https://www.sooplive.co.kr/
+##[id$="_ad"]
+
+! https://supjav.com/
+! https://04.avsee.ru/
+! https://www.sooplive.co.kr/
+! ! https://mypikpak.com/ 출첵 클릭시 인증화면 이미지 안보임
+!##[class$="ad"]
+
+! https://kick.com/
+##[class*="AD"]
+
+! https://mlbpark.donga.com/
+##[class^="AD_"]
+
+! ! https://fr.xvideos.com/
+! https://supjav.com/
+! https://04.avsee.ru/
+! https://www.etoland.co.kr/
+! https://kr79.sogirl.so/
+##[class*="ads"]
+
+! https://www.etoland.co.kr/
+! https://kr79.sogirl.so/
+! https://fr.pornhub.com/
+##[class^="ads"]
+
+! ! https://fr.xvideos.com/
+! https://04.avsee.ru/
+! https://kr79.sogirl.so/
+##[class$="ads"]
+
+! ! https://fr.xvideos.com/
+##[class*="-ads-"]
+
+! https://javfc2.xyz/
+! https://viewership.softc.one/
+##[id^="ads"]
+
+! https://chzzk.naver.com/
+! https://kr79.sogirl.so/
+##[class*="advert"]
+
+! https://fr.pornhub.com/
+##[id*="advert"]
+
+! https://mypikpak.com/ 화면에 아무것도 안보임
+!##[href*="banner"]
+
+! https://wdwd7.com/ -밑에 리스트 사라짐
+!##[class*="banner"]
+
+! https://wdwd7.com/ -밑에 리스트 사라짐
+!##[class$="banner"]
+
+! https://tv.kakao.com/
+! https://www.inven.co.kr/
+##[id*="Banner"]
+
+! https://cineaste.co.kr/
+! https://wdwd7.com/ -밑에 리스트 사라짐
+!##[class$="-banner"]
+
+! https://www.naver.com/
+##[class*="_banner_"]
+
+! https://www.etoland.co.kr/
+! https://showdang.co.kr/
+! https://7tv033.com/
+! https://kr40.topgirl.co/
+! https://search.zum.com/
+! https://www.daum.net/
+##[class$="_banner"]
 
 ! https://www.avdbs.com/
 ! https://www.weather.go.kr/
+! https://www.inven.co.kr/
+! https://damoang.net/
 ##[href*="popup"]
+
 
 ##[href*="Popup"]
 
 ! https://poooo.ml/
 ! https://www.avdbs.com/
 ! https://www.weather.go.kr/
+! https://gall.dcinside.com/
 ##[src*="popup"]
 
 ! ! https://www.avdbs.com/
 ##[src*="Popup"]
+
+! https://www.sooplive.co.kr/
+##[id*="Promo"]
+
+! https://www.sooplive.co.kr/
+! https://chzzk.naver.com/
+##[class*="promotion"]
+
+! https://fr.pornhub.com/
+##[class*="Promo"]
+
+! https://www.clien.net
+##[class*="-promo"]
+
+! https://mypikpak.com/
+##[class*="cookie"]
+
+! https://kr79.sogirl.so/
+! https://fr.pornhub.com/
+##[id*="cookie"]
+
+
+##.adsbox
+
+##.banner
+
+
+/banner*$image,xhr
+
+
+||/ping?$xhr
 
 
 ||/ads.$xhr
 
 ||/ad.$xhr
 
-||instagram.com/ajax/bz
-||instagram.com/logging_client_events
-||facebook.com/ajax/qm/
-||naver.com/jackpotlog/
-||naver.com/mcollector/
+!||instagram.com/ajax/bz
+!||instagram.com/logging_client_events
+!||facebook.com/ajax/qm/
+!||naver.com/jackpotlog/
+!||naver.com/mcollector/
 
-||google-analytics.com$third-party
-||googletagmanager.com
+!||google-analytics.com$third-party
+!||googletagmanager.com
