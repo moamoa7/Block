@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042506
+! Version: 25042507
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -19,12 +19,16 @@
 #@%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 #@%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 !
-!
+
 ! 팝업 방지
-! - 아래껄로 재변경해봄 (출처 : https://github.com/AdguardTeam/Scriptlets/issues/145)
+! - 출처 : https://github.com/AdguardTeam/Scriptlets/issues/145
+! - - - https://javgiga.com/ 여기는 /go.rmishe.com/smartpop/ 고질적으로 나옴
+! - - - - -  다만 아래 스크립트로 인해 새창이 아닌 본창에 뜸
+! - - - - -  10000(10초)  - 바꾼다고 시간 지나면 팝업이 생긴다거나 안눌리는 팝업이 눌러진다거나 그런건 아닌듯
 *#%#//scriptlet("prevent-window-open", "", "10000", "obj")
-! - - - 예외 (팝업창 눌렀을때 반응없는 사이트들)
-shopping.naver.com,auction.co.kr#@%#//scriptlet("prevent-window-open", "", "10000", "obj")
+!
+! - - - 예외 (팝업 메뉴를 눌렀을때 안떠서 해제해야 하는 사이트들 )
+shopping.naver.com,auction.co.kr,etoland.co.kr,new-m.pay.naver.com#@%#//scriptlet("prevent-window-open", "", "10000", "obj")
 !
 !
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
@@ -35,10 +39,10 @@ shopping.naver.com,auction.co.kr#@%#//scriptlet("prevent-window-open", "", "1000
 !
 ! 쇼핑사이트 해제
 !
-@@||*$image,xhr,~third-party,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr
+@@||*$image,xhr,~third-party,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com
 !
 !
-!
+@@shop.kt.com
 !
 !
 !  / / / / / 차단 / / / / / 
@@ -101,6 +105,9 @@ youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 
 ! 치지직 팝업
 ##[class^="popup_"]
+! - 예외
+! - - -  포인트 얻기 위함
+campaign2.naver.com#@#[class^="popup_"]
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -286,7 +293,19 @@ ygosu.com##.pull-left.btn-group
 !##.ad_area1
 !
 !
+! 바나나몰 (bananamall.co.kr)
+! - 팝업 왼쪽
+###pop_saunpum
+! - 팝업 오른쪽
+###pop_gevent
+!
+!
+! 쑈당몰 (https://showdang.co.kr/) 팝업
+showdang.co.kr##.box
+!
+!
 ! AVseeTV (https://04.avsee.ru/)
+! - - - 조개파티 (https://jogaeparty139.com/)
 ! -  배너 이미지 등 (여러 사이트에 적용됨)
 ! - - -  출처 : https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
 ##A[target='_blank'] > IMG[width='100%'][src*='.gif']
@@ -436,6 +455,22 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! MISSAV (https://missvod2.com/)
 ! - 배너
 [$domain=/^missvod\d+.com/]###banner-list.banner-list
+
+
+! 야동판 (https://3.yadongpan.me/)
+! - PC 메인 전체
+! - 영상내 더 아래 배너 및 오른쪽 배너 (모바일 동일)
+! - - - 자막야동 (https://3.jamakyadong.me/)
+!###top-desktop
+! - 영상내 배너 및 닫기 버튼
+##.happy-insid-player
+! - 영상 아래 배너
+##.happy-unde-player
+! - 모바일 상단 배너
+! - - - AdGuard – Mobile Ads 에 포함되어 비처리
+!##.happy-header-mobile
+! - 모바일 상단 제외 전체 배너
+!###top-mobile
 !
 !
 ! 색색티비 (https://kr154.mysstv.com/)
@@ -481,3 +516,13 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ##[src*="event_banner"]
 ! - 모바일 상단 배너
 [$domain=/^today-sports\d+.com/]##.live-stream.only-mobile
+!
+!
+! 조개파티 (https://jogaeparty139.com/)
+! - 오른쪽 작은 배너
+[$domain=/^jogaeparty\d+.com/]##[src*="imgbox.com"]
+! - 영상 위 배너
+! - 텔레그램 이미지 전부 다 날리기
+##[href*="t.me"]
+! 영상 아래 배너
+[$domain=/^jogaeparty\d+.com/]##div.view-padding > div.row
