@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042601
+! Version: 25042602
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -630,7 +630,7 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! https://tvhot.site/
 ! https://javgiga.com/ 영상 이미지 안보임
 ! 네이버tv영상 안보임 (소리만 나옴)
-!##[class*="ad"]
+#@#[class*="ad"]
 
 ! https://www.sooplive.co.kr/
 ! https://www.etoland.co.kr/
@@ -655,7 +655,7 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! https://www.nate.com/
 ! https://www.daum.net/
 ! https://www.ddanzi.com/ 게시글 안보임
-!##[class*="ad_"]
+#@#[class*="ad_"]
 
 ! https://www.etoland.co.kr/
 ##[class$="_ad"]
@@ -716,7 +716,7 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! https://04.avsee.ru/
 ! https://www.sooplive.co.kr/
 ! ! https://mypikpak.com/ 출첵 클릭시 인증화면 이미지 안보임
-!##[class$="ad"]
+#@#[class$="ad"]
 
 ! https://kick.com/
 ##[class*="AD"]
@@ -756,13 +756,13 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ##[id*="advert"]
 
 ! https://mypikpak.com/ 화면에 아무것도 안보임
-!##[href*="banner"]
+#@#[href*="banner"]
 
 ! https://wdwd7.com/ -밑에 리스트 사라짐
-!##[class*="banner"]
+#@#[class*="banner"]
 
 ! https://wdwd7.com/ -밑에 리스트 사라짐
-!##[class$="banner"]
+#2#[class$="banner"]
 
 ! https://tv.kakao.com/
 ! https://www.inven.co.kr/
@@ -770,7 +770,7 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 
 ! https://cineaste.co.kr/
 ! https://wdwd7.com/ -밑에 리스트 사라짐
-!##[class$="-banner"]
+#@#[class$="-banner"]
 
 ! https://www.naver.com/
 ##[class*="_banner_"]
