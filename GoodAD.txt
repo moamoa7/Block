@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042513
+! Version: 25042514
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -575,14 +575,39 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 ! 테스트 공간
 
+##[href*="/AD/"]
+
+##[href*="/ad/"]
+
+##[href*="/ads/"]
+
+! https://tvwiki20.com/
+! https://tvmon15.org/
+##[src*="/AD/"]
+
+! https://www.sooplive.co.kr/ (bj 방)
+! https://04.avsee.ru/ 영상
+##[src*="/ad/"]
+
+##[src*="/ads/"]
+
+
 ##[href*="banner"]
 
 ##[href*="banners"]
 
+! https://www.avdbs.com/
+! https://www.weather.go.kr/
 ##[href*="popup"]
 
+##[href*="Popup"]
+
+! https://poooo.ml/
+! https://www.avdbs.com/
+! https://www.weather.go.kr/
 ##[src*="popup"]
 
+! ! https://www.avdbs.com/
 ##[src*="Popup"]
 
 
@@ -598,4 +623,3 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 
 ||google-analytics.com$third-party
 ||googletagmanager.com
-!
