@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042511
+! Version: 25042512
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -26,7 +26,6 @@
 ! - - - - -  다만 아래 스크립트로 인해 새창이 아닌 본창에 뜸
 ! - - - - -  10000(10초)  - 바꾼다고 시간 지나면 팝업이 생긴다거나 안눌리는 팝업이 눌러진다거나 그런건 아닌듯
 *#%#//scriptlet("prevent-window-open", "", "10000", "obj")
-!
 ! - - - 예외 (팝업 메뉴를 눌렀을때 안떠서 해제해야 하는 사이트들 )
 shopping.naver.com,auction.co.kr,etoland.co.kr,new-m.pay.naver.com#@%#//scriptlet("prevent-window-open", "", "10000", "obj")
 !
@@ -484,7 +483,8 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! 색색티비 (https://kr154.mysstv.com/)
 ! - 배너 이미지 (대/소문자 구분)
 ! - - - src*='Banner"
-[$domain=/^kr\d+.mysstv.com/]##[src*='Banner']
+![$domain=/^kr\d+.mysstv.com/]##[src*='Banner']
+##[src*='Banner']
 !
 !
 ! 주소월드 (https://wdwd6.com/)
@@ -516,7 +516,7 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! 야동도시 (https://yacity47.com/)
 ! 야동공장 (https://yagong84.com/)
 ! - 배너 이미지
-||/storage/upload/banners/*$important
+!||/storage/upload/banners/*$important
 ! - 팝업 - 4시간 동안 다시 열람하지 않습니다
 ! - - - PC
 ##[class*="popup-pc"]:not(html):not(body):not(article)
@@ -539,7 +539,13 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! - 왼쪽 배너
 ##.info-banner
 ! - 게시물내 한칸짜리 배너
-##[src*="event_banner"]
+!##[src*="event_banner"]
+! - - - 아래로 변경하면..
+! - - - - -야동그라운드 (https://yagro48.com/)
+! - - - - -빨간비디오 (https://redvi77.com/)
+! - - - - -야동도시 (https://yacity47.com/)
+! - - - - -야동공장 (https://yagong84.com/)
+##[src*="banner"]
 ! - 모바일 상단 배너
 [$domain=/^today-sports\d+.com/]##.live-stream.only-mobile
 !
