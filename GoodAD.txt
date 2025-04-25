@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042512
+! Version: 25042513
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -38,10 +38,9 @@ shopping.naver.com,auction.co.kr,etoland.co.kr,new-m.pay.naver.com#@%#//scriptle
 !
 ! 쇼핑사이트 해제
 !
-@@||*$image,xhr,~third-party,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com
+@@||*$image,xhr,~third-party,generichide,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com
 !
 !
-@@shop.kt.com
 !
 !
 !  / / / / / 차단 / / / / / 
@@ -560,3 +559,43 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 [$domain=/^jogaeparty\d+.com/]##div.view-padding > div.row
 ! - 모바일 상단 텍스트 배너
 [$domain=/^jogaeparty\d+.com/]##.at-body > .widget-box > div
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+! 테스트 공간
+
+##[href*="banner"]
+
+##[href*="banners"]
+
+##[href*="popup"]
+
+##[src*="popup"]
+
+##[src*="Popup"]
+
+
+||/ads.$xhr
+
+||/ad.$xhr
+
+||instagram.com/ajax/bz
+||instagram.com/logging_client_events
+||facebook.com/ajax/qm/
+||naver.com/jackpotlog/
+||naver.com/mcollector/
+
+||google-analytics.com$third-party
+||googletagmanager.com
+!
