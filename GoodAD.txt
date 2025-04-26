@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042608
+! Version: 25042701
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -103,6 +103,67 @@ viewership.softc.one##.fc-dialog-container
 @@p16-tiktok-ads-sg.tiktokcdn.com
 !
 !
+! 메시티비 (https://messitv8.com/)
+! - - - 메인 배너 여러개
+##.baner
+! - - - 왼쪽 상단 배너
+!##.d-xl-block.d-none
+! - - - 스포츠 토토 배너
+[$domain=/^messitv\d+.com/]##div.d-md-block
+! - - - 왼쪽 맨 아래 하단 배너
+##.bigwin-bn
+! 채팅박스
+##u-chat
+!
+!
+! 고트티비 (https://goat-v.com)
+! - 팝업
+##.popup-container
+!
+!
+! VIP TV (https://viptv24.com/)
+! - 팝업
+###popup_1
+! - 채팅 공간
+###left_chat
+!
+!
+! 쿨티비 (https://www.cool111.com/)
+! - 채팅 공간
+##.left_chat
+!
+!
+! 굿라이브티비 (https://gltv88.com/)
+! - 배너
+##.middle-banner
+! 굿라이브티비 (https://gltv88.com/)
+! - 왼쪽 챗 공간
+[$domain=/^gltv\d+.com/]###fchat
+!
+!
+! 블랙티비 https://blacktv88.com/
+! - 배너
+[$domain=/^blacktv\d+.com/]###mdiv2
+! - 채팅 공간
+[$domain=/^blacktv\d+.com/]##div.b-ox:nth-of-type(3)
+!
+!
+! 배트맨티비 (https://bmtv24.com/)
+! - 팝업
+[$domain=/^bmtv\d+.com/]##.modal_item
+! - 챗 공간
+[$domain=/^bmtv\d+.com/]##.chat_frame
+!
+!
+! 놀고가닷컴 (https://nolgoga365.com/)
+! - 배너
+||nolgoga*.com/data/file/*$image
+! - 내가 없앤건 아닌거 같은대 배너 안보여서 복원
+@@nolgoga*.com/img/top_logo.png
+! -채팅 공간 (아래 포인트순위까지 지워지네. 어쩔)
+[$domain=/^nolgoga\d+.com/]###aside > div
+!
+!
 ! 씨네스트 (https://cineaste.co.kr/)
 ! - 메인 배너
 cineaste.co.kr##.main-title
@@ -154,6 +215,8 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 etoland.co.kr##[src*="/data/daumeditor"]
+! - 오징어슬롯 이미지 (banner라서 이미지가  삭제되어 예외처리 귀찮아서 없앰)
+etoland.co.kr##.squid_chance_top_banner
 ! - 모바일 게시물 하단 광고 배너
 ! - - - 3칸짜리 광고 배너
 etoland.co.kr###underGoodBtn_freeRecharge
@@ -358,9 +421,9 @@ edaily.co.kr$popup
 !
 ! 바나나몰 (bananamall.co.kr)
 ! - 팝업 왼쪽
-###pop_saunpum
+bananamall.co.kr##.ui-draggable
 ! - 팝업 오른쪽
-###pop_gevent
+bananamall.co.kr###pop_gevent
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/) 팝업
@@ -632,8 +695,7 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 !
 !
 ! 오늘의 중계 (today-sports7.com) - 팝업
-! 코난티비(https://conan-tv.com/) - 팝업
-! https://jusoyo41.com/ - 배너
+! - - - 코난티비(https://conan-tv.com/) - 팝업
 ###hd_pop
 ! - 상단 배너
 [$domain=/^today-sports\d+.com/]##.draggable.slick-list
@@ -648,9 +710,15 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! - - - - -빨간비디오 (https://redvi77.com/)
 ! - - - - -야동도시 (https://yacity47.com/)
 ! - - - - -야동공장 (https://yagong84.com/)
-##[src*="banner"]
+! 다른 규칙으로 대체
+!##[src*="banner"]
 ! - 모바일 상단 배너
 [$domain=/^today-sports\d+.com/]##.live-stream.only-mobile
+!
+!
+! 주소요 (https://jusoyo41.com/)
+! - 배너
+[$domain=/^jusoyo\d+.com/]##.basic-banner-gallery
 !
 !
 ! 조개파티 (https://jogaeparty139.com/)
@@ -665,10 +733,6 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 [$domain=/^jogaeparty\d+.com/]##.at-body > .widget-box > div
 !
 !
-! 픽팍  (https://mypikpak.com/)
-! - 안내 팝업
-mypikpak.com##div.el-overlay
-
 !
 !
 !
@@ -692,8 +756,19 @@ mypikpak.com##div.el-overlay
 !
 ! 테스트 공간
 
+/media/*.gif
+/upload/*.gif
+/uploads/*.gif
+/wp-content/*.gif
 
-/ad/*$important
+
+
+
+/ad-$~stylesheet
+!/ad/*$important
+/ad/*
+! - cineaste.co.kr
+@@member_image/ad/*.gif
 /adbanner*$important
 /ad-banners
 /adbanner*$important
@@ -704,14 +779,42 @@ mypikpak.com##div.el-overlay
 /ads?
 /adsense*$important
 
-/banner*$all,important
-/banner_
-/_banners/*
-/bunners/*
+/advertise.
+/advertise.js$important
+/advertisers/*$important
+/advertisement.js$xmlhttprequest,important
+/advertisement.js$important
+/advertisement.min.js$important
+/advertising/$important
+/advertising.banner/*$important
+/advertising.js$important
+/advertising.min.js$important
 
-/pagead/*$important
-/pagead2.$important
-/pagead2/*
+/admanager/*$important
+/admanager.js$important
+
+/ban/*
+/ban.min.js
+/baner/*
+/baner_*
+
+/*banner*$all
+! - banner앞에 * 붙이면 이것도 포함일거 같아서 해제
+! /_banners/*
+! /bunners/*
+! /banner_
+! - - -  예외
+! - - - https://news.jtbc.co.kr/ 막으면 오류남
+@@news-api.jtbc.co.kr*banner?$xhr
+! - - - 바나나몰 이미지 깨지는거 방지
+@@cdn-banana.bizhost.kr*/banner*$image
+! - - - css 깨지는거 방지
+@@/*banner*$css
+
+
+
+/ping/*$xmlhttprequest
+/ping?*$xmlhttprequest
 
 
 
@@ -829,29 +932,6 @@ mypikpak.com##div.el-overlay
 ##[class$="-cta"]:not(html):not(body):not(article)
 ##[id$="-cta"]:not(html):not(body):not(article)
 
-/analytics/$important
-/analytics-*$important
-/analytics_*$important
-/api/log/*
-
-/googleanalytics*$important
-/google-analytics*$important
--google-analytics/*$important
--google-analytics.*$important
-
-/gtagservices/*
-
-
-/ping/*$xmlhttprequest
-/ping?*$xmlhttprequest
-/ping.gif
-
-/track?$image
-/track.js$important
-/track.min.js
-/tracker.js$important
-/tracking.js$important
-/tracking.min.js
 
 ##[class*="feedback"]:not(html):not(body):not(.deferredfeedback):not(.has-feedback)
 ##[id*="feedback"]:not(html):not(body)
@@ -979,116 +1059,6 @@ mypikpak.com##div.el-overlay
 ##[class*="author-box"]:not(html):not(body):not(article):not(.author-box-enabled)
 
 
+##.adsbygoogle
 
-
-
-
-
-!!!
-! https://bbs.ruliweb.com/
-##[class*="_ad_"]:not(html):not(body):not(article)
-
-!!!
-! https://fr.xvideos.com/
-! https://www.naver.com/
-! https://jusoya02.com/
-! 그냥 둘 것
-##[id^="ad-"]:not(html):not(body):not(article)
-
-!!!!
-! https://www.todayhumor.co.kr/
-##[class*="_ad_"]:not(html):not(body):not(article)
-
-!!!
-! https://www.sooplive.co.kr/
-##[id$="_ad"]:not(html):not(body):not(article)
-
-!!!!
-! https://mlbpark.donga.com/
-##[class^="AD_"]:not(html):not(body):not(article)
-
-!!!
-##[id^="AD_"]:not(html):not(body):not(article)
-
-!!!
-##[class^="Ad_"]:not(html):not(body):not(article)
-
-!!!!
-##[id^="Ad_"]:not(html):not(body):not(article)
-
-!!!!!
-##[class*="Advert"]:not(html):not(body):not(article):not(main):not(aside)
-
-!!!!
-##[id*="Advert"]:not(html):not(body):not(article):not(main):not(aside)
-
-
-!!!!
-! https://fr.pornhub.com/
-##[id*="advert"]:not(html):not(body):not(article)
-
-!!!
-! https://tv.kakao.com/
-! https://www.inven.co.kr/
-##[id*="Banner"]:not(html):not(body):not(article)
-
-!!!!!
-! https://www.sooplive.co.kr/
-##[id*="Promo"]:not(html):not(body):not(article)
-
-!!!!!
-##[id*="promo"]:not(html):not(body):not(article)
-
-!!!!
-! https://fr.pornhub.com/
-##[class*="Promo"]:not(html):not(body):not(article)
-
-!!!!
-##[class*="Cookie"]:not(html):not(body):not(article)
-
-!!!!
-##[id*="Cookie"]:not(html):not(body):not(article)
-
-!!!!!
-! https://kr79.sogirl.so/
-! https://fr.pornhub.com/
-##[id*="cookie"]:not(html):not(body):not(article)
-
-!!!!!
-##[class*="Sponsor"]:not(html):not(body):not(article):not([class*=hideSponsored])
-
-!!!!
-##[id*="Sponsor"]:not(html):not(body):not(article)
-
-!!!!!!
-##[class*="Adblock"]:not(html):not(body):not(article)
-
-!!!!!
-##[id*="Adblock"]:not(html):not(body):not(article)
-
-!!!
-##[class*="paywall"]:not(html):not(body):not(article)
-
-!!!
-##[id*="paywall"]:not(html):not(body):not(article)
-
-
-
-/banner*$image,xhr
-
-/banners*$image,xhr
-
-||/ping?$xhr
-
-||/ads.$xhr
-
-||/ad.$xhr
-
-!||instagram.com/ajax/bz
-!||instagram.com/logging_client_events
-!||facebook.com/ajax/qm/
-!||naver.com/jackpotlog/
-!||naver.com/mcollector/
-
-!||google-analytics.com$third-party
-!||googletagmanager.com
+##.advertising
