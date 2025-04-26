@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042606
+! Version: 25042607
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -266,26 +266,26 @@ ruliweb.com##.fixed_ad_wrapper
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/)
- ! - 배너
- !###bannerList
-! ||tvwiki*.com/ad/*$important
-  ! - 티비몬 상단 배너
- !###banner-row-1
+! - 배너
+!###bannerList
+!||tvwiki*.com/ad/*$important
+! - 티비몬 상단 배너
+!###banner-row-1
 !||tvmon*.org/ad/*$important
- ! - 영상 하단 배너 공간
- ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
- !##[class^="full pc-only"]:not(html):not(body):not(article)
+! - 영상 하단 배너 공간
+! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
+!##[class^="full pc-only"]:not(html):not(body):not(article)
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.pc-only.full
- !##[class^="full mobile-only2"]:not(html):not(body):not(article)
- [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
- ! - 바로 플레이버튼 나오게 변경
- ![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]###viewCover
- ! - 위로 바로 가는 버튼
- ! - - - 태블릿(모바일)에서 세로 감상시 전체화면 클릭시 그 위치에 있어서 없앰
- ! - - - - - 티비위키
- [$domain=/^tvwiki\d+.com/]###top_btn.sticky_top_btn.top_btn
- ! - - - - - 티비몬
- [$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
+!##[class^="full mobile-only2"]:not(html):not(body):not(article)
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
+! - 바로 플레이버튼 나오게 변경
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]###viewCover
+! - 위로 바로 가는 버튼
+! - - - 태블릿(모바일)에서 세로 감상시 전체화면 클릭시 그 위치에 있어서 없앰
+! - - - - - 티비위키
+[$domain=/^tvwiki\d+.com/]###top_btn.sticky_top_btn.top_btn
+! - - - - - 티비몬
+[$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
 ! - 플레이어 차단 방지
 @@/videojs-chromecast.min.js^$script
  !
@@ -658,334 +658,13 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 [$domain=/^jogaeparty\d+.com/]##[src*="imgbox.com"]
 ! - 영상 위 배너
 ! - 텔레그램 이미지 전부 다 날리기
-##[href*="t.me"]
+[$domain=/^jogaeparty\d+.com/]##[href*="t.me"]
 ! 영상 아래 배너
 [$domain=/^jogaeparty\d+.com/]##div.view-padding > div.row
 ! - 모바일 상단 텍스트 배너
 [$domain=/^jogaeparty\d+.com/]##.at-body > .widget-box > div
 !
 !
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-! 테스트 공간
-
-##[href*="/AD/"]
-
-##[href*="/ad/"]
-
-##[href*="/ads/"]
-
-! https://tvwiki20.com/
-! https://tvmon15.org/
-! https://www.inven.co.kr/
-##[src*="/AD/"]
-
-! https://www.sooplive.co.kr/ (bj 방)
-! https://04.avsee.ru/ 영상
-! https://damoang.net/
-##[src*="/ad/"]
-
-! https://mlbpark.donga.com/
-! https://www.inven.co.kr/
-##[src*="/ads/"]
-
-! https://fr.xvideos.com/
-! https://supjav.com/
-! https://04.avsee.ru/
-! https://javfc2.xyz/
-! https://tvhot.site/
-! 치지직 영상 안나옴
-! 숲 영상 위 검색 사라짐(메인/play 둘 다/ 채팅창 사라짐 / 하단 모든 정보 사라짐 / 로딩 돌아가는거 안보임
-! 티비위키 / 티비몬 영상 이미지 전부 안보임
-! https://javgiga.com/ 영상 이미지 안보임
-! 네이버tv영상 안보임 (소리만 나옴)
-! poooo.ml  (ok.ru)영상 안나옴
-! campaign2.naver.com 광고 패스됨
-! https://gall.dcinside.com/ 상단부 가려짐
-! https://mlbpark.donga.com/ 상단부 가려짐
-!##[class*="ad"]
-![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],chzzk.naver.com,sooplive.co.kr,javgiga.com,tv.naver.com,ok.ru,campaign2.naver.com,gall.dcinside.com,mlbpark.donga.com#@#[class*="ad"]
-
-
-! https://www.sooplive.co.kr/
-! https://www.etoland.co.kr/
-! https://7tv033.com/
-! https://kr40.topgirl.co/
-! https://kr79.sogirl.so/
-! https://www.avdbs.com/
-! https://fr.pornhub.com/
-! https://www.nate.com/
-! https://gall.dcinside.com 갤주소 복사 링크 없어짐
-! play.sooplive.co.kr 애드벌룬 아이콘 없어짐
-##[class^="ad"]
-gall.dcinside.com,play.sooplive.co.kr#@#[class^="ad"]
-
-! https://search.zum.com/
-! https://www.nate.com/
-! https://www.daum.net/
-! https://www.ddanzi.com/
-! https://gall.dcinside.com/ 댓글 부분 등록/ 등록+추천 버튼 사라짐
-! https://vod.sooplive.co.kr/  비로그인시 19금이면 영상 안나옴 (비로그인시 19금이면 19금 안내 안나오고 다음 영상 재생한다고 초 나옴)
-! https://play.sooplive.co.kr/ 채팅 내용 안나옴
-##[class*="_ad"]
-gall.dcinside.com,play.sooplive.co.kr,vod.sooplive.co.kr#@#[class*="_ad"]
-
-! https://search.zum.com/
-! https://www.sooplive.co.kr/
-! https://kr40.topgirl.co/
-##[class^="ad_"]
-
-! https://search.zum.com/
-! https://poooo.ml/
-! https://www.nate.com/
-! https://www.daum.net/
-! https://www.ddanzi.com/ 게시글 안보임
-##[class*="ad_"]
-ddanzi.com#@#[class*="ad_"]
-
-! https://www.etoland.co.kr/
-##[class$="_ad"]
-
-! https://supjav.com/
-##[class$="-ad"]
-
-! https://search.zum.com/
-! https://www.nate.com/
-##[class^="_ad_"]
-
-! https://www.inven.co.kr/
-##[class^="ad-"]
-
-! https://chzzk.naver.com/
-! https://tv.naver.com/
-##[class*="-ad-"]
-
-! https://www.hankyung.com/
-##[class^="ad-"]
-
-! https://bbs.ruliweb.com/
-##[class*="_ad_"]
-
-! https://www.slrclub.com/
-##[id$="-ad"]
-
-! https://fr.xvideos.com/
-! https://www.naver.com/
-##[id^="ad-"]
-
-! https://www.naver.com/
-##[id*="-ad-"]
-
-! https://missav.ws/
-! https://search.zum.com/
-##[id*="_ad_"]
-
-! https://www.naver.com/
-! https://www.nate.com/
-##[id^="ad_"]
-
-! https://missav.ws/
-##[id$="-ads"]
-
-! https://tojav.net/
-##[id$="_ads"]
-
-! https://aagag.com/
-##[id*="_ads_"]
-
-! https://www.sooplive.co.kr/
-##[id$="_ad"]
-
-! https://supjav.com/
-! https://04.avsee.ru/
-! https://www.sooplive.co.kr/
-! ! https://mypikpak.com/ 출첵 클릭시 인증화면 이미지 안보임
-! https://gall.dcinside.com/ 갤 상단 가려짐
-##[class$="ad"]
-mypikpak.com,google.com,gall.dcinside.com#@#[class$="ad"]
-
-! https://kick.com/
-##[class*="AD"]
-
-! https://mlbpark.donga.com/
-##[class^="AD_"]
-
-! ! https://fr.xvideos.com/
-! https://supjav.com/
-! https://04.avsee.ru/
-! https://www.etoland.co.kr/
-! https://kr79.sogirl.so/
-! https://javlemon.com/ 영상 프레임 안나옴
-##[class*="ads"]
-javlemon.com#@#[class*="ads"]
-
-! https://www.etoland.co.kr/
-! https://kr79.sogirl.so/
-! https://fr.pornhub.com/
-##[class^="ads"]
-
-! ! https://fr.xvideos.com/
-! https://04.avsee.ru/
-! https://kr79.sogirl.so/
-! https://javlemon.com/ 영상 프레임 안나옴
-##[class$="ads"]
-javlemon.com#@#[class*="ads"]
-
-! https://goodav17.com/
-##[class$="_ads"]
-
-! ! https://fr.xvideos.com/
-##[class*="-ads-"]
-
-! https://goodav17.com/
-##[class*="_ads_"]
-
-! https://javfc2.xyz/
-! https://viewership.softc.one/
-##[id^="ads"]
-
-! https://chzzk.naver.com/
-! https://kr79.sogirl.so/
-##[class*="advert"]
-
-! https://fr.pornhub.com/
-##[id*="advert"]
-
-! https://mypikpak.com/ 화면에 아무것도 안보임
-! https://greasyfork.org/ 제목 안보임
-!##[href*="banner"]
-mypikpak.com,greasyfork.org#@#[href*="banner"]
-
-! https://wdwd7.com/ -밑에 리스트 사라짐
-!##[class*="banner"]
-wdwd7.com#@#[class*="banner"]
-
-! https://wdwd7.com/ -밑에 리스트 사라짐
-##[class$="banner"]
-wdwd7.com#@#[class$="banner"]
-
-! https://tv.kakao.com/
-! https://www.inven.co.kr/
-##[id*="Banner"]
-
-! https://wdwd7.com/ -밑에 리스트 사라짐
-##[class$="-banner"]
-wdwd7.com#@#[class$="-banner"]
-
-! https://www.naver.com/
-##[class*="_banner_"]
-
-! https://www.etoland.co.kr/
-! https://showdang.co.kr/
-! https://7tv033.com/
-! https://kr40.topgirl.co/
-! https://search.zum.com/
-! https://www.daum.net/
-##[class$="_banner"]
-
-! https://www.avdbs.com/
-! https://www.weather.go.kr/
-! https://www.inven.co.kr/
-! https://damoang.net/
-! https://greasyfork.org/- 제목에 popup 들어가니 제목이 사라짐
-##[href*="popup"]
-greasyfork.org#@#[href*="popup"]
-
-! https://greasyfork.org/ - 검색상세가 사라짐
-##[href*="Popup"]
-greasyfork.org#@#[href*="Popup"]
-
-! https://poooo.ml/
-! https://www.avdbs.com/
-! https://www.weather.go.kr/
-! https://gall.dcinside.com/
-##[src*="popup"]
-
-! ! https://www.avdbs.com/
-##[src*="Popup"]
-
-! 치지직 팔로우 팝업 생성 안됨
-! - 치지직 팝업
-! - class*="popup" [class^="popup_"] 사용시 팔로우하기 같은거 클릭하면 반응 없음
-! - 예외
-! - - -  포인트 얻기 위함
-!campaign2.naver.com#@#[class^="popup"]
-##[class*="popup"]
-##[class*="popup_"]
-chzzk.naver.com,campaign2.naver.com#@#[class*="popup"]
-chzzk.naver.com,campaign2.naver.com#@#[class*="popup_"]
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-! https://www.sooplive.co.kr/
-##[id*="Promo"]
-
-! https://www.sooplive.co.kr/
-! https://chzzk.naver.com/
-##[class*="promotion"]
-
-! https://fr.pornhub.com/
-##[class*="Promo"]
-
-! https://www.clien.net
-##[class*="-promo"]
-
-! https://mypikpak.com/
-##[class*="cookie"]
-
-! https://kr79.sogirl.so/
-! https://fr.pornhub.com/
-##[id*="cookie"]
-
-! https://loopholes.site/
-##[class*="-to-top"]
-
-! https://loopholes.site/
-##[id*="-to-top"]
-
-
-##[alt="ad"]
-
-
-##.adsbox
-
-##.banner
-
-
-/banner*$image,xhr
-
-/banners*$image,xhr
-
-
-||/ping?$xhr
-
-
-||/ads.$xhr
-
-||/ad.$xhr
-
-!||instagram.com/ajax/bz
-!||instagram.com/logging_client_events
-!||facebook.com/ajax/qm/
-!||naver.com/jackpotlog/
-!||naver.com/mcollector/
-
-!||google-analytics.com$third-party
-!||googletagmanager.com
+! 픽팍  (https://mypikpak.com/)
+! - 안내 팝업
+mypikpak.com##div.el-overlay
