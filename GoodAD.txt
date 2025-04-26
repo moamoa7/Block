@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042603
+! Version: 25042604
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -29,9 +29,10 @@
 ! - - - https://javgiga.com/ 여기는 /go.rmishe.com/smartpop/ 고질적으로 나옴
 ! - - - - -  다만 아래 스크립트로 인해 새창이 아닌 본창에 뜸
 ! - - - - -  10000(10초)  - 바꾼다고 시간 지나면 팝업이 생긴다거나 안눌리는 팝업이 눌러진다거나 그런건 아닌듯
-*#%#//scriptlet("prevent-window-open", "", "10000", "obj")
+!*#%#//scriptlet("prevent-window-open", "", "10000", "obj")
+*#%#//scriptlet("prevent-window-open")
 ! - - - 예외 (팝업 메뉴를 눌렀을때 안떠서 해제해야 하는 사이트들 )
-shopping.naver.com,auction.co.kr,etoland.co.kr,new-m.pay.naver.com#@%#//scriptlet("prevent-window-open", "", "10000", "obj")
+shopping.naver.com,auction.co.kr,etoland.co.kr,new-m.pay.naver.com#%#//scriptlet("prevent-window-open")
 !
 !
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
