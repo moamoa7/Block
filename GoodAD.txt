@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042605
+! Version: 25042606
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -286,6 +286,8 @@ ruliweb.com##.fixed_ad_wrapper
  [$domain=/^tvwiki\d+.com/]###top_btn.sticky_top_btn.top_btn
  ! - - - - - 티비몬
  [$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
+! - 플레이어 차단 방지
+@@/videojs-chromecast.min.js^$script
  !
  ! 티비핫 (https://tvhot.site/) 주소 바뀜
  ! - 티비핫 상단 배너 및 영상 상단 배너
@@ -365,36 +367,6 @@ edaily.co.kr$popup
 showdang.co.kr##.box
 !
 !
-! AVseeTV (https://04.avsee.ru/)
-! - - - 조개파티 (https://jogaeparty139.com/)
-! -  배너 이미지 등 (여러 사이트에 적용됨)
-! - - -  출처 : https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
-##A[target='_blank'] > IMG[width='100%'][src*='.gif']
-! - 위 스크립트 실행 후 남는 배너 이미지 공간
-avsee.ru##.title
-avsee.ru##div.main-box:nth-of-type(1)
-!
-!
-! 7MMTV (https://7tv033.com/)
- ! - 상단 배너 공간
- ##.a-d-block
- !- 영상 오른쪽 배너 공간 (EasyList)
- !||rmhfrtnd.com$important
- !_300x250_
-!
-!
-! JAVGIGA (https://javgiga.com/)
-! 팝업 방지
-! - 출처 : https://github.com/AdguardTeam/Scriptlets/issues/145
-! - - - https://javgiga.com/ 여기는 /go.rmishe.com/smartpop/ 고질적으로 나옴
-! - - - - -  다만 아래 스크립트로 인해 새창이 아닌 본창에 뜸
-! - - - - -  10000(10초)  - 바꾼다고 시간 지나면 팝업이 생긴다거나 안눌리는 팝업이 눌러진다거나 그런건 아닌듯
-!*#%#//scriptlet("prevent-window-open", "", "10000", "obj")
-javgiga.com#%#//scriptlet("prevent-window-open")
-! - - - 예외 (팝업 메뉴를 눌렀을때 안떠서 해제해야 하는 사이트들 )
-!shopping.naver.com,auction.co.kr,etoland.co.kr,new-m.pay.naver.com#%#//scriptlet("prevent-window-open")
-!
-!
 ! CGV (https://cgv.co.kr/)
 ! - PC
 ! - - - 하단 오른쪽 배너 공간
@@ -435,6 +407,24 @@ cgv.co.kr##.btnLinkFixed
 !
 ! 토렌트G (https://ttg-35.com/) 상단 배너
 ###topbanner_1
+!
+!
+! AVseeTV (https://04.avsee.ru/)
+! - - - 조개파티 (https://jogaeparty139.com/)
+! -  배너 이미지 등 (여러 사이트에 적용됨)
+! - - -  출처 : https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
+##A[target='_blank'] > IMG[width='100%'][src*='.gif']
+! - 위 스크립트 실행 후 남는 배너 이미지 공간
+avsee.ru##.title
+avsee.ru##div.main-box:nth-of-type(1)
+!
+!
+! 7MMTV (https://7tv033.com/)
+ ! - 상단 배너 공간
+ ##.a-d-block
+ !- 영상 오른쪽 배너 공간 (EasyList)
+ !||rmhfrtnd.com$important
+ !_300x250_
 !
 !
 ! AVDBS (https://www.avdbs.com/)
@@ -523,6 +513,11 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! XX조아 (https://xxjoa45.com/)
 ! - 영상 광고
 ||joajoajoamoamoa.store/VAST/
+!
+!
+! JAVGIGA (https://javgiga.com/)
+! - 팝업 차단
+||javgiga.com$popup
 !
 !
 ! MISSAV (https://missvod2.com/)
@@ -867,8 +862,9 @@ javlemon.com#@#[class*="ads"]
 ##[id*="advert"]
 
 ! https://mypikpak.com/ 화면에 아무것도 안보임
-##[href*="banner"]
-mypikpak.com#@#[href*="banner"]
+! https://greasyfork.org/ 제목 안보임
+!##[href*="banner"]
+mypikpak.com,greasyfork.org#@#[href*="banner"]
 
 ! https://wdwd7.com/ -밑에 리스트 사라짐
 !##[class*="banner"]
@@ -901,10 +897,13 @@ wdwd7.com#@#[class$="-banner"]
 ! https://www.weather.go.kr/
 ! https://www.inven.co.kr/
 ! https://damoang.net/
+! https://greasyfork.org/- 제목에 popup 들어가니 제목이 사라짐
 ##[href*="popup"]
+greasyfork.org#@#[href*="popup"]
 
-
+! https://greasyfork.org/ - 검색상세가 사라짐
 ##[href*="Popup"]
+greasyfork.org#@#[href*="Popup"]
 
 ! https://poooo.ml/
 ! https://www.avdbs.com/
@@ -990,8 +989,3 @@ chzzk.naver.com,campaign2.naver.com#@#[class*="popup_"]
 
 !||google-analytics.com$third-party
 !||googletagmanager.com
-!
-!
-!
-!
-!
