@@ -1,11 +1,12 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042701
+! Version: 25042702
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
 !
 !
+@@||*$~third-party
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
@@ -764,9 +765,8 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
 
 
-/ad-$~stylesheet
-!/ad/*$important
-/ad/*
+/ad-$important,~stylesheet
+/ad/*$important
 ! - cineaste.co.kr
 @@member_image/ad/*.gif
 /adbanner*$important
@@ -809,7 +809,7 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! - - - 바나나몰 이미지 깨지는거 방지
 @@cdn-banana.bizhost.kr*/banner*$image
 ! - - - css 깨지는거 방지
-@@/*banner*$css
+@@/*banner*$css,script
 
 
 
@@ -819,9 +819,9 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
 
 
+##[class$="-ad"]:not(html):not(body):not(article):not(#maincontent)
 ##[id$="-ad"]:not(html):not(body):not(article)
 ##[class$="_ad"]:not(html):not(body):not(article)
-##[id$="_ad"]:not(html):not(body):not(article)
 ##[class^="AD_"]:not(html):not(body):not(article)
 ##[id^="AD_"]:not(html):not(body):not(article)
 ##[class^="Ad_"]:not(html):not(body):not(article)
@@ -860,10 +860,6 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ##[id*="Advert"]:not(html):not(body):not(article):not(main):not(aside)
 ##[class*="advert"]:not(html):not(body):not(article):not(main):not(aside)
 ##[id*="advert"]:not(html):not(body):not(article)
-
-[id^="banner_"]
-
-
 ##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
 ##[id*="Banner"]:not(html):not(body):not(article)
 ##[class^="bn_"]:not(html):not(body):not(article)
@@ -896,12 +892,12 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ##[id*="sponsor"]:not(html):not(body):not(article)
 ##[class^="WNAd"]:not(html):not(body):not(article)
 ##[id^="WNAd"]:not(html):not(body):not(article)
-*##[class^=_Not][class*=_Big_In]:has-text(You’re using Browsec Free)
-*##[class^=_Not][class*=_Big]:has-text(VPN)
+##[class^=_Not][class*=_Big_In]:has-text(You’re using Browsec Free)
+##[class^=_Not][class*=_Big]:has-text(VPN)
+##[class*=teaser]:not(html):not(body):not(article):not(.media_image-field)
 ##[id*="Promo"]:not(html):not(body):not(article)
 ##[class*="Promo"]:not(html):not(body):not(article)
 ##[id*="promo"]:not(html):not(body):not(article)
-##[id*="-promo"]:not(html):not(body):not(article)
 ##[class*="-promo"]:not(html):not(body):not(article):not(.node-promoted):not(.content):not(.content__header)
 ##[id*="promotion"]:not(html):not(body):not(article)
 ##[class*="promotion"]:not(html):not(body):not(article)
@@ -930,70 +926,54 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ##[class^="cta-"]:not(html):not(body):not(article)
 ##[id^="-cta-"]:not(html):not(body):not(article)
 ##[class$="-cta"]:not(html):not(body):not(article)
+##[class*="-cta "]:not(html):not(body):not(article)
 ##[id$="-cta"]:not(html):not(body):not(article)
-
-
 ##[class*="feedback"]:not(html):not(body):not(.deferredfeedback):not(.has-feedback)
 ##[id*="feedback"]:not(html):not(body)
 ##[class*="Survey"]:not(html):not(body)
 ##[id*="Survey"]:not(html):not(body)
 ##[class*="survey"]:not(html):not(body)
 ##[id*="survey"]:not(html):not(body)
-
 ##[class$="-arrow-up"]:not(html):not(body)
 ##[id$="-arrow-up"]:not(html):not(body)
 ##[class$="-arrow_up"]:not(html):not(body)
 ##[id$="-arrow_up"]:not(html):not(body)
-
 ##[class$="button-up"]:not(html):not(body)
 ##[id$="button-up"]:not(html):not(body)
-
-
 ##[class$="chevron-down"]:not(html):not(body)
 ##[id$="chevron-down"]:not(html):not(body)
 ##[class$="chevron-up"]:not(html):not(body)
 ##[id$="chevron-up"]:not(html):not(body)
 ##[class$="-icon-up"]:not(html):not(body)
 ##[id$="-icon-up"]:not(html):not(body)
-##[class*="scrolldown"]:not(html):not(body)
-##[id*="scrolldown"]:not(html):not(body)
-##[class*="scroll-top"]:not(html):not(body)
-##[id*="scroll-top"]:not(html):not(body):not(.row)
-##[class*="scroll_top"]:not(html):not(body):not(article):not(header):not(.mfixed_view_scroll_top)
-
-##[id*="scroll_top"]:not(html):not(body)
-##[class*="scrolltop"]:not(html):not(body)
-##[id*="scrolltop"]:not(html):not(body)
-##[class*="ScrollTop"]:not(html):not(body)
-##[id*="ScrollTop"]:not(html):not(body)
-##[class*="scrollTop"]:not(html):not(body)
-##[id*="scrollTop"]:not(html):not(body)
-
-##[id*="scroll-up"]:not(html):not(body)
-##[class*="scroll-up"]:not(html):not(body)
-##[id*="scrollup"]:not(html):not(body)
-##[class*="scrollup"]:not(html):not(body)
-##[id*="scroll_up"]:not(html):not(body)
-##[class*="scroll_up"]:not(html):not(body)
-
-##[id*="_to_top"]:not(html):not(body)
-##[class*="_to_top"]:not(html):not(body):not(ymaps)
-##[class*="-to-top"]:not([class*="sticked-to-top"]):not(html):not(body)
-##[id*="-to-top"]:not(html):not(body)
-##[class*="ToTop"]:not(html):not(body)
-##[id*="ToTop"]:not(html):not(body)
-##[class*="-totop"]:not(html):not(body)
-##[id*="-totop"]:not(html):not(body)
-##[class$="totop"]:not(html):not(body)
-##[id$="totop"]:not(html):not(body)
-
-##[id*="up-arrow"]:not(html):not(body)
-##[class*="up-arrow"]:not(html):not(body)
-
-##a[href$="scrollToTop()"]
-
-##a[title="Back to top"]
-
+#@#[class*="scrolldown"]:not(html):not(body)
+#@#[id*="scrolldown"]:not(html):not(body)
+#@#[class*="scroll-top"]:not(html):not(body)
+#@#[id*="scroll-top"]:not(html):not(body):not(.row)
+#@#[class*="scroll_top"]:not(html):not(body):not(article):not(header):not(.mfixed_view_scroll_top)
+#@#[id*="scroll_top"]:not(html):not(body)
+#@#[class*="scrolltop"]:not(html):not(body)
+#@#[class*="ScrollTop"]:not(html):not(body)
+#@#[id*="ScrollTop"]:not(html):not(body)
+#@#[class*="scrollTop"]:not(html):not(body)
+#@#[id*="scrollTop"]:not(html):not(body)
+#@#[id*="scroll-up"]:not(html):not(body)
+#@#[class*="scroll-up"]:not(html):not(body)
+#@#[id*="scrollup"]:not(html):not(body)
+#@#[class*="scrollup"]:not(html):not(body)
+#@#[id*="scroll_up"]:not(html):not(body)
+#@#[class*="scroll_up"]:not(html):not(body)
+#@#[class*="_to_top"]:not(html):not(body):not(ymaps)
+#@#[class*="-to-top"]:not([class*="sticked-to-top"]):not(html):not(body)
+#@#[id*="-to-top"]:not(html):not(body)
+#@#[class*="ToTop"]:not(html):not(body)
+#@#[id*="ToTop"]:not(html):not(body)
+#@#[class*="-totop"]:not(html):not(body)
+#@#[id*="-totop"]:not(html):not(body)
+#@#[class$="totop"]:not(html):not(body)
+#@#[id$="totop"]:not(html):not(body)
+#@#[id*="up-arrow"]:not(html):not(body)
+#@#[class*="up-arrow"]:not(html):not(body)
 ##[class*="Cookie"]:not(html):not(body):not(article)
 ##[id*="Cookie"]:not(html):not(body):not(article)
 ##[class*="cookie"]:not(html):not(body):not(article)
@@ -1004,61 +984,74 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ##[id*="Coockie"]:not(html):not(body):not(article)
 ##[class*="Coockie"]:not(html):not(body):not(article)
 ##[id*="Coockie"]:not(html):not(body):not(article)
-
-
 ##[class*="GDPR"]:not(html):not(body):not(article)
 ##[id*="GDPR"]:not(html):not(body):not(article)
 ##[class*="Gdpr"]:not(html):not(body):not(article)
 ##[id*="Gdpr"]:not(html):not(body):not(article)
 ##[class*="gdpr"]:not(html):not(body):not(article):not(input):not(.main-layout)
 ##[id*="gdpr"]:not(html):not(body):not(article):not(input)
-
 ##[class*="lgpd"]:not(html):not(body):not(article)
 ##[id*="lgpd"]:not(html):not(body):not(article)
 ##[class*="rgpd"]:not(html):not(body):not(article)
 ##[id*="rgpd"]:not(html):not(body):not(article)
-
 ##[class*="Privacy"]:not(html):not(body):not(article)
 ##[id*="Privacy"]:not(html):not(body):not(article)
 ##[class*="privacy"]:not(html):not(body):not(article)
 ##[id*="privacy"]:not(html):not(body):not(article)
-
+##[class*="Letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content)
+##[id*="Letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content):not(input)
+##[class*="letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content):not(.js-first-letter)
 ##[id*="letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content):not(input)
-
 ##[class*="morning_email"]:not(html):not(body):not(article)
 ##[id*="morning_email"]:not(html):not(body):not(article)
-
-##[class*="Subscr"]:not(html):not(body):not(article)
-##[id*="Subscr"]:not(html):not(body):not(article)
-##[id*="subscr"]:not(html):not(body):not(article)
-
-##[class*="Countdown"]:not(html):not(body):not(article)
-##[id*="Countdown"]:not(html):not(body):not(article)
-##[class*="countdown"]:not(html):not(body):not(article)
-##[id*="countdown"]:not(html):not(body):not(article)
-
+#@#[class*="Subscr"]:not(html):not(body):not(article)
+#@#[id*="Subscr"]:not(html):not(body):not(article)
+#@#[id*="subscr"]:not(html):not(body):not(article)
+#@#[class*="Countdown"]:not(html):not(body):not(article)
+#@#[id*="Countdown"]:not(html):not(body):not(article)
+#@#[class*="countdown"]:not(html):not(body):not(article)
+#@#[id*="countdown"]:not(html):not(body):not(article)
+#@#[class^="timer"]:not(html):not(body):not(article)
+#@#[id^="timer"]:not(html):not(body):not(article)
 ##[class*="buy1click"]:not(html):not(body):not(article)
 ##[id*="buy1click"]:not(html):not(body):not(article)
 ##[class*="buy1click"]:not(html):not(body):not(article)
 ##[id*="buy1click"]:not(html):not(body):not(article)
 ##[class*="buy-one-click"]:not(html):not(body):not(article)
 ##[id*="buy-one-click"]:not(html):not(body):not(article)
-
 ##[class*="quickorder"]:not(html):not(body):not(article)
 ##[id*="quickorder"]:not(html):not(body):not(article)
-
-##.emoji:not(html):not(body):not(article)
-
-##[class*="Disclaimer"]:not(html):not(body):not(article)
-##[id*="Disclaimer"]:not(html):not(body):not(article)
-##[class*="disclaimer"]:not(html):not(body):not(article):not(form)
-##[id*="disclaimer"]:not(html):not(body):not(article):not(form)
-
+#@#[class*="copyright"]:not(html):not(body):not(article):not(header):not(.article-content)
+#@#[id*="copyright"]:not(html):not(body):not(article)
+#@#[class*="Disclaimer"]:not(html):not(body):not(article)
+#@#[id*="Disclaimer"]:not(html):not(body):not(article)
+#@#[class*="disclaimer"]:not(html):not(body):not(article):not(form)
+#@#[id*="disclaimer"]:not(html):not(body):not(article):not(form)
 ##[class*="author-bio"]:not(html):not(body):not(article)
 ##[id*="author-bio"]:not(html):not(body):not(article)
 ##[class*="author-box"]:not(html):not(body):not(article):not(.author-box-enabled)
 
+##[id^="banner_"]
 
 ##.adsbygoogle
 
 ##.advertising
+
+
+! 시청자수
+#@#.views
+! 구독버튼
+#@#.subscribe
+! 스티커버튼
+#@#.sticker
+! 공유버튼
+#@#.share
+! 스크롤 다운 버튼
+#@#.scroll_down
+! 버튼
+#@#.go-top
+#@#.top_btn
+#@#.arrow
+#@#.up
+! 레벨달성? 진행바
+#@#.progress-bar
