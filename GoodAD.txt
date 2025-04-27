@@ -1,10 +1,13 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042707
+! Version: 25042708
 !
 !
-! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 !
+!
+!
+!  / / / / /  오류해결 및 해제 / / / / / 
 !
 !
 !
@@ -29,24 +32,11 @@
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
 !
-! - 미용규칙 비활성화 - 규칙에 사이트명이 적혀 있지 않으면 적용이 안됨
-!@@||*$generichide
-!
-! 쇼핑사이트 해제
-!
-@@||*$image,xhr,~third-party,generichide,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com
 !
 !
+! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 !
-!
-!  / / / / / 차단 / / / / / 
-!
-!
-! 3자 ping / websocket 차단
-||*$ping,websocket,third-party
-! - 3자 websocket 차단 해제
-! - - - 디스코드 (https://discord.com/) 연결시 필요
-@@||gateway.discord.gg$websocket
+!  / / / / /  차단 / / / / / 
 !
 !
 ! 유튜브 (https://www.youtube.com/)
@@ -745,37 +735,65 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 [$domain=/^jogaeparty\d+.com/]##.at-body > .widget-box > div
 !
 !
+! 야부리 시즌 2 (https://yaburi60.com/)
+! - 상단 배너
+[$domain=/^yaburi\d+.com/]##.sm\:grid-cols-4.border.w-full.px-1.gap-x-1.grid-cols-2.grid
+!- 영상 상.하 배너
+[$domain=/^yaburi\d+.com/]##.widget-box.w-full.mt-2.items-center.justify-between.flex
+!
+!
+! 야동망고 (https://www.mango54.net/)
+! - 상단 배너
+||mango*.net/images/spon/*
+!
+!
+! WatchJAVOnline (https://watchjavonline.com/)
+! - 영상 하단 배너 공간
+watchjavonline.com##.code-block-2.code-block
+!
+!
+! 잠자리 (https://dragonfly63.com/)
+! 야동타임 (https://yd-time65.com/)
+! 삼다수 (https://samdasoo60.com/)
+! - 전체 배너
+[$domain=/^dragonfly\d+.com/],[$domain=/^yd-time\d+.com/],[$domain=/^samdasoo\d+.com/]##.bg-black.carousel-inner
+!
+!
+! 현자타임스 (https://hjtime95.com/)
+! - 배너
+[$domain=/^hjtime\d+.com/]##.at-banner
+!
+!
+! 개조아 (https://dogjoa80.net/)
+! - 배너
+[$domain=/^dogjoa\d+.net/]##.at-title
+!
+!
+! 보지넷 (https://bo-zi65.net/)
+! - 상.하 배너
+[$domain=/^bo-zi\d+.net/]##.banners-container
+!
+!
+! 섹스조아 (https://www.sexzoa52.com/)
+! - 상단 오른쪽 텍스트 배너
+!##h2.mobile-hide
+! - 영상 옆 텍스트 배너
+##.videoads
+!
+!
+! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 !
 !
 !
+!  / / / / / 기 타  차 단 / / / / / 
 !
 !
 !
-!
-!
-!
-!
-
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-! 테스트 공간
-
 /media/*.gif
 /upload/*.gif
 /uploads/*.gif
-/wp-content/*.gif
-
-
-
-
+!/wp-content/*.gif
+!
 /ad-$~stylesheet
 */ad.$image,script,subdocument,media
 /ad/*$important
@@ -784,43 +802,50 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 /adbanner*$important
 /ad-banners
 /adbanner*$important
-/ads/*$important
+!/ads/*$important
 /adsbygoogle$important
-
+!
 */ads.
 */ads/
-
-
+!
 /ads_*$important
 /ads.*$important,~stylesheet
-
+!
 */ads_banner
-
+!
 /ads?
 /adsense*$important
-
-
-/*banner*$all
+!
+!/*banner*
+! - 다른 필터에 잘못 적힌 규칙 무력화
+/banner*$all,important,domain=~archive.org|~doshirak.com|~gosuslugi.ru|~mts-link.ru|~sberbank.ru|~sbis.ru|~webinar.ru|~wildberries.*,badfilter
 ! - banner앞에 * 붙이면 이것도 포함일거 같아서 해제
 ! /_banners/*
 ! /bunners/*
 ! /banner_
-! - - -  예외
-! - - - https://news.jtbc.co.kr/ 막으면 오류남
-@@news-api.jtbc.co.kr*banner?$xhr
-! - - - 바나나몰 이미지 깨지는거 방지
-@@cdn-banana.bizhost.kr*/banner*$image
-! - - - css 깨지는거 방지
-@@/*banner*$css,script
-
-
-
+! - 예외
+! - - - 쇼핑 사이트 이미지 깨지는거 방지
+!@@/*banner*$image,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com
+! - - - 쇼핑사이트 기타 깨지는거 방지
+@@||*$image,xhr,~third-party,generichide,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com
+! - - -  css/script/xr 제외
+!@@/*banner*$css,script.xhr
+!
+!
+!
 /ping/*$xmlhttprequest
-/ping?*$xmlhttprequest
-
-
-
-
+/ping?*$xmlhttprequest!
+!
+!
+!
+! 3자 ping / websocket 차단
+||*$ping,websocket,third-party
+! - 3자 websocket 차단 해제
+! - - - 디스코드 (https://discord.com/) 연결시 필요
+@@||gateway.discord.gg$websocket
+!
+!
+!
 ##[class$="-ad"]:not(html):not(body):not(article):not(#maincontent)
 ##[id$="-ad"]:not(html):not(body):not(article)
 ##[class$="_ad"]:not(html):not(body):not(article)
@@ -850,7 +875,8 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ##[id^="adrotate"]:not(html):not(body):not(article)
 ##[class^="ads"]:not(html):not(body):not(article):not(#issue)
 ##[id^="ads"]:not(html):not(body):not(article)
-##[class$="-ads"]:not(html):not(body):not(article)
+! https://javlemon.com/ 영상 페이지 안보임
+#@#[class$="-ads"]:not(html):not(body):not(article)
 ##[id$="-ads"]:not(html):not(body):not(article)
 ##[class*="-ads-"]:not(html):not(body):not(article)
 ##[id*="-ads-"]:not(html):not(body):not(article)
