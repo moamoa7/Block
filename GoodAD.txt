@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042705
+! Version: 25042706
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -766,6 +766,7 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
 
 /ad-$~stylesheet
+*/ad.$image,script,subdocument,media
 /ad/*$important
 ! - cineaste.co.kr
 @@member_image/ad/*.gif
@@ -774,29 +775,19 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 /adbanner*$important
 /ads/*$important
 /adsbygoogle$important
+
+*/ads.
+*/ads/
+
+
 /ads_*$important
 /ads.*$important,~stylesheet
+
+*/ads_banner
+
 /ads?
 /adsense*$important
 
-/advertise.
-/advertise.js$important
-/advertisers/*$important
-/advertisement.js$xmlhttprequest,important
-/advertisement.js$important
-/advertisement.min.js$important
-/advertising/$important
-/advertising.banner/*$important
-/advertising.js$important
-/advertising.min.js$important
-
-/admanager/*$important
-/admanager.js$important
-
-/ban/*
-/ban.min.js
-/baner/*
-/baner_*
 
 /*banner*$all
 ! - banner앞에 * 붙이면 이것도 포함일거 같아서 해제
@@ -862,24 +853,24 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ##[id*="advert"]:not(html):not(body):not(article)
 ##[class*="Banner"]:not(html):not(body):not(article):not(#Header)
 ##[id*="Banner"]:not(html):not(body):not(article)
-##[class^="bn_"]:not(html):not(body):not(article)
-##[id^="bn_"]:not(html):not(body):not(article)
-##[class*="_bn_"]:not(html):not(body):not(article)
-##[id*="_bn_"]:not(html):not(body):not(article)
-##[class^="dfp"]:not(html):not(body):not(article)
-##[id^="dfp"]:not(html):not(body):not(article)
-##[class$="dfp"]:not(html):not(body):not(article)
-##[id$="dfp"]:not(html):not(body):not(article)
-##[class*="-dfp"]:not(html):not(body):not(article)
-##[id*="-dfp"]:not(html):not(body):not(article)
-##[class*="leaderboard"]:not(html):not(body):not(article)
-##[id*="leaderboard"]:not(html):not(body):not(article)
+#@#[class^="bn_"]:not(html):not(body):not(article)
+#@#[id^="bn_"]:not(html):not(body):not(article)
+#@#[class*="_bn_"]:not(html):not(body):not(article)
+#@#[id*="_bn_"]:not(html):not(body):not(article)
+#@#[class^="dfp"]:not(html):not(body):not(article)
+#@#[id^="dfp"]:not(html):not(body):not(article)
+#@#[class$="dfp"]:not(html):not(body):not(article)
+#@#[id$="dfp"]:not(html):not(body):not(article)
+#@#[class*="-dfp"]:not(html):not(body):not(article)
+#@#[id*="-dfp"]:not(html):not(body):not(article)
+#@#[class*="leaderboard"]:not(html):not(body):not(article)
+#@#[id*="leaderboard"]:not(html):not(body):not(article)
 ##[class*="Marketing"]:not(html):not(body):not(article)
 ##[id*="Marketing"]:not(html):not(body):not(article)
 ##[class*="marketing"]:not(html):not(body):not(article)
 ##[id*="marketing"]:not(html):not(body):not(article)
-##[class*="motivation"]:not(html):not(body):not(article)
-##[id*="motivation"]:not(html):not(body):not(article)
+#@#[class*="motivation"]:not(html):not(body):not(article)
+#@#[id*="motivation"]:not(html):not(body):not(article)
 ##[class*="partner"]:not(html):not(body):not(article):not(.js-rtb-partner):not(.post)
 ##[id*="partner"]:not(html):not(body):not(article):not(.adpartner_branding):not(#adpartner_branding)
 ##[class*="paywall"]:not(html):not(body):not(article)
@@ -892,60 +883,60 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ##[id*="sponsor"]:not(html):not(body):not(article)
 ##[class^="WNAd"]:not(html):not(body):not(article)
 ##[id^="WNAd"]:not(html):not(body):not(article)
-##[class^=_Not][class*=_Big_In]:has-text(You’re using Browsec Free)
-##[class^=_Not][class*=_Big]:has-text(VPN)
-##[class*=teaser]:not(html):not(body):not(article):not(.media_image-field)
+#@#[class^=_Not][class*=_Big_In]:has-text(You’re using Browsec Free)
+#@#[class^=_Not][class*=_Big]:has-text(VPN)
+#@#[class*=teaser]:not(html):not(body):not(article):not(.media_image-field)
 ##[id*="Promo"]:not(html):not(body):not(article)
 ##[class*="Promo"]:not(html):not(body):not(article)
 ##[id*="promo"]:not(html):not(body):not(article)
 ##[class*="-promo"]:not(html):not(body):not(article):not(.node-promoted):not(.content):not(.content__header)
 ##[id*="promotion"]:not(html):not(body):not(article)
 ##[class*="promotion"]:not(html):not(body):not(article)
-##[class*="-callout"]:not(html):not(body):not(article)
-##[id*="-callout"]:not(html):not(body):not(article)
-##[class*="_callout"]:not(html):not(body):not(article)
-##[id*="_callout"]:not(html):not(body):not(article)
-##[class*="_call-out"]:not(html):not(body):not(article)
-##[id*="_call-out"]:not(html):not(body):not(article)
-##[class*="-call-out"]:not(html):not(body):not(article)
-##[id*="-call-out"]:not(html):not(body):not(article)
-##[class^="callout-"]:not(html):not(body):not(article)
-##[id^="callout-"]:not(html):not(body):not(article)
-##[class^="callout_"]:not(html):not(body):not(article)
-##[id^="callout_"]:not(html):not(body):not(article)
-##[class*="Callout"]:not(html):not(body):not(article)
-##[id*="Callout"]:not(html):not(body):not(article)
-##[class*="CallToAction"]:not(html):not(body):not(article)
-##[id*="CallToAction"]:not(html):not(body):not(article)
-##[class*="callToAction"]:not(html):not(body):not(article)
-##[id*="callToAction"]:not(html):not(body):not(article)
-##[class*="call-to-action"]:not(html):not(body):not(article)
-##[id*="call-to-action"]:not(html):not(body):not(article)
-##[class*="-cta-"]:not(html):not(body):not(article)
-##[id*="-cta-"]:not(html):not(body):not(article)
-##[class^="cta-"]:not(html):not(body):not(article)
-##[id^="-cta-"]:not(html):not(body):not(article)
-##[class$="-cta"]:not(html):not(body):not(article)
-##[class*="-cta "]:not(html):not(body):not(article)
-##[id$="-cta"]:not(html):not(body):not(article)
-##[class*="feedback"]:not(html):not(body):not(.deferredfeedback):not(.has-feedback)
-##[id*="feedback"]:not(html):not(body)
-##[class*="Survey"]:not(html):not(body)
-##[id*="Survey"]:not(html):not(body)
-##[class*="survey"]:not(html):not(body)
-##[id*="survey"]:not(html):not(body)
-##[class$="-arrow-up"]:not(html):not(body)
-##[id$="-arrow-up"]:not(html):not(body)
-##[class$="-arrow_up"]:not(html):not(body)
-##[id$="-arrow_up"]:not(html):not(body)
-##[class$="button-up"]:not(html):not(body)
-##[id$="button-up"]:not(html):not(body)
-##[class$="chevron-down"]:not(html):not(body)
-##[id$="chevron-down"]:not(html):not(body)
-##[class$="chevron-up"]:not(html):not(body)
-##[id$="chevron-up"]:not(html):not(body)
-##[class$="-icon-up"]:not(html):not(body)
-##[id$="-icon-up"]:not(html):not(body)
+#@#[class*="-callout"]:not(html):not(body):not(article)
+#@#[id*="-callout"]:not(html):not(body):not(article)
+#@#[class*="_callout"]:not(html):not(body):not(article)
+#@#[id*="_callout"]:not(html):not(body):not(article)
+#@#[class*="_call-out"]:not(html):not(body):not(article)
+#@#[id*="_call-out"]:not(html):not(body):not(article)
+#@#[class*="-call-out"]:not(html):not(body):not(article)
+#@#[id*="-call-out"]:not(html):not(body):not(article)
+#@#[class^="callout-"]:not(html):not(body):not(article)
+#@#[id^="callout-"]:not(html):not(body):not(article)
+#@#[class^="callout_"]:not(html):not(body):not(article)
+#@#[id^="callout_"]:not(html):not(body):not(article)
+#@#[class*="Callout"]:not(html):not(body):not(article)
+#@#[id*="Callout"]:not(html):not(body):not(article)
+#@#[class*="CallToAction"]:not(html):not(body):not(article)
+#@#[id*="CallToAction"]:not(html):not(body):not(article)
+#@#[class*="callToAction"]:not(html):not(body):not(article)
+#@#[id*="callToAction"]:not(html):not(body):not(article)
+#@#[class*="call-to-action"]:not(html):not(body):not(article)
+#@#[id*="call-to-action"]:not(html):not(body):not(article)
+#@#[class*="-cta-"]:not(html):not(body):not(article)
+#@#[id*="-cta-"]:not(html):not(body):not(article)
+#@#[class^="cta-"]:not(html):not(body):not(article)
+#@#[id^="-cta-"]:not(html):not(body):not(article)
+#@#[class$="-cta"]:not(html):not(body):not(article)
+#@#[class*="-cta "]:not(html):not(body):not(article)
+#@#[id$="-cta"]:not(html):not(body):not(article)
+#@#[class*="feedback"]:not(html):not(body):not(.deferredfeedback):not(.has-feedback)
+#@#[id*="feedback"]:not(html):not(body)
+#@#[class*="Survey"]:not(html):not(body)
+#@#[id*="Survey"]:not(html):not(body)
+#@#[class*="survey"]:not(html):not(body)
+#@#[id*="survey"]:not(html):not(body)
+#@#[class$="-arrow-up"]:not(html):not(body)
+#@#[id$="-arrow-up"]:not(html):not(body)
+#@#[class$="-arrow_up"]:not(html):not(body)
+#@#[id$="-arrow_up"]:not(html):not(body)
+#@#[class$="button-up"]:not(html):not(body)
+#@#[id$="button-up"]:not(html):not(body)
+#@#[class$="chevron-down"]:not(html):not(body)
+#@#[id$="chevron-down"]:not(html):not(body)
+#@#[class$="chevron-up"]:not(html):not(body)
+#@#[id$="chevron-up"]:not(html):not(body)
+#@#[class$="-icon-up"]:not(html):not(body)
+#@#[id$="-icon-up"]:not(html):not(body)
 #@#[class*="scrolldown"]:not(html):not(body)
 #@#[id*="scrolldown"]:not(html):not(body)
 #@#[class*="scroll-top"]:not(html):not(body)
@@ -998,12 +989,12 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ##[id*="Privacy"]:not(html):not(body):not(article)
 ##[class*="privacy"]:not(html):not(body):not(article)
 ##[id*="privacy"]:not(html):not(body):not(article)
-##[class*="Letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content)
-##[id*="Letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content):not(input)
-##[class*="letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content):not(.js-first-letter)
-##[id*="letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content):not(input)
-##[class*="morning_email"]:not(html):not(body):not(article)
-##[id*="morning_email"]:not(html):not(body):not(article)
+#@#[class*="Letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content)
+#@#[id*="Letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content):not(input)
+#@#[class*="letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content):not(.js-first-letter)
+#@#[id*="letter"]:not(html):not(body):not(article):not(.post_content):not(.wp_content):not(input)
+#@#[class*="morning_email"]:not(html):not(body):not(article)
+#@#[id*="morning_email"]:not(html):not(body):not(article)
 #@#[class*="Subscr"]:not(html):not(body):not(article)
 #@#[id*="Subscr"]:not(html):not(body):not(article)
 #@#[id*="subscr"]:not(html):not(body):not(article)
@@ -1013,23 +1004,23 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 #@#[id*="countdown"]:not(html):not(body):not(article)
 #@#[class^="timer"]:not(html):not(body):not(article)
 #@#[id^="timer"]:not(html):not(body):not(article)
-##[class*="buy1click"]:not(html):not(body):not(article)
-##[id*="buy1click"]:not(html):not(body):not(article)
-##[class*="buy1click"]:not(html):not(body):not(article)
-##[id*="buy1click"]:not(html):not(body):not(article)
-##[class*="buy-one-click"]:not(html):not(body):not(article)
-##[id*="buy-one-click"]:not(html):not(body):not(article)
-##[class*="quickorder"]:not(html):not(body):not(article)
-##[id*="quickorder"]:not(html):not(body):not(article)
+#@#[class*="buy1click"]:not(html):not(body):not(article)
+#@#[id*="buy1click"]:not(html):not(body):not(article)
+#@#[class*="buy1click"]:not(html):not(body):not(article)
+#@#[id*="buy1click"]:not(html):not(body):not(article)
+#@#[class*="buy-one-click"]:not(html):not(body):not(article)
+#@#[id*="buy-one-click"]:not(html):not(body):not(article)
+#@#[class*="quickorder"]:not(html):not(body):not(article)
+#@#[id*="quickorder"]:not(html):not(body):not(article)
 #@#[class*="copyright"]:not(html):not(body):not(article):not(header):not(.article-content)
 #@#[id*="copyright"]:not(html):not(body):not(article)
 #@#[class*="Disclaimer"]:not(html):not(body):not(article)
 #@#[id*="Disclaimer"]:not(html):not(body):not(article)
 #@#[class*="disclaimer"]:not(html):not(body):not(article):not(form)
 #@#[id*="disclaimer"]:not(html):not(body):not(article):not(form)
-##[class*="author-bio"]:not(html):not(body):not(article)
-##[id*="author-bio"]:not(html):not(body):not(article)
-##[class*="author-box"]:not(html):not(body):not(article):not(.author-box-enabled)
+#@#[class*="author-bio"]:not(html):not(body):not(article)
+#@#[id*="author-bio"]:not(html):not(body):not(article)
+#@#[class*="author-box"]:not(html):not(body):not(article):not(.author-box-enabled)
 
 ##[id^="banner_"]
 
@@ -1073,9 +1064,3 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
 !||google-analytics.com$third-party
 !||googletagmanager.com
-!
-!
-!
-!
-!
-
