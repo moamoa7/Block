@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042804
+! Version: 25042805
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -18,6 +18,7 @@
 @@||lgtwins.com^$stealth=dpi
 !
 !
+!
 ! 트위치 등 일부 사이트 무한 로딩 발생으로 인한 애드가드 갤러리 필터 해제
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 #@%#//scriptlet('prevent-fetch', 'doubleclick.net')
@@ -28,29 +29,36 @@
 #@%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 !
 !
+!
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
 !
 !
 !
-!
 ! - 쇼핑사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
 @@||*$image,xhr,~third-party,generichide,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com
+!
+!
+!
+! 마우스 스크롤 안움직이는거 움직이게 (일반)
+*##body:style(overflow: auto !important)
+!
+!
+!
+! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+!
+!
+!
+!  / / / / /  차단 / / / / / 
+!
+!
 !
 ! 기본 배너 차단
 ##[src*="banner"]
 ##[src*="Banner"]
 ##[target="_blank"]:has([src*="/banner"])
 ##[target="_blank"]:has([src*="/Banner"])
-
-! 마우스 스크롤 안움직이는거 움직이게 (일반)
-*##body:style(overflow: auto !important)
-!
-!
-! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-!
-!  / / / / /  차단 / / / / / 
 !
 !
 !
