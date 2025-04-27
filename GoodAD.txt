@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042706
+! Version: 25042707
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
@@ -418,6 +418,17 @@ edaily.co.kr$popup
 ! 게임조선 (https://gamechosun.co.kr/)
 ! - 상단 배너
 ##.top_event
+!
+!
+! 크리스천 투데이 (https://www.christiantoday.co.kr/)
+! - 팝업
+###div_laypopup
+! - 배너
+! - /*banner* 에서 처리하지만 임의로 놓음
+##.banner
+! - 이걸로도 가능해서 임의로 놓음
+! - - -  출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+##[target="_blank"]:has([src*="/banner"])
 !
 !
 ! 바나나몰 (bananamall.co.kr)
@@ -1064,3 +1075,9 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
 !||google-analytics.com$third-party
 !||googletagmanager.com
+!
+!
+!
+!
+!
+
