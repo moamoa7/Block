@@ -1,12 +1,12 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042704
+! Version: 25042705
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
 !
 !
-@@||*$~third-party
+!
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
@@ -766,32 +766,32 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 
 
 /ad-$~stylesheet
-/ad/*
+/ad/*$important
 ! - cineaste.co.kr
 @@member_image/ad/*.gif
-/adbanner*
+/adbanner*$important
 /ad-banners
-/adbanner*
-/ads/*
-/adsbygoogle
-/ads_*
-/ads.*$~stylesheet
+/adbanner*$important
+/ads/*$important
+/adsbygoogle$important
+/ads_*$important
+/ads.*$important,~stylesheet
 /ads?
-/adsense*
+/adsense*$important
 
 /advertise.
-/advertise.js
-/advertisers/*
-/advertisement.js$xmlhttprequest
-/advertisement.js
-/advertisement.min.js
-/advertising/
-/advertising.banner/*
-/advertising.js
-/advertising.min.js
+/advertise.js$important
+/advertisers/*$important
+/advertisement.js$xmlhttprequest,important
+/advertisement.js$important
+/advertisement.min.js$important
+/advertising/$important
+/advertising.banner/*$important
+/advertising.js$important
+/advertising.min.js$important
 
-/admanager/*
-/admanager.js
+/admanager/*$important
+/admanager.js$important
 
 /ban/*
 /ban.min.js
