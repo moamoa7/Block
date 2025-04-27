@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042806
+! Version: 25042807
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -37,7 +37,7 @@
 !
 ! - 쇼핑사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
 !  - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad-img.gmarket.com 해제 요망)
-@@||*$image,xhr,elemhide,generichide,domain=coupang.com|shopping.naver.com|shopping.nate.com|shoppinghow.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|7-eleven.co.kr|daisomall.co.kr|lotteshopping.com|shinsegae.com|ehyundai.com|danawa.com|enuri.com|coocha.co.kr|daangn.com|e-insmarket.or.kr
+@@||*$image,xhr,elemhide,generichide,domain=coupang.com|shopping.naver.com|plusdeal.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|7-eleven.co.kr|pyony.com|daisomall.co.kr|lotteshopping.com|shinsegae.com|ehyundai.com|danawa.com|enuri.com|coocha.co.kr|daangn.com|e-insmarket.or.kr|shein.com|cetizen.com|abcmart.a-rt.com|lacoste.com|adidas.co.kr|nike.com|nbkorea.com|byn.kr|k-village.co.kr|unikhan.shop|ziben.co.kr|kolonsport.com|lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|musinsa.com|beanpole.com|hazzys.com|fredperrykorea.com|ralphlauren.co.kr|feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|louisvuitton.com|okmall.com|wonderplace.co.kr|hiver.co.kr|zardins.com|ssfshop.com|goodwearmall.com|ssfshop.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|shinsegaetvshopping.com|hyundai.com|kg-mobility.com|kia.com|auto.danawa.com|kbchachacha.com|encar.com|kcar.com|m-park.co.kr|yanolja.com|yeogi.com
 
 !
 ! 마우스 스크롤 안움직이는거 움직이게 (일반)
