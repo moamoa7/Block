@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042709
+! Version: 25042710
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -39,14 +39,14 @@
 !
 ! 기본 팝업 차단
 ##[class*="popup"]
+! 기본 배너 차단
+##[src*="banner"]
+##[src*="Banner"]
+##[target="_blank"]:has([src*="/banner"])
+##[target="_blank"]:has([src*="/Banner"])
+
 ! 마우스 스크롤 안움직이는거 움직이게 (일반)
 *##body:style(overflow: auto !important)
-##[class$="ad"]
-##[class^="banner"]
-##[class$="AD"]
-##[class^="banner"]
-##[class^="Banner"]
-
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -439,7 +439,7 @@ edaily.co.kr$popup
 ! - 이걸로도 가능해서 임의로 놓음
 ! - - -  출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - - - - -  branner / banners 까지 다 됨
-##[target="_blank"]:has([src*="/banner"])
+!##[target="_blank"]:has([src*="/banner"])
 !
 !
 ! 바나나몰 (bananamall.co.kr)
