@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042710
+! Version: 25042801
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -32,6 +32,9 @@
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
 !
+
+@@||*$document
+
 !
 ! - 쇼핑사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
 @@||*$image,xhr,~third-party,generichide,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com
@@ -805,10 +808,27 @@ watchjavonline.com##.code-block-2.code-block
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 !
 !
-
-!
-!
-!
+##.adsbygoogle
+##.ad-container
+##.banner-ad
+###ad
+##[id^="ad_"]
+##[src*="ads"]
+##.sponsored
+##.google-auto-placed
+##.advertisement
+###advertisement
+##div[data-ad]
+##.popup-ad
+##.ad-overlay
+##.native-ad
+##.sponsored-post
+##iframe[src*="doubleclick"]
+##[src*="ads"]
+##[src*="doubleclick"]
+##.google-ads
+##.anti-adblock-banner
+###ad-banner
 !
 !
 !
