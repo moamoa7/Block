@@ -37,8 +37,6 @@
 @@||*$image,xhr,~third-party,generichide,domain=coupang.com|shopping.naver.com|auction.co.kr|11st.co.kr|gmarket.co.kr|aliexpress.com|temu.com|shopback.co.kr|stacksocial.com|shoppinglive.naver.com|store.kakao.com|market.ddanzi.com|podcatmall.com|wadiz.kr|bananamall.co.kr|new-m.pay.naver.com|shop.kt.com
 !
 !
-! 기본 팝업 차단
-##[class*="popup"]
 ! 기본 배너 차단
 ##[src*="banner"]
 ##[src*="Banner"]
