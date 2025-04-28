@@ -1,8 +1,14 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042812
+! Version: 25042901
 !
 !
+
+!
+!
+!
+!
+
 
 !
 !
@@ -23,19 +29,51 @@
 !
 ! https://raw.githubusercontent.com/imxieke/Anti-Ads/refs/heads/master/filters/advert.txt
 
+
+@@/^https?:\/\/([a-z0-9-]+\.)*?(cloudflare\.com|prismic\.io|tangerine\.ca|gitlab\.com)/$removeparam
+! - - - https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css?ver=180820
+@@/font-awesome
+@@||fontawesome.com^
+
+||fonts.gstatic.com^$3p
+
+
+||cdn.jsdelivr.net/npm/@adshield/
+||amung.us^
+||tiara.kakao.com^
+
+
+
 /ad/$3p.badfilter
 
+! 유튜브
+/generate_204?$image
+||youtube.com/youtubei/v1/log_event?
+
+
 /google_ad.
+
+
 
 ##html>:not(head, body), html>:not(head, body) *
 ##script[id] + script[src^="/"] ~ div[id]:not([class])
 
+habuteru.com,play.hbomax.com,mathbang.net,ab-in-den-urlaub.de,ladyblog.me,plantaomaringa.com,tistory.com#$#html * { -webkit-touch-callout: default!important; -moz-user-select: text!important; -webkit-user-select: auto!important; -ms-user-select: text!important; -o-user-select: auto!important; user-select: auto!important; -khtml-user-select: auto!important; }
+
+! 지니파일 (https://geniefile.com/)
 ##ul > li > A[href$="_list.html"]
+
+! 이토랜드
+! 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+etoland.co.kr#@#div[class$="_ad"]
+tistory.*##figure:has([href*="link.coupang.com"])
 
 ##a.disabled
 
 ##[id^="ad_"]
 ##[id$="-ad"]
+
+##[id^="adsense_"]
 
 ##[class^="videoad"]
 
@@ -50,6 +88,13 @@
 
 ##iframe[width="0"][height="0"]
 
+! https://javgiga.com/
+##iframe[src^="https://creative."][src*="/widgets/"]
+! https://javgiga.com/
+/ad?type=
+! https://javgiga.com/
+*/pop.js^$domain=~socpk.com|~autohome.com.cn|~patch.ali213.net
+
 ! uBlock filters – Ads
 ##div[id^="div-gpt-"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
 ##[id^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
@@ -63,6 +108,8 @@
 
 ##img[src$="/ads.png"]
 
+##.post-content > [class^="ads"]
+
 ! 트위치 영상 안나옴
 /ads/$badfilter
 
@@ -72,7 +119,22 @@ fmkorea.com###bd_capture:style(background: none!important;)
 ##.ad-left
 ##.googleSubjectAd
 
+##.sponsor
+
 ||127.0.0.1^$3p,from=~[::1]|~[::ffff:7f00:1]|~localhost
+
+! 지니파일 (https://geniefile.com/)
+! 픽팍 (https://mypikpak.com/ko/check-in)
+/^\w+:\/\/127\.(?:(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))\.){2}(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))[:/]/$3p,domain=~localhost|~127.0.0.1|~[::1]|~0.0.0.0|~[::]|~local
+! - - - http://127.0.0.1:36120/init
+! - - - http://127.0.0.1:36121/init
+! - - - http://127.0.0.1:36122/init
+! - - - http://127.0.0.1:36123init
+! - - - http://127.0.0.1:36124init
+! - - - http://127.0.0.1:20007/auth-info?client-id=YUMx5nI8ZU8Ap8pm
+
+! AVSeeTV (https://04.avsee.ru/)
+/^https:\/\/[a-z][a-z][a-z][a-z][a-z][a-z][a-z][a-z]+\.com\/en\/([a-z][a-z]+\/)?([a-z][a-z]+\/)?[a-z][a-z]+\?([a-z]+=[^&=?\s]*?&)*?id=[12][0-9][0-9][0-9][0-9][0-9][0-9]/$script,third-party,match-case
 
 
 !
@@ -107,7 +169,8 @@ fmkorea.com###bd_capture:style(background: none!important;)
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
 !
-!
+
+@@||*$generichide
 !
 !
 ! - 쇼핑/금융 사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
@@ -626,7 +689,7 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
 ! - - - https://fc2ppv.stream/
 ! - - - https://k4.kbjsvip.win/
-!##.happy-header
+##.happy-header
 ! AV핑보걸 영상 화면 하단 배너
 ! 쏘걸 (https://kr79.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
 !##.happy-under-player
@@ -922,3 +985,19 @@ watchjavonline.com##.code-block-2.code-block
 ##.google-ads
 ##.anti-adblock-banner
 ###ad-banner
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
