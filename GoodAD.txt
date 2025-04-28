@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042809
+! Version: 25042810
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -481,18 +481,18 @@ cgv.co.kr##.noticeClient_banner_wrap
 ! - - - 팝업을 삭제하면 스크롤이 안됨
 ! - - - 하나씩 지워도 뿌여하면 나오는데 그걸 클릭하게 하면 스크롤은 가능한대 불편함
 ! - - - 상단 배너
-cgv.co.kr##.homeAdWrap
+!cgv.co.kr##.homeAdWrap
 ! - - -  일부 요소
 ! - - -  - - 모바일에서 굳이 필요 없다고 생각되서 메인 화면 일부 삭제
-cgv.co.kr##[class^="home_contents_list_wrap home"]
-cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
+!cgv.co.kr##[class^="home_contents_list_wrap home"]
+!cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! - - - 무비차트 내 간편결제매니저 공간
 ! -  - - - - https://www.sakurajav.com/
 ! -  - - - - https://javhay.net/
 ##.ad
 ! - - - 하단 예매하기 버튼 (PC/모바일)
 ! - - - - - 눌러도 예약화면이 안나옴 (왼쪽 상단 석삼자 눌러서 예매하기 클릭할 것)
-cgv.co.kr##.btnLinkFixed
+!cgv.co.kr##.btnLinkFixed
 !
 !
 ! 맥스무비 (https://www.maxmovie.com/)
@@ -848,4 +848,3 @@ watchjavonline.com##.code-block-2.code-block
 ###ad-banner
 !
 !
-
