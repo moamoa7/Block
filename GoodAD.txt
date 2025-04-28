@@ -1,25 +1,12 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042902
+! Version: 25042903
 !
 !
 !
 !
 !
 !
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-
 ! https://raw.githubusercontent.com/ParkAdam/Adblock/refs/heads/main/address.txt
 ##[id^="banner"]
 ##[id$="banner"]
@@ -174,33 +161,29 @@ fmkorea.com###bd_capture:style(background: none!important;)
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
 !
-!
+! 
 !
 !
 !
 ! - 쇼핑/금융 사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
 !  - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad-img.gmarket.com 해제 요망)
-@@||*$image,xhr,elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com
-
-@@||*$image,xhr,elemhide,domain=enuri.com|coocha.co.kr|daangn.com|e-insmarket.or.kr|shein.com|cetizen.com|abcmart.a-rt.com|lacoste.com|adidas.co.kr|nike.com|nbkorea.com|byn.kr|k-village.co.kr|unikhan.shop|ziben.co.kr|kolonsport.com|lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|musinsa.com|beanpole.com|hazzys.com|fredperrykorea.com|ralphlauren.co.kr|feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|louisvuitton.com|okmall.com|wonderplace.co.kr|hiver.co.kr|zardins.com|ssfshop.com|goodwearmall.com|ssfshop.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|shinsegaetvshopping.com|hyundai.com|kg-mobility.com|kia.com|auto.danawa.com|kbchachacha.com|encar.com|kcar.com|m-park.co.kr|yanolja.com|yeogi.com|samsungpmall.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|samsunglionsmall.com|shinhan.com|shinhancard.com|shinhansec.com|kbstar.com|card.kbcard.com|kbsec.com|kebhana.com|hanacard.co.kr|hanaw.com|wooribank.com|wooricard.com|wooriib.com|kfcc.co.kr|cu.co.kr|banking.nonghyup.com|ibk.co.kr|bccard.com|lottecard.co.kr|ssg.com|uniqlo.com|wconcept.co.kr|xexymix.com|lfmall.co.kr|zara.com|hm.com|chanel.com|stockx.com|mango.com|marpple.com|gucci.com|thehandsome.com|hermes.com|stussy.com|getbarrel.com|buyma.com|prada.com|aloyoga.com|bottegaveneta.com|tods.com|idlookmall.com|mustit.co.kr|dolcegabbana.com|massimodutti.com|ssense.com|kasina.co.kr|hotsunglass.co.kr|guesskorea.com|grailed.com|thehyundai.com|hyundaicapital.com|kbcapital.co.kr|nhcapital.co.kr|semas.or.kr|kodit.co.kr|kibo.or.kr|kinfa.or.kr|ccrs.or.kr|hmall.com|lotteimall.com|zigzag.kr|cjonstyle.com|nsmall.com|amazon.com|kurly.com|market09.kr|tworld.co.kr|nonghyupmall.com|e-himart.co.kr|nhhanaro.co.kr|costco.co.kr|etlandmall.co.kr|shinsegaetvshopping.com|thirtymall.com|wemakeprice.com|puma.com|underarmour.co.kr|lululemon.co.kr|asics.co.kr|columbiakorea.co.kr|fila.co.kr|reebok.co.kr|lge.co.kr|ssgdfs.com|shilladfs.com|hddfs.com|lottedfs.com|koreanair.com|koreanairdfs.com|flyasiana.com|dutyfree.flyasiana.com|showdang.co.kr|spooning19.com
-
+@@||*$image,xhr,elemhide,generichide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com
+!
+@@||*$image,xhr,elemhide,generichide,domain=enuri.com|coocha.co.kr|daangn.com|e-insmarket.or.kr|shein.com|cetizen.com|abcmart.a-rt.com|lacoste.com|adidas.co.kr|nike.com|nbkorea.com|byn.kr|k-village.co.kr|unikhan.shop|ziben.co.kr|kolonsport.com|lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|musinsa.com|beanpole.com|hazzys.com|fredperrykorea.com|ralphlauren.co.kr|feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|louisvuitton.com|okmall.com|wonderplace.co.kr|hiver.co.kr|zardins.com|ssfshop.com|goodwearmall.com|ssfshop.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|shinsegaetvshopping.com|hyundai.com|kg-mobility.com|kia.com|auto.danawa.com|kbchachacha.com|encar.com|kcar.com|m-park.co.kr|yanolja.com|yeogi.com|samsungpmall.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|samsunglionsmall.com|shinhan.com|shinhancard.com|shinhansec.com|kbstar.com|card.kbcard.com|kbsec.com|kebhana.com|hanacard.co.kr|hanaw.com|wooribank.com|wooricard.com|wooriib.com|kfcc.co.kr|cu.co.kr|banking.nonghyup.com|ibk.co.kr|bccard.com|lottecard.co.kr|ssg.com|uniqlo.com|wconcept.co.kr|xexymix.com|lfmall.co.kr|zara.com|hm.com|chanel.com|stockx.com|mango.com|marpple.com|gucci.com|thehandsome.com|hermes.com|stussy.com|getbarrel.com|buyma.com|prada.com|aloyoga.com|bottegaveneta.com|tods.com|idlookmall.com|mustit.co.kr|dolcegabbana.com|massimodutti.com|ssense.com|kasina.co.kr|hotsunglass.co.kr|guesskorea.com|grailed.com|thehyundai.com|hyundaicapital.com|kbcapital.co.kr|nhcapital.co.kr|semas.or.kr|kodit.co.kr|kibo.or.kr|kinfa.or.kr|ccrs.or.kr|hmall.com|lotteimall.com|zigzag.kr|cjonstyle.com|nsmall.com|amazon.com|kurly.com|market09.kr|tworld.co.kr|nonghyupmall.com|e-himart.co.kr|nhhanaro.co.kr|costco.co.kr|etlandmall.co.kr|shinsegaetvshopping.com|thirtymall.com|wemakeprice.com|puma.com|underarmour.co.kr|lululemon.co.kr|asics.co.kr|columbiakorea.co.kr|fila.co.kr|reebok.co.kr|lge.co.kr|ssgdfs.com|shilladfs.com|hddfs.com|lottedfs.com|koreanair.com|koreanairdfs.com|flyasiana.com|dutyfree.flyasiana.com|showdang.co.kr|spooning19.com
+!
 ! - 예매 사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
 ! - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad.cgv.co.kr / adimg.cgv.co.kr 히제 요망)
-@@||*$image,xhr,elemhide,domain=nol.interpark.com|www.ticketlink.co.kr|ticket.interpark.com|ticket.yes24.com|ticket.melon.com|www.cgv.co.kr|www.lottecinema.co.kr|www.megabox.co.kr|www.korail.com|kobus.co.kr|txbus.t-money.co.kr
+@@||*$image,xhr,elemhide,generichide,domain=nol.interpark.com|www.ticketlink.co.kr|ticket.interpark.com|ticket.yes24.com|ticket.melon.com|www.cgv.co.kr|www.lottecinema.co.kr|www.megabox.co.kr|www.korail.com|kobus.co.kr|txbus.t-money.co.kr
+!
 ! - 취업 사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
-@@||*$image,xhr,elemhide,domain=work24.go.kr|www.jobkorea.co.kr|www.saramin.co.kr|www.incruit.com|www.career.co.kr|www.alba.co.kr|www.albamon.com|indeed.com
-
-
+@@||*$image,xhr,elemhide,generichide,domain=work24.go.kr|www.jobkorea.co.kr|www.saramin.co.kr|www.incruit.com|www.career.co.kr|www.alba.co.kr|www.albamon.com|indeed.com
 !
-!
-
-
 ! - 미용 비활성 사이트 (영화 감상)
-@@||*$elemhide,domain=www.netflix.com|www.tving.com|www.wavve.com|play.coupang.com|tv.apple.com|watcha.com|laftel.net|www.spotvnow.co.kr|www.dorama.kr|www.bflix.co.kr|cinema.emotioncastle.com|www.purplay.co.kr|heavenly.tv|hellolive.tv|www.primevideo.com|www.disney.com
-
+@@||*$elemhide,generichide,domain=www.netflix.com|www.tving.com|www.wavve.com|play.coupang.com|tv.apple.com|watcha.com|laftel.net|www.spotvnow.co.kr|www.dorama.kr|www.bflix.co.kr|cinema.emotioncastle.com|www.purplay.co.kr|heavenly.tv|hellolive.tv|www.primevideo.com|www.disney.com
+!
 !
 ! 마우스 스크롤 안움직이는거 움직이게 (일반)
-!##body:style(overflow: auto !important)
+!*##body:style(overflow: auto !important)
 !
 !
 !
