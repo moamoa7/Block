@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043003
+! Version: 25043004
 !
 !
 !
@@ -1040,6 +1040,11 @@ kilho.net##[src^="https://imgdb.in/a/"]
 ! 눈누 (https://noonnu.cc)
 ! - 오른쪽 배너 공간
 noonnu.cc##.lg\:top-8
+!
+!
+! APKMODY (https://apkmody.com/)
+! - 배너 광간
+##INS.adsbygoogle
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
