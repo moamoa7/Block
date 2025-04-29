@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042910
+! Version: 25043001
 !
 !
 !
@@ -824,11 +824,6 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ||joajoajoamoamoa.store/VAST/
 !
 !
-! JAVGIGA (https://javgiga.com/)
-! - 클릭시 발생하는 팝업 차단 (이렇게 해도 팝업은 뜨네)
-||go.rmishe.com$popup
-!
-!
 ! MISSAV (https://missvod2.com/)
 ! - 배너
 [$domain=/^missvod\d+.com/]###banner-list.banner-list
@@ -1026,6 +1021,21 @@ watchjavonline.com##.code-block-2.code-block
 ##.videoads
 !
 !
+!
+!
+!
+! 길호넷 (https://kilho.net/)
+! - 오른쪽 배너
+##.adsense
+! - 유니콘pro에서는 적용이 안되서 개별 추가
+! - - -  팝업
+kilho.net###d202504101
+! - - - 뿌연 화면 사라지게
+kilho.net##.show.fade.modal-backdrop
+! - - -  게시물 내 광고
+kilho.net##[src^="https://imgdb.in/a/"]
+!
+!
 ! 눈누 (https://noonnu.cc)
 ! - 오른쪽 배너 공간
 noonnu.cc##.lg\:top-8
@@ -1053,6 +1063,8 @@ noonnu.cc##.lg\:top-8
 ##.google-ads
 ##.anti-adblock-banner
 ###ad-banner
+!
+!
 !
 !
 !
