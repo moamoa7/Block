@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042907
+! Version: 25042908
 !
 !
 !
@@ -22,7 +22,9 @@
 ##[id^="banner"]
 ##[id$="banner"]
 ##a[href*="bannerhit.php"]
-/banner/*
+! 11번가 이미지 다 날림
+/banner/*$badfilter
+
 
 
 !
@@ -84,7 +86,6 @@ tistory.*##figure:has([href*="link.coupang.com"])
 ##[class^="videoad"]
 
 ##div[id^="div-gpt-ad"]
-##div[class*="ads"]
 ##div[class*="ad-container"]
 ##div[class^="swiper-"] > ul > li > a[target="_blank"]
 
@@ -111,12 +112,13 @@ tistory.*##figure:has([href*="link.coupang.com"])
 /ads.
 *##.ad
 *##.adbox
-##.ads
-##.ads > img
 
 
-
-##img[src$="/ads.png"]
+! 카카오TV 일반 영상 재생시 안됨
+#@#div[class*="ads"]
+#@#.ads
+#@#.ads > img
+#@#img[src$="/ads.png"]
 
 ##.post-content > [class^="ads"]
 
@@ -197,29 +199,63 @@ fmkorea.com###bd_capture:style(background: none!important;)
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
 !
-! 
+!
+!
+! 네이버 페이 (https://new-m.pay.naver.com/) 이미지 깨짐 해결 및 포인트 적립 가능
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+@@cdn-ao.adison.co
+!
+!
+! 옥션 (https://www.auction.co.kr) / 지마켓 (https://www.gmarket.co.kr/)
+! -  배너 나오게 (따로 필터에서 막아 놓지 않아서 할 필요 없음)
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+@@ad-img.gmarket.com
+!
+!
+! 다나와 (https://danawa.com/)
+! - 배너 보이게
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+@@||ad.danawa.com
+! - EasyList / List-KR 해제
+@@||ssl.pstatic.net/tveta/libs/
+!
+!
+! CGV (https://cgv.co.kr/)
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+! - 상단 배너 나오게 (List-KR 해제)
+@@ad.cgv.co.kr
+@@adimg.cgv.co.kr
+!
+!
+!
 !elemhide,generichide
+!
 !
 !
 ! - 쇼핑/금융 사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
 !  - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad-img.gmarket.com 해제 요망)
 @@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr
 @@||$image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr
-
-
+!
+!
 @@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com
 !
+!
 @@||$elemhide,domain=enuri.com|coocha.co.kr|daangn.com|e-insmarket.or.kr|shein.com|cetizen.com|abcmart.a-rt.com|lacoste.com|adidas.co.kr|nike.com|nbkorea.com|byn.kr|k-village.co.kr|unikhan.shop|ziben.co.kr|kolonsport.com|lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|musinsa.com|beanpole.com|hazzys.com|fredperrykorea.com|ralphlauren.co.kr|feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|louisvuitton.com|okmall.com|wonderplace.co.kr|hiver.co.kr|zardins.com|ssfshop.com|goodwearmall.com|ssfshop.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|shinsegaetvshopping.com|hyundai.com|kg-mobility.com|kia.com|auto.danawa.com|kbchachacha.com|encar.com|kcar.com|m-park.co.kr|yanolja.com|yeogi.com|samsungpmall.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|samsunglionsmall.com|shinhan.com|shinhancard.com|shinhansec.com|kbstar.com|card.kbcard.com|kbsec.com|kebhana.com|hanacard.co.kr|hanaw.com|wooribank.com|wooricard.com|wooriib.com|kfcc.co.kr|cu.co.kr|banking.nonghyup.com|ibk.co.kr|bccard.com|lottecard.co.kr|ssg.com|uniqlo.com|wconcept.co.kr|xexymix.com|lfmall.co.kr|zara.com|hm.com|chanel.com|stockx.com|mango.com|marpple.com|gucci.com|thehandsome.com|hermes.com|stussy.com|getbarrel.com|buyma.com|prada.com|aloyoga.com|bottegaveneta.com|tods.com|idlookmall.com|mustit.co.kr|dolcegabbana.com|massimodutti.com|ssense.com|kasina.co.kr|hotsunglass.co.kr|guesskorea.com|grailed.com|thehyundai.com|hyundaicapital.com|kbcapital.co.kr|nhcapital.co.kr|semas.or.kr|kodit.co.kr|kibo.or.kr|kinfa.or.kr|ccrs.or.kr|hmall.com|lotteimall.com|zigzag.kr|cjonstyle.com|nsmall.com|amazon.com|kurly.com|market09.kr|tworld.co.kr|nonghyupmall.com|e-himart.co.kr|nhhanaro.co.kr|costco.co.kr|etlandmall.co.kr|shinsegaetvshopping.com|thirtymall.com|wemakeprice.com|puma.com|underarmour.co.kr|lululemon.co.kr|asics.co.kr|columbiakorea.co.kr|fila.co.kr|reebok.co.kr|lge.co.kr|ssgdfs.com|shilladfs.com|hddfs.com|lottedfs.com|koreanair.com|koreanairdfs.com|flyasiana.com|dutyfree.flyasiana.com|showdang.co.kr|spooning19.com
+!
 !
 ! - 예매 사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
 ! - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad.cgv.co.kr / adimg.cgv.co.kr 히제 요망)
 @@||$elemhide,domain=nol.interpark.com|www.ticketlink.co.kr|ticket.interpark.com|ticket.yes24.com|ticket.melon.com|www.cgv.co.kr|www.lottecinema.co.kr|www.megabox.co.kr|www.korail.com|kobus.co.kr|txbus.t-money.co.kr
 !
+!
 ! - 취업 사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
 @@||$elemhide,domain=work24.go.kr|www.jobkorea.co.kr|www.saramin.co.kr|www.incruit.com|www.career.co.kr|www.alba.co.kr|www.albamon.com|indeed.com
 !
+!
 ! - 미용 비활성 사이트 (영화 감상)
 @@||$elemhide,domain=www.netflix.com|www.tving.com|www.wavve.com|play.coupang.com|tv.apple.com|watcha.com|laftel.net|www.spotvnow.co.kr|www.dorama.kr|www.bflix.co.kr|cinema.emotioncastle.com|www.purplay.co.kr|heavenly.tv|hellolive.tv|www.primevideo.com|www.disney.com
+!
 !
 !
 ! 마우스 스크롤 안움직이는거 움직이게 (일반)
@@ -291,6 +327,13 @@ viewership.softc.one##.fc-dialog-container
 ##.bs-notice_layer
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
 ###FeedLayerToolTip
+!
+!
+! 카카오TV (https://tv.kakao.com/)
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+!  - 영상 재생 해결
+@@play.kakao.com
+@@videoads.kakao.com
 !
 !
 ! 메시티비 (https://messitv8.com/)
@@ -383,7 +426,6 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ###fm_alert
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
 ##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
-!
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
@@ -616,9 +658,8 @@ edaily.co.kr$popup
 ! - 팝업
 ###div_laypopup
 ! - 배너
-! - /*banner* 에서 처리하지만 임의로 놓음
 !##.banner
-! - 이걸로도 가능해서 임의로 놓음
+! - 아래로 변경
 ! - - -  출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - - - - -  branner / banners 까지 다 됨
 ##[target="_blank"]:has([src*="/banner"])
@@ -635,30 +676,7 @@ bananamall.co.kr###pop_gevent
 showdang.co.kr##.box
 !
 !
-! 옥션 (https://www.auction.co.kr) / 지마켓 (https://www.gmarket.co.kr/)
-! -  배너 나오게 (따로 필터에서 막아 놓지 않아서 할 필요 없음)
-! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
-@@ad-img.gmarket.com
-!
-!
-! 11번가 (https://www.11st.co.kr/)
-! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
-@@adoffice.11st.co.kr
-!
-!
-! 다나와 (https://danawa.com/)
-! - 배너 보이게
-! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
-@@||ad.danawa.com
-! - EasyList / List-KR 해제
-@@||ssl.pstatic.net/tveta/libs/
-!
-!
 ! CGV (https://cgv.co.kr/)
-! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
-! - 상단 배너 나오게 (List-KR 해제)
-@@ad.cgv.co.kr
-@@adimg.cgv.co.kr
 ! - PC
 ! - - - 하단 오른쪽 배너 공간
 cgv.co.kr##.noticeClient_banner_wrap
