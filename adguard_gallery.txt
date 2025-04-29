@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025-04-26
+! Version: 2025-04-28
 ! Description: 애드가드 필터의 일부 오차단, 안티 애드블록, 지우지 못한 광고를 해결합니다. For Adguard, uBo, Brave
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -26,7 +26,7 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 ##.happy-header
 ##.happy-header-mobile
 ##.happy-under-player-mobile
-##.popup_left
+##[alt$='광고']
 ##[id*='powerlink']
 ##[id^='hd_pop']
 ##cloudflare-app
@@ -36,7 +36,6 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 ##iframe[src*='cdn.targetpush.co.kr']
 ##iframe[src*='digitalcamp.co.kr']
 ##iframe[src*='sga.adp']
-##img[alt$='광고']
 11st.co.kr##iframe[src*='ads.adoffice.11st.co.kr']
 [$domain=/^booktoki\d+.com/]##.col-sm-9.col-md-9.col-15
 [$domain=/^cokcoktv\d+.com/]###cpb-popup-banners
@@ -46,7 +45,6 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 [$domain=/^newtoki\d+.com/]##.banner
 [$domain=/^newtoki\d+.com/]##div.col-15.col-md-9
 [$domain=/^tkor\d+.com/]##[target='_blank']:has([src])
-[$domain=/^torrentqq\d+.com/]##.at-banner
 [$domain=/^tvmon\d+.org/]##.banner_wrap2
 [$domain=/^tvmon\d+.org/]##[src*='/AD/']
 [$domain=/^tvroom\d+.org/]###mq-notice
@@ -55,7 +53,7 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 [$domain=/^tvroom\d+.org/]##.iziModal-overlay
 [$domain=/^tvroom\d+.org/]##.supermarquee-item
 [$domain=/^tvroom\d+.org/]##[id^='modal-anc-']
-[$domain=/^tvroom\d+.org/]##body,html:style(overflow:auto!important)
+[$domain=/^tvroom\d+.org/]##body:style(overflow:auto!important)
 [$domain=/^tvroom\d+.org/]##div.banner_l.text-center
 [$domain=/^tvwiki\d+.com/]###bannerList
 [$domain=/^tvwiki\d+.com/]###viewCover
@@ -75,6 +73,7 @@ coinpan.com##*:has(> div[style^='width:390px; max-width:100%;'])
 coinpan.com##.flatBoard > .clearfix.title-wrap
 coinpan.com##strong:has([target='_blank'])
 coolenjoy.net##.carousel-inner
+danawa.com##[id*='powerLink']
 dcinside.com###dna_content
 dcinside.com##.adv-inner
 dcinside.com##.dcmedia.content_box
@@ -99,7 +98,6 @@ hankyung.com##[class*='promotion']
 harpi.in##div:has(> script[src])
 hasha.in##div[data-banner-id]
 hasha.in#%#//scriptlet('prevent-element-src-loading', 'script', 'private-stage.com')
-hitomi.la##.content > div:first-child:not(:has(picture))
 instiz.net##.hot_under
 khan.co.kr##.mAd
 kio.ac##div[forcemount]
@@ -109,8 +107,11 @@ m.cafe.daum.net##.bottom_banner
 m.cafe.naver.com##.bottom.banner_add
 m.cafe.naver.com##.join_layer
 m.cgv.co.kr##.topBanner
+m.danawa.com###mdnw-main-bottomSheet-container
+m.danawa.com###mdnw-main-dimm
 m.daum.net##.bnr_popup.bnr_layer
 m.dcinside.com###notice_list > li:not(:has([href*='javascript'])):not(:has(span.ntc-line-orange))
+m.dcinside.com##.layer-bottom-popup
 m.dcinside.com##.trend-rank:style(padding-top:0px!important; padding-bottom:0px!important; )
 m.dcinside.com##section.clkhigh.grid
 m.dcinside.com##section.grid > .md-tit-box:has-text(Daum)
@@ -143,6 +144,7 @@ web.joongna.com##li:has(span:has-text(광고))
 windowsforum.kr##.ad
 womennews.co.kr##.body.grid > .columns
 zod.kr##[data-href^='https://zod.kr/go/']
+||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
 ||adcr.naver.com^$all,domain=~naver.com
 ||apps.m.sooplive.co.kr^$all
 ||arca.live/static/assets/js/adult.min.js
@@ -159,11 +161,6 @@ zod.kr##[data-href^='https://zod.kr/go/']
 [$domain=/^[a-z]*toki\d+\.[a-z]{3}$/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
 cafe.naver.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 
-! 트래커 차단
-||dcinside.com/_js/jquery/jquery.iframetracker.js
-||dcinside.com/js/kakao.min.js
-||wcs.naver.net^$domain=dcinside.com
-
 ! 멀웨어 / 수익링크 차단
 fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ||mistydivided.com^$all
@@ -171,10 +168,11 @@ fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ! 애드가드 필터 오차단 해제
 11st.co.kr#@#div[class$="-ad"]
 @@/.*/$permissions=identity-credentials-get=(),document,domain=slrclub.com
-@@||ad*.cgv.co.kr^
+@@||ad*.cgv.co.kr^$image,domain=cgv.co.kr
+@@||ad.danawa.com^$image,domain=danawa.com
 @@||ad.planbplus.co.kr^$app=com.deaguowl.fallcent
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
-@@||ad-img.gmarket.com^$domain=gmarket.co.kr|auction.co.kr
+@@||ad-img.gmarket.com^$image,domain=gmarket.co.kr|auction.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search
 @@||app.appsflyer.com^$domain=ofw.adison.co
 @@||co.kr^$stealth=dpi
