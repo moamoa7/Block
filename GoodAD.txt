@@ -1,6 +1,17 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042906
+! Version: 25042907
+!
+!
+!
+!
+!
+!
+@@||$elemhide,domain=trand.co.kr
+@@||$image,xhr,domain=trand.co.kr
+!
+!
+!
 !
 !
 !
@@ -12,7 +23,8 @@
 ##[id$="banner"]
 ##a[href*="bannerhit.php"]
 /banner/*
-!
+
+
 !
 !
 !
@@ -26,6 +38,8 @@
 ! - - - https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css?ver=180820
 @@/font-awesome
 @@||fontawesome.com^
+
+@@||fundingchoicesmessages.google.com^$xhr
 
 ||fonts.gstatic.com^$3p
 
@@ -76,7 +90,8 @@ tistory.*##figure:has([href*="link.coupang.com"])
 
 ##a[href][target="_blank"] > img[width="100%"][src$=".gif"]
 
-##img[width="0"][height="0"]
+! https://viewership.softc.one/livestreams?count=300 이미지 안나옴
+#@#img[width="0"][height="0"]
 
 ##iframe[width="0"][height="0"]
 
@@ -92,11 +107,14 @@ tistory.*##figure:has([href*="link.coupang.com"])
 ##[id^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
 
 
+-ads-$script
 /ads.
 *##.ad
 *##.adbox
 ##.ads
 ##.ads > img
+
+
 
 ##img[src$="/ads.png"]
 
@@ -108,10 +126,17 @@ tistory.*##figure:has([href*="link.coupang.com"])
 fmkorea.com###bd_capture:style(background: none!important;)
 
 
+
 ##.ad-left
+##.banner-ads
+##.banner_ads
 ##.googleSubjectAd
 
 ##.sponsor
+
+###ads-block
+
+
 
 ||127.0.0.1^$3p,from=~[::1]|~[::ffff:7f00:1]|~localhost
 
@@ -127,6 +152,17 @@ fmkorea.com###bd_capture:style(background: none!important;)
 
 ! AVSeeTV (https://04.avsee.ru/)
 /^https:\/\/[a-z][a-z][a-z][a-z][a-z][a-z][a-z][a-z]+\.com\/en\/([a-z][a-z]+\/)?([a-z][a-z]+\/)?[a-z][a-z]+\?([a-z]+=[^&=?\s]*?&)*?id=[12][0-9][0-9][0-9][0-9][0-9][0-9]/$script,third-party,match-case
+
+
+
+
+
+
+
+! https://viewership.softc.one/livestreams?count=300 화면 스크롤이 안됨
+@@||fundingchoicesmessages.google.com^$script,badfilter
+
+
 
 
 !
@@ -167,8 +203,8 @@ fmkorea.com###bd_capture:style(background: none!important;)
 !
 ! - 쇼핑/금융 사이트 이미지/xhr 허용 및 미용 비활성 (깨지는거 방지)
 !  - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad-img.gmarket.com 해제 요망)
-@@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com
-@@||$image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com
+@@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr
+@@||$image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr
 
 
 @@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com
@@ -198,10 +234,6 @@ fmkorea.com###bd_capture:style(background: none!important;)
 !  / / / / /  차단 / / / / / 
 !
 !
-!
-! 기본 배너 차단
-##[target="_blank"]:has([src*="/banner"])
-##[target="_blank"]:has([src*="/Banner"])
 !
 !
 !
@@ -281,7 +313,7 @@ viewership.softc.one##.fc-dialog-container
 !
 ! VIP TV (https://viptv24.com/)
 ! - 팝업
-###popup_1
+[$domain=/^viptv\d+.com/]###popup_1
 ! - 채팅 공간
 ###left_chat
 !
@@ -585,11 +617,11 @@ edaily.co.kr$popup
 ###div_laypopup
 ! - 배너
 ! - /*banner* 에서 처리하지만 임의로 놓음
-##.banner
+!##.banner
 ! - 이걸로도 가능해서 임의로 놓음
 ! - - -  출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - - - - -  branner / banners 까지 다 됨
-!##[target="_blank"]:has([src*="/banner"])
+##[target="_blank"]:has([src*="/banner"])
 !
 !
 ! 바나나몰 (bananamall.co.kr)
@@ -603,7 +635,30 @@ bananamall.co.kr###pop_gevent
 showdang.co.kr##.box
 !
 !
+! 옥션 (https://www.auction.co.kr) / 지마켓 (https://www.gmarket.co.kr/)
+! -  배너 나오게 (따로 필터에서 막아 놓지 않아서 할 필요 없음)
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+@@ad-img.gmarket.com
+!
+!
+! 11번가 (https://www.11st.co.kr/)
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+@@adoffice.11st.co.kr
+!
+!
+! 다나와 (https://danawa.com/)
+! - 배너 보이게
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+@@||ad.danawa.com
+! - EasyList / List-KR 해제
+@@||ssl.pstatic.net/tveta/libs/
+!
+!
 ! CGV (https://cgv.co.kr/)
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+! - 상단 배너 나오게 (List-KR 해제)
+@@ad.cgv.co.kr
+@@adimg.cgv.co.kr
 ! - PC
 ! - - - 하단 오른쪽 배너 공간
 cgv.co.kr##.noticeClient_banner_wrap
@@ -752,8 +807,8 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 !
 ! JAVGIGA (https://javgiga.com/)
-! - 팝업 차단
-||javgiga.com$popup
+! - 클릭시 발생하는 팝업 차단
+||go.rmishe.com$popup
 !
 !
 ! MISSAV (https://missvod2.com/)
@@ -880,14 +935,12 @@ loopholes.site##.widget_text
 ! - 왼쪽 배너
 ##.info-banner
 ! - 게시물내 한칸짜리 배너
-!##[src*="event_banner"]
+##[src*="event_banner"]
 ! - - - 아래로 변경하면..
 ! - - - - -야동그라운드 (https://yagro48.com/)
 ! - - - - -빨간비디오 (https://redvi77.com/)
 ! - - - - -야동도시 (https://yacity47.com/)
 ! - - - - -야동공장 (https://yagong84.com/)
-! 다른 규칙으로 대체
-!##[src*="banner"]
 ! - 모바일 상단 배너
 [$domain=/^today-sports\d+.com/]##.live-stream.only-mobile
 !
@@ -953,6 +1006,11 @@ watchjavonline.com##.code-block-2.code-block
 !##h2.mobile-hide
 ! - 영상 옆 텍스트 배너
 ##.videoads
+!
+!
+! 눈누 (https://noonnu.cc)
+! - 오른쪽 배너 공간
+noonnu.cc##.lg\:top-8
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
