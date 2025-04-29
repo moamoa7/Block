@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25042908
+! Version: 25042909
 !
 !
 !
@@ -826,6 +826,7 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 ! JAVGIGA (https://javgiga.com/)
 ! - 클릭시 발생하는 팝업 차단
+javgiga.com#%#//scriptlet("prevent-window-open", "", "10000", "obj")
 ||go.rmishe.com$popup
 !
 !
@@ -1053,7 +1054,6 @@ noonnu.cc##.lg\:top-8
 ##.google-ads
 ##.anti-adblock-banner
 ###ad-banner
-!
 !
 !
 !
