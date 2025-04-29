@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043006
+! Version: 25043007
 !
 !
 !
@@ -9,6 +9,9 @@
 !
 @@||$elemhide,domain=trand.co.kr
 @@||$image,xhr,domain=trand.co.kr
+
+!@@||*$generichide
+!@@||*$image,xhr
 !
 !
 !
@@ -25,8 +28,22 @@
 ! 11번가 이미지 다 날림
 /banner/*$badfilter
 
+donga.com#@#*
 
+!
+!
+!
+!
+!
+!
+!
+!
 
+https://raw.githubusercontent.com/Greigh/Blockingmachine-CLI/refs/heads/main/filters/output/adguardBrowser.txt
+#@#.article__likes
+!
+!
+!
 !
 !
 !
@@ -50,7 +67,7 @@
 ||amung.us^
 ||tiara.kakao.com^
 
-
+#@#.widget_text
 
 /ad/$3p.badfilter
 
@@ -113,6 +130,8 @@ tistory.*##figure:has([href*="link.coupang.com"])
 /btn_ad_$badfilter
 _ad_close.$badfilter
 _ad_close.$image,badfilter
+/ad5.$badfilter
+
 
 
 -ads-$script
@@ -456,13 +475,13 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ! - 로그인 팝업
 ###login_popup
 ! - 오른쪽 사이드 배너
-!##.main_right_ad
+##.main_right_ad
 ! - 왼쪽 사이드 배너
-!##.main_left_ad
+##.main_left_ad
 ! - 왼쪽 가운데 배너
-!##.banner-box
+##.banner-box
 ! - 왼쪽 비밀 상점
-!##.secret_aside_box
+##.secret_aside_box
 ! - 게시물 내 광고글 (PC)
 ##.ad_list
 ! - 게시물 내 댓글 컨텐츠 (모바일)
@@ -1073,7 +1092,9 @@ noonnu.cc##.lg\:top-8
 !
 ! APKMODY (https://apkmody.com/)
 ! - 배너 광간
-##INS.adsbygoogle
+apkmody.com##.ad-unit__top.ad-unit
+apkmody.com##INS.adsbygoogle
+
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
