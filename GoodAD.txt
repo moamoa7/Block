@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043002
+! Version: 25043003
 !
 !
 !
@@ -97,7 +97,8 @@ tistory.*##figure:has([href*="link.coupang.com"])
 ##iframe[width="0"][height="0"]
 
 ! https://javgiga.com/
-!##iframe[src^="https://creative."][src*="/widgets/"]
+! 이 규칙 사용시 애드가드 모바일에서 배너 공간 생김
+#@#iframe[src^="https://creative."][src*="/widgets/"]
 ! https://javgiga.com/
 /ad?type=
 ! https://javgiga.com/
