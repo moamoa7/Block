@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043012
+! Version: 25043013
 !
 !
 !
@@ -966,6 +966,9 @@ noonnu.cc##.lg\:top-8
 ! - 배너 광간
 apkmody.com##.ad-unit__top.ad-unit
 apkmody.com##INS.adsbygoogle
+
+
+javgiga.com#%#//scriptlet("prevent-window-open", "", "10000", "obj")
 
 !
 !
