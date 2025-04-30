@@ -185,6 +185,8 @@ Violentmonkey 확장프로그램 설치 후 사용
 홈페이지 : https://greasyfork.org/en/scripts/532907-mobile-element-selector
 
 설치주소 : https://update.greasyfork.org/scripts/532907/Mobile%20Element%20Selector.user.js
+
+
 <br>
 
 # 추천 브라우저 (모바일)
@@ -198,5 +200,13 @@ Violentmonkey 확장프로그램 설치 후 사용
 https://play.google.com/store/apps/details?id=net.quetta.browser
 
 https://apps.apple.com/us/app/quetta-ad-free-video-browser/id6504077999
-<br><br>
+<br/><br/>
+
+※ Waterfox
+
+홈페이지 : https://www.waterfox.net/
+
+설치주소
+
+https://play.google.com/store/apps/details?id=net.waterfox.android.release
 
