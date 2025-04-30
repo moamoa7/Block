@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043010
+! Version: 25043011
 !
 !
 !
@@ -747,17 +747,17 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 ! JAVGIGA (https://javgiga.com/)
 ! - 팝업 방지
-!||javgiga.com$script
-||javgiga.com/wp-includes/js/jquery/jquery.min.js
+!||googletagmanager.com
+!||javgiga.com/wp-includes/js/jquery/jquery.min.js
 ||javgiga.com/wp-content/litespeed/js/f280ce5611a558db66219e2711918e1f.js
 ||javgiga.com/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js
-!||javgiga.com/wp-content/litespeed/js/80de7fd4f3beb246ed243c74b30e0c55.js
+||javgiga.com/wp-content/litespeed/js/80de7fd4f3beb246ed243c74b30e0c55.js
 ||javgiga.com/wp-content/litespeed/js/c0b61de7d9058cd00734a44ebc6e34a7.js
-!||javgiga.com/wp-content/litespeed/js/41aae6f2049a54022a2e39b56cdbdf9d.js
-!||javgiga.com/wp-content/litespeed/js/0717ff292f2ecd1be22c90a476a42412.js
-!||javgiga.com/wp-content/litespeed/js/cd89dbc02006ed57e3d3d6fc3a78788c.js
-!||javgiga.com/wp-content/litespeed/js/43d68458e98d87287ef4afc071a3914c.js
-!||javgiga.com/wp-content/litespeed/js/9b12157f46fb0e7a222338fa182a9de2.js
+||javgiga.com/wp-content/litespeed/js/41aae6f2049a54022a2e39b56cdbdf9d.js
+||javgiga.com/wp-content/litespeed/js/0717ff292f2ecd1be22c90a476a42412.js
+||javgiga.com/wp-content/litespeed/js/cd89dbc02006ed57e3d3d6fc3a78788c.js
+||javgiga.com/wp-content/litespeed/js/43d68458e98d87287ef4afc071a3914c.js
+||javgiga.com/wp-content/litespeed/js/9b12157f46fb0e7a222338fa182a9de2.js
 ||go.rmishe.com$popup
 ||go.rmhfrtnd.com$popup
 ||stripchatgirls.com$popup
