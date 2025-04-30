@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043007
+! Version: 25043008
 !
 !
 !
@@ -134,26 +134,34 @@
 @@||gateway.discord.gg$websocket
 !
 !
+!
+! - 카카오TV (https://tv.kakao.com/)
+! - 지니파일 (https://geniefile.com/)
+! - - - 출처 : https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssetsCDN@main/filters/lan-block.txt
+*$strict3p,ipaddress=lan,domain=~localhost|~127.0.0.1|~[::1]|~0.0.0.0|~[::]|~local
+!
+!
+!
 ! 유튜브 (https://www.youtube.com/)
 !  Youtube 광고
 ! - 출처 : AdBlock Filter
-www.youtube.com#%#//scriptlet('adjust-setTimeout', '[native code]', '17000', '0.001')
-youtube.com#%#//scriptlet('json-prune', 'playerResponse.adPlacements playerResponse.adSlots', 'playerResponse.streamingData.serverAbrStreamingUrl')
-youtube.com#%#//scriptlet('json-prune-fetch-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|player\?|watch\?[tv]=|get_watch\?/')
-youtube.com#%#//scriptlet('json-prune-xhr-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|\/player(?!.*(get_drm_license))|watch\?[tv]=|get_watch\?/')
-youtube.com#%#//scriptlet('set-constant', 'google_ad_status', '1')
-youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'playerResponse.adPlacements', 'undefined')
-youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adPlacements', 'undefined')
-youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adSlots', 'undefined')
-youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.playerAds', 'undefined')
+!www.youtube.com#%#//scriptlet('adjust-setTimeout', '[native code]', '17000', '0.001')
+!youtube.com#%#//scriptlet('json-prune', 'playerResponse.adPlacements playerResponse.adSlots', 'playerResponse.streamingData.serverAbrStreamingUrl')
+!youtube.com#%#//scriptlet('json-prune-fetch-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|player\?|watch\?[tv]=|get_watch\?/')
+!youtube.com#%#//scriptlet('json-prune-xhr-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|\/player(?!.*(get_drm_license))|watch\?[tv]=|get_watch\?/')
+!youtube.com#%#//scriptlet('set-constant', 'google_ad_status', '1')
+!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'playerResponse.adPlacements', 'undefined')
+!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adPlacements', 'undefined')
+!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adSlots', 'undefined')
+!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.playerAds', 'undefined')
 ! Youtube 요소 숨기기
 ! -출처 : EasyList
-youtube.com###masthead-ad
-youtube.com##ytd-ad-slot-renderer
-youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-youtube.com###player-ads
-www.youtube.com##.ytp-featured-product
-youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+!youtube.com###masthead-ad
+!youtube.com##ytd-ad-slot-renderer
+!youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+!youtube.com###player-ads
+!www.youtube.com##.ytp-featured-product
+!youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
 ! 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
 ! - 출처 : https://gall.dcinside.com/youtube/378167
 !youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
@@ -169,6 +177,11 @@ viewership.softc.one##.fc-dialog-container
 ##div[style*="box-shadow: rgb(136, 136, 136) 0px 0px 12px; color: "]
 !
 ! 숲 ((https://sooplive.co.kr)
+! - 메인 상단 배너 / 검색란 광고
+!##[class*="subBanner"]
+||static.sooplive.co.kr/asset/service/ad/
+! - 팝업
+##.on.bnrimg_area
 ! - 영상 (https://play.sooplive.co.kr)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
@@ -180,6 +193,24 @@ viewership.softc.one##.fc-dialog-container
 ##.bs-notice_layer
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
 ###FeedLayerToolTip
+! -  배너
+#@#[src*="Banner"]
+#@#[id$="banner"]
+!
+!
+! 치지직 (https://chzzk.naver.com/)
+! - 광고
+||veta.naver.com
+! - 광고 차단 팝업
+chzzk.naver.com##.popup_dimmed_transparent__uMy0d.popup_dimmed__zs78t
+
+!
+!
+! 트위치 (https://www.twitch.tv/)
+! - 상단 안내 문구
+twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
+! - 하단 회원가입 안내 문구
+twitch.tv###twilight-sticky-footer-root
 !
 !
 ! 카카오TV (https://tv.kakao.com/)
@@ -469,6 +500,7 @@ ygosu.com##.pull-left.btn-group
 !##.right-banner
 ! - 메인/게시물 왼쪽 배너 공간 (PC)
 ! - https://yako4.net/ - 영상 하단 배너
+! - - - 유튜브에서도 적용
 ###banner
 ! - 모바일 하단 배너
 !##.ad_area1
@@ -515,6 +547,7 @@ edaily.co.kr$popup
 ! - 아래로 변경
 ! - - -  출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - - - - -  branner / banners 까지 다 됨
+! - - - - - - - 주소월드 (https://wdwd7.com/)
 ##[target="_blank"]:has([src*="/banner"])
 !
 !
@@ -582,10 +615,38 @@ cgv.co.kr#@#div[id$="_PlaceHolderContent_divMovieSelection_wrap"][class]
 ! - - - 조개파티 (https://jogaeparty139.com/)
 ! -  배너 이미지 등 (여러 사이트에 적용됨)
 ! - - -  출처 : https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
-##A[target='_blank'] > IMG[width='100%'][src*='.gif']
+!##A[target='_blank'] > IMG[width='100%'][src*='.gif']
+!##A[target='_blank'] > IMG[width='100%'][src$='.gif']
+! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
+! - - - 오늘의 중계 (https://today-sports7.com/)
+! - - - 야동망고 (https://www.mango54.net/)
+! - - -  밍키넷 (https://mingky.net/)
+##[target='_blank']:has([src*='.gif'])
+##[target='_blank']:has([src$='.gif'])
+! - - - imgs 경로로 지정한 규칙 (List-KR)
+##.main-box:has(img[src^="/imgs/"])
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
+!
+!
+! SupJav (https://supjav.com/)
+! JavNeon (https://javneon.tv/)
+! JavEVE (https://javeve.tv/)
+! Javsaga (https://javsaga.ninja/)
+! Javbull (https://javbull.tv/)
+! - 영상 오른쪽 배너 공간 (EasyList)
+##.movv-ad
+! - 영상 차단 방지
+@@tiktokcdn.com
+! 하단 사이드 광고
+||mnaspm.com^
+! - 팝업 방지
+!/advert.$~script,~xmlhttprequest,domain=~advert.ae|~advert.club|~advert.com.tr|~advert.ee|~advert.ge|~advert.io|~advert.media|~advert.org.pl|~motortrader.com.my
+###pop.div_pop
+||profitableratecpm.com^$popup
+||stikroltiltoowi.net^$popup
+||twinrdengine.com^$popup
 !
 !
 ! 7MMTV (https://7tv033.com/)
@@ -620,12 +681,12 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !##.happy-under-player
 ! - 맨 하단 배너
 ! - - - AdGuard – Ads 에 있어 비처리
-!##.happy-footer
+##.happy-footer
 ! - 영상 클릭시 반응없는거 해결 (List-kr)
 !||imasdk.googleapis.com^
 ! - 모바일 상단 배너
 ! - - - AdGuard – Mobile Ads 에 포함되어 비처리
-!##.happy-header-mobile
+##.happy-header-mobile
 ! - 모바일에서 배너 보이는 현상 - 공백 삭제
 !##.custom-html-widget.textwidget
 !
@@ -682,6 +743,14 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! XX조아 (https://xxjoa45.com/)
 ! - 영상 광고
 ||joajoajoamoamoa.store/VAST/
+!
+!
+! JAVGIGA (https://javgiga.com/)
+! - 팝업 방지
+||stripchatgirls.com$popup
+||chaturbate.com$popup
+||62ad.com$popup
+||correctdilutetrophy.com$popup
 !
 !
 ! MISSAV (https://missvod2.com/)
@@ -909,43 +978,3 @@ apkmody.com##INS.adsbygoogle
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-!
-!
-##.adsbygoogle
-##.ad-container
-##.banner-ad
-###ad
-##.sponsored
-##.google-auto-placed
-##.advertisement
-###advertisement
-##div[data-ad]
-##.popup-ad
-##.ad-overlay
-##.native-ad
-##.sponsored-post
-##iframe[src*="doubleclick"]
-##[src*="doubleclick"]
-##[src^="/ads/"]
-##.google-ads
-##.anti-adblock-banner
-###ad-banner
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
