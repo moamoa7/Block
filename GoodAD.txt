@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050101
+! Version: 25050102
 !
 !
 !
@@ -644,17 +644,17 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! - 팝업 방지
 !/advert.$~script,~xmlhttprequest,domain=~advert.ae|~advert.club|~advert.com.tr|~advert.ee|~advert.ge|~advert.io|~advert.media|~advert.org.pl|~motortrader.com.my
 ###pop.div_pop
-!||profitableratecpm.com^$popup
-!||stikroltiltoowi.net^$popup
-!||twinrdengine.com^$popup
+||profitableratecpm.com^$popup
+||stikroltiltoowi.net^$popup
+||twinrdengine.com^$popup
 !
 !
 ! 7MMTV (https://7tv033.com/)
  ! - 상단 배너 공간
  ##.a-d-block
  !- 영상 오른쪽 배너 공간 (EasyList)
- !||rmhfrtnd.com$important
- !_300x250_
+ ||rmhfrtnd.com
+ _300x250_
 !
 !
 ! AVDBS (https://www.avdbs.com/)
@@ -667,6 +667,8 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 ! JAVGIGA (https://javgiga.com/)
 ! AV 핑크 (https://avpink36.com/)
 ! AV 핑보걸 (https://pinkbo43.com/)
+! - Adblocker 탐지 해결 (AdGuard – Ad)
+banned.porn,shemaleist.com,pelisxporno.net,aagmaal.vip,taradinhos.com,pasarbokep.com,tubebular.com,pornfeel.com,bootyexpo.net,demo.wp-script.com,dvdgayonline.com,hutgay.com,hen-tie.net,sogirl.so,gayguy.top,camcam.cc,stepmoms.xxx,pornmilo.me,freshscat.com##+js(abort-on-property-read, adsBlocked)
 ! - 입장시 18세 물어보는 팝업
 ###dclm_modal_content
 ###dclm_modal_screen
@@ -717,6 +719,14 @@ javgiga.com#%#//scriptlet("prevent-window-open")
 !AV핑크 (https://avpink34.com/)
 ! - 배너 이미지
 ##.fg-image
+!
+!
+! FC2PPV (https://fc2ppv.stream/)
+! 광고 차단
+||magsrv.com
+||pemsrv.com
+
+
 !
 !
 ! 탑걸 (https://kr39.topgirl.co)
