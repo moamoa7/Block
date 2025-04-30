@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043015
+! Version: 25043016
 !
 !
 !
@@ -750,12 +750,14 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! - - -  새창이 아닌 본창에 팝업
 ! - - -  아래 popup로 팝업 발생시 창 닫힘
 !javgiga.com##+js(aopw, window.open)
-||go.rmishe.com##+js(aopw, window.open)
-||go.rmhfrtnd.com##+js(aopw, window.open)
+||go.rmishe.com$popup
+||go.rmhfrtnd.com$popup
 ||stripchatgirls.com$popup
 ||chaturbate.com$popup
 ||62ad.com$popup
 ||correctdilutetrophy.com$popup
+! - 모바일 광고 영역 숨기기
+##.happy-under-player-mobile
 !
 !
 ! MISSAV (https://missvod2.com/)
