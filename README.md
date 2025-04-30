@@ -3,7 +3,7 @@
 - 아래 사용중인 Filter 목록 적용 후 필요하다고 생각되는 개인적인 차단 List
 
 ```
-https://raw.githubusercontent.com/moamoa7/adblock/refs/heads/main/GoodAD.txt
+https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br>
 
@@ -14,7 +14,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/refs/heads/main/GoodAD.txt
 - 2025년 4월 8일 새로운 주소 확인<br/>
 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter<br/>
 ```
-https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 ```
 
 <br/>
