@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043014
+! Version: 25043015
 !
 !
 !
@@ -749,9 +749,9 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! - 팝업 방지
 ! - - -  새창이 아닌 본창에 팝업
 ! - - -  아래 popup로 팝업 발생시 창 닫힘
-javgiga.com##+js(aopw, window.open)
-||go.rmishe.com$popup
-||go.rmhfrtnd.com$popup
+!javgiga.com##+js(aopw, window.open)
+||go.rmishe.com##+js(aopw, window.open)
+||go.rmhfrtnd.com##+js(aopw, window.open)
 ||stripchatgirls.com$popup
 ||chaturbate.com$popup
 ||62ad.com$popup
