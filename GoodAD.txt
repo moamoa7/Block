@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043017
+! Version: 25043018
 !
 !
 !
@@ -640,13 +640,13 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! - 영상 차단 방지
 @@tiktokcdn.com
 ! 하단 사이드 광고
-||mnaspm.com^
+||mnaspm.com
 ! - 팝업 방지
 !/advert.$~script,~xmlhttprequest,domain=~advert.ae|~advert.club|~advert.com.tr|~advert.ee|~advert.ge|~advert.io|~advert.media|~advert.org.pl|~motortrader.com.my
 ###pop.div_pop
-||profitableratecpm.com^$popup
-||stikroltiltoowi.net^$popup
-||twinrdengine.com^$popup
+!||profitableratecpm.com^$popup
+!||stikroltiltoowi.net^$popup
+!||twinrdengine.com^$popup
 !
 !
 ! 7MMTV (https://7tv033.com/)
@@ -748,14 +748,14 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! JAVGIGA (https://javgiga.com/)
 ! - 팝업 방지
 ! - - -  새창이 아닌 본창에 팝업
-! - - -  아래 popup로 팝업 발생시 창 닫힘
+!! - - -  아래 popup로 팝업 발생시 창 닫힘
 javgiga.com#%#//scriptlet("prevent-window-open")
-||go.rmishe.com$popup
-||go.rmhfrtnd.com$popup
-||stripchatgirls.com$popup
-||chaturbate.com$popup
-||62ad.com$popup
-||correctdilutetrophy.com$popup
+!||go.rmishe.com$popup
+!||go.rmhfrtnd.com$popup
+!||stripchatgirls.com$popup
+!||chaturbate.com$popup
+!||62ad.com$popup
+!||correctdilutetrophy.com$popup
 ! - 모바일 광고 영역 숨기기
 ##.happy-under-player-mobile
 !
