@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050102
+! Version: 25050103
 !
 !
 !
@@ -650,11 +650,11 @@ avsee.ru##div.main-box:nth-of-type(1)
 !
 !
 ! 7MMTV (https://7tv033.com/)
- ! - 상단 배너 공간
- ##.a-d-block
- !- 영상 오른쪽 배너 공간 (EasyList)
- ||rmhfrtnd.com
- _300x250_
+! - 상단 배너 공간
+##.a-d-block
+!- 영상 오른쪽 배너 공간 (EasyList)
+!||rmhfrtnd.com
+! _300x250_
 !
 !
 ! AVDBS (https://www.avdbs.com/)
@@ -695,7 +695,7 @@ banned.porn,shemaleist.com,pelisxporno.net,aagmaal.vip,taradinhos.com,pasarbokep
 ! - 영상 클릭시 반응없는거 해결 (List-kr)
 ||imasdk.googleapis.com
 ! - 모바일에서 배너 보이는 현상 - 공백 삭제
-##.custom-html-widget.textwidget
+!##.custom-html-widget.textwidget
 !
 !
 ! JAVGIGA (https://javgiga.com/)
