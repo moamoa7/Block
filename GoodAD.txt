@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043019
+! Version: 25050101
 !
 !
 !
@@ -664,7 +664,9 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !
 ! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
+! JAVGIGA (https://javgiga.com/)
 ! AV 핑크 (https://avpink36.com/)
+! AV 핑보걸 (https://pinkbo43.com/)
 ! - 입장시 18세 물어보는 팝업
 ###dclm_modal_content
 ###dclm_modal_screen
@@ -672,23 +674,39 @@ avdbs.com##.shw-1024-over.dbs-bnr-wrp
 !||hcdn1.maxsocdn.net^$domain=sogirl.so
 !||1.bp.blogspot.com^$domain=sogirl.so
 ! - 오른쪽 상단 배너는 보이지 않으나 배너 위치만큼 삭제됨
-! - - - AV핑보걸 오른쪽 상단 배너 적용도 같이 됨
 ! - - - https://fc2ppv.stream/
 ! - - - https://k4.kbjsvip.win/
+! - 오른쪽 상단 광고 영역
+! - - - PC
 ##.happy-header
-! AV핑보걸 영상 화면 하단 배너
-! 쏘걸 (https://kr79.sogirl.so/)에도 태그가 나오는데 먼지 모르겠음
-!##.happy-under-player
+! - - - 모바일
+##.happy-header-mobile
+! - 영상 하단 광고 영역 숨기기
+! - - - PC
+##.happy-under-player
+! - - - 모바일
+##.happy-under-player-mobile
 ! - 맨 하단 배너
 ! - - - AdGuard – Ads 에 있어 비처리
+! - - - JAVGIGA (https://javgiga.com/)
 ##.happy-footer
 ! - 영상 클릭시 반응없는거 해결 (List-kr)
-!||imasdk.googleapis.com^
-! - 모바일 상단 배너
-! - - - AdGuard – Mobile Ads 에 포함되어 비처리
-##.happy-header-mobile
+||imasdk.googleapis.com
 ! - 모바일에서 배너 보이는 현상 - 공백 삭제
-!##.custom-html-widget.textwidget
+##.custom-html-widget.textwidget
+!
+!
+! JAVGIGA (https://javgiga.com/)
+! - 팝업 방지
+! - - -  새창이 아닌 본창에 팝업
+!! - - -  아래 popup로 팝업 발생시 창 닫힘
+javgiga.com#%#//scriptlet("prevent-window-open")
+||go.rmishe.com$popup
+||go.rmhfrtnd.com$popup
+||stripchatgirls.com$popup
+||chaturbate.com$popup
+||62ad.com$popup
+||correctdilutetrophy.com$popup
 !
 !
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
@@ -743,21 +761,6 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! XX조아 (https://xxjoa45.com/)
 ! - 영상 광고
 ||joajoajoamoamoa.store/VAST/
-!
-!
-! JAVGIGA (https://javgiga.com/)
-! - 팝업 방지
-! - - -  새창이 아닌 본창에 팝업
-!! - - -  아래 popup로 팝업 발생시 창 닫힘
-javgiga.com#%#//scriptlet("prevent-window-open")
-!||go.rmishe.com$popup
-!||go.rmhfrtnd.com$popup
-!||stripchatgirls.com$popup
-!||chaturbate.com$popup
-!||62ad.com$popup
-!||correctdilutetrophy.com$popup
-! - 모바일 광고 영역 숨기기
-##.happy-under-player-mobile
 !
 !
 ! MISSAV (https://missvod2.com/)
