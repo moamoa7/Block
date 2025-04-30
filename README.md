@@ -48,9 +48,6 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 
 # 사용중인 Filter 목록
 
-※ AdBlock Filter
-https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockfilters.txt
-
 ※ EasyList
 https://easylist.to/easylist/easylist.txt
 
@@ -69,8 +66,6 @@ https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 ※ Block third party font
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
 
-※ Video Filters
-https://raw.githubusercontent.com/imxieke/Anti-Ads/refs/heads/master/filters/video.txt
 <br><br>
 
 (언어) 필터
@@ -119,7 +114,7 @@ https://filters.adtidy.org/extension/ublock/filters/224.txt
 
 https://filters.adtidy.org/extension/ublock/filters/1.txt
 
-https://raw.githubusercontent.com/moamoa7/adblock/refs/heads/main/GoodAD.txt
+https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 
 ```
 
@@ -131,15 +126,6 @@ Violentmonkey 확장프로그램 설치 후 사용
 홈페이지 : https://violentmonkey.github.io/
 
 설치주소 : https://violentmonkey.github.io/get-it/
-<br><br>
-
-※ Pop-Up Blocked! (⛔)
-
-- 간단한 팝업 창 차단기
-
-홈페이지 : https://greasyfork.org/en/scripts/525162-pop-up-blocked
-
-설치주소 : https://update.greasyfork.org/scripts/525162/Pop-Up%20Blocked%21%20%28%E2%9B%94%29.user.js
 <br><br>
 
 ※ NamuLink
