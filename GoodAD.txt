@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25043018
+! Version: 25043019
 !
 !
 !
@@ -407,26 +407,26 @@ mlbpark.donga.com##.bt_menu_wrap
 ! 루리 (https://m.ruliweb.com/)
 ! - PC
 ! - 상단 배너 등
-!##.ad
+##.ad
 ! - 상단 배너 공백
-!##.ad_1152_96
+ruliweb.com##.ad_1152_96
 ! - 왼쪽 따라다니는 배너
-!##.nav_ad
+##.nav_ad
 ! - 좌.우 큰 바깥쪽 배너
-!##.ad_background
+##.ad_background
 ! - 게시글과 댓글 사이 배너
-!##.ad_1014_254
+ruliweb.com##.ad_1014_254
 ! - 댓글 아래 배너 공간
-!##.line_deco_bottom.default.nbp_container
+ruliweb.com##.line_deco_bottom.default.nbp_container
 ! - 댓글 아래 게시판 아래 배너 공간
-!##.ad_1010_250
+ruliweb.com##.ad_1010_250
 ! - 맨 하단 배너
-!##.ad_1150_290
+ruliweb.com##.ad_1150_290
 ! -  모바일
 ! - - - 하단 가운데 작은 박스 배너
 ruliweb.com##.fixed_layer1
 ! - - - 게시글과 댓글 사이 배너 공간
-!ruliweb.com###board_read > div.content_wrapper > div.nbp_container.default.line_deco_bottom
+ruliweb.com###board_read > div.content_wrapper > div.nbp_container.default.line_deco_bottom
 ! - - - 맨밑 하단 파란색 배너
 ruliweb.com##.fixed_ad_wrapper
 !
@@ -435,7 +435,7 @@ ruliweb.com##.fixed_ad_wrapper
  ! - 게시글 상단 배너(마켓 홍보)
  ddanzi.com###banner_ddanzi_market
  ! - 게시글 하단 공백 (모바일)
- !ddanzi.com##.add_display
+ ddanzi.com##.add_display
  ddanzi.com##.ddanzi_m_club_MxC_336x280
 !
 !
