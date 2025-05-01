@@ -523,7 +523,6 @@ avsee.ru##div.main-box:nth-of-type(1)
 ##.happy-header
 ! - - - 모바일
 ##.happy-header-mobile
-
 !
 !
 !AV핑크 (https://avpink34.com/)
@@ -568,6 +567,14 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! XX조아 (https://xxjoa45.com/)
 ! - 영상 광고
 ||joajoajoamoamoa.store/VAST/
+!
+!
+! JAVGIGA (https://javgiga.com/)
+! - 팝업 방지
+||correctdilutetrophy.com$popup
+||dotyruntchan.com$popup
+||oraubsoux.net$popup
+||264dy.com$popup
 !
 !
 ! MISSAV (https://missvod2.com/)
@@ -753,5 +760,4 @@ hitomi.la###immersive-translate-popup
 ! 눈누 (https://noonnu.cc)
 ! - 오른쪽 배너 공간
 noonnu.cc##.lg\:top-8
-
 
