@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050102
+! Version: 25050201
 !
 !
 !
@@ -78,52 +78,6 @@
 ! - 상단 배너 나오게 (List-KR 해제)
 @@ad.cgv.co.kr
 @@adimg.cgv.co.kr
-!
-!
-!
-!
-!
-! - 쇼핑 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
-!  - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad-img.gmarket.com 해제 요망)
-@@||$generichide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com
-!
-@@||$image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com
-!
-!
-! 작업중
-@@||$generichide,domain=bccard.com|lottecard.co.kr|ssg.com|uniqlo.com|wconcept.co.kr|xexymix.com|lfmall.co.kr|zara.com|hm.com|chanel.com|stockx.com|mango.com|marpple.com|gucci.com|thehandsome.com|hermes.com|stussy.com|getbarrel.com|buyma.com|prada.com|aloyoga.com|bottegaveneta.com|tods.com|idlookmall.com|mustit.co.kr|dolcegabbana.com|massimodutti.com|ssense.com|kasina.co.kr|hotsunglass.co.kr|guesskorea.com|grailed.com|thehyundai.com|hyundaicapital.com|kbcapital.co.kr|nhcapital.co.kr|semas.or.kr|kodit.co.kr|kibo.or.kr|kinfa.or.kr|ccrs.or.kr|hmall.com|lotteimall.com|zigzag.kr|cjonstyle.com|nsmall.com|amazon.com|kurly.com|market09.kr|tworld.co.kr|nonghyupmall.com|e-himart.co.kr|nhhanaro.co.kr|costco.co.kr|etlandmall.co.kr|shinsegaetvshopping.com|thirtymall.com|wemakeprice.com|puma.com|underarmour.co.kr|lululemon.co.kr|asics.co.kr|columbiakorea.co.kr|fila.co.kr|reebok.co.kr|lge.co.kr|ssgdfs.com|shilladfs.com|hddfs.com|lottedfs.com|koreanair.com|koreanairdfs.com|flyasiana.com|dutyfree.flyasiana.com|showdang.co.kr|spooning19.com
-!
-!
-! - 금융 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
-@@||$generichide,domain=www.shinhan.com|www.shinhancard.com|shinhansec.com|www.kbstar.com|card.kbcard.com|www.kbsec.com|kebhana.com|www.hanacard.co.kr|www.hanaw.com|www.wooribank.com|pc.wooricard.com|fundsupermarket.wooriib.com|kfcc.co.kr|cu.co.kr|banking.nonghyup.com|www.ibk.co.kr
-!
-!
-! - 보험 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
-@@||$generichide,domain=e-insmarket.or.kr
-!
-! - 자동차 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
-@@||$generichide,domain=www.hyundai.com|www.kg-mobility.com|www.kia.com|auto.danawa.com|www.kbchachacha.com|www.encar.com|www.kcar.com|www.m-park.co.kr
-!
-!
-! - 여행/숙박 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
-@@||$generichide,domain=nol.yanolja.com|www.yeogi.com
-!
-!
-! - 예매 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
-! - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad.cgv.co.kr / adimg.cgv.co.kr 히제 요망)
-@@||$generichide,domain=nol.interpark.com|www.ticketlink.co.kr|ticket.interpark.com|ticket.yes24.com|ticket.melon.com|www.cgv.co.kr|www.lottecinema.co.kr|www.megabox.co.kr|www.korail.com|kobus.co.kr|txbus.t-money.co.kr
-!
-!
-! -취업 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
-@@||$generichide,domain=work24.go.kr|www.jobkorea.co.kr|www.saramin.co.kr|www.incruit.com|www.career.co.kr|www.alba.co.kr|www.albamon.com|indeed.com
-!
-!
-! - 영화 감상 사이트 미용 비활성
-@@||$generichide,domain=www.netflix.com|www.tving.com|www.wavve.com|play.coupang.com|tv.apple.com|watcha.com|laftel.net|www.spotvnow.co.kr|www.dorama.kr|www.bflix.co.kr|cinema.emotioncastle.com|www.purplay.co.kr|heavenly.tv|hellolive.tv|www.primevideo.com|www.disney.com
-!
-! - 픽팍 미용 비활성
-@@||$generichide,domain=mypikpak.com
-!@@||$image,xhr,domain=mypikpak.com
 !
 !
 !
