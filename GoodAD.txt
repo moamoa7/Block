@@ -220,6 +220,8 @@ fmkorea.com###fm_alert
 ###consult_list
 ! - 왼쪽 비밀 상점
 ##.secret_aside_box
+! - 모바일 게시물 하단 광고 배너 (3칸짜리)
+etoland.co.kr###underGoodBtn_freeRecharge
 ! - 최신글 (NEW) 감추기
 ! - - - PC
 etoland.co.kr##.freebbs_latest_list_section
