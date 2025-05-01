@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050103
+! Version: 25050104
 !
 !
 !
@@ -14,6 +14,14 @@
 !  / / / / /  오류해결 및 해제 / / / / / 
 !
 !
+!
+!!! Firefox 브라우저의 인증서 신뢰 문제 해결
+! - 출처 : https://adguard.com/kb/ko/adguard-for-android/solving-problems/firefox-certificates/
+! - 출처 : https://gall.dcinside.com/adguard/2727
+! - - - 설정 - 맨 하단 해당 firefox 정보 - 상단 로고 7번 클릭하여 디버그 메뉴 활성화
+! - - - 설정으로 복귀 후 해당 firefox 정보 아래 생성된 secret settings - Use third party CA certificates 체크 활성화
+!
+!
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
@@ -22,7 +30,7 @@
 !
 !
 !
-! 트위치 등 일부 사이트 무한 로딩 발생으로 인한 애드가드 갤러리 필터 해제
+!!! 트위치 등 일부 사이트 무한 로딩 발생으로 인한 애드가드 갤러리 필터 해제
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 #@%#//scriptlet('prevent-fetch', 'doubleclick.net')
 ! - - - srank (https://www.srank.kr/) 광고 차단 감지 해제
@@ -39,18 +47,18 @@
 !
 !
 !
-! 네이버 페이 (https://new-m.pay.naver.com/) 이미지 깨짐 해결 및 포인트 적립 가능
+!!! 네이버 페이 (https://new-m.pay.naver.com/) 이미지 깨짐 해결 및 포인트 적립 가능
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
 @@cdn-ao.adison.co
 !
 !
-! 옥션 (https://www.auction.co.kr) / 지마켓 (https://www.gmarket.co.kr/)
+!!! 옥션 (https://www.auction.co.kr) / 지마켓 (https://www.gmarket.co.kr/)
 ! -  배너 나오게 (따로 필터에서 막아 놓지 않아서 할 필요 없음)
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
 @@ad-img.gmarket.com
 !
 !
-! 다나와 (https://danawa.com/)
+!!! 다나와 (https://danawa.com/)
 ! - 배너 보이게
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
 @@||ad.danawa.com
@@ -58,7 +66,7 @@
 @@||ssl.pstatic.net/tveta/libs/
 !
 !
-! CGV (https://cgv.co.kr/)
+!!! CGV (https://cgv.co.kr/)
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
 ! - 상단 배너 나오게 (List-KR 해제)
 @@ad.cgv.co.kr
@@ -110,6 +118,9 @@
 ! - 영화 감상 사이트 미용 비활성
 @@||$generichide,domain=www.netflix.com|www.tving.com|www.wavve.com|play.coupang.com|tv.apple.com|watcha.com|laftel.net|www.spotvnow.co.kr|www.dorama.kr|www.bflix.co.kr|cinema.emotioncastle.com|www.purplay.co.kr|heavenly.tv|hellolive.tv|www.primevideo.com|www.disney.com
 !
+! - 픽팍 미용 비활성
+@@||$generichide,domain=mypikpak.com
+!@@||$image,xhr,domain=mypikpak.com
 !
 !
 ! 마우스 스크롤 안움직이는거 움직이게 (일반)
@@ -220,65 +231,6 @@ twitch.tv###twilight-sticky-footer-root
 @@videoads.kakao.com
 !
 !
-! 메시티비 (https://messitv8.com/)
-! - - - 메인 배너 여러개
-##.baner
-! - - - 왼쪽 상단 배너
-!##.d-xl-block.d-none
-! - - - 스포츠 토토 배너
-[$domain=/^messitv\d+.com/]##div.d-md-block
-! - - - 왼쪽 맨 아래 하단 배너
-##.bigwin-bn
-! 채팅박스
-##u-chat
-!
-!
-! 고트티비 (https://goat-v.com)
-! - 팝업
-##.popup-container
-!
-!
-! VIP TV (https://viptv24.com/)
-! - 팝업
-[$domain=/^viptv\d+.com/]###popup_1
-! - 채팅 공간
-###left_chat
-!
-!
-! 쿨티비 (https://www.cool111.com/)
-! - 채팅 공간
-##.left_chat
-!
-!
-! 굿라이브티비 (https://gltv88.com/)
-! - 배너
-##.middle-banner
-! 굿라이브티비 (https://gltv88.com/)
-! - 왼쪽 챗 공간
-[$domain=/^gltv\d+.com/]###fchat
-!
-!
-! 블랙티비 https://blacktv88.com/
-! - 배너
-[$domain=/^blacktv\d+.com/]###mdiv2
-! - 채팅 공간
-[$domain=/^blacktv\d+.com/]##div.b-ox:nth-of-type(3)
-!
-!
-! 배트맨티비 (https://bmtv24.com/)
-! - 팝업
-[$domain=/^bmtv\d+.com/]##.modal_item
-! - 챗 공간
-[$domain=/^bmtv\d+.com/]##.chat_frame
-!
-!
-! 놀고가닷컴 (https://nolgoga365.com/)
-! - 배너
-||nolgoga*.com/data/file/*$image
-! - 내가 없앤건 아닌거 같은대 배너 안보여서 복원
-@@nolgoga*.com/img/top_logo.png
-! -채팅 공간 (아래 포인트순위까지 지워지네. 어쩔)
-[$domain=/^nolgoga\d+.com/]###aside > div
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -444,6 +396,29 @@ ruliweb.com##.fixed_ad_wrapper
 ##.float-banners
 !
 !
+! 와이고수 (https://m.ygosu.com/)
+! -모바일 게시글 하단 SNS 공유하기 아이콘 크기 모바일과 안맞아 없앰
+ygosu.com###sns_bar
+! 모바일 댓글 아래 아이콘 3개 모바일과 크기 안맞아 없앰
+ygosu.com##.board_view_fixed_container
+! - 없앤 그 아래 요상한 텍스트 및 아이콘도 지움
+ygosu.com##.w_per100.dp_inline_block
+ygosu.com##.pull-left.btn-group
+!
+!
+! 짱공유닷컴 (https://www.jjang0u.com/)
+! - 메인 배너 (PC)
+!###rolling-main-banner
+! - 메인/게시물 오른쪽 배너 (PC)
+!##.right-banner
+! - 메인/게시물 왼쪽 배너 공간 (PC)
+! - https://yako4.net/ - 영상 하단 배너
+! - - - 유튜브에서도 적용
+###banner
+! - 모바일 하단 배너
+!##.ad_area1
+!
+!
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
 ! - 배너
 [$domain=/^tvwiki\d+.com/]###bannerList
@@ -478,32 +453,77 @@ tvhot.site##.object-cover
 !||ntkimg.cloud
 !
 !
+! 티비룸 (tvroom7.org/)
+! - 팝업
+[$domain=/^tvroomv\d+.org/]##.iziModal-overlay
+! - 배너 이미지
+##.banner_
+!
+!
 ! 조개무비 (https://v15.jogemovie.net/)
 ! - 배너 이미지
 [$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
 !
 !
-! 와이고수 (https://m.ygosu.com/)
-! -모바일 게시글 하단 SNS 공유하기 아이콘 크기 모바일과 안맞아 없앰
-ygosu.com###sns_bar
-! 모바일 댓글 아래 아이콘 3개 모바일과 크기 안맞아 없앰
-ygosu.com##.board_view_fixed_container
-! - 없앤 그 아래 요상한 텍스트 및 아이콘도 지움
-ygosu.com##.w_per100.dp_inline_block
-ygosu.com##.pull-left.btn-group
+! 메시티비 (https://messitv8.com/)
+! - - - 메인 배너 여러개
+##.baner
+! - - - 왼쪽 상단 배너
+!##.d-xl-block.d-none
+! - - - 스포츠 토토 배너
+[$domain=/^messitv\d+.com/]##div.d-md-block
+! - - - 왼쪽 맨 아래 하단 배너
+##.bigwin-bn
+! 채팅박스
+##u-chat
 !
 !
-! 짱공유닷컴 (https://www.jjang0u.com/)
-! - 메인 배너 (PC)
-!###rolling-main-banner
-! - 메인/게시물 오른쪽 배너 (PC)
-!##.right-banner
-! - 메인/게시물 왼쪽 배너 공간 (PC)
-! - https://yako4.net/ - 영상 하단 배너
-! - - - 유튜브에서도 적용
-###banner
-! - 모바일 하단 배너
-!##.ad_area1
+! 고트티비 (https://goat-v.com)
+! - 팝업
+##.popup-container
+!
+!
+! VIP TV (https://viptv24.com/)
+! - 팝업
+[$domain=/^viptv\d+.com/]###popup_1
+! - 채팅 공간
+###left_chat
+!
+!
+! 쿨티비 (https://www.cool111.com/)
+! - 채팅 공간
+##.left_chat
+!
+!
+! 굿라이브티비 (https://gltv88.com/)
+! - 배너
+##.middle-banner
+! 굿라이브티비 (https://gltv88.com/)
+! - 왼쪽 챗 공간
+[$domain=/^gltv\d+.com/]###fchat
+!
+!
+! 블랙티비 https://blacktv88.com/
+! - 배너
+[$domain=/^blacktv\d+.com/]###mdiv2
+! - 채팅 공간
+[$domain=/^blacktv\d+.com/]##div.b-ox:nth-of-type(3)
+!
+!
+! 배트맨티비 (https://bmtv24.com/)
+! - 팝업
+[$domain=/^bmtv\d+.com/]##.modal_item
+! - 챗 공간
+[$domain=/^bmtv\d+.com/]##.chat_frame
+!
+!
+! 놀고가닷컴 (https://nolgoga365.com/)
+! - 배너
+||nolgoga*.com/data/file/*$image
+! - 내가 없앤건 아닌거 같은대 배너 안보여서 복원
+@@nolgoga*.com/img/top_logo.png
+! -채팅 공간 (아래 포인트순위까지 지워지네. 어쩔)
+[$domain=/^nolgoga\d+.com/]###aside > div
 !
 !
 ! 연합뉴스 (https://www.yna.co.kr/)
@@ -709,6 +729,10 @@ javgiga.com#%#//scriptlet("prevent-window-open")
 ||chaturbate.com$popup
 ||62ad.com$popup
 ||correctdilutetrophy.com$popup
+
+javgiga.com##.happy-header-mobile
+javgiga.com##.happy-under-player-mobile
+javgiga.com##.happy-footer
 !
 !
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
