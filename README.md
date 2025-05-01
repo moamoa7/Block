@@ -206,12 +206,3 @@ https://play.google.com/store/apps/details?id=net.quetta.browser
 
 https://apps.apple.com/us/app/quetta-ad-free-video-browser/id6504077999
 <br/><br/>
-
-※ Waterfox
-
-홈페이지 : https://www.waterfox.net/
-
-설치주소
-
-https://play.google.com/store/apps/details?id=net.waterfox.android.release
-
