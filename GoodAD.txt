@@ -569,14 +569,6 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ||joajoajoamoamoa.store/VAST/
 !
 !
-! JAVGIGA (https://javgiga.com/)
-! - 팝업 방지
-||correctdilutetrophy.com$popup
-||dotyruntchan.com$popup
-||oraubsoux.net$popup
-||264dy.com$popup
-!
-!
 ! MISSAV (https://missvod2.com/)
 ! - 배너
 [$domain=/^missvod\d+.com/]###banner-list.banner-list
