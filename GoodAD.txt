@@ -295,6 +295,8 @@ tvhot.site##.object-cover
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]###viewCover
+! - 이전화/다음화 버튼 없애기 (모바일 - 티비위키)
+[$domain=/^tvwiki\d+.com/]##.bo_v_nb
 ! - 위로 바로 가는 버튼
 ! - - - 태블릿(모바일)에서 세로 감상시 전체화면 클릭시 그 위치에 있어서 없앰
 ! - - - - - 티비위키
