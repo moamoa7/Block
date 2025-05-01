@@ -1,6 +1,6 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050104
+! Version: 25050105
 !
 !
 !
@@ -730,9 +730,7 @@ javgiga.com#%#//scriptlet("prevent-window-open")
 ||62ad.com$popup
 ||correctdilutetrophy.com$popup
 
-javgiga.com##.happy-header-mobile
-javgiga.com##.happy-under-player-mobile
-javgiga.com##.happy-footer
+||creative.rmhfrtnd.com/widgets/v4/Universal
 !
 !
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
