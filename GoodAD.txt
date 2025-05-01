@@ -14,7 +14,7 @@
 !  / / / / /  오류 해결 및 해제 / / / / / 
 !
 !
-! 주의 시항 : 애드가드 필터 - 사용자 정의 필터에 넣어야 모든 브라우저에 적용
+!!! 주의 시항 : 애드가드 필터 - 사용자 정의 필터에 넣어야 모든 브라우저에 적용
 !
 !
 !!! Firefox 브라우저의 인증서 신뢰 문제 해결
@@ -128,8 +128,6 @@
 !@@||$image,xhr,domain=mypikpak.com
 !
 !
-! 마우스 스크롤 안움직이는거 움직이게 (일반)
-!*##body:style(overflow: auto !important)
 !
 !
 !
@@ -141,20 +139,12 @@
 !
 !
 !
-!
-!
 ! 3자 ping / websocket 차단
 ||*$ping,websocket,third-party
 ! - 3자 websocket 차단 해제
 ! - - - 디스코드 (https://discord.com/) 연결시 필요
 @@||gateway.discord.gg$websocket
 !
-!
-!
-! - 카카오TV (https://tv.kakao.com/)
-! - 지니파일 (https://geniefile.com/)
-! - - - 출처 : https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssetsCDN@main/filters/lan-block.txt
-*$strict3p,ipaddress=lan,domain=~localhost|~127.0.0.1|~[::1]|~0.0.0.0|~[::]|~local
 !
 !
 ! 숲 ((https://sooplive.co.kr)
@@ -311,3 +301,4 @@ tvhot.site##.object-cover
 [$domain=/^tvwiki\d+.com/]###top_btn.sticky_top_btn.top_btn
 ! - - - - - 티비몬
 [$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
+
