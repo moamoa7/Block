@@ -11,7 +11,7 @@
 !
 !
 !
-!  / / / / /  오류해결 및 해제 / / / / / 
+!  / / / / /  오류 해결 및 해제 / / / / / 
 !
 !
 !
@@ -25,9 +25,7 @@
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-@@||*co.kr^$stealth=dpi
-@@||*or.kr^$stealth=dpi
-@@||*go.kr^$stealth=dpi
+@@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
 !
 !
@@ -234,6 +232,8 @@ etoland.co.kr###info_recent_list_wrap
 ! 인벤 (https://www.inven.co.kr/)
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
 inven.co.kr##.roulette-open.inven-float-alarm
+! - 게시글 하단 안내창 (모바일)
+##.invenAppSuggestion
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
