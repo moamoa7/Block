@@ -745,6 +745,11 @@ watchjavonline.com##.code-block-2.code-block
 ##.mobile-show
 !
 !
+! 히토미 (https://hitomi.la/)
+! - 팝업 (모바일)
+hitomi.la###immersive-translate-popup
+!
+!
 ! 눈누 (https://noonnu.cc)
 ! - 오른쪽 배너 공간
 noonnu.cc##.lg\:top-8
