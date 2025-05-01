@@ -14,8 +14,6 @@
 !  / / / / /  오류 해결 및 해제 / / / / / 
 !
 !
-!!! 주의 시항 : 애드가드 필터 - 사용자 정의 필터에 넣어야 모든 브라우저에 적용
-!
 !
 !!! Firefox 브라우저의 인증서 신뢰 문제 해결
 ! - 출처 : https://adguard.com/kb/ko/adguard-for-android/solving-problems/firefox-certificates/
