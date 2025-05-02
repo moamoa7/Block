@@ -67,7 +67,7 @@ https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
 
 ※ Block Outsider Intrusion into LAN
-https://ublockorigin.pages.dev/filters/lan-block.txt
+https://ublockorigin.github.io/uAssetsCDN/filters/lan-block.txt
 
 (언어) 필터
 
