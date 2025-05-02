@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050202
+! Version: 25050203
 !
 !
 !
@@ -194,6 +194,29 @@ ygosu.com##.pull-left.btn-group
 ##.ad_area1
 !
 !
+! 롤 인벤 (lol.inven.co.kr)
+! - 상단 배너
+###topLinkBanner
+! - 롤 경기일정 보이게 하기
+! - - - ##.banner 예외설정은 다른곳에 작성
+! - - - - - List-KR 무력화
+lol.inven.co.kr#@#article > div[style].banner
+! - - - - - YourList 무력화
+! - - - - - Ghostery 사용시 Custom Filters에 아래 입력 필요
+inven.co.kr#@#div.banner
+!
+!
+! 뽐뿌
+! - 오른쪽 배너 복원 (kr: List-KR)
+ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
+! - 뽐쿠폰 배너
+ppomppu.co.kr##.ppomCou
+!
+!
+! 헝그리앱 (https://www.hungryapp.co.kr/)
+###slide_image
+!
+!
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
 ! - 상단 배너
 ! - - - 티비위키
@@ -224,6 +247,21 @@ tvhot.site##.object-cover
 [$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
 !
 !
+! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
+! 애니위크 (https://aniweek.com/)
+! 애니24 (https://ohli24.com/)
+! - 상단 배너
+##div.insty
+! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
+! - 영상내 하단 배너
+###exon
+!
+!
+! 후후티비 (https://hoohootv256.xyz/)
+! - 배너
+[$domain=/^hoohootv\d+.xyz/]##.rhkd
+!
+!
 ! 티비룸 (tvroom7.org/)
 ! - 팝업
 [$domain=/^tvroom\d+.org/]##.popup
@@ -231,6 +269,28 @@ tvhot.site##.object-cover
 [$domain=/^tvroom\d+.org/]##.iziModal-overlay
 ! - 배너 이미지
 ##.banner_
+!
+!
+! 누누티비 (https://www.ntnt4.tv/)
+! - 배너
+[$domain=/^www.ntnt\d+.tv/]##.wixui-column-strip.CohWsy.comp-lhh974lu
+
+
+! 티비위키 (https://tv61.wiki/)
+! - 배너
+[$domain=/^tv\d+.wiki/]##.custom_banner_wrap
+
+
+! 도라마코리아 (https://www.dorama.kr/)
+! - 배너
+www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1fzrtxd-2
+!
+!
+! 왓챠피디아 (https://pedia.watcha.com/)
+! - 팝업
+##.Ou4e8aZR
+! - 게시물내 배너
+##.OKQiqzeA.j9pLi57W
 !
 !
 ! 만화방 (https://manhwabang.org/)
@@ -311,6 +371,63 @@ tvhot.site##.object-cover
 [$domain=/^nolgoga\d+.com/]###aside > div
 !
 !
+! 뉴토끼 (https://newtoki468.com/)
+! - 모바일 상단 공백 줄이기
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+[$domain=/^newtoki\d+.com/]##[style="margin-bottom: 20px;"].row.row-15
+!
+!
+! 호두코믹스 시즌2 (https://hdhd425.net/)
+! 툰코 (https://tkr416.com/)
+! - 팝업
+##.alert_windows
+! - 배너
+||blogger.googleusercontent.com/img/*/AVvXsE*
+!
+!
+! 늑대닷컴 (https://wfwf387.com/)
+! 늑대닷컴2 (https://wftoon193.com/)
+! 여우코믹스 (https://fxfx307.com/)
+! - 팝업
+##.modal-wrapper
+! - 뿌옇거 해결
+##.modal-overlay
+! - 배너
+##.top-banner
+! - 보증토토 배너
+||iabn10.net/*ico*
+!
+!
+! 툰코 (https://tkor017.com/)
+! 펀비 (https://funbe531.com)
+! - 배너
+##.mobile-banner.col-md-12
+! - 이걸로 하면 전체 프레임이 다 차단되서 해제
+#@#.mobile-banner
+!
+!
+! 야툰 (https://yatoon203.com/)
+! 뉴툰 (https://newtoon274.com/)
+! - 배너
+##.cate.row
+!
+!
+! 나미툰 (https://namee74.com/)
+! - 배너
+[$domain=/^namee\d+.com/]##div.container_full:nth-of-type(1)
+!
+!
+! 조아툰 (https://joatoon67.com/)
+! - 배너
+[$domain=/^joatoon\d+.com/]##.grid-cols-2.mt-2.grid
+!
+!
+! 링크 비비기 (https://linkbbg.com/)
+! 온도티비 (https://01.ondotv.com/)
+! - 배너
+##.basic-banner-4
+!
+!
 ! MTN 머니투데이 (https://mtn.co.kr/)
 ! - 배너
 mtn.co.kr##.w_308px
@@ -333,6 +450,29 @@ mtn.co.kr##.d_block
 ##.top_event
 !
 !
+! 한국경제TV (https://www.wowtv.co.kr/)
+! - 상단 배너
+www.wowtv.co.kr##.MainTopBig1.wrap-BannerBox
+!
+!
+! 어패럴뉴스 (https://apparelnews.co.kr/)
+! - 왼쪽 배너
+###mainLeftBanner
+! - 오른쪽 배너
+##a.side_banner
+!
+!
+! 스포탈코리아 (https://sportalkorea.com/)
+! - 상단 배너
+sportalkorea.com##.common_top_ad1
+!
+!
+! 스포조이 (https://www.spojoy.com/)
+!  - 상단 배너
+www.spojoy.com###TopAdv250
+
+!
+!
 ! 바나나몰 (bananamall.co.kr)
 ! - 팝업 왼쪽
 bananamall.co.kr##.ui-draggable
@@ -343,6 +483,26 @@ bananamall.co.kr###pop_gevent
 ! 쑈당몰 (https://showdang.co.kr/)
 ! -  팝업
 showdang.co.kr##.box
+!
+!
+! 와디즈 (https://www.wadiz.kr/)
+! - 상단 배너 나오게 하기 (List-KR 무력화)
+@@||service.wadiz.kr/api/*/wadizad/host/keyvisual
+!
+!
+!!! 다나와 (https://danawa.com/)
+! 상단 배너 보이게
+! - - -  List-KR 해제
+danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-middlebnr
+! - 다른 하위 배너 보이게
+! - - - EasyList / List-KR 해제
+! - - - DNS에서 차단되어 있을 수 있으므로 확인 필요
+! - - - Ghostery 사용시 Custom Filters에 아래 4개 입력 필요
+@@||ssl.pstatic.net/tveta/libs/
+@@||ad.danawa.com
+@@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
+! - - - - - YousList
+#@#iframe[src*="/RealMedia/ads/"]
 !
 !
 ! 당근 (https://www.daangn.com/)
@@ -426,9 +586,19 @@ avsee.ru##div.main-box:nth-of-type(1)
 @@tiktokcdn.com
 !
 !
+! JavNeon (https://javneon.tv/)
+! JavEVE (https://javeve.tv/)
+! Javsaga (https://javsaga.ninja/)
+! Javbull (https://javbull.tv/)
+! - 상단 공백
+##.pt-45.container
+!
+!
 ! 7MMTV (https://7tv033.com/)
 ! - 상단 배너 공간
 ##.a-d-block
+! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
+##div.set_height_250
 !
 !
 ! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
@@ -505,8 +675,11 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ##.pop-skip
 !
 !
-! https://javlemon.com/
-! - 영상 아래 배너 (모바일)
+! JAV Lemon (https://javlemon.com/)
+! - 영상 아래 배너
+! - - - PC
+javlemon.com##center
+! - - - 모바일
 javlemon.com##.hbrAPNSz
 !
 !
@@ -589,6 +762,33 @@ loopholes.site##.widget_text
 ##.mt-1.justify-start.items-center.flex-wrap.flex
 !
 !
+! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/)
+! - 영상 하단내 배너 테두리
+##.vjs-bottom-banner.vjs-bottom-banner-container
+!
+!
+! 천사티비 (https://1004sweet.com/)
+! https://minkch.com/
+! - 배너 이미지
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+##.external
+! - 영상 상단 텍스트 배너
+##.da-above
+!
+!
+! 놀쟈 (https://www.nzyumi.com/)
+! - 18세 이상 물어보는 팝업
+##.modal18
+! - 영상 뿌옇거 해결 및 영상 위 가로로 긴 네모창
+##.video-overlay
+##[id^="tab-ad-player"]:not(html):not(body):not(article)
+!
+!
+! 채터베이스 (https://chaturbate.com/)
+! - 입장 팝업
+chaturbate.com###entrance_terms_overlay
+!
+!
 ! 오늘의 중계 (today-sports7.com) - 팝업
 ! - - - 코난티비(https://conan-tv.com/) - 팝업
 ###hd_pop
@@ -660,11 +860,30 @@ watchjavonline.com##.code-block-2.code-block
 !
 !
 ! 섹스조아 (https://www.sexzoa52.com/)
-! - 고스트가 먼가 잘못했나 영상 다 날려서 안보임
-! - 영상 옆 텍스트 배너
+! - 상단 텍스트 배너
+! - - - PC
+[$domain=/^www.sexzoa\d+.com/]##h2.mobile-hide
+! - - -  모바일
+! - - - - -  광고문의 글자
+[$domain=/^www.sexzoa\d+.com/]##font
+! - - - - - 광고 문구
+[$domain=/^www.sexzoa\d+.com/]##.mobile-show
+! - 영상 광고
+||sexzoa*.com/ad.json?
+! - 영상 옆 텍스트 배너 (모바일은 영상 아래 위치)
 ##.videoads
-! - 영상 상단 텍스트 배너 (모바일)
-##.mobile-show
+!
+!
+! 밍키넷 (https://mingky.net/)
+! 상단 텍스트 배너
+mingky.net##div.mb-sm-4.mb-3:nth-of-type(1)
+! - 오른쪽 배너
+mingky.net##.my-3.px-sm-0.px-3
+! 영상 상단 텍스트 배너
+mingky.net##.px-xl-0.px-sm-4.px-0.my-sm-4.my-3.nt-container > div
+! 영상 상.하단 모든 배너
+mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
+
 !
 !
 ! 히토미 (https://hitomi.la/)
@@ -672,7 +891,74 @@ watchjavonline.com##.code-block-2.code-block
 hitomi.la###immersive-translate-popup
 !
 !
+! FC2 18세 이상 박스
+! - https://adult.contents.fc2.com/
+##.z9KsZnYS.c-modal-101
+! - https://fc1adult.com/
+! - - -  18세 이상 물어보는 박스
+!##.confirmBox
+! - - -  18세 이상 물어보는 박스 사라진 후 전체 화면 뿌연거 사라지게 하기
+! - - - wavve에도 적용되어 영상이 소리만 나오는 현상 발생 - 도메인 넣는걸로 변경
+! - - - AdGuard에서는 제대로 작동 안하는듯 (uBlock / 유니콘Pro 작동 ok)
+fc1adult.com##.fullscreen
+!
+!
 ! 눈누 (https://noonnu.cc)
 ! - 오른쪽 배너 공간
 noonnu.cc##.lg\:top-8
+!
+!
+! - 슈어랭킹 (https://sureranking.net/)
+! - https://159i.net/
+##.banner
+! - - - 예외
+! - - - 롤 인벤 (https://lol.inven.co.kr/) : 경기일정 보이게 하려고 해제
+lol.inven.co.kr#@#.banner
+
+! May 2, 2025 https://named.com
+named.com##.jnbfVc.sc-eqUAAy
+!
+!
+! - 네임드 보증업체 (https://named.com/)
+! - 팝업
+##.modal-inner
+! - 뿌옇게 해결
+##.jgbgNC
+! -왼쪽 배너
+###leftBanner
+! 오른쪽 배너
+###rightBanner
+! 왼쪽 하단 배너
+###sideCastBanner
+! 맨 하단 배너
+###bottomBanner
+!
+!
+! - GOODTV 기독교 복음방송 (https://goodtv.co.kr/)
+! - 팝업
+##.popup
+! 사이 사이 마다 있는 배너
+##.plus_banner
+!
+!
+! 블로그차트 (https://www.blogchart.co.kr/)
+! -상단 배너
+##.banner_01
+##.banner_02
+##.banner_03
+! - 오른쪽 배너
+###sideBanner
+!
+!
+! 상가114 ( https://www.sangga114.co.kr/)
+! - 상단 배너
+###commonTopBannerNew
+! - 오른쪽 배너
+##.sideBanner_wrap
+!
+!
+! 먹튀안내소 (https://xn--220bn4p04fh5doxu.com/)
+! - 상단 배너
+##.top_banner_widget
+
 
