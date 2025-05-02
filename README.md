@@ -79,6 +79,10 @@ https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-AdGuard.txt
 * (uBlock Origin)
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
 
+※ YousList (KO)
+
+https://filters.adtidy.org/extension/ublock/filters/244.txt
+
 ※ AdGuard Japanese filter
 https://filters.adtidy.org/extension/ublock/filters/7.txt
 
