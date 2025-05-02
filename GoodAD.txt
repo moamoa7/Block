@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050203
+! Version: 25050204
 !
 !
 !
@@ -55,6 +55,31 @@
 !
 !
 !  / / / / /  차단 / / / / / 
+!
+!
+! 유튜브 (https://www.youtube.com/)
+!  Youtube 광고
+! - 출처 : AdBlock Filter
+www.youtube.com#%#//scriptlet('adjust-setTimeout', '[native code]', '17000', '0.001')
+youtube.com#%#//scriptlet('json-prune', 'playerResponse.adPlacements playerResponse.adSlots', 'playerResponse.streamingData.serverAbrStreamingUrl')
+youtube.com#%#//scriptlet('json-prune-fetch-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|player\?|watch\?[tv]=|get_watch\?/')
+youtube.com#%#//scriptlet('json-prune-xhr-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|\/player(?!.*(get_drm_license))|watch\?[tv]=|get_watch\?/')
+youtube.com#%#//scriptlet('set-constant', 'google_ad_status', '1')
+youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'playerResponse.adPlacements', 'undefined')
+youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adPlacements', 'undefined')
+youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adSlots', 'undefined')
+youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.playerAds', 'undefined')
+! Youtube 요소 숨기기
+! -출처 : EasyList
+youtube.com###masthead-ad
+youtube.com##ytd-ad-slot-renderer
+youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+youtube.com###player-ads
+www.youtube.com##.ytp-featured-product
+youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+! 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
+! - 출처 : https://gall.dcinside.com/youtube/378167
+youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
 !
 !
 !
@@ -960,5 +985,3 @@ named.com##.jnbfVc.sc-eqUAAy
 ! 먹튀안내소 (https://xn--220bn4p04fh5doxu.com/)
 ! - 상단 배너
 ##.top_banner_widget
-
-
