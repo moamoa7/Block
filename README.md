@@ -113,6 +113,8 @@ https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-AdGuard.txt
 
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
 
+https://filters.adtidy.org/extension/ublock/filters/244.txt
+
 https://filters.adtidy.org/extension/ublock/filters/7.txt
 
 https://filters.adtidy.org/extension/ublock/filters/224.txt
