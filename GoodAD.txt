@@ -566,7 +566,7 @@ www.spojoy.com###TopAdv250
 !
 !
 ! 바나나몰 (bananamall.co.kr)
-! - 유니콘Pro 차단 해제 (유니콘Pro - 설정 - 사용자규칙에 입력 요망)
+! - 유니콘Pro 차단 해제
 @@||bananamall.co.kr
 ! - 팝업 왼쪽
 bananamall.co.kr##.ui-draggable
