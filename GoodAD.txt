@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050204
+! Version: 25050302
 !
 !
 !
@@ -58,27 +58,30 @@
 !
 !
 ! 유튜브 (https://www.youtube.com/)
-!  Youtube 광고
-! - 출처 : AdBlock Filter
-www.youtube.com#%#//scriptlet('adjust-setTimeout', '[native code]', '17000', '0.001')
+!  - Youtube 광고
+! - - - 유니콘Pro에서도 적용됨
+! - - - - - 출처 : AdBlock Filter
+!www.youtube.com#%#//scriptlet('adjust-setTimeout', '[native code]', '17000', '0.001')
 youtube.com#%#//scriptlet('json-prune', 'playerResponse.adPlacements playerResponse.adSlots', 'playerResponse.streamingData.serverAbrStreamingUrl')
 youtube.com#%#//scriptlet('json-prune-fetch-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|player\?|watch\?[tv]=|get_watch\?/')
 youtube.com#%#//scriptlet('json-prune-xhr-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|\/player(?!.*(get_drm_license))|watch\?[tv]=|get_watch\?/')
-youtube.com#%#//scriptlet('set-constant', 'google_ad_status', '1')
-youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'playerResponse.adPlacements', 'undefined')
-youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adPlacements', 'undefined')
-youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adSlots', 'undefined')
-youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.playerAds', 'undefined')
-! Youtube 요소 숨기기
-! -출처 : EasyList
-youtube.com###masthead-ad
+!youtube.com#%#//scriptlet('set-constant', 'google_ad_status', '1')
+!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'playerResponse.adPlacements', 'undefined')
+!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adPlacements', 'undefined')
+!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adSlots', 'undefined')
+!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.playerAds', 'undefined')
+! - Youtube 요소 숨기기
+! - - - 유니콘Pro에서도 적용됨
+! -- - - - 출처 : EasyList
+!youtube.com###masthead-ad
 youtube.com##ytd-ad-slot-renderer
 youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-youtube.com###player-ads
-www.youtube.com##.ytp-featured-product
-youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
-! 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
-! - 출처 : https://gall.dcinside.com/youtube/378167
+!youtube.com###player-ads
+!www.youtube.com##.ytp-featured-product
+!youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+! - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
+! - - - 유니콘Pro에서도 적용됨
+! - - - - - 출처 : https://gall.dcinside.com/youtube/378167
 youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
 !
 !
@@ -119,6 +122,12 @@ twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
 twitch.tv###twilight-sticky-footer-root
 !
 !
+! WAVVE (https://www.wavve.com/)
+! - 팝업 차단후 뿌옇게 된 화면 처리하면 스크롤이 안되서 팝업 차단 해제
+! - 영화감상사이트 미용비활성 전환으로 인한 규칙 해제
+!www.wavve.com#@#.popup
+!
+!
 ! 씨네스트 (https://cineaste.co.kr/)
 ! - 메인 배너
 cineaste.co.kr##.main-title
@@ -137,6 +146,20 @@ aagag.com##.bottom.center.sAlert
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 !
 !
+! 디시인사이드 (https://gall.dcinside.com)
+! - 오른쪽 배너 공간
+! - - - 유니콘Pro에 없는거 (List-KR)
+dcinside.com##div[class^="rightbanner"]
+! - 게시판 글 공간 절약
+! - - - 유니콘Pro에 없는거 (List-KR)
+! - - - - -  공간 절약은 되나 게시물에 사진1장 뜸
+!gall.dcinside.com###zzbang_img:style(display: block !important;)
+! 디시갤러리 댓글 디시트렌드 (List-KR)
+! - - -  유니콘Pro에는 없음
+dcinside.com##ul.cmt_list > li[id^="comment_li_"].ub-content.dory
+!
+!
+!
 ! 에펨코리아 (https://www.fmkorea.com/)
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
 fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
@@ -153,9 +176,28 @@ fmkorea.com###fm_alert
 ! - 왼쪽 통합검색 바로 아래 배너
 ##.banner-box
 ! - 오늘의 HIT 아래 상담실 등 배너
-###consult_list
+etoland.co.kr###consult_list
+! - 무료충전소
+etoland.co.kr##.reward_v2
+! - 최신 댓글
+etoland.co.kr###main_latest_comment
 ! - 왼쪽 비밀 상점
-##.secret_aside_box
+etoland.co.kr##.secret_aside_box
+! - 알뜰 공간
+etoland.co.kr##.market.menu_wrapper
+! - 스폰서
+etoland.co.kr##.sponsor.menu_wrapper
+! - 오른쪽 상단 텍스트 배너
+etoland.co.kr##.v2_top_menu_right
+! - 승부 예측
+etoland.co.kr##.box.main-sports
+! - 회원 랭킹
+etoland.co.kr##section.box:nth-of-type(7)
+! - 각 게시판 배너
+!||etoland.co.kr/data/daumeditor10/*$image
+etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
+! - 포인트 충전소 이미지 복원 (List-KR 무력화)
+@@||etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
 etoland.co.kr###underGoodBtn_freeRecharge
 ! - 최신글 (NEW) 감추기
@@ -212,7 +254,7 @@ ygosu.com##.pull-left.btn-group
 !
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - 메인/게시물 왼쪽 배너 공간 (PC)
-! - https://yako4.net/ - 영상 하단 배너
+! - 야동코리아 (https://yako4.net/) - 영상 하단 배너
 ! - - - 유튜브에서도 적용
 ###banner
 ! - 모바일 하단 배너
@@ -240,6 +282,11 @@ ppomppu.co.kr##.ppomCou
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
 ###slide_image
+!
+!
+! 다모왕 (https://damoang.net/)
+! - 오른쪽 스크롤도구
+damoang.net##.d-block
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
@@ -299,13 +346,23 @@ tvhot.site##.object-cover
 ! 누누티비 (https://www.ntnt4.tv/)
 ! - 배너
 [$domain=/^www.ntnt\d+.tv/]##.wixui-column-strip.CohWsy.comp-lhh974lu
-
-
+!
+!
 ! 티비위키 (https://tv61.wiki/)
 ! - 배너
 [$domain=/^tv\d+.wiki/]##.custom_banner_wrap
-
-
+!
+!
+! 무비킹 (https://mvking4.org/)
+ - 영상 위 배너
+[$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
+!
+!
+! 코리아 맥스 티비 (https://krmaxtv102.com/)
+! - 상단 배너
+[$domain=/^krmaxtv\d+.com/]##.clearfix.yk-pannela
+!
+!
 ! 도라마코리아 (https://www.dorama.kr/)
 ! - 배너
 www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1fzrtxd-2
@@ -367,9 +424,10 @@ www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1f
 ! - 배너 (오른쪽)
 ! - - -  블랙티비 (https://blacktv88.com/)
 ##.middle-banner
-! 굿라이브티비 (https://gltv88.com/)
 ! - 왼쪽 챗 공간
 [$domain=/^gltv\d+.com/]###fchat
+! - 보증업체 글자
+[$domain=/^gltv\d+.com/]##li.gnb_1dli:nth-of-type(6)
 !
 !
 ! 블랙티비 (https://blacktv88.com/)
@@ -426,7 +484,9 @@ www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1f
 ! 툰코 (https://tkor017.com/)
 ! 펀비 (https://funbe531.com)
 ! - 배너
-##.mobile-banner.col-md-12
+[$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
+! - 만화 위 배너
+[$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.clearfix
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
 #@#.mobile-banner
 !
@@ -445,6 +505,13 @@ www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1f
 ! 조아툰 (https://joatoon67.com/)
 ! - 배너
 [$domain=/^joatoon\d+.com/]##.grid-cols-2.mt-2.grid
+!
+!
+! 엑스툰 (https://t1.xtoon2.com/)
+! - 팁
+##.f-tips
+! - 하단 움직이는 광고
+##.slideAnimation--K36g6.bottomRight--sO8K2.root--ujvuu
 !
 !
 ! 링크 비비기 (https://linkbbg.com/)
@@ -499,6 +566,8 @@ www.spojoy.com###TopAdv250
 !
 !
 ! 바나나몰 (bananamall.co.kr)
+! - 유니콘Pro 차단 해제 (유니콘Pro - 설정 - 사용자규칙에 입력 요망)
+@@||bananamall.co.kr
 ! - 팝업 왼쪽
 bananamall.co.kr##.ui-draggable
 ! - 팝업 오른쪽
@@ -814,6 +883,11 @@ loopholes.site##.widget_text
 chaturbate.com###entrance_terms_overlay
 !
 !
+! stripchatgirls (https://ko.stripchatgirls.com/)
+! - 가입창
+stripchatgirls.com##.Modal__scrollableOverlay\#SW.Modal__overlay_clickable\#ho.Modal__overlay\#s0
+!
+!
 ! 오늘의 중계 (today-sports7.com) - 팝업
 ! - - - 코난티비(https://conan-tv.com/) - 팝업
 ###hd_pop
@@ -836,6 +910,11 @@ chaturbate.com###entrance_terms_overlay
 ! - 배너
 [$domain=/^jusoyo\d+.com/]##.basic-banner-gallery
 ||jusoyo*.com/img/*g
+!
+!
+! 주소타운 (https://www.jusotw.com/)
+! - 상단 배너
+www.jusotw.com###comp-lt8phbbp
 !
 !
 ! 조개파티 (https://jogaeparty139.com/)
@@ -908,7 +987,6 @@ mingky.net##.my-3.px-sm-0.px-3
 mingky.net##.px-xl-0.px-sm-4.px-0.my-sm-4.my-3.nt-container > div
 ! 영상 상.하단 모든 배너
 mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
-
 !
 !
 ! 히토미 (https://hitomi.la/)
@@ -985,3 +1063,89 @@ named.com##.jnbfVc.sc-eqUAAy
 ! 먹튀안내소 (https://xn--220bn4p04fh5doxu.com/)
 ! - 상단 배너
 ##.top_banner_widget
+!
+!
+! 다크걸 (https://darkg5.com/)
+! - 메인 배너
+||darkg*.com/data/file/admin_banner/*
+! - 메인 배너 공간
+[$domain=/^darkg\d+.com/]##div#main-banner
+! - 영상 상단 배너 공간
+[$domain=/^darkg\d+.com/]###bo_v_atc > iframe
+[$domain=/^darkg\d+.com/]##.page > p
+! - 영상 하단 배너
+||darkg*.com/data/editor/*
+!
+!
+! 라이브스코어 (https://livescore.co.kr/)
+! - 챗 공간
+###livechat
+!
+!
+! 킹콩티비 (https://kktv12.com/)
+! - 팝업
+[$domain=/^kktv\d+.com/]##.modal_flex
+! - 챗 공간
+[$domain=/^kktv\d+.com/]##.chat_frame
+! - 보증업체 글자 지우기
+[$domain=/^kktv\d+.com/]##[href="/partner/%EC%8A%A4%ED%8F%AC%EC%B8%A0"]
+!
+!
+! 블루티비 (https://bluelive77.com/)
+! - 오른쪽 상단 배너
+[$domain=/^bluelive\d+.com/]##.collapse
+!- 배팅하러가기 배너
+! - 중계방송 배팅하러가기 배너
+!![$domain=/^bluelive\d+.com/]##.btn-group.mt-2
+![$domain=/^bluelive\d+.com/]##.mt-2.col-12 > [href="/html/toto/"]
+[$domain=/^bluelive\d+.com/]##[href^="/html/toto/"]
+! - 중계방송 하단 배너 2개
+named.com##.bXrLvT.sc-cepbVR
+! - 보증업체 글자
+||blacktv*.com/img/bo1.gif
+! - 먹튀업체 이미지 및 글자
+!##.gall_img
+!##.gall_text_href
+!
+!
+! 헐크티비 (https://www.hulk24.com/)
+! - 채팅 공간
+[$domain=/^www.hulk\d+.com/]##.left_chat_box
+! - 중계방송 아래 흐르는 배너
+[$domain=/^www.hulk\d+.com/]##.notice_wrap
+! - 광고존 토토홍보
+[$domain=/^www.hulk\d+.com/]##div.board_list > [href^="/bbs_view.php"]
+! - 광고존 - 구인구직
+[$domain=/^www.hulk\d+.com/]##.list_n_bold.list2 > [href^="/bbs_view.php"]
+!
+!
+! 마징가티비 (https://mazgtv1.com/)
+! - 팝업
+[$domain=/^mazgtv\d+.com/]##.popup-container
+! - 챗 공간
+[$domain=/^mazgtv\d+.com/]###uchatDom
+! - 제휴업체 글자
+[$domain=/^mazgtv\d+.com/]##.othersite-tab-bg
+!
+!
+! 쿨티비 (https://www.cool111.com/)
+! - 챗 공간
+[$domain=/^www.cool\d+.com/]##.left_chat
+! - 왼쪽 바로가기
+[$domain=/^www.cool\d+.com/]##.left_shortcut
+! - 보증업체 글자
+[$domain=/^www.cool\d+.com/]##.sub08_active.gnb_active
+!
+!
+! 구구티비 (https://gutv24.com/
+! - 챗 공간
+[$domain=/^gutv\d+.com/]##div.side-widget:nth-of-type(4)
+! - 왼쪽 보증놀이터 배너
+[$domain=/^gutv\d+.com/]##div.side-widget:nth-of-type(3)
+!
+!
+! 로얄티비 (https://royaltv01.com/)
+! 보증업체 이미지
+##.img-item > [href^="https://royaltv01.com/bbs/board.php"]
+! - 보증업체 더보기
+##.add-to-cart
