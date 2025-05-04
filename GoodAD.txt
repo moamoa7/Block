@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050302
+! Version: 25050401
 !
 !
 !
@@ -157,7 +157,12 @@ dcinside.com##div[class^="rightbanner"]
 ! 디시갤러리 댓글 디시트렌드 (List-KR)
 ! - - -  유니콘Pro에는 없음
 dcinside.com##ul.cmt_list > li[id^="comment_li_"].ub-content.dory
-!
+! - IP차단 후 애드가드로 안보이게
+! - - - 출처 : https://gall.dcinside.com/adguard/2814
+! - - - - - PC
+gall.dcinside.com##.block-disable
+! - - - - - 모바일
+gall.dcinside.com##li.block-disable
 !
 !
 ! 에펨코리아 (https://www.fmkorea.com/)
@@ -189,6 +194,8 @@ etoland.co.kr##.market.menu_wrapper
 etoland.co.kr##.sponsor.menu_wrapper
 ! - 오른쪽 상단 텍스트 배너
 etoland.co.kr##.v2_top_menu_right
+! - 포인트 승부 예측
+etoland.co.kr##.box.sports-bet-section
 ! - 승부 예측
 etoland.co.kr##.box.main-sports
 ! - 회원 랭킹
@@ -287,6 +294,11 @@ ppomppu.co.kr##.ppomCou
 ! 다모왕 (https://damoang.net/)
 ! - 오른쪽 스크롤도구
 damoang.net##.d-block
+!
+!
+! ZUM (https://zum.com/)
+! - 일부 요소 깨진거 차단
+zum.com##[class="wrap_header"]
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
@@ -622,6 +634,7 @@ cgv.co.kr#@#div[id$="_PlaceHolderContent_divMovieSelection_wrap"][class]
 !cgv.co.kr##[class^="home_contents_list_wrap home"]
 !cgv.co.kr##[class^="home_contents_watchMovieReply_wrap"]
 ! - - - 무비차트 내 간편결제매니저 공간
+! - - - - - watchadsontape.com (ST로 명시되어 있는 영상들)
 ! -  - - - - https://www.sakurajav.com/
 ! -  - - - - https://javhay.net/
 ##.ad
@@ -643,7 +656,8 @@ cgv.co.kr##.btnLinkFixed
 [$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[alt*='광고'], [alt*='배너']
 [$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[class*='carousel'][id]
 [$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[href*='/ad'][target='_blank']:has(img)
-[$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[target='_blank']:has([src$='.gif']):upward(1)
+! - - - - - 토렌트 제이 (https://torrentj165.com/) 에서 하단 내용 안나와서 제외
+![$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[target='_blank']:has([src$='.gif']):upward(1)
 !
 !
 ! 토렌트G (https://ttg-35.com/) 상단 배너
@@ -669,26 +683,21 @@ avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
 !
 !
-! SupJav (https://supjav.com/)
 ! JavNeon (https://javneon.tv/)
 ! JavEVE (https://javeve.tv/)
 ! Javsaga (https://javsaga.ninja/)
 ! Javbull (https://javbull.tv/)
-! - 영상 오른쪽 배너 공간 (EasyList)
-!##.movv-ad
-! - 영상 차단 방지
-@@tiktokcdn.com
-!
-!
-! JavNeon (https://javneon.tv/)
-! JavEVE (https://javeve.tv/)
-! Javsaga (https://javsaga.ninja/)
-! Javbull (https://javbull.tv/)
-! - 상단 공백
+! - 상단 공백 (EasyList)
 ##.pt-45.container
 !
 !
+! JAVFC2.XYZ (https://javfc2.xyz/)
+! - 상단 배너 이미지 공간 (유니콘Pro)
+!###ads
+!
+!
 ! 7MMTV (https://7tv033.com/)
+! - 유니콘Pro에서는 ST영상 재생 불가
 ! - 상단 배너 공간
 ##.a-d-block
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
@@ -920,7 +929,8 @@ www.jusotw.com###comp-lt8phbbp
 ! 조개파티 (https://jogaeparty139.com/)
 ! - 영상 위 배너
 ! - - - 오른쪽 작은 배너
-[$domain=/^jogaeparty\d+.com/]##[src*="imgbox.com"]
+! - - - - - 토렌트 제이 (https://torrentj165.com/)
+[$domain=/^jogaeparty\d+.com/],[$domain=/^torrentj\d+.com/]##[src*="imgbox.com"]
 ! - - - 텔레그램 이미지 전부 다 날리기
 [$domain=/^jogaeparty\d+.com/]##[href*="t.me"]
 ! 영상 아래 배너
@@ -1149,3 +1159,8 @@ named.com##.bXrLvT.sc-cepbVR
 ##.img-item > [href^="https://royaltv01.com/bbs/board.php"]
 ! - 보증업체 더보기
 ##.add-to-cart
+!
+!
+! 한국 사이트넷 (https://koreasite123.com/)
+[$domain=/^koreasite\d+.com/]##.img-wrap
+
