@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050501
+! Version: 25050601
 !
 !
 !
@@ -1403,6 +1403,8 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! 배너 이미지
 !||coolgirl07.cc/data/editor/*
 ||*/data/editor/*$image
+! - - - 예외 (humoruniv.com)
+@@||timg.humoruniv.com/*/data/editor/*$image
 ! - - - 예외 (백억티비 - 백억웹툰 미리보기 이미지)
 @@||100tv001.wtoon.net/data/editor/*$image
 ! - - - 예외 (백억티비 - 치어리더갤)
@@ -1642,3 +1644,4 @@ www.wavve.com#@#.popup
 !
 !
 !
+
