@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050605
+! Version: 25050701
 !
 !
 !
@@ -191,9 +191,45 @@ gall.dcinside.com##.block-disable
 gall.dcinside.com##li.block-disable
 ! 디시 뉴스 없애기 (중앙일보)
 ! - - - PC
-dcinside.com##.news_result.integrate_cont
+!dcinside.com##.news_result.integrate_cont
 ! - - - 모바일
-dcinside.com##.news-schthum-lst
+!dcinside.com##.news-schthum-lst
+! 추가
+! 출처 : https://raw.githubusercontent.com/green1052/GreenList/master/filter.txt
+||dctrend.ai
+dctrend.ai##*
+||dccdn11.dcinside.co.kr
+||cdn.trend.rankify.best/dctrend/
+||cdn.inappnews.net
+||gall.dcinside.com/_js/survey.js
+dcinside.com###pop_bg
+dcinside.com##.closure-lightpop
+dcinside.com###opt_use_pop_bg
+dcinside.com###opt_use_pop
+dcinside.com##.r_timebest
+dcinside.com##.r_dcmedia
+dcinside.com##.trend
+dcinside.com##.dcmedia
+dcinside.com##.news_con
+dcinside.com##.r_only_daum
+dcinside.com##.r_recommend
+dcinside.com##.gall_exposure
+dcinside.com##.news_result
+dcinside.com##+js(set, gall_content_count, noopFunc)
+dcinside.com##+js(set, recomAjax, noopFunc)
+dcinside.com##+js(set, newsAjax, noopFunc)
+dcinside.com##+js(set, trendAjax, noopFunc)
+dcinside.com##+js(set, mediaAjax, noopFunc)
+dcinside.com##+js(set, issueAjax, noopFunc)
+dcinside.com##+js(set, mixNewsMediaAjax, noopFunc)
+
+! 아카라이브 (https://arca.live/)
+! 민감한 콘텐츠 주의 메시지 없애기
+||arca.live/static/assets/js/adult.min.js
+
+||novelpia.com/js/jdetects.min.js
+
+
 !
 !
 ! 에펨코리아 (https://www.fmkorea.com/)
@@ -865,7 +901,7 @@ tdosa.net###bo_gallery
 [$domain=/^joatoon\d+.com/]##.grid-cols-2.mt-2.grid
 !
 !
-! 엑스툰 (https://t1.xtoon2.com/)
+! 엑스툰 (https://xn--9t4b31dr7o.com/) (https://t1.xtoon2.com/)
 ! - 팁
 ##.f-tips
 ! - 하단 움직이는 광고
@@ -1798,6 +1834,12 @@ www.wavve.com#@#.popup
 [$domain=/^koreasite\d+.com/]##.img-wrap
 !
 !
+! 노벨피아 (https://novelpia.com/)
+! - 첫 구독 무료 혜택 팝업
+novelpia.com##.sub-sale-modal-v2
+novelpia.com##.modal_background
+!
+!
 !
 !
 !
@@ -1865,3 +1907,4 @@ betman.co.kr##*
 www.betman.co.kr##*
 [$domain=/^dogbozi\d+.com/]##*
 [$domain=/^dogsex\d+.com/]##*
+
