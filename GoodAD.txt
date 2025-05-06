@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050602
+! Version: 25050603
 !
 !
 !
@@ -178,6 +178,11 @@ dcinside.com##ul.cmt_list > li[id^="comment_li_"].ub-content.dory
 gall.dcinside.com##.block-disable
 ! - - - - - 모바일
 gall.dcinside.com##li.block-disable
+! 디시 뉴스 없애기 (중앙일보)
+! - - - PC
+dcinside.com##.news_result.integrate_cont
+! - - - 모바일
+dcinside.com##.news-schthum-lst
 !
 !
 ! 에펨코리아 (https://www.fmkorea.com/)
@@ -235,7 +240,7 @@ etoland.co.kr###info_recent_list_wrap
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
 inven.co.kr##.roulette-open.inven-float-alarm
 ! - 게시글 하단 안내창 (모바일)
-##.invenAppSuggestionInner
+inven.co.kr##.invenAppSuggestionInner
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
@@ -437,7 +442,32 @@ tvhot.site##.object-cover
 [$domain=/^gogumatv\d+.com/]###leftDiv
 ! - 오른쪽배너
 [$domain=/^gogumatv\d+.com/]###rightDiv
-
+!
+!
+! 별별티비 (https://bbtv76.com/)
+! - 왼쪽 배너
+[$domain=/^bbtv\d+.com/]##div.open.main-menu:nth-of-type(3)
+! - 링크동맹 안보이게
+[$domain=/^bbtv\d+.com/]##.posted-info
+!
+!
+! TV다시보자 (https://bozatv108.com/)
+! 방구석티비 (https://bontv100.com/)
+! 9티비 (https://9tv71.com/)
+! - 상단배너
+[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^9tv\d+.com/]##.yk-container
+! - 링크동맹 안보이게
+[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^9tv\d+.com/]##.mb-3.col-sm-12.col-xl-12
+!
+!
+! 두꺼비티비 (https://dugebitv102.xyz/)
+! - 상단 배너
+[$domain=/^dugebitv\d+.xyz]##li.col-xs-1.col-sm-2.col-md-3 > .ewave-vodlist__box
+!
+!
+! 조개무비 (https://v15.jogemovie.net/)
+! - 배너 이미지
+[$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
 !
 !
 ! 도라마코리아 (https://www.dorama.kr/)
@@ -450,11 +480,6 @@ www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1f
 ##.Ou4e8aZR
 ! - 게시물내 배너
 ##.OKQiqzeA.j9pLi57W
-!
-!
-! 조개무비 (https://v15.jogemovie.net/)
-! - 배너 이미지
-[$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
 !
 !
 ! 메시티비 (https://messitv8.com/)
@@ -594,6 +619,11 @@ named.com###sport_mobile_banner_right
 [$domain=/^coktv\d+.com/]##.othersite-tab-bg
 !
 !
+! 청양티비 (https://cytv138.com/)
+! - 링크 삭제
+[$domain=/^cytv\d+.com/]##.type-slide.stui-header__menu [href="/index.php/vod/banner2/type/999.html"]
+!
+!
 ! 먹튀잡자 (https://jobjatv.com/)
 ! 보증업체/먹튀검증
 jobjatv.com##.list-item-wrap
@@ -644,6 +674,14 @@ betmoatv.com##div.sebang-pc.menu-title.cursor-pointer.item:nth-of-type(3)
 ! 쪽티비 (https://www.jjoktv.com/)
 ! - 보증업체 글자
 jjoktv.com##.assurance-menu__btn.v-size--default.theme--light.v-btn--text.v-btn.pa-0
+!
+!
+! 메이저(https://major-top3.com/)
+! - 상단 오른쪽 보증업체/무료쿠폰
+![$domain=/^major-top\d+.com/]##.header-search
+! - 먹튀검증 글자
+![$domain=/^major-top\d+.com/]##.on.menu-li > .nav-height.menu-a
+||major-top*.com
 !
 !
 ! 픽스코어 (https://pickscore119.com/)
@@ -747,17 +785,11 @@ tdosa.net###bo_gallery
 [$domain=/^nocatv\d+.com/]##a[href^="https://nocatv3.com/bbs/link.php"]:nth-of-type(2)
 !
 !
-! 슬롯바다 (https://slotbada.com/)
-! 월드슬롯 (https://www.worldslot.net/)
-! 다자바 (https://www.dajaba.net/)
-! 토토광 (https://totogwang.com/)
-! 토지노119 (https://mtso19.com/)
-||slotbada.com
-||worldslot.net/
-||www.dajaba.net
-||totogwang.com
-||mtso*.com
-
+! 칠칠주소 (https://79clf.com/)
+! - 팝업
+##.popup-overlay
+! - 화면 뿌옇거 해걸
+###popup1_background
 !
 !
 ! 뉴토끼 (https://newtoki468.com/)
@@ -801,27 +833,6 @@ tdosa.net###bo_gallery
 ##.top-banner
 ! - 보증토토 배너
 ||iabn10.net/*ico*
-!
-!
-! 별별티비 (https://bbtv76.com/)
-! - 왼쪽 배너
-[$domain=/^bbtv\d+.com/]##div.open.main-menu:nth-of-type(3)
-! - 링크동맹 안보이게
-[$domain=/^bbtv\d+.com/]##.posted-info
-!
-!
-! TV다시보자 (https://bozatv108.com/)
-! 방구석티비 (https://bontv100.com/)
-! 9티비 (https://9tv71.com/)
-! - 상단배너
-[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^9tv\d+.com/]##.yk-container
-! - 링크동맹 안보이게
-[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^9tv\d+.com/]##.mb-3.col-sm-12.col-xl-12
-!
-!
-! 두꺼비티비 (https://dugebitv102.xyz/)
-! - 상단 배너
-[$domain=/^dugebitv\d+.xyz]##li.col-xs-1.col-sm-2.col-md-3 > .ewave-vodlist__box
 !
 !
 ! 야툰 (https://yatoon203.com/)
@@ -881,6 +892,15 @@ tdosa.net###bo_gallery
 ! 머니툰 (https://mtoon122.com/)
 ! 하단 배너
 [$domain=/^mtoon\d+.com/]##.pc_w.row
+!
+!
+! 툰브로 (https://b17.toon-bro.xyz/)
+! - 팝업
+[$domain=/^b\d+.toon-bro.xyz/]##.inset-x-0.fixed
+! - 화면 뿌옇거 해결
+[$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
+! - 상단 배너
+[$domain=/^b\d+.toon-bro.xyz/]##.gap-\[0px\].flex-col.flex
 !
 !
 ! 링크 비비기 (https://linkbbg.com/)
@@ -1165,6 +1185,16 @@ javlemon.com##.hbrAPNSz
 loopholes.site##.widget_text
 !
 !
+! 야동망고 (https://www.xn--299a65k99e3yi55ey7f.com/) (https://www.xn--299a89v.net/) (https://www.mango54.net/) (https://www.mango20.xyz/) (https://www.mango57.icu/)
+! - 오른쪽 배너
+www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##td:nth-of-type(2)
+! - 가운데 배너
+www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##td > table > tbody > tr > td > table > tbody > tr > td > center
+! 스폰업소
+www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##p:nth-of-type(14)
+www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##ol > table > tbody > tr > td
+!
+!
  ! FC2PPVDB (https://fc2ppvdb.com/)
  ! - 입장시 18세 체크
  ##[id*="ageCheck"]:not(html):not(body):not(article)
@@ -1252,8 +1282,18 @@ mypikpak.com#@#[class*="popup"]
 ! 야부리 시즌 2 (https://yaburi60.com/)
 ! - 상단 배너
 [$domain=/^yaburi\d+.com/]##.sm\:grid-cols-4.border.w-full.px-1.gap-x-1.grid-cols-2.grid
-!- 영상 상.하 배너
+! - 영상 상.하 배너
 [$domain=/^yaburi\d+.com/]##.widget-box.w-full.mt-2.items-center.justify-between.flex
+! - 배너업체 없애기
+[$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(1)
+! - 인기업소 순위 없애기
+[$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(3)
+! - 이벤트 없애기
+[$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(8)
+! - 왼쪽 업소 정보 배너 없애기
+[$domain=/^yaburi\d+.com/]##.sm\:block.sm\:w-full.hidden > .w-full.my-4.p-1
+! - 하단 이벤트 바로가기 클릭 없애기
+[$domain=/^yaburi\d+.com/]##.grow.sm\:max-w-5xl.min-h-screen > div.w-full.p-1
 !
 !
 ! WatchJAVOnline (https://watchjavonline.com/)
@@ -1267,7 +1307,7 @@ watchjavonline.com##.code-block-2.code-block
 ! 주소콕 (https://jusokok10.com/)
 ! 잠자티비 (https://zamzatv13.com/)
 ! 버스카 (https://buska20.com/)
-! 에비앙 (https://evian31.com/)
+! 에비앙 (https://xn--9w3bo3kfk.com/) (https://evian31.com/)
 ! 또보자TV (https://boztv119.com/)
 ! 노보텔 (https://nvt43.com/)
 ! 몰디브 (https://mdv13.com/)
@@ -1284,8 +1324,13 @@ watchjavonline.com##.code-block-2.code-block
 ! 야동홀릭 (https://yhl-59.com/)
 ! AV스팟 (https://avspot47.com/)
 ! AV소다 (https://soda59.com/)
+! 들어와 (https://comein16.com/)
+! 방앗간 (https://gristmill31.com/)
+! 섹플릭스 (https://www.xn--py2b11lf5aq86b.com/) (https://sexflix25.com/)
+! 야동대학 (https://ydu14.com/)
+! AV하나 (https://avhana-59.com/)
 ! - 전체 배너
-![$domain=/^dragonfly\d+.com/],[$domain=/^yd-time\d+.com/],[$domain=/^samdasoo\d+.com/],[$domain=/^jusokok\d+.com/],[$domain=/^zamzatv\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^evian\d+.com/],[$domain=/^boztv\d+.com/],[$domain=/^nvt\d+.com/],[$domain=/^mdv\d+.com/],[$domain=/^drck\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^retv\d+.com/],[$domain=/^hotg\d+.com/],[$domain=/^yd-house\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^avspot\d+.com/],[$domain=/^soda\d+.com/]##.bg-black.carousel-inner
+![$domain=/^dragonfly\d+.com/],[$domain=/^yd-time\d+.com/],[$domain=/^samdasoo\d+.com/],[$domain=/^jusokok\d+.com/],[$domain=/^zamzatv\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^evian\d+.com/],[$domain=/^boztv\d+.com/],[$domain=/^nvt\d+.com/],[$domain=/^mdv\d+.com/],[$domain=/^drck\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^retv\d+.com/],[$domain=/^hotg\d+.com/],[$domain=/^yd-house\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^avspot\d+.com/],[$domain=/^soda\d+.com/],[$domain=/^comein\d+.com/],[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^avhana-\d+.com/]##.bg-black.carousel-inner
 ##.bg-black.carousel-inner
 !
 !
@@ -1307,8 +1352,11 @@ watchjavonline.com##.code-block-2.code-block
 !
 !
 ! 보지넷 (https://bo-zi65.net/)
+! 야동다운 (https://av031.xyz/)
 ! - 상.하 배너
 [$domain=/^bo-zi\d+.net/]##.banners-container
+[$domain=/^av\d+.xyz/]##.banners-container
+##.banners-container
 !
 !
 ! 섹스조아 (https://www.sexzoa52.com/)
@@ -1337,7 +1385,7 @@ mingky.net##.px-xl-0.px-sm-4.px-0.my-sm-4.my-3.nt-container > div
 mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 !
 !
-! 사이즈19 (https://vod.tmall-kr.net/) (https://size19.tv/)
+! 사이즈19 (https://size71.net/) (https://vod.tmall-kr.net/)
 ! - 팝업
 ###popup-ad
 ! - 영상 재생 닫기 버튼 (EasyList)
@@ -1345,6 +1393,58 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! - 영상 재생 앞 로딩 부분
 ! - - - 청양티비 (https://cytv138.com/)
 ###buffer
+!
+!
+! 야밤 (https://yabam22.me/)
+! - 상단 배너
+[$domain=/^yabam\d+.me/]##.banner-pc-padding.banner-margin.row
+! - 영상내 배너
+###ads
+!
+!
+! 다크걸 (https://darkg5.com/) (https://darkg14.com/)
+! - 전체 배너
+! - - - 도도걸 (https://dodog11.com/)
+! - - -  야동닷컴 (https://ydong8.com/)
+! - - -  싸나이 (sanai13.com/)
+!||darkg*.com/data/file/admin_banner/*
+!||ydong*.com/data/file/admin_banner/*
+!||sanai*.com/data/file/admin_banner/*
+||*/data/file/admin_banner/*$image
+! - 메인 배너 공간
+[$domain=/^darkg\d+.com/]##div#main-banner
+! - 영상 상단 배너 공간
+[$domain=/^darkg\d+.com/]###bo_v_atc > iframe
+[$domain=/^darkg\d+.com/]##.page > p
+! - 영상 하단 배너
+!||darkg*.com/data/editor/*
+!
+!
+! - 도도걸 (https://dodog11.com/)
+! 전체 배너
+!||dodog*.com/data/file/admin_banner/*$image
+! 배너 공간
+[$domain=/^dodog\d+.com/]##div#main-banner:nth-of-type(3)
+[$domain=/^dodog\d+.com/]##div#main-banner:nth-of-type(4)
+!
+!
+! 야동대학 (https://ydu14.com/)
+! - 왼쪽 배너
+[$domain=/^ydu\d+.com/]##.bxslider
+! - 검증업체 글자 및 메인 검증 글
+[$domain=/^ydu\d+.com/]##li.off.menu-li:nth-of-type(2)
+[$domain=/^ydu\d+.com/]##.on.menu-li
+[$domain=/^ydu\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .div-title-underbar.title-box-side
+[$domain=/^ydu\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
+!
+!
+! 은꼴넷 (https://xn--3r0b51bq29a.com/)
+! -상단 배너
+!xn--3r0b51bq29a.com##.banner-item-inner
+!||com/data/banner/*
+||/data/banner/*
+! - 안전 인증 사이트
+xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 !
 !
 ! 레드캣야동 (https://xn--2q1b5s99ew6tyyk.com/) (https://redcattv9.com/)
@@ -1360,18 +1460,6 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 !||mangajoa*.com/data/editor/*$image
 !
 !
-! 다크걸 (https://darkg5.com/) (https://darkg14.com/)
-! - 메인 배너
-||darkg*.com/data/file/admin_banner/*
-! - 메인 배너 공간
-[$domain=/^darkg\d+.com/]##div#main-banner
-! - 영상 상단 배너 공간
-[$domain=/^darkg\d+.com/]###bo_v_atc > iframe
-[$domain=/^darkg\d+.com/]##.page > p
-! - 영상 하단 배너
-!||darkg*.com/data/editor/*
-!
-!
 ! 딸퀸 (https://ddalq.xyz/)
 ! - 배너이미지
 !||ddalq.xyz/data/file/banner_main_top/*$image
@@ -1382,12 +1470,22 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 !
 ! 레드걸 (https://redgg.kr/) (https://redgirl32.xyz/)
 ! - 배너 이미지
-!||redgirl*.xyz/data/editor/
+!||redgirl*.xyz/data/editor/*$image
+!
+!
+! 레드캣 (https://redcattv.xyz/)
+!  - 배너 이미지
+!||redcattv.xyz/data/editor/*$image
 !
 !
 ! 야동황제 (https://kr1.hwangj.com/)
 ! - 배너 이미지
 !||dev.xxxtv*.com/data/editor/*$image
+!
+!
+!  야동삼국지 (야동삼국지.com) (https://kr4.yadong3.com/)
+! - 배너 이미니
+!||kr*.yadong3.com/data/editor/*$image
 !
 !
 ! 혼딸파티 (https://ddparty.cc/)
@@ -1403,9 +1501,12 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! 배너 이미지
 !||coolgirl07.cc/data/editor/*
 ||*/data/editor/*$image
-! - - - 예외 (humoruniv.com)
-!@@||timg.humoruniv.com/*/data/editor/*$image
+! - - - 예외 (웃대)
+@@||timg.humoruniv.com/*/data/editor/*$image
 !@@||down-webp.humoruniv.com/*/data/editor/*$image
+! - - - 예외 (다모앙)
+@@||cdn.damoang.net/data/editor/*$image
+@@||cdn.damoang.net//data/editor/*$image
 ! - - - 예외 (백억티비 - 백억웹툰 미리보기 이미지)
 @@||100tv001.wtoon.net/data/editor/*$image
 ! - - - 예외 (백억티비 - 치어리더갤)
@@ -1422,6 +1523,8 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 @@||jusoyo*.com/data/editor/*$image
 ! - - - 예외 (애니24)
 @@||ohli*.com/data/editor/*$image
+! 버스카
+@@||buska*.com/data/editor/*$image
 !
 !
 ! 방앗간 (https://gristmill31.com/)
@@ -1458,6 +1561,17 @@ hitomi.la###immersive-translate-popup
 [$domain=/^linklove\d+.com/]##.w-box
 ! - - -  주소파워 (https://linkpower27.com/)
 [$domain=/^linklove\d+.com/],[$domain=/^linkpower\d+.com/]##.miso-love-ad
+!
+!
+! 여기요 (https://www.yugiyu.com/)
+! - 검증 삭제
+yugiyu.com##div.main_link.f9_box01:nth-of-type(6)
+! - 카지노 삭제
+yugiyu.com##div.main_link.f9_box01:nth-of-type(8)
+! - 토토 삭제
+yugiyu.com##div.main_link.f9_box01:nth-of-type(9)
+! - 오피 삭제
+##div.main_link.f9_box01:nth-of-type(12)
 !
 !
 ! 주소파워 (https://linkpower27.com/)
@@ -1645,3 +1759,50 @@ www.wavve.com#@#.popup
 !
 !
 !
+! 기타
+||/wp-content/uploads/*$image
+!||*com/wp-content/uploads/*$image
+!||*top/wp-content/uploads/*$image
+!||*xyz/wp-content/uploads/*$image
+
+! - - -  예외
+@@||dramaday.me/wp-content/uploads/*$image
+@@||v*.jogemovie.net/wp-content/uploads/*$image
+@@||*.yadongpan.me/wp-content/uploads/*$image
+
+! fake news
+chosun.com##*
+joongang.co.kr##*
+dcnewsj.joins.com##*
+donga.com##*
+mlbpark.donga.com#@#*
+
+
+! Fissing Site
+!daurn.net##*
+coinnone.net##*
+coinnoinc.com##*
+naverccrp.com##*
+
+
+
+!!! 필요없는거 같은 사이트
+
+! 슬롯바다 (https://slotbada.com/)
+! 월드슬롯 (https://www.worldslot.net/)
+! 다자바 (https://www.dajaba.net/)
+! 토토광 (https://totogwang.com/)
+! 토지노119 (https://mtso19.com/)
+! 칠칠주소 (https://79clf.com/)
+! 배팅의민족 (https://xn--lg3btlr9xf6a104a.com/) (https://119sh.com/)
+! 벳맨 (https://www.betman.co.kr/)
+slotbada.com##*
+worldslot.net##*
+www.dajaba.net##*
+totogwang.com##*
+[$domain=/^mtso\d+.com/]##*
+[$domain=/^\d+.clf.com/]##*
+xn--lg3btlr9xf6a104a.com##*
+119sh.com##*
+betman.co.kr##*
+www.betman.co.kr##*
