@@ -241,6 +241,7 @@ etoland.co.kr###info_recent_list_wrap
 inven.co.kr##.roulette-open.inven-float-alarm
 ! - 게시글 하단 안내창 (모바일)
 inven.co.kr##.invenAppSuggestionInner
+inven.co.kr###invenAppSuggestion
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
