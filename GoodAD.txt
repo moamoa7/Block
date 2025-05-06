@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050604
+! Version: 25050605
 !
 !
 !
@@ -135,6 +135,8 @@ poong.today##._mainWingBannerArea_trl52_537
 ! 치지직 (https://chzzk.naver.com/)
 ! - 광고 차단  팝업
 chzzk.naver.com##.popup_dimmed_transparent__uMy0d.popup_dimmed__zs78t
+! - 광고?
+||.com/ad-*
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -142,6 +144,8 @@ chzzk.naver.com##.popup_dimmed_transparent__uMy0d.popup_dimmed__zs78t
 twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
 ! - 하단 회원가입 안내 문구
 twitch.tv###twilight-sticky-footer-root
+! - 광고?
+||*.ads.*
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -361,6 +365,8 @@ zum.com##.tv_wrap
 ! - - - 아래 출처대로 바꿔도 동일
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##[src*='/AD/']
+||.com/AD/*
+||.org/AD/*
 ! - - - 티비몬
 [$domain=/^tvmon\d+.org/]###banner-row-1
 ! - - - 티비핫 (주소 바뀌므로 나중에 수동으로 수정해야 함)
@@ -1251,6 +1257,8 @@ www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],
 www.wavve.com#@#[class*="popup"]
 ! - - - 예외 (화면 안나옴)
 mypikpak.com#@#[class*="popup"]
+! - - - 예외 (구매결정 팝업창 안나옴)
+escrow.auction.co.kr#@#[class*="popup"]
 ! - - - mobile
 ##.w-80.relative
 ! 보증업체 보기 배너
@@ -1337,8 +1345,9 @@ watchjavonline.com##.code-block-2.code-block
 ! 섹플릭스 (https://www.xn--py2b11lf5aq86b.com/) (https://sexflix25.com/)
 ! 야동대학 (https://ydu14.com/)
 ! AV하나 (https://avhana-59.com/)
+! 레드바나나 (https://redbanana24.com/)
 ! - 전체 배너
-![$domain=/^dragonfly\d+.com/],[$domain=/^yd-time\d+.com/],[$domain=/^samdasoo\d+.com/],[$domain=/^jusokok\d+.com/],[$domain=/^zamzatv\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^evian\d+.com/],[$domain=/^boztv\d+.com/],[$domain=/^nvt\d+.com/],[$domain=/^mdv\d+.com/],[$domain=/^drck\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^retv\d+.com/],[$domain=/^hotg\d+.com/],[$domain=/^yd-house\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^avspot\d+.com/],[$domain=/^soda\d+.com/],[$domain=/^comein\d+.com/],[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^avhana-\d+.com/]##.bg-black.carousel-inner
+![$domain=/^dragonfly\d+.com/],[$domain=/^yd-time\d+.com/],[$domain=/^samdasoo\d+.com/],[$domain=/^jusokok\d+.com/],[$domain=/^zamzatv\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^evian\d+.com/],[$domain=/^boztv\d+.com/],[$domain=/^nvt\d+.com/],[$domain=/^mdv\d+.com/],[$domain=/^drck\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^retv\d+.com/],[$domain=/^hotg\d+.com/],[$domain=/^yd-house\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^avspot\d+.com/],[$domain=/^soda\d+.com/],[$domain=/^comein\d+.com/],[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^redbanana\d+.com/]##.bg-black.carousel-inner
 ##.bg-black.carousel-inner
 !
 !
@@ -1512,17 +1521,13 @@ xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 !
 !
 !  야동삼국지 (야동삼국지.com) (https://kr4.yadong3.com/)
-! - 배너 이미니
+! - 배너 이미지
 !||kr*.yadong3.com/data/editor/*$image
 !
 !
-! 혼딸파티 (https://ddparty.cc/)
+! 야동하우스 (https://yd-house81.com/)
 ! - 배너 이미지
-!||ddparty.cc/data/file/banner_main_top/*$image
-!||*/data/file/banner_main_top/*$image
-! - - - 바카라중계 (https://bacccarat.com/)
-! - - - - ||bacccarat.com/data/file/banner_main_6/*$image
-||*/data/file/banner_main_*/*$image
+!||yd-house*.com/data/editor/*$image
 !
 !
 ! 쿨걸 (https://coolgg.kr/) (https://coolgirl07.cc/)
@@ -1553,6 +1558,15 @@ xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 @@||ohli*.com/data/editor/*$image
 ! 버스카
 @@||buska*.com/data/editor/*$image
+!
+!
+! 혼딸파티 (https://ddparty.cc/)
+! - 배너 이미지
+!||ddparty.cc/data/file/banner_main_top/*$image
+!||*/data/file/banner_main_top/*$image
+! - - - 바카라중계 (https://bacccarat.com/)
+! - - - - ||bacccarat.com/data/file/banner_main_6/*$image
+||*/data/file/banner_main_*/*$image
 !
 !
 ! 방앗간 (https://gristmill31.com/)
@@ -1788,6 +1802,18 @@ www.wavve.com#@#.popup
 !
 !
 ! 기타
+!
+!
+!
+
+! - 쇼핑 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
+!  - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad-img.gmarket.com 해제 요망)
+@@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com
+!
+@@||$image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com
+
+
+
 ||/wp-content/uploads/*$image
 !||*com/wp-content/uploads/*$image
 !||*top/wp-content/uploads/*$image
@@ -1798,6 +1824,7 @@ www.wavve.com#@#.popup
 @@||v*.jogemovie.net/wp-content/uploads/*$image
 @@||*.yadongpan.me/wp-content/uploads/*$image
 @@||xn--*-v10fo35av1l.com/wp-content/uploads/*$image
+@@||4kjav.co/wp-content/uploads/*$image
 
 ! fake news
 chosun.com##*
