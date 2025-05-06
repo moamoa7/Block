@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050603
+! Version: 25050604
 !
 !
 !
@@ -123,6 +123,13 @@ sooplive.co.kr##.bs-notice_layer
 sooplive.co.kr##.sct-bnr
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
 sooplive.co.kr###FeedLayerToolTip
+!
+!
+! 풍투데이 (https://poong.today/)
+! - 양쪽 배너 공간
+poong.today##._mainWingBannerArea_trl52_537
+! - 중하단 배너
+||uploads.poong.today/public/ad*
 !
 !
 ! 치지직 (https://chzzk.naver.com/)
@@ -1347,6 +1354,16 @@ watchjavonline.com##.code-block-2.code-block
 [$domain=/^hjtime\d+.com/]##.at-banner
 !
 !
+! 야썸 (https://yasome.net/)  (htps://yasome45.top/)
+! - 오른쪽 성인업소
+[$domain=/^yasome\d+.top/]##h3.text-center.en.f-lg.h3:nth-of-type(1)
+[$domain=/^yasome\d+.top/]##div.my-3.px-sm-0.px-3:nth-of-type(1)
+! - 오른쪽 하단 배너 공간
+[$domain=/^yasome\d+.top/]##.mx-n2.row-cols-xl-4.row-cols-lg-4.row-cols-md-4.row-cols-sm-3.row-cols-2.row > li.px-1.col > .mb-2.img-wrap
+! - 왼쪽 메뉴 성인업소 글자
+[$domain=/^yasome\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
+!
+!
 ! 개조아 (https://dogjoa80.net/)
 ! - 배너
 [$domain=/^dogjoa\d+.net/]##.at-title
@@ -1408,9 +1425,13 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! - - - 도도걸 (https://dodog11.com/)
 ! - - -  야동닷컴 (https://ydong8.com/)
 ! - - -  싸나이 (sanai13.com/)
+! - - - 언리샷 (https://unlishot.org/) (https://unlishot45.top/)
+! - - - 미니멈맥스 (https://mmxxx4.net/)
 !||darkg*.com/data/file/admin_banner/*
 !||ydong*.com/data/file/admin_banner/*
 !||sanai*.com/data/file/admin_banner/*
+!||unlishot45.top/data/file/admin_banner/*
+!||mmxxx4.net/data/file/admin_banner/*
 ||*/data/file/admin_banner/*$image
 ! - 메인 배너 공간
 [$domain=/^darkg\d+.com/]##div#main-banner
@@ -1425,8 +1446,14 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! 전체 배너
 !||dodog*.com/data/file/admin_banner/*$image
 ! 배너 공간
-[$domain=/^dodog\d+.com/]##div#main-banner:nth-of-type(3)
-[$domain=/^dodog\d+.com/]##div#main-banner:nth-of-type(4)
+! - - - 언리샷 (https://unlishot.org/) (https://unlishot45.top/)
+[$domain=/^dodog\d+.com/],[$domain=/^unlishot\d+.top/]##div#main-banner:nth-of-type(3)
+[$domain=/^dodog\d+.com/],[$domain=/^unlishot\d+.top/]##div#main-banner:nth-of-type(4)
+!
+!
+! 언리샷 (https://unlishot.org/) (https://unlishot45.top/)
+! - 제휴사이트 글자
+[$domain=/^unlishot\d+.top/]##li.gnb_1dli:nth-of-type(6)
 !
 !
 ! 야동대학 (https://ydu14.com/)
@@ -1770,6 +1797,7 @@ www.wavve.com#@#.popup
 @@||dramaday.me/wp-content/uploads/*$image
 @@||v*.jogemovie.net/wp-content/uploads/*$image
 @@||*.yadongpan.me/wp-content/uploads/*$image
+@@||xn--*-v10fo35av1l.com/wp-content/uploads/*$image
 
 ! fake news
 chosun.com##*
@@ -1797,6 +1825,7 @@ naverccrp.com##*
 ! 칠칠주소 (https://79clf.com/)
 ! 배팅의민족 (https://xn--lg3btlr9xf6a104a.com/) (https://119sh.com/)
 ! 벳맨 (https://www.betman.co.kr/)
+! 수간 xyz (https://dogsex19.com/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -1807,3 +1836,5 @@ xn--lg3btlr9xf6a104a.com##*
 119sh.com##*
 betman.co.kr##*
 www.betman.co.kr##*
+[$domain=/^dogbozi\d+.com/]##*
+[$domain=/^dogsex\d+.com/]##*
