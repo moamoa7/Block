@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050804
+! Version: 25050805
 !
 !
 !
@@ -316,6 +316,10 @@ etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
 @@||etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
 etoland.co.kr###underGoodBtn_freeRecharge
+! - 게시물 글 상단 비밀상점 광고글
+etoland.co.kr##.view_content_top_ad_v1
+! - 게시물 내 댓글 광고글 (모바일)
+etoland.co.kr##.comment_extra_box
 ! - 최신글 (NEW) 감추기
 ! - - - PC
 etoland.co.kr##.freebbs_latest_list_section
