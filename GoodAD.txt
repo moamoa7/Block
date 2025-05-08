@@ -2042,6 +2042,8 @@ novelpia.com##.modal_background
 !||*top/wp-content/uploads/*$image
 !||*xyz/wp-content/uploads/*$image
 ! - - -  예외
+@@||javgg.net/wp-content/uploads/*$image
+@@||javgiga.com/wp-content/uploads/*$image
 @@||dramaday.me/wp-content/uploads/*$image
 @@||v*.jogemovie.net/wp-content/uploads/*$image
 @@||*.yadongpan.me/wp-content/uploads/*$image
