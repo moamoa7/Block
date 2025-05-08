@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050801
+! Version: 25050802
 !
 !
 !
@@ -52,6 +52,17 @@
 ##[class^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"])
 ##div[id^="div-gpt-"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
 ##[id^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
+!
+!
+!
+! 아이피 위치추적 (https://mylocation.co.kr/)
+! - AdBlock, AdGuard 등의 광고차단기가 감지되어 검색기능을 제한합니다 풀기
+! List-KR / EasyList / AdGuard – Ads 무력화
+mylocation.co.kr#@#ins.adsbygoogle[data-ad-slot]
+! EasyList 무력화
+mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
+! YousLis 무력화
+mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
 !
 !
 !
@@ -2271,4 +2282,3 @@ totocpr.com##*
 mtday.net##*
 [$domain=/^sports-vic\d+.com/]##*
 jobjatv.com##*
-
