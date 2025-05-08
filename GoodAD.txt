@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050802
+! Version: 25050803
 !
 !
 !
@@ -395,6 +395,8 @@ inven.co.kr#@#div.banner
 ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 ! - 뽐쿠폰 배너
 ppomppu.co.kr##.ppomCou
+! - 모바일 하단 배너 공간 삭제
+ppomppu.co.kr##div:nth-of-type(7)
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
