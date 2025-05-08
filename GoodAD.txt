@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050703
+! Version: 25050801
 !
 !
 !
@@ -69,27 +69,31 @@
 !
 !
 ! 유튜브 (https://www.youtube.com/)
-!  - Youtube 광고
-! - - - 유니콘Pro에서도 적용됨
-! - - - - - 출처 : AdBlock Filter
-!www.youtube.com#%#//scriptlet('adjust-setTimeout', '[native code]', '17000', '0.001')
-youtube.com#%#//scriptlet('json-prune', 'playerResponse.adPlacements playerResponse.adSlots', 'playerResponse.streamingData.serverAbrStreamingUrl')
-youtube.com#%#//scriptlet('json-prune-fetch-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|player\?|watch\?[tv]=|get_watch\?/')
-youtube.com#%#//scriptlet('json-prune-xhr-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|\/player(?!.*(get_drm_license))|watch\?[tv]=|get_watch\?/')
-!youtube.com#%#//scriptlet('set-constant', 'google_ad_status', '1')
-!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'playerResponse.adPlacements', 'undefined')
-!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adPlacements', 'undefined')
-!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.adSlots', 'undefined')
-!youtubekids.com,youtube-nocookie.com,youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.playerAds', 'undefined')
+! - Youtube 광고 차단
+! - - - - - 출처 : uBlock filters – Quick fixes
+www.youtube.com##+js(nano-stb, [native code], 17000, 0.001)
+www.youtube.com##+js(trusted-rpnt, script, (function serverContract(), /*START*/"YOUTUBE_PREMIUM_LOGO"!==ytInitialData?.topbar?.desktopTopbarRenderer?.logo?.topbarLogoRenderer?.iconImage?.iconType&&(location.href.startsWith("https://www.youtube.com/tv#/")||location.href.startsWith("https://www.youtube.com/embed/")||document.addEventListener("DOMContentLoaded"\,(function(){const t=()=>{const t=document.getElementById("movie_player");if(!t)return;if(!t.getStatsForNerds?.()?.debug_info?.startsWith?.("SSAP\, AD"))return;const e=t.getProgressState?.();e&&e.duration>0&&(e.loaded<e.duration||e.duration-e.current>1)&&t.seekTo?.(e.duration)};t()\,new MutationObserver((()=>{t()})).observe(document\,{childList:!0\,subtree:!0})})));(()=>{const t={apply:(t\,o\,n)=>{const e=n[0];return"function"==typeof e&&e.toString().includes("onAbnormalityDetected")&&(n[0]=function(){})\,Reflect.apply(t\,o\,n)}};window.Promise.prototype.then=new Proxy(window.Promise.prototype.then\,t)})();(function serverContract(), sedCount, 1)
+www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, , propsToMatch, /player\?|get_watch|^\W+$/)
+www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads, , propsToMatch, /playlist?)
+www.youtube.com##+js(json-prune-xhr-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, , propsToMatch, /\/player(?:\?.+)?$/)
+tv.youtube.com##+js(trusted-replace-xhr-response, '"adPlacements"', '"no_ads"', /playlist\?list=|\/player(?:\?.+)?$|watch\?[tv]=/)
+www.youtube.com##+js(trusted-replace-xhr-response, /"adPlacements.*?([A-Z]"\}|"\}{2\,4})\}\]\,/, , /playlist\?list=|\/player(?:\?.+)?$|watch\?[tv]=/)
+www.youtube.com##+js(trusted-replace-xhr-response, /"adPlacements.*?("adSlots"|"adBreakHeartbeatParams")/gms, $1, /\/player(?:\?.+)?$/)
+www.youtube.com##+js(trusted-replace-fetch-response, '"adPlacements"', '"no_ads"', player?)
+www.youtube.com##+js(trusted-replace-fetch-response, '"adSlots"', '"no_ads"', player?)
+www.youtube.com##+js(trusted-replace-fetch-response, '"adSlots"', '"no_ads"', /^\W+$/)
+www.youtube.com##+js(trusted-prevent-dom-bypass, Node.prototype.appendChild, fetch)
+www.youtube.com##+js(trusted-prevent-dom-bypass, Node.prototype.appendChild, Request)
+www.youtube.com##+js(trusted-prevent-dom-bypass, Node.prototype.appendChild, JSON.parse)
 ! - Youtube 요소 숨기기
 ! - - - 유니콘Pro에서도 적용됨
 ! -- - - - 출처 : EasyList
-!youtube.com###masthead-ad
+youtube.com###masthead-ad
 youtube.com##ytd-ad-slot-renderer
 youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-!youtube.com###player-ads
-!www.youtube.com##.ytp-featured-product
-!youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+www.youtube.com##.ytp-featured-product
+youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+youtube.com###player-ads
 ! - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
 ! - - - 유니콘Pro에서도 적용됨
 ! - - - - - 출처 : https://gall.dcinside.com/youtube/378167
@@ -1695,7 +1699,6 @@ xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 ||*/data/editor/*$image
 ! - - - 예외 (웃대)
 @@||timg.humoruniv.com/*/data/editor/*$image
-!@@||down-webp.humoruniv.com/*/data/editor/*$image
 ! - - - 예외 (다모앙)
 @@||cdn.damoang.net/data/editor/*$image
 @@||cdn.damoang.net//data/editor/*$image
@@ -1987,8 +1990,13 @@ novelpia.com##.modal_background
 !
 !
 ! 픽팍 (https://mypikpak.com/)
-! - 쿠키 동의
-##[class*="cookie-wrapper"]
+! - 쿠키 동의 (AdGuard Annoyances filter)
+##.cookie-wrapper
+!
+!
+! SPEEDTEST (https://www.speedtest.net/
+! - 쿠키 동의 (AdGuard Annoyances filter)
+###onetrust-consent-sdk
 !
 !
 !
@@ -2263,3 +2271,4 @@ totocpr.com##*
 mtday.net##*
 [$domain=/^sports-vic\d+.com/]##*
 jobjatv.com##*
+
