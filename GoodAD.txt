@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050901
+! Version: 25050805
 !
 !
 !
@@ -311,7 +311,6 @@ etoland.co.kr##.box.main-sports
 etoland.co.kr##section.box:nth-of-type(7)
 ! - 각 게시판 배너
 !||etoland.co.kr/data/daumeditor10/*$image
-!||etoland.co.kr/data/daumeditor10/*
 etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
 ! - 포인트 충전소 이미지 복원 (List-KR 무력화)
 @@||etoland.co.kr/data/file0207/point1/
@@ -677,8 +676,7 @@ xn--tv-rx1jk82a.com##.p-3.bb-3.border.h-100
 !
 ! 놀고가닷컴 (https://nolgoga365.com/)
 ! - 배너
-!||nolgoga*.com/data/file/*$image
-||nolgoga*.com/data/file/*
+||nolgoga*.com/data/file/*$image
 ||nolgoga*.com/img/ps_banner.gif
 ! - - -  타이틀 복원
 @@nolgoga*.com/img/top_logo.png
@@ -1220,9 +1218,7 @@ cgv.co.kr##.btnLinkFixed
 ! 디토렌트 (https://ditto-torrent18.top/)
 ! 배너 이미지
 !||ditto-torrent*.top/img/sponsor/*$image
-!||ditto-torrent*.top/img/sponsor/*
 ||*/img/sponsor/*$image
-||*/img/sponsor/*
 ! 배너 공간
 ![$domain=/^ditto-torrent\d+.top/]##.top_banner
 ##.top_banner
@@ -1627,8 +1623,7 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 !||sanai*.com/data/file/admin_banner/*
 !||unlishot45.top/data/file/admin_banner/*
 !||mmxxx4.net/data/file/admin_banner/*
-!||*/data/file/admin_banner/*$image
-||*/data/file/admin_banner/*
+||*/data/file/admin_banner/*$image
 ! - 메인 배너 공간
 [$domain=/^darkg\d+.com/]##div#main-banner
 ! - 영상 상단 배너 공간
@@ -1641,7 +1636,6 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 ! - 도도걸 (https://dodog11.com/)
 ! 전체 배너
 !||dodog*.com/data/file/admin_banner/*$image
-!||dodog*.com/data/file/admin_banner/*
 ! 배너 공간
 ! - - - 언리샷 (https://unlishot.org/) (https://unlishot45.top/)
 [$domain=/^dodog\d+.com/],[$domain=/^unlishot\d+.top/]##div#main-banner:nth-of-type(3)
@@ -1676,123 +1670,92 @@ xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 ! - 상단 배너
 ![$domain=/^redcattv\d+.com/]##div.mb-sm-4.mb-3:nth-of-type(3)
 ! - 배너 이미지
-!||redcattv*.com/data/editor/*$image
-!||redcattv*.com/data/editor/
+||redcattv*.com/data/editor/*$image
 !
 !
 ! 레드존 (https://zone19.kr/) (https://redzone19.cc/)
 ! - 배너 이미지
-!||redzone*.cc/data/editor/*$image
-!||mangajoa*.com/data/editor/*$image
-!||redzone*.cc/data/editor/*
-!||mangajoa*.com/data/editor/*
+||redzone*.cc/data/editor/*$image
+||mangajoa*.com/data/editor/*$image
 !
 !
 ! 딸퀸 (https://ddalq.xyz/)
 ! - 배너이미지
 !||ddalq.xyz/data/file/banner_main_top/*$image
-!||ddalq.xyz/data/editor/*$image
-!||ddalq.xyz/data/file/banner_main_top/*
-!||ddalq.xyz/data/editor/*
+||ddalq.xyz/data/editor/*$image
 ! 영상 스킵 (스킵버튼을 눌러야 영상이 나와서 해제)
 !###skipAd
 !
 !
 ! 레드걸 (https://redgg.kr/) (https://redgirl32.xyz/)
 ! - 배너 이미지
-!||redgirl*.xyz/data/editor/*$image
-!||redgirl*.xyz/data/editor/*
+||redgirl*.xyz/data/editor/*$image
 !
 !
 ! 레드캣 (https://redcattv.xyz/)
 !  - 배너 이미지
-!||redcattv.xyz/data/editor/*$image
-!||redcattv.xyz/data/editor/*
+||redcattv.xyz/data/editor/*$image
 !
 !
 ! 야동황제 (https://kr1.hwangj.com/)
 ! - 배너 이미지
-!||dev.xxxtv*.com/data/editor/*$image
-!||dev.xxxtv*.com/data/editor/*
+||dev.xxxtv*.com/data/editor/*$image
 !
 !
 !  야동삼국지 (야동삼국지.com) (https://kr4.yadong3.com/)
 ! - 배너 이미지
-!||kr*.yadong3.com/data/editor/*$image
-!||kr*.yadong3.com/data/editor/*
+||kr*.yadong3.com/data/editor/*$image
 !
 !
 ! 야동하우스 (https://yd-house81.com/)
 ! - 배너 이미지
-!||yd-house*.com/data/editor/*$image
-!||yd-house*.com/data/editor/*
+||yd-house*.com/data/editor/*$image
 !
 !
 ! 쿨걸 (https://coolgg.kr/) (https://coolgirl07.cc/)
 ! 배너 이미지
-!||coolgirl07.cc/data/editor/*
+||coolgirl*.xyz/data/editor/*$image
 !||*/data/editor/*$image
-||*/data/editor/*
 ! - - - 예외 (웃대)
 !@@||timg.humoruniv.com/*/data/editor/*$image
-@@||timg.humoruniv.com/*/data/editor/*
 ! - - - 예외 (다모앙)
 !@@||cdn.damoang.net/data/editor/*$image
 !@@||cdn.damoang.net//data/editor/*$image
-@@||cdn.damoang.net/data/editor/*
-@@||cdn.damoang.net//data/editor/*
 ! - - - 예외 (백억티비 - 백억웹툰 미리보기 이미지)
 !@@||100tv001.wtoon.net/data/editor/*$image
-@@||100tv001.wtoon.net/data/editor/*
 ! - - - 예외 (백억티비 - 치어리더갤)
 !@@||tdosa.net/data/editor/*$image
-@@||tdosa.net/data/editor/*
 ! - - - 예외 (노카티비)
 !@@nocatv3.com/data/editor/*$image
-@@nocatv3.com/data/editor/*
 ! - - - 예외 (망가망가)
 !@@||mangajoa*.com/data/editor/*$image
-@@||mangajoa*.com/data/editor/*
 ! - - - 예외 (들어와)
 !@@||comein*.com/data/editor/*$image
-@@||comein*.com/data/editor/*
 ! - - -  예외 (몰디브)
 !@@||md*.com/data/editor/*$image
-@@||md*.com/data/editor/*
 ! - - -  예외 (주소요)
 !@@||jusoyo*.com/data/editor/*$image
-@@||jusoyo*.com/data/editor/*
 ! - - - 예외 (애니24)
 !@@||ohli*.com/data/editor/*$image
-@@||ohli*.com/data/editor/*
 ! - - - 예외 (버스카) (https://buska20.com/)
 !@@||buska*.com/data/editor/*$image
-@@||buska*.com/data/editor/*
 ! - - - 예외 (토렌트파이)
 !@@||t*.torrentpi150.com/data/editor/*$image
-@@||t*.torrentpi150.com/data/editor/*
 ! - - - 예외 (토렌트쓱)
 !@@||torrentssg*.com/data/editor/*$image
-@@||torrentssg*.com/data/editor/*
 ! - - - 슈퍼맨티비 (https://smantv5.net/) 
 !@@||smantv*.net/data/editor/*$image
-@@||smantv*.net/data/editor/*
 ! - - - 예외 (에비앙) (https://evian31.com/)
 !@@||evian*.com/data/editor/*$image
-@@||evian*.com/data/editor/*
 !
 !
 ! 혼딸파티 (https://ddparty.cc/)
 ! - 배너 이미지
 !||ddparty.cc/data/file/banner_main_top/*$image
 !||*/data/file/banner_main_top/*$image
-!||ddparty.cc/data/file/banner_main_top/*
-!||*/data/file/banner_main_top/*
 ! - - - 바카라중계 (https://bacccarat.com/)
 ! - - - - ||bacccarat.com/data/file/banner_main_6/*$image
-! - - - - ||bacccarat.com/data/file/banner_main_6/*
-!||*/data/file/banner_main_*/*$image
-||*/data/file/banner_main_*/*
+||*/data/file/banner_main_*/*$image
 !
 !
 ! 방앗간 (https://gristmill31.com/)
@@ -1817,10 +1780,7 @@ yadongmarket.com##.footer
 ! 한국야동사이트 (https://kor-yadong.xyz/)
 ! - 배너 이미지
 !||kor-yadong.xyz/data/file/main_banner/*$image
-!||kor-yadong.xyz/data/file/main_banner/*
-!||*/data/file/main_banner/*$image
-||*/data/file/main_banner/*
-
+||*/data/file/main_banner/*$image
 !
 !
 ! 히토미 (https://hitomi.la/)
@@ -2081,39 +2041,23 @@ novelpia.com##.modal_background
 !
 !
 !
-!||/wp-content/uploads/*$image
-||/wp-content/uploads/*
+||/wp-content/uploads/*$image
 !||*com/wp-content/uploads/*$image
-!||*com/wp-content/uploads/*
 !||*top/wp-content/uploads/*$image
-!||*top/wp-content/uploads/*
 !||*xyz/wp-content/uploads/*$image
-!||*xyz/wp-content/uploads/*
 ! - - -  예외
-!@@||javgg.net/wp-content/uploads/*$image
-@@||javgg.net/wp-content/uploads/*
-!@@||javgiga.com/wp-content/uploads/*$image
-@@||javgiga.com/wp-content/uploads/*
-!@@||dramaday.me/wp-content/uploads/*$image
-@@||dramaday.me/wp-content/uploads/*
-!@@||v*.jogemovie.net/wp-content/uploads/*$image
-@@||v*.jogemovie.net/wp-content/uploads/*
-!@@||*.yadongpan.me/wp-content/uploads/*$image
-@@||*.yadongpan.me/wp-content/uploads/*
-!@@||xn--*-v10fo35av1l.com/wp-content/uploads/*$image
-@@||xn--*-v10fo35av1l.com/wp-content/uploads/*
-!@@||sogirl.so/wp-content/uploads/*$image
-@@||sogirl.so/wp-content/uploads/*
-!@@||4kjav.co/wp-content/uploads/*$image
-@@||4kjav.co/wp-content/uploads/*
-!@@||pinkbo*.com/wp-content/uploads/*$image
-@@||pinkbo*.com/wp-content/uploads/*
-!@@||*www.yadongmarket.com/wp-content/uploads/*$image
-@@||*www.yadongmarket.com/wp-content/uploads/*
-!@@||cokcoktv*.com/wp-content/uploads/*$image
-@@||cokcoktv*.com/wp-content/uploads/*
-!@@||*.jamakyadong.me/wp-content/uploads/*$image
-@@||*.jamakyadong.me/wp-content/uploads/*
+@@||javgg.net/wp-content/uploads/*$image
+@@||javgiga.com/wp-content/uploads/*$image
+@@||dramaday.me/wp-content/uploads/*$image
+@@||v*.jogemovie.net/wp-content/uploads/*$image
+@@||*.yadongpan.me/wp-content/uploads/*$image
+@@||xn--*-v10fo35av1l.com/wp-content/uploads/*$image
+@@||sogirl.so/wp-content/uploads/*$image
+@@||4kjav.co/wp-content/uploads/*$image
+@@||pinkbo*.com/wp-content/uploads/*$image
+@@||*www.yadongmarket.com/wp-content/uploads/*$image
+@@||cokcoktv*.com/wp-content/uploads/*$image
+@@||*.jamakyadong.me/wp-content/uploads/*$image
 
 !
 !
