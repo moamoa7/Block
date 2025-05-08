@@ -319,7 +319,7 @@ etoland.co.kr###underGoodBtn_freeRecharge
 ! - 게시물 글 상단 비밀상점 광고글
 etoland.co.kr##.view_content_top_ad_v1
 ! - 게시물 내 댓글 광고글 (모바일)
-etoland.co.kr##.comment_extra_box
+etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
 ! - 최신글 (NEW) 감추기
 ! - - - PC
 etoland.co.kr##.freebbs_latest_list_section
