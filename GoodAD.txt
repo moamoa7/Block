@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050902
+! Version: 25050903
 !
 !
 !
@@ -454,6 +454,12 @@ zum.com##.subcont_wrap
 zum.com##.tv_wrap
 !
 !
+! 넷플릭스 (https://www.netflix.com/)
+! - 광고 차단
+! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
+||logs.netflix.com
+!
+!
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
 ! - 상단 배너
 ! - - - 티비위키
@@ -484,6 +490,9 @@ tvhot.site##.object-cover
 [$domain=/^tvwiki\d+.com/]###top_btn.sticky_top_btn.top_btn
 ! - - - - - 티비몬
 [$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
+! 아바타 아이콘 복구
+@@tvwiki*.com/img/*$image
+
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
@@ -652,7 +661,7 @@ www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1f
 ! - 채팅 공간
 [$domain=/^blacktv\d+.com/]##div.b-ox:nth-of-type(3)
 ! - 보증업체 글자
-||blacktv*.com/img/bo1.gif
+!||blacktv*.com/img/bo1.gif
 ! - 먹튀업체
 [$domain=/^blacktv\d+.com/]##.gall_con
 !
@@ -677,9 +686,14 @@ xn--tv-rx1jk82a.com##.p-3.bb-3.border.h-100
 ! 놀고가닷컴 (https://nolgoga365.com/)
 ! - 배너
 ||nolgoga*.com/data/file/*$image
-||nolgoga*.com/img/ps_banner.gif
+!||nolgoga*.com/img/ps_banner.gif
 ! - - -  타이틀 복원
-@@nolgoga*.com/img/top_logo.png
+@@||nolgoga*.com/img/top_logo.png
+! - 먹튀정보 글자
+[$domain=/^nolgoga\d+.com/]##li.gnb_al_li_plus.gnb_1dli:nth-of-type(6)
+! - 보증업체 글자
+[$domain=/^nolgoga\d+.com/]##.menu_blank.gnb_1da
+
 ! -채팅 공간 (아래 포인트순위까지 지워지네. 어쩔)
 [$domain=/^nolgoga\d+.com/]###aside > div
 !
@@ -1360,6 +1374,12 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ||*/pink_*/img/*-1200x300*$important
 !
 !
+! AVDBS (https://www.avdbs.com/)
+! - 이미지 복원
+!- - - ||*.com/img/*
+@@||avdbs.com/img/*$image
+!
+!
 ! XX조아 (https://xxjoa45.com/)
 ! - 영상 광고
 ||joajoajoamoamoa.store/VAST/
@@ -1550,6 +1570,8 @@ watchjavonline.com##.code-block-2.code-block
 ! - 전체 배너
 ![$domain=/^dragonfly\d+.com/],[$domain=/^yd-time\d+.com/],[$domain=/^samdasoo\d+.com/],[$domain=/^jusokok\d+.com/],[$domain=/^zamzatv\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^evian\d+.com/],[$domain=/^boztv\d+.com/],[$domain=/^nvt\d+.com/],[$domain=/^mdv\d+.com/],[$domain=/^drck\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^retv\d+.com/],[$domain=/^hotg\d+.com/],[$domain=/^yd-house\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^avspot\d+.com/],[$domain=/^soda\d+.com/],[$domain=/^comein\d+.com/],[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^redbanana\d+.com/],[$domain=/^drck\d+.com/],[$domain=/^sexports\d+.com/],[$domain=/^yapro\d+.com/],[$domain=/^ggonghub\d+.com/],[$domain=/^/redcoconut\d+.com/],[$domain=/^/cheon-\d+.com/]##.bg-black.carousel-inner
 ##.bg-black.carousel-inner
+!||*data/apms/background/*$image
+||*/background/*$image
 !
 !
 ! 에비앙 (https://evian31.com/)
@@ -1789,6 +1811,11 @@ xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 !###skipAd
 !
 !
+! 왕부랄 (http://wbr2045.com/)
+! - 동맹업체 글자
+wbr2045.com##li:nth-of-type(7)
+!
+!
 ! 방앗간 (https://gristmill31.com/)
 ! 영상위 배너?
 [$domain=/^gristmill\d+.com/]##.img-tag
@@ -1840,6 +1867,9 @@ hitomi.la###immersive-translate-popup
 !
 !
 ! 여기요 (https://www.yugiyu.com/)
+! - 배너 이미지
+!||*upload_files/banner/*$image
+||*files/banner/*$image
 ! - 검증 삭제
 yugiyu.com##div.main_link.f9_box01:nth-of-type(6)
 ! - 카지노 삭제
@@ -2001,6 +2031,7 @@ noonnu.cc##.lg\:top-8
 ! - - - 예외
 ! - - - 롤 인벤 (https://lol.inven.co.kr/) : 경기일정 보이게 하려고 해제
 lol.inven.co.kr#@#.banner
+[$domain=/^nolgoga\d+.com/]#@#.banner
 
 ! May 2, 2025 https://named.com
 named.com##.jnbfVc.sc-eqUAAy
@@ -2042,10 +2073,21 @@ named.com##.trusted_sites
 [$domain=/^jusozzang\d+.xyz/]##.main_banner_6
 !
 !
+! 링크닷컴 (https://linkddd.com/)
+! - 상단 배너
+linkddd.com##.wst-post-gl
+||*files/attach/images/*$image
+! - 배너 공간
+linkddd.com##div.xe-widget-wrapper.xe_content:nth-of-type(4)
+!
+!
 ! 화이트 (https://wt-bc32.com/)
 ! 먹튀수호대 (https://mt-toto30.com/)
-! - 왼쪽 배너
-[$domain=/^wt-bc\d+.com/],[$domain=/^mt-toto\d+.com/]##.wing-left
+! - 배너 이미지
+!||*theme/BS4-Basic/storage/image/*$image
+||*/storage/image/*$image
+! 배너 공간 (좌.우. 상단)
+[$domain=/^wt-bc\d+.com/],[$domain=/^mt-toto\d+.com/]##.slide.carousel
 !
 !
 ! - GOODTV 기독교 복음방송 (https://goodtv.co.kr/)
@@ -2097,6 +2139,11 @@ novelpia.com##.modal_background
 ! SPEEDTEST (https://www.speedtest.net/
 ! - 쿠키 동의 (AdGuard Annoyances filter)
 ###onetrust-consent-sdk
+!
+!
+! 제타 (https://zeta-ai.io)
+! 동의팝업
+zeta-ai.io##.pointer-events-none
 !
 !
 !
@@ -2209,7 +2256,7 @@ naverccrp.com##*
 ! 주소닷컴 (https://xn--9l4b19k.com/)
 ! 링크짱 (https://www.xn--9y2bo6lgtg81a81t.com/) (https://www.xn--9y2b290ag0e.net/) (https://www.zzang11.com/)
 ! 주소주라 (https://www.jusojula.com/)
-! 난링크 (https://nanlink4.com/)
+! 난링크 (https://www.nal114.com/) (https://nanlink4.com/)
 ! 주소탑 (https://jusotop03.com/)
 ! 링크박스 (https://xn--9y2bq6b65if2p.com/) (https://linkbox3.com/)
 ! 뉴링크 (https://www.newlink.me/)
@@ -2247,7 +2294,7 @@ naverccrp.com##*
 ! 레드대피소 (https://red-run.xyz/)
 ! 주소 - 링크모음 (https://www.juso.co/)
 ! 꽁데이 (https://www.ggongday.com/)
-! 난밤 (https://nanbam114.com/) (https://nanbam28.com/)
+! 난밤 (https://nan114.com/) (https://nanbam114.com/) (https://nanbam28.com/)
 ! 유흥의 종족 (https://yoojong11.com/)
 ! 세븐타이 (https://7-thailand.com/)
 ! 구미밤마실 (https://gumin.org/)
@@ -2285,6 +2332,8 @@ naverccrp.com##*
 ! 홀덤포커 (https://pkmt2.com/)
 ! 포르노웨이브 (https://pornwavve.com/)
 ! 워닝구조대 (https://warning119.com/)
+! KBO블루오션 (https://blueocean.click/)
+! 링크닷컴 (https://linkddd.com/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -2337,6 +2386,7 @@ www.xn--9y2bo6lgtg81a81t.com##*
 www.xn--9y2b290ag0e.net##*
 [$domain=/^www.zzang\d+.com/]##*
 www.jusojula.com##*
+www.nal114.com##*
 [$domain=/^nanlink\d+.com/]##*
 [$domain=/^jusotop\d+.com/]##*
 xn--9y2bq6b65if2p.com##*
@@ -2378,6 +2428,7 @@ xn--2q1bu8vtjaj8ns2b.com##*
 red-run.xyz##*
 www.juso.co##*
 www.ggongday.com##*
+www.nan114.com##*
 nanbam114.com##*
 [$domain=/^nanbam\d+.com/]##*
 [$domain=/^yoojong\d+.com/]##*
@@ -2417,3 +2468,124 @@ linktaxi.net##*
 [$domain=/^pkmt\d+.com/]##*
 pornwavve.com##*
 warning119.com##*
+blueocean.click##*
+linkddd.com##*
+
+
+
+
+
+
+
+
+
+
+||c.bing.com^
+||crashlytics.com^
+||activity.windows.com^
+||pangolin16.sgsnssdk.com^
+||pangle.io^
+||ads-twitter.com^
+||g.doubleclick.net^
+||analytics.google.com^
+||google-analytics.com^
+||analytics.tiktok.com^
+||ad-mapps.com^
+||mman.kr^
+||analysis.sooplive.co.kr^
+||ad.daum.net^
+||deapi.sooplive.co.kr^
+||sgpapplog.shinhan.com^
+||app-measurement.com^
+||stat3.airdroid.com^
+||tmfsdk.m.qq.com^
+||firebaselogging.googleapis.com^
+||firebaselogging-pa.googleapis.com^
+||tmfsdktcpv4.m.qq.com^
+||mobile.events.data.microsoft.com^
+||amplitude.com^
+||sgc.onestore.co.kr^
+||clienttracing-pa.googleapis.com^
+||logger.zenmatchgame.com^
+||googlesyndication.com^
+||centaurs-rest.coupang.com^
+||ljc.coupang.com^
+||telemetry.mozilla.org^
+||crashlyticsreports-pa.googleapis.com^
+||pipe.aria.microsoft.com^
+||ntracker-collector.naver.com^
+||kr-col-ext.nelo.navercorp.com^
+||veta.naver.com^
+||cdp.cloud.unity3d.com^
+||diagmon-serviceapi.samsungdm.com^
+||dc.dqa.samsung.com^
+||default.exp-tas.com^
+||braze.com^
+||aem-kakao-collector.onkakao.net^
+||browser-intake-datadoghq.com^
+||settings-win.data.microsoft.com^
+||events.data.microsoft.com^
+||applvn.com^
+||api.mixpanel.com^
+||sentry.io^
+||in.appcenter.ms^
+||conviva.com^
+||gvt2.com^
+||appsflyersdk.com^
+||analytics.samsungknox.com^
+||applovin.com^
+||config.uca.cloud.unity3d.com^
+||update.apkmody.com^
+||launches.appsflyer.com^
+||inapps.appsflyer.com^
+||adbrix.io^
+||g.bing.com^
+||beacon.shazam.com^
+||tobsnssdk.com^
+||core.airbridge.io^
+||cfg.imtt.qq.com^
+||bugly.qq.com^
+||watson.events.data.microsoft.com^
+||st.sooplive.co.kr^
+||conviva.com^
+||gvt3.com^
+||eventapi.sooplive.co.kr^
+||collector.github.com^
+||ichnaea-web.netflix.com^
+||aidsvc.netflix.com^
+||cloudflareinsights.com^
+||static.doubleclick.net^
+||wcs.naver.net^
+||external-api.impression-neo.naver.com^
+||adpopcorn.com^
+||adpies.com^
+||metrics.coccoc.com^
+||ogads-pa.clients6.google.com^
+||id.google.com^
+||td.doubleclick.net^
+||contentsfeed.com^
+||gather.donga.com^
+||zicf.inven.co.kr^
+||clarity.ms^
+||syndication.twitter.com^
+||googleoptimize.com^
+||amung.us^
+||graph.instagram.com^
+||usage-ping.brave.com^
+||scv-game.io.naver.com^
+||bugsnag.com^
+||logs.netflix.com^
+||l.m.naver.com^
+||inspector-collector.m.naver.com^
+||naverpa-phinf.pstatic.net^
+||analytics.wadiz.kr^
+||appboycdn.com^
+||beusable.net^
+||pds.auction.co.kr^
+||montelena.auction.co.kr^
+||thtk.temu.com^
+||skt-asum.com^
+||apptracer.ru^
+||tns-counter.ru^
+||top-fwz1.mail.ru^
+||mc.yandex.ru^
