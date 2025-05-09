@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050805
+! Version: 25050901
 !
 !
 !
@@ -563,7 +563,7 @@ tvhot.site##.object-cover
 ! - 왼쪽 배너
 [$domain=/^bbtv\d+.com/]##div.open.main-menu:nth-of-type(3)
 ! - 링크동맹 안보이게
-[$domain=/^bbtv\d+.com/]##.posted-info
+![$domain=/^bbtv\d+.com/]##.posted-info
 !
 !
 ! TV다시보자 (https://bozatv108.com/)
@@ -693,7 +693,6 @@ livescore.co.kr##div#leftAD_iframe:nth-of-type(1)
 livescore.co.kr##div.ad_area_wrap:nth-of-type(1)
 livescore.co.kr##div.ad_area_wrap:nth-of-type(4)
 livescore.co.kr##div#leftAD_iframe:nth-of-type(5)
-
 !
 !
 ! 킹콩티비 (https://xn--989ax54a79c97h8wgq4bg9cwvgwsc.com/) (https://kktv12.com/)
@@ -750,6 +749,16 @@ named.com###sport_mobile_banner_right
 ! 콕티비 (https://coktv1.com/)
 ! - 보증업체 글자
 [$domain=/^coktv\d+.com/]##.othersite-tab-bg
+!
+!
+! 개구리티비 (https://grtv09.com/)
+! - 배너 이미지
+||grtv*.com/data/editor/*
+!
+!
+! 라이브걸 (https://livegirl.biz/)
+! - 배너 공간
+livegirl.biz##.my-3.px-sm-0.px-3
 !
 !
 ! 청양티비 (https://cytv138.com/)
@@ -827,6 +836,16 @@ betmoatv.com##div.sebang-pc.menu-title.cursor-pointer.item:nth-of-type(3)
 ! 쪽티비 (https://www.jjoktv.com/)
 ! - 보증업체 글자
 jjoktv.com##.assurance-menu__btn.v-size--default.theme--light.v-btn--text.v-btn.pa-0
+!
+!
+! 군밤티비 (https://drhtv.tv/)
+! - 왼쪽 배너
+||*/side_banner*
+!
+!
+! 퐁퐁티비 (https://ppmantv.com/)
+! - 배너
+ppmantv.com##.p-0.card-footer
 !
 !
 ! 메이저(https://major-top3.com/)
@@ -1629,8 +1648,6 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 ! - 영상 상단 배너 공간
 [$domain=/^darkg\d+.com/]###bo_v_atc > iframe
 [$domain=/^darkg\d+.com/]##.page > p
-! - 영상 하단 배너
-!||darkg*.com/data/editor/*
 !
 !
 ! - 도도걸 (https://dodog11.com/)
@@ -1661,7 +1678,9 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 ! -상단 배너
 !xn--3r0b51bq29a.com##.banner-item-inner
 !||com/data/banner/*
-||/data/banner/*
+! - - - 주소갤러리 (https://jusogall.com/)
+! - - - jusogall.com/data/banner_bbs/*$image
+||*/data/banner*/*$image
 ! - 안전 인증 사이트
 xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 !
@@ -1676,15 +1695,6 @@ xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 ! 레드존 (https://zone19.kr/) (https://redzone19.cc/)
 ! - 배너 이미지
 ||redzone*.cc/data/editor/*$image
-||mangajoa*.com/data/editor/*$image
-!
-!
-! 딸퀸 (https://ddalq.xyz/)
-! - 배너이미지
-!||ddalq.xyz/data/file/banner_main_top/*$image
-||ddalq.xyz/data/editor/*$image
-! 영상 스킵 (스킵버튼을 눌러야 영상이 나와서 해제)
-!###skipAd
 !
 !
 ! 레드걸 (https://redgg.kr/) (https://redgirl32.xyz/)
@@ -1710,6 +1720,13 @@ xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 ! 야동하우스 (https://yd-house81.com/)
 ! - 배너 이미지
 ||yd-house*.com/data/editor/*$image
+!
+!
+! 망가조아 (https://mangajoa5.com/)
+! 상단배너
+[$domain=/^mangajoa\d+.com/]##.widget-index.at-container > div > .basic-post-gallery
+! - 왼쪽.오른쪽 배너
+##.SideBanner
 !
 !
 ! 쿨걸 (https://coolgg.kr/) (https://coolgirl07.cc/)
@@ -1750,12 +1767,24 @@ xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 !
 !
 ! 혼딸파티 (https://ddparty.cc/)
+! 딸퀸 (https://ddalq.xyz/)
 ! - 배너 이미지
 !||ddparty.cc/data/file/banner_main_top/*$image
+!||ddalq.xyz/data/file/banner_main_top/*$image
 !||*/data/file/banner_main_top/*$image
 ! - - - 바카라중계 (https://bacccarat.com/)
 ! - - - - ||bacccarat.com/data/file/banner_main_6/*$image
-||*/data/file/banner_main_*/*$image
+! - - - 라이브걸 (https://livegirl.biz/)
+! - - - - ||livegirl.biz/data/file/banner_main/*$image
+!||*/data/file/banner_main_*/*$image
+||*/data/file/banner*/*$image
+!
+!
+! 딸퀸 (https://ddalq01.xyz/)
+! - 영상 내 배너 이미지
+||ddalq*.xyz/data/editor/*$image
+! 영상 스킵 (SKIPp AD 버튼을 눌러야 영상이 나와서  없애면 안됨)
+!###skipAd
 !
 !
 ! 방앗간 (https://gristmill31.com/)
@@ -1839,9 +1868,19 @@ yugiyu.com##div.main_link.f9_box01:nth-of-type(9)
 ! - - - 토렌트쓱 (https://torrentssg7.com/)
 [$domain=/^jusoyo\d+.com/],[$domain=/^lkg\d+.com/],[$domain=/^torrentssg\d+.com/]##.basic-banner-gallery
 ##.basic-banner-gallery
-||jusoyo*.com/img/*g
+!||jusoyo*.com/img/*g
+! - - -  19가이드닷컴
+! - - - ||www.19guide*.com/img/*
+||*.com/img/*
 ! - 인증업체 글자
 [$domain=/^jusoyo\d+.com/]##.on.menu-li
+!
+!
+! 19가이드닷컴 (https://www.19guide03.com/)
+! - 로고 복원
+@@||19guide*.com/img/logo.png
+! - 하단 배너 공간
+[$domain=/^www.19guide\d+.com/]##.constantfooter
 !
 !
 ! 주소타운 (https://www.jusotw.com/)
@@ -1857,6 +1896,11 @@ jusojula.com##.slide-container
 ! 링크몬 (https://lkmon2.com/)
 ! - 상단 배너
 [$domain=/^lkmon\d+.com/]##.banner-container
+!
+!
+! 링크택시 (https://linktaxi.net/)
+! - 배너 이미지
+||linktaxi.net/img/*.jpg
 !
 !
 ! 주소골라 (https://jusopick.com/)
@@ -1887,6 +1931,11 @@ jusopick.com##.bg-black.flex-col
 ! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.linkm365.com/)
 ! -- - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
 [$domain=/^www.joosomoa\d+.com/],[$domain=/^www.linkm\d+.com/],[$domain=/^www.jooso\d+a.com/]##.wixui-section.comp-m0nr4kzh.Oqnisf
+!
+!
+! 링크봇 (https://linkbot3.com/)
+! - 배너 이미지
+[$domain=/^linkbot\d+.com/]##.mb-1.row-cols-xl-4.row-cols-sm-2.row-cols-2.row
 !
 !
 ! 놀쟈 (https://www.nzyumi.com/)
@@ -1972,6 +2021,31 @@ named.com##.jnbfVc.sc-eqUAAy
 named.com##.trusted_sites
 !
 !
+! 꽁머니 사랑 (https://gonglove6.com/)
+! - 배너 이미지
+||*/sponsor*/*$image
+! - 로고 복원
+@@||gonglove*.com/img/gonglogo.png
+! - 배너 공간
+[$domain=/^gonglove\d+.com/]##.miso-love-ad
+!
+!
+! 노먹튀 (https://nomukti5.com/)
+! - 검증토토
+[$domain=/^nomukti\d+.com/]##div.conle_idx_top:nth-of-type(2)
+!
+!
+! 주소짱 (https://jusozzang05.xyz/)
+! - 상단배너
+[$domain=/^jusozzang\d+.xyz/]##.main_banner_6
+!
+!
+! 화이트 (https://wt-bc32.com/)
+! 먹튀수호대 (https://mt-toto30.com/)
+! - 왼쪽 배너
+[$domain=/^wt-bc\d+.com/],[$domain=/^mt-toto\d+.com/]##.wing-left
+!
+!
 ! - GOODTV 기독교 복음방송 (https://goodtv.co.kr/)
 ! - 팝업
 ##.popup
@@ -2000,6 +2074,11 @@ www.wavve.com#@#.popup
 ! 먹튀안내소 (https://xn--220bn4p04fh5doxu.com/)
 ! - 상단 배너
 ##.top_banner_widget
+!
+!
+! 워닝구조대 (https://warning119.com/)
+! - 팝업
+warning119.com##.show.fade.modal
 !
 !
 ! 노벨피아 (https://novelpia.com/)
@@ -2033,9 +2112,9 @@ novelpia.com##.modal_background
 !
 ! - 쇼핑 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
 !  - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad-img.gmarket.com 해제 요망)
-@@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr
+@@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr|www.kurly.com
 !
-@@||$image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr
+@@||$image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr|www.kurly.com
 !
 !
 !
@@ -2058,7 +2137,7 @@ novelpia.com##.modal_background
 @@||*www.yadongmarket.com/wp-content/uploads/*$image
 @@||cokcoktv*.com/wp-content/uploads/*$image
 @@||*.jamakyadong.me/wp-content/uploads/*$image
-
+@@||linkssakda*.com/wp-content/uploads/*$image
 !
 !
 !
@@ -2113,7 +2192,7 @@ naverccrp.com##*
 ! 주소모아 (https://www.xn--v52b19jw9czye.com/) (https://www.joosomoa1.com/)
 ! 링크핫 (https://linkhot01.com/)
 ! 주소콕 (https://jusokok10.com/)
-! 주소짱 (https://jusozzang04.com/)
+! 주소짱 (https://jusozzang05.xyz/)
 ! 한국 사이트넷 (https://koreasite123.com/)
 ! 링크365 (https://www.xn--365-938mx02g.com/) (https://www.linkm365.com/)
 ! 링크코리아 (https://linkcorea1.com/)
@@ -2126,7 +2205,7 @@ naverccrp.com##*
 ! 링크몬 (https://lkmon2.com/)
 ! 주소코리아 (https://jusokorea.com/)
 ! 주소닷컴 (https://xn--9l4b19k.com/)
-! 링크짱 (https://www.zzang11.com/)
+! 링크짱 (https://www.xn--9y2bo6lgtg81a81t.com/) (https://www.xn--9y2b290ag0e.net/) (https://www.zzang11.com/)
 ! 주소주라 (https://www.jusojula.com/)
 ! 난링크 (https://nanlink4.com/)
 ! 주소탑 (https://jusotop03.com/)
@@ -2183,6 +2262,27 @@ naverccrp.com##*
 ! 먹튀데이 (https://mtday.net/)
 ! 빅스포츠 (https://sports-vic03.com/)
 ! 먹튀잡자 (https://jobjatv.com/)
+! 주소박스 (https://jusobox44.com/)
+! 링크판 (https://linkpan71.com/)
+! G카지노 (https://gc-09.com/)
+! 다음드 (https://daumd08.net/)
+! 토토쉐어 (https://ttse4.com/)
+! 18모아 (https://18moa026.com/)
+! 링크코리아 (https://linkssakda1.com/)
+! 주소갤러리 (https://jusogall.com/)
+! 링크택시 (https://linktaxi.net/)
+! 주소체크 (https://sitejuso13.com/)
+! 주소팡 (https://jusopang34.com/)
+! 링크봇 (https://linkbot3.com/)
+! 19가이드닷컴 (https://www.19guide03.com/)
+! 야동사거리 (https://www.ydong70.online/)
+! 꽁머니사랑 (https://gonglove6.com/)
+! 노먹튀 (https://nomukti5.com/)
+! 화이트 (https://wt-bc32.com/)
+! 먹튀수호대 (https://mt-toto30.com/)
+! 홀덤포커 (https://pkmt2.com/)
+! 포르노웨이브 (https://pornwavve.com/)
+! 워닝구조대 (https://warning119.com/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -2216,7 +2316,7 @@ www.xn--v52b19jw9czye.com##*
 [$domain=/^www.joosomoa\d+.com/]##*
 [$domain=/^linkhot\d+.com/]##*
 [$domain=/^jusokok\d+.com/]##*
-[$domain=/^jusozzang\d+.com/]##*
+[$domain=/^jusozzang\d+.xyz/]##*
 [$domain=/^koreasite\d+.com/]##*
 www.xn--365-938mx02g.com##*
 [$domain=/^www.linkm\d+.com/]##*
@@ -2231,6 +2331,8 @@ jusopick.com##*
 [$domain=/^lkmon\d+.com/]##*
 jusokorea.com##*
 xn--9l4b19k.com##*
+www.xn--9y2bo6lgtg81a81t.com##*
+www.xn--9y2b290ag0e.net##*
 [$domain=/^www.zzang\d+.com/]##*
 www.jusojula.com##*
 [$domain=/^nanlink\d+.com/]##*
@@ -2292,3 +2394,24 @@ totocpr.com##*
 mtday.net##*
 [$domain=/^sports-vic\d+.com/]##*
 jobjatv.com##*
+[$domain=/^jusobox\d+.com/]##*
+[$domain=/^linkpan\d+.com/]##*
+[$domain=/^gc-\d+.com/]##*
+[$domain=/^daumd\d+.net/]##*
+[$domain=/^ttse\d+.com/]##*
+[$domain=/^18moa\d+.com/]##*
+[$domain=/^linkssakda\d+.com/]##*
+jusogall.com##*
+linktaxi.net##*
+[$domain=/^sitejuso\d+.com/]##*
+[$domain=/^jusopang\d+.com/]##*
+[$domain=/^linkbot\d+.com/]##*
+[$domain=/^www.19guide\d+.com/]##*
+[$domain=/^www.ydong\d+.online/]##*
+[$domain=/^gonglove\d+.com/]##*
+[$domain=/^nomukti\d+.com/]##*
+[$domain=/^wt-bc\d+.com/]##*
+[$domain=/^mt-toto\d+.com/]##*
+[$domain=/^pkmt\d+.com/]##*
+pornwavve.com##*
+warning119.com##*
