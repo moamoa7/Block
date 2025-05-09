@@ -2589,3 +2589,5 @@ linkddd.com##*
 ||tns-counter.ru^
 ||top-fwz1.mail.ru^
 ||mc.yandex.ru^
+||graph-fallback.instagram.com^
+||analytics.immersivetranslate.com^
