@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050901
+! Version: 25050902
 !
 !
 !
@@ -841,6 +841,8 @@ jjoktv.com##.assurance-menu__btn.v-size--default.theme--light.v-btn--text.v-btn.
 ! 군밤티비 (https://drhtv.tv/)
 ! - 왼쪽 배너
 ||*/side_banner*
+! - 예외 (이토랜드)
+@@etoland.co.kr/img/squid_chance/side_banner/1720407981.png
 !
 !
 ! 퐁퐁티비 (https://ppmantv.com/)
