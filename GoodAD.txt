@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050903
+! Version: 25050904
 !
 !
 !
@@ -2182,6 +2182,7 @@ zeta-ai.io##.pointer-events-none
 @@||xn--*-v10fo35av1l.com/wp-content/uploads/*$image
 @@||sogirl.so/wp-content/uploads/*$image
 @@||4kjav.co/wp-content/uploads/*$image
+@@||avlove*.com/wp-content/uploads/*$image
 @@||pinkbo*.com/wp-content/uploads/*$image
 @@||*www.yadongmarket.com/wp-content/uploads/*$image
 @@||cokcoktv*.com/wp-content/uploads/*$image
@@ -2591,3 +2592,11 @@ linkddd.com##*
 ||mc.yandex.ru^
 ||graph-fallback.instagram.com^
 ||analytics.immersivetranslate.com^
+||51.la^
+||shinystat.com^
+||okopuc.com^
+||parklogic.com^
+||parkingcrew.net^
+||sedoparking.com^
+||histats.com^
+||74378.bodis.com^
