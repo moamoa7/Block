@@ -363,6 +363,8 @@ ruliweb.com##.fixed_ad_wrapper
  ddanzi.com###banner_ddanzi_market
  ! - 게시글 하단 공백 (모바일)
  ddanzi.com##.add_display2
+! - 이미지 복원
+@@||img-cdn.ddanzi.com/files/attach/images/*$image
 !
 !
 ! 포모스 (https://www.fomos.kr/)
