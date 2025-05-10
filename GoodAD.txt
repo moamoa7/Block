@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25050904
+! Version: 25051001
 !
 !
 !
@@ -181,6 +181,8 @@ twitch.tv###twilight-sticky-footer-root
 cineaste.co.kr##.main-title
 ! - 오른쪽 중간 배너
 cineaste.co.kr##.basic-banner
+! - 로고 복원
+@@cineaste.co.kr/data/apms/background/logo7.png
 !
 !
 ! AAGAG (https://aagag.com/)
@@ -316,7 +318,9 @@ etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
 @@||etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
 etoland.co.kr###underGoodBtn_freeRecharge
-! - 게시물 글 상단 비밀상점 광고글
+! - 게시물 글 상단 비밀상점 광고글 (PC)
+etoland.co.kr##.ad_list.hit_item
+! - 게시물 글 상단 비밀상점 광고글 (모바일)
 etoland.co.kr##.view_content_top_ad_v1
 ! - 게시물 내 댓글 광고글 (모바일)
 etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
@@ -544,7 +548,8 @@ tvhot.site##.object-cover
 !  - 배너 공간
 ! - - - ##[src*="imgbox.com"] 사용시 전 이미지가 다 날라감
 [$domain=/^ootv\d+.com/]##.banner_wrap2
-!
+! - 링크동맹 글자
+[$domain=/^ootv\d+.com/]###side_wrap > .active
 !
 ! 티비판 (https://tvpan2.com/)
 ! - 화면 뿌옇게 해결
@@ -572,7 +577,9 @@ tvhot.site##.object-cover
 ! - 왼쪽 배너
 [$domain=/^bbtv\d+.com/]##div.open.main-menu:nth-of-type(3)
 ! - 링크동맹 안보이게
-![$domain=/^bbtv\d+.com/]##.posted-info
+[$domain=/^bbtv\d+.com/]##.posted-info
+! - 로고 복원
+@@||bbtv*.com/img/*$image
 !
 !
 ! TV다시보자 (https://bozatv108.com/)
@@ -773,6 +780,8 @@ named.com###sport_mobile_banner_right
 ! 라이브걸 (https://livegirl.biz/)
 ! - 배너 공간
 livegirl.biz##.my-3.px-sm-0.px-3
+! - 보증업체 글자
+livegirl.biz##.on.me-li.p-0.float-left
 !
 !
 ! 청양티비 (https://cytv138.com/)
@@ -850,6 +859,16 @@ betmoatv.com##div.sebang-pc.menu-title.cursor-pointer.item:nth-of-type(3)
 ! 쪽티비 (https://www.jjoktv.com/)
 ! - 보증업체 글자
 jjoktv.com##.assurance-menu__btn.v-size--default.theme--light.v-btn--text.v-btn.pa-0
+!
+!
+! 올킬티비 (https://allkilltv.com/)
+! - 오른쪽 상단 배너
+allkilltv.com##.swiper-slide-active.swiper-slide
+! - 배너 이미지
+||allkilltv.com/data/ebbanner/*$image
+||allkilltv.com/data/ebslider/*$image
+! - 보증업체 글자
+allkilltv.com##li.dropdown:nth-of-type(1)
 !
 !
 ! 군밤티비 (https://drhtv.tv/)
@@ -1072,6 +1091,12 @@ tdosa.net###bo_gallery
 ! 해피툰 (https://happytoon01.com/)
 ! - 상단배너 이미지
 [$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
+!
+!
+! 뉴토끼/마나토끼/북토끼 (https://t.me/s/newtoki5) (https://newtoki468.com/) (https://manatoki468.net/) (https://booktoki468.com/)
+! - 로고 복원
+@@||newtoki*.com/img/logo-full_newtoki.png
+@@||booktoki*.com/img/logo-full_book.png
 !
 !
 ! 무료툰 (https://foc94.com/)
@@ -1474,6 +1499,9 @@ mypikpak.com#@#[class*="popup"]
 escrow.auction.co.kr#@#[class*="popup"]
 ! - - - 예외 (스크롤 안됨)
 m.mrblue.com#@#[class*="popup"]
+! - - - 예외 (네이버페이) - 적립 창 안뜸
+campaign2.naver.com#@#[class*="popup"]
+
 ! - - - mobile
 ##.w-80.relative
 ! 보증업체 보기 배너
@@ -1609,6 +1637,31 @@ watchjavonline.com##.code-block-2.code-block
 ##.banners-container
 !
 !
+! 딸플릭스 (https://kr3.ddal.xyz/)
+! - 배너 이미지
+||*net/banners/*$image
+!
+!
+! 야동월드 (https://ya-world.net/)
+! 야콩넷 (https://yakong5.net/)
+! - 영상 하단 이미지
+||*net/img/*$image
+! - 하단 텍스트 배너
+ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
+!
+!
+! 킹부랄 (http://kbr202.com/index)
+! - 배너 이미지
+||*/userfiles/fileupload/*$image
+!
+!
+! 지지넷 (https://porngg6.net/)
+! - 상단 배너 일부
+###banner-top
+! - 전체 배너
+[$domain=/^porngg\d+.net/]##.banner-layout-box
+!
+!
 ! 섹스조아 (https://www.sexzoa52.com/)
 ! - 상단 텍스트 배너
 ! - - - PC
@@ -1707,6 +1760,10 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 ||*/data/banner*/*$image
 ! - 안전 인증 사이트
 xn--3r0b51bq29a.com##div.row:nth-of-type(2)
+! - 링크 모음 글자
+xn--3r0b51bq29a.com##li.off.menu-li:nth-of-type(9)
+! - 일부 이미지 복원
+@@||xn--3r0b51bq29a.com/img/*$image
 !
 !
 ! 레드캣야동 (https://xn--2q1b5s99ew6tyyk.com/) (https://redcattv9.com/)
@@ -1849,6 +1906,36 @@ hitomi.la###immersive-translate-popup
 ! 주소월드 (https://wdwd7.com/)
 ! - 배너
 ##.banner_list.at-container
+! - 로고 복원
+@@||wdwd*.com/img/tlogo.png
+!
+!
+! Tops19 (https://tops114.com/)
+! - 상단 배너
+##.ads_banners
+! - 오피 글자
+tops114.com##li.header__menu__item:nth-of-type(2)
+tops114.com##li.sidebar__menu__item:nth-of-type(2)
+! - 검증사이트 글자
+tops114.com##li.header__menu__item:nth-of-type(3)
+tops114.com##li.sidebar__menu__item:nth-of-type(3)
+! - 카지노 글자
+tops114.com##li.header__menu__item:nth-of-type(5)
+tops114.com##li.sidebar__menu__item:nth-of-type(5)
+! - 토토 글자
+tops114.com##li.header__menu__item:nth-of-type(6)
+tops114.com##li.sidebar__menu__item:nth-of-type(6)
+!
+!
+! 먹튀슈퍼맨 (https://mt-superman.net/)
+! - 배너 이미지 
+||*/data/dvn_banner/*
+! - 가운데 공식 인증 업체
+mt-superman.net##div.gongbox:nth-of-type(5)
+! - 가운데 먹튀사이트 리스트
+mt-superman.net##.muktibox.gongbox
+! - 왼쪽 보증업체
+mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
 !
 !
 ! 링크판 (https://linkpan71.com/)
@@ -2161,9 +2248,9 @@ zeta-ai.io##.pointer-events-none
 !
 ! - 쇼핑 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
 !  - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad-img.gmarket.com 해제 요망)
-@@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr|www.kurly.com
+@@||$elemhide,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr|www.kurly.com|www.shilladfs.com
 !
-@@||$image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr|www.kurly.com
+@@||$image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr|www.kurly.com|www.shilladfs.com
 !
 !
 !
@@ -2188,6 +2275,10 @@ zeta-ai.io##.pointer-events-none
 @@||cokcoktv*.com/wp-content/uploads/*$image
 @@||*.jamakyadong.me/wp-content/uploads/*$image
 @@||linkssakda*.com/wp-content/uploads/*$image
+@@||loopholes.site/wp-content/uploads/*$image
+@@||liteapks.com/wp-content/uploads/*$image
+@@||tvx*.com/wp-content/uploads/*$image
+@@||*wiki.tv/wp-content/uploads/*$image
 !
 !
 !
@@ -2335,6 +2426,28 @@ naverccrp.com##*
 ! 워닝구조대 (https://warning119.com/)
 ! KBO블루오션 (https://blueocean.click/)
 ! 링크닷컴 (https://linkddd.com/)
+! 토토다운 (https://toto-town07.com/)
+! 벳타민 (https://b-tamin.com/)
+! 베팅구조대 (https://vjvprxm.com/)
+! 최강링크 (https://xn--8-9y5e557at7scqd.com/)
+! 베가스 (https://xn--o39a782abqe.com/)
+! 토찾사 (https://ttcs-1.com/)
+! 토토365 (https://toto365.biz/)
+! 링크365 (https://solo.to/link365) (http://link365-4.kro.kr/)
+! 링크나라 (https://www.linknala.com/)
+! 오피갤 (https://op-gallery22.com/)
+! 오피정복 (https://opjb23.top/)
+! 픽스코어 (https://pickscore119.com/)
+! 주소월드 (https://wdwd7.com/)
+! Tops19 (https://tops114.com/)
+! 토인국 (https://toinkuk.com/)
+! 토스타 (https://xn--9t4b21xfta.com/)
+! 먹튀검증원 (https://mtsaveone.com/)
+! 먹튀노리 (https://wearenoriworld.com/)
+! 토이버 (https://toyver6.com/)
+! 링크114 (https://linktoto114.com/)
+! 순위야 (https://www.sunwiya.com/)
+! 먹튀슈퍼맨 (https://mt-superman.net/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -2471,6 +2584,28 @@ pornwavve.com##*
 warning119.com##*
 blueocean.click##*
 linkddd.com##*
+[$domain=/^toto-town\d+.com/]##*
+b-tamin.com##*
+vjvprxm.com##*
+[$domain=/^xn--\d+-9y5e557at7scqd.com/]##*
+xn--o39a782abqe.com##*
+[$domain=/^ttcs-\d+.com/]##*
+toto365.biz##*
+[$domain=/^link365-\d+.kro.kr/]##*
+www.linknala.com##*
+[$domain=/^op-gallery\d+.com/]##*
+[$domain=/^opjb\d+.top/]##*
+[$domain=/^pickscore\d+.com/]##*
+[$domain=/^wdwd\d+.com/]##*
+tops114.com##*
+toinkuk.com##*
+xn--9t4b21xfta.com##*
+mtsaveone.com##*
+wearenoriworld.com##*
+[$domain=/^toyver\d+.com/]##*
+linktoto114.com##*
+www.sunwiya.com##*
+mt-superman.net##*
 
 
 
@@ -2479,6 +2614,11 @@ linkddd.com##*
 
 
 
+
+
+
+
+DNS
 
 
 ||c.bing.com^
@@ -2600,3 +2740,86 @@ linkddd.com##*
 ||sedoparking.com^
 ||histats.com^
 ||74378.bodis.com^
+||ads-partners.coupang.com^
+||sdk-api-v1.singular.net^
+||prod-knoxlog.secb2b.com^
+||kyson.kakao.com^
+||lcs.naver.com^
+||log.tbs.qq.com^
+||location.services.mozilla.com^
+||sentry.dnull.xyz^
+||sentry-cdn.com^
+||tiara.daum.net^
+||cafe24data.com^
+||arc.msn.com^
+||stats.live-video.net^
+||statwup.nimo.tv^
+||metric.nimo.tv^
+||ylog.nimo.tv^
+||telemetry.tradingview.com^
+||reporting.cdndex.io^
+||q.quora.com^
+||pixel-static.spotify.com^
+||fastly-insights.com^
+||estat.zum.com^
+||statclick.nate.com^
+||stat.nate.com^
+||statetc.nate.com^
+||searchad-phinf.pstatic.net^
+||scv-cafe.io.naver.com^
+||weblog.kma.go.kr^
+||ads-api.x.com^
+||utsgw.auction.co.kr^
+||ats.auction.co.kr^
+||dadispapi.auction.co.kr^
+||jennifersoft.com^
+||branch.io^
+||pxchk.net^
+||collector-pxebumdlwe.px-cdn.net^
+||collector-pxebumdlwe.px-cloud.net^
+||fourhoi.com^
+||rum-metrics.bunny.net^
+||api.gameanalytics.com^
+||openfpcdn.io^
+||w3-reporting-nel.reddit.com^
+||error-tracking.reddit.com^
+||w3-reporting.reddit.com^
+||a.cdnpure.com^
+||a.apkpure.com^
+||matomo.mobilism.org^
+||backtrace.io^
+||pls.prd.mz.internal.unity3d.com^
+||qc.coccoc.com^
+||qc-static.coccoc.com^
+||qccoccocmedia.vn^
+||adsrvr.org^
+||zenmxapps.com^
+||static.zdbb.net^
+||jsinfo.net^
+||newrelic.com^
+||analytics-cdn.stackcommerce.net^
+||bat.bing.com^
+||aggle.net^
+||logx.optimizely.com^
+||stack-sonar.com^
+||jscloud.net^
+||upsellit.com^
+||a26514370208.cdn.optimizely.com^
+||signifyd.com^
+||p.typekit.net^
+||csp.secureserver.net^
+||events.api.secureserver.net^
+||stats.wp.com^
+||datingadvicefree.com^
+||frog.wix.com^
+||panorama.wixapps.net^
+||polyfill-js.cn^
+||hm.baidu.com^
+||hostinfo.cafe24.com^
+||fullstory.com^
+||js.hs-scripts.com^
+||ds-aksb-a.akamaihd.net^
+||zinolink.com^
+||adsmediabox.com^
+||trynectar.ai^
+||jsdelivr.vip^
