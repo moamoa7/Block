@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051002
+! Version: 25051101
 !
 !
 !
@@ -608,13 +608,6 @@ tvhot.site##.object-cover
 ! 도라마코리아 (https://www.dorama.kr/)
 ! - 배너
 www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1fzrtxd-2
-!
-!
-! 왓챠피디아 (https://pedia.watcha.com/)
-! - 팝업
-##.Ou4e8aZR
-! - 게시물내 배너
-##.OKQiqzeA.j9pLi57W
 !
 !
 ! 메시티비 (https://messitv8.com/)
@@ -1505,7 +1498,6 @@ escrow.auction.co.kr#@#[class*="popup"]
 m.mrblue.com#@#[class*="popup"]
 ! - - - 예외 (네이버페이) - 적립 창 안뜸
 campaign2.naver.com#@#[class*="popup"]
-
 ! - - - mobile
 ##.w-80.relative
 ! 보증업체 보기 배너
@@ -2692,7 +2684,6 @@ DNS
 ||bugly.qq.com^
 ||watson.events.data.microsoft.com^
 ||st.sooplive.co.kr^
-||conviva.com^
 ||gvt3.com^
 ||eventapi.sooplive.co.kr^
 ||collector.github.com^
@@ -2828,3 +2819,28 @@ DNS
 ||trynectar.ai^
 ||jsdelivr.vip^
 ||ad.ari.skt-jive.com^
+||cyad1.nate.com^
+||telemetry.eyeo.com^
+||fsr.lenovomm.com^
+||popin.cc^
+||g.jwpsrv.com^
+||zimpolo.com^
+||adforcast.com^
+||wpadmngr.com^
+||f5e52969d7.com^
+||shboshbok.com^
+||driverhugoverblown.com^
+||whitepreparation.com^
+||profitabledisplaynetwork.com^
+||dnh523js9661q.cloudfront.net^
+||ma.news.naver.com^
+||ads.textra.me^
+||tnc16-useast1a.byteoversea.com^
+||isnssdk.com^
+||tnc16-alisg.byteoversea.com^
+||vungle.com^
+||thecatmachine.com^
+||blueduckredapple.com^
+||everestop.io^
+||bidmachine.io^
+||haloapps.com^
