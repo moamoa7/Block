@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051102
+! Version: 25051103
 !
 !
 !
@@ -1066,9 +1066,11 @@ tdosa.net###bo_gallery
 ##[href^="/index/banner_click"]
 !
 !
-! 머니툰 (https://mtoon122.com/)
+! 머니툰 (https://mtoon123.com/)
 ! - 배너
 [$domain=/^mtoon\d+.com/]##div.container_full:nth-of-type(1)
+! - 이미지 복원
+@@||mtoon*.com/img/*$image
 !
 !
 ! 애니넷 (https://ani114.net/) (https://ani01.net/)
@@ -1078,6 +1080,24 @@ tdosa.net###bo_gallery
 ! 툰넷 (https://toon01.net/)
 ! - 상단 배너 공간
 [$domain=/^ani\d+.net/],[$domain=/^nan\d+.net/],[$domain=/^nanlink\d+.com/],[$domain=/^mgmg\d+.com/],[$domain=/^toon\d+.net/]##.guanggao1
+!
+!
+! 망가망가 (https://mgmg2.com/)
+! - 동맹업체 글자
+[$domain=/^mgmg\d+.com/]##li.gnb_1dli:nth-of-type(6)
+! - 로고 복원
+@@||mgmg*.com/img/ico/logo88.png
+!
+!
+! 망가조아 (https://mangajoa5.com/)
+! 상단배너
+[$domain=/^mangajoa\d+.com/]##.widget-index.at-container > div > .basic-post-gallery
+! - 왼쪽.오른쪽 배너
+##.SideBanner
+! - 동맹 글자
+[$domain=/^mangajoa\d+.com/]##.on.menu-li
+! - 로고 복원
+@@||mangajoa*.com/img/logo.png
 !
 !
 ! 애니넷 (https://ani01.net/)
@@ -1101,6 +1121,8 @@ tdosa.net###bo_gallery
 ||foc*.com/banner/*
 ! - 하단 배너
 [$domain=/^foc\d+.com/]##.aaa.row
+! - 이미지 복원
+@@||foc*.com/img/*$image
 !
 !
 ! 머니툰 (https://mtoon122.com/)
@@ -1165,6 +1187,11 @@ sportalkorea.com##.common_top_ad1
 ! 스포조이 (https://www.spojoy.com/)
 !  - 상단 배너
 www.spojoy.com###TopAdv250
+!
+!
+! 아이즈 IZE (https://www.ize.co.kr/)
+! - 하단 카카오페이포인트 쌓아보세요 메시지 창 (모바일)
+##.box_floating
 !
 !
 ! 바나나몰 (bananamall.co.kr)
@@ -1799,13 +1826,6 @@ xn--3r0b51bq29a.com##li.off.menu-li:nth-of-type(9)
 ||yd-house*.com/data/editor/*$image
 !
 !
-! 망가조아 (https://mangajoa5.com/)
-! 상단배너
-[$domain=/^mangajoa\d+.com/]##.widget-index.at-container > div > .basic-post-gallery
-! - 왼쪽.오른쪽 배너
-##.SideBanner
-!
-!
 ! 쿨걸 (https://coolgg.kr/) (https://coolgirl07.cc/)
 ! 배너 이미지
 ||coolgirl*.xyz/data/editor/*$image
@@ -1932,6 +1952,11 @@ mt-superman.net##div.gongbox:nth-of-type(5)
 mt-superman.net##.muktibox.gongbox
 ! - 왼쪽 보증업체
 mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
+!
+!
+! 먹튀해결사 (https://totohks.com/)
+! - 배너 이미지
+||*//data/editor/*$image
 !
 !
 ! 링크판 (https://linkpan71.com/)
@@ -2374,7 +2399,7 @@ naverccrp.com##*
 ! 주소모아 (https://www.xn--v52b19jw9czye.com/) (https://www.joosomoa1.com/)
 ! 링크핫 (https://linkhot01.com/)
 ! 주소콕 (https://jusokok10.com/)
-! 주소짱 (https://jusozzang05.xyz/)
+! 주소짱 (https://xn--19-994ju9vb9a.com/) (https://jusozzang05.xyz/)
 ! 한국 사이트넷 (https://koreasite123.com/)
 ! 링크365 (https://www.xn--365-938mx02g.com/) (https://www.linkm365.com/)
 ! 링크코리아 (https://linkcorea1.com/)
@@ -2489,6 +2514,8 @@ naverccrp.com##*
 ! 링크114 (https://linktoto114.com/)
 ! 순위야 (https://www.sunwiya.com/)
 ! 먹튀슈퍼맨 (https://mt-superman.net/)
+! 먹튀해결사 (https://totohks.com/)
+! 먹튀가이드 (https://mt-guide01.com/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -2522,6 +2549,7 @@ www.xn--v52b19jw9czye.com##*
 [$domain=/^www.joosomoa\d+.com/]##*
 [$domain=/^linkhot\d+.com/]##*
 [$domain=/^jusokok\d+.com/]##*
+xn--19-994ju9vb9a.com##*
 [$domain=/^jusozzang\d+.xyz/]##*
 [$domain=/^koreasite\d+.com/]##*
 www.xn--365-938mx02g.com##*
@@ -2647,8 +2675,8 @@ wearenoriworld.com##*
 linktoto114.com##*
 www.sunwiya.com##*
 mt-superman.net##*
-
-
+totohks.com##*
+[$domain=/^mt-guide\d+.com/]##*
 
 
 
