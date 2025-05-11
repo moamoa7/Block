@@ -286,9 +286,9 @@ fmkorea.com###fm_alert
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
-###main_popup
+etoland.co.kr###main_popup
 ! - 로그인 팝업
-###login_popup
+etoland.co.kr###login_popup
 ! - 왼쪽 통합검색 바로 아래 배너
 ##.banner-box
 ! - 오늘의 HIT 아래 상담실 등 배너
