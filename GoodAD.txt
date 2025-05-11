@@ -1958,7 +1958,7 @@ mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
 !
 ! 먹튀해결사 (https://totohks.com/)
 ! - 배너 이미지
-||*//data/editor/*$image
+||totohks.com//data/editor/*$image
 !
 !
 ! 링크판 (https://linkpan71.com/)
