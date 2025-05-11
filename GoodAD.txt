@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051103
+! Version: 25051104
 !
 !
 !
@@ -1010,6 +1010,9 @@ tdosa.net###bo_gallery
 ##.alert_windows
 ! - 배너
 ||blogger.googleusercontent.com/img/*/AVvXsE*
+! - - - 예외
+@@||blogger.googleusercontent.com/img/*/avvxse*$domain=www.etoland.co.kr
+
 !
 !
 ! 툰코 (https://tkor019.com/)
@@ -3013,3 +3016,11 @@ DNS
 ||montelena.gmarket.co.kr^
 ||sia.internet.apps.samsung.com^
 ||config-api.internet.apps.samsung.com^
+||mci1.co.kr^
+||chartbeat.com^
+||ads.mtgroup.kr^
+||livere.com^
+||real-feedback.toros.daum.net^
+||plausible.io^
+||stat.tiara.tistory.com^
+||ad.aceplanet.co.kr^
