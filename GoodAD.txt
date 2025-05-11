@@ -417,9 +417,12 @@ ppomppu.co.kr##div:nth-of-type(7)
 ###slide_image
 !
 !
-! 다모왕 (https://damoang.net/)
+! 다모앙 (https://damoang.net/)
 ! - 오른쪽 스크롤도구
 damoang.net##.d-block
+! - 이미지 복구
+@@||cdn.damoang.net//data/editor/*$image
+@@||cdn.damoang.net/img/*$image
 !
 !
 ! bada.us (https://bada.us/)
@@ -1958,7 +1961,7 @@ mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
 !
 ! 먹튀해결사 (https://totohks.com/)
 ! - 배너 이미지
-||totohks.com//data/editor/*$image
+||*//data/editor/*$image
 !
 !
 ! 링크판 (https://linkpan71.com/)
