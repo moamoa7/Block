@@ -286,51 +286,51 @@ fmkorea.com###fm_alert
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
-etoland.co.kr###main_popup
+www.etoland.co.kr###main_popup
 ! - 로그인 팝업
-etoland.co.kr###login_popup
+www.etoland.co.kr###login_popup
 ! - 왼쪽 통합검색 바로 아래 배너
 ##.banner-box
 ! - 오늘의 HIT 아래 상담실 등 배너
-etoland.co.kr###consult_list
+www.etoland.co.kr###consult_list
 ! - 무료충전소
-etoland.co.kr##.reward_v2
+www.etoland.co.kr##.reward_v2
 ! - 최신 댓글
-etoland.co.kr###main_latest_comment
+www.etoland.co.kr###main_latest_comment
 ! - 왼쪽 비밀 상점
-etoland.co.kr##.secret_aside_box
+www.etoland.co.kr##.secret_aside_box
 ! - 알뜰 공간
-etoland.co.kr##.market.menu_wrapper
+www.etoland.co.kr##.market.menu_wrapper
 ! - 스폰서
-etoland.co.kr##.sponsor.menu_wrapper
+www.etoland.co.kr##.sponsor.menu_wrapper
 ! - 오른쪽 상단 텍스트 배너
-etoland.co.kr##.v2_top_menu_right
+www.etoland.co.kr##.v2_top_menu_right
 ! - 포인트 승부 예측
-etoland.co.kr##.box.sports-bet-section
+www.etoland.co.kr##.box.sports-bet-section
 ! - 승부 예측
-etoland.co.kr##.box.main-sports
+www.etoland.co.kr##.box.main-sports
 ! - 회원 랭킹
-etoland.co.kr##section.box:nth-of-type(7)
+www.etoland.co.kr##section.box:nth-of-type(7)
 ! - 각 게시판 배너
-!||etoland.co.kr/data/daumeditor10/*$image
-etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
+!||www.etoland.co.kr/data/daumeditor10/*$image
+www.etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
 ! - 포인트 충전소 이미지 복원 (List-KR 무력화)
-@@||etoland.co.kr/data/file0207/point1/
+@@||www.etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
-etoland.co.kr###underGoodBtn_freeRecharge
+www.etoland.co.kr###underGoodBtn_freeRecharge
 ! - 게시물 글 상단 비밀상점 광고글 (PC)
-etoland.co.kr##.ad_list.hit_item
+www.etoland.co.kr##.ad_list.hit_item
 ! - 게시물 글 상단 비밀상점 광고글 (모바일)
-etoland.co.kr##.view_content_top_ad_v1
+www.etoland.co.kr##.view_content_top_ad_v1
 ! - 게시물 내 댓글 광고글 (모바일)
-etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
+www.etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
 ! - 최신글 (NEW) 감추기
 ! - - - PC
-etoland.co.kr##.freebbs_latest_list_section
+www.etoland.co.kr##.freebbs_latest_list_section
 ! - - - 모바일
-etoland.co.kr###latest_m_main
+www.etoland.co.kr###latest_m_main
 ! - 실시간 정보 게시판 감추기 (모바일)
-etoland.co.kr###info_recent_list_wrap
+www.etoland.co.kr###info_recent_list_wrap
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
@@ -1515,6 +1515,8 @@ www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],
 !##[class*='main_popup']
 !##[class*="popup-pc"]:not(html):not(body):not(article)
 ##[class*="popup"]
+! - - - 예외 ( 출석.추천.찐추 버튼 복구)
+www.etoland.co.kr#@#[class*="popup"]
 ! - - - 예외 ( 스크롤이 안됨)
 www.wavve.com#@#[class*="popup"]
 ! - - - 예외 (화면 안나옴)
@@ -2147,9 +2149,9 @@ named.com##.jnbfVc.sc-eqUAAy
 !
 ! - 네임드 보증업체 (https://named.com/)
 ! - 팝업
-##.modal-inner
+named.com##.modal-inner
 ! - 뿌옇게 해결
-##.jgbgNC
+named.com##.jgbgNC
 ! -왼쪽 배너
 ###leftBanner
 ! 오른쪽 배너
@@ -2157,7 +2159,8 @@ named.com##.jnbfVc.sc-eqUAAy
 ! 왼쪽 하단 배너
 ###sideCastBanner
 ! 맨 하단 배너
-###bottomBanner
+! - 사이트 지정 안하면 이토랜드 출석.추천.찐추 버튼 사라짐
+named.com###bottomBanner
 ! - 네임드 글자
 named.com##.trusted_sites
 !
