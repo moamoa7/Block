@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051104
+! Version: 25051201
 !
 !
 !
@@ -392,6 +392,11 @@ ygosu.com##.pull-left.btn-group
 ##.ad_area1
 !
 !
+! 네이버 카페
+! - 이미지 복구
+@@||cafe.pstatic.net/img/*$image
+!
+!
 ! 롤 인벤 (lol.inven.co.kr)
 ! - 상단 배너
 ###topLinkBanner
@@ -565,7 +570,8 @@ tvhot.site##.object-cover
 !
 ! 방방바TV (https://www.bangbangbatv.com/) (https://bangbangba01.com/)
 ! - 왼쪽 배너 (텔레그램까지 삭제)
-[$domain=/^bangbangba\d+.com/]##.carousel-inner
+! - - -  토토어택 (https://www.ttattack.com/)
+[$domain=/^bangbangba\d+.com/],www.ttattack.com##.carousel-inner
 !
 !
 ! TV888 (https://tv889.com/)
@@ -876,11 +882,20 @@ allkilltv.com##li.dropdown:nth-of-type(1)
 ||*/side_banner*
 ! - 예외 (이토랜드)
 @@etoland.co.kr/img/squid_chance/side_banner/1720407981.png
+@@etoland.co.kr/img/squid_chance/side_banner/1720407989.png
 !
 !
 ! 퐁퐁티비 (https://ppmantv.com/)
 ! - 배너
 ppmantv.com##.p-0.card-footer
+! - 왼쪽 석삼 매뉴
+ppmantv.com##.me-auto.d-lg-block.d-none.dropdown-mega-menu.dropdown
+! 보증업체 글자
+ppmantv.com##li.dropdown:nth-of-type(5)
+! 먹튀검증 글자
+ppmantv.com##li.dropdown:nth-of-type(7)
+! 무료슬롯 글자
+ppmantv.com##li.dropdown:nth-of-type(8)
 !
 !
 ! 메이저(https://major-top3.com/)
@@ -974,7 +989,7 @@ tdosa.net##.post-list
 tdosa.net###bo_gallery
 !
 !
-! 챔스티비 (https://chm7.com/)
+! 챔스티비 (https://xn--9w3b13ftwkozg.com/) tps://chm7.com/)
 ! - 보증업체
 [$domain=/^chm\d+.com/]##.mx-n2.row-cols-md-4.row-cols-2.row
 ! - 슬롯체험
@@ -1974,6 +1989,8 @@ mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
 ###layer_pop
 ! - 모바일 하단 배너
 ##[href="https://alspo5.net"]
+! - 먹튀검증글자
+![$domain=/^linkpan\d+.com/]##li.off.menu-li:nth-of-type(6)
 !
 !
 ! 링크사랑 (https://linklove54.com/)
@@ -2153,7 +2170,7 @@ lol.inven.co.kr#@#.banner
 named.com##.jnbfVc.sc-eqUAAy
 !
 !
-! - 네임드 보증업체 (https://named.com/)
+! 네임드 (https://named.com/)
 ! - 팝업
 named.com##.modal-inner
 ! - 뿌옇게 해결
@@ -2171,6 +2188,21 @@ named.com###bottomBanner
 named.com##.trusted_sites
 !
 !
+! 토블리 (https://totovely2.com/)
+! - 오른쪽 배너 일부
+![$domain=/^totovely\d+.com/]##.side_banner_img
+##.side_banner_img
+! - 가운데 중간 배너
+![$domain=/^totovely\d+.com/]##.main_banners
+##.main_banners
+!
+!
+! 뽕티비 (https://bbongtv1.com/)
+! - 보증업체 글자
+[$domain=/^bbongtv\d+.com/]##div.category:nth-of-type(2)
+[$domain=/^bbongtv\d+.com/]##.verify-banner
+!
+!
 ! 꽁머니 사랑 (https://gonglove6.com/)
 ! - 배너 이미지
 ||*/sponsor*/*$image
@@ -2178,6 +2210,18 @@ named.com##.trusted_sites
 @@||gonglove*.com/img/gonglogo.png
 ! - 배너 공간
 [$domain=/^gonglove\d+.com/]##.miso-love-ad
+!
+!
+! 파토 (https://www.pato114.net/)
+! - 전체 배너
+##.main-banner-img
+!
+!
+! 벳조이 (https://www.bet-joy.net/)
+! - 팝업
+##.pop-wrap
+! - 양쪽(왼족. 오른쪽) 배너
+##aside
 !
 !
 ! 노먹튀 (https://nomukti5.com/)
@@ -2251,6 +2295,8 @@ novelpia.com##.modal_background
 ! 픽팍 (https://mypikpak.com/)
 ! - 쿠키 동의 (AdGuard Annoyances filter)
 ##.cookie-wrapper
+! - 연간 할인 혜택 팝업
+mypikpak.com##.coupon-tips-overlay.el-overlay
 !
 !
 ! SPEEDTEST (https://www.speedtest.net/
@@ -2525,6 +2571,38 @@ naverccrp.com##*
 ! 먹튀슈퍼맨 (https://mt-superman.net/)
 ! 먹튀해결사 (https://totohks.com/)
 ! 먹튀가이드 (https://mt-guide01.com/)
+! 올스포츠 (https://alspo5.net/)
+! 먹튀체크 (https://mtcheck.net/)
+! 네임드 (https://named.com/)
+! 슈어맨 (https://www.sureman.com/)
+! 먹튀검증소 (https://totosave.com/)
+! 토토핫 (https://www.totohot.net/)
+! 라이브맨 (https://liveman.net/)
+! 토토군 (https://totogun.com/)
+! 토토베이 (https://toto-bay.com/)
+! 코리아베팅 (http://ko-bet.com/)
+! 토블리 (https://totovely2.com/)
+! 온카검증소 (https://onca89.com/)
+! 토토왕국 (https://totowgwg.net/)
+! 토토왕뚜껑 (https://toto-wang2.com/)
+! 슈어맨스 (https://suremans3.com/)
+! 먹튀폴리스 (https://www.dazaba.net/)
+! 토토피아 (https://toto-pia.com/)
+! 올인구조대 (https://www.allin42.com/)
+! 꽁타 (https://www.ggongta.com/)
+! 인생도박 (https://dobaklife18.com/)
+! 토진사 (https://tozinsa.com/)
+! 카인사 (https://xn--vf4b97jipg.com/)
+! 카진사 (https://cazinsa.com/)
+! 벳큐 (https://betq2.net/)
+! 파토 (https://www.pato114.net/)
+! 벳조이 (https://www.bet-joy.net/)
+! 골드카지노사이트 (https://www.gooldcasino.com/)
+! 카잘알 (https://www.casinoknow10.com/)
+! 토토룸 (https://totoroom.org/)
+! 지킴이TV (https://jktv24.com/)
+! 토토어택 (https://www.ttattack.com/)
+! 꽁포야 (https://kkongpoya.com/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -2640,7 +2718,7 @@ mtday.net##*
 [$domain=/^sports-vic\d+.com/]##*
 jobjatv.com##*
 [$domain=/^jusobox\d+.com/]##*
-[$domain=/^linkpan\d+.com/]##*
+![$domain=/^linkpan\d+.com/]##*
 [$domain=/^gc-\d+.com/]##*
 [$domain=/^daumd\d+.net/]##*
 [$domain=/^ttse\d+.com/]##*
@@ -2686,6 +2764,46 @@ www.sunwiya.com##*
 mt-superman.net##*
 totohks.com##*
 [$domain=/^mt-guide\d+.com/]##*
+[$domain=/^alspo\d+.net/]##*
+mtcheck.net##*
+named.com##*
+www.sureman.com##*
+totosave.com##*
+www.totohot.net##*
+liveman.net##*
+totogun.com##*
+toto-bay.com##*
+ko-bet.com##*
+[$domain=/^totovely\d+.com/]##*
+[$domain=/^onca\d+.com/]##*
+totowgwg.net##*
+[$domain=/^toto-wang\d+.com/]##*
+[$domain=/^suremans\d+.com/]##*
+www.dazaba.net##*
+toto-pia.com##*
+[$domain=/^www.allin\d+.com/]##*
+www.ggongta.com##*
+[$domain=/^dobaklife\d+.com/]##*
+tozinsa.com##*
+xn--vf4b97jipg.com##*
+cazinsa.com##*
+[$domain=/^betq\d+.net/]##*
+www.pato114.net##*
+www.bet-joy.net##*
+www.gooldcasino.com##*
+[$domain=/^www.casinoknow\d+.com/]##*
+totoroom.org##*
+[$domain=/^jktv\d+.com/]##*
+www.ttattack.com##*
+kkongpoya.com##*
+
+
+
+
+
+
+
+
 
 
 
@@ -3024,3 +3142,12 @@ DNS
 ||plausible.io^
 ||stat.tiara.tistory.com^
 ||ad.aceplanet.co.kr^
+||nhnace.com^
+||criteo.net^
+||nelo2-col.navercorp.com^
+||mon.tiktokv.com^
+||adam.gslb.toastoven.net^
+||submit-target.osp.opera.software^
+||lds.lenovomm.com^
+||adop.cc^
+||adpnut.com^
