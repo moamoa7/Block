@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051201
+! Version: 25051202
 !
 !
 !
@@ -69,6 +69,12 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
+!
+!
+! NAVER 앱 검색페이지 깨짐 복원 - DNS 사용자 규칙에 @@||ad-creative.pstatic.net^ 및 @@||searchad-phinf.pstatic.net^ 추가 필요
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+@@||ad-creative.pstatic.net^$app=com.nhn.android.search
+@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 !
 !
 !
@@ -3151,3 +3157,16 @@ DNS
 ||lds.lenovomm.com^
 ||adop.cc^
 ||adpnut.com^
+||volts.shopping.naver.com^
+||g.tivan.naver.com^
+||ad-creative.pstatic.net^
+||sidekick.fever.naver.com^
+||reople.co.kr^
+||adbinead.com^
+||interworksmedia.co.kr^
+||ad.api.adwiser.kr^
+||netinsight.co.kr^
+||adinc.kr^
+||ad.doorigo.co.kr^
+||ads.kmib.co.kr^
+||stat.kbs.co.kr^
