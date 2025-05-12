@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051202
+! Version: 25051203
 !
 !
 !
@@ -428,6 +428,11 @@ ppomppu.co.kr##div:nth-of-type(7)
 ! SLR (https://www.slrclub.com/)
 ! - 게시글 상단 텍스트 광고 (PC)
 ##.notice
+! - - - 예외 (텔래그램 주소 사라짐)
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]#@#.notice
+! - - - 참고 (공지글 사라짐)
+!theqoo.net#@#.notice
+
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -486,6 +491,11 @@ zum.com##.tv_wrap
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com
+!
+!
+! 티빙 (https://www.tving.com/)
+! - 시청기록 남기기 (DNS에서 차단하면 해제 필요)
+@@||log.tving.com
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
@@ -3185,3 +3195,12 @@ DNS
 ||trend-log.aifrwk.com^
 ||criteo.com^
 ||wup.imtt.qq.com^
+||ping-meta-prd.jwpltx.com^
+||data.madovergames.com^
+||ad-delivery.net^
+||rlcdn.com^
+||wtg-ads.com^
+||outbanner.hu.co.kr^
+||logs-partners.coupang.com^
+||adingo.jp^
+||loader.fmkorea.com^
