@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.05.10.2
-! Description: 애드가드 필터의 오차단, 안티 애드블록, 지우지 못한 광고를 해결합니다. For Adguard, uBo, Brave
+! Version: 2025.05.11
+! Description: 애드가드 필터의 오차단, 지우지 못한 광고와 안티 애드블록을 해결합니다. For Adguard, uBo, Brave
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
 ! temporary rules
@@ -8,6 +8,11 @@
 ##.basic-banner
 ##.board-tail-banner
 ##[style='margin-bottom: 20px;'].row.row-15
+
+! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
+@@||namu.wiki^$generichide
+namu.wiki##li:has(time):not(*:has([href*='/raw/'])):upward(2)
+namu.wiki##span:has-text(더 보기):upward(2):has([target])
 
 ! From ublock origin filter
 ##[id^='div-gpt-ad']:not([style^='width: 1px; height: 1px; position: absolute; left: -10000px; top: -']):not([style='pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;'])
@@ -45,11 +50,6 @@ start.klauncher.kr$$script:contains(detected)
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[class*='carousel'][id]
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[href*='/ad'][target='_blank']:has(img)
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[target='_blank']:has([src$='.gif']):upward(1)
-
-! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
-@@||namu.wiki^$generichide
-namu.wiki##li:has(time):not(*:has([href*='/raw/'])):upward(2)
-namu.wiki##span:has-text(더 보기):upward(2):has([target])
 
 ! Ads
 #@#.appBanner:not(body)
@@ -160,6 +160,11 @@ zod.kr##[data-href^='https://zod.kr/go/']
 ~greend.kr##[class*='ad'][id^='AD']
 ~nexon.com,~gg##[target='_blank']:has([src*='/banner'])
 
+! iOS m.fmkorea.com 파워링크 제거
+!#if (adguard && (adguard_app_ios))
+m.fmkorea.com#%#function matchesAdCriteria(e){const t=window.getComputedStyle(e),n=t.padding,i=t.height,r="5px 10px 20px"===n,o=parseInt(i);return r&&o>=10&&o<=999}function removeAds(){let e=0;const t=document.querySelectorAll('script ~ div[class*=" "]');for(let n=0;n<t.length;n++)matchesAdCriteria(t[n])&&(t[n].remove(),e++);const n=document.querySelectorAll("section.bd");for(let t=0;t<n.length;t++)matchesAdCriteria(n[t])&&(n[t].remove(),e++)}function setupAdRemoval(){removeAds();let e;const t=()=>{clearTimeout(e),e=setTimeout(removeAds,50)},n=function(e){let n=!1;for(let t=0;t<e.length;t++){if("childList"===e[t].type&&e[t].addedNodes.length>0){n=!0;break}}n&&t()};new MutationObserver(n).observe(document.body,{childList:!0,subtree:!0})}"loading"===document.readyState?document.addEventListener("DOMContentLoaded",setupAdRemoval):setupAdRemoval();
+!#endif
+
 ! 방해요소(우클릭 방지) 해제
 [$domain=/^booktoki[0-9]*\.com/]###novel_content:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
@@ -168,14 +173,14 @@ cafe.naver.com##*:style(-webkit-touch-callout: default !important; -webkit-user-
 ! 멀웨어 / 수익링크 차단
 fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ||mistydivided.com^$all
+||work.gd^$all
 
 ! 애드가드 필터 오차단 해제
 11st.co.kr#@#div[class$="-ad"]
 @@/.*/$permissions=identity-credentials-get=(),document,domain=slrclub.com
 @@||ad*.cgv.co.kr^$image,domain=cgv.co.kr
-@@||ad.planbplus.co.kr^$app=com.deaguowl.fallcent
-@@||ad-creative.pstatic.net^$app=com.nhn.android.search
 @@||adcr.naver.com^$app=com.nhn.android.search,important
+@@||ad.planbplus.co.kr^$app=com.deaguowl.fallcent
 @@||app.appsflyer.com^$domain=ofw.adison.co
 @@||co.kr^$stealth=dpi
 @@||edge-live.joongna.com/api/web-ads/
@@ -183,7 +188,6 @@ fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 @@||google.*/search$stealth=useragent|ip
 @@||nexon.com^$stealth=dpi
 @@||photo.jtbc.co.kr/news/cms/etc/
-@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 @@||ssl.pstatic.net^$script,domain=nid.naver.com
 etoland.co.kr#@#div[class$="_ad"]
 lol.inven.co.kr#@#article > div[style].banner
@@ -203,7 +207,11 @@ chzzk.naver.com#@%#//scriptlet('prevent-xhr', 'veta.naver.com/vas')
 @@||onelink.me^$stealth=dpi
 @@||startpage.com^$stealth=dpi
 
-! G마켓 메인화면 복원(DNS 사용자 규칙에 @@||gmarket.co.kr^ 추가 필요)
+! NAVER 앱 검색페이지 깨짐 복원 - DNS 사용자 규칙에 @@||ad-creative.pstatic.net^ 및 @@||searchad-phinf.pstatic.net^ 추가 필요
+@@||ad-creative.pstatic.net^$app=com.nhn.android.search
+@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
+
+! G마켓 메인화면 복원 - DNS 사용자 규칙에 @@||gmarket.co.kr^ 추가 필요
 @@||ad-img.gmarket.com^$image,domain=gmarket.co.kr|auction.co.kr
 gmarket.co.kr#@#.ReactVirtualized__Grid__innerScrollContainer .box__banner-wrap > .box__banner--today
 gmarket.co.kr#@#.js-impressionable
