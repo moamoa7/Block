@@ -199,6 +199,8 @@ aagag.com##.bottom.center.sAlert
 ! - 게시물 50개마다 있는 공백 없애기
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
+! - 이미지 복원
+@@||a.aagag.com/img/*$image
 !
 !
 ! 디시인사이드 (https://gall.dcinside.com)
@@ -421,6 +423,11 @@ ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 ppomppu.co.kr##.ppomCou
 ! - 모바일 하단 배너 공간 삭제
 ppomppu.co.kr##div:nth-of-type(7)
+!
+!
+! SLR (https://www.slrclub.com/)
+! - 게시글 상단 텍스트 광고 (PC)
+##.notice
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -2219,19 +2226,15 @@ named.com##.trusted_sites
 !
 ! 파토 (https://www.pato114.net/)
 ! - 전체 배너
+!www.pato114.net##.main-banner-img
 ##.main-banner-img
 !
 !
 ! 벳조이 (https://www.bet-joy.net/)
 ! - 팝업
-##.pop-wrap
+www.bet-joy.net##.pop-wrap
 ! - 양쪽(왼족. 오른쪽) 배너
-##aside
-!-- - 예외 (왼쪽 매뉴 사라짐)
-trand.co.kr#@#aside
-! - - - 예외 (채팅창 사라짐)
-chzzk.naver.com#@#aside
-
+www.bet-joy.net##aside
 !
 !
 ! 노먹튀 (https://nomukti5.com/)
@@ -2294,6 +2297,11 @@ www.wavve.com#@#.popup
 ! 워닝구조대 (https://warning119.com/)
 ! - 팝업
 warning119.com##.show.fade.modal
+!
+!
+! Dramaday.me (https://dramaday.me/)
+! - 오른쪽 메뉴 복원
+dramaday.me#@#aside
 !
 !
 ! 노벨피아 (https://novelpia.com/)
