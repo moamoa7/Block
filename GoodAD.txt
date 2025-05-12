@@ -71,12 +71,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ||jsdelivr.net/npm/disable-devtool
 !
 !
-! NAVER 앱 검색페이지 깨짐 복원 - DNS 사용자 규칙에 @@||ad-creative.pstatic.net^ 및 @@||searchad-phinf.pstatic.net^ 추가 필요
-! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-@@||ad-creative.pstatic.net^$app=com.nhn.android.search
-@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
-!
-!
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !
@@ -167,6 +161,11 @@ twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
 twitch.tv###twilight-sticky-footer-root
 ! - 광고?
 ||*.ads.*
+!
+!
+! 킥 (https://kick.com/)
+! - 로고 복원
+@@||kick.com/img/*$image
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -2228,6 +2227,11 @@ named.com##.trusted_sites
 ##.pop-wrap
 ! - 양쪽(왼족. 오른쪽) 배너
 ##aside
+!-- - 예외 (왼쪽 매뉴 사라짐)
+trand.co.kr#@#aside
+! - - - 예외 (채팅창 사라짐)
+chzzk.naver.com#@#aside
+
 !
 !
 ! 노먹튀 (https://nomukti5.com/)
@@ -3170,3 +3174,6 @@ DNS
 ||ad.doorigo.co.kr^
 ||ads.kmib.co.kr^
 ||stat.kbs.co.kr^
+||trend-log.aifrwk.com^
+||criteo.com^
+||wup.imtt.qq.com^
