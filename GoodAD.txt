@@ -1063,8 +1063,8 @@ tdosa.net###bo_gallery
 !
 !
 ! 툰코 (https://tkor019.com/)
-! - 토토보증업체 차단
-||w툰코.com
+! - 토토보증업체 글자
+[$domain=/^tkor\d+.com/]##.text-center.hidden-xs.navbar-nav.nav > li > [href="https://tkor020.com/토토보증업체"]
 !
 !
 ! 늑대닷컴 (https://wfwf387.com/)
@@ -2631,6 +2631,7 @@ naverccrp.com##*
 ! 지킴이TV (https://jktv24.com/)
 ! 토토어택 (https://www.ttattack.com/)
 ! 꽁포야 (https://kkongpoya.com/)
+! w툰코 (https://xn--w-wp0g96e.com/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -2824,7 +2825,7 @@ totoroom.org##*
 [$domain=/^jktv\d+.com/]##*
 www.ttattack.com##*
 kkongpoya.com##*
-
+xn--w-wp0g96e.com##*
 
 
 
