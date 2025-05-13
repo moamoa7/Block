@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051301
+! Version: 25051302
 !
 !
 !
@@ -1440,9 +1440,11 @@ avsee.ru##div.main-box:nth-of-type(1)
 ##.happy-header-mobile
 !
 !
-!AV핑크 (https://avpink34.com/)
+! AV핑크 (https://avpink36.com/)
 ! - 배너 이미지
 ##.fg-image
+! - 영상 시청시 검은화면 나옴 - media 차단해제 (List-KR)
+@@||ttse.b-cdn.net^
 !
 !
 ! 탑걸 (https://kr39.topgirl.co)
@@ -1604,6 +1606,26 @@ campaign2.naver.com#@#[class*="popup"]
 ! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/)
 ! - 영상 하단내 배너 테두리
 ##.vjs-bottom-banner.vjs-bottom-banner-container
+!
+!
+! 야동공장 (https://yagong84.com/)
+! - 업소정보 글자
+[$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(2)
+[$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(1)
+! - 이벤트 글자
+[$domain=/^yagong\d+.com/]##div.hover\:text-red-600.text-white.text-sm.mx-auto.py-3.px-2:nth-of-type(10)
+[$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(11)
+!- 제휴사이트 글자
+[$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(13)
+! - 주소친구 글자
+[$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(12)
+!
+!
+! 야동그라운드 (https://yagro48.com/)
+!- 제휴사이트 글자
+[$domain=/^yagro\d+.com/]##div.text-color-for-wide.text-white.text-sm.mx-auto.py-3.px-2:nth-of-type(11)
+! - 이벤트
+[$domain=/^yagro\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(11)
 !
 !
 ! 천사티비 (https://1004sweet.com/)
@@ -2460,6 +2482,9 @@ zeta-ai.io##.pointer-events-none
 @@javopen.co/wp-content/uploads/*$image
 @@javlast.com/wp-content/uploads/*$image
 @@hqav.net/wp-content/uploads/*$image
+@@avpink*.com/wp-content/uploads/*$image
+@@xxjoa*.com/wp-content/uploads/*$image
+@@javrider.com/wp-content/uploads/*$image
 !
 !
 !
@@ -2519,7 +2544,7 @@ naverccrp.com##*
 ! 링크365 (https://www.xn--365-938mx02g.com/) (https://www.linkm365.com/)
 ! 링크코리아 (https://linkcorea1.com/)
 ! 링크서치 (https://linksch2.com/)
-! 주소친구 (https://juchin00.com/)
+! 주소친구 (https://xn--2e0bq59agnfk1f.com/) (https://juchin00.com/)
 ! 다모아링크 (https://damoalink.com/)
 ! 링크니티 https://linkniti1.com/ (https://lingkniti.com/)
 ! 주소골라 (https://jusopick.com/)
@@ -2664,6 +2689,9 @@ naverccrp.com##*
 ! 토토어택 (https://www.ttattack.com/)
 ! 꽁포야 (https://kkongpoya.com/)
 ! w툰코 (https://xn--w-wp0g96e.com/)
+! 꽁가네 (https://ggonggane.com/)
+! 배팅타임 (https://bttime.net/)
+! 주소킹 (https://kking12.com/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -2704,6 +2732,7 @@ www.xn--365-938mx02g.com##*
 [$domain=/^www.linkm\d+.com/]##*
 [$domain=/^linkcorea\d+.com/]##*
 [$domain=/^linksch\d+.com/]##*
+xn--2e0bq59agnfk1f.com##*
 [$domain=/^juchin\d+.com/]##*
 damoalink.com##*
 [$domain=/^linkniti\d+.com/]##*
@@ -2858,10 +2887,9 @@ totoroom.org##*
 www.ttattack.com##*
 kkongpoya.com##*
 xn--w-wp0g96e.com##*
-
-
-
-
+ggonggane.com##*
+bttime.net##*
+[$domain=/^kking\d+.com/]##*
 
 
 
@@ -3237,20 +3265,44 @@ DNS
 ||logs-partners.coupang.com^
 ||adingo.jp^
 ||loader.fmkorea.com^
+||scakuvap.com^
+||appointeeivyspongy.com^
+||promptsgod.com^
+||mnaspm.com^
+||jads.co^
+||mbidadm.com^
+bullionglidingscuttle
+||halo.idocdn.com^
+||scashwl.com^
+||tqoneyyivw.club^
+||platform-api.sharethis.com^
+||0i0i0i0.com^
+||xlrdr.com^
+||juicyads.com^
+||placehold.co^
+||media.fc2.com^
+||mobon.net^
+||dsas.danawa.com^
+||insight.danawa.com^
+||innity.net^
+||adtcdn.com^
+||datacollect.imbc.com^
+||maze.co^
+||c.statcounter.com^
+||static.groobee.io^
+||vntsm.com^
+||entitlements.jwplayer.com^
+||tsyndicate.com^
+||maccms.com^
+||yagrotomo.com^
+||xlviiirdr.com^
+||creative.live.javdock.com^
+||exosrv.com^
+||2443march2024.com^
+||cdn1cloudflare.xyz^
+||sandwichconscientiousroadside.com^
 
 
-
-
-
-
-
-
-
-
-
-
-!25.05.09 032239
-!25.05.13  14 14 16
 
 
 
@@ -3259,6 +3311,9 @@ DNS
 *$subdocument
 ! - - -  예외 (캡챠 로그인 안됨) (avsee.ru 등)
 @@challenges.cloudflare.com$subdocument
+@@recaptcha.net/recaptcha/api2/$subdocument
+
+
 ! - - - 예외 (날씨 정보 안나옴) (기상청)
 @@weather.go.kr/w/weather/local/current-frame.do$subdocument
 ! - - - 예외 (로그인 안됨) (https://tving.com)
@@ -3291,9 +3346,14 @@ DNS
 ! - - - 예외 (라이브 방송 안나옴) (https://tv.kakao.com/)
 @@tv.kakao.com/chat/livechat/$subdocument
 @@tv.kakao.com/embed/player/$subdocument
-! - - - 예외 (라이브 방송 안나옴) (메시티비) (https://messitv8.com/)
-@@bigwin.livenst.com/messitv/livescore/livescore/$subdocument
+
+! - - - 예외 (라이브 방송 안나옴) (메시티비 등 스포츠방송) (https://messitv8.com/)
+!@@bigwin.livenst.com/messitv/livescore/livescore/$subdocument
+@@bigwin.livenst.com/*$subdocument
+@@speed10-7.com/*$subdocument
+@@streamk.co.kr/*$subdocument
 @@liventv.com/player$subdocument
+
 ! - - - 영상 안나옴 (성인 영상)
 @@supremejav.com$subdocument
 @@emturbovid.com$subdocument
@@ -3345,8 +3405,6 @@ DNS
 @@embedwish.com$subdocument
 @@filemoon.sx$subdocument
 @@dhcplay.com$subdocument
-! - - -  javmis.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴
-@@javmis.com$subdocument
 @@lulu.st$subdocument
 @@javplayer.me$subdocument
 @@javfhd.org$subdocument
@@ -3354,9 +3412,25 @@ DNS
 @@javedit.com/*/Player/$subdocument
 @@cndstream.xyz$subdocument
 @@jav.sb/static/player/$subdocument
+@@javplayer.me.vdcdn.top$subdocument
+@@video.javhdporn.net$subdocument
+@@mingvideos.com$subdocument
+@@avpingyou*.com/static/player/$subdocument
+@@xxjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
+@@javplayers.com/video/$subdocument
+@@jamakyadong.me/jwplayer/$subdocument
+
+
+! - - -  javmis.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+@@javmis.com$subdocument
+! - - -  bestjavporn.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+@@bestjavporn.com$subdocument
+! - - -  javdock.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+@@javdock.com$subdocument
+! - - -  javhdporn.net - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+@@javhdporn.net$subdocument
 
 
 
-
-! - - - 예외 (영상 안나옴) (https://fc1adult.com/live/mult_view)
+! - - - 예외 (영상 안나옴) (https://fc1adult.com/live/mult_view) (성인 영상)
 @@live.fc2.com/embedPlayer/$subdocument
