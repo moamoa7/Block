@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051302
+! Version: 25051303
 !
 !
 !
@@ -126,6 +126,8 @@ sooplive.co.kr##.on.bnrimg_area
 ! - 영상 (https://play.sooplive.co.kr)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
+! - --  방송요약 팝업
+sooplive.co.kr###sarsa_btn
 ! - - - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
 sooplive.co.kr##.tuneout
 ! - 다시보기 (https://vod.sooplive.co.kr/) 영상내 왼쪽 하단 애드벌룬 배너
@@ -438,6 +440,11 @@ ppomppu.co.kr##div:nth-of-type(7)
 !theqoo.net#@#.notice
 ! - - - 예외 (공지글 제목 안보임
 cineaste.co.kr#@#.notice
+!
+!
+! 클리앙 (https://clien.net/)
+! - 왼쪽 따라다니는 석삼 메뉴
+clien.net##.active.button_sidemenu
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -1622,10 +1629,21 @@ campaign2.naver.com#@#[class*="popup"]
 !
 !
 ! 야동그라운드 (https://yagro48.com/)
-!- 제휴사이트 글자
+! - 제휴사이트 글자
 [$domain=/^yagro\d+.com/]##div.text-color-for-wide.text-white.text-sm.mx-auto.py-3.px-2:nth-of-type(11)
 ! - 이벤트
 [$domain=/^yagro\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(11)
+!
+!
+! 야동도시 (https://yacity47.com/)
+! - 제휴사이트 글자
+[$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(11)
+! - 이벤트 글자
+[$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative:nth-of-type(7)
+[$domain=/^yacity\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(8)
+! - 제휴업체 글자
+[$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(8)
+
 !
 !
 ! 천사티비 (https://1004sweet.com/)
@@ -1877,6 +1895,21 @@ xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 xn--3r0b51bq29a.com##li.off.menu-li:nth-of-type(9)
 ! - 일부 이미지 복원
 @@||xn--3r0b51bq29a.com/img/*$image
+!
+!
+! 레드썬 (https://www.redsun58.com/)
+! - 일부 이미지 복원
+@@||redsun*.com/img/*$image
+!
+!
+! 레드썬 (https://www.redsun58.com/)
+! - 광고 스킵
+##.playerads
+!
+!
+! 야한TV (https://www.yatv16.me/)
+! - 영상 광고 이미지
+||www.yatv*.me/ad.jpg
 !
 !
 ! 레드캣야동 (https://xn--2q1b5s99ew6tyyk.com/) (https://redcattv9.com/)
@@ -2476,15 +2509,16 @@ zeta-ai.io##.pointer-events-none
 @@||tvx*.com/wp-content/uploads/*$image
 @@||*wiki.tv/wp-content/uploads/*$image
 @@||javhd.icu/wp-content/uploads/*$image
-@@javgiga.vip/wp-content/uploads/*$image
-@@javpark.net/wp-content/uploads/*$image
-@@javtorrent.me/wp-content/uploads/*$image
-@@javopen.co/wp-content/uploads/*$image
-@@javlast.com/wp-content/uploads/*$image
-@@hqav.net/wp-content/uploads/*$image
-@@avpink*.com/wp-content/uploads/*$image
-@@xxjoa*.com/wp-content/uploads/*$image
-@@javrider.com/wp-content/uploads/*$image
+@@||javgiga.vip/wp-content/uploads/*$image
+@@||javpark.net/wp-content/uploads/*$image
+@@||javtorrent.me/wp-content/uploads/*$image
+@@||javopen.co/wp-content/uploads/*$image
+@@||javlast.com/wp-content/uploads/*$image
+@@||hqav.net/wp-content/uploads/*$image
+@@||avpink*.com/wp-content/uploads/*$image
+@@||xxjoa*.com/wp-content/uploads/*$image
+@@||javrider.com/wp-content/uploads/*$image
+@@||avjoa*.com/wp-content/uploads/*$image
 !
 !
 !
@@ -2692,6 +2726,12 @@ naverccrp.com##*
 ! 꽁가네 (https://ggonggane.com/)
 ! 배팅타임 (https://bttime.net/)
 ! 주소킹 (https://kking12.com/)
+! 마틴의정석 (http://www.martinpick.co.kr/)
+! 먹튀크라임 (https://mt-crime888.com/)
+! 먹튀해병대 (https://mt-rokmc8888.com/)
+! 토캅스 (https://tocops.net/)
+! 스포츠인포 (https://sportsinfonow.com/)
+! 카지노검사 (https://casinogumsa.com/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -2890,6 +2930,13 @@ xn--w-wp0g96e.com##*
 ggonggane.com##*
 bttime.net##*
 [$domain=/^kking\d+.com/]##*
+www.martinpick.co.kr##*
+[$domain=/^mt-crime\d+.com/]##*
+[$domain=/^mt-rokmc\d+.com/]##*
+tocops.net##*
+sportsinfonow.com##*
+casinogumsa.com##*
+
 
 
 
@@ -3301,7 +3348,17 @@ bullionglidingscuttle
 ||2443march2024.com^
 ||cdn1cloudflare.xyz^
 ||sandwichconscientiousroadside.com^
-
+||trafficfactory.biz^
+||admax.me^
+||helpscout.help^
+||csp.godaddy.com^
+||uribrotv.com^
+||astarsbuilding.com^
+||77026.bodis.com^
+||img.iacstatic.co.kr^
+||log.trend.rankify.best^
+||ednplus.com^
+||addc.dcinside.com^
 
 
 
@@ -3329,6 +3386,7 @@ bullionglidingscuttle
 @@ext.fmkorea.com/files/attach/$subdocument
 @@mediak5jvqbd.fmkorea.com/files/attach/$subdocument
 @@chzzk.naver.com/embed/clip/$subdocument
+@@vod.sooplive.co.kr/player/$subdocument
 @@litter.catbox.moe$subdocument
 
 ! - - - 예외 (영상 안나옴) (https://linkkf.net/)
@@ -3358,7 +3416,7 @@ bullionglidingscuttle
 ! - - - 예외 (라이브 방송 안나옴) (메시티비 등 스포츠방송) (https://messitv8.com/)
 !@@bigwin.livenst.com/messitv/livescore/livescore/$subdocument
 @@bigwin.livenst.com/*$subdocument
-@@speed10-7.com/*$subdocument
+@@speed10-*.com/*$subdocument
 @@streamk.co.kr/*$subdocument
 @@liventv.com/player$subdocument
 
@@ -3427,6 +3485,11 @@ bullionglidingscuttle
 @@xxjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
 @@javplayers.com/video/$subdocument
 @@jamakyadong.me/jwplayer/$subdocument
+@@avsee.ru/player/$subdocument
+@@yanovideos.com/videos/$subdocument
+@@sendvid.com/embed/$subdocument
+@@newer.stream$subdocument
+@@avjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
 
 
 ! - - -  javmis.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
