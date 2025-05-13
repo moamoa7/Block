@@ -3316,8 +3316,10 @@ bullionglidingscuttle
 
 ! - - - 예외 (날씨 정보 안나옴) (기상청)
 @@weather.go.kr/w/weather/local/current-frame.do$subdocument
+
 ! - - - 예외 (로그인 안됨) (https://tving.com)
 @@user.tving.com$subdocument
+
 ! - - - 게시물 SNS 삽입 (theqoo.net 등)
 @@youtube.com/embed$subdocument
 @@platform.twitter.com/embed/$subdocument
@@ -3328,11 +3330,13 @@ bullionglidingscuttle
 @@mediak5jvqbd.fmkorea.com/files/attach/$subdocument
 @@chzzk.naver.com/embed/clip/$subdocument
 @@litter.catbox.moe$subdocument
+
 ! - - - 예외 (영상 안나옴) (https://linkkf.net/)
 @@linkkf.net$subdocument
 @@krid.myani.app$subdocument
 @@g2.myani.app$subdocument
 @@play.sub3.top$subdocument
+
 ! - - -  영상 안나옴 (POOOO.ml)
 @@ok.ru/videoembed$subdocument
 @@poooo.ml/chat$subdocument
@@ -3343,9 +3347,13 @@ bullionglidingscuttle
 @@imbc.com/MbicLive/$subdocument
 @@chzzk.naver.com/live/$subdocument
 @@player.twitch.tv$subdocument
+
 ! - - - 예외 (라이브 방송 안나옴) (https://tv.kakao.com/)
 @@tv.kakao.com/chat/livechat/$subdocument
 @@tv.kakao.com/embed/player/$subdocument
+
+! - - - 예외 (영상 안나옴) (티비위키/티비몬/티비핫)
+@@player.bunny-frame.online$subdocument
 
 ! - - - 예외 (라이브 방송 안나옴) (메시티비 등 스포츠방송) (https://messitv8.com/)
 !@@bigwin.livenst.com/messitv/livescore/livescore/$subdocument
