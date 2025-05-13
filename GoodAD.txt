@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051203
+! Version: 25051301
 !
 !
 !
@@ -285,7 +285,9 @@ wiki.dcinside.com##*
 !
 ! 에펨코리아 (https://www.fmkorea.com/)
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
-fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
+!fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
+! - 아프리카 탭 게시물 중 VOD iframe 없애기
+fmkorea.com##.video-container
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
@@ -293,51 +295,53 @@ fmkorea.com###fm_alert
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
-www.etoland.co.kr###main_popup
+etoland.co.kr###main_popup
 ! - 로그인 팝업
-www.etoland.co.kr###login_popup
+etoland.co.kr###login_popup
 ! - 왼쪽 통합검색 바로 아래 배너
 ##.banner-box
 ! - 오늘의 HIT 아래 상담실 등 배너
-www.etoland.co.kr###consult_list
+etoland.co.kr###consult_list
 ! - 무료충전소
-www.etoland.co.kr##.reward_v2
+etoland.co.kr##.reward_v2
 ! - 최신 댓글
-www.etoland.co.kr###main_latest_comment
+etoland.co.kr###main_latest_comment
 ! - 왼쪽 비밀 상점
-www.etoland.co.kr##.secret_aside_box
+etoland.co.kr##.secret_aside_box
 ! - 알뜰 공간
-www.etoland.co.kr##.market.menu_wrapper
+etoland.co.kr##.market.menu_wrapper
 ! - 스폰서
-www.etoland.co.kr##.sponsor.menu_wrapper
+etoland.co.kr##.sponsor.menu_wrapper
 ! - 오른쪽 상단 텍스트 배너
-www.etoland.co.kr##.v2_top_menu_right
+etoland.co.kr##.v2_top_menu_right
 ! - 포인트 승부 예측
-www.etoland.co.kr##.box.sports-bet-section
+etoland.co.kr##.box.sports-bet-section
 ! - 승부 예측
-www.etoland.co.kr##.box.main-sports
+etoland.co.kr##.box.main-sports
 ! - 회원 랭킹
-www.etoland.co.kr##section.box:nth-of-type(7)
+etoland.co.kr##section.box:nth-of-type(7)
 ! - 각 게시판 배너
 !||www.etoland.co.kr/data/daumeditor10/*$image
-www.etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
+etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
+! - 이토랜드 광고 게시물 배너
+||*/img/market/ajd/ajd_banner*$image
 ! - 포인트 충전소 이미지 복원 (List-KR 무력화)
 @@||www.etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
-www.etoland.co.kr###underGoodBtn_freeRecharge
+etoland.co.kr###underGoodBtn_freeRecharge
 ! - 게시물 글 상단 비밀상점 광고글 (PC)
-www.etoland.co.kr##.ad_list.hit_item
+etoland.co.kr##.ad_list.hit_item
 ! - 게시물 글 상단 비밀상점 광고글 (모바일)
-www.etoland.co.kr##.view_content_top_ad_v1
+etoland.co.kr##.view_content_top_ad_v1
 ! - 게시물 내 댓글 광고글 (모바일)
-www.etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
+etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
 ! - 최신글 (NEW) 감추기
 ! - - - PC
-www.etoland.co.kr##.freebbs_latest_list_section
+etoland.co.kr##.freebbs_latest_list_section
 ! - - - 모바일
-www.etoland.co.kr###latest_m_main
+etoland.co.kr###latest_m_main
 ! - 실시간 정보 게시판 감추기 (모바일)
-www.etoland.co.kr###info_recent_list_wrap
+etoland.co.kr###info_recent_list_wrap
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
@@ -432,7 +436,8 @@ ppomppu.co.kr##div:nth-of-type(7)
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]#@#.notice
 ! - - - 참고 (공지글 사라짐)
 !theqoo.net#@#.notice
-
+! - - - 예외 (공지글 제목 안보임
+cineaste.co.kr#@#.notice
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -1251,6 +1256,13 @@ bananamall.co.kr###pop_gevent
 showdang.co.kr##.box
 !
 !
+! 앱스토리몰 (https://c.appstory.co.kr/)
+! - 오른쪽 사이드 팝업
+c.appstory.co.kr###modalPreventExit
+! - 오른쪽 배너
+##.right_banner
+!
+!
 !!! 옥션 (https://www.auction.co.kr) / 지마켓 (https://www.gmarket.co.kr/)
 ! -  배너 나오게 (따로 필터에서 막아 놓지 않아서 할 필요 없음)
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
@@ -1271,10 +1283,11 @@ danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-midd
 ! - - - DNS에서 차단되어 있을 수 있으므로 확인 필요
 ! - - - Ghostery 사용시 Custom Filters에 아래 4개 입력 필요
 @@||ssl.pstatic.net/tveta/libs/
+! - 위 규칙은 치지직/ 네이버쇼핑 등 같이 사용됨
 @@||ad.danawa.com
-@@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
+!@@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 ! - - - - - YousList
-#@#iframe[src*="/RealMedia/ads/"]
+!#@#iframe[src*="/RealMedia/ads/"]
 !
 !
 ! 당근 (https://www.daangn.com/)
@@ -1466,6 +1479,11 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ||*/pink_*/img/*-1200x300*$important
 !
 !
+! ManyMV (https://manymv.com/)
+! - 이미지 복원
+@@||img.manyse.com/img/*$image
+!
+!
 ! AVDBS (https://www.avdbs.com/)
 ! - 이미지 복원
 !- - - ||*.com/img/*
@@ -1480,6 +1498,11 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! MISSAV (https://missvod2.com/)
 ! - 배너
 [$domain=/^missvod\d+.com/]###banner-list.banner-list
+!
+!
+! https://tojav.net/
+! - 팝업 방지
+exodusjailhousetarantula.com$popup
 !
 !
 ! https://javbar.com/
@@ -2325,6 +2348,8 @@ novelpia.com##.modal_background
 ##.cookie-wrapper
 ! - 연간 할인 혜택 팝업
 mypikpak.com##.coupon-tips-overlay.el-overlay
+! - 연간 할인 탑 배너
+mypikpak.com##.coupon-top-banner
 !
 !
 ! SPEEDTEST (https://www.speedtest.net/
@@ -2428,6 +2453,13 @@ zeta-ai.io##.pointer-events-none
 @@||liteapks.com/wp-content/uploads/*$image
 @@||tvx*.com/wp-content/uploads/*$image
 @@||*wiki.tv/wp-content/uploads/*$image
+@@||javhd.icu/wp-content/uploads/*$image
+@@javgiga.vip/wp-content/uploads/*$image
+@@javpark.net/wp-content/uploads/*$image
+@@javtorrent.me/wp-content/uploads/*$image
+@@javopen.co/wp-content/uploads/*$image
+@@javlast.com/wp-content/uploads/*$image
+@@hqav.net/wp-content/uploads/*$image
 !
 !
 !
@@ -3205,3 +3237,126 @@ DNS
 ||logs-partners.coupang.com^
 ||adingo.jp^
 ||loader.fmkorea.com^
+
+
+
+
+
+
+
+
+
+
+
+
+!25.05.09 032239
+!25.05.13  14 14 16
+
+
+
+
+
+*$subdocument
+! - - -  예외 (캡챠 로그인 안됨) (avsee.ru 등)
+@@challenges.cloudflare.com$subdocument
+! - - - 예외 (날씨 정보 안나옴) (기상청)
+@@weather.go.kr/w/weather/local/current-frame.do$subdocument
+! - - - 예외 (로그인 안됨) (https://tving.com)
+@@user.tving.com$subdocument
+! - - - 게시물 SNS 삽입 (theqoo.net 등)
+@@youtube.com/embed$subdocument
+@@platform.twitter.com/embed/$subdocument
+@@instagram.com/*/embed/$subdocument
+! - - - 게시물 삽입 (포모스)
+@@media.fmkorea.com/files/attach/$subdocument
+@@ext.fmkorea.com/files/attach/$subdocument
+@@mediak5jvqbd.fmkorea.com/files/attach/$subdocument
+@@chzzk.naver.com/embed/clip/$subdocument
+@@litter.catbox.moe$subdocument
+! - - - 예외 (영상 안나옴) (https://linkkf.net/)
+@@linkkf.net$subdocument
+@@krid.myani.app$subdocument
+@@g2.myani.app$subdocument
+@@play.sub3.top$subdocument
+! - - -  영상 안나옴 (POOOO.ml)
+@@ok.ru/videoembed$subdocument
+@@poooo.ml/chat$subdocument
+@@player.kick.com$subdocument
+@@nimo.tv/embed$subdocument
+@@player.angelthump.com$subdocument
+@@ssh101.com/securelive$subdocument
+@@imbc.com/MbicLive/$subdocument
+@@chzzk.naver.com/live/$subdocument
+@@player.twitch.tv$subdocument
+! - - - 예외 (라이브 방송 안나옴) (https://tv.kakao.com/)
+@@tv.kakao.com/chat/livechat/$subdocument
+@@tv.kakao.com/embed/player/$subdocument
+! - - - 예외 (라이브 방송 안나옴) (메시티비) (https://messitv8.com/)
+@@bigwin.livenst.com/messitv/livescore/livescore/$subdocument
+@@liventv.com/player$subdocument
+! - - - 영상 안나옴 (성인 영상)
+@@supremejav.com$subdocument
+@@emturbovid.com$subdocument
+@@fc2stream.tv$subdocument
+@@streamtape.com$subdocument
+@@voe.sx$subdocument
+@@mariatheserepublican.com$subdocument
+@@javggvideo.xyz$subdocument
+@@javlion.xyz$subdocument
+@@javsw.me$subdocument
+@@7tv*.com$subdocument
+@@mmvh*.xyz$subdocument
+@@mmsi*.xyz$subdocument
+@@7mmtv.upns.live$subdocument
+@@tapewithadblock.org$subdocument
+@@iframe.mediadelivery.net$subdocument
+@@5masterzzz.site$subdocument
+@@stbturbo.xyz$subdocument
+@@stbhg.click$subdocument
+@@ryderjet.com$subdocument
+@@vidply.com$subdocument
+@@do7go.com$subdocument
+@@streamtape.net$subdocument
+@@listeamed.net$subdocument
+@@player.upn.one$subdocument
+@@streamwish.to$subdocument
+@@swiftplayers.com$subdocument
+@@vgembed.com$subdocument
+@@strtape.cloud$subdocument
+@@iplayerhls.com$subdocument
+@@turbovid.xyz$subdocument
+@@mycloudz.cc$subdocument
+@@cloudwish.xyz$subdocument
+@@streambeast.upn.one$subdocument
+@@lulustream.live$subdocument
+@@dooood.com$subdocument
+@@all3do.com$subdocument
+@@javtiktok.site$subdocument
+@@javhahaha.us$subdocument
+@@filemoon.to$subdocument
+@@zpjid.com$subdocument
+@@luluvdoo.com$subdocument
+@@stream.javtiful.to$subdocument
+@@javfinder.ai/player$subdocument
+@@javdoe.to/player$subdocument
+@@javsky.tv/player$subdocument
+@@javfree.sh/player$subdocument
+@@streamtape.to$subdocument
+@@embedwish.com$subdocument
+@@filemoon.sx$subdocument
+@@dhcplay.com$subdocument
+! - - -  javmis.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴
+@@javmis.com$subdocument
+@@lulu.st$subdocument
+@@javplayer.me$subdocument
+@@javfhd.org$subdocument
+@@avideos.net$subdocument
+@@javedit.com/*/Player/$subdocument
+@@cndstream.xyz$subdocument
+@@jav.sb/static/player/$subdocument
+
+
+
+
+! - - - 예외 (영상 안나옴) (https://fc1adult.com/live/mult_view)
+@@live.fc2.com/embedPlayer/$subdocument
