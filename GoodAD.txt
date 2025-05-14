@@ -33,11 +33,6 @@
 !
 !
 !
-! 애드가드 스텔스 모드 해제
-@@||*^$stealth
-!
-!
-!
 !!! 트위치 등 일부 사이트 무한 로딩 발생으로 인한 애드가드 갤러리 필터 해제
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 #@%#//scriptlet('prevent-fetch', 'doubleclick.net')
@@ -49,7 +44,14 @@
 !
 !
 !
-! 구글 안티 애드블럭
+!!! 클라우드플레어 캡챠 무한 로딩 등 문제 해결
+! - - - 애드가드 스텔스 모드 해제
+!@@||challenges.cloudflare.com^$stealth
+!@@||*^$stealth
+!
+!
+!
+!!! 구글 안티 애드블럭
 ! - uBlock filters – Ads
 #@#[class^="div-gpt-ad"]
 #@#[id^="div-gpt-ad"]
@@ -57,6 +59,12 @@
 ##[class^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"])
 ##div[id^="div-gpt-"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
 ##[id^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
+!
+!
+!
+!!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
+! -출처 : Adblock-Rule-Collection-Lite
+||jsdelivr.net/npm/disable-devtool
 !
 !
 !
@@ -68,12 +76,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-slot]
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
 ! YousLis 무력화
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
-!
-!
-!
-!!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
-! -출처 : Adblock-Rule-Collection-Lite
-||jsdelivr.net/npm/disable-devtool
 !
 !
 !
@@ -363,6 +365,8 @@ inven.co.kr###invenAppSuggestion
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
+! - 댓글 바로 위 텍스트 배너?
+mlbpark.donga.com##.nocnt.items
 ! - 따라다니는 메뉴버튼 (모바일)
 mlbpark.donga.com##.bt_menu_wrap
 ! - 맨 밑 하단 TODAY BEST BULLPEN 5번과 6번 사이 공간 없애기
