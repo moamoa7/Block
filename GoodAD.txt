@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051303
+! Version: 25051401
 !
 !
 !
@@ -300,6 +300,9 @@ fmkorea.com###fm_alert
 etoland.co.kr###main_popup
 ! - 로그인 팝업
 etoland.co.kr###login_popup
+! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+##[src*="/data/daumeditor"]
 ! - 왼쪽 통합검색 바로 아래 배너
 ##.banner-box
 ! - 오늘의 HIT 아래 상담실 등 배너
@@ -949,6 +952,19 @@ ppmantv.com##li.dropdown:nth-of-type(8)
 ###uchatDom
 !
 !
+! 토토일보 (https://totoilbo01.com/)
+! - 전체 배너 이미지 (일부 안지워져도 되는 이미지도 같이 삭제됨 )
+||*/data/file/sitereview/*$image
+! - 이미지 일부 복원
+@@||totoilbo*.com/img/*$image
+!
+!
+! 토토마켓 (https://www.totomarket01.net/)
+! 먹튀모아 (https://www.mtmoa02.net/)
+! - 배너 이미지
+||*.net/banner/*
+!
+!
 ! 먹튀중개소 (https://www.mukjungso.com/)
 ! 배너
 ###banner_top_wrap
@@ -1402,6 +1418,9 @@ cgv.co.kr##.btnLinkFixed
 ! - - -  밍키넷 (https://mingky.net/)
 ##[target='_blank']:has([src*='.gif'])
 ##[target='_blank']:has([src$='.gif'])
+! - - - - - 예외
+topporn.link#@#[target="_blank"]:has([src$=".gif"])
+topporn.link#@#[target="_blank"]:has([src*=".gif"])
 ! - - - imgs 경로로 지정한 규칙 (List-KR)
 ##.main-box:has(img[src^="/imgs/"])
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
@@ -1530,6 +1549,18 @@ javlemon.com##center
 javlemon.com##.hbrAPNSz
 !
 !
+! 크레이지팬스 (https://01.crazy.fans/)
+! - 상단 배너 이미지
+||cdn.crazy.fans/ad/*
+! - 상단 배너 공간
+[$domain=/^\d+.crazy.fans/]##div.grid-wrapper:nth-of-type(3)
+!
+!
+! TOKYO Motion (https://www.tokyomotion.net/)
+! - 이미지 복원
+@@||cdn.tokyo-motion.net/img/logo.gif
+!
+!
 ! https://loopholes.site/
 ! - 상단 텍스트 배너
 ! - - -  사이트 주소 안넣으면 다른 사이트에서 텍스트가 사라짐 (예 : https://dramaday.me/ 오른쪽 하단 텍스트가 사라짐)
@@ -1649,10 +1680,17 @@ campaign2.naver.com#@#[class*="popup"]
 ! 천사티비 (https://1004sweet.com/)
 ! https://minkch.com/
 ! - 배너 이미지
-! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-##.external
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt (현재는 삭제됨)
+! - - - - - ##.external 단독사용시 타 사이트에서 텍스트 안나옴 (예: https://bestjapanesepornsites.com/)
+1004sweet.com##.external
 ! - 영상 상단 텍스트 배너
-##.da-above
+1004sweet.com##.da-above
+! - 업소추천 글자
+1004sweet.com##li:nth-of-type(3)
+! - 제휴광고 글자
+1004sweet.com##div.col-25:nth-of-type(4)
+! - 커뮤니티/메시지/공지사항 공지 및 배너 광고
+1004sweet.com##.swip-ticker
 !
 !
 ! 조개파티 (https://jogaeparty139.com/)
@@ -2042,6 +2080,11 @@ yadongmarket.com##.footer
 hitomi.la###immersive-translate-popup
 !
 !
+! OnlyFans资源社 (https://of996.com/)
+! - 왼쪽  떠다니는 메뉴
+[$domain=/^of\d+.com/]##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximize.ftwp-wrap
+!
+!
 ! 주소월드 (https://wdwd7.com/)
 ! - 배너
 ##.banner_list.at-container
@@ -2097,6 +2140,8 @@ mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
 [$domain=/^linklove\d+.com/]##.w-box
 ! - - -  주소파워 (https://linkpower27.com/)
 [$domain=/^linklove\d+.com/],[$domain=/^linkpower\d+.com/]##.miso-love-ad
+! - 먹튀검증 글자
+[$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(7)
 !
 !
 ! 여기요 (https://www.yugiyu.com/)
@@ -2519,6 +2564,10 @@ zeta-ai.io##.pointer-events-none
 @@||xxjoa*.com/wp-content/uploads/*$image
 @@||javrider.com/wp-content/uploads/*$image
 @@||avjoa*.com/wp-content/uploads/*$image
+@@||pornavhd.com/wp-content/uploads/*$image
+@@||aimeimei*.com/wp-content/uploads/$image
+@@||of*.com/wp-content/uploads/$image
+@@||bestjapanesepornsites.com/wp-content/uploads/$image
 !
 !
 !
@@ -2732,6 +2781,76 @@ naverccrp.com##*
 ! 토캅스 (https://tocops.net/)
 ! 스포츠인포 (https://sportsinfonow.com/)
 ! 카지노검사 (https://casinogumsa.com/)
+! 오피맵 (https://map20.opmap.co/)
+! 먹튀그램 (https://xn--2i0bt7pj4bk44b.com/)
+! 주소야 (https://jusoya02.com/)
+! 주소나라 (https://jusonara.net/)
+! 먹튀안내소 (https://xn--220bn4p04fh5doxu.com/)
+! 먹튀클럽 (https://xn--dm2bx4b269a41b.com/)
+! 토토일보 (https://totoilbo01.com/)
+! 슈어랭킹 (https://sureranking.net/)
+! 토토콕 (https://totocok.net/)
+! 토토패치 (https://ttpat.com/)
+! 먹튀와이 (https://mtwhy.com/)
+! 먹튀위크 (https://mtweek.com/)
+! 먹튀검문소 (https://mt-gms11.com/)
+! 벳코넷 (https://betkor.net/)
+! 토팡 (https://topang119.net/)
+! 놀이터복 (https://tototobog.com/)
+! 코스토토 (https://www.costoto.com/)
+! 중고천국 (https://usedheaven.com/)
+! 먹튀폴리스 (https://mtpolice.kr/)
+! 카그램 (https://cagram3.com/)
+! 벳어게인 (https://bbagain2.net/)
+! 세이프114 (http://www.tosafe114.com/)
+! 온카판 (https://oncapan.com/)
+! 카지노777 (https://www.casinosite777.top/)
+! 먹튀그램 (https://mt-gram.com/)
+! 꽁나라 (https://ggongnara.com/)
+! 벳클 (https://www.betcle.com/)
+! 토토마켓 (https://www.totomarket01.net/)
+! 에이블토토 (https://www.ablewebpro.com/)
+! 먹치트 (https://xn--p22b018a99c.com/)
+! 먹튀모아 (https://www.mtmoa02.net/)
+! 빅뱅 (https://prosport365.com/)
+! 먹튀크롤풍 (https://www.sftbmj.net/)
+! 부산오피 (https://anca8.com/)
+! 먹튀방범대 (https://mtb36524.com/)
+! 안전놀이터 (https://www.thevillagenewcairo.com/)
+! 먹튀몰 (https://muktimall.net/)
+! 카지노프렌즈 (https://casinofriends777.com/)
+! 실베터 (https://sbt119.com/)
+! 먹튀블러드 (https://www.mt-blood.com/)
+! 먹튀갤 (https://mtgal.com/)
+! 베스트토토 (https://www.lenezeouge.com/)
+! 먹튀클린 (https://mtclean.blog/)
+! 먹튀스파이 (https://www.mt-spy.net/)
+! 먹튀레벨 (https://mtlevel.com/)
+! 토뮤 (https://tomuniti.net/)
+! 토린이 (https://torinii.com/)
+! 먹튀로얄 (https://mtroyale02.com/)
+! 비노드 (https://bnode.org/)
+! 토토힐 (https://totohill.net/)
+! 먹튀킬 (https://mrunkill.com/)
+! 꽁프로 (https://ggongpro.net/)
+! 토토왕국2 (https://ttkdom.com/)
+! 토토은가비 (https://fsttoto.net/)
+! 굿앤럭토토 (https://daejangto.net/)
+! 블랙 K (https://vv-ca.com/)
+! 카토커 (https://catoker.com/)
+! 토토명가 (https://www.win-toto.com/)
+! 카본 (https://cabon119.com/)
+! 토토본가 (https://tobon119.com/)
+! 토토명가 (https://www.win-toto.com/)
+! 오피가이드 (https://opga035.com/)
+! 부산달리기 (https://budal10.net/)
+! 오피아트 (https://dkxm7.com/)
+! 아이러브밤 (https://albam8.com/)
+! 대경의 밤 (https://eorn2.com/)
+! 건마바다 (https://www.gunmabada.com/)
+! 부산비비기 (https://xn--or3b2n.net/) (https://busanb36.net/)
+! 건마시티 (https://gunmacity.com/)
+! 즐거운달리기 (https://ubub-6.com/)
 slotbada.com##*
 worldslot.net##*
 www.dajaba.net##*
@@ -2806,7 +2925,7 @@ www.newlink.me##*
 www.joosolink.com##*
 [$domain=/^link-on\d+.com/]##*
 [$domain=/^lfman\d+.net/]##*
-[$domain=/^linklove\d+.com/]##*
+![$domain=/^linklove\d+.com/]##*
 xn--9y2bs1phyk.com##*
 www.yugiyu.com##*
 xn--9l4b15e2td.com##*
@@ -2936,6 +3055,78 @@ www.martinpick.co.kr##*
 tocops.net##*
 sportsinfonow.com##*
 casinogumsa.com##*
+[$domain=/^map\d+.opmap.co/]##*
+xn--2i0bt7pj4bk44b.com##*
+[$domain=/^jusoya\d+.com/]##*
+jusonara.net##*
+xn--220bn4p04fh5doxu.com##*
+xn--dm2bx4b269a41b.com##*
+[$domain=/^totoilbo\d+.com/]##*
+sureranking.net##*
+totocok.net##*
+ttpat.com##*
+mtwhy.com##*
+mtweek.com##*
+[$domain=/^mt-gms\d+.com/]##*
+betkor.net##*
+topang119.net##*
+tototobog.com##*
+www.costoto.com##*
+usedheaven.com##*
+mtpolice.kr##*
+[$domain=/^cagram\d+.com/]##*
+[$domain=/^bbagain\d+.net/]##*
+www.tosafe114.com##*
+oncapan.com##*
+www.casinosite777.top##*
+mt-gram.com##*
+ggongnara.com##*
+www.betcle.com##*
+[$domain=/^www.totomarket\d+.net/]##*
+www.ablewebpro.com##*
+xn--p22b018a99c.com##*
+[$domain=/^www.mtmoa\d+.net/]##*
+prosport365.com##*
+www.sftbmj.net##*
+[$domain=/^anca\d+.com/]##*
+mtb36524.com##*
+www.thevillagenewcairo.com##*
+muktimall.net##*
+casinofriends777.com##*
+sbt119.com##*
+www.mt-blood.com##*
+mtgal.com##*
+www.lenezeouge.com##*
+mtclean.blog##*
+www.mt-spy.net##*
+mtlevel.com##*
+tomuniti.net##*
+torinii.com##*
+[$domain=/^mtroyale\d+.com/]##*
+bnode.org##*
+totohill.net##*
+mrunkill.com##*
+ggongpro.net##*
+ttkdom.com##*
+fsttoto.net##*
+daejangto.net##*
+vv-ca.com##*
+catoker.com##*
+www.win-toto.com##*
+cabon119.com##*
+tobon119.com##*
+www.win-toto.com##*
+[$domain=/^opga\d+.com/]##*
+[$domain=/^budal\d+.net/]##*
+[$domain=/^dkxm\d+.com/]##*
+[$domain=/^albam\d+.com/]##*
+[$domain=/^eorn\d+.com/]##*
+www.gunmabada.com##*
+xn--or3b2n.net##*
+[$domain=/^busanb\d+.net/]##*
+gunmacity.com##*
+[$domain=/^ubub-\d+.com/]##*
+
 
 
 
@@ -3359,6 +3550,36 @@ bullionglidingscuttle
 ||log.trend.rankify.best^
 ||ednplus.com^
 ||addc.dcinside.com^
+||3gl.net^
+||evgnet.com^
+||fp.msedge.net^
+||targetpush.co.kr^
+||adballoon.sooplive.co.kr^
+||benchmark.1e100cdn.net^
+||uniquely-peaceful-hagfish.edgecompute.app^
+||serverless-benchmarks-rust.compute-pipe.com^
+||serverless-benchmarks-js.compute-pipe.com^
+||sentifi.com^
+||likebtn.com^
+||webvisor.org^
+||staticfile.net^
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3369,10 +3590,6 @@ bullionglidingscuttle
 ! - - -  예외 (캡챠 로그인 안됨) (avsee.ru 등)
 @@challenges.cloudflare.com$subdocument
 @@recaptcha.net/recaptcha/api2/$subdocument
-
-
-! - - - 예외 (날씨 정보 안나옴) (기상청)
-@@weather.go.kr/w/weather/local/current-frame.do$subdocument
 
 ! - - - 예외 (로그인 안됨) (https://tving.com)
 @@user.tving.com$subdocument
@@ -3490,6 +3707,8 @@ bullionglidingscuttle
 @@sendvid.com/embed/$subdocument
 @@newer.stream$subdocument
 @@avjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
+@@playrecord.biz/embed/$subdocument
+
 
 
 ! - - -  javmis.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
