@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051401
+! Version: 25051402
 !
 !
 !
@@ -3598,6 +3598,7 @@ bullionglidingscuttle
 @@youtube.com/embed$subdocument
 @@platform.twitter.com/embed/$subdocument
 @@instagram.com/*/embed/$subdocument
+@@tiktok.com/embed$subdocument
 ! - - - 게시물 삽입 (포모스)
 @@media.fmkorea.com/files/attach/$subdocument
 @@ext.fmkorea.com/files/attach/$subdocument
