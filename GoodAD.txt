@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051402
+! Version: 25051501
 !
 !
 !
@@ -30,6 +30,11 @@
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
+!
+!
+!
+! 애드가드 스텔스 모드 해제
+@@||*^$stealth
 !
 !
 !
