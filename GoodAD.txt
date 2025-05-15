@@ -467,7 +467,7 @@ clien.net##.active.button_sidemenu
 ! - 오른쪽 스크롤도구
 damoang.net##.d-block
 ! - 이미지 복구
-@@||cdn.damoang.net//data/editor/*$image
+@@||damoang.net//data/editor/*$image
 @@||cdn.damoang.net/img/*$image
 !
 !
@@ -1223,6 +1223,12 @@ tdosa.net###bo_gallery
 ! 온도티비 (https://01.ondotv.com/)
 ! - 배너
 ##.basic-banner-4
+!
+!
+! 기상청 (https://www.weather.go.kr/)
+! - 날씨정보 가끔 안나오는거 해결
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
+!@@weblog.kma.go.kr^
 !
 !
 ! MTN 머니투데이 (https://mtn.co.kr/)
@@ -3298,7 +3304,6 @@ DNS
 ||statetc.nate.com^
 ||searchad-phinf.pstatic.net^
 ||scv-cafe.io.naver.com^
-||weblog.kma.go.kr^
 ||ads-api.x.com^
 ||utsgw.auction.co.kr^
 ||ats.auction.co.kr^
