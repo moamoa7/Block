@@ -3606,6 +3606,7 @@ bullionglidingscuttle
 ! - - - 게시물 SNS 삽입 (theqoo.net 등)
 @@youtube.com/embed$subdocument
 @@platform.twitter.com/embed/$subdocument
+@@platform.twitter.com/widgets/widget_iframe$subdocument
 @@instagram.com/*/embed/$subdocument
 @@tiktok.com/embed$subdocument
 ! - - - 게시물 삽입 (포모스)
