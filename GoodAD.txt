@@ -28,7 +28,7 @@
 !
 !!! 애드가드 문제 해결 (스텔스 모드 해제)
 !@@||challenges.cloudflare.com^$stealth
-@@||*^$stealth
+@@||*$stealth
 !
 !
 !
@@ -2594,3 +2594,738 @@ zeta-ai.io##.pointer-events-none
 @@||of*.com/wp-content/uploads/$image
 @@||bestjapanesepornsites.com/wp-content/uploads/$image
 @@||apkmody.com/wp-content/uploads/$image
+!
+!
+!
+! fake news
+chosun.com##*
+joongang.co.kr##*
+dcnewsj.joins.com##*
+donga.com##*
+mlbpark.donga.com#@#*
+
+www.ilbe.com##*
+!
+!
+!
+! Fissing Site
+!daurn.net##*
+coinnone.net##*
+coinnoinc.com##*
+naverccrp.com##*
+!
+!
+!
+!
+!
+!!! 필요없는거 같은 사이트
+
+! 슬롯바다 (https://slotbada.com/)
+! 월드슬롯 (https://www.worldslot.net/)
+! 다자바 (https://www.dajaba.net/)
+! 토토광 (https://totogwang.com/)
+! 토지노119 (https://mtso19.com/)
+! 칠칠주소 (https://79clf.com/)
+! 배팅의민족 (https://xn--lg3btlr9xf6a104a.com/) (https://119sh.com/)
+! 벳맨 (https://www.betman.co.kr/)
+! 수간 xyz (https://dogsex19.com/)
+! 헌병대 (https://toto-mp.com/)
+! 링크랭킹 (https://www.xn--2j2bk3bo30b3ia.com/) (https://www.lkrk1.com/)
+! 먹튀검증소 (https://mt-gms11.com/)
+! 오피스타 (https://ost07.com/)
+! 바라카중계 (https://bacccarat.com/)
+! 벳프리 (https://www.bfr01.com/)
+!! 라이브스코어 (https://livescore.co.kr/)
+! 헬로밤 (https://hlbam24.com/)
+! 온카픽 (https://oncapick.com/)
+! 오피러브 (https://oplove27.com/)
+! 슈퍼맨티비 (https://smantv5.net/)
+! 링크캣 (https://link-cat2.com/)
+! 주소365(https://www.xn--365-9m5np11a.com/)
+! 동사무소 (https://www.xn--2q1bn3l8xewza.com/)
+! 주소365 (https://www.jooso365a.com/)
+! 여우링크 (https://hdpv5.com/)
+! 주소모아 (https://www.xn--v52b19jw9czye.com/) (https://www.joosomoa1.com/)
+! 링크핫 (https://linkhot01.com/)
+! 주소콕 (https://jusokok10.com/)
+! 주소짱 (https://xn--19-994ju9vb9a.com/) (https://jusozzang05.xyz/)
+! 한국 사이트넷 (https://koreasite123.com/)
+! 링크365 (https://www.xn--365-938mx02g.com/) (https://www.linkm365.com/)
+! 링크코리아 (https://linkcorea1.com/)
+! 링크서치 (https://linksch2.com/)
+! 주소친구 (https://xn--2e0bq59agnfk1f.com/) (https://juchin00.com/)
+! 다모아링크 (https://damoalink.com/)
+! 링크니티 https://linkniti1.com/ (https://lingkniti.com/)
+! 주소골라 (https://jusopick.com/)
+! 링크고 (https://lkg3.com/)
+! 링크몬 (https://lkmon2.com/)
+! 주소코리아 (https://jusokorea.com/)
+! 주소닷컴 (https://xn--9l4b19k.com/)
+! 링크짱 (https://www.xn--9y2bo6lgtg81a81t.com/) (https://www.xn--9y2b290ag0e.net/) (https://www.zzang11.com/)
+! 주소주라 (https://www.jusojula.com/)
+! 난링크 (https://www.nal114.com/) (https://nanlink4.com/)
+! 주소탑 (https://jusotop03.com/)
+! 링크박스 (https://xn--9y2bq6b65if2p.com/) (https://linkbox3.com/)
+! 뉴링크 (https://www.newlink.me/)
+! 링크야 (https://linkya18.com/)
+! 링크세상 (https://link2002.com/)
+! 링크문 (https://www.linkmoon26.com/)
+! 주소요 (https://jusoyo42.com/)
+! 세븐링크 (https://xn--15-9e0jj6lotejx2a.com/)
+! 링크마징가 (https://z10.linkmzg.com/)
+! 싹모아 (https://ssakmoa027.com/)
+! 주소요 (https://xn--36-994jg0o7md.com/)
+! 링찾사 (https://linksearchsite2.com/)
+! 모아쓰 (https://moass18.com/)
+! 올링 (https://alling30.com/)
+! 주소링크 (https://www.joosolink.com/)
+! 링크온 (https://link-on13.com/)
+! 링크포맨 (https://lfman5.net/)
+! 링크사랑 (https://linklove14.com/)
+! 링크썸 (https://xn--9y2bs1phyk.com/)
+! 여기여 (https://www.yugiyu.com/)
+! 야주소 (https://xn--9l4b15e2td.com/)
+! 주소파워 (https://xn--9l4b29g70bpwr.com/) (https://linkpower27.com/)
+! 베링 (https://belink22.com/)
+! 주소모아 (https://jusomoa027.com/)
+! 마이링크 (https://xn--9y2bna416hpwi.net/)
+! 18모아 (https://18moa019.net/)
+! 모아라링크 (http://moaralink3.com/)
+! 링크나와 (https://nawa1.com/)
+! 모아썹 (https://moassup014.com/)
+! 주소왕 (https://juso-king.com/)
+! 링크나라 (https://linknara06.com/)
+! 주소모두 (https://jusomodu8.com/)
+! 주소야 (https://xn--9l4b25e0td.kr/)
+! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/)
+! 레드대피소 (https://red-run.xyz/)
+! 주소 - 링크모음 (https://www.juso.co/)
+! 꽁데이 (https://www.ggongday.com/)
+! 난밤 (https://nan114.com/) (https://nanbam114.com/) (https://nanbam28.com/)
+! 유흥의 종족 (https://yoojong11.com/)
+! 세븐타이 (https://7-thailand.com/)
+! 구미밤마실 (https://gumin.org/)
+! 라리가 (https://laligatoto.com/)
+! 토토코어 (https://totocore01.com/)
+! 슬롯몬 (https://xn--mp2b04br6l.com/)
+! 먹중소 (https://www.mukjungso.com/)
+! 메가슬롯 (https://mega-sc.com/)
+! 스타벅스 (https://xn--ik3bz5iba065l.net/)
+! 빅토리 (https://victory-mt02.com/)
+! 먹튀GG (https://mtgg.net/)
+! 메이저(https://major-top3.com/)
+! 토토CPR (https://totocpr.com/)
+! 먹튀데이 (https://mtday.net/)
+! 빅스포츠 (https://sports-vic03.com/)
+! 먹튀잡자 (https://jobjatv.com/)
+! 주소박스 (https://jusobox44.com/)
+! 링크판 (https://linkpan71.com/)
+! G카지노 (https://gc-09.com/)
+! 다음드 (https://daumd08.net/)
+! 토토쉐어 (https://ttse4.com/)
+! 18모아 (https://18moa026.com/)
+! 링크코리아 (https://linkssakda1.com/)
+! 주소갤러리 (https://jusogall.com/)
+! 링크택시 (https://linktaxi.net/)
+! 주소체크 (https://sitejuso13.com/)
+! 주소팡 (https://jusopang34.com/)
+! 링크봇 (https://linkbot3.com/)
+! 19가이드닷컴 (https://www.19guide03.com/)
+! 야동사거리 (https://www.ydong70.online/)
+! 꽁머니사랑 (https://gonglove6.com/)
+! 노먹튀 (https://nomukti5.com/)
+! 화이트 (https://wt-bc32.com/)
+! 먹튀수호대 (https://mt-toto30.com/)
+! 홀덤포커 (https://pkmt2.com/)
+! 포르노웨이브 (https://pornwavve.com/)
+! 워닝구조대 (https://warning119.com/)
+! KBO블루오션 (https://blueocean.click/)
+! 링크닷컴 (https://linkddd.com/)
+! 토토다운 (https://toto-town07.com/)
+! 벳타민 (https://b-tamin.com/)
+! 베팅구조대 (https://vjvprxm.com/)
+! 최강링크 (https://xn--8-9y5e557at7scqd.com/)
+! 베가스 (https://xn--o39a782abqe.com/)
+! 토찾사 (https://ttcs-1.com/)
+! 토토365 (https://toto365.biz/)
+! 링크365 (https://solo.to/link365) (http://link365-4.kro.kr/)
+! 링크나라 (https://www.linknala.com/)
+! 오피갤 (https://op-gallery22.com/)
+! 오피정복 (https://opjb23.top/)
+! 픽스코어 (https://pickscore119.com/)
+! 주소월드 (https://wdwd7.com/)
+! Tops19 (https://tops114.com/)
+! 토인국 (https://toinkuk.com/)
+! 토스타 (https://xn--9t4b21xfta.com/)
+! 먹튀검증원 (https://mtsaveone.com/)
+! 먹튀노리 (https://wearenoriworld.com/)
+! 토이버 (https://toyver6.com/)
+! 링크114 (https://linktoto114.com/)
+! 순위야 (https://www.sunwiya.com/)
+! 먹튀슈퍼맨 (https://mt-superman.net/)
+! 먹튀해결사 (https://totohks.com/)
+! 먹튀가이드 (https://mt-guide01.com/)
+! 올스포츠 (https://alspo5.net/)
+! 먹튀체크 (https://mtcheck.net/)
+! 네임드 (https://named.com/)
+! 슈어맨 (https://www.sureman.com/)
+! 먹튀검증소 (https://totosave.com/)
+! 토토핫 (https://www.totohot.net/)
+! 라이브맨 (https://liveman.net/)
+! 토토군 (https://totogun.com/)
+! 토토베이 (https://toto-bay.com/)
+! 코리아베팅 (http://ko-bet.com/)
+! 토블리 (https://totovely2.com/)
+! 온카검증소 (https://onca89.com/)
+! 토토왕국 (https://totowgwg.net/)
+! 토토왕뚜껑 (https://toto-wang2.com/)
+! 슈어맨스 (https://suremans3.com/)
+! 먹튀폴리스 (https://www.dazaba.net/)
+! 토토피아 (https://toto-pia.com/)
+! 올인구조대 (https://www.allin42.com/)
+! 꽁타 (https://www.ggongta.com/)
+! 인생도박 (https://dobaklife18.com/)
+! 토진사 (https://tozinsa.com/)
+! 카인사 (https://xn--vf4b97jipg.com/)
+! 카진사 (https://cazinsa.com/)
+! 벳큐 (https://betq2.net/)
+! 파토 (https://www.pato114.net/)
+! 벳조이 (https://www.bet-joy.net/)
+! 골드카지노사이트 (https://www.gooldcasino.com/)
+! 카잘알 (https://www.casinoknow10.com/)
+! 토토룸 (https://totoroom.org/)
+! 지킴이TV (https://jktv24.com/)
+! 토토어택 (https://www.ttattack.com/)
+! 꽁포야 (https://kkongpoya.com/)
+! w툰코 (https://xn--w-wp0g96e.com/)
+! 꽁가네 (https://ggonggane.com/)
+! 배팅타임 (https://bttime.net/)
+! 주소킹 (https://kking12.com/)
+! 마틴의정석 (http://www.martinpick.co.kr/)
+! 먹튀크라임 (https://mt-crime888.com/)
+! 먹튀해병대 (https://mt-rokmc8888.com/)
+! 토캅스 (https://tocops.net/)
+! 스포츠인포 (https://sportsinfonow.com/)
+! 카지노검사 (https://casinogumsa.com/)
+! 오피맵 (https://map20.opmap.co/)
+! 먹튀그램 (https://xn--2i0bt7pj4bk44b.com/)
+! 주소야 (https://jusoya02.com/)
+! 주소나라 (https://jusonara.net/)
+! 먹튀안내소 (https://xn--220bn4p04fh5doxu.com/)
+! 먹튀클럽 (https://xn--dm2bx4b269a41b.com/)
+! 토토일보 (https://totoilbo01.com/)
+! 슈어랭킹 (https://sureranking.net/)
+! 토토콕 (https://totocok.net/)
+! 토토패치 (https://ttpat.com/)
+! 먹튀와이 (https://mtwhy.com/)
+! 먹튀위크 (https://mtweek.com/)
+! 먹튀검문소 (https://mt-gms11.com/)
+! 벳코넷 (https://betkor.net/)
+! 토팡 (https://topang119.net/)
+! 놀이터복 (https://tototobog.com/)
+! 코스토토 (https://www.costoto.com/)
+! 중고천국 (https://usedheaven.com/)
+! 먹튀폴리스 (https://mtpolice.kr/)
+! 카그램 (https://cagram3.com/)
+! 벳어게인 (https://bbagain2.net/)
+! 세이프114 (http://www.tosafe114.com/)
+! 온카판 (https://oncapan.com/)
+! 카지노777 (https://www.casinosite777.top/)
+! 먹튀그램 (https://mt-gram.com/)
+! 꽁나라 (https://ggongnara.com/)
+! 벳클 (https://www.betcle.com/)
+! 토토마켓 (https://www.totomarket01.net/)
+! 에이블토토 (https://www.ablewebpro.com/)
+! 먹치트 (https://xn--p22b018a99c.com/)
+! 먹튀모아 (https://www.mtmoa02.net/)
+! 빅뱅 (https://prosport365.com/)
+! 먹튀크롤풍 (https://www.sftbmj.net/)
+! 부산오피 (https://anca8.com/)
+! 먹튀방범대 (https://mtb36524.com/)
+! 안전놀이터 (https://www.thevillagenewcairo.com/)
+! 먹튀몰 (https://muktimall.net/)
+! 카지노프렌즈 (https://casinofriends777.com/)
+! 실베터 (https://sbt119.com/)
+! 먹튀블러드 (https://www.mt-blood.com/)
+! 먹튀갤 (https://mtgal.com/)
+! 베스트토토 (https://www.lenezeouge.com/)
+! 먹튀클린 (https://mtclean.blog/)
+! 먹튀스파이 (https://www.mt-spy.net/)
+! 먹튀레벨 (https://mtlevel.com/)
+! 토뮤 (https://tomuniti.net/)
+! 토린이 (https://torinii.com/)
+! 먹튀로얄 (https://mtroyale02.com/)
+! 비노드 (https://bnode.org/)
+! 토토힐 (https://totohill.net/)
+! 먹튀킬 (https://mrunkill.com/)
+! 꽁프로 (https://ggongpro.net/)
+! 토토왕국2 (https://ttkdom.com/)
+! 토토은가비 (https://fsttoto.net/)
+! 굿앤럭토토 (https://daejangto.net/)
+! 블랙 K (https://vv-ca.com/)
+! 카토커 (https://catoker.com/)
+! 토토명가 (https://www.win-toto.com/)
+! 카본 (https://cabon119.com/)
+! 토토본가 (https://tobon119.com/)
+! 토토명가 (https://www.win-toto.com/)
+! 오피가이드 (https://opga035.com/)
+! 부산달리기 (https://budal10.net/)
+! 오피아트 (https://dkxm7.com/)
+! 아이러브밤 (https://albam8.com/)
+! 대경의 밤 (https://eorn2.com/)
+! 건마바다 (https://www.gunmabada.com/)
+! 부산비비기 (https://xn--or3b2n.net/) (https://busanb36.net/)
+! 건마시티 (https://gunmacity.com/)
+! 즐거운달리기 (https://ubub-6.com/)
+slotbada.com##*
+worldslot.net##*
+www.dajaba.net##*
+totogwang.com##*
+[$domain=/^mtso\d+.com/]##*
+[$domain=/^\d+.clf.com/]##*
+xn--lg3btlr9xf6a104a.com##*
+119sh.com##*
+betman.co.kr##*
+www.betman.co.kr##*
+[$domain=/^dogbozi\d+.com/]##*
+[$domain=/^dogsex\d+.com/]##*
+toto-mp.com##*
+www.xn--2j2bk3bo30b3ia.com##*
+[$domain=/^www.lkrk\d+.com/]##*
+[$domain=/^mt-gms\d+.com/]##*
+[$domain=/^ost\d+.com/]##*
+bacccarat.com##*
+www.bfr01.com##*
+!livescore.co.kr##*
+[$domain=/^hlbam\d+.com/]##*
+oncapick.com##*
+[$domain=/^oplove\d+.com/]##*
+[$domain=/^smantv\d+.net/]##*
+[$domain=/^link-cat\d+.com/]##*
+www.xn--365-9m5np11a.com##*
+www.xn--2q1bn3l8xewza.com##*
+www.jooso365a.com##*
+[$domain=/^hdpv\d+.com/]##*
+www.xn--v52b19jw9czye.com##*
+[$domain=/^www.joosomoa\d+.com/]##*
+[$domain=/^linkhot\d+.com/]##*
+[$domain=/^jusokok\d+.com/]##*
+xn--19-994ju9vb9a.com##*
+[$domain=/^jusozzang\d+.xyz/]##*
+[$domain=/^koreasite\d+.com/]##*
+www.xn--365-938mx02g.com##*
+[$domain=/^www.linkm\d+.com/]##*
+[$domain=/^linkcorea\d+.com/]##*
+[$domain=/^linksch\d+.com/]##*
+xn--2e0bq59agnfk1f.com##*
+[$domain=/^juchin\d+.com/]##*
+damoalink.com##*
+[$domain=/^linkniti\d+.com/]##*
+lingkniti.com##*
+jusopick.com##*
+[$domain=/^lkg\d+.com/]##*
+[$domain=/^lkmon\d+.com/]##*
+jusokorea.com##*
+xn--9l4b19k.com##*
+www.xn--9y2bo6lgtg81a81t.com##*
+www.xn--9y2b290ag0e.net##*
+[$domain=/^www.zzang\d+.com/]##*
+www.jusojula.com##*
+www.nal114.com##*
+[$domain=/^nanlink\d+.com/]##*
+[$domain=/^jusotop\d+.com/]##*
+xn--9y2bq6b65if2p.com##*
+[$domain=/^linkbox\d+.com/]##*
+www.newlink.me##*
+[$domain=/^linkya\d+.com/]##*
+[$domain=/^link\d+.com/]##*
+[$domain=/^www.linkmoon\d+.com/]##*
+[$domain=/^jusoyo\d+.com/]##*
+[$domain=/^xn--\d+-9e0jj6lotejx2a.com/]##*
+[$domain=/^z\d+.linkmzg.com/]##*
+[$domain=/^ssakmoa\d+.com/]##*
+[$domain=/^xn--\d+-994jg0o7md.com/]##*
+[$domain=/^linksearchsite\d+.com/]##*
+[$domain=/^moass\d+.com/]##*
+[$domain=/^alling\d+.com/]##*
+www.joosolink.com##*
+[$domain=/^link-on\d+.com/]##*
+[$domain=/^lfman\d+.net/]##*
+![$domain=/^linklove\d+.com/]##*
+xn--9y2bs1phyk.com##*
+www.yugiyu.com##*
+xn--9l4b15e2td.com##*
+xn--9l4b29g70bpwr.com##*
+[$domain=/^linkpower\d+.com/]##*
+[$domain=/^belink\d+.com/]##*
+[$domain=/^jusomoa\d+.com/]##*
+xn--9y2bna416hpwi.net##*
+[$domain=/^18moa\d+.net/]##*
+[$domain=/^moaralink\d+.com/]##*
+[$domain=/^nawa\d+.com/]##*
+[$domain=/^moassup\d+.com/]##*
+juso-king.com##*
+[$domain=/^linknara\d+.com/]##*
+[$domain=/^jusomodu\d+.com/]##*
+[$domain=/^jusomodu\d+.com/]##*
+xn--9l4b25e0td.kr##*
+xn--2q1bu8vtjaj8ns2b.com##*
+red-run.xyz##*
+www.juso.co##*
+www.ggongday.com##*
+www.nan114.com##*
+nanbam114.com##*
+[$domain=/^nanbam\d+.com/]##*
+[$domain=/^yoojong\d+.com/]##*
+7-thailand.com##*
+gumin.org##*
+laligatoto.com##*
+[$domain=/^totocore\d+.com/]##*
+xn--mp2b04br6l.com##*
+www.mukjungso.com##*
+mega-sc.com##*
+xn--ik3bz5iba065l.net##*
+[$domain=/^victory-mt\d+.com/]##*
+mtgg.net##*
+[$domain=/^major-top\d+.com/]##*
+totocpr.com##*
+mtday.net##*
+[$domain=/^sports-vic\d+.com/]##*
+jobjatv.com##*
+[$domain=/^jusobox\d+.com/]##*
+![$domain=/^linkpan\d+.com/]##*
+[$domain=/^gc-\d+.com/]##*
+[$domain=/^daumd\d+.net/]##*
+[$domain=/^ttse\d+.com/]##*
+[$domain=/^18moa\d+.com/]##*
+[$domain=/^linkssakda\d+.com/]##*
+jusogall.com##*
+linktaxi.net##*
+[$domain=/^sitejuso\d+.com/]##*
+[$domain=/^jusopang\d+.com/]##*
+[$domain=/^linkbot\d+.com/]##*
+[$domain=/^www.19guide\d+.com/]##*
+[$domain=/^www.ydong\d+.online/]##*
+[$domain=/^gonglove\d+.com/]##*
+[$domain=/^nomukti\d+.com/]##*
+[$domain=/^wt-bc\d+.com/]##*
+[$domain=/^mt-toto\d+.com/]##*
+[$domain=/^pkmt\d+.com/]##*
+pornwavve.com##*
+warning119.com##*
+blueocean.click##*
+linkddd.com##*
+[$domain=/^toto-town\d+.com/]##*
+b-tamin.com##*
+vjvprxm.com##*
+[$domain=/^xn--\d+-9y5e557at7scqd.com/]##*
+xn--o39a782abqe.com##*
+[$domain=/^ttcs-\d+.com/]##*
+toto365.biz##*
+[$domain=/^link365-\d+.kro.kr/]##*
+www.linknala.com##*
+[$domain=/^op-gallery\d+.com/]##*
+[$domain=/^opjb\d+.top/]##*
+[$domain=/^pickscore\d+.com/]##*
+[$domain=/^wdwd\d+.com/]##*
+tops114.com##*
+toinkuk.com##*
+xn--9t4b21xfta.com##*
+mtsaveone.com##*
+wearenoriworld.com##*
+[$domain=/^toyver\d+.com/]##*
+linktoto114.com##*
+www.sunwiya.com##*
+mt-superman.net##*
+totohks.com##*
+[$domain=/^mt-guide\d+.com/]##*
+[$domain=/^alspo\d+.net/]##*
+mtcheck.net##*
+named.com##*
+www.sureman.com##*
+totosave.com##*
+www.totohot.net##*
+liveman.net##*
+totogun.com##*
+toto-bay.com##*
+ko-bet.com##*
+[$domain=/^totovely\d+.com/]##*
+[$domain=/^onca\d+.com/]##*
+totowgwg.net##*
+[$domain=/^toto-wang\d+.com/]##*
+[$domain=/^suremans\d+.com/]##*
+www.dazaba.net##*
+toto-pia.com##*
+[$domain=/^www.allin\d+.com/]##*
+www.ggongta.com##*
+[$domain=/^dobaklife\d+.com/]##*
+tozinsa.com##*
+xn--vf4b97jipg.com##*
+cazinsa.com##*
+[$domain=/^betq\d+.net/]##*
+www.pato114.net##*
+www.bet-joy.net##*
+www.gooldcasino.com##*
+[$domain=/^www.casinoknow\d+.com/]##*
+totoroom.org##*
+[$domain=/^jktv\d+.com/]##*
+www.ttattack.com##*
+kkongpoya.com##*
+xn--w-wp0g96e.com##*
+ggonggane.com##*
+bttime.net##*
+[$domain=/^kking\d+.com/]##*
+www.martinpick.co.kr##*
+[$domain=/^mt-crime\d+.com/]##*
+[$domain=/^mt-rokmc\d+.com/]##*
+tocops.net##*
+sportsinfonow.com##*
+casinogumsa.com##*
+[$domain=/^map\d+.opmap.co/]##*
+xn--2i0bt7pj4bk44b.com##*
+[$domain=/^jusoya\d+.com/]##*
+jusonara.net##*
+xn--220bn4p04fh5doxu.com##*
+xn--dm2bx4b269a41b.com##*
+[$domain=/^totoilbo\d+.com/]##*
+sureranking.net##*
+totocok.net##*
+ttpat.com##*
+mtwhy.com##*
+mtweek.com##*
+[$domain=/^mt-gms\d+.com/]##*
+betkor.net##*
+topang119.net##*
+tototobog.com##*
+www.costoto.com##*
+usedheaven.com##*
+mtpolice.kr##*
+[$domain=/^cagram\d+.com/]##*
+[$domain=/^bbagain\d+.net/]##*
+www.tosafe114.com##*
+oncapan.com##*
+www.casinosite777.top##*
+mt-gram.com##*
+ggongnara.com##*
+www.betcle.com##*
+[$domain=/^www.totomarket\d+.net/]##*
+www.ablewebpro.com##*
+xn--p22b018a99c.com##*
+[$domain=/^www.mtmoa\d+.net/]##*
+prosport365.com##*
+www.sftbmj.net##*
+[$domain=/^anca\d+.com/]##*
+mtb36524.com##*
+www.thevillagenewcairo.com##*
+muktimall.net##*
+casinofriends777.com##*
+sbt119.com##*
+www.mt-blood.com##*
+mtgal.com##*
+www.lenezeouge.com##*
+mtclean.blog##*
+www.mt-spy.net##*
+mtlevel.com##*
+tomuniti.net##*
+torinii.com##*
+[$domain=/^mtroyale\d+.com/]##*
+bnode.org##*
+totohill.net##*
+mrunkill.com##*
+ggongpro.net##*
+ttkdom.com##*
+fsttoto.net##*
+daejangto.net##*
+vv-ca.com##*
+catoker.com##*
+www.win-toto.com##*
+cabon119.com##*
+tobon119.com##*
+www.win-toto.com##*
+[$domain=/^opga\d+.com/]##*
+[$domain=/^budal\d+.net/]##*
+[$domain=/^dkxm\d+.com/]##*
+[$domain=/^albam\d+.com/]##*
+[$domain=/^eorn\d+.com/]##*
+www.gunmabada.com##*
+xn--or3b2n.net##*
+[$domain=/^busanb\d+.net/]##*
+gunmacity.com##*
+[$domain=/^ubub-\d+.com/]##*
+
+
+
+
+
+
+*$subdocument
+! - - - 예외
+
+
+! (캡챠 로그인 안됨) (avsee.ru 등)
+@@challenges.cloudflare.com$subdocument
+@@recaptcha.net/recaptcha/api2/$subdocument
+
+! 구글드라이브 (https://drive.google.com/drive/)
+@@||drive.google.com$subdocument
+@@||youtube.googleapis.com/embed/$subdocument
+
+! 네이버 카페 (https://cafe.naver.com/)
+@@||cafe.naver.com/MyCafeIntro.nhn$subdocument
+
+! 네이버 블로그
+@@||blog.naver.com/PostView.naver$subdocument
+
+! 티빙 (https://user.tving.com/) (로그인 안됨)
+@@user.tving.com$subdocument
+
+! - - - 게시물 SNS 삽입 (theqoo.net 등)
+@@youtube.com/embed$subdocument
+@@platform.twitter.com/embed/$subdocument
+@@platform.twitter.com/widgets/widget_iframe$subdocument
+@@instagram.com/*/embed/$subdocument
+@@tiktok.com/embed$subdocument
+
+! - - - 게시물 삽입 (포모스)
+@@media.fmkorea.com/files/attach/$subdocument
+@@ext.fmkorea.com/files/attach/$subdocument
+@@mediak5jvqbd.fmkorea.com/files/attach/$subdocument
+@@chzzk.naver.com/embed/clip/$subdocument
+@@vod.sooplive.co.kr/player/$subdocument
+@@litter.catbox.moe$subdocument
+
+! 짱공유 (https://www.jjang0u.com/)
+@@||.jjang0u.com/board/vidview/$subdocument
+
+! 디시인사이드 투표 사용시
+@@||gall.dcinside.com/board/poll/vote$subdocument
+
+! 옥션
+! - 마이옥션 사용시 필요
+@@escrow.auction.co.kr$subdocument
+
+! https://fiber.google.com/speedtest/ (속도 테스트)
+@@gfiber.speedtestcustom.com$subdocument
+
+! - - - 예외 (영상 안나옴) (https://linkkf.net/)
+@@linkkf.net$subdocument
+@@krid.myani.app$subdocument
+@@g2.myani.app$subdocument
+@@play.sub3.top$subdocument
+
+! - - -  영상 안나옴 (POOOO.ml)
+@@ok.ru/videoembed$subdocument
+@@poooo.ml/chat$subdocument
+@@player.kick.com$subdocument
+@@nimo.tv/embed$subdocument
+@@player.angelthump.com$subdocument
+@@ssh101.com/securelive$subdocument
+@@imbc.com/MbicLive/$subdocument
+@@chzzk.naver.com/live/$subdocument
+@@player.twitch.tv$subdocument
+
+! - - - 예외 (라이브 방송 안나옴) (https://tv.kakao.com/)
+@@tv.kakao.com/chat/livechat/$subdocument
+@@tv.kakao.com/embed/player/$subdocument
+
+! - - - 예외 (영상 안나옴) (티비위키/티비몬/티비핫)
+@@player.bunny-frame.online$subdocument
+
+! - - - 예외 (라이브 방송 안나옴) (메시티비 등 스포츠방송) (https://messitv8.com/)
+!@@bigwin.livenst.com/messitv/livescore/livescore/$subdocument
+@@bigwin.livenst.com/*$subdocument
+@@speed10-*.com/*$subdocument
+@@streamk.co.kr/*$subdocument
+@@liventv.com/player$subdocument
+
+! - - - 영상 안나옴 (성인 영상)
+@@supremejav.com$subdocument
+@@emturbovid.com$subdocument
+@@fc2stream.tv$subdocument
+@@streamtape.com$subdocument
+@@voe.sx$subdocument
+@@mariatheserepublican.com$subdocument
+@@javggvideo.xyz$subdocument
+@@javlion.xyz$subdocument
+@@javsw.me$subdocument
+@@7tv*.com$subdocument
+@@mmvh*.xyz$subdocument
+@@mmsi*.xyz$subdocument
+@@7mmtv.upns.live$subdocument
+@@tapewithadblock.org$subdocument
+@@iframe.mediadelivery.net$subdocument
+@@5masterzzz.site$subdocument
+@@stbturbo.xyz$subdocument
+@@stbhg.click$subdocument
+@@ryderjet.com$subdocument
+@@vidply.com$subdocument
+@@do7go.com$subdocument
+@@streamtape.net$subdocument
+@@listeamed.net$subdocument
+@@player.upn.one$subdocument
+@@streamwish.to$subdocument
+@@swiftplayers.com$subdocument
+@@vgembed.com$subdocument
+@@strtape.cloud$subdocument
+@@iplayerhls.com$subdocument
+@@turbovid.xyz$subdocument
+@@mycloudz.cc$subdocument
+@@cloudwish.xyz$subdocument
+@@streambeast.upn.one$subdocument
+@@lulustream.live$subdocument
+@@dooood.com$subdocument
+@@all3do.com$subdocument
+@@javtiktok.site$subdocument
+@@javhahaha.us$subdocument
+!@@wolfstream.tv$subdocument
+!@@javuncen.xyz$subdocument
+@@filemoon.to$subdocument
+@@zpjid.com$subdocument
+@@luluvdoo.com$subdocument
+@@stream.javtiful.to$subdocument
+@@javfinder.ai/player$subdocument
+@@javdoe.to/player$subdocument
+@@javsky.tv/player$subdocument
+@@javfree.sh/player$subdocument
+@@streamtape.to$subdocument
+!@@watchadsontape.com$subdocument
+@@embedwish.com$subdocument
+@@filemoon.sx$subdocument
+@@dhcplay.com$subdocument
+@@lulu.st$subdocument
+@@javplayer.me$subdocument
+@@javfhd.org$subdocument
+@@avideos.net$subdocument
+@@javedit.com/*/Player/$subdocument
+@@cndstream.xyz$subdocument
+@@jav.sb/static/player/$subdocument
+@@javplayer.me.vdcdn.top$subdocument
+@@video.javhdporn.net$subdocument
+@@mingvideos.com$subdocument
+@@avpingyou*.com/static/player/$subdocument
+@@xxjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
+@@javplayers.com/video/$subdocument
+@@jamakyadong.me/jwplayer/$subdocument
+@@avsee.ru/player/$subdocument
+@@yanovideos.com/videos/$subdocument
+@@sendvid.com/embed/$subdocument
+@@newer.stream$subdocument
+@@avjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
+@@playrecord.biz/embed/$subdocument
+@@*.yadongpan.me/jwplayer/$subdocument
+
+
+
+! - - -  javmis.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+@@javmis.com$subdocument
+! - - -  bestjavporn.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+@@bestjavporn.com$subdocument
+! - - -  javdock.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+@@javdock.com$subdocument
+! - - -  javhdporn.net - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+@@javhdporn.net$subdocument
+
+
+
+! - - - 예외 (영상 안나옴) (https://fc1adult.com/live/mult_view) (성인 영상)
+@@live.fc2.com/embedPlayer/$subdocument
