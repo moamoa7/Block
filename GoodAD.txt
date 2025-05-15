@@ -25,6 +25,13 @@
 ! - - - 설정으로 복귀 후 해당 firefox 정보 아래 생성된 secret settings - Use third party CA certificates 체크 활성화
 !
 !
+!
+!!! 애드가드 문제 해결 (스텔스 모드 해제)
+!@@||challenges.cloudflare.com^$stealth
+@@||*^$stealth
+!
+!
+!
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
@@ -41,13 +48,6 @@
 ! - - - srank.kr#@#+js(prevent-fetch, doubleclick.net)
 #@%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 #@%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
-!
-!
-!
-!!! 클라우드플레어 캡챠 무한 로딩 등 문제 해결
-! - - - 애드가드 스텔스 모드 해제
-!@@||challenges.cloudflare.com^$stealth
-!@@||*^$stealth
 !
 !
 !
