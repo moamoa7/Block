@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 25051501
+! Version: 2505150
 !
 !
 !
@@ -2593,6 +2593,7 @@ zeta-ai.io##.pointer-events-none
 @@||aimeimei*.com/wp-content/uploads/$image
 @@||of*.com/wp-content/uploads/$image
 @@||bestjapanesepornsites.com/wp-content/uploads/$image
+@@||apkmody.com/wp-content/uploads/$image
 !
 !
 !
