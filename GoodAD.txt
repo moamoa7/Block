@@ -28,7 +28,7 @@
 !
 !!! 애드가드 문제 해결 (스텔스 모드 해제)
 !@@||challenges.cloudflare.com^$stealth
-@@||*$stealth
+@@*$stealth
 !
 !
 !
