@@ -123,7 +123,10 @@ youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !impo
 ||*$ping,websocket,third-party
 ! - 3자 websocket 차단 해제
 ! - - - 디스코드 (https://discord.com/) 연결시 필요
+! - - - 예외
 @@||gateway.discord.gg$websocket
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com
+
 !
 !
 !
@@ -392,6 +395,11 @@ ruliweb.com##.fixed_ad_wrapper
 @@||img-cdn.ddanzi.com/files/attach/images/*$image
 !
 !
+! 보배드림 (https://www.bobaedream.co.kr/)
+! - 오늘의 회원 랭킹
+bobaedream.co.kr##.todayRanking
+!
+!
 ! 포모스 (https://www.fomos.kr/)
 ! - 왼쪽 배너 포함 (PC)
 ##.float-banners
@@ -415,6 +423,8 @@ ygosu.com##.pull-left.btn-group
 ###banner
 ! - 모바일 하단 배너
 ##.ad_area1
+! - 이미지 복원
+@@||jjang0u.com/img/*$image
 !
 !
 ! 네이버 카페
@@ -3601,11 +3611,24 @@ bullionglidingscuttle
 
 
 *$subdocument
-! - - -  예외 (캡챠 로그인 안됨) (avsee.ru 등)
+! - - - 예외
+
+
+! (캡챠 로그인 안됨) (avsee.ru 등)
 @@challenges.cloudflare.com$subdocument
 @@recaptcha.net/recaptcha/api2/$subdocument
 
-! - - - 예외 (로그인 안됨) (https://tving.com)
+! 구글드라이브 (https://drive.google.com/drive/)
+@@||drive.google.com$subdocument
+@@||youtube.googleapis.com/embed/$subdocument
+
+! 네이버 카페 (https://cafe.naver.com/)
+@@||cafe.naver.com/MyCafeIntro.nhn$subdocument
+
+! 네이버 블로그
+@@||blog.naver.com/PostView.naver$subdocument
+
+! 티빙 (https://user.tving.com/) (로그인 안됨)
 @@user.tving.com$subdocument
 
 ! - - - 게시물 SNS 삽입 (theqoo.net 등)
@@ -3614,6 +3637,7 @@ bullionglidingscuttle
 @@platform.twitter.com/widgets/widget_iframe$subdocument
 @@instagram.com/*/embed/$subdocument
 @@tiktok.com/embed$subdocument
+
 ! - - - 게시물 삽입 (포모스)
 @@media.fmkorea.com/files/attach/$subdocument
 @@ext.fmkorea.com/files/attach/$subdocument
@@ -3621,6 +3645,19 @@ bullionglidingscuttle
 @@chzzk.naver.com/embed/clip/$subdocument
 @@vod.sooplive.co.kr/player/$subdocument
 @@litter.catbox.moe$subdocument
+
+! 짱공유 (https://www.jjang0u.com/)
+@@||.jjang0u.com/board/vidview/$subdocument
+
+! 디시인사이드 투표 사용시
+@@||gall.dcinside.com/board/poll/vote$subdocument
+
+! 옥션
+! - 마이옥션 사용시 필요
+@@escrow.auction.co.kr$subdocument
+
+! https://fiber.google.com/speedtest/ (속도 테스트)
+@@gfiber.speedtestcustom.com$subdocument
 
 ! - - - 예외 (영상 안나옴) (https://linkkf.net/)
 @@linkkf.net$subdocument
@@ -3692,6 +3729,8 @@ bullionglidingscuttle
 @@all3do.com$subdocument
 @@javtiktok.site$subdocument
 @@javhahaha.us$subdocument
+!@@wolfstream.tv$subdocument
+!@@javuncen.xyz$subdocument
 @@filemoon.to$subdocument
 @@zpjid.com$subdocument
 @@luluvdoo.com$subdocument
@@ -3701,6 +3740,7 @@ bullionglidingscuttle
 @@javsky.tv/player$subdocument
 @@javfree.sh/player$subdocument
 @@streamtape.to$subdocument
+!@@watchadsontape.com$subdocument
 @@embedwish.com$subdocument
 @@filemoon.sx$subdocument
 @@dhcplay.com$subdocument
@@ -3724,6 +3764,7 @@ bullionglidingscuttle
 @@newer.stream$subdocument
 @@avjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
 @@playrecord.biz/embed/$subdocument
+@@*.yadongpan.me/jwplayer/$subdocument
 
 
 
