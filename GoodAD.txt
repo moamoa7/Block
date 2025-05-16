@@ -451,6 +451,8 @@ ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 ppomppu.co.kr##.ppomCou
 ! - 모바일 하단 배너 공간 삭제
 ppomppu.co.kr##div:nth-of-type(7)
+! - 모바일 HOT 게시글 삭제
+ppomppu.co.kr##.hot-imgBoard
 !
 !
 ! SLR (https://www.slrclub.com/)
