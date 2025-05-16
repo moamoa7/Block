@@ -1295,6 +1295,7 @@ www.spojoy.com###TopAdv250
 coupang.com##.search-product__ad-badge
 ! - 하단 안내 문구 (앱으로 보기)
 ###BottomAppBanner
+
 !
 !
 ! 바나나몰 (bananamall.co.kr)
@@ -1652,6 +1653,8 @@ www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],
 ! - 상단 배너
 ! - - - https://play.sooplive.co.kr/ 실시간 영상 로딩시 돌아가는 8자 모양 사라짐 포함
 ##.loading
+! - 예외 (쿠팡 - 모바일에서 이미지 안나옴)
+coupang.com#@#.loading
 !
 !
  ! FC2PPVDB (https://fc2ppvdb.com/)
