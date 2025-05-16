@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 2505150
+! Version: 20250516
 !
 !
 !
@@ -23,11 +23,6 @@
 ! - 출처 : https://gall.dcinside.com/adguard/2727
 ! - - - 설정 - 맨 하단 해당 firefox 정보 - 상단 로고 7번 클릭하여 디버그 메뉴 활성화
 ! - - - 설정으로 복귀 후 해당 firefox 정보 아래 생성된 secret settings - Use third party CA certificates 체크 활성화
-!
-!
-!
-!!! 애드가드 문제 해결 (스텔스 모드 해제)
-@@||challenges.cloudflare.com^$stealth
 !
 !
 !
@@ -75,6 +70,12 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-slot]
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
 ! YousLis 무력화
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
+!
+!
+!
+!!! 애드가드 문제 해결?
+@@||challenges.cloudflare.com^$stealth
+@@||youtube.googleapis.com/embed^$stealth=referrer
 !
 !
 !
@@ -1289,6 +1290,13 @@ www.spojoy.com###TopAdv250
 ##.box_floating
 !
 !
+! 쿠팡 (https://www.coupang.com/)
+! - 검색시 광고 게시물
+coupang.com##.search-product__ad-badge
+! - 하단 안내 문구 (앱으로 보기)
+###BottomAppBanner
+!
+!
 ! 바나나몰 (bananamall.co.kr)
 ! - 유니콘Pro 차단 해제
 @@||bananamall.co.kr
@@ -1452,12 +1460,30 @@ avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
 !
 !
+! supjav (https://supjav.com/)
+! - 일부 영상 재생 차단 방지
+@@||tiktokcdn.com/obj/$xhr
+! - 로고 이미지 복원
+@@||supjav.com/img/logo.png
+!
+!
 ! JavNeon (https://javneon.tv/)
 ! JavEVE (https://javeve.tv/)
 ! Javsaga (https://javsaga.ninja/)
 ! Javbull (https://javbull.tv/)
 ! - 상단 공백 (EasyList)
 ##.pt-45.container
+!
+!
+! EVOJAV (https://evojav.pro/) 포함
+! - 팝업 방지
+! - 팝업이 본창에 나오므로 백스페이스로 가서 영상 재생 필요
+javneon.tv$popup
+javeve.tv$popup
+javsaga.ninja$popup
+javbull.tv$popup
+javsaga.ninja$popup
+evojav.pro$popup
 !
 !
 ! JAVFC2.XYZ (https://javfc2.xyz/)
@@ -1557,6 +1583,11 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 exodusjailhousetarantula.com$popup
 !
 !
+! AV01 (https://www.av01.media/)
+! - 팝업 방지
+apologiesoccursdepressed.com$popup
+!
+!
 ! https://javbar.com/
 ! https://tojav.net/
 ! - 영상 오른쪽 배너
@@ -1585,6 +1616,22 @@ javlemon.com##.hbrAPNSz
 @@||cdn.tokyo-motion.net/img/logo.gif
 !
 !
+! JavPOP (http://javpop.com/)
+! - 이미지 복원
+@@||javpop.com/img/*$image
+!
+!
+!
+! nJAV (https://www.njav.com/)
+! - 영상 옆 배너공간
+njav.com##.mx-auto
+!
+!
+! MISSAV (https://missav.live/)
+! - 영상 옆 배너공간 (EasyList 규칙 활용)
+missav.live##.lg\:block
+!
+!
 ! https://loopholes.site/
 ! - 상단 텍스트 배너
 ! - - -  사이트 주소 안넣으면 다른 사이트에서 텍스트가 사라짐 (예 : https://dramaday.me/ 오른쪽 하단 텍스트가 사라짐)
@@ -1599,6 +1646,12 @@ www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],
 ! 스폰업소
 www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##p:nth-of-type(14)
 www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##ol > table > tbody > tr > td
+!
+!
+! AVPED.COM (https://www.avped.com/)
+! - 상단 배너
+! - - - https://play.sooplive.co.kr/ 실시간 영상 로딩시 돌아가는 8자 모양 사라짐 포함
+##.loading
 !
 !
  ! FC2PPVDB (https://fc2ppvdb.com/)
@@ -2593,6 +2646,14 @@ zeta-ai.io##.pointer-events-none
 @@||of*.com/wp-content/uploads/$image
 @@||bestjapanesepornsites.com/wp-content/uploads/$image
 @@||apkmody.com/wp-content/uploads/$image
+@@||cdn.javsts.com/wp-content/uploads/$image
+@@||jav.guru/wp-content/uploads/$image
+@@||roshy.tv/wp-content/uploads/$image
+@@||3xplanet.com/wp-content/uploads/$image
+@@||imagerls.com/wp-content/uploads/$image
+@@||avsoyhee.com/wp-content/uploads/$image
+@@||avped.com/wp-content/uploads/$image
+
 !
 !
 !
@@ -3162,8 +3223,12 @@ gunmacity.com##*
 
 
 ! (캡챠 로그인 안됨) (avsee.ru 등)
-@@challenges.cloudflare.com$subdocument
-@@recaptcha.net/recaptcha/api2/$subdocument
+@@||challenges.cloudflare.com$subdocument
+@@||recaptcha.net/recaptcha/api2/$subdocument
+! - - - AdGuard – Ads
+@@||google.com/recaptcha/api2/$document
+@@||google.com/recaptcha/api2/$subdocument
+
 
 ! 구글드라이브 (https://drive.google.com/drive/)
 @@||drive.google.com$subdocument
@@ -3176,155 +3241,197 @@ gunmacity.com##*
 @@||blog.naver.com/PostView.naver$subdocument
 
 ! 티빙 (https://user.tving.com/) (로그인 안됨)
-@@user.tving.com$subdocument
+@@||user.tving.com$subdocument
 
 ! - - - 게시물 SNS 삽입 (theqoo.net 등)
-@@youtube.com/embed$subdocument
-@@platform.twitter.com/embed/$subdocument
-@@platform.twitter.com/widgets/widget_iframe$subdocument
-@@instagram.com/*/embed/$subdocument
-@@tiktok.com/embed$subdocument
+@@||youtube.com/embed$subdocument
+@@||platform.twitter.com/embed/$subdocument
+@@||platform.twitter.com/widgets/widget_iframe$subdocument
+@@||instagram.com/*/embed/$subdocument
+@@||tiktok.com/embed$subdocument
 
 ! - - - 게시물 삽입 (포모스)
-@@media.fmkorea.com/files/attach/$subdocument
-@@ext.fmkorea.com/files/attach/$subdocument
-@@mediak5jvqbd.fmkorea.com/files/attach/$subdocument
-@@chzzk.naver.com/embed/clip/$subdocument
-@@vod.sooplive.co.kr/player/$subdocument
-@@litter.catbox.moe$subdocument
+@@||media.fmkorea.com/files/attach/$subdocument
+@@||ext.fmkorea.com/files/attach/$subdocument
+@@||mediak5jvqbd.fmkorea.com/files/attach/$subdocument
+@@||chzzk.naver.com/embed/clip/$subdocument
+@@||vod.sooplive.co.kr/player/$subdocument
+@@||litter.catbox.moe$subdocument
 
 ! 짱공유 (https://www.jjang0u.com/)
-@@||.jjang0u.com/board/vidview/$subdocument
+@@||jjang0u.com/board/vidview/$subdocument
 
 ! 디시인사이드 투표 사용시
 @@||gall.dcinside.com/board/poll/vote$subdocument
 
 ! 옥션
 ! - 마이옥션 사용시 필요
-@@escrow.auction.co.kr$subdocument
+@@||escrow.auction.co.kr$subdocument
 
 ! https://fiber.google.com/speedtest/ (속도 테스트)
-@@gfiber.speedtestcustom.com$subdocument
+@@||gfiber.speedtestcustom.com$subdocument
 
 ! - - - 예외 (영상 안나옴) (https://linkkf.net/)
-@@linkkf.net$subdocument
-@@krid.myani.app$subdocument
-@@g2.myani.app$subdocument
-@@play.sub3.top$subdocument
+@@||linkkf.net$subdocument
+@@||krid.myani.app$subdocument
+@@||g2.myani.app$subdocument
+@@||play.sub3.top$subdocument
 
 ! - - -  영상 안나옴 (POOOO.ml)
-@@ok.ru/videoembed$subdocument
-@@poooo.ml/chat$subdocument
-@@player.kick.com$subdocument
-@@nimo.tv/embed$subdocument
-@@player.angelthump.com$subdocument
-@@ssh101.com/securelive$subdocument
-@@imbc.com/MbicLive/$subdocument
-@@chzzk.naver.com/live/$subdocument
-@@player.twitch.tv$subdocument
+@@||ok.ru/videoembed$subdocument
+@@||poooo.ml/chat$subdocument
+@@||player.kick.com$subdocument
+@@||nimo.tv/embed$subdocument
+@@||player.angelthump.com$subdocument
+@@||ssh101.com/securelive$subdocument
+@@||imbc.com/MbicLive/$subdocument
+@@||chzzk.naver.com/live/$subdocument
+@@||player.twitch.tv$subdocument
 
 ! - - - 예외 (라이브 방송 안나옴) (https://tv.kakao.com/)
-@@tv.kakao.com/chat/livechat/$subdocument
-@@tv.kakao.com/embed/player/$subdocument
+@@||tv.kakao.com/chat/livechat/$subdocument
+@@||tv.kakao.com/embed/player/$subdocument
 
 ! - - - 예외 (영상 안나옴) (티비위키/티비몬/티비핫)
-@@player.bunny-frame.online$subdocument
+@@||player.bunny-frame.online$subdocument
 
 ! - - - 예외 (라이브 방송 안나옴) (메시티비 등 스포츠방송) (https://messitv8.com/)
 !@@bigwin.livenst.com/messitv/livescore/livescore/$subdocument
-@@bigwin.livenst.com/*$subdocument
-@@speed10-*.com/*$subdocument
-@@streamk.co.kr/*$subdocument
-@@liventv.com/player$subdocument
+@@||bigwin.livenst.com/*$subdocument
+@@||speed10-*.com/*$subdocument
+@@||streamk.co.kr/*$subdocument
+@@||liventv.com/player$subdocument
 
 ! - - - 영상 안나옴 (성인 영상)
-@@supremejav.com$subdocument
-@@emturbovid.com$subdocument
-@@fc2stream.tv$subdocument
-@@streamtape.com$subdocument
-@@voe.sx$subdocument
-@@mariatheserepublican.com$subdocument
-@@javggvideo.xyz$subdocument
-@@javlion.xyz$subdocument
-@@javsw.me$subdocument
-@@7tv*.com$subdocument
-@@mmvh*.xyz$subdocument
-@@mmsi*.xyz$subdocument
-@@7mmtv.upns.live$subdocument
-@@tapewithadblock.org$subdocument
-@@iframe.mediadelivery.net$subdocument
-@@5masterzzz.site$subdocument
-@@stbturbo.xyz$subdocument
-@@stbhg.click$subdocument
-@@ryderjet.com$subdocument
-@@vidply.com$subdocument
-@@do7go.com$subdocument
-@@streamtape.net$subdocument
-@@listeamed.net$subdocument
-@@player.upn.one$subdocument
-@@streamwish.to$subdocument
-@@swiftplayers.com$subdocument
-@@vgembed.com$subdocument
-@@strtape.cloud$subdocument
-@@iplayerhls.com$subdocument
-@@turbovid.xyz$subdocument
-@@mycloudz.cc$subdocument
-@@cloudwish.xyz$subdocument
-@@streambeast.upn.one$subdocument
-@@lulustream.live$subdocument
-@@dooood.com$subdocument
-@@all3do.com$subdocument
-@@javtiktok.site$subdocument
-@@javhahaha.us$subdocument
+@@||supremejav.com$subdocument
+@@||emturbovid.com$subdocument
+@@||fc2stream.tv$subdocument
+@@||streamtape.com$subdocument
+@@||voe.sx$subdocument
+@@||mariatheserepublican.com$subdocument
+@@||javggvideo.xyz$subdocument
+@@||javlion.xyz$subdocument
+@@||javsw.me$subdocument
+@@||7tv*.com$subdocument
+@@||mmvh*.xyz$subdocument
+@@||mmsi*.xyz$subdocument
+@@||7mmtv.upns.live$subdocument
+@@||tapewithadblock.org$subdocument
+@@||iframe.mediadelivery.net$subdocument
+@@||5masterzzz.site$subdocument
+@@||stbturbo.xyz$subdocument
+@@||stbhg.click$subdocument
+@@||ryderjet.com$subdocument
+@@||vidply.com$subdocument
+@@||do7go.com$subdocument
+@@||streamtape.net$subdocument
+@@||listeamed.net$subdocument
+@@||player.upn.one$subdocument
+@@||streamwish.to$subdocument
+@@||swiftplayers.com$subdocument
+@@||vgembed.com$subdocument
+@@||strtape.cloud$subdocument
+@@||iplayerhls.com$subdocument
+@@||turbovid.xyz$subdocument
+@@||mycloudz.cc$subdocument
+@@||cloudwish.xyz$subdocument
+@@||streambeast.upn.one$subdocument
+@@||lulustream.live$subdocument
+@@||dooood.com$subdocument
+@@||all3do.com$subdocument
+@@||javtiktok.site$subdocument
+@@||javhahaha.us$subdocument
 !@@wolfstream.tv$subdocument
 !@@javuncen.xyz$subdocument
-@@filemoon.to$subdocument
-@@zpjid.com$subdocument
-@@luluvdoo.com$subdocument
-@@stream.javtiful.to$subdocument
-@@javfinder.ai/player$subdocument
-@@javdoe.to/player$subdocument
-@@javsky.tv/player$subdocument
-@@javfree.sh/player$subdocument
-@@streamtape.to$subdocument
+@@||filemoon.to$subdocument
+@@||zpjid.com$subdocument
+@@||luluvdoo.com$subdocument
+@@||stream.javtiful.to$subdocument
+@@||javfinder.ai/player$subdocument
+@@||javdoe.to/player$subdocument
+@@||javsky.tv/player$subdocument
+@@||javfree.sh/player$subdocument
+@@||streamtape.to$subdocument
 !@@watchadsontape.com$subdocument
-@@embedwish.com$subdocument
-@@filemoon.sx$subdocument
-@@dhcplay.com$subdocument
-@@lulu.st$subdocument
-@@javplayer.me$subdocument
-@@javfhd.org$subdocument
-@@avideos.net$subdocument
-@@javedit.com/*/Player/$subdocument
-@@cndstream.xyz$subdocument
-@@jav.sb/static/player/$subdocument
-@@javplayer.me.vdcdn.top$subdocument
-@@video.javhdporn.net$subdocument
-@@mingvideos.com$subdocument
-@@avpingyou*.com/static/player/$subdocument
-@@xxjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
-@@javplayers.com/video/$subdocument
-@@jamakyadong.me/jwplayer/$subdocument
-@@avsee.ru/player/$subdocument
-@@yanovideos.com/videos/$subdocument
-@@sendvid.com/embed/$subdocument
-@@newer.stream$subdocument
-@@avjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
-@@playrecord.biz/embed/$subdocument
-@@*.yadongpan.me/jwplayer/$subdocument
+@@||embedwish.com$subdocument
+@@||filemoon.sx$subdocument
+@@||dhcplay.com$subdocument
+@@||lulu.st$subdocument
+@@||javplayer.me$subdocument
+@@||javfhd.org$subdocument
+@@||avideos.net$subdocument
+@@||javedit.com/*/Player/$subdocument
+@@||cndstream.xyz$subdocument
+@@||jav.sb/static/player/$subdocument
+@@||javplayer.me.vdcdn.top$subdocument
+@@||video.javhdporn.net$subdocument
+@@||mingvideos.com$subdocument
+@@||avpingyou*.com/static/player/$subdocument
+@@||xxjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
+@@||javplayers.com/video/$subdocument
+@@||jamakyadong.me/jwplayer/$subdocument
+@@||avsee.ru/player/$subdocument
+@@||yanovideos.com/videos/$subdocument
+@@||sendvid.com/embed/$subdocument
+@@||newer.stream$subdocument
+@@||avjoa*.com/wp-content/plugins/clean-tube-player/$subdocument
+@@||playrecord.biz/embed/$subdocument
+@@||*.yadongpan.me/jwplayer/$subdocument
+@@||jav.guru/searcho/$subdocument
+@@||streamtape.xyz$subdocument
+@@||javclan.com$subdocument
+@@||ds2play.com$subdocument
+@@||streamhihi.com$subdocument
+@@||maxstream.org$subdocument
+@@||findjav.com$subdocument
+@@||turtleviplay.xyz$subdocument
+@@||memojav.com/embed/$subdocument
+@@||avdbapi.com/player/$subdocument
+@@||johnalwayssame.com$subdocument
+@@||fapsharing.com/embed/$subdocument
+@@||hicherri.com$subdocument
+! https://missav.to/
+@@||emb.missav.to/embedmv/$subdocument
+! https://javcc.me/
+@@||videplay.us$subdocument
+! https://javcl.com/
+@@||streamcdn.info/play/$subdocument
+@@||jav.sb/ko/static/player/$subdocument
+@@||movie8k.ggcdn.xyz/embed/$subdocument
+! https://www.avped.com/
+@@||onlysubthai.com$subdocument
+
+
+
+! 안해도 작동됨
+!@@||tktube.com/ja/player/$subdocument
 
 
 
 ! - - -  javmis.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
-@@javmis.com$subdocument
+@@||javmis.com$subdocument
 ! - - -  bestjavporn.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
-@@bestjavporn.com$subdocument
+@@||bestjavporn.com$subdocument
 ! - - -  javdock.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
-@@javdock.com$subdocument
+@@||javdock.com$subdocument
 ! - - -  javhdporn.net - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
-@@javhdporn.net$subdocument
+@@||javhdporn.net$subdocument
+! - - -  njav.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+@@||njav.com$subdocument
+! - - -  vjav.com - - - 영상사이트가아닌 성인사이트를 해제해야 영상이 나옴 (성인 영상)
+! -- - 이 사이트는 영상이 안나옴 (다른 규칙들이 차단하는듯)
+!@@||vjav.com$subdocument
+
+
+
+
+
+
+
+
+
 
 
 
 ! - - - 예외 (영상 안나옴) (https://fc1adult.com/live/mult_view) (성인 영상)
-@@live.fc2.com/embedPlayer/$subdocument
+@@||live.fc2.com/embedPlayer/$subdocument
