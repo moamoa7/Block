@@ -1340,9 +1340,9 @@ danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-midd
 @@||ssl.pstatic.net/tveta/libs/
 ! - 위 규칙은 치지직/ 네이버쇼핑 등 같이 사용됨
 @@||ad.danawa.com
-!@@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
+@@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 ! - - - - - YousList
-!#@#iframe[src*="/RealMedia/ads/"]
+#@#iframe[src*="/RealMedia/ads/"]
 !
 !
 ! 당근 (https://www.daangn.com/)
