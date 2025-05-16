@@ -341,7 +341,7 @@ etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
 ! - 이토랜드 광고 게시물 배너
 ||*/img/market/ajd/ajd_banner*$image
 ! - 포인트 충전소 이미지 복원 (List-KR 무력화)
-@@||www.etoland.co.kr/data/file0207/point1/
+@@||etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
 etoland.co.kr###underGoodBtn_freeRecharge
 ! - 게시물 글 상단 비밀상점 광고글 (PC)
