@@ -1597,6 +1597,14 @@ apologiesoccursdepressed.com$popup
 ||*/*/ad/*
 !
 !
+! TIDHEE (https://www.tid-hee.com/)
+! - 영상 상단 배너
+tid-hee.com##.custom-html-widget.textwidget
+! - 광고 영상 차단
+! - - -  하지만 이 곳 사이트 영상은 광고 영상을 차단하는것과 무관하게 영상 재생이 안됨
+||requestradio.in.th
+!
+!
 ! 91JAV (https://act.crxtlg.com/)
 ! - 팝업 차단 후 뿌연 화면 해결
 act.crxtlg.com##.van-overlay
@@ -2695,3 +2703,20 @@ zeta-ai.io##.pointer-events-none
 @@||avped.com/wp-content/uploads/$image
 @@||av-wiki.net/wp-content/uploads/$image
 @@||sherilynjones.com/wp-content/uploads/$image
+@@||thaiyedthai.com/wp-content/uploads/$image
+@@||thisav.me/wp-content/uploads/$image
+@@||tid-hee.com/wp-content/uploads/$image
+@@||avsubthai.me/wp-content/uploads/$image
+@@||i0.wp.com/*/wp-content/uploads/$image
+@@||pornjav.tv/wp-content/uploads/$image
+
+
+
+! - 임시
+||*/*/ads/*
+||*/*/banner/*
+||*/*/banners/*
+||*/*/Banner/*
+||*/*/Banners/*
+||*/*/BANNER/*
+||*/*/BANNERS/*
