@@ -1291,11 +1291,11 @@ www.spojoy.com###TopAdv250
 !
 !
 ! 쿠팡 (https://www.coupang.com/)
-! - 검색시 광고 게시물
-coupang.com##.search-product__ad-badge
+! - 검색시 광고 게시물 (List-KR 규칙 추가로 아래 규칙 해제) 
+!coupang.com##li.search-product__ad-badge:remove()
+!coupang.com##.search-product__ad-badge
 ! - 하단 안내 문구 (앱으로 보기)
 ###BottomAppBanner
-
 !
 !
 ! 바나나몰 (bananamall.co.kr)
