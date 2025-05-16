@@ -1591,6 +1591,26 @@ exodusjailhousetarantula.com$popup
 apologiesoccursdepressed.com$popup
 !
 !
+! 123AV (https://123av.com/)
+! - 광고 차단? (EasyList)
+!||123av.*/assets/ad/
+||*/*/ad/*
+!
+!
+! 91JAV (https://act.crxtlg.com/)
+! - 팝업 차단 후 뿌연 화면 해결
+act.crxtlg.com##.van-overlay
+act.crxtlg.com###popup-window
+! - 영상 하단 배너 및 공간
+act.crxtlg.com##.zximg.img
+act.crxtlg.com##section.adaptation:nth-of-type(3)
+!
+!
+! https://sherilynjones.com/
+! - 팝업 차단 후 뿌연 화면 해결
+###popupOverlay
+!
+!
 ! https://javbar.com/
 ! https://tojav.net/
 ! - 영상 오른쪽 배너
@@ -1630,9 +1650,26 @@ javlemon.com##.hbrAPNSz
 njav.com##.mx-auto
 !
 !
+! MISSAV (https://missav.ws/)
+! MISSAV (https://missav.live/)
+! - 이미지 복원
+! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
+!@@||fourhoi.com
+!
+!
 ! MISSAV (https://missav.live/)
 ! - 영상 옆 배너공간 (EasyList 규칙 활용)
 missav.live##.lg\:block
+!
+!
+! JAVLibrary (https://www.javlibrary.com/)
+ (https://r86m.com/)
+! - 이미지 복원
+@@||javlibrary.com/img/*$image
+@@||r*m.com/img/*$image
+! - 18세 팝업
+javlibrary.com,[$domain=/^r\d+.m.com/]###adultwarningmask
+
 !
 !
 ! https://loopholes.site/
@@ -1653,10 +1690,8 @@ www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],
 !
 ! AVPED.COM (https://www.avped.com/)
 ! - 상단 배너
-! - - - https://play.sooplive.co.kr/ 실시간 영상 로딩시 돌아가는 8자 모양 사라짐 포함
-##.loading
-! - 예외 (쿠팡 - 모바일에서 이미지 안나옴)
-coupang.com#@#.loading
+! - - - https://play.sooplive.co.kr/ 실시간 영상 로딩시 돌아가는 8자 모양 사라짐
+avped.com##.loading
 !
 !
  ! FC2PPVDB (https://fc2ppvdb.com/)
@@ -2658,3 +2693,5 @@ zeta-ai.io##.pointer-events-none
 @@||imagerls.com/wp-content/uploads/$image
 @@||avsoyhee.com/wp-content/uploads/$image
 @@||avped.com/wp-content/uploads/$image
+@@||av-wiki.net/wp-content/uploads/$image
+@@||sherilynjones.com/wp-content/uploads/$image
