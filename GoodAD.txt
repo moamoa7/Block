@@ -1067,11 +1067,8 @@ tdosa.net###bo_gallery
 ! 툰코 (https://tkr416.com/)
 ! - 팝업
 ##.alert_windows
-! - 배너
-||blogger.googleusercontent.com/img/*/AVvXsE*
-! - - - 예외
-@@||blogger.googleusercontent.com/img/*/avvxse*$domain=www.etoland.co.kr
-
+! - 이미지 복원
+@@||img.asfsadfimiim.com/img/*$image
 !
 !
 ! 툰코 (https://tkor019.com/)
