@@ -1,6 +1,7 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.05.13
+! Version: 2025.05.16.2
 ! Description: 애드가드 필터의 오차단, 지우지 못한 광고와 안티 애드블록을 해결합니다. For Adguard, uBo, Brave
+! Expires: 12 hours
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
 ! temporary rules
@@ -8,8 +9,6 @@
 ##.basic-banner
 ##.board-tail-banner
 ##[style='margin-bottom: 20px;'].row.row-15
-@@||challenges.cloudflare.com^$stealth
-
 
 ! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
 @@||namu.wiki^$generichide
@@ -46,12 +45,13 @@ start.klauncher.kr$$script:contains(detected)
 [$domain=/^tvwiki[0-9]*\.com/]###bannerList
 [$domain=/^tvwiki[0-9]*\.com/]###viewCover
 [$domain=/^tvwiki[0-9]*\.com/]##[src*='/AD/']
-[$domain=/^yako[a-z0-9]*\.[a-z]{2,}/]###banner
+[$domain=/^yako[a-z0-9]*\.[a-z]{2,}/]###banner, .banner
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]##li:has([target]:not([href*=bbs]))
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[alt*='광고'], [alt*='배너'], [data-ride]
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[class*='carousel'][id]
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[href*='/ad'][target='_blank']:has(img)
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[target='_blank']:has([src$='.gif']):upward(1)
+[$domain=/torrentpi[0-9]*\.com/]##.post-image > [target='_blank']:has(img)
 
 ! Ads
 #@#.appBanner:not(body)
@@ -64,6 +64,7 @@ start.klauncher.kr$$script:contains(detected)
 ##[id*='powerlink']
 ##[id^='hd_pop']
 ##div.banner_m
+##div[class$='AD'][style]
 ##div[class^='AD'][style]
 ##iframe[src*='ad.doorigo.co.kr']
 ##iframe[src*='cdn.targetpush.co.kr']
@@ -105,13 +106,13 @@ humoruniv.com##[id^='naver_adpost_wrap']
 instiz.net##.hot_under
 inven.co.kr##.inven-float-alarm
 khan.co.kr##.mAd
+komi.la##div:has(> div[data-banner-id])
 m.11st.co.kr##div.l-grid:has([class*='c-ad'])
 m.11st.co.kr##div:has(> .c-guide-ad)
 m.blog.naver.com###blog_fe_feed > div:has([class^='recommend_section__'])
 m.cafe.daum.net##.bottom_banner
 m.cafe.naver.com###articleFeedList
 m.cafe.naver.com##.bottom.banner_add
-m.cafe.naver.com##.join_layer
 m.cgv.co.kr##.topBanner
 m.chzzk.naver.com##[class^='app_popup_dimmed__']
 m.danawa.com###mdnw-main-bottomSheet-container
@@ -181,11 +182,9 @@ fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 @@/.*/$permissions=identity-credentials-get=(),document,domain=slrclub.com
 @@||ad*.cgv.co.kr^$image,domain=cgv.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search,important
-@@||ad.planbplus.co.kr^$app=com.deaguowl.fallcent
 @@||app.appsflyer.com^$domain=ofw.adison.co
 @@||co.kr^$stealth=dpi
 @@||edge-live.joongna.com/api/web-ads/
-@@||go.kr^$stealth=dpi
 @@||google.*/search$stealth=useragent|ip
 @@||nexon.com^$stealth=dpi
 @@||photo.jtbc.co.kr/news/cms/etc/
