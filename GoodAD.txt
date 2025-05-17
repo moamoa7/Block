@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250516
+! Version: 20250517
 !
 !
 !
@@ -2051,7 +2051,7 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 !||com/data/banner/*
 ! - - - 주소갤러리 (https://jusogall.com/)
 ! - - - jusogall.com/data/banner_bbs/*$image
-||*/data/banner*/*$image
+!||*/data/banner*/*$image
 ! - 안전 인증 사이트
 xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 ! - 링크 모음 글자
@@ -2713,10 +2713,40 @@ zeta-ai.io##.pointer-events-none
 
 
 ! - 임시
+
+||*/*/ad/*
+! - 예외 (아바타 아이콘) (https://04.avsee.ru/)
+@@||avsee.ru/data/member_image/ad/*$image
+! - 예외 (아바타 아이콘) (https://damoang.net/)
+@@cdn.damoang.net/data/member_image/ad/*$image
+!||*/*/AD/*
+||*/*/ad-*/*
+!||*/*/AD-*/*
 ||*/*/ads/*
-||*/*/banner/*
-||*/*/banners/*
-||*/*/Banner/*
-||*/*/Banners/*
-||*/*/BANNER/*
-||*/*/BANNERS/*
+!||*/*/*ads*
+!||*/*/ADS/*
+!||*/*/banner/*
+!||*/*/banner*
+! - 위에꺼 아래로 변경
+||*/*/*banner*
+!||*/*/banner*/*
+!||*/*/_banner_/*
+!||*/*/banner-*
+!||*/*/banner-*/*
+!||*/*/*-banner-*
+!||*/*/*-banner-*/*
+!||*/*/banner.*/*
+!||*/*/banners/*
+!||*/*/Banner/*
+!||*/*/Banners/*
+!||*/*/BANNER/*
+!||*/*/_BANNER_/*
+!||*/*/*-BANNER-*
+!||*/*/*-BANNER-*/*
+!||*/*/BANNERS/*
+!||*/*/popup/*
+!||*/*/popup*
+!||*/*/*popup*
+!||*/*/popup*/*
+!||*/*/*popup/*
+||*/*/*popup*
