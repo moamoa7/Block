@@ -86,38 +86,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !  / / / / /  차단 / / / / / 
 !
 !
-! 유튜브 (https://www.youtube.com/)
-! - Youtube 광고 차단
-! - - - - - 출처 : uBlock filters – Quick fixes
-www.youtube.com##+js(nano-stb, [native code], 17000, 0.001)
-www.youtube.com##+js(trusted-rpnt, script, (function serverContract(), /*START*/"YOUTUBE_PREMIUM_LOGO"!==ytInitialData?.topbar?.desktopTopbarRenderer?.logo?.topbarLogoRenderer?.iconImage?.iconType&&(location.href.startsWith("https://www.youtube.com/tv#/")||location.href.startsWith("https://www.youtube.com/embed/")||document.addEventListener("DOMContentLoaded"\,(function(){const t=()=>{const t=document.getElementById("movie_player");if(!t)return;if(!t.getStatsForNerds?.()?.debug_info?.startsWith?.("SSAP\, AD"))return;const e=t.getProgressState?.();e&&e.duration>0&&(e.loaded<e.duration||e.duration-e.current>1)&&t.seekTo?.(e.duration)};t()\,new MutationObserver((()=>{t()})).observe(document\,{childList:!0\,subtree:!0})})));(()=>{const t={apply:(t\,o\,n)=>{const e=n[0];return"function"==typeof e&&e.toString().includes("onAbnormalityDetected")&&(n[0]=function(){})\,Reflect.apply(t\,o\,n)}};window.Promise.prototype.then=new Proxy(window.Promise.prototype.then\,t)})();(function serverContract(), sedCount, 1)
-www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, , propsToMatch, /player\?|get_watch|^\W+$/)
-www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads, , propsToMatch, /playlist?)
-www.youtube.com##+js(json-prune-xhr-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, , propsToMatch, /\/player(?:\?.+)?$/)
-tv.youtube.com##+js(trusted-replace-xhr-response, '"adPlacements"', '"no_ads"', /playlist\?list=|\/player(?:\?.+)?$|watch\?[tv]=/)
-www.youtube.com##+js(trusted-replace-xhr-response, /"adPlacements.*?([A-Z]"\}|"\}{2\,4})\}\]\,/, , /playlist\?list=|\/player(?:\?.+)?$|watch\?[tv]=/)
-www.youtube.com##+js(trusted-replace-xhr-response, /"adPlacements.*?("adSlots"|"adBreakHeartbeatParams")/gms, $1, /\/player(?:\?.+)?$/)
-www.youtube.com##+js(trusted-replace-fetch-response, '"adPlacements"', '"no_ads"', player?)
-www.youtube.com##+js(trusted-replace-fetch-response, '"adSlots"', '"no_ads"', player?)
-www.youtube.com##+js(trusted-replace-fetch-response, '"adSlots"', '"no_ads"', /^\W+$/)
-www.youtube.com##+js(trusted-prevent-dom-bypass, Node.prototype.appendChild, fetch)
-www.youtube.com##+js(trusted-prevent-dom-bypass, Node.prototype.appendChild, Request)
-www.youtube.com##+js(trusted-prevent-dom-bypass, Node.prototype.appendChild, JSON.parse)
-! - Youtube 요소 숨기기
-! - - - 유니콘Pro에서도 적용됨
-! -- - - - 출처 : EasyList
-youtube.com###masthead-ad
-youtube.com##ytd-ad-slot-renderer
-youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-www.youtube.com##.ytp-featured-product
-youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
-youtube.com###player-ads
-! - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
-! - - - 유니콘Pro에서도 적용됨
-! - - - - - 출처 : https://gall.dcinside.com/youtube/378167
-youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
-!
-!
 !
 ! 3자 ping / websocket 차단
 ||*$ping,websocket,third-party
@@ -126,8 +94,13 @@ youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !impo
 ! - - - 예외
 @@||gateway.discord.gg$websocket
 @@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com
-
 !
+!
+! 유튜브 (https://www.youtube.com/)
+! - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
+! - - - 유니콘Pro에서도 적용됨
+! - - - - - 출처 : https://gall.dcinside.com/youtube/378167
+youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)!
 !
 !
 ! 숲 ((https://sooplive.co.kr)
@@ -541,8 +514,8 @@ zum.com##.tv_wrap
 ! - - - 아래 출처대로 바꿔도 동일
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##[src*='/AD/']
-||.com/AD/*
-||.org/AD/*
+!||.com/AD/*
+!||.org/AD/*
 ! - - - 티비몬
 [$domain=/^tvmon\d+.org/]###banner-row-1
 ! - - - 티비핫 (주소 바뀌므로 나중에 수동으로 수정해야 함)
@@ -1458,6 +1431,8 @@ topporn.link#@#[target="_blank"]:has([src$=".gif"])
 topporn.link#@#[target="_blank"]:has([src*=".gif"])
 ! - - - imgs 경로로 지정한 규칙 (List-KR)
 ##.main-box:has(img[src^="/imgs/"])
+!- - - 일반식으로 차단
+||ru/imgs/*
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
@@ -1467,7 +1442,7 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! - 일부 영상 재생 차단 방지
 @@||tiktokcdn.com/obj/$xhr
 ! - 로고 이미지 복원
-@@||supjav.com/img/logo.png
+@@||supjav.com/img/*$image
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -1670,6 +1645,11 @@ njav.com##.mx-auto
 missav.live##.lg\:block
 !
 !
+! HOHO (https://hohoj.tv/)
+! - 영상 옆 배너?
+hohoj.tv##iframe[src="javascript:window.location.replace(this.frameElement.dataset.link)"]
+!
+!
 ! JAVLibrary (https://www.javlibrary.com/)
  (https://r86m.com/)
 ! - 이미지 복원
@@ -1738,7 +1718,7 @@ avped.com##.loading
 ! 야동도시 (https://yacity47.com/)
 ! 야동공장 (https://yagong84.com/)
 ! - 배너 이미지
-||/storage/upload/banners/*$important
+!||/storage/upload/banners/*$important
 ! - 팝업 - 4시간 동안 다시 열람하지 않습니다
 !  - - - 와이즈티비 (https://wstv12.com/) 
 ! - - - 블루티비 (https://bluelive77.com/)
@@ -1893,7 +1873,8 @@ watchjavonline.com##.code-block-2.code-block
 ![$domain=/^dragonfly\d+.com/],[$domain=/^yd-time\d+.com/],[$domain=/^samdasoo\d+.com/],[$domain=/^jusokok\d+.com/],[$domain=/^zamzatv\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^evian\d+.com/],[$domain=/^boztv\d+.com/],[$domain=/^nvt\d+.com/],[$domain=/^mdv\d+.com/],[$domain=/^drck\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^retv\d+.com/],[$domain=/^hotg\d+.com/],[$domain=/^yd-house\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^avspot\d+.com/],[$domain=/^soda\d+.com/],[$domain=/^comein\d+.com/],[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^redbanana\d+.com/],[$domain=/^drck\d+.com/],[$domain=/^sexports\d+.com/],[$domain=/^yapro\d+.com/],[$domain=/^ggonghub\d+.com/],[$domain=/^/redcoconut\d+.com/],[$domain=/^/cheon-\d+.com/]##.bg-black.carousel-inner
 ##.bg-black.carousel-inner
 !||*data/apms/background/*$image
-||*/background/*$image
+!||*/background/*$image
+||*/*/*/background*$image
 !
 !
 ! 에비앙 (https://evian31.com/)
@@ -1933,7 +1914,7 @@ watchjavonline.com##.code-block-2.code-block
 !
 ! 딸플릭스 (https://kr3.ddal.xyz/)
 ! - 배너 이미지
-||*net/banners/*$image
+!||*net/banners/*$image
 !
 !
 ! 야동월드 (https://ya-world.net/)
@@ -1982,6 +1963,31 @@ mingky.net##.px-xl-0.px-sm-4.px-0.my-sm-4.my-3.nt-container > div
 mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 !
 !
+! 밍키넷 (https://mingky34.net/)
+! - 쉬멜야동 글자
+[$domain=/^mingky\d+.net/]##div.pc_menu:nth-of-type(5)
+! - 수간야동 글자
+[$domain=/^mingky\d+.net/]##div.pc_menu:nth-of-type(7)
+! - 이미지 복원
+@@||mingky*.net/img/*$image
+!
+!
+! 야동박사 (https://yadong-30.com/)
+! - 쉬멜야동 글자
+[$domain=/^yadong-\d+.com/]##li.gnb_1dli:nth-of-type(7)
+!
+!
+! 야동국 (https://yadongkuk25.com/)
+! - 쉬멜야동 글자
+[$domain=/^yadongkuk\d+.com/]##li.gnb_1dli:nth-of-type(2)
+!
+!
+! AV스팟 (https://avspot47.com/)
+! - 하드코어란
+[$domain=/^avspot\d+.com/]##div.off.snb-list:nth-of-type(2)
+
+!
+!
 ! 사이즈19 (https://xn--19-2q4j57t9vc.net/) (https://size71.net/) (https://vod.tmall-kr.net/)
 ! - 팝업
 ###popup-ad
@@ -2013,7 +2019,7 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 !||sanai*.com/data/file/admin_banner/*
 !||unlishot45.top/data/file/admin_banner/*
 !||mmxxx4.net/data/file/admin_banner/*
-||*/data/file/admin_banner/*$image
+!||*/data/file/admin_banner/*$image
 ! - 메인 배너 공간
 [$domain=/^darkg\d+.com/]##div#main-banner
 ! - 영상 상단 배너 공간
@@ -2181,8 +2187,12 @@ wbr2045.com##li:nth-of-type(7)
 !
 !
 ! 섹포츠 (https://sexports42.com/)
+! 먹튀검증 글자
+[$domain=/^sexports\d+.com/]##li.off.menu-li:nth-of-type(9)
 ! 제휴.동맹 글자
 [$domain=/^sexports\d+.com/]##li.off.menu-li:nth-of-type(12)
+! - 이미지 복원
+@@||sexports*.com/img$image
 !
 !
 ! 야동마켓 (https://www.yadongmarket.com/)
