@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250517
+! Version: 20250518
 !
 !
 !
@@ -335,6 +335,8 @@ etoland.co.kr###info_recent_list_wrap
 !
 !
 ! 더쿠 (https://theqoo.net/)
+! - 로딩중 글자
+theqoo.net##.theqoo-counter
 ! - 이미지 복원
 @@||blogger.googleusercontent.com/img/*$image,domain=theqoo.net
 !
@@ -1682,28 +1684,81 @@ www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],
 !
 ! AVPED.COM (https://www.avped.com/)
 ! - 상단 배너
-! - - - https://play.sooplive.co.kr/ 실시간 영상 로딩시 돌아가는 8자 모양 사라짐
+! - - - https://play.sooplive.co.kr/ 실시간 영상 로딩시 돌아가는 8자 모양 사라짐 (사이트 주소 입력 필요)
 avped.com##.loading
 !
 !
- ! FC2PPVDB (https://fc2ppvdb.com/)
- ! - 입장시 18세 체크
- ##[id*="ageCheck"]:not(html):not(body):not(article)
-!
-!
 ! 야동판 (https://3.yadongpan.me/)
-! - PC 메인 전체
-! - 영상내 더 아래 배너 및 오른쪽 배너 (모바일 동일)
-! - - - 자막야동 (https://3.jamakyadong.me/)
-!###top-desktop
+! - 배너 이미지
+!||yadongpan.me/myimages/*$image
+||*/*/myimages/*$image
+! - 메인 상단 배너 / 오른쪽 배너
+###top-desktop
+! - 영상 하단 하단 배너
+! - - - https://play.sooplive.co.kr/ 실시간 영상 로딩시 돌아가는 8자 모양 사라짐 (사이트 주소 입력 필요)
+[$domain=/^\d+.yadongpan.me/]##.loading
 ! - 영상내 배너 및 닫기 버튼
 ##.happy-insid-player
 ! - 영상 아래 배너
 ##.happy-unde-player
+! - PC 메인 하단 배너
 ! - 모바일 상단 배너
 ! - 모바일 상단 제외 전체 배너
 ! - - - 섹툰 (https://3.sektoon.me/)
 ###top-mobile
+!
+!
+! 자막야동 (https://3.jamakyadong.me/)
+! - 배너 이미지
+!||jamakyadong.me/myimages/*$image
+! - 메인 전체 배너
+!###top-desktop
+! - 영상 오른쪽 배너
+##.sidbar-ads
+! - 영상 하단 배너
+##.unde-player-ad
+!
+!
+! 좆커넷 (https://jotker45.top/)
+! 정복걸 (https://jbjbgg45.top/)
+! 언리샷 (https://unlishot45.top/)
+! 야르가즘 (https://yargasm45.top/)
+! - 성인업소 글자
+[$domain=/^jotker\d+.top/],[$domain=/^jbjbgg\d+.top/],[$domain=/^unlishot\d+.top/],[$domain=/^yargasm\d+.top/]##li.gnb_1dli:nth-of-type(1)
+! - 제휴사이트 글자
+[$domain=/^jotker\d+.top/],[$domain=/^jbjbgg\d+.top/]##li.gnb_1dli:nth-of-type(7)
+[$domain=/^yargasm\d+.top/]##li.gnb_1dli:nth-of-type(8)
+! - 영상 상단 배너 공간
+###main-banner
+! - ||*/*/ads/* 예외 (영상 안나옴) - 광고 와 같은 디렉토리에 있음
+@@||zxcasdqwezxcasdqwe.com/ads/*$media
+!
+!
+! 야동허브 (https://ydhub11.net/)
+! - 배너 이미지
+||net/static/images/*$image
+!
+!
+! 야모아 (https://yamoa24.site/)
+! - 상단 배너 (검색란도 지워짐)
+[$domain=/^yamoa\d+.site/]##.w-full
+##.w-full
+! - 이미지 복원 (배너 이미지와 같은 경로라 어쩔 수 없음)
+@@||static.yaaamoa.com/img/*$image
+!
+!
+! 섹탈 (https://sstal45.top/)
+! - 상단 배너 공간
+[$domain=/^sstal\d+.top/]##.mx-n2.row-cols-xl-4.row-cols-lg-2.row-cols-md-2.row-cols-sm-2.row-cols-2.row > li.px-1.col > .mb-2.img-wrap
+! - 성인업소 글자
+[$domain=/^sstal\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
+! - 동맹사이트 글자
+[$domain=/^sstal\d+.top/]##li.me-li.p-0.col:nth-of-type(10)
+!
+!
+! FC2PPVDB (https://fc2ppvdb.com/)
+! - 입장시 18세 체크
+##[id*="ageCheck"]:not(html):not(body):not(article)
 !
 !
 ! 색색티비 (https://kr161.mysstv.com/)
@@ -1903,6 +1958,16 @@ watchjavonline.com##.code-block-2.code-block
 [$domain=/^yasome\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
 !
 !
+! 싸나이 (https://sanai13.com/)
+! - 제휴사이트 글자
+[$domain=/^sanai\d+.com/]##li:nth-of-type(9)
+!
+!
+! 야동다운 (https://야동다운.com/) (https://av032.xyz/)
+! - 쉬멜 야동 글자
+[$domain=/^av\d+.xyz/]##div.pc_menu:nth-of-type(7)
+!
+!
 ! 개조아 (https://dogjoa80.net/)
 ! - 배너
 [$domain=/^dogjoa\d+.net/]##.at-title
@@ -1989,10 +2054,14 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! AV스팟 (https://avspot47.com/)
 ! - 하드코어란
 [$domain=/^avspot\d+.com/]##div.off.snb-list:nth-of-type(2)
-
 !
 !
-! 사이즈19 (https://xn--19-2q4j57t9vc.net/) (https://size71.net/) (https://vod.tmall-kr.net/)
+! AV소다 (https://soda59.com/)
+! - 하드코어란
+[$domain=/^soda\d+.com/]##div.off.snb-list:nth-of-type(6)
+!
+!
+! 사이즈19 (https://xn--19-2q4j57t9vc.net/) (https://size71.net/) (https://vod.tmall-kr.net/) (https://nxbam3.net/)
 ! - 팝업
 ###popup-ad
 ! - 영상 재생 닫기 버튼 (EasyList)
@@ -2222,6 +2291,12 @@ hitomi.la###immersive-translate-popup
 ! OnlyFans资源社 (https://of996.com/)
 ! - 왼쪽  떠다니는 메뉴
 [$domain=/^of\d+.com/]##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximize.ftwp-wrap
+!
+!
+! 팬터티비 (https://www.pandalive.co.kr/)
+! - 팝업 이미지
+||*/upload/board/*$image
+! - 팝업 - 막으면 스크롤이 안되서 안함
 !
 !
 ! 주소월드 (https://wdwd7.com/)
@@ -2536,6 +2611,11 @@ linkddd.com##div.xe-widget-wrapper.xe_content:nth-of-type(4)
 [$domain=/^wt-bc\d+.com/],[$domain=/^mt-toto\d+.com/]##.slide.carousel
 !
 !
+! 오피스타 (https://opfofo.com/)
+!- 오피 이미지
+||*/*/upfile/thumb*/*
+!
+!
 ! - GOODTV 기독교 복음방송 (https://goodtv.co.kr/)
 ! - 팝업
 ##.popup
@@ -2723,6 +2803,7 @@ zeta-ai.io##.pointer-events-none
 @@||avsubthai.me/wp-content/uploads/$image
 @@||i0.wp.com/*/wp-content/uploads/$image
 @@||pornjav.tv/wp-content/uploads/$image
+@@||gamedva.com/wp-content/uploads/$image
 
 
 
@@ -2737,6 +2818,7 @@ zeta-ai.io##.pointer-events-none
 ||*/*/ad-*/*
 !||*/*/AD-*/*
 ||*/*/ads/*
+
 !||*/*/*ads*
 !||*/*/ADS/*
 !||*/*/banner/*
