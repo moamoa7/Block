@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250518
+! Version: 20250519
 !
 !
 !
@@ -287,6 +287,7 @@ etoland.co.kr###login_popup
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ##[src*="/data/daumeditor"]
 ! - 왼쪽 통합검색 바로 아래 배너
+! - - - 티비착 (https://tvchak148.com/) 영상란 배너
 ##.banner-box
 ! - 오늘의 HIT 아래 상담실 등 배너
 etoland.co.kr###consult_list
@@ -532,7 +533,8 @@ zum.com##.tv_wrap
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
 ! - 상단 배너
 ! - - - 티비위키
-[$domain=/^tvwiki\d+.com/]###bannerList
+![$domain=/^tvwiki\d+.com/]###bannerList
+###bannerList
 ! - - - 아래 출처대로 바꿔도 동일
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##[src*='/AD/']
@@ -609,12 +611,37 @@ tvhot.site##.object-cover
 [$domain=/^krmaxtv\d+.com/]##.clearfix.yk-pannela
 !
 !
+! 티비착 (https://tvchak148.com/)
+! - 상단 배너
+##.ad-container
+! - 성인 글자
+[$domain=/^tvchak\d+.com/]###nav-dongman3
+!
+!
+! 짭플릭스 (https://zzap148.com/)
+! - 성인 글자
+[$domain=/^zzap\d+.com/]##div.snb-list:nth-of-type(6)
+! - 이미지 복원
+@@||zzap*.com/img/*$image
+!
+!
+! 티비팡 (https://tvpang.live/)
+! - 대피소 글자
+tvpang.live##div.open.main-menu:nth-of-type(3)
+! - 성인 글자
+tvpang.live##div.open.main-menu:nth-of-type(4)
+!
+!
 ! 땡땡티비 (https://ootv37.com/)
 !  - 배너 공간
 ! - - - ##[src*="imgbox.com"] 사용시 전 이미지가 다 날라감
-[$domain=/^ootv\d+.com/]##.banner_wrap2
+![$domain=/^ootv\d+.com/]##.banner_wrap2
+##.row-banner
 ! - 링크동맹 글자
-[$domain=/^ootv\d+.com/]###side_wrap > .active
+[$domain=/^ootv\d+.com/]##nav#snb:nth-of-type(6)
+! - 메인 하단 동맹리스트
+[$domain=/^ootv\d+.com/]##section:nth-of-type(6)
+!
 !
 ! 티비판 (https://tvpan2.com/)
 ! - 화면 뿌옇게 해결
@@ -643,7 +670,7 @@ tvhot.site##.object-cover
 ! - 왼쪽 배너
 [$domain=/^bbtv\d+.com/]##div.open.main-menu:nth-of-type(3)
 ! - 링크동맹 안보이게
-[$domain=/^bbtv\d+.com/]##.posted-info
+[$domain=/^bbtv\d+.com/]##div.main-menu:nth-of-type(2)
 ! - 로고 복원
 @@||bbtv*.com/img/*$image
 !
@@ -670,6 +697,18 @@ tvhot.site##.object-cover
 ! 도라마코리아 (https://www.dorama.kr/)
 ! - 배너
 www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1fzrtxd-2
+!
+!
+! 또보자TV (https://boztv119.com/)
+! - 제휴/동맹 글자
+[$domain=/^boztv\d+.com/]##li.off.menu-li:nth-of-type(5)
+!
+!
+! 티비소리 (https://srtv118.com/)
+! - 링크동맹 글자
+[$domain=/^srtv\d+.com/]##li#menu-item-21808.menu-item-21808.menu-item-object-tv_show_genre.menu-item-type-taxonomy.menu-item:nth-of-type(7)
+! - 하단 링크동맹
+[$domain=/^srtv\d+.com/]##.clearfix.stui-pannel-bg.stui-pannel
 !
 !
 ! 메시티비 (https://messitv8.com/)
@@ -1530,9 +1569,11 @@ evojav.pro$popup
 ! - 상단 오른쪽 배너 이미지
 ###header_banner
 ! - 영상내 광고
-||video.twimg.com$domain=topgirl.co|javgirl.co
+! - - - 아브티비 (https://kr1.avtv.co/)
+||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
 ! - - - 자브걸 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
-||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
+!||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
+||*/project/ma/js/videojs.hotkeys.min.js$important
 ! - 영상 하단 텍스트 배너
 topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
@@ -1894,6 +1935,22 @@ campaign2.naver.com#@#[class*="popup"]
 ||*/*/upfile/thumb*/*
 !
 !
+! 오피가자 (https://opgo21.com/)
+! - 오피 이미지
+||opgo*.com/data/editor/*$image
+##.ellipsis
+!
+!
+! 오피뷰 (https://opview75.com/)
+! - 팝업 이미지
+||*/images/*_pop*
+###popFirst
+! - 뿌연거 해결
+[$domain=/^opview\d+.com/]##.dimed
+! - 오피 이미지
+||*/images/shop_*
+!
+!
 ! 조개파티 (https://jogaeparty139.com/)
 ! - 영상 위 배너
 ! - - - 오른쪽 작은 배너
@@ -1999,12 +2056,14 @@ watchjavonline.com##.code-block-2.code-block
 ! 꽁허브 (https://ggonghub32.com/)
 ! 레드코코넛 (https://redcoconut23.com/)
 ! 체온 (https://cheon-01.com/)
+! 에비앙 (https://evian31.com/)
+! 야동삼국지 (https://kr4.yadong3.com/)
 ! - 트렌스젠더 글자
 [$domain=/^nvt\d+.com/],[$domain=/^mdv\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^comein\d+.com/]##li.off.menu-li:nth-of-type(7)
 [$domain=/^zamzatv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^hotg\d+.com/]##li:nth-of-type(7)
 [$domain=/^drck\d+.com/],[$domain=/^retv\d+.com/]##li.menu__item.has-submenu:nth-of-type(7)
 [$domain=/^drck\d+.com/],[$domain=/^retv\d+.com/],[$domain=/^hotg\d+.com/]##div.container.news-container:nth-of-type(8)
-[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/]##li:nth-of-type(9)
+[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^evian\d+.com/]##li:nth-of-type(9)
 [$domain=/^avhana-\d+.com/]##li.en.font-16.box-title2:nth-of-type(7)
 [$domain=/^cheon-\d+.com/]##li:nth-of-type(8)
 [$domain=/^cheon-\d+.com/]##div:nth-of-type(45)
@@ -2014,9 +2073,11 @@ watchjavonline.com##.code-block-2.code-block
 [$domain=/^zamzatv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^hotg\d+.com/],[$domain=/^cheon-\d+.com/]##li:nth-of-type(11)
 [$domain=/^drck\d+.com/],[$domain=/^retv\d+.com/]##li.menu__item.has-submenu:nth-of-type(11)
 [$domain=/^comein\d+.com/]##li.off.menu-li:nth-of-type(12)
-[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^yapro\d+.com/]##li:nth-of-type(14)
+[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^yapro\d+.com/],[$domain=/^evian\d+.com/]##li:nth-of-type(14)
+! - - 일부 영상이나 다른 내용이 같이 지워짐
+[$domain=/^kr4.yadong\d+.com/]##li:nth-of-type(6)
 ! - 수간야동 글자
-[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/]##li:nth-of-type(10)
+[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^evian\d+.com/]##li:nth-of-type(10)
 [$domain=/^avhana-\d+.com/]##li.en.font-16.box-title2:nth-of-type(8)
 ! - 하드코어 글자
 [$domain=/^drck\d+.com/]##li.menu__item.has-submenu:nth-of-type(6)
@@ -2053,8 +2114,6 @@ watchjavonline.com##.code-block-2.code-block
 !- 동맹사이트 글자
 [$domain=/^porngg\d+.net/]##a.swiper-slide:nth-of-type(8)
 [$domain=/^porngg\d+.net/]##div.container:nth-of-type(6)
-
-
 !
 !
 ! 에비앙 (https://evian31.com/)
@@ -2062,6 +2121,11 @@ watchjavonline.com##.code-block-2.code-block
 [$domain=/^evian\d+.com/]##div.section:nth-of-type(1)
 [$domain=/^evian\d+.com/]##div.section:nth-of-type(2)
 [$domain=/^evian\d+.com/]##div.section:nth-of-type(3)
+!
+!
+! 썸질라 (https://somez3.com/)
+! - 동맹사이트 글자
+[$domain=/^somez\d+.com/]##a.swiper-slide:nth-of-type(8)
 !
 !
 ! 현자타임스 (https://hjtime95.com/)
@@ -2084,9 +2148,27 @@ watchjavonline.com##.code-block-2.code-block
 [$domain=/^sanai\d+.com/]##li:nth-of-type(9)
 !
 !
+! 야동황제 (https://kr2.hwangj.com/)
+! - 제휴사이트 글자
+! - - - 일부 영상이나 내용이 같이 지워짐
+[$domain=/^kr\d+.hwangj.com/]##li:nth-of-type(9)
+!
+!
+! 딸즈 (https://kr1.ddalsney.com/)
+! AV코걸 (https://go1.kogirl.co/)
+! - 제휴 동맹 글자
+[$domain=/^kr\d+.ddalsney.com/]##li.nav-item:nth-of-type(8)
+[$domain=/^go\d+.kogirl.co/]##li:nth-of-type(6)
+!
+!
 ! 야동다운 (https://야동다운.com/) (https://av032.xyz/)
 ! - 쉬멜 야동 글자
 [$domain=/^av\d+.xyz/]##div.pc_menu:nth-of-type(7)
+!
+!
+! AV히로미 (https://avhiromi6.com/)
+! - 주소모음 글자
+[$domain=/^avhiromi\d+.com/]##.has-sub.menu-item-3763.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
 !
 !
 ! 개조아 (https://dogjoa80.net/)
@@ -2105,6 +2187,12 @@ watchjavonline.com##.code-block-2.code-block
 ! 딸플릭스 (https://kr3.ddal.xyz/)
 ! - 배너 이미지
 !||*net/banners/*$image
+!
+!
+! 일구핫 (https://01.19hot.net/)
+! 추천놀이터 글자
+[$domain=/^\d+.19hot.net/]##li.off.menu-li:nth-of-type(6)
+
 !
 !
 ! 야동월드 (https://ya-world.net/)
@@ -2303,9 +2391,11 @@ xn--3r0b51bq29a.com##li.off.menu-li:nth-of-type(9)
 ||redzone*.cc/data/editor/*$image
 !
 !
-! 레드걸 (https://redgg.kr/) (https://redgirl32.xyz/)
+! 레드걸 (https://redgg.kr/) (https://redgirl32.xyz/) (https://redgirl37.org/)
 ! - 배너 이미지
+! - - - xyz에서 org로 변경됨
 ||redgirl*.xyz/data/editor/*$image
+||redgirl*.org/data/editor/*$image
 !
 !
 ! 레드캣 (https://redcattv.xyz/)
@@ -2376,7 +2466,8 @@ xn--3r0b51bq29a.com##li.off.menu-li:nth-of-type(9)
 ! - - - 라이브걸 (https://livegirl.biz/)
 ! - - - - ||livegirl.biz/data/file/banner_main/*$image
 !||*/data/file/banner_main_*/*$image
-||*/data/file/banner*/*$image
+!||*/data/file/banner*/*$image
+!||*/*/data/file/*$image
 !
 !
 ! 딸퀸 (https://ddalq01.xyz/)
@@ -2417,7 +2508,7 @@ yadongmarket.com##.footer
 ! 한국야동사이트 (https://kor-yadong.xyz/)
 ! - 배너 이미지
 !||kor-yadong.xyz/data/file/main_banner/*$image
-||*/data/file/main_banner/*$image
+!||*/data/file/main_banner/*$image
 !
 !
 ! 히토미 (https://hitomi.la/)
@@ -2487,12 +2578,30 @@ mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
 ![$domain=/^linkpan\d+.com/]##li.off.menu-li:nth-of-type(6)
 !
 !
-! 링크사랑 (https://linklove54.com/)
+! 링크사랑 https://linklove14.com/) (https://linklove54.com/)
+! - 베너 이미지
+||linklove*.com/data/editor/*$image
+||linklove*.com/data/file/ls_*/*$image
+! - 상단 배너 공간
 [$domain=/^linklove\d+.com/]##.w-box
 ! - - -  주소파워 (https://linkpower27.com/)
+! -  메인 중간 배너 공간
 [$domain=/^linklove\d+.com/],[$domain=/^linkpower\d+.com/]##.miso-love-ad
+! - 전체 Top100 글즈
+[$domain=/^linklove\d+.com/]##.on.menu-li
+! - 오피 글자
+[$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(4)
 ! - 먹튀검증 글자
 [$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(7)
+! - 공지사항/신규링크
+[$domain=/^linklove\d+.com/]##div.w-row.row:nth-of-type(1)
+! - 스폰서AD
+[$domain=/^linklove\d+.com/]##div.w-row.row:nth-of-type(2)
+[$domain=/^linklove\d+.com/]##div.w-row.row:nth-of-type(3)
+! - 유흥 글자
+[$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(6)
+! - 이미지 복원
+@@||linklove*.com/img/*$image
 !
 !
 ! 여기요 (https://www.yugiyu.com/)
@@ -2939,6 +3048,8 @@ zeta-ai.io##.pointer-events-none
 @@||pornjav.tv/wp-content/uploads/$image
 @@||gamedva.com/wp-content/uploads/$image
 @@||minkch.com/wp-content/uploads/$image
+! AV히로미 (https://avhiromi6.com/)
+@@||avhiromi*.com/wp-content/uploads/
 
 
 
@@ -2954,6 +3065,7 @@ zeta-ai.io##.pointer-events-none
 ||*/*/ad-*/*
 !||*/*/AD-*/*
 ||*/*/ads/*
+||*/*/ads-*
 
 !||*/*/*ads*
 !||*/*/ADS/*
@@ -2982,3 +3094,5 @@ zeta-ai.io##.pointer-events-none
 !||*/*/popup*/*
 !||*/*/*popup/*
 ||*/*/*popup*
+
+##[class*="banner"]
