@@ -1,12 +1,12 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.05.16.2
+! Version: 2025.05.19.3
 ! Description: 애드가드 필터의 오차단, 지우지 못한 광고와 안티 애드블록을 해결합니다. For Adguard, uBo, Brave
 ! Expires: 12 hours
-! Homepage: https://m.dcinside.com/gallog/cent8649
+! Homepage: https://gallog.dcinside.com/cent8649
+
 
 ! temporary rules
 ###bannerList
-##.basic-banner
 ##.board-tail-banner
 ##[style='margin-bottom: 20px;'].row.row-15
 
@@ -46,6 +46,7 @@ start.klauncher.kr$$script:contains(detected)
 [$domain=/^tvwiki[0-9]*\.com/]###viewCover
 [$domain=/^tvwiki[0-9]*\.com/]##[src*='/AD/']
 [$domain=/^yako[a-z0-9]*\.[a-z]{2,}/]###banner, .banner
+[$domain=/^zzap[0-9]*\.com/]##div.video-long-banner
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]##li:has([target]:not([href*=bbs]))
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[alt*='광고'], [alt*='배너'], [data-ride]
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[class*='carousel'][id]
@@ -106,7 +107,7 @@ humoruniv.com##[id^='naver_adpost_wrap']
 instiz.net##.hot_under
 inven.co.kr##.inven-float-alarm
 khan.co.kr##.mAd
-komi.la##div:has(> div[data-banner-id])
+komi.la##div.overflow-hidden:has(.text-gray-200.font-bold.text-lg)
 m.11st.co.kr##div.l-grid:has([class*='c-ad'])
 m.11st.co.kr##div:has(> .c-guide-ad)
 m.blog.naver.com###blog_fe_feed > div:has([class^='recommend_section__'])
@@ -129,7 +130,6 @@ m.gmarket.co.kr##.box__banner-promotion
 m.gmarket.co.kr##.box__top-banner
 m.gmarket.co.kr##.link__banner
 m.inven.co.kr##.show-ads
-m.naver.com##.comp_card:not(.comp_weather)
 mlbpark.donga.com##.coupang_cont
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
@@ -157,8 +157,6 @@ windowsforum.kr,seoul.co.kr##.ad
 zod.kr##[data-href^='https://zod.kr/go/']
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
 ||apps.m.sooplive.co.kr^$all
-||arca.live/static/assets/js/adult.min.js
-||link.coupang.com/*/TOSS$all
 ||trend.rankify.best^
 ~greend.kr##[class*='ad'][id^='AD']
 ~nexon.com,~gg##[target='_blank']:has([src*='/banner'])
@@ -168,12 +166,14 @@ zod.kr##[data-href^='https://zod.kr/go/']
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
 cafe.naver.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 
-! 국가 우회
+! 국가 / 성인인증 우회
 dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_mrnhbtk', '1year', '/', '.dmm.co.jp')
+||arca.live/static/assets/js/adult.min.js
 
 ! 멀웨어 / 수익링크 차단
 fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ||adcr.naver.com^$all
+||link.coupang.com/*/TOSS$all
 ||mistydivided.com^$all
 ||work.gd^$all
 
@@ -190,6 +190,7 @@ fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 @@||photo.jtbc.co.kr/news/cms/etc/
 @@||ssl.pstatic.net^$script,domain=nid.naver.com
 etoland.co.kr#@#div[class$="_ad"]
+hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
 lol.inven.co.kr#@#article > div[style].banner
 video.kakao.com#@#.list_share
 web.joongna.com#@#a[rel*="sponsored"]
