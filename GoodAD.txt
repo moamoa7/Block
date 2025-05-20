@@ -682,6 +682,7 @@ tvpang.live##div.open.main-menu:nth-of-type(4)
 ! - - - 숲 (https://www.sooplive.co.kr/) - 실시간 이미지 안보임
 ! - - - 엠팍 (https://mlbpark.donga.com/) - 오른쪽 배너 아래 일부 안보이지만 게시물은 보여서 패스
 ! - - - 인벤 (https://www.inven.co.kr/) - 일부 링크글 안보이지만 게시물은 보여서 패스 (모바일에서 안보이나 머지)
+! - - - 더쿠 (https://theqoo.net/) -  twitter.com 프레임  깨짐
 ! - - - 모두의후방 (https://data.pureugong.com/ - 게시물이 안보임)
 
 trand.co.kr#@#a[href^="http"][target="_blank"]
@@ -689,6 +690,7 @@ sooplive.co.kr#@#a[href^="http"][target="_blank"]
 !mlbpark.donga.com#@#a[href^="http"][target="_blank"]
 inven.co.kr#@#a[href^="http"][target="_blank"]
 data.pureugong.com#@#a[href^="http"][target="_blank"]
+twitter.com#@#a[href^="http"][target="_blank"]
 
 !
 !
