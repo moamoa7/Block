@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250519
+! Version: 20250520
 !
 !
 !
@@ -97,6 +97,9 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
+! - 다음 영상 재생 차단
+! - 출처 : https://raw.githubusercontent.com/BigflipBOT/ublock-unhook/refs/heads/master/ublock-unhook-filters.txt
+/endscreen.js$script,xhr,important,domain=youtube.com
 ! - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
 ! - - - 유니콘Pro에서도 적용됨
 ! - - - - - 출처 : https://gall.dcinside.com/youtube/378167
@@ -137,6 +140,9 @@ poong.today##._mainWingBannerArea_trl52_537
 chzzk.naver.com##.popup_dimmed_transparent__uMy0d.popup_dimmed__zs78t
 ! - 광고?
 ||.com/ad-*
+! 허용목록 (Adblock-Rule-Collection-Lite)
+@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
+!@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=naver.com
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -164,6 +170,11 @@ twitch.tv###twilight-sticky-footer-root
 !  - 영상 재생 해결
 !@@play.kakao.com
 !@@videoads.kakao.com
+!
+!
+! 틱톡 (https://www.tiktok.com/)
+! - 뿌연거 해결
+tiktok.com##.TUXModal-overlay
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -269,6 +280,10 @@ wiki.dcinside.com##*
 !
 !
 ! 에펨코리아 (https://www.fmkorea.com/)
+! 배너 (오른쪽 위 /게시글 하단 댓글 사이 배너 )
+! - - -  웃대 (https://web.humoruniv.com/) 왼쪽 배너 / 하단 배너
+! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
+##[class^="ads"]
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
 !fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
@@ -289,6 +304,8 @@ etoland.co.kr###login_popup
 ! - 왼쪽 통합검색 바로 아래 배너
 ! - - - 티비착 (https://tvchak148.com/) 영상란 배너
 ##.banner-box
+! - 맨왼쪽/가운데 상단/맨 오른쪽 배너
+##[class$="_ad"]
 ! - 오늘의 HIT 아래 상담실 등 배너
 etoland.co.kr###consult_list
 ! - 무료충전소
@@ -313,7 +330,7 @@ etoland.co.kr##section.box:nth-of-type(7)
 !||www.etoland.co.kr/data/daumeditor10/*$image
 etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
 ! - 이토랜드 광고 게시물 배너
-||*/img/market/ajd/ajd_banner*$image
+!||*/img/market/ajd/backgroun*$image
 ! - 포인트 충전소 이미지 복원 (List-KR 무력화)
 @@||etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
@@ -343,6 +360,11 @@ theqoo.net##.theqoo-counter
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
+! - 배너 (상단배너 / 왼쪽.오른쪽 맨 위 배너)
+##[class^="ad-"]
+! - 배너 (댓글 위 배너)
+##[class$="-ad"]
+
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
 inven.co.kr##.roulette-open.inven-float-alarm
 ! - 게시글 하단 안내창 (모바일)
@@ -361,6 +383,9 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 !
 !
 ! 루리 (https://m.ruliweb.com/)
+! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
+! - - -  출처 : List-KR
+##[class*="ad_"][style]
 ! - - - 맨 밑 하단 게시글 광고 배너 (모바일)
 ruliweb.com##.fixed_layer1
 ! - - - 맨밑 하단 파란색 배너 (모바일)
@@ -381,6 +406,11 @@ ruliweb.com##.fixed_ad_wrapper
 ! 보배드림 (https://www.bobaedream.co.kr/)
 ! - 오늘의 회원 랭킹
 bobaedream.co.kr##.todayRanking
+!
+!
+! 오늘의 유머 (https://www.todayhumor.co.kr/)
+! - 왼쪽 배너
+##[class*="_ad_"]
 !
 !
 ! 포모스 (https://www.fomos.kr/)
@@ -452,14 +482,19 @@ ppomppu.co.kr##.hot-imgBoard
 !
 !
 ! SLR (https://www.slrclub.com/)
+! - 배너 (맨상단 오른쪽 /게시물 댓글 사이 / 왼쪽 / 하단 )
+! - - -  딴지 (https://www.ddanzi.com/) (게시글 바로 위 배너 / 왼쪽.오른쪽 배너/댓글 바로 위 배너/ 맨 하단 배너 )
+! - - - 클리앙 (https://www.clien.net/) (게시글 하단 배너)
+! - - - 다모앙 (상단 배너 / 게시글 하단 배너 / 댓글 위 배너 / 왼쪽 배너 / 댓글 아래 배너 / 맨 하단 배너 )
+##[class^="ad"]
 ! - 게시글 상단 텍스트 광고 (PC)
-##.notice
+slrclub.com##.notice
 ! - - - 예외 (텔래그램 주소 사라짐)
-[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]#@#.notice
+![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]#@#.notice
 ! - - - 참고 (공지글 사라짐)
 !theqoo.net#@#.notice
 ! - - - 예외 (공지글 제목 안보임
-cineaste.co.kr#@#.notice
+!cineaste.co.kr#@#.notice
 !
 !
 ! 클리앙 (https://clien.net/)
@@ -477,6 +512,11 @@ damoang.net##.d-block
 ! - 이미지 복구
 @@||damoang.net//data/editor/*$image
 @@||cdn.damoang.net/img/*$image
+!
+!
+! 웃긴대학 (https://web.humoruniv.com/)
+! - 왼쪽 배너
+##[class^="ad_"]
 !
 !
 ! bada.us (https://bada.us/)
@@ -630,6 +670,26 @@ tvhot.site##.object-cover
 tvpang.live##div.open.main-menu:nth-of-type(3)
 ! - 성인 글자
 tvpang.live##div.open.main-menu:nth-of-type(4)
+!
+!
+! 애니라이프 (https://anilife.live/)
+! - 상단 배너 (List-KR)
+! anilife.*##div[class] > a[class][href^="http"][target="_blank"]
+!##div[class] > a[class][href^="http"][target="_blank"]
+##a[href^="http"][target="_blank"]
+! - 예외
+! - - - trand (https://trand.co.kr/) - 링크 게시글 안보임
+! - - - 숲 (https://www.sooplive.co.kr/) - 실시간 이미지 안보임
+! - - - 엠팍 (https://mlbpark.donga.com/) - 오른쪽 배너 아래 일부 안보이지만 게시물은 보여서 패스
+! - - - 인벤 (https://www.inven.co.kr/) - 일부 링크글 안보이지만 게시물은 보여서 패스
+! - - - 모두의후방 (https://data.pureugong.com/ - 게시물이 안보임)
+
+trand.co.kr#@#a[href^="http"][target="_blank"]
+sooplive.co.kr#@#a[href^="http"][target="_blank"]
+!mlbpark.donga.com#@#a[href^="http"][target="_blank"]
+!inven.co.kr#@#a[href^="http"][target="_blank"]
+data.pureugong.com#@#a[href^="http"][target="_blank"]
+
 !
 !
 ! 땡땡티비 (https://ootv37.com/)
@@ -1136,7 +1196,7 @@ tdosa.net###bo_gallery
 ! 펀비 (https://funbe531.com)
 ! - 배너
 [$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
-! - 만화 위 배너
+! - 개별 만화 배너
 [$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.clearfix
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
 #@#.mobile-banner
@@ -1145,6 +1205,8 @@ tdosa.net###bo_gallery
 ! 툰코 (https://tkor019.com/)
 ! - 토토보증업체 글자
 [$domain=/^tkor\d+.com/]##.text-center.hidden-xs.navbar-nav.nav > li > [href="https://tkor020.com/토토보증업체"]
+! - 이미지 복원
+@@||tkor*.com/img/*$image
 !
 !
 ! 늑대닷컴 (https://wfwf387.com/)
@@ -1159,6 +1221,13 @@ tdosa.net###bo_gallery
 ##.top-banner
 ! - 보증토토 배너
 ||iabn10.net/*ico*
+!
+!
+! 헤븐넷 (https://hellven.net/)
+! -  오른쪽 배너 (List-KR)
+!hellven.net##a[href^="http"][target="_blank"].thumbnail
+!##a[href^="http"][target="_blank"].thumbnail
+!##.thumbnail
 !
 !
 ! 야툰 (https://yatoon203.com/)
@@ -1269,9 +1338,27 @@ tdosa.net###bo_gallery
 !
 !
 ! 기상청 (https://www.weather.go.kr/)
+! - 왼쪽 배너
+##.list-banner
 ! - 날씨정보 가끔 안나오는거 해결
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
 !@@weblog.kma.go.kr^
+!
+!
+! 연합뉴스 (https://www.yna.co.kr/)
+! 기사내 배너 (상단.좌.우/기사내/하단)
+##[class^="aside-box"]
+!
+!
+! 한국경제 (https://www.hankyung.com/)
+! - 맨 상단 배너
+!##.ad-top
+! - 메인배너 및 상단 오른쪽 돌아가는 배너
+##[class^="promotion"]
+! - 상단 배너 (중복)
+##.promotion-banner
+! - 배너 (오른쪽 배너) (List-KR)
+##div[class*="-ad"]:not(.container):not([style])
 !
 !
 ! MTN 머니투데이 (https://mtn.co.kr/)
@@ -1291,6 +1378,11 @@ mtn.co.kr##.d_block
 ##.special_area
 !
 !
+! 서울경제 (https://www.sedaily.com/)
+! - 지저분한거 정리
+##.email_pop
+!
+!
 ! 게임조선 (https://gamechosun.co.kr/)
 ! - 상단 배너
 ##.top_event
@@ -1299,6 +1391,21 @@ mtn.co.kr##.d_block
 ! 한국경제TV (https://www.wowtv.co.kr/)
 ! - 상단 배너
 www.wowtv.co.kr##.MainTopBig1.wrap-BannerBox
+!
+!
+! JTBC뉴스 (https://news.jtbc.co.kr/)
+! 광고 영역
+jtbc.co.kr##.set_contents_video_ad
+!
+!
+! 텐아시아 (https://www.tenasia.co.kr/)
+! - 이미지 복원
+@@||hankyung.com/img/*$image
+!
+!
+! 일간스포츠 (https://isplus.com/)
+! - 이미지 복원
+@@||isplus.com/img/*$image
 !
 !
 ! 어패럴뉴스 (https://apparelnews.co.kr/)
@@ -1316,6 +1423,11 @@ sportalkorea.com##.common_top_ad1
 ! 스포조이 (https://www.spojoy.com/)
 !  - 상단 배너
 www.spojoy.com###TopAdv250
+!
+!
+! 스포츠 동아 (https://sports.donga.com/)
+! - 기사 배너
+sports.donga.com##.view_center
 !
 !
 ! 아이즈 IZE (https://www.ize.co.kr/)
@@ -1376,12 +1488,12 @@ danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-midd
 ! - - - EasyList / List-KR 해제
 ! - - - DNS에서 차단되어 있을 수 있으므로 확인 필요
 ! - - - Ghostery 사용시 Custom Filters에 아래 4개 입력 필요
-@@||ssl.pstatic.net/tveta/libs/
+@@||ssl.pstatic.net/tveta/libs/$domain=danawa.com
 ! - 위 규칙은 치지직/ 네이버쇼핑 등 같이 사용됨
 @@||ad.danawa.com
-@@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
+@@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//$domain=danawa.com
 ! - - - - - YousList
-#@#iframe[src*="/RealMedia/ads/"]
+danawa.com#@#iframe[src*="/RealMedia/ads/"]
 !
 !
 ! 당근 (https://www.daangn.com/)
@@ -1555,6 +1667,11 @@ evojav.pro$popup
 ##.happy-header
 ! - - - 모바일
 ##.happy-header-mobile
+!
+!
+! Svideos JAV (https://avsshub.net/)
+! - 영상내 배너 및 닫기 버튼
+##.happy-inside-player
 !
 !
 ! AV핑크 (https://avpink36.com/)
@@ -1822,6 +1939,13 @@ avped.com##.loading
 [$domain=/^sstal\d+.top/]##li.me-li.p-0.col:nth-of-type(10)
 !
 !
+! 소리바다 (https://sorabada94.com/)
+! - 배너 이미지
+||tumblr.com
+! - 이미지 복원
+@@||sorabada*.com/img/logo*.png
+!
+!
 ! FC2PPVDB (https://fc2ppvdb.com/)
 ! - 입장시 18세 체크
 ##[id*="ageCheck"]:not(html):not(body):not(article)
@@ -1938,7 +2062,8 @@ campaign2.naver.com#@#[class*="popup"]
 ! 오피가자 (https://opgo21.com/)
 ! - 오피 이미지
 ||opgo*.com/data/editor/*$image
-##.ellipsis
+! - ##.ellipsis 단독사용시 일부 깨지는 사이트가 있음 (예 : https://04.avsee.ru/ 이미지.글자 등 일부 안나옴)
+[$domain=/^opgo\d+.com/]##.ellipsis
 !
 !
 ! 오피뷰 (https://opview75.com/)
@@ -2697,6 +2822,9 @@ jusopick.com##.bg-black.flex-col
 !
 !
 ! 주소모아 (https://www.joosomoa1.com/)
+! - 배너 이미지 
+!||static.wixstatic.com/media/*$image
+||static.wixstatic.com/*$image
 ! - 상단 배너
 ! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.linkm365.com/)
 ! -- - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
@@ -3049,7 +3177,11 @@ zeta-ai.io##.pointer-events-none
 @@||gamedva.com/wp-content/uploads/$image
 @@||minkch.com/wp-content/uploads/$image
 ! AV히로미 (https://avhiromi6.com/)
-@@||avhiromi*.com/wp-content/uploads/
+@@||avhiromi*.com/wp-content/uploads/$image
+! https://3.sektorrent.me/
+@@||sektorrent.me/wp-content/uploads/$image
+! https://avsshub.net/
+@@||avsshub.net/wp-content/uploads/$image
 
 
 
@@ -3063,9 +3195,15 @@ zeta-ai.io##.pointer-events-none
 @@cdn.damoang.net/data/member_image/ad/*$image
 !||*/*/AD/*
 ||*/*/ad-*/*
+! - 예외 (텍스트 안보임 해결)
+@@github.com/fordes123/ad-filters-subscriber/*$xhr
 !||*/*/AD-*/*
 ||*/*/ads/*
 ||*/*/ads-*
+
+! https://www.redtube.net/
+! - /_xa/ads_ (AdGuard – Ads)
+||*/*/ads_*
 
 !||*/*/*ads*
 !||*/*/ADS/*
@@ -3073,6 +3211,8 @@ zeta-ai.io##.pointer-events-none
 !||*/*/banner*
 ! - 위에꺼 아래로 변경
 ||*/*/*banner*
+! - 에외
+!@@||*/*/*banner*$css
 !||*/*/banner*/*
 !||*/*/_banner_/*
 !||*/*/banner-*
@@ -3090,9 +3230,65 @@ zeta-ai.io##.pointer-events-none
 !||*/*/BANNERS/*
 !||*/*/popup/*
 !||*/*/popup*
-!||*/*/*popup*
+||*/*/*popup*
+! - 에외 (디시인사이드 약간 깨짐)
+@@||*/*/*popup*$css
 !||*/*/popup*/*
 !||*/*/*popup/*
-||*/*/*popup*
 
 ##[class*="banner"]
+! - 예외  툰코 (https://tkor023.com/) 전체 사라짐
+[$domain=/^tkor\d+.com/]#@#[class*="banner"]
+! - 연합뉴스 (https://www.yna.co.kr/) - 전체 안보임
+yna.co.kr#@#[class*="banner"]
+
+##.banners_area
+
+##.banner_wrap
+
+##.ad-view
+
+
+! - - -  https://www.bobaedream.co.kr/
+##[class^="ad-"]
+
+! https://aragon19.org/
+
+
+
+! 치지직
+##[class*="-ad-"]
+!  - - - ! https://www.pornhub.com/ 포함
+##[class*="advert"]
+
+! https://www.xvideos.com/
+##[class$="-ads"]
+##[class*="-ads-"]
+
+
+
+! https://04.avsee.ru/
+##[class$="_ads"]
+
+
+! https://www.inven.co.kr/
+##[class*="Banner"]
+
+
+
+!||*/*/*img*$image
+
+
+
+
+!##[target='_blank']:has([src*='.png'])
+!##[target='_blank']:has([src$='.png'])
+!##[target='_blank']:has([src*='.jpg'])
+!##[target='_blank']:has([src$='.jpg'])
+
+!##.main-box:has(img[src^="/img/"])
+
+!##[class*="banner"]
+!##[class*="Banner"]
+!##[class$="banner"]
+!##[class$="Banner"]
