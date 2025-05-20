@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250520
+! Version: 20250521
 !
 !
 !
@@ -285,9 +285,9 @@ wiki.dcinside.com##*
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
 ##[class^="ads"]
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
-!fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
-! - 아프리카 탭 게시물 중 VOD iframe 없애기
-fmkorea.com##.video-container
+fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
+! - 아프리카 탭 게시물 중 VOD iframe 없애기 (streamable.com 안나와서 해제)
+!fmkorea.com##.video-container
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
