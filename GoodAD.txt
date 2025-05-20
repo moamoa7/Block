@@ -2099,7 +2099,8 @@ campaign2.naver.com#@#[class*="popup"]
 !
 ! 야부리 시즌 2 (https://yaburi60.com/)
 ! - 팝업  잔상 없애기 (모바일)
-##div.centered
+! - - -  광역규칙으로 하면 AV탑걸 이미지가 안보임 (https://kr40.topgirl.co/)
+[$domain=/^yaburi\d+.com/]##div.centered
 ! - 상단 배너
 [$domain=/^yaburi\d+.com/]##.sm\:grid-cols-4.border.w-full.px-1.gap-x-1.grid-cols-2.grid
 ! - 영상 상.하 배너
