@@ -2098,20 +2098,22 @@ campaign2.naver.com#@#[class*="popup"]
 !
 !
 ! 야부리 시즌 2 (https://yaburi60.com/)
+! - 펍업 하단 틀 제거 (모바일)
+##.bg-black
 ! - 상단 배너
 [$domain=/^yaburi\d+.com/]##.sm\:grid-cols-4.border.w-full.px-1.gap-x-1.grid-cols-2.grid
 ! - 영상 상.하 배너
 [$domain=/^yaburi\d+.com/]##.widget-box.w-full.mt-2.items-center.justify-between.flex
 ! - 배너업체 없애기
-[$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(1)
+![$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(1)
 ! - 인기업소 순위 없애기
-[$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(3)
+![$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(3)
 ! - 이벤트 없애기
-[$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(8)
+![$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(8)
 ! - 왼쪽 업소 정보 배너 없애기
-[$domain=/^yaburi\d+.com/]##.sm\:block.sm\:w-full.hidden > .w-full.my-4.p-1
+![$domain=/^yaburi\d+.com/]##.sm\:block.sm\:w-full.hidden > .w-full.my-4.p-1
 ! - 하단 이벤트 바로가기 클릭 없애기
-[$domain=/^yaburi\d+.com/]##.grow.sm\:max-w-5xl.min-h-screen > div.w-full.p-1
+![$domain=/^yaburi\d+.com/]##.grow.sm\:max-w-5xl.min-h-screen > div.w-full.p-1
 !
 !
 ! WatchJAVOnline (https://watchjavonline.com/)
