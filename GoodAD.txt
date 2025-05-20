@@ -681,26 +681,6 @@ tvpang.live##div.open.main-menu:nth-of-type(4)
 ! - 상단 배너 (List-KR)
 ! anilife.*##div[class] > a[class][href^="http"][target="_blank"]
 !##div[class] > a[class][href^="http"][target="_blank"]
-!##a[href^="http"][target="_blank"]
-!##a[href^="http"][target="_blank"] img
-##a[href][target="_blank"] > img
-! - 예외
-! - - - trand (https://trand.co.kr/) - 링크 게시글 아이콘 안보임
-! - - - 숲 (https://www.sooplive.co.kr/) - 실시간 이미지 안보임
-! - - - 엠팍 (https://mlbpark.donga.com/) - 오른쪽 배너 아래 일부 안보이지만 게시물은 보여서 패스
-! - - - 인벤 (https://www.inven.co.kr/) - 일부 링크글 안보이지만 게시물은 보여서 패스 (모바일에서 안보이나 머지)
-! - - - 더쿠 (https://theqoo.net/) -  twitter.com 프레임  깨짐
-!~ - - - 다모앙 (https://damoang.net/) - 게시물내 일부 이미지 사라짐
-! - - - 모두의후방 (https://data.pureugong.com/ - 게시물이 안보임)
-
-trand.co.kr#@#a[href][target="_blank"] > img
-sooplive.co.kr#@#a[href][target="_blank"] > img
-!mlbpark.donga.com#@#a[href][target="_blank"] > img
-inven.co.kr#@#a[href][target="_blank"] > img
-!twitter.com#@#a[href][target="_blank"] > img
-damoang.net#@#a[href][target="_blank"] > img
-!data.pureugong.com#@#a[href][target="_blank"] > img
-
 !
 !
 ! 땡땡티비 (https://ootv37.com/)
@@ -1457,7 +1437,7 @@ sports.donga.com##.view_center
 !
 ! 옥션 (https://escrow.auction.co.kr/)
 ! ||*/*/*banner* 예외 (혜택 얼마 받았나 정보 안보임)
-@@||escrow.auction.co.kr$script,xhr
+!@@||escrow.auction.co.kr$script,xhr
 !
 !
 ! 바나나몰 (bananamall.co.kr)
@@ -1611,15 +1591,15 @@ cgv.co.kr##.btnLinkFixed
 ! - - - 오늘의 중계 (https://today-sports7.com/)
 ! - - - 야동망고 (https://www.mango54.net/)
 ! - - -  밍키넷 (https://mingky.net/)
-##[target='_blank']:has([src*='.gif'])
-##[target='_blank']:has([src$='.gif'])
+!##[target='_blank']:has([src*='.gif'])
+!##[target='_blank']:has([src$='.gif'])
 ! - - - - - 예외
-topporn.link#@#[target="_blank"]:has([src$=".gif"])
-topporn.link#@#[target="_blank"]:has([src*=".gif"])
+!topporn.link#@#[target="_blank"]:has([src$=".gif"])
+!topporn.link#@#[target="_blank"]:has([src*=".gif"])
 ! - - - imgs 경로로 지정한 규칙 (List-KR)
-##.main-box:has(img[src^="/imgs/"])
+!##.main-box:has(img[src^="/imgs/"])
 !- - - 일반식으로 차단
-||ru/imgs/*
+!||ru/imgs/*
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
@@ -1886,21 +1866,21 @@ avped.com##.loading
 ! 야동판 (https://3.yadongpan.me/)
 ! - 배너 이미지
 !||yadongpan.me/myimages/*$image
-||*/*/myimages/*$image
+!||*/*/myimages/*$image
 ! - 메인 상단 배너 / 오른쪽 배너
-###top-desktop
+!###top-desktop
 ! - 영상 하단 하단 배너
 ! - - - https://play.sooplive.co.kr/ 실시간 영상 로딩시 돌아가는 8자 모양 사라짐 (사이트 주소 입력 필요)
-[$domain=/^\d+.yadongpan.me/]##.loading
+![$domain=/^\d+.yadongpan.me/]##.loading
 ! - 영상내 배너 및 닫기 버튼
 ##.happy-insid-player
 ! - 영상 아래 배너
-##.happy-unde-player
+!##.happy-unde-player
 ! - PC 메인 하단 배너
 ! - 모바일 상단 배너
 ! - 모바일 상단 제외 전체 배너
 ! - - - 섹툰 (https://3.sektoon.me/)
-###top-mobile
+!###top-mobile
 !
 !
 ! 자막야동 (https://3.jamakyadong.me/)
@@ -1909,9 +1889,9 @@ avped.com##.loading
 ! - 메인 전체 배너
 !###top-desktop
 ! - 영상 오른쪽 배너
-##.sidbar-ads
+!##.sidbar-ads
 ! - 영상 하단 배너
-##.unde-player-ad
+!##.unde-player-ad
 !
 !
 ! 좆커넷 (https://jotker45.top/)
@@ -1984,7 +1964,7 @@ avped.com##.loading
 ! 야동도시 (https://yacity47.com/)
 ! 야동공장 (https://yagong84.com/)
 ! - 배너 이미지
-!||/storage/upload/banners/*$important
+!||/storage/upload/banners/*$image
 ! - 팝업 - 4시간 동안 다시 열람하지 않습니다
 !  - - - 와이즈티비 (https://wstv12.com/) 
 ! - - - 블루티비 (https://bluelive77.com/)
@@ -2005,8 +1985,8 @@ m.mrblue.com#@#[class*="popup"]
 ! - - - 예외 (네이버페이) - 적립 창 안뜸
 campaign2.naver.com#@#[class*="popup"]
 ! - - - mobile
-##.w-80.relative
-! 보증업체 보기 배너
+!##.w-80.relative
+! 보증업체 더보기 텍스트 배너
 ##.rounded-md.border.p-1.w-full
 ! 하단 배너 이미지
 ##.mt-1.justify-start.items-center.flex-wrap.flex
@@ -2014,13 +1994,13 @@ campaign2.naver.com#@#[class*="popup"]
 !
 ! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/)
 ! - 영상 하단내 배너 테두리
-##.vjs-bottom-banner.vjs-bottom-banner-container
+!##.vjs-bottom-banner.vjs-bottom-banner-container
 !
 !
 ! 야동공장 (https://yagong84.com/)
 ! - 업소정보 글자
 [$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(2)
-[$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(1)
+![$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(1)
 ! - 이벤트 글자
 [$domain=/^yagong\d+.com/]##div.hover\:text-red-600.text-white.text-sm.mx-auto.py-3.px-2:nth-of-type(10)
 [$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(11)
@@ -2035,6 +2015,8 @@ campaign2.naver.com#@#[class*="popup"]
 [$domain=/^yagro\d+.com/]##div.text-color-for-wide.text-white.text-sm.mx-auto.py-3.px-2:nth-of-type(11)
 ! - 이벤트
 [$domain=/^yagro\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(11)
+! - 스포츠중계
+[$domain=/^yagro\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(12)
 !
 !
 ! 야동도시 (https://yacity47.com/)
@@ -2888,7 +2870,7 @@ stripchatgirls.com##.Modal__scrollableOverlay\#SW.Modal__overlay_clickable\#ho.M
 ! - - - - -야동도시 (https://yacity47.com/)
 ! - - - - -야동공장 (https://yagong84.com/)
 ! - 모바일 상단 배너
-[$domain=/^today-sports\d+.com/]##.live-stream.only-mobile
+![$domain=/^today-sports\d+.com/]##.live-stream.only-mobile
 !
 !
 ! FC2 18세 이상 박스
@@ -3139,7 +3121,7 @@ zeta-ai.io##.pointer-events-none
 !
 !
 !
-||/wp-content/uploads/*$image
+!||/wp-content/uploads/*$image
 !||*com/wp-content/uploads/*$image
 !||*top/wp-content/uploads/*$image
 !||*xyz/wp-content/uploads/*$image
@@ -3148,7 +3130,8 @@ zeta-ai.io##.pointer-events-none
 @@||javgiga.com/wp-content/uploads/*$image
 @@||dramaday.me/wp-content/uploads/*$image
 @@||v*.jogemovie.net/wp-content/uploads/*$image
-@@||*.yadongpan.me/wp-content/uploads/*$image
+! https://3.yadongpan.me/
+!@@||*.yadongpan.me/wp-content/uploads/*$image
 @@||xn--*-v10fo35av1l.com/wp-content/uploads/*$image
 @@||sogirl.so/wp-content/uploads/*$image
 @@||4kjav.co/wp-content/uploads/*$image
@@ -3229,7 +3212,7 @@ zeta-ai.io##.pointer-events-none
 !||*/*/banner/*
 !||*/*/banner*
 ! - 위에꺼 아래로 변경
-||*/*/*banner*
+!||*/*/*banner*
 ! - 에외
 !@@||*/*/*banner*$css
 !||*/*/banner*/*
@@ -3300,22 +3283,50 @@ yna.co.kr#@#[class*="banner"]
 !||*/*/*img*$image
 
 
-
-
-!##[target='_blank']:has([src*='.png'])
-!##[target='_blank']:has([src$='.png'])
-!##[target='_blank']:has([src*='.jpg'])
-!##[target='_blank']:has([src$='.jpg'])
-
-!##.main-box:has(img[src^="/img/"])
-
-!##[class*="banner"]
-!##[class*="Banner"]
-!##[class$="banner"]
-!##[class$="Banner"]
-
 ##[class$="_ads"]
 ##[class*="-ad-"]
 
 ##[class$="-ad"]
 #@#[class*="-ad"]
+
+!!! 광고 이미지
+!##a[href^="http"] img
+##a[href][target="_blank"] img
+##a[href^="http"] [target="_blank"] img
+! - 예외
+! - - - trand (https://trand.co.kr/) - 링크 게시글 아이콘 안보임
+! - - - 숲 (https://www.sooplive.co.kr/) - 실시간 이미지 안보임
+! - - - 엠팍 (https://mlbpark.donga.com/) - 오른쪽 배너 아래 일부 안보이지만 게시물은 보여서 패스
+! - - - 인벤 (https://www.inven.co.kr/) - 일부 링크글 안보이지만 게시물은 보여서 패스 (모바일에서 안보이나 머지)
+! - - - 더쿠 (https://theqoo.net/) -  twitter.com 프레임  깨짐
+!~ - - - 다모앙 (https://damoang.net/) - 게시물내 일부 이미지 사라짐
+! - - - 모두의후방 (https://data.pureugong.com/ - 게시물이 안보임)
+
+!trand.co.kr#@#a[href^="http"] img
+trand.co.kr#@#a[href][target="_blank"] img
+trand.co.kr#@#a[href^="http"] [target="_blank"] img
+
+
+!sooplive.co.kr#@#a[href^="http"] img
+sooplive.co.kr#@#a[href][target="_blank"] img
+sooplive.co.kr#@#a[href^="http"] [target="_blank"] img
+
+!mlbpark.donga.com#@#a[href^="http"] img
+!mlbpark.donga.com#@#a[href][target="_blank"] img
+!mlbpark.donga.com#@#a[href^="http"] [target="_blank"] img
+
+!inven.co.kr#@#a[href^="http"] img
+inven.co.kr#@#a[href][target="_blank"] img
+inven.co.kr#@#a[href^="http"] [target="_blank"] img
+
+!twitter.com#@#a[href^="http"] img
+!twitter.com#@#a[href][target="_blank"] img
+!twitter.com#@#a[href^="http"] [target="_blank"] img
+
+!damoang.net#@#a[href^="http"] img
+damoang.net#@#a[href][target="_blank"] img
+damoang.net#@#a[href^="http"] [target="_blank"] img
+
+!data.pureugong.com#@#a[href^="http"] img
+!data.pureugong.com#@#a[href][target="_blank"] img
+!data.pureugong.com#@#a[href^="http"] [target="_blank"] img
