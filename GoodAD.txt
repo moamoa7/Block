@@ -440,6 +440,11 @@ ygosu.com##.pull-left.btn-group
 @@||jjang0u.com/img/*$image
 !
 !
+! 82쿡 (https://www.82cook.com/)
+! - 왼쪽 상단 배너
+###mainHeadline
+!
+!
 ! 일베 (https://www.ilbe.com/)
 ! - 이미지 복원
 @@||ilbe.com/img/*$image
