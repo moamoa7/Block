@@ -676,7 +676,8 @@ tvpang.live##div.open.main-menu:nth-of-type(4)
 ! - 상단 배너 (List-KR)
 ! anilife.*##div[class] > a[class][href^="http"][target="_blank"]
 !##div[class] > a[class][href^="http"][target="_blank"]
-##a[href^="http"][target="_blank"]
+!##a[href^="http"][target="_blank"]
+##a[href^="http"][target="_blank"] img
 ! - 예외
 ! - - - trand (https://trand.co.kr/) - 링크 게시글 안보임
 ! - - - 숲 (https://www.sooplive.co.kr/) - 실시간 이미지 안보임
@@ -3296,4 +3297,3 @@ yna.co.kr#@#[class*="banner"]
 !##[class*="Banner"]
 !##[class$="banner"]
 !##[class$="Banner"]
-
