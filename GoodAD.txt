@@ -691,7 +691,7 @@ tvpang.live##div.open.main-menu:nth-of-type(4)
 trand.co.kr#@#a[href][target="_blank"] > img
 sooplive.co.kr#@#a[href][target="_blank"] > img
 !mlbpark.donga.com#@#a[href][target="_blank"] > img
-!inven.co.kr#@#a[href][target="_blank"] > img
+inven.co.kr#@#a[href][target="_blank"] > img
 !twitter.com#@#a[href][target="_blank"] > img
 damoang.net#@#a[href][target="_blank"] > img
 !data.pureugong.com#@#a[href][target="_blank"] > img
@@ -1364,7 +1364,8 @@ tdosa.net###bo_gallery
 ! - 상단 배너 (중복)
 ##.promotion-banner
 ! - 배너 (오른쪽 배너) (List-KR)
-##div[class*="-ad"]:not(.container):not([style])
+! - - -  https://3.jamakyadong.me/ 영상 안보임 (광역 규칙 하면 안됨)
+!hankyung.com##div[class*="-ad"]:not(.container):not([style])
 !
 !
 ! MTN 머니투데이 (https://mtn.co.kr/)
@@ -3270,7 +3271,9 @@ yna.co.kr#@#[class*="banner"]
 ##[class*="advert"]
 
 ! https://www.xvideos.com/
-##[class$="-ads"]
+! - https://3.jamakyadong.me/ 영상 안보임
+#@#[class$="-ads"]
+
 ##[class*="-ads-"]
 
 
@@ -3300,3 +3303,9 @@ yna.co.kr#@#[class*="banner"]
 !##[class*="Banner"]
 !##[class$="banner"]
 !##[class$="Banner"]
+
+##[class$="_ads"]
+##[class*="-ad-"]
+
+##[class$="-ad"]
+#@#[class*="-ad"]
