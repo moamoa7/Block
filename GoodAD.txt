@@ -2706,8 +2706,10 @@ mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
 ###layer_pop
 ! - 모바일 하단 배너
 ##[href="https://alspo5.net"]
-! - 먹튀검증글자
+! - 먹튀검증글자 (PC)
 [$domain=/^linkpan\d+.com/]##li.off.menu-li:nth-of-type(6)
+! - 먹튀검증글자 (모바일)
+[$domain=/^linkpan\d+.com/]##li:nth-of-type(7)
 ! - 이미지 복원
 @@||linkpan*.com/img/*$image
 !
