@@ -2099,7 +2099,7 @@ campaign2.naver.com#@#[class*="popup"]
 !
 ! 야부리 시즌 2 (https://yaburi60.com/)
 ! - 펍업 하단 틀 제거 (모바일)
-##.bg-black
+##[class*="bg-black"]
 ! - 상단 배너
 [$domain=/^yaburi\d+.com/]##.sm\:grid-cols-4.border.w-full.px-1.gap-x-1.grid-cols-2.grid
 ! - 영상 상.하 배너
