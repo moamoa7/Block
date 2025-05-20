@@ -677,7 +677,8 @@ tvpang.live##div.open.main-menu:nth-of-type(4)
 ! anilife.*##div[class] > a[class][href^="http"][target="_blank"]
 !##div[class] > a[class][href^="http"][target="_blank"]
 !##a[href^="http"][target="_blank"]
-##a[href^="http"][target="_blank"] img
+!##a[href^="http"][target="_blank"] img
+##a[href][target="_blank"] > img
 ! - 예외
 ! - - - trand (https://trand.co.kr/) - 링크 게시글 아이콘 안보임
 ! - - - 숲 (https://www.sooplive.co.kr/) - 실시간 이미지 안보임
@@ -687,13 +688,13 @@ tvpang.live##div.open.main-menu:nth-of-type(4)
 !~ - - - 다모앙 (https://damoang.net/) - 게시물내 일부 이미지 사라짐
 ! - - - 모두의후방 (https://data.pureugong.com/ - 게시물이 안보임)
 
-trand.co.kr#@#a[href^="http"][target="_blank"] img
-sooplive.co.kr#@#a[href^="http"][target="_blank"] img
-!mlbpark.donga.com#@#a[href^="http"][target="_blank"] img
-!inven.co.kr#@#a[href^="http"][target="_blank"] img
-!twitter.com#@#a[href^="http"][target="_blank"] img
-damoang.net#@#a[href^="http"][target="_blank"] img
-!data.pureugong.com#@#a[href^="http"][target="_blank"] img
+trand.co.kr#@#a[href][target="_blank"] > img
+sooplive.co.kr#@#a[href][target="_blank"] > img
+!mlbpark.donga.com#@#a[href][target="_blank"] > img
+!inven.co.kr#@#a[href][target="_blank"] > img
+!twitter.com#@#a[href][target="_blank"] > img
+damoang.net#@#a[href][target="_blank"] > img
+!data.pureugong.com#@#a[href][target="_blank"] > img
 
 !
 !
@@ -2705,7 +2706,9 @@ mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
 ! - 모바일 하단 배너
 ##[href="https://alspo5.net"]
 ! - 먹튀검증글자
-![$domain=/^linkpan\d+.com/]##li.off.menu-li:nth-of-type(6)
+[$domain=/^linkpan\d+.com/]##li.off.menu-li:nth-of-type(6)
+! - 이미지 복원
+@@||linkpan*.com/img/*$image
 !
 !
 ! 링크사랑 https://linklove14.com/) (https://linklove54.com/)
