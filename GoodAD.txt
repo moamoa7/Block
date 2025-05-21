@@ -741,7 +741,7 @@ tvpang.live##div.open.main-menu:nth-of-type(4)
 !
 !
 ! 조개무비 (https://v15.jogemovie.net/)
-! - 배너 이미지
+! - 배너 공간
 [$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
 !
 !
@@ -1449,9 +1449,9 @@ sports.donga.com##.view_center
 ! - 유니콘Pro 차단 해제
 @@||bananamall.co.kr
 ! - 팝업 왼쪽
-bananamall.co.kr##.ui-draggable
+!bananamall.co.kr##.ui-draggable
 ! - 팝업 오른쪽
-bananamall.co.kr###pop_gevent
+!bananamall.co.kr###pop_gevent
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
@@ -1463,7 +1463,7 @@ showdang.co.kr##.box
 ! - 오른쪽 사이드 팝업
 c.appstory.co.kr###modalPreventExit
 ! - 오른쪽 배너
-##.right_banner
+!##.right_banner
 !
 !
 !!! 옥션 (https://www.auction.co.kr) / 지마켓 (https://www.gmarket.co.kr/)
@@ -1706,7 +1706,9 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !###imgDiv21
 !###imgDiv22
 ! - 배너 이미지 공간
+##.bounce
 ##.execphpwidget
+
 !
 !
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
@@ -1793,11 +1795,15 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 ! JAV Lemon (https://javlemon.com/)
 ! - 영상 아래 배너
 javlemon.com##[style] img[src]
-
 ! - - - PC
 !javlemon.com##center
 ! - - - 모바일
 !javlemon.com##.hbrAPNSz
+!
+!
+! 조아조아 (https://www.zoazoa28.me/)
+! - 영상 안보임으로 인한 EasyList 비활성화
+[$domain=/^www.zoazoa\d+.me/]#@#.top_ads
 !
 !
 ! 크레이지팬스 (https://01.crazy.fans/)
@@ -2458,7 +2464,8 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 !
 ! 야동대학 (https://ydu14.com/)
 ! - 왼쪽 배너
-[$domain=/^ydu\d+.com/]##.bxslider
+![$domain=/^ydu\d+.com/]##.bxslider
+[$domain=/^ydu\d+.com/]##[style] img[src]
 ! - 검증업체 글자 및 메인 검증 글
 [$domain=/^ydu\d+.com/]##li.off.menu-li:nth-of-type(2)
 [$domain=/^ydu\d+.com/]##.on.menu-li
@@ -3137,6 +3144,7 @@ zeta-ai.io##.pointer-events-none
 @@||pinkbo*.com/wp-content/uploads/*$image
 @@||*www.yadongmarket.com/wp-content/uploads/*$image
 @@||cokcoktv*.com/wp-content/uploads/*$image
+! https://3.jamakyadong.me/
 @@||*.jamakyadong.me/wp-content/uploads/*$image
 @@||linkssakda*.com/wp-content/uploads/*$image
 @@||loopholes.site/wp-content/uploads/*$image
@@ -3257,9 +3265,11 @@ zeta-ai.io##.pointer-events-none
 
 
 ! 치지직
-##[class*="-ad-"]
+! 11번가 광고 표시를 지움
+#@#[class*="-ad-"]
 !  - - - ! https://www.pornhub.com/ 포함
-##[class*="advert"]
+! - 11번가 광고 주석을 지움
+#@#[class*="advert"]
 
 ! https://www.xvideos.com/
 ! - https://3.jamakyadong.me/ 영상 안보임
@@ -3269,8 +3279,7 @@ zeta-ai.io##.pointer-events-none
 
 
 
-! https://04.avsee.ru/
-##[class$="_ads"]
+
 
 
 ! https://www.inven.co.kr/
@@ -3281,7 +3290,9 @@ zeta-ai.io##.pointer-events-none
 !||*/*/*img*$image
 
 
-##[class$="_ads"]
+! https://04.avsee.ru/
+! - https://www.zoazoa28.me/ 이미지 안보임
+#@#[class$="_ads"]
 ##[class*="-ad-"]
 
 ##[class$="-ad"]
@@ -3290,45 +3301,68 @@ zeta-ai.io##.pointer-events-none
 !!! 광고 이미지
 !##a[href] img
 !##a[href^="http"] img
-##a[href][target="_blank"] img
+
+! - 일부 사이트애서 사용중
+! - - - https://7tv033.com/ko/
+[$domain=/^7tv\d+.com/]##a[href][target="_blank"] img
+
+
+! 일부 사이트에서 사용
+! - - - 야부리 시즌 2 (https://yaburi60.com/)
+! - - - 망가조아 (https://mangajoa5.com/)
+![$domain=/^yaburi\d+.com/],[$domain=/^mangajoa\d+.com/]##a[href][target] img
 ##a[href][target] img
 
 ! - - - ##a[href][target] img 안되는곳에서 사용하면 잘 됨
 ! - - - 툰코 (https://tkor023.com/)
 ! - - - 펀비 (https://funbe536.com/)
 ! - - - !##[style] a[href][target] 으로  하면 다른 사이트에서 텍스트 링크 사라짐
-##[style] a[href][target] img
+[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target] img
+
 
 ! - 일부 사이트에서 사용중
 ! - 사용시 텍스트 링크 등 사라짐
-! 토렌트쓱 (https://ssg1.torrentssg8.com/)
+! - - - 토렌트쓱 (https://ssg1.torrentssg8.com/)
 [$domain=/^ssg1.torrentssg\d+.com/]##[style] a[href][target]
 
 ! - 일부 사이트에서 사용중
 ! - - - https://dragonfly64.com/ 등
-! - - - - - 안막아도 다른 사이트에 영향이 없어 그냥 둠
+! - - - - - 광역으로 해도 다른 사이트에 영향이 없어 그냥 둠
 ! - - - - -  ##[style] a[href][target] 하면 텍스트도 사라져서 안됨
 ! - - - - -  ##[style] a[href][target] img 하면 규칙 안먹힘
-##[style*="image"] a[href][target] 
+##[style*="image"] a[href][target]
 
 
 ! - 일부 사이트에서 사용중
-! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
-##[style][src*="/wp-content/uploads/"] 
+! - - - - https://www.avdbs.com/ 배너
+! - - - - - 광역으로 해도 다른 사이트에 영향이 없어 그냥 둠
+##[style*="background"] a[href] img
+
+
+! - 일부 사이트에서 사용중
+! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
+[$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
+
+! - 일부 사이트에서 사용중
+! - 조개무비 (https://v15.jogemovie.net/)
+[$domain=/^v\d+.jogemovie.net/]##[style] a[href=""]
 
 ! - 일부 사이트에서 사용중
 ! - 이걸 광역으로 사용하면 대부분의 사이트에서 이미지가 사라짐
 ! - - -  https://javlemon.com/
+! - - - https://ydu14.com/
 !##[style] img[src]
+! - https://xn--av1-qv9mx21c.com/
+xn--av1-qv9mx21c.com##[style] img[src]
 
 ! - 일부 사이트에서 사용중
-! - - - - - 안막아도 다른 사이트에 영향이 없어 그냥 둠
 !##[onclick] img
-! - 예외
-! - - - 해피툰 (https://happytoon01.com/) (만화 이미지 안나옴)
-[$domain=/^happytoon\d+.com/]#@#[class*="popup"]
 
-
+!
+!
+!
+!
+!
 ! - 예외
 ! - - - trand (https://trand.co.kr/) - 링크 게시글 아이콘 안보임
 ! - - - 숲 (https://www.sooplive.co.kr/) - 실시간 이미지 안보임
@@ -3339,33 +3373,64 @@ zeta-ai.io##.pointer-events-none
 ! - - - 모두의후방 (https://data.pureugong.com/ - 게시물이 안보임)
 ! - - - https://mangajoa5.com/ 개별 회차 만화 이미지 및 링크 안보임
 ! - - -  조아툰 (https://joatoon68.com/) - 만화 이미지 안보임
+! - - - 웃대 (https://web.humoruniv.com/) 이미지 안보임
+! - - - 자막야동 (https://3.jamakyadong.me/) 영상 이미지 안보임
+! - - - https://7tv033.com/ko/ - 영상 이미지 안보임
 
-trand.co.kr#@#a[href][target="_blank"] img
+
+
+!trand.co.kr#@#a[href][target="_blank"] img
 trand.co.kr#@#a[href][target] img
-trand.co.kr#@#[style] a[href][target] img
-trand.co.kr#@#[onclick] img
+!trand.co.kr#@#[style] a[href][target] img
+!trand.co.kr#@#[onclick] img
 
-sooplive.co.kr#@#a[href][target="_blank"] img
+!sooplive.co.kr#@#a[href][target="_blank"] img
+!sooplive.co.kr#@#[style] a[href][target] img
 sooplive.co.kr#@#a[href][target] img
 
-inven.co.kr#@#a[href][target="_blank"] img
-inven.co.kr#@#[style] a[href][target] img
+!nven.co.kr#@#a[href][target="_blank"] img
+!inven.co.kr#@#[style] a[href][target] img
 inven.co.kr#@#a[href][target] img
 
-damoang.net#@#a[href][target="_blank"] img
+!humoruniv.com#@#a[href][target="_blank"] img
+!humoruniv.com#@#[style] a[href][target] img
+humoruniv.com#@#a[href][target] img
+
+!damoang.net#@#a[href][target="_blank"] img
 damoang.net#@#a[href][target] img
 
-[$domain=/^mangajoa\d+.com/]#@#a[href][target] img
+![$domain=/^mangajoa\d+.com/]#@#a[href][target] img
 
-[$domain=/^joatoon\d+.com/]#@#a[href][target] img
-[$domain=/^joatoon\d+.com/]#@#[style] a[href][target] img
+
+![$domain=/^joatoon\d+.com/]#@#a[href][target] img
+![$domain=/^joatoon\d+.com/]#@#[style] a[href][target] img
 
 
 ! - - - 툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) - 모바일에서 만화목록 안나옴
-[$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]#@#a[href][target] img
+![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]#@#a[href][target] img
 
 !- - -  missvod3.com - 상단 로테이션 신작 이미지 안보임
-[$domain=/^missvod\d+.com/]#@#[style] img[src]
+![$domain=/^missvod\d+.com/]#@#[style] img[src]
+
+! 다이소 (https://www.dayisoo36.me/) - 영상 안보임
+![$domain=/^www.dayisoo\d+.me/]#@#a[href][target] img
+
+! https://dramaday.me/ (이미지 안보임)
+dramaday.me#@#a[href][target] img
+!dramaday.me#@#[style] a[href][target] img
+
+! https://3.jamakyadong.me/
+![$domain=/^\d+.jamakyadong.me/]#@#a[href][target="_blank"] img
+![$domain=/^\d+.jamakyadong.me/]#@#[style][src*="/wp-content/uploads/"]
+
+
+! https://mangajoa5.com/
+![$domain=/^mangajoa\d+.com/]#@#a[href][target="_blank"] img
+
+! https://7tv033.com/
+[$domain=/^7tv\d+.com/]#@#a[href][target] img
+
+
 
 
 
