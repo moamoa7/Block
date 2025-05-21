@@ -3289,7 +3289,7 @@ zeta-ai.io##.pointer-events-none
 !##a[href][target="_blank"] img
 ##a[href][target] img
 
-! - 일부 사이트에서 사용중
+! - - - ##a[href][target] img 안되는곳에서 사용하면 잘 됨
 ! - - - 툰코 (https://tkor023.com/)
 ! - - - 펀비 (https://funbe536.com/)
 ##[style] a[href][target="_blank"] img
@@ -3318,6 +3318,7 @@ zeta-ai.io##.pointer-events-none
 ! - - - 모두의후방 (https://data.pureugong.com/ - 게시물이 안보임)
 
 trand.co.kr#@#a[href][target] img
+trand.co.kr#@#[style] a[href][target="_blank"] img
 trand.co.kr#@#[onclick] img
 
 sooplive.co.kr#@#a[href][target] img
