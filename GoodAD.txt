@@ -3349,6 +3349,7 @@ sooplive.co.kr#@#a[href][target="_blank"] img
 sooplive.co.kr#@#a[href][target] img
 
 inven.co.kr#@#a[href][target="_blank"] img
+inven.co.kr#@#[style] a[href][target] img
 inven.co.kr#@#a[href][target] img
 
 damoang.net#@#a[href][target="_blank"] img
