@@ -1137,8 +1137,8 @@ totocpr.com##.mb-4.border-bottom.px-sm-0.px-3
 !||totocpr.com/img/telbenner*
 !
 !
-! 토도사 (https://tdosa.net/)
-! - 배너
+! 토토사 (https://tdosa.net/)
+! - 배너 공간
 tdosa.net##.position-relative.wr-list
 ! 서브 메뉴
 tdosa.net##.post-list
@@ -1208,11 +1208,11 @@ tdosa.net###bo_gallery
 ! 여우코믹스 (https://fxfx307.com/)
 ! - 팝업
 ! - - - 별별티비 (https://bbtv76.com/)
-##.modal-wrapper
+!##.modal-wrapper
 ! - 뿌옇거 해결
 ##.modal-overlay
 ! - 배너
-##.top-banner
+!##.top-banner
 ! - 보증토토 배너
 ||iabn10.net/*ico*
 !
@@ -1227,17 +1227,19 @@ tdosa.net###bo_gallery
 ! 야툰 (https://yatoon203.com/)
 ! 뉴툰 (https://newtoon274.com/)
 ! - 배너
-##.cate.row
+!##.cate.row
 !
 !
 ! 나미툰 (https://namee77.com/)
 ! - 배너
-[$domain=/^namee\d+.com/]##div.container_full:nth-of-type(1)
+![$domain=/^namee\d+.com/]##div.container_full:nth-of-type(1)
 !
 !
 ! 조아툰 (https://joatoon67.com/)
 ! - 배너
-[$domain=/^joatoon\d+.com/]##.grid-cols-2.mt-2.grid
+![$domain=/^joatoon\d+.com/]##.grid-cols-2.mt-2.grid
+! - 뿌연거 해결
+##.fixed
 !
 !
 ! 엑스툰 (https://xn--9t4b31dr7o.com/) (https://t1.xtoon2.com/)
@@ -1249,12 +1251,12 @@ tdosa.net###bo_gallery
 !
 ! 만화방 (https://manhwabang.org/)
 ! - 상단 배너 및 만화 상단 배너
-##[href^="/index/banner_click"]
+!##[href^="/index/banner_click"]
 !
 !
 ! 머니툰 (https://mtoon123.com/)
 ! - 배너
-[$domain=/^mtoon\d+.com/]##div.container_full:nth-of-type(1)
+![$domain=/^mtoon\d+.com/]##div.container_full:nth-of-type(1)
 ! - 이미지 복원
 !@@||mtoon*.com/img/*$image
 !
@@ -1276,10 +1278,10 @@ tdosa.net###bo_gallery
 !
 !
 ! 망가조아 (https://mangajoa5.com/)
-! 상단배너
+! 상단배너 공간
 [$domain=/^mangajoa\d+.com/]##.widget-index.at-container > div > .basic-post-gallery
 ! - 왼쪽.오른쪽 배너
-##.SideBanner
+!##.SideBanner
 ! - 동맹 글자
 [$domain=/^mangajoa\d+.com/]##.on.menu-li
 ! - 로고 복원
@@ -1293,7 +1295,7 @@ tdosa.net###bo_gallery
 !
 ! 해피툰 (https://happytoon01.com/)
 ! - 상단배너 이미지
-[$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
+![$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
 !
 !
 ! 뉴토끼/마나토끼/북토끼 (https://t.me/s/newtoki5) (https://newtoki468.com/) (https://manatoki468.net/) (https://booktoki468.com/)
@@ -1304,16 +1306,16 @@ tdosa.net###bo_gallery
 !
 ! 무료툰 (https://foc94.com/)
 ! - 배너 이미지
-||foc*.com/banner/*
+!||foc*.com/banner/*
 ! - 하단 배너
-[$domain=/^foc\d+.com/]##.aaa.row
+![$domain=/^foc\d+.com/]##.aaa.row
 ! - 이미지 복원
 !@@||foc*.com/img/*$image
 !
 !
 ! 머니툰 (https://mtoon122.com/)
 ! 하단 배너
-[$domain=/^mtoon\d+.com/]##.pc_w.row
+![$domain=/^mtoon\d+.com/]##.pc_w.row
 !
 !
 ! 툰브로 (https://b17.toon-bro.xyz/)
@@ -1322,18 +1324,18 @@ tdosa.net###bo_gallery
 ! - 화면 뿌옇거 해결
 [$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
 ! - 상단 배너
-[$domain=/^b\d+.toon-bro.xyz/]##.gap-\[0px\].flex-col.flex
+![$domain=/^b\d+.toon-bro.xyz/]##.gap-\[0px\].flex-col.flex
 !
 !
 ! 링크 비비기 (https://linkbbg.com/)
 ! 온도티비 (https://01.ondotv.com/)
 ! - 배너
-##.basic-banner-4
+!##.basic-banner-4
 !
 !
 ! 기상청 (https://www.weather.go.kr/)
 ! - 왼쪽 배너
-##.list-banner
+!##.list-banner
 ! - 날씨정보 가끔 안나오는거 해결
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
 !@@weblog.kma.go.kr^
@@ -1551,15 +1553,15 @@ cgv.co.kr##.btnLinkFixed
 [$domain=/^ttg-\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
 !
 !
-! 토렌트쓱 (https://torrentssg7.com/)
+! 토렌트쓱 (https://ssg1.torrentssg8.com/)
 ! - 배너
-[$domain=/^torrentssg\d+.com/]##.post-img.post
+![$domain=/^torrentssg\d+.com/]##.post-img.post
 !
 !
 ! 디토렌트 (https://ditto-torrent18.top/)
 ! 배너 이미지
 !||ditto-torrent*.top/img/sponsor/*$image
-||*/img/sponsor/*$image
+!||*/img/sponsor/*$image
 ! 배너 공간
 ![$domain=/^ditto-torrent\d+.top/]##.top_banner
 ##.top_banner
@@ -1659,9 +1661,9 @@ evojav.pro$popup
 ! - - - https://fc2ppv.stream/
 ! - - - https://k4.kbjsvip.win/
 ! - - - PC
-##.happy-header
+!##.happy-header
 ! - - - 모바일
-##.happy-header-mobile
+!##.happy-header-mobile
 !
 !
 ! Svideos JAV (https://avsshub.net/)
@@ -1671,7 +1673,7 @@ evojav.pro$popup
 !
 ! AV핑크 (https://avpink36.com/)
 ! - 배너 이미지
-##.fg-image
+!##.fg-image
 ! - 영상 시청시 검은화면 나옴 - media 차단해제 (List-KR)
 @@||ttse.b-cdn.net^
 !
@@ -1679,7 +1681,7 @@ evojav.pro$popup
 ! 탑걸 (https://kr39.topgirl.co)
 ! 자브걸 (https://kr23.javgirl.co/)
 ! - 상단 오른쪽 배너 이미지
-###header_banner
+!###header_banner
 ! - 영상내 광고
 ! - - - 아브티비 (https://kr1.avtv.co/)
 ||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
@@ -1692,22 +1694,24 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 ! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 배너 이미지
-###imgDiv > table
-###imgDiv2
-###imgDiv3
-###imgDiv4
-###imgDiv5
-###imgDiv6
-###imgDiv11
-###imgDiv12
-###imgDiv13
-###imgDiv21
-###imgDiv22
+!###imgDiv > table
+!###imgDiv2
+!###imgDiv3
+!###imgDiv4
+!###imgDiv5
+!###imgDiv6
+!###imgDiv11
+!###imgDiv12
+!###imgDiv13
+!###imgDiv21
+!###imgDiv22
+! - 배너 이미지 공간
+##.execphpwidget
 !
 !
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 오른쪽 배너
-##.happy-sidebar
+!##.happy-sidebar
 ! - 동맹 글자
 xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
 !
@@ -1753,7 +1757,7 @@ apologiesoccursdepressed.com$popup
 ! 123AV (https://123av.com/)
 ! - 광고 차단? (EasyList)
 !||123av.*/assets/ad/
-||*/*/ad/*
+!||*/*/ad/*
 !
 !
 ! TIDHEE (https://www.tid-hee.com/)
@@ -3184,11 +3188,11 @@ zeta-ai.io##.pointer-events-none
 
 ! - 임시
 
-||*/*/ad/*
+!||*/*/ad/*
 ! - 예외 (아바타 아이콘) (https://04.avsee.ru/)
-@@||avsee.ru/data/member_image/ad/*$image
+!@@||avsee.ru/data/member_image/ad/*$image
 ! - 예외 (아바타 아이콘) (https://damoang.net/)
-@@cdn.damoang.net/data/member_image/ad/*$image
+!@@cdn.damoang.net/data/member_image/ad/*$image
 !||*/*/AD/*
 ||*/*/ad-*/*
 ! - 예외 (텍스트 안보임 해결)
@@ -3286,27 +3290,44 @@ zeta-ai.io##.pointer-events-none
 !!! 광고 이미지
 !##a[href] img
 !##a[href^="http"] img
-!##a[href][target="_blank"] img
+##a[href][target="_blank"] img
 ##a[href][target] img
 
 ! - - - ##a[href][target] img 안되는곳에서 사용하면 잘 됨
 ! - - - 툰코 (https://tkor023.com/)
 ! - - - 펀비 (https://funbe536.com/)
-##[style] a[href][target="_blank"] img
+! - - - !##[style] a[href][target] 으로  하면 다른 사이트에서 텍스트 링크 사라짐
+##[style] a[href][target] img
+
+! - 일부 사이트에서 사용중
+! - 사용시 텍스트 링크 등 사라짐
+! 토렌트쓱 (https://ssg1.torrentssg8.com/)
+[$domain=/^ssg1.torrentssg\d+.com/]##[style] a[href][target]
 
 ! - 일부 사이트에서 사용중
 ! - - - https://dragonfly64.com/ 등
 ! - - - - - 안막아도 다른 사이트에 영향이 없어 그냥 둠
-##[style*="image"] a[href][target="_blank"] 
+! - - - - -  ##[style] a[href][target] 하면 텍스트도 사라져서 안됨
+! - - - - -  ##[style] a[href][target] img 하면 규칙 안먹힘
+##[style*="image"] a[href][target] 
 
 
 ! - 일부 사이트에서 사용중
+! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
+##[style][src*="/wp-content/uploads/"] 
+
+! - 일부 사이트에서 사용중
+! - 이걸 광역으로 사용하면 대부분의 사이트에서 이미지가 사라짐
 ! - - -  https://javlemon.com/
 !##[style] img[src]
 
 ! - 일부 사이트에서 사용중
 ! - - - - - 안막아도 다른 사이트에 영향이 없어 그냥 둠
-##[onclick] img
+!##[onclick] img
+! - 예외
+! - - - 해피툰 (https://happytoon01.com/) (만화 이미지 안나옴)
+[$domain=/^happytoon\d+.com/]#@#[class*="popup"]
+
 
 ! - 예외
 ! - - - trand (https://trand.co.kr/) - 링크 게시글 아이콘 안보임
@@ -3316,16 +3337,28 @@ zeta-ai.io##.pointer-events-none
 ! - - - 더쿠 (https://theqoo.net/) -  twitter.com 프레임  깨짐
 !~ - - - 다모앙 (https://damoang.net/) - 게시물내 일부 이미지 사라짐
 ! - - - 모두의후방 (https://data.pureugong.com/ - 게시물이 안보임)
+! - - - https://mangajoa5.com/ 개별 회차 만화 이미지 및 링크 안보임
+! - - -  조아툰 (https://joatoon68.com/) - 만화 이미지 안보임
 
+trand.co.kr#@#a[href][target="_blank"] img
 trand.co.kr#@#a[href][target] img
-trand.co.kr#@#[style] a[href][target="_blank"] img
+trand.co.kr#@#[style] a[href][target] img
 trand.co.kr#@#[onclick] img
 
+sooplive.co.kr#@#a[href][target="_blank"] img
 sooplive.co.kr#@#a[href][target] img
 
+inven.co.kr#@#a[href][target="_blank"] img
 inven.co.kr#@#a[href][target] img
 
+damoang.net#@#a[href][target="_blank"] img
 damoang.net#@#a[href][target] img
+
+[$domain=/^mangajoa\d+.com/]#@#a[href][target] img
+
+[$domain=/^joatoon\d+.com/]#@#a[href][target] img
+[$domain=/^joatoon\d+.com/]#@#[style] a[href][target] img
+
 
 ! - - - 툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) - 모바일에서 만화목록 안나옴
 [$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]#@#a[href][target] img
