@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250521
+! Version: 20250522
 !
 !
 !
@@ -1930,9 +1930,11 @@ www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],
 !||net/static/images/*$image
 !
 !
-! 야모아 (https://yamoa24.site/)
-! - 상단 배너 (검색란도 지워짐)
+! 야모아 (https://yamoa36.site/)
+! - 상단 배너 공간 (모바일) (검색란도 지워짐)
 ![$domain=/^yamoa\d+.site/]##.w-full
+! - 상단 배너 공간 (모바일)
+[$domain=/^yamoa\d+.site/]##.max-w-screen-xl:nth-of-type(5)
 ! - 이미지 복원 (배너 이미지와 같은 경로라 어쩔 수 없음)
 !@@||static.yaaamoa.com/img/*$image
 !
@@ -3384,6 +3386,8 @@ xn--av1-qv9mx21c.com##[style] img[src]
 trand.co.kr#@#a[href][target] img
 !trand.co.kr#@#[style] a[href][target] img
 !trand.co.kr#@#[onclick] img
+trand.co.kr#@#[style*="background"] a[href] img
+trand.co.kr#@#[style*="image"] a[href][target]
 
 !sooplive.co.kr#@#a[href][target="_blank"] img
 !sooplive.co.kr#@#[style] a[href][target] img
