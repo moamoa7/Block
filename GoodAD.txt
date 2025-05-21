@@ -384,8 +384,8 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 !
 ! 루리 (https://m.ruliweb.com/)
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR
-##[class*="ad_"][style]
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe536.com/)
+ruliweb.com##[class*="ad_"][style]
 ! - - - 맨 밑 하단 게시글 광고 배너 (모바일)
 ruliweb.com##.fixed_layer1
 ! - - - 맨밑 하단 파란색 배너 (모바일)
@@ -1183,7 +1183,7 @@ tdosa.net###bo_gallery
 !@@||img.asfsadfimiim.com/img/*$image
 !
 !
-! 툰코 (https://tkor019.com/)
+! 툰코 (https://tkor023.com/)
 ! 펀비 (https://funbe531.com)
 ! - 배너
 [$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
@@ -2816,8 +2816,8 @@ jusopick.com##.bg-black.flex-col
 ! 주소모아 (https://www.joosomoa1.com/)
 ! - 배너 이미지 
 !||static.wixstatic.com/media/*$image
-||static.wixstatic.com/*$image
-! - 상단 배너
+!||static.wixstatic.com/*$image
+! - 상단 배너 공간
 ! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.linkm365.com/)
 ! -- - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
 [$domain=/^www.joosomoa\d+.com/],[$domain=/^www.linkm\d+.com/],[$domain=/^www.jooso\d+a.com/]##.wixui-section.comp-m0nr4kzh.Oqnisf
@@ -2825,7 +2825,7 @@ jusopick.com##.bg-black.flex-col
 !
 ! 링크봇 (https://linkbot3.com/)
 ! - 배너 이미지
-[$domain=/^linkbot\d+.com/]##.mb-1.row-cols-xl-4.row-cols-sm-2.row-cols-2.row
+![$domain=/^linkbot\d+.com/]##.mb-1.row-cols-xl-4.row-cols-sm-2.row-cols-2.row
 !
 !
 ! 놀쟈 (https://www.nzyumi.com/)
@@ -3230,7 +3230,7 @@ zeta-ai.io##.pointer-events-none
 !||*/*/*popup/*
 
 !##[class*="banner"]
-! - 예외  툰코 (https://tkor023.com/) 전체 사라짐
+! - 예외  툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) 전체 사라짐
 ![$domain=/^tkor\d+.com/]#@#[class*="banner"]
 ! - 연합뉴스 (https://www.yna.co.kr/) - 전체 안보임
 !yna.co.kr#@#[class*="banner"]
@@ -3316,6 +3316,9 @@ sooplive.co.kr#@#a[href][target] img
 inven.co.kr#@#a[href][target] img
 
 damoang.net#@#a[href][target] img
+
+! - - - 툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) - 모바일에서 만화목록 안나옴
+[$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]#@#a[href][target] img
 
 !- - -  missvod3.com - 상단 로테이션 신작 이미지 안보임
 [$domain=/^missvod\d+.com/]#@#[style] img[src]
