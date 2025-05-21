@@ -1707,7 +1707,7 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !###imgDiv22
 ! - 배너 이미지 공간
 ##.bounce
-##.execphpwidget
+###imgDiv
 
 !
 !
