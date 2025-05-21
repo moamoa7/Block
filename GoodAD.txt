@@ -1184,11 +1184,14 @@ tdosa.net###bo_gallery
 !
 !
 ! 툰코 (https://tkor023.com/)
-! 펀비 (https://funbe531.com)
+! 펀비 (https://funbe531.com/)
 ! - 배너
-[$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
+![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
-[$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.clearfix
+![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.clearfix
+! - 개별 만화 각 회수별 배너
+!||tkor*.com/bann/*$image
+!||funbe*.com/bann/*$image
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
 #@#.mobile-banner
 !
@@ -3287,9 +3290,15 @@ zeta-ai.io##.pointer-events-none
 ##a[href][target] img
 
 ! - 일부 사이트에서 사용중
+! - - - 툰코 (https://tkor023.com/)
+! - - - 펀비 (https://funbe536.com/)
+##[style] a[href][target="_blank"] img
+
+! - 일부 사이트에서 사용중
 ! - - - https://dragonfly64.com/ 등
 ! - - - - - 안막아도 다른 사이트에 영향이 없어 그냥 둠
 ##[style*="image"] a[href][target="_blank"] 
+
 
 ! - 일부 사이트에서 사용중
 ! - - -  https://javlemon.com/
