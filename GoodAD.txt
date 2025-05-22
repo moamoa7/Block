@@ -2575,8 +2575,8 @@ mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
 !
 !
 ! 링크판 (https://linkpan71.com/)
-! - 배너
-!##.ban1
+! - 배너 공간
+##.ban1
 ! - 팝업
 ###layer_pop
 ! - 모바일 하단 배너
