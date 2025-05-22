@@ -1,23 +1,24 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.05.19.3
+! Version: 2025.05.21.4
 ! Description: 애드가드 필터의 오차단, 지우지 못한 광고와 안티 애드블록을 해결합니다. For Adguard, uBo, Brave
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
 
 
-! temporary rules
-###bannerList
-##.board-tail-banner
-##[style='margin-bottom: 20px;'].row.row-15
+! NAVER 앱 검색페이지 깨짐 복원 - https://m.dcinside.com/board/adguard/2118 참고
+@@||ad-creative.pstatic.net^$app=com.nhn.android.search
+@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
+
+! G마켓 메인화면 복원 - DNS 사용자 규칙에 @@||gmarket.co.kr^ 추가 필요
+@@||ad-img.gmarket.com^$image,domain=gmarket.co.kr|auction.co.kr
+gmarket.co.kr#@#.ReactVirtualized__Grid__innerScrollContainer .box__banner-wrap > .box__banner--today
+gmarket.co.kr#@#.js-impressionable
+gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 
 ! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
 @@||namu.wiki^$generichide
 namu.wiki##li:has(time):not(*:has([href*='/raw/'])):upward(2)
 namu.wiki##span:has-text(더 보기):upward(2):has([target])
-
-! From ublock origin filter
-##[id^='div-gpt-ad']:not([style^='width: 1px; height: 1px; position: absolute; left: -10000px; top: -']):not([style='pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;'])
-naver.com,~chzzk.naver.com##+js(addEventListener-defuser, /contextmenu|selectstart|dragstart/)
 
 ! Bypass anti-adblock
 *#%#//scriptlet('prevent-fetch', 'doubleclick.net')
@@ -61,6 +62,7 @@ start.klauncher.kr$$script:contains(detected)
 ##.happy-header-mobile
 ##.happy-under-player-mobile
 ##[alt$='광고']
+##[class*='basic-banner'][id]
 ##[id*='powerLink']
 ##[id*='powerlink']
 ##[id^='hd_pop']
@@ -78,7 +80,7 @@ algumon.com##.a-post-detail-bottom
 auction.co.kr##.component--sponsor_link.component
 coinpan.com##*:has(> div[style^='width:390px; max-width:100%;'])
 coinpan.com##.flatBoard > .clearfix.title-wrap
-coinpan.com##strong:has([target='_blank'])
+coinpan.com##p > strong
 coolenjoy.net##.carousel-inner
 dcinside.com###dna_content
 dcinside.com##.adv-inner
@@ -114,6 +116,8 @@ m.blog.naver.com###blog_fe_feed > div:has([class^='recommend_section__'])
 m.cafe.daum.net##.bottom_banner
 m.cafe.naver.com###articleFeedList
 m.cafe.naver.com##.bottom.banner_add
+m.cafe.naver.com##.join_layer
+m.cafe.naver.com##.subscribe_layer_wrap > .inner_wrap
 m.cgv.co.kr##.topBanner
 m.chzzk.naver.com##[class^='app_popup_dimmed__']
 m.danawa.com###mdnw-main-bottomSheet-container
@@ -121,7 +125,7 @@ m.danawa.com###mdnw-main-dimm
 m.daum.net##.bnr_popup.bnr_layer
 m.dcinside.com###notice_list > li:not(:has([href*='javascript'])):not(:has(span.ntc-line-orange))
 m.dcinside.com##.layer-bottom-popup
-m.dcinside.com##.trend-rank:style(padding-top:0px!important; padding-bottom:0px!important; )
+m.dcinside.com##.trend-rank:style(padding:0px!important; border-top:0px!important;)
 m.dcinside.com##section.clkhigh.grid
 m.dcinside.com##section.grid > .md-tit-box:has-text(Daum)
 m.dcinside.com#@#.trend-rank
@@ -145,7 +149,6 @@ seoul.co.kr##.adBanner
 sportschosun.com##div.mobile-ad:has([class^='adfork'])
 sportschosun.com##div[style*='height:']:not(:has([id]))
 talk.op.gg##[class]:has(> [href^='https://talk.op.gg/app-download'])
-tistory.*##figure:has([href*='link.coupang.com'])
 twidouga.net##iframe[width='300'][height='250']
 twidouga.net#%#//scriptlet('prevent-addEventListener', 'click', 'preventDefault')
 yna.co.kr##.article > aside:has(yna-ad-script)
@@ -157,16 +160,16 @@ windowsforum.kr,seoul.co.kr##.ad
 zod.kr##[data-href^='https://zod.kr/go/']
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
 ||apps.m.sooplive.co.kr^$all
+||dctrend.ai/widget/
+||nzy*.com/data/apms/background/$image
 ||trend.rankify.best^
 ~greend.kr##[class*='ad'][id^='AD']
 ~nexon.com,~gg##[target='_blank']:has([src*='/banner'])
 
-! 방해요소(우클릭 방지) 해제
+! 방해요소(우클릭, 각종 인증 우회)
 [$domain=/^booktoki[0-9]*\.com/]###novel_content:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
 cafe.naver.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
-
-! 국가 / 성인인증 우회
 dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_mrnhbtk', '1year', '/', '.dmm.co.jp')
 ||arca.live/static/assets/js/adult.min.js
 
@@ -182,24 +185,23 @@ fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 @@/.*/$permissions=identity-credentials-get=(),document,domain=slrclub.com
 @@||ad*.cgv.co.kr^$image,domain=cgv.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search,important
+@@||action.adoffice.11st.co.kr^$domain=search.11st.co.kr
 @@||app.appsflyer.com^$domain=ofw.adison.co
 @@||co.kr^$stealth=dpi
 @@||edge-live.joongna.com/api/web-ads/
 @@||google.*/search$stealth=useragent|ip
 @@||nexon.com^$stealth=dpi
+@@||nzyumi.com^$generichide
 @@||photo.jtbc.co.kr/news/cms/etc/
+@@||piku.co.kr^$generichide
 @@||ssl.pstatic.net^$script,domain=nid.naver.com
 etoland.co.kr#@#div[class$="_ad"]
 hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
 lol.inven.co.kr#@#article > div[style].banner
+search.11st.co.kr#@#[data-log-actionid-area^="focus"]
 video.kakao.com#@#.list_share
 web.joongna.com#@#a[rel*="sponsored"]
 ||cdn.oaistatic.com/assets/*.js$replace=/Error\(.\(418\,""\)\);throw ..\(..\(.\,.\)\)\,../null;/,domain=chatgpt.com,badfilter
-!#if (adguard && adguard_app_windows)
-[$url=||chzzk.naver.com^]#@%#//scriptlet('prevent-xhr', 'veta.naver.com/gfp')
-[$url=||chzzk.naver.com^]#@%#//scriptlet('prevent-xhr', 'veta.naver.com/call')
-[$url=||chzzk.naver.com^]#@%#//scriptlet('prevent-xhr', 'veta.naver.com/vas')
-!#endif
 ! SFF 갤러리 규칙 (출처: https://m.dcinside.com/board/sff/995258)
 @@||192.168.$stealth
 @@||app.link^$stealth=dpi
@@ -208,12 +210,6 @@ web.joongna.com#@#a[rel*="sponsored"]
 @@||onelink.me^$stealth=dpi
 @@||startpage.com^$stealth=dpi
 
-! NAVER 앱 검색페이지 깨짐 복원 - DNS 사용자 규칙에 @@||ad-creative.pstatic.net^ 및 @@||searchad-phinf.pstatic.net^ 추가 필요
-@@||ad-creative.pstatic.net^$app=com.nhn.android.search
-@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
-
-! G마켓 메인화면 복원 - DNS 사용자 규칙에 @@||gmarket.co.kr^ 추가 필요
-@@||ad-img.gmarket.com^$image,domain=gmarket.co.kr|auction.co.kr
-gmarket.co.kr#@#.ReactVirtualized__Grid__innerScrollContainer .box__banner-wrap > .box__banner--today
-gmarket.co.kr#@#.js-impressionable
-gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
+! From ublock origin filter
+##[id^='div-gpt-ad']:not([style^='width: 1px; height: 1px; position: absolute; left: -10000px; top: -']):not([style='pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;'])
+naver.com,~chzzk.naver.com##+js(addEventListener-defuser, /contextmenu|selectstart|dragstart/)
