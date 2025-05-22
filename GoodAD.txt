@@ -1640,7 +1640,7 @@ evojav.pro$popup
 !
 ! JAVFC2.XYZ (https://javfc2.xyz/)
 ! - 상단 배너 이미지 공간 (유니콘Pro)
-!###ads
+!!###ads
 !
 !
 ! 7MMTV (https://7tv033.com/)
@@ -2425,7 +2425,7 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 ! - 상단 배너
 [$domain=/^yabam\d+.me/]##.banner-pc-padding.banner-margin.row
 ! - 영상내 배너
-###ads
+!###ads
 !
 !
 ! 미니멈맥스 (https://mmaxx7.com/)
