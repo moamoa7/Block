@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250522
+! Version: 20250523
 !
 !
 !
@@ -3222,6 +3222,7 @@ zeta-ai.io##.pointer-events-none
 [$domain=/^ssg1.torrentssg\d+.com/]##[style] a[href][target*='_blank']
 
 
+
 ! - - - https://dragonfly64.com/ 등
 ! - - - - - 광역으로 사용시 아래 규칙에 따라 다른 텍스트 링크 지워져서 안됨 ([target] 넣으면 상관없어지므로 패스)
 ! - - - - -  ##[style] 을 지정하지 않고 하면  텍스트 링크까지 사라져서 안됨
@@ -3229,6 +3230,7 @@ zeta-ai.io##.pointer-events-none
 ! - - - - -  ##[style] a[href][target] img 하면 규칙 안먹힘 (순서 바꾸면 안됨)
 !##[style*="background"] a[href][target]
 ##[style^="background-image"] a[href][target*='_blank']
+
 
 
 ! - 일부 사이트에서 사용 중
@@ -3239,6 +3241,8 @@ zeta-ai.io##.pointer-events-none
 ![$domain=/^linkpan\d+.com/]##a[href][target] [style^="background-image"] 에서 변경
 [$domain=/^linkpan\d+.com/]##a[href][target='_blank'] [class]
 
+
+
 ! - 일부 사이트에서 사용 중
 ! - - - /wp-content/uploads/ 이 태그가 필요한곳이 별도로 있어 광역으로 사용시 해제되는 경우가 있음
 ! - - - [src]로 하면 모든 이미지 사라짐
@@ -3246,10 +3250,10 @@ zeta-ai.io##.pointer-events-none
 [$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
 
 
+
 ! - 일부 사이트에서 사용 중
 ! - 조개무비 (https://v15.jogemovie.net/)
 [$domain=/^v\d+.jogemovie.net/]##[style] a[href=""]
-
 
 
 
@@ -3260,6 +3264,7 @@ zeta-ai.io##.pointer-events-none
 ! - - - https://xn--av1-qv9mx21c.com/
 ! - - - ##[style] a[href] img[src] 안먹힘
 xn--av1-qv9mx21c.com,[$domain=/^ydu\d+.com/]##[style] img[src]
+
 
 
 ! - 일부 사이트에서 사용 중
@@ -3273,15 +3278,19 @@ javlemon.com##[style]> [src]
 ||a.magsrv.com/ad-provider.js
 
 
+
 ! - - - https://www.avdbs.com/ 배너
 !- - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움
 ##a[href][onclick] [class][src]
+
 
 
 ! - 일부 사이트에서 사용 중
 !  - - -광역으로 사용시 페이지 아무껏도 안보임
 ! - - -  두꺼비티비 (https://dugebitv104.xyz/)
 [$domain=/^dugebitv\d+.xyz/]##[style][class] [class]
+
+
 
 ! - 일부 사이트에서 사용 중
 ! - - - 이걸 광역으로 사용하면 일부 사이트에서 이미지가 사라짐
@@ -3291,6 +3300,8 @@ javlemon.com##[style]> [src]
 ! - -  위 2개 합친거
 ! - - - - - 메시티비 (https://messitv8.com/) - 로고 삭제됨
 [$domain=/^messitv\d+.com/]##a[href] img
+
+
 
 ! - 일부사이트 (banner 주소 들어간 이미지)에서 사용 중
 ! - - - 광역으로 사용
