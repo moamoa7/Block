@@ -2746,11 +2746,11 @@ stripchatgirls.com##.Modal__scrollableOverlay\#SW.Modal__overlay_clickable\#ho.M
 ! - - - 코난티비(https://conan-tv.com/) - 팝업
 ###hd_pop
 ! - 상단 배너
-[$domain=/^today-sports\d+.com/]##.draggable.slick-list
+![$domain=/^today-sports\d+.com/]##.draggable.slick-list
 ! - 왼쪽 배너
-##.info-banner
+!##.info-banner
 ! - 게시물내 한칸짜리 배너
-##[src*="event_banner"]
+!##[src*="event_banner"]
 ! - - - 아래로 변경하면..
 ! - - - - -야동그라운드 (https://yagro48.com/)
 ! - - - - -빨간비디오 (https://redvi77.com/)
@@ -3290,6 +3290,11 @@ javlemon.com##[style]> [src]
 ! - -  위 2개 합친거
 ! - - - - - 메시티비 (https://messitv8.com/) - 로고 삭제됨
 [$domain=/^messitv\d+.com/]##a[href] img
+
+! - 일부사이트 (banner 주소 들어간 이미지)에서 사용 중
+! - - - 광역으로 사용
+! - - -  https://today-sports7.com/
+##a[href] img[src*="banner"]
 
 
 !
