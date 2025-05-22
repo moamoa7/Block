@@ -2781,6 +2781,7 @@ noonnu.cc##.lg\:top-8
 ! - https://159i.net/
 ! - 제크티비 (https://zectv.com/)
 ! - 레드핫 (https://redhot04.com/) https://redhot05.com/
+! - - -  배너 공간
 ##.banner
 ! - - - 예외
 ! - - - 롤 인벤 (https://lol.inven.co.kr/) : 경기일정 보이게 하려고 해제
@@ -3194,7 +3195,8 @@ zeta-ai.io##.pointer-events-none
 ![$domain=/^7tv\d+.com/]##a[href][target*='_blank'] img
 ! - - - ##a[href][target='_blank'] img - 비슷하지만 일부 안사라지는 이미지 있음 (target=&quot;_blank&quot 이런식으로 되어 있는 경우)
 ![$domain=/^yaburi\d+.com/]##a[href][target] img
-!- - - ##a[href][target] img - 같은 효과이나 target가 제대로 지정이 안되서 다른 이미지가 선택되기도 함
+! - - - ##a[href][target] img - 같은 효과이나 target가 제대로 지정이 안되서 다른 이미지가 선택되기도 함
+! - - - img 대신에 .xxxx 이런식으로 class 이름 넣어도 됨
 ##a[href][target*='_blank'] img
 
 
@@ -3237,17 +3239,16 @@ zeta-ai.io##.pointer-events-none
 ![$domain=/^linkpan\d+.com/]##a[href][target] [style^="background-image"] 에서 변경
 [$domain=/^linkpan\d+.com/]##a[href][target='_blank'] [class]
 
-
-! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
-![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
+! - 일부 사이트에서 사용 중
+! - - - /wp-content/uploads/ 이 태그가 필요한곳이 별도로 있어 광역으로 사용시 해제되는 경우가 있음
 ! - - - [src]로 하면 모든 이미지 사라짐
-##[style][src*="/wp-content/uploads/"]
+! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
+[$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
 
 
 ! - 일부 사이트에서 사용 중
 ! - 조개무비 (https://v15.jogemovie.net/)
-![$domain=/^v\d+.jogemovie.net/]##[style] a[href=""]
-##[style] a[href=""]
+[$domain=/^v\d+.jogemovie.net/]##[style] a[href=""]
 
 
 
