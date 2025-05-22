@@ -3197,8 +3197,9 @@ zeta-ai.io##.pointer-events-none
 ![$domain=/^yaburi\d+.com/]##a[href][target] img
 ! - - - ##a[href][target] img - 같은 효과이나 target가 제대로 지정이 안되서 다른 이미지가 선택되기도 함
 ! - - - img 대신에 .xxxx 이런식으로 class 이름 넣어도 됨
-##a[href][target*='_blank'] img
-
+!##a[href][target*='_blank'] img
+! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
+##[target][href] img
 
 
 ! - a[href][target] img 변형
@@ -3316,7 +3317,7 @@ javlemon.com##[style]> [src]
 !
 ! - 예외
 
-trand.co.kr#@#a[href][target*='_blank'] img
+trand.co.kr#@#[target][href] img
 trand.co.kr#@#[style] a[href][target] img
 trand.co.kr#@#[style^="background-image"] a[href][target]
 trand.co.kr#@#a[href][onclick] [class][src]
@@ -3326,12 +3327,12 @@ trand.co.kr#@#a[href][onclick] [class][src]
 ! https://04.avsee.ru/ - 영상 게시판 내 사진을 지우지면 상관없음
 
 ! https://www.reddit.com/ (일부 이미지 지워짐)
-reddit.com#@#a[href][target*='_blank'] img
+reddit.com#@#[target][href] img
 
 ! 숲 (https://www.sooplive.co.kr/) - 실시간 영상 이미지 안보임
 ! KICK (https://kick.com/) - 일부 이미지 사라짐
 ! 웨이브 (https://www.wavve.com/) - 팝업 이미지 안보임
-sooplive.co.kr#@#a[href][target*='_blank'] img
+sooplive.co.kr#@#[target][href] img
 kick.com#@#a[href][target*='_blank'] img
 wavve.com#@#a[href][target*='_blank'] img
 
@@ -3339,74 +3340,74 @@ wavve.com#@#a[href][target*='_blank'] img
 ! 네이트 (https://www.nate.com/)
 ! 다음 (https://www.daum.net/)
 ! ZUM (https://zum.com/)
-naver.com,nate.com,daum.net,zum.com#@#a[href][target*='_blank'] img
+naver.com,nate.com,daum.net,zum.com#@#[target][href] img
 
 ! 이토랜드 (https://www.etoland.co.kr/) - 로고 등 일부 이미지 사라짐
-etoland.co.kr#@#a[href][target*='_blank'] img
+etoland.co.kr#@#[target][href] img
 
 ! 인벤 (https://www.inven.co.kr/) - 일부 이미지 사라짐
-inven.co.kr#@#a[href][target*='_blank'] img
+inven.co.kr#@#[target][href] img
 
 ! 엠팍 (https://mlbpark.donga.com/) 일부 게시물 이미지 사라짐
-mlbpark.donga.com#@#a[href][target*='_blank'] img
+mlbpark.donga.com#@#[target][href] img
 
 ! 더쿠 (https://theqoo.net/) - 게시물 내 이미지 일부 사라짐
-theqoo.net#@#a[href][target*='_blank'] img
+theqoo.net#@#[target][href] img
 
 ! 보배드림 (https://www.bobaedream.co.kr/) 하단 자동차 매물 이미지 사라짐 (큰 상관 없어서 패스)
-!bobaedream.co.kr#@#a[href][target*='_blank'] img
+!bobaedream.co.kr#@#[target][href] img
 
 ! 82쿡 (https://www.82cook.com/) - 왼쪽 배너 삭제 (다른 요소에는 영향을 주지 않는것으로 보임)
-!82cook.com#@#a[href][target*='_blank'] img
+!82cook.com#@#[target][href] img
 
 ! 루리웹 (https://bbs.ruliweb.com/) - 전체적으로 배너 삭제 (다른 요소에는 영향을 주지 않는것으로 보임)
-!ruliweb.com#@#a[href][target*='_blank'] img
+!ruliweb.com#@#[target][href] img
 
 ! 웃긴대학 (https://web.humoruniv.com/) - 로고 및 일부 이미지 사라짐
-humoruniv.com#@#a[href][target*='_blank'] img
+humoruniv.com#@#[target][href] img
 
 ! 다모앙 (https://damoang.net/) - 일부 아이콘 및 이미지 사라짐
-damoang.net#@#a[href][target*='_blank'] img
+damoang.net#@#[target][href] img
 
 ! https://dramaday.me/ (이미지 안보임)
-dramaday.me#@#a[href][target*='_blank'] img
+dramaday.me#@#[target][href] img
 
 ! 나무위키 (https://namu.wiki/) - SNS 아이콘 안보임 (마우스 갔다대면 링크 클릭은 가능)
-namu.wiki#@#a[href][target*='_blank'] img
+namu.wiki#@#[target][href] img
 
 ! 옥션 (https://escrow.auction.co.kr/) - 로고 등 일부 이미지 사라짐
-auction.co.kr#@#a[href][target*='_blank'] img
+auction.co.kr#@#[target][href] img
 
 ! 다나와 (https://danawa.com/)
 ! G마켓 (https://www.gmarket.co.kr/)
 ! 쿠팡 (https://www.coupang.com/)
-danawa.com,gmarket.co.kr,coupang.com#@#a[href][target*='_blank'] img
+danawa.com,gmarket.co.kr,coupang.com#@#[target][href] img
 
 
 ! 조아툰 (https://joatoon68.com/) - 만화 목록 이미지 사라짐
-[$domain=/^joatoon\d+.com/]#@#a[href][target*='_blank'] img
+[$domain=/^joatoon\d+.com/]#@#[target][href] img
 
 ! 망가조아 (https://mangajoa5.com/) - 목록별 만화 이미지 사라짐
-[$domain=/^mangajoa\d+.com/]#@#a[href][target*='_blank'] img
+[$domain=/^mangajoa\d+.com/]#@#[target][href] img
 
 ! 다이소 (https://www.dayisoo36.me/) - 영상 안보임 (안보이면 F5 누를것)
-![$domain=/^www.dayisoo\d+.me/]#@#a[href][target*='_blank'] img
+![$domain=/^www.dayisoo\d+.me/]#@#[target][href] img
 
 ! https://loopholes.site/
 loopholes.site#@#[style][src*="/wp-content/uploads/"]
 
 
 ! https://fc2ppvdb.com/
-fc2ppvdb.com#@#a[href][target*='_blank'] img
+fc2ppvdb.com#@#[target][href] img
 
 
 
 
-![$domain=/^mangajoa\d+.com/]#@#a[href][target] img
+![$domain=/^mangajoa\d+.com/]#@#[target][href] img
 
 
-![$domain=/^joatoon\d+.com/]#@#a[href][target] img
-![$domain=/^joatoon\d+.com/]#@#[style] a[href][target] img
+![$domain=/^joatoon\d+.com/]#@#[target][href] img
+![$domain=/^joatoon\d+.com/]#@#[target][href] img
 
 
 
