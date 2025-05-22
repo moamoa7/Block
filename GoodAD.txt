@@ -1581,7 +1581,7 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !###imgDiv22
 ! - 배너 이미지 공간
 ##.bounce
-###imgDiv
+###imgDiv > table
 ##.execphpwidget
 
 !
@@ -3184,6 +3184,9 @@ zeta-ai.io##.pointer-events-none
 !
 !
 
+! 기본
+!##a[href][target*='_blank'] img
+
 ! - 기본으로 사용 중
 ! - - -  일부 사이트에서 사용 중
 ! - - - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
@@ -3191,7 +3194,9 @@ zeta-ai.io##.pointer-events-none
 ! - - - 뉴토끼 (https://newtoki468.com/)
 ! - - -  AVseeTV (https://04.avsee.ru/)
 ! - - - 7MMTV (https://7tv033.com/)
-! - - - 야부리 시즌 2 (https://yaburi60.com/) 등
+! - - - 야부리 시즌 2 (https://yaburi60.com/)
+! - - - 도지코믹스 (https://dozi352.com/)
+! - - - 만화방 (https://manhwabang.org/)
 ![$domain=/^7tv\d+.com/]##a[href][target*='_blank'] img
 ! - - - ##a[href][target='_blank'] img - 비슷하지만 일부 안사라지는 이미지 있음 (target=&quot;_blank&quot 이런식으로 되어 있는 경우)
 ![$domain=/^yaburi\d+.com/]##a[href][target] img
@@ -3201,6 +3206,10 @@ zeta-ai.io##.pointer-events-none
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
 ##[target][href] img
 
+
+
+! 변형 기본
+!##[style] a[href][target*='_blank'] img
 
 ! - a[href][target] img 변형
 ! - - - 광역으로 사용시 일부 사이트에서 이미지 지워짐
@@ -3213,7 +3222,10 @@ zeta-ai.io##.pointer-events-none
 ! - - - ##[style] a[href][target] 으로  하면 다른 사이트에서 텍스트 링크 사라짐
 !##[style] a[href^="http"][target="_blank"] img
 ! ##[style] a[href][target] img 에서 변경
-[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target*='_blank'] img
+![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target*='_blank'] img
+[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] [target][href] img
+
+
 
 
 
@@ -3227,10 +3239,12 @@ zeta-ai.io##.pointer-events-none
 ! - - - https://dragonfly64.com/ 등
 ! - - - - - 광역으로 사용시 아래 규칙에 따라 다른 텍스트 링크 지워져서 안됨 ([target] 넣으면 상관없어지므로 패스)
 ! - - - - -  ##[style] 을 지정하지 않고 하면  텍스트 링크까지 사라져서 안됨
+! - - - - - background-image 사용으로 img를 사용할 수 없음
 ! - - - - - [style*="background"] 해도 되나 아래 규칙과 혼돈되어 규칙 더 추가
 ! - - - - -  ##[style] a[href][target] img 하면 규칙 안먹힘 (순서 바꾸면 안됨)
 !##[style*="background"] a[href][target]
-##[style^="background-image"] a[href][target*='_blank']
+##[style*="background"] a[href][target*='_blank']
+!##[style^="background-image"] a[href][target*='_blank']
 
 
 
@@ -3247,14 +3261,18 @@ zeta-ai.io##.pointer-events-none
 ! - 일부 사이트에서 사용 중
 ! - - - /wp-content/uploads/ 이 태그가 필요한곳이 별도로 있어 광역으로 사용시 해제되는 경우가 있음
 ! - - - [src]로 하면 모든 이미지 사라짐
+! - - - 상단배너는 ###imgDiv > table 로 공간없애고 나머지는 기본 규칙인 ##[target][href] img 로 해결 (아래 규칙 안해도 됨)
 ! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
-[$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
+![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
 
 
 
 ! - 일부 사이트에서 사용 중
+! - - - target 규칙이 없는 사이트에서 사용
+! - - - href="" 규칙이 있어 활용
 ! - 조개무비 (https://v15.jogemovie.net/)
-[$domain=/^v\d+.jogemovie.net/]##[style] a[href=""]
+! - - - 배너 공간 규칙 ##.wp-block-gallery 사용하면 굳이 할 필요없음
+![$domain=/^v\d+.jogemovie.net/]##[style] a[href=""]
 
 
 
@@ -3318,8 +3336,10 @@ javlemon.com##[style]> [src]
 ! - 예외
 
 trand.co.kr#@#[target][href] img
-trand.co.kr#@#[style] a[href][target] img
-trand.co.kr#@#[style^="background-image"] a[href][target]
+!trand.co.kr#@#[style] a[href][target*='_blank'] img
+!trand.co.kr#@#[style] a[href][target] img
+!trand.co.kr#@#[style*="background"] a[href][target*='_blank']
+
 trand.co.kr#@#a[href][onclick] [class][src]
 
 ! 더쿠는 규칙이 적요되긴 하는대 게시물 영향 없는듯
@@ -3332,9 +3352,7 @@ reddit.com#@#[target][href] img
 ! 숲 (https://www.sooplive.co.kr/) - 실시간 영상 이미지 안보임
 ! KICK (https://kick.com/) - 일부 이미지 사라짐
 ! 웨이브 (https://www.wavve.com/) - 팝업 이미지 안보임
-sooplive.co.kr#@#[target][href] img
-kick.com#@#a[href][target*='_blank'] img
-wavve.com#@#a[href][target*='_blank'] img
+sooplive.co.kr,kick.com,wavve.com#@#[target][href] img
 
 ! 네이버 (https://www.naver.com/)
 ! 네이트 (https://www.nate.com/)
@@ -3343,16 +3361,13 @@ wavve.com#@#a[href][target*='_blank'] img
 naver.com,nate.com,daum.net,zum.com#@#[target][href] img
 
 ! 이토랜드 (https://www.etoland.co.kr/) - 로고 등 일부 이미지 사라짐
-etoland.co.kr#@#[target][href] img
-
 ! 인벤 (https://www.inven.co.kr/) - 일부 이미지 사라짐
-inven.co.kr#@#[target][href] img
-
 ! 엠팍 (https://mlbpark.donga.com/) 일부 게시물 이미지 사라짐
-mlbpark.donga.com#@#[target][href] img
-
 ! 더쿠 (https://theqoo.net/) - 게시물 내 이미지 일부 사라짐
-theqoo.net#@#[target][href] img
+! 웃긴대학 (https://web.humoruniv.com/) - 로고 및 일부 이미지 사라짐
+! 다모앙 (https://damoang.net/) - 일부 아이콘 및 이미지 사라짐
+etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net#@#[target][href] img
+
 
 ! 보배드림 (https://www.bobaedream.co.kr/) 하단 자동차 매물 이미지 사라짐 (큰 상관 없어서 패스)
 !bobaedream.co.kr#@#[target][href] img
@@ -3363,11 +3378,7 @@ theqoo.net#@#[target][href] img
 ! 루리웹 (https://bbs.ruliweb.com/) - 전체적으로 배너 삭제 (다른 요소에는 영향을 주지 않는것으로 보임)
 !ruliweb.com#@#[target][href] img
 
-! 웃긴대학 (https://web.humoruniv.com/) - 로고 및 일부 이미지 사라짐
-humoruniv.com#@#[target][href] img
 
-! 다모앙 (https://damoang.net/) - 일부 아이콘 및 이미지 사라짐
-damoang.net#@#[target][href] img
 
 ! https://dramaday.me/ (이미지 안보임)
 dramaday.me#@#[target][href] img
@@ -3376,12 +3387,10 @@ dramaday.me#@#[target][href] img
 namu.wiki#@#[target][href] img
 
 ! 옥션 (https://escrow.auction.co.kr/) - 로고 등 일부 이미지 사라짐
-auction.co.kr#@#[target][href] img
-
 ! 다나와 (https://danawa.com/)
 ! G마켓 (https://www.gmarket.co.kr/)
 ! 쿠팡 (https://www.coupang.com/)
-danawa.com,gmarket.co.kr,coupang.com#@#[target][href] img
+auction.co.kr,danawa.com,gmarket.co.kr,coupang.com#@#[target][href] img
 
 
 ! 조아툰 (https://joatoon68.com/) - 만화 목록 이미지 사라짐
@@ -3396,7 +3405,6 @@ danawa.com,gmarket.co.kr,coupang.com#@#[target][href] img
 ! https://loopholes.site/
 loopholes.site#@#[style][src*="/wp-content/uploads/"]
 
-
 ! https://fc2ppvdb.com/
 fc2ppvdb.com#@#[target][href] img
 
@@ -3407,11 +3415,7 @@ fc2ppvdb.com#@#[target][href] img
 ! https://monsnode.com/
 ! https://twihub.net/
 ! https://twiigle.com/
-twivideo.net#@#[target][href] img
-twidouga.net#@#[target][href] img
-monsnode.com#@#[target][href] img
-twihub.net#@#[target][href] img
-twiigle.com#@#[target][href] img
+twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#[target][href] img
 
 
 
