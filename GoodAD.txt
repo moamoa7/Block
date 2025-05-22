@@ -45,17 +45,6 @@
 !
 !
 !
-!!! 구글 안티 애드블럭
-! - uBlock filters – Ads
-#@#[class^="div-gpt-ad"]
-#@#[id^="div-gpt-ad"]
-#@#div[id^="div-gpt-"]
-##[class^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"])
-##div[id^="div-gpt-"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
-##[id^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
-!
-!
-!
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
 ! -출처 : Adblock-Rule-Collection-Lite
 ||jsdelivr.net/npm/disable-devtool
@@ -134,7 +123,7 @@ sooplive.co.kr###FeedLayerToolTip
 ! - 양쪽 배너 공간
 poong.today##._mainWingBannerArea_trl52_537
 ! - 중하단 배너
-||uploads.poong.today/public/ad*
+!||uploads.poong.today/public/ad*
 !
 !
 ! 치지직 (https://chzzk.naver.com/)
@@ -285,7 +274,7 @@ wiki.dcinside.com##*
 ! 배너 (오른쪽 위 /게시글 하단 댓글 사이 배너 )
 ! - - -  웃대 (https://web.humoruniv.com/) 왼쪽 배너 / 하단 배너
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
-##[class^="ads"]
+!##[class^="ads"]
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
 fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기 (streamable.com 안나와서 해제)
@@ -363,9 +352,9 @@ theqoo.net##.theqoo-counter
 !
 ! 인벤 (https://www.inven.co.kr/)
 ! - 배너 (상단배너 / 왼쪽.오른쪽 맨 위 배너)
-##[class^="ad-"]
+!##[class^="ad-"]
 ! - 배너 (댓글 위 배너)
-##[class$="-ad"]
+!##[class$="-ad"]
 
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
 inven.co.kr##.roulette-open.inven-float-alarm
@@ -387,22 +376,22 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ! 루리 (https://m.ruliweb.com/)
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
 ! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe536.com/)
-ruliweb.com##[class*="ad_"][style]
+!ruliweb.com##[class*="ad_"][style]
 ! - - - 맨 밑 하단 게시글 광고 배너 (모바일)
-ruliweb.com##.fixed_layer1
+!ruliweb.com##.fixed_layer1
 ! - - - 맨밑 하단 파란색 배너 (모바일)
-ruliweb.com##.fixed_ad_wrapper
+!ruliweb.com##.fixed_ad_wrapper
 ! - 이미지 복원
 !@@||ruliweb.com/img/$image
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
  ! - 게시글 상단 배너(마켓 홍보) (PC/모바일)
- ddanzi.com###banner_ddanzi_market
+ !ddanzi.com###banner_ddanzi_market
  ! - 게시글 하단 공백 (모바일)
- ddanzi.com##.add_display2
+! ddanzi.com##.add_display2
 ! - 이미지 복원
-@@||img-cdn.ddanzi.com/files/attach/images/*$image
+!@@||img-cdn.ddanzi.com/files/attach/images/*$image
 !
 !
 ! 보배드림 (https://www.bobaedream.co.kr/)
@@ -412,12 +401,12 @@ bobaedream.co.kr##.todayRanking
 !
 ! 오늘의 유머 (https://www.todayhumor.co.kr/)
 ! - 왼쪽 배너
-##[class*="_ad_"]
+!##[class*="_ad_"]
 !
 !
 ! 포모스 (https://www.fomos.kr/)
 ! - 왼쪽 배너 포함 (PC)
-##.float-banners
+!##.float-banners
 !
 !
 ! 와이고수 (https://ygosu.com/)
@@ -435,29 +424,29 @@ ygosu.com##.pull-left.btn-group
 ! - 메인/게시물 왼쪽 배너 공간 (PC)
 ! - 야동코리아 (https://yako4.net/) - 영상 하단 배너
 ! - - - 유튜브에서도 적용
-###banner
+!###banner
 ! - 모바일 하단 배너
-##.ad_area1
+!##.ad_area1
 ! - 이미지 복원
 !@@||jjang0u.com/img/*$image
 !
 !
 ! 82쿡 (https://www.82cook.com/)
-! - 왼쪽 상단 배너
+! - 왼쪽 상단 배너 공간
 ###mainHeadline
 !
 !
 ! 일베 (https://www.ilbe.com/)
 ! - 이미지 복원
 !@@||ilbe.com/img/*$image
-@@ncache.ilbe.com/files/attach/*$image
+!@@ncache.ilbe.com/files/attach/*$image
 !
 !
 ! 짤티비 (https://jjtv.kr/)
 ! 광고 사이트?
-||www.clickon.kr
+!||www.clickon.kr
 ! - 이미지 복원
-@@||fmkorea.com/files/attach/*$image
+!@@||fmkorea.com/files/attach/*$image
 !
 !
 ! 네이버 카페
@@ -3186,6 +3175,7 @@ zeta-ai.io##.pointer-events-none
 
 ! 기본
 !##a[href][target*='_blank'] img
+##a[href][target] img
 
 ! - 기본으로 사용 중
 ! - - -  일부 사이트에서 사용 중
@@ -3204,11 +3194,12 @@ zeta-ai.io##.pointer-events-none
 ! - - - img 대신에 .xxxx 이런식으로 class 이름 넣어도 됨
 !##a[href][target*='_blank'] img
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
-##[target][href] img
+!##[target][href] img
 
 
 
 ! 변형 기본
+!##[style] a[href][target] img
 !##[style] a[href][target*='_blank'] img
 
 ! - a[href][target] img 변형
@@ -3222,8 +3213,9 @@ zeta-ai.io##.pointer-events-none
 ! - - - ##[style] a[href][target] 으로  하면 다른 사이트에서 텍스트 링크 사라짐
 !##[style] a[href^="http"][target="_blank"] img
 ! ##[style] a[href][target] img 에서 변경
-![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target*='_blank'] img
-[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] [target][href] img
+! ##[style] a[href][target] img 로 하면 조아툰 경우 만화 목록 이미지 안보임
+![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target] img
+[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target*='_blank'] img
 
 
 
@@ -3242,16 +3234,16 @@ zeta-ai.io##.pointer-events-none
 ! - - - - - background-image 사용으로 img를 사용할 수 없음
 ! - - - - - [style*="background"] 해도 되나 아래 규칙과 혼돈되어 규칙 더 추가
 ! - - - - -  ##[style] a[href][target] img 하면 규칙 안먹힘 (순서 바꾸면 안됨)
+! - - - - - ##[style*="background"] 로 하면 덕덕고 등에서 이미지 안나옴
 !##[style*="background"] a[href][target]
-##[style*="background"] a[href][target*='_blank']
-!##[style^="background-image"] a[href][target*='_blank']
+!##[style*="background"] a[href][target*='_blank']
+##[style^="background-image"] a[href][target*='_blank']
 
 
 
 ! - 일부 사이트에서 사용 중
 ! - - - 광역 사용시 타사이트 이미지 지워짐
 ! - - - https://linkpan71.com/ 상단 배너
-! - - - - - 광역으로 해도 다른 사이트에 영향이 없어 그냥 둠
 ! - - - - - [style*="background"] 하면 다른 텍스트링크까지 지움 (순서 바꾸면 안됨)
 ![$domain=/^linkpan\d+.com/]##a[href][target] [style^="background-image"] 에서 변경
 [$domain=/^linkpan\d+.com/]##a[href][target='_blank'] [class]
@@ -3326,8 +3318,6 @@ javlemon.com##[style]> [src]
 ! - - - 광역으로 사용
 ! - - -  https://today-sports7.com/
 ##a[href] img[src*="banner"]
-
-
 !
 !
 !
@@ -3335,9 +3325,10 @@ javlemon.com##[style]> [src]
 !
 ! - 예외
 
-trand.co.kr#@#[target][href] img
-!trand.co.kr#@#[style] a[href][target*='_blank'] img
+trand.co.kr#@#a[href][target] img
+trand.co.kr#@#[style] a[href][target*='_blank'] img
 !trand.co.kr#@#[style] a[href][target] img
+trand.co.kr#@#a[href][target='_blank'] [class]
 !trand.co.kr#@#[style*="background"] a[href][target*='_blank']
 
 trand.co.kr#@#a[href][onclick] [class][src]
@@ -3347,18 +3338,23 @@ trand.co.kr#@#a[href][onclick] [class][src]
 ! https://04.avsee.ru/ - 영상 게시판 내 사진을 지우지면 상관없음
 
 ! https://www.reddit.com/ (일부 이미지 지워짐)
-reddit.com#@#[target][href] img
+!reddit.com#@#a[href][target] img
 
 ! 숲 (https://www.sooplive.co.kr/) - 실시간 영상 이미지 안보임
 ! KICK (https://kick.com/) - 일부 이미지 사라짐
 ! 웨이브 (https://www.wavve.com/) - 팝업 이미지 안보임
-sooplive.co.kr,kick.com,wavve.com#@#[target][href] img
+sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
 
 ! 네이버 (https://www.naver.com/)
 ! 네이트 (https://www.nate.com/)
 ! 다음 (https://www.daum.net/)
 ! ZUM (https://zum.com/)
-naver.com,nate.com,daum.net,zum.com#@#[target][href] img
+! 덕덕고 (https://duckduckgo.com/)
+! Stargpage (https://www.startpage.com/)
+! Yahoo! japan (https://www.yahoo.co.jp/)
+naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp#@#a[href][target] img
+
+
 
 ! 이토랜드 (https://www.etoland.co.kr/) - 로고 등 일부 이미지 사라짐
 ! 인벤 (https://www.inven.co.kr/) - 일부 이미지 사라짐
@@ -3366,17 +3362,17 @@ naver.com,nate.com,daum.net,zum.com#@#[target][href] img
 ! 더쿠 (https://theqoo.net/) - 게시물 내 이미지 일부 사라짐
 ! 웃긴대학 (https://web.humoruniv.com/) - 로고 및 일부 이미지 사라짐
 ! 다모앙 (https://damoang.net/) - 일부 아이콘 및 이미지 사라짐
-etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net#@#[target][href] img
+etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net#@#a[href][target] img
 
 
 ! 보배드림 (https://www.bobaedream.co.kr/) 하단 자동차 매물 이미지 사라짐 (큰 상관 없어서 패스)
-!bobaedream.co.kr#@#[target][href] img
+!bobaedream.co.kr#@#a[href][target] img
 
 ! 82쿡 (https://www.82cook.com/) - 왼쪽 배너 삭제 (다른 요소에는 영향을 주지 않는것으로 보임)
-!82cook.com#@#[target][href] img
+!82cook.com#@#a[href][target] img
 
 ! 루리웹 (https://bbs.ruliweb.com/) - 전체적으로 배너 삭제 (다른 요소에는 영향을 주지 않는것으로 보임)
-!ruliweb.com#@#[target][href] img
+!ruliweb.com#@#a[href][target] img
 
 
 
@@ -3390,23 +3386,24 @@ namu.wiki#@#[target][href] img
 ! 다나와 (https://danawa.com/)
 ! G마켓 (https://www.gmarket.co.kr/)
 ! 쿠팡 (https://www.coupang.com/)
-auction.co.kr,danawa.com,gmarket.co.kr,coupang.com#@#[target][href] img
+auction.co.kr,danawa.com,gmarket.co.kr,coupang.com#@#a[href][target] img
 
 
 ! 조아툰 (https://joatoon68.com/) - 만화 목록 이미지 사라짐
-[$domain=/^joatoon\d+.com/]#@#[target][href] img
+[$domain=/^joatoon\d+.com/]#@#a[href][target] img
 
 ! 망가조아 (https://mangajoa5.com/) - 목록별 만화 이미지 사라짐
-[$domain=/^mangajoa\d+.com/]#@#[target][href] img
+[$domain=/^mangajoa\d+.com/]#@#a[href][target] img
+
 
 ! 다이소 (https://www.dayisoo36.me/) - 영상 안보임 (안보이면 F5 누를것)
-![$domain=/^www.dayisoo\d+.me/]#@#[target][href] img
+![$domain=/^www.dayisoo\d+.me/]#@#a[href][target] img
 
 ! https://loopholes.site/
 loopholes.site#@#[style][src*="/wp-content/uploads/"]
 
 ! https://fc2ppvdb.com/
-fc2ppvdb.com#@#[target][href] img
+fc2ppvdb.com#@#a[href][target] img
 
 
 !!! 트위터 관련
@@ -3415,7 +3412,7 @@ fc2ppvdb.com#@#[target][href] img
 ! https://monsnode.com/
 ! https://twihub.net/
 ! https://twiigle.com/
-twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#[target][href] img
+twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target] img
 
 
 
@@ -3423,8 +3420,8 @@ twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#[target][href] i
 ! https://yastagram.kr/
 ! https://www.4khd.com/
 
-yastagram.kr#@#[target][href] img
-4khd.com#@#[target][href] img
+yastagram.kr#@#a[href][target] img
+4khd.com#@#a[href][target] img
 
 
 
