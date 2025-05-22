@@ -3401,13 +3401,27 @@ loopholes.site#@#[style][src*="/wp-content/uploads/"]
 fc2ppvdb.com#@#[target][href] img
 
 
+!!! 트위터 관련
+! https://twivideo.net/
+! https://www.twidouga.net/
+! https://monsnode.com/
+! https://twihub.net/
+! https://twiigle.com/
+twivideo.net#@#[target][href] img
+twidouga.net#@#[target][href] img
+monsnode.com#@#[target][href] img
+twihub.net#@#[target][href] img
+twiigle.com#@#[target][href] img
 
 
-![$domain=/^mangajoa\d+.com/]#@#[target][href] img
 
+!!! 성인 이미지 관련
+! https://yastagram.kr/
+! https://www.4khd.com/
 
-![$domain=/^joatoon\d+.com/]#@#[target][href] img
-![$domain=/^joatoon\d+.com/]#@#[target][href] img
+yastagram.kr#@#[target][href] img
+4khd.com#@#[target][href] img
+
 
 
 
