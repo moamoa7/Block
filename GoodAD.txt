@@ -1669,7 +1669,9 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 !
 ! JAV Lemon (https://javlemon.com/)
 ! - 영상 아래 배너
-javlemon.com##[style] img[src]
+!javlemon.com##[style]> [src]
+! - 이미지가 아닌 동영상이 올때가 있어서 제대로 차단이 안됨/. js를 차단해야 함
+||a.magsrv.com/ad-provider.js
 ! - - - PC
 !javlemon.com##center
 ! - - - 모바일
@@ -3176,32 +3178,25 @@ zeta-ai.io##.pointer-events-none
 
 
 
-!!! 광고 이미지
-!##a[href] img
-!##a[href^="http"] img
-
-
 !!! 광고 차단 규칙
 !
 !
 !
 
-! - 기본 베이스
-! - - - 위 규칙보다 약한 규칙
-! - - -  일부 사이트에서 사용 중
-! - - - 광역으로 사용시 일부 사이트에서 이미지 지워짐
-! - - - 7MMTV (https://7tv033.com/)
-[$domain=/^7tv\d+.com/]##a[href^="http"][target^="_blank"] img
-
-
 ! - 기본으로 사용 중
-! - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
+! - - -  일부 사이트에서 사용 중
+! - - - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
 ! - - - 티비위키 (https://tvwiki21.com/)
 ! - - - 뉴토끼 (https://newtoki468.com/)
 ! - - -  AVseeTV (https://04.avsee.ru/)
+! - - - 7MMTV (https://7tv033.com/)
 ! - - - 야부리 시즌 2 (https://yaburi60.com/) 등
+![$domain=/^7tv\d+.com/]##a[href][target*='_blank'] img
+! - - - ##a[href][target='_blank'] img - 비슷하지만 일부 안사라지는 이미지 있음 (target=&quot;_blank&quot 이런식으로 되어 있는 경우)
 ![$domain=/^yaburi\d+.com/]##a[href][target] img
-##a[href][target] img
+!- - - ##a[href][target] img - 같은 효과이나 target가 제대로 지정이 안되서 다른 이미지가 선택되기도 함
+##a[href][target*='_blank'] img
+
 
 
 ! - a[href][target] img 변형
@@ -3214,22 +3209,24 @@ zeta-ai.io##.pointer-events-none
 ! - - - 펀비 (https://funbe536.com/)
 ! - - - ##[style] a[href][target] 으로  하면 다른 사이트에서 텍스트 링크 사라짐
 !##[style] a[href^="http"][target="_blank"] img
-[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target] img
+! ##[style] a[href][target] img 에서 변경
+[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target*='_blank'] img
+
 
 
 ! - 일부 사이트에서 사용 중
 ! - - - 광역으로 사용시 텍스트 링크 등 사라짐
 ! - - - - - 토렌트쓱 (https://ssg1.torrentssg8.com/)
-[$domain=/^ssg1.torrentssg\d+.com/]##[style] a[href][target]
+[$domain=/^ssg1.torrentssg\d+.com/]##[style] a[href][target*='_blank']
 
 
 ! - - - https://dragonfly64.com/ 등
 ! - - - - - 광역으로 사용시 아래 규칙에 따라 다른 텍스트 링크 지워져서 안됨 ([target] 넣으면 상관없어지므로 패스)
-! - - - - -  ##[style] a[href][target] 하면 텍스트도 사라져서 안됨
+! - - - - -  ##[style] 을 지정하지 않고 하면  텍스트 링크까지 사라져서 안됨
 ! - - - - - [style*="background"] 해도 되나 아래 규칙과 혼돈되어 규칙 더 추가
 ! - - - - -  ##[style] a[href][target] img 하면 규칙 안먹힘 (순서 바꾸면 안됨)
 !##[style*="background"] a[href][target]
-##[style^="background-image"] a[href][target]
+##[style^="background-image"] a[href][target*='_blank']
 
 
 ! - 일부 사이트에서 사용 중
@@ -3237,11 +3234,13 @@ zeta-ai.io##.pointer-events-none
 ! - - - https://linkpan71.com/ 상단 배너
 ! - - - - - 광역으로 해도 다른 사이트에 영향이 없어 그냥 둠
 ! - - - - - [style*="background"] 하면 다른 텍스트링크까지 지움 (순서 바꾸면 안됨)
-[$domain=/^linkpan\d+.com/]##a[href][target] [style^="background-image"]
+![$domain=/^linkpan\d+.com/]##a[href][target] [style^="background-image"] 에서 변경
+[$domain=/^linkpan\d+.com/]##a[href][target='_blank'] [class]
 
 
 ! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
 ![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
+! - - - [src]로 하면 모든 이미지 사라짐
 ##[style][src*="/wp-content/uploads/"]
 
 
@@ -3256,19 +3255,21 @@ zeta-ai.io##.pointer-events-none
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
 ! - - - 이걸 광역으로 사용하면 대부분의 사이트에서 이미지가 사라짐
-! - - -  https://javlemon.com/
 ! - - - https://ydu14.com/
-!##[style] img[src]
-! - https://xn--av1-qv9mx21c.com/
+! - - - https://xn--av1-qv9mx21c.com/
 ! - - - ##[style] a[href] img[src] 안먹힘
-xn--av1-qv9mx21c.com##[style] img[src]
+xn--av1-qv9mx21c.com,[$domain=/^ydu\d+.com/]##[style] img[src]
 
 
 ! - 일부 사이트에서 사용 중
+! - target 이 없는 요소
 ! - - - 이걸 광역으로 사용하면 일부 사이트에서 이미지가 사라짐
 ! - target 이 없는 요소 (자바스크립트로 작동하게 한거)
 ! - - -  https://javlemon.com/
+! - - - ##[style] img[src] - 댜른 이미지까지 다 사라짐
 javlemon.com##[style]> [src]
+! - 이미지가 아닌 동영상이 올때가 있어서 제대로 차단이 안됨/. js를 차단해야 함
+||a.magsrv.com/ad-provider.js
 
 
 ! - - - https://www.avdbs.com/ 배너
@@ -3283,9 +3284,12 @@ javlemon.com##[style]> [src]
 
 ! - 일부 사이트에서 사용 중
 ! - - - 이걸 광역으로 사용하면 일부 사이트에서 이미지가 사라짐
-! - - -  메시티비 (https://messitv8.com/) - 로고 삭제됨
-[$domain=/^messitv\d+.com/]##[class] [href] img
-
+! - 링크 달린 모든 이미지 사라짐
+![$domain=/^messitv\d+.com/]##a[href][target*='_self'] img
+![$domain=/^messitv\d+.com/]##a[href][target] img
+! - -  위 2개 합친거
+! - - - - - 메시티비 (https://messitv8.com/) - 로고 삭제됨
+[$domain=/^messitv\d+.com/]##a[href] img
 
 
 !
@@ -3294,15 +3298,8 @@ javlemon.com##[style]> [src]
 !
 !
 ! - 예외
-! - - - trand (https://trand.co.kr/) - 링크 게시글 아이콘 안보임
-! - - - 더쿠 (https://theqoo.net/) -  twitter.com 프레임  깨짐
-! - - - 모두의후방 (https://data.pureugong.com/ - 게시물이 안보임)
-! - - - https://mangajoa5.com/ 개별 회차 만화 이미지 및 링크 안보임
-! - - -  조아툰 (https://joatoon68.com/) - 만화 이미지 안보임
 
-
-
-trand.co.kr#@#a[href][target] img
+trand.co.kr#@#a[href][target*='_blank'] img
 trand.co.kr#@#[style] a[href][target] img
 trand.co.kr#@#[style^="background-image"] a[href][target]
 trand.co.kr#@#a[href][onclick] [class][src]
@@ -3312,81 +3309,78 @@ trand.co.kr#@#a[href][onclick] [class][src]
 ! https://04.avsee.ru/ - 영상 게시판 내 사진을 지우지면 상관없음
 
 ! https://www.reddit.com/ (일부 이미지 지워짐)
-reddit.com#@#a[href][target] img
+reddit.com#@#a[href][target*='_blank'] img
 
 ! 숲 (https://www.sooplive.co.kr/) - 실시간 영상 이미지 안보임
 ! KICK (https://kick.com/) - 일부 이미지 사라짐
 ! 웨이브 (https://www.wavve.com/) - 팝업 이미지 안보임
-sooplive.co.kr#@#a[href][target] img
-kick.com#@#a[href][target] img
-wavve.com#@#a[href][target] img
+sooplive.co.kr#@#a[href][target*='_blank'] img
+kick.com#@#a[href][target*='_blank'] img
+wavve.com#@#a[href][target*='_blank'] img
 
 ! 네이버 (https://www.naver.com/)
 ! 네이트 (https://www.nate.com/)
 ! 다음 (https://www.daum.net/)
 ! ZUM (https://zum.com/)
-naver.com,nate.com,daum.net,zum.com#@#a[href][target] img
+naver.com,nate.com,daum.net,zum.com#@#a[href][target*='_blank'] img
 
 ! 이토랜드 (https://www.etoland.co.kr/) - 로고 등 일부 이미지 사라짐
-etoland.co.kr#@#a[href][target] img
+etoland.co.kr#@#a[href][target*='_blank'] img
 
 ! 인벤 (https://www.inven.co.kr/) - 일부 이미지 사라짐
-inven.co.kr#@#a[href][target] img
+inven.co.kr#@#a[href][target*='_blank'] img
 
 ! 엠팍 (https://mlbpark.donga.com/) 일부 게시물 이미지 사라짐
-mlbpark.donga.com#@#a[href][target] img
+mlbpark.donga.com#@#a[href][target*='_blank'] img
 
 ! 더쿠 (https://theqoo.net/) - 게시물 내 이미지 일부 사라짐
-theqoo.net#@#a[href][target] img
+theqoo.net#@#a[href][target*='_blank'] img
 
 ! 보배드림 (https://www.bobaedream.co.kr/) 하단 자동차 매물 이미지 사라짐 (큰 상관 없어서 패스)
-!bobaedream.co.kr#@#a[href][target] img
+!bobaedream.co.kr#@#a[href][target*='_blank'] img
 
 ! 82쿡 (https://www.82cook.com/) - 왼쪽 배너 삭제 (다른 요소에는 영향을 주지 않는것으로 보임)
-!82cook.com#@#a[href][target] img
+!82cook.com#@#a[href][target*='_blank'] img
 
 ! 루리웹 (https://bbs.ruliweb.com/) - 전체적으로 배너 삭제 (다른 요소에는 영향을 주지 않는것으로 보임)
-!ruliweb.com#@#a[href][target] img
+!ruliweb.com#@#a[href][target*='_blank'] img
 
 ! 웃긴대학 (https://web.humoruniv.com/) - 로고 및 일부 이미지 사라짐
-humoruniv.com#@#a[href][target] img
+humoruniv.com#@#a[href][target*='_blank'] img
 
 ! 다모앙 (https://damoang.net/) - 일부 아이콘 및 이미지 사라짐
-damoang.net#@#a[href][target] img
+damoang.net#@#a[href][target*='_blank'] img
 
 ! https://dramaday.me/ (이미지 안보임)
-dramaday.me#@#a[href][target] img
+dramaday.me#@#a[href][target*='_blank'] img
 
 ! 나무위키 (https://namu.wiki/) - SNS 아이콘 안보임 (마우스 갔다대면 링크 클릭은 가능)
-namu.wiki#@#a[href][target] img
+namu.wiki#@#a[href][target*='_blank'] img
 
 ! 옥션 (https://escrow.auction.co.kr/) - 로고 등 일부 이미지 사라짐
-auction.co.kr#@#a[href][target] img
+auction.co.kr#@#a[href][target*='_blank'] img
 
 ! 다나와 (https://danawa.com/)
 ! G마켓 (https://www.gmarket.co.kr/)
 ! 쿠팡 (https://www.coupang.com/)
-danawa.com,gmarket.co.kr,coupang.com#@#a[href][target] img
+danawa.com,gmarket.co.kr,coupang.com#@#a[href][target*='_blank'] img
 
-
-! https://7tv033.com/ (영상 이미지 다 사라짐)
-[$domain=/^7tv\d+.com/]#@#a[href][target] img
 
 ! 조아툰 (https://joatoon68.com/) - 만화 목록 이미지 사라짐
-[$domain=/^joatoon\d+.com/]#@#a[href][target] img
+[$domain=/^joatoon\d+.com/]#@#a[href][target*='_blank'] img
 
 ! 망가조아 (https://mangajoa5.com/) - 목록별 만화 이미지 사라짐
-[$domain=/^mangajoa\d+.com/]#@#a[href][target] img
+[$domain=/^mangajoa\d+.com/]#@#a[href][target*='_blank'] img
 
 ! 다이소 (https://www.dayisoo36.me/) - 영상 안보임 (안보이면 F5 누를것)
-![$domain=/^www.dayisoo\d+.me/]#@#a[href][target] img
+![$domain=/^www.dayisoo\d+.me/]#@#a[href][target*='_blank'] img
 
 ! https://loopholes.site/
 loopholes.site#@#[style][src*="/wp-content/uploads/"]
 
 
 ! https://fc2ppvdb.com/
-fc2ppvdb.com#@#a[href][target] img
+fc2ppvdb.com#@#a[href][target*='_blank'] img
 
 
 
