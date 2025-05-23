@@ -1393,6 +1393,14 @@ cgv.co.kr#@#div[id$="_PlaceHolderContent_divMovieSelection_wrap"][class]
 cgv.co.kr##.btnLinkFixed
 !
 !
+! 왓챠피디아 (https://pedia.watcha.com/)
+! - 게시물 하단 배너
+##[href^="https://watcha.com/ko-KR/promotions/watchapromotion"]
+pedia.watcha.com##.OKQiqzeA.j9pLi57W
+##.adFixed
+
+!
+!
 ! 맥스무비 (https://www.maxmovie.com/)
 ! - 게시물 오류 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
