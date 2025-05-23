@@ -1286,7 +1286,7 @@ www.spojoy.com###TopAdv250
 !
 !
 ! 스포츠 동아 (https://sports.donga.com/)
-! - 기사 배너
+! - 기사내 배너
 sports.donga.com##.view_center
 !
 !
@@ -1648,7 +1648,7 @@ apologiesoccursdepressed.com$popup
 act.crxtlg.com##.van-overlay
 act.crxtlg.com###popup-window
 ! - 영상 하단 배너 및 공간
-act.crxtlg.com##.zximg.img
+!act.crxtlg.com##.zximg.img
 act.crxtlg.com##section.adaptation:nth-of-type(3)
 !
 !
@@ -2177,12 +2177,12 @@ notion.so@@||/*/ads/*
 ! -  영상 닫기 버튼
 ##.overlay
 ! - 영상 하단 이미지
-||yakong*.net/img/*$image
+!||yakong*.net/img/*$image
 ! - 하단 텍스트 배너
 ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ! - 딥페이크 글자
-ya-world.net##li.me-li.p-0.col:nth-of-type(5)
-[$domain=/^yakong\d+.net/]##li.me-li.p-0.col:nth-of-type(7)
+!ya-world.net##li.me-li.p-0.col:nth-of-type(5)
+![$domain=/^yakong\d+.net/]##li.me-li.p-0.col:nth-of-type(7)
 !
 !
 ! 킹부랄 (http://kbr202.com/)
@@ -2203,9 +2203,9 @@ ya-world.net##li.me-li.p-0.col:nth-of-type(5)
 [$domain=/^www.sexzoa\d+.com/]##h2.mobile-hide
 ! - - -  모바일
 ! - - - - -  광고문의 글자
-[$domain=/^www.sexzoa\d+.com/]##font
+![$domain=/^www.sexzoa\d+.com/]##font
 ! - - - - - 광고 문구
-[$domain=/^www.sexzoa\d+.com/]##.mobile-show
+![$domain=/^www.sexzoa\d+.com/]##.mobile-show
 ! - 영상 광고
 ||sexzoa*.com/ad.json?
 ! - 영상 옆 텍스트 배너 (모바일은 영상 아래 위치)
@@ -2225,36 +2225,36 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 !
 ! 밍키넷 (https://mingky34.net/)
 ! - 쉬멜야동 글자
-[$domain=/^mingky\d+.net/]##div.pc_menu:nth-of-type(5)
+![$domain=/^mingky\d+.net/]##div.pc_menu:nth-of-type(5)
 ! - 수간야동 글자
-[$domain=/^mingky\d+.net/]##div.pc_menu:nth-of-type(7)
+![$domain=/^mingky\d+.net/]##div.pc_menu:nth-of-type(7)
 ! - 이미지 복원
 !@@||mingky*.net/img/*$image
 !
 !
 ! 야동박사 (https://yadong-30.com/)
 ! - 쉬멜야동 글자
-[$domain=/^yadong-\d+.com/]##li.gnb_1dli:nth-of-type(7)
+![$domain=/^yadong-\d+.com/]##li.gnb_1dli:nth-of-type(7)
 !
 !
 ! 야동국 (https://yadongkuk25.com/)
 ! - 쉬멜야동 글자
-[$domain=/^yadongkuk\d+.com/]##li.gnb_1dli:nth-of-type(2)
+![$domain=/^yadongkuk\d+.com/]##li.gnb_1dli:nth-of-type(2)
 !
 !
 ! AV스팟 (https://avspot47.com/)
 ! - 하드코어란
-[$domain=/^avspot\d+.com/]##div.off.snb-list:nth-of-type(2)
+![$domain=/^avspot\d+.com/]##div.off.snb-list:nth-of-type(2)
 !
 !
 ! AV소다 (https://soda59.com/)
 ! - 하드코어란
-[$domain=/^soda\d+.com/]##div.off.snb-list:nth-of-type(6)
+![$domain=/^soda\d+.com/]##div.off.snb-list:nth-of-type(6)
 !
 !
 ! 야동타임 (https://yd-time66.com/)
 ! - 하드코어란
-[$domain=/^yd-time\d+.com/]##div.panel:nth-of-type(7)
+![$domain=/^yd-time\d+.com/]##div.panel:nth-of-type(7)
 !
 !
 ! 사이즈19 (https://xn--19-2q4j57t9vc.net/) (https://size71.net/) (https://vod.tmall-kr.net/) (https://nxbam3.net/)
@@ -2266,12 +2266,12 @@ mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! - - - 청양티비 (https://cytv138.com/)
 ###buffer
 ! - 동맹 글자
-vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
+!vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 !
 !
 ! 야밤 (https://yabam22.me/)
 ! - 상단 배너
-[$domain=/^yabam\d+.me/]##.banner-pc-padding.banner-margin.row
+![$domain=/^yabam\d+.me/]##.banner-pc-padding.banner-margin.row
 ! - 영상내 배너
 !###ads
 !
@@ -2281,7 +2281,7 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸 (https://darkg5.com/) (https://darkg14.com/)
+! 다크걸 (https://darkg5.com/) (https://darkg15.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://dodog11.com/)
 ! - - -  야동닷컴 (https://ydong8.com/)
@@ -2312,18 +2312,18 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 !
 ! 언리샷 (https://unlishot.org/) (https://unlishot45.top/)
 ! - 제휴사이트 글자
-[$domain=/^unlishot\d+.top/]##li.gnb_1dli:nth-of-type(6)
+![$domain=/^unlishot\d+.top/]##li.gnb_1dli:nth-of-type(6)
 !
 !
 ! 야동대학 (https://ydu14.com/)
 ! - 왼쪽 배너
 ![$domain=/^ydu\d+.com/]##.bxslider
-[$domain=/^ydu\d+.com/]##[style] img[src]
+![$domain=/^ydu\d+.com/]##[style] img[src]
 ! - 검증업체 글자 및 메인 검증 글
-[$domain=/^ydu\d+.com/]##li.off.menu-li:nth-of-type(2)
-[$domain=/^ydu\d+.com/]##.on.menu-li
-[$domain=/^ydu\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .div-title-underbar.title-box-side
-[$domain=/^ydu\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
+![$domain=/^ydu\d+.com/]##li.off.menu-li:nth-of-type(2)
+![$domain=/^ydu\d+.com/]##.on.menu-li
+![$domain=/^ydu\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .div-title-underbar.title-box-side
+![$domain=/^ydu\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
 !
 !
 ! 은꼴넷 (https://xn--3r0b51bq29a.com/)
@@ -2334,9 +2334,9 @@ vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
 ! - - - jusogall.com/data/banner_bbs/*$image
 !||*/data/banner*/*$image
 ! - 안전 인증 사이트
-xn--3r0b51bq29a.com##div.row:nth-of-type(2)
+!xn--3r0b51bq29a.com##div.row:nth-of-type(2)
 ! - 링크 모음 글자
-xn--3r0b51bq29a.com##li.off.menu-li:nth-of-type(9)
+!xn--3r0b51bq29a.com##li.off.menu-li:nth-of-type(9)
 ! - 일부 이미지 복원
 !@@||xn--3r0b51bq29a.com/img/*$image
 !
@@ -2344,9 +2344,6 @@ xn--3r0b51bq29a.com##li.off.menu-li:nth-of-type(9)
 ! 레드썬 (https://www.redsun58.com/)
 ! - 일부 이미지 복원
 !@@||redsun*.com/img/*$image
-!
-!
-! 레드썬 (https://www.redsun58.com/)
 ! - 광고 스킵
 ##.playerads
 !
@@ -2452,37 +2449,38 @@ xn--3r0b51bq29a.com##li.off.menu-li:nth-of-type(9)
 !
 ! 딸퀸 (https://ddalq01.xyz/)
 ! - 영상 내 배너 이미지
-||ddalq*.xyz/data/editor/*$image
+!||ddalq*.xyz/data/editor/*$image
 ! 영상 스킵 (SKIPp AD 버튼을 눌러야 영상이 나와서  없애면 안됨)
 !###skipAd
 !
 !
 ! 왕부랄 (http://wbr2045.com/)
 ! - 동맹업체 글자
-wbr2045.com##li:nth-of-type(7)
+!wbr2045.com##li:nth-of-type(7)
 !
 !
 ! 방앗간 (https://gristmill31.com/)
 ! 영상위 배너?
-[$domain=/^gristmill\d+.com/]##.img-tag
+![$domain=/^gristmill\d+.com/]##.img-tag
 !
 !
 ! 섹포츠 (https://sexports42.com/)
 ! 먹튀검증 글자
-[$domain=/^sexports\d+.com/]##li.off.menu-li:nth-of-type(9)
+![$domain=/^sexports\d+.com/]##li.off.menu-li:nth-of-type(9)
 ! 제휴.동맹 글자
-[$domain=/^sexports\d+.com/]##li.off.menu-li:nth-of-type(12)
+![$domain=/^sexports\d+.com/]##li.off.menu-li:nth-of-type(12)
 ! - 이미지 복원
-@@||sexports*.com/img$image
+!@@||sexports*.com/img$image
 !
 !
 ! 야동마켓 (https://www.yadongmarket.com/)
+! - - - 영상 재생이 다 되는건 아닌듯
 ! - 상단 먼지 모르는 공간
-yadongmarket.com##.desktop.bar_body
+!yadongmarket.com##.desktop.bar_body
 ! - 전체 배너
-yadongmarket.com##.adscencecode
+!yadongmarket.com##.adscencecode
 ! - 하단 배너
-yadongmarket.com##.footer
+!yadongmarket.com##.footer
 !
 !
 ! 한국야동사이트 (https://kor-yadong.xyz/)
@@ -2501,7 +2499,7 @@ hitomi.la###immersive-translate-popup
 [$domain=/^of\d+.com/]##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximize.ftwp-wrap
 !
 !
-! 팬터티비 (https://www.pandalive.co.kr/)
+! 팬다티비 (https://www.pandalive.co.kr/)
 ! - 팝업 이미지
 ||*/upload/board/*$image
 ! - 팝업 - 막으면 스크롤이 안되서 안함
@@ -2509,42 +2507,26 @@ hitomi.la###immersive-translate-popup
 !
 ! 주소월드 (https://wdwd7.com/)
 ! - 배너
-##.banner_list.at-container
+!##.banner_list.at-container
 ! - 로고 복원
 !@@||wdwd*.com/img/tlogo.png
 !
 !
 ! Tops19 (https://tops114.com/)
 ! - 상단 배너
-##.ads_banners
+!##.ads_banners
 ! - 오피 글자
-tops114.com##li.header__menu__item:nth-of-type(2)
-tops114.com##li.sidebar__menu__item:nth-of-type(2)
+!tops114.com##li.header__menu__item:nth-of-type(2)
+!tops114.com##li.sidebar__menu__item:nth-of-type(2)
 ! - 검증사이트 글자
-tops114.com##li.header__menu__item:nth-of-type(3)
-tops114.com##li.sidebar__menu__item:nth-of-type(3)
+!tops114.com##li.header__menu__item:nth-of-type(3)
+!tops114.com##li.sidebar__menu__item:nth-of-type(3)
 ! - 카지노 글자
-tops114.com##li.header__menu__item:nth-of-type(5)
-tops114.com##li.sidebar__menu__item:nth-of-type(5)
+!tops114.com##li.header__menu__item:nth-of-type(5)
+!tops114.com##li.sidebar__menu__item:nth-of-type(5)
 ! - 토토 글자
-tops114.com##li.header__menu__item:nth-of-type(6)
-tops114.com##li.sidebar__menu__item:nth-of-type(6)
-!
-!
-! 먹튀슈퍼맨 (https://mt-superman.net/)
-! - 배너 이미지 
-||*/data/dvn_banner/*
-! - 가운데 공식 인증 업체
-mt-superman.net##div.gongbox:nth-of-type(5)
-! - 가운데 먹튀사이트 리스트
-mt-superman.net##.muktibox.gongbox
-! - 왼쪽 보증업체
-mt-superman.net##div.mb-4.px-sm-0.px-3:nth-of-type(4)
-!
-!
-! 먹튀해결사 (https://totohks.com/)
-! - 배너 이미지
-||*//data/editor/*$image
+!tops114.com##li.header__menu__item:nth-of-type(6)
+!tops114.com##li.sidebar__menu__item:nth-of-type(6)
 !
 !
 ! 링크판 (https://linkpan71.com/)
@@ -2685,9 +2667,10 @@ jusopick.com##.bg-black.flex-col
 !||static.wixstatic.com/media/*$image
 !||static.wixstatic.com/*$image
 ! - 상단 배너 공간
+! - - - 링크랭킹 (https://www.lkrk1.com/)
 ! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.linkm365.com/)
 ! -- - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
-[$domain=/^www.joosomoa\d+.com/],[$domain=/^www.linkm\d+.com/],[$domain=/^www.jooso\d+a.com/]##.wixui-section.comp-m0nr4kzh.Oqnisf
+[$domain=/^www.lkrk\d+.com/],[$domain=/^www.joosomoa\d+.com/],[$domain=/^www.linkm\d+.com/],[$domain=/^www.jooso\d+a.com/]##.wixui-section.comp-m0nr4kzh.Oqnisf
 !
 !
 ! 링크봇 (https://linkbot3.com/)
@@ -2758,93 +2741,29 @@ noonnu.cc##.lg\:top-8
 ! - - - 롤 인벤 (https://lol.inven.co.kr/) : 경기일정 보이게 하려고 해제
 lol.inven.co.kr#@#.banner
 [$domain=/^nolgoga\d+.com/]#@#.banner
-
-! May 2, 2025 https://named.com
-named.com##.jnbfVc.sc-eqUAAy
-!
-!
-! 네임드 (https://named.com/)
-! - 팝업
-named.com##.modal-inner
-! - 뿌옇게 해결
-named.com##.jgbgNC
-! -왼쪽 배너
-###leftBanner
-! 오른쪽 배너
-###rightBanner
-! 왼쪽 하단 배너
-###sideCastBanner
-! 맨 하단 배너
-! - 사이트 지정 안하면 이토랜드 출석.추천.찐추 버튼 사라짐
-named.com###bottomBanner
-! - 네임드 글자
-named.com##.trusted_sites
-!
-!
-! 토블리 (https://totovely2.com/)
-! - 오른쪽 배너 일부
-![$domain=/^totovely\d+.com/]##.side_banner_img
-##.side_banner_img
-! - 가운데 중간 배너
-![$domain=/^totovely\d+.com/]##.main_banners
-##.main_banners
 !
 !
 ! 뽕티비 (https://bbongtv1.com/)
 ! - 보증업체 글자
-[$domain=/^bbongtv\d+.com/]##div.category:nth-of-type(2)
-[$domain=/^bbongtv\d+.com/]##.verify-banner
-!
-!
-! 꽁머니 사랑 (https://gonglove6.com/)
-! - 배너 이미지
-||*/sponsor*/*$image
-! - 로고 복원
-!@@||gonglove*.com/img/gonglogo.png
-! - 배너 공간
-[$domain=/^gonglove\d+.com/]##.miso-love-ad
-!
-!
-! 파토 (https://www.pato114.net/)
-! - 전체 배너
-!www.pato114.net##.main-banner-img
-##.main-banner-img
-!
-!
-! 벳조이 (https://www.bet-joy.net/)
-! - 팝업
-www.bet-joy.net##.pop-wrap
-! - 양쪽(왼족. 오른쪽) 배너
-www.bet-joy.net##aside
-!
-!
-! 노먹튀 (https://nomukti5.com/)
-! - 검증토토
-[$domain=/^nomukti\d+.com/]##div.conle_idx_top:nth-of-type(2)
+![$domain=/^bbongtv\d+.com/]##div.category:nth-of-type(2)
+![$domain=/^bbongtv\d+.com/]##.verify-banner
 !
 !
 ! 주소짱 (https://jusozzang05.xyz/)
 ! - 상단배너
-[$domain=/^jusozzang\d+.xyz/]##.main_banner_6
+![$domain=/^jusozzang\d+.xyz/]##.main_banner_6
 !
 !
-! 링크닷컴 (https://linkddd.com/)
+! 링크닷컴 (https://linknnn.com/) - 주소 바뀌는듯
 ! - 상단 배너
-linkddd.com##.wst-post-gl
+!linkddd.com##.wst-post-gl
 !||*files/attach/images/*$image
+! - 상단 배너 공간
+linknnn.com##.wst-post-gl
 ! - - -  일베 배너 (https://www.ilbe.com/)
 !||/files/attach/*$image
 ! - 배너 공간
-linkddd.com##div.xe-widget-wrapper.xe_content:nth-of-type(4)
-!
-!
-! 화이트 (https://wt-bc32.com/)
-! 먹튀수호대 (https://mt-toto30.com/)
-! - 배너 이미지
-!||*theme/BS4-Basic/storage/image/*$image
-!||*/storage/image/*$image
-! 배너 공간 (좌.우. 상단)
-[$domain=/^wt-bc\d+.com/],[$domain=/^mt-toto\d+.com/]##.slide.carousel
+!linkddd.com##div.xe-widget-wrapper.xe_content:nth-of-type(4)
 !
 !
 ! - GOODTV 기독교 복음방송 (https://goodtv.co.kr/)
@@ -2853,38 +2772,13 @@ linkddd.com##div.xe-widget-wrapper.xe_content:nth-of-type(4)
 ! - - - 예외 (WAVVE - 스크롤이 안됨)
 www.wavve.com#@#.popup
 ! 사이 사이 마다 있는 배너
-##.plus_banner
+!##.plus_banner
 !
-!
-! 블로그차트 (https://www.blogchart.co.kr/)
-! -상단 배너
-##.banner_01
-##.banner_02
-##.banner_03
-! - 오른쪽 배너
-###sideBanner
-!
-!
-! 상가114 ( https://www.sangga114.co.kr/)
-! - 상단 배너
-###commonTopBannerNew
-! - 오른쪽 배너
-##.sideBanner_wrap
-!
-!
-! 먹튀안내소 (https://xn--220bn4p04fh5doxu.com/)
-! - 상단 배너
-##.top_banner_widget
-!
-!
-! 워닝구조대 (https://warning119.com/)
-! - 팝업
-warning119.com##.show.fade.modal
 !
 !
 ! Dramaday.me (https://dramaday.me/)
 ! - 오른쪽 메뉴 복원
-dramaday.me#@#aside
+!dramaday.me#@#aside
 !
 !
 ! 노벨피아 (https://novelpia.com/)
@@ -3099,52 +2993,15 @@ zeta-ai.io##.pointer-events-none
 !||*/*/popup*/*
 !||*/*/*popup/*
 
-!##[class*="banner"]
-! - 예외  툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) 전체 사라짐
-![$domain=/^tkor\d+.com/]#@#[class*="banner"]
-! - 연합뉴스 (https://www.yna.co.kr/) - 전체 안보임
-!yna.co.kr#@#[class*="banner"]
-
-##.banners_area
-
-##.banner_wrap
-
-##.ad-view
-
-
-! - - -  https://www.bobaedream.co.kr/
-##[class^="ad-"]
-
-! https://aragon19.org/
-
-
-
-! 치지직
-! 11번가 광고 표시를 지움
-#@#[class*="-ad-"]
-!  - - - ! https://www.pornhub.com/ 포함
-! - 11번가 광고 주석을 지움
-#@#[class*="advert"]
-
-! https://www.xvideos.com/
-! - https://3.jamakyadong.me/ 영상 안보임
-#@#[class$="-ads"]
-
-##[class*="-ads-"]
-
 
 
 
 !||*/*/*img*$image
 
 
-! https://04.avsee.ru/
-! - https://www.zoazoa28.me/ 이미지 안보임
-#@#[class$="_ads"]
-##[class*="-ad-"]
 
-##[class$="-ad"]
-#@#[class*="-ad"]
+
+==============================
 
 
 
@@ -3220,8 +3077,10 @@ zeta-ai.io##.pointer-events-none
 ! - - - - - ##[style*="background"] 로 하면 덕덕고 등에서 이미지 안나옴
 !##[style*="background"] a[href][target]
 !##[style*="background"] a[href][target*='_blank']
-##[style^="background-image"] a[href][target*='_blank']
-
+! - - -  target='blank' 로 하는 경우도 있어서 재변경
+!##[style^="background-image"] a[href][target*='blank']
+! - - -  실수로 target='blank' 을 빼먹는 경우 (예 : https://cheon-01.com/)도 있어서 재변경
+##[style^="background-image"] a[href]
 
 
 ! - 일부 사이트에서 사용 중
@@ -3234,11 +3093,17 @@ zeta-ai.io##.pointer-events-none
 
 
 ! - 일부 사이트에서 사용 중
-! - - - /wp-content/uploads/ 이 태그가 필요한곳이 별도로 있어 광역으로 사용시 해제되는 경우가 있음
+! - - - /wp-content/uploads/ 1규칙
 ! - - - [src]로 하면 모든 이미지 사라짐
 ! - - - 상단배너는 ###imgDiv > table 로 공간없애고 나머지는 기본 규칙인 ##[target][href] img 로 해결 (아래 규칙 안해도 됨)
 ! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
 ![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
+
+! - 일부 사이트에서 사용 중
+! - - - /wp-content/uploads/  2규칙
+! - - - 2규칙을 1에 사용하면 배너이미지 대신 영상 이미지가 사라짐
+! - - - 야동마켓 (https://www.yadongmarket.com/)
+www.yadongmarket.com##[style] [href] img[src*="/wp-content/uploads/"]
 
 
 
@@ -3254,7 +3119,7 @@ zeta-ai.io##.pointer-events-none
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
 ! - - - 이걸 광역으로 사용하면 대부분의 사이트에서 이미지가 사라짐
-! - - - https://ydu14.com/
+! - - - 야동대학 (https://ydu14.com/)
 ! - - - https://xn--av1-qv9mx21c.com/
 ! - - - ##[style] a[href] img[src] 안먹힘
 xn--av1-qv9mx21c.com,[$domain=/^ydu\d+.com/]##[style] img[src]
@@ -3297,10 +3162,25 @@ javlemon.com##[style]> [src]
 
 
 
-! - 일부사이트 (banner 주소 들어간 이미지)에서 사용 중
+! - 일부사이트 (banner 주소 들어간 이미지)에서 사용 중 (target 없음)
 ! - - - 광역으로 사용
 ! - - -  https://today-sports7.com/
 ##a[href] img[src*="banner"]
+
+
+
+##[class*="banner"]
+! - 예외  툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) 전체 사라짐
+[$domain=/^tkor\d+.com/]#@#[class*="banner"]
+! - 연합뉴스 (https://www.yna.co.kr/) - 전체 안보임
+yna.co.kr#@#[class*="banner"]
+! - 주소월드 (https://wdwd7.com/) - 리스트 사라짐
+[$domain=/^wdwd\d+.com/]#@#[class*="banner"]
+
+
+
+
+
 !
 !
 !
@@ -3335,7 +3215,9 @@ sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
 ! 덕덕고 (https://duckduckgo.com/)
 ! Stargpage (https://www.startpage.com/)
 ! Yahoo! japan (https://www.yahoo.co.jp/)
-naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp#@#a[href][target] img
+! Brave (https://search.brave.com/)
+! 나무위키 (https://namu.wiki/) - SNS 아이콘 안보임 (마우스 갔다대면 링크 클릭은 가능)
+naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target] img
 
 
 
@@ -3364,8 +3246,6 @@ etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net
 ! https://dramaday.me/ (이미지 안보임)
 dramaday.me#@#a[href][target] img
 
-! 나무위키 (https://namu.wiki/) - SNS 아이콘 안보임 (마우스 갔다대면 링크 클릭은 가능)
-namu.wiki#@#a[href][target] img
 
 ! 옥션 (https://escrow.auction.co.kr/) - 로고 등 일부 이미지 사라짐
 ! 다나와 (https://danawa.com/)
@@ -3383,6 +3263,7 @@ jtbc.co.kr#@#a[href][target] img
 ! 망가조아 (https://mangajoa5.com/) - 목록별 만화 이미지 사라짐
 ! 망가망가 (https://mgmg2.com/) - 목록별 만화 이미지 사라짐
 [$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/]#@#a[href][target] img
+
 
 
 ! 다이소 (https://www.dayisoo36.me/) - 영상 안보임 (안보이면 F5 누를것)
@@ -3408,15 +3289,13 @@ twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target] 
 !!! 성인 이미지 관련
 ! https://yastagram.kr/
 ! https://www.4khd.com/
+! 놀쟈 (https://www.nznami.com/) - 주소 바뀜
+! https://of996.com/
 
 yastagram.kr#@#a[href][target] img
 4khd.com#@#a[href][target] img
-
-
-
-
-
-
+nznami.com#@#a[href][target] img
+of996.com#@#a[href][target] img
 
 
 
