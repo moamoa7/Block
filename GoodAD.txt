@@ -386,10 +386,10 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
- ! - 게시글 상단 배너(마켓 홍보) (PC/모바일)
- !ddanzi.com###banner_ddanzi_market
- ! - 게시글 하단 공백 (모바일)
-! ddanzi.com##.add_display2
+! - 게시글 상단 배너(마켓 홍보) (PC/모바일)
+ddanzi.com###banner_ddanzi_market
+! - 게시글 하단 공백 공간 (모바일)
+ ddanzi.com##.add_display2
 ! - 이미지 복원
 !@@||img-cdn.ddanzi.com/files/attach/images/*$image
 !
@@ -456,7 +456,7 @@ ygosu.com##.pull-left.btn-group
 !
 ! 롤 인벤 (lol.inven.co.kr)
 ! - 상단 배너
-###topLinkBanner
+!###topLinkBanner
 ! - 롤 경기일정 보이게 하기
 ! - - - ##.banner 예외설정은 다른곳에 작성
 ! - - - - - List-KR 무력화
@@ -500,7 +500,7 @@ clien.net##.active.button_sidemenu
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
-###slide_image
+!###slide_image
 !
 !
 ! 다모앙 (https://damoang.net/)
@@ -522,15 +522,15 @@ bada.us##.privacy-cookie.bottom-modal
 !
 !
 ! 핫썰닷컴 (https://hotssul.com/)
-! - 상단 배너
+! - 상단 배너 공간
 hotssul.com###content_wrapper > .row
 !
 !
 ! 미크넷 (https://mrcrack.xyz/)
 ! - 오른쪽 상단 배너 작은거
-mrcrack.xyz##.ml-auto.align-self-center
+!mrcrack.xyz##.ml-auto.align-self-center
 ! - 왼쪽 배너 작은거
-mrcrack.xyz##.mt-1.pt-4.wing-left
+!mrcrack.xyz##.mt-1.pt-4.wing-left
 !
 !
 ! 알고사 (https://rgo4.com/)
@@ -540,7 +540,7 @@ rgo4.com##div.xe-widget-wrapper.xe_content:nth-of-type(1)
 !
 ! 가생이닷컴 (https://www.gasengi.com/)
 ! - 상단 배너 공간
-gasengi.com##.col-xl-9.col-lg-12
+!gasengi.com##.col-xl-9.col-lg-12
 !
 !
 ! ZUM (https://zum.com/)
@@ -1055,12 +1055,12 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !||tkor*.com/bann/*$image
 !||funbe*.com/bann/*$image
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
-#@#.mobile-banner
+!#@#.mobile-banner
 !
 !
 ! 툰코 (https://tkor019.com/)
 ! - 토토보증업체 글자
-[$domain=/^tkor\d+.com/]##.text-center.hidden-xs.navbar-nav.nav > li > [href="https://tkor020.com/토토보증업체"]
+![$domain=/^tkor\d+.com/]##.text-center.hidden-xs.navbar-nav.nav > li > [href="https://tkor020.com/토토보증업체"]
 ! - 이미지 복원
 !@@||tkor*.com/img/*$image
 !
@@ -1076,7 +1076,7 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! - 배너
 !##.top-banner
 ! - 보증토토 배너
-||iabn10.net/*ico*
+||iabn*.net/*ico*
 !
 !
 ! 헤븐넷 (https://hellven.net/)
@@ -1134,7 +1134,7 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !
 ! 망가망가 (https://mgmg2.com/)
 ! - 동맹업체 글자
-[$domain=/^mgmg\d+.com/]##li.gnb_1dli:nth-of-type(6)
+![$domain=/^mgmg\d+.com/]##li.gnb_1dli:nth-of-type(6)
 ! - 로고 복원
 !@@||mgmg*.com/img/ico/logo88.png
 !
@@ -1145,14 +1145,14 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! - 왼쪽.오른쪽 배너
 !##.SideBanner
 ! - 동맹 글자
-[$domain=/^mangajoa\d+.com/]##.on.menu-li
+![$domain=/^mangajoa\d+.com/]##.on.menu-li
 ! - 로고 복원
 !@@||mangajoa*.com/img/logo.png
 !
 !
 ! 애니넷 (https://ani01.net/)
 ! - 동맹업체
-[$domain=/^ani\d+.net/]##li.gnb_1dli:nth-of-type(6)
+![$domain=/^ani\d+.net/]##li.gnb_1dli:nth-of-type(6)
 !
 !
 ! 해피툰 (https://happytoon01.com/)
@@ -1224,23 +1224,23 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! MTN 머니투데이 (https://mtn.co.kr/)
 ! - 배너
 mtn.co.kr##.w_308px
-mtn.co.kr##.css-utxpab
-mtn.co.kr##.d_block
+!mtn.co.kr##.css-utxpab
+!mtn.co.kr##.d_block
 !
 !
 ! 시사IN (https://www.sisain.co.kr/)
 ! - 구독 배너
-##.sisain_view
+!##.sisain_view
 !
 !
 ! 이데일리 (https://www.edaily.co.kr/)
 ! - 상단 배너
-##.special_area
+!##.special_area
 !
 !
 ! 서울경제 (https://www.sedaily.com/)
 ! - 지저분한거 정리
-##.email_pop
+!##.email_pop
 !
 !
 ! 게임조선 (https://gamechosun.co.kr/)
@@ -1249,7 +1249,7 @@ mtn.co.kr##.d_block
 !
 !
 ! 한국경제TV (https://www.wowtv.co.kr/)
-! - 상단 배너
+! - 상단 배너 공간
 www.wowtv.co.kr##.MainTopBig1.wrap-BannerBox
 !
 !
@@ -1270,18 +1270,18 @@ jtbc.co.kr##.set_contents_video_ad
 !
 ! 어패럴뉴스 (https://apparelnews.co.kr/)
 ! - 왼쪽 배너
-###mainLeftBanner
+!###mainLeftBanner
 ! - 오른쪽 배너
-##a.side_banner
+!##a.side_banner
 !
 !
 ! 스포탈코리아 (https://sportalkorea.com/)
-! - 상단 배너
+! - 상단 배너 공간
 sportalkorea.com##.common_top_ad1
 !
 !
 ! 스포조이 (https://www.spojoy.com/)
-!  - 상단 배너
+!  - 상단 배너 공간
 www.spojoy.com###TopAdv250
 !
 !
@@ -1369,7 +1369,7 @@ daangn.com##footer
 ! CGV (https://cgv.co.kr/)
 ! - PC
 ! - - - 하단 오른쪽 배너 공간
-cgv.co.kr###Branding
+!cgv.co.kr###Branding
 ! - 모바일
 ! - - - 팝업을 삭제하면 스크롤이 안됨
 ! - - - 하나씩 지워도 뿌여하면 나오는데 그걸 클릭하게 하면 스크롤은 가능한대 불편함
@@ -1403,17 +1403,18 @@ cgv.co.kr##.btnLinkFixed
 ! - 상단 배너
 ![$domain=/^torrentqq\d+.com/]##.header
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-[$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[alt*='광고'], [alt*='배너']
-[$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[class*='carousel'][id]
-[$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[href*='/ad'][target='_blank']:has(img)
+![$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[alt*='광고'], [alt*='배너']
+![$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[class*='carousel'][id]
+![$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[href*='/ad'][target='_blank']:has(img)
 ! - - - - - 토렌트 제이 (https://torrentj165.com/) 에서 하단 내용 안나와서 제외
 ![$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[target='_blank']:has([src$='.gif']):upward(1)
 !
 !
-! 토렌트G (https://ttg-35.com/) 상단 배너
+! 토렌트G (https://ttg-35.com/)
+! - 상단 배너 공간
 ###topbanner_1
 ! - 제휴/동맹 안보이게
-[$domain=/^ttg-\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
+![$domain=/^ttg-\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
 !
 !
 ! 토렌트쓱 (https://ssg1.torrentssg8.com/)
@@ -1432,21 +1433,21 @@ cgv.co.kr##.btnLinkFixed
 !
 ! 토렌트 RJ (https://torrentrj199.com/)
 ! - 배너 이미지
-||rj.filesbest.xyz/r/up67*.png
+!||rj.filesbest.xyz/r/up67*.png
 ! - AD 아이콘
-[$domain=/^torrentrj\d+.com/]##.fa-ad.fas
+![$domain=/^torrentrj\d+.com/]##.fa-ad.fas
 !
 !
 ! 토렌트하하 (https://torrenthaha08.com/)
 ! - 제휴/동맹
-[$domain=/^torrenthaha\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
+![$domain=/^torrenthaha\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
 !
 !
 ! 토렌트파이 (https://go3.xn--sm2bu5zfuhb6a9l.com/) (https://t19.torrentpi150.com/)
-! - 모든 상단 배너
+! - 상단 배너 공간
 [$domain=/^t\d+.torrentpi150.com/]##.basic-post-gallery
 ! - 왼쪽 배너
-[$domain=/^t\d+.torrentpi150.com/]##.sero1 > span
+![$domain=/^t\d+.torrentpi150.com/]##.sero1 > span
 !
 !
 ! AVseeTV (https://04.avsee.ru/)
@@ -1579,14 +1580,14 @@ topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! - 오른쪽 배너
 !##.happy-sidebar
 ! - 동맹 글자
-xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
+!xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
 !
 !
 ! AV핑유걸 (https://avpingyou19.com/)
-! - 배너 이미지
+! - 상단 배너 공간
 ##.bannerul
 ! - 모바일 영상 하단 배너
-||*/pink_*/img/*-1200x300*$important
+!||*/pink_*/img/*-1200x300*$important
 !
 !
 ! ManyMV (https://manymv.com/)
@@ -2851,7 +2852,7 @@ www.bet-joy.net##aside
 linkddd.com##.wst-post-gl
 !||*files/attach/images/*$image
 ! - - -  일베 배너 (https://www.ilbe.com/)
-||/files/attach/*$image
+!||/files/attach/*$image
 ! - 배너 공간
 linkddd.com##div.xe-widget-wrapper.xe_content:nth-of-type(4)
 !
@@ -3362,7 +3363,9 @@ naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp#@#a
 ! 더쿠 (https://theqoo.net/) - 게시물 내 이미지 일부 사라짐
 ! 웃긴대학 (https://web.humoruniv.com/) - 로고 및 일부 이미지 사라짐
 ! 다모앙 (https://damoang.net/) - 일부 아이콘 및 이미지 사라짐
-etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net#@#a[href][target] img
+! 오늘의유머 (https://www.todayhumor.co.kr/) - 로고 등 일부 이미지 사라짐
+etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target] img
+
 
 
 ! 보배드림 (https://www.bobaedream.co.kr/) 하단 자동차 매물 이미지 사라짐 (큰 상관 없어서 패스)
@@ -3389,11 +3392,15 @@ namu.wiki#@#[target][href] img
 auction.co.kr,danawa.com,gmarket.co.kr,coupang.com#@#a[href][target] img
 
 
+! JTBC뉴스 (https://news.jtbc.co.kr/)
+jtbc.co.kr#@#a[href][target] img
+
 ! 조아툰 (https://joatoon68.com/) - 만화 목록 이미지 사라짐
 [$domain=/^joatoon\d+.com/]#@#a[href][target] img
 
 ! 망가조아 (https://mangajoa5.com/) - 목록별 만화 이미지 사라짐
-[$domain=/^mangajoa\d+.com/]#@#a[href][target] img
+! 망가망가 (https://mgmg2.com/) - 목록별 만화 이미지 사라짐
+[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/]#@#a[href][target] img
 
 
 ! 다이소 (https://www.dayisoo36.me/) - 영상 안보임 (안보이면 F5 누를것)
