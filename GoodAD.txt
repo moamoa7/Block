@@ -1700,7 +1700,7 @@ njav.com##.mx-auto
 ! MISSAV (https://missav.live/)
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
-!@@||fourhoi.com
+@@||fourhoi.com
 !
 !
 ! MISSAV (https://missav.live/)
@@ -1711,6 +1711,8 @@ missav.live##.lg\:block
 ! HOHO (https://hohoj.tv/)
 ! - 영상 옆 배너?
 hohoj.tv##iframe[src="javascript:window.location.replace(this.frameElement.dataset.link)"]
+! - 팝업 방지
+trackwilltrk.com^$popup
 !
 !
 ! JAVLibrary (https://www.javlibrary.com/) (https://r86m.com/)
@@ -1730,12 +1732,12 @@ loopholes.site##.widget_text
 !
 ! 야동망고 (https://www.xn--299a65k99e3yi55ey7f.com/) (https://www.xn--299a89v.net/) (https://www.mango54.net/) (https://www.mango20.xyz/) (https://www.mango57.icu/)
 ! - 오른쪽 배너
-www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##td:nth-of-type(2)
+!www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##td:nth-of-type(2)
 ! - 가운데 배너
-www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##td > table > tbody > tr > td > table > tbody > tr > td > center
+!www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##td > table > tbody > tr > td > table > tbody > tr > td > center
 ! 스폰업소
-www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##p:nth-of-type(14)
-www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##ol > table > tbody > tr > td
+!www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##p:nth-of-type(14)
+!www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##ol > table > tbody > tr > td
 !
 !
 ! AVPED.COM (https://www.avped.com/)
@@ -1781,17 +1783,16 @@ www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],
 ! 야르가즘 (https://yargasm45.top/)
 ! 다크걸2 (https://darkgg12.top/)
 ! - 성인업소 글자
-[$domain=/^jotker\d+.top/],[$domain=/^jbjbgg\d+.top/],[$domain=/^unlishot\d+.top/],[$domain=/^yargasm\d+.top/],[$domain=/^darkgg\d+.top/]##li.gnb_1dli:nth-of-type(1)
+![$domain=/^jotker\d+.top/],[$domain=/^jbjbgg\d+.top/],[$domain=/^unlishot\d+.top/],[$domain=/^yargasm\d+.top/],[$domain=/^darkgg\d+.top/]##li.gnb_1dli:nth-of-type(1)
 ! - 제휴사이트 글자
-[$domain=/^jotker\d+.top/],[$domain=/^jbjbgg\d+.top/]##li.gnb_1dli:nth-of-type(7)
-[$domain=/^yargasm\d+.top/],[$domain=/^darkgg\d+.top/]##li.gnb_1dli:nth-of-type(8)
+![$domain=/^jotker\d+.top/],[$domain=/^jbjbgg\d+.top/]##li.gnb_1dli:nth-of-type(7)
+![$domain=/^yargasm\d+.top/],[$domain=/^darkgg\d+.top/]##li.gnb_1dli:nth-of-type(8)
 ! - 영상 상단 배너 공간
 ###main-banner
 ! - ||*/*/ads/* 예외 (영상 안나옴) - 광고 와 같은 디렉토리에 있음
 @@||zxcasdqwezxcasdqwe.com/ads/*$media
 ! - https://www.notion.so/ - 로그인시 에러남
 notion.so@@||/*/ads/*
-
 !
 !
 ! 야동허브 (https://ydhub11.net/)
@@ -1803,7 +1804,7 @@ notion.so@@||/*/ads/*
 ! - 상단 배너 공간 (모바일) (검색란도 지워짐)
 ![$domain=/^yamoa\d+.site/]##.w-full
 ! - 상단 배너 공간 (모바일)
-[$domain=/^yamoa\d+.site/]##.max-w-screen-xl:nth-of-type(5)
+![$domain=/^yamoa\d+.site/]##.max-w-screen-xl:nth-of-type(5)
 ! - 이미지 복원 (배너 이미지와 같은 경로라 어쩔 수 없음)
 !@@||static.yaaamoa.com/img/*$image
 !
@@ -1812,9 +1813,9 @@ notion.so@@||/*/ads/*
 ! - 상단 배너 공간
 [$domain=/^sstal\d+.top/]##.mx-n2.row-cols-xl-4.row-cols-lg-2.row-cols-md-2.row-cols-sm-2.row-cols-2.row > li.px-1.col > .mb-2.img-wrap
 ! - 성인업소 글자
-[$domain=/^sstal\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
+![$domain=/^sstal\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
 ! - 동맹사이트 글자
-[$domain=/^sstal\d+.top/]##li.me-li.p-0.col:nth-of-type(10)
+![$domain=/^sstal\d+.top/]##li.me-li.p-0.col:nth-of-type(10)
 !
 !
 ! 소리바다 (https://sorabada94.com/)
@@ -1831,7 +1832,7 @@ notion.so@@||/*/ads/*
 !
 ! 야동aVMOV (https://avmov.best/)
 ! - 상단 배너
-!##.top_banner_grid
+##.top_banner_grid
 !
 !
 ! 색색티비 (https://kr161.mysstv.com/)
@@ -1861,7 +1862,7 @@ notion.so@@||/*/ads/*
 ##.w-80.relative
 ! 보증업체 더보기 텍스트 배너
 ##.rounded-md.border.p-1.w-full
-! 하단 배너 이미지
+! 하단 배너 이미지 (해제하지 말것)
 ##.mt-1.justify-start.items-center.flex-wrap.flex
 !
 !
@@ -1872,77 +1873,51 @@ notion.so@@||/*/ads/*
 !
 ! 야동공장 (https://yagong84.com/)
 ! - 업소정보 글자
-[$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(2)
-![$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(1)
+![$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(2)
+!![$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(1)
 ! - 이벤트 글자
-[$domain=/^yagong\d+.com/]##div.hover\:text-red-600.text-white.text-sm.mx-auto.py-3.px-2:nth-of-type(10)
-[$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(11)
+![$domain=/^yagong\d+.com/]##div.hover\:text-red-600.text-white.text-sm.mx-auto.py-3.px-2:nth-of-type(10)
+![$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(11)
 !- 제휴사이트 글자
-[$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(13)
+![$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(13)
 ! - 주소친구 글자
-[$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(12)
+![$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(12)
 !
 !
 ! 야동그라운드 (https://yagro48.com/)
 ! - 제휴사이트 글자
-[$domain=/^yagro\d+.com/]##div.text-color-for-wide.text-white.text-sm.mx-auto.py-3.px-2:nth-of-type(11)
+![$domain=/^yagro\d+.com/]##div.text-color-for-wide.text-white.text-sm.mx-auto.py-3.px-2:nth-of-type(11)
 ! - 이벤트
-[$domain=/^yagro\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(11)
+![$domain=/^yagro\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(11)
 ! - 스포츠중계
-[$domain=/^yagro\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(12)
+![$domain=/^yagro\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(12)
 !
 !
 ! 야동도시 (https://yacity47.com/)
 ! - 제휴사이트 글자
-[$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(11)
+![$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(11)
 ! - 이벤트 글자
-[$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative:nth-of-type(7)
-[$domain=/^yacity\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(8)
+![$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative:nth-of-type(7)
+![$domain=/^yacity\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(8)
 ! - 제휴업체 글자
-[$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(8)
+![$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(8)
 
 !
 !
 ! 천사티비 (https://1004sweet.com/) (https://1004deep.com/)
-! https://minkch.com/
+! - 배너
+! - - - https://minkch.com/
 1004sweet.com,1004deep.com##.external
 ! - 영상 상단 텍스트 배너
 1004sweet.com,1004deep.com##.da-above
 ! - 업소추천 글자
-1004sweet.com,1004deep.com##li:nth-of-type(3)
+!1004sweet.com,1004deep.com##li:nth-of-type(3)
 ! - 제휴광고 글자
-1004sweet.com,1004deep.com##div.col-25:nth-of-type(4)
+!1004sweet.com,1004deep.com##div.col-25:nth-of-type(4)
 ! - 커뮤니티/메시지/공지사항 공지 및 배너 광고
-1004sweet.com,1004deep.com##.swip-ticker
+!1004sweet.com,1004deep.com##.swip-ticker
 ! - ##[class^="ad"] 해제 - 일부 이미지 안나옴
-1004sweet.com,1004deep.com#@#[class^="ad"]
-!
-!
-! - 헬로밤 (https://hlbam25.com/)
-! - 배너 이미지
-![$domain=/^hlbam\d+.com/]##.thumb
-!
-!
-! - 배너 이미지
-! - - - 오피스타 (https://opfofo.com/)
-||*/*/upfile/thumb*/*
-!
-!
-! 오피가자 (https://opgo21.com/)
-! - 오피 이미지
-||opgo*.com/data/editor/*$image
-! - ##.ellipsis 단독사용시 일부 깨지는 사이트가 있음 (예 : https://04.avsee.ru/ 이미지.글자 등 일부 안나옴)
-[$domain=/^opgo\d+.com/]##.ellipsis
-!
-!
-! 오피뷰 (https://opview75.com/)
-! - 팝업 이미지
-||*/images/*_pop*
-###popFirst
-! - 뿌연거 해결
-[$domain=/^opview\d+.com/]##.dimed
-! - 오피 이미지
-||*/images/shop_*
+!1004sweet.com,1004deep.com#@#[class^="ad"]
 !
 !
 ! 조개파티 (https://jogaeparty139.com/)
@@ -1968,15 +1943,15 @@ notion.so@@||/*/ads/*
 ! - 영상 상.하 배너
 ![$domain=/^yaburi\d+.com/]##.widget-box.w-full.mt-2.items-center.justify-between.flex
 ! - 배너업체 없애기
-[$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(1)
+![$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(1)
 ! - 인기업소 순위 없애기
-[$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(3)
+![$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(3)
 ! - 이벤트 없애기
-[$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(8)
+![$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(8)
 ! - 왼쪽 업소 정보 배너 없애기
-[$domain=/^yaburi\d+.com/]##.sm\:block.sm\:w-full.hidden > .w-full.my-4.p-1
+![$domain=/^yaburi\d+.com/]##.sm\:block.sm\:w-full.hidden > .w-full.my-4.p-1
 ! - 하단 이벤트 바로가기 클릭 없애기
-[$domain=/^yaburi\d+.com/]##.grow.sm\:max-w-5xl.min-h-screen > div.w-full.p-1
+![$domain=/^yaburi\d+.com/]##.grow.sm\:max-w-5xl.min-h-screen > div.w-full.p-1
 !
 !
 ! WatchJAVOnline (https://watchjavonline.com/)
@@ -2056,73 +2031,73 @@ notion.so@@||/*/ads/*
 ! 에비앙 (https://evian31.com/)
 ! 야동삼국지 (https://kr4.yadong3.com/)
 ! - 트렌스젠더 글자
-[$domain=/^nvt\d+.com/],[$domain=/^mdv\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^comein\d+.com/]##li.off.menu-li:nth-of-type(7)
-[$domain=/^zamzatv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^hotg\d+.com/]##li:nth-of-type(7)
-[$domain=/^drck\d+.com/],[$domain=/^retv\d+.com/]##li.menu__item.has-submenu:nth-of-type(7)
-[$domain=/^drck\d+.com/],[$domain=/^retv\d+.com/],[$domain=/^hotg\d+.com/]##div.container.news-container:nth-of-type(8)
-[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^evian\d+.com/]##li:nth-of-type(9)
-[$domain=/^avhana-\d+.com/]##li.en.font-16.box-title2:nth-of-type(7)
-[$domain=/^cheon-\d+.com/]##li:nth-of-type(8)
-[$domain=/^cheon-\d+.com/]##div:nth-of-type(45)
-[$domain=/^cheon-\d+.com/]##div.link_panel.box-content2:nth-of-type(46)
+![$domain=/^nvt\d+.com/],[$domain=/^mdv\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^comein\d+.com/]##li.off.menu-li:nth-of-type(7)
+![$domain=/^zamzatv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^hotg\d+.com/]##li:nth-of-type(7)
+![$domain=/^drck\d+.com/],[$domain=/^retv\d+.com/]##li.menu__item.has-submenu:nth-of-type(7)
+![$domain=/^drck\d+.com/],[$domain=/^retv\d+.com/],[$domain=/^hotg\d+.com/]##div.container.news-container:nth-of-type(8)
+![$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^evian\d+.com/]##li:nth-of-type(9)
+![$domain=/^avhana-\d+.com/]##li.en.font-16.box-title2:nth-of-type(7)
+![$domain=/^cheon-\d+.com/]##li:nth-of-type(8)
+![$domain=/^cheon-\d+.com/]##div:nth-of-type(45)
+![$domain=/^cheon-\d+.com/]##div.link_panel.box-content2:nth-of-type(46)
 ! - 제휴동맹 글자
-[$domain=/^yhl-\d+.com/],[$domain=/^buska\d+.com/]##li.off.menu-li:nth-of-type(11)
-[$domain=/^zamzatv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^hotg\d+.com/],[$domain=/^cheon-\d+.com/]##li:nth-of-type(11)
-[$domain=/^drck\d+.com/],[$domain=/^retv\d+.com/]##li.menu__item.has-submenu:nth-of-type(11)
-[$domain=/^comein\d+.com/]##li.off.menu-li:nth-of-type(12)
-[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^yapro\d+.com/],[$domain=/^evian\d+.com/]##li:nth-of-type(14)
+![$domain=/^yhl-\d+.com/],[$domain=/^buska\d+.com/]##li.off.menu-li:nth-of-type(11)
+![$domain=/^zamzatv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^hotg\d+.com/],[$domain=/^cheon-\d+.com/]##li:nth-of-type(11)
+![$domain=/^drck\d+.com/],[$domain=/^retv\d+.com/]##li.menu__item.has-submenu:nth-of-type(11)
+![$domain=/^comein\d+.com/]##li.off.menu-li:nth-of-type(12)
+![$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^yapro\d+.com/],[$domain=/^evian\d+.com/]##li:nth-of-type(14)
 ! - - 일부 영상이나 다른 내용이 같이 지워짐
-[$domain=/^kr4.yadong\d+.com/]##li:nth-of-type(6)
+![$domain=/^kr4.yadong\d+.com/]##li:nth-of-type(6)
 ! - 수간야동 글자
-[$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^evian\d+.com/]##li:nth-of-type(10)
-[$domain=/^avhana-\d+.com/]##li.en.font-16.box-title2:nth-of-type(8)
+![$domain=/^gristmill\d+.com/],[$domain=/^sexflix\d+.com/],[$domain=/^evian\d+.com/]##li:nth-of-type(10)
+![$domain=/^avhana-\d+.com/]##li.en.font-16.box-title2:nth-of-type(8)
 ! - 하드코어 글자
-[$domain=/^drck\d+.com/]##li.menu__item.has-submenu:nth-of-type(6)
-[$domain=/^drck\d+.com/],[$domain=/^hotg\d+.com/]##div.container.news-container:nth-of-type(7)
-[$domain=/^mdv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^hotg\d+.com/]##li:nth-of-type(6)
-[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/]##div:nth-of-type(53)
-[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/]##div.link_panel.box-content2:nth-of-type(54)
-[$domain=/^uf\d+.com/]##div:nth-of-type(11)
-[$domain=/^uf\d+.com/]##div.link_panel.box-content2:nth-of-type(12)
-[$domain=/^yd-house\d+.com/],[$domain=/^redbanana\d+.com/],[$domain=/^sexports\d+.com/],[$domain=/^yapro\d+.com/]##li.off.menu-li:nth-of-type(7)
-[$domain=/^nvt\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^comein\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^ggonghub\d+.com/],[$domain=/^redcoconut\d+.com/]##li.off.menu-li:nth-of-type(6)
-[$domain=/^gristmill\d+.com/]##li:nth-of-type(8)
-[$domain=/^avhana-\d+.com/]##li.en.font-16.box-title2:nth-of-type(6)
+![$domain=/^drck\d+.com/]##li.menu__item.has-submenu:nth-of-type(6)
+![$domain=/^drck\d+.com/],[$domain=/^hotg\d+.com/]##div.container.news-container:nth-of-type(7)
+![$domain=/^mdv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/],[$domain=/^uf\d+.com/],[$domain=/^hotg\d+.com/]##li:nth-of-type(6)
+![$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/]##div:nth-of-type(53)
+![$domain=/^bbong\d+.com/],[$domain=/^sssk\d+.com/]##div.link_panel.box-content2:nth-of-type(54)
+![$domain=/^uf\d+.com/]##div:nth-of-type(11)
+![$domain=/^uf\d+.com/]##div.link_panel.box-content2:nth-of-type(12)
+![$domain=/^yd-house\d+.com/],[$domain=/^redbanana\d+.com/],[$domain=/^sexports\d+.com/],[$domain=/^yapro\d+.com/]##li.off.menu-li:nth-of-type(7)
+![$domain=/^nvt\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^yhl-\d+.com/],[$domain=/^comein\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^ggonghub\d+.com/],[$domain=/^redcoconut\d+.com/]##li.off.menu-li:nth-of-type(6)
+![$domain=/^gristmill\d+.com/]##li:nth-of-type(8)
+![$domain=/^avhana-\d+.com/]##li.en.font-16.box-title2:nth-of-type(6)
 ! - - - 노보텔 하단 4단 없애기 (하드코어 포함)
-[$domain=/^nvt\d+.com/]##div.box-panel:nth-of-type(33)
+![$domain=/^nvt\d+.com/]##div.box-panel:nth-of-type(33)
 ! - - - 여의봉/야프로 하단 3단 없애기 (하드코어 포함)
-[$domain=/^yeouibong\d+.com/],[$domain=/^yapro\d+.com/]##div.box-panel:nth-of-type(24)
+![$domain=/^yeouibong\d+.com/],[$domain=/^yapro\d+.com/]##div.box-panel:nth-of-type(24)
 ! - - - 레드바나나 하단 3단 없애기 (하드코어 포함)
-[$domain=/^redbanana\d+.com/]##div.box-panel:nth-of-type(26)
+![$domain=/^redbanana\d+.com/]##div.box-panel:nth-of-type(26)
 ! - - - 섹포츠 하단 3단 없애기 (하드코어 포함)
-[$domain=/^sexports\d+.com/]##div.box-panel:nth-of-type(23)
+![$domain=/^sexports\d+.com/]##div.box-panel:nth-of-type(23)
 ! - - - 꽁허브/레드코코넛 하단 4단 없애기 (하드코어 포함)
-[$domain=/^ggonghub\d+.com/],[$domain=/^redcoconut\d+.com/]##div.box-panel:nth-of-type(37)
+![$domain=/^ggonghub\d+.com/],[$domain=/^redcoconut\d+.com/]##div.box-panel:nth-of-type(37)
 ! - - - 노보텔 하단 사이트 목록
-[$domain=/^nvt\d+.com/]###wg_main_board
-[$domain=/^nvt\d+.com/]###wg_main_board2
+![$domain=/^nvt\d+.com/]###wg_main_board
+![$domain=/^nvt\d+.com/]###wg_main_board2
 ! - - - 야동하우스/AV달기/해피밤/요의봉/AV하나/레드바나나/섹포츠/야프로/꽁허브/레드코코넛 하단 사이트 목록
-[$domain=/^yd-house\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^redbanana\d+.com/],[$domain=/^sexports\d+.com/],[$domain=/^yapro\d+.com/],[$domain=/^ggonghub\d+.com/],[$domain=/^redcoconut\d+.com/]##.f9_box02
+![$domain=/^yd-house\d+.com/],[$domain=/^avdalgi-\d+.com/],[$domain=/^happy-n\d+.com/],[$domain=/^yeouibong\d+.com/],[$domain=/^avhana-\d+.com/],[$domain=/^redbanana\d+.com/],[$domain=/^sexports\d+.com/],[$domain=/^yapro\d+.com/],[$domain=/^ggonghub\d+.com/],[$domain=/^redcoconut\d+.com/]##.f9_box02
 ! - - - 잠자TV/뿅가리/딸통령 왼쪽 메뉴 일부 삭제
-[$domain=/^zamzatv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^uf\d+.com/]##div.left_list:nth-of-type(1)
+![$domain=/^zamzatv\d+.com/],[$domain=/^bbong\d+.com/],[$domain=/^uf\d+.com/]##div.left_list:nth-of-type(1)
 !
 !
 ! 지지넷 (https://porngg7.net/)
 !- 동맹사이트 글자
-[$domain=/^porngg\d+.net/]##a.swiper-slide:nth-of-type(8)
-[$domain=/^porngg\d+.net/]##div.container:nth-of-type(6)
+![$domain=/^porngg\d+.net/]##a.swiper-slide:nth-of-type(8)
+![$domain=/^porngg\d+.net/]##div.container:nth-of-type(6)
 !
 !
 ! 에비앙 (https://evian31.com/)
 ! - 배너 공간
-[$domain=/^evian\d+.com/]##div.section:nth-of-type(1)
-[$domain=/^evian\d+.com/]##div.section:nth-of-type(2)
-[$domain=/^evian\d+.com/]##div.section:nth-of-type(3)
+![$domain=/^evian\d+.com/]##div.section:nth-of-type(1)
+![$domain=/^evian\d+.com/]##div.section:nth-of-type(2)
+![$domain=/^evian\d+.com/]##div.section:nth-of-type(3)
 !
 !
 ! 썸질라 (https://somez3.com/)
 ! - 동맹사이트 글자
-[$domain=/^somez\d+.com/]##a.swiper-slide:nth-of-type(8)
+![$domain=/^somez\d+.com/]##a.swiper-slide:nth-of-type(8)
 !
 !
 ! 현자타임스 (https://hjtime95.com/)
@@ -2130,42 +2105,40 @@ notion.so@@||/*/ads/*
 ![$domain=/^hjtime\d+.com/]##.at-banner
 !
 !
-! 야썸 (https://yasome.net/)  (htps://yasome45.top/)
+! 야썸 (https://yasome.net/)  (https://yasome45.top/)
 ! - 오른쪽 성인업소
-[$domain=/^yasome\d+.top/]##h3.text-center.en.f-lg.h3:nth-of-type(1)
-[$domain=/^yasome\d+.top/]##div.my-3.px-sm-0.px-3:nth-of-type(1)
-! - 오른쪽 하단 배너 공간
+![$domain=/^yasome\d+.top/]##h3.text-center.en.f-lg.h3:nth-of-type(1)
+![$domain=/^yasome\d+.top/]##div.my-3.px-sm-0.px-3:nth-of-type(1)
+! - 오른쪽 배너 공간
+[$domain=/^yasome\d+.top/]##div.pt-sm-4.pt-0.px-xl-0.px-sm-4.px-0.nt-container:nth-of-type(1)
 [$domain=/^yasome\d+.top/]##.mx-n2.row-cols-xl-4.row-cols-lg-4.row-cols-md-4.row-cols-sm-3.row-cols-2.row > li.px-1.col > .mb-2.img-wrap
+! - 오른쪽 배너 공간
+[$domain=/^yasome\d+.top/]##.mx-n2.row-cols-xl-4.row-cols-lg-2.row-cols-md-2.row-cols-sm-2.row-cols-2.row
 ! - 왼쪽 메뉴 성인업소 글자
-[$domain=/^yasome\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
+![$domain=/^yasome\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
 !
 !
 ! 싸나이 (https://sanai13.com/)
 ! - 제휴사이트 글자
-[$domain=/^sanai\d+.com/]##li:nth-of-type(9)
+![$domain=/^sanai\d+.com/]##li:nth-of-type(9)
 !
 !
 ! 야동황제 (https://kr2.hwangj.com/)
 ! - 제휴사이트 글자
 ! - - - 일부 영상이나 내용이 같이 지워짐
-[$domain=/^kr\d+.hwangj.com/]##li:nth-of-type(9)
+![$domain=/^kr\d+.hwangj.com/]##li:nth-of-type(9)
 !
 !
 ! 딸즈 (https://kr1.ddalsney.com/)
 ! AV코걸 (https://go1.kogirl.co/)
 ! - 제휴 동맹 글자
-[$domain=/^kr\d+.ddalsney.com/]##li.nav-item:nth-of-type(8)
-[$domain=/^go\d+.kogirl.co/]##li:nth-of-type(6)
-!
-!
-! 야동다운 (https://야동다운.com/) (https://av032.xyz/)
-! - 쉬멜 야동 글자
-[$domain=/^av\d+.xyz/]##div.pc_menu:nth-of-type(7)
+![$domain=/^kr\d+.ddalsney.com/]##li.nav-item:nth-of-type(8)
+![$domain=/^go\d+.kogirl.co/]##li:nth-of-type(6)
 !
 !
 ! AV히로미 (https://avhiromi6.com/)
 ! - 주소모음 글자
-[$domain=/^avhiromi\d+.com/]##.has-sub.menu-item-3763.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
+![$domain=/^avhiromi\d+.com/]##.has-sub.menu-item-3763.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
 !
 !
 ! 개조아 (https://dogjoa80.net/)
@@ -2188,7 +2161,7 @@ notion.so@@||/*/ads/*
 !
 ! 일구핫 (https://01.19hot.net/)
 ! 추천놀이터 글자
-[$domain=/^\d+.19hot.net/]##li.off.menu-li:nth-of-type(6)
+![$domain=/^\d+.19hot.net/]##li.off.menu-li:nth-of-type(6)
 !
 !
 ! 야동월드 (https://ya-world.net/)
