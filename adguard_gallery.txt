@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.05.21.4
+! Version: 2025.05.23
 ! Description: 애드가드 필터의 오차단, 지우지 못한 광고와 안티 애드블록을 해결합니다. For Adguard, uBo, Brave
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -103,6 +103,7 @@ gmarket.co.kr##.js-visiblity.js-impressionable.box__bottom-banner
 gmarket.co.kr##.plcc_banner
 gmarket.co.kr##.section__main-banner.section__main
 hankyung.com##[class*='promotion']
+harpi.in##div > iframe
 harpi.in##div:has(> script[src])
 hoduhodu.com##.md\:hidden.z-50.p-2.bg-black.w-full.left-0.bottom-0.fixed
 humoruniv.com##[id^='naver_adpost_wrap']
@@ -161,7 +162,7 @@ zod.kr##[data-href^='https://zod.kr/go/']
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
 ||apps.m.sooplive.co.kr^$all
 ||dctrend.ai/widget/
-||nzy*.com/data/apms/background/$image
+||nz*mi.com/data/apms/background/$image
 ||trend.rankify.best^
 ~greend.kr##[class*='ad'][id^='AD']
 ~nexon.com,~gg##[target='_blank']:has([src*='/banner'])
@@ -191,7 +192,7 @@ fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 @@||edge-live.joongna.com/api/web-ads/
 @@||google.*/search$stealth=useragent|ip
 @@||nexon.com^$stealth=dpi
-@@||nzyumi.com^$generichide
+@@||nz*mi.com^$generichide
 @@||photo.jtbc.co.kr/news/cms/etc/
 @@||piku.co.kr^$generichide
 @@||ssl.pstatic.net^$script,domain=nid.naver.com
