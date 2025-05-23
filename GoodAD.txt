@@ -3151,6 +3151,7 @@ zeta-ai.io##.pointer-events-none
 !##a[href][target*='_blank'] img
 ##a[href][target] img
 
+
 ! - 기본으로 사용 중
 ! - - -  일부 사이트에서 사용 중
 ! - - - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
@@ -3353,10 +3354,10 @@ etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net
 
 
 ! https://dramaday.me/ (이미지 안보임)
-dramaday.me#@#[target][href] img
+dramaday.me#@#a[href][target] img
 
 ! 나무위키 (https://namu.wiki/) - SNS 아이콘 안보임 (마우스 갔다대면 링크 클릭은 가능)
-namu.wiki#@#[target][href] img
+namu.wiki#@#a[href][target] img
 
 ! 옥션 (https://escrow.auction.co.kr/) - 로고 등 일부 이미지 사라짐
 ! 다나와 (https://danawa.com/)
