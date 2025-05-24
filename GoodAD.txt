@@ -2238,8 +2238,10 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 mingky.net##div.mb-sm-4.mb-3:nth-of-type(1)
 ! - 오른쪽 배너
 !mingky.net##.my-3.px-sm-0.px-3
-! 영상 상단 텍스트 배너
+! 영상 상단 텍스트 배너 (PC)
 mingky.net##.px-xl-0.px-sm-4.px-0.my-sm-4.my-3.nt-container > div
+! 메인 상단 텍스트 배너 (모바일) - 모바일은 공간이 안줄어듬
+mingky.net##a.top-text
 ! 영상 상.하단 모든 배너 공간
 mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
 ! - 1:1 문의 공간
