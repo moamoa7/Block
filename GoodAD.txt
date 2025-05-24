@@ -2648,8 +2648,8 @@ hitomi.la###immersive-translate-popup
 !
 !
 ! 주소타운 (https://www.jusotw.com/)
-! - 상단 배너
-www.jusotw.com###comp-lt8phbbp
+! - 상단 배너 (링크 없이 만들어진 배너)
+www.jusotw.com##.wixui-section.comp-lt8phbbp.Oqnisf
 !
 !
 ! 주소주라 (https://www.jusojula.com/)
@@ -3382,7 +3382,8 @@ dramaday.me#@#a[href][target] img
 
 ! 주소요 (https://jusoyo42.com/)
 ! 링크나라 (https://www.linknala.com/)
-[$domain=/^jusoyo\d+.com/],www.linknala.com#@#a[href][target] img
+! 주소타운 (https://www.jusotw.com/)
+[$domain=/^jusoyo\d+.com/],www.linknala.com,www.jusotw.com#@#a[href][target] img
 
 
 ! 쿠팡 (https://www.coupang.com/)
