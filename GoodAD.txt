@@ -737,6 +737,11 @@ zum.com##.tv_wrap
 ![$domain=/^dugebitv\d+.xyz]##li.col-xs-1.col-sm-2.col-md-3 > .ewave-vodlist__box
 !
 !
+! - TV조아 (https://tvzota147.com/)
+! --  List-KR 무력화 (드라마 이미지 안보임)
+@@||imgbox.com^$from=/^tvzota[0-9]+\.com/
+!
+!
 ! 조개무비 (https://v15.jogemovie.net/)
 ! - 배너 공간
 [$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
@@ -2551,26 +2556,26 @@ hitomi.la###immersive-translate-popup
 !
 ! 링크사랑 https://linklove14.com/) (https://linklove54.com/)
 ! - 베너 이미지
-||linklove*.com/data/editor/*$image
-||linklove*.com/data/file/ls_*/*$image
+!||linklove*.com/data/editor/*$image
+!||linklove*.com/data/file/ls_*/*$image
 ! - 상단 배너 공간
-[$domain=/^linklove\d+.com/]##.w-box
+![$domain=/^linklove\d+.com/]##.w-box
 ! - - -  주소파워 (https://linkpower27.com/)
 ! -  메인 중간 배너 공간
-[$domain=/^linklove\d+.com/],[$domain=/^linkpower\d+.com/]##.miso-love-ad
+![$domain=/^linklove\d+.com/],[$domain=/^linkpower\d+.com/]##.miso-love-ad
 ! - 전체 Top100 글즈
-[$domain=/^linklove\d+.com/]##.on.menu-li
+![$domain=/^linklove\d+.com/]##.on.menu-li
 ! - 오피 글자
-[$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(4)
+![$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(4)
 ! - 먹튀검증 글자
-[$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(7)
+![$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(7)
 ! - 공지사항/신규링크
-[$domain=/^linklove\d+.com/]##div.w-row.row:nth-of-type(1)
+![$domain=/^linklove\d+.com/]##div.w-row.row:nth-of-type(1)
 ! - 스폰서AD
-[$domain=/^linklove\d+.com/]##div.w-row.row:nth-of-type(2)
-[$domain=/^linklove\d+.com/]##div.w-row.row:nth-of-type(3)
+![$domain=/^linklove\d+.com/]##div.w-row.row:nth-of-type(2)
+![$domain=/^linklove\d+.com/]##div.w-row.row:nth-of-type(3)
 ! - 유흥 글자
-[$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(6)
+![$domain=/^linklove\d+.com/]##li.off.menu-li:nth-of-type(6)
 ! - 이미지 복원
 !@@||linklove*.com/img/*$image
 !
@@ -2578,22 +2583,22 @@ hitomi.la###immersive-translate-popup
 ! 여기요 (https://www.yugiyu.com/)
 ! - 배너 이미지
 !||*upload_files/banner/*$image
-||*files/banner/*$image
+|!|*files/banner/*$image
 ! - 검증 삭제
-yugiyu.com##div.main_link.f9_box01:nth-of-type(6)
+!yugiyu.com##div.main_link.f9_box01:nth-of-type(6)
 ! - 카지노 삭제
-yugiyu.com##div.main_link.f9_box01:nth-of-type(8)
+!yugiyu.com##div.main_link.f9_box01:nth-of-type(8)
 ! - 토토 삭제
-yugiyu.com##div.main_link.f9_box01:nth-of-type(9)
+!yugiyu.com##div.main_link.f9_box01:nth-of-type(9)
 ! - 오피 삭제
-##div.main_link.f9_box01:nth-of-type(12)
+!##div.main_link.f9_box01:nth-of-type(12)
 !
 !
 ! 주소파워 (https://linkpower27.com/)
 ! - 스폰서AD 글자
-[$domain=/^linkpower\d+.com/]##div.w-row.row:nth-of-type(2)
+![$domain=/^linkpower\d+.com/]##div.w-row.row:nth-of-type(2)
 ! - 먹튀검증 글자
-[$domain=/^linkpower\d+.com/]##li.off.menu-li:nth-of-type(7)
+![$domain=/^linkpower\d+.com/]##li.off.menu-li:nth-of-type(7)
 !
 !
 ! 주소야 (https://jusoya02.com/)
@@ -2607,6 +2612,7 @@ yugiyu.com##div.main_link.f9_box01:nth-of-type(9)
 ! - 배너
 ! - - -  링크고 (https://lkg3.com/)
 ! - - - 토렌트쓱 (https://torrentssg7.com/)
+! - - - 놀쟈 (https://www.nznami.com/) 영상 하단 배너
 [$domain=/^jusoyo\d+.com/],[$domain=/^lkg\d+.com/],[$domain=/^torrentssg\d+.com/]##.basic-banner-gallery
 ##.basic-banner-gallery
 !||jusoyo*.com/img/*g
@@ -3016,22 +3022,29 @@ zeta-ai.io##.pointer-events-none
 !
 !
 !
+! 기본
+!##A[target='_blank'] > IMG[width='100%'][src*='.gif']
+
+!##a[target*='blank'] img[src*='.gif']
+!##a[target*='blank'] img
+
 
 ! 기본
-!##a[href][target*='_blank'] img
-##a[href][target] img
-
-
-! - 기본으로 사용 중
-! - - -  일부 사이트에서 사용 중
-! - - - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
-! - - - 티비위키 (https://tvwiki21.com/)
-! - - - 뉴토끼 (https://newtoki468.com/)
 ! - - -  AVseeTV (https://04.avsee.ru/)
+! - - - 뉴토끼 (https://newtoki468.com/)
+! - - - 북토끼 (https://booktoki468.com/)
 ! - - - 7MMTV (https://7tv033.com/)
 ! - - - 야부리 시즌 2 (https://yaburi60.com/)
 ! - - - 도지코믹스 (https://dozi352.com/)
+!##a[href][target*='_blank'] img
+##a[href][target*='blank'] img
+
+
+! - 기본 변형
+! - - - target="_blank가 아닐 경우에 사용 (예: target="_self" / target="_target 등)
+! - - - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
 ! - - - 만화방 (https://manhwabang.org/)
+! - - - 메시티비 (https://messitv8.com/)
 ![$domain=/^7tv\d+.com/]##a[href][target*='_blank'] img
 ! - - - ##a[href][target='_blank'] img - 비슷하지만 일부 안사라지는 이미지 있음 (target=&quot;_blank&quot 이런식으로 되어 있는 경우)
 ![$domain=/^yaburi\d+.com/]##a[href][target] img
@@ -3040,6 +3053,7 @@ zeta-ai.io##.pointer-events-none
 !##a[href][target*='_blank'] img
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
 !##[target][href] img
+manhwabang.org,messitv8.com##a[href][target] img
 
 
 
@@ -3053,16 +3067,12 @@ zeta-ai.io##.pointer-events-none
 ! - - -  이걸 사용하는 사이트에는 일부 안사라지는 광고 배너가 있어 추가로 규칙이 더 필요할 수 있음
 ! - - - 조아툰 (https://joatoon68.com/)
 ! - - - 망가조아 (https://mangajoa5.com/)
-! - - - 툰코 (https://tkor023.com/)
-! - - - 펀비 (https://funbe536.com/)
 ! - - - ##[style] a[href][target] 으로  하면 다른 사이트에서 텍스트 링크 사라짐
 !##[style] a[href^="http"][target="_blank"] img
 ! ##[style] a[href][target] img 에서 변경
 ! ##[style] a[href][target] img 로 하면 조아툰 경우 만화 목록 이미지 안보임
-![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target] img
-[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^/tkor\d+.com/],[$domain=/^/funbe\d+.com/]##[style] a[href][target*='_blank'] img
-
-
+![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/]##[style] a[href][target] img
+[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/]##[style] a[href][target*='_blank'] img
 
 
 
@@ -3086,6 +3096,15 @@ zeta-ai.io##.pointer-events-none
 !##[style^="background-image"] a[href][target*='blank']
 ! - - -  실수로 target='blank' 을 빼먹는 경우 (예 : https://cheon-01.com/)도 있어서 재변경
 ##[style^="background-image"] a[href]
+
+
+! - 위 링크 응용
+! - 일부 사이트에서 사용 중
+! - - - 광역 사용시 원치 않는 이미지 등이 사라질 수 있음
+! - 지워지지 않은 일부 배너 링크  삭제
+! - 예 : 주소콕 (https://jusokok10.com/)
+[$domain=/^jusokok\d+.com/]##[style^="background-color"] a[href]
+
 
 
 ! - 일부 사이트에서 사용 중
@@ -3156,25 +3175,16 @@ javlemon.com##[style]> [src]
 
 
 
-! - 일부 사이트에서 사용 중
-! - - - 이걸 광역으로 사용하면 일부 사이트에서 이미지가 사라짐
-! - 링크 달린 모든 이미지 사라짐
-![$domain=/^messitv\d+.com/]##a[href][target*='_self'] img
-![$domain=/^messitv\d+.com/]##a[href][target] img
-! - -  위 2개 합친거
-! - - - - - 메시티비 (https://messitv8.com/) - 로고 삭제됨
-[$domain=/^messitv\d+.com/]##a[href] img
-
-
 
 ! - 일부사이트 (banner 주소 들어간 이미지)에서 사용 중 (target 없음)
 ! - - - 광역으로 사용
 ! - - -  https://today-sports7.com/
+! - - - 티비위키 (https://tvwiki21.com/)
 ##a[href] img[src*="banner"]
 
 
 
-##[class*="banner"]
+!##[class*="banner"]
 ! - 예외  툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) 전체 사라짐
 [$domain=/^tkor\d+.com/]#@#[class*="banner"]
 ! - 연합뉴스 (https://www.yna.co.kr/) - 전체 안보임
@@ -3183,7 +3193,13 @@ yna.co.kr#@#[class*="banner"]
 [$domain=/^wdwd\d+.com/]#@#[class*="banner"]
 ! - 18모아 (https://18moa026.com/) - 일부 리스트 사라짐
 [$domain=/^18moa\d+.com/]#@#[class*="banner"]
+! - - - 펀비 (https://funbe536.com/)
+[$domain=/^funbe\d+.com/]#@#[class*="banner"]
+! 주소모두 (https://jusomodu9.com/) - 리스트 사라짐
+[$domain=/^jusomodu\d+.com/]#@#[class*="banner"]
 
+
+##[class*="main_banner"]
 
 !
 !
@@ -3192,7 +3208,8 @@ yna.co.kr#@#[class*="banner"]
 !
 ! - 예외
 
-trand.co.kr#@#a[href][target] img
+trand.co.kr#@#a[href][target*='blank'] img
+!trand.co.kr#@#a[href][target] img
 trand.co.kr#@#a[href][onclick] [class][src]
 trand.co.kr#@#[style^="background-image"] a[href]
 
@@ -3208,7 +3225,8 @@ trand.co.kr#@#[style^="background-image"] a[href]
 ! 숲 (https://www.sooplive.co.kr/) - 실시간 영상 이미지 안보임
 ! KICK (https://kick.com/) - 일부 이미지 사라짐
 ! 웨이브 (https://www.wavve.com/) - 팝업 이미지 안보임
-sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
+!sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
+sooplive.co.kr#@#a[href][target*="blank"] img
 
 ! 네이버 (https://www.naver.com/)
 ! 네이트 (https://www.nate.com/)
@@ -3219,7 +3237,8 @@ sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
 ! Yahoo! japan (https://www.yahoo.co.jp/)
 ! Brave (https://search.brave.com/)
 ! 나무위키 (https://namu.wiki/) - SNS 아이콘 안보임 (마우스 갔다대면 링크 클릭은 가능)
-naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target] img
+!naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target] img
+naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target*="blank"] img
 
 
 
@@ -3230,7 +3249,8 @@ naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,bra
 ! 웃긴대학 (https://web.humoruniv.com/) - 로고 및 일부 이미지 사라짐
 ! 다모앙 (https://damoang.net/) - 일부 아이콘 및 이미지 사라짐
 ! 오늘의유머 (https://www.todayhumor.co.kr/) - 로고 등 일부 이미지 사라짐
-etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target] img
+!etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target] img
+etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target*="blank"] img
 
 
 
@@ -3244,9 +3264,13 @@ etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net
 !ruliweb.com#@#a[href][target] img
 
 
+! 기상청 (https://www.weather.go.kr/)
+!weather.go.kr#@#a[href][target] img
+weather.go.kr#@#a[href][target*="blank"] img
+
 
 ! https://dramaday.me/ (이미지 안보임)
-dramaday.me#@#a[href][target] img
+!dramaday.me#@#a[href][target] img
 
 
 ! 옥션 (https://escrow.auction.co.kr/) - 로고 등 일부 이미지 사라짐
@@ -3260,7 +3284,19 @@ dramaday.me#@#a[href][target] img
 ! 신세계몰 (https://shinsegaemall.ssg.com/)
 ! 쿠차 (https://www.coocha.co.kr/)
 ! NS홈쇼핑 (https://m.nsmall.com/)
-auction.co.kr,danawa.com,gmarket.co.kr,coupang.com,ko.aliexpress.com.temu.com,lotteimall.com,hmall.com,shinsegaemall.ssg.com,coocha.co.kr,nsmall.com#@#a[href][target] img
+! 앱스토리몰 (https://c.appstory.co.kr/)
+!auction.co.kr,danawa.com,gmarket.co.kr,coupang.com,ko.aliexpress.com.temu.com,lotteimall.com,hmall.com,shinsegaemall.ssg.com,coocha.co.kr,nsmall.com,appstory.co.kr#@#a[href][target] img
+auction.co.kr,danawa.com,gmarket.co.kr,coupang.com,ko.aliexpress.com.temu.com,lotteimall.com,hmall.com,shinsegaemall.ssg.com,coocha.co.kr,nsmall.com,appstory.co.kr#@#a[href][target*="blank"] img
+
+
+! TV조아 (https://tvzota147.com/)
+![$domain=/^tvzota\d+.com/]#@#a[href][target] img
+
+! 링크랭킹 (https://www.lkrk1.com/)
+! 주소모두 (https://jusomodu9.com/) - 리스트 사라짐
+! 주소골라 (https://jusopick.com/)
+! 링크캣 (https://link-cat2.com/)
+![$domain=/^www.lkrk\d+.com/],[$domain=/^jusomodu\d+.com/],jusopick.com,[$domain=/^link-cat\d+.com/]#@#a[href][target] img
 
 
 ! 쿠팡 (https://www.coupang.com/)
@@ -3278,14 +3314,15 @@ coupang.com,gsshop.com,shinsegaemall.ssg.com#@#a[href] img[src*="banner"]
 
 
 ! JTBC뉴스 (https://news.jtbc.co.kr/)
-jtbc.co.kr#@#a[href][target] img
+!jtbc.co.kr#@#a[href][target] img
 
 ! 조아툰 (https://joatoon68.com/) - 만화 목록 이미지 사라짐
-[$domain=/^joatoon\d+.com/]#@#a[href][target] img
-
 ! 망가조아 (https://mangajoa5.com/) - 목록별 만화 이미지 사라짐
 ! 망가망가 (https://mgmg2.com/) - 목록별 만화 이미지 사라짐
-[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/]#@#a[href][target] img
+! 웹툰가이드 (https://www.webtoonguide.com/) - 만화 목록 이미지 안보임
+![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/],webtoonguide.com#@#a[href][target] img
+[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/],webtoonguide.com#@#a[href][target*="blank"] img
+
 
 
 
@@ -3295,8 +3332,7 @@ jtbc.co.kr#@#a[href][target] img
 ! https://loopholes.site/
 loopholes.site#@#[style][src*="/wp-content/uploads/"]
 
-! https://fc2ppvdb.com/
-fc2ppvdb.com#@#a[href][target] img
+
 
 
 !!! 트위터 관련
@@ -3305,20 +3341,20 @@ fc2ppvdb.com#@#a[href][target] img
 ! https://monsnode.com/
 ! https://twihub.net/
 ! https://twiigle.com/
-twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target] img
+!twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target] img
+twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target*="blank"] img
 
 
 
 !!! 성인 이미지 관련
 ! https://yastagram.kr/
 ! https://www.4khd.com/
-! 놀쟈 (https://www.nznami.com/) - 주소 바뀜
+! 놀쟈 (https://www.nznami.com/) - 주소 바뀜 (게시물 이미지 지워짐)
 ! https://of996.com/
+! https://fc2ppvdb.com/
 
-yastagram.kr#@#a[href][target] img
-4khd.com#@#a[href][target] img
-nznami.com#@#a[href][target] img
-of996.com#@#a[href][target] img
+!yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target] img
+yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
 
 
 
