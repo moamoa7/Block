@@ -403,9 +403,13 @@ ruliweb.com##.fixed_layer1
 ! - 게시글 상단 배너(마켓 홍보) (PC/모바일)
 ddanzi.com###banner_ddanzi_market
 ! - 게시글 하단 공백 공간 (모바일)
- ddanzi.com##.add_display2
+ddanzi.com##.add_display2
 ! - 이미지 복원
 !@@||img-cdn.ddanzi.com/files/attach/images/*$image
+! - 게시물 하단 게시판 리스트 삭제 (PC/모바일)
+ddanzi.com##.categoryBoard
+! - 게시물 하단 게시판 리스트 삭제 (모바일 옵션)
+ddanzi.com##.board_addOption
 !
 !
 ! 보배드림 (https://www.bobaedream.co.kr/)
