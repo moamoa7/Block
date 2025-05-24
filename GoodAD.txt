@@ -3384,8 +3384,10 @@ loopholes.site#@#[style][src*="/wp-content/uploads/"]
 ! 놀쟈 (https://www.nznami.com/) - 주소 바뀜 (게시물 이미지 지워짐)
 ! https://of996.com/
 ! https://fc2ppvdb.com/
-
-yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target] img
+! https://www.nicesss.com/
+! https://8se.me/
+! https://www.8kcosplay.com/
+yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
 
 
@@ -3410,4 +3412,5 @@ hmall.com#@#[class*="popup"]
 [$domain=/^kr1.\d+kjav.co/]#@#[class*="popup"]
 ! - 네이버플러스멤버쉽 (https://nid.naver.com/) - 팝업 차단으로 화면 뿌옇게 변함. 화면 스크롤 안됨
 nid.naver.com#@#[class*="popup"]
-
+! https://www.elitebabes.com/ - 아무것도 안보임
+www.elitebabes.com#@#[class*="popup"]
