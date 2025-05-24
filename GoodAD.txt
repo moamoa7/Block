@@ -2630,7 +2630,9 @@ hitomi.la###immersive-translate-popup
 ! - - - ||www.19guide*.com/img/*
 !||*.com/img/*
 ! - 인증업체 글자
-[$domain=/^jusoyo\d+.com/]##.on.menu-li
+![$domain=/^jusoyo\d+.com/]##.on.menu-li
+! - 하단 투명한 배너 공간
+[$domain=/^jusoyo\d+.com/]###bottom-banner-btn
 !
 !
 ! 19가이드닷컴 (https://www.19guide03.com/)
@@ -3049,25 +3051,28 @@ zeta-ai.io##.pointer-events-none
 !
 !
 !!! 기본 1
-!##A[target='_blank'] > IMG[width='100%'][src*='.gif']
-!##a[href][target*='blank'] img[src*='.gif']
 ! - - -  AVseeTV (https://04.avsee.ru/)
 ! - - - 뉴토끼 (https://newtoki468.com/)
 ! - - - 북토끼 (https://booktoki468.com/)
 ! - - - 7MMTV (https://7tv033.com/)
+!##A[target='_blank'] > IMG[width='100%'][src*='.gif']
+!##a[href][target*='blank'] img[src*='.gif']
+
+
 !!! 기본 변형 1
 ! - - - 이미지가 gif가 아닌 경우에도 사용
-! - - - 야부리 시즌 2 (https://yaburi60.com/)
-! - - - 도지코믹스 (https://dozi352.com/)
+! - - - 링크나라 (https://www.linknala.com/)
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-!##a[href][target*='_blank'] img
+www.linknala.com##a[href][target*='_blank'] img
 
 
 !!! - 기본 변형 2
 ! - - - href*='http'가 아닌 경우에도 사용
 ! - - - target="_blank가 아닐 경우에도 사용 (예: target="_self" / target="_target 등)
 ! - - - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
+! - - - 야부리 시즌 2 (https://yaburi60.com/)
+! - - - 도지코믹스 (https://dozi352.com/)
 ! - - - 만화방 (https://manhwabang.org/)
 ! - - - 메시티비 (https://messitv8.com/)
 ![$domain=/^7tv\d+.com/]##a[href][target*='_blank'] img
@@ -3080,6 +3085,36 @@ zeta-ai.io##.pointer-events-none
 !##[target][href] img
 !manhwabang.org,messitv8.com##a[href][target] img
 ##a[href][target] img
+
+
+!!! - 기본 변형 3
+! - - - https://jusoyo42.com/ 상단 배너
+[$domain=/^jusoyo\d+.com/]##a[href][target] img[class]
+
+
+!!! 기본 변형 4
+! 주소요 (https://jusoyo42.com/) 오른쪽 배너
+[$domain=/^jusoyo\d+.com/]##a[href][target] img[style]
+
+
+!!! - 기본 변형 5
+! - 일부 사이트에서 사용 중 (target과 class 다 붙어 있음)
+! - - - 광역 사용시 타사이트 이미지 지워짐
+! - - - https://jusoyo42.com/ 하단 배너
+[$domain=/^jusoyo\d+.com/]##a[href][target][class]
+
+
+!!! 기본 변형 6
+! - - - 광역 사용시 타사이트 이미지 지워짐
+! - - - https://linkpan71.com/ 상단 배너
+! - 일부 사이트에서 사용 중 (target과 class 사이 한칸 띄운거)
+! - - - - - [style*="background"] 하면 다른 텍스트링크까지 지움 (순서 바꾸면 안됨)
+![$domain=/^linkpan\d+.com/]##a[href][target] [style^="background-image"] 에서 변경
+![$domain=/^linkpan\d+.com/]##a[href][target='_blank'] [class]
+[$domain=/^linkpan\d+.com/]##a[href][target] [class]
+
+
+
 
 
 ! 변형 기본
@@ -3099,7 +3134,6 @@ zeta-ai.io##.pointer-events-none
 ![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/]##[style] a[href][target] img
 ![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/]##[style] a[href][target*='_blank'] img
 [$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/]##[style] a[href][target] img
-
 
 
 ! - 일부 사이트에서 사용 중
@@ -3135,21 +3169,12 @@ zeta-ai.io##.pointer-events-none
 
 
 ! - 일부 사이트에서 사용 중
-! - - - 광역 사용시 타사이트 이미지 지워짐
-! - - - https://linkpan71.com/ 상단 배너
-! - - - - - [style*="background"] 하면 다른 텍스트링크까지 지움 (순서 바꾸면 안됨)
-![$domain=/^linkpan\d+.com/]##a[href][target] [style^="background-image"] 에서 변경
-![$domain=/^linkpan\d+.com/]##a[href][target='_blank'] [class]
-[$domain=/^linkpan\d+.com/]##a[href][target] [class]
-
-
-
-! - 일부 사이트에서 사용 중
 ! - - - /wp-content/uploads/ 1규칙
 ! - - - [src]로 하면 모든 이미지 사라짐
 ! - - - 상단배너는 ###imgDiv > table 로 공간없애고 나머지는 기본 규칙인 ##[target][href] img 로 해결 (아래 규칙 안해도 됨)
 ! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
 ![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
+
 
 ! - 일부 사이트에서 사용 중
 ! - - - /wp-content/uploads/  2규칙
@@ -3196,10 +3221,10 @@ javlemon.com##[style]> [src]
 
 
 
-! - 일부 사이트에서 사용 중
+! - 일부 사이트에서 사용 중 (특이)
 !  - - -광역으로 사용시 페이지 아무껏도 안보임
-! - - -  두꺼비티비 (https://dugebitv104.xyz/)
-[$domain=/^dugebitv\d+.xyz/]##[style][class] [class]
+! - - -  두꺼비티비 (https://dugebitv104.xyz/) 상단배너
+[$domain=/^dugebitv\d+.xyz/]##[style][class] [data-original]
 
 
 
@@ -3228,6 +3253,29 @@ yna.co.kr#@#[class*="banner"]
 
 
 ##[class*="main_banner"]
+
+
+##[class*="popup"]
+! - - - 예외 ( 출석.추천.찐추 버튼 복구)
+www.etoland.co.kr#@#[class*="popup"]
+! - - - 예외 ( 스크롤이 안됨)
+www.wavve.com#@#[class*="popup"]
+! - - - 예외 (화면 안나옴)
+mypikpak.com#@#[class*="popup"]
+! - - - 예외 (구매결정 팝업창 안나옴)
+escrow.auction.co.kr#@#[class*="popup"]
+! - - - 예외 (스크롤 안됨)
+m.mrblue.com#@#[class*="popup"]
+! - - - 예외 (네이버페이) - 적립 창 안뜸
+campaign2.naver.com#@#[class*="popup"]
+! - 현대홈쇼핑 (https://www.hmall.com/) - 아무것도 안보임
+hmall.com#@#[class*="popup"]
+! - 쏘걸안내 (https://kr1.4kjav.co/) - 아무것도 안보임
+[$domain=/^kr1.\d+kjav.co/]#@#[class*="popup"]
+! - 네이버플러스멤버쉽 (https://nid.naver.com/) - 팝업 차단으로 화면 뿌옇게 변함. 화면 스크롤 안됨
+nid.naver.com#@#[class*="popup"]
+! https://www.elitebabes.com/ - 아무것도 안보임
+www.elitebabes.com#@#[class*="popup"]
 
 !
 !
@@ -3324,18 +3372,15 @@ dramaday.me#@#a[href][target] img
 ! TV조아 (https://tvzota147.com/)
 ![$domain=/^tvzota\d+.com/]#@#a[href][target] img
 
-! 링크랭킹 (https://www.lkrk1.com/)
-! 주소모두 (https://jusomodu9.com/) - 리스트 사라짐
-! 주소골라 (https://jusopick.com/)
-! 링크캣 (https://link-cat2.com/)
-![$domain=/^www.lkrk\d+.com/],[$domain=/^jusomodu\d+.com/],jusopick.com,[$domain=/^link-cat\d+.com/]#@#a[href][target] img
+! 주소요 (https://jusoyo42.com/)
+! 링크나라 (https://www.linknala.com/)
+[$domain=/^jusoyo\d+.com/],www.linknala.com#@#a[href][target] img
 
 
 ! 쿠팡 (https://www.coupang.com/)
 ! GS샵 (https://www.gsshop.com/)
 ! 신세계몰 (https://shinsegaemall.ssg.com/)
 !coupang.com,gsshop.com,shinsegaemall.ssg.com#@#a[href] img[src*="banner"]
-
 ! 18모아 (https://18moa026.com/)
 [$domain=/^18moa\d+.com/]#@#a[href] img[src*="banner"]
 
@@ -3389,28 +3434,3 @@ loopholes.site#@#[style][src*="/wp-content/uploads/"]
 ! https://www.8kcosplay.com/
 yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
-
-
-
-
-##[class*="popup"]
-! - - - 예외 ( 출석.추천.찐추 버튼 복구)
-www.etoland.co.kr#@#[class*="popup"]
-! - - - 예외 ( 스크롤이 안됨)
-www.wavve.com#@#[class*="popup"]
-! - - - 예외 (화면 안나옴)
-mypikpak.com#@#[class*="popup"]
-! - - - 예외 (구매결정 팝업창 안나옴)
-escrow.auction.co.kr#@#[class*="popup"]
-! - - - 예외 (스크롤 안됨)
-m.mrblue.com#@#[class*="popup"]
-! - - - 예외 (네이버페이) - 적립 창 안뜸
-campaign2.naver.com#@#[class*="popup"]
-! - 현대홈쇼핑 (https://www.hmall.com/) - 아무것도 안보임
-hmall.com#@#[class*="popup"]
-! - 쏘걸안내 (https://kr1.4kjav.co/) - 아무것도 안보임
-[$domain=/^kr1.\d+kjav.co/]#@#[class*="popup"]
-! - 네이버플러스멤버쉽 (https://nid.naver.com/) - 팝업 차단으로 화면 뿌옇게 변함. 화면 스크롤 안됨
-nid.naver.com#@#[class*="popup"]
-! https://www.elitebabes.com/ - 아무것도 안보임
-www.elitebabes.com#@#[class*="popup"]
