@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250524
+! Version: 20250525
 !
 !
 !
@@ -3244,7 +3244,6 @@ javlemon.com##[style]> [src]
 ##a[href] img[src*="banner"]
 
 
-
 !##[class*="banner"]
 ! - 예외  툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) 전체 사라짐
 [$domain=/^tkor\d+.com/]#@#[class*="banner"]
@@ -3380,10 +3379,13 @@ dramaday.me#@#a[href][target] img
 ! TV조아 (https://tvzota147.com/)
 ![$domain=/^tvzota\d+.com/]#@#a[href][target] img
 
+! 인기사이트TOP10 (https://jancolink.com/)
 ! 주소요 (https://jusoyo42.com/)
 ! 링크나라 (https://www.linknala.com/)
 ! 주소타운 (https://www.jusotw.com/)
-[$domain=/^jusoyo\d+.com/],www.linknala.com,www.jusotw.com#@#a[href][target] img
+! 주소나라 (https://jusonara.net/)
+! 링크사랑 (https://linklove54.com/)
+jancolink.com,[$domain=/^jusoyo\d+.com/],www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/]#@#a[href][target] img
 
 
 ! 쿠팡 (https://www.coupang.com/)
