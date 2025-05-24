@@ -97,6 +97,14 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)!
 !
 !
+! 네이버플러스 멤버쉽 (https://nid.naver.com/)
+! - 아래 규칙 해도 스크롤 안되므로 팝업 차단 하지 말것
+! - 팝업
+!##.popup_layer
+! -회면 뿌연거 해결
+!nid.naver.com###dimmed
+!
+!
 ! 숲 ((https://sooplive.co.kr)
 ! - 팝업
 sooplive.co.kr##.on.bnrimg_area
@@ -1406,10 +1414,10 @@ cgv.co.kr##.btnLinkFixed
 !
 !
 ! 왓챠피디아 (https://pedia.watcha.com/)
-! - 게시물 하단 배너
-##[href^="https://watcha.com/ko-KR/promotions/watchapromotion"]
+! - 배너
+pedia.watcha.com##a[href][target] [class]
 pedia.watcha.com##.OKQiqzeA.j9pLi57W
-##.adFixed
+pedia.watcha.com##.adFixed
 
 !
 !
@@ -2861,7 +2869,7 @@ zeta-ai.io##.pointer-events-none
 !
 !
 ! 라이브 방송
-@@||$generichide,domain=www.sooplive.co.kr|chzzk.naver.com|tv.naver.com|tv.kakao.com|www.twitch.tv|kick.com|www.showroom-live.com|twitcasting.tv|www.huya.com|www.douyu.com|www.bilibili.com
+@@||$generichide,domain=www.youtube.com|music.youtube.com|open.spotify.com|discord.com|www.sooplive.co.kr|chzzk.naver.com|tv.naver.com|tv.kakao.com|www.twitch.tv|kick.com|www.showroom-live.com|twitcasting.tv|www.huya.com|www.douyu.com|www.bilibili.com|www.podbbang.com
 !
 !
 ! - 금융 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
@@ -2884,7 +2892,7 @@ zeta-ai.io##.pointer-events-none
 !
 !
 ! 커뮤니티
-@@||$generichide,domain=www.fmkorea.com|www.etoland.co.kr|www.inven.co.kr|mlbpark.donga.com|theqoo.net|web.humoruniv.com|damoang.net|www.todayhumor.co.kr|www.bobaedream.co.kr|www.82cook.com|bbs.ruliweb.com|www.ppomppu.co.kr|www.ddanzi.com|ygosu.com|www.jjang0u.com|clien.net|www.slrclub.com|bbs.ruliweb.com
+@@||$generichide,domain=www.fmkorea.com|www.etoland.co.kr|www.inven.co.kr|mlbpark.donga.com|theqoo.net|web.humoruniv.com|damoang.net|www.todayhumor.co.kr|www.bobaedream.co.kr|www.82cook.com|bbs.ruliweb.com|www.ppomppu.co.kr|www.ddanzi.com|ygosu.com|www.jjang0u.com|clien.net|www.slrclub.com|bbs.ruliweb.com|www.instiz.net
 !
 !
 
@@ -3397,4 +3405,6 @@ campaign2.naver.com#@#[class*="popup"]
 hmall.com#@#[class*="popup"]
 ! - 쏘걸안내 (https://kr1.4kjav.co/) - 아무것도 안보임
 [$domain=/^kr1.\d+kjav.co/]#@#[class*="popup"]
+! - 네이버플러스멤버쉽 (https://nid.naver.com/) - 팝업 차단으로 화면 뿌옇게 변함. 화면 스크롤 안됨
+nid.naver.com#@#[class*="popup"]
 
