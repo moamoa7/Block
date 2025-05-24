@@ -2722,8 +2722,10 @@ stripchatgirls.com##.Modal__scrollableOverlay\#SW.Modal__overlay_clickable\#ho.M
 ! 오늘의 중계 (today-sports7.com) - 팝업
 ! - - - 코난티비(https://conan-tv.com/) - 팝업
 ###hd_pop
-! - 상단 배너
+! - 상단 배너 공간
 ![$domain=/^today-sports\d+.com/]##.draggable.slick-list
+![$domain=/^today-sports\d+.com/]##.live-stream
+##.live-stream
 ! - 왼쪽 배너
 !##.info-banner
 ! - 게시물내 한칸짜리 배너
@@ -3434,3 +3436,4 @@ loopholes.site#@#[style][src*="/wp-content/uploads/"]
 ! https://www.8kcosplay.com/
 yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
+
