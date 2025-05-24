@@ -515,8 +515,12 @@ clien.net##.active.button_sidemenu
 !
 !
 ! 다모앙 (https://damoang.net/)
+! - 배너
+damoang.net##.adsbygoogle
 ! - 오른쪽 스크롤도구
 damoang.net##.d-block
+! - 게시물 하단 목록 리스트 삭제
+damoang.net###bo_list_wrap
 ! - 이미지 복구
 !@@||damoang.net//data/editor/*$image
 !@@||cdn.damoang.net/img/*$image
@@ -1017,9 +1021,6 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! 군밤티비 (https://drhtv.tv/)
 ! - 왼쪽 배너
 !drhtv.tv##.slide
-! - 예외 (이토랜드)
-!@@etoland.co.kr/img/squid_chance/side_banner/1720407981.png
-!@@etoland.co.kr/img/squid_chance/side_banner/1720407989.png
 !
 !
 ! 퐁퐁티비 (https://ppmantv.com/)
@@ -2902,20 +2903,20 @@ zeta-ai.io##.pointer-events-none
 !
 !
 ! 커뮤니티
-@@||$generichide,domain=www.fmkorea.com|www.etoland.co.kr|www.inven.co.kr|mlbpark.donga.com|theqoo.net|web.humoruniv.com|damoang.net|www.todayhumor.co.kr|www.bobaedream.co.kr|www.82cook.com|bbs.ruliweb.com|www.ppomppu.co.kr|www.ddanzi.com|ygosu.com|www.jjang0u.com|clien.net|www.slrclub.com|bbs.ruliweb.com|www.instiz.net
+@@||$generichide,domain=fmkorea.com|etoland.co.kr|inven.co.kr|mlbpark.donga.com|theqoo.net|web.humoruniv.com|damoang.net|todayhumor.co.kr|bobaedream.co.kr|82cook.com|bbs.ruliweb.com|ppomppu.co.kr|ddanzi.com|ygosu.com|jjang0u.com|clien.net|slrclub.com|bbs.ruliweb.com|instiz.net
 !
 !
 
 ! 검색엔진
-@@||$generichide,domain=www.naver.com|search.naver.com|cafe.naver.com|blog.naver.com|www.nate.com|news.nate.com|www.daum.net|search.daum.net|cafe.daum.net|zum.com|duckduckgo.com|www.startpage.com|www.yahoo.co.jp|brave.com|namu.wiki|yandex.com|www.msn.com|www.bing.com
+@@||$generichide,domain=naver.com|nate.com|daum.net|zum.com|duckduckgo.com|startpage.com|yahoo.co.jp|brave.com|namu.wiki|yandex.com|msn.com|bing.com
 !
 !
 ! 트위터 성인 영상
-@@||$generichide,domain=twivideo.net|www.twidouga.net|monsnode.com|twihub.net|twiigle.com|www.twi-dl.net|www.urahame.com
+@@||$generichide,domain=twivideo.net|twidouga.net|monsnode.com|twihub.net|twiigle.com|twi-dl.net|urahame.com
 !
 !
 ! 기타
-@@||$generichide,domain=www.weather.go.kr
+@@||$generichide,domain=weather.go.kr
 !
 !
 !
@@ -3246,17 +3247,17 @@ javlemon.com##[style]> [src]
 
 !##[class*="banner"]
 ! - 예외  툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) 전체 사라짐
-[$domain=/^tkor\d+.com/]#@#[class*="banner"]
+![$domain=/^tkor\d+.com/]#@#[class*="banner"]
 ! - 연합뉴스 (https://www.yna.co.kr/) - 전체 안보임
-yna.co.kr#@#[class*="banner"]
+!yna.co.kr#@#[class*="banner"]
 ! - 주소월드 (https://wdwd7.com/) - 리스트 사라짐
-[$domain=/^wdwd\d+.com/]#@#[class*="banner"]
+![$domain=/^wdwd\d+.com/]#@#[class*="banner"]
 ! - 18모아 (https://18moa026.com/) - 일부 리스트 사라짐
-[$domain=/^18moa\d+.com/]#@#[class*="banner"]
+![$domain=/^18moa\d+.com/]#@#[class*="banner"]
 ! - - - 펀비 (https://funbe536.com/)
-[$domain=/^funbe\d+.com/]#@#[class*="banner"]
+![$domain=/^funbe\d+.com/]#@#[class*="banner"]
 ! 주소모두 (https://jusomodu9.com/) - 리스트 사라짐
-[$domain=/^jusomodu\d+.com/]#@#[class*="banner"]
+![$domain=/^jusomodu\d+.com/]#@#[class*="banner"]
 
 
 ##[class*="main_banner"]
@@ -3385,7 +3386,9 @@ dramaday.me#@#a[href][target] img
 ! 주소타운 (https://www.jusotw.com/)
 ! 주소나라 (https://jusonara.net/)
 ! 링크사랑 (https://linklove54.com/)
-jancolink.com,[$domain=/^jusoyo\d+.com/],www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/]#@#a[href][target] img
+! 주소월드 (https://wdwd7.com/)
+! 주소모두 (https://jusomodu9.com/)
+jancolink.com,[$domain=/^jusoyo\d+.com/],www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/],[$domain=/^wdwd\d+.com/],[$domain=/^jusomodu\d+.com/]#@#a[href][target] img
 
 
 ! 쿠팡 (https://www.coupang.com/)
