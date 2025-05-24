@@ -433,8 +433,9 @@ ygosu.com##.pull-left.btn-group
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - 메인/게시물 왼쪽 배너 공간 (PC)
 ! - 야동코리아 (https://yako4.net/) - 영상 하단 배너
+! - 밍키넷 영상 하단 텍스트 배너
 ! - - - 유튜브에서도 적용
-!###banner
+###banner
 ! - 모바일 하단 배너
 !##.ad_area1
 ! - 이미지 복원
@@ -2241,6 +2242,8 @@ mingky.net##div.mb-sm-4.mb-3:nth-of-type(1)
 mingky.net##.px-xl-0.px-sm-4.px-0.my-sm-4.my-3.nt-container > div
 ! 영상 상.하단 모든 배너 공간
 mingky.net##.row-cols-md-1.row-cols-sm-1.row-cols-1.row
+! - 1:1 문의 공간
+mingky.net##.clearfix.nt-links
 !
 !
 ! 밍키넷 (https://mingky34.net/)
