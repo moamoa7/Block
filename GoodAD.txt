@@ -2869,7 +2869,7 @@ zeta-ai.io##.pointer-events-none
 !
 !
 ! 라이브 방송
-@@||$generichide,domain=www.youtube.com|music.youtube.com|open.spotify.com|discord.com|www.sooplive.co.kr|chzzk.naver.com|tv.naver.com|tv.kakao.com|www.twitch.tv|kick.com|www.showroom-live.com|twitcasting.tv|www.huya.com|www.douyu.com|www.bilibili.com|www.podbbang.com
+@@||$generichide,domain=www.youtube.com|music.youtube.com|open.spotify.com|discord.com|www.sooplive.co.kr|play.sooplive.co.kr|vod.sooplive.co.kr|ch.sooplive.co.kr|chzzk.naver.com|tv.naver.com|tv.kakao.com|www.twitch.tv|kick.com|www.showroom-live.com|twitcasting.tv|www.huya.com|www.douyu.com|www.bilibili.com|www.podbbang.com
 !
 !
 ! - 금융 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
@@ -2897,12 +2897,15 @@ zeta-ai.io##.pointer-events-none
 !
 
 ! 검색엔진
-@@||$generichide,domain=www.naver.com|www.nate.com|www.daum.net|zum.com|duckduckgo.com|www.startpage.com|www.yahoo.co.jp|brave.com|namu.wiki|yandex.com|www.msn.com|www.bing.com
+@@||$generichide,domain=www.naver.com|search.naver.com|cafe.naver.com|blog.naver.com|www.nate.com|news.nate.com|www.daum.net|search.daum.net|cafe.daum.net|zum.com|duckduckgo.com|www.startpage.com|www.yahoo.co.jp|brave.com|namu.wiki|yandex.com|www.msn.com|www.bing.com
 !
 !
-
 ! 트위터 성인 영상
 @@||$generichide,domain=twivideo.net|www.twidouga.net|monsnode.com|twihub.net|twiigle.com|www.twi-dl.net|www.urahame.com
+!
+!
+! 기타
+@@||$generichide,domain=www.weather.go.kr
 !
 !
 !
@@ -3292,7 +3295,7 @@ trand.co.kr#@#[style^="background-image"] a[href]
 
 
 ! 기상청 (https://www.weather.go.kr/)
-weather.go.kr#@#a[href][target] img
+!weather.go.kr#@#a[href][target] img
 !weather.go.kr#@#a[href][target*="blank"] img
 !weather.go.kr#@#a[href*="http"][target*="blank"] img
 
@@ -3349,8 +3352,8 @@ dramaday.me#@#a[href][target] img
 ! 망가조아 (https://mangajoa5.com/) - 목록별 만화 이미지 사라짐
 ! 망가망가 (https://mgmg2.com/) - 목록별 만화 이미지 사라짐
 ! 웹툰가이드 (https://www.webtoonguide.com/) - 만화 목록 이미지 안보임
-![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/],webtoonguide.com#@#a[href][target] img
-[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/],webtoonguide.com#@#a[href][target*="blank"] img
+[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/],webtoonguide.com#@#a[href][target] img
+![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/],webtoonguide.com#@#a[href][target*="blank"] img
 
 
 
@@ -3382,8 +3385,8 @@ loopholes.site#@#[style][src*="/wp-content/uploads/"]
 ! https://of996.com/
 ! https://fc2ppvdb.com/
 
-!yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target] img
-yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
+yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target] img
+!yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
 
 
 
