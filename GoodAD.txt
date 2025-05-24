@@ -2724,6 +2724,7 @@ stripchatgirls.com##.Modal__scrollableOverlay\#SW.Modal__overlay_clickable\#ho.M
 ###hd_pop
 ! - 상단 배너 공간
 ![$domain=/^today-sports\d+.com/]##.draggable.slick-list
+! - 모바일 상단 배너
 ![$domain=/^today-sports\d+.com/]##.live-stream
 ##.live-stream
 ! - 왼쪽 배너
@@ -2735,8 +2736,8 @@ stripchatgirls.com##.Modal__scrollableOverlay\#SW.Modal__overlay_clickable\#ho.M
 ! - - - - -빨간비디오 (https://redvi77.com/)
 ! - - - - -야동도시 (https://yacity47.com/)
 ! - - - - -야동공장 (https://yagong84.com/)
-! - 모바일 상단 배너
-![$domain=/^today-sports\d+.com/]##.live-stream.only-mobile
+! - 모바일 왼쪽 사람 아이콘 없애기
+##.sidebar-user-trigger
 !
 !
 ! FC2 18세 이상 박스
