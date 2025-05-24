@@ -2879,11 +2879,18 @@ zeta-ai.io##.pointer-events-none
 @@||$image,xhr,domain=work24.go.kr|www.jobkorea.co.kr|www.saramin.co.kr|www.incruit.com|www.career.co.kr|www.alba.co.kr|www.albamon.com|indeed.com
 !
 !
+! 커뮤니티
 @@||$generichide,domain=www.fmkorea.com|www.etoland.co.kr|www.inven.co.kr|mlbpark.donga.com|theqoo.net|web.humoruniv.com|damoang.net|www.todayhumor.co.kr|www.bobaedream.co.kr|www.82cook.com|bbs.ruliweb.com|www.ppomppu.co.kr|www.ddanzi.com|ygosu.com|www.jjang0u.com|clien.net|www.slrclub.com|bbs.ruliweb.com
+!
+!
 
+! 검색엔진
+@@||$generichide,domain=www.naver.com|www.nate.com|www.daum.net|zum.com|duckduckgo.com|www.startpage.com|www.yahoo.co.jp|brave.com|namu.wiki|yandex.com|www.msn.com|www.bing.com
+!
+!
 
-
-
+! 트위터 성인 영상
+@@||$generichide,domain=twivideo.net|www.twidouga.net|monsnode.com|twihub.net|twiigle.com|www.twi-dl.net|www.urahame.com
 !
 !
 !
@@ -3242,7 +3249,7 @@ sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
 ! Yahoo! japan (https://www.yahoo.co.jp/)
 ! Brave (https://search.brave.com/)
 ! 나무위키 (https://namu.wiki/) - SNS 아이콘 안보임 (마우스 갔다대면 링크 클릭은 가능)
-naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target] img
+!naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target] img
 !naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target*="blank"] img
 
 
@@ -3352,7 +3359,7 @@ loopholes.site#@#[style][src*="/wp-content/uploads/"]
 ! https://twihub.net/
 ! https://twiigle.com/
 !twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target] img
-twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target*="blank"] img
+!twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target*="blank"] img
 
 
 
