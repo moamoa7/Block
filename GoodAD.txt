@@ -2860,6 +2860,10 @@ zeta-ai.io##.pointer-events-none
 @@||$image,xhr,domain=www.netflix.com|www.tving.com|www.wavve.com|www.coupangplay.com|tv.apple.com|watcha.com|laftel.net|www.spotvnow.co.kr|www.dorama.kr|www.bflix.co.kr|cinema.emotioncastle.com|www.purplay.co.kr|heavenly.tv|hellolive.tv|www.primevideo.com|www.disneyplus.com|www.iq.com|wetv.vip|www.viki.com
 !
 !
+! 라이브 방송
+@@||$generichide,domain=www.sooplive.co.kr|chzzk.naver.com|tv.naver.com|tv.kakao.com|www.twitch.tv|kick.com|www.showroom-live.com|twitcasting.tv|www.huya.com|www.douyu.com|www.bilibili.com
+!
+!
 ! - 금융 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
 @@||$generichide,domain=www.shinhan.com|www.shinhancard.com|shinhansec.com|www.kbstar.com|card.kbcard.com|www.kbsec.com|kebhana.com|www.hanacard.co.kr|www.hanaw.com|www.wooribank.com|pc.wooricard.com|fundsupermarket.wooriib.com|kfcc.co.kr|cu.co.kr|banking.nonghyup.com|www.ibk.co.kr|www.bccard.com|www.lottecard.co.kr|www.hyundaicapital.com|kbcapital.co.kr|www.nhcapital.co.kr|www.semas.or.kr|www.kodit.co.kr|www.kibo.or.kr|www.kinfa.or.kr|ccrs.or.kr
 !
@@ -3237,7 +3241,7 @@ trand.co.kr#@#[style^="background-image"] a[href]
 ! 숲 (https://www.sooplive.co.kr/) - 실시간 영상 이미지 안보임
 ! KICK (https://kick.com/) - 일부 이미지 사라짐
 ! 웨이브 (https://www.wavve.com/) - 팝업 이미지 안보임
-sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
+!sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
 !sooplive.co.kr#@#a[href][target*="blank"] img
 
 ! 네이버 (https://www.naver.com/)
