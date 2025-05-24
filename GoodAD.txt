@@ -365,7 +365,7 @@ theqoo.net##.theqoo-counter
 !##[class^="ad-"]
 ! - 배너 (댓글 위 배너)
 !##[class$="-ad"]
-! - 게시물 하단 게시판 목록 삭제
+! - 게시물 하단 게시판 리스트 삭제
 ! - - - PC
 inven.co.kr##.new-board
 ! - - - 모바일
@@ -512,6 +512,11 @@ slrclub.com##.notice
 ! 클리앙 (https://clien.net/)
 ! - 왼쪽 따라다니는 석삼 메뉴
 clien.net##.active.button_sidemenu
+! - 게시물 아래 게시판 리스트 삭제
+! - - - PC
+clien.net##.view_list
+! - - - 모바일
+clien.net##.ViewListArea
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -523,7 +528,7 @@ clien.net##.active.button_sidemenu
 damoang.net##.adsbygoogle
 ! - 오른쪽 스크롤도구
 damoang.net##.d-block
-! - 게시물 하단 목록 리스트 삭제
+! - 게시물 하단 게시판 리스트 삭제
 damoang.net###bo_list_wrap
 ! - 이미지 복구
 !@@||damoang.net//data/editor/*$image
