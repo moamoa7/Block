@@ -369,6 +369,8 @@ etoland.co.kr###info_recent_list_wrap
 !
 !
 ! 더쿠 (https://theqoo.net/)
+! - 상단 공백
+theqoo.net##.adsbygoogle
 ! - 로딩중 글자
 theqoo.net##.theqoo-counter
 ! - 이미지 복원
@@ -471,6 +473,11 @@ ygosu.com##.pull-left.btn-group
 ! 82쿡 (https://www.82cook.com/)
 ! - 왼쪽 상단 배너 공간
 ###mainHeadline
+!
+!
+! 안스티즈 (https://www.instiz.net/)
+! - 게시판 및 중고장터 사이 공백 (EasyList)
+instiz.net##.imgad
 !
 !
 ! 일베 (https://www.ilbe.com/)
