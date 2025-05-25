@@ -2945,24 +2945,7 @@ zeta-ai.io##.pointer-events-none
 @@||$image,xhr,domain=work24.go.kr|www.jobkorea.co.kr|www.saramin.co.kr|www.incruit.com|www.career.co.kr|www.alba.co.kr|www.albamon.com|indeed.com
 !
 !
-! 커뮤니티
-fmkorea.com,etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,web.humoruniv.com,damoang.net,todayhumor.co.kr,bobaedream.co.kr,82cook.com,bbs.ruliweb.com,ppomppu.co.kr,ddanzi.com,ygosu.com,jjang0u.com,clien.net,slrclub.com,bbs.ruliweb.com,instiz.net,dogdrip.net,gasengi.com,suyong.so,humorpick.com#@#a[href][target] img
 
-
-! 검색엔진
-naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki,yandex.com,msn.com,bing.com#@#a[href][target] img
-
-! 라이브 방송
-youtube.com,spotify.com,discord.com,sooplive.co.kr,kakao.com,twitch.tv,kick.com,showroom-live.com,twitcasting.tv,huya.com,douyu.com,bilibili.com,podbbang.com#@#a[href][target] img
-
-! 방송사
-imbc.com,sbs.co.kr,kbs.co.kr,ebs.co.kr,jtbc.co.kr,ktena.co.kr#@#a[href][target] img
-
-! 트위터 성인 영상
-twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com,twi-dl.net,urahame.com#@#a[href][target] img
-
-! 기타
-weather.go.kr,speedtest.net#@#a[href][target] img
 !
 !
 !
@@ -3306,6 +3289,7 @@ javlemon.com##[style]> [src]
 ![$domain=/^jusomodu\d+.com/]#@#[class*="banner"]
 
 
+
 ##[class*="main_banner"]
 
 
@@ -3345,17 +3329,13 @@ trand.co.kr#@#[style^="background-image"] a[href]
 
 
 
-! 포모스 (https://www.fomos.kr/) - 럭키투유 링크 삭제 (땡큐야)
-! https://04.avsee.ru/ - 영상 게시판 내 사진을 지우지면 상관없음
-
-! https://www.reddit.com/ (일부 이미지 지워짐)
-!reddit.com#@#a[href][target] img
-
 ! 숲 (https://www.sooplive.co.kr/) - 실시간 영상 이미지 안보임
 ! KICK (https://kick.com/) - 일부 이미지 사라짐
 ! 웨이브 (https://www.wavve.com/) - 팝업 이미지 안보임
 !sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
 !sooplive.co.kr#@#a[href][target*="blank"] img
+! 라이브 방송
+youtube.com,spotify.com,discord.com,sooplive.co.kr,kakao.com,kick.com,showroom-live.com,twitcasting.tv,huya.com,douyu.com,bilibili.com,podbbang.com#@#a[href][target] img
 
 ! 네이버 (https://www.naver.com/)
 ! 네이트 (https://www.nate.com/)
@@ -3368,7 +3348,8 @@ trand.co.kr#@#[style^="background-image"] a[href]
 ! 나무위키 (https://namu.wiki/) - SNS 아이콘 안보임 (마우스 갔다대면 링크 클릭은 가능)
 !naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target] img
 !naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target*="blank"] img
-
+! 검색엔진
+naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki,yandex.com,msn.com,bing.com#@#a[href][target] img
 
 
 ! 이토랜드 (https://www.etoland.co.kr/) - 로고 등 일부 이미지 사라짐
@@ -3378,21 +3359,27 @@ trand.co.kr#@#[style^="background-image"] a[href]
 ! 웃긴대학 (https://web.humoruniv.com/) - 로고 및 일부 이미지 사라짐
 ! 다모앙 (https://damoang.net/) - 일부 아이콘 및 이미지 사라짐
 ! 오늘의유머 (https://www.todayhumor.co.kr/) - 로고 등 일부 이미지 사라짐
-!etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target] img
-!etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target*="blank"] img
-
 ! 보배드림 (https://www.bobaedream.co.kr/) 하단 자동차 매물 이미지 사라짐 (큰 상관 없어서 패스)
 !bobaedream.co.kr#@#a[href][target] img
-
 ! 82쿡 (https://www.82cook.com/) - 왼쪽 배너 삭제 (다른 요소에는 영향을 주지 않는것으로 보임)
 !82cook.com#@#a[href][target] img
-
 ! 루리웹 (https://bbs.ruliweb.com/) - 전체적으로 배너 삭제 (다른 요소에는 영향을 주지 않는것으로 보임)
 !ruliweb.com#@#a[href][target] img
-
 ! 뿜뿌 (https://www.ppomppu.co.kr/) - 배너삭제 외 이상 없음
 !ppomppu.co.kr#@#a[href][target] img
+! 포모스 (https://www.fomos.kr/) - 럭키투유 링크 삭제 (땡큐야)
+! https://04.avsee.ru/ - 영상 게시판 내 사진을 지우지면 상관없음
+! https://www.reddit.com/ (일부 이미지 지워짐)
+!reddit.com#@#a[href][target] img
+!etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target] img
+!etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target*="blank"] img
+! 커뮤니티
+fmkorea.com,etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,web.humoruniv.com,damoang.net,todayhumor.co.kr,bobaedream.co.kr,82cook.com,bbs.ruliweb.com,ppomppu.co.kr,ddanzi.com,ygosu.com,jjang0u.com,clien.net,slrclub.com,bbs.ruliweb.com,instiz.net,dogdrip.net,gasengi.com,suyong.so,humorpick.com#@#a[href][target] img
 
+
+
+! 방송사
+imbc.com,sbs.co.kr,kbs.co.kr,ebs.co.kr,jtbc.co.kr,ktena.co.kr#@#a[href][target] img
 
 
 
@@ -3400,7 +3387,8 @@ trand.co.kr#@#[style^="background-image"] a[href]
 !weather.go.kr#@#a[href][target] img
 !weather.go.kr#@#a[href][target*="blank"] img
 !weather.go.kr#@#a[href*="http"][target*="blank"] img
-
+! 기타
+weather.go.kr,speedtest.net#@#a[href][target] img
 
 
 ! https://dramaday.me/ (이미지 안보임)
@@ -3447,14 +3435,16 @@ jancolink.com#@#a[href][target] img
 ! - - - 이 사이트들은 일부 아이콘이나 이미지는 사라져 있으나 굳이 해제안해도 사용하는데는 지장이 없음
 ![$domain=/^jusoyo\d+.com/],www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/],[$domain=/^wdwd\d+.com/],[$domain=/^jusomodu\d+.com/],[$domain=/^jusokok\d+.com/],jusopick.com,[$domain=/^jusozzang\d+.xyz/],[$domain=/^jusotop\d+.com/],www.yugiyu.com,[$domain=/^xn--\d+-9e0jj6lotejx2a.com/],[$domain=/^linkya\d+.com/],[$domain=/^link-on\d+.com/]#@#a[href][target] img
 
+! 18모아 (https://18moa026.com/) - 이미지가 많이 사라져서 해제
+[$domain=/^18moa\d+.com/]#@#a[href] img[src*="banner"]
+
 
 ! 쿠팡 (https://www.coupang.com/)
 ! GS샵 (https://www.gsshop.com/)
 ! 신세계몰 (https://shinsegaemall.ssg.com/)
 !coupang.com,gsshop.com,shinsegaemall.ssg.com#@#a[href] img[src*="banner"]
 
-! 18모아 (https://18moa026.com/) - 이미지가 많이 사라져서 해제
-[$domain=/^18moa\d+.com/]#@#a[href] img[src*="banner"]
+
 
 ! CJ온스타일 (https://display.cjonstyle.com/)
 ! 쿠차 (https://www.coocha.co.kr/)
@@ -3478,11 +3468,6 @@ jancolink.com#@#a[href][target] img
 ! 다이소 (https://www.dayisoo36.me/) - 영상 안보임 (안보이면 F5 누를것)
 ![$domain=/^www.dayisoo\d+.me/]#@#a[href][target] img
 
-! https://loopholes.site/
-loopholes.site#@#[style][src*="/wp-content/uploads/"]
-
-
-
 
 !!! 트위터 관련
 ! https://twivideo.net/
@@ -3492,7 +3477,16 @@ loopholes.site#@#[style][src*="/wp-content/uploads/"]
 ! https://twiigle.com/
 !twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target] img
 !twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target*="blank"] img
+! 트위터 성인 영상
+twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com,twi-dl.net,urahame.com#@#a[href][target] img
 
+
+!!! 성인 사이트
+! https://javhd.icu/ - 로고 사라짐
+javhd.icu#@#a[href] img[src*="banner"]
+
+! https://loopholes.site/
+loopholes.site#@#[style][src*="/wp-content/uploads/"]
 
 
 !!! 성인 이미지 관련
