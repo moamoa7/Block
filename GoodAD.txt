@@ -533,6 +533,8 @@ slrclub.com##.notice
 !theqoo.net#@#.notice
 ! - - - 예외 (공지글 제목 안보임
 !cineaste.co.kr#@#.notice
+! - 하단 배너 공백
+slrclub.com##.adsbyadop
 !
 !
 ! 클리앙 (https://clien.net/)
@@ -564,6 +566,8 @@ damoang.net##.d-block
 ! 웃긴대학 (https://web.humoruniv.com/)
 ! - 왼쪽 배너
 !##[class^="ad_"]
+! - 최하단 배너
+humoruniv.com##.adsbygoogle
 !
 !
 ! 이지데이 (https://www.ezday.co.kr/)
