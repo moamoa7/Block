@@ -1650,7 +1650,11 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ##.bounce
 ###imgDiv > table
 ##.execphpwidget
-
+!
+!
+! Topjav (https://topjav.tv/)
+! - 모바일 상단 배너 공간
+topjav.tv##.koukoku_11
 !
 !
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
