@@ -3394,7 +3394,8 @@ dramaday.me#@#a[href][target] img
 ! TV조아 (https://tvzota147.com/)
 ![$domain=/^tvzota\d+.com/]#@#a[href][target] img
 
-! 인기사이트TOP10 (https://jancolink.com/)
+!!! 사이트 모음
+! 인기사이트TOP10 (https://jancolink.com/) - 아예 안보임
 ! 주소요 (https://jusoyo42.com/)
 ! 링크나라 (https://www.linknala.com/)
 ! 주소타운 (https://www.jusotw.com/)
@@ -3402,14 +3403,25 @@ dramaday.me#@#a[href][target] img
 ! 링크사랑 (https://linklove54.com/)
 ! 주소월드 (https://wdwd7.com/)
 ! 주소모두 (https://jusomodu9.com/)
-jancolink.com,[$domain=/^jusoyo\d+.com/],www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/],[$domain=/^wdwd\d+.com/],[$domain=/^jusomodu\d+.com/]#@#a[href][target] img
+! 주소콕 (https://jusokok10.com/)
+! 주소골라 (https://jusopick.com/)
+! 주소짱 (https://jusozzang05.xyz/)
+! 주소탑 (https://jusotop03.com/)
+! 여기여 (https://www.yugiyu.com/)
+! 세븐링크 (https://xn--15-9e0jj6lotejx2a.com/)
+! 링크야 (https://linkya19.com/)
+! 링크온 (https://link-on13.com/) 등등 더 있으나 귀찮네
+jancolink.com#@#a[href][target] img
+! - - - 이 사이트들은 일부 아이콘이나 이미지는 사라져 있으나 굳이 해제안해도 사용하는데는 지장이 없음
+![$domain=/^jusoyo\d+.com/],www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/],[$domain=/^wdwd\d+.com/],[$domain=/^jusomodu\d+.com/],[$domain=/^jusokok\d+.com/],jusopick.com,[$domain=/^jusozzang\d+.xyz/],[$domain=/^jusotop\d+.com/],www.yugiyu.com,[$domain=/^xn--\d+-9e0jj6lotejx2a.com/],[$domain=/^linkya\d+.com/],[$domain=/^link-on\d+.com/]#@#a[href][target] img
 
 
 ! 쿠팡 (https://www.coupang.com/)
 ! GS샵 (https://www.gsshop.com/)
 ! 신세계몰 (https://shinsegaemall.ssg.com/)
 !coupang.com,gsshop.com,shinsegaemall.ssg.com#@#a[href] img[src*="banner"]
-! 18모아 (https://18moa026.com/)
+
+! 18모아 (https://18moa026.com/) - 이미지가 많이 사라져서 해제
 [$domain=/^18moa\d+.com/]#@#a[href] img[src*="banner"]
 
 ! CJ온스타일 (https://display.cjonstyle.com/)
