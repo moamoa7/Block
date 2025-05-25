@@ -1619,17 +1619,18 @@ evojav.pro$popup
 !
 !
 ! 탑걸 (https://kr39.topgirl.co)
-! 자브걸 (https://kr23.javgirl.co/)
+! 자브걸 (https://kr24.javgirl.co/)
 ! - 상단 오른쪽 배너 이미지
 !###header_banner
 ! - 영상내 광고
-! - - - 아브티비 (https://kr1.avtv.co/)
+! - - - 아브티비 (https://kr2.avtv.co/)
+! - - - 딸플릭스 (https://kr4.ddal.xyz/) - 같은 비디오라 막으면 안됨
 ||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
 ! - - - 자브걸 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
 !||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
-||*/project/ma/js/videojs.hotkeys.min.js$important
+||*videojs.hotkeys.min.js$important
 ! - 영상 하단 텍스트 배너
-topgirl.co,javgirl.co##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
+topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 !
 ! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
