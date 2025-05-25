@@ -1668,6 +1668,13 @@ javfan.one##div:nth-of-type(11)
 jav.direct##div:nth-of-type(12)
 !
 !
+! OPENLOAD.PRO (https://openload.mov/)
+! 메인 - 각 목록별 배너 공간 (모바일)
+openload.mov##div:nth-of-type(3)
+openload.mov##div:nth-of-type(6)
+openload.mov##div:nth-of-type(9)
+!
+!
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 오른쪽 배너
 !##.happy-sidebar
