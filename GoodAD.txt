@@ -3507,11 +3507,12 @@ twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com,twi-dl.net,urahame
 
 
 !!! 성인 사이트
+
+! https://javedit.com/ - 영상 이미지 사라짐
+javedit.com#@#a[href][target] img
+
 ! https://javhd.icu/ - 로고 사라짐
 javhd.icu#@#a[href] img[src*="banner"]
-
-! https://loopholes.site/
-loopholes.site#@#[style][src*="/wp-content/uploads/"]
 
 
 !!! 성인 이미지 관련
