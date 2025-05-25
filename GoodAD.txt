@@ -87,14 +87,27 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 @@||tradingview.com/socket.io/websocket
 !
 !
+!
 ! 유튜브 (https://www.youtube.com/)
-! - 다음 영상 재생 차단
-! - 출처 : https://raw.githubusercontent.com/BigflipBOT/ublock-unhook/refs/heads/master/ublock-unhook-filters.txt
-/endscreen.js$script,xhr,important,domain=youtube.com
-! - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
+! 유튜브
+! - 출처 : EasyList
+ - - -  유튜브 메인 대형 광고 배너
+youtube.com###masthead-ad
+ - - - 유튜브 메인 맨 상단 왼쪽 광고 배너
+youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+! - - - 유튜브 영상 재생 오른쪽 상단 광고 배너
+youtube.com##ytd-ad-slot-renderer
+youtube.com###player-ads
+! - - - 추천제품 광고 배너
+www.youtube.com##.ytp-featured-product
+ - - - 동영상 플레이어에서 추천 버튼 숨기기
+youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+! - - - 프리미엄 사용 안내 팝업 제거 (자체 제작)
+youtube.com##ytd-popup-container
+! - - - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
 ! - - - 유니콘Pro에서도 적용됨
 ! - - - - - 출처 : https://gall.dcinside.com/youtube/378167
-youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)!
+youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
 !
 !
 ! 네이버플러스 멤버쉽 (https://nid.naver.com/)
@@ -3474,4 +3487,3 @@ loopholes.site#@#[style][src*="/wp-content/uploads/"]
 ! https://www.8kcosplay.com/
 yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
-
