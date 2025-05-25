@@ -350,9 +350,11 @@ etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
 etoland.co.kr###underGoodBtn_freeRecharge
 ! - 게시물 글 상단 비밀상점 광고글 (PC)
-etoland.co.kr##.ad_list.hit_item
+!etoland.co.kr##.ad_list.hit_item
+! - 게시물 글 내 이토 광고글 (PC)
+etoland.co.kr##li.ad_list
 ! - 게시물 글 상단 비밀상점 광고글 (모바일)
-etoland.co.kr##.view_content_top_ad_v1
+!etoland.co.kr##.view_content_top_ad_v1
 ! - 게시물 내 댓글 광고글 (모바일)
 etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
 ! - 최신글 (NEW) 감추기
@@ -427,6 +429,8 @@ ddanzi.com##.add_display2
 !
 !
 ! 보배드림 (https://www.bobaedream.co.kr/)
+! - 게시물 오른쪽 배너 공간 (uBlock filters – Ads)
+bobaedream.co.kr##[id^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
 ! - 오늘의 회원 랭킹
 bobaedream.co.kr##.todayRanking
 !
