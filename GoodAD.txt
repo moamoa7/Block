@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250525
+! Version: 20250526
 !
 !
 !
@@ -1655,6 +1655,12 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! Topjav (https://topjav.tv/)
 ! - 모바일 상단 배너 공간
 topjav.tv##.koukoku_11
+!
+!
+! JAVFAN (https://javfan.one/)
+! 메인 - 각 목록별 배너 공간 (모바일)
+javfan.one##div:nth-of-type(9)
+javfan.one##div:nth-of-type(11)
 !
 !
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
