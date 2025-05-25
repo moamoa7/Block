@@ -1663,6 +1663,11 @@ javfan.one##div:nth-of-type(9)
 javfan.one##div:nth-of-type(11)
 !
 !
+! JAV.direct (https://jav.direct/)
+! 메인 - 각 목록별 배너 공간 (모바일)
+jav.direct##div:nth-of-type(12)
+!
+!
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 오른쪽 배너
 !##.happy-sidebar
