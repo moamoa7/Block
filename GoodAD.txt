@@ -1670,6 +1670,7 @@ jav.direct##div:nth-of-type(12)
 !
 ! OPENLOAD.PRO (https://openload.mov/)
 ! 메인 - 각 목록별 배너 공간 (모바일)
+! - - PC는 텍스트가 써있는 부분이 지워짐
 openload.mov##div:nth-of-type(3)
 openload.mov##div:nth-of-type(6)
 openload.mov##div:nth-of-type(9)
