@@ -1669,13 +1669,13 @@ jav.direct##div:nth-of-type(12)
 !
 !
 ! OPENLOAD.PRO (https://openload.mov/)
-! 메인 - 각 목록별 배너 공간 (모바일)
+! - 메인 - 각 목록별 배너 공간 (모바일)
 ! - - PC는 텍스트가 써있는 부분이 지워짐
 openload.mov##div:nth-of-type(3)
 openload.mov##div:nth-of-type(6)
 openload.mov##div:nth-of-type(9)
-!- 메인 - 하단 배너 공간 (모바일)
-openload.mov##div:nth-of-type(4)
+! - 메인 - 하단 배너 공간 (모바일) - 이걸 없애면 PC에서는 암것도 안보임
+!openload.mov##div:nth-of-type(4)
 !
 !
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
