@@ -151,7 +151,8 @@ poong.today##._mainWingBannerArea_trl52_537
 !
 ! 치지직 (https://chzzk.naver.com/)
 ! - 광고 차단  팝업
-chzzk.naver.com##.popup_dimmed_transparent__uMy0d.popup_dimmed__zs78t
+! - - - ##[class*="popup"] 가 대신 차단 중
+!chzzk.naver.com##[class*='_popup_dimmed__']
 ! - 광고?
 ||.com/ad-*
 ! 허용목록 (Adblock-Rule-Collection-Lite)
@@ -416,6 +417,9 @@ ruliweb.com##.fixed_layer1
 !ruliweb.com##.fixed_ad_wrapper
 ! - 이미지 복원
 !@@||ruliweb.com/img/$image
+! 게시물 댓글 파워링크 제거
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
@@ -1274,8 +1278,27 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !
 !
 ! 연합뉴스 (https://www.yna.co.kr/)
-! 기사내 배너 (상단.좌.우/기사내/하단)
-##[class^="aside-box"]
+! - 메인 상단 배너
+yna.co.kr##.wrap-header01
+!- 메인 필요없는 부분
+!yna.co.kr##.main-ynalounge01.content03
+! - 메인 오른쪽 필요없는 부분
+!yna.co.kr##.aside-box425
+!yna.co.kr##.content56 > .section02
+! -기사 상단 배너
+!yna.co.kr##.sticky.aside-box426
+!yna.co.kr##.aside-top-bnr01
+! - 기사내 배너 (상단.좌.우/기사내/하단)
+! - -  List-KR에 나중에 등록
+!yna.co.kr##[class^="aside-box"]
+!yna.co.kr##[class^="aside"]
+! - 대부분의 필요없는 부분까지 삭제할려고 광역으로 대체
+##[class*="aside"]
+! - 기사 오른쪽 필요없는 부분
+!yna.co.kr##.aside-box402
+! - 기사 하단 필요없는 부분
+!yna.co.kr##.aside-box400
+yna.co.kr##.ynalounge-content01.wide.content03
 !
 !
 ! 한국경제 (https://www.hankyung.com/)
@@ -1376,6 +1399,19 @@ sports.donga.com##.view_center
 ! 옥션 (https://escrow.auction.co.kr/)
 ! ||*/*/*banner* 예외 (혜택 얼마 받았나 정보 안보임)
 !@@||escrow.auction.co.kr$script,xhr
+! 검색시 나오는 하단 스폰서링크 삭제
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+auction.co.kr##.component--sponsor_link.component
+!
+!
+! 중고나라 (https://web.joongna.com/)
+! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+! - - - 검색시 나오는 광고 게시물
+web.joongna.com##li:has(span:has-text(광고))
+! - - - 검색시 나오는 하단 배너
+web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
+! - - - 게시물내 새상품 광고
+web.joongna.com##.pb-12
 !
 !
 ! 바나나몰 (bananamall.co.kr)
@@ -2931,9 +2967,9 @@ zeta-ai.io##.pointer-events-none
 !
 ! - 쇼핑 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
 !  - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad-img.gmarket.com 해제 요망)
-@@||$generichide,image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|www.coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr|www.kurly.com|www.shilladfs.com|www.ssg.com|www.uniqlo.com|display.wconcept.co.kr|xexymix.com|www.lfmall.co.kr|www.zara.com|www2.hm.com|www.chanel.com|stockx.com|shop.mango.com|www.marpple.com|www.gucci.com|www.thehandsome.com|www.hermes.com|www.stussy.com|www.getbarrel.com|www.buyma.com|www.prada.com|www.aloyoga.com|www.bottegaveneta.com|www.tods.com|www.idlookmall.com|m.web.mustit.co.kr|www.dolcegabbana.com|www.massimodutti.com|www.ssense.com|www.kasina.co.kr|hotsunglass.co.kr|guesskorea.com|www.grailed.com|www.thehyundai.com|display.cjonstyle.com|m.nsmall.com|www.amazon.com|m.market09.kr|www.tworld.co.kr|www.nonghyupmall.com|www.e-himart.co.kr|nhhanaro.co.kr|www.costco.co.kr|www.etlandmall.co.kr|thirtymall.com|front.wemakeprice.com|kr.puma.com|www.underarmour.co.kr|www.lululemon.co.kr|asics.co.kr|www.columbiakorea.co.kr|www.fila.co.kr|reebok.co.kr|www.lge.co.kr|www.ssgdfs.com|www.hddfs.com|kor.lottedfs.com|www.koreanairdfs.com|dutyfree.flyasiana.com|showdang.co.kr|spooning19.com|shinsegaemall.ssg.com|www.halfclub.com|www.compuzone.co.kr|c.appstory.co.kr|landmarket.kr|lesonel.com|oname.kr
+@@||$generichide,image,xhr,domain=www.coupang.com|shopping.naver.com|plusdeal.naver.com|shoppinglive.naver.com|shopping.nate.com|shoppinghow.kakao.com|store.kakao.com|shopping.zum.com|shopping.google.com|shopping.yahoo.co.jp|www.oliveyoung.co.kr|www.auction.co.kr|www.11st.co.kr|www.gmarket.co.kr|www.gsshop.com|ko.aliexpress.com|www.temu.com|www.shopback.co.kr|www.stacksocial.com|market.ddanzi.com|podcatmall.com|www.wadiz.kr|www.bananamall.co.kr|new-m.pay.naver.com|shop.kt.com|emart.ssg.com|mfront.homeplus.co.kr|gs25.gsretail.com|emart24.co.kr|cu.bgfretail.com|www.7-eleven.co.kr|pyony.com|www.daisomall.co.kr|www.lotteshopping.com|www.shinsegae.com|www.ehyundai.com|danawa.com|sooptore.sooplive.co.kr|www.enuri.com|www.coocha.co.kr|www.daangn.com|kr.shein.com|cetizen.com|abcmart.a-rt.com|www.lacoste.com|www.adidas.co.kr|www.nike.com|www.nbkorea.com|www.byn.kr|www.k-village.co.kr|unikhan.shop|ziben.co.kr|www.kolonsport.com|www.lotteon.com|weussafety.com|kumkangshoe.com|berwickkorea.com|www.musinsa.com|www.beanpole.com|www.hazzys.com|fredperrykorea.com|www.ralphlauren.co.kr|www.feelway.com|solidhomme.com|wooyoungmi.com|patagonia.co.kr|kr.louisvuitton.com|www.okmall.com|wonderplace.co.kr|www.hiver.co.kr|zardins.com|www.ssfshop.com|www.goodwearmall.com|spao.com|mixxo.com|shoopen.elandmall.co.kr|www.samsung.com|www.samsungstore.com|samsungmobileshop.co.kr|shopping.samsungcard.com|samsunglionsmall.com|www.shinsegaetvshopping.com|post.malltail.com|www.hmall.com|www.ssg.com|www.lotteimall.com|www.sta1.com|zigzag.kr|sonyunara.com|m.a-bly.com|attrangs.co.kr|www.kurly.com|www.shilladfs.com|www.ssg.com|www.uniqlo.com|display.wconcept.co.kr|xexymix.com|www.lfmall.co.kr|www.zara.com|www2.hm.com|www.chanel.com|stockx.com|shop.mango.com|www.marpple.com|www.gucci.com|www.thehandsome.com|www.hermes.com|www.stussy.com|www.getbarrel.com|www.buyma.com|www.prada.com|www.aloyoga.com|www.bottegaveneta.com|www.tods.com|www.idlookmall.com|m.web.mustit.co.kr|www.dolcegabbana.com|www.massimodutti.com|www.ssense.com|www.kasina.co.kr|hotsunglass.co.kr|guesskorea.com|www.grailed.com|www.thehyundai.com|display.cjonstyle.com|m.nsmall.com|www.amazon.com|m.market09.kr|www.tworld.co.kr|www.nonghyupmall.com|www.e-himart.co.kr|nhhanaro.co.kr|www.costco.co.kr|www.etlandmall.co.kr|thirtymall.com|front.wemakeprice.com|kr.puma.com|www.underarmour.co.kr|www.lululemon.co.kr|asics.co.kr|www.columbiakorea.co.kr|www.fila.co.kr|reebok.co.kr|www.lge.co.kr|www.ssgdfs.com|www.hddfs.com|kor.lottedfs.com|www.koreanairdfs.com|dutyfree.flyasiana.com|showdang.co.kr|spooning19.com|shinsegaemall.ssg.com|www.halfclub.com|www.compuzone.co.kr|c.appstory.co.kr|landmarket.kr|lesonel.com|oname.kr|web.joongna.com
 
-coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shopping.nate.com,shoppinghow.kakao.com,store.kakao.com,shopping.zum.com,shopping.google.com,shopping.yahoo.co.jp,oliveyoung.co.kr,auction.co.kr,11st.co.kr,gmarket.co.kr,gsshop.com,ko.aliexpress.com,temu.com,shopback.co.kr,stacksocial.com,market.ddanzi.com,podcatmall.com,wadiz.kr,bananamall.co.kr,new-m.pay.naver.com,shop.kt.com,emart.ssg.com,mfront.homeplus.co.kr,gs25.gsretail.com,emart24.co.kr,cu.bgfretail.com,7-eleven.co.kr,pyony.com,daisomall.co.kr,lotteshopping.com,shinsegae.com,ehyundai.com,danawa.com,sooptore.sooplive.co.kr,enuri.com,coocha.co.kr,daangn.com,kr.shein.com,cetizen.com,abcmart.a-rt.com,lacoste.com,adidas.co.kr,nike.com,nbkorea.com,byn.kr,k-village.co.kr,unikhan.shop,ziben.co.kr,kolonsport.com,lotteon.com,weussafety.com,kumkangshoe.com,berwickkorea.com,musinsa.com,beanpole.com,hazzys.com,fredperrykorea.com,ralphlauren.co.kr,feelway.com,solidhomme.com,wooyoungmi.com,patagonia.co.kr,kr.louisvuitton.com,okmall.com,wonderplace.co.kr,hiver.co.kr,zardins.com,ssfshop.com,goodwearmall.com,spao.com,mixxo.com,shoopen.elandmall.co.kr,samsung.com,samsungstore.com,samsungmobileshop.co.kr,shopping.samsungcard.com,samsunglionsmall.com,shinsegaetvshopping.com,post.malltail.com,hmall.com,ssg.com,lotteimall.com,sta1.com,zigzag.kr,sonyunara.com,m.a-bly.com,attrangs.co.kr,kurly.com,shilladfs.com,ssg.com,uniqlo.com,display.wconcept.co.kr,xexymix.com,lfmall.co.kr,zara.com,www2.hm.com,chanel.com,stockx.com,shop.mango.com,marpple.com,gucci.com,thehandsome.com,hermes.com,stussy.com,getbarrel.com,buyma.com,prada.com,aloyoga.com,bottegaveneta.com,tods.com,idlookmall.com,m.web.mustit.co.kr,dolcegabbana.com,massimodutti.com,ssense.com,kasina.co.kr,hotsunglass.co.kr,guesskorea.com,grailed.com,thehyundai.com,display.cjonstyle.com,m.nsmall.com,amazon.com,m.market09.kr,tworld.co.kr,nonghyupmall.com,e-himart.co.kr,nhhanaro.co.kr,costco.co.kr,etlandmall.co.kr,thirtymall.com,front.wemakeprice.com,kr.puma.com,underarmour.co.kr,lululemon.co.kr,asics.co.kr,columbiakorea.co.kr,fila.co.kr,reebok.co.kr,lge.co.kr,ssgdfs.com,hddfs.com,kor.lottedfs.com,koreanairdfs.com,dutyfree.flyasiana.com,showdang.co.kr,spooning19.com,shinsegaemall.ssg.com,halfclub.com,compuzone.co.kr,c.appstory.co.kr,landmarket.kr,lesonel.com,oname.kr#@#a[href][target] img
+coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shopping.nate.com,shoppinghow.kakao.com,store.kakao.com,shopping.zum.com,shopping.google.com,shopping.yahoo.co.jp,oliveyoung.co.kr,auction.co.kr,11st.co.kr,gmarket.co.kr,gsshop.com,ko.aliexpress.com,temu.com,shopback.co.kr,stacksocial.com,market.ddanzi.com,podcatmall.com,wadiz.kr,bananamall.co.kr,new-m.pay.naver.com,shop.kt.com,emart.ssg.com,mfront.homeplus.co.kr,gs25.gsretail.com,emart24.co.kr,cu.bgfretail.com,7-eleven.co.kr,pyony.com,daisomall.co.kr,lotteshopping.com,shinsegae.com,ehyundai.com,danawa.com,sooptore.sooplive.co.kr,enuri.com,coocha.co.kr,daangn.com,kr.shein.com,cetizen.com,abcmart.a-rt.com,lacoste.com,adidas.co.kr,nike.com,nbkorea.com,byn.kr,k-village.co.kr,unikhan.shop,ziben.co.kr,kolonsport.com,lotteon.com,weussafety.com,kumkangshoe.com,berwickkorea.com,musinsa.com,beanpole.com,hazzys.com,fredperrykorea.com,ralphlauren.co.kr,feelway.com,solidhomme.com,wooyoungmi.com,patagonia.co.kr,kr.louisvuitton.com,okmall.com,wonderplace.co.kr,hiver.co.kr,zardins.com,ssfshop.com,goodwearmall.com,spao.com,mixxo.com,shoopen.elandmall.co.kr,samsung.com,samsungstore.com,samsungmobileshop.co.kr,shopping.samsungcard.com,samsunglionsmall.com,shinsegaetvshopping.com,post.malltail.com,hmall.com,ssg.com,lotteimall.com,sta1.com,zigzag.kr,sonyunara.com,m.a-bly.com,attrangs.co.kr,kurly.com,shilladfs.com,ssg.com,uniqlo.com,display.wconcept.co.kr,xexymix.com,lfmall.co.kr,zara.com,www2.hm.com,chanel.com,stockx.com,shop.mango.com,marpple.com,gucci.com,thehandsome.com,hermes.com,stussy.com,getbarrel.com,buyma.com,prada.com,aloyoga.com,bottegaveneta.com,tods.com,idlookmall.com,m.web.mustit.co.kr,dolcegabbana.com,massimodutti.com,ssense.com,kasina.co.kr,hotsunglass.co.kr,guesskorea.com,grailed.com,thehyundai.com,display.cjonstyle.com,m.nsmall.com,amazon.com,m.market09.kr,tworld.co.kr,nonghyupmall.com,e-himart.co.kr,nhhanaro.co.kr,costco.co.kr,etlandmall.co.kr,thirtymall.com,front.wemakeprice.com,kr.puma.com,underarmour.co.kr,lululemon.co.kr,asics.co.kr,columbiakorea.co.kr,fila.co.kr,reebok.co.kr,lge.co.kr,ssgdfs.com,hddfs.com,kor.lottedfs.com,koreanairdfs.com,dutyfree.flyasiana.com,showdang.co.kr,spooning19.com,shinsegaemall.ssg.com,halfclub.com,compuzone.co.kr,c.appstory.co.kr,landmarket.kr,lesonel.com,oname.kr,web.joongna.com#@#a[href][target] img
 !
 !
 ! - 예매 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
