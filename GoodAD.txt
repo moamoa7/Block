@@ -3388,6 +3388,7 @@ javlemon.com##[style] [src]
 !!! - 변형 기본 8
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
+!  - - -광역으로 사용시 일부 이미지 안보임
 ! - - - https://www.avdbs.com/ 배너
 ! - - - 아콩넷 (https://yakong5.net/) 영상 내 배너
 !- - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움
@@ -3655,7 +3656,8 @@ twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com,twi-dl.net,urahame
 ! https://javedit.com/ - 영상 이미지 사라짐
 ! https://javpark.net/ - 일부 영상 이미지 사라짐
 ! https://chaturbate.com/ - 일부 이미지 사라짐 (사진 프로필)
-javedit.com,javpark.net,chaturbate.com#@#a[href][target] img
+! https://7tv033.com/ - 영상 이미지 사라짐
+javedit.com,javpark.net,chaturbate.com,[$domain=/^7tv\d+.com/]#@#a[href][target] img
 
 ! https://www.myfreecams.com/ - 사진기 아이콘 위에 이미지 마우스 갓다대면 실시간 영상 이미지 나오는거 안나옴
 !myfreecams.com#@#a[href][onclick] [class][src]
