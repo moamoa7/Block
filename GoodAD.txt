@@ -1309,6 +1309,7 @@ yna.co.kr##.ynalounge-content01.wide.content03
 !
 ! 한국경제 (https://www.hankyung.com/)
 ! - 맨 상단 배너
+hankyung.com##.stock-marquee-wrap
 !##.ad-top
 ! - 메인배너 및 상단 오른쪽 돌아가는 배너
 ! - - - 쿠팡에서 제품 사라짐
@@ -1350,6 +1351,11 @@ mtn.co.kr##.w_308px
 ! 한국경제TV (https://www.wowtv.co.kr/)
 ! - 상단 배너 공간
 www.wowtv.co.kr##.MainTopBig1.wrap-BannerBox
+!
+!
+! 매일경제 (https://www.mk.co.kr/)
+! - 회원가입혜택 (오른쪽 하단 따라다니는 배너)
+mk.co.kr###floating_banner_button
 !
 !
 ! JTBC뉴스 (https://news.jtbc.co.kr/)
@@ -3031,7 +3037,7 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 @@||$generichide,image,xhr,domain=www.netflix.com|www.tving.com|www.wavve.com|www.coupangplay.com|tv.apple.com|watcha.com|laftel.net|www.spotvnow.co.kr|www.dorama.kr|www.bflix.co.kr|cinema.emotioncastle.com|www.purplay.co.kr|heavenly.tv|hellolive.tv|www.primevideo.com|www.disneyplus.com|www.iq.com|wetv.vip|www.viki.com
 !
 ! - 금융 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
-@@||$generichide,image,xhr,domain=www.shinhan.com|www.shinhancard.com|shinhansec.com|www.kbstar.com|card.kbcard.com|www.kbsec.com|kebhana.com|www.hanacard.co.kr|www.hanaw.com|www.wooribank.com|pc.wooricard.com|fundsupermarket.wooriib.com|kfcc.co.kr|cu.co.kr|banking.nonghyup.com|www.ibk.co.kr|www.bccard.com|www.lottecard.co.kr|www.hyundaicapital.com|kbcapital.co.kr|www.nhcapital.co.kr|www.semas.or.kr|www.kodit.co.kr|www.kibo.or.kr|www.kinfa.or.kr|ccrs.or.kr|www.kakaobank.com|www.epostbank.go.kr|www.knbank.co.kr|suhyup-bank.com|www.citibank.co.kr|pib.kjbank.com|www.imbank.co.kr|www.busanbank.co.kr|www.sbiapt.com|www.jbbank.co.kr|www.kbanknow.com|www.jejubank.co.kr
+@@||$generichide,image,xhr,domain=www.shinhan.com|www.shinhancard.com|shinhansec.com|www.kbstar.com|card.kbcard.com|www.kbsec.com|kebhana.com|www.hanacard.co.kr|www.hanaw.com|www.wooribank.com|pc.wooricard.com|fundsupermarket.wooriib.com|kfcc.co.kr|cu.co.kr|banking.nonghyup.com|www.ibk.co.kr|www.bccard.com|www.lottecard.co.kr|www.hyundaicapital.com|kbcapital.co.kr|www.nhcapital.co.kr|www.semas.or.kr|www.kodit.co.kr|www.kibo.or.kr|www.kinfa.or.kr|ccrs.or.kr|www.kakaobank.com|www.epostbank.go.kr|www.knbank.co.kr|suhyup-bank.com|www.citibank.co.kr|pib.kjbank.com|www.imbank.co.kr|www.busanbank.co.kr|www.sbiapt.com|www.jbbank.co.kr|www.kbanknow.com|www.jejubank.co.kr|kakaopay.com
 !
 ! - 보험 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
 !@@||$elemhide,domain=e-insmarket.or.kr
@@ -3499,7 +3505,7 @@ naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,bra
 !etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target] img
 !etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target*="blank"] img
 ! 커뮤니티
-fmkorea.com,etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,web.humoruniv.com,damoang.net,todayhumor.co.kr,bobaedream.co.kr,82cook.com,bbs.ruliweb.com,ppomppu.co.kr,ddanzi.com,ygosu.com,jjang0u.com,clien.net,slrclub.com,bbs.ruliweb.com,instiz.net,dogdrip.net,gasengi.com,suyong.so,humorpick.com,reddit.com,tistory.com#@#a[href][target] img
+fmkorea.com,etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,web.humoruniv.com,damoang.net,todayhumor.co.kr,bobaedream.co.kr,82cook.com,bbs.ruliweb.com,ppomppu.co.kr,ddanzi.com,ygosu.com,jjang0u.com,clien.net,slrclub.com,bbs.ruliweb.com,instiz.net,dogdrip.net,gasengi.com,suyong.so,humorpick.com,reddit.com,tistory.com,brunch.co.kr,heye.kr#@#a[href][target] img
 
 etoland.co.kr,ddanzi.com#@#a[href] img[src*="banner"]
 
@@ -3507,6 +3513,11 @@ etoland.co.kr,ddanzi.com#@#a[href] img[src*="banner"]
 
 ! 방송사
 imbc.com,sbs.co.kr,kbs.co.kr,ebs.co.kr,jtbc.co.kr,ktena.co.kr#@#a[href][target] img
+
+
+! 신문사
+! https://www.wikitree.co.kr/ - 로고 사라짐
+wikitree.co.kr#@#a[href][target] img
 
 ! 게임
 nexon.com#@#a[href][target] img
