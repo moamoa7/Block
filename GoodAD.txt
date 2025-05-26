@@ -1291,9 +1291,11 @@ yna.co.kr##.wrap-header01
 ! - 기사내 배너 (상단.좌.우/기사내/하단)
 ! - -  List-KR에 나중에 등록
 !yna.co.kr##[class^="aside-box"]
-!yna.co.kr##[class^="aside"]
+yna.co.kr##[class^="aside"]
 ! - 대부분의 필요없는 부분까지 삭제할려고 광역으로 대체
-##[class*="aside"]
+! - - - 숲 (https://www.sooplive.co.kr/search) 연관검색어 삭제
+! - - - 클리앙 (https://www.clien.net/) - 로그인 부분까지 삭제되어 하면 안됨
+!##[class*="aside"]
 ! - 기사 오른쪽 필요없는 부분
 !yna.co.kr##.aside-box402
 ! - 기사 하단 필요없는 부분
@@ -1666,7 +1668,8 @@ evojav.pro$popup
 ||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
 ! - - - 자브걸 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
 !||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
-||*videojs.hotkeys.min.js$important
+! - - - - - 경로로 달라지는 부분이 있어 변경
+||*/js/videojs.hotkeys.min.js$important
 ! - 영상 하단 텍스트 배너
 topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
@@ -1878,6 +1881,11 @@ loopholes.site##.widget_text
 ! 스폰업소
 !www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##p:nth-of-type(14)
 !www.xn--299a89v.net,[$domain=/^www.mango\d+.xyz/],[$domain=/^www.mango\d+.icu/],[$domain=/^www.mango\d+.net/]##ol > table > tbody > tr > td
+!
+!
+! myfreecams.com (https://www.myfreecams.com/)
+! - 팝업 차단에 따른 뿌연 화면 해결
+myfreecams.com###cboxOverlay
 !
 !
 ! AVPED.COM (https://www.avped.com/)
@@ -2308,6 +2316,9 @@ notion.so@@||/*/ads/*
 ! 야콩넷 (https://yakong5.net/)
 ! -  영상 닫기 버튼
 ##.overlay
+! - 예외
+! - - - chaturbate.com - 팝업이 자동 사라지나 실시간 영상 이미지가 흐리게 나옴 (스크롤도 안됨)
+chaturbate.com#@#.overlay
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
 ! - 하단 텍스트 배너
@@ -2826,8 +2837,8 @@ jusopick.com##.bg-black.flex-col
 !
 !
 ! 채터베이스 (https://chaturbate.com/)
-! - 입장 팝업
-chaturbate.com###entrance_terms_overlay
+! - 입장 팝업 - 감추면 이미지가 흐리개 나옴 (스크롤도 안됨)
+!chaturbate.com###entrance_terms_overlay
 !
 !
 ! stripchatgirls (https://ko.stripchatgirls.com/)
@@ -2877,6 +2888,7 @@ noonnu.cc##.lg\:top-8
 ! - https://159i.net/
 ! - 제크티비 (https://zectv.com/)
 ! - 레드핫 (https://redhot04.com/) https://redhot05.com/
+! - 보배드림 (https://www.bobaedream.co.kr/) - 사이버 매장 광고신청 삭제
 ! - - -  배너 공간
 ##.banner
 ! - - - 예외
@@ -3341,7 +3353,7 @@ javlemon.com##[style]> [src]
 
 
 
-##[class*="main_banner"]
+!##[class*="main_banner"]
 
 
 ##[class*="popup"]
@@ -3365,7 +3377,8 @@ hmall.com#@#[class*="popup"]
 nid.naver.com#@#[class*="popup"]
 ! https://www.elitebabes.com/ - 아무것도 안보임
 www.elitebabes.com#@#[class*="popup"]
-
+! https://www.myfreecams.com/ - 이미지 마우스 갓다대면 실시간 영상 이미지 나오는거 안나옴
+myfreecams.com#@#[class*="popup"]
 !
 !
 !
@@ -3426,7 +3439,7 @@ naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,bra
 ! 커뮤니티
 fmkorea.com,etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,web.humoruniv.com,damoang.net,todayhumor.co.kr,bobaedream.co.kr,82cook.com,bbs.ruliweb.com,ppomppu.co.kr,ddanzi.com,ygosu.com,jjang0u.com,clien.net,slrclub.com,bbs.ruliweb.com,instiz.net,dogdrip.net,gasengi.com,suyong.so,humorpick.com,reddit.com#@#a[href][target] img
 
-etoland.co.kr#@#a[href] img[src*="banner"]
+etoland.co.kr,ddanzi.com#@#a[href] img[src*="banner"]
 
 
 
@@ -3538,7 +3551,12 @@ twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com,twi-dl.net,urahame
 
 ! https://javedit.com/ - 영상 이미지 사라짐
 ! https://javpark.net/ - 일부 영상 이미지 사라짐
-javedit.com,javpark.net#@#a[href][target] img
+! https://chaturbate.com/ - 일부 이미지 사라짐 (사진 프로필)
+javedit.com,javpark.net,chaturbate.com#@#a[href][target] img
+
+! https://www.myfreecams.com/ - 사진기 아이콘 위에 이미지 마우스 갓다대면 실시간 영상 이미지 나오는거 안나옴
+!myfreecams.com#@#a[href][onclick] [class][src]
+
 
 
 ! https://javhd.icu/ - 로고 사라짐
