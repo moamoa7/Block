@@ -1957,6 +1957,12 @@ notion.so@@||/*/ads/*
 !@@||static.yaaamoa.com/img/*$image
 !
 !
+! 야오리 (https://yaohri37.com/)
+! - 상단 배너 공간
+[$domain=/^yaohri\d+.com/]##p:nth-of-type(1)
+[$domain=/^yaohri\d+.com/]##p:nth-of-type(2)
+!
+!
 ! 섹탈 (https://sstal45.top/)
 ! - 상단 배너 공간
 [$domain=/^sstal\d+.top/]##.mx-n2.row-cols-xl-4.row-cols-lg-2.row-cols-md-2.row-cols-sm-2.row-cols-2.row > li.px-1.col > .mb-2.img-wrap
