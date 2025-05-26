@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250526
+! Version: 20250527
 !
 !
 !
@@ -630,6 +630,11 @@ zum.com##.wide.favorite_site
 zum.com##.subcont_wrap
 ! - - - TV
 zum.com##.tv_wrap
+!
+!
+! 벅스 (https://music.bugs.co.kr/)
+! - 상단 배너
+music.bugs.co.kr##.topBanner
 !
 !
 ! 넷플릭스 (https://www.netflix.com/)
@@ -2958,8 +2963,8 @@ linknnn.com##.wst-post-gl
 ##.popup
 ! - - - 예외 (WAVVE - 스크롤이 안됨)
 www.wavve.com#@#.popup
-! - - - 예외 (쏘걸 - 안보임)
-[$domain=/^kr1.\d+kjav.co/]#@#.popup
+! - - - 예외 (https://kr80.sogirl.so) (https://kr29.4kjav.co/) - 예전 도메인이면 안보임
+[$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#.popup
 ! 사이 사이 마다 있는 배너
 !##.plus_banner
 !
@@ -3207,6 +3212,13 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ![$domain=/^dobaklife\d+.com/]##img[src*="background"]
 ##img[src*="/background/"]
 
+!!! - 광역 3
+! - target 이 없는 요소
+! - 레드걸 (https://redgirl37.org/) - 영상내 배너
+![$domain=/^redgirl\d+.org/]##img[src*="/data/editor/"]
+[$domain=/^redgirl\d+.org/]##[onclick] img[src*="/data/editor/"]
+##[onclick] img[src*="/data/editor/"]
+
 
 !!! 기본
 ! - - -  AVseeTV (https://04.avsee.ru/)
@@ -3435,7 +3447,7 @@ campaign2.naver.com#@#[class*="popup"]
 ! - 현대홈쇼핑 (https://www.hmall.com/) - 아무것도 안보임
 hmall.com#@#[class*="popup"]
 ! - 쏘걸안내 (https://kr1.4kjav.co/) - 아무것도 안보임
-[$domain=/^kr1.\d+kjav.co/]#@#[class*="popup"]
+[$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#[class*="popup"]
 ! - 네이버플러스멤버쉽 (https://nid.naver.com/) - 팝업 차단으로 화면 뿌옇게 변함. 화면 스크롤 안됨
 nid.naver.com#@#[class*="popup"]
 ! https://www.elitebabes.com/ - 아무것도 안보임
@@ -3446,6 +3458,8 @@ myfreecams.com#@#[class*="popup"]
 auction.co.kr#@#[class*="popup"]
 ! 치지직 (https://chzzk.naver.com/) - 팔로우가 안됨 (로그인창이 안뜸 - 로그인하고 팔로우를 클릭하면 됨)
 !chzzk.naver.com#@#[class*="popup"]
+! 바이브 (https://vibe.naver.com/) - 화면 스크롤 안됨
+vibe.naver.com#@#[class*="popup"]
 
 !
 !
@@ -3472,6 +3486,7 @@ youtube.com,spotify.com,discord.com,sooplive.co.kr,kakao.com,kick.com,showroom-l
 ! 네이트 (https://www.nate.com/)
 ! 다음 (https://www.daum.net/)
 ! ZUM (https://zum.com/)
+! 카카오 (https://www.kakaocorp.com/)
 ! 덕덕고 (https://duckduckgo.com/)
 ! Stargpage (https://www.startpage.com/)
 ! Yahoo! japan (https://www.yahoo.co.jp/)
@@ -3479,8 +3494,8 @@ youtube.com,spotify.com,discord.com,sooplive.co.kr,kakao.com,kick.com,showroom-l
 ! 나무위키 (https://namu.wiki/) - SNS 아이콘 안보임 (마우스 갔다대면 링크 클릭은 가능)
 !naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target] img
 !naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target*="blank"] img
-! 검색엔진
-naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki,yandex.com,msn.com,bing.com#@#a[href][target] img
+! 검색엔진 포털
+naver.com,nate.com,daum.net,zum.com,kakao.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki,yandex.com,msn.com,bing.com#@#a[href][target] img
 
 
 ! 이토랜드 (https://www.etoland.co.kr/) - 로고 등 일부 이미지 사라짐
@@ -3520,7 +3535,16 @@ imbc.com,sbs.co.kr,kbs.co.kr,ebs.co.kr,jtbc.co.kr,ktena.co.kr#@#a[href][target] 
 wikitree.co.kr#@#a[href][target] img
 
 ! 게임
-nexon.com#@#a[href][target] img
+blizzard.com,nexon.com,netmarble.net,hangame.com#@#a[href][target] img
+
+! 음악
+music.bugs.co.kr,inlive.co.kr#@#a[href][target] img
+music.bugs.co.kr#@#a[href] img[src*="banner"]
+
+
+! 서점
+yes24.com#@#a[href][target] img
+
 
 
 
