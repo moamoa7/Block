@@ -1719,11 +1719,6 @@ openload.mov##div:nth-of-type(9)
 !openload.mov##div:nth-of-type(4)
 !
 !
-! BestJavPorn (https://www.bestjavporn.com/)
-bestjavporn.com$subdocument
-@@video.bestjavporn.com$subdocument
-!
-!
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 오른쪽 배너
 !##.happy-sidebar
