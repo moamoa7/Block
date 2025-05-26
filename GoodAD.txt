@@ -1780,7 +1780,7 @@ apologiesoccursdepressed.com$popup
 !
 ! 91JAV (https://act.crxtlg.com/)
 ! - 팝업 차단 후 뿌연 화면 해결
-act.crxtlg.com##.van-overlay
+!act.crxtlg.com##.van-overlay
 act.crxtlg.com###popup-window
 ! - 영상 하단 배너 및 공간
 !act.crxtlg.com##.zximg.img
@@ -2312,7 +2312,7 @@ notion.so@@||/*/ads/*
 ![$domain=/^\d+.19hot.net/]##li.off.menu-li:nth-of-type(6)
 !
 !
-! 야동월드 (https://ya-world.net/)
+! 야동월드 (https://ya-world.net/) - 영상 플레이 되는게 없는거 같은대..
 ! 야콩넷 (https://yakong5.net/)
 ! -  영상 닫기 버튼
 !##.overlay
@@ -2326,6 +2326,8 @@ notion.so@@||/*/ads/*
 chaturbate.com#@#[class$="overlay"]
 ! - - - ##[class*="overlay"] 로 하면 숲 영상 차단됨 (티비위키 등 도 안나옴)
 !play.sooplive.co.kr#@#[class*="overlay"]
+! - - - 픽팍 로그인 팝업 안뜸
+mypikpak.com#@#[class$="overlay"]
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
 ! - 하단 텍스트 배너
@@ -3196,30 +3198,40 @@ www.linknala.com##a[href][target*='_blank'] img
 
 
 !!! - 기본 변형 3
+! - 일부 사이트에서 사용 중
+! - - - 야콩넷 (https://yakong5.net/)
+[$domain=/^yakong\d+.net/]##a[href][class] img
+
+
+!!! - 기본 변형 4
 ! - - - https://jusoyo42.com/ 상단 배너
+! - - - ##a[href][target] img 일반 이미지까지 다 선택. 배너만 할려니 class 추가
 [$domain=/^jusoyo\d+.com/]##a[href][target] img[class]
 
 
-!!! 기본 변형 4
+!!! 기본 변형 5
 ! 주소요 (https://jusoyo42.com/) 오른쪽 배너
+! - - - ##a[href][target] img 일반 이미지까지 다 선택. 배너만 할려니 style 추가
 [$domain=/^jusoyo\d+.com/]##a[href][target] img[style]
 
-
-!!! - 기본 변형 5
+!!! - 기본 변형 6
 ! - 일부 사이트에서 사용 중 (target과 class 다 붙어 있음)
 ! - - - 광역 사용시 타사이트 이미지 지워짐
-! - - - https://jusoyo42.com/ 하단 배너
-[$domain=/^jusoyo\d+.com/]##a[href][target][class]
-
-
-!!! 기본 변형 6
-! - - - 광역 사용시 타사이트 이미지 지워짐
 ! - - - https://linkpan71.com/ 상단 배너
-! - 일부 사이트에서 사용 중 (target과 class 사이 한칸 띄운거)
+! - - - https://jusoyo42.com/ 가려진 하단 배너
 ! - - - - - [style*="background"] 하면 다른 텍스트링크까지 지움 (순서 바꾸면 안됨)
 ![$domain=/^linkpan\d+.com/]##a[href][target] [style^="background-image"] 에서 변경
 ![$domain=/^linkpan\d+.com/]##a[href][target='_blank'] [class]
-[$domain=/^linkpan\d+.com/]##a[href][target] [class]
+! - - - ##a[href][target] img[class] (4번)하면 선택이 안됨. img 지우고 붙여아 함
+[$domain=/^linkpan\d+.com/],[$domain=/^jusoyo\d+.com/]##a[href][target][class]
+
+
+!!! - 기본 변형 7
+! - - - https://www.avdbs.com/ 배너
+! - - - 아콩넷 (https://yakong5.net/) 영상 내 배너
+!- - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움
+!##a[href][onclick] [class][src]
+##[onclick] img
 
 
 
@@ -3320,12 +3332,6 @@ xn--av1-qv9mx21c.com,[$domain=/^ydu\d+.com/]##[style] img[src]
 javlemon.com##[style]> [src]
 ! - 이미지가 아닌 동영상이 올때가 있어서 제대로 차단이 안됨/. js를 차단해야 함
 ||a.magsrv.com/ad-provider.js
-
-
-
-! - - - https://www.avdbs.com/ 배너
-!- - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움
-##a[href][onclick] [class][src]
 
 
 
@@ -3506,7 +3512,8 @@ dramaday.me#@#a[href][target] img
 ! 링크온 (https://link-on13.com/) 등등 더 있으나 귀찮네
 jancolink.com#@#a[href][target] img
 ! - - - 이 사이트들은 일부 아이콘이나 이미지는 사라져 있으나 굳이 해제안해도 사용하는데는 지장이 없음
-![$domain=/^jusoyo\d+.com/],www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/],[$domain=/^wdwd\d+.com/],[$domain=/^jusomodu\d+.com/],[$domain=/^jusokok\d+.com/],jusopick.com,[$domain=/^jusozzang\d+.xyz/],[$domain=/^jusotop\d+.com/],www.yugiyu.com,[$domain=/^xn--\d+-9e0jj6lotejx2a.com/],[$domain=/^linkya\d+.com/],[$domain=/^link-on\d+.com/]#@#a[href][target] img
+[$domain=/^jusoyo\d+.com/]#@#a[href][target] img
+!www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/],[$domain=/^wdwd\d+.com/],[$domain=/^jusomodu\d+.com/],[$domain=/^jusokok\d+.com/],jusopick.com,[$domain=/^jusozzang\d+.xyz/],[$domain=/^jusotop\d+.com/],www.yugiyu.com,[$domain=/^xn--\d+-9e0jj6lotejx2a.com/],[$domain=/^linkya\d+.com/],[$domain=/^link-on\d+.com/]#@#a[href][target] img
 
 ! 18모아 (https://18moa026.com/) - 이미지가 많이 사라져서 해제
 [$domain=/^18moa\d+.com/]#@#a[href] img[src*="banner"]
