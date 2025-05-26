@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.05.23
-! Description: 애드가드 필터의 오차단, 지우지 못한 광고와 안티 애드블록을 해결합니다. For Adguard, uBo, Brave
+! Version: 2025.05.25
+! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
 
@@ -76,8 +76,9 @@ start.klauncher.kr$$script:contains(detected)
 11st.co.kr##iframe[src*='ads.adoffice.11st.co.kr']
 4kjav.*,sogirl.*,javgirl.*,ddal.*##.banner_list
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
-algumon.com##.a-post-detail-bottom
 auction.co.kr##.component--sponsor_link.component
+avdbs.com##.ad-btn[class*='tp']
+bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 coinpan.com##*:has(> div[style^='width:390px; max-width:100%;'])
 coinpan.com##.flatBoard > .clearfix.title-wrap
 coinpan.com##p > strong
@@ -123,6 +124,7 @@ m.cgv.co.kr##.topBanner
 m.chzzk.naver.com##[class^='app_popup_dimmed__']
 m.danawa.com###mdnw-main-bottomSheet-container
 m.danawa.com###mdnw-main-dimm
+m.danawa.com###productBlog-adContainer
 m.daum.net##.bnr_popup.bnr_layer
 m.dcinside.com###notice_list > li:not(:has([href*='javascript'])):not(:has(span.ntc-line-orange))
 m.dcinside.com##.layer-bottom-popup
@@ -152,8 +154,6 @@ sportschosun.com##div[style*='height:']:not(:has([id]))
 talk.op.gg##[class]:has(> [href^='https://talk.op.gg/app-download'])
 twidouga.net##iframe[width='300'][height='250']
 twidouga.net#%#//scriptlet('prevent-addEventListener', 'click', 'preventDefault')
-yna.co.kr##.article > aside:has(yna-ad-script)
-yna.co.kr##.sticky[class^='aside-box']
 web.joongna.com##.pb-12
 web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
 web.joongna.com##li:has(span:has-text(광고))
@@ -183,6 +183,7 @@ fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 
 ! 애드가드 필터 오차단 해제
 11st.co.kr#@#div[class$="-ad"]
+$@$link[rel="manifest"]
 @@/.*/$permissions=identity-credentials-get=(),document,domain=slrclub.com
 @@||ad*.cgv.co.kr^$image,domain=cgv.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search,important
