@@ -1719,6 +1719,11 @@ openload.mov##div:nth-of-type(9)
 !openload.mov##div:nth-of-type(4)
 !
 !
+! BestJavPorn (https://www.bestjavporn.com/)
+bestjavporn.com$subdocument
+@@video.bestjavporn.com$subdocument
+!
+!
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 오른쪽 배너
 !##.happy-sidebar
@@ -2315,10 +2320,17 @@ notion.so@@||/*/ads/*
 ! 야동월드 (https://ya-world.net/)
 ! 야콩넷 (https://yakong5.net/)
 ! -  영상 닫기 버튼
-##.overlay
+!##.overlay
+! - - - 광역으로 변환해봄
+!##[class*="overlay"]
+##[class$="overlay"]
 ! - 예외
 ! - - - chaturbate.com - 팝업이 자동 사라지나 실시간 영상 이미지가 흐리게 나옴 (스크롤도 안됨)
-chaturbate.com#@#.overlay
+!chaturbate.com#@#.overlay
+!chaturbate.com#@#[class*="overlay"]
+chaturbate.com#@#[class$="overlay"]
+! - - - ##[class*="overlay"] 로 하면 숲 영상 차단됨 (티비위키 등 도 안나옴)
+!play.sooplive.co.kr#@#[class*="overlay"]
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
 ! - 하단 텍스트 배너
