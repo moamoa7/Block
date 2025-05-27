@@ -128,9 +128,14 @@ sooplive.co.kr##.on.bnrimg_area
 ! - 영상 (https://play.sooplive.co.kr)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
-! - --  방송요약 팝업
+! - - - 광고 영상
+!||vod-player003.sooplive.co.kr
+||vod-player*.sooplive.co.kr
+! - - - 광고차단 안될시 광고 화면 안보이게
+play.sooplive.co.kr###da_video
+! - 방송요약 팝업
 sooplive.co.kr###sarsa_btn
-! - - - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
+! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
 sooplive.co.kr##.tuneout
 ! - 다시보기 (https://vod.sooplive.co.kr/) 영상내 왼쪽 하단 애드벌룬 배너
 sooplive.co.kr##.adballoon_icon
@@ -1827,6 +1832,11 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 !javlemon.com##.hbrAPNSz
 !
 !
+! JavBangers (https://www.javbangers.com/)
+! - 안내 팝업
+###overlay
+!
+!
 ! 조아조아 (https://www.zoazoa28.me/)
 ! - 영상 안보임으로 인한 EasyList 비활성화
 [$domain=/^www.zoazoa\d+.me/]#@#.top_ads
@@ -2352,6 +2362,8 @@ chaturbate.com#@#[class$="overlay"]
 !play.sooplive.co.kr#@#[class*="overlay"]
 ! - - - 픽팍 로그인 팝업 안뜸
 mypikpak.com#@#[class$="overlay"]
+! - - - https://www.91porn.com/ 영상 이미지 사라짐
+91porn.com#@#[class$="overlay"]
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
 ! - 하단 텍스트 배너
@@ -3197,26 +3209,39 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 !
 !
 !!! - 광역 1
-! - 일부사이트 (banner 주소 들어간 이미지)에서 사용 중 (target 없음)
 ! - - - 광역으로 사용
-! - - -  https://today-sports7.com/
-! - - - 티비위키 (https://tvwiki21.com/)
+! - banner 주소 들어간 이미지에서 사용 중 (target 없음)
+! - - - 야부리 시즌 2 (https://yaburi60.com/)
+!##a[href][target] img[src*="banner"][src*='.gif']
+! - - - 티비위키 (https://tvwiki21.com/) - 이미지가 gif 같은 확장자가 없음
+!##a[href][target] img[src*="banner"]
+! 메시티비 (https://messitv8.com/) - 왼쪽 배너
 ##a[href] img[src*="banner"]
 
 
+
 !!! - 광역 2
+! - - - 광역으로 사용
+! - http가 banner 주소 들어간 주소에서 사용 중 (target이 blank가 아님)
+! - - - 만화방 (https://manhwabang.org/)
+##a[href*="banner"][target] img
+
+
+!!! - 광역 3
 ! - - - 광역으로 사용
 ! - target 이 없는 요소
 ! - url이 /background/ 인 경우
 ! - - - 인생도박 (https://dobaklife18.com/) 왼쪽 배너
 ![$domain=/^dobaklife\d+.com/]##img[src*="background"]
-##img[src*="/background/"]
+! -- - - -  [src*='.gif']  안 넣으면 로고가 사라지는 경우도 있음 (예 : https://cineaste.co.kr/)
+##a[href] img[src*="/background/"][src*='.gif']
 
-!!! - 광역 3
+
+!!! - 광역 4
 ! - target 이 없는 요소
 ! - 레드걸 (https://redgirl37.org/) - 영상내 배너
 ![$domain=/^redgirl\d+.org/]##img[src*="/data/editor/"]
-[$domain=/^redgirl\d+.org/]##[onclick] img[src*="/data/editor/"]
+![$domain=/^redgirl\d+.org/]##[onclick] img[src*="/data/editor/"]
 ##[onclick] img[src*="/data/editor/"]
 
 
@@ -3224,27 +3249,27 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ! - - -  AVseeTV (https://04.avsee.ru/)
 ! - - - 뉴토끼 (https://newtoki468.com/)
 ! - - - 북토끼 (https://booktoki468.com/)
-! - - - 7MMTV (https://7tv033.com/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
-!##a[href][target*='blank'] img[src*='.gif']
+##a[href][target*='blank'] img[src*='.gif']
 
 
 !!! 기본 변형 1
 ! - - - 이미지가 gif가 아닌 경우에도 사용
 ! - - - 링크나라 (https://www.linknala.com/)
+! - - - 도지코믹스 (https://dozi352.com/)
+! - - -  https://today-sports7.com/
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com##a[href][target*='_blank'] img
-
+www.linknala.com,[$domain=/^today-sports\d+.com/]##a[href][target*='_blank'] img
 
 !!! - 기본 변형 2
 ! - - - href*='http'가 아닌 경우에도 사용
-! - - - target="_blank가 아닐 경우에도 사용 (예: target="_self" / target="_target 등)
+! - - - target*=_blank가 아닐 경우에도 사용 (예: target="_self" / target="_target 등)
+! - - - 이미지가 gif가 아닌 경우에도 사용
 ! - - - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
-! - - - 야부리 시즌 2 (https://yaburi60.com/)
+! - - - 티비위키 (https://tvwiki21.com/)
 ! - - - 도지코믹스 (https://dozi352.com/)
-! - - - 만화방 (https://manhwabang.org/)
-! - - - 메시티비 (https://messitv8.com/)
+! - - - 메시티비 (https://messitv8.com/) - 추가 다른 배너 삭제
 ![$domain=/^7tv\d+.com/]##a[href][target*='_blank'] img
 ! - - - ##a[href][target='_blank'] img - 비슷하지만 일부 안사라지는 이미지 있음 (target=&quot;_blank&quot 이런식으로 되어 있는 경우)
 ![$domain=/^yaburi\d+.com/]##a[href][target] img
@@ -3266,7 +3291,7 @@ www.linknala.com##a[href][target*='_blank'] img
 !!! - 기본 변형 4
 ! - - - https://jusoyo42.com/ 상단 배너
 ! - - - ##a[href][target] img 일반 이미지까지 다 선택. 배너만 할려니 class 추가
-[$domain=/^jusoyo\d+.com/]##a[href][target] img[class]
+![$domain=/^jusoyo\d+.com/]##a[href][target] img[class]
 
 
 !!! 기본 변형 5
@@ -3283,7 +3308,7 @@ www.linknala.com##a[href][target*='_blank'] img
 ![$domain=/^linkpan\d+.com/]##a[href][target] [style^="background-image"] 에서 변경
 ![$domain=/^linkpan\d+.com/]##a[href][target='_blank'] [class]
 ! - - - ##a[href][target] img[class] (4번)하면 선택이 안됨. img 지우고 붙여아 함
-[$domain=/^linkpan\d+.com/],[$domain=/^jusoyo\d+.com/]##a[href][target][class]
+![$domain=/^linkpan\d+.com/],[$domain=/^jusoyo\d+.com/]##a[href][target][class]
 
 
 
@@ -3657,7 +3682,7 @@ twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com,twi-dl.net,urahame
 ! https://javpark.net/ - 일부 영상 이미지 사라짐
 ! https://chaturbate.com/ - 일부 이미지 사라짐 (사진 프로필)
 ! https://7tv033.com/ - 영상 이미지 사라짐
-javedit.com,javpark.net,chaturbate.com,[$domain=/^7tv\d+.com/]#@#a[href][target] img
+!javedit.com,javpark.net,chaturbate.com,[$domain=/^7tv\d+.com/]#@#a[href][target] img
 
 ! https://www.myfreecams.com/ - 사진기 아이콘 위에 이미지 마우스 갓다대면 실시간 영상 이미지 나오는거 안나옴
 !myfreecams.com#@#a[href][onclick] [class][src]
