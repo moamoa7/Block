@@ -3231,8 +3231,19 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ! - - - 광역으로 사용
 ! - - - AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너 / 영상내 큰 배너
 ![$domain=/^wfwf\d+.com/]##a[href][target] img[src*="/wp-content/uploads/"]
+!##a[href][target] img[src*="/wp-content/uploads/"]
+!  아래 예외 사항들이 생겨 세부적으로 쪼갬
+! - - -  AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너
+!#[role="banner"] a[href][target] img[src*="/wp-content/uploads/"]
+! - - -  AV조아 (https://avjoa70.com/) - 영상내 큰 배너
+!#[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
+! - 야통령 (https://xn--5-v10fo35av1l.com/) 에서 오른쪽 배너가 안사라짐 / 원점으로 돌림
 ##a[href][target] img[src*="/wp-content/uploads/"]
-
+! - - - 예외
+! https://of996.com/
+! https://www.nicesss.com/
+! https://www.8kcosplay.com/
+of996.com,nicesss.com,8kcosplay.com#@#a[href][target] img[src*="/wp-content/uploads/"]
 
 !!! - 광역 4
 ! - - - 광역으로 사용
@@ -3518,7 +3529,7 @@ vibe.naver.com#@#[class*="popup"]
 !
 ! - 예외
 
-trand.co.kr#@#a[href][target] img
+!trand.co.kr#@#a[href][target] img
 trand.co.kr#@#a[href][onclick] [class][src]
 trand.co.kr#@#[style^="background-image"] a[href]
 
@@ -3530,7 +3541,7 @@ trand.co.kr#@#[style^="background-image"] a[href]
 !sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
 !sooplive.co.kr#@#a[href][target*="blank"] img
 ! 라이브 방송
-youtube.com,spotify.com,discord.com,sooplive.co.kr,kakao.com,kick.com,showroom-live.com,twitcasting.tv,huya.com,douyu.com,bilibili.com,podbbang.com,pandalive.co.kr,popkontv.com,flextv.co.kr#@#a[href][target] img
+!youtube.com,spotify.com,discord.com,sooplive.co.kr,kakao.com,kick.com,showroom-live.com,twitcasting.tv,huya.com,douyu.com,bilibili.com,podbbang.com,pandalive.co.kr,popkontv.com,flextv.co.kr#@#a[href][target] img
 
 ! 네이버 (https://www.naver.com/)
 ! 네이트 (https://www.nate.com/)
@@ -3545,7 +3556,7 @@ youtube.com,spotify.com,discord.com,sooplive.co.kr,kakao.com,kick.com,showroom-l
 !naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target] img
 !naver.com,nate.com,daum.net,zum.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki#@#a[href][target*="blank"] img
 ! 검색엔진 포털
-naver.com,nate.com,daum.net,zum.com,kakao.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki,yandex.com,msn.com,bing.com#@#a[href][target] img
+!naver.com,nate.com,daum.net,zum.com,kakao.com,duckduckgo.com,startpage.com,yahoo.co.jp,brave.com,namu.wiki,yandex.com,msn.com,bing.com#@#a[href][target] img
 
 
 ! 이토랜드 (https://www.etoland.co.kr/) - 로고 등 일부 이미지 사라짐
@@ -3570,30 +3581,30 @@ naver.com,nate.com,daum.net,zum.com,kakao.com,duckduckgo.com,startpage.com,yahoo
 !etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target] img
 !etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,humoruniv.com,damoang.net,todayhumor.co.kr#@#a[href][target*="blank"] img
 ! 커뮤니티
-fmkorea.com,etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,web.humoruniv.com,damoang.net,todayhumor.co.kr,bobaedream.co.kr,82cook.com,bbs.ruliweb.com,ppomppu.co.kr,ddanzi.com,ygosu.com,jjang0u.com,clien.net,slrclub.com,bbs.ruliweb.com,instiz.net,dogdrip.net,gasengi.com,suyong.so,humorpick.com,reddit.com,tistory.com,brunch.co.kr,heye.kr#@#a[href][target] img
+!fmkorea.com,etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,web.humoruniv.com,damoang.net,todayhumor.co.kr,bobaedream.co.kr,82cook.com,bbs.ruliweb.com,ppomppu.co.kr,ddanzi.com,ygosu.com,jjang0u.com,clien.net,slrclub.com,bbs.ruliweb.com,instiz.net,dogdrip.net,gasengi.com,suyong.so,humorpick.com,reddit.com,tistory.com,brunch.co.kr,heye.kr#@#a[href][target] img
 
 etoland.co.kr,ddanzi.com#@#a[href] img[src*="banner"]
 
 
 
 ! 방송사
-imbc.com,sbs.co.kr,kbs.co.kr,ebs.co.kr,jtbc.co.kr,ktena.co.kr#@#a[href][target] img
+!imbc.com,sbs.co.kr,kbs.co.kr,ebs.co.kr,jtbc.co.kr,ktena.co.kr#@#a[href][target] img
 
 
 ! 신문사
 ! https://www.wikitree.co.kr/ - 로고 사라짐
-wikitree.co.kr#@#a[href][target] img
+!wikitree.co.kr#@#a[href][target] img
 
 ! 게임
-blizzard.com,nexon.com,netmarble.net,hangame.com#@#a[href][target] img
+!blizzard.com,nexon.com,netmarble.net,hangame.com#@#a[href][target] img
 
 ! 음악
-music.bugs.co.kr,inlive.co.kr#@#a[href][target] img
+!music.bugs.co.kr,inlive.co.kr#@#a[href][target] img
 music.bugs.co.kr#@#a[href] img[src*="banner"]
 
 
 ! 서점
-yes24.com#@#a[href][target] img
+!yes24.com#@#a[href][target] img
 
 
 
@@ -3605,11 +3616,11 @@ yes24.com#@#a[href][target] img
 ! 동행복권 (https://dhlottery.co.kr/)
 
 !!! 기타
-weather.go.kr,speedtest.net,mypikpak.com,terabox.com,1024tera.com,dhlottery.co.kr#@#a[href][target] img
+!weather.go.kr,speedtest.net,mypikpak.com,terabox.com,1024tera.com,dhlottery.co.kr#@#a[href][target] img
 
 
 ! https://dramaday.me/ (이미지 안보임)
-dramaday.me#@#a[href][target] img
+!dramaday.me#@#a[href][target] img
 
 
 ! 옥션 (https://escrow.auction.co.kr/) - 로고 등 일부 이미지 사라짐
@@ -3649,9 +3660,9 @@ dramaday.me#@#a[href][target] img
 ! 세븐링크 (https://xn--15-9e0jj6lotejx2a.com/)
 ! 링크야 (https://linkya19.com/)
 ! 링크온 (https://link-on13.com/) 등등 더 있으나 귀찮네
-jancolink.com#@#a[href][target] img
+!jancolink.com#@#a[href][target] img
 ! - - - 이 사이트들은 일부 아이콘이나 이미지는 사라져 있으나 굳이 해제안해도 사용하는데는 지장이 없음
-[$domain=/^jusoyo\d+.com/],[$domain=/^jusokok\d+.com/]#@#a[href][target] img
+![$domain=/^jusoyo\d+.com/],[$domain=/^jusokok\d+.com/]#@#a[href][target] img
 !www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/],[$domain=/^wdwd\d+.com/],[$domain=/^jusomodu\d+.com/],[$domain=/^jusokok\d+.com/],jusopick.com,[$domain=/^jusozzang\d+.xyz/],[$domain=/^jusotop\d+.com/],www.yugiyu.com,[$domain=/^xn--\d+-9e0jj6lotejx2a.com/],[$domain=/^linkya\d+.com/],[$domain=/^link-on\d+.com/]#@#a[href][target] img
 
 ! 18모아 (https://18moa026.com/) - 이미지가 많이 사라져서 해제
@@ -3678,7 +3689,7 @@ jancolink.com#@#a[href][target] img
 ! 망가조아 (https://mangajoa5.com/) - 목록별 만화 이미지 사라짐
 ! 망가망가 (https://mgmg2.com/) - 목록별 만화 이미지 사라짐
 ! 웹툰가이드 (https://www.webtoonguide.com/) - 만화 목록 이미지 안보임
-[$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/],webtoonguide.com#@#a[href][target] img
+![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/],webtoonguide.com#@#a[href][target] img
 ![$domain=/^joatoon\d+.com/],[$domain=/^mangajoa\d+.com/],[$domain=/^mgmg\d+.com/],webtoonguide.com#@#a[href][target*="blank"] img
 
 
@@ -3697,7 +3708,7 @@ jancolink.com#@#a[href][target] img
 !twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target] img
 !twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target*="blank"] img
 ! 트위터 성인 영상
-twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com,twi-dl.net,urahame.com#@#a[href][target] img
+!twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com,twi-dl.net,urahame.com#@#a[href][target] img
 
 
 !!! 성인 사이트
@@ -3726,6 +3737,6 @@ javhd.icu#@#a[href] img[src*="banner"]
 ! https://www.nicesss.com/
 ! https://8se.me/
 ! https://www.8kcosplay.com/
-yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
+!yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
 
