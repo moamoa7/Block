@@ -133,6 +133,7 @@ sooplive.co.kr##.on.bnrimg_area
 !||vod-player*.sooplive.co.kr
 ! - - - 광고차단 안될시 광고 안나오게
 !play.sooplive.co.kr###da_video
+play.sooplive.co.kr##.da_area_left
 play.sooplive.co.kr##.da_area_right
 ! - 방송요약 팝업
 sooplive.co.kr###sarsa_btn
