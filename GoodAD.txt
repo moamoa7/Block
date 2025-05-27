@@ -128,13 +128,9 @@ sooplive.co.kr##.on.bnrimg_area
 ! - 영상 (https://play.sooplive.co.kr)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
-! - - - 광고 영상
-!||vod-player003.sooplive.co.kr
-!||vod-player*.sooplive.co.kr
-! - - - 광고차단 안될시 광고 안나오게
-!play.sooplive.co.kr###da_video
-play.sooplive.co.kr##.da_area_left
-play.sooplive.co.kr##.da_area_right
+! - - - 광고차단 안될시 광고 영상 안보이게
+play.sooplive.co.kr##.da_area
+play.sooplive.co.kr###da_video
 ! - 방송요약 팝업
 sooplive.co.kr###sarsa_btn
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
@@ -2743,7 +2739,7 @@ hitomi.la###immersive-translate-popup
 !||linklove*.com/data/editor/*$image
 !||linklove*.com/data/file/ls_*/*$image
 ! - 상단 배너 공간
-![$domain=/^linklove\d+.com/]##.w-box
+[$domain=/^linklove\d+.com/]##.w-box
 ! - - -  주소파워 (https://linkpower27.com/)
 ! -  메인 중간 배너 공간
 ![$domain=/^linklove\d+.com/],[$domain=/^linkpower\d+.com/]##.miso-love-ad
@@ -3221,10 +3217,11 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 
 
 ! 광역 1 추가 영역 처리 - 비광역으로 처리
+! - 광역으로 처리하면 일부 사이트에서 이미지 사라짐
+! https://today-sports7.com/ - 한칸짜리 게시물 배너
 ! 메시티비 (https://messitv8.com/) - 왼쪽 배너
-[$domain=/^messitv\d+.com/]##a[href] img[src*="banner"]
-
-
+! 링크사랑 (https://linklove54.com/) - 왼쪽.오른쪽 배너 . 중간 배너
+[$domain=/^today-sports\d+.com/],[$domain=/^messitv\d+.com/],[$domain=/^linklove\d+.com/]##a[href] img[src*="banner"]
 
 !!! - 광역 2
 ! - - - 광역으로 사용
@@ -3246,6 +3243,7 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 
 
 ! 광역 3 추가 영역 처리 - 비광역으로 처리
+! - 광역으로 처리하면 일부 사이트에서 이미지 사라짐
 ! - 야통령 (https://xn--5-v10fo35av1l.com/) 에서 오른쪽 배너가 안사라짐 / 원점으로 돌림
 [$domain=/^xn--\d+-v10fo35av1l.com/]##a[href][target] img[src*="/wp-content/uploads/"]
 ! - - - 예외
@@ -3292,9 +3290,10 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ! - - - 여우코믹스 (https://fxfx310.com/)
 ! - - - 애니위크 (https://aniweek.com/)
 ! - - -  https://today-sports7.com/
+! - - - 밍키넷 (https://mingky.net/)
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/]##a[href][target*='_blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net##a[href][target*='_blank'] img
 
 !!! - 기본 변형 2
 ! - - - href*='http'가 아닌 경우에도 사용
@@ -3391,7 +3390,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - 일부 사이트에서 사용 중
 ! - target 이 있는 요소
 ! - - - 광역으로 사용시 텍스트 링크 등 사라짐
-! - - - - - 토렌트쓱 (https://ssg1.torrentssg8.com/)
+! - - - 토렌트쓱 (https://ssg1.torrentssg8.com/)
 ![$domain=/^ssg1.torrentssg\d+.com/]##[style] a[href][target*='_blank']
 [$domain=/^ssg1.torrentssg\d+.com/]##[style] a[href][target]
 
@@ -3413,9 +3412,11 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 !##a[href] img[src*="/wp-content/uploads/"] - 영상 이미지까지 사라져서 변경
 !##[style] a[href] img[src*="/wp-content/uploads/"] - 로고가 사라져서 재변경
 ! 규칙1에 광역으로 적용하면 영상 이미지가 사라져서 추가 규칙 붙여서 광역으로 처리
+!##[style] a[href] img[src*="/wp-content/uploads/"][class] - 1규칙 이미지 사라짐
 !www.yadongmarket.com##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
 ##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
-
+! - - - 예외 (https://dramaday.me/) - 이미지 사라짐
+dramaday.me#@#[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
 
 
 
@@ -3749,4 +3750,7 @@ vibe.naver.com#@#[class*="popup"]
 ! https://www.8kcosplay.com/
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
+
+! 2025. 5. 27. https://play.sooplive.co.kr
+
 
