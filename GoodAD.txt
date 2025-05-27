@@ -3257,10 +3257,13 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ! - - - 이미지가 gif가 아닌 경우에도 사용
 ! - - - 링크나라 (https://www.linknala.com/)
 ! - - - 도지코믹스 (https://dozi352.com/)
+! - - - 툰코 (https://tkor025.com/)
+! - - - 늑대닷컴 (https://wfwf391.com/)
+! - - - 여우코믹스 (https://fxfx310.com/)
 ! - - -  https://today-sports7.com/
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^today-sports\d+.com/]##a[href][target*='_blank'] img
+www.linknala.com,[$domain=/^today-sports\d+.com/],[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/]##a[href][target*='_blank'] img
 
 !!! - 기본 변형 2
 ! - - - href*='http'가 아닌 경우에도 사용
@@ -3269,6 +3272,7 @@ www.linknala.com,[$domain=/^today-sports\d+.com/]##a[href][target*='_blank'] img
 ! - - - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
 ! - - - 티비위키 (https://tvwiki21.com/)
 ! - - - 도지코믹스 (https://dozi352.com/)
+! - - - 블랙툰 (https://blacktoon371.com/)
 ! - - - 메시티비 (https://messitv8.com/) - 추가 다른 배너 삭제
 ![$domain=/^7tv\d+.com/]##a[href][target*='_blank'] img
 ! - - - ##a[href][target='_blank'] img - 비슷하지만 일부 안사라지는 이미지 있음 (target=&quot;_blank&quot 이런식으로 되어 있는 경우)
@@ -3278,8 +3282,8 @@ www.linknala.com,[$domain=/^today-sports\d+.com/]##a[href][target*='_blank'] img
 !##a[href][target*='_blank'] img
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
 !##[target][href] img
-!manhwabang.org,messitv8.com##a[href][target] img
-##a[href][target] img
+[$domain=/^dozi\d+.com/],[$domain=/^blacktoon\d+.com/],messitv8.com##a[href][target] img
+!##a[href][target] img
 
 
 !!! - 기본 변형 3
@@ -3327,6 +3331,7 @@ www.linknala.com,[$domain=/^today-sports\d+.com/]##a[href][target*='_blank'] img
 ! - - -  target='blank' 로 하는 경우도 있어서 재변경
 !##[style^="/background-image"] a[href][target*='blank']
 ! - - -  실수로 target='blank' 을 빼먹는 경우 (예 : https://cheon-01.com/)도 있어서 재변경
+! - - - 만화방 (https://manhwabang.org/)
 !##[style^="background-image"] a[href]
 ##[style*="/background/"] a[href]
 
