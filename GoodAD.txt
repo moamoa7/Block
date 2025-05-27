@@ -1539,6 +1539,16 @@ pedia.watcha.com##.adFixed
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 !
 !
+! 토렌토씨(https://torrentsee287.com/)
+! - 팝업 잔여물
+[$domain=/^torrentsee\d+.com/]##.flex
+!
+!
+! 토렌트봇 (https://torrentbot195.com/)
+! - 팝업 잔여물
+[$domain=/^torrentbot\d+.com/]##.flex2
+!
+!
 ! 토렌트 큐큐 (https://torrentqq366.com)
 ! - 상단 배너
 ![$domain=/^torrentqq\d+.com/]##.header
@@ -1943,6 +1953,11 @@ loopholes.site##.widget_text
 !###top-mobile
 !
 !
+! 야플릭스 (https://live9xxx.net/)
+! - 상단 배너 공간
+##.bannerbox
+!
+!
 ! 자막야동 (https://3.jamakyadong.me/)
 ! - 배너 이미지
 !||jamakyadong.me/myimages/*$image
@@ -1994,13 +2009,27 @@ notion.so@@||/*/ads/*
 [$domain=/^yaohri\d+.com/]##p:nth-of-type(3)
 !
 !
-! 섹탈 (https://sstal45.top/)
+! 섹탈 (https://sstal45.top/) (https://sstal45.cc/)
 ! - 상단 배너 공간
-[$domain=/^sstal\d+.top/]##.mx-n2.row-cols-xl-4.row-cols-lg-2.row-cols-md-2.row-cols-sm-2.row-cols-2.row > li.px-1.col > .mb-2.img-wrap
+[$domain=/^sstal\d+.top/],[$domain=/^sstal\d+.cc/]##.mx-n2.row-cols-xl-4.row-cols-lg-2.row-cols-md-2.row-cols-sm-2.row-cols-2.row > li.px-1.col > .mb-2.img-wrap
+! - 하단 배너 공간
+[$domain=/^sstal\d+.top/],[$domain=/^sstal\d+.cc/]##div.my-3.px-sm-0.px-3:nth-of-type(6)
 ! - 성인업소 글자
 ![$domain=/^sstal\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
 ! - 동맹사이트 글자
 ![$domain=/^sstal\d+.top/]##li.me-li.p-0.col:nth-of-type(10)
+!
+!
+! 야썸 (https://yasome.net/)  (https://yasome45.top/)  (https://yasome45.cc/)
+! - 오른쪽 성인업소
+![$domain=/^yasome\d+.top/]##h3.text-center.en.f-lg.h3:nth-of-type(1)
+![$domain=/^yasome\d+.top/]##div.my-3.px-sm-0.px-3:nth-of-type(1)
+! - 오른쪽 상단 배너 공간
+[$domain=/^yasome\d+.top/],[$domain=/^yasome\d+.cc/]##.mx-n2.row-cols-xl-4.row-cols-lg-2.row-cols-md-2.row-cols-sm-2.row-cols-2.row
+! - 오른쪽 하단 배너 공간
+[$domain=/^yasome\d+.top/],[$domain=/^yasome\d+.cc/]##div.my-3.px-sm-0.px-3:nth-of-type(9)
+! - 왼쪽 메뉴 성인업소 글자
+![$domain=/^yasome\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
 !
 !
 ! 소리바다 (https://sorabada94.com/)
@@ -2288,19 +2317,6 @@ notion.so@@||/*/ads/*
 ! 현자타임스 (https://hjtime95.com/)
 ! - 배너
 ![$domain=/^hjtime\d+.com/]##.at-banner
-!
-!
-! 야썸 (https://yasome.net/)  (https://yasome45.top/)
-! - 오른쪽 성인업소
-![$domain=/^yasome\d+.top/]##h3.text-center.en.f-lg.h3:nth-of-type(1)
-![$domain=/^yasome\d+.top/]##div.my-3.px-sm-0.px-3:nth-of-type(1)
-! - 오른쪽 배너 공간
-[$domain=/^yasome\d+.top/]##div.pt-sm-4.pt-0.px-xl-0.px-sm-4.px-0.nt-container:nth-of-type(1)
-[$domain=/^yasome\d+.top/]##.mx-n2.row-cols-xl-4.row-cols-lg-4.row-cols-md-4.row-cols-sm-3.row-cols-2.row > li.px-1.col > .mb-2.img-wrap
-! - 오른쪽 배너 공간
-[$domain=/^yasome\d+.top/]##.mx-n2.row-cols-xl-4.row-cols-lg-2.row-cols-md-2.row-cols-sm-2.row-cols-2.row
-! - 왼쪽 메뉴 성인업소 글자
-![$domain=/^yasome\d+.top/]##li.me-li.p-0.col:nth-of-type(1)
 !
 !
 ! 싸나이 (https://sanai13.com/)
@@ -3308,9 +3324,32 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ! - - - 비툰 (https://btoon92.com/)
 ! - - - 툰브르 (https://b18.toon-bro.xyz/)
 ! - - - AV핑크 (https://avpink36.com/)
+! - - - 야모아 (https://yamoa36.site/)
+! - - - 쇼츠야동 (https://ya-world.net/)
+! - - - 야콩넷 (https://yakong5.net/)
+! - - - AV히로미 (https://avhiromi6.com/)
+! - - - 개조아 (https://dogjoa81.net/)
+! - - - 현자타임스 (https://hjtime96.com/)
+! - - - 딸타임 (https://ddaltime172.com/)
+! - - - 소리바다 (https://sorabada94.com/)
+! - - - 색색티비 (https://kr187.mysstv.com/)
+! - - - 야플릭스 (https://live9xxx.net/)
+! - - - 밤오빠 (https://bam444.com/)
+! - - - 야동나라 (https://yadongnala.com/) -영상 없는 듯
+! - - - 토렌트씨 (https://torrentsee287.com/)
+! - - - 토렌트팁 (https://torrenttip177.com/)
+! - - - 토렌트모바일 (https://torrentmobile203.com/)
+! - - - 토렌트썸 (https://torrentsome196.com/)
+! - - - 토렌트봇 (https://torrentbot195.com/)
+! - - - 토렌트밤 (https://torrentbam181.com/)
+! - - - 토렌트티티 (https://torrenttt182.com/)
+! - - - 토렌트좋다 (https://torrentzota135.com/)
+! - - - 토렌트탑 (https://torrenttop156.com/)
+! - - - 토렌트하하 (https://torrenthaha09.com/)
+! - - - 티비룸 (https://tvroom8.org/)
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/]##a[href][target*='_blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/]##a[href][target*='_blank'] img
 
 !!! - 기본 변형 2
 ! - - - href*='http'가 아닌 경우에도 사용
@@ -3321,6 +3360,8 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - - - 도지코믹스 (https://dozi352.com/)
 ! - - - 블랙툰 (https://blacktoon371.com/)
 ! - - - 메시티비 (https://messitv8.com/) - 추가 다른 배너 삭제
+! - - - AV팝 (https://01.avpop.tv/)
+! - - - 일구핫 (https://01.19hot.net/)
 ![$domain=/^7tv\d+.com/]##a[href][target*='_blank'] img
 ! - - - ##a[href][target='_blank'] img - 비슷하지만 일부 안사라지는 이미지 있음 (target=&quot;_blank&quot 이런식으로 되어 있는 경우)
 ![$domain=/^yaburi\d+.com/]##a[href][target] img
@@ -3329,20 +3370,21 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 !##a[href][target*='_blank'] img
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
 !##[target][href] img
-[$domain=/^dozi\d+.com/],[$domain=/^blacktoon\d+.com/],[$domain=/^messitv\d+.com/]##a[href][target] img
+[$domain=/^dozi\d+.com/],[$domain=/^blacktoon\d+.com/],[$domain=/^messitv\d+.com/],[$domain=/^\d+.avpop.tv/],[$domain=/^\d+.19hot.net/]##a[href][target] img
 !##a[href][target] img
 
 
 !!! - 기본 변형 3
 ! - 일부 사이트에서 사용 중
-! - - - 야콩넷 (https://yakong5.net/)
+! - - - 야콩넷 (https://yakong5.net/) - 영상 하단 배너
 [$domain=/^yakong\d+.net/]##a[href][class] img
 
 
 !!! - 기본 변형 4
 ! - - - https://jusoyo42.com/ 상단 배너
+! - - - 레드캣 (https://redcattv5.org/)
 ! - - - ##a[href][target] img 일반 이미지까지 다 선택. 배너만 할려니 class 추가
-![$domain=/^jusoyo\d+.com/]##a[href][target] img[class]
+[$domain=/^jusoyo\d+.com/],[$domain=/^redcattv\d+.org/]##a[href][target] img[class]
 
 
 !!! 기본 변형 5
@@ -3365,7 +3407,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 
 
-!!! 변형 광역
+!!! 변형 광역 1
 ! - - - https://dragonfly64.com/ 등
 ! - - - - - 광역으로 사용시 아래 규칙에 따라 다른 텍스트 링크 지워져서 안됨 ([target] 넣으면 상관없어지므로 패스)
 ! - - - - -  ##[style] 을 지정하지 않고 하면  텍스트 링크까지 사라져서 안됨
@@ -3381,6 +3423,14 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - - - 만화방 (https://manhwabang.org/)
 !##[style^="background-image"] a[href]
 ##[style*="/background/"] a[href]
+
+
+!!! - 변형 광역 2
+! - 일부 사이트에서 사용 중
+! - target 이 없는 요소
+! - - - 토렌트족 ( https://torrentjok71.com/)  - 상단 배너
+![$domain=/^torrentjok\d+.com/]##[style*="imgbox.com"] a[href][target]
+##[style*="imgbox.com"] a[href][target]
 
 
 !!! - 변형 기본 1
@@ -3776,5 +3826,4 @@ vibe.naver.com#@#[class*="popup"]
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
 
 ! 2025. 5. 27. https://play.sooplive.co.kr
-
 
