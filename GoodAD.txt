@@ -1675,7 +1675,7 @@ evojav.pro$popup
 ! AV핑크 (https://avpink36.com/)
 ! - 배너 이미지
 !##.fg-image
-! - 영상 시청시 검은화면 나옴 - media 차단해제 (List-KR)
+! - 영상 시청시 검은화면 나오면서 소리만 나옴 - media 차단해제 (List-KR)
 @@||ttse.b-cdn.net^
 !
 !
@@ -3229,6 +3229,13 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 
 !!! - 광역 3
 ! - - - 광역으로 사용
+! - - - AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너 / 영상내 큰 배너
+![$domain=/^wfwf\d+.com/]##a[href][target] img[src*="/wp-content/uploads/"]
+##a[href][target] img[src*="/wp-content/uploads/"]
+
+
+!!! - 광역 4
+! - - - 광역으로 사용
 ! - target 이 없는 요소
 ! - url이 /background/ 인 경우
 ! - - - 인생도박 (https://dobaklife18.com/) 왼쪽 배너
@@ -3237,7 +3244,7 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ##a[href] img[src*="/background/"][src*='.gif']
 
 
-!!! - 광역 4
+!!! - 광역 5
 ! - target 이 없는 요소
 ! - 레드걸 (https://redgirl37.org/) - 영상내 배너
 ![$domain=/^redgirl\d+.org/]##img[src*="/data/editor/"]
@@ -3245,9 +3252,12 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ##[onclick] img[src*="/data/editor/"]
 
 
+
+
 !!! 기본
 ! - - -  AVseeTV (https://04.avsee.ru/)
 ! - - - 뉴토끼 (https://newtoki468.com/)
+! - - - 마나토끼 (https://manatoki468.net/)
 ! - - - 북토끼 (https://booktoki468.com/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 ##a[href][target*='blank'] img[src*='.gif']
@@ -3260,10 +3270,11 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ! - - - 툰코 (https://tkor025.com/)
 ! - - - 늑대닷컴 (https://wfwf391.com/)
 ! - - - 여우코믹스 (https://fxfx310.com/)
+! - - - 애니위크 (https://aniweek.com/)
 ! - - -  https://today-sports7.com/
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^today-sports\d+.com/],[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/]##a[href][target*='_blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/]##a[href][target*='_blank'] img
 
 !!! - 기본 변형 2
 ! - - - href*='http'가 아닌 경우에도 사용
@@ -3365,14 +3376,27 @@ www.linknala.com,[$domain=/^today-sports\d+.com/],[$domain=/^tkor\d+.com/],[$dom
 [$domain=/^ssg1.torrentssg\d+.com/]##[style] a[href][target]
 
 
+! - 일부 사이트에서 사용 중
+! - - - /wp-content/uploads/ 1규칙
+! - - - [src]로 하면 모든 이미지 사라짐
+! - - - 상단배너는 ###imgDiv > table 로 공간없애고 나머지는 기본 규칙인 ##[target][href] img 로 해결 (아래 규칙 안해도 됨)
+! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
+![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
 
-!!! - 변형 기본 3
+
+!!! - 변형 기본 3 (광역으로 변경)
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
 ! - - - /wp-content/uploads/  2규칙
 ! - - - 2규칙을 1에 사용하면 배너이미지 대신 영상 이미지가 사라짐
 ! - - - 야동마켓 (https://www.yadongmarket.com/) - 로고 사라짐
-www.yadongmarket.com##[style] img[src*="/wp-content/uploads/"]
+!##a[href] img[src*="/wp-content/uploads/"] - 영상 이미지까지 사라져서 변경
+!##[style] a[href] img[src*="/wp-content/uploads/"] - 로고가 사라져서 재변경
+! 규칙1에 광역으로 적용하면 영상 이미지가 사라져서 추가 규칙 붙여서 광역으로 처리
+!www.yadongmarket.com##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
+##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
+
+
 
 
 !!! - 변형 기본 4
@@ -3427,12 +3451,7 @@ avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img
 
 
 
-! - 일부 사이트에서 사용 중
-! - - - /wp-content/uploads/ 1규칙
-! - - - [src]로 하면 모든 이미지 사라짐
-! - - - 상단배너는 ###imgDiv > table 로 공간없애고 나머지는 기본 규칙인 ##[target][href] img 로 해결 (아래 규칙 안해도 됨)
-! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
-![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
+
 
 
 
