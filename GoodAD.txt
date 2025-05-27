@@ -3215,8 +3215,12 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 !##a[href][target] img[src*="banner"][src*='.gif']
 ! - - - 티비위키 (https://tvwiki21.com/) - 이미지가 gif 같은 확장자가 없음
 !##a[href][target] img[src*="banner"]
+##[class*="banner"] a[href] img[src*="banner"]
+
+
+! 광역 1 추가 영역 처리 - 비광역으로 처리
 ! 메시티비 (https://messitv8.com/) - 왼쪽 배너
-##a[href] img[src*="banner"]
+[$domain=/^messitv\d+.com/]##a[href] img[src*="banner"]
 
 
 
@@ -3224,7 +3228,7 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ! - - - 광역으로 사용
 ! - http가 banner 주소 들어간 주소에서 사용 중 (target이 blank가 아님)
 ! - - - 만화방 (https://manhwabang.org/)
-##a[href*="banner"][target] img
+##[class*="banner"] a[href*="banner"][target] img
 
 
 !!! - 광역 3
@@ -3234,16 +3238,19 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 !##a[href][target] img[src*="/wp-content/uploads/"]
 !  아래 예외 사항들이 생겨 세부적으로 쪼갬
 ! - - -  AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너
-!#[role="banner"] a[href][target] img[src*="/wp-content/uploads/"]
+##[role="banner"] a[href][target] img[src*="/wp-content/uploads/"]
 ! - - -  AV조아 (https://avjoa70.com/) - 영상내 큰 배너
-!#[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
+##[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
+
+
+! 광역 3 추가 영역 처리 - 비광역으로 처리
 ! - 야통령 (https://xn--5-v10fo35av1l.com/) 에서 오른쪽 배너가 안사라짐 / 원점으로 돌림
-##a[href][target] img[src*="/wp-content/uploads/"]
+[$domain=/^xn--\d+-v10fo35av1l.com/]##a[href][target] img[src*="/wp-content/uploads/"]
 ! - - - 예외
 ! https://of996.com/
 ! https://www.nicesss.com/
 ! https://www.8kcosplay.com/
-of996.com,nicesss.com,8kcosplay.com#@#a[href][target] img[src*="/wp-content/uploads/"]
+!of996.com,nicesss.com,8kcosplay.com#@#a[href][target] img[src*="/wp-content/uploads/"]
 
 !!! - 광역 4
 ! - - - 광역으로 사용
@@ -3304,7 +3311,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 !##a[href][target*='_blank'] img
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
 !##[target][href] img
-[$domain=/^dozi\d+.com/],[$domain=/^blacktoon\d+.com/],messitv8.com##a[href][target] img
+[$domain=/^dozi\d+.com/],[$domain=/^blacktoon\d+.com/],[$domain=/^messitv\d+.com/]##a[href][target] img
 !##a[href][target] img
 
 
@@ -3530,8 +3537,8 @@ vibe.naver.com#@#[class*="popup"]
 ! - 예외
 
 !trand.co.kr#@#a[href][target] img
-trand.co.kr#@#a[href][onclick] [class][src]
-trand.co.kr#@#[style^="background-image"] a[href]
+!trand.co.kr#@#a[href][onclick] [class][src]
+!trand.co.kr#@#[style^="background-image"] a[href]
 
 
 
@@ -3583,7 +3590,7 @@ trand.co.kr#@#[style^="background-image"] a[href]
 ! 커뮤니티
 !fmkorea.com,etoland.co.kr,inven.co.kr,mlbpark.donga.com,theqoo.net,web.humoruniv.com,damoang.net,todayhumor.co.kr,bobaedream.co.kr,82cook.com,bbs.ruliweb.com,ppomppu.co.kr,ddanzi.com,ygosu.com,jjang0u.com,clien.net,slrclub.com,bbs.ruliweb.com,instiz.net,dogdrip.net,gasengi.com,suyong.so,humorpick.com,reddit.com,tistory.com,brunch.co.kr,heye.kr#@#a[href][target] img
 
-etoland.co.kr,ddanzi.com#@#a[href] img[src*="banner"]
+!etoland.co.kr,ddanzi.com#@#a[href] img[src*="banner"]
 
 
 
@@ -3600,7 +3607,7 @@ etoland.co.kr,ddanzi.com#@#a[href] img[src*="banner"]
 
 ! 음악
 !music.bugs.co.kr,inlive.co.kr#@#a[href][target] img
-music.bugs.co.kr#@#a[href] img[src*="banner"]
+!music.bugs.co.kr#@#a[href] img[src*="banner"]
 
 
 ! 서점
@@ -3666,7 +3673,8 @@ music.bugs.co.kr#@#a[href] img[src*="banner"]
 !www.linknala.com,www.jusotw.com,jusonara.net,[$domain=/^linklove\d+.com/],[$domain=/^wdwd\d+.com/],[$domain=/^jusomodu\d+.com/],[$domain=/^jusokok\d+.com/],jusopick.com,[$domain=/^jusozzang\d+.xyz/],[$domain=/^jusotop\d+.com/],www.yugiyu.com,[$domain=/^xn--\d+-9e0jj6lotejx2a.com/],[$domain=/^linkya\d+.com/],[$domain=/^link-on\d+.com/]#@#a[href][target] img
 
 ! 18모아 (https://18moa026.com/) - 이미지가 많이 사라져서 해제
-[$domain=/^18moa\d+.com/]#@#a[href] img[src*="banner"]
+![$domain=/^18moa\d+.com/]#@#a[href] img[src*="banner"]
+[$domain=/^18moa\d+.com/]#@#[class*="banner"] a[href] img[src*="banner"]
 
 
 ! 쿠팡 (https://www.coupang.com/)
@@ -3725,7 +3733,7 @@ music.bugs.co.kr#@#a[href] img[src*="banner"]
 
 
 ! https://javhd.icu/ - 로고 사라짐
-javhd.icu#@#a[href] img[src*="banner"]
+!javhd.icu#@#a[href] img[src*="banner"]
 
 
 !!! 성인 이미지 관련
