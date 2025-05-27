@@ -130,9 +130,10 @@ sooplive.co.kr##.on.bnrimg_area
 ##.buffering
 ! - - - 광고 영상
 !||vod-player003.sooplive.co.kr
-||vod-player*.sooplive.co.kr
-! - - - 광고차단 안될시 광고 화면 안보이게
-play.sooplive.co.kr###da_video
+!||vod-player*.sooplive.co.kr
+! - - - 광고차단 안될시 광고 안나오게
+!play.sooplive.co.kr###da_video
+play.sooplive.co.kr##.da_area_right
 ! - 방송요약 팝업
 sooplive.co.kr###sarsa_btn
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
