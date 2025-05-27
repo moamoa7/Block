@@ -759,6 +759,11 @@ music.bugs.co.kr##.topBanner
 !##div[class] > a[class][href^="http"][target="_blank"]
 !
 !
+!  애니조아 (https://www.anizoa.net/) - 영상 재생 안됨
+! - 영상 옆 오른쪽 배너 1개
+anizoa.net##.widget_media_image.r-widget-control.widget
+!
+!
 ! 땡땡티비 (https://ootv37.com/)
 !  - 배너 공간
 ! - - - ##[src*="imgbox.com"] 사용시 전 이미지가 다 날라감
@@ -3240,7 +3245,8 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ##[role="banner"] a[href][target] img[src*="/wp-content/uploads/"]
 ! - - -  AV조아 (https://avjoa70.com/) - 영상내 큰 배너
 ##[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
-
+! - - - 애니야24 (https://www.aniya24.com/) - 영상 상단 배너 
+##[class*="widget-image"] a[href] img[src*="/wp-content/uploads/"]
 
 ! 광역 3 추가 영역 처리 - 비광역으로 처리
 ! - 광역으로 처리하면 일부 사이트에서 이미지 사라짐
@@ -3270,6 +3276,7 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ##[onclick] img[src*="/data/editor/"]
 
 
+!/////////////////////////////////////////////////////////////////////////////////////////
 
 
 !!! 기본
@@ -3291,9 +3298,19 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ! - - - 애니위크 (https://aniweek.com/)
 ! - - -  https://today-sports7.com/
 ! - - - 밍키넷 (https://mingky.net/)
+! - - - 야툰 (https://yatoon207.com/)
+! - - - 마징가툰 (https://z70.mzgtoon.com/)
+! - - - 애니조아 (https://www.anizoa.net/)
+! - - - 펀비 (https://funbe538.com/)
+! - - - 애니어바웃 (https://aniabout.com/)
+! - - - 해피툰 (https://happytoon01.com/)
+! - - - 머니툰 (https://mtoon125.com/)
+! - - - 비툰 (https://btoon92.com/)
+! - - - 툰브르 (https://b18.toon-bro.xyz/)
+! - - - AV핑크 (https://avpink36.com/)
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net##a[href][target*='_blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/]##a[href][target*='_blank'] img
 
 !!! - 기본 변형 2
 ! - - - href*='http'가 아닌 경우에도 사용
@@ -3395,29 +3412,11 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 [$domain=/^ssg1.torrentssg\d+.com/]##[style] a[href][target]
 
 
-! - 일부 사이트에서 사용 중
-! - - - /wp-content/uploads/ 1규칙
-! - - - [src]로 하면 모든 이미지 사라짐
-! - - - 상단배너는 ###imgDiv > table 로 공간없애고 나머지는 기본 규칙인 ##[target][href] img 로 해결 (아래 규칙 안해도 됨)
-! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
-![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
-
-
-!!! - 변형 기본 3 (광역으로 변경)
+!!! - 변형 기본 3
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
-! - - - /wp-content/uploads/  2규칙
-! - - - 2규칙을 1에 사용하면 배너이미지 대신 영상 이미지가 사라짐
-! - - - 야동마켓 (https://www.yadongmarket.com/) - 로고 사라짐
-!##a[href] img[src*="/wp-content/uploads/"] - 영상 이미지까지 사라져서 변경
-!##[style] a[href] img[src*="/wp-content/uploads/"] - 로고가 사라져서 재변경
-! 규칙1에 광역으로 적용하면 영상 이미지가 사라져서 추가 규칙 붙여서 광역으로 처리
-!##[style] a[href] img[src*="/wp-content/uploads/"][class] - 1규칙 이미지 사라짐
-!www.yadongmarket.com##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
-##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
-! - - - 예외 (https://dramaday.me/) - 이미지 사라짐
-dramaday.me#@#[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
-
+! - - - 핫툰 (https://hottoon53.com/) - 상단 배너
+[$domain=/^hottoon\d+.com/]##a[href] img[style]
 
 
 !!! - 변형 기본 4
@@ -3431,6 +3430,36 @@ xn--av1-qv9mx21c.com,[$domain=/^ydu\d+.com/]##[style] img[src]
 
 
 !!! - 변형 기본 5
+! - 일부 사이트에서 사용 중
+! - - - /wp-content/uploads/ 1규칙
+! - - - [src]로 하면 모든 이미지 사라짐
+! - - - 상단배너는 ###imgDiv > table 로 공간없애고 나머지는 기본 규칙인 ##[target][href] img 로 해결 (아래 규칙 안해도 됨)
+! - - - AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
+![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
+
+
+!!! - 변형 기본 6
+! - 일부 사이트에서 사용 중
+! - target 이 없는 요소
+! - - - /wp-content/uploads/  2규칙
+! - - - 2규칙을 1에 사용하면 배너이미지 대신 영상 이미지가 사라짐
+! - - - 야동마켓 (https://www.yadongmarket.com/) - 로고 사라짐
+!##a[href] img[src*="/wp-content/uploads/"] - 영상 이미지까지 사라져서 변경
+!##[style] a[href] img[src*="/wp-content/uploads/"] - 로고가 사라져서 재변경
+! 규칙1에 광역으로 적용하면 영상 이미지가 사라져서 추가 규칙 붙여서 광역으로 처리
+!##[style] a[href] img[src*="/wp-content/uploads/"][class] - 1규칙 이미지 사라짐
+www.yadongmarket.com##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
+!#[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
+! - - - 예외
+! - - -https://dramaday.me/ - 이미지 사라짐
+! - - - https://www.aniya24.com/ - 일부 영상 사라짐
+! - - - 조개무비 (https://v15.jogemovie.net/) - 영상 이미지 사라짐
+!ramaday.me#@#[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
+![$domain=/^www.aniya\d+.com/]#@#[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
+![$domain=/^v\d+.jogemovie.net/]#@#[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
+
+
+!!! - 변형 기본 7
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
 ! - - - 이걸 광역으로 사용하면 일부 사이트에서 이미지가 사라짐
@@ -3451,7 +3480,7 @@ javlemon.com##[style] [src]
 [$domain=/^jusokok\d+.com/]##[style^="background-color"]
 
 
-!!! - 변형 기본 7
+!!! - 변형 기본 8
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
 !  - - -광역으로 사용시 페이지 아무껏도 안보임
@@ -3460,7 +3489,7 @@ javlemon.com##[style] [src]
 [$domain=/^dugebitv\d+.xyz/]##[style] [data-original]
 
 
-!!! - 변형 기본 8
+!!! - 변형 기본 9
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
 !  - - -광역으로 사용시 일부 이미지 안보임
@@ -3469,11 +3498,6 @@ javlemon.com##[style] [src]
 !- - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움
 !##a[href][onclick] [class][src]
 avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img
-
-
-
-
-
 
 
 ! - 일부 사이트에서 사용 중
