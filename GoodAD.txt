@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250527
+! Version: 20250528
 !
 !
 !
@@ -3230,14 +3230,16 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 !!! - 광역 1
 ! - - - 광역으로 사용
 ! - banner 주소 들어간 이미지에서 사용 중 (target 없음)
+! - - - 티비위키 (https://tvwiki21.com/) - 이미지가 gif 같은 확장자가 없음
+! - - - 티비몬 (https://tvmon16.org/) - 이미지가 gif 같은 확장자가 없음
+! - - - 주소월드 (https://wdwd8.com/)
 ! - - - 야부리 시즌 2 (https://yaburi60.com/)
 !##a[href][target] img[src*="banner"][src*='.gif']
-! - - - 티비위키 (https://tvwiki21.com/) - 이미지가 gif 같은 확장자가 없음
 !##a[href][target] img[src*="banner"]
 ##[class*="banner"] a[href] img[src*="banner"]
 
 
-! 광역 1 추가 영역 처리 - 비광역으로 처리
+! 광역 1  + 추가 영역 처리 - 비광역으로 처리
 ! - 광역으로 처리하면 일부 사이트에서 이미지 사라짐
 ! https://today-sports7.com/ - 한칸짜리 게시물 배너
 ! 메시티비 (https://messitv8.com/) - 왼쪽 배너
@@ -3247,6 +3249,7 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 !!! - 광역 2
 ! - - - 광역으로 사용
 ! - http가 banner 주소 들어간 주소에서 사용 중 (target이 blank가 아님)
+! - - - 주소월드 (https://wdwd8.com/)
 ! - - - 만화방 (https://manhwabang.org/)
 ##[class*="banner"] a[href*="banner"][target] img
 
@@ -3263,8 +3266,10 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ##[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
 ! - - - 애니야24 (https://www.aniya24.com/) - 영상 상단 배너 
 ##[class*="widget-image"] a[href] img[src*="/wp-content/uploads/"]
+! - - - 조개무비 (https://v15.jogemovie.net/) - 상단 배너
+##[class*="wp-block"] a[href] img[src*="/wp-content/uploads/"]
 
-! 광역 3 추가 영역 처리 - 비광역으로 처리
+! 광역 3 + 추가 영역 처리 - 비광역으로 처리
 ! - 광역으로 처리하면 일부 사이트에서 이미지 사라짐
 ! - 야통령 (https://xn--5-v10fo35av1l.com/) 에서 오른쪽 배너가 안사라짐 / 원점으로 돌림
 [$domain=/^xn--\d+-v10fo35av1l.com/]##a[href][target] img[src*="/wp-content/uploads/"]
@@ -3296,10 +3301,12 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 
 
 !!! 기본
-! - - -  AVseeTV (https://04.avsee.ru/)
+! - - - 티비핫 (https://tvhot.store/)
+! - - - AVseeTV (https://04.avsee.ru/)
 ! - - - 뉴토끼 (https://newtoki468.com/)
 ! - - - 마나토끼 (https://manatoki468.net/)
 ! - - - 북토끼 (https://booktoki468.com/)
+! - - - 뉴툰 (https://newtoon278.com/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 ##a[href][target*='blank'] img[src*='.gif']
 
@@ -3347,9 +3354,10 @@ coupang.com,shopping.naver.com,plusdeal.naver.com,shoppinglive.naver.com,shoppin
 ! - - - 토렌트탑 (https://torrenttop156.com/)
 ! - - - 토렌트하하 (https://torrenthaha09.com/)
 ! - - - 티비룸 (https://tvroom8.org/)
+! - - - 블랙툰 (https://blacktoon371.com/)
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/]##a[href][target*='_blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/]##a[href][target*='_blank'] img
 
 !!! - 기본 변형 2
 ! - - - href*='http'가 아닌 경우에도 사용
@@ -3358,7 +3366,6 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - - - 광역으로 해서 해제할 사이트는 해제하는 방식으로 사용 중
 ! - - - 티비위키 (https://tvwiki21.com/)
 ! - - - 도지코믹스 (https://dozi352.com/)
-! - - - 블랙툰 (https://blacktoon371.com/)
 ! - - - 메시티비 (https://messitv8.com/) - 추가 다른 배너 삭제
 ! - - - AV팝 (https://01.avpop.tv/)
 ! - - - 일구핫 (https://01.19hot.net/)
@@ -3370,7 +3377,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 !##a[href][target*='_blank'] img
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
 !##[target][href] img
-[$domain=/^dozi\d+.com/],[$domain=/^blacktoon\d+.com/],[$domain=/^messitv\d+.com/],[$domain=/^\d+.avpop.tv/],[$domain=/^\d+.19hot.net/]##a[href][target] img
+[$domain=/^dozi\d+.com/],[$domain=/^messitv\d+.com/],[$domain=/^\d+.avpop.tv/],[$domain=/^\d+.19hot.net/]##a[href][target] img
 !##a[href][target] img
 
 
