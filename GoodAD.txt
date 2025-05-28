@@ -3317,13 +3317,14 @@ dhlottery.co.kr##.band_banner
 ! - - - AV조아 오른쪽 상단 배너 / 영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결)
 ! - - - AV러브걸  영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결) (오른쪽 상단 배너 없음)
 ##img[src*="/wp-content/uploads/"][style]
+! - - - 영상내 배너
+##[class*="play"] [src*="/wp-content/uploads"]
 !##a[target] img[src*="/wp-content/uploads/"],[src="gif"]
 ! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
 dramaday.me#@#a[target] img[src*="/wp-content/uploads/"]
 ! - - - AV러브걸 (https://avlove28.com/) 메인 상단 배너 / 영상 큰 배너 - 메인 상단 일부 이미지 못 지움 (영상 이미지 지워져서 jpg를 선택할 수 없음) - ###imgDiv > table 추가
 ! - - - AV핑보걸 (https://pinkbo44.com/)
 ! - - - XX조아 (https://xxjoa45.com/)
-! - - - 노보텔 (https://nvt43.com/)
 ! - - - 조개코리아 (https://jogekorea.com/) (https://jogekorea01.com/)
 ! - - - 야통령 (https://xn--5-v10fo35av1l.com/)
 ! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/)
@@ -3621,6 +3622,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - - - 딸통령 (https://uf204.com/)
 ! - - - 리얼티비 (https://retv29.com/)
 ! - - - 핫스팟 (https://hotg33.com/)
+! - - - 토렌트족 ( https://torrentjok71.com/) - 오른쪽 배너
 ! - - - 주소콕 (https://xn--9l4b19kltf.com/) (https://jusokok10.com/)
 !##[style^="background-image"] a[href]
 ##[style*="/background/"] a[href]
