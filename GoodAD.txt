@@ -3300,14 +3300,16 @@ dhlottery.co.kr##.band_banner
 ! - - - 시네마조아 (https://cinemajoa80.com/) - 영상내 큰 배너
 !##[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
 ! - - -  위 규칙에 해당되지 않는 배너 (위 기재된 규칙대로 했을때 사라지는 배너로 인해 못함에 따라)는 ##.happy-inside-player로 처리
-! - - - 애니야24 (https://www.aniya24.com/) - 영상 상단 배너 
-!##[class*="widget-image"] a[href] img[src*="/wp-content/uploads/"]
-! - - - 조개무비 (https://v15.jogemovie.net/) - 상단 배너
-!##[class*="wp-block"] a[href] img[src*="/wp-content/uploads/"]
 ! - -  AV핑보걸 (https://pinkbo44.com/) - 맨 상단 오른쪽 배너
 ! - - - 아래 규칙으로 통일
-##[id] a[target] img[src*="/wp-content/uploads/"]
-
+! - - - AV조아 오른쪽 상단 배너
+##a[target] img[src*="/wp-content/uploads/"]
+! - - - AV조아 오른쪽 상단 배너 / 영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결)
+! - - - AV러브걸  영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결) (오른쪽 상단 배너 없음)
+##img[src*="/wp-content/uploads/"][style]
+!##a[target] img[src*="/wp-content/uploads/"],[src="gif"]
+! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
+dramaday.me#@#a[target] img[src*="/wp-content/uploads/"]
 ! - - - AV러브걸 (https://avlove28.com/) 메인 상단 배너 / 영상 큰 배너 - 메인 상단 일부 이미지 못 지움 (영상 이미지 지워져서 jpg를 선택할 수 없음) - ###imgDiv > table 추가
 ! - - - AV핑보걸 (https://pinkbo44.com/)
 ! - - - XX조아 (https://xxjoa45.com/)
@@ -3316,15 +3318,21 @@ dhlottery.co.kr##.band_banner
 ! - - - 야통령 (https://xn--5-v10fo35av1l.com/)
 ! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/)
 !  - -  [src*='.gif'] 이걸 지우면 깔끔하나 로고가 지워짐 . 안지워진 배너 이미지는 공간 없애는 규칙 사용
-##[id] img[src*="/wp-content/uploads/"][src*='.gif']
-##[id=imgDiv] img[src*="/wp-content/uploads/"][src]
+!##img[src*="/wp-content/uploads/"][src*='.gif']
+!##[id=imgDiv] img[src*="/wp-content/uploads/"][src]
 
+
+!!! - 광역 3 (개별 광역)
+! - - - 애니야24 (https://www.aniya24.com/) - 영상 상단 배너 
+##[class*="widget-image"] a[href] img[src*="/wp-content/uploads/"]
+! - - - 조개무비 (https://v15.jogemovie.net/) - 상단 배너
+##[class*="wp-block"] a[href] img[src*="/wp-content/uploads/"]
 
 
 ! 광역 3 + 추가 영역 처리 - 비광역으로 처리
 ! - 광역으로 처리하면 일부 사이트에서 이미지 사라짐
 ! - 야통령 (https://xn--5-v10fo35av1l.com/) 에서 오른쪽 배너가 안사라짐 / 원점으로 돌림
-[$domain=/^xn--\d+-v10fo35av1l.com/]##a[href][target] img[src*="/wp-content/uploads/"]
+![$domain=/^xn--\d+-v10fo35av1l.com/]##a[href][target] img[src*="/wp-content/uploads/"]
 ! - - - 예외
 ! https://of996.com/
 ! https://www.nicesss.com/
