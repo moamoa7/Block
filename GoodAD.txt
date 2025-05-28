@@ -3541,14 +3541,15 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 !!! - 기본 3
 ! - 일부 사이트에서 사용 중
+! - - -  ##a[href] img 하면 영상 이미지까지 지워져서 [class] 넣음
 ! - - - 야콩넷 (https://yakong5.net/) - 영상 하단 배너
 [$domain=/^yakong\d+.net/]##a[href][class] img
 
 
 !!! - 기본 4
-! - - - https://jusoyo42.com/ 상단 배너
-! - - - 레드캣 (https://redcattv5.org/)
 ! - - - ##a[href][target] img 일반 이미지까지 다 선택. 배너만 할려니 class 추가
+! - - - 주소요 (https://jusoyo42.com/) - 상단 배너
+! - - - 레드캣 (https://redcattv5.org/)
 [$domain=/^jusoyo\d+.com/],[$domain=/^redcattv\d+.org/]##a[href][target] img[class]
 
 
@@ -3751,7 +3752,6 @@ javlemon.com##[style] [src]
 !- - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움
 !##a[href][onclick] [class][src]
 avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img
-
 
 
 
