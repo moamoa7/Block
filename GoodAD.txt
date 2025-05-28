@@ -129,6 +129,14 @@ sooplive.co.kr##.on.bnrimg_area
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
 ! - - - 광고차단 안될시 광고 영상 안보이게
+||vod-player*.sooplive.co.kr
+||delog.sooplive.co.kr
+||eventapi.sooplive.co.kr
+||dawin.tv
+||www.google-analytics.com
+||analytics.tiktok.com
+||analytics.google.com
+||analysis.sooplive.co.kr
 play.sooplive.co.kr##.da_area
 play.sooplive.co.kr###da_video
 ! - 방송요약 팝업
@@ -1783,7 +1791,7 @@ openload.mov##div:nth-of-type(9)
 ||joajoajoamoamoa.store/VAST/
 !
 !
-! MISSAV (https://missvod3.com/)
+! MISSAV (https://missvod4.com/)
 ! - 배너
 ![$domain=/^missvod\d+.com/]###banner-list.banner-list
 !
@@ -3262,6 +3270,8 @@ dhlottery.co.kr##.band_banner
 ! - - -  딸플릭스 (https://kr4.ddal.xyz/)
 ! - - - 조개모아 (https://www.jgmoagogo.com/) (https://www.jogemoa.com/) - 일부 배너
 ! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
+! - - - AV19 (https://av19.live/)
+! - - - AV탑걸 (https://kr40.topgirl.co/)
 !##a[href][target] img[src*="banner"][src*='.gif']
 !##a[href][target] img[src*="banner"]
 ##[class*="banner"] a[href] img[src*="banner"]
@@ -3345,9 +3355,11 @@ dramaday.me#@#a[target] img[src*="/wp-content/uploads/"]
 ! - url이 /background/ 인 경우
 ! - - - 인생도박 (https://dobaklife18.com/) 왼쪽 배너
 ! - - - 방방바TV (https://mzgvod01.com/)
+! - - - 모애니 (https://moeni.live/)
 ![$domain=/^dobaklife\d+.com/]##img[src*="background"]
 ! -- - - -  [src*='.gif']  안 넣으면 로고가 사라지는 경우도 있음 (예 : https://cineaste.co.kr/)
-##a[href] img[src*="/background/"][src*='.gif']
+!##a[href] img[src*="/background/"][src*='.gif']
+##a[href] img[src*="/background/"]
 
 
 !!! - 광역 5
@@ -3419,6 +3431,10 @@ avhotgirl.top##a[href] img[src*="public"]
 ! - - - 토렌트RJ (https://torrentrj203.com/)
 ! - - - 토다와 (https://www.todawa137.site/)
 ! - - - 토렌트릴 (https://www.torrentreel133.site/)
+! - - - 일일툰 (https://www.11toon143.com/)
+! - - - 호두코믹스 (https://t71.hoduhodu.com/)
+! - - - 엑스툰 (https://t1.xtoon2.com/)
+! - - - AV탑걸 (https://kr40.topgirl.co/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 ##a[href][target*='blank'] img[src*='.gif']
 
@@ -3480,9 +3496,13 @@ avhotgirl.top##a[href] img[src*="public"]
 ! - - - 야동그라운드 (https://yagro48.com/)
 ! - - - 토팡 (https://torpang119.com/)
 ! - - - 토렌트썰 (http://torrentsir175.com/)
+! - - - 무비킹 (https://mvking4.org/)
+! - - - MISSAV (https://missvod4.com/)
+! - - - 다크걸 (https://darkg5.com/)
+! - - - AV쏘걸 (https://kr80.sogirl.so/)
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/]##a[href][target*='_blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/]##a[href][target*='_blank'] img
 
 
 
