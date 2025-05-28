@@ -2049,6 +2049,13 @@ notion.so@@||/*/ads/*
 ##.top_banner_grid
 !
 !
+! AV핫걸 (https://avhotgirl.top/)
+! -오른쪽 상단 배너
+!##.happy-header
+! -오른쪽 배너 공간
+!##.happy-sidebar
+!
+!
 ! 색색티비 (https://kr161.mysstv.com/)
 ! - 배너 이미지 (대/소문자 구분)
 ! - - - src*='Banner"
@@ -2152,6 +2159,11 @@ xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 ![$domain=/^jogaeparty\d+.com/]##div.view-padding > div.row
 ! - 모바일 상단 텍스트 배너
 [$domain=/^jogaeparty\d+.com/]##.at-body > .widget-box > div
+!
+!
+! 야동위키 (https://hanyasa.com/)
+! - 상단 배너 / 영상 하단 배너 공간
+hanyasa.com##.gofollow
 !
 !
 ! 야부리 시즌 2 (https://yaburi60.com/)
@@ -3248,6 +3260,7 @@ dhlottery.co.kr##.band_banner
 ! - - - 제크티비 (https://zectv.com/)
 ! - - -  딸플릭스 (https://kr4.ddal.xyz/)
 ! - - - 조개모아 (https://www.jgmoagogo.com/) (https://www.jogemoa.com/) - 일부 배너
+! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
 !##a[href][target] img[src*="banner"][src*='.gif']
 !##a[href][target] img[src*="banner"]
 ##[class*="banner"] a[href] img[src*="banner"]
@@ -3266,6 +3279,7 @@ dhlottery.co.kr##.band_banner
 ! - - - 주소월드 (https://wdwd8.com/)
 ! - - - 만화방 (https://manhwabang.org/)
 ! - - - 제크티비 (https://zectv.com/)
+! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
 ##[class*="banner"] a[href*="banner"][target] img
 
 
@@ -3299,6 +3313,7 @@ dhlottery.co.kr##.band_banner
 ! - - - 노보텔 (https://nvt43.com/)
 ! - - - 조개코리아 (https://jogekorea.com/) (https://jogekorea01.com/)
 ! - - - 야통령 (https://xn--5-v10fo35av1l.com/)
+! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/)
 !  - -  [src*='.gif'] 이걸 지우면 깔끔하나 로고가 지워짐 . 안지워진 배너 이미지는 공간 없애는 규칙 사용
 ##[id] img[src*="/wp-content/uploads/"][src*='.gif']
 ##[id=imgDiv] img[src*="/wp-content/uploads/"][src]
@@ -3327,11 +3342,23 @@ dhlottery.co.kr##.band_banner
 
 
 !!! - 광역 5
+! - - - 광역으로 사용
+! - target 이 없는 요소
+! - - - 배너 img 주소가 public로 끝남
+! - - - AV핫걸 (https://xn--av-t21it66k.com/) (https://avhotgirl.top/)
+avhotgirl.top##a[href] img[src*="public"]
+
+
+!!! - 광역 6
+! - - - 광역으로 사용
 ! - target 이 없는 요소
 ! - 레드걸 (https://redgirl37.org/) - 영상내 배너
 ![$domain=/^redgirl\d+.org/]##img[src*="/data/editor/"]
 ![$domain=/^redgirl\d+.org/]##[onclick] img[src*="/data/editor/"]
 ##[onclick] img[src*="/data/editor/"]
+
+
+
 
 
 !/////////////////////////////////////////////////////////////////////////////////////////
@@ -3371,12 +3398,18 @@ dhlottery.co.kr##.band_banner
 ! - - - 야르가즘 (https://yargasm47.cc/)
 ! - - - 걸스티비 (https://kor11.grtv-48.com/)
 ! - - - 야썸 (https://yasome47.cc/)
-! - - - 지지넷 (https://porngg7.net/)
 ! - - - 킹부랄 (http://kbr202.com/)
 ! - - - 조개코리아 (https://jogekorea.com/) (https://jogekorea01.com/)
 ! - - - 망가망가 (https://mgmg114.com/) (https://mgmg2.com/)
 ! - - - 애니넷 (https://ani114.net/) (https://ani01.net/)
 ! - - - 툰넷 (https://toon114.net/) (https://toon01.net/)
+! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/) (https://dfake.top/)
+! - - - 난넷 (https://nen114.com/) (https://nan008.net/)
+! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
+! - - - 토렌트큐큐 (https://torrentqq369.com/)
+! - - - 토렌트RJ (https://torrentrj203.com/)
+! - - - 토다와 (https://www.todawa137.site/)
+! - - - 토렌트릴 (https://www.torrentreel133.site/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 ##a[href][target*='blank'] img[src*='.gif']
 
@@ -3416,7 +3449,7 @@ dhlottery.co.kr##.band_banner
 ! - - - 토렌트씨 (https://torrentsee287.com/)
 ! - - - 토렌트팁 (https://torrenttip177.com/)
 ! - - - 토렌트모바일 (https://torrentmobile203.com/)
-! - - - 토렌트썸 (https://torrentsome196.com/)
+! - - - 토렌트썸 (https://torrentsome197.com/)
 ! - - - 토렌트봇 (https://torrentbot195.com/)
 ! - - - 토렌트밤 (https://torrentbam181.com/)
 ! - - - 토렌트티티 (https://torrenttt182.com/)
@@ -3435,9 +3468,13 @@ dhlottery.co.kr##.band_banner
 ! - - - AV핑유걸 (https://avpingyou19.com/)
 ! - - - 혼딸파티 (https://ddparty05.top/)
 ! - - - 야동딸퀸 (https://ddalq04.org/)
+! - - - 야동그라운드 (https://yagro48.com/)
+! - - - 토팡 (https://torpang119.com/)
+! - - - 토렌트썰 (http://torrentsir175.com/)
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/]##a[href][target*='_blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/]##a[href][target*='_blank'] img
+
 
 
 
@@ -3549,12 +3586,13 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - - - 야프로 (https://yapro35.com/)
 ! - - - 동굴의 숲 (https://dg-soop21.com/)
 ! - - - 레드코코넛 (https://redcoconut23.com/)
-! - - - 꽁허브 (https://redcoconut23.com/)
+! - - - 꽁허브 (https://ggonghub32.com/)
 ! - - - 몰디브 (https://mdv13.com/)
 ! - - - 야동홀릭 (https://yhl-59.com/)
 ! - - - 딸통령 (https://uf204.com/)
 ! - - - 리얼티비 (https://retv29.com/)
 ! - - - 핫스팟 (https://hotg33.com/)
+! - - - 주소콕 (https://xn--9l4b19kltf.com/) (https://jusokok10.com/)
 !##[style^="background-image"] a[href]
 ##[style*="/background/"] a[href]
 
@@ -3658,7 +3696,7 @@ javlemon.com##[style] [src]
 ! - target 이 없는 요소
 ! - - - 광역 사용시 원치 않는 이미지 등이 사라질 수 있음
 ! - 지워지지 않은 일부 배너 링크  삭제
-! - 예 : 주소콕 (https://jusokok10.com/) - 텍스트 링크
+! - 예 : 주소콕 (https://xn--9l4b19kltf.com/) (https://jusokok10.com/) - 텍스트 링크
 ! - - - ##[style*="/background/"] a[href]로 지워지지 않은 텍스트 배너 삭제
 ![$domain=/^jusokok\d+.com/]##[style^="background-color"] a[href]
 [$domain=/^jusokok\d+.com/]##[style^="background-color"]
@@ -3865,14 +3903,13 @@ vibe.naver.com#@#[class*="popup"]
 !!! 사이트 모음
 ! 인기사이트TOP10 (https://jancolink.com/) - 아예 안보임
 ! 주소요 (https://jusoyo42.com/)
-! 주소콕 (https://jusokok10.com/)
+! 주소콕 (https://xn--9l4b19kltf.com/) (https://jusokok10.com/)
 ! 링크나라 (https://www.linknala.com/)
 ! 주소타운 (https://www.jusotw.com/)
 ! 주소나라 (https://jusonara.net/)
 ! 링크사랑 (https://linklove54.com/)
 ! 주소월드 (https://wdwd7.com/)
 ! 주소모두 (https://jusomodu9.com/)
-! 주소콕 (https://jusokok10.com/)
 ! 주소골라 (https://jusopick.com/)
 ! 주소짱 (https://jusozzang05.xyz/)
 ! 주소탑 (https://jusotop03.com/)
