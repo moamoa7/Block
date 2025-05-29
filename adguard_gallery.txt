@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.05.25
+! Version: 2025.05.30
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -24,7 +24,6 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 *#%#//scriptlet('prevent-fetch', 'doubleclick.net')
 *#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 *#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
-start.klauncher.kr$$script:contains(detected)
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 
 ! 주소 바뀌는 불법 사이트 광고 영구 차단
@@ -56,11 +55,12 @@ start.klauncher.kr$$script:contains(detected)
 [$domain=/torrentpi[0-9]*\.com/]##.post-image > [target='_blank']:has(img)
 
 ! Ads
-#@#.appBanner:not(body)
 ##.ad-view
+##.banner_list
 ##.happy-header
 ##.happy-header-mobile
 ##.happy-under-player-mobile
+##.textwidget
 ##[alt$='광고']
 ##[class*='basic-banner'][id]
 ##[id*='powerLink']
@@ -74,7 +74,6 @@ start.klauncher.kr$$script:contains(detected)
 ##iframe[src*='digitalcamp.co.kr']
 ##iframe[src*='sga.adp']
 11st.co.kr##iframe[src*='ads.adoffice.11st.co.kr']
-4kjav.*,sogirl.*,javgirl.*,ddal.*##.banner_list
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 auction.co.kr##.component--sponsor_link.component
 avdbs.com##.ad-btn[class*='tp']
@@ -107,7 +106,6 @@ hankyung.com##[class*='promotion']
 harpi.in##div > iframe
 harpi.in##div:has(> script[src])
 hoduhodu.com##.md\:hidden.z-50.p-2.bg-black.w-full.left-0.bottom-0.fixed
-humoruniv.com##[id^='naver_adpost_wrap']
 instiz.net##.hot_under
 inven.co.kr##.inven-float-alarm
 khan.co.kr##.mAd
@@ -124,7 +122,6 @@ m.cgv.co.kr##.topBanner
 m.chzzk.naver.com##[class^='app_popup_dimmed__']
 m.danawa.com###mdnw-main-bottomSheet-container
 m.danawa.com###mdnw-main-dimm
-m.danawa.com###productBlog-adContainer
 m.daum.net##.bnr_popup.bnr_layer
 m.dcinside.com###notice_list > li:not(:has([href*='javascript'])):not(:has(span.ntc-line-orange))
 m.dcinside.com##.layer-bottom-popup
@@ -132,11 +129,16 @@ m.dcinside.com##.trend-rank:style(padding:0px!important; border-top:0px!importan
 m.dcinside.com##section.clkhigh.grid
 m.dcinside.com##section.grid > .md-tit-box:has-text(Daum)
 m.dcinside.com#@#.trend-rank
+m.fmkorea.com##.fmWidgetStyle2019.bd_mobile.bd:matches-css(padding: /5px 10px/):remove()
+m.fmkorea.com##script ~ div[class*=" "]:matches-css(padding: /5px 10px/):remove()
 m.gmarket.co.kr##.box__ad-banner
 m.gmarket.co.kr##.box__banner-promotion
 m.gmarket.co.kr##.box__top-banner
 m.gmarket.co.kr##.link__banner
 m.inven.co.kr##.show-ads
+m.ppomppu.co.kr###ask_app_usage_popup
+m.ppomppu.co.kr##div[style]:has(> ins)
+m.ruliweb.com##tr:has(.nbp_container)
 mlbpark.donga.com##.coupang_cont
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
@@ -177,12 +179,12 @@ dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_
 ! 멀웨어 / 수익링크 차단
 fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ||adcr.naver.com^$all
-||link.coupang.com/*/TOSS$all
 ||mistydivided.com^$all
-||work.gd^$all
+||s.click.aliexpress.com^$all
 
 ! 애드가드 필터 오차단 해제
 11st.co.kr#@#div[class$="-ad"]
+#@#.appBanner:not(body)
 $@$link[rel="manifest"]
 @@/.*/$permissions=identity-credentials-get=(),document,domain=slrclub.com
 @@||ad*.cgv.co.kr^$image,domain=cgv.co.kr
@@ -193,10 +195,10 @@ $@$link[rel="manifest"]
 @@||edge-live.joongna.com/api/web-ads/
 @@||google.*/search$stealth=useragent|ip
 @@||nexon.com^$stealth=dpi
-@@||nz*mi.com^$generichide
 @@||photo.jtbc.co.kr/news/cms/etc/
 @@||piku.co.kr^$generichide
 @@||ssl.pstatic.net^$script,domain=nid.naver.com
+@@||t1.daumcdn.net/adfit/static/kp.js$domain=nexon.com
 etoland.co.kr#@#div[class$="_ad"]
 hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
 lol.inven.co.kr#@#article > div[style].banner
