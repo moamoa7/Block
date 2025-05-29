@@ -2087,7 +2087,8 @@ notion.so@@||/*/ads/*
 !##[class*='main_popup']
 !##[class*="popup-pc"]:not(html):not(body):not(article)
 ! - - - mobile
-##.w-80.relative
+!##.w-80.relative
+##.w-80.centered
 ! 보증업체 더보기 텍스트 배너
 ##.rounded-md.border.p-1.w-full
 ! 하단 배너 이미지 (해제하지 말것)
