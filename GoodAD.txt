@@ -3270,7 +3270,6 @@ dhlottery.co.kr##.band_banner
 dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.com,jjang0u.com##iframe
 
 
-
 !!! - 광역 1
 ! - 광역으로 사용
 ! - 일부 사이트에서 이미지 사라짐 (예 : 옥션 배너 이미지 등) - banner 대신 /banner/로 변경하면 안사라짐
@@ -3285,7 +3284,6 @@ dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.c
 ! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
 ! - - - AV19 (https://av19.live/)
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
-! - - - 라이브스코어 (https://livescore.co.kr/)
 !##a[href][target] img[src*="banner"][src*='.gif']
 !##a[href][target] img[src*="banner"]
 !##[class*="banner"] a[href] img[src*="banner"]
@@ -3294,7 +3292,6 @@ dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.c
 ##img[src*="/banners/"]
 ##img[src*="sidebanner"]
 ##img[src*="event_banner"]
-##img[src*="/ad/"]
 
 
 ! 광역 1  + 추가 영역 처리 - 비광역으로 처리
@@ -3303,6 +3300,7 @@ dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.c
 ! 메시티비 (https://messitv8.com/) - 왼쪽 배너
 ! 링크사랑 (https://linklove54.com/) - 왼쪽.오른쪽 배너 . 중간 배너
 ![$domain=/^today-sports\d+.com/],[$domain=/^messitv\d+.com/],[$domain=/^linklove\d+.com/]##a[href] img[src*="banner"]
+
 
 !!! - 광역 2
 ! - - - 광역으로 사용
@@ -3395,6 +3393,14 @@ avhotgirl.top##a[href] img[src*="public"]
 
 
 !!! - 광역 6
+! - - - 광역으로 사용
+! - target 이 있지만 적용이 안됨
+! - - - 라이브스코어 (https://livescore.co.kr/)
+! ##[id*="AD"] 하면 id구간 다 사라짐
+##a[href] img[src*="/ad/"]
+
+
+!!! - 광역 7
 ! - - - 광역으로 사용
 ! - target 이 없는 요소
 ! - 레드걸 (https://redgirl37.org/) - 영상내 배너
