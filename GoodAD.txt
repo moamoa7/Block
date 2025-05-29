@@ -2332,6 +2332,9 @@ hanyasa.com##.gofollow
 ![$domain=/^evian\d+.com/]##div.section:nth-of-type(1)
 ![$domain=/^evian\d+.com/]##div.section:nth-of-type(2)
 ![$domain=/^evian\d+.com/]##div.section:nth-of-type(3)
+! - 성인주소모음  등 텍스르 링크 없애기
+! - - - 주소월드 (https://wdwd8.com/)
+##.rainbow-text
 !
 !
 ! 썸질라 (https://somez3.com/)
@@ -3273,6 +3276,10 @@ dhlottery.co.kr##.band_banner
 ! 이토랜드 게시물 하단 쿠팡 광고 등
 !dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.com,jjang0u.com##iframe
 
+! - 다모앙(https://damoang.net/) 왼쪽 직접 홍보
+! - - - List-kr (##li.list-group-item:has(a[href*="promotion"]))
+##a[href*="promotion"]
+
 
 !!! - 광역 1
 ! - 광역으로 사용
@@ -3288,6 +3295,7 @@ dhlottery.co.kr##.band_banner
 ! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
 ! - - - AV19 (https://av19.live/)
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
+! - - - 언리샷 (https://unlishot47.cc/)
 !##a[href][target] img[src*="banner"][src*='.gif']
 !##a[href][target] img[src*="banner"]
 !##[class*="banner"] a[href] img[src*="banner"]
@@ -3296,6 +3304,10 @@ dhlottery.co.kr##.band_banner
 ##img[src*="/banners/"]
 ##img[src*="sidebanner"]
 ##img[src*="event_banner"]
+##img[src*="admin_banner"]
+
+! - - - 땡땡티비 (https://ootv39.com/)
+##img[src*="imgbox.com"]
 
 
 ! 광역 1  + 추가 영역 처리 - 비광역으로 처리
@@ -3313,6 +3325,10 @@ dhlottery.co.kr##.band_banner
 ! - - - 만화방 (https://manhwabang.org/)
 ! - - - 제크티비 (https://zectv.com/)
 ! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
+! - - - 혼딸파티 (https://ddparty04.org/)
+! - - - 레드걸 (https://redgirl37.org/)
+! - - - 레드존 (https://redzone20.xyz/)
+! - - - 레드대피소 (https://red-run.xyz/)
 !##[class*="banner"] a[href*="banner"][target] img
 ##a[href*="banner"] img
 
@@ -3405,7 +3421,7 @@ avhotgirl.top##a[href] img[src*="public"]
 !!! - 광역 6
 ! - - - 광역으로 사용
 ! - target 이 있지만 적용이 안됨
-! - - - 라이브스코어 (https://livescore.co.kr/)
+! - - - 라이브스코어 (https://livescore.co.kr/) 등
 ! ##[id*="AD"] 하면 id구간 다 사라짐
 ##a[href] img[src*="/ad/"]
 
@@ -3478,8 +3494,16 @@ avhotgirl.top##a[href] img[src*="public"]
 ! - - - 마녀티비 (https://witchtv10.xyz/) (https://wt01.xyz/)
 ! - - - 쏭티비 (https://songkorea.com/)
 ! - - - 섹토렌트 (https://4.sektorrent.me/)
+! - - - 땡땡티비 (https://ootv39.com/)
+! - - - 혼딸파티 (https://ddparty04.org/)
+! - - - 레드대피소 (https://red-run.xyz/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 ##a[href][target*='blank'] img[src*='.gif']
+
+
+
+##a[href][target] img[src*='.gif']
+
 
 
 !!! 기본 1
@@ -3623,7 +3647,8 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 
 !!! 변형 광역 1
-! - - - https://dragonfly64.com/ 등
+! - - - style="background-image: url('https://comein15.com/data/apms/background/%ED%94%BC%ED%84%B0%ED%8C%AC%EC%88%98%EC%A0%951.gif');"> 이런 형식임
+! - - - 즉, 이미지 주소에 background가 들어가 있지만 style형식에 넣은것
 ! - - - - - 광역으로 사용시 아래 규칙에 따라 다른 텍스트 링크 지워져서 안됨 ([target] 넣으면 상관없어지므로 패스)
 ! - - - - -  ##[style] 을 지정하지 않고 하면  텍스트 링크까지 사라져서 안됨
 ! - - - - - background-image 사용으로 img를 사용할 수 없음
@@ -3670,7 +3695,6 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - - - 주소콕 (https://xn--9l4b19kltf.com/) (https://jusokok10.com/)
 !##[style^="background-image"] a[href]
 ##[style*="/background/"] a[href]
-
 
 !!! - 변형 광역 2
 ! - 일부 사이트에서 사용 중
@@ -4075,6 +4099,4 @@ www.xfree.com#@#[class*="popup"]
 ! https://www.8kcosplay.com/
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
-
-
 
