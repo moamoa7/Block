@@ -2089,6 +2089,8 @@ notion.so@@||/*/ads/*
 ! - - - mobile
 !##.w-80.relative
 ##.w-80.centered
+! - 영상내 하단 배너
+##.vjs-bottom-banner
 ! 보증업체 더보기 텍스트 배너
 ##.rounded-md.border.p-1.w-full
 ! 하단 배너 이미지 (해제하지 말것)
@@ -3306,6 +3308,7 @@ dhlottery.co.kr##.band_banner
 ! - - - 언리샷 (https://unlishot47.cc/)
 ! - - - 야동공장 (https://yagong84.com/)
 ! - - - 야동그라운드 (https://yagro48.com/)
+! - - - 빨간비디오 (https://redvi77.com/)
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
 ! - - - 자브걸 (https://kr24.javgirl.co/)
 !##a[href][target] img[src*="banner"][src*='.gif']
