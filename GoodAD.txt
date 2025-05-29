@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250528
+! Version: 20250529
 !
 !
 !
@@ -3259,9 +3259,21 @@ dhlottery.co.kr##.band_banner
 !
 !
 !
+
+!!! - 광역 0
+
+! 구글 광고
+##[class*="adsbygoogle"]
+
+! 이토랜드 게시물 하단 쿠팡 광고 등
+dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.com,jjang0u.com##iframe
+
+
+
 !!! - 광역 1
-! - - - 광역으로 사용
-! - banner 주소 들어간 이미지에서 사용 중 (target 없음)
+! - 광역으로 사용
+! - 일부 사이트에서 이미지 사라짐 (예 : 옥션 배너 이미지 등) - banner 대신 /banner/로 변경하면 안사라짐
+! - banner 주소 들어간 이미지에서 사용 중
 ! - - - 티비위키 (https://tvwiki21.com/) - 이미지가 gif 같은 확장자가 없음
 ! - - - 티비몬 (https://tvmon16.org/) - 이미지가 gif 같은 확장자가 없음
 ! - - - 주소월드 (https://wdwd8.com/)
@@ -3274,15 +3286,19 @@ dhlottery.co.kr##.band_banner
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
 !##a[href][target] img[src*="banner"][src*='.gif']
 !##a[href][target] img[src*="banner"]
-##[class*="banner"] a[href] img[src*="banner"]
+!##[class*="banner"] a[href] img[src*="banner"]
+!##a[href] img[src*="banner"]
+##img[src*="/banner/"]
+##img[src*="/banners/"]
+##img[src*="sidebanner"]
 
 
 ! 광역 1  + 추가 영역 처리 - 비광역으로 처리
-! - 광역으로 처리하면 일부 사이트에서 이미지 사라짐
+! 일부 사이트에서 이미지 사라짐 (예 : 옥션 배너 이미지 등)
 ! https://today-sports7.com/ - 한칸짜리 게시물 배너
 ! 메시티비 (https://messitv8.com/) - 왼쪽 배너
 ! 링크사랑 (https://linklove54.com/) - 왼쪽.오른쪽 배너 . 중간 배너
-[$domain=/^today-sports\d+.com/],[$domain=/^messitv\d+.com/],[$domain=/^linklove\d+.com/]##a[href] img[src*="banner"]
+![$domain=/^today-sports\d+.com/],[$domain=/^messitv\d+.com/],[$domain=/^linklove\d+.com/]##a[href] img[src*="banner"]
 
 !!! - 광역 2
 ! - - - 광역으로 사용
@@ -3291,7 +3307,8 @@ dhlottery.co.kr##.band_banner
 ! - - - 만화방 (https://manhwabang.org/)
 ! - - - 제크티비 (https://zectv.com/)
 ! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
-##[class*="banner"] a[href*="banner"][target] img
+!##[class*="banner"] a[href*="banner"][target] img
+##a[href*="banner"] img
 
 
 !!! - 광역 3
@@ -3350,6 +3367,7 @@ dramaday.me#@#a[target] img[src*="/wp-content/uploads/"]
 ! https://www.8kcosplay.com/
 !of996.com,nicesss.com,8kcosplay.com#@#a[href][target] img[src*="/wp-content/uploads/"]
 
+
 !!! - 광역 4
 ! - - - 광역으로 사용
 ! - target 이 없는 요소
@@ -3358,9 +3376,10 @@ dramaday.me#@#a[target] img[src*="/wp-content/uploads/"]
 ! - - - 방방바TV (https://mzgvod01.com/)
 ! - - - 모애니 (https://moeni.live/)
 ![$domain=/^dobaklife\d+.com/]##img[src*="background"]
+!##a[href] img[src*="/background/"]
 ! -- - - -  [src*='.gif']  안 넣으면 로고가 사라지는 경우도 있음 (예 : https://cineaste.co.kr/)
-!##a[href] img[src*="/background/"][src*='.gif']
-##a[href] img[src*="/background/"]
+!cineaste.co.kr#@#a[href] img[src*="/background/"]
+##a[href] img[src*="/background/"][src*='.gif']
 
 
 !!! - 광역 5
@@ -3377,7 +3396,7 @@ avhotgirl.top##a[href] img[src*="public"]
 ! - 레드걸 (https://redgirl37.org/) - 영상내 배너
 ![$domain=/^redgirl\d+.org/]##img[src*="/data/editor/"]
 ![$domain=/^redgirl\d+.org/]##[onclick] img[src*="/data/editor/"]
-##[onclick] img[src*="/data/editor/"]
+!##[onclick] img[src*="/data/editor/"]
 
 
 
@@ -3507,7 +3526,6 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 
 
-
 !!! 기본 1 변형
 ! - - - 코리아맥스티비 (https://krmaxtv105.com/)
 [$domain=/^krmaxtv\d+.com/]##[class] a[href][target*='_blank'] img
@@ -3540,32 +3558,27 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 
 !!! - 기본 3
-! - 일부 사이트에서 사용 중
-! - - -  ##a[href] img 하면 영상 이미지까지 지워져서 [class] 넣음
-! - - - 야콩넷 (https://yakong5.net/) - 영상 하단 배너
-[$domain=/^yakong\d+.net/]##a[href][class] img
-
-
-!!! - 기본 4
 ! - - - ##a[href][target] img 일반 이미지까지 다 선택. 배너만 할려니 class 추가
 ! - - - 주소요 (https://jusoyo42.com/) - 상단 배너
 ! - - - 레드캣 (https://redcattv5.org/)
 [$domain=/^jusoyo\d+.com/],[$domain=/^redcattv\d+.org/]##a[href][target] img[class]
 
 
-!!! 기본 5
+!!! 기본 4
 ! 주소요 (https://jusoyo42.com/) 오른쪽 배너
 ! - - - ##a[href][target] img 일반 이미지까지 다 선택. 배너만 할려니 style 추가
 [$domain=/^jusoyo\d+.com/]##a[href][target] img[style]
 
 
-!!! - 기본 6
+!!! - 기본 5
+! - - -  ##a[href] img 하면 영상 이미지까지 지워져서 gif로 제한
 ! - [target]이 없는 이미지로 gif로만 이루어짐
+! - - - 야콩넷 (https://yakong5.net/) - 영상 하단 배너
 ! - - - 애니야24 (https://www.aniya24.com/) - 일부 이미지
-[$domain=/^www.aniya\d+.com/]##a[href] img[src*='.gif']
+[$domain=/^yakong\d+.net/],[$domain=/^www.aniya\d+.com/]##a[href] img[src*='.gif']
 
 
-!!! - 기본 7
+!!! - 기본 6
 ! - 일부 사이트에서 사용 중 (target과 class 다 붙어 있음)
 ! - - - 광역 사용시 타사이트 이미지 지워짐
 ! - - - https://linkpan71.com/ 상단 배너
@@ -3818,9 +3831,7 @@ vibe.naver.com#@#[class*="popup"]
 !
 ! - 예외
 
-!trand.co.kr#@#a[href][target] img
-!trand.co.kr#@#a[href][onclick] [class][src]
-!trand.co.kr#@#[style^="background-image"] a[href]
+!trand.co.kr#@#a[href][target*="blank"] img
 
 
 
