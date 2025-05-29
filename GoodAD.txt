@@ -315,7 +315,7 @@ wiki.dcinside.com##*
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
 !##[class^="ads"]
 ! 게시물 하단 배너
-fmkorea.com##ins.adsbygoogle
+!fmkorea.com##ins.adsbygoogle
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
 fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기 (streamable.com 안나와서 해제)
@@ -388,7 +388,7 @@ etoland.co.kr###info_recent_list_wrap
 !
 ! 더쿠 (https://theqoo.net/)
 ! - 상단 공백
-theqoo.net##.adsbygoogle
+!theqoo.net##.adsbygoogle
 ! - 로딩중 글자
 theqoo.net##.theqoo-counter
 ! - 이미지 복원
@@ -581,7 +581,7 @@ clien.net##.ViewListArea
 !
 ! 다모앙 (https://damoang.net/)
 ! - 배너
-damoang.net##.adsbygoogle
+!damoang.net##.adsbygoogle
 ! - 오른쪽 스크롤도구
 damoang.net##.d-block
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
@@ -595,7 +595,7 @@ damoang.net##.d-block
 ! - 왼쪽 배너
 !##[class^="ad_"]
 ! - 최하단 배너
-humoruniv.com##.adsbygoogle
+!humoruniv.com##.adsbygoogle
 !
 !
 ! 이지데이 (https://www.ezday.co.kr/)
@@ -1535,7 +1535,6 @@ cgv.co.kr##.btnLinkFixed
 !
 ! 왓챠피디아 (https://pedia.watcha.com/)
 ! - 배너
-pedia.watcha.com##a[href][target] [class]
 pedia.watcha.com##.OKQiqzeA.j9pLi57W
 pedia.watcha.com##.adFixed
 
@@ -1666,7 +1665,7 @@ evojav.pro$popup
 ! 7MMTV (https://7tv033.com/)
 ! - 유니콘Pro에서는 ST영상 재생 불가
 ! - 상단 배너 공간
-##.a-d-block
+!##.a-d-block
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
 ##div.set_height_250
 !
@@ -3266,8 +3265,13 @@ dhlottery.co.kr##.band_banner
 ##[class*="adsbygoogle"]
 
 
+! 비디오 광고
+! 7MMTV (https://7tv000.com/) - 플레이 영상 오른쪽 비디오 광고
+##a[href][target*="blank"] video
+
+
 ! 이토랜드 게시물 하단 쿠팡 광고 등
-dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.com,jjang0u.com##iframe
+!dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.com,jjang0u.com##iframe
 
 
 !!! - 광역 1
@@ -3337,7 +3341,10 @@ dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.c
 ! - - - AV러브걸  영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결) (오른쪽 상단 배너 없음)
 ##img[src*="/wp-content/uploads/"][style]
 ! - - - 영상내 배너
-##[class*="play"] [src*="/wp-content/uploads"]
+##[class*="player"] [src*="/wp-content/uploads"]
+! - - - 예외 - 영상 사라짐
+! - - - Watch Free JAV Online (https://s10.watchfreejavonline.co/)
+[$domain=/^s\d+.watchfreejavonline.co/]#@#[class*="player"] [src*="/wp-content/uploads"]
 !##a[target] img[src*="/wp-content/uploads/"],[src="gif"]
 ! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
 dramaday.me#@#a[target] img[src*="/wp-content/uploads/"]
@@ -3377,11 +3384,14 @@ dramaday.me#@#a[target] img[src*="/wp-content/uploads/"]
 ! - - - 인생도박 (https://dobaklife18.com/) 왼쪽 배너
 ! - - - 방방바TV (https://mzgvod01.com/)
 ! - - - 모애니 (https://moeni.live/)
+! - - - 놀쟈 (https://www.nzyumi.com/)
 ![$domain=/^dobaklife\d+.com/]##img[src*="background"]
 !##a[href] img[src*="/background/"]
-! -- - - -  [src*='.gif']  안 넣으면 로고가 사라지는 경우도 있음 (예 : https://cineaste.co.kr/)
-!cineaste.co.kr#@#a[href] img[src*="/background/"]
-##a[href] img[src*="/background/"][src*='.gif']
+! - - - - - [src*='.gif'] 넣으면 배너 안지워짐
+##a[href] img[src*="/background/"]
+! - - - 예외
+ -- - - -  [src*='.gif']  안 넣으면 로고가 사라지는 경우도 있음 (예 : https://cineaste.co.kr/)
+cineaste.co.kr#@#a[href] img[src*="/background/"]
 
 
 !!! - 광역 5
@@ -3465,6 +3475,9 @@ avhotgirl.top##a[href] img[src*="public"]
 ! - - - 호두코믹스 (https://t71.hoduhodu.com/)
 ! - - - 엑스툰 (https://t1.xtoon2.com/)
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
+! - - - 마녀티비 (https://witchtv10.xyz/) (https://wt01.xyz/)
+! - - - 쏭티비 (https://songkorea.com/)
+! - - - 섹토렌트 (https://4.sektorrent.me/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 ##a[href][target*='blank'] img[src*='.gif']
 
@@ -3531,10 +3544,14 @@ avhotgirl.top##a[href] img[src*="public"]
 ! - - - 다크걸 (https://darkg5.com/)
 ! - - - AV쏘걸 (https://kr80.sogirl.so/)
 ! - - - 애니24(https://ohli24.net/)
-! - - - 모애니 (https://moeni.live/)
+! - - - 19다모아 (www.19damoa.org/)
+! - - - 조개파티 (https://jogaeparty142.com/)
+! - - - 콕콕티비 (https://cokcoktv4.com/)
+! - - - 청양티비 (https://cytv140.com/)
+! - - - 토렌트제이 (http://torrentj168.com/)
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,moeni.live##a[href][target*='blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^jogaeparty\d+.com/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/]##a[href][target*='blank'] img
 
 
 
@@ -3701,14 +3718,28 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 !!! - 변형 4
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
-! - - - 이걸 광역으로 사용하면 대부분의 사이트에서 이미지가 사라짐
-! - - - 야동대학 (https://ydu14.com/)
+! - - - 이걸 광역으로 사용하면 일부 사이트에서 이미지가 사라짐
+! - target 이 없는 요소 (자바스크립트로 작동하게 한거)
+! - - -  https://javlemon.com/ - 영상 아래 배너
+! - - - ##[style] img[src] - 다른 이미지 (하단 영상 이미지)까지 다 사라짐
 ! - - - https://xn--av1-qv9mx21c.com/
-! - - - ##[style] a[href] img[src] 안먹힘
-xn--av1-qv9mx21c.com,[$domain=/^ydu\d+.com/]##[style] img[src]
+! - - - TV995 (https://tv995.com/) - - -  많이 본 영화 이미지 삭제됨
+! - - - - - 소스를 봐도 먼지 모르갰음
+javlemon.com,xn--av1-qv9mx21c.com,tv995.com##[style][class] img[src]
 
 
 !!! - 변형 5
+! - 일부 사이트에서 사용 중
+! - target 이 없는 요소
+! - - - 이걸 광역으로 사용하면 대부분의 사이트에서 이미지가 사라짐
+! - - - ##[style] a[href] img[src] 같은 효과?
+! - - - ##[style][class] img[src] 안먹힘
+! - - - 야동대학 (https://ydu14.com/) - 일부 이미지 사라짐
+[$domain=/^ydu\d+.com/]##[style] img[src]
+
+
+
+!!! - 변형 6
 ! - 일부 사이트에서 사용 중
 ! - - - /wp-content/uploads/ 1규칙
 ! - - - [src]로 하면 모든 이미지 사라짐
@@ -3717,7 +3748,7 @@ xn--av1-qv9mx21c.com,[$domain=/^ydu\d+.com/]##[style] img[src]
 ![$domain=/^pinkbo\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^xxjoa\d+.com/],[$domain=/^xn--\d+-v10fo35av1l.com/]##[style][src*="/wp-content/uploads/"]
 
 
-!!! - 변형 6
+!!! - 변형 7
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
 ! - - - /wp-content/uploads/  2규칙
@@ -3738,16 +3769,6 @@ www.yadongmarket.com##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
 ![$domain=/^v\d+.jogemovie.net/]#@#[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
 
 
-!!! - 변형 7
-! - 일부 사이트에서 사용 중
-! - target 이 없는 요소
-! - - - 이걸 광역으로 사용하면 일부 사이트에서 이미지가 사라짐
-! - target 이 없는 요소 (자바스크립트로 작동하게 한거)
-! - - -  https://javlemon.com/ - 영상 아래 배너
-! - - - ##[style] img[src] - 다른 이미지까지 다 사라짐
-javlemon.com##[style] [src]
-
-
 !!! - 변형 8
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
@@ -3766,6 +3787,7 @@ javlemon.com##[style] [src]
 ! - - -  두꺼비티비 (https://dugebitv104.xyz/) 상단배너
 ![$domain=/^dugebitv\d+.xyz/]##[style][class] [data-original]
 [$domain=/^dugebitv\d+.xyz/]##[style] [data-original]
+
 
 
 !!! - 변형 10
@@ -4052,4 +4074,6 @@ www.xfree.com#@#[class*="popup"]
 ! https://www.8kcosplay.com/
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
+
+
 
