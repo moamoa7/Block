@@ -3299,7 +3299,9 @@ dhlottery.co.kr##.band_banner
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
 ! - - - 자브걸 (https://kr24.javgirl.co/)
 ! - - - 딸플릭스 (https://kr4.ddal.xyz/)
-topgirl.co,javgirl.co,ddal.xyz##[class*="button"] a[href]
+!topgirl.co,javgirl.co,ddal.xyz##[class*="button"] a[href]
+! - button으로 하니 다른 클래스와 많이 겹쳐서 [style] 추가
+##[class*="button"][style] a[href]
 
 
 ! 이토랜드 게시물 하단 쿠팡 광고 등
