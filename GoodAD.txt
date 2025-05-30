@@ -3277,12 +3277,15 @@ dhlottery.co.kr##.band_banner
 !##[class*="adsbygoogle"]
 
 ! 구글광고와 겹칠수도.. 
+! - 디시인사이드 (https://dcinside.com/) - 광고 배너
 ! - 에펨코리아 (https://www.fmkorea.com/) - 광고 배너
+! -더쿠 (https://theqoo.net/) - 광고 배너
 ! - SLR (https://www.slrclub.com/) - 광고 배너
 ! - AAGAG (https://aagag.com/) - 광고 배너
 ! - 다모앙 (https://damoang.net/) - 광고 배너
 ! - 웃대 (https://web.humoruniv.com/) - 광고 배너
 ! - 오늘의 유머 (https://www.todayhumor.co.kr/)- 광고 배너
+! - 인스티즈 (https://www.instiz.net/) - 광고 배너 등
 ##[class*="ads"]
 
 
