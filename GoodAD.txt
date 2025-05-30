@@ -122,16 +122,16 @@ www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:
 !nid.naver.com###dimmed
 !
 !
-! 숲 ((https://sooplive.co.kr)
+! 숲 (https://sooplive.co.kr)
 ! - 팝업
 sooplive.co.kr##.on.bnrimg_area
 ! - 프로모션 배너
-sooplive.co.kr##.promotion_banner
+!sooplive.co.kr##.promotion_banner
 ! - 영상 (https://play.sooplive.co.kr)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (List-KR)
-||static.sooplive.co.kr/asset/service/ad/
+!||static.sooplive.co.kr/asset/service/ad/
 ! -  채팅 광고
 sooplive.co.kr##.chat_banner
 ! - 채팅 상단 배너
@@ -3274,7 +3274,16 @@ dhlottery.co.kr##.band_banner
 !!! - 광역 0
 
 ! 구글 광고
-##[class*="adsbygoogle"]
+!##[class*="adsbygoogle"]
+
+! 구글광고와 겹칠수도.. 
+! - 에펨코리아 (https://www.fmkorea.com/) - 광고 배너
+! - SLR (https://www.slrclub.com/) - 광고 배너
+! - AAGAG (https://aagag.com/) - 광고 배너
+! - 다모앙 (https://damoang.net/) - 광고 배너
+! - 웃대 (https://web.humoruniv.com/) - 광고 배너
+! - 오늘의 유머 (https://www.todayhumor.co.kr/)- 광고 배너
+##[class*="ads"]
 
 
 ! 비디오 광고
@@ -3330,6 +3339,11 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="button"] a[href]
 
 ! - - - 땡땡티비 (https://ootv39.com/)
 ##img[src*="imgbox.com"]
+
+
+! - - - 야동허브 (https://ydhub11.net/)
+##img[src*="/static/images/"]
+
 
 
 ! 광역 1  + 추가 영역 처리 - 비광역으로 처리
@@ -3530,11 +3544,16 @@ avhotgirl.top##a[href] img[src*="public"]
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 ##a[href][target*='blank'] img[src*='.gif']
 
+##a[href][target*='blank'] img[src*='.png']
+
 ! - 위에서 놓치는 gif(target이 blank가 아닌 경우)
 ! - - - 믹스걸 (https://kr13.mix-19.com/)
 ! - - - 걸스티비 (https://xn--369an15a89c2ov.com/) (https://kor11.grtv-48.com/)
 ! - - - 등등
 ##a[href][target] img[src*='.gif']
+
+
+##a[href][target] img[src*='.png']
 
 
 
@@ -4165,4 +4184,6 @@ www.xfree.com#@#[class*="popup"]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
+
 
