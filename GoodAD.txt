@@ -125,30 +125,36 @@ www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:
 ! 숲 ((https://sooplive.co.kr)
 ! - 팝업
 sooplive.co.kr##.on.bnrimg_area
+! - 프로모션 배너
+sooplive.co.kr##.promotion_banner
 ! - 영상 (https://play.sooplive.co.kr)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
-! - - - 광고차단 안될시 광고 영상 안보이게
-||vod-player*.sooplive.co.kr
-||delog.sooplive.co.kr
-||eventapi.sooplive.co.kr
-||dawin.tv
-||www.google-analytics.com
-||analytics.tiktok.com
-||analytics.google.com
-||analysis.sooplive.co.kr
-play.sooplive.co.kr##.da_area
-play.sooplive.co.kr###da_video
+! - 메인 상단 광고 & 검색 옆에 숲 광고 (List-KR)
+||static.sooplive.co.kr/asset/service/ad/
+! -  채팅 광고
+sooplive.co.kr##.chat_banner
+! - 채팅 상단 배너
+sooplive.co.kr##.on.chat_banner2
+! - 채팅 공지 (필요시)
+!sooplive.co.kr##.chat_notice
+! - 채팅 상단 배너 & 채팅 공지 (필요시)
+!sooplive.co.kr##.chat_topbox
+! -스트리머에게 수익이 후원되는 광고를 재생하고 계십니다. 없애기
+sooplive.co.kr##.text_output
+! - - - 광고 영상 안보이게 (광고 차단 안될시 소리만 나오고 영상은 재생되지 않음)
+sooplive.co.kr##.da_area
+sooplive.co.kr###da_video
 ! - 방송요약 팝업
 sooplive.co.kr###sarsa_btn
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
 sooplive.co.kr##.tuneout
-! - 다시보기 (https://vod.sooplive.co.kr/) 영상내 왼쪽 하단 애드벌룬 배너
+! - 영상 왼쪽 하단 애드벌룬 배너
 sooplive.co.kr##.adballoon_icon
 ! - 개인채널 (https://ch.sooplive.co.kr/) 팝업
 sooplive.co.kr##.bs-notice_layer
 ! - 개인채널 (https://ch.sooplive.co.kr/) 오른쪽 배너
-###side-layer
+sooplive.co.kr###side-layer
 ! - 개인채널 (https://ch.sooplive.co.kr/) 하단 배너
 sooplive.co.kr##.sct-bnr
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
@@ -3277,10 +3283,11 @@ dhlottery.co.kr##.band_banner
 
 
 ! 영상 하단 텍스트 광고
+! - - - 광역으로 처리시 다른 모든 버튼이 사라짐
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
 ! - - - 자브걸 (https://kr24.javgirl.co/)
 ! - - - 딸플릭스 (https://kr4.ddal.xyz/)
-##[class*="button"] a[href]
+topgirl.co,javgirl.co,ddal.xyz##[class*="button"] a[href]
 
 
 ! 이토랜드 게시물 하단 쿠팡 광고 등
@@ -4125,4 +4132,37 @@ www.xfree.com#@#[class*="popup"]
 ! https://www.8kcosplay.com/
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com,nicesss.com,8se.me,8kcosplay.com#@#a[href][target] img
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
+
+
+!sooplive.co.kr###videoLayerCover
+! - - - 광고차단?
+!sooplive.co.kr##[class*="promotion"]
+!||admv.digitalcamp.co.kr
+!||exlogcollector.sooplive.co.kr
+!||collector1.sooplive.co.kr/
+!||*/creatives/media/*
+!||pc-web.stream.sooplive.co.kr/live-stm-12
+!||vod-player*.sooplive.co.kr
+!||delog.sooplive.co.kr
+!||noti.sooplive.co.kr
+!||eventapi.sooplive.co.kr
+!||dawin.tv
+!||analysis.sooplive.co.kr
+
+!||vod-mplayer.sooplive.co.kr
+!||vod-player*.sooplive.co.kr
+!||img-display.sooplive.co.kr
+!||deapi.sooplive.co.kr
+!||afevent2.sooplive.co.kr
+!||collector1.sooplive.co.kr
+!||analysis.sooplive.co.kr
+!||www.googletagmanager.com
+
+! - - - 광고차단 (필요없음)
+!||www.google-analytics.com
+!||analytics.*
+!||analytics.tiktok.com
+!||analytics*.tiktokw.us
+!||analytics-ipv6.tiktokw.us
+!||analytics.google.com
 
