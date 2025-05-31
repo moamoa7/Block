@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250530
+! Version: 20250531
 !
 !
 !
@@ -419,6 +419,9 @@ inven.co.kr###invenAppSuggestion
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
+! - 로딩 없애기
+##[id="loading"]
+##[class*="loading"]
 ! - 댓글 바로 위 텍스트 배너?
 mlbpark.donga.com##.nocnt.items
 ! - 따라다니는 메뉴버튼 (모바일)
@@ -1671,7 +1674,7 @@ evojav.pro$popup
 ! 7MMTV (https://7tv033.com/)
 ! - 유니콘Pro에서는 ST영상 재생 불가
 ! - 상단 배너 공간
-!##.a-d-block
+##.a-d-block
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
 ##div.set_height_250
 !
@@ -1893,14 +1896,19 @@ njav.com##.mx-auto
 !
 ! MISSAV (https://missav.ws/)
 ! MISSAV (https://missav.live/)
+! - 하단 떠다니는 배너 Easylist) (List-KR)
+||tsyndicate.com^
+! - 영상 옆 배너공간 
+! - - - missav.ws##.lg\:block (EasyList 규칙에 missav.ws 규칙만 있고 missav.lives는 없음)
+missav.live##.lg\:block
+! - 영상 하단 배너 공간
+##.mb-5.space-y-5 > div > .mx-auto
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
 !
 !
-! MISSAV (https://missav.live/)
-! - 영상 옆 배너공간 (EasyList 규칙 활용)
-missav.live##.lg\:block
+
 !
 !
 ! HOHO (https://hohoj.tv/)
@@ -2408,7 +2416,8 @@ hanyasa.com##.gofollow
 !##.overlay
 ! - - - 광역으로 변환해봄
 !##[class*="overlay"]
-##[class$="overlay"]
+!##[class$="overlay"]
+##[class$="verlay"]
 ! - 예외
 ! - - - chaturbate.com - 팝업이 자동 사라지나 실시간 영상 이미지가 흐리게 나옴 (스크롤도 안됨)
 !chaturbate.com#@#.overlay
@@ -3253,11 +3262,12 @@ dhlottery.co.kr##.band_banner
 !||*/*/*popup/*
 
 
+! 새창 방지
+!*#%#//scriptlet("prevent-window-open")
+
 
 
 !||*/*/*img*$image
-
-
 
 
 ==============================
@@ -3273,8 +3283,49 @@ dhlottery.co.kr##.band_banner
 
 !!! - 광역 0
 
+!##iframe
+!!! - - -  예외
+! https://poooo.ml/
+!poooo.ml#@#iframe
+! https://05.avsee.ru/
+!avsee.ru#@#iframe
+
+
+##[class*="AD"]
+
+! googleSubjectAd 등
+##[class*="Ad"]
+
+
+
 ! 구글 광고
 !##[class*="adsbygoogle"]
+
+! 파워링크
+! - https://www.fmkorea.com/
+!##.adpost
+##[class*="naver_power"]
+! - https://web.humoruniv.com/
+##[id*="naver_adpost"]
+
+! - https://web.humoruniv.com/
+##[class="ad_banner"]
+
+! - https://www.inven.co.kr/
+##[class*="ad-right"]
+##[class*="ad-header"]
+
+! 카카오 광고
+! - https://bbs.ruliweb.com/
+!##.kakao_ad_area
+##[class*="kakao_ad"]
+
+! - https://www.ppomppu.co.kr/
+##[class="ad-banner"]
+
+!- https://www.ddanzi.com/
+##[class*="add_display"]
+
 
 ! 구글광고와 겹칠수도.. 
 ! - 디시인사이드 (https://dcinside.com/) - 광고 배너
@@ -3287,6 +3338,40 @@ dhlottery.co.kr##.band_banner
 ! - 오늘의 유머 (https://www.todayhumor.co.kr/)- 광고 배너
 ! - 인스티즈 (https://www.instiz.net/) - 광고 배너 등
 ##[class*="ads"]
+
+! 인벤 아이디 날림
+!##[class*="layer"]
+
+! 보배드림 광고
+! 에펨코리아 미디어 내 다운로드 버튼 지움
+! 뽐뿌 광고
+! 인벤 메인 날림
+!##[class*="ad-"]
+
+! 루리웹 광고
+! 엠팍 광고
+! 보배드림 광고
+! 에펨코리아 게시판 주소(복사) 지움
+! 뽐뿌 광고
+! 이토랜드 광고
+! 일부 사이트 리뷰글 지움
+!##[class*="_ad"]
+
+! 루리웹 광고
+! 뽐뿌 광고
+! 딴지 메인 날림
+!##[class*="ad_"]
+
+! 인벤 광고
+! avsee 게시글 상단 베스트 글 삭제
+! supjav
+!##[class*="-ad"]
+
+! https://javgg.net/ -  영상 재생 상단 비디오 광고
+! https://missav.ws/ - 영상 재생 하단 비디오 광고
+##[id*="ad_video"]
+! - -  https://javgg.net/ - 이미지 다 날라감
+!##[id*="_ad_"]
 
 
 ! 비디오 광고
@@ -3312,6 +3397,8 @@ dhlottery.co.kr##.band_banner
 ##a[href*="promotion"]
 
 
+
+
 !!! - 광역 1
 ! - 광역으로 사용
 ! - 일부 사이트에서 이미지 사라짐 (예 : 옥션 배너 이미지 등) - banner 대신 /banner/로 변경하면 안사라짐
@@ -3319,44 +3406,41 @@ dhlottery.co.kr##.band_banner
 ! - - - 티비위키 (https://tvwiki21.com/) - 이미지가 gif 같은 확장자가 없음
 ! - - - 티비몬 (https://tvmon16.org/) - 이미지가 gif 같은 확장자가 없음
 ! - - - 주소월드 (https://wdwd8.com/)
-! - - - 야부리 시즌 2 (https://yaburi60.com/)
 ! - - - 제크티비 (https://zectv.com/)
-! - - -  딸플릭스 (https://kr4.ddal.xyz/)
 ! - - - 조개모아 (https://www.jgmoagogo.com/) (https://www.jogemoa.com/) - 일부 배너
 ! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
 ! - - - AV19 (https://av19.live/)
-! - - - AV탑걸 (https://kr40.topgirl.co/)
-! - - - 언리샷 (https://unlishot47.cc/)
-! - - - 야동공장 (https://yagong84.com/)
-! - - - 야동그라운드 (https://yagro48.com/)
-! - - - 빨간비디오 (https://redvi77.com/)
-! - - - AV탑걸 (https://kr40.topgirl.co/)
-! - - - 자브걸 (https://kr24.javgirl.co/)
+! - - - 링크사랑 (https://linklove54.com/) - 왼쪽.오른쪽 배너 . 중간 배너
 !##a[href][target] img[src*="banner"][src*='.gif']
 !##a[href][target] img[src*="banner"]
 !##[class*="banner"] a[href] img[src*="banner"]
 !##a[href] img[src*="banner"]
 ##img[src*="/banner/"]
+
+! - - - 야부리 시즌 2 (https://yaburi60.com/)
+! - - -  딸플릭스 (https://kr4.ddal.xyz/)
+! - - - 빨간비디오 (https://redvi77.com/)
+! - - - AV탑걸 (https://kr40.topgirl.co/)
+! - - - 야동공장 (https://yagong84.com/)
+! - - - AV탑걸 (https://kr40.topgirl.co/)
+! - - - 야동그라운드 (https://yagro48.com/)
+! - - - 자브걸 (https://kr24.javgirl.co/)
 ##img[src*="/banners/"]
+
+! 메시티비 (https://messitv8.com/) - 왼쪽 배너
 ##img[src*="sidebanner"]
+
+! https://today-sports7.com/ - 한칸짜리 게시물 배너
 ##img[src*="event_banner"]
+
+! - - - 언리샷 (https://unlishot47.cc/)
 ##img[src*="admin_banner"]
 
 ! - - - 땡땡티비 (https://ootv39.com/)
 ##img[src*="imgbox.com"]
 
-
 ! - - - 야동허브 (https://ydhub11.net/)
 ##img[src*="/static/images/"]
-
-
-
-! 광역 1  + 추가 영역 처리 - 비광역으로 처리
-! 일부 사이트에서 이미지 사라짐 (예 : 옥션 배너 이미지 등)
-! https://today-sports7.com/ - 한칸짜리 게시물 배너
-! 메시티비 (https://messitv8.com/) - 왼쪽 배너
-! 링크사랑 (https://linklove54.com/) - 왼쪽.오른쪽 배너 . 중간 배너
-![$domain=/^today-sports\d+.com/],[$domain=/^messitv\d+.com/],[$domain=/^linklove\d+.com/]##a[href] img[src*="banner"]
 
 
 !!! - 광역 2
@@ -3548,17 +3632,23 @@ avhotgirl.top##a[href] img[src*="public"]
 ! - - - 자막야동 (https://4.jamakyadong.me/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 ##a[href][target*='blank'] img[src*='.gif']
+! - 예외
+! - - - 인벤 (https://www.inven.co.kr/) - 일부 댓글 아이콘 사라짐
+inven.co.kr#@#a[href][target*='blank'] img[src*='.gif']
+! - - - 다모앙 (https://damoang.net/)- 아바타 아이콘 사라짐
+damoang.net#@#a[href][target*='blank'] img[src*='.gif']
 
-##a[href][target*='blank'] img[src*='.png']
+
+!##a[href][target*='blank'] img[src*='.png']
 
 ! - 위에서 놓치는 gif(target이 blank가 아닌 경우)
 ! - - - 믹스걸 (https://kr13.mix-19.com/)
 ! - - - 걸스티비 (https://xn--369an15a89c2ov.com/) (https://kor11.grtv-48.com/)
 ! - - - 등등
-##a[href][target] img[src*='.gif']
+!##a[href][target] img[src*='.gif']
 
 
-##a[href][target] img[src*='.png']
+!##a[href][target] img[src*='.png']
 
 
 
@@ -4189,6 +4279,4 @@ www.xfree.com#@#[class*="popup"]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
-
 
