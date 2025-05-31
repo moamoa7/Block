@@ -422,6 +422,10 @@ inven.co.kr###invenAppSuggestion
 ! - 로딩 없애기
 ##[id="loading"]
 ##[class*="loading"]
+! - 오른쪽 배너
+##.big_banner
+! - 하단 배너
+##[class*="container"]
 ! - 댓글 바로 위 텍스트 배너?
 mlbpark.donga.com##.nocnt.items
 ! - 따라다니는 메뉴버튼 (모바일)
