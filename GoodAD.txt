@@ -3326,6 +3326,9 @@ dhlottery.co.kr##.band_banner
 !- https://www.ddanzi.com/
 ##[class*="add_display"]
 
+! https://trand.co.kr/ - 쿠팡 배너 광고
+##[class*="widget"]
+
 
 ! 구글광고와 겹칠수도.. 
 ! - 디시인사이드 (https://dcinside.com/) - 광고 배너
