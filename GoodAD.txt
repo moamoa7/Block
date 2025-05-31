@@ -583,6 +583,8 @@ slrclub.com##.adsbyadop
 ! 클리앙 (https://clien.net/)
 ! - 오른쪽 배너 공간
 clien.net##.aside > div[class^="side_"]:not([class*="account"])
+! - 게시글 하단 왼쪽 배너 공간
+clien.net##div:has(> div[class="ad_banner"])
 ! - 왼쪽 따라다니는 석삼 메뉴
 clien.net##.active.button_sidemenu
 ! - 게시물 아래 게시판 리스트 삭제
