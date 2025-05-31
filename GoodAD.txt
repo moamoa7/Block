@@ -3327,7 +3327,7 @@ dhlottery.co.kr##.band_banner
 ##[class*="add_display"]
 
 ! https://trand.co.kr/ - 쿠팡 배너 광고
-##[class*="widget"]
+##[class*="widget"]>table
 
 
 ! 구글광고와 겹칠수도.. 
