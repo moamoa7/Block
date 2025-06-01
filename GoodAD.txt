@@ -1652,6 +1652,9 @@ pedia.watcha.com##.adFixed
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
 avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
+! 새창 방지
+avsee.ru#%#//scriptlet("prevent-window-open")
+
 !
 !
 ! supjav (https://supjav.com/)
@@ -3283,8 +3286,6 @@ dhlottery.co.kr##.band_banner
 !||*/*/*popup/*
 
 
-! 새창 방지
-!*#%#//scriptlet("prevent-window-open")
 
 
 
