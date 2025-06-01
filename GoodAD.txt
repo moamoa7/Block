@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250531
+! Version: 20250601
 !
 !
 !
@@ -422,8 +422,8 @@ inven.co.kr###invenAppSuggestion
 !
 ! 엠팍 (https://mlbpark.donga.com/)
 ! - 로딩 없애기
-##[id="loading"]
-##[class*="loading"]
+mlbpark.donga.com##[id="loading"]
+mlbpark.donga.com##[class*="loading"]
 ! - 오른쪽 배너
 ##.big_banner
 ! - 게시물 하단 배너 / 맨 하단 배너
@@ -2431,14 +2431,17 @@ hanyasa.com##.gofollow
 ! - 예외
 ! - - - chaturbate.com - 팝업이 자동 사라지나 실시간 영상 이미지가 흐리게 나옴 (스크롤도 안됨)
 !chaturbate.com#@#.overlay
-!chaturbate.com#@#[class*="overlay"]
-chaturbate.com#@#[class$="overlay"]
+!chaturbate.com#@#[class*="verlay"]
+!chaturbate.com#@#[class$="verlay"]
 ! - - - ##[class*="overlay"] 로 하면 숲 영상 차단됨 (티비위키 등 도 안나옴)
 !play.sooplive.co.kr#@#[class*="overlay"]
 ! - - - 픽팍 로그인 팝업 안뜸
-mypikpak.com#@#[class$="overlay"]
+mypikpak.com#@#[class$="verlay"]
 ! - - - https://www.91porn.com/ 영상 이미지 사라짐
-91porn.com#@#[class$="overlay"]
+91porn.com#@#[class$="verlay"]
+! - - - https://platinmods.com/ 로그인 창 안뜸
+platinmods.com#@#[class$="verlay"]
+
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
 ! - 하단 텍스트 배너
