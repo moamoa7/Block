@@ -129,13 +129,15 @@ sooplive.co.kr##.on.bnrimg_area
 !sooplive.co.kr##.promotion_banner
 ! - 영상 (https://play.sooplive.co.kr)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
-##.buffering
+##[class="buffering"]
+!##.buffering
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (List-KR)
 ||static.sooplive.co.kr/asset/service/ad/
 ! -  채팅 광고
-sooplive.co.kr##.chat_banner
+##[class*="chat_banner"]
+!sooplive.co.kr##.chat_banner
 ! - 채팅 상단 배너
-sooplive.co.kr##.on.chat_banner2
+!sooplive.co.kr##.on.chat_banner2
 ! - 채팅 공지 (필요시)
 !sooplive.co.kr##.chat_notice
 ! - 채팅 상단 배너 & 채팅 공지 (필요시)
