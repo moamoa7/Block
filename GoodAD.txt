@@ -504,8 +504,14 @@ bobaedream.co.kr##.todayRanking
 !
 !
 ! 포모스 (https://www.fomos.kr/)
+! - 메인 배너 (팝업 베너 _ 왼쪽 배너)
+##[class="float-banners"]
 ! - 왼쪽 배너 포함 (PC)
 !##.float-banners
+! - 팝업 배너
+!##[class="banner-center"]
+! -하단 제보 배너
+##[class="call_banner"]
 !
 !
 ! 와이고수 (https://ygosu.com/)
