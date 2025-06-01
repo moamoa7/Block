@@ -3271,6 +3271,8 @@ dhlottery.co.kr##.band_banner
 ||*/*/*popup*
 ! - 에외 (디시인사이드 약간 깨짐) (옥션 주문상세팝업 안뜸)
 @@||*/*/*popup*$css,script
+! - - - 와우 멤버쉽 탈퇴하고자 팝업 눌럿을때 팝업에 아무것도 안나옴
+@@||*/*/*popup*$frame,domain=loyalty.coupang.com
 !||*/*/popup*/*
 !||*/*/*popup/*
 
@@ -4047,6 +4049,8 @@ auction.co.kr#@#[class*="popup"]
 vibe.naver.com#@#[class*="popup"]
 ! https://www.xfree.com/ - 화면 스크롤 안됨
 www.xfree.com#@#[class*="popup"]
+! https://loyalty.coupang.com/ -와우 멤버쉽 해지하기 팝업 안뜸
+loyalty.coupang.com#@#[class*="popup"]
 !
 !
 !
