@@ -425,12 +425,20 @@ theqoo.net##.theqoo-counter
 ! - 로딩 없애기
 inven.co.kr##[id="loading"]
 inven.co.kr##[class*="loading"]
+! - 게시물 전체 배너
+##[src*=".ads/"]
+! -오른쪽 배너
+##[class*="ad-right"]
+! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
+##[class*="Ad"]
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - - - PC
 !inven.co.kr##.new-board
 ! - - - 모바일
 !inven.co.kr##.mo-board-list
-! -오른쪽 배너 공간
+! - 게시판 상단 배너 공간
+##[class="ad-header"]
+! - 게시물 오른쪽 배너 공간
 inven.co.kr##aside div[style]:not([class])
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
 inven.co.kr##.roulette-open.inven-float-alarm
@@ -505,7 +513,8 @@ bobaedream.co.kr##.todayRanking
 !
 ! 포모스 (https://www.fomos.kr/)
 ! - 메인 배너 (팝업 베너 _ 왼쪽 배너)
-##[class="float-banners"]
+! - - - 화면스크롤 하면 왼쪽 배너가 보임. class*로 하면 됨
+##[class*="float-banners"]
 ! - 왼쪽 배너 포함 (PC)
 !##.float-banners
 ! - 팝업 배너
@@ -526,13 +535,24 @@ ygosu.com##.pull-left.btn-group
 !
 !
 ! 짱공유닷컴 (https://www.jjang0u.com/)
+! - 맨 오른쪽 상단 작은 배너
+##[class="top-banner"]
+! - 메인 상단 배너
+##[id="banner-link"]
 ! - 메인/게시물 왼쪽 배너 공간 (PC)
+##[id="banner"]
 ! - 야동코리아 (https://yako4.net/) - 영상 하단 배너
 ! - 밍키넷 영상 하단 텍스트 배너
 ! - - - 유튜브에서도 적용
 ###banner
+! - 오른쪽 배너
+##[class*="right-banner"]
+!- 게시물 하단 배너 (댓글 위)
+jjang0u.com##[class*="cut-in-banner2"]
 ! - 모바일 하단 배너
 !##.ad_area1
+! - 하단 오른쪽 따라다니는 배너
+##iframe[src*="//ad.aceplanet.co.kr/"]
 ! - 이미지 복원
 !@@||jjang0u.com/img/*$image
 !
