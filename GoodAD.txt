@@ -1829,6 +1829,7 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 ! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 배너 이미지
+!##[id*=imgDiv]
 !###imgDiv > table
 !###imgDiv2
 !###imgDiv3
@@ -1840,6 +1841,17 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !###imgDiv13
 !###imgDiv21
 !###imgDiv22
+! - - - AV핑유걸 (https://avpingyou19.com/)
+! - 상단 배너 공간
+##[class="bannerul"]
+!##.bannerul
+! - - - - - 핑유걸 그 외 왼쪽.오른쪽 배너
+##div.long > div
+! - - - - - 핑유걸 영상 위 팝업
+##[class="popup_image"]
+!##.popup_image
+! - 모바일 영상 하단 배너
+!||*/pink_*/img/*-1200x300*$important
 ! - 배너 이미지 공간
 ##.bounce
 ###imgDiv > table
@@ -1874,16 +1886,10 @@ openload.mov##div:nth-of-type(9)
 !
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 오른쪽 배너
+##[class="happy-sidebar"]
 !##.happy-sidebar
 ! - 동맹 글자
 !xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
-!
-!
-! AV핑유걸 (https://avpingyou19.com/)
-! - 상단 배너 공간
-##.bannerul
-! - 모바일 영상 하단 배너
-!||*/pink_*/img/*-1200x300*$important
 !
 !
 ! ManyMV (https://manymv.com/)
