@@ -131,7 +131,7 @@ sooplive.co.kr##.on.bnrimg_area
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 ##.buffering
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (List-KR)
-!||static.sooplive.co.kr/asset/service/ad/
+||static.sooplive.co.kr/asset/service/ad/
 ! -  채팅 광고
 sooplive.co.kr##.chat_banner
 ! - 채팅 상단 배너
