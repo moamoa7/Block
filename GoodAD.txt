@@ -1776,14 +1776,32 @@ evojav.pro$popup
 ! - - - https://fc2ppv.stream/
 ! - - - https://k4.kbjsvip.win/
 ! - - - PC
+! - 맨 위 오른쪽 상단 작은 배너
+! - - - PC
+##[class="happy-header"]
 !##.happy-header
 ! - - - 모바일
+##[class="happy-header-mobile"]
 !##.happy-header-mobile
-!
-!
-! Svideos JAV (https://avsshub.net/)
+! - 상단 배너
+!##[class="header-advertising"]
+! - 전체 배너 (젤 오른쪽 상단 작은 배너 / 젤 하단 배너 제외]
+##[class*="textwidget"]
+! - 젤 하단 배너
+! - - - PC
+##[class="happy-footer"]
+! - - - 모바일
+##[class="happy-footer-mobile"]
+! - 영상 하단 배너
+! - - - PC
+##[class="happy-under-player"]
+! - - - 모바일
+##[class="happy-under-player-mobile"]
 ! - 영상내 배너 및 닫기 버튼
-##.happy-inside-player
+! - - - Svideos JAV (https://avsshub.net/)
+##[class="happy-inside-player"]
+!##.happy-inside-player
+!
 !
 !
 ! AV핑크 (https://avpink36.com/)
@@ -1993,7 +2011,9 @@ missav.live##.lg\:block
 @@||fourhoi.com
 !
 !
-
+! 야동코리아 (https://www.yako.gg/) - 주소 바뀜
+! - 배너
+##[class="banner_grid"]
 !
 !
 ! HOHO (https://hohoj.tv/)
