@@ -458,7 +458,12 @@ bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 !
 ! 딴지일보 (https://www.ddanzi.com/)
 ! - 게시글 상단 배너(마켓 홍보) (PC/모바일)
-ddanzi.com###banner_ddanzi_market
+##[id="header_banner"]
+! - 메인 오른쪽 배너 제외 전체 배너
+||media.adpnut.com/cgi-bin/PelicanC.dll?impr?pageid=0*&out=iframe
+! - 전체 배너
+##[class*="add_display"]
+!ddanzi.com###banner_ddanzi_market
 ! - 게시글 하단 공백 공간 (모바일)
 ddanzi.com##.add_display2
 ! - 이미지 복원
@@ -553,14 +558,18 @@ inven.co.kr#@#div.banner
 ! 뽐뿌 (https://www.ppomppu.co.kr/)
 ! - 오른쪽 배너 복원 (kr: List-KR)
 ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
+! - 오른쪽 따라다니는 배너
+##[class="floating-banner"]
+##[class="ad-banner"]
 ! - 뽐쿠폰 배너
 ppomppu.co.kr##.ppomCou
 ! - 모바일 하단 배너 공간 삭제
 ppomppu.co.kr##div:nth-of-type(7)
 ! - 모바일 HOT 게시글 삭제
 ppomppu.co.kr##.hot-imgBoard
-! - 게시물 상단 공백 제거 (EasyList 광역규칙으로 generichide로 인해 적용안되어 개별 적용함)
-ppomppu.co.kr##.ad_container
+! - 게시물 상단/중단/하단 배너 (공백 제거) (EasyList 광역규칙으로 generichide로 인해 적용안되어 개별 적용함)
+##[class="ad_container"]
+!ppomppu.co.kr##.ad_container
 ! - 뿜뿌 앱으로 보기 팝업 (모바일)
 ppomppu.co.kr###ask_app_usage_popup
 !
@@ -685,6 +694,8 @@ music.bugs.co.kr##.topBanner
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
 ! - 상단 배너
 ! - - - 티비위키
+##[class="banner2"]
+##[id="bannerList"]
 ![$domain=/^tvwiki\d+.com/]###bannerList
 !###bannerList
 ! - - - 아래 출처대로 바꿔도 동일
@@ -693,16 +704,20 @@ music.bugs.co.kr##.topBanner
 !||.com/AD/*
 !||.org/AD/*
 ! - - - 티비몬
+##[class="row-banner"]
 ![$domain=/^tvmon\d+.org/]###banner-row-1
 ! - - - 티비핫 (주소 바뀌므로 나중에 수동으로 수정해야 함)
 ! - - - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
 !tvhot.site##.object-cover
-! - 영상 하단 배너 공간
+##[class="object-cover"]
+! - 영상 하단 배너 공간 (티비위키/티비몬)
+##[class="full pc-only"]
+##[class="full mobile-only"]
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 !##[class^="full pc-only"]:not(html):not(body):not(article)
-[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.pc-only.full
+![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.pc-only.full
 !##[class^="full mobile-only2"]:not(html):not(body):not(article)
-[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
+![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]###viewCover
 ! - 이전화/다음화 버튼 없애기 (모바일 - 티비위키)
@@ -715,7 +730,6 @@ music.bugs.co.kr##.topBanner
 [$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
 ! 아바타 아이콘 복구
 !@@tvwiki*.com/img/*$image
-
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
@@ -799,7 +813,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !  - 배너 공간
 ! - - - ##[src*="imgbox.com"] 사용시 전 이미지가 다 날라감
 ![$domain=/^ootv\d+.com/]##.banner_wrap2
-##.row-banner
+!##.row-banner
 ! - 링크동맹 글자
 ![$domain=/^ootv\d+.com/]##nav#snb:nth-of-type(6)
 ! - 메인 하단 동맹리스트
@@ -3080,6 +3094,13 @@ www.wavve.com#@#.popup
 !
 !
 ! 노벨피아 (https://novelpia.com/)
+! - 메인 상단 배너
+! - - - PC
+##[class*="pc-banner"]
+! - - - 모바일
+##[class*="mobile-banner"]
+! - 메인 하단 이벤트
+##[id*="event_banner"]
 ! - 첫 구독 무료 혜택 팝업
 novelpia.com##.sub-sale-modal-v2
 novelpia.com##.modal_background
@@ -3341,9 +3362,6 @@ dhlottery.co.kr##.band_banner
 ! - https://bbs.ruliweb.com/
 !##.kakao_ad_area
 ##[class*="kakao_ad"]
-
-! - https://www.ppomppu.co.kr/
-##[class="ad-banner"]
 
 !- https://www.ddanzi.com/
 ##[class*="add_display"]
@@ -3680,6 +3698,7 @@ damoang.net#@#a[href][target*='blank'] img[src*='.gif']
 
 
 
+
 !!! 기본 1
 ! - - - 이미지가 gif가 아닌 경우에도 사용
 ! - - - 링크나라 (https://www.linknala.com/)
@@ -3749,9 +3768,10 @@ damoang.net#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - 토렌트제이 (http://torrentj168.com/)
 ! - - - 티비소리 (https://srtv119.com/)
 ! - - - 4KJAV (https://kr29.4kjav.co/)
+! - - - 티비핫 (https://tvhot.store/) - 주소 바뀜
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^jogaeparty\d+.com/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/]##a[href][target*='blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^jogaeparty\d+.com/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],tvhot.store##a[href][target*='blank'] img
 
 
 
