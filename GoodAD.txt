@@ -487,7 +487,7 @@ bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 !
 ! 딴지일보 (https://www.ddanzi.com/)
 ! - 게시글 상단 배너(마켓 홍보) (PC/모바일)
-##[id="header_banner"]
+!##[id="header_banner"]
 ! - 메인 오른쪽 배너 제외 전체 배너
 ||media.adpnut.com/cgi-bin/PelicanC.dll?impr?pageid=0*&out=iframe
 ! - 전체 배너
@@ -1768,7 +1768,10 @@ evojav.pro$popup
 ! - 전체 배너 (상단 오른쪽 작은 배너 제외)
 ##[class="ad_banner"]
 ! - 상단 오른쪽 작은 배너
-!##[id="header_banner"]
+! - - - PC
+##[class="happy-header"]
+! - - - 모바일
+##[class="happy-header-mobile"]
 ! - 오른쪽 상단 광고 영역
 ! - - - JAVGIGA (https://javgiga.com/)
 ! - - - AV 핑크 (https://avpink36.com/)
@@ -1813,7 +1816,8 @@ evojav.pro$popup
 !
 ! 탑걸 (https://kr39.topgirl.co)
 ! 자브걸 (https://kr24.javgirl.co/)
-! - 상단 오른쪽 배너 이미지
+! - 상단 맨 오른쪽 작은 배너
+##[id="header_banner"]
 !###header_banner
 ! - 영상내 광고
 ! - - - 아브티비 (https://kr2.avtv.co/)
@@ -1856,6 +1860,18 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ##.bounce
 ###imgDiv > table
 ##.execphpwidget
+!
+!
+! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://kor11.grtv-48.com/)
+! - 배너
+##[class*="banner_list"]
+!##.banner_list
+!
+!
+! 믹스걸 (https://kr13.mix-19.com/)
+! - 영상 하단 배너
+##[class*="stui-player__detail"]
+!##.detail.stui-player__detail
 !
 !
 ! Topjav (https://topjav.tv/)
@@ -2075,10 +2091,15 @@ loopholes.site##.widget_text
 ! - - - https://play.sooplive.co.kr/ 실시간 영상 로딩시 돌아가는 8자 모양 사라짐 (사이트 주소 입력 필요)
 ![$domain=/^\d+.yadongpan.me/]##.loading
 ! - 영상내 배너 및 닫기 버튼
-##.happy-insid-player
+!##.happy-insid-player
 ! - 영상 아래 배너
+! - - - PC
+##[class="happy-unde-player"]
+! - - - 모바일
+##[class="happy-under-player-mobile"]
 !##.happy-unde-player
 ! - PC 메인 하단 배너
+##[class="under-video-block"]
 ! - 모바일 상단 배너
 ! - 모바일 상단 제외 전체 배너
 ! - - - 섹툰 (https://3.sektoon.me/)
@@ -2094,11 +2115,20 @@ loopholes.site##.widget_text
 ! - 배너 이미지
 !||jamakyadong.me/myimages/*$image
 ! - 메인 전체 배너
+jamakyadong.me##[class*="g-11"]
 !###top-desktop
+! - 영상내 배너 및 닫기 버튼
+##[class="happy-insid-player"]
+##.happy-insid-player
 ! - 영상 오른쪽 배너
+##[class="sidbar-ads"]
 !##.sidbar-ads
 ! - 영상 하단 배너
+##[class="unde-player-ad"]
 !##.unde-player-ad
+! - 맨 하단 배너 (영상 하단 배너 포함)
+jamakyadong.me##[class*="g-col"]
+!##.g-col
 !
 !
 ! 좆커넷 (https://jotker45.top/)
@@ -2214,12 +2244,15 @@ notion.so@@||/*/ads/*
 ! - - - mobile
 !##.w-80.relative
 ##.w-80.centered
+! - 메인 상단 배너
+##.cursor-pointer.shadow-sm.rounded-sm.w-full.object-fill
+! 메인 하단 배너
+##.mt-1.justify-start.items-center.flex-wrap.flex
 ! - 영상내 하단 배너
 ##.vjs-bottom-banner
 ! 보증업체 더보기 텍스트 배너
 ##.rounded-md.border.p-1.w-full
-! 하단 배너 이미지 (해제하지 말것)
-##.mt-1.justify-start.items-center.flex-wrap.flex
+
 !
 !
 ! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/)
