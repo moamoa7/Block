@@ -148,6 +148,8 @@ sooplive.co.kr###da_video
 ! - 방송요약 팝업
 sooplive.co.kr###sarsa_btn
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
+! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
+##[class="extensions_item"]
 sooplive.co.kr##.tuneout
 ! - 영상 왼쪽 하단 애드벌룬 배너
 sooplive.co.kr##.adballoon_icon
