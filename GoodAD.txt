@@ -1348,7 +1348,10 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !
 !
 ! 기상청 (https://www.weather.go.kr/)
+! - 팝업 배너
+##[class="popup-banner"]
 ! - 왼쪽 배너
+##[class*="list-banner"]
 !##.list-banner
 ! - 날씨정보 가끔 안나오는거 해결
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
