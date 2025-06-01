@@ -1765,6 +1765,10 @@ evojav.pro$popup
 ! - 입장시 18세 물어보는 팝업
 ###dclm_modal_content
 ###dclm_modal_screen
+! - 전체 배너 (상단 오른쪽 작은 배너 제외)
+##[class="ad_banner"]
+! - 상단 오른쪽 작은 배너
+!##[id="header_banner"]
 ! - 오른쪽 상단 광고 영역
 ! - - - JAVGIGA (https://javgiga.com/)
 ! - - - AV 핑크 (https://avpink36.com/)
@@ -3386,9 +3390,6 @@ dhlottery.co.kr##.band_banner
 
 ##[class*="AD"]
 
-! googleSubjectAd 등
-##[class*="Ad"]
-
 
 
 ! 구글 광고
@@ -3401,12 +3402,7 @@ dhlottery.co.kr##.band_banner
 ! - https://web.humoruniv.com/
 ##[id*="naver_adpost"]
 
-! - https://web.humoruniv.com/
-##[class="ad_banner"]
 
-! - https://www.inven.co.kr/
-##[class*="ad-right"]
-##[class*="ad-header"]
 
 ! 카카오 광고
 ! - https://bbs.ruliweb.com/
