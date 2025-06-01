@@ -2441,6 +2441,8 @@ mypikpak.com#@#[class$="verlay"]
 91porn.com#@#[class$="verlay"]
 ! - - - https://platinmods.com/ 로그인 창 안뜸
 platinmods.com#@#[class$="verlay"]
+! - - - https://porn78.info/ - 이미지 안뜸
+porn78.info#@#[class$="verlay"]
 
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
@@ -3500,7 +3502,10 @@ dhlottery.co.kr##.band_banner
 ! - - - 아래 규칙으로 통일
 ! - - - AV조아 오른쪽 상단 배너
 !##a[href] img[src*="/wp-content/uploads/"] 로 하면 다른 영상 이미지도 선택됨
-##a[target] img[src*="/wp-content/uploads/"]
+##[target] img[src*="/wp-content/uploads/"]
+! - - - 예외
+! - - - - https://tati-log.com/ 기사 하단에 게시글 이미지 지워짐 (그냥 두자)
+
 ! - - - AV조아 오른쪽 상단 배너 / 영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결)
 ! - - - AV러브걸  영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결) (오른쪽 상단 배너 없음)
 ! - - - AV러브걸 (https://avlove28.com/) 메인 상단 배너 / 영상 큰 배너 - 메인 상단 일부 이미지 못 지움 (영상 이미지 지워져서 jpg를 선택할 수 없음) - ###imgDiv > table 추가
@@ -3517,7 +3522,7 @@ dhlottery.co.kr##.band_banner
 ! - - - 예외 - 영상 사라짐
 ! - - - Watch Free JAV Online (https://s10.watchfreejavonline.co/)
 [$domain=/^s\d+.watchfreejavonline.co/]#@#[class*="player"] [src*="/wp-content/uploads"]
-!##a[target] img[src*="/wp-content/uploads/"],[src="gif"]
+!##[target] img[src*="/wp-content/uploads/"],[src="gif"]
 ! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
 dramaday.me#@#a[target] img[src*="/wp-content/uploads/"]
 !  - -  [src*='.gif'] 이걸 지우면 깔끔하나 로고가 지워짐 . 안지워진 배너 이미지는 공간 없애는 규칙 사용
