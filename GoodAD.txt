@@ -406,6 +406,9 @@ theqoo.net##.theqoo-counter
 !##[class^="ad-"]
 ! - 배너 (댓글 위 배너)
 !##[class$="-ad"]
+! - 로딩 없애기
+inven.co.kr##[id="loading"]
+inven.co.kr##[class*="loading"]
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - - - PC
 !inven.co.kr##.new-board
@@ -421,9 +424,6 @@ inven.co.kr###invenAppSuggestion
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
-! - 로딩 없애기
-mlbpark.donga.com##[id="loading"]
-mlbpark.donga.com##[class*="loading"]
 ! - 오른쪽 배너
 ##.big_banner
 ! - 게시물 하단 배너 / 맨 하단 배너
