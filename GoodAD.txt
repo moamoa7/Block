@@ -462,10 +462,15 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 !
 !
 ! 루리 (https://m.ruliweb.com/)
+! - 배너 (루리웹 전체 메인 상단 배너)
+ruliweb.com##.adrr
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
 ! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe536.com/)
 ruliweb.com##[class*="ad_"][style]
 ! -  상단 메인 배너
+! - 제목 공간 꽉차게
+bbs.ruliweb.com##.user_view:style(width: 100% !important;)
+bbs.ruliweb.com###board_read .board_main_top .member_reward_wrapper:style(margin-top: 20px !important; float: right !important; margin-right: 20px !important;)
 !ruliweb.com##div[style].ti_wrapper
 ! - 댓글 아래 배너
 ruliweb.com##div[class^="nbp_container"]
