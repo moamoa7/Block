@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.05.30
+! Version: 2025.06.02
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -24,6 +24,8 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 *#%#//scriptlet('prevent-fetch', 'doubleclick.net')
 *#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 *#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
+inven.co.kr,apkmirror.com$$script[data-cfasync="false"]
+kio.ac#%#//scriptlet('prevent-element-src-loading', 'script', 'probableregret.com')
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 
 ! 주소 바뀌는 불법 사이트 광고 영구 차단
@@ -70,9 +72,11 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 ##div[class$='AD'][style]
 ##div[class^='AD'][style]
 ##iframe[src*='ad.doorigo.co.kr']
+##iframe[src*='ad.doyouad.com']
 ##iframe[src*='cdn.targetpush.co.kr']
 ##iframe[src*='digitalcamp.co.kr']
 ##iframe[src*='sga.adp']
+##ins.adsbyaiinad
 11st.co.kr##iframe[src*='ads.adoffice.11st.co.kr']
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 auction.co.kr##.component--sponsor_link.component
@@ -129,8 +133,8 @@ m.dcinside.com##.trend-rank:style(padding:0px!important; border-top:0px!importan
 m.dcinside.com##section.clkhigh.grid
 m.dcinside.com##section.grid > .md-tit-box:has-text(Daum)
 m.dcinside.com#@#.trend-rank
-m.fmkorea.com##.fmWidgetStyle2019.bd_mobile.bd:matches-css(padding: /5px 10px/):remove()
-m.fmkorea.com##script ~ div[class*=" "]:matches-css(padding: /5px 10px/):remove()
+m.fmkorea.com##.fmWidgetStyle2019.bd_mobile.bd:matches-css(margin: /3px 0px/):matches-css(padding: /[0-5]px 10px/):remove()
+m.fmkorea.com##script ~ div[class*=" "]:matches-css(margin: /3px 0px/):matches-css(padding: /[0-5]px 10px/):remove()
 m.gmarket.co.kr##.box__ad-banner
 m.gmarket.co.kr##.box__banner-promotion
 m.gmarket.co.kr##.box__top-banner
@@ -140,6 +144,9 @@ m.ppomppu.co.kr###ask_app_usage_popup
 m.ppomppu.co.kr##div[style]:has(> ins)
 m.ruliweb.com##tr:has(.nbp_container)
 mlbpark.donga.com##.coupang_cont
+mlbpark.donga.com##.view_adtop
+mlbpark.donga.com##li.items:has([href*='php?b=phone'])
+mlbpark.donga.com##li.items:has([target='_blank'])
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
 ppomppu.co.kr##tr:has([src$='/icon_ppom_coupon_pc.png'])
@@ -156,10 +163,11 @@ sportschosun.com##div[style*='height:']:not(:has([id]))
 talk.op.gg##[class]:has(> [href^='https://talk.op.gg/app-download'])
 twidouga.net##iframe[width='300'][height='250']
 twidouga.net#%#//scriptlet('prevent-addEventListener', 'click', 'preventDefault')
+xportsnews.com##.ad:remove()
 web.joongna.com##.pb-12
 web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
 web.joongna.com##li:has(span:has-text(광고))
-windowsforum.kr,seoul.co.kr##.ad
+windowsforum.kr,seoul.co.kr,xportsnews.com##.ad
 zod.kr##[data-href^='https://zod.kr/go/']
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
 ||apps.m.sooplive.co.kr^$all
@@ -179,31 +187,37 @@ dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_
 ! 멀웨어 / 수익링크 차단
 fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ||adcr.naver.com^$all
+||link.coupang.com/*/TOSS$all
+||link.coupang.com/*dynamicda$all
 ||mistydivided.com^$all
-||s.click.aliexpress.com^$all
+||onelink.me/*toss$all
 
 ! 애드가드 필터 오차단 해제
 11st.co.kr#@#div[class$="-ad"]
 #@#.appBanner:not(body)
 $@$link[rel="manifest"]
 @@/.*/$permissions=identity-credentials-get=(),document,domain=slrclub.com
+@@||act.hoyolab.com^$generichide
 @@||ad*.cgv.co.kr^$image,domain=cgv.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search,important
 @@||action.adoffice.11st.co.kr^$domain=search.11st.co.kr
+@@||adtouch.adbrix.io^$app=com.kakao.talk
 @@||app.appsflyer.com^$domain=ofw.adison.co
 @@||co.kr^$stealth=dpi
 @@||edge-live.joongna.com/api/web-ads/
 @@||google.*/search$stealth=useragent|ip
+@@||graph.facebook.com^$domain=fmkorea.com
 @@||nexon.com^$stealth=dpi
 @@||photo.jtbc.co.kr/news/cms/etc/
 @@||piku.co.kr^$generichide
-@@||ssl.pstatic.net^$script,domain=nid.naver.com
+@@||static.airbridge.io/sdk^
 @@||t1.daumcdn.net/adfit/static/kp.js$domain=nexon.com
 etoland.co.kr#@#div[class$="_ad"]
 hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
+mlbpark.donga.com#@#div[class*="_ad"]
+mlbpark.donga.com#@$#div[id^="SmartPhone_"][id$="_today"] .lists > li::before { padding-top: 0px !important; border-bottom: none !important; }
 lol.inven.co.kr#@#article > div[style].banner
 search.11st.co.kr#@#[data-log-actionid-area^="focus"]
-video.kakao.com#@#.list_share
 web.joongna.com#@#a[rel*="sponsored"]
 ||cdn.oaistatic.com/assets/*.js$replace=/Error\(.\(418\,""\)\);throw ..\(..\(.\,.\)\)\,../null;/,domain=chatgpt.com,badfilter
 ! SFF 갤러리 규칙 (출처: https://m.dcinside.com/board/sff/995258)
