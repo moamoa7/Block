@@ -497,6 +497,8 @@ bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 ! 딴지일보 (https://www.ddanzi.com/)
 ! - 게시글 상단 배너(마켓 홍보) (PC/모바일)
 !##[id="header_banner"]
+!##[class="image-container"]
+###header_banner
 ! - 메인 오른쪽 배너 제외 전체 배너
 ||media.adpnut.com/cgi-bin/PelicanC.dll?impr?pageid=0*&out=iframe
 ! - 전체 배너
@@ -1838,7 +1840,7 @@ evojav.pro$popup
 ! 탑걸 (https://kr39.topgirl.co)
 ! 자브걸 (https://kr24.javgirl.co/)
 ! - 상단 맨 오른쪽 작은 배너
-##[id="header_banner"]
+!##[id="header_banner"]
 !###header_banner
 ! - 영상내 광고
 ! - - - 아브티비 (https://kr2.avtv.co/)
