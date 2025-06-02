@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.06.02
+! Version: 2025.06.03.2
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -24,8 +24,8 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 *#%#//scriptlet('prevent-fetch', 'doubleclick.net')
 *#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 *#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
-inven.co.kr,apkmirror.com$$script[data-cfasync="false"]
-kio.ac#%#//scriptlet('prevent-element-src-loading', 'script', 'probableregret.com')
+inven.co.kr$$script[data-cfasync="false"]
+m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 
 ! 주소 바뀌는 불법 사이트 광고 영구 차단
@@ -48,7 +48,6 @@ kio.ac#%#//scriptlet('prevent-element-src-loading', 'script', 'probableregret.co
 [$domain=/^tvwiki[0-9]*\.com/]###viewCover
 [$domain=/^tvwiki[0-9]*\.com/]##[src*='/AD/']
 [$domain=/^yako[a-z0-9]*\.[a-z]{2,}/]###banner, .banner
-[$domain=/^zzap[0-9]*\.com/]##div.video-long-banner
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]##li:has([target]:not([href*=bbs]))
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[alt*='광고'], [alt*='배너'], [data-ride]
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[class*='carousel'][id]
@@ -69,6 +68,7 @@ kio.ac#%#//scriptlet('prevent-element-src-loading', 'script', 'probableregret.co
 ##[id*='powerlink']
 ##[id^='hd_pop']
 ##div.banner_m
+##div.video-long-banner
 ##div[class$='AD'][style]
 ##div[class^='AD'][style]
 ##iframe[src*='ad.doorigo.co.kr']
@@ -82,9 +82,6 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 auction.co.kr##.component--sponsor_link.component
 avdbs.com##.ad-btn[class*='tp']
 bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
-coinpan.com##*:has(> div[style^='width:390px; max-width:100%;'])
-coinpan.com##.flatBoard > .clearfix.title-wrap
-coinpan.com##p > strong
 coolenjoy.net##.carousel-inner
 dcinside.com###dna_content
 dcinside.com##.adv-inner
@@ -113,7 +110,6 @@ hoduhodu.com##.md\:hidden.z-50.p-2.bg-black.w-full.left-0.bottom-0.fixed
 instiz.net##.hot_under
 inven.co.kr##.inven-float-alarm
 khan.co.kr##.mAd
-komi.la##div.overflow-hidden:has(.text-gray-200.font-bold.text-lg)
 m.11st.co.kr##div.l-grid:has([class*='c-ad'])
 m.11st.co.kr##div:has(> .c-guide-ad)
 m.blog.naver.com###blog_fe_feed > div:has([class^='recommend_section__'])
@@ -133,18 +129,16 @@ m.dcinside.com##.trend-rank:style(padding:0px!important; border-top:0px!importan
 m.dcinside.com##section.clkhigh.grid
 m.dcinside.com##section.grid > .md-tit-box:has-text(Daum)
 m.dcinside.com#@#.trend-rank
-m.fmkorea.com##.fmWidgetStyle2019.bd_mobile.bd:matches-css(margin: /3px 0px/):matches-css(padding: /[0-5]px 10px/):remove()
-m.fmkorea.com##script ~ div[class*=" "]:matches-css(margin: /3px 0px/):matches-css(padding: /[0-5]px 10px/):remove()
+m.fmkorea.com##.bd_mobile.bd:matches-css(margin: /3px 0px/):matches-css(padding: 0px):remove()
+m.fmkorea.com##script ~ div[class*=' ']:matches-css(margin: /3px 0px/):matches-css(padding: 0px):remove()
 m.gmarket.co.kr##.box__ad-banner
 m.gmarket.co.kr##.box__banner-promotion
 m.gmarket.co.kr##.box__top-banner
 m.gmarket.co.kr##.link__banner
 m.inven.co.kr##.show-ads
-m.ppomppu.co.kr###ask_app_usage_popup
 m.ppomppu.co.kr##div[style]:has(> ins)
 m.ruliweb.com##tr:has(.nbp_container)
 mlbpark.donga.com##.coupang_cont
-mlbpark.donga.com##.view_adtop
 mlbpark.donga.com##li.items:has([href*='php?b=phone'])
 mlbpark.donga.com##li.items:has([target='_blank'])
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
@@ -182,15 +176,9 @@ zod.kr##[data-href^='https://zod.kr/go/']
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
 cafe.naver.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_mrnhbtk', '1year', '/', '.dmm.co.jp')
+||adcr.naver.com^$all
 ||arca.live/static/assets/js/adult.min.js
 
-! 멀웨어 / 수익링크 차단
-fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
-||adcr.naver.com^$all
-||link.coupang.com/*/TOSS$all
-||link.coupang.com/*dynamicda$all
-||mistydivided.com^$all
-||onelink.me/*toss$all
 
 ! 애드가드 필터 오차단 해제
 11st.co.kr#@#div[class$="-ad"]
