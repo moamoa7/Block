@@ -637,8 +637,8 @@ ppomppu.co.kr###ask_app_usage_popup
 ! - - - 다모앙 (상단 배너 / 게시글 하단 배너 / 댓글 위 배너 / 왼쪽 배너 / 댓글 아래 배너 / 맨 하단 배너 )
 ! - - - https://www.avdbs.com/ 19금 표시도 지움
 ! - 맨 오른쪽 상단 배너 / 중간 배너 / 하단 배너
-! - - - ##[class*="ads"] 와 겹침
-!##[class^="ad"]
+! - - - ##[class*="ads"] 와 이 사이트에서는 겹치지만 ad만 사용되는 사이트가 많아서 그냥 둠 (ad를 예외로 해야할 경우도 있으니 유의)
+##[class^="ad"]
 !##.ad
 ! - 왼쪽 배너
 ###ad1[style^="position:"]
@@ -1428,6 +1428,11 @@ yna.co.kr##[class^="aside"]
 ! - 기사 하단 필요없는 부분
 !yna.co.kr##.aside-box400
 yna.co.kr##.ynalounge-content01.wide.content03
+!
+!
+! 엑스포츠 뉴스 (https://www.xportsnews.com/)
+! - 필요없는 사이트 차단 (광고)
+||taboola.com^
 !
 !
 ! 한국경제 (https://www.hankyung.com/)
@@ -2328,7 +2333,7 @@ xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 ! - 커뮤니티/메시지/공지사항 공지 및 배너 광고
 !1004sweet.com,1004deep.com##.swip-ticker
 ! - ##[class^="ad"] 해제 - 일부 이미지 안나옴
-!1004sweet.com,1004deep.com#@#[class^="ad"]
+1004sweet.com,1004deep.com#@#[class^="ad"]
 !
 !
 ! 조개파티 (https://jogaeparty139.com/)
