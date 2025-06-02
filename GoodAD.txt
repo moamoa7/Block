@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250601
+! Version: 20250602
 !
 !
 !
@@ -225,9 +225,17 @@ tiktok.com##.TUXModal-overlay
 !
 ! 씨네스트 (https://cineaste.co.kr/)
 ! - 메인 배너
+cineaste.co.kr##[class="main-title"]
+##[class="main-title"]
 !cineaste.co.kr##.main-title
+! - 왼쪽 배너
+##[class="main-banner"]
+!cineaste.co.kr##.main-banner
 ! - 오른쪽 중간 배너
+##[class*="basic-banner"]
 !cineaste.co.kr##.basic-banner
+! - 오른쪽 배너 공간
+cineaste.co.kr##.container > div[style][id]
 ! - 로고 복원
 !@@cineaste.co.kr/data/apms/background/logo7.png
 !
@@ -352,14 +360,15 @@ fmkorea.com###fm_alert
 etoland.co.kr###main_popup
 ! - 로그인 팝업
 etoland.co.kr###login_popup
+! - 왼쪽. 오른쪽. 가운데 HIT인기/최신글
+!etoland.co.kr##[class$="_ad"]
+##[class$="_ad"]
 ! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 etoland.co.kr##[src*="/data/daumeditor"]
 ! - 왼쪽 통합검색 바로 아래 배너
 ! - - - 티비착 (https://tvchak148.com/) 영상란 배너
 etoland.co.kr##.banner-box
-! - 맨왼쪽/가운데 상단/맨 오른쪽 배너
-!##[class$="_ad"]
 ! - 오늘의 HIT 아래 상담실 등 배너
 etoland.co.kr###consult_list
 ! - 무료충전소
@@ -627,9 +636,15 @@ ppomppu.co.kr###ask_app_usage_popup
 ! - - - 클리앙 (https://www.clien.net/) (게시글 하단 배너)
 ! - - - 다모앙 (상단 배너 / 게시글 하단 배너 / 댓글 위 배너 / 왼쪽 배너 / 댓글 아래 배너 / 맨 하단 배너 )
 ! - - - https://www.avdbs.com/ 19금 표시도 지움
+! - 맨 오른쪽 상단 배너 / 중간 배너 / 하단 배너
+! - - - ##[class*="ads"] 와 겹침
 !##[class^="ad"]
-! - 게시글 상단 텍스트 광고 (PC)
-slrclub.com##.notice
+!##.ad
+! - 왼쪽 배너
+###ad1[style^="position:"]
+! - 게시글 상단 텍스트 광고 (PC) - 다른 사이트에서 지워지는 부분이 있어 사이트 주소 붙임
+slrclub.com##[class="notice"]
+!slrclub.com##.notice
 ! - - - 예외 (텔래그램 주소 사라짐)
 ![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]#@#.notice
 ! - - - 참고 (공지글 사라짐)
@@ -637,7 +652,7 @@ slrclub.com##.notice
 ! - - - 예외 (공지글 제목 안보임
 !cineaste.co.kr#@#.notice
 ! - 하단 배너 공백
-slrclub.com##.adsbyadop
+!slrclub.com##.adsbyadop
 !
 !
 ! 클리앙 (https://clien.net/)
@@ -1714,7 +1729,8 @@ pedia.watcha.com##.adFixed
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
-avsee.ru##.title
+avsee.ru##[class="title"]
+!avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
 ! 새창 방지
 avsee.ru#%#//scriptlet("prevent-window-open")
@@ -3247,6 +3263,12 @@ zeta-ai.io##.pointer-events-none
 dhlottery.co.kr##.band_banner
 !
 !
+! https://trand.co.kr/ - 쿠팡 배너 광고
+||ads-partners.coupang.com
+##[class*="widget"]>table
+##[class="list-ad"]
+!##.list-ad
+!
 !
 !
 !
@@ -3471,8 +3493,7 @@ dhlottery.co.kr##.band_banner
 !- https://www.ddanzi.com/
 ##[class*="add_display"]
 
-! https://trand.co.kr/ - 쿠팡 배너 광고
-##[class*="widget"]>table
+
 
 
 ! 구글광고와 겹칠수도.. 
