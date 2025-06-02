@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250602
+! Version: 20250603
 !
 !
 !
@@ -4213,9 +4213,9 @@ avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img
 
 ##[class*="popup"]
 ! - - - 예외 ( 출석.추천.찐추 버튼 복구)
-www.etoland.co.kr#@#[class*="popup"]
+etoland.co.kr#@#[class*="popup"]
 ! - - - 예외 ( 스크롤이 안됨)
-www.wavve.com#@#[class*="popup"]
+wavve.com#@#[class*="popup"]
 ! - - - 예외 (화면 안나옴)
 mypikpak.com#@#[class*="popup"]
 ! - - - 예외 (구매결정 팝업창 안나옴)
@@ -4231,7 +4231,7 @@ hmall.com#@#[class*="popup"]
 ! - 네이버플러스멤버쉽 (https://nid.naver.com/) - 팝업 차단으로 화면 뿌옇게 변함. 화면 스크롤 안됨
 nid.naver.com#@#[class*="popup"]
 ! https://www.elitebabes.com/ - 아무것도 안보임
-www.elitebabes.com#@#[class*="popup"]
+elitebabes.com#@#[class*="popup"]
 ! https://www.myfreecams.com/ - 이미지 마우스 갓다대면 실시간 영상 이미지 나오는거 안나옴
 myfreecams.com#@#[class*="popup"]
 ! 옥션 (https://buy.auction.co.kr/) - 문의하기 시 문의하기 버튼 사라짐
@@ -4241,7 +4241,7 @@ auction.co.kr#@#[class*="popup"]
 ! 바이브 (https://vibe.naver.com/) - 화면 스크롤 안됨
 vibe.naver.com#@#[class*="popup"]
 ! https://www.xfree.com/ - 화면 스크롤 안됨
-www.xfree.com#@#[class*="popup"]
+xfree.com#@#[class*="popup"]
 ! https://loyalty.coupang.com/ -와우 멤버쉽 해지하기 팝업 안뜸
 loyalty.coupang.com#@#[class*="popup"]
 !
