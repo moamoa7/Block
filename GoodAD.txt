@@ -2072,7 +2072,19 @@ trackwilltrk.com^$popup
 !@@||r*m.com/img/*$image
 ! - 18세 팝업
 javlibrary.com,[$domain=/^r\d+.m.com/]###adultwarningmask
-
+!
+!
+! JavMov (https://www.javmov.com/)
+! - 쓸데없는 사이트 (광고)
+||pemsrv.com^
+||magsrv.com^
+! - 메인 배너 (공백)
+!javmov.com##[class="spot"]
+##[class="spot"]
+!javmov.com##.spot
+! - 영상 오른쪽 배너 (공백)
+##[class="asside-link"]
+!javmov.com##.asside-link
 !
 !
 ! https://loopholes.site/
@@ -2173,6 +2185,9 @@ notion.so@@||/*/ads/*
 ! 야동허브 (https://ydhub11.net/)
 ! - 배너 이미지
 !||net/static/images/*$image
+! - 하단 배너 공간
+###random-images
+!##.bottom-adv
 !
 !
 ! 야모아 (https://yamoa36.site/)
@@ -2598,6 +2613,8 @@ mypikpak.com#@#[class$="verlay"]
 platinmods.com#@#[class$="verlay"]
 ! - - - https://porn78.info/ - 이미지 안뜸
 porn78.info#@#[class$="verlay"]
+! - - - https://st.sweettracker.co.kr/ - 배송조회 안나옴
+sweettracker.co.kr#@#[class$="verlay"]
 
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
@@ -3276,6 +3293,12 @@ dhlottery.co.kr##.band_banner
 !
 !
 !
+! 스마트택배 (https://st.sweettracker.co.kr/)
+! - 하단 배너 (앱 설치 안내)
+sweettracker.co.kr###footer
+!
+!
+!
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !
@@ -3614,7 +3637,9 @@ dhlottery.co.kr##.band_banner
 ##img[src*="imgbox.com"]
 
 ! - - - 야동허브 (https://ydhub11.net/)
-##img[src*="/static/images/"]
+!##img[src*="/static/images/"] - 일부 사이트에서 로고 사라짐 - 예 :https://www.javmov.com/
+##[class] img[src*="/static/images/"][style]
+##[class] img[src*="/static/images/"][class]
 
 
 !!! - 광역 2
@@ -3959,6 +3984,13 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 
 !!! - 기본 6
+! - 텍스트 광고
+! - - - 광역 사용시 일부 이미지 사라짐
+! - https://01.avpop.tv/
+[$domain=/^\d+.avpop.tv/]##a[href] [style*="background"]
+
+
+!!! - 기본 7
 ! - 일부 사이트에서 사용 중 (target과 class 다 붙어 있음)
 ! - - - 광역 사용시 타사이트 이미지 지워짐
 ! - - - https://linkpan71.com/ 상단 배너
