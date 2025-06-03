@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.06.03.2
+! Version: 2025.06.03.3
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -24,7 +24,6 @@ namu.wiki##span:has-text(더 보기):upward(2):has([target])
 *#%#//scriptlet('prevent-fetch', 'doubleclick.net')
 *#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 *#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
-inven.co.kr$$script[data-cfasync="false"]
 m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 
@@ -185,6 +184,7 @@ dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_
 #@#.appBanner:not(body)
 $@$link[rel="manifest"]
 @@/.*/$permissions=identity-credentials-get=(),document,domain=slrclub.com
+@@||07c225f3.online^
 @@||act.hoyolab.com^$generichide
 @@||ad*.cgv.co.kr^$image,domain=cgv.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search,important
