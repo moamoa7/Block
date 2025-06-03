@@ -1832,12 +1832,15 @@ evojav.pro$popup
 ###dclm_modal_content
 ###dclm_modal_screen
 ! - 전체 배너 (상단 오른쪽 작은 배너 제외)
-##[class="ad_banner"]
+!##[class="ad_banner"]
+##.ad_banner
 ! - 상단 오른쪽 작은 배너
 ! - - - PC
-##[class="happy-header"]
+!##[class="happy-header"]
+##.happy-header
 ! - - - 모바일
-##[class="happy-header-mobile"]
+!##[class="happy-header-mobile"]
+##.happy-header-mobile
 ! - 오른쪽 상단 광고 영역
 ! - - - JAVGIGA (https://javgiga.com/)
 ! - - - AV 핑크 (https://avpink36.com/)
@@ -1847,29 +1850,33 @@ evojav.pro$popup
 ! - - - PC
 ! - 맨 위 오른쪽 상단 작은 배너
 ! - - - PC
-##[class="happy-header"]
-!##.happy-header
+!##[class="happy-header"]
+##.happy-header
 ! - - - 모바일
-##[class="happy-header-mobile"]
-!##.happy-header-mobile
+!##[class="happy-header-mobile"]
+##.happy-header-mobile
 ! - 상단 배너
 !##[class="header-advertising"]
 ! - 전체 배너 (젤 오른쪽 상단 작은 배너 / 젤 하단 배너 제외]
 ##[class*="textwidget"]
 ! - 젤 하단 배너
 ! - - - PC
-##[class="happy-footer"]
+!##[class="happy-footer"]
+##.happy-footer
 ! - - - 모바일
-##[class="happy-footer-mobile"]
+!##[class="happy-footer-mobile"]
+##.happy-footer-mobile
 ! - 영상 하단 배너
 ! - - - PC
-##[class="happy-under-player"]
+!##[class="happy-under-player"]
+##.happy-under-player
 ! - - - 모바일
-##[class="happy-under-player-mobile"]
+!##[class="happy-under-player-mobile"]
+##.happy-under-player-mobile
 ! - 영상내 배너 및 닫기 버튼
 ! - - - Svideos JAV (https://avsshub.net/)
-##[class="happy-inside-player"]
-!##.happy-inside-player
+!##[class="happy-inside-player"]
+##.happy-inside-player
 !
 !
 !
@@ -1968,8 +1975,8 @@ openload.mov##div:nth-of-type(9)
 !
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 오른쪽 배너
-##[class="happy-sidebar"]
-!##.happy-sidebar
+!##[class="happy-sidebar"]
+##.happy-sidebar
 ! - 동맹 글자
 !xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
 !
@@ -1983,6 +1990,12 @@ openload.mov##div:nth-of-type(9)
 ! - 이미지 복원
 !- - - ||*.com/img/*
 !@@||avdbs.com/img/*$image
+!
+!
+! AV조아 (https://avjoa71.com/)
+! 영상 하단 텍스트 배너
+! - - https://pinkbo44.com/
+[$domain=/^avjoa\d+.com/],[$domain=/^pinkbo\d+.com/]##.button
 !
 !
 ! XX조아 (https://xxjoa45.com/)
@@ -2101,7 +2114,8 @@ missav.live##.lg\:block
 !
 ! 야동코리아 (https://www.yako.gg/) - 주소 바뀜
 ! - 배너
-##[class="banner_grid"]
+!##[class="banner_grid"]
+##.banner_grid
 !
 !
 ! HOHO (https://hohoj.tv/)
@@ -2125,11 +2139,13 @@ javlibrary.com,[$domain=/^r\d+.m.com/]###adultwarningmask
 ||magsrv.com^
 ! - 메인 배너 (공백)
 !javmov.com##[class="spot"]
-##[class="spot"]
-!javmov.com##.spot
+!##[class="spot"]
+!##.spot
+javmov.com##.spot
 ! - 영상 오른쪽 배너 (공백)
-##[class="asside-link"]
 !javmov.com##.asside-link
+!##[class="asside-link"]
+##.asside-link
 !
 !
 ! https://loopholes.site/
@@ -2172,12 +2188,14 @@ loopholes.site##.widget_text
 !##.happy-insid-player
 ! - 영상 아래 배너
 ! - - - PC
-##[class="happy-unde-player"]
+!##[class="happy-unde-player"]
+##.happy-unde-player
 ! - - - 모바일
-##[class="happy-under-player-mobile"]
-!##.happy-unde-player
+!##[class="happy-under-player-mobile"]
+##.happy-under-player-mobile
 ! - PC 메인 하단 배너
-##[class="under-video-block"]
+!##[class="under-video-block"]
+##.under-video-block
 ! - 모바일 상단 배너
 ! - 모바일 상단 제외 전체 배너
 ! - - - 섹툰 (https://3.sektoon.me/)
@@ -2196,14 +2214,14 @@ loopholes.site##.widget_text
 jamakyadong.me##[class*="g-11"]
 !###top-desktop
 ! - 영상내 배너 및 닫기 버튼
-##[class="happy-insid-player"]
+!##[class="happy-insid-player"]
 ##.happy-insid-player
 ! - 영상 오른쪽 배너
-##[class="sidbar-ads"]
-!##.sidbar-ads
+!##[class="sidbar-ads"]
+##.sidbar-ads
 ! - 영상 하단 배너
-##[class="unde-player-ad"]
-!##.unde-player-ad
+!##[class="unde-player-ad"]
+##.unde-player-ad
 ! - 맨 하단 배너 (영상 하단 배너 포함)
 jamakyadong.me##[class*="g-col"]
 !##.g-col
@@ -3727,10 +3745,13 @@ hotword.site##div.col-md-6:nth-of-type(2)
 ! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/) - 메인 상단 제외 전체 배너
 ! - - - 아래 규칙으로 통일
 ! - - - AV조아 오른쪽 상단 배너
-!##a[href] img[src*="/wp-content/uploads/"] 로 하면 다른 영상 이미지도 선택됨
+!##a[href] img[src*="/wp-content/uploads/"] 로 하면 다른 영상 이미지도 선택됨. 아래 규칙으로 변경
 ##[target] img[src*="/wp-content/uploads/"]
 ! - - - 예외
 ! - - - - https://tati-log.com/ 기사 하단에 게시글 이미지 지워짐 (그냥 두자)
+! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
+dramaday.me#@#[target] img[src*="/wp-content/uploads/"]
+
 
 ! - - - AV조아 오른쪽 상단 배너 / 영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결)
 ! - - - AV러브걸  영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결) (오른쪽 상단 배너 없음)
@@ -3748,10 +3769,7 @@ hotword.site##div.col-md-6:nth-of-type(2)
 ! - - - 예외 - 영상 사라짐
 ! - - - Watch Free JAV Online (https://s10.watchfreejavonline.co/)
 [$domain=/^s\d+.watchfreejavonline.co/]#@#[class*="player"] [src*="/wp-content/uploads"]
-!##[target] img[src*="/wp-content/uploads/"],[src="gif"]
-! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
-dramaday.me#@#a[target] img[src*="/wp-content/uploads/"]
-!  - -  [src*='.gif'] 이걸 지우면 깔끔하나 로고가 지워짐 . 안지워진 배너 이미지는 공간 없애는 규칙 사용
+
 
 
 !!! - 광역 3 (개별 광역)
