@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250603
+! Version: 20250604
 !
 !
 !
@@ -526,12 +526,14 @@ bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 ! 딴지일보 (https://www.ddanzi.com/)
 ! - 게시글 상단 배너(마켓 홍보) (PC/모바일)
 !##[id="header_banner"] - 이걸로 하면 모바일에서 적용이 안되는거 같아서 아래 규칙으로 변경
+!- - - PC
 ###header_banner
+! - - -  모바일
+ddanzi.com###banner_ddanzi_market
 ! - 메인 오른쪽 배너 제외 전체 배너
 ||media.adpnut.com/cgi-bin/PelicanC.dll?impr?pageid=0*&out=iframe
 ! - 전체 배너
 ##[class*="add_display"]
-!ddanzi.com###banner_ddanzi_market
 ! - 게시글 하단 공백 공간 (모바일)
 ddanzi.com##.add_display2
 ! - 이미지 복원
