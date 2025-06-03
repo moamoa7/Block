@@ -3306,15 +3306,14 @@ www.wavve.com#@#.popup
 !
 ! 노벨피아 (https://novelpia.com/)
 ! - 메인 상단 배너
-! - - - PC
-##[class*="pc-banner"]
-! - - - 모바일
-##[class*="mobile-banner"]
+novelpia.com##.new-top-header2
 ! - 메인 하단 이벤트
-##[id*="event_banner"]
+novelpia.com###main_event_banner_swiper
 ! - 첫 구독 무료 혜택 팝업
 novelpia.com##.sub-sale-modal-v2
 novelpia.com##.modal_background
+! - 모바일 메뉴 버튼
+novelpia.com##.mobile_show.bt-nv-wrapper
 !
 !
 ! 픽팍 (https://mypikpak.com/)
