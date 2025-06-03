@@ -3316,6 +3316,8 @@ novelpia.com##.sub-sale-modal-v2
 novelpia.com##.modal_background
 ! - 모바일 메뉴 버튼
 novelpia.com##.mobile_show.bt-nv-wrapper
+! - 모바일 작품별 배너
+novelpia.com##.novel_banner
 !
 !
 ! 픽팍 (https://mypikpak.com/)
