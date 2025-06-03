@@ -790,7 +790,8 @@ music.bugs.co.kr##.topBanner
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
 ! - 상단 배너
 ! - - - 티비위키
-##[class="banner2"]
+!##[class="banner2"]
+##.banner2
 ##[id="bannerList"]
 ![$domain=/^tvwiki\d+.com/]###bannerList
 !###bannerList
@@ -800,20 +801,22 @@ music.bugs.co.kr##.topBanner
 !||.com/AD/*
 !||.org/AD/*
 ! - - - 티비몬
-##[class="row-banner"]
+!##[class="row-banner"]
+##.row-banner
 ![$domain=/^tvmon\d+.org/]###banner-row-1
 ! - - - 티비핫 (주소 바뀌므로 나중에 수동으로 수정해야 함)
 ! - - - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
+!##[class="object-cover"]
 !tvhot.site##.object-cover
-##[class="object-cover"]
+##.object-cover
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
-##[class="full pc-only"]
-##[class="full mobile-only"]
+!##[class="full pc-only"]
+!##[class="full mobile-only"]
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 !##[class^="full pc-only"]:not(html):not(body):not(article)
-![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.pc-only.full
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.pc-only.full
 !##[class^="full mobile-only2"]:not(html):not(body):not(article)
-![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]###viewCover
 ! - 이전화/다음화 버튼 없애기 (모바일 - 티비위키)
@@ -1429,7 +1432,8 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !
 ! 기상청 (https://www.weather.go.kr/)
 ! - 팝업 배너
-##[class="popup-banner"]
+!##[class="popup-banner"]
+##.popup-banner
 ! - 왼쪽 배너
 ##[class*="list-banner"]
 !##.list-banner
