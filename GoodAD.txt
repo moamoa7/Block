@@ -807,8 +807,8 @@ music.bugs.co.kr##.topBanner
 ! - - - 티비핫 (주소 바뀌므로 나중에 수동으로 수정해야 함)
 ! - - - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
 !##[class="object-cover"]
-!tvhot.site##.object-cover
-##.object-cover
+##.object-cover - 광역으로 사용시 타 사이트 이미지 사라짐 (예 : https://yagong85.com/)
+tvhot.site##.object-cover
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
 !##[class="full pc-only"]
 !##[class="full mobile-only"]
@@ -1937,8 +1937,8 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 ! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://kor11.grtv-48.com/)
 ! - 배너
-##[class*="banner_list"]
-!##.banner_list
+!##[class*="banner_list"]
+##.banner_list
 !
 !
 ! 믹스걸 (https://kr13.mix-19.com/)
@@ -2350,14 +2350,12 @@ notion.so@@||/*/ads/*
 ! - 영상내 하단 배너
 ##.vjs-bottom-banner
 ! 보증업체 더보기 텍스트 배너
-##.rounded-md.border.p-1.w-full
-
+!##.rounded-md.border.p-1.w-full
 !
 !
 ! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/)
 ! - 상단 배너 공간
 xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
-
 !
 !
 ! 야동그라운드 (https://yagro48.com/) / 야동공장 (https://yagong84.com/)
@@ -2395,7 +2393,6 @@ xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 ![$domain=/^yacity\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(8)
 ! - 제휴업체 글자
 ![$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(8)
-
 !
 !
 ! 천사티비 (https://1004sweet.com/) (https://1004deep.com/)
@@ -3020,6 +3017,7 @@ hitomi.la###immersive-translate-popup
 ! 주소월드 (https://wdwd7.com/)
 ! - 배너
 !##.banner_list.at-container
+!##.banner_list
 ! - 로고 복원
 !@@||wdwd*.com/img/tlogo.png
 !
@@ -3831,6 +3829,17 @@ avhotgirl.top##a[href] img[src*="public"]
 ![$domain=/^redgirl\d+.org/]##img[src*="/data/editor/"]
 ![$domain=/^redgirl\d+.org/]##[onclick] img[src*="/data/editor/"]
 !##[onclick] img[src*="/data/editor/"]
+
+
+!!! - 광역 8
+! - - - 광역으로 사용
+! - target 이 없는 요소
+! - https://wdwd8.com/ - 카지노 토토사이트 더 보기 글자
+! -https://yagro48.com/ - 보증업체 더 보기 글자
+!##[id] [style*="background"]
+! -  일부 사이트에서 영상 이미지 지움 (예 : https://redgirl37.org/) , 아래 규칙으로 변경
+##[id][style*="background"]
+
 
 
 
