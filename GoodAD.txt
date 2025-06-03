@@ -456,7 +456,6 @@ inven.co.kr##[class="modal-fixed"]
 ##[class*="Ad"]
 ! - - - 예외 (https://play.google.com/) - 제목 날라감
 play.google.com#@#[class*="Ad"]
-
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - - - PC
 !inven.co.kr##.new-board
