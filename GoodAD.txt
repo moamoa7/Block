@@ -129,19 +129,21 @@ sooplive.co.kr##.on.bnrimg_area
 !sooplive.co.kr##.promotion_banner
 ! - 영상 (https://play.sooplive.co.kr)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
-##[class="buffering"]
-!##.buffering
+!##[class="buffering"]
+##.buffering
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (List-KR)
 ||static.sooplive.co.kr/asset/service/ad/
 ! -  채팅 광고
-##[class*="chat_banner"]
-!sooplive.co.kr##.chat_banner
+!##[class*="chat_banner"]
+##.chat_banner
 ! - 채팅 상단 배너
 !sooplive.co.kr##.on.chat_banner2
 ! - 채팅 공지 (필요시)
 !sooplive.co.kr##.chat_notice
 ! - 채팅 상단 배너 & 채팅 공지 (필요시)
 !sooplive.co.kr##.chat_topbox
+! - 채팅 버블 메시지
+sooplive.co.kr##.bubble-container
 ! -스트리머에게 수익이 후원되는 광고를 재생하고 계십니다. 없애기
 sooplive.co.kr##.text_output
 ! - - - 광고 영상 안보이게 (광고 차단 안될시 소리만 나오고 영상은 재생되지 않음)
@@ -150,23 +152,28 @@ sooplive.co.kr###da_video
 ! - 방송요약 팝업
 sooplive.co.kr###sarsa_btn
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
-! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
-##[class="extensions_item"]
 sooplive.co.kr##.tuneout
+! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
+!##[class="extensions_item"]
+sooplive.co.kr##.extensions_item
 ! - 영상 왼쪽 하단 애드벌룬 배너
-sooplive.co.kr##.adballoon_icon
+!sooplive.co.kr##.adballoon_icon
+##.adballoon_icon
 ! - 개인채널 (https://ch.sooplive.co.kr/) 팝업
 sooplive.co.kr##.bs-notice_layer
 ! - 개인채널 (https://ch.sooplive.co.kr/) 오른쪽 배너
-sooplive.co.kr###side-layer
+!sooplive.co.kr###side-layer
+###side-layer
 ! - 개인채널 (https://ch.sooplive.co.kr/) 하단 배너
 sooplive.co.kr##.sct-bnr
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
 sooplive.co.kr###FeedLayerToolTip
 ! - 프로모션 배너 (적용이 안되고 있는지 딱히 나오는건 없음)
-##[class="promotion_banner"]
+!##[class="promotion_banner"]
+##.promotion_banner
 ! - shopfreeca banner (적용이 안되고 있는지 딱히 나오는건 없음)
-##[class="shopProduct_banner"]
+!##[class="shopProduct_banner"]
+##.shopProduct_banner
 
 
 !
@@ -362,7 +369,10 @@ etoland.co.kr###main_popup
 etoland.co.kr###login_popup
 ! - 왼쪽. 오른쪽. 가운데 HIT인기/최신글
 !etoland.co.kr##[class$="_ad"]
-##[class$="_ad"]
+! - - - 가운데 HIT인기/최신글 사라짐으로 해제 (List-KR)
+etoland.co.kr#@#div[class$="_ad"]
+! - 오른쪽 따라다니는 메뉴
+etoland.co.kr##.main_right_ad
 ! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 etoland.co.kr##[src*="/data/daumeditor"]
@@ -394,6 +404,8 @@ etoland.co.kr##section.box:nth-of-type(7)
 etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
 ! - 이토랜드 광고 게시물 배너
 ||*/img/market/ajd/ajd_banner*$image
+! - 게시물 내 하단 배너
+www.etoland.co.kr##.etoad_under_goods
 ! - 포인트 충전소 이미지 복원 (List-KR 무력화)
 @@||etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
@@ -415,6 +427,8 @@ etoland.co.kr###latest_m_main
 etoland.co.kr###info_recent_list_wrap
 ! - 이미지 복원
 !@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
+! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
+etoland.co.kr#@#[class^="ad"]
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -440,6 +454,9 @@ inven.co.kr##[class*="loading"]
 ##[class*="ad-right"]
 ! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
 ##[class*="Ad"]
+! - - - 예외 (https://play.google.com/) - 제목 날라감
+play.google.com#@#[class*="Ad"]
+
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - - - PC
 !inven.co.kr##.new-board
@@ -496,8 +513,7 @@ bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 !
 ! 딴지일보 (https://www.ddanzi.com/)
 ! - 게시글 상단 배너(마켓 홍보) (PC/모바일)
-!##[id="header_banner"]
-!##[class="image-container"]
+!##[id="header_banner"] - 이걸로 하면 모바일에서 적용이 안되는거 같아서 아래 규칙으로 변경
 ###header_banner
 ! - 메인 오른쪽 배너 제외 전체 배너
 ||media.adpnut.com/cgi-bin/PelicanC.dll?impr?pageid=0*&out=iframe
@@ -1544,6 +1560,13 @@ sports.donga.com##.view_center
 ! 검색시 나오는 하단 스폰서링크 삭제
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 auction.co.kr##.component--sponsor_link.component
+!
+!
+! 11번가 (https://11st.co.kr/)
+! - 서치 후 상품 클릭 안됨 해결 (List-kr)
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+search.11st.co.kr#@#[data-log-actionid-area^="focus"]
+@@||action.adoffice.11st.co.kr^$domain=11st.co.kr
 !
 !
 ! 중고나라 (https://web.joongna.com/)
@@ -3294,11 +3317,26 @@ dhlottery.co.kr##.band_banner
 !##.list-ad
 !
 !
-!
 ! 스마트택배 (https://st.sweettracker.co.kr/)
 ! - 하단 배너 (앱 설치 안내)
 sweettracker.co.kr###footer
 !
+!
+! 이상형 월드컵 (https://www.piku.co.kr/)
+! - 게시물간 배너 공백 제거
+piku.co.kr##.top-navigation .wrapper > .row.equal > div[class="col-xs-12 col-sm-6 col-lg-4"][style^="padding:"]
+!
+!
+! 링크천국 (https://hotword.site/)
+!  - 오류 수정
+hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
+! - 배너 공간
+hotword.site##div.col-md-6:nth-of-type(5)
+hotword.site##div.col-md-6:nth-of-type(6)
+hotword.site##div.widget-box:nth-of-type(1)
+!- 게시물내 배너공간
+hotword.site##div.col-md-6:nth-of-type(1)
+hotword.site##div.col-md-6:nth-of-type(2)
 !
 !
 !
@@ -3841,6 +3879,8 @@ avhotgirl.top##a[href] img[src*="public"]
 inven.co.kr#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - 다모앙 (https://damoang.net/)- 아바타 아이콘 사라짐
 damoang.net#@#a[href][target*='blank'] img[src*='.gif']
+! - - - 링크천국 (https://www.hotword.site/) - 일부 이미지 사라짐
+hotword.site#@#a[href][target*='blank'] img[src*='.gif']
 
 
 !##a[href][target*='blank'] img[src*='.png']
