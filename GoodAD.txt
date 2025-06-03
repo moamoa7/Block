@@ -446,8 +446,8 @@ theqoo.net##.theqoo-counter
 ! - 배너 (댓글 위 배너)
 !##[class$="-ad"]
 ! - 로딩 없애기
-inven.co.kr##[id="loading"]
-inven.co.kr##[class*="loading"]
+!inven.co.kr##[id="loading"]
+inven.co.kr##[class="modal-fixed"]
 ! - 게시물 전체 배너
 ##[src*=".ads/"]
 ! -오른쪽 배너
@@ -463,7 +463,8 @@ play.google.com#@#[class*="Ad"]
 ! - - - 모바일
 !inven.co.kr##.mo-board-list
 ! - 게시판 상단 배너 공간
-##[class="ad-header"]
+!##[class="ad-header"]
+##.ad-header
 ! - 게시물 오른쪽 배너 공간
 inven.co.kr##aside div[style]:not([class])
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
@@ -552,7 +553,8 @@ bobaedream.co.kr##.todayRanking
 ! - 팝업 배너
 !##[class="banner-center"]
 ! -하단 제보 배너
-##[class="call_banner"]
+!##[class="call_banner"]
+##.call_banner
 !
 !
 ! 와이고수 (https://ygosu.com/)
@@ -568,14 +570,16 @@ ygosu.com##.pull-left.btn-group
 !
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - 맨 오른쪽 상단 작은 배너
-##[class="top-banner"]
+!##[class="top-banner"]
+##.top-banner
 ! - 메인 상단 배너
-##[id="banner-link"]
+!##[id="banner-link"]
+###banner-link
 ! - 메인/게시물 왼쪽 배너 공간 (PC)
-##[id="banner"]
-! - 야동코리아 (https://yako4.net/) - 영상 하단 배너
-! - 밍키넷 영상 하단 텍스트 배너
+! - - - 야동코리아 (https://yako4.net/) - 영상 하단 배너
+! - - - 밍키넷 영상 하단 텍스트 배너
 ! - - - 유튜브에서도 적용
+!##[id="banner"]
 ###banner
 ! - 오른쪽 배너
 ##[class*="right-banner"]
