@@ -593,8 +593,21 @@ jjang0u.com##[class*="cut-in-banner2"]
 !
 !
 ! 82쿡 (https://www.82cook.com/)
+! - 배너 (타이틀 옆 오른쪽 / 왼쪽 일부 배너)
+! - - - 슈어랭킹 (https://sureranking.net/)
+! - - - https://159i.net/
+! - - - 제크티비 (https://zectv.com/)
+! - - - 레드핫 (https://redhot04.com/) https://redhot05.com/
+! - - - 보배드림 (https://www.bobaedream.co.kr/) - 사이버 매장 광고신청 삭제
+! - - - - -  배너 공간
+##.banner
+! - - - 예외
+! - - - 롤 인벤 (https://lol.inven.co.kr/) : 경기일정 보이게 하려고 해제
+lol.inven.co.kr#@#.banner
+[$domain=/^nolgoga\d+.com/]#@#.banner
+##.banner
 ! - 왼쪽 상단 배너 공간
-###mainHeadline
+!###mainHeadline
 !
 !
 ! 안스티즈 (https://www.instiz.net/)
@@ -3219,19 +3232,6 @@ fc1adult.com##.fullscreen
 noonnu.cc##.lg\:top-8
 !
 !
-! - 슈어랭킹 (https://sureranking.net/)
-! - https://159i.net/
-! - 제크티비 (https://zectv.com/)
-! - 레드핫 (https://redhot04.com/) https://redhot05.com/
-! - 보배드림 (https://www.bobaedream.co.kr/) - 사이버 매장 광고신청 삭제
-! - - -  배너 공간
-##.banner
-! - - - 예외
-! - - - 롤 인벤 (https://lol.inven.co.kr/) : 경기일정 보이게 하려고 해제
-lol.inven.co.kr#@#.banner
-[$domain=/^nolgoga\d+.com/]#@#.banner
-!
-!
 ! 뽕티비 (https://bbongtv1.com/)
 ! - 보증업체 글자
 ![$domain=/^bbongtv\d+.com/]##div.category:nth-of-type(2)
@@ -4253,6 +4253,19 @@ avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img
 ![$domain=/^funbe\d+.com/]#@#[class*="banner"]
 ! 주소모두 (https://jusomodu9.com/) - 리스트 사라짐
 ![$domain=/^jusomodu\d+.com/]#@#[class*="banner"]
+
+
+
+
+! - https://play.sooplive.co.kr/
+! - https://mlbpark.donga.com/
+! - https://www.ppomppu.co.kr/
+!##[class$="banner"]
+! - - - 예외
+! https://www.inven.co.kr/ - 일부 아이콘 사라짐
+!inven.co.kr#@#[class$="banner"]
+! https://www.clien.net/ - 검색어 입력란 사라짐
+!clien.net#@#[class$="banner"]
 
 
 
