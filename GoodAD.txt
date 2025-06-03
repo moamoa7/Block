@@ -3308,7 +3308,7 @@ www.wavve.com#@#.popup
 ! - 메인 상단 배너
 novelpia.com##.new-top-header2
 ! - 메인 상단 배너 (공간) - 모바일
-novelpia.com##.novllist-swiper-banner
+novelpia.com##.novellist-swiper-banner
 ! - 메인 하단 이벤트
 novelpia.com###main_event_banner_swiper
 ! - 첫 구독 무료 혜택 팝업
