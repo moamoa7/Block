@@ -147,6 +147,8 @@ sooplive.co.kr##.bubble-container
 ! -스트리머에게 수익이 후원되는 광고를 재생하고 계십니다. 없애기
 sooplive.co.kr##.text_output
 ! - - - 광고 영상 안보이게 (광고 차단 안될시 소리만 나오고 영상은 재생되지 않음)
+||vod-player*.sooplive.co.kr
+||deapi.sooplive.co.kr^
 sooplive.co.kr##.da_area
 sooplive.co.kr###da_video
 ! - 방송요약 팝업
