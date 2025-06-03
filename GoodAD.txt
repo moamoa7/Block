@@ -3863,8 +3863,9 @@ avhotgirl.top##a[href] img[src*="public"]
 !##[id] [style*="background"]
 ! -  일부 사이트에서 영상 이미지 지움 (예 : https://redgirl37.org/) , 아래 규칙으로 변경
 ##[id][style*="background"]
-
-
+! - - - 예외
+! - - - 노벨피아 (https://novelpia.com/) - 회차별 이미지 및 텍스트 안나옴
+novelpia.com#@#[id][style*="background"]
 
 
 
