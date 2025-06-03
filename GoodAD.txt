@@ -3318,6 +3318,8 @@ novelpia.com##.modal_background
 novelpia.com##.mobile_show.bt-nv-wrapper
 ! - 모바일 작품별 배너
 novelpia.com##.novel_banner
+! - 모바일 첫 화 무료 보기 (따라다니는 배너)
+novelpia.com##.mobile_show.btn-view-episode
 !
 !
 ! 픽팍 (https://mypikpak.com/)
