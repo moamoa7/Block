@@ -3688,6 +3688,10 @@ hotword.site##div.col-md-6:nth-of-type(2)
 !##[class*="banner"] a[href] img[src*="banner"]
 !##a[href] img[src*="banner"]
 ##img[src*="/banner/"]
+! - - - 예외
+! - - - 노벨피아 (https://novelpia.com/) - 일부 이미지 (모바일 하단 메뉴 가운데 동그란 이미지) 사라짐
+novelpia.com#@#img[src*="/banner/"]
+
 
 ! - - - 야부리 시즌 2 (https://yaburi60.com/)
 ! - - -  딸플릭스 (https://kr4.ddal.xyz/)
