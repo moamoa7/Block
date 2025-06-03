@@ -114,6 +114,16 @@ youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !impo
 www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:remove()
 !
 !
+! 네이버 뉴스 (https://news.naver.com/)
+! - 필요없는거 없애기
+! - - - 이슈/기자/연재를 구독해보세요
+news.naver.com##.comp_news_subscribe
+! - - - 위클리 심층 키워드
+news.naver.com##.comp_common.comp_journal_subscribe.comp_twenty_news
+! - - - 관심있는 언론사 구독해보세요
+news.naver.com##._short_subscribe_banner_card_wrapper.main_brick_item
+!
+!
 ! 네이버플러스 멤버쉽 (https://nid.naver.com/)
 ! - 아래 규칙 해도 스크롤 안되므로 팝업 차단 하지 말것
 ! - 팝업
@@ -3720,6 +3730,10 @@ hotword.site##div.col-md-6:nth-of-type(2)
 ! - - - 레드대피소 (https://red-run.xyz/)
 !##[class*="banner"] a[href*="banner"][target] img
 ##a[href*="banner"] img
+! - - - 예외
+! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
+naver.com#@#a[href*="banner"] img
+
 
 
 !!! - 광역 3
@@ -3769,6 +3783,9 @@ dramaday.me#@#[target] img[src*="/wp-content/uploads/"]
 ! - - - 예외 - 영상 사라짐
 ! - - - Watch Free JAV Online (https://s10.watchfreejavonline.co/)
 [$domain=/^s\d+.watchfreejavonline.co/]#@#[class*="player"] [src*="/wp-content/uploads"]
+! - - - 예외 - 일부 영상 이미지 사라짐
+! - - - JAVHD.ICU (https://javhd.icu/)
+javhd.icu#@#[class*="player"] [src*="/wp-content/uploads"]
 
 
 
