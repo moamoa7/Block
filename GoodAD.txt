@@ -363,10 +363,12 @@ wiki.dcinside.com##*
 ! - - -  웃대 (https://web.humoruniv.com/) 왼쪽 배너 / 하단 배너
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
 !##[class^="ads"]
+! - - - 파워 링크
+##.adpost
 ! 게시물 하단 배너
 !fmkorea.com##ins.adsbygoogle
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
-fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
+!fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기 (streamable.com 안나와서 해제)
 !fmkorea.com##.video-container
 ! - 모바일
@@ -3923,8 +3925,12 @@ novelpia.com#@#[id][style*="background"][style]
 ! https://missav.ws/ 일부
 ! https://7tv000.com/ 등
 ##[class] iframe[style][src]
-avsee.ru#@#[class] iframe[style][src]
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
 theqoo.net#@#[class] iframe[style][src]
+! - - - https://tv.kakao.com/ - 영상 안나옴
+tv.kakao.com#@#[class] iframe[style][src]
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+avsee.ru#@#[class] iframe[style][src]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 sogirl.so#@#[class] iframe[style][src]
 
