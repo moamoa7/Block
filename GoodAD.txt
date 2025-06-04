@@ -1826,6 +1826,11 @@ javsaga.ninja$popup
 evojav.pro$popup
 !
 !
+! SEXTB.NET (https://sextb.date/)
+! -영상 오른쪽 배너 공간
+sextb.date##.hidden-md.right.col-3
+!
+!
 ! JAVFC2.XYZ (https://javfc2.xyz/)
 ! - 상단 배너 이미지 공간 (유니콘Pro)
 !!###ads
@@ -3618,6 +3623,16 @@ hotword.site##div.col-md-6:nth-of-type(2)
 ! - 오늘의 유머 (https://www.todayhumor.co.kr/)- 광고 배너
 ! - 인스티즈 (https://www.instiz.net/) - 광고 배너 등
 ##[class*="ads"]
+! - - - 예외
+! - - - https://javfinder.ai/ - 영상 프레임이 사라짐
+! - - - https://javdoe.to/
+! - - - https://javsky.tv/
+! - - - https://javfree.sh/
+javfinder.ai,javdoe.to,javsky.tv,javfree.sh#@#[class*="ads"]
+! -위 ads  영상 프레임 아닌 광고 프레임 (Easy-List에 포함)
+!##[class="sidebar-ads"]
+!##.sidebar-ads
+
 
 ! 인벤 아이디 날림
 !##[class*="layer"]
@@ -3910,6 +3925,8 @@ novelpia.com#@#[id][style*="background"][style]
 ##[class] iframe[style][src]
 avsee.ru#@#[class] iframe[style][src]
 theqoo.net#@#[class] iframe[style][src]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+sogirl.so#@#[class] iframe[style][src]
 
 ! https://missav.ws/ 일부
 ##[class] iframe[data-link][src]
@@ -3926,16 +3943,22 @@ theqoo.net#@#[class] iframe[style][src]
 ##iframe[src*="ad."]
 
 ! 딴지 (https://www.ddanzi.com/) - 전체 frame
+! https://sextb.date/
 ##[class] iframe[sandbox][src]
 ##[class] iframe[sandbox*="popup"][src]
 
 ! https://javgiga.com/ (추가)
 ! ##[class] iframe[style][src] 로 차단되지만 추가해봄
-##iframe[src="about:blank"]
 ##iframe[data-src]
+##iframe[src="about:blank"]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+sogirl.so#@#iframe[src="about:blank"]
+
 
 ! https://sextb.date/
-##[class] iframe[class][src]
+!##[class] iframe[class][src]
+! - - - 예외 (https://javgg.net/) - 영상 안나옴 (iframe로 광고하는건 없는 사이트로 보임)
+!javgg.net#@#[class] iframe[class][src]
 
 
 
