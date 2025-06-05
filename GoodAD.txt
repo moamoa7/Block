@@ -114,6 +114,11 @@ youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !impo
 www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:remove()
 !
 !
+! 네이버 (https://www.naver.com/)
+! - 배너
+##[class*="_banner_"]
+!
+!
 ! 네이버 뉴스 (https://news.naver.com/)
 ! - 필요없는거 없애기
 ! - - - 이슈/기자/연재를 구독해보세요
@@ -4190,6 +4195,9 @@ damoang.net#@#a[href][target*='blank'] img[src*='.gif']
 hotword.site#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - AVseeTV (https://05.avsee.ru/0 - 게시물에 gif 올리면 이미지 안보임
 avsee.ru#@#a[href][target*='blank'] img[src*='.gif']
+! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
+naver.com#@#a[href][target*='blank'] img[src*='.gif']
+
 
 
 ##[class*="banner"] IMG[src*="banner"] IMG[src*=".gif"]
