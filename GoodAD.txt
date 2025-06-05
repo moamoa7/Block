@@ -1809,6 +1809,8 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 ##[class*="slideAnimation"]
 ! - 일부 영상 재생 차단 방지
 @@||tiktokcdn.com/obj/$xhr
+! 일부 iframe 차단
+jilliandescribecompany.com##iframe
 ! - 로고 이미지 복원
 !@@||supjav.com/img/*$image
 !
@@ -3693,6 +3695,9 @@ theqoo.net#@#a[href][target*="blank"] video
 !topgirl.co,javgirl.co,ddal.xyz##[class*="button"] a[href]
 ! - button으로 하니 다른 클래스와 많이 겹쳐서 [style] 추가
 ##[class*="button"][style] a[href]
+! - - - 예외
+! - - - https://xn--9t4b31dr7o.com/ - 안내주소 안보임
+xn--9t4b31dr7o.com#@#[class*="button"][style] a[href]
 
 
 ! 이토랜드 게시물 하단 쿠팡 광고 등
@@ -3929,6 +3934,11 @@ novelpia.com#@#[id][style*="background"][style]
 !theqoo.net#@#[class][id] iframe
 
 
+! https://www.youtube.com/
+! https://accounts.google.com/
+! https://javhd.icu/ 등
+##iframe[src*="iframe"]
+
 ! https://supjav.com/
 ! https://javgiga.com/
 ! https://missav.ws/ 일부
@@ -3984,11 +3994,7 @@ theqoo.net#@#[class][id] iframe[style]
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
 ppomppu.co.kr#@#[class][id] iframe[style]
 
-! https://www.youtube.com/
-! https://accounts.google.com/
-! https://javhd.icu/ 등
-##iframe[src*="iframe"]
-
+! https://supjav.com/
 ! https://www.njav.com/
 ##iframe[src*="widget"]
 
