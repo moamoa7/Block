@@ -3705,6 +3705,10 @@ javfinder.ai,javdoe.to,javsky.tv,javfree.sh#@#[class*="ads"]
 theqoo.net#@#a[href][target*="blank"] video
 
 ! MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
+!##[id*="video"] video
+! - - - 예외
+! - - - 숲 (https://play.sooplive.co.kr/)  - 영상 안보임
+!play.sooplive.co.kr#@#[id*="video"] video - 아래 규칙으로 변경
 ##[id*="_ad_"] video
 
 
