@@ -4075,6 +4075,9 @@ ppomppu.co.kr#@#[class][style] iframe[style]
 ! - - - 더쿠(https://theqoo.net/) - 게시물 트위터 등 안나옴
 theqoo.net#@#[class] iframe[style]
 theqoo.net#@#[class][style] iframe[style]
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+avsee.ru#@#[class] iframe[style]
+avsee.ru#@#[class][style] iframe[style]
 
 
 ! 나무위키 
