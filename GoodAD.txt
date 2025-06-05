@@ -3777,12 +3777,19 @@ xn--9t4b31dr7o.com#@#[class*="button"][style] a[href]
 ##img[src*="admin_banner"]
 
 ! - - - 땡땡티비 (https://ootv39.com/)
-##img[src*="imgbox.com"]
+!##img[src*="imgbox.com"]
 
 ! - - - 야동허브 (https://ydhub11.net/)
 !##img[src*="/static/images/"] - 일부 사이트에서 로고 사라짐 - 예 :https://www.javmov.com/
-##[class] img[src*="/static/images/"][style]
-##[class] img[src*="/static/images/"][class]
+##[class] img[src*="/static/images/"][style][src*=".png"]
+! - - - 예외
+! - - - 다시보자 (https://bozatv111.com/) 로고 안나옴
+[$domain=/^bozatv\d+.com/]#@#[class] img[src*="/static/images/"][style][src*=".png"]
+##[class] img[src*="/static/images/"][style][src*=".jpg"]
+##[class] img[src*="/static/images/"][class][src*=".png"]
+! - - - 다시보자 (https://bozatv111.com/) 로고 안나옴
+[$domain=/^bozatv\d+.com/]#@#[class] img[src*="/static/images/"][class][src*=".png"]
+##[class] img[src*="/static/images/"][class][src*=".jpg"]
 
 
 !!! - 광역 2
@@ -4103,7 +4110,7 @@ ppomppu.co.kr#@#[class][style] iframe[style]
 ! - - - 사이즈19 (https://size71.net/) (https://vod.tmall-kr.net/)
 ! - - - 지지넷 (https://porngg7.net/)
 ! - - - 정복걸 (https://jbjbgg47.cc/)
-! - - - 왕부랄 (http://wbr2045.com/index)
+! - - - 왕부랄 (http://wbr2045.com/)
 ! - - - 조개모아 (https://www.jgmoagogo.com/ (https://www.jogemoa.com/) - 일부 배너
 ! - - - 언리샷 (https://unlishot47.cc/)
 ! - - - 섹탈 (https://sstal47.cc/)
@@ -4118,22 +4125,31 @@ ppomppu.co.kr#@#[class][style] iframe[style]
 ! - - - 애니넷 (https://ani114.net/) (https://ani01.net/)
 ! - - - 툰넷 (https://toon114.net/) (https://toon01.net/)
 ! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/) (https://dfake.top/)
+##A[target="_blank"] > IMG[height="100"][src*=".gif"]
 ! - - - 난넷 (https://nen114.com/) (https://nan008.net/)
 ! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
+##A[target="_blank"] IMG[src*="banner"][src*=".gif"]
 ! - - - 토렌트큐큐 (https://torrentqq369.com/)
 ! - - - 토렌트RJ (https://torrentrj203.com/)
 ! - - - 토다와 (https://www.todawa137.site/)
 ! - - - 토렌트릴 (https://www.torrentreel133.site/)
+##A[target="_blank"] IMG[src*="/ad/"][src*=".gif"]
 ! - - - 일일툰 (https://www.11toon143.com/)
 ! - - - 호두코믹스 (https://t71.hoduhodu.com/)
 ! - - - 엑스툰 (https://t1.xtoon2.com/)
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
+##A[target="_blank"][class*="banner"]  IMG[src*=".gif"]
+##A[target="_blank"] IMG[src*="/banners/"][src*=".gif"]
 ! - - - 마녀티비 (https://witchtv10.xyz/) (https://wt01.xyz/)
+##A[target="_blank"] IMG[src*=".gif"][alt*="Banner"]
+##A[target="_blank"] IMG[src*="/wp-content/uploads/"][src*=".gif"]
 ! - - - 쏭티비 (https://songkorea.com/)
 ! - - - 섹토렌트 (https://4.sektorrent.me/)
 ! - - - 땡땡티비 (https://ootv39.com/)
+##A[target="_blank"] IMG[style*="100%"][src*=".gif"]
 ! - - - 혼딸파티 (https://ddparty04.org/)
 ! - - - 레드대피소 (https://red-run.xyz/)
+##A[target="_blank"] IMG[style*="100"][src*=".gif"]
 ! - - - 4KJAV (https://kr29.4kjav.co/)
 ! - - - 자막야동 (https://4.jamakyadong.me/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
