@@ -4039,6 +4039,9 @@ poooo.ml#@#[class][id] iframe[style]
 theqoo.net#@#[class][id] iframe[style]
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
 ppomppu.co.kr#@#[class][id] iframe[style]
+! - - - https://tv.kakao.com/ - 영상 안나옴
+tv.kakao.com#@#[class][id] iframe[style]
+
 
 
 ! https://javkaren.com/
@@ -4078,6 +4081,10 @@ theqoo.net#@#[class][style] iframe[style]
 ! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
 avsee.ru#@#[class] iframe[style]
 avsee.ru#@#[class][style] iframe[style]
+! - - - https://tv.kakao.com/ - 영상 안나옴
+tv.kakao.com#@#[class] iframe[style]
+tv.kakao.com#@#[class][style] iframe[style]
+
 
 
 ! 나무위키 
