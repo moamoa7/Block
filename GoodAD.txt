@@ -3615,6 +3615,9 @@ tistory.com##+js(set, adblockChecker, noopFunc)
 
 
 ##[class*="AD"]
+! - - - 예외
+! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
+naver.com#@#[class*="AD"]
 
 
 
