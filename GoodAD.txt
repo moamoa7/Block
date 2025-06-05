@@ -4072,6 +4072,10 @@ sogirl.so#@#iframe[src="about:blank"]
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
 ppomppu.co.kr#@#[class] iframe[style]
 ppomppu.co.kr#@#[class][style] iframe[style]
+! - - - 더쿠(https://theqoo.net/) - 게시물 트위터 등 안나옴
+theqoo.net#@#[class] iframe[style]
+theqoo.net#@#[class][style] iframe[style]
+
 
 ! 나무위키 
 ##[class][style="margin 0; color: #239d9668"]
