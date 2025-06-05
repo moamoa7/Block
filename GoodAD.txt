@@ -3395,6 +3395,14 @@ hotword.site##div.widget-box:nth-of-type(1)
 !- 게시물내 배너공간
 hotword.site##div.col-md-6:nth-of-type(1)
 hotword.site##div.col-md-6:nth-of-type(2)
+
+!
+!
+! 티스토리 (https://www.tistory.com/)
+! - Ad Block 확장프로그램을 껴주시면 콘텐츠가 보입니다. 메시지 없애기
+! - - - https://checkwhoiam.tistory.com/685
+tistory.com##+js(set, adblockChecker, noopFunc)
+
 !
 !
 !
@@ -3938,6 +3946,13 @@ novelpia.com#@#[id][style*="background"][style]
 ! https://accounts.google.com/
 ! https://javhd.icu/ 등
 ##iframe[src*="iframe"]
+! - - - 예외
+! - - - https://gall.dcinside.com/
+!gall.dcinside.com#@#iframe[src*="iframe"]
+! - - - 로봇이 아닙니다
+!google.com/recaptcha#@#iframe[src*="iframe"]
+
+
 
 ! https://supjav.com/
 ! https://javgiga.com/
@@ -3954,7 +3969,7 @@ avsee.ru#@#[class] iframe[style][src]
 sogirl.so#@#[class] iframe[style][src]
 
 ! - https://funlove.info/
-##[class][style] iframe[src]
+!##[class][style] iframe[src]
 ! - - - 예외
 ! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
 avsee.ru#@#[class][style] iframe[src]
@@ -3974,12 +3989,17 @@ poooo.ml#@#[class][style] iframe[src]
 
 ! 딴지 (https://www.ddanzi.com/) - 전체 frame
 ! https://sextb.date/
-##[class] iframe[sandbox][src]
-##[class] iframe[sandbox*="popup"][src]
+!##[class] iframe[sandbox][src]
+!##[class] iframe[sandbox*="popup"][src]
 ! - - - 예외
 ! https://mypikpak.com/ - 출첵팝업 안뜸
 mypikpak.com#@#[class] iframe[sandbox][src]
 mypikpak.com#@#[class] iframe[sandbox*="popup"][src]
+! - https://gall.dcinside.com/ - 로봇이 아닙니다 팝업 안뜸
+gall.dcinside.com#@#[class] iframe[sandbox][src]
+gall.dcinside.com#@#[class] iframe[sandbox*="popup"][src]
+
+
 
 ! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
 ##[class][id] iframe[style]
@@ -4510,6 +4530,8 @@ vibe.naver.com#@#[class*="popup"]
 xfree.com#@#[class*="popup"]
 ! https://loyalty.coupang.com/ -와우 멤버쉽 해지하기 팝업 안뜸
 loyalty.coupang.com#@#[class*="popup"]
+
+
 !
 !
 !
