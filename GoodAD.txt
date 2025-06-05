@@ -807,8 +807,9 @@ music.bugs.co.kr##.topBanner
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
 ! - 상단 배너
 ! - - - 티비위키
+! - -- https://18moa026.com/의 banner2와 겹쳐서 이미지 안보임
 !##[class="banner2"]
-##.banner2
+!##.banner2
 ##[id="bannerList"]
 ![$domain=/^tvwiki\d+.com/]###bannerList
 !###bannerList
@@ -3758,7 +3759,7 @@ xn--9t4b31dr7o.com#@#[class*="button"][style] a[href]
 !novelpia.com#@#img[src*="/banner/"]
 
 ! - - - https://newtoki.live/
-##[class="banner"] img[src]
+##[class="banner"] img[src*='.gif']
 
 
 ! - - - 야부리 시즌 2 (https://yaburi60.com/)
@@ -3808,11 +3809,12 @@ xn--9t4b31dr7o.com#@#[class*="button"][style] a[href]
 ! - - - 레드존 (https://redzone20.xyz/)
 ! - - - 레드대피소 (https://red-run.xyz/)
 !##[class*="banner"] a[href*="banner"][target] img
-##a[href*="banner"] img
+!##a[href*="banner"] img
 ! - - - 예외
 ! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
-naver.com#@#a[href*="banner"] img
-
+!naver.com#@#a[href*="banner"] img
+! - - - https://18moa026.com/ - 일부 이미지 사라짐 - [src*=".gif"] 추가
+##a[href*="banner"] img[src*=".gif"]
 
 
 !!! - 광역 3
@@ -4104,7 +4106,7 @@ tv.kakao.com#@#[class][style] iframe[style]
 !/////////////////////////////////////////////////////////////////////////////////////////
 
 
-##[class*="banner"] IMG[src*="banner"] IMG[src*=".gif"]
+
 
 
 !!! 기본
@@ -4185,6 +4187,9 @@ damoang.net#@#a[href][target*='blank'] img[src*='.gif']
 hotword.site#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - AVseeTV (https://05.avsee.ru/0 - 게시물에 gif 올리면 이미지 안보임
 avsee.ru#@#a[href][target*='blank'] img[src*='.gif']
+
+
+##[class*="banner"] IMG[src*="banner"] IMG[src*=".gif"]
 
 
 !##a[href][target*='blank'] img[src*='.png']
