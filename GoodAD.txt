@@ -3705,7 +3705,6 @@ javfinder.ai,javdoe.to,javsky.tv,javfree.sh#@#[class*="ads"]
 theqoo.net#@#a[href][target*="blank"] video
 
 ! MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
-##[id] video
 ##[id*="video"] video
 
 
