@@ -1357,8 +1357,10 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! 엑스툰 (https://xn--9t4b31dr7o.com/) (https://t1.xtoon2.com/)
 ! - 팁
 ##.f-tips
+! - 하단 가운데 계속보기 버튼
+###userHistory
 ! - 하단 움직이는 광고
-##.slideAnimation--K36g6.bottomRight--sO8K2.root--ujvuu
+!##.slideAnimation--K36g6.bottomRight--sO8K2.root--ujvuu
 !
 !
 ! 만화방 (https://manhwabang.org/)
@@ -1803,6 +1805,8 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 !
 !
 ! supjav (https://supjav.com/)
+! - 하단 따라다니는 배너
+##[class*="slideAnimation"]
 ! - 일부 영상 재생 차단 방지
 @@||tiktokcdn.com/obj/$xhr
 ! - 로고 이미지 복원
@@ -3946,8 +3950,6 @@ sogirl.so#@#[class] iframe[style][src]
 avsee.ru#@#[class][style] iframe[src]
 ! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
 poooo.ml#@#[class][style] iframe[src]
-! - - - https://ppomppu.co.kr/ - 이상은 없는대 모바일에서 에러 메시지 나옴
-!ppomppu.co.kr#@#[class][style] iframe[src]
 
 ! 인벤 (https://www.inven.co.kr/) - 전체 iframe
 !##[class] iframe[id][name][src]
@@ -3979,13 +3981,12 @@ avsee.ru#@#[class][id] iframe[style]
 poooo.ml#@#[class][id] iframe[style]
 ! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
 theqoo.net#@#[class][id] iframe[style]
-
+! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
 ppomppu.co.kr#@#[class][id] iframe[style]
 
-
-
-
-! https://javhd.icu/
+! https://www.youtube.com/
+! https://accounts.google.com/
+! https://javhd.icu/ 등
 ##iframe[src*="iframe"]
 
 ! https://www.njav.com/
