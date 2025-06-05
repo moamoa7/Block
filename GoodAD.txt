@@ -1984,6 +1984,8 @@ topjav.tv##.koukoku_11
 ! 메인 - 각 목록별 배너 공간 (모바일)
 javfan.one##div:nth-of-type(9)
 javfan.one##div:nth-of-type(11)
+! - 정가운대 배너
+javfan.one##[id*="_ad_"]
 !
 !
 ! JAV.direct (https://jav.direct/)
@@ -3702,6 +3704,11 @@ javfinder.ai,javdoe.to,javsky.tv,javfree.sh#@#[class*="ads"]
 ! - - - https://theqoo.net/ - 게시물내 비디오 안나옴
 theqoo.net#@#a[href][target*="blank"] video
 
+! MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
+##[id] video
+##[id*="video"] video
+
+
 
 ! 영상 하단 텍스트 광고
 ! - - - 광역으로 처리시 다른 모든 버튼이 사라짐
@@ -4024,8 +4031,14 @@ theqoo.net#@#[class][id] iframe[style]
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
 ppomppu.co.kr#@#[class][id] iframe[style]
 
+
+! https://javkaren.com/
+##[class*="widget"] iframe
+
+
 ! https://supjav.com/
 ! https://www.njav.com/
+! https://javfan.one/
 ##iframe[src*="widget"]
 
 ! https://missav.ws/ 일부
@@ -4042,6 +4055,11 @@ sogirl.so#@#iframe[src="about:blank"]
 !##[class] iframe[class][src]
 ! - - - 예외 (https://javgg.net/) - 영상 안나옴 (iframe로 광고하는건 없는 사이트로 보임)
 !javgg.net#@#[class] iframe[class][src]
+
+! https://javfan.one/
+##[class] iframe[style]
+##[class][style] iframe[style]
+
 
 ! 나무위키 
 ##[class][style="margin 0; color: #239d9668"]
