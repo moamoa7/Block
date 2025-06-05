@@ -3732,6 +3732,8 @@ theqoo.net#@#a[href][target*="blank"] video
 ! - - - 예외
 ! - - - https://xn--9t4b31dr7o.com/ - 안내주소 안보임
 xn--9t4b31dr7o.com#@#[class*="button"][style] a[href]
+! - - - https://www.speedtest.net/ - 속도 태스트 버튼 안보임
+speedtest.net#@#[class*="button"][style] a[href]
 
 
 ! 이토랜드 게시물 하단 쿠팡 광고 등
@@ -4199,7 +4201,8 @@ avsee.ru#@#a[href][target*='blank'] img[src*='.gif']
 naver.com#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - 네이트 (https://www.nate.com/) - 혹시 몰라서 해제
 nate.com#@#a[href][target*='blank'] img[src*='.gif']
-
+! - - - 이토랜드 (https://www.etoland.co.kr/) - 혹시 몰라서 해제
+etoland.co.kr#@#a[href][target*='blank'] img[src*='.gif']
 
 
 ##[class*="banner"] IMG[src*="banner"] IMG[src*=".gif"]
