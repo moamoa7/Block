@@ -1782,7 +1782,7 @@ pedia.watcha.com##.adFixed
 ! - - - 조개파티 (https://jogaeparty139.com/)
 ! -  배너 이미지 등 (여러 사이트에 적용됨)
 ! - - -  출처 : https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
-!##A[target='_blank'] > IMG[width='100%'][src*='.gif']
+##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 !##A[target='_blank'] > IMG[width='100%'][src$='.gif']
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
 ! - - - 오늘의 중계 (https://today-sports7.com/)
@@ -4145,6 +4145,8 @@ inven.co.kr#@#a[href][target*='blank'] img[src*='.gif']
 damoang.net#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - 링크천국 (https://www.hotword.site/) - 일부 이미지 사라짐
 hotword.site#@#a[href][target*='blank'] img[src*='.gif']
+! - - - AVseeTV (https://05.avsee.ru/0 - 게시물에 gif 올리면 이미지 안보임
+avsee.ru#@#a[href][target*='blank'] img[src*='.gif']
 
 
 !##a[href][target*='blank'] img[src*='.png']
