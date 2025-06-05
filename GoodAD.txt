@@ -351,6 +351,8 @@ dctrend.ai##*
 h5.dcinside.com##*
 ||wiki.dcinside.com
 wiki.dcinside.com##*
+! - 갤주소복사 안나오는거 해결
+gall.dcinside.com#@#[class^="ad"]
 !
 !
 ! 아카라이브 (https://arca.live/)
@@ -3395,14 +3397,13 @@ hotword.site##div.widget-box:nth-of-type(1)
 !- 게시물내 배너공간
 hotword.site##div.col-md-6:nth-of-type(1)
 hotword.site##div.col-md-6:nth-of-type(2)
-
 !
 !
 ! 티스토리 (https://www.tistory.com/)
 ! - Ad Block 확장프로그램을 껴주시면 콘텐츠가 보입니다. 메시지 없애기
+! - - - 출처 : https://gall.dcinside.com/adguard/3464
 ! - - - https://checkwhoiam.tistory.com/685
 tistory.com##+js(set, adblockChecker, noopFunc)
-
 !
 !
 !
