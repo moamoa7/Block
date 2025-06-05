@@ -4197,6 +4197,8 @@ hotword.site#@#a[href][target*='blank'] img[src*='.gif']
 avsee.ru#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
 naver.com#@#a[href][target*='blank'] img[src*='.gif']
+! - - - 네이트 (https://www.nate.com/) - 혹시 몰라서 해제
+nate.com#@#a[href][target*='blank'] img[src*='.gif']
 
 
 
