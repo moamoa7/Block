@@ -4060,6 +4060,19 @@ avsee.ru#@#[class] iframe[style][src]
 sogirl.so#@#[class] iframe[style][src]
 
 
+! https://missav.ws/ 일부
+##iframe[data-link]
+
+
+! https://ggjav.com/
+##[id*="ads"] iframe
+##iframe[src*="ads"]
+
+
+! https://noodlemagazine.com/
+##iframe[src*="pop"]
+
+
 ! - https://funlove.info/
 !##[class][style] iframe[src]
 ! - - - 예외
@@ -4068,12 +4081,15 @@ avsee.ru#@#[class][style] iframe[src]
 ! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
 poooo.ml#@#[class][style] iframe[src]
 
+
 ! 인벤 (https://www.inven.co.kr/) - 전체 iframe
 !##[class] iframe[id][name][src]
 ##iframe[src*="/ads/"]
 
+
 ! 루리웹 (https://bbs.ruliweb.com/) - 전체 iframe
 ##iframe[src*="coupang"]
+
 
 ! 짱공유닷컴 (https://www.jjang0u.com/) - 전체 iframe
 ##[class*="banner"] iframe
@@ -4081,13 +4097,16 @@ poooo.ml#@#[class][style] iframe[src]
 ! - - - 클리앙 (https://www.clien.net/) - 댓글 ifame 사라짐
 clien.net#@#[class*="banner"] iframe
 
+
 ! 클리앙 (https://www.clien.net/)
 ##[class*="banner"] iframe[style]
+
 
 ##iframe[src*="ad."]
 ! - - - 예외
 ! - - - 네이버 카페 (https://cafe.naver.com/) - 게시물 열람시 오른쪽 프레임 사라짐
 cafe.naver.com#@#iframe[src*="ad."]
+
 
 ! 딴지 (https://www.ddanzi.com/) - 전체 frame
 ! https://sextb.date/
@@ -4138,6 +4157,7 @@ blog.naver.com#@#iframe[src*="widget"]
 ! https://missav.ws/ 일부
 ##[class] iframe[data-link][src]
 
+
 ! https://javgiga.com/ (추가)
 ! ##[class] iframe[style][src] 로 차단되지만 추가해봄
 ##iframe[data-src]
@@ -4162,7 +4182,6 @@ theqoo.net#@#iframe[class][style]
 ppomppu.co.kr#@#iframe[class][style]
 
 
-
 ! https://javfan.one/
 !##[class] iframe[style]
 !##[class][style] iframe[style]
@@ -4182,8 +4201,6 @@ ppomppu.co.kr#@#iframe[class][style]
 ! - - - https://poooo.ml/ - 오른쪽 채팅 안보임
 !poooo.ml/#@#[class] iframe[style]
 !poooo.ml/#@#[class][style] iframe[style]
-
-
 
 
 ! 나무위키 
