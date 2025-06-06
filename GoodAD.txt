@@ -4076,6 +4076,9 @@ poooo.ml#@#[class][style] iframe[src]
 ! 짱공유닷컴 (https://www.jjang0u.com/) - 전체 iframe
 ##[class*="banner"] iframe
 ##iframe[src*="ad."]
+! - - - 예외
+! - - - 네이버 카페 (https://cafe.naver.com/) - 게시물 열람시 오른쪽 프레임 사라짐
+cafe.naver.com#@#iframe[src*="ad."]
 
 ! 딴지 (https://www.ddanzi.com/) - 전체 frame
 ! https://sextb.date/
@@ -4104,6 +4107,10 @@ theqoo.net#@#[class][id] iframe[style]
 ppomppu.co.kr#@#[class][id] iframe[style]
 ! - - - https://tv.kakao.com/ - 영상 안나옴
 tv.kakao.com#@#[class][id] iframe[style]
+! - - - 네이버 카페 (https://cafe.naver.com/) - 메인 프레임 사라짐
+!cafe.naver.com#@#[class][id] iframe[style]
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+naver.com#@#[class][id] iframe[style]
 
 
 ! https://javkaren.com/
@@ -4114,6 +4121,10 @@ tv.kakao.com#@#[class][id] iframe[style]
 ! https://www.njav.com/
 ! https://javfan.one/
 ##iframe[src*="widget"]
+! - - - 예외
+! - 네이버 블로그 (https://blog.naver.com/) - 아무것도 안보임
+blog.naver.com#@#iframe[src*="widget"]
+
 
 ! https://missav.ws/ 일부
 ##[class] iframe[data-link][src]
@@ -4124,6 +4135,11 @@ tv.kakao.com#@#[class][id] iframe[style]
 ##iframe[src="about:blank"]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 sogirl.so#@#iframe[src="about:blank"]
+! - - - 네이버 카페 (https://cafe.naver.com/) - 메인 프레임 사라짐
+!cafe.naver.com#@#[class] iframe[style][src]
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+naver.com#@#[class] iframe[style][src]
+
 
 ! https://sextb.date/
 !##[class] iframe[class][src]
@@ -4135,8 +4151,6 @@ sogirl.so#@#iframe[src="about:blank"]
 theqoo.net#@#iframe[class][style]
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
 ppomppu.co.kr#@#iframe[class][style]
-
-
 
 
 
