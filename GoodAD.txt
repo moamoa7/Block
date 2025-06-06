@@ -4022,6 +4022,8 @@ theqoo.net#@#iframe[src*="frame"]
 ! - - - https://poooo.ml/
 ##iframe[src=" "]
 
+##iframe[src="ads"]
+
 ##iframe[src*="banner"]
 
 ##iframe[src="script"]
@@ -4075,6 +4077,13 @@ poooo.ml#@#[class][style] iframe[src]
 
 ! 짱공유닷컴 (https://www.jjang0u.com/) - 전체 iframe
 ##[class*="banner"] iframe
+! - - - 예외
+! - - - 클리앙 (https://www.clien.net/) - 댓글 ifame 사라짐
+clien.net#@#[class*="banner"] iframe
+
+! 클리앙 (https://www.clien.net/)
+##[class*="banner"] iframe[style]
+
 ##iframe[src*="ad."]
 ! - - - 예외
 ! - - - 네이버 카페 (https://cafe.naver.com/) - 게시물 열람시 오른쪽 프레임 사라짐
