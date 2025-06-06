@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.06.03.3
+! Version: 2025.06.04
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -81,6 +81,9 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 auction.co.kr##.component--sponsor_link.component
 avdbs.com##.ad-btn[class*='tp']
 bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
+coinpan.com##*:has(> div[style^='width:390px; max-width:100%;'])Add commentMore actions
+coinpan.com##.flatBoard > .clearfix.title-wrap
+coinpan.com##p > strong
 coolenjoy.net##.carousel-inner
 dcinside.com###dna_content
 dcinside.com##.adv-inner
@@ -107,6 +110,7 @@ harpi.in##div > iframe
 harpi.in##div:has(> script[src])
 hoduhodu.com##.md\:hidden.z-50.p-2.bg-black.w-full.left-0.bottom-0.fixed
 instiz.net##.hot_under
+inven.co.kr###topLinkBanner
 inven.co.kr##.inven-float-alarm
 khan.co.kr##.mAd
 m.11st.co.kr##div.l-grid:has([class*='c-ad'])
@@ -135,6 +139,7 @@ m.gmarket.co.kr##.box__banner-promotion
 m.gmarket.co.kr##.box__top-banner
 m.gmarket.co.kr##.link__banner
 m.inven.co.kr##.show-ads
+m.ppomppu.co.kr##div.btn-wrapper
 m.ppomppu.co.kr##div[style]:has(> ins)
 m.ruliweb.com##tr:has(.nbp_container)
 mlbpark.donga.com##.coupang_cont
@@ -142,6 +147,8 @@ mlbpark.donga.com##li.items:has([href*='php?b=phone'])
 mlbpark.donga.com##li.items:has([target='_blank'])
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
+ppomppu.co.kr##[id='bbs_inform']
+ppomppu.co.kr##[id='bbs_notice']
 ppomppu.co.kr##tr:has([src$='/icon_ppom_coupon_pc.png'])
 quasarplay.com##[class*='venatus']
 quasarplay.com##[id^='mo-container-']
@@ -165,7 +172,6 @@ zod.kr##[data-href^='https://zod.kr/go/']
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
 ||apps.m.sooplive.co.kr^$all
 ||dctrend.ai/widget/
-||nz*mi.com/data/apms/background/$image
 ||trend.rankify.best^
 ~greend.kr##[class*='ad'][id^='AD']
 ~nexon.com,~gg##[target='_blank']:has([src*='/banner'])
@@ -175,9 +181,13 @@ zod.kr##[data-href^='https://zod.kr/go/']
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
 cafe.naver.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_mrnhbtk', '1year', '/', '.dmm.co.jp')
-||adcr.naver.com^$all
 ||arca.live/static/assets/js/adult.min.js
 
+! 수익링크
+||adcr.naver.com^$all
+||link.coupang.com/*/TOSS$all
+||link.coupang.com/*dynamicda$all
+||onelink.me/*toss$all
 
 ! 애드가드 필터 오차단 해제
 11st.co.kr#@#div[class$="-ad"]
