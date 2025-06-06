@@ -4096,6 +4096,7 @@ tv.kakao.com#@#[class][id] iframe[style]
 
 
 
+
 ! https://javkaren.com/
 ##[class*="widget"] iframe
 
@@ -4660,7 +4661,8 @@ vibe.naver.com#@#[class*="popup"]
 xfree.com#@#[class*="popup"]
 ! https://loyalty.coupang.com/ -와우 멤버쉽 해지하기 팝업 안뜸
 loyalty.coupang.com#@#[class*="popup"]
-
+! - https://www.kmcert.com/ - 휴대폰 인증시 입력정보 확인창 안뜸 해결
+kmcert.com#@#[class*="popup"]
 
 !
 !
