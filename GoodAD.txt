@@ -1823,6 +1823,10 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 jilliandescribecompany.com##iframe
 ! - 로고 이미지 복원
 !@@||supjav.com/img/*$image
+! 팝업 방지
+profitableratecpm.com$popup
+fractionfridgejudiciary.com$popup
+depreciatorybollocksupkitchen.com$popup
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -1847,11 +1851,22 @@ evojav.pro$popup
 ! SEXTB.NET (https://sextb.date/)
 ! -영상 오른쪽 배너 공간
 sextb.date##.hidden-md.right.col-3
+! - 팝업 방지
+ak.stikroltiltoowi.net$popup
+lionessgrandchild.com$popup
 !
 !
 ! JAVFC2.XYZ (https://javfc2.xyz/)
 ! - 상단 배너 이미지 공간 (유니콘Pro)
 !!###ads
+! - 팝업 방지
+lwirirvpo.com$popup
+illustriousreserve.pro$popup
+!
+!
+! Javsubs91 (https://j91.asia/)
+!  - 팝업 방지
+||adxadserv.com^
 !
 !
 ! 7MMTV (https://7tv033.com/)
@@ -2056,12 +2071,15 @@ exodusjailhousetarantula.com$popup
 apologiesoccursdepressed.com$popup
 !
 !
-! 123AV (https://123av.com/)
+! 123AV (https://www1.123av.com/)
 ! - 광고 차단? (EasyList)
 !||123av.*/assets/ad/
 !||*/*/ad/*
 ! -오른쪽 따라다니는 배너 (EasyList)
 ##.ad-floating
+! - 팝업 방지
+alarmenvious.com$popup
+prefecturesuggestions.com$popup
 !
 !
 ! TIDHEE (https://www.tid-hee.com/)
@@ -2150,6 +2168,11 @@ missav.live##.lg\:block
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
+! - 팝업 방지
+missav.*/pop$popup
+tsyndicate.com$popup
+ad.twinrdengine.com$popup
+go.myavlive.com$popup
 !
 !
 ! JAVCEP.COM (https://javcep.com/)
@@ -3708,6 +3731,9 @@ javfinder.ai,javdoe.to,javsky.tv,javfree.sh#@#[class*="ads"]
 !##[id*="_ad_"]
 ! - 팝업 방지
 streamhg05032026.shop$popup
+disprovefacilityjolt.com$popup
+barometercorrodingunease.com$popup
+correctdilutetrophy.com$popup
 
 
 ! 비디오 광고
@@ -4005,6 +4031,10 @@ novelpia.com#@#[id][style*="background"][style]
 theqoo.net#@#iframe[src*="frame"]
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
 !ppomppu.co.kr#@#iframe[src*="frame"]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+sogirl.so#@#iframe[src*="iframe"]
+sogirl.so#@#iframe[src*="frame"]
+
 
 
 
@@ -4066,11 +4096,21 @@ sogirl.so#@#[class] iframe[style][src]
 
 ! https://ggjav.com/
 ##[id*="ads"] iframe
+
+! - - - https://supjav.com/
 ##iframe[src*="ads"]
+
+
+!  - - -  임시 (혹시 있을까 싶어서) - 폐지
+! https://noodlemagazine.com/
+! supjav.com - ST / VOE 영상 안나옴
+!##iframe[src*="ad"]
+!  - - -
 
 
 ! https://noodlemagazine.com/
 ##iframe[src*="pop"]
+##iframe[src*="Pop"]
 
 
 ! - https://funlove.info/
@@ -4139,6 +4179,10 @@ tv.kakao.com#@#[class][id] iframe[style]
 !cafe.naver.com#@#[class][id] iframe[style]
 ! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
 naver.com#@#[class][id] iframe[style]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+sogirl.so#@#[class][id] iframe[style]
+
+
 
 
 ! https://javkaren.com/
@@ -4180,6 +4224,8 @@ naver.com#@#[class] iframe[style][src]
 theqoo.net#@#iframe[class][style]
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
 ppomppu.co.kr#@#iframe[class][style]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+sogirl.so#@#iframe[class][style]
 
 
 ! https://javfan.one/
@@ -4204,7 +4250,9 @@ ppomppu.co.kr#@#iframe[class][style]
 
 
 ! 나무위키 
-##[class][style="margin 0; color: #239d9668"]
+! - - -광고가 보이면 F5 새로고침이 필요
+!##[class][style="margin 0; color: #239d9668"]
+##[class][style*="margin 0"]
 
 
 
