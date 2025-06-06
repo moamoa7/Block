@@ -4003,6 +4003,8 @@ novelpia.com#@#[id][style*="background"][style]
 [$domain=/^tvwiki\d+.com/]#@#iframe[src*="frame"]
 ! - - - https://theqoo.net/ - 게시물 프레임 적용 안됨
 theqoo.net#@#iframe[src*="frame"]
+! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
+ppomppu.co.kr#@#iframe[src*="frame"]
 
 
 
