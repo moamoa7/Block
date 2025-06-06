@@ -4090,7 +4090,6 @@ gall.dcinside.com#@#[class] iframe[sandbox][src]
 gall.dcinside.com#@#[class] iframe[sandbox*="popup"][src]
 
 
-
 ! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
 ##[class][id] iframe[style]
 ##[class*="ads"] iframe
@@ -4105,8 +4104,6 @@ theqoo.net#@#[class][id] iframe[style]
 ppomppu.co.kr#@#[class][id] iframe[style]
 ! - - - https://tv.kakao.com/ - 영상 안나옴
 tv.kakao.com#@#[class][id] iframe[style]
-
-
 
 
 ! https://javkaren.com/
@@ -4134,8 +4131,14 @@ sogirl.so#@#iframe[src="about:blank"]
 !javgg.net#@#[class] iframe[class][src]
 ##iframe[class][style]
 ! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+theqoo.net#@#iframe[class][style]
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
 ppomppu.co.kr#@#iframe[class][style]
+
+
+
+
 
 ! https://javfan.one/
 !##[class] iframe[style]
