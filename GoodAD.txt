@@ -127,6 +127,8 @@ news.naver.com##.comp_news_subscribe
 news.naver.com##.comp_common.comp_journal_subscribe.comp_twenty_news
 ! - - - 관심있는 언론사 구독해보세요
 news.naver.com##._short_subscribe_banner_card_wrapper.main_brick_item
+! - - - 신문 1면 모아보기
+news.naver.com##._horizontal_scroll_type._horizontal_card_wrapper.main_brick_item
 !
 !
 ! 네이버플러스 멤버쉽 (https://nid.naver.com/)
@@ -1990,7 +1992,7 @@ topjav.tv##.koukoku_11
 ! 메인 - 각 목록별 배너 공간 (모바일)
 javfan.one##div:nth-of-type(9)
 javfan.one##div:nth-of-type(11)
-! - 정가운대 배너
+! - 정가운대 / 왼쪽 / 오른쪽 일부 배너
 javfan.one##[id*="_ad_"]
 !
 !
@@ -4008,6 +4010,14 @@ theqoo.net#@#iframe[src*="frame"]
 ! - - - 그냥 만들어본것으로 한번도 나온적이 없음
 ##iframe[src=""]
 
+!#@#[class] iframe[style][src]
+!#@#[class][style] iframe[style]
+!#@#iframe[src*="frame"]
+
+
+
+
+! - - - https://poooo.ml/
 ##iframe[src=" "]
 
 ##iframe[src*="banner"]
@@ -4067,8 +4077,8 @@ poooo.ml#@#[class][style] iframe[src]
 
 ! 딴지 (https://www.ddanzi.com/) - 전체 frame
 ! https://sextb.date/
-!##[class] iframe[sandbox][src]
-!##[class] iframe[sandbox*="popup"][src]
+##[class] iframe[sandbox][src]
+##[class] iframe[sandbox*="popup"][src]
 ! - - - 예외
 ! https://mypikpak.com/ - 출첵팝업 안뜸
 mypikpak.com#@#[class] iframe[sandbox][src]
@@ -4120,23 +4130,29 @@ sogirl.so#@#iframe[src="about:blank"]
 !##[class] iframe[class][src]
 ! - - - 예외 (https://javgg.net/) - 영상 안나옴 (iframe로 광고하는건 없는 사이트로 보임)
 !javgg.net#@#[class] iframe[class][src]
+##iframe[class][style]
+
 
 ! https://javfan.one/
-##[class] iframe[style]
-##[class][style] iframe[style]
+!##[class] iframe[style]
+!##[class][style] iframe[style]
 ! - - - 예외
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
-ppomppu.co.kr#@#[class] iframe[style]
-ppomppu.co.kr#@#[class][style] iframe[style]
+!ppomppu.co.kr#@#[class] iframe[style]
+!ppomppu.co.kr#@#[class][style] iframe[style]
 ! - - - 더쿠(https://theqoo.net/) - 게시물 트위터 등 안나옴
-theqoo.net#@#[class] iframe[style]
-theqoo.net#@#[class][style] iframe[style]
+!theqoo.net#@#[class] iframe[style]
+!theqoo.net#@#[class][style] iframe[style]
 ! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
-avsee.ru#@#[class] iframe[style]
-avsee.ru#@#[class][style] iframe[style]
+!avsee.ru#@#[class] iframe[style]
+!avsee.ru#@#[class][style] iframe[style]
 ! - - - https://tv.kakao.com/ - 영상 안나옴
-tv.kakao.com#@#[class] iframe[style]
-tv.kakao.com#@#[class][style] iframe[style]
+!tv.kakao.com#@#[class] iframe[style]
+!tv.kakao.com#@#[class][style] iframe[style]
+! - - - https://poooo.ml/ - 오른쪽 채팅 안보임
+!poooo.ml/#@#[class] iframe[style]
+!poooo.ml/#@#[class][style] iframe[style]
+
 
 
 
