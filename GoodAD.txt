@@ -3704,6 +3704,8 @@ javfinder.ai,javdoe.to,javsky.tv,javfree.sh#@#[class*="ads"]
 ##[id*="ad_video"]
 ! - -  https://javgg.net/ - 이미지 다 날라감
 !##[id*="_ad_"]
+! - 팝업 방지
+streamhg05032026.shop$popup
 
 
 ! 비디오 광고
@@ -3767,6 +3769,8 @@ speedtest.net#@#[class*="button"][style] a[href]
 ! - - - 예외
 ! - - - 노벨피아 (https://novelpia.com/) - 일부 이미지 (모바일 하단 메뉴 가운데 동그란 이미지) 사라짐 - 이 부분 지워버려서 해제
 !novelpia.com#@#img[src*="/banner/"]
+! - - - kick (https://kick.com/) - 실시간 인기 카테고리 이미지 흐려짐 해결
+kick.com#@#img[src*="/banner/"]
 
 ! - - - https://newtoki.live/
 ##[class="banner"] img[src*='.gif']
@@ -3988,11 +3992,41 @@ novelpia.com#@#[id][style*="background"][style]
 ! https://t.me/
 ! https://javhd.icu/ 등
 ##iframe[src*="iframe"]
+##iframe[src*="frame"]
 ! - - - 예외
-! - - - https://gall.dcinside.com/
-!gall.dcinside.com#@#iframe[src*="iframe"]
-! - - - 로봇이 아닙니다
-!google.com/recaptcha#@#iframe[src*="iframe"]
+! - - - https://7tv000.com/ - 영상 안나옴 (TV 영상) - 주소 바뀜 주의
+7tv000.com#@#iframe[src*="iframe"]
+7tv000.com#@#iframe[src*="frame"]
+! - - - https://tvwiki21.com/ - 영상 안나옴
+[$domain=/^tvwiki\d+.com/]#@#iframe[src*="frame"]
+! - - - https://theqoo.net/ - 게시물 프레임 적용 안됨
+theqoo.net#@#iframe[src*="frame"]
+
+
+
+
+! - - - 그냥 만들어본것으로 한번도 나온적이 없음
+##iframe[src=""]
+
+##iframe[src=" "]
+
+##iframe[src*="banner"]
+
+##iframe[src="script"]
+
+##iframe[src="media"]
+
+##iframe[src="xhr"]
+
+##iframe[src="image"]
+
+##iframe[src="css"]
+
+##iframe[src="cookie"]
+
+##iframe[src*="/ad/"]
+
+! - - - 
 
 
 
@@ -4010,6 +4044,7 @@ tv.kakao.com#@#[class] iframe[style][src]
 avsee.ru#@#[class] iframe[style][src]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 sogirl.so#@#[class] iframe[style][src]
+
 
 ! - https://funlove.info/
 !##[class][style] iframe[src]
