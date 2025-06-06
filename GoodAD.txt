@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250606
+! Version: 20250607
 !
 !
 !
@@ -86,32 +86,17 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 @@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv
 ! - https://wonforecast.com/ 환율 가져오기
 @@||tradingview.com/socket.io/websocket
-
 !
 !
 !
 ! 유튜브 (https://www.youtube.com/)
-! 유튜브
-! - 출처 : EasyList
- - - -  유튜브 메인 대형 광고 배너
-youtube.com###masthead-ad
- - - - 유튜브 메인 맨 상단 왼쪽 광고 배너
-youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-! - - - 유튜브 영상 재생 오른쪽 상단 광고 배너
-youtube.com##ytd-ad-slot-renderer
-youtube.com###player-ads
-! - - - 추천제품 광고 배너
-www.youtube.com##.ytp-featured-product
- - - - 동영상 플레이어에서 추천 버튼 숨기기
-youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
-! - - - 프리미엄 사용 안내 팝업 제거 (자체 제작)
-youtube.com##ytd-popup-container
+! - 유튜브 관련 광고 차단은 EasyList / uBlock filters – Ads / Block filters – Quick fixes 필터 구독할 것
 ! - - - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
 ! - - - 유니콘Pro에서도 적용됨
 ! - - - - - 출처 : https://gall.dcinside.com/youtube/378167
 youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
 ! - - - YT 홈페이지 무한 스크롤을 제거
-www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:remove()
+!www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:remove()
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -4026,7 +4011,9 @@ novelpia.com#@#[id][style*="background"][style]
 7tv000.com#@#iframe[src*="iframe"]
 7tv000.com#@#iframe[src*="frame"]
 ! - - - https://tvwiki21.com/ - 영상 안나옴
-[$domain=/^tvwiki\d+.com/]#@#iframe[src*="frame"]
+! - - - https://tvmon16.org/ - 영상 안나옴
+! - - - https://tvhot.store/ - 영상 안나옴 (주의 : 주소 바뀜)
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[src*="frame"]
 ! - - - https://theqoo.net/ - 게시물 프레임 적용 안됨
 theqoo.net#@#iframe[src*="frame"]
 ! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
@@ -4070,6 +4057,32 @@ sogirl.so#@#iframe[src*="frame"]
 
 ##iframe[src*="/ad/"]
 
+##iframe[src*="Ads"]
+
+##iframe[src*="Slot"]
+
+##iframe[src*="Placements"]
+
+##iframe[src*="watch"]
+
+! https://missav.ws/
+##iframe[src*="player"]
+! - - - 예외
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+avsee.ru#@#iframe[src*="player"]
+! - - - https://tvwiki21.com/ - 영상 안나옴
+! - - - https://tvmon16.org/ - 영상 안나옴
+! - - - https://tvhot.store/ - 영상 안나옴 (주의 : 주소 바뀜)
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[src*="player"]
+
+##iframe[src*="renderer"]
+
+##iframe[src*="badge"]
+
+##iframe[src*="Pop"]
+
+
+
 ! - - - 
 
 
@@ -4108,9 +4121,10 @@ sogirl.so#@#[class] iframe[style][src]
 !  - - -
 
 
+! https://supjav.com/
 ! https://noodlemagazine.com/
+! https://missav.ws/
 ##iframe[src*="pop"]
-##iframe[src*="Pop"]
 
 
 ! - https://funlove.info/
@@ -4163,7 +4177,6 @@ gall.dcinside.com#@#[class] iframe[sandbox*="popup"][src]
 
 ! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
 ##[class][id] iframe[style]
-##[class*="ads"] iframe
 ! - - - 예외
 ! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
 avsee.ru#@#[class][id] iframe[style]
@@ -4182,16 +4195,22 @@ naver.com#@#[class][id] iframe[style]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 sogirl.so#@#[class][id] iframe[style]
 
-
+! https://v15.jogemovie.net/
+! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
+##[class*="ads"] iframe
 
 
 ! https://javkaren.com/
 ##[class*="widget"] iframe
 
 
+! 이토랜드
 ! https://supjav.com/
+! https://7tv000.com/
 ! https://www.njav.com/
 ! https://javfan.one/
+! https://v15.jogemovie.net/
+! https://missav.ws/
 ##iframe[src*="widget"]
 ! - - - 예외
 ! - 네이버 블로그 (https://blog.naver.com/) - 아무것도 안보임
