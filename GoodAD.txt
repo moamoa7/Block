@@ -4090,7 +4090,7 @@ humoruniv.com#@#[onclick] img[style]
 ! https://accounts.google.com/
 ! https://t.me/
 ! https://javhd.icu/ 등
-##iframe[src*="iframe"]
+!##iframe[src*="iframe"]
 !#iframe[src*="frame"]
 ! - - - 예외
 ! - - - https://7tv000.com/ - 영상 안나옴 (TV 영상) - 주소 바뀜 주의
