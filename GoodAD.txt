@@ -4223,7 +4223,7 @@ ppomppu.co.kr#@#iframe[style*="background-color"]
 ! https://javgiga.com/
 ! https://missav.ws/ 일부
 ! https://7tv000.com/ 등
-!##[class] iframe[style][src]
+##[class] iframe[style][src]
 ! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
 theqoo.net#@#[class] iframe[style][src]
 ! - - - https://tv.kakao.com/ - 영상 안나옴
@@ -4308,7 +4308,7 @@ gall.dcinside.com#@#[class] iframe[sandbox*="popup"][src]
 
 
 ! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
-##[class][id] iframe[style]
+!##[class][id] iframe[style]
 ! - - - 예외
 ! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
 avsee.ru#@#[class][id] iframe[style]
