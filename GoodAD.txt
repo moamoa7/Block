@@ -4150,7 +4150,7 @@ sogirl.so#@#iframe[src*="iframe"]
 
 !##iframe[src="javascript"]
 
-##iframe[src*="stream"]
+!##iframe[src*="stream"]
 
 !##iframe[src*="/embed/"]
 ! - - - 예외
