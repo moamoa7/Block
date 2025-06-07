@@ -4198,10 +4198,10 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[src^="data:"]
 
-##iframe[style*="position"]
+!##iframe[style*="position"]
 ! - - - 예외
 ! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
-clien.net#@#iframe[style*="position"]
+!clien.net#@#iframe[style*="position"]
 
 ##iframe[style*="background"]
 ! - - - 예외
