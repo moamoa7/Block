@@ -716,7 +716,7 @@ ppomppu.co.kr#@#[class^="ad"]
 ! - - - https://www.avdbs.com/ 19금 표시도 지움
 ! - 맨 오른쪽 상단 배너 / 중간 배너 / 하단 배너
 ! - - - ##[class*="ads"] 와 이 사이트에서는 겹치지만 ad만 사용되는 사이트가 많아서 그냥 둠 (ad를 예외로 해야할 경우도 있으니 유의)
-##[class^="ad"]
+!##[class^="ad"]
 !##.ad
 ! - 왼쪽 배너
 ###ad1[style^="position:"]
