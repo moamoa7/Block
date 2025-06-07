@@ -673,6 +673,9 @@ ppomppu.co.kr##.hot-imgBoard
 !ppomppu.co.kr##.ad_container
 ! - 뿜뿌 앱으로 보기 팝업 (모바일)
 ppomppu.co.kr###ask_app_usage_popup
+! - ##[class^="ad"] 복원 - 첨부파일 / 댓글주소복사 기능 등 몇가지 사라짐
+ppomppu.co.kr#@#[class^="ad"]
+
 !
 !
 ! SLR (https://www.slrclub.com/)
@@ -3974,6 +3977,9 @@ avhotgirl.top##a[href] img[src*="public"]
 !##a[href][onclick] [class][src]
 avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img[style]
 ##[onclick] img[style]
+! - - - 예외
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 핫코멘트란의 좋아요 싫어요 아이콘 사라짐
+ppomppu.co.kr#@#[onclick] img[style]
 
 
 !!! - 광역 9
@@ -4134,9 +4140,15 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[style*="position"]
 
-##iframe[style*="background-color"]
-
 ##iframe[style*="background"]
+! - - - 예외
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 댓글 입력란 사라짐
+ppomppu.co.kr#@#iframe[style*="background"]
+
+##iframe[style*="background-color"]
+! - - - 예외
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 댓글 입력란 사라짐
+ppomppu.co.kr#@#iframe[style*="background-color"]
 
 
 ! - - - 
