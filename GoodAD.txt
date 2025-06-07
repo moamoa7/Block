@@ -4037,6 +4037,9 @@ avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img[style]
 ppomppu.co.kr#@#[onclick] img[style]
 ! - - -이토랜드 (https://www.etoland.co.kr/) - 추천 이모티콘 사라짐
 etoland.co.kr#@#[onclick] img[style]
+! - - - 웃긴대학 (https://web.humoruniv.com/) - gif 영상 프레임 사라짐
+humoruniv.com#@#[onclick] img[style]
+
 
 
 !!! - 광역 9
