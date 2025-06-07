@@ -473,7 +473,7 @@ theqoo.net##.theqoo-counter
 !inven.co.kr##[id="loading"]
 inven.co.kr##[class="modal-fixed"]
 ! - 게시물 전체 배너
-##[src*=".ads/"]
+!##[src*=".ads/"]
 ! -오른쪽 배너
 ##[class*="ad-right"]
 ! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
