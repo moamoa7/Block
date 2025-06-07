@@ -4226,7 +4226,7 @@ ppomppu.co.kr#@#iframe[style*="background-color"]
 ! https://missav.ws/ 일부
 ! https://7tv000.com/ 등
 !##[class] iframe[style][src]
-##[class] iframe[style]
+!##[class] iframe[style]
 ! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
 theqoo.net#@#[class] iframe[style]
 ! - - - https://tv.kakao.com/ - 영상 안나옴
@@ -4245,7 +4245,7 @@ sogirl.so#@#[class] iframe[style]
 ##[id*="ads"] iframe
 
 ! - - - https://supjav.com/
-##iframe[src*="ads"]
+!##iframe[src*="ads"]
 
 
 !  - - -  임시 (혹시 있을까 싶어서) - 폐지
@@ -4264,7 +4264,7 @@ sogirl.so#@#[class] iframe[style]
 
 ! - https://funlove.info/
 !##[class][style] iframe[src]
-##[class][style] iframe
+!##[class][style] iframe
 ! - - - 예외
 ! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
 avsee.ru#@#[class][style] iframe
