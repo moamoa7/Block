@@ -471,15 +471,15 @@ theqoo.net##.theqoo-counter
 !##[class$="-ad"]
 ! - 로딩 없애기
 !inven.co.kr##[id="loading"]
-inven.co.kr##[class="modal-fixed"]
+!inven.co.kr##[class="modal-fixed"]
 ! - 게시물 전체 배너
 !##[src*=".ads/"]
 ! -오른쪽 배너
-##[class*="ad-right"]
+!##[class*="ad-right"]
 ! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
-##[class*="Ad"]
+!##[class*="Ad"]
 ! - - - 예외 (https://play.google.com/) - 제목 날라감
-play.google.com#@#[class*="Ad"]
+!play.google.com#@#[class*="Ad"]
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - - - PC
 !inven.co.kr##.new-board
@@ -487,7 +487,7 @@ play.google.com#@#[class*="Ad"]
 !inven.co.kr##.mo-board-list
 ! - 게시판 상단 배너 공간
 !##[class="ad-header"]
-##.ad-header
+!##.ad-header
 ! - 게시물 오른쪽 배너 공간
 inven.co.kr##aside div[style]:not([class])
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
