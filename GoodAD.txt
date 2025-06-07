@@ -4126,29 +4126,29 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[src*="Banner"]
 
-##iframe[src="script"]
+!##iframe[src="script"]
 
-##iframe[src="media"]
+!##iframe[src="media"]
 
-##iframe[src="xhr"]
+!##iframe[src="xhr"]
 
-##iframe[src="image"]
+!##iframe[src="image"]
 
-##iframe[src="css"]
+!##iframe[src="css"]
 
-##iframe[src="cookie"]
+!##iframe[src="cookie"]
 
 ##iframe[src*="/ad/"]
 
-##iframe[src*="Ads"]
+!##iframe[src*="Ads"]
 
-##iframe[src*="Slot"]
+!##iframe[src*="Slot"]
 
-##iframe[src*="Placements"]
+!##iframe[src*="Placements"]
 
 ##iframe[src*="watch"]
 
-##iframe[src="javascript"]
+!##iframe[src="javascript"]
 
 ##iframe[src*="stream"]
 
@@ -4188,22 +4188,22 @@ sogirl.so#@#iframe[src*="iframe"]
 ! - - - https://tvhot.store/ - 영상 안나옴 (주의 : 주소 바뀜)
 ![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[src*="player"]
 
-##iframe[src*="renderer"]
+!##iframe[src*="renderer"]
 
-##iframe[src*="badge"]
+!##iframe[src*="badge"]
 
-##iframe[src*="Pop"]
+!##iframe[src*="Pop"]
 
 ##iframe[src*="doubleclick"]
 
 ##iframe[src*="click"]
 
-##iframe[src^="data:"]
+!##iframe[src^="data:"]
 
-##iframe[style*="position"]
+!##iframe[style*="position"]
 ! - - - 예외
 ! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
-clien.net#@#iframe[style*="position"]
+!clien.net#@#iframe[style*="position"]
 
 ##iframe[style*="background"]
 ! - - - 예외
