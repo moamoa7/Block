@@ -4268,14 +4268,11 @@ sogirl.so#@#iframe[class][style]
 !poooo.ml/#@#[class][style] iframe[style]
 
 
-! 나무위키 
+! 나무위키 (https://namu.wiki/)
 ! - - -광고가 보이면 F5 새로고침이 필요
 !##[class][style="margin 0; color: #239d9668"]
 !##div>[class][style*="margin 0"]
-##div>[class][style*="3"]
-
-
-
+namu.wiki##div>[class][style*="3"]
 
 
 
