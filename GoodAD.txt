@@ -254,6 +254,8 @@ cineaste.co.kr##[class="main-title"]
 cineaste.co.kr##.container > div[style][id]
 ! - 로고 복원
 !@@cineaste.co.kr/data/apms/background/logo7.png
+! - 차단 사이트
+||vntsm.com^
 !
 !
 ! AAGAG (https://aagag.com/)
@@ -4148,7 +4150,7 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[src="javascript"]
 
-!##iframe[src*="stream"]
+##iframe[src*="stream"]
 
 !##iframe[src*="/embed/"]
 ! - - - 예외
@@ -4198,10 +4200,10 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[src^="data:"]
 
-!##iframe[style*="position"]
+##iframe[style*="position"]
 ! - - - 예외
 ! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
-!clien.net#@#iframe[style*="position"]
+clien.net#@#iframe[style*="position"]
 
 ##iframe[style*="background"]
 ! - - - 예외
@@ -4224,14 +4226,15 @@ ppomppu.co.kr#@#iframe[style*="background-color"]
 ! https://missav.ws/ 일부
 ! https://7tv000.com/ 등
 !##[class] iframe[style][src]
+##[class] iframe[style]
 ! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
-theqoo.net#@#[class] iframe[style][src]
+theqoo.net#@#[class] iframe[style]
 ! - - - https://tv.kakao.com/ - 영상 안나옴
-tv.kakao.com#@#[class] iframe[style][src]
+tv.kakao.com#@#[class] iframe[style]
 ! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
-avsee.ru#@#[class] iframe[style][src]
+avsee.ru#@#[class] iframe[style]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
-sogirl.so#@#[class] iframe[style][src]
+sogirl.so#@#[class] iframe[style]
 
 
 ! https://missav.ws/ 일부
@@ -4242,7 +4245,7 @@ sogirl.so#@#[class] iframe[style][src]
 ##[id*="ads"] iframe
 
 ! - - - https://supjav.com/
-!##iframe[src*="ads"]
+##iframe[src*="ads"]
 
 
 !  - - -  임시 (혹시 있을까 싶어서) - 폐지
@@ -4261,11 +4264,12 @@ sogirl.so#@#[class] iframe[style][src]
 
 ! - https://funlove.info/
 !##[class][style] iframe[src]
+##[class][style] iframe
 ! - - - 예외
 ! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
-avsee.ru#@#[class][style] iframe[src]
+avsee.ru#@#[class][style] iframe
 ! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
-poooo.ml#@#[class][style] iframe[src]
+poooo.ml#@#[class][style] iframe
 
 
 ! 인벤 (https://www.inven.co.kr/) - 전체 iframe
@@ -4308,7 +4312,7 @@ gall.dcinside.com#@#[class] iframe[sandbox*="popup"][src]
 
 
 ! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
-!##[class][id] iframe[style]
+##[class][id] iframe[style]
 ! - - - 예외
 ! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
 avsee.ru#@#[class][id] iframe[style]
