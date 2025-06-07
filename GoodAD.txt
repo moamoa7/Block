@@ -4148,7 +4148,7 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[src="javascript"]
 
-##iframe[src*="stream"]
+!##iframe[src*="stream"]
 
 !##iframe[src*="/embed/"]
 ! - - - 예외
@@ -4223,7 +4223,7 @@ ppomppu.co.kr#@#iframe[style*="background-color"]
 ! https://javgiga.com/
 ! https://missav.ws/ 일부
 ! https://7tv000.com/ 등
-##[class] iframe[style][src]
+!##[class] iframe[style][src]
 ! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
 theqoo.net#@#[class] iframe[style][src]
 ! - - - https://tv.kakao.com/ - 영상 안나옴
@@ -4242,7 +4242,7 @@ sogirl.so#@#[class] iframe[style][src]
 ##[id*="ads"] iframe
 
 ! - - - https://supjav.com/
-##iframe[src*="ads"]
+!##iframe[src*="ads"]
 
 
 !  - - -  임시 (혹시 있을까 싶어서) - 폐지
@@ -4270,7 +4270,7 @@ poooo.ml#@#[class][style] iframe[src]
 
 ! 인벤 (https://www.inven.co.kr/) - 전체 iframe
 !##[class] iframe[id][name][src]
-##iframe[src*="/ads/"]
+!##iframe[src*="/ads/"]
 
 
 ! 루리웹 (https://bbs.ruliweb.com/) - 전체 iframe
