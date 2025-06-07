@@ -4317,7 +4317,7 @@ sogirl.so#@#iframe[class][style]
 ! - - -광고가 보이면 F5 새로고침이 필요
 !##[class][style="margin 0; color: #239d9668"]
 !##div>[class][style*="margin 0"]
-##[class*="g"][style*="margin"]
+namu.wiki##[class*="g"][style*="margin"]
 
 
 
