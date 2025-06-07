@@ -3677,6 +3677,10 @@ javfinder.ai,javdoe.to,javsky.tv,javfree.sh#@#[class*="ads"]
 ! -위 ads  영상 프레임 아닌 광고 프레임 (Easy-List에 포함)
 !##[class="sidebar-ads"]
 !##.sidebar-ads
+! - - - https://www4.javhdporn.net/ - 영상 안보임
+javhdporn.net#@#[class*="ads"]
+
+
 
 
 ! 인벤 아이디 날림
@@ -4036,6 +4040,8 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[src*="banner"]
 
+##iframe[src*="Banner"]
+
 ##iframe[src="script"]
 
 ##iframe[src="media"]
@@ -4058,12 +4064,21 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[src*="watch"]
 
-!##iframe[src*="embed"]
+##iframe[src="javascript"]
+
+##iframe[src*="stream"]
+
+##iframe[src*="/embed/"]
 ! - - - 예외
 ! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
-!theqoo.net#@#iframe[src*="embed"]
+theqoo.net#@#iframe[src*="/embed/"]
+
+##iframe[src*="embed"]
+! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+theqoo.net#@#iframe[src*="embed"]
 ! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
-!poooo.ml#@#iframe[src*="embed"]
+poooo.ml#@#iframe[src*="embed"]
 
 ##iframe[src*="layout"]
 
@@ -4090,6 +4105,17 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[src*="Pop"]
 
+##iframe[src*="doubleclick"]
+
+##iframe[src*="click"]
+
+##iframe[src^="data:"]
+
+##iframe[style*="position"]
+
+##iframe[style*="background-color"]
+
+##iframe[style*="background"]
 
 
 ! - - - 
@@ -4213,6 +4239,9 @@ sogirl.so#@#[class][id] iframe[style]
 
 ! https://javkaren.com/
 ##[class*="widget"] iframe
+
+! - - - 그냥 만들어봤어
+##[class*="/widget/"] iframe
 
 
 ! 이토랜드
