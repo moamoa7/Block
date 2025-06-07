@@ -2030,6 +2030,8 @@ openload.mov##div:nth-of-type(9)
 ! - 이미지 복원
 !- - - ||*.com/img/*
 !@@||avdbs.com/img/*$image
+! - - - ##[class^="ad"] 복원 - 일부 이미지 사라짐
+avdbs.com#@#[class^="ad"]
 !
 !
 ! AV조아 (https://avjoa71.com/)
@@ -3960,7 +3962,21 @@ avhotgirl.top##a[href] img[src*="public"]
 ##[onclick] img[src*="/data/editor/"]
 
 
+
 !!! - 광역 8
+! - 일부 사이트에서 사용 중
+! - target 이 없는 요소
+!  - - -광역으로 사용시 일부 이미지 안보임
+! - - - https://www.avdbs.com/ 배너
+! - - - 아콩넷 (https://yakong5.net/) 영상 내 배너
+! - - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움) - 아래 규칙으로 변경
+##[onclick] img[style]
+!##a[href][onclick] [class][src]
+avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img[style]
+##[onclick] img[style]
+
+
+!!! - 광역 9
 ! - - - 광역으로 사용
 ! - target 이 없는 요소
 ! - https://wdwd8.com/ - 카지노 토토사이트 더 보기 글자
@@ -3972,7 +3988,7 @@ avhotgirl.top##a[href] img[src*="public"]
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 패스워드 입력란 사라짐
 !etoland.co.kr#@#[id][style*="background"]
 ! - - - 노벨피아 (https://novelpia.com/) - 회차별 이미지 및 텍스트 안나옴
-novelpia.com#@#[id][style*="background"][style]
+!novelpia.com#@#[id][style*="background"][style]
 
 
 !!! - 광역 9 (iframe 차단)
@@ -4747,18 +4763,6 @@ www.yadongmarket.com##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
 ! - - -  두꺼비티비 (https://dugebitv104.xyz/) 상단배너
 ![$domain=/^dugebitv\d+.xyz/]##[style][class] [data-original]
 [$domain=/^dugebitv\d+.xyz/]##[style] [data-original]
-
-
-
-!!! - 변형 10
-! - 일부 사이트에서 사용 중
-! - target 이 없는 요소
-!  - - -광역으로 사용시 일부 이미지 안보임
-! - - - https://www.avdbs.com/ 배너
-! - - - 아콩넷 (https://yakong5.net/) 영상 내 배너
-!- - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움
-!##a[href][onclick] [class][src]
-avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img
 
 
 
