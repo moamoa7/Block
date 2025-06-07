@@ -4223,7 +4223,7 @@ ppomppu.co.kr#@#iframe[style*="background-color"]
 ! https://javgiga.com/
 ! https://missav.ws/ 일부
 ! https://7tv000.com/ 등
-##[class] iframe[style][src]
+!##[class] iframe[style][src]
 ! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
 theqoo.net#@#[class] iframe[style][src]
 ! - - - https://tv.kakao.com/ - 영상 안나옴
