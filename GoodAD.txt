@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250607
+! Version: 20250608
 !
 !
 !
@@ -99,6 +99,9 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
 ! - - - YT 홈페이지 무한 스크롤을 제거
 !www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:remove()
+! - 차단 사이트
+||g.doubleclick.net^
+||google.*/pagead/lvz?
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -264,6 +267,8 @@ aagag.com##.bottom.center.sAlert
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 ! - 이미지 복원
 !@@||a.aagag.com/img/*$image
+! - 차단 사이트
+||pagead2.googlesyndication.com^
 !
 !
 ! 디시인사이드 (https://gall.dcinside.com)
@@ -370,6 +375,8 @@ gall.dcinside.com#@#[class^="ad"]
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
+! - 차단 사이트
+||external-api.impression-neo.naver.com^
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
@@ -439,6 +446,11 @@ etoland.co.kr###info_recent_list_wrap
 !@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
 etoland.co.kr#@#[class^="ad"]
+! - 차단 사이트
+||mobon.net^
+||cdn.nhnace.com^
+||html-load.cc^
+||wtg-ads.com^
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -495,6 +507,11 @@ mlbpark.donga.com##.bt_menu_wrap
 ! - 맨 밑 하단 TODAY BEST BULLPEN 5번과 6번 사이 공간 없애기
 ! - - - 출처 : https://gall.dcinside.com/adguard/399
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
+! - 차단 사이트
+||ad.aceplanet.co.kr^
+||contentsfeed.com^
+||searchad-phinf.pstatic.net^
+||dable.io^
 !
 !
 ! 루리 (https://m.ruliweb.com/)
@@ -541,6 +558,9 @@ ddanzi.com##.add_display2
 ! - 게시물 하단 게시판 리스트 삭제 (모바일 옵션/ 목록)
 !ddanzi.com##.board_addOption
 !ddanzi.com##.read.writeButtonWrap
+! - 차단 사이트
+||adpnut.com^
+||criteo.net^
 !
 !
 ! 보배드림 (https://www.bobaedream.co.kr/)
@@ -548,6 +568,14 @@ ddanzi.com##.add_display2
 bobaedream.co.kr##[id^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"]):not([style="pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;"])
 ! - 오늘의 회원 랭킹
 bobaedream.co.kr##.todayRanking
+! - 댓글 바로 위 차 광고 (List-KR)
+bobaedream.co.kr##body.body-community div[class*="Car"]
+! - 차단 사이트
+||googletagservices.com^
+! - ##[class^="ad"] 복원 - 하단 사업자 정보 등 회사 정보 사라짐
+bobaedream.co.kr#@#[class^="ad"]
+! - ##[class*="Ad"] 복원 - 게시물 주소 복사란 사라짐
+bobaedream.co.kr#@#[class*="Ad"]
 !
 !
 ! 오늘의 유머 (https://www.todayhumor.co.kr/)
@@ -705,7 +733,7 @@ slrclub.com##[class="notice"]
 slrclub.com##[id*="3"]
 !
 !
-! 클리앙 (https://clien.net/)
+! 클리앙 (https://www.clien.net/)
 ! - 오른쪽 배너 공간
 clien.net##.aside > div[class^="side_"]:not([class*="account"])
 ! - 게시글 하단 왼쪽 배너 공간
@@ -717,6 +745,11 @@ clien.net##.active.button_sidemenu
 clien.net##.view_list
 ! - - - 모바일
 clien.net##.ViewListArea
+! - ##[class^="ad"] 복원 - 댓글 입력란 사라짐
+clien.net#@#[class^="ad"]
+! - 차단 사이트
+||epnt.ebay.com^
+||openx.net^
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -727,7 +760,7 @@ clien.net##.ViewListArea
 ! - 배너
 !damoang.net##.adsbygoogle
 ! - 오른쪽 스크롤도구
-damoang.net##.d-block
+damoang.net##.d-block.lh-1.end-0.bottom-0.position-fixed
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 !damoang.net###bo_list_wrap
 ! - 이미지 복구
@@ -740,6 +773,21 @@ damoang.net##.d-block
 !##[class^="ad_"]
 ! - 최하단 배너
 !humoruniv.com##.adsbygoogle
+! - 차단 사이트
+||compass.adop.cc^
+!
+!
+! 루리웹 (https://bbs.ruliweb.com/)
+! - 차단 사이트
+||ad4989.co.kr^
+||innity.net^
+!
+!
+! 가생이닷컴 (https://www.gasengi.com/)
+! - 차단 사이트
+||clickmon.co.kr^
+||megadata.co.kr^
+||ssl.pstatic.net/adimg3.search/adpost/js/
 !
 !
 ! 이지데이 (https://www.ezday.co.kr/)
@@ -3407,6 +3455,8 @@ dhlottery.co.kr##.band_banner
 ##[class*="widget"]>table
 ##[class="list-ad"]
 !##.list-ad
+! - 차단 사이트
+||ads-partners.coupang.com^
 !
 !
 ! 스마트택배 (https://st.sweettracker.co.kr/)
@@ -3956,6 +4006,9 @@ avhotgirl.top##a[href] img[src*="public"]
 ! - - - 라이브스코어 (https://livescore.co.kr/) 등
 ! ##[id*="AD"] 하면 id구간 다 사라짐
 ##a[href] img[src*="/ad/"]
+! - - - 예외
+! - - - 다모앙 (https://damoang.net/) - 일부 이모티콘 사라짐
+damoang.net#@#a[href] img[src*="/ad/"]
 
 
 !!! - 광역 7
@@ -3982,6 +4035,8 @@ avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img[style]
 ! - - - 예외
 ! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 핫코멘트란의 좋아요 싫어요 아이콘 사라짐
 ppomppu.co.kr#@#[onclick] img[style]
+! - - -이토랜드 (https://www.etoland.co.kr/) - 추천 이모티콘 사라짐
+etoland.co.kr#@#[onclick] img[style]
 
 
 !!! - 광역 9
@@ -4141,6 +4196,9 @@ sogirl.so#@#iframe[src*="iframe"]
 ##iframe[src^="data:"]
 
 ##iframe[style*="position"]
+! - - - 예외
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+clien.net#@#iframe[style*="position"]
 
 ##iframe[style*="background"]
 ! - - - 예외
@@ -4195,7 +4253,6 @@ sogirl.so#@#[class] iframe[style][src]
 ! https://noodlemagazine.com/
 ! https://missav.ws/
 ##iframe[src*="pop"]
-
 
 
 
@@ -4279,6 +4336,13 @@ sogirl.so#@#[class][id] iframe[style]
 ##[class*="/widget/"] iframe
 
 
+! https://www.gasengi.com/
+##[class*="side"] iframe
+##[class*="sticky"] iframe
+##[class*="block"] iframe
+
+
+
 ! 이토랜드
 ! https://supjav.com/
 ! https://7tv000.com/
@@ -4290,6 +4354,9 @@ sogirl.so#@#[class][id] iframe[style]
 ! - - - 예외
 ! - 네이버 블로그 (https://blog.naver.com/) - 아무것도 안보임
 blog.naver.com#@#iframe[src*="widget"]
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+clien.net#@#iframe[src*="widget"]
+
 
 
 ! https://missav.ws/ 일부
@@ -4306,6 +4373,9 @@ sogirl.so#@#iframe[src="about:blank"]
 !cafe.naver.com#@#[class] iframe[style][src]
 ! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
 naver.com#@#[class] iframe[style][src]
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+clien.net#@#[class] iframe[style][src]
+
 
 
 ! https://sextb.date/
@@ -4320,6 +4390,8 @@ theqoo.net#@#iframe[class][style]
 ppomppu.co.kr#@#iframe[class][style]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 sogirl.so#@#iframe[class][style]
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+clien.net#@#iframe[class][style]
 
 
 ! https://javfan.one/
@@ -4407,6 +4479,9 @@ namu.wiki##[class*="g"][style*="margin"]
 ! - - - 토다와 (https://www.todawa137.site/)
 ! - - - 토렌트릴 (https://www.torrentreel133.site/)
 ##A[target="_blank"] IMG[src*="/ad/"][src*=".gif"]
+! - - - 예외
+! - - - 다모앙 (https://damoang.net/) - 일부 이모티콘 사라짐
+damoang.net#@#A[target="_blank"] IMG[src*="/ad/"][src*=".gif"]
 ! - - - 일일툰 (https://www.11toon143.com/)
 ! - - - 호두코믹스 (https://t71.hoduhodu.com/)
 ! - - - 엑스툰 (https://t1.xtoon2.com/)
