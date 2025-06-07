@@ -4395,7 +4395,8 @@ ppomppu.co.kr#@#iframe[class][style]
 sogirl.so#@#iframe[class][style]
 ! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
 clien.net#@#iframe[class][style]
-
+! - - -  웃긴대학 (https://web.humoruniv.com/) - 댓글 위 베스트란 사라짐
+humoruniv.com#@#iframe[class][style]
 
 ! https://javfan.one/
 !##[class] iframe[style]
