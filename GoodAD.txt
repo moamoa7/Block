@@ -4068,17 +4068,22 @@ sogirl.so#@#iframe[src*="iframe"]
 
 ##iframe[src*="stream"]
 
-##iframe[src*="/embed/"]
+!##iframe[src*="/embed/"]
 ! - - - 예외
 ! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
-theqoo.net#@#iframe[src*="/embed/"]
+!theqoo.net#@#iframe[src*="/embed/"]
+! - - - https://namu.wiki/  - 유튜브 등 사라짐
+!namu.wiki#@#iframe[src*="embed"]
 
-##iframe[src*="embed"]
+!##iframe[src*="embed"]
 ! - - - 예외
 ! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
-theqoo.net#@#iframe[src*="embed"]
+!theqoo.net#@#iframe[src*="embed"]
 ! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
-poooo.ml#@#iframe[src*="embed"]
+!poooo.ml#@#iframe[src*="embed"]
+! - - - https://namu.wiki/  - 유튜브 등 사라짐
+!namu.wiki#@#iframe[src*="embed"]
+
 
 ##iframe[src*="layout"]
 
@@ -4312,7 +4317,7 @@ sogirl.so#@#iframe[class][style]
 ! - - -광고가 보이면 F5 새로고침이 필요
 !##[class][style="margin 0; color: #239d9668"]
 !##div>[class][style*="margin 0"]
-namu.wiki##div>[class][style*="3"]
+##[class*="g"][style*="margin"]
 
 
 
