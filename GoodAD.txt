@@ -701,6 +701,8 @@ slrclub.com##[class="notice"]
 !cineaste.co.kr#@#.notice
 ! - 하단 배너 공백
 !slrclub.com##.adsbyadop
+! - - -  파워링크
+slrclub.com##[id*="3"]
 !
 !
 ! 클리앙 (https://clien.net/)
