@@ -4543,6 +4543,8 @@ gall.dcinside.com#@#[class] iframe[sandbox*="popup"][src]
 blog.naver.com#@#iframe[src*="widget"]
 ! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
 clien.net#@#iframe[src*="widget"]
+! - - - 인벤 (https://www.inven.co.kr/) - 트위터 프레임 안보임
+inven.co.kr#@#iframe[src*="widget"]
 
 
 ! https://javkaren.com/
