@@ -5325,4 +5325,5 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
 
-#@#[class][style] iframe
+!#@#[class][style] iframe
+#@#[class] iframe[style]
