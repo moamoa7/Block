@@ -1955,10 +1955,30 @@ illustriousreserve.pro$popup
 ||diagramjawlineunhappy.com^
 !
 !
+! JavGG (https://javgg.net/)
+! - 팝업 방지
+streamhg05032026.shop$popup
+disprovefacilityjolt.com$popup
+barometercorrodingunease.com$popup
+correctdilutetrophy.com$popup
+! - 차단 사이트
+||islandjav182.fun^
+||graveljav128.fun^
+||normal05032026.shop^
+||dalyio.com^
+||earnvids.com^
+||streamhg05032026.shop^
+||heardaccumulatebeans.com^
+!
+!
 ! Javsubs91 (https://j91.asia/)
 !  - 팝업 방지
 ||adxadserv.com$popup
-!
+! - 차단 사이트
+||profitabledisplaynetwork.com^
+||6v41p4bsq.com^
+||shboshbok.com^
+||mbidadm.com^
 !
 ! 7MMTV (https://7tv033.com/)
 ! - 유니콘Pro에서는 ST영상 재생 불가
@@ -1966,6 +1986,12 @@ illustriousreserve.pro$popup
 ##.a-d-block
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
 ##div.set_height_250
+! - 팝업 방지
+||stikroltiltoowi.net^$popup
+! - 차단 사이트
+||labadena.com^
+||tapioni.com^
+||wpadmngr.com^
 !
 !
 ! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
@@ -2075,6 +2101,26 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ##.bounce
 ###imgDiv > table
 ##.execphpwidget
+!
+!
+! JavFinder (https://javfinder.ai/)
+! - 차단 사이트
+||bullionglidingscuttle.com^
+||scakuvap.com^
+!
+!
+! BestJavporn (https://www.bestjavporn.com/)
+! - 차단 사이트
+||cdn1cloudflare.xyz^
+||jads.co^
+||udzpel.com^
+||sandwichconscientiousroadside.com^
+||exosrv.com^
+!
+!
+! JAVDOCK (https://www4.javdock.com/)
+! - 차단 사이트
+||2443march2024.com^
 !
 !
 ! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://kor11.grtv-48.com/)
@@ -2517,6 +2563,11 @@ notion.so@@||/*/ads/*
 ##.vjs-bottom-banner
 ! 보증업체 더보기 텍스트 배너
 !##.rounded-md.border.p-1.w-full
+!
+!
+! 오늘의 중계 (https://today-sports7.com/)
+! - 왼쪽 배너 공간
+##.info-banner
 !
 !
 ! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/)
@@ -3792,6 +3843,10 @@ javfinder.ai,javdoe.to,javsky.tv,javfree.sh#@#[class*="ads"]
 !##.sidebar-ads
 ! - - - https://www4.javhdporn.net/ - 영상 안보임
 javhdporn.net#@#[class*="ads"]
+! - - - https://www.bestjavporn.com/ - 영상 안보임
+bestjavporn.com#@#[class*="ads"]
+! - - - https://www4.javdock.com/ - 영상 안보임
+javdock.com#@#[class*="ads"]
 
 
 
@@ -3824,17 +3879,6 @@ javhdporn.net#@#[class*="ads"]
 ! supjav
 !##[class*="-ad"]
 
-! https://javgg.net/ -  영상 재생 상단 비디오 광고
-! https://missav.ws/ - 영상 재생 하단 비디오 광고
-##[id*="ad_video"]
-! - -  https://javgg.net/ - 이미지 다 날라감
-!##[id*="_ad_"]
-! - 팝업 방지
-streamhg05032026.shop$popup
-disprovefacilityjolt.com$popup
-barometercorrodingunease.com$popup
-correctdilutetrophy.com$popup
-
 
 ! 비디오 광고
 ! 7MMTV (https://7tv000.com/) - 플레이 영상 오른쪽 비디오 광고
@@ -3849,6 +3893,13 @@ theqoo.net#@#a[href][target*="blank"] video
 ! - - - 숲 (https://play.sooplive.co.kr/)  - 영상 안보임
 !play.sooplive.co.kr#@#[id*="video"] video - 아래 규칙으로 변경
 ##[id*="_ad_"] video
+
+! JavGG (https://javgg.net/)
+! -  영상 재생 상단 비디오 광고
+! - - - https://missav.ws/ - 영상 재생 하단 비디오 광고
+!##[id*="_ad_"] 해제 - 이미지 다 날라감
+##[id*="ad_video"]
+
 
 
 ! 영상 하단 텍스트 광고
@@ -4167,6 +4218,8 @@ sogirl.so#@#iframe[src*="iframe"]
 ! -- - 예외
 ! - - - 티비위키 (https://tvwiki21.com/) - 영상 안나옴
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[id*="iframe"]
+! - - - https://7tv000.com/ - TV 영상 안나옴 (주소 바뀜)
+7tv000.com#@#iframe[id*="iframe"]
 
 
 
@@ -4314,6 +4367,9 @@ poooo.ml#@#[class][style] iframe
 naver.com#@#[class][style] iframe
 ! - - - https://tv.kakao.com/ - 영상 안나옴
 tv.kakao.com#@#[class][style] iframe
+! - - - https://7tv000.com/ - TV 영상 안나옴 (주소 바뀜)
+7tv000.com#@#[class][style] iframe
+
 
 
 
