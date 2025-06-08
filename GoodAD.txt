@@ -1004,6 +1004,8 @@ tvhot.site##.object-cover
 ! - 상단 배너 (List-KR)
 ! anilife.*##div[class] > a[class][href^="http"][target="_blank"]
 !##div[class] > a[class][href^="http"][target="_blank"]
+! - 상단 배너 공간
+anilife.live##.MainBnnWrap
 !
 !
 !  애니조아 (https://www.anizoa.net/) - 영상 재생 안됨
@@ -3923,24 +3925,70 @@ javdock.com#@#[class*="ads"]
 
 
 ! 비디오 광고
+
+##video
+! - - - 예외
+! https://www.youtube.com/
+!youtube.com#@#video
+! https://play.sooplive.co.kr/
+!play.sooplive.co.kr#@#video
+! https://chzzk.naver.com/
+!chzzk.naver.com#@#video
+! https://kick.com/
+!kick.com#@#video
+! 네이버TV (https://tv.naver.com/)
+!tv.naver.com#@#video
+! 카카오TV (https://tv.kakao.com/)
+!tv.kakao.com#@#video
+! 티비위키 / 티비몬 / 티비핫
+!player.bunny-frame.online#@#video
+! 조개무비 (https://v15.jogemovie.net/)
+!upnliveshare.space,hgstreamv.online#@#video
+! Linkkf 애니TV (https://linkkf.net/)
+!g2.myani.app#@#video
+! 애니라이프 (https://anilife.live/)
+!anilife.live#@#video
+
+! - 성인영상
+! https://supjav.com/
+!emturbovid.com,fc2stream.tv,jilliandescribecompany.com#@#video
+! https://javfc2.xyz/
+!javfc2.xyz/watch#@#video
+! https://javgg.net/
+!javggvideo.xyz,jav-vids.xyz,javstreamhg.xyz,javguard.club#@#video
+! https://sextb.date/
+!stbturbo.xyz,stbhg.click,ryderjet.com,listeamed.net,player.upn.one#@#video
+! 7MMTV (https://7tv000.com/) - 주소 바뀜
+!7tv000.com,mmvh01.xyz,mmsi01.xyz,tapewithadblock.org#@#video
+! 야동코리아 (https://www.yako.gg/) - 주소 바뀜
+!yako.gg/video#@#video
+! 탑걸 (https://kr40.topgirl.co/)
+![$domain=/^kr\d+.topgirl.co/video/]#@#video
+! 쏘걸 (https://kr80.sogirl.so/)
+!iframe.mediadelivery.net#@#video
+! MISSAV (https://missav.ws/) (https://missav.live/)
+!missav.*#@#video
+
+
 ! 7MMTV (https://7tv000.com/) - 플레이 영상 오른쪽 비디오 광고
-##a[href][target*="blank"] video
+!##a[href][target*="blank"] video
+##[target*="blank"] video
 ! - -- 예외
 ! - - - https://theqoo.net/ - 게시물내 비디오 안나옴
-theqoo.net#@#a[href][target*="blank"] video
+!theqoo.net#@#a[href][target*="blank"] video
 
 ! MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
 !##[id*="video"] video
 ! - - - 예외
 ! - - - 숲 (https://play.sooplive.co.kr/)  - 영상 안보임
 !play.sooplive.co.kr#@#[id*="video"] video - 아래 규칙으로 변경
-##[id*="_ad_"] video
+!##[id*="_ad_"] video
 
 ! JavGG (https://javgg.net/)
 ! -  영상 재생 상단 비디오 광고
 ! - - - https://missav.ws/ - 영상 재생 하단 비디오 광고
 !##[id*="_ad_"] 해제 - 이미지 다 날라감
-##[id*="ad_video"]
+!##[id*="ad_video"]
 
 
 
@@ -5323,4 +5371,3 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
