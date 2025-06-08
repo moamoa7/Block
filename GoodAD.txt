@@ -4363,6 +4363,9 @@ clien.net#@#[class] iframe[style]
 poooo.ml/#@#[class] iframe[style]
 ! - - - https://kr29.4kjav.co/ - 영상 안나옴
 4kjav.co#@#[class] iframe[style]
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 원인을 알 수 없으나 모바일에서 오류 메시지 출력으로 인한 해제
+ppomppu.co.kr#@#[class] iframe[style]
+
 
 
 
@@ -4382,6 +4385,9 @@ tv.kakao.com#@#[class][style] iframe
 7tv000.com#@#[class][style] iframe
 ! - - -  핑유걸 (https://avpingyou19.com/) - 영상 안나옴
 [$domain=/^avpingyou\d+.com/]#@#[class][style] iframe
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 원인을 알 수 없으나 모바일에서 오류 메시지 출력으로 인한 해제
+ppomppu.co.kr#@#[class][style] iframe
+
 
 
 
@@ -5324,6 +5330,3 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
-!#@#[class][style] iframe
-#@#[class] iframe[style]
