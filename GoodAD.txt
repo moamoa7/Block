@@ -2045,6 +2045,8 @@ correctdilutetrophy.com$popup
 ! - - - Svideos JAV (https://avsshub.net/)
 !##[class="happy-inside-player"]
 ##.happy-inside-player
+! - 차단 사이트
+||waust.at^
 !
 !
 !
@@ -4212,6 +4214,9 @@ humoruniv.com#@#[onclick] img[style]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 sogirl.so#@#iframe[src*="iframe"]
 !sogirl.so#@#iframe[src*="frame"]
+! - - - https://kr29.4kjav.co/ - 영상 안나옴
+4kjav.co#@#iframe[src*="iframe"]
+
 
 
 ##iframe[id*="iframe"]
@@ -4353,6 +4358,9 @@ naver.com#@#[class] iframe[style]
 clien.net#@#[class] iframe[style]
 ! - - - https://poooo.ml/ - 오른쪽 채팅창이 안나옴
 poooo.ml/#@#[class] iframe[style]
+! - - - https://kr29.4kjav.co/ - 영상 안나옴
+4kjav.co#@#[class] iframe[style]
+
 
 
 ! - https://funlove.info/
@@ -4369,6 +4377,9 @@ naver.com#@#[class][style] iframe
 tv.kakao.com#@#[class][style] iframe
 ! - - - https://7tv000.com/ - TV 영상 안나옴 (주소 바뀜)
 7tv000.com#@#[class][style] iframe
+! - - -  핑유걸 (https://avpingyou19.com/) - 영상 안나옴
+[$domain=/^avpingyou\d+.com/]#@#[class][style] iframe
+
 
 
 
@@ -4538,6 +4549,8 @@ clien.net#@#iframe[src*="widget"]
 ##iframe[src="about:blank"]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 sogirl.so#@#iframe[src="about:blank"]
+! - - - https://kr29.4kjav.co/ - 영상 안나옴
+4kjav.co#@#iframe[src="about:blank"]
 
 
 
