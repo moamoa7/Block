@@ -4109,6 +4109,9 @@ sogirl.so#@#iframe[src*="iframe"]
 !sogirl.so#@#iframe[src*="frame"]
 
 
+##iframe[id*="iframe"]
+
+
 
 !#@#[class] iframe[style][src]
 !#@#[class][style] iframe[style]
@@ -4258,9 +4261,6 @@ tv.kakao.com#@#[class][style] iframe
 
 
 ! https://sextb.date/
-
-##iframe[id*="frame"]
-
 !##[class] iframe[class][src]
 ! - - - 예외 (https://javgg.net/) - 영상 안나옴 (iframe로 광고하는건 없는 사이트로 보임)
 !javgg.net#@#[class] iframe[class][src]
@@ -4320,10 +4320,6 @@ tv.kakao.com#@#[class][style] iframe
 !poooo.ml/#@#[class] iframe[style]
 !poooo.ml/#@#[class][style] iframe[style]
 
-
-
-
-##iframe[id*="iframe"]
 
 
 ! https://missav.ws/ 일부
