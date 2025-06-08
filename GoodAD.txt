@@ -4146,11 +4146,11 @@ sogirl.so#@#iframe[src*="iframe"]
 
 !##iframe[src*="Placements"]
 
-##iframe[src*="watch"]
+!##iframe[src*="watch"]
 
 !##iframe[src="javascript"]
 
-##iframe[src*="stream"]
+!##iframe[src*="stream"]
 
 !##iframe[src*="/embed/"]
 ! - - - 예외
@@ -4169,7 +4169,7 @@ sogirl.so#@#iframe[src*="iframe"]
 !namu.wiki#@#iframe[src*="embed"]
 
 
-##iframe[src*="layout"]
+!##iframe[src*="layout"]
 
 !#iframe[src*="video"]
 ! - - - 예외
@@ -4194,9 +4194,9 @@ sogirl.so#@#iframe[src*="iframe"]
 
 !##iframe[src*="Pop"]
 
-##iframe[src*="doubleclick"]
+!##iframe[src*="doubleclick"]
 
-##iframe[src*="click"]
+!##iframe[src*="click"]
 
 !##iframe[src^="data:"]
 
@@ -4205,20 +4205,17 @@ sogirl.so#@#iframe[src*="iframe"]
 ! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
 !clien.net#@#iframe[style*="position"]
 
-##iframe[style*="background"]
+!##iframe[style*="background"]
 ! - - - 예외
 ! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 댓글 입력란 사라짐
-ppomppu.co.kr#@#iframe[style*="background"]
+!ppomppu.co.kr#@#iframe[style*="background"]
 
-##iframe[style*="background-color"]
+!##iframe[style*="background-color"]
 ! - - - 예외
 ! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 댓글 입력란 사라짐
-ppomppu.co.kr#@#iframe[style*="background-color"]
-
+!ppomppu.co.kr#@#iframe[style*="background-color"]
 
 ! - - - 
-
-
 
 
 ! https://supjav.com/
@@ -4235,6 +4232,98 @@ tv.kakao.com#@#[class] iframe[style]
 avsee.ru#@#[class] iframe[style]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 sogirl.so#@#[class] iframe[style]
+! - - - 네이버 카페 (https://cafe.naver.com/) - 메인 프레임 사라짐
+!cafe.naver.com#@#[class] iframe[style]
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+naver.com#@#[class] iframe[style]
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+clien.net#@#[class] iframe[style]
+! - - - https://poooo.ml/ - 오른쪽 채팅창이 안나옴
+poooo.ml/#@#[class] iframe[style]
+
+
+! - https://funlove.info/
+!##[class][style] iframe[src]
+##[class][style] iframe
+! - - - 예외
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+avsee.ru#@#[class][style] iframe
+! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
+poooo.ml#@#[class][style] iframe
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+naver.com#@#[class][style] iframe
+! - - - https://tv.kakao.com/ - 영상 안나옴
+tv.kakao.com#@#[class][style] iframe
+
+
+
+! https://sextb.date/
+
+##iframe[id*="frame"]
+
+!##[class] iframe[class][src]
+! - - - 예외 (https://javgg.net/) - 영상 안나옴 (iframe로 광고하는건 없는 사이트로 보임)
+!javgg.net#@#[class] iframe[class][src]
+!##iframe[class][style]
+! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#iframe[class][style]
+! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
+!ppomppu.co.kr#@#iframe[class][style]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+!sogirl.so#@#iframe[class][style]
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+!clien.net#@#iframe[class][style]
+! - - -  웃긴대학 (https://web.humoruniv.com/) - 댓글 위 베스트란 사라짐
+!humoruniv.com#@#iframe[class][style]
+
+
+! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
+!##[class][id] iframe[style]
+! - - - 예외
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+!avsee.ru#@#[class][id] iframe[style]
+! - - - https://poooo.ml/ - 오른쪽 채팅창이 안나옴
+!poooo.ml#@#[class][id] iframe[style]
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#[class][id] iframe[style]
+! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
+!ppomppu.co.kr#@#[class][id] iframe[style]
+! - - - https://tv.kakao.com/ - 영상 안나옴
+!tv.kakao.com#@#[class][id] iframe[style]
+! - - - 네이버 카페 (https://cafe.naver.com/) - 메인 프레임 사라짐
+!cafe.naver.com#@#[class][id] iframe[style]
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+!naver.com#@#[class][id] iframe[style]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+!sogirl.so#@#[class][id] iframe[style]
+
+
+
+! https://javfan.one/
+!##[class] iframe[style]
+!##[class][style] iframe[style]
+! - - - 예외
+! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
+!ppomppu.co.kr#@#[class] iframe[style]
+!ppomppu.co.kr#@#[class][style] iframe[style]
+! - - - 더쿠(https://theqoo.net/) - 게시물 트위터 등 안나옴
+!theqoo.net#@#[class] iframe[style]
+!theqoo.net#@#[class][style] iframe[style]
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+!avsee.ru#@#[class] iframe[style]
+!avsee.ru#@#[class][style] iframe[style]
+! - - - https://tv.kakao.com/ - 영상 안나옴
+!tv.kakao.com#@#[class] iframe[style]
+!tv.kakao.com#@#[class][style] iframe[style]
+! - - - https://poooo.ml/ - 오른쪽 채팅 안보임
+!poooo.ml/#@#[class] iframe[style]
+!poooo.ml/#@#[class][style] iframe[style]
+
+
+
+
+##iframe[id*="iframe"]
 
 
 ! https://missav.ws/ 일부
@@ -4258,18 +4347,10 @@ sogirl.so#@#[class] iframe[style]
 ! https://supjav.com/
 ! https://noodlemagazine.com/
 ! https://missav.ws/
-##iframe[src*="pop"]
-
-
-
-! - https://funlove.info/
-!##[class][style] iframe[src]
-##[class][style] iframe
+!##iframe[src*="pop"]
 ! - - - 예외
-! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
-avsee.ru#@#[class][style] iframe
-! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
-poooo.ml#@#[class][style] iframe
+! - - - 네이버카페 (https://cafe.naver.com/) - 게시물 클릭시 오른쪽 프레임 안보임
+!cafe.naver.com#@#iframe[src*="pop"]
 
 
 ! 인벤 (https://www.inven.co.kr/) - 전체 iframe
@@ -4293,9 +4374,6 @@ clien.net#@#[class*="banner"] iframe
 
 
 ##iframe[src*="ad."]
-! - - - 예외
-! - - - 네이버 카페 (https://cafe.naver.com/) - 게시물 열람시 오른쪽 프레임 사라짐
-cafe.naver.com#@#iframe[src*="ad."]
 
 
 ! 딴지 (https://www.ddanzi.com/) - 전체 frame
@@ -4311,43 +4389,14 @@ gall.dcinside.com#@#[class] iframe[sandbox][src]
 gall.dcinside.com#@#[class] iframe[sandbox*="popup"][src]
 
 
-! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
-##[class][id] iframe[style]
-! - - - 예외
-! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
-avsee.ru#@#[class][id] iframe[style]
-! - - - https://poooo.ml/ - 오른쪽 채팅창이 안나옴
-poooo.ml#@#[class][id] iframe[style]
-! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
-theqoo.net#@#[class][id] iframe[style]
-! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
-ppomppu.co.kr#@#[class][id] iframe[style]
-! - - - https://tv.kakao.com/ - 영상 안나옴
-tv.kakao.com#@#[class][id] iframe[style]
-! - - - 네이버 카페 (https://cafe.naver.com/) - 메인 프레임 사라짐
-!cafe.naver.com#@#[class][id] iframe[style]
-! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
-naver.com#@#[class][id] iframe[style]
-! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
-sogirl.so#@#[class][id] iframe[style]
 
 ! https://v15.jogemovie.net/
 ! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
 ##[class*="ads"] iframe
 
 
-! https://javkaren.com/
-##[class*="widget"] iframe
-
 ! - - - 그냥 만들어봤어
 ##[class*="/widget/"] iframe
-
-
-! https://www.gasengi.com/
-##[class*="side"] iframe
-##[class*="sticky"] iframe
-##[class*="block"] iframe
-
 
 
 ! 이토랜드
@@ -4365,6 +4414,10 @@ blog.naver.com#@#iframe[src*="widget"]
 clien.net#@#iframe[src*="widget"]
 
 
+! https://javkaren.com/
+##[class*="widget"] iframe
+
+
 
 ! https://missav.ws/ 일부
 ##[class] iframe[data-link][src]
@@ -4376,51 +4429,7 @@ clien.net#@#iframe[src*="widget"]
 ##iframe[src="about:blank"]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 sogirl.so#@#iframe[src="about:blank"]
-! - - - 네이버 카페 (https://cafe.naver.com/) - 메인 프레임 사라짐
-!cafe.naver.com#@#[class] iframe[style][src]
-! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
-naver.com#@#[class] iframe[style][src]
-! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
-clien.net#@#[class] iframe[style][src]
 
-
-
-! https://sextb.date/
-!##[class] iframe[class][src]
-! - - - 예외 (https://javgg.net/) - 영상 안나옴 (iframe로 광고하는건 없는 사이트로 보임)
-!javgg.net#@#[class] iframe[class][src]
-##iframe[class][style]
-! - - - 예외
-! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
-theqoo.net#@#iframe[class][style]
-! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
-ppomppu.co.kr#@#iframe[class][style]
-! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
-sogirl.so#@#iframe[class][style]
-! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
-clien.net#@#iframe[class][style]
-! - - -  웃긴대학 (https://web.humoruniv.com/) - 댓글 위 베스트란 사라짐
-humoruniv.com#@#iframe[class][style]
-
-! https://javfan.one/
-!##[class] iframe[style]
-!##[class][style] iframe[style]
-! - - - 예외
-! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
-!ppomppu.co.kr#@#[class] iframe[style]
-!ppomppu.co.kr#@#[class][style] iframe[style]
-! - - - 더쿠(https://theqoo.net/) - 게시물 트위터 등 안나옴
-!theqoo.net#@#[class] iframe[style]
-!theqoo.net#@#[class][style] iframe[style]
-! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
-!avsee.ru#@#[class] iframe[style]
-!avsee.ru#@#[class][style] iframe[style]
-! - - - https://tv.kakao.com/ - 영상 안나옴
-!tv.kakao.com#@#[class] iframe[style]
-!tv.kakao.com#@#[class][style] iframe[style]
-! - - - https://poooo.ml/ - 오른쪽 채팅 안보임
-!poooo.ml/#@#[class] iframe[style]
-!poooo.ml/#@#[class][style] iframe[style]
 
 
 ! 나무위키 (https://namu.wiki/)
