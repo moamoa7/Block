@@ -4431,14 +4431,11 @@ clien.net#@#iframe[src*="widgets"]
 inven.co.kr#@#iframe[src*="widgets"]
 
 
-! https://missav.ws/ 일부
-
 ! https://7tv000.com/ 
 ##[class*="banner"] iframe
-! - - - 예외
-! - - - 클리앙 (https://www.clien.net/) - 댓글 ifame 사라짐
-clien.net#@#[class*="banner"] iframe
 
+! https://www.fmkorea.com/
+##[id="sidebar"] iframe
 
 ! https://mypikpak.com/
 ! - - - 이걸 해제해도 바로 출첵 가능
@@ -4451,10 +4448,8 @@ clien.net#@#[class*="banner"] iframe
 naver.com#@#iframe[title*="frame"]
 
 
-
 ! https://messitv8.com/
 ##[class][style*="0px"] iframe
-
 
 
 
