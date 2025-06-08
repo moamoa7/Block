@@ -144,7 +144,9 @@ news.naver.com##._horizontal_scroll_type._horizontal_card_wrapper.main_brick_ite
 !
 ! 숲 (https://sooplive.co.kr)
 ! - 팝업
-sooplive.co.kr##.on.bnrimg_area
+sooplive.co.kr##.bnrimg_area
+! - 구독 플러스
+sooplive.co.kr##.subs_plus.seasonal_area
 ! - 프로모션 배너
 !sooplive.co.kr##.promotion_banner
 ! - 영상 (https://play.sooplive.co.kr)
@@ -4169,7 +4171,8 @@ humoruniv.com#@#[onclick] img[style]
 !novelpia.com#@#[id][style*="background"][style]
 
 
-!!! - 광역 9 (iframe 차단)
+
+!!! - 광역 10 (iframe 차단)
 ! - - - 광역으로 사용
 ! - - - https://redgirl37.org/ - 영상 아래 iframe
 ! - - - 거의 모든 iframe 차단
@@ -4203,7 +4206,7 @@ humoruniv.com#@#[onclick] img[style]
 ! https://t.me/
 ! https://javhd.icu/ 등
 ##iframe[src*="iframe"]
-!#iframe[src*="frame"]
+!##iframe[src*="frame"]
 ! - - - 예외
 ! - - - https://7tv000.com/ - 영상 안나옴 (TV 영상) - 주소 바뀜 주의
 7tv000.com#@#iframe[src*="iframe"]
@@ -4222,6 +4225,15 @@ sogirl.so#@#iframe[src*="iframe"]
 ! - - - https://kr29.4kjav.co/ - 영상 안나옴
 4kjav.co#@#iframe[src*="iframe"]
 
+
+##iframe[id*="iframe"]
+! -- - 예외
+! - - - 티비위키 (https://tvwiki21.com/) - 영상 안나옴
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[id*="iframe"]
+! - - - https://7tv000.com/ - TV 영상 안나옴 (주소 바뀜)
+7tv000.com#@#iframe[id*="iframe"]
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+naver.com#@#iframe[id*="iframe"]
 
 
 ! - https://funlove.info/
@@ -4248,14 +4260,6 @@ sogirl.so#@#iframe[src*="iframe"]
 
 
 
-##iframe[id*="iframe"]
-! -- - 예외
-! - - - 티비위키 (https://tvwiki21.com/) - 영상 안나옴
-[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[id*="iframe"]
-! - - - https://7tv000.com/ - TV 영상 안나옴 (주소 바뀜)
-7tv000.com#@#iframe[id*="iframe"]
-! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
-naver.com#@#iframe[id*="iframe"]
 
 !##iframe[src*="/embed/"]
 ! - - - 예외
@@ -4490,6 +4494,8 @@ clien.net#@#[class*="banner"] iframe
 mypikpak.com#@#iframe[sandbox*="popup"]
 ! - https://gall.dcinside.com/ - 로봇이 아닙니다 팝업 안뜸
 gall.dcinside.com#@#iframe[sandbox*="popup"]
+! - - - AvseeTV (https://05.avsee.ru/) - 캡챠 안보임
+avsee.ru#@#iframe[sandbox*="popup"]
 
 
 ! https://javgiga.com/ (추가)
@@ -5270,3 +5276,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
