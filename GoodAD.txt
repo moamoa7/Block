@@ -4381,8 +4381,6 @@ clien.net#@#iframe[src*="widgets"]
 inven.co.kr#@#iframe[src*="widgets"]
 
 
-
-
 ! https://missav.ws/ 일부
 
 ! https://7tv000.com/ 
@@ -4398,6 +4396,13 @@ clien.net#@#[class*="banner"] iframe
 
 ! https://jp.xsz-av.com/
 ##iframe[title*="frame"]
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+naver.com#@#iframe[title*="frame"]
+
+
+
+! https://messitv8.com/
+##[class][style*="0px"] iframe
 
 
 
@@ -4527,7 +4532,7 @@ clien.net#@#[class*="banner"] iframe
 ! https://sextb.date/
 !##[class] iframe[sandbox][src]
 !##[class] iframe[sandbox*="popup"][src]
-##iframe[sandbox*="popup"]
+!##iframe[sandbox*="popup"]
 ! - - - 예외
 ! https://mypikpak.com/ - 출첵팝업 안뜸
 mypikpak.com#@#iframe[sandbox*="popup"]
