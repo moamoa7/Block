@@ -4367,6 +4367,8 @@ poooo.ml/#@#[class] iframe[style]
 ppomppu.co.kr#@#[class] iframe[style]
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 유튜브 프레임 안보임
 etoland.co.kr#@#[class] iframe[style]
+! - - - 인벤 (https://www.inven.co.kr/) - 트위터 프레임 안보임
+inven.co.kr#@#[class] iframe[style]
 
 
 
@@ -4389,7 +4391,8 @@ tv.kakao.com#@#[class][style] iframe
 [$domain=/^avpingyou\d+.com/]#@#[class][style] iframe
 ! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 원인을 알 수 없으나 모바일에서 오류 메시지 출력으로 인한 해제
 ppomppu.co.kr#@#[class][style] iframe
-
+! - - - 인벤 (https://www.inven.co.kr/) - 트위터 프레임 안보임
+inven.co.kr#@#[class][style] iframe
 
 
 
