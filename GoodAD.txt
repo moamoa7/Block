@@ -268,7 +268,6 @@ tiktok.com##.TUXModal-overlay
 ! 씨네스트 (https://cineaste.co.kr/)
 ! - 메인 배너
 cineaste.co.kr##[class="main-title"]
-##[class="main-title"]
 !cineaste.co.kr##.main-title
 ! - 왼쪽 배너
 ##[class="main-banner"]
@@ -2031,7 +2030,8 @@ correctdilutetrophy.com$popup
 ! - 상단 배너
 !##[class="header-advertising"]
 ! - 전체 배너 (젤 오른쪽 상단 작은 배너 / 젤 하단 배너 제외]
-##[class*="textwidget"]
+##[class^="textwidget"] img
+##[class*="widget"][class^="textwidget"] img
 ! - 젤 하단 배너
 ! - - - PC
 !##[class="happy-footer"]
@@ -2145,6 +2145,39 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 ! Topjav (https://topjav.tv/)
 ! - 모바일 상단 배너 공간
 topjav.tv##.koukoku_11
+!
+!
+! SMUTR.COM (https://smutr.com/)
+! - 차단 사이트
+||q88z1s3.com^
+!
+!
+! https://javten.com/
+! - 차단 사이트
+||xadsmart.com^
+!
+!
+! https://www.porntrex.com/
+! - 차단 사이트
+||go-srv.com^
+||awdeliverynet.com^
+||xxxjmp.com^
+||onclckmn.com^
+!
+!
+! https://xjav.jp/
+! - 차단 사이트
+||storage-ad.com^
+!
+!
+! https://jp.xsz-av.com/
+! - 차단 사이트
+||ensosignal.com^
+!
+!
+! https://www.javbangers.com/
+! - 차단 사이트
+||twinrdengine.com^
 !
 !
 ! JAVFAN (https://javfan.one/)
@@ -4361,6 +4394,12 @@ clien.net#@#[class*="banner"] iframe
 
 ! https://mypikpak.com/
 ##[class*="iframe"] iframe
+
+
+! https://jp.xsz-av.com/
+##iframe[title*="frame"]
+
+
 
 
 !##[class] iframe[style][src]
