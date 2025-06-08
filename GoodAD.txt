@@ -3926,7 +3926,7 @@ javdock.com#@#[class*="ads"]
 
 ! 비디오 광고
 
-##video
+!##video
 ! - - - 예외
 ! https://www.youtube.com/
 !youtube.com#@#video
