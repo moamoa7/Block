@@ -4393,6 +4393,7 @@ clien.net#@#[class*="banner"] iframe
 
 
 ! https://mypikpak.com/
+! - - - 이걸 해제해도 바로 출첵 가능
 ##[class*="iframe"] iframe
 
 
@@ -4610,7 +4611,7 @@ namu.wiki##[class*="g"][style*="margin"]
 ! - - - 애니넷 (https://ani114.net/) (https://ani01.net/)
 ! - - - 툰넷 (https://toon114.net/) (https://toon01.net/)
 ! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/) (https://dfake.top/)
-##A[target="_blank"] > IMG[height="100"][src*=".gif"]
+!##A[target="_blank"] > IMG[height="100"][src*=".gif"]
 ! - - - 난넷 (https://nen114.com/) (https://nan008.net/)
 ! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
 ##A[target="_blank"] IMG[src*="banner"][src*=".gif"]
@@ -4618,10 +4619,10 @@ namu.wiki##[class*="g"][style*="margin"]
 ! - - - 토렌트RJ (https://torrentrj203.com/)
 ! - - - 토다와 (https://www.todawa137.site/)
 ! - - - 토렌트릴 (https://www.torrentreel133.site/)
-##A[target="_blank"] IMG[src*="/ad/"][src*=".gif"]
+!##A[target="_blank"] IMG[src*="/ad/"][src*=".gif"]
 ! - - - 예외
 ! - - - 다모앙 (https://damoang.net/) - 일부 이모티콘 사라짐
-damoang.net#@#A[target="_blank"] IMG[src*="/ad/"][src*=".gif"]
+!damoang.net#@#A[target="_blank"] IMG[src*="/ad/"][src*=".gif"]
 ! - - - 일일툰 (https://www.11toon143.com/)
 ! - - - 호두코믹스 (https://t71.hoduhodu.com/)
 ! - - - 엑스툰 (https://t1.xtoon2.com/)
@@ -4634,10 +4635,10 @@ damoang.net#@#A[target="_blank"] IMG[src*="/ad/"][src*=".gif"]
 ! - - - 쏭티비 (https://songkorea.com/)
 ! - - - 섹토렌트 (https://4.sektorrent.me/)
 ! - - - 땡땡티비 (https://ootv39.com/)
-##A[target="_blank"] IMG[style*="100%"][src*=".gif"]
+!##A[target="_blank"] IMG[style*="100%"][src*=".gif"]
 ! - - - 혼딸파티 (https://ddparty04.org/)
 ! - - - 레드대피소 (https://red-run.xyz/)
-##A[target="_blank"] IMG[style*="100"][src*=".gif"]
+!##A[target="_blank"] IMG[style*="100"][src*=".gif"]
 ! - - - 4KJAV (https://kr29.4kjav.co/)
 ! - - - 자막야동 (https://4.jamakyadong.me/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
