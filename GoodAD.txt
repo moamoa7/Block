@@ -104,9 +104,17 @@ youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !impo
 ||google.*/pagead/lvz?
 !
 !
+! 스포티파이 (https://open.spotify.com/)
+! - 차단 사이트
+||rlcdn.com^
+!
+!
 ! 네이버 (https://www.naver.com/)
 ! - 배너
 ##[class*="_banner_"]
+! - 차단 사이트
+||shopsquare.naver.com^
+||recoshopping.naver.com^
 !
 !
 ! 네이버 뉴스 (https://news.naver.com/)
@@ -127,6 +135,11 @@ news.naver.com##._horizontal_scroll_type._horizontal_card_wrapper.main_brick_ite
 !##.popup_layer
 ! -회면 뿌연거 해결
 !nid.naver.com###dimmed
+!
+!
+! 네이트 (https://www.nate.com/)
+! - 차단 사이트
+||cyad1.nate.com^
 !
 !
 ! 숲 (https://sooplive.co.kr)
@@ -183,8 +196,10 @@ sooplive.co.kr###FeedLayerToolTip
 ! - shopfreeca banner (적용이 안되고 있는지 딱히 나오는건 없음)
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
-
-
+! - 차단 사이트
+||adballoon.sooplive.co.kr^
+||reqde.sooplive.co.kr^
+||ads-twitter.com^
 !
 !
 ! 풍투데이 (https://poong.today/)
@@ -205,6 +220,8 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 ! 허용목록 (Adblock-Rule-Collection-Lite)
 @@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
 !@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=naver.com
+! - 차단 사이트
+||veta.naver.com^
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -214,6 +231,11 @@ twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
 twitch.tv###twilight-sticky-footer-root
 ! - 광고?
 ||*.ads.*
+! - 차단 사이트
+||edge.ads.twitch.tv^
+||scorecardresearch.com^
+||amazon-adsystem.com^
+||d2v02itv0y9u9t.cloudfront.net^
 !
 !
 ! 킥 (https://kick.com/)
@@ -232,6 +254,8 @@ twitch.tv###twilight-sticky-footer-root
 !  - 영상 재생 해결
 !@@play.kakao.com
 !@@videoads.kakao.com
+! - 차단 사이트
+||ad.daum.net^
 !
 !
 ! 틱톡 (https://www.tiktok.com/)
@@ -354,6 +378,10 @@ h5.dcinside.com##*
 wiki.dcinside.com##*
 ! - 갤주소복사 안나오는거 해결
 gall.dcinside.com#@#[class^="ad"]
+! - 차단 사이트
+||addc.dcinside.com^
+||taboola.com^
+||netinsight.co.kr^
 !
 !
 ! 아카라이브 (https://arca.live/)
@@ -596,6 +624,8 @@ bobaedream.co.kr#@#[class*="Ad"]
 ! -하단 제보 배너
 !##[class="call_banner"]
 ##.call_banner
+! - 차단 사이트
+||mediacategory.com^
 !
 !
 ! 와이고수 (https://ygosu.com/)
@@ -1539,7 +1569,7 @@ yna.co.kr##.ynalounge-content01.wide.content03
 !
 ! 엑스포츠 뉴스 (https://www.xportsnews.com/)
 ! - 필요없는 사이트 차단 (광고)
-||taboola.com^
+!||taboola.com^
 !
 !
 ! 한국경제 (https://www.hankyung.com/)
@@ -1828,7 +1858,7 @@ pedia.watcha.com##.adFixed
 ![$domain=/^t\d+.torrentpi150.com/]##.sero1 > span
 !
 !
-! AVseeTV (https://04.avsee.ru/)
+! AVseeTV (https://05.avsee.ru/)
 ! - - - 조개파티 (https://jogaeparty139.com/)
 ! -  배너 이미지 등 (여러 사이트에 적용됨)
 ! - - -  출처 : https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
@@ -1851,9 +1881,12 @@ pedia.watcha.com##.adFixed
 avsee.ru##[class="title"]
 !avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
-! 새창 방지
+! - 새창 방지
 avsee.ru#%#//scriptlet("prevent-window-open")
-
+! - - - - - uBlock filters – Ads
+/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
+! - 차단 사이트
+||aroundcommoditysway.com^
 !
 !
 ! supjav (https://supjav.com/)
@@ -1869,6 +1902,15 @@ jilliandescribecompany.com##iframe
 profitableratecpm.com$popup
 fractionfridgejudiciary.com$popup
 depreciatorybollocksupkitchen.com$popup
+! - 차단 사이트
+||mnaspm.com^
+||fanza.cc^
+||adxadserv.com^
+||daly2024.com^
+||imasdk.googleapis.com^
+||adforcast.com^
+||zimpolo.com^
+||campfirecroutondecorator.com^
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -1904,11 +1946,18 @@ lionessgrandchild.com$popup
 ! - 팝업 방지
 lwirirvpo.com$popup
 illustriousreserve.pro$popup
+! - 차단 사이트
+||acscdn.com^
+||chaseherbalpasty.com^
+||bobsleddomesticglandular.com^
+||popcash.net^
+/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
+||diagramjawlineunhappy.com^
 !
 !
 ! Javsubs91 (https://j91.asia/)
 !  - 팝업 방지
-||adxadserv.com^
+||adxadserv.com$popup
 !
 !
 ! 7MMTV (https://7tv033.com/)
@@ -2203,7 +2252,7 @@ njav.com##.mx-auto
 ! MISSAV (https://missav.ws/)
 ! MISSAV (https://missav.live/)
 ! - 하단 떠다니는 배너 Easylist) (List-KR)
-||tsyndicate.com^
+!||tsyndicate.com^
 ! - 영상 옆 배너공간 
 ! - - - missav.ws##.lg\:block (EasyList 규칙에 missav.ws 규칙만 있고 missav.lives는 없음)
 missav.live##.lg\:block
@@ -2217,6 +2266,11 @@ missav.*/pop$popup
 tsyndicate.com$popup
 ad.twinrdengine.com$popup
 go.myavlive.com$popup
+! - 차단 사이트
+||tsyndicate.com^
+||rmhfrtnd.com^
+||trackwilltrk.com^
+||creative.myavlive.com^
 !
 !
 ! JAVCEP.COM (https://javcep.com/)
@@ -4110,6 +4164,9 @@ sogirl.so#@#iframe[src*="iframe"]
 
 
 ##iframe[id*="iframe"]
+! -- - 예외
+! - - - 티비위키 (https://tvwiki21.com/) - 영상 안나옴
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[id*="iframe"]
 
 
 
