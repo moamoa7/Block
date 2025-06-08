@@ -720,8 +720,10 @@ inven.co.kr#@#div.banner
 ! - 오른쪽 배너 복원 (kr: List-KR)
 ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 ! - 오른쪽 따라다니는 배너
-##[class="floating-banner"]
-##[class="ad-banner"]
+!##[class="floating-banner"]
+##.floating-banner
+!##[class="ad-banner"]
+##.ad-banner
 ! - 뽐쿠폰 배너
 ppomppu.co.kr##.ppomCou
 ! - 모바일 하단 배너 공간 삭제
@@ -729,7 +731,8 @@ ppomppu.co.kr##div:nth-of-type(7)
 ! - 모바일 HOT 게시글 삭제
 ppomppu.co.kr##.hot-imgBoard
 ! - 게시물 상단/중단/하단 배너 (공백 제거) (EasyList 광역규칙으로 generichide로 인해 적용안되어 개별 적용함)
-##[class="ad_container"]
+!##[class="ad_container"]
+##.ad_container
 !ppomppu.co.kr##.ad_container
 ! - 뿜뿌 앱으로 보기 팝업 (모바일)
 ppomppu.co.kr###ask_app_usage_popup
@@ -5322,3 +5325,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
 
+#@#[class][style] iframe
