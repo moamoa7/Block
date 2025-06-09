@@ -550,18 +550,16 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ||dable.io^
 !
 !
-! 루리 (https://m.ruliweb.com/)
+! 루리 (https://www.ruliweb.com/)
 ! - 배너 (루리웹 전체 메인 상단 배너)
 ruliweb.com##.adrr
-! - 상단 배너 공간 제거 (List-KR)
-ruliweb.com##[data-ad-width]:not([style$="left: -10000px !important; top: -1000px !important;"]):not(.adsbygoogle)
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
 ! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe536.com/)
 ruliweb.com##[class*="ad_"][style]
 ! -  상단 메인 배너
 ! - 제목 공간 꽉차게
-bbs.ruliweb.com##.user_view:style(width: 100% !important;)
-bbs.ruliweb.com###board_read .board_main_top .member_reward_wrapper:style(margin-top: 20px !important; float: right !important; margin-right: 20px !important;)
+ruliweb.com##.user_view:style(width: 100% !important;)
+ruliweb.com###board_read .board_main_top .member_reward_wrapper:style(margin-top: 20px !important; float: right !important; margin-right: 20px !important;)
 !ruliweb.com##div[style].ti_wrapper
 ! - 댓글 아래 배너
 ruliweb.com##div[class^="nbp_container"]
@@ -573,7 +571,7 @@ ruliweb.com##.fixed_layer1
 !@@||ruliweb.com/img/$image
 ! 게시물 댓글 파워링크 제거
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
+ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
@@ -2446,6 +2444,9 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 ! - - - ! Ichiha 4.5(https://komi.la/) 배너 공간
 !njav.com##.mx-auto
 ##.mx-auto
+! - - - 예외
+! - - - 야동그라운드 (https://yagro48.com/) - 전체 선택되서 안보임
+[$domain=/^yagro\d+.com/]#@#.mx-auto
 !
 !
 ! MISSAV (https://missav.ws/)
@@ -4365,23 +4366,7 @@ humoruniv.com#@#[onclick] img[style]
 
 
 
-!!! - 광역 9
-! - - - 광역으로 사용
-! - target 이 없는 요소
-! - https://wdwd8.com/ - 카지노 토토사이트 더 보기 글자
-! -https://yagro48.com/ - 보증업체 더 보기 글자
-!##[id] [style*="background"]
-! -  일부 사이트에서 영상 이미지 지움 (예 : https://redgirl37.org/) , 아래 규칙으로 변경
-! - - - https://redgirl37.org/ - 영상 아래 iframe##[id][style*="background"][style]
-! - - - 예외
-! - - - 이토랜드 (https://www.etoland.co.kr/) - 패스워드 입력란 사라짐
-!etoland.co.kr#@#[id][style*="background"]
-! - - - 노벨피아 (https://novelpia.com/) - 회차별 이미지 및 텍스트 안나옴
-!novelpia.com#@#[id][style*="background"][style]
-
-
-
-!!! - 광역 10 (iframe 차단)
+!!! - 광역 9 (iframe 차단)
 ! - - - 광역으로 사용
 ! - - - https://redgirl37.org/ - 영상 아래 iframe
 ! - - - 거의 모든 iframe 차단
@@ -4542,15 +4527,21 @@ naver.com#@#iframe[id*="iframe"]
 ! https://supjav.com/
 ##iframe[src*="ads."]
 
-! https://javgiga.com/
-##iframe[src*="widgets"]
+
+! 디시인사이드 (https://gall.dcinside.com/) 일부
+##iframe[src*="/widget/"]
+
 
 ! 이토랜드
+! https://javgiga.com/
 ! https://supjav.com/
 ! https://7tv000.com/
 ! https://missav.ws/
 ! https://v15.jogemovie.net/
 ##iframe[src*="/widgets/"]
+
+
+!##iframe[src*="widgets"]
 ! - - - 예외
 ! - 네이버 블로그 (https://blog.naver.com/) - 아무것도 안보임
 !blog.naver.com#@#iframe[src*="widgets"]
@@ -4559,9 +4550,6 @@ naver.com#@#iframe[id*="iframe"]
 ! - - - 인벤 (https://www.inven.co.kr/) - 트위터 프레임 안보임
 !inven.co.kr#@#iframe[src*="widgets"]
 
-
-! 디시인사이드 (https://gall.dcinside.com/) 일부
-##iframe[src*="/widget/"]
 
 ! https://www.njav.com/
 ##[class*="text-center"] iframe
@@ -5066,7 +5054,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 
 !!! - 기본 6
-! - 텍스트 광고
+! - 텍스트 광고 (텍스트 + 배경 테이블)
 ! - - - 광역 사용시 일부 이미지 사라짐
 ! - https://01.avpop.tv/
 [$domain=/^\d+.avpop.tv/]##a[href] [style*="background"]
@@ -5252,6 +5240,22 @@ www.yadongmarket.com##[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
 ! - - -  두꺼비티비 (https://dugebitv104.xyz/) 상단배너
 ![$domain=/^dugebitv\d+.xyz/]##[style][class] [data-original]
 [$domain=/^dugebitv\d+.xyz/]##[style] [data-original]
+
+
+!!! - 번형 10
+! - 일부 사이트에서 사용 중 (더 보기 글자 삭제)
+! - target 이 없는 요소
+! - https://wdwd8.com/ - 카지노 토토사이트 더 보기 글자 - ##.rainbow-text로 글자 지움
+! - https://yagro48.com/ - 보증업체 더 보기 글자 - 클릭해도 아무것도 안나와서 굳이 안해도 됨
+!##[id] [style*="background"]
+! -  일부 사이트에서 영상 이미지 지움 (예 : https://redgirl37.org/) , 아래 규칙으로 변경
+! - - - https://redgirl37.org/ - 영상 아래 iframe##[id][style*="background"][style]
+[$domain=/^wdwd\d+.com/]##[id][style*="background"][style]
+! - - - 예외
+! - - - 이토랜드 (https://www.etoland.co.kr/) - 패스워드 입력란 사라짐
+!etoland.co.kr#@#[id][style*="background"]
+! - - - 노벨피아 (https://novelpia.com/) - 회차별 이미지 및 텍스트 안나옴
+!novelpia.com#@#[id][style*="background"][style]
 
 
 
