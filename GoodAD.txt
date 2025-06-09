@@ -4463,11 +4463,6 @@ inven.co.kr#@#iframe[src*="widgets"]
 naver.com#@#iframe[title*="frame"]
 
 
-! https://messitv8.com/
-##[class][style*="0px"] iframe
-
-
-
 !##[class] iframe[style][src]
 !##[class] iframe[style]
 !##[style] [class] iframe
@@ -4588,23 +4583,30 @@ naver.com#@#iframe[title*="frame"]
 !##[class] iframe[id][name][src]
 !##iframe[src*="/ads/"]
 
-
+!******
 ! 딴지 (https://www.ddanzi.com/) - 전체 frame
 ! https://sextb.date/
 !##[class] iframe[sandbox][src]
 !##[class] iframe[sandbox*="popup"][src]
 ##iframe[sandbox*="popup"]
 ##iframe[sandbox*="sandbox"]
-
-
-
 ! - - - 예외
 ! https://mypikpak.com/ - 출첵팝업 안뜸
 mypikpak.com#@#iframe[sandbox*="popup"]
 ! - https://gall.dcinside.com/ - 로봇이 아닙니다 팝업 안뜸
 gall.dcinside.com#@#iframe[sandbox*="popup"]
-! - - - AvseeTV (https://05.avsee.ru/) - 캡챠 안보임
+! - - - AvseeTV (https://05.avsee.ru/) - 캡챠 (challenges.cloudflare.com) 안보임
 avsee.ru#@#iframe[sandbox*="popup"]
+! - - - https://katfile.com/ - 캡챠 (www.google.com/recaptcha/) 안보임
+katfile.com#@#iframe[sandbox*="popup"]
+katfile.com#@#iframe[sandbox*="sandbox"]
+
+!******
+! https://messitv8.com/
+!##[class][style*="0px"] iframe
+! - - - https://katfile.com/ - 캡챠 (www.google.com/recaptcha/) 안보임
+katfile.com#@#[class][style*="0px"] iframe
+
 
 
 ! https://javgiga.com/ (추가)
@@ -4623,8 +4625,6 @@ avsee.ru#@#iframe[sandbox*="popup"]
 !##[class][style="margin 0; color: #239d9668"]
 !##div>[class][style*="margin 0"]
 namu.wiki##[class*="g"][style*="margin"]
-
-
 
 
 
