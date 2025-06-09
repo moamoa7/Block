@@ -1644,6 +1644,26 @@ hankyung.com##.stock-marquee-wrap
 ||rubiconproject.com^
 !
 !
+! 경향신문 (https://www.khan.co.kr/)
+! - 기사 하단 배너공간
+##[class*="banner-"]
+! - 차단 사이트
+||adv.khan.co.kr^
+/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
+!
+!
+! 노컷뉴스 (https://nocutnews.co.kr/)
+! - 차단 사이트
+||anymind360.com^
+||ad.adinc.kr^
+!
+!
+! 뉴데일리 (https://www.newdaily.co.kr/) 삭제
+newdaily.co.kr##html
+##img[src*="newdaily"]
+##iframe[src*="newdaily"]
+!
+!
 ! MTN 머니투데이 (https://mtn.co.kr/)
 ! - 배너
 mtn.co.kr##.w_308px
@@ -4637,24 +4657,29 @@ naver.com#@#iframe[title*="frame"]
 !##[class] iframe[sandbox*="popup"][src]
 !##iframe[sandbox*="popup"]
 !##iframe[sandbox*="sandbox"]
-##iframe[sandbox src]
+!##iframe[sandbox src]
+##iframe[sandbox]
 ! - - - 예외 : 로그에서 차단으로 안뜨지만 풀어야 함
 ! https://mypikpak.com/ - 출첵팝업 안뜸
 !mypikpak.com#@#iframe[sandbox*="popup"]
-mypikpak.com#@#iframe[sandbox src]
+!mypikpak.com#@#iframe[sandbox src]
+mypikpak.com#@#iframe[sandbox]
 ! - https://gall.dcinside.com/ - 로봇이 아닙니다 팝업 안뜸
 !gall.dcinside.com#@#iframe[sandbox*="popup"]
-gall.dcinside.com#@#iframe[sandbox src]
+!gall.dcinside.com#@#iframe[sandbox src]
+gall.dcinside.com#@#iframe[sandbox]
 ! - - - AvseeTV (https://05.avsee.ru/) - 캡챠 (challenges.cloudflare.com) 안보임
 !avsee.ru#@#iframe[sandbox*="popup"]
-avsee.ru#@#iframe[sandbox src]
+!avsee.ru#@#iframe[sandbox src]
+avsee.ru#@#iframe[sandbox]
 ! - - - https://katfile.com/ - 캡챠 (www.google.com/recaptcha/) 안보임
 !katfile.com#@#iframe[sandbox*="popup"]
 !katfile.com#@#iframe[sandbox*="sandbox"]
-katfile.com#@#iframe[sandbox src]
+!katfile.com#@#iframe[sandbox src]
+katfile.com#@#iframe[sandbox]
 
 
-
+! https://www.ddanzi.com/
 ! https://messitv8.com/
 !##[class*="boxshadow"][style] iframe
 ##[class*="box"][style] iframe
@@ -4682,8 +4707,11 @@ katfile.com#@#iframe[sandbox src]
 ! 머니S (https://www.moneys.co.kr/)
 ##iframe[src*="adex."]
 
+! 인벤 (https://www.inven.co.kr/)
 ! 뉴스1 (https://www.news1.kr/)
 ! 한겨레 (https://www.hani.co.kr/)
+! 경햔신문 (https://www.khan.co.kr/)
+! 노컷뉴스 (https://nocutnews.co.kr/)
 ##iframe[src*="/ads/"]
 ! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
 ##iframe[src*="ads"]
