@@ -2447,6 +2447,8 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 ! - - - 예외
 ! - - - 야동그라운드 (https://yagro48.com/) - 전체 선택되서 안보임
 [$domain=/^yagro\d+.com/]#@#.mx-auto
+! - - - 레딧 (https://www.reddit.com/) - 전체 선택되어 안보임
+reddit.com#@#.mx-auto
 !
 !
 ! MISSAV (https://missav.ws/)
@@ -4733,6 +4735,9 @@ katfile.com#@#iframe[sandbox]
 ! https://messitv8.com/
 !##[class*="boxshadow"][style] iframe
 ##[class*="box"][style] iframe
+! - - - 예외
+! - - - 카카오TV (https://tv.kakao.com/) - 영상 안나옴
+tv.kakao.com#@#[class*="box"][style] iframe
 
 
 ! https://javgiga.com/ (추가)
