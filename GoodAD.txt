@@ -2955,6 +2955,9 @@ platinmods.com#@#[class$="verlay"]
 porn78.info#@#[class$="verlay"]
 ! - - - https://st.sweettracker.co.kr/ - 배송조회 안나옴
 sweettracker.co.kr#@#[class$="verlay"]
+! - - - 유튜브 (https://www.youtube.com/) - 프레임 영상에서 이미지 사라짐
+youtube.com#@#[class$="verlay"]
+
 
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
