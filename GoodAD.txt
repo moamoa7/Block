@@ -2544,6 +2544,12 @@ loopholes.site##.widget_text
 ##.bannerbox
 !
 !
+! https://kr.nudogram.com/
+! - 차단 사이트
+||clickadu.net^
+||dmzjmp.com^
+!
+!
 ! 자막야동 (https://3.jamakyadong.me/)
 ! - 배너 이미지
 !||jamakyadong.me/myimages/*$image
@@ -4727,6 +4733,13 @@ katfile.com#@#iframe[sandbox]
 ##iframe[src*="Bottom"]
 ##iframe[title*="광고"]
 ##iframe[src*="_ad_"]
+
+
+! https://kr.nudogram.com/
+##iframe[src*="go.dmzjmp.com"]
+! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
+##iframe[src*="/go."]
+
 
 
 ! 나무위키 (https://namu.wiki/)
