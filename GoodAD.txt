@@ -1692,7 +1692,17 @@ mtn.co.kr##.w_308px
 !
 ! 이데일리 (https://www.edaily.co.kr/)
 ! - 상단 배너
-!##.special_area
+##.special_area
+! - 팝업형식 유튜브 배너
+edaily.co.kr##.show.hover.special_box
+! - 상단 여백 공간 (List-KR)
+edaily.co.kr###edailywrap > #headers ~ div[style*="height: "]
+! - 오른쪽 공간 전부 삭제
+edaily.co.kr###right-sticky
+! - 하단 쓸데없는거 삭제
+edaily.co.kr##.article_newsetc
+edaily.co.kr##.list_gg
+edaily.co.kr##.boxshow_footer_dable
 !
 !
 ! 서울경제 (https://www.sedaily.com/)
@@ -4775,6 +4785,9 @@ katfile.com#@#iframe[sandbox]
 
 ! 엑스포츠뉴스 (https://www.xportsnews.com/)
 ##iframe[src*="xportsnews"]
+
+! 뉴시스 (https://www.newsis.com/)
+##iframe[src*="clickon.kr"]
 
 
 ! 네이트
