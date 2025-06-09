@@ -1607,6 +1607,12 @@ yna.co.kr##.ynalounge-content01.wide.content03
 ||widerplanet.com^$3p
 !
 !
+! 한겨레 (https://www.hani.co.kr/)
+! - 차단 사이트
+||adservice.hani.co.kr^
+||d1cykymlllue3h.cloudfront.net^
+!
+!
 ! 엑스포츠 뉴스 (https://www.xportsnews.com/)
 ! - 필요없는 사이트 차단 (광고)
 !||taboola.com^
@@ -4677,6 +4683,7 @@ katfile.com#@#iframe[sandbox src]
 ##iframe[src*="adex."]
 
 ! 뉴스1 (https://www.news1.kr/)
+! 한겨레 (https://www.hani.co.kr/)
 ##iframe[src*="/ads/"]
 ! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
 ##iframe[src*="ads"]
