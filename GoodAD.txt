@@ -4868,6 +4868,8 @@ naver.com#@#a[href][target*='blank'] img[src*='.gif']
 nate.com#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 혹시 몰라서 해제
 etoland.co.kr#@#a[href][target*='blank'] img[src*='.gif']
+! - - - 해럴드경제 (https://biz.heraldcorp.com/) - 일부 이미지 사라짐
+biz.heraldcorp.com#@#a[href][target*='blank'] img[src*='.gif']
 
 
 ##[class*="banner"] IMG[src*="banner"] IMG[src*=".gif"]
@@ -5533,3 +5535,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
