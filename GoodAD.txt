@@ -304,7 +304,8 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ##[class*="rightbanner"]
 !dcinside.com##div[class^="rightbanner"]
 ! - 왼쪽 배너
-##[class="stickyunit"]
+!##[class="stickyunit"]
+dcinside.com##.stickyunit
 ! - 게시판 글 공간 절약
 ! - - - 유니콘Pro에 없는거 (List-KR)
 ! - - - - -  공간 절약은 되나 게시물에 사진1장 뜸
@@ -421,6 +422,8 @@ etoland.co.kr###login_popup
 etoland.co.kr#@#div[class$="_ad"]
 ! - 오른쪽 따라다니는 메뉴
 etoland.co.kr##.main_right_ad
+! - 왼쪽 따라다니는 메뉴
+etoland.co.kr##.main_left_ad
 ! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 etoland.co.kr##[src*="/data/daumeditor"]
@@ -691,6 +694,9 @@ lol.inven.co.kr#@#.banner
 ! 안스티즈 (https://www.instiz.net/)
 ! - 게시판 및 중고장터 사이 공백 (EasyList)
 instiz.net##.imgad
+! - 배너
+instiz.net##div[style]:has(> [id^='sense'])
+##[id*="sense"]
 !
 !
 ! 일베 (https://www.ilbe.com/)
@@ -1614,8 +1620,8 @@ yna.co.kr##.ynalounge-content01.wide.content03
 !
 !
 ! 엑스포츠 뉴스 (https://www.xportsnews.com/)
-! - 필요없는 사이트 차단 (광고)
-!||taboola.com^
+! - 차단 사이트
+||kitweb.tadapi.info^
 !
 !
 ! 한국경제 (https://www.hankyung.com/)
@@ -1950,6 +1956,8 @@ pedia.watcha.com##.adFixed
 ! - - -  출처 : https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
 ##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 !##A[target='_blank'] > IMG[width='100%'][src$='.gif']
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+##div[style]:has(> [target='_blank'])
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
 ! - - - 오늘의 중계 (https://today-sports7.com/)
 ! - - - 야동망고 (https://www.mango54.net/)
@@ -2804,6 +2812,14 @@ hanyasa.com##.gofollow
 ![$domain=/^yaburi\d+.com/]##.sm\:block.sm\:w-full.hidden > .w-full.my-4.p-1
 ! - 하단 이벤트 바로가기 클릭 없애기
 ![$domain=/^yaburi\d+.com/]##.grow.sm\:max-w-5xl.min-h-screen > div.w-full.p-1
+!
+!
+! Ichiha 4.5(https://komi.la/)
+! - 메인 배너
+komi.la##.sm\:grid
+! - 배너 공간
+##.mx-auto
+
 !
 !
 ! WatchJAVOnline (https://watchjavonline.com/)
@@ -4752,6 +4768,10 @@ katfile.com#@#iframe[sandbox]
 ##[class*=-ad-] iframe
 
 
+! 엑스포츠뉴스 (https://www.xportsnews.com/)
+##iframe[src*="xportsnews"]
+
+
 ! 네이트
 ##[id*="Sidebar"] iframe
 ##iframe[src*="Bottom"]
@@ -4870,6 +4890,9 @@ nate.com#@#a[href][target*='blank'] img[src*='.gif']
 etoland.co.kr#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - 해럴드경제 (https://biz.heraldcorp.com/) - 일부 이미지 사라짐
 biz.heraldcorp.com#@#a[href][target*='blank'] img[src*='.gif']
+! - - - 인스티즈 (https://www.instiz.net/) - 일부 이미지 사라짐
+instiz.net#@#a[href][target*='blank'] img[src*='.gif']
+
 
 
 ##[class*="banner"] IMG[src*="banner"] IMG[src*=".gif"]
