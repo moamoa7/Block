@@ -2433,7 +2433,9 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 !
 ! nJAV (https://www.njav.com/)
 ! - 영상 옆 배너공간
-njav.com##.mx-auto
+! - - - ! Ichiha 4.5(https://komi.la/) 배너 공간
+!njav.com##.mx-auto
+##.mx-auto
 !
 !
 ! MISSAV (https://missav.ws/)
@@ -2818,8 +2820,11 @@ hanyasa.com##.gofollow
 ! - 메인 배너
 komi.la##.sm\:grid
 ! - 배너 공간
-##.mx-auto
-
+!##.mx-auto
+! - 차단 사이트
+||f864fdc049.com^
+||highperformanceformat.com^
+||guidepaparazzisurface.com^
 !
 !
 ! WatchJAVOnline (https://watchjavonline.com/)
