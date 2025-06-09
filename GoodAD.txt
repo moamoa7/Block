@@ -1658,6 +1658,14 @@ hankyung.com##.stock-marquee-wrap
 ||ad.adinc.kr^
 !
 !
+! 뷰스앤뉴스 (https://www.viewsnnews.com/)
+! - 차단 사이트
+||realclick.co.kr^
+!
+!
+! 프레시안 뉴스 (https://pressian.com/)
+!
+!
 ! 뉴데일리 (https://www.newdaily.co.kr/) 삭제
 newdaily.co.kr##html
 ##img[src*="newdaily"]
@@ -4373,6 +4381,7 @@ humoruniv.com#@#[onclick] img[style]
 ! https://accounts.google.com/
 ! 루리웹 (https://bbs.ruliweb.com/) - 전체 iframe
 ! 짱공유닷컴 (https://www.jjang0u.com/) - 전체 iframe
+! https://javfan.one/
 ! https://t.me/
 ! https://javhd.icu/ 등
 ##iframe[src*="iframe"]
@@ -4502,22 +4511,32 @@ naver.com#@#iframe[id*="iframe"]
 ! 이토랜드
 ! https://supjav.com/
 ! https://7tv000.com/
-! https://www.njav.com/
-! https://javfan.one/
-! https://v15.jogemovie.net/
 ! https://missav.ws/
-!##iframe[src*="widget"]
+! https://v15.jogemovie.net/
+##iframe[src*="/widgets/"]
 ! - - - 예외
 ! - 네이버 블로그 (https://blog.naver.com/) - 아무것도 안보임
-blog.naver.com#@#iframe[src*="widgets"]
+!blog.naver.com#@#iframe[src*="widgets"]
 ! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
-clien.net#@#iframe[src*="widgets"]
+!clien.net#@#iframe[src*="widgets"]
 ! - - - 인벤 (https://www.inven.co.kr/) - 트위터 프레임 안보임
-inven.co.kr#@#iframe[src*="widgets"]
+!inven.co.kr#@#iframe[src*="widgets"]
+
+
+! 디시인사이드 (https://gall.dcinside.com/) 일부
+##iframe[src*="/widget/"]
+
+! https://www.njav.com/
+##[class*="text-center"] iframe
+
+
+! https://missav.ws/
+##iframe[src*="javascript"]
 
 
 ! https://7tv000.com/ 
 ##[class*="banner"] iframe
+
 
 ! https://www.fmkorea.com/ - 게시물 오른쪽
 ##[id="sidebar"] iframe
@@ -4703,7 +4722,12 @@ katfile.com#@#iframe[sandbox]
 
 ! 더팩트 (https://www.tf.co.kr/)
 ##[id*="Banner"] iframe
+
+! 디시인사이드 (https://gall.dcinside.com/) 일부
+! 더팩트 (https://www.tf.co.kr/)
 ##iframe[src*="/ad."]
+
+! 더팩트 (https://www.tf.co.kr/)
 ##iframe[src*="/ad/"]
 
 ! 머니S (https://www.moneys.co.kr/)
