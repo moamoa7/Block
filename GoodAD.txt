@@ -4603,7 +4603,7 @@ katfile.com#@#iframe[sandbox*="sandbox"]
 
 !******
 ! https://messitv8.com/
-!##[class][style*="0px"] iframe
+##[class][style*="0px"] iframe
 ! - - - https://katfile.com/ - 캡챠 (www.google.com/recaptcha/) 안보임
 katfile.com#@#[class][style*="0px"] iframe
 
