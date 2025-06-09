@@ -48,6 +48,12 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 
 # 사용중인 Filter 목록
 
+※ uBlock filters
+https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
+
+※ uBlock filters – Quick fixes
+https://ublockorigin.pages.dev/filters/quick-fixes.min.txt
+
 ※ EasyList
 https://easylist.to/easylist/easylist.txt
 
@@ -59,9 +65,6 @@ https://filters.adtidy.org/extension/ublock/filters/11.txt
 
 ※ AdGuard Annoyances filter
 https://filters.adtidy.org/extension/ublock/filters/14.txt
-
-※ uBlock filters
-https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 
 ※ Block third party font
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
@@ -79,10 +82,6 @@ https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-AdGuard.txt
 * (uBlock Origin)
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
 
-※ YousList (KO)
-
-https://filters.adtidy.org/extension/ublock/filters/244.txt
-
 ※ AdGuard Japanese filter
 https://filters.adtidy.org/extension/ublock/filters/7.txt
 
@@ -97,31 +96,19 @@ https://filters.adtidy.org/extension/ublock/filters/1.txt
 ※ 필터 주소 목록 모음
 
 ```
-https://easylist.to/easylist/easylist.txt
-
-https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
-
-https://filters.adtidy.org/extension/ublock/filters/11.txt
-
-https://filters.adtidy.org/extension/ublock/filters/14.txt
-
 https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
-
+https://ublockorigin.pages.dev/filters/quick-fixes.min.txt
+https://easylist.to/easylist/easylist.txt
+https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
+https://filters.adtidy.org/extension/ublock/filters/11.txt
+https://filters.adtidy.org/extension/ublock/filters/14.txt
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
-
+https://ublockorigin.github.io/uAssetsCDN/filters/lan-block.txt
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-AdGuard.txt
-
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
-
-https://filters.adtidy.org/extension/ublock/filters/244.txt
-
 https://filters.adtidy.org/extension/ublock/filters/7.txt
-
 https://filters.adtidy.org/extension/ublock/filters/224.txt
-
 https://filters.adtidy.org/extension/ublock/filters/1.txt
-
-https://ublockorigin.pages.dev/filters/lan-block.txt
 
 ```
 
