@@ -550,6 +550,8 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ! 루리 (https://m.ruliweb.com/)
 ! - 배너 (루리웹 전체 메인 상단 배너)
 ruliweb.com##.adrr
+! - 상단 배너 공간 제거 (List-KR)
+ruliweb.com##div.board_main > table > tbody tr.table_body.list_inner
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
 ! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe536.com/)
 ruliweb.com##[class*="ad_"][style]
@@ -614,6 +616,8 @@ bobaedream.co.kr#@#[class*="Ad"]
 ! 오늘의 유머 (https://www.todayhumor.co.kr/)
 ! - 왼쪽 배너
 !##[class*="_ad_"]
+! - 댓글 하단 배너 공간
+todayhumor.co.kr##.under_ad_div
 !
 !
 ! 포모스 (https://www.fomos.kr/)
@@ -804,6 +808,10 @@ damoang.net##.d-block.lh-1.end-0.bottom-0.position-fixed
 ! - 이미지 복구
 !@@||damoang.net//data/editor/*$image
 !@@||cdn.damoang.net/img/*$image
+! 홍보글 (List-KR)
+damoang.net##li.list-group-item:has(a[href*="promotion"])
+! - 차단 사이트
+||fundingchoicesmessages.google.com^$3p
 !
 !
 ! 웃긴대학 (https://web.humoruniv.com/)
@@ -4010,11 +4018,6 @@ speedtest.net#@#[class*="button"][style] a[href]
 ! 이토랜드 게시물 하단 쿠팡 광고 등
 !dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.com,jjang0u.com##iframe
 
-! - 다모앙(https://damoang.net/) 왼쪽 직접 홍보
-! - - - List-kr (##li.list-group-item:has(a[href*="promotion"]))
-##a[href*="promotion"]
-
-
 
 
 !!! - 광역 1
@@ -4040,6 +4043,8 @@ speedtest.net#@#[class*="button"][style] a[href]
 !novelpia.com#@#img[src*="/banner/"]
 ! - - - kick (https://kick.com/) - 실시간 인기 카테고리 이미지 흐려짐 해결
 kick.com#@#img[src*="/banner/"]
+
+##img[src*="/banner_"]
 
 ! - - - https://newtoki.live/
 ##[class="banner"] img[src*='.gif']
@@ -4434,8 +4439,13 @@ inven.co.kr#@#iframe[src*="widgets"]
 ! https://7tv000.com/ 
 ##[class*="banner"] iframe
 
-! https://www.fmkorea.com/
+! https://www.fmkorea.com/ - 게시물 오른쪽
 ##[id="sidebar"] iframe
+!! https://www.fmkorea.com/ - 게시물 아래 댓글 위
+##[class*="content"] iframe
+! - - - 예외
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 댓글 작성란 없어짐
+ppomppu.co.kr#@#[class*="content"] iframe
 
 ! https://mypikpak.com/
 ! - - - 이걸 해제해도 바로 출첵 가능
@@ -5366,3 +5376,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
