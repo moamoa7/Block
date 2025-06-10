@@ -2472,14 +2472,16 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 ! - 영상 옆 배너공간
 ! - - - ! Ichiha 4.5(https://komi.la/) 배너 공간
 !njav.com##.mx-auto
-##.mx-auto
+njav.com,komi.la##.mx-auto
 ! - - - 예외
 ! - - - 야동그라운드 (https://yagro48.com/) - 전체 선택되서 안보임
-[$domain=/^yagro\d+.com/]#@#.mx-auto
+![$domain=/^yagro\d+.com/]#@#.mx-auto
 ! - - - 레딧 (https://www.reddit.com/) - 전체 선택되어 안보임
-reddit.com#@#.mx-auto
+!reddit.com#@#.mx-auto
 ! - - - https://fc2ppvdb.com/ - 전체 선택되어 안보임
-fc2ppvdb.com#@#.mx-auto
+!fc2ppvdb.com#@#.mx-auto
+! - - - https://missav.ws/ - 전체 선택되어 안보임
+!missav.*#@#.mx-auto
 !
 !
 ! MISSAV (https://missav.ws/)
@@ -2872,6 +2874,8 @@ komi.la##.sm\:grid
 !
 !
 ! https://sexygirl.cc/
+! - 배너 공간
+sexygirl.cc##div.overflow-auto
 ! - 차단 사이트
 ||beetlestaircaselobster.com^
 !
@@ -4925,6 +4929,8 @@ namu.wiki##[class*="g"][style*="margin"]
 
 ! https://tktube.com/
 ##iframe[src*="/player/"]
+! - - - 예외
+avsee.ru#@#iframe[src*="/player/"]
 
 ##iframe[src*="/api/"]
 
