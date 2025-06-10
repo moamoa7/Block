@@ -512,6 +512,8 @@ inven.co.kr##[class="modal-fixed"]
 ##[class*="Ad"]
 ! - - - 예외 (https://play.google.com/) - 제목 날라감
 play.google.com#@#[class*="Ad"]
+! - -  한국경제TV (https://www.wowtv.co.kr/) 기사 내용 사라짐
+wowtv.co.kr#@#[class*="Ad"]
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - - - PC
 !inven.co.kr##.new-board
@@ -1667,9 +1669,6 @@ hankyung.com##.stock-marquee-wrap
 ||realclick.co.kr^
 !
 !
-! 프레시안 뉴스 (https://pressian.com/)
-!
-!
 ! 뉴데일리 (https://www.newdaily.co.kr/) 삭제
 newdaily.co.kr##html
 ##img[src*="newdaily"]
@@ -1714,8 +1713,8 @@ edaily.co.kr##.boxshow_footer_dable
 !
 !
 ! 한국경제TV (https://www.wowtv.co.kr/)
-! - 상단 배너 공간
-www.wowtv.co.kr##.MainTopBig1.wrap-BannerBox
+! - 상단 배너
+##.box-banner
 !
 !
 ! 매일경제 (https://www.mk.co.kr/)
@@ -1726,6 +1725,16 @@ mk.co.kr###floating_banner_button
 ! JTBC뉴스 (https://news.jtbc.co.kr/)
 ! 광고 영역
 jtbc.co.kr##.set_contents_video_ad
+!
+!
+! https://www.topstarnews.net/
+! - 배너
+##.ad-view
+! - 차단 사이트
+||aedi.ai^$3p
+||piclick.kr^
+||optad360.io^
+||quantserve.com^$3p
 !
 !
 ! 텐아시아 (https://www.tenasia.co.kr/)
@@ -3602,8 +3611,8 @@ jusopick.com##.bg-black.flex-col
 !
 !
 ! Recurbate (https://recu.me/)
-! - 상단 배너
-##.header-sub
+! - 상단 배너 - 한국경제TV 상단 일부 날림으로 광역사용 안됨
+recu.me##.header-sub
 !
 !
 ! stripchatgirls (https://ko.stripchatgirls.com/)
@@ -4759,19 +4768,24 @@ ddanzi.com#@#[class*="boxshadow"][style] iframe
 ! 더팩트 (https://www.tf.co.kr/)
 ##[id*="Banner"] iframe
 
+
 ! 디시인사이드 (https://gall.dcinside.com/) 일부
 ! 더팩트 (https://www.tf.co.kr/)
 ##iframe[src*="/ad."]
 
+
 ! 더팩트 (https://www.tf.co.kr/)
 ##iframe[src*="/ad/"]
+
 
 ! 머니S (https://www.moneys.co.kr/)
 ! 연합뉴스 (https://www.yna.co.kr/
 ##iframe[src*="adBanner"]
 
+
 ! 머니S (https://www.moneys.co.kr/)
 ##iframe[src*="adex."]
+
 
 ! 인벤 (https://www.inven.co.kr/)
 ! 뉴스1 (https://www.news1.kr/)
@@ -4782,6 +4796,7 @@ ddanzi.com#@#[class*="boxshadow"][style] iframe
 ! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
 ##iframe[src*="ads"]
 
+
 ! 한국경제 (https://www.hankyung.com/)
 ##[class*=aside] iframe
 ! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
@@ -4791,8 +4806,13 @@ ddanzi.com#@#[class*="boxshadow"][style] iframe
 ! 엑스포츠뉴스 (https://www.xportsnews.com/)
 ##iframe[src*="xportsnews"]
 
+
 ! 뉴시스 (https://www.newsis.com/)
 ##iframe[src*="clickon.kr"]
+
+
+! 한국경제TV (http://www.wowtv.co.kr/)
+##[class*="adv-area"] iframe
 
 
 ! 네이트
