@@ -407,6 +407,8 @@ gall.dcinside.com#@#[class^="ad"]
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
+! - - - 모바일 상단 공간
+##.mobile
 ! - 차단 사이트
 ||external-api.impression-neo.naver.com^
 !
