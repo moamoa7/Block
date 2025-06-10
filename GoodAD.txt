@@ -2449,6 +2449,8 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 [$domain=/^yagro\d+.com/]#@#.mx-auto
 ! - - - 레딧 (https://www.reddit.com/) - 전체 선택되어 안보임
 reddit.com#@#.mx-auto
+! - - - https://fc2ppvdb.com/ - 전체 선택되어 안보임
+fc2ppvdb.com#@#.mx-auto
 !
 !
 ! MISSAV (https://missav.ws/)
