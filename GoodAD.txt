@@ -1965,6 +1965,8 @@ pedia.watcha.com##.adFixed
 !
 !
 ! 토렌트파이 (https://go3.xn--sm2bu5zfuhb6a9l.com/) (https://t19.torrentpi150.com/)
+! - 왼쪽 메뉴 텍스트 배너
+[$domain=/^t\d+.torrentpi150.com/]##.sero1
 ! - 상단 배너 공간
 [$domain=/^t\d+.torrentpi150.com/]##.basic-post-gallery
 ! - 왼쪽 배너
@@ -3000,6 +3002,9 @@ komi.la##.sm\:grid
 ! - 성인주소모음  등 텍스르 링크 없애기
 ! - - - 주소월드 (https://wdwd8.com/)
 ##.rainbow-text
+! - - - 예외
+! - - - 주소개럴리 (https://jusogall.com/) - 1위 사라짐
+jusogall.com#@#.rainbow-text
 !
 !
 ! 썸질라 (https://somez3.com/)
@@ -3467,6 +3472,26 @@ hitomi.la###immersive-translate-popup
 !@@||linkpan*.com/img/*$image
 !
 !
+! 링크114 (https://linktoto114.com/)
+! - 상단 배너 공간
+[$domain=/^linktoto\d+.com/]##.miso-post-gallery
+!
+!
+! 먹튀노리 (https://wearenoriworld.com/)
+! - 배너
+###imageContainer
+!
+!
+! 야주소 (https://xn--9l4b15e2td.com/)
+! - 상단 배너 공간
+xn--9l4b15e2td.com##.widget-box
+!
+!
+! 픽스코어 (https://pickscore119.com/)
+! - 배너
+##.ad-img
+!
+!
 ! 링크사랑 https://linklove14.com/) (https://linklove54.com/)
 ! - 베너 이미지
 !||linklove*.com/data/editor/*$image
@@ -3674,6 +3699,16 @@ noonnu.cc##.lg\:top-8
 ! 주소짱 (https://jusozzang05.xyz/)
 ! - 상단배너
 ![$domain=/^jusozzang\d+.xyz/]##.main_banner_6
+!
+!
+! 먹튀데이 (https://mtday.net/)
+! - 배너
+###main_banner
+!
+!
+! 먹튀슈퍼맨 (https://mt-superman.net/)
+! - 배너
+##.swiper-slide
 !
 !
 ! 링크닷컴 (https://linknnn.com/) - 주소 바뀌는듯
@@ -4383,6 +4418,11 @@ ppomppu.co.kr#@#[onclick] img[style]
 etoland.co.kr#@#[onclick] img[style]
 ! - - - 웃긴대학 (https://web.humoruniv.com/) - gif 영상 프레임 사라짐
 humoruniv.com#@#[onclick] img[style]
+! - - - 해피툰 (https://happytoon01.com/) - 만화 이미지 사라짐
+[$domain=/^happytoon\d+.com/]#@#[onclick] img[style]
+! - - - 디토토렌트 (https://ditto-torrent20.top/) - 이미지 사라짐
+[$domain=/^ditto-torrent\d+.top/]#@#[onclick] img[style]
+
 
 
 
