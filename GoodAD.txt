@@ -2456,6 +2456,12 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 !@@||cdn.tokyo-motion.net/img/logo.gif
 !
 !
+! https://shittokuadult.net/
+! - 배너
+##[id*="Banner"]
+###onlineBanner
+!
+!
 ! JavPOP (http://javpop.com/)
 ! - 이미지 복원
 !@@||javpop.com/img/*$image
@@ -2863,6 +2869,11 @@ komi.la##.sm\:grid
 ||f864fdc049.com^
 ||highperformanceformat.com^
 ||guidepaparazzisurface.com^
+!
+!
+! https://sexygirl.cc/
+! - 차단 사이트
+||beetlestaircaselobster.com^
 !
 !
 ! WatchJAVOnline (https://watchjavonline.com/)
@@ -4430,8 +4441,13 @@ humoruniv.com#@#[onclick] img[style]
 
 
 
+!!! - 광역 9
+! https://sexygirl.cc/
+##a[href*="click"] img
 
-!!! - 광역 9 (iframe 차단)
+
+
+!!! - 광역 10 (iframe 차단)
 ! - - - 광역으로 사용
 ! - - - https://redgirl37.org/ - 영상 아래 iframe
 ! - - - 거의 모든 iframe 차단
@@ -4887,6 +4903,30 @@ ddanzi.com#@#[class*="boxshadow"][style] iframe
 !##div>[class][style*="margin 0"]
 namu.wiki##[class*="g"][style*="margin"]
 
+
+! https://www.naver.com/
+##iframe[src*="banner"]
+
+! https://www.naver.com/
+! https://cafe.naver.com/ - 카페 오른쪽 메인 프레임 안보임
+!##iframe[src*="naver"]
+
+##iframe[src*="/banner/"]
+
+##iframe[src*="/banners/"]
+
+##iframe[src*="-ad-"]
+
+##iframe[src*="/ad-"]
+
+##[class*="popup"] iframe
+
+##[style*="iframe"] iframe
+
+! https://tktube.com/
+##iframe[src*="/player/"]
+
+##iframe[src*="/api/"]
 
 
 
