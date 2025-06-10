@@ -782,6 +782,8 @@ slrclub.com##[id*="3"]
 !
 !
 ! 클리앙 (https://www.clien.net/)
+! - 게시판 공백 공간 / 메인 하단 공백
+clien.net##div:has(> div[class="ad_banner"])
 ! - 오른쪽 배너 공간
 clien.net##.aside > div[class^="side_"]:not([class*="account"])
 ! - 게시글 하단 왼쪽 배너 공간
@@ -795,6 +797,8 @@ clien.net##.view_list
 clien.net##.ViewListArea
 ! - ##[class^="ad"] 복원 - 댓글 입력란 사라짐
 clien.net#@#[class^="ad"]
+! - 게시물 광고 글
+clien.net###hongboInfoList
 ! - 차단 사이트
 ||epnt.ebay.com^
 ||openx.net^
@@ -2119,6 +2123,9 @@ correctdilutetrophy.com$popup
 ! - 전체 배너 (상단 오른쪽 작은 배너 제외)
 !##[class="ad_banner"]
 ##.ad_banner
+! - - - 예외
+! - - - 클리앙 (https://www.clien.net/) - 검색어 입력란 지워짐
+clien.net#@#.ad_banner
 ! - 상단 오른쪽 작은 배너
 ! - - - PC
 !##[class="happy-header"]
