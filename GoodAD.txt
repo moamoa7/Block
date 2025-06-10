@@ -3715,7 +3715,7 @@ noonnu.cc##.lg\:top-8
 !
 ! 먹튀슈퍼맨 (https://mt-superman.net/)
 ! - 배너
-##.swiper-slide
+mt-superman.net##.swiper-slide
 !
 !
 ! 링크닷컴 (https://linknnn.com/) - 주소 바뀌는듯
