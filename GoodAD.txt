@@ -4735,13 +4735,14 @@ katfile.com#@#iframe[sandbox]
 
 ! https://www.ddanzi.com/
 ! https://messitv8.com/
-!##[class*="boxshadow"][style] iframe
-##[class*="box"][style] iframe
+##[class*="boxshadow"][style] iframe
+!##[class*="box"][style] iframe
 ! - - - 예외
-! - - - 카카오TV (https://tv.kakao.com/) - 영상 안나옴
-tv.kakao.com#@#[class*="box"][style] iframe
-! - - - 딴지일보 (https://www.ddanzi.com/) - 유튜브 프레임 안보임
-ddanzi.com#@#[class*="box"][style] iframe
+! - - - 카카오TV (https://tv.kakao.com/) - 영상 안나옴 (##[class*="boxshadow"][style] iframe 로 하면 해당 X)
+!tv.kakao.com#@#[class*="box"][style] iframe
+! - - - 딴지일보 (https://www.ddanzi.com/) - 유튜브 프레임 안보임 (##[class*="boxshadow"][style] iframe 로 해도 해당 O)
+ddanzi.com#@#[class*="boxshadow"][style] iframe
+!ddanzi.com#@#[class*="box"][style] iframe
 
 
 
