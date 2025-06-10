@@ -9406,21 +9406,3 @@ www.erdcloud.com#$#.erd-container { width: 100% !important; }
 [$domain=/^spotv\[0-9\]+\.com$/]##header { top: 0px !important; }
 ! aglint-disable-next-line
 [$domain=/newtoki\[0-9\]+\.com/]#$#body { overflow: auto !important; }
-!
-! DOMAIN-REFRESHER: END
-! <<<<<<<< https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filters-share/specific_CSS.txt
-!#include filters-uBO/specific_CSS.txt
-! >>>>>>>> https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filters-uBO/specific_CSS.txt
-! https://github.com/uBlockOrigin/uBlock-issues/issues/2130#issuecomment-1621684566
-apycsports.com#$#.copas_btn { display: none !important; }
-!
-!#if !env_firefox
-2cpu.co.kr#$#header .row[style] { margin-bottom: 35px !important; }
-sign.dcinside.com#$#.login_inputbox { width: 100% !important; }
-!#endif
-! <<<<<<<< https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filters-uBO/specific_CSS.txt
-!#endif
-
-!#if cap_html_filtering
-!#include filters-uBO/html_filtering.txt
-!#endif
