@@ -3982,7 +3982,7 @@ tistory.com##+js(set, adblockChecker, noopFunc)
 !||*/*/AD/*
 ||*/*/ad-*/*
 ! - 예외 (텍스트 안보임 해결)
-@@github.com/fordes123/ad-filters-subscriber/*$xhr
+@@github.com*$xhr
 !||*/*/AD-*/*
 ||*/*/ads/*
 ! - 레딧 알부 이미지 안나옴
@@ -4493,7 +4493,7 @@ humoruniv.com#@#[onclick] img[style]
 
 ##div > iframe
 ! - - - 예외
-dcinside.com,theqoo.net,damoang.net,poooo.ml#@#div > iframe
+dcinside.com,theqoo.net,damoang.net,poooo.ml,coupang.com#@#div > iframe
 ! - https://tvwiki21.com/
 ! - https://tvmon16.org/
 ! - https://tvhot.store/
@@ -4510,6 +4510,9 @@ avsee.ru,supjav.com,javneon.tv,evojav.pro,javeve.tv,javsaga.ninja,javbull.tv,jav
 
 ! - https://v15.jogemovie.net/
 qq2.fabulouslink.xyz#@#div > iframe
+
+
+
 
 
 
@@ -5777,5 +5780,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
 
