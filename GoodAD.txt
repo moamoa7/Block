@@ -4496,7 +4496,7 @@ dcinside.com,theqoo.net,damoang.net,poooo.ml#@#div > iframe
 ! - https://tvhot.store/
 [$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#div > iframe
 
-supjav.com,javneon.tv,evojav.pro,javeve.tv,javsaga.ninja,javbull.tv,javgg.net,sogirl.so,4kjav.co,javgiga.com,123av.com,njav.com,javrider.com,j91.asia,pubjav.com,popjav.in,javhd.today,javhd.icu,av19.live#@#div > iframe
+avsee.ru,supjav.com,javneon.tv,evojav.pro,javeve.tv,javsaga.ninja,javbull.tv,javgg.net,sogirl.so,4kjav.co,javgiga.com,123av.com,njav.com,javrider.com,j91.asia,pubjav.com,popjav.in,javhd.today,javhd.icu,av19.live#@#div > iframe
 ! - https://xxjoa46.com/
 ! - https://4.jamakyadong.me/
 ! - https://s10.watchfreejavonline.co/
