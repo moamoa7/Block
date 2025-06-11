@@ -4506,7 +4506,7 @@ humoruniv.com#@#[onclick] img[style]
 
 ##div > iframe
 ! - - - 예외
-dcinside.com,theqoo.net,damoang.net,poooo.ml,coupang.com#@#div > iframe
+dcinside.com,theqoo.net,ppomppu.co.kr,damoang.net,poooo.ml,coupang.com#@#div > iframe
 ! - https://tvwiki21.com/
 ! - https://tvmon16.org/
 ! - https://tvhot.store/
