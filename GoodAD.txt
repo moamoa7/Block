@@ -2887,6 +2887,14 @@ komi.la##.sm\:grid
 ||guidepaparazzisurface.com^
 !
 !
+! harpi (https://harpi.in/)
+! - 상단 배너 공간
+harpi.in##.css-9tdhmy
+harpi.in##.css-1r7df7j
+! - 차단 사이트
+||hdbkome.com^
+!
+!
 ! https://sexygirl.cc/
 ! - 배너 공간
 sexygirl.cc##div.overflow-auto
