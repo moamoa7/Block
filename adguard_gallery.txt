@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.06.09
+! Version: 2025.06.11.2
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -16,7 +16,6 @@ gmarket.co.kr#@#.js-impressionable
 gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 
 ! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
-@@||namu.wiki^$generichide
 namu.wiki##li:has(time):not(*:has([href*='/raw/'])):upward(2)
 namu.wiki##span:has-text(더 보기):upward(2):has([target])
 
@@ -46,7 +45,6 @@ m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 [$domain=/^tvwiki[0-9]*\.com/]###bannerList
 [$domain=/^tvwiki[0-9]*\.com/]###viewCover
 [$domain=/^tvwiki[0-9]*\.com/]##[src*='/banner/']
-[$domain=/^tvwiki[0-9]*\.com/]##li.full
 [$domain=/^yako[a-z0-9]*\.[a-z]{2,}/]###banner, .banner
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]##li:has([target]:not([href*=bbs]))
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[alt*='광고'], [alt*='배너'], [data-ride]
@@ -75,6 +73,7 @@ m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ##iframe[src*='ad.doyouad.com']
 ##iframe[src*='cdn.targetpush.co.kr']
 ##iframe[src*='digitalcamp.co.kr']
+##iframe[src*='innorame.com']
 ##iframe[src*='sga.adp']
 ##ins.adsbyaiinad
 11st.co.kr##iframe[src*='ads.adoffice.11st.co.kr']
@@ -156,7 +155,6 @@ m.ruliweb.com##tr:has(.nbp_container)
 mlbpark.donga.com##.coupang_cont
 mlbpark.donga.com##li.items:has([href*='php?b=phone'])
 mlbpark.donga.com##li.items:has([target='_blank'])
-mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
 ppomppu.co.kr##tr:has([src$='/icon_ppom_coupon_pc.png'])
 quasarplay.com##[class*='venatus']
@@ -219,8 +217,8 @@ $@$link[rel="manifest"]
 @@||static.airbridge.io/sdk^
 etoland.co.kr#@#div[class$="_ad"]
 hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
+m.hoyolab.com#@#.guide-download-drawer
 mlbpark.donga.com#@#div[class*="_ad"]
-mlbpark.donga.com#@$#div[id^="SmartPhone_"][id$="_today"] .lists > li::before { padding-top: 0px !important; border-bottom: none !important; }
 lol.inven.co.kr#@#article > div[style].banner
 search.11st.co.kr#@#[data-log-actionid-area^="focus"]
 web.joongna.com#@#a[rel*="sponsored"]
@@ -242,8 +240,18 @@ naver.com,~chzzk.naver.com##+js(addEventListener-defuser, /contextmenu|selectsta
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]##.board-tail-banner
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]##[style='margin-bottom: 20px;'].row.row-15
 
+! For SPA
+@@||harpi.in^$generichide
+@@||komi.la^$generichide
+@@||namu.wiki^$generichide
+
 ! Fix bugs
 !#if (adguard && adguard_app_android)
 greasyfork.org,sleazyfork.org#%#document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('a[class="install-link"][data-install-format="js"]').forEach(a=>a.href=`adguard:userscript?location=${a.href}`);});
+!#endif
+
+! test
+!#if (adguard && adguard_app_ios)
+m.dcinside.*#%#const meta=document.createElement("meta");meta.name="theme-color";meta.content="rgba(51, 67, 81, 1)";document.head.appendChild(meta);
 !#endif
 google is broken
