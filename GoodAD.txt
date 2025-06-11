@@ -4996,6 +4996,11 @@ naver.com#@#iframe[title*="frame"]
 !avsee.ru#@#iframe[src*="/player/"]
 
 
+##iframe[src*="google"]
+
+##iframe[src*="xhr"]
+
+
 
 ! 나무위키 (https://namu.wiki/)
 ! - - -광고가 보이면 F5 새로고침이 필요
