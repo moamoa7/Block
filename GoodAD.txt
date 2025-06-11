@@ -100,6 +100,11 @@ youtube.com##[class*="-ad-"]
 youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
 ! - - - YT 홈페이지 무한 스크롤을 제거
 !www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:remove()
+! - - - 기타
+! - - - - 확장프로그램 광고글 - 비디오광고 건너띄기 없애기
+youtube.com###ytd-player > div > .yt-formatted-string.codehemu-branding
+! - - - - 확장프로그램 추천하다 버튼 없애기
+youtube.com###ytd-player > div > button
 ! - 차단 사이트
 ||g.doubleclick.net^
 ||google.*/pagead/lvz?
