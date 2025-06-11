@@ -91,7 +91,8 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 ! 유튜브 (https://www.youtube.com/)
 ! - 광고
-##[class*="-ad-"]
+! - - - https://www.xvideos.com/ 영상 안나오므로 광역 
+youtube.com##[class*="-ad-"]
 ! - 유튜브 관련 광고 차단은 EasyList / uBlock filters – Ads / Block filters – Quick fixes 필터 구독할 것
 ! - - - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
 ! - - - 유니콘Pro에서도 적용됨
@@ -2181,6 +2182,11 @@ clien.net#@#.ad_banner
 ||waust.at^
 !
 !
+! TK Tubo (https://tktube.com/)
+! - 상단 배너
+##.top
+!
+!
 !
 ! AV핑크 (https://avpink36.com/)
 ! - 배너 이미지
@@ -4086,7 +4092,8 @@ naver.com#@#[class*="AD"]
 ! - - - https://javdoe.to/
 ! - - - https://javsky.tv/
 ! - - - https://javfree.sh/
-javfinder.ai,javdoe.to,javsky.tv,javfree.sh#@#[class*="ads"]
+! - - - https://javrider.com/
+javfinder.ai,javdoe.to,javsky.tv,javfree.sh,javrider.com#@#[class*="ads"]
 ! -위 ads  영상 프레임 아닌 광고 프레임 (Easy-List에 포함)
 !##[class="sidebar-ads"]
 !##.sidebar-ads
@@ -4096,7 +4103,10 @@ javhdporn.net#@#[class*="ads"]
 bestjavporn.com#@#[class*="ads"]
 ! - - - https://www4.javdock.com/ - 영상 안보임
 javdock.com#@#[class*="ads"]
-
+! - - - https://4.jamakyadong.me/ - 영상 안보임
+[$domain=/^\d+.jamakyadong.me/]#@#[class*="ads"]
+! - --  https://av19.live/ - 영상 안보임
+av19.live#@#[class*="ads"]
 
 
 
@@ -4477,6 +4487,29 @@ humoruniv.com#@#[onclick] img[style]
 !theqoo.net#@#[class][id] iframe
 
 
+
+##div > iframe
+! - - - 예외
+dcinside.com,theqoo.net,damoang.net,poooo.ml#@#div > iframe
+! - https://tvwiki21.com/
+! - https://tvmon16.org/
+! - https://tvhot.store/
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#div > iframe
+
+supjav.com,javneon.tv,evojav.pro,javeve.tv,javsaga.ninja,javbull.tv,javgg.net,sogirl.so,4kjav.co,javgiga.com,123av.com,njav.com,javrider.com,j91.asia,pubjav.com,popjav.in,javhd.today,javhd.icu,av19.live#@#div > iframe
+! - https://xxjoa46.com/
+! - https://4.jamakyadong.me/
+! - https://s10.watchfreejavonline.co/
+! - https://yagong85.com/
+! - https://yagro48.com/
+[$domain=/^xxjoa\d+.com/],[$domain=/^\d+.jamakyadong.me/],[$domain=/^s\d+.watchfreejavonline.co/],[$domain=/^yagong\d+.com/],[$domain=/^yagro\d+.com/]#@#div > iframe
+7tv000.com#@#div > iframe
+
+! - https://v15.jogemovie.net/
+qq2.fabulouslink.xyz#@#div > iframe
+
+
+
 ! https://www.youtube.com/
 ! https://www.instagram.com/
 ! https://accounts.google.com/
@@ -4514,6 +4547,9 @@ sogirl.so#@#iframe[src*="iframe"]
 7tv000.com#@#iframe[id*="iframe"]
 ! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
 naver.com#@#iframe[id*="iframe"]
+! - - - https://yagro48.com/ - 화면 안보임
+[$domain=/^yagro\d+.com/]#@#iframe[id*="iframe"]
+
 
 
 ! - https://funlove.info/
@@ -4558,11 +4594,6 @@ naver.com#@#iframe[id*="iframe"]
 
 !##iframe[src*="layout"]
 
-!#iframe[src*="video"]
-! - - - 예외
-! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
-!oooo.ml#@#iframe[src*="video"]
-
 !##iframe[src*="popup"]
 
 ! https://missav.ws/
@@ -4580,8 +4611,6 @@ naver.com#@#iframe[id*="iframe"]
 !##iframe[src*="badge"]
 
 !##iframe[src*="doubleclick"]
-
-!##iframe[src*="click"]
 
 !##iframe[src^="data:"]
 
@@ -4607,25 +4636,17 @@ naver.com#@#iframe[id*="iframe"]
 !/////////////////////////////////////////////////////////////////////////////////
 
 
-
-
-! https://supjav.com/
-##iframe[src*="ads."]
-
-
-! 디시인사이드 (https://gall.dcinside.com/) 일부
-##iframe[src*="/widget/"]
-
-
 ! 이토랜드
 ! https://javgiga.com/
-! https://supjav.com/
 ! https://7tv000.com/
+! https://www.njav.com/
+##iframe[src*="creative.rmhfrtnd.com/widgets/"]
 ! https://missav.ws/
-! https://v15.jogemovie.net/
+##iframe[src*="creative.myavlive.com/widgets/"]
+! https://tktube.com/ 일부
+##iframe[src*="creative.tklivechat.com/widgets/"]
+
 ##iframe[src*="/widgets/"]
-
-
 !##iframe[src*="widgets"]
 ! - - - 예외
 ! - 네이버 블로그 (https://blog.naver.com/) - 아무것도 안보임
@@ -4636,22 +4657,12 @@ naver.com#@#iframe[id*="iframe"]
 !inven.co.kr#@#iframe[src*="widgets"]
 
 
-! https://www.njav.com/
-##[class*="text-center"] iframe
-
-
-! https://missav.ws/
-##iframe[src*="javascript"]
-
-
-! https://7tv000.com/ 
+! https://7tv000.com/  일부
 ##[class*="banner"] iframe
 
 
-! https://www.fmkorea.com/ - 게시물 오른쪽
-##[id="sidebar"] iframe
-!! https://www.fmkorea.com/ - 게시물 아래 댓글 위
-##iframe[src*="loader"]
+! https://videocelebs.net/
+##iframe[src*="www.adxserve.com/adx/"]
 
 
 ! https://mypikpak.com/
@@ -4660,9 +4671,16 @@ naver.com#@#iframe[id*="iframe"]
 
 
 ! https://jp.xsz-av.com/
+! - 전체
 ##iframe[title*="frame"]
+! - - - 예외
 ! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
 naver.com#@#iframe[title*="frame"]
+##iframe[src*="ensosignal.com"]
+! - - - 개별
+!##iframe[src*="s.ensosignal.com/footer"]
+!##iframe[src*="s.ensosignal.com/bigfooter"]
+!##iframe[src*="s.ensosignal.com/side"]
 
 
 !##[class] iframe[style][src]
@@ -4692,8 +4710,6 @@ naver.com#@#iframe[title*="frame"]
 !etoland.co.kr#@#[class] iframe[style]
 ! - - - 인벤 (https://www.inven.co.kr/) - 트위터 프레임 안보임
 !inven.co.kr#@#[class] iframe[style]
-
-
 
 
 
@@ -4775,10 +4791,19 @@ naver.com#@#iframe[title*="frame"]
 ! https://supjav.com/
 ! https://noodlemagazine.com/
 ! https://missav.ws/
+##iframe[src*="go.mnaspm.com/smartpop"]
+##iframe[src*="go.rmhfrtnd.com/smartpop"]
+##iframe[src*="go.xlivrdr.com/smartpop"]
 ##iframe[src*="smartpop"]
 ! - - - 예외
 ! - - - 네이버카페 (https://cafe.naver.com/) - 게시물 클릭시 오른쪽 프레임 안보임
 !cafe.naver.com#@#iframe[src*="pop"]
+
+
+! https://kr.nudogram.com/
+##iframe[src*="go.dmzjmp.com"]
+! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
+##iframe[src*="/go."]
 
 
 ! 인벤 (https://www.inven.co.kr/) - 전체 iframe
@@ -4790,39 +4815,56 @@ naver.com#@#iframe[title*="frame"]
 ! https://sextb.date/
 !##[class] iframe[sandbox][src]
 !##[class] iframe[sandbox*="popup"][src]
+!##iframe[sandbox*="allow-popups"]
+!##iframe[sandbox*="allow-same-origin"]
+!##iframe[sandbox*="allow-scripts"]
+
+!##iframe[sandbox*="popups"]
 !##iframe[sandbox*="popup"]
 !##iframe[sandbox*="sandbox"]
 !##iframe[sandbox src]
-##iframe[sandbox]
+##iframe[sandbox="allow-same-origin allow-scripts allow-forms allow-top-navigation allow-popups"]
+!##iframe[sandbox]
 ! - - - 예외 : 로그에서 차단으로 안뜨지만 풀어야 함
-! https://mypikpak.com/ - 출첵팝업 안뜸
+! https://mypikpak.com/ - 로봇이 아닙니다 팝업 안뜸
 !mypikpak.com#@#iframe[sandbox*="popup"]
 !mypikpak.com#@#iframe[sandbox src]
-mypikpak.com#@#iframe[sandbox]
+!mypikpak.com#@#iframe[sandbox]
 ! - https://gall.dcinside.com/ - 로봇이 아닙니다 팝업 안뜸
 !gall.dcinside.com#@#iframe[sandbox*="popup"]
 !gall.dcinside.com#@#iframe[sandbox src]
-gall.dcinside.com#@#iframe[sandbox]
+!gall.dcinside.com#@#iframe[sandbox]
 ! - - - AvseeTV (https://05.avsee.ru/) - 캡챠 (challenges.cloudflare.com) 안보임
 !avsee.ru#@#iframe[sandbox*="popup"]
 !avsee.ru#@#iframe[sandbox src]
-avsee.ru#@#iframe[sandbox]
+!avsee.ru#@#iframe[sandbox]
 ! - - - https://katfile.com/ - 캡챠 (www.google.com/recaptcha/) 안보임
 !katfile.com#@#iframe[sandbox*="popup"]
 !katfile.com#@#iframe[sandbox*="sandbox"]
 !katfile.com#@#iframe[sandbox src]
-katfile.com#@#iframe[sandbox]
+!katfile.com#@#iframe[sandbox]
+
+! https://sextb.date/ 일부
+! https://7tv000.com/ 일부
+##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
+! https://sextb.date/ 일부
+##iframe[sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-same-origin"]
+
+##iframe[sandbox*="allow-forms"]
+
+
 
 
 ! https://www.ddanzi.com/
 ! https://messitv8.com/
-##[class*="boxshadow"][style] iframe
 !##[class*="box"][style] iframe
+!##[class*="boxshadow"][style] iframe - 딴지에 해당 안되게 아래 규칙으로 변경
+!##[class*="_boxshadow_"] iframe
 ! - - - 예외
 ! - - - 카카오TV (https://tv.kakao.com/) - 영상 안나옴 (##[class*="boxshadow"][style] iframe 로 하면 해당 X)
 !tv.kakao.com#@#[class*="box"][style] iframe
 ! - - - 딴지일보 (https://www.ddanzi.com/) - 유튜브 프레임 안보임 (##[class*="boxshadow"][style] iframe 로 해도 해당 O)
-ddanzi.com#@#[class*="boxshadow"][style] iframe
+!ddanzi.com#@#[class*="boxshadow"][style] iframe
 !ddanzi.com#@#[class*="box"][style] iframe
 
 
@@ -4870,21 +4912,26 @@ ddanzi.com#@#[class*="boxshadow"][style] iframe
 
 
 ! 한국경제 (https://www.hankyung.com/)
-##[class*=aside] iframe
-! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
-##[class*=-ad-] iframe
+##[class^=aside] iframe
 
+! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
+##[class*="-ad-"] iframe
+!##iframe[src*="adv.imadrep.co.kr"]
+##iframe[src*="adv."]
 
 ! 엑스포츠뉴스 (https://www.xportsnews.com/)
 ##iframe[src*="xportsnews"]
 
 
 ! 뉴시스 (https://www.newsis.com/)
-##iframe[src*="clickon.kr"]
+!##iframe[src*="clickon.kr"]
+!##iframe[src*="clickon"]
+##iframe[src*="click"]
 
 
 ! 한국경제TV (http://www.wowtv.co.kr/)
 ##[class*="adv-area"] iframe
+##iframe[src*="adapi"]
 
 
 ! 네이트
@@ -4892,20 +4939,6 @@ ddanzi.com#@#[class*="boxshadow"][style] iframe
 ##iframe[src*="Bottom"]
 ##iframe[title*="광고"]
 ##iframe[src*="_ad_"]
-
-
-! https://kr.nudogram.com/
-##iframe[src*="go.dmzjmp.com"]
-! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
-##iframe[src*="/go."]
-
-
-
-! 나무위키 (https://namu.wiki/)
-! - - -광고가 보이면 F5 새로고침이 필요
-!##[class][style="margin 0; color: #239d9668"]
-!##div>[class][style*="margin 0"]
-namu.wiki##[class*="g"][style*="margin"]
 
 
 ! https://www.naver.com/
@@ -4928,11 +4961,37 @@ namu.wiki##[class*="g"][style*="margin"]
 ##[style*="iframe"] iframe
 
 ! https://tktube.com/
-##iframe[src*="/player/"]
+! - -  2개 iframe 선택됨
+!##[class="content"] iframe
+! - - - https://theqoo.net/ 유튜브 등 프레임 안나옴
+! 플레이어 위 1개
+##iframe[id="stripchatHeader"]
+##[class="player"] iframe
+##[class="block-video"] iframe
+!##[class*="video"] iframe
 ! - - - 예외
-avsee.ru#@#iframe[src*="/player/"]
+! - - - https://supjav.com/
+!supjav.com#@#[class*="video"] iframe
 
-##iframe[src*="/api/"]
+!##iframe[src*="video"]
+! - - - 예외
+! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
+!poooo.ml#@#iframe[src*="video"]
+! - - - 예외
+!javgg.net#@#iframe[src*="video"]
+
+!##iframe[src*="/player/"]
+! - - - 예외
+!avsee.ru#@#iframe[src*="/player/"]
+
+
+
+! 나무위키 (https://namu.wiki/)
+! - - -광고가 보이면 F5 새로고침이 필요
+!##[class][style="margin 0; color: #239d9668"]
+!##div>[class][style*="margin 0"]
+namu.wiki##[class*="g"][style*="margin"]
+
 
 
 
