@@ -68,6 +68,11 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 !
+!!! JavaScript 관련 필터 해제
+#@#+js()
+!
+!
+!
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !
 !
@@ -91,35 +96,36 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 ! 유튜브 (https://www.youtube.com/)
 ! - @@||www.youtube.com^$generichide 해제 (EasyList)
-@@||www.youtube.com^$generichide,badfilter
+!@@||www.youtube.com^$generichide,badfilter
+!youtube.com#@#+js()
 ! - 광고
-||pagead2.googlesyndication.com^
-||doubleclick.net^
-||ad.doubleclick.net^
-||g.doubleclick.net^
-||googleads.g.doubleclick.net^
-||tpc.googlesyndication.com^
-||youtube.com/api/stats/ads
-||youtube.com/api/stats/qoe*
-||youtube.com/get_midroll_info
-||youtube.com/pagead/*
-||youtube.com/ptracking*
-||youtube.com/yva_video*
-||youtube.com/yva_csi*
-||youtube.com/s/player/*/ad*
-||youtube.com/s/player/*/ads*
-||youtube.com/s/player/*/annotations_module.js
-||youtube.com/s/player/*/ima3.js
-||googlevideo.com/get_ad
-||youtube.googleapis.com/v1/player/ad_break
+!||pagead2.googlesyndication.com^
+!||doubleclick.net^
+!||ad.doubleclick.net^
+!||g.doubleclick.net^
+!||googleads.g.doubleclick.net^
+!||tpc.googlesyndication.com^
+!||youtube.com/api/stats/ads
+!||youtube.com/api/stats/qoe*
+!||youtube.com/get_midroll_info
+!||youtube.com/pagead/*
+!||youtube.com/ptracking*
+!||youtube.com/yva_video*
+!||youtube.com/yva_csi*
+!||youtube.com/s/player/*/ad*
+!||youtube.com/s/player/*/ads*
+!||youtube.com/s/player/*/annotations_module.js
+!||youtube.com/s/player/*/ima3.js
+!||googlevideo.com/get_ad
+!||youtube.googleapis.com/v1/player/ad_break
 
-||youtube.com/api/stats/watchtime*
-||youtube.com/generate_204
-||youtube.com/pagead/livelink
-||youtube.com/pagead/gadgets
-||youtube.com/pagead/ads
-||youtube.com/api/ads/*
-||youtube.com/ads/*
+!||youtube.com/api/stats/watchtime*
+!||youtube.com/generate_204
+!||youtube.com/pagead/livelink
+!||youtube.com/pagead/gadgets
+!||youtube.com/pagead/ads
+!||youtube.com/api/ads/*
+!||youtube.com/ads/*
 
 ! - 추가 추천 필터 (선택 사항) - 추가하면 영상 로딩 버퍼가 더 걸리는거 같아서 해제
 !||youtube.com/api/innertube/ad*
@@ -151,7 +157,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !||youtube.com/ptracking*
 !||youtube.com/api/ads/*
 !||googlevideo.com/get_ad
-
 
 
 ! - - - https://www.xvideos.com/ 영상 안나오므로 광역 
@@ -2084,7 +2089,8 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! - 새창 방지
 avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - - - uBlock filters – Ads
-/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
+!/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
+||*/en/*&id=*
 ! - 차단 사이트
 ||aroundcommoditysway.com^
 !
