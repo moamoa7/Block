@@ -2334,6 +2334,11 @@ topjav.tv##.koukoku_11
 ||twinrdengine.com^
 !
 !
+! https://spankbang1.com/
+! - 차단 사이트
+||endowmentoverhangutmost.com^
+!
+!
 ! JAVFAN (https://javfan.one/)
 ! 메인 - 각 목록별 배너 공간 (모바일)
 javfan.one##div:nth-of-type(9)
@@ -4240,7 +4245,7 @@ av19.live#@#[class*="ads"]
 
 
 
-! 영상 하단 텍스트 광고
+! 영상 하단 텍스트 광고 (텍스트 + 배경 테이블)
 ! - - - 광역으로 처리시 다른 모든 버튼이 사라짐
 ! - - - AV탑걸 (https://kr40.topgirl.co/) - target*="blank" 추가하면 안없어짐
 ! - - - 자브걸 (https://kr24.javgirl.co/)
@@ -4257,6 +4262,7 @@ xn--9t4b31dr7o.com#@#div>[class*="button"]>[style]
 !speedtest.net#@#[class*="button"][style]
 ! - - - https://linkloveko.com/ - 안내 주소 사라짐
 linkloveko.com#@#div>[class*="button"]>[style]
+
 
 
 ! 이토랜드 게시물 하단 쿠팡 광고 등
@@ -4498,7 +4504,6 @@ humoruniv.com#@#[onclick] img[style]
 
 
 
-
 !!! - 광역 9
 ! https://sexygirl.cc/
 ##a[href*="click"] img
@@ -4508,8 +4513,15 @@ auction.co.kr#@#a[href*="click"] img
 
 
 
+!!! - 광역 10
+! - 텍스트 광고 (텍스트 + 배경 테이블)
+! - https://01.avpop.tv/
+![$domain=/^\d+.avpop.tv/]##a[href] [style*="background"] - 아래 규칙으로 변경
+##a[href*="banner"] [style*="background"]
 
-!!! - 광역 10 (iframe 차단)
+
+
+!!! - 광역 11 (iframe 차단)
 ! - - - 광역으로 사용
 ! - - - https://redgirl37.org/ - 영상 아래 iframe
 ! - - - 거의 모든 iframe 차단
@@ -4643,23 +4655,6 @@ naver.com#@#iframe[id*="iframe"]
 !inven.co.kr#@#[class][style] iframe
 
 
-!##iframe[src*="/embed/"]
-! - - - 예외
-! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
-!theqoo.net#@#iframe[src*="/embed/"]
-! - - - https://namu.wiki/  - 유튜브 등 사라짐
-!namu.wiki#@#iframe[src*="embed"]
-
-!##iframe[src*="embed"]
-! - - - 예외
-! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
-!theqoo.net#@#iframe[src*="embed"]
-! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
-!poooo.ml#@#iframe[src*="embed"]
-! - - - https://namu.wiki/  - 유튜브 등 사라짐
-!namu.wiki#@#iframe[src*="embed"]
-
-
 !##iframe[src*="layout"]
 
 !##iframe[src*="popup"]
@@ -4708,11 +4703,18 @@ naver.com#@#iframe[id*="iframe"]
 ! https://javgiga.com/
 ! https://7tv000.com/
 ! https://www.njav.com/
+! https://miss-jav.com/
 ##iframe[src*="creative.rmhfrtnd.com/widgets/"]
 ! https://missav.ws/
+! https://njavtv.com/
 ##iframe[src*="creative.myavlive.com/widgets/"]
 ! https://tktube.com/ 일부
 ##iframe[src*="creative.tklivechat.com/widgets/"]
+! https://www.tokyomotion.net/
+##iframe[src*="creative.bbrdbr.com/widgets/"]
+! https://javmix.tv/
+! https://javpark.net/
+##iframe[src*="creative.xlirdr.com/widgets/"]
 
 ##iframe[src*="/widgets/"]
 !##iframe[src*="widgets"]
@@ -4845,6 +4847,7 @@ naver.com#@#iframe[title*="frame"]
 ! https://www.av01.tv/ 전체
 ! https://missav.ws/ 일부
 ! https://ggjav.com/ 일부
+! https://missav123.com/ 일부
 ##iframe[data-link]
 ##iframe[src*="javascript:window.location"]
 
@@ -4860,10 +4863,14 @@ naver.com#@#iframe[title*="frame"]
 ! https://supjav.com/
 ! https://noodlemagazine.com/
 ! https://missav.ws/
-##iframe[src*="go.mnaspm.com/smartpop"]
-##iframe[src*="go.rmhfrtnd.com/smartpop"]
-##iframe[src*="go.xlivrdr.com/smartpop"]
-##iframe[src*="smartpop"]
+! https://missav123.com/
+! https://www.netflav5.com/
+##iframe[src*="go.mnaspm.com/smartpop/"]
+##iframe[src*="go.rmhfrtnd.com/smartpop/"]
+##iframe[src*="go.xlivrdr.com/smartpop/"]
+##iframe[src*="go.xlvirdr.com/smartpop/"]
+
+##iframe[src*="/smartpop/"]
 ! - - - 예외
 ! - - - 네이버카페 (https://cafe.naver.com/) - 게시물 클릭시 오른쪽 프레임 안보임
 !cafe.naver.com#@#iframe[src*="pop"]
@@ -4871,8 +4878,37 @@ naver.com#@#iframe[title*="frame"]
 
 ! https://kr.nudogram.com/
 ##iframe[src*="go.dmzjmp.com"]
+! https://manymv.com/
+##iframe[src*="go.xlrdr.com"]
+! https://24hjav.com/
+##iframe[src*="go.tklivechat.com"]
+
 ! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
 ##iframe[src*="/go."]
+
+
+! https://24hjav.com/ 일부 - 아닌데 실수
+!##[class*="embed"] iframe[src*="/embed/"]
+! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#[class*="embed"] iframe[src*="/embed/"]
+
+!##iframe[src*="/embed/"]
+! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#iframe[src*="/embed/"]
+! - - - https://namu.wiki/  - 유튜브 등 사라짐
+!namu.wiki#@#iframe[src*="embed"]
+
+!##iframe[src*="embed"]
+! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#iframe[src*="embed"]
+! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
+!poooo.ml#@#iframe[src*="embed"]
+! - - - https://namu.wiki/  - 유튜브 등 사라짐
+!namu.wiki#@#iframe[src*="embed"]
+
 
 
 ! 인벤 (https://www.inven.co.kr/) - 전체 iframe
@@ -4957,6 +4993,7 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 
 ! 디시인사이드 (https://gall.dcinside.com/) 일부
 ! 더팩트 (https://www.tf.co.kr/)
+! https://miss-jav.com/ 일부
 ##iframe[src*="/ad."]
 
 
@@ -5027,6 +5064,7 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 
 
 ! https://www.naver.com/
+! https://miss-jav.com/
 ##iframe[src*="banner"]
 
 ! https://www.naver.com/
@@ -5083,7 +5121,10 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 
 ##iframe[title*="iframe"]
 
-##[id*="iframe"] iframe
+!##[id*="iframe"] iframe
+! - - - 예외
+! - - - https://tv.kakao.com/ - 영상 안나옴
+!tv.kakao.com#@#[id*="iframe"] iframe
 
 ! - - -
 
@@ -5346,13 +5387,6 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 
 !!! - 기본 6
-! - 텍스트 광고 (텍스트 + 배경 테이블)
-! - - - 광역 사용시 일부 이미지 사라짐
-! - https://01.avpop.tv/
-[$domain=/^\d+.avpop.tv/]##a[href] [style*="background"]
-
-
-!!! - 기본 7
 ! - 일부 사이트에서 사용 중 (target과 class 다 붙어 있음)
 ! - - - 광역 사용시 타사이트 이미지 지워짐
 ! - - - https://linkpan71.com/ 상단 배너
@@ -5466,6 +5500,9 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - - - 온리걸 (https://onlygirl.asia/) - 상단 배너
 !##a[href] img[src][class][srcset] - AV러브걸 (https://avlove28.com/) 영상 이미지 일부 지워짐
 ##a[href] img[src][class][alt=""][srcset]
+! - - - 예외
+! - - - https://dramaday.me/ - 일부 이미지 사라짐
+dramaday.me#@#a[href] img[src][class][alt=""][srcset]
 
 
 !!! - 변형 4
