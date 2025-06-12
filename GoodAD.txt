@@ -95,6 +95,8 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
+! - 유튜브 광고 허용
+youtube.com#@#*
 ! - @@||www.youtube.com^$generichide 해제 (EasyList)
 !@@||www.youtube.com^$generichide,badfilter
 !youtube.com#@#+js()
@@ -157,6 +159,19 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !||youtube.com/ptracking*
 !||youtube.com/api/ads/*
 !||googlevideo.com/get_ad
+
+##[id^="ad"]
+##[id*="ads"]
+
+##[id^="ad"] iframe
+##[id*="ad"] iframe
+##[id*="ads"] iframe
+
+##[class^="ad"] iframe
+! https://supjav.com/
+! https://05.avsee.ru/
+##[class*="ad"] iframe
+##[class*="ads"] iframe
 
 
 ! - - - https://www.xvideos.com/ 영상 안나오므로 광역 
@@ -2089,8 +2104,7 @@ avsee.ru##div.main-box:nth-of-type(1)
 ! - 새창 방지
 avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - - - uBlock filters – Ads
-!/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
-||*/en/*&id=*
+/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
 ! - 차단 사이트
 ||aroundcommoditysway.com^
 !
