@@ -90,6 +90,8 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
+! - @@||www.youtube.com^$generichide 해제 (EasyList)
+@@||www.youtube.com^$generichide,badfilter
 ! - 광고
 ! - - - https://www.xvideos.com/ 영상 안나오므로 광역 
 youtube.com##[class*="-ad-"]
@@ -97,7 +99,7 @@ youtube.com##[class*="-ad-"]
 ! - - - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
 ! - - - 유니콘Pro에서도 적용됨
 ! - - - - - 출처 : https://gall.dcinside.com/youtube/378167
-youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
+!youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
 ! - - - YT 홈페이지 무한 스크롤을 제거
 !www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:remove()
 ! - - - 기타
