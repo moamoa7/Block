@@ -4248,14 +4248,15 @@ av19.live#@#[class*="ads"]
 !topgirl.co,javgirl.co,ddal.xyz##[class*="button"] a[href]
 ! - button으로 하니 다른 클래스와 많이 겹쳐서 [style] 추가
 !##[class*="button"][style] a[href] - 더 많은 공간 확보를 위해 아래 규칙으로 변경
-##[class*="button"][style]
+!##[class*="button"][style] - 다른 사이트에서 영상 플레이버튼이 사라져서 아래로 재변경
+##div>[class*="button"]>[style]
 ! - - - 예외
 ! - - - https://xn--9t4b31dr7o.com/ - 안내주소 안보임
-xn--9t4b31dr7o.com#@#[class*="button"][style]
+xn--9t4b31dr7o.com#@#div>[class*="button"]>[style]
 ! - - - https://www.speedtest.net/ - 속도 태스트 버튼 안보임
-speedtest.net#@#[class*="button"][style]
+!speedtest.net#@#[class*="button"][style]
 ! - - - https://linkloveko.com/ - 안내 주소 사라짐
-linkloveko.com#@#[class*="button"][style]
+linkloveko.com#@#div>[class*="button"]>[style]
 
 
 ! 이토랜드 게시물 하단 쿠팡 광고 등
@@ -4841,10 +4842,11 @@ naver.com#@#iframe[title*="frame"]
 !poooo.ml/#@#[class][style] iframe[style]
 
 
-
+! https://www.av01.tv/ 전체
 ! https://missav.ws/ 일부
 ! https://ggjav.com/ 일부
 ##iframe[data-link]
+##iframe[src*="javascript:window.location"]
 
 
 
@@ -5076,6 +5078,15 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ! - https://05.avsee.ru/ - 로그인 캡챠 안됨
 !##iframe[src*="cloudflare"]
 !##iframe[src*="cdn"]
+
+! - - 임시
+
+##iframe[title*="iframe"]
+
+##[id*="iframe"] iframe
+
+! - - -
+
 
 
 ! 나무위키 (https://namu.wiki/)
