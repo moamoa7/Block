@@ -2749,7 +2749,7 @@ notion.so@@||/*/ads/*
 !##.happy-sidebar
 !
 !
-! 색색티비 (https://kr161.mysstv.com/)
+! 색색티비 (https://kr203.mysstv.com/)
 ! - 배너 이미지 (대/소문자 구분)
 ! - - - src*='Banner"
 ![$domain=/^kr\d+.mysstv.com/]##[src*='Banner']
@@ -2758,6 +2758,8 @@ notion.so@@||/*/ads/*
 !##[target="_blank"]:has([src*="/Banner"])
 ! - 영상 광고
 [$domain=/^kr\d+.mysstv.com/]##.artplayer-plugin-ads
+! - 팝업 방지
+sstv01.work.gd$popup
 !
 !
 ! 야동그라운드 (https://yagro48.com/)
@@ -2832,12 +2834,12 @@ xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 ![$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(8)
 !
 !
-! 천사티비 (https://1004sweet.com/) (https://1004deep.com/)
+! 천사티비 (https://1004sweet.com/) (https://1004deep.com/) (https://1004dance.com/)
 ! - 배너
 ! - - - https://minkch.com/
-1004sweet.com,1004deep.com##.external
+1004sweet.com,1004deep.com,1004dance.com##.external
 ! - 영상 상단 텍스트 배너
-1004sweet.com,1004deep.com##.da-above
+1004sweet.com,1004deep.com,1004dance.com##.da-above
 ! - 업소추천 글자
 !1004sweet.com,1004deep.com##li:nth-of-type(3)
 ! - 제휴광고 글자
@@ -2845,7 +2847,7 @@ xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 ! - 커뮤니티/메시지/공지사항 공지 및 배너 광고
 !1004sweet.com,1004deep.com##.swip-ticker
 ! - ##[class^="ad"] 해제 - 일부 이미지 안나옴
-1004sweet.com,1004deep.com#@#[class^="ad"]
+1004sweet.com,1004deep.com,1004dance.com#@#[class^="ad"]
 !
 !
 ! 조개파티 (https://jogaeparty139.com/)
@@ -3104,6 +3106,8 @@ jusogall.com#@#.rainbow-text
 ![$domain=/^bo-zi\d+.net/]##.banners-container
 ![$domain=/^av\d+.xyz/]##.banners-container
 !##.banners-container
+! - 영상 하단 텍스트
+###h_tag_link
 !
 !
 ! 딸플릭스 (https://kr3.ddal.xyz/)
@@ -4236,17 +4240,20 @@ av19.live#@#[class*="ads"]
 
 ! 영상 하단 텍스트 광고
 ! - - - 광역으로 처리시 다른 모든 버튼이 사라짐
-! - - - AV탑걸 (https://kr40.topgirl.co/)
+! - - - AV탑걸 (https://kr40.topgirl.co/) - target*="blank" 추가하면 안없어짐
 ! - - - 자브걸 (https://kr24.javgirl.co/)
 ! - - - 딸플릭스 (https://kr4.ddal.xyz/)
 !topgirl.co,javgirl.co,ddal.xyz##[class*="button"] a[href]
 ! - button으로 하니 다른 클래스와 많이 겹쳐서 [style] 추가
-##[class*="button"][style] a[href]
+!##[class*="button"][style] a[href] - 더 많은 공간 확보를 위해 아래 규칙으로 변경
+##[class*="button"][style]
 ! - - - 예외
 ! - - - https://xn--9t4b31dr7o.com/ - 안내주소 안보임
-xn--9t4b31dr7o.com#@#[class*="button"][style] a[href]
+xn--9t4b31dr7o.com#@#[class*="button"][style]
 ! - - - https://www.speedtest.net/ - 속도 태스트 버튼 안보임
-speedtest.net#@#[class*="button"][style] a[href]
+speedtest.net#@#[class*="button"][style]
+! - - - https://linkloveko.com/ - 안내 주소 사라짐
+linkloveko.com#@#[class*="button"][style]
 
 
 ! 이토랜드 게시물 하단 쿠팡 광고 등
@@ -4398,6 +4405,10 @@ javhd.icu#@#[class*="player"] [src*="/wp-content/uploads"]
 ! - - - 조개무비 (https://v15.jogemovie.net/) - 상단 배너
 ! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/) - 메인 상단 제외 전체 배너
 ##[class*="wp-block"] a[href] img[src*="/wp-content/uploads/"]
+! - -- 예외
+! - - - https://onlygirl.asia/ - 영상 이미지 사라짐
+onlygirl.asia#@#[class*="widget-image"] a[href] img[src*="/wp-content/uploads/"]
+
 
 
 ! 광역 3 + 추가 영역 처리 - 비광역으로 처리
@@ -4479,6 +4490,9 @@ humoruniv.com#@#[onclick] img[style]
 [$domain=/^happytoon\d+.com/]#@#[onclick] img[style]
 ! - - - 디토토렌트 (https://ditto-torrent20.top/) - 이미지 사라짐
 [$domain=/^ditto-torrent\d+.top/]#@#[onclick] img[style]
+! - - - 링크짱 (https://www.zzang11.com/) - 안해도 되나 해제
+[$domain=/^www.zzang\d+.com/]#@#[onclick] img[style]
+
 
 
 
@@ -4519,25 +4533,42 @@ auction.co.kr#@#a[href*="click"] img
 
 
 
-##div > iframe
+!##div > iframe
 ! - - - 예외
-dcinside.com,theqoo.net,ppomppu.co.kr,damoang.net,poooo.ml,coupang.com,mypikpak.com#@#div > iframe
+!dcinside.com,theqoo.net,ppomppu.co.kr,damoang.net,poooo.ml,coupang.com,mypikpak.com#@#div > iframe
 ! - https://tvwiki21.com/
 ! - https://tvmon16.org/
 ! - https://tvhot.store/
-[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#div > iframe
+![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#div > iframe
 
-avsee.ru,supjav.com,javneon.tv,evojav.pro,javeve.tv,javsaga.ninja,javbull.tv,javgg.net,sogirl.so,4kjav.co,javgiga.com,123av.com,njav.com,javrider.com,j91.asia,pubjav.com,popjav.in,javhd.today,javhd.icu,av19.live#@#div > iframe
+!avsee.ru,supjav.com,javneon.tv,evojav.pro,javeve.tv,javsaga.ninja,javbull.tv,javgg.net,sogirl.so,4kjav.co,javgiga.com,123av.com,njav.com,javrider.com,j91.asia,pubjav.com,popjav.in,javhd.today,javhd.icu,av19.live#@#div > iframe
 ! - https://xxjoa46.com/
 ! - https://4.jamakyadong.me/
 ! - https://s10.watchfreejavonline.co/
 ! - https://yagong85.com/
 ! - https://yagro48.com/
-[$domain=/^xxjoa\d+.com/],[$domain=/^\d+.jamakyadong.me/],[$domain=/^s\d+.watchfreejavonline.co/],[$domain=/^yagong\d+.com/],[$domain=/^yagro\d+.com/]#@#div > iframe
-7tv000.com#@#div > iframe
+! - https://yamoa36.site/
+! - https://yaburi62.com/
+! - https://4.yadongpan.me/
+! - https://01.avpop.tv/
+! - https://yasome48.cc/
+! - https://bo-zi66.net/
+! - https://yaohri37.com/
+! - https://modooav6.com/
+! - https://mmaxx8.com/
+! - https://buska21.com/
+! - https://ggbam9.com/
+! - https://gristmill32.com/
+! - https://ddaltime173.com/ - 영상 없음
+! - https://dragonfly66.com/
+! - https://s2.onanibang.com/
+! - https://samdasoo61.com/
+! - https://nvt44.com/
+![$domain=/^xxjoa\d+.com/],[$domain=/^\d+.jamakyadong.me/],[$domain=/^s\d+.watchfreejavonline.co/],[$domain=/^yagong\d+.com/],[$domain=/^yagro\d+.com/],[$domain=/^yamoa\d+.site/],[$domain=/^yaburi\d+.com/],[$domain=/^\d+.yadongpan.me/],[$domain=/^\d+.avpop.tv/],[$domain=/^yasome\d+.cc/],[$domain=/^bo-zi\d+.net/],[$domain=/^yaohri\d+.com/],[$domain=/^modooav\d+.com/],[$domain=/^mmaxx\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^ggbam\d+.com/],[$domain=/^gristmill\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^dragonfly\d+.com/],[$domain=/^s\d+.onanibang.com/],[$domain=/^samdasoo\d+.com/],[$domain=/^nvt\d+.com/]#@#div > iframe
+!7tv000.com#@#div > iframe
 
 ! - https://v15.jogemovie.net/
-qq2.fabulouslink.xyz#@#div > iframe
+!qq2.fabulouslink.xyz#@#div > iframe
 
 
 
@@ -5242,9 +5273,10 @@ instiz.net#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - 4KJAV (https://kr29.4kjav.co/)
 ! - - - 티비핫 (https://tvhot.store/) - 주소 바뀜
 ! - - - 뉴토끼 시즌2 (https://newtoki.biz/)
+! - - - 모두의AV (https://modooav6.com/)
 !##a[href*='http'][target*='blank'] img
 ![$domain=/^yaburi\d+.com/],[$domain=/^dozi\d+.com/]##a[href][target*='_blank'] img
-www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^jogaeparty\d+.com/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],tvhot.store,newtoki.biz##a[href][target*='blank'] img
+www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fxfx\d+.com/],aniweek.com,[$domain=/^today-sports\d+.com/],mingky.net,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^jogaeparty\d+.com/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],tvhot.store,newtoki.biz,[$domain=/^modooav\d+.com/]##a[href][target*='blank'] img
 
 
 
@@ -5413,6 +5445,14 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - target 이 없는 요소
 ! - - - 핫툰 (https://hottoon53.com/) - 상단 배너
 [$domain=/^hottoon\d+.com/]##a[href] img[style]
+
+
+!!! - 변형 3
+! - 일부 사이트에서 사용 중
+! - target 이 없는 요소
+! - - - 온리걸 (https://onlygirl.asia/) - 상단 배너
+!##a[href] img[src][class][srcset] - AV러브걸 (https://avlove28.com/) 영상 이미지 일부 지워짐
+##a[href] img[src][class][alt=""][srcset]
 
 
 !!! - 변형 4
@@ -5833,3 +5873,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
