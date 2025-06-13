@@ -332,6 +332,11 @@ twitch.tv###twilight-sticky-footer-root
 ||ad.daum.net^
 !
 !
+! 다음 스포츠 (https://sports.daum.net/)
+! - ##[class^="ad"] 해제 - 영상 안나옴
+kakaotv.daum.net#@#[class^="ad"]
+!
+!
 ! 틱톡 (https://www.tiktok.com/)
 ! - 뿌연거 해결
 tiktok.com##.TUXModal-overlay
@@ -2653,6 +2658,7 @@ javlibrary.com,[$domain=/^r\d+.m.com/]###adultwarningmask
 javmov.com##.spot
 ! - 영상 오른쪽 배너 (공백)
 ! - - - https://kissjav.com/ 영상 오른쪽 배너
+! - - - https://herexxx.com/ 영상 오른쪽 배너
 !javmov.com##.asside-link
 !##[class="asside-link"]
 ##.asside-link
@@ -4231,7 +4237,8 @@ javdock.com#@#[class*="ads"]
 av19.live#@#[class*="ads"]
 ! - - - https://camcam.cc/ - 영상 프레임 사라짐
 camcam.cc#@#[class*="ads"]
-
+! - - - https://sports.daum.net/ - 영상 안나옴
+kakaotv.daum.net#@#[class*="ads"]
 
 
 ! 인벤 아이디 날림
@@ -5080,10 +5087,11 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ##iframe[iframe-logger] 
 
 
-! https://javgiga.com/ (추가)
+! https://javgiga.com/ (추가) - data-src="//a.magsrv.com/iframe.php /  data-src="https://creative.rmhfrtnd.com/widgets/ 
 ! https://www.weather.go.kr/
+! https://sexkbj.com/ - data-src="https://go.mnaspm.com/smartpop/
 ! ##[class] iframe[style][src] 로 차단되지만 추가해봄
-!##iframe[data-src]
+##iframe[data-src]
 !##iframe[src="about:blank"]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 !sogirl.so#@#iframe[src="about:blank"]
@@ -5250,6 +5258,9 @@ www.naver.com#@#iframe[title*="iframe"]
 !jobkorea.co.kr#@#[id*="popup"]
 
 ##[id^="ad"]
+! - - - 예외
+! - - - https://sports.daum.net/ - 영상 안나옴
+kakaotv.daum.net#@#[id^="ad"]
 
 ##[id*="ads"]
 
