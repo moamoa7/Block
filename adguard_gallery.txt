@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.06.11.2
+! Version: 2025.06.13
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -20,11 +20,11 @@ namu.wiki##li:has(time):not(*:has([href*='/raw/'])):upward(2)
 namu.wiki##span:has-text(더 보기):upward(2):has([target])
 
 ! Bypass anti-adblock
-*#%#//scriptlet('prevent-fetch', 'doubleclick.net')
-*#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
-*#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
+~youtube.com#%#//scriptlet('prevent-fetch', 'doubleclick.net')
+~youtube.com#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
+~youtube.com#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 
 ! 주소 바뀌는 불법 사이트 광고 영구 차단
 [$domain=/^booktoki[0-9]*\.com/]##.col-sm-9.col-md-9.col-15
@@ -159,7 +159,6 @@ mobile.gmarket.co.kr###box__slide-wrap
 ppomppu.co.kr##tr:has([src$='/icon_ppom_coupon_pc.png'])
 quasarplay.com##[class*='venatus']
 quasarplay.com##[id^='mo-container-']
-quasarzone.com##[class$='-banner']
 quasarzone.com##[id^='venatus']
 ruliweb.com##.gallery.table_body
 ruliweb.com,ppomppu.co.kr##[id$='_ad']
@@ -175,7 +174,7 @@ web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
 web.joongna.com##li:has(span:has-text(광고))
 windowsforum.kr,seoul.co.kr,xportsnews.com##.ad
 xportsnews.com##.ad:remove()
-zod.kr##[data-href^='https://zod.kr/go/']
+zod.kr##[data-href^='https://zod.kr/go/']:has(img)
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
 ||apps.m.sooplive.co.kr^$all
 ||dctrend.ai/widget/
@@ -248,10 +247,5 @@ naver.com,~chzzk.naver.com##+js(addEventListener-defuser, /contextmenu|selectsta
 ! Fix bugs
 !#if (adguard && adguard_app_android)
 greasyfork.org,sleazyfork.org#%#document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('a[class="install-link"][data-install-format="js"]').forEach(a=>a.href=`adguard:userscript?location=${a.href}`);});
-!#endif
-
-! test
-!#if (adguard && adguard_app_ios)
-m.dcinside.*#%#const meta=document.createElement("meta");meta.name="theme-color";meta.content="rgba(51, 67, 81, 1)";document.head.appendChild(meta);
 !#endif
 google is broken
