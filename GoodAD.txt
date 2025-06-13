@@ -4693,6 +4693,8 @@ sogirl.so#@#iframe[src*="iframe"]
 naver.com#@#iframe[id*="iframe"]
 ! - - - https://yagro48.com/ - 화면 안보임
 [$domain=/^yagro\d+.com/]#@#iframe[id*="iframe"]
+! - - - https://www.youtube.com/ - 일부 확장프로그램과 사용시 유튜브 화면이 하얗게 변해서 안보임
+youtube.com#@#iframe[id*="iframe"]
 
 
 
