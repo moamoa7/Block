@@ -4300,6 +4300,8 @@ kakaotv.daum.net#@#[class*="ads"]
 fmkorea.com#@#[class*="video"] video
 ! - - - - https://www.youtube.com/ - 영상 안보임
 youtube-nocookie.com#@#[class*="video"] video
+! - - - - https://www.etoland.co.kr/ - 영상 안보임
+etoland.co.kr#@#[class*="video"] video
 
 
 !##video
