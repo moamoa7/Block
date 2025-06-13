@@ -4316,7 +4316,7 @@ kakaotv.daum.net#@#[class*="ads"]
 ! - - - - https://www.etoland.co.kr/ - 영상 안보임
 !etoland.co.kr#@#[class*="video"] video
 !##[class*="-video"] video - 일부 사이트 영상 안나옴으로 (예 :https://missav.ws/) 아래로 재변경
-##[class][style*="height"] video
+!##[class*="-"][style*="height"] video - https://missav.ws/ 영상 안나옴으로 이 규칙 버림
 
 
 !##video
@@ -4859,6 +4859,7 @@ www.naver.com#@#iframe[id*="iframe"]
 ! https://javpark.net/
 !##iframe[src*="creative.xlirdr.com/widgets/"]
 
+! https://missav.ws/ 영상 페이지 일부
 ##iframe[src*="/widgets/"]
 !##iframe[src*="widgets"]
 ! - - - 예외
@@ -5003,7 +5004,6 @@ www.naver.com#@#iframe[title*="frame"]
 ! https://missav123.com/ 일부
 ##iframe[data-link]
 ##iframe[src*="javascript:window.location"]
-
 ##iframe[src*="javascript"]
 
 
