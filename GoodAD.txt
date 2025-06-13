@@ -4295,6 +4295,9 @@ kakaotv.daum.net#@#[class*="ads"]
 ! - https://kissjav.com/
 ! - https://sexkbj.com/
 ##[class*="video"] video
+! - - - 예외
+! - - - https://www.fmkorea.com/ - 영상 안보임
+www.fmkorea.com#@#[class*="video"] video
 
 
 !##video
