@@ -95,11 +95,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
-! - 유튜브 광고 허용
-youtube.com#@#*
-! - @@||www.youtube.com^$generichide 해제 (EasyList)
-!@@||www.youtube.com^$generichide,badfilter
-!youtube.com#@#+js()
 ! - 광고
 !||pagead2.googlesyndication.com^
 !||doubleclick.net^
@@ -159,20 +154,6 @@ youtube.com#@#*
 !||youtube.com/ptracking*
 !||youtube.com/api/ads/*
 !||googlevideo.com/get_ad
-
-##[id^="ad"]
-##[id*="ads"]
-
-##[id^="ad"] iframe
-##[id*="ad"] iframe
-##[id*="ads"] iframe
-
-##[class^="ad"] iframe
-! https://supjav.com/
-! https://05.avsee.ru/
-##[class*="ad"] iframe
-##[class*="ads"] iframe
-
 
 ! - - - https://www.xvideos.com/ 영상 안나오므로 광역 
 youtube.com##[class*="-ad-"]
@@ -4783,17 +4764,17 @@ naver.com#@#iframe[id*="iframe"]
 ! https://7tv000.com/
 ! https://www.njav.com/
 ! https://miss-jav.com/
-##iframe[src*="creative.rmhfrtnd.com/widgets/"]
+!##iframe[src*="creative.rmhfrtnd.com/widgets/"]
 ! https://missav.ws/
 ! https://njavtv.com/
-##iframe[src*="creative.myavlive.com/widgets/"]
+!##iframe[src*="creative.myavlive.com/widgets/"]
 ! https://tktube.com/ 일부
-##iframe[src*="creative.tklivechat.com/widgets/"]
+!##iframe[src*="creative.tklivechat.com/widgets/"]
 ! https://www.tokyomotion.net/
-##iframe[src*="creative.bbrdbr.com/widgets/"]
+!##iframe[src*="creative.bbrdbr.com/widgets/"]
 ! https://javmix.tv/
 ! https://javpark.net/
-##iframe[src*="creative.xlirdr.com/widgets/"]
+!##iframe[src*="creative.xlirdr.com/widgets/"]
 
 ##iframe[src*="/widgets/"]
 !##iframe[src*="widgets"]
@@ -4946,10 +4927,10 @@ naver.com#@#iframe[title*="frame"]
 ! https://missav.ws/
 ! https://missav123.com/
 ! https://www.netflav5.com/
-##iframe[src*="go.mnaspm.com/smartpop/"]
-##iframe[src*="go.rmhfrtnd.com/smartpop/"]
-##iframe[src*="go.xlivrdr.com/smartpop/"]
-##iframe[src*="go.xlvirdr.com/smartpop/"]
+!##iframe[src*="go.mnaspm.com/smartpop/"]
+!##iframe[src*="go.rmhfrtnd.com/smartpop/"]
+!##iframe[src*="go.xlivrdr.com/smartpop/"]
+!##iframe[src*="go.xlvirdr.com/smartpop/"]
 
 ##iframe[src*="/smartpop/"]
 ! - - - 예외
@@ -4958,11 +4939,11 @@ naver.com#@#iframe[title*="frame"]
 
 
 ! https://kr.nudogram.com/
-##iframe[src*="go.dmzjmp.com"]
+!##iframe[src*="go.dmzjmp.com"]
 ! https://manymv.com/
-##iframe[src*="go.xlrdr.com"]
+!##iframe[src*="go.xlrdr.com"]
 ! https://24hjav.com/
-##iframe[src*="go.tklivechat.com"]
+!##iframe[src*="go.tklivechat.com"]
 
 ! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
 ##iframe[src*="/go."]
@@ -5009,7 +4990,7 @@ naver.com#@#iframe[title*="frame"]
 !##iframe[sandbox*="popup"]
 !##iframe[sandbox*="sandbox"]
 !##iframe[sandbox src]
-##iframe[sandbox="allow-same-origin allow-scripts allow-forms allow-top-navigation allow-popups"]
+!##iframe[sandbox="allow-same-origin allow-scripts allow-forms allow-top-navigation allow-popups"]
 !##iframe[sandbox]
 ! - - - 예외 : 로그에서 차단으로 안뜨지만 풀어야 함
 ! https://mypikpak.com/ - 로봇이 아닙니다 팝업 안뜸
@@ -5032,11 +5013,14 @@ naver.com#@#iframe[title*="frame"]
 
 ! https://sextb.date/ 일부
 ! https://7tv000.com/ 일부
-##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
+!##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
 ! https://sextb.date/ 일부
-##iframe[sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-same-origin"]
+!##iframe[sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-same-origin"]
 
 ##iframe[sandbox*="allow-forms"]
+!##iframe[sandbox*="allow-same-origin"] X
+!##iframe[sandbox*="allow-popups"] X
+!##iframe[sandbox*="allow-scripts"] X
 ! - - - 예외 (차단내역에 나옴)
 ! https://mypikpak.com/ - 로봇이 아닙니다 팝업 안뜸
 mypikpak.com#@#iframe[sandbox*="allow-forms"]
@@ -5208,6 +5192,81 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ! - - - 예외
 ! - - - https://tv.kakao.com/ - 영상 안나옴
 !tv.kakao.com#@#[id*="iframe"] iframe
+
+
+##[id*="popup"]
+
+##[id^="ad"]
+
+##[id*="ads"]
+
+##[id^="ad"] iframe
+
+!##[id*="ad"] iframe
+
+##[id*="ads"] iframe
+
+##[class^="ad"] iframe
+
+! https://supjav.com/
+! https://05.avsee.ru/
+! https://poooo.ml/
+!##[class*="ad"] iframe
+! - https://www.inven.co.kr/ - 유튜브 프레임 안보임
+!inven.co.kr#@#[class*="ad"] iframe
+! - https://theqoo.net/ - 트위터 등 프레임 안보임
+!theqoo.net#@#[class*="ad"] iframe
+
+##[class*="ads"] iframe
+
+
+!##[style] iframe
+! - https://mypikpak.com/- 로그인 창 안뜸
+!mypikpak.com#@#[style] iframe
+! - https://www.inven.co.kr/ - 유튜브 프레임 안보임
+!inven.co.kr#@#[style] iframe
+! https://poooo.ml/ - 영상 안보임
+!poooo.ml#@#[style] iframe
+
+!##[style][class] iframe
+! https://poooo.ml/ - 영상 안보임
+!poooo.ml/#@#[style][class] iframe
+
+!##[style][id] iframe
+! https://poooo.ml/ - 영상 안보임
+!poooo.ml/#@#[style][id] iframe
+
+!##[class][style] iframe
+! https://poooo.ml/ - 영상 안보임
+!poooo.ml#@#[class][style] iframe
+
+!##[id][style] iframe
+! https://poooo.ml/ - 영상 안보임
+!poooo.ml#@#[id][style] iframe
+
+!##iframe[title]
+! - https://mypikpak.com/- 로봇이 아닙니다 안나옴
+!mypikpak.com#@#iframe[title]
+! - - -https://05.avsee.ru/ - 캡챠 안보임
+!avsee.ru#@#iframe[title]
+
+!##iframe[class][style]
+! - https://theqoo.net/ - 트위터 등 프레임 안보임
+!theqoo.net#@#iframe[class][style]
+
+!##iframe[id][style]
+! - - -https://05.avsee.ru/ - 캡챠 안보임
+!avsee.ru#@#iframe[id][style]
+
+!##iframe[style][class]
+! - https://theqoo.net/ - 트위터 등 프레임 안보임
+!theqoo.net#@#iframe[style][class]
+
+!##iframe[style][id]
+! - - -https://05.avsee.ru/ - 캡챠 안보임
+!avsee.ru#@#iframe[style][id]
+
+##[id*="-ad-"] iframe
 
 
 ! - - -
@@ -5757,6 +5816,8 @@ kmcert.com#@#[class*="popup"]
 
 
 
+
+
 !
 !
 !
@@ -6007,4 +6068,3 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
