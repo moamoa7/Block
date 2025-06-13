@@ -4823,6 +4823,7 @@ www.naver.com#@#iframe[id*="iframe"]
 
 
 ! https://7tv000.com/  일부
+! https://japan-whores.com/ 일부
 ##[class*="banner"] iframe
 
 
@@ -4831,6 +4832,7 @@ www.naver.com#@#iframe[id*="iframe"]
 
 
 ! https://mypikpak.com/
+! https://japan-whores.com/
 ! - - - 이걸 해제해도 바로 출첵 가능
 ##[class*="iframe"] iframe
 
