@@ -4804,7 +4804,7 @@ naver.com#@#iframe[id*="iframe"]
 !inven.co.kr#@#iframe[src*="widgets"]
 
 
-https://s1.kav.so/
+! https://s1.kav.so/
 ##[class*="-widget"] iframe
 ##[class*="widget_"] iframe
 ##[class*="widget"] iframe
