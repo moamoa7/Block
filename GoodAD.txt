@@ -5206,7 +5206,6 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ! - - - https://www.jobkorea.co.kr/ - 알림 등 팝업 안됨
 !jobkorea.co.kr#@#[id*="popup"]
 
-
 ##[id^="ad"]
 
 ##[id*="ads"]
@@ -5287,7 +5286,18 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ! https://www.fmkorea.com/
 ! https://yasyadong.cc/
 ##iframe[style*="overflow"]
+! - - - 예외
+! - - -https://05.avsee.ru/ - 캡챠 안보임
+avsee.ru#@#iframe[style*="overflow"]
+
 ##iframe[style*="hidden"]
+! - - - 예외
+! - - -https://05.avsee.ru/ - 캡챠 안보임
+avsee.ru#@#iframe[style*="hidden"]
+
+##iframe[loading="lazy"]
+! 참고 - loading="lazy": 페이지 로딩 성능 향상을 위해 iframe이 화면에 가까워질 때 로드됩니다.
+
 
 ! - - -
 
