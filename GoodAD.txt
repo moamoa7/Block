@@ -5068,6 +5068,8 @@ www.naver.com#@#iframe[title*="frame"]
 ! - - - 예외 (차단내역에 나옴)
 ! https://mypikpak.com/ - 로봇이 아닙니다 팝업 안뜸
 mypikpak.com#@#iframe[sandbox*="allow-forms"]
+! https://gall.dcinside.com/ - 게시글 등록 클릭시 로봇 안열림
+gall.dcinside.com#@#iframe[sandbox*="allow-forms"]
 
 
 
@@ -5253,9 +5255,6 @@ www.naver.com#@#iframe[title*="iframe"]
 ##[id*="-ad-"]
 
 ##[id*="popup"]
-! - - - 예외
-! - - - https://www.jobkorea.co.kr/ - 알림 등 팝업 안됨
-!jobkorea.co.kr#@#[id*="popup"]
 
 ##[id^="ad"]
 ! - - - 예외
@@ -5910,7 +5909,6 @@ loyalty.coupang.com#@#[class*="popup"]
 kmcert.com#@#[class*="popup"]
 ! - - - https://www.jobkorea.co.kr/ - 알림 등 팝업 안됨
 jobkorea.co.kr#@#[class*="popup"]
-
 
 
 
