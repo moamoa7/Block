@@ -4804,6 +4804,14 @@ naver.com#@#iframe[id*="iframe"]
 !inven.co.kr#@#iframe[src*="widgets"]
 
 
+https://s1.kav.so/
+##[class*="-widget"] iframe
+##[class*="widget_"] iframe
+##[class*="widget"] iframe
+
+
+
+
 ! https://7tv000.com/  일부
 ##[class*="banner"] iframe
 
@@ -5153,6 +5161,9 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 
 ! https://s10.watchfreejavonline.co/
 ##iframe[src*="Banner"]
+
+! https://s1.kav.so/
+##iframe[src*="/script/"]
 
 
 ! https://www.naver.com/
