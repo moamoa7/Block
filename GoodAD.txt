@@ -1735,7 +1735,7 @@ hankyung.com##.stock-marquee-wrap
 !
 !
 ! 경향신문 (https://www.khan.co.kr/)
-! - 기사 하단 배너공간
+! - 배너 및 배너공간
 ##[class*="banner-"]
 ! - 차단 사이트
 ||adv.khan.co.kr^
@@ -2401,7 +2401,8 @@ topjav.tv##.koukoku_11
 ! https://sexkbj.com/
 ! - - - https://kissjav.com/
 ! - 지저분하게 떠있는거
-##[class*="-widget"]
+! - - - 다른것도 지워져서 광역쓰면 안됨
+!##[class*="-widget"]
 ##.textwidget
 
 ! - 팝업 방지
@@ -3998,6 +3999,14 @@ hotword.site##div.col-md-6:nth-of-type(2)
 tistory.com##+js(set, adblockChecker, noopFunc)
 !
 !
+! 조드 (https://zod.kr/)
+! - 배너
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+zod.kr##[data-href^='https://zod.kr/go/']:has(img)
+! - 상단 배너공간
+zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.swiper-initialized.swiper
+!
+!
 !
 !
 !
@@ -4413,6 +4422,9 @@ linkloveko.com#@#div>[class*="button"]>[style]
 !##a[href][target] img[src*="banner"]
 !##[class*="banner"] a[href] img[src*="banner"]
 !##a[href] img[src*="banner"]
+
+!##[class*="banner"] img
+!##[class*="banner"]:has(img)
 
 ##img[src*="/banner/"]
 ! - - - 예외
