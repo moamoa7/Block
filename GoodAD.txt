@@ -2393,6 +2393,18 @@ topjav.tv##.koukoku_11
 ||ensosignal.com^
 !
 !
+! https://sexkbj.com/
+! - 팝업 방지
+||pemsrv.com^$popup
+! - 차단 사이트
+||exdynsrv.com^
+!
+!
+! https://thebjav.com/
+! - 팝업 방지
+||godkc.com^$popup
+!
+!
 ! https://www.javbangers.com/
 ! - 차단 사이트
 ||twinrdengine.com^
@@ -5138,6 +5150,10 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ! https://www.naver.com/
 ! https://miss-jav.com/
 ##iframe[src*="banner"]
+
+! https://s10.watchfreejavonline.co/
+##iframe[src*="Banner"]
+
 
 ! https://www.naver.com/
 ! https://cafe.naver.com/ - 카페 오른쪽 메인 프레임 안보임
