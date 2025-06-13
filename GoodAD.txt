@@ -68,9 +68,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 !
-!!! JavaScript 관련 필터 해제
-#@#+js()
-!
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -95,6 +92,8 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
+!!! JavaScript 관련 필터 해제 - 화이트 리스트 지정으로 필요없음
+!www.youtube.com.youtube.com#@#+js()
 ! - 광고
 !||pagead2.googlesyndication.com^
 !||doubleclick.net^
@@ -171,6 +170,7 @@ youtube.com###ytd-player > div > .yt-formatted-string.codehemu-branding
 youtube.com###ytd-player > div > button
 ! - 차단 사이트
 ||g.doubleclick.net^
+||pagead2.googlesyndication.com^
 ||google.*/pagead/lvz?
 !
 !
@@ -433,13 +433,13 @@ dcinside.com##.r_only_daum
 dcinside.com##.r_recommend
 dcinside.com##.gall_exposure
 dcinside.com##.news_result
-dcinside.com##+js(set, gall_content_count, noopFunc)
-dcinside.com##+js(set, recomAjax, noopFunc)
-dcinside.com##+js(set, newsAjax, noopFunc)
-dcinside.com##+js(set, trendAjax, noopFunc)
-dcinside.com##+js(set, mediaAjax, noopFunc)
-dcinside.com##+js(set, issueAjax, noopFunc)
-dcinside.com##+js(set, mixNewsMediaAjax, noopFunc)
+!dcinside.com##+js(set, gall_content_count, noopFunc)
+!dcinside.com##+js(set, recomAjax, noopFunc)
+!dcinside.com##+js(set, newsAjax, noopFunc)
+!dcinside.com##+js(set, trendAjax, noopFunc)
+!dcinside.com##+js(set, mediaAjax, noopFunc)
+!dcinside.com##+js(set, issueAjax, noopFunc)
+!dcinside.com##+js(set, mixNewsMediaAjax, noopFunc)
 ! 위 내용에서 개별 추가
 dctrend.ai##*
 ||h5.dcinside.com
@@ -5512,9 +5512,10 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 !!! - 기본 3
 ! - - - ##a[href][target] img 일반 이미지까지 다 선택. 배너만 할려니 class 추가
+! - - - 길호넷 (https://kilho.net/) - ##a[href][target] img 하면 상단 SNS가 사라져서 이걸로 배너만 지워지게 이걸로 함
 ! - - - 주소요 (https://jusoyo42.com/) - 상단 배너
 ! - - - 레드캣 (https://redcattv5.org/)
-[$domain=/^jusoyo\d+.com/],[$domain=/^redcattv\d+.org/]##a[href][target] img[class]
+kilho.net,[$domain=/^jusoyo\d+.com/],[$domain=/^redcattv\d+.org/]##a[href][target] img[class]
 
 
 !!! 기본 4
@@ -5648,6 +5649,8 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - - - 예외
 ! - - - https://dramaday.me/ - 일부 이미지 사라짐
 dramaday.me#@#a[href] img[src][class][alt=""][srcset]
+! - - - https://kilho.net/ - 일부 이미지 사라짐
+kilho.net#@#a[href] img[src][class][alt=""][srcset]
 
 
 !!! - 변형 4
