@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250613
+! Version: 20250614
 !
 !
 !
@@ -4298,6 +4298,8 @@ kakaotv.daum.net#@#[class*="ads"]
 ! - - - 예외
 ! - - - https://www.fmkorea.com/ - 영상 안보임
 fmkorea.com#@#[class*="video"] video
+! - - - - https://www.youtube.com/ - 영상 안보임
+youtube-nocookie.com#@#[class*="video"] video
 
 
 !##video
@@ -4819,3 +4821,39 @@ www.naver.com#@#iframe[id*="iframe"]
 
 
 !/////////////////////////////////////////////////////////////////////////////////
+
+
+! 이토랜드
+! https://javgiga.com/
+! https://7tv000.com/
+! https://www.njav.com/
+! https://miss-jav.com/
+!##iframe[src*="creative.rmhfrtnd.com/widgets/"]
+! https://missav.ws/
+! https://njavtv.com/
+!##iframe[src*="creative.myavlive.com/widgets/"]
+! https://tktube.com/ 일부
+!##iframe[src*="creative.tklivechat.com/widgets/"]
+! https://www.tokyomotion.net/
+!##iframe[src*="creative.bbrdbr.com/widgets/"]
+! https://javmix.tv/
+! https://javpark.net/
+!##iframe[src*="creative.xlirdr.com/widgets/"]
+
+##iframe[src*="/widgets/"]
+!##iframe[src*="widgets"]
+! - - - 예외
+! - 네이버 블로그 (https://blog.naver.com/) - 아무것도 안보임
+!blog.naver.com#@#iframe[src*="widgets"]
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+!clien.net#@#iframe[src*="widgets"]
+! - - - 인벤 (https://www.inven.co.kr/) - 트위터 프레임 안보임
+!inven.co.kr#@#iframe[src*="widgets"]
+
+
+! https://s1.kav.so/
+##[class*="-widget"] iframe
+##[class*="widget_"] iframe
+##[class*="widget"] iframe
+
+
