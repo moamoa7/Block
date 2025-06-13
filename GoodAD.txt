@@ -5282,7 +5282,6 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ! https://yasyadong.cc/
 ##iframe[src*="adlist"]
 ##iframe[src*="adv"]
-##[class*="contents"] iframe
 !##iframe[style="border:0; width:100%;overflow-y:hidden;overflow-x:hidden"]
 ##iframe[style*="overflow"]
 ##iframe[style*="hidden"]
