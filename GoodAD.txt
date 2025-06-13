@@ -4163,7 +4163,7 @@ tistory.com##+js(set, adblockChecker, noopFunc)
 ##[class*="AD"]
 ! - - - 예외
 ! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
-naver.com#@#[class*="AD"]
+www.naver.com#@#[class*="AD"]
 
 
 
@@ -4701,7 +4701,7 @@ sogirl.so#@#iframe[src*="iframe"]
 ! - - - https://7tv000.com/ - TV 영상 안나옴 (주소 바뀜)
 7tv000.com#@#iframe[id*="iframe"]
 ! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
-naver.com#@#iframe[id*="iframe"]
+www.naver.com#@#iframe[id*="iframe"]
 ! - - - https://yagro48.com/ - 화면 안보임
 [$domain=/^yagro\d+.com/]#@#iframe[id*="iframe"]
 ! - - - https://www.youtube.com/ - 일부 확장프로그램과 사용시 유튜브 화면이 하얗게 변해서 안보임
@@ -4830,7 +4830,7 @@ naver.com#@#iframe[id*="iframe"]
 ##iframe[title*="frame"]
 ! - - - 예외
 ! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
-naver.com#@#iframe[title*="frame"]
+www.naver.com#@#iframe[title*="frame"]
 ##iframe[src*="ensosignal.com"]
 ! - - - 개별
 !##iframe[src*="s.ensosignal.com/footer"]
@@ -5219,6 +5219,10 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ! - - 임시
 
 ##iframe[title*="iframe"]
+! - - - 예외
+! - - - https://www.naver.com/ - 메인에서 메일 클릭시 안보임
+www.naver.com#@#iframe[title*="iframe"]
+
 
 !##[id*="iframe"] iframe
 ! - - - 예외
