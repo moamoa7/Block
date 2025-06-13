@@ -4857,3 +4857,379 @@ www.naver.com#@#iframe[id*="iframe"]
 ##[class*="widget"] iframe
 
 
+
+
+! https://7tv000.com/  일부
+! https://japan-whores.com/ 일부
+##[class*="banner"] iframe
+
+
+! https://videocelebs.net/
+##iframe[src*="www.adxserve.com/adx/"]
+
+
+! https://mypikpak.com/
+! https://japan-whores.com/
+! - - - 이걸 해제해도 바로 출첵 가능
+##[class*="iframe"] iframe
+
+
+! https://jp.xsz-av.com/
+! - 전체
+##iframe[title*="frame"]
+! - - - 예외
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+www.naver.com#@#iframe[title*="frame"]
+##iframe[src*="ensosignal.com"]
+! - - - 개별
+!##iframe[src*="s.ensosignal.com/footer"]
+!##iframe[src*="s.ensosignal.com/bigfooter"]
+!##iframe[src*="s.ensosignal.com/side"]
+
+
+!##[class] iframe[style][src]
+!##[class] iframe[style]
+!##[style] [class] iframe
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#[class] iframe[style]
+! - - - https://tv.kakao.com/ - 영상 안나옴
+!tv.kakao.com#@#[class] iframe[style]
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+!avsee.ru#@#[class] iframe[style]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+!sogirl.so#@#[class] iframe[style]
+! - - - 네이버 카페 (https://cafe.naver.com/) - 메인 프레임 사라짐
+!cafe.naver.com#@#[class] iframe[style]
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+!naver.com#@#[class] iframe[style]
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+!clien.net#@#[class] iframe[style]
+! - - - https://poooo.ml/ - 오른쪽 채팅창이 안나옴
+!poooo.ml/#@#[class] iframe[style]
+! - - - https://kr29.4kjav.co/ - 영상 안나옴
+!4kjav.co#@#[class] iframe[style]
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 원인을 알 수 없으나 모바일에서 오류 메시지 출력으로 인한 해제
+!ppomppu.co.kr#@#[class] iframe[style]
+! - - - 이토랜드 (https://www.etoland.co.kr/) - 유튜브 프레임 안보임
+!etoland.co.kr#@#[class] iframe[style]
+! - - - 인벤 (https://www.inven.co.kr/) - 트위터 프레임 안보임
+!inven.co.kr#@#[class] iframe[style]
+
+
+
+! https://sextb.date/
+!##[class] iframe[class][src]
+! - - - 예외 (https://javgg.net/) - 영상 안나옴 (iframe로 광고하는건 없는 사이트로 보임)
+!javgg.net#@#[class] iframe[class][src]
+!##iframe[class][style]
+! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#iframe[class][style]
+! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
+!ppomppu.co.kr#@#iframe[class][style]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+!sogirl.so#@#iframe[class][style]
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+!clien.net#@#iframe[class][style]
+! - - -  웃긴대학 (https://web.humoruniv.com/) - 댓글 위 베스트란 사라짐
+!humoruniv.com#@#iframe[class][style]
+
+
+! https://javhd.today/ - 소스코드가 iframe는 아닌데.. 뒤에 src 붙이면 안됨
+!##[class][id] iframe[style]
+! - - - 예외
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+!avsee.ru#@#[class][id] iframe[style]
+! - - - https://poooo.ml/ - 오른쪽 채팅창이 안나옴
+!poooo.ml#@#[class][id] iframe[style]
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#[class][id] iframe[style]
+! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
+!ppomppu.co.kr#@#[class][id] iframe[style]
+! - - - https://tv.kakao.com/ - 영상 안나옴
+!tv.kakao.com#@#[class][id] iframe[style]
+! - - - 네이버 카페 (https://cafe.naver.com/) - 메인 프레임 사라짐
+!cafe.naver.com#@#[class][id] iframe[style]
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+!naver.com#@#[class][id] iframe[style]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+!sogirl.so#@#[class][id] iframe[style]
+
+
+
+! https://javfan.one/
+!##[class] iframe[style]
+!##[class][style] iframe[style]
+! - - - 예외
+! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
+!ppomppu.co.kr#@#[class] iframe[style]
+!ppomppu.co.kr#@#[class][style] iframe[style]
+! - - - 더쿠(https://theqoo.net/) - 게시물 트위터 등 안나옴
+!theqoo.net#@#[class] iframe[style]
+!theqoo.net#@#[class][style] iframe[style]
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+!avsee.ru#@#[class] iframe[style]
+!avsee.ru#@#[class][style] iframe[style]
+! - - - https://tv.kakao.com/ - 영상 안나옴
+!tv.kakao.com#@#[class] iframe[style]
+!tv.kakao.com#@#[class][style] iframe[style]
+! - - - https://poooo.ml/ - 오른쪽 채팅 안보임
+!poooo.ml/#@#[class] iframe[style]
+!poooo.ml/#@#[class][style] iframe[style]
+
+
+! https://www.av01.tv/ 전체
+! https://missav.ws/ 일부
+! https://ggjav.com/ 일부
+! https://missav123.com/ 일부
+##iframe[data-link]
+##iframe[src*="javascript:window.location"]
+
+##iframe[src*="javascript"]
+
+
+
+!  - - -  임시 (혹시 있을까 싶어서) - 폐지
+! https://noodlemagazine.com/
+! supjav.com - ST / VOE 영상 안나옴
+!##iframe[src*="ad"]
+!  - - -
+
+
+! https://supjav.com/
+! https://noodlemagazine.com/
+! https://missav.ws/
+! https://missav123.com/
+! https://www.netflav5.com/
+!##iframe[src*="go.mnaspm.com/smartpop/"]
+!##iframe[src*="go.rmhfrtnd.com/smartpop/"]
+!##iframe[src*="go.xlivrdr.com/smartpop/"]
+!##iframe[src*="go.xlvirdr.com/smartpop/"]
+
+##iframe[src*="/smartpop/"]
+! - - - 예외
+! - - - 네이버카페 (https://cafe.naver.com/) - 게시물 클릭시 오른쪽 프레임 안보임
+!cafe.naver.com#@#iframe[src*="pop"]
+
+
+! https://kr.nudogram.com/
+!##iframe[src*="go.dmzjmp.com"]
+! https://manymv.com/
+!##iframe[src*="go.xlrdr.com"]
+! https://24hjav.com/
+!##iframe[src*="go.tklivechat.com"]
+
+! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
+##iframe[src*="/go."]
+
+
+! https://24hjav.com/ 일부 - 아닌데 실수
+!##[class*="embed"] iframe[src*="/embed/"]
+! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#[class*="embed"] iframe[src*="/embed/"]
+
+!##iframe[src*="/embed/"]
+! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#iframe[src*="/embed/"]
+! - - - https://namu.wiki/  - 유튜브 등 사라짐
+!namu.wiki#@#iframe[src*="embed"]
+
+!##iframe[src*="embed"]
+! - - - 예외
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#iframe[src*="embed"]
+! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
+!poooo.ml#@#iframe[src*="embed"]
+! - - - https://namu.wiki/  - 유튜브 등 사라짐
+!namu.wiki#@#iframe[src*="embed"]
+
+
+
+! 인벤 (https://www.inven.co.kr/) - 전체 iframe
+!##[class] iframe[id][name][src]
+!##iframe[src*="/ads/"]
+
+!******
+! 딴지 (https://www.ddanzi.com/) - 전체 frame
+! https://sextb.date/
+!##[class] iframe[sandbox][src]
+!##[class] iframe[sandbox*="popup"][src]
+!##iframe[sandbox*="allow-popups"]
+!##iframe[sandbox*="allow-same-origin"]
+!##iframe[sandbox*="allow-scripts"]
+
+!##iframe[sandbox*="popups"]
+!##iframe[sandbox*="popup"]
+!##iframe[sandbox*="sandbox"]
+!##iframe[sandbox src]
+!##iframe[sandbox="allow-same-origin allow-scripts allow-forms allow-top-navigation allow-popups"]
+!##iframe[sandbox]
+! - - - 예외 : 로그에서 차단으로 안뜨지만 풀어야 함
+! https://mypikpak.com/ - 로봇이 아닙니다 팝업 안뜸
+!mypikpak.com#@#iframe[sandbox*="popup"]
+!mypikpak.com#@#iframe[sandbox src]
+!mypikpak.com#@#iframe[sandbox]
+! - https://gall.dcinside.com/ - 로봇이 아닙니다 팝업 안뜸
+!gall.dcinside.com#@#iframe[sandbox*="popup"]
+!gall.dcinside.com#@#iframe[sandbox src]
+!gall.dcinside.com#@#iframe[sandbox]
+! - - - AvseeTV (https://05.avsee.ru/) - 캡챠 (challenges.cloudflare.com) 안보임
+!avsee.ru#@#iframe[sandbox*="popup"]
+!avsee.ru#@#iframe[sandbox src]
+!avsee.ru#@#iframe[sandbox]
+! - - - https://katfile.com/ - 캡챠 (www.google.com/recaptcha/) 안보임
+!katfile.com#@#iframe[sandbox*="popup"]
+!katfile.com#@#iframe[sandbox*="sandbox"]
+!katfile.com#@#iframe[sandbox src]
+!katfile.com#@#iframe[sandbox]
+
+! https://sextb.date/ 일부
+! https://7tv000.com/ 일부
+!##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
+! https://sextb.date/ 일부
+!##iframe[sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-same-origin"]
+
+##iframe[sandbox*="allow-forms"]
+!##iframe[sandbox*="allow-same-origin"] X
+!##iframe[sandbox*="allow-popups"] X
+!##iframe[sandbox*="allow-scripts"] X
+! - - - 예외 (차단내역에 나옴)
+! https://mypikpak.com/ - 로봇이 아닙니다 팝업 안뜸
+mypikpak.com#@#iframe[sandbox*="allow-forms"]
+! https://gall.dcinside.com/ - 게시글 등록 클릭시 로봇 안열림
+gall.dcinside.com#@#iframe[sandbox*="allow-forms"]
+
+
+
+
+! https://www.ddanzi.com/
+! https://messitv8.com/
+!##[class*="box"][style] iframe
+!##[class*="boxshadow"][style] iframe - 딴지에 해당 안되게 아래 규칙으로 변경
+!##[class*="_boxshadow_"] iframe
+! - - - 예외
+! - - - 카카오TV (https://tv.kakao.com/) - 영상 안나옴 (##[class*="boxshadow"][style] iframe 로 하면 해당 X)
+!tv.kakao.com#@#[class*="box"][style] iframe
+! - - - 딴지일보 (https://www.ddanzi.com/) - 유튜브 프레임 안보임 (##[class*="boxshadow"][style] iframe 로 해도 해당 O)
+!ddanzi.com#@#[class*="boxshadow"][style] iframe
+!ddanzi.com#@#[class*="box"][style] iframe
+
+##iframe[iframe-logger] 
+
+
+! https://javgiga.com/ (추가) - data-src="//a.magsrv.com/iframe.php /  data-src="https://creative.rmhfrtnd.com/widgets/ 
+! https://www.weather.go.kr/
+! https://sexkbj.com/ - data-src="https://go.mnaspm.com/smartpop/
+! ##[class] iframe[style][src] 로 차단되지만 추가해봄
+##iframe[data-src]
+!##iframe[src="about:blank"]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+!sogirl.so#@#iframe[src="about:blank"]
+! - - - https://kr29.4kjav.co/ - 영상 안나옴
+!4kjav.co#@#iframe[src="about:blank"]
+
+
+! 더팩트 (https://www.tf.co.kr/)
+##[id*="Banner"] iframe
+
+
+! 디시인사이드 (https://gall.dcinside.com/) 일부
+! 더팩트 (https://www.tf.co.kr/)
+! https://miss-jav.com/ 일부
+##iframe[src*="/ad."]
+
+
+! 더팩트 (https://www.tf.co.kr/)
+##iframe[src*="/ad/"]
+
+
+! 머니S (https://www.moneys.co.kr/)
+! 연합뉴스 (https://www.yna.co.kr/
+##iframe[src*="adBanner"]
+
+
+! 머니S (https://www.moneys.co.kr/)
+##iframe[src*="adex."]
+
+
+! 인벤 (https://www.inven.co.kr/)
+! 뉴스1 (https://www.news1.kr/)
+! 한겨레 (https://www.hani.co.kr/)
+! 경햔신문 (https://www.khan.co.kr/)
+! 노컷뉴스 (https://nocutnews.co.kr/)
+##iframe[src*="/ads/"]
+! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
+##iframe[src*="ads"]
+
+
+! 한국경제 (https://www.hankyung.com/)
+##[class^=aside] iframe
+
+! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
+##[class*="-ad-"] iframe
+!##iframe[src*="adv.imadrep.co.kr"]
+##iframe[src*="adv."]
+
+! 엑스포츠뉴스 (https://www.xportsnews.com/)
+##iframe[src*="xportsnews"]
+
+
+! 뉴시스 (https://www.newsis.com/)
+!##iframe[src*="clickon.kr"]
+!##iframe[src*="clickon"]
+##iframe[src*="click"]
+
+
+! 한국경제TV (http://www.wowtv.co.kr/)
+##[class*="adv-area"] iframe
+##iframe[src*="adapi"]
+
+
+! 네이트
+##[id*="Sidebar"] iframe
+##iframe[src*="Bottom"]
+##iframe[title*="광고"]
+##iframe[src*="_ad_"]
+
+! 다나와 (https://danawa.com/)
+! 11번가 (https://search.11st.co.kr/)
+!##iframe[title*="광고"]
+##iframe[title*="배너"]
+! 다나와 (https://danawa.com/)
+!##iframe[src*="Bottom"]
+
+##iframe[title*="파워"]
+
+##iframe[title*="banner"]
+##iframe[title*="AD"]
+
+
+
+! https://www.naver.com/
+! https://miss-jav.com/
+##iframe[src*="banner"]
+
+! https://s10.watchfreejavonline.co/
+##iframe[src*="Banner"]
+
+! https://s1.kav.so/
+##iframe[src*="/script/"]
+
+
+! https://www.naver.com/
+! https://cafe.naver.com/ - 카페 오른쪽 메인 프레임 안보임
+!##iframe[src*="naver"]
+
+##iframe[src*="/banner/"]
+
+##iframe[src*="/banners/"]
+
+##iframe[src*="-ad-"]
+
+##iframe[src*="/ad-"]
+
+##[class*="popup"] iframe
+
+##[style*="iframe"] iframe
