@@ -2403,6 +2403,7 @@ topjav.tv##.koukoku_11
 ! - 지저분하게 떠있는거
 ! - - - 다른것도 지워져서 광역쓰면 안됨
 !##[class*="-widget"]
+! - - - 일부 텍스트 지워지는데 예외처리 일단 안해놓음
 ##.textwidget
 
 ! - 팝업 방지
@@ -2624,7 +2625,7 @@ njav.com,komi.la##.mx-auto
 !||tsyndicate.com^
 ! - 영상 옆 배너공간 
 ! - - - missav.ws##.lg\:block (EasyList 규칙에 missav.ws 규칙만 있고 missav.lives는 없음)
-missav.live##.lg\:block
+missav.ws,missav.live##.lg\:block
 ! - 영상 하단 배너 공간
 ##.mb-5.space-y-5 > div > .mx-auto
 ! - 이미지 복원
@@ -4303,6 +4304,8 @@ kakaotv.daum.net#@#[class*="ads"]
 
 ! - https://kissjav.com/
 ! - https://sexkbj.com/
+! - 7MMTV (https://7tv000.com/)
+! - MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
 !##[class*="e"][style*="i"] video
 !##[class*="video"] video
 ! - - - 예외
@@ -4312,7 +4315,8 @@ kakaotv.daum.net#@#[class*="ads"]
 !youtube-nocookie.com#@#[class*="video"] video
 ! - - - - https://www.etoland.co.kr/ - 영상 안보임
 !etoland.co.kr#@#[class*="video"] video
-##[class*="-video"] video
+!##[class*="-video"] video - 일부 사이트 영상 안나옴으로 (예 :https://missav.ws/) 아래로 재변경
+##[class][style*="height"] video
 
 
 !##video
@@ -4359,13 +4363,6 @@ kakaotv.daum.net#@#[class*="ads"]
 !missav.*#@#video
 
 
-! 7MMTV (https://7tv000.com/) - 플레이 영상 오른쪽 비디오 광고
-!##a[href][target*="blank"] video
-##[target*="blank"] video
-! - -- 예외
-! - - - https://theqoo.net/ - 게시물내 비디오 안나옴
-!theqoo.net#@#a[href][target*="blank"] video
-
 ! MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
 !##[id*="video"] video
 ! - - - 예외
@@ -4390,14 +4387,20 @@ kakaotv.daum.net#@#[class*="ads"]
 ! - button으로 하니 다른 클래스와 많이 겹쳐서 [style] 추가
 !##[class*="button"][style] a[href] - 더 많은 공간 확보를 위해 아래 규칙으로 변경
 !##[class*="button"][style] - 다른 사이트에서 영상 플레이버튼이 사라져서 아래로 재변경
-##div>[class*="button"]>[style]
+!##div>[class*="button"]>[style] - 다른 사이트 플레이어 버튼이 사라져서 아래로 재재변경
+##div>[class*="button"]>[style][target]
 ! - - - 예외
 ! - - - https://xn--9t4b31dr7o.com/ - 안내주소 안보임
-xn--9t4b31dr7o.com#@#div>[class*="button"]>[style]
+xn--9t4b31dr7o.com#@#div>[class*="button"]>[style][target]
 ! - - - https://www.speedtest.net/ - 속도 태스트 버튼 안보임
 !speedtest.net#@#[class*="button"][style]
 ! - - - https://linkloveko.com/ - 안내 주소 사라짐
-linkloveko.com#@#div>[class*="button"]>[style]
+linkloveko.com#@#div>[class*="button"]>[style][target]
+! - - - https://05.avsee.ru/ - 플레이어 버튼 사라짐
+!05.avsee.ru/player#@#div>[class*="button"]>[style]
+! - - - https://javgg.net/ - 플레이어 버튼 사라짐
+!javggvideo.xyz#@#div>[class*="button"]>[style]
+!jav-vids.xyz#@#div>[class*="button"]>[style]
 
 
 
@@ -5387,18 +5390,21 @@ camcam.cc#@#[class*="ads"] iframe
 
 ! https://www.fmkorea.com/
 ! https://yasyadong.cc/
-##iframe[style*="overflow"]
+!##iframe[style*="overflow"]
 ! - - - 예외
 ! - - -https://05.avsee.ru/ - 캡챠 안보임
-avsee.ru#@#iframe[style*="overflow"]
+!avsee.ru#@#iframe[style*="overflow"]
 
-##iframe[style*="hidden"]
+!##iframe[style*="hidden"]
 ! - - - 예외
 ! - - -https://05.avsee.ru/ - 캡챠 안보임
-avsee.ru#@#iframe[style*="hidden"]
+!avsee.ru#@#iframe[style*="hidden"]
 
-##iframe[loading="lazy"]
+!##iframe[loading="lazy"]
 ! 참고 - loading="lazy": 페이지 로딩 성능 향상을 위해 iframe이 화면에 가까워질 때 로드됩니다.
+! - - - 예외
+! - --  https://javgg.net/ - 영상 안보임
+!javgg.net#@#iframe[loading="lazy"]
 
 
 ! - - -
