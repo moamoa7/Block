@@ -4545,12 +4545,11 @@ damoang.net#@#a[href] img[src*="/ad/"]
 ! - 일부 사이트에서 사용 중
 ! - target 이 없는 요소
 !  - - -광역으로 사용시 일부 이미지 안보임
-! - - - https://www.avdbs.com/ 배너
+! - - - https://www.avdbs.com/ 배너 - [style] 넣으면 잘 안사라져서 빼고 별도 지정함
 ! - - - 아콩넷 (https://yakong5.net/) 영상 내 배너
 ! - - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움) - 아래 규칙으로 변경
-##[onclick] img[style]
 !##a[href][onclick] [class][src]
-avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img[style]
+avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img
 ##[onclick] img[style]
 ! - - - 예외
 ! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 핫코멘트란의 좋아요 싫어요 아이콘 사라짐
@@ -5203,6 +5202,10 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ##[id*="-ad-"]
 
 ##[id*="popup"]
+! - - - 예외
+! - - - https://www.jobkorea.co.kr/ - 알림 등 팝업 안됨
+!jobkorea.co.kr#@#[id*="popup"]
+
 
 ##[id^="ad"]
 
@@ -5387,6 +5390,10 @@ etoland.co.kr#@#a[href][target*='blank'] img[src*='.gif']
 biz.heraldcorp.com#@#a[href][target*='blank'] img[src*='.gif']
 ! - - - 인스티즈 (https://www.instiz.net/) - 일부 이미지 사라짐
 instiz.net#@#a[href][target*='blank'] img[src*='.gif']
+! - - - 잡코리아 (https://www.jobkorea.co.kr/) - 일부 이미지 사라짐
+jobkorea.co.kr#@#a[href][target*='blank'] img[src*='.gif']
+
+
 
 
 
@@ -5824,7 +5831,8 @@ xfree.com#@#[class*="popup"]
 loyalty.coupang.com#@#[class*="popup"]
 ! - https://www.kmcert.com/ - 휴대폰 인증시 입력정보 확인창 안뜸 해결
 kmcert.com#@#[class*="popup"]
-
+! - - - https://www.jobkorea.co.kr/ - 알림 등 팝업 안됨
+jobkorea.co.kr#@#[class*="popup"]
 
 
 
