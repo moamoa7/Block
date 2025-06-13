@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250612
+! Version: 20250613
 !
 !
 !
@@ -2194,11 +2194,13 @@ correctdilutetrophy.com$popup
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
 ##div.set_height_250
 ! - 팝업 방지
-||stikroltiltoowi.net^$popup
+stikroltiltoowi.net^$popup
+persecutionpunishlegally.com^$popup
 ! - 차단 사이트
 ||labadena.com^
 ||tapioni.com^
 ||wpadmngr.com^
+
 !
 !
 ! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
