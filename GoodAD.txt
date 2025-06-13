@@ -155,7 +155,9 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !||googlevideo.com/get_ad
 
 ! - - - https://www.xvideos.com/ 영상 안나오므로 광역 
-youtube.com##[class*="-ad-"]
+! - - - - 유튜브 약관 위반 메시지 출력
+! - - -  YouTube AdBlocker (스크립트) 같이 사용하면 메시지 출력되도 바로 재생 가능
+www.youtube.com,www.youtube-nocookie.com##[class*="-ad-"]
 ! - 유튜브 관련 광고 차단은 EasyList / uBlock filters – Ads / Block filters – Quick fixes 필터 구독할 것
 ! - - - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
 ! - - - 유니콘Pro에서도 적용됨
@@ -5196,6 +5198,8 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 !tv.kakao.com#@#[id*="iframe"] iframe
 
 
+##[id*="-ad-"]
+
 ##[id*="popup"]
 
 ##[id^="ad"]
@@ -6073,3 +6077,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
