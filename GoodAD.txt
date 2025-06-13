@@ -4389,3 +4389,433 @@ linkloveko.com#@#div>[class*="button"]>[style]
 ! 이토랜드 게시물 하단 쿠팡 광고 등
 !dcinside.com,etoland.co.kr,inven.co.kr,ruliweb.com,ddanzi.com,82cook.com,ygosu.com,jjang0u.com##iframe
 
+
+
+!!! - 광역 1
+! - 광역으로 사용
+! - 일부 사이트에서 이미지 사라짐 (예 : 옥션 배너 이미지 등) - banner 대신 /banner/로 변경하면 안사라짐
+! - banner 주소 들어간 이미지에서 사용 중
+! - - - 티비위키 (https://tvwiki21.com/) - 이미지가 gif 같은 확장자가 없음
+! - - - 티비몬 (https://tvmon16.org/) - 이미지가 gif 같은 확장자가 없음
+! - - - 주소월드 (https://wdwd8.com/)
+! - - - 제크티비 (https://zectv.com/)
+! - - - 조개모아 (https://www.jgmoagogo.com/) (https://www.jogemoa.com/) - 일부 배너
+! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
+! - - - AV19 (https://av19.live/)
+! - - - 링크사랑 (https://linklove54.com/) - 왼쪽.오른쪽 배너 . 중간 배너
+!##a[href][target] img[src*="banner"][src*='.gif']
+!##a[href][target] img[src*="banner"]
+!##[class*="banner"] a[href] img[src*="banner"]
+!##a[href] img[src*="banner"]
+
+##img[src*="/banner/"]
+! - - - 예외
+! - - - 노벨피아 (https://novelpia.com/) - 일부 이미지 (모바일 하단 메뉴 가운데 동그란 이미지) 사라짐 - 이 부분 지워버려서 해제
+!novelpia.com#@#img[src*="/banner/"]
+! - - - kick (https://kick.com/) - 실시간 인기 카테고리 이미지 흐려짐 해결
+kick.com#@#img[src*="/banner/"]
+
+##img[src*="/banner_"]
+
+! - - - https://newtoki.live/
+##[class="banner"] img[src*='.gif']
+
+
+! - - - 야부리 시즌 2 (https://yaburi60.com/)
+! - - -  딸플릭스 (https://kr4.ddal.xyz/)
+! - - - 빨간비디오 (https://redvi77.com/)
+! - - - AV탑걸 (https://kr40.topgirl.co/)
+! - - - 야동공장 (https://yagong84.com/)
+! - - - AV탑걸 (https://kr40.topgirl.co/)
+! - - - 야동그라운드 (https://yagro48.com/)
+! - - - 자브걸 (https://kr24.javgirl.co/)
+##img[src*="/banners/"]
+
+! 메시티비 (https://messitv8.com/) - 왼쪽 배너
+##img[src*="sidebanner"]
+
+! https://today-sports7.com/ - 한칸짜리 게시물 배너
+##img[src*="event_banner"]
+
+! - - - 언리샷 (https://unlishot47.cc/)
+##img[src*="admin_banner"]
+
+! - - - 땡땡티비 (https://ootv39.com/)
+!##img[src*="imgbox.com"]
+
+! - - - 야동허브 (https://ydhub11.net/)
+!##img[src*="/static/images/"] - 일부 사이트에서 로고 사라짐 - 예 :https://www.javmov.com/
+##[class] img[src*="/static/images/"][style][src*=".png"]
+! - - - 예외
+! - - - 다시보자 (https://bozatv111.com/) 로고 안나옴
+[$domain=/^bozatv\d+.com/]#@#[class] img[src*="/static/images/"][style][src*=".png"]
+##[class] img[src*="/static/images/"][style][src*=".jpg"]
+##[class] img[src*="/static/images/"][class][src*=".png"]
+! - - - 다시보자 (https://bozatv111.com/) 로고 안나옴
+[$domain=/^bozatv\d+.com/]#@#[class] img[src*="/static/images/"][class][src*=".png"]
+##[class] img[src*="/static/images/"][class][src*=".jpg"]
+
+
+!!! - 광역 2
+! - - - 광역으로 사용
+! - http가 banner 주소 들어간 주소에서 사용 중 (target이 blank가 아님)
+! - - - 주소월드 (https://wdwd8.com/)
+! - - - 만화방 (https://manhwabang.org/)
+! - - - 제크티비 (https://zectv.com/)
+! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
+! - - - 혼딸파티 (https://ddparty04.org/)
+! - - - 레드걸 (https://redgirl37.org/)
+! - - - 레드존 (https://redzone20.xyz/)
+! - - - 레드대피소 (https://red-run.xyz/)
+!##[class*="banner"] a[href*="banner"][target] img
+!##a[href*="banner"] img
+! - - - 예외
+! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
+!naver.com#@#a[href*="banner"] img
+! - - - https://18moa026.com/ - 일부 이미지 사라짐 - [src*=".gif"] 추가
+##a[href*="banner"] img[src*=".gif"]
+
+
+!!! - 광역 3
+! - - - 광역으로 사용
+! - - - AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너 / 영상내 큰 배너
+![$domain=/^wfwf\d+.com/]##a[href][target] img[src*="/wp-content/uploads/"]
+!##[id*="imgDiv"] img[src*="/wp-content/uploads/"] 하면 영상 이미지 사라짐
+!##a[href]>img[src*="/wp-content/uploads/"] 하면 오른쪽 상단. 영상내 큰배너. 영상 아래 배너만 선택되어 영상 이미지는 안사라지나 로고가 사라짐
+!##a[href][target] img[src*="/wp-content/uploads/"]
+!  아래 예외 사항들이 생겨 세부적으로 쪼갬
+! - - - AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너
+! - - - 시네마조아 (https://cinemajoa80.com/) - 맨 상단 오른쪽 배너
+! - - - AV핑보걸 (https://pinkbo44.com/) - 맨 상단 오른쪽 배너
+!##[role="banner"] a[href][target] img[src*="/wp-content/uploads/"]
+! - - -  AV조아 (https://avjoa70.com/) - 영상내 큰 배너
+! - - - 시네마조아 (https://cinemajoa80.com/) - 영상내 큰 배너
+!##[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
+! - - -  위 규칙에 해당되지 않는 배너 (위 기재된 규칙대로 했을때 사라지는 배너로 인해 못함에 따라)는 ##.happy-inside-player로 처리
+! - -  AV핑보걸 (https://pinkbo44.com/) - 맨 상단 오른쪽 배너
+! - - - 조개코리아 (https://jogekorea.com/) (https://jogekorea01.com/)
+! - - - 야통령 (https://xn--5-v10fo35av1l.com/)
+! - - - 조개무비 (https://v15.jogemovie.net/) - 상단 배너 중 1개만 선택됨
+! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/) - 메인 상단 제외 전체 배너
+! - - - 아래 규칙으로 통일
+! - - - AV조아 오른쪽 상단 배너
+!##a[href] img[src*="/wp-content/uploads/"] 로 하면 다른 영상 이미지도 선택됨. 아래 규칙으로 변경
+##[target] img[src*="/wp-content/uploads/"]
+! - - - 예외
+! - - - - https://tati-log.com/ 기사 하단에 게시글 이미지 지워짐 (그냥 두자)
+! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
+dramaday.me#@#[target] img[src*="/wp-content/uploads/"]
+
+
+! - - - AV조아 오른쪽 상단 배너 / 영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결)
+! - - - AV러브걸  영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결) (오른쪽 상단 배너 없음)
+! - - - AV러브걸 (https://avlove28.com/) 메인 상단 배너 / 영상 큰 배너 - 메인 상단 일부 이미지 못 지움 (영상 이미지 지워져서 jpg를 선택할 수 없음) - ###imgDiv > table 추가
+! - - - AV핑보걸 (https://pinkbo44.com/)
+! - - - XX조아 (https://xxjoa45.com/)
+! - - - 야통령 (https://xn--5-v10fo35av1l.com/)
+! - - - - - 자막야동 (https://4.jamakyadong.me/) - 영상 이미지 지워짐 - [id*="imgDiv"] 추가로 지워짐 방지
+!##img[src*="/wp-content/uploads/"][src*='.gif']
+!##[id=imgDiv] img[src*="/wp-content/uploads/"][src]
+!##img[src*="/wp-content/uploads/"][style]
+##[id*="imgDiv"] img[src*="/wp-content/uploads/"][style]
+! - - - 영상내 배너
+##[class*="player"] [src*="/wp-content/uploads"]
+! - - - 예외 - 영상 사라짐
+! - - - Watch Free JAV Online (https://s10.watchfreejavonline.co/)
+[$domain=/^s\d+.watchfreejavonline.co/]#@#[class*="player"] [src*="/wp-content/uploads"]
+! - - - 예외 - 일부 영상 이미지 사라짐
+! - - - JAVHD.ICU (https://javhd.icu/)
+javhd.icu#@#[class*="player"] [src*="/wp-content/uploads"]
+
+
+
+!!! - 광역 3 (개별 광역)
+! - - - 애니야24 (https://www.aniya24.com/) - 영상 상단 배너 
+##[class*="widget-image"] a[href] img[src*="/wp-content/uploads/"]
+! - - - 조개무비 (https://v15.jogemovie.net/) - 상단 배너
+! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/) - 메인 상단 제외 전체 배너
+##[class*="wp-block"] a[href] img[src*="/wp-content/uploads/"]
+! - -- 예외
+! - - - https://onlygirl.asia/ - 영상 이미지 사라짐
+onlygirl.asia#@#[class*="widget-image"] a[href] img[src*="/wp-content/uploads/"]
+
+
+
+! 광역 3 + 추가 영역 처리 - 비광역으로 처리
+! - 광역으로 처리하면 일부 사이트에서 이미지 사라짐
+! - 야통령 (https://xn--5-v10fo35av1l.com/) 에서 오른쪽 배너가 안사라짐 / 원점으로 돌림
+![$domain=/^xn--\d+-v10fo35av1l.com/]##a[href][target] img[src*="/wp-content/uploads/"]
+! - - - 예외
+! https://of996.com/
+! https://www.nicesss.com/
+! https://www.8kcosplay.com/
+!of996.com,nicesss.com,8kcosplay.com#@#a[href][target] img[src*="/wp-content/uploads/"]
+
+
+!!! - 광역 4
+! - - - 광역으로 사용
+! - target 이 없는 요소
+! - url이 /background/ 인 경우
+! - - - 인생도박 (https://dobaklife18.com/) 왼쪽 배너
+! - - - 방방바TV (https://mzgvod01.com/)
+! - - - 모애니 (https://moeni.live/)
+! - - - 놀쟈 (https://www.nzyumi.com/)
+![$domain=/^dobaklife\d+.com/]##img[src*="background"]
+!##a[href] img[src*="/background/"]
+! - - - - - [src*='.gif'] 넣으면 배너 안지워짐
+##a[href] img[src*="/background/"]
+! - - - 예외
+ -- - - -  [src*='.gif']  안 넣으면 로고가 사라지는 경우도 있음 (예 : https://cineaste.co.kr/)
+cineaste.co.kr#@#a[href] img[src*="/background/"]
+
+
+!!! - 광역 5
+! - - - 광역으로 사용
+! - target 이 없는 요소
+! - - - 배너 img 주소가 public로 끝남
+! - - - AV핫걸 (https://xn--av-t21it66k.com/) (https://avhotgirl.top/)
+avhotgirl.top##a[href] img[src*="public"]
+
+
+!!! - 광역 6
+! - - - 광역으로 사용
+! - target 이 있지만 적용이 안됨
+! - - - 라이브스코어 (https://livescore.co.kr/) 등
+! ##[id*="AD"] 하면 id구간 다 사라짐
+##a[href] img[src*="/ad/"]
+! - - - 예외
+! - - - 다모앙 (https://damoang.net/) - 일부 이모티콘 사라짐
+damoang.net#@#a[href] img[src*="/ad/"]
+
+
+!!! - 광역 7
+! - - - 광역으로 사용
+! - target 이 없는 요소
+! - 레드걸 (https://redgirl37.org/) - 영상내 배너
+![$domain=/^redgirl\d+.org/]##img[src*="/data/editor/"]
+![$domain=/^redgirl\d+.org/]##[onclick] img[src*="/data/editor/"]
+##[onclick] img[src*="/data/editor/"]
+
+
+
+!!! - 광역 8
+! - 일부 사이트에서 사용 중
+! - target 이 없는 요소
+!  - - -광역으로 사용시 일부 이미지 안보임
+! - - - https://www.avdbs.com/ 배너 - [style] 넣으면 잘 안사라져서 빼고 별도 지정함
+! - - - 아콩넷 (https://yakong5.net/) 영상 내 배너
+! - - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움) - 아래 규칙으로 변경
+!##a[href][onclick] [class][src]
+avdbs.com,[$domain=/^yakong\d+.net/]##[onclick] img
+##[onclick] img[style]
+! - - - 예외
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 핫코멘트란의 좋아요 싫어요 아이콘 사라짐
+ppomppu.co.kr#@#[onclick] img[style]
+! - - -이토랜드 (https://www.etoland.co.kr/) - 추천 이모티콘 사라짐
+etoland.co.kr#@#[onclick] img[style]
+! - - - 웃긴대학 (https://web.humoruniv.com/) - gif 영상 프레임 사라짐
+humoruniv.com#@#[onclick] img[style]
+! - - - 해피툰 (https://happytoon01.com/) - 만화 이미지 사라짐
+[$domain=/^happytoon\d+.com/]#@#[onclick] img[style]
+! - - - 디토토렌트 (https://ditto-torrent20.top/) - 이미지 사라짐
+[$domain=/^ditto-torrent\d+.top/]#@#[onclick] img[style]
+! - - - 링크짱 (https://www.zzang11.com/) - 안해도 되나 해제
+[$domain=/^www.zzang\d+.com/]#@#[onclick] img[style]
+
+
+
+!!! - 광역 9
+! https://sexygirl.cc/
+##a[href*="click"] img
+! - - - 예외
+! - - - 옥션 (https://www.auction.co.kr/) - 검색시 이미지 사라짐
+auction.co.kr#@#a[href*="click"] img
+
+
+
+!!! - 광역 10
+! - 텍스트 광고 (텍스트 + 배경 테이블)
+! - https://01.avpop.tv/
+![$domain=/^\d+.avpop.tv/]##a[href] [style*="background"] - 아래 규칙으로 변경
+##a[href*="banner"] [style*="background"]
+
+
+
+!!! - 광역 11 (iframe 차단)
+! - - - 광역으로 사용
+! - - - https://redgirl37.org/ - 영상 아래 iframe
+! - - - 거의 모든 iframe 차단
+!##[class] iframe[src] - 아래로 변경
+!##[class][id] iframe
+!##[class]>iframe[style][src]
+
+!##[class][style] iframe
+!##[class] iframe[style][src]
+
+!##[class]>[id][style]>iframe
+!##[id][class][style] iframe
+!##[id][class][style] iframe[style][src]
+!##[class]>[id][class][style] iframe[style][src]
+!##[class]>[id][class][style]>iframe[style][src]
+! - - - 예외
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+!avsee.ru#@#[class][style] iframe
+!avsee.ru#@#[class] iframe[style][src]
+!avsee.ru#@#[class][id] iframe
+! - - - 더쿠 (https://theqoo.net/) - 게시물 내 프레임 작동불가
+!theqoo.net#@#[class] iframe[style][src]
+!theqoo.net#@#[class][id] iframe
+
+
+
+!##div > iframe
+! - - - 예외
+!dcinside.com,theqoo.net,ppomppu.co.kr,damoang.net,poooo.ml,coupang.com,mypikpak.com#@#div > iframe
+! - https://tvwiki21.com/
+! - https://tvmon16.org/
+! - https://tvhot.store/
+![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#div > iframe
+
+!avsee.ru,supjav.com,javneon.tv,evojav.pro,javeve.tv,javsaga.ninja,javbull.tv,javgg.net,sogirl.so,4kjav.co,javgiga.com,123av.com,njav.com,javrider.com,j91.asia,pubjav.com,popjav.in,javhd.today,javhd.icu,av19.live#@#div > iframe
+! - https://xxjoa46.com/
+! - https://4.jamakyadong.me/
+! - https://s10.watchfreejavonline.co/
+! - https://yagong85.com/
+! - https://yagro48.com/
+! - https://yamoa36.site/
+! - https://yaburi62.com/
+! - https://4.yadongpan.me/
+! - https://01.avpop.tv/
+! - https://yasome48.cc/
+! - https://bo-zi66.net/
+! - https://yaohri37.com/
+! - https://modooav6.com/
+! - https://mmaxx8.com/
+! - https://buska21.com/
+! - https://ggbam9.com/
+! - https://gristmill32.com/
+! - https://ddaltime173.com/ - 영상 없음
+! - https://dragonfly66.com/
+! - https://s2.onanibang.com/
+! - https://samdasoo61.com/
+! - https://nvt44.com/
+![$domain=/^xxjoa\d+.com/],[$domain=/^\d+.jamakyadong.me/],[$domain=/^s\d+.watchfreejavonline.co/],[$domain=/^yagong\d+.com/],[$domain=/^yagro\d+.com/],[$domain=/^yamoa\d+.site/],[$domain=/^yaburi\d+.com/],[$domain=/^\d+.yadongpan.me/],[$domain=/^\d+.avpop.tv/],[$domain=/^yasome\d+.cc/],[$domain=/^bo-zi\d+.net/],[$domain=/^yaohri\d+.com/],[$domain=/^modooav\d+.com/],[$domain=/^mmaxx\d+.com/],[$domain=/^buska\d+.com/],[$domain=/^ggbam\d+.com/],[$domain=/^gristmill\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^dragonfly\d+.com/],[$domain=/^s\d+.onanibang.com/],[$domain=/^samdasoo\d+.com/],[$domain=/^nvt\d+.com/]#@#div > iframe
+!7tv000.com#@#div > iframe
+
+! - https://v15.jogemovie.net/
+!qq2.fabulouslink.xyz#@#div > iframe
+
+
+
+
+
+
+! https://www.youtube.com/
+! https://www.instagram.com/
+! https://accounts.google.com/
+! 루리웹 (https://bbs.ruliweb.com/) - 전체 iframe
+! 짱공유닷컴 (https://www.jjang0u.com/) - 전체 iframe
+! https://javfan.one/
+! https://t.me/
+! https://javhd.icu/ 등
+##iframe[src*="iframe"]
+!##iframe[src*="frame"]
+! - - - 예외
+! - - - https://7tv000.com/ - 영상 안나옴 (TV 영상) - 주소 바뀜 주의
+7tv000.com#@#iframe[src*="iframe"]
+!7tv000.com#@#iframe[src*="frame"]
+! - - - https://tvwiki21.com/ - 영상 안나옴
+! - - - https://tvmon16.org/ - 영상 안나옴
+! - - - https://tvhot.store/ - 영상 안나옴 (주의 : 주소 바뀜)
+![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[src*="frame"]
+! - - - https://theqoo.net/ - 게시물 프레임 적용 안됨
+!theqoo.net#@#iframe[src*="frame"]
+! - - - 뽐뿌 (https://ppomppu.co.kr/) - 이상은 없는대 모바일에서 에러 메시지 나옴
+!ppomppu.co.kr#@#iframe[src*="frame"]
+! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
+sogirl.so#@#iframe[src*="iframe"]
+!sogirl.so#@#iframe[src*="frame"]
+! - - - https://kr29.4kjav.co/ - 영상 안나옴
+4kjav.co#@#iframe[src*="iframe"]
+
+
+##iframe[id*="iframe"]
+! -- - 예외
+! - - - 티비위키 (https://tvwiki21.com/) - 영상 안나옴
+[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[id*="iframe"]
+! - - - https://7tv000.com/ - TV 영상 안나옴 (주소 바뀜)
+7tv000.com#@#iframe[id*="iframe"]
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+www.naver.com#@#iframe[id*="iframe"]
+! - - - https://yagro48.com/ - 화면 안보임
+[$domain=/^yagro\d+.com/]#@#iframe[id*="iframe"]
+! - - - https://www.youtube.com/ - 일부 확장프로그램과 사용시 유튜브 화면이 하얗게 변해서 안보임
+!www.youtube.com#@#iframe[id*="iframe"]
+
+
+
+! - https://funlove.info/
+!##[class][style] iframe[src*="iframe"]
+!##iframe[src*="iframe"]
+!##[class][style] iframe
+! - - - 예외
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+!avsee.ru#@#[class][style] iframe
+! - - - https://poooo.ml/ - 왼쪽 메인이 안나옴
+!poooo.ml#@#[class][style] iframe
+! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
+!naver.com#@#[class][style] iframe
+! - - - https://tv.kakao.com/ - 영상 안나옴
+!tv.kakao.com#@#[class][style] iframe
+! - - - https://7tv000.com/ - TV 영상 안나옴 (주소 바뀜)
+!7tv000.com#@#[class][style] iframe
+! - - -  핑유걸 (https://avpingyou19.com/) - 영상 안나옴
+![$domain=/^avpingyou\d+.com/]#@#[class][style] iframe
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 원인을 알 수 없으나 모바일에서 오류 메시지 출력으로 인한 해제
+!ppomppu.co.kr#@#[class][style] iframe
+! - - - 인벤 (https://www.inven.co.kr/) - 트위터 프레임 안보임
+!inven.co.kr#@#[class][style] iframe
+
+
+!##iframe[src*="layout"]
+
+!##iframe[src*="popup"]
+
+! https://missav.ws/
+!##iframe[src*="player"]
+! - - - 예외
+! - - - AVseeTV (https://05.avsee.ru/) - 영상 프레임 안보임
+!avsee.ru#@#iframe[src*="player"]
+! - - - https://tvwiki21.com/ - 영상 안나옴
+! - - - https://tvmon16.org/ - 영상 안나옴
+! - - - https://tvhot.store/ - 영상 안나옴 (주의 : 주소 바뀜)
+![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[src*="player"]
+
+!##iframe[src*="renderer"]
+
+!##iframe[src*="badge"]
+
+!##iframe[src*="doubleclick"]
+
+!##iframe[src^="data:"]
+
+!##iframe[style*="position"]
+! - - - 예외
+! - 클리앙 (https://www.clien.net/) - 게시물내 트위터 등 프레임 사라짐
+!clien.net#@#iframe[style*="position"]
+
+!##iframe[style*="background"]
+! - - - 예외
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 댓글 입력란 사라짐
+!ppomppu.co.kr#@#iframe[style*="background"]
+
+!##iframe[style*="background-color"]
+! - - - 예외
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 댓글 입력란 사라짐
+!ppomppu.co.kr#@#iframe[style*="background-color"]
+
+! - - - 
+
+
+
+!/////////////////////////////////////////////////////////////////////////////////
