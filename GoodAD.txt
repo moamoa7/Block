@@ -5283,6 +5283,9 @@ mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ##iframe[src*="adlist"]
 ##iframe[src*="adv"]
 !##iframe[style="border:0; width:100%;overflow-y:hidden;overflow-x:hidden"]
+
+! https://www.fmkorea.com/
+! https://yasyadong.cc/
 ##iframe[style*="overflow"]
 ##iframe[style*="hidden"]
 
