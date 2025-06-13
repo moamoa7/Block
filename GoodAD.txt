@@ -2109,9 +2109,9 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 ! - 로고 이미지 복원
 !@@||supjav.com/img/*$image
 ! 팝업 방지
-profitableratecpm.com$popup
-fractionfridgejudiciary.com$popup
-depreciatorybollocksupkitchen.com$popup
+||profitableratecpm.com^$popup
+||fractionfridgejudiciary.com^$popup
+||depreciatorybollocksupkitchen.com^$popup
 ! - 차단 사이트
 ||mnaspm.com^
 ||fanza.cc^
@@ -2134,20 +2134,20 @@ depreciatorybollocksupkitchen.com$popup
 ! EVOJAV (https://evojav.pro/) 포함
 ! - 팝업 방지
 ! - 팝업이 본창에 나오므로 백스페이스로 가서 영상 재생 필요
-javneon.tv$popup
-javeve.tv$popup
-javsaga.ninja$popup
-javbull.tv$popup
-javsaga.ninja$popup
-evojav.pro$popup
+||javneon.tv^$popup
+||javeve.tv^$popup
+||javsaga.ninja^$popup
+||javbull.tv^$popup
+||javsaga.ninja^$popup
+||evojav.pro^$popup
 !
 !
 ! SEXTB.NET (https://sextb.date/)
 ! -영상 오른쪽 배너 공간
 sextb.date##.hidden-md.right.col-3
 ! - 팝업 방지
-ak.stikroltiltoowi.net$popup
-lionessgrandchild.com$popup
+||ak.stikroltiltoowi.net^$popup
+||lionessgrandchild.com^$popup
 ! - 차단 사이트
 ||mlb8ys4v.xyz^
 ||realsrv.com^
@@ -2158,8 +2158,8 @@ lionessgrandchild.com$popup
 ! - 상단 배너 이미지 공간 (유니콘Pro)
 !!###ads
 ! - 팝업 방지
-lwirirvpo.com$popup
-illustriousreserve.pro$popup
+||lwirirvpo.com^$popup
+||illustriousreserve.pro^$popup
 ! - 차단 사이트
 ||acscdn.com^
 ||chaseherbalpasty.com^
@@ -2171,10 +2171,10 @@ illustriousreserve.pro$popup
 !
 ! JavGG (https://javgg.net/)
 ! - 팝업 방지
-streamhg05032026.shop$popup
-disprovefacilityjolt.com$popup
-barometercorrodingunease.com$popup
-correctdilutetrophy.com$popup
+||streamhg05032026.shop^$popup
+||disprovefacilityjolt.com^$popup
+||barometercorrodingunease.com^$popup
+||correctdilutetrophy.com^$popup
 ! - 차단 사이트
 ||islandjav182.fun^
 ||graveljav128.fun^
@@ -2187,7 +2187,7 @@ correctdilutetrophy.com$popup
 !
 ! Javsubs91 (https://j91.asia/)
 !  - 팝업 방지
-||adxadserv.com$popup
+||adxadserv.com^$popup
 ! - 차단 사이트
 ||profitabledisplaynetwork.com^
 ||6v41p4bsq.com^
@@ -2201,8 +2201,8 @@ correctdilutetrophy.com$popup
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
 ##div.set_height_250
 ! - 팝업 방지
-stikroltiltoowi.net^$popup
-persecutionpunishlegally.com^$popup
+||stikroltiltoowi.net^$popup
+||persecutionpunishlegally.com^$popup
 ! - 차단 사이트
 ||labadena.com^
 ||tapioni.com^
@@ -2401,6 +2401,7 @@ topjav.tv##.koukoku_11
 ! https://sexkbj.com/
 ! - 팝업 방지
 ||pemsrv.com^$popup
+||62ad.com^$popup
 ! - 차단 사이트
 ||exdynsrv.com^
 !
@@ -2482,12 +2483,12 @@ avdbs.com#@#[class^="ad"]
 !
 ! https://tojav.net/
 ! - 팝업 방지
-exodusjailhousetarantula.com$popup
+||exodusjailhousetarantula.com^$popup
 !
 !
 ! AV01 (https://www.av01.media/)
 ! - 팝업 방지
-apologiesoccursdepressed.com$popup
+||apologiesoccursdepressed.com^$popup
 !
 !
 ! 123AV (https://www1.123av.com/)
@@ -2497,16 +2498,16 @@ apologiesoccursdepressed.com$popup
 ! -오른쪽 따라다니는 배너 (EasyList)
 ##.ad-floating
 ! - 팝업 방지
-alarmenvious.com$popup
-prefecturesuggestions.com$popup
+||alarmenvious.com^$popup
+||prefecturesuggestions.com^$popup
 !
 !
 ! https://herexxx.com/
 ! - 팝업 방지
-antirustdynamicsulfite.com$popup
-chubbyexemplaryhardiness.com$popup
-omg.adult$popup
-herexxx.com$popup
+||antirustdynamicsulfite.com^$popup
+||chubbyexemplaryhardiness.com^$popup
+||omg.adult^$popup
+||herexxx.com^$popup
 ! - 차단 사이트
 ||chubbyexemplaryhardiness.com^
 ||footbathmockerpurse.com^
@@ -2624,10 +2625,10 @@ missav.live##.lg\:block
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
 ! - 팝업 방지
-missav.*/pop$popup
-tsyndicate.com$popup
-ad.twinrdengine.com$popup
-go.myavlive.com$popup
+||missav.*/pop^$popup
+||tsyndicate.com^$popup
+||ad.twinrdengine.com^$popup
+||go.myavlive.com^$popup
 ! - 차단 사이트
 ||tsyndicate.com^
 ||rmhfrtnd.com^
@@ -2650,7 +2651,7 @@ go.myavlive.com$popup
 ! - 영상 옆 배너?
 hohoj.tv##iframe[src="javascript:window.location.replace(this.frameElement.dataset.link)"]
 ! - 팝업 방지
-trackwilltrk.com^$popup
+||trackwilltrk.com^$popup
 !
 !
 ! JAVLibrary (https://www.javlibrary.com/) (https://r86m.com/)
@@ -2680,7 +2681,7 @@ javmov.com##.spot
 !
 ! https://camcam.cc/
 ! - 팝업 방지
-||mnaspm.com$popup
+||mnaspm.com^$popup
 ! - 차단 사이트
 ||landsideresendtrousers.com^
 !
@@ -2870,7 +2871,7 @@ notion.so@@||/*/ads/*
 ! - 영상 광고
 [$domain=/^kr\d+.mysstv.com/]##.artplayer-plugin-ads
 ! - 팝업 방지
-sstv01.work.gd$popup
+||sstv01.work.gd^$popup
 !
 !
 ! 야동그라운드 (https://yagro48.com/)
