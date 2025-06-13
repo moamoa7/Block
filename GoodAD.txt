@@ -2399,6 +2399,8 @@ topjav.tv##.koukoku_11
 !
 !
 ! https://sexkbj.com/
+! - 지저분하게 떠있는 여러가지
+##.textwidget
 ! - 팝업 방지
 ||pemsrv.com^$popup
 ||62ad.com^$popup
