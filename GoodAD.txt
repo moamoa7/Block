@@ -2652,9 +2652,17 @@ javlibrary.com,[$domain=/^r\d+.m.com/]###adultwarningmask
 !##.spot
 javmov.com##.spot
 ! - 영상 오른쪽 배너 (공백)
+! - - - https://kissjav.com/ 영상 오른쪽 배너
 !javmov.com##.asside-link
 !##[class="asside-link"]
 ##.asside-link
+!
+!
+! https://camcam.cc/
+! - 팝업 방지
+||mnaspm.com$popup
+! - 차단 사이트
+||landsideresendtrousers.com^
 !
 !
 ! https://loopholes.site/
@@ -4221,6 +4229,8 @@ javdock.com#@#[class*="ads"]
 [$domain=/^\d+.jamakyadong.me/]#@#[class*="ads"]
 ! - --  https://av19.live/ - 영상 안보임
 av19.live#@#[class*="ads"]
+! - - - https://camcam.cc/ - 영상 프레임 사라짐
+camcam.cc#@#[class*="ads"]
 
 
 
@@ -5259,6 +5269,9 @@ www.naver.com#@#iframe[title*="iframe"]
 !theqoo.net#@#[class*="ad"] iframe
 
 ##[class*="ads"] iframe
+! - - - 예외
+! - - - https://camcam.cc/ - 영상 프레임 사라짐
+camcam.cc#@#[class*="ads"] iframe
 
 
 !##[style] iframe
