@@ -4294,14 +4294,16 @@ kakaotv.daum.net#@#[class*="ads"]
 
 ! - https://kissjav.com/
 ! - https://sexkbj.com/
-##[class*="video"] video
+!##[class*="e"][style*="i"] video
+!##[class*="video"] video
 ! - - - 예외
 ! - - - https://www.fmkorea.com/ - 영상 안보임
-fmkorea.com#@#[class*="video"] video
+!fmkorea.com#@#[class*="video"] video
 ! - - - - https://www.youtube.com/ - 영상 안보임
-youtube-nocookie.com#@#[class*="video"] video
+!youtube-nocookie.com#@#[class*="video"] video
 ! - - - - https://www.etoland.co.kr/ - 영상 안보임
-etoland.co.kr#@#[class*="video"] video
+!etoland.co.kr#@#[class*="video"] video
+##[class*="-video"] video
 
 
 !##video
