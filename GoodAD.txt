@@ -2501,6 +2501,20 @@ alarmenvious.com$popup
 prefecturesuggestions.com$popup
 !
 !
+! https://herexxx.com/
+! - 팝업 방지
+antirustdynamicsulfite.com$popup
+chubbyexemplaryhardiness.com$popup
+omg.adult$popup
+herexxx.com$popup
+! - 차단 사이트
+||chubbyexemplaryhardiness.com^
+||footbathmockerpurse.com^
+||epidermispushupvariable.com^
+||amdlucxrofi.com^
+/^https:\/\/[a-z]{8,12}\.com(?:\/[a-z]{2,10}){1,3}$/$script,3p,match-case,header=etag:/^W\/"[0-9a-z]+-[0-9a-z]+"$/,to=com
+!
+!
 ! TIDHEE (https://www.tid-hee.com/)
 ! - 영상 상단 배너
 !tid-hee.com##.custom-html-widget.textwidget
