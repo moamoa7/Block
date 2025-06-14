@@ -4936,9 +4936,13 @@ www.naver.com#@#iframe[id*="iframe"]
 
 
 ! https://s1.kav.so/
+! https://kr80.sogirl.so/
 ##[class*="-widget"] iframe
 ##[class*="widget_"] iframe
 ##[class*="widget"] iframe
+
+! https://kr80.sogirl.so/
+##[class*="widget-"] iframe
 
 
 
