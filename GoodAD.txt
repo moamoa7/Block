@@ -5199,9 +5199,9 @@ www.naver.com#@#iframe[title*="frame"]
 !gall.dcinside.com#@#iframe[sandbox*="allow-forms"]
 ! - - -https://pigav.com/ - 영상 안보임 (sandbox="allow-same-origin allow-scripts allow-popups allow-forms")
 !pigav.com#@#iframe[sandbox*="allow-forms"]
-##[class*="banner"] iframe[sandbox]
-##[class*="ads"] iframe[sandbox]
-##[class*="click"] iframe[sandbox]
+!##[class*="banner"] iframe[sandbox]
+!##[class*="ads"] iframe[sandbox]
+!##[class*="click"] iframe[sandbox]
 
 
 
