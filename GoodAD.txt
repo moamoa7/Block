@@ -2242,7 +2242,7 @@ sextb.date##.hidden-md.right.col-3
 ! https://www.xnxx.com/
 ! - 광고
 !##[class*="widget"]
-##[class*="-widget-"]
+!##[class*="-widget-"] - 다른 사이트 (https://pigav.com/) 안보임
 ! ##[class*="-ad-"] img - 다시 나타남. ###ad-footer로 공간 지워야 사라짐
 ##[class*="-ad-"] img
 !
@@ -2311,7 +2311,12 @@ clien.net#@#.ad_banner
 !##[class="happy-inside-player"]
 ##.happy-inside-player
 ! - 차단 사이트
-||waust.at^
+!||waust.at^
+!
+!
+! 쏘걸.net (https://www.xn--av-t21i858e.net/)
+! - 배너 이미지
+##img[src*="static.wixstatic.com/media"]
 !
 !
 ! TK Tubo (https://tktube.com/)
@@ -4829,6 +4834,8 @@ www.naver.com#@#iframe[id*="iframe"]
 [$domain=/^yagro\d+.com/]#@#iframe[id*="iframe"]
 ! - - - https://www.youtube.com/ - 일부 확장프로그램과 사용시 유튜브 화면이 하얗게 변해서 안보임
 !www.youtube.com#@#iframe[id*="iframe"]
+! - - - 레드걸스 (https://kr1.redgirls.co/) - 영상 안보임
+[$domain=/^kr\d+.redgirls.co/]#@#iframe[id*="iframe"]
 
 
 
@@ -5167,15 +5174,17 @@ www.naver.com#@#iframe[title*="frame"]
 ! https://sextb.date/ 일부
 !##iframe[sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-same-origin"]
 
-##iframe[sandbox*="allow-forms"]
+!##iframe[sandbox*="allow-forms"]
 !##iframe[sandbox*="allow-same-origin"] X
 !##iframe[sandbox*="allow-popups"] X
 !##iframe[sandbox*="allow-scripts"] X
 ! - - - 예외 (차단내역에 나옴)
 ! https://mypikpak.com/ - 로봇이 아닙니다 팝업 안뜸
-mypikpak.com#@#iframe[sandbox*="allow-forms"]
+!mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ! https://gall.dcinside.com/ - 게시글 등록 클릭시 로봇 안열림
-gall.dcinside.com#@#iframe[sandbox*="allow-forms"]
+!gall.dcinside.com#@#iframe[sandbox*="allow-forms"]
+! - - -https://pigav.com/ - 영상 안보임
+!pigav.com#@#iframe[sandbox*="allow-forms"]
 
 
 
