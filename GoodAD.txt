@@ -171,22 +171,22 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - - 확장프로그램 추천하다 버튼 없애기
 !youtube.com###ytd-player > div > button
 ! - 차단 사이트
-||g.doubleclick.net^
-||pagead2.googlesyndication.com^
-||google.*/pagead/lvz?
+!||g.doubleclick.net^
+!||pagead2.googlesyndication.com^
+!||google.*/pagead/lvz?
 !
 !
 ! 스포티파이 (https://open.spotify.com/)
 ! - 차단 사이트
-||rlcdn.com^
+!||rlcdn.com^
 !
 !
 ! 네이버 (https://www.naver.com/)
 ! - 배너
 ##[class*="_banner_"]
 ! - 차단 사이트
-||shopsquare.naver.com^
-||recoshopping.naver.com^
+!||shopsquare.naver.com^
+!||recoshopping.naver.com^
 !
 !
 ! 네이버 뉴스 (https://news.naver.com/)
@@ -211,7 +211,7 @@ news.naver.com##._horizontal_scroll_type._horizontal_card_wrapper.main_brick_ite
 !
 ! 네이트 (https://www.nate.com/)
 ! - 차단 사이트
-||cyad1.nate.com^
+!||cyad1.nate.com^
 !
 !
 ! 숲 (https://sooplive.co.kr)
@@ -226,7 +226,7 @@ sooplive.co.kr##.subs_plus.seasonal_area
 !##[class="buffering"]
 ##.buffering
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (List-KR)
-||static.sooplive.co.kr/asset/service/ad/
+!||static.sooplive.co.kr/asset/service/ad/
 ! -  채팅 광고
 !##[class*="chat_banner"]
 ##.chat_banner
@@ -241,8 +241,8 @@ sooplive.co.kr##.bubble-container
 ! -스트리머에게 수익이 후원되는 광고를 재생하고 계십니다. 없애기
 sooplive.co.kr##.text_output
 ! - - - 광고 영상 안보이게 (광고 차단 안될시 소리만 나오고 영상은 재생되지 않음)
-||vod-player*.sooplive.co.kr
-||deapi.sooplive.co.kr^
+!||vod-player*.sooplive.co.kr
+!||deapi.sooplive.co.kr^
 sooplive.co.kr##.da_area
 sooplive.co.kr###da_video
 ! - 방송요약 팝업
@@ -271,9 +271,9 @@ sooplive.co.kr###FeedLayerToolTip
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
 ! - 차단 사이트
-||adballoon.sooplive.co.kr^
-||reqde.sooplive.co.kr^
-||ads-twitter.com^
+!||adballoon.sooplive.co.kr^
+!||reqde.sooplive.co.kr^
+!||ads-twitter.com^
 !
 !
 ! 풍투데이 (https://poong.today/)
@@ -306,10 +306,10 @@ twitch.tv###twilight-sticky-footer-root
 ! - 광고?
 ||*.ads.*
 ! - 차단 사이트
-||edge.ads.twitch.tv^
-||scorecardresearch.com^
-||amazon-adsystem.com^
-||d2v02itv0y9u9t.cloudfront.net^
+!||edge.ads.twitch.tv^
+!||scorecardresearch.com^
+!||amazon-adsystem.com^
+!||d2v02itv0y9u9t.cloudfront.net^
 !
 !
 ! 킥 (https://kick.com/)
@@ -329,7 +329,7 @@ twitch.tv###twilight-sticky-footer-root
 !@@play.kakao.com
 !@@videoads.kakao.com
 ! - 차단 사이트
-||ad.daum.net^
+!||ad.daum.net^
 !
 !
 ! 다음 스포츠 (https://sports.daum.net/)
@@ -352,12 +352,12 @@ cineaste.co.kr##[class="main-title"]
 ! - 오른쪽 중간 배너
 ##[class*="basic-banner"]
 !cineaste.co.kr##.basic-banner
-! - 오른쪽 배너 공간
-cineaste.co.kr##.container > div[style][id]
+! - 오른쪽 배너 공간 (List-KR)
+!cineaste.co.kr##.container > div[style][id]
 ! - 로고 복원
 !@@cineaste.co.kr/data/apms/background/logo7.png
 ! - 차단 사이트
-||vntsm.com^
+!||vntsm.com^
 !
 !
 ! AAGAG (https://aagag.com/)
@@ -456,9 +456,9 @@ wiki.dcinside.com##*
 ! - 갤주소복사 안나오는거 해결
 gall.dcinside.com#@#[class^="ad"]
 ! - 차단 사이트
-||addc.dcinside.com^
-||taboola.com^
-||netinsight.co.kr^
+!||addc.dcinside.com^
+!||taboola.com^
+!||netinsight.co.kr^
 !
 !
 ! 아카라이브 (https://arca.live/)
@@ -483,7 +483,7 @@ gall.dcinside.com#@#[class^="ad"]
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
 ! - 차단 사이트
-||external-api.impression-neo.naver.com^
+!||external-api.impression-neo.naver.com^
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
@@ -556,10 +556,10 @@ etoland.co.kr###info_recent_list_wrap
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
 etoland.co.kr#@#[class^="ad"]
 ! - 차단 사이트
-||mobon.net^
-||cdn.nhnace.com^
-||html-load.cc^
-||wtg-ads.com^
+!||mobon.net^
+!||cdn.nhnace.com^
+!||html-load.cc^
+!||wtg-ads.com^
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -621,10 +621,10 @@ mlbpark.donga.com##.bt_menu_wrap
 ! - - - 출처 : https://gall.dcinside.com/adguard/399
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ! - 차단 사이트
-||ad.aceplanet.co.kr^
-||contentsfeed.com^
-||searchad-phinf.pstatic.net^
-||dable.io^
+!||ad.aceplanet.co.kr^
+!||contentsfeed.com^
+!||searchad-phinf.pstatic.net^
+!||dable.io^
 !
 !
 ! 루리 (https://www.ruliweb.com/)
@@ -672,8 +672,8 @@ ddanzi.com##.add_display2
 !ddanzi.com##.board_addOption
 !ddanzi.com##.read.writeButtonWrap
 ! - 차단 사이트
-||adpnut.com^
-||criteo.net^
+!||adpnut.com^
+!||criteo.net^
 !
 !
 ! 보배드림 (https://www.bobaedream.co.kr/)
@@ -710,7 +710,7 @@ todayhumor.co.kr##.under_ad_div
 !##[class="call_banner"]
 ##.call_banner
 ! - 차단 사이트
-||mediacategory.com^
+!||mediacategory.com^
 !
 !
 ! 와이고수 (https://ygosu.com/)
@@ -875,8 +875,8 @@ clien.net#@#[class^="ad"]
 ! - 게시물 광고 글
 clien.net###hongboInfoList
 ! - 차단 사이트
-||epnt.ebay.com^
-||openx.net^
+!||epnt.ebay.com^
+!||openx.net^
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -896,7 +896,7 @@ damoang.net##.d-block.lh-1.end-0.bottom-0.position-fixed
 ! 홍보글 (List-KR)
 damoang.net##li.list-group-item:has(a[href*="promotion"])
 ! - 차단 사이트
-||fundingchoicesmessages.google.com^$3p
+!||fundingchoicesmessages.google.com^$3p
 !
 !
 ! 웃긴대학 (https://web.humoruniv.com/)
@@ -905,20 +905,20 @@ damoang.net##li.list-group-item:has(a[href*="promotion"])
 ! - 최하단 배너
 !humoruniv.com##.adsbygoogle
 ! - 차단 사이트
-||compass.adop.cc^
+!||compass.adop.cc^
 !
 !
 ! 루리웹 (https://bbs.ruliweb.com/)
 ! - 차단 사이트
-||ad4989.co.kr^
-||innity.net^
+!||ad4989.co.kr^
+!||innity.net^
 !
 !
 ! 가생이닷컴 (https://www.gasengi.com/)
 ! - 차단 사이트
-||clickmon.co.kr^
-||megadata.co.kr^
-||ssl.pstatic.net/adimg3.search/adpost/js/
+!||clickmon.co.kr^
+!||megadata.co.kr^
+!||ssl.pstatic.net/adimg3.search/adpost/js/
 !
 !
 ! 이지데이 (https://www.ezday.co.kr/)
@@ -1672,40 +1672,40 @@ yna.co.kr##[class^="aside"]
 !yna.co.kr##.aside-box400
 yna.co.kr##.ynalounge-content01.wide.content03
 ! - 차단 사이트
-||ad.yna.co.kr^
-||innorame.com^
+!||ad.yna.co.kr^
+!||innorame.com^
 !
 !
 ! 더팩트 (https://www.tf.co.kr/)
 ! - 차단 사이트
-||nad.tf.co.kr^
-||ad.doorigo.co.kr^
-||ad.ajitad.co.kr^
-||interworksmedia.co.kr^
-||img.side.mythiell.com^
-||tracker.digitalcamp.co.kr^
+!||nad.tf.co.kr^
+!||ad.doorigo.co.kr^
+!||ad.ajitad.co.kr^
+!||interworksmedia.co.kr^
+!||img.side.mythiell.com^
+!||tracker.digitalcamp.co.kr^
 !
 !
 ! 머니S (! 머니S (https://www.moneys.co.kr/)
 ! - 차단 사이트
-||ads.mtgroup.kr^
+!||ads.mtgroup.kr^
 !
 !
 ! OSEN (https://www.osen.co.kr/)
 ! - 차단 사이트
-||keywordsconnect.com^
-||widerplanet.com^$3p
+!||keywordsconnect.com^
+!||widerplanet.com^$3p
 !
 !
 ! 한겨레 (https://www.hani.co.kr/)
 ! - 차단 사이트
-||adservice.hani.co.kr^
-||d1cykymlllue3h.cloudfront.net^
+!||adservice.hani.co.kr^
+!||d1cykymlllue3h.cloudfront.net^
 !
 !
 ! 엑스포츠 뉴스 (https://www.xportsnews.com/)
 ! - 차단 사이트
-||kitweb.tadapi.info^
+!||kitweb.tadapi.info^
 !
 !
 ! 한국경제 (https://www.hankyung.com/)
@@ -1726,31 +1726,31 @@ hankyung.com##.stock-marquee-wrap
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
 ! - 차단 사이트
-||admaru.com^$3p
-||aralego.com^
-||3lift.com^
-||criteo.com^
-||pubmatic.com^
-||rubiconproject.com^
+!||admaru.com^$3p
+!||aralego.com^
+!||3lift.com^
+!||criteo.com^
+!||pubmatic.com^
+!||rubiconproject.com^
 !
 !
 ! 경향신문 (https://www.khan.co.kr/)
 ! - 배너 및 배너공간
 ##[class*="banner-"]
 ! - 차단 사이트
-||adv.khan.co.kr^
-/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
+!||adv.khan.co.kr^
+!/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 !
 !
 ! 노컷뉴스 (https://nocutnews.co.kr/)
 ! - 차단 사이트
-||anymind360.com^
-||ad.adinc.kr^
+!||anymind360.com^
+!||ad.adinc.kr^
 !
 !
 ! 뷰스앤뉴스 (https://www.viewsnnews.com/)
 ! - 차단 사이트
-||realclick.co.kr^
+!||realclick.co.kr^
 !
 !
 ! 뉴데일리 (https://www.newdaily.co.kr/) 삭제
@@ -1815,10 +1815,10 @@ jtbc.co.kr##.set_contents_video_ad
 ! - 배너
 ##.ad-view
 ! - 차단 사이트
-||aedi.ai^$3p
-||piclick.kr^
-||optad360.io^
-||quantserve.com^$3p
+!||aedi.ai^$3p
+!||piclick.kr^
+!||optad360.io^
+!||quantserve.com^$3p
 !
 !
 ! 텐아시아 (https://www.tenasia.co.kr/)
@@ -1887,9 +1887,9 @@ search.11st.co.kr#@#[data-log-actionid-area^="focus"]
 ! - 알림
 aliexpress.com##._3KrBP
 ! - 차단 사이트
-||creativecdn.com^
-||googleadservices.com^
-||creativecdn.com^
+!||creativecdn.com^
+!||googleadservices.com^
+!||creativecdn.com^
 !
 !
 ! 중고나라 (https://web.joongna.com/)
@@ -2086,15 +2086,15 @@ pedia.watcha.com##.adFixed
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
-avsee.ru##[class="title"]
-!avsee.ru##.title
+!avsee.ru##[class="title"]
+avsee.ru##.title
 avsee.ru##div.main-box:nth-of-type(1)
 ! - 새창 방지
 avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - - - uBlock filters – Ads
-/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
+!/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
 ! - 차단 사이트
-||aroundcommoditysway.com^
+!||aroundcommoditysway.com^
 !
 !
 ! supjav (https://supjav.com/)
@@ -2113,14 +2113,14 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 ||fractionfridgejudiciary.com^$popup
 ||depreciatorybollocksupkitchen.com^$popup
 ! - 차단 사이트
-||mnaspm.com^
-||fanza.cc^
-||adxadserv.com^
-||daly2024.com^
-||imasdk.googleapis.com^
-||adforcast.com^
-||zimpolo.com^
-||campfirecroutondecorator.com^
+!||mnaspm.com^
+!||fanza.cc^
+!||adxadserv.com^
+!||daly2024.com^
+!||imasdk.googleapis.com^
+!||adforcast.com^
+!||zimpolo.com^
+!||campfirecroutondecorator.com^
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -2149,9 +2149,9 @@ sextb.date##.hidden-md.right.col-3
 ||ak.stikroltiltoowi.net^$popup
 ||lionessgrandchild.com^$popup
 ! - 차단 사이트
-||mlb8ys4v.xyz^
-||realsrv.com^
-/^(?!.*(mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.li|bytecdntp.com|fastlycdn.com|doodcdn.co|intensedebate.com|vixcloud.co|cdn.plyr.io|rsc.cdn77.org|linkvertise.com|fastly.net|statically.io|sharecast.ws|b-cdn.net|bunnycdn.ru|bootstrapcdn.com|cdn.ampproject.org|cloudflare.com|cdn.staticfile.org|disqus.com|disquscdn.com|dmca.com|ebacdn.com|facebook.net|fastlylb.net|fbcdn.net|fluidplayer.com|fontawesome.com|github.io|google.com|googleapis.com|googletagmanager.com|gstatic.com|jquery.com|jsdelivr.net|jwpcdn.com|jwplatform.com|recaptcha.net|shrink.pe|twitter.com|ulogin.ru|unpkg.com|userapi.com|vidazoo.com|(\/\/|\.)vk\.com|yandex.|yastatic.net|ytimg.com|zencdn.net|player|youtube.com|cackle.me|googleoptimize.com|vuukle.com|chatango.com|twimg.com|google-analytics.com|hcaptcha.com|raincaptcha.com|media-imdb.com|blogger.com|hwcdn.net|instagram.com|wp.com|fastcomments.com|plyr.io|imgsmail.ru|cloudflare.net|rabbitstream.net|(\/\/|\.)x\.com)).*$/$third-party,script,_____,domain=fapfappy.com|onestream.xyz|123movieshd.*|sportsonline.*|dlhd.*|ducumon.click|klto9.com|f2movies.to|streamcenter.pro|xx0day.com|sextb.date|sextb.net|gocast2.com|alexsports.site|xxxymovies.com|javhdo.net|daft.sex|tv.puresoul.live|stakes100.xyz|veryfreeporn.com|bestsolaris.com|linkebr.com|bitfly.io|exe.app|gplinks.co|miklpro.com|cutlink.link|rexdlfile.com|downloadhub.ink|skidrowcodex.co|adcorto.xyz|cuturl.in|paidtomoney.com|skidrowcodex.net|vvc.vc|illink.net|300mbplus.*|hdmovieplus.site|shrinkme.in|gibit.xyz|iir.ai|todaynewspk.win|stfly.me|bolssc.com|canyoublockit.com|aii.sh|uptoshort.com|gsurl.in|oncehelp.com|extramovies.casa|asianclub.nl|kshow123.net|dlapk4all.com|cryptoads.space|putlocker.digital|pimpandhost.com|pornpapa.com|shorthub.co|xxxfiles.com|pornone.com|rawdex.net|hiperdex.com|ask4movie.co|animekayo.com|xorgasmo.com|mitly.us|xtits.com|vjav.com|japscan.se|birdurls.com|area51deportiva.com|mixdrop.to|allporncomic.com|animepahe.com|free-trx.com|gosexpod.com|kropic.com|kaplog.com|homemoviestube.com|zeenite.com|clk.ink|push.bdnewsx.com|iyotvideos.com|uptomega.me|tumanga.net|wat32.com|123moviesfree.*|123unblock.*|shieldmanga.club|shieldmanga.*|ccurl.net|beinmatch.*|ytmp3.eu|movie8k.*|sports24.*|openloadmov.net|downloadpirate.com|payskip.org|themoviesflix.co|hentaitube.online|link1s.*|exe.app|10convert.com|crownimg.com|fc.lc|mypornstarbook.net|desitvshows.xyz|strims.*|cpmlink.net|bigtitslust.com|holymanga.net|links.mflixblog.xyz|skidrowreloaded.com|himovies.to|warefree01.com|kissanimes.cc|sxyprn.com|sxyprn.net|anupama.*|kiryuu.co|blurayufr.com|forex-trnd.com|wolfstream.tv|tuktukcinema.net|userupload.net|doctor-groups.com|downloadhub.kim|myadultanimes.com|freeadultcomix.com|shrlink.top|lelscan-vf.co|ruvideos.net|srsone.top|otakufr.co|jujmanga.com|allviids.com|amlijatt.in|fulltube.online|123movies.*|lewdweb.net|fsapi.xyz|flixtv.club|promo-visits.site|krypto-trend.de|hatsukimanga.com|simplyfaucet.xyz|fzmovies.*|desiflix.club|tny.so|1mlsbd.com|knaben.ru|streamtape.*|dramacool.*|123movies-hd.online|latestmanga.net|hexupload.net|sukidesuost.info|sbembed1.com|cocomanga.com|rawkuma.com|erogarga.com|mixdrop.sx|crownimg.com|onlynudes.tv|kabegamipuloh.web.app|japscan.ws|bluemediafiles.*|mrdhan.com|films5k.com|zetporn.com|watchmalcolminthemiddle.com|reddit.tube|btcmovies.xyz|outletpic.com|la123movies.com|streamingworld.club|gomo.to|yesmovies.sx|xtits.xxx|y2mate.com|weloma.art|pornvideos4k.com|4kpornmovs.com|theproxy.to|putlocker-website.com|up-load.io|insuranceblog.xyz|leaknudes.com|beingtek.com|gtlink.co|fmovies.app|hentaiblue.com|yifysubtitles.vip|anonymz.com|torrentgalaxy.to|fmoviesto.cc|mixdrop.*|just-upload.com|go-stream.site|eztv.unblockedsites.net|wareskey.com|fullcrackedpc.com|crackdj.com|aileen-novel.online|porncomixonline.net|7starmovies.net|wuxiarealm.com|mangahub.io|dvdplay.*|tinyurl.is|readcomiconline.li|mangaraw.org|rawmanga.top|hacamchicac.com|flyfaucet.com|streamadblockplus.com|imgsen.com|imgstar.eu|picdollar.com|pics4upload.com|silverpic.com|apkmody.io|imgsto.com|nikaraw.com|subdl.com|crackpoint.club|torrentgalaxy.to|javct.net|haho.moe|sockshare1.com|4anime.gg|sportssoccer.club|footyhunter3.xyz|extrafreetv.com|1337x.unblockit.cat|yourporngod.com|watchjavonline.com|tirexo.blue|picyield.com|bluemediafile.*|pornrabbit.com|stream2watch.be|worldstreams.watch|worldstreams.click|milfzr.com|gameshdlive.xyz|streamcheck.link|gamerarcades.com|asiangaylove.com|yurineko.net|animepahe.ru|0123movie.site|ufcfight.online|biggamez.xyz|trannyteca.com|youpits.xyz|lilymanga.net|123moviesite.one|bestporncomix.com|zinchanmanga.com|yaoimangaonline.com|worldstreams.lol|zoechip.cc|zoechip.com|monoplay.xyz|oxy.st|backfirstwo.com|3dporndude.com|thepiratebay.zone|mmsbee24.com|dofusports.xyz|1tamilblasters.*|gaystream.pw|hog.mobi|pahe.me|rawinu.com|nicomanga.com|prbay.online|prbay.top|prbay.xyz|youtube4kdownloader.com|soccerinhd.com|remaxhd.fun|remaxhd.cam|eztvx.to|bunkr.*|bunkr.ci|bunkr.ph|indiangaysite.com|elgoles.pro|hdfungamezz.xyz|gamehdlive.online|nativesurge.info|readcomiconline.li|luciferdonghua.in|hawtcelebs.com|file-zz40pd56-embed.com|bunkr-albums.io|pubjav.com|game3rb.com|boyfuck.me|mgeko.cc|9tsu.cc|nukibooks.com|porn4fans.com
+!||mlb8ys4v.xyz^
+!||realsrv.com^
+!/^(?!.*(mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.li|bytecdntp.com|fastlycdn.com|doodcdn.co|intensedebate.com|vixcloud.co|cdn.plyr.io|rsc.cdn77.org|linkvertise.com|fastly.net|statically.io|sharecast.ws|b-cdn.net|bunnycdn.ru|bootstrapcdn.com|cdn.ampproject.org|cloudflare.com|cdn.staticfile.org|disqus.com|disquscdn.com|dmca.com|ebacdn.com|facebook.net|fastlylb.net|fbcdn.net|fluidplayer.com|fontawesome.com|github.io|google.com|googleapis.com|googletagmanager.com|gstatic.com|jquery.com|jsdelivr.net|jwpcdn.com|jwplatform.com|recaptcha.net|shrink.pe|twitter.com|ulogin.ru|unpkg.com|userapi.com|vidazoo.com|(\/\/|\.)vk\.com|yandex.|yastatic.net|ytimg.com|zencdn.net|player|youtube.com|cackle.me|googleoptimize.com|vuukle.com|chatango.com|twimg.com|google-analytics.com|hcaptcha.com|raincaptcha.com|media-imdb.com|blogger.com|hwcdn.net|instagram.com|wp.com|fastcomments.com|plyr.io|imgsmail.ru|cloudflare.net|rabbitstream.net|(\/\/|\.)x\.com)).*$/$third-party,script,_____,domain=fapfappy.com|onestream.xyz|123movieshd.*|sportsonline.*|dlhd.*|ducumon.click|klto9.com|f2movies.to|streamcenter.pro|xx0day.com|sextb.date|sextb.net|gocast2.com|alexsports.site|xxxymovies.com|javhdo.net|daft.sex|tv.puresoul.live|stakes100.xyz|veryfreeporn.com|bestsolaris.com|linkebr.com|bitfly.io|exe.app|gplinks.co|miklpro.com|cutlink.link|rexdlfile.com|downloadhub.ink|skidrowcodex.co|adcorto.xyz|cuturl.in|paidtomoney.com|skidrowcodex.net|vvc.vc|illink.net|300mbplus.*|hdmovieplus.site|shrinkme.in|gibit.xyz|iir.ai|todaynewspk.win|stfly.me|bolssc.com|canyoublockit.com|aii.sh|uptoshort.com|gsurl.in|oncehelp.com|extramovies.casa|asianclub.nl|kshow123.net|dlapk4all.com|cryptoads.space|putlocker.digital|pimpandhost.com|pornpapa.com|shorthub.co|xxxfiles.com|pornone.com|rawdex.net|hiperdex.com|ask4movie.co|animekayo.com|xorgasmo.com|mitly.us|xtits.com|vjav.com|japscan.se|birdurls.com|area51deportiva.com|mixdrop.to|allporncomic.com|animepahe.com|free-trx.com|gosexpod.com|kropic.com|kaplog.com|homemoviestube.com|zeenite.com|clk.ink|push.bdnewsx.com|iyotvideos.com|uptomega.me|tumanga.net|wat32.com|123moviesfree.*|123unblock.*|shieldmanga.club|shieldmanga.*|ccurl.net|beinmatch.*|ytmp3.eu|movie8k.*|sports24.*|openloadmov.net|downloadpirate.com|payskip.org|themoviesflix.co|hentaitube.online|link1s.*|exe.app|10convert.com|crownimg.com|fc.lc|mypornstarbook.net|desitvshows.xyz|strims.*|cpmlink.net|bigtitslust.com|holymanga.net|links.mflixblog.xyz|skidrowreloaded.com|himovies.to|warefree01.com|kissanimes.cc|sxyprn.com|sxyprn.net|anupama.*|kiryuu.co|blurayufr.com|forex-trnd.com|wolfstream.tv|tuktukcinema.net|userupload.net|doctor-groups.com|downloadhub.kim|myadultanimes.com|freeadultcomix.com|shrlink.top|lelscan-vf.co|ruvideos.net|srsone.top|otakufr.co|jujmanga.com|allviids.com|amlijatt.in|fulltube.online|123movies.*|lewdweb.net|fsapi.xyz|flixtv.club|promo-visits.site|krypto-trend.de|hatsukimanga.com|simplyfaucet.xyz|fzmovies.*|desiflix.club|tny.so|1mlsbd.com|knaben.ru|streamtape.*|dramacool.*|123movies-hd.online|latestmanga.net|hexupload.net|sukidesuost.info|sbembed1.com|cocomanga.com|rawkuma.com|erogarga.com|mixdrop.sx|crownimg.com|onlynudes.tv|kabegamipuloh.web.app|japscan.ws|bluemediafiles.*|mrdhan.com|films5k.com|zetporn.com|watchmalcolminthemiddle.com|reddit.tube|btcmovies.xyz|outletpic.com|la123movies.com|streamingworld.club|gomo.to|yesmovies.sx|xtits.xxx|y2mate.com|weloma.art|pornvideos4k.com|4kpornmovs.com|theproxy.to|putlocker-website.com|up-load.io|insuranceblog.xyz|leaknudes.com|beingtek.com|gtlink.co|fmovies.app|hentaiblue.com|yifysubtitles.vip|anonymz.com|torrentgalaxy.to|fmoviesto.cc|mixdrop.*|just-upload.com|go-stream.site|eztv.unblockedsites.net|wareskey.com|fullcrackedpc.com|crackdj.com|aileen-novel.online|porncomixonline.net|7starmovies.net|wuxiarealm.com|mangahub.io|dvdplay.*|tinyurl.is|readcomiconline.li|mangaraw.org|rawmanga.top|hacamchicac.com|flyfaucet.com|streamadblockplus.com|imgsen.com|imgstar.eu|picdollar.com|pics4upload.com|silverpic.com|apkmody.io|imgsto.com|nikaraw.com|subdl.com|crackpoint.club|torrentgalaxy.to|javct.net|haho.moe|sockshare1.com|4anime.gg|sportssoccer.club|footyhunter3.xyz|extrafreetv.com|1337x.unblockit.cat|yourporngod.com|watchjavonline.com|tirexo.blue|picyield.com|bluemediafile.*|pornrabbit.com|stream2watch.be|worldstreams.watch|worldstreams.click|milfzr.com|gameshdlive.xyz|streamcheck.link|gamerarcades.com|asiangaylove.com|yurineko.net|animepahe.ru|0123movie.site|ufcfight.online|biggamez.xyz|trannyteca.com|youpits.xyz|lilymanga.net|123moviesite.one|bestporncomix.com|zinchanmanga.com|yaoimangaonline.com|worldstreams.lol|zoechip.cc|zoechip.com|monoplay.xyz|oxy.st|backfirstwo.com|3dporndude.com|thepiratebay.zone|mmsbee24.com|dofusports.xyz|1tamilblasters.*|gaystream.pw|hog.mobi|pahe.me|rawinu.com|nicomanga.com|prbay.online|prbay.top|prbay.xyz|youtube4kdownloader.com|soccerinhd.com|remaxhd.fun|remaxhd.cam|eztvx.to|bunkr.*|bunkr.ci|bunkr.ph|indiangaysite.com|elgoles.pro|hdfungamezz.xyz|gamehdlive.online|nativesurge.info|readcomiconline.li|luciferdonghua.in|hawtcelebs.com|file-zz40pd56-embed.com|bunkr-albums.io|pubjav.com|game3rb.com|boyfuck.me|mgeko.cc|9tsu.cc|nukibooks.com|porn4fans.com
 !
 !
 ! JAVFC2.XYZ (https://javfc2.xyz/)
@@ -2161,12 +2161,12 @@ sextb.date##.hidden-md.right.col-3
 ||lwirirvpo.com^$popup
 ||illustriousreserve.pro^$popup
 ! - 차단 사이트
-||acscdn.com^
-||chaseherbalpasty.com^
-||bobsleddomesticglandular.com^
-||popcash.net^
-/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
-||diagramjawlineunhappy.com^
+!||acscdn.com^
+!||chaseherbalpasty.com^
+!||bobsleddomesticglandular.com^
+!||popcash.net^
+!/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
+!||diagramjawlineunhappy.com^
 !
 !
 ! JavGG (https://javgg.net/)
@@ -2176,23 +2176,23 @@ sextb.date##.hidden-md.right.col-3
 ||barometercorrodingunease.com^$popup
 ||correctdilutetrophy.com^$popup
 ! - 차단 사이트
-||islandjav182.fun^
-||graveljav128.fun^
-||normal05032026.shop^
-||dalyio.com^
-||earnvids.com^
-||streamhg05032026.shop^
-||heardaccumulatebeans.com^
+!||islandjav182.fun^
+!||graveljav128.fun^
+!||normal05032026.shop^
+!||dalyio.com^
+!||earnvids.com^
+!||streamhg05032026.shop^
+!||heardaccumulatebeans.com^
 !
 !
 ! Javsubs91 (https://j91.asia/)
 !  - 팝업 방지
 ||adxadserv.com^$popup
 ! - 차단 사이트
-||profitabledisplaynetwork.com^
-||6v41p4bsq.com^
-||shboshbok.com^
-||mbidadm.com^
+!||profitabledisplaynetwork.com^
+!||6v41p4bsq.com^
+!||shboshbok.com^
+!||mbidadm.com^
 !
 ! 7MMTV (https://7tv033.com/)
 ! - 유니콘Pro에서는 ST영상 재생 불가
@@ -2204,9 +2204,9 @@ sextb.date##.hidden-md.right.col-3
 ||stikroltiltoowi.net^$popup
 ||persecutionpunishlegally.com^$popup
 ! - 차단 사이트
-||labadena.com^
-||tapioni.com^
-||wpadmngr.com^
+!||labadena.com^
+!||tapioni.com^
+!||wpadmngr.com^
 
 !
 !
@@ -2335,22 +2335,22 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !
 ! JavFinder (https://javfinder.ai/)
 ! - 차단 사이트
-||bullionglidingscuttle.com^
-||scakuvap.com^
+!||bullionglidingscuttle.com^
+!||scakuvap.com^
 !
 !
 ! BestJavporn (https://www.bestjavporn.com/)
 ! - 차단 사이트
-||cdn1cloudflare.xyz^
-||jads.co^
-||udzpel.com^
-||sandwichconscientiousroadside.com^
-||exosrv.com^
+!||cdn1cloudflare.xyz^
+!||jads.co^
+!||udzpel.com^
+!||sandwichconscientiousroadside.com^
+!||exosrv.com^
 !
 !
 ! JAVDOCK (https://www4.javdock.com/)
 ! - 차단 사이트
-||2443march2024.com^
+!||2443march2024.com^
 !
 !
 ! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://kor11.grtv-48.com/)
@@ -2372,30 +2372,30 @@ topjav.tv##.koukoku_11
 !
 ! SMUTR.COM (https://smutr.com/)
 ! - 차단 사이트
-||q88z1s3.com^
+!||q88z1s3.com^
 !
 !
 ! https://javten.com/
 ! - 차단 사이트
-||xadsmart.com^
+!||xadsmart.com^
 !
 !
 ! https://www.porntrex.com/
 ! - 차단 사이트
-||go-srv.com^
-||awdeliverynet.com^
-||xxxjmp.com^
-||onclckmn.com^
+!||go-srv.com^
+!||awdeliverynet.com^
+!||xxxjmp.com^
+!||onclckmn.com^
 !
 !
 ! https://xjav.jp/
 ! - 차단 사이트
-||storage-ad.com^
+!||storage-ad.com^
 !
 !
 ! https://jp.xsz-av.com/
 ! - 차단 사이트
-||ensosignal.com^
+!||ensosignal.com^
 !
 !
 ! https://sexkbj.com/
@@ -2410,7 +2410,7 @@ topjav.tv##.koukoku_11
 ||pemsrv.com^$popup
 ||62ad.com^$popup
 ! - 차단 사이트
-||exdynsrv.com^
+!||exdynsrv.com^
 !
 !
 ! https://thebjav.com/
@@ -2420,12 +2420,12 @@ topjav.tv##.koukoku_11
 !
 ! https://www.javbangers.com/
 ! - 차단 사이트
-||twinrdengine.com^
+!||twinrdengine.com^
 !
 !
 ! https://spankbang1.com/
 ! - 차단 사이트
-||endowmentoverhangutmost.com^
+!||endowmentoverhangutmost.com^
 !
 !
 ! JAVFAN (https://javfan.one/)
@@ -2516,11 +2516,11 @@ avdbs.com#@#[class^="ad"]
 ||omg.adult^$popup
 ||herexxx.com^$popup
 ! - 차단 사이트
-||chubbyexemplaryhardiness.com^
-||footbathmockerpurse.com^
-||epidermispushupvariable.com^
-||amdlucxrofi.com^
-/^https:\/\/[a-z]{8,12}\.com(?:\/[a-z]{2,10}){1,3}$/$script,3p,match-case,header=etag:/^W\/"[0-9a-z]+-[0-9a-z]+"$/,to=com
+!||chubbyexemplaryhardiness.com^
+!||footbathmockerpurse.com^
+!||epidermispushupvariable.com^
+!||amdlucxrofi.com^
+!/^https:\/\/[a-z]{8,12}\.com(?:\/[a-z]{2,10}){1,3}$/$script,3p,match-case,header=etag:/^W\/"[0-9a-z]+-[0-9a-z]+"$/,to=com
 !
 !
 ! TIDHEE (https://www.tid-hee.com/)
@@ -2637,10 +2637,10 @@ missav.ws,missav.live##.lg\:block
 ||ad.twinrdengine.com^$popup
 ||go.myavlive.com^$popup
 ! - 차단 사이트
-||tsyndicate.com^
-||rmhfrtnd.com^
-||trackwilltrk.com^
-||creative.myavlive.com^
+!||tsyndicate.com^
+!||rmhfrtnd.com^
+!||trackwilltrk.com^
+!||creative.myavlive.com^
 !
 !
 ! JAVCEP.COM (https://javcep.com/)
@@ -2671,8 +2671,8 @@ javlibrary.com,[$domain=/^r\d+.m.com/]###adultwarningmask
 !
 ! JavMov (https://www.javmov.com/)
 ! - 쓸데없는 사이트 (광고)
-||pemsrv.com^
-||magsrv.com^
+!||pemsrv.com^
+!||magsrv.com^
 ! - 메인 배너 (공백)
 !javmov.com##[class="spot"]
 !##[class="spot"]
@@ -2690,7 +2690,7 @@ javmov.com##.spot
 ! - 팝업 방지
 ||mnaspm.com^$popup
 ! - 차단 사이트
-||landsideresendtrousers.com^
+!||landsideresendtrousers.com^
 !
 !
 ! https://loopholes.site/
@@ -2754,8 +2754,8 @@ loopholes.site##.widget_text
 !
 ! https://kr.nudogram.com/
 ! - 차단 사이트
-||clickadu.net^
-||dmzjmp.com^
+!||clickadu.net^
+!||dmzjmp.com^
 !
 !
 ! 자막야동 (https://3.jamakyadong.me/)
@@ -3014,9 +3014,9 @@ komi.la##.sm\:grid
 ! - 배너 공간
 !##.mx-auto
 ! - 차단 사이트
-||f864fdc049.com^
-||highperformanceformat.com^
-||guidepaparazzisurface.com^
+!||f864fdc049.com^
+!||highperformanceformat.com^
+!||guidepaparazzisurface.com^
 !
 !
 ! harpi (https://harpi.in/)
@@ -3024,14 +3024,14 @@ komi.la##.sm\:grid
 harpi.in##.css-9tdhmy
 harpi.in##.css-1r7df7j
 ! - 차단 사이트
-||hdbkome.com^
+!||hdbkome.com^
 !
 !
 ! https://sexygirl.cc/
 ! - 배너 공간
 sexygirl.cc##div.overflow-auto
 ! - 차단 사이트
-||beetlestaircaselobster.com^
+!||beetlestaircaselobster.com^
 !
 !
 ! WatchJAVOnline (https://watchjavonline.com/)
@@ -3963,12 +3963,12 @@ dhlottery.co.kr##.band_banner
 !
 !
 ! https://trand.co.kr/ - 쿠팡 배너 광고
-||ads-partners.coupang.com
+!||ads-partners.coupang.com
 ##[class*="widget"]>table
 ##[class="list-ad"]
 !##.list-ad
 ! - 차단 사이트
-||ads-partners.coupang.com^
+!||ads-partners.coupang.com^
 !
 !
 ! 스마트택배 (https://st.sweettracker.co.kr/)
@@ -4526,6 +4526,9 @@ kick.com#@#img[src*="/banner/"]
 ! - - - - https://tati-log.com/ 기사 하단에 게시글 이미지 지워짐 (그냥 두자)
 ! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
 dramaday.me#@#[target] img[src*="/wp-content/uploads/"]
+! - - - https://www.tid-hee.com/ - 이미지 사라짐
+tid-hee.com#@#[target] img[src*="/wp-content/uploads/"]
+
 
 
 ! - - - AV조아 오른쪽 상단 배너 / 영상내 배너 제외 전체 배너 (영상내 배너는 ##.happy-inside-player 로 해결)
