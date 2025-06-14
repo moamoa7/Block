@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250614
+! Version: 20250615
 !
 !
 !
@@ -5423,19 +5423,22 @@ kakaotv.daum.net#@#[id^="ad"]
 !##[class*="ad"] iframe
 
 ! https://supjav.com/
-##[class*="-ad"] iframe
+!##[class*="-ad"] iframe
 
-##[class*="ad-"] iframe
+!##[class*="ad-"] iframe
 
 
-##[class*="-ad-"] iframe
+!##[class*="-ad-"] iframe
 
-##[class*="_ad"] iframe
+!##[class*="_ad"] iframe
 
 ! https://supjav.com/
-##[class*="ad_"] iframe
+!##[class*="ad_"] iframe
+! - - - 예외
+! - - - https://theqoo.net/ - 트위터 프레임 안보임
+!theqoo.net#@#[class*="ad_"] iframe
 
-##[class*="_ad_"] iframe
+!##[class*="_ad_"] iframe
 
 
 
@@ -6340,3 +6343,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !##iframe[src*="mobile"] X
 
 ||adsbygoogle.js
+
