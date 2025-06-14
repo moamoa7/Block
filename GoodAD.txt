@@ -91,9 +91,10 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 !
-! 유튜브 (https://www.youtube.com/)
-!!! JavaScript 관련 필터 해제 - 화이트 리스트 지정으로 필요없음
-!www.youtube.com.youtube.com#@#+js()
+! 유튜브 (https://www.youtube.com/) - 화이트 리스트 추가할 것
+!!! JavaScript 관련 필터 해제 (광고 차단 해제 효과) - 화이트 리스트 추가하면 필요없음
+!youtube.com#@#+js()
+! - - - 사용하지 않음 (시작)
 ! - 광고
 !||pagead2.googlesyndication.com^
 !||doubleclick.net^
@@ -158,6 +159,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - - 유튜브 약관 위반 메시지 출력
 ! - - -  YouTube AdBlocker (스크립트) 같이 사용하면 메시지 출력되도 바로 재생 가능
 !www.youtube.com,www.youtube-nocookie.com##[class*="-ad-"]
+!www.youtube.com,www.youtube-nocookie.com##[class*="-ad-"]:not(html):not(body):not(article):not([class*=page-wrapper])
 ! - 유튜브 관련 광고 차단은 EasyList / uBlock filters – Ads / Block filters – Quick fixes 필터 구독할 것
 ! - - - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
 ! - - - 유니콘Pro에서도 적용됨
@@ -174,6 +176,8 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !||g.doubleclick.net^
 !||pagead2.googlesyndication.com^
 !||google.*/pagead/lvz?
+!
+! - - - 사용하지 않음 (끝)
 !
 !
 ! 스포티파이 (https://open.spotify.com/)
@@ -274,6 +278,22 @@ sooplive.co.kr###FeedLayerToolTip
 !||adballoon.sooplive.co.kr^
 !||reqde.sooplive.co.kr^
 !||ads-twitter.com^
+!
+!
+! https://javleak.com/
+- 팝업 방지
+||play-lg.com^$popup
+||lust-goddess.com^$popup
+||korhookup1298.vip^$popup
+||intellipopup.com^$popup
+||abysscdn.com^$popup
+!
+!
+! https://tonghrencomics.net/
+! - 배너
+!##.logo_banner
+!##.a-left
+!##.a-right
 !
 !
 ! 풍투데이 (https://poong.today/)
@@ -2207,6 +2227,11 @@ sextb.date##.hidden-md.right.col-3
 !||labadena.com^
 !||tapioni.com^
 !||wpadmngr.com^
+!
+!
+! https://javbraze.com/
+! - 팝업 방지
+||shotgunchancecruel.com^$popup
 
 !
 !
@@ -3266,6 +3291,9 @@ porn78.info#@#[class$="verlay"]
 sweettracker.co.kr#@#[class$="verlay"]
 ! - - - 유튜브 (https://www.youtube.com/) - 프레임 영상에서 이미지 사라짐
 youtube.com#@#[class$="verlay"]
+! - - - https://javbraze.com/ - 영상 이미지 사라짐
+javbraze.com#@#[class$="verlay"]
+
 
 
 ! - 영상 하단 이미지
@@ -4140,15 +4168,18 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 @@github.com*$xhr
 !||*/*/AD-*/*
 ||*/*/ads/*
+||*/*/ADS/*
 ! - 레딧 알부 이미지 안나옴
 !||*/*/ads-*
+
+||*/*/ads*
+||*/*/ADS*
 
 ! https://www.redtube.net/
 ! - /_xa/ads_ (AdGuard – Ads)
 ||*/*/ads_*
 
 !||*/*/*ads*
-!||*/*/ADS/*
 !||*/*/banner/*
 !||*/*/banner*
 ! - 위에꺼 아래로 변경
@@ -4425,6 +4456,8 @@ linkloveko.com#@#div>[class*="button"]>[style][target]
 !##a[href][target] img[src*="banner"]
 !##[class*="banner"] a[href] img[src*="banner"]
 !##a[href] img[src*="banner"]
+##a[href] img[src*="banner"]
+##img[src*="banner"]
 
 !##[class*="banner"] img
 !##[class*="banner"]:has(img)
@@ -4464,17 +4497,18 @@ kick.com#@#img[src*="/banner/"]
 ! - - - 땡땡티비 (https://ootv39.com/)
 !##img[src*="imgbox.com"]
 
-! - - - 야동허브 (https://ydhub11.net/)
-!##img[src*="/static/images/"] - 일부 사이트에서 로고 사라짐 - 예 :https://www.javmov.com/
+! - - - 야동허브 (https://ydhub11.net/) - 상단 배너
+!##img[src*="/static/images/"] - 일부 사이트에서 로고 사라짐 - 예 :https://www.javmov.com/ 아래로 변경
+##[class] img[src*="/static/images/"][style][src*=".jpg"]
 ##[class] img[src*="/static/images/"][style][src*=".png"]
 ! - - - 예외
 ! - - - 다시보자 (https://bozatv111.com/) 로고 안나옴
 [$domain=/^bozatv\d+.com/]#@#[class] img[src*="/static/images/"][style][src*=".png"]
-##[class] img[src*="/static/images/"][style][src*=".jpg"]
-##[class] img[src*="/static/images/"][class][src*=".png"]
-! - - - 다시보자 (https://bozatv111.com/) 로고 안나옴
-[$domain=/^bozatv\d+.com/]#@#[class] img[src*="/static/images/"][class][src*=".png"]
+
+! - - - 야동허브 (https://ydhub11.net/) - 하단 배너
 ##[class] img[src*="/static/images/"][class][src*=".jpg"]
+! - -- https://abjav.com/ - 영상 이미지 안나옴
+abjav.com#@#[class] img[src*="/static/images/"][style][src*=".png"]
 
 
 !!! - 광역 2
@@ -5146,6 +5180,9 @@ gall.dcinside.com#@#iframe[sandbox*="allow-forms"]
 ! https://sexkbj.com/ - data-src="https://go.mnaspm.com/smartpop/
 ! ##[class] iframe[style][src] 로 차단되지만 추가해봄
 ##iframe[data-src]
+
+! https://javfun.me/
+##body>[id][class] iframe[src="about:blank"]
 !##iframe[src="about:blank"]
 ! - - - https://kr80.sogirl.so/ - iframe 없음 (영상 프레임만 존재)
 !sogirl.so#@#iframe[src="about:blank"]
@@ -5296,6 +5333,10 @@ gall.dcinside.com#@#iframe[sandbox*="allow-forms"]
 ! - - - 예외
 ! - - - https://www.naver.com/ - 메인에서 메일 클릭시 안보임
 www.naver.com#@#iframe[title*="iframe"]
+
+
+##iframe[title*="Tube"]
+##iframe[title*="tube"]
 
 
 !##[id*="iframe"] iframe
@@ -5524,7 +5565,8 @@ instiz.net#@#a[href][target*='blank'] img[src*='.gif']
 jobkorea.co.kr#@#a[href][target*='blank'] img[src*='.gif']
 
 
-
+! - https://tonghrencomics.net/ - 광고 페이지로 보임
+##a[href][target*="blank"] img[src*='.svg']
 
 
 ##[class*="banner"] IMG[src*="banner"] IMG[src*=".gif"]
