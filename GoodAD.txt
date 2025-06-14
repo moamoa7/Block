@@ -295,7 +295,7 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 @@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
 !@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=naver.com
 ! - 차단 사이트
-||veta.naver.com^
+!||veta.naver.com^
 !
 !
 ! 트위치 (https://www.twitch.tv/)
