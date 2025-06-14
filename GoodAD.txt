@@ -2099,7 +2099,7 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 !
 ! supjav (https://supjav.com/)
 ! - 오른쪽 배너 공간? 네모 없애기 (EasyList)
-##.movv-ad
+!##.movv-ad
 ! - 하단 따라다니는 배너
 ##[class*="slideAnimation"]
 ! - 일부 영상 재생 차단 방지
