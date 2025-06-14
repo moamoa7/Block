@@ -2247,6 +2247,14 @@ sextb.date##.hidden-md.right.col-3
 ##[class*="-ad-"] img
 !
 !
+! https://123av.com/
+! - 팝업 방지
+||www.koreagirl1999.vip^$popup
+||alarmenvious.com^$popup
+! - 지저분한거
+##.d-lg-block
+!
+!
 ! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
 ! - 입장시 18세 물어보는 팝업
@@ -2542,7 +2550,6 @@ avdbs.com#@#[class^="ad"]
 ! -오른쪽 따라다니는 배너 (EasyList)
 ##.ad-floating
 ! - 팝업 방지
-||alarmenvious.com^$popup
 ||prefecturesuggestions.com^$popup
 !
 !
