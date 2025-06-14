@@ -2236,7 +2236,7 @@ sextb.date##.hidden-md.right.col-3
 !
 ! https://www.pornhub.com/
 ! - 광고
-##[class^="videos"]
+!##[class^="videos"] - 쏘걸 (https://kr80.sogirl.so/) - 영상 아미지 안나옴
 !
 !
 ! https://www.xnxx.com/
