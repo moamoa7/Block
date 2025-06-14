@@ -5187,10 +5187,8 @@ www.naver.com#@#iframe[title*="frame"]
 ! https://sextb.date/ 일부
 ! https://7tv000.com/ 일부
 !##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
-! https://sextb.date/ 일부
+! https://sextb.date/ 일부 - adsbyexoclick
 !##iframe[sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-same-origin"]
-
-!##iframe[sandbox*="allow-forms"]
 !##iframe[sandbox*="allow-same-origin"] X
 !##iframe[sandbox*="allow-popups"] X
 !##iframe[sandbox*="allow-scripts"] X
@@ -5199,9 +5197,11 @@ www.naver.com#@#iframe[title*="frame"]
 !mypikpak.com#@#iframe[sandbox*="allow-forms"]
 ! https://gall.dcinside.com/ - 게시글 등록 클릭시 로봇 안열림
 !gall.dcinside.com#@#iframe[sandbox*="allow-forms"]
-! - - -https://pigav.com/ - 영상 안보임
+! - - -https://pigav.com/ - 영상 안보임 (sandbox="allow-same-origin allow-scripts allow-popups allow-forms")
 !pigav.com#@#iframe[sandbox*="allow-forms"]
-
+##[class*="banner"] iframe[sandbox]
+##[class*="ads"] iframe[sandbox]
+##[class*="click"] iframe[sandbox]
 
 
 
@@ -5225,6 +5225,7 @@ www.naver.com#@#iframe[title*="frame"]
 ! https://sexkbj.com/ - data-src="https://go.mnaspm.com/smartpop/
 ! ##[class] iframe[style][src] 로 차단되지만 추가해봄
 ##iframe[data-src]
+
 
 ! https://javfun.me/
 ##body>[id][class] iframe[src="about:blank"]
@@ -6332,3 +6333,10 @@ trand.co.kr#@#[id][style*="background"][style]
 !##[class*="sidebar"] X
 !##[class*="sidebar"] iframe X
 !##iframe[src*="sidebar"] X
+
+!##[class*="pc"] iframe X
+!##[class*="mobile"] iframe X
+!##iframe[src*="pc"] X
+!##iframe[src*="mobile"] X
+
+||adsbygoogle.js
