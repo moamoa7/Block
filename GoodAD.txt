@@ -4789,7 +4789,19 @@ auction.co.kr#@#a[href*="click"] img
 !qq2.fabulouslink.xyz#@#div > iframe
 
 
+##iframe[src^="ad"]
 
+##iframe[src*="-ad"]
+
+##iframe[src*="ad-"]
+
+##iframe[src*="-ad-"]
+
+##iframe[src*="_ad"]
+
+##iframe[src*="ad_"]
+
+##iframe[src*="_ad_"]
 
 
 
@@ -5405,6 +5417,26 @@ kakaotv.daum.net#@#[id^="ad"]
 !inven.co.kr#@#[class*="ad"] iframe
 ! - https://theqoo.net/ - 트위터 등 프레임 안보임
 !theqoo.net#@#[class*="ad"] iframe
+
+
+!##[class*="ad"] iframe
+
+! https://supjav.com/
+##[class*="-ad"] iframe
+
+##[class*="ad-"] iframe
+
+
+##[class*="-ad-"] iframe
+
+##[class*="_ad"] iframe
+
+! https://supjav.com/
+##[class*="ad_"] iframe
+
+##[class*="_ad_"] iframe
+
+
 
 ##[class*="ads"] iframe
 ! - - - 예외
@@ -6296,3 +6328,7 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
 
+
+!##[class*="sidebar"] X
+!##[class*="sidebar"] iframe X
+!##iframe[src*="sidebar"] X
