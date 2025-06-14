@@ -91,7 +91,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 !
-! 유튜브 (https://www.youtube.com/) - 화이트 리스트 추가할 것
+! 유튜브 (https://www.youtube.com/)
 !!! JavaScript 관련 필터 해제 (광고 차단 해제 효과) - 화이트 리스트 추가하면 필요없음
 !youtube.com#@#+js()
 ! - - - 사용하지 않음 (시작)
@@ -2232,7 +2232,19 @@ sextb.date##.hidden-md.right.col-3
 ! https://javbraze.com/
 ! - 팝업 방지
 ||shotgunchancecruel.com^$popup
-
+!
+!
+! https://www.pornhub.com/
+! - 광고
+##[class^="videos"]
+!
+!
+! https://www.xnxx.com/
+! - 광고
+!##[class*="widget"]
+##[class*="-widget-"]
+! ##[class*="-ad-"] img - 다시 나타남. ###ad-footer로 공간 지워야 사라짐
+##[class*="-ad-"] img
 !
 !
 ! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
@@ -4457,9 +4469,10 @@ linkloveko.com#@#div>[class*="button"]>[style][target]
 !##[class*="banner"] a[href] img[src*="banner"]
 !##a[href] img[src*="banner"]
 ##a[href] img[src*="banner"]
+
 ##img[src*="banner"]
 
-!##[class*="banner"] img
+##[class*="banner"] img
 !##[class*="banner"]:has(img)
 
 ##img[src*="/banner/"]
@@ -5449,6 +5462,9 @@ camcam.cc#@#[class*="ads"] iframe
 ! - - - 예외
 ! - --  https://javgg.net/ - 영상 안보임
 !javgg.net#@#iframe[loading="lazy"]
+
+! https://www.pornhub.com/
+##[class*="age"] iframe
 
 
 ! - - -
