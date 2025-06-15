@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250615
+! Version: 20250616
 !
 !
 !
@@ -4726,7 +4726,8 @@ cineaste.co.kr#@#a[href]:has(img[src*="/background/"])
 ! - target 이 없는 요소
 ! - - - 배너 img 주소가 public로 끝남
 ! - - - AV핫걸 (https://xn--av-t21it66k.com/) (https://avhotgirl.top/)
-avhotgirl.top##a[href]:has(img[src*="public"])
+!avhotgirl.top##a[href]:has(img[src*="public"])
+!##a[href]:has(img[src*="public"])
 
 
 !!! - 광역 6
@@ -5742,7 +5743,7 @@ jobkorea.co.kr#@#a[href][target*='blank']:has(img[src*='.gif'])
 
 
 !##[class*="banner"] IMG[src*="banner"] IMG[src*=".gif"]
-##[class*="banner"]:has(img[src*="banner"][src*=".gif"])
+!##[class*="banner"]:has(img[src*="banner"][src*=".gif"])
 
 
 !##a[href][target*='blank'] img[src*='.png']
