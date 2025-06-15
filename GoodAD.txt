@@ -95,21 +95,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !!! JavaScript 관련 필터 해제 (광고 차단 해제 효과) - 화이트 리스트 추가하면 필요없음
 !youtube.com#@#+js()
 
-!@@||$elemhide,domain=www.youtube.com
-
-!youtube.com##+js(json-prune, playerResponse.adPlacements)
-!youtube.com##+js(json-prune, playerAds)
-!youtube.com##+js(json-prune, adPlacements)
-!youtube.com##+js(set, yt.config_.adState.loaded, true)
-!youtube.com##+js(aopr, ytInitialPlayerResponse.ads)
-
-! - - - EasyList 해제
-!youtube.com#@#ytd-item-section-renderer > .ytd-item-section-renderer > ytd-ad-slot-renderer.style-scope
-!youtube.com#@#.ytp-suggested-action > .ytp-suggested-action-badge
-!youtube.com#@#ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-!youtube.com#@#.ytd-two-column-browse-results-renderer > ytd-rich-grid-renderer > #masthead-ad.ytd-rich-grid-renderer
-!youtube.com#@#.ytd-rich-item-renderer.style-scope > .ytd-rich-item-renderer > .ytd-ad-slot-renderer.style-scope
-
 ! - - - 사용하지 않음 (시작)
 ! - 광고
 !||pagead2.googlesyndication.com^
@@ -4100,7 +4085,7 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 !
 ! - 예매 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
 ! - - - 일부 사이트 이미지(배너) 안나옴 (DNS 서버에서 ad.cgv.co.kr / adimg.cgv.co.kr 히제 요망)
-@@||$generichide,image,xhr,domain==nol.interpark.com|www.ticketlink.co.kr|ticket.interpark.com|ticket.yes24.com|ticket.melon.com|www.cgv.co.kr|www.lottecinema.co.kr|www.megabox.co.kr|www.korail.com|kobus.co.kr|txbus.t-money.co.kr
+@@||$generichide,image,xhr,domain=nol.interpark.com|www.ticketlink.co.kr|ticket.interpark.com|ticket.yes24.com|ticket.melon.com|www.cgv.co.kr|www.lottecinema.co.kr|www.megabox.co.kr|www.korail.com|kobus.co.kr|txbus.t-money.co.kr
 !
 !
 ! - 여행/숙박 사이트 미용 비활성 및 이미지/xhr 허용 (깨지는거 방지)
