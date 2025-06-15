@@ -4727,7 +4727,7 @@ avhotgirl.top##a[href]:has(img[src*="public"])
 ! - target 이 있지만 적용이 안됨
 ! - - - 라이브스코어 (https://livescore.co.kr/) 등
 ! ##[id*="AD"] 하면 id구간 다 사라짐
-##a[href] img[src*="/ad/"]
+##a[href]:has(img[src*="/ad/"])
 ! - - - 예외
 ! - - - 다모앙 (https://damoang.net/) - 일부 이모티콘 사라짐
 damoang.net#@#a[href]:has(img[src*="/ad/"])
