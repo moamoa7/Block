@@ -4502,7 +4502,7 @@ linkloveko.com#@#div>[class*="button"]>[style][target]
 ##[class*="banner"]:has(img)
 ! - - - 예외
 ! - --  https://www.clien.net/ - 댓글 없어짐
-clien.net#@#[class*="banner"]:has(img)
+!clien.net#@#[class*="banner"]:has(img)
 
 
 !##img[src*="/banner/"]
