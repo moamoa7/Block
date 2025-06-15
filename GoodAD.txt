@@ -4500,6 +4500,10 @@ linkloveko.com#@#div>[class*="button"]>[style][target]
 !##[class*="banner"] img
 ! - - - 예외 - https://etoland.co.kr/bbs/board.php?bo_table=squid_chance 이미지 사라짐 / 아래로 바꾸면 배너공간 안남고 사라짐
 ##[class*="banner"]:has(img)
+! - - - 예외
+! - --  https://www.clien.net/ - 댓글 없어짐
+clien.net#@#[class*="banner"]:has(img)
+
 
 !##img[src*="/banner/"]
 ! - - - 예외
