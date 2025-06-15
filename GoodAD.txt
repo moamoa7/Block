@@ -725,14 +725,14 @@ todayhumor.co.kr##.under_ad_div
 ! 포모스 (https://www.fomos.kr/)
 ! - 메인 배너 (팝업 베너 _ 왼쪽 배너)
 ! - - - 화면스크롤 하면 왼쪽 배너가 보임. class*로 하면 됨
-##[class*="float-banners"]
+!##[class*="float-banners"] - ##[class*="banner"]:has(img) 로 대체
 ! - 왼쪽 배너 포함 (PC)
-!##.float-banners
+!##.float-banners - ##[class*="banner"]:has(img) 로 대체
 ! - 팝업 배너
-!##[class="banner-center"]
+!##[class="banner-center"] - ##[class*="banner"]:has(img) 로 대체
 ! -하단 제보 배너
-!##[class="call_banner"]
-##.call_banner
+!##[class="call_banner"] - ##[class*="banner"]:has(img) 로 대체
+!##.call_banner
 ! - 차단 사이트
 !||mediacategory.com^
 !
