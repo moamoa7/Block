@@ -4911,20 +4911,20 @@ onlygirl.asia#@#iframe[src*="iframe"]
 
 
 
-##iframe[id*="iframe"]
+!##iframe[id*="iframe"]
 ! -- - 예외
 ! - - - 티비위키 (https://tvwiki21.com/) - 영상 안나옴
-[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[id*="iframe"]
+![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/],tvhot.store#@#iframe[id*="iframe"]
 ! - - - https://7tv000.com/ - TV 영상 안나옴 (주소 바뀜)
-7tv000.com#@#iframe[id*="iframe"]
+!7tv000.com#@#iframe[id*="iframe"]
 ! - - - 네이버 (https://www.naver.com/) - 메인화면에서 메일 열람시 안보임
-www.naver.com#@#iframe[id*="iframe"]
+!www.naver.com#@#iframe[id*="iframe"]
 ! - - - https://yagro48.com/ - 화면 안보임
-[$domain=/^yagro\d+.com/]#@#iframe[id*="iframe"]
+![$domain=/^yagro\d+.com/]#@#iframe[id*="iframe"]
 ! - - - https://www.youtube.com/ - 일부 확장프로그램과 사용시 유튜브 화면이 하얗게 변해서 안보임
 !www.youtube.com#@#iframe[id*="iframe"]
 ! - - - 레드걸스 (https://kr1.redgirls.co/) - 영상 안보임
-[$domain=/^kr\d+.redgirls.co/]#@#iframe[id*="iframe"]
+![$domain=/^kr\d+.redgirls.co/]#@#iframe[id*="iframe"]
 
 
 
@@ -5485,22 +5485,22 @@ loyalty.coupang.com#@#iframe[title*="iframe"]
 !tv.kakao.com#@#[id*="iframe"] iframe
 
 
-##[id*="-ad-"]
+!##[id*="-ad-"]
 
-##[id*="popup"]
+!##[id*="popup"]
 
-##[id^="ad"]
+!##[id^="ad"]
 ! - - - 예외
 ! - - - https://sports.daum.net/ - 영상 안나옴
-kakaotv.daum.net#@#[id^="ad"]
+!kakaotv.daum.net#@#[id^="ad"]
 
-##[id*="ads"]
+!##[id*="ads"]
 
-##[id^="ad"] iframe
+!##[id^="ad"] iframe
 
 !##[id*="ad"] iframe
 
-##[id*="ads"] iframe
+!##[id*="ads"] iframe
 
 ##[class^="ad"] iframe
 
