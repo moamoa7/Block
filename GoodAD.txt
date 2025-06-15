@@ -2324,10 +2324,10 @@ clien.net#@#.ad_banner
 !
 ! TK Tubo (https://tktube.com/)
 ! - 상단 배너
-##.top
+tktube.com##.top
 ! - - - 예외
 ! - - - https://adguard-dns.io/ 도메인 클릭시 팝업 안뜸
-adguard-dns.io#@#.top
+!adguard-dns.io#@#.top
 !
 !
 !
