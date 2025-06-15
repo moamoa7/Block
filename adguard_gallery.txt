@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.06.13
+! Version: 2025.06.14
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -73,7 +73,6 @@ m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ##iframe[src*='ad.doyouad.com']
 ##iframe[src*='cdn.targetpush.co.kr']
 ##iframe[src*='digitalcamp.co.kr']
-##iframe[src*='innorame.com']
 ##iframe[src*='sga.adp']
 ##ins.adsbyaiinad
 11st.co.kr##iframe[src*='ads.adoffice.11st.co.kr']
@@ -122,6 +121,7 @@ inven.co.kr##.show-ads
 khan.co.kr##.mAd
 komi.la##.w-full.relative.mobile-touch.h-full
 komi.la##.w-full.relative.mobile-touch.h-full:upward(1)
+komi.la##div:has(> iframe)
 komi.la##div.overflow-hidden[style*='z-index: 10']
 m.11st.co.kr##div.l-grid:has([class*='c-ad'])
 m.11st.co.kr##div:has(> .c-guide-ad)
@@ -152,6 +152,7 @@ m.ppomppu.co.kr###ask_app_usage_popup
 m.ppomppu.co.kr##div.btn-wrapper
 m.ppomppu.co.kr##div[style]:has(> ins)
 m.ruliweb.com##tr:has(.nbp_container)
+maplescouter.com##a.self-center:has(img)
 mlbpark.donga.com##.coupang_cont
 mlbpark.donga.com##li.items:has([href*='php?b=phone'])
 mlbpark.donga.com##li.items:has([target='_blank'])
@@ -194,8 +195,6 @@ dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_
 ||link.coupang.com/*/TOSS$all
 ||link.coupang.com/*dynamicda$all
 ||link.coupang.com/re/CSHARE$all
-||mistydivided.com^$all
-||onelink.me/*toss$all
 
 ! 애드가드 필터 오차단 해제
 11st.co.kr#@#div[class$="-ad"]
