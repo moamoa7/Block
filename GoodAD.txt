@@ -4487,14 +4487,15 @@ linkloveko.com#@#div>[class*="button"]>[style][target]
 ##a[href]:has(img[src*="banner"])
 ! - - - 예외
 ! - - - https://kick.com/ - 실시간 인기 카테고리 이미지 지워짐
-kick.com#@#a[href]:has(img[src*="banner"])
+!kick.com#@#a[href]:has(img[src*="banner"])
 
-##img[src*="banner"]
+!##:has(img[src*="banner"]) - 전체 가려짐
+!##a[href]:has(img[src*="banner"])
 ! - - - 예외
 ! - - - 노벨피아 (https://novelpia.com/) - 일부 이미지 (모바일 하단 메뉴 가운데 동그란 이미지) 사라짐 - 이 부분 지워버려서 해제
 !novelpia.com#@#img[src*="banner"]
 ! - - - kick (https://kick.com/) - 실시간 인기 카테고리 이미지 흐려짐 해결
-kick.com#@#img[src*="banner"]
+!kick.com#@#:has(img[src*="banner"])
 
 !##[class*="banner"] img
 ! - - - 예외 - https://etoland.co.kr/bbs/board.php?bo_table=squid_chance 이미지 사라짐 / 아래로 바꾸면 배너공간 안남고 사라짐
@@ -4507,10 +4508,10 @@ kick.com#@#img[src*="banner"]
 ! - - - kick (https://kick.com/) - 실시간 인기 카테고리 이미지 흐려짐 해결
 !kick.com#@#img[src*="/banner/"]
 
-##img[src*="/banner_"]
+!##a[href]:has(img[src*="/banner_"])
 
 ! - - - https://newtoki.live/
-##[class="banner"]:has(img[src*='.gif'])
+!##[class="banner"]:has(img[src*='.gif'])
 
 
 ! - - - 야부리 시즌 2 (https://yaburi60.com/)
@@ -4521,16 +4522,16 @@ kick.com#@#img[src*="banner"]
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
 ! - - - 야동그라운드 (https://yagro48.com/)
 ! - - - 자브걸 (https://kr24.javgirl.co/)
-##img[src*="/banners/"]
+!##img[src*="/banners/"]
 
 ! 메시티비 (https://messitv8.com/) - 왼쪽 배너
-##img[src*="sidebanner"]
+!##a[href]:has(img[src*="sidebanner"])
 
 ! https://today-sports7.com/ - 한칸짜리 게시물 배너
-##img[src*="event_banner"]
+!##img[src*="event_banner"]
 
 ! - - - 언리샷 (https://unlishot47.cc/)
-##img[src*="admin_banner"]
+!##img[src*="admin_banner"]
 
 ! - - - 땡땡티비 (https://ootv39.com/)
 !##img[src*="imgbox.com"]
@@ -4565,7 +4566,8 @@ abjav.com#@#[class] img[src*="/static/images/"][src*=".png"][style]
 ! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
 !naver.com#@#a[href*="banner"] img
 ! - - - https://18moa026.com/ - 일부 이미지 사라짐 - [src*=".gif"] 추가
-##a[href*="banner"] img[src*=".gif"]
+!##a[href*="banner"] img[src*=".gif"]
+##a[href*="banner"]:has(img)
 
 
 !!! - 광역 3
@@ -4752,34 +4754,38 @@ damoang.net#@#a[href]:has(img[src*="/ad/"])
 ! - - - 아콩넷 (https://yakong5.net/) 영상 내 배너
 ! - - - ##[onclick] img - 다른 요소 (일부 아이콘 및 검색 아이콘까지 지움) - 아래 규칙으로 변경
 !##a[href][onclick] [class][src]
-avdbs.com,[$domain=/^yakong\d+.net/]##[onclick]:has(img)
-##[onclick]:has(img[style])
+!avdbs.com,[$domain=/^yakong\d+.net/]##[onclick]:has(img)
+##a[href][onclick]:has(img[style])
 ! - - - 예외
 ! - - - 뽐뿌 (https://www.ppomppu.co.kr/) - 핫코멘트란의 좋아요 싫어요 아이콘 사라짐
-ppomppu.co.kr#@#[onclick]:has(img[style])
+ppomppu.co.kr#@#a[href][onclick]:has(img[style])
 ! - - -이토랜드 (https://www.etoland.co.kr/) - 추천 이모티콘 사라짐
-etoland.co.kr#@#[onclick]:has(img[style])
+!etoland.co.kr#@#[onclick]:has(img[style])
 ! - - - 웃긴대학 (https://web.humoruniv.com/) - gif 영상 프레임 사라짐
-humoruniv.com#@#[onclick]:has(img[style])
+!humoruniv.com#@#[onclick]:has(img[style])
 ! - - - 해피툰 (https://happytoon01.com/) - 만화 이미지 사라짐
-[$domain=/^happytoon\d+.com/]#@#[onclick]:has(img[style])
+![$domain=/^happytoon\d+.com/]#@#[onclick]:has(img[style])
 ! - - - 디토토렌트 (https://ditto-torrent20.top/) - 이미지 사라짐
-[$domain=/^ditto-torrent\d+.top/]#@#[onclick]:has(img[style])
+![$domain=/^ditto-torrent\d+.top/]#@#[onclick]:has(img[style])
 ! - - - 링크짱 (https://www.zzang11.com/) - 안해도 되나 해제
-[$domain=/^www.zzang\d+.com/]#@#[onclick]:has(img[style])
-
+[$domain=/^www.zzang\d+.com/]#@#a[href][onclick]:has(img[style])
 
 
 !!! - 광역 9
-! https://sexygirl.cc/
-##a[href*="click"]:has(img)
-! - - - 예외
-! - - - 옥션 (https://www.auction.co.kr/) - 검색시 이미지 사라짐
-auction.co.kra[href*="click"]:has(img)
+! - - - 아콩넷 (https://yakong5.net/) 영상 하단 배너
+##a[href][class][data-message]:has(img)
 
 
 
 !!! - 광역 10
+! https://sexygirl.cc/
+##a[href*="click"]:has(img)
+! - - - 예외
+! - - - 옥션 (https://www.auction.co.kr/) - 검색시 이미지 사라짐 (generichide 활성화로 규칙 미적용)
+!auction.co.kr#@#a[href*="click"]:has(img)
+
+
+!!! - 광역 11
 ! - 텍스트 광고 (텍스트 + 배경 테이블)
 ! - https://01.avpop.tv/
 ![$domain=/^\d+.avpop.tv/]##a[href] [style*="background"] - 아래 규칙으로 변경
@@ -4787,7 +4793,7 @@ auction.co.kra[href*="click"]:has(img)
 
 
 
-!!! - 광역 11 (iframe 차단)
+!!! - 광역 12 (iframe 차단)
 ! - - - 광역으로 사용
 ! - - - https://redgirl37.org/ - 영상 아래 iframe
 ! - - - 거의 모든 iframe 차단
@@ -5673,7 +5679,7 @@ namu.wiki##[class*="g"][style*="margin"]
 !##A[target="_blank"] > IMG[height="100"][src*=".gif"]
 ! - - - 난넷 (https://nen114.com/) (https://nan008.net/)
 ! - - - 레드핫 (https://www.redhotav.com/) (https://redhot04.com/)
-##a[target*="blank"]:has(img[src*="banner"][src*=".gif"])
+!##a[target*="blank"]:has(img[src*="banner"][src*=".gif"])
 ! - - - 토렌트큐큐 (https://torrentqq369.com/)
 ! - - - 토렌트RJ (https://torrentrj203.com/)
 ! - - - 토다와 (https://www.todawa137.site/)
@@ -5686,11 +5692,11 @@ namu.wiki##[class*="g"][style*="margin"]
 ! - - - 호두코믹스 (https://t71.hoduhodu.com/)
 ! - - - 엑스툰 (https://t1.xtoon2.com/)
 ! - - - AV탑걸 (https://kr40.topgirl.co/)
-##a[target*="blank"][class*="banner"]:has(img[src*=".gif"])
-##a[target*="blank"]:has(img[src*="/banners/"][src*=".gif"])
+!##a[target*="blank"][class*="banner"]:has(img[src*=".gif"])
+!##a[target*="blank"]:has(img[src*="/banners/"][src*=".gif"])
 ! - - - 마녀티비 (https://witchtv10.xyz/) (https://wt01.xyz/)
 ##a[target*="blank"]:has(img[src*=".gif"][alt*="Banner"])
-##a[target*="blank"]:has(img[src*="/wp-content/uploads/"][src*=".gif"])
+!##a[target*="blank"]:has(img[src*="/wp-content/uploads/"][src*=".gif"])
 ! - - - 쏭티비 (https://songkorea.com/)
 ! - - - 섹토렌트 (https://4.sektorrent.me/)
 ! - - - 땡땡티비 (https://ootv39.com/)
@@ -5843,7 +5849,6 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - - - AV팝 (https://01.avpop.tv/)
 ! - - - 일구핫 (https://01.19hot.net/)
 ! - - - 디토토렌트 (https://ditto-torrent19.top/) - 추천프로그램? 이미지 사라짐
-! - - - 레드걸 (https://redgirl37.org/)
 ! - - - 레드존 (https://redzone20.xyz/)
 ! - - - 쿨걸 (https://coolgirl08.xyz/)
 ![$domain=/^7tv\d+.com/]##a[href][target*='_blank'] img
@@ -5854,7 +5859,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 !##a[href][target*='_blank'] img
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
 !##[target][href] img
-[$domain=/^dozi\d+.com/],[$domain=/^messitv\d+.com/],[$domain=/^\d+.avpop.tv/],[$domain=/^\d+.19hot.net/],[$domain=/^ditto-torrent\d+.top/],[$domain=/^redgirl\d+.org/],[$domain=/^redzone\d+.xyz/],[$domain=/^coolgirl\d+.xyz/]##a[href][target]:has(img)
+[$domain=/^dozi\d+.com/],[$domain=/^\d+.avpop.tv/],[$domain=/^\d+.19hot.net/],[$domain=/^ditto-torrent\d+.top/],[$domain=/^redzone\d+.xyz/],[$domain=/^coolgirl\d+.xyz/]##a[href][target]:has(img)
 
 
 !!! - 기본 3
