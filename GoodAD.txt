@@ -295,6 +295,7 @@ sooplive.co.kr###FeedLayerToolTip
 !##.logo_banner
 !##.a-left
 !##.a-right
+tonghrencomics.net##a[href][target*="blank"]:has(img[src*='.svg'])
 !
 !
 ! 풍투데이 (https://poong.today/)
@@ -5725,12 +5726,7 @@ instiz.net#@#a[href][target*='blank']:has(img[src*='.gif'])
 jobkorea.co.kr#@#a[href][target*='blank']:has(img[src*='.gif'])
 
 
-! - https://tonghrencomics.net/ - 광고 페이지로 보임
-!##a[href][target*="blank"] img[src*='.svg']
-##a[href][target*="blank"]:has(img[src*='.svg'])
-! - - - 예외
-! - - - https://damoang.net/ - 아이디 이미지 사라짐
-damoang.net#@#a[href][target*="blank"]:has(img[src*='.svg'])
+! - - -
 
 
 !##[class*="banner"] IMG[src*="banner"] IMG[src*=".gif"]
