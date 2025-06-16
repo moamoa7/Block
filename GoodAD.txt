@@ -2141,6 +2141,7 @@ avsee.ru##.div-title-wrap
 ! - - - PC
 avsee.ru##.nav-justified
 ! - Mobile
+avsee.ru##.list-category
 avsee.ru##.tabs
 ! - 새창 방지
 avsee.ru#%#//scriptlet("prevent-window-open")
