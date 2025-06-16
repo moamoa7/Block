@@ -4211,6 +4211,7 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 ! - 예외 (아바타 아이콘) (https://damoang.net/)
 !@@cdn.damoang.net/data/member_image/ad/*$image
 !||*/*/AD/*
+||*/*/ad-*
 ||*/*/ad-*/*
 ! - 예외 (텍스트 안보임 해결)
 @@github.com*$xhr
@@ -4283,6 +4284,11 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 ! https://05.avsee.ru/
 !avsee.ru#@#iframe
 
+
+! - 해당무
+!##[class*="ad."]
+
+
 ! https://damoang.net/ -스크립트 오류?
 ! https://www.ppomppu.co.kr/ - 게시판 종류 나오는거 사라짐 (큰 영향 없음)
 ! https://05.avsee.ru/ - Best recomm 게시물 사라짐 (큰 영향 없음)
@@ -4294,6 +4300,7 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 ! https://www.reddit.com/
 ! https://av19.live/ - 영상 사라짐
 ! 커뮤니티 베스트 (https://www.issuelink.co.kr) - 사이트 광고 허용 메시지 발생
+! https://loopholes.site/ - 내용 다 지워짐
 ##[class*="-ad"]
 damoang.net#@#[class*="-ad"]
 ! - - - https://www.etoland.co.kr/ - HIT 게시판 사라짐
@@ -4301,6 +4308,7 @@ etoland.co.kr#@#[class*="-ad"]
 cineaste.co.kr#@#[class*="-ad"]
 [$domain=/^av\d+.live/]#@#[class*="-ad"]
 issuelink.co.kr#@#[class*="-ad"]
+loopholes.site#@#[class*="-ad"]
 
 ! https://www.inven.co.kr/ 프레임 깨짐
 ! https://damoang.net/ -스크립트 오류?
@@ -4308,10 +4316,13 @@ issuelink.co.kr#@#[class*="-ad"]
 ! https://chzzk.naver.com/
 ! https://www.bobaedream.co.kr/
 ! https://player.bunny-frame.online/
+! https://fc2ppvdb.com/- 이미지 사라짐
 ##[class*="ad-"]
 ! - - - 예외
 inven.co.kr#@#[class*="ad-"]
 damoang.net#@#[class*="ad-"]
+fc2ppvdb.com#@#[class*="ad-"]
+
 
 ! https://www.youtube.com - generichide 처리로 실제 적용되지는 않음
 ! https://www.inven.co.kr/ 프레임 깨짐
@@ -5350,6 +5361,7 @@ www.naver.com#@#iframe[title*="frame"]
 
 ##iframe[src*="/ad"]
 
+! - 위오 동일한거라 패스
 !##iframe[src*="/ad-"]
 
 ##iframe[src*="-ad"]
