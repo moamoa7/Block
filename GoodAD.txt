@@ -498,6 +498,11 @@ gall.dcinside.com#@#[class^="ad"]
 ! - - - 예외
 ! - - - https://theqoo.net/- 프레임 깨짐
 theqoo.net#@#[class*="ad_"] [style]
+! - - - https://www.ddanzi.com/ 본문 일부 사라짐
+ddanzi.com#@#[class*="ad_"] [style]
+! - - - 야동코리아 (https://yako4.net/) - 상단 지워짐
+[$domain=/^yako\d+.net/]#@#[class*="ad_"] [style]
+
 ##.adpost
 ! 게시물 하단 배너
 !fmkorea.com##ins.adsbygoogle
@@ -609,6 +614,8 @@ inven.co.kr##[class="modal-fixed"]
 ##[src*=".ads/"]
 ! -오른쪽 배너
 ##[class*="ad-right"]
+! -오른쪽 배너
+##[class*="ad-left"]
 ! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
 ##[class*="Ad"]
 ! - - - 예외 (https://play.google.com/) - 제목 날라감
@@ -754,17 +761,19 @@ ygosu.com##.pull-left.btn-group
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - 맨 오른쪽 상단 작은 배너
 !##[class="top-banner"]
-##.top-banner
+!##.top-banner - ##[class*="-banner"]로 대체
 ! - 메인 상단 배너
 !##[id="banner-link"]
-###banner-link
+!###banner-link - 아래 규칙으로 대체
+##[id*="banner"]
 ! - 메인/게시물 왼쪽 배너 공간 (PC)
 ! - - - 야동코리아 (https://yako4.net/) - 영상 하단 배너
 ! - - - 밍키넷 영상 하단 텍스트 배너
 ! - - - 유튜브에서도 적용
 !##[id="banner"]
-###banner
+!###banner - ##[id*="banner"] 로 대체
 ! - 오른쪽 배너
+! - - - https://www.jjang0u.com/
 ##[class*="right-banner"]
 !- 게시물 하단 배너 (댓글 위)
 jjang0u.com##[class*="cut-in-banner2"]
@@ -2326,7 +2335,11 @@ clien.net#@#.ad_banner
 !
 ! 쏘걸.net (https://www.xn--av-t21i858e.net/)
 ! - 배너 이미지
-##img[src*="static.wixstatic.com/media"]
+!##img[src*="static.wixstatic.com/media"]
+! - 배너 공간
+xn--av-t21i858e.net##.wixui-section.comp-m7wvsc3o.Oqnisf
+
+
 !
 !
 ! TK Tubo (https://tktube.com/)
@@ -4269,11 +4282,84 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 ! https://05.avsee.ru/
 !avsee.ru#@#iframe
 
+! https://damoang.net/ -스크립트 오류?
+! https://www.ppomppu.co.kr/ - 게시판 종류 나오는거 사라짐 (큰 영향 없음)
+! https://05.avsee.ru/ - Best recomm 게시물 사라짐 (큰 영향 없음)
+! https://chzzk.naver.com/
+! https://www.sooplive.co.kr/
+! https://www.clien.net/
+! https://cineaste.co.kr/ 달력 아이콘 사라짐
+! https://poooo.ml/
+! https://www.reddit.com/
+##[class*="-ad"]
+damoang.net#@#[class*="-ad"]
+! - - - https://www.etoland.co.kr/ - HIT 게시판 사라짐
+etoland.co.kr#@#[class*="-ad"]
+cineaste.co.kr#@#[class*="-ad"]
+
+! https://www.inven.co.kr/ 프레임 깨짐
+! https://damoang.net/ -스크립트 오류?
+! https://www.ppomppu.co.kr/
+! https://chzzk.naver.com/
+! https://www.bobaedream.co.kr/
+! https://player.bunny-frame.online/
+##[class*="ad-"]
+! - - - 예외
+inven.co.kr#@#[class*="ad-"]
+damoang.net#@#[class*="ad-"]
+
+! https://www.youtube.com - generichide 처리로 실제 적용되지는 않음
+! https://www.inven.co.kr/ 프레임 깨짐
+! https://chzzk.naver.com/
+##[class*="-ad-"]
+! - - - 예외
+inven.co.kr#@#[class*="-ad-"]
+
+! https://www.fmkorea.com/
+! https://bbs.ruliweb.com/
+! https://aagag.com/
+! https://mlbpark.donga.com/
+! https://www.etoland.co.kr/ - 게시물내 상단 게시물주소 사라짐
+! https://www.ppomppu.co.kr/
+! https://chzzk.naver.com/
+! https://gall.dcinside.com/
+! https://www.clien.net/
+! https://www.todayhumor.co.kr/
+! https://www.bobaedream.co.kr/ 
+##[class*="_ad"]
+
+! https://www.fmkorea.com/
+! https://bbs.ruliweb.com/
+! https://web.humoruniv.com/
+! https://www.etoland.co.kr/
+! https://www.ppomppu.co.kr/
+! https://play.sooplive.co.kr/
+! https://gall.dcinside.com/ - 갤러리 제목 옆 M 사라짐 (큰 영향 없음)
+! https://www.clien.net/ - 검색입력란이 사라짐
+! https://www.todayhumor.co.kr/
+! https://poooo.ml/
+##[class*="ad_"]
+! - - - 예외
+! - - - https://theqoo.net/ - 메인 날라감
+theqoo.net#@#[class*="ad_"]
+! - - - https://www.ddanzi.com/ - 본문 사라짐
+ddanzi.com#@#[class*="ad_"]
+clien.net#@#[class*="ad_"]
+! - - - 야동코리아 (https://yako4.net/) - 상단 지워짐
+[$domain=/^yako\d+.net/]#@#[class*="ad_"]
+
+! https://bbs.ruliweb.com/
+! https://www.todayhumor.co.kr/
+##[class*="_ad_"]
+
 
 ##[class*="AD"]
 ! - - - 예외
 ! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
 www.naver.com#@#[class*="AD"]
+! - https://www.jusotw.com/ - 링크 사라짐
+jusotw.com#@#[class*="AD"]
+
 
 
 ! https://www.weather.go.kr/
@@ -4289,6 +4375,8 @@ www.naver.com#@#[class*="AD"]
 ! https://www.inven.co.kr/
 ! https://tv.kakao.com/
 ##[class*="_banner"]
+! - - - https://www.clien.net/ - 검색 입력란 사라짐
+clien.net#@#[class*="_banner"]
 
 ! https://tv.kakao.com/
 ##[class*="banner_"]
@@ -4525,7 +4613,7 @@ linkloveko.com#@#div>[class*="button"]>[style][target]
 ##a[href]:has(img[src*="banner"])
 ! - - - 예외
 ! - - - https://kick.com/ - 실시간 인기 카테고리 이미지 지워짐
-!kick.com#@#a[href]:has(img[src*="banner"])
+kick.com#@#a[href]:has(img[src*="banner"])
 
 !##:has(img[src*="banner"]) - 전체 가려짐
 !##a[href]:has(img[src*="banner"])
@@ -5450,6 +5538,9 @@ www.naver.com#@#iframe[title*="frame"]
 
 ! 더팩트 (https://www.tf.co.kr/)
 ##[id*="Banner"] iframe
+
+! - 임시
+##[id*="banner"] iframe
 
 
 ! 머니S (https://www.moneys.co.kr/)
@@ -6485,4 +6576,7 @@ trand.co.kr#@#[id][style*="background"][style]
 !##[class*="mobile"] iframe X
 !##iframe[src*="pc"] X
 !##iframe[src*="mobile"] X
+
+! - 스크립트 gotube 떠다니는 버튼
+##.goodTube_menuButton
 
