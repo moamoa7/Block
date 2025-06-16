@@ -836,9 +836,11 @@ inven.co.kr#@#div.banner
 ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 ! - 오른쪽 따라다니는 배너
 !##[class="floating-banner"]
-##.floating-banner
+!##.floating-banner - ##[class*="-banner"] 로 대체
 !##[class="ad-banner"]
-##.ad-banner
+!##.ad-banner - ##[class*="-banner"] 로 대체
+! - 게시물 위 상단 공간
+##.main.container > div>[style]
 ! - 뽐쿠폰 배너
 ppomppu.co.kr##.ppomCou
 ! - 모바일 하단 배너 공간 삭제
@@ -4294,6 +4296,15 @@ www.naver.com#@#[class*="AD"]
 
 ##[class*="-banner_"]
 
+! - - - 임시 (시작)
+
+##[class*="leftbanner"]
+
+##[class*="upbanner"]
+
+##[class*="downbanner"]
+
+! - - - 임시 (끝)
 
 
 
