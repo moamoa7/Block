@@ -4291,11 +4291,15 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 ! https://cineaste.co.kr/ 달력 아이콘 사라짐
 ! https://poooo.ml/
 ! https://www.reddit.com/
+! https://av19.live/ - 영상 사라짐
+! 커뮤니티 베스트 (https://www.issuelink.co.kr) - 사이트 광고 허용 메시지 발생
 ##[class*="-ad"]
 damoang.net#@#[class*="-ad"]
 ! - - - https://www.etoland.co.kr/ - HIT 게시판 사라짐
 etoland.co.kr#@#[class*="-ad"]
 cineaste.co.kr#@#[class*="-ad"]
+[$domain=/^av\d+.live/]#@#[class*="-ad"]
+issuelink.co.kr#@#[class*="-ad"]
 
 ! https://www.inven.co.kr/ 프레임 깨짐
 ! https://damoang.net/ -스크립트 오류?
@@ -5679,6 +5683,7 @@ loyalty.coupang.com#@#iframe[title*="iframe"]
 
 ##[class^="ad"] iframe
 
+
 ! https://supjav.com/
 ! https://05.avsee.ru/
 ! https://poooo.ml/
@@ -5712,6 +5717,8 @@ loyalty.coupang.com#@#iframe[title*="iframe"]
 ! - - - 예외
 ! - - - https://camcam.cc/ - 영상 프레임 사라짐
 camcam.cc#@#[class*="ads"] iframe
+! - - - https://av19.live/ - 영상 프레임 사라짐
+[$domain=/^av\d+.live/]#@#[class*="ads"] iframe
 
 
 !##[style] iframe
