@@ -366,6 +366,8 @@ kakaotv.daum.net#@#[class^="ad"]
 @@||tiktok.com^$generichide,badfilter
 ! - 로그인 팝업 차단
 ##[class*="Modal"]
+! - - - 예외
+pornhub.com#@#[class*="Modal"]
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
 !
@@ -498,7 +500,7 @@ gall.dcinside.com#@#[class^="ad"]
 ! 배너 (오른쪽 위 /게시글 하단 댓글 사이 배너 )
 ! - - -  웃대 (https://web.humoruniv.com/) 왼쪽 배너 / 하단 배너
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
-!##[class^="ads"]
+##[class^="ads"]
 ! - - - 파워 링크
 ##[class*="ad_"] [style]
 ! - - - 예외
@@ -620,6 +622,8 @@ theqoo.net##.theqoo-counter
 !inven.co.kr##[id="loading"]
 inven.co.kr##[class="modal-fixed"]
 ##[class*="modal"]
+! - - - 예외
+pornhub.com#@#[class*="modal"]
 ! - 게시물 전체 배너
 ##[src*=".ads/"]
 ! -오른쪽 배너
@@ -632,6 +636,9 @@ inven.co.kr##[class="modal-fixed"]
 play.google.com#@#[class*="Ad"]
 ! - -  한국경제TV (https://www.wowtv.co.kr/) 기사 내용 사라짐
 wowtv.co.kr#@#[class*="Ad"]
+! - - https://www.pornhub.com/ - 상단 사라짐
+pornhub.com#@#[class*="Ad"]
+
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - - - PC
 !inven.co.kr##.new-board
@@ -672,7 +679,8 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 !
 ! 루리 (https://www.ruliweb.com/)
 ! - 배너 (루리웹 전체 메인 상단 배너)
-ruliweb.com##.adrr
+!ruliweb.com##.adrr
+ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
 ! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe536.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
@@ -4300,318 +4308,7 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 !
 !
 
-!!! - 광역 0
 
-!##iframe
-!!! - - -  예외
-! https://poooo.ml/
-!poooo.ml#@#iframe
-! https://05.avsee.ru/
-!avsee.ru#@#iframe
-
-
-! - 해당무
-!##[class*="ad."]
-
-
-! https://damoang.net/ -스크립트 오류?
-! https://www.ppomppu.co.kr/ - 게시판 종류 나오는거 사라짐 (큰 영향 없음)
-! https://05.avsee.ru/ - Best recomm 게시물 사라짐 (큰 영향 없음)
-! https://chzzk.naver.com/
-! https://www.sooplive.co.kr/
-! https://www.clien.net/
-! https://cineaste.co.kr/ 달력 아이콘 사라짐
-! https://poooo.ml/
-! https://www.reddit.com/
-! https://av19.live/ - 영상 사라짐
-! 커뮤니티 베스트 (https://www.issuelink.co.kr) - 사이트 광고 허용 메시지 발생
-! https://loopholes.site/ - 내용 다 지워짐
-! https://trand.co.kr/ - 첫 화면시 프레임 막힘 듯한 틀 제공
-##[class*="-ad"]
-damoang.net#@#[class*="-ad"]
-! - - - https://www.etoland.co.kr/ - HIT 게시판 사라짐
-etoland.co.kr#@#[class*="-ad"]
-cineaste.co.kr#@#[class*="-ad"]
-[$domain=/^av\d+.live/]#@#[class*="-ad"]
-issuelink.co.kr#@#[class*="-ad"]
-loopholes.site#@#[class*="-ad"]
-trand.co.kr#@#[class*="-ad"]
-
-! https://www.inven.co.kr/ 프레임 깨짐
-! https://damoang.net/ -스크립트 오류?
-! https://www.ppomppu.co.kr/
-! https://chzzk.naver.com/
-! https://www.bobaedream.co.kr/
-! https://player.bunny-frame.online/
-! https://fc2ppvdb.com/- 이미지 사라짐
-! https://theqoo.net/ - 모바일에서 본문 내용 사라짐
-! https://www.tiktok.com/ - 프레임이 조금 이상해짐
-! 
-##[class*="ad-"]
-! - - - 예외
-inven.co.kr#@#[class*="ad-"]
-damoang.net#@#[class*="ad-"]
-fc2ppvdb.com#@#[class*="ad-"]
-theqoo.net#@#[class*="ad-"]
-tiktok.com#@#[class*="ad-"]
-
-
-! https://www.youtube.com - generichide 처리로 실제 적용되지는 않음
-! https://www.inven.co.kr/ 프레임 깨짐
-! https://chzzk.naver.com/
-##[class*="-ad-"]
-! - - - 예외
-inven.co.kr#@#[class*="-ad-"]
-
-! https://www.fmkorea.com/
-! https://bbs.ruliweb.com/
-! https://aagag.com/
-! https://mlbpark.donga.com/
-! https://www.etoland.co.kr/ - 게시물내 상단 게시물주소 사라짐
-! https://www.ppomppu.co.kr/
-! https://chzzk.naver.com/
-! https://gall.dcinside.com/
-! https://www.clien.net/
-! https://www.todayhumor.co.kr/
-! https://www.bobaedream.co.kr/ 
-##[class*="_ad"]
-
-! https://www.fmkorea.com/
-! https://bbs.ruliweb.com/
-! https://web.humoruniv.com/
-! https://www.etoland.co.kr/
-! https://www.ppomppu.co.kr/
-! https://play.sooplive.co.kr/
-! https://gall.dcinside.com/ - 갤러리 제목 옆 M 사라짐 (큰 영향 없음)
-! https://www.clien.net/ - 검색입력란이 사라짐
-! https://www.todayhumor.co.kr/
-! https://poooo.ml/
-##[class*="ad_"]
-! - - - 예외
-! - - - https://theqoo.net/ - 메인 날라감
-theqoo.net#@#[class*="ad_"]
-! - - - https://www.ddanzi.com/ - 본문 사라짐
-ddanzi.com#@#[class*="ad_"]
-clien.net#@#[class*="ad_"]
-! - - - 야동코리아 (https://yako4.net/) - 상단 지워짐
-[$domain=/^yako\d+.net/]#@#[class*="ad_"]
-! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
-etoland.co.kr/#@#[class*="ad_"]
-! - - - 루리웹 (https://m.ruliweb.com/) - 모바일에서 게시물 본문 지워짐
-ruliweb.com#@#[class*="ad_"]
-
-! https://bbs.ruliweb.com/
-! https://www.todayhumor.co.kr/
-##[class*="_ad_"]
-
-
-##[class*="AD"]
-! - - - 예외
-! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
-www.naver.com#@#[class*="AD"]
-! - https://www.jusotw.com/ - 링크 사라짐
-jusotw.com#@#[class*="AD"]
-
-
-
-! https://www.weather.go.kr/
-! https://www.inven.co.kr/
-! https://tv.naver.com/
-##[class*="-banner"]
-
-! https://www.weather.go.kr/
-! https://tv.naver.com/
-##[class*="-banner-"]
-
-! https://play.sooplive.co.kr/
-! https://www.inven.co.kr/
-! https://tv.kakao.com/
-##[class*="_banner"]
-! - - - https://www.clien.net/ - 검색 입력란 사라짐
-clien.net#@#[class*="_banner"]
-
-! https://tv.kakao.com/
-##[class*="banner_"]
-
-
-##[class*="-banner_"]
-
-! - - - 임시 (시작)
-
-##[class*="leftbanner"]
-
-##[class*="upbanner"]
-
-##[class*="downbanner"]
-
-! - - - 임시 (끝)
-
-
-
-! 구글 광고
-!##[class*="adsbygoogle"]
-
-! 파워링크
-! - https://www.fmkorea.com/
-!##.adpost
-!##[class*="naver_power"]
-! - https://web.humoruniv.com/
-!##[id*="naver_adpost"]
-
-
-
-! 카카오 광고
-! - https://bbs.ruliweb.com/
-!##.kakao_ad_area
-!##[class*="kakao_ad"] - ##[class^="ad"] 없애줘서 대체
-
-!- https://www.ddanzi.com/
-!##[class*="add_display"] - [class^="ad"] 해결 / ##iframe[src*="iframe"] 과 많이 겹침
-
-
-
-
-! 구글광고와 겹칠수도.. 
-! - 디시인사이드 (https://dcinside.com/) - 광고 배너
-! - 에펨코리아 (https://www.fmkorea.com/) - 광고 배너
-! -더쿠 (https://theqoo.net/) - 광고 배너
-! - SLR (https://www.slrclub.com/) - 광고 배너
-! - AAGAG (https://aagag.com/) - 광고 배너
-! - 다모앙 (https://damoang.net/) - 광고 배너
-! - 웃대 (https://web.humoruniv.com/) - 광고 배너
-! - 오늘의 유머 (https://www.todayhumor.co.kr/)- 광고 배너
-! - 인스티즈 (https://www.instiz.net/) - 광고 배너 등
-##[class*="ads"]
-! - - - 예외
-! - - - https://javfinder.ai/ - 영상 프레임이 사라짐
-! - - - https://javdoe.to/
-! - - - https://javsky.tv/
-! - - - https://javfree.sh/
-! - - - https://javrider.com/
-javfinder.ai,javdoe.to,javsky.tv,javfree.sh,javrider.com#@#[class*="ads"]
-! -위 ads  영상 프레임 아닌 광고 프레임 (Easy-List에 포함)
-!##[class="sidebar-ads"]
-!##.sidebar-ads
-! - - - https://www4.javhdporn.net/ - 영상 안보임
-javhdporn.net#@#[class*="ads"]
-! - - - https://www.bestjavporn.com/ - 영상 안보임
-bestjavporn.com#@#[class*="ads"]
-! - - - https://www4.javdock.com/ - 영상 안보임
-javdock.com#@#[class*="ads"]
-! - - - https://4.jamakyadong.me/ - 영상 안보임
-[$domain=/^\d+.jamakyadong.me/]#@#[class*="ads"]
-! - --  https://av19.live/ - 영상 안보임
-av19.live#@#[class*="ads"]
-! - - - https://camcam.cc/ - 영상 프레임 사라짐
-camcam.cc#@#[class*="ads"]
-! - - - https://sports.daum.net/ - 영상 안나옴
-kakaotv.daum.net#@#[class*="ads"]
-
-
-! 인벤 아이디 날림
-!##[class*="layer"]
-
-! 보배드림 광고
-! 에펨코리아 미디어 내 다운로드 버튼 지움
-! 뽐뿌 광고
-! 인벤 메인 날림
-!##[class*="ad-"]
-
-! 루리웹 광고
-! 엠팍 광고
-! 보배드림 광고
-! 에펨코리아 게시판 주소(복사) 지움
-! 뽐뿌 광고
-! 이토랜드 광고
-! 일부 사이트 리뷰글 지움
-!##[class*="_ad"]
-
-! 루리웹 광고
-! 뽐뿌 광고
-! 딴지 메인 날림
-!##[class*="ad_"]
-
-! 인벤 광고
-! avsee 게시글 상단 베스트 글 삭제
-! supjav
-!##[class*="-ad"]
-
-
-! 비디오 광고
-
-! - https://kissjav.com/
-! - https://sexkbj.com/
-! - 7MMTV (https://7tv000.com/)
-! - MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
-!##[class*="e"][style*="i"] video
-!##[class*="video"] video
-! - - - 예외
-! - - - https://www.fmkorea.com/ - 영상 안보임
-!fmkorea.com#@#[class*="video"] video
-! - - - - https://www.youtube.com/ - 영상 안보임
-!youtube-nocookie.com#@#[class*="video"] video
-! - - - - https://www.etoland.co.kr/ - 영상 안보임
-!etoland.co.kr#@#[class*="video"] video
-!##[class*="-video"] video - 일부 사이트 영상 안나옴으로 (예 :https://missav.ws/) 아래로 재변경
-!##[class*="-"][style*="height"] video - https://missav.ws/ 영상 안나옴으로 이 규칙 버림
-
-
-!##video
-! - - - 예외
-! https://www.youtube.com/
-!youtube.com#@#video
-! https://play.sooplive.co.kr/
-!play.sooplive.co.kr#@#video
-! https://chzzk.naver.com/
-!chzzk.naver.com#@#video
-! https://kick.com/
-!kick.com#@#video
-! 네이버TV (https://tv.naver.com/)
-!tv.naver.com#@#video
-! 카카오TV (https://tv.kakao.com/)
-!tv.kakao.com#@#video
-! 티비위키 / 티비몬 / 티비핫
-!player.bunny-frame.online#@#video
-! 조개무비 (https://v15.jogemovie.net/)
-!upnliveshare.space,hgstreamv.online#@#video
-! Linkkf 애니TV (https://linkkf.net/)
-!g2.myani.app#@#video
-! 애니라이프 (https://anilife.live/)
-!anilife.live#@#video
-
-! - 성인영상
-! https://supjav.com/
-!emturbovid.com,fc2stream.tv,jilliandescribecompany.com#@#video
-! https://javfc2.xyz/
-!javfc2.xyz/watch#@#video
-! https://javgg.net/
-!javggvideo.xyz,jav-vids.xyz,javstreamhg.xyz,javguard.club#@#video
-! https://sextb.date/
-!stbturbo.xyz,stbhg.click,ryderjet.com,listeamed.net,player.upn.one#@#video
-! 7MMTV (https://7tv000.com/) - 주소 바뀜
-!7tv000.com,mmvh01.xyz,mmsi01.xyz,tapewithadblock.org#@#video
-! 야동코리아 (https://www.yako.gg/) - 주소 바뀜
-!yako.gg/video#@#video
-! 탑걸 (https://kr40.topgirl.co/)
-![$domain=/^kr\d+.topgirl.co/video/]#@#video
-! 쏘걸 (https://kr80.sogirl.so/)
-!iframe.mediadelivery.net#@#video
-! MISSAV (https://missav.ws/) (https://missav.live/)
-!missav.*#@#video
-
-
-! MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
-!##[id*="video"] video
-! - - - 예외
-! - - - 숲 (https://play.sooplive.co.kr/)  - 영상 안보임
-!play.sooplive.co.kr#@#[id*="video"] video - 아래 규칙으로 변경
-!##[id*="_ad_"] video
-
-! JavGG (https://javgg.net/)
-! -  영상 재생 상단 비디오 광고
-! - - - https://missav.ws/ - 영상 재생 하단 비디오 광고
-!##[id*="_ad_"] 해제 - 이미지 다 날라감
-!##[id*="ad_video"]
 
 
 
@@ -4977,6 +4674,327 @@ ppomppu.co.kr#@#a[href][onclick]:has(img[style])
 
 
 !!! - 광역 12 (iframe 차단)
+
+
+
+
+!##iframe
+!!! - - -  예외
+! https://poooo.ml/
+!poooo.ml#@#iframe
+! https://05.avsee.ru/
+!avsee.ru#@#iframe
+
+
+! - 해당무
+!##[class*="ad."]
+
+
+! https://damoang.net/ -스크립트 오류?
+! https://www.ppomppu.co.kr/ - 게시판 종류 나오는거 사라짐 (큰 영향 없음)
+! https://05.avsee.ru/ - Best recomm 게시물 사라짐 (큰 영향 없음)
+! https://chzzk.naver.com/
+! https://www.sooplive.co.kr/
+! https://www.clien.net/
+! https://cineaste.co.kr/ 달력 아이콘 사라짐
+! https://poooo.ml/
+! https://www.reddit.com/
+! https://av19.live/ - 영상 사라짐
+! 커뮤니티 베스트 (https://www.issuelink.co.kr) - 사이트 광고 허용 메시지 발생
+! https://loopholes.site/ - 내용 다 지워짐
+! https://trand.co.kr/ - 첫 화면시 프레임 막힘 듯한 틀 제공
+##[class*="-ad"]
+damoang.net#@#[class*="-ad"]
+! - - - https://www.etoland.co.kr/ - HIT 게시판 사라짐
+etoland.co.kr#@#[class*="-ad"]
+cineaste.co.kr#@#[class*="-ad"]
+[$domain=/^av\d+.live/]#@#[class*="-ad"]
+issuelink.co.kr#@#[class*="-ad"]
+loopholes.site#@#[class*="-ad"]
+trand.co.kr#@#[class*="-ad"]
+
+! https://www.inven.co.kr/ 프레임 깨짐
+! https://damoang.net/ -스크립트 오류?
+! https://www.ppomppu.co.kr/
+! https://chzzk.naver.com/
+! https://www.bobaedream.co.kr/
+! https://player.bunny-frame.online/
+! https://fc2ppvdb.com/- 이미지 사라짐
+! https://theqoo.net/ - 모바일에서 본문 내용 사라짐
+! https://www.tiktok.com/ - 프레임이 조금 이상해짐
+! https://www.youtube.com/ - 상단 지워짐
+! 
+##[class*="ad-"]
+! - - - 예외
+inven.co.kr#@#[class*="ad-"]
+damoang.net#@#[class*="ad-"]
+fc2ppvdb.com#@#[class*="ad-"]
+theqoo.net#@#[class*="ad-"]
+tiktok.com#@#[class*="ad-"]
+www.youtube.com#@#[class*="ad-"]
+
+! https://www.youtube.com - generichide 처리로 실제 적용되지는 않음
+! https://www.inven.co.kr/ 프레임 깨짐
+! https://chzzk.naver.com/
+##[class*="-ad-"]
+! - - - 예외
+inven.co.kr#@#[class*="-ad-"]
+
+! https://www.fmkorea.com/
+! https://bbs.ruliweb.com/
+! https://aagag.com/
+! https://mlbpark.donga.com/
+! https://www.etoland.co.kr/ - 게시물내 상단 게시물주소 사라짐
+! https://www.ppomppu.co.kr/
+! https://chzzk.naver.com/
+! https://gall.dcinside.com/
+! https://www.clien.net/
+! https://www.todayhumor.co.kr/
+! https://www.bobaedream.co.kr/ 
+! https://www.naver.com/ - 메뉴가 사라짐
+##[class*="_ad"]
+www.naver.com#@#[class*="_ad"]
+
+! https://www.fmkorea.com/
+! https://bbs.ruliweb.com/
+! https://web.humoruniv.com/
+! https://www.etoland.co.kr/
+! https://www.ppomppu.co.kr/
+! https://play.sooplive.co.kr/
+! https://gall.dcinside.com/ - 갤러리 제목 옆 M 사라짐 (큰 영향 없음)
+! https://www.clien.net/ - 검색입력란이 사라짐
+! https://www.todayhumor.co.kr/
+! https://poooo.ml/
+##[class*="ad_"]
+! - - - 예외
+! - - - https://theqoo.net/ - 메인 날라감
+theqoo.net#@#[class*="ad_"]
+! - - - https://www.ddanzi.com/ - 본문 사라짐
+ddanzi.com#@#[class*="ad_"]
+clien.net#@#[class*="ad_"]
+! - - - 야동코리아 (https://yako4.net/) - 상단 지워짐
+[$domain=/^yako\d+.net/]#@#[class*="ad_"]
+! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
+etoland.co.kr/#@#[class*="ad_"]
+! - - - 루리웹 (https://m.ruliweb.com/) - 모바일에서 게시물 본문 지워짐
+ruliweb.com#@#[class*="ad_"]
+
+! https://bbs.ruliweb.com/
+! https://www.todayhumor.co.kr/
+##[class*="_ad_"]
+
+
+##[class*="AD"]
+! - - - 예외
+! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
+www.naver.com#@#[class*="AD"]
+! - https://www.jusotw.com/ - 링크 사라짐
+jusotw.com#@#[class*="AD"]
+
+
+! https://www.weather.go.kr/
+! https://www.inven.co.kr/
+! https://tv.naver.com/
+##[class*="-banner"]
+
+! https://www.weather.go.kr/
+! https://tv.naver.com/
+##[class*="-banner-"]
+
+! https://play.sooplive.co.kr/
+! https://www.inven.co.kr/
+! https://tv.kakao.com/
+##[class*="_banner"]
+! - - - https://www.clien.net/ - 검색 입력란 사라짐
+clien.net#@#[class*="_banner"]
+
+! https://tv.kakao.com/
+##[class*="banner_"]
+
+
+##[class*="-banner_"]
+
+! - - - 임시 (시작)
+
+##[class*="leftbanner"]
+
+##[class*="upbanner"]
+
+##[class*="downbanner"]
+
+! - - - 임시 (끝)
+
+
+
+! 구글 광고
+!##[class*="adsbygoogle"]
+
+! 파워링크
+! - https://www.fmkorea.com/
+!##.adpost
+!##[class*="naver_power"]
+! - https://web.humoruniv.com/
+!##[id*="naver_adpost"]
+
+
+
+! 카카오 광고
+! - https://bbs.ruliweb.com/
+!##.kakao_ad_area
+!##[class*="kakao_ad"] - ##[class^="ad"] 없애줘서 대체
+
+!- https://www.ddanzi.com/
+!##[class*="add_display"] - [class^="ad"] 해결 / ##iframe[src*="iframe"] 과 많이 겹침
+
+
+
+
+! 구글광고와 겹칠수도.. 
+! - 디시인사이드 (https://dcinside.com/) - 광고 배너
+! - 에펨코리아 (https://www.fmkorea.com/) - 광고 배너
+! -더쿠 (https://theqoo.net/) - 광고 배너
+! - SLR (https://www.slrclub.com/) - 광고 배너
+! - AAGAG (https://aagag.com/) - 광고 배너
+! - 다모앙 (https://damoang.net/) - 광고 배너
+! - 웃대 (https://web.humoruniv.com/) - 광고 배너
+! - 오늘의 유머 (https://www.todayhumor.co.kr/)- 광고 배너
+! - 인스티즈 (https://www.instiz.net/) - 광고 배너 등
+##[class*="ads"]
+! - - - 예외
+! - - - https://javfinder.ai/ - 영상 프레임이 사라짐
+! - - - https://javdoe.to/
+! - - - https://javsky.tv/
+! - - - https://javfree.sh/
+! - - - https://javrider.com/
+javfinder.ai,javdoe.to,javsky.tv,javfree.sh,javrider.com#@#[class*="ads"]
+! -위 ads  영상 프레임 아닌 광고 프레임 (Easy-List에 포함)
+!##[class="sidebar-ads"]
+!##.sidebar-ads
+! - - - https://www4.javhdporn.net/ - 영상 안보임
+javhdporn.net#@#[class*="ads"]
+! - - - https://www.bestjavporn.com/ - 영상 안보임
+bestjavporn.com#@#[class*="ads"]
+! - - - https://www4.javdock.com/ - 영상 안보임
+javdock.com#@#[class*="ads"]
+! - - - https://4.jamakyadong.me/ - 영상 안보임
+[$domain=/^\d+.jamakyadong.me/]#@#[class*="ads"]
+! - --  https://av19.live/ - 영상 안보임
+av19.live#@#[class*="ads"]
+! - - - https://camcam.cc/ - 영상 프레임 사라짐
+camcam.cc#@#[class*="ads"]
+! - - - https://sports.daum.net/ - 영상 안나옴
+kakaotv.daum.net#@#[class*="ads"]
+
+
+! 인벤 아이디 날림
+!##[class*="layer"]
+
+! 보배드림 광고
+! 에펨코리아 미디어 내 다운로드 버튼 지움
+! 뽐뿌 광고
+! 인벤 메인 날림
+!##[class*="ad-"]
+
+! 루리웹 광고
+! 엠팍 광고
+! 보배드림 광고
+! 에펨코리아 게시판 주소(복사) 지움
+! 뽐뿌 광고
+! 이토랜드 광고
+! 일부 사이트 리뷰글 지움
+!##[class*="_ad"]
+
+! 루리웹 광고
+! 뽐뿌 광고
+! 딴지 메인 날림
+!##[class*="ad_"]
+
+! 인벤 광고
+! avsee 게시글 상단 베스트 글 삭제
+! supjav
+!##[class*="-ad"]
+
+
+! 비디오 광고
+
+! - https://kissjav.com/
+! - https://sexkbj.com/
+! - 7MMTV (https://7tv000.com/)
+! - MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
+!##[class*="e"][style*="i"] video
+!##[class*="video"] video
+! - - - 예외
+! - - - https://www.fmkorea.com/ - 영상 안보임
+!fmkorea.com#@#[class*="video"] video
+! - - - - https://www.youtube.com/ - 영상 안보임
+!youtube-nocookie.com#@#[class*="video"] video
+! - - - - https://www.etoland.co.kr/ - 영상 안보임
+!etoland.co.kr#@#[class*="video"] video
+!##[class*="-video"] video - 일부 사이트 영상 안나옴으로 (예 :https://missav.ws/) 아래로 재변경
+!##[class*="-"][style*="height"] video - https://missav.ws/ 영상 안나옴으로 이 규칙 버림
+
+
+!##video
+! - - - 예외
+! https://www.youtube.com/
+!youtube.com#@#video
+! https://play.sooplive.co.kr/
+!play.sooplive.co.kr#@#video
+! https://chzzk.naver.com/
+!chzzk.naver.com#@#video
+! https://kick.com/
+!kick.com#@#video
+! 네이버TV (https://tv.naver.com/)
+!tv.naver.com#@#video
+! 카카오TV (https://tv.kakao.com/)
+!tv.kakao.com#@#video
+! 티비위키 / 티비몬 / 티비핫
+!player.bunny-frame.online#@#video
+! 조개무비 (https://v15.jogemovie.net/)
+!upnliveshare.space,hgstreamv.online#@#video
+! Linkkf 애니TV (https://linkkf.net/)
+!g2.myani.app#@#video
+! 애니라이프 (https://anilife.live/)
+!anilife.live#@#video
+
+! - 성인영상
+! https://supjav.com/
+!emturbovid.com,fc2stream.tv,jilliandescribecompany.com#@#video
+! https://javfc2.xyz/
+!javfc2.xyz/watch#@#video
+! https://javgg.net/
+!javggvideo.xyz,jav-vids.xyz,javstreamhg.xyz,javguard.club#@#video
+! https://sextb.date/
+!stbturbo.xyz,stbhg.click,ryderjet.com,listeamed.net,player.upn.one#@#video
+! 7MMTV (https://7tv000.com/) - 주소 바뀜
+!7tv000.com,mmvh01.xyz,mmsi01.xyz,tapewithadblock.org#@#video
+! 야동코리아 (https://www.yako.gg/) - 주소 바뀜
+!yako.gg/video#@#video
+! 탑걸 (https://kr40.topgirl.co/)
+![$domain=/^kr\d+.topgirl.co/video/]#@#video
+! 쏘걸 (https://kr80.sogirl.so/)
+!iframe.mediadelivery.net#@#video
+! MISSAV (https://missav.ws/) (https://missav.live/)
+!missav.*#@#video
+
+
+! MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
+!##[id*="video"] video
+! - - - 예외
+! - - - 숲 (https://play.sooplive.co.kr/)  - 영상 안보임
+!play.sooplive.co.kr#@#[id*="video"] video - 아래 규칙으로 변경
+!##[id*="_ad_"] video
+
+! JavGG (https://javgg.net/)
+! -  영상 재생 상단 비디오 광고
+! - - - https://missav.ws/ - 영상 재생 하단 비디오 광고
+!##[id*="_ad_"] 해제 - 이미지 다 날라감
+!##[id*="ad_video"]
+
+
+
+
+
 ! - - - 광역으로 사용
 ! - - - https://redgirl37.org/ - 영상 아래 iframe
 ! - - - 거의 모든 iframe 차단
@@ -5200,6 +5218,11 @@ onlygirl.asia#@#iframe[src*="iframe"]
 
 
 !/////////////////////////////////////////////////////////////////////////////////
+
+
+! https://www.naver.com/
+! https://zum.com/
+##iframe[src*="shop"]
 
 
 ! 이토랜드
@@ -5539,7 +5562,7 @@ www.naver.com#@#iframe[title*="frame"]
 
 ! https://sextb.date/ 일부
 ! https://7tv000.com/ 일부
-!##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
+##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
 ! https://sextb.date/ 일부 - adsbyexoclick
 !##iframe[sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-same-origin"]
 !##iframe[sandbox*="allow-same-origin"] X
@@ -6634,3 +6657,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !##[class*="mobile"] iframe X
 !##iframe[src*="pc"] X
 !##iframe[src*="mobile"] X
+
