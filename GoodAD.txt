@@ -4369,6 +4369,8 @@ ddanzi.com#@#[class*="ad_"]
 clien.net#@#[class*="ad_"]
 ! - - - 야동코리아 (https://yako4.net/) - 상단 지워짐
 [$domain=/^yako\d+.net/]#@#[class*="ad_"]
+! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
+etoland.co.kr/#@#[class*="ad_"]
 
 ! https://bbs.ruliweb.com/
 ! https://www.todayhumor.co.kr/
