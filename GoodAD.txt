@@ -4323,11 +4323,14 @@ loopholes.site#@#[class*="-ad"]
 ! https://www.bobaedream.co.kr/
 ! https://player.bunny-frame.online/
 ! https://fc2ppvdb.com/- 이미지 사라짐
+! https://theqoo.net/ - 모바일에서 본문 내용 사라짐
 ##[class*="ad-"]
 ! - - - 예외
 inven.co.kr#@#[class*="ad-"]
 damoang.net#@#[class*="ad-"]
 fc2ppvdb.com#@#[class*="ad-"]
+theqoo.net#@#[class*="ad-"]
+
 
 
 ! https://www.youtube.com - generichide 처리로 실제 적용되지는 않음
