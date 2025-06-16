@@ -2109,6 +2109,9 @@ pedia.watcha.com##.adFixed
 ! - - -  출처 : https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 ##a[target*="blank"]:has(img[width='100%'][src*=".gif"])
+! - 아래 2개는 배너 이미지 공간 규칙 사용안할려고 class 사용
+##[class="title"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
+##[class="main-box"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
 !##A[target='_blank'] > IMG[width='100%'][src$='.gif']
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !##div[style]:has(> [target='_blank'])
@@ -2127,8 +2130,8 @@ pedia.watcha.com##.adFixed
 !||ru/imgs/*
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
 !avsee.ru##[class="title"]
-avsee.ru##.title
-avsee.ru##div.main-box:nth-of-type(1)
+!avsee.ru##.title
+!avsee.ru##div.main-box:nth-of-type(1)
 ! - 새창 방지
 avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - - - uBlock filters – Ads
