@@ -503,7 +503,7 @@ ddanzi.com#@#[class*="ad_"] [style]
 ! - - - 야동코리아 (https://yako4.net/) - 상단 지워짐
 [$domain=/^yako\d+.net/]#@#[class*="ad_"] [style]
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
-etoland.co.kr/#@#[class*="ad_"] [style]
+etoland.co.kr#@#[class*="ad_"] [style]
 
 
 ##.adpost
@@ -4371,6 +4371,8 @@ clien.net#@#[class*="ad_"]
 [$domain=/^yako\d+.net/]#@#[class*="ad_"]
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
 etoland.co.kr/#@#[class*="ad_"]
+! - - - 루리웹 (https://m.ruliweb.com/) - 모바일에서 게시물 본문 지워짐
+ruliweb.com#@#[class*="ad_"]
 
 ! https://bbs.ruliweb.com/
 ! https://www.todayhumor.co.kr/
