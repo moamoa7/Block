@@ -1240,6 +1240,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !$domain=/^messitv\d+.com/]##.d-xl-block.d-none
 ! - 스포츠 토토 배너
 !$domain=/^messitv\d+.com/]##div.d-md-block
+##a[href]:has([alt*="보증업체"])
 ! - 왼쪽 맨 아래 하단 배너
 !$domain=/^messitv\d+.com/]##.bigwin-bn
 ! - 채팅박스
