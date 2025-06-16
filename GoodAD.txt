@@ -5239,9 +5239,14 @@ www.naver.com#@#iframe[title*="frame"]
 !  - - -  임시 (혹시 있을까 싶어서)
 ! https://noodlemagazine.com/
 ! supjav.com - ST / VOE 영상 안나옴
-!##iframe[src*="ad"]
 
 ##iframe[src^="ad"]
+
+!##iframe[src*="ad"]
+
+##iframe[src*="/ad"]
+
+!##iframe[src*="/ad-"]
 
 ##iframe[src*="-ad"]
 
@@ -5254,6 +5259,8 @@ www.naver.com#@#iframe[title*="frame"]
 ##iframe[src*="ad_"]
 
 ##iframe[src*="_ad_"]
+
+
 
 !  - - -  임시 (끝)
 
@@ -5415,11 +5422,11 @@ www.naver.com#@#iframe[title*="frame"]
 
 ! 머니S (https://www.moneys.co.kr/)
 ! 연합뉴스 (https://www.yna.co.kr/
-##iframe[src*="adBanner"]
+!##iframe[src*="adBanner"]
 
 
 ! 머니S (https://www.moneys.co.kr/)
-##iframe[src*="adex."]
+!##iframe[src*="adex."] - ##iframe[src*="/ad"] 로 대체
 
 
 ! 인벤 (https://www.inven.co.kr/)
@@ -5433,15 +5440,14 @@ www.naver.com#@#iframe[title*="frame"]
 
 
 ! 한국경제 (https://www.hankyung.com/)
-##[class^=aside] iframe
-
+!##[class^=aside] iframe
 ! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
 ##[class*="-ad-"] iframe
 !##iframe[src*="adv.imadrep.co.kr"]
-##iframe[src*="adv."]
+!##iframe[src*="adv."]
 
 ! 엑스포츠뉴스 (https://www.xportsnews.com/)
-##iframe[src*="xportsnews"]
+!##iframe[src*="xportsnews"] - ##iframe[src*="/ad"] 로 대체
 
 
 ! 뉴시스 (https://www.newsis.com/)
@@ -5451,8 +5457,8 @@ www.naver.com#@#iframe[title*="frame"]
 
 
 ! 한국경제TV (http://www.wowtv.co.kr/)
-##[class*="adv-area"] iframe
-##iframe[src*="adapi"]
+!##[class*="adv-area"] iframe
+!##iframe[src*="adapi"]
 
 
 ! 네이트
@@ -5490,13 +5496,9 @@ www.naver.com#@#iframe[title*="frame"]
 ! https://cafe.naver.com/ - 카페 오른쪽 메인 프레임 안보임
 !##iframe[src*="naver"]
 
-##iframe[src*="/banner/"]
+!##iframe[src*="/banner/"]
 
-##iframe[src*="/banners/"]
-
-##iframe[src*="-ad-"]
-
-##iframe[src*="/ad-"]
+!##iframe[src*="/banners/"]
 
 ##[class*="popup"] iframe
 ! - - - 예외
