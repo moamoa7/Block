@@ -502,6 +502,9 @@ theqoo.net#@#[class*="ad_"] [style]
 ddanzi.com#@#[class*="ad_"] [style]
 ! - - - 야동코리아 (https://yako4.net/) - 상단 지워짐
 [$domain=/^yako\d+.net/]#@#[class*="ad_"] [style]
+! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
+etoland.co.kr/#@#[class*="ad_"] [style]
+
 
 ##.adpost
 ! 게시물 하단 배너
@@ -1025,7 +1028,7 @@ music.bugs.co.kr##.topBanner
 poooo.ml##.h30
 !
 !
-! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.site/)
+! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
 ! - 상단 배너
 ! - - - 티비위키
 ! - -- https://18moa026.com/의 banner2와 겹쳐서 이미지 안보임
@@ -1047,7 +1050,7 @@ poooo.ml##.h30
 ! - - - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
 !##[class="object-cover"]
 !##.object-cover - 광역으로 사용시 타 사이트 이미지 사라짐 (예 : https://yagong85.com/)
-tvhot.site##.object-cover
+tvhot.store##.object-cover
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
 !##[class="full pc-only"]
 !##[class="full mobile-only"]
