@@ -5252,8 +5252,6 @@ www.naver.com#@#iframe[title*="frame"]
 
 ##iframe[src*="ad-"]
 
-##iframe[src*="-ad-"]
-
 ##iframe[src*="_ad"]
 
 ##iframe[src*="ad_"]
@@ -5261,8 +5259,41 @@ www.naver.com#@#iframe[title*="frame"]
 ##iframe[src*="_ad_"]
 
 
+!##iframe[title*="Tube"]
+!##iframe[title*="tube"]
 
 !  - - -  임시 (끝)
+
+
+! 디시인사이드 (https://gall.dcinside.com/) 일부
+! 더팩트 (https://www.tf.co.kr/)
+! https://miss-jav.com/ 일부
+##iframe[src*="/ad."]
+
+
+! 더팩트 (https://www.tf.co.kr/)
+##iframe[src*="/ad/"]
+
+
+! 한국경제 (https://www.hankyung.com/)
+!##[class^=aside] iframe
+! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
+##[class*="-ad-"] iframe
+!##iframe[src*="adv.imadrep.co.kr"]
+!##iframe[src*="adv."]
+
+! 엑스포츠뉴스 (https://www.xportsnews.com/)
+!##iframe[src*="xportsnews"] - ##iframe[src*="/ad"] 로 대체
+
+
+! 인벤 (https://www.inven.co.kr/)
+! 뉴스1 (https://www.news1.kr/)
+! 한겨레 (https://www.hani.co.kr/)
+! 경햔신문 (https://www.khan.co.kr/)
+! 노컷뉴스 (https://nocutnews.co.kr/)
+!##iframe[src*="/ads/"]
+! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
+##iframe[src*="ads"]
 
 
 ! https://supjav.com/
@@ -5410,16 +5441,6 @@ www.naver.com#@#iframe[title*="frame"]
 ##[id*="Banner"] iframe
 
 
-! 디시인사이드 (https://gall.dcinside.com/) 일부
-! 더팩트 (https://www.tf.co.kr/)
-! https://miss-jav.com/ 일부
-##iframe[src*="/ad."]
-
-
-! 더팩트 (https://www.tf.co.kr/)
-##iframe[src*="/ad/"]
-
-
 ! 머니S (https://www.moneys.co.kr/)
 ! 연합뉴스 (https://www.yna.co.kr/
 !##iframe[src*="adBanner"]
@@ -5427,27 +5448,6 @@ www.naver.com#@#iframe[title*="frame"]
 
 ! 머니S (https://www.moneys.co.kr/)
 !##iframe[src*="adex."] - ##iframe[src*="/ad"] 로 대체
-
-
-! 인벤 (https://www.inven.co.kr/)
-! 뉴스1 (https://www.news1.kr/)
-! 한겨레 (https://www.hani.co.kr/)
-! 경햔신문 (https://www.khan.co.kr/)
-! 노컷뉴스 (https://nocutnews.co.kr/)
-!##iframe[src*="/ads/"]
-! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
-##iframe[src*="ads"]
-
-
-! 한국경제 (https://www.hankyung.com/)
-!##[class^=aside] iframe
-! - - - 위에껄로 되는데 그냥 아래 규칙도 만들어 봄
-##[class*="-ad-"] iframe
-!##iframe[src*="adv.imadrep.co.kr"]
-!##iframe[src*="adv."]
-
-! 엑스포츠뉴스 (https://www.xportsnews.com/)
-!##iframe[src*="xportsnews"] - ##iframe[src*="/ad"] 로 대체
 
 
 ! 뉴시스 (https://www.newsis.com/)
@@ -5550,9 +5550,6 @@ www.naver.com#@#iframe[title*="iframe"]
 ! - - - https://loyalty.coupang.com/ - 해지시 팝업창에 아무것도 안보임
 loyalty.coupang.com#@#iframe[title*="iframe"]
 
-
-##iframe[title*="Tube"]
-##iframe[title*="tube"]
 
 
 !##[id*="iframe"] iframe
