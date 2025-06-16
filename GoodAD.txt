@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250616
+! Version: 20250617
 !
 !
 !
@@ -92,6 +92,8 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
+! - 유튜브 신뢰 해제
+@@||www.youtube.com^$generichide.badfilter
 !!! JavaScript 관련 필터 해제 (광고 차단 해제 효과) - 화이트 리스트 추가하면 필요없음
 !youtube.com#@#+js()
 
@@ -360,8 +362,12 @@ kakaotv.daum.net#@#[class^="ad"]
 !
 !
 ! 틱톡 (https://www.tiktok.com/)
+! - 틱톡 신뢰 해제
+@@||tiktok.com^$generichide,badfilter
+! - 로그인 팝업 차단
+##[class*="Modal"]
 ! - 뿌연거 해결
-tiktok.com##.TUXModal-overlay
+!tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -369,10 +375,10 @@ tiktok.com##.TUXModal-overlay
 cineaste.co.kr##[class="main-title"]
 !cineaste.co.kr##.main-title
 ! - 왼쪽 배너
-##[class="main-banner"]
+!##[class="main-banner"] - ##[class="-banner"] 로 대체
 !cineaste.co.kr##.main-banner
 ! - 오른쪽 중간 배너
-##[class*="basic-banner"]
+!##[class*="basic-banner"] - ##[class="-banner"] 로 대체
 !cineaste.co.kr##.basic-banner
 ! - 오른쪽 배너 공간 (List-KR)
 !cineaste.co.kr##.container > div[style][id]
@@ -613,6 +619,7 @@ theqoo.net##.theqoo-counter
 ! - 로딩 없애기
 !inven.co.kr##[id="loading"]
 inven.co.kr##[class="modal-fixed"]
+##[class*="modal"]
 ! - 게시물 전체 배너
 ##[src*=".ads/"]
 ! -오른쪽 배너
@@ -969,7 +976,7 @@ ezday.co.kr##.bestsite_area
 !
 ! bada.us (https://bada.us/)
 ! - 하단 쿠키
-bada.us##.privacy-cookie.bottom-modal
+!bada.us##.privacy-cookie.bottom-modal
 !
 !
 ! 핫썰닷컴 (https://hotssul.com/)
@@ -1304,7 +1311,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !
 ! 배트맨티비 (https://bmtv24.com/)
 ! - 팝업
-[$domain=/^bmtv\d+.com/]##.modal_item
+![$domain=/^bmtv\d+.com/]##.modal_item
 ! - 챗 공간
 [$domain=/^bmtv\d+.com/]##.chat_frame
 !
@@ -1341,7 +1348,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !
 ! 킹콩티비 (https://xn--989ax54a79c97h8wgq4bg9cwvgwsc.com/) (https://kktv12.com/)
 ! - 팝업
-[$domain=/^kktv\d+.com/]##.modal_flex
+![$domain=/^kktv\d+.com/]##.modal_flex
 ! - 챗 공간
 [$domain=/^kktv\d+.com/]##.chat_frame
 !
@@ -2995,7 +3002,7 @@ notion.so@@||/*/ads/*
 !
 ! 오늘의 중계 (https://today-sports7.com/)
 ! - 왼쪽 배너 공간
-##.info-banner
+!##.info-banner - ##[class*="-banner"]로 대체
 !
 !
 ! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/)
@@ -3897,7 +3904,7 @@ jusopick.com##.bg-black.flex-col
 !
 ! 놀쟈 (https://www.nzyumi.com/)
 ! - 18세 이상 물어보는 팝업
-##.modal18
+!##.modal18
 ! - 영상 뿌옇거 해결 및 영상 위 가로로 긴 네모창
 !##.video-overlay
 ##[id^="tab-ad-player"]:not(html):not(body):not(article)
@@ -3926,6 +3933,10 @@ recu.me##.header-sub
 ! - 모바일 상단 배너
 ![$domain=/^today-sports\d+.com/]##.live-stream
 ##.live-stream
+! - - - https://play.sooplive.co.kr/
+!##[class*="-stream"]
+! - - - 예외
+!youtube.com#@#[class*="-stream"]
 ! - 왼쪽 배너
 !##.info-banner
 ! - 게시물내 한칸짜리 배너
@@ -3941,7 +3952,7 @@ recu.me##.header-sub
 !
 ! FC2 18세 이상 박스
 ! - https://adult.contents.fc2.com/
-##.z9KsZnYS.c-modal-101
+!##.z9KsZnYS.c-modal-101
 ! - https://fc1adult.com/
 ! - - -  18세 이상 물어보는 박스
 !##.confirmBox
@@ -4315,6 +4326,7 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 ! https://av19.live/ - 영상 사라짐
 ! 커뮤니티 베스트 (https://www.issuelink.co.kr) - 사이트 광고 허용 메시지 발생
 ! https://loopholes.site/ - 내용 다 지워짐
+! https://trand.co.kr/ - 첫 화면시 프레임 막힘 듯한 틀 제공
 ##[class*="-ad"]
 damoang.net#@#[class*="-ad"]
 ! - - - https://www.etoland.co.kr/ - HIT 게시판 사라짐
@@ -4323,6 +4335,7 @@ cineaste.co.kr#@#[class*="-ad"]
 [$domain=/^av\d+.live/]#@#[class*="-ad"]
 issuelink.co.kr#@#[class*="-ad"]
 loopholes.site#@#[class*="-ad"]
+trand.co.kr#@#[class*="-ad"]
 
 ! https://www.inven.co.kr/ 프레임 깨짐
 ! https://damoang.net/ -스크립트 오류?
@@ -4332,13 +4345,15 @@ loopholes.site#@#[class*="-ad"]
 ! https://player.bunny-frame.online/
 ! https://fc2ppvdb.com/- 이미지 사라짐
 ! https://theqoo.net/ - 모바일에서 본문 내용 사라짐
+! https://www.tiktok.com/ - 프레임이 조금 이상해짐
+! 
 ##[class*="ad-"]
 ! - - - 예외
 inven.co.kr#@#[class*="ad-"]
 damoang.net#@#[class*="ad-"]
 fc2ppvdb.com#@#[class*="ad-"]
 theqoo.net#@#[class*="ad-"]
-
+tiktok.com#@#[class*="ad-"]
 
 
 ! https://www.youtube.com - generichide 처리로 실제 적용되지는 않음
@@ -5727,13 +5742,13 @@ loyalty.coupang.com#@#iframe[title*="iframe"]
 ! - https://theqoo.net/ - 트위터 등 프레임 안보임
 !theqoo.net#@#[class*="ad"] iframe
 
+! - - - 임시 (시작)
+! - - - 거의 없음
+
 ! https://supjav.com/
 !##[class*="-ad"] iframe
 
 !##[class*="ad-"] iframe
-
-
-!##[class*="-ad-"] iframe
 
 !##[class*="_ad"] iframe
 
@@ -5745,6 +5760,8 @@ loyalty.coupang.com#@#iframe[title*="iframe"]
 
 !##[class*="_ad_"] iframe
 
+
+! - - - 임시 (끝)
 
 
 ##[class*="ads"] iframe
@@ -6617,7 +6634,3 @@ trand.co.kr#@#[id][style*="background"][style]
 !##[class*="mobile"] iframe X
 !##iframe[src*="pc"] X
 !##iframe[src*="mobile"] X
-
-! - 스크립트 gotube 떠다니는 버튼
-##.goodTube_menuButton
-
