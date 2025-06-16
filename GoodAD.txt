@@ -2135,6 +2135,13 @@ pedia.watcha.com##.adFixed
 !avsee.ru##[class="title"]
 !avsee.ru##.title
 !avsee.ru##div.main-box:nth-of-type(1)
+! - Best Recommend 지우기
+! - - - 공통
+avsee.ru##.div-title-wrap
+! - - - PC
+avsee.ru##.nav-justified
+! - Mobile
+avsee.ru##.tabs
 ! - 새창 방지
 avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - - - uBlock filters – Ads
