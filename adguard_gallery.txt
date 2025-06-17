@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.06.14
+! Version: 2025.06.17
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -9,11 +9,14 @@
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 
-! G마켓 메인화면 복원 - DNS 사용자 규칙에 @@||gmarket.co.kr^ 추가 필요
+! G마켓 메인화면 복원 - DNS 사용자 규칙에 @@||gmarket.co.kr^ 추가
 @@||ad-img.gmarket.com^$image,domain=gmarket.co.kr|auction.co.kr
 gmarket.co.kr#@#.ReactVirtualized__Grid__innerScrollContainer .box__banner-wrap > .box__banner--today
 gmarket.co.kr#@#.js-impressionable
 gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
+
+! CGV 메인화면 복원 - DNS 사용자 규칙에 @@||ad.cgv.co.kr^ 및 @@||adimg.cgv.co.kr 추가
+@@||ad*.cgv.co.kr^$image,media,domain=cgv.co.kr
 
 ! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
 namu.wiki##li:has(time):not(*:has([href*='/raw/'])):upward(2)
@@ -56,12 +59,11 @@ m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ! Ads
 ##.ad-view
 ##.banner_list
-##.happy-header
-##.happy-header-mobile
 ##.happy-under-player-mobile
 ##.textwidget
 ##[alt$='광고']
 ##[class*='basic-banner'][id]
+##[class^='happy-header']
 ##[id*='powerLink']
 ##[id*='powerlink']
 ##[id^='hd_pop']
@@ -80,6 +82,8 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 arca.live##.d-lg-none.topbar-area
 auction.co.kr##.component--sponsor_link.component
 avdbs.com##.ad-btn[class*='tp']
+avsee.ru##[alt$='gif']
+avsee.ru##div.main-box:has([target='_blank'])
 avsee.ru##div[style]:has(> [target='_blank'])
 bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 coinpan.com##*:has(> div[style^='width:390px; max-width:100%;'])Add commentMore actions
@@ -91,7 +95,6 @@ dcinside.com##.adv-inner
 dcinside.com##.block-disable
 dcinside.com##.dc_all
 dcinside.com##.dcmedia.content_box
-dcinside.com##.gall_exposure
 dcinside.com##.outside-search-box
 dcinside.com##.stickyunit
 dcinside.com##.view-btm-con
@@ -129,7 +132,6 @@ m.blog.naver.com###blog_fe_feed > div:has([class^='recommend_section__'])
 m.cafe.daum.net##.bottom_banner
 m.cafe.naver.com###articleFeedList
 m.cafe.naver.com##.bottom.banner_add
-m.cafe.naver.com##.join_layer
 m.cafe.naver.com##.subscribe_layer_wrap > .inner_wrap
 m.cgv.co.kr##.topBanner
 m.chzzk.naver.com##[class^='app_popup_dimmed__']
@@ -137,32 +139,35 @@ m.danawa.com###mdnw-main-bottomSheet-container
 m.danawa.com###mdnw-main-dimm
 m.daum.net##.bnr_popup.bnr_layer
 m.dcinside.com###notice_list > li:not(:has([href*='javascript'])):not(:has(span.ntc-line-orange))
-m.dcinside.com##.media-group.grid
 m.dcinside.com##.trend-rank:style(padding:0px!important; border-top:0px!important;)
 m.dcinside.com##section.clkhigh.grid
 m.dcinside.com##section.grid > .md-tit-box:has-text(Daum)
 m.dcinside.com#@#.trend-rank
 m.fmkorea.com##.bd_mobile.bd:matches-css(margin: /3px 0px/):matches-css(padding: 0px):remove()
+m.fmkorea.com##.fmad_wrapper
 m.fmkorea.com##script ~ div[class*=' ']:matches-css(margin: /3px 0px/):matches-css(padding: 0px):remove()
 m.gmarket.co.kr##.box__ad-banner
 m.gmarket.co.kr##.box__banner-promotion
 m.gmarket.co.kr##.box__top-banner
 m.gmarket.co.kr##.link__banner
 m.ppomppu.co.kr###ask_app_usage_popup
-m.ppomppu.co.kr##div.btn-wrapper
 m.ppomppu.co.kr##div[style]:has(> ins)
 m.ruliweb.com##tr:has(.nbp_container)
 maplescouter.com##a.self-center:has(img)
 mlbpark.donga.com##.coupang_cont
 mlbpark.donga.com##li.items:has([href*='php?b=phone'])
 mlbpark.donga.com##li.items:has([target='_blank'])
+mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
 ppomppu.co.kr##tr:has([src$='/icon_ppom_coupon_pc.png'])
 quasarplay.com##[class*='venatus']
 quasarplay.com##[id^='mo-container-']
+quasarplay.com##a[href^='javascript:clickPointBanner']
+quasarzone.com##.banner-container.main-mid-banner
 quasarzone.com##[id^='venatus']
 ruliweb.com##.gallery.table_body
 ruliweb.com,ppomppu.co.kr##[id$='_ad']
+sbs.co.kr##[src^='https://adservice.sbs.co.kr/']
 seoul.co.kr###rollingAdDiv
 seoul.co.kr##.adBanner
 sportschosun.com##div.mobile-ad:has([class^='adfork'])
@@ -176,6 +181,7 @@ web.joongna.com##li:has(span:has-text(광고))
 windowsforum.kr,seoul.co.kr,xportsnews.com##.ad
 xportsnews.com##.ad:remove()
 zod.kr##[data-href^='https://zod.kr/go/']:has(img)
+zod.kr##div > div div:has(.app-main-banner-bg)
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
 ||apps.m.sooplive.co.kr^$all
 ||dctrend.ai/widget/
@@ -200,7 +206,6 @@ dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_
 11st.co.kr#@#div[class$="-ad"]
 #@#.appBanner:not(body)
 $@$link[rel="manifest"]
-@@||ad*.cgv.co.kr^$image,domain=cgv.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search,important
 @@||action.adoffice.11st.co.kr^$domain=search.11st.co.kr
 @@||adtouch.adbrix.io^$app=com.kakao.talk
@@ -209,15 +214,15 @@ $@$link[rel="manifest"]
 @@||edge-live.joongna.com/api/web-ads/
 @@||google.*/search$stealth=useragent|ip
 @@||graph.facebook.com^$domain=fmkorea.com
+@@||kamp.daum.net^$xhr
 @@||nexon.com^$stealth=dpi
 @@||photo.jtbc.co.kr/news/cms/etc/
 @@||piku.co.kr^$generichide
-@@||static.airbridge.io/sdk^
 etoland.co.kr#@#div[class$="_ad"]
 hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
-m.hoyolab.com#@#.guide-download-drawer
+mitem.auction.co.kr#@#[class*="app-install"]
 mlbpark.donga.com#@#div[class*="_ad"]
-lol.inven.co.kr#@#article > div[style].banner
+mlbpark.donga.com#@$#div[id^="SmartPhone_"][id$="_today"] .lists > li::before { padding-top: 0px !important; border-bottom: none !important; }
 search.11st.co.kr#@#[data-log-actionid-area^="focus"]
 web.joongna.com#@#a[rel*="sponsored"]
 ||cdn.oaistatic.com/assets/*.js$replace=/Error\(.\(418\,""\)\);throw ..\(..\(.\,.\)\)\,../null;/,domain=chatgpt.com,badfilter
@@ -227,7 +232,6 @@ web.joongna.com#@#a[rel*="sponsored"]
 @@||isplus.$stealth=dpi
 @@||kurly.com^$stealth=dpi
 @@||onelink.me^$stealth=dpi
-@@||startpage.com^$stealth=dpi
 
 ! From ublock origin filter
 ##[id^='div-gpt-ad']:not([style^='width: 1px; height: 1px; position: absolute; left: -10000px; top: -']):not([style='pointer-events: none; height: 1px; width: 0px; opacity: 0; visibility: hidden; position: fixed; bottom: 0px;'])
@@ -247,4 +251,3 @@ naver.com,~chzzk.naver.com##+js(addEventListener-defuser, /contextmenu|selectsta
 !#if (adguard && adguard_app_android)
 greasyfork.org,sleazyfork.org#%#document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('a[class="install-link"][data-install-format="js"]').forEach(a=>a.href=`adguard:userscript?location=${a.href}`);});
 !#endif
-google is broken
