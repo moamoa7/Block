@@ -216,6 +216,11 @@ news.naver.com##._horizontal_scroll_type._horizontal_card_wrapper.main_brick_ite
 !nid.naver.com###dimmed
 !
 !
+! 네이버엔터 (https://m.entertain.naver.com/)
+! - 오른쪽 배너
+entertain.naver.com##._comp_shortents_rcuul_1.comp_home_group
+!
+!
 ! 네이트 (https://www.nate.com/)
 ! - 차단 사이트
 !||cyad1.nate.com^
@@ -1049,6 +1054,8 @@ music.bugs.co.kr##.topBanner
 ! POOOO (https://poooo.ml/)
 ! - 메인 상단 여백 공간
 poooo.ml##.h30
+! - ##.ad 복원 - 채팅창 아이콘 사라짐
+poooo.ml#@#.ad
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
@@ -4951,6 +4958,8 @@ avsee.ru#@#[id*="layer"]
 ! https://4.jamakyadong.me/
 ! https://javrider.com/
 [$domain=/^kr\d+.topgirl.co/],[$domain=/^avpingyou\d+.com/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,kr13.mix-19.com,[$domain=/^\d+.jamakyadong.me/],javrider.com,javplayers.com#@#[id*="layer"]
+
+
 
 ! 보배드림 광고
 ! 에펨코리아 미디어 내 다운로드 버튼 지움
