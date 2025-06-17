@@ -4895,6 +4895,7 @@ camcam.cc#@#[class*="ads"]
 kakaotv.daum.net#@#[class*="ads"]
 
 
+
 ##[class*="layer"]
 ! - - - 예외
 ! - - - https://play.sooplive.co.kr/ - 영상 안나옴
@@ -4903,9 +4904,14 @@ play.sooplive.co.kr#@#[class*="layer"]
 aagag.com#@#[class*="layer"]
 ! - - - https://www.inven.co.kr/ - 아이디 사라짐
 www.inven.co.kr#@#[class*="layer"]
+! - - - https://05.avsee.ru/ -영상 안나옴
+avsee.ru#@#[class*="layer"]
+
 
 ##[id*="layer"]
-
+! - - - 예외
+! - - - https://05.avsee.ru/ -영상 안나옴
+avsee.ru#@#[id*="layer"]
 
 
 ! 보배드림 광고
