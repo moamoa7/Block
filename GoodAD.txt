@@ -4910,6 +4910,8 @@ avsee.ru#@#[class*="layer"]
 
 ##[id*="layer"]
 ! - - - 예외
+! - - - https://play.sooplive.co.kr/ - 영상 안나옴
+play.sooplive.co.kr#@#[id*="layer"]
 ! - - - https://05.avsee.ru/ -영상 안나옴
 avsee.ru#@#[id*="layer"]
 
