@@ -4737,6 +4737,7 @@ trand.co.kr#@#[class*="-ad"]
 ! https://theqoo.net/ - 모바일에서 본문 내용 사라짐
 ! https://www.tiktok.com/ - 프레임이 조금 이상해짐
 ! https://www.youtube.com/ - 상단 지워짐! 
+! https://javrider.com/ - 영상 안나옴
 ##[class*="ad-"]
 ! - - - 예외
 inven.co.kr#@#[class*="ad-"]
@@ -4745,6 +4746,7 @@ fc2ppvdb.com#@#[class*="ad-"]
 theqoo.net#@#[class*="ad-"]
 tiktok.com#@#[class*="ad-"]
 www.youtube.com#@#[class*="ad-"]
+javrider.com,javplayers.com#@#[class*="ad-"]
 
 
 ! https://www.youtube.com - generichide 처리로 실제 적용되지는 않음
@@ -4925,7 +4927,8 @@ avsee.ru#@#[class*="layer"]
 ! https://kr24.javgirl.co/
 ! https://kor11.grtv-48.com/
 ! https://4.jamakyadong.me/
-[$domain=/^xxjoa\d+.com/],[$domain=/^pinkbo\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,[$domain=/^\d+.jamakyadong.me/]#@#[class*="layer"]
+! https://javrider.com/
+[$domain=/^xxjoa\d+.com/],[$domain=/^pinkbo\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,[$domain=/^\d+.jamakyadong.me/],javrider.com,javplayers.com#@#[class*="layer"]
 
 
 
@@ -4942,7 +4945,8 @@ avsee.ru#@#[id*="layer"]
 ! https://kor11.grtv-48.com/
 ! https://kr13.mix-19.com/
 ! https://4.jamakyadong.me/
-[$domain=/^avpingyou\d+.com/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,kr13.mix-19.com,[$domain=/^\d+.jamakyadong.me/]#@#[id*="layer"]
+! https://javrider.com/
+[$domain=/^avpingyou\d+.com/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,kr13.mix-19.com,[$domain=/^\d+.jamakyadong.me/],javrider.com,javplayers.com#@#[id*="layer"]
 
 ! 보배드림 광고
 ! 에펨코리아 미디어 내 다운로드 버튼 지움
@@ -5850,6 +5854,9 @@ camcam.cc#@#[class*="ads"] iframe
 [$domain=/^av\d+.live/]#@#[class*="ads"] iframe
 ! - - - https://4.jamakyadong.me/ - 영상 안보임
 [$domain=/^\d+.jamakyadong.me/]#@#[class*="ads"] iframe
+! - - - https://javrider.com/ - 영상 안보임
+javrider.com#@#[class*="ads"] iframe
+
 
 
 !##[style] iframe
