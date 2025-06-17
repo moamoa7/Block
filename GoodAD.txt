@@ -512,6 +512,8 @@ ddanzi.com#@#[class*="ad_"] [style]
 [$domain=/^yako\d+.net/]#@#[class*="ad_"] [style]
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
 etoland.co.kr#@#[class*="ad_"] [style]
+! https://humoruniv.com/ - 모바일에서 게시물 제목 안나옴
+humoruniv.com#@#[class*="ad_"] [style]
 
 
 ##.adpost
@@ -4774,6 +4776,7 @@ www.naver.com#@#[class*="_ad"]
 ! https://www.clien.net/ - 검색입력란이 사라짐
 ! https://www.todayhumor.co.kr/
 ! https://poooo.ml/
+! https://humoruniv.com/ - 모바일에서 게시물 제목 안나옴
 ##[class*="ad_"]
 ! - - - 예외
 ! - - - https://theqoo.net/ - 메인 날라감
@@ -4787,6 +4790,8 @@ clien.net#@#[class*="ad_"]
 etoland.co.kr/#@#[class*="ad_"]
 ! - - - 루리웹 (https://m.ruliweb.com/) - 모바일에서 게시물 본문 지워짐
 ruliweb.com#@#[class*="ad_"]
+! https://humoruniv.com/ - 모바일에서 게시물 제목 안나옴
+humoruniv.com#@#[class*="ad_"]
 
 ! https://bbs.ruliweb.com/
 ! https://www.todayhumor.co.kr/
@@ -6684,4 +6689,3 @@ trand.co.kr#@#[id][style*="background"][style]
 !##[class*="mobile"] iframe X
 !##iframe[src*="pc"] X
 !##iframe[src*="mobile"] X
-
