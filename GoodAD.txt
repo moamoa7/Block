@@ -4918,6 +4918,7 @@ aagag.com#@#[class*="layer"]
 www.inven.co.kr#@#[class*="layer"]
 ! - - - https://05.avsee.ru/ -영상 안나옴
 avsee.ru#@#[class*="layer"]
+! https://kr40.topgirl.co/
 ! https://xxjoa46.com/
 ! https://pinkbo44.com/
 ! https://avpingyou19.com/
@@ -4928,7 +4929,7 @@ avsee.ru#@#[class*="layer"]
 ! https://kor11.grtv-48.com/
 ! https://4.jamakyadong.me/
 ! https://javrider.com/
-[$domain=/^xxjoa\d+.com/],[$domain=/^pinkbo\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,[$domain=/^\d+.jamakyadong.me/],javrider.com,javplayers.com#@#[class*="layer"]
+[$domain=/^kr\d+.topgirl.co/],[$domain=/^xxjoa\d+.com/],[$domain=/^pinkbo\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,[$domain=/^\d+.jamakyadong.me/],javrider.com,javplayers.com#@#[class*="layer"]
 
 
 
@@ -4940,13 +4941,14 @@ youtube.com#@#[id*="layer"]
 play.sooplive.co.kr#@#[id*="layer"]
 ! - - - https://05.avsee.ru/ -영상 안나옴
 avsee.ru#@#[id*="layer"]
+! https://kr40.topgirl.co/
 ! https://avpingyou19.com/
 ! https://kr24.javgirl.co/
 ! https://kor11.grtv-48.com/
 ! https://kr13.mix-19.com/
 ! https://4.jamakyadong.me/
 ! https://javrider.com/
-[$domain=/^avpingyou\d+.com/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,kr13.mix-19.com,[$domain=/^\d+.jamakyadong.me/],javrider.com,javplayers.com#@#[id*="layer"]
+[$domain=/^kr\d+.topgirl.co/],[$domain=/^avpingyou\d+.com/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,kr13.mix-19.com,[$domain=/^\d+.jamakyadong.me/],javrider.com,javplayers.com#@#[id*="layer"]
 
 ! 보배드림 광고
 ! 에펨코리아 미디어 내 다운로드 버튼 지움
