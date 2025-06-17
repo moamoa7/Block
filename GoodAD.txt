@@ -4957,6 +4957,8 @@ play.sooplive.co.kr#@#[id*="layer"]
 avsee.ru#@#[id*="layer"]
 ! - - - https://chzzk.naver.com/ - 영상 안나옴
 chzzk.naver.com#@#[id*="layer"]
+! - - - 티비위키/티비몬/핫티비 (https://player.bunny-frame.online/) - 영상 안나옴
+player.bunny-frame.online#@#[id*="layer"]
 ! https://kr40.topgirl.co/
 ! https://avpingyou19.com/
 ! https://kr24.javgirl.co/
