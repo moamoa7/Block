@@ -4714,6 +4714,7 @@ ppomppu.co.kr#@#a[href][onclick]:has(img[style])
 ! 커뮤니티 베스트 (https://www.issuelink.co.kr) - 사이트 광고 허용 메시지 발생
 ! https://loopholes.site/ - 내용 다 지워짐
 ! https://trand.co.kr/ - 첫 화면시 프레임 막힘 듯한 틀 제공
+! https://4.jamakyadong.me/ 영상 안나옴
 ##[class*="-ad"]
 damoang.net#@#[class*="-ad"]
 ! - - - https://www.etoland.co.kr/ - HIT 게시판 사라짐
@@ -4723,6 +4724,8 @@ cineaste.co.kr#@#[class*="-ad"]
 issuelink.co.kr#@#[class*="-ad"]
 loopholes.site#@#[class*="-ad"]
 trand.co.kr#@#[class*="-ad"]
+[$domain=/^\d+.jamakyadong.me/]#@#[class*="-ad"]
+
 
 ! https://www.inven.co.kr/ 프레임 깨짐
 ! https://damoang.net/ -스크립트 오류?
@@ -4733,8 +4736,7 @@ trand.co.kr#@#[class*="-ad"]
 ! https://fc2ppvdb.com/- 이미지 사라짐
 ! https://theqoo.net/ - 모바일에서 본문 내용 사라짐
 ! https://www.tiktok.com/ - 프레임이 조금 이상해짐
-! https://www.youtube.com/ - 상단 지워짐
-! 
+! https://www.youtube.com/ - 상단 지워짐! 
 ##[class*="ad-"]
 ! - - - 예외
 inven.co.kr#@#[class*="ad-"]
@@ -4743,6 +4745,7 @@ fc2ppvdb.com#@#[class*="ad-"]
 theqoo.net#@#[class*="ad-"]
 tiktok.com#@#[class*="ad-"]
 www.youtube.com#@#[class*="ad-"]
+
 
 ! https://www.youtube.com - generichide 처리로 실제 적용되지는 않음
 ! https://www.inven.co.kr/ 프레임 깨짐
@@ -4913,6 +4916,17 @@ aagag.com#@#[class*="layer"]
 www.inven.co.kr#@#[class*="layer"]
 ! - - - https://05.avsee.ru/ -영상 안나옴
 avsee.ru#@#[class*="layer"]
+! https://xxjoa46.com/
+! https://pinkbo44.com/
+! https://avpingyou19.com/
+! https://avlove28.com/
+! https://kr80.sogirl.so/
+! https://kr29.4kjav.co/
+! https://kr24.javgirl.co/
+! https://kor11.grtv-48.com/
+! https://4.jamakyadong.me/
+[$domain=/^xxjoa\d+.com/],[$domain=/^pinkbo\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^avlove\d+.com/],[$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,[$domain=/^\d+.jamakyadong.me/]#@#[class*="layer"]
+
 
 
 ##[id*="layer"]
@@ -4923,7 +4937,12 @@ youtube.com#@#[id*="layer"]
 play.sooplive.co.kr#@#[id*="layer"]
 ! - - - https://05.avsee.ru/ -영상 안나옴
 avsee.ru#@#[id*="layer"]
-
+! https://avpingyou19.com/
+! https://kr24.javgirl.co/
+! https://kor11.grtv-48.com/
+! https://kr13.mix-19.com/
+! https://4.jamakyadong.me/
+[$domain=/^avpingyou\d+.com/],[$domain=/^kr\d+.javgirl.co/],kor11.grtv-48.com,kr13.mix-19.com,[$domain=/^\d+.jamakyadong.me/]#@#[id*="layer"]
 
 ! 보배드림 광고
 ! 에펨코리아 미디어 내 다운로드 버튼 지움
@@ -5829,6 +5848,8 @@ loyalty.coupang.com#@#iframe[title*="iframe"]
 camcam.cc#@#[class*="ads"] iframe
 ! - - - https://av19.live/ - 영상 프레임 사라짐
 [$domain=/^av\d+.live/]#@#[class*="ads"] iframe
+! - - - https://4.jamakyadong.me/ - 영상 안보임
+[$domain=/^\d+.jamakyadong.me/]#@#[class*="ads"] iframe
 
 
 !##[style] iframe
