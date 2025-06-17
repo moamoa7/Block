@@ -4906,7 +4906,7 @@ kakaotv.daum.net#@#[class*="ads"]
 
 
 
-##[class*="layer"]
+!##[class*="layer"]
 ! - - - 예외
 ! - - - https://www.youtube.com/ - 영상 안보임
 youtube.com#@#[class*="layer"]
@@ -4918,6 +4918,8 @@ aagag.com#@#[class*="layer"]
 www.inven.co.kr#@#[class*="layer"]
 ! - - - https://05.avsee.ru/ -영상 안나옴
 avsee.ru#@#[class*="layer"]
+! - - -  https://poooo.ml/ - 영상 안나옴
+poooo.ml#@#[class*="layer"]
 ! https://kr40.topgirl.co/
 ! https://xxjoa46.com/
 ! https://pinkbo44.com/
