@@ -4903,6 +4903,8 @@ kakaotv.daum.net#@#[class*="ads"]
 
 ##[class*="layer"]
 ! - - - 예외
+! - - - https://www.youtube.com/ - 영상 안보임
+youtube.com#@#[class*="layer"]
 ! - - - https://play.sooplive.co.kr/ - 영상 안나옴
 play.sooplive.co.kr#@#[class*="layer"]
 ! - - - https://aagag.com/ - 일부 내용 사라짐
@@ -4915,6 +4917,8 @@ avsee.ru#@#[class*="layer"]
 
 ##[id*="layer"]
 ! - - - 예외
+! - - - https://www.youtube.com/ - 영상 안보임
+youtube.com#@#[id*="layer"]
 ! - - - https://play.sooplive.co.kr/ - 영상 안나옴
 play.sooplive.co.kr#@#[id*="layer"]
 ! - - - https://05.avsee.ru/ -영상 안나옴
@@ -6689,3 +6693,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !##[class*="mobile"] iframe X
 !##iframe[src*="pc"] X
 !##iframe[src*="mobile"] X
+
