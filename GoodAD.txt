@@ -270,7 +270,7 @@ sooplive.co.kr##.extensions_item
 ! - 개인채널 (https://ch.sooplive.co.kr/) 하단 배너
 sooplive.co.kr##.sct-bnr
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
-sooplive.co.kr###FeedLayerToolTip
+!sooplive.co.kr###FeedLayerToolTip
 ! - 프로모션 배너 (적용이 안되고 있는지 딱히 나오는건 없음)
 !##[class="promotion_banner"]
 ##.promotion_banner
@@ -3924,7 +3924,7 @@ jusopick.com##.bg-black.flex-col
 !##.modal18
 ! - 영상 뿌옇거 해결 및 영상 위 가로로 긴 네모창
 !##.video-overlay
-##[id^="tab-ad-player"]:not(html):not(body):not(article)
+!##[id^="tab-ad-player"]:not(html):not(body):not(article)
 !
 !
 ! 채터베이스 (https://chaturbate.com/)
@@ -4903,6 +4903,9 @@ play.sooplive.co.kr#@#[class*="layer"]
 aagag.com#@#[class*="layer"]
 ! - - - https://www.inven.co.kr/ - 아이디 사라짐
 www.inven.co.kr#@#[class*="layer"]
+
+##[id*="layer"]
+
 
 
 ! 보배드림 광고
