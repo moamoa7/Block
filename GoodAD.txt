@@ -79,6 +79,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 @@||static.doubleclick.net/instream/ad_status.js$domain=youtube.com
 @@||wikipedia.org^$generichide
 @@||github.com^$generichide
+@@||github.com/*/$1p
 @@||discord.com^$generichide
 @@||twitch.tv^$generichide
 @@||x.com^$generichide
