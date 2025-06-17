@@ -68,6 +68,11 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 !
+! 신뢰 사이트
+@@||www.google.*/search?$generichide
+!
+!
+!
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
