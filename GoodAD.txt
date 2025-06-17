@@ -69,7 +69,23 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 신뢰 사이트
+@@||accounts.google.com^$generichide
 @@||www.google.*/search?$generichide
+@@||drive.google.com^$generichide
+@@||googleadservices.com^$from=google.ae|google.at|google.be|google.by|google.ca|google.ch|google.cl|google.cn|google.co.id|google.co.in|google.co.jp|google.co.th|google.co.uk|google.co.ve|google.co.za|google.com|google.com.ar|google.com.au|google.com.bd|google.com.br|google.com.co|google.com.eg|google.com.hk|google.com.mx|google.com.my|google.com.ng|google.com.pe|google.com.ph|google.com.pk|google.com.sa|google.com.sg|google.com.tr|google.com.tw|google.com.ua|google.com.vn|google.de|google.dk|google.ee|google.es|google.fr|google.gr|google.hu|google.ie|google.it|google.nl|google.no|google.pl|google.pt|google.ro|google.rs|google.ru|google.se|google.sk|google.tn
+@@||www.youtube.com^$generichide
+@@||music.youtube.com^$generichide
+@@||accounts.youtube.com^$generichide
+@@||static.doubleclick.net/instream/ad_status.js$domain=youtube.com
+@@||wikipedia.org^$generichide
+@@||github.com^$generichide
+@@||discord.com^$generichide
+@@||twitch.tv^$generichide
+@@||x.com^$generichide
+@@||instagram.com^$generichide
+@@||open.spotify.com^$generichide
+@@||netflix.com^$generichide
+@@://www3.doubleclick.net^|$xmlhttprequest
 !
 !
 !
@@ -97,11 +113,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
-! - 유튜브 신뢰 해제
-@@||www.youtube.com^$generichide.badfilter
-!!! JavaScript 관련 필터 해제 (광고 차단 해제 효과) - 화이트 리스트 추가하면 필요없음
-!youtube.com#@#+js()
-
 ! - - - 사용하지 않음 (시작)
 ! - 광고
 !||pagead2.googlesyndication.com^
@@ -327,7 +338,10 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 ||.com/ad-*
 ! 허용목록 (Adblock-Rule-Collection-Lite)
 @@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
-!@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=naver.com
+@@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
+@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
+@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
+@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
 ! - 차단 사이트
 !||veta.naver.com^
 !
@@ -510,7 +524,11 @@ gall.dcinside.com#@#[class^="ad"]
 ! 배너 (오른쪽 위 /게시글 하단 댓글 사이 배너 )
 ! - - -  웃대 (https://web.humoruniv.com/) 왼쪽 배너 / 하단 배너
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
+!##.ads
 ##[class^="ads"]
+! - - - 예외
+! - - - https://sports.daum.net/
+kakaotv.daum.net#@#[class^="ads"]
 ! - - - 파워 링크
 ##[class*="ad_"] [style]
 ! - - - 예외
@@ -2193,6 +2211,7 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 ##[class*="slideAnimation"]
 ! - 일부 영상 재생 차단 방지
 @@||tiktokcdn.com/obj/$xhr
+@@||p.jwpcdn.com^$script
 ! 일부 iframe 차단
 !jilliandescribecompany.com##iframe
 ! - 로고 이미지 복원
@@ -4277,6 +4296,9 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 ! - 레딧 알부 이미지 안나옴
 ||*/*/ads-*
 
+||*/*ads.*
+
+
 ||*/*/ads*
 ||*/*/ADS*
 
@@ -4780,8 +4802,10 @@ inven.co.kr#@#[class*="-ad-"]
 ! https://www.todayhumor.co.kr/
 ! https://www.bobaedream.co.kr/ 
 ! https://www.naver.com/ - 메뉴가 사라짐
+! 
 ##[class*="_ad"]
 www.naver.com#@#[class*="_ad"]
+kakaotv.daum.net#@#[class*="_ad"]
 
 ! https://www.fmkorea.com/
 ! https://bbs.ruliweb.com/
@@ -4794,6 +4818,7 @@ www.naver.com#@#[class*="_ad"]
 ! https://www.todayhumor.co.kr/
 ! https://poooo.ml/
 ! https://humoruniv.com/ - 모바일에서 게시물 제목 안나옴
+! https://sports.daum.net/ - 상단 잘림 등
 ##[class*="ad_"]
 ! - - - 예외
 ! - - - https://theqoo.net/ - 메인 날라감
@@ -4809,6 +4834,8 @@ etoland.co.kr/#@#[class*="ad_"]
 ruliweb.com#@#[class*="ad_"]
 ! https://humoruniv.com/ - 모바일에서 게시물 제목 안나옴
 humoruniv.com#@#[class*="ad_"]
+! https://sports.daum.net/ - 상단 잘림 등
+sports.daum.net#@#[class*="ad_"]
 
 ! https://bbs.ruliweb.com/
 ! https://www.todayhumor.co.kr/
@@ -4840,7 +4867,8 @@ jusotw.com#@#[class*="AD"]
 clien.net#@#[class*="_banner"]
 
 ! https://tv.kakao.com/
-##[class*="banner_"]
+sports.daum.net,kakaotv.daum.net#@#[class*="banner_"]
+
 
 
 ##[class*="-banner_"]
@@ -4947,18 +4975,29 @@ poooo.ml#@#[class*="layer"]
 
 
 
-##[id*="layer"]
+!!##[id*="layer"]
 ! - - - 예외
 ! - - - https://www.youtube.com/ - 영상 안보임
-youtube.com#@#[id*="layer"]
+!youtube.com#@#[id*="layer"]
 ! - - - https://play.sooplive.co.kr/ - 영상 안나옴
-play.sooplive.co.kr#@#[id*="layer"]
+!play.sooplive.co.kr#@#[id*="layer"]
 ! - - - https://05.avsee.ru/ -영상 안나옴
-avsee.ru#@#[id*="layer"]
+!avsee.ru#@#[id*="layer"]
 ! - - - https://chzzk.naver.com/ - 영상 안나옴
-chzzk.naver.com#@#[id*="layer"]
+!chzzk.naver.com#@#[id*="layer"]
 ! - - - 티비위키/티비몬/핫티비 (https://player.bunny-frame.online/) - 영상 안나옴
-player.bunny-frame.online#@#[id*="layer"]
+!player.bunny-frame.online#@#[id*="layer"]
+! - - - https://kick.com/ - 영상 안보임
+!kick.com#@#[id*="layer"]
+! - - - https://tv.naver.com/ - 영상 안보임
+!tv.naver.com#@#[id*="layer"]
+! - - - https://tv.kakao.com/ - 영상 안보임
+!tv.kakao.com#@#[id*="layer"]
+! - - - https://sports.daum.net/ - 영상 안보임
+!sports.daum.net,kakaotv.daum.net#@#[id*="layer"]
+
+
+
 ! https://kr40.topgirl.co/
 ! https://avpingyou19.com/
 ! https://kr24.javgirl.co/
