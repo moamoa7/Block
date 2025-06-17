@@ -4955,6 +4955,8 @@ youtube.com#@#[id*="layer"]
 play.sooplive.co.kr#@#[id*="layer"]
 ! - - - https://05.avsee.ru/ -영상 안나옴
 avsee.ru#@#[id*="layer"]
+! - - - https://chzzk.naver.com/ - 영상 안나옴
+chzzk.naver.com#@#[id*="layer"]
 ! https://kr40.topgirl.co/
 ! https://avpingyou19.com/
 ! https://kr24.javgirl.co/
