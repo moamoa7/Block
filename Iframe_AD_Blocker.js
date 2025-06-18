@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Iframe Ad Blocker with src/HTML preview
 // @namespace    https://yourdomain.com
-// @version      2.6.3
-// @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. Logs disabled on mobile, blocking active always.
+// @version      2.5
+// @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. No log on mobile.
 // @author       YourName
 // @match        *://*/*
 // @grant        none
@@ -34,10 +34,12 @@
   ];
 
   function isMobile() {
-    return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   }
 
   function createLogUI() {
+    if (isMobile()) return; // 모바일에서는 로그창 생성 안 함
+
     logContainer = document.createElement('div');
     logContainer.style.cssText = `
       position: fixed;
@@ -79,7 +81,7 @@
     logContainer.appendChild(header);
     document.body.appendChild(logContainer);
 
-    makeDraggable(logContainer);
+    makeDraggable(logContainer, header);
 
     setTimeout(() => {
       if (logContainer && document.body.contains(logContainer)) {
@@ -88,29 +90,38 @@
     }, 10000);
   }
 
-  function makeDraggable(element) {
+  function makeDraggable(container, handle) {
     let offsetX = 0, offsetY = 0, isDragging = false;
 
-    element.addEventListener('mousedown', (e) => {
-      if (e.target.tagName === 'SPAN') return;
+    handle.addEventListener('mousedown', (e) => {
       isDragging = true;
-      offsetX = e.clientX - element.getBoundingClientRect().left;
-      offsetY = e.clientY - element.getBoundingClientRect().top;
-      element.style.cursor = 'grabbing';
+      offsetX = e.clientX - container.getBoundingClientRect().left;
+      offsetY = e.clientY - container.getBoundingClientRect().top;
+      container.style.cursor = 'grabbing';
       e.preventDefault();
     });
 
     document.addEventListener('mousemove', (e) => {
       if (isDragging) {
-        element.style.left = `${e.clientX - offsetX}px`;
-        element.style.top = `${e.clientY - offsetY}px`;
-        element.style.right = 'auto';
+        container.style.left = `${e.clientX - offsetX}px`;
+        container.style.top = `${e.clientY - offsetY}px`;
+        container.style.right = 'auto';
       }
     });
 
     document.addEventListener('mouseup', () => {
       isDragging = false;
-      element.style.cursor = 'move';
+      container.style.cursor = 'move';
+    });
+
+    // 더블클릭 시 드래그 시작 트리거
+    handle.addEventListener('dblclick', () => {
+      handle.dispatchEvent(new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: container.offsetLeft + 5,
+        clientY: container.offsetTop + 5
+      }));
     });
   }
 
@@ -140,25 +151,17 @@
       const iframe = iframes[i];
       const src = iframe.src || '';
 
-      if (whitelist.some(domain => src.includes(domain))) {
-        continue;
-      }
-
+      if (whitelist.some(domain => src.includes(domain))) continue;
       if (iframe.style.display === 'none') continue;
 
       iframe.style.display = 'none';
       blockedCount++;
-
-      if (!isMobile()) {
-        updateLog(iframe, blockedCount);
-      }
+      updateLog(iframe, blockedCount);
     }
   }
 
   function initialize() {
-    if (!isMobile()) {
-      createLogUI();
-    }
+    createLogUI();
     blockIframeAds();
 
     const observer = new MutationObserver(() => {
