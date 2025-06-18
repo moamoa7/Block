@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Iframe Ad Blocker with src/HTML preview
 // @namespace    https://yourdomain.com
-// @version      2.4
-// @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel.
+// @version      2.5
+// @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel with double-click drag toggle.
 // @author       YourName
 // @match        *://*/*
 // @grant        none
@@ -34,7 +34,7 @@
     logContainer = document.createElement('div');
     logContainer.style.cssText = `
       position: fixed;
-      top: 10px;
+      bottom: 10px;
       right: 10px;
       width: 400px;
       max-height: 500px;
@@ -48,7 +48,7 @@
       box-shadow: 0 0 15px rgba(0,0,0,0.6);
       font-family: monospace;
       line-height: 1.5;
-      cursor: move;
+      cursor: default;
     `;
 
     const closeBtn = document.createElement('span');
@@ -65,7 +65,6 @@
 
     const header = document.createElement('div');
     header.innerHTML = '<b style="font-size:14px;">🛡️ Iframe Ad Block Log</b><hr>';
-    header.style.cursor = 'move';
     header.style.color = 'white';
 
     logContainer.appendChild(closeBtn);
@@ -83,13 +82,29 @@
   }
 
   function makeDraggable(element) {
-    let offsetX = 0, offsetY = 0, isDragging = false;
+    let offsetX = 0, offsetY = 0;
+    let isDragging = false;
+    let dragEnabled = false;
+
+    element.addEventListener('dblclick', (e) => {
+      if (e.target.tagName === 'SPAN') return;
+      dragEnabled = !dragEnabled;
+      element.style.cursor = dragEnabled ? 'move' : 'default';
+    });
 
     element.addEventListener('mousedown', (e) => {
+      if (!dragEnabled) return;
       if (e.target.tagName === 'SPAN') return;
       isDragging = true;
-      offsetX = e.clientX - element.getBoundingClientRect().left;
-      offsetY = e.clientY - element.getBoundingClientRect().top;
+
+      const rect = element.getBoundingClientRect();
+      element.style.left = rect.left + 'px';
+      element.style.top = rect.top + 'px';
+      element.style.bottom = 'auto';
+      element.style.right = 'auto';
+
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
       element.style.cursor = 'grabbing';
       e.preventDefault();
     });
@@ -98,13 +113,14 @@
       if (isDragging) {
         element.style.left = `${e.clientX - offsetX}px`;
         element.style.top = `${e.clientY - offsetY}px`;
-        element.style.right = 'auto';
       }
     });
 
     document.addEventListener('mouseup', () => {
-      isDragging = false;
-      element.style.cursor = 'move';
+      if (isDragging) {
+        isDragging = false;
+        element.style.cursor = dragEnabled ? 'move' : 'default';
+      }
     });
   }
 
