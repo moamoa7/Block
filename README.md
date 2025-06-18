@@ -8,7 +8,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 <br>
 
 ※ Iframe_AD_Blocker.js
-- iframe 차단 로그 (10초 뒤 자동 사라짐)
+- iframe 차단 로그 (10초 뒤 자동 사라짐) - 모바일에선 로그창 안나옴
 - 로그창 드래그 가능 / 더블클릭후 이동 가능
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
