@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Iframe Ad Blocker with src/HTML preview
 // @namespace    https://yourdomain.com
-// @version      2.5
+// @version      2.5.2
 // @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. No log on mobile.
 // @author       YourName
 // @match        *://*/*
