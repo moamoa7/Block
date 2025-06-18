@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Iframe Ad Blocker with src/HTML preview
 // @namespace    https://yourdomain.com
-// @version      2.5
-// @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. Disabled on mobile.
+// @version      2.6
+// @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. Logs disabled on mobile, blocking active always.
 // @author       YourName
 // @match        *://*/*
 // @grant        none
@@ -15,19 +15,19 @@
   let blockedCount = 0;
 
   const whitelist = [
-    'recaptcha',  // 로봇 확인용
-    'about:blank',  // 일부 프레임 문제 해결
-    'embed',  // 각종 프레임 영상 삽입
-    'naver.com/my.html',  //네어버 메인 - 이메일 클릭시 안보이는거 해결
-    'cafe.naver.com',  // 네이버 카페
-    'blog.naver.com',  // 네이버 블로그
-    'goodTube',  // 유튜브 우회 스크립트
-    'player.bunny-frame.online',  // 티비위키/티비몬/티비핫 플레이어
-    'lk1.supremejav.com',  // supjav.com
-    'avsee.ru/player/',  // AvseeTV
-    '/e/',  // 성인영상 플레이어 주소
-    '/t/',  // 성인영상 플레이어 주소
-    '/v/'  // 성인영상 플레이어 주소
+    'recaptcha',
+    'about:blank',
+    'embed',
+    'naver.com/my.html',
+    'cafe.naver.com',
+    'blog.naver.com',
+    'goodTube',
+    'player.bunny-frame.online',
+    'lk1.supremejav.com',
+    'avsee.ru/player/',
+    '/e/',
+    '/t/',
+    '/v/'
   ];
 
   function isMobile() {
@@ -78,7 +78,6 @@
 
     makeDraggable(logContainer);
 
-    // 🕒 자동으로 로그창 제거 (10초 후)
     setTimeout(() => {
       if (logContainer && document.body.contains(logContainer)) {
         logContainer.remove();
@@ -127,7 +126,7 @@
 
     const entries = logContainer.querySelectorAll('div');
     if (entries.length > 11) {
-      logContainer.removeChild(entries[2]); // 헤더와 닫기 버튼 이후 오래된 것 제거
+      logContainer.removeChild(entries[2]);
     }
   }
 
@@ -146,17 +145,17 @@
 
       iframe.style.display = 'none';
       blockedCount++;
-      updateLog(iframe, blockedCount);
+
+      if (!isMobile()) {
+        updateLog(iframe, blockedCount);
+      }
     }
   }
 
   function initialize() {
-    if (isMobile()) {
-      console.log('Mobile detected - log UI disabled');
-      return; // 모바일이면 로그창 생성 및 차단 감시 안함
+    if (!isMobile()) {
+      createLogUI();
     }
-
-    createLogUI();
     blockIframeAds();
 
     const observer = new MutationObserver(() => {
