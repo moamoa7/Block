@@ -28,8 +28,8 @@
     '/e/',  // 성인 영상 플레이어 주소
     '/t/',  // 성인 영상 플레이어 주소
     '/v/',  // 성인 영상 플레이어 주소
+    '/#',  // 성인 영상 플레이어 주소
     '7tv000.com',  // https://7tv000.com/  7MMTV TV영상
-    '7mmtv.upns.live',  // https://7tv000.com/  7MMTV US영상
     'cdnbuzz.buzz'  // https://av19.live/
   ];
 
