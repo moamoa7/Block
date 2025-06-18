@@ -17,6 +17,12 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 ```
 
+※ Iframe_AD_Blocker.js
+- iframe 차단
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
+```
+
 <br/>
 
 # 광고 차단 확장프로그램
