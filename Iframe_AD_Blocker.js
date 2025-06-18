@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Iframe Ad Blocker with src/HTML preview
 // @namespace    https://yourdomain.com
-// @version      2.5.2
+// @version      2.6
 // @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. No log on mobile.
 // @author       YourName
 // @match        *://*/*
@@ -22,12 +22,20 @@
     'cafe.naver.com',  // 네이버 카페
     'blog.naver.com',  // 네이버 블로그
     'goodTube',  // 유튜브 우회 스크립트
-    'player.bunny-frame.online',  //티비위키/티비몬/티비핫 영상 플레이어 주소
+    'player.bunny-frame.online',  //  티비위키/티비몬/티비핫 영상 플레이어 주소
+    '/video/',  //  https://m66.kotbc2.com/  코티비씨 등
+    '123123play.com',  //  https://tvchak152.com/  티비착
+    '/live',  //  https://messitv8.com/ 메시티비
+    '?v=',  //  https://messitv8.com/ 메시티비 등
+    'channel',  //  https://goat-v.com/ 고트티비
+    'stream',  //  https://blacktv88.com/ 블랙티비
+    'tV',  //  https://kktv12.com/  킹콩티비
+    'tv',  //  https://www.cool111.com/  쿨티비  등
     'lk1.supremejav.com',  // https://supjav.com/  TV영상
     'avsee.ru/player/',
     '/e/',  // 성인 영상 플레이어 주소
     '/t/',  // 성인 영상 플레이어 주소
-    '/v/',  // 성인 영상 플레이어 주소
+    '/v/',  // 성인 영상 플레이어 주소 / 스포츠TV 플레이어 주소
     '/#',  // 성인 영상 플레이어 주소
     '7tv000.com',  // https://7tv000.com/  7MMTV TV영상
     'cdnbuzz.buzz'  // https://av19.live/
