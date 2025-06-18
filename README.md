@@ -8,7 +8,8 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 <br>
 
 ※ Iframe_AD_Blocker.js
-- iframe 차단
+- iframe 차단 로그
+- 로그창 드래그 가능 / 더블클릭후 이동 가능
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
 ```
