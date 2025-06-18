@@ -4427,6 +4427,8 @@ kick.com#@#a[href]:has(img[src*="banner"])
 ! - - - 예외
 ! - --  https://www.clien.net/ - 댓글 없어짐
 clien.net#@#[class*="banner"]:has(img)
+! - - - https://wdwd8.com/ -리스트 내용 사라짐
+[$domain=/^wdwd\d+.com/]#@#[class*="banner"]:has(img)
 
 
 !##img[src*="/banner/"]
@@ -4853,6 +4855,9 @@ news.naver.com#@#[class*="AD"]
 ! https://www.inven.co.kr/
 ! https://tv.naver.com/
 ##[class*="-banner"]
+! - - - 예외
+! - - - https://wdwd8.com/ -리스트 내용 사라짐
+[$domain=/^wdwd\d+.com/]#@#[class*="-banner"]
 
 ! https://www.weather.go.kr/
 ! https://tv.naver.com/
