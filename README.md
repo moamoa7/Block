@@ -7,6 +7,14 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br>
 
+※ Iframe_AD_Blocker.js
+- iframe 차단
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
+```
+
+<br/>
+
 ※ adguard_gallery.txt
 - 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
 - 2025년 4월 4일 이후 갑자스럽게 배포가 사라져 임시로 올려놓은 List
@@ -15,12 +23,6 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter<br/>
 ```
 https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-```
-
-※ Iframe_AD_Blocker.js
-- iframe 차단
-```
-https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
 ```
 
 <br/>
