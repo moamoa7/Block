@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Iframe Ad Blocker with src/HTML preview
 // @namespace    https://yourdomain.com
-// @version      2.6.2
+// @version      2.6.3
 // @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. Logs disabled on mobile, blocking active always.
 // @author       YourName
 // @match        *://*/*
@@ -15,20 +15,21 @@
   let blockedCount = 0;
 
   const whitelist = [
-    'recaptcha',
-    'about:blank',
-    'embed',
-    'naver.com/my.html',
-    'cafe.naver.com',
-    'blog.naver.com',
-    'goodTube',
-    'player.bunny-frame.online',
-    'lk1.supremejav.com',
+    'recaptcha',  // 캡챠
+    'about:blank', // 일부 iframe 문제 해결
+    'embed',  // 각종 게시물 임베드
+    'naver.com/my.html',  // 네이버 메인홈에서 이메일 안보이는거 해결
+    'cafe.naver.com',  // 네이버 카페
+    'blog.naver.com',  // 네이버 블로그
+    'goodTube',  // 유튜브 우회 스크립트
+    'player.bunny-frame.online',  //티비위키/티비몬/티비핫 영상 플레이어 주소
+    'lk1.supremejav.com',  // https://supjav.com/  TV영상
     'avsee.ru/player/',
-    '/e/',
-    '/t/',
-    '/v/',
-    '7tv000.com',  // https://7tv000.com/  7MMTV
+    '/e/',  // 성인 영상 플레이어 주소
+    '/t/',  // 성인 영상 플레이어 주소
+    '/v/',  // 성인 영상 플레이어 주소
+    '7tv000.com',  // https://7tv000.com/  7MMTV TV영상
+    '7mmtv.upns.live',  // https://7tv000.com/  7MMTV US영상
     'cdnbuzz.buzz'  // https://av19.live/
   ];
 
