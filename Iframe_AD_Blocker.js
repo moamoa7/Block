@@ -27,7 +27,8 @@
     'avsee.ru/player/',
     '/e/',
     '/t/',
-    '/v/'
+    '/v/',
+    'cdnbuzz.buzz'  // https://av19.live/
   ];
 
   function isMobile() {
