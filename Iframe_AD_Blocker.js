@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Iframe Ad Blocker with src/HTML preview
 // @namespace    https://yourdomain.com
-// @version      2.6.1
+// @version      2.6.2
 // @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. Logs disabled on mobile, blocking active always.
 // @author       YourName
 // @match        *://*/*
@@ -28,6 +28,7 @@
     '/e/',
     '/t/',
     '/v/',
+    '7tv000.com',  // https://7tv000.com/  7MMTV
     'cdnbuzz.buzz'  // https://av19.live/
   ];
 
