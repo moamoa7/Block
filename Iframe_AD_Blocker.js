@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Iframe Ad Blocker
-// @namespace    none
-// @version      2.3
-// @description  Hide iframe ads with a floating log UI that auto-hides after 10 seconds. Includes whitelist and draggable panel. No persistent storage used.
+// @name         Iframe Ad Blocker with src/HTML preview
+// @namespace    https://yourdomain.com
+// @version      2.4
+// @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel.
 // @author       YourName
 // @match        *://*/*
 // @grant        none
@@ -74,7 +74,7 @@
 
     makeDraggable(logContainer);
 
-    // 🕒 Auto-remove after 10 seconds
+    // 🕒 자동으로 로그창 제거 (10초 후)
     setTimeout(() => {
       if (logContainer && document.body.contains(logContainer)) {
         logContainer.remove();
@@ -86,7 +86,7 @@
     let offsetX = 0, offsetY = 0, isDragging = false;
 
     element.addEventListener('mousedown', (e) => {
-      if (e.target.tagName === 'SPAN') return; // avoid dragging by close button
+      if (e.target.tagName === 'SPAN') return;
       isDragging = true;
       offsetX = e.clientX - element.getBoundingClientRect().left;
       offsetY = e.clientY - element.getBoundingClientRect().top;
@@ -108,18 +108,22 @@
     });
   }
 
-  function updateLog(src, count) {
+  function updateLog(iframe, count) {
     if (!logContainer) return;
 
+    const src = iframe.src || '';
+    const displayText = src
+      ? src.slice(0, 150)
+      : iframe.outerHTML.slice(0, 100).replace(/\n/g, '').replace(/\s+/g, ' ');
+
     const item = document.createElement('div');
-    const srcDisplay = src ? src.slice(0, 150) : '(no src)';
-    item.textContent = `[${count}] ${srcDisplay}`;
+    item.textContent = `[${count}] ${displayText}`;
     item.style.color = 'white';
     logContainer.appendChild(item);
 
     const entries = logContainer.querySelectorAll('div');
     if (entries.length > 11) {
-      logContainer.removeChild(entries[2]); // Remove oldest log entry (preserve header & close)
+      logContainer.removeChild(entries[2]); // 헤더와 닫기 버튼 이후 오래된 것 제거
     }
   }
 
@@ -138,7 +142,7 @@
 
       iframe.style.display = 'none';
       blockedCount++;
-      updateLog(src, blockedCount);
+      updateLog(iframe, blockedCount);
     }
   }
 
