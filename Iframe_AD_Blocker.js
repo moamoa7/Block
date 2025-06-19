@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Iframe Ad Blocker with src/HTML preview (원본)
-// @namespace    https://yourdomain.com
-// @version      2.6
-// @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. No log on mobile.
+// @name         Iframe Ad Blocker with src/HTML preview and copy log (mobile no log)
+// @namespace    none
+// @version      2.5
+// @description  Hide iframe ads with log showing src or outerHTML (200 chars), floating log auto-hides after 10s, copy log included, draggable panel; No log on mobile.
 // @author       YourName
 // @match        *://*/*
 // @grant        none
@@ -28,7 +28,7 @@
     '/live',  //  https://messitv8.com/ 메시티비
     '?v=',  //  https://messitv8.com/ 메시티비 등
     'channel',  //  https://goat-v.com/ 고트티비
-    'stream',  //  https://blacktv88.com/ 블랙티비
+    'dlrstream.com',  //  https://blacktv88.com/ 블랙티비
     'tV',  //  https://kktv12.com/  킹콩티비
     'tv',  //  https://www.cool111.com/  쿨티비  등
     'lk1.supremejav.com',  // https://supjav.com/  TV영상
@@ -46,7 +46,7 @@
   }
 
   function createLogUI() {
-    if (isMobile()) return; // 모바일에서는 로그창 생성 안 함
+    if (isMobile()) return; // 📱 모바일 환경에서는 로그창 안 뜸
 
     logContainer = document.createElement('div');
     logContainer.style.cssText = `
@@ -60,11 +60,12 @@
       background: rgba(0,0,0,0.85);
       color: white !important;
       font-size: 13px;
-      padding: 12px;
+      padding: 12px 12px 40px 12px;
       border-radius: 10px;
       box-shadow: 0 0 15px rgba(0,0,0,0.6);
       font-family: monospace;
       line-height: 1.5;
+      user-select: text;
       cursor: move;
     `;
 
@@ -77,19 +78,44 @@
       cursor: pointer;
       font-size: 14px;
       color: white !important;
+      user-select: none;
     `;
     closeBtn.onclick = () => logContainer.remove();
 
     const header = document.createElement('div');
     header.innerHTML = '<b style="font-size:14px;">🛡️ Iframe Ad Block Log</b><hr>';
-    header.style.cursor = 'move';
     header.style.color = 'white';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy Log';
+    copyBtn.style.cssText = `
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 5px;
+      border: none;
+      background-color: #555;
+      color: white;
+    `;
+    copyBtn.onclick = () => {
+      const logs = Array.from(logContainer.querySelectorAll('.log-item'))
+        .map(e => e.textContent)
+        .join('\n');
+      navigator.clipboard.writeText(logs).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy Log', 1500);
+      });
+    };
 
     logContainer.appendChild(closeBtn);
     logContainer.appendChild(header);
+    logContainer.appendChild(copyBtn);
     document.body.appendChild(logContainer);
 
-    makeDraggable(logContainer, header);
+    makeDraggable(logContainer);
 
     setTimeout(() => {
       if (logContainer && document.body.contains(logContainer)) {
@@ -98,57 +124,52 @@
     }, 10000);
   }
 
-  function makeDraggable(container, handle) {
+  function makeDraggable(element) {
     let offsetX = 0, offsetY = 0, isDragging = false;
 
-    handle.addEventListener('mousedown', (e) => {
+    element.addEventListener('mousedown', (e) => {
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SPAN') return;
       isDragging = true;
-      offsetX = e.clientX - container.getBoundingClientRect().left;
-      offsetY = e.clientY - container.getBoundingClientRect().top;
-      container.style.cursor = 'grabbing';
+      offsetX = e.clientX - element.getBoundingClientRect().left;
+      offsetY = e.clientY - element.getBoundingClientRect().top;
+      element.style.cursor = 'grabbing';
       e.preventDefault();
     });
 
     document.addEventListener('mousemove', (e) => {
       if (isDragging) {
-        container.style.left = `${e.clientX - offsetX}px`;
-        container.style.top = `${e.clientY - offsetY}px`;
-        container.style.right = 'auto';
+        element.style.left = `${e.clientX - offsetX}px`;
+        element.style.top = `${e.clientY - offsetY}px`;
+        element.style.right = 'auto';
+        element.style.bottom = 'auto';
       }
     });
 
     document.addEventListener('mouseup', () => {
       isDragging = false;
-      container.style.cursor = 'move';
-    });
-
-    // 더블클릭 시 드래그 시작 트리거
-    handle.addEventListener('dblclick', () => {
-      handle.dispatchEvent(new MouseEvent('mousedown', {
-        bubbles: true,
-        cancelable: true,
-        clientX: container.offsetLeft + 5,
-        clientY: container.offsetTop + 5
-      }));
+      element.style.cursor = 'move';
     });
   }
 
   function updateLog(iframe, count) {
     if (!logContainer) return;
 
-    const src = iframe.src || '';
-    const displayText = src
-      ? src.slice(0, 150)
-      : iframe.outerHTML.slice(0, 100).replace(/\n/g, '').replace(/\s+/g, ' ');
+    let displayText = '';
+    if (iframe.src) {
+      displayText = iframe.src.slice(0, 200);
+    } else {
+      displayText = iframe.outerHTML.slice(0, 200).replace(/\n/g, '').replace(/\s+/g, ' ');
+    }
 
     const item = document.createElement('div');
     item.textContent = `[${count}] ${displayText}`;
+    item.className = 'log-item';
     item.style.color = 'white';
     logContainer.appendChild(item);
 
-    const entries = logContainer.querySelectorAll('div');
-    if (entries.length > 11) {
-      logContainer.removeChild(entries[2]);
+    const entries = logContainer.querySelectorAll('div.log-item');
+    if (entries.length > 15) {
+      logContainer.removeChild(entries[0]);
     }
   }
 
@@ -158,29 +179,23 @@
     for (let i = 0; i < iframes.length; i++) {
       const iframe = iframes[i];
       const src = iframe.src || '';
-
       if (whitelist.some(domain => src.includes(domain))) continue;
       if (iframe.style.display === 'none') continue;
 
       iframe.style.display = 'none';
       blockedCount++;
-      updateLog(iframe, blockedCount);
+      updateLog(iframe, blockedCount); // 📄 모바일에서도 차단은 되지만 로그창 안 뜸
     }
   }
 
   function initialize() {
-    createLogUI();
+    createLogUI(); // 모바일이면 UI 안 뜸
     blockIframeAds();
 
-    const observer = new MutationObserver(() => {
-      blockIframeAds();
-    });
-
+    const observer = new MutationObserver(() => blockIframeAds());
     observer.observe(document.body, { childList: true, subtree: true });
 
-    window.addEventListener('unload', () => {
-      observer.disconnect();
-    });
+    window.addEventListener('unload', () => observer.disconnect());
   }
 
   if (document.body) {
