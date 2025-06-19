@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Iframe Ad Logger & Blocker
+// @name         Iframe Logger & Blocker (Auto-hide Repeats)
 // @namespace    none
-// @version      3.3
-// @description  Block iframe ads (except whitelist), log all iframes including whitelisted. Fixed white text color. Mobile: block only, no log UI. Auto-hide after 10s.
+// @version      3.7
+// @description  Blocks iframes unless whitelisted. Logs all iframe src/HTML up to 200 chars. Sticky, draggable UI shown only on desktop. Auto-hide log panel 10s after last log.
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -10,24 +10,45 @@
 (function () {
   'use strict';
 
+  if (window.top !== window) return; // 프레임 내부 실행 방지
+
   const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
 
   const whitelist = [
-    'recaptcha', 'about:blank', '/embed/',
-    'naver.com/my.html', 'cafe.naver.com', 'blog.naver.com',
-    'goodTube', 'player.bunny-frame.online', '/video/',
-    '123123play.com', '/lives', '?v=', 'channel', 'dlrstream.com',
-    'tV', 'tv', 'lk1.supremejav.com', 'avsee.ru/player/',
-    '/e/', '/t/', '/v/', '/#', '7tv000.com', 'cdnbuzz.buzz',
+    'recaptcha',  // 캡챠
+    'about:blank', // 일부 iframe 문제 해결
+    'embed',  // 각종 게시물 임베드
+    'naver.com/my.html',  // 네이버 메인홈에서 이메일 안보이는거 해결
+    'cafe.naver.com',  // 네이버 카페
+    'blog.naver.com',  // 네이버 블로그
+    'goodTube',  // 유튜브 우회 스크립트
+    'player.bunny-frame.online',  //  티비위키/티비몬/티비핫 영상 플레이어 주소
+    '/video/',  //  https://m66.kotbc2.com/  코티비씨 등
+    '123123play.com',  //  https://tvchak152.com/  티비착
+    '/live',  //  https://messitv8.com/ 메시티비
+    '?v=',  //  https://messitv8.com/ 메시티비 등
+    'channel',  //  https://goat-v.com/ 고트티비
+    'dlrstream.com',  //  https://blacktv88.com/ 블랙티비
+    'tV',  //  https://kktv12.com/  킹콩티비
+    'tv',  //  https://www.cool111.com/  쿨티비  등
+    'lk1.supremejav.com',  // https://supjav.com/  TV영상
+    'avsee.ru/player/',
+    '/e/',  // 성인 영상 플레이어 주소
+    '/t/',  // 성인 영상 플레이어 주소
+    '/v/',  // 성인 영상 플레이어 주소 / 스포츠TV 플레이어 주소
+    '/#',  // 성인 영상 플레이어 주소
+    '7tv000.com',  // https://7tv000.com/  7MMTV TV영상
+    'cdnbuzz.buzz'  // https://av19.live/
   ];
 
+  let seen = new WeakSet();
   let logContainer, logContent;
   let logList = [];
   let count = 0;
-  const seen = new WeakSet();
+  let hideTimeout;
 
   function isWhitelisted(src) {
-    return whitelist.some(domain => src.includes(domain));
+    return whitelist.some(keyword => src.includes(keyword));
   }
 
   function createLogUI() {
@@ -40,15 +61,15 @@
       right: 10px;
       width: 500px;
       max-height: 500px;
-      background: rgba(0, 0, 0, 0.85) !important;
-      color: white !important;
-      font-family: monospace !important;
-      font-size: 13px !important;
-      border-radius: 10px !important;
-      box-shadow: 0 0 15px rgba(0,0,0,0.6) !important;
-      display: flex !important;
-      flex-direction: column !important;
-      z-index: 99999 !important;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      font-family: monospace;
+      font-size: 13px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      z-index: 99999;
       cursor: move;
     `;
 
@@ -57,23 +78,24 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(0, 0, 0, 0.95) !important;
+      background: rgba(0, 0, 0, 0.95);
       padding: 8px 12px;
       font-weight: bold;
       font-size: 14px;
       border-top-left-radius: 10px;
       border-top-right-radius: 10px;
-      color: white !important;
+      user-select: none;
+      color: white;
     `;
     header.innerHTML = `<div>🛡️ Iframe Log View</div>`;
 
     const copyBtn = document.createElement('button');
     copyBtn.textContent = '📋 복사';
     copyBtn.style.cssText = `
-      font-size: 12px !important;
-      background: #444 !important;
-      color: white !important;
-      border: none !important;
+      font-size: 12px;
+      background: #444;
+      color: white;
+      border: none;
       border-radius: 5px;
       padding: 4px 8px;
       cursor: pointer;
@@ -93,16 +115,22 @@
       overflow-y: auto;
       flex: 1 1 auto;
       padding: 8px 12px;
-      color: white !important;
-      user-select: text;
+      color: white;
     `;
     logContainer.appendChild(logContent);
 
     document.body.appendChild(logContainer);
     makeDraggable(logContainer, header);
+  }
 
-    setTimeout(() => {
-      if (logContainer?.parentElement) logContainer.remove();
+  function showLogUI() {
+    if (!logContainer) return;
+    logContainer.style.display = 'flex';
+    clearTimeout(hideTimeout);
+    hideTimeout = setTimeout(() => {
+      if (logContainer) {
+        logContainer.style.display = 'none';
+      }
     }, 10000);
   }
 
@@ -124,6 +152,7 @@
         element.style.top = `${e.clientY - offsetY}px`;
         element.style.right = 'auto';
         element.style.bottom = 'auto';
+        element.style.position = 'fixed';
       }
     });
 
@@ -138,19 +167,23 @@
     seen.add(iframe);
 
     const src = iframe.src || '';
-    const whitelistMatch = isWhitelisted(src);
+    const whitelisted = isWhitelisted(src);
 
-    if (!whitelistMatch) iframe.style.display = 'none';
+    // 차단은 whitelist 외에서만
+    if (!whitelisted) iframe.style.display = 'none';
 
-    let logText = src ? src.slice(0, 200) : '(no src) ' + iframe.outerHTML.replace(/\s+/g, ' ').trim().slice(0, 200);
+    let text = src
+      ? src.slice(0, 200)
+      : '(no src) ' + iframe.outerHTML.replace(/\s+/g, ' ').trim().slice(0, 200);
+
     count++;
-    const line = `[${count}] ${logText}`;
+    const line = `[${count}] ${text}`;
     logList.push(line);
 
-    if (!isMobile && logContent) {
+    if (!isMobile && logContainer) {
       const div = document.createElement('div');
       div.textContent = line;
-      div.style.cssText = 'color: white !important; padding: 2px 0;';
+      div.style.cssText = 'color: white; padding: 2px 0;';
       logContent.appendChild(div);
 
       if (logList.length > 50) {
@@ -159,24 +192,26 @@
           logContent.removeChild(logContent.children[0]);
         }
       }
+
+      showLogUI();
     }
   }
 
-  function observeIframes() {
-    const scan = () => {
-      const iframes = document.getElementsByTagName('iframe');
-      for (const iframe of iframes) addLogEntry(iframe);
-    };
-
-    scan();
-    const observer = new MutationObserver(scan);
-    observer.observe(document.body, { childList: true, subtree: true });
-    window.addEventListener('unload', () => observer.disconnect());
+  function scanIframes() {
+    const iframes = document.getElementsByTagName('iframe');
+    for (const iframe of iframes) {
+      addLogEntry(iframe);
+    }
   }
 
   function init() {
     createLogUI();
-    observeIframes();
+    scanIframes();
+
+    const observer = new MutationObserver(scanIframes);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    window.addEventListener('unload', () => observer.disconnect());
   }
 
   if (document.body) init();
