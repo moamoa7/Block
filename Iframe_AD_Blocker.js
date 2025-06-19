@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Iframe Ad Logger & Blocker (Whitelist Logs Only)
+// @name         Iframe Ad Logger & Blocker
 // @namespace    none
 // @version      3.3
 // @description  Block iframe ads (except whitelist), log all iframes including whitelisted. Fixed white text color. Mobile: block only, no log UI. Auto-hide after 10s.
