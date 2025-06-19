@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250618
+! Version: 20250619
 !
 !
 !
@@ -4429,6 +4429,9 @@ kick.com#@#a[href]:has(img[src*="banner"])
 clien.net#@#[class*="banner"]:has(img)
 ! - - - https://wdwd8.com/ -리스트 내용 사라짐
 [$domain=/^wdwd\d+.com/]#@#[class*="banner"]:has(img)
+! - - - https://www.yna.co.kr/ - 화면 안보임
+yna.co.kr#@#[class*="banner"]:has(img)
+
 
 
 !##img[src*="/banner/"]
@@ -4858,6 +4861,9 @@ news.naver.com#@#[class*="AD"]
 ! - - - 예외
 ! - - - https://wdwd8.com/ -리스트 내용 사라짐
 [$domain=/^wdwd\d+.com/]#@#[class*="-banner"]
+! - -- https://www.yna.co.kr/ - 화면 안보임
+yna.co.kr#@#[class*="-banner"]
+
 
 ! https://www.weather.go.kr/
 ! https://tv.naver.com/
@@ -5885,6 +5891,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
-
 
