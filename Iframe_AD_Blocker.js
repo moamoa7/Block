@@ -25,7 +25,7 @@
     'player.bunny-frame.online',  //  티비위키/티비몬/티비핫 영상 플레이어 주소
     '/video/',  //  https://m66.kotbc2.com/  코티비씨 등
     '123123play.com',  //  https://tvchak152.com/  티비착
-    '/live',  //  https://messitv8.com/ 메시티비
+    '/lives',  //  https://messitv8.com/ 메시티비
     '?v=',  //  https://messitv8.com/ 메시티비 등
     'channel',  //  https://goat-v.com/ 고트티비
     'dlrstream.com',  //  https://blacktv88.com/ 블랙티비
