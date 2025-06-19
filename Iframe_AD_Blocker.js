@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Iframe Logger & Blocker (Auto-hide Repeats)
 // @namespace    none
-// @version      3.7
+// @version      3.7.1
 // @description  Blocks iframes unless whitelisted. Logs all iframe src/HTML up to 200 chars. Sticky, draggable UI shown only on desktop. Auto-hide log panel 10s after last log.
 // @match        *://*/*
 // @grant        none
@@ -19,7 +19,7 @@
     'about:blank', // 일부 iframe 문제 해결
     'embed',  // 각종 게시물 임베드
     'naver.com/my.html',  // 네이버 메인홈에서 이메일 안보이는거 해결
-    'cafe.naver.com',  // 네이버 카페
+    'cafe.naver.com',  // 네이버 카페ㅁ
     'blog.naver.com',  // 네이버 블로그
     'goodTube',  // 유튜브 우회 스크립트
     'player.bunny-frame.online',  //  티비위키/티비몬/티비핫 영상 플레이어 주소
@@ -38,7 +38,8 @@
     '/v/',  // 성인 영상 플레이어 주소 / 스포츠TV 플레이어 주소
     '/#',  // 성인 영상 플레이어 주소
     '7tv000.com',  // https://7tv000.com/  7MMTV TV영상
-    'cdnbuzz.buzz'  // https://av19.live/
+    'cdnbuzz.buzz',  // https://av19.live/
+    '/player/'  // https://avpingyou19.com/ 핑유걸 등
   ];
 
   let seen = new WeakSet();
