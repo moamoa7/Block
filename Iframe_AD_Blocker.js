@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Iframe Ad Blocker with src/HTML preview
+// @name         Iframe Ad Blocker with src/HTML preview (원본)
 // @namespace    https://yourdomain.com
 // @version      2.6
 // @description  Hide iframe ads with better logging (shows src or outerHTML), floating UI auto-hides in 10s, includes whitelist & draggable panel. No log on mobile.
