@@ -1,55 +1,77 @@
 // ==UserScript==
-// @name         Iframe Logger & Blocker (Auto-hide Repeats)
+// @name         Iframe Logger & Blocker (Count Display + Fixed Shield Icon + Custom Attrs + Base64 Preview + 100 Logs)
 // @namespace    none
-// @version      3.7.2
-// @description  Blocks iframes unless whitelisted. Logs all iframe src/HTML up to 200 chars. Sticky, draggable UI shown only on desktop. Auto-hide log panel 10s after last log.
+// @version      4.0
+// @description  Blocks iframes unless whitelisted. Logs iframe real src/HTML/base64 preview. Auto-hide log after 10s. 🛡️ 아이콘 + 차단 수 표시 + data-lazy-src 등 커스텀 속성 지원 + 로그 100개 유지.
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
 
 (function () {
   'use strict';
-
-  if (window.top !== window) return; // 프레임 내부 실행 방지
+  if (window.top !== window) return;
 
   const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+  const hostname = location.hostname;
 
   const whitelist = [
-    'recaptcha',  // 캡챠
-    'embed',  // 각종 게시물 임베드 (유튜브.인스타.트위터 등)
-    'naver.com/my.html',  // 네이버 메인홈에서 이메일 안보이는거 해결
-    'cafe.naver.com',  // 네이버 카페ㅁ
-    'blog.naver.com',  // 네이버 블로그
-    'goodTube',  // 유튜브 우회 스크립트
-    'player.bunny-frame.online',  //  티비위키/티비몬/티비핫 영상 플레이어 주소
-    '/video/',  //  https://m66.kotbc2.com/  코티비씨 등
-    '123123play.com',  //  https://tvchak152.com/  티비착
-    '/live',  //  https://messitv8.com/ 메시티비
-    '?v=',  //  https://messitv8.com/ 메시티비 등
-    'channel',  //  https://goat-v.com/ 고트티비
-    'dlrstream.com',  //  https://blacktv88.com/ 블랙티비
-    'tV',  //  https://kktv12.com/  킹콩티비
-    'tv',  //  https://www.cool111.com/  쿨티비  등
-    'lk1.supremejav.com',  // https://supjav.com/  TV영상
-    'avsee.ru/player/',
-    '/e/',  // 성인 영상 플레이어 주소
-    '/t/',  // 성인 영상 플레이어 주소
-    '/v/',  // 성인 영상 플레이어 주소 / 스포츠TV 플레이어 주소
-    '/#',  // 성인 영상 플레이어 주소
-    '7tv000.com',  // https://7tv000.com/  7MMTV TV영상
-    'cdnbuzz.buzz',  // https://av19.live/
-    '/player/'  // https://avpingyou19.com/ 핑유걸 등
-    '4kjav.co'  // about:blank ifame 예외 - 영상 안나옴
+    { keyword: 'recaptcha' },
+    { keyword: 'embed' },
+    { keyword: 'naver.com/my.html' },
+    { keyword: 'cafe.naver.com' },
+    { keyword: 'blog.naver.com' },
+    { keyword: 'goodTube' },
+    { keyword: 'player.bunny-frame.online' },
+    { keyword: '/video/' },
+    { keyword: '123123play.com' },
+    { keyword: '/live' },
+    { keyword: '?v=' },
+    { keyword: 'channel' },
+    { keyword: 'dlrstream.com' },
+    { keyword: 'tV' },
+    { keyword: 'tv' },
+    { keyword: 'lk1.supremejav.com' },
+    { keyword: 'avsee.ru/player/' },
+    { keyword: '/e/' },
+    { keyword: '/t/' },
+    { keyword: '/v/' },
+    { keyword: '/#' },
+    { keyword: '7tv000.com' },
+    { keyword: 'cdnbuzz.buzz' },
+    { keyword: '/player/' },
+    { keyword: '키워드', excludeDomains: ['도메인'] }
   ];
 
   let seen = new WeakSet();
-  let logContainer, logContent;
+  let logContainer, logContent, countDisplay;
   let logList = [];
   let count = 0;
   let hideTimeout;
 
+  const SHIELD_EMOJI_URL = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' height='20' viewBox='0 0 24 24' width='20'><text x='0' y='18'>🛡️</text></svg>";
+
+  function getRealSrc(iframe) {
+    // data-lazy-src, data-src, data-href, data-real-src 확장 지원
+    return iframe.getAttribute('data-lazy-src') ||
+           iframe.getAttribute('data-src') ||
+           iframe.getAttribute('data-href') ||
+           iframe.getAttribute('data-real-src') ||
+           iframe.getAttribute('src') || '';
+  }
+
   function isWhitelisted(src) {
-    return whitelist.some(keyword => src.includes(keyword));
+    return whitelist.some(({ keyword, excludeDomains = [] }) =>
+      src.includes(keyword) &&
+      !excludeDomains.some(domain => hostname.includes(domain))
+    );
+  }
+
+  function base64Preview(text) {
+    try {
+      return 'data:text/html;base64,' + btoa(unescape(encodeURIComponent(text)));
+    } catch {
+      return '';
+    }
   }
 
   function createLogUI() {
@@ -70,7 +92,7 @@
       box-shadow: 0 0 15px rgba(0,0,0,0.6);
       display: flex;
       flex-direction: column;
-      z-index: 99999;
+      z-index: 2147483647;
       cursor: move;
     `;
 
@@ -88,7 +110,33 @@
       user-select: none;
       color: white;
     `;
-    header.innerHTML = `<div>🛡️ Iframe Log View</div>`;
+
+    const titleWrap = document.createElement('div');
+    titleWrap.style.display = 'flex';
+    titleWrap.style.alignItems = 'center';
+    titleWrap.style.gap = '6px';
+
+    const shieldImg = document.createElement('img');
+    shieldImg.src = SHIELD_EMOJI_URL;
+    shieldImg.alt = '🛡️';
+    shieldImg.style.cssText = `
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      display: inline-block;
+    `;
+
+    const titleText = document.createElement('span');
+    titleText.textContent = 'Iframe Log View';
+
+    countDisplay = document.createElement('span');
+    countDisplay.textContent = '(0)';
+    countDisplay.style.cssText = 'font-size: 12px; color: #ccc; margin-left: 4px;';
+
+    titleWrap.appendChild(shieldImg);
+    titleWrap.appendChild(titleText);
+    titleWrap.appendChild(countDisplay);
+    header.appendChild(titleWrap);
 
     const copyBtn = document.createElement('button');
     copyBtn.textContent = '📋 복사';
@@ -124,6 +172,12 @@
     makeDraggable(logContainer, header);
   }
 
+  function updateCountDisplay() {
+    if (countDisplay) {
+      countDisplay.textContent = `(${count})`;
+    }
+  }
+
   function showLogUI() {
     if (!logContainer) return;
     logContainer.style.display = 'flex';
@@ -138,7 +192,6 @@
   function makeDraggable(element, handle) {
     let isDragging = false, offsetX = 0, offsetY = 0;
     handle.style.cursor = 'grab';
-
     handle.addEventListener('mousedown', (e) => {
       isDragging = true;
       offsetX = e.clientX - element.getBoundingClientRect().left;
@@ -146,7 +199,6 @@
       handle.style.cursor = 'grabbing';
       e.preventDefault();
     });
-
     document.addEventListener('mousemove', (e) => {
       if (isDragging) {
         element.style.left = `${e.clientX - offsetX}px`;
@@ -156,7 +208,6 @@
         element.style.position = 'fixed';
       }
     });
-
     document.addEventListener('mouseup', () => {
       isDragging = false;
       handle.style.cursor = 'grab';
@@ -167,29 +218,43 @@
     if (seen.has(iframe)) return;
     seen.add(iframe);
 
-    const src = iframe.src || '';
-    const whitelisted = isWhitelisted(src);
-
-    // 차단은 whitelist 외에서만
+    const realSrc = getRealSrc(iframe);
+    const whitelisted = isWhitelisted(realSrc);
     if (!whitelisted) iframe.style.display = 'none';
 
-    let text = src
-      ? src.slice(0, 200)
-      : '(no src) ' + iframe.outerHTML.replace(/\s+/g, ' ').trim().slice(0, 200);
-
     count++;
-    const line = `[${count}] ${text}`;
+    let line;
+    if (realSrc) {
+      line = `[${count}] ${realSrc.slice(0, 200)}`;
+    } else {
+      const htmlSnippet = iframe.outerHTML.replace(/\s+/g, ' ').trim().slice(0, 500);
+      const previewUrl = base64Preview(htmlSnippet);
+      line = `[${count}] (no src) iframe content preview`;
+    }
+
     logList.push(line);
+    updateCountDisplay();
 
     if (!isMobile && logContainer) {
       const div = document.createElement('div');
-      div.textContent = line;
       div.style.cssText = 'color: white; padding: 2px 0;';
+      div.textContent = line;
+
+      if (!realSrc) {
+        const a = document.createElement('a');
+        a.href = base64Preview(iframe.outerHTML.replace(/\s+/g, ' ').trim().slice(0, 500));
+        a.target = '_blank';
+        a.textContent = ' 🔍 미리보기';
+        a.style.color = '#4af';
+        a.style.marginLeft = '8px';
+        div.appendChild(a);
+      }
+
       logContent.appendChild(div);
 
-      if (logList.length > 50) {
+      if (logList.length > 100) {
         logList.shift();
-        if (logContent.children.length > 50) {
+        if (logContent.children.length > 100) {
           logContent.removeChild(logContent.children[0]);
         }
       }
@@ -208,10 +273,8 @@
   function init() {
     createLogUI();
     scanIframes();
-
     const observer = new MutationObserver(scanIframes);
     observer.observe(document.body, { childList: true, subtree: true });
-
     window.addEventListener('unload', () => observer.disconnect());
   }
 
