@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250619
+! Version: 20250620
 !
 !
 !
@@ -1825,6 +1825,12 @@ hankyung.com##.stock-marquee-wrap
 !
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
+! - 영상 플레이어
+joongang.co.kr##.player_area
+! - 많이 본 기사
+joongang.co.kr##.widget--v.ad_sm_hidden.chain_wrap
+! - 추천 기사
+joongang.co.kr##.contents_issue_sticky.contents > .row > .col_lg3
 ! - 차단 사이트
 !||admaru.com^$3p
 !||aralego.com^
