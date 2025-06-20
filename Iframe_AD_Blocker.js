@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Iframe Logger & Blocker (Auto-hide Repeats)
 // @namespace    none
-// @version      3.7.1
+// @version      3.7.2
 // @description  Blocks iframes unless whitelisted. Logs all iframe src/HTML up to 200 chars. Sticky, draggable UI shown only on desktop. Auto-hide log panel 10s after last log.
 // @match        *://*/*
 // @grant        none
@@ -16,8 +16,7 @@
 
   const whitelist = [
     'recaptcha',  // 캡챠
-    'about:blank', // 일부 iframe 문제 해결
-    'embed',  // 각종 게시물 임베드
+    'embed',  // 각종 게시물 임베드 (유튜브.인스타.트위터 등)
     'naver.com/my.html',  // 네이버 메인홈에서 이메일 안보이는거 해결
     'cafe.naver.com',  // 네이버 카페ㅁ
     'blog.naver.com',  // 네이버 블로그
@@ -40,6 +39,7 @@
     '7tv000.com',  // https://7tv000.com/  7MMTV TV영상
     'cdnbuzz.buzz',  // https://av19.live/
     '/player/'  // https://avpingyou19.com/ 핑유걸 등
+    '4kjav.co'  // about:blank ifame 예외 - 영상 안나옴
   ];
 
   let seen = new WeakSet();
