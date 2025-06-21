@@ -203,11 +203,11 @@
     });
   }).observe(document, {childList:true, subtree:true});
 
-  
+  // 성공/실패 메시지 제거
   new MutationObserver(muts => {
     muts.forEach(m => {
       m.addedNodes.forEach(n => {
-        if(n.nodeType === 1 && n.innerText && .test(n.innerText)){
+        if(n.nodeType === 1 && n.innerText && /성공|실패/i.test(n.innerText)){
           n.remove();
         }
       });
