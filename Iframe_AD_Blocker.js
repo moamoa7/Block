@@ -1,283 +1,227 @@
 // ==UserScript==
-// @name         Iframe Logger & Blocker (Count Display + Fixed Shield Icon + Custom Attrs + Base64 Preview + 100 Logs)
+// @name         Iframe Logger & Blocker (화이트리스트 색상표시 + 캡챠 중복 방지)
 // @namespace    none
-// @version      4.0
-// @description  Blocks iframes unless whitelisted. Logs iframe real src/HTML/base64 preview. Auto-hide log after 10s. 🛡️ 아이콘 + 차단 수 표시 + data-lazy-src 등 커스텀 속성 지원 + 로그 100개 유지.
+// @version      7.7.6
+// @description  iframe 로그에 화이트리스트 초록색 표시 + 차단 iframe 빨간색 표시 + 캡챠 중복 방지 + 성공/실패 메시지 제거
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
-
-(function () {
+(function() {
   'use strict';
-  if (window.top !== window) return;
 
-  const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-  const hostname = location.hostname;
+  const REMOVE_IFRAME = true;
 
-  const whitelist = [
-    { keyword: 'recaptcha' },
-    { keyword: 'embed' },
-    { keyword: 'naver.com/my.html' },
-    { keyword: 'cafe.naver.com' },
-    { keyword: 'blog.naver.com' },
-    { keyword: 'goodTube' },
-    { keyword: 'player.bunny-frame.online' },
-    { keyword: '/video/' },
-    { keyword: '123123play.com' },
-    { keyword: '/live' },
-    { keyword: '?v=' },
-    { keyword: 'channel' },
-    { keyword: 'dlrstream.com' },
-    { keyword: 'tV' },
-    { keyword: 'tv' },
-    { keyword: 'lk1.supremejav.com' },
-    { keyword: 'avsee.ru/player/' },
-    { keyword: '/e/' },
-    { keyword: '/t/' },
-    { keyword: '/v/' },
-    { keyword: '/#' },
-    { keyword: '7tv000.com' },
-    { keyword: 'cdnbuzz.buzz' },
-    { keyword: '/player/' },
-    { keyword: '키워드', excludeDomains: ['도메인'] }
+  // 캡챠 관련 키워드
+  const CAPTCHA_KEYWORDS = [
+    'recaptcha','challenge-platform','turnstile','captcha','cloudflare'
   ];
 
-  let seen = new WeakSet();
-  let logContainer, logContent, countDisplay;
-  let logList = [];
+  // 전체 화이트리스트 키워드
+  const WHITELIST_KW = [
+    ...CAPTCHA_KEYWORDS,
+    'player.bunny-frame.online','/embed/','/e/','/t/','/v/',
+    'dlrstream.com','123123play.com','supremejav.com','goodTubeProxy',
+    '7tv000.com','7mmtv','/dplayer','chrome-extension://'
+  ];
+
+  const DOMAIN_WHITELIST = {
+    'player/': ['avsee.ru'],
+    'my.html': ['naver.com'],
+    'payment': ['coupang.com']
+  };
+
+  let captchaActive = false;
+  let captchaDeactivateTimeout = null;
+  const captchaIframes = new WeakSet();
+
+  let logContainer, logContent, toggleBtn, countDisplay;
   let count = 0;
-  let hideTimeout;
+  const logList = [];
 
-  const SHIELD_EMOJI_URL = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' height='20' viewBox='0 0 24 24' width='20'><text x='0' y='18'>🛡️</text></svg>";
+  function normalizeDomain(h){ return h.replace(/^www\./,'').trim(); }
 
-  function getRealSrc(iframe) {
-    // data-lazy-src, data-src, data-href, data-real-src 확장 지원
-    return iframe.getAttribute('data-lazy-src') ||
-           iframe.getAttribute('data-src') ||
-           iframe.getAttribute('data-href') ||
-           iframe.getAttribute('data-real-src') ||
-           iframe.getAttribute('src') || '';
-  }
-
-  function isWhitelisted(src) {
-    return whitelist.some(({ keyword, excludeDomains = [] }) =>
-      src.includes(keyword) &&
-      !excludeDomains.some(domain => hostname.includes(domain))
-    );
-  }
-
-  function base64Preview(text) {
+  function isWhitelisted(url=''){
     try {
-      return 'data:text/html;base64,' + btoa(unescape(encodeURIComponent(text)));
-    } catch {
-      return '';
-    }
+      for(let kw of WHITELIST_KW) if(url.includes(kw)) return true;
+      let u = new URL(url, location.href), d = normalizeDomain(u.hostname);
+      for(let [kw, ds] of Object.entries(DOMAIN_WHITELIST)) {
+        if(url.includes(kw) && ds.some(x => d.endsWith(normalizeDomain(x)))) return true;
+      }
+    } catch {}
+    return false;
   }
 
-  function createLogUI() {
-    if (isMobile) return;
+  function extractUrls(el){
+    let urls = [];
+    try {
+      ['src','srcdoc'].forEach(attr => {
+        let v = el.getAttribute(attr);
+        if(v && /^https?:\/\//.test(v)) urls.push(v);
+      });
+      for(let key of Object.keys(el.dataset)) {
+        let v = el.dataset[key];
+        if(/^https?:\/\//.test(v)) urls.push(v);
+      }
+    } catch {}
+    return urls;
+  }
+
+  function createLogUI(){
+    toggleBtn = document.createElement('button');
+    toggleBtn.textContent = '🛡️';
+    toggleBtn.title = 'Iframe 로그 토글';
+    Object.assign(toggleBtn.style, {
+      position:'fixed', bottom:'10px', right:'10px',
+      width:'40px', height:'40px', borderRadius:'50%',
+      border:'none', background:'#222', color:'#fff',
+      fontSize:'24px', cursor:'pointer', zIndex:2147483647
+    });
+    document.body.appendChild(toggleBtn);
 
     logContainer = document.createElement('div');
-    logContainer.style.cssText = `
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      width: 500px;
-      max-height: 500px;
-      background: rgba(0, 0, 0, 0.85);
-      color: white;
-      font-family: monospace;
-      font-size: 13px;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.6);
-      display: flex;
-      flex-direction: column;
-      z-index: 2147483647;
-      cursor: move;
-    `;
+    Object.assign(logContainer.style, {
+      position:'fixed', bottom:'60px', right:'10px',
+      width:'500px', maxHeight:'400px', background:'rgba(0,0,0,0.85)',
+      color:'white', fontFamily:'monospace', fontSize:'13px',
+      borderRadius:'10px', boxShadow:'0 0 10px black',
+      display:'none', flexDirection:'column', overflow:'hidden',
+      zIndex:2147483647
+    });
 
     const header = document.createElement('div');
-    header.style.cssText = `
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.95);
-      padding: 8px 12px;
-      font-weight: bold;
-      font-size: 14px;
-      border-top-left-radius: 10px;
-      border-top-right-radius: 10px;
-      user-select: none;
-      color: white;
-    `;
-
-    const titleWrap = document.createElement('div');
-    titleWrap.style.display = 'flex';
-    titleWrap.style.alignItems = 'center';
-    titleWrap.style.gap = '6px';
-
-    const shieldImg = document.createElement('img');
-    shieldImg.src = SHIELD_EMOJI_URL;
-    shieldImg.alt = '🛡️';
-    shieldImg.style.cssText = `
-      width: 20px;
-      height: 20px;
-      flex-shrink: 0;
-      display: inline-block;
-    `;
-
-    const titleText = document.createElement('span');
-    titleText.textContent = 'Iframe Log View';
-
+    Object.assign(header.style, {
+      display:'flex', justifyContent:'space-between',
+      alignItems:'center', padding:'6px 10px',
+      background:'#000', fontWeight:'bold', fontSize:'14px'
+    });
+    const title = document.createElement('span');
+    title.textContent = '🛡️ Iframe Log View';
     countDisplay = document.createElement('span');
     countDisplay.textContent = '(0)';
-    countDisplay.style.cssText = 'font-size: 12px; color: #ccc; margin-left: 4px;';
-
-    titleWrap.appendChild(shieldImg);
-    titleWrap.appendChild(titleText);
-    titleWrap.appendChild(countDisplay);
-    header.appendChild(titleWrap);
-
+    Object.assign(countDisplay.style, { marginLeft:'6px', color:'#ccc', fontSize:'12px' });
     const copyBtn = document.createElement('button');
     copyBtn.textContent = '📋 복사';
-    copyBtn.style.cssText = `
-      font-size: 12px;
-      background: #444;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      padding: 4px 8px;
-      cursor: pointer;
-    `;
+    Object.assign(copyBtn.style, {
+      fontSize:'12px', background:'#444', color:'white',
+      border:'none', borderRadius:'5px', padding:'2px 8px', cursor:'pointer'
+    });
     copyBtn.onclick = () => {
-      navigator.clipboard.writeText(logList.join('\n')).then(() => {
-        copyBtn.textContent = '복사됨!';
-        setTimeout(() => copyBtn.textContent = '📋 복사', 1500);
-      });
+      navigator.clipboard.writeText(logList.join('\n'));
+      copyBtn.textContent = '복사됨!';
+      setTimeout(() => copyBtn.textContent = '📋 복사', 1500);
     };
-
-    header.appendChild(copyBtn);
-    logContainer.appendChild(header);
+    const headLeft = document.createElement('div');
+    headLeft.append(title, countDisplay);
+    header.append(headLeft, copyBtn);
 
     logContent = document.createElement('div');
-    logContent.style.cssText = `
-      overflow-y: auto;
-      flex: 1 1 auto;
-      padding: 8px 12px;
-      color: white;
-    `;
-    logContainer.appendChild(logContent);
+    Object.assign(logContent.style, {
+      flex:'1', overflowY:'auto',
+      padding:'6px 10px', whiteSpace:'pre-wrap'
+    });
 
+    logContainer.append(header, logContent);
     document.body.appendChild(logContainer);
-    makeDraggable(logContainer, header);
+
+    toggleBtn.onclick = () => {
+      logContainer.style.display = logContainer.style.display === 'none' ? 'flex' : 'none';
+    };
   }
 
-  function updateCountDisplay() {
-    if (countDisplay) {
-      countDisplay.textContent = `(${count})`;
+  function setCaptchaActive(iframe){
+    if(captchaDeactivateTimeout){
+      clearTimeout(captchaDeactivateTimeout);
+      captchaDeactivateTimeout = null;
     }
+    if(!captchaActive) console.log('[Captcha] 캡챠 활성화');
+    captchaActive = true;
+    if(iframe) captchaIframes.add(iframe);
   }
 
-  function showLogUI() {
-    if (!logContainer) return;
-    logContainer.style.display = 'flex';
-    clearTimeout(hideTimeout);
-    hideTimeout = setTimeout(() => {
-      if (logContainer) {
-        logContainer.style.display = 'none';
-      }
-    }, 10000);
+  function scheduleCaptchaDeactivate(){
+    if(captchaDeactivateTimeout) clearTimeout(captchaDeactivateTimeout);
+    captchaDeactivateTimeout = setTimeout(() => {
+      captchaActive = false;
+      captchaIframes.clear();
+      console.log('[Captcha] 캡챠 비활성화 완료');
+    }, 7000);
   }
 
-  function makeDraggable(element, handle) {
-    let isDragging = false, offsetX = 0, offsetY = 0;
-    handle.style.cursor = 'grab';
-    handle.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      offsetX = e.clientX - element.getBoundingClientRect().left;
-      offsetY = e.clientY - element.getBoundingClientRect().top;
-      handle.style.cursor = 'grabbing';
-      e.preventDefault();
-    });
-    document.addEventListener('mousemove', (e) => {
-      if (isDragging) {
-        element.style.left = `${e.clientX - offsetX}px`;
-        element.style.top = `${e.clientY - offsetY}px`;
-        element.style.right = 'auto';
-        element.style.bottom = 'auto';
-        element.style.position = 'fixed';
-      }
-    });
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-      handle.style.cursor = 'grab';
-    });
-  }
+  function logIframe(el, reason){
+    let urls = extractUrls(el);
+    let src = urls[0] || el.src || '[no-src]';
+    let outer = el.outerHTML ? el.outerHTML.slice(0, 200).replace(/\s+/g, ' ') : '[no outerHTML]';
+    const whitelisted = isWhitelisted(src);
 
-  function addLogEntry(iframe) {
-    if (seen.has(iframe)) return;
-    seen.add(iframe);
+    if(captchaActive && captchaIframes.has(el)) return; // 캡챠 중복 로그 방지
 
-    const realSrc = getRealSrc(iframe);
-    const whitelisted = isWhitelisted(realSrc);
-    if (!whitelisted) iframe.style.display = 'none';
+    let info = `[#${++count}] ${reason} ${whitelisted ? '(whitelist) ' : '(blocked) '} ${src}\n └▶ HTML → ${outer}`;
 
-    count++;
-    let line;
-    if (realSrc) {
-      line = `[${count}] ${realSrc.slice(0, 200)}`;
-    } else {
-      const htmlSnippet = iframe.outerHTML.replace(/\s+/g, ' ').trim().slice(0, 500);
-      const previewUrl = base64Preview(htmlSnippet);
-      line = `[${count}] (no src) iframe content preview`;
-    }
-
-    logList.push(line);
-    updateCountDisplay();
-
-    if (!isMobile && logContainer) {
+    if(logContent){
       const div = document.createElement('div');
-      div.style.cssText = 'color: white; padding: 2px 0;';
-      div.textContent = line;
-
-      if (!realSrc) {
-        const a = document.createElement('a');
-        a.href = base64Preview(iframe.outerHTML.replace(/\s+/g, ' ').trim().slice(0, 500));
-        a.target = '_blank';
-        a.textContent = ' 🔍 미리보기';
-        a.style.color = '#4af';
-        a.style.marginLeft = '8px';
-        div.appendChild(a);
-      }
-
+      div.textContent = info;
+      div.style.color = whitelisted ? '#8fbc8f' : '#ff6666'; // 초록 or 빨강
+      div.style.padding = '2px 0';
       logContent.appendChild(div);
+      if(logContent.children.length > 100) logContent.removeChild(logContent.children[0]);
+      countDisplay.textContent = `(${count})`;
+      div.scrollIntoView({behavior:'smooth', block:'end'});
+    }
 
-      if (logList.length > 100) {
-        logList.shift();
-        if (logContent.children.length > 100) {
-          logContent.removeChild(logContent.children[0]);
+    logList.push(info);
+
+    if(!whitelisted && REMOVE_IFRAME){
+      el.style.display = 'none';
+      el.setAttribute('sandbox', '');
+      setTimeout(() => el.remove(), 300);
+    }
+
+    if(whitelisted && CAPTCHA_KEYWORDS.some(kw => src.includes(kw))){
+      setCaptchaActive(el);
+      scheduleCaptchaDeactivate();
+    }
+  }
+
+  function handle(el, reason){
+    logIframe(el, reason);
+  }
+
+  function monitor(){
+    document.querySelectorAll('iframe,frame,embed,object').forEach(el => handle(el, 'initialScan'));
+  }
+
+  // DOM 변경 감시
+  new MutationObserver(muts => {
+    muts.forEach(m => {
+      m.addedNodes.forEach(n => {
+        if(!(n instanceof HTMLElement)) return;
+        if(['IFRAME','FRAME','EMBED','OBJECT'].includes(n.tagName)){
+          handle(n, 'added');
         }
-      }
+        if(n.shadowRoot) n.shadowRoot.querySelectorAll('iframe,frame,embed,object').forEach(f => handle(f, 'shadow'));
+      });
+    });
+  }).observe(document, {childList:true, subtree:true});
 
-      showLogUI();
-    }
-  }
+  
+  new MutationObserver(muts => {
+    muts.forEach(m => {
+      m.addedNodes.forEach(n => {
+        if(n.nodeType === 1 && n.innerText && .test(n.innerText)){
+          n.remove();
+        }
+      });
+    });
+  }).observe(document.body, {childList:true, subtree:true});
 
-  function scanIframes() {
-    const iframes = document.getElementsByTagName('iframe');
-    for (const iframe of iframes) {
-      addLogEntry(iframe);
-    }
-  }
-
-  function init() {
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', () => {
+      createLogUI();
+      monitor();
+    });
+  } else {
     createLogUI();
-    scanIframes();
-    const observer = new MutationObserver(scanIframes);
-    observer.observe(document.body, { childList: true, subtree: true });
-    window.addEventListener('unload', () => observer.disconnect());
+    monitor();
   }
 
-  if (document.body) init();
-  else window.addEventListener('DOMContentLoaded', init);
 })();
