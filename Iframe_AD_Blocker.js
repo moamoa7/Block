@@ -3,8 +3,8 @@
 // @namespace    none
 // @version      7.0
 // @description  iframe 실시간 탐지+차단, srcdoc+data-* 분석, 화이트리스트, 자식 로그 부모 전달, Shadow DOM 탐색, 로그 UI, 드래그, 자동 숨김
-// @updateURL    https://github.com/moamoa7/Block/blob/main/Iframe_AD_Blocker.js
-// @downloadURL  https://github.com/moamoa7/Block/blob/main/Iframe_AD_Blocker.js
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
