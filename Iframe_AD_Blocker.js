@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Iframe Logger & Blocker (최신 통합판 for Violentmonkey)
+// @name         Iframe Logger & Blocker (Violentmonkey용, 개선된 버전)
 // @namespace    none
 // @version      7.0
 // @description  iframe 실시간 탐지+차단, srcdoc+data-* 분석, 화이트리스트, 자식 로그 부모 전달, Shadow DOM 탐색, 로그 UI, 드래그, 자동 숨김
@@ -12,52 +12,28 @@
 
   const ENABLE_LOG_UI = true;
   const REMOVE_IFRAME = true;
-  const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-
   const seen = new WeakSet();
   const pendingSrcMap = new WeakMap();
   let count = 0;
   let logList = [];
-  let logContainer, logContent, countDisplay, hideTimeout;
+  let logContainer, logContent, countDisplay;
 
   // 글로벌 키워드 화이트리스트
   const globalWhitelistKeywords = [
-    'recaptcha', 'cloudflare.com', 'player.bunny-frame.online', 'naver.com',
-    '/embed/', '/e/', '/t/', 'dlrstream.com', '123123play.com', 'supremejav.com',
-    'goodTubeProxy',
+    'captcha', 'challenges',
+    'extension:', 'goodTube',
+    'player.bunny-frame.online', '/embed/',
+    '/e/', '/t/', '/v/', 'supremejav.com', '7tv000.com', '7mmtv', 'dlrstream.com', '123123play.com',
   ];
 
   // 도메인별 키워드 화이트리스트
   const whitelistMap = {
-    'supjav.com': ['supremejav.com'],
-    'avsee.ru': ['player/'],
-    '7tv000.com': [''],
+    'avsee.ru': ['/player/'],
     'cdnbuzz.buzz': [''],
     'blog.naver.com': [''],
     'cafe.naver.com': [''],
     'naver.com': ['my.html'],
   };
-
-  function isWhitelisted(url = '') {
-    try {
-      // 글로벌 키워드 체크
-      for (const keyword of globalWhitelistKeywords) {
-        if (url.includes(keyword)) return true;
-      }
-      // 도메인별 키워드 체크
-      const u = new URL(url, location.href);
-      const domain = u.hostname;
-      const path = u.pathname + u.search;
-      for (const [host, keywords] of Object.entries(whitelistMap)) {
-        if (domain.includes(host)) {
-          if (keywords.length === 0 || keywords.some(k => path.includes(k))) {
-            return true;
-          }
-        }
-      }
-    } catch {}
-    return false;
-  }
 
   // srcdoc에서 src/href URL 추출
   function extractUrlsFromSrcdoc(srcdoc = '') {
@@ -104,19 +80,64 @@
     return found;
   }
 
+  // 아이콘 드래그 가능하게 만드는 함수
+  function makeDraggable(element) {
+    let offsetX, offsetY;
+    let isDragging = false;
+
+    element.onmousedown = (event) => {
+      isDragging = true;
+      offsetX = event.clientX - element.getBoundingClientRect().left;
+      offsetY = event.clientY - element.getBoundingClientRect().top;
+
+      document.onmousemove = (moveEvent) => {
+        if (isDragging) {
+          const x = moveEvent.clientX - offsetX;
+          const y = moveEvent.clientY - offsetY;
+          element.style.left = `${x}px`;
+          element.style.top = `${y}px`;
+        }
+      };
+
+      document.onmouseup = () => {
+        isDragging = false;
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+    };
+  }
+
   // 로그 UI 생성 및 드래그 기능
   function createLogUI() {
-    if (!ENABLE_LOG_UI || isMobile) return;
+    if (!ENABLE_LOG_UI) return;
 
     // 버튼을 추가하여 로그 패널을 토글
     const btn = document.createElement('button');
     btn.textContent = '🛡️'; btn.title = 'Iframe 로그 토글';
-    btn.style.cssText = 'position:fixed;bottom:10px;right:10px;z-index:99999;width:40px;height:40px;border-radius:50%;border:none;background:#222;color:#fff;font-size:20px;cursor:pointer;';
+    btn.style.cssText = `
+      position:fixed;
+      bottom:10px;
+      right:10px;
+      z-index:99999;
+      width:40px;
+      height:40px;
+      border-radius:50%;
+      border:none;
+      background:#222;
+      color:#fff;
+      font-size:20px;
+      cursor:pointer;
+      display:block;
+    `;
     document.body.appendChild(btn);
+
+    // 버튼을 자유롭게 이동할 수 있게 드래그 기능 추가
+    makeDraggable(btn);
 
     // 패널 스타일 설정
     const panel = document.createElement('div');
     panel.style.cssText = 'position:fixed;bottom:60px;right:10px;width:500px;max-height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:13px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;overflow:hidden;z-index:99999;';
+    logContainer = panel;
 
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#000;font-weight:bold;font-size:14px;';
@@ -142,7 +163,6 @@
     header.appendChild(left);
     header.appendChild(copyBtn);
 
-    // 로그 콘텐츠 영역 설정
     logContent = document.createElement('div');
     logContent.style.cssText = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;';
     panel.appendChild(header);
@@ -150,20 +170,34 @@
     document.body.appendChild(panel);
 
     // 버튼 클릭 시 패널을 토글
-    btn.onclick = () => panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+    btn.onclick = () => {
+      if (logContainer.style.display === 'none') {
+        logContainer.style.display = 'flex';  // 패널 열기
+      } else {
+        logContainer.style.display = 'none';  // 패널 닫기
+      }
+    };
   }
 
-  function showLogUI() {
-    if (!logContainer) return;
-    logContainer.style.display = 'flex';
-    clearTimeout(hideTimeout);
-    hideTimeout = setTimeout(() => {
-      logContainer.style.display = 'none';
-    }, 10000);
-  }
-
+  // 로그 출력
   function updateCountDisplay() {
     if (countDisplay) countDisplay.textContent = `(${count})`;
+  }
+
+  // 부모에서 자식 로그 수신
+  window.addEventListener('message', (e) => {
+    if (typeof e.data === 'string' && e.data.startsWith('[CHILD_IFRAME_LOG]')) {
+      const url = e.data.slice(18);
+      logIframe(null, 'from child', url);
+    }
+  });
+
+  // 자식에서 부모로 메시지 보내기
+  if (window.top !== window) {
+    setTimeout(() => {
+      window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, '*');
+    }, 100);
+    return;
   }
 
   // iframe 로그 및 차단 처리
@@ -176,15 +210,31 @@
     if (!src && dataUrls.length > 0) src = dataUrls[0];
 
     const outer = iframe?.outerHTML?.slice(0, 200).replace(/\s+/g, ' ') || '';
-    const info = `[#${++count}] ${reason} ${src || '[No src]'}\n └▶ HTML → ${outer}`;
-    console.warn('%c[Iframe Detected]', 'color: red; font-weight: bold;', info);
-
-    // 합친 문자열로 화이트리스트 체크
     const combined = [src, ...dataUrls, ...extracted].join(' ');
-    const isWhitelistedIframe = isWhitelisted(combined);
 
-    // 로그 색상 설정 (녹색: 화이트리스트, 빨간색: 차단됨)
+    // 체크된 화이트리스트 키워드 추적
+    const matchedKeywords = [];
+    for (const keyword of globalWhitelistKeywords) {
+      if (combined.includes(keyword)) matchedKeywords.push(`Global: ${keyword}`);
+    }
+
+    const u = new URL(src, location.href);
+    const domain = u.hostname;
+    const path = u.pathname + u.search;
+    for (const [host, keywords] of Object.entries(whitelistMap)) {
+      if (domain.includes(host)) {
+        keywords.forEach(keyword => {
+          if (path.includes(keyword)) matchedKeywords.push(`Domain: ${keyword} (host: ${host})`);
+        });
+      }
+    }
+
+    const isWhitelistedIframe = matchedKeywords.length > 0;
     const logColor = isWhitelistedIframe ? 'green' : 'red';
+    const keywordText = isWhitelistedIframe ? `Matched Keywords: ${matchedKeywords.join(', ')}` : '';
+
+    const info = `[#${++count}] ${reason} ${src || '[No src]'}\n └▶ HTML → ${outer}\n ${keywordText}`;
+    console.warn('%c[Iframe Detected]', 'color: red; font-weight: bold;', info);
 
     if (!isWhitelistedIframe && iframe && REMOVE_IFRAME) {
       iframe.style.display = 'none';
@@ -192,7 +242,8 @@
       setTimeout(() => iframe.remove(), 500);
     }
 
-    if (ENABLE_LOG_UI && !isMobile && logContent) {
+    // 로그 UI 업데이트
+    if (ENABLE_LOG_UI && logContent) {
       logList.push(info);
       const div = document.createElement('div');
       div.style.cssText = `color: ${logColor}; padding: 2px 0; white-space: pre-wrap;`;
@@ -200,96 +251,13 @@
       logContent.appendChild(div);
       if (logContent.children.length > 100) logContent.removeChild(logContent.children[0]);
       updateCountDisplay();
-      showLogUI();
     }
   }
 
-  // iframe 중복 방지 및 지연 src 처리
-  function handleIframe(el, reason) {
-    if (seen.has(el)) return;
-    seen.add(el);
-    if (!el.src && !el.getAttribute('src')) {
-      pendingSrcMap.set(el, reason);
-    } else {
-      logIframe(el, reason);
-    }
-  }
-
-  // 지연 src가 생기는 iframe 감시 반복
-  function monitorDeferredIframes() {
-    pendingSrcMap.forEach((reason, el) => {
-      if (el.src || el.getAttribute('src')) {
-        logIframe(el, reason + ' (late src)');
-        pendingSrcMap.delete(el);
-      }
-    });
-    requestAnimationFrame(monitorDeferredIframes);
-  }
-
-  // Shadow DOM 포함 모든 iframe 스캔
+  // 전체 스캔
   function scanAll(reason = 'initialScan') {
     const iframes = getAllIframes();
-    iframes.forEach(el => handleIframe(el, reason));
-  }
-
-  // 자식 프레임이면 부모에 로그 메시지 전달
-  if (window.top !== window) {
-    setTimeout(() => {
-      window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, '*');
-    }, 100);
-    return;
-  }
-
-  // 부모 프레임에서 자식 프레임 로그 수신
-  window.addEventListener('message', (e) => {
-    if (typeof e.data === 'string' && e.data.startsWith('[CHILD_IFRAME_LOG]')) {
-      const url = e.data.slice(18);
-      logIframe(null, 'from child', url);
-    }
-  });
-
-  // createElement 후 iframe 추적
-  const originalCreate = Document.prototype.createElement;
-  Document.prototype.createElement = function (...args) {
-    const el = originalCreate.apply(this, args);
-    if (["iframe", "frame", "embed", "object"].includes(String(args[0]).toLowerCase())) {
-      setTimeout(() => handleIframe(el, 'createElement'), 10);
-    }
-    return el;
-  };
-
-  // appendChild 후 iframe 추적
-  const originalAppend = Node.prototype.appendChild;
-  Node.prototype.appendChild = function (child) {
-    const result = originalAppend.call(this, child);
-    if (child instanceof HTMLElement && ['IFRAME', 'FRAME', 'OBJECT', 'EMBED'].includes(child.tagName)) {
-      setTimeout(() => handleIframe(child, 'appendChild'), 10);
-    }
-    return result;
-  };
-
-  // setAttribute로 src 변경시 추적
-  const originalSetAttr = Element.prototype.setAttribute;
-  Element.prototype.setAttribute = function (name, value) {
-    if (["src", "srcdoc", "data-src", "data-lazy-src", "data-href", "data-real-src"].includes(name.toLowerCase()) &&
-        this.tagName && ['IFRAME', 'FRAME', 'EMBED', 'OBJECT'].includes(this.tagName)) {
-      setTimeout(() => handleIframe(this, `setAttribute:${name}`), 10);
-    }
-    return originalSetAttr.apply(this, arguments);
-  };
-
-  // iframe.src 직접 할당 감지
-  const originalSrc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src');
-  if (originalSrc?.set) {
-    Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
-      set(value) {
-        setTimeout(() => handleIframe(this, 'src= (direct assign)'), 10);
-        return originalSrc.set.call(this, value);
-      },
-      get: originalSrc.get,
-      configurable: true,
-      enumerable: true
-    });
+    iframes.forEach(el => logIframe(el, reason));
   }
 
   // MutationObserver로 새 iframe 실시간 감지
@@ -298,28 +266,19 @@
       for (const node of m.addedNodes) {
         if (!(node instanceof HTMLElement)) continue;
         if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT'].includes(node.tagName)) {
-          handleIframe(node, 'MutationObserver add');
-        }
-        // ShadowRoot 안의 iframe도 탐색
-        if (node.shadowRoot) {
-          const nestedIframes = getAllIframes(node.shadowRoot);
-          nestedIframes.forEach(f => handleIframe(f, 'MutationObserver shadowRoot'));
+          logIframe(node, 'MutationObserver add');
         }
       }
     }
   });
   observer.observe(document, { childList: true, subtree: true });
 
-  // 페이지 로드 후 전체 스캔 및 지연 src 모니터링 시작
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      if (ENABLE_LOG_UI) createLogUI();
-      scanAll('initialScan');
-      monitorDeferredIframes();
+      createLogUI();
     });
   } else {
-    if (ENABLE_LOG_UI) createLogUI();
-    scanAll('initialScan');
-    monitorDeferredIframes();
+    createLogUI();
   }
+
 })();
