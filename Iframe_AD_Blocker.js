@@ -3,6 +3,8 @@
 // @namespace    none
 // @version      7.0
 // @description  iframe 실시간 탐지+차단, srcdoc+data-* 분석, 화이트리스트, 자식 로그 부모 전달, Shadow DOM 탐색, 로그 UI, 드래그, 자동 숨김
+// @updateURL    https://github.com/moamoa7/Block/blob/main/Iframe_AD_Blocker.js
+// @downloadURL  https://github.com/moamoa7/Block/blob/main/Iframe_AD_Blocker.js
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -80,31 +82,43 @@
     return found;
   }
 
-  // 아이콘 드래그 가능하게 만드는 함수
+  // 아이콘 드래그 가능하게 만드는 함수 (모바일 지원)
   function makeDraggable(element) {
     let offsetX, offsetY;
     let isDragging = false;
 
-    element.onmousedown = (event) => {
+    const startDrag = (event) => {
       isDragging = true;
-      offsetX = event.clientX - element.getBoundingClientRect().left;
-      offsetY = event.clientY - element.getBoundingClientRect().top;
+      const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+      const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+      offsetX = clientX - element.getBoundingClientRect().left;
+      offsetY = clientY - element.getBoundingClientRect().top;
 
-      document.onmousemove = (moveEvent) => {
+      const moveDrag = (moveEvent) => {
         if (isDragging) {
-          const x = moveEvent.clientX - offsetX;
-          const y = moveEvent.clientY - offsetY;
+          const x = (moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX) - offsetX;
+          const y = (moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY) - offsetY;
           element.style.left = `${x}px`;
           element.style.top = `${y}px`;
         }
       };
 
-      document.onmouseup = () => {
+      const stopDrag = () => {
         isDragging = false;
-        document.onmousemove = null;
-        document.onmouseup = null;
+        document.removeEventListener('mousemove', moveDrag);
+        document.removeEventListener('mouseup', stopDrag);
+        document.removeEventListener('touchmove', moveDrag);
+        document.removeEventListener('touchend', stopDrag);
       };
+
+      document.addEventListener('mousemove', moveDrag);
+      document.addEventListener('mouseup', stopDrag);
+      document.addEventListener('touchmove', moveDrag);
+      document.addEventListener('touchend', stopDrag);
     };
+
+    element.addEventListener('mousedown', startDrag);
+    element.addEventListener('touchstart', startDrag);
   }
 
   // 로그 UI 생성 및 드래그 기능
@@ -276,9 +290,11 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       createLogUI();
+      scanAll('initialScan');
     });
   } else {
     createLogUI();
+    scanAll('initialScan');
   }
 
 })();
