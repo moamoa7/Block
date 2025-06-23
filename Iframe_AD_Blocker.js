@@ -24,18 +24,28 @@
     'extension:',  // 확장프로그램
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
     'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
-    '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)
+    '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
     '/videoembed/', 'player.kick.com', // https://poooo.ml/
-    '/e/', '/t/', '/v/', 'supremejav.com', '7tv000.com', '7mmtv', 'dlrstream.com', '123123play.com',
+    '/messitv/',  // https://messitv8.com/ (메시티비)
+    '/goattv/',  // https://goat-v.com/ (고트티비)
+    'dlrstream.com',  // https://blacktv88.com/ (블랙티비)
+    '/tV',  // https://kktv12.com/ (킹콩티비)  https://bmtv24.com/ (배트맨티비)  https://nolgoga365.com/ (놀고가닷컴)
+    'tv/',  // https://www.cool111.com/ (쿨티비)  https://royaltv01.com/ (로얄티비)  https://conan-tv.com/ (코난티비)
+    'stream/',  // https://gltv88.com/ (굿라이브티비)  https://missvod4.com/
+    'supremejav.com',  // https://supjav.com/
+    '/e/', '/t/', '/v/',  // 각종 성인 영상
+    '/player',  // https://05.avsee.ru/  https://sextb.date/ US영상
+    '7tv000.com', '7mmtv',  // https://7tv000.com/
+    'njav',  // https://www.njav.com/
   ];
 
   // 도메인별 키워드 화이트리스트
   const whitelistMap = {
-    'avsee.ru': ['/player/'],
-    'cdnbuzz.buzz': [''],
+    'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
     'blog.naver.com': [''],
     'cafe.naver.com': [''],
-    'naver.com': ['my.html'],
+    'www.naver.com': ['my.html'],  // 메인에서 로그인 후 메일 클릭시 메일 안보이는거 해결
+    'tiktok.com': [''],
   };
 
   // srcdoc에서 src/href URL 추출
@@ -180,9 +190,21 @@
 
     logContent = document.createElement('div');
     logContent.style.cssText = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;';
+
+    // 로그 내용 드래그 활성화
+    logContent.style.userSelect = 'text';
+
+    // 드래그 이벤트 방지
+    logContent.addEventListener('mousedown', (e) => {
+      e.stopPropagation(); // 부모 패널로 드래그 이벤트가 전파되지 않도록 막기
+    });
+
     panel.appendChild(header);
     panel.appendChild(logContent);
     document.body.appendChild(panel);
+
+    // 패널을 드래그 가능하게 만듦
+    makeDraggable(panel);
 
     // 버튼 클릭 시 패널을 토글
     btn.onclick = () => {
@@ -229,9 +251,9 @@
 
     // 체크된 화이트리스트 키워드 추적
     const matchedKeywords = [];
-    for (const keyword of globalWhitelistKeywords) {
+    globalWhitelistKeywords.forEach(keyword => {
       if (combined.includes(keyword)) matchedKeywords.push(`Global: ${keyword}`);
-    }
+    });
 
     const u = new URL(src, location.href);
     const domain = u.hostname;
