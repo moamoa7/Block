@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250620
+! Version: 20250623
 !
 !
 !
@@ -662,7 +662,8 @@ inven.co.kr##[class="modal-fixed"]
 pornhub.com#@#[class*="modal"]
 ! - - - https://trand.co.kr/ - 위젯 잠금 풀림
 trand.co.kr#@#[class*="modal"]
-
+! - ##.ad 예외
+inven.co.kr#@#.ad
 ! - 게시물 전체 배너
 ##[src*=".ads/"]
 ! -오른쪽 배너
@@ -1304,6 +1305,8 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ##a[href]:has([alt*="보증업체"])
 ! - 왼쪽 맨 아래 하단 배너
 !$domain=/^messitv\d+.com/]##.bigwin-bn
+! - 플레이어내 배너
+||bigwin.livenst.com/static/upload/*
 ! - 채팅박스
 ! - - - VIP TV (https://viptv24.com/)
 ! - - - 쿨티비 (https://www.cool111.com)
@@ -1969,6 +1972,8 @@ sports.donga.com##.view_center
 !coupang.com##li.search-product__ad-badge:remove()
 !coupang.com##.search-product__ad-badge
 ! - 하단 안내 문구 (앱으로 보기)
+! - 검색시 나오는 광고 배너
+coupang.com###srpKeywordProductTopBanner
 ###BottomAppBanner
 !
 !
@@ -5897,3 +5902,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
