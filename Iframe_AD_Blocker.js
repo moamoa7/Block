@@ -1,10 +1,8 @@
 // ==UserScript==
 // @name         Iframe Logger & Blocker (Violentmonkey용, 개선된 버전)
 // @namespace    none
-// @version      7.0
+// @version      8.0
 // @description  iframe 실시간 탐지+차단, srcdoc+data-* 분석, 화이트리스트, 자식 로그 부모 전달, Shadow DOM 탐색, 로그 UI, 드래그, 자동 숨김
-// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
-// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -22,9 +20,12 @@
 
   // 글로벌 키워드 화이트리스트
   const globalWhitelistKeywords = [
-    'captcha', 'challenges',
-    'extension:', 'goodTube',
-    'player.bunny-frame.online', '/embed/',
+    'captcha', 'challenges',  // 캡챠
+    'extension:',  // 확장프로그램
+    'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
+    'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
+    '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)
+    '/videoembed/', 'player.kick.com', // https://poooo.ml/
     '/e/', '/t/', '/v/', 'supremejav.com', '7tv000.com', '7mmtv', 'dlrstream.com', '123123play.com',
   ];
 
@@ -286,6 +287,11 @@
     }
   });
   observer.observe(document, { childList: true, subtree: true });
+
+  // 주기적으로 iframe을 검사하여 동적 요소 감지 강화
+  setInterval(() => {
+    scanAll('periodicScan');
+  }, 2000);  // 2초마다 iframe 감지
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
