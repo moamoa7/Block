@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Iframe Logger & Blocker (Violentmonkey용, 개선된 버전)
 // @namespace    none
-// @version      8.1
-// @description  iframe 실시간 탐지+차단, srcdoc+data-* 분석, 화이트리스트, 자식 로그 부모 전달, Shadow DOM 탐색, 로그 UI, 드래그, 자동 숨김
+// @version      8.2
+// @description  iframe 실시간 탐지+차단, srcdoc+data-* 분석, 화이트리스트, 자식 로그 부모 전달, Shadow DOM 탐색, 로그 UI, 드래그, 자동 숨김, 더블클릭으로 상태 변경
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -17,6 +17,7 @@
   let count = 0;
   let logList = [];
   let logContainer, logContent, countDisplay;
+  let isEnabled = true; // 활성화 상태
 
   // 글로벌 키워드 화이트리스트 (녹색으로 처리)
   const globalWhitelistKeywords = [
@@ -146,11 +147,12 @@
     if (!ENABLE_LOG_UI) return;
 
     const btn = document.createElement('button');
-    btn.textContent = '🛡️'; btn.title = 'Iframe 로그 토글';
+    btn.textContent = '🛡️';
+    btn.title = 'Iframe 로그 토글';
     btn.style.cssText = `
       position:fixed;
       bottom:150px;
-      right:10px;
+      right:-10px;
       z-index:99999;
       width:40px;
       height:40px;
@@ -214,6 +216,13 @@
         logContainer.style.display = 'none';
       }
     };
+
+    // 더블클릭으로 활성화/비활성화 상태 토글
+    btn.addEventListener('dblclick', () => {
+      isEnabled = !isEnabled;
+      btn.style.background = isEnabled ? '#222' : '#f00'; // 색상 변경
+      console.log(isEnabled ? 'Iframe Logger 활성화됨' : 'Iframe Logger 비활성화됨');
+    });
   }
 
   function updateCountDisplay() {
@@ -235,6 +244,8 @@
   }
 
   function logIframe(iframe, reason = '', srcHint = '') {
+    if (!isEnabled) return; // 비활성화 상태에서 iframe 로그 찍지 않음
+
     let src = srcHint || iframe?.src || iframe?.getAttribute('src') || '';
     const srcdoc = iframe?.srcdoc || iframe?.getAttribute('srcdoc') || '';
     const dataUrls = extractUrlsFromDataset(iframe);
@@ -327,7 +338,7 @@
 
   setInterval(() => {
     scanAll('periodicScan');
-  }, 2000);
+  }, 500);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
