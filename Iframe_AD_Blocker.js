@@ -9,17 +9,17 @@
 
 (function () {
   'use strict';
-
-  const ENABLE_LOG_UI = true;
-  const REMOVE_IFRAME = true;
+  // 설정 값 (로그 UI, iframe 제거 여부)
+  const ENABLE_LOG_UI = true;  // 로그 UI 활성화 여부
+  const REMOVE_IFRAME = true;  // iframe 제거 여부
   const seen = new WeakSet(); // 이미 처리한 iframe을 추적하는 WeakSet
-  const seenSrc = new Set(); // src를 추적하여 중복 체크
-  let count = 0;
-  let logList = [];
-  let logContainer, logContent, countDisplay;
+  const seenSrc = new Set();  // 이미 처리한 src를 추적하는 Set
+  let count = 0;  // iframe 탐지 카운트
+  let logList = [];  // 로그 항목 저장 배열
+  let logContainer, logContent, countDisplay; // 로그 UI 관련 DOM 요소
   let isEnabled = true; // 활성화 상태
 
-  // 글로벌 키워드 화이트리스트 (녹색으로 처리)
+  // 글로벌 키워드 화이트리스트 (특정 키워드를 포함하는 iframe은 녹색으로 표시)
   const globalWhitelistKeywords = [
     'captcha', 'challenges',  // 캡챠
     'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
@@ -38,7 +38,7 @@
     'njav',  // https://www.njav.com/
   ];
 
-  // 도메인별 키워드 화이트리스트 (녹색으로 처리)
+  // 도메인별 키워드 화이트리스트 (특정 도메인에서 특정 키워드를 포함하는 경우 녹색 처리)
   const whitelistMap = {
     'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
     'blog.naver.com': [''],
@@ -144,15 +144,15 @@
 
   // 로그 UI 생성 및 드래그 기능
   function createLogUI() {
-    if (!ENABLE_LOG_UI) return;
-
+    if (!ENABLE_LOG_UI) return;  // 로그 UI가 비활성화되었으면 함수 종료
+    // 로그 UI 버튼 생성
     const btn = document.createElement('button');
     btn.textContent = '🛡️';
     btn.title = 'Iframe 로그 토글';
     btn.style.cssText = `
       position:fixed;
-      bottom:200px;
-      right:-10px;
+      bottom:150px;
+      right:10px;
       z-index:99999;
       width:40px;
       height:40px;
@@ -165,8 +165,8 @@
       display:block;
     `;
     document.body.appendChild(btn);
-    makeDraggable(btn);
-
+    makeDraggable(btn);  // 드래그 가능하게 설정
+    // 로그 패널 생성
     const panel = document.createElement('div');
     panel.style.cssText = 'position:fixed;bottom:150px;right:50px;width:500px;max-height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:13px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;overflow:hidden;z-index:99999;';
     logContainer = panel;
@@ -225,10 +225,12 @@
     });
   }
 
+  // iframe 로그 업데이트 카운트
   function updateCountDisplay() {
-    if (countDisplay) countDisplay.textContent = `${count}`;
+    if (countDisplay) countDisplay.textContent = `(${count})`;
   }
 
+  // 부모에서 자식 iframe 로그 받아 처리
   window.addEventListener('message', (e) => {
     if (typeof e.data === 'string' && e.data.startsWith('[CHILD_IFRAME_LOG]')) {
       const url = e.data.slice(18);
@@ -243,6 +245,7 @@
     return;
   }
 
+  // iframe 로그 생성 및 색상 처리
   function logIframe(iframe, reason = '', srcHint = '') {
     if (!isEnabled) return; // 비활성화 상태에서 iframe 로그 찍지 않음
 
@@ -307,15 +310,23 @@
       keywordText = `Matched Gray Keywords: ${matchedGrayKeywords.join(', ')}`;
     }
 
-    const info = `#${++count} ${reason} ${src || '[No src]'}\n └▶ HTML → ${outer}\n ${keywordText}`;
+    const info = `[#${++count}] ${reason} ${src || '[No src]'}\n └▶ HTML → ${outer}\n ${keywordText}`;
     console.warn('%c[Iframe Detected]', 'color: red; font-weight: bold;', info);
 
+    // 로그 크기가 100을 초과하면 가장 오래된 로그를 제거
+    if (logList.length > 100) {
+      logList.shift();  // 가장 오래된 로그를 제거
+    }
+
     if (!isWhitelistedIframe && !isGrayListedIframe && iframe && REMOVE_IFRAME) {
+      //iframe.style.display = 'none';
+      //iframe.setAttribute('sandbox', '');
+      //setTimeout(() => iframe.remove(), 500);
       iframe.remove(); // iframe을 바로 제거
     }
 
     if (ENABLE_LOG_UI && logContent) {
-      logList.push(info);
+      logList.push(info);  // 새 로그를 logList에 추가
       const div = document.createElement('div');
       div.style.cssText = `color: ${logColor}; padding: 2px 0; white-space: pre-wrap;`;
       div.textContent = info;
@@ -325,6 +336,13 @@
     }
   }
 
+  // 초기 스캔 수행
+  function scanAll(reason = 'initialScan') {
+    const iframes = getAllIframes();
+    iframes.forEach(el => logIframe(el, reason));
+  }
+
+  // DOM 변화 감지 (새로 추가된 iframe 감지)
   const observer = new MutationObserver(mutations => {
     for (const m of mutations) {
       for (const node of m.addedNodes) {
@@ -332,16 +350,17 @@
         if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT'].includes(node.tagName)) {
           logIframe(node, 'MutationObserver add');
         }
-
-        // 동적 script 태그 추가 감지
-        if (node.tagName === 'SCRIPT') {
-          logIframe(node, 'Dynamic script tag added');
-        }
       }
     }
   });
-  observer.observe(document, { childList: true, subtree: true, attributes: false });
+  observer.observe(document, { childList: true, subtree: true, attributeFilter: ['src', 'srcdoc'] });
 
+  // 주기적으로 iframe 스캔
+  setInterval(() => {
+    scanAll('periodicScan');
+  }, 500);
+
+  // 문서가 로딩되었을 때 UI 생성 및 초기 스캔
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       createLogUI();
