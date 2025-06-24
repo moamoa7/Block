@@ -286,14 +286,14 @@ sooplive.co.kr##.extensions_item
 !sooplive.co.kr##.adballoon_icon
 ##.adballoon_icon
 ! - 개인채널 (https://ch.sooplive.co.kr/) 팝업
-!sooplive.co.kr##.bs-notice_layer
+sooplive.co.kr##.bs-notice_layer
 ! - 개인채널 (https://ch.sooplive.co.kr/) 오른쪽 배너
-!sooplive.co.kr###side-layer
+sooplive.co.kr###side-layer
 !###side-layer
 ! - 개인채널 (https://ch.sooplive.co.kr/) 하단 배너
 sooplive.co.kr##.sct-bnr
 ! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
-!sooplive.co.kr###FeedLayerToolTip
+sooplive.co.kr###FeedLayerToolTip
 ! - 프로모션 배너 (적용이 안되고 있는지 딱히 나오는건 없음)
 !##[class="promotion_banner"]
 ##.promotion_banner
@@ -1863,8 +1863,7 @@ joongang.co.kr##.contents_issue_sticky.contents > .row > .col_lg3
 !
 !
 ! 뉴데일리 (https://www.newdaily.co.kr/) 삭제
-newdaily.co.kr##html
-##img[src*="newdaily"]
+!newdaily.co.kr##html
 ##iframe[src*="newdaily"]
 !
 !
