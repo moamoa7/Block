@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250623
+! Version: 20250624
 !
 !
 !
