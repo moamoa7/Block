@@ -332,19 +332,24 @@
         if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT'].includes(node.tagName)) {
           logIframe(node, 'MutationObserver add');
         }
+
+        // 동적 script 태그 추가 감지
+        if (node.tagName === 'SCRIPT') {
+          logIframe(node, 'Dynamic script tag added');
+        }
       }
     }
   });
   observer.observe(document, { childList: true, subtree: true, attributes: false });
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      createLogUI();
+      scanAll('initialScan');
+    });
+  } else {
     createLogUI();
     scanAll('initialScan');
-  });
-} else {
-  createLogUI();
-  scanAll('initialScan');
-}
+  }
 
 })();
