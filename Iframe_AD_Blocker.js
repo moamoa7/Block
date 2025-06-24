@@ -311,9 +311,6 @@
     console.warn('%c[Iframe Detected]', 'color: red; font-weight: bold;', info);
 
     if (!isWhitelistedIframe && !isGrayListedIframe && iframe && REMOVE_IFRAME) {
-      //iframe.style.display = 'none';
-      //iframe.setAttribute('sandbox', '');
-      //setTimeout(() => iframe.remove(), 500);
       iframe.remove(); // iframe을 바로 제거
     }
 
@@ -328,11 +325,6 @@
     }
   }
 
-  function scanAll(reason = 'initialScan') {
-    const iframes = getAllIframes();
-    iframes.forEach(el => logIframe(el, reason));
-  }
-
   const observer = new MutationObserver(mutations => {
     for (const m of mutations) {
       for (const node of m.addedNodes) {
@@ -343,20 +335,16 @@
       }
     }
   });
-  observer.observe(document, { childList: true, subtree: true });
+  observer.observe(document, { childList: true, subtree: true, attributes: false });
 
-  setInterval(() => {
-    scanAll('periodicScan');
-  }, 500);
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      createLogUI();
-      scanAll('initialScan');
-    });
-  } else {
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
     createLogUI();
     scanAll('initialScan');
-  }
+  });
+} else {
+  createLogUI();
+  scanAll('initialScan');
+}
 
 })();
