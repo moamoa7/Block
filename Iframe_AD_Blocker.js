@@ -149,8 +149,8 @@
     btn.textContent = '🛡️'; btn.title = 'Iframe 로그 토글';
     btn.style.cssText = `
       position:fixed;
-      bottom:200px;
-      right:5px;
+      bottom:150px;
+      right:10px;
       z-index:99999;
       width:40px;
       height:40px;
