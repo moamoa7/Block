@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Iframe Logger & Blocker (Violentmonkey용, 개선된 버전)
 // @namespace    none
-// @version      8.2
+// @version      8.4
 // @description  iframe 실시간 탐지+차단, srcdoc+data-* 분석, 화이트리스트, 자식 로그 부모 전달, Shadow DOM 탐색, 로그 UI, 드래그, 자동 숨김, 더블클릭으로 상태 변경
 // @match        *://*/*
 // @grant        none
@@ -12,8 +12,8 @@
 
   const ENABLE_LOG_UI = true;
   const REMOVE_IFRAME = true;
-  const seen = new WeakSet();
-  const pendingSrcMap = new WeakMap();
+  const seen = new WeakSet(); // 이미 처리한 iframe을 추적하는 WeakSet
+  const seenSrc = new Set(); // src를 추적하여 중복 체크
   let count = 0;
   let logList = [];
   let logContainer, logContent, countDisplay;
@@ -151,7 +151,7 @@
     btn.title = 'Iframe 로그 토글';
     btn.style.cssText = `
       position:fixed;
-      bottom:150px;
+      bottom:200px;
       right:-10px;
       z-index:99999;
       width:40px;
@@ -226,7 +226,7 @@
   }
 
   function updateCountDisplay() {
-    if (countDisplay) countDisplay.textContent = `(${count})`;
+    if (countDisplay) countDisplay.textContent = `${count}`;
   }
 
   window.addEventListener('message', (e) => {
@@ -246,12 +246,20 @@
   function logIframe(iframe, reason = '', srcHint = '') {
     if (!isEnabled) return; // 비활성화 상태에서 iframe 로그 찍지 않음
 
+    // 이미 처리한 iframe은 건너뛰기
+    if (seen.has(iframe)) return;
+    seen.add(iframe);  // 처리된 iframe을 seen에 추가
+
     let src = srcHint || iframe?.src || iframe?.getAttribute('src') || '';
     const srcdoc = iframe?.srcdoc || iframe?.getAttribute('srcdoc') || '';
     const dataUrls = extractUrlsFromDataset(iframe);
     const extracted = extractUrlsFromSrcdoc(srcdoc);
     if (!src && extracted.length > 0) src = extracted[0];
     if (!src && dataUrls.length > 0) src = dataUrls[0];
+
+    // src가 이미 처리된 src라면 중복 방지
+    if (seenSrc.has(src)) return;
+    seenSrc.add(src); // src를 추가하여 중복 방지
 
     const outer = iframe?.outerHTML?.slice(0, 200).replace(/\s+/g, ' ') || '';
     const combined = [src, ...dataUrls, ...extracted].join(' ');
@@ -299,13 +307,14 @@
       keywordText = `Matched Gray Keywords: ${matchedGrayKeywords.join(', ')}`;
     }
 
-    const info = `[#${++count}] ${reason} ${src || '[No src]'}\n └▶ HTML → ${outer}\n ${keywordText}`;
+    const info = `#${++count} ${reason} ${src || '[No src]'}\n └▶ HTML → ${outer}\n ${keywordText}`;
     console.warn('%c[Iframe Detected]', 'color: red; font-weight: bold;', info);
 
     if (!isWhitelistedIframe && !isGrayListedIframe && iframe && REMOVE_IFRAME) {
-      iframe.style.display = 'none';
-      iframe.setAttribute('sandbox', '');
-      setTimeout(() => iframe.remove(), 500);
+      //iframe.style.display = 'none';
+      //iframe.setAttribute('sandbox', '');
+      //setTimeout(() => iframe.remove(), 500);
+      iframe.remove(); // iframe을 바로 제거
     }
 
     if (ENABLE_LOG_UI && logContent) {
