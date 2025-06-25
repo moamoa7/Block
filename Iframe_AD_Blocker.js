@@ -18,9 +18,21 @@
   let count = 0;  // iframe 탐지 카운트
   let logList = [];  // 로그 항목 저장 배열
   let logContainer, logContent, countDisplay; // 로그 UI 관련 DOM 요소
-  let isEnabled = localStorage.getItem('iframeLoggerEnabled') === 'true'; // 저장된 상태 로드 (기본값은 true)
+
   let currentlyScanning = false;  // scanAll 실행 중인지 여부를 추적
   let seenDuringScan = new Set();  // scanAll 중에 처리한 iframe을 추적
+
+  // 로컬 스토리지에서 값 가져오기
+  let isEnabled = localStorage.getItem('iframeLoggerEnabled');
+
+  // 값이 없으면 'true'로 설정하고 저장
+  if (isEnabled === null) {
+    isEnabled = 'true';  // 기본값을 'true'로 설정
+    localStorage.setItem('iframeLoggerEnabled', isEnabled);  // 저장
+  }
+
+  // 'true'/'false' 문자열을 boolean으로 변환
+  isEnabled = isEnabled === 'true';
 
   // 글로벌 키워드 화이트리스트 (특정 키워드를 포함하는 iframe은 녹색으로 표시)
   const globalWhitelistKeywords = [
