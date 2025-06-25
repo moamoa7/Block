@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250624
+! Version: 20250625
 !
 !
 !
@@ -2292,6 +2292,11 @@ sextb.date##.hidden-md.right.col-3
 !||popcash.net^
 !/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
 !||diagramjawlineunhappy.com^
+!
+!
+! FUNLOVE (https://funlove.info/)
+! - 팝업방지
+||funclubx.com^$popup
 !
 !
 ! JavGG (https://javgg.net/)
