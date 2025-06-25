@@ -19,6 +19,8 @@
   let logList = [];  // 로그 항목 저장 배열
   let logContainer, logContent, countDisplay; // 로그 UI 관련 DOM 요소
   let isEnabled = localStorage.getItem('iframeLoggerEnabled') === 'true'; // 저장된 상태 로드 (기본값은 true)
+  let currentlyScanning = false;  // scanAll 실행 중인지 여부를 추적
+  let seenDuringScan = new Set();  // scanAll 중에 처리한 iframe을 추적
 
   // 글로벌 키워드 화이트리스트 (특정 키워드를 포함하는 iframe은 녹색으로 표시)
   const globalWhitelistKeywords = [
@@ -101,6 +103,7 @@
         'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc]'
       ));
     } catch {}
+    console.log('Found iframes:', found); // 반환되는 iframe 리스트 확인
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
     while (walker.nextNode()) {
       const node = walker.currentNode;
@@ -108,6 +111,7 @@
         found = found.concat(getAllIframes(node.shadowRoot));
       }
     }
+    console.log('Total iframes found:', found.length); // 최종적으로 찾은 iframe 갯수
     return found;
   }
 
@@ -152,7 +156,8 @@
 
   // 로그 UI 생성 및 드래그 기능
   function createLogUI() {
-    if (!ENABLE_LOG_UI) return;  // 로그 UI가 비활성화되었으면 함수 종료
+    if (document.getElementById('iframe-log-panel')) return;  // 이미 존재하면 함수 종료
+
     // 로그 UI 버튼 생성
     const btn = document.createElement('button');
     btn.textContent = isEnabled ? '🛡️' : '🚫'; // 상태에 따라 아이콘 설정
@@ -183,6 +188,7 @@
     // 로그 패널 생성
     const panel = document.createElement('div');
     panel.style.cssText = 'position:fixed;bottom:150px;right:50px;width:500px;max-height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:14px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;overflow:hidden;z-index:99999;';
+    panel.id = 'iframe-log-panel';  // 패널에 ID 추가하여 중복 방지
     logContainer = panel;
 
     const header = document.createElement('div');
@@ -259,17 +265,17 @@
     console.log('Received message from child:', e.data);  // 메시지 내용 확인
     if (typeof e.data === 'string' && e.data.startsWith('[CHILD_IFRAME_LOG]')) {
       const url = e.data.slice(18);
-      logIframe(null, 'from child', url);
+      logIframe(null, 'from child', url);  // 부모에서 자식 iframe 로그 처리
     }
   });
 
+  // 자식 iframe에서 부모로 메시지를 보내는 코드
   if (window.top !== window) {
     setTimeout(() => {
       console.log('Sending message to parent:', location.href);
       //window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, '*');
       window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, 'https://parent-domain.com');  // 부모의 정확한 도메인
-    //}, 100);
-    });
+    }, 500);  // 자식 iframe에서 부모로 메시지 보내는 타이밍
     return;
   }
 
@@ -277,16 +283,25 @@
   function logIframe(iframe, reason = '', srcHint = '') {
     if (!isEnabled) return; // 비활성화 상태에서 iframe 로그 찍지 않음
 
-    // 이미 처리한 iframe은 건너뛰기
-    if (seen.has(iframe)) return;
+    if (seen.has(iframe)) return;  // 이미 처리한 iframe은 건너뛰기
     seen.add(iframe);  // 처리된 iframe을 seen에 추가
 
     let src = srcHint || iframe?.src || iframe?.getAttribute('src') || '';
     const srcdoc = iframe?.srcdoc || iframe?.getAttribute('srcdoc') || '';
     const dataUrls = extractUrlsFromDataset(iframe);
     const extracted = extractUrlsFromSrcdoc(srcdoc);
+    // src가 비어있을 때 srcdoc이나 data-* 속성을 확인
     if (!src && extracted.length > 0) src = extracted[0];
     if (!src && dataUrls.length > 0) src = dataUrls[0];
+
+    // src가 없다면 경고 로그를 찍고 return
+    if (!src) {
+      console.warn('No src found for iframe');
+      return;
+    }
+
+    console.log('Detected iframe src:', src);  // 디버그: src 로그
+    console.log('Detected iframe:', iframe);  // iframe 객체 로그
 
     // src가 이미 처리된 src라면 중복 방지
     if (seenSrc.has(src)) return;
@@ -294,6 +309,9 @@
 
     // 여기서 src가 올바르게 추출되었는지 확인
     console.log('Detected iframe src:', src);  // 로그 추가
+
+    // src가 제대로 추출되는지 확인
+    console.log('Final src:', src);  // 최종적으로 추출된 src 확인
 
     const outer = iframe?.outerHTML?.slice(0, 200).replace(/\s+/g, ' ') || '';
     const combined = [src, ...dataUrls, ...extracted].join(' ');
@@ -350,9 +368,11 @@
     }
 
     if (!isWhitelistedIframe && !isGrayListedIframe && iframe && REMOVE_IFRAME) {
-      iframe.remove(); // iframe을 바로 제거
+      // 로그 출력 후 제거하도록 변경
+      setTimeout(() => {
+        iframe.remove(); // iframe을 바로 제거
+      }, 200);
     }
-
 
     if (ENABLE_LOG_UI && logContent) {
       logList.push(info);  // 새 로그를 logList에 추가
@@ -360,47 +380,20 @@
       div.style.cssText = `color: ${logColor}; padding: 2px 0; white-space: pre-wrap;`;
       div.textContent = info;
       logContent.appendChild(div);
-      if (logContent.children.length > 100) logContent.removeChild(logContent.children[0]);
       updateCountDisplay();
     }
   }
 
-  // 초기 스캔 수행
-  function scanAll(reason = 'initialScan') {
-    const iframes = getAllIframes();
-    //iframes.forEach(el => logIframe(el, reason));
-    iframes.forEach(el => logIframe(el, 'initialScan'));  // reason을 그대로 사용
-  }
-
-  // DOM 변화 감지 (새로 추가된 iframe 감지)
-  const observer = new MutationObserver(mutations => {
-    for (const m of mutations) {
-      for (const node of m.addedNodes) {
-        if (!(node instanceof HTMLElement)) continue;
-        if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT', 'INS', 'SCRIPT'].includes(node.tagName)) {
-          console.log('New iframe detected:', node);
-          logIframe(node, 'MutationObserver add'); // 로그 처리
-        }
-      }
-    }
-  });
-
-  observer.observe(document, { childList: true, subtree: true, attributeFilter: ['src', 'srcdoc'] });
-
-  // 주기적으로 iframe 스캔
+  // 페이지 로드 후 iframe 탐지 시작
   setInterval(() => {
-    scanAll('periodicScan');
-  }, 500);
-
-  // 문서가 로딩되었을 때 UI 생성 및 초기 스캔
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      createLogUI();
-      scanAll('initialScan');
+    const iframes = getAllIframes(document);
+    iframes.forEach(iframe => {
+      logIframe(iframe, 'iframe added');
     });
-  } else {
-    createLogUI();
-    scanAll('initialScan');
-  }
+  }, 1000);
 
+  // 로그 UI 생성
+  if (ENABLE_LOG_UI) {
+    createLogUI();
+  }
 })();
