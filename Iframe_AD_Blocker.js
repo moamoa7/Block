@@ -9,6 +9,7 @@
 
 (function () {
   'use strict';
+
   // 설정 값 (로그 UI, iframe 제거 여부)
   const ENABLE_LOG_UI = true;  // 로그 UI 활성화 여부
   const REMOVE_IFRAME = true;  // iframe 제거 여부
@@ -32,7 +33,7 @@
     'tv/',  // https://www.cool111.com/ (쿨티비)  https://royaltv01.com/ (로얄티비)  https://conan-tv.com/ (코난티비)
     'stream/',  // https://gltv88.com/ (굿라이브티비)  https://missvod4.com/
     'supremejav.com',  // https://supjav.com/
-    '/e/', '/t/', '/v/',  // 각종 성인 영상
+    '/e/', '/t/', '/v/', // 각종 성인 영상
     '/player',  // https://05.avsee.ru/  https://sextb.date/ US영상
     '7tv000.com', '7mmtv',  // https://7tv000.com/
     'njav',  // https://www.njav.com/
@@ -51,6 +52,11 @@
   const grayWhitelistKeywords = [
     'extension:',  // 확장프로그램
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
+    '/js/',
+    //'/asset/',
+    //'/script/',
+    //'/api/',
+    //'/live.',
   ];
 
   // 회색 화이트리스트 도메인 (회색으로 처리)
@@ -91,7 +97,7 @@
   function getAllIframes(root = document) {
     let found = [];
     try {
-      found = Array.from(root.querySelectorAll('iframe,frame,embed,object'));
+      found = Array.from(root.querySelectorAll('iframe, frame, embed, object, ins, script'));
     } catch {}
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
     while (walker.nextNode()) {
@@ -158,17 +164,23 @@
       height:40px;
       border-radius:50%;
       border:none;
-      background:#222;
+      background:#000;  /* 배경을 검은색으로 고정 */
       color:#fff;
       font-size:20px;
       cursor:pointer;
-      display:block;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      left: unset;  /* 화면 중앙이 아닌 원 안에서 위치하도록 */
+      top: unset;   /* 원 안에서 위치하도록 */
+      transition: background 0.3s; /* 배경 전환 효과 */
     `;
     document.body.appendChild(btn);
     makeDraggable(btn);  // 드래그 가능하게 설정
+
     // 로그 패널 생성
     const panel = document.createElement('div');
-    panel.style.cssText = 'position:fixed;bottom:150px;right:50px;width:500px;max-height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:13px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;overflow:hidden;z-index:99999;';
+    panel.style.cssText = 'position:fixed;bottom:150px;right:50px;width:500px;max-height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:14px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;overflow:hidden;z-index:99999;';
     logContainer = panel;
 
     const header = document.createElement('div');
@@ -217,13 +229,32 @@
       }
     };
 
-    // 더블클릭으로 활성화/비활성화 상태 토글
+    // 더블클릭으로 활성화/비활성화 상태 토글 (아이콘 변경)
     btn.addEventListener('dblclick', () => {
       isEnabled = !isEnabled;
-      btn.style.background = isEnabled ? '#222' : '#f00'; // 색상 변경
+
+      // 아이콘 변경
+      btn.textContent = isEnabled ? '🛡️' : '🚫';  // 활성화 상태는 방패 아이콘, 비활성화 상태는 금지 아이콘으로 변경
+
       console.log(isEnabled ? 'Iframe Logger 활성화됨' : 'Iframe Logger 비활성화됨');
     });
+    // 스타일 적용 추가 부분
+    const style = document.createElement('style');
+    style.innerHTML = `
+      /* 아이콘만 적용될 수 있도록 구체적인 선택자 사용 */
+      button#iframeLoggerBtn {
+        background-color: #000 !important;  /* 배경을 검은색으로 고정 */
+        color: #fff !important;  /* 아이콘 텍스트 색상 고정 */
+      }
+
+      /* :hover 효과를 비활성화 (배경색 변경 안됨) */
+      button#iframeLoggerBtn:hover {
+        background-color: #000 !important;  /* hover 상태에서도 배경색을 검은색으로 고정 */
+      }
+    `;
+    document.head.appendChild(style); // 이 스타일을 문서의 head에 추가하여 적용
   }
+  //}
 
   // iframe 로그 업데이트 카운트
   function updateCountDisplay() {
@@ -319,9 +350,6 @@
     }
 
     if (!isWhitelistedIframe && !isGrayListedIframe && iframe && REMOVE_IFRAME) {
-      //iframe.style.display = 'none';
-      //iframe.setAttribute('sandbox', '');
-      //setTimeout(() => iframe.remove(), 500);
       iframe.remove(); // iframe을 바로 제거
     }
 
@@ -347,7 +375,7 @@
     for (const m of mutations) {
       for (const node of m.addedNodes) {
         if (!(node instanceof HTMLElement)) continue;
-        if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT'].includes(node.tagName)) {
+        if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT', 'INS', 'SCRIPT'].includes(node.tagName)) {
           logIframe(node, 'MutationObserver add');
         }
       }
