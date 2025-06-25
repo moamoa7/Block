@@ -4866,6 +4866,9 @@ www.naver.com#@#[class*="AD"]
 jusotw.com#@#[class*="AD"]
 ! - https://n.news.naver.com/ - 일부 사라짐
 news.naver.com#@#[class*="AD"]
+! - https://map.naver.com/ - 일부 글자 사라짐
+map.naver.com,pcmap.place.naver.com#@#[class*="AD"]
+
 
 
 
