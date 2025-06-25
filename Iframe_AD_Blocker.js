@@ -55,6 +55,8 @@
 
   // 도메인별 키워드 화이트리스트 (특정 도메인에서 특정 키워드를 포함하는 경우 녹색 처리)
   const whitelistMap = {
+    'youtube.com': [''],  // 초기 로딩시 플레이어 제외 모든 화면이 하얗게 변한는거 해결
+    'youtubei.googleapis.com': [''],  // 초기 로딩시 플레이어 제외 모든 화면이 하얗게 변한는거 해결
     'place.naver.com': [''],
     'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
     'blog.naver.com': [''],
@@ -67,10 +69,12 @@
   const grayWhitelistKeywords = [
     'extension:',  // 확장프로그램
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
+    //'/s/',  // 유튜브 JS
     //'/js/',  // js
     'aspx',  // 옥션 페이지 안보이거 해결
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
+    //'gstatic.com',
   ];
 
   // 회색 화이트리스트 도메인 (회색으로 처리)
@@ -401,8 +405,13 @@
     const iframes = getAllIframes(document);
     iframes.forEach(iframe => {
       logIframe(iframe, 'iframe added');
+
+    // load 이벤트 리스너를 통해 iframe src 변경 추적
+    iframe.addEventListener('load', () => {
+      console.log("Iframe src changed to: ", iframe.src);
     });
-  }, 1000);
+  });
+  }, 1000);  // 1초마다 확인
 
   // 로그 UI 생성
   if (ENABLE_LOG_UI) {
