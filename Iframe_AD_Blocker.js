@@ -18,7 +18,7 @@
   let count = 0;  // iframe 탐지 카운트
   let logList = [];  // 로그 항목 저장 배열
   let logContainer, logContent, countDisplay; // 로그 UI 관련 DOM 요소
-  let isEnabled = true; // 활성화 상태
+  let isEnabled = localStorage.getItem('iframeLoggerEnabled') === 'true'; // 저장된 상태 로드 (기본값은 true)
 
   // 글로벌 키워드 화이트리스트 (특정 키워드를 포함하는 iframe은 녹색으로 표시)
   const globalWhitelistKeywords = [
@@ -97,10 +97,9 @@
   function getAllIframes(root = document) {
     let found = [];
     try {
-      //found = Array.from(root.querySelectorAll('iframe, frame, embed, object, ins, script'));
       found = Array.from(root.querySelectorAll(
-      'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc]'
-));
+        'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc]'
+      ));
     } catch {}
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
     while (walker.nextNode()) {
@@ -156,7 +155,7 @@
     if (!ENABLE_LOG_UI) return;  // 로그 UI가 비활성화되었으면 함수 종료
     // 로그 UI 버튼 생성
     const btn = document.createElement('button');
-    btn.textContent = '🛡️';
+    btn.textContent = isEnabled ? '🛡️' : '🚫'; // 상태에 따라 아이콘 설정
     btn.title = 'Iframe 로그 토글';
     btn.style.cssText = `
       position:fixed;
@@ -236,28 +235,15 @@
     btn.addEventListener('dblclick', () => {
       isEnabled = !isEnabled;
 
+      // 상태를 localStorage에 저장
+      localStorage.setItem('iframeLoggerEnabled', isEnabled);
+
       // 아이콘 변경
       btn.textContent = isEnabled ? '🛡️' : '🚫';  // 활성화 상태는 방패 아이콘, 비활성화 상태는 금지 아이콘으로 변경
 
       console.log(isEnabled ? 'Iframe Logger 활성화됨' : 'Iframe Logger 비활성화됨');
     });
-    // 스타일 적용 추가 부분
-    const style = document.createElement('style');
-    style.innerHTML = `
-      /* 아이콘만 적용될 수 있도록 구체적인 선택자 사용 */
-      button#iframeLoggerBtn {
-        background-color: #000 !important;  /* 배경을 검은색으로 고정 */
-        color: #fff !important;  /* 아이콘 텍스트 색상 고정 */
-      }
-
-      /* :hover 효과를 비활성화 (배경색 변경 안됨) */
-      button#iframeLoggerBtn:hover {
-        background-color: #000 !important;  /* hover 상태에서도 배경색을 검은색으로 고정 */
-      }
-    `;
-    document.head.appendChild(style); // 이 스타일을 문서의 head에 추가하여 적용
   }
-  //}
 
   // iframe 로그 업데이트 카운트
   function updateCountDisplay() {
