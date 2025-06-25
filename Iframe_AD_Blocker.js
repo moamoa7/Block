@@ -252,6 +252,11 @@
 
   // 부모에서 자식 iframe 로그 받아 처리
   window.addEventListener('message', (e) => {
+    if (e.origin !== 'https://child-domain.com') {
+      console.warn('Invalid origin:', e.origin);
+      return;  // 신뢰할 수 없는 도메인에서 온 메시지는 무시
+    }
+    console.log('Received message from child:', e.data);  // 메시지 내용 확인
     if (typeof e.data === 'string' && e.data.startsWith('[CHILD_IFRAME_LOG]')) {
       const url = e.data.slice(18);
       logIframe(null, 'from child', url);
@@ -260,8 +265,11 @@
 
   if (window.top !== window) {
     setTimeout(() => {
-      window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, '*');
-    }, 100);
+      console.log('Sending message to parent:', location.href);
+      //window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, '*');
+      window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, 'https://parent-domain.com');  // 부모의 정확한 도메인
+    //}, 100);
+    });
     return;
   }
 
@@ -283,6 +291,9 @@
     // src가 이미 처리된 src라면 중복 방지
     if (seenSrc.has(src)) return;
     seenSrc.add(src); // src를 추가하여 중복 방지
+
+    // 여기서 src가 올바르게 추출되었는지 확인
+    console.log('Detected iframe src:', src);  // 로그 추가
 
     const outer = iframe?.outerHTML?.slice(0, 200).replace(/\s+/g, ' ') || '';
     const combined = [src, ...dataUrls, ...extracted].join(' ');
@@ -342,6 +353,7 @@
       iframe.remove(); // iframe을 바로 제거
     }
 
+
     if (ENABLE_LOG_UI && logContent) {
       logList.push(info);  // 새 로그를 logList에 추가
       const div = document.createElement('div');
@@ -356,7 +368,8 @@
   // 초기 스캔 수행
   function scanAll(reason = 'initialScan') {
     const iframes = getAllIframes();
-    iframes.forEach(el => logIframe(el, reason));
+    //iframes.forEach(el => logIframe(el, reason));
+    iframes.forEach(el => logIframe(el, 'initialScan'));  // reason을 그대로 사용
   }
 
   // DOM 변화 감지 (새로 추가된 iframe 감지)
@@ -365,7 +378,8 @@
       for (const node of m.addedNodes) {
         if (!(node instanceof HTMLElement)) continue;
         if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT', 'INS', 'SCRIPT'].includes(node.tagName)) {
-          logIframe(node, 'MutationObserver add');
+          console.log('New iframe detected:', node);
+          logIframe(node, 'MutationObserver add'); // 로그 처리
         }
       }
     }
