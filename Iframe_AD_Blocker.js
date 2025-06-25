@@ -41,6 +41,7 @@
 
   // 도메인별 키워드 화이트리스트 (특정 도메인에서 특정 키워드를 포함하는 경우 녹색 처리)
   const whitelistMap = {
+    'place.naver.com': [''],
     'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
     'blog.naver.com': [''],
     'cafe.naver.com': [''],
@@ -52,7 +53,7 @@
   const grayWhitelistKeywords = [
     'extension:',  // 확장프로그램
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
-    '/js/',  // 필수 js
+    //'/js/',  // js
     'aspx',  // 옥션 페이지 안보이거 해결
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
