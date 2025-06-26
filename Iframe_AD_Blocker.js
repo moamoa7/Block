@@ -114,7 +114,7 @@
     let found = [];
     try {
       found = Array.from(root.querySelectorAll(
-        'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc]'
+        'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc], class[banner]'
       ));
     } catch {}
     console.log('Found iframes:', found); // iframe 탐지 로그 추가
