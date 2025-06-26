@@ -181,13 +181,13 @@
       bottom:150px;
       right:10px;
       z-index:99999;
-      width:40px;
-      height:40px;
+      width:45px;
+      height:45px;
       border-radius:50%;
       border:none;
       background:#000;  /* 배경을 검은색으로 고정 */
       color:#fff;
-      font-size:20px;
+      font-size:32px !important;  /* 아이콘 크기 증가 */
       cursor:pointer;
       display: flex;
       align-items: center;
@@ -201,9 +201,25 @@
 
     // 로그 패널 생성
     const panel = document.createElement('div');
-    panel.style.cssText = 'position:fixed;bottom:150px;right:50px;width:500px;max-height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:14px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;overflow:hidden;z-index:99999;';
+    panel.style.cssText = 'position:fixed;bottom:150px;right:60px;width:500px;height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:16px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;overflow:hidden;z-index:99999;';
     panel.id = 'iframe-log-panel';  // 패널에 ID 추가하여 중복 방지
     logContainer = panel;
+
+    // 로그 UI만 스타일을 변경하는 CSS 추가
+    const style = document.createElement('style');
+    style.textContent = `
+      #iframe-log-panel {
+        font-size: 16px !important; /* 로그 패널 내에서만 폰트 크기 변경 */
+      }
+      #iframe-log-panel * {
+        font-size: 16px !important; /* 하위 모든 요소에도 적용 */
+        //color: white !important;
+      }
+      #iframe-log-panel button {
+        font-size: 16px !important; /* 버튼 크기 조정 */
+      }
+    `;
+    document.head.appendChild(style);  // 스타일을 <head>에 추가하여 적용
 
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#000;font-weight:bold;font-size:14px;';
