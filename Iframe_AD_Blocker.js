@@ -331,6 +331,21 @@
     const outer = iframe?.outerHTML?.slice(0, 200).replace(/\s+/g, ' ') || '';
     const combined = [src, ...dataUrls, ...extracted].join(' ');
 
+    // 'src'에 직접 할당이 발생할 때를 추적하기 위한 코드 추가
+    const origSet = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src');
+    if (origSet && origSet.set) {
+        Object.defineProperty(iframe, 'src', {
+            set: function(value) {
+                logIframe(iframe, reason + ' (direct assign)');  // src 값 할당 시 로깅
+                return origSet.set.call(this, value);  // 원래 src 설정 동작 실행
+            },
+            get: origSet.get, // 기존 getter 유지
+            configurable: true,
+            enumerable: true
+        });
+    }
+
+    // 로그 출력 및 처리
     const matchedKeywords = [];
     globalWhitelistKeywords.forEach(keyword => {
       if (combined.includes(keyword)) matchedKeywords.push(`Global: ${keyword}`);
@@ -403,18 +418,37 @@
     }
   }
 
-  // 페이지 로드 후 기존 iframe들도 탐지
-  setInterval(() => {
-    const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
-    iframes.forEach(iframe => {
-      logIframe(iframe, 'iframe added');
+    // 페이지 로드 후 기존 iframe들도 탐지
+    setInterval(() => {
+      const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
+      iframes.forEach(iframe => {
+        logIframe(iframe, 'Element added');
+        });
+      }, 500);  // 1초마다 확인
 
-      // load 이벤트 리스너를 통해 iframe src 변경 추적
-      iframe.addEventListener('load', () => {
-        console.log("Iframe src changed to: ", iframe.src);
+    // MutationObserver를 사용하여 동적으로 추가되는 iframe 추적
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (node.tagName === 'IFRAME' && node.src) {
+            console.log('New iframe added with src:', node.src);
+            logIframe(node, 'Element added');
+          }
+        });
       });
     });
-  }, 500);  // 1초마다 확인
+
+    // observer 설정: body에서 자식 노드의 변경을 추적
+    observer.observe(document.body, { childList: true, subtree: true });
+
+      // load 이벤트 리스너를 통해 iframe src 변경 추적
+      //iframe.addEventListener('load', () => {
+        //console.log("Iframe src changed to: ", iframe.src);  // iframe 객체 명시적으로 사용
+      //iframe.addEventListener('load', () => {
+        //console.log('Iframe src has been set: ', iframe.src);  // `this`가 iframe 객체를 가리킴
+      //});
+    //});
+  //}, 500);  // 1초마다 확인
 
   // 로그 UI 생성
   if (ENABLE_LOG_UI) {
