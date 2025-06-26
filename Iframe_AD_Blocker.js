@@ -38,7 +38,7 @@
 
   // 글로벌 키워드 화이트리스트 (특정 키워드를 포함하는 iframe은 녹색으로 표시)
   const globalWhitelistKeywords = [
-    'captcha', 'challenges',  // 캡챠
+    '/recaptcha/', '/captcha/', '/challenge-platform/',  // 캡챠
     'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
     '/videoembed/', 'player.kick.com', // https://poooo.ml/
