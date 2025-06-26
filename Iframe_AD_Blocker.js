@@ -34,6 +34,8 @@
   // 'true'/'false' 문자열을 boolean으로 변환
   isEnabled = isEnabled === 'true';
 
+  console.log('Iframe Logger 활성화 여부:', isEnabled);  // 활성화 여부 확인
+
   // 글로벌 키워드 화이트리스트 (특정 키워드를 포함하는 iframe은 녹색으로 표시)
   const globalWhitelistKeywords = [
     'captcha', 'challenges',  // 캡챠
@@ -45,18 +47,17 @@
     'dlrstream.com',  // https://blacktv88.com/ (블랙티비)
     '/tV',  // https://kktv12.com/ (킹콩티비)  https://bmtv24.com/ (배트맨티비)  https://nolgoga365.com/ (놀고가닷컴)
     'tv/',  // https://www.cool111.com/ (쿨티비)  https://royaltv01.com/ (로얄티비)  https://conan-tv.com/ (코난티비)
-    'stream/',  // https://gltv88.com/ (굿라이브티비)  https://missvod4.com/
+    '/reystream/',  // https://gltv88.com/ (굿라이브티비)
     'supremejav.com',  // https://supjav.com/
     '/e/', '/t/', '/v/', // 각종 성인 영상
     '/player',  // https://05.avsee.ru/  https://sextb.date/ US영상
     '7tv000.com', '7mmtv',  // https://7tv000.com/
     'njav',  // https://www.njav.com/
+    '/stream/',  // https://missvod4.com/
   ];
 
   // 도메인별 키워드 화이트리스트 (특정 도메인에서 특정 키워드를 포함하는 경우 녹색 처리)
   const whitelistMap = {
-    'youtube.com': [''],  // 초기 로딩시 플레이어 제외 모든 화면이 하얗게 변한는거 해결
-    'youtubei.googleapis.com': [''],  // 초기 로딩시 플레이어 제외 모든 화면이 하얗게 변한는거 해결
     'place.naver.com': [''],
     'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
     'blog.naver.com': [''],
@@ -69,17 +70,14 @@
   const grayWhitelistKeywords = [
     'extension:',  // 확장프로그램
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
-    //'/s/',  // 유튜브 JS
-    //'/js/',  // js
     'aspx',  // 옥션 페이지 안보이거 해결
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
-    //'gstatic.com',
+    '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
   ];
 
   // 회색 화이트리스트 도메인 (회색으로 처리)
   const grayDomainWhitelistMap = {
-    //'wikipedia.org': [''],  // 유튜브 우회 js (개별적으로 사용중)
   };
 
   // srcdoc에서 src/href URL 추출
@@ -119,7 +117,7 @@
         'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc]'
       ));
     } catch {}
-    console.log('Found iframes:', found); // 반환되는 iframe 리스트 확인
+    console.log('Found iframes:', found); // iframe 탐지 로그 추가
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
     while (walker.nextNode()) {
       const node = walker.currentNode;
@@ -263,7 +261,7 @@
       // 아이콘 변경
       btn.textContent = isEnabled ? '🛡️' : '🚫';  // 활성화 상태는 방패 아이콘, 비활성화 상태는 금지 아이콘으로 변경
 
-      console.log(isEnabled ? 'Iframe Logger 활성화됨' : 'Iframe Logger 비활성화됨');
+      console.log('Iframe Logger 활성화 여부:', isEnabled);  // 상태 변경 후 활성화 여부 출력
     });
   }
 
@@ -306,28 +304,29 @@
     const srcdoc = iframe?.srcdoc || iframe?.getAttribute('srcdoc') || '';
     const dataUrls = extractUrlsFromDataset(iframe);
     const extracted = extractUrlsFromSrcdoc(srcdoc);
+
     // src가 비어있을 때 srcdoc이나 data-* 속성을 확인
     if (!src && extracted.length > 0) src = extracted[0];
     if (!src && dataUrls.length > 0) src = dataUrls[0];
 
-    // src가 없다면 경고 로그를 찍고 return
+    // 'about:blank'일 경우에 대한 처리 추가
+    if (src === 'about:blank') {
+      console.warn('Detected iframe with about:blank src');
+      return;  // 'about:blank'는 처리하지 않음
+    }
+
+    // src가 없으면 경고 메시지를 찍고 종료
     if (!src) {
       console.warn('No src found for iframe');
       return;
     }
 
-    console.log('Detected iframe src:', src);  // 디버그: src 로그
+    // 여기에 src가 제대로 추출된 경우의 로그 추가
+    console.log('Detected iframe src:', src);  // 최종적으로 추출된 src 확인
     console.log('Detected iframe:', iframe);  // iframe 객체 로그
 
-    // src가 이미 처리된 src라면 중복 방지
-    if (seenSrc.has(src)) return;
-    seenSrc.add(src); // src를 추가하여 중복 방지
-
-    // 여기서 src가 올바르게 추출되었는지 확인
-    console.log('Detected iframe src:', src);  // 로그 추가
-
-    // src가 제대로 추출되는지 확인
-    console.log('Final src:', src);  // 최종적으로 추출된 src 확인
+    // 최종적으로 추출된 src 확인 (필요시 디버깅 로그)
+    // console.log('Final src:', src);  // 필요 없으면 주석 처리 가능
 
     const outer = iframe?.outerHTML?.slice(0, 200).replace(/\s+/g, ' ') || '';
     const combined = [src, ...dataUrls, ...extracted].join(' ');
@@ -385,9 +384,13 @@
 
     if (!isWhitelistedIframe && !isGrayListedIframe && iframe && REMOVE_IFRAME) {
       // 로그 출력 후 제거하도록 변경
-      setTimeout(() => {
-        iframe.remove(); // iframe을 바로 제거
-      }, 200);
+      try {
+        setTimeout(() => {
+          iframe.remove(); // iframe을 바로 제거
+        }, 200);
+      } catch (e) {
+        console.error('Error removing iframe:', e);  // 오류 발생 시 콘솔에 오류 출력
+      }
     }
 
     if (ENABLE_LOG_UI && logContent) {
@@ -400,21 +403,22 @@
     }
   }
 
-  // 페이지 로드 후 iframe 탐지 시작
+  // 페이지 로드 후 기존 iframe들도 탐지
   setInterval(() => {
-    const iframes = getAllIframes(document);
+    const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
     iframes.forEach(iframe => {
       logIframe(iframe, 'iframe added');
 
-    // load 이벤트 리스너를 통해 iframe src 변경 추적
-    iframe.addEventListener('load', () => {
-      console.log("Iframe src changed to: ", iframe.src);
+      // load 이벤트 리스너를 통해 iframe src 변경 추적
+      iframe.addEventListener('load', () => {
+        console.log("Iframe src changed to: ", iframe.src);
+      });
     });
-  });
-  }, 1000);  // 1초마다 확인
+  }, 500);  // 1초마다 확인
 
   // 로그 UI 생성
   if (ENABLE_LOG_UI) {
     createLogUI();
   }
+
 })();
