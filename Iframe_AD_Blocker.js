@@ -72,11 +72,8 @@
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
     'aspx',  // 옥션 페이지 안보이거 해결
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
-    '/obj/',  // 틱톡 js
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
-    //'/script/',  //숲 스크립트
-    //'/asset/',  //숲 스크립트
   ];
 
   // 회색 화이트리스트 도메인 (회색으로 처리)
@@ -457,7 +454,7 @@
     iframes.forEach(iframe => {
       logIframe(iframe, 'Periodic check');
     });
-  }, 2000); // 5초마다 체크
+  }, 2000); // 2.5초마다 체크
 
   // MutationObserver를 사용하여 동적으로 추가되는 iframe 추적
   const observer = new MutationObserver(mutations => {
