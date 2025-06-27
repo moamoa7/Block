@@ -454,7 +454,7 @@
     iframes.forEach(iframe => {
       logIframe(iframe, 'Periodic check');
     });
-  }, 2000); // 2.5초마다 체크
+  }, 3000); // 3초마다 체크
 
   // MutationObserver를 사용하여 동적으로 추가되는 iframe 추적
   const observer = new MutationObserver(mutations => {
