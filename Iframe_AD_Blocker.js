@@ -38,7 +38,7 @@
 
   // 글로벌 키워드 화이트리스트 (특정 키워드를 포함하는 iframe은 녹색으로 표시)
   const globalWhitelistKeywords = [
-    '/recaptcha/', '/captcha/', '/challenge-platform/',  // 캡챠
+    '/recaptcha/', '/challenge-platform/',  // 캡챠
     'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
     '/videoembed/', 'player.kick.com', // https://poooo.ml/
@@ -72,8 +72,13 @@
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
     'aspx',  // 옥션 페이지 안보이거 해결
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
+    '/obj/',  // 틱톡 js
+    //'/js/',  // 주요 js
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
+    //'/script/',  //숲 스크립트
+    //'/asset/',  //숲 스크립트
+    //'teraboxcdn.com',
   ];
 
   // 회색 화이트리스트 도메인 (회색으로 처리)
@@ -303,9 +308,8 @@
   if (window.top !== window) {
     setTimeout(() => {
       console.log('Sending message to parent:', location.href);
-      //window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, '*');
       window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, 'https://parent-domain.com');  // 부모의 정확한 도메인
-    }, 500);  // 자식 iframe에서 부모로 메시지 보내는 타이밍
+    }, 0);  // 자식 iframe에서 부모로 메시지 보내는 타이밍
     return;
   }
 
@@ -338,11 +342,8 @@
     }
 
     // 여기에 src가 제대로 추출된 경우의 로그 추가
-    console.log('Detected iframe src:', src);  // 최종적으로 추출된 src 확인
+    console.log(`Logging iframe with src: ${src}`);  // 로그 추가
     console.log('Detected iframe:', iframe);  // iframe 객체 로그
-
-    // 최종적으로 추출된 src 확인 (필요시 디버깅 로그)
-    // console.log('Final src:', src);  // 필요 없으면 주석 처리 가능
 
     const outer = iframe?.outerHTML?.slice(0, 200).replace(/\s+/g, ' ') || '';
     const combined = [src, ...dataUrls, ...extracted].join(' ');
@@ -412,13 +413,13 @@
     if (logList.length > 100) {
       logList.shift();  // 가장 오래된 로그를 제거
     }
-
+    // iframe을 완전히 제거하는 방법 (스크립트 실행을 방지하는 방식)
     if (!isWhitelistedIframe && !isGrayListedIframe && iframe && REMOVE_IFRAME) {
       // 로그 출력 후 제거하도록 변경
       try {
         setTimeout(() => {
-          iframe.remove(); // iframe을 바로 제거
-        }, 200);
+          iframe.remove(); // iframe을 제거하여 내부 스크립트가 실행되지 않도록 방지
+        }, 0);
       } catch (e) {
         console.error('Error removing iframe:', e);  // 오류 발생 시 콘솔에 오류 출력
       }
@@ -434,37 +435,39 @@
     }
   }
 
-    // 페이지 로드 후 기존 iframe들도 탐지
-    setInterval(() => {
-      const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
-      iframes.forEach(iframe => {
-        logIframe(iframe, 'Element added');
-        });
-      }, 500);  // 1초마다 확인
+  // 페이지 로드 후 기존 iframe들도 탐지 (정적 처리)
+  window.onload = function () {
+    const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
+    iframes.forEach(iframe => {
+      logIframe(iframe, 'Element added');
+    });
+  };
 
-    // MutationObserver를 사용하여 동적으로 추가되는 iframe 추적
-    const observer = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
-          if (node.tagName === 'IFRAME' && node.src) {
-            console.log('New iframe added with src:', node.src);
-            logIframe(node, 'Element added');
-          }
-        });
+  // 동적 처리: 일정 간격으로 iframe 체크 (setInterval)
+  setInterval(() => {
+    const iframes = getAllIframes(document);  // 현재 페이지의 모든 iframe을 체크
+    iframes.forEach(iframe => {
+      logIframe(iframe, 'Periodic check');
+    });
+  }, 2000); // 5초마다 체크
+
+  // MutationObserver를 사용하여 동적으로 추가되는 iframe 추적
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(node => {
+        if (node.tagName === 'IFRAME' && node.src) {
+          console.log('New iframe added with src:', node.src);
+          logIframe(node, 'Element added');
+
+          // iframe 차단
+          node.remove();  // 해당 iframe을 제거
+        }
       });
     });
+  });
 
-    // observer 설정: body에서 자식 노드의 변경을 추적
-    observer.observe(document.body, { childList: true, subtree: true });
-
-      // load 이벤트 리스너를 통해 iframe src 변경 추적
-      //iframe.addEventListener('load', () => {
-        //console.log("Iframe src changed to: ", iframe.src);  // iframe 객체 명시적으로 사용
-      //iframe.addEventListener('load', () => {
-        //console.log('Iframe src has been set: ', iframe.src);  // `this`가 iframe 객체를 가리킴
-      //});
-    //});
-  //}, 500);  // 1초마다 확인
+  // observer 설정: body에서 자식 노드의 변경을 추적
+  observer.observe(document.body, { childList: true, subtree: true });
 
   // 로그 UI 생성
   if (ENABLE_LOG_UI) {
