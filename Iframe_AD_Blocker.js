@@ -204,7 +204,7 @@
 
     // 로그 패널 생성
     const panel = document.createElement('div');
-    panel.style.cssText = 'position:fixed;bottom:150px;right:60px;width:500px;height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:16px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;overflow:hidden;z-index:99999;';
+    panel.style.cssText = 'position:fixed;bottom:150px;right:60px;width:500px;height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:16px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;text-align:left !important;overflow:hidden;z-index:99999;';
     panel.id = 'iframe-log-panel';  // 패널에 ID 추가하여 중복 방지
     logContainer = panel;
 
@@ -222,46 +222,6 @@
         font-size: 16px !important; /* 버튼 크기 조정 */
       }
 
-      /* 로그 내역을 왼쪽 정렬 */
-      #iframe-log-panel .log-content {
-        text-align: left !important;
-      }
-
-      /* 로그 항목들을 왼쪽 정렬 */
-      #iframe-log-panel .log-content div {
-        text-align: left !important;  /* 기본적으로 왼쪽 정렬 */
-      }
-
-      /* 로그 내역이 왼쪽 정렬이 되도록 수정 */
-      #iframe-log-panel .log-content {
-        display: block !important;  /* 부모 요소에서 flex 스타일을 block으로 변경 */
-        align-items: flex-start !important;  /* 자식 요소들을 왼쪽으로 정렬 */
-        justify-content: flex-start !important;  /* 자식 요소들을 왼쪽으로 정렬 */
-      }
-
-      /* 모바일에서 로그 내역 위치 변경 */
-      @media (max-width: 768px) {
-        #iframe-log-panel .log-content {
-          text-align: left !important;  /* 왼쪽 정렬 */
-        }
-      }
-
-      /* 모바일에서 로그 내역 위치 변경 */
-      @media (max-width: 768px) {
-        #iframe-log-panel .log-content div {
-          margin-left: 0 !important;
-          margin-right: 0 !important;
-          text-align: left !important;  /* 왼쪽 정렬 */
-        }
-      }
-
-      * 모바일에서 로그 내역 위치 변경 */
-      @media (max-width: 768px) {
-        #iframe-log-panel .log-content {
-          display: block !important;  /* 모바일에서는 flex 해제 */
-          text-align: left !important;
-        }
-      }
     `;
     document.head.appendChild(style);  // 스타일을 <head>에 추가하여 적용
 
