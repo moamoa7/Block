@@ -222,18 +222,19 @@
         font-size: 16px !important; /* 버튼 크기 조정 */
       }
 
-      #iframe-log-panel .log-content {
-      text-align: left !important; /* 기본적으로 왼쪽 정렬 */
-      //overflow-y: auto;
-      //max-height: 300px;
-      //user-select: text;
-    }
-    ///* 모바일에서만 가운데 정렬을 무시하도록 설정 */
-    //@media (max-width: 768px) {
-      //#iframe-log-panel .log-content {
-        //text-align: left !important; /* 모바일에서도 왼쪽 정렬로 강제 */
-      //}
-    //}
+      /* 로그 항목들을 왼쪽 정렬 */
+      .log-content div {
+        text-align: left !important;  /* 기본적으로 왼쪽 정렬 */
+      }
+
+      /* 모바일에서 로그 내역 위치 변경 */
+      @media (max-width: 768px) {
+        .log-content div {
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+          text-align: left !important;  /* 왼쪽 정렬 */
+        }
+      }
     `;
     document.head.appendChild(style);  // 스타일을 <head>에 추가하여 적용
 
