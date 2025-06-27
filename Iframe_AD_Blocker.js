@@ -223,13 +223,13 @@
       }
 
       /* 로그 항목들을 왼쪽 정렬 */
-      .log-content div {
+      #iframe-log-panel .log-content div {
         text-align: left !important;  /* 기본적으로 왼쪽 정렬 */
       }
 
       /* 모바일에서 로그 내역 위치 변경 */
       @media (max-width: 768px) {
-        .log-content div {
+        #iframe-log-panel .log-content div {
           margin-left: 0 !important;
           margin-right: 0 !important;
           text-align: left !important;  /* 왼쪽 정렬 */
