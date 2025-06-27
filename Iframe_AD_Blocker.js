@@ -222,9 +222,28 @@
         font-size: 16px !important; /* 버튼 크기 조정 */
       }
 
+      /* 로그 내역을 왼쪽 정렬 */
+      #iframe-log-panel .log-content {
+        text-align: left !important;
+      }
+
       /* 로그 항목들을 왼쪽 정렬 */
       #iframe-log-panel .log-content div {
         text-align: left !important;  /* 기본적으로 왼쪽 정렬 */
+      }
+
+      /* 로그 내역이 왼쪽 정렬이 되도록 수정 */
+      #iframe-log-panel .log-content {
+        display: block !important;  /* 부모 요소에서 flex 스타일을 block으로 변경 */
+        align-items: flex-start !important;  /* 자식 요소들을 왼쪽으로 정렬 */
+        justify-content: flex-start !important;  /* 자식 요소들을 왼쪽으로 정렬 */
+      }
+
+      /* 모바일에서 로그 내역 위치 변경 */
+      @media (max-width: 768px) {
+        #iframe-log-panel .log-content {
+          text-align: left !important;  /* 왼쪽 정렬 */
+        }
       }
 
       /* 모바일에서 로그 내역 위치 변경 */
@@ -233,6 +252,14 @@
           margin-left: 0 !important;
           margin-right: 0 !important;
           text-align: left !important;  /* 왼쪽 정렬 */
+        }
+      }
+
+      * 모바일에서 로그 내역 위치 변경 */
+      @media (max-width: 768px) {
+        #iframe-log-panel .log-content {
+          display: block !important;  /* 모바일에서는 flex 해제 */
+          text-align: left !important;
         }
       }
     `;
