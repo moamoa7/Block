@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250625
+! Version: 20250627
 !
 !
 !
@@ -394,6 +394,7 @@ kakaotv.daum.net#@#[class^="ad"]
 ##[class*="Modal"]
 ! - - - 예외
 pornhub.com#@#[class*="Modal"]
+play.sooplive.co.kr#@#[class*="Modal"]
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
 !
@@ -2333,6 +2334,7 @@ sextb.date##.hidden-md.right.col-3
 ! - 팝업 방지
 ||stikroltiltoowi.net^$popup
 ||persecutionpunishlegally.com^$popup
+||doingthinningwizard.com^$popup
 ! - 차단 사이트
 !||labadena.com^
 !||tapioni.com^
@@ -4310,6 +4312,8 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 !@@cdn.damoang.net/data/member_image/ad/*$image
 !||*/*/AD/*
 ||*/*/ad-*
+! - 예외 (레딧 시간흐름 및 댓글 안보임 해결 - 스크립트 차단 문제)
+@@||redditstatic.com/*/ad-*$script
 ||*/*/ad-*/*
 ! - 예외 (텍스트 안보임 해결)
 @@github.com*$xhr
@@ -4920,8 +4924,9 @@ sports.daum.net,kakaotv.daum.net#@#[class*="banner_"]
 ! - https://www.fmkorea.com/
 !##.adpost
 !##[class*="naver_power"]
+
 ! - https://web.humoruniv.com/
-!##[id*="naver_adpost"]
+##[id*="_adpost_"]
 
 
 
