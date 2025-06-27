@@ -414,7 +414,7 @@
       keywordText = `Matched Gray Keywords: ${matchedGrayKeywords.join(', ')}`;
     }
 
-    const info = `[#${++count}] ${reason} ${src || '[No src]'}\n └▶ HTML → ${outer}\n ${keywordText}`;
+    const info = `[#${++count}] ${reason} ${src || '[No src]'}\n└▶ ${outer}\n ${keywordText}`;
     console.warn('%c[Iframe Detected]', 'color: red; font-weight: bold;', info);
 
     // 로그 크기가 100을 초과하면 가장 오래된 로그를 제거
