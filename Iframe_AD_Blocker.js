@@ -73,12 +73,10 @@
     'aspx',  // 옥션 페이지 안보이거 해결
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/obj/',  // 틱톡 js
-    //'/js/',  // 주요 js
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
     //'/script/',  //숲 스크립트
     //'/asset/',  //숲 스크립트
-    //'teraboxcdn.com',
   ];
 
   // 회색 화이트리스트 도메인 (회색으로 처리)
@@ -202,7 +200,7 @@
       transition: background 0.3s; /* 배경 전환 효과 */
     `;
     document.body.appendChild(btn);
-    makeDraggable(btn);  // 드래그 가능하게 설정
+    makeDraggable(btn);  // 드래그 가능하게 설정 (이 부분을 주석처리하면 아이콘 UI 드래그 기능 비활성화)
 
     // 로그 패널 생성
     const panel = document.createElement('div');
@@ -253,6 +251,14 @@
     logContent = document.createElement('div');
     logContent.style.cssText = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;';
 
+    // 스크롤 가능하게 설정 (드래그 기능은 비활성화)
+    //logContent.style.overflowY = 'auto';  // 세로 스크롤 활성화
+    //logContent.style.maxHeight = '300px'; // 로그 내용이 많을 경우 높이 제한
+    //logContent.style.userSelect = 'text';  // 텍스트 선택 가능하게 설정
+    //logContent.addEventListener('mousedown', (e) => {
+      //e.stopPropagation();  // 마우스 다운 시 이벤트 전파 방지
+    //});
+
     logContent.style.userSelect = 'text';
     logContent.addEventListener('mousedown', (e) => {
       e.stopPropagation();
@@ -262,8 +268,9 @@
     panel.appendChild(logContent);
     document.body.appendChild(panel);
 
-    makeDraggable(panel);
+    //makeDraggable(panel);  // 드래그 가능하게 설정 (이 부분을 주석처리하면 로그내역 드래그 기능 비활성화)
 
+    // 로그 UI 표시/숨기기 버튼 클릭 시 동작
     btn.onclick = () => {
       if (logContainer.style.display === 'none') {
         logContainer.style.display = 'flex';
