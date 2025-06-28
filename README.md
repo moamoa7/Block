@@ -8,8 +8,8 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 <br>
 
 ※ Iframe_AD_Blocker.js
-- iframe 차단 후 로그창으로 내역 보임 - 모바일에선 차단은 하되 로그창 안보임
-- 로그창 이동 가능 / 자동 사라짐(10초) / 로그 복사 가능
+- iframe 차단 및 비활성화 / 로그 아이콘에서 클릭시 로그내역 확인 가능
+- 로그내역 복사 가능 / 로그 아이콘 이동 가능
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
 ```
