@@ -26,7 +26,7 @@
   const REMOVE_IFRAME_DEFAULT = true;  // iframe 제거 기본값
 
   // 차단 해제할 사이트들
-  const allowedSites = ['mypikpak.com', 'example.com'];
+  const allowedSites = ['example.com', 'example.com'];
 
   // 현재 사이트가 allowedSites에 포함되면 iframe 차단을 해제
   let REMOVE_IFRAME = allowedSites.includes(window.location.hostname) ? false : REMOVE_IFRAME_DEFAULT;
@@ -439,7 +439,7 @@
       try {
         setTimeout(() => {
           iframe.remove(); // iframe을 제거하여 내부 스크립트가 실행되지 않도록 방지
-        }, 0);
+        }, 50);
       } catch (e) {
         console.error('Error removing iframe:', e);  // 오류 발생 시 콘솔에 오류 출력
       }
@@ -455,13 +455,18 @@
     }
   }
 
-  // 페이지 로드 후 기존 iframe들도 탐지 (정적 처리)
-  window.onload = function () {
-    const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
-    iframes.forEach(iframe => {
-      logIframe(iframe, 'Element added');
-    });
-  };
+  // 이미 처리된 iframe을 추적하는 Set
+    //const seen = new WeakSet();  // 기존의 `seen`만 사용 (상단에서 정의됨)
+
+    window.onload = function () {
+      const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
+      iframes.forEach(iframe => {
+        if (!seen.has(iframe)) {  // 이미 처리되지 않은 iframe만 처리
+          logIframe(iframe, 'Element added');
+          seen.add(iframe);  // 처리된 iframe을 추적
+        }
+      });
+    };
 
   // 동적 처리: 일정 간격으로 iframe 체크 (setInterval)
   setInterval(() => {
@@ -469,15 +474,16 @@
     iframes.forEach(iframe => {
       logIframe(iframe, 'Periodic check');
     });
-  }, 3000); // 3초마다 체크
+  }, 2000); // 2초마다 체크 (더 빠르면 틱톡등에서 오류남)
 
   // MutationObserver를 사용하여 동적으로 추가되는 iframe 추적
   const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
       mutation.addedNodes.forEach(node => {
-        if (node.tagName === 'IFRAME' && node.src) {
-          console.log('New iframe added with src:', node.src);
-          logIframe(node, 'Element added');
+        if (node.tagName === 'IFRAME' && node.src && !seen.has(node)) {
+        console.log('New iframe added with src:', node.src);
+        logIframe(node, 'Element added');
+        seen.add(node);
 
           // iframe 차단
           node.remove();  // 해당 iframe을 제거
