@@ -12,7 +12,7 @@
 
   // 설정 값 (로그 UI, iframe 제거 여부)
   const ENABLE_LOG_UI = true;  // 로그 UI 활성화 여부
-  const REMOVE_IFRAME = true;  // iframe 제거 여부
+  //const REMOVE_IFRAME = true;  // iframe 제거 여부
   const seen = new WeakSet(); // 이미 처리한 iframe을 추적하는 WeakSet
   const seenSrc = new Set();  // 이미 처리한 src를 추적하는 Set
   let count = 0;  // iframe 탐지 카운트
@@ -21,6 +21,21 @@
 
   let currentlyScanning = false;  // scanAll 실행 중인지 여부를 추적
   let seenDuringScan = new Set();  // scanAll 중에 처리한 iframe을 추적
+
+  // iframe 제거 기본값
+  const REMOVE_IFRAME_DEFAULT = true;  // iframe 제거 기본값
+
+  // 차단 해제할 사이트들
+  const allowedSites = ['mypikpak.com', 'example.com'];
+
+  // 현재 사이트가 allowedSites에 포함되면 iframe 차단을 해제
+  let REMOVE_IFRAME = allowedSites.includes(window.location.hostname) ? false : REMOVE_IFRAME_DEFAULT;
+
+  // allowedSites 배열에서 현재 사이트가 포함되면 로직 종료
+  if (allowedSites.includes(window.location.hostname)) {
+      console.log(`${window.location.hostname}에 접속했으므로 로직을 정지합니다.`);
+      return;  // 해당 사이트에서 로직 종료
+  }
 
   // 로컬 스토리지에서 값 가져오기
   let isEnabled = localStorage.getItem('iframeLoggerEnabled');
@@ -63,7 +78,7 @@
     'blog.naver.com': [''],
     'cafe.naver.com': [''],
     'www.naver.com': ['my.html'],  // 메인에서 로그인 후 메일 클릭시 메일 안보이는거 해결
-    'tiktok.com': [''],
+    //'tiktok.com': [''],
   };
 
   // 회색 화이트리스트 키워드 (회색으로 처리)
