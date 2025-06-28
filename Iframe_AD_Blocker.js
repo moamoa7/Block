@@ -210,6 +210,7 @@
       left: unset;  /* 화면 중앙이 아닌 원 안에서 위치하도록 */
       top: unset;   /* 원 안에서 위치하도록 */
       transition: background 0.3s; /* 배경 전환 효과 */
+      opacity: 0.40; /* 아이콘 투명도 */
     `;
     document.body.appendChild(btn);
     makeDraggable(btn);  // 드래그 가능하게 설정 (이 부분을 주석처리하면 아이콘 UI 드래그 기능 비활성화)
