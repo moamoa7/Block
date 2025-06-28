@@ -86,9 +86,11 @@
     'extension:',  // 확장프로그램
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
     'aspx',  // 옥션 페이지 안보이거 해결
+    //'/js',  // 중요 js
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
+    //'mp4',  // 영상 기본 파일
   ];
 
   // 회색 화이트리스트 도메인 (회색으로 처리)
@@ -129,7 +131,9 @@
     let found = [];
     try {
       found = Array.from(root.querySelectorAll(
-        'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc]'
+        // 모든 요소들
+        //'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc], img, form, input, textarea, select, option, button, audio, video, picture, source, a, area, link, div, span, header, footer, main, section, article, aside, nav, figure, figcaption, details, summary, style, svg, path, circle, rect, line, polygon, template, canvas, object, embed, applet, bgsound, math, svg'
+        'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc], frameborder, picture, source, canvas, video, audio'
       ));
     } catch {}
     console.log('Found iframes:', found); // iframe 탐지 로그 추가
@@ -440,7 +444,7 @@
       try {
         setTimeout(() => {
           iframe.remove(); // iframe을 제거하여 내부 스크립트가 실행되지 않도록 방지
-        }, 50);
+        }, 0);
       } catch (e) {
         console.error('Error removing iframe:', e);  // 오류 발생 시 콘솔에 오류 출력
       }
@@ -475,7 +479,7 @@
     iframes.forEach(iframe => {
       logIframe(iframe, 'Periodic check');
     });
-  }, 2000); // 2초마다 체크 (더 빠르면 틱톡등에서 오류남)
+  }, 3000); // 20보다 느리면 차단 잘 안됨 // 3초보다 더 빠르면 틱톡/GPT 등에서 오류남
 
   // MutationObserver를 사용하여 동적으로 추가되는 iframe 추적
   const observer = new MutationObserver(mutations => {
