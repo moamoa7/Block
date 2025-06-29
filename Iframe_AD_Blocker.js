@@ -1,3 +1,4 @@
+
 // ==UserScript==
 // @name         Iframe Logger & Blocker (Violentmonkey용, 개선된 버전)
 // @namespace    none
@@ -78,6 +79,7 @@
     'blog.naver.com': [''],
     'cafe.naver.com': [''],
     'www.naver.com': ['my.html'],  // 메인에서 로그인 후 메일 클릭시 메일 안보이는거 해결
+    'chatgpt.com': [''],  // ChatGPT
     //'tiktok.com': [''],
   };
 
@@ -86,7 +88,6 @@
     'extension:',  // 확장프로그램
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
     'aspx',  // 옥션 페이지 안보이거 해결
-    //'/js',  // 중요 js
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
@@ -130,18 +131,34 @@
   function getAllIframes(root = document) {
     let found = [];
     try {
-      found = Array.from(root.querySelectorAll(
+      found = Array.from(root.querySelectorAll('iframe, frame, embed, object, iframe[srcdoc]'));
         // 모든 요소들
-        //'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc], img, form, input, textarea, select, option, button, audio, video, picture, source, a, area, link, div, span, header, footer, main, section, article, aside, nav, figure, figcaption, details, summary, style, svg, path, circle, rect, line, polygon, template, canvas, object, embed, applet, bgsound, math, svg'
-        'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc], frameborder, picture, source, canvas, video, audio'
-      ));
-    } catch {}
+        //'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc], img, form, input, textarea, select, option, button, audio, video, picture, source, a, area, link, div, span, header, footer, main, section, article, aside, nav, figure, figcaption, details, summary, style, svg, path, circle, rect, line, polygon, template, canvas, applet, bgsound, math, svg'
+        // 기본 요소들
+        //'iframe, frame, embed, object, iframe[srcdoc]'
+        //'iframe, frame, embed, object'
+      //));
+    } catch (e) {
+    console.error('Error in querySelectorAll:', e);
+    }
     console.log('Found iframes:', found); // iframe 탐지 로그 추가
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+
+    // TreeWalker를 통해 Shadow DOM까지 탐색
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
+    acceptNode(node) {
+            // iframe, frame, embed, object만 추적
+            if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT', 'iframe[srcdoc]'].includes(node.tagName)) {
+                return NodeFilter.FILTER_ACCEPT;
+            }
+            return NodeFilter.FILTER_SKIP; // 다른 요소는 건너뛰기
+        }
+    });
+
+    // Shadow DOM을 포함한 iframe까지 찾아내는 부분
     while (walker.nextNode()) {
       const node = walker.currentNode;
       if (node.shadowRoot) {
-        found = found.concat(getAllIframes(node.shadowRoot));
+        found = found.concat(getAllIframes(node.shadowRoot)); // Shadow DOM 내의 iframe 추가
       }
     }
     console.log('Total iframes found:', found.length); // 최종적으로 찾은 iframe 갯수
@@ -367,8 +384,8 @@
     }
 
     // 여기에 src가 제대로 추출된 경우의 로그 추가
-    console.log(`Logging iframe with src: ${src}`);  // 로그 추가
-    console.log('Detected iframe:', iframe);  // iframe 객체 로그
+    console.log(`Logging iframe with src: ${src}`);  // 로그 추가: iframe의 src 값 출력
+    console.log('Detected iframe:', iframe);  // 실제 iframe 객체를 출력
 
     const outer = iframe?.outerHTML?.slice(0, 200).replace(/\s+/g, ' ') || '';
     const combined = [src, ...dataUrls, ...extracted].join(' ');
@@ -378,7 +395,8 @@
     if (origSet && origSet.set) {
         Object.defineProperty(iframe, 'src', {
             set: function(value) {
-                logIframe(iframe, reason + ' (direct assign)');  // src 값 할당 시 로깅
+                //logIframe(iframe, reason + ' (direct assign)');  // src 값 할당 시 로깅
+                logIframe(iframe, 'src 변경: ' + value);
                 return origSet.set.call(this, value);  // 원래 src 설정 동작 실행
             },
             get: origSet.get, // 기존 getter 유지
@@ -432,13 +450,14 @@
     }
 
     const info = `[#${++count}] ${reason} ${src || '[No src]'}\n└▶ ${outer}\n ${keywordText}`;
-    console.warn('%c[Iframe Detected]', 'color: red; font-weight: bold;', info);
+    console.warn('%c[Iframe Detected]', 'color: {logcolor]; font-weight: bold;', info);
 
-    // 로그 크기가 100을 초과하면 가장 오래된 로그를 제거
-    if (logList.length > 100) {
+    // 로그 크기가 500을 초과하면 가장 오래된 로그를 제거
+    if (logList.length > 500) {
       logList.shift();  // 가장 오래된 로그를 제거
     }
     // iframe을 완전히 제거하는 방법 (스크립트 실행을 방지하는 방식)
+    // 페이지 로드 후 이미 존재하는 iframe에 대한 조건 체크 및 처리
     if (!isWhitelistedIframe && !isGrayListedIframe && iframe && REMOVE_IFRAME) {
       // 로그 출력 후 제거하도록 변경
       try {
@@ -449,6 +468,20 @@
         console.error('Error removing iframe:', e);  // 오류 발생 시 콘솔에 오류 출력
       }
     }
+
+    // setTimeout을 통한 확인 코드를 필요시 활성화
+    if (!REMOVE_IFRAME) {
+      setTimeout(() => {
+        const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
+        iframes.forEach(iframe => {
+          if (!seen.has(iframe)) {
+            logIframe(iframe, 'Element added');
+            seen.add(iframe);  // 중복 체크
+          }
+        });
+      }, 20); // 1초 후에 다시 확인
+    }
+
 
     if (ENABLE_LOG_UI && logContent) {
       logList.push(info);  // 새 로그를 logList에 추가
@@ -473,27 +506,55 @@
       });
     };
 
-  // 동적 처리: 일정 간격으로 iframe 체크 (setInterval)
+  // 동적 처리: 일정 간격으로 iframe 체크 (setInterval) - MutationObserver를 사용하여 동적으로 추가되는 iframe 추적 겹침
   setInterval(() => {
     const iframes = getAllIframes(document);  // 현재 페이지의 모든 iframe을 체크
     iframes.forEach(iframe => {
-      logIframe(iframe, 'Periodic check');
+      logIframe(iframe, '차단 요소');
     });
-  }, 3000); // 20보다 느리면 차단 잘 안됨 // 3초보다 더 빠르면 틱톡/GPT 등에서 오류남
+  }, 20); // 20보다 느리면 차단 잘 안됨 // 3초보다 더 빠르면 틱톡/GPT 등에서 오류남
 
   // MutationObserver를 사용하여 동적으로 추가되는 iframe 추적
   const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
       mutation.addedNodes.forEach(node => {
-        if (node.tagName === 'IFRAME' && node.src && !seen.has(node)) {
-        console.log('New iframe added with src:', node.src);
-        logIframe(node, 'Element added');
-        seen.add(node);
+        //if (node.tagName === 'IFRAME' && node.src && !seen.has(node.src)) {
+        // src가 설정되지 않았거나 이미 seen에 존재하는 경우 건너뜁니다.
+        // 'src'가 있는 경우 처리
 
-          // iframe 차단
-          node.remove();  // 해당 iframe을 제거
-        }
-      });
+
+        // 보류 - 로그가 많이 나옴
+        //if (node.src && !seen.has(node.src)) {
+        //console.log('New iframe added with src:', node.src);
+        //logIframe(node, '동적 요소 (해제 검토)\n');
+        //seen.add(node);
+        // src가 없을 경우에도 처리 (srcdoc, data-* 등을 추가로 체크)
+        //} else if (!node.src) {
+        //console.log('New iframe added without src:', node);
+        //logIframe(node, '동적 요소 (해제 검토)\n');
+        //seen.add(node.src);  // 중복 체크
+        //-- srcdoc 등 다른 속성도 체크할 수 있음
+          //-- iframe 차단 방법
+          //node.remove();  // 해당 iframe을 제거--
+          //node.src = '';  // iframe의 src를 빈 문자열로 설정하여 콘텐츠 로딩을 차단--
+          //node.sandbox = 'allow-scripts';  // 'allow-scripts'로 설정하여 스크립트만 허용 (다른 기능은 차단)--
+          //node.srcdoc = '';  // srcdoc 속성으로 빈 HTML 설정--
+          //node.style.display = 'none';  // iframe을 화면에서 숨기기--
+          //node.style.visibility = 'hidden';  // 공간을 차지하지만 보이지 않도록 설정--
+        //}
+
+
+        // 'IFRAME'인 노드에서 src가 존재하고, 이미 처리되지 않은 iframe만 처리
+        if (node.tagName === 'IFRAME' && node.src && !seen.has(node.src)) {
+          console.log('New iframe added with src:', node.src);
+          logIframe(node, '동적 요소 (해제검토)\n');
+          seen.add(node.src); // src만을 기준으로 중복 체크
+      } else if (node.tagName === 'IFRAME' && !seen.has(node)) {
+          console.log('New iframe added without src:', node);
+          logIframe(node, '동적 요소 (srcdoc/data-* 처리)');
+          seen.add(node); // src가 없는 경우에도 노드를 직접 중복 체크
+      }
+    });
     });
   });
 
