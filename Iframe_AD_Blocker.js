@@ -238,7 +238,7 @@
 
     // 로그 패널 생성
     const panel = document.createElement('div');
-    panel.style.cssText = 'position:fixed;bottom:150px;right:60px;width:500px;height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:16px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;text-align:left !important;overflow:hidden;z-index:99999;';
+    panel.style.cssText = 'position:fixed;bottom:150px;right:60px;width:500px;height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:16px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;text-align:left !important;overflow:hidden;z-index:99999;font-weight:bold';
     panel.id = 'iframe-log-panel';  // 패널에 ID 추가하여 중복 방지
     logContainer = panel;
 
