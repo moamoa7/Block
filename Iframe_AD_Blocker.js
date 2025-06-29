@@ -450,7 +450,7 @@
     }
 
     const info = `[#${++count}] ${reason} ${src || '[No src]'}\n└▶ ${outer}\n ${keywordText}`;
-    console.warn('%c[Iframe Detected]', 'color: {logcolor]; font-weight: bold;', info);
+    console.warn('%c[Iframe Detected]', `color: ${logColor}; font-weight: bold;`, info);
 
     // 로그 크기가 500을 초과하면 가장 오래된 로그를 제거
     if (logList.length > 500) {
@@ -475,11 +475,11 @@
         const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
         iframes.forEach(iframe => {
           if (!seen.has(iframe)) {
-            logIframe(iframe, '차단 요소');
+            logIframe(iframe, '3차 동적 처리 \n');
             seen.add(iframe);  // 중복 체크
           }
         });
-      }, 20); // 1초 후에 다시 확인
+      }, 3000); // 3초 후에 다시 확인
     }
 
 
@@ -500,7 +500,7 @@
       const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
       iframes.forEach(iframe => {
         if (!seen.has(iframe)) {  // 이미 처리되지 않은 iframe만 처리
-          logIframe(iframe, '차단 요소');
+          logIframe(iframe, '페이지내 처리 \n');
           seen.add(iframe);  // 처리된 iframe을 추적
         }
       });
@@ -510,7 +510,7 @@
   setInterval(() => {
     const iframes = getAllIframes(document);  // 현재 페이지의 모든 iframe을 체크
     iframes.forEach(iframe => {
-      logIframe(iframe, '차단 요소');
+      logIframe(iframe, '1차 동적 처리 \n');
     });
   }, 20); // 20보다 느리면 차단 잘 안됨 // 3초보다 더 빠르면 틱톡/GPT 등에서 오류남
 
@@ -547,13 +547,13 @@
         // 'IFRAME'인 노드에서 src가 존재하고, 이미 처리되지 않은 iframe만 처리
         if (node.tagName === 'IFRAME' && node.src && !seen.has(node.src)) {
           console.log('New iframe added with src:', node.src);
-          logIframe(node, '동적 요소 (해제검토)\n');
+          logIframe(node, '2차 동적 처리 \n');
           seen.add(node.src); // src만을 기준으로 중복 체크
-      } else if (node.tagName === 'IFRAME' && !seen.has(node)) {
+        } else if (node.tagName === 'IFRAME' && !seen.has(node)) {
           console.log('New iframe added without src:', node);
-          logIframe(node, '동적 요소 (srcdoc/data-* 처리)');
+          logIframe(node, '2차 동적 처리 (srcdoc/data-* 처리)');
           seen.add(node); // src가 없는 경우에도 노드를 직접 중복 체크
-      }
+        }
     });
     });
   });
