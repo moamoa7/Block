@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250628
+! Version: 20250629
 !
 !
 !
@@ -2245,7 +2245,7 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 ! - 하단 따라다니는 배너
 ##[class*="slideAnimation"]
 ! - 일부 영상 재생 차단 방지
-!@@||tiktokcdn.com/obj/$xhr
+@@||tiktokcdn.com/obj/$xhr
 !@@||p.jwpcdn.com^$script
 ! 일부 iframe 차단
 !jilliandescribecompany.com##iframe
@@ -4477,6 +4477,9 @@ clien.net#@#[class*="banner"]:has(img)
 [$domain=/^wdwd\d+.com/]#@#[class*="banner"]:has(img)
 ! - - - https://www.yna.co.kr/ - 화면 안보임
 yna.co.kr#@#[class*="banner"]:has(img)
+! - - - tistory.com - 화면 안보임
+tistory.com#@#[class*="banner"]:has(img)
+
 
 
 
@@ -4912,6 +4915,9 @@ map.naver.com,pcmap.place.naver.com#@#[class*="AD"]
 [$domain=/^wdwd\d+.com/]#@#[class*="-banner"]
 ! - -- https://www.yna.co.kr/ - 화면 안보임
 yna.co.kr#@#[class*="-banner"]
+! - - - tistory.com - 화면 안보임
+tistory.com#@#[class*="-banner"]
+
 
 
 ! https://www.weather.go.kr/
