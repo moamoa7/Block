@@ -559,6 +559,7 @@
   });
 
   // observer 설정: body에서 자식 노드의 변경을 추적
+  //observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
   observer.observe(document.body, { childList: true, subtree: true });
 
   // 로그 UI 생성
