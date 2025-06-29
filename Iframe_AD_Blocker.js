@@ -475,7 +475,7 @@
         const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
         iframes.forEach(iframe => {
           if (!seen.has(iframe)) {
-            logIframe(iframe, 'Element added');
+            logIframe(iframe, '차단 요소');
             seen.add(iframe);  // 중복 체크
           }
         });
@@ -500,7 +500,7 @@
       const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
       iframes.forEach(iframe => {
         if (!seen.has(iframe)) {  // 이미 처리되지 않은 iframe만 처리
-          logIframe(iframe, 'Element added');
+          logIframe(iframe, '차단 요소');
           seen.add(iframe);  // 처리된 iframe을 추적
         }
       });
