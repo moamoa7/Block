@@ -33,11 +33,9 @@
     '7tv000.com', '7mmtv',  // https://7tv000.com/
     'njav',  // https://www.njav.com/
     '/stream/',  // https://missvod4.com/
-    'goodTubeEmbed',
   ];
 
   const whitelistMap = {
-    'youtube.com': [''],
     'place.naver.com': [''],
     'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
     'blog.naver.com': [''],
@@ -235,43 +233,42 @@
     console.log(`path: ${path}`);
     console.log(`search: ${u.search}`);
 
-    let color = 'red', keyword = '';
-    const matchedKeywords = globalWhitelistKeywords.filter(k => src.includes(k));
-    const matchedGray = grayWhitelistKeywords.filter(k => src.includes(k));
+    let color = 'red', keyword = '', matchedDomain = '';
 
-    // 화이트리스트 매핑 처리
-    for (const [host, kws] of Object.entries(whitelistMap)) {
-    if (domain.includes(host)) {
-      kws.forEach(k => {
-        if (path.includes(k) || u.search.includes(k)) {
-          matchedKeywords.push(k);
-          console.log(`Matched with whitelistMap: ${k}`);
-        }
-      });
+    // 화이트리스트 키워드 매칭 처리
+    const matchedKeywords = globalWhitelistKeywords.filter(k => src.includes(k));
+    if (matchedKeywords.length > 0) {
+      color = 'green';  // 화이트리스트 키워드 매칭 시 색상 변경
+      keyword = matchedKeywords.join(', ');  // 매칭된 키워드 저장
     }
-  }
-    // 그레이리스트 매핑 처리
-    for (const [host, kws] of Object.entries(grayDomainWhitelistMap)) {
-        if (domain.includes(host)) {
-            kws.forEach(k => {
-                if (path.includes(k) || u.search.includes(k)) { // 쿼리 파라미터까지 확인
-                matchedGray.push(k);
-                console.log(`Matched with grayDomainWhitelistMap: ${k}`);
-            }
-        });
+
+    // 그레이리스트 키워드 매칭 처리
+    const matchedGray = grayWhitelistKeywords.filter(k => src.includes(k));
+    if (matchedGray.length > 0) {
+      color = 'gray';  // 그레이리스트 키워드 매칭 시 색상 변경
+      keyword = matchedGray.join(', ');  // 매칭된 키워드 저장
+    }
+
+    // 화이트리스트 도메인 매칭 처리
+    for (const [host, kws] of Object.entries(whitelistMap)) {
+      if (domain.includes(host)) {
+        matchedDomain = domain;  // 매칭된 도메인 저장
+        color = 'green';  // 화이트리스트 도메인 매칭 시 색상 변경
+        break;
       }
     }
-    // 화이트리스트에 매칭되었을 때
-    if (matchedKeywords.length) {
-      color = 'green';
-      keyword = matchedKeywords.join(', '); // 화이트리스트 키워드로 출력
-    }
-    // 그레이리스트에 매칭되었을 때
-    else if (matchedGray.length) {
-      color = 'gray';
-      keyword = matchedGray.join(', '); }  // 그레이리스트 키워드로 출력
 
-    const info = `[#${++count}] ${reason} ${src} (매칭키워드 : ${keyword})`;
+    // 그레이리스트 도메인 매칭 처리
+    for (const [host, kws] of Object.entries(grayDomainWhitelistMap)) {
+      if (domain.includes(host)) {
+        matchedDomain = domain;  // 매칭된 도메인 저장
+        color = 'gray';  // 그레이리스트 도메인 매칭 시 색상 변경
+        break;
+      }
+    }
+
+    //const info = `[#${++count}] ${reason} ${src} (매칭키워드 : ${keyword})`;
+    const info = `[#${++count}] ${reason} ${src} (매칭키워드 : ${keyword || matchedDomain || '없음'})`;
     console.warn('%c[Iframe]', `color:${color};font-weight:bold`, info);
 
     // 로그 리스트에 추가
