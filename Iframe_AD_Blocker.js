@@ -17,6 +17,7 @@
 
   const globalWhitelistKeywords = [
     '/recaptcha/', '/challenge-platform/',  // 캡챠
+    '/TranslateWebserverUi/',  // 구글 번역
     //'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
     '/videoembed/', 'player.kick.com', // https://poooo.ml/
@@ -32,9 +33,11 @@
     '7tv000.com', '7mmtv',  // https://7tv000.com/
     'njav',  // https://www.njav.com/
     '/stream/',  // https://missvod4.com/
+    'goodTubeEmbed',
   ];
 
   const whitelistMap = {
+    'youtube.com': [''],
     'place.naver.com': [''],
     'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
     'blog.naver.com': [''],
@@ -53,6 +56,11 @@
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
     //'mp4',  // 영상 기본 파일
   ];
+
+  const grayDomainWhitelistMap = {
+    'youtube.com': [''],
+    'accounts.youtube.com': [''],
+  };
 
   // ======= 내부 변수 =======
   const ICON_ID = 'iframe-log-icon';
@@ -204,8 +212,12 @@
 
     let src = iframe?.src || iframe?.getAttribute('src') || '';
 
+    // 디버깅용 콘솔 로그 추가
+    console.log(`src: ${src}`);  // src가 제대로 추출되는지 확인
+
     // about:blank 무시 처리
     if (src === 'about:blank') {
+      console.log('about:blank iframe detected, skipping...');
       return; // 무시
     }
 
@@ -216,31 +228,67 @@
     if (!src) return;
 
     const u = new URL(src, location.href);
-    const domain = u.hostname, path = u.pathname + u.search;
+    const domain = u.hostname, path = u.pathname + u.search;  // path와 search를 구분
+
+    // 추가된 디버깅 로그
+    console.log(`domain: ${domain}`);
+    console.log(`path: ${path}`);
+    console.log(`search: ${u.search}`);
 
     let color = 'red', keyword = '';
     const matchedKeywords = globalWhitelistKeywords.filter(k => src.includes(k));
     const matchedGray = grayWhitelistKeywords.filter(k => src.includes(k));
-    for (const [host, kws] of Object.entries(whitelistMap)) {
-      if (domain.includes(host)) kws.forEach(k => { if (path.includes(k)) matchedKeywords.push(k); });
-    }
 
-    if (matchedKeywords.length) { color = 'green'; keyword = matchedKeywords.join(', '); }
-    else if (matchedGray.length) { color = 'gray'; keyword = matchedGray.join(', '); }
+    // 화이트리스트 매핑 처리
+    for (const [host, kws] of Object.entries(whitelistMap)) {
+    if (domain.includes(host)) {
+      kws.forEach(k => {
+        if (path.includes(k) || u.search.includes(k)) {
+          matchedKeywords.push(k);
+          console.log(`Matched with whitelistMap: ${k}`);
+        }
+      });
+    }
+  }
+    // 그레이리스트 매핑 처리
+    for (const [host, kws] of Object.entries(grayDomainWhitelistMap)) {
+        if (domain.includes(host)) {
+            kws.forEach(k => {
+                if (path.includes(k) || u.search.includes(k)) { // 쿼리 파라미터까지 확인
+                matchedGray.push(k);
+                console.log(`Matched with grayDomainWhitelistMap: ${k}`);
+            }
+        });
+      }
+    }
+    // 화이트리스트에 매칭되었을 때
+    if (matchedKeywords.length) {
+      color = 'green';
+      keyword = matchedKeywords.join(', '); // 화이트리스트 키워드로 출력
+    }
+    // 그레이리스트에 매칭되었을 때
+    else if (matchedGray.length) {
+      color = 'gray';
+      keyword = matchedGray.join(', '); }  // 그레이리스트 키워드로 출력
 
     const info = `[#${++count}] ${reason} ${src} (매칭키워드 : ${keyword})`;
     console.warn('%c[Iframe]', `color:${color};font-weight:bold`, info);
 
+    // 로그 리스트에 추가
     logList.push(info);
     if (logList.length > 500) logList.shift();
+
+    // 로그 UI에 출력
     if (logContent) {
       const div = document.createElement('div');
       div.textContent = info;
       div.style = `color:${color}; padding:2px 0;`;
       logContent.appendChild(div);
     }
+
     updateCount();
 
+    // iframe을 차단하려면
     if (!matchedKeywords.length && !matchedGray.length && REMOVE_IFRAME) {
       setTimeout(() => iframe.remove(), 0);
     }
