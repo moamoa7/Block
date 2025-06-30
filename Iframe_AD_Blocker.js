@@ -1,9 +1,8 @@
-
 // ==UserScript==
-// @name         Iframe Logger & Blocker (Violentmonkey용, 개선된 버전)
+// @name         Iframe Logger & Blocker (Violentmonkey용, SPA 강제유지 통합 / 동적최적화)
 // @namespace    none
-// @version      8.4
-// @description  iframe 실시간 탐지+차단, srcdoc+data-* 분석, 화이트리스트, 자식 로그 부모 전달, Shadow DOM 탐색, 로그 UI, 드래그, 자동 숨김, 더블클릭으로 상태 변경
+// @version      8.6
+// @description  iframe 탐지/차단 + 화이트리스트 + 로그 UI + SPA 강제유지 + 드래그
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -11,51 +10,14 @@
 (function () {
   'use strict';
 
-  // 설정 값 (로그 UI, iframe 제거 여부)
-  const ENABLE_LOG_UI = true;  // 로그 UI 활성화 여부
-  //const REMOVE_IFRAME = true;  // iframe 제거 여부
-  const seen = new WeakSet(); // 이미 처리한 iframe을 추적하는 WeakSet
-  const seenSrc = new Set();  // 이미 처리한 src를 추적하는 Set
-  let count = 0;  // iframe 탐지 카운트
-  let logList = [];  // 로그 항목 저장 배열
-  let logContainer, logContent, countDisplay; // 로그 UI 관련 DOM 요소
+  // ======= 사용자 설정 =======
+  const ENABLE_LOG_UI = true;
+  const REMOVE_IFRAME_DEFAULT = true;
+  const REMOVE_IFRAME = REMOVE_IFRAME_DEFAULT;
 
-  let currentlyScanning = false;  // scanAll 실행 중인지 여부를 추적
-  let seenDuringScan = new Set();  // scanAll 중에 처리한 iframe을 추적
-
-  // iframe 제거 기본값
-  const REMOVE_IFRAME_DEFAULT = true;  // iframe 제거 기본값
-
-  // 차단 해제할 사이트들
-  const allowedSites = ['예', '제'];
-
-  // 현재 사이트가 allowedSites에 포함되면 iframe 차단을 해제
-  let REMOVE_IFRAME = allowedSites.includes(window.location.hostname) ? false : REMOVE_IFRAME_DEFAULT;
-
-  // allowedSites 배열에서 현재 사이트가 포함되면 로직 종료
-  if (allowedSites.includes(window.location.hostname)) {
-      console.log(`${window.location.hostname}에 접속했으므로 로직을 정지합니다.`);
-      return;  // 해당 사이트에서 로직 종료
-  }
-
-  // 로컬 스토리지에서 값 가져오기
-  let isEnabled = localStorage.getItem('iframeLoggerEnabled');
-
-  // 값이 없으면 'true'로 설정하고 저장
-  if (isEnabled === null) {
-    isEnabled = 'true';  // 기본값을 'true'로 설정
-    localStorage.setItem('iframeLoggerEnabled', isEnabled);  // 저장
-  }
-
-  // 'true'/'false' 문자열을 boolean으로 변환
-  isEnabled = isEnabled === 'true';
-
-  console.log('Iframe Logger 활성화 여부:', isEnabled);  // 활성화 여부 확인
-
-  // 글로벌 키워드 화이트리스트 (특정 키워드를 포함하는 iframe은 녹색으로 표시)
   const globalWhitelistKeywords = [
     '/recaptcha/', '/challenge-platform/',  // 캡챠
-    'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
+    //'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
     '/videoembed/', 'player.kick.com', // https://poooo.ml/
     '/messitv/',  // https://messitv8.com/ (메시티비)
@@ -66,13 +28,12 @@
     '/reystream/',  // https://gltv88.com/ (굿라이브티비)
     'supremejav.com',  // https://supjav.com/
     '/e/', '/t/', '/v/', // 각종 성인 영상
-    '/player',  // https://05.avsee.ru/  https://sextb.date/ US영상
+    '/player',  // 티비위키.티비몬.티비핫 플레이어  https://05.avsee.ru/  https://sextb.date/ US영상
     '7tv000.com', '7mmtv',  // https://7tv000.com/
     'njav',  // https://www.njav.com/
     '/stream/',  // https://missvod4.com/
   ];
 
-  // 도메인별 키워드 화이트리스트 (특정 도메인에서 특정 키워드를 포함하는 경우 녹색 처리)
   const whitelistMap = {
     'place.naver.com': [''],
     'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
@@ -83,9 +44,8 @@
     //'tiktok.com': [''],
   };
 
-  // 회색 화이트리스트 키워드 (회색으로 처리)
   const grayWhitelistKeywords = [
-    'extension:',  // 확장프로그램
+    //'extension:',  // 확장프로그램
     'goodTube',  // 유튜브 우회 js (개별적으로 사용중)
     'aspx',  // 옥션 페이지 안보이거 해결
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
@@ -94,192 +54,129 @@
     //'mp4',  // 영상 기본 파일
   ];
 
-  // 회색 화이트리스트 도메인 (회색으로 처리)
-  const grayDomainWhitelistMap = {
-  };
+  // ======= 내부 변수 =======
+  const ICON_ID = 'iframe-log-icon';
+  const PANEL_ID = 'iframe-log-panel';
+  let isEnabled = localStorage.getItem('iframeLoggerEnabled') !== 'false';
+  let seen = new WeakSet();
+  let logList = [], count = 0, logContainer, logContent, countDisplay;
 
-  // srcdoc에서 src/href URL 추출
-  function extractUrlsFromSrcdoc(srcdoc = '') {
-    const urls = [];
-    try {
-      const temp = document.createElement('div');
-      temp.innerHTML = srcdoc;
-      const tags = temp.querySelectorAll('[src], [href]');
-      tags.forEach(el => {
-        const val = el.getAttribute('src') || el.getAttribute('href');
-        if (val) urls.push(val);
-      });
-    } catch {}
-    return urls;
-  }
+  // ======= 드래그 가능 =======
+  function makeDraggable(el) {
+    let offsetX, offsetY, isDragging = false;
 
-  // data-* 속성에서 URL 추출
-  function extractUrlsFromDataset(el) {
-    const urls = [];
-    try {
-      for (const key of Object.keys(el.dataset)) {
-        const val = el.dataset[key];
-        if (val && /^https?:\/\//.test(val)) {
-          urls.push(val);
-        }
-      }
-    } catch {}
-    return urls;
-  }
-
-  // Shadow DOM 포함 모든 iframe/frame/embed/object 수집
-  function getAllIframes(root = document) {
-    let found = [];
-    try {
-      found = Array.from(root.querySelectorAll('iframe, frame, embed, object, iframe[srcdoc]'));
-        // 모든 요소들
-        //'iframe, frame, embed, object, ins, script, script[type="module"], iframe[srcdoc], img, form, input, textarea, select, option, button, audio, video, picture, source, a, area, link, div, span, header, footer, main, section, article, aside, nav, figure, figcaption, details, summary, style, svg, path, circle, rect, line, polygon, template, canvas, applet, bgsound, math, svg'
-        // 기본 요소들
-        //'iframe, frame, embed, object, iframe[srcdoc]'
-        //'iframe, frame, embed, object'
-      //));
-    } catch (e) {
-    console.error('Error in querySelectorAll:', e);
-    }
-    console.log('Found iframes:', found); // iframe 탐지 로그 추가
-
-    // TreeWalker를 통해 Shadow DOM까지 탐색
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
-    acceptNode(node) {
-            // iframe, frame, embed, object만 추적
-            if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT', 'iframe[srcdoc]'].includes(node.tagName)) {
-                return NodeFilter.FILTER_ACCEPT;
-            }
-            return NodeFilter.FILTER_SKIP; // 다른 요소는 건너뛰기
-        }
-    });
-
-    // Shadow DOM을 포함한 iframe까지 찾아내는 부분
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      if (node.shadowRoot) {
-        found = found.concat(getAllIframes(node.shadowRoot)); // Shadow DOM 내의 iframe 추가
-      }
-    }
-    console.log('Total iframes found:', found.length); // 최종적으로 찾은 iframe 갯수
-    return found;
-  }
-
-  // 아이콘 드래그 가능하게 만드는 함수 (모바일 지원)
-  function makeDraggable(element) {
-    let offsetX, offsetY;
-    let isDragging = false;
-
-    const startDrag = (event) => {
+    const start = (e) => {
       isDragging = true;
-      const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-      const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-      offsetX = clientX - element.getBoundingClientRect().left;
-      offsetY = clientY - element.getBoundingClientRect().top;
+      const x = e.touches ? e.touches[0].clientX : e.clientX;
+      const y = e.touches ? e.touches[0].clientY : e.clientY;
+      offsetX = x - el.getBoundingClientRect().left;
+      offsetY = y - el.getBoundingClientRect().top;
 
-      const moveDrag = (moveEvent) => {
-        if (isDragging) {
-          const x = (moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX) - offsetX;
-          const y = (moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY) - offsetY;
-          element.style.left = `${x}px`;
-          element.style.top = `${y}px`;
-        }
+      const move = (e2) => {
+        if (!isDragging) return;
+        const x2 = e2.touches ? e2.touches[0].clientX : e2.clientX;
+        const y2 = e.touches ? e.touches[0].clientY : e.clientY;
+        el.style.left = `${x2 - offsetX}px`;
+        el.style.top = `${y2 - offsetY}px`;
       };
 
-      const stopDrag = () => {
-        isDragging = false;
-        document.removeEventListener('mousemove', moveDrag);
-        document.removeEventListener('mouseup', stopDrag);
-        document.removeEventListener('touchmove', moveDrag);
-        document.removeEventListener('touchend', stopDrag);
-      };
-
-      document.addEventListener('mousemove', moveDrag);
-      document.addEventListener('mouseup', stopDrag);
-      document.addEventListener('touchmove', moveDrag);
-      document.addEventListener('touchend', stopDrag);
+      const stop = () => { isDragging = false; };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', stop);
+      document.addEventListener('touchmove', move);
+      document.addEventListener('touchend', stop);
     };
 
-    element.addEventListener('mousedown', startDrag);
-    element.addEventListener('touchstart', startDrag);
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchstart', start);
   }
 
-  // 로그 UI 생성 및 드래그 기능
-  function createLogUI() {
-    if (document.getElementById('iframe-log-panel')) return;  // 이미 존재하면 함수 종료
+  // ======= 아이콘 =======
+  function createIcon() {
+    if (window.top !== window) {
+      return;  // 자식 iframe인 경우 아이콘 생성하지 않음
+    }
 
-    // 로그 UI 버튼 생성
+    if (document.getElementById(ICON_ID)) return;
+
     const btn = document.createElement('button');
-    btn.textContent = isEnabled ? '🛡️' : '🚫'; // 상태에 따라 아이콘 설정
-    btn.title = 'Iframe 로그 토글';
+    btn.id = ICON_ID;
+    btn.textContent = isEnabled ? '🛡️' : '🚫';
+    btn.title = 'Iframe 로그';
     btn.style.cssText = `
-      position:fixed;
-      bottom:150px;
-      right:10px;
-      z-index:99999;
-      width:45px;
-      height:45px;
-      border-radius:50%;
-      border:none;
-      background:#000;  /* 배경을 검은색으로 고정 */
-      color:#fff;
-      font-size:32px !important;  /* 아이콘 크기 증가 */
-      cursor:pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      left: unset;  /* 화면 중앙이 아닌 원 안에서 위치하도록 */
-      top: unset;   /* 원 안에서 위치하도록 */
-      transition: background 0.3s; /* 배경 전환 효과 */
-      opacity: 0.40; /* 아이콘 투명도 */
+      position:fixed; bottom:150px; right:10px; z-index:99999;
+      width:45px; height:45px; border-radius:50%;
+      border:none; background:#000; color:#fff; font-size:32px;
+      display:flex; align-items:center; justify-content:center;
+      opacity:0.4; cursor:pointer;
     `;
+    btn.onclick = () => {
+      const panel = document.getElementById(PANEL_ID);
+      if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+      }
+    };
+    btn.ondblclick = () => {
+      isEnabled = !isEnabled;
+      localStorage.setItem('iframeLoggerEnabled', isEnabled);
+      btn.textContent = isEnabled ? '🛡️' : '🚫';
+      console.log('Iframe Logger 활성화:', isEnabled);
+    };
+    makeDraggable(btn);
     document.body.appendChild(btn);
-    makeDraggable(btn);  // 드래그 가능하게 설정 (이 부분을 주석처리하면 아이콘 UI 드래그 기능 비활성화)
+  }
 
-    // 로그 패널 생성
-    const panel = document.createElement('div');
-    panel.style.cssText = 'position:fixed;bottom:150px;right:60px;width:500px;height:400px;background:rgba(0,0,0,0.85);color:white;font-family:monospace;font-size:16px;border-radius:10px;box-shadow:0 0 10px black;display:none;flex-direction:column;text-align:left !important;overflow:hidden;z-index:99999;font-weight:bold';
-    panel.id = 'iframe-log-panel';  // 패널에 ID 추가하여 중복 방지
-    logContainer = panel;
+  // ======= 로그 UI =======
+  function createLogUI() {
+    if (document.getElementById(PANEL_ID)) return;
 
-    // 로그 UI만 스타일을 변경하는 CSS 추가
     const style = document.createElement('style');
     style.textContent = `
       #iframe-log-panel {
-        font-size: 16px !important; /* 로그 패널 내에서만 폰트 크기 변경 */
+        font-size: 16px !important;
       }
       #iframe-log-panel * {
-        font-size: 16px !important; /* 하위 모든 요소에도 적용 */
-        //color: white !important;
+        font-size: 16px !important;
       }
       #iframe-log-panel button {
-        font-size: 16px !important; /* 버튼 크기 조정 */
+        font-size: 14px !important;
       }
       #iframe-log-panel div {
-      white-space: pre-wrap;
-      overflow-wrap: break-word; /* 줄바꿈 조정 */
+        //white-space: nowrap; /* 텍스트가 한 줄로 표시되도록 */
+        //overflow-x: auto; /* 가로 스크롤 추가 */
+        //overflow-y: auto; /* 세로 스크롤 추가 */
+        white-space: pre-wrap; /* 줄바꿈 유지 */
+        word-wrap: break-word; /* 긴 주소도 줄바꿈을 통해 잘리지 않게 */
+        overflow-wrap: break-word;; /* 여유 공간 없을 때 자동 줄바꿈 */
       }
+  `;
+  document.head.appendChild(style);
+
+    const panel = document.createElement('div');
+    panel.id = PANEL_ID;
+    panel.style.cssText = `
+      position:fixed; bottom:150px; right:60px; width:500px; height:400px;
+      background:rgba(0,0,0,0.85); color:white; font-family:monospace;
+      font-size:16px; border-radius:10px; box-shadow:0 0 10px black;
+      display:none; flex-direction:column; text-align:left !important;
+      overflow:hidden; z-index:99999; font-weight:bold
     `;
-    document.head.appendChild(style);  // 스타일을 <head>에 추가하여 적용
-
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#000;font-weight:bold;font-size:14px;';
-    const title = document.createElement('span'); title.textContent = '🛡️ Iframe Log View';
-
+    header.style = 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#000;';
+    const title = document.createElement('span');
+    title.textContent = '🛡️ Iframe Log';
     countDisplay = document.createElement('span');
-    countDisplay.style.cssText = 'font-size:12px;color:#ccc;margin-left:6px;';
+    countDisplay.style = 'font-size:12px; color:#ccc; margin-left:6px;';
     countDisplay.textContent = '(0)';
-
     const copyBtn = document.createElement('button');
     copyBtn.textContent = '📋 복사';
-    copyBtn.style.cssText = 'font-size:12px;background:#444;color:white;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;';  // 복사 버튼 스타일 설정
+    copyBtn.style = 'font-size:12px;background:#444;color:white;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;';
     copyBtn.onclick = () => {
       navigator.clipboard.writeText(logList.join('\n')).then(() => {
-        copyBtn.textContent = '복사됨!';   // 버튼 텍스트를 "복사됨!"으로 잠시 바꿈
-        setTimeout(() => copyBtn.textContent = '📋 복사', 1500); // 1.5초 후에 다시 버튼 텍스트를 '📋 복사'로 돌려놓습니다.
+        copyBtn.textContent = '복사됨!';
+        setTimeout(() => copyBtn.textContent = '📋 복사', 1500);
       });
     };
-
     const left = document.createElement('div');
     left.appendChild(title);
     left.appendChild(countDisplay);
@@ -287,291 +184,94 @@
     header.appendChild(copyBtn);
 
     logContent = document.createElement('div');
-
-    // 로그내역 스타일 설정
-    // white-space: pre-wrap; → 줄바꿈 문자(\n)를 그대로 살리고, 자동으로 줄 바꿈도 허용.
-    // word-wrap: break-word; → 너무 긴 단어(긴 URL 등)도 영역 밖으로 빠져나가지 않고, 중간에 단어를 잘라서 줄 바꿈.
-    logContent.style.cssText = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;word-wrap:break-word;';
-
-    // 스크롤 가능하게 설정 (드래그 기능은 비활성화)
-    //logContent.style.overflowY = 'auto';  // 세로 스크롤 활성화
-    //logContent.style.maxHeight = '300px'; // 로그 내용이 많을 경우 높이 제한
-    //logContent.style.userSelect = 'text';  // 텍스트 선택 가능하게 설정
-    //logContent.addEventListener('mousedown', (e) => {
-      //e.stopPropagation();  // 마우스 다운 시 이벤트 전파 방지
-    //});
-
+    logContent.style = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;word-wrap:break-word;';
     logContent.style.userSelect = 'text';
-    logContent.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-    });
+    logContent.addEventListener('mousedown', e => e.stopPropagation());
 
     panel.appendChild(header);
     panel.appendChild(logContent);
     document.body.appendChild(panel);
-
-    //makeDraggable(panel);  // 드래그 가능하게 설정 (이 부분을 주석처리하면 로그내역 드래그 기능 비활성화)
-
-    // 로그 UI 표시/숨기기 버튼 클릭 시 동작
-    btn.onclick = () => {
-      if (logContainer.style.display === 'none') {
-        logContainer.style.display = 'flex';
-      } else {
-        logContainer.style.display = 'none';
-      }
-    };
-
-    // 더블클릭으로 활성화/비활성화 상태 토글 (아이콘 변경)
-    btn.addEventListener('dblclick', () => {
-      isEnabled = !isEnabled;
-
-      // 상태를 localStorage에 저장
-      localStorage.setItem('iframeLoggerEnabled', isEnabled);
-
-      // 아이콘 변경
-      btn.textContent = isEnabled ? '🛡️' : '🚫';  // 활성화 상태는 방패 아이콘, 비활성화 상태는 금지 아이콘으로 변경
-
-      console.log('Iframe Logger 활성화 여부:', isEnabled);  // 상태 변경 후 활성화 여부 출력
-    });
   }
 
-  // iframe 로그 업데이트 카운트
-  function updateCountDisplay() {
+  function updateCount() {
     if (countDisplay) countDisplay.textContent = `(${count})`;
   }
 
-  // 부모에서 자식 iframe 로그 받아 처리
-  window.addEventListener('message', (e) => {
-    if (e.origin !== 'https://child-domain.com') {
-      console.warn('Invalid origin:', e.origin);
-      return;  // 신뢰할 수 없는 도메인에서 온 메시지는 무시
-    }
-    console.log('Received message from child:', e.data);  // 메시지 내용 확인
-    if (typeof e.data === 'string' && e.data.startsWith('[CHILD_IFRAME_LOG]')) {
-      const url = e.data.slice(18);
-      logIframe(null, 'from child', url);  // 부모에서 자식 iframe 로그 처리
-    }
-  });
+  // ======= iframe 로깅 =======
+  function logIframe(iframe, reason = '') {
+    if (!isEnabled || seen.has(iframe)) return;
+    seen.add(iframe);
 
-  // 자식 iframe에서 부모로 메시지를 보내는 코드
-  if (window.top !== window) {
-    setTimeout(() => {
-      console.log('Sending message to parent:', location.href);
-      window.parent.postMessage('[CHILD_IFRAME_LOG]' + location.href, 'https://parent-domain.com');  // 부모의 정확한 도메인
-    }, 0);  // 자식 iframe에서 부모로 메시지 보내는 타이밍
-    return;
-  }
+    let src = iframe?.src || iframe?.getAttribute('src') || '';
 
-  // iframe 로그 생성 및 색상 처리
-  function logIframe(iframe, reason = '', srcHint = '') {
-    if (!isEnabled) return; // 비활성화 상태에서 iframe 로그 찍지 않음
-
-    if (seen.has(iframe)) return;  // 이미 처리한 iframe은 건너뛰기
-    seen.add(iframe);  // 처리된 iframe을 seen에 추가
-
-    let src = srcHint || iframe?.src || iframe?.getAttribute('src') || '';
-    const srcdoc = iframe?.srcdoc || iframe?.getAttribute('srcdoc') || '';
-    const dataUrls = extractUrlsFromDataset(iframe);
-    const extracted = extractUrlsFromSrcdoc(srcdoc);
-
-    // src가 비어있을 때 srcdoc이나 data-* 속성을 확인
-    if (!src && extracted.length > 0) src = extracted[0];
-    if (!src && dataUrls.length > 0) src = dataUrls[0];
-
-    // 'about:blank'일 경우에 대한 처리 추가
+    // about:blank 무시 처리
     if (src === 'about:blank') {
-      console.warn('Detected iframe with about:blank src');
-      return;  // 'about:blank'는 처리하지 않음
+      return; // 무시
     }
 
-    // src가 없으면 경고 메시지를 찍고 종료
-    if (!src) {
-      console.warn('No src found for iframe');
-      return;
+    if (src.startsWith('chrome-extension://')) {
+      return; // 무시하거나 로그 최소화
     }
 
-    // 여기에 src가 제대로 추출된 경우의 로그 추가
-    console.log(`Logging iframe with src: ${src}`);  // 로그 추가: iframe의 src 값 출력
-    console.log('Detected iframe:', iframe);  // 실제 iframe 객체를 출력
-
-    const outer = iframe?.outerHTML?.slice(0, 2000).replace(/\s+/g, ' ') || '';
-    const combined = [src, ...dataUrls, ...extracted].join(' ');
-
-    // 'src'에 직접 할당이 발생할 때를 추적하기 위한 코드 추가
-    const origSet = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src');
-    if (origSet && origSet.set) {
-        Object.defineProperty(iframe, 'src', {
-            set: function(value) {
-                //logIframe(iframe, reason + ' (direct assign)');  // src 값 할당 시 로깅
-                logIframe(iframe, 'src 변경: ' + value);
-                return origSet.set.call(this, value);  // 원래 src 설정 동작 실행
-            },
-            get: origSet.get, // 기존 getter 유지
-            configurable: true,
-            enumerable: true
-        });
-    }
-
-    // 로그 출력 및 처리
-    const matchedKeywords = [];
-    globalWhitelistKeywords.forEach(keyword => {
-      if (combined.includes(keyword)) matchedKeywords.push(`Global: ${keyword}`);
-    });
-
-    const matchedGrayKeywords = [];
-    grayWhitelistKeywords.forEach(keyword => {
-      if (combined.includes(keyword)) matchedGrayKeywords.push(`Gray: ${keyword}`);
-    });
+    if (!src) return;
 
     const u = new URL(src, location.href);
-    const domain = u.hostname;
-    const path = u.pathname + u.search;
-    for (const [host, keywords] of Object.entries(whitelistMap)) {
-      if (domain.includes(host)) {
-        keywords.forEach(keyword => {
-          if (path.includes(keyword)) matchedKeywords.push(`Domain: ${keyword} (host: ${host})`);
-        });
-      }
+    const domain = u.hostname, path = u.pathname + u.search;
+
+    let color = 'red', keyword = '';
+    const matchedKeywords = globalWhitelistKeywords.filter(k => src.includes(k));
+    const matchedGray = grayWhitelistKeywords.filter(k => src.includes(k));
+    for (const [host, kws] of Object.entries(whitelistMap)) {
+      if (domain.includes(host)) kws.forEach(k => { if (path.includes(k)) matchedKeywords.push(k); });
     }
 
-    for (const [host, keywords] of Object.entries(grayDomainWhitelistMap)) {
-      if (domain.includes(host)) {
-        keywords.forEach(keyword => {
-          if (path.includes(keyword)) matchedGrayKeywords.push(`Gray Domain: ${keyword} (host: ${host})`);
-        });
-      }
-    }
+    if (matchedKeywords.length) { color = 'green'; keyword = matchedKeywords.join(', '); }
+    else if (matchedGray.length) { color = 'gray'; keyword = matchedGray.join(', '); }
 
-    const isWhitelistedIframe = matchedKeywords.length > 0;
-    const isGrayListedIframe = matchedGrayKeywords.length > 0;
+    const info = `[#${++count}] ${reason} ${src} (매칭키워드 : ${keyword})`;
+    console.warn('%c[Iframe]', `color:${color};font-weight:bold`, info);
 
-    let logColor = 'red';
-    let keywordText = '';
-
-    if (isWhitelistedIframe) {
-      logColor = 'green';
-      keywordText = `Matched Keywords: ${matchedKeywords.join(', ')}`;
-    } else if (isGrayListedIframe) {
-      logColor = 'gray'; // 회색 화이트리스트는 회색으로 표시
-      keywordText = `Matched Gray Keywords: ${matchedGrayKeywords.join(', ')}`;
-    }
-
-    const info = `[#${++count}] ${reason} ${src || '[No src]'}\n└▶ ${outer}\n ${keywordText}`;
-    console.warn('%c[Iframe Detected]', `color: ${logColor}; font-weight: bold;`, info);
-
-    // 로그 크기가 500을 초과하면 가장 오래된 로그를 제거
-    if (logList.length > 500) {
-      logList.shift();  // 가장 오래된 로그를 제거
-    }
-    // iframe을 완전히 제거하는 방법 (스크립트 실행을 방지하는 방식)
-    // 페이지 로드 후 이미 존재하는 iframe에 대한 조건 체크 및 처리
-    if (!isWhitelistedIframe && !isGrayListedIframe && iframe && REMOVE_IFRAME) {
-      // 로그 출력 후 제거하도록 변경
-      try {
-        setTimeout(() => {
-          iframe.remove(); // iframe을 제거하여 내부 스크립트가 실행되지 않도록 방지
-        }, 0);
-      } catch (e) {
-        console.error('Error removing iframe:', e);  // 오류 발생 시 콘솔에 오류 출력
-      }
-    }
-
-    // setTimeout을 통한 확인 코드를 필요시 활성화
-    if (!REMOVE_IFRAME) {
-      setTimeout(() => {
-        const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
-        iframes.forEach(iframe => {
-          if (!seen.has(iframe)) {
-            logIframe(iframe, '3차 동적 처리 \n');
-            seen.add(iframe);  // 중복 체크
-          }
-        });
-      }, 3000); // 3초 후에 다시 확인
-    }
-
-
-    if (ENABLE_LOG_UI && logContent) {
-      logList.push(info);  // 새 로그를 logList에 추가
+    logList.push(info);
+    if (logList.length > 500) logList.shift();
+    if (logContent) {
       const div = document.createElement('div');
-      div.style.cssText = `color: ${logColor}; padding: 2px 0; white-space: pre-wrap;`;
       div.textContent = info;
+      div.style = `color:${color}; padding:2px 0;`;
       logContent.appendChild(div);
-      updateCountDisplay();
+    }
+    updateCount();
+
+    if (!matchedKeywords.length && !matchedGray.length && REMOVE_IFRAME) {
+      setTimeout(() => iframe.remove(), 0);
     }
   }
 
-  // 이미 처리된 iframe을 추적하는 Set
-    //const seen = new WeakSet();  // 기존의 `seen`만 사용 (상단에서 정의됨)
-
-    window.onload = function () {
-      const iframes = getAllIframes(document);  // 이미 존재하는 iframe을 찾습니다.
-      iframes.forEach(iframe => {
-        if (!seen.has(iframe)) {  // 이미 처리되지 않은 iframe만 처리
-          logIframe(iframe, '페이지내 처리 \n');
-          seen.add(iframe);  // 처리된 iframe을 추적
-        }
-      });
-    };
-
-  // 동적 처리: 일정 간격으로 iframe 체크 (setInterval) - MutationObserver를 사용하여 동적으로 추가되는 iframe 추적 겹침
-  setInterval(() => {
-    const iframes = getAllIframes(document);  // 현재 페이지의 모든 iframe을 체크
-    iframes.forEach(iframe => {
-      logIframe(iframe, '1차 동적 처리 \n');
-    });
-  }, 20); // 20보다 느리면 차단 잘 안됨 // 3초보다 더 빠르면 틱톡/GPT 등에서 오류남
-
-  // MutationObserver를 사용하여 동적으로 추가되는 iframe 추적
-  const observer = new MutationObserver(mutations => {
-    mutations.forEach(mutation => {
-      mutation.addedNodes.forEach(node => {
-        //if (node.tagName === 'IFRAME' && node.src && !seen.has(node.src)) {
-        // src가 설정되지 않았거나 이미 seen에 존재하는 경우 건너뜁니다.
-        // 'src'가 있는 경우 처리
-
-
-        // 보류 - 로그가 많이 나옴
-        //if (node.src && !seen.has(node.src)) {
-        //console.log('New iframe added with src:', node.src);
-        //logIframe(node, '동적 요소 (해제 검토)\n');
-        //seen.add(node);
-        // src가 없을 경우에도 처리 (srcdoc, data-* 등을 추가로 체크)
-        //} else if (!node.src) {
-        //console.log('New iframe added without src:', node);
-        //logIframe(node, '동적 요소 (해제 검토)\n');
-        //seen.add(node.src);  // 중복 체크
-        //-- srcdoc 등 다른 속성도 체크할 수 있음
-          //-- iframe 차단 방법
-          //node.remove();  // 해당 iframe을 제거--
-          //node.src = '';  // iframe의 src를 빈 문자열로 설정하여 콘텐츠 로딩을 차단--
-          //node.sandbox = 'allow-scripts';  // 'allow-scripts'로 설정하여 스크립트만 허용 (다른 기능은 차단)--
-          //node.srcdoc = '';  // srcdoc 속성으로 빈 HTML 설정--
-          //node.style.display = 'none';  // iframe을 화면에서 숨기기--
-          //node.style.visibility = 'hidden';  // 공간을 차지하지만 보이지 않도록 설정--
-        //}
-
-
-        // 'IFRAME'인 노드에서 src가 존재하고, 이미 처리되지 않은 iframe만 처리
-        if (node.tagName === 'IFRAME' && node.src && !seen.has(node.src)) {
-          console.log('New iframe added with src:', node.src);
-          logIframe(node, '2차 동적 처리 \n');
-          seen.add(node.src); // src만을 기준으로 중복 체크
-        } else if (node.tagName === 'IFRAME' && !seen.has(node)) {
-          console.log('New iframe added without src:', node);
-          logIframe(node, '2차 동적 처리 (srcdoc/data-* 처리)');
-          seen.add(node); // src가 없는 경우에도 노드를 직접 중복 체크
-        }
-    });
-    });
-  });
-
-  // observer 설정: body에서 자식 노드의 변경을 추적
-  //observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  // 로그 UI 생성
-  if (ENABLE_LOG_UI) {
-    createLogUI();
+  function getAllIframes() {
+    return Array.from(document.querySelectorAll('iframe, frame, embed, object'));
   }
+
+  // ======= 동적 요소 추적 =======
+  setInterval(() => getAllIframes().forEach(iframe => logIframe(iframe, '추가 요소 (1차) \n ▷')), 20);
+
+  const mo = new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => {
+    if (n.tagName === 'IFRAME') logIframe(n, '동적 추적 \n ▷');
+  })));
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  // ======= SPA 강제유지 =======
+  function keepAlive() {
+    if (!document.getElementById(ICON_ID)) createIcon();
+    else {
+      const icon = document.getElementById(ICON_ID);
+      icon.style.display = 'block'; icon.style.zIndex = '99999'; icon.style.opacity = '0.4';
+    }
+    if (ENABLE_LOG_UI && !document.getElementById(PANEL_ID)) createLogUI();
+  }
+
+  setInterval(keepAlive, 20);
+  new MutationObserver(keepAlive).observe(document.body, { childList: true, subtree: true });
+
+  createIcon();
+  if (ENABLE_LOG_UI) createLogUI();
 
 })();
