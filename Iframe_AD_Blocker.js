@@ -27,7 +27,7 @@
   const REMOVE_IFRAME_DEFAULT = true;  // iframe 제거 기본값
 
   // 차단 해제할 사이트들
-  const allowedSites = ['example.com', 'example.com'];
+  const allowedSites = ['예', '제'];
 
   // 현재 사이트가 allowedSites에 포함되면 iframe 차단을 해제
   let REMOVE_IFRAME = allowedSites.includes(window.location.hostname) ? false : REMOVE_IFRAME_DEFAULT;
@@ -255,7 +255,10 @@
       #iframe-log-panel button {
         font-size: 16px !important; /* 버튼 크기 조정 */
       }
-
+      #iframe-log-panel div {
+      white-space: pre-wrap;
+      overflow-wrap: break-word; /* 줄바꿈 조정 */
+      }
     `;
     document.head.appendChild(style);  // 스타일을 <head>에 추가하여 적용
 
@@ -269,11 +272,11 @@
 
     const copyBtn = document.createElement('button');
     copyBtn.textContent = '📋 복사';
-    copyBtn.style.cssText = 'font-size:12px;background:#444;color:white;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;';
+    copyBtn.style.cssText = 'font-size:12px;background:#444;color:white;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;';  // 복사 버튼 스타일 설정
     copyBtn.onclick = () => {
       navigator.clipboard.writeText(logList.join('\n')).then(() => {
-        copyBtn.textContent = '복사됨!';
-        setTimeout(() => copyBtn.textContent = '📋 복사', 1500);
+        copyBtn.textContent = '복사됨!';   // 버튼 텍스트를 "복사됨!"으로 잠시 바꿈
+        setTimeout(() => copyBtn.textContent = '📋 복사', 1500); // 1.5초 후에 다시 버튼 텍스트를 '📋 복사'로 돌려놓습니다.
       });
     };
 
@@ -284,7 +287,11 @@
     header.appendChild(copyBtn);
 
     logContent = document.createElement('div');
-    logContent.style.cssText = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;';
+
+    // 로그내역 스타일 설정
+    // white-space: pre-wrap; → 줄바꿈 문자(\n)를 그대로 살리고, 자동으로 줄 바꿈도 허용.
+    // word-wrap: break-word; → 너무 긴 단어(긴 URL 등)도 영역 밖으로 빠져나가지 않고, 중간에 단어를 잘라서 줄 바꿈.
+    logContent.style.cssText = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;word-wrap:break-word;';
 
     // 스크롤 가능하게 설정 (드래그 기능은 비활성화)
     //logContent.style.overflowY = 'auto';  // 세로 스크롤 활성화
@@ -387,7 +394,7 @@
     console.log(`Logging iframe with src: ${src}`);  // 로그 추가: iframe의 src 값 출력
     console.log('Detected iframe:', iframe);  // 실제 iframe 객체를 출력
 
-    const outer = iframe?.outerHTML?.slice(0, 200).replace(/\s+/g, ' ') || '';
+    const outer = iframe?.outerHTML?.slice(0, 2000).replace(/\s+/g, ' ') || '';
     const combined = [src, ...dataUrls, ...extracted].join(' ');
 
     // 'src'에 직접 할당이 발생할 때를 추적하기 위한 코드 추가
