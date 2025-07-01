@@ -18,8 +18,10 @@
   const globalWhitelistKeywords = [
     '/recaptcha/', '/challenge-platform/',  // 캡챠
     '/captcha/',  // 캡챠 (픽팍)
+    '?urls=magnet',  // 픽팍으로 토렌트 받을때 필요
     '/TranslateWebserverUi/',  // 구글 번역
     //'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
+    'notion.so',  // https://www.notion.so/ 로그인
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
     '/videoembed/', 'player.kick.com', // https://poooo.ml/
     '/messitv/',  // https://messitv8.com/ (메시티비)
@@ -113,10 +115,11 @@
     btn.title = 'Iframe 로그';
     btn.style.cssText = `
       position:fixed; bottom:150px; right:10px; z-index:99999;
-      width:45px; height:45px; border-radius:50%;
-      border:none; background:#000; color:#fff; font-size:32px;
+      width:45px; height:45px; border-radius:50%; border:none;
+      background:#000; color:#fff; font-size:32px; cursor:pointer;
       display:flex; align-items:center; justify-content:center;
-      opacity:0.4; cursor:pointer;
+      left: unset; top: unset; transition:background 0.3s;
+      opacity:0.4;
     `;
     btn.onclick = () => {
       const panel = document.getElementById(PANEL_ID);
