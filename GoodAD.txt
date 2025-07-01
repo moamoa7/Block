@@ -229,17 +229,10 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 
 ! - AdVoid.Full
 www.youtube.com##.ytd-in-feed-ad-layout-renderer
+www.youtube.com##.ytp-featured-product
 youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
 youtube.com##.ytp-cards-teaser
-www.youtube.com##.ytp-featured-product
 youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
-||doubleclick.net^
-/youtubei/*/att/*
-/generate_204^$image
-/pagead^
-/cast_sender.js^$script
-/log_event$xhr
-/ptracking
 
 www.youtube.com##+js(set-constant, ytInitialPlayerResponse.auxiliaryUi.messageRenderers.upsellDialogRenderer, undefined)
 www.youtube.com##+js(json-prune, auxiliaryUi.messageRenderers.upsellDialogRenderer)
@@ -254,6 +247,43 @@ www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots n
 www.youtube.com##+js(adjust-setTimeout, [native code], 17000, 0.001)
 youtube.com##+js(href-sanitizer, a[href^="https://www.youtube.com/redirect?event=video_description"][href*="&q=http"], ?q)
 youtube.com##+js(set-constant, google_ad_status, 1)
+
+||doubleclick.net^
+/youtubei/*/att/*
+/generate_204^$image
+/pagead^
+/cast_sender.js^$script
+/log_event$xhr
+/ptracking
+
+! - GOODBYEAD
+!youtube.com##.ytd-rich-item-renderer.style-scope > .ytd-rich-item-renderer > .ytd-ad-slot-renderer.style-scope
+!youtube.com##.ytd-two-column-browse-results-renderer > ytd-rich-grid-renderer > #masthead-ad.ytd-rich-grid-renderer
+!youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+!youtube.com##.ytp-suggested-action > .ytp-suggested-action-badge
+
+!www.youtube.com##+js(trusted-create-element, head, script, '', '(()=>{try{document.currentScript.remove()}catch{}const t={apply:(t,e,o)=>{const n=o[0];return"function"==typeof n&&n.toString().includes("onAbnormalityDetected")&&(o[0]=function(){}),Reflect.apply(t,e,o)}};window.Promise.prototype.then=new Proxy(window.Promise.prototype.then,t)})();')
+!www.youtube.com##+js(adjust-setTimeout, [native code], 17000, 0.001)
+!youtube.com##+js(set-constant, ytInitialPlayerResponse.playerAds, undefined)
+!youtube.com##+js(set-constant, ytInitialPlayerResponse.adSlots, undefined)
+!youtube.com##+js(set-constant, ytInitialPlayerResponse.adPlacements, undefined)
+!youtube.com##+js(set-constant, playerResponse.adPlacements, undefined)
+!youtube.com##+js(set-constant, google_ad_status, 1)
+!youtube.com##+js(json-prune-xhr-response, playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots, '', /playlist\?list=|\/player(?!.*(get_drm_license))|watch\?[tv]=|get_watch\?/)
+!youtube.com##+js(json-prune-fetch-response, playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots, '', /playlist\?list=|player\?|watch\?[tv]=|get_watch\?/)
+!youtube.com##+js(json-prune, playerResponse.adPlacements playerResponse.adSlots, playerResponse.streamingData.serverAbrStreamingUrl)
+
+!||doubleclick.net^
+!||youtube.com/api/stats/qoe?
+!||youtube.com/youtubei/v1/log_event?
+!||youtube.com/pcs/activeview?
+!||google.*/pagead/lvz?
+!/generate_204?$image
+!||youtube.com/ptracking?
+!||youtube.com/pagead/
+
+
+
 
 
 ! - 유튜브 관련 광고 차단은 EasyList / uBlock filters – Ads / Block filters – Quick fixes 필터 구독할 것
@@ -278,9 +308,14 @@ youtube.com##+js(set-constant, google_ad_status, 1)
 !
 ! 구글 (https://www.google.com/)
 www.google.com##html:style(overflow: visible !important)
+www.google.*##+js(set-constant, rwt, noopFunc)
+www.google.*##+js(set-attr, c-wiz[data-p] [data-query] a[target="_blank"][role="link"], rlhc, 1)
+www.google.*##+js(remove-attr, ping, div[id="search"] a[data-ved][ping])
+www.google.*##+js(remove-attr, jsaction, #islsp c-wiz a[href^="http"][data-ved][target], stay)
 google.com##+js(set-local-storage-item, mapslitepromosdismissed, 1)
 google.*##+js(remove-attr, data-jsarwt, #rcnt [data-ved] a)
 accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
+
 google.com##body #tads
 google.com###taw > div > [data-ved]
 ||googletagmanager.com^
@@ -388,6 +423,13 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ! 네이트 (https://www.nate.com/)
 ! - 차단 사이트
 !||cyad1.nate.com^
+!
+!
+! 노션 (https://www.notion.so/)
+! - 기타
+notion.so##+js(set-cookie, notion_check_cookie_consent, true)
+||notion.so/api/*/etclient|$method=post
+||splunkcloud.com/services/collector/$xhr
 !
 !
 ! 숲 (https://www.sooplive.co.kr/)
@@ -685,6 +727,10 @@ h5.dcinside.com##*
 wiki.dcinside.com##*
 ! - 갤주소복사 안나오는거 해결
 gall.dcinside.com#@#[class^="ad"]
+! - 기타
+##[id^="ad_"]
+gall.dcinside.com##div[class*="banner"]
+##[data-ad]
 ! - 차단 사이트
 !||addc.dcinside.com^
 !||taboola.com^
@@ -890,6 +936,9 @@ mlbpark.donga.com##.bt_menu_wrap
 ! - 맨 밑 하단 TODAY BEST BULLPEN 5번과 6번 사이 공간 없애기
 ! - - - 출처 : https://gall.dcinside.com/adguard/399
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
+! - 기타
+/^https:\/\/cdn\.jsdelivr\.net\/npm\/[-a-z_]{4,22}@latest\/dist\/script\.min\.js$/$script,3p
+/acecounter/*
 ! - 차단 사이트
 !||ad.aceplanet.co.kr^
 !||contentsfeed.com^
@@ -961,6 +1010,10 @@ bobaedream.co.kr##body.body-community div[class*="Car"]
 bobaedream.co.kr#@#[class^="ad"]
 ! - ##[class*="Ad"] 복원 - 게시물 주소 복사란 사라짐
 bobaedream.co.kr#@#[class*="Ad"]
+! - 기타
+##[id*="gpt-ad-"]
+##.ad-container
+##[id^="div-gpt-ad"]:not([style^="width: 1px; height: 1px; position: absolute; left: -10000px; top: -"])
 !
 !
 ! 오늘의 유머 (https://www.todayhumor.co.kr/)
@@ -1177,6 +1230,8 @@ damoang.net##li.list-group-item:has(a[href*="promotion"])
 damoang.net##.fc-dialog
 ! - 차단 사이트
 ||fundingchoicesmessages.google.com^
+! - 일부 필터로 하단 배너 팝업 나오는거 해결
+damoang.net#@#[class*="div-gpt-ad"]
 !
 !
 ! 웃긴대학 (https://web.humoruniv.com/)
@@ -1190,6 +1245,7 @@ damoang.net##.fc-dialog
 !
 ! 루리웹 (https://bbs.ruliweb.com/)
 ! - 기타
+##[id^="ad-"]
 zoneid=
 ! - 차단 사이트
 !||ad4989.co.kr^
@@ -2207,6 +2263,15 @@ web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
 web.joongna.com##.pb-12
 !
 !
+! 테무 (https://www.temu.com/)
+! -  기타
+temu.com##body:style(overflow: auto !important; position: initial !important;)
+temu.com##+js(set-local-storage-item, last_prompt_time, 1)
+temu.com##+js(set-local-storage-item, cookie_prompt_times, 1)
+||pftk.temu.com^
+||thtk.temu.com^
+!
+!
 ! 바나나몰 (bananamall.co.kr)
 ! - 유니콘Pro 차단 해제
 @@||bananamall.co.kr
@@ -2214,6 +2279,10 @@ web.joongna.com##.pb-12
 !bananamall.co.kr##.ui-draggable
 ! - 팝업 오른쪽
 !bananamall.co.kr###pop_gevent
+! - 배너
+##[id^="banner_"]
+! - 기타
+||sentry-cdn.com^$third-party,domain=~sentry.dev|~sentry.io
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
@@ -2224,6 +2293,8 @@ showdang.co.kr##.box
 ! 앱스토리몰 (https://c.appstory.co.kr/)
 ! - 오른쪽 사이드 팝업
 c.appstory.co.kr###modalPreventExit
+! - 홈화면 추가 팝업
+c.appstory.co.kr##.modal_add_home.renew_modal
 ! - 오른쪽 배너
 !##.right_banner
 !
