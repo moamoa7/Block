@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250630
+! Version: 20250701
 !
 !
 !
@@ -70,23 +70,23 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 ! 신뢰 사이트
 @@||accounts.google.com^$generichide
-@@||www.google.*/search?$generichide
-@@||drive.google.com^$generichide
-@@||googleadservices.com^$from=google.ae|google.at|google.be|google.by|google.ca|google.ch|google.cl|google.cn|google.co.id|google.co.in|google.co.jp|google.co.th|google.co.uk|google.co.ve|google.co.za|google.com|google.com.ar|google.com.au|google.com.bd|google.com.br|google.com.co|google.com.eg|google.com.hk|google.com.mx|google.com.my|google.com.ng|google.com.pe|google.com.ph|google.com.pk|google.com.sa|google.com.sg|google.com.tr|google.com.tw|google.com.ua|google.com.vn|google.de|google.dk|google.ee|google.es|google.fr|google.gr|google.hu|google.ie|google.it|google.nl|google.no|google.pl|google.pt|google.ro|google.rs|google.ru|google.se|google.sk|google.tn
+!@@||www.google.*/search?$generichide
+!@@||drive.google.com^$generichide
+!@@||googleadservices.com^$from=google.ae|google.at|google.be|google.by|google.ca|google.ch|google.cl|google.cn|google.co.id|google.co.in|google.co.jp|google.co.th|google.co.uk|google.co.ve|google.co.za|google.com|google.com.ar|google.com.au|google.com.bd|google.com.br|google.com.co|google.com.eg|google.com.hk|google.com.mx|google.com.my|google.com.ng|google.com.pe|google.com.ph|google.com.pk|google.com.sa|google.com.sg|google.com.tr|google.com.tw|google.com.ua|google.com.vn|google.de|google.dk|google.ee|google.es|google.fr|google.gr|google.hu|google.ie|google.it|google.nl|google.no|google.pl|google.pt|google.ro|google.rs|google.ru|google.se|google.sk|google.tn
 @@||www.youtube.com^$generichide
-@@||music.youtube.com^$generichide
-@@||accounts.youtube.com^$generichide
-@@||static.doubleclick.net/instream/ad_status.js$domain=youtube.com
-@@||wikipedia.org^$generichide
-@@||github.com^$generichide
-@@||github.com/*/$1p
-@@||discord.com^$generichide
-@@||twitch.tv^$generichide
-@@||x.com^$generichide
-@@||instagram.com^$generichide
-@@||open.spotify.com^$generichide
-@@||netflix.com^$generichide
-@@://www3.doubleclick.net^|$xmlhttprequest
+!@@||music.youtube.com^$generichide
+!@@||accounts.youtube.com^$generichide
+!@@||static.doubleclick.net/instream/ad_status.js$domain=youtube.com
+!@@||wikipedia.org^$generichide
+!@@||github.com^$generichide
+!@@||github.com/*/$1p
+!@@||discord.com^$generichide
+!@@||twitch.tv^$generichide
+!@@||x.com^$generichide
+!@@||instagram.com^$generichide
+!@@||open.spotify.com^$generichide
+!@@||netflix.com^$generichide
+!@@://www3.doubleclick.net^|$xmlhttprequest
 !
 !
 !
@@ -181,23 +181,80 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !www.youtube.com,www.youtube-nocookie.com##[class*="-ad-"]
 !www.youtube.com,www.youtube-nocookie.com##[class*="-ad-"]:not(html):not(body):not(article):not([class*=page-wrapper])
 
+! - Adblock-Rule-Collection-Lite
+!youtube.com##.share-panel-services, .ytp-button.ytp-share-button
+!youtube.com##.ytp-cards-teaser
+!youtube.com##.ytp-paid-content-overlay
+!www.youtube.com##.ytp-time-display > span:style(font-weight: 800 !important; text-shadow: black 0 0 3px !important)
+!youtube.com##ytd-guide-entry-renderer:style(display: block !important;)
+!youtube.com##ytd-settings-sidebar-renderer.ytd-browse:style(position: absolute !important; left: 0 !important; height: 100% !important;)
+!youtube.com##ytd-playlist-sidebar-renderer.ytd-browse:style(position: absolute !important; left: unset !important; height: 100% !important;)
+!youtube.com##ytd-feed-filter-chip-bar-renderer:style(position: static !important; margin-bottom: 0 !important;)
+!youtube.com##iframe[width="640"][height="360"], iframe[width="300"][height="250"], .img_ad, #video-masthead, .ad-div, #masthead-ad, #ad-iframe
+!www.youtube.com##div#masthead-ad
+!youtube.com###masthead-positioner-height-offset, #right-arrow, .iv-branding.annotation-type-custom.annotation, .ytp-promotooltip-wrapper
+!youtube.com###chips-wrapper:style(position: static !important;)
+!youtube.com##.appbar-guide-menu-layout, .gstl_50.sbdd_a, .js-yt-header.yt-header, ytd-mini-guide-renderer.ytd-app, app-drawer[opened=""][persistent=""], ytd-two-column-browse-results-renderer[page-subtype="history"] #secondary.ytd-two-column-browse-results-renderer:style(position: absolute !important;)
+!youtube.com###ticker.ytd-masthead
+!youtube.com###masthead-container:style(position: absolute !important; transition: none !important; transform: none !important;)
+!youtube.com###header:style(transform: none !important; margin-top: 0 !important;)
+!youtube.com###contentContainer.tp-yt-app-drawer[swipe-open].tp-yt-app-drawer::after, tp-yt-app-drawer:style(position: absolute !important;)
+!www.youtube.com##.ytd-watch-flexy #dismissible:has(.badge-style-type-simple)
+!||google.com*/pagead
+!||youtube.com/api/stats^
+!||youtube.com/youtubei/v1/log_event?
+!||play.google.com/log?
+!||intake-analytics.wikimedia.org^
+!||doubleclick.net^
+!/generate_204?$image
+
 ! - EasyList
-youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-youtube.com##.ytd-rich-item-renderer.style-scope > .ytd-rich-item-renderer > .ytd-ad-slot-renderer.style-scope
-youtube.com##.grid.ytd-browse > #primary > .style-scope > .ytd-rich-grid-renderer > .ytd-rich-grid-renderer > .ytd-ad-slot-renderer
-youtube.com##.ytd-two-column-browse-results-renderer > ytd-rich-grid-renderer > #masthead-ad.ytd-rich-grid-renderer
-youtube.com##.ytp-suggested-action > .ytp-suggested-action-badge
+!youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+!youtube.com##.ytd-rich-item-renderer.style-scope > .ytd-rich-item-renderer > .ytd-ad-slot-renderer.style-scope
+!youtube.com##.grid.ytd-browse > #primary > .style-scope > .ytd-rich-grid-renderer > .ytd-rich-grid-renderer > .ytd-ad-slot-renderer
+!youtube.com##.ytd-two-column-browse-results-renderer > ytd-rich-grid-renderer > #masthead-ad.ytd-rich-grid-renderer
+!youtube.com##.ytp-suggested-action > .ytp-suggested-action-badge
 ! - 내가 한거
-youtube.com##ytd-ad-slot-renderer
+!youtube.com##ytd-ad-slot-renderer
 !youtube.com##ytd-rich-section-renderer.ytd-rich-grid-renderer.style-scope
 !youtube.com###player-ads,importble
-youtube.com###player-ads.ytd-watch-flexy.style-scope
+!youtube.com###player-ads.ytd-watch-flexy.style-scope
 !!youtube.com##.ad-showing
 !!youtube.com##.ytp-ad-player-overlay
-youtube.com##tp-yt-paper-dialog
-youtube.com###panels
-youtube.com###playlist
-youtube.com##.lockup
+!youtube.com##tp-yt-paper-dialog
+!youtube.com###panels
+!youtube.com###playlist
+!!youtube.com##.lockup
+
+
+! - AdVoid.Full
+www.youtube.com##.ytd-in-feed-ad-layout-renderer
+youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+youtube.com##.ytp-cards-teaser
+www.youtube.com##.ytp-featured-product
+youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+||doubleclick.net^
+/youtubei/*/att/*
+/generate_204^$image
+/pagead^
+/cast_sender.js^$script
+/log_event$xhr
+/ptracking
+
+www.youtube.com##+js(set-constant, ytInitialPlayerResponse.auxiliaryUi.messageRenderers.upsellDialogRenderer, undefined)
+www.youtube.com##+js(json-prune, auxiliaryUi.messageRenderers.upsellDialogRenderer)
+www.youtube.com##+js(set-constant, ytInitialPlayerResponse.playerAds, undefined)
+www.youtube.com##+js(set-constant, ytInitialPlayerResponse.adSlots, undefined)
+www.youtube.com##+js(set-constant, ytInitialPlayerResponse.adPlacements, undefined)
+www.youtube.com##+js(set-constant, playerResponse.adPlacements, undefined)
+www.youtube.com##+js(json-prune-xhr-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, '', propsToMatch, /\/player(?:\?.+)?$/)
+www.youtube.com##+js(json-prune-fetch-response, reelWatchSequenceResponse.entries.[-].command.reelWatchEndpoint.adClientParams.isAd entries.[-].command.reelWatchEndpoint.adClientParams.isAd, '', propsToMatch, url:/reel_watch_sequence?)
+www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads, '', propsToMatch, /playlist?)
+www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, '', propsToMatch, /\/(player|get_watch)\?/)
+www.youtube.com##+js(adjust-setTimeout, [native code], 17000, 0.001)
+youtube.com##+js(href-sanitizer, a[href^="https://www.youtube.com/redirect?event=video_description"][href*="&q=http"], ?q)
+youtube.com##+js(set-constant, google_ad_status, 1)
+
 
 ! - 유튜브 관련 광고 차단은 EasyList / uBlock filters – Ads / Block filters – Quick fixes 필터 구독할 것
 ! - - - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
@@ -219,9 +276,79 @@ youtube.com##.lockup
 ! - - - 사용하지 않음 (끝)
 !
 !
+! 구글 (https://www.google.com/)
+www.google.com##html:style(overflow: visible !important)
+google.com##+js(set-local-storage-item, mapslitepromosdismissed, 1)
+google.*##+js(remove-attr, data-jsarwt, #rcnt [data-ved] a)
+accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
+google.com##body #tads
+google.com###taw > div > [data-ved]
+||googletagmanager.com^
+||google.com/log^
+||google.com/async/bgasy^
+||google.com/images/cleardot.gif^$image
+||jnn-pa.googleapis.com^
+/google.internal.waa.v1.waa/*
+/gen_204^
+/client_204?$image
+/browserinfo?f.sid=$xhr
+!
+!
+! https://drive.google.com/
+! - 기타
+||drive.google.com/drive/logimpressions^
+!
+! ChatGPT (https://chatgpt.com/)
+!  - 일부 필터 로그인 차단 해제
+@@/noop*.js$script
+! - 기타
+||browser-intake-datadoghq.
+!
+!
+! https://account.live.com/
+! - 일부 필터에 의한 로그인 화면 안보임 해결
+account.live.com#@#[class*="-cookie-banner"]
+!
+!
+! https://copilot.microsoft.com/
+! - 기타
+||browser.events.data.microsoft.com^
+!
+!
+!
+!
 ! 스포티파이 (https://open.spotify.com/)
+! - 기타
+||googleoptimize.com^
+/gtm.*.js^$script
+||cookielaw.org^
 ! - 차단 사이트
 !||rlcdn.com^
+!
+!
+! 트위터 (https://x.com/)
+! - 기타
+twitter.com##html:style(overflow:auto!important)
+||analytics.twitter.com^
+||syndication.twitter.com^
+!
+!
+! https://www.instagram.com/
+! - 기타
+instagram.com##.HoverCard
+instagram.com##._aagw:empty
+instagram.com##[class]:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
+instagram.com##body:style(overflow: auto !important;)
+instagram.com##body:style(overflow: visible!important;)
+||graph.instagram.com/logging_client_events^
+instagram.com##+js(set-session-storage-item, loggedOutAppSheetIsMinimized, 1)
+instagram.com##+js(set-constant, _sharedData.is_whitelisted_crawl_bot, true)
+/ajax/bz^$xhr
+!
+!
+! 디스코드 (https://discord.com/)
+! - 기타
+/sentry.*.js^$script
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -263,7 +390,7 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !||cyad1.nate.com^
 !
 !
-! 숲 (https://sooplive.co.kr)
+! 숲 (https://www.sooplive.co.kr/)
 ! - 팝업
 sooplive.co.kr##.bnrimg_area
 ! - 구독 플러스
@@ -319,6 +446,10 @@ sooplive.co.kr###FeedLayerToolTip
 ! - shopfreeca banner (적용이 안되고 있는지 딱히 나오는건 없음)
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
+! - 기타
+/fbevents.js^$script
+||analytics.tiktok.com^
+||facebook.com/tr^
 ! - 차단 사이트
 !||adballoon.sooplive.co.kr^
 !||reqde.sooplive.co.kr^
@@ -372,6 +503,8 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
 ! - 하단 회원가입 안내 문구
 twitch.tv###twilight-sticky-footer-root
+! - 기타
+||sentry.io^$3p
 ! - 광고?
 ||*.ads.*
 ! - 차단 사이트
@@ -384,6 +517,9 @@ twitch.tv###twilight-sticky-footer-root
 ! 킥 (https://kick.com/)
 ! - 로고 복원
 !@@||kick.com/img/*$image
+! - 기타
+||datadoghq-browser-agent.com^
+
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -397,6 +533,9 @@ twitch.tv###twilight-sticky-footer-root
 !  - 영상 재생 해결
 !@@play.kakao.com
 !@@videoads.kakao.com
+! - 기타
+/track^
+/embed/player/image/ads.png$redirect=2x2.png,domain=tv.kakao.com|play-tv.kakao.com|kakaotv.daum.net
 ! - 차단 사이트
 !||ad.daum.net^
 !
@@ -416,6 +555,18 @@ pornhub.com#@#[class*="Modal"]
 play.sooplive.co.kr#@#[class*="Modal"]
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
+! - 기타
+tiktok.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
+tiktok.com##+js(set-session-storage-item, webapp_first_open_cta, 1)
+tiktok.com##+js(addEventListener-defuser, touchmove, .preventDefault():void)
+tiktok.com##+js(addEventListener-defuser, keydown)
+tiktok.com##+js(addEventListener-defuser, contextmenu, preventDefault)
+/share.*.js^$script
+||ibytedtos.com^
+tiktok.com##tiktok-cookie-banner
+||tiktok.com/web/report^
+/collect^
+
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -447,6 +598,9 @@ aagag.com##.bottom.center.sAlert
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 ! - 이미지 복원
 !@@||a.aagag.com/img/*$image
+! - 차단 사이트
+||googlesyndication.com^
+||cloudflareinsights.com^
 !
 !
 ! 디시인사이드 (https://gall.dcinside.com)
@@ -547,6 +701,8 @@ gall.dcinside.com#@#[class^="ad"]
 ! - - -  웃대 (https://web.humoruniv.com/) 왼쪽 배너 / 하단 배너
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
 !##.ads
+##.adsbygoogle
+##[id*="google_ads"]
 ##[class^="ads"]
 ! - - - 예외
 ! - - - https://sports.daum.net/
@@ -566,6 +722,8 @@ etoland.co.kr#@#[class*="ad_"] [style]
 humoruniv.com#@#[class*="ad_"] [style]
 ! https://n.news.naver.com/ - 일부 사라짐
 naver.com#@#[class*="ad_"] [style]
+! - 기타
+/blank.gif^$image
 
 
 
@@ -666,6 +824,8 @@ etoland.co.kr#@#[class^="ad"]
 theqoo.net##.theqoo-counter
 ! - 이미지 복원
 !@@||blogger.googleusercontent.com/img/*$image,domain=theqoo.net
+! - 기타
+/counter.js^$script
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
@@ -1015,6 +1175,8 @@ damoang.net##li.list-group-item:has(a[href*="promotion"])
 !||fundingchoicesmessages.google.com^$3p
 ! - 차단사이트 안내 하단 팝업
 damoang.net##.fc-dialog
+! - 차단 사이트
+||fundingchoicesmessages.google.com^
 !
 !
 ! 웃긴대학 (https://web.humoruniv.com/)
@@ -1027,6 +1189,8 @@ damoang.net##.fc-dialog
 !
 !
 ! 루리웹 (https://bbs.ruliweb.com/)
+! - 기타
+zoneid=
 ! - 차단 사이트
 !||ad4989.co.kr^
 !||innity.net^
@@ -1093,6 +1257,8 @@ music.bugs.co.kr##.topBanner
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com
+! - 기타
+/otsdkstub.js^$script
 !
 !
 ! 티빙 (https://www.tving.com/)
@@ -1105,6 +1271,10 @@ music.bugs.co.kr##.topBanner
 poooo.ml##.h30
 ! - ##.ad 복원 - 채팅창 아이콘 사라짐
 poooo.ml#@#.ad
+! - 기타
+||top-fwz1.mail.ru^
+||tns-counter.ru^
+||google-analytics.com^
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
@@ -1150,6 +1320,8 @@ tvhot.store##.object-cover
 [$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
 ! 아바타 아이콘 복구
 !@@tvwiki*.com/img/*$image
+! - 기타 (일부 필터 차단 해제)
+@@/videojs-chromecast.min.js^$script
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
@@ -2235,11 +2407,18 @@ avsee.ru##.nav-justified
 avsee.ru##.list-category
 avsee.ru##.tabs
 ! - 새창 방지
-avsee.ru#%#//scriptlet("prevent-window-open")
+!avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - - - uBlock filters – Ads
 !/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
+! - 기타
+##.afs_ads
+##.jw-nextup-container
+##.jw-reset-text:not(button)
+##.jw-wrapper > div[style="opacity: 0; visibility: hidden; overflow: hidden; display: block; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;"]
 ! - 차단 사이트
-!||aroundcommoditysway.com^
+/cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
+/provider.cast.js^$script
+||jwpltx.com^$3p
 !
 !
 ! supjav (https://supjav.com/)
@@ -2254,6 +2433,9 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 !jilliandescribecompany.com##iframe
 ! - 로고 이미지 복원
 !@@||supjav.com/img/*$image
+! - 기타
+##.jw-settings-sharing
+##.jw-submenu-sharing
 ! 팝업 방지
 ||profitableratecpm.com^$popup
 ||fractionfridgejudiciary.com^$popup
@@ -2293,6 +2475,8 @@ avsee.ru#%#//scriptlet("prevent-window-open")
 ! SEXTB.NET (https://sextb.date/)
 ! -영상 오른쪽 배너 공간
 sextb.date##.hidden-md.right.col-3
+! - 기타
+/log^$xmlhttprequest,domain=~meet.google.com
 ! - 팝업 방지
 ||ak.stikroltiltoowi.net^$popup
 ||lionessgrandchild.com^$popup
@@ -2305,6 +2489,8 @@ sextb.date##.hidden-md.right.col-3
 ! JAVFC2.XYZ (https://javfc2.xyz/)
 ! - 상단 배너 이미지 공간 (유니콘Pro)
 !!###ads
+! - 기타
+/matomo.js^$script
 ! - 팝업 방지
 ||lwirirvpo.com^$popup
 ||illustriousreserve.pro^$popup
@@ -2325,6 +2511,9 @@ sextb.date##.hidden-md.right.col-3
 ! JavGG (https://javgg.net/)
 ! - 상단 배너
 javgg.net##.home_iframead
+! - 기타
+##.grecaptcha-badge
+||mc.yandex.ru^
 ! - 팝업 방지
 ||about:blank^$popup
 ||obqj2.com^$popup
@@ -2360,6 +2549,8 @@ javgg.net##.home_iframead
 ##.a-d-block
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
 ##div.set_height_250
+! - 기타
+##.doubleclick
 ! - 팝업 방지
 ||stikroltiltoowi.net^$popup
 ||persecutionpunishlegally.com^$popup
@@ -2452,6 +2643,11 @@ clien.net#@#.ad_banner
 ! - - - Svideos JAV (https://avsshub.net/)
 !##[class="happy-inside-player"]
 ##.happy-inside-player
+! - 기타
+##.ads
+||mediadelivery.net/rum.js^$script
+/jquery.cookie.min.js^$script
+||histats.com^$3p
 ! - 차단 사이트
 !||waust.at^
 !
@@ -2829,6 +3025,12 @@ missav.ws,missav.live##.lg\:block
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
+! - 기타
+##[rel*="sponsored"]
+##[src*="tsyndicate.com"]
+##a[href*="//bit.ly/"]
+##a[href^="https://twitter.com/intent/tweet?"]
+##a[href^="https://wa.me/?text="]
 ! - 팝업 방지
 ||missav.*/pop^$popup
 ||tsyndicate.com^$popup
@@ -4151,6 +4353,9 @@ mypikpak.com##.coupon-top-banner
 mypikpak.com##.operation-container
 ! - 확장프로그램 설치 안내 팝업
 mypikpak.com##div.el-overlay:nth-of-type(23)
+! - 기타
+/gtag.js^$script
+/track.js^$script
 !
 !
 ! SPEEDTEST (https://www.speedtest.net/
@@ -4174,7 +4379,7 @@ dhlottery.co.kr##.band_banner
 ##[class="list-ad"]
 !##.list-ad
 ! - 차단 사이트
-!||ads-partners.coupang.com^
+||ads-partners.coupang.com^
 !
 !
 ! 스마트택배 (https://st.sweettracker.co.kr/)
@@ -4212,6 +4417,29 @@ tistory.com##+js(set, adblockChecker, noopFunc)
 zod.kr##[data-href^='https://zod.kr/go/']:has(img)
 ! - 상단 배너공간
 zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.swiper-initialized.swiper
+!
+!
+! https://github.com/
+- 기타
+||collector.github.com^
+||github.com/_private/browser/stats
+!
+!
+! 레딧 (https://www.reddit.com/)
+! - 기타
+reddit.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+reddit.com##+js(set-local-storage-item, xpromo-consolidation, 1)
+reddit.com##+js(set-constant, Notification.requestPermission, noopFunc)
+reddit.com##+js(remove-class, scroll-disabled, body, complete)
+reddit.com##+js(remove-class, m-blurred, .m-blurred)
+reddit.com##+js(addEventListener-defuser, block-body-scrolling)
+reddit.com##+js(remove-class, scroll-disabled, body, stay)
+reddit.com##+js(json-prune, data.children.[].data.outbound_link)
+reddit.com##+js(abort-on-property-write, STICKY_CANARY)
+||redditstatic.com/shreddit/sentry-
+||w3-reporting.reddit.com^
+||www.reddit.com/svc/shreddit/perfmetrics^
+
 !
 !
 !
@@ -4484,6 +4712,8 @@ yna.co.kr#@#[class*="banner"]:has(img)
 tistory.com#@#[class*="banner"]:has(img)
 ! - - - https://www.joynjoy.com/ - 화면 안보임
 joynjoy.com#@#[class*="banner"]:has(img)
+! - - - https://account.live.com/ - 화면 안보임
+account.live.com#@#[class*="banner"]:has(img)
 
 
 
@@ -4923,6 +5153,8 @@ map.naver.com,pcmap.place.naver.com#@#[class*="AD"]
 yna.co.kr#@#[class*="-banner"]
 ! - - - tistory.com - 화면 안보임
 tistory.com#@#[class*="-banner"]
+! - - - https://account.live.com/ - 화면 안보임
+account.live.com#@#[class*="-banner"]
 
 
 
@@ -5189,7 +5421,7 @@ poooo.ml#@#[class*="layer"]
 ! - - -광고가 보이면 F5 새로고침이 필요
 !##[class][style="margin 0; color: #239d9668"]
 !##div>[class][style*="margin 0"]
-namu.wiki##[class*="g"][style*="margin"]
+!namu.wiki##[class*="g"][style*="margin"]
 
 
 
@@ -5661,6 +5893,9 @@ javlemon.com,xn--av1-qv9mx21c.com,tv995.com##[style][class]:has(img[src])
 
 
 
+
+
+
 ##[class*="popup"]
 ! - - - 예외 ( 출석.추천.찐추 버튼 복구)
 etoland.co.kr#@#[class*="popup"]
@@ -5698,6 +5933,9 @@ loyalty.coupang.com#@#[class*="popup"]
 kmcert.com#@#[class*="popup"]
 ! - - - https://www.jobkorea.co.kr/ - 알림 등 팝업 안됨
 jobkorea.co.kr#@#[class*="popup"]
+! - - - https://login.microsoftonline.com/ - 로그인 팝업 안뜸
+login.microsoftonline.com#@#[class*="popup"]
+
 
 
 
