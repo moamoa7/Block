@@ -17,6 +17,7 @@
 
   const globalWhitelistKeywords = [
     '/recaptcha/', '/challenge-platform/',  // 캡챠
+    '/captcha/',  // 캡챠 (픽팍)
     '/TranslateWebserverUi/',  // 구글 번역
     //'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
@@ -36,6 +37,7 @@
   ];
 
   const whitelistMap = {
+    'chatgpt.com': [''],  // https://chatgpt.com/ 로그인
     'place.naver.com': [''],
     'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
     'blog.naver.com': [''],
