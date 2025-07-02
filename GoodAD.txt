@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250701
+! Version: 20250702
 !
 !
 !
@@ -68,28 +68,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 !
-! 신뢰 사이트
-@@||accounts.google.com^$generichide
-!@@||www.google.*/search?$generichide
-!@@||drive.google.com^$generichide
-!@@||googleadservices.com^$from=google.ae|google.at|google.be|google.by|google.ca|google.ch|google.cl|google.cn|google.co.id|google.co.in|google.co.jp|google.co.th|google.co.uk|google.co.ve|google.co.za|google.com|google.com.ar|google.com.au|google.com.bd|google.com.br|google.com.co|google.com.eg|google.com.hk|google.com.mx|google.com.my|google.com.ng|google.com.pe|google.com.ph|google.com.pk|google.com.sa|google.com.sg|google.com.tr|google.com.tw|google.com.ua|google.com.vn|google.de|google.dk|google.ee|google.es|google.fr|google.gr|google.hu|google.ie|google.it|google.nl|google.no|google.pl|google.pt|google.ro|google.rs|google.ru|google.se|google.sk|google.tn
-@@||www.youtube.com^$generichide
-!@@||music.youtube.com^$generichide
-!@@||accounts.youtube.com^$generichide
-!@@||static.doubleclick.net/instream/ad_status.js$domain=youtube.com
-!@@||wikipedia.org^$generichide
-!@@||github.com^$generichide
-!@@||github.com/*/$1p
-!@@||discord.com^$generichide
-!@@||twitch.tv^$generichide
-!@@||x.com^$generichide
-!@@||instagram.com^$generichide
-!@@||open.spotify.com^$generichide
-!@@||netflix.com^$generichide
-!@@://www3.doubleclick.net^|$xmlhttprequest
-!
-!
-!
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -112,180 +90,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 @@||tradingview.com/socket.io/websocket
 !
 !
-!
-||www.googletagservices.com^
-||www-googletagmanager.l.google.com^
-||www-google-analytics.l.google.com^
-||www.googleadservices.com^
-||www.analytic-google.com^
-||tpc.googlesyndication.com^
-||stats.g.doubleclick.net^
-||static.doubleclick.net^
-||ssl.google-analytics.com^
-||s.innovid.com^
-||securepubads.g.doubleclick.net^
-||secure-ds.serving-sys.com^
-||s0.2mdn.net^
-||rtd.tubemogul.com^
-||pubads.g.doubleclick.net^
-||pixel.moatads.com^
-||pagead.l.doubleclick.net^
-||pagead.googlesyndication.com^
-||pagead2.googlesyndication.com^
-||pagead1.googlesyndication.com^
-||innovid.com^
-||googleads.g.doubleclick.net^
-||googleadservices.com^
-||googleads4.g.doubleclick.net^
-||googleadapis.l.google.com^
-||g.doubleclick.net^
-||fwmrm.net^
-||fls.doubleclick.net^
-||files.adform.net^
-||dts.innovid.com^
-||doubleclick.net^
-||analytic-google.com^
-||ad.youtube.com^
-||ads.youtube.com^
-||adservice.google.com^
-||ads.doubleclick.net^
-||ad.mo.doubleclick.net^
-||ad-g.doubleclick.net^
-||ad.doubleclick.net^
-||2mdn.net^
-||2975c.v.fwmrm.net^
-
-! - - - https://www.xvideos.com/ 영상 안나오므로 광역 
-! - - - - 유튜브 약관 위반 메시지 출력
-! - - -  YouTube AdBlocker (스크립트) 같이 사용하면 메시지 출력되도 바로 재생 가능
-!www.youtube.com,www.youtube-nocookie.com##[class*="-ad-"]
-!www.youtube.com,www.youtube-nocookie.com##[class*="-ad-"]:not(html):not(body):not(article):not([class*=page-wrapper])
-
-! - Adblock-Rule-Collection-Lite
-!youtube.com##.share-panel-services, .ytp-button.ytp-share-button
-!youtube.com##.ytp-cards-teaser
-!youtube.com##.ytp-paid-content-overlay
-!www.youtube.com##.ytp-time-display > span:style(font-weight: 800 !important; text-shadow: black 0 0 3px !important)
-!youtube.com##ytd-guide-entry-renderer:style(display: block !important;)
-!youtube.com##ytd-settings-sidebar-renderer.ytd-browse:style(position: absolute !important; left: 0 !important; height: 100% !important;)
-!youtube.com##ytd-playlist-sidebar-renderer.ytd-browse:style(position: absolute !important; left: unset !important; height: 100% !important;)
-!youtube.com##ytd-feed-filter-chip-bar-renderer:style(position: static !important; margin-bottom: 0 !important;)
-!youtube.com##iframe[width="640"][height="360"], iframe[width="300"][height="250"], .img_ad, #video-masthead, .ad-div, #masthead-ad, #ad-iframe
-!www.youtube.com##div#masthead-ad
-!youtube.com###masthead-positioner-height-offset, #right-arrow, .iv-branding.annotation-type-custom.annotation, .ytp-promotooltip-wrapper
-!youtube.com###chips-wrapper:style(position: static !important;)
-!youtube.com##.appbar-guide-menu-layout, .gstl_50.sbdd_a, .js-yt-header.yt-header, ytd-mini-guide-renderer.ytd-app, app-drawer[opened=""][persistent=""], ytd-two-column-browse-results-renderer[page-subtype="history"] #secondary.ytd-two-column-browse-results-renderer:style(position: absolute !important;)
-!youtube.com###ticker.ytd-masthead
-!youtube.com###masthead-container:style(position: absolute !important; transition: none !important; transform: none !important;)
-!youtube.com###header:style(transform: none !important; margin-top: 0 !important;)
-!youtube.com###contentContainer.tp-yt-app-drawer[swipe-open].tp-yt-app-drawer::after, tp-yt-app-drawer:style(position: absolute !important;)
-!www.youtube.com##.ytd-watch-flexy #dismissible:has(.badge-style-type-simple)
-!||google.com*/pagead
-!||youtube.com/api/stats^
-!||youtube.com/youtubei/v1/log_event?
-!||play.google.com/log?
-!||intake-analytics.wikimedia.org^
-!||doubleclick.net^
-!/generate_204?$image
-
-! - EasyList
-!youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-!youtube.com##.ytd-rich-item-renderer.style-scope > .ytd-rich-item-renderer > .ytd-ad-slot-renderer.style-scope
-!youtube.com##.grid.ytd-browse > #primary > .style-scope > .ytd-rich-grid-renderer > .ytd-rich-grid-renderer > .ytd-ad-slot-renderer
-!youtube.com##.ytd-two-column-browse-results-renderer > ytd-rich-grid-renderer > #masthead-ad.ytd-rich-grid-renderer
-!youtube.com##.ytp-suggested-action > .ytp-suggested-action-badge
-! - 내가 한거
-!youtube.com##ytd-ad-slot-renderer
-!youtube.com##ytd-rich-section-renderer.ytd-rich-grid-renderer.style-scope
-!youtube.com###player-ads,importble
-!youtube.com###player-ads.ytd-watch-flexy.style-scope
-!!youtube.com##.ad-showing
-!!youtube.com##.ytp-ad-player-overlay
-!youtube.com##tp-yt-paper-dialog
-!youtube.com###panels
-!youtube.com###playlist
-!!youtube.com##.lockup
-
-
-! - AdVoid.Full
-!www.youtube.com##.ytd-in-feed-ad-layout-renderer
-!www.youtube.com##.ytp-featured-product
-!youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-!youtube.com##.ytp-cards-teaser
-!youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
-
-!www.youtube.com##+js(set-constant, ytInitialPlayerResponse.auxiliaryUi.messageRenderers.upsellDialogRenderer, undefined)
-!www.youtube.com##+js(json-prune, auxiliaryUi.messageRenderers.upsellDialogRenderer)
-!www.youtube.com##+js(set-constant, ytInitialPlayerResponse.playerAds, undefined)
-!www.youtube.com##+js(set-constant, ytInitialPlayerResponse.adSlots, undefined)
-!www.youtube.com##+js(set-constant, ytInitialPlayerResponse.adPlacements, undefined)
-!www.youtube.com##+js(set-constant, playerResponse.adPlacements, undefined)
-!www.youtube.com##+js(json-prune-xhr-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, '', propsToMatch, /\/player(?:\?.+)?$/)
-!www.youtube.com##+js(json-prune-fetch-response, reelWatchSequenceResponse.entries.[-].command.reelWatchEndpoint.adClientParams.isAd entries.[-].command.reelWatchEndpoint.adClientParams.isAd, '', propsToMatch, url:/reel_watch_sequence?)
-!www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads, '', propsToMatch, /playlist?)
-!www.youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, '', propsToMatch, /\/(player|get_watch)\?/)
-!www.youtube.com##+js(adjust-setTimeout, [native code], 17000, 0.001)
-!youtube.com##+js(href-sanitizer, a[href^="https://www.youtube.com/redirect?event=video_description"][href*="&q=http"], ?q)
-!youtube.com##+js(set-constant, google_ad_status, 1)
-
-!||doubleclick.net^
-!/youtubei/*/att/*
-!/generate_204^$image
-!/pagead^
-!/cast_sender.js^$script
-!/log_event$xhr
-!/ptracking
-
-! - GOODBYEAD
-!youtube.com##.ytd-rich-item-renderer.style-scope > .ytd-rich-item-renderer > .ytd-ad-slot-renderer.style-scope
-!youtube.com##.ytd-two-column-browse-results-renderer > ytd-rich-grid-renderer > #masthead-ad.ytd-rich-grid-renderer
-!youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
-!youtube.com##.ytp-suggested-action > .ytp-suggested-action-badge
-
-!www.youtube.com##+js(trusted-create-element, head, script, '', '(()=>{try{document.currentScript.remove()}catch{}const t={apply:(t,e,o)=>{const n=o[0];return"function"==typeof n&&n.toString().includes("onAbnormalityDetected")&&(o[0]=function(){}),Reflect.apply(t,e,o)}};window.Promise.prototype.then=new Proxy(window.Promise.prototype.then,t)})();')
-!www.youtube.com##+js(adjust-setTimeout, [native code], 17000, 0.001)
-!youtube.com##+js(set-constant, ytInitialPlayerResponse.playerAds, undefined)
-!youtube.com##+js(set-constant, ytInitialPlayerResponse.adSlots, undefined)
-!youtube.com##+js(set-constant, ytInitialPlayerResponse.adPlacements, undefined)
-!youtube.com##+js(set-constant, playerResponse.adPlacements, undefined)
-!youtube.com##+js(set-constant, google_ad_status, 1)
-!youtube.com##+js(json-prune-xhr-response, playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots, '', /playlist\?list=|\/player(?!.*(get_drm_license))|watch\?[tv]=|get_watch\?/)
-!youtube.com##+js(json-prune-fetch-response, playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots, '', /playlist\?list=|player\?|watch\?[tv]=|get_watch\?/)
-!youtube.com##+js(json-prune, playerResponse.adPlacements playerResponse.adSlots, playerResponse.streamingData.serverAbrStreamingUrl)
-
-!||doubleclick.net^
-!||youtube.com/api/stats/qoe?
-!||youtube.com/youtubei/v1/log_event?
-!||youtube.com/pcs/activeview?
-!||google.*/pagead/lvz?
-!/generate_204?$image
-!||youtube.com/ptracking?
-!||youtube.com/pagead/
-
-
-
-
-
-! - 유튜브 관련 광고 차단은 EasyList / uBlock filters – Ads / Block filters – Quick fixes 필터 구독할 것
-! - - - 유튜브 썸네일 커진거 해결 - 한줄에 5개로 설정
-! - - - 유니콘Pro에서도 적용됨
-! - - - - - 출처 : https://gall.dcinside.com/youtube/378167
-!youtube.com##ytd-rich-grid-renderer:style(--ytd-rich-grid-items-per-row: 5 !important;)
-! - - - YT 홈페이지 무한 스크롤을 제거
-!www.youtube.com##ytd-browse[page-subtype="home"] ytd-continuation-item-renderer:remove()
-! - - - 기타
-! - - - - 확장프로그램 광고글 - 비디오광고 건너띄기 없애기
-!youtube.com###ytd-player > div > .yt-formatted-string.codehemu-branding
-! - - - - 확장프로그램 추천하다 버튼 없애기
-!youtube.com###ytd-player > div > button
-! - 차단 사이트
-!||g.doubleclick.net^
-!||pagead2.googlesyndication.com^
-!||google.*/pagead/lvz?
-!
-! - - - 사용하지 않음 (끝)
-!
-!
 ! 구글 (https://www.google.com/)
 www.google.com##html:style(overflow: visible !important)
 www.google.*##+js(set-constant, rwt, noopFunc)
@@ -299,6 +103,7 @@ accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
 google.com##body #tads
 google.com###taw > div > [data-ved]
 ||googletagmanager.com^
+||ogads-pa.clients6.google.com^
 ||google.com/log^
 ||google.com/async/bgasy^
 ||google.com/images/cleardot.gif^$image
@@ -307,6 +112,7 @@ google.com###taw > div > [data-ved]
 /gen_204^
 /client_204?$image
 /browserinfo?f.sid=$xhr
+/pagead^
 !
 !
 ! https://drive.google.com/
@@ -325,13 +131,6 @@ google.com###taw > div > [data-ved]
 account.live.com#@#[class*="-cookie-banner"]
 !
 !
-! https://copilot.microsoft.com/
-! - 기타
-||browser.events.data.microsoft.com^
-!
-!
-!
-!
 ! 스포티파이 (https://open.spotify.com/)
 ! - 기타
 ||googleoptimize.com^
@@ -346,6 +145,8 @@ account.live.com#@#[class*="-cookie-banner"]
 twitter.com##html:style(overflow:auto!important)
 ||analytics.twitter.com^
 ||syndication.twitter.com^
+||x.com/1.1/jot
+/referrer.js
 !
 !
 ! https://www.instagram.com/
@@ -358,6 +159,7 @@ instagram.com##body:style(overflow: visible!important;)
 ||graph.instagram.com/logging_client_events^
 instagram.com##+js(set-session-storage-item, loggedOutAppSheetIsMinimized, 1)
 instagram.com##+js(set-constant, _sharedData.is_whitelisted_crawl_bot, true)
+||instagram.com/ajax/bz
 /ajax/bz^$xhr
 !
 !
@@ -384,6 +186,9 @@ news.naver.com##.comp_common.comp_journal_subscribe.comp_twenty_news
 news.naver.com##._short_subscribe_banner_card_wrapper.main_brick_item
 ! - - - 신문 1면 모아보기
 news.naver.com##._horizontal_scroll_type._horizontal_card_wrapper.main_brick_item
+! - 기타
+||ma.news.naver.com^
+logger.js^$script
 !
 !
 ! 네이버플러스 멤버쉽 (https://nid.naver.com/)
@@ -403,6 +208,22 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ! 네이트 (https://www.nate.com/)
 ! - 차단 사이트
 !||cyad1.nate.com^
+!
+!
+! 다음 (https://www.daum.net/)
+! - 기타
+||stat.tiara.daum.net^
+||aem-kakao-collector.onkakao.net^
+||real-feedback.toros.daum.net^
+!
+!
+! www.msn.com
+! - 기타
+||msn.com/onecollector/
+||confiant.msn.com^
+||c.bing.com^
+||popin.cc^
+||mediago.io^$3p
 !
 !
 ! 노션 (https://www.notion.so/)
@@ -469,9 +290,12 @@ sooplive.co.kr###FeedLayerToolTip
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
 ! - 기타
+||analysis.sooplive.co.kr^
 /fbevents.js^$script
 ||analytics.tiktok.com^
 ||facebook.com/tr^
+/ad/*$script
+/fbevents.js
 ! - 차단 사이트
 !||adballoon.sooplive.co.kr^
 !||reqde.sooplive.co.kr^
@@ -516,6 +340,10 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 @@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
+! - 기타
+*/ad-$~stylesheet
+||naver.com/jackpotlog/
+||naver.com/mcollector/
 ! - 차단 사이트
 !||veta.naver.com^
 !
@@ -526,9 +354,11 @@ twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
 ! - 하단 회원가입 안내 문구
 twitch.tv###twilight-sticky-footer-root
 ! - 기타
-||sentry.io^$3p
 ! - 광고?
 ||*.ads.*
+! - 기타
+||ads.twitch.tv^
+||reporting.cdndex.io^
 ! - 차단 사이트
 !||edge.ads.twitch.tv^
 !||scorecardresearch.com^
@@ -556,8 +386,11 @@ twitch.tv###twilight-sticky-footer-root
 !@@play.kakao.com
 !@@videoads.kakao.com
 ! - 기타
+||videostats.kakao.com^
+||stat.tiara.kakao.com^
 /track^
 /embed/player/image/ads.png$redirect=2x2.png,domain=tv.kakao.com|play-tv.kakao.com|kakaotv.daum.net
+/cast_sender.js^$script
 ! - 차단 사이트
 !||ad.daum.net^
 !
@@ -621,7 +454,6 @@ aagag.com#$#.la {position: absolute !important; left: -3000px !important; width:
 ! - 이미지 복원
 !@@||a.aagag.com/img/*$image
 ! - 차단 사이트
-||googlesyndication.com^
 ||cloudflareinsights.com^
 !
 !
@@ -748,6 +580,9 @@ etoland.co.kr#@#[class*="ad_"] [style]
 humoruniv.com#@#[class*="ad_"] [style]
 ! https://n.news.naver.com/ - 일부 사라짐
 naver.com#@#[class*="ad_"] [style]
+! https://v.daum.net/ - 일부 아이콘이 사라짐 / 스크롤이 안내려감
+v.daum.net#@#[class*="ad_"] [style]
+
 ! - 기타
 /blank.gif^$image
 
@@ -836,7 +671,13 @@ etoland.co.kr###info_recent_list_wrap
 !@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
 etoland.co.kr#@#[class^="ad"]
+! - 기타
+||naver.net/wcslog.js
+||cdn.jsdelivr.net/npm/@adshield/
 ! - 차단 사이트
+||googlesyndication.com^
+||amung.us^
+||external-api.impression-neo.naver.com^
 !||mobon.net^
 !||cdn.nhnace.com^
 !||html-load.cc^
@@ -884,7 +725,6 @@ play.google.com#@#[class*="Ad"]
 wowtv.co.kr#@#[class*="Ad"]
 ! - - https://www.pornhub.com/ - 상단 사라짐
 pornhub.com#@#[class*="Ad"]
-
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - - - PC
 !inven.co.kr##.new-board
@@ -902,6 +742,8 @@ inven.co.kr##.roulette-open.inven-float-alarm
 inven.co.kr###invenAppSuggestion
 ! - 오류 방지
 @@||07c225f3.online^
+! - 기타
+/ad_
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
@@ -917,6 +759,7 @@ mlbpark.donga.com##.bt_menu_wrap
 ! - - - 출처 : https://gall.dcinside.com/adguard/399
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ! - 기타
+||contentsfeed.com^$3p
 /^https:\/\/cdn\.jsdelivr\.net\/npm\/[-a-z_]{4,22}@latest\/dist\/script\.min\.js$/$script,3p
 /acecounter/*
 ! - 차단 사이트
@@ -1118,6 +961,7 @@ ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 !##[class="floating-banner"]
 !##.floating-banner - ##[class*="-banner"] 로 대체
 !##[class="ad-banner"]
+##.ad-banner
 !##.ad-banner - ##[class*="-banner"] 로 대체
 ! - 게시물 위 상단 공간
 ##.main.container > div>[style]
@@ -1163,6 +1007,8 @@ slrclub.com##[class="notice"]
 !slrclub.com##.adsbyadop
 ! - - -  파워링크
 slrclub.com##[id*="3"]
+! - 기타
+||adop.cc^$3p
 !
 !
 ! 클리앙 (https://www.clien.net/)
@@ -1311,6 +1157,8 @@ poooo.ml#@#.ad
 ||top-fwz1.mail.ru^
 ||tns-counter.ru^
 ||google-analytics.com^
+||apptracer.ru^$3p
+||ok.ru/dk?cmd=videostatnew
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
@@ -1973,9 +1821,8 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! - 왼쪽 배너
 !##[class*="list-banner"] - ##[class*="banner"]:has(img) 로 대체
 !##.list-banner
-! - 날씨정보 가끔 안나오는거 해결
-! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
-!@@weblog.kma.go.kr^
+! - 기타
+||weblog.kma.go.kr^
 !
 !
 ! 연합뉴스 (https://www.yna.co.kr/)
@@ -2002,6 +1849,9 @@ yna.co.kr##[class^="aside"]
 ! - 기사 하단 필요없는 부분
 !yna.co.kr##.aside-box400
 yna.co.kr##.ynalounge-content01.wide.content03
+! - 기타
+||cdp.yna.co.kr^
+/nlogger.js
 ! - 차단 사이트
 !||ad.yna.co.kr^
 !||innorame.com^
@@ -2016,6 +1866,15 @@ yna.co.kr##.ynalounge-content01.wide.content03
 !||img.side.mythiell.com^
 !||tracker.digitalcamp.co.kr^
 !
+!
+!
+!
+! 머니투데이 (https://news.mt.co.kr/)
+! - 기타
+||chartbeat.com^
+/plusone.js^$script
+/ad/*$frame
+
 !
 ! 머니S (! 머니S (https://www.moneys.co.kr/)
 ! - 차단 사이트
@@ -2053,6 +1912,23 @@ hankyung.com##.stock-marquee-wrap
 ! - 배너 (오른쪽 배너) (List-KR)
 ! - - -  https://3.jamakyadong.me/ 영상 안보임 (광역 규칙 하면 안됨)
 !hankyung.com##div[class*="-ad"]:not(.container):not([style])
+!
+!
+! 한국일보 (https://www.hankookilbo.com/)
+! - 상단 배너
+hankookilbo.com##.end-top-ad-wrap
+! - 기타
+||ad.
+||hktracker.hankookilbo.com^
+||taboola.com^
+||beusable.net^$3p
+/firebase.js^$script
+||cloudflare.com/cdn-cgi/trace$third-party,domain=~isbgpsafeyet.com|~wyndhamdestinations.com
+!
+!
+! 국민일보 (https://www.kmib.co.kr/)
+! - 기타
+/gtm.js
 !
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
@@ -2188,8 +2064,14 @@ www.spojoy.com###TopAdv250
 !
 !
 ! 스포츠 동아 (https://sports.donga.com/)
+! - 상단 배너
+##.ad_top
 ! - 기사내 배너
+sports.donga.com##[class*="subcont_ad"]
 sports.donga.com##.view_center
+##[class*="ad_aside"]
+! - 기타
+*/images/banner$domain=~ipo.chinairn.com|~www.shuame.com|~exp.qq.com
 !
 !
 ! 아이즈 IZE (https://www.ize.co.kr/)
@@ -2263,6 +2145,7 @@ temu.com##+js(set-local-storage-item, cookie_prompt_times, 1)
 ##[id^="banner_"]
 ! - 기타
 ||sentry-cdn.com^$third-party,domain=~sentry.dev|~sentry.io
+||cafe24.com/weblog.js
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
@@ -4405,8 +4288,11 @@ mypikpak.com##.operation-container
 ! - 확장프로그램 설치 안내 팝업
 mypikpak.com##div.el-overlay:nth-of-type(23)
 ! - 기타
+##[class*="-cookie-banner"]
+||adjust.com^
 /gtag.js^$script
 /track.js^$script
+/stat^
 !
 !
 ! SPEEDTEST (https://www.speedtest.net/
@@ -4490,8 +4376,25 @@ reddit.com##+js(abort-on-property-write, STICKY_CANARY)
 ||redditstatic.com/shreddit/sentry-
 ||w3-reporting.reddit.com^
 ||www.reddit.com/svc/shreddit/perfmetrics^
-
 !
+!
+! https://www.ajd.co.kr/
+##.c-toast
+! - 기타
+||browser-intake-datadoghq.com^
+||clarity.ms^
+_ads.js|
+!
+!
+! https://wonforecast.com/
+! - 기타
+||addthis.com^
+
+! copilot.microsoft.com
+! - 일부 필터 문제로 오류 나는거 해결
+@@-ads-$script
+! - 기타
+||browser.events.data.microsoft.com^
 !
 !
 !
