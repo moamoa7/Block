@@ -13,7 +13,10 @@
   // ======= 사용자 설정 =======
   const ENABLE_LOG_UI = true;
   const REMOVE_IFRAME_DEFAULT = true;
-  const REMOVE_IFRAME = REMOVE_IFRAME_DEFAULT;
+  //const REMOVE_IFRAME = REMOVE_IFRAME_DEFAULT;
+
+  const allowedSites = ['chatgpt.com',];
+  const REMOVE_IFRAME = allowedSites.includes(location.hostname) ? false : REMOVE_IFRAME_DEFAULT;
 
   const globalWhitelistKeywords = [
     '/recaptcha/', '/challenge-platform/',  // 캡챠
@@ -23,6 +26,9 @@
     //'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     'notion.so',  // https://www.notion.so/ 로그인
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
+    '/embed-widget/', '/widgetembed/',  //https://wonforecast.com/ 초기 환율 안나오는거 해걸
+    'twitter.com/widgets/widget_iframe',  // 트위터 게시물
+    '_photo',  // 스포츠동아 사진 날라감 방지
     '/videoembed/', 'player.kick.com', // https://poooo.ml/
     '/messitv/',  // https://messitv8.com/ (메시티비)
     '/goattv/',  // https://goat-v.com/ (고트티비)
@@ -39,14 +45,11 @@
   ];
 
   const whitelistMap = {
-    'chatgpt.com': [''],  // https://chatgpt.com/ 로그인
     'place.naver.com': [''],
     'cdnbuzz.buzz': [''],  // https://av19.live/ (AV19)
     'blog.naver.com': [''],
     'cafe.naver.com': [''],
     'www.naver.com': ['my.html'],  // 메인에서 로그인 후 메일 클릭시 메일 안보이는거 해결
-    'chatgpt.com': [''],  // ChatGPT
-    //'tiktok.com': [''],
   };
 
   const grayWhitelistKeywords = [
@@ -56,7 +59,6 @@
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
-    //'mp4',  // 영상 기본 파일
   ];
 
   const grayDomainWhitelistMap = {
@@ -70,6 +72,11 @@
   let isEnabled = localStorage.getItem('iframeLoggerEnabled') !== 'false';
   let seen = new WeakSet();
   let logList = [], count = 0, logContainer, logContent, countDisplay;
+
+  if (allowedSites.includes(location.hostname)) {
+    console.log(`${location.hostname}은 화이트리스트로 iframe 차단 비활성화`);
+    return;
+  }
 
   // ======= 드래그 가능 =======
   function makeDraggable(el) {
@@ -113,13 +120,29 @@
     btn.id = ICON_ID;
     btn.textContent = isEnabled ? '🛡️' : '🚫';
     btn.title = 'Iframe 로그';
+    btn.style.fontFamily = `'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', Arial, sans-serif`;
     btn.style.cssText = `
-      position:fixed; bottom:150px; right:10px; z-index:99999;
-      width:45px; height:45px; border-radius:50%; border:none;
-      background:#000; color:#fff; font-size:32px; cursor:pointer;
-      display:flex; align-items:center; justify-content:center;
-      left: unset; top: unset; transition:background 0.3s;
-      opacity:0.4;
+      position:fixed !important;
+      bottom:150px !important;
+      right:10px !important;
+      z-index:99999 !important;
+      width:45px !important;
+      height:45px !important;
+      border-radius:50% !important;
+      border:none !important;
+      background:#000 !important;  /* 배경을 검은색으로 고정 */
+      color:#fff !important;
+      font-size:32px !important;  /* 아이콘 크기 증가 */
+      cursor:pointer !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      left: unset !important;  /* 화면 중앙이 아닌 원 안에서 위치하도록 */
+      top: unset !important;   /* 원 안에서 위치하도록 */
+      transition: background 0.3s !important; /* 배경 전환 효과 */
+      opacity: 0.40 !important; /* 아이콘 투명도 */
+      visibility: visible !important;
+      pointer-events: auto !important;
     `;
     btn.onclick = () => {
       const panel = document.getElementById(PANEL_ID);
