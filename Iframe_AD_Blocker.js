@@ -188,7 +188,7 @@
     panel.style.cssText = `
       position:fixed; bottom:150px; right:60px; width:500px; height:400px;
       background:rgba(0,0,0,0.85); color:white; font-family:monospace;
-      font-size:16px; border-radius:10px; box-shadow:0 0 10px black;
+      font-size:16px; border-radius:12px; box-shadow:0 0 10px black;
       display:none; flex-direction:column; text-align:left !important;
       overflow:hidden; z-index:99999; font-weight:bold
     `;
@@ -215,7 +215,8 @@
     header.appendChild(copyBtn);
 
     logContent = document.createElement('div');
-    logContent.style = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;word-wrap:break-word;';
+    //logContent.style = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;word-wrap:break-word;';
+    logContent.style = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;word-wrap:break-word; line-height: 1.4;';
     logContent.style.userSelect = 'text';
     logContent.addEventListener('mousedown', e => e.stopPropagation());
 
