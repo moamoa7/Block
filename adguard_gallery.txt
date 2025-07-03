@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.06.27
+! Version: 2025.07.02
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -16,7 +16,7 @@ gmarket.co.kr#@#.ReactVirtualized__Grid__innerScrollContainer .box__banner-wrap 
 gmarket.co.kr#@#.js-impressionable
 gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 
-! CGV 메인화면 복원 - DNS 사용자 규칙에 @@||ad.cgv.co.kr^ 및 @@||adimg.cgv.co.kr 추가
+! CGV 메인화면 복원 - DNS 사용자 규칙에 @@||ad*.cgv.co.kr^ 추가
 @@||ad*.cgv.co.kr^$image,media,domain=cgv.co.kr
 
 ! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
@@ -24,15 +24,14 @@ gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 namu.wiki##li:has(time):not(*:has([href*='/raw/'])):upward(2)
 namu.wiki##span:has-text(더 보기):upward(2):has([target])
 
-! Bypass anti-adblock
-inven.co.kr$$script[data-cfasync="false"]
+! Anti-adblock
 m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 ~youtube.com#%#//scriptlet('prevent-fetch', 'doubleclick.net')
 ~youtube.com#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 ~youtube.com#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 
-! 주소 바뀌는 불법 사이트 광고 영구 차단
+! Regex for illegal sites
 [$domain=/^booktoki[0-9]*\.com/]##.col-sm-9.col-md-9.col-15
 [$domain=/^hoohootv[0-9]*\.[a-z]{2,}$/]###img_row_container
 [$domain=/^tkor[0-9]*\.com/]##.bnt.bn
@@ -75,6 +74,7 @@ m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ##[href*='/ad'][target='_blank']:has(img)
 ##[href^='/adver-']
 ##div.banner_l
+m.fmkorea.com##script ~ div[class*=' ']:matches-css(margin: /3px 0px/):matches-css(padding: 0px):remove()
 !#endif
 
 ! Ads
@@ -91,7 +91,6 @@ m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ##[id^='hd_pop']
 ##[style='margin-bottom: 20px;'].row.row-15
 ##div.banner_m
-##div.video-long-banner
 ##div[class$='AD'][style]
 ##div[class^='AD'][style]
 ##iframe[src*='digitalcamp.co.kr']
@@ -129,7 +128,6 @@ gmarket.co.kr##.js-impressionable.box__head-ad
 gmarket.co.kr##.js-visiblity.js-impressionable.box__bottom-banner
 gmarket.co.kr##.plcc_banner
 gmarket.co.kr##.section__main-banner.section__main
-hankyung.com##[class*='promotion']
 harpi.in##div > iframe
 harpi.in##div:has(> script[src])
 hoduhodu.com##.md\:hidden.z-50.p-2.bg-black.w-full.left-0.bottom-0.fixed
@@ -140,13 +138,13 @@ inven.co.kr##.show-ads
 khan.co.kr##.mAd
 komi.la##.w-full.relative.mobile-touch.h-full
 komi.la##.w-full.relative.mobile-touch.h-full:upward(1)
+komi.la##a[href='/pm/vpn']
 komi.la##div.overflow-hidden[style*='z-index: 10']
 komi.la##div:has(> iframe)
-m.11st.co.kr##div.l-grid:has([class*='c-ad'])
-m.11st.co.kr##div:has(> .c-guide-ad)
 m.cafe.daum.net##.bottom_banner
 m.cafe.naver.com###articleFeedList
 m.cafe.naver.com##.bottom.banner_add
+m.cafe.naver.com##.popular_toast_popup
 m.cafe.naver.com##.subscribe_layer_wrap
 m.cgv.co.kr##.topBanner
 m.chzzk.naver.com##[class^='app_popup_dimmed__']
@@ -154,15 +152,12 @@ m.danawa.com###mdnw-main-bottomSheet-container
 m.danawa.com###mdnw-main-dimm
 m.daum.net##.bnr_popup.bnr_layer
 m.dcinside.com###notice_list > li
-m.dcinside.com##.adv-inner
 m.dcinside.com##.outside-search-box
 m.dcinside.com##.trend-rank:style(padding:0px!important; border-top:0px!important;)
-m.dcinside.com##section.clkhigh.grid
 m.dcinside.com##section.grid > .md-tit-box:has-text(Daum)
-m.dcinside.com#$##notice_list > li:has(.ct) { display: table !important; }
+m.dcinside.com#$##notice_list > li:has(.ct):not(:has(.ntc-line-pink.round)) { display: table !important; }
 m.dcinside.com#@#.trend-rank
 m.fmkorea.com##.fmad_wrapper
-m.fmkorea.com##script ~ div[class*=' ']:matches-css(margin: /3px 0px/):matches-css(padding: 0px):remove()
 m.gmarket.co.kr##.box__ad-banner
 m.gmarket.co.kr##.box__banner-promotion
 m.gmarket.co.kr##.box__top-banner
@@ -175,24 +170,20 @@ mlbpark.donga.com##.coupang_cont
 mlbpark.donga.com##li.items:has([target='_blank'])
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
-ppomppu.co.kr##tr:has([src$='/icon_ppom_coupon_pc.png'])
-quasarplay.com##[class*='venatus']
-quasarplay.com##[id^='mo-container-']
+ppomppu.co.kr,~m.ppomppu.co.kr##tr:has([src$='/icon_ppom_coupon_pc.png'])
+quasarplay.com###top_img_area
 quasarplay.com##a[href^='javascript:clickPointBanner']
-quasarzone.com##.banner-container.main-mid-banner
 quasarzone.com##.best-official-news
-quasarzone.com##.g123-wrapper
 quasarzone.com##.new-official-news
 quasarzone.com##.new-partner-saleinfo-container
 quasarzone.com##.recommend-deal-wrap
-quasarzone.com##[id^='venatus']
 ruliweb.com##.gallery.table_body
 ruliweb.com,ppomppu.co.kr##[id$='_ad']
 sbs.co.kr##[src^='https://adservice.sbs.co.kr/']
 seoul.co.kr###rollingAdDiv
 seoul.co.kr##.adBanner
 sportschosun.com##div.mobile-ad:has([class^='adfork'])
-sportschosun.com##div[style*='height:']:not(:has([id]))
+sportschosun.com##div[style*='height:']:not(:has([id])):not(:has(.article_top))
 talk.op.gg##[class]:has(> [href^='https://talk.op.gg/app-download'])
 twidouga.net##iframe[width='300'][height='250']
 twidouga.net#%#//scriptlet('prevent-addEventListener', 'click', 'preventDefault')
@@ -201,10 +192,10 @@ web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
 web.joongna.com##li:has(span:has-text(광고))
 windowsforum.kr,seoul.co.kr,xportsnews.com##.ad
 xportsnews.com##.ad:remove()
+zod.kr##.deal_partner-horizontal.zod-widgets--deal_partner
 zod.kr##[data-href^='https://zod.kr/go/']:has(img)
 zod.kr##main.app-clearfix.app-content > div[class*='swiper'][id]:first-child
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
-||app.dcinside.com/api/_naverad^$xhr,redirect=empty
 ||apps.m.sooplive.co.kr^$all
 ||dctrend.ai/widget/
 ||nz*mi.com/data/apms/background/$image
@@ -216,36 +207,32 @@ zod.kr##main.app-clearfix.app-content > div[class*='swiper'][id]:first-child
 [$domain=/^booktoki[0-9]*\.com/]###novel_content:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 [$domain=/^[a-z]*toki[0-9]*\.[a-z]{3}/]#%#//scriptlet('abort-current-inline-script', 'oncontextmenu')
 dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_mrnhbtk', '1year', '/', '.dmm.co.jp')
-pornhub.com#%#//scriptlet('set-cookie-reload', 'accessAgeDisclaimerPH', '1')
 ||arca.live/static/assets/js/adult.min.js
 
-! 수익링크
+! Affiliate links
 fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ||adcr.naver.com^$all
 ||link.coupang.com/*/TOSS$all
 ||link.coupang.com/*dynamicda$all
 ||link.coupang.com/re/CSHARE$all
-||tiktok.com/*incentive$all
 
-! 애드가드 필터 오차단 해제
-11st.co.kr#@#div[class$="-ad"]
+! Incorrect blocking
 #@#.appBanner:not(body)
 $@$link[rel="manifest"]
 @@||action.adoffice.11st.co.kr^$domain=search.11st.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search,important
 @@||adtouch.adbrix.io^$app=com.kakao.talk
-@@||app.appsflyer.com^$domain=ofw.adison.co
 @@||co.kr^$stealth=dpi
 @@||edge-live.joongna.com/api/web-ads/
-@@||google.com/search$stealth=useragent|ip
+@@||google.*/search$stealth=useragent|ip
 @@||graph.facebook.com^$domain=fmkorea.com
 @@||kamp.daum.net^$xhr
 @@||mule.co.kr^$generichide
 @@||nexon.com^$stealth=dpi
 @@||photo.jtbc.co.kr/news/cms/etc/
 @@||piku.co.kr^$generichide
+@@||skstoa.com^$jsinject
 etoland.co.kr#$#div.hit_latest_ad { display: grid !important; }
-hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
 m.hoyolab.com#@#.guide-download-drawer
 mitem.auction.co.kr#@#[class*="app-install"]
 mlbpark.donga.com#@#div[class*="_ad"]
