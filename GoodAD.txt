@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250702
+! Version: 20250703
 !
 !
 !
@@ -90,6 +90,21 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 @@||tradingview.com/socket.io/websocket
 !
 !
+! 유튜브 (https://www.youtube.com/)
+! - 기타
+||youtube.com/youtubei/v1/log_event?
+||youtube.com/api/stats/qoe?
+||google.com/log^
+||youtube.com/pcs/activeview?
+/youtubei/*/att/*
+/generate_204^$image
+||youtube.com/ptracking?
+
+
+adformat=
+
+!
+!
 ! 구글 (https://www.google.com/)
 www.google.com##html:style(overflow: visible !important)
 www.google.*##+js(set-constant, rwt, noopFunc)
@@ -99,7 +114,6 @@ www.google.*##+js(remove-attr, jsaction, #islsp c-wiz a[href^="http"][data-ved][
 google.com##+js(set-local-storage-item, mapslitepromosdismissed, 1)
 google.*##+js(remove-attr, data-jsarwt, #rcnt [data-ved] a)
 accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
-
 google.com##body #tads
 google.com###taw > div > [data-ved]
 ||googletagmanager.com^
@@ -123,12 +137,71 @@ google.com###taw > div > [data-ved]
 !  - 일부 필터 로그인 차단 해제
 @@/noop*.js$script
 ! - 기타
-||browser-intake-datadoghq.
+||browser-intake-datadoghq.com^
+!
+!
+! https://auth.openai.com/
+! - 기타
+||sentry.io^$3p
 !
 !
 ! https://account.live.com/
 ! - 일부 필터에 의한 로그인 화면 안보임 해결
 account.live.com#@#[class*="-cookie-banner"]
+! - 기타
+||microsoft.com/mscc/
+!
+!
+! https://copilot.microsoft.com/
+! - 기타
+||eu-mobile.events.data.microsoft.com^
+!
+!
+! 덕덕고 (https://duckduckgo.com/)
+! - 오른쪽 메뉴 없애기
+##.header--aside
+! - 기타
+||improving.duckduckgo.com^
+!
+!
+! 브레이브 검색 (https://search.brave.com/)
+! - 하단 브라우저 다운 안내
+search.brave.com##.download-cta
+! - 기타
+search.brave.com##+js(prevent-fetch, body:browser)
+!
+!
+! 스타트페이지 (https://www.startpage.com/)
+! - 하단 안내
+startpage.com##.privacy-extension-and-app-widget
+!
+!
+! 야후 제팬 (https://www.yahoo.co.jp/)
+! - 기타
+||clb.yahoo.co.jp^
+||dsb.yahoo.co.jp^
+||yjtag.yahoo.co.jp^
+/conversion_async.js
+||baidu.com/static/h.gif
+!
+!
+! 빙 (https://www.bing.com/)
+! - 기타
+||bing.com/fd/ls/l?ig=
+||bing.com/fd/ls/lsp.aspx
+||bing.com/notifications/render?
+||bing.com/rewardsapp/reportactivity?
+
+!
+!
+! 바이두 (https://www.baidu.com/)
+! - 하단
+baidu.com###s-hotsearch-wrapper
+! - 기타
+||sp1.baidu.com^
+||sp2.baidu.com^
+||bdstatic.com^*/plugins/every_cookie_
+/swfobject_*.js^$script
 !
 !
 ! 스포티파이 (https://open.spotify.com/)
@@ -236,6 +309,9 @@ notion.so##+js(set-cookie, notion_check_cookie_consent, true)
 ! 숲 (https://www.sooplive.co.kr/)
 ! - 팝업
 sooplive.co.kr##.bnrimg_area
+! - 메인 모르겠는데 떠 있는거
+sooplive.co.kr###soopi_wrap
+sooplive.co.kr##.floating_btns
 ! - 구독 플러스
 sooplive.co.kr##.subs_plus.seasonal_area
 ! - 프로모션 배너
@@ -290,12 +366,14 @@ sooplive.co.kr###FeedLayerToolTip
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
 ! - 기타
+||eventapi.sooplive.co.kr^
 ||analysis.sooplive.co.kr^
 /fbevents.js^$script
 ||analytics.tiktok.com^
 ||facebook.com/tr^
 /ad/*$script
 /fbevents.js
+*/gg/$domain=~cnr.cn|~20-0.net|~health.dahe.cn
 ! - 차단 사이트
 !||adballoon.sooplive.co.kr^
 !||reqde.sooplive.co.kr^
@@ -421,7 +499,7 @@ tiktok.com##+js(addEventListener-defuser, contextmenu, preventDefault)
 tiktok.com##tiktok-cookie-banner
 ||tiktok.com/web/report^
 /collect^
-
+||tiktokv.com/monitor_browser/
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -582,6 +660,9 @@ humoruniv.com#@#[class*="ad_"] [style]
 naver.com#@#[class*="ad_"] [style]
 ! https://v.daum.net/ - 일부 아이콘이 사라짐 / 스크롤이 안내려감
 v.daum.net#@#[class*="ad_"] [style]
+! =https://www.baidu.com/ - 검색바 X 사라짐
+www.baidu.com#@#[class*="ad_"] [style]
+
 
 ! - 기타
 /blank.gif^$image
@@ -725,7 +806,11 @@ play.google.com#@#[class*="Ad"]
 wowtv.co.kr#@#[class*="Ad"]
 ! - - https://www.pornhub.com/ - 상단 사라짐
 pornhub.com#@#[class*="Ad"]
+! -https://namu.wiki/ - SNS 아이콘 사라짐
+namu.wiki#@#[class*="Ad"]
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
+! - https://duckduckgo.com/ - 일부 이미지 및 텍스트 사라짐
+duckduckgo.com#@#[class*="Ad"]
 ! - - - PC
 !inven.co.kr##.new-board
 ! - - - 모바일
@@ -852,11 +937,13 @@ todayhumor.co.kr##.under_ad_div
 !##[class*="float-banners"] - ##[class*="banner"]:has(img) 로 대체
 ! - 왼쪽 배너 포함 (PC)
 !##.float-banners - ##[class*="banner"]:has(img) 로 대체
+##.float-banners
 ! - 팝업 배너
 !##[class="banner-center"] - ##[class*="banner"]:has(img) 로 대체
+##.banner-center
 ! -하단 제보 배너
 !##[class="call_banner"] - ##[class*="banner"]:has(img) 로 대체
-!##.call_banner
+##.call_banner
 ! - 차단 사이트
 !||mediacategory.com^
 !
@@ -922,6 +1009,11 @@ instiz.net##.imgad
 ! - 배너
 instiz.net##div[style]:has(> [id^='sense'])
 ##[id*="sense"]
+!
+!
+! 나무위키 (https://namu.wiki/)
+! - 상단 및 오른쪽 공간(배너?) - EasyLis
+namu.wiki##div[id][class]:empty
 !
 !
 ! 일베 (https://www.ilbe.com/)
@@ -3941,9 +4033,12 @@ hitomi.la###immersive-translate-popup
 !
 !
 ! 팬다티비 (https://www.pandalive.co.kr/)
-! - 팝업 이미지
-||*/upload/board/*$image
-! - 팝업 - 막으면 스크롤이 안되서 안함
+! - 팝업 - 막으면 스크롤 안되서 해제
+!###portal
+! - ##[class^="ad"] 해제 - 팝업 일부 사라짐
+wasp.pandalive.co.kr#@#[class^="ad"]
+! - 기타
+||stats.live-video.net^
 !
 !
 ! 주소월드 (https://wdwd7.com/)
@@ -4290,7 +4385,7 @@ mypikpak.com##div.el-overlay:nth-of-type(23)
 ! - 기타
 ##[class*="-cookie-banner"]
 ||adjust.com^
-/gtag.js^$script
+/gtag.js
 /track.js^$script
 /stat^
 !
@@ -4312,11 +4407,11 @@ dhlottery.co.kr##.band_banner
 !
 ! https://trand.co.kr/ - 쿠팡 배너 광고
 !||ads-partners.coupang.com
-##[class*="widget"]>table
+trand.co.kr##[class*="widget"]>table
 ##[class="list-ad"]
 !##.list-ad
 ! - 차단 사이트
-||ads-partners.coupang.com^
+!||ads-partners.coupang.com^
 !
 !
 ! 스마트택배 (https://st.sweettracker.co.kr/)
@@ -4381,7 +4476,6 @@ reddit.com##+js(abort-on-property-write, STICKY_CANARY)
 ! https://www.ajd.co.kr/
 ##.c-toast
 ! - 기타
-||browser-intake-datadoghq.com^
 ||clarity.ms^
 _ads.js|
 !
@@ -4395,6 +4489,20 @@ _ads.js|
 @@-ads-$script
 ! - 기타
 ||browser.events.data.microsoft.com^
+!
+!
+! https://oname.kr/
+! - 기타
+||zopim.com^
+||cafe24.com/cfa.js
+/analytics.js^$script
+!
+!
+! 주소콘 (https://www.jusocon.com/)
+! - 일부 필터에 의해 이미지 차단 방지
+@@/1.gif?
+@@/2.gif?
+@@/3.gif?
 !
 !
 !
@@ -5092,6 +5200,15 @@ jusotw.com#@#[class*="AD"]
 news.naver.com#@#[class*="AD"]
 ! - https://map.naver.com/ - 일부 글자 사라짐
 map.naver.com,pcmap.place.naver.com#@#[class*="AD"]
+! - https://duckduckgo.com/ - 일부 링크 사라짐
+duckduckgo.com#@#[class*="AD"]
+! - https://www.yahoo.co.jp/ - 일부 아이콘 사라짐
+www.yahoo.co.jp#@#[class*="AD"]
+! - https://www.baidu.com/ - 일부 아이콘 사라짐
+baidu.com#@#[class*="AD"]
+
+
+
 
 
 
@@ -5380,6 +5497,7 @@ poooo.ml#@#[class*="layer"]
 
 
 
+
 !/////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -5458,30 +5576,32 @@ poooo.ml#@#[class*="layer"]
 ! - - - 자막야동 (https://4.jamakyadong.me/)
 !##A[target='_blank'] > IMG[width='100%'][src*='.gif']
 !##a[href][target*='blank'] img[src*='.gif']
-##a[href][target*='blank']:has(img[src*='.gif'])
+##a[href][target*="blank"]:has(img[src*=".gif"])
 ! - 예외
 ! - - - 인벤 (https://www.inven.co.kr/) - 일부 댓글 아이콘 사라짐
-inven.co.kr#@#a[href][target*='blank']:has(img[src*='.gif'])
+inven.co.kr#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - - - 다모앙 (https://damoang.net/)- 아바타 아이콘 사라짐
-damoang.net#@#a[href][target*='blank']:has(img[src*='.gif'])
+damoang.net#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - - - 링크천국 (https://www.hotword.site/) - 일부 이미지 사라짐
-hotword.site#@#a[href][target*='blank']:has(img[src*='.gif'])
+hotword.site#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - - - AVseeTV (https://05.avsee.ru/0 - 게시물에 gif 올리면 이미지 안보임
-avsee.ru#@#a[href][target*='blank']:has(img[src*='.gif'])
+avsee.ru#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
-naver.com#@#a[href][target*='blank']:has(img[src*='.gif'])
+naver.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - - - 네이트 (https://www.nate.com/) - 혹시 몰라서 해제
-nate.com#@#a[href][target*='blank']:has(img[src*='.gif'])
+nate.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 혹시 몰라서 해제
-etoland.co.kr#@#a[href][target*='blank']:has(img[src*='.gif'])
+etoland.co.kr#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - - - 해럴드경제 (https://biz.heraldcorp.com/) - 일부 이미지 사라짐
-biz.heraldcorp.com#@#a[href][target*='blank']:has(img[src*='.gif'])
+biz.heraldcorp.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - - - 인스티즈 (https://www.instiz.net/) - 일부 이미지 사라짐
-instiz.net#@#a[href][target*='blank']:has(img[src*='.gif'])
+instiz.net#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - - - 잡코리아 (https://www.jobkorea.co.kr/) - 일부 이미지 사라짐
-jobkorea.co.kr#@#a[href][target*='blank']:has(img[src*='.gif'])
+jobkorea.co.kr#@#a[href][target*="blank"]:has(img[src*=".gif"])
 !  - --  https://today-sports7.com/
 [$domain=/^today-sports\d+.com/]#@#a[href][target*="blank"]:has(img[src*=".gif"])
+! - https://www.jusocon.com/ - 일부 아이콘 사라짐
+jusocon.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
 
 
 ! - - -
