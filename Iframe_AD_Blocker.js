@@ -216,7 +216,7 @@
 
     logContent = document.createElement('div');
     //logContent.style = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;word-wrap:break-word;';
-    logContent.style = 'overflow-y:auto;flex:1;padding:6px 10px;white-space:pre-wrap;word-wrap:break-word; line-height: 1.4;';
+    logContent.style = 'overflow-y:auto;flex:1;padding:3px 3px;white-space:pre-wrap;word-wrap:break-word; line-height: 1.4;';
     logContent.style.userSelect = 'text';
     logContent.addEventListener('mousedown', e => e.stopPropagation());
 
