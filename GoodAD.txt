@@ -410,6 +410,7 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 ! - 광고 차단  팝업
 ! - - - ##[class*="popup"] 가 대신 차단 중
 !chzzk.naver.com##[class*='_popup_dimmed__']
+##[class*="_dimmed_"]
 ! - 광고?
 ||.com/ad-*
 ! 허용목록 (Adblock-Rule-Collection-Lite)
@@ -2263,6 +2264,9 @@ c.appstory.co.kr##.modal_add_home.renew_modal
 ! 와디즈 (https://www.wadiz.kr/)
 ! - 상단 배너 나오게 하기 (List-KR 무력화)
 @@||service.wadiz.kr/api/*/wadizad/host/keyvisual
+! - 기타
+||appboycdn.com^
+||zdassets.com/ekr/snippet.js^$script
 !
 !
 !!! 다나와 (https://danawa.com/)
@@ -6009,10 +6013,8 @@ kmcert.com#@#[class*="popup"]
 jobkorea.co.kr#@#[class*="popup"]
 ! - - - https://login.microsoftonline.com/ - 로그인 팝업 안뜸
 login.microsoftonline.com#@#[class*="popup"]
-
-
-
-
+! - https://chzzk.naver.com/ - 스크롤 안됨
+chzzk.naver.com#@#[class*="popup"]
 !
 !
 !
