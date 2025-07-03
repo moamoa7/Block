@@ -1,10 +1,11 @@
 // ==UserScript==
-// @name         Iframe Logger & Blocker (Violentmonkey용, SPA 강제유지 통합 / 동적최적화)
+// @name         Iframe Logger & Blocker (Violentmonkey용, SPA 강제유지 통합 / 동적최적화 / document-start)00
 // @namespace    none
-// @version      8.6
+// @version      8.8
 // @description  iframe 탐지/차단 + 화이트리스트 + 로그 UI + SPA 강제유지 + 드래그
 // @match        *://*/*
 // @grant        none
+// @run-at       document-start
 // ==/UserScript==
 
 (function () {
@@ -15,7 +16,7 @@
   const REMOVE_IFRAME_DEFAULT = true;
   //const REMOVE_IFRAME = REMOVE_IFRAME_DEFAULT;
 
-  const allowedSites = ['chatgpt.com',];
+  const allowedSites = ['auth.openai.com', 'accounts.google.com', 'challenges.cloudflare.com'];
   const REMOVE_IFRAME = allowedSites.includes(location.hostname) ? false : REMOVE_IFRAME_DEFAULT;
 
   const globalWhitelistKeywords = [
@@ -42,6 +43,7 @@
     '7tv000.com', '7mmtv',  // https://7tv000.com/
     'njav',  // https://www.njav.com/
     '/stream/',  // https://missvod4.com/
+    'pandalive.co.kr/auth/',  // 판타티비
   ];
 
   const whitelistMap = {
@@ -62,8 +64,8 @@
   ];
 
   const grayDomainWhitelistMap = {
-    'youtube.com': [''],
-    'accounts.youtube.com': [''],
+    //'youtube.com': [''],
+    //'accounts.youtube.com': [''],
   };
 
   // ======= 내부 변수 =======
@@ -71,7 +73,7 @@
   const PANEL_ID = 'iframe-log-panel';
   let isEnabled = localStorage.getItem('iframeLoggerEnabled') !== 'false';
   let seen = new WeakSet();
-  let logList = [], count = 0, logContainer, logContent, countDisplay;
+  let logList = [], count = 0, logContent, countDisplay;
 
   if (allowedSites.includes(location.hostname)) {
     console.log(`${location.hostname}은 화이트리스트로 iframe 차단 비활성화`);
@@ -92,7 +94,7 @@
       const move = (e2) => {
         if (!isDragging) return;
         const x2 = e2.touches ? e2.touches[0].clientX : e2.clientX;
-        const y2 = e.touches ? e.touches[0].clientY : e.clientY;
+        const y2 = e2.touches ? e2.touches[0].clientY : e2.clientY;
         el.style.left = `${x2 - offsetX}px`;
         el.style.top = `${y2 - offsetY}px`;
       };
@@ -110,10 +112,7 @@
 
   // ======= 아이콘 =======
   function createIcon() {
-    if (window.top !== window) {
-      return;  // 자식 iframe인 경우 아이콘 생성하지 않음
-    }
-
+    if (window.top !== window) return;
     if (document.getElementById(ICON_ID)) return;
 
     const btn = document.createElement('button');
@@ -130,17 +129,17 @@
       height:45px !important;
       border-radius:50% !important;
       border:none !important;
-      background:#000 !important;  /* 배경을 검은색으로 고정 */
+      background:#000 !important;
       color:#fff !important;
-      font-size:32px !important;  /* 아이콘 크기 증가 */
+      font-size:32px !important;
       cursor:pointer !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      left: unset !important;  /* 화면 중앙이 아닌 원 안에서 위치하도록 */
-      top: unset !important;   /* 원 안에서 위치하도록 */
-      transition: background 0.3s !important; /* 배경 전환 효과 */
-      opacity: 0.40 !important; /* 아이콘 투명도 */
+      left: unset !important;
+      top: unset !important;
+      transition: background 0.3s !important;
+      opacity: 0.40 !important;
       visibility: visible !important;
       pointer-events: auto !important;
     `;
@@ -164,27 +163,25 @@
   function createLogUI() {
     if (document.getElementById(PANEL_ID)) return;
 
+    // 로그 UI 전용 스타일 (폰트 크기 강제 지정 및 줄바꿈 보정)
     const style = document.createElement('style');
     style.textContent = `
-      #iframe-log-panel {
+      #${PANEL_ID} {
         font-size: 16px !important;
       }
-      #iframe-log-panel * {
+      #${PANEL_ID} * {
         font-size: 16px !important;
       }
-      #iframe-log-panel button {
+      #${PANEL_ID} button {
         font-size: 14px !important;
       }
-      #iframe-log-panel div {
-        //white-space: nowrap; /* 텍스트가 한 줄로 표시되도록 */
-        //overflow-x: auto; /* 가로 스크롤 추가 */
-        //overflow-y: auto; /* 세로 스크롤 추가 */
-        white-space: pre-wrap; /* 줄바꿈 유지 */
-        word-wrap: break-word; /* 긴 주소도 줄바꿈을 통해 잘리지 않게 */
-        overflow-wrap: break-word;; /* 여유 공간 없을 때 자동 줄바꿈 */
+      #${PANEL_ID} div {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }
-  `;
-  document.head.appendChild(style);
+    `;
+    document.head.appendChild(style);
 
     const panel = document.createElement('div');
     panel.id = PANEL_ID;
@@ -237,73 +234,29 @@
     seen.add(iframe);
 
     let src = iframe?.src || iframe?.getAttribute('src') || '';
-
-    // 디버깅용 콘솔 로그 추가
-    console.log(`src: ${src}`);  // src가 제대로 추출되는지 확인
-
-    // about:blank 무시 처리
-    if (src === 'about:blank') {
-      console.log('about:blank iframe detected, skipping...');
-      return; // 무시
-    }
-
-    if (src.startsWith('chrome-extension://')) {
-      return; // 무시하거나 로그 최소화
-    }
-
-    if (!src) return;
+    if (src === 'about:blank' || src.startsWith('chrome-extension://') || !src) return;
 
     const u = new URL(src, location.href);
-    const domain = u.hostname, path = u.pathname + u.search;  // path와 search를 구분
-
-    // 추가된 디버깅 로그
-    console.log(`domain: ${domain}`);
-    console.log(`path: ${path}`);
-    console.log(`search: ${u.search}`);
+    const domain = u.hostname, path = u.pathname + u.search;
 
     let color = 'red', keyword = '', matchedDomain = '';
-
-    // 화이트리스트 키워드 매칭 처리
     const matchedKeywords = globalWhitelistKeywords.filter(k => src.includes(k));
-    if (matchedKeywords.length > 0) {
-      color = 'green';  // 화이트리스트 키워드 매칭 시 색상 변경
-      keyword = matchedKeywords.join(', ');  // 매칭된 키워드 저장
-    }
-
-    // 그레이리스트 키워드 매칭 처리
+    if (matchedKeywords.length > 0) { color = 'green'; keyword = matchedKeywords.join(', '); }
     const matchedGray = grayWhitelistKeywords.filter(k => src.includes(k));
-    if (matchedGray.length > 0) {
-      color = 'gray';  // 그레이리스트 키워드 매칭 시 색상 변경
-      keyword = matchedGray.join(', ');  // 매칭된 키워드 저장
+    if (matchedGray.length > 0) { color = 'gray'; keyword = matchedGray.join(', '); }
+    for (const [host] of Object.entries(whitelistMap)) {
+      if (domain.includes(host)) { matchedDomain = domain; color = 'green'; break; }
+    }
+    for (const [host] of Object.entries(grayDomainWhitelistMap)) {
+      if (domain.includes(host)) { matchedDomain = domain; color = 'gray'; break; }
     }
 
-    // 화이트리스트 도메인 매칭 처리
-    for (const [host, kws] of Object.entries(whitelistMap)) {
-      if (domain.includes(host)) {
-        matchedDomain = domain;  // 매칭된 도메인 저장
-        color = 'green';  // 화이트리스트 도메인 매칭 시 색상 변경
-        break;
-      }
-    }
-
-    // 그레이리스트 도메인 매칭 처리
-    for (const [host, kws] of Object.entries(grayDomainWhitelistMap)) {
-      if (domain.includes(host)) {
-        matchedDomain = domain;  // 매칭된 도메인 저장
-        color = 'gray';  // 그레이리스트 도메인 매칭 시 색상 변경
-        break;
-      }
-    }
-
-    //const info = `[#${++count}] ${reason} ${src} (매칭키워드 : ${keyword})`;
     const info = `[#${++count}] ${reason} ${src} (매칭키워드 : ${keyword || matchedDomain || '없음'})`;
     console.warn('%c[Iframe]', `color:${color};font-weight:bold`, info);
 
-    // 로그 리스트에 추가
     logList.push(info);
-    if (logList.length > 500) logList.shift();
+    if (logList.length > 5000) logList.shift();
 
-    // 로그 UI에 출력
     if (logContent) {
       const div = document.createElement('div');
       div.textContent = info;
@@ -313,38 +266,54 @@
 
     updateCount();
 
-    // iframe을 차단하려면
     if (!matchedKeywords.length && !matchedGray.length && REMOVE_IFRAME) {
       setTimeout(() => iframe.remove(), 0);
     }
   }
 
   function getAllIframes() {
-    return Array.from(document.querySelectorAll('iframe, frame, embed, object'));
+    return Array.from(document.querySelectorAll('iframe, frame, embed, object, script'));
   }
 
   // ======= 동적 요소 추적 =======
-  setInterval(() => getAllIframes().forEach(iframe => logIframe(iframe, '추가 요소 (1차) \n ▷')), 20);
-
   const mo = new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => {
-    if (n.tagName === 'IFRAME') logIframe(n, '동적 추적 \n ▷');
+    if (n.tagName === 'IFRAME') logIframe(n, '동적 추가 \n ▷');
   })));
-  mo.observe(document.body, { childList: true, subtree: true });
+
+  function safeObserveBody() {
+    if (document.body) {
+      mo.observe(document.body, { childList: true, subtree: true });
+    } else {
+      new MutationObserver(() => {
+        if (document.body) {
+          mo.observe(document.body, { childList: true, subtree: true });
+        }
+      }).observe(document.documentElement, { childList: true });
+    }
+  }
+  safeObserveBody();
 
   // ======= SPA 강제유지 =======
   function keepAlive() {
+    if (!document.body) return;
     if (!document.getElementById(ICON_ID)) createIcon();
-    else {
-      const icon = document.getElementById(ICON_ID);
-      icon.style.display = 'block'; icon.style.zIndex = '99999'; icon.style.opacity = '0.4';
-    }
     if (ENABLE_LOG_UI && !document.getElementById(PANEL_ID)) createLogUI();
   }
 
-  setInterval(keepAlive, 20);
-  new MutationObserver(keepAlive).observe(document.body, { childList: true, subtree: true });
+  // DOM 준비 시 UI 초기 생성
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', keepAlive);
+  } else {
+    keepAlive();
+  }
 
-  createIcon();
-  if (ENABLE_LOG_UI) createLogUI();
+  // 동적 감지 및 UI 활성화 유지
+  setInterval(() => {
+    getAllIframes().forEach(iframe => logIframe(iframe, '초기 스캔 \n ▷'));
+  }, 0);
+
+  setInterval(keepAlive, 0);
+
+  new MutationObserver(keepAlive).observe(document.documentElement, { childList: true, subtree: true });
 
 })();
