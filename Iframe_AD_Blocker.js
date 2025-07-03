@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Iframe Logger & Blocker (Violentmonkey용, SPA 강제유지 통합 / 동적최적화 / document-start)
+// @name         Iframe Logger & Blocker (Violentmonkey용, SPA 강제유지 통합 / 동적최적화 / document-start)00
 // @namespace    none
 // @version      8.8
 // @description  iframe 탐지/차단 + 화이트리스트 + 로그 UI + SPA 강제유지 + 드래그
@@ -276,9 +276,18 @@
   }
 
   // ======= 동적 요소 추적 =======
-  const mo = new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => {
-    if (n.tagName === 'IFRAME') logIframe(n, '동적 추가 \n ▷');
-  })));
+  const mo = new MutationObserver(muts => {
+  muts.forEach(mutation => {
+    mutation.addedNodes.forEach(node => {
+      if (!node.tagName) return;  // 텍스트 노드 등 무시
+      const tag = node.tagName.toUpperCase();
+      if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT', 'SCRIPT'].includes(tag)) {  // iframe외 추적 대상을 늘림
+      //if (['IFRAME'].includes(tag)) {  // 일반적인 페이지에서는 iframe 외 다른 걸로는 많이 안나옴 (유튜브.틱톡 등 제외)
+        logIframe(node, '동적 추가 \n ▷');
+      }
+    });
+  });
+});
 
   function safeObserveBody() {
     if (document.body) {
