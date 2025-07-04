@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250703
+! Version: 20250704
 !
 !
 !
@@ -65,6 +65,9 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !!! 애드가드 문제 해결?
 @@||challenges.cloudflare.com^$stealth
 @@||youtube.googleapis.com/embed^$stealth=referrer
+
+
+
 !
 !
 !
@@ -99,10 +102,12 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 /youtubei/*/att/*
 /generate_204^$image
 ||youtube.com/ptracking?
-
-
 adformat=
-
+!
+!
+! wikipedia.org
+wikipedia.org###siteNotice
+wikipedia.org###centralNotice
 !
 !
 ! 구글 (https://www.google.com/)
@@ -116,7 +121,6 @@ google.*##+js(remove-attr, data-jsarwt, #rcnt [data-ved] a)
 accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
 google.com##body #tads
 google.com###taw > div > [data-ved]
-||googletagmanager.com^
 ||ogads-pa.clients6.google.com^
 ||google.com/log^
 ||google.com/async/bgasy^
@@ -661,8 +665,10 @@ humoruniv.com#@#[class*="ad_"] [style]
 naver.com#@#[class*="ad_"] [style]
 ! https://v.daum.net/ - 일부 아이콘이 사라짐 / 스크롤이 안내려감
 v.daum.net#@#[class*="ad_"] [style]
-! =https://www.baidu.com/ - 검색바 X 사라짐
+! https://www.baidu.com/ - 검색바 X 사라짐
 www.baidu.com#@#[class*="ad_"] [style]
+! 펀비 (https://funbe536.com/) - 이미지 목록 사라짐
+[$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 
 
 ! - 기타
@@ -754,12 +760,12 @@ etoland.co.kr###info_recent_list_wrap
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
 etoland.co.kr#@#[class^="ad"]
 ! - 기타
+||amung.us^
+||googlesyndication.com^
+||external-api.impression-neo.naver.com^
 ||naver.net/wcslog.js
 ||cdn.jsdelivr.net/npm/@adshield/
 ! - 차단 사이트
-||googlesyndication.com^
-||amung.us^
-||external-api.impression-neo.naver.com^
 !||mobon.net^
 !||cdn.nhnace.com^
 !||html-load.cc^
@@ -1249,9 +1255,9 @@ poooo.ml#@#.ad
 ! - 기타
 ||top-fwz1.mail.ru^
 ||tns-counter.ru^
-||google-analytics.com^
 ||apptracer.ru^$3p
 ||ok.ru/dk?cmd=videostatnew
+_ads.js?
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
@@ -1914,8 +1920,6 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! - 왼쪽 배너
 !##[class*="list-banner"] - ##[class*="banner"]:has(img) 로 대체
 !##.list-banner
-! - 기타
-||weblog.kma.go.kr^
 !
 !
 ! 연합뉴스 (https://www.yna.co.kr/)
@@ -2060,6 +2064,11 @@ joynjoy.com#@#[class*="banner-"]
 ! 뷰스앤뉴스 (https://www.viewsnnews.com/)
 ! - 차단 사이트
 !||realclick.co.kr^
+!
+!
+! 매일신문 (https://www.imaeil.com/)
+! - 기타
+!/ads/*
 !
 !
 ! 뉴데일리 (https://www.newdaily.co.kr/) 삭제
@@ -2448,7 +2457,6 @@ avsee.ru##.tabs
 ! - 차단 사이트
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
 /provider.cast.js^$script
-||jwpltx.com^$3p
 !
 !
 ! supjav (https://supjav.com/)
@@ -4780,9 +4788,9 @@ tistory.com#@#[class*="banner"]:has(img)
 joynjoy.com#@#[class*="banner"]:has(img)
 ! - - - https://account.live.com/ - 화면 안보임
 account.live.com#@#[class*="banner"]:has(img)
-
-
-
+! - 예외  툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) 전체 사라짐
+[$domain=/^tkor\d+.com/]#@#[class*="banner"]:has(img)
+[$domain=/^funbe\d+.com/]#@#[class*="banner"]:has(img)
 
 
 !##img[src*="/banner/"]
@@ -5230,7 +5238,9 @@ yna.co.kr#@#[class*="-banner"]
 tistory.com#@#[class*="-banner"]
 ! - - - https://account.live.com/ - 화면 안보임
 account.live.com#@#[class*="-banner"]
-
+! - 예외  툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) 전체 사라짐
+[$domain=/^tkor\d+.com/]#@#[class*="-banner"]
+[$domain=/^funbe\d+.com/]#@#[class*="-banner"]
 
 
 ! https://www.weather.go.kr/
