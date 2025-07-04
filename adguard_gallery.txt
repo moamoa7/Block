@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.07.02
+! Version: 2025.07.04
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
 ! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
@@ -75,6 +75,7 @@ m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ##[href^='/adver-']
 ##div.banner_l
 m.fmkorea.com##script ~ div[class*=' ']:matches-css(margin: /3px 0px/):matches-css(padding: 0px):remove()
+||apps.m.sooplive.co.kr/universal/a/andinstall^$all
 !#endif
 
 ! Ads
@@ -98,6 +99,7 @@ m.fmkorea.com##script ~ div[class*=' ']:matches-css(margin: /3px 0px/):matches-c
 ##ins.adsbyaiinad
 11st.co.kr##iframe[src*='ads.adoffice.11st.co.kr']
 aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
+algumon.com##.a-post-detail-bottom
 arca.live##.d-lg-none.topbar-area
 auction.co.kr##.component--sponsor_link.component
 avdbs.com##.ad-btn[class*='tp']
@@ -105,7 +107,7 @@ avsee.ru##[alt$='gif']
 avsee.ru##div.main-box:has([target='_blank'])
 avsee.ru##div[style]:has(> [target='_blank'])
 bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
-coinpan.com##*:has(> div[style^='width:390px; max-width:100%;'])Add commentMore actionsAdd commentMore actions
+coinpan.com##*:has(> div[style^='width:390px; max-width:100%;'])
 coinpan.com##.flatBoard > .clearfix.title-wrap
 coinpan.com##p > strong
 coolenjoy.net##.carousel-inner
@@ -115,6 +117,7 @@ dcinside.com##.dcmedia.content_box
 dcinside.com##.view-btm-con
 dcinside.com##.vote.trend
 dogdrip.net##[id^='npl-']
+dvdprime.com##[id$='top_banner']
 etoland.co.kr###login_popup
 etoland.co.kr##[src*='/data/daumeditor']
 etoland.co.kr##div.comment_wrap.comment_extra_wrap
@@ -170,6 +173,7 @@ mlbpark.donga.com##.coupang_cont
 mlbpark.donga.com##li.items:has([target='_blank'])
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
+play.sooplive.co.kr#%#//scriptlet('set-constant', 'window.open', 'noopFunc')
 ppomppu.co.kr,~m.ppomppu.co.kr##tr:has([src$='/icon_ppom_coupon_pc.png'])
 quasarplay.com###top_img_area
 quasarplay.com##a[href^='javascript:clickPointBanner']
@@ -196,12 +200,11 @@ zod.kr##.deal_partner-horizontal.zod-widgets--deal_partner
 zod.kr##[data-href^='https://zod.kr/go/']:has(img)
 zod.kr##main.app-clearfix.app-content > div[class*='swiper'][id]:first-child
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
-||apps.m.sooplive.co.kr^$all
 ||dctrend.ai/widget/
 ||nz*mi.com/data/apms/background/$image
 ||trend.rankify.best^
 ~greend.kr##[class*='ad'][id^='AD']
-~nexon.com,~gg##[target='_blank']:has([src*='/banner/'])
+~nexon.com,~gg,~ps##[target='_blank']:has([src*='/banner/'])
 
 ! Annoyances
 [$domain=/^booktoki[0-9]*\.com/]###novel_content:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
@@ -212,7 +215,6 @@ dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_
 ! Affiliate links
 fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ||adcr.naver.com^$all
-||link.coupang.com/*/TOSS$all
 ||link.coupang.com/*dynamicda$all
 ||link.coupang.com/re/CSHARE$all
 
@@ -222,6 +224,7 @@ $@$link[rel="manifest"]
 @@||action.adoffice.11st.co.kr^$domain=search.11st.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search,important
 @@||adtouch.adbrix.io^$app=com.kakao.talk
+@@||app.appsflyer.com^$domain=ofw.adison.co
 @@||co.kr^$stealth=dpi
 @@||edge-live.joongna.com/api/web-ads/
 @@||google.*/search$stealth=useragent|ip
@@ -233,6 +236,7 @@ $@$link[rel="manifest"]
 @@||piku.co.kr^$generichide
 @@||skstoa.com^$jsinject
 etoland.co.kr#$#div.hit_latest_ad { display: grid !important; }
+hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
 m.hoyolab.com#@#.guide-download-drawer
 mitem.auction.co.kr#@#[class*="app-install"]
 mlbpark.donga.com#@#div[class*="_ad"]
