@@ -39,7 +39,8 @@
     '/reystream/',  // https://gltv88.com/ (굿라이브티비)
     'supremejav.com',  // https://supjav.com/
     '/e/', '/t/', '/v/', // 각종 성인 영상
-    '/player',  // 티비위키.티비몬.티비핫 플레이어  https://05.avsee.ru/  https://sextb.date/ US영상
+    '/player',  // 티비위키.티비몬.티비핫 플레이어  AVseeTV 영상플레이어  https://sextb.date/ US영상
+    '/jwplayer/',  // AVseeTV 게시물 영상
     '7tv000.com', '7mmtv',  // https://7tv000.com/
     'njav',  // https://www.njav.com/
     '/stream/',  // https://missvod4.com/
