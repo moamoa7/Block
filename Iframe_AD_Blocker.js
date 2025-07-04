@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Iframe Logger & Blocker (Violentmonkey용, SPA 강제유지 통합 / 동적최적화 / document-start)00
+// @name         Iframe Logger & Blocker (Violentmonkey용)
 // @namespace    none
-// @version      8.8
-// @description  iframe 탐지/차단 + 화이트리스트 + 로그 UI + SPA 강제유지 + 드래그
+// @version      9.0
+// @description  iframe 탐지/차단 + 화이트리스트 + 로그 UI + SPA 강제유지 + 드래그 + Visibility 최적화 + SPA 보강
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -23,7 +23,7 @@
     '/recaptcha/', '/challenge-platform/',  // 캡챠
     '/captcha/',  // 캡챠 (픽팍)
     '?urls=magnet',  // 픽팍으로 토렌트 받을때 필요
-    '/TranslateWebserverUi/',  // 구글 번역
+    'translate',  // 구글 번역
     //'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     'notion.so',  // https://www.notion.so/ 로그인
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
@@ -61,6 +61,9 @@
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
+    'lazyload',  '/ajax/', '/assets/',  // https://fc2ppvdb.com/ 이미지 안나오는거 해결 (js)
+    '/static/js/', '/js/jquery/', // https://supjav.com/ 영상 실행 안되는거 (js)
+    '/cheditor/',  // https://www.ppomppu.co.kr/ - myeditor.config.editorpath를 설정하여 주십시오. 메시지 오류 해결
   ];
 
   const grayDomainWhitelistMap = {
@@ -317,13 +320,35 @@
     keepAlive();
   }
 
-  // 동적 감지 및 UI 활성화 유지
-  setInterval(() => {
-    getAllIframes().forEach(iframe => logIframe(iframe, '초기 스캔 \n ▷'));
-  }, 0);
+  // ✅ Visibility 상태 기반 최적화 적용
+  let intervalActive = true;
+  // 브라우저 탭이 활성화 상태가 아니면 setInterval이 멈춤 (탭이 보일 때만 스크립트가 CPU를 사용)
+  document.addEventListener('visibilitychange', () => {
+    intervalActive = document.visibilityState !== 'hidden';
+  });
 
-  setInterval(keepAlive, 0);
+  // 동적 감지 및 UI 활성화 유지 (백업 역할)
+  // 초기 로드 안에서 못 잡은 iframe이나 MutationObserver가 못 잡은 걸 주기적으로 다시 체크하는 안전망
+  // 너무 빨리하면 CPU를 계속 태우면서 같은 걸 여러 번 처리 → 낭비 / 너무 느리면 동적 iframe이 화면에 잠시 보였다 사라질 수도 있음.
+  setInterval(() => {
+    if (!intervalActive) return;
+    getAllIframes().forEach(iframe => logIframe(iframe, '초기 스캔 \n ▷'));
+  }, 0);  // 1초마다 감지 - 최대한 변경해봄 (차단수도 많고 js 해제해야할것도 늘어남)
+  // 아이콘/패널이 강제로 제거되거나 SPA로 사라졌을 때 다시 살려주는 역할
+  setInterval(() => {
+    if (!intervalActive) return;
+    keepAlive();
+  }, 2000); // 2초마다 UI 유지
 
   new MutationObserver(keepAlive).observe(document.documentElement, { childList: true, subtree: true });
+
+  // ✅ SPA popstate & pushState 감시 추가 (뒤로가기/앞으로가기 시에도 감지해서 UI/감시 유지)
+  window.addEventListener('popstate', keepAlive);
+  const originalPushState = history.pushState;
+  // SPA 내부 링크 이동 시에도 무조건 감지
+  history.pushState = function () {
+    originalPushState.apply(this, arguments);
+    keepAlive();
+  };
 
 })();
