@@ -370,8 +370,6 @@ sooplive.co.kr###FeedLayerToolTip
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
 ! - 기타
-||eventapi.sooplive.co.kr^
-||analysis.sooplive.co.kr^
 /fbevents.js^$script
 ||analytics.tiktok.com^
 ||facebook.com/tr^
