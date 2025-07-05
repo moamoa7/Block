@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250704
+! Version: 20250705
 !
 !
 !
@@ -94,15 +94,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
-! - 기타
-||youtube.com/youtubei/v1/log_event?
-||youtube.com/api/stats/qoe?
-||google.com/log^
-||youtube.com/pcs/activeview?
-/youtubei/*/att/*
-/generate_204^$image
-||youtube.com/ptracking?
-adformat=
 !
 !
 ! wikipedia.org
@@ -122,7 +113,6 @@ accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
 google.com##body #tads
 google.com###taw > div > [data-ved]
 ||ogads-pa.clients6.google.com^
-||google.com/log^
 ||google.com/async/bgasy^
 ||google.com/images/cleardot.gif^$image
 ||jnn-pa.googleapis.com^
@@ -140,8 +130,6 @@ google.com###taw > div > [data-ved]
 ! ChatGPT (https://chatgpt.com/)
 !  - 일부 필터 로그인 차단 해제
 @@/noop*.js$script
-! - 기타
-||browser-intake-datadoghq.com^
 !
 !
 ! https://auth.openai.com/
@@ -762,7 +750,6 @@ etoland.co.kr#@#[class^="ad"]
 ||googlesyndication.com^
 ||external-api.impression-neo.naver.com^
 ||naver.net/wcslog.js
-||cdn.jsdelivr.net/npm/@adshield/
 ! - 차단 사이트
 !||mobon.net^
 !||cdn.nhnace.com^
@@ -2247,9 +2234,6 @@ temu.com##+js(set-local-storage-item, cookie_prompt_times, 1)
 !bananamall.co.kr###pop_gevent
 ! - 배너
 ##[id^="banner_"]
-! - 기타
-||sentry-cdn.com^$third-party,domain=~sentry.dev|~sentry.io
-||cafe24.com/weblog.js
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
@@ -4053,6 +4037,7 @@ hitomi.la###immersive-translate-popup
 wasp.pandalive.co.kr#@#[class^="ad"]
 ! - 기타
 ||stats.live-video.net^
+/advert/*
 !
 !
 ! 주소월드 (https://wdwd7.com/)
@@ -4399,7 +4384,6 @@ mypikpak.com##div.el-overlay:nth-of-type(23)
 ! - 기타
 ##[class*="-cookie-banner"]
 ||adjust.com^
-/gtag.js
 /track.js^$script
 /stat^
 !
@@ -4490,7 +4474,6 @@ reddit.com##+js(abort-on-property-write, STICKY_CANARY)
 ! https://www.ajd.co.kr/
 ##.c-toast
 ! - 기타
-||clarity.ms^
 _ads.js|
 !
 !
