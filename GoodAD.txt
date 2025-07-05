@@ -306,6 +306,8 @@ sooplive.co.kr###soopi_wrap
 sooplive.co.kr##.floating_btns
 ! - 구독 플러스
 sooplive.co.kr##.subs_plus.seasonal_area
+! - 구독 플러스 안내 메시지
+sooplive.co.kr##.message_player_wrap
 ! - 프로모션 배너
 !sooplive.co.kr##.promotion_banner
 ! - 영상 (https://play.sooplive.co.kr)
