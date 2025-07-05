@@ -5,7 +5,7 @@
 // @description  iframe 탐지/차단 + 화이트리스트 + 로그 UI + SPA 강제유지 + 드래그 + Visibility 최적화 + SPA 보강 + 중복 방지 강화
 // @match        *://*/*
 // @grant        none
-// @run-at       document-idle
+// @run-at       document-start
 // ==/UserScript==
 
 (function () {
