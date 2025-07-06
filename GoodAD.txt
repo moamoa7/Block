@@ -4509,6 +4509,12 @@ _ads.js|
 @@/stats^$xmlhttprequest,domain=~githubunwrapped.com|~jsdelivr.com|~youtube.com|~marketplace.visualstudio.com
 !
 !
+! 샤나 (https://shana.pe.kr/)
+! - 애드블럭 해제
+! - - -  출처 : https://gall.dcinside.com/adguard/4126
+shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
+!
+!
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
