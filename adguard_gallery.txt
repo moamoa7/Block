@@ -1,7 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2025.07.04
+! Version: 2025.07.06
 ! Description: Adguard/uBo 필터의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
-! Expires: 12 hours
 ! Homepage: https://gallog.dcinside.com/cent8649
 
 
@@ -20,7 +19,6 @@ gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 @@||ad*.cgv.co.kr^$image,media,domain=cgv.co.kr
 
 ! 나무위키 최근변경, 나무뉴스 위젯, etc(임시) 숨기기
-@@||namu.wiki^$generichide
 namu.wiki##li:has(time):not(*:has([href*='/raw/'])):upward(2)
 namu.wiki##span:has-text(더 보기):upward(2):has([target])
 
@@ -31,7 +29,7 @@ m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 ~youtube.com#%#//scriptlet('prevent-fetch','pagead2.googlesyndication.com')
 ~youtube.com#%#//scriptlet('prevent-xhr','pagead2.googlesyndication.com')
 
-! Regex for illegal sites
+! Regex rules for illegal sites
 [$domain=/^booktoki[0-9]*\.com/]##.col-sm-9.col-md-9.col-15
 [$domain=/^hoohootv[0-9]*\.[a-z]{2,}$/]###img_row_container
 [$domain=/^tkor[0-9]*\.com/]##.bnt.bn
@@ -60,22 +58,10 @@ m.fmkorea.com#%#//scriptlet('set-constant', 'board_block_check', 'noopFunc')
 !
 !#if (adguard && adguard_app_ios)
 ###bannerList
-###img_row_container
-###mq-notice
 ###novel_content:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
 ###viewCover
-###n_b_2
-##.at-banner
-##.banners_area
 ##.col-sm-9.col-md-9.col-15:has([src^='/tokinbtoki'])
-##.row-banner
-##[class*='advert-wrap']
-##[class*='top_bann']
-##[href*='/ad'][target='_blank']:has(img)
-##[href^='/adver-']
-##div.banner_l
 m.fmkorea.com##script ~ div[class*=' ']:matches-css(margin: /3px 0px/):matches-css(padding: 0px):remove()
-||apps.m.sooplive.co.kr/universal/a/andinstall^$all
 !#endif
 
 ! Ads
@@ -98,7 +84,7 @@ m.fmkorea.com##script ~ div[class*=' ']:matches-css(margin: /3px 0px/):matches-c
 ##iframe[src*='targetpush.co.kr']
 ##ins.adsbyaiinad
 11st.co.kr##iframe[src*='ads.adoffice.11st.co.kr']
-aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
+aagag.com#$#.la { position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 algumon.com##.a-post-detail-bottom
 arca.live##.d-lg-none.topbar-area
 auction.co.kr##.component--sponsor_link.component
@@ -138,7 +124,6 @@ instiz.net##div[style]:has(> [id^='sense'])
 inven.co.kr###topLinkBanner
 inven.co.kr##.inven-float-alarm
 inven.co.kr##.show-ads
-khan.co.kr##.mAd
 komi.la##.w-full.relative.mobile-touch.h-full
 komi.la##.w-full.relative.mobile-touch.h-full:upward(1)
 komi.la##a[href='/pm/vpn']
@@ -150,7 +135,6 @@ m.cafe.naver.com##.bottom.banner_add
 m.cafe.naver.com##.popular_toast_popup
 m.cafe.naver.com##.subscribe_layer_wrap
 m.cgv.co.kr##.topBanner
-m.chzzk.naver.com##[class^='app_popup_dimmed__']
 m.danawa.com###mdnw-main-bottomSheet-container
 m.danawa.com###mdnw-main-dimm
 m.daum.net##.bnr_popup.bnr_layer
@@ -173,7 +157,6 @@ mlbpark.donga.com##.coupang_cont
 mlbpark.donga.com##li.items:has([target='_blank'])
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mobile.gmarket.co.kr###box__slide-wrap
-play.sooplive.co.kr#%#//scriptlet('set-constant', 'window.open', 'noopFunc')
 ppomppu.co.kr,~m.ppomppu.co.kr##tr:has([src$='/icon_ppom_coupon_pc.png'])
 quasarplay.com###top_img_area
 quasarplay.com##a[href^='javascript:clickPointBanner']
@@ -201,10 +184,9 @@ zod.kr##[data-href^='https://zod.kr/go/']:has(img)
 zod.kr##main.app-clearfix.app-content > div[class*='swiper'][id]:first-child
 ||ad-img.gmarket.com^$app=com.ebay.kr.gmarket|com.ebay.kr.auction
 ||dctrend.ai/widget/
-||nz*mi.com/data/apms/background/$image
 ||trend.rankify.best^
 ~greend.kr##[class*='ad'][id^='AD']
-~nexon.com,~gg,~ps##[target='_blank']:has([src*='/banner/'])
+~nexon.com,~gg##[target='_blank']:has([src*='/banner/'])
 
 ! Annoyances
 [$domain=/^booktoki[0-9]*\.com/]###novel_content:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
@@ -215,12 +197,9 @@ dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_
 ! Affiliate links
 fmkorea.com#%#//scriptlet('set-constant', 'link_url', '')
 ||adcr.naver.com^$all
-||link.coupang.com/*dynamicda$all
-||link.coupang.com/re/CSHARE$all
 
 ! Incorrect blocking
 #@#.appBanner:not(body)
-$@$link[rel="manifest"]
 @@||action.adoffice.11st.co.kr^$domain=search.11st.co.kr
 @@||adcr.naver.com^$app=com.nhn.android.search,important
 @@||adtouch.adbrix.io^$app=com.kakao.talk
