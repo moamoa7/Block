@@ -33,8 +33,14 @@ const videoWhitelist = [
         transition: opacity 0.3s ease, filter 0.3s ease !important; /* opacity와 filter의 변화가 동시에 부드럽게 일어남 */
         //filter: brightness(1.0555) contrast(1) saturate(1.0755) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
         //-webkit-filter: brightness(1.0555) contrast(1) saturate(1.0755) !important;
-        filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
-        -webkit-filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;
+        //filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        //-webkit-filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;
+        //filter: brightness(1.0654) contrast(1.0250) saturate(0.8765) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        //-webkit-filter: brightness(1.0654) contrast(1.0250) saturate(0.8765) !important;
+        //filter: brightness(1.1234) contrast(1.0234) saturate(0.7890) !important;  // 밝기 1.1234배, 대비 1.0234배, 채도 0.7890배
+        //-webkit-filter: brightness(1.1234) contrast(1.0234) saturate(0.7890) !important;
+        filter: brightness(1.0250) contrast(1.0250) saturate(0.9750) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        -webkit-filter: brightness(1.0250) contrast(1.0250) saturate(0.9750) !important;
       }
 
       /* 마우스를 올리면 불투명하게 변경 */
@@ -56,12 +62,18 @@ const videoWhitelist = [
         transition: opacity 0.3s ease, filter 0.3s ease !important; /* opacity와 filter의 변화가 동시에 부드럽게 일어남 */
         //filter: brightness(1.0555) contrast(1) saturate(1.1) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
         //-webkit-filter: brightness(1.0555) contrast(1) saturate(1.0755) !important;
-        filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
-        -webkit-filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;
+        //filter: brightness(1.1234) contrast(1.0555) saturate(0.7775) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        //-webkit-filter: brightness(1.1234) contrast(1.0555) saturate(0.7775) !important;
+        //filter: brightness(1.1234) contrast(1.0234) saturate(0.7890) !important;  // 밝기 1.3456배, 대비 1.0345배, 채도 0.6789배
+        //-webkit-filter: brightness(1.1234) contrast(1.0234) saturate(0.7890) !important;
+        //filter: brightness(1.0987) contrast(1.0123) saturate(0.6789) !important;  // 밝기 1.3456배, 대비 1.0345배, 채도 0.6789배
+        //-webkit-filter: brightness(1.0987) contrast(1.0234) saturate(0.78990) !important;
+        filter: brightness(1.0500) contrast(1.0500) saturate(0.9500) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        -webkit-filter: brightness(1.0500) contrast(1.0500) saturate(0.9500) !important;
       }
       /* 마우스를 올리면 필터 리셋 */
       video:hover {
-        opacity: 2;  // 비디오는 항상 불투명
+        opacity: 1;  // 비디오는 항상 불투명
         transition: opacity 0.3s ease, filter 0.3s ease !important; /* opacity와 filter의 변화가 동시에 부드럽게 일어남 */
         filter: brightness(1) contrast(1) saturate(1) !important;  // 밝기 1배, 대비 1배, 채도 1배
         -webkit-filter: brightness(1) contrast(1) saturate(1) !important;
