@@ -31,17 +31,17 @@ const videoWhitelist = [
       img {
         opacity: 1;  // 이미지의 초기 투명도 설정
         transition: opacity 0.3s ease, filter 0.3s ease !important; /* opacity와 filter의 변화가 동시에 부드럽게 일어남 */
-        //filter: brightness(1.05) contrast(1) saturate(1.10) !important;  // 비디오의 밝기 1.25배, 대비 1.2배
-        //-webkit-filter: brightness(1.05) contrast(1) saturate(1.10) !important;
-        filter: brightness(1.05) contrast(0.950) saturate(1.10) !important;  // 비디오의 밝기 1.05배, 대비 0.95배, 채도 1.10배
-        -webkit-filter: brightness(1.05) contrast(0.950) saturate(1.10) !important;
+        //filter: brightness(1.0555) contrast(1) saturate(1.0755) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        //-webkit-filter: brightness(1.0555) contrast(1) saturate(1.0755) !important;
+        filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        -webkit-filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;
       }
 
       /* 마우스를 올리면 불투명하게 변경 */
       img:hover {
         opacity: 1;  // 이미지에 마우스를 올리면 불투명하게 설정
         transition: opacity 0.3s ease, filter 0.3s ease !important; /* opacity와 filter의 변화가 동시에 부드럽게 일어남 */
-        filter: brightness(1) contrast(1) saturate(1) !important;  // 비디오의 밝기 1.25배, 대비 1.2배
+        filter: brightness(1) contrast(1) saturate(1) !important;  // 밝기 1배, 대비 1배, 채도 1배
         -webkit-filter: brightness(1) contrast(1) saturate(1) !important;
       }
     `);
@@ -54,15 +54,17 @@ const videoWhitelist = [
       video {
         opacity: 1;  // 비디오는 항상 불투명
         transition: opacity 0.3s ease, filter 0.3s ease !important; /* opacity와 filter의 변화가 동시에 부드럽게 일어남 */
-        filter: brightness(1.05) contrast(0.950) saturate(1.10) !important;  // 비디오의 밝기 1.05배, 대비 0.95배, 채도 1.10배
-        -webkit-filter: brightness(1.05) contrast(0.950) saturate(1.10) !important;
+        //filter: brightness(1.0555) contrast(1) saturate(1.1) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        //-webkit-filter: brightness(1.0555) contrast(1) saturate(1.0755) !important;
+        filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        -webkit-filter: brightness(1.0375) contrast(1.0250) saturate(0.9875) !important;
       }
       /* 마우스를 올리면 필터 리셋 */
       video:hover {
-        opacity: 1;  // 비디오는 항상 불투명
+        opacity: 2;  // 비디오는 항상 불투명
         transition: opacity 0.3s ease, filter 0.3s ease !important; /* opacity와 filter의 변화가 동시에 부드럽게 일어남 */
-        filter: brightness(1) contrast(1) !important;
-        -webkit-filter: brightness(1) contrast(1) !important;
+        filter: brightness(1) contrast(1) saturate(1) !important;  // 밝기 1배, 대비 1배, 채도 1배
+        -webkit-filter: brightness(1) contrast(1) saturate(1) !important;
       }
     `);
   }
