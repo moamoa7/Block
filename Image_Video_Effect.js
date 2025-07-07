@@ -69,8 +69,8 @@ const videoWhitelist = [
         //-webkit-filter: brightness(1.1234) contrast(1.0234) saturate(0.7890) !important;
         //filter: brightness(1.0987) contrast(1.0123) saturate(0.6789) !important;  // 밝기 1.3456배, 대비 1.0345배, 채도 0.6789배
         //-webkit-filter: brightness(1.0987) contrast(1.0234) saturate(0.78990) !important;
-        filter: brightness(1.0500) contrast(0.9500) saturate(0.9500) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
-        -webkit-filter: brightness(1.0500) contrast(0.9500) saturate(0.9500) !important;
+        filter: brightness(1.0500) contrast(0.9500) saturate(0.9000) !important;  // 밝기 1.0555배, 대비 1배, 채도 1.0755배
+        -webkit-filter: brightness(1.0500) contrast(0.9500) saturate(0.9000) !important;
       }
       /* 마우스를 올리면 필터 리셋 */
       video:hover {
