@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video Controller Popup with Multi-Video Selector (PC + Mobile Fade Support)
+// @name         Video Controller Popup with Multi-Video Selector (PC + Mobile Lazy Fix)
 // @namespace    Violentmonkey Scripts
-// @version      2.7
-// @description  여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + 동적 video 탐지 + PC/Mobile 투명 fade 대응 + 자막 피하기
+// @version      2.8
+// @description  여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + 동적 video 탐지 + PC/Mobile fade + data-src lazy fix + 자막 피하기
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -14,10 +14,16 @@
   let videos = [];
   let currentVideo = null;
 
+  // ✅ PC/모바일 분기
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const idleOpacity = isMobile ? '1' : '1';
 
   function findPlayableVideos() {
     return [...document.querySelectorAll('video')].filter(video => {
+      // ✅ data-src 강제 붙이기 (Lazy Load 우회)
+      if (!video.src && video.dataset && video.dataset.src) {
+        video.src = video.dataset.src;
+      }
       const isHidden = video.classList.contains('hidden') || video.offsetParent === null;
       const hasSrc = !!video.currentSrc || !!video.src;
       return !isHidden && hasSrc;
@@ -47,7 +53,7 @@
     popup.id = 'video-controller-popup';
 
     popup.style.position = 'fixed';
-    popup.style.bottom = '0px'; // ✅ 자막 겹침 피하려고 높임
+    popup.style.bottom = '0px'; // ✅ 자막 영역 피하도록 하단에 바로 붙임
     popup.style.left = '50%';
     popup.style.transform = 'translateX(-50%)';
 
@@ -62,18 +68,16 @@
     popup.style.alignItems = 'center';
     popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
     popup.style.transition = 'opacity 0.3s ease';
+    popup.style.opacity = idleOpacity;
 
-    // ✅ PC/모바일 분기
-    popup.style.opacity = isMobile ? '1' : '1';
-
-    // 영상 선택 셀렉트 박스
+    // ✅ 영상 선택 셀렉트 박스
     const select = document.createElement('select');
     select.style.marginRight = '8px';
     select.style.fontSize = '16px';
     select.style.borderRadius = '4px';
     select.style.padding = '2px 6px';
     select.style.cursor = 'pointer';
-    select.style.width = '40px'; // 고정 너비
+    select.style.width = '45px'; // 고정 너비
     select.style.overflow = 'hidden';
     select.style.textOverflow = 'ellipsis';
     select.style.whiteSpace = 'nowrap';
@@ -87,7 +91,7 @@
       } else {
         option.textContent = label;
       }
-      option.title = label;  // 전체 경로 툴팁
+      option.title = label;
       select.appendChild(option);
     });
 
@@ -117,7 +121,7 @@
       return btn;
     }
 
-    const speedVerySlow = createButton('speedVerySlow', '0.25x', () => fixPlaybackRate(currentVideo, 0.25));
+    const speedVerySlow = createButton('speedVerySlow', '0.1x', () => fixPlaybackRate(currentVideo, 0.1));
     const speedNormal = createButton('speedNormal', '1.00x', () => fixPlaybackRate(currentVideo, 1.0));
     const speedVeryFast = createButton('speedVeryFast', '4.00x', () => fixPlaybackRate(currentVideo, 4.0));
 
@@ -142,23 +146,23 @@
 
     [speedVerySlow, speedNormal, speedVeryFast, pip, back15, forward15].forEach(btn => popup.appendChild(btn));
 
-    // ✅ PC hover
+    // ✅ PC hover 이벤트
     if (!isMobile) {
       popup.addEventListener('mouseenter', () => {
         popup.style.opacity = '1';
       });
       popup.addEventListener('mouseleave', () => {
-        popup.style.opacity = '1';
+        popup.style.opacity = idleOpacity;
       });
     }
 
-    // ✅ 모바일 터치
+    // ✅ 모바일 터치 이벤트
     if (isMobile) {
       popup.addEventListener('touchstart', () => {
         popup.style.opacity = '1';
         clearTimeout(popup.fadeTimeout);
         popup.fadeTimeout = setTimeout(() => {
-          popup.style.opacity = '1';
+          popup.style.opacity = idleOpacity;
         }, 3000);
       });
     }
@@ -168,7 +172,7 @@
 
   createPopup();
 
-  // 새로 로드되면 갱신
+  // ✅ 동적 video 추가 감지
   const mo = new MutationObserver(() => {
     const newVideos = findPlayableVideos();
     if (newVideos.length !== videos.length || !newVideos.every((v, i) => v === videos[i])) {
@@ -178,6 +182,7 @@
   });
   mo.observe(document.body, { childList: true, subtree: true });
 
+  // ✅ 함수 후킹 예시 (필요하면)
   if (typeof window.comment_mp4_expand === 'function') {
     const originalCommentMp4Expand = window.comment_mp4_expand;
     window.comment_mp4_expand = function(...args) {
