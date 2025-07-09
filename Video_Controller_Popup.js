@@ -96,12 +96,12 @@
       btn.id = id;
       btn.textContent = text;
       btn.style.fontSize = '14px';
-      btn.style.padding = '4px 8px';
+      btn.style.padding = '2px 4px';
       btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
       btn.style.border = '1px solid #fff';
       btn.style.borderRadius = '4px';
-      btn.style.backgroundColor = 'rgba(0,0,0,0.7)';
+      btn.style.backgroundColor = 'rgba(0,0,0,0.5)';
       btn.style.color = '#fff';
       btn.style.cursor = 'pointer';
       btn.style.userSelect = 'none';
