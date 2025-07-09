@@ -68,7 +68,7 @@
     select.style.padding = '2px 6px';
     select.style.cursor = 'pointer';
 
-    select.style.width = '50px';           // ✅ 고정 너비
+    select.style.width = '40px';           // ✅ 고정 너비
     select.style.overflow = 'hidden';       // ✅ 넘침 처리
     select.style.textOverflow = 'ellipsis';
     select.style.whiteSpace = 'nowrap';
@@ -101,7 +101,7 @@
       btn.id = id;
       btn.textContent = text;
       btn.style.fontSize = '14px';
-      btn.style.padding = '4px 8px';
+      btn.style.padding = '2px 6px';
       btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
       btn.style.border = '1px solid #fff';
@@ -148,7 +148,7 @@
       }
     });
 
-    [speedSlow, speedNormal, back300, back60, back30, forward30, forward60, forward300, pip].forEach(btn => popup.appendChild(btn));
+    [speedSlow, speedNormal, back300, back60, back30, pip, forward30, forward60, forward300].forEach(btn => popup.appendChild(btn));
 
     popup.addEventListener('mouseenter', () => {
       popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '1');
