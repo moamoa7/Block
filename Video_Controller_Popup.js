@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video Controller Popup (Playable Video Detect + Controls + Iframe Aware)
 // @namespace    Violentmonkey Scripts
-// @version      1.8
-// @description  동적 영상 탐지 + 앞뒤 이동 + 배속 + PIP + 전체화면 + 호버시 투명도 + iframe 안/밖 위치 대응
+// @version      1.9
+// @description  동적 영상 탐지 + 앞뒤 이동 + 배속 + PIP + 전체화면 + 호버시 투명도 + 영상 하단 중앙
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -25,36 +25,21 @@
   function createPopup(video) {
     if (document.getElementById('video-controller-popup')) return;
 
+    // video의 부모를 relative로
+    const videoParent = video.parentElement;
+    videoParent.style.position = 'relative';
+
     const popup = document.createElement('div');
     popup.id = 'video-controller-popup';
 
     const inIframe = window.self !== window.top;
 
-    if (inIframe) {
-      // iframe 안이면 fixed 하단 중앙
-      popup.style.position = 'fixed';
-      //popup.style.bottom = '0px';
-      popup.style.bottom = '25px';
-      popup.style.left = '50%';
-      popup.style.transform = 'translateX(-50%)';
-    } else {
-      // 메인 문서면 video 바로 아래에 absolute
-      const rect = video.getBoundingClientRect();
-      popup.style.position = 'absolute';
-      popup.style.top = (window.scrollY + rect.bottom) + 'px';
-      popup.style.left = (window.scrollX + rect.left) + 'px';
-      popup.style.width = rect.width + 'px';
 
-      // 위치 업데이트 핸들러
-      const updatePosition = () => {
-        const rect = video.getBoundingClientRect();
-        popup.style.top = (window.scrollY + rect.bottom) + 'px';
-        popup.style.left = (window.scrollX + rect.left) + 'px';
-        popup.style.width = rect.width + 'px';
-      };
-      window.addEventListener('scroll', updatePosition);
-      window.addEventListener('resize', updatePosition);
-    }
+    // 무조건 영상 내 하단 중앙
+    popup.style.position = 'absolute';
+    popup.style.bottom = '0px';
+    popup.style.left = '50%';
+    popup.style.transform = 'translateX(-50%)';
 
     // 공통 스타일
     popup.style.background = 'rgba(0,0,0,0)';  //팝업 배경색을 완전 투명
@@ -82,7 +67,7 @@
       <button id="fullscreen">⛶</button>
     `;
 
-    document.body.appendChild(popup);
+    videoParent.appendChild(popup);
 
     // 버튼 기본 투명 & hover
     popup.querySelectorAll('button').forEach(btn => {
@@ -97,7 +82,7 @@
     });
 
     popup.addEventListener('mouseleave', () => {
-      popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '0');
+      popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '1');
     });
 
     // 플레이/멈춤 버튼
