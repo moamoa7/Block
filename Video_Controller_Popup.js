@@ -64,7 +64,7 @@
     popup.style.transition = 'opacity 0.3s ease';
 
     // ✅ PC/모바일 분기
-    popup.style.opacity = isMobile ? '0.1' : '0.2';
+    popup.style.opacity = isMobile ? '0.05' : '0.05';
 
     // 영상 선택 셀렉트 박스
     const select = document.createElement('select');
@@ -148,7 +148,7 @@
         popup.style.opacity = '1';
       });
       popup.addEventListener('mouseleave', () => {
-        popup.style.opacity = '0.01';
+        popup.style.opacity = '0.05';
       });
     }
 
@@ -158,7 +158,7 @@
         popup.style.opacity = '1';
         clearTimeout(popup.fadeTimeout);
         popup.fadeTimeout = setTimeout(() => {
-          popup.style.opacity = '0.125';
+          popup.style.opacity = '0.05';
         }, 3000);
       });
     }
