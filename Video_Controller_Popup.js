@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video Controller Popup with Multi-Video Selector (Fixed Bottom Center + Dynamic Video Support + Fade Opacity)
+// @name         Video Controller Popup with Multi-Video Selector (PC + Mobile Fade Support)
 // @namespace    Violentmonkey Scripts
-// @version      2.6
-// @description  여러 영상이 있을 때 팝업 내 영상 선택 + 앞뒤 이동 + 배속 + PIP + 동적 video 탐지 및 함수 후킹 포함 + select 박스 고정 너비 + 투명도 fade
+// @version      2.7
+// @description  여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + 동적 video 탐지 + PC/Mobile 투명 fade 대응 + 자막 피하기
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -13,6 +13,8 @@
   let currentIntervalId = null;
   let videos = [];
   let currentVideo = null;
+
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   function findPlayableVideos() {
     return [...document.querySelectorAll('video')].filter(video => {
@@ -45,11 +47,11 @@
     popup.id = 'video-controller-popup';
 
     popup.style.position = 'fixed';
-    popup.style.bottom = '5px';
+    popup.style.bottom = '50px'; // ✅ 자막 겹침 피하려고 높임
     popup.style.left = '50%';
     popup.style.transform = 'translateX(-50%)';
 
-    popup.style.background = 'rgba(0,0,0,0.1)';  // 배경 살짝 흐리게
+    popup.style.background = 'rgba(0,0,0,0.1)';
     popup.style.color = '#fff';
     popup.style.padding = '6px 10px';
     popup.style.borderRadius = '6px';
@@ -59,9 +61,10 @@
     popup.style.gap = '6px';
     popup.style.alignItems = 'center';
     popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
+    popup.style.transition = 'opacity 0.3s ease';
 
-    popup.style.opacity = '0.05';                // 기본 거의 투명
-    popup.style.transition = 'opacity 0.3s ease'; // 부드럽게 fade
+    // ✅ PC/모바일 분기
+    popup.style.opacity = isMobile ? '0.2' : '0.05';
 
     // 영상 선택 셀렉트 박스
     const select = document.createElement('select');
@@ -70,9 +73,8 @@
     select.style.borderRadius = '4px';
     select.style.padding = '2px 6px';
     select.style.cursor = 'pointer';
-
-    select.style.width = '40px';           // 고정 너비
-    select.style.overflow = 'hidden';      // 넘침 처리
+    select.style.width = '40px'; // 고정 너비
+    select.style.overflow = 'hidden';
     select.style.textOverflow = 'ellipsis';
     select.style.whiteSpace = 'nowrap';
 
@@ -107,7 +109,7 @@
       btn.style.padding = '2px 6px';
       btn.style.border = '1px solid #fff';
       btn.style.borderRadius = '4px';
-      btn.style.backgroundColor = 'rgba(0,0,0,0.1)'; // 버튼 배경도 살짝 흐리게
+      btn.style.backgroundColor = 'rgba(0,0,0,0.1)';
       btn.style.color = '#fff';
       btn.style.cursor = 'pointer';
       btn.style.userSelect = 'none';
@@ -115,11 +117,8 @@
       return btn;
     }
 
-    // 컨트롤 버튼들
     const speedVerySlow = createButton('speedVerySlow', '0.25x', () => fixPlaybackRate(currentVideo, 0.25));
-    const speedSlow = createButton('speedSlow', '0.50x', () => fixPlaybackRate(currentVideo, 0.50));
     const speedNormal = createButton('speedNormal', '1.00x', () => fixPlaybackRate(currentVideo, 1.0));
-    const speedFast = createButton('speedFast', '2.00x', () => fixPlaybackRate(currentVideo, 2.0));
     const speedVeryFast = createButton('speedVeryFast', '4.00x', () => fixPlaybackRate(currentVideo, 4.0));
 
     const back15 = createButton('back15', '《《15s', () => {
@@ -141,16 +140,28 @@
       }
     });
 
-    // 원하는 버튼만 추가
     [speedVerySlow, speedNormal, speedVeryFast, pip, back15, forward15].forEach(btn => popup.appendChild(btn));
 
-    // 팝업에 hover 이벤트로 전체 fade 제어
-    popup.addEventListener('mouseenter', () => {
-      popup.style.opacity = '1';
-    });
-    popup.addEventListener('mouseleave', () => {
-      popup.style.opacity = '0.05';
-    });
+    // ✅ PC hover
+    if (!isMobile) {
+      popup.addEventListener('mouseenter', () => {
+        popup.style.opacity = '1';
+      });
+      popup.addEventListener('mouseleave', () => {
+        popup.style.opacity = '0.05';
+      });
+    }
+
+    // ✅ 모바일 터치
+    if (isMobile) {
+      popup.addEventListener('touchstart', () => {
+        popup.style.opacity = '1';
+        clearTimeout(popup.fadeTimeout);
+        popup.fadeTimeout = setTimeout(() => {
+          popup.style.opacity = '0.2';
+        }, 3000);
+      });
+    }
 
     document.body.appendChild(popup);
   }
@@ -167,7 +178,6 @@
   });
   mo.observe(document.body, { childList: true, subtree: true });
 
-  // 함수 후킹 예시
   if (typeof window.comment_mp4_expand === 'function') {
     const originalCommentMp4Expand = window.comment_mp4_expand;
     window.comment_mp4_expand = function(...args) {
