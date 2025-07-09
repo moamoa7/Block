@@ -49,7 +49,7 @@
     popup.style.left = '50%';
     popup.style.transform = 'translateX(-50%)';
 
-    popup.style.background = 'rgba(0,0,0,0.5)';
+    popup.style.background = 'rgba(0,0,0,0.0)';
     popup.style.color = '#fff';
     popup.style.padding = '6px 10px';
     popup.style.borderRadius = '6px';
@@ -58,7 +58,7 @@
     popup.style.flexWrap = 'nowrap';
     popup.style.gap = '6px';
     popup.style.alignItems = 'center';
-    popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.0)';
 
     // ✅ 영상 선택 셀렉트 박스 (고정 너비 + ellipsis)
     const select = document.createElement('select');
@@ -158,8 +158,8 @@
       select.style.opacity = '1';
     });
     popup.addEventListener('mouseleave', () => {
-      popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '1');
-      select.style.opacity = '1';
+      popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '0');
+      select.style.opacity = '0';
     });
 
     document.body.appendChild(popup);
