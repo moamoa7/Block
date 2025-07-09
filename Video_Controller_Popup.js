@@ -158,7 +158,7 @@
         popup.style.opacity = '1';
         clearTimeout(popup.fadeTimeout);
         popup.fadeTimeout = setTimeout(() => {
-          popup.style.opacity = '0.1';
+          popup.style.opacity = '0.05';
         }, 3000);
       });
     }
