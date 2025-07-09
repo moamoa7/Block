@@ -33,7 +33,7 @@
     popup.style.transform = 'translateX(-50%)';
 
     // 공통 스타일
-    popup.style.background = 'rgba(0,0,0,0)';
+    popup.style.background = 'rgba(0,0,0,5)';
     popup.style.color = '#fff';
     popup.style.padding = '2px';
     popup.style.borderRadius = '4px';
@@ -47,8 +47,8 @@
       <button id="speedSlow">0.25x</button>
       <button id="speedNormal">1.00x</button>
       <button id="back300">《《5m</button>
-      <button id="back60">《《1m</button>
-      <button id="forward60">1m》》</button>
+      <button id="back5">《《5s</button>
+      <button id="forward5">5s》》</button>
       <button id="forward300">5m》》</button>
       <button id="pip">PIP</button>
     `;
@@ -63,7 +63,7 @@
       btn.style.transition = 'opacity 0.3s ease';
       btn.style.border = '1px solid #fff';
       btn.style.borderRadius = '3px';
-      btn.style.backgroundColor = 'rgba(0,0,0,0.7)';
+      btn.style.backgroundColor = 'rgba(0,0,0,0.5)';
       btn.style.color = '#fff';
       btn.style.cursor = 'pointer';
     });
@@ -98,9 +98,9 @@
     };
 
     // 앞뒤 이동
-    popup.querySelector('#back60').onclick = () => { video.currentTime -= 60; };
+    popup.querySelector('#back5').onclick = () => { video.currentTime -= 5; };
     popup.querySelector('#back300').onclick = () => { video.currentTime -= 300; };
-    popup.querySelector('#forward60').onclick = () => { video.currentTime += 60; };
+    popup.querySelector('#forward5').onclick = () => { video.currentTime += 5; };
     popup.querySelector('#forward300').onclick = () => { video.currentTime += 300; };
 
     // PIP
