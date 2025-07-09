@@ -39,7 +39,7 @@
     popup.style.borderRadius = '0px';
     popup.style.zIndex = 9999;
     popup.style.display = 'flex';
-    popup.style.flexWrap = 'wrap';
+    popup.style.flexWrap = 'nowrap';
     popup.style.overflowX = 'auto';
     popup.style.gap = '0px';
 
