@@ -127,11 +127,11 @@
     const back60 = createButton('back60', '《《1m', () => {
       currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 60);
     });
-    const back30 = createButton('back30', '《《30s', () => {
-      currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 30);
+    const back15 = createButton('back15', '《《15s', () => {
+      currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 15);
     });
-    const forward30 = createButton('forward10', '30s》》', () => {
-      currentVideo.currentTime = Math.min(currentVideo.duration, currentVideo.currentTime + 30);
+    const forward15 = createButton('forward15', '15s》》', () => {
+      currentVideo.currentTime = Math.min(currentVideo.duration, currentVideo.currentTime + 15);
     });
     const forward60 = createButton('forward60', '1m》》', () => {
       currentVideo.currentTime = Math.min(currentVideo.duration, currentVideo.currentTime + 60);
@@ -151,7 +151,7 @@
       }
     });
 
-    [speedVerySlow, speedNormal, speedVeryFast, pip, back30, forward30].forEach(btn => popup.appendChild(btn));
+    [speedVerySlow, speedNormal, speedVeryFast, pip, back15, forward15].forEach(btn => popup.appendChild(btn));
 
     popup.addEventListener('mouseenter', () => {
       popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '1');
