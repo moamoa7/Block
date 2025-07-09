@@ -35,13 +35,13 @@
     // 공통 스타일
     popup.style.background = 'rgba(0,0,0,0)';
     popup.style.color = '#fff';
-    popup.style.padding = '0px';
-    popup.style.borderRadius = '0px';
+    popup.style.padding = '2px';
+    popup.style.borderRadius = '2px';
     popup.style.zIndex = 9999;
     popup.style.display = 'flex';
     popup.style.flexWrap = 'nowrap';
     popup.style.overflowX = 'auto';
-    popup.style.gap = '0px';
+    popup.style.gap = '2px';
 
     popup.innerHTML = `
       <button id="pip">PIP</button>
@@ -60,7 +60,7 @@
     // 버튼 스타일
     popup.querySelectorAll('button').forEach(btn => {
       btn.style.fontSize = '12px';
-      btn.style.padding = '0px 0px';
+      btn.style.padding = '2px 2px';
       btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
     });
