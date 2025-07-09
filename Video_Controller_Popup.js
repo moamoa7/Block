@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video Controller Popup (Fixed Bottom Center to Video)
 // @namespace    Violentmonkey Scripts
-// @version      1.9
-// @description  모든 영상에 영상 화면 하단 중앙 고정 팝업 + 앞뒤 이동 + 배속 + PIP + 전체화면 + iframe 대응
+// @version      2.0
+// @description  모든 영상에 영상 화면 하단 중앙 고정 팝업 + 앞뒤 이동 + 배속 + PIP + 전체화면 + iframe 대응 + 안정화
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -28,7 +28,7 @@
     const popup = document.createElement('div');
     popup.id = 'video-controller-popup';
 
-    // ★ 화면 고정 위치 설정: 영상 화면 하단 중앙
+    // 화면 고정: 영상 하단 중앙 (fixed)
     popup.style.position = 'fixed';
     popup.style.transform = 'translateX(-50%)';
 
@@ -36,12 +36,12 @@
     popup.style.background = 'rgba(0,0,0,0)';
     popup.style.color = '#fff';
     popup.style.padding = '2px';
-    popup.style.borderRadius = '2px';
+    popup.style.borderRadius = '4px';
     popup.style.zIndex = 9999;
     popup.style.display = 'flex';
     popup.style.flexWrap = 'nowrap';
     popup.style.overflowX = 'auto';
-    popup.style.gap = '2px';
+    popup.style.gap = '4px';
 
     popup.innerHTML = `
       <button id="pip">PIP</button>
@@ -60,12 +60,14 @@
     // 버튼 스타일
     popup.querySelectorAll('button').forEach(btn => {
       btn.style.fontSize = '12px';
-      btn.style.padding = '2px 4px';
+      btn.style.padding = '4px 6px';
       btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
-      btn.style.border = '1px solid #111';  // 흰색 테두리
-      btn.style.borderRadius = '3px';       // 약간 둥근 모서리 (옵션)
-      //btn.style.backgroundColor = 'rgba(0,0,0,0.3)';  // 반투명 배경 (선택사항)
+      btn.style.border = '1px solid #fff';
+      btn.style.borderRadius = '3px';
+      btn.style.backgroundColor = 'rgba(0,0,0,0.4)';
+      btn.style.color = '#fff';
+      btn.style.cursor = 'pointer';
     });
 
     popup.addEventListener('mouseenter', () => {
@@ -106,30 +108,18 @@
       if (currentIntervalId) clearInterval(currentIntervalId);
       currentIntervalId = fixPlaybackRate(video, 0.25);
     };
-    //popup.querySelector('#speedSlow').onclick = () => {
-      //if (currentIntervalId) clearInterval(currentIntervalId);
-      //currentIntervalId = fixPlaybackRate(video, 0.5);
-    //};
-    //popup.querySelector('#speedSlow').onclick = () => {
-      //if (currentIntervalId) clearInterval(currentIntervalId);
-      //currentIntervalId = fixPlaybackRate(video, 1.75);
-    //};
     popup.querySelector('#speedNormal').onclick = () => {
       if (currentIntervalId) clearInterval(currentIntervalId);
       currentIntervalId = fixPlaybackRate(video, 1.0);
     };
-    //popup.querySelector('#speedFast').onclick = () => {
-      //if (currentIntervalId) clearInterval(currentIntervalId);
-      //currentIntervalId = fixPlaybackRate(video, 2.0);
-    //};
 
-    // 앞뒤 이동, PIP, 전체화면
-    //popup.querySelector('#back10').onclick = () => { video.currentTime -= 10; };
+    // 앞뒤 이동
     popup.querySelector('#back60').onclick = () => { video.currentTime -= 60; };
     popup.querySelector('#back300').onclick = () => { video.currentTime -= 300; };
-    //popup.querySelector('#forward10').onclick = () => { video.currentTime += 10; };
     popup.querySelector('#forward60').onclick = () => { video.currentTime += 60; };
     popup.querySelector('#forward300').onclick = () => { video.currentTime += 300; };
+
+    // PIP
     popup.querySelector('#pip').onclick = async () => {
       if (document.pictureInPictureElement) {
         await document.exitPictureInPicture();
@@ -137,19 +127,30 @@
         await video.requestPictureInPicture();
       }
     };
+
+    // 전체화면
     popup.querySelector('#fullscreen').onclick = () => {
       if (document.fullscreenElement) {
         document.exitFullscreen();
       } else {
-        video.requestFullscreen();
+        video.requestFullscreen().catch(() => {
+          document.documentElement.requestFullscreen();
+        });
       }
     };
 
-    // ★ 위치 업데이트: 영상 하단 중앙
+    // 전체화면 상태 동기화
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) {
+        console.log('전체화면 모드 해제됨');
+      }
+    });
+
+    // 위치 업데이트: 항상 영상 하단 중앙
     function updatePopupPosition() {
       const rect = video.getBoundingClientRect();
-      popup.style.top = `${rect.bottom + -15}px`; // 5px 간격
-      popup.style.left = `${rect.left + rect.width / 2}px`;
+      popup.style.top = `${rect.bottom + window.scrollY - 20}px`; // 간격 조절
+      popup.style.left = `${rect.left + window.scrollX + rect.width / 2}px`;
     }
     updatePopupPosition();
     window.addEventListener('scroll', updatePopupPosition);
