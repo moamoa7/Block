@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video Controller Popup (Playable Video Detect + Controls + Iframe Aware)
+// @name         Video Controller Popup (Fixed Bottom Center to Video)
 // @namespace    Violentmonkey Scripts
 // @version      1.9
-// @description  동적 영상 탐지 + 앞뒤 이동 + 배속 + PIP + 전체화면 + 호버시 투명도 + iframe 안/밖 위치 대응
+// @description  모든 영상에 영상 화면 하단 중앙 고정 팝업 + 앞뒤 이동 + 배속 + PIP + 전체화면 + iframe 대응
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -28,26 +28,9 @@
     const popup = document.createElement('div');
     popup.id = 'video-controller-popup';
 
-    const inIframe = window.self !== window.top;
-
-    if (inIframe) {
-      // iframe 안이면 fixed 하단 중앙
-      popup.style.position = 'fixed';
-      popup.style.bottom = '20px'; // 필요하면 여백 조절
-      popup.style.left = '50%';
-      popup.style.transform = 'translateX(-50%)';
-      document.body.appendChild(popup);
-    } else {
-      // 메인 문서면 video 바로 위에 absolute + 영상 내부 하단 중앙
-      const wrapper = video.parentElement || video;
-      wrapper.style.position = 'relative';
-
-      popup.style.position = 'absolute';
-      popup.style.bottom = '0px';
-      popup.style.left = '50%';
-      popup.style.transform = 'translateX(-50%)';
-      wrapper.appendChild(popup);
-    }
+    // ★ 화면 고정 위치 설정: 영상 화면 하단 중앙
+    popup.style.position = 'fixed';
+    popup.style.transform = 'translateX(-50%)';
 
     // 공통 스타일
     popup.style.background = 'rgba(0,0,0,0)';
@@ -75,11 +58,13 @@
       <button id="fullscreen">⛶</button>
     `;
 
-    // 버튼 스타일 및 hover 효과
+    document.body.appendChild(popup);
+
+    // 버튼 스타일
     popup.querySelectorAll('button').forEach(btn => {
       btn.style.fontSize = '12px';
-      btn.style.padding = '2px 4px';
-      btn.style.opacity = '1'; // 기본 투명
+      btn.style.padding = '2px 2px';
+      btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
     });
 
@@ -105,7 +90,7 @@
     video.addEventListener('play', () => playPauseBtn.textContent = 'STOP');
     video.addEventListener('pause', () => playPauseBtn.textContent = 'PLAY');
 
-    // 배속 유지
+    // 재생 속도 고정
     let currentIntervalId = null;
     function fixPlaybackRate(video, rate) {
       video.playbackRate = rate;
@@ -130,7 +115,7 @@
       currentIntervalId = fixPlaybackRate(video, 2.0);
     };
 
-    // 이동, PIP, 전체화면
+    // 앞뒤 이동, PIP, 전체화면
     popup.querySelector('#back10').onclick = () => { video.currentTime -= 10; };
     popup.querySelector('#back60').onclick = () => { video.currentTime -= 60; };
     popup.querySelector('#back300').onclick = () => { video.currentTime -= 300; };
@@ -151,6 +136,16 @@
         video.requestFullscreen();
       }
     };
+
+    // ★ 위치 업데이트: 영상 하단 중앙
+    function updatePopupPosition() {
+      const rect = video.getBoundingClientRect();
+      popup.style.top = `${rect.bottom + -15}px`; // 5px 간격
+      popup.style.left = `${rect.left + rect.width / 2}px`;
+    }
+    updatePopupPosition();
+    window.addEventListener('scroll', updatePopupPosition);
+    window.addEventListener('resize', updatePopupPosition);
   }
 
   function init() {
