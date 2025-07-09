@@ -33,7 +33,8 @@
     if (inIframe) {
       // iframe 안이면 fixed 하단 중앙
       popup.style.position = 'fixed';
-      popup.style.bottom = '0px';
+      //popup.style.bottom = '0px';
+      popup.style.bottom = '10px';
       popup.style.left = '50%';
       popup.style.transform = 'translateX(-50%)';
     } else {
@@ -56,15 +57,15 @@
     }
 
     // 공통 스타일
-    popup.style.background = 'rgba(0,0,0,0)';
-    popup.style.color = '#fff';
-    popup.style.padding = '2px';
-    popup.style.borderRadius = '2px';
-    popup.style.zIndex = 9999;
-    popup.style.display = 'flex';
-    popup.style.flexWrap = 'wrap';
-    popup.style.overflowX = 'auto';
-    popup.style.gap = '2px';
+    popup.style.background = 'rgba(0,0,0,0)';  //팝업 배경색을 완전 투명
+    popup.style.color = '#fff';  //팝업 안에 있는 텍스트 색상(버튼 글자)을 흰색으로 설정
+    popup.style.padding = '2px';  //버튼과 팝업 외곽 사이에 2px 간격
+    popup.style.borderRadius = '2px';  //팝업 박스의 모서리를 약간 둥글게.
+    popup.style.zIndex = 9999;  //다른 모든 요소 위에 떠 있도록 z-index를 크게 설정
+    popup.style.display = 'flex';  //버튼들이 가로로 한 줄로 배열됨
+    popup.style.flexWrap = 'wrap';  //버튼이 한 줄에 다 안 들어가면 자동으로 다음 줄로 넘어감
+    popup.style.overflowX = 'auto';  //가로로 넘칠 경우 가로 스크롤 생김
+    popup.style.gap = '2px';  //버튼 간격을 2px
 
     popup.innerHTML = `
       <button id="speedSlow">0.25x</button>
