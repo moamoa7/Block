@@ -63,7 +63,7 @@
     // ✅ 영상 선택 셀렉트 박스 (고정 너비 + ellipsis)
     const select = document.createElement('select');
     select.style.marginRight = '8px';
-    select.style.fontSize = '14px';
+    select.style.fontSize = '16px';
     select.style.borderRadius = '4px';
     select.style.padding = '2px 6px';
     select.style.cursor = 'pointer';
@@ -100,7 +100,7 @@
       const btn = document.createElement('button');
       btn.id = id;
       btn.textContent = text;
-      btn.style.fontSize = '14px';
+      btn.style.fontSize = '16px';
       btn.style.padding = '2px 6px';
       btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
