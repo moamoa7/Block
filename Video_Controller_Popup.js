@@ -115,8 +115,11 @@
     }
 
     // ✅ 앞뒤 이동 시간 값 & ID 고침
-    const speedSlow = createButton('speedSlow', '0.25x', () => fixPlaybackRate(currentVideo, 0.25));
+    const speedVerySlow = createButton('speedVerySlow', '0.25x', () => fixPlaybackRate(currentVideo, 0.25));
+    const speedSlow = createButton('speedSlow', '0.50x', () => fixPlaybackRate(currentVideo, 0.50));
     const speedNormal = createButton('speedNormal', '1.00x', () => fixPlaybackRate(currentVideo, 1.0));
+    const speedFast = createButton('speedFast', '2.00x', () => fixPlaybackRate(currentVideo, 2.0));
+    const speedVeryFast = createButton('speedVeryFast', '4.00x', () => fixPlaybackRate(currentVideo, 4.0));
 
     const back300 = createButton('back300', '《《5m', () => {
       currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 300);
@@ -124,11 +127,11 @@
     const back60 = createButton('back60', '《《1m', () => {
       currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 60);
     });
-    const back30 = createButton('back30', '《《30s', () => {
-      currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 30);
+    const back10 = createButton('back10', '《《10s', () => {
+      currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 10);
     });
-    const forward30 = createButton('forward30', '30s》》', () => {
-      currentVideo.currentTime = Math.min(currentVideo.duration, currentVideo.currentTime + 30);
+    const forward10 = createButton('forward10', '10s》》', () => {
+      currentVideo.currentTime = Math.min(currentVideo.duration, currentVideo.currentTime + 10);
     });
     const forward60 = createButton('forward60', '1m》》', () => {
       currentVideo.currentTime = Math.min(currentVideo.duration, currentVideo.currentTime + 60);
@@ -148,7 +151,7 @@
       }
     });
 
-    [speedSlow, speedNormal, back300, back60, back30, pip, forward30, forward60, forward300].forEach(btn => popup.appendChild(btn));
+    [speedVerySlow, speedNormal, speedVeryFast, pip, back10, forward10].forEach(btn => popup.appendChild(btn));
 
     popup.addEventListener('mouseenter', () => {
       popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '1');
