@@ -63,7 +63,8 @@
       btn.style.transition = 'opacity 0.3s ease';
       btn.style.border = '1px solid #fff';
       btn.style.borderRadius = '3px';
-      btn.style.backgroundColor = 'rgba(0,0,0,0.4)';
+      btn.style.backgroundColor = 'green'
+      btn.style.backgroundColor = 'rgba(0,0,0,0.5)';
       btn.style.color = '#fff';
       btn.style.cursor = 'pointer';
     });
