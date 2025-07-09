@@ -87,7 +87,7 @@
     popup.querySelectorAll('button').forEach(btn => {
       btn.style.fontSize = '12px';
       btn.style.padding = '2px 2px';
-      btn.style.opacity = '0.5';
+      btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
     });
 
