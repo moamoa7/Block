@@ -64,7 +64,7 @@
     popup.style.transition = 'opacity 0.3s ease';
 
     // ✅ PC/모바일 분기
-    popup.style.opacity = isMobile ? '0.01' : '0.05';
+    popup.style.opacity = isMobile ? '0.05' : '0.2';
 
     // 영상 선택 셀렉트 박스
     const select = document.createElement('select');
