@@ -44,17 +44,14 @@
     popup.style.gap = '2px';
 
     popup.innerHTML = `
+      <button id="pip">PIP</button>
       <button id="speedSlow">0.25x</button>
-      <button id="speedNormal">1x</button>
-      <button id="speedFast">2x</button>
       <button id="back300">《《5m</button>
       <button id="back60">《《1m</button>
-      <button id="back10">《《10s</button>
       <button id="playpause">PLAY</button>
-      <button id="forward10">10s》》</button>
       <button id="forward60">1m》》</button>
       <button id="forward300">5m》》</button>
-      <button id="pip">PIP</button>
+      <button id="speedNormal">1.00x</button>
       <button id="fullscreen">⛶</button>
     `;
 
@@ -106,20 +103,28 @@
       if (currentIntervalId) clearInterval(currentIntervalId);
       currentIntervalId = fixPlaybackRate(video, 0.25);
     };
+    //popup.querySelector('#speedSlow').onclick = () => {
+      //if (currentIntervalId) clearInterval(currentIntervalId);
+      //currentIntervalId = fixPlaybackRate(video, 0.5);
+    //};
+    //popup.querySelector('#speedSlow').onclick = () => {
+      //if (currentIntervalId) clearInterval(currentIntervalId);
+      //currentIntervalId = fixPlaybackRate(video, 1.75);
+    //};
     popup.querySelector('#speedNormal').onclick = () => {
       if (currentIntervalId) clearInterval(currentIntervalId);
       currentIntervalId = fixPlaybackRate(video, 1.0);
     };
-    popup.querySelector('#speedFast').onclick = () => {
-      if (currentIntervalId) clearInterval(currentIntervalId);
-      currentIntervalId = fixPlaybackRate(video, 2.0);
-    };
+    //popup.querySelector('#speedFast').onclick = () => {
+      //if (currentIntervalId) clearInterval(currentIntervalId);
+      //currentIntervalId = fixPlaybackRate(video, 2.0);
+    //};
 
     // 앞뒤 이동, PIP, 전체화면
-    popup.querySelector('#back10').onclick = () => { video.currentTime -= 10; };
+    //popup.querySelector('#back10').onclick = () => { video.currentTime -= 10; };
     popup.querySelector('#back60').onclick = () => { video.currentTime -= 60; };
     popup.querySelector('#back300').onclick = () => { video.currentTime -= 300; };
-    popup.querySelector('#forward10').onclick = () => { video.currentTime += 10; };
+    //popup.querySelector('#forward10').onclick = () => { video.currentTime += 10; };
     popup.querySelector('#forward60').onclick = () => { video.currentTime += 60; };
     popup.querySelector('#forward300').onclick = () => { video.currentTime += 300; };
     popup.querySelector('#pip').onclick = async () => {
