@@ -34,7 +34,7 @@
       // iframe 안이면 fixed 하단 중앙
       popup.style.position = 'fixed';
       //popup.style.bottom = '0px';
-      popup.style.bottom = '10px';
+      popup.style.bottom = '25px';
       popup.style.left = '50%';
       popup.style.transform = 'translateX(-50%)';
     } else {
