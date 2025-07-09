@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video Controller Popup (Fixed Bottom Center to Video)
 // @namespace    Violentmonkey Scripts
-// @version      2.0
-// @description  모든 영상에 영상 화면 하단 중앙 고정 팝업 + 앞뒤 이동 + 배속 + PIP + 전체화면 + iframe 대응 + 안정화
+// @version      2.0.1
+// @description  모든 영상에 영상 화면 하단 중앙 고정 팝업 + 앞뒤 이동 + 배속 + PIP + iframe 대응 + 안정화
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -52,7 +52,6 @@
       <button id="forward60">1m》》</button>
       <button id="forward300">5m》》</button>
       <button id="speedNormal">1.00x</button>
-      <button id="fullscreen">⛶</button>
     `;
 
     document.body.appendChild(popup);
@@ -127,24 +126,6 @@
         await video.requestPictureInPicture();
       }
     };
-
-    // 전체화면
-    popup.querySelector('#fullscreen').onclick = () => {
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      } else {
-        video.requestFullscreen().catch(() => {
-          document.documentElement.requestFullscreen();
-        });
-      }
-    };
-
-    // 전체화면 상태 동기화
-    document.addEventListener('fullscreenchange', () => {
-      if (!document.fullscreenElement) {
-        console.log('전체화면 모드 해제됨');
-      }
-    });
 
     // 위치 업데이트: 항상 영상 하단 중앙
     function updatePopupPosition() {
