@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video Controller Popup (Fixed Bottom Center to Video)
 // @namespace    Violentmonkey Scripts
-// @version      2.0.1
-// @description  모든 영상에 영상 화면 하단 중앙 고정 팝업 + 앞뒤 이동 + 배속 + PIP + iframe 대응 + 안정화
+// @version      2.1
+// @description  모든 영상에 영상 화면 하단 중앙 고정 팝업 + 앞뒤 이동 + 배속 + PIP + iframe 대응 + 안정화 (PLAY/STOP & 전체화면 제거)
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -44,21 +44,20 @@
     popup.style.gap = '4px';
 
     popup.innerHTML = `
-      <button id="pip">PIP</button>
       <button id="speedSlow">0.25x</button>
+      <button id="speedNormal">1.00x</button>
       <button id="back300">《《5m</button>
       <button id="back60">《《1m</button>
-      <button id="playpause">PLAY</button>
       <button id="forward60">1m》》</button>
       <button id="forward300">5m》》</button>
-      <button id="speedNormal">1.00x</button>
+      <button id="pip">PIP</button>
     `;
 
     document.body.appendChild(popup);
 
     // 버튼 스타일
     popup.querySelectorAll('button').forEach(btn => {
-      btn.style.fontSize = '12px';
+      btn.style.fontSize = '14px';
       btn.style.padding = '4px 6px';
       btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
@@ -76,20 +75,6 @@
     popup.addEventListener('mouseleave', () => {
       popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '1');
     });
-
-    // 플레이/멈춤 버튼
-    const playPauseBtn = popup.querySelector('#playpause');
-    playPauseBtn.onclick = () => {
-      if (video.paused) {
-        video.play();
-        playPauseBtn.textContent = 'STOP';
-      } else {
-        video.pause();
-        playPauseBtn.textContent = 'PLAY';
-      }
-    };
-    video.addEventListener('play', () => playPauseBtn.textContent = 'STOP');
-    video.addEventListener('pause', () => playPauseBtn.textContent = 'PLAY');
 
     // 재생 속도 고정
     let currentIntervalId = null;
@@ -130,7 +115,7 @@
     // 위치 업데이트: 항상 영상 하단 중앙
     function updatePopupPosition() {
       const rect = video.getBoundingClientRect();
-      popup.style.top = `${rect.bottom + window.scrollY - 20}px`; // 간격 조절
+      popup.style.top = `${rect.bottom + window.scrollY - 30}px`; // 간격 조절
       popup.style.left = `${rect.left + window.scrollX + rect.width / 2}px`;
     }
     updatePopupPosition();
