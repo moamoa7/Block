@@ -2,7 +2,7 @@
 // @name         Video Controller Popup (Playable Video Detect + Controls + Iframe Aware)
 // @namespace    Violentmonkey Scripts
 // @version      1.9
-// @description  동적 영상 탐지 + 앞뒤 이동 + 배속 + PIP + 전체화면 + 호버시 투명도 + 영상 하단 중앙
+// @description  동적 영상 탐지 + 앞뒤 이동 + 배속 + PIP + 전체화면 + 호버시 투명도 + iframe 안/밖 위치 대응
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -25,32 +25,40 @@
   function createPopup(video) {
     if (document.getElementById('video-controller-popup')) return;
 
-    // video의 부모를 relative로
-    const videoParent = video.parentElement;
-    videoParent.style.position = 'relative';
-
     const popup = document.createElement('div');
     popup.id = 'video-controller-popup';
 
     const inIframe = window.self !== window.top;
 
+    if (inIframe) {
+      // iframe 안이면 fixed 하단 중앙
+      popup.style.position = 'fixed';
+      popup.style.bottom = '20px'; // 필요하면 여백 조절
+      popup.style.left = '50%';
+      popup.style.transform = 'translateX(-50%)';
+      document.body.appendChild(popup);
+    } else {
+      // 메인 문서면 video 바로 위에 absolute + 영상 내부 하단 중앙
+      const wrapper = video.parentElement || video;
+      wrapper.style.position = 'relative';
 
-    // 무조건 영상 내 하단 중앙
-    popup.style.position = 'absolute';
-    popup.style.bottom = '0px';
-    popup.style.left = '50%';
-    popup.style.transform = 'translateX(-50%)';
+      popup.style.position = 'absolute';
+      popup.style.bottom = '0px';
+      popup.style.left = '50%';
+      popup.style.transform = 'translateX(-50%)';
+      wrapper.appendChild(popup);
+    }
 
     // 공통 스타일
-    popup.style.background = 'rgba(0,0,0,0)';  //팝업 배경색을 완전 투명
-    popup.style.color = '#fff';  //팝업 안에 있는 텍스트 색상(버튼 글자)을 흰색으로 설정
-    popup.style.padding = '2px';  //버튼과 팝업 외곽 사이에 2px 간격
-    popup.style.borderRadius = '2px';  //팝업 박스의 모서리를 약간 둥글게.
-    popup.style.zIndex = 9999;  //다른 모든 요소 위에 떠 있도록 z-index를 크게 설정
-    popup.style.display = 'flex';  //버튼들이 가로로 한 줄로 배열됨
-    popup.style.flexWrap = 'wrap';  //버튼이 한 줄에 다 안 들어가면 자동으로 다음 줄로 넘어감
-    popup.style.overflowX = 'auto';  //가로로 넘칠 경우 가로 스크롤 생김
-    popup.style.gap = '2px';  //버튼 간격을 2px
+    popup.style.background = 'rgba(0,0,0,0)';
+    popup.style.color = '#fff';
+    popup.style.padding = '2px';
+    popup.style.borderRadius = '2px';
+    popup.style.zIndex = 9999;
+    popup.style.display = 'flex';
+    popup.style.flexWrap = 'wrap';
+    popup.style.overflowX = 'auto';
+    popup.style.gap = '2px';
 
     popup.innerHTML = `
       <button id="speedSlow">0.25x</button>
@@ -67,13 +75,11 @@
       <button id="fullscreen">⛶</button>
     `;
 
-    videoParent.appendChild(popup);
-
-    // 버튼 기본 투명 & hover
+    // 버튼 스타일 및 hover 효과
     popup.querySelectorAll('button').forEach(btn => {
       btn.style.fontSize = '12px';
-      btn.style.padding = '2px 2px';
-      btn.style.opacity = '1';
+      btn.style.padding = '2px 4px';
+      btn.style.opacity = '1'; // 기본 투명
       btn.style.transition = 'opacity 0.3s ease';
     });
 
@@ -99,7 +105,7 @@
     video.addEventListener('play', () => playPauseBtn.textContent = 'STOP');
     video.addEventListener('pause', () => playPauseBtn.textContent = 'PLAY');
 
-    // 재생 속도 고정
+    // 배속 유지
     let currentIntervalId = null;
     function fixPlaybackRate(video, rate) {
       video.playbackRate = rate;
@@ -124,7 +130,7 @@
       currentIntervalId = fixPlaybackRate(video, 2.0);
     };
 
-    // 앞뒤 이동, PIP, 전체화면
+    // 이동, PIP, 전체화면
     popup.querySelector('#back10').onclick = () => { video.currentTime -= 10; };
     popup.querySelector('#back60').onclick = () => { video.currentTime -= 60; };
     popup.querySelector('#back300').onclick = () => { video.currentTime -= 300; };
