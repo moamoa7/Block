@@ -63,9 +63,9 @@
       btn.style.padding = '2px 4px';
       btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
-      btn.style.border = '1px solid #fff';  // 흰색 테두리
+      btn.style.border = '1px solid #111';  // 흰색 테두리
       btn.style.borderRadius = '3px';       // 약간 둥근 모서리 (옵션)
-      btn.style.backgroundColor = 'rgba(0,0,0,0.3)';  // 반투명 배경 (선택사항)
+      //btn.style.backgroundColor = 'rgba(0,0,0,0.3)';  // 반투명 배경 (선택사항)
     });
 
     popup.addEventListener('mouseenter', () => {
