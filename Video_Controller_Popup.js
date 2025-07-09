@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video Controller Popup with Multi-Video Selector (Fixed Bottom Center + Dynamic Video Support)
+// @name         Video Controller Popup with Multi-Video Selector (Fixed Bottom Center + Dynamic Video Support + Fade Opacity)
 // @namespace    Violentmonkey Scripts
-// @version      2.5
-// @description  여러 영상이 있을 때 팝업 내 영상 선택 + 앞뒤 이동 + 배속 + PIP + 동적 video 탐지 및 함수 후킹 포함 + select 박스 고정 너비
+// @version      2.6
+// @description  여러 영상이 있을 때 팝업 내 영상 선택 + 앞뒤 이동 + 배속 + PIP + 동적 video 탐지 및 함수 후킹 포함 + select 박스 고정 너비 + 투명도 fade
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -49,7 +49,7 @@
     popup.style.left = '50%';
     popup.style.transform = 'translateX(-50%)';
 
-    popup.style.background = 'rgba(0,0,0,0.0)';
+    popup.style.background = 'rgba(0,0,0,0.1)';  // 배경 살짝 흐리게
     popup.style.color = '#fff';
     popup.style.padding = '6px 10px';
     popup.style.borderRadius = '6px';
@@ -58,9 +58,12 @@
     popup.style.flexWrap = 'nowrap';
     popup.style.gap = '6px';
     popup.style.alignItems = 'center';
-    popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.0)';
+    popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
 
-    // ✅ 영상 선택 셀렉트 박스 (고정 너비 + ellipsis)
+    popup.style.opacity = '0.05';                // 기본 거의 투명
+    popup.style.transition = 'opacity 0.3s ease'; // 부드럽게 fade
+
+    // 영상 선택 셀렉트 박스
     const select = document.createElement('select');
     select.style.marginRight = '8px';
     select.style.fontSize = '16px';
@@ -68,8 +71,8 @@
     select.style.padding = '2px 6px';
     select.style.cursor = 'pointer';
 
-    select.style.width = '40px';           // ✅ 고정 너비
-    select.style.overflow = 'hidden';       // ✅ 넘침 처리
+    select.style.width = '40px';           // 고정 너비
+    select.style.overflow = 'hidden';      // 넘침 처리
     select.style.textOverflow = 'ellipsis';
     select.style.whiteSpace = 'nowrap';
 
@@ -82,7 +85,7 @@
       } else {
         option.textContent = label;
       }
-      option.title = label;  // ✅ 전체 경로 툴팁
+      option.title = label;  // 전체 경로 툴팁
       select.appendChild(option);
     });
 
@@ -102,11 +105,9 @@
       btn.textContent = text;
       btn.style.fontSize = '16px';
       btn.style.padding = '2px 6px';
-      btn.style.opacity = '1';
-      btn.style.transition = 'opacity 0.3s ease';
       btn.style.border = '1px solid #fff';
       btn.style.borderRadius = '4px';
-      btn.style.backgroundColor = 'rgba(0,0,0,0.5)';
+      btn.style.backgroundColor = 'rgba(0,0,0,0.1)'; // 버튼 배경도 살짝 흐리게
       btn.style.color = '#fff';
       btn.style.cursor = 'pointer';
       btn.style.userSelect = 'none';
@@ -114,31 +115,20 @@
       return btn;
     }
 
-    // ✅ 앞뒤 이동 시간 값 & ID 고침
+    // 컨트롤 버튼들
     const speedVerySlow = createButton('speedVerySlow', '0.25x', () => fixPlaybackRate(currentVideo, 0.25));
     const speedSlow = createButton('speedSlow', '0.50x', () => fixPlaybackRate(currentVideo, 0.50));
     const speedNormal = createButton('speedNormal', '1.00x', () => fixPlaybackRate(currentVideo, 1.0));
     const speedFast = createButton('speedFast', '2.00x', () => fixPlaybackRate(currentVideo, 2.0));
     const speedVeryFast = createButton('speedVeryFast', '4.00x', () => fixPlaybackRate(currentVideo, 4.0));
 
-    const back300 = createButton('back300', '《《5m', () => {
-      currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 300);
-    });
-    const back60 = createButton('back60', '《《1m', () => {
-      currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 60);
-    });
     const back15 = createButton('back15', '《《15s', () => {
       currentVideo.currentTime = Math.max(0, currentVideo.currentTime - 15);
     });
     const forward15 = createButton('forward15', '15s》》', () => {
       currentVideo.currentTime = Math.min(currentVideo.duration, currentVideo.currentTime + 15);
     });
-    const forward60 = createButton('forward60', '1m》》', () => {
-      currentVideo.currentTime = Math.min(currentVideo.duration, currentVideo.currentTime + 60);
-    });
-    const forward300 = createButton('forward300', '5m》》', () => {
-      currentVideo.currentTime = Math.min(currentVideo.duration, currentVideo.currentTime + 300);
-    });
+
     const pip = createButton('pip', '📺', async () => {
       try {
         if (document.pictureInPictureElement) {
@@ -151,15 +141,15 @@
       }
     });
 
+    // 원하는 버튼만 추가
     [speedVerySlow, speedNormal, speedVeryFast, pip, back15, forward15].forEach(btn => popup.appendChild(btn));
 
+    // 팝업에 hover 이벤트로 전체 fade 제어
     popup.addEventListener('mouseenter', () => {
-      popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '1');
-      select.style.opacity = '1';
+      popup.style.opacity = '1';
     });
     popup.addEventListener('mouseleave', () => {
-      popup.querySelectorAll('button').forEach(btn => btn.style.opacity = '0');
-      select.style.opacity = '0';
+      popup.style.opacity = '0.05';
     });
 
     document.body.appendChild(popup);
@@ -167,6 +157,7 @@
 
   createPopup();
 
+  // 새로 로드되면 갱신
   const mo = new MutationObserver(() => {
     const newVideos = findPlayableVideos();
     if (newVideos.length !== videos.length || !newVideos.every((v, i) => v === videos[i])) {
@@ -176,6 +167,7 @@
   });
   mo.observe(document.body, { childList: true, subtree: true });
 
+  // 함수 후킹 예시
   if (typeof window.comment_mp4_expand === 'function') {
     const originalCommentMp4Expand = window.comment_mp4_expand;
     window.comment_mp4_expand = function(...args) {
