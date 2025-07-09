@@ -55,21 +55,21 @@
 
     popup.style.background = 'rgba(0,0,0,0.6)';
     popup.style.color = '#fff';
-    popup.style.padding = '6px 10px';
-    popup.style.borderRadius = '6px';
+    popup.style.padding = '2px 2px';
+    popup.style.borderRadius = '2px';
     popup.style.zIndex = 999999;
     popup.style.display = 'flex';
     popup.style.flexWrap = 'nowrap';
     popup.style.gap = '6px';
     popup.style.alignItems = 'center';
-    popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.7)';
+    popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
 
     // 영상 선택 셀렉트 박스
     const select = document.createElement('select');
     select.style.marginRight = '8px';
     select.style.fontSize = '14px';
-    select.style.borderRadius = '4px';
-    select.style.padding = '2px 6px';
+    select.style.borderRadius = '2px';
+    select.style.padding = '2px 2px';
     select.style.cursor = 'pointer';
 
     videos.forEach((video, i) => {
@@ -96,11 +96,11 @@
       btn.id = id;
       btn.textContent = text;
       btn.style.fontSize = '14px';
-      btn.style.padding = '2px 4px';
+      btn.style.padding = '2px 2px';
       btn.style.opacity = '1';
       btn.style.transition = 'opacity 0.3s ease';
       btn.style.border = '1px solid #fff';
-      btn.style.borderRadius = '4px';
+      btn.style.borderRadius = '2px';
       btn.style.backgroundColor = 'rgba(0,0,0,0.5)';
       btn.style.color = '#fff';
       btn.style.cursor = 'pointer';
