@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video Controller Popup (Full Fix + Shadow DOM + TikTok + Flexible + Volume Select + Amplify + HLS Support)
 // @namespace     Violentmonkey Scripts
-// @version       4.00
+// @version       4.01 // Version update for this change
 // @description   여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix + Twitch + TikTok 대응 + 볼륨 SELECT + 증폭 + m3u8 (HLS.js) 지원 (Shadow DOM Deep)
 // @match         *://*/*
 // @grant         none
@@ -129,35 +129,47 @@
 
     // hls.js로 m3u8 세팅 함수
     async function setupHlsForVideo(video, src) {
-        if (!window.Hls) {
-            try {
-                await loadHlsScript();
-            } catch {
-                console.warn('Video Controller Popup: hls.js 로딩 실패, m3u8 재생 불가.');
+        if (!video || !src || !src.toLowerCase().endsWith('.m3u8')) {
+            return false; // Not an m3u8, or invalid input
+        }
+
+        if (canPlayM3u8Native()) {
+            console.debug('Video Controller Popup: Browser natively supports m3u8, no hls.js needed for:', src);
+            video.src = src;
+            return true;
+        }
+
+        try {
+            // Ensure Hls.js is loaded
+            await loadHlsScript();
+
+            if (video.hlsInstance) {
+                // Destroy existing hls instance if re-attaching
+                video.hlsInstance.destroy();
+                video.hlsInstance = null;
+            }
+
+            if (window.Hls && window.Hls.isSupported()) {
+                const hls = new window.Hls();
+                hls.loadSource(src);
+                hls.attachMedia(video);
+                video.hlsInstance = hls;
+                console.log('Video Controller Popup: hls.js attached to video:', src);
+                return true;
+            } else {
+                console.warn('Video Controller Popup: hls.js not supported by this browser or failed to initialize.');
                 return false;
             }
-        }
-        if (video.hlsInstance) {
-            // 기존 hls 인스턴스가 있으면 destroy
-            video.hlsInstance.destroy();
-            video.hlsInstance = null;
-        }
-        if (window.Hls.isSupported()) {
-            const hls = new window.Hls();
-            hls.loadSource(src);
-            hls.attachMedia(video);
-            video.hlsInstance = hls;
-            console.log('Video Controller Popup: hls.js attached to video:', src);
-            return true;
-        } else {
-            console.warn('Video Controller Popup: hls.js not supported by this browser.');
+        } catch (error) {
+            console.error('Video Controller Popup: Error setting up hls.js for video:', src, error);
             return false;
         }
     }
 
     // data-src 검사 및 m3u8 지원 자동 설정 포함 findPlayableVideos
-    function findPlayableVideos() {
+    async function findPlayableVideos() { // Make this function async
         const found = findAllVideosDeep();
+        const hlsSetupPromises = [];
 
         if (!isLazySrcBlockedSite) {
             found.forEach(v => {
@@ -176,8 +188,14 @@
 
                     if (isValidUrl) {
                         if (dataSrc.toLowerCase().endsWith('.m3u8')) {
-                            // m3u8는 바로 src에 넣지 않고 hls.js 처리 (비동기)
-                            setupHlsForVideo(v, dataSrc);
+                            // If m3u8, add to promises, but don't set src yet
+                            hlsSetupPromises.push(setupHlsForVideo(v, dataSrc).then(success => {
+                                if (!success) {
+                                    // If HLS setup failed, clear src to prevent default browser behavior on a bad m3u8
+                                    v.src = '';
+                                    v.removeAttribute('src');
+                                }
+                            }));
                         } else {
                             v.src = dataSrc;
                         }
@@ -188,17 +206,30 @@
             });
         }
 
-        // m3u8 네이티브 미지원 시 src가 m3u8인 비디오에 대해 hls.js 적용
+        // Apply hls.js for existing m3u8 src if native support is missing
         found.forEach(v => {
-            if (v.src && v.src.toLowerCase().endsWith('.m3u8')) {
-                if (!canPlayM3u8Native()) {
-                    setupHlsForVideo(v, v.src);
+            if (v.src && v.src.toLowerCase().endsWith('.m3u8') && !canPlayM3u8Native()) {
+                // If it's already an m3u8 and not natively supported, set up HLS.js
+                // Add to promises if not already being handled by data-src logic
+                if (!hlsSetupPromises.some(p => p._video === v)) { // Prevent double handling
+                     hlsSetupPromises.push(setupHlsForVideo(v, v.src).then(success => {
+                        if (!success) {
+                            v.src = '';
+                            v.removeAttribute('src');
+                        }
+                    }));
                 }
             }
         });
 
+        // Wait for all HLS setup promises to resolve
+        if (hlsSetupPromises.length > 0) {
+            await Promise.all(hlsSetupPromises.map(p => p.catch(e => console.error("Video Controller Popup: HLS setup promise failed:", e))));
+        }
+
         return found.filter(v => !v.classList.contains('hidden'));
     }
+
 
     function fixPlaybackRate(video, rate) {
         if (!video) return;
@@ -338,8 +369,8 @@
         }
     }
 
-    function createPopup() {
-        const latestVideos = findPlayableVideos();
+    async function createPopup() { // Make this async
+        const latestVideos = await findPlayableVideos(); // Await the result
         if (latestVideos.length === videos.length && latestVideos.every((v, i) => v === videos[i])) {
             return;
         }
@@ -532,13 +563,112 @@
         fixOverflow();
     }
 
-    // --- Mutation Observer for dynamic video addition ---
-    const observer = new MutationObserver(() => {
-        createPopup();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    // --- Debounce Utility ---
+    let debounceTimer;
+    function debounce(func, delay) {
+        return function() {
+            const context = this;
+            const args = arguments;
+            clearTimeout(debounceTimer);
+            // Ensure createPopup is awaited when debounced
+            Promise.resolve(func.apply(context, args));
+        };
+    }
 
-    // 초기 팝업 생성
-    createPopup();
+    const debouncedCreatePopup = debounce(createPopup, 100);
+
+    // --- Main Execution ---
+    function run() {
+        // Initial popup creation, awaited to ensure HLS is handled for initial videos
+        createPopup().then(() => {
+            const mo = new MutationObserver(() => {
+                debouncedCreatePopup();
+            });
+            mo.observe(document.body, { childList: true, subtree: true });
+
+            setInterval(() => {
+                debouncedCreatePopup();
+            }, 5000);
+
+            if (overflowFixTargets.length > 0) {
+                fixOverflow();
+                setInterval(fixOverflow, 1000);
+            }
+        });
+    }
+
+    run();
+
+    // --- User Configuration Access (개발자 도구 콘솔을 통해 접근) ---
+    window.vcp_config = {
+        getOverflowFixSites: () => {
+            console.log("Video Controller Popup: Current overflowFixSites configuration:", overflowFixTargets);
+            console.log("To add/modify, use vcp_config.setOverflowFixSites([...]).");
+            console.log("Example for Twitch (default):", JSON.stringify(defaultOverflowFixSites));
+            return overflowFixTargets;
+        },
+        setOverflowFixSites: (sites) => {
+            try {
+                if (!Array.isArray(sites) || !sites.every(item =>
+                    typeof item === 'object' && item !== null &&
+                    typeof item.domain === 'string' &&
+                    Array.isArray(item.selector) && item.selector.every(s => typeof s === 'string')
+                )) {
+                    console.error("Video Controller Popup: Invalid format for setOverflowFixSites. Expected an array of { domain: string, selector: string[] } objects.");
+                    return;
+                }
+                const sitesJson = JSON.stringify(sites);
+                localStorage.setItem('vcp_overflowFixSites', sitesJson);
+                console.log("Video Controller Popup: overflowFixSites updated. Please refresh the page to apply changes.");
+                console.log("New config:", sites);
+            } catch (e) {
+                console.error("Video Controller Popup: Failed to set overflowFixSites. Please check JSON format.", e);
+            }
+        },
+        resetOverflowFixSites: () => {
+            localStorage.removeItem('vcp_overflowFixSites');
+            console.log("Video Controller Popup: overflowFixSites reset to default. Please refresh the page.");
+        },
+        getLazySrcBlacklist: () => {
+            console.log("Video Controller Popup: Current lazySrcBlacklist:", lazySrcBlacklist);
+            console.log("This list is hardcoded for safety and cannot be changed via console.");
+            return lazySrcBlacklist;
+        },
+        getValidVideoExtensions: () => {
+            console.log("Video Controller Popup: Current VALID_VIDEO_EXTENSIONS:", VALID_VIDEO_EXTENSIONS);
+            console.log("This list is hardcoded for safety and cannot be changed via console.");
+            return VALID_VIDEO_EXTENSIONS;
+        },
+        getPlaybackRateForceSites: () => {
+            console.log("Video Controller Popup: Current forcePlaybackRateSites:", forcePlaybackRateSites);
+            console.log("This list is hardcoded for safety and cannot be changed via console.");
+            return forcePlaybackRateSites;
+        },
+        getIdleOpacity: () => {
+            console.log("Video Controller Popup: Current idleOpacity:", idleOpacity);
+            return idleOpacity;
+        },
+        setIdleOpacity: (opacity) => {
+            if (opacity === '0.025' || opacity === '1') {
+                localStorage.setItem('vcp_idleOpacity', opacity);
+                idleOpacity = opacity;
+                if (popupElement) {
+                    popupElement.style.opacity = idleOpacity;
+                    popupElement.querySelectorAll('button').forEach(btn => {
+                        btn.style.backgroundColor = opacity === '0.025' ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
+                    });
+                }
+                console.log("Video Controller Popup: idleOpacity updated to:", opacity);
+            } else {
+                console.warn("Video Controller Popup: Invalid opacity. Use '0.025' for transparent or '1' for opaque.");
+            }
+        },
+        getVersion: () => {
+             console.log("Video Controller Popup: Current version is 4.01");
+             return "4.01";
+        }
+    };
+
+    console.log("Video Controller Popup script loaded. Type `vcp_config` in console for configuration options.");
 
 })();
