@@ -112,10 +112,8 @@
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0,0,0,0.5);
-      //background: rgba(0,0,0,0.1); // 반투명
-      //background-color: transparent;
       color: #fff;
-      padding: 8px 12px;  // 위쪽과 아래쪽 여백 / 왼쪽과 오른쪽 여백
+      padding: 8px 12px;
       border-radius: 8px;
       z-index: 2147483647;
       pointer-events: auto;
@@ -137,7 +135,7 @@
       padding: 4px 8px;
       cursor: pointer;
       max-width: 150px;
-      background: #000; /* contrast solid color to avoid white-on-white */
+      background: #000;
       color: #fff;
       border: 1px solid rgba(255,255,255,0.5);
       text-overflow: ellipsis;
@@ -171,22 +169,33 @@
       btn.textContent = text;
       btn.style.cssText = `
         font-size: 16px;
-        font-weight: bold; /* ✅ 글자 진하게 */
-        text-shadow: 0 1px 3px rgba(0,0,0,0.5); /* ✅ 그림자 효과 */
+        font-weight: bold;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.5);
         padding: 4px 10px;
         border: 1px solid #fff;
         border-radius: 4px;
-        //background-color: rgba(255,255,255,0.1);
-        background-color: rgba(0,0,0,5);
+        background-color: rgba(0,0,0,0.5);
         color: #fff;
-        //color: #00ff00; //초록색
         cursor: pointer;
         user-select: none;
-        white-space: nowrap; /* ✅ 한 줄 유지 */
+        white-space: nowrap;
       `;
-      btn.addEventListener('mouseenter', () => btn.style.backgroundColor = 'rgba(125,125,125,125)');
-      btn.addEventListener('mouseleave', () => btn.style.backgroundColor = 'rgba(0,0,0,5)');
-      btn.addEventListener('click', onClick);
+
+      if (!isMobile) {
+        btn.addEventListener('mouseenter', () => btn.style.backgroundColor = 'rgba(125,125,125,0.5)');
+        btn.addEventListener('mouseleave', () => btn.style.backgroundColor = 'rgba(0,0,0,0.5)');
+      }
+
+      btn.addEventListener('click', () => {
+        onClick();
+        if (isMobile) {
+          btn.style.backgroundColor = 'rgba(125,125,125,0.5)';
+          setTimeout(() => {
+            btn.style.backgroundColor = 'rgba(0,0,0,0.5)';
+          }, 200);
+        }
+      });
+
       return btn;
     }
 
