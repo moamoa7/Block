@@ -494,7 +494,7 @@
             border-radius: 4px;
             padding: 4px 8px;
             cursor: pointer;
-            max-width: 100px; /* Adjusted from 150px to 100px */
+            max-width: 50px; /* Adjusted from 150px to 50px */
             background: rgba(0,0,0,0.5);
             color: #fff;
             border: 1px solid rgba(255,255,255,0.5);
