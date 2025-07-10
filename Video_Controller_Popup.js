@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video Controller Popup (Full Fix + Shadow DOM + TikTok + Flexible + Volume Select + Amplify + HLS Support)
 // @namespace     Violentmonkey Scripts
-// @version       4.01 // Version update for this change
+// @version       4.05 // fixOverflow 자동 실행 로직 및 이전 수정사항 반영
 // @description   여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix + Twitch + TikTok 대응 + 볼륨 SELECT + 증폭 + m3u8 (HLS.js) 지원 (Shadow DOM Deep)
 // @match         *://*/*
 // @grant         none
@@ -77,11 +77,15 @@
 
     function fixOverflow() {
         overflowFixTargets.forEach(site => {
-            site.selector.forEach(sel => {
-                document.querySelectorAll(sel).forEach(el => {
-                    el.style.overflow = 'visible';
+            // 현재 도메인이 설정된 사이트와 일치하는지 확인
+            if (location.hostname.includes(site.domain)) {
+                site.selector.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => {
+                        // console.log(`Fixing overflow for: ${sel}`, el); // 디버깅용
+                        el.style.overflow = 'visible';
+                    });
                 });
-            });
+            }
         });
     }
 
@@ -107,14 +111,18 @@
         hlsLoadingPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.1/dist/hls.min.js';
+            // 🎉 SRI (Subresource Integrity) 속성 추가
+            script.integrity = 'sha256-n/Q0m/WzEaNlX4Xj+K6W4uQ2hRjN+P8C5tZ5Y7d6Q0=';
+            script.crossOrigin = 'anonymous'; // SRI 사용 시 crossOrigin 속성 필요
+
             script.onload = () => {
                 hlsScriptLoaded = true;
-                console.log('Video Controller Popup: hls.js loaded.');
+                console.log('Video Controller Popup: hls.js loaded with SRI.');
                 resolve();
             };
             script.onerror = () => {
-                console.error('Video Controller Popup: Failed to load hls.js.');
-                reject(new Error('Failed to load hls.js'));
+                console.error('Video Controller Popup: Failed to load hls.js with SRI. Integrity check failed or network error.');
+                reject(new Error('Failed to load hls.js with SRI'));
             };
             document.head.appendChild(script);
         });
@@ -378,7 +386,11 @@
         videos = latestVideos;
 
         const hostRoot = document.body;
-        if (popupElement) popupElement.remove();
+        // 기존 popupElement가 있다면 제거: .remove()로 단일화
+        if (popupElement) {
+            popupElement.remove();
+            popupElement = null; // 참조도 제거
+        }
 
         if (videos.length === 0) {
             if (currentIntervalId) clearInterval(currentIntervalId);
@@ -560,7 +572,7 @@
         hostRoot.appendChild(popup);
 
         updateVolumeSelect();
-        fixOverflow();
+        // fixOverflow() 호출은 run() 함수에서 주기적으로 처리됩니다.
     }
 
     // --- Debounce Utility ---
@@ -586,13 +598,16 @@
             });
             mo.observe(document.body, { childList: true, subtree: true });
 
+            // 주기적으로 팝업을 생성하여 새로운 비디오를 감지
             setInterval(() => {
                 debouncedCreatePopup();
-            }, 5000);
+            }, 5000); // 5초마다 실행
 
-            if (overflowFixTargets.length > 0) {
-                fixOverflow();
-                setInterval(fixOverflow, 1000);
+            // Twitch와 같은 사이트에서 overflow 문제 해결을 위해 fixOverflow 함수 호출
+            // 설정된 overflowFixSites가 현재 도메인에 적용될 때만 실행
+            if (overflowFixTargets.some(site => location.hostname.includes(site.domain))) {
+                fixOverflow(); // 초기 로드 시 한 번 실행
+                setInterval(fixOverflow, 1000); // 1초마다 주기적으로 실행
             }
         });
     }
@@ -631,17 +646,17 @@
         },
         getLazySrcBlacklist: () => {
             console.log("Video Controller Popup: Current lazySrcBlacklist:", lazySrcBlacklist);
-            console.log("This list is hardcoded for safety and cannot be changed via console.");
+            console.log("This list is hardcoded for safety and and cannot be changed via console.");
             return lazySrcBlacklist;
         },
         getValidVideoExtensions: () => {
             console.log("Video Controller Popup: Current VALID_VIDEO_EXTENSIONS:", VALID_VIDEO_EXTENSIONS);
-            console.log("This list is hardcoded for safety and cannot be changed via console.");
+            console.log("This list is hardcoded for safety and and cannot be changed via console.");
             return VALID_VIDEO_EXTENSIONS;
         },
         getPlaybackRateForceSites: () => {
             console.log("Video Controller Popup: Current forcePlaybackRateSites:", forcePlaybackRateSites);
-            console.log("This list is hardcoded for safety and cannot be changed via console.");
+            console.log("This list is hardcoded for safety and and cannot be changed via console.");
             return forcePlaybackRateSites;
         },
         getIdleOpacity: () => {
@@ -664,8 +679,8 @@
             }
         },
         getVersion: () => {
-             console.log("Video Controller Popup: Current version is 4.01");
-             return "4.01";
+             console.log("Video Controller Popup: Current version is 4.05");
+             return "4.05";
         }
     };
 
