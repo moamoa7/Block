@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video Controller Popup (Full Fix + Shadow DOM + TikTok + Flexible + Volume Select + Amplify + HLS Support)
 // @namespace     Violentmonkey Scripts
-// @version       4.09.2 // AudioContext 메모리 관리 개선
+// @version       4.09.3 // Video select dropdown width adjusted
 // @description   여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix + Twitch + TikTok 대응 + 볼륨 SELECT + 증폭 + m3u8 (HLS.js) 지원 (Shadow DOM Deep)
 // @match         *://*/*
 // @grant         none
@@ -494,7 +494,7 @@
             border-radius: 4px;
             padding: 4px 8px;
             cursor: pointer;
-            max-width: 150px;
+            max-width: 100px; /* Adjusted from 150px to 100px */
             background: rgba(0,0,0,0.5);
             color: #fff;
             border: 1px solid rgba(255,255,255,0.5);
@@ -666,6 +666,6 @@
     };
 
     run();
-    console.log('Video Controller Popup v4.09.2 loaded. (AudioContext memory management improved, playback rate enforcement enhanced)');
+    console.log('Video Controller Popup v4.09.3 loaded. (Video select dropdown width adjusted)');
 
 })();
