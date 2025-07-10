@@ -434,7 +434,7 @@
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0,0,0,0.5);
-            color: #fff; /* 팝업 전체 텍스트 색상 흰색으로 설정 */
+            color: #fff !importable; /* 팝업 전체 텍스트 색상 흰색으로 설정 */
             padding: 8px 12px;
             border-radius: 8px;
             z-index: 2147483647;
@@ -462,7 +462,7 @@
             cursor: pointer;
             max-width: 150px;
             background: rgba(0,0,0,0.5);
-            color: #fff; /* SELECT 텍스트 색상 흰색으로 설정 */
+            color: #fff !importable; /* SELECT 텍스트 색상 흰색으로 설정 */
             border: 1px solid rgba(255,255,255,0.5);
             text-overflow: ellipsis;
             white-space: nowrap;
