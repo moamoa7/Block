@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video Controller Popup (Full Fix + Shadow DOM + TikTok + Flexible + Volume Select + Amplify + HLS Support)
 // @namespace     Violentmonkey Scripts
-// @version       4.05 // fixOverflow 자동 실행 로직 및 이전 수정사항 반영
+// @version       4.06 // 투명/반투명 옵션 제거 및 자동 전환 로직 추가
 // @description   여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix + Twitch + TikTok 대응 + 볼륨 SELECT + 증폭 + m3u8 (HLS.js) 지원 (Shadow DOM Deep)
 // @match         *://*/*
 // @grant         none
@@ -15,13 +15,19 @@
     let videos = [];
     let currentVideo = null;
     let popupElement = null;
+    let opacityTimer = null; // 투명도 자동 복귀 타이머
 
     // --- Environment Flags ---
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isNetflix = location.hostname.includes('netflix.com');
 
     // --- Configuration ---
-    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '1';
+    // 초기 팝업 투명도 설정 (0.025 = 투명, 1 = 불투명)
+    // 이제 localStorage에서 읽어오지 않고, 스크립트가 직접 관리
+    let currentOpacity = 0.025; // 초기값을 투명으로 설정
+    const OPAQUE_OPACITY = 1;
+    const TRANSPARENT_OPACITY = 0.025;
+    const OPACITY_RESET_DELAY = 3000; // 3초 (밀리초)
 
     const lazySrcBlacklist = [
         'missav.ws',
@@ -341,9 +347,8 @@
         { label: '40%', value: 0.4 }, { label: '50%', value: 0.5 }, { label: '60%', value: 0.6 },
         { label: '70%', value: 0.7 }, { label: '80%', value: 0.8 }, { label: '90%', value: 0.9 },
         { label: '100%', value: 1.0 },
-        { label: '150%', value: 1.5 }, { label: '300%', value: 3.0 }, { label: '500%', value: 5.0 },
-        { label: '투명', value: 'transparent' },
-        { label: '불투명', value: 'opaque' }
+        { label: '150%', value: 1.5 }, { label: '300%', value: 3.0 }, { label: '500%', value: 5.0 }
+        // '투명', '불투명' 옵션 제거됨
     ];
 
     function updateVolumeSelect() {
@@ -369,12 +374,28 @@
 
             volumeSelect.value = closest.value;
         }
+    }
 
-        if (idleOpacity === '0.025') {
-            volumeSelect.value = 'transparent';
-        } else if (idleOpacity === '1') {
-            volumeSelect.value = 'opaque';
+    // 팝업 투명도 제어 함수
+    function setPopupOpacity(opacityValue) {
+        if (popupElement) {
+            popupElement.style.opacity = opacityValue;
+            currentOpacity = opacityValue;
+            // 버튼 배경색도 투명도에 맞춰 조정 (선택 사항)
+            popupElement.querySelectorAll('button').forEach(btn => {
+                btn.style.backgroundColor = opacityValue === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
+            });
+            popupElement.querySelector('select').style.backgroundColor = opacityValue === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
         }
+    }
+
+    // 투명도 자동 복귀 타이머 설정/리셋
+    function resetOpacityTimer() {
+        clearTimeout(opacityTimer);
+        setPopupOpacity(OPAQUE_OPACITY); // 클릭 시 바로 반투명으로
+        opacityTimer = setTimeout(() => {
+            setPopupOpacity(TRANSPARENT_OPACITY); // 지정 시간 후 투명으로
+        }, OPACITY_RESET_DELAY);
     }
 
     async function createPopup() { // Make this async
@@ -426,9 +447,13 @@
             align-items: center;
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
             transition: opacity 0.3s ease;
-            opacity: ${idleOpacity};
+            opacity: ${currentOpacity}; // 초기 투명도 적용
         `;
         popupElement = popup;
+
+        // 팝업 클릭 시 투명도 타이머 리셋
+        popupElement.addEventListener('click', resetOpacityTimer);
+
 
         const select = document.createElement('select');
         select.style.cssText = `
@@ -438,12 +463,16 @@
             padding: 4px 8px;
             cursor: pointer;
             max-width: 150px;
-            background: #000;
+            background: rgba(0,0,0,0.5); // 초기 투명도에 맞게 배경색 조정
             color: #fff;
             border: 1px solid rgba(255,255,255,0.5);
             text-overflow: ellipsis;
             white-space: nowrap;
         `;
+        // 팝업이 투명상태로 시작하므로, select의 배경도 초기 투명도에 맞춰 조정
+        select.style.backgroundColor = currentOpacity === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
+
+
         videos.forEach((video, i) => {
             const option = document.createElement('option');
             option.value = i;
@@ -485,16 +514,22 @@
                 padding: 4px 10px;
                 border: 1px solid #fff;
                 border-radius: 4px;
-                background-color: rgba(0,0,0,0.5);
+                background-color: rgba(0,0,0,0.5); // 초기 투명도에 맞춰 배경색 조정
                 color: #fff;
                 cursor: pointer;
                 user-select: none;
                 white-space: nowrap;
             `;
+            // 팝업이 투명상태로 시작하므로, 버튼의 배경도 초기 투명도에 맞춰 조정
+            btn.style.backgroundColor = currentOpacity === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
+
+
             btn.addEventListener('mouseenter', () => { if (!isMobile) btn.style.backgroundColor = 'rgba(125,125,125,0.8)'; });
-            btn.addEventListener('mouseleave', () => { if (!isMobile) btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; });
+            btn.addEventListener('mouseleave', () => { if (!isMobile && currentOpacity === OPAQUE_OPACITY) btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; });
             btn.addEventListener('click', () => {
                 onClick();
+                // 클릭 시 타이머 리셋
+                resetOpacityTimer();
                 if (isMobile) {
                     btn.style.backgroundColor = 'rgba(125,125,125,0.8)';
                     setTimeout(() => { btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; }, 200);
@@ -527,12 +562,15 @@
             border-radius: 4px;
             padding: 4px 8px;
             cursor: pointer;
-            background: #000;
+            background: rgba(0,0,0,0.5); // 초기 투명도에 맞춰 배경색 조정
             color: #fff;
             border: 1px solid rgba(255,255,255,0.5);
             text-overflow: ellipsis;
             white-space: nowrap;
         `;
+        // 팝업이 투명상태로 시작하므로, volumeSelect의 배경도 초기 투명도에 맞춰 조정
+        volumeSelect.style.backgroundColor = currentOpacity === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
+
 
         volumeOptions.forEach(opt => {
             const option = document.createElement('option');
@@ -547,14 +585,6 @@
             if (val === 'muted') {
                 currentVideo.muted = true;
                 if (gainNode && connectedVideo === currentVideo) gainNode.gain.value = 0;
-            } else if (val === 'transparent') {
-                idleOpacity = '0.025';
-                localStorage.setItem('vcp_idleOpacity', idleOpacity);
-                popupElement.style.opacity = idleOpacity;
-            } else if (val === 'opaque') {
-                idleOpacity = '1';
-                localStorage.setItem('vcp_idleOpacity', idleOpacity);
-                popupElement.style.opacity = idleOpacity;
             } else {
                 currentVideo.muted = false;
                 if (val > 1) {
@@ -563,6 +593,8 @@
                     setAmplifiedVolume(currentVideo, Number(val));
                 }
             }
+            // 볼륨 조절 시에도 타이머 리셋
+            resetOpacityTimer();
         });
 
         popup.appendChild(volumeSelect);
@@ -572,7 +604,7 @@
         hostRoot.appendChild(popup);
 
         updateVolumeSelect();
-        // fixOverflow() 호출은 run() 함수에서 주기적으로 처리됩니다.
+        setPopupOpacity(currentOpacity); // 초기 투명도 적용
     }
 
     // --- Debounce Utility ---
@@ -609,6 +641,21 @@
                 fixOverflow(); // 초기 로드 시 한 번 실행
                 setInterval(fixOverflow, 1000); // 1초마다 주기적으로 실행
             }
+
+            // 문서 전체 클릭 이벤트 리스너 추가
+            document.body.addEventListener('click', (event) => {
+                // 팝업 요소 또는 그 자식 요소를 클릭한 경우가 아니면 타이머 리셋
+                if (popupElement && !popupElement.contains(event.target)) {
+                    resetOpacityTimer();
+                }
+            });
+
+            // 초기 로드 시 타이머 시작 (바로 투명으로 시작)
+            // 화면 로드 후 초기 타이머를 시작하여 투명 상태로 전환
+            setTimeout(() => {
+                setPopupOpacity(TRANSPARENT_OPACITY);
+            }, OPACITY_RESET_DELAY); // 팝업 생성 직후가 아닌, 설정된 딜레이 후 투명해지도록
+
         });
     }
 
@@ -659,28 +706,17 @@
             console.log("This list is hardcoded for safety and and cannot be changed via console.");
             return forcePlaybackRateSites;
         },
+        // 투명도 관련 설정은 이제 내부적으로 관리되므로 제거
         getIdleOpacity: () => {
-            console.log("Video Controller Popup: Current idleOpacity:", idleOpacity);
-            return idleOpacity;
+            console.log("Video Controller Popup: Idle opacity is now managed automatically. Current opacity:", currentOpacity);
+            return currentOpacity;
         },
-        setIdleOpacity: (opacity) => {
-            if (opacity === '0.025' || opacity === '1') {
-                localStorage.setItem('vcp_idleOpacity', opacity);
-                idleOpacity = opacity;
-                if (popupElement) {
-                    popupElement.style.opacity = idleOpacity;
-                    popupElement.querySelectorAll('button').forEach(btn => {
-                        btn.style.backgroundColor = opacity === '0.025' ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
-                    });
-                }
-                console.log("Video Controller Popup: idleOpacity updated to:", opacity);
-            } else {
-                console.warn("Video Controller Popup: Invalid opacity. Use '0.025' for transparent or '1' for opaque.");
-            }
+        setIdleOpacity: () => {
+            console.warn("Video Controller Popup: setIdleOpacity is deprecated. Opacity is now managed automatically based on user interaction.");
         },
         getVersion: () => {
-             console.log("Video Controller Popup: Current version is 4.05");
-             return "4.05";
+             console.log("Video Controller Popup: Current version is 4.06");
+             return "4.06";
         }
     };
 
