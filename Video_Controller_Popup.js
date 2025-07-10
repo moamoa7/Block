@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video Controller Popup (Full Fix + Shadow DOM + TikTok + Flexible + Volume Select + Amplify + HLS Support)
 // @namespace     Violentmonkey Scripts
-// @version       4.07 // 버튼 글자색 가독성 개선
+// @version       4.08 // 모바일 iframe 내 팝업 활성화 개선 (영상 이벤트 활용)
 // @description   여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix + Twitch + TikTok 대응 + 볼륨 SELECT + 증폭 + m3u8 (HLS.js) 지원 (Shadow DOM Deep)
 // @match         *://*/*
 // @grant         none
@@ -22,7 +22,6 @@
     const isNetflix = location.hostname.includes('netflix.com');
 
     // --- Configuration ---
-    // 초기 팝업 투명도 설정 (0.025 = 투명, 1 = 불투명)
     let currentOpacity = 0.025; // 초기값을 투명으로 설정
     const OPAQUE_OPACITY = 1;
     const TRANSPARENT_OPACITY = 0.025;
@@ -82,11 +81,9 @@
 
     function fixOverflow() {
         overflowFixTargets.forEach(site => {
-            // 현재 도메인이 설정된 사이트와 일치하는지 확인
             if (location.hostname.includes(site.domain)) {
                 site.selector.forEach(sel => {
                     document.querySelectorAll(sel).forEach(el => {
-                        // console.log(`Fixing overflow for: ${sel}`, el); // 디버깅용
                         el.style.overflow = 'visible';
                     });
                 });
@@ -105,7 +102,6 @@
         return found;
     }
 
-    // HLS.js 로드용 전역 변수
     let hlsScriptLoaded = false;
     let hlsLoadingPromise = null;
 
@@ -116,9 +112,8 @@
         hlsLoadingPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.1/dist/hls.min.js';
-            // 🎉 SRI (Subresource Integrity) 속성 추가
             script.integrity = 'sha256-n/Q0m/WzEaNlX4Xj+K6W4uQ2hRjN+P8C5tZ5Y7d6Q0=';
-            script.crossOrigin = 'anonymous'; // SRI 사용 시 crossOrigin 속성 필요
+            script.crossOrigin = 'anonymous';
 
             script.onload = () => {
                 hlsScriptLoaded = true;
@@ -134,16 +129,14 @@
         return hlsLoadingPromise;
     }
 
-    // m3u8 재생 지원 여부 확인 (브라우저 기본)
     function canPlayM3u8Native() {
         const v = document.createElement('video');
         return v.canPlayType('application/vnd.apple.mpegurl') !== '';
     }
 
-    // hls.js로 m3u8 세팅 함수
     async function setupHlsForVideo(video, src) {
         if (!video || !src || !src.toLowerCase().endsWith('.m3u8')) {
-            return false; // Not an m3u8, or invalid input
+            return false;
         }
 
         if (canPlayM3u8Native()) {
@@ -153,11 +146,9 @@
         }
 
         try {
-            // Ensure Hls.js is loaded
             await loadHlsScript();
 
             if (video.hlsInstance) {
-                // Destroy existing hls instance if re-attaching
                 video.hlsInstance.destroy();
                 video.hlsInstance = null;
             }
@@ -179,8 +170,7 @@
         }
     }
 
-    // data-src 검사 및 m3u8 지원 자동 설정 포함 findPlayableVideos
-    async function findPlayableVideos() { // Make this function async
+    async function findPlayableVideos() {
         const found = findAllVideosDeep();
         const hlsSetupPromises = [];
 
@@ -201,10 +191,8 @@
 
                     if (isValidUrl) {
                         if (dataSrc.toLowerCase().endsWith('.m3u8')) {
-                            // If m3u8, add to promises, but don't set src yet
                             hlsSetupPromises.push(setupHlsForVideo(v, dataSrc).then(success => {
                                 if (!success) {
-                                    // If HLS setup failed, clear src to prevent default browser behavior on a bad m3u8
                                     v.src = '';
                                     v.removeAttribute('src');
                                 }
@@ -219,12 +207,9 @@
             });
         }
 
-        // Apply hls.js for existing m3u8 src if native support is missing
         found.forEach(v => {
             if (v.src && v.src.toLowerCase().endsWith('.m3u8') && !canPlayM3u8Native()) {
-                // If it's already an m3u8 and not natively supported, set up HLS.js
-                // Add to promises if not already being handled by data-src logic
-                if (!hlsSetupPromises.some(p => p._video === v)) { // Prevent double handling
+                if (!hlsSetupPromises.some(p => p._video === v)) {
                      hlsSetupPromises.push(setupHlsForVideo(v, v.src).then(success => {
                         if (!success) {
                             v.src = '';
@@ -235,7 +220,6 @@
             }
         });
 
-        // Wait for all HLS setup promises to resolve
         if (hlsSetupPromises.length > 0) {
             await Promise.all(hlsSetupPromises.map(p => p.catch(e => console.error("Video Controller Popup: HLS setup promise failed:", e))));
         }
@@ -282,7 +266,6 @@
         }
     }
 
-    // --- Web Audio API 증폭 관련 변수 및 함수 ---
     let audioCtx = null;
     let gainNode = null;
     let sourceNode = null;
@@ -339,7 +322,6 @@
         }
     }
 
-    // --- UI Update & Creation ---
     const volumeOptions = [
         { label: 'Mute', value: 'muted' },
         { label: '10%', value: 0.1 }, { label: '20%', value: 0.2 }, { label: '30%', value: 0.3 },
@@ -374,12 +356,10 @@
         }
     }
 
-    // 팝업 투명도 제어 함수
     function setPopupOpacity(opacityValue) {
         if (popupElement) {
             popupElement.style.opacity = opacityValue;
             currentOpacity = opacityValue;
-            // 버튼 및 셀렉트 배경색도 투명도에 맞춰 조정
             const btnBg = opacityValue === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
             popupElement.querySelectorAll('button, select').forEach(el => {
                 el.style.backgroundColor = btnBg;
@@ -387,28 +367,48 @@
         }
     }
 
-    // 투명도 자동 복귀 타이머 설정/리셋
     function resetOpacityTimer() {
         clearTimeout(opacityTimer);
-        setPopupOpacity(OPAQUE_OPACITY); // 클릭 시 바로 반투명으로
+        setPopupOpacity(OPAQUE_OPACITY);
         opacityTimer = setTimeout(() => {
-            setPopupOpacity(TRANSPARENT_OPACITY); // 지정 시간 후 투명으로
+            setPopupOpacity(TRANSPARENT_OPACITY);
         }, OPACITY_RESET_DELAY);
     }
 
-    async function createPopup() { // Make this async
-        const latestVideos = await findPlayableVideos(); // Await the result
+    // 기존 비디오에 이벤트 리스너 제거
+    function removeVideoEventListeners(video) {
+        if (!video) return;
+        video.removeEventListener('play', resetOpacityTimer);
+        video.removeEventListener('pause', resetOpacityTimer);
+        video.removeEventListener('seeking', resetOpacityTimer);
+        video.removeEventListener('volumechange', updateVolumeSelect); // 볼륨 셀렉트 업데이트 이벤트는 유지
+    }
+
+    // 새로운 비디오에 이벤트 리스너 추가
+    function addVideoEventListeners(video) {
+        if (!video) return;
+        video.addEventListener('play', resetOpacityTimer);
+        video.addEventListener('pause', resetOpacityTimer);
+        video.addEventListener('seeking', resetOpacityTimer);
+        // 'volumechange'는 updateVolumeSelect에서 이미 처리되므로 중복 추가 방지
+    }
+
+    async function createPopup() {
+        const latestVideos = await findPlayableVideos();
+        // 비디오 목록에 변화가 없으면 팝업 재생성 불필요
         if (latestVideos.length === videos.length && latestVideos.every((v, i) => v === videos[i])) {
             return;
         }
 
+        // 기존 비디오들에 붙어있던 이벤트 리스너 제거 (새 비디오 목록 반영 전)
+        videos.forEach(removeVideoEventListeners);
+
         videos = latestVideos;
 
         const hostRoot = document.body;
-        // 기존 popupElement가 있다면 제거: .remove()로 단일화
         if (popupElement) {
             popupElement.remove();
-            popupElement = null; // 참조도 제거
+            popupElement = null;
         }
 
         if (videos.length === 0) {
@@ -434,7 +434,7 @@
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0,0,0,0.5);
-            color: #fff !importable; /* 팝업 전체 텍스트 색상 흰색으로 설정 */
+            color: #fff;
             padding: 8px 12px;
             border-radius: 8px;
             z-index: 2147483647;
@@ -445,11 +445,10 @@
             align-items: center;
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
             transition: opacity 0.3s ease;
-            opacity: ${currentOpacity}; // 초기 투명도 적용
+            opacity: ${currentOpacity};
         `;
         popupElement = popup;
 
-        // 팝업 클릭 시 투명도 타이머 리셋
         popupElement.addEventListener('click', resetOpacityTimer);
 
 
@@ -462,12 +461,11 @@
             cursor: pointer;
             max-width: 150px;
             background: rgba(0,0,0,0.5);
-            color: #fff !importable; /* SELECT 텍스트 색상 흰색으로 설정 */
+            color: #fff;
             border: 1px solid rgba(255,255,255,0.5);
             text-overflow: ellipsis;
             white-space: nowrap;
         `;
-        // 팝업이 투명상태로 시작하므로, select의 배경도 초기 투명도에 맞춰 조정
         select.style.backgroundColor = currentOpacity === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
 
 
@@ -495,9 +493,10 @@
             sourceNode = null;
             connectedVideo = null;
 
-            if (currentVideo) currentVideo.removeEventListener('volumechange', updateVolumeSelect);
+            if (currentVideo) removeVideoEventListeners(currentVideo); // 이전 비디오 이벤트 제거
             currentVideo = videos[select.value];
-            if (currentVideo) currentVideo.addEventListener('volumechange', updateVolumeSelect);
+            if (currentVideo) addVideoEventListeners(currentVideo); // 새 비디오 이벤트 추가
+            currentVideo.addEventListener('volumechange', updateVolumeSelect); // 볼륨 셀렉트 업데이트는 항상
             updateVolumeSelect();
         };
         popup.appendChild(select);
@@ -513,12 +512,11 @@
                 border: 1px solid #fff;
                 border-radius: 4px;
                 background-color: rgba(0,0,0,0.5);
-                color: #fff; /* 버튼 텍스트 색상 흰색으로 설정 */
+                color: #fff;
                 cursor: pointer;
                 user-select: none;
                 white-space: nowrap;
             `;
-            // 팝업이 투명상태로 시작하므로, 버튼의 배경도 초기 투명도에 맞춰 조정
             btn.style.backgroundColor = currentOpacity === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
 
 
@@ -526,7 +524,6 @@
             btn.addEventListener('mouseleave', () => { if (!isMobile && currentOpacity === OPAQUE_OPACITY) btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; });
             btn.addEventListener('click', () => {
                 onClick();
-                // 클릭 시 타이머 리셋
                 resetOpacityTimer();
                 if (isMobile) {
                     btn.style.backgroundColor = 'rgba(125,125,125,0.8)';
@@ -561,12 +558,11 @@
             padding: 4px 8px;
             cursor: pointer;
             background: rgba(0,0,0,0.5);
-            color: #fff; /* SELECT 텍스트 색상 흰색으로 설정 */
+            color: #fff;
             border: 1px solid rgba(255,255,255,0.5);
             text-overflow: ellipsis;
             white-space: nowrap;
         `;
-        // 팝업이 투명상태로 시작하므로, volumeSelect의 배경도 초기 투명도에 맞춰 조정
         volumeSelect.style.backgroundColor = currentOpacity === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
 
 
@@ -591,75 +587,67 @@
                     setAmplifiedVolume(currentVideo, Number(val));
                 }
             }
-            // 볼륨 조절 시에도 타이머 리셋
             resetOpacityTimer();
         });
 
         popup.appendChild(volumeSelect);
 
-        currentVideo.addEventListener('volumechange', updateVolumeSelect);
+        // 새로운 currentVideo에 이벤트 리스너 추가
+        if (currentVideo) {
+            addVideoEventListeners(currentVideo);
+            currentVideo.addEventListener('volumechange', updateVolumeSelect);
+        }
 
         hostRoot.appendChild(popup);
 
         updateVolumeSelect();
-        setPopupOpacity(currentOpacity); // 초기 투명도 적용
+        setPopupOpacity(currentOpacity);
     }
 
-    // --- Debounce Utility ---
     let debounceTimer;
     function debounce(func, delay) {
         return function() {
             const context = this;
             const args = arguments;
             clearTimeout(debounceTimer);
-            // Ensure createPopup is awaited when debounced
             Promise.resolve(func.apply(context, args));
         };
     }
 
     const debouncedCreatePopup = debounce(createPopup, 100);
 
-    // --- Main Execution ---
     function run() {
-        // Initial popup creation, awaited to ensure HLS is handled for initial videos
         createPopup().then(() => {
             const mo = new MutationObserver(() => {
                 debouncedCreatePopup();
             });
             mo.observe(document.body, { childList: true, subtree: true });
 
-            // 주기적으로 팝업을 생성하여 새로운 비디오를 감지
             setInterval(() => {
                 debouncedCreatePopup();
-            }, 5000); // 5초마다 실행
+            }, 5000);
 
-            // Twitch와 같은 사이트에서 overflow 문제 해결을 위해 fixOverflow 함수 호출
-            // 설정된 overflowFixSites가 현재 도메인에 적용될 때만 실행
             if (overflowFixTargets.some(site => location.hostname.includes(site.domain))) {
-                fixOverflow(); // 초기 로드 시 한 번 실행
-                setInterval(fixOverflow, 1000); // 1초마다 주기적으로 실행
+                fixOverflow();
+                setInterval(fixOverflow, 1000);
             }
 
-            // 문서 전체 클릭 이벤트 리스너 추가
+            // 문서 전체 클릭 이벤트 리스너 유지 (iframe 밖 영역 클릭 감지용)
             document.body.addEventListener('click', (event) => {
-                // 팝업 요소 또는 그 자식 요소를 클릭한 경우가 아니면 타이머 리셋
                 if (popupElement && !popupElement.contains(event.target)) {
                     resetOpacityTimer();
                 }
             });
 
-            // 초기 로드 시 타이머 시작 (바로 투명으로 시작)
-            // 화면 로드 후 초기 타이머를 시작하여 투명 상태로 전환
+            // 초기 로드 시 투명 상태로 시작
             setTimeout(() => {
                 setPopupOpacity(TRANSPARENT_OPACITY);
-            }, OPACITY_RESET_DELAY); // 팝업 생성 직후가 아닌, 설정된 딜레이 후 투명해지도록
-
+            }, OPACITY_RESET_DELAY);
         });
     }
 
     run();
 
-    // --- User Configuration Access (개발자 도구 콘솔을 통해 접근) ---
     window.vcp_config = {
         getOverflowFixSites: () => {
             console.log("Video Controller Popup: Current overflowFixSites configuration:", overflowFixTargets);
@@ -704,7 +692,6 @@
             console.log("This list is hardcoded for safety and and cannot be changed via console.");
             return forcePlaybackRateSites;
         },
-        // 투명도 관련 설정은 이제 내부적으로 관리되므로 제거
         getIdleOpacity: () => {
             console.log("Video Controller Popup: Idle opacity is now managed automatically. Current opacity:", currentOpacity);
             return currentOpacity;
@@ -713,8 +700,8 @@
             console.warn("Video Controller Popup: setIdleOpacity is deprecated. Opacity is now managed automatically based on user interaction.");
         },
         getVersion: () => {
-             console.log("Video Controller Popup: Current version is 4.07");
-             return "4.07";
+             console.log("Video Controller Popup: Current version is 4.08");
+             return "4.08";
         }
     };
 
