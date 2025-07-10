@@ -332,14 +332,14 @@
       } else if (value === 'transparent' || value === 'opaque') {
         // 투명 / 불투명 처리
         const isTransparent = value === 'transparent';
-        idleOpacity = isTransparent ? '0.3' : '1'; // idleOpacity 변경
+        idleOpacity = isTransparent ? '0.1' : '1'; // idleOpacity 변경
         if (popupElement) {
           popupElement.style.opacity = idleOpacity; // 팝업 전체 opacity 적용
           const buttons = popupElement.querySelectorAll('button');
           buttons.forEach(btn => {
             btn.style.backgroundColor = isTransparent
               ? 'rgba(0,0,0,0.1)'
-              : 'rgba(0,0,0,0.1)';
+              : 'rgba(0,0,0,0.5)';
           });
         }
       } else {
