@@ -16,7 +16,7 @@
   let popupElement = null;
 
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const idleOpacity = isMobile ? '1' : '0.025';
+  let idleOpacity = isMobile ? '1' : '1';
   const isNetflix = location.hostname.includes('netflix.com');
 
   // Lazy-src 예외 사이트
@@ -293,7 +293,9 @@
       { label: '200%', value: 2.0 },
       { label: '300%', value: 3.0 },
       { label: '400%', value: 4.0 },
-      { label: '500%', value: 5.0 }
+      { label: '500%', value: 5.0 },
+      { label: '투명', value: 'transparent' },
+      { label: '불투명', value: 'opaque' }
     ];
     volumeOptions.forEach(opt => {
       const option = document.createElement('option');
@@ -314,6 +316,7 @@
 
         const closest = volumeOptions.reduce((prev, curr) => {
           if (curr.value === 'muted') return prev;
+          if (curr.value === 'transparent' || curr.value === 'opaque') return prev;
           return Math.abs(curr.value - volValue) < Math.abs(prev.value - volValue) ? curr : prev;
         });
         volumeSelect.value = closest.value;
@@ -326,6 +329,19 @@
       if (value === 'muted') {
         currentVideo.muted = true;
         if (gainNode && connectedVideo === currentVideo) gainNode.gain.value = 0;
+      } else if (value === 'transparent' || value === 'opaque') {
+        // 투명 / 불투명 처리
+        const isTransparent = value === 'transparent';
+        idleOpacity = isTransparent ? '0.3' : '1'; // idleOpacity 변경
+        if (popupElement) {
+          popupElement.style.opacity = idleOpacity; // 팝업 전체 opacity 적용
+          const buttons = popupElement.querySelectorAll('button');
+          buttons.forEach(btn => {
+            btn.style.backgroundColor = isTransparent
+              ? 'rgba(0,0,0,0.1)'
+              : 'rgba(0,0,0,0.5)';
+          });
+        }
       } else {
         currentVideo.muted = false;
         const vol = parseFloat(value);
