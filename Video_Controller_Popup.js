@@ -559,7 +559,7 @@
             return btn;
         };
 
-        popup.appendChild(createButton('speed-0.25x', '0.25x', () => fixPlaybackRate(currentVideo, 0.25)));
+        popup.appendChild(createButton('speed-0.2x', '0.2x', () => fixPlaybackRate(currentVideo, 0.2)));
         popup.appendChild(createButton('speed-1.0x', '1.0x', () => fixPlaybackRate(currentVideo, 1)));
         popup.appendChild(createButton('speed-4.0x', '4.0x', () => fixPlaybackRate(currentVideo, 4)));
         popup.appendChild(createButton('rewind-5s', '⏪ 5초', () => seekVideo(-5)));
