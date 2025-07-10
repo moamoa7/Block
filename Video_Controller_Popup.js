@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video Controller Popup (Full Fix + Shadow DOM + TikTok + Flexible + Volume Select + Amplify + HLS Support)
 // @namespace     Violentmonkey Scripts
-// @version       4.08 // 모바일 iframe 내 팝업 활성화 개선 (영상 이벤트 활용)
+// @version       4.09.2 // AudioContext 메모리 관리 개선
 // @description   여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix + Twitch + TikTok 대응 + 볼륨 SELECT + 증폭 + m3u8 (HLS.js) 지원 (Shadow DOM Deep)
 // @match         *://*/*
 // @grant         none
@@ -10,76 +10,63 @@
 (function() {
     'use strict';
 
-    // --- Core Variables ---
-    let currentIntervalId = null;
+    /*** --- [ 1. Core Variables & Config ] --- ***/
+    let currentIntervalId = null; // Still keep for potential cleanup, but less critical for rate forcing
+    let currentPlaybackRateRAFId = null; // For requestAnimationFrame
+    let currentPlaybackRateObserver = null; // For MutationObserver on playbackRate
     let videos = [];
     let currentVideo = null;
     let popupElement = null;
-    let opacityTimer = null; // 투명도 자동 복귀 타이머
+    let opacityTimer = null;
+    let desiredPlaybackRate = 1.0; // Store the desired rate
 
-    // --- Environment Flags ---
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isNetflix = location.hostname.includes('netflix.com');
 
-    // --- Configuration ---
-    let currentOpacity = 0.025; // 초기값을 투명으로 설정
     const OPAQUE_OPACITY = 1;
     const TRANSPARENT_OPACITY = 0.025;
-    const OPACITY_RESET_DELAY = 3000; // 3초 (밀리초)
+    const OPACITY_RESET_DELAY = 3000;
 
-    const lazySrcBlacklist = [
-        'missav.ws',
-        'missav.live',
-        'example.net'
-    ];
+    const lazySrcBlacklist = ['missav.ws', 'missav.live', 'example.net'];
     const isLazySrcBlockedSite = lazySrcBlacklist.some(site => location.hostname.includes(site));
-
     const VALID_VIDEO_EXTENSIONS = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.m3u8'];
 
+    // forcePlaybackRateSites are now primarily for `MutationObserver` or `requestAnimationFrame` checks
+    // The `interval` property might still be useful for other potential periodic checks if needed,
+    // but the core rate enforcement shifts to MO/RAF.
     const forcePlaybackRateSites = [
         { domain: 'twitch.tv', interval: 50 },
         { domain: 'tiktok.com', interval: 20 }
     ];
-    let forceInterval = 200;
+    let forceInterval = 200; // Default, will be overridden if on a specific site
     forcePlaybackRateSites.forEach(site => {
         if (location.hostname.includes(site.domain)) {
-            forceInterval = site.interval;
+            forceInterval = site.interval; // Still used as a general "how often to check"
         }
     });
 
-    let customOverflowFixSites = [];
     const defaultOverflowFixSites = [
         { domain: 'twitch.tv', selector: [
             'div.video-player__container',
             'div.video-player-theatre-mode__player',
             'div.player-theatre-mode'
-        ]},
+        ]}
     ];
 
+    let customOverflowFixSites = [];
     try {
         const storedSites = localStorage.getItem('vcp_overflowFixSites');
         if (storedSites) {
-            const parsedSites = JSON.parse(storedSites);
-            if (Array.isArray(parsedSites) && parsedSites.every(item =>
-                typeof item === 'object' && item !== null &&
-                typeof item.domain === 'string' &&
-                Array.isArray(item.selector) && item.selector.every(s => typeof s === 'string')
-            )) {
-                customOverflowFixSites = parsedSites;
-                console.log('Video Controller Popup: Loaded custom overflowFixSites from localStorage.');
-            } else {
-                console.warn('Video Controller Popup: Invalid vcp_overflowFixSites data in localStorage. Using default.');
-            }
+            const parsed = JSON.parse(storedSites);
+            if (Array.isArray(parsed)) customOverflowFixSites = parsed;
         }
-    } catch (e) {
-        console.warn('Video Controller Popup: Error parsing vcp_overflowFixSites from localStorage. Using default.', e);
-    }
+    } catch { customOverflowFixSites = []; }
 
     const overflowFixTargets = customOverflowFixSites.length > 0 ? customOverflowFixSites : defaultOverflowFixSites;
 
-    // --- Utility Functions ---
+    /*** --- [ 2. Utility Functions ] --- ***/
 
-    function fixOverflow() {
+    const fixOverflow = () => {
         overflowFixTargets.forEach(site => {
             if (location.hostname.includes(site.domain)) {
                 site.selector.forEach(sel => {
@@ -89,157 +76,165 @@
                 });
             }
         });
-    }
+    };
 
-    function findAllVideosDeep(root = document) {
-        const found = [];
+    const findAllVideosDeep = (root = document) => {
+        let found = [];
         root.querySelectorAll('video').forEach(v => found.push(v));
         root.querySelectorAll('*').forEach(el => {
             if (el.shadowRoot) {
-                found.push(...findAllVideosDeep(el.shadowRoot));
+                found = found.concat(findAllVideosDeep(el.shadowRoot));
             }
         });
         return found;
+    };
+
+    let debounceTimer;
+    function debounce(func, delay) {
+        return function() {
+            const context = this;
+            const args = arguments;
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                func.apply(context, args);
+            }, delay);
+        };
     }
+    const debouncedCreatePopup = debounce(async () => { await createPopup(); }, 100);
 
+
+    /*** --- [ 3. HLS (m3u8) Support ] --- ***/
     let hlsScriptLoaded = false;
-    let hlsLoadingPromise = null;
+    let hlsScriptLoadAttempted = false; // Add a flag to track if load has been attempted
 
-    function loadHlsScript() {
+    const loadHlsScript = () => {
         if (hlsScriptLoaded) return Promise.resolve();
-        if (hlsLoadingPromise) return hlsLoadingPromise;
-
-        hlsLoadingPromise = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.1/dist/hls.min.js';
-            script.integrity = 'sha256-n/Q0m/WzEaNlX4Xj+K6W4uQ2hRjN+P8C5tZ5Y7d6Q0=';
-            script.crossOrigin = 'anonymous';
-
-            script.onload = () => {
-                hlsScriptLoaded = true;
-                console.log('Video Controller Popup: hls.js loaded with SRI.');
-                resolve();
-            };
-            script.onerror = () => {
+        if (hlsScriptLoadAttempted) {
+             // If load was attempted and failed, reject immediately.
+            return Promise.reject(new Error('hls.js load previously failed.'));
+        }
+        hlsScriptLoadAttempted = true; // Mark as attempted
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.1/dist/hls.min.js';
+            s.integrity = 'sha256-n/Q0m/WzEaNlX4Xj+K6W4uQ2hRjN+P8C5tZ5Y7d6Q0='; // SRI 추가
+            s.crossOrigin = 'anonymous'; // SRI를 위해 필요
+            s.onload = () => { hlsScriptLoaded = true; resolve(); };
+            s.onerror = () => { // HLS 로드 실패 시 에러 처리 강화
                 console.error('Video Controller Popup: Failed to load hls.js with SRI. Integrity check failed or network error.');
+                // Display a user-friendly alert or notification
+                alert('Video Controller Popup: Failed to load HLS.js. M3U8 videos might not play correctly.');
                 reject(new Error('Failed to load hls.js with SRI'));
             };
-            document.head.appendChild(script);
+            document.head.appendChild(s);
         });
-        return hlsLoadingPromise;
-    }
+    };
 
-    function canPlayM3u8Native() {
+    const canPlayM3u8Native = () => {
         const v = document.createElement('video');
-        return v.canPlayType('application/vnd.apple.mpegurl') !== '';
-    }
+        return !!v.canPlayType('application/vnd.apple.mpegurl');
+    };
 
-    async function setupHlsForVideo(video, src) {
-        if (!video || !src || !src.toLowerCase().endsWith('.m3u8')) {
-            return false;
-        }
-
+    const setupHlsForVideo = async (video, src) => {
         if (canPlayM3u8Native()) {
-            console.debug('Video Controller Popup: Browser natively supports m3u8, no hls.js needed for:', src);
             video.src = src;
-            return true;
+            return;
         }
-
         try {
             await loadHlsScript();
-
-            if (video.hlsInstance) {
+            if (video.hlsInstance) { // 기존 인스턴스 정리
                 video.hlsInstance.destroy();
                 video.hlsInstance = null;
             }
-
             if (window.Hls && window.Hls.isSupported()) {
-                const hls = new window.Hls();
+                const hls = new Hls();
                 hls.loadSource(src);
                 hls.attachMedia(video);
                 video.hlsInstance = hls;
-                console.log('Video Controller Popup: hls.js attached to video:', src);
-                return true;
             } else {
-                console.warn('Video Controller Popup: hls.js not supported by this browser or failed to initialize.');
-                return false;
+                console.warn('Video Controller Popup: HLS.js not supported by this browser or failed to initialize.');
+                video.src = ''; // HLS 지원 없으면 src 초기화
+                video.removeAttribute('src');
+                // Inform the user about the HLS limitation
+                // You could add a small temporary message near the video or within the popup
             }
         } catch (error) {
             console.error('Video Controller Popup: Error setting up hls.js for video:', src, error);
-            return false;
+            video.src = ''; // 에러 발생 시 src 초기화
+            video.removeAttribute('src');
+            // Inform the user about the HLS setup failure
+            // Consider displaying a more prominent message if multiple HLS videos fail
         }
-    }
+    };
 
-    async function findPlayableVideos() {
+    /*** --- [ 4. Video Finding & Lazy Src ] --- ***/
+    const findPlayableVideos = async () => {
         const found = findAllVideosDeep();
-        const hlsSetupPromises = [];
-
+        const hlsPromises = [];
         if (!isLazySrcBlockedSite) {
             found.forEach(v => {
-                if (!v.src && v.dataset && v.dataset.src) {
+                if (!v.src && v.dataset?.src) {
                     const dataSrc = v.dataset.src;
-                    let isValidUrl = false;
-                    try {
-                        const url = new URL(dataSrc, window.location.href);
-                        if (['http:', 'https:'].includes(url.protocol) &&
-                            VALID_VIDEO_EXTENSIONS.some(ext => url.pathname.toLowerCase().endsWith(ext))) {
-                            isValidUrl = true;
-                        }
-                    } catch (e) {
-                        console.debug(`Video Controller Popup: Invalid data-src URL format or protocol: ${dataSrc}`);
-                    }
-
-                    if (isValidUrl) {
-                        if (dataSrc.toLowerCase().endsWith('.m3u8')) {
-                            hlsSetupPromises.push(setupHlsForVideo(v, dataSrc).then(success => {
-                                if (!success) {
-                                    v.src = '';
-                                    v.removeAttribute('src');
-                                }
-                            }));
+                    const isValid = VALID_VIDEO_EXTENSIONS.some(ext => dataSrc.endsWith(ext));
+                    if (isValid) {
+                        if (dataSrc.endsWith('.m3u8')) {
+                            hlsPromises.push(setupHlsForVideo(v, dataSrc));
                         } else {
                             v.src = dataSrc;
                         }
-                    } else {
-                        console.debug(`Video Controller Popup: Skipping data-src for video (not valid video URL): ${dataSrc}`);
                     }
                 }
             });
         }
+        await Promise.allSettled(hlsPromises);
+        return found.filter(v => v.currentSrc || v.hlsInstance);
+    };
 
-        found.forEach(v => {
-            if (v.src && v.src.toLowerCase().endsWith('.m3u8') && !canPlayM3u8Native()) {
-                if (!hlsSetupPromises.some(p => p._video === v)) {
-                     hlsSetupPromises.push(setupHlsForVideo(v, v.src).then(success => {
-                        if (!success) {
-                            v.src = '';
-                            v.removeAttribute('src');
+    /*** --- [ 5. Core Control Functions ] --- ***/
+    const enforcePlaybackRate = () => {
+        if (currentVideo && currentVideo.playbackRate !== desiredPlaybackRate) {
+            currentVideo.playbackRate = desiredPlaybackRate;
+        }
+        currentPlaybackRateRAFId = requestAnimationFrame(enforcePlaybackRate);
+    };
+
+    const fixPlaybackRate = (video, rate) => {
+        if (!video) return;
+
+        // Clear existing enforcement mechanisms
+        if (currentPlaybackRateRAFId) {
+            cancelAnimationFrame(currentPlaybackRateRAFId);
+            currentPlaybackRateRAFId = null;
+        }
+        if (currentPlaybackRateObserver) {
+            currentPlaybackRateObserver.disconnect();
+            currentPlaybackRateObserver = null;
+        }
+        clearInterval(currentIntervalId); // Clear old setInterval if any
+        currentIntervalId = null;
+
+        desiredPlaybackRate = rate;
+        video.playbackRate = desiredPlaybackRate;
+
+        // Use MutationObserver for sites that aggressively reset playbackRate
+        if (forcePlaybackRateSites.some(site => location.hostname.includes(site.domain))) {
+            currentPlaybackRateObserver = new MutationObserver(mutations => {
+                mutations.forEach(mutation => {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'playbackRate') {
+                        if (video.playbackRate !== desiredPlaybackRate) {
+                            video.playbackRate = desiredPlaybackRate;
                         }
-                    }));
-                }
-            }
-        });
-
-        if (hlsSetupPromises.length > 0) {
-            await Promise.all(hlsSetupPromises.map(p => p.catch(e => console.error("Video Controller Popup: HLS setup promise failed:", e))));
+                    }
+                });
+            });
+            currentPlaybackRateObserver.observe(video, { attributes: true, attributeFilter: ['playbackRate'] });
         }
 
-        return found.filter(v => !v.classList.contains('hidden'));
-    }
+        // Fallback or additional enforcement with requestAnimationFrame
+        currentPlaybackRateRAFId = requestAnimationFrame(enforcePlaybackRate);
+    };
 
-
-    function fixPlaybackRate(video, rate) {
-        if (!video) return;
-        video.playbackRate = rate;
-        if (currentIntervalId) clearInterval(currentIntervalId);
-        currentIntervalId = setInterval(() => {
-            if (video.playbackRate !== rate) {
-                video.playbackRate = rate;
-            }
-        }, forceInterval);
-    }
-
-    function seekVideo(seconds) {
+    const seekVideo = sec => {
         if (isNetflix) {
             try {
                 const player = netflix.appContext.state.playerApp.getAPI().videoPlayer;
@@ -253,36 +248,48 @@
                     console.warn('Video Controller Popup: Netflix video player session not found for ID:', sessionId);
                     return;
                 }
-                const newTime = playerSession.getCurrentTime() + seconds * 1000;
+                const newTime = playerSession.getCurrentTime() + sec * 1000;
                 playerSession.seek(newTime);
             } catch (e) {
                 console.warn('Video Controller Popup: Netflix seek error (Player API might have changed):', e);
             }
         } else if (currentVideo) {
-            currentVideo.currentTime = Math.min(
-                currentVideo.duration,
-                Math.max(0, currentVideo.currentTime + seconds)
-            );
+            currentVideo.currentTime = Math.max(0, Math.min(currentVideo.duration, currentVideo.currentTime + sec));
         }
-    }
+    };
 
+    /*** --- [ 6. Volume & Amplify ] --- ***/
     let audioCtx = null;
     let gainNode = null;
     let sourceNode = null;
     let connectedVideo = null;
 
-    function setupAudioContext(video) {
+    const setupAudioContext = video => {
         try {
+            // 기존 AudioContext가 있다면 연결 해제 및 닫기
             if (audioCtx && audioCtx.state !== 'closed') {
-                try { audioCtx.close(); } catch (e) { console.warn("Video Controller Popup: Error closing old AudioContext:", e); }
+                if (sourceNode) {
+                    sourceNode.disconnect();
+                    sourceNode = null;
+                }
+                if (gainNode) {
+                    gainNode.disconnect();
+                    gainNode = null;
+                }
+                try {
+                    audioCtx.close();
+                } catch (e) {
+                    console.warn("Video Controller Popup: Error closing old AudioContext:", e);
+                }
             }
+            // 변수 초기화
             audioCtx = null;
             gainNode = null;
             sourceNode = null;
             connectedVideo = null;
 
+            // 새로운 AudioContext 생성
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
             sourceNode = audioCtx.createMediaElementSource(video);
             gainNode = audioCtx.createGain();
             sourceNode.connect(gainNode);
@@ -297,16 +304,14 @@
             connectedVideo = null;
             return false;
         }
-    }
+    };
 
-    function setAmplifiedVolume(video, vol) {
+    const setAmplifiedVolume = (video, vol) => {
         if (!video) return;
 
         if (vol <= 1) {
-            if (gainNode && connectedVideo === video) {
-                gainNode.gain.value = 1;
-            }
             video.volume = vol;
+            if (gainNode && connectedVideo === video) gainNode.gain.value = 1;
         } else {
             if (!audioCtx || connectedVideo !== video) {
                 if (!setupAudioContext(video)) {
@@ -320,7 +325,7 @@
                 gainNode.gain.value = vol;
             }
         }
-    }
+    };
 
     const volumeOptions = [
         { label: 'Mute', value: 'muted' },
@@ -331,8 +336,8 @@
         { label: '150%', value: 1.5 }, { label: '300%', value: 3.0 }, { label: '500%', value: 5.0 }
     ];
 
-    function updateVolumeSelect() {
-        const volumeSelect = popupElement.querySelector('#volume-select');
+    const updateVolumeSelect = () => {
+        const volumeSelect = popupElement?.querySelector('#volume-select');
         if (!currentVideo || !volumeSelect) return;
 
         if (currentVideo.muted) {
@@ -352,108 +357,138 @@
                 return Math.abs(curr.value - effectiveVolume) < Math.abs(prev.value - effectiveVolume) ? curr : prev;
             }, { value: 1.0 });
 
-            volumeSelect.value = closest.value;
+            // 실제 볼륨이 옵션에 없는 경우 (예: 1.2배속)에도 현재 값과 가장 가까운 옵션을 선택하도록 개선
+            const optionExists = volumeOptions.some(opt => opt.value === String(effectiveVolume) || opt.value === effectiveVolume);
+            if (!optionExists) {
+                 // 가장 가까운 옵션을 선택하거나, 필요하다면 새 옵션을 동적으로 추가하는 로직 고려
+                 // 현재는 closest.value를 사용하므로 가장 가까운 옵션이 선택됨
+            }
+            volumeSelect.value = String(closest.value); // 'muted'와 같은 문자열 값을 위해 String() 변환
         }
-    }
+    };
 
-    function setPopupOpacity(opacityValue) {
-        if (popupElement) {
-            popupElement.style.opacity = opacityValue;
-            currentOpacity = opacityValue;
-            const btnBg = opacityValue === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
-            popupElement.querySelectorAll('button, select').forEach(el => {
-                el.style.backgroundColor = btnBg;
-            });
-        }
-    }
 
-    function resetOpacityTimer() {
+    /*** --- [ 7. Popup UI & Events ] --- ***/
+    const setPopupOpacity = o => {
+        if (!popupElement) return;
+        popupElement.style.opacity = o;
+        const btnBg = o === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
+        popupElement.querySelectorAll('button, select').forEach(el => {
+            el.style.backgroundColor = btnBg;
+        });
+    };
+
+    const resetOpacityTimer = () => {
         clearTimeout(opacityTimer);
         setPopupOpacity(OPAQUE_OPACITY);
-        opacityTimer = setTimeout(() => {
-            setPopupOpacity(TRANSPARENT_OPACITY);
-        }, OPACITY_RESET_DELAY);
-    }
+        opacityTimer = setTimeout(() => setPopupOpacity(TRANSPARENT_OPACITY), OPACITY_RESET_DELAY);
+    };
 
-    // 기존 비디오에 이벤트 리스너 제거
     function removeVideoEventListeners(video) {
         if (!video) return;
         video.removeEventListener('play', resetOpacityTimer);
         video.removeEventListener('pause', resetOpacityTimer);
         video.removeEventListener('seeking', resetOpacityTimer);
-        video.removeEventListener('volumechange', updateVolumeSelect); // 볼륨 셀렉트 업데이트 이벤트는 유지
+        video.removeEventListener('volumechange', updateVolumeSelect);
+        // PIP 모드 변경 시 팝업 가시성 유지
+        video.removeEventListener('enterpictureinpicture', resetOpacityTimer);
+        video.removeEventListener('leavepictureinpicture', resetOpacityTimer);
     }
 
-    // 새로운 비디오에 이벤트 리스너 추가
     function addVideoEventListeners(video) {
         if (!video) return;
         video.addEventListener('play', resetOpacityTimer);
         video.addEventListener('pause', resetOpacityTimer);
         video.addEventListener('seeking', resetOpacityTimer);
-        // 'volumechange'는 updateVolumeSelect에서 이미 처리되므로 중복 추가 방지
+        video.addEventListener('volumechange', updateVolumeSelect);
+        // PIP 모드 변경 시 팝업 가시성 유지
+        video.addEventListener('enterpictureinpicture', resetOpacityTimer);
+        video.addEventListener('leavepictureinpicture', resetOpacityTimer);
     }
 
-    async function createPopup() {
+    const createPopup = async () => {
         const latestVideos = await findPlayableVideos();
+
         // 비디오 목록에 변화가 없으면 팝업 재생성 불필요
-        if (latestVideos.length === videos.length && latestVideos.every((v, i) => v === videos[i])) {
+        // 하지만 currentVideo가 null이거나 videos에 없는 경우를 처리하여,
+        // 페이지 로드 후 처음으로 비디오가 감지될 때 팝업이 생성되도록 함
+        const videoListChanged = latestVideos.length !== videos.length || !latestVideos.every((v, i) => v === videos[i]);
+        const currentVideoInvalid = !currentVideo || !latestVideos.includes(currentVideo);
+
+        if (!videoListChanged && !currentVideoInvalid && popupElement) {
+            // 비디오 목록 변화 없고, 현재 비디오 유효하며, 팝업이 이미 있다면, 업데이트만 수행
+            updateVolumeSelect();
+            const selectElement = popupElement.querySelector('select');
+            if (selectElement) {
+                const currentIndex = videos.indexOf(currentVideo);
+                if (currentIndex !== -1 && String(selectElement.value) !== String(currentIndex)) {
+                    selectElement.value = currentIndex;
+                }
+            }
             return;
         }
 
         // 기존 비디오들에 붙어있던 이벤트 리스너 제거 (새 비디오 목록 반영 전)
         videos.forEach(removeVideoEventListeners);
+        // Disconnect previous playback rate observer
+        if (currentPlaybackRateObserver) {
+            currentPlaybackRateObserver.disconnect();
+            currentPlaybackRateObserver = null;
+        }
+        if (currentPlaybackRateRAFId) {
+            cancelAnimationFrame(currentPlaybackRateRAFId);
+            currentPlaybackRateRAFId = null;
+        }
+        clearInterval(currentIntervalId); // Clear old setInterval if any
+        currentIntervalId = null;
 
         videos = latestVideos;
 
-        const hostRoot = document.body;
-        if (popupElement) {
-            popupElement.remove();
-            popupElement = null;
-        }
-
         if (videos.length === 0) {
-            if (currentIntervalId) clearInterval(currentIntervalId);
-            currentIntervalId = null;
-            currentVideo = null;
+            // 비디오가 없으면 팝업 제거 및 관련 리소스 해제
+            popupElement?.remove();
+            popupElement = null;
+
+            // AudioContext 리소스 해제
             if (audioCtx && audioCtx.state !== 'closed') {
-                try { audioCtx.close(); } catch (e) { console.warn("Video Controller Popup: Error closing AudioContext when no videos found:", e); }
+                if (sourceNode) sourceNode.disconnect();
+                if (gainNode) gainNode.disconnect();
+                try { audioCtx.close(); } catch (e) { /* ignore */ }
             }
-            audioCtx = null;
+            audioCtx = null; gainNode = null; sourceNode = null; connectedVideo = null;
+            currentVideo = null;
             return;
         }
 
+        // currentVideo가 유효하지 않으면 첫 번째 비디오로 설정
         if (!currentVideo || !videos.includes(currentVideo)) {
             currentVideo = videos[0];
+            desiredPlaybackRate = currentVideo.playbackRate; // Initialize desired rate
         }
 
+        // 기존 팝업 제거
+        popupElement?.remove();
+
         const popup = document.createElement('div');
-        popup.id = 'video-controller-popup';
+        popup.id = 'vcp-popup';
         popup.style.cssText = `
-            position: fixed;
-            bottom: 0px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.5);
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 8px;
-            z-index: 2147483647;
+            position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+            background:rgba(0,0,0,0.5);color:#fff;padding:8px 12px;border-radius:8px;
+            z-index:2147483647;
+            display:flex;gap:8px;
+            opacity:${TRANSPARENT_OPACITY};
+            transition:opacity 0.3s ease;
             pointer-events: auto;
-            display: flex;
             flex-wrap: nowrap;
-            gap: 8px;
             align-items: center;
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
-            transition: opacity 0.3s ease;
-            opacity: ${currentOpacity};
+            font-family: 'Segoe UI', Arial, sans-serif; /* 폰트 지정 */
         `;
+        popup.addEventListener('click', resetOpacityTimer);
         popupElement = popup;
 
-        popupElement.addEventListener('click', resetOpacityTimer);
-
-
-        const select = document.createElement('select');
-        select.style.cssText = `
+        const videoSelect = document.createElement('select');
+        videoSelect.style.cssText = `
             margin-right: 8px;
             font-size: 16px;
             border-radius: 4px;
@@ -465,43 +500,35 @@
             border: 1px solid rgba(255,255,255,0.5);
             text-overflow: ellipsis;
             white-space: nowrap;
+            -webkit-appearance: none; /* 기본 스타일 제거 */
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23fff%22%20d%3D%22M287%2C197.9c-3.2%2C3.2-8.3%2C3.2-11.6%2C0L146.2%2C70.6L16.9%2C197.9c-3.2%2C3.2-8.3%2C3.2-11.6%2C0c-3.2-3.2-3.2-8.3%2C0-11.6l135.9-135.9c3.2-3.2%2C8.3-3.2%2C11.6%2C0l135.9%2C135.9C290.2%2C189.6%2C290.2%2C194.7%2C287%2C197.9z%22%2F%3E%3C%2Fsvg%3E'); /* 사용자 정의 화살표 */
+            background-repeat: no-repeat;
+            background-position: right 8px top 50%;
+            background-size: 12px auto;
         `;
-        select.style.backgroundColor = currentOpacity === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
-
-
-        videos.forEach((video, i) => {
-            const option = document.createElement('option');
-            option.value = i;
-            let label = video.currentSrc ? video.currentSrc.split('/').pop() : `Video ${i + 1}`;
+        videos.forEach((v, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            let label = v.currentSrc ? v.currentSrc.split('/').pop() : `Video ${i + 1}`;
             if (label.length > 25) label = label.slice(0, 22) + '...';
-            option.textContent = label;
-            option.title = label;
-            if (video === currentVideo) option.selected = true;
-            select.appendChild(option);
+            opt.textContent = label;
+            opt.title = label;
+            if (v === currentVideo) opt.selected = true;
+            videoSelect.appendChild(opt);
         });
-        select.onchange = () => {
-            if (currentIntervalId) {
-                clearInterval(currentIntervalId);
-                currentIntervalId = null;
-            }
-
-            if (audioCtx && audioCtx.state !== 'closed') {
-                try { audioCtx.close(); } catch (e) { console.warn("Video Controller Popup: Error closing AudioContext on video change:", e); }
-            }
-            audioCtx = null;
-            gainNode = null;
-            sourceNode = null;
-            connectedVideo = null;
-
-            if (currentVideo) removeVideoEventListeners(currentVideo); // 이전 비디오 이벤트 제거
-            currentVideo = videos[select.value];
-            if (currentVideo) addVideoEventListeners(currentVideo); // 새 비디오 이벤트 추가
-            currentVideo.addEventListener('volumechange', updateVolumeSelect); // 볼륨 셀렉트 업데이트는 항상
+        videoSelect.onchange = (e) => {
+            if (currentVideo) removeVideoEventListeners(currentVideo);
+            currentVideo = videos[e.target.value];
+            if (currentVideo) addVideoEventListeners(currentVideo);
             updateVolumeSelect();
+            // When switching videos, re-apply the desired playback rate
+            fixPlaybackRate(currentVideo, desiredPlaybackRate);
         };
-        popup.appendChild(select);
+        popup.appendChild(videoSelect);
 
-        function createButton(id, text, onClick) {
+        const createButton = (id, text, onClick) => {
             const btn = document.createElement('button');
             btn.id = id;
             btn.textContent = text;
@@ -516,39 +543,43 @@
                 cursor: pointer;
                 user-select: none;
                 white-space: nowrap;
+                transition: background-color 0.2s ease;
             `;
-            btn.style.backgroundColor = currentOpacity === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
-
-
             btn.addEventListener('mouseenter', () => { if (!isMobile) btn.style.backgroundColor = 'rgba(125,125,125,0.8)'; });
-            btn.addEventListener('mouseleave', () => { if (!isMobile && currentOpacity === OPAQUE_OPACITY) btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; });
-            btn.addEventListener('click', () => {
+            btn.addEventListener('mouseleave', () => { if (!isMobile) btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; });
+            btn.addEventListener('click', (event) => {
+                event.stopPropagation(); // 버튼 클릭 시 팝업의 resetOpacityTimer 방지 (내부적으로 호출)
                 onClick();
                 resetOpacityTimer();
                 if (isMobile) {
                     btn.style.backgroundColor = 'rgba(125,125,125,0.8)';
-                    setTimeout(() => { btn.style.backgroundColor = currentOpacity === OPAQUE_OPACITY ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.1)'; }, 200);
+                    setTimeout(() => { btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; }, 200);
                 }
             });
             return btn;
-        }
+        };
 
-        popup.appendChild(createButton('slow', '0.2x', () => fixPlaybackRate(currentVideo, 0.2)));
-        popup.appendChild(createButton('normal', '1.0x', () => fixPlaybackRate(currentVideo, 1.0)));
-        popup.appendChild(createButton('fast', '5.0x', () => fixPlaybackRate(currentVideo, 5.0)));
-        popup.appendChild(createButton('pip', '📺 PIP', async () => {
+        popup.appendChild(createButton('speed-0.5x', '0.5x', () => fixPlaybackRate(currentVideo, 0.5)));
+        popup.appendChild(createButton('speed-1.0x', '1.0x', () => fixPlaybackRate(currentVideo, 1)));
+        popup.appendChild(createButton('speed-2.0x', '2.0x', () => fixPlaybackRate(currentVideo, 2)));
+        popup.appendChild(createButton('rewind-5s', '⏪ 5초', () => seekVideo(-5)));
+        popup.appendChild(createButton('forward-5s', '5초 ⏩', () => seekVideo(5)));
+        popup.appendChild(createButton('pip-mode', '📺 PIP', async () => {
             try {
                 if (document.pictureInPictureElement) {
                     await document.exitPictureInPicture();
                 } else {
-                    await currentVideo.requestPictureInPicture();
+                    if (currentVideo && document.pictureInPictureEnabled) {
+                        await currentVideo.requestPictureInPicture();
+                    } else {
+                        alert('PIP 모드를 사용할 수 없습니다. 비디오를 재생 중인지 확인해주세요.');
+                    }
                 }
             } catch (e) {
                 console.error('Video Controller Popup: PIP 실패:', e);
+                alert('PIP 모드 실행 중 오류가 발생했습니다.');
             }
         }));
-        popup.appendChild(createButton('rewind', '⏪ 5초', () => seekVideo(-5)));
-        popup.appendChild(createButton('forward', '5초 ⏩', () => seekVideo(5)));
 
         const volumeSelect = document.createElement('select');
         volumeSelect.id = 'volume-select';
@@ -562,18 +593,21 @@
             border: 1px solid rgba(255,255,255,0.5);
             text-overflow: ellipsis;
             white-space: nowrap;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23fff%22%20d%3D%22M287%2C197.9c-3.2%2C3.2-8.3%2C3.2-11.6%2C0L146.2%2C70.6L16.9%2C197.9c-3.2%2C3.2-8.3%2C3.2-11.6%2C0c-3.2-3.2-3.2-8.3%2C0-11.6l135.9-135.9c3.2-3.2%2C8.3-3.2%2C11.6%2C0l135.9%2C135.9C290.2%2C189.6%2C290.2%2C194.7%2C287%2C197.9z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 8px top 50%;
+            background-size: 12px auto;
         `;
-        volumeSelect.style.backgroundColor = currentOpacity === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
-
-
         volumeOptions.forEach(opt => {
             const option = document.createElement('option');
             option.value = opt.value;
             option.textContent = opt.label;
             volumeSelect.appendChild(option);
         });
-
-        volumeSelect.addEventListener('change', () => {
+        volumeSelect.onchange = () => {
             if (!currentVideo) return;
             const val = volumeSelect.value;
             if (val === 'muted') {
@@ -581,130 +615,57 @@
                 if (gainNode && connectedVideo === currentVideo) gainNode.gain.value = 0;
             } else {
                 currentVideo.muted = false;
-                if (val > 1) {
-                    setAmplifiedVolume(currentVideo, Number(val));
-                } else {
-                    setAmplifiedVolume(currentVideo, Number(val));
-                }
+                setAmplifiedVolume(currentVideo, parseFloat(val));
             }
             resetOpacityTimer();
-        });
-
+        };
         popup.appendChild(volumeSelect);
 
-        // 새로운 currentVideo에 이벤트 리스너 추가
         if (currentVideo) {
             addVideoEventListeners(currentVideo);
-            currentVideo.addEventListener('volumechange', updateVolumeSelect);
+            fixPlaybackRate(currentVideo, desiredPlaybackRate); // Re-apply desired rate
         }
 
-        hostRoot.appendChild(popup);
-
+        document.body.appendChild(popup);
         updateVolumeSelect();
-        setPopupOpacity(currentOpacity);
-    }
-
-    let debounceTimer;
-    function debounce(func, delay) {
-        return function() {
-            const context = this;
-            const args = arguments;
-            clearTimeout(debounceTimer);
-            Promise.resolve(func.apply(context, args));
-        };
-    }
-
-    const debouncedCreatePopup = debounce(createPopup, 100);
-
-    function run() {
-        createPopup().then(() => {
-            const mo = new MutationObserver(() => {
-                debouncedCreatePopup();
-            });
-            mo.observe(document.body, { childList: true, subtree: true });
-
-            setInterval(() => {
-                debouncedCreatePopup();
-            }, 5000);
-
-            if (overflowFixTargets.some(site => location.hostname.includes(site.domain))) {
-                fixOverflow();
-                setInterval(fixOverflow, 1000);
-            }
-
-            // 문서 전체 클릭 이벤트 리스너 유지 (iframe 밖 영역 클릭 감지용)
-            document.body.addEventListener('click', (event) => {
-                if (popupElement && !popupElement.contains(event.target)) {
-                    resetOpacityTimer();
-                }
-            });
-
-            // 초기 로드 시 투명 상태로 시작
-            setTimeout(() => {
-                setPopupOpacity(TRANSPARENT_OPACITY);
-            }, OPACITY_RESET_DELAY);
-        });
-    }
-
-    run();
-
-    window.vcp_config = {
-        getOverflowFixSites: () => {
-            console.log("Video Controller Popup: Current overflowFixSites configuration:", overflowFixTargets);
-            console.log("To add/modify, use vcp_config.setOverflowFixSites([...]).");
-            console.log("Example for Twitch (default):", JSON.stringify(defaultOverflowFixSites));
-            return overflowFixTargets;
-        },
-        setOverflowFixSites: (sites) => {
-            try {
-                if (!Array.isArray(sites) || !sites.every(item =>
-                    typeof item === 'object' && item !== null &&
-                    typeof item.domain === 'string' &&
-                    Array.isArray(item.selector) && item.selector.every(s => typeof s === 'string')
-                )) {
-                    console.error("Video Controller Popup: Invalid format for setOverflowFixSites. Expected an array of { domain: string, selector: string[] } objects.");
-                    return;
-                }
-                const sitesJson = JSON.stringify(sites);
-                localStorage.setItem('vcp_overflowFixSites', sitesJson);
-                console.log("Video Controller Popup: overflowFixSites updated. Please refresh the page to apply changes.");
-                console.log("New config:", sites);
-            } catch (e) {
-                console.error("Video Controller Popup: Failed to set overflowFixSites. Please check JSON format.", e);
-            }
-        },
-        resetOverflowFixSites: () => {
-            localStorage.removeItem('vcp_overflowFixSites');
-            console.log("Video Controller Popup: overflowFixSites reset to default. Please refresh the page.");
-        },
-        getLazySrcBlacklist: () => {
-            console.log("Video Controller Popup: Current lazySrcBlacklist:", lazySrcBlacklist);
-            console.log("This list is hardcoded for safety and and cannot be changed via console.");
-            return lazySrcBlacklist;
-        },
-        getValidVideoExtensions: () => {
-            console.log("Video Controller Popup: Current VALID_VIDEO_EXTENSIONS:", VALID_VIDEO_EXTENSIONS);
-            console.log("This list is hardcoded for safety and and cannot be changed via console.");
-            return VALID_VIDEO_EXTENSIONS;
-        },
-        getPlaybackRateForceSites: () => {
-            console.log("Video Controller Popup: Current forcePlaybackRateSites:", forcePlaybackRateSites);
-            console.log("This list is hardcoded for safety and and cannot be changed via console.");
-            return forcePlaybackRateSites;
-        },
-        getIdleOpacity: () => {
-            console.log("Video Controller Popup: Idle opacity is now managed automatically. Current opacity:", currentOpacity);
-            return currentOpacity;
-        },
-        setIdleOpacity: () => {
-            console.warn("Video Controller Popup: setIdleOpacity is deprecated. Opacity is now managed automatically based on user interaction.");
-        },
-        getVersion: () => {
-             console.log("Video Controller Popup: Current version is 4.08");
-             return "4.08";
-        }
+        setTimeout(() => setPopupOpacity(TRANSPARENT_OPACITY), OPACITY_RESET_DELAY);
     };
 
-    console.log("Video Controller Popup script loaded. Type `vcp_config` in console for configuration options.");
+    /*** --- [ 8. Init & Observers ] --- ***/
+    const run = () => {
+        debouncedCreatePopup();
+
+        // MutationObserver to detect new videos or changes in the DOM
+        const mo = new MutationObserver(debouncedCreatePopup);
+        mo.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true // Listen for attribute changes, important for lazy-loaded videos or data-src
+        });
+
+        // Periodic check in case MutationObserver misses something or for general robustness
+        setInterval(debouncedCreatePopup, 5000);
+
+        if (overflowFixTargets.some(site => location.hostname.includes(site.domain))) {
+            fixOverflow();
+            setInterval(fixOverflow, 1000);
+        }
+
+        document.body.addEventListener('click', (event) => {
+            // 팝업 내부 클릭 시에는 타이머 초기화만 하고, 외부 클릭 시 팝업 투명화
+            if (popupElement && !popupElement.contains(event.target)) {
+                resetOpacityTimer();
+            }
+        });
+        // Added touchstart listener for mobile devices
+        document.body.addEventListener('touchstart', (event) => {
+            if (popupElement && !popupElement.contains(event.target)) {
+                resetOpacityTimer();
+            }
+        }, { passive: true }); // Use passive: true for touch events to improve scrolling performance
+    };
+
+    run();
+    console.log('Video Controller Popup v4.09.2 loaded. (AudioContext memory management improved, playback rate enforcement enhanced)');
 
 })();
