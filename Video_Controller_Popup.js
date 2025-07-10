@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video Controller Popup (Full Fix + Shadow DOM + TikTok + Flexible + Volume Select + Amplify + HLS Support)
 // @namespace     Violentmonkey Scripts
-// @version       4.06 // 투명/반투명 옵션 제거 및 자동 전환 로직 추가
+// @version       4.07 // 버튼 글자색 가독성 개선
 // @description   여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix + Twitch + TikTok 대응 + 볼륨 SELECT + 증폭 + m3u8 (HLS.js) 지원 (Shadow DOM Deep)
 // @match         *://*/*
 // @grant         none
@@ -23,7 +23,6 @@
 
     // --- Configuration ---
     // 초기 팝업 투명도 설정 (0.025 = 투명, 1 = 불투명)
-    // 이제 localStorage에서 읽어오지 않고, 스크립트가 직접 관리
     let currentOpacity = 0.025; // 초기값을 투명으로 설정
     const OPAQUE_OPACITY = 1;
     const TRANSPARENT_OPACITY = 0.025;
@@ -348,7 +347,6 @@
         { label: '70%', value: 0.7 }, { label: '80%', value: 0.8 }, { label: '90%', value: 0.9 },
         { label: '100%', value: 1.0 },
         { label: '150%', value: 1.5 }, { label: '300%', value: 3.0 }, { label: '500%', value: 5.0 }
-        // '투명', '불투명' 옵션 제거됨
     ];
 
     function updateVolumeSelect() {
@@ -381,11 +379,11 @@
         if (popupElement) {
             popupElement.style.opacity = opacityValue;
             currentOpacity = opacityValue;
-            // 버튼 배경색도 투명도에 맞춰 조정 (선택 사항)
-            popupElement.querySelectorAll('button').forEach(btn => {
-                btn.style.backgroundColor = opacityValue === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
+            // 버튼 및 셀렉트 배경색도 투명도에 맞춰 조정
+            const btnBg = opacityValue === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
+            popupElement.querySelectorAll('button, select').forEach(el => {
+                el.style.backgroundColor = btnBg;
             });
-            popupElement.querySelector('select').style.backgroundColor = opacityValue === TRANSPARENT_OPACITY ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)';
         }
     }
 
@@ -436,7 +434,7 @@
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0,0,0,0.5);
-            color: #fff;
+            color: #fff; /* 팝업 전체 텍스트 색상 흰색으로 설정 */
             padding: 8px 12px;
             border-radius: 8px;
             z-index: 2147483647;
@@ -463,8 +461,8 @@
             padding: 4px 8px;
             cursor: pointer;
             max-width: 150px;
-            background: rgba(0,0,0,0.5); // 초기 투명도에 맞게 배경색 조정
-            color: #fff;
+            background: rgba(0,0,0,0.5);
+            color: #fff; /* SELECT 텍스트 색상 흰색으로 설정 */
             border: 1px solid rgba(255,255,255,0.5);
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -514,8 +512,8 @@
                 padding: 4px 10px;
                 border: 1px solid #fff;
                 border-radius: 4px;
-                background-color: rgba(0,0,0,0.5); // 초기 투명도에 맞춰 배경색 조정
-                color: #fff;
+                background-color: rgba(0,0,0,0.5);
+                color: #fff; /* 버튼 텍스트 색상 흰색으로 설정 */
                 cursor: pointer;
                 user-select: none;
                 white-space: nowrap;
@@ -532,7 +530,7 @@
                 resetOpacityTimer();
                 if (isMobile) {
                     btn.style.backgroundColor = 'rgba(125,125,125,0.8)';
-                    setTimeout(() => { btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; }, 200);
+                    setTimeout(() => { btn.style.backgroundColor = currentOpacity === OPAQUE_OPACITY ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.1)'; }, 200);
                 }
             });
             return btn;
@@ -562,8 +560,8 @@
             border-radius: 4px;
             padding: 4px 8px;
             cursor: pointer;
-            background: rgba(0,0,0,0.5); // 초기 투명도에 맞춰 배경색 조정
-            color: #fff;
+            background: rgba(0,0,0,0.5);
+            color: #fff; /* SELECT 텍스트 색상 흰색으로 설정 */
             border: 1px solid rgba(255,255,255,0.5);
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -715,8 +713,8 @@
             console.warn("Video Controller Popup: setIdleOpacity is deprecated. Opacity is now managed automatically based on user interaction.");
         },
         getVersion: () => {
-             console.log("Video Controller Popup: Current version is 4.06");
-             return "4.06";
+             console.log("Video Controller Popup: Current version is 4.07");
+             return "4.07";
         }
     };
 
