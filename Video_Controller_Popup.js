@@ -25,7 +25,7 @@
     let currentOpacity = 0.025; // 초기값을 투명으로 설정
     const OPAQUE_OPACITY = 1;
     const TRANSPARENT_OPACITY = 0.025;
-    const OPACITY_RESET_DELAY = 3000; // 3초 (밀리초)
+    const OPACITY_RESET_DELAY = 5000; // 5초 (밀리초)
 
     const lazySrcBlacklist = [
         'missav.ws',
