@@ -339,7 +339,7 @@
           buttons.forEach(btn => {
             btn.style.backgroundColor = isTransparent
               ? 'rgba(0,0,0,0.1)'
-              : 'rgba(0,0,0,0.5)';
+              : 'rgba(0,0,0,0.1)';
           });
         }
       } else {
