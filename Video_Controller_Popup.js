@@ -290,9 +290,7 @@
       { label: '90%', value: 0.9 },
       { label: '100%', value: 1.0 },
       { label: '150%', value: 1.5 },
-      { label: '200%', value: 2.0 },
       { label: '300%', value: 3.0 },
-      { label: '400%', value: 4.0 },
       { label: '500%', value: 5.0 },
       { label: '투명', value: 'transparent' },
       { label: '불투명', value: 'opaque' }
