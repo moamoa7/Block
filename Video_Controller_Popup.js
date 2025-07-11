@@ -47,15 +47,14 @@
         }
     });
 
-    // 증폭(Amplification)이 허용되는 사이트 목록 (Whitelist)
-    // 100% 초과 볼륨(증폭) 기능을 사용할 수 있는 사이트를 지정합니다.
-    const VOLUME_AMPLIFICATION_WHITELIST = [
+    // 증폭(Amplification)이 차단되는 사이트 목록 (Amplification Blacklist)
+    // 이 목록에 있는 사이트에서는 100% 초과 볼륨(증폭) 기능을 사용할 수 없습니다.
+    const AMPLIFICATION_BLACKLIST = [
         // 예시: 'youtube.com', 'vimeo.com', 'myvideoservice.net'
-        'youtube.com',
-        'twitch.tv',
-        'vimeo.com'
+        'avsee.ru',
     ];
-    const isAmplificationAllowed = VOLUME_AMPLIFICATION_WHITELIST.some(site => location.hostname.includes(site));
+    // 증폭이 차단되는지 확인하는 플래그 (isAmplificationAllowed 대신 사용)
+    const isAmplificationBlocked = AMPLIFICATION_BLACKLIST.some(site => location.hostname.includes(site));
 
     // overflow visible fix 사이트 설정
     const overflowFixSites = [
@@ -183,8 +182,8 @@
      * Web Audio Context를 설정하여 비디오의 오디오를 조작할 수 있도록 준비합니다.
      */
     function setupAudioContext(video) {
-        // Only set up AudioContext if amplification is allowed on this site
-        if (!isAmplificationAllowed) {
+        // AudioContext는 증폭이 차단되지 않은 경우에만 설정합니다.
+        if (isAmplificationBlocked) {
             return false;
         }
 
@@ -230,11 +229,11 @@
     function setAmplifiedVolume(video, vol) {
         if (!video) return;
 
-        // 증폭이 허용되지 않은 사이트에서 100% 이상 볼륨 요청 시 100%로 제한
-        if (!isAmplificationAllowed && vol > 1) {
-            console.warn(`Amplification is restricted on this site (${location.hostname}). Setting volume to 100%.`);
+        // 증폭이 차단된 사이트에서 100% 이상 볼륨 요청 시 100%로 제한
+        if (isAmplificationBlocked && vol > 1) {
+            console.warn(`Amplification is blocked on this site (${location.hostname}). Setting volume to 100%.`);
             if (gainNode && connectedVideo === video) {
-                // If gainNode exists but amplification is not allowed, reset gain to 1.
+                // If gainNode exists but amplification is blocked, reset gain to 1.
                 gainNode.gain.value = 1;
             }
             video.volume = 1;
@@ -245,14 +244,14 @@
             audioCtx.resume().catch(e => console.error("AudioContext resume error:", e));
         }
 
-        // If the requested volume is 100% or less, or if amplification is allowed and requested volume is > 100%
-        if (vol <= 1 || isAmplificationAllowed) {
+        // 100% 이하 볼륨이거나, 증폭이 차단되지 않은 경우 (100% 초과 볼륨 허용)
+        if (vol <= 1 || !isAmplificationBlocked) {
             if (vol <= 1) {
                 if (gainNode && connectedVideo === video) {
                     gainNode.gain.value = 1;
                 }
                 video.volume = vol;
-            } else { // vol > 1 and amplification is allowed
+            } else { // vol > 1 and amplification is allowed (not blocked)
                 if (!audioCtx || connectedVideo !== video) {
                     if (!setupAudioContext(video)) {
                         console.warn("Audio amplification not available. Setting video volume to 100%.");
@@ -272,7 +271,6 @@
 
     // --- UI Update & Creation ---
     // 볼륨 드롭다운 옵션 정의
-    // Note: The options '150% (Amplify)', '300% (Amplify)', '500% (Amplify)' are included.
     const volumeOptions = [
         { label: 'Mute', value: 'muted' },
         { label: '10%', value: 0.1 }, { label: '20%', value: 0.2 }, { label: '30%', value: 0.3 },
@@ -338,7 +336,7 @@
         if (!video) return;
 
         const events = ['play', 'pause', 'click', 'touchstart'];
-        
+
         // Remove previous listeners if they exist to prevent duplicates
         removeVideoInteractionListeners(video);
 
@@ -480,7 +478,7 @@
                 addVideoInteractionListeners(currentVideo);
                 currentVideo.addEventListener('volumechange', updateVolumeSelect);
             }
-            
+
             updateVolumeSelect();
         };
         popup.appendChild(videoSelect);
@@ -538,10 +536,10 @@
             option.value = opt.value;
             option.textContent = opt.label;
 
-            // 증폭 비허용 사이트에서는 100% 이상 옵션을 비활성화
-            if (!isAmplificationAllowed && parseFloat(opt.value) > 1) {
+            // 증폭이 차단된 사이트에서는 100% 이상 옵션을 비활성화
+            if (isAmplificationBlocked && parseFloat(opt.value) > 1) {
                 option.disabled = true;
-                option.title = "Amplification is only allowed on whitelisted sites.";
+                option.title = "Amplification is blocked on this site.";
             }
             volumeSelect.appendChild(option);
         });
@@ -549,7 +547,7 @@
         volumeSelect.onchange = () => {
             if (!currentVideo) return;
             const value = volumeSelect.value;
-            
+
             showPopupTemporarily();
 
             if (value === 'muted') {
