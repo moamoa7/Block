@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video Controller Popup (Full Fix + Shadow DOM + TikTok + Flexible + Volume Select + Amplify + HLS Support)
 // @namespace     Violentmonkey Scripts
-// @version       4.09.4 // Added: Batch playback rate control for all videos
+// @version       4.09.5 // Added: Whitelist for volume amplification restriction
 // @description   여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix + Twitch + TikTok 대응 + 볼륨 SELECT + 증폭 + m3u8 (HLS.js) 지원 (Shadow DOM Deep)
 // @match         *://*/*
 // @grant         none
@@ -24,7 +24,8 @@
     const isNetflix = location.hostname.includes('netflix.com');
 
     const OPAQUE_OPACITY = 1;
-    const TRANSPARENT_OPACITY = 0.025;
+    //const TRANSPARENT_OPACITY = 0.025;
+    const TRANSPARENT_OPACITY = 1;
     const OPACITY_RESET_DELAY = 3000;
 
     const lazySrcBlacklist = ['missav.ws', 'missav.live', 'example.net'];
@@ -63,6 +64,15 @@
     } catch { customOverflowFixSites = []; }
 
     const overflowFixTargets = customOverflowFixSites.length > 0 ? customOverflowFixSites : defaultOverflowFixSites;
+
+    // --- NEW: Whitelist for sites where volume amplification should be restricted (100% max) ---
+    // Please add the domains where you want this behavior to apply.
+    const volumeAmplificationRestrictionSites = [
+        'avsee.ru', // Example domain
+        // 'another-site.com',
+    ];
+    const isVolumeAmplificationRestricted = volumeAmplificationRestrictionSites.some(site => location.hostname.includes(site));
+    // -----------------------------------------------------------------------------------------
 
     /*** --- [ 2. Utility Functions ] --- ***/
 
@@ -237,7 +247,7 @@
     // --- Added function to apply playback rate to ALL videos ---
     const applyRateToAll = (rate) => {
         // Set the global desired rate for the current video's enforcement
-        desiredPlaybackRate = rate; 
+        desiredPlaybackRate = rate;
 
         // Apply the rate to all videos found on the page
         videos.forEach(v => {
@@ -245,7 +255,7 @@
                 v.playbackRate = rate;
             }
         });
-        
+
         // Re-start enforcement for the current video if necessary (handled by fixPlaybackRate)
         if (currentVideo) {
             fixPlaybackRate(currentVideo, rate);
@@ -284,6 +294,11 @@
     let connectedVideo = null;
 
     const setupAudioContext = video => {
+        // Ensure amplification is allowed on this site before setting up
+        if (isVolumeAmplificationRestricted) {
+            return false;
+        }
+
         try {
             // 기존 AudioContext가 있다면 연결 해제 및 닫기
             if (audioCtx && audioCtx.state !== 'closed') {
@@ -327,6 +342,18 @@
 
     const setAmplifiedVolume = (video, vol) => {
         if (!video) return;
+
+        // --- NEW Logic: Restriction Check ---
+        if (isVolumeAmplificationRestricted && vol > 1.0) {
+            console.log("Video Controller Popup: Volume amplification restricted on this site. Setting volume to 100%.");
+            video.volume = 1.0;
+            // Ensure no existing amplification is active
+            if (gainNode && connectedVideo === video) {
+                gainNode.gain.value = 1;
+            }
+            return;
+        }
+        // ------------------------------------
 
         if (vol <= 1) {
             video.volume = vol;
@@ -379,8 +406,8 @@
             // 실제 볼륨이 옵션에 없는 경우 (예: 1.2배속)에도 현재 값과 가장 가까운 옵션을 선택하도록 개선
             const optionExists = volumeOptions.some(opt => opt.value === String(effectiveVolume) || opt.value === effectiveVolume);
             if (!optionExists) {
-                 // 가장 가까운 옵션을 선택하거나, 필요하다면 새 옵션을 동적으로 추가하는 로직 고려
-                 // 현재는 closest.value를 사용하므로 가장 가까운 옵션이 선택됨
+                // 가장 가까운 옵션을 선택하거나, 필요하다면 새 옵션을 동적으로 추가하는 로직 고려
+                // 현재는 closest.value를 사용하므로 가장 가까운 옵션이 선택됨
             }
             volumeSelect.value = String(closest.value); // 'muted'와 같은 문자열 값을 위해 String() 변환
         }
@@ -583,7 +610,7 @@
         popup.appendChild(createButton('speed-1.0x', '1.0x', () => applyRateToAll(1.0)));
         popup.appendChild(createButton('speed-4.0x', '4.0x', () => applyRateToAll(4.0)));
         // ----------------------------------------------------
-        
+
         popup.appendChild(createButton('rewind-5s', '⏪ 5초', () => seekVideo(-5)));
         popup.appendChild(createButton('forward-5s', '5초 ⏩', () => seekVideo(5)));
         popup.appendChild(createButton('pip-mode', '📺 PIP', async () => {
@@ -688,6 +715,6 @@
     };
 
     run();
-    console.log('Video Controller Popup v4.09.4 loaded. (Batch playback rate control enabled)');
+    console.log('Video Controller Popup v4.09.5 loaded. (Volume amplification restricted on whitelisted sites)');
 
 })();
