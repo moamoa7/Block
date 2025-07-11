@@ -363,30 +363,48 @@
 
         console.log('[Video Controller Popup] Setting up dragging events on video.');
 
-        const handleMouseDown = (e) => {
-            // Only allow dragging if the feature is active, triggered by left mouse button,
-            // and the clicked target is the video element or a child of it.
-            if (!videoDraggingActive || e.button !== 0 || !(e.target === video || video.contains(e.target))) {
+        // Use 'mousedown'/'mousemove' for PC, 'touchstart'/'touchmove' for mobile
+        const startEvent = isMobile ? 'touchstart' : 'mousedown';
+        const moveEvent = isMobile ? 'touchmove' : 'mousemove';
+        const endEvent = isMobile ? 'touchend' : 'mouseup';
+
+        const handleStart = (e) => {
+            // Get the coordinates based on whether it's a mouse or touch event
+            const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
+            
+            // Only allow dragging if the feature is active and a valid coordinate is available.
+            if (!videoDraggingActive || clientX === undefined) {
                 return;
             }
 
+            // For mobile, prevent default only if a touch is active and dragging is allowed.
+            if (isMobile && videoDraggingActive) {
+                e.preventDefault();
+            }
+
             isDragging = true;
-            dragStartX = e.clientX;
+            dragStartX = clientX;
             dragStartTime = video.currentTime; // Record the starting time for time calculation
             video.style.cursor = 'ew-resize';
 
             // Ensure feedback overlay is present in the DOM
             getFeedbackOverlay();
 
-            // Prevent default drag behavior
-            e.stopPropagation();
-            e.preventDefault();
+            // Prevent default drag behavior for PC
+            if (!isMobile) {
+                e.stopPropagation();
+            }
         };
 
-        const handleMouseMove = (e) => {
+        const handleMove = (e) => {
             if (!isDragging || !videoDraggingActive) return;
 
-            const deltaX = e.clientX - dragStartX;
+            // Get the coordinates based on whether it's a mouse or touch event
+            const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
+            
+            if (clientX === undefined) return;
+
+            const deltaX = clientX - dragStartX;
             const videoWidth = video.offsetWidth;
             const duration = video.duration;
 
@@ -411,7 +429,7 @@
             updateFeedback(formattedTime);
         };
 
-        const handleMouseUp = () => {
+        const handleEnd = () => {
             if (isDragging) {
                 isDragging = false;
                 video.style.cursor = 'pointer'; // Reset cursor
@@ -420,15 +438,15 @@
         };
 
         // Store handlers on the video element for easy removal and reference
-        video._dragHandlers = { handleMouseDown, handleMouseMove, handleMouseUp };
+        video._dragHandlers = { handleStart, handleMove, handleEnd };
 
         // Add listeners to the video element itself
-        video.addEventListener('mousedown', handleMouseDown);
-        video.addEventListener('mousemove', handleMouseMove);
-        video.addEventListener('mouseup', handleMouseUp);
+        video.addEventListener(startEvent, handleStart);
+        video.addEventListener(moveEvent, handleMove);
+        video.addEventListener(endEvent, handleEnd);
 
-        // Add global mouseup listener to ensure dragging stops even if mouse leaves the video
-        document.addEventListener('mouseup', handleMouseUp);
+        // Add global end listener to ensure dragging stops even if mouse/touch leaves the video
+        document.addEventListener(endEvent, handleEnd);
 
         video._draggingSetup = true;
     }
@@ -442,10 +460,14 @@
 
         const handlers = video._dragHandlers;
         if (handlers) {
-            video.removeEventListener('mousedown', handlers.handleMouseDown);
-            video.removeEventListener('mousemove', handlers.handleMouseMove);
-            video.removeEventListener('mouseup', handlers.handleMouseUp);
-            document.removeEventListener('mouseup', handlers.handleMouseUp);
+            const startEvent = isMobile ? 'touchstart' : 'mousedown';
+            const moveEvent = isMobile ? 'touchmove' : 'mousemove';
+            const endEvent = isMobile ? 'touchend' : 'mouseup';
+
+            video.removeEventListener(startEvent, handlers.handleStart);
+            video.removeEventListener(moveEvent, handlers.handleMove);
+            video.removeEventListener(endEvent, handlers.handleEnd);
+            document.removeEventListener(endEvent, handlers.handleEnd);
         }
 
         video._draggingSetup = false;
@@ -454,7 +476,7 @@
 
     /**
      * 현재 비디오의 전체 화면 상태에 따라 드래그 기능을 활성화/비활성화합니다.
-     * Null 안전 처리를 포함하여 오류를 방지합니다.
+     * 모바일에서는 전체 화면 여부와 관계없이 항상 활성화합니다.
      * @param {HTMLVideoElement} video
      */
     function updateVideoDraggingState(video) {
@@ -464,28 +486,38 @@
             return;
         }
 
-        const fullscreenElement =
-            document.fullscreenElement ||
-            document.webkitFullscreenElement ||
-            document.mozFullScreenElement ||
-            document.msFullscreenElement;
+        if (isMobile) {
+            // On mobile, assume dragging is always desired if a video is present and visible,
+            // as browser fullscreen modes often don't register via standard API checks.
+            videoDraggingActive = true;
+        } else {
+            // For PC, check if the video is in fullscreen mode.
+            const fullscreenElement =
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement;
 
-        const isAnyFullscreen = fullscreenElement !== null;
+            const isAnyFullscreen = fullscreenElement !== null;
 
-        // 2. Check if the video is the fullscreen element OR a child of the fullscreen element.
-        // We ensure fullscreenElement exists and has a .contains method before calling it.
-        videoDraggingActive = isAnyFullscreen && (
-            fullscreenElement === video ||
-            (fullscreenElement && typeof fullscreenElement.contains === 'function' && fullscreenElement.contains(video))
-        );
+            // Check if the video is the fullscreen element OR a child of the fullscreen element.
+            videoDraggingActive = isAnyFullscreen && (
+                fullscreenElement === video ||
+                (fullscreenElement && typeof fullscreenElement.contains === 'function' && fullscreenElement.contains(video))
+            );
+        }
 
-        // 3. Update cursor style only if not currently dragging and if dragging is active for this video.
-        if (!isDragging) {
+        // 3. Update cursor style only if not currently dragging and if dragging is active for this video (PC only)
+        if (!isMobile && !isDragging) {
             if (video === currentVideo) {
                 video.style.cursor = videoDraggingActive ? 'pointer' : '';
             }
+        } else if (isMobile && !isDragging) {
+            // For mobile, ensure cursor is default or pointer if dragging is active
+            video.style.cursor = videoDraggingActive ? 'pointer' : '';
         }
     }
+
 
     // --- UI Update & Creation ---
     // 볼륨 드롭다운 옵션 정의
@@ -624,7 +656,7 @@
         // If observer is already running, skip re-observing.
         if (videoObserver && videoObserver.takeRecords().length === 0 && !document.body.contains(videoObserver.target)) {
              // Re-attach observer if body was somehow detached (unlikely but safe)
-            videoObserver.observe(document.body, { childList: true, subtree: true });
+             videoObserver.observe(document.body, { childList: true, subtree: true });
         }
 
         // Select the largest video if currentVideo is null or no longer valid
@@ -744,7 +776,8 @@
 
             btn.addEventListener('mouseenter', () => { if (!isMobile) btn.style.backgroundColor = 'rgba(125,125,125,0.8)'; });
             btn.addEventListener('mouseleave', () => { if (!isMobile) btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; });
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent the click event from propagating to the document body
                 onClick();
                 showPopupTemporarily();
 
@@ -824,6 +857,7 @@
         popup.appendChild(volumeSelect);
 
         if (!isMobile) {
+            // Desktop behavior: show popup on hover, fade on mouse leave
             popup.addEventListener('mouseenter', () => {
                 popup.style.opacity = '1';
             });
@@ -831,6 +865,7 @@
                 popup.style.opacity = idleOpacity;
             });
         } else {
+            // Mobile behavior: show popup briefly on touch
             popup.addEventListener('touchstart', () => {
                 showPopupTemporarily();
             });
@@ -898,6 +933,25 @@
             fixOverflow();
             setInterval(fixOverflow, 1000);
         }
+
+        // Add global click/touchstart listener to show popup
+        const globalInteractionHandler = (event) => {
+            // Check if the click/touch target is outside the popup element
+            if (popupElement && popupElement.contains(event.target)) {
+                return; 
+            }
+            
+            // Only proceed if it's a primary mouse click (button 0) for mouse events
+            if (event.type === 'click' && event.button !== 0) {
+                return;
+            }
+
+            showPopupTemporarily();
+        };
+
+        document.addEventListener('click', globalInteractionHandler);
+        // Using 'touchstart' for mobile interaction to ensure responsiveness
+        document.addEventListener('touchstart', globalInteractionHandler);
     }
 
     // 스크립트 실행 시작
