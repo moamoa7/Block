@@ -615,8 +615,8 @@
                 console.error('PIP Error:', e);
             }
         }));
-        popup.appendChild(createButton('back15', '⏪15초', () => seekVideo(-15)));
-        popup.appendChild(createButton('forward15', '15초⏩', () => seekVideo(15)));
+        popup.appendChild(createButton('back15', '⏪1분', () => seekVideo(-60)));
+        popup.appendChild(createButton('forward15', '1분⏩', () => seekVideo(60)));
 
         // 볼륨 선택 드롭다운 생성
         const volumeSelect = document.createElement('select');
@@ -706,7 +706,7 @@
                 createPopup();
             }
         });
-        
+
         // Start observing changes in the document body and all its descendants
         videoObserver.observe(document.body, { childList: true, subtree: true });
 
