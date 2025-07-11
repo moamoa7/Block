@@ -306,22 +306,7 @@
         if (!feedbackOverlay) {
             feedbackOverlay = document.createElement('div');
             feedbackOverlay.id = 'video-drag-feedback';
-            feedbackOverlay.style.cssText = `
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background-color: rgba(0, 0, 0, 0.7);
-                color: white;
-                padding: 10px 20px;
-                border-radius: 8px;
-                font-size: 24px;
-                font-weight: bold;
-                z-index: 2147483647;
-                pointer-events: none;
-                opacity: 0;
-                transition: opacity 0.2s ease-in-out;
-            `;
+            feedbackOverlay.style.cssText = `position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px; border-radius: 8px; font-size: 24px; font-weight: bold; z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-in-out;`;
         }
 
         // Dynamically place the overlay based on fullscreen state
@@ -706,49 +691,15 @@
         // 팝업 요소 생성 및 스타일 설정
         const popup = document.createElement('div');
         popup.id = 'video-controller-popup';
-        popup.style.cssText = `
-            position: fixed;
-            bottom: 0px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.5);
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 8px;
-            z-index: 2147483647;
-            pointer-events: auto;
-            display: flex;
-            flex-wrap: nowrap;
-            gap: 8px;
-            align-items: center;
-            box-shadow: 0 0 15px rgba(0,0,0,0.5);
-            transition: opacity 0.3s ease;
-            opacity: ${idleOpacity};
-        `;
+        popup.style.cssText = `position: fixed; bottom: 0px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: #fff; padding: 8px 12px; border-radius: 8px; z-index: 2147483647; pointer-events: auto; display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; box-shadow: 0 0 15px rgba(0,0,0,0.5); transition: opacity 0.3s ease; opacity: ${idleOpacity};`;
         popupElement = popup;
 
         // 버튼 및 셀렉트 공통 스타일 정의
-        const controlStyles = `
-            font-size: 16px;
-            font-weight: bold;
-            padding: 4px 10px;
-            border: 1px solid #fff;
-            border-radius: 4px;
-            background-color: rgba(0,0,0,0.5);
-            color: #fff;
-            cursor: pointer;
-            user-select: none;
-            white-space: nowrap;
-            transition: background-color 0.2s;
-        `;
+        const controlStyles = `font-size: 16px; font-weight: bold; padding: 4px 10px; border: 1px solid #fff; border-radius: 4px; background-color: rgba(0,0,0,0.5); color: #fff; cursor: pointer; user-select: none; white-space: nowrap; transition: background-color 0.2s;`;
 
         // 비디오 선택 드롭다운 생성
         const videoSelect = document.createElement('select');
-        videoSelect.style.cssText = controlStyles + `
-            max-width: 85px;
-            text-overflow: ellipsis;
-            background: #000;
-            `;
+        videoSelect.style.cssText = controlStyles + `max-width: 85px; text-overflow: ellipsis; background: #000;`;
 
         videos.forEach((video, i) => {
             const option = document.createElement('option');
@@ -850,11 +801,7 @@
         // 볼륨 선택 드롭다운 생성
         const volumeSelect = document.createElement('select');
         volumeSelect.id = 'volume-select';
-        volumeSelect.style.cssText = controlStyles + `
-            max-width: 85px;
-            margin-left: 8px;
-            background: #000;
-        `;
+        volumeSelect.style.cssText = controlStyles + `max-width: 85px; margin-left: 8px; background: #000;`;
 
         volumeOptions.forEach(opt => {
             const option = document.createElement('option');
