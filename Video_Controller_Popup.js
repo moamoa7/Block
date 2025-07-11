@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (Full Fix + Shadow DOM Deep + TikTok + Flexible Sites + Volume Select + Amplify)
 // @namespace Violentmonkey Scripts
-// @version 4.09.8_Optimized_Whitelist (Transparent Default + Amp Fix)
+// @version 4.09.8_Optimized_Whitelist_Modified (Transparent Default + Amp Fix + Muted Video Fix)
 // @description 여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix Seek + Twitch + TikTok 대응 + 배열 관리 + 볼륨 SELECT + 증폭 (Shadow DOM Deep)
 // @match *://*/*
 // @grant none
@@ -48,12 +48,10 @@
     });
 
     // 증폭(Amplification)이 차단되는 사이트 목록 (Amplification Blacklist)
-    // 이 목록에 있는 사이트에서는 100% 초과 볼륨(증폭) 기능을 사용할 수 없습니다.
     const AMPLIFICATION_BLACKLIST = [
-        // 예시: 'youtube.com', 'vimeo.com', 'myvideoservice.net'
         'avsee.ru',
     ];
-    // 증폭이 차단되는지 확인하는 플래그 (isAmplificationAllowed 대신 사용)
+    // 증폭이 차단되는지 확인하는 플래그
     const isAmplificationBlocked = AMPLIFICATION_BLACKLIST.some(site => location.hostname.includes(site));
 
     // overflow visible fix 사이트 설정
@@ -110,13 +108,17 @@
             });
         }
         // 숨겨진 비디오, 오디오 트랙, 그리고 크기가 너무 작은 비디오를 제외합니다.
-        return found.filter(v =>
-            !v.classList.contains('hidden') &&
+        return found.filter(v => {
+          const style = window.getComputedStyle(v);
+          return (
+            style.display !== 'none' &&
+            style.visibility !== 'hidden' &&
             v.videoWidth > 0 &&
             v.videoHeight > 0 &&
             v.clientWidth > 50 &&
             v.clientHeight > 50
-        );
+          );
+        });
     }
 
     /**
@@ -137,8 +139,8 @@
                     video.playbackRate = rate;
                 }
                 if (!document.body.contains(video)) {
-                     clearInterval(currentIntervalId);
-                     currentIntervalId = null;
+                    clearInterval(currentIntervalId);
+                    currentIntervalId = null;
                 }
             }, siteConfig.interval);
         }
@@ -205,7 +207,13 @@
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
 
-            sourceNode = audioCtx.createMediaElementSource(video);
+            // check if the video element has already been processed by AudioContext
+            // This is a common pattern to avoid `InvalidStateError: MediaElementAudioSourceNode can only be created once per media element.`
+            if (!video._audioSourceNode) {
+                video._audioSourceNode = audioCtx.createMediaElementSource(video);
+            }
+
+            sourceNode = video._audioSourceNode;
             gainNode = audioCtx.createGain();
 
             sourceNode.connect(gainNode);
@@ -233,7 +241,6 @@
         if (isAmplificationBlocked && vol > 1) {
             console.warn(`Amplification is blocked on this site (${location.hostname}). Setting volume to 100%.`);
             if (gainNode && connectedVideo === video) {
-                // If gainNode exists but amplification is blocked, reset gain to 1.
                 gainNode.gain.value = 1;
             }
             video.volume = 1;
@@ -246,27 +253,32 @@
 
         // 100% 이하 볼륨이거나, 증폭이 차단되지 않은 경우 (100% 초과 볼륨 허용)
         if (vol <= 1 || !isAmplificationBlocked) {
-            if (vol <= 1) {
-                if (gainNode && connectedVideo === video) {
-                    gainNode.gain.value = 1;
-                }
-                video.volume = vol;
-            } else { // vol > 1 and amplification is allowed (not blocked)
-                if (!audioCtx || connectedVideo !== video) {
-                    if (!setupAudioContext(video)) {
-                        console.warn("Audio amplification not available. Setting video volume to 100%.");
-                        video.volume = 1;
-                        return;
-                    }
-                }
+        if (vol <= 1) {
+          if (gainNode && connectedVideo === video) {
+            // Amplification 연결이 되어있어도 100% 이하로 설정하면 증폭을 해제
+            gainNode.gain.value = 1;
+          }
+          video.volume = vol;
+        } else { // vol > 1 and amplification is allowed (not blocked)
+          if (video.muted) {
+            console.warn('Video is muted. Unmuting for amplification.');
+            video.muted = false;
+          }
 
-                if (gainNode) {
-                    // Set video volume to 100% and use gainNode for amplification
-                    video.volume = 1;
-                    gainNode.gain.value = vol;
-                }
+          if (!audioCtx || connectedVideo !== video) {
+            if (!setupAudioContext(video)) {
+              console.warn("Audio amplification not available. Setting video volume to 100%.");
+              video.volume = 1;
+              return;
             }
+          }
+
+          if (gainNode) {
+            video.volume = 1;
+            gainNode.gain.value = vol;
+          }
         }
+      }
     }
 
     // --- UI Update & Creation ---
@@ -287,25 +299,35 @@
         const volumeSelect = popupElement?.querySelector('#volume-select');
         if (!currentVideo || !volumeSelect) return;
 
+        // Determine the effective volume for display purposes
+        let effectiveVolume = 1.0;
+
+        // If muted, set the select value to 'muted' and handle gain node state
         if (currentVideo.muted) {
             volumeSelect.value = 'muted';
-            // Ensure gain node is muted if the video is muted
-            if (gainNode && connectedVideo === currentVideo) gainNode.gain.value = 0;
-        } else {
-            let effectiveVolume = currentVideo.volume;
-            // If gainNode is active and connected to the current video, use its gain value.
+            // If the video is muted, and we have a connected gain node, ensure gain is 0
             if (gainNode && connectedVideo === currentVideo) {
-                effectiveVolume = gainNode.gain.value;
+                gainNode.gain.value = 0;
             }
-
-            // 가장 가까운 볼륨 옵션 찾기
-            const closest = volumeOptions.reduce((prev, curr) => {
-                if (typeof curr.value !== 'number') return prev;
-                return Math.abs(curr.value - effectiveVolume) < Math.abs(prev.value - effectiveVolume) ? curr : prev;
-            }, { value: 1.0 });
-
-            volumeSelect.value = closest.value;
+            return;
+        } else {
+            // Video is not muted. We need to check if amplification is active.
+            if (gainNode && connectedVideo === currentVideo) {
+                // If connected and gainNode.gain.value is > 1 (or even 0), use that.
+                effectiveVolume = gainNode.gain.value;
+            } else {
+                // Otherwise, use the standard video volume
+                effectiveVolume = currentVideo.volume;
+            }
         }
+
+        // Find the closest volume option value
+        const closest = volumeOptions.reduce((prev, curr) => {
+            if (typeof curr.value !== 'number') return prev;
+            return Math.abs(curr.value - effectiveVolume) < Math.abs(prev.value - effectiveVolume) ? curr : prev;
+        }, { value: 1.0 });
+
+        volumeSelect.value = closest.value;
     }
 
     /**
@@ -335,7 +357,7 @@
     function addVideoInteractionListeners(video) {
         if (!video) return;
 
-        const events = ['play', 'pause', 'click', 'touchstart'];
+        const events = ['play', 'pause', 'click', 'touchstart', 'volumechange', 'emptied'];
 
         // Remove previous listeners if they exist to prevent duplicates
         removeVideoInteractionListeners(video);
@@ -344,6 +366,9 @@
         events.forEach(event => {
             video.addEventListener(event, showPopupTemporarily);
         });
+
+        // Specific listener for volume changes to update the UI
+        video.addEventListener('volumechange', updateVolumeSelect);
     }
 
     /**
@@ -352,10 +377,11 @@
     function removeVideoInteractionListeners(video) {
         if (!video) return;
 
-        const events = ['play', 'pause', 'click', 'touchstart'];
+        const events = ['play', 'pause', 'click', 'touchstart', 'volumechange', 'emptied'];
         events.forEach(event => {
             video.removeEventListener(event, showPopupTemporarily);
         });
+        video.removeEventListener('volumechange', updateVolumeSelect);
     }
 
     /**
@@ -370,7 +396,6 @@
         }
         if (currentVideo) {
             removeVideoInteractionListeners(currentVideo);
-            currentVideo.removeEventListener('volumechange', updateVolumeSelect);
         }
 
         videos = findPlayableVideos();
@@ -383,7 +408,8 @@
         }
 
         if (!currentVideo || !videos.includes(currentVideo)) {
-            currentVideo = videos[0];
+            // Find the most likely video to control (e.g., the largest or the first one)
+            currentVideo = videos.sort((a, b) => (b.videoWidth * b.videoHeight) - (a.videoWidth * a.videoHeight))[0];
         }
 
         // 팝업 요소 생성 및 스타일 설정
@@ -391,7 +417,7 @@
         popup.id = 'video-controller-popup';
         popup.style.cssText = `
             position: fixed;
-            bottom: 10px;
+            bottom: 0px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0,0,0,0.5);
@@ -428,7 +454,7 @@
         // 비디오 선택 드롭다운 생성
         const videoSelect = document.createElement('select');
         videoSelect.style.cssText = controlStyles + `
-            max-width: 150px;
+            max-width: 85px;
             text-overflow: ellipsis;
             background: #000;
             `;
@@ -453,32 +479,36 @@
                 currentIntervalId = null;
             }
 
-            // 비디오 변경 시 오디오 노드 정리
-            if (connectedVideo && connectedVideo !== currentVideo && sourceNode && gainNode) {
-                try {
-                    sourceNode.disconnect();
-                    gainNode.disconnect();
-                } catch (e) {
-                    console.warn("Error disconnecting audio nodes on video change:", e);
-                } finally {
-                    sourceNode = null;
-                    gainNode = null;
-                    connectedVideo = null;
+            // 비디오 변경 시 오디오 노드 정리 (이전 비디오의 AudioContext 연결 해제)
+            if (connectedVideo && connectedVideo !== currentVideo) {
+                // We should keep audioCtx, gainNode, sourceNode if they exist,
+                // but disconnect the previous video's sourceNode from the audio graph
+                // if it's no longer the current video.
+                if (sourceNode) {
+                    try {
+                        sourceNode.disconnect();
+                    } catch (e) {
+                        console.warn("Error disconnecting audio nodes on video change:", e);
+                    }
                 }
+
+                // Clear the connected video reference, gainNode, and sourceNode for the old video
+                connectedVideo = null;
+                sourceNode = null;
+                gainNode = null;
             }
 
             // Remove listeners from the old video
             if (currentVideo) removeVideoInteractionListeners(currentVideo);
-            if (currentVideo) currentVideo.removeEventListener('volumechange', updateVolumeSelect);
 
             currentVideo = videos[videoSelect.value];
 
             // Add listeners to the new video
             if (currentVideo) {
                 addVideoInteractionListeners(currentVideo);
-                currentVideo.addEventListener('volumechange', updateVolumeSelect);
             }
 
+            // Update UI based on the new video state
             updateVolumeSelect();
         };
         popup.appendChild(videoSelect);
@@ -520,13 +550,14 @@
                 console.error('PIP Error:', e);
             }
         }));
-        popup.appendChild(createButton('back15', '《 15s', () => seekVideo(-15)));
-        popup.appendChild(createButton('forward15', '15s 》', () => seekVideo(15)));
+        popup.appendChild(createButton('back15', '⏪15초', () => seekVideo(-15)));
+        popup.appendChild(createButton('forward15', '15초⏩', () => seekVideo(15)));
 
         // 볼륨 선택 드롭다운 생성
         const volumeSelect = document.createElement('select');
         volumeSelect.id = 'volume-select';
         volumeSelect.style.cssText = controlStyles + `
+            max-width: 85px;
             margin-left: 8px;
             background: #000;
         `;
@@ -552,17 +583,21 @@
 
             if (value === 'muted') {
                 currentVideo.muted = true;
-                if (gainNode && connectedVideo === currentVideo) gainNode.gain.value = 0;
+                // If audioCtx/gainNode exist, mute them too (though muting video should also work)
+                if (gainNode && connectedVideo === currentVideo) {
+                    gainNode.gain.value = 0;
+                }
             } else {
                 currentVideo.muted = false;
                 const vol = parseFloat(value);
                 setAmplifiedVolume(currentVideo, vol);
             }
+            // Update UI to reflect the actual state (especially important for amplification feedback)
+            updateVolumeSelect();
         };
 
-        // 팝업 생성 시 볼륨 상태 동기화 및 이벤트 리스너 추가
+        // Add listeners and synchronize UI state for the initial video
         if (currentVideo) {
-            currentVideo.addEventListener('volumechange', updateVolumeSelect);
             addVideoInteractionListeners(currentVideo);
         }
         updateVolumeSelect();
@@ -599,6 +634,7 @@
         const mo = new MutationObserver(() => {
             const newVideos = findPlayableVideos();
             // Check if the video list or composition has changed significantly
+            // Note: This comparison `newVideos.every((v, i) => v === videos[i])` ensures the same elements are present in the same order.
             if (newVideos.length !== videos.length || !newVideos.every((v, i) => v === videos[i])) {
                 createPopup();
             }
