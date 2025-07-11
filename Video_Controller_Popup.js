@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (Full Fix + Shadow DOM Deep + TikTok + Flexible Sites + Volume Select + Amplify)
 // @namespace Violentmonkey Scripts
-// @version 4.09.8_Optimized (Transparent Default) 
+// @version 4.09.8_Optimized (Transparent Default + Amp Fix) 
 // @description 여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix Seek + Twitch + TikTok 대응 + 배열 관리 + 볼륨 SELECT + 증폭 (Shadow DOM Deep)
 // @match *://*/*
 // @grant none
@@ -45,6 +45,13 @@
             forceInterval = site.interval;
         }
     });
+
+    // 증폭(Amplification)이 차단되어야 하는 사이트 (볼륨 100% 이상 불가)
+    const amplificationBlockedSites = [
+        'netflix.com'
+    ];
+    const isAmplificationBlocked = amplificationBlockedSites.some(site => location.hostname.includes(site));
+
 
     // overflow visible fix 사이트 설정
     const overflowFixSites = [
@@ -209,9 +216,20 @@
 
     /**
      * 비디오의 볼륨을 설정합니다. 100% 초과 볼륨은 Web Audio API를 사용하여 증폭합니다.
+     * 특정 사이트에서는 증폭을 차단하고 100%로 강제 설정합니다.
      */
     function setAmplifiedVolume(video, vol) {
         if (!video) return;
+
+        // 증폭 차단 사이트에서 100% 이상 볼륨 요청 시 100%로 제한
+        if (isAmplificationBlocked && vol > 1) {
+            console.warn(`Amplification is restricted on this site (${location.hostname}). Setting volume to 100%.`);
+            if (gainNode && connectedVideo === video) {
+                gainNode.gain.value = 1;
+            }
+            video.volume = 1;
+            return;
+        }
 
         if (audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume().catch(e => console.error("AudioContext resume error:", e));
@@ -435,6 +453,12 @@
             const option = document.createElement('option');
             option.value = opt.value;
             option.textContent = opt.label;
+            
+            // 증폭 차단 사이트에서는 100% 이상 옵션을 비활성화
+            if (isAmplificationBlocked && parseFloat(opt.value) > 1) {
+                option.disabled = true;
+                option.title = "Amplification blocked on this site";
+            }
             volumeSelect.appendChild(option);
         });
 
