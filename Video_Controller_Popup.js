@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (Full Fix + Shadow DOM Deep + TikTok + Flexible Sites + Volume Select + Amplify)
 // @namespace Violentmonkey Scripts
-// @version 4.09.8_Optimized_Whitelist_Modified (Transparent Default + Amp Fix + Muted Video Fix)
+// @version 4.09.9_Optimized_Whitelist_Modified (Dragging Fix + Fullscreen Container Check + Drag Feedback)
 // @description 여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix Seek + Twitch + TikTok 대응 + 배열 관리 + 볼륨 SELECT + 증폭 (Shadow DOM Deep)
 // @match *://*/*
 // @grant none
@@ -16,11 +16,18 @@
     let currentVideo = null;
     let popupElement = null;
     let isSeeking = false;
-    // Store the desired playback rate for persistent forcing
     let desiredPlaybackRate = 1.0;
-
-    // MutationObserver instance (moved to global scope for access in createPopup)
     let videoObserver = null;
+
+    // Variables for video dragging (New)
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartTime = 0;
+    let videoDraggingActive = false;
+    let feedbackOverlay = null; // Reference to the feedback overlay element
+
+    // Dragging configuration
+    const DRAG_SENSITIVITY_SECONDS = 30; // 100% video width drag = 30 seconds of seeking
 
     // --- Environment Flags ---
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -37,12 +44,10 @@
     ];
     const isLazySrcBlockedSite = lazySrcBlacklist.some(site => location.hostname.includes(site));
 
-    // 강제 배속 유지 사이트 설정 및 기본 간격
-    // Note: The previous logic for `forcePlaybackRateSites` and `forceInterval` is now superseded by the global ratechange listener and interval in `fixPlaybackRate`.
+    // 증폭 차단 사이트 (Blacklist)
     const AMPLIFICATION_BLACKLIST = [
         'avsee.ru',
     ];
-    // 증폭이 차단되는지 확인하는 플래그
     const isAmplificationBlocked = AMPLIFICATION_BLACKLIST.some(site => location.hostname.includes(site));
 
     // overflow visible fix 사이트 설정
@@ -87,10 +92,14 @@
     }
 
     /**
-     * 재생 가능한 비디오 요소를 찾아 반환합니다.
+     * 재생 가능한 비디오 요소를 찾아 반환합니다. (디버그 로그 포함)
      */
     function findPlayableVideos() {
         const found = findAllVideosDeep();
+
+        // Debugging: Log the found video elements before filtering
+        console.log('[DEBUG] Found videos (raw):', found.length, found);
+
         if (!isLazySrcBlockedSite) {
             found.forEach(v => {
                 if (!v.src && v.dataset && v.dataset.src) {
@@ -98,8 +107,9 @@
                 }
             });
         }
+
         // 숨겨진 비디오, 오디오 트랙, 그리고 크기가 너무 작은 비디오를 제외합니다.
-        return found.filter(v => {
+        const playableVideos = found.filter(v => {
             const style = window.getComputedStyle(v);
             return (
                 style.display !== 'none' &&
@@ -110,6 +120,9 @@
                 v.clientHeight > 50
             );
         });
+
+        console.log('[DEBUG] Found playable videos:', playableVideos.length, playableVideos);
+        return playableVideos;
     }
 
     /**
@@ -126,50 +139,37 @@
         // 2. Set the playback rate on the video element
         video.playbackRate = rate;
 
-        // 3. Ensure persistent rate maintenance using both interval and ratechange event listener
-
-        // Clear existing interval if any
+        // 3. Ensure persistent rate maintenance
         if (currentIntervalId) {
             clearInterval(currentIntervalId);
         }
 
-        // Add ratechange listener to the current video
-        // We ensure only one ratechange listener is active on the current video for this purpose.
-
-        // Remove previous specific ratechange listener if it exists
         if (currentVideo && currentVideo._rateChangeHandler) {
             currentVideo.removeEventListener('ratechange', currentVideo._rateChangeHandler);
             currentVideo._rateChangeHandler = null;
         }
 
-        // Define and add the new ratechange handler
         const rateChangeHandler = () => {
             if (video.playbackRate !== desiredPlaybackRate) {
                 video.playbackRate = desiredPlaybackRate;
-                console.log(`[Video Controller Popup] Resetting playback rate via ratechange event to ${desiredPlaybackRate}`);
             }
         };
 
         video.addEventListener('ratechange', rateChangeHandler);
-        // Store the handler on the video element for later removal
         video._rateChangeHandler = rateChangeHandler;
 
-        // Start interval for periodic check (fallback for sites that might suppress ratechange event or modify rate outside of the event)
         currentIntervalId = setInterval(() => {
-            // Check if the video is still in the DOM and the rate is correct
             if (document.body.contains(video) && video.playbackRate !== desiredPlaybackRate) {
                 video.playbackRate = desiredPlaybackRate;
             } else if (!document.body.contains(video)) {
-                // If video is removed from DOM, clear the interval
                 clearInterval(currentIntervalId);
                 currentIntervalId = null;
-                // Also remove the ratechange listener if the video is gone
                 if (video._rateChangeHandler) {
                     video.removeEventListener('ratechange', video._rateChangeHandler);
                     video._rateChangeHandler = null;
                 }
             }
-        }, 200); // Check every 200ms
+        }, 200);
     }
 
     /**
@@ -181,7 +181,8 @@
 
         if (isNetflix) {
             try {
-                // Note: The Netflix seeking logic relies on accessing a global 'netflix' object which might be unstable or blocked.
+                // Netflix specific seeking logic
+                // (Note: Requires netflix player API access, which might not always be available)
                 const player = netflix.appContext.state.playerApp.getAPI().videoPlayer;
                 const sessionId = player.getAllPlayerSessionIds()[0];
                 const playerSession = player.getVideoPlayerBySessionId(sessionId);
@@ -210,7 +211,6 @@
      * Web Audio Context를 설정하여 비디오의 오디오를 조작할 수 있도록 준비합니다.
      */
     function setupAudioContext(video) {
-        // AudioContext는 증폭이 차단되지 않은 경우에만 설정합니다.
         if (isAmplificationBlocked) {
             return false;
         }
@@ -218,7 +218,6 @@
         try {
             if (!video) return false;
 
-            // 기존 연결 해제 및 초기화
             if (sourceNode) {
                 sourceNode.disconnect();
                 sourceNode = null;
@@ -233,8 +232,6 @@
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
 
-            // check if the video element has already been processed by AudioContext
-            // This is a common pattern to avoid `InvalidStateError: MediaElementAudioSourceNode can only be created once per media element.`
             if (!video._audioSourceNode) {
                 video._audioSourceNode = audioCtx.createMediaElementSource(video);
             }
@@ -263,9 +260,7 @@
     function setAmplifiedVolume(video, vol) {
         if (!video) return;
 
-        // 증폭이 차단된 사이트에서 100% 이상 볼륨 요청 시 100%로 제한
         if (isAmplificationBlocked && vol > 1) {
-            console.warn(`Amplification is blocked on this site (${location.hostname}). Setting volume to 100%.`);
             if (gainNode && connectedVideo === video) {
                 gainNode.gain.value = 1;
             }
@@ -277,31 +272,217 @@
             audioCtx.resume().catch(e => console.error("AudioContext resume error:", e));
         }
 
-        // 100% 이하 볼륨이거나, 증폭이 차단되지 않은 경우 (100% 초과 볼륨 허용)
         if (vol <= 1) {
             if (gainNode && connectedVideo === video) {
-              // If connected and gainNode.gain.value is > 1, setting video.volume will still apply the gain.
-              // To properly control volume below 100% via standard video volume, we should reset the gain node to 1.
               gainNode.gain.value = 1;
             }
             video.volume = vol;
-        } else { // vol > 1 and amplification is allowed (not blocked)
+        } else {
             if (video.muted) {
-                console.warn('Video is muted. Unmuting for amplification.');
                 video.muted = false;
             }
 
             if (!audioCtx || connectedVideo !== video) {
                 if (!setupAudioContext(video)) {
-                    console.warn("Audio amplification not available. Setting video volume to 100%.");
                     video.volume = 1;
                     return;
                 }
             }
 
             if (gainNode) {
-                video.volume = 1; // Standard volume must be 1 (or 100%) for amplification via gain node to work correctly.
+                video.volume = 1;
                 gainNode.gain.value = vol;
+            }
+        }
+    }
+
+    // --- Video Dragging Implementation ---
+
+    /**
+     * 드래그 피드백 오버레이 요소를 생성하거나 가져옵니다.
+     * 전체 화면 상태에 따라 부모 요소를 동적으로 관리합니다.
+     */
+    function getFeedbackOverlay() {
+        if (!feedbackOverlay) {
+            feedbackOverlay = document.createElement('div');
+            feedbackOverlay.id = 'video-drag-feedback';
+            feedbackOverlay.style.cssText = `
+                position: absolute; /* Changed to absolute for reliable positioning within fullscreen containers */
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-size: 24px;
+                font-weight: bold;
+                z-index: 2147483647;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.2s ease-in-out;
+            `;
+        }
+
+        // Dynamically place the overlay based on fullscreen state
+        const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+        const targetParent = fullscreenElement || document.body;
+
+        if (feedbackOverlay.parentNode !== targetParent) {
+            if (feedbackOverlay.parentNode) {
+                feedbackOverlay.parentNode.removeChild(feedbackOverlay);
+            }
+            targetParent.appendChild(feedbackOverlay);
+        }
+
+        return feedbackOverlay;
+    }
+
+    // Function to update the feedback overlay text and show it
+    function updateFeedback(text) {
+        const overlay = getFeedbackOverlay();
+        overlay.textContent = text;
+        overlay.style.opacity = 1;
+    }
+
+    // Function to hide the feedback overlay
+    function hideFeedback() {
+        const overlay = getFeedbackOverlay();
+        // Use a timeout to ensure the overlay fades out smoothly
+        setTimeout(() => {
+            overlay.style.opacity = 0;
+        }, 500); // Wait 0.5s before fading out
+    }
+
+    /**
+     * 비디오 드래그 이벤트를 설정합니다.
+     * @param {HTMLVideoElement} video
+     */
+    function setupVideoDragging(video) {
+        if (!video || video._draggingSetup) return;
+
+        console.log('[Video Controller Popup] Setting up dragging events on video.');
+
+        const handleMouseDown = (e) => {
+            // Only allow dragging if the feature is active, triggered by left mouse button,
+            // and the clicked target is the video element or a child of it.
+            if (!videoDraggingActive || e.button !== 0 || !(e.target === video || video.contains(e.target))) {
+                return;
+            }
+
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartTime = video.currentTime; // Record the starting time for time calculation
+            video.style.cursor = 'ew-resize';
+
+            // Ensure feedback overlay is present in the DOM
+            getFeedbackOverlay();
+
+            // Prevent default drag behavior
+            e.stopPropagation();
+            e.preventDefault();
+        };
+
+        const handleMouseMove = (e) => {
+            if (!isDragging || !videoDraggingActive) return;
+
+            const deltaX = e.clientX - dragStartX;
+            const videoWidth = video.offsetWidth;
+            const duration = video.duration;
+
+            if (videoWidth === 0 || isNaN(duration)) return;
+
+            // Calculate change in time: (deltaX / videoWidth) * sensitivity (e.g., 30s)
+            const timeDelta = (deltaX / videoWidth) * DRAG_SENSITIVITY_SECONDS;
+
+            // Calculate the new time based on the initial drag start time and the current delta
+            let newTime = dragStartTime + timeDelta;
+            newTime = Math.max(0, Math.min(newTime, duration));
+
+            // Update video time
+            video.currentTime = newTime;
+
+            // --- Update Feedback Overlay ---
+            // Calculate the actual change in time for display (new time - original time)
+            const feedbackTimeChange = newTime - dragStartTime;
+
+            // Format the feedback text (+ or -) and display it to 1 decimal place
+            const formattedTime = (feedbackTimeChange >= 0 ? '+' : '-') + Math.abs(feedbackTimeChange).toFixed(1) + 's';
+            updateFeedback(formattedTime);
+        };
+
+        const handleMouseUp = () => {
+            if (isDragging) {
+                isDragging = false;
+                video.style.cursor = 'pointer'; // Reset cursor
+                hideFeedback(); // Hide the feedback overlay after drag ends
+            }
+        };
+
+        // Store handlers on the video element for easy removal and reference
+        video._dragHandlers = { handleMouseDown, handleMouseMove, handleMouseUp };
+
+        // Add listeners to the video element itself
+        video.addEventListener('mousedown', handleMouseDown);
+        video.addEventListener('mousemove', handleMouseMove);
+        video.addEventListener('mouseup', handleMouseUp);
+
+        // Add global mouseup listener to ensure dragging stops even if mouse leaves the video
+        document.addEventListener('mouseup', handleMouseUp);
+
+        video._draggingSetup = true;
+    }
+
+    /**
+     * 비디오 드래그 이벤트를 제거합니다.
+     * @param {HTMLVideoElement} video
+     */
+    function removeVideoDragging(video) {
+        if (!video || !video._draggingSetup) return;
+
+        const handlers = video._dragHandlers;
+        if (handlers) {
+            video.removeEventListener('mousedown', handlers.handleMouseDown);
+            video.removeEventListener('mousemove', handlers.handleMouseMove);
+            video.removeEventListener('mouseup', handlers.handleMouseUp);
+            document.removeEventListener('mouseup', handlers.handleMouseUp);
+        }
+
+        video._draggingSetup = false;
+        videoDraggingActive = false;
+    }
+
+    /**
+     * 현재 비디오의 전체 화면 상태에 따라 드래그 기능을 활성화/비활성화합니다.
+     * Null 안전 처리를 포함하여 오류를 방지합니다.
+     * @param {HTMLVideoElement} video
+     */
+    function updateVideoDraggingState(video) {
+        // 1. If no video is selected, disable dragging and return immediately.
+        if (!video) {
+            videoDraggingActive = false;
+            return;
+        }
+
+        const fullscreenElement =
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement;
+
+        const isAnyFullscreen = fullscreenElement !== null;
+
+        // 2. Check if the video is the fullscreen element OR a child of the fullscreen element.
+        // We ensure fullscreenElement exists and has a .contains method before calling it.
+        videoDraggingActive = isAnyFullscreen && (
+            fullscreenElement === video ||
+            (fullscreenElement && typeof fullscreenElement.contains === 'function' && fullscreenElement.contains(video))
+        );
+
+        // 3. Update cursor style only if not currently dragging and if dragging is active for this video.
+        if (!isDragging) {
+            if (video === currentVideo) {
+                video.style.cursor = videoDraggingActive ? 'pointer' : '';
             }
         }
     }
@@ -324,29 +505,22 @@
         const volumeSelect = popupElement?.querySelector('#volume-select');
         if (!currentVideo || !volumeSelect) return;
 
-        // Determine the effective volume for display purposes
         let effectiveVolume = 1.0;
 
-        // If muted, set the select value to 'muted' and handle gain node state
         if (currentVideo.muted) {
             volumeSelect.value = 'muted';
-            // If the video is muted, and we have a connected gain node, ensure gain is 0
             if (gainNode && connectedVideo === currentVideo) {
                 gainNode.gain.value = 0;
             }
             return;
         } else {
-            // Video is not muted. We need to check if amplification is active.
             if (gainNode && connectedVideo === currentVideo) {
-                // If connected and gainNode.gain.value is > 1 (or even 0), use that.
                 effectiveVolume = gainNode.gain.value;
             } else {
-                // Otherwise, use the standard video volume
                 effectiveVolume = currentVideo.volume;
             }
         }
 
-        // Find the closest volume option value
         const closest = volumeOptions.reduce((prev, curr) => {
             if (typeof curr.value !== 'number') return prev;
             return Math.abs(curr.value - effectiveVolume) < Math.abs(prev.value - effectiveVolume) ? curr : prev;
@@ -361,15 +535,11 @@
     function showPopupTemporarily() {
         if (!popupElement) return;
 
-        // Ensure the popup is fully visible
         popupElement.style.opacity = '1';
 
-        // Clear any existing fade timeout
         clearTimeout(popupElement.fadeTimeout);
 
-        // Schedule fade out after 3 seconds
         popupElement.fadeTimeout = setTimeout(() => {
-            // Only fade out if the mouse is not hovering over the popup (for desktop users)
             if (isMobile || !popupElement.matches(':hover')) {
                 popupElement.style.opacity = idleOpacity;
             }
@@ -384,26 +554,20 @@
 
         const events = ['play', 'pause', 'click', 'touchstart', 'volumechange', 'emptied'];
 
-        // Remove previous listeners if they exist to prevent duplicates
         removeVideoInteractionListeners(video);
 
-        // Add new listeners
         events.forEach(event => {
             video.addEventListener(event, showPopupTemporarily);
         });
 
-        // Specific listener for volume changes to update the UI
         video.addEventListener('volumechange', updateVolumeSelect);
 
-        // Add play listener to ensure playback rate is maintained immediately upon playing
         const playHandler = () => {
             if (video.playbackRate !== desiredPlaybackRate) {
-                console.log(`[Video Controller Popup] PlaybackRate fixed on play to ${desiredPlaybackRate}`);
                 video.playbackRate = desiredPlaybackRate;
             }
         };
 
-        // Store the play handler on the video element for later removal
         video._playHandler = playHandler;
         video.addEventListener('play', playHandler);
     }
@@ -420,7 +584,6 @@
         });
         video.removeEventListener('volumechange', updateVolumeSelect);
 
-        // Remove the specific play handler
         if (video._playHandler) {
             video.removeEventListener('play', video._playHandler);
             video._playHandler = null;
@@ -433,44 +596,41 @@
     function createPopup() {
         const hostRoot = document.body;
 
-        // Remove existing popup and listeners if present
         if (popupElement) {
             popupElement.remove();
             popupElement = null;
         }
+
         if (currentVideo) {
-            // Remove general interaction listeners (including the play handler)
             removeVideoInteractionListeners(currentVideo);
-            // Remove specific ratechange listener for the previous video
             if (currentVideo._rateChangeHandler) {
                 currentVideo.removeEventListener('ratechange', currentVideo._rateChangeHandler);
                 currentVideo._rateChangeHandler = null;
             }
+            removeVideoDragging(currentVideo);
         }
 
         videos = findPlayableVideos();
 
         if (videos.length === 0) {
+            console.log('[DEBUG] No playable videos found. Hiding/Preventing popup.');
             if (currentIntervalId) clearInterval(currentIntervalId);
             currentIntervalId = null;
             currentVideo = null;
-            // Disconnect the observer if no videos are present
-            if (videoObserver) {
-                videoObserver.disconnect();
-                console.log("[Video Controller Popup] MutationObserver disconnected (no videos found).");
-            }
+            // MutationObserver should remain active to detect videos later.
             return;
         }
 
-        // Reconnect observer if it was disconnected (only if videos are found)
+        // If observer is already running, skip re-observing.
         if (videoObserver && videoObserver.takeRecords().length === 0 && !document.body.contains(videoObserver.target)) {
+             // Re-attach observer if body was somehow detached (unlikely but safe)
             videoObserver.observe(document.body, { childList: true, subtree: true });
-            console.log("[Video Controller Popup] MutationObserver reconnected.");
         }
 
+        // Select the largest video if currentVideo is null or no longer valid
         if (!currentVideo || !videos.includes(currentVideo)) {
-            // Find the most likely video to control (e.g., the largest or the first one)
             currentVideo = videos.sort((a, b) => (b.videoWidth * b.videoHeight) - (a.videoWidth * a.videoHeight))[0];
+            console.log('[DEBUG] Selecting new primary video:', currentVideo);
         }
 
         // 팝업 요소 생성 및 스타일 설정
@@ -493,7 +653,7 @@
             align-items: center;
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
             transition: opacity 0.3s ease;
-            opacity: ${idleOpacity}; // 초기 투명도 적용 (기본값 0.025)
+            opacity: ${idleOpacity};
         `;
         popupElement = popup;
 
@@ -535,7 +695,6 @@
         });
 
         videoSelect.onchange = () => {
-            // Remove ratechange listener and interval from the old video
             if (currentVideo && currentVideo._rateChangeHandler) {
                 currentVideo.removeEventListener('ratechange', currentVideo._rateChangeHandler);
                 currentVideo._rateChangeHandler = null;
@@ -545,7 +704,6 @@
                 currentIntervalId = null;
             }
 
-            // 비디오 변경 시 오디오 노드 정리 (이전 비디오의 AudioContext 연결 해제)
             if (connectedVideo && connectedVideo !== currentVideo) {
                 if (sourceNode) {
                     try {
@@ -554,26 +712,25 @@
                         console.warn("Error disconnecting audio nodes on video change:", e);
                     }
                 }
-
-                // Clear the connected video reference, gainNode, and sourceNode for the old video
                 connectedVideo = null;
                 sourceNode = null;
                 gainNode = null;
             }
 
-            // Remove general interaction listeners from the old video (including the play handler)
-            if (currentVideo) removeVideoInteractionListeners(currentVideo);
+            if (currentVideo) {
+                removeVideoDragging(currentVideo);
+                removeVideoInteractionListeners(currentVideo);
+            }
 
             currentVideo = videos[videoSelect.value];
 
-            // Add listeners to the new video
             if (currentVideo) {
                 addVideoInteractionListeners(currentVideo);
-                // Apply the last used desiredPlaybackRate to the new video
                 fixPlaybackRate(currentVideo, desiredPlaybackRate);
+                setupVideoDragging(currentVideo);
+                updateVideoDraggingState(currentVideo);
             }
 
-            // Update UI based on the new video state
             updateVolumeSelect();
         };
         popup.appendChild(videoSelect);
@@ -589,7 +746,6 @@
             btn.addEventListener('mouseleave', () => { if (!isMobile) btn.style.backgroundColor = 'rgba(0,0,0,0.5)'; });
             btn.addEventListener('click', () => {
                 onClick();
-                // Ensure popup visibility on button interaction
                 showPopupTemporarily();
 
                 if (isMobile) {
@@ -608,7 +764,7 @@
             try {
                 if (document.pictureInPictureElement) {
                     await document.exitPictureInPicture();
-                } else {
+                } else if (currentVideo) {
                     await currentVideo.requestPictureInPicture();
                 }
             } catch (e) {
@@ -632,7 +788,6 @@
             option.value = opt.value;
             option.textContent = opt.label;
 
-            // 증폭이 차단된 사이트에서는 100% 이상 옵션을 비활성화
             if (isAmplificationBlocked && parseFloat(opt.value) > 1) {
                 option.disabled = true;
                 option.title = "Amplification is blocked on this site.";
@@ -648,7 +803,6 @@
 
             if (value === 'muted') {
                 currentVideo.muted = true;
-                // If audioCtx/gainNode exist, mute them too (though muting video should also work)
                 if (gainNode && connectedVideo === currentVideo) {
                     gainNode.gain.value = 0;
                 }
@@ -657,21 +811,18 @@
                 const vol = parseFloat(value);
                 setAmplifiedVolume(currentVideo, vol);
             }
-            // Update UI to reflect the actual state (especially important for amplification feedback)
             updateVolumeSelect();
         };
 
-        // Add listeners and synchronize UI state for the initial video
         if (currentVideo) {
             addVideoInteractionListeners(currentVideo);
-            // Ensure the initial playback rate is set and maintained
             fixPlaybackRate(currentVideo, desiredPlaybackRate);
+            setupVideoDragging(currentVideo);
+            updateVideoDraggingState(currentVideo);
         }
         updateVolumeSelect();
         popup.appendChild(volumeSelect);
 
-        // 팝업 투명도 자동 조절 (마우스 오버/터치)
-        // PC: 마우스 진입 시 불투명, 이탈 시 투명 (idleOpacity로 복귀)
         if (!isMobile) {
             popup.addEventListener('mouseenter', () => {
                 popup.style.opacity = '1';
@@ -679,9 +830,7 @@
             popup.addEventListener('mouseleave', () => {
                 popup.style.opacity = idleOpacity;
             });
-        }
-        // 모바일: 터치 시 불투명, 3초 후 투명
-        else {
+        } else {
             popup.addEventListener('touchstart', () => {
                 showPopupTemporarily();
             });
@@ -695,28 +844,54 @@
      * 스크립트의 주요 실행 로직을 시작합니다.
      */
     function run() {
-        createPopup();
+        createPopup(); // Initial attempt to create popup
 
-        // MutationObserver를 사용하여 DOM 변경 감지 (비디오 추가/삭제 등)
+        // Set up MutationObserver to watch for dynamic changes in the DOM, including video elements
         videoObserver = new MutationObserver(() => {
             const newVideos = findPlayableVideos();
-            // Check if the video list or composition has changed significantly
-            // Note: This comparison `newVideos.every((v, i) => v === videos[i])` ensures the same elements are present in the same order.
             if (newVideos.length !== videos.length || !newVideos.every((v, i) => v === videos[i])) {
+                console.log('[Observer] Video list changed. Recreating popup.');
                 createPopup();
             }
         });
 
-        // Start observing changes in the document body and all its descendants
+        // Start observing the body for video additions/removals
         videoObserver.observe(document.body, { childList: true, subtree: true });
 
-        // 주기적으로 비디오 목록 확인 (DOM 변경을 놓칠 경우 대비)
+        // Periodically check for videos and update dragging state
         setInterval(() => {
             const newVideos = findPlayableVideos();
+
+            // Check if video list has changed and trigger popup recreation if necessary
             if (newVideos.length !== videos.length || !newVideos.every((v, i) => v === videos[i])) {
+                 console.log('[Interval] Video list mismatch detected. Recreating popup.');
                 createPopup();
             }
+
+            if (currentVideo) {
+                updateVideoDraggingState(currentVideo);
+                // Ensure the feedback overlay is correctly positioned if fullscreen state changes
+                if (feedbackOverlay) {
+                    getFeedbackOverlay();
+                }
+            }
         }, 2000);
+
+        // 전체 화면 상태 변경 감지 및 오버레이 위치 조정
+        const fullscreenChangeHandler = () => {
+            if (currentVideo) {
+                updateVideoDraggingState(currentVideo);
+                // Update overlay parent when fullscreen state changes
+                if (feedbackOverlay) {
+                    getFeedbackOverlay();
+                }
+            }
+        };
+
+        document.addEventListener('fullscreenchange', fullscreenChangeHandler);
+        document.addEventListener('webkitfullscreenchange', fullscreenChangeHandler);
+        document.addEventListener('mozfullscreenchange', fullscreenChangeHandler);
+        document.addEventListener('MSFullscreenChange', fullscreenChangeHandler);
 
         // 오버플로우 픽스 대상 사이트가 있으면 주기적으로 실행
         if (overflowFixTargets.length > 0) {
