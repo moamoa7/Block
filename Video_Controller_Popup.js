@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (Full Fix + Shadow DOM Deep + TikTok + Flexible Sites + Volume Select + Amplify)
 // @namespace Violentmonkey Scripts
-// @version 4.09.9_Optimized_Whitelist_Modified (Dragging Fix + Fullscreen Container Check + Drag Feedback)
+// @version 4.09.9_Optimized_Whitelist_Modified (Dragging Fix + Fullscreen Container Check + Drag Feedback + Mobile Fixes)
 // @description 여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix Seek + Twitch + TikTok 대응 + 배열 관리 + 볼륨 SELECT + 증폭 (Shadow DOM Deep)
 // @match *://*/*
 // @grant none
@@ -19,7 +19,7 @@
     let desiredPlaybackRate = 1.0;
     let videoObserver = null;
 
-    // Variables for video dragging (New)
+    // Variables for video dragging
     let isDragging = false;
     let dragStartX = 0;
     let dragStartTime = 0;
@@ -307,7 +307,7 @@
             feedbackOverlay = document.createElement('div');
             feedbackOverlay.id = 'video-drag-feedback';
             feedbackOverlay.style.cssText = `
-                position: absolute; /* Changed to absolute for reliable positioning within fullscreen containers */
+                position: absolute;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
@@ -325,13 +325,16 @@
         }
 
         // Dynamically place the overlay based on fullscreen state
+        // Use document.body if no specific fullscreen element is active.
         const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
         const targetParent = fullscreenElement || document.body;
 
+        // Ensure the overlay is correctly placed within the target parent
         if (feedbackOverlay.parentNode !== targetParent) {
             if (feedbackOverlay.parentNode) {
                 feedbackOverlay.parentNode.removeChild(feedbackOverlay);
             }
+            // Append to the target parent (e.g., the fullscreen element or body)
             targetParent.appendChild(feedbackOverlay);
         }
 
@@ -368,24 +371,39 @@
         const moveEvent = isMobile ? 'touchmove' : 'mousemove';
         const endEvent = isMobile ? 'touchend' : 'mouseup';
 
+        // Apply critical CSS properties for dragging stability:
+        // 1. Ensure pointer events are 'auto' to allow interaction.
+        // 2. Set 'touch-action: none' to prevent scrolling/zooming during drag (crucial for mobile).
+        // 3. Set 'position: relative' if not already set, to ensure dragging feedback can position correctly.
+        video.style.pointerEvents = 'auto';
+        video.style.touchAction = 'none';
+        if (window.getComputedStyle(video).position === 'static') {
+            video.style.position = 'relative';
+        }
+        video.style.cursor = 'pointer'; // Ensure cursor is appropriate for PC
+
         const handleStart = (e) => {
             // Get the coordinates based on whether it's a mouse or touch event
             const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
-            
+
             // Only allow dragging if the feature is active and a valid coordinate is available.
             if (!videoDraggingActive || clientX === undefined) {
                 return;
             }
 
-            // For mobile, prevent default only if a touch is active and dragging is allowed.
-            if (isMobile && videoDraggingActive) {
+            // CRITICAL: Prevent default action for touch events to stop scrolling.
+            if (isMobile) {
                 e.preventDefault();
             }
 
             isDragging = true;
             dragStartX = clientX;
             dragStartTime = video.currentTime; // Record the starting time for time calculation
-            video.style.cursor = 'ew-resize';
+            
+            // Change cursor for PC dragging feedback
+            if (!isMobile) {
+                 video.style.cursor = 'ew-resize';
+            }
 
             // Ensure feedback overlay is present in the DOM
             getFeedbackOverlay();
@@ -401,7 +419,7 @@
 
             // Get the coordinates based on whether it's a mouse or touch event
             const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
-            
+
             if (clientX === undefined) return;
 
             const deltaX = clientX - dragStartX;
@@ -432,7 +450,10 @@
         const handleEnd = () => {
             if (isDragging) {
                 isDragging = false;
-                video.style.cursor = 'pointer'; // Reset cursor
+                // Reset cursor for PC
+                if (!isMobile) {
+                    video.style.cursor = 'pointer';
+                }
                 hideFeedback(); // Hide the feedback overlay after drag ends
             }
         };
@@ -469,6 +490,14 @@
             video.removeEventListener(endEvent, handlers.handleEnd);
             document.removeEventListener(endEvent, handlers.handleEnd);
         }
+
+        // Reset styling changes
+        video.style.cursor = '';
+        video.style.pointerEvents = '';
+        video.style.touchAction = '';
+
+        // Reset position only if we explicitly set it to relative. This is complex and might revert site CSS, so we'll only reset what we changed if necessary.
+        // For simplicity, we just reset the flags we set, as we set them again in setupVideoDragging.
 
         video._draggingSetup = false;
         videoDraggingActive = false;
@@ -507,14 +536,15 @@
             );
         }
 
-        // 3. Update cursor style only if not currently dragging and if dragging is active for this video (PC only)
-        if (!isMobile && !isDragging) {
-            if (video === currentVideo) {
-                video.style.cursor = videoDraggingActive ? 'pointer' : '';
-            }
-        } else if (isMobile && !isDragging) {
-            // For mobile, ensure cursor is default or pointer if dragging is active
-            video.style.cursor = videoDraggingActive ? 'pointer' : '';
+        // 3. Update cursor and pointer-events based on dragging activity
+        if (video === currentVideo) {
+             // Ensure pointer-events and touch-action are set for the current video
+             video.style.pointerEvents = videoDraggingActive ? 'auto' : '';
+             video.style.touchAction = videoDraggingActive ? 'none' : '';
+
+             if (!isDragging) {
+                 video.style.cursor = videoDraggingActive ? 'pointer' : '';
+             }
         }
     }
 
@@ -633,6 +663,7 @@
             popupElement = null;
         }
 
+        // Clean up previous video's state and dragging setup before creating the new popup
         if (currentVideo) {
             removeVideoInteractionListeners(currentVideo);
             if (currentVideo._rateChangeHandler) {
@@ -651,12 +682,6 @@
             currentVideo = null;
             // MutationObserver should remain active to detect videos later.
             return;
-        }
-
-        // If observer is already running, skip re-observing.
-        if (videoObserver && videoObserver.takeRecords().length === 0 && !document.body.contains(videoObserver.target)) {
-             // Re-attach observer if body was somehow detached (unlikely but safe)
-             videoObserver.observe(document.body, { childList: true, subtree: true });
         }
 
         // Select the largest video if currentVideo is null or no longer valid
@@ -727,6 +752,7 @@
         });
 
         videoSelect.onchange = () => {
+            // Clean up old video's state and listeners
             if (currentVideo && currentVideo._rateChangeHandler) {
                 currentVideo.removeEventListener('ratechange', currentVideo._rateChangeHandler);
                 currentVideo._rateChangeHandler = null;
@@ -735,7 +761,12 @@
                 clearInterval(currentIntervalId);
                 currentIntervalId = null;
             }
+            if (currentVideo) {
+                removeVideoDragging(currentVideo);
+                removeVideoInteractionListeners(currentVideo);
+            }
 
+            // Clean up audio nodes if the video source changes
             if (connectedVideo && connectedVideo !== currentVideo) {
                 if (sourceNode) {
                     try {
@@ -749,11 +780,7 @@
                 gainNode = null;
             }
 
-            if (currentVideo) {
-                removeVideoDragging(currentVideo);
-                removeVideoInteractionListeners(currentVideo);
-            }
-
+            // Set new current video and setup
             currentVideo = videos[videoSelect.value];
 
             if (currentVideo) {
@@ -847,6 +874,7 @@
             updateVolumeSelect();
         };
 
+        // Initial setup for the selected video
         if (currentVideo) {
             addVideoInteractionListeners(currentVideo);
             fixPlaybackRate(currentVideo, desiredPlaybackRate);
@@ -938,9 +966,9 @@
         const globalInteractionHandler = (event) => {
             // Check if the click/touch target is outside the popup element
             if (popupElement && popupElement.contains(event.target)) {
-                return; 
+                return;
             }
-            
+
             // Only proceed if it's a primary mouse click (button 0) for mouse events
             if (event.type === 'click' && event.button !== 0) {
                 return;
