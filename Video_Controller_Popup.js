@@ -386,8 +386,21 @@
             // Get the coordinates based on whether it's a mouse or touch event
             const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
 
-            // Only allow dragging if the feature is active and a valid coordinate is available.
+            // 모바일에서는 전체화면 상태일 때만 드래그를 허용하도록 수정
+            const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+
+            if (isMobile && !fullscreenElement) {
+                // 전체화면이 아닌 경우 드래그를 비활성화
+                return;
+            }
+
             if (!videoDraggingActive || clientX === undefined) {
+                return;
+            }
+
+            // Only allow dragging if the feature is active, a valid coordinate is available,
+            // and (if mobile) it's in fullscreen mode
+            if (!videoDraggingActive || clientX === undefined || (isMobile && !document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement)) {
                 return;
             }
 
@@ -399,7 +412,7 @@
             isDragging = true;
             dragStartX = clientX;
             dragStartTime = video.currentTime; // Record the starting time for time calculation
-            
+
             // Change cursor for PC dragging feedback
             if (!isMobile) {
                  video.style.cursor = 'ew-resize';
