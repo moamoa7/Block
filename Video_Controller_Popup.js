@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video Controller Popup (Full Fix + Shadow DOM + TikTok + Flexible + Volume Select + Amplify + HLS Support)
 // @namespace     Violentmonkey Scripts
-// @version       4.09.3 // Video select dropdown width adjusted
+// @version       4.09.4 // Added: Batch playback rate control for all videos
 // @description   여러 영상 선택 + 앞뒤 이동 + 배속 + PIP + Lazy data-src + Netflix + Twitch + TikTok 대응 + 볼륨 SELECT + 증폭 + m3u8 (HLS.js) 지원 (Shadow DOM Deep)
 // @match         *://*/*
 // @grant         none
@@ -233,6 +233,25 @@
         // Fallback or additional enforcement with requestAnimationFrame
         currentPlaybackRateRAFId = requestAnimationFrame(enforcePlaybackRate);
     };
+
+    // --- Added function to apply playback rate to ALL videos ---
+    const applyRateToAll = (rate) => {
+        // Set the global desired rate for the current video's enforcement
+        desiredPlaybackRate = rate; 
+
+        // Apply the rate to all videos found on the page
+        videos.forEach(v => {
+            if (v && !isNaN(rate)) {
+                v.playbackRate = rate;
+            }
+        });
+        
+        // Re-start enforcement for the current video if necessary (handled by fixPlaybackRate)
+        if (currentVideo) {
+            fixPlaybackRate(currentVideo, rate);
+        }
+    };
+    // -------------------------------------------------------------
 
     const seekVideo = sec => {
         if (isNetflix) {
@@ -559,9 +578,12 @@
             return btn;
         };
 
-        popup.appendChild(createButton('speed-0.2x', '0.2x', () => fixPlaybackRate(currentVideo, 0.2)));
-        popup.appendChild(createButton('speed-1.0x', '1.0x', () => fixPlaybackRate(currentVideo, 1)));
-        popup.appendChild(createButton('speed-4.0x', '4.0x', () => fixPlaybackRate(currentVideo, 4)));
+        // --- Modified speed buttons to use applyRateToAll ---
+        popup.appendChild(createButton('speed-0.2x', '0.2x', () => applyRateToAll(0.2)));
+        popup.appendChild(createButton('speed-1.0x', '1.0x', () => applyRateToAll(1.0)));
+        popup.appendChild(createButton('speed-4.0x', '4.0x', () => applyRateToAll(4.0)));
+        // ----------------------------------------------------
+        
         popup.appendChild(createButton('rewind-5s', '⏪ 5초', () => seekVideo(-5)));
         popup.appendChild(createButton('forward-5s', '5초 ⏩', () => seekVideo(5)));
         popup.appendChild(createButton('pip-mode', '📺 PIP', async () => {
@@ -666,6 +688,6 @@
     };
 
     run();
-    console.log('Video Controller Popup v4.09.3 loaded. (Video select dropdown width adjusted)');
+    console.log('Video Controller Popup v4.09.4 loaded. (Batch playback rate control enabled)');
 
 })();
