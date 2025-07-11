@@ -16,6 +16,11 @@
     let currentVideo = null;
     let popupElement = null;
     let isSeeking = false;
+    // Store the desired playback rate for persistent forcing
+    let desiredPlaybackRate = 1.0;
+
+    // MutationObserver instance (moved to global scope for access in createPopup)
+    let videoObserver = null;
 
     // --- Environment Flags ---
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -29,25 +34,11 @@
     const lazySrcBlacklist = [
         'missav.ws',
         'missav.live',
-        'example.net'
     ];
     const isLazySrcBlockedSite = lazySrcBlacklist.some(site => location.hostname.includes(site));
 
     // 강제 배속 유지 사이트 설정 및 기본 간격
-    const forcePlaybackRateSites = [
-        { domain: 'twitch.tv', interval: 50 },
-        { domain: 'tiktok.com', interval: 20 },
-        // Note: 'youtube.com' is typically used for YouTube, but this configuration might be specific to certain environments.
-        { domain: 'youtube.com', interval: 100 }
-    ];
-    let forceInterval = 200; // 기본 강제 유지 간격 (ms)
-    forcePlaybackRateSites.forEach(site => {
-        if (location.hostname.includes(site.domain)) {
-            forceInterval = site.interval;
-        }
-    });
-
-    // 증폭(Amplification)이 차단되는 사이트 목록 (Amplification Blacklist)
+    // Note: The previous logic for `forcePlaybackRateSites` and `forceInterval` is now superseded by the global ratechange listener and interval in `fixPlaybackRate`.
     const AMPLIFICATION_BLACKLIST = [
         'avsee.ru',
     ];
@@ -109,41 +100,76 @@
         }
         // 숨겨진 비디오, 오디오 트랙, 그리고 크기가 너무 작은 비디오를 제외합니다.
         return found.filter(v => {
-          const style = window.getComputedStyle(v);
-          return (
-            style.display !== 'none' &&
-            style.visibility !== 'hidden' &&
-            v.videoWidth > 0 &&
-            v.videoHeight > 0 &&
-            v.clientWidth > 50 &&
-            v.clientHeight > 50
-          );
+            const style = window.getComputedStyle(v);
+            return (
+                style.display !== 'none' &&
+                style.visibility !== 'hidden' &&
+                v.videoWidth > 0 &&
+                v.videoHeight > 0 &&
+                v.clientWidth > 50 &&
+                v.clientHeight > 50
+            );
         });
     }
 
     /**
-     * 비디오의 재생 속도를 설정하고, 특정 사이트에서는 이를 강제 유지합니다.
+     * 비디오의 재생 속도를 설정하고, 모든 사이트에서 이를 강제 유지합니다.
+     * @param {HTMLVideoElement} video
+     * @param {number} rate
      */
     function fixPlaybackRate(video, rate) {
         if (!video) return;
+
+        // 1. Set the desired rate globally for the script
+        desiredPlaybackRate = rate;
+
+        // 2. Set the playback rate on the video element
         video.playbackRate = rate;
 
+        // 3. Ensure persistent rate maintenance using both interval and ratechange event listener
+
+        // Clear existing interval if any
         if (currentIntervalId) {
             clearInterval(currentIntervalId);
         }
 
-        const siteConfig = forcePlaybackRateSites.find(site => location.hostname.includes(site.domain));
-        if (siteConfig) {
-            currentIntervalId = setInterval(() => {
-                if (video.playbackRate !== rate) {
-                    video.playbackRate = rate;
-                }
-                if (!document.body.contains(video)) {
-                    clearInterval(currentIntervalId);
-                    currentIntervalId = null;
-                }
-            }, siteConfig.interval);
+        // Add ratechange listener to the current video
+        // We ensure only one ratechange listener is active on the current video for this purpose.
+
+        // Remove previous specific ratechange listener if it exists
+        if (currentVideo && currentVideo._rateChangeHandler) {
+            currentVideo.removeEventListener('ratechange', currentVideo._rateChangeHandler);
+            currentVideo._rateChangeHandler = null;
         }
+
+        // Define and add the new ratechange handler
+        const rateChangeHandler = () => {
+            if (video.playbackRate !== desiredPlaybackRate) {
+                video.playbackRate = desiredPlaybackRate;
+                console.log(`[Video Controller Popup] Resetting playback rate via ratechange event to ${desiredPlaybackRate}`);
+            }
+        };
+
+        video.addEventListener('ratechange', rateChangeHandler);
+        // Store the handler on the video element for later removal
+        video._rateChangeHandler = rateChangeHandler;
+
+        // Start interval for periodic check (fallback for sites that might suppress ratechange event or modify rate outside of the event)
+        currentIntervalId = setInterval(() => {
+            // Check if the video is still in the DOM and the rate is correct
+            if (document.body.contains(video) && video.playbackRate !== desiredPlaybackRate) {
+                video.playbackRate = desiredPlaybackRate;
+            } else if (!document.body.contains(video)) {
+                // If video is removed from DOM, clear the interval
+                clearInterval(currentIntervalId);
+                currentIntervalId = null;
+                // Also remove the ratechange listener if the video is gone
+                if (video._rateChangeHandler) {
+                    video.removeEventListener('ratechange', video._rateChangeHandler);
+                    video._rateChangeHandler = null;
+                }
+            }
+        }, 200); // Check every 200ms
     }
 
     /**
@@ -252,33 +278,32 @@
         }
 
         // 100% 이하 볼륨이거나, 증폭이 차단되지 않은 경우 (100% 초과 볼륨 허용)
-        if (vol <= 1 || !isAmplificationBlocked) {
         if (vol <= 1) {
-          if (gainNode && connectedVideo === video) {
-            // Amplification 연결이 되어있어도 100% 이하로 설정하면 증폭을 해제
-            gainNode.gain.value = 1;
-          }
-          video.volume = vol;
-        } else { // vol > 1 and amplification is allowed (not blocked)
-          if (video.muted) {
-            console.warn('Video is muted. Unmuting for amplification.');
-            video.muted = false;
-          }
-
-          if (!audioCtx || connectedVideo !== video) {
-            if (!setupAudioContext(video)) {
-              console.warn("Audio amplification not available. Setting video volume to 100%.");
-              video.volume = 1;
-              return;
+            if (gainNode && connectedVideo === video) {
+              // If connected and gainNode.gain.value is > 1, setting video.volume will still apply the gain.
+              // To properly control volume below 100% via standard video volume, we should reset the gain node to 1.
+              gainNode.gain.value = 1;
             }
-          }
+            video.volume = vol;
+        } else { // vol > 1 and amplification is allowed (not blocked)
+            if (video.muted) {
+                console.warn('Video is muted. Unmuting for amplification.');
+                video.muted = false;
+            }
 
-          if (gainNode) {
-            video.volume = 1;
-            gainNode.gain.value = vol;
-          }
+            if (!audioCtx || connectedVideo !== video) {
+                if (!setupAudioContext(video)) {
+                    console.warn("Audio amplification not available. Setting video volume to 100%.");
+                    video.volume = 1;
+                    return;
+                }
+            }
+
+            if (gainNode) {
+                video.volume = 1; // Standard volume must be 1 (or 100%) for amplification via gain node to work correctly.
+                gainNode.gain.value = vol;
+            }
         }
-      }
     }
 
     // --- UI Update & Creation ---
@@ -369,6 +394,18 @@
 
         // Specific listener for volume changes to update the UI
         video.addEventListener('volumechange', updateVolumeSelect);
+
+        // Add play listener to ensure playback rate is maintained immediately upon playing
+        const playHandler = () => {
+            if (video.playbackRate !== desiredPlaybackRate) {
+                console.log(`[Video Controller Popup] PlaybackRate fixed on play to ${desiredPlaybackRate}`);
+                video.playbackRate = desiredPlaybackRate;
+            }
+        };
+
+        // Store the play handler on the video element for later removal
+        video._playHandler = playHandler;
+        video.addEventListener('play', playHandler);
     }
 
     /**
@@ -382,6 +419,12 @@
             video.removeEventListener(event, showPopupTemporarily);
         });
         video.removeEventListener('volumechange', updateVolumeSelect);
+
+        // Remove the specific play handler
+        if (video._playHandler) {
+            video.removeEventListener('play', video._playHandler);
+            video._playHandler = null;
+        }
     }
 
     /**
@@ -393,9 +436,16 @@
         // Remove existing popup and listeners if present
         if (popupElement) {
             popupElement.remove();
+            popupElement = null;
         }
         if (currentVideo) {
+            // Remove general interaction listeners (including the play handler)
             removeVideoInteractionListeners(currentVideo);
+            // Remove specific ratechange listener for the previous video
+            if (currentVideo._rateChangeHandler) {
+                currentVideo.removeEventListener('ratechange', currentVideo._rateChangeHandler);
+                currentVideo._rateChangeHandler = null;
+            }
         }
 
         videos = findPlayableVideos();
@@ -404,7 +454,18 @@
             if (currentIntervalId) clearInterval(currentIntervalId);
             currentIntervalId = null;
             currentVideo = null;
+            // Disconnect the observer if no videos are present
+            if (videoObserver) {
+                videoObserver.disconnect();
+                console.log("[Video Controller Popup] MutationObserver disconnected (no videos found).");
+            }
             return;
+        }
+
+        // Reconnect observer if it was disconnected (only if videos are found)
+        if (videoObserver && videoObserver.takeRecords().length === 0 && !document.body.contains(videoObserver.target)) {
+            videoObserver.observe(document.body, { childList: true, subtree: true });
+            console.log("[Video Controller Popup] MutationObserver reconnected.");
         }
 
         if (!currentVideo || !videos.includes(currentVideo)) {
@@ -474,6 +535,11 @@
         });
 
         videoSelect.onchange = () => {
+            // Remove ratechange listener and interval from the old video
+            if (currentVideo && currentVideo._rateChangeHandler) {
+                currentVideo.removeEventListener('ratechange', currentVideo._rateChangeHandler);
+                currentVideo._rateChangeHandler = null;
+            }
             if (currentIntervalId) {
                 clearInterval(currentIntervalId);
                 currentIntervalId = null;
@@ -481,9 +547,6 @@
 
             // 비디오 변경 시 오디오 노드 정리 (이전 비디오의 AudioContext 연결 해제)
             if (connectedVideo && connectedVideo !== currentVideo) {
-                // We should keep audioCtx, gainNode, sourceNode if they exist,
-                // but disconnect the previous video's sourceNode from the audio graph
-                // if it's no longer the current video.
                 if (sourceNode) {
                     try {
                         sourceNode.disconnect();
@@ -498,7 +561,7 @@
                 gainNode = null;
             }
 
-            // Remove listeners from the old video
+            // Remove general interaction listeners from the old video (including the play handler)
             if (currentVideo) removeVideoInteractionListeners(currentVideo);
 
             currentVideo = videos[videoSelect.value];
@@ -506,6 +569,8 @@
             // Add listeners to the new video
             if (currentVideo) {
                 addVideoInteractionListeners(currentVideo);
+                // Apply the last used desiredPlaybackRate to the new video
+                fixPlaybackRate(currentVideo, desiredPlaybackRate);
             }
 
             // Update UI based on the new video state
@@ -599,6 +664,8 @@
         // Add listeners and synchronize UI state for the initial video
         if (currentVideo) {
             addVideoInteractionListeners(currentVideo);
+            // Ensure the initial playback rate is set and maintained
+            fixPlaybackRate(currentVideo, desiredPlaybackRate);
         }
         updateVolumeSelect();
         popup.appendChild(volumeSelect);
@@ -631,7 +698,7 @@
         createPopup();
 
         // MutationObserver를 사용하여 DOM 변경 감지 (비디오 추가/삭제 등)
-        const mo = new MutationObserver(() => {
+        videoObserver = new MutationObserver(() => {
             const newVideos = findPlayableVideos();
             // Check if the video list or composition has changed significantly
             // Note: This comparison `newVideos.every((v, i) => v === videos[i])` ensures the same elements are present in the same order.
@@ -639,8 +706,9 @@
                 createPopup();
             }
         });
-        // Observe changes in the document body and all its descendants
-        mo.observe(document.body, { childList: true, subtree: true });
+        
+        // Start observing changes in the document body and all its descendants
+        videoObserver.observe(document.body, { childList: true, subtree: true });
 
         // 주기적으로 비디오 목록 확인 (DOM 변경을 놓칠 경우 대비)
         setInterval(() => {
