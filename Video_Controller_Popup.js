@@ -50,6 +50,12 @@
     ];
     const isAmplificationBlocked = AMPLIFICATION_BLACKLIST.some(site => location.hostname.includes(site));
 
+    // === 팝업 자동 표시 차단 사이트 ===
+    const SITE_POPUP_BLOCK_LIST = [
+        'missav.ws'
+    ];
+    const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
+
     // overflow visible fix 사이트 설정
     const overflowFixSites = [
         { domain: 'twitch.tv', selector: [
@@ -597,11 +603,13 @@
     function showPopupTemporarily() {
         if (!popupElement) return;
 
-        popupElement.style.opacity = '1';
+        popupElement.style.opacity = '1'; // 팝업을 보이게 함
 
         clearTimeout(popupElement.fadeTimeout);
 
+        // 3초 후에 idleOpacity 값으로 다시 숨겨지도록 설정
         popupElement.fadeTimeout = setTimeout(() => {
+            // 모바일에서만 3초 후 사라지도록 처리
             if (isMobile || !popupElement.matches(':hover')) {
                 popupElement.style.opacity = idleOpacity;
             }
@@ -710,7 +718,7 @@
             align-items: center;
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
             transition: opacity 0.3s ease;
-            opacity: ${idleOpacity};
+            opacity: ${idleOpacity} !important;
         `;
         popupElement = popup;
 
@@ -833,8 +841,8 @@
                 console.error('PIP Error:', e);
             }
         }));
-        popup.appendChild(createButton('back15', '⏪1분', () => seekVideo(-60)));
-        popup.appendChild(createButton('forward15', '1분⏩', () => seekVideo(60)));
+        popup.appendChild(createButton('back60', '⏪1분', () => seekVideo(-60)));
+        popup.appendChild(createButton('forward60', '1분⏩', () => seekVideo(60)));
 
         // 볼륨 선택 드롭다운 생성
         const volumeSelect = document.createElement('select');
@@ -886,18 +894,18 @@
         updateVolumeSelect();
         popup.appendChild(volumeSelect);
 
+        // Desktop behavior: show popup on hover, fade on mouse leave
         if (!isMobile) {
-            // Desktop behavior: show popup on hover, fade on mouse leave
             popup.addEventListener('mouseenter', () => {
-                popup.style.opacity = '1';
+                popup.style.opacity = '1'; // 마우스 올리면 팝업 보이기
             });
             popup.addEventListener('mouseleave', () => {
-                popup.style.opacity = idleOpacity;
+                popup.style.opacity = idleOpacity; // 마우스 떼면 팝업 숨기기
             });
         } else {
-            // Mobile behavior: show popup briefly on touch
+            // 모바일에서 클릭 시 팝업 표시
             popup.addEventListener('touchstart', () => {
-                showPopupTemporarily();
+                showPopupTemporarily();  // 터치하면 잠시 팝업 보이기
             });
         }
 
