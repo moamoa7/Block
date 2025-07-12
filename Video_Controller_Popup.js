@@ -27,7 +27,7 @@
 
     // New variables for temporary popup visibility
     let popupHideTimer = null;
-    const POPUP_TIMEOUT_MS = 2000; // 4 seconds to hide
+    const POPUP_TIMEOUT_MS = 2000; // 2seconds to hide
 
     // --- Environment Flags & Configuration ---
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -39,6 +39,7 @@
     const AMPLIFICATION_BLACKLIST = ['avsee.ru'];
     const isAmplificationBlocked = AMPLIFICATION_BLACKLIST.some(site => location.hostname.includes(site));
 
+    // --- Site-specific configuration for blocking initial popup display (MODIFICATION) ---
     // 초기 로드 시 팝업이 자동으로 뜨는 것을 막을 사이트 목록을 추가합니다.
     const SITE_POPUP_BLOCK_LIST = [
         'sooplive.co.kr',
@@ -282,6 +283,7 @@
     }
 
     function setupVideoDragging(video) {
+
         if (!video || video._draggingSetup) return;
 
         const startEvent = isMobile ? 'touchstart' : 'mousedown';
@@ -655,6 +657,7 @@
     // --- Main Initialization ---
 
     function updateVideoList(shouldShowPopup = true) {
+        // Scan for all playable videos and update the 'videos' array
         findPlayableVideos();
 
         if (videos.length > 0) {
@@ -702,8 +705,7 @@
             }
 
             if (foundChanges) {
-                // Re-scan videos and update hover listeners if structure changes.
-                // We pass 'false' to prevent the popup from flashing during dynamic updates unless the user interacts.
+
                 updateVideoList(false);
             }
         };
@@ -729,15 +731,13 @@
     }
 
     function onUserInteraction() {
-        // This function is triggered by any click or touchstart on the document.
-        // It ensures the video list is updated and, if a video is found, the popup is shown.
+
         updateVideoList(true); // 'true' means we attempt to show the popup upon interaction
     }
 
     function initialize() {
         console.log('[VCP] Video Controller Popup script initialized.');
 
-        // Create the popup UI element first
         createPopupElement();
 
         updateVideoList(true);
@@ -749,8 +749,6 @@
 
         fixOverflow();
 
-        // Add general interaction listeners to ensure popup is shown on interaction
-        document.addEventListener('click', onUserInteraction);
         document.addEventListener('click', () => {
             updateVideoList();
             if (currentVideo) {
