@@ -35,7 +35,7 @@
 
     // --- Configuration ---
     // 팝업 투명도 설정: localStorage에 설정값이 없으면 '0.025' (투명)을 기본값으로 사용
-    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0';
+    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0.025';
 
     // Lazy-src 예외 사이트 (Blacklist)
     const lazySrcBlacklist = [
@@ -388,46 +388,6 @@
         }
         video.style.cursor = 'pointer'; // Ensure cursor is appropriate for PC
 
-              const MIN_VIDEO_DURATION = 30; // 30초 이하의 비디오는 드래그를 허용하지 않음
-
-        const handleMove = (e) => {
-            if (!isDragging || !videoDraggingActive) return;
-
-            // 비디오 길이가 너무 짧으면 드래그를 무시
-            if (video.duration <= MIN_VIDEO_DURATION) {
-                return; // 짧은 비디오는 드래그를 진행하지 않음
-            }
-
-            // Get the coordinates based on whether it's a mouse or touch event
-            const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
-
-            if (clientX === undefined) return;
-
-            const deltaX = clientX - dragStartX;
-            const videoWidth = video.offsetWidth;
-            const duration = video.duration;
-
-            if (videoWidth === 0 || isNaN(duration)) return;
-
-            // Calculate change in time: (deltaX / videoWidth) * sensitivity (e.g., 30s)
-            const timeDelta = (deltaX / videoWidth) * DRAG_SENSITIVITY_SECONDS;
-
-            // Calculate the new time based on the initial drag start time and the current delta
-            let newTime = dragStartTime + timeDelta;
-            newTime = Math.max(0, Math.min(newTime, duration));
-
-            // Update video time
-            video.currentTime = newTime;
-
-            // --- Update Feedback Overlay ---
-            // Calculate the actual change in time for display (new time - original time)
-            const feedbackTimeChange = newTime - dragStartTime;
-
-            // Format the feedback text (+ or -) and display it to 1 decimal place
-            const formattedTime = (feedbackTimeChange >= 0 ? '+' : '-') + Math.abs(feedbackTimeChange).toFixed(1) + 's';
-            updateFeedback(formattedTime);
-        };
-
         const handleStart = (e) => {
             // Get the coordinates based on whether it's a mouse or touch event
             const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
@@ -460,23 +420,37 @@
             }
         };
 
-        // Handle touch start and move to allow page scrolling when not dragging video
-        const handleTouchStart = (e) => {
-            // Allow page scrolling (no e.preventDefault) if dragging is not active
-            if (!isDragging && video.duration <= MIN_VIDEO_DURATION) {
-                return;  // Allow scroll behavior for short videos
-            }
+        const handleMove = (e) => {
+            if (!isDragging || !videoDraggingActive) return;
 
-            handleStart(e);  // Otherwise, proceed with video dragging logic
-        };
+            // Get the coordinates based on whether it's a mouse or touch event
+            const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
 
-        const handleTouchMove = (e) => {
-            // Allow page scrolling if video dragging is not active
-            if (!isDragging && video.duration <= MIN_VIDEO_DURATION) {
-                return;  // Allow scroll behavior for short videos
-            }
+            if (clientX === undefined) return;
 
-            handleMove(e);  // Otherwise, proceed with video dragging logic
+            const deltaX = clientX - dragStartX;
+            const videoWidth = video.offsetWidth;
+            const duration = video.duration;
+
+            if (videoWidth === 0 || isNaN(duration)) return;
+
+            // Calculate change in time: (deltaX / videoWidth) * sensitivity (e.g., 30s)
+            const timeDelta = (deltaX / videoWidth) * DRAG_SENSITIVITY_SECONDS;
+
+            // Calculate the new time based on the initial drag start time and the current delta
+            let newTime = dragStartTime + timeDelta;
+            newTime = Math.max(0, Math.min(newTime, duration));
+
+            // Update video time
+            video.currentTime = newTime;
+
+            // --- Update Feedback Overlay ---
+            // Calculate the actual change in time for display (new time - original time)
+            const feedbackTimeChange = newTime - dragStartTime;
+
+            // Format the feedback text (+ or -) and display it to 1 decimal place
+            const formattedTime = (feedbackTimeChange >= 0 ? '+' : '-') + Math.abs(feedbackTimeChange).toFixed(1) + 's';
+            updateFeedback(formattedTime);
         };
 
         const handleEnd = () => {
@@ -550,7 +524,13 @@
         if (isMobile) {
             // On mobile, assume dragging is always desired if a video is present and visible,
             // as browser fullscreen modes often don't register via standard API checks.
-            videoDraggingActive = true;
+            //videoDraggingActive = true;
+            // 모바일에서 전체화면일 때만 드래그 가능
+          const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+          if (isFullscreen) {
+              // 모바일에서 전체화면 상태일 때만 드래그 활성화
+              videoDraggingActive = true;
+          }
         } else {
             // PC에서 전체화면 상태인 경우에만 드래그 가능
             const fullscreenElement =
