@@ -388,39 +388,7 @@
         }
         video.style.cursor = 'pointer'; // Ensure cursor is appropriate for PC
 
-        const handleStart = (e) => {
-            // Get the coordinates based on whether it's a mouse or touch event
-            const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
-
-            // Only allow dragging if the feature is active and a valid coordinate is available.
-            if (!videoDraggingActive || clientX === undefined) {
-                return;
-            }
-
-            // CRITICAL: Prevent default action for touch events to stop scrolling.
-            if (isMobile) {
-                e.preventDefault();
-            }
-
-            isDragging = true;
-            dragStartX = clientX;
-            dragStartTime = video.currentTime; // Record the starting time for time calculation
-
-            // Change cursor for PC dragging feedback
-            if (!isMobile) {
-                 video.style.cursor = 'ew-resize';
-            }
-
-            // Ensure feedback overlay is present in the DOM
-            getFeedbackOverlay();
-
-            // Prevent default drag behavior for PC
-            if (!isMobile) {
-                e.stopPropagation();
-            }
-        };
-
-        const MIN_VIDEO_DURATION = 30; // 30초 이하의 비디오는 드래그를 허용하지 않음
+              const MIN_VIDEO_DURATION = 30; // 30초 이하의 비디오는 드래그를 허용하지 않음
 
         const handleMove = (e) => {
             if (!isDragging || !videoDraggingActive) return;
@@ -458,6 +426,57 @@
             // Format the feedback text (+ or -) and display it to 1 decimal place
             const formattedTime = (feedbackTimeChange >= 0 ? '+' : '-') + Math.abs(feedbackTimeChange).toFixed(1) + 's';
             updateFeedback(formattedTime);
+        };
+
+        const handleStart = (e) => {
+            // Get the coordinates based on whether it's a mouse or touch event
+            const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
+
+            // Only allow dragging if the feature is active and a valid coordinate is available.
+            if (!videoDraggingActive || clientX === undefined) {
+                return;
+            }
+
+            // CRITICAL: Prevent default action for touch events to stop scrolling.
+            if (isMobile) {
+                e.preventDefault();
+            }
+
+            isDragging = true;
+            dragStartX = clientX;
+            dragStartTime = video.currentTime; // Record the starting time for time calculation
+
+            // Change cursor for PC dragging feedback
+            if (!isMobile) {
+                 video.style.cursor = 'ew-resize';
+            }
+
+            // Ensure feedback overlay is present in the DOM
+            getFeedbackOverlay();
+
+            // Prevent default drag behavior for PC
+            if (!isMobile) {
+                e.stopPropagation();
+            }
+        };
+
+        // Handle touch start and move to allow page scrolling when not dragging video
+        const handleTouchStart = (e) => {
+            // Allow page scrolling (no e.preventDefault) if dragging is not active
+            if (!isDragging && video.duration <= MIN_VIDEO_DURATION) {
+                return;  // Allow scroll behavior for short videos
+            }
+
+            handleStart(e);  // Otherwise, proceed with video dragging logic
+        };
+
+        const handleTouchMove = (e) => {
+            // Allow page scrolling if video dragging is not active
+            if (!isDragging && video.duration <= MIN_VIDEO_DURATION) {
+                return;  // Allow scroll behavior for short videos
+            }
+
+            handleMove(e);  // Otherwise, proceed with video dragging logic
         };
 
         const handleEnd = () => {
