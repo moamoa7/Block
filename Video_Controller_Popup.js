@@ -740,6 +740,18 @@
 
         createPopupElement();
 
+        // ✅ 이 위치에 추가하세요!
+  document.addEventListener('fullscreenchange', () => {
+    const fsEl = document.fullscreenElement;
+    if (popupElement) {
+      if (fsEl) {
+        fsEl.appendChild(popupElement);
+      } else {
+        document.body.appendChild(popupElement);
+      }
+    }
+  });
+
         updateVideoList(true);
 
         setupVideoObserver();
