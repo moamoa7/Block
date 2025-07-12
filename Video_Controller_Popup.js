@@ -912,7 +912,7 @@
             // 모바일에서 클릭 시 팝업 표시
             popup.addEventListener('touchstart', () => {
                 showPopupTemporarily();  // 터치하면 잠시 팝업 보이기
-            }, { once: true });
+            });
         }
 
         hostRoot.appendChild(popup);
