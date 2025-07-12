@@ -35,7 +35,7 @@
 
     // --- Configuration ---
     // 팝업 투명도 설정: localStorage에 설정값이 없으면 '0.025' (투명)을 기본값으로 사용
-    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0.025';
+    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0';
 
     // Lazy-src 예외 사이트 (Blacklist)
     const lazySrcBlacklist = [
@@ -420,8 +420,15 @@
             }
         };
 
+        const MIN_VIDEO_DURATION = 30; // 30초 이하의 비디오는 드래그를 허용하지 않음
+
         const handleMove = (e) => {
             if (!isDragging || !videoDraggingActive) return;
+
+            // 비디오 길이가 너무 짧으면 드래그를 무시
+            if (video.duration <= MIN_VIDEO_DURATION) {
+                return; // 짧은 비디오는 드래그를 진행하지 않음
+            }
 
             // Get the coordinates based on whether it's a mouse or touch event
             const clientX = isMobile ? e.touches[0]?.clientX : e.clientX;
@@ -524,13 +531,7 @@
         if (isMobile) {
             // On mobile, assume dragging is always desired if a video is present and visible,
             // as browser fullscreen modes often don't register via standard API checks.
-            //videoDraggingActive = true;
-            // 모바일에서 전체화면일 때만 드래그 가능
-          const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
-          if (isFullscreen) {
-              // 모바일에서 전체화면 상태일 때만 드래그 활성화
-              videoDraggingActive = true;
-          }
+            videoDraggingActive = true;
         } else {
             // PC에서 전체화면 상태인 경우에만 드래그 가능
             const fullscreenElement =
