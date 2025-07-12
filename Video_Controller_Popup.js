@@ -27,7 +27,7 @@
 
     // New variables for temporary popup visibility
     let popupHideTimer = null;
-    const POPUP_TIMEOUT_MS = 4000; // 4 seconds to hide
+    const POPUP_TIMEOUT_MS = 2000; // 4 seconds to hide
 
     // --- Environment Flags & Configuration ---
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -39,7 +39,6 @@
     const AMPLIFICATION_BLACKLIST = ['avsee.ru'];
     const isAmplificationBlocked = AMPLIFICATION_BLACKLIST.some(site => location.hostname.includes(site));
 
-    // --- Site-specific configuration for blocking initial popup display (MODIFICATION) ---
     // 초기 로드 시 팝업이 자동으로 뜨는 것을 막을 사이트 목록을 추가합니다.
     const SITE_POPUP_BLOCK_LIST = [
         'sooplive.co.kr',
@@ -224,13 +223,7 @@
         if (!feedbackOverlay) {
             feedbackOverlay = document.createElement('div');
             feedbackOverlay.id = 'video-drag-feedback';
-            feedbackOverlay.style.cssText = `
-                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px;
-                border-radius: 8px; font-size: 24px; font-weight: bold;
-                z-index: 2147483647; pointer-events: none; opacity: 0;
-                transition: opacity 0.2s ease-in-out;
-            `;
+            feedbackOverlay.style.cssText = `position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px; border-radius: 8px; font-size: 24px; font-weight: bold; z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-in-out;`;
         }
 
         const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
@@ -289,8 +282,6 @@
     }
 
     function setupVideoDragging(video) {
-        // Note: The original script's drag setup here includes `document.addEventListener` for `mousemove`/`mouseup` and `touchmove`/`touchend` globally.
-        // It's crucial for the seeking functionality. We just need to ensure the listeners are active for the selected video.
         if (!video || video._draggingSetup) return;
 
         const startEvent = isMobile ? 'touchstart' : 'mousedown';
@@ -349,50 +340,15 @@
         if (popupElement) return;
 
         // Styles for buttons and drag handle
-        const buttonStyle = `
-            background-color: #333;
-            color: white;
-            border: 1px solid #555;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        `;
-        const dragHandleStyle = `
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #aaa;
-            padding: 5px;
-            background-color: #2a2a2a;
-            border-bottom: 1px solid #444;
-            cursor: grab; /* Only the handle is draggable */
-            border-radius: 6px 6px 0 0;
-            user-select: none; /* Prevent text selection while dragging */
-        `;
+        const buttonStyle = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s;`;
+        const dragHandleStyle = `font-weight: bold; margin-bottom: 8px; color: #aaa; padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none;`;
 
         // 1. Create the container element and apply base styles
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
 
         // Set initial display to none (hidden)
-        popupElement.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(30, 30, 30, 0.9);
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 0; /* Padding is handled inside the inner div */
-            color: white;
-            font-family: sans-serif;
-            z-index: 2147483647;
-            display: none; /* Initially hidden */
-            transition: opacity 0.3s;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            min-width: 200px;
-            text-align: center;
-        `;
+        popupElement.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px; padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; display: none; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); min-width: 200px; text-align: center;`;
 
         // 2. Add control buttons and the new drag handle
         popupElement.innerHTML = `
@@ -638,8 +594,6 @@
 
     // --- Multiple Video Control (New/Updated logic) ---
 
-    // This function manages video hover state (desktop) and touch state (mobile)
-    // to determine 'currentVideo' and show the popup.
     function setupVideoHover() {
         // Remove previous listeners if they exist (to prevent duplicates)
         videos.forEach(v => {
@@ -689,9 +643,6 @@
         speedInput.value = rate.toFixed(2);
         speedDisplay.textContent = rate.toFixed(2);
 
-        // Update Volume UI
-        // Note: We cannot easily determine the 'amplified' volume if gainNode is active,
-        // so we check the actual gain value if available, otherwise default to video.volume.
         let volume = currentVideo.volume;
         if (gainNode && connectedVideo === currentVideo) {
             volume = gainNode.gain.value;
@@ -704,28 +655,22 @@
     // --- Main Initialization ---
 
     function updateVideoList(shouldShowPopup = true) {
-        // Scan for all playable videos and update the 'videos' array
         findPlayableVideos();
 
-        // If there are videos, ensure hover/touch listeners are set up
         if (videos.length > 0) {
             setupVideoHover();
         }
 
-        // If the current video is no longer in the DOM or the list, clear it
         if (currentVideo && (!document.body.contains(currentVideo) || !videos.includes(currentVideo))) {
             currentVideo = null;
             hidePopup();
         }
 
-        // If no video is selected, try selecting the first one (only if one exists)
         if (!currentVideo && videos.length > 0) {
             currentVideo = videos[0];
             setupVideoDragging(currentVideo);
             updatePopupSliders();
 
-            // MODIFICATION: Check if we should show the popup automatically on initialization/scan.
-            // We only show the popup automatically if shouldShowPopup is true AND the site is not blacklisted.
             if (shouldShowPopup && !isInitialPopupBlocked) {
                 //showPopupTemporarily();
             }
@@ -795,19 +740,13 @@
         // Create the popup UI element first
         createPopupElement();
 
-        // Initial scan for videos and setup listeners.
-        // We rely on isInitialPopupBlocked to decide if we should show the popup immediately.
         updateVideoList(true);
 
-        // Setup observer for dynamic content (e.g., videos loading after page load)
         setupVideoObserver();
 
-        // Periodically check for videos (fallback for sites with complex rendering)
         setInterval(() => updateVideoList(false), 5000); // Do not show popup automatically on interval check
-        // Periodically check and adjust popup position relative to the selected video
         setInterval(updatePopupPosition, 100);
 
-        // Apply site-specific overflow fixes
         fixOverflow();
 
         // Add general interaction listeners to ensure popup is shown on interaction
