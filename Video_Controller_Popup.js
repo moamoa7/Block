@@ -727,7 +727,7 @@
             // MODIFICATION: Check if we should show the popup automatically on initialization/scan.
             // We only show the popup automatically if shouldShowPopup is true AND the site is not blacklisted.
             if (shouldShowPopup && !isInitialPopupBlocked) {
-                showPopupTemporarily();
+                //showPopupTemporarily();
             }
         }
     }
@@ -812,6 +812,12 @@
 
         // Add general interaction listeners to ensure popup is shown on interaction
         document.addEventListener('click', onUserInteraction);
+        document.addEventListener('click', () => {
+            updateVideoList();
+            if (currentVideo) {
+                showPopupTemporarily();
+            }
+          });
         document.addEventListener('touchstart', onUserInteraction);
     }
 
