@@ -13,7 +13,7 @@
     // --- Core Variables & State Management ---
     let rateFixIntervalId = null;
     let videos = []; // List of all detected videos
-    let currentVideo = null; // The video currently being controlled (determined by mouse hover)
+    let currentVideo = null; // The video currently being controlled (determined by mouse hover or touch)
     let popupElement = null;
     let isSeeking = false;
     let desiredPlaybackRate = 1.0;
@@ -279,6 +279,8 @@
     }
 
     function setupVideoDragging(video) {
+        // Note: The original script's drag setup here includes `document.addEventListener` for `mousemove`/`mouseup` and `touchmove`/`touchend` globally.
+        // It's crucial for the seeking functionality. We just need to ensure the listeners are active for the selected video.
         if (!video || video._draggingSetup) return;
 
         const startEvent = isMobile ? 'touchstart' : 'mousedown';
@@ -290,13 +292,14 @@
         const handleStart = (e) => {
             if (isNetflix || isSeeking) return;
 
+            // Only proceed if the event started on the video itself and it's a left click (desktop) or a touch (mobile)
             if (!isMobile && e.button !== 0) return;
-
             if (e.target !== video) return;
 
             isDragging = true;
             dragStartX = getClientX(e);
 
+            // Prevent default behavior for desktop drag, but often necessary for mobile touchstart to ensure event handling
             if (!isMobile) {
                 e.preventDefault();
             }
@@ -318,9 +321,11 @@
             }
         };
 
+        // Attach events to the video element itself
         video.addEventListener(startEvent, handleStart, { capture: true });
         video.addEventListener('dragstart', (e) => e.preventDefault());
 
+        // Attach move and end events to the document for robustness (allows dragging outside the video area)
         document.addEventListener(moveEvent, handleMove, { capture: true });
         document.addEventListener(endEvent, handleEnd, { capture: true });
         document.addEventListener('mouseleave', handleEnd);
@@ -616,7 +621,8 @@
 
     // --- Multiple Video Control (New/Updated logic) ---
 
-    // This function manages video hover state to determine 'currentVideo'
+    // This function manages video hover state (desktop) and touch state (mobile)
+    // to determine 'currentVideo' and show the popup.
     function setupVideoHover() {
         // Remove previous listeners if they exist (to prevent duplicates)
         videos.forEach(v => {
@@ -624,19 +630,32 @@
                 v.removeEventListener('mouseenter', v._vcpHoverListener);
                 v._vcpHoverListener = null;
             }
+            if (v._vcpTouchListener) { // Cleanup for mobile touch listener
+                v.removeEventListener('touchstart', v._vcpTouchListener);
+                v._vcpTouchListener = null;
+            }
         });
 
         videos.forEach(video => {
-            // Add a mouseenter listener to select the video when the mouse is over it
-            const mouseEnterHandler = () => {
+            const handleInteraction = () => {
                 if (currentVideo !== video) {
                     currentVideo = video;
                     setupVideoDragging(currentVideo);
                 }
-                showPopupTemporarily(); // Show popup on hover and start timer
+                showPopupTemporarily(); // Show popup on interaction and start timer
             };
-            video.addEventListener('mouseenter', mouseEnterHandler);
-            video._vcpHoverListener = mouseEnterHandler;
+
+            // Desktop: Mouse enter listener
+            video.addEventListener('mouseenter', handleInteraction);
+            video._vcpHoverListener = handleInteraction;
+
+            // Mobile: Touch start listener
+            if (isMobile) {
+                // When a user touches the video screen on mobile, we set it as the current video
+                // and show the popup.
+                video.addEventListener('touchstart', handleInteraction);
+                video._vcpTouchListener = handleInteraction;
+            }
         });
     }
 
@@ -646,7 +665,7 @@
         // Scan for all playable videos and update the 'videos' array
         findPlayableVideos();
 
-        // If there are videos, ensure hover listeners are set up
+        // If there are videos, ensure hover/touch listeners are set up
         if (videos.length > 0) {
             setupVideoHover();
         }
@@ -716,7 +735,8 @@
     }
 
     function setupInteractionListeners() {
-        // Listen for user interaction on the entire document
+        // Listen for user interaction on the entire document (General interaction triggers)
+        // These are low-priority triggers compared to direct hover/touch on a video.
         document.addEventListener('click', showPopupTemporarily, { once: true });
         document.addEventListener('mousemove', showPopupTemporarily, { once: true });
 
