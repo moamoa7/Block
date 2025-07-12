@@ -39,6 +39,16 @@
     const AMPLIFICATION_BLACKLIST = ['avsee.ru'];
     const isAmplificationBlocked = AMPLIFICATION_BLACKLIST.some(site => location.hostname.includes(site));
 
+    // --- Site-specific configuration for blocking initial popup display (MODIFICATION) ---
+    // 초기 로드 시 팝업이 자동으로 뜨는 것을 막을 사이트 목록을 추가합니다.
+    const SITE_POPUP_BLOCK_LIST = [
+        'sooplive.co.kr',
+        'twitch.tv',
+        'kick.com'
+    ];
+    // 현재 사이트가 팝업 자동 표시 차단 목록에 있는지 확인합니다.
+    const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
+
     // --- Audio Context for Volume Amplification ---
     let audioCtx = null;
     let gainNode = null;
@@ -580,8 +590,15 @@
 
     function showPopupTemporarily() {
         if (popupElement && currentVideo) {
+            // 1) 일단 display: block 으로 바꿔서 크기를 계산해야 함
+            popupElement.style.display = 'block';
+
+            // 2) 바로 위치 갱신
             updatePopupPosition();
-            showPopup();
+
+            // 3) 다시 display: block 보장 (이미 켜졌으므로 유지)
+            popupElement.style.display = 'block';
+
             resetPopupHideTimer();
         }
     }
@@ -638,30 +655,58 @@
 
         videos.forEach(video => {
             const handleInteraction = () => {
+                // When a user interacts (mouse enter or touch start) with a video,
+                // set it as the current video and show the popup temporarily.
                 if (currentVideo !== video) {
                     currentVideo = video;
                     setupVideoDragging(currentVideo);
+                    // Update initial slider values based on the newly selected video
+                    updatePopupSliders();
                 }
-                showPopupTemporarily(); // Show popup on interaction and start timer
+                showPopupTemporarily();
             };
 
-            // Desktop: Mouse enter listener
+            // 데스크탑: 마우스가 영상 위로 들어갈 때 이벤트 등록
             video.addEventListener('mouseenter', handleInteraction);
             video._vcpHoverListener = handleInteraction;
 
-            // Mobile: Touch start listener
+            // 모바일: 터치 시작 이벤트 등록
             if (isMobile) {
-                // When a user touches the video screen on mobile, we set it as the current video
-                // and show the popup.
                 video.addEventListener('touchstart', handleInteraction);
                 video._vcpTouchListener = handleInteraction;
             }
         });
     }
 
+    // Updates the UI sliders to reflect the properties of the currently selected video.
+    function updatePopupSliders() {
+        if (!popupElement || !currentVideo) return;
+
+        const speedInput = popupElement.querySelector('#vcp-speed');
+        const speedDisplay = popupElement.querySelector('#vcp-speed-display');
+        const volumeInput = popupElement.querySelector('#vcp-volume');
+        const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
+
+        // Update Speed UI
+        const rate = currentVideo.playbackRate || 1.0;
+        speedInput.value = rate.toFixed(2);
+        speedDisplay.textContent = rate.toFixed(2);
+
+        // Update Volume UI
+        // Note: We cannot easily determine the 'amplified' volume if gainNode is active,
+        // so we check the actual gain value if available, otherwise default to video.volume.
+        let volume = currentVideo.volume;
+        if (gainNode && connectedVideo === currentVideo) {
+            volume = gainNode.gain.value;
+        }
+
+        volumeInput.value = volume.toFixed(2);
+        volumeDisplay.textContent = Math.round(volume * 100);
+    }
+
     // --- Main Initialization ---
 
-    function updateVideoList() {
+    function updateVideoList(shouldShowPopup = true) {
         // Scan for all playable videos and update the 'videos' array
         findPlayableVideos();
 
@@ -680,7 +725,13 @@
         if (!currentVideo && videos.length > 0) {
             currentVideo = videos[0];
             setupVideoDragging(currentVideo);
-            // Don't show popup automatically, wait for user interaction.
+            updatePopupSliders();
+
+            // MODIFICATION: Check if we should show the popup automatically on initialization/scan.
+            // We only show the popup automatically if shouldShowPopup is true AND the site is not blacklisted.
+            if (shouldShowPopup && !isInitialPopupBlocked) {
+                showPopupTemporarily();
+            }
         }
     }
 
@@ -709,8 +760,9 @@
             }
 
             if (foundChanges) {
-                // Re-scan videos and update hover listeners if structure changes
-                updateVideoList();
+                // Re-scan videos and update hover listeners if structure changes.
+                // We pass 'false' to prevent the popup from flashing during dynamic updates unless the user interacts.
+                updateVideoList(false);
             }
         };
 
@@ -734,16 +786,10 @@
         });
     }
 
-    function setupInteractionListeners() {
-        // Listen for user interaction on the entire document (General interaction triggers)
-        // These are low-priority triggers compared to direct hover/touch on a video.
-        document.addEventListener('click', showPopupTemporarily, { once: true });
-        document.addEventListener('mousemove', showPopupTemporarily, { once: true });
-
-        // Listen for video events to trigger the popup (e.g., play, pause)
-        document.addEventListener('play', showPopupTemporarily, true);
-        document.addEventListener('pause', showPopupTemporarily, true);
-        document.addEventListener('seeked', showPopupTemporarily, true);
+    function onUserInteraction() {
+        // This function is triggered by any click or touchstart on the document.
+        // It ensures the video list is updated and, if a video is found, the popup is shown.
+        updateVideoList(true); // 'true' means we attempt to show the popup upon interaction
     }
 
     function initialize() {
@@ -752,22 +798,24 @@
         // Create the popup UI element first
         createPopupElement();
 
-        // Initial scan for videos and setup listeners
-        updateVideoList();
+        // Initial scan for videos and setup listeners.
+        // We rely on isInitialPopupBlocked to decide if we should show the popup immediately.
+        updateVideoList(true);
 
         // Setup observer for dynamic content (e.g., videos loading after page load)
         setupVideoObserver();
 
-        // Setup global interaction listeners to trigger the initial popup display
-        setupInteractionListeners();
-
         // Periodically check for videos (fallback for sites with complex rendering)
-        setInterval(updateVideoList, 5000);
+        setInterval(() => updateVideoList(false), 5000); // Do not show popup automatically on interval check
         // Periodically check and adjust popup position relative to the selected video
         setInterval(updatePopupPosition, 100);
 
         // Apply site-specific overflow fixes
         fixOverflow();
+
+        // Add general interaction listeners to ensure popup is shown on interaction
+        document.addEventListener('click', onUserInteraction);
+        document.addEventListener('touchstart', onUserInteraction);
     }
 
     // Initialize the script
