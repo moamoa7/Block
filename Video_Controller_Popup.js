@@ -35,7 +35,7 @@
 
     // --- Configuration ---
     // 팝업 투명도 설정: localStorage에 설정값이 없으면 '0.025' (투명)을 기본값으로 사용
-    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0';
+    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0.025';
 
     // Lazy-src 예외 사이트 (Blacklist)
     const lazySrcBlacklist = [
@@ -609,7 +609,7 @@
     function showPopupTemporarily() {
         if (!popupElement) return;
 
-        popupElement.style.opacity = '0'; // 팝업을 보이게 함
+        popupElement.style.opacity = '1'; // 팝업을 보이게 함
 
         clearTimeout(popupElement.fadeTimeout);
 
