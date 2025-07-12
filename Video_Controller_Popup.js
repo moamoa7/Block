@@ -655,15 +655,12 @@
 
         videos.forEach(video => {
             const handleInteraction = () => {
-                // When a user interacts (mouse enter or touch start) with a video,
-                // set it as the current video and show the popup temporarily.
-                if (currentVideo !== video) {
+                //if (currentVideo !== video) {
                     currentVideo = video;
                     setupVideoDragging(currentVideo);
-                    // Update initial slider values based on the newly selected video
                     updatePopupSliders();
-                }
-                showPopupTemporarily();
+                //}
+                    showPopupTemporarily();
             };
 
             // 데스크탑: 마우스가 영상 위로 들어갈 때 이벤트 등록
