@@ -369,7 +369,9 @@
                     <label for="vcp-volume" style="display: block; margin-bottom: 5px;">Volume: <span id="vcp-volume-display">100</span>%</label>
                     <input type="range" id="vcp-volume" min="0.0" max="5.0" step="0.05" value="1.0" style="width: 100%; cursor: pointer;">
                 </div>
-                <button data-action="pip" style="${buttonStyle}; width: 100%; margin-top: 5px;">PIP Mode</button>
+                <div style="margin-bottom: 10px;">
+                <button data-action="pip" style="${buttonStyle}; margin-top: 5px;">PIP Mode</button>
+                <button data-action="exit-fullscreen" style="${buttonStyle}; margin-top: 5px;">FULL EXIT</button>
                 <div id="vcp-status" style="margin-top: 10px; font-size: 12px; color: #777;">Status: Ready</div>
             </div>
         `;
@@ -420,7 +422,15 @@
                         updateStatus('Entering PIP');
                     }
                     break;
+                  case 'exit-fullscreen':
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else if (document.webkitFullscreenElement) {
+      document.webkitExitFullscreen();
+    }
+    break;
             }
+
         });
 
         // Speed control listener
