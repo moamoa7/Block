@@ -35,7 +35,7 @@
 
     // --- Configuration ---
     // 팝업 투명도 설정: localStorage에 설정값이 없으면 '0.025' (투명)을 기본값으로 사용
-    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0';
+    //let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0';
 
     // Lazy-src 예외 사이트 (Blacklist)
     const lazySrcBlacklist = [
@@ -102,18 +102,24 @@
      * 재생 가능한 비디오 요소를 찾아 반환합니다. (디버그 로그 포함)
      */
     function findPlayableVideos() {
+        // 모든 비디오를 깊게 검색하는 함수 호출
         const found = findAllVideosDeep();
 
-        // Debugging: Log the found video elements before filtering
+        // Debugging: 찾은 비디오 로그 출력
         console.log('[DEBUG] Found videos (raw):', found.length, found);
 
+        // Lazy src 로딩 비디오 처리
         if (!isLazySrcBlockedSite) {
             found.forEach(v => {
                 if (!v.src && v.dataset && v.dataset.src) {
+                    // data-src에서 src로 설정
                     v.src = v.dataset.src;
                 }
             });
         }
+
+        // src가 설정된 비디오만 필터링하여 반환
+        return found.filter(v => v.src);
 
         // 숨겨진 비디오, 오디오 트랙, 그리고 크기가 너무 작은 비디오를 제외합니다.
         const playableVideos = found.filter(v => {
@@ -618,7 +624,8 @@
         popupElement.fadeTimeout = setTimeout(() => {
             // 모바일에서만 3초 후 사라지도록 처리
             if (isMobile || !popupElement.matches(':hover')) {
-                popupElement.style.opacity = idleOpacity;
+                //popupElement.style.opacity = idleOpacity;
+                popupElement.style.opacity = '0'; // 팝업을 보이게 함
             }
         }, 3000);
     }
