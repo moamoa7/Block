@@ -916,12 +916,14 @@
                 popup.style.opacity = '1'; // 마우스 올리면 팝업 보이기
             });
             popup.addEventListener('mouseleave', () => {
-                popup.style.opacity = idleOpacity; // 마우스 떼면 팝업 숨기기
+                //popup.style.opacity = idleOpacity; // 마우스 떼면 팝업 숨기기
+                popup.style.opacity = '0';
             });
         } else {
             // 모바일에서 클릭 시 팝업 표시
             popup.addEventListener('touchstart', () => {
-                showPopupTemporarily();  // 터치하면 잠시 팝업 보이기
+                //showPopupTemporarily();  // 터치하면 잠시 팝업 보이기
+                popup.style.opacity = '1';
             });
         }
 
