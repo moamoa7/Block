@@ -4659,7 +4659,9 @@ teamblind.com/#@#[class^="ad"]
 ! - 레딧 알부 이미지 안나옴
 ||*/*/ads-*
 
+!- https://djxmaza.in/ - 사이트 깨짐
 !||*/*ads.*
+
 
 
 ||*/*/ads*
