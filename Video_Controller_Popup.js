@@ -35,7 +35,7 @@
 
     // --- Configuration ---
     // 팝업 투명도 설정: localStorage에 설정값이 없으면 '0.025' (투명)을 기본값으로 사용
-    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0.025';
+    let idleOpacity = localStorage.getItem('vcp_idleOpacity') || '0';
 
     // Lazy-src 예외 사이트 (Blacklist)
     const lazySrcBlacklist = [
@@ -52,7 +52,8 @@
 
     // === 팝업 자동 표시 차단 사이트 ===
     const SITE_POPUP_BLOCK_LIST = [
-        'missav.ws'
+        'missav.ws',
+        //'fourhoi.com'
     ];
     const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
 
@@ -724,7 +725,6 @@
             align-items: center;
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
             transition: opacity 0.3s ease;
-            opacity: ${idleOpacity} !important;
         `;
         popupElement = popup;
 
