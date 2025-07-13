@@ -119,9 +119,11 @@
         }
 
         // src가 설정된 비디오만 필터링하여 반환
-        return found.filter(v => v.src);
+        // 이걸 활성화하면 일반 비디오는 거의 인식 못함
+        //return found.filter(v => v.src);
 
         // 숨겨진 비디오, 오디오 트랙, 그리고 크기가 너무 작은 비디오를 제외합니다.
+        // 비디오가 가로 100px 이상, 세로 100px 이상일 때 실행되는 코드
         const playableVideos = found.filter(v => {
             const style = window.getComputedStyle(v);
             return (
@@ -129,8 +131,8 @@
                 style.visibility !== 'hidden' &&
                 v.videoWidth > 0 &&
                 v.videoHeight > 0 &&
-                v.clientWidth > 50 &&
-                v.clientHeight > 50
+                v.clientWidth > 100 &&
+                v.clientHeight > 100
             );
         });
 
@@ -682,13 +684,13 @@
      */
     function createPopup() {
         const hostRoot = document.body;
-
+        // 기존 팝업이 있으면 제거
         if (popupElement) {
             popupElement.remove();
             popupElement = null;
         }
 
-        // Clean up previous video's state and dragging setup before creating the new popup
+        // 이전 비디오 상태와 드래그 설정 제거
         if (currentVideo) {
             removeVideoInteractionListeners(currentVideo);
             if (currentVideo._rateChangeHandler) {
@@ -697,19 +699,18 @@
             }
             removeVideoDragging(currentVideo);
         }
-
+        // 새로운 비디오 목록을 찾음
         videos = findPlayableVideos();
-
+        // 비디오가 없으면 팝업을 표시하지 않음
         if (videos.length === 0) {
             console.log('[DEBUG] No playable videos found. Hiding/Preventing popup.');
             if (currentIntervalId) clearInterval(currentIntervalId);
             currentIntervalId = null;
             currentVideo = null;
-            // MutationObserver should remain active to detect videos later.
             return;
         }
 
-        // Select the largest video if currentVideo is null or no longer valid
+        // 현재 비디오가 없거나 더 이상 유효하지 않으면 가장 큰 비디오를 선택
         if (!currentVideo || !videos.includes(currentVideo)) {
             currentVideo = videos.sort((a, b) => (b.videoWidth * b.videoHeight) - (a.videoWidth * a.videoHeight))[0];
             console.log('[DEBUG] Selecting new primary video:', currentVideo);
