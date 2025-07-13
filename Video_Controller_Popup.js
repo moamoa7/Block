@@ -218,7 +218,7 @@
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
         dragHandle.style.cssText = dragHandleStyle;
-        dragHandle.textContent = 'Video Controller';
+        dragHandle.textContent = '비디오.오디오 컨트롤러';
 
         // Controls Wrapper
         const controlsWrapper = document.createElement('div');
@@ -231,7 +231,7 @@
         const playPauseButton = document.createElement('button');
         playPauseButton.setAttribute('data-action', 'play-pause');
         playPauseButton.style.cssText = buttonStyle;
-        playPauseButton.textContent = 'Play/Pause';
+        playPauseButton.textContent = '재생/멈춤';
         playPauseSection.appendChild(playPauseButton);
 
         // Speed Section
@@ -243,7 +243,7 @@
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
         speedDisplay.textContent = '1.0';
-        speedLabel.textContent = 'Speed: ';
+        speedLabel.textContent = '배속 조절: ';
         speedLabel.appendChild(speedDisplay);
         speedLabel.appendChild(document.createTextNode('x'));
         const speedInput = document.createElement('input');
@@ -266,7 +266,7 @@
         const volumeDisplay = document.createElement('span');
         volumeDisplay.id = 'vcp-volume-display';
         volumeDisplay.textContent = '100';
-        volumeLabel.textContent = 'Volume: ';
+        volumeLabel.textContent = '소리 조절: ';
         volumeLabel.appendChild(volumeDisplay);
         volumeLabel.appendChild(document.createTextNode('%'));
         const volumeInput = document.createElement('input');
@@ -287,12 +287,12 @@
         const pipButton = document.createElement('button');
         pipButton.setAttribute('data-action', 'pip');
         pipButton.style.cssText = buttonStyle + '; margin-top: 5px;';
-        pipButton.textContent = 'PIP Mode';
+        pipButton.textContent = 'PIP 모드';
 
         const exitFullscreenButton = document.createElement('button');
         exitFullscreenButton.setAttribute('data-action', 'exit-fullscreen');
         exitFullscreenButton.style.cssText = buttonStyle + '; margin-top: 5px;';
-        exitFullscreenButton.textContent = 'FULL EXIT';
+        exitFullscreenButton.textContent = '전체 종료';
 
         const statusDiv = document.createElement('div');
         statusDiv.id = 'vcp-status';
