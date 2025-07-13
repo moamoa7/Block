@@ -673,11 +673,22 @@
 
         fixOverflow();
 
-        document.addEventListener('click', () => {
-            updateVideoList();
-            if (currentVideo) {
-                showPopupTemporarily();
-            }
+        // 미리보기 영상 클릭 시 팝업 차단
+    const previewVideoSelector = '.preview-video-selector'; // 미리보기 영상의 실제 셀렉터로 수정
+
+    document.addEventListener('click', (event) => {
+        const clickedElement = event.target;
+
+        // 클릭한 요소가 미리보기 영상인 경우
+        if (clickedElement.closest(previewVideoSelector)) {
+            console.log("미리보기 영상 클릭됨, 팝업 차단.");
+            return; // 팝업을 띄우지 않음
+        }
+
+        updateVideoList();
+        if (currentVideo) {
+            showPopupTemporarily();
+        }
           });
         document.addEventListener('touchstart', onUserInteraction);
     }
