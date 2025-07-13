@@ -74,11 +74,12 @@
 
         const playableVideos = found.filter(v => {
             const style = window.getComputedStyle(v);
+            const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             return (
                 style.display !== 'none' &&
-                style.visibility !== 'hidden' &&
-                (v.videoWidth > 0 || v.tagName === 'AUDIO' || v.tagName === 'VIDEO') &&
-                (v.clientWidth > 50 || v.clientHeight > 50)
+                style.visibility !== 'hidden' &&
+                (v.videoWidth > 0 || v.videoHeight > 0 || isMedia) &&
+                (v.clientWidth > 300 || v.clientHeight > 300 || isMedia)
             );
         });
 
