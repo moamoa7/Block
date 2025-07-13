@@ -26,7 +26,7 @@
     let videoDraggingActive = false;
     let feedbackOverlay = null; // Reference to the feedback overlay element
 
-    // Dragging configuration
+    //드래그 민감도 설정
     const DRAG_SENSITIVITY_SECONDS = 30; // 100% video width drag = 30 seconds of seeking
 
     // --- Environment Flags ---
@@ -52,7 +52,7 @@
 
     // === 팝업 자동 표시 차단 사이트 ===
     const SITE_POPUP_BLOCK_LIST = [
-        //'missav.ws',
+        'missav.ws',
         //'fourhoi.com'
     ];
     const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
@@ -614,7 +614,10 @@
      * 팝업을 잠시 보이게 하고 일정 시간 후 다시 투명하게 만듭니다.
      */
     function showPopupTemporarily() {
-        if (!popupElement || isInitialPopupBlocked || (isMobile && isInitialPopupBlocked)) return;
+        if (isInitialPopupBlocked || (isMobile && isInitialPopupBlocked)) {
+            popupElement.style.opacity = '0';  // 팝업을 숨김
+            return;  // 팝업을 더 이상 표시하지 않도록 함
+        }
 
         popupElement.style.opacity = '1'; // 팝업을 보이게 함
 
