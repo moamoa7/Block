@@ -52,7 +52,7 @@
 
     // === 팝업 자동 표시 차단 사이트 ===
     const SITE_POPUP_BLOCK_LIST = [
-        'missav.ws',
+        //'missav.ws',
         //'fourhoi.com'
     ];
     const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
