@@ -79,7 +79,7 @@
                 style.display !== 'none' &&
                 style.visibility !== 'hidden' &&
                 (v.videoWidth > 0 || v.videoHeight > 0 || isMedia) &&
-                (v.clientWidth > 300 || v.clientHeight > 300 || isMedia)
+                (v.clientWidth > 500 || v.clientHeight > 500 || isMedia)
             );
         });
 
