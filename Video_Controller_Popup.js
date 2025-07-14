@@ -253,7 +253,8 @@
             if (gainNode && connectedVideo === video) {
                 gainNode.gain.value = 1;
             }
-            video.volume = vol;
+            video.volume = vol;   // 사용자가 조정한 볼륨으로 맞춤
+            video.muted = false;  // 무조건 무트 해제
         } else {
             if (video.muted) {
                 video.muted = false;
