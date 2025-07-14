@@ -51,7 +51,9 @@
 
     function setupIntersectionObserver() {
         if (videoObserver) videoObserver.disconnect();
-        const options = { root: null, rootMargin: '0px', threshold: 0.5 };
+        // --- MODIFIED: Changed threshold from 0.5 to 0.25 ---
+        const options = { root: null, rootMargin: '0px', threshold: 0.25 }; 
+        // -----------------------------------------------------
         videoObserver = new IntersectionObserver(handleIntersection, options);
     }
     
@@ -103,11 +105,22 @@
 
         if (visibleVideo !== currentVideo) {
             currentVideo = visibleVideo;
-            currentVideo.muted = true; 
+
+            // --- MODIFIED: Ensure Autoplay for mobile and browsers (autoplay, muted, playsInline) ---
+            currentVideo.autoplay = true;
+            currentVideo.muted = true;
+            currentVideo.playsInline = true;
+            // -----------------------------------------------------------------------------------------
+
             console.log('[VCP] Switched to most visible video. Resetting controls.');
             fixPlaybackRate(currentVideo, 1.0);
             setAmplifiedVolume(currentVideo, 1.0);
             isManuallyPaused = false;
+            
+            // --- MODIFIED: Explicitly call play() after setting properties ---
+            currentVideo.play().catch(e => console.error("Autoplay resume failed:", e));
+            // -----------------------------------------------------------------
+
         } else if (currentVideo.paused && !isManuallyPaused) {
             currentVideo.play().catch(e => console.error("Autoplay resume failed:", e));
         }
@@ -540,6 +553,7 @@
 
         if (maxRatio >= 0.5 && bestVideo) {
             console.log('[VCP] Performing initial auto-play check on load.');
+            // Note: Autoplay properties (muted, playsInline) are now primarily handled in enforceSingleVisibleVideoPlayback
             bestVideo.muted = true; 
             bestVideo.playsInline = true;
             enforceSingleVisibleVideoPlayback(bestVideo);
