@@ -3,8 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250713
-!
+! Version: 20250715
 !
 !
 !
@@ -101,66 +100,24 @@ wikipedia.org###siteNotice
 wikipedia.org###centralNotice
 !
 !
-! 구글 (https://www.google.com/)
-www.google.com##html:style(overflow: visible !important)
-www.google.*##+js(set-constant, rwt, noopFunc)
-www.google.*##+js(set-attr, c-wiz[data-p] [data-query] a[target="_blank"][role="link"], rlhc, 1)
-www.google.*##+js(remove-attr, ping, div[id="search"] a[data-ved][ping])
-www.google.*##+js(remove-attr, jsaction, #islsp c-wiz a[href^="http"][data-ved][target], stay)
-google.com##+js(set-local-storage-item, mapslitepromosdismissed, 1)
-google.*##+js(remove-attr, data-jsarwt, #rcnt [data-ved] a)
-accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
-google.com##body #tads
-google.com###taw > div > [data-ved]
-||ogads-pa.clients6.google.com^
-||google.com/async/bgasy^
-||google.com/images/cleardot.gif^$image
-||jnn-pa.googleapis.com^
-/google.internal.waa.v1.waa/*
-/gen_204^
-/client_204?$image
-/browserinfo?f.sid=$xhr
-/pagead^
-!
-!
-! https://drive.google.com/
-! - 기타
-||drive.google.com/drive/logimpressions^
-!
 ! ChatGPT (https://chatgpt.com/)
 !  - 일부 필터 로그인 차단 해제
 @@/noop*.js$script
 !
 !
-! https://auth.openai.com/
-! - 기타
-||sentry.io^$3p
-!
-!
 ! https://account.live.com/
 ! - 일부 필터에 의한 로그인 화면 안보임 해결
 account.live.com#@#[class*="-cookie-banner"]
-! - 기타
-||microsoft.com/mscc/
-!
-!
-! https://copilot.microsoft.com/
-! - 기타
-||eu-mobile.events.data.microsoft.com^
 !
 !
 ! 덕덕고 (https://duckduckgo.com/)
 ! - 오른쪽 메뉴 없애기
 ##.header--aside
-! - 기타
-||improving.duckduckgo.com^
 !
 !
 ! 브레이브 검색 (https://search.brave.com/)
 ! - 하단 브라우저 다운 안내
 search.brave.com##.download-cta
-! - 기타
-search.brave.com##+js(prevent-fetch, body:browser)
 !
 !
 ! 스타트페이지 (https://www.startpage.com/)
@@ -168,50 +125,14 @@ search.brave.com##+js(prevent-fetch, body:browser)
 startpage.com##.privacy-extension-and-app-widget
 !
 !
-! 야후 제팬 (https://www.yahoo.co.jp/)
-! - 기타
-||clb.yahoo.co.jp^
-||dsb.yahoo.co.jp^
-||yjtag.yahoo.co.jp^
-/conversion_async.js
-||baidu.com/static/h.gif
-!
-!
-! 빙 (https://www.bing.com/)
-! - 기타
-||bing.com/fd/ls/l?ig=
-||bing.com/fd/ls/lsp.aspx
-||bing.com/notifications/render?
-||bing.com/rewardsapp/reportactivity?
-
-!
-!
 ! 바이두 (https://www.baidu.com/)
 ! - 하단
 baidu.com###s-hotsearch-wrapper
-! - 기타
-||sp1.baidu.com^
-||sp2.baidu.com^
-||bdstatic.com^*/plugins/every_cookie_
-/swfobject_*.js^$script
 !
 !
 ! 스포티파이 (https://open.spotify.com/)
-! - 기타
-||googleoptimize.com^
-/gtm.*.js^$script
-||cookielaw.org^
 ! - 차단 사이트
 !||rlcdn.com^
-!
-!
-! 트위터 (https://x.com/)
-! - 기타
-twitter.com##html:style(overflow:auto!important)
-||analytics.twitter.com^
-||syndication.twitter.com^
-||x.com/1.1/jot
-/referrer.js
 !
 !
 ! https://www.instagram.com/
@@ -226,11 +147,6 @@ twitter.com##html:style(overflow:auto!important)
 !instagram.com##+js(set-constant, _sharedData.is_whitelisted_crawl_bot, true)
 !!||instagram.com/ajax/bz
 !/ajax/bz^$xhr
-!
-!
-! 디스코드 (https://discord.com/)
-! - 기타
-/sentry.*.js^$script
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -251,8 +167,6 @@ news.naver.com##.comp_common.comp_journal_subscribe.comp_twenty_news
 news.naver.com##._short_subscribe_banner_card_wrapper.main_brick_item
 ! - - - 신문 1면 모아보기
 news.naver.com##._horizontal_scroll_type._horizontal_card_wrapper.main_brick_item
-! - 기타
-logger.js^$script
 !
 !
 ! 네이버플러스 멤버쉽 (https://nid.naver.com/)
@@ -274,30 +188,9 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !||cyad1.nate.com^
 !
 !
-! 다음 (https://www.daum.net/)
-! - 기타
-||aem-kakao-collector.onkakao.net^
-!
-!
 ! 다음 (https://v.daum.net/)
 ! - 영상 재생 차단 해결 (타 필터에 의한 차단 해제)
 #@#.ads
-!
-!
-! www.msn.com
-! - 기타
-||msn.com/onecollector/
-||confiant.msn.com^
-||c.bing.com^
-||popin.cc^
-||mediago.io^$3p
-!
-!
-! 노션 (https://www.notion.so/)
-! - 기타
-notion.so##+js(set-cookie, notion_check_cookie_consent, true)
-||notion.so/api/*/etclient|$method=post
-||splunkcloud.com/services/collector/$xhr
 !
 !
 ! 숲 (https://www.sooplive.co.kr/)
@@ -361,11 +254,6 @@ sooplive.co.kr###FeedLayerToolTip
 ! - shopfreeca banner (적용이 안되고 있는지 딱히 나오는건 없음)
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
-! - 기타
-/fbevents.js^$script
-/ad/*$script
-/fbevents.js
-*/gg/$domain=~cnr.cn|~20-0.net|~health.dahe.cn
 ! - 차단 사이트
 !||adballoon.sooplive.co.kr^
 !||reqde.sooplive.co.kr^
@@ -413,8 +301,6 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 @@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
-! - 기타
-*/ad-$~stylesheet
 ! - 차단 사이트
 !||veta.naver.com^
 !
@@ -427,9 +313,6 @@ twitch.tv###twilight-sticky-footer-root
 ! - 기타
 ! - 광고?
 ||*.ads.*
-! - 기타
-||ads.twitch.tv^
-||reporting.cdndex.io^
 ! - 차단 사이트
 !||edge.ads.twitch.tv^
 !||scorecardresearch.com^
@@ -440,9 +323,6 @@ twitch.tv###twilight-sticky-footer-root
 ! 킥 (https://kick.com/)
 ! - 로고 복원
 !@@||kick.com/img/*$image
-! - 기타
-||datadoghq-browser-agent.com^
-
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -456,10 +336,6 @@ twitch.tv###twilight-sticky-footer-root
 !  - 영상 재생 해결
 !@@||play.kakao.com^
 @@||videostats.kakao.com^
-! - 기타
-/track^
-/embed/player/image/ads.png$redirect=2x2.png,domain=tv.kakao.com|play-tv.kakao.com|kakaotv.daum.net
-/cast_sender.js^$script
 ! - 차단 사이트
 !||ad.daum.net^
 !
@@ -479,18 +355,6 @@ pornhub.com#@#[class*="Modal"]
 play.sooplive.co.kr#@#[class*="Modal"]
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
-! - 기타
-tiktok.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
-tiktok.com##+js(set-session-storage-item, webapp_first_open_cta, 1)
-tiktok.com##+js(addEventListener-defuser, touchmove, .preventDefault():void)
-tiktok.com##+js(addEventListener-defuser, keydown)
-tiktok.com##+js(addEventListener-defuser, contextmenu, preventDefault)
-/share.*.js^$script
-||ibytedtos.com^
-tiktok.com##tiktok-cookie-banner
-||tiktok.com/web/report^
-/collect^
-||tiktokv.com/monitor_browser/
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -657,11 +521,6 @@ www.baidu.com#@#[class*="ad_"] [style]
 [$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 
 
-! - 기타
-/blank.gif^$image
-
-
-
 ##.adpost
 ! 게시물 하단 배너
 !fmkorea.com##ins.adsbygoogle
@@ -745,10 +604,6 @@ etoland.co.kr###info_recent_list_wrap
 !@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
 etoland.co.kr#@#[class^="ad"]
-! - 기타
-||amung.us^
-||googlesyndication.com^
-||naver.net/wcslog.js
 ! - 차단 사이트
 !||mobon.net^
 !||cdn.nhnace.com^
@@ -763,8 +618,6 @@ etoland.co.kr#@#[class^="ad"]
 theqoo.net##.theqoo-counter
 ! - 이미지 복원
 !@@||blogger.googleusercontent.com/img/*$image,domain=theqoo.net
-! - 기타
-/counter.js^$script
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
@@ -842,10 +695,6 @@ mlbpark.donga.com##.bt_menu_wrap
 ! - 맨 밑 하단 TODAY BEST BULLPEN 5번과 6번 사이 공간 없애기
 ! - - - 출처 : https://gall.dcinside.com/adguard/399
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
-! - 기타
-||contentsfeed.com^$3p
-/^https:\/\/cdn\.jsdelivr\.net\/npm\/[-a-z_]{4,22}@latest\/dist\/script\.min\.js$/$script,3p
-/acecounter/*
 ! - 차단 사이트
 !||ad.aceplanet.co.kr^
 !||contentsfeed.com^
@@ -2504,8 +2353,6 @@ avsee.ru##.tabs
 ! SEXTB.NET (https://sextb.date/)
 ! -영상 오른쪽 배너 공간
 sextb.date##.hidden-md.right.col-3
-! - 기타
-/log^$xmlhttprequest,domain=~meet.google.com
 ! - 팝업 방지
 ||ak.stikroltiltoowi.net^$popup
 ||lionessgrandchild.com^$popup
@@ -4521,6 +4368,11 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 teamblind.com/#@#[class^="ad"]
 !
 !
+! https://forum.mobilism.org/
+! - 메인 상단 안내
+##.welcome-bar
+!
+!
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -5224,6 +5076,7 @@ duckduckgo.com#@#[class*="AD"]
 www.yahoo.co.jp#@#[class*="AD"]
 ! - https://www.baidu.com/ - 일부 아이콘 사라짐
 baidu.com#@#[class*="AD"]
+
 
 
 
