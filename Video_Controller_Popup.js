@@ -606,7 +606,7 @@
         if (statusElement) {
             statusElement.textContent = `Status: ${message}`;
             statusElement.style.opacity = 1;
-            setTimeout(() => statusElement.style.opacity = 0.7, 2000);
+            setTimeout(() => statusElement.style.opacity = 0.75, 2000);
         }
     }
 
@@ -620,7 +620,7 @@
 
         if (isVisible) {
             // Apply aggressive visibility styles when visible
-            const styles = { display: 'block', opacity: '0.5', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
+            const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) {
                 popupElement.style.setProperty(key, styles[key], 'important');
             }
