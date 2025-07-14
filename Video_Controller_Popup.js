@@ -605,8 +605,8 @@
         const statusElement = popupElement.querySelector('#vcp-status');
         if (statusElement) {
             statusElement.textContent = `Status: ${message}`;
-            statusElement.style.opacity = 1;
-            setTimeout(() => statusElement.style.opacity = 0.75, 2000);
+            statusElement.style.opacity = 0.75;
+            setTimeout(() => statusElement.style.opacity = 0, 2000);
         }
     }
 
