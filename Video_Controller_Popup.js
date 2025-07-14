@@ -323,7 +323,7 @@
         const resetButton = document.createElement('button');
         resetButton.setAttribute('data-action', 'reset-speed-volume');
         resetButton.style.cssText = buttonStyle;
-        resetButton.textContent = '초기화';
+        resetButton.textContent = '재설정';
         playPauseSection.appendChild(resetButton);
         // END VCP_MOD
 
@@ -437,7 +437,7 @@
                         setAmplifiedVolume(currentVideo, 1.0);
                     }
                     updatePopupSliders(); // Update UI sliders after resetting
-                    updateStatus('Speed and Volume Reset');
+                    updateStatus('1.0x Speed and 100% Volume');
                     break;
                 case 'pip':
                     if (document.pictureInPictureElement) {
