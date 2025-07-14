@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.36: TrustedHTML Patched, AutoplayFixed, Optimized, Minified)
+// @name Video Controller Popup (V4.10.36: TrustedHTML Patched, AutoplayFixed, ResponsiveUI, Minified)
 // @namespace Violentmonkey Scripts
-// @version 4.10.36_TrustedHTML_Patched_AutoplayFixed_Minified
-// @description Optimized video controls using IntersectionObserver, single video autoplay, and adjustable speed. Includes fixes for autoplay policies.
+// @version 4.10.36_TrustedHTML_Patched_AutoplayFixed_ResponsiveUI_Minified
+// @description Optimized video controls using IntersectionObserver, single video autoplay, and adjustable speed. Includes fixes for autoplay policies and responsive UI positioning.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -54,7 +54,7 @@
         const options = { root: null, rootMargin: '0px', threshold: 0.5 };
         videoObserver = new IntersectionObserver(handleIntersection, options);
     }
-
+    
     function handleIntersection(entries) {
         let bestVideo = null;
         let maxIntersectionRatio = 0;
@@ -80,7 +80,7 @@
             video.muted = false;
             if (!intersectionEntries.has(video)) {
                 videoObserver.observe(video);
-                intersectionEntries.set(video, 0);
+                intersectionEntries.set(video, 0); 
             }
         });
         intersectionEntries.forEach((ratio, video) => {
@@ -103,9 +103,7 @@
 
         if (visibleVideo !== currentVideo) {
             currentVideo = visibleVideo;
-            // --- MODIFIED: Ensure new video is muted for reliable autoplay ---
-            currentVideo.muted = true;
-            // -----------------------------------------------------------------
+            currentVideo.muted = true; 
             console.log('[VCP] Switched to most visible video. Resetting controls.');
             fixPlaybackRate(currentVideo, 1.0);
             setAmplifiedVolume(currentVideo, 1.0);
@@ -179,7 +177,7 @@
 
     function createPopupElement() {
         if (popupElement) return;
-
+        
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
         popupElement.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px; padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; display: none; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); width: 230px; overflow: hidden; text-align: center; pointer-events: auto;`;
@@ -195,12 +193,12 @@
 
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = 'display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 10px;';
-
+        
         const playPauseBtn = document.createElement('button');
         playPauseBtn.setAttribute('data-action', 'play-pause');
         playPauseBtn.textContent = '재생/멈춤';
         playPauseBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
-
+        
         const resetBtn = document.createElement('button');
         resetBtn.setAttribute('data-action', 'reset-speed-volume');
         resetBtn.textContent = '재설정';
@@ -217,14 +215,14 @@
         const speedLabel = document.createElement('label');
         speedLabel.htmlFor = 'vcp-speed';
         speedLabel.style.cssText = 'display: block; margin-bottom: 5px;';
-
+        
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
         speedDisplay.textContent = '1.00';
         speedLabel.textContent = '배속 조절: ';
         speedLabel.appendChild(speedDisplay);
         speedLabel.appendChild(document.createTextNode('x'));
-
+        
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
         speedInput.id = 'vcp-speed';
@@ -274,7 +272,7 @@
         pipBtn.setAttribute('data-action', 'pip');
         pipBtn.textContent = 'PIP 모드';
         pipBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
-
+        
         const exitFullscreenBtn = document.createElement('button');
         exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
         exitFullscreenBtn.textContent = '전체 종료';
@@ -332,7 +330,7 @@
 
     function setupPopupEventListeners() {
         if (!popupElement) return;
-
+        
         popupElement.addEventListener('click', (e) => {
             const action = e.target.getAttribute('data-action');
             if (action) handleButtonClick(action);
@@ -411,7 +409,7 @@
 
     function setPopupVisibility(isVisible) {
         if (!popupElement) return;
-
+        
         if (isVisible) {
             const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
@@ -449,7 +447,7 @@
             const viewportX = videoRect.left + (videoRect.width / 2) - (popupRect.width / 2);
             const viewportY = videoRect.top + (videoRect.height / 2) - (popupRect.height / 2);
             const safeX = Math.max(0, Math.min(viewportX, window.innerWidth - popupRect.width));
-
+            
             popupElement.style.left = `${safeX}px`;
             popupElement.style.top = `${viewportY}px`;
             popupElement.style.transform = 'none';
@@ -498,7 +496,7 @@
             currentVideo.muted = false;
             isManuallyPaused = false;
             currentVideo.play().catch(e => console.error("Play failed on click:", e));
-
+            
             updatePopupSliders();
             showPopupTemporarily();
 
@@ -513,12 +511,12 @@
     function calculateIntersectionRatio(video) {
         const rect = video.getBoundingClientRect();
         const viewportHeight = window.innerHeight, viewportWidth = window.innerWidth;
-
+        
         const intersectionTop = Math.max(0, rect.top);
         const intersectionBottom = Math.min(viewportHeight, rect.bottom);
         const intersectionLeft = Math.max(0, rect.left);
         const intersectionRight = Math.min(viewportWidth, rect.right);
-
+        
         const intersectionHeight = intersectionBottom - intersectionTop;
         const intersectionWidth = intersectionRight - intersectionLeft;
 
@@ -542,10 +540,8 @@
 
         if (maxRatio >= 0.5 && bestVideo) {
             console.log('[VCP] Performing initial auto-play check on load.');
-            // --- MODIFIED: Ensure initial video is muted and plays inline for autoplay ---
-            bestVideo.muted = true;
+            bestVideo.muted = true; 
             bestVideo.playsInline = true;
-            // ----------------------------------------------------------------------------
             enforceSingleVisibleVideoPlayback(bestVideo);
         }
     }
@@ -597,7 +593,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.36_TrustedHTML_Patched_AutoplayFixed_Minified');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.36_TrustedHTML_Patched_AutoplayFixed_ResponsiveUI_Minified');
 
         createPopupElement();
         hidePopup();
@@ -608,12 +604,15 @@
             if (popupElement) {
                 if (fsEl) {
                     fsEl.appendChild(popupElement);
-                    showPopup();
+                    showPopup(); 
                 } else {
                     document.body.appendChild(popupElement);
                 }
             }
         });
+
+        // Add event listener to adjust popup position on window resize (including mobile orientation change)
+        window.addEventListener('resize', updatePopupPosition);
 
         updateVideoList();
         setupDOMObserver();
