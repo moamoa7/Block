@@ -61,15 +61,15 @@
     function calculateCenterDistanceScore(video, intersectionRatio) {
         const rect = video.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-
+        
         // Calculate the vertical center of the video
         const videoCenterY = rect.top + (rect.height / 2);
         // Calculate the vertical center of the viewport
         const viewportCenterY = viewportHeight / 2;
-
+        
         // Calculate the distance from the video center to the viewport center
         const distance = Math.abs(videoCenterY - viewportCenterY);
-
+        
         // Normalize the distance (0 to 1, relative to viewport height)
         const normalizedDistance = distance / viewportHeight;
 
@@ -85,31 +85,23 @@
 
         let bestVideo = null;
         let maxScore = -Infinity;
-        let intersectingVideoCount = 0;
+        // Removed intersectingVideoCount and its single-video logic here
 
         // Iterate through all currently observed videos to find the one with the highest score
         intersectionEntries.forEach((ratio, video) => {
             // Only consider videos that are actually intersecting
             if (ratio > 0) {
-                intersectingVideoCount++;
                 const score = calculateCenterDistanceScore(video, ratio);
-
+                
                 if (score > maxScore) {
                     maxScore = score;
                     bestVideo = video;
                 }
             }
         });
-
-        // Condition relaxation: If there is exactly one intersecting video, play it regardless of score.
-        if (intersectingVideoCount === 1 && bestVideo) {
-             console.log('[VCP] Autoplay single intersecting video.');
-            enforceSingleVisibleVideoPlayback(bestVideo);
-            return;
-        }
-
-        // If multiple videos are intersecting, or if a single video has a score above the threshold
-        if (bestVideo && maxScore > -0.5) {
+        
+        // Reverted to original logic: Autoplay based on scoring threshold
+        if (bestVideo && maxScore > -0.5) { 
             enforceSingleVisibleVideoPlayback(bestVideo);
         } else if (currentVideo) {
             currentVideo.pause();
@@ -132,7 +124,7 @@
             video.muted = false;
             if (!intersectionEntries.has(video)) {
                 videoObserver.observe(video);
-                intersectionEntries.set(video, 0);
+                intersectionEntries.set(video, 0); 
             }
         });
         intersectionEntries.forEach((ratio, video) => {
@@ -166,7 +158,7 @@
             fixPlaybackRate(currentVideo, 1.0);
             setAmplifiedVolume(currentVideo, 1.0);
             isManuallyPaused = false;
-
+            
             // Explicitly call play() after setting properties to trigger autoplay
             currentVideo.play().catch(e => console.error("Autoplay resume failed:", e));
 
@@ -239,7 +231,7 @@
 
     function createPopupElement() {
         if (popupElement) return;
-
+        
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
         popupElement.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px; padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; display: none; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); width: 230px; overflow: hidden; text-align: center; pointer-events: auto;`;
@@ -255,12 +247,12 @@
 
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = 'display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 10px;';
-
+        
         const playPauseBtn = document.createElement('button');
         playPauseBtn.setAttribute('data-action', 'play-pause');
         playPauseBtn.textContent = '재생/멈춤';
         playPauseBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
-
+        
         const resetBtn = document.createElement('button');
         resetBtn.setAttribute('data-action', 'reset-speed-volume');
         resetBtn.textContent = '재설정';
@@ -277,14 +269,14 @@
         const speedLabel = document.createElement('label');
         speedLabel.htmlFor = 'vcp-speed';
         speedLabel.style.cssText = 'display: block; margin-bottom: 5px;';
-
+        
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
         speedDisplay.textContent = '1.00';
         speedLabel.textContent = '배속 조절: ';
         speedLabel.appendChild(speedDisplay);
         speedLabel.appendChild(document.createTextNode('x'));
-
+        
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
         speedInput.id = 'vcp-speed';
@@ -334,7 +326,7 @@
         pipBtn.setAttribute('data-action', 'pip');
         pipBtn.textContent = 'PIP 모드';
         pipBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
-
+        
         const exitFullscreenBtn = document.createElement('button');
         exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
         exitFullscreenBtn.textContent = '전체 종료';
@@ -392,7 +384,7 @@
 
     function setupPopupEventListeners() {
         if (!popupElement) return;
-
+        
         popupElement.addEventListener('click', (e) => {
             const action = e.target.getAttribute('data-action');
             if (action) handleButtonClick(action);
@@ -471,7 +463,7 @@
 
     function setPopupVisibility(isVisible) {
         if (!popupElement) return;
-
+        
         if (isVisible) {
             const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
@@ -509,7 +501,7 @@
             const viewportX = videoRect.left + (videoRect.width / 2) - (popupRect.width / 2);
             const viewportY = videoRect.top + (videoRect.height / 2) - (popupRect.height / 2);
             const safeX = Math.max(0, Math.min(viewportX, window.innerWidth - popupRect.width));
-
+            
             popupElement.style.left = `${safeX}px`;
             popupElement.style.top = `${viewportY}px`;
             popupElement.style.transform = 'none';
@@ -517,7 +509,7 @@
         } else {
             hidePopup();
         }
-
+        
     }
 
     function updatePopupSliders() {
@@ -559,7 +551,7 @@
             currentVideo.muted = false;
             isManuallyPaused = false;
             currentVideo.play().catch(e => console.error("Play failed on click:", e));
-
+            
             updatePopupSliders();
             showPopupTemporarily();
 
@@ -574,12 +566,12 @@
     function calculateIntersectionRatio(video) {
         const rect = video.getBoundingClientRect();
         const viewportHeight = window.innerHeight, viewportWidth = window.innerWidth;
-
+        
         const intersectionTop = Math.max(0, rect.top);
         const intersectionBottom = Math.min(viewportHeight, rect.bottom);
         const intersectionLeft = Math.max(0, rect.left);
         const intersectionRight = Math.min(viewportWidth, rect.right);
-
+        
         const intersectionHeight = intersectionBottom - intersectionTop;
         const intersectionWidth = intersectionRight - intersectionLeft;
 
@@ -592,18 +584,8 @@
     // Initial check using the new scoring logic
     function initialAutoPlayCheck() {
         const playableVideos = findPlayableVideos();
-
-        // Condition relaxation: If only one playable video exists, autoplay it regardless of score.
-        if (playableVideos.length === 1) {
-            const video = playableVideos[0];
-            console.log('[VCP] Initializing with single detected video.');
-            video.muted = true;
-            video.playsInline = true;
-            enforceSingleVisibleVideoPlayback(video);
-            return;
-        }
-
-        // Existing logic for multiple videos (competition based on score)
+        
+        // Reverted to original logic for initial autoplay based on score
         let bestVideo = null;
         let maxScore = -Infinity;
 
@@ -620,7 +602,7 @@
         // Autoplay based on scoring threshold if multiple videos exist.
         if (bestVideo && maxScore > 0 && calculateIntersectionRatio(bestVideo) > 0.1) {
             console.log('[VCP] Performing initial auto-play check on load. Selected video with score:', maxScore.toFixed(3));
-            bestVideo.muted = true;
+            bestVideo.muted = true; 
             bestVideo.playsInline = true;
             enforceSingleVisibleVideoPlayback(bestVideo);
         }
@@ -684,7 +666,7 @@
             if (popupElement) {
                 if (fsEl) {
                     fsEl.appendChild(popupElement);
-                    showPopup();
+                    showPopup(); 
                 } else {
                     document.body.appendChild(popupElement);
                 }
@@ -696,7 +678,7 @@
             setupIntersectionObserver(); // Recalculate threshold on resize
             updatePopupPosition();
         });
-
+        
         // Add scroll event listener to force video selection on scroll
         window.addEventListener('scroll', handleScrollAndSelectVideo, { passive: true });
 
