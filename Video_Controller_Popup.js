@@ -620,7 +620,7 @@
 
         if (isVisible) {
             // Apply aggressive visibility styles when visible
-            const styles = { display: 'block', opacity: '1', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
+            const styles = { display: 'block', opacity: '0.5', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) {
                 popupElement.style.setProperty(key, styles[key], 'important');
             }
