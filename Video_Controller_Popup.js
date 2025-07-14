@@ -367,7 +367,7 @@
         volumeInput.id = 'vcp-volume';
         volumeInput.min = '0.0';
         volumeInput.max = '5.0';
-        volumeInput.step = '0.05';
+        volumeInput.step = '0.1';
         volumeInput.value = '1.0';
         volumeInput.style.cssText = 'width: 100%; cursor: pointer;';
         volumeSection.appendChild(volumeLabel);
