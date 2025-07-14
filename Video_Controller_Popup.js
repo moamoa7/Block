@@ -51,9 +51,9 @@
 
     function setupIntersectionObserver() {
         if (videoObserver) videoObserver.disconnect();
-        // --- MODIFIED: Changed threshold from 0.5 to 0.25 ---
-        const options = { root: null, rootMargin: '0px', threshold: 0.25 }; 
-        // -----------------------------------------------------
+        // Dynamic threshold: 0.2 for mobile (less than 768px), 0.5 for desktop
+        const threshold = window.innerWidth < 768 ? 0.2 : 0.5;
+        const options = { root: null, rootMargin: '0px', threshold: threshold };
         videoObserver = new IntersectionObserver(handleIntersection, options);
     }
     
@@ -61,12 +61,16 @@
         let bestVideo = null;
         let maxIntersectionRatio = 0;
         entries.forEach(entry => intersectionEntries.set(entry.target, entry.intersectionRatio));
+
+        // Use the entry data to find the most visible video based on Intersection Ratio
         intersectionEntries.forEach((ratio, video) => {
             if (ratio > maxIntersectionRatio) {
                 maxIntersectionRatio = ratio;
                 bestVideo = video;
             }
         });
+
+        // If a significant portion of a video is visible (threshold > 0.1), try to play it.
         if (maxIntersectionRatio > 0.1) {
             enforceSingleVisibleVideoPlayback(bestVideo);
         } else if (currentVideo) {
@@ -75,6 +79,13 @@
             currentVideo = null;
             hidePopup();
         }
+    }
+
+    // New function to handle video selection and playback specifically during scroll
+    function handleScrollAndSelectVideo() {
+        updateVideoList();
+        const entries = Array.from(intersectionEntries.entries()).map(([target, ratio]) => ({ target, intersectionRatio: ratio }));
+        handleIntersection(entries);
     }
 
     function observeVideos() {
@@ -106,20 +117,19 @@
         if (visibleVideo !== currentVideo) {
             currentVideo = visibleVideo;
 
-            // --- MODIFIED: Ensure Autoplay for mobile and browsers (autoplay, muted, playsInline) ---
+            // --- Autoplay properties forced for mobile/browser compatibility ---
             currentVideo.autoplay = true;
             currentVideo.muted = true;
             currentVideo.playsInline = true;
-            // -----------------------------------------------------------------------------------------
+            // ------------------------------------------------------------------
 
             console.log('[VCP] Switched to most visible video. Resetting controls.');
             fixPlaybackRate(currentVideo, 1.0);
             setAmplifiedVolume(currentVideo, 1.0);
             isManuallyPaused = false;
             
-            // --- MODIFIED: Explicitly call play() after setting properties ---
+            // Explicitly call play() after setting properties to trigger autoplay
             currentVideo.play().catch(e => console.error("Autoplay resume failed:", e));
-            // -----------------------------------------------------------------
 
         } else if (currentVideo.paused && !isManuallyPaused) {
             currentVideo.play().catch(e => console.error("Autoplay resume failed:", e));
@@ -553,7 +563,6 @@
 
         if (maxRatio >= 0.5 && bestVideo) {
             console.log('[VCP] Performing initial auto-play check on load.');
-            // Note: Autoplay properties (muted, playsInline) are now primarily handled in enforceSingleVisibleVideoPlayback
             bestVideo.muted = true; 
             bestVideo.playsInline = true;
             enforceSingleVisibleVideoPlayback(bestVideo);
@@ -626,7 +635,13 @@
         });
 
         // Add event listener to adjust popup position on window resize (including mobile orientation change)
-        window.addEventListener('resize', updatePopupPosition);
+        window.addEventListener('resize', () => {
+            setupIntersectionObserver(); // Recalculate threshold on resize
+            updatePopupPosition();
+        });
+        
+        // Add scroll event listener to force video selection on scroll
+        window.addEventListener('scroll', handleScrollAndSelectVideo, { passive: true });
 
         updateVideoList();
         setupDOMObserver();
