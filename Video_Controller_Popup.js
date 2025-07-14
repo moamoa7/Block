@@ -531,26 +531,10 @@
 
     // VCP_MOD: Function to handle video selection when a click occurs.
     function selectVideoOnDocumentClick(e) {
-        // 팝업 내부 클릭이면 무시
+        // If the click is inside the popup, ignore it
         if (popupElement && popupElement.contains(e.target)) {
             resetPopupHideTimer(); // Reset timer if clicking inside the popup
             return;
-        }
-
-        // 모바일이면: 클릭한 게 video나 audio 관련 아니면 무시
-        if (isMobile) {
-          let clicked = e.target;
-          let foundVideo = false;
-          while (clicked && clicked !== document.body) {
-            if (clicked.tagName === 'VIDEO' || clicked.tagName === 'AUDIO') {
-              foundVideo = true;
-              break;
-            }
-            clicked = clicked.parentNode || clicked.parentElement;
-          }
-          if (!foundVideo) {
-            return; // video나 audio 아닌데 클릭했으면 popup 안나오게
-          }
         }
 
         // Find the currently active or largest video, or the video the user clicked on.
