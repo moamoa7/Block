@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.36: TrustedHTML Patched, Volume Fixed, IntersectionObserver, Speed 0.0-5.0, AutoplaySound, Optimized)
 // @namespace Violentmonkey Scripts
-// @version 4.10.36_TrustedHTML_Patched_Threshold_0.5
+// @version 4.10.36_TrustedHTML_Patched_InitialCheck_OpacityFixed
 // @description Optimized video controls using IntersectionObserver for visibility detection, single video autoplay, and adjustable speed from 0.0x to 5.0x. Includes patch for TrustedHTML errors on sites like YouTube.
 // @match *://*/*
 // @grant none
@@ -15,8 +15,8 @@
     let currentVideo = null;
     let popupElement = null;
     let desiredPlaybackRate = 1.0;
-    let desiredVolume = 1.0;
-    let videoObserver = null;
+    let desiredVolume = 1.0; 
+    let videoObserver = null; 
     let isPopupDragging = false;
     let popupDragOffsetX = 0;
     let popupDragOffsetY = 0;
@@ -26,7 +26,7 @@
     const intersectionEntries = new Map();
 
     // Flag to track if the user has manually paused the current video via the UI or site controls.
-    let isManuallyPaused = false;
+    let isManuallyPaused = false; 
 
     // WeakMap to store ratechange handlers for video elements.
     const videoRateHandlers = new WeakMap();
@@ -34,21 +34,21 @@
     // --- Configuration ---
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000; // UI display time: 2 seconds
-
+    
     // Sites where popup visibility needs to be aggressively managed
     const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com'];
     const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
-
+    
     // Sites where lazy loading of src is problematic
     const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
-
+    
     // Sites where volume amplification is blocked
     const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
 
     // --- Audio Context for Volume Amplification ---
     let audioCtx = null;
     let gainNode = null;
-    let connectedVideo = null;
+    let connectedVideo = null; 
 
     // --- Utility Functions ---
 
@@ -57,7 +57,7 @@
      */
     function findAllVideosDeep(root = document) {
         const videoElements = new Set();
-
+        
         // Find all video/audio elements in the current root
         root.querySelectorAll('video, audio').forEach(v => videoElements.add(v));
 
@@ -67,7 +67,7 @@
                 findAllVideosDeep(el.shadowRoot).forEach(v => videoElements.add(v));
             }
         });
-
+        
         return Array.from(videoElements);
     }
 
@@ -91,7 +91,7 @@
             const style = window.getComputedStyle(v);
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
-
+            
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
             const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
             const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
@@ -112,14 +112,14 @@
         }
 
         const options = {
-            root: null,
+            root: null, 
             rootMargin: '0px',
-            threshold: 0.5
+            threshold: 0.5 
         };
 
         videoObserver = new IntersectionObserver(handleIntersection, options);
     }
-
+    
     /**
      * Handles IntersectionObserver entries to determine the most visible video and enforce single playback.
      */
@@ -145,7 +145,7 @@
         } else if (currentVideo) {
             // Pause current video if it's no longer sufficiently visible
             currentVideo.pause();
-            isManuallyPaused = true;
+            isManuallyPaused = true; 
             currentVideo = null;
             hidePopup();
         }
@@ -162,7 +162,7 @@
             // Check if the video is already observed before observing
             if (!intersectionEntries.has(video)) {
                 videoObserver.observe(video);
-                intersectionEntries.set(video, 0);
+                intersectionEntries.set(video, 0); 
             }
         });
 
@@ -199,11 +199,11 @@
         if (visibleVideo !== currentVideo) {
             currentVideo = visibleVideo;
             console.log('[VCP] Switched to most visible video. Resetting controls.');
-
+            
             // Reset speed and volume for the newly selected video
             fixPlaybackRate(currentVideo, 1.0);
             setAmplifiedVolume(currentVideo, 1.0);
-            isManuallyPaused = false;
+            isManuallyPaused = false; 
 
         } else if (currentVideo.paused && !isManuallyPaused) {
             // Resume if not manually paused
@@ -271,7 +271,7 @@
 
             // Ensure video volume is 1.0 and unmuted when using AudioContext
             video.volume = 1.0;
-            video.muted = false;
+            video.muted = false; 
 
             connectedVideo = video;
             return true;
@@ -289,7 +289,7 @@
         if (!video || typeof video.volume === 'undefined') return;
 
         desiredVolume = vol;
-
+        
         // Ensure the video is never muted when controlling volume
         video.muted = false;
 
@@ -300,7 +300,7 @@
                 gainNode.gain.value = 1;
             }
             video.volume = vol;
-        }
+        } 
         // Amplified volume control (> 1.0)
         else {
             if (isAmplificationBlocked) {
@@ -341,8 +341,8 @@
         popupElement.style.cssText = `
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
-            padding: 0; color: white; font-family: sans-serif;
-            z-index: 2147483647;
+            padding: 0; color: white; font-family: sans-serif; 
+            z-index: 2147483647; 
             display: none; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             width: 230px; overflow: hidden; text-align: center;
             pointer-events: auto;
@@ -362,12 +362,12 @@
         // 4. Create Buttons Section (Play/Pause, Reset)
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = 'display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 10px;';
-
+        
         const playPauseBtn = document.createElement('button');
         playPauseBtn.setAttribute('data-action', 'play-pause');
         playPauseBtn.textContent = '재생/멈춤';
         playPauseBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
-
+        
         const resetBtn = document.createElement('button');
         resetBtn.setAttribute('data-action', 'reset-speed-volume');
         resetBtn.textContent = '재설정';
@@ -385,14 +385,14 @@
         const speedLabel = document.createElement('label');
         speedLabel.htmlFor = 'vcp-speed';
         speedLabel.style.cssText = 'display: block; margin-bottom: 5px;';
-
+        
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
         speedDisplay.textContent = '1.00';
         speedLabel.textContent = '배속 조절: ';
         speedLabel.appendChild(speedDisplay);
         speedLabel.appendChild(document.createTextNode('x'));
-
+        
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
         speedInput.id = 'vcp-speed';
@@ -444,7 +444,7 @@
         pipBtn.setAttribute('data-action', 'pip');
         pipBtn.textContent = 'PIP 모드';
         pipBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
-
+        
         const exitFullscreenBtn = document.createElement('button');
         exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
         exitFullscreenBtn.textContent = '전체 종료';
@@ -482,21 +482,21 @@
         switch (action) {
             case 'play-pause':
                 if (currentVideo.paused) {
-                    isManuallyPaused = false;
-                    currentVideo.muted = false;
+                    isManuallyPaused = false; 
+                    currentVideo.muted = false; 
                     currentVideo.play().catch(e => console.error("Play failed:", e));
                     updateStatus('Playing');
                 } else {
-                    isManuallyPaused = true;
+                    isManuallyPaused = true; 
                     currentVideo.pause();
                     updateStatus('Paused');
                 }
                 break;
             case 'reset-speed-volume':
-                desiredPlaybackRate = 1.0;
+                desiredPlaybackRate = 1.0; 
                 fixPlaybackRate(currentVideo, 1.0);
                 setAmplifiedVolume(currentVideo, 1.0);
-                currentVideo.muted = false;
+                currentVideo.muted = false; 
                 updatePopupSliders();
                 updateStatus('1.0x Speed / 100% Volume');
                 break;
@@ -520,7 +520,7 @@
      */
     function setupPopupEventListeners() {
         if (!popupElement) return;
-
+        
         // Button clicks
         popupElement.addEventListener('click', (e) => {
             const action = e.target.getAttribute('data-action');
@@ -533,7 +533,7 @@
         speedInput.addEventListener('input', () => {
             resetPopupHideTimer();
             const rate = parseFloat(speedInput.value);
-            desiredPlaybackRate = rate;
+            desiredPlaybackRate = rate; 
             speedDisplay.textContent = rate.toFixed(2);
             if (currentVideo) {
                 fixPlaybackRate(currentVideo, rate);
@@ -576,7 +576,7 @@
                 isPopupDragging = false;
                 dragHandle.style.cursor = 'grab';
                 document.body.style.userSelect = '';
-                resetPopupHideTimer();
+                resetPopupHideTimer(); 
             }
         };
 
@@ -605,8 +605,10 @@
         const statusElement = popupElement.querySelector('#vcp-status');
         if (statusElement) {
             statusElement.textContent = `Status: ${message}`;
-            statusElement.style.opacity = 0.75;
-            setTimeout(() => statusElement.style.opacity = 0, 2000);
+            // --- MODIFIED: Changed opacity logic for status element ---
+            statusElement.style.opacity = 0.75; // Set initial opacity to 0.75
+            setTimeout(() => statusElement.style.opacity = 0, 2000); // Fade out completely after 2 seconds
+            // --- END MODIFICATION ---
         }
     }
 
@@ -617,10 +619,16 @@
      */
     function setPopupVisibility(isVisible) {
         if (!popupElement) return;
-
+        
         if (isVisible) {
             // Apply aggressive visibility styles when visible
-            const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
+            const styles = { 
+                display: 'block', 
+                opacity: '0.75', // MODIFIED: Changed base opacity to 0.75
+                visibility: 'visible', 
+                pointerEvents: 'auto', 
+                zIndex: '2147483647' 
+            };
             for (const key in styles) {
                 popupElement.style.setProperty(key, styles[key], 'important');
             }
@@ -681,10 +689,10 @@
             const viewportX = videoRect.left + (videoRect.width / 2) - (popupRect.width / 2);
             const viewportY = videoRect.top + (videoRect.height / 2) - (popupRect.height / 2);
             const safeX = Math.max(0, Math.min(viewportX, window.innerWidth - popupRect.width));
-
+            
             popupElement.style.left = `${safeX}px`;
             popupElement.style.top = `${viewportY}px`;
-            popupElement.style.transform = 'none';
+            popupElement.style.transform = 'none'; 
             popupElement.style.position = 'fixed';
         } else {
             hidePopup();
@@ -751,7 +759,7 @@
             currentVideo.muted = false; // Ensure sound is enabled
             isManuallyPaused = false;
             currentVideo.play().catch(e => console.error("Play failed on click:", e));
-
+            
             updatePopupSliders();
             showPopupTemporarily();
 
@@ -766,6 +774,52 @@
     }
 
     // --- Main Initialization ---
+
+    /**
+     * Calculates the intersection ratio for a video element using getBoundingClientRect().
+     */
+    function calculateIntersectionRatio(video) {
+        const rect = video.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        
+        // Calculate the area of the video visible in the viewport
+        const intersectionTop = Math.max(0, rect.top);
+        const intersectionBottom = Math.min(viewportHeight, rect.bottom);
+        const intersectionLeft = Math.max(0, rect.left);
+        const intersectionRight = Math.min(viewportWidth, rect.right);
+        
+        const intersectionHeight = intersectionBottom - intersectionTop;
+        const intersectionWidth = intersectionRight - intersectionLeft;
+
+        const intersectionArea = Math.max(0, intersectionWidth) * Math.max(0, intersectionHeight);
+        const videoArea = rect.width * rect.height;
+
+        return videoArea > 0 ? intersectionArea / videoArea : 0;
+    }
+
+    /**
+     * Checks initial visibility on load and triggers auto-play for the most visible video.
+     */
+    function initialAutoPlayCheck() {
+        const playableVideos = findPlayableVideos();
+        let bestVideo = null;
+        let maxRatio = 0;
+
+        playableVideos.forEach(video => {
+            const ratio = calculateIntersectionRatio(video);
+            if (ratio > maxRatio) {
+                maxRatio = ratio;
+                bestVideo = video;
+            }
+        });
+
+        // Only auto-play if at least 50% of the best video is visible on load.
+        if (maxRatio >= 0.5 && bestVideo) {
+            console.log('[VCP] Performing initial auto-play check on load.');
+            enforceSingleVisibleVideoPlayback(bestVideo);
+        }
+    }
 
     /**
      * Updates the list of videos and observes them using IntersectionObserver.
@@ -835,7 +889,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.36_TrustedHTML_Patched_Threshold_0.5');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.36_TrustedHTML_Patched_InitialCheck_OpacityFixed');
 
         createPopupElement();
         hidePopup();
@@ -847,7 +901,7 @@
             if (popupElement) {
                 if (fsEl) {
                     fsEl.appendChild(popupElement);
-                    showPopup();
+                    showPopup(); 
                 } else {
                     document.body.appendChild(popupElement);
                 }
@@ -859,6 +913,10 @@
         setupDOMObserver();
         fixOverflow();
         document.body.addEventListener('click', selectVideoOnDocumentClick, true);
+
+        // --- NEW: Perform initial auto-play check on load ---
+        initialAutoPlayCheck();
+        // --- END NEW ---
     }
 
     // Initialize the script when the DOM is ready
