@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.40: Enhanced Scroll Handling)
+// @name Video Controller Popup (V4.10.42: ReferenceError Fix)
 // @namespace Violentmonkey Scripts
-// @version 4.10.40_EnhancedScroll_Minified
-// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, and enhanced scroll handling.
+// @version 4.10.42_ReferenceErrorFix_Minified
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -25,7 +25,7 @@
     const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
     let audioCtx = null, gainNode = null, connectedVideo = null;
 
-    // --- Utility Functions ---
+    // --- Utility Functions (Moved to top for scope visibility) ---
     function findAllVideosDeep(root = document) {
         const videoElements = new Set();
         root.querySelectorAll('video, audio').forEach(v => videoElements.add(v));
@@ -40,7 +40,6 @@
             const style = window.getComputedStyle(v);
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
-            // 비디오가 실제로 화면에 보이고 최소한의 크기를 가지며, 미디어 요소이거나 재생 중이 아닐 때도 포함
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
             const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
             const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
@@ -60,7 +59,6 @@
         const distance = Math.abs(videoCenterY - viewportCenterY);
         const normalizedDistance = distance / viewportHeight;
 
-        // 교차 비율이 높고 중심에 가까울수록 높은 점수
         const score = intersectionRatio - normalizedDistance;
         return score;
     }
@@ -655,7 +653,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.40_EnhancedScroll_Minified');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_Minified');
 
         createPopupElement();
         hidePopup();
@@ -679,11 +677,15 @@
         // 스크롤 이벤트 리스너 추가
         window.addEventListener('scroll', handleScrollEvent);
 
-        updateVideoList();
+        updateVideoList(); // moved here to ensure it's defined before call
         setupDOMObserver();
         setupSPADetection();
         fixOverflow();
+
+        // 모바일 클릭 인식을 위해 'touchend' 이벤트 추가
         document.body.addEventListener('click', selectVideoOnDocumentClick, true);
+        document.body.addEventListener('touchend', selectVideoOnDocumentClick, true);
+
 
         window.addEventListener('beforeunload', () => {
             console.log('[VCP] Page unloading. Clearing current video and removing popup.');
