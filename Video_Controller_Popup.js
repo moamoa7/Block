@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.36: TrustedHTML Patched, AutoplayFixed, ResponsiveUI, Minified)
+// @name Video Controller Popup (V4.10.36: Any Click Selects Best Video)
 // @namespace Violentmonkey Scripts
-// @version 4.10.36_TrustedHTML_Patched_AutoplayFixed_ResponsiveUI_Minified
-// @description Optimized video controls using IntersectionObserver, single video autoplay, and adjustable speed. Includes fixes for autoplay policies and responsive UI positioning.
+// @version 4.10.36_AnyClick_SelectsBestVideo_Minified
+// @description Optimized video controls, now with popup appearing on any user click by selecting the most prominent video. Includes adjustable speed and volume, responsive UI positioning.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -11,13 +11,10 @@
     'use strict';
 
     // --- Core Variables & State Management ---
-    let videos = [], currentVideo = null, popupElement = null, desiredPlaybackRate = 1.0, desiredVolume = 1.0, videoObserver = null, isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
-    const intersectionEntries = new Map();
+    let videos = [], currentVideo = null, popupElement = null, desiredPlaybackRate = 1.0, desiredVolume = 1.0,
+        isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
     let isManuallyPaused = false;
     const videoRateHandlers = new WeakMap();
-
-    // 팝업이 마지막으로 뜬 시각 기록
-    let popupVisibleSince = 0;
 
     // --- Configuration & Audio Context ---
     let popupHideTimer = null;
@@ -48,16 +45,8 @@
             const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
             return isVisible && isReasonableSize && hasMedia;
         });
-        videos = playableVideos;
+        videos = playableVideos; // Update global videos list
         return playableVideos;
-    }
-
-    function setupIntersectionObserver() {
-        if (videoObserver) videoObserver.disconnect();
-        // Dynamic threshold: 0.1 for mobile (less than 768px), 0.5 for desktop
-        const threshold = window.innerWidth < 768 ? 0.1 : 0.5;
-        const options = { root: null, rootMargin: '0px', threshold: threshold };
-        videoObserver = new IntersectionObserver(handleIntersection, options);
     }
 
     // New scoring function: favors higher visibility AND being closer to the center of the screen
@@ -82,92 +71,50 @@
         return score;
     }
 
-    function handleIntersection(entries) {
-        // Update the intersection ratio map first
-        entries.forEach(entry => intersectionEntries.set(entry.target, entry.intersectionRatio));
+    function calculateIntersectionRatio(video) {
+        const rect = video.getBoundingClientRect();
+        const viewportHeight = window.innerHeight, viewportWidth = window.innerWidth;
 
-        let bestVideo = null;
-        let maxScore = -Infinity;
-        // Removed intersectingVideoCount and its single-video logic here
+        const intersectionTop = Math.max(0, rect.top);
+        const intersectionBottom = Math.min(viewportHeight, rect.bottom);
+        const intersectionLeft = Math.max(0, rect.left);
+        const intersectionRight = Math.min(viewportWidth, rect.right);
 
-        // Iterate through all currently observed videos to find the one with the highest score
-        intersectionEntries.forEach((ratio, video) => {
-            // Only consider videos that are actually intersecting
-            if (ratio > 0) {
-                const score = calculateCenterDistanceScore(video, ratio);
+        const intersectionHeight = intersectionBottom - intersectionTop;
+        const intersectionWidth = intersectionRight - intersectionLeft;
 
-                if (score > maxScore) {
-                    maxScore = score;
-                    bestVideo = video;
-                }
-            }
-        });
+        const intersectionArea = Math.max(0, intersectionWidth) * Math.max(0, intersectionHeight);
+        const videoArea = rect.width * rect.height;
 
-        // Reverted to original logic: Autoplay based on scoring threshold
-        if (bestVideo && maxScore > -0.5) {
-            enforceSingleVisibleVideoPlayback(bestVideo);
-        } else if (currentVideo) {
-            currentVideo.pause();
-            isManuallyPaused = true;
-            currentVideo = null;
-            hidePopup();
-        }
+        return videoArea > 0 ? intersectionArea / videoArea : 0;
     }
 
-    // Function to handle video selection and playback specifically during scroll
-    function handleScrollAndSelectVideo() {
-        updateVideoList();
-        // Create synthetic entries for handleIntersection based on current state
-        const entries = Array.from(intersectionEntries.entries()).map(([target, ratio]) => ({ target, intersectionRatio: ratio }));
-        handleIntersection(entries);
-    }
-
-    function observeVideos() {
-        videos.forEach(video => {
-            video.muted = false;
-            if (!intersectionEntries.has(video)) {
-                videoObserver.observe(video);
-                intersectionEntries.set(video, 0);
-            }
-        });
-        intersectionEntries.forEach((ratio, video) => {
-            if (!videos.includes(video)) {
-                videoObserver.unobserve(video);
-                intersectionEntries.delete(video);
-            }
-        });
-    }
-
-    function enforceSingleVisibleVideoPlayback(visibleVideo) {
-        if (!visibleVideo) {
+    // This function is now called by `selectVideoOnDocumentClick` to select the "best" video
+    function selectAndControlVideo(videoToControl) {
+        if (!videoToControl) {
             if (currentVideo) { currentVideo.pause(); currentVideo = null; hidePopup(); }
             return;
         }
 
+        // Pause all other videos if they are playing, ensuring only one is active
         videos.forEach(video => {
-            if (video !== visibleVideo && !video.paused) video.pause();
+            if (video !== videoToControl && !video.paused) {
+                video.pause();
+            }
         });
 
-        if (visibleVideo !== currentVideo) {
-            currentVideo = visibleVideo;
+        currentVideo = videoToControl;
 
-            // --- Autoplay properties forced for mobile/browser compatibility ---
-            currentVideo.autoplay = true;
-            currentVideo.muted = true;
-            currentVideo.playsInline = true;
-            // ------------------------------------------------------------------
+        currentVideo.autoplay = true; // Ensure autoplay is set for seamless playback after selection
+        currentVideo.playsInline = true;
+        currentVideo.muted = false; // Always unmute on selection for user control
+        console.log('[VCP] Video selected automatically based on prominence. Resetting controls.');
+        fixPlaybackRate(currentVideo, 1.0);
+        setAmplifiedVolume(currentVideo, 1.0);
+        isManuallyPaused = false; // Reset manual pause state
 
-            console.log('[VCP] Switched to most visible video. Resetting controls.');
-            fixPlaybackRate(currentVideo, 1.0);
-            setAmplifiedVolume(currentVideo, 1.0);
-            isManuallyPaused = false;
-
-            // Explicitly call play() after setting properties to trigger autoplay
-            currentVideo.play().catch(e => console.error("Autoplay resume failed:", e));
-
-        } else if (currentVideo.paused && !isManuallyPaused) {
-            currentVideo.play().catch(e => console.error("Autoplay resume failed:", e));
-        }
+        // Attempt to play the video. Browsers might still block if not user-initiated enough.
+        currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
 
         updatePopupSliders();
         updatePopupPosition();
@@ -190,7 +137,6 @@
     }
 
     // --- Audio Context & Volume Amplification ---
-
     function setupAudioContext(video) {
         if (isAmplificationBlocked || !video) return false;
         try {
@@ -231,7 +177,6 @@
     }
 
     // --- Popup UI Functions ---
-
     function createPopupElement() {
         if (popupElement) return;
 
@@ -357,11 +302,13 @@
         switch (action) {
             case 'play-pause':
                 if (currentVideo.paused) {
-                    isManuallyPaused = false; currentVideo.muted = false;
+                    isManuallyPaused = false;
+                    currentVideo.muted = false;
                     currentVideo.play().catch(e => console.error("Play failed:", e));
                     updateStatus('Playing');
                 } else {
-                    isManuallyPaused = true; currentVideo.pause();
+                    isManuallyPaused = true;
+                    currentVideo.pause();
                     updateStatus('Paused');
                 }
                 break;
@@ -481,23 +428,8 @@
         }
     }
 
-    function showPopup() {
-        popupVisibleSince = Date.now(); // 팝업이 뜨면 시간 기록
-        setPopupVisibility(true);
-    }
-
-    function hidePopup() {
-        const elapsed = Date.now() - popupVisibleSince;
-        const MIN_VISIBLE_MS = 2000; // 최소 유지 2초
-
-        if (elapsed < MIN_VISIBLE_MS) {
-            // 남은 시간만큼 기다렸다가 다시 시도
-            setTimeout(hidePopup, MIN_VISIBLE_MS - elapsed);
-            return;
-        }
-
-        setPopupVisibility(false);
-    }
+    function showPopup() { setPopupVisibility(true); }
+    function hidePopup() { setPopupVisibility(false); }
 
     function resetPopupHideTimer() {
         if (popupHideTimer) clearTimeout(popupHideTimer);
@@ -509,7 +441,10 @@
     }
 
     function updatePopupPosition() {
-        if (!popupElement || !currentVideo || isPopupDragging) { if (!currentVideo && popupElement) hidePopup(); return; }
+        if (!popupElement || !currentVideo || isPopupDragging) {
+            if (!currentVideo && popupElement) hidePopup();
+            return;
+        }
 
         const videoRect = currentVideo.getBoundingClientRect();
         const popupRect = popupElement.getBoundingClientRect();
@@ -519,15 +454,15 @@
             const viewportX = videoRect.left + (videoRect.width / 2) - (popupRect.width / 2);
             const viewportY = videoRect.top + (videoRect.height / 2) - (popupRect.height / 2);
             const safeX = Math.max(0, Math.min(viewportX, window.innerWidth - popupRect.width));
+            const safeY = Math.max(0, Math.min(viewportY, window.innerHeight - popupRect.height));
 
             popupElement.style.left = `${safeX}px`;
-            popupElement.style.top = `${viewportY}px`;
+            popupElement.style.top = `${safeY}px`;
             popupElement.style.transform = 'none';
             popupElement.style.position = 'fixed';
         } else {
             hidePopup();
         }
-
     }
 
     function updatePopupSliders() {
@@ -553,83 +488,54 @@
 
     // --- Video Control & Selection Logic ---
 
+    // This function is now triggered by any click on the document body.
     function selectVideoOnDocumentClick(e) {
-        if (popupElement && popupElement.contains(e.target)) { resetPopupHideTimer(); return; }
-        const targetVideo = e.target.closest('video, audio');
-
-        if (targetVideo && videos.includes(targetVideo)) {
-            if (targetVideo !== currentVideo) {
-                if (currentVideo && !currentVideo.paused) currentVideo.pause();
-                currentVideo = targetVideo;
-            }
-
-            console.log('[VCP] Video selected via direct click. Found:', targetVideo);
-            fixPlaybackRate(currentVideo, 1.0);
-            setAmplifiedVolume(currentVideo, 1.0);
-            currentVideo.muted = false;
-            currentVideo.autoplay = true; // 클릭 시 자동 재생 속성 부여
-            isManuallyPaused = false;
-            currentVideo.play().catch(e => console.error("Play failed on click:", e));
-
-            updatePopupSliders();
-            showPopupTemporarily();
-
-        } else {
-            if (!currentVideo) hidePopup();
-            else showPopupTemporarily();
+        // If click is inside the popup, just reset timer and do nothing else.
+        if (popupElement && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
+            return;
         }
-    }
 
-    // --- Main Initialization ---
+        // Always try to find the "best" video on any click.
+        updateVideoList(); // Ensure `videos` array is up-to-date.
 
-    function calculateIntersectionRatio(video) {
-        const rect = video.getBoundingClientRect();
-        const viewportHeight = window.innerHeight, viewportWidth = window.innerWidth;
-
-        const intersectionTop = Math.max(0, rect.top);
-        const intersectionBottom = Math.min(viewportHeight, rect.bottom);
-        const intersectionLeft = Math.max(0, rect.left);
-        const intersectionRight = Math.min(viewportWidth, rect.right);
-
-        const intersectionHeight = intersectionBottom - intersectionTop;
-        const intersectionWidth = intersectionRight - intersectionLeft;
-
-        const intersectionArea = Math.max(0, intersectionWidth) * Math.max(0, intersectionHeight);
-        const videoArea = rect.width * rect.height;
-
-        return videoArea > 0 ? intersectionArea / videoArea : 0;
-    }
-
-    // Initial check using the new scoring logic
-    function initialAutoPlayCheck() {
-        const playableVideos = findPlayableVideos();
-
-        // Reverted to original logic for initial autoplay based on score
         let bestVideo = null;
         let maxScore = -Infinity;
 
-        playableVideos.forEach(video => {
+        videos.forEach(video => {
             const ratio = calculateIntersectionRatio(video);
             const score = calculateCenterDistanceScore(video, ratio);
 
-            if (score > maxScore) {
+            // Only consider videos that are at least partially visible and have a positive score
+            if (ratio > 0 && score > maxScore) {
                 maxScore = score;
                 bestVideo = video;
             }
         });
 
-        // Autoplay based on scoring threshold if multiple videos exist.
-        if (bestVideo && maxScore > 0 && calculateIntersectionRatio(bestVideo) > 0.1) {
-            console.log('[VCP] Performing initial auto-play check on load. Selected video with score:', maxScore.toFixed(3));
-            bestVideo.muted = true;
-            bestVideo.playsInline = true;
-            enforceSingleVisibleVideoPlayback(bestVideo);
+        // If a "best" video is found (with a reasonable score, e.g., > 0)
+        if (bestVideo && maxScore > -0.5) { // Use a slightly more permissive threshold for click-based selection
+             // If a video is already current and it's the same best video, just show popup temporarily
+            if (currentVideo === bestVideo) {
+                showPopupTemporarily();
+            } else {
+                // Otherwise, switch to the new best video
+                selectAndControlVideo(bestVideo);
+            }
+        } else {
+            // If no suitable video is found, hide the popup unless it's being dragged
+            if (!isPopupDragging) {
+                currentVideo = null; // Clear current video if none is prominent
+                hidePopup();
+            }
         }
     }
 
+
+    // --- Main Initialization ---
+
     function updateVideoList() {
         findPlayableVideos();
-        observeVideos();
         if (currentVideo && (!document.body.contains(currentVideo) || !videos.includes(currentVideo))) {
             currentVideo = null;
             hidePopup();
@@ -649,7 +555,9 @@
                     break;
                 }
             }
-            if (foundMediaChange) updateVideoList();
+            if (foundMediaChange) {
+                updateVideoList();
+            }
         };
         const mutationObserver = new MutationObserver(observerCallback);
         mutationObserver.observe(document.body, observerConfig);
@@ -674,11 +582,10 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.36_TrustedHTML_Patched_AutoplayFixed_ResponsiveUI_Minified');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.36_AnyClick_SelectsBestVideo_Minified');
 
         createPopupElement();
         hidePopup();
-        setupIntersectionObserver();
 
         document.addEventListener('fullscreenchange', () => {
             const fsEl = document.fullscreenElement;
@@ -692,20 +599,15 @@
             }
         });
 
-        // Add event listener to adjust popup position on window resize (including mobile orientation change)
         window.addEventListener('resize', () => {
-            setupIntersectionObserver(); // Recalculate threshold on resize
             updatePopupPosition();
         });
-
-        // Add scroll event listener to force video selection on scroll
-        window.addEventListener('scroll', handleScrollAndSelectVideo, { passive: true });
 
         updateVideoList();
         setupDOMObserver();
         fixOverflow();
+        // Changed from specific video click to any document body click
         document.body.addEventListener('click', selectVideoOnDocumentClick, true);
-        initialAutoPlayCheck();
     }
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
