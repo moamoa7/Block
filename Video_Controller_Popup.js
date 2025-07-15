@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.36: Any Click Selects Best Video)
+// @name Video Controller Popup (V4.10.40: Enhanced Scroll Handling)
 // @namespace Violentmonkey Scripts
-// @version 4.10.36_AnyClick_SelectsBestVideo_Minified
-// @description Optimized video controls, now with popup appearing on any user click by selecting the most prominent video. Includes adjustable speed and volume, responsive UI positioning.
+// @version 4.10.40_EnhancedScroll_Minified
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, and enhanced scroll handling.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -40,6 +40,7 @@
             const style = window.getComputedStyle(v);
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
+            // 비디오가 실제로 화면에 보이고 최소한의 크기를 가지며, 미디어 요소이거나 재생 중이 아닐 때도 포함
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
             const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
             const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
@@ -49,24 +50,17 @@
         return playableVideos;
     }
 
-    // New scoring function: favors higher visibility AND being closer to the center of the screen
     function calculateCenterDistanceScore(video, intersectionRatio) {
         const rect = video.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
 
-        // Calculate the vertical center of the video
         const videoCenterY = rect.top + (rect.height / 2);
-        // Calculate the vertical center of the viewport
         const viewportCenterY = viewportHeight / 2;
 
-        // Calculate the distance from the video center to the viewport center
         const distance = Math.abs(videoCenterY - viewportCenterY);
-
-        // Normalize the distance (0 to 1, relative to viewport height)
         const normalizedDistance = distance / viewportHeight;
 
-        // Calculate score: Intersection Ratio minus Normalized Distance
-        // A lower normalized distance (closer to center) yields a higher score.
+        // 교차 비율이 높고 중심에 가까울수록 높은 점수
         const score = intersectionRatio - normalizedDistance;
         return score;
     }
@@ -89,14 +83,25 @@
         return videoArea > 0 ? intersectionArea / videoArea : 0;
     }
 
-    // This function is now called by `selectVideoOnDocumentClick` to select the "best" video
+    // 현재 선택된 비디오가 유효하고 화면에 보이는지 확인
+    function checkCurrentVideoVisibility() {
+        if (!currentVideo) return false;
+        const rect = currentVideo.getBoundingClientRect();
+        const style = window.getComputedStyle(currentVideo);
+        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
+        const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
+        const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || currentVideo.tagName === 'AUDIO' || !currentVideo.paused;
+        const hasMedia = currentVideo.videoWidth > 0 || currentVideo.videoHeight > 0 || currentVideo.tagName === 'AUDIO';
+
+        return isVisible && isWithinViewport && isReasonableSize && hasMedia && document.body.contains(currentVideo);
+    }
+
     function selectAndControlVideo(videoToControl) {
         if (!videoToControl) {
             if (currentVideo) { currentVideo.pause(); currentVideo = null; hidePopup(); }
             return;
         }
 
-        // Pause all other videos if they are playing, ensuring only one is active
         videos.forEach(video => {
             if (video !== videoToControl && !video.paused) {
                 video.pause();
@@ -105,15 +110,14 @@
 
         currentVideo = videoToControl;
 
-        currentVideo.autoplay = true; // Ensure autoplay is set for seamless playback after selection
+        currentVideo.autoplay = true;
         currentVideo.playsInline = true;
-        currentVideo.muted = false; // Always unmute on selection for user control
+        currentVideo.muted = false;
         console.log('[VCP] Video selected automatically based on prominence. Resetting controls.');
         fixPlaybackRate(currentVideo, 1.0);
         setAmplifiedVolume(currentVideo, 1.0);
-        isManuallyPaused = false; // Reset manual pause state
+        isManuallyPaused = false;
 
-        // Attempt to play the video. Browsers might still block if not user-initiated enough.
         currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
 
         updatePopupSliders();
@@ -428,7 +432,14 @@
         }
     }
 
-    function showPopup() { setPopupVisibility(true); }
+    function showPopup() {
+        if (!currentVideo) {
+            hidePopup();
+            return;
+        }
+        setPopupVisibility(true);
+    }
+
     function hidePopup() { setPopupVisibility(false); }
 
     function resetPopupHideTimer() {
@@ -437,12 +448,20 @@
     }
 
     function showPopupTemporarily() {
+        if (!currentVideo) {
+            hidePopup();
+            return;
+        }
         if (popupElement && currentVideo) { showPopup(); updatePopupPosition(); resetPopupHideTimer(); }
     }
 
     function updatePopupPosition() {
+        if (!currentVideo) {
+            hidePopup();
+            return;
+        }
+
         if (!popupElement || !currentVideo || isPopupDragging) {
-            if (!currentVideo && popupElement) hidePopup();
             return;
         }
 
@@ -487,56 +506,96 @@
     }
 
     // --- Video Control & Selection Logic ---
-
-    // This function is now triggered by any click on the document body.
     function selectVideoOnDocumentClick(e) {
-        // If click is inside the popup, just reset timer and do nothing else.
-        if (popupElement && popupElement.contains(e.target)) {
+        // 팝업 자체를 클릭한 경우, 팝업 숨김 타이머만 리셋하고 종료
+        if (popupElement && e && popupElement.contains(e.target)) {
             resetPopupHideTimer();
             return;
         }
 
-        // Always try to find the "best" video on any click.
-        updateVideoList(); // Ensure `videos` array is up-to-date.
+        updateVideoList(); // 현재 페이지의 모든 재생 가능한 비디오 목록을 업데이트
 
         let bestVideo = null;
         let maxScore = -Infinity;
 
+        // 현재 화면에 가장 적합한 비디오를 찾음
         videos.forEach(video => {
             const ratio = calculateIntersectionRatio(video);
             const score = calculateCenterDistanceScore(video, ratio);
 
-            // Only consider videos that are at least partially visible and have a positive score
             if (ratio > 0 && score > maxScore) {
                 maxScore = score;
                 bestVideo = video;
             }
         });
 
-        // If a "best" video is found (with a reasonable score, e.g., > 0)
-        if (bestVideo && maxScore > -0.5) { // Use a slightly more permissive threshold for click-based selection
-             // If a video is already current and it's the same best video, just show popup temporarily
+        // 팝업 상태 관리: 새로운 비디오 선택 또는 비디오 없음
+        if (bestVideo && maxScore > -0.5) { // 적어도 어느 정도 화면에 있고 중심에 가까운 비디오
+            if (currentVideo && currentVideo !== bestVideo) {
+                // 이전 비디오와 다른 새로운 비디오가 선택됨
+                // 현재 제어 중이던 비디오가 있다면 일시 정지하고 팝업을 숨겨 초기화
+                console.log('[VCP] Switching video. Hiding previous popup.');
+                currentVideo.pause();
+                hidePopup(); // 이전 비디오 팝업 숨김
+                currentVideo = null; // currentVideo를 먼저 null로 설정하여 selectAndControlVideo가 새롭게 시작하도록 함
+            }
+
             if (currentVideo === bestVideo) {
+                // 같은 비디오라면 잠시 팝업만 보여줌 (클릭 이벤트로 인한 경우)
                 showPopupTemporarily();
             } else {
-                // Otherwise, switch to the new best video
+                // 다른 비디오가 선택되면 새로운 비디오에 대해 팝업을 새로 표시
                 selectAndControlVideo(bestVideo);
             }
         } else {
-            // If no suitable video is found, hide the popup unless it's being dragged
-            if (!isPopupDragging) {
-                currentVideo = null; // Clear current video if none is prominent
+            // 적합한 비디오가 없을 경우 (예: 모든 비디오가 화면 밖으로 스크롤됨)
+            if (currentVideo) { // 이전에 제어하던 비디오가 있었다면 일시 정지
+                currentVideo.pause();
+            }
+            currentVideo = null; // 현재 제어 비디오 없음
+            if (!isPopupDragging) { // 팝업 드래그 중이 아니면 팝업 숨김
                 hidePopup();
             }
         }
     }
 
+    // --- 스크롤 이벤트 핸들러 (추가) ---
+    let scrollTimeout = null;
+    function handleScrollEvent() {
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            updateVideoList(); // 스크롤 시 비디오 목록 업데이트
+
+            // 현재 제어 중인 비디오가 유효하고 화면에 보이는지 확인
+            if (currentVideo && !checkCurrentVideoVisibility()) {
+                console.log('[VCP] Current video scrolled out of view or became invalid. Resetting.');
+                currentVideo.pause(); // 화면 밖으로 나간 비디오 일시 정지
+                currentVideo = null; // 현재 제어 비디오 초기화
+                if (!isPopupDragging) {
+                    hidePopup(); // 팝업 숨김
+                }
+            }
+
+            // 팝업이 숨겨져 있거나, 현재 비디오가 없는 경우
+            // 또는 스크롤로 인해 가장 적합한 비디오가 변경되었을 수 있으므로 재선택 시도
+            if (!currentVideo || (popupElement && popupElement.style.display === 'none')) {
+                // `e` 인자 없이 호출하여 클릭 이벤트가 아님을 나타냄
+                // 이 경우, `selectVideoOnDocumentClick`는 현재 화면에서 가장 좋은 비디오를 찾아 제어
+                selectVideoOnDocumentClick(null);
+            } else if (currentVideo) {
+                // 현재 비디오가 있고 팝업이 보이는 상태라면, 팝업 위치만 업데이트
+                updatePopupPosition();
+                resetPopupHideTimer(); // 팝업 숨김 타이머 리셋 (사용자가 비디오와 상호작용하는 것으로 간주)
+            }
+        }, 100); // 디바운스: 100ms마다 한 번씩만 실행
+    }
 
     // --- Main Initialization ---
-
     function updateVideoList() {
         findPlayableVideos();
+        // currentVideo가 DOM에 없거나 더 이상 videos 목록에 없으면 초기화
         if (currentVideo && (!document.body.contains(currentVideo) || !videos.includes(currentVideo))) {
+            console.log('[VCP] Current video no longer valid. Resetting.');
             currentVideo = null;
             hidePopup();
         }
@@ -563,6 +622,20 @@
         mutationObserver.observe(document.body, observerConfig);
     }
 
+    function setupSPADetection() {
+        let lastUrl = location.href;
+        new MutationObserver(() => {
+            const currentUrl = location.href;
+            if (currentUrl !== lastUrl) {
+                console.log(`[VCP] URL changed from ${lastUrl} to ${currentUrl}. Resetting popup state.`);
+                lastUrl = currentUrl;
+                currentVideo = null; // Reset current video
+                hidePopup(); // Hide popup
+                updateVideoList(); // Re-scan for videos on new page
+            }
+        }).observe(document, { subtree: true, childList: true });
+    }
+
     function fixOverflow() {
         const overflowFixSites = [
             { domain: 'twitch.tv', selectors: ['div.video-player__container', 'div.video-player-theatre-mode__player', 'div.player-theatre-mode'] },
@@ -582,7 +655,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.36_AnyClick_SelectsBestVideo_Minified');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.40_EnhancedScroll_Minified');
 
         createPopupElement();
         hidePopup();
@@ -603,11 +676,23 @@
             updatePopupPosition();
         });
 
+        // 스크롤 이벤트 리스너 추가
+        window.addEventListener('scroll', handleScrollEvent);
+
         updateVideoList();
         setupDOMObserver();
+        setupSPADetection();
         fixOverflow();
-        // Changed from specific video click to any document body click
         document.body.addEventListener('click', selectVideoOnDocumentClick, true);
+
+        window.addEventListener('beforeunload', () => {
+            console.log('[VCP] Page unloading. Clearing current video and removing popup.');
+            currentVideo = null;
+            if (popupElement && popupElement.parentNode) {
+                popupElement.parentNode.removeChild(popupElement);
+                popupElement = null;
+            }
+        });
     }
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
