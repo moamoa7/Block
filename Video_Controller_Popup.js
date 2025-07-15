@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.42: ReferenceError Fix)
+// @name Video Controller Popup (V4.10.43: Amplification Block & Speed Increase)
 // @namespace Violentmonkey Scripts
-// @version 4.10.42_ReferenceErrorFix_Minified
-// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError.
+// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix4
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, added amplification block for fmkorea.com, and increased max playback speed to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -11,18 +11,21 @@
     'use strict';
 
     // --- Core Variables & State Management ---
-    let videos = [], currentVideo = null, popupElement = null, desiredPlaybackRate = 1.0, desiredVolume = 1.0,
+    let videos = [], currentVideo = null, popupElement = null, circularIconElement = null,
+        desiredPlaybackRate = 1.0, desiredVolume = 1.0,
         isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
     let isManuallyPaused = false;
     const videoRateHandlers = new WeakMap();
 
     // --- Configuration & Audio Context ---
-    let popupHideTimer = null;
+    let popupHideTimer = null; // For the main full popup
+    let circularIconHideTimer = null; // For the circular icon
     const POPUP_TIMEOUT_MS = 2000;
+    const CIRCULAR_ICON_TIMEOUT_MS = 2000; // New timeout for circular icon
     const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com'];
     const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
     const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
-    const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
+    const isAmplificationBlocked = ['avsee.ru', 'fmkorea.com'].some(site => location.hostname.includes(site));
     let audioCtx = null, gainNode = null, connectedVideo = null;
 
     // --- Utility Functions (Moved to top for scope visibility) ---
@@ -96,7 +99,7 @@
 
     function selectAndControlVideo(videoToControl) {
         if (!videoToControl) {
-            if (currentVideo) { currentVideo.pause(); currentVideo = null; hidePopup(); }
+            if (currentVideo) { currentVideo.pause(); currentVideo = null; hideAllPopups(); }
             return;
         }
 
@@ -119,8 +122,7 @@
         currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
 
         updatePopupSliders();
-        updatePopupPosition();
-        showPopupTemporarily();
+        showCircularIcon(); // Show circular icon on video selection
     }
 
     function fixPlaybackRate(video, rate) {
@@ -179,12 +181,49 @@
     }
 
     // --- Popup UI Functions ---
+    function createCircularIconElement() {
+        if (circularIconElement) return;
+
+        circularIconElement = document.createElement('div');
+        circularIconElement.id = 'video-controller-circular-icon';
+        circularIconElement.style.cssText = `
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid #444;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 2147483647;
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            user-select: none;
+        `;
+        circularIconElement.textContent = '▶'; // Play icon or similar
+        document.body.appendChild(circularIconElement);
+
+        circularIconElement.addEventListener('click', () => {
+            hideCircularIcon(false); // Hide the circular icon immediately, do not set new hide timer
+            showPopupTemporarily(); // Show the full UI
+        });
+
+        // Add event listeners for circular icon to reset its hide timer
+        circularIconElement.addEventListener('mouseenter', () => resetCircularIconHideTimer(false));
+        circularIconElement.addEventListener('mouseleave', () => resetCircularIconHideTimer(true)); // Start timer on mouse leave
+    }
+
     function createPopupElement() {
         if (popupElement) return;
 
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
-        popupElement.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px; padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; display: none; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); width: 230px; overflow: hidden; text-align: center; pointer-events: auto;`;
+        popupElement.style.cssText = `position: fixed; background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px; padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; display: none; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); width: 230px; overflow: hidden; text-align: center; pointer-events: auto;`;
 
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
@@ -195,18 +234,21 @@
         const contentContainer = document.createElement('div');
         contentContainer.style.cssText = 'padding: 10px;';
 
+        // Define common button styles
+        const commonBtnStyle = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
+
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = 'display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 10px;';
 
         const playPauseBtn = document.createElement('button');
         playPauseBtn.setAttribute('data-action', 'play-pause');
         playPauseBtn.textContent = '재생/멈춤';
-        playPauseBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
+        playPauseBtn.style.cssText = commonBtnStyle;
 
         const resetBtn = document.createElement('button');
         resetBtn.setAttribute('data-action', 'reset-speed-volume');
         resetBtn.textContent = '재설정';
-        resetBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
+        resetBtn.style.cssText = commonBtnStyle;
 
         buttonSection.appendChild(playPauseBtn);
         buttonSection.appendChild(resetBtn);
@@ -231,8 +273,8 @@
         speedInput.type = 'range';
         speedInput.id = 'vcp-speed';
         speedInput.min = '0.0';
-        speedInput.max = '5.0';
-        speedInput.step = '0.2';
+        speedInput.max = '16.0';
+        speedInput.step = '0.1';
         speedInput.value = '1.0';
         speedInput.style.cssText = 'width: 100%; cursor: pointer;';
 
@@ -275,12 +317,14 @@
         const pipBtn = document.createElement('button');
         pipBtn.setAttribute('data-action', 'pip');
         pipBtn.textContent = 'PIP 모드';
-        pipBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
+        // Changed to use commonBtnStyle directly
+        pipBtn.style.cssText = `${commonBtnStyle} margin-top: 5px;`;
 
         const exitFullscreenBtn = document.createElement('button');
         exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
         exitFullscreenBtn.textContent = '전체 종료';
-        exitFullscreenBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
+        // Changed to use commonBtnStyle directly
+        exitFullscreenBtn.style.cssText = `${commonBtnStyle} margin-top: 5px;`;
 
         modeSection.appendChild(pipBtn);
         modeSection.appendChild(exitFullscreenBtn);
@@ -299,7 +343,7 @@
 
     function handleButtonClick(action) {
         if (!currentVideo) { updateStatus('No video selected.'); return; }
-        resetPopupHideTimer();
+        resetPopupHideTimer(false); // Reset timer for the full UI (do not start new hide timer immediately)
 
         switch (action) {
             case 'play-pause':
@@ -345,7 +389,7 @@
         const speedInput = popupElement.querySelector('#vcp-speed');
         const speedDisplay = popupElement.querySelector('#vcp-speed-display');
         speedInput.addEventListener('input', () => {
-            resetPopupHideTimer();
+            resetPopupHideTimer(false); // Reset timer, don't start new one immediately
             const rate = parseFloat(speedInput.value);
             desiredPlaybackRate = rate;
             speedDisplay.textContent = rate.toFixed(2);
@@ -355,7 +399,7 @@
         const volumeInput = popupElement.querySelector('#vcp-volume');
         const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
         volumeInput.addEventListener('input', () => {
-            resetPopupHideTimer();
+            resetPopupHideTimer(false); // Reset timer, don't start new one immediately
             const vol = parseFloat(volumeInput.value);
             volumeDisplay.textContent = Math.round(vol * 100);
             if (currentVideo) { setAmplifiedVolume(currentVideo, vol); updateStatus(`Volume: ${Math.round(vol * 100)}%`); }
@@ -364,7 +408,7 @@
         const dragHandle = popupElement.querySelector('#vcp-drag-handle');
         const startDrag = (e) => {
             if (e.target !== dragHandle) return;
-            resetPopupHideTimer();
+            resetPopupHideTimer(false); // Reset timer, don't start new one immediately
             isPopupDragging = true;
             dragHandle.style.cursor = 'grabbing';
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
@@ -382,7 +426,7 @@
                 isPopupDragging = false;
                 dragHandle.style.cursor = 'grab';
                 document.body.style.userSelect = '';
-                resetPopupHideTimer();
+                resetPopupHideTimer(true); // Start timer after drag ends
             }
         };
 
@@ -402,6 +446,14 @@
         document.addEventListener('mouseup', stopDrag);
         document.addEventListener('touchend', stopDrag);
         document.addEventListener('mouseleave', stopDrag);
+
+        // Hide full UI on mouse leave unless dragging
+        popupElement.addEventListener('mouseleave', () => {
+            if (!isPopupDragging) {
+                resetPopupHideTimer(true); // Start timer on mouse leave
+            }
+        });
+        popupElement.addEventListener('mouseenter', () => resetPopupHideTimer(false)); // Clear timer on mouse enter
     }
 
     function updateStatus(message) {
@@ -430,55 +482,114 @@
         }
     }
 
+    function setCircularIconVisibility(isVisible) {
+        if (!circularIconElement) return;
+
+        if (isVisible) {
+            circularIconElement.style.display = 'flex';
+            circularIconElement.style.opacity = '0.75';
+            circularIconElement.style.pointerEvents = 'auto';
+        } else {
+            circularIconElement.style.display = 'none';
+            circularIconElement.style.opacity = '0';
+            circularIconElement.style.pointerEvents = 'none';
+        }
+    }
+
     function showPopup() {
         if (!currentVideo) {
-            hidePopup();
+            hideAllPopups();
             return;
         }
         setPopupVisibility(true);
+        setCircularIconVisibility(false); // Hide circular icon when full UI is shown
+        resetCircularIconHideTimer(false); // Clear circular icon hide timer
     }
 
-    function hidePopup() { setPopupVisibility(false); }
+    function hidePopup() {
+        setPopupVisibility(false);
+        resetPopupHideTimer(false); // Clear full popup hide timer
+    }
 
-    function resetPopupHideTimer() {
+    function showCircularIcon() {
+        if (!currentVideo) {
+            hideAllPopups();
+            return;
+        }
+        setCircularIconVisibility(true);
+        setPopupVisibility(false); // Ensure full UI is hidden
+        updatePopupPosition(circularIconElement, currentVideo); // Position the circular icon
+        resetCircularIconHideTimer(true); // Start timer for circular icon
+    }
+
+    function hideCircularIcon(startNewTimer = true) {
+        setCircularIconVisibility(false);
+        if (startNewTimer) { // Only set a new timer if explicitly requested (e.g. on mouse leave)
+            resetCircularIconHideTimer(true);
+        } else { // Otherwise, just clear existing timer (e.g. on click)
+            resetCircularIconHideTimer(false);
+        }
+    }
+
+    function hideAllPopups() {
+        hidePopup();
+        hideCircularIcon(false); // Do not immediately set a new hide timer for circular icon when hiding all
+    }
+
+    // New: Timer for circular icon
+    function resetCircularIconHideTimer(startTimer = true) {
+        if (circularIconHideTimer) clearTimeout(circularIconHideTimer);
+        if (startTimer) {
+            circularIconHideTimer = setTimeout(() => {
+                hideCircularIcon(false); // Hide the circular icon without starting a new timer
+            }, CIRCULAR_ICON_TIMEOUT_MS);
+        }
+    }
+
+    // Modified: Timer for full popup
+    function resetPopupHideTimer(startTimer = true) {
         if (popupHideTimer) clearTimeout(popupHideTimer);
-        if (!isPopupDragging) popupHideTimer = setTimeout(hidePopup, POPUP_TIMEOUT_MS);
+        if (startTimer && !isPopupDragging) {
+            popupHideTimer = setTimeout(() => {
+                hidePopup(); // Hide the full UI
+            }, POPUP_TIMEOUT_MS);
+        }
     }
 
     function showPopupTemporarily() {
         if (!currentVideo) {
-            hidePopup();
+            hideAllPopups();
             return;
         }
-        if (popupElement && currentVideo) { showPopup(); updatePopupPosition(); resetPopupHideTimer(); }
+        if (popupElement && currentVideo) {
+            hideCircularIcon(false); // Ensure circular icon is hidden BEFORE showing full popup, don't set new hide timer
+            showPopup();
+            updatePopupPosition(popupElement, currentVideo); // Update position for full UI
+            resetPopupHideTimer(true); // Start timer for full UI
+        }
     }
 
-    function updatePopupPosition() {
-        if (!currentVideo) {
-            hidePopup();
+    function updatePopupPosition(elementToPosition, video) {
+        if (!elementToPosition || !video || isPopupDragging) {
             return;
         }
 
-        if (!popupElement || !currentVideo || isPopupDragging) {
-            return;
-        }
-
-        const videoRect = currentVideo.getBoundingClientRect();
-        const popupRect = popupElement.getBoundingClientRect();
+        const videoRect = video.getBoundingClientRect();
+        const elementRect = elementToPosition.getBoundingClientRect();
         const isVideoVisible = videoRect.top < window.innerHeight && videoRect.bottom > 0 && videoRect.left < window.innerWidth && videoRect.right > 0;
 
         if (isVideoVisible) {
-            const viewportX = videoRect.left + (videoRect.width / 2) - (popupRect.width / 2);
-            const viewportY = videoRect.top + (videoRect.height / 2) - (popupRect.height / 2);
-            const safeX = Math.max(0, Math.min(viewportX, window.innerWidth - popupRect.width));
-            const safeY = Math.max(0, Math.min(viewportY, window.innerHeight - popupRect.height));
+            const viewportX = videoRect.left + (videoRect.width / 2) - (elementRect.width / 2);
+            const viewportY = videoRect.top + (videoRect.height / 2) - (elementRect.height / 2);
+            const safeX = Math.max(0, Math.min(viewportX, window.innerWidth - elementRect.width));
+            const safeY = Math.max(0, Math.min(viewportY, window.innerHeight - elementRect.height));
 
-            popupElement.style.left = `${safeX}px`;
-            popupElement.style.top = `${safeY}px`;
-            popupElement.style.transform = 'none';
-            popupElement.style.position = 'fixed';
+            elementToPosition.style.left = `${safeX}px`;
+            elementToPosition.style.top = `${safeY}px`;
+            elementToPosition.style.transform = 'none';
+            elementToPosition.style.position = 'fixed';
         } else {
-            hidePopup();
+            hideAllPopups(); // Hide both if video is not visible
         }
     }
 
@@ -505,18 +616,23 @@
 
     // --- Video Control & Selection Logic ---
     function selectVideoOnDocumentClick(e) {
-        // 팝업 자체를 클릭한 경우, 팝업 숨김 타이머만 리셋하고 종료
+        // If clicking on the popup or circular icon itself, just reset hide timer for the full UI
         if (popupElement && e && popupElement.contains(e.target)) {
-            resetPopupHideTimer();
+            resetPopupHideTimer(false); // Clear timer for full UI
+            return;
+        }
+        // If clicking the circular icon, its own event listener handles the transition to full UI.
+        // We do not want this function to re-select or hide it here.
+        if (circularIconElement && e && circularIconElement.contains(e.target)) {
             return;
         }
 
-        updateVideoList(); // 현재 페이지의 모든 재생 가능한 비디오 목록을 업데이트
+        updateVideoList(); // Update list of playable videos
 
         let bestVideo = null;
         let maxScore = -Infinity;
 
-        // 현재 화면에 가장 적합한 비디오를 찾음
+        // Find the most prominent video on screen
         videos.forEach(video => {
             const ratio = calculateIntersectionRatio(video);
             const score = calculateCenterDistanceScore(video, ratio);
@@ -527,75 +643,81 @@
             }
         });
 
-        // 팝업 상태 관리: 새로운 비디오 선택 또는 비디오 없음
-        if (bestVideo && maxScore > -0.5) { // 적어도 어느 정도 화면에 있고 중심에 가까운 비디오
+        // Manage popup state: new video selected or no video
+        if (bestVideo && maxScore > -0.5) { // Video is reasonably on screen and centered
             if (currentVideo && currentVideo !== bestVideo) {
-                // 이전 비디오와 다른 새로운 비디오가 선택됨
-                // 현재 제어 중이던 비디오가 있다면 일시 정지하고 팝업을 숨겨 초기화
+                // A new video is selected, different from the current one
                 console.log('[VCP] Switching video. Hiding previous popup.');
                 currentVideo.pause();
-                hidePopup(); // 이전 비디오 팝업 숨김
-                currentVideo = null; // currentVideo를 먼저 null로 설정하여 selectAndControlVideo가 새롭게 시작하도록 함
+                hideAllPopups(); // Hide all UI for previous video
+                currentVideo = null; // Clear currentVideo so selectAndControlVideo initializes anew
             }
 
             if (currentVideo === bestVideo) {
-                // 같은 비디오라면 잠시 팝업만 보여줌 (클릭 이벤트로 인한 경우)
-                showPopupTemporarily();
+                // Same video, do nothing here if the full UI is already visible and interacted with.
+                // If the circular icon is visible, clicking outside should ensure circular icon is shown and its timer reset.
+                if (popupElement.style.display === 'none') { // If full UI is not visible, ensure circular icon is.
+                     showCircularIcon(); // This will also start its hide timer
+                } else { // If full UI is visible, reset its timer.
+                    resetPopupHideTimer(true); // Start timer for full UI
+                }
             } else {
-                // 다른 비디오가 선택되면 새로운 비디오에 대해 팝업을 새로 표시
+                // Different video, select and control it, showing circular icon
                 selectAndControlVideo(bestVideo);
             }
         } else {
-            // 적합한 비디오가 없을 경우 (예: 모든 비디오가 화면 밖으로 스크롤됨)
-            if (currentVideo) { // 이전에 제어하던 비디오가 있었다면 일시 정지
+            // No suitable video found (e.g., all scrolled off screen)
+            if (currentVideo) { // If there was a controlled video, pause it
                 currentVideo.pause();
             }
-            currentVideo = null; // 현재 제어 비디오 없음
-            if (!isPopupDragging) { // 팝업 드래그 중이 아니면 팝업 숨김
-                hidePopup();
+            currentVideo = null; // No current controlled video
+            if (!isPopupDragging) { // Hide popups unless dragging
+                hideAllPopups();
             }
         }
     }
 
-    // --- 스크롤 이벤트 핸들러 (추가) ---
+    // --- Scroll Event Handler ---
     let scrollTimeout = null;
     function handleScrollEvent() {
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
-            updateVideoList(); // 스크롤 시 비디오 목록 업데이트
+            updateVideoList(); // Update video list on scroll
 
-            // 현재 제어 중인 비디오가 유효하고 화면에 보이는지 확인
+            // Check if currently controlled video is still visible
             if (currentVideo && !checkCurrentVideoVisibility()) {
                 console.log('[VCP] Current video scrolled out of view or became invalid. Resetting.');
-                currentVideo.pause(); // 화면 밖으로 나간 비디오 일시 정지
-                currentVideo = null; // 현재 제어 비디오 초기화
+                currentVideo.pause(); // Pause video that scrolled out
+                currentVideo = null; // Reset current controlled video
                 if (!isPopupDragging) {
-                    hidePopup(); // 팝업 숨김
+                    hideAllPopups(); // Hide both popups
                 }
             }
 
-            // 팝업이 숨겨져 있거나, 현재 비디오가 없는 경우
-            // 또는 스크롤로 인해 가장 적합한 비디오가 변경되었을 수 있으므로 재선택 시도
-            if (!currentVideo || (popupElement && popupElement.style.display === 'none')) {
-                // `e` 인자 없이 호출하여 클릭 이벤트가 아님을 나타냄
-                // 이 경우, `selectVideoOnDocumentClick`는 현재 화면에서 가장 좋은 비디오를 찾아 제어
-                selectVideoOnDocumentClick(null);
+            // If no current video or popups are hidden, try to re-select
+            if (!currentVideo || (popupElement && popupElement.style.display === 'none' && circularIconElement && circularIconElement.style.display === 'none')) {
+                selectVideoOnDocumentClick(null); // Call without 'e' to trigger general selection
             } else if (currentVideo) {
-                // 현재 비디오가 있고 팝업이 보이는 상태라면, 팝업 위치만 업데이트
-                updatePopupPosition();
-                resetPopupHideTimer(); // 팝업 숨김 타이머 리셋 (사용자가 비디오와 상호작용하는 것으로 간주)
+                // If there's a current video and some UI is visible, update its position and reset timer
+                if (popupElement.style.display !== 'none') {
+                    updatePopupPosition(popupElement, currentVideo);
+                    resetPopupHideTimer(true); // Reset timer for full popup
+                } else if (circularIconElement.style.display !== 'none') {
+                    updatePopupPosition(circularIconElement, currentVideo);
+                    resetCircularIconHideTimer(true); // Reset timer for circular icon
+                }
             }
-        }, 100); // 디바운스: 100ms마다 한 번씩만 실행
+        }, 100); // Debounce
     }
 
-    // --- Main Initialization ---
+    // --- DOM / SPA Detection / Overflow Fix (Declared after functions they might use) ---
     function updateVideoList() {
         findPlayableVideos();
-        // currentVideo가 DOM에 없거나 더 이상 videos 목록에 없으면 초기화
+        // currentVideo is no longer in DOM or no longer in videos list, then initialize
         if (currentVideo && (!document.body.contains(currentVideo) || !videos.includes(currentVideo))) {
             console.log('[VCP] Current video no longer valid. Resetting.');
             currentVideo = null;
-            hidePopup();
+            hideAllPopups();
         }
     }
 
@@ -628,7 +750,7 @@
                 console.log(`[VCP] URL changed from ${lastUrl} to ${currentUrl}. Resetting popup state.`);
                 lastUrl = currentUrl;
                 currentVideo = null; // Reset current video
-                hidePopup(); // Hide popup
+                hideAllPopups(); // Hide all popups
                 updateVideoList(); // Re-scan for videos on new page
             }
         }).observe(document, { subtree: true, childList: true });
@@ -653,39 +775,57 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_Minified');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix4');
 
         createPopupElement();
-        hidePopup();
+        createCircularIconElement();
+        hideAllPopups(); // Start with everything hidden
 
         document.addEventListener('fullscreenchange', () => {
             const fsEl = document.fullscreenElement;
-            if (popupElement) {
+            if (popupElement && circularIconElement) {
                 if (fsEl) {
                     fsEl.appendChild(popupElement);
-                    showPopup();
+                    fsEl.appendChild(circularIconElement);
+                    // If the full UI was open, keep it open; otherwise, show circular.
+                    // This ensures the circular icon doesn't pop up if the user was in full UI.
+                    if (popupElement.style.display !== 'none' || isPopupDragging) {
+                        showPopup();
+                    } else {
+                        showCircularIcon();
+                    }
                 } else {
                     document.body.appendChild(popupElement);
+                    document.body.appendChild(circularIconElement);
+                    // If the full UI was open, keep it open; otherwise, show circular.
+                    if (popupElement.style.display !== 'none' || isPopupDragging) {
+                        showPopup();
+                    } else {
+                        showCircularIcon();
+                    }
                 }
             }
         });
 
         window.addEventListener('resize', () => {
-            updatePopupPosition();
+            if (popupElement.style.display !== 'none') {
+                updatePopupPosition(popupElement, currentVideo);
+            } else if (circularIconElement.style.display !== 'none') {
+                updatePopupPosition(circularIconElement, currentVideo);
+            }
         });
 
-        // 스크롤 이벤트 리스너 추가
+        // Add scroll event listener
         window.addEventListener('scroll', handleScrollEvent);
 
-        updateVideoList(); // moved here to ensure it's defined before call
+        updateVideoList();
         setupDOMObserver();
         setupSPADetection();
         fixOverflow();
 
-        // 모바일 클릭 인식을 위해 'touchend' 이벤트 추가
+        // Add 'touchend' for better mobile click recognition
         document.body.addEventListener('click', selectVideoOnDocumentClick, true);
         document.body.addEventListener('touchend', selectVideoOnDocumentClick, true);
-
 
         window.addEventListener('beforeunload', () => {
             console.log('[VCP] Page unloading. Clearing current video and removing popup.');
@@ -693,6 +833,10 @@
             if (popupElement && popupElement.parentNode) {
                 popupElement.parentNode.removeChild(popupElement);
                 popupElement = null;
+            }
+            if (circularIconElement && circularIconElement.parentNode) {
+                circularIconElement.parentNode.removeChild(circularIconElement);
+                circularIconElement = null;
             }
         });
     }
