@@ -19,9 +19,11 @@
     // --- Configuration & Audio Context ---
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
+    // isInitialPopupBlocked 변수를 다른 변수들보다 먼저 선언하여 접근 가능하게 함
     const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com'];
-    // YouTube를 lazySrcBlockedSite에 추가하여 특수 처리
-    const isLazySrcBlockedSite = ['missav.ws', 'missav.live', 'youtube.com'].some(site => location.hostname.includes(site));
+    const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
+    // YouTube 관련 도메인(googleusercontent.com/youtube.com/0)을 다시 제거
+    const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
     const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
     let audioCtx = null, gainNode = null, connectedVideo = null;
 
@@ -476,6 +478,7 @@
             const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
         } else {
+            // isInitialPopupBlocked 변수가 이제 유효하게 정의됨
             if (isInitialPopupBlocked && !isPopupDragging) {
                 popupElement.style.setProperty('display', 'none', 'important');
             } else {
