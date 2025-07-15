@@ -310,6 +310,8 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
 ! - 하단 회원가입 안내 문구
 twitch.tv###twilight-sticky-footer-root
+! - 콤보 안내 문구
+twitch.tv##.react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 기타
 ! - 광고?
 ||*.ads.*
@@ -4552,6 +4554,8 @@ teamblind.com/#@#[class^="ad"]
 @@||*/*/*popup*$css,script
 ! - - - 와우 멤버쉽 탈퇴하고자 팝업 눌럿을때 팝업에 아무것도 안나옴
 @@||*/*/*popup*$frame,domain=loyalty.coupang.com
+! - https://www.ips.go.kr/ - 로그인 차단
+@@||*/*/*popup*.hbs
 !||*/*/popup*/*
 !||*/*/*popup/*
 
@@ -5884,6 +5888,9 @@ jobkorea.co.kr#@#[class*="popup"]
 login.microsoftonline.com#@#[class*="popup"]
 ! - https://chzzk.naver.com/ - 스크롤 안됨
 chzzk.naver.com#@#[class*="popup"]
+! - https://www.ips.go.kr/ - 로그인 차단
+!ips.go.kr#@#[class*="popup"]
+
 !
 !
 !
