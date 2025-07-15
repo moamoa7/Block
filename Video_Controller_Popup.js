@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.43: Amplification Block & Speed Increase)
 // @namespace Violentmonkey Scripts
-// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix16
+// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix17
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, added amplification block for fmkorea.com, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -24,9 +24,8 @@ const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.
 const isAmplificationBlocked = ['youtube.com', 'avsee.ru', 'fmkorea.com', 'inven.co.kr', 'mlbpark.donga.com', 'etoland.co.kr', 'ppomppu.co.kr', 'damoang.net', 'theqoo.net', 'ruliweb.com'].some(site => location.hostname.includes(site));
 let audioCtx = null, gainNode = null, connectedVideo = null;
 
-// #신규추가: 팝업 등장 직후 이벤트를 무시하기 위한 플래그
 let ignorePopupEvents = false;
-const IGNORE_EVENTS_DURATION = 100; // 100ms 동안 이벤트 무시
+const IGNORE_EVENTS_DURATION = 100;
 
 function findAllVideosDeep(root = document) {
 const videoElements = new Set();
@@ -151,20 +150,49 @@ video.muted = false;
 
 // isAmplificationBlocked 사이트에서는 볼륨을 100% (1.0) 이상으로 설정할 수 없게 함
 if (isAmplificationBlocked) {
-    vol = Math.min(vol, 1.0); // 1.0을 초과하지 않도록 설정
-    desiredVolume = vol; // desiredVolume도 업데이트
-    if (gainNode && connectedVideo === video) gainNode.gain.value = 1; // 게인 노드도 1로 제한
-    video.volume = vol; // 비디오 볼륨 직접 설정
+    if (video._audioSourceNode) { // 기존에 연결된 AudioContext Source Node가 있다면 끊습니다.
+        video._audioSourceNode.disconnect();
+        video._audioSourceNode = null; // 참조 제거
+    }
+    if (gainNode) { // 기존에 사용하던 gainNode가 있다면 연결을 끊습니다.
+        gainNode.disconnect();
+        gainNode = null; // 참조 제거
+    }
+    if (audioCtx) { // audioCtx도 필요 없다면 닫습니다.
+        if (audioCtx.state !== 'closed') audioCtx.close();
+        audioCtx = null;
+    }
+    connectedVideo = null; // 연결된 비디오도 초기화
+
+    video.volume = Math.min(vol, 1.0); // 볼륨을 1.0을 초과하지 않도록 강제
+    desiredVolume = video.volume; // desiredVolume도 업데이트
+
     return; // 함수 종료
 }
 
-// isAmplificationBlocked가 아닐 때의 기존 로직
+// isAmplificationBlocked가 아닐 때의 기존 로직 (증폭 허용)
 if (vol <= 1) {
-if (gainNode && connectedVideo === video) gainNode.gain.value = 1;
-video.volume = vol;
-} else {
-if (!audioCtx || connectedVideo !== video) { if (!setupAudioContext(video)) { video.volume = 1; return; } }
-if (gainNode) { video.volume = 1; gainNode.gain.value = vol; }
+    if (gainNode && connectedVideo === video) { // 이미 gainNode가 연결되어 있다면 gain을 1로 설정
+        gainNode.gain.value = 1;
+    } else if (audioCtx && audioCtx.state !== 'closed') { // audioCtx만 있고 gainNode 없으면 정리
+        if (gainNode) gainNode.disconnect();
+        if (video._audioSourceNode) video._audioSourceNode.disconnect();
+        audioCtx.close();
+        audioCtx = gainNode = connectedVideo = null;
+    }
+    video.volume = vol; // 비디오 자체 볼륨 조절
+} else { // vol > 1 (증폭 필요)
+    if (!audioCtx || connectedVideo !== video || !gainNode) { // AudioContext가 없거나 다른 비디오에 연결되었거나 gainNode가 없으면 새로 설정
+        if (!setupAudioContext(video)) { // AudioContext 설정 실패 시
+            video.volume = 1; // 볼륨 1로 제한
+            return;
+        }
+    }
+    // AudioContext 및 gainNode가 성공적으로 설정되었으면 게인 값 적용
+    if (gainNode) {
+        video.volume = 1; // 비디오 자체 볼륨은 최대 (100%)로 설정
+        gainNode.gain.value = vol; // gainNode로 증폭
+    }
 }
 }
 
@@ -176,14 +204,14 @@ circularIconElement.style.cssText = `position:fixed;width:40px;height:40px;backg
 circularIconElement.textContent = isInitialPopupBlocked ? 'X' : '▶';
 document.body.appendChild(circularIconElement);
 circularIconElement.addEventListener('click', (e) => {
-    e.stopPropagation(); // 이벤트 전파 방지
+    e.stopPropagation();
     hideCircularIcon(false);
     showPopupTemporarily();
 });
 circularIconElement.addEventListener('mouseenter', () => resetCircularIconHideTimer(false));
 circularIconElement.addEventListener('mouseleave', () => resetCircularIconHideTimer(true));
 circularIconElement.addEventListener('touchend', e => {
-    e.stopPropagation(); // 이벤트 전파 방지
+    e.stopPropagation();
     resetCircularIconHideTimer(false);
     showPopupTemporarily();
 });
@@ -287,8 +315,7 @@ setupPopupEventListeners();
 
 function handleButtonClick(action) {
 if (!currentVideo) { updateStatus('No video selected.'); return; }
-// #수정: 버튼 클릭 후 팝업 숨김 타이머 재설정
-resetPopupHideTimer(true); // 팝업 버튼 클릭 시에도 팝업이 다시 숨겨지도록 타이머 재시작
+resetPopupHideTimer(true);
 
 switch (action) {
 case 'play-pause':
@@ -326,29 +353,26 @@ break;
 function setupPopupEventListeners() {
 if (!popupElement) return;
 
-// #신규추가: 팝업 내부 클릭 이벤트 핸들러
-// `click` 이벤트와 `touchend` 이벤트를 모두 처리
 popupElement.addEventListener('click', e => {
-    if (ignorePopupEvents) { e.stopPropagation(); return; } // 이벤트 무시 플래그 확인
+    if (ignorePopupEvents) { e.stopPropagation(); return; }
     const action = e.target.getAttribute('data-action');
     if (action) handleButtonClick(action);
-    else if (e.target.tagName !== 'INPUT') { // 슬라이더가 아닌 다른 곳 클릭 시 타이머 재설정
+    else if (e.target.tagName !== 'INPUT') {
         resetPopupHideTimer(true);
     }
-}, true); // 캡쳐 단계에서 이벤트 처리하여, 하위 요소보다 먼저 받음
+}, true);
 
 popupElement.addEventListener('touchend', e => {
-    if (ignorePopupEvents) { e.stopPropagation(); return; } // 이벤트 무시 플래그 확인
-    // 터치 이벤트는 클릭 이벤트와 별개로 처리될 수 있으므로 명시적으로 타이머 재설정
-    if (e.target.tagName !== 'INPUT') { // 슬라이더가 아닌 다른 곳 터치 후 떼는 경우
+    if (ignorePopupEvents) { e.stopPropagation(); return; }
+    if (e.target.tagName !== 'INPUT') {
         resetPopupHideTimer(true);
     }
-}, true); // 캡쳐 단계에서 이벤트 처리
+}, true);
 
 const speedInput = popupElement.querySelector('#vcp-speed');
 const speedDisplay = popupElement.querySelector('#vcp-speed-display');
 speedInput.addEventListener('input', () => {
-    if (ignorePopupEvents) { return; } // 이벤트 무시 플래그 확인
+    if (ignorePopupEvents) { return; }
     resetPopupHideTimer(false);
     const rate = parseFloat(speedInput.value);
     desiredPlaybackRate = rate;
@@ -358,13 +382,12 @@ speedInput.addEventListener('input', () => {
 const volumeInput = popupElement.querySelector('#vcp-volume');
 const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
 volumeInput.addEventListener('input', () => {
-    if (ignorePopupEvents) { return; } // 이벤트 무시 플래그 확인
+    if (ignorePopupEvents) { return; }
     resetPopupHideTimer(false);
     let vol = parseFloat(volumeInput.value);
-    // isAmplificationBlocked 사이트에서는 슬라이더 값도 1.0을 넘지 못하게 함
     if (isAmplificationBlocked) {
         vol = Math.min(vol, 1.0);
-        volumeInput.value = vol.toFixed(1); // 슬라이더 값도 1.0으로 강제
+        volumeInput.value = vol.toFixed(1);
     }
     volumeDisplay.textContent = Math.round(vol * 100);
     if (currentVideo) { setAmplifiedVolume(currentVideo, vol); updateStatus(`Volume: ${Math.round(vol * 100)}%`); }
@@ -372,7 +395,7 @@ volumeInput.addEventListener('input', () => {
 
 const dragHandle = popupElement.querySelector('#vcp-drag-handle');
 const startDrag = e => {
-if (ignorePopupEvents) { e.stopPropagation(); return; } // 이벤트 무시 플래그 확인
+if (ignorePopupEvents) { e.stopPropagation(); return; }
 if (e.target !== dragHandle) return;
 resetPopupHideTimer(false);
 isPopupDragging = true;
@@ -411,10 +434,9 @@ document.addEventListener('touchend', stopDrag);
 document.addEventListener('mouseleave', stopDrag);
 popupElement.addEventListener('mouseleave', () => {if (!isPopupDragging){resetPopupHideTimer(true);}});
 popupElement.addEventListener('mouseenter', () => resetPopupHideTimer(false));
-// #수정: touchend 시에도 타이머 재설정을 보장하고, 이벤트 전파를 막음
 popupElement.addEventListener('touchend', e => {
-    e.stopPropagation(); // 이벤트 전파 방지
-    resetPopupHideTimer(true); // 팝업 터치 후 떼면 팝업 숨김 타이머 재시작
+    e.stopPropagation();
+    resetPopupHideTimer(true);
 });
 }
 
@@ -432,7 +454,6 @@ if (!popupElement) return;
 if (isVisible) {
 const styles = {display:'block',opacity:'0.75',visibility:'visible',pointerEvents:'auto',zIndex:'2147483647'};
 for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
-    // #신규추가: 팝업이 나타날 때 이벤트 무시 플래그 설정
     ignorePopupEvents = true;
     setTimeout(() => {
         ignorePopupEvents = false;
@@ -557,22 +578,19 @@ speedDisplay.textContent = rate.toFixed(2);
 }
 if (volumeInput && volumeDisplay) {
 let volume = desiredVolume;
-// isAmplificationBlocked 사이트에서는 UI 슬라이더도 100% 이상으로 표시되지 않도록 함
 if (isAmplificationBlocked) {
-    volume = Math.min(volume, 1.0);
+    volume = Math.min(volume, 1.0); // 1.0 초과 방지
 } else {
-    // 증폭이 허용된 경우 gainNode 값 사용
     if (gainNode && connectedVideo === currentVideo) {
         volume = gainNode.gain.value;
     }
 }
-volumeInput.value = volume.toFixed(1); // 슬라이더 값 업데이트
+volumeInput.value = volume.toFixed(1);
 volumeDisplay.textContent = Math.round(volume * 100);
 }
 }
 
 function selectVideoOnDocumentClick(e) {
-    // #수정: 팝업 또는 원형 아이콘 내부에서 발생한 이벤트는 처리하지 않음
     if (e && e.target) {
         if ((popupElement && popupElement.contains(e.target)) || (circularIconElement && circularIconElement.contains(e.target))) {
             return;
@@ -678,13 +696,14 @@ el.style.overflow = 'visible';
 });
 });
 }
-});
+}
+);
 }
 
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix16');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix17');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
