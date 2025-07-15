@@ -20,8 +20,8 @@
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
     const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com'];
-    const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
-    const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
+    // YouTube를 lazySrcBlockedSite에 추가하여 특수 처리
+    const isLazySrcBlockedSite = ['missav.ws', 'missav.live', 'youtube.com'].some(site => location.hostname.includes(site));
     const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
     let audioCtx = null, gainNode = null, connectedVideo = null;
 
@@ -44,12 +44,12 @@
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-            
-            // Modified: Use MIN_AREA for reasonable size check
-            const isReasonableSize = (rect.width * rect.height >= MIN_AREA) || isMedia; 
-            
-            // Modified: More robust hasMedia check
-            const hasMedia = (v.videoWidth >= 100 || v.videoHeight >= 100 || v.readyState >= 2 || isMedia); // readyState >= 2 means enough data to play
+
+            // Modified: isMedia 인 경우에도 MIN_AREA 적용하도록 변경
+            const isReasonableSize = (rect.width * rect.height >= MIN_AREA);
+
+            // Modified: readyState 대신 !v.paused (재생 중) 또는 v.autoplay (자동 재생 설정) 조건 사용
+            const hasMedia = (v.videoWidth >= 100 || v.videoHeight >= 100 || !v.paused || v.autoplay || isMedia);
 
             return isVisible && isReasonableSize && hasMedia;
         });
@@ -69,15 +69,15 @@
     function calculateCenterDistanceScore(video, intersectionRatio) {
         const rect = video.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-        
+
         // Calculate the vertical center of the video
         const videoCenterY = rect.top + (rect.height / 2);
         // Calculate the vertical center of the viewport
         const viewportCenterY = viewportHeight / 2;
-        
+
         // Calculate the distance from the video center to the viewport center
         const distance = Math.abs(videoCenterY - viewportCenterY);
-        
+
         // Normalize the distance (0 to 1, relative to viewport height)
         const normalizedDistance = distance / viewportHeight;
 
@@ -100,16 +100,16 @@
             // Only consider videos that are actually intersecting
             if (ratio > 0) {
                 const score = calculateCenterDistanceScore(video, ratio);
-                
+
                 if (score > maxScore) {
                     maxScore = score;
                     bestVideo = video;
                 }
             }
         });
-        
+
         // Reverted to original logic: Autoplay based on scoring threshold
-        if (bestVideo && maxScore > -0.5) { 
+        if (bestVideo && maxScore > -0.5) {
             enforceSingleVisibleVideoPlayback(bestVideo);
         } else if (currentVideo) {
             currentVideo.pause();
@@ -132,7 +132,7 @@
             video.muted = false;
             if (!intersectionEntries.has(video)) {
                 videoObserver.observe(video);
-                intersectionEntries.set(video, 0); 
+                intersectionEntries.set(video, 0);
             }
         });
         intersectionEntries.forEach((ratio, video) => {
@@ -166,7 +166,7 @@
             fixPlaybackRate(currentVideo, 1.0);
             setAmplifiedVolume(currentVideo, 1.0);
             isManuallyPaused = false;
-            
+
             // Explicitly call play() after setting properties to trigger autoplay
             currentVideo.play().catch(e => console.error("Autoplay resume failed:", e));
 
@@ -239,7 +239,7 @@
 
     function createPopupElement() {
         if (popupElement) return;
-        
+
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
         popupElement.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px; padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; display: none; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); width: 230px; overflow: hidden; text-align: center; pointer-events: auto;`;
@@ -255,12 +255,12 @@
 
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = 'display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 10px;';
-        
+
         const playPauseBtn = document.createElement('button');
         playPauseBtn.setAttribute('data-action', 'play-pause');
         playPauseBtn.textContent = '재생/멈춤';
         playPauseBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
-        
+
         const resetBtn = document.createElement('button');
         resetBtn.setAttribute('data-action', 'reset-speed-volume');
         resetBtn.textContent = '재설정';
@@ -277,14 +277,14 @@
         const speedLabel = document.createElement('label');
         speedLabel.htmlFor = 'vcp-speed';
         speedLabel.style.cssText = 'display: block; margin-bottom: 5px;';
-        
+
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
         speedDisplay.textContent = '1.00';
         speedLabel.textContent = '배속 조절: ';
         speedLabel.appendChild(speedDisplay);
         speedLabel.appendChild(document.createTextNode('x'));
-        
+
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
         speedInput.id = 'vcp-speed';
@@ -334,7 +334,7 @@
         pipBtn.setAttribute('data-action', 'pip');
         pipBtn.textContent = 'PIP 모드';
         pipBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
-        
+
         const exitFullscreenBtn = document.createElement('button');
         exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
         exitFullscreenBtn.textContent = '전체 종료';
@@ -392,7 +392,7 @@
 
     function setupPopupEventListeners() {
         if (!popupElement) return;
-        
+
         popupElement.addEventListener('click', (e) => {
             const action = e.target.getAttribute('data-action');
             if (action) handleButtonClick(action);
@@ -471,7 +471,7 @@
 
     function setPopupVisibility(isVisible) {
         if (!popupElement) return;
-        
+
         if (isVisible) {
             const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
@@ -509,7 +509,7 @@
             const viewportX = videoRect.left + (videoRect.width / 2) - (popupRect.width / 2);
             const viewportY = videoRect.top + (videoRect.height / 2) - (popupRect.height / 2);
             const safeX = Math.max(0, Math.min(viewportX, window.innerWidth - popupRect.width));
-            
+
             popupElement.style.left = `${safeX}px`;
             popupElement.style.top = `${viewportY}px`;
             popupElement.style.transform = 'none';
@@ -517,7 +517,7 @@
         } else {
             hidePopup();
         }
-        
+
     }
 
     function updatePopupSliders() {
@@ -557,9 +557,10 @@
             fixPlaybackRate(currentVideo, 1.0);
             setAmplifiedVolume(currentVideo, 1.0);
             currentVideo.muted = false;
+            currentVideo.autoplay = true; // 클릭 시 자동 재생 속성 부여
             isManuallyPaused = false;
             currentVideo.play().catch(e => console.error("Play failed on click:", e));
-            
+
             updatePopupSliders();
             showPopupTemporarily();
 
@@ -574,12 +575,12 @@
     function calculateIntersectionRatio(video) {
         const rect = video.getBoundingClientRect();
         const viewportHeight = window.innerHeight, viewportWidth = window.innerWidth;
-        
+
         const intersectionTop = Math.max(0, rect.top);
         const intersectionBottom = Math.min(viewportHeight, rect.bottom);
         const intersectionLeft = Math.max(0, rect.left);
         const intersectionRight = Math.min(viewportWidth, rect.right);
-        
+
         const intersectionHeight = intersectionBottom - intersectionTop;
         const intersectionWidth = intersectionRight - intersectionLeft;
 
@@ -592,7 +593,7 @@
     // Initial check using the new scoring logic
     function initialAutoPlayCheck() {
         const playableVideos = findPlayableVideos();
-        
+
         // Reverted to original logic for initial autoplay based on score
         let bestVideo = null;
         let maxScore = -Infinity;
@@ -610,7 +611,7 @@
         // Autoplay based on scoring threshold if multiple videos exist.
         if (bestVideo && maxScore > 0 && calculateIntersectionRatio(bestVideo) > 0.1) {
             console.log('[VCP] Performing initial auto-play check on load. Selected video with score:', maxScore.toFixed(3));
-            bestVideo.muted = true; 
+            bestVideo.muted = true;
             bestVideo.playsInline = true;
             enforceSingleVisibleVideoPlayback(bestVideo);
         }
@@ -674,7 +675,7 @@
             if (popupElement) {
                 if (fsEl) {
                     fsEl.appendChild(popupElement);
-                    showPopup(); 
+                    showPopup();
                 } else {
                     document.body.appendChild(popupElement);
                 }
@@ -686,7 +687,7 @@
             setupIntersectionObserver(); // Recalculate threshold on resize
             updatePopupPosition();
         });
-        
+
         // Add scroll event listener to force video selection on scroll
         window.addEventListener('scroll', handleScrollAndSelectVideo, { passive: true });
 
