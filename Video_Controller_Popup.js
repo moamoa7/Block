@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.49: Twitter & X.com Volume Fix)
+// @name Video Controller Popup (V4.10.50: YouTube Domain Fix)
 // @namespace Violentmonkey Scripts
-// @version 4.10.49_TwitterXComVolumeFix_Minified_Circular
+// @version 4.10.50_YouTubeDomainFix_Minified_Circular
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, dynamically blocks amplification based on video src, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -23,7 +23,8 @@ const isInitialPopupBlocked = SITES_FOR_X_ICON_MODE.some(site => location.hostna
 const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
 
 const isAmplificationBlocked_SRC_LIST = [
-    'googleusercontent.com/youtube.com/',
+    // #수정: googleusercontent.com/youtube.com/를 대신 youtube.com으로 변경
+    'youtube.com',
     'avsee.ru',
     'fmkorea.com',
     'inven.co.kr',
@@ -33,9 +34,9 @@ const isAmplificationBlocked_SRC_LIST = [
     'damoang.net',
     'theqoo.net',
     'ruliweb.com',
-    'video.twimg.com', // 기존 트위터 비디오 CDN
-    'twitter.com',     // #수정: 트위터 도메인 추가
-    'x.com'            // #수정: X.com 도메인 추가
+    'video.twimg.com',
+    'twitter.com',
+    'x.com'
 ];
 
 let audioCtx = null, gainNode = null, connectedVideo = null;
@@ -48,8 +49,8 @@ function isVideoAmplificationBlocked(video) {
     // 비디오의 src 또는 현재 호스트네임을 기준으로 증폭 차단 여부 판단
     const videoSrc = (video.currentSrc || video.src || '').toLowerCase();
     const hostname = location.hostname.toLowerCase(); // 현재 페이지의 호스트네임
-
-    return isAmplificationBlocked_SRC_LIST.some(blockedSrc =>
+    
+    return isAmplificationBlocked_SRC_LIST.some(blockedSrc => 
         videoSrc.includes(blockedSrc) || hostname.includes(blockedSrc)
     );
 }
@@ -132,7 +133,7 @@ fixPlaybackRate(currentVideo, 1.0);
 setAmplifiedVolume(currentVideo, 1.0);
 isManuallyPaused = false;
 currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
-updatePopupSliders(); // #수정: 새 비디오 선택 시 슬라이더 상태 강제 업데이트
+updatePopupSliders();
 showCircularIcon();
 }
 
@@ -755,7 +756,7 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.49_TwitterXComVolumeFix_Minified_Circular');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.50_YouTubeDomainFix_Minified_Circular');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
