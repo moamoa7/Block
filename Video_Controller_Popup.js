@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.43: Amplification Block & Speed Increase)
 // @namespace Violentmonkey Scripts
-// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix10
+// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix11
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, added amplification block for fmkorea.com, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -19,10 +19,11 @@ let circularIconHideTimer = null;
 const POPUP_TIMEOUT_MS = 2000;
 const CIRCULAR_ICON_TIMEOUT_MS = 2000;
 // 팝업이 초기부터 차단될 수 있는 사이트 목록 (원형 아이콘 'X'로 표시)
-const SITE_POPUP_BLOCK_LIST = ['ppomppu.co.kr'];
+const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com', 'ppomppu.co.kr', 'mlbpark.donga.com', 'etoland.co.kr', 'damoang.net'];
 const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
 const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
-const isAmplificationBlocked = ['youtube.com', 'avsee.ru', 'fmkorea.com', 'inven.co.kr', 'mlbpark.donga.com', 'etoland.co.kr', 'ppomppu.co.kr', 'damoang.net', 'theqoo.net'].some(site => location.hostname.includes(site));
+// 변경된 부분: isAmplificationBlocked 배열에 'bbs.ruliweb.com' 추가
+const isAmplificationBlocked = ['youtube.com', 'avsee.ru', 'fmkorea.com', 'inven.co.kr', 'mlbpark.donga.com', 'etoland.co.kr', 'ppomppu.co.kr', 'damoang.net', 'theqoo.net', 'bbs.ruliweb.com'].some(site => location.hostname.includes(site));
 let audioCtx = null, gainNode = null, connectedVideo = null;
 
 function findAllVideosDeep(root = document) {
@@ -160,7 +161,6 @@ if (circularIconElement) return;
 circularIconElement = document.createElement('div');
 circularIconElement.id = 'video-controller-circular-icon';
 circularIconElement.style.cssText = `position:fixed;width:40px;height:40px;background:rgba(30,30,30,0.9);border:1px solid #444;border-radius:50%;display:flex;justify-content:center;align-items:center;color:white;font-size:20px;cursor:pointer;z-index:2147483647;opacity:0;transition:opacity 0.3s;box-shadow:0 2px 8px rgba(0,0,0,0.5);user-select:none;`;
-// 변경된 부분: 팝업 차단 사이트일 경우 아이콘 텍스트를 'X'로 설정
 circularIconElement.textContent = isInitialPopupBlocked ? 'X' : '▶';
 document.body.appendChild(circularIconElement);
 circularIconElement.addEventListener('click', () => {hideCircularIcon(false);showPopupTemporarily();});
@@ -177,7 +177,7 @@ popupElement.style.cssText = `position:fixed;background:rgba(30,30,30,0.9);borde
 const dragHandle = document.createElement('div');
 dragHandle.id = 'vcp-drag-handle';
 dragHandle.textContent = '비디오.오디오 컨트롤러';
-dragHandle.style.cssText = `font-weight:bold;margin-bottom:8px;color:#aaa;padding:5px;background-color:#2a2a2a;border-bottom:1{px} solid #444;cursor:grab;border-radius:6px 6px 0 0;user-select:none;`;
+dragHandle.style.cssText = `font-weight:bold;margin-bottom:8px;color:#aaa;padding:5px;background-color:#2a2a2a;border-bottom:1px solid #444;cursor:grab;border-radius:6px 6px 0 0;user-select:none;`;
 popupElement.appendChild(dragHandle);
 const contentContainer = document.createElement('div');
 contentContainer.style.cssText = 'padding:10px;';
@@ -621,7 +621,7 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix10');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix11');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
