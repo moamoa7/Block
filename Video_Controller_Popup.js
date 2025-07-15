@@ -205,7 +205,7 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
             user-select: none;
         `;
-        circularIconElement.textContent = '▶'; // Play icon or similar
+        circularIconElement.textContent = '▷'; // Play icon or similar
         document.body.appendChild(circularIconElement);
 
         circularIconElement.addEventListener('click', () => {
@@ -487,7 +487,7 @@
 
         if (isVisible) {
             circularIconElement.style.display = 'flex';
-            circularIconElement.style.opacity = '0.75';
+            circularIconElement.style.opacity = '0.25';
             circularIconElement.style.pointerEvents = 'auto';
         } else {
             circularIconElement.style.display = 'none';
