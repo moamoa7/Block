@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.43: Amplification Block & Speed Increase)
 // @namespace Violentmonkey Scripts
-// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix14
+// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix15
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, added amplification block for fmkorea.com, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -18,7 +18,6 @@ let popupHideTimer = null;
 let circularIconHideTimer = null;
 const POPUP_TIMEOUT_MS = 2000;
 const CIRCULAR_ICON_TIMEOUT_MS = 2000;
-// 변경된 부분: 팝업 UI가 정상적으로 표시되지 않아 'X' 아이콘으로 표시되는 사이트 목록
 const SITES_FOR_X_ICON_MODE = ['ppomppu.co.kr'];
 const isInitialPopupBlocked = SITES_FOR_X_ICON_MODE.some(site => location.hostname.includes(site));
 const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
@@ -170,12 +169,22 @@ if (circularIconElement) return;
 circularIconElement = document.createElement('div');
 circularIconElement.id = 'video-controller-circular-icon';
 circularIconElement.style.cssText = `position:fixed;width:40px;height:40px;background:rgba(30,30,30,0.9);border:1px solid #444;border-radius:50%;display:flex;justify-content:center;align-items:center;color:white;font-size:20px;cursor:pointer;z-index:2147483647;opacity:0;transition:opacity 0.3s;box-shadow:0 2px 8px rgba(0,0,0,0.5);user-select:none;`;
-circularIconElement.textContent = isInitialPopupBlocked ? 'X' : '▶'; // 이름 변경 반영
+circularIconElement.textContent = isInitialPopupBlocked ? 'X' : '▶';
 document.body.appendChild(circularIconElement);
-circularIconElement.addEventListener('click', () => {hideCircularIcon(false);showPopupTemporarily();});
+circularIconElement.addEventListener('click', (e) => {
+    // #2 수정: 원형 아이콘 클릭 시, 해당 클릭 이벤트가 팝업 내부로 전파되지 않도록 방지
+    e.stopPropagation();
+    hideCircularIcon(false);
+    showPopupTemporarily();
+});
 circularIconElement.addEventListener('mouseenter', () => resetCircularIconHideTimer(false));
 circularIconElement.addEventListener('mouseleave', () => resetCircularIconHideTimer(true));
-circularIconElement.addEventListener('touchend', e => {e.stopPropagation();resetCircularIconHideTimer(false);showPopupTemporarily();});
+circularIconElement.addEventListener('touchend', e => {
+    // #2 수정: 모바일에서 touchend 시에도 이벤트 전파 방지
+    e.stopPropagation();
+    resetCircularIconHideTimer(false);
+    showPopupTemporarily();
+});
 }
 
 function createPopupElement() {
@@ -276,7 +285,7 @@ setupPopupEventListeners();
 
 function handleButtonClick(action) {
 if (!currentVideo) { updateStatus('No video selected.'); return; }
-resetPopupHideTimer(false);
+resetPopupHideTimer(false); // #1 수정: 버튼 클릭 후 팝업 숨김 타이머 재설정
 switch (action) {
 case 'play-pause':
 if (currentVideo.paused) {
@@ -393,7 +402,6 @@ if (isVisible) {
 const styles = {display:'block',opacity:'0.75',visibility:'visible',pointerEvents:'auto',zIndex:'2147483647'};
 for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
 } else {
-// 이름 변경 반영: isInitialPopupBlocked 대신 SITES_FOR_X_ICON_MODE에 해당하는 경우
 if (isInitialPopupBlocked && !isPopupDragging) {
 popupElement.style.setProperty('display', 'none', 'important');
 } else {
@@ -529,12 +537,18 @@ volumeDisplay.textContent = Math.round(volume * 100);
 
 function selectVideoOnDocumentClick(e) {
     if (e && e.target) {
-        if ((popupElement && popupElement.contains(e.target)) || (circularIconElement && circularIconElement.contains(e.target))) {
-            if (popupElement.style.display !== 'none') {
-                resetPopupHideTimer(true);
-            } else if (circularIconElement.style.display !== 'none') {
-                resetCircularIconHideTimer(true);
-            }
+        // #2 수정: 클릭 이벤트가 팝업 내부 요소에 의해 발생했는지 확인
+        // circularIconElement 자체의 클릭은 showPopupTemporarily()에서 별도로 처리했으므로,
+        // 여기서는 팝업 내부 요소를 클릭했을 때만 리턴하도록 합니다.
+        if (popupElement && popupElement.contains(e.target)) {
+            // 팝업 내부의 클릭은 팝업을 숨기지 않고 타이머만 리셋
+            resetPopupHideTimer(true);
+            return;
+        }
+        // circularIconElement를 클릭했을 때 showPopupTemporarily()가 호출되면서
+        // 이 selectVideoOnDocumentClick가 다시 발생할 수 있으므로,
+        // circularIconElement 자체를 클릭한 경우에도 여기서 추가 처리를 막습니다.
+        if (circularIconElement && circularIconElement.contains(e.target)) {
             return;
         }
     }
@@ -644,17 +658,13 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix14');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix15');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
 
-// 이름 변경 반영: SITES_FOR_X_ICON_MODE에 해당하는 경우, 원형 아이콘 텍스트를 업데이트합니다.
 if (isInitialPopupBlocked && circularIconElement) {
     circularIconElement.textContent = 'X';
-    // 필요하다면 아이콘의 스타일도 약간 변경하여 더 눈에 띄게 할 수 있습니다.
-    // circularIconElement.style.color = 'red';
-    // circularIconElement.style.borderColor = 'red';
 }
 
 
@@ -692,6 +702,9 @@ updateVideoList();
 setupDOMObserver();
 setupSPADetection();
 fixOverflow();
+// #2 수정: document.body.addEventListener('click', selectVideoOnDocumentClick, true);
+// circularIconElement와 popupElement 내부 클릭은 별도로 처리하므로,
+// 최상위 document.body의 capture phase (true) 리스너에서는 popup/icon 내부 클릭을 필터링합니다.
 document.body.addEventListener('click', selectVideoOnDocumentClick, true);
 document.body.addEventListener('touchend', selectVideoOnDocumentClick, true);
 window.addEventListener('beforeunload', () => {
