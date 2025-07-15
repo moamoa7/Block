@@ -25,6 +25,9 @@
     const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
     let audioCtx = null, gainNode = null, connectedVideo = null;
 
+    // --- New Constants for Preview Filtering ---
+    const MIN_AREA = 200 * 200; // Minimum area for a video to be considered "reasonable size" (200x200 pixels)
+
     // --- Utility Functions ---
     function findAllVideosDeep(root = document) {
         const videoElements = new Set();
@@ -41,8 +44,13 @@
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
-            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
+            
+            // Modified: Use MIN_AREA for reasonable size check
+            const isReasonableSize = (rect.width * rect.height >= MIN_AREA) || isMedia; 
+            
+            // Modified: More robust hasMedia check
+            const hasMedia = (v.videoWidth >= 100 || v.videoHeight >= 100 || v.readyState >= 2 || isMedia); // readyState >= 2 means enough data to play
+
             return isVisible && isReasonableSize && hasMedia;
         });
         videos = playableVideos;
