@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.43: Amplification Block & Speed Increase)
 // @namespace Violentmonkey Scripts
-// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix7
+// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix9
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, added amplification block for fmkorea.com, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -21,7 +21,8 @@ const CIRCULAR_ICON_TIMEOUT_MS = 2000;
 const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com'];
 const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
 const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
-const isAmplificationBlocked = ['avsee.ru', 'fmkorea.com'].some(site => location.hostname.includes(site));
+// 변경된 부분: isAmplificationBlocked 배열에 추가
+const isAmplificationBlocked = ['youtube.com', 'avsee.ru', 'fmkorea.com', 'inven.co.kr', 'mlbpark.donga.com', 'etoland.co.kr', 'ppomppu.co.kr', 'damoang.net', 'theqoo.net'].some(site => location.hostname.includes(site));
 let audioCtx = null, gainNode = null, connectedVideo = null;
 
 function findAllVideosDeep(root = document) {
@@ -390,13 +391,13 @@ popupElement.style.visibility = 'hidden';
 function setCircularIconVisibility(isVisible) {
 if (!circularIconElement) return;
 if (isVisible) {
-circularIconElement.style.display = 'flex';
-circularIconElement.style.opacity = '0.75';
-circularIconElement.style.pointerEvents = 'auto';
+circularIconElement.style.setProperty('display', 'flex', 'important');
+circularIconElement.style.setProperty('opacity', '0.75', 'important');
+circularIconElement.style.setProperty('pointer-events', 'auto', 'important');
 } else {
-circularIconElement.style.display = 'none';
-circularIconElement.style.opacity = '0';
-circularIconElement.style.pointerEvents = 'none';
+circularIconElement.style.setProperty('display', 'none', 'important');
+circularIconElement.style.setProperty('opacity', '0', 'important');
+circularIconElement.style.setProperty('pointer-events', 'none', 'important');
 }
 }
 
@@ -474,10 +475,10 @@ const viewportX = videoRect.left + (videoRect.width / 2) - (elementRect.width / 
 const viewportY = videoRect.top + (videoRect.height / 2) - (elementRect.height / 2);
 const safeX = Math.max(0, Math.min(viewportX, window.innerWidth - elementRect.width));
 const safeY = Math.max(0, Math.min(viewportY, window.innerHeight - elementRect.height));
-elementToPosition.style.left = `${safeX}px`;
-elementToPosition.style.top = `${safeY}px`;
-elementToPosition.style.transform = 'none';
-elementToPosition.style.position = 'fixed';
+elementToPosition.style.setProperty('left', `${safeX}px`, 'important');
+elementToPosition.style.setProperty('top', `${safeY}px`, 'important');
+elementToPosition.style.setProperty('transform', 'none', 'important');
+elementToPosition.style.setProperty('position', 'fixed', 'important');
 } else {
 hideAllPopups();
 }
@@ -503,28 +504,32 @@ volumeDisplay.textContent = Math.round(volume * 100);
 }
 
 function selectVideoOnDocumentClick(e) {
-if ((popupElement && popupElement.contains(e.target)) || (circularIconElement && circularIconElement.contains(e.target))) {
-if (popupElement.style.display !== 'none') {
-resetPopupHideTimer(true);
-} else if (circularIconElement.style.display !== 'none') {
-resetCircularIconHideTimer(true);
-}
-return;
-}
-updateVideoList();
-let bestVideo = null;
-let maxScore = -Infinity;
-videos.forEach(video => {const ratio = calculateIntersectionRatio(video);const score = calculateCenterDistanceScore(video, ratio);if (ratio > 0 && score > maxScore) {maxScore = score;bestVideo = video;}});
-if (bestVideo && maxScore > -0.5) {
-if (currentVideo && currentVideo !== bestVideo) {
-console.log('[VCP] Switching video. Hiding previous popup.');
-currentVideo.pause();hideAllPopups();currentVideo = null;
-}
-if (currentVideo === bestVideo) {
-if (popupElement.style.display === 'none') {showCircularIcon();}
-else{resetPopupHideTimer(true);}
-} else {selectAndControlVideo(bestVideo);}
-} else {if (currentVideo) {currentVideo.pause();}currentVideo = null;if (!isPopupDragging) {hideAllPopups();}}
+    // 이벤트 객체 'e'가 null 또는 undefined인지 먼저 확인
+    if (e && e.target) {
+        if ((popupElement && popupElement.contains(e.target)) || (circularIconElement && circularIconElement.contains(e.target))) {
+            if (popupElement.style.display !== 'none') {
+                resetPopupHideTimer(true);
+            } else if (circularIconElement.style.display !== 'none') {
+                resetCircularIconHideTimer(true);
+            }
+            return;
+        }
+    }
+
+    updateVideoList();
+    let bestVideo = null;
+    let maxScore = -Infinity;
+    videos.forEach(video => {const ratio = calculateIntersectionRatio(video);const score = calculateCenterDistanceScore(video, ratio);if (ratio > 0 && score > maxScore) {maxScore = score;bestVideo = video;}});
+    if (bestVideo && maxScore > -0.5) {
+        if (currentVideo && currentVideo !== bestVideo) {
+            console.log('[VCP] Switching video. Hiding previous popup.');
+            currentVideo.pause();hideAllPopups();currentVideo = null;
+        }
+        if (currentVideo === bestVideo) {
+            if (popupElement.style.display === 'none') {showCircularIcon();}
+            else{resetPopupHideTimer(true);}
+        } else {selectAndControlVideo(bestVideo);}
+    } else {if (currentVideo) {currentVideo.pause();}currentVideo = null;if (!isPopupDragging) {hideAllPopups();}}
 }
 
 let scrollTimeout = null;
@@ -616,7 +621,7 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix7');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix9');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
