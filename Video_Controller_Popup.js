@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.50: YouTube Domain Fix)
+// @name Video Controller Popup (V4.10.51: Instagram Domain Fix)
 // @namespace Violentmonkey Scripts
-// @version 4.10.50_YouTubeDomainFix_Minified_Circular
+// @version 4.10.51_InstagramDomainFix_Minified_Circular
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, dynamically blocks amplification based on video src, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -23,7 +23,6 @@ const isInitialPopupBlocked = SITES_FOR_X_ICON_MODE.some(site => location.hostna
 const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
 
 const isAmplificationBlocked_SRC_LIST = [
-    // #수정: googleusercontent.com/youtube.com/를 대신 youtube.com으로 변경
     'youtube.com',
     'avsee.ru',
     'fmkorea.com',
@@ -36,7 +35,8 @@ const isAmplificationBlocked_SRC_LIST = [
     'ruliweb.com',
     'video.twimg.com',
     'twitter.com',
-    'x.com'
+    'x.com',
+    'instagram.com' // #수정: Instagram 도메인 추가
 ];
 
 let audioCtx = null, gainNode = null, connectedVideo = null;
@@ -415,7 +415,7 @@ volumeInput.addEventListener('input', () => {
     resetPopupHideTimer(false);
 
     // #수정: 현재 비디오의 증폭 차단 여부에 따라 슬라이더 max 값을 먼저 조정
-    if (currentVideo && isVideoAmplificationBlocked(currentVideo)) {
+    if (currentVideo && isVideoAmplificationBlocked(currentVideo)) { // 이 함수는 이제 hostname도 검사합니다.
         volumeInput.max = '1.0';
     } else {
         volumeInput.max = '5.0';
@@ -756,7 +756,7 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.50_YouTubeDomainFix_Minified_Circular');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.51_InstagramDomainFix_Minified_Circular');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
