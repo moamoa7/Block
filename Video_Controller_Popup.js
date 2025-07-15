@@ -16,19 +16,17 @@
     let isManuallyPaused = false;
     const videoRateHandlers = new WeakMap();
 
+    // 팝업이 마지막으로 뜬 시각 기록
+    let popupVisibleSince = 0;
+
     // --- Configuration & Audio Context ---
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
-    // isInitialPopupBlocked 변수를 다른 변수들보다 먼저 선언하여 접근 가능하게 함
     const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com'];
     const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
-    // YouTube 관련 도메인(googleusercontent.com/youtube.com/0)을 다시 제거
     const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
     const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
     let audioCtx = null, gainNode = null, connectedVideo = null;
-
-    // --- New Constants for Preview Filtering ---
-    const MIN_AREA = 200 * 200; // Minimum area for a video to be considered "reasonable size" (200x200 pixels)
 
     // --- Utility Functions ---
     function findAllVideosDeep(root = document) {
@@ -46,13 +44,8 @@
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-
-            // Modified: isMedia 인 경우에도 MIN_AREA 적용하도록 변경
-            const isReasonableSize = (rect.width * rect.height >= MIN_AREA);
-
-            // Modified: readyState 대신 !v.paused (재생 중) 또는 v.autoplay (자동 재생 설정) 조건 사용
-            const hasMedia = (v.videoWidth >= 100 || v.videoHeight >= 100 || !v.paused || v.autoplay || isMedia);
-
+            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
+            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
             return isVisible && isReasonableSize && hasMedia;
         });
         videos = playableVideos;
@@ -478,7 +471,6 @@
             const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
         } else {
-            // isInitialPopupBlocked 변수가 이제 유효하게 정의됨
             if (isInitialPopupBlocked && !isPopupDragging) {
                 popupElement.style.setProperty('display', 'none', 'important');
             } else {
@@ -489,8 +481,23 @@
         }
     }
 
-    function showPopup() { setPopupVisibility(true); }
-    function hidePopup() { setPopupVisibility(false); }
+    function showPopup() {
+        popupVisibleSince = Date.now(); // 팝업이 뜨면 시간 기록
+        setPopupVisibility(true);
+    }
+
+    function hidePopup() {
+        const elapsed = Date.now() - popupVisibleSince;
+        const MIN_VISIBLE_MS = 2000; // 최소 유지 2초
+
+        if (elapsed < MIN_VISIBLE_MS) {
+            // 남은 시간만큼 기다렸다가 다시 시도
+            setTimeout(hidePopup, MIN_VISIBLE_MS - elapsed);
+            return;
+        }
+
+        setPopupVisibility(false);
+    }
 
     function resetPopupHideTimer() {
         if (popupHideTimer) clearTimeout(popupHideTimer);
