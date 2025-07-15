@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.43: Amplification Block & Speed Increase)
 // @namespace Violentmonkey Scripts
-// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix11
+// @version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix12
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, added amplification block for fmkorea.com, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -22,8 +22,8 @@ const CIRCULAR_ICON_TIMEOUT_MS = 2000;
 const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com', 'ppomppu.co.kr', 'mlbpark.donga.com', 'etoland.co.kr', 'damoang.net'];
 const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
 const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
-// 변경된 부분: isAmplificationBlocked 배열에 'bbs.ruliweb.com' 추가
-const isAmplificationBlocked = ['youtube.com', 'avsee.ru', 'fmkorea.com', 'inven.co.kr', 'mlbpark.donga.com', 'etoland.co.kr', 'ppomppu.co.kr', 'damoang.net', 'theqoo.net', 'bbs.ruliweb.com'].some(site => location.hostname.includes(site));
+// 변경된 부분: isAmplificationBlocked 배열에 'ruliweb.com'으로 수정 및 추가
+const isAmplificationBlocked = ['youtube.com', 'avsee.ru', 'fmkorea.com', 'inven.co.kr', 'mlbpark.donga.com', 'etoland.co.kr', 'ppomppu.co.kr', 'damoang.net', 'theqoo.net', 'ruliweb.com'].some(site => location.hostname.includes(site));
 let audioCtx = null, gainNode = null, connectedVideo = null;
 
 function findAllVideosDeep(root = document) {
@@ -146,11 +146,21 @@ function setAmplifiedVolume(video, vol) {
 if (!video || typeof video.volume === 'undefined') return;
 desiredVolume = vol;
 video.muted = false;
+
+// isAmplificationBlocked 사이트에서는 볼륨을 100% (1.0) 이상으로 설정할 수 없게 함
+if (isAmplificationBlocked) {
+    vol = Math.min(vol, 1.0); // 1.0을 초과하지 않도록 설정
+    desiredVolume = vol; // desiredVolume도 업데이트
+    if (gainNode && connectedVideo === video) gainNode.gain.value = 1; // 게인 노드도 1로 제한
+    video.volume = vol; // 비디오 볼륨 직접 설정
+    return; // 함수 종료
+}
+
+// isAmplificationBlocked가 아닐 때의 기존 로직
 if (vol <= 1) {
 if (gainNode && connectedVideo === video) gainNode.gain.value = 1;
 video.volume = vol;
 } else {
-if (isAmplificationBlocked) { video.volume = 1; if (gainNode && connectedVideo === video) gainNode.gain.value = 1; return; }
 if (!audioCtx || connectedVideo !== video) { if (!setupAudioContext(video)) { video.volume = 1; return; } }
 if (gainNode) { video.volume = 1; gainNode.gain.value = vol; }
 }
@@ -317,7 +327,12 @@ const volumeInput = popupElement.querySelector('#vcp-volume');
 const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
 volumeInput.addEventListener('input', () => {
 resetPopupHideTimer(false);
-const vol = parseFloat(volumeInput.value);
+let vol = parseFloat(volumeInput.value);
+// isAmplificationBlocked 사이트에서는 슬라이더 값도 1.0을 넘지 못하게 함
+if (isAmplificationBlocked) {
+    vol = Math.min(vol, 1.0);
+    volumeInput.value = vol.toFixed(1); // 슬라이더 값도 1.0으로 강제
+}
 volumeDisplay.textContent = Math.round(vol * 100);
 if (currentVideo) { setAmplifiedVolume(currentVideo, vol); updateStatus(`Volume: ${Math.round(vol * 100)}%`); }
 });
@@ -498,8 +513,16 @@ speedDisplay.textContent = rate.toFixed(2);
 }
 if (volumeInput && volumeDisplay) {
 let volume = desiredVolume;
-if (gainNode && connectedVideo === currentVideo) volume = gainNode.gain.value;
-volumeInput.value = volume.toFixed(2);
+// isAmplificationBlocked 사이트에서는 UI 슬라이더도 100% 이상으로 표시되지 않도록 함
+if (isAmplificationBlocked) {
+    volume = Math.min(volume, 1.0);
+} else {
+    // 증폭이 허용된 경우 gainNode 값 사용
+    if (gainNode && connectedVideo === currentVideo) {
+        volume = gainNode.gain.value;
+    }
+}
+volumeInput.value = volume.toFixed(1); // 슬라이더 값 업데이트
 volumeDisplay.textContent = Math.round(volume * 100);
 }
 }
@@ -621,7 +644,7 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix11');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_AmpBlockSpeedUp_Minified_Circular_Fix12');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
