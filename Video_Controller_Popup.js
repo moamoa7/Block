@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.58: Humoruniv Amplification Block)
+// @name Video Controller Popup (V4.10.59: SLRCLUB Amplification Block)
 // @namespace Violentmonkey Scripts
-// @version 4.10.58_HumorunivAmpBlock_Minified_Circular
+// @version 4.10.59_SLRCLUBAmpBlock_Minified_Circular
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, dynamically blocks amplification based on video src, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -41,7 +41,8 @@ const isAmplificationBlocked_SRC_LIST = [
     'instagram.com',
     'tiktok.com',
     'reddit.com',
-    'humoruniv.com' // 추가됨
+    'humoruniv.com',
+    'slrclub.com' // 추가됨
 ];
 
 let audioCtx = null, gainNode = null, connectedVideo = null;
@@ -53,8 +54,8 @@ function isVideoAmplificationBlocked(video) {
     if (!video) return false;
     const videoSrc = (video.currentSrc || video.src || '').toLowerCase();
     const hostname = location.hostname.toLowerCase();
-
-    return isAmplificationBlocked_SRC_LIST.some(blockedSrc =>
+    
+    return isAmplificationBlocked_SRC_LIST.some(blockedSrc => 
         videoSrc.includes(blockedSrc) || hostname.includes(blockedSrc)
     );
 }
@@ -646,7 +647,7 @@ function selectVideoOnDocumentClick(e) {
         }
     }
 
-    updateVideoList();
+    updateVideoList(); 
     let bestVideo = null;
     let maxScore = -Infinity;
     videos.forEach(video => {const ratio = calculateIntersectionRatio(video);const score = calculateCenterDistanceScore(video, ratio);if (ratio > 0 && score > maxScore) {maxScore = score;bestVideo = video;}});
@@ -764,7 +765,7 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.58_HumorunivAmpBlock_Minified_Circular');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.59_SLRCLUBAmpBlock_Minified_Circular');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
