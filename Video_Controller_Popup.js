@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.59: SLRCLUB Amplification Block)
+// @name Video Controller Popup (V4.10.60: Amplification Block Update)
 // @namespace Violentmonkey Scripts
-// @version 4.10.59_SLRCLUBAmpBlock_Minified_Circular
+// @version 4.10.60_AmpBlockUpdate_Minified_Circular
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, dynamically blocks amplification based on video src, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -35,14 +35,16 @@ const isAmplificationBlocked_SRC_LIST = [
     'damoang.net',
     'theqoo.net',
     'ruliweb.com',
-    'video.twimg.com',
+    // 'video.twimg.com', // 제거됨
     'twitter.com',
     'x.com',
     'instagram.com',
     'tiktok.com',
     'reddit.com',
     'humoruniv.com',
-    'slrclub.com' // 추가됨
+    'slrclub.com',
+    'ygosu.com', // 추가됨
+    'dcinside.com' // 추가됨
 ];
 
 let audioCtx = null, gainNode = null, connectedVideo = null;
@@ -765,7 +767,7 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.59_SLRCLUBAmpBlock_Minified_Circular');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.60_AmpBlockUpdate_Minified_Circular');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
