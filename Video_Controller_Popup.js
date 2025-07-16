@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.60: Amplification Block Update)
+// @name Video Controller Popup (V4.11.0: Amplification Removed, Reset Modified)
 // @namespace Violentmonkey Scripts
-// @version 4.10.60_AmpBlockUpdate_Minified_Circular
-// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, dynamically blocks amplification based on video src, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
+// @version 4.11.0_NoAmp_ResetToZero_Minified_Circular
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -24,43 +24,14 @@ const SITES_FOR_INITIAL_X_ICON = ['ppomppu.co.kr', 'reddit.com'];
 const isInitialPopupBlocked = SITES_FOR_INITIAL_X_ICON.some(site => location.hostname.includes(site));
 const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
 
-const isAmplificationBlocked_SRC_LIST = [
-    'youtube.com',
-    'avsee.ru',
-    'fmkorea.com',
-    'inven.co.kr',
-    'mlbpark.donga.com',
-    'etoland.co.kr',
-    'ppomppu.co.kr',
-    'damoang.net',
-    'theqoo.net',
-    'ruliweb.com',
-    // 'video.twimg.com', // 제거됨
-    'twitter.com',
-    'x.com',
-    'instagram.com',
-    'tiktok.com',
-    'reddit.com',
-    'humoruniv.com',
-    'slrclub.com',
-    'ygosu.com', // 추가됨
-    'dcinside.com' // 추가됨
-];
+// isAmplificationBlocked_SRC_LIST 삭제됨
 
-let audioCtx = null, gainNode = null, connectedVideo = null;
+// 볼륨 증폭 관련 변수 삭제됨: audioCtx, gainNode, connectedVideo
 
 let ignorePopupEvents = false;
 const IGNORE_EVENTS_DURATION = 100;
 
-function isVideoAmplificationBlocked(video) {
-    if (!video) return false;
-    const videoSrc = (video.currentSrc || video.src || '').toLowerCase();
-    const hostname = location.hostname.toLowerCase();
-    
-    return isAmplificationBlocked_SRC_LIST.some(blockedSrc => 
-        videoSrc.includes(blockedSrc) || hostname.includes(blockedSrc)
-    );
-}
+// isVideoAmplificationBlocked 함수 삭제됨 (증폭 기능 자체가 없어졌으므로)
 
 function findAllVideosDeep(root = document) {
 const videoElements = new Set();
@@ -137,7 +108,7 @@ currentVideo.playsInline = true;
 currentVideo.muted = false;
 console.log('[VCP] Video selected automatically based on prominence. Resetting controls.');
 fixPlaybackRate(currentVideo, 1.0);
-setAmplifiedVolume(currentVideo, 1.0);
+setNativeVolume(currentVideo, 1.0); // 직접 볼륨 조절 함수 사용
 isManuallyPaused = false;
 currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
 updatePopupSliders();
@@ -157,75 +128,13 @@ video.addEventListener('ratechange', rateChangeHandler);
 videoRateHandlers.set(video, rateChangeHandler);
 }
 
-function setupAudioContext(video) {
-if (isVideoAmplificationBlocked(video) || !video) return false;
-try {
-if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-if (audioCtx.state === 'suspended') audioCtx.resume().catch(e => console.error("AudioContext resume error:", e));
-if (video._audioSourceNode) video._audioSourceNode.disconnect();
-if (gainNode) gainNode.disconnect();
-video._audioSourceNode = audioCtx.createMediaElementSource(video);
-gainNode = audioCtx.createGain();
-gainNode.connect(audioCtx.destination);
-video.volume = 1.0;
-video.muted = false;
-connectedVideo = video;
-return true;
-} catch (e) {
-console.error("Failed to setup AudioContext for amplification:", e);
-audioCtx = gainNode = connectedVideo = null;
-return false;
-}
-}
-
-function setAmplifiedVolume(video, vol) {
-if (!video || typeof video.volume === 'undefined') return;
-desiredVolume = vol;
-video.muted = false;
-
-if (isVideoAmplificationBlocked(video)) {
-    if (video._audioSourceNode) {
-        video._audioSourceNode.disconnect();
-        video._audioSourceNode = null;
-    }
-    if (gainNode) {
-        gainNode.disconnect();
-        gainNode = null;
-    }
-    if (audioCtx) {
-        if (audioCtx.state !== 'closed') audioCtx.close();
-        audioCtx = null;
-    }
-    connectedVideo = null;
-
-    video.volume = Math.min(vol, 1.0);
-    desiredVolume = video.volume;
-
-    return;
-}
-
-if (vol <= 1) {
-    if (gainNode && connectedVideo === video) {
-        gainNode.gain.value = 1;
-    } else if (audioCtx && audioCtx.state !== 'closed') {
-        if (gainNode) gainNode.disconnect();
-        if (video._audioSourceNode) video._audioSourceNode.disconnect();
-        audioCtx.close();
-        audioCtx = gainNode = connectedVideo = null;
-    }
-    video.volume = vol;
-} else {
-    if (!audioCtx || connectedVideo !== video || !gainNode) {
-        if (!setupAudioContext(video)) {
-            video.volume = 1;
-            return;
-        }
-    }
-    if (gainNode) {
-        video.volume = 1;
-        gainNode.gain.value = vol;
-    }
-}
+// setupAudioContext 함수 삭제됨
+// setAmplifiedVolume 함수를 setNativeVolume으로 변경하여 볼륨 증폭 없이 직접 조절
+function setNativeVolume(video, vol) {
+    if (!video || typeof video.volume === 'undefined') return;
+    desiredVolume = vol;
+    video.muted = false;
+    video.volume = Math.min(Math.max(0, vol), 1.0); // 볼륨은 0.0에서 1.0 사이로 제한
 }
 
 function createCircularIconElement() {
@@ -291,7 +200,7 @@ speedLabel.appendChild(document.createTextNode('x'));
 const speedInput = document.createElement('input');
 speedInput.type = 'range';
 speedInput.id = 'vcp-speed';
-speedInput.min = '0.0';
+speedInput.min = '0.2'; // 배속 시작 0.2로 변경
 speedInput.max = '16.0';
 speedInput.step = '0.1';
 speedInput.value = '1.0';
@@ -315,8 +224,7 @@ const volumeInput = document.createElement('input');
 volumeInput.type = 'range';
 volumeInput.id = 'vcp-volume';
 volumeInput.min = '0.0';
-const isCurrentHostBlocked = isAmplificationBlocked_SRC_LIST.some(site => location.hostname.includes(site));
-volumeInput.max = isCurrentHostBlocked ? '1.0' : '5.0';
+volumeInput.max = '1.0'; // 최대 볼륨 1.0(100%)로 고정
 volumeInput.step = '0.1';
 volumeInput.value = '1.0';
 volumeInput.style.cssText = 'width:100%;cursor:pointer;';
@@ -367,10 +275,11 @@ break;
 case 'reset-speed-volume':
 desiredPlaybackRate = 1.0;
 fixPlaybackRate(currentVideo, 1.0);
-setAmplifiedVolume(currentVideo, 1.0);
-currentVideo.muted = false;
+desiredVolume = 0.0; // 재설정 시 소리 0으로 변경
+setNativeVolume(currentVideo, 0.0); // 재설정 시 소리 0으로 변경
+currentVideo.muted = true; // 소리 0으로 설정 시 음소거
 updatePopupSliders();
-updateStatus('1.0x Speed / 100% Volume');
+updateStatus('1.0x Speed / 0% Volume');
 break;
 case 'pip':
 if (document.pictureInPictureEnabled && currentVideo.requestPictureInPicture) {
@@ -421,20 +330,17 @@ volumeInput.addEventListener('input', () => {
 
     resetPopupHideTimer(false);
 
-    if (currentVideo && isVideoAmplificationBlocked(currentVideo)) {
-        volumeInput.max = '1.0';
-    } else {
-        volumeInput.max = '5.0';
-    }
+    // 볼륨 증폭 기능 제거로 인해 max 값은 항상 1.0
+    volumeInput.max = '1.0';
 
     let vol = parseFloat(volumeInput.value);
-    vol = Math.min(vol, parseFloat(volumeInput.max));
+    vol = Math.min(vol, parseFloat(volumeInput.max)); // 0.0 ~ 1.0 범위 유지
 
     desiredVolume = vol;
     volumeDisplay.textContent = Math.round(vol * 100);
 
     if (currentVideo) {
-        setAmplifiedVolume(currentVideo, vol);
+        setNativeVolume(currentVideo, vol); // setNativeVolume 함수 사용
         updateStatus(`Volume: ${Math.round(vol * 100)}%`);
     }
 });
@@ -624,18 +530,11 @@ if (speedInput && speedDisplay) {
 }
 
 if (volumeInput && volumeDisplay) {
-    if (isVideoAmplificationBlocked(currentVideo)) {
-        volumeInput.max = '1.0';
-    } else {
-        volumeInput.max = '5.0';
-    }
+    // 볼륨 증폭 기능 제거로 인해 max 값은 항상 1.0
+    volumeInput.max = '1.0';
 
     let volume = desiredVolume;
-    volume = Math.min(volume, parseFloat(volumeInput.max));
-
-    if (!isVideoAmplificationBlocked(currentVideo) && gainNode && connectedVideo === currentVideo) {
-        volume = gainNode.gain.value;
-    }
+    volume = Math.min(volume, parseFloat(volumeInput.max)); // 0.0 ~ 1.0 범위 유지
 
     volumeInput.value = volume.toFixed(1);
     volumeDisplay.textContent = Math.round(volume * 100);
@@ -649,7 +548,7 @@ function selectVideoOnDocumentClick(e) {
         }
     }
 
-    updateVideoList(); 
+    updateVideoList();
     let bestVideo = null;
     let maxScore = -Infinity;
     videos.forEach(video => {const ratio = calculateIntersectionRatio(video);const score = calculateCenterDistanceScore(video, ratio);if (ratio > 0 && score > maxScore) {maxScore = score;bestVideo = video;}});
@@ -767,7 +666,7 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.60_AmpBlockUpdate_Minified_Circular');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.11.0_NoAmp_ResetToZero_Minified_Circular');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
