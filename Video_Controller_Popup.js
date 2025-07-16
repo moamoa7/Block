@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.51: Instagram Domain Fix)
+// @name Video Controller Popup (V4.10.58: Humoruniv Amplification Block)
 // @namespace Violentmonkey Scripts
-// @version 4.10.51_InstagramDomainFix_Minified_Circular
+// @version 4.10.58_HumorunivAmpBlock_Minified_Circular
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, dynamically blocks amplification based on video src, and increased max playback rate to 16x. Now features a circular icon that expands into the full UI.
 // @match *://*/*
 // @grant none
@@ -18,8 +18,10 @@ let popupHideTimer = null;
 let circularIconHideTimer = null;
 const POPUP_TIMEOUT_MS = 2000;
 const CIRCULAR_ICON_TIMEOUT_MS = 2000;
-const SITES_FOR_X_ICON_MODE = ['ppomppu.co.kr'];
-const isInitialPopupBlocked = SITES_FOR_X_ICON_MODE.some(site => location.hostname.includes(site));
+// SITES_FOR_INITIAL_X_ICON: 팝업 UI는 여전히 기능하며, 원형 아이콘만 초기 'X'로 표시됩니다.
+const SITES_FOR_INITIAL_X_ICON = ['ppomppu.co.kr', 'reddit.com'];
+// isInitialPopupBlocked는 이제 아이콘의 초기 텍스트를 결정하는 데에만 사용됩니다.
+const isInitialPopupBlocked = SITES_FOR_INITIAL_X_ICON.some(site => location.hostname.includes(site));
 const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
 
 const isAmplificationBlocked_SRC_LIST = [
@@ -36,7 +38,10 @@ const isAmplificationBlocked_SRC_LIST = [
     'video.twimg.com',
     'twitter.com',
     'x.com',
-    'instagram.com' // #수정: Instagram 도메인 추가
+    'instagram.com',
+    'tiktok.com',
+    'reddit.com',
+    'humoruniv.com' // 추가됨
 ];
 
 let audioCtx = null, gainNode = null, connectedVideo = null;
@@ -46,11 +51,10 @@ const IGNORE_EVENTS_DURATION = 100;
 
 function isVideoAmplificationBlocked(video) {
     if (!video) return false;
-    // 비디오의 src 또는 현재 호스트네임을 기준으로 증폭 차단 여부 판단
     const videoSrc = (video.currentSrc || video.src || '').toLowerCase();
-    const hostname = location.hostname.toLowerCase(); // 현재 페이지의 호스트네임
-    
-    return isAmplificationBlocked_SRC_LIST.some(blockedSrc => 
+    const hostname = location.hostname.toLowerCase();
+
+    return isAmplificationBlocked_SRC_LIST.some(blockedSrc =>
         videoSrc.includes(blockedSrc) || hostname.includes(blockedSrc)
     );
 }
@@ -225,7 +229,8 @@ function createCircularIconElement() {
 if (circularIconElement) return;
 circularIconElement = document.createElement('div');
 circularIconElement.id = 'video-controller-circular-icon';
-circularIconElement.style.cssText = `position:fixed;width:40px;height:40px;background:rgba(30,30,30,0.9);border:1px solid #444;border-radius:50%;display:flex;justify-content:center;align-items:center;color:white;font-size:20px;cursor:pointer;z-index:2147483647;opacity:0;transition:opacity 0.3s;box-shadow:0 2px 8px rgba(0,0,0,0.5);user-select:none;`;
+circularIconElement.style.cssText = `position:fixed;width:40px;height:40px;background:rgba(30,30,30,0.9);border:1px solid #444;border-radius:50%;display:flex;justify-content:center;align-items:center;color:white !important;font-size:20px;cursor:pointer;z-index:2147483647;opacity:0;transition:opacity 0.3s;box-shadow:0 2px 8px rgba(0,0,0,0.5);user-select:none;`;
+// isInitialPopupBlocked는 이제 아이콘의 초기 텍스트만 결정합니다.
 circularIconElement.textContent = isInitialPopupBlocked ? 'X' : '▶';
 document.body.appendChild(circularIconElement);
 circularIconElement.addEventListener('click', (e) => {
@@ -246,15 +251,15 @@ function createPopupElement() {
 if (popupElement) return;
 popupElement = document.createElement('div');
 popupElement.id = 'video-controller-popup';
-popupElement.style.cssText = `position:fixed;background:rgba(30,30,30,0.9);border:1px solid #444;border-radius:8px;padding:0;color:white;font-family:sans-serif;z-index:2147483647;display:none;opacity:0;transition:opacity 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.5);width:230px;overflow:hidden;text-align:center;pointer-events:auto;`;
+popupElement.style.cssText = `position:fixed;background:rgba(30,30,30,0.9);border:1px solid #444;border-radius:8px;padding:0;color:white !important;font-family:sans-serif;z-index:2147483647;display:none;opacity:0;transition:opacity 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.5);width:230px;overflow:hidden;text-align:center;pointer-events:auto;user-select:none;`;
 const dragHandle = document.createElement('div');
 dragHandle.id = 'vcp-drag-handle';
 dragHandle.textContent = '비디오.오디오 컨트롤러';
-dragHandle.style.cssText = `font-weight:bold;margin-bottom:8px;color:#aaa;padding:5px;background-color:#2a2a2a;border-bottom:1px solid #444;cursor:grab;border-radius:6px 6px 0 0;user-select:none;`;
+dragHandle.style.cssText = `font-weight:bold;margin-bottom:8px;color:#aaa !important;padding:5px;background-color:#2a2a2a;border-bottom:1px solid #444;cursor:grab;border-radius:6px 6px 0 0;user-select:none;`;
 popupElement.appendChild(dragHandle);
 const contentContainer = document.createElement('div');
 contentContainer.style.cssText = 'padding:10px;';
-const commonBtnStyle = `background-color:#333;color:white;border:1px solid #555;padding:5px 10px;border-radius:4px;cursor:pointer;transition:background-color 0.2s;white-space:nowrap;min-width:80px;text-align:center;`;
+const commonBtnStyle = `background-color:#333;color:white !important;border:1px solid #555;padding:5px 10px;border-radius:4px;cursor:pointer;transition:background-color 0.2s;white-space:nowrap;min-width:80px;text-align:center;user-select:none;`;
 const buttonSection = document.createElement('div');
 buttonSection.style.cssText = 'display:flex;gap:5px;justify-content:center;align-items:center;margin-bottom:10px;';
 const playPauseBtn = document.createElement('button');
@@ -273,7 +278,7 @@ speedSection.className = 'vcp-section';
 speedSection.style.marginBottom = '10px';
 const speedLabel = document.createElement('label');
 speedLabel.htmlFor = 'vcp-speed';
-speedLabel.style.cssText = 'display:block;margin-bottom:5px;';
+speedLabel.style.cssText = 'display:block;margin-bottom:5px;color:white !important;';
 const speedDisplay = document.createElement('span');
 speedDisplay.id = 'vcp-speed-display';
 speedDisplay.textContent = '1.00';
@@ -296,7 +301,7 @@ volumeSection.className = 'vcp-section';
 volumeSection.style.marginBottom = '10px';
 const volumeLabel = document.createElement('label');
 volumeLabel.htmlFor = 'vcp-volume';
-volumeLabel.style.cssText = 'display:block;margin-bottom:5px;';
+volumeLabel.style.cssText = 'display:block;margin-bottom:5px;color:white !important;';
 const volumeDisplay = document.createElement('span');
 volumeDisplay.id = 'vcp-volume-display';
 volumeDisplay.textContent = '100';
@@ -307,8 +312,7 @@ const volumeInput = document.createElement('input');
 volumeInput.type = 'range';
 volumeInput.id = 'vcp-volume';
 volumeInput.min = '0.0';
-// #수정: 초기 로드 시 현재 도메인으로 증폭 차단 여부 확인 후 max 값 설정
-const isCurrentHostBlocked = isAmplificationBlocked_SRC_LIST.some(blockedSrc => location.hostname.includes(blockedSrc));
+const isCurrentHostBlocked = isAmplificationBlocked_SRC_LIST.some(site => location.hostname.includes(site));
 volumeInput.max = isCurrentHostBlocked ? '1.0' : '5.0';
 volumeInput.step = '0.1';
 volumeInput.value = '1.0';
@@ -333,7 +337,7 @@ contentContainer.appendChild(modeSection);
 const statusElement = document.createElement('div');
 statusElement.id = 'vcp-status';
 statusElement.textContent = 'Status:Ready';
-statusElement.style.cssText = 'margin-top:10px;font-size:12px;color:#777;';
+statusElement.style.cssText = 'margin-top:10px;font-size:12px;color:#777 !important;';
 contentContainer.appendChild(statusElement);
 popupElement.appendChild(contentContainer);
 document.body.appendChild(popupElement);
@@ -414,21 +418,16 @@ volumeInput.addEventListener('input', () => {
 
     resetPopupHideTimer(false);
 
-    // #수정: 현재 비디오의 증폭 차단 여부에 따라 슬라이더 max 값을 먼저 조정
-    if (currentVideo && isVideoAmplificationBlocked(currentVideo)) { // 이 함수는 이제 hostname도 검사합니다.
+    if (currentVideo && isVideoAmplificationBlocked(currentVideo)) {
         volumeInput.max = '1.0';
     } else {
         volumeInput.max = '5.0';
     }
 
-    // #수정: clamp: 슬라이더의 현재 max 값을 초과하지 않도록 값 제한
     let vol = parseFloat(volumeInput.value);
-    if (vol > parseFloat(volumeInput.max)) {
-        vol = parseFloat(volumeInput.max);
-        volumeInput.value = vol.toFixed(1); // 슬라이더의 실제 값도 제한된 값으로 업데이트
-    }
+    vol = Math.min(vol, parseFloat(volumeInput.max));
 
-    desiredVolume = vol; // 내부 상태 동기화
+    desiredVolume = vol;
     volumeDisplay.textContent = Math.round(vol * 100);
 
     if (currentVideo) {
@@ -503,13 +502,10 @@ for (const key in styles) popupElement.style.setProperty(key, styles[key], 'impo
         ignorePopupEvents = false;
     }, IGNORE_EVENTS_DURATION);
 } else {
-if (isInitialPopupBlocked && !isPopupDragging) {
-popupElement.style.setProperty('display', 'none', 'important');
-} else {
+// SITES_FOR_INITIAL_X_ICON 여부와 상관없이 팝업을 숨깁니다.
 popupElement.style.display = 'none';
 popupElement.style.opacity = '0';
 popupElement.style.visibility = 'hidden';
-}
 }
 }
 
@@ -541,7 +537,7 @@ resetPopupHideTimer(false);
 function showCircularIcon() {
 if (!currentVideo) {hideAllPopups();return;}
 setCircularIconVisibility(true);
-setPopupVisibility(false);
+setPopupVisibility(false); // 팝업은 숨기고 아이콘만 표시
 updatePopupPosition(circularIconElement, currentVideo);
 resetCircularIconHideTimer(true);
 }
@@ -584,6 +580,7 @@ if (popupElement && currentVideo) {
 hideCircularIcon(false);
 showPopup();
 updatePopupPosition(popupElement, currentVideo);
+updatePopupSliders();
 resetPopupHideTimer(true);
 }
 }
@@ -611,6 +608,7 @@ hideAllPopups();
 
 function updatePopupSliders() {
 if (!popupElement || !currentVideo) return;
+
 const speedInput = popupElement.querySelector('#vcp-speed');
 const speedDisplay = popupElement.querySelector('#vcp-speed-display');
 const volumeInput = popupElement.querySelector('#vcp-volume');
@@ -623,18 +621,15 @@ if (speedInput && speedDisplay) {
 }
 
 if (volumeInput && volumeDisplay) {
-    // #수정: currentVideo의 증폭 차단 여부 또는 현재 호스트네임에 따라 슬라이더 max 값을 설정
-    if (isVideoAmplificationBlocked(currentVideo)) { // 이 함수는 이제 hostname도 검사합니다.
+    if (isVideoAmplificationBlocked(currentVideo)) {
         volumeInput.max = '1.0';
     } else {
         volumeInput.max = '5.0';
     }
 
     let volume = desiredVolume;
-    // 실제 볼륨 값이 max를 초과하지 않도록 다시 한번 클램핑
     volume = Math.min(volume, parseFloat(volumeInput.max));
 
-    // currentVideo가 연결된 gainNode가 있다면 해당 값을 우선 사용
     if (!isVideoAmplificationBlocked(currentVideo) && gainNode && connectedVideo === currentVideo) {
         volume = gainNode.gain.value;
     }
@@ -661,10 +656,23 @@ function selectVideoOnDocumentClick(e) {
             currentVideo.pause();hideAllPopups();currentVideo = null;
         }
         if (currentVideo === bestVideo) {
-            if (popupElement.style.display === 'none') {showCircularIcon();}
-            else{resetPopupHideTimer(true);}
-        } else {selectAndControlVideo(bestVideo);}
-    } else {if (currentVideo) {currentVideo.pause();}currentVideo = null;if (!isPopupDragging) {hideAllPopups();}}
+            if (popupElement.style.display === 'none') {
+                showCircularIcon();
+            } else {
+                resetPopupHideTimer(true);
+            }
+        } else {
+            selectAndControlVideo(bestVideo);
+        }
+    } else {
+        if (currentVideo) {
+            currentVideo.pause();
+        }
+        currentVideo = null;
+        if (!isPopupDragging) {
+            hideAllPopups();
+        }
+    }
 }
 
 let scrollTimeout = null;
@@ -756,15 +764,15 @@ el.style.overflow = 'visible';
 function initialize() {
 if (isInitialized) return;
 isInitialized = true;
-console.log('[VCP] Video Controller Popup script initialized. Version 4.10.51_InstagramDomainFix_Minified_Circular');
+console.log('[VCP] Video Controller Popup script initialized. Version 4.10.58_HumorunivAmpBlock_Minified_Circular');
 createPopupElement();
 createCircularIconElement();
 hideAllPopups();
 
+// isInitialPopupBlocked는 이제 아이콘의 초기 텍스트만 설정합니다.
 if (isInitialPopupBlocked && circularIconElement) {
     circularIconElement.textContent = 'X';
 }
-
 
 document.addEventListener('fullscreenchange', () => {
 const fsEl = document.fullscreenElement;
