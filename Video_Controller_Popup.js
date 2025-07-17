@@ -189,7 +189,7 @@
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
         dragHandle.textContent = '비디오.오디오 컨트롤러';
-        dragHandle.style.cssText = `font-weight: bold; margin-bottom: 8px; color: #aaa; padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none;`;
+        dragHandle.style.cssText = `font-weight: bold; margin-bottom: 8px; color: #ccc; /* Changed to a lighter grey for better visibility */ padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none;`;
         popupElement.appendChild(dragHandle);
 
         const contentContainer = document.createElement('div');
@@ -218,7 +218,7 @@
 
         const speedLabel = document.createElement('label');
         speedLabel.htmlFor = 'vcp-speed';
-        speedLabel.style.cssText = 'display: block; margin-bottom: 5px;';
+        speedLabel.style.cssText = 'display: block; margin-bottom: 5px; color: #ccc;'; // Changed text color
 
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
@@ -230,8 +230,8 @@
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
         speedInput.id = 'vcp-speed';
-        speedInput.min = '0.0';
-        speedInput.max = '5.0';
+        speedInput.min = '0.2'; // Changed min speed
+        speedInput.max = '16.0'; // Changed max speed
         speedInput.step = '0.2';
         speedInput.value = '1.0';
         speedInput.style.cssText = 'width: 100%; cursor: pointer;';
@@ -246,7 +246,7 @@
 
         const volumeLabel = document.createElement('label');
         volumeLabel.htmlFor = 'vcp-volume';
-        volumeLabel.style.cssText = 'display: block; margin-bottom: 5px;';
+        volumeLabel.style.cssText = 'display: block; margin-bottom: 5px; color: #ccc;'; // Changed text color
 
         const volumeDisplay = document.createElement('span');
         volumeDisplay.id = 'vcp-volume-display';
@@ -289,7 +289,7 @@
         const statusElement = document.createElement('div');
         statusElement.id = 'vcp-status';
         statusElement.textContent = 'Status: Ready';
-        statusElement.style.cssText = 'margin-top: 10px; font-size: 12px; color: #777;';
+        statusElement.style.cssText = 'margin-top: 10px; font-size: 12px; color: #aaa;'; // Changed text color
         contentContainer.appendChild(statusElement);
 
         popupElement.appendChild(contentContainer);
