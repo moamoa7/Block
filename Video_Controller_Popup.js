@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.42: ReferenceError Fix, No Amplification, No PIP/Fullscreen Buttons)
 // @namespace Violentmonkey Scripts
-// @version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified
-// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Amplification, PIP, and fullscreen exit buttons removed. Improved auto-detection for dynamic sites. Fixed popup flashing and position issues. Enhanced Chzzk audio leak fix with play override and preview blocking. (Modified for stable popup auto-hide)
+// @version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Amplification, PIP, and fullscreen exit buttons removed. Improved auto-detection for dynamic sites. Fixed popup flashing and position issues. Enhanced Chzzk audio leak fix with play override and preview blocking. (Modified for stable popup auto-hide and strict muted autoplay)
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -127,8 +127,8 @@
         return isVisible && isWithinViewport && isReasonableSize && hasMedia && document.body.contains(currentVideo);
     }
 
-    // --- 핵심 변경 시작: selectAndControlVideo 함수 ---
-    function selectAndControlVideo(videoToControl, calledByClick = false) { // calledByClick 매개변수 추가
+    // --- 핵심 변경: selectAndControlVideo 함수 (자동 재생 시 음소거를 확실히 적용) ---
+    function selectAndControlVideo(videoToControl, calledByClick = false) {
         // 팝업이 완전히 차단된 사이트에서는 이 함수가 실행되지 않도록 합니다.
         if (isPopupGloballyBlocked) {
             if (currentVideo) { currentVideo.pause(); currentVideo = null; }
@@ -184,12 +184,18 @@
 
             currentVideo.autoplay = true;
             currentVideo.playsInline = true;
-            currentVideo.muted = false; // 기본 음소거 해제
-            console.log('[VCP] Video selected. Resetting controls.');
+
+            // --- 변경된 부분: 자동 재생을 위해 초기 음소거 설정 (가장 중요) ---
+            currentVideo.muted = true; // 비디오 선택 시 자동 재생을 위해 확실하게 초기 음소거
+            // --- 변경된 부분 끝 ---
+
+            console.log('[VCP] Video selected. Resetting controls (initially muted for autoplay).');
             fixPlaybackRate(currentVideo, 1.0);
-            setNormalVolume(currentVideo, 1.0);
+            // setNormalVolume(currentVideo, 1.0); // 이 부분은 이제 필요 없습니다. muted=true가 우선합니다.
+                                                  // 사용자가 볼륨 슬라이더를 조작하기 전까지는 muted=true 유지
             isManuallyPaused = false;
 
+            // 비디오가 준비되면 play()를 호출 (음소거 상태로)
             currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
 
             updatePopupSliders();
@@ -222,7 +228,7 @@
             }
         }
     }
-    // --- 핵심 변경 끝: selectAndControlVideo 함수 ---
+    // --- 핵심 변경 끝 ---
 
 
     // fixPlaybackRate 함수를 ratechange 이벤트 리스너 방식으로 롤백
@@ -245,7 +251,9 @@
     function setNormalVolume(video, vol) {
         if (!video || typeof video.volume === 'undefined') return;
         desiredVolume = vol;
+        // --- 변경된 부분: 볼륨 조절 시에만 음소거 해제 ---
         video.muted = false; // 볼륨 조절 시 음소거 해제
+        // --- 변경된 부분 끝 ---
         video.volume = Math.max(0, Math.min(1.0, vol)); // 0.0에서 1.0 사이로 값 제한
     }
 
@@ -364,7 +372,7 @@
             case 'play-pause':
                 if (currentVideo.paused) {
                     isManuallyPaused = false;
-                    currentVideo.muted = false;
+                    currentVideo.muted = false; // 재생 시 음소거 해제
                     currentVideo.play().catch(e => console.error("Play failed:", e));
                     updateStatus('Playing');
                 } else {
@@ -377,7 +385,7 @@
                 desiredPlaybackRate = 1.0;
                 fixPlaybackRate(currentVideo, 1.0); // ratechange 이벤트 리스너를 통해 배속 보정
                 setNormalVolume(currentVideo, 1.0);
-                currentVideo.muted = false;
+                currentVideo.muted = false; // 재설정 시 음소거 해제
                 updatePopupSliders();
                 updateStatus('1.0x Speed / 100% Volume');
                 break;
@@ -590,7 +598,7 @@
 
     // --- 핵심 변경 시작: selectVideoOnDocumentClick 함수 ---
     function selectVideoOnDocumentClick(e) {
-        // 팝업이 완전히 차단된 사이트에서는 비디오 선택 및 팝업 표시 로직을 완전히 건너뜁니다.
+        // 팝업이 완전히 차단된 사이트에서는 비디오 선택 및 팝업 표시 로직을 완전히 건너뜜
         if (isPopupGloballyBlocked) {
             if (currentVideo) {
                 currentVideo.pause();
@@ -680,7 +688,7 @@
     // --- 스크롤 이벤트 핸들러 (추가) ---
     let scrollTimeout = null;
     function handleScrollEvent() {
-        // 팝업이 완전히 차단된 사이트에서는 스크롤 이벤트에 대한 팝업 로직도 건너뜠습니다.
+        // 팝업이 완전히 차단된 사이트에서는 스크롤 이벤트에 대한 팝업 로직도 건너뜜
         if (isPopupGloballyBlocked) {
             if (currentVideo) {
                 currentVideo.pause();
@@ -818,9 +826,12 @@
             if (currentVideo && currentVideo.playbackRate !== desiredPlaybackRate) {
                 fixPlaybackRate(currentVideo, desiredPlaybackRate);
             }
-            if (currentVideo && currentVideo.volume !== desiredVolume) {
-                setNormalVolume(currentVideo, desiredVolume);
+            // currentVideo가 muted 상태가 아니라면 desiredVolume을 적용
+            // (muted 상태에서는 volume 값을 변경해도 소리가 나지 않으므로 불필요)
+            if (currentVideo && !currentVideo.muted && currentVideo.volume !== desiredVolume) {
+                 setNormalVolume(currentVideo, desiredVolume);
             }
+
 
             // 치지직 미리보기 영상 소리 누출 문제 해결:
             if (isChzzkSite) {
@@ -883,7 +894,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict');
 
         createPopupElement();
         // 팝업이 완전히 차단된 사이트에서는 초기부터 숨겨진 상태로 유지
