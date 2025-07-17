@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.42: ReferenceError Fix)
+// @name Video Controller Popup (V4.10.42: ReferenceError Fix, No Amplification, No PIP/Fullscreen Buttons)
 // @namespace Violentmonkey Scripts
-// @version 4.10.42_ReferenceErrorFix_Minified
-// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError.
+// @version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Amplification, PIP, and fullscreen exit buttons removed.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -16,14 +16,30 @@
     let isManuallyPaused = false;
     const videoRateHandlers = new WeakMap();
 
-    // --- Configuration & Audio Context ---
+    // --- Configuration ---
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
-    const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com'];
-    const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
+    // 여기에 팝업을 차단하고 싶은 사이트의 도메인과 경로 조건을 추가합니다.
+    const SITE_POPUP_BLOCK_LIST = [
+        { domain: 'sooplive.co.kr', pathIncludes: null }, // 모든 경로에서 차단
+        { domain: 'twitch.tv', pathIncludes: null },     // 모든 경로에서 차단
+        { domain: 'kick.com', pathIncludes: null },      // 모든 경로에서 차단
+        { domain: 'anotherpreview.net', pathIncludes: null }, // 모든 경로에서 차단
+        // 예시: 'previewsite.com'의 '/preview/' 경로에서만 팝업 차단
+        // { domain: 'previewsite.com', pathIncludes: '/preview/' }
+    ];
+
+    const isPopupGloballyBlocked = SITE_POPUP_BLOCK_LIST.some(blockRule => {
+        const isDomainMatch = location.hostname.includes(blockRule.domain);
+        if (!isDomainMatch) return false;
+
+        if (blockRule.pathIncludes) {
+            return location.pathname.includes(blockRule.pathIncludes);
+        }
+        return true;
+    });
+
     const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
-    const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
-    let audioCtx = null, gainNode = null, connectedVideo = null;
 
     // --- Utility Functions (Moved to top for scope visibility) ---
     function findAllVideosDeep(root = document) {
@@ -95,6 +111,13 @@
     }
 
     function selectAndControlVideo(videoToControl) {
+        // 팝업이 완전히 차단된 사이트에서는 이 함수가 실행되지 않도록 합니다.
+        if (isPopupGloballyBlocked) {
+            if (currentVideo) { currentVideo.pause(); currentVideo = null; }
+            hidePopup();
+            return;
+        }
+
         if (!videoToControl) {
             if (currentVideo) { currentVideo.pause(); currentVideo = null; hidePopup(); }
             return;
@@ -110,10 +133,10 @@
 
         currentVideo.autoplay = true;
         currentVideo.playsInline = true;
-        currentVideo.muted = false;
+        currentVideo.muted = false; // 기본 음소거 해제
         console.log('[VCP] Video selected automatically based on prominence. Resetting controls.');
         fixPlaybackRate(currentVideo, 1.0);
-        setAmplifiedVolume(currentVideo, 1.0);
+        setNormalVolume(currentVideo, 1.0);
         isManuallyPaused = false;
 
         currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
@@ -138,44 +161,12 @@
         videoRateHandlers.set(video, rateChangeHandler);
     }
 
-    // --- Audio Context & Volume Amplification ---
-    function setupAudioContext(video) {
-        if (isAmplificationBlocked || !video) return false;
-        try {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume().catch(e => console.error("AudioContext resume error:", e));
-
-            if (video._audioSourceNode) video._audioSourceNode.disconnect();
-            if (gainNode) gainNode.disconnect();
-
-            video._audioSourceNode = audioCtx.createMediaElementSource(video);
-            gainNode = audioCtx.createGain();
-            video._audioSourceNode.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            video.volume = 1.0;
-            video.muted = false;
-            connectedVideo = video;
-            return true;
-        } catch (e) {
-            console.error("Failed to setup AudioContext for amplification:", e);
-            audioCtx = gainNode = connectedVideo = null;
-            return false;
-        }
-    }
-
-    function setAmplifiedVolume(video, vol) {
+    // 볼륨 설정을 기본 HTML5 비디오/오디오 요소로만 제어
+    function setNormalVolume(video, vol) {
         if (!video || typeof video.volume === 'undefined') return;
         desiredVolume = vol;
-        video.muted = false;
-
-        if (vol <= 1) {
-            if (gainNode && connectedVideo === video) gainNode.gain.value = 1;
-            video.volume = vol;
-        } else {
-            if (isAmplificationBlocked) { video.volume = 1; if (gainNode && connectedVideo === video) gainNode.gain.value = 1; return; }
-            if (!audioCtx || connectedVideo !== video) { if (!setupAudioContext(video)) { video.volume = 1; return; } }
-            if (gainNode) { video.volume = 1; gainNode.gain.value = vol; }
-        }
+        video.muted = false; // 볼륨 조절 시 음소거 해제
+        video.volume = Math.max(0, Math.min(1.0, vol)); // 0.0에서 1.0 사이로 값 제한
     }
 
     // --- Popup UI Functions ---
@@ -189,7 +180,7 @@
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
         dragHandle.textContent = '비디오.오디오 컨트롤러';
-        dragHandle.style.cssText = `font-weight: bold; margin-bottom: 8px; color: #ccc; /* Changed to a lighter grey for better visibility */ padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none;`;
+        dragHandle.style.cssText = `font-weight: bold; margin-bottom: 8px; color: #ccc; padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none;`;
         popupElement.appendChild(dragHandle);
 
         const contentContainer = document.createElement('div');
@@ -218,7 +209,7 @@
 
         const speedLabel = document.createElement('label');
         speedLabel.htmlFor = 'vcp-speed';
-        speedLabel.style.cssText = 'display: block; margin-bottom: 5px; color: #ccc;'; // Changed text color
+        speedLabel.style.cssText = 'display: block; margin-bottom: 5px; color: #ccc;';
 
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
@@ -230,8 +221,8 @@
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
         speedInput.id = 'vcp-speed';
-        speedInput.min = '0.2'; // Changed min speed
-        speedInput.max = '16.0'; // Changed max speed
+        speedInput.min = '0.2';
+        speedInput.max = '16.0';
         speedInput.step = '0.2';
         speedInput.value = '1.0';
         speedInput.style.cssText = 'width: 100%; cursor: pointer;';
@@ -246,7 +237,7 @@
 
         const volumeLabel = document.createElement('label');
         volumeLabel.htmlFor = 'vcp-volume';
-        volumeLabel.style.cssText = 'display: block; margin-bottom: 5px; color: #ccc;'; // Changed text color
+        volumeLabel.style.cssText = 'display: block; margin-bottom: 5px; color: #ccc;';
 
         const volumeDisplay = document.createElement('span');
         volumeDisplay.id = 'vcp-volume-display';
@@ -259,8 +250,8 @@
         volumeInput.type = 'range';
         volumeInput.id = 'vcp-volume';
         volumeInput.min = '0.0';
-        volumeInput.max = '5.0';
-        volumeInput.step = '0.1';
+        volumeInput.max = '1.0';
+        volumeInput.step = '0.01';
         volumeInput.value = '1.0';
         volumeInput.style.cssText = 'width: 100%; cursor: pointer;';
 
@@ -268,28 +259,29 @@
         volumeSection.appendChild(volumeInput);
         contentContainer.appendChild(volumeSection);
 
-        const modeSection = document.createElement('div');
-        modeSection.className = 'vcp-section';
-        modeSection.style.marginBottom = '10px';
+        // --- PIP 및 전체 종료 버튼을 제거합니다 ---
+        // const modeSection = document.createElement('div');
+        // modeSection.className = 'vcp-section';
+        // modeSection.style.marginBottom = '10px';
 
-        const pipBtn = document.createElement('button');
-        pipBtn.setAttribute('data-action', 'pip');
-        pipBtn.textContent = 'PIP 모드';
-        pipBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
+        // const pipBtn = document.createElement('button');
+        // pipBtn.setAttribute('data-action', 'pip');
+        // pipBtn.textContent = 'PIP 모드';
+        // pipBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
 
-        const exitFullscreenBtn = document.createElement('button');
-        exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
-        exitFullscreenBtn.textContent = '전체 종료';
-        exitFullscreenBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
+        // const exitFullscreenBtn = document.createElement('button');
+        // exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
+        // exitFullscreenBtn.textContent = '전체 종료';
+        // exitFullscreenBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
 
-        modeSection.appendChild(pipBtn);
-        modeSection.appendChild(exitFullscreenBtn);
-        contentContainer.appendChild(modeSection);
+        // modeSection.appendChild(pipBtn);
+        // modeSection.appendChild(exitFullscreenBtn);
+        // contentContainer.appendChild(modeSection); // 이 줄도 제거합니다.
 
         const statusElement = document.createElement('div');
         statusElement.id = 'vcp-status';
         statusElement.textContent = 'Status: Ready';
-        statusElement.style.cssText = 'margin-top: 10px; font-size: 12px; color: #aaa;'; // Changed text color
+        statusElement.style.cssText = 'margin-top: 10px; font-size: 12px; color: #aaa;';
         contentContainer.appendChild(statusElement);
 
         popupElement.appendChild(contentContainer);
@@ -299,6 +291,11 @@
 
     function handleButtonClick(action) {
         if (!currentVideo) { updateStatus('No video selected.'); return; }
+        // 팝업이 완전히 차단된 사이트에서는 버튼 클릭 동작도 제한
+        if (isPopupGloballyBlocked) {
+            updateStatus('Popup controls disabled on this site.');
+            return;
+        }
         resetPopupHideTimer();
 
         switch (action) {
@@ -317,20 +314,21 @@
             case 'reset-speed-volume':
                 desiredPlaybackRate = 1.0;
                 fixPlaybackRate(currentVideo, 1.0);
-                setAmplifiedVolume(currentVideo, 1.0);
+                setNormalVolume(currentVideo, 1.0);
                 currentVideo.muted = false;
                 updatePopupSliders();
                 updateStatus('1.0x Speed / 100% Volume');
                 break;
-            case 'pip':
-                if (document.pictureInPictureEnabled && currentVideo.requestPictureInPicture) {
-                    (document.pictureInPictureElement ? document.exitPictureInPicture() : currentVideo.requestPictureInPicture()).catch(e => console.error(e));
-                    updateStatus(document.pictureInPictureElement ? 'Exiting PIP' : 'Entering PIP');
-                }
-                break;
-            case 'exit-fullscreen':
-                if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-                break;
+            // 'pip' 및 'exit-fullscreen' case를 제거합니다.
+            // case 'pip':
+            //     if (document.pictureInPictureEnabled && currentVideo.requestPictureInPicture) {
+            //         (document.pictureInPictureElement ? document.exitPictureInPicture() : currentVideo.requestPictureInPicture()).catch(e => console.error(e));
+            //         updateStatus(document.pictureInPictureElement ? 'Exiting PIP' : 'Entering PIP');
+            //     }
+            //     break;
+            // case 'exit-fullscreen':
+            //     if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+            //     break;
         }
     }
 
@@ -345,6 +343,11 @@
         const speedInput = popupElement.querySelector('#vcp-speed');
         const speedDisplay = popupElement.querySelector('#vcp-speed-display');
         speedInput.addEventListener('input', () => {
+            // 팝업이 완전히 차단된 사이트에서는 슬라이더 동작도 제한
+            if (isPopupGloballyBlocked) {
+                updateStatus('Popup controls disabled on this site.');
+                return;
+            }
             resetPopupHideTimer();
             const rate = parseFloat(speedInput.value);
             desiredPlaybackRate = rate;
@@ -355,14 +358,21 @@
         const volumeInput = popupElement.querySelector('#vcp-volume');
         const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
         volumeInput.addEventListener('input', () => {
+            // 팝업이 완전히 차단된 사이트에서는 슬라이더 동작도 제한
+            if (isPopupGloballyBlocked) {
+                updateStatus('Popup controls disabled on this site.');
+                return;
+            }
             resetPopupHideTimer();
             const vol = parseFloat(volumeInput.value);
             volumeDisplay.textContent = Math.round(vol * 100);
-            if (currentVideo) { setAmplifiedVolume(currentVideo, vol); updateStatus(`Volume: ${Math.round(vol * 100)}%`); }
+            if (currentVideo) { setNormalVolume(currentVideo, vol); updateStatus(`Volume: ${Math.round(vol * 100)}%`); }
         });
 
         const dragHandle = popupElement.querySelector('#vcp-drag-handle');
         const startDrag = (e) => {
+            // 팝업이 완전히 차단된 사이트에서는 드래그 동작도 제한
+            if (isPopupGloballyBlocked) return;
             if (e.target !== dragHandle) return;
             resetPopupHideTimer();
             isPopupDragging = true;
@@ -404,23 +414,22 @@
         document.addEventListener('mouseleave', stopDrag);
     }
 
-    function updateStatus(message) {
-        const statusElement = popupElement.querySelector('#vcp-status');
-        if (statusElement) {
-            statusElement.textContent = `Status: ${message}`;
-            statusElement.style.opacity = 0.75;
-            setTimeout(() => statusElement.style.opacity = 0, 2000);
-        }
-    }
-
     function setPopupVisibility(isVisible) {
         if (!popupElement) return;
+
+        // 팝업이 완전히 차단된 사이트에서는 항상 숨김
+        if (isPopupGloballyBlocked) {
+            popupElement.style.setProperty('display', 'none', 'important');
+            popupElement.style.opacity = '0';
+            popupElement.style.visibility = 'hidden';
+            return;
+        }
 
         if (isVisible) {
             const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
         } else {
-            if (isInitialPopupBlocked && !isPopupDragging) {
+            if (isPopupGloballyBlocked && !isPopupDragging) {
                 popupElement.style.setProperty('display', 'none', 'important');
             } else {
                 popupElement.style.display = 'none';
@@ -435,6 +444,11 @@
             hidePopup();
             return;
         }
+        // 팝업이 완전히 차단된 사이트에서는 보이지 않도록 함
+        if (isPopupGloballyBlocked) {
+            hidePopup();
+            return;
+        }
         setPopupVisibility(true);
     }
 
@@ -442,6 +456,8 @@
 
     function resetPopupHideTimer() {
         if (popupHideTimer) clearTimeout(popupHideTimer);
+        // 팝업이 완전히 차단된 사이트에서는 타이머 자체가 의미 없으므로 리턴
+        if (isPopupGloballyBlocked) return;
         if (!isPopupDragging) popupHideTimer = setTimeout(hidePopup, POPUP_TIMEOUT_MS);
     }
 
@@ -450,11 +466,21 @@
             hidePopup();
             return;
         }
+        // 팝업이 완전히 차단된 사이트에서는 보이지 않도록 함
+        if (isPopupGloballyBlocked) {
+            hidePopup();
+            return;
+        }
         if (popupElement && currentVideo) { showPopup(); updatePopupPosition(); resetPopupHideTimer(); }
     }
 
     function updatePopupPosition() {
         if (!currentVideo) {
+            hidePopup();
+            return;
+        }
+        // 팝업이 완전히 차단된 사이트에서는 위치 업데이트도 하지 않음
+        if (isPopupGloballyBlocked) {
             hidePopup();
             return;
         }
@@ -484,6 +510,10 @@
 
     function updatePopupSliders() {
         if (!popupElement || !currentVideo) return;
+        // 팝업이 완전히 차단된 사이트에서는 슬라이더 업데이트도 하지 않음
+        if (isPopupGloballyBlocked) {
+            return;
+        }
         const speedInput = popupElement.querySelector('#vcp-speed');
         const speedDisplay = popupElement.querySelector('#vcp-speed-display');
         const volumeInput = popupElement.querySelector('#vcp-volume');
@@ -496,8 +526,7 @@
         }
 
         if (volumeInput && volumeDisplay) {
-            let volume = desiredVolume;
-            if (gainNode && connectedVideo === currentVideo) volume = gainNode.gain.value;
+            const volume = desiredVolume;
             volumeInput.value = volume.toFixed(2);
             volumeDisplay.textContent = Math.round(volume * 100);
         }
@@ -505,6 +534,17 @@
 
     // --- Video Control & Selection Logic ---
     function selectVideoOnDocumentClick(e) {
+        // 팝업이 완전히 차단된 사이트에서는 비디오 선택 및 팝업 표시 로직을 완전히 건너뜁니다.
+        if (isPopupGloballyBlocked) {
+            // 현재 제어 중인 비디오가 있다면 일시 정지합니다.
+            if (currentVideo) {
+                currentVideo.pause();
+                currentVideo = null;
+            }
+            hidePopup();
+            return;
+        }
+
         // 팝업 자체를 클릭한 경우, 팝업 숨김 타이머만 리셋하고 종료
         if (popupElement && e && popupElement.contains(e.target)) {
             resetPopupHideTimer();
@@ -531,11 +571,10 @@
         if (bestVideo && maxScore > -0.5) { // 적어도 어느 정도 화면에 있고 중심에 가까운 비디오
             if (currentVideo && currentVideo !== bestVideo) {
                 // 이전 비디오와 다른 새로운 비디오가 선택됨
-                // 현재 제어 중이던 비디오가 있다면 일시 정지하고 팝업을 숨겨 초기화
                 console.log('[VCP] Switching video. Hiding previous popup.');
                 currentVideo.pause();
-                hidePopup(); // 이전 비디오 팝업 숨김
-                currentVideo = null; // currentVideo를 먼저 null로 설정하여 selectAndControlVideo가 새롭게 시작하도록 함
+                hidePopup();
+                currentVideo = null;
             }
 
             if (currentVideo === bestVideo) {
@@ -551,7 +590,7 @@
                 currentVideo.pause();
             }
             currentVideo = null; // 현재 제어 비디오 없음
-            if (!isPopupDragging) { // 팝업 드래그 중이 아니면 팝업 숨김
+            if (!isPopupDragging) {
                 hidePopup();
             }
         }
@@ -560,32 +599,40 @@
     // --- 스크롤 이벤트 핸들러 (추가) ---
     let scrollTimeout = null;
     function handleScrollEvent() {
+        // 팝업이 완전히 차단된 사이트에서는 스크롤 이벤트에 대한 팝업 로직도 건너뜁니다.
+        if (isPopupGloballyBlocked) {
+            if (currentVideo) {
+                currentVideo.pause();
+                currentVideo = null;
+            }
+            hidePopup();
+            return;
+        }
+
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
-            updateVideoList(); // 스크롤 시 비디오 목록 업데이트
+            updateVideoList();
 
             // 현재 제어 중인 비디오가 유효하고 화면에 보이는지 확인
             if (currentVideo && !checkCurrentVideoVisibility()) {
                 console.log('[VCP] Current video scrolled out of view or became invalid. Resetting.');
-                currentVideo.pause(); // 화면 밖으로 나간 비디오 일시 정지
-                currentVideo = null; // 현재 제어 비디오 초기화
+                currentVideo.pause();
+                currentVideo = null;
                 if (!isPopupDragging) {
-                    hidePopup(); // 팝업 숨김
+                    hidePopup();
                 }
             }
 
             // 팝업이 숨겨져 있거나, 현재 비디오가 없는 경우
             // 또는 스크롤로 인해 가장 적합한 비디오가 변경되었을 수 있으므로 재선택 시도
             if (!currentVideo || (popupElement && popupElement.style.display === 'none')) {
-                // `e` 인자 없이 호출하여 클릭 이벤트가 아님을 나타냄
-                // 이 경우, `selectVideoOnDocumentClick`는 현재 화면에서 가장 좋은 비디오를 찾아 제어
                 selectVideoOnDocumentClick(null);
             } else if (currentVideo) {
                 // 현재 비디오가 있고 팝업이 보이는 상태라면, 팝업 위치만 업데이트
                 updatePopupPosition();
-                resetPopupHideTimer(); // 팝업 숨김 타이머 리셋 (사용자가 비디오와 상호작용하는 것으로 간주)
+                resetPopupHideTimer();
             }
-        }, 100); // 디바운스: 100ms마다 한 번씩만 실행
+        }, 100);
     }
 
     // --- Main Initialization ---
@@ -653,12 +700,24 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_Minified');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified');
 
         createPopupElement();
-        hidePopup();
+        // 팝업이 완전히 차단된 사이트에서는 초기부터 숨겨진 상태로 유지
+        if (isPopupGloballyBlocked) {
+            setPopupVisibility(false);
+        } else {
+            hidePopup();
+        }
 
         document.addEventListener('fullscreenchange', () => {
+            // 팝업이 완전히 차단된 사이트에서는 전체화면 시에도 팝업 표시를 막음
+            if (isPopupGloballyBlocked) {
+                if (popupElement && popupElement.parentNode) {
+                    popupElement.parentNode.removeChild(popupElement);
+                }
+                return;
+            }
             const fsEl = document.fullscreenElement;
             if (popupElement) {
                 if (fsEl) {
@@ -671,13 +730,18 @@
         });
 
         window.addEventListener('resize', () => {
+            // 팝업이 완전히 차단된 사이트에서는 리사이즈 시에도 팝업 위치 업데이트를 하지 않음
+            if (isPopupGloballyBlocked) {
+                hidePopup();
+                return;
+            }
             updatePopupPosition();
         });
 
         // 스크롤 이벤트 리스너 추가
         window.addEventListener('scroll', handleScrollEvent);
 
-        updateVideoList(); // moved here to ensure it's defined before call
+        updateVideoList();
         setupDOMObserver();
         setupSPADetection();
         fixOverflow();
@@ -685,7 +749,6 @@
         // 모바일 클릭 인식을 위해 'touchend' 이벤트 추가
         document.body.addEventListener('click', selectVideoOnDocumentClick, true);
         document.body.addEventListener('touchend', selectVideoOnDocumentClick, true);
-
 
         window.addEventListener('beforeunload', () => {
             console.log('[VCP] Page unloading. Clearing current video and removing popup.');
