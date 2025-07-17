@@ -1,538 +1,335 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.23.5: Popup Init Fix)
+// @name Video Controller Popup (V4.10.42: ReferenceError Fix)
 // @namespace Violentmonkey Scripts
-// @version 4.23.5_PopupInitFix
-// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, fixed ReferenceError, and increased max playback rate to 16x. Features a circular icon that acts as a permanent toggle for the main UI, always visible. Popup positioning refined to avoid overlap and appear to the left of the icon. Modified: Softened AbortError logging to debug level, assuming it's an expected interruption rather than a critical failure. Improved: Enhanced video detection for dynamic content and Shadow DOM. Fixed: Persistent playback rate and volume issues on YouTube. **Further refined: Stronger rate and volume enforcement, better click handling, initialize rate/volume when popup opens.**
+// @version 4.10.43_SPA_Enhanced
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Now with enhanced SPA navigation handling.
 // @match *://*/*
 // @grant none
-// @run-at document-start
 // ==/UserScript==
 
 (function() {
     'use strict';
-    let videos = [],
-        currentVideo = null,
-        popupElement = null,
-        circularIconElement = null,
-        desiredPlaybackRate = 1.0, // Default to 1.0
-        desiredVolume = 1.0,     // Default to 1.0 (100%)
-        isPopupDragging = false,
-        popupDragOffsetX = 0,
-        popupDragOffsetY = 0,
-        isInitialized = false;
+
+    // --- Core Variables & State Management ---
+    let videos = [], currentVideo = null, popupElement = null, desiredPlaybackRate = 1.0, desiredVolume = 1.0,
+        isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
     let isManuallyPaused = false;
     const videoRateHandlers = new WeakMap();
-    const videoVolumeHandlers = new WeakMap(); // Added for volume enforcement
 
+    // --- Configuration & Audio Context ---
+    let popupHideTimer = null;
+    const POPUP_TIMEOUT_MS = 2000;
+    const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com'];
+    const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
     const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
+    const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
+    let audioCtx = null, gainNode = null, connectedVideo = null;
 
-    let ignorePopupEvents = false;
-    const IGNORE_EVENTS_DURATION = 100; // milliseconds
-
-    let _videoUpdateTimeout = null;
-
-    // --- Utility Functions ---
+    // --- Utility Functions (Moved to top for scope visibility) ---
     function findAllVideosDeep(root = document) {
         const videoElements = new Set();
-
-        // 1. Current document/root
         root.querySelectorAll('video, audio').forEach(v => videoElements.add(v));
-
-        // 2. Iterate through all elements to find Shadow DOMs
-        const allElements = root.querySelectorAll('*');
-        for (const el of allElements) {
-            if (el.shadowRoot) {
-                findAllVideosDeep(el.shadowRoot).forEach(v => videoElements.add(v));
-            }
-        }
-
-        // 3. Check for iframes (if they are same-origin and accessible)
-        root.querySelectorAll('iframe').forEach(iframe => {
-            try {
-                if (iframe.contentDocument) {
-                    findAllVideosDeep(iframe.contentDocument).forEach(v => videoElements.add(v));
-                }
-            } catch (e) {
-                // console.warn("[VCP Debug] Could not access iframe content (likely CORS block):", e);
-            }
-        });
-
+        root.querySelectorAll('*').forEach(el => { if (el.shadowRoot) findAllVideosDeep(el.shadowRoot).forEach(v => videoElements.add(v)); });
         return Array.from(videoElements);
     }
 
-
-    function isWithinViewport(rect) {
-        return (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
-    }
-
-    function calculateIntersectionRatio(video) {
-        const rect = video.getBoundingClientRect();
-        const viewportHeight = window.innerHeight,
-            viewportWidth = window.innerWidth;
-        const intersectionTop = Math.max(0, rect.top);
-        const intersectionBottom = Math.min(viewportHeight, rect.bottom);
-        const intersectionLeft = Math.max(0, rect.left);
-        const intersectionRight = Math.min(viewportWidth, rect.right);
-        const intersectionHeight = intersectionBottom - intersectionTop;
-        const intersectionWidth = intersectionRight - intersectionLeft;
-        const intersectionArea = Math.max(0, intersectionWidth) * Math.max(0, intersectionHeight);
-        const videoArea = rect.width * rect.height;
-        return videoArea > 0 ? intersectionArea / videoArea : 0;
+    function findPlayableVideos() {
+        const found = findAllVideosDeep();
+        if (!isLazySrcBlockedSite) found.forEach(v => { if (!v.src && v.dataset && v.dataset.src) v.src = v.dataset.src; });
+        const playableVideos = found.filter(v => {
+            const style = window.getComputedStyle(v);
+            const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
+            const rect = v.getBoundingClientRect();
+            const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
+            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
+            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
+            return isVisible && isReasonableSize && hasMedia;
+        });
+        videos = playableVideos; // Update global videos list
+        return playableVideos;
     }
 
     function calculateCenterDistanceScore(video, intersectionRatio) {
         const rect = video.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
+
         const videoCenterY = rect.top + (rect.height / 2);
         const viewportCenterY = viewportHeight / 2;
+
         const distance = Math.abs(videoCenterY - viewportCenterY);
         const normalizedDistance = distance / viewportHeight;
+
         const score = intersectionRatio - normalizedDistance;
         return score;
     }
 
-    function findPlayableVideos() {
-        const found = findAllVideosDeep();
-        if (isLazySrcBlockedSite) {
-            found.forEach(v => {
-                if (!v.src && v.dataset && v.dataset.src) {
-                    v.src = v.dataset.src;
-                    console.log(`[VCP Debug] Lazily loaded src for video: ${v.dataset.src}`);
-                }
-            });
-        }
-        const playableVideos = found.filter(v => {
-            const style = window.getComputedStyle(v);
-            const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
-            const rect = v.getBoundingClientRect();
-            const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0.01;
-            const isReasonableSize = (rect.width >= 30 && rect.height >= 30) || isMedia || !v.paused;
-            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia || v.src;
-            const isAttachedToDOM = document.documentElement.contains(v);
+    function calculateIntersectionRatio(video) {
+        const rect = video.getBoundingClientRect();
+        const viewportHeight = window.innerHeight, viewportWidth = window.innerWidth;
 
-            return isVisible && isReasonableSize && hasMedia && isAttachedToDOM;
-        });
-        videos = playableVideos;
-        return playableVideos;
+        const intersectionTop = Math.max(0, rect.top);
+        const intersectionBottom = Math.min(viewportHeight, rect.bottom);
+        const intersectionLeft = Math.max(0, rect.left);
+        const intersectionRight = Math.min(viewportWidth, rect.right);
+
+        const intersectionHeight = intersectionBottom - intersectionTop;
+        const intersectionWidth = intersectionRight - intersectionLeft;
+
+        const intersectionArea = Math.max(0, intersectionWidth) * Math.max(0, intersectionHeight);
+        const videoArea = rect.width * rect.height;
+
+        return videoArea > 0 ? intersectionArea / videoArea : 0;
     }
 
+    // 현재 선택된 비디오가 유효하고 화면에 보이는지 확인
     function checkCurrentVideoVisibility() {
         if (!currentVideo) return false;
         const rect = currentVideo.getBoundingClientRect();
         const style = window.getComputedStyle(currentVideo);
-        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0.01;
-        const isReasonableSize = (rect.width >= 30 && rect.height >= 30) || currentVideo.tagName === 'AUDIO' || !currentVideo.paused;
-        const hasMedia = currentVideo.videoWidth > 0 || currentVideo.videoHeight > 0 || currentVideo.tagName === 'AUDIO' || currentVideo.src;
-        const isAttachedToDOM = document.documentElement.contains(currentVideo);
-        return isVisible && isWithinViewport(rect) && isReasonableSize && hasMedia && isAttachedToDOM;
+        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
+        const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
+        const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || currentVideo.tagName === 'AUDIO' || !currentVideo.paused;
+        const hasMedia = currentVideo.videoWidth > 0 || currentVideo.videoHeight > 0 || currentVideo.tagName === 'AUDIO';
+
+        return isVisible && isWithinViewport && isReasonableSize && hasMedia && document.body.contains(currentVideo);
     }
 
     function selectAndControlVideo(videoToControl) {
         if (!videoToControl) {
-            console.log('[VCP Debug] selectAndControlVideo: No video to control, pausing current and hiding popup.');
-            if (currentVideo) { currentVideo.pause(); currentVideo = null; }
-            hidePopupOnly();
+            if (currentVideo) { currentVideo.pause(); currentVideo = null; hidePopup(); }
             return;
         }
 
-        if (currentVideo === videoToControl) {
-            console.log(`[VCP Debug] selectAndControlVideo: Same video already selected. Ensuring popup visibility and updating sliders.`);
-            updatePopupSliders();
-            setPopupVisibility(true); // Ensure popup is visible and positioned
-            return;
-        }
-
-        if (currentVideo) {
-            currentVideo.pause();
-            console.log(`[VCP Debug] Pausing previous video: ${currentVideo.src || currentVideo.tagName}`);
-        }
-
-        currentVideo = videoToControl;
-        currentVideo.autoplay = true;
-        currentVideo.playsInline = true;
-        currentVideo.muted = false;
-
-        // Apply desired rate and volume
-        fixPlaybackRate(currentVideo, desiredPlaybackRate);
-        setNativeVolume(currentVideo, desiredVolume);
-        isManuallyPaused = false;
-
-        currentVideo.play().catch(e => {
-            if (e.name === "AbortError") {
-                console.log("[VCP Debug] Play request was aborted, likely by a subsequent pause or user action.");
-            } else {
-                console.warn("[VCP] Autoplay/Play on select failed:", e);
+        videos.forEach(video => {
+            if (video !== videoToControl && !video.paused) {
+                video.pause();
             }
         });
 
+        currentVideo = videoToControl;
+
+        currentVideo.autoplay = true;
+        currentVideo.playsInline = true;
+        currentVideo.muted = false;
+        console.log('[VCP] Video selected automatically based on prominence. Resetting controls.');
+        fixPlaybackRate(currentVideo, 1.0);
+        setAmplifiedVolume(currentVideo, 1.0);
+        isManuallyPaused = false;
+
+        currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
+
         updatePopupSliders();
-        showCircularIcon();
-        setPopupVisibility(true);
-        console.log(`[VCP Debug] Selected and controlling video: ${currentVideo.src || currentVideo.tagName}`);
+        updatePopupPosition();
+        showPopupTemporarily();
     }
 
-    // --- Rate control with stronger enforcement ---
     function fixPlaybackRate(video, rate) {
-        if (!video || typeof video.playbackRate === 'undefined') {
-            console.warn('[VCP Debug] fixPlaybackRate: No video or playbackRate property missing.');
-            return;
-        }
+        if (!video || typeof video.playbackRate === 'undefined') return;
         desiredPlaybackRate = rate;
+        const existingHandler = videoRateHandlers.get(video);
+        if (existingHandler) video.removeEventListener('ratechange', existingHandler);
 
-        // Clear any previous enforcement interval
-        const existingEnforcement = videoRateHandlers.get(video);
-        if (existingEnforcement) {
-            if (existingEnforcement.clearInterval) {
-                clearInterval(existingEnforcement.clearInterval);
-            }
-            if (existingEnforcement.listener) {
-                video.removeEventListener('ratechange', existingEnforcement.listener);
-            }
-        }
-
-        // 1. Define the new ratechange handler
         const rateChangeHandler = () => {
-            // Check if the rate changed to something other than our desired rate
-            if (video.playbackRate !== desiredPlaybackRate) {
-                console.log(`[VCP Debug] ratechange event detected. Correcting playbackRate from ${video.playbackRate} to ${desiredPlaybackRate}`);
-                // Re-apply the desired rate with a slight delay to allow YouTube's player to settle
-                setTimeout(() => {
-                    if (video.playbackRate !== desiredPlaybackRate) { // Check again before applying
-                        video.playbackRate = desiredPlaybackRate;
-                        console.log(`[VCP Debug] Playback rate re-applied after delay: ${desiredPlaybackRate}`);
-                    }
-                }, 50); // Small delay to avoid immediate override conflicts
-            }
+            if (video.playbackRate !== desiredPlaybackRate) video.playbackRate = desiredPlaybackRate;
         };
 
-        // 2. Set the rate immediately
         video.playbackRate = rate;
-        console.log(`[VCP Debug] Playback rate initially set for video ${video.src || video.tagName}: ${rate}`);
-
-        // 3. Add the new handler
         video.addEventListener('ratechange', rateChangeHandler);
-
-        // 4. Periodically re-apply the rate for a short duration
-        let retryCount = 0;
-        const maxRetries = 30; // Increased retries for persistence
-        const retryInterval = 50; // More frequent
-
-        const enforceRateInterval = setInterval(() => {
-            if (!video || video.playbackRate === desiredPlaybackRate || retryCount >= maxRetries) {
-                clearInterval(enforceRateInterval);
-                if (retryCount >= maxRetries) {
-                    console.log(`[VCP Debug] Playback rate enforcement stopped after ${maxRetries} retries.`);
-                }
-                return;
-            }
-            video.playbackRate = desiredPlaybackRate;
-            console.log(`[VCP Debug] Playback rate enforced (retry ${retryCount + 1}): ${desiredPlaybackRate}`);
-            retryCount++;
-        }, retryInterval);
-
-        // Store both the listener and the interval ID
-        videoRateHandlers.set(video, { listener: rateChangeHandler, clearInterval: enforceRateInterval });
+        videoRateHandlers.set(video, rateChangeHandler);
     }
 
-    // --- Volume control with stronger enforcement ---
-    function setNativeVolume(video, vol) {
-        if (!video || typeof video.volume === 'undefined') {
-            console.warn('[VCP Debug] setNativeVolume: No video or volume property missing.');
-            return;
+    // --- Audio Context & Volume Amplification ---
+    function setupAudioContext(video) {
+        if (isAmplificationBlocked || !video) return false;
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume().catch(e => console.error("AudioContext resume error:", e));
+
+            if (video._audioSourceNode) video._audioSourceNode.disconnect();
+            if (gainNode) gainNode.disconnect();
+
+            video._audioSourceNode = audioCtx.createMediaElementSource(video);
+            gainNode = audioCtx.createGain();
+            video._audioSourceNode.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            video.volume = 1.0;
+            video.muted = false;
+            connectedVideo = video;
+            return true;
+        } catch (e) {
+            console.error("Failed to setup AudioContext for amplification:", e);
+            audioCtx = gainNode = connectedVideo = null;
+            return false;
         }
+    }
+
+    function setAmplifiedVolume(video, vol) {
+        if (!video || typeof video.volume === 'undefined') return;
         desiredVolume = vol;
+        video.muted = false;
 
-        // Clear any previous enforcement interval
-        const existingEnforcement = videoVolumeHandlers.get(video);
-        if (existingEnforcement) {
-            if (existingEnforcement.clearInterval) {
-                clearInterval(existingEnforcement.clearInterval);
-            }
-            if (existingEnforcement.listener) {
-                video.removeEventListener('volumechange', existingEnforcement.listener);
-            }
-        }
-
-        // 1. Define the new volumechange handler
-        const volumeChangeHandler = () => {
-            if (video.volume !== desiredVolume) {
-                console.log(`[VCP Debug] volumechange event detected. Correcting volume from ${video.volume} to ${desiredVolume}`);
-                setTimeout(() => {
-                    if (video.volume !== desiredVolume) {
-                        video.volume = desiredVolume;
-                        console.log(`[VCP Debug] Volume re-applied after delay: ${desiredVolume}`);
-                    }
-                }, 50);
-            }
-        };
-
-        // 2. Set the volume immediately
-        video.muted = false; // Ensure it's not muted
-        video.volume = Math.min(Math.max(0, vol), 1.0);
-        console.log(`[VCP Debug] Volume initially set for video ${video.src || video.tagName}: ${vol}`);
-
-        // 3. Add the new handler
-        video.addEventListener('volumechange', volumeChangeHandler);
-
-        // 4. Periodically re-apply the volume for a short duration
-        let retryCount = 0;
-        const maxRetries = 30; // Increased retries for persistence
-        const retryInterval = 50;
-
-        const enforceVolumeInterval = setInterval(() => {
-            if (!video || video.volume === desiredVolume || retryCount >= maxRetries) {
-                clearInterval(enforceVolumeInterval);
-                if (retryCount >= maxRetries) {
-                    console.log(`[VCP Debug] Volume enforcement stopped after ${maxRetries} retries.`);
-                }
-                return;
-            }
-            video.muted = false; // Ensure it's not muted
-            video.volume = desiredVolume;
-            console.log(`[VCP Debug] Volume enforced (retry ${retryCount + 1}): ${desiredVolume}`);
-            retryCount++;
-        }, retryInterval);
-
-        videoVolumeHandlers.set(video, { listener: volumeChangeHandler, clearInterval: enforceVolumeInterval });
-    }
-
-
-    function createCircularIconElement() {
-        let existingIcon = document.getElementById('video-controller-circular-icon');
-        if (existingIcon) {
-            circularIconElement = existingIcon;
+        if (vol <= 1) {
+            if (gainNode && connectedVideo === video) gainNode.gain.value = 1;
+            video.volume = vol;
         } else {
-            circularIconElement = document.createElement('div');
-            circularIconElement.id = 'video-controller-circular-icon';
-            circularIconElement.textContent = '▶';
-            document.documentElement.appendChild(circularIconElement);
-
-            circularIconElement.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                console.log('[VCP Debug] Circular icon clicked.');
-                if (!currentVideo) {
-                    updateStatus('재생 가능한 비디오를 찾을 수 없습니다.');
-                    console.warn('[VCP Debug] Circular icon click: No current video, cannot toggle popup.');
-                    // If no video, but user clicked icon, try to find a video again.
-                    findAndSelectBestVideo();
-                    return;
-                }
-                togglePopupVisibility();
-            }, true);
+            if (isAmplificationBlocked) { video.volume = 1; if (gainNode && connectedVideo === video) gainNode.gain.value = 1; return; }
+            if (!audioCtx || connectedVideo !== video) { if (!setupAudioContext(video)) { video.volume = 1; return; } }
+            if (gainNode) { video.volume = 1; gainNode.gain.value = vol; }
         }
-
-        circularIconElement.setAttribute('style', `
-            position:fixed !important;
-            width:40px !important;
-            height:40px !important;
-            background:rgba(30,30,30,0.9) !important;
-            border:1px solid #444 !important;
-            border-radius:50% !important;
-            display:flex !important;
-            justify-content:center !important;
-            align-items:center !important;
-            color:white !important;
-            font-size:20px !important;
-            cursor:pointer !important;
-            z-index:2147483647 !important;
-            opacity:0.75 !important;
-            transition:opacity 0.3s !important;
-            box-shadow:0 2px 8px rgba(0,0,0,0.5) !important;
-            user-select:none !important;
-
-            top: calc(50vh - 20px) !important;
-            right: 10px !important;
-            bottom: auto !important;
-            left: auto !important;
-            transform: none !important;
-        `);
     }
 
+    // --- Popup UI Functions ---
     function createPopupElement() {
-        let existingPopup = document.getElementById('video-controller-popup');
-        if (existingPopup) {
-            popupElement = existingPopup;
-        } else {
-            popupElement = document.createElement('div');
-            popupElement.id = 'video-controller-popup';
-            document.documentElement.appendChild(popupElement);
-        }
+        if (popupElement) return;
 
-        popupElement.setAttribute('style', `
-            position:fixed !important;
-            background:rgba(30,30,30,0.9) !important;
-            border:1px solid #444 !important;
-            border-radius:8px !important;
-            padding:0 !important;
-            color:white !important;
-            font-family:sans-serif !important;
-            z-index:2147483647 !important;
-            display:none !important;
-            opacity:0 !important;
-            transition:opacity 0.3s !important;
-            box-shadow:0 4px 12px rgba(0,0,0,0.5) !important;
-            width:230px !important;
-            overflow:hidden !important;
-            text-align:center !important;
-            pointer-events:auto !important;
-            user-select:none !important;
-            top: auto !important;
-            left: auto !important;
-            max-width: calc(100vw - 20px) !important;
-            max-height: calc(100vh - 20px) !important;
-        `);
+        popupElement = document.createElement('div');
+        popupElement.id = 'video-controller-popup';
+        popupElement.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px; padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; display: none; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); width: 230px; overflow: hidden; text-align: center; pointer-events: auto;`;
 
-        if (!popupElement.querySelector('#vcp-drag-handle')) {
-            const dragHandle = document.createElement('div');
-            dragHandle.id = 'vcp-drag-handle';
-            dragHandle.textContent = '비디오.오디오 컨트롤러';
-            dragHandle.setAttribute('style', `font-weight:bold !important;margin-bottom:8px !important;color:#aaa !important;padding:5px !important;background-color:#2a2a2a !important;border-bottom:1px solid #444 !important;cursor:grab !important;border-radius:6px 6px 0 0 !important;user-select:none !important;`);
-            popupElement.appendChild(dragHandle);
+        const dragHandle = document.createElement('div');
+        dragHandle.id = 'vcp-drag-handle';
+        dragHandle.textContent = '비디오.오디오 컨트롤러';
+        dragHandle.style.cssText = `font-weight: bold; margin-bottom: 8px; color: #aaa; padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none;`;
+        popupElement.appendChild(dragHandle);
 
-            const contentContainer = document.createElement('div');
-            contentContainer.setAttribute('style', 'padding:10px !important;');
+        const contentContainer = document.createElement('div');
+        contentContainer.style.cssText = 'padding: 10px;';
 
-            const commonBtnStyle = `background-color:#333 !important;color:white !important;border:1px solid #555 !important;padding:5px 10px !important;border-radius:4px !important;cursor:pointer !important;transition:background-color 0.2s !important;white-space:nowrap !important;min-width:80px !important;text-align:center !important;user-select:none !important;`;
+        const buttonSection = document.createElement('div');
+        buttonSection.style.cssText = 'display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 10px;';
 
-            const buttonSection = document.createElement('div');
-            buttonSection.setAttribute('style', 'display:flex !important;gap:5px !important;justify-content:center !important;align-items:center !important;margin-bottom:10px !important;');
+        const playPauseBtn = document.createElement('button');
+        playPauseBtn.setAttribute('data-action', 'play-pause');
+        playPauseBtn.textContent = '재생/멈춤';
+        playPauseBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
 
-            const playPauseBtn = document.createElement('button');
-            playPauseBtn.setAttribute('data-action', 'play-pause');
-            playPauseBtn.textContent = '재생/멈춤';
-            playPauseBtn.setAttribute('style', commonBtnStyle);
+        const resetBtn = document.createElement('button');
+        resetBtn.setAttribute('data-action', 'reset-speed-volume');
+        resetBtn.textContent = '재설정';
+        resetBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
 
-            const resetBtn = document.createElement('button');
-            resetBtn.setAttribute('data-action', 'reset-speed-volume');
-            resetBtn.textContent = '재설정';
-            resetBtn.setAttribute('style', commonBtnStyle);
+        buttonSection.appendChild(playPauseBtn);
+        buttonSection.appendChild(resetBtn);
+        contentContainer.appendChild(buttonSection);
 
-            buttonSection.appendChild(playPauseBtn);
-            buttonSection.appendChild(resetBtn);
-            contentContainer.appendChild(buttonSection);
+        const speedSection = document.createElement('div');
+        speedSection.className = 'vcp-section';
+        speedSection.style.marginBottom = '10px';
 
-            const speedSection = document.createElement('div');
-            speedSection.className = 'vcp-section';
-            speedSection.setAttribute('style', 'margin-bottom:10px !important;');
-            const speedLabel = document.createElement('label');
-            speedLabel.htmlFor = 'vcp-speed';
-            speedLabel.setAttribute('style', 'display:block !important;margin-bottom:5px !important;color:white !important;');
-            const speedDisplay = document.createElement('span');
-            speedDisplay.id = 'vcp-speed-display';
-            speedDisplay.textContent = '1.00';
-            speedLabel.textContent = '배속 조절: ';
-            speedLabel.appendChild(speedDisplay);
-            speedLabel.appendChild(document.createTextNode('x'));
-            const speedInput = document.createElement('input');
-            speedInput.type = 'range';
-            speedInput.id = 'vcp-speed';
-            speedInput.min = '0.2';
-            speedInput.max = '16.0';
-            speedInput.step = '0.1';
-            speedInput.value = '1.0';
-            speedInput.setAttribute('style', 'width:100% !important;cursor:pointer !important;');
-            speedSection.appendChild(speedLabel);
-            speedSection.appendChild(speedInput);
-            contentContainer.appendChild(speedSection);
+        const speedLabel = document.createElement('label');
+        speedLabel.htmlFor = 'vcp-speed';
+        speedLabel.style.cssText = 'display: block; margin-bottom: 5px;';
 
-            const volumeSection = document.createElement('div');
-            volumeSection.className = 'vcp-section';
-            volumeSection.setAttribute('style', 'margin-bottom:10px !important;');
-            const volumeLabel = document.createElement('label');
-            volumeLabel.htmlFor = 'vcp-volume';
-            volumeLabel.setAttribute('style', 'display:block !important;margin-bottom:5px !important;color:white !important;');
-            const volumeDisplay = document.createElement('span');
-            volumeDisplay.id = 'vcp-volume-display';
-            volumeDisplay.textContent = '100';
-            volumeLabel.textContent = '소리 조절: ';
-            volumeLabel.appendChild(volumeDisplay);
-            volumeLabel.appendChild(document.createTextNode('%'));
-            const volumeInput = document.createElement('input');
-            volumeInput.type = 'range';
-            volumeInput.id = 'vcp-volume';
-            volumeInput.min = '0.0';
-            volumeInput.max = '1.0';
-            volumeInput.step = '0.1';
-            volumeInput.value = '1.0';
-            volumeInput.setAttribute('style', 'width:100% !important;cursor:pointer !important;');
-            volumeSection.appendChild(volumeLabel);
-            volumeSection.appendChild(volumeInput);
-            contentContainer.appendChild(volumeSection);
+        const speedDisplay = document.createElement('span');
+        speedDisplay.id = 'vcp-speed-display';
+        speedDisplay.textContent = '1.00';
+        speedLabel.textContent = '배속 조절: ';
+        speedLabel.appendChild(speedDisplay);
+        speedLabel.appendChild(document.createTextNode('x'));
 
-            const modeSection = document.createElement('div');
-            modeSection.className = 'vcp-section';
-            modeSection.setAttribute('style', 'margin-bottom:10px !important;');
-            const pipBtn = document.createElement('button');
-            pipBtn.setAttribute('data-action', 'pip');
-            pipBtn.textContent = 'PIP 모드';
-            pipBtn.setAttribute('style', `${commonBtnStyle}margin-top:5px !important;`);
-            const exitFullscreenBtn = document.createElement('button');
-            exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
-            exitFullscreenBtn.textContent = '전체 종료';
-            exitFullscreenBtn.setAttribute('style', `${commonBtnStyle}margin-top:5px !important;`);
-            modeSection.appendChild(pipBtn);
-            modeSection.appendChild(exitFullscreenBtn);
-            contentContainer.appendChild(modeSection);
+        const speedInput = document.createElement('input');
+        speedInput.type = 'range';
+        speedInput.id = 'vcp-speed';
+        speedInput.min = '0.0';
+        speedInput.max = '5.0';
+        speedInput.step = '0.2';
+        speedInput.value = '1.0';
+        speedInput.style.cssText = 'width: 100%; cursor: pointer;';
 
-            const statusElement = document.createElement('div');
-            statusElement.id = 'vcp-status';
-            statusElement.textContent = 'Status:Ready';
-            statusElement.setAttribute('style', 'margin-top:10px !important;font-size:12px !important;color:#777 !important;');
-            contentContainer.appendChild(statusElement);
-            popupElement.appendChild(contentContainer);
-        }
-        console.log('[VCP Debug] Popup element created/ensured.');
+        speedSection.appendChild(speedLabel);
+        speedSection.appendChild(speedInput);
+        contentContainer.appendChild(speedSection);
+
+        const volumeSection = document.createElement('div');
+        volumeSection.className = 'vcp-section';
+        volumeSection.style.marginBottom = '10px';
+
+        const volumeLabel = document.createElement('label');
+        volumeLabel.htmlFor = 'vcp-volume';
+        volumeLabel.style.cssText = 'display: block; margin-bottom: 5px;';
+
+        const volumeDisplay = document.createElement('span');
+        volumeDisplay.id = 'vcp-volume-display';
+        volumeDisplay.textContent = '100';
+        volumeLabel.textContent = '소리 조절: ';
+        volumeLabel.appendChild(volumeDisplay);
+        volumeLabel.appendChild(document.createTextNode('%'));
+
+        const volumeInput = document.createElement('input');
+        volumeInput.type = 'range';
+        volumeInput.id = 'vcp-volume';
+        volumeInput.min = '0.0';
+        volumeInput.max = '5.0';
+        volumeInput.step = '0.1';
+        volumeInput.value = '1.0';
+        volumeInput.style.cssText = 'width: 100%; cursor: pointer;';
+
+        volumeSection.appendChild(volumeLabel);
+        volumeSection.appendChild(volumeInput);
+        contentContainer.appendChild(volumeSection);
+
+        const modeSection = document.createElement('div');
+        modeSection.className = 'vcp-section';
+        modeSection.style.marginBottom = '10px';
+
+        const pipBtn = document.createElement('button');
+        pipBtn.setAttribute('data-action', 'pip');
+        pipBtn.textContent = 'PIP 모드';
+        pipBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
+
+        const exitFullscreenBtn = document.createElement('button');
+        exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
+        exitFullscreenBtn.textContent = '전체 종료';
+        exitFullscreenBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
+
+        modeSection.appendChild(pipBtn);
+        modeSection.appendChild(exitFullscreenBtn);
+        contentContainer.appendChild(modeSection);
+
+        const statusElement = document.createElement('div');
+        statusElement.id = 'vcp-status';
+        statusElement.textContent = 'Status: Ready';
+        statusElement.style.cssText = 'margin-top: 10px; font-size: 12px; color: #777;';
+        contentContainer.appendChild(statusElement);
+
+        popupElement.appendChild(contentContainer);
+        document.body.appendChild(popupElement);
+        setupPopupEventListeners();
     }
 
     function handleButtonClick(action) {
-        if (!currentVideo) {
-            updateStatus('재생 가능한 비디오가 없습니다.');
-            console.warn(`[VCP Debug] Button click "${action}": No current video.`);
-            return;
-        }
+        if (!currentVideo) { updateStatus('No video selected.'); return; }
+        resetPopupHideTimer();
 
         switch (action) {
             case 'play-pause':
                 if (currentVideo.paused) {
                     isManuallyPaused = false;
                     currentVideo.muted = false;
-                    currentVideo.play().catch(e => console.error("[VCP] Play failed:", e));
-                    updateStatus('재생 중');
-                    console.log('[VCP Debug] Play/Pause: Playing video.');
+                    currentVideo.play().catch(e => console.error("Play failed:", e));
+                    updateStatus('Playing');
                 } else {
                     isManuallyPaused = true;
                     currentVideo.pause();
-                    updateStatus('일시정지됨');
-                    console.log('[VCP Debug] Play/Pause: Pausing video.');
+                    updateStatus('Paused');
                 }
                 break;
             case 'reset-speed-volume':
                 desiredPlaybackRate = 1.0;
                 fixPlaybackRate(currentVideo, 1.0);
-                desiredVolume = 1.0;
-                setNativeVolume(currentVideo, 1.0);
+                setAmplifiedVolume(currentVideo, 1.0);
                 currentVideo.muted = false;
                 updatePopupSliders();
-                updateStatus('1.0x 배속 / 100% 소리');
-                console.log('[VCP Debug] Reset Speed/Volume to 1.0x / 100%.');
+                updateStatus('1.0x Speed / 100% Volume');
                 break;
             case 'pip':
                 if (document.pictureInPictureEnabled && currentVideo.requestPictureInPicture) {
-                    (document.pictureInPictureElement ? document.exitPictureInPicture() : currentVideo.requestPictureInPicture()).catch(e => console.error("[VCP] PIP failed:", e));
-                    updateStatus(document.pictureInPictureElement ? 'PIP 종료' : 'PIP 시작');
-                    console.log('[VCP Debug] PIP button clicked.');
-                } else {
-                    updateStatus('PIP를 지원하지 않습니다.');
-                    console.warn('[VCP Debug] PIP not supported.');
+                    (document.pictureInPictureElement ? document.exitPictureInPicture() : currentVideo.requestPictureInPicture()).catch(e => console.error(e));
+                    updateStatus(document.pictureInPictureElement ? 'Exiting PIP' : 'Entering PIP');
                 }
                 break;
             case 'exit-fullscreen':
-                if (document.fullscreenElement || document.webkitFullscreenElement) {
-                    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-                    updateStatus('전체 화면 종료');
-                    console.log('[VCP Debug] Exit Fullscreen button clicked.');
-                }
+                if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
                 break;
         }
     }
@@ -540,751 +337,393 @@
     function setupPopupEventListeners() {
         if (!popupElement) return;
 
+        popupElement.addEventListener('click', (e) => {
+            const action = e.target.getAttribute('data-action');
+            if (action) handleButtonClick(action);
+        });
+
         const speedInput = popupElement.querySelector('#vcp-speed');
-        const volumeInput = popupElement.querySelector('#vcp-volume');
-        const dragHandle = popupElement.querySelector('#vcp-drag-handle');
-
-        // Clean up previous listeners
-        if (speedInput && speedInput.vcp_listener) {
-            speedInput.removeEventListener('input', speedInput.vcp_listener);
-            delete speedInput.vcp_listener;
-        }
-        if (volumeInput && volumeInput.vcp_listener) {
-            volumeInput.removeEventListener('input', volumeInput.vcp_listener);
-            delete volumeInput.vcp_listener;
-        }
-        if (dragHandle && dragHandle.vcp_mousedown_listener) {
-            dragHandle.removeEventListener('mousedown', dragHandle.vcp_mousedown_listener, true);
-            delete dragHandle.vcp_mousedown_listener;
-        }
-        if (dragHandle && dragHandle.vcp_touchstart_listener) {
-            dragHandle.removeEventListener('touchstart', dragHandle.vcp_touchstart_listener, true);
-            delete dragHandle.vcp_touchstart_listener;
-        }
-
-        popupElement.removeEventListener('click', handlePopupClickCapture, true);
-        popupElement.addEventListener('click', handlePopupClickCapture, true);
-
-        // Touchend is critical for mobile, ensure it doesn't interfere
-        popupElement.removeEventListener('touchend', handlePopupTouchendCapture, true);
-        popupElement.addEventListener('touchend', handlePopupTouchendCapture, true);
-
-
         const speedDisplay = popupElement.querySelector('#vcp-speed-display');
-        if (speedInput && speedDisplay) {
-            const speedListener = (e) => {
-                e.stopPropagation();
-                console.log('[VCP Debug] Speed slider input event detected.', { eventTarget: e.target, currentVideo: currentVideo });
-                if (ignorePopupEvents) {
-                    console.log('[VCP Debug] Speed slider event ignored due to ignorePopupEvents flag.');
-                    return;
-                }
-                const rate = parseFloat(speedInput.value);
-                desiredPlaybackRate = rate;
-                speedDisplay.textContent = rate.toFixed(2);
-                if (currentVideo) {
-                    fixPlaybackRate(currentVideo, rate);
-                    updateStatus(`배속: ${rate.toFixed(2)}x`);
-                } else {
-                    updateStatus('비디오를 찾을 수 없습니다.');
-                    console.warn('[VCP Debug] Speed slider input: currentVideo is null.');
-                }
-            };
-            speedInput.addEventListener('input', speedListener);
-            speedInput.vcp_listener = speedListener;
-        }
+        speedInput.addEventListener('input', () => {
+            resetPopupHideTimer();
+            const rate = parseFloat(speedInput.value);
+            desiredPlaybackRate = rate;
+            speedDisplay.textContent = rate.toFixed(2);
+            if (currentVideo) { fixPlaybackRate(currentVideo, rate); updateStatus(`Speed: ${rate.toFixed(2)}x`); }
+        });
 
+        const volumeInput = popupElement.querySelector('#vcp-volume');
         const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
-        if (volumeInput && volumeDisplay) {
-            const volumeListener = (e) => {
-                e.stopPropagation();
-                console.log('[VCP Debug] Volume slider input event detected.', { eventTarget: e.target, currentVideo: currentVideo });
-                if (ignorePopupEvents) {
-                    console.log('[VCP Debug] Volume slider event ignored due to ignorePopupEvents flag.');
-                    return;
-                }
+        volumeInput.addEventListener('input', () => {
+            resetPopupHideTimer();
+            const vol = parseFloat(volumeInput.value);
+            volumeDisplay.textContent = Math.round(vol * 100);
+            if (currentVideo) { setAmplifiedVolume(currentVideo, vol); updateStatus(`Volume: ${Math.round(vol * 100)}%`); }
+        });
 
-                volumeInput.max = '1.0';
+        const dragHandle = popupElement.querySelector('#vcp-drag-handle');
+        const startDrag = (e) => {
+            if (e.target !== dragHandle) return;
+            resetPopupHideTimer();
+            isPopupDragging = true;
+            dragHandle.style.cursor = 'grabbing';
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY; // Fix for touch events
+            const rect = popupElement.getBoundingClientRect();
+            popupDragOffsetX = clientX - rect.left;
+            popupDragOffsetY = clientY - rect.top;
+            popupElement.style.position = 'fixed';
+            popupElement.style.transform = 'none';
+            document.body.style.userSelect = 'none';
+        };
 
-                let vol = parseFloat(volumeInput.value);
-                vol = Math.min(vol, parseFloat(volumeInput.max));
+        const stopDrag = () => {
+            if (isPopupDragging) {
+                isPopupDragging = false;
+                dragHandle.style.cursor = 'grab';
+                document.body.style.userSelect = '';
+                resetPopupHideTimer();
+            }
+        };
 
-                desiredVolume = vol;
-                volumeDisplay.textContent = Math.round(vol * 100);
+        const dragPopup = (e) => {
+            if (!isPopupDragging) return;
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            if (clientX === undefined || clientY === undefined) return;
+            popupElement.style.left = `${clientX - popupDragOffsetX}px`;
+            popupElement.style.top = `${clientY - popupDragOffsetY}px`;
+        };
 
-                if (currentVideo) {
-                    setNativeVolume(currentVideo, vol);
-                    updateStatus(`소리: ${Math.round(vol * 100)}%`);
-                } else {
-                    updateStatus('비디오를 찾을 수 없습니다.');
-                    console.warn('[VCP Debug] Volume slider input: currentVideo is null.');
-                }
-            };
-            volumeInput.addEventListener('input', volumeListener);
-            volumeInput.vcp_listener = volumeListener;
-        }
-
-        if (dragHandle) {
-            const startDrag = e => {
-                e.stopPropagation();
-                e.preventDefault();
-                console.log('[VCP Debug] Drag handle: Drag started.');
-                if (ignorePopupEvents) { return; }
-                if (e.target !== dragHandle) return;
-                isPopupDragging = true;
-                dragHandle.style.cursor = 'grabbing';
-                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                const rect = popupElement.getBoundingClientRect();
-                popupDragOffsetX = clientX - rect.left;
-                popupDragOffsetY = clientY - rect.top;
-                popupElement.style.position = 'fixed';
-                popupElement.style.transform = 'none';
-                document.body.style.userSelect = 'none';
-
-                document.addEventListener('mousemove', dragPopup, true);
-                document.addEventListener('touchmove', dragPopup, true);
-                document.addEventListener('mouseup', stopDrag, true);
-                document.addEventListener('touchend', stopDrag, true);
-                document.addEventListener('mouseleave', stopDrag, true);
-            };
-
-            const stopDrag = () => {
-                if (isPopupDragging) {
-                    isPopupDragging = false;
-                    dragHandle.style.cursor = 'grab';
-                    document.body.style.userSelect = '';
-                    console.log('[VCP Debug] Drag handle: Drag stopped.');
-                    document.removeEventListener('mousemove', dragPopup, true);
-                    document.removeEventListener('touchmove', dragPopup, true);
-                    document.removeEventListener('mouseup', stopDrag, true);
-                    document.removeEventListener('touchend', stopDrag, true);
-                    document.removeEventListener('mouseleave', stopDrag, true);
-                }
-            };
-
-            const dragPopup = e => {
-                if (!isPopupDragging) return;
-                e.preventDefault();
-                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                if (clientX === undefined || clientY === undefined) return;
-
-                let newLeft = clientX - popupDragOffsetX;
-                let newTop = clientY - popupDragOffsetY;
-
-                const popupRect = popupElement.getBoundingClientRect();
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
-
-                if (newLeft < 0) newLeft = 0;
-                if (newTop < 0) newTop = 0;
-                if (newLeft + popupRect.width > viewportWidth) newLeft = viewportWidth - popupRect.width;
-                if (newTop + popupRect.height > viewportHeight) newTop = viewportHeight - popupRect.height;
-
-
-                popupElement.style.left = `${newLeft}px`;
-                popupElement.style.top = `${newTop}px`;
-            };
-            dragHandle.addEventListener('mousedown', startDrag, true);
-            dragHandle.addEventListener('touchstart', startDrag, true);
-            dragHandle.vcp_mousedown_listener = startDrag;
-            dragHandle.vcp_touchstart_listener = startDrag;
-        }
-        console.log('[VCP Debug] Popup event listeners re-attached.');
-    }
-
-    function handlePopupClickCapture(e) {
-        if (ignorePopupEvents) { return; }
-        const action = e.target.getAttribute('data-action');
-        if (action) {
-            e.preventDefault();
-            e.stopPropagation();
-            handleButtonClick(action);
-        }
-        console.log('[VCP Debug] Popup click event captured, action:', action || 'no-action');
-    }
-
-    function handlePopupTouchendCapture(e) {
-        if (ignorePopupEvents) { return; }
-        // For mobile, touchend might also trigger clicks. Ensure it's not double-counting or causing issues.
-        // The preventDefault in handleButtonClick should generally cover this.
-        console.log('[VCP Debug] Popup touchend event captured.');
-        e.stopPropagation(); // Stop propagation for touch events too
+        dragHandle.addEventListener('mousedown', startDrag);
+        dragHandle.addEventListener('touchstart', startDrag);
+        document.addEventListener('mousemove', dragPopup);
+        document.addEventListener('touchmove', dragPopup);
+        document.addEventListener('mouseup', stopDrag);
+        document.addEventListener('touchend', stopDrag);
+        document.addEventListener('mouseleave', stopDrag);
     }
 
     function updateStatus(message) {
         const statusElement = popupElement.querySelector('#vcp-status');
         if (statusElement) {
-            statusElement.textContent = `Status:${message}`;
+            statusElement.textContent = `Status: ${message}`;
             statusElement.style.opacity = 0.75;
             setTimeout(() => statusElement.style.opacity = 0, 2000);
         }
     }
 
-    const originalSetPopupVisibility = function(isVisible) {
-        if (!popupElement) {
-            console.warn('[VCP Debug] originalSetPopupVisibility: popupElement is null.');
-            return;
-        }
-
-        const originalTransition = popupElement.style.transition;
-        popupElement.style.transition = 'none';
+    function setPopupVisibility(isVisible) {
+        if (!popupElement) return;
 
         if (isVisible) {
-            // Apply initial rate/volume when popup becomes visible
-            if (currentVideo) {
-                fixPlaybackRate(currentVideo, desiredPlaybackRate); // Ensure it's 1.0 or user's last setting
-                setNativeVolume(currentVideo, desiredVolume); // Ensure it's 1.0 or user's last setting
-                updatePopupSliders(); // Update UI to reflect these settings
-                console.log(`[VCP Debug] Popup opened: Forcing video rate to ${desiredPlaybackRate} and volume to ${desiredVolume}.`);
-            }
-
-
-            popupElement.style.display = 'block';
-            popupElement.style.opacity = '0';
-            popupElement.style.visibility = 'hidden';
-
-            if (circularIconElement) {
-                const iconRect = circularIconElement.getBoundingClientRect();
-                const popupWidth = popupElement.offsetWidth;
-                const popupHeight = popupElement.offsetHeight;
-                const iconWidth = circularIconElement.offsetWidth;
-                const iconRight = window.innerWidth - iconRect.right;
-
-                let targetRight = iconRight + iconWidth + 20;
-                let targetTop = iconRect.top;
-
-                if (window.innerWidth - targetRight - popupWidth < 10) {
-                    targetRight = window.innerWidth - popupWidth - 10;
-                }
-                if (targetRight < 10) {
-                    targetRight = 10;
-                }
-
-                if (targetTop < 10) {
-                    targetTop = 10;
-                }
-                if (targetTop + popupHeight > window.innerHeight - 10) {
-                    targetTop = window.innerHeight - popupHeight - 10;
-                }
-
-                popupElement.setAttribute('style', `
-                    ${popupElement.getAttribute('style').replace(/(left|top|right|bottom|transform):[^;]*!important;/g, '')}
-                    right:${targetRight}px !important;
-                    top:${targetTop}px !important;
-                    transform:none !important;
-                `);
-                console.log(`[VCP Debug] Popup positioned: right=${targetRight}px, top=${targetTop}px`);
-            }
-
-            popupElement.setAttribute('style', `
-                ${popupElement.getAttribute('style').replace(/display:[^;]*|opacity:[^;]*|visibility:[^;]*|pointer-events:[^;]*/g, '')}
-                display:block !important;
-                opacity:0.9 !important;
-                visibility:visible !important;
-                pointer-events:auto !important;
-            `);
-            setupPopupEventListeners();
-            console.log('[VCP Debug] Popup is now visible.');
-            ignorePopupEvents = true;
-            setTimeout(() => {
-                ignorePopupEvents = false;
-                console.log('[VCP Debug] ignorePopupEvents flag reset.');
-            }, IGNORE_EVENTS_DURATION);
+            const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
+            for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
         } else {
-            popupElement.setAttribute('style', `
-                ${popupElement.getAttribute('style').replace(/display:[^;]*|opacity:[^;]*|visibility:[^;]*|pointer-events:[^;]*/g, '')}
-                opacity:0 !important;
-                visibility:hidden !important;
-                display:none !important;
-                pointer-events:none !important;
-            `);
-            console.log('[VCP Debug] Popup is now hidden.');
-        }
-
-        setTimeout(() => {
-            popupElement.style.transition = originalTransition;
-        }, 10);
-    };
-
-    let setPopupVisibility = (isVisible) => {
-        if (!popupElement) {
-            console.warn('[VCP Debug] setPopupVisibility: popupElement is null, cannot set visibility.');
-            return;
-        }
-        popupElement.dataset.vcpDesiredVisibility = isVisible ? 'visible' : 'hidden';
-        originalSetPopupVisibility(isVisible);
-    };
-
-    function setCircularIconVisibility() {
-        if (!circularIconElement) {
-            console.warn('[VCP Debug] setCircularIconVisibility: circularIconElement is null, cannot set visibility.');
-            return;
-        }
-        circularIconElement.setAttribute('style', circularIconElement.getAttribute('style').replace(/display:[^;]*|opacity:[^;]*|visibility:[^;]*|pointer-events:[^;]*/g, '') +
-            `display:flex !important;opacity:0.75 !important;visibility:visible !important;pointer-events:auto !important;`);
-        console.log('[VCP Debug] Circular icon is now visible.');
-    }
-
-    function togglePopupVisibility() {
-        if (!popupElement) {
-            createPopupElement();
-            if (!popupElement) {
-                console.error('[VCP] Failed to create popup element for toggling.');
-                return;
+            if (isInitialPopupBlocked && !isPopupDragging) {
+                popupElement.style.setProperty('display', 'none', 'important');
+            } else {
+                popupElement.style.display = 'none';
+                popupElement.style.opacity = '0';
+                popupElement.style.visibility = 'hidden';
             }
         }
+    }
 
-        const computedStyle = window.getComputedStyle(popupElement);
-        const isPopupCurrentlyVisible = (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden' && parseFloat(computedStyle.opacity) > 0);
-
+    function showPopup() {
         if (!currentVideo) {
-            updateStatus('재생 가능한 비디오를 찾을 수 없습니다.');
-            console.warn('[VCP Debug] Toggle popup: No current video selected, cannot show popup.');
-            if (isPopupCurrentlyVisible) {
-                setPopupVisibility(false);
-            }
+            hidePopup();
+            return;
+        }
+        setPopupVisibility(true);
+    }
+
+    function hidePopup() { setPopupVisibility(false); }
+
+    function resetPopupHideTimer() {
+        if (popupHideTimer) clearTimeout(popupHideTimer);
+        if (!isPopupDragging) popupHideTimer = setTimeout(hidePopup, POPUP_TIMEOUT_MS);
+    }
+
+    function showPopupTemporarily() {
+        if (!currentVideo) {
+            hidePopup();
+            return;
+        }
+        if (popupElement && currentVideo) { showPopup(); updatePopupPosition(); resetPopupHideTimer(); }
+    }
+
+    function updatePopupPosition() {
+        if (!currentVideo) {
+            hidePopup();
             return;
         }
 
-        setPopupVisibility(!isPopupCurrentlyVisible);
-        updatePopupSliders(); // This will be called by setPopupVisibility if it makes popup visible
-        console.log(`[VCP Debug] Toggling popup visibility. Current state: ${isPopupCurrentlyVisible ? 'visible' : 'hidden'} -> ${!isPopupCurrentlyVisible ? 'visible' : 'hidden'}`);
-    }
+        if (!popupElement || !currentVideo || isPopupDragging) {
+            return;
+        }
 
-    function hidePopupOnly() {
-        setPopupVisibility(false);
-        console.log('[VCP Debug] Hiding popup directly.');
-    }
+        const videoRect = currentVideo.getBoundingClientRect();
+        const popupRect = popupElement.getBoundingClientRect();
+        const isVideoVisible = videoRect.top < window.innerHeight && videoRect.bottom > 0 && videoRect.left < window.innerWidth && videoRect.right > 0;
 
-    function showCircularIcon() {
-        setCircularIconVisibility();
-        circularIconElement.setAttribute('style', circularIconElement.getAttribute('style').replace(/right:[^;]*|top:[^;]*|transform:[^;]*|bottom:[^;]*|left:[^;]*/g, '') +
-            `right:10px !important;top:calc(50vh - 20px) !important;transform:none !important;bottom:auto !important;left:auto !important;`);
-        console.log('[VCP Debug] Circular icon position reset.');
+        if (isVideoVisible) {
+            const viewportX = videoRect.left + (videoRect.width / 2) - (popupRect.width / 2);
+            const viewportY = videoRect.top + (videoRect.height / 2) - (popupRect.height / 2);
+            const safeX = Math.max(0, Math.min(viewportX, window.innerWidth - popupRect.width));
+            const safeY = Math.max(0, Math.min(viewportY, window.innerHeight - popupRect.height));
+
+            popupElement.style.left = `${safeX}px`;
+            popupElement.style.top = `${safeY}px`;
+            popupElement.style.transform = 'none';
+            popupElement.style.position = 'fixed';
+        } else {
+            hidePopup();
+        }
     }
 
     function updatePopupSliders() {
-        if (!popupElement || !currentVideo) {
-            console.log('[VCP Debug] updatePopupSliders: Cannot update sliders, popup or currentVideo is null.');
-            return;
-        }
-
+        if (!popupElement || !currentVideo) return;
         const speedInput = popupElement.querySelector('#vcp-speed');
         const speedDisplay = popupElement.querySelector('#vcp-speed-display');
         const volumeInput = popupElement.querySelector('#vcp-volume');
         const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
 
         if (speedInput && speedDisplay) {
-            const rate = currentVideo.playbackRate || desiredPlaybackRate;
+            const rate = desiredPlaybackRate;
             speedInput.value = rate.toFixed(2);
             speedDisplay.textContent = rate.toFixed(2);
-            console.log(`[VCP Debug] Speed slider updated to: ${rate.toFixed(2)}`);
         }
 
         if (volumeInput && volumeDisplay) {
-            volumeInput.max = '1.0';
-
-            let vol = currentVideo.muted ? 0.0 : (currentVideo.volume || desiredVolume);
-            vol = Math.min(vol, parseFloat(volumeInput.max));
-
-            volumeInput.value = vol.toFixed(1);
-            volumeDisplay.textContent = Math.round(vol * 100);
-            console.log(`[VCP Debug] Volume slider updated to: ${Math.round(vol * 100)}%`);
+            let volume = desiredVolume;
+            if (gainNode && connectedVideo === currentVideo) volume = gainNode.gain.value;
+            volumeInput.value = volume.toFixed(2);
+            volumeDisplay.textContent = Math.round(volume * 100);
         }
     }
 
-    function findAndSelectBestVideo() {
-        console.log('[VCP Debug] findAndSelectBestVideo called.');
-        updateVideoList();
+    // --- Video Control & Selection Logic ---
+    function selectVideoOnDocumentClick(e) {
+        // 팝업 자체를 클릭한 경우, 팝업 숨김 타이머만 리셋하고 종료
+        if (popupElement && e && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
+            return;
+        }
+
+        updateVideoList(); // 현재 페이지의 모든 재생 가능한 비디오 목록을 업데이트
+
         let bestVideo = null;
         let maxScore = -Infinity;
-        console.log(`[VCP Debug] Auto-selecting: Searching for best video among ${videos.length} candidates.`);
 
+        // 현재 화면에 가장 적합한 비디오를 찾음
         videos.forEach(video => {
-            if (typeof calculateIntersectionRatio !== 'function') {
-                console.error('[VCP Error] calculateIntersectionRatio is NOT defined during findAndSelectBestVideo execution!');
-                return;
-            }
-            const intersectionRatio = calculateIntersectionRatio(video);
-            const score = calculateCenterDistanceScore(video, intersectionRatio);
-            console.log(`[VCP Debug]   Candidate: ${video.src || video.tagName}, IntersectionRatio: ${intersectionRatio.toFixed(2)}, Score: ${score.toFixed(2)}`);
+            const ratio = calculateIntersectionRatio(video);
+            const score = calculateCenterDistanceScore(video, ratio);
 
-            if (intersectionRatio > 0.1 && score > maxScore) {
+            if (ratio > 0 && score > maxScore) {
                 maxScore = score;
                 bestVideo = video;
             }
         });
 
-        if (bestVideo && maxScore > -0.5) {
-            if (currentVideo !== bestVideo) {
-                console.log(`[VCP Debug] Auto-selecting: New best video found. Calling selectAndControlVideo.`);
-                selectAndControlVideo(bestVideo);
+        // 팝업 상태 관리: 새로운 비디오 선택 또는 비디오 없음
+        if (bestVideo && maxScore > -0.5) { // 적어도 어느 정도 화면에 있고 중심에 가까운 비디오
+            if (currentVideo && currentVideo !== bestVideo) {
+                // 이전 비디오와 다른 새로운 비디오가 선택됨
+                // 현재 제어 중이던 비디오가 있다면 일시 정지하고 팝업을 숨겨 초기화
+                console.log('[VCP] Switching video. Hiding previous popup.');
+                currentVideo.pause();
+                hidePopup(); // 이전 비디오 팝업 숨김
+                currentVideo = null; // currentVideo를 먼저 null로 설정하여 selectAndControlVideo가 새롭게 시작하도록 함
+            }
+
+            if (currentVideo === bestVideo) {
+                // 같은 비디오라면 잠시 팝업만 보여줌 (클릭 이벤트로 인한 경우)
+                showPopupTemporarily();
             } else {
-                console.log(`[VCP Debug] Auto-selecting: Current video is still the best. Updating popup (if visible).`);
-                if (popupElement.dataset.vcpDesiredVisibility === 'visible') {
-                     updatePopupSliders();
-                     setPopupVisibility(true); // Re-trigger visibility logic to re-apply settings
-                }
+                // 다른 비디오가 선택되면 새로운 비디오에 대해 팝업을 새로 표시
+                selectAndControlVideo(bestVideo);
             }
         } else {
-            console.log('[VCP Debug] Auto-selecting: No suitable best video found. Hiding popup if visible.');
-            if (currentVideo) {
+            // 적합한 비디오가 없을 경우 (예: 모든 비디오가 화면 밖으로 스크롤됨)
+            if (currentVideo) { // 이전에 제어하던 비디오가 있었다면 일시 정지
                 currentVideo.pause();
-                currentVideo = null;
             }
-            if (!isPopupDragging) {
-                hidePopupOnly();
+            currentVideo = null; // 현재 제어 비디오 없음
+            if (!isPopupDragging) { // 팝업 드래그 중이 아니면 팝업 숨김
+                hidePopup();
             }
         }
     }
 
-    function selectVideoOnDocumentClick(e) {
-        console.log('[VCP Debug] Document click/touchend event detected on:', e.target);
-
-        // Check if the click is within the popup or the circular icon itself.
-        if ((popupElement && popupElement.contains(e.target)) || (circularIconElement && circularIconElement.contains(e.target))) {
-            console.log('[VCP Debug] Click originated from within popup or icon. Skipping document-level selection logic.');
-            return;
-        }
-
-        // If popup is currently visible AND click is outside, hide it.
-        const computedStyle = window.getComputedStyle(popupElement);
-        const isPopupCurrentlyVisible = (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden' && parseFloat(computedStyle.opacity) > 0);
-        if (isPopupCurrentlyVisible) {
-            hidePopupOnly();
-            console.log('[VCP Debug] Document click outside popup, hiding popup.');
-        }
-
-        // Try to select the clicked video directly if it's a video/audio element
-        if (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') {
-            console.log('[VCP Debug] Direct click on video/audio element detected. Attempting to select it.');
-            selectAndControlVideo(e.target);
-            e.stopPropagation(); // Prevent default browser handling if we take over.
-            e.preventDefault();
-        } else {
-            // If currentVideo exists but is no longer visible (e.g., scrolled off, element removed), deselect it.
-            if (currentVideo && !checkCurrentVideoVisibility()) {
-                console.log('[VCP Debug] Current video no longer visible on document click, pausing and hiding popup.');
-                currentVideo.pause();
-                currentVideo = null;
-                hidePopupOnly();
-            }
-        }
-    }
-
+    // --- 스크롤 이벤트 핸들러 (추가) ---
     let scrollTimeout = null;
     function handleScrollEvent() {
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
-            console.log('[VCP Debug] Scroll event handler triggered.');
-            findAndSelectBestVideo();
+            updateVideoList(); // 스크롤 시 비디오 목록 업데이트
 
-            showCircularIcon();
-            const computedStyle = window.getComputedStyle(popupElement);
-            const isPopupCurrentlyVisible = (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden' && parseFloat(computedStyle.opacity) > 0);
-            if (isPopupCurrentlyVisible) {
-                originalSetPopupVisibility(true);
-                console.log('[VCP Debug] Popup was visible during scroll, re-positioning.');
+            // 현재 제어 중인 비디오가 유효하고 화면에 보이는지 확인
+            if (currentVideo && !checkCurrentVideoVisibility()) {
+                console.log('[VCP] Current video scrolled out of view or became invalid. Resetting.');
+                currentVideo.pause(); // 화면 밖으로 나간 비디오 일시 정지
+                currentVideo = null; // 현재 제어 비디오 초기화
+                if (!isPopupDragging) {
+                    hidePopup(); // 팝업 숨김
+                }
             }
-        }, 100);
+
+            // 팝업이 숨겨져 있거나, 현재 비디오가 없는 경우
+            // 또는 스크롤로 인해 가장 적합한 비디오가 변경되었을 수 있으므로 재선택 시도
+            if (!currentVideo || (popupElement && popupElement.style.display === 'none')) {
+                // `e` 인자 없이 호출하여 클릭 이벤트가 아님을 나타냄
+                // 이 경우, `selectVideoOnDocumentClick`는 현재 화면에서 가장 좋은 비디오를 찾아 제어
+                selectVideoOnDocumentClick(null);
+            } else if (currentVideo) {
+                // 현재 비디오가 있고 팝업이 보이는 상태라면, 팝업 위치만 업데이트
+                updatePopupPosition();
+                resetPopupHideTimer(); // 팝업 숨김 타이머 리셋 (사용자가 비디오와 상호작용하는 것으로 간주)
+            }
+        }, 100); // 디바운스: 100ms마다 한 번씩만 실행
     }
 
+    // --- Main Initialization ---
     function updateVideoList() {
-        const currentPlayableVideos = findPlayableVideos();
-        if (currentVideo && (!document.documentElement.contains(currentVideo) || !currentPlayableVideos.includes(currentVideo))) {
-            console.log('[VCP Debug] Current video no longer valid or in DOM. Resetting currentVideo.');
+        findPlayableVideos();
+        // currentVideo가 DOM에 없거나 더 이상 videos 목록에 없으면 초기화
+        if (currentVideo && (!document.body.contains(currentVideo) || !videos.includes(currentVideo))) {
+            console.log('[VCP] Current video no longer valid. Resetting.');
             currentVideo = null;
+            hidePopup();
         }
-        console.log(`[VCP Debug] Video list updated. Found ${currentPlayableVideos.length} playable videos.`);
     }
-
-    let popupStyleObserver = null;
-    let iconStyleObserver = null;
-
-    function setupPopupStyleObserver() {
-        if (!popupElement) return;
-        if (popupStyleObserver) popupStyleObserver.disconnect();
-        popupStyleObserver = new MutationObserver(mutations => {
-            mutations.forEach(mutation => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    const computedStyle = window.getComputedStyle(popupElement);
-                    const isCurrentlyVisible = (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden' && parseFloat(computedStyle.opacity) > 0.01);
-                    if (popupElement.dataset.vcpDesiredVisibility === 'visible' && !isCurrentlyVisible) {
-                        console.warn('[VCP Debug] Popup style unexpectedly changed to hidden, forcing visible based on desired state.');
-                        originalSetPopupVisibility(true);
-                    }
-                    else if (popupElement.dataset.vcpDesiredVisibility === 'hidden' && isCurrentlyVisible) {
-                        console.warn('[VCP Debug] Popup style unexpectedly changed to visible, forcing hidden based on desired state.');
-                        originalSetPopupVisibility(false);
-                    }
-                }
-            });
-        });
-        popupStyleObserver.observe(popupElement, { attributes: true, attributeFilter: ['style'] });
-        console.log('[VCP Debug] Popup style observer set up.');
-    }
-
-    function setupIconStyleObserver() {
-        if (!circularIconElement) return;
-        if (iconStyleObserver) iconStyleObserver.disconnect();
-        iconStyleObserver = new MutationObserver(mutations => {
-            mutations.forEach(mutation => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    const computedStyle = window.getComputedStyle(circularIconElement);
-                    const isCurrentlyVisible = (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden' && parseFloat(computedStyle.opacity) > 0.01);
-                    if (!isCurrentlyVisible) {
-                        console.warn('[VCP Debug] Icon style unexpectedly changed to hidden, forcing visible.');
-                        setCircularIconVisibility();
-                    }
-                }
-            });
-        });
-        circularIconElement.dataset.iconVisibilityDesired = 'visible';
-        iconStyleObserver.observe(circularIconElement, { attributes: true, attributeFilter: ['style'] });
-        console.log('[VCP Debug] Icon style observer set up.');
-    }
-
-    let mainDOMObserver = null;
 
     function setupDOMObserver() {
-        const observerConfig = {
-            childList: true,
-            subtree: true,
-            attributes: true, // Attributes are needed for style/class changes
-            attributeFilter: ['style', 'class'] // Filter to relevant attributes for performance
-        };
-        const observerCallback = mutationsList => {
-            let needsVideoListUpdate = false;
+        const observerConfig = { childList: true, subtree: true, attributes: true };
+        const observerCallback = (mutationsList) => {
+            let foundMediaChange = false;
             for (const mutation of mutationsList) {
-                if (mutation.type === 'childList') {
-                    // Check if popup/icon itself was removed
-                    Array.from(mutation.removedNodes).forEach(node => {
-                        if (popupElement && node.contains && node.contains(popupElement)) {
-                             console.warn('[VCP] Popup element was removed from DOM. Re-inserting.');
-                             document.documentElement.appendChild(popupElement);
-                             setPopupVisibility(popupElement.dataset.vcpDesiredVisibility === 'visible');
-                        } else if (circularIconElement && node.contains && node.contains(circularIconElement)) {
-                             console.warn('[VCP] Circular icon element was removed from DOM. Re-inserting.');
-                             document.documentElement.appendChild(circularIconElement);
-                             showCircularIcon();
-                        }
-                    });
-
-                    // Check for added/removed media elements or elements that might contain them
-                    const addedOrRemovedMedia = Array.from(mutation.addedNodes).some(n => n.nodeName === 'VIDEO' || n.nodeName === 'AUDIO' || (n.nodeType === 1 && (n.querySelector('video') || n.querySelector('audio')))) ||
-                                                Array.from(mutation.removedNodes).some(n => n.nodeName === 'VIDEO' || n.nodeName === 'AUDIO' || (n.nodeType === 1 && (n.querySelector('video') || n.querySelector('audio'))));
-                    if (addedOrRemovedMedia) {
-                        needsVideoListUpdate = true;
-                    }
-                }
-                // Also trigger update if style attributes change, as this might affect visibility.
-                if (mutation.type === 'attributes' && (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
-                    const targetElement = mutation.target;
-                    if (targetElement.tagName === 'VIDEO' || targetElement.tagName === 'AUDIO' || targetElement.querySelector('video') || targetElement.querySelector('audio')) {
-                        needsVideoListUpdate = true;
-                    }
+                if (mutation.type === 'childList' && (Array.from(mutation.addedNodes).some(n => n.nodeName === 'VIDEO' || n.nodeName === 'AUDIO' || (n.nodeType === 1 && (n.querySelector('video') || n.querySelector('audio')))) || Array.from(mutation.removedNodes).some(n => n.nodeName === 'VIDEO' || n.nodeName === 'AUDIO'))) {
+                    foundMediaChange = true;
+                    break;
+                } else if (mutation.type === 'attributes' && mutation.target.matches('video, audio')) {
+                    foundMediaChange = true;
+                    break;
                 }
             }
-            if (needsVideoListUpdate) {
-                if (_videoUpdateTimeout) clearTimeout(_videoUpdateTimeout);
-                _videoUpdateTimeout = setTimeout(() => {
-                    console.log('[VCP Debug] DOM changed (potential media update), re-evaluating videos.');
-                    findAndSelectBestVideo();
-                }, 200); // Debounce to avoid excessive calls
+            if (foundMediaChange) {
+                updateVideoList();
             }
         };
+        const mutationObserver = new MutationObserver(observerCallback);
+        mutationObserver.observe(document.body, observerConfig);
+    }
 
-        if (mainDOMObserver) mainDOMObserver.disconnect();
-        mainDOMObserver = new MutationObserver(observerCallback);
-        mainDOMObserver.observe(document.documentElement, observerConfig);
-        console.log('[VCP Debug] Main DOM observer set up.');
+    // --- SPA Detection & Handling (Enhanced) ---
+    let lastUrl = location.href;
+
+    function handleSpaNavigation() {
+        if (location.href === lastUrl) {
+            // If URL hasn't actually changed, or it's a redundant call
+            return;
+        }
+        console.log(`[VCP] SPA navigation detected. URL changed from ${lastUrl} to ${location.href}. Resetting popup state.`);
+        lastUrl = location.href;
+        currentVideo = null; // Reset current video
+        hidePopup(); // Hide popup
+        updateVideoList(); // Re-scan for videos on new page
+        // After reset, try to find a new best video to control on the new "page"
+        selectVideoOnDocumentClick(null); // Pass null to signify it's not a user click on an element, but an SPA navigation
     }
 
     function setupSPADetection() {
-        let lastUrl = location.href;
-        const originalPushState = history.pushState;
-        history.pushState = function() {
-            originalPushState.apply(this, arguments);
-            window.dispatchEvent(new Event('pushstate'));
-            console.log('[VCP Debug] History pushState detected.');
-        };
-        const originalReplaceState = history.replaceState;
-        history.replaceState = function() {
-            originalReplaceState.apply(this, arguments);
-            window.dispatchEvent(new Event('replacestate'));
-            console.log('[VCP Debug] History replaceState detected.');
-        };
-
-        window.addEventListener('popstate', handleUrlChange);
-        window.addEventListener('pushstate', handleUrlChange);
-        window.addEventListener('replacestate', handleUrlChange);
-        console.log('[VCP Debug] SPA detection set up.');
-
-        function handleUrlChange() {
-            const currentUrl = location.href;
-            if (currentUrl !== lastUrl) {
-                lastUrl = currentUrl;
-                console.log(`[VCP Debug] URL changed: ${currentUrl}, resetting and re-initializing.`);
-                resetAndInitialize();
+        // Existing MutationObserver logic for URL changes (fallback/additional trigger)
+        // Observes document as URL changes can occur at the document level in SPAs
+        new MutationObserver(() => {
+            if (location.href !== lastUrl) {
+                handleSpaNavigation();
             }
+        }).observe(document, { subtree: true, childList: true });
+
+        // New history API patching for pushState and popstate
+        if (!window._vcpPushStatePatched) { // Use a unique flag to avoid patching multiple times
+            const originalPushState = history.pushState;
+            history.pushState = function() {
+                originalPushState.apply(this, arguments);
+                handleSpaNavigation();
+            };
+            window._vcpPushStatePatched = true;
         }
+        window.addEventListener('popstate', handleSpaNavigation); // Listen for back/forward navigation
     }
 
-    function resetAndInitialize() {
-        isInitialized = false;
-        if (popupStyleObserver) { popupStyleObserver.disconnect(); popupStyleObserver = null; }
-        if (iconStyleObserver) { iconStyleObserver.disconnect(); iconStyleObserver = null; }
-        if (mainDOMObserver) { mainDOMObserver.disconnect(); mainDOMObserver = null; }
-
-        const existingIcon = document.getElementById('video-controller-circular-icon');
-        if (existingIcon && existingIcon.parentNode) {
-            existingIcon.parentNode.removeChild(existingIcon);
-        }
-        const existingPopup = document.getElementById('video-controller-popup');
-        if (existingPopup && existingPopup.parentNode) {
-            existingPopup.parentNode.removeChild(existingPopup);
-        }
-        circularIconElement = null;
-        popupElement = null;
-        currentVideo = null;
-        videos = [];
-        isPopupDragging = false;
-
-        console.log('[VCP Debug] Script reset and re-initializing.');
-        initialize();
-    }
-
-    function enforceVisibilityPeriodically() {
-        if (!circularIconElement || !document.documentElement.contains(circularIconElement)) {
-            createCircularIconElement();
-            showCircularIcon();
-            setupIconStyleObserver();
-            console.log('[VCP Debug] Enforce: Circular icon re-created/re-displayed.');
-        } else {
-            const computedStyle = window.getComputedStyle(circularIconElement);
-            const isCurrentlyVisible = (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden' && parseFloat(computedStyle.opacity) > 0.01);
-            if (!isCurrentlyVisible) {
-                setCircularIconVisibility();
-                showCircularIcon();
-                console.log('[VCP Debug] Enforce: Circular icon forced visible.');
+    function fixOverflow() {
+        const overflowFixSites = [
+            { domain: 'twitch.tv', selectors: ['div.video-player__container', 'div.video-player-theatre-mode__player', 'div.player-theatre-mode'] },
+        ];
+        overflowFixSites.forEach(site => {
+            if (location.hostname.includes(site.domain)) {
+                site.selectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => {
+                        el.style.overflow = 'visible';
+                    });
+                });
             }
-        }
-
-        if (!popupElement || !document.documentElement.contains(popupElement)) {
-            createPopupElement();
-            // setPopupVisibility(popupElement.dataset.vcpDesiredVisibility === 'visible'); // This will call originalSetPopupVisibility
-            // Instead, directly control display/visibility to avoid loop, and let originalSetPopupVisibility handle content
-            popupElement.style.display = (popupElement.dataset.vcpDesiredVisibility === 'visible') ? 'block' : 'none';
-            popupElement.style.visibility = (popupElement.dataset.vcpDesiredVisibility === 'visible') ? 'visible' : 'hidden';
-            popupElement.style.opacity = (popupElement.dataset.vcpDesiredVisibility === 'visible') ? '0.9' : '0';
-            setupPopupStyleObserver();
-            console.log('[VCP Debug] Enforce: Popup element re-created/re-displayed based on desired state.');
-        } else {
-            const computedStyle = window.getComputedStyle(popupElement);
-            const isCurrentlyVisible = (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden' && parseFloat(computedStyle.opacity) > 0.01);
-
-            if (popupElement.dataset.vcpDesiredVisibility === 'visible' && !isCurrentlyVisible) {
-                originalSetPopupVisibility(true);
-                console.warn('[VCP Debug] Enforce: Popup forced to desired visible state.');
-            } else if (popupElement.dataset.vcpDesiredVisibility === 'hidden' && isCurrentlyVisible) {
-                originalSetPopupVisibility(false);
-                console.warn('[VCP Debug] Enforce: Popup forced to desired hidden state.');
-            }
-        }
+        });
     }
-
 
     function initialize() {
-        if (isInitialized) {
-            console.log('[VCP Debug] Already initialized, skipping.');
-            return;
-        }
+        if (isInitialized) return;
         isInitialized = true;
-        console.log('[VCP Debug] Initialization started.');
 
-        try {
-            createPopupElement();
-            createCircularIconElement();
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_SPA_Enhanced');
 
-            setPopupVisibility(false);
-            showCircularIcon();
+        createPopupElement();
+        hidePopup();
 
-            setupPopupStyleObserver();
-            setupIconStyleObserver();
-            setupDOMObserver(); // DOM Observer is critical for dynamic content
-            setupSPADetection();
+        document.addEventListener('fullscreenchange', () => {
+            const fsEl = document.fullscreenElement;
+            if (popupElement) {
+                if (fsEl) {
+                    fsEl.appendChild(popupElement);
+                    showPopup();
+                } else {
+                    document.body.appendChild(popupElement);
+                }
+            }
+        });
 
-            // Periodically check visibility and re-trigger video detection
-            setInterval(() => {
-                enforceVisibilityPeriodically();
-                findAndSelectBestVideo(); // Re-evaluate best video more frequently
-            }, 500);
+        window.addEventListener('resize', () => {
+            updatePopupPosition();
+        });
+
+        // 스크롤 이벤트 리스너 추가
+        window.addEventListener('scroll', handleScrollEvent);
+
+        updateVideoList(); // moved here to ensure it's defined before call
+        setupDOMObserver();
+        setupSPADetection(); // Enhanced SPA detection
+        fixOverflow();
+
+        // 모바일 클릭 인식을 위해 'touchend' 이벤트 추가
+        document.body.addEventListener('click', selectVideoOnDocumentClick, true);
+        document.body.addEventListener('touchend', selectVideoOnDocumentClick, true);
 
 
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.addEventListener('fullscreenchange', handleFullscreenChange);
-
-            window.removeEventListener('resize', handleResize);
-            window.addEventListener('resize', handleResize);
-
-            // Scroll event already triggers findAndSelectBestVideo
-            window.removeEventListener('scroll', handleScrollEvent);
-            window.addEventListener('scroll', handleScrollEvent);
-
-            document.removeEventListener('click', selectVideoOnDocumentClick, true);
-            document.removeEventListener('touchend', selectVideoOnDocumentClick, true);
-            document.addEventListener('click', selectVideoOnDocumentClick, true);
-            document.addEventListener('touchend', selectVideoOnDocumentClick, true);
-
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            window.addEventListener('beforeunload', handleBeforeUnload);
-
-            findAndSelectBestVideo(); // Initial detection
-            console.log('[VCP Debug] Initialization complete.');
-
-        } catch (e) {
-            console.error('[VCP] Initialization failed fatally:', e);
-            alert('Video Controller Popup script encountered a critical error during initialization. Please check your browser console for details.');
-        }
+        window.addEventListener('beforeunload', () => {
+            console.log('[VCP] Page unloading. Clearing current video and removing popup.');
+            currentVideo = null;
+            if (popupElement && popupElement.parentNode) {
+                popupElement.parentNode.removeChild(popupElement);
+                popupElement = null;
+            }
+        });
     }
 
-    function handleFullscreenChange() {
-        const fsEl = document.fullscreenElement;
-        if (!fsEl) {
-            enforceVisibilityPeriodically();
-            console.log('[VCP Debug] Fullscreen exited, enforcing visibility.');
-        }
-    }
-
-    function handleResize() {
-        setPopupVisibility(popupElement.dataset.vcpDesiredVisibility === 'visible');
-        showCircularIcon();
-        console.log('[VCP Debug] Window resized, re-positioning popup and icon.');
-    }
-
-    function handleBeforeUnload() {
-        currentVideo = null;
-        if (popupStyleObserver) popupStyleObserver.disconnect();
-        if (iconStyleObserver) iconStyleObserver.disconnect();
-        if (mainDOMObserver) mainDOMObserver.disconnect();
-
-        document.removeEventListener('fullscreenchange', handleFullscreenChange);
-        window.removeEventListener('resize', handleResize);
-        window.removeEventListener('scroll', handleScrollEvent);
-        document.removeEventListener('click', selectVideoOnDocumentClick, true);
-        document.removeEventListener('touchend', selectVideoOnDocumentClick, true);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-
-        isInitialized = false;
-        console.log('[VCP Debug] Before unload: Script cleaned up.');
-    }
-
-    // Ensure initialization happens as early as possible or after DOM is ready
-    if (document.readyState === 'loading') {
-        window.addEventListener('DOMContentLoaded', initialize);
-    } else {
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
         initialize();
+    } else {
+        window.addEventListener('DOMContentLoaded', initialize);
     }
 })();
