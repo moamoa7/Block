@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.42: ReferenceError Fix, No Amplification, No PIP/Fullscreen Buttons)
 // @namespace Violentmonkey Scripts
-// @version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Optimized_V2
-// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Amplification, PIP, and fullscreen exit buttons removed. Improved auto-detection for dynamic sites. Fixed popup flashing and position issues. Enhanced Chzzk audio leak fix with play override and preview blocking. Performance optimized with selective interval and observer usage.
+// @version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Amplification, PIP, and fullscreen exit buttons removed. Improved auto-detection for dynamic sites. Fixed popup flashing and position issues. Enhanced Chzzk audio leak fix with play override and preview blocking.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -10,283 +10,493 @@
 (function() {
     'use strict';
 
-    let videos = [], currentVideo = null, popupElement = null, desiredPlaybackRate = 1.0, desiredVolume = 1.0;
-    let isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0;
-    const videoRateHandlers = new WeakMap(), originalPlayMethods = new WeakMap();
-    let isInitialized = false;
-    let checkVideoInterval = null, popupHideTimer = null; // Changed to be directly managed
+    // --- Core Variables & State Management ---
+    let videos = [], currentVideo = null, popupElement = null, desiredPlaybackRate = 1.0, desiredVolume = 1.0,
+        isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
+    let isManuallyPaused = false;
+    const videoRateHandlers = new WeakMap(); // ratechange 이벤트 리스너 관리를 위해 다시 사용
+    let checkVideoInterval = null; // 비디오 상태를 주기적으로 확인할 인터벌 변수
+    const originalPlayMethods = new WeakMap(); // 원본 play() 메서드를 저장
 
+    // --- Configuration ---
+    let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
-    const AUTO_CHECK_VIDEO_INTERVAL_MS = 300; // General interval for video status, popup position
+    const AUTO_CHECK_VIDEO_INTERVAL_MS = 300; // 0.3초마다 비디오 상태 확인 (더 빠르게 반응)
 
-    // MutationObserver for DOM changes
-    let domObserver = null;
-
+    // 여기에 팝업을 차단하고 싶은 사이트의 도메인과 경로 조건을 추가합니다.
     const SITE_POPUP_BLOCK_LIST = [
-        { domain: 'sooplive.co.kr' }, { domain: 'twitch.tv' }, { domain: 'kick.com' }, { domain: 'anotherpreview.net' }
+        { domain: 'sooplive.co.kr', pathIncludes: null }, // 모든 경로에서 차단
+        { domain: 'twitch.tv', pathIncludes: null },     // 모든 경로에서 차단
+        { domain: 'kick.com', pathIncludes: null },      // 모든 경로에서 차단
+        { domain: 'anotherpreview.net', pathIncludes: null }, // 모든 경로에서 차단
+        // 예시: 'previewsite.com'의 '/preview/' 경로에서만 팝업 차단
+        // { domain: 'previewsite.com', pathIncludes: '/preview/' }
     ];
-    const isPopupGloballyBlocked = SITE_POPUP_BLOCK_LIST.some(r => location.hostname.includes(r.domain));
-    const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(s => location.hostname.includes(s));
-    const isChzzkSite = location.hostname.includes('chzzk.naver.com');
 
-    // --- Utility Functions ---
+    const isPopupGloballyBlocked = SITE_POPUP_BLOCK_LIST.some(blockRule => {
+        const isDomainMatch = location.hostname.includes(blockRule.domain);
+        if (!isDomainMatch) return false;
+
+        if (blockRule.pathIncludes) {
+            return location.pathname.includes(blockRule.pathIncludes);
+        }
+        return true;
+    });
+
+    const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
+    const isChzzkSite = location.hostname.includes('chzzk.naver.com'); // 치지직 도메인 확인
+
+    // --- Utility Functions (Moved to top for scope visibility) ---
     function findAllVideosDeep(root = document) {
         const videoElements = new Set();
-        (function findInNode(node) {
+        // shadowRoot를 포함한 모든 video, audio 요소 찾기
+        function findInNode(node) {
             node.querySelectorAll('video, audio').forEach(v => videoElements.add(v));
-            node.querySelectorAll('*').forEach(el => el.shadowRoot && findInNode(el.shadowRoot));
-        })(root);
+            node.querySelectorAll('*').forEach(el => {
+                if (el.shadowRoot) {
+                    findInNode(el.shadowRoot);
+                }
+            });
+        }
+        findInNode(root);
         return Array.from(videoElements);
+    }
+
+    function findPlayableVideos() {
+        const found = findAllVideosDeep();
+        if (!isLazySrcBlockedSite) found.forEach(v => { if (!v.src && v.dataset && v.dataset.src) v.src = v.dataset.src; });
+        const playableVideos = found.filter(v => {
+            const style = window.getComputedStyle(v);
+            const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
+            const rect = v.getBoundingClientRect();
+            const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
+            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
+            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
+            // 치지직의 경우, 미리보기 비디오는 playable로 간주하되, 팝업 선택에서는 제외될 수 있음
+            if (isChzzkSite && v.closest('.live_thumbnail_list_item')) {
+                return true; // 치지직 미리보기는 기술적으로는 재생 가능한 것으로 간주
+            }
+            return isVisible && isReasonableSize && hasMedia;
+        });
+        videos = playableVideos; // Update global videos list
+        return playableVideos;
     }
 
     function calculateCenterDistanceScore(video, intersectionRatio) {
         const rect = video.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+
         const videoCenterY = rect.top + (rect.height / 2);
-        const normalizedDistance = Math.abs(videoCenterY - (window.innerHeight / 2)) / window.innerHeight;
-        return intersectionRatio - normalizedDistance;
+        const viewportCenterY = viewportHeight / 2;
+
+        const distance = Math.abs(videoCenterY - viewportCenterY);
+        const normalizedDistance = distance / viewportHeight;
+
+        const score = intersectionRatio - normalizedDistance;
+        return score;
     }
 
     function calculateIntersectionRatio(video) {
-        const rect = video.getBoundingClientRect(), vH = window.innerHeight, vW = window.innerWidth;
-        const iTop = Math.max(0, rect.top), iBottom = Math.min(vH, rect.bottom);
-        const iLeft = Math.max(0, rect.left), iRight = Math.min(vW, rect.right);
-        const iArea = Math.max(0, iRight - iLeft) * Math.max(0, iBottom - iTop);
+        const rect = video.getBoundingClientRect();
+        const viewportHeight = window.innerHeight, viewportWidth = window.innerWidth;
+
+        const intersectionTop = Math.max(0, rect.top);
+        const intersectionBottom = Math.min(viewportHeight, rect.bottom);
+        const intersectionLeft = Math.max(0, rect.left);
+        const intersectionRight = Math.min(viewportWidth, rect.right);
+
+        const intersectionHeight = intersectionBottom - intersectionTop;
+        const intersectionWidth = intersectionRight - intersectionLeft;
+
+        const intersectionArea = Math.max(0, intersectionWidth) * Math.max(0, intersectionHeight);
         const videoArea = rect.width * rect.height;
-        return videoArea > 0 ? iArea / videoArea : 0;
+
+        return videoArea > 0 ? intersectionArea / videoArea : 0;
     }
 
+    // 현재 선택된 비디오가 유효하고 화면에 보이는지 확인
     function checkCurrentVideoVisibility() {
         if (!currentVideo) return false;
-        const rect = currentVideo.getBoundingClientRect(), style = getComputedStyle(currentVideo);
-        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && +style.opacity > 0;
+        const rect = currentVideo.getBoundingClientRect();
+        const style = window.getComputedStyle(currentVideo);
+        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
         const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
         const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || currentVideo.tagName === 'AUDIO' || !currentVideo.paused;
         const hasMedia = currentVideo.videoWidth > 0 || currentVideo.videoHeight > 0 || currentVideo.tagName === 'AUDIO';
+
         return isVisible && isWithinViewport && isReasonableSize && hasMedia && document.body.contains(currentVideo);
     }
 
-    // --- Video Control & Selection Logic ---
     function selectAndControlVideo(videoToControl) {
-        if (isPopupGloballyBlocked) { currentVideo && currentVideo.pause(); currentVideo = null; hidePopup(); return; }
-        if (!videoToControl) { currentVideo && currentVideo.pause(); currentVideo = null; hidePopup(); return; }
-
-        // Chzzk 미리보기 비디오는 팝업 제어 대상에서 제외
-        if (isChzzkSite && videoToControl.closest('.live_thumbnail_list_item')) {
-            console.log('[VCP-Chzzk] Blocking popup for preview video. Only controlling audio.');
-            if (currentVideo && !currentVideo.closest('.live_thumbnail_list_item')) { /* 기존 메인 비디오 유지 */ }
-            else { hidePopup(); return; }
+        // 팝업이 완전히 차단된 사이트에서는 이 함수가 실행되지 않도록 합니다.
+        if (isPopupGloballyBlocked) {
+            if (currentVideo) { currentVideo.pause(); currentVideo = null; }
+            hidePopup();
+            return;
         }
 
+        if (!videoToControl) {
+            if (currentVideo) { currentVideo.pause(); currentVideo = null; hidePopup(); }
+            return;
+        }
+
+        // --- 치지직 미리보기 비디오는 메인 컨트롤 대상으로 삼지 않음 ---
+        if (isChzzkSite && videoToControl.closest('.live_thumbnail_list_item')) {
+            console.log('[VCP-Chzzk] Blocking popup for preview video. Only controlling audio.');
+            // 미리보기 비디오 자체는 컨트롤 대상으로 삼지 않으므로 여기서 리턴
+            // 대신, 이 비디오의 소리는 startCheckingVideoStatus에서 제어될 것입니다.
+            if (currentVideo) {
+                // 이전에 메인 비디오를 제어하고 있었다면 그대로 유지
+                // 없다면 팝업을 숨김
+                if (!currentVideo.closest('.live_thumbnail_list_item')) {
+                    // 현재 제어하는 비디오가 미리보기가 아닌 메인 비디오인 경우
+                    // 그대로 두고 이 함수를 종료하여 팝업이 뜨는 것을 막지 않음.
+                    // 이 분기가 작동하려면 이 함수를 호출하는 곳에서 previewVideo에 대한 처리가 선행되어야 함.
+                } else {
+                    // 현재 currentVideo가 미리보기인데, 새로운 비디오가 미리보기라면 팝업을 숨김
+                    // 즉, 메인 컨트롤 팝업은 미리보기 비디오에 대해서는 뜨지 않음
+                    hidePopup();
+                    return; // 중요: 미리보기 비디오는 여기서 메인 컨트롤 로직에서 제외
+                }
+            } else {
+                hidePopup(); // 현재 비디오가 없으면 팝업 숨김
+                return; // 중요: 미리보기 비디오는 여기서 메인 컨트롤 로직에서 제외
+            }
+        }
+        // --- 치지직 미리보기 비디오 제어 제외 로직 끝 ---
+
+
+        // 기존 currentVideo와 다른 비디오가 선택되면 기존 비디오의 원본 play() 메서드 복원
         if (currentVideo && currentVideo !== videoToControl && originalPlayMethods.has(currentVideo)) {
             currentVideo.play = originalPlayMethods.get(currentVideo);
             originalPlayMethods.delete(currentVideo);
         }
 
-        findAllVideosDeep().forEach(v => {
-            if (v !== videoToControl) {
-                if (originalPlayMethods.has(v) && v !== currentVideo) { // currentVideo는 오버라이드 제거 대상에서 제외
-                    v.play = originalPlayMethods.get(v); originalPlayMethods.delete(v);
+        // 현재 제어할 비디오를 제외한 모든 비디오 일시 정지 및 음소거 (강화)
+        findAllVideosDeep().forEach(video => {
+            if (video !== videoToControl) {
+                // 원본 play 메서드 복원 (currentVideo가 아닌 경우) - 이미 위에서 처리될 수 있지만 안전 장치
+                if (originalPlayMethods.has(video) && video !== currentVideo) { // currentVideo도 오버라이드 제거 대상에서 제외
+                    video.play = originalPlayMethods.get(video);
+                    originalPlayMethods.delete(video);
                 }
-                if (!v.paused) v.pause();
-                v.muted = true; v.volume = 0; v.currentTime = 0;
+                if (!video.paused) { // 재생 중인 비디오는 일시 정지
+                    video.pause();
+                }
+                video.muted = true; // 강제 음소거
+                video.volume = 0;   // 볼륨도 0으로 설정
+                video.currentTime = 0; // 재생 위치 초기화 (옵션)
             }
         });
 
         currentVideo = videoToControl;
-        if (originalPlayMethods.has(currentVideo)) { // 현재 비디오는 play 오버라이드 제거
-            currentVideo.play = originalPlayMethods.get(currentVideo); originalPlayMethods.delete(currentVideo);
-        }
-        currentVideo.autoplay = true; currentVideo.playsInline = true; currentVideo.muted = false;
-        console.log('[VCP] Video selected automatically. Resetting controls.');
-        fixPlaybackRate(currentVideo, 1.0); setNormalVolume(currentVideo, 1.0);
-        currentVideo.play().catch(e => console.warn("Autoplay/Play failed:", e));
 
-        updatePopupSliders(); updatePopupPosition(); showPopup(); resetPopupHideTimer();
-        startCheckingVideoStatus(); // 비디오 선택 시 인터벌 재개
+        // currentVideo에 대한 play() 오버라이드 제거 (있다면)
+        if (originalPlayMethods.has(currentVideo)) {
+            currentVideo.play = originalPlayMethods.get(currentVideo);
+            originalPlayMethods.delete(currentVideo);
+        }
+
+        currentVideo.autoplay = true;
+        currentVideo.playsInline = true;
+        currentVideo.muted = false; // 기본 음소거 해제
+        console.log('[VCP] Video selected automatically based on prominence. Resetting controls.');
+        fixPlaybackRate(currentVideo, 1.0); // ratechange 이벤트 리스너를 통해 배속 보정
+        setNormalVolume(currentVideo, 1.0);
+        isManuallyPaused = false;
+
+        currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
+
+        updatePopupSliders();
+        updatePopupPosition(); // 비디오 선택 시 팝업 위치 업데이트
+        showPopup();
+        resetPopupHideTimer(); // 팝업이 띄워졌으니 숨김 타이머를 리셋합니다.
     }
 
+    // fixPlaybackRate 함수를 ratechange 이벤트 리스너 방식으로 롤백
     function fixPlaybackRate(video, rate) {
         if (!video || typeof video.playbackRate === 'undefined') return;
         desiredPlaybackRate = rate;
-        const handler = videoRateHandlers.get(video);
-        if (handler) video.removeEventListener('ratechange', handler);
-        const newHandler = () => video.playbackRate !== desiredPlaybackRate && (video.playbackRate = desiredPlaybackRate);
-        video.playbackRate = rate; video.addEventListener('ratechange', newHandler);
-        videoRateHandlers.set(video, newHandler);
+        const existingHandler = videoRateHandlers.get(video);
+        if (existingHandler) video.removeEventListener('ratechange', existingHandler);
+
+        const rateChangeHandler = () => {
+            if (video.playbackRate !== desiredPlaybackRate) video.playbackRate = desiredPlaybackRate;
+        };
+
+        video.playbackRate = rate;
+        video.addEventListener('ratechange', rateChangeHandler);
+        videoRateHandlers.set(video, rateChangeHandler);
     }
 
+    // 볼륨 설정을 기본 HTML5 비디오/오디오 요소로만 제어
     function setNormalVolume(video, vol) {
         if (!video || typeof video.volume === 'undefined') return;
-        desiredVolume = vol; video.muted = false;
-        video.volume = Math.max(0, Math.min(1.0, vol));
-    }
-
-    function updateVideoList() {
-        const found = findAllVideosDeep();
-        // src가 없으면 data-src 확인 (missav.ws, missav.live 같은 사이트용)
-        if (!isLazySrcBlockedSite) found.forEach(v => { if (!v.src && v.dataset.src) v.src = v.dataset.src; });
-
-        videos = found.filter(v => {
-            const style = getComputedStyle(v), rect = v.getBoundingClientRect();
-            const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
-            const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && +style.opacity > 0;
-            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
-            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
-            // 치지직 미리보기는 findPlayableVideos에서 true로 간주했었으나, 여기서는 선택 로직을 따름.
-            return isVisible && isReasonableSize && hasMedia;
-        });
-
-        // 현재 선택된 비디오가 유효하지 않거나 미리보기 비디오라면 리셋
-        if (currentVideo && (!document.body.contains(currentVideo) || !videos.includes(currentVideo) || (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')))) {
-            console.log('[VCP] Current video no longer valid or is Chzzk preview. Resetting.');
-            currentVideo && currentVideo.pause();
-            currentVideo = null;
-            hidePopup();
-        }
-    }
-
-    function selectVideoOnDocumentClick(e) {
-        if (isPopupGloballyBlocked) { currentVideo && currentVideo.pause(); currentVideo = null; hidePopup(); return; }
-        // 팝업 자체 클릭 시 타이머만 리셋하고 종료 (비디오 재선택 방지)
-        if (popupElement && e && popupElement.contains(e.target)) { resetPopupHideTimer(); return; }
-
-        updateVideoList();
-        let bestVideo = null, maxScore = -Infinity;
-
-        videos.forEach(video => {
-            // 치지직 미리보기 비디오는 메인 컨트롤 대상에서 제외
-            if (isChzzkSite && video.closest('.live_thumbnail_list_item')) return;
-
-            const ratio = calculateIntersectionRatio(video), score = calculateCenterDistanceScore(video, ratio);
-            // 현재 재생 중인 비디오가 있다면 최우선으로 선택 (가장 확실한 '메인' 비디오)
-            if (!video.paused && video.duration > 0 && !video.ended) { bestVideo = video; maxScore = Infinity; return; }
-            if (ratio > 0 && score > maxScore) { maxScore = score; bestVideo = video; }
-        });
-
-        if (bestVideo && (maxScore > -0.5 || bestVideo.tagName === 'AUDIO' || !bestVideo.paused)) {
-            if (currentVideo && currentVideo !== bestVideo) { // 새 비디오 선택
-                console.log('[VCP] Switching video. Hiding previous popup.');
-                currentVideo && currentVideo.pause(); hidePopup();
-                selectAndControlVideo(bestVideo);
-            } else if (currentVideo === bestVideo) { // 같은 비디오 클릭
-                e && (showPopup(), resetPopupHideTimer());
-            } else { // 초기 선택
-                selectAndControlVideo(bestVideo);
-            }
-        } else { // 적합한 비디오가 없을 때
-            currentVideo && currentVideo.pause(); currentVideo = null;
-            !isPopupDragging && hidePopup();
-            stopCheckingVideoStatus(); // 비디오가 없으면 인터벌 중지
-        }
+        desiredVolume = vol;
+        video.muted = false; // 볼륨 조절 시 음소거 해제
+        video.volume = Math.max(0, Math.min(1.0, vol)); // 0.0에서 1.0 사이로 값 제한
     }
 
     // --- Popup UI Functions ---
     function createPopupElement() {
         if (popupElement) return;
+
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
+        // 초기 transform 속성을 유지하고, 위치는 left/top으로 고정
         popupElement.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px; padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; display: none; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); width: 230px; overflow: hidden; text-align: center; pointer-events: auto;`;
 
-        popupElement.innerHTML = `
-            <div id="vcp-drag-handle" style="font-weight: bold; margin-bottom: 8px; color: #ccc; padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none;">비디오.오디오 컨트롤러</div>
-            <div style="padding: 10px;">
-                <div style="display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 10px;">
-                    <button data-action="play-pause" style="background-color: #333; color: white; border: 1.5px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;">재생/멈춤</button>
-                    <button data-action="reset-speed-volume" style="background-color: #333; color: white; border: 1.5px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;">재설정</button>
-                </div>
-                <div class="vcp-section" style="margin-bottom: 10px;">
-                    <label for="vcp-speed" style="display: block; margin-bottom: 5px; color: #ccc;">배속 조절: <span id="vcp-speed-display">1.00</span>x</label>
-                    <input type="range" id="vcp-speed" min="0.2" max="16.0" step="0.2" value="1.0" style="width: 100%; cursor: pointer;">
-                </div>
-                <div class="vcp-section" style="margin-bottom: 10px;">
-                    <label for="vcp-volume" style="display: block; margin-bottom: 5px; color: #ccc;">소리 조절: <span id="vcp-volume-display">100</span>%</label>
-                    <input type="range" id="vcp-volume" min="0.0" max="1.0" step="0.01" value="1.0" style="width: 100%; cursor: pointer;">
-                </div>
-                <div id="vcp-status" style="margin-top: 10px; font-size: 12px; color: #aaa;">Status: Ready</div>
-            </div>`;
+        const dragHandle = document.createElement('div');
+        dragHandle.id = 'vcp-drag-handle';
+        dragHandle.textContent = '비디오.오디오 컨트롤러';
+        dragHandle.style.cssText = `font-weight: bold; margin-bottom: 8px; color: #ccc; padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none;`;
+        popupElement.appendChild(dragHandle);
+
+        const contentContainer = document.createElement('div');
+        contentContainer.style.cssText = 'padding: 10px;';
+
+        const buttonSection = document.createElement('div');
+        buttonSection.style.cssText = 'display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 10px;';
+
+        const playPauseBtn = document.createElement('button');
+        playPauseBtn.setAttribute('data-action', 'play-pause');
+        playPauseBtn.textContent = '재생/멈춤';
+        playPauseBtn.style.cssText = `background-color: #333; color: white; border: 1.5px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
+
+        const resetBtn = document.createElement('button');
+        resetBtn.setAttribute('data-action', 'reset-speed-volume');
+        resetBtn.textContent = '재설정';
+        resetBtn.style.cssText = `background-color: #333; color: white; border: 1.5px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
+
+        buttonSection.appendChild(playPauseBtn);
+        buttonSection.appendChild(resetBtn);
+        contentContainer.appendChild(buttonSection);
+
+        const speedSection = document.createElement('div');
+        speedSection.className = 'vcp-section';
+        speedSection.style.marginBottom = '10px';
+
+        const speedLabel = document.createElement('label');
+        speedLabel.htmlFor = 'vcp-speed';
+        speedLabel.style.cssText = 'display: block; margin-bottom: 5px; color: #ccc;';
+
+        const speedDisplay = document.createElement('span');
+        speedDisplay.id = 'vcp-speed-display';
+        speedDisplay.textContent = '1.00';
+        speedLabel.textContent = '배속 조절: ';
+        speedLabel.appendChild(speedDisplay);
+        speedLabel.appendChild(document.createTextNode('x'));
+
+        const speedInput = document.createElement('input');
+        speedInput.type = 'range';
+        speedInput.id = 'vcp-speed';
+        speedInput.min = '0.2';
+        speedInput.max = '16.0';
+        speedInput.step = '0.2';
+        speedInput.value = '1.0';
+        speedInput.style.cssText = 'width: 100%; cursor: pointer;';
+
+        speedSection.appendChild(speedLabel);
+        speedSection.appendChild(speedInput);
+        contentContainer.appendChild(speedSection);
+
+        const volumeSection = document.createElement('div');
+        volumeSection.className = 'vcp-section';
+        volumeSection.style.marginBottom = '10px';
+
+        const volumeLabel = document.createElement('label');
+        volumeLabel.htmlFor = 'vcp-volume';
+        volumeLabel.style.cssText = 'display: block; margin-bottom: 5px; color: #ccc;';
+
+        const volumeDisplay = document.createElement('span');
+        volumeDisplay.id = 'vcp-volume-display';
+        volumeDisplay.textContent = '100';
+        volumeLabel.textContent = '소리 조절: ';
+        volumeLabel.appendChild(volumeDisplay);
+        volumeLabel.appendChild(document.createTextNode('%'));
+
+        const volumeInput = document.createElement('input');
+        volumeInput.type = 'range';
+        volumeInput.id = 'vcp-volume';
+        volumeInput.min = '0.0';
+        volumeInput.max = '1.0';
+        volumeInput.step = '0.01';
+        volumeInput.value = '1.0';
+        volumeInput.style.cssText = 'width: 100%; cursor: pointer;';
+
+        volumeSection.appendChild(volumeLabel);
+        volumeSection.appendChild(volumeInput);
+        contentContainer.appendChild(volumeSection);
+
+        const statusElement = document.createElement('div');
+        statusElement.id = 'vcp-status';
+        statusElement.textContent = 'Status: Ready';
+        statusElement.style.cssText = 'margin-top: 10px; font-size: 12px; color: #aaa;';
+        contentContainer.appendChild(statusElement);
+
+        popupElement.appendChild(contentContainer);
         document.body.appendChild(popupElement);
         setupPopupEventListeners();
     }
 
     function handleButtonClick(action) {
         if (!currentVideo) { updateStatus('No video selected.'); return; }
-        if (isPopupGloballyBlocked) { updateStatus('Popup controls disabled on this site.'); return; }
-        resetPopupHideTimer(); // 버튼 클릭 시 팝업 숨김 타이머 리셋
+        // 팝업이 완전히 차단된 사이트에서는 버튼 클릭 동작도 제한
+        if (isPopupGloballyBlocked) {
+            updateStatus('Popup controls disabled on this site.');
+            return;
+        }
+        resetPopupHideTimer();
 
-        if (action === 'play-pause') {
-            currentVideo.paused ? (currentVideo.muted = false, currentVideo.play().catch(e => console.error("Play failed:", e)), updateStatus('Playing')) : (currentVideo.pause(), updateStatus('Paused'));
-        } else if (action === 'reset-speed-volume') {
-            desiredPlaybackRate = 1.0; fixPlaybackRate(currentVideo, 1.0);
-            setNormalVolume(currentVideo, 1.0); currentVideo.muted = false;
-            updatePopupSliders(); updateStatus('1.0x Speed / 100% Volume');
+        switch (action) {
+            case 'play-pause':
+                if (currentVideo.paused) {
+                    isManuallyPaused = false;
+                    currentVideo.muted = false;
+                    currentVideo.play().catch(e => console.error("Play failed:", e));
+                    updateStatus('Playing');
+                } else {
+                    isManuallyPaused = true;
+                    currentVideo.pause();
+                    updateStatus('Paused');
+                }
+                break;
+            case 'reset-speed-volume':
+                desiredPlaybackRate = 1.0;
+                fixPlaybackRate(currentVideo, 1.0); // ratechange 이벤트 리스너를 통해 배속 보정
+                setNormalVolume(currentVideo, 1.0);
+                currentVideo.muted = false;
+                updatePopupSliders();
+                updateStatus('1.0x Speed / 100% Volume');
+                break;
         }
     }
 
     function setupPopupEventListeners() {
         if (!popupElement) return;
-        popupElement.addEventListener('click', e => e.target.getAttribute('data-action') && handleButtonClick(e.target.getAttribute('data-action')));
 
-        const speedInput = popupElement.querySelector('#vcp-speed'), speedDisplay = popupElement.querySelector('#vcp-speed-display');
-        speedInput.addEventListener('input', () => {
-            if (isPopupGloballyBlocked) { updateStatus('Popup controls disabled on this site.'); return; }
-            resetPopupHideTimer();
-            const rate = parseFloat(speedInput.value); desiredPlaybackRate = rate; speedDisplay.textContent = rate.toFixed(2);
-            currentVideo && (fixPlaybackRate(currentVideo, rate), updateStatus(`Speed: ${rate.toFixed(2)}x`));
+        popupElement.addEventListener('click', (e) => {
+            const action = e.target.getAttribute('data-action');
+            if (action) handleButtonClick(action);
         });
 
-        const volumeInput = popupElement.querySelector('#vcp-volume'), volumeDisplay = popupElement.querySelector('#vcp-volume-display');
-        volumeInput.addEventListener('input', () => {
-            if (isPopupGloballyBlocked) { updateStatus('Popup controls disabled on this site.'); return; }
+        const speedInput = popupElement.querySelector('#vcp-speed');
+        const speedDisplay = popupElement.querySelector('#vcp-speed-display');
+        speedInput.addEventListener('input', () => {
+            // 팝업이 완전히 차단된 사이트에서는 슬라이더 동작도 제한
+            if (isPopupGloballyBlocked) {
+                updateStatus('Popup controls disabled on this site.');
+                return;
+            }
             resetPopupHideTimer();
-            const vol = parseFloat(volumeInput.value); desiredVolume = vol; volumeDisplay.textContent = Math.round(vol * 100);
-            currentVideo && (setNormalVolume(currentVideo, vol), updateStatus(`Volume: ${Math.round(vol * 100)}%`));
+            const rate = parseFloat(speedInput.value);
+            desiredPlaybackRate = rate;
+            speedDisplay.textContent = rate.toFixed(2);
+            if (currentVideo) { fixPlaybackRate(currentVideo, rate); updateStatus(`Speed: ${rate.toFixed(2)}x`); }
+        });
+
+        const volumeInput = popupElement.querySelector('#vcp-volume');
+        const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
+        volumeInput.addEventListener('input', () => {
+            // 팝업이 완전히 차단된 사이트에서는 슬라이더 동작도 제한
+            if (isPopupGloballyBlocked) {
+                updateStatus('Popup controls disabled on this site.');
+                return;
+            }
+            resetPopupHideTimer();
+            const vol = parseFloat(volumeInput.value);
+            volumeDisplay.textContent = Math.round(vol * 100);
+            if (currentVideo) { setNormalVolume(currentVideo, vol); updateStatus(`Volume: ${Math.round(vol * 100)}%`); }
         });
 
         const dragHandle = popupElement.querySelector('#vcp-drag-handle');
-        const startDrag = e => {
-            if (isPopupGloballyBlocked || e.target !== dragHandle) return;
-            resetPopupHideTimer(); isPopupDragging = true; dragHandle.style.cursor = 'grabbing';
-            const [cX, cY] = [e.clientX || (e.touches && e.touches[0].clientX), e.clientY || (e.touches && e.touches[0].clientY)];
+        const startDrag = (e) => {
+            // 팝업이 완전히 차단된 사이트에서는 드래그 동작도 제한
+            if (isPopupGloballyBlocked) return;
+            if (e.target !== dragHandle) return;
+            resetPopupHideTimer();
+            isPopupDragging = true;
+            dragHandle.style.cursor = 'grabbing';
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
             const rect = popupElement.getBoundingClientRect();
-            [popupDragOffsetX, popupDragOffsetY] = [cX - rect.left, cY - rect.top];
-            popupElement.style.position = 'fixed'; popupElement.style.transform = 'none'; document.body.style.userSelect = 'none';
+            popupDragOffsetX = clientX - rect.left;
+            popupDragOffsetY = clientY - rect.top;
+            popupElement.style.position = 'fixed';
+            // 드래그 시작 시 transform을 제거하여 left/top으로만 제어
+            popupElement.style.transform = 'none';
+            document.body.style.userSelect = 'none';
         };
+
         const stopDrag = () => {
-            if (!isPopupDragging) return;
-            isPopupDragging = false; dragHandle.style.cursor = 'grab'; document.body.style.userSelect = '';
-            resetPopupHideTimer(); updatePopupPosition();
-        };
-        const dragPopup = e => {
-            if (!isPopupDragging) return;
-            const [cX, cY] = [e.clientX || (e.touches && e.touches[0].clientX), e.clientY || (e.touches && e.touches[0].clientY)];
-            if (cX === undefined || cY === undefined) return;
-            popupElement.style.left = `${cX - popupDragOffsetX}px`; popupElement.style.top = `${cY - popupDragOffsetY}px`;
+            if (isPopupDragging) {
+                isPopupDragging = false;
+                dragHandle.style.cursor = 'grab';
+                document.body.style.userSelect = '';
+                resetPopupHideTimer();
+                // 드래그가 끝난 후 다시 중앙 정렬 transform 적용
+                updatePopupPosition();
+            }
         };
 
-        dragHandle.addEventListener('mousedown', startDrag); dragHandle.addEventListener('touchstart', startDrag);
-        document.addEventListener('mousemove', dragPopup); document.addEventListener('touchmove', dragPopup);
-        document.addEventListener('mouseup', stopDrag); document.addEventListener('touchend', stopDrag);
+        const dragPopup = (e) => {
+            if (!isPopupDragging) return;
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            if (clientX === undefined || clientY === undefined) return;
+            popupElement.style.left = `${clientX - popupDragOffsetX}px`;
+            popupElement.style.top = `${clientY - popupDragOffsetY}px`;
+        };
+
+        dragHandle.addEventListener('mousedown', startDrag);
+        dragHandle.addEventListener('touchstart', startDrag);
+        document.addEventListener('mousemove', dragPopup);
+        document.addEventListener('touchmove', dragPopup);
+        document.addEventListener('mouseup', stopDrag);
+        document.addEventListener('touchend', stopDrag);
         document.addEventListener('mouseleave', stopDrag);
-    }
-
-    function updateStatus(message) {
-        const statusElement = popupElement?.querySelector('#vcp-status');
-        if (statusElement) statusElement.textContent = `Status: ${message}`;
     }
 
     function setPopupVisibility(isVisible) {
         if (!popupElement) return;
+
+        // 팝업이 완전히 차단된 사이트에서는 항상 숨김
         if (isPopupGloballyBlocked) {
             popupElement.style.setProperty('display', 'none', 'important');
-            popupElement.style.opacity = '0'; popupElement.style.visibility = 'hidden'; return;
+            popupElement.style.opacity = '0';
+            popupElement.style.visibility = 'hidden';
+            return;
         }
-        const styles = isVisible ? { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' } : { display: 'none', opacity: '0', visibility: 'hidden' };
-        for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
+
+        if (isVisible) {
+            const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
+            for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
+        } else {
+            if (isPopupGloballyBlocked && !isPopupDragging) {
+                popupElement.style.setProperty('display', 'none', 'important');
+            } else {
+                popupElement.style.display = 'none';
+                popupElement.style.opacity = '0';
+                popupElement.style.visibility = 'hidden';
+            }
+        }
     }
 
     function showPopup() {
-        if (!currentVideo) { hidePopup(); return; }
-        if (isPopupGloballyBlocked || (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item'))) { hidePopup(); return; }
+        if (!currentVideo) {
+            hidePopup();
+            return;
+        }
+        // 팝업이 완전히 차단된 사이트에서는 보이지 않도록 함
+        if (isPopupGloballyBlocked) {
+            hidePopup();
+            return;
+        }
+        // 치지직 미리보기 비디오에 대해서는 팝업을 표시하지 않음
+        if (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')) {
+            hidePopup();
+            return;
+        }
         setPopupVisibility(true);
     }
 
@@ -294,145 +504,238 @@
 
     function resetPopupHideTimer() {
         if (popupHideTimer) clearTimeout(popupHideTimer);
-        if (!isPopupGloballyBlocked && !isPopupDragging) popupHideTimer = setTimeout(hidePopup, POPUP_TIMEOUT_MS);
+        // 팝업이 완전히 차단된 사이트에서는 타이머 자체가 의미 없으므로 리턴
+        if (isPopupGloballyBlocked) return;
+        if (!isPopupDragging) popupHideTimer = setTimeout(hidePopup, POPUP_TIMEOUT_MS);
     }
 
     function updatePopupPosition() {
-        if (!currentVideo || isPopupGloballyBlocked || (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item'))) { hidePopup(); return; }
-        if (!popupElement || !currentVideo || isPopupDragging) return;
+        if (!currentVideo) {
+            hidePopup();
+            return;
+        }
+        // 팝업이 완전히 차단된 사이트에서는 위치 업데이트도 하지 않음
+        if (isPopupGloballyBlocked) {
+            hidePopup();
+            return;
+        }
+        // 치지직 미리보기 비디오에 대해서는 팝업을 표시하지 않음
+        if (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')) {
+            hidePopup();
+            return;
+        }
+
+        if (!popupElement || !currentVideo || isPopupDragging) {
+            return;
+        }
 
         const videoRect = currentVideo.getBoundingClientRect();
         const isVideoVisible = videoRect.top < window.innerHeight && videoRect.bottom > 0 && videoRect.left < window.innerWidth && videoRect.right > 0;
 
         if (isVideoVisible) {
-            const [targetX, targetY] = [videoRect.left + (videoRect.width / 2), videoRect.top + (videoRect.height / 2)];
-            popupElement.style.left = `${targetX}px`; popupElement.style.top = `${targetY}px`;
-            popupElement.style.transform = 'translate(-50%, -50%)'; popupElement.style.position = 'fixed';
+            // 비디오 중앙에 팝업을 위치시키고, 팝업 자신의 크기만큼 절반 이동
+            const targetX = videoRect.left + (videoRect.width / 2);
+            const targetY = videoRect.top + (videoRect.height / 2);
+
+            popupElement.style.left = `${targetX}px`;
+            popupElement.style.top = `${targetY}px`;
+            // 항상 transform을 사용하여 중앙 정렬 (드래그 중에는 일시적으로 해제됨)
+            popupElement.style.transform = 'translate(-50%, -50%)';
+            popupElement.style.position = 'fixed';
         } else {
             hidePopup();
         }
     }
 
     function updatePopupSliders() {
-        if (!popupElement || !currentVideo || isPopupGloballyBlocked || (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item'))) return;
-        const speedInput = popupElement.querySelector('#vcp-speed'), speedDisplay = popupElement.querySelector('#vcp-speed-display');
-        const volumeInput = popupElement.querySelector('#vcp-volume'), volumeDisplay = popupElement.querySelector('#vcp-volume-display');
+        if (!popupElement || !currentVideo) return;
+        // 팝업이 완전히 차단된 사이트에서는 슬라이더 업데이트도 하지 않음
+        if (isPopupGloballyBlocked) {
+            return;
+        }
+        // 치지직 미리보기 비디오에 대해서는 슬라이더 업데이트도 하지 않음
+        if (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')) {
+            return;
+        }
+        const speedInput = popupElement.querySelector('#vcp-speed');
+        const speedDisplay = popupElement.querySelector('#vcp-speed-display');
+        const volumeInput = popupElement.querySelector('#vcp-volume');
+        const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
 
-        speedInput && speedDisplay && (speedInput.value = desiredPlaybackRate.toFixed(2), speedDisplay.textContent = desiredPlaybackRate.toFixed(2));
-        volumeInput && volumeDisplay && (volumeInput.value = desiredVolume.toFixed(2), volumeDisplay.textContent = Math.round(desiredVolume * 100));
+        if (speedInput && speedDisplay) {
+            const rate = desiredPlaybackRate;
+            speedInput.value = rate.toFixed(2);
+            speedDisplay.textContent = rate.toFixed(2);
+        }
+
+        if (volumeInput && volumeDisplay) {
+            const volume = desiredVolume;
+            volumeInput.value = volume.toFixed(2);
+            volumeDisplay.textContent = Math.round(volume * 100);
+        }
     }
 
-    // --- Interval and Observer Management ---
-    function handleVisibilityChange() {
-        if (document.hidden) {
-            console.log('[VCP] Document is hidden. Stopping unnecessary checks.');
-            stopCheckingVideoStatus();
+    // --- Video Control & Selection Logic ---
+    function selectVideoOnDocumentClick(e) { // 이 함수는 이제 클릭 이벤트 외에도 호출될 수 있음
+        // 팝업이 완전히 차단된 사이트에서는 비디오 선택 및 팝업 표시 로직을 완전히 건너뜁니다.
+        if (isPopupGloballyBlocked) {
+            // 현재 제어 중인 비디오가 있다면 일시 정지합니다.
+            if (currentVideo) {
+                currentVideo.pause();
+                currentVideo = null;
+            }
+            hidePopup();
+            return;
+        }
+
+        // 팝업 자체를 클릭한 경우, 팝업 숨김 타이머만 리셋하고 종료
+        // 그리고 팝업이 이미 보이는 상태라면 더 이상 비디오를 다시 선택할 필요 없음
+        if (popupElement && e && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
+            return;
+        }
+
+        updateVideoList(); // 현재 페이지의 모든 재생 가능한 비디오 목록을 업데이트
+
+        let bestVideo = null;
+        let maxScore = -Infinity;
+
+        // 현재 화면에 가장 적합한 비디오를 찾음
+        videos.forEach(video => {
+            // --- 치지직 미리보기 비디오는 메인 컨트롤 대상으로 삼지 않음 ---
+            if (isChzzkSite && video.closest('.live_thumbnail_list_item')) {
+                // 미리보기 비디오는 팝업 선택 대상에서 제외
+                return;
+            }
+            // --- 치지직 미리보기 비디오 제어 제외 로직 끝 ---
+
+            const ratio = calculateIntersectionRatio(video);
+            const score = calculateCenterDistanceScore(video, ratio);
+
+            // 현재 재생 중인 비디오가 있다면 그 비디오를 우선적으로 선택
+            // (paused 상태가 아니고, 길이가 0이 아니며, 끝나지 않은 비디오)
+            if (!video.paused && video.duration > 0 && !video.ended) {
+                bestVideo = video;
+                maxScore = Infinity; // 강제 선택을 위한 높은 점수
+                return; // 가장 높은 점수를 찾았으니 더 이상 반복할 필요 없음
+            }
+
+            if (ratio > 0 && score > maxScore) {
+                maxScore = score;
+                bestVideo = video;
+            }
+        });
+
+        // 팝업 상태 관리: 새로운 비디오 선택 또는 비디오 없음
+        if (bestVideo && (maxScore > -0.5 || bestVideo.tagName === 'AUDIO' || !bestVideo.paused)) { // 오디오 태그나 재생 중인 비디오는 점수 무관하게 고려
+            if (currentVideo && currentVideo !== bestVideo) {
+                // 이전 비디오와 다른 새로운 비디오가 선택됨
+                console.log('[VCP] Switching video. Hiding previous popup.');
+                if (currentVideo) currentVideo.pause(); // 이전 currentVideo가 있다면 일시정지
+                hidePopup(); // 팝업 숨기기 (새로운 비디오가 미리보기일 경우 안뜨도록)
+                currentVideo = null; // 초기화
+                selectAndControlVideo(bestVideo); // 새로운 비디오 제어 시작
+            } else if (currentVideo === bestVideo) {
+                // 같은 비디오라면
+                // 클릭 이벤트에 의해서 호출된 경우에만 팝업을 다시 띄우고 타이머 리셋
+                if (e) { // 'e'가 존재한다는 것은 사용자 클릭에 의해 호출되었다는 의미
+                    showPopup();
+                    resetPopupHideTimer();
+                }
+            } else {
+                // 이전에 제어하던 비디오가 없거나 초기 선택인 경우
+                selectAndControlVideo(bestVideo);
+            }
         } else {
-            console.log('[VCP] Document is visible. Resuming checks.');
-            // 페이지가 다시 보일 때, 현재 비디오 상태를 기반으로 다시 인터벌 시작
-            if (currentVideo && !isPopupGloballyBlocked && !(isChzzkSite && currentVideo.closest('.live_thumbnail_list_item'))) {
-                startCheckingVideoStatus();
+            // 적합한 비디오가 없을 경우 (예: 모든 비디오가 화면 밖으로 스크롤됨 또는 메인 비디오가 아닌 경우)
+            if (currentVideo) { // 이전에 제어하던 비디오가 있었다면 일시 정지
+                currentVideo.pause();
+            }
+            currentVideo = null; // 현재 제어 비디오 없음
+            if (!isPopupDragging) {
+                hidePopup();
             }
         }
     }
 
-    function startCheckingVideoStatus() {
-        if (checkVideoInterval) return; // 이미 실행 중이면 중복 실행 방지
-        checkVideoInterval = setInterval(() => {
-            // 메인 비디오와 팝업 상태 체크
-            if (!currentVideo || (!currentVideo.paused && (popupElement.style.display === 'none' || popupElement.style.visibility === 'hidden') && !(isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')))) {
-                selectVideoOnDocumentClick(null); // 최적의 비디오를 찾고 제어
-            }
-
-            // currentVideo가 유효하다면 배속과 볼륨이 올바른지 확인
+    // --- 스크롤 이벤트 핸들러 (추가) ---
+    let scrollTimeout = null;
+    function handleScrollEvent() {
+        // 팝업이 완전히 차단된 사이트에서는 스크롤 이벤트에 대한 팝업 로직도 건너뜁니다.
+        if (isPopupGloballyBlocked) {
             if (currentVideo) {
-                currentVideo.playbackRate !== desiredPlaybackRate && fixPlaybackRate(currentVideo, desiredPlaybackRate);
-                currentVideo.volume !== desiredVolume && setNormalVolume(currentVideo, desiredVolume);
+                currentVideo.pause();
+                currentVideo = null;
+            }
+            hidePopup();
+            return;
+        }
+
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            updateVideoList();
+
+            // 현재 제어 중인 비디오가 유효하고 화면에 보이는지 확인
+            // 치지직 미리보기 비디오는 이 단계에서 팝업 대상이 아님
+            if (currentVideo && (!checkCurrentVideoVisibility() || (isChzzkSite && currentVideo && currentVideo.closest('.live_thumbnail_list_item')))) {
+                console.log('[VCP] Current video scrolled out of view or became invalid (or is Chzzk preview). Resetting.');
+                if (currentVideo) currentVideo.pause(); // 현재 비디오가 있었다면 일시정지
+                currentVideo = null;
+                if (!isPopupDragging) {
+                    hidePopup();
+                }
             }
 
-            // 치지직 미리보기 영상 소리 누출 문제 해결
-            if (isChzzkSite) {
-                findAllVideosDeep().forEach(v => {
-                    if (v !== currentVideo && v.closest('.live_thumbnail_list_item')) {
-                        const style = getComputedStyle(v);
-                        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && +style.opacity > 0;
-                        if (isVisible && !isNaN(v.duration) && v.duration > 0 && (!v.paused || v.volume > 0 || !v.muted)) {
-                            if (!originalPlayMethods.has(v)) {
-                                originalPlayMethods.set(v, v.play);
-                                v.play = () => Promise.resolve(); // play() 호출을 무시
-                            }
-                            v.pause(); v.muted = true; v.volume = 0; v.currentTime = 0;
-                            // console.log('[VCP-Chzzk] Silencing & Blocking extraneous preview video:', v.src || v.tagName);
-                        } else if (originalPlayMethods.has(v)) { // 재생 중이 아니면 play() 원본 복원
-                            v.play = originalPlayMethods.get(v); originalPlayMethods.delete(v);
-                        }
-                    } else if (originalPlayMethods.has(v)) { // currentVideo나 미리보기가 아닌 경우 원본 복원
-                        v.play = originalPlayMethods.get(v); originalPlayMethods.delete(v);
-                    }
-                });
+            // 팝업이 숨겨져 있거나, 현재 비디오가 없는 경우
+            // 또는 스크롤로 인해 가장 적합한 비디오가 변경되었을 수 있으므로 재선택 시도
+            // 이때는 e가 없으므로 팝업이 자동으로 다시 띄워지지 않도록 함
+            if (!currentVideo || (popupElement && popupElement.style.display === 'none')) {
+                selectVideoOnDocumentClick(null);
+            } else if (currentVideo) {
+                // 현재 비디오가 있고 팝업이 보이는 상태라면, 팝업 위치만 업데이트
+                updatePopupPosition();
+                // 스크롤 시에는 팝업을 계속 보여줄 필요 없으므로 resetPopupHideTimer 호출 안함
             }
-            // 팝업이 보이는 상태라면 위치 업데이트 (드래그 중이 아닐 때만)
-            popupElement && getComputedStyle(popupElement).display !== 'none' && !isPopupDragging && updatePopupPosition();
-        }, AUTO_CHECK_VIDEO_INTERVAL_MS);
+        }, 100);
     }
 
-    function stopCheckingVideoStatus() {
-        if (checkVideoInterval) {
-            clearInterval(checkVideoInterval);
-            checkVideoInterval = null;
+    // --- Main Initialization ---
+    function updateVideoList() {
+        findPlayableVideos();
+        // currentVideo가 DOM에 없거나 더 이상 videos 목록에 없으면 초기화
+        // 치지직 미리보기 비디오도 여기서 currentVideo에서 제거될 수 있도록 처리
+        if (currentVideo && (!document.body.contains(currentVideo) || !videos.includes(currentVideo) || (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')))) {
+            console.log('[VCP] Current video no longer valid or is Chzzk preview. Resetting.');
+            if (currentVideo) currentVideo.pause(); // 현재 비디오가 있었다면 일시정지
+            currentVideo = null;
+            hidePopup();
         }
     }
 
     function setupDOMObserver() {
         const observerConfig = { childList: true, subtree: true, attributes: true };
-        domObserver = new MutationObserver(mutationsList => {
+        const observerCallback = (mutationsList) => {
             let foundMediaChange = false;
-            for (const m of mutationsList) {
-                if (m.type === 'childList' && (Array.from(m.addedNodes).some(n => n.nodeName === 'VIDEO' || n.nodeName === 'AUDIO' || (n.nodeType === 1 && (n.querySelector('video') || n.querySelector('audio')))) || Array.from(m.removedNodes).some(n => n.nodeName === 'VIDEO' || n.nodeName === 'AUDIO'))) { foundMediaChange = true; break; }
-                else if (m.type === 'attributes' && m.target.matches('video, audio')) { foundMediaChange = true; break; }
+            for (const mutation of mutationsList) {
+                if (mutation.type === 'childList' && (Array.from(mutation.addedNodes).some(n => n.nodeName === 'VIDEO' || n.nodeName === 'AUDIO' || (n.nodeType === 1 && (n.querySelector('video') || n.querySelector('audio')))) || Array.from(mutation.removedNodes).some(n => n.nodeName === 'VIDEO' || n.nodeName === 'AUDIO'))) {
+                    foundMediaChange = true;
+                    break;
+                } else if (mutation.type === 'attributes' && mutation.target.matches('video, audio')) {
+                    foundMediaChange = true;
+                    break;
+                }
             }
             if (foundMediaChange) {
-                // DOM 변경 시, 현재 비디오가 유효한지 확인하고 필요하면 비디오를 재선택 (팝업 자동 활성화는 클릭 이벤트에서만)
                 updateVideoList();
+                // DOM 변경 감지 시 즉시 비디오 선택 로직 시도 (팝업을 자동으로 다시 띄우지는 않음)
+                // 단, currentVideo가 없거나 미리보기일 때만 시도
                 if (!currentVideo || (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item'))) {
                     selectVideoOnDocumentClick(null);
-                } else {
-                    // 기존 비디오가 여전히 유효하다면, 팝업 관련 업데이트만 수행
-                    updatePopupSliders();
-                    updatePopupPosition();
-                }
-                // DOM 변경 시에는 비디오가 추가/삭제될 수 있으므로, 주기적 체크도 다시 확인
-                // (currentVideo가 있으면 시작, 없으면 중지)
-                if (currentVideo && !isPopupGloballyBlocked && !(isChzzkSite && currentVideo.closest('.live_thumbnail_list_item'))) {
-                     startCheckingVideoStatus();
-                } else {
-                     stopCheckingVideoStatus();
                 }
             }
-        });
-        domObserver.observe(document.body, observerConfig);
-    }
-
-    // --- Event Handlers & Initializers ---
-    let scrollTimeout = null;
-    function handleScrollEvent() {
-        if (isPopupGloballyBlocked) { currentVideo && currentVideo.pause(); currentVideo = null; hidePopup(); return; }
-        if (scrollTimeout) clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-            updateVideoList();
-            // 현재 비디오가 화면 밖으로 나가거나, 미리보기 비디오가 되면 리셋
-            if (currentVideo && (!checkCurrentVideoVisibility() || (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')))) {
-                console.log('[VCP] Current video scrolled out of view or became invalid (or is Chzzk preview). Resetting.');
-                currentVideo && currentVideo.pause(); currentVideo = null; !isPopupDragging && hidePopup();
-                stopCheckingVideoStatus(); // 비디오가 사라지면 인터벌 중지
-            }
-            // 적합한 비디오가 없거나 팝업이 숨겨져 있다면 재선택 시도 (자동으로 팝업을 띄우지는 않음)
-            if (!currentVideo || (popupElement && getComputedStyle(popupElement).display === 'none')) {
-                selectVideoOnDocumentClick(null);
-            } else if (currentVideo) {
-                updatePopupPosition();
-            }
-        }, 100);
+        };
+        const mutationObserver = new MutationObserver(observerCallback);
+        mutationObserver.observe(document.body, observerConfig);
     }
 
     function setupSPADetection() {
@@ -442,9 +745,12 @@
             if (currentUrl !== lastUrl) {
                 console.log(`[VCP] URL changed from ${lastUrl} to ${currentUrl}. Resetting popup state.`);
                 lastUrl = currentUrl;
-                currentVideo && currentVideo.pause(); currentVideo = null; hidePopup(); updateVideoList();
+                if (currentVideo) currentVideo.pause(); // 페이지 이동 시 현재 비디오 일시정지
+                currentVideo = null; // Reset current video
+                hidePopup(); // Hide popup
+                updateVideoList(); // Re-scan for videos on new page
+                // URL 변경 시 즉시 비디오 선택 로직 시도 (팝업을 자동으로 다시 띄우지는 않음)
                 selectVideoOnDocumentClick(null);
-                stopCheckingVideoStatus(); // 페이지 이동 시 인터벌 중지 (새 페이지에서 필요하면 다시 시작)
             }
         }).observe(document, { subtree: true, childList: true });
     }
@@ -454,64 +760,187 @@
             { domain: 'twitch.tv', selectors: ['div.video-player__container', 'div.video-player-theatre-mode__player', 'div.player-theatre-mode'] },
         ];
         overflowFixSites.forEach(site => {
-            if (!location.hostname.includes(site.domain)) return;
-            site.selectors.forEach(sel => document.querySelectorAll(sel).forEach(el => el.style.overflow = 'visible'));
+            if (location.hostname.includes(site.domain)) {
+                site.selectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => {
+                        el.style.overflow = 'visible';
+                    });
+                });
+            }
+            // 치지직에 대한 추가 오버플로우/오디오 문제 해결 시도
+            if (isChzzkSite) {
+                // 특정 요소에 대한 overflow: visible 설정 (예상되는 스트리머 목록 스크롤 영역)
+                document.querySelectorAll('.app_content').forEach(el => {
+                    el.style.overflow = 'visible';
+                });
+                document.querySelectorAll('.paged_list_area').forEach(el => {
+                    el.style.overflow = 'visible';
+                });
+                // 치지직의 미리보기 비디오 컨테이너에 대해 overflow: hidden; 속성이 있을 경우 이를 무력화
+                document.querySelectorAll('.live_thumbnail_list_item').forEach(item => {
+                     // 내부 video 요소가 아닌, video를 감싸는 컨테이너에 overflow: hidden이 있을 수 있음
+                     const videoContainer = item.querySelector('div[class*="video_area"]'); // 좀 더 일반적인 선택자
+                     if (videoContainer) {
+                         videoContainer.style.setProperty('overflow', 'visible', 'important');
+                     }
+                });
+            }
         });
-        if (isChzzkSite) {
-            document.querySelectorAll('.app_content, .paged_list_area').forEach(el => el.style.overflow = 'visible');
-            document.querySelectorAll('.live_thumbnail_list_item').forEach(item => {
-                const videoContainer = item.querySelector('div[class*="video_area"]');
-                videoContainer && videoContainer.style.setProperty('overflow', 'visible', 'important');
-            });
-        }
+    }
+
+    // 비디오를 주기적으로 확인하고 제어하는 함수
+    function startCheckingVideoStatus() {
+        if (checkVideoInterval) clearInterval(checkVideoInterval); // 기존 인터벌이 있다면 중지
+        checkVideoInterval = setInterval(() => {
+            // 현재 제어 중인 비디오가 없거나, (팝업이 숨겨진 상태에서) 비디오가 재생 중인데 currentVideo가 설정 안 된 경우
+            // 치지직 미리보기 비디오는 여기서 메인 컨트롤 대상으로 간주하지 않음
+            if (!currentVideo ||
+                (!currentVideo.paused && (popupElement.style.display === 'none' || popupElement.style.visibility === 'hidden') &&
+                 !(isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')))) { // <- 이 조건 추가
+                selectVideoOnDocumentClick(null);
+            }
+
+            // 현재 비디오가 있다면 배속과 볼륨이 올바른지 확인 (방어적 코드)
+            if (currentVideo && currentVideo.playbackRate !== desiredPlaybackRate) {
+                fixPlaybackRate(currentVideo, desiredPlaybackRate);
+            }
+            if (currentVideo && currentVideo.volume !== desiredVolume) {
+                 setNormalVolume(currentVideo, desiredVolume);
+            }
+
+            // 치지직 미리보기 영상 소리 누출 문제 해결:
+            if (isChzzkSite) {
+                findAllVideosDeep().forEach(video => {
+                    // 이 비디오가 현재 메인으로 제어되는 currentVideo가 아닌 경우에만 개입
+                    // 그리고 치지직 미리보기 요소인 경우에만 오버라이드 로직 적용
+                    if (video !== currentVideo && video.closest('.live_thumbnail_list_item')) { // <- 이 조건 강화
+                        const style = window.getComputedStyle(video);
+                        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
+
+                        // 화면에 보이는 재생/소리 나는 비디오만 강제로 음소거/일시정지
+                        // currentTime이 NaN이거나 길이가 0인 임시 비디오는 제외
+                        // 단, 실제로 재생 중인 경우 (paused가 false이거나, volume > 0이거나, muted가 false)에만 개입
+                        if (isVisible && !isNaN(video.duration) && video.duration > 0 && (!video.paused || video.volume > 0 || !video.muted)) {
+                            // play() 메서드를 오버라이드하여 강제 재생 방지
+                            if (!originalPlayMethods.has(video)) {
+                                originalPlayMethods.set(video, video.play);
+                                video.play = function() {
+                                    // console.warn('[VCP-Chzzk] Blocked play() call for extraneous preview video:', this.src || this.tagName);
+                                    return Promise.resolve(); // 재생 시도를 무시하고 성공한 것처럼 반환
+                                };
+                            }
+                            video.pause();
+                            video.muted = true;
+                            video.volume = 0;
+                            video.currentTime = 0; // 재생 위치 초기화
+                            console.log('[VCP-Chzzk] Silencing & Blocking extraneous preview video:', video.src || video.tagName);
+                        } else {
+                            // 미리보기 비디오인데, 재생 중이 아니거나 이미 음소거 상태면 play 오버라이드만 유지 (선택적으로)
+                            // 또는, 아예 소리가 나지 않는 상태라면 play 오버라이드 해제 (미리보기 본연의 기능 허용)
+                            // 현재 상태: 미리보기인데 소리가 안나면 원본 play() 복원해서 미리보기 본연의 동작 허용
+                            if (originalPlayMethods.has(video)) {
+                                video.play = originalPlayMethods.get(video);
+                                originalPlayMethods.delete(video);
+                            }
+                        }
+                    } else if (video === currentVideo) {
+                        // currentVideo는 원본 play() 메서드를 유지해야 함
+                        if (originalPlayMethods.has(video)) {
+                            video.play = originalPlayMethods.get(video);
+                            originalPlayMethods.delete(video);
+                        }
+                    } else {
+                        // currentVideo도 아니고, 치지직 미리보기도 아닌 다른 비디오는 play() 오버라이드 해제 (영향 최소화)
+                        if (originalPlayMethods.has(video)) {
+                            video.play = originalPlayMethods.get(video);
+                            originalPlayMethods.delete(video);
+                        }
+                    }
+                });
+            }
+
+            // 팝업이 보이는 상태라면, 주기적으로 위치를 업데이트 (끌고 있을 때는 제외)
+            if (popupElement && popupElement.style.display !== 'none' && !isPopupDragging) {
+                updatePopupPosition();
+            }
+        }, AUTO_CHECK_VIDEO_INTERVAL_MS);
     }
 
     function initialize() {
         if (isInitialized) return;
         isInitialized = true;
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Optimized_V2');
+
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4');
 
         createPopupElement();
-        isPopupGloballyBlocked ? setPopupVisibility(false) : hidePopup();
+        // 팝업이 완전히 차단된 사이트에서는 초기부터 숨겨진 상태로 유지
+        if (isPopupGloballyBlocked) {
+            setPopupVisibility(false);
+        } else {
+            hidePopup();
+        }
 
         document.addEventListener('fullscreenchange', () => {
-            if (isPopupGloballyBlocked) { popupElement && popupElement.parentNode && popupElement.parentNode.removeChild(popupElement); return; }
+            // 팝업이 완전히 차단된 사이트에서는 전체화면 시에도 팝업 표시를 막음
+            if (isPopupGloballyBlocked) {
+                if (popupElement && popupElement.parentNode) {
+                    popupElement.parentNode.removeChild(popupElement);
+                }
+                return;
+            }
             const fsEl = document.fullscreenElement;
             if (popupElement) {
-                fsEl ? (fsEl.appendChild(popupElement), updatePopupPosition(), showPopup()) : document.body.appendChild(popupElement);
-                updatePopupPosition();
+                if (fsEl) {
+                    fsEl.appendChild(popupElement);
+                    // 전체화면 진입/종료 시에도 위치 업데이트
+                    updatePopupPosition();
+                    showPopup();
+                } else {
+                    document.body.appendChild(popupElement);
+                    // 전체화면 진입/종료 시에도 위치 업데이트
+                    updatePopupPosition();
+                }
             }
         });
 
         window.addEventListener('resize', () => {
-            isPopupGloballyBlocked ? hidePopup() : updatePopupPosition();
+            // 팝업이 완전히 차단된 사이트에서는 리사이즈 시에도 팝업 위치 업데이트를 하지 않음
+            if (isPopupGloballyBlocked) {
+                hidePopup();
+                return;
+            }
+            updatePopupPosition();
         });
+
+        // 스크롤 이벤트 리스너 추가
         window.addEventListener('scroll', handleScrollEvent);
 
-        // 문서 가시성 변경 이벤트 (페이지가 활성화/비활성화될 때)
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
         updateVideoList();
-        setupDOMObserver(); // DOM 변경 감지를 위한 Observer
+        setupDOMObserver();
         setupSPADetection();
         fixOverflow();
 
+        // 모바일 클릭 인식을 위해 'touchend' 이벤트 추가
         document.body.addEventListener('click', selectVideoOnDocumentClick, true);
         document.body.addEventListener('touchend', selectVideoOnDocumentClick, true);
 
-        // 초기 비디오 선택 시도 및 필요하면 setInterval 시작
-        selectVideoOnDocumentClick(null);
+        // 주기적으로 비디오 상태를 확인하고 제어하는 인터벌 시작
+        startCheckingVideoStatus();
 
         window.addEventListener('beforeunload', () => {
             console.log('[VCP] Page unloading. Clearing current video and removing popup.');
             currentVideo = null;
             if (popupElement && popupElement.parentNode) {
-                popupElement.parentNode.removeChild(popupElement); popupElement = null;
+                popupElement.parentNode.removeChild(popupElement);
+                popupElement = null;
             }
-            stopCheckingVideoStatus(); // 페이지 언로드 시 모든 인터벌 중지
-            if (domObserver) domObserver.disconnect(); // 옵저버 해제
+            if (checkVideoInterval) clearInterval(checkVideoInterval); // 페이지 언로드 시 인터벌 중지
         });
     }
 
-    document.readyState === 'complete' || document.readyState === 'interactive' ? initialize() : window.addEventListener('DOMContentLoaded', initialize);
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initialize();
+    } else {
+        window.addEventListener('DOMContentLoaded', initialize);
+    }
 })();
