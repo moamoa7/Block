@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250715
+! Version: 20250717
 !
 !
 !
@@ -442,7 +442,6 @@ dcinside.com##.news-schthum-lst
 ! 추가
 ! 출처 : https://raw.githubusercontent.com/green1052/GreenList/master/filter.txt
 ||dctrend.ai
-||dccdn11.dcinside.co.kr
 ||cdn.trend.rankify.best/dctrend/
 ||cdn.inappnews.net
 ||gall.dcinside.com/_js/survey.js
@@ -521,6 +520,7 @@ v.daum.net#@#[class*="ad_"] [style]
 www.baidu.com#@#[class*="ad_"] [style]
 ! 펀비 (https://funbe536.com/) - 이미지 목록 사라짐
 [$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
+
 
 
 ##.adpost
@@ -2389,9 +2389,6 @@ sextb.date##.hidden-md.right.col-3
 ! JavGG (https://javgg.net/)
 ! - 상단 배너
 javgg.net##.home_iframead
-! - 기타
-##.grecaptcha-badge
-||mc.yandex.ru^
 ! - 팝업 방지
 ||about:blank^$popup
 ||obqj2.com^$popup
@@ -4302,49 +4299,9 @@ zod.kr##[data-href^='https://zod.kr/go/']:has(img)
 zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.swiper-initialized.swiper
 !
 !
-! https://github.com/
-- 기타
-||collector.github.com^
-||github.com/_private/browser/stats
-!
-!
-! 레딧 (https://www.reddit.com/)
-! - 기타
-reddit.com##body:style(pointer-events: auto !important; overflow: auto !important;)
-reddit.com##+js(set-local-storage-item, xpromo-consolidation, 1)
-reddit.com##+js(set-constant, Notification.requestPermission, noopFunc)
-reddit.com##+js(remove-class, scroll-disabled, body, complete)
-reddit.com##+js(remove-class, m-blurred, .m-blurred)
-reddit.com##+js(addEventListener-defuser, block-body-scrolling)
-reddit.com##+js(remove-class, scroll-disabled, body, stay)
-reddit.com##+js(json-prune, data.children.[].data.outbound_link)
-reddit.com##+js(abort-on-property-write, STICKY_CANARY)
-||redditstatic.com/shreddit/sentry-
-||w3-reporting.reddit.com^
-||www.reddit.com/svc/shreddit/perfmetrics^
-!
-!
-! https://www.ajd.co.kr/
-##.c-toast
-! - 기타
-_ads.js|
-!
-!
-! https://wonforecast.com/
-! - 기타
-||addthis.com^
-
 ! copilot.microsoft.com
 ! - 일부 필터 문제로 오류 나는거 해결
 @@-ads-$script
-! - 기타
-||browser.events.data.microsoft.com^
-!
-!
-! https://oname.kr/
-! - 기타
-||zopim.com^
-/analytics.js^$script
 !
 !
 ! 주소콘 (https://www.jusocon.com/)
@@ -4511,15 +4468,15 @@ teamblind.com/#@#[class^="ad"]
 ||*/*/ads/*
 ||*/*/ADS/*
 ! - 레딧 알부 이미지 안나옴
-||*/*/ads-*
+!||*/*/ads-*
 
 !- https://djxmaza.in/ - 사이트 깨짐
 !||*/*ads.*
 
 
 
-||*/*/ads*
-||*/*/ADS*
+!||*/*/ads*
+!||*/*/ADS*
 
 ! https://www.redtube.net/
 ! - /_xa/ads_ (AdGuard – Ads)
@@ -5479,6 +5436,8 @@ jobkorea.co.kr#@#a[href][target*="blank"]:has(img[src*=".gif"])
 [$domain=/^today-sports\d+.com/]#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - https://www.jusocon.com/ - 일부 아이콘 사라짐
 jusocon.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
+https://www.slrclub.com/ - 이미지 안보임
+slrclub.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
 
 
 ! - - -
