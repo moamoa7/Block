@@ -426,7 +426,7 @@
         }
 
         if (isVisible) {
-            const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
+            const styles = { display: 'block', opacity: '0.25', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
         } else {
             if (isPopupGloballyBlocked && !isPopupDragging) {
