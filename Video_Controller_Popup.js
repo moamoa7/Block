@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.42: ReferenceError Fix, No Amplification, No PIP/Fullscreen Buttons)
 // @namespace Violentmonkey Scripts
-// @version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict_DynamicPlayPauseBtn_RollbackPlayBtn_NewButtons_UI_Cleaned_FontFix
-// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Amplification, PIP, and fullscreen exit buttons removed. Improved auto-detection for dynamic sites. Fixed popup flashing and position issues. Enhanced Chzzk audio leak fix with play override and preview blocking. (Modified for stable popup auto-hide, strict muted autoplay, dynamic play/pause button, play button logic rolled back, new independent speed/volume buttons, UI cleaned up, font size fixed)
+// @version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict_DynamicPlayPauseBtn_RollbackPlayBtn_NewButtons_UI_Cleaned_FontFix_DynamicPlayPause_StreamAudio
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Amplification, PIP, and fullscreen exit buttons removed. Improved auto-detection for dynamic sites. Fixed popup flashing and position issues. Enhanced Chzzk audio leak fix with play override and preview blocking. (Modified for stable popup auto-hide, strict muted autoplay, dynamic play/pause button, play button logic rolled back, new independent speed/volume buttons, UI cleaned up, font size fixed, dynamic play/pause button text, streaming site audio enabled by default)
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -26,11 +26,17 @@
     // 여기에 팝업을 차단하고 싶은 사이트의 도메인과 경로 조건을 추가합니다.
     const SITE_POPUP_BLOCK_LIST = [
         // { domain: 'sooplive.co.kr', pathIncludes: null }, // 모든 경로에서 차단
-        // { domain: 'twitch.tv', pathIncludes: null },      // 모든 경로에서 차단
-        // { domain: 'kick.com', pathIncludes: null },      // 모든 경로에서 차단
         // { domain: 'anotherpreview.net', pathIncludes: null }, // 모든 경로에서 차단
         // 예시: 'previewsite.com'의 '/preview/' 경로에서만 팝업 차단
         // { domain: 'previewsite.com', pathIncludes: '/preview/' }
+    ];
+
+    // 여기에 자동 음소거(muted autoplay)를 비활성화할 사이트의 도메인을 추가합니다.
+    // 즉, 이 목록에 있는 사이트에서는 비디오 선택 시 처음부터 소리가 나도록 합니다.
+    const SITE_MUTE_AUTOPLAY_EXCEPTIONS = [
+        'twitch.tv',
+        'chzzk.naver.com',
+        'kick.com' // 추가 예시
     ];
 
     const isPopupGloballyBlocked = SITE_POPUP_BLOCK_LIST.some(blockRule => {
@@ -42,6 +48,8 @@
         }
         return true;
     });
+
+    const isMuteAutoplayExceptedSite = SITE_MUTE_AUTOPLAY_EXCEPTIONS.some(domain => location.hostname.includes(domain));
 
     const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
     const isChzzkSite = location.hostname.includes('chzzk.naver.com'); // 치지직 도메인 확인
@@ -193,17 +201,24 @@
             currentVideo.autoplay = true;
             currentVideo.playsInline = true;
 
-            // --- 변경된 부분: 자동 재생을 위해 초기 음소거 설정 (가장 중요) ---
-            currentVideo.muted = true; // 비디오 선택 시 자동 재생을 위해 확실하게 초기 음소거
+            // --- 변경된 부분: 자동 재생 시 음소거 설정 (사이트 예외 처리) ---
+            if (isMuteAutoplayExceptedSite) {
+                // 예외 사이트에서는 음소거를 해제하고 볼륨을 1.0으로 설정
+                currentVideo.muted = false;
+                currentVideo.volume = 1.0;
+                console.log('[VCP] Video selected. Autoplay with audio (exception site).');
+            } else {
+                // 그 외 사이트에서는 음소거
+                currentVideo.muted = true;
+                currentVideo.volume = 0; // 명시적으로 볼륨도 0으로 설정
+                console.log('[VCP] Video selected. Resetting controls (initially muted for autoplay).');
+            }
             // --- 변경된 부분 끝 ---
 
-            console.log('[VCP] Video selected. Resetting controls (initially muted for autoplay).');
             fixPlaybackRate(currentVideo, 1.0);
-            // setNormalVolume(currentVideo, 1.0); // 이 부분은 이제 필요 없습니다. muted=true가 우선합니다.
-                                                  // 사용자가 볼륨 슬라이더를 조작하기 전까지는 muted=true 유지
             isManuallyPaused = false;
 
-            // 비디오가 준비되면 play()를 호출 (음소거 상태로)
+            // 비디오가 준비되면 play()를 호출
             currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
 
             // --- 추가된 부분: 현재 비디오에 play/pause, volumechange 이벤트 리스너 연결 ---
@@ -296,8 +311,7 @@
         // --- 재생/멈춤 버튼 (폰트 크기 16px) ---
         const playPauseBtn = document.createElement('button');
         playPauseBtn.id = 'vcp-play-pause-btn';
-        playPauseBtn.setAttribute('data-action', 'play-pause');
-        playPauseBtn.textContent = '재생/멈춤'; // 항상 이 텍스트로 고정
+        // 초기 data-action과 text는 updatePlayPauseButton에서 설정
         playPauseBtn.style.cssText = `background-color: #333; color: white; border: 1.5px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; text-align: center; font-size: 16px;`;
         buttonSection.appendChild(playPauseBtn);
 
@@ -404,15 +418,19 @@
     // --- 추가 끝 ---
 
     function updatePlayPauseButton() {
-        // 재생/멈춤 버튼은 항상 '재생/멈춤' 텍스트를 유지
         const playPauseBtn = popupElement ? popupElement.querySelector('#vcp-play-pause-btn') : null;
-        if (playPauseBtn) {
-            if (currentVideo && !currentVideo.paused) {
-                playPauseBtn.setAttribute('data-action', 'pause');
-            } else {
+        if (playPauseBtn && currentVideo) {
+            if (currentVideo.paused) {
+                playPauseBtn.textContent = '재생';
                 playPauseBtn.setAttribute('data-action', 'play');
+            } else {
+                playPauseBtn.textContent = '멈춤';
+                playPauseBtn.setAttribute('data-action', 'pause');
             }
-            playPauseBtn.textContent = '재생/멈춤'; // 텍스트 고정
+        } else if (playPauseBtn) {
+            // 비디오가 없을 때 (초기 상태 또는 비디오 선택 해제 시)
+            playPauseBtn.textContent = '재생';
+            playPauseBtn.setAttribute('data-action', 'play');
         }
     }
 
@@ -960,7 +978,7 @@
             // 팝업이 보이는 상태라면, 주기적으로 위치를 업데이트 (끌고 있을 때는 제외)
             if (popupElement && popupElement.style.display !== 'none' && !isPopupDragging) {
                 updatePopupPosition();
-                updatePlayPauseButton(); // 비디오 상태에 따라 버튼 업데이트 (여기서는 고정 텍스트)
+                updatePlayPauseButton(); // 비디오 상태에 따라 버튼 업데이트
                 updateMuteButton(); // 음소거 버튼 업데이트
                 updatePopupSliders(); // 슬라이더 상태 최신화
             }
@@ -973,7 +991,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict_DynamicPlayPauseBtn_RollbackPlayBtn_NewButtons_UI_Cleaned_FontFix');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict_DynamicPlayPauseBtn_RollbackPlayBtn_NewButtons_UI_Cleaned_FontFix_DynamicPlayPause_StreamAudio');
 
         createPopupElement();
         // 팝업이 완전히 차단된 사이트에서는 초기부터 숨겨진 상태로 유지
