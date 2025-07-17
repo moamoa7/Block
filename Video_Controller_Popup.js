@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.42: ReferenceError Fix)
 // @namespace Violentmonkey Scripts
-// @version 4.10.43_SPA_Enhanced
-// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Now with enhanced SPA navigation handling.
+// @version 4.10.46_CustomSpeed
+// @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Now with enhanced SPA navigation handling and simplified controls (speed, play/pause only), with improved UI text visibility. Speed range customized (0.2x - 16.0x) and reset button renamed to initialize.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -11,19 +11,17 @@
     'use strict';
 
     // --- Core Variables & State Management ---
-    let videos = [], currentVideo = null, popupElement = null, desiredPlaybackRate = 1.0, desiredVolume = 1.0,
+    let videos = [], currentVideo = null, popupElement = null, desiredPlaybackRate = 1.0,
         isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
     let isManuallyPaused = false;
     const videoRateHandlers = new WeakMap();
 
-    // --- Configuration & Audio Context ---
+    // --- Configuration ---
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
     const SITE_POPUP_BLOCK_LIST = ['sooplive.co.kr', 'twitch.tv', 'kick.com'];
     const isInitialPopupBlocked = SITE_POPUP_BLOCK_LIST.some(site => location.hostname.includes(site));
     const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
-    const isAmplificationBlocked = ['avsee.ru'].some(site => location.hostname.includes(site));
-    let audioCtx = null, gainNode = null, connectedVideo = null;
 
     // --- Utility Functions (Moved to top for scope visibility) ---
     function findAllVideosDeep(root = document) {
@@ -113,7 +111,6 @@
         currentVideo.muted = false;
         console.log('[VCP] Video selected automatically based on prominence. Resetting controls.');
         fixPlaybackRate(currentVideo, 1.0);
-        setAmplifiedVolume(currentVideo, 1.0);
         isManuallyPaused = false;
 
         currentVideo.play().catch(e => console.warn("Autoplay/Play on select failed:", e));
@@ -138,75 +135,35 @@
         videoRateHandlers.set(video, rateChangeHandler);
     }
 
-    // --- Audio Context & Volume Amplification ---
-    function setupAudioContext(video) {
-        if (isAmplificationBlocked || !video) return false;
-        try {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume().catch(e => console.error("AudioContext resume error:", e));
-
-            if (video._audioSourceNode) video._audioSourceNode.disconnect();
-            if (gainNode) gainNode.disconnect();
-
-            video._audioSourceNode = audioCtx.createMediaElementSource(video);
-            gainNode = audioCtx.createGain();
-            video._audioSourceNode.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            video.volume = 1.0;
-            video.muted = false;
-            connectedVideo = video;
-            return true;
-        } catch (e) {
-            console.error("Failed to setup AudioContext for amplification:", e);
-            audioCtx = gainNode = connectedVideo = null;
-            return false;
-        }
-    }
-
-    function setAmplifiedVolume(video, vol) {
-        if (!video || typeof video.volume === 'undefined') return;
-        desiredVolume = vol;
-        video.muted = false;
-
-        if (vol <= 1) {
-            if (gainNode && connectedVideo === video) gainNode.gain.value = 1;
-            video.volume = vol;
-        } else {
-            if (isAmplificationBlocked) { video.volume = 1; if (gainNode && connectedVideo === video) gainNode.gain.value = 1; return; }
-            if (!audioCtx || connectedVideo !== video) { if (!setupAudioContext(video)) { video.volume = 1; return; } }
-            if (gainNode) { video.volume = 1; gainNode.gain.value = vol; }
-        }
-    }
-
     // --- Popup UI Functions ---
     function createPopupElement() {
         if (popupElement) return;
 
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
-        popupElement.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px; padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; display: none; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); width: 230px; overflow: hidden; text-align: center; pointer-events: auto;`;
+        popupElement.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 30, 30, 0.9) !important; border: 1px solid #444 !important; border-radius: 8px !important; padding: 0 !important; color: white !important; font-family: sans-serif !important; z-index: 2147483647 !important; display: none; opacity: 0; transition: opacity 0.3s !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important; width: 230px !important; overflow: hidden !important; text-align: center !important; pointer-events: auto !important;`;
 
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
         dragHandle.textContent = '비디오.오디오 컨트롤러';
-        dragHandle.style.cssText = `font-weight: bold; margin-bottom: 8px; color: #aaa; padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none;`;
+        dragHandle.style.cssText = `font-weight: bold !important; margin-bottom: 8px !important; color: #aaa !important; padding: 5px !important; background-color: #2a2a2a !important; border-bottom: 1px solid #444 !important; cursor: grab !important; border-radius: 6px 6px 0 0 !important; user-select: none !important;`;
         popupElement.appendChild(dragHandle);
 
         const contentContainer = document.createElement('div');
-        contentContainer.style.cssText = 'padding: 10px;';
+        contentContainer.style.cssText = 'padding: 10px !important;';
 
         const buttonSection = document.createElement('div');
-        buttonSection.style.cssText = 'display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 10px;';
+        buttonSection.style.cssText = 'display: flex !important; gap: 5px !important; justify-content: center !important; align-items: center !important; margin-bottom: 10px !important;';
 
         const playPauseBtn = document.createElement('button');
         playPauseBtn.setAttribute('data-action', 'play-pause');
         playPauseBtn.textContent = '재생/멈춤';
-        playPauseBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
+        playPauseBtn.style.cssText = `background-color: #333 !important; color: white !important; border: 1px solid #555 !important; padding: 5px 10px !important; border-radius: 4px !important; cursor: pointer !important; transition: background-color 0.2s !important; white-space: nowrap !important; min-width: 80px !important; text-align: center !important;`;
 
         const resetBtn = document.createElement('button');
         resetBtn.setAttribute('data-action', 'reset-speed-volume');
-        resetBtn.textContent = '재설정';
-        resetBtn.style.cssText = `background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; min-width: 80px; text-align: center;`;
+        resetBtn.textContent = '초기화'; // Changed from '재설정' to '초기화'
+        resetBtn.style.cssText = `background-color: #333 !important; color: white !important; border: 1px solid #555 !important; padding: 5px 10px !important; border-radius: 4px !important; cursor: pointer !important; transition: background-color 0.2s !important; white-space: nowrap !important; min-width: 80px !important; text-align: center !important;`;
 
         buttonSection.appendChild(playPauseBtn);
         buttonSection.appendChild(resetBtn);
@@ -214,15 +171,16 @@
 
         const speedSection = document.createElement('div');
         speedSection.className = 'vcp-section';
-        speedSection.style.marginBottom = '10px';
+        speedSection.style.marginBottom = '10px !important;';
 
         const speedLabel = document.createElement('label');
         speedLabel.htmlFor = 'vcp-speed';
-        speedLabel.style.cssText = 'display: block; margin-bottom: 5px;';
+        speedLabel.style.cssText = 'display: block !important; margin-bottom: 5px !important; color: white !important;';
 
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
         speedDisplay.textContent = '1.00';
+        speedDisplay.style.cssText = 'color: white !important;';
         speedLabel.textContent = '배속 조절: ';
         speedLabel.appendChild(speedDisplay);
         speedLabel.appendChild(document.createTextNode('x'));
@@ -230,66 +188,20 @@
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
         speedInput.id = 'vcp-speed';
-        speedInput.min = '0.0';
-        speedInput.max = '5.0';
+        speedInput.min = '0.2'; // Changed from '0.0' to '0.2'
+        speedInput.max = '16.0'; // Changed from '5.0' to '16.0'
         speedInput.step = '0.2';
         speedInput.value = '1.0';
-        speedInput.style.cssText = 'width: 100%; cursor: pointer;';
+        speedInput.style.cssText = 'width: 100% !important; cursor: pointer !important;';
 
         speedSection.appendChild(speedLabel);
         speedSection.appendChild(speedInput);
         contentContainer.appendChild(speedSection);
 
-        const volumeSection = document.createElement('div');
-        volumeSection.className = 'vcp-section';
-        volumeSection.style.marginBottom = '10px';
-
-        const volumeLabel = document.createElement('label');
-        volumeLabel.htmlFor = 'vcp-volume';
-        volumeLabel.style.cssText = 'display: block; margin-bottom: 5px;';
-
-        const volumeDisplay = document.createElement('span');
-        volumeDisplay.id = 'vcp-volume-display';
-        volumeDisplay.textContent = '100';
-        volumeLabel.textContent = '소리 조절: ';
-        volumeLabel.appendChild(volumeDisplay);
-        volumeLabel.appendChild(document.createTextNode('%'));
-
-        const volumeInput = document.createElement('input');
-        volumeInput.type = 'range';
-        volumeInput.id = 'vcp-volume';
-        volumeInput.min = '0.0';
-        volumeInput.max = '5.0';
-        volumeInput.step = '0.1';
-        volumeInput.value = '1.0';
-        volumeInput.style.cssText = 'width: 100%; cursor: pointer;';
-
-        volumeSection.appendChild(volumeLabel);
-        volumeSection.appendChild(volumeInput);
-        contentContainer.appendChild(volumeSection);
-
-        const modeSection = document.createElement('div');
-        modeSection.className = 'vcp-section';
-        modeSection.style.marginBottom = '10px';
-
-        const pipBtn = document.createElement('button');
-        pipBtn.setAttribute('data-action', 'pip');
-        pipBtn.textContent = 'PIP 모드';
-        pipBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
-
-        const exitFullscreenBtn = document.createElement('button');
-        exitFullscreenBtn.setAttribute('data-action', 'exit-fullscreen');
-        exitFullscreenBtn.textContent = '전체 종료';
-        exitFullscreenBtn.style.cssText = `${playPauseBtn.style.cssText} margin-top: 5px;`;
-
-        modeSection.appendChild(pipBtn);
-        modeSection.appendChild(exitFullscreenBtn);
-        contentContainer.appendChild(modeSection);
-
         const statusElement = document.createElement('div');
         statusElement.id = 'vcp-status';
         statusElement.textContent = 'Status: Ready';
-        statusElement.style.cssText = 'margin-top: 10px; font-size: 12px; color: #777;';
+        statusElement.style.cssText = 'margin-top: 10px !important; font-size: 12px !important; color: #777 !important;';
         contentContainer.appendChild(statusElement);
 
         popupElement.appendChild(contentContainer);
@@ -317,19 +229,9 @@
             case 'reset-speed-volume':
                 desiredPlaybackRate = 1.0;
                 fixPlaybackRate(currentVideo, 1.0);
-                setAmplifiedVolume(currentVideo, 1.0);
                 currentVideo.muted = false;
                 updatePopupSliders();
-                updateStatus('1.0x Speed / 100% Volume');
-                break;
-            case 'pip':
-                if (document.pictureInPictureEnabled && currentVideo.requestPictureInPicture) {
-                    (document.pictureInPictureElement ? document.exitPictureInPicture() : currentVideo.requestPictureInPicture()).catch(e => console.error(e));
-                    updateStatus(document.pictureInPictureElement ? 'Exiting PIP' : 'Entering PIP');
-                }
-                break;
-            case 'exit-fullscreen':
-                if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+                updateStatus('1.0x Speed');
                 break;
         }
     }
@@ -352,15 +254,6 @@
             if (currentVideo) { fixPlaybackRate(currentVideo, rate); updateStatus(`Speed: ${rate.toFixed(2)}x`); }
         });
 
-        const volumeInput = popupElement.querySelector('#vcp-volume');
-        const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
-        volumeInput.addEventListener('input', () => {
-            resetPopupHideTimer();
-            const vol = parseFloat(volumeInput.value);
-            volumeDisplay.textContent = Math.round(vol * 100);
-            if (currentVideo) { setAmplifiedVolume(currentVideo, vol); updateStatus(`Volume: ${Math.round(vol * 100)}%`); }
-        });
-
         const dragHandle = popupElement.querySelector('#vcp-drag-handle');
         const startDrag = (e) => {
             if (e.target !== dragHandle) return;
@@ -368,7 +261,7 @@
             isPopupDragging = true;
             dragHandle.style.cursor = 'grabbing';
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY; // Fix for touch events
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             const rect = popupElement.getBoundingClientRect();
             popupDragOffsetX = clientX - rect.left;
             popupDragOffsetY = clientY - rect.top;
@@ -486,20 +379,11 @@
         if (!popupElement || !currentVideo) return;
         const speedInput = popupElement.querySelector('#vcp-speed');
         const speedDisplay = popupElement.querySelector('#vcp-speed-display');
-        const volumeInput = popupElement.querySelector('#vcp-volume');
-        const volumeDisplay = popupElement.querySelector('#vcp-volume-display');
 
         if (speedInput && speedDisplay) {
             const rate = desiredPlaybackRate;
             speedInput.value = rate.toFixed(2);
             speedDisplay.textContent = rate.toFixed(2);
-        }
-
-        if (volumeInput && volumeDisplay) {
-            let volume = desiredVolume;
-            if (gainNode && connectedVideo === currentVideo) volume = gainNode.gain.value;
-            volumeInput.value = volume.toFixed(2);
-            volumeDisplay.textContent = Math.round(volume * 100);
         }
     }
 
@@ -625,29 +509,24 @@
 
     function handleSpaNavigation() {
         if (location.href === lastUrl) {
-            // If URL hasn't actually changed, or it's a redundant call
             return;
         }
         console.log(`[VCP] SPA navigation detected. URL changed from ${lastUrl} to ${location.href}. Resetting popup state.`);
         lastUrl = location.href;
-        currentVideo = null; // Reset current video
-        hidePopup(); // Hide popup
-        updateVideoList(); // Re-scan for videos on new page
-        // After reset, try to find a new best video to control on the new "page"
-        selectVideoOnDocumentClick(null); // Pass null to signify it's not a user click on an element, but an SPA navigation
+        currentVideo = null;
+        hidePopup();
+        updateVideoList();
+        selectVideoOnDocumentClick(null);
     }
 
     function setupSPADetection() {
-        // Existing MutationObserver logic for URL changes (fallback/additional trigger)
-        // Observes document as URL changes can occur at the document level in SPAs
         new MutationObserver(() => {
             if (location.href !== lastUrl) {
                 handleSpaNavigation();
             }
         }).observe(document, { subtree: true, childList: true });
 
-        // New history API patching for pushState and popstate
-        if (!window._vcpPushStatePatched) { // Use a unique flag to avoid patching multiple times
+        if (!window._vcpPushStatePatched) {
             const originalPushState = history.pushState;
             history.pushState = function() {
                 originalPushState.apply(this, arguments);
@@ -655,7 +534,7 @@
             };
             window._vcpPushStatePatched = true;
         }
-        window.addEventListener('popstate', handleSpaNavigation); // Listen for back/forward navigation
+        window.addEventListener('popstate', handleSpaNavigation);
     }
 
     function fixOverflow() {
@@ -677,36 +556,22 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.43_SPA_Enhanced');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.46_CustomSpeed');
 
         createPopupElement();
         hidePopup();
-
-        document.addEventListener('fullscreenchange', () => {
-            const fsEl = document.fullscreenElement;
-            if (popupElement) {
-                if (fsEl) {
-                    fsEl.appendChild(popupElement);
-                    showPopup();
-                } else {
-                    document.body.appendChild(popupElement);
-                }
-            }
-        });
 
         window.addEventListener('resize', () => {
             updatePopupPosition();
         });
 
-        // 스크롤 이벤트 리스너 추가
         window.addEventListener('scroll', handleScrollEvent);
 
-        updateVideoList(); // moved here to ensure it's defined before call
+        updateVideoList();
         setupDOMObserver();
-        setupSPADetection(); // Enhanced SPA detection
+        setupSPADetection();
         fixOverflow();
 
-        // 모바일 클릭 인식을 위해 'touchend' 이벤트 추가
         document.body.addEventListener('click', selectVideoOnDocumentClick, true);
         document.body.addEventListener('touchend', selectVideoOnDocumentClick, true);
 
