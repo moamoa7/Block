@@ -717,8 +717,8 @@
         // centerScore : 계산된 점수 (0보다 크고 1 이하)
         const centerScore = 1 / (1 + centerDist);
 
-        // 가중치: 면적 70%, 중앙 점수 30% (예시)
-        const score = visibleArea * 0.30 + centerScore * 5000 * 0.70;
+        // 가중치: 면적 90%, 중앙 점수 10% (예시)
+        const score = visibleArea * 0.90 + centerScore * 5000 * 0.10;
 
         //return { video: v, visibleArea, centerDist };
         return { video: v, score };
