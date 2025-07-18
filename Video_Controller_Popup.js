@@ -711,12 +711,14 @@
         const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
         const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
 
-       // 화면 중앙과 가까울수록 점수 높음, 면적도 반영 (적절한 가중치 부여)
+        // 화면 중앙과 가까울수록 점수 높음, 면적도 반영 (적절한 가중치 부여)
         // 거리 점수는 거리가 작을수록 높아야 하니 1 / (1 + 거리) 식으로 변환
+        // centerDist : 영상 중앙 좌표와 화면 중앙 좌표 사이의 거리 (픽셀 단위, 0 이상)
+        // centerScore : 계산된 점수 (0보다 크고 1 이하)
         const centerScore = 1 / (1 + centerDist);
 
         // 가중치: 면적 70%, 중앙 점수 30% (예시)
-        const score = visibleArea * 0.70 + centerScore * 5000 * 0.30;
+        const score = visibleArea * 0.30 + centerScore * 5000 * 0.70;
 
         //return { video: v, visibleArea, centerDist };
         return { video: v, score };
