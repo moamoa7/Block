@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.59: 사이트별 자동 소리 재생 업데이트)
+// @name Video Controller Popup (V4.10.58: 사이트별 자동 소리 재생)
 // @namespace Violentmonkey Scripts
-// @version 4.10.59_SiteSpecificVolume_Updated
+// @version 4.10.58_SiteSpecificVolume
 // @description Core video controls with streamlined UI. Specific sites auto-play with sound, others muted. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons.
 // @match *://*/*
 // @grant none
@@ -22,17 +22,18 @@
     // --- Configuration ---
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
-    const AUTO_CHECK_VIDEO_INTERVAL_MS = 100; // 0.1초마다 비디오 상태 체크
+    const AUTO_CHECK_VIDEO_INTERVAL_MS = 500; // 0.5초마다 비디오 상태 체크 (위치 갱신)
 
     // 팝업을 차단하고 싶은 사이트의 도메인
     const SITE_POPUP_BLOCK_LIST = []; // 현재 비어있음
 
-    // --- 업데이트된: 자동 소리 재생을 허용할 사이트 목록 ---
+    // --- 새로 추가된: 자동 소리 재생을 허용할 사이트 목록 (도메인 포함 여부 확인) ---
     const AUTO_UNMUTE_SITES = [
-        'youtube.com',     // YouTube / YouTube Music (통합)
+        'youtube.com',      // YouTube
+        'music.youtube.com',// YouTube Music
         'twitch.tv',        // Twitch
         'chzzk.naver.com',  // 치지직
-        'sooplive.co.kr',   // SOOP (숲) - 도메인 변경
+        'soop.tv',          // SOOP (숲)
         'kick.com'          // Kick
     ];
 
@@ -48,9 +49,7 @@
 
     const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site));
     const isChzzkSite = location.hostname.includes('chzzk.naver.com');
-    // 유튜브/유튜브 뮤직 사이트 식별자 강화 (호스트 이름만으로 판단)
-    const isYouTubeSite = location.hostname.includes('youtube.com');
-
+    const isYouTubeSite = location.hostname.includes('youtube.com') || location.hostname.includes('music.youtube.com'); // 유튜브 및 유튜브 뮤직 포함
 
     // 현재 사이트가 AUTO_UNMUTE_SITES에 포함되는지 확인하는 플래그
     const isAutoUnmuteSite = AUTO_UNMUTE_SITES.some(domain => location.hostname.includes(domain));
@@ -267,7 +266,9 @@
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
         popupElement.style.cssText = `
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            position: fixed;
+            /* 중앙 정렬 제거 */
+            /* top: 50%; left: 50%; transform: translate(-50%, -50%); */
             background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
             padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
             display: none; opacity: 0; transition: opacity 0.3s;
@@ -584,6 +585,7 @@
             return;
         }
         setPopupVisibility(true);
+        updatePopupPosition();  // 여기서 바로 영상 위치로 이동
         updatePlayPauseButton(); // 팝업 보일 때 버튼 상태 업데이트
         updateMuteSpeakButtons(); // 팝업 보일 때 버튼 상태 업데이트
         updatePopupSliders(); // 슬라이더 값도 정확히 동기화
@@ -829,12 +831,14 @@
                 lastUrl = currentUrl;
                 if (currentVideo) currentVideo.pause();
                 currentVideo = null;
+                isManuallySelected = false;
                 hidePopup();
                 updateVideoList();
                 // --- 핵심 변경: URL 변경 시에도 사이트별 자동 소리 재생 로직 적용 ---
                 // 새 URL에 맞춰 비디오를 다시 선택하고, 해당 사이트가 소리 허용 사이트면 자동 재생 (소리 포함)
                 // 만약 currentVideo가 다시 선택되면 selectAndControlVideo 내에서 isManuallyMuted와 desiredVolume이 재설정됩니다.
                 selectVideoOnDocumentClick(null); // 팝업은 자동으로 안 뜸
+                updatePopupPosition(); // ← 이걸 즉시!
                 // --- 핵심 변경 끝 ---
             }
         }).observe(document, { subtree: true, childList: true });
@@ -844,9 +848,8 @@
         const overflowFixSites = [
             { domain: 'twitch.tv', selectors: ['div.video-player__container', 'div.video-player-theatre-mode__player', 'div.player-theatre-mode'] },
             { domain: 'chzzk.naver.com', selectors: ['.app_content', '.paged_list_area', '.live_thumbnail_list_item div[class*="video_area"]'] },
-            { domain: 'youtube.com', selectors: ['ytd-app', 'html', 'body'] }, // 유튜브/뮤직 전체 페이지 오버플로우
-            { domain: 'sooplive.co.kr', selectors: ['body', 'html', '#app-root'] }, // SOOP 오버플로우
-            { domain: 'kick.com', selectors: ['html', 'body', '#__next'] } // Kick 오버플로우
+            { domain: 'youtube.com', selectors: ['ytd-app', 'html', 'body'] }, // 유튜브 전체 페이지 오버플로우
+            { domain: 'music.youtube.com', selectors: ['ytmusic-app', 'html', 'body'] } // 유튜브 뮤직 전체 페이지 오버플로우
         ];
         overflowFixSites.forEach(site => {
             if (location.hostname.includes(site.domain)) {
@@ -912,7 +915,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.59_SiteSpecificVolume_Updated');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.58_SiteSpecificVolume');
 
         createPopupElement();
         if (isPopupGloballyBlocked) {
