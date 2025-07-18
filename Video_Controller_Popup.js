@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.58: 사이트별 자동 소리 재생)
+// @name Video Controller Popup (V4.10.59: 사이트별 자동 소리 재생 + SPA 대응 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.10.58_SiteSpecificVolume
-// @description Core video controls with streamlined UI. Specific sites auto-play with sound, others muted. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons.
+// @version 4.10.59_SiteSpecificVolume_Updated
+// @description Core video controls with streamlined UI. Specific sites auto-play with sound, others muted. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -15,6 +15,7 @@
         isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
     let isManuallyPaused = false; // 사용자가 직접 정지했는지 여부
     let isManuallyMuted = false; // 사용자가 직접 음소거했는지 여부 (유저가 팝업/사이트 자체 UI로 뮤트했는지)
+    let isManuallySelected = false; // 사용자가 팝업을 클릭하여 비디오를 수동으로 선택했는지 여부 (추추가)
     const videoRateHandlers = new WeakMap();
     let checkVideoInterval = null;
     const originalPlayMethods = new WeakMap(); // 원본 play() 메서드를 저장
@@ -22,6 +23,7 @@
     // --- Configuration ---
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
+    // 이 값을 고객님께서 효과를 보신 500ms로 변경합니다.
     const AUTO_CHECK_VIDEO_INTERVAL_MS = 500; // 0.5초마다 비디오 상태 체크 (위치 갱신)
 
     // 팝업을 차단하고 싶은 사이트의 도메인
@@ -29,12 +31,12 @@
 
     // --- 새로 추가된: 자동 소리 재생을 허용할 사이트 목록 (도메인 포함 여부 확인) ---
     const AUTO_UNMUTE_SITES = [
-        'youtube.com',      // YouTube
-        'music.youtube.com',// YouTube Music
-        'twitch.tv',        // Twitch
-        'chzzk.naver.com',  // 치지직
-        'soop.tv',          // SOOP (숲)
-        'kick.com'          // Kick
+        'youtube.com', // YouTube
+        'music.youtube.com', // YouTube Music
+        'twitch.tv', // Twitch
+        'chzzk.naver.com', // 치지직
+        'soop.tv', // SOOP (숲)
+        'kick.com' // Kick
     ];
 
     const isPopupGloballyBlocked = SITE_POPUP_BLOCK_LIST.some(blockRule => {
@@ -146,16 +148,16 @@
                 // 치지직 미리보기는 소리만 강제 음소거
                 if (isChzzkSite && video.closest('.live_thumbnail_list_item')) {
                     if (!video.paused || !video.muted || video.volume > 0) {
-                         if (!originalPlayMethods.has(video)) {
-                             originalPlayMethods.set(video, video.play);
-                             video.play = function() {
-                                 return Promise.resolve(); // play() 호출 블록
-                             };
-                         }
-                        video.pause();
-                        video.muted = true;
-                        video.volume = 0;
-                        video.currentTime = 0;
+                             if (!originalPlayMethods.has(video)) {
+                                 originalPlayMethods.set(video, video.play);
+                                 video.play = function() {
+                                     return Promise.resolve(); // play() 호출 블록
+                                 };
+                             }
+                            video.pause();
+                            video.muted = true;
+                            video.volume = 0;
+                            video.currentTime = 0;
                     }
                     return;
                 }
@@ -736,14 +738,17 @@
                 selectAndControlVideo(bestVideo); // 이 함수는 팝업을 띄우지 않음
 
                 if (currentVideo && e) { // 사용자 클릭일 때만 팝업 표시
+                    isManuallySelected = true; // 수동 선택으로 플래그 설정
                     updatePopupPosition();
                     showPopup();
                     resetPopupHideTimer();
                 } else if (!e) { // 클릭이 아닌 자동 감지 시에는 팝업 숨김
+                    isManuallySelected = false; // 자동 선택으로 플래그 설정
                     hidePopup();
                 }
             } else { // 이미 선택된 비디오가 그대로 유지될 때
                 if (e) { // 사용자 클릭일 때만 팝업 표시 및 리셋
+                    isManuallySelected = true; // 수동 선택으로 플래그 설정
                     updatePopupPosition();
                     showPopup();
                     resetPopupHideTimer();
@@ -758,6 +763,7 @@
                 currentVideo.pause();
             }
             currentVideo = null;
+            isManuallySelected = false; // 선택된 비디오 없으니 초기화
             if (!isPopupDragging) {
                 hidePopup();
             }
@@ -831,14 +837,14 @@
                 lastUrl = currentUrl;
                 if (currentVideo) currentVideo.pause();
                 currentVideo = null;
-                isManuallySelected = false;
+                isManuallySelected = false; // SPA 이동 시 수동 선택 상태 초기화
                 hidePopup();
                 updateVideoList();
                 // --- 핵심 변경: URL 변경 시에도 사이트별 자동 소리 재생 로직 적용 ---
                 // 새 URL에 맞춰 비디오를 다시 선택하고, 해당 사이트가 소리 허용 사이트면 자동 재생 (소리 포함)
                 // 만약 currentVideo가 다시 선택되면 selectAndControlVideo 내에서 isManuallyMuted와 desiredVolume이 재설정됩니다.
                 selectVideoOnDocumentClick(null); // 팝업은 자동으로 안 뜸
-                updatePopupPosition(); // ← 이걸 즉시!
+                updatePopupPosition(); // ← 이걸 즉시! 추추가
                 // --- 핵심 변경 끝 ---
             }
         }).observe(document, { subtree: true, childList: true });
@@ -915,7 +921,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.58_SiteSpecificVolume');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.59_SiteSpecificVolume_Updated');
 
         createPopupElement();
         if (isPopupGloballyBlocked) {
