@@ -694,7 +694,8 @@
 
         updateVideoList();
 
-        const centerY = window.innerHeight / 2;
+        //const centerY = window.innerHeight / 2;
+        const centerY = window.innerHeight * 0.4; // 화면의 40% 지점을 중심으로
         const centerX = window.innerWidth / 2;
 
         const filteredVideos = videos.filter(video => {
@@ -715,10 +716,13 @@
         // 거리 점수는 거리가 작을수록 높아야 하니 1 / (1 + 거리) 식으로 변환
         // centerDist : 영상 중앙 좌표와 화면 중앙 좌표 사이의 거리 (픽셀 단위, 0 이상)
         // centerScore : 계산된 점수 (0보다 크고 1 이하)
-        const centerScore = 1 / (1 + centerDist);
+        //const centerScore = 1 / (1 + centerDist);
+
+        //중심과의 거리 점수(centerScore)"가 느리게 줄어드는 효과
+        const centerScore = 1 / Math.pow(1 + centerDist, 0.5);
 
         // 가중치: 면적 90%, 중앙 점수 10% (예시)
-        const score = visibleArea * 0.90 + centerScore * 5000 * 0.10;
+        const score = visibleArea * 0.7 + centerScore * 5000 * 0.3;
 
         //return { video: v, visibleArea, centerDist };
         return { video: v, score };
