@@ -694,7 +694,48 @@
 
         updateVideoList();
 
-        let bestVideo = null;
+        const centerY = window.innerHeight / 2;
+        const centerX = window.innerWidth / 2;
+
+        const filteredVideos = videos.filter(video => {
+          if (isChzzkSite && video.closest('.live_thumbnail_list_item')) return false;
+          if (isYouTubeSite && (video.closest('ytd-reel-video-renderer') || video.closest('ytm-reel-player-renderer'))) return false;
+          return true;
+      });
+
+    const sorted = filteredVideos
+    .map(v => {
+        const rect = v.getBoundingClientRect();
+        const visibleWidth = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
+        const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+        const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
+        const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
+
+       // 화면 중앙과 가까울수록 점수 높음, 면적도 반영 (적절한 가중치 부여)
+        // 거리 점수는 거리가 작을수록 높아야 하니 1 / (1 + 거리) 식으로 변환
+        const centerScore = 1 / (1 + centerDist);
+
+        // 가중치: 면적 70%, 중앙 점수 30% (예시)
+        const score = visibleArea * 0.70 + centerScore * 5000 * 0.30;
+
+        //return { video: v, visibleArea, centerDist };
+        return { video: v, score };
+    })
+    //.filter(({ visibleArea }) => visibleArea > 0)
+    //.sort((a, b) => {
+       // const areaDiff = b.visibleArea - a.visibleArea;
+        // 면적 차이가 적으면 중앙과의 거리로 정렬
+       // return Math.abs(areaDiff) < 5000
+         //   ? a.centerDist - b.centerDist
+           // : areaDiff;
+    //});
+
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score);
+
+let bestVideo = sorted[0]?.video || null;
+
+        //let bestVideo = null;
         let maxIntersectionRatio = 0;
         let foundPlayingVideo = null;
 
@@ -710,7 +751,8 @@
             const isPlaying = !video.paused && video.duration > 0 && !video.ended;
 
             // Intersection Ratio 50% 적용
-            if (isPlaying && ratio >= 0.5) {
+            //if (isPlaying && ratio >= 0.5) {
+            if (ratio >= 0.5) {
                 if (!foundPlayingVideo) {
                     foundPlayingVideo = video;
                 }
