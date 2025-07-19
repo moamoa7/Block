@@ -695,7 +695,7 @@
         updateVideoList();
 
         //const centerY = window.innerHeight / 2;
-        const centerY = window.innerHeight * 0.4; // 화면의 40% 지점을 중심으로
+        const centerY = window.innerHeight * 0.8; // 화면의 80% 지점을 중심으로
         const centerX = window.innerWidth / 2;
 
         const filteredVideos = videos.filter(video => {
