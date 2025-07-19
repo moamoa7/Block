@@ -695,7 +695,7 @@
         updateVideoList();
 
         //const centerY = window.innerHeight / 2;
-        const centerY = window.innerHeight * 0.8; // 화면의 80% 지점을 중심으로
+        const centerY = window.innerHeight * 0.7; // 화면의 70% 지점을 중심으로
         const centerX = window.innerWidth / 2;
 
         const filteredVideos = videos.filter(video => {
@@ -719,6 +719,7 @@
         //const centerScore = 1 / (1 + centerDist);
 
         //중심과의 거리 점수(centerScore)"가 느리게 줄어드는 효과
+        //p의 값이 클수록 → 중심에서 멀어졌을 때 점수가 더 빨리 줄어듬
         const centerScore = 1 / Math.pow(1 + centerDist, 0.5);
 
         // 가중치: 면적 90%, 중앙 점수 10% (예시)
