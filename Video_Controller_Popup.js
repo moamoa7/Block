@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.60: 사이트별 자동 소리 재생 + SPA 대응 강화 + 팝업 조건 강화)
+// @name Video Controller Popup (V4.10.61: 사이트별 자동 소리 재생 + SPA 대응 강화 + 팝업 조건 강화 + 모바일 클릭 조건)
 // @namespace Violentmonkey Scripts
-// @version 4.10.60_SiteSpecificVolume_Updated
+// @version 4.10.61_SiteSpecificVolume_Updated
 // @description Core video controls with streamlined UI. Specific sites auto-play with sound, others muted. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling.
 // @match *://*/*
 // @grant none
@@ -1029,7 +1029,30 @@ let bestVideo = sorted[0]?.video || null;
         setupSPADetection();
         fixOverflow(); // 오버플로우 픽스 함수도 유튜브, 유튜브 뮤직에 추가
 
-        document.body.addEventListener('click', selectVideoOnDocumentClick, true);
+        let touchStartY = 0;
+let touchMoved = false;
+
+document.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+    touchMoved = false;
+});
+
+document.addEventListener('touchmove', (e) => {
+    const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+    if (deltaY > 10) {
+        touchMoved = true;
+    }
+});
+
+document.body.addEventListener('click', (e) => {
+    if (touchMoved) {
+        touchMoved = false;
+        return; // 드래그 후 터치클릭 무시
+    }
+    selectVideoOnDocumentClick(e);
+}, true);
+
+document.body.addEventListener('touchend', selectVideoOnDocumentClick, true); // 터치는 기존 유지 가능
         document.body.addEventListener('touchend', selectVideoOnDocumentClick, true);
 
         startCheckingVideoStatus();
