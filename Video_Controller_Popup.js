@@ -39,7 +39,7 @@
     const AUTO_CHECK_VIDEO_INTERVAL_MS = 500; // 0.5초마다 비디오 상태 체크 (위치 갱신)
     const FULLSCREEN_RESTORE_INITIAL_DELAY_MS = 100; // 전체 화면 복귀 시 첫 상태 복원을 위한 지연 시간
     const FULLSCREEN_RESTORE_INTERVAL_MS = 100; // 반복 재시도 간격
-    const FULLSCREEN_RESTORE_MAX_ATTEMPTS = 5; // 최대 재시도 횟수 (총 500ms 동안 시도)
+    //const FULLSCREEN_RESTORE_MAX_ATTEMPTS = 5; // 최대 재시도 횟수 (총 500ms 동안 시도)
 
 
     // 팝업을 차단하고 싶은 사이트의 도메인 (기존 기능)
@@ -989,15 +989,15 @@
         fullscreenRestoreAttempts = 0;
         if (fullscreenRestoreTimeout) clearTimeout(fullscreenRestoreTimeout);
 
-        const performRestore = () => {
-            if (fullscreenRestoreAttempts < FULLSCREEN_RESTORE_MAX_ATTEMPTS) {
-                restoreVideoState(currentVideo, savedCurrentTime, wasPausedBeforeFullscreen, fullscreenRestoreAttempts + 1);
-                fullscreenRestoreAttempts++;
-                fullscreenRestoreTimeout = setTimeout(performRestore, FULLSCREEN_RESTORE_INTERVAL_MS);
-            } else {
+        //const performRestore = () => {
+            //if (fullscreenRestoreAttempts < FULLSCREEN_RESTORE_MAX_ATTEMPTS) {
+                //restoreVideoState(currentVideo, savedCurrentTime, wasPausedBeforeFullscreen, fullscreenRestoreAttempts + 1);
+                //fullscreenRestoreAttempts++;
+                //fullscreenRestoreTimeout = setTimeout(performRestore, FULLSCREEN_RESTORE_INTERVAL_MS);
+            //} else {
                 // console.log("[VCP] Fullscreen restore sequence completed.");
-            }
-        };
+            //}
+        //};
 
         // 첫 번째 시도는 약간의 지연 후 시작
         fullscreenRestoreTimeout = setTimeout(performRestore, FULLSCREEN_RESTORE_INITIAL_DELAY_MS);
