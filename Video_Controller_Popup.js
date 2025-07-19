@@ -786,15 +786,29 @@ let bestVideo = sorted[0]?.video || null;
                 currentVideo = null;
                 selectAndControlVideo(bestVideo); // 이 함수는 팝업을 띄우지 않음
 
-                if (currentVideo && e) { // 사용자 클릭일 때만 팝업 표시
-                    isManuallySelected = true; // 수동 선택으로 플래그 설정
+                //if (currentVideo && !!e) { // 사용자 클릭일 때만 팝업 표시
+                    //isManuallySelected = true; // 수동 선택으로 플래그 설정
+                    //updatePopupPosition();
+                    //showPopup();
+                    //resetPopupHideTimer();
+                //} else if (!e) { // 클릭이 아닌 자동 감지 시에는 팝업 숨김
+                    //isManuallySelected = false; // 자동 선택으로 플래그 설정
+                    //hidePopup();
+                //}
+
+                // e instanceof Event는 진짜 이벤트 객체일 때만 true가 되므로 안전하게 수동 선택을 판별할 수 있습니다.
+                // 참고로 MouseEvent, PointerEvent, TouchEvent 등도 Event의 하위 클래스이므로 instanceof Event로 전부 커버됩니다.
+
+                if (currentVideo && e instanceof Event) {
+                    isManuallySelected = true; // 수동 선택
                     updatePopupPosition();
                     showPopup();
                     resetPopupHideTimer();
-                } else if (!e) { // 클릭이 아닌 자동 감지 시에는 팝업 숨김
-                    isManuallySelected = false; // 자동 선택으로 플래그 설정
+                } else {
+                    isManuallySelected = false; // 자동 감지
                     hidePopup();
                 }
+
             } else { // 이미 선택된 비디오가 그대로 유지될 때
                 if (e) { // 사용자 클릭일 때만 팝업 표시 및 리셋
                     isManuallySelected = true; // 수동 선택으로 플래그 설정
