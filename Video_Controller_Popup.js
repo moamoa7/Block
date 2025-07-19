@@ -1018,19 +1018,23 @@
 
             // 현재 제어 중인 비디오가 유효하고 화면에 보이는지 확인
             // 치지직 미리보기 비디오는 이 단계에서 팝업 대상이 아님
-            if (currentVideo && (!checkCurrentVideoVisibility() || (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')))) {
-                console.log('[VCP] Current video scrolled out of view or became invalid (or is Chzzk preview). Resetting.');
-                if (currentVideo.tagName === 'IFRAME' && originalDisplayStates.has(currentVideo)) {
-                    currentVideo.style.display = originalDisplayStates.get(currentVideo);
-                    originalDisplayStates.delete(currentVideo);
-                } else if (currentVideo.tagName === 'VIDEO' || currentVideo.tagName === 'AUDIO') {
-                    currentVideo.pause();
-                }
-                currentVideo = null;
-                if (!isPopupDragging) {
-                    hidePopup();
-                }
-            }
+            const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+if (currentVideo && (!checkCurrentVideoVisibility() || (isChzzkSite && currentVideo.closest('.live_thumbnail_list_item')))) {
+    console.log('[VCP] Current video scrolled out of view or became invalid (or is Chzzk preview). Resetting.');
+    if (currentVideo.tagName === 'IFRAME' && originalDisplayStates.has(currentVideo)) {
+        currentVideo.style.display = originalDisplayStates.get(currentVideo);
+        originalDisplayStates.delete(currentVideo);
+    } else if (currentVideo.tagName === 'VIDEO' || currentVideo.tagName === 'AUDIO') {
+        if (!isMobile) {  // 모바일에서는 pause 호출하지 않음
+            currentVideo.pause();
+        }
+    }
+    currentVideo = null;
+    if (!isPopupDragging) {
+        hidePopup();
+    }
+}
 
             // 팝업이 숨겨져 있거나, 현재 비디오가 없는 경우
             // 또는 스크롤로 인해 가장 적합한 비디오가 변경되었을 수 있으므로 재선택 시도
