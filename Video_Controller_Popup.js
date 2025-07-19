@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.59: 사이트별 자동 소리 재생 + SPA 대응 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.10.59_SiteSpecificVolume_Updated
+// @version 4.10.60_SiteSpecificVolume_Updated
 // @description Core video controls with streamlined UI. Specific sites auto-play with sound, others muted. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling.
 // @match *://*/*
 // @grant none
