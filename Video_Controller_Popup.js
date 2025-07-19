@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.42: ReferenceError Fix, No Amplification, No PIP/Fullscreen Buttons)
+// @name Video Controller Popup (V4.10.42: ReferenceError Fix, No Amplification, No PIP／Fullscreen Buttons)
 // @namespace Violentmonkey Scripts
-// @version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict_DynamicPlayPauseBtn_RollbackPlayBtn_NewButtons_UI_Cleaned_FontFix_DynamicPlayPause_StreamAudio
+// @version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict_DynamicPlayPauseBtn_RollbackPlayBtn_NewButtons_UI_Cleaned_FontFix_DynamicPlayPause_StreamAudio_TrustedHTMLFix
 // @description Optimized video controls with robust popup initialization on video selection, consistent state management during dragging, enhanced scroll handling, improved mobile click recognition, and fixed ReferenceError. Amplification, PIP, and fullscreen exit buttons removed. Improved auto-detection for dynamic sites. Fixed popup flashing and position issues. Enhanced Chzzk audio leak fix with play override and preview blocking. (Modified for stable popup auto-hide, strict muted autoplay, dynamic play/pause button, play button logic rolled back, new independent speed/volume buttons, UI cleaned up, font size fixed, dynamic play/pause button text, streaming site audio enabled by default)
 // @match *://*/*
 // @grant none
@@ -21,7 +21,7 @@
     // --- Configuration ---
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
-    const AUTO_CHECK_VIDEO_INTERVAL_MS = 300; // 0.3초마다 비디오 상태 확인 (더 빠르게 반응)
+    const AUTO_CHECK_VIDEO_INTERVAL_MS = 500; // 0.5초마다 비디오 상태 확인
 
     // 여기에 팝업을 차단하고 싶은 사이트의 도메인과 경로 조건을 추가합니다.
     const SITE_POPUP_BLOCK_LIST = [
@@ -285,6 +285,31 @@
         updateMuteButton(); // 볼륨 변경 시 음소거 버튼 상태 업데이트
     }
 
+    // --- TrustedHTML 우회 헬퍼 함수 ---
+    // Trusted Types가 존재하면 bypassPolicy를 통해 TrustedHTML 객체를 생성하고,
+    // 없으면 일반 문자열을 반환합니다.
+    function getTrustedHTML(htmlString) {
+        if (window.trustedTypes && trustedTypes.createPolicy) {
+            try {
+                // 'default' 정책이 이미 존재할 수 있으므로, 새로운 정책을 생성하기보다
+                // HTML 문자열을 TrustedHTML로 강제하는 방법을 시도합니다.
+                // 또는 더 안전하게, Trusted Types 정책을 직접 생성하여 사용합니다.
+                // 여기서는 최대한 간소화된 우회를 위해 'default' 정책을 시도하거나,
+                // TrustedHTML 객체를 직접 생성하는 방법을 사용합니다.
+                const policy = trustedTypes.createPolicy('vcp-bypass', {
+                    createHTML: (s) => s
+                });
+                return policy.createHTML(htmlString);
+            } catch (e) {
+                console.warn("[VCP] Trusted Types policy creation failed, falling back to string. Error:", e);
+                // 정책 생성 실패 시, 일반 문자열 반환 (Trusted Types가 이미 엄격하게 적용된 경우 여전히 문제 발생 가능)
+                return htmlString;
+            }
+        }
+        return htmlString;
+    }
+
+
     // --- Popup UI Functions ---
     function createPopupElement() {
         if (popupElement) return;
@@ -296,7 +321,8 @@
 
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
-        dragHandle.textContent = '비디오.오디오 컨트롤러';
+        // TrustedHTML 우회 적용
+        dragHandle.innerHTML = getTrustedHTML('비디오.오디오 컨트롤러'); // 321번째 줄 오류 지점
         // 폰트 크기 16px 적용
         dragHandle.style.cssText = `font-weight: bold; margin-bottom: 8px; color: #ccc; padding: 5px; background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab; border-radius: 6px 6px 0 0; user-select: none; font-size: 16px;`;
         popupElement.appendChild(dragHandle);
@@ -318,7 +344,8 @@
         // --- 배속 1배속 초기화 버튼 (폰트 크기 16px) ---
         const resetSpeedBtn = document.createElement('button');
         resetSpeedBtn.setAttribute('data-action', 'reset-speed');
-        resetSpeedBtn.innerHTML = '🛑'; // 1x 텍스트 제거
+        // TrustedHTML 우회 적용
+        resetSpeedBtn.innerHTML = getTrustedHTML('🛑'); // 1x 텍스트 제거
         resetSpeedBtn.style.cssText = `background-color: #333; color: white; border: 1.5px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; text-align: center; font-size: 16px;`;
         buttonSection.appendChild(resetSpeedBtn);
 
@@ -390,13 +417,6 @@
         volumeSection.appendChild(volumeInput);
         contentContainer.appendChild(volumeSection);
 
-        // --- 하단 상태 메시지 삭제 ---
-        // const statusElement = document.createElement('div');
-        // statusElement.id = 'vcp-status';
-        // statusElement.textContent = 'Status: Ready';
-        // statusElement.style.cssText = 'margin-top: 10px; font-size: 12px; color: #aaa;';
-        // contentContainer.appendChild(statusElement);
-
         popupElement.appendChild(contentContainer);
         document.body.appendChild(popupElement);
         setupPopupEventListeners();
@@ -407,12 +427,12 @@
         const muteToggleBtn = popupElement ? popupElement.querySelector('#vcp-mute-toggle-btn') : null;
         if (muteToggleBtn && currentVideo) {
             if (currentVideo.muted || currentVideo.volume === 0) { // 음소거 상태이거나 볼륨이 0이면
-                muteToggleBtn.innerHTML = '🔊'; // 소리 100% 아이콘
+                muteToggleBtn.innerHTML = getTrustedHTML('🔊'); // 소리 100% 아이콘 (TrustedHTML 적용)
             } else {
-                muteToggleBtn.innerHTML = '🔇'; // 음소거 아이콘
+                muteToggleBtn.innerHTML = getTrustedHTML('🔇'); // 음소거 아이콘 (TrustedHTML 적용)
             }
         } else if (muteToggleBtn) {
-            muteToggleBtn.innerHTML = '🔇/🔊'; // 비디오 없으면 기본
+            muteToggleBtn.innerHTML = getTrustedHTML('🔇/🔊'); // 비디오 없으면 기본 (TrustedHTML 적용)
         }
     }
     // --- 추가 끝 ---
@@ -435,11 +455,6 @@
     }
 
     function updateStatus(message) {
-        // 하단 상태 메시지 출력 로직 삭제
-        // const statusElement = popupElement ? popupElement.querySelector('#vcp-status') : null;
-        // if (statusElement) {
-        //     statusElement.textContent = `Status: ${message}`;
-        // }
         console.log(`[VCP Status] ${message}`); // 콘솔 로그는 유지
     }
 
@@ -924,7 +939,7 @@
             // currentVideo가 muted 상태가 아니라면 desiredVolume을 적용
             // (muted 상태에서는 volume 값을 변경해도 소리가 나지 않으므로 불필요)
             if (currentVideo && !currentVideo.muted && currentVideo.volume !== desiredVolume) {
-                 setNormalVolume(currentVideo, desiredVolume);
+                setNormalVolume(currentVideo, desiredVolume);
             }
 
 
@@ -991,7 +1006,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict_DynamicPlayPauseBtn_RollbackPlayBtn_NewButtons_UI_Cleaned_FontFix_DynamicPlayPause_StreamAudio');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.42_ReferenceErrorFix_NoAmp_NoButtons_Minified_Rolledback_AutoDetect_FixFlash_FixPosition_ChzzkAudioFix4_Modified_MutedAutoplay_Strict_DynamicPlayPauseBtn_RollbackPlayBtn_NewButtons_UI_Cleaned_FontFix_DynamicPlayPause_StreamAudio_TrustedHTMLFix');
 
         createPopupElement();
         // 팝업이 완전히 차단된 사이트에서는 초기부터 숨겨진 상태로 유지
