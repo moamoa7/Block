@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup
 // @namespace Violentmonkey Scripts
-// @version 4.10.68
+// @version 4.10.69
 // @description Core video controls: popup on click, dynamic Play/Pause, speed, mute/unmute. Prevents other videos from auto-playing. Auto-unmutes on specified sites. Enhanced fullscreen exit stability and play button responsiveness for complex players. Auto-play blocking for specific sites has been rolled back.
 // @match *://*/*
 // @grant none
@@ -54,17 +54,12 @@
         'kick.com' // Kick
     ];
 
-    // --- 새로 추가된: 일반 화면 클릭 시 팝업을 띄우지 않고, 전체 화면 시에만 팝업을 띄울 사이트 목록 ---
-    const FULLSCREEN_POPUP_ONLY_SITES = [
+    // **핵심 변경: 미리보기/영상 클릭 시 팝업을 띄우지 않을 사이트 목록**
+    // 이 목록에 있는 사이트는, 일반 화면에서 영상 자체를 클릭해도 팝업이 뜨지 않습니다.
+    // 하지만 영상 영역 바깥의 빈 공간을 클릭하면 팝업이 뜹니다.
+    const PREVIEW_CLICK_POPUP_BLOCK_SITES = [
         'missav.ws',
         'missav.live'
-    ];
-
-    // **핵심 변경: 자동 재생을 강제 정지하던 사이트 목록에서 missav.ws와 missav.live 제거**
-    // 이제 이 목록은 비어있습니다.
-    const FORCE_PAUSE_ON_SELECT_SITES = [
-        // 'missav.ws', // 롤백됨
-        // 'missav.live' // 롤백됨
     ];
 
     // 현재 사이트가 전역적으로 팝업이 차단되는지 확인
@@ -88,11 +83,8 @@
     // 현재 사이트가 AUTO_UNMUTE_SITES에 포함되는지 확인하는 플래그
     const isAutoUnmuteSite = AUTO_UNMUTE_SITES.some(domain => location.hostname.includes(domain));
 
-    // 현재 사이트가 FULLSCREEN_POPUP_ONLY_SITES에 포함되는지 확인하는 플래그
-    const isFullscreenPopupOnlySite = FULLSCREEN_POPUP_ONLY_SITES.some(domain => location.hostname.includes(domain));
-
-    // **핵심 변경: 현재 사이트가 FORCE_PAUSE_ON_SELECT_SITES에 포함되는지 확인하는 플래그 (이제 항상 false)**
-    const isForcePauseOnSelectSite = FORCE_PAUSE_ON_SELECT_SITES.some(domain => location.hostname.includes(domain));
+    // **핵심 변경: PREVIEW_CLICK_POPUP_BLOCK_SITES에 포함되는지 확인하는 플래그**
+    const isPreviewClickPopupBlockSite = PREVIEW_CLICK_POPUP_BLOCK_SITES.some(domain => location.hostname.includes(domain));
 
     // --- Utility Functions ---
     function findAllVideosDeep(root = document) {
@@ -266,7 +258,7 @@
             desiredVolume = 1.0; // 모든 경우에 100%를 목표 볼륨으로 설정
             isManuallyMuted = !isAutoUnmuteSite; // 소리 허용 사이트가 아니면 초기에는 스크립트에 의해 음소거된 상태
             // --- 핵심 변경 끝 ---
-            
+
             // **핵심 변경: FORCE_PAUSE_ON_SELECT_SITES에 있다면, 선택과 동시에 isManuallyPaused를 true로 설정 (이 로직 제거)**
             // if (isForcePauseOnSelectSite) {
             //     isManuallyPaused = true;
@@ -497,7 +489,6 @@
         switch (action) {
             case 'play-pause':
                 if (currentVideo.paused) {
-                    // **핵심 변경: FORCE_PAUSE_ON_SELECT_SITES인 경우 재생 시도하지 않음 로직 제거**
                     isManuallyPaused = false; // 수동 정지 해제
                     // 재생 시 음소거 상태를 사용자가 마지막으로 설정한 상태로 복원
                     currentVideo.muted = isManuallyMuted;
@@ -505,7 +496,6 @@
                          currentVideo.volume = desiredVolume > 0 ? desiredVolume : 1.0;
                     }
 
-                    // **핵심 변경:** 이제 `originalPlayMethod`를 직접 호출하여 재생 시도
                     originalPlayMethod.apply(currentVideo).catch(e => {
                         console.error("[VCP] Play failed when clicking button (user interaction may be required):", e);
                         isManuallyPaused = true; // 재생 실패 시 다시 일시 정지 상태로
@@ -513,8 +503,7 @@
                     });
                 } else {
                     isManuallyPaused = true; // 수동 정지 설정
-                    // **핵심 변경:** `originalPauseMethod`를 직접 호출하여 일시 정지 시도
-                    originalPauseMethod.apply(currentVideo);
+                    originalPauseMethod.apply(currentVideo); // 원본 pause() 메서드를 직접 호출하여 일시 정지 시도
                 }
                 updatePlayPauseButton(); // 버튼 텍스트 업데이트
                 updateMuteSpeakButtons(); // 음소거 상태 변경 가능성이 있으므로 업데이트
@@ -839,17 +828,17 @@
 
                 // --- 팝업 표시 조건 강화 ---
                 if (e instanceof Event) { // 클릭 이벤트일 경우
-                    if (isFullscreenPopupOnlySite) { // missav.ws, missav.live 등의 특정 사이트일 경우
-                        if (document.fullscreenElement) { // 그리고 현재 전체 화면일 때만 팝업 표시
-                            isManuallySelected = true;
-                            updatePopupPosition();
-                            showPopup();
-                            resetPopupHideTimer();
-                        } else { // 특정 사이트이고 일반 화면일 경우 팝업 숨김 (강제 멈춤/재생은 팝업 없이 동작)
-                            isManuallySelected = false;
-                            hidePopup();
-                        }
-                    } else { // 특정 사이트가 아닐 경우 (기존 동작대로 일반 화면에서도 팝업 표시)
+                    // **핵심 변경: PREVIEW_CLICK_POPUP_BLOCK_SITES에 대한 팝업 차단 로직 추가**
+                    const clickedElement = e.target;
+                    const isVideoOrDescendantClicked = clickedElement.tagName === 'VIDEO' || clickedElement.closest('video');
+                    const isPreviewOrPlayerContainerClicked = isPreviewClickPopupBlockSite && (isVideoOrDescendantClicked || clickedElement.closest('[class*="video-"], [id*="player"], [class*="thumb"]')); // missav.ws 미리보기, 플레이어 등 감지
+
+                    if (isPreviewClickPopupBlockSite && isPreviewOrPlayerContainerClicked) {
+                        // 미리보기/영상 자체 클릭 시에는 팝업 숨김
+                        isManuallySelected = false;
+                        hidePopup();
+                    } else {
+                        // 그 외의 일반 화면 클릭 시 팝업 표시
                         isManuallySelected = true;
                         updatePopupPosition();
                         showPopup();
@@ -862,7 +851,6 @@
                 // --- 팝업 표시 조건 강화 끝 ---
 
             } else { // 이미 선택된 비디오가 그대로 유지될 때 (즉, 현재 선택된 비디오를 다시 클릭했을 때)
-                // **핵심 변경: FORCE_PAUSE_ON_SELECT_SITES 대응 로직 제거**
                 if (currentVideo.paused) {
                     isManuallyPaused = false;
                     currentVideo.muted = isManuallyMuted;
@@ -881,18 +869,17 @@
 
                 // --- 팝업 표시 조건 강화 ---
                 if (e) { // 사용자 클릭일 때만
-                    if (isFullscreenPopupOnlySite) { // missav.ws, missav.live 등의 특정 사이트일 경우
-                        if (document.fullscreenElement) { // 그리고 현재 전체 화면일 때만 팝업 표시
-                             isManuallySelected = true;
-                             updatePopupPosition();
-                             showPopup();
-                             resetPopupHideTimer();
-                        } else { // 특정 사이트이고 일반 화면일 경우 팝업 숨김
-                            if (popupElement && popupElement.style.display !== 'none') {
-                               hidePopup();
-                            }
-                        }
-                    } else { // 특정 사이트가 아닐 경우 (기존 동작)
+                    // **핵심 변경: PREVIEW_CLICK_POPUP_BLOCK_SITES에 대한 팝업 차단 로직 추가**
+                    const clickedElement = e.target;
+                    const isVideoOrDescendantClicked = clickedElement.tagName === 'VIDEO' || clickedElement.closest('video');
+                    const isPreviewOrPlayerContainerClicked = isPreviewClickPopupBlockSite && (isVideoOrDescendantClicked || clickedElement.closest('[class*="video-"], [id*="player"], [class*="thumb"]'));
+
+                    if (isPreviewClickPopupBlockSite && isPreviewOrPlayerContainerClicked) {
+                        // 미리보기/영상 자체 클릭 시에는 팝업 숨김
+                        isManuallySelected = false;
+                        hidePopup();
+                    } else {
+                        // 그 외의 일반 화면 클릭 시 팝업 표시
                         isManuallySelected = true;
                         updatePopupPosition();
                         showPopup();
@@ -973,7 +960,6 @@
         }
 
         // 재생/일시 정지 상태 복원
-        // **핵심 변경: FORCE_PAUSE_ON_SELECT_SITES인 경우 재생 시도하지 않음 로직 제거**
         if (pausedState) { // 원래 일시 정지 상태였으면
             if (!video.paused) {
                 originalPauseMethod.apply(video); // 원본 pause 메서드로 강제 정지
@@ -1134,7 +1120,6 @@
                         }
                     } else { // 사용자가 재생을 원하는데 (혹은 수동으로 정지한 상태가 아닌데)
                         if (video.paused && !video.ended) { // 비디오가 멈춰있다면 (끝난 상태는 제외)
-                            // **핵심 변경: FORCE_PAUSE_ON_SELECT_SITES인 경우 재생 시도하지 않음 로직 제거**
                             // console.log("[VCP] Forcing play for current video.");
                             originalPlayMethod.apply(video).catch(e => {
                                 // console.warn("Forced play attempt failed:", e);
@@ -1182,7 +1167,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.68');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.69');
 
         createPopupElement();
         if (isPopupGloballyBlocked) {
@@ -1201,7 +1186,7 @@
             const fsEl = document.fullscreenElement;
             if (fsEl) { // 전체 화면 진입 시
                 // 클릭으로 전체 화면이 되었고, 대상 사이트인 경우에만 팝업 표시 (최초 전체 화면 진입 시)
-                if (isFullscreenPopupOnlySite && wasClickedBeforeFullscreen && currentVideo && (fsEl === currentVideo || fsEl.contains(currentVideo))) {
+                if (wasClickedBeforeFullscreen && currentVideo && (fsEl === currentVideo || fsEl.contains(currentVideo))) {
                     updatePopupPosition();
                     showPopup();
                     resetPopupHideTimer();
@@ -1229,7 +1214,7 @@
                     resetPopupHideTimer();
                 }
 
-                // **핵심 변경: 전체 화면 종료 시 비디오 상태 복원 시퀀스 시작 (FORCE_PAUSE_ON_SELECT_SITES 조건 제거)**
+                // 전체 화면 종료 시 비디오 상태 복원 시퀀스 시작
                 if (currentVideo) {
                     // console.log(`[VCP] Fullscreen exited. Initiating restore sequence for time=${savedCurrentTime.toFixed(2)}, paused=${wasPausedBeforeFullscreen}`);
                     startFullscreenRestoreSequence();
@@ -1245,7 +1230,6 @@
         document.body.addEventListener('loadeddata', (event) => {
             const video = event.target;
             if (video === currentVideo && !wasPausedBeforeFullscreen) { // 현재 비디오이고 재생 중이던 상태였을 경우
-                // **핵심 변경: FORCE_PAUSE_ON_SELECT_SITES인 경우 재생 시도하지 않음 로직 제거**
                 // console.log(`[VCP] Video loadeddata event detected for currentVideo. Attempting to set currentTime to ${savedCurrentTime.toFixed(2)}.`);
                 if (Math.abs(video.currentTime - savedCurrentTime) > 0.5) {
                     video.currentTime = savedCurrentTime;
@@ -1260,7 +1244,6 @@
         document.body.addEventListener('canplay', (event) => {
             const video = event.target;
             if (video === currentVideo && !wasPausedBeforeFullscreen && video.paused) { // 현재 비디오이고 재생 중이던 상태였고 현재 멈춰있다면
-                // **핵심 변경: FORCE_PAUSE_ON_SELECT_SITES인 경우 재생 시도하지 않음 로직 제거**
                 // console.log(`[VCP] Video canplay event detected for currentVideo. Attempting to set currentTime to ${savedCurrentTime.toFixed(2)} and play.`);
                 if (Math.abs(video.currentTime - savedCurrentTime) > 0.5) {
                     video.currentTime = savedCurrentTime;
