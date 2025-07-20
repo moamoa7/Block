@@ -27,15 +27,14 @@
     const AUTO_CHECK_VIDEO_INTERVAL_MS = 500; // 0.5초마다 비디오 상태 체크 (위치 갱신)
 
     // 팝업을 차단하고 싶은 사이트의 도메인
-    const SITE_POPUP_BLOCK_LIST = ['missav.ws']; // 현재 비어있음
+    const SITE_POPUP_BLOCK_LIST = ['']; // 현재 비어있음
 
     // --- 새로 추가된: 자동 소리 재생을 허용할 사이트 목록 (도메인 포함 여부 확인) ---
     const AUTO_UNMUTE_SITES = [
         'youtube.com', // YouTube
-        'youtube.com/music', // YouTube Music (실제 도메인은 youtube.com에 포함되므로 music.youtube.com 같은 경우 따로 명시)
         'twitch.tv', // Twitch
         'chzzk.naver.com', // 치지직
-        'soop.tv', // SOOP (숲)
+        'sooplive.co.kr', // SOOP (숲)
         'kick.com' // Kick
     ];
 
