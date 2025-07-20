@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.61: 사이트별 자동 소리 재생 + SPA 대응 강화 + 팝업 조건 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.10.61_SiteSpecificVolume_Updated_FixedMobileDrag
+// @version 4.10.61_SiteSpecificVolume_Updated_FixedMobileDrag_MissavPopupFix
 // @description Core video controls with streamlined UI. Specific sites auto-play with sound, others muted. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling.
 // @match *://*/*
 // @grant none
@@ -23,7 +23,6 @@
     // --- Configuration ---
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
-    // 이 값을 고객님께서 효과를 보신 500ms로 변경합니다.
     const AUTO_CHECK_VIDEO_INTERVAL_MS = 500; // 0.5초마다 비디오 상태 체크 (위치 갱신)
 
     // 팝업을 차단하고 싶은 사이트의 도메인
@@ -32,12 +31,19 @@
     // --- 새로 추가된: 자동 소리 재생을 허용할 사이트 목록 (도메인 포함 여부 확인) ---
     const AUTO_UNMUTE_SITES = [
         'youtube.com', // YouTube
-        'youtube.com/music', // YouTube Music (실제 도메인은 youtube.com에 포함되므로 music.youtube.com 같은 경우 따로 명시)
         'twitch.tv', // Twitch
         'chzzk.naver.com', // 치지직
         'soop.tv', // SOOP (숲)
         'kick.com' // Kick
     ];
+
+    // --- Missav 사이트 팝업 제한 목록 (추가) ---
+    const MISSAV_POPUP_RESTRICTED_SITES = [
+        'missav.ws',
+        'missav.live'
+    ];
+    const isMissavRestrictedSite = MISSAV_POPUP_RESTRICTED_SITES.some(site => location.hostname.includes(site));
+
 
     const isPopupGloballyBlocked = SITE_POPUP_BLOCK_LIST.some(blockRule => {
         const isDomainMatch = location.hostname.includes(blockRule.domain);
@@ -148,7 +154,7 @@
                 // 치지직 미리보기는 소리만 강제 음소거
                 if (isChzzkSite && video.closest('.live_thumbnail_list_item')) {
                     if (!video.paused || !video.muted || video.volume > 0) {
-                             if (!originalPlayMethods.has(video)) {
+                            if (!originalPlayMethods.has(video)) {
                                 originalPlayMethods.set(video, video.play);
                                 video.play = function() {
                                     return Promise.resolve(); // play() 호출 블록
@@ -703,25 +709,25 @@
           return true;
         });
 
-    const sorted = filteredVideos
-    .map(v => {
-        const rect = v.getBoundingClientRect();
-        const visibleWidth = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
-        const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
-        const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
-        const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
+        const sorted = filteredVideos
+        .map(v => {
+            const rect = v.getBoundingClientRect();
+            const visibleWidth = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
+            const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+            const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
+            const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
 
-        const centerScore = 1 / Math.pow(1 + centerDist, 5);
+            const centerScore = 1 / Math.pow(1 + centerDist, 5);
 
-        // 가중치: 면적 70%, 중앙 점수 30% (예시)
-        const score = visibleArea * 0.7 + centerScore * 5000 * 0.3;
+            // 가중치: 면적 70%, 중앙 점수 30% (예시)
+            const score = visibleArea * 0.7 + centerScore * 5000 * 0.3;
 
-        return { video: v, score };
-    })
-      .filter(({ score }) => score > 0)
-      .sort((a, b) => b.score - a.score);
+            return { video: v, score };
+        })
+          .filter(({ score }) => score > 0)
+          .sort((a, b) => b.score - a.score);
 
-    let bestVideo = sorted[0]?.video || null;
+        let bestVideo = sorted[0]?.video || null;
 
         let maxIntersectionRatio = 0;
         let foundPlayingVideo = null;
@@ -757,14 +763,26 @@
             // No suitable video found.
         }
 
-        // 팝업 표시 로직 변경: 오직 사용자 클릭 (e가 존재할 때)만 팝업 표시
+        // 팝업 표시 로직 변경:
+        // 1. Missav 사이트가 아닌 경우 (기존 동작 유지)
+        // 2. Missav 사이트인 경우:
+        //    a. 클릭 대상이 비디오 플레이어 자체가 아닌 경우 (빈 공간 클릭)
+        //    b. 전체 화면 모드인 경우
+        const shouldShowPopup = (e instanceof Event) &&
+                                (
+                                    !isMissavRestrictedSite || // Missav 사이트가 아니거나
+                                    (isMissavRestrictedSite && (!e.target.matches('video, audio') && !e.target.closest('video, audio'))) || // Missav 사이트에서 비디오가 아닌 빈 공간 클릭
+                                    document.fullscreenElement // 전체 화면 모드인 경우
+                                );
+
+
         if (bestVideo && (maxIntersectionRatio > 0 || bestVideo.tagName === 'AUDIO' || !bestVideo.paused)) {
             if (currentVideo !== bestVideo) {
                 if (currentVideo) currentVideo.pause();
                 currentVideo = null;
                 selectAndControlVideo(bestVideo); // 이 함수는 팝업을 띄우지 않음
 
-                if (currentVideo && e instanceof Event) {
+                if (currentVideo && shouldShowPopup) { // Missav 제한 조건 추가 적용
                     isManuallySelected = true; // 수동 선택
                     updatePopupPosition();
                     showPopup();
@@ -775,7 +793,7 @@
                 }
 
             } else { // 이미 선택된 비디오가 그대로 유지될 때
-                if (e) { // 사용자 클릭일 때만 팝업 표시 및 리셋
+                if (shouldShowPopup) { // Missav 제한 조건 추가 적용
                     isManuallySelected = true; // 수동 선택으로 플래그 설정
                     updatePopupPosition();
                     showPopup();
@@ -949,7 +967,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.61_SiteSpecificVolume_Updated_FixedMobileDrag');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.61_SiteSpecificVolume_Updated_FixedMobileDrag_MissavPopupFix');
 
         createPopupElement();
         if (isPopupGloballyBlocked) {
