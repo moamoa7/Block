@@ -86,7 +86,7 @@ https://ublockorigin.github.io/uAssetsCDN/filters/lan-block.txt
 ※ List-KR
 
 * (AdGuard)
-https://filters.adtidy.org/extension/chromium/filters/227.txt
+https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
 
 * (uBlock Origin)
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
