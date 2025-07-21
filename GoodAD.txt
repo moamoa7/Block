@@ -1789,9 +1789,6 @@ yna.co.kr##[class^="aside"]
 ! - 기사 하단 필요없는 부분
 !yna.co.kr##.aside-box400
 yna.co.kr##.ynalounge-content01.wide.content03
-! - 기타
-||cdp.yna.co.kr^
-/nlogger.js
 ! - 차단 사이트
 !||ad.yna.co.kr^
 !||innorame.com^
@@ -1806,15 +1803,6 @@ yna.co.kr##.ynalounge-content01.wide.content03
 !||img.side.mythiell.com^
 !||tracker.digitalcamp.co.kr^
 !
-!
-!
-!
-! 머니투데이 (https://news.mt.co.kr/)
-! - 기타
-||chartbeat.com^
-/plusone.js^$script
-/ad/*$frame
-
 !
 ! 머니S (! 머니S (https://www.moneys.co.kr/)
 ! - 차단 사이트
@@ -1857,18 +1845,6 @@ hankyung.com##.stock-marquee-wrap
 ! 한국일보 (https://www.hankookilbo.com/)
 ! - 상단 배너
 hankookilbo.com##.end-top-ad-wrap
-! - 기타
-||ad.
-||hktracker.hankookilbo.com^
-||taboola.com^
-||beusable.net^$3p
-/firebase.js^$script
-||cloudflare.com/cdn-cgi/trace$third-party,domain=~isbgpsafeyet.com|~wyndhamdestinations.com
-!
-!
-! 국민일보 (https://www.kmib.co.kr/)
-! - 기타
-/gtm.js
 !
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
