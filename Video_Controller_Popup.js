@@ -5,12 +5,6 @@
 // @description  Plays, mutes, adjusts speed/volume of HTML5 videos/audios on scroll, click, or DOM changes. Popup appears on click, can be globally blocked for certain sites, or blocked only on click for specific players.
 // @author       YourName (or original author)
 // @match        *://*/*
-// @exclude      *://chzzk.naver.com/*
-// @exclude      *://m.chzzk.naver.com/*
-// @exclude      *://www.youtube.com/*
-// @exclude      *://m.youtube.com/*
-// @exclude      *://music.youtube.com/*
-// @exclude      *://www.twitch.tv/popout/*
 // @grant        none
 // ==/UserScript==
 
