@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250718
+! Version: 20250721
 !
 !
 !
@@ -5811,7 +5811,7 @@ javlemon.com,xn--av1-qv9mx21c.com,tv995.com##[style][class]:has(img[src])
 
 
 
-##[class*="popup"]
+!##[class*="popup"]
 ! - - - 예외 ( 출석.추천.찐추 버튼 복구)
 etoland.co.kr#@#[class*="popup"]
 ! - - - 예외 ( 스크롤이 안됨)
@@ -5854,6 +5854,8 @@ login.microsoftonline.com#@#[class*="popup"]
 chzzk.naver.com#@#[class*="popup"]
 ! - https://www.ips.go.kr/ - 로그인 차단
 !ips.go.kr#@#[class*="popup"]
+! - kbcard.com - 화면 안보임
+kbcard.com#@#[class*="popup"]
 
 !
 !
