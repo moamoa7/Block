@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.61: 자동 소리 재생 + SPA 대응 강화 + 팝업 조건 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClickV10_PopupClickFix
+// @version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClickV27_UltraCompactLayout_Optimized
 // @description Core video controls with streamlined UI. All videos auto-play with sound. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with vertical speed slider (ascending).
 // @match *://*/*
 // @grant none
@@ -186,79 +186,143 @@
     }
 
     // --- Popup UI Functions ---
+    // 초기 팝업 스타일을 저장하는 객체 (V27: width 고정)
+    const initialPopupStyles = {
+        'position': 'fixed',
+        'background': 'rgba(30, 30, 30, 0.9)',
+        'border': '1px solid #444',
+        'border-radius': '8px',
+        'padding': '0',
+        'color': 'white',
+        'font-family': 'sans-serif',
+        'z-index': '2147483647',
+        'opacity': '0', // 초기에는 0으로 설정하고 setPopupVisibility에서 0.75로 변경
+        'transition': 'opacity 0.3s',
+        'box-shadow': '0 4px 12px rgba(0, 0, 0, 0.5)',
+        'width': '206px', // ✅ V27: 팝업 전체 너비를 명시적으로 206px로 고정
+        'height': 'fit-content', // 높이는 콘텐츠에 맞춤
+        'overflow': 'hidden',
+        'text-align': 'center',
+        'pointer-events': 'auto',
+        'max-width': 'none', // ✅ V27: 너비 고정 시 max-width는 필요 없음
+        'max-height': 'none',
+        'display': 'flex',
+        'flex-wrap': 'wrap',
+        'align-items': 'center',
+        'justify-content': 'center',
+        'gap': '0' // ✅ V25에서 변경: 팝업 자체의 불필요한 gap 제거
+    };
+
+    // 초기 버튼 스타일을 저장하는 객체
+    const initialButtonStyles = {
+        'background-color': '#333',
+        'color': 'white',
+        'border': '1.5px solid #555',
+        'padding': '8px 10px',
+        'border-radius': '4px',
+        'cursor': 'pointer',
+        'transition': 'background-color 0.2s',
+        'text-align': 'center',
+        'font-size': '15px',
+        'width': '55px',
+        'height': '55px',
+        'flex': 'none',
+        'display': 'flex',
+        'align-items': 'center',
+        'justify-content': 'center',
+        'white-space': 'nowrap',
+        'overflow': 'hidden',
+        'text-overflow': 'ellipsis',
+        'line-height': '1.2',
+        'box-sizing': 'border-box',
+        'margin': '0'
+    };
+
+    // 팝업 내부 컨테이너 스타일 (V27: width 100%로 변경)
+    const contentContainerStyles = {
+        'display': 'flex',
+        'flex-direction': 'row',
+        'align-items': 'flex-start',
+        'gap': '6px',
+        'padding': '0',
+        'box-sizing': 'border-box',
+        'min-height': 'auto',
+        'flex-grow': '0',
+        'width': '100%',   // ✅ V27: contentContainer의 너비를 팝업 너비의 100%로 설정
+        'margin': '0'
+    };
+
+    // 버튼 섹션 그리드 스타일 (V26에서 이미 올바르게 수정됨)
+    const buttonSectionStyles = {
+        'display': 'grid',
+        'grid-template-columns': '55px 55px',
+        'grid-template-rows': '55px 55px',
+        'gap': '6px',
+        'flex-grow': '0',
+        'align-content': 'start',
+        'justify-items': 'center',
+        'padding': '0',
+        'margin': '0', // ✅ V26: margin: 0 추가 (양쪽 여백 문제 해결)
+        'box-sizing': 'border-box',
+        'min-width': 'auto',
+    };
+
     function createPopupElement() {
         if (popupElement) return;
 
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
-        popupElement.style.cssText = `
-            position: fixed;
-            background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
-            padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
-            display: none; opacity: 0; transition: opacity 0.3s;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            width: fit-content;
-            min-width: 180px;
-            overflow: hidden; text-align: center; pointer-events: auto;
-            max-width: 90vw;
-            max-height: 90vh;
+        for (const prop in initialPopupStyles) {
+            popupElement.style.setProperty(prop, initialPopupStyles[prop], 'important');
+        }
+        // 초기에는 display: none으로 명시적으로 설정
+        popupElement.style.setProperty('display', 'none', 'important');
+        popupElement.style.setProperty('visibility', 'hidden', 'important');
 
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        `;
 
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
         dragHandle.textContent = '비디오.오디오 컨트롤러';
         dragHandle.style.cssText = `
-            font-weight: bold; margin-bottom: 8px; color: #ccc; padding: 5px;
-            background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab;
-            border-radius: 6px 6px 0 0; user-select: none; font-size: 16px;
-            width: 100%;
-            box-sizing: border-box;
+            font-weight: bold !important; margin-bottom: 4px !important; color: #ccc !important; padding: 4px !important;
+            background-color: #2a2a2a !important; border-bottom: 1px solid #444 !important; cursor: grab !important;
+            border-radius: 6px 6px 0 0 !important; user-select: none !important; font-size: 14px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
         `;
         popupElement.appendChild(dragHandle);
 
         const contentContainer = document.createElement('div');
-        contentContainer.style.cssText = `
-            display: flex;
-            padding: 10px;
-            align-items: center;
-            gap: 10px;
-            min-height: 120px;
-            flex-grow: 1;
-            box-sizing: border-box;
-            width: 100%;
-        `;
+        for (const prop in contentContainerStyles) {
+            contentContainer.style.setProperty(prop, contentContainerStyles[prop], 'important');
+        }
 
         // 배속 조절 섹션 (세로 슬라이더)
         const speedSection = document.createElement('div');
         speedSection.className = 'vcp-section';
         speedSection.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            height: 100%;
-            gap: 5px;
-            padding: 5px;
-            border-right: 1px solid #444;
-            box-sizing: border-box;
-            margin-right: 10px;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: auto !important;
+            max-height: 140px !important;  /* 높이 늘려서 슬라이더가 길어짐 */
+            gap: 4px !important;
+            padding: 4px !important;
+            border-right: 1px solid #444 !important;
+            box-sizing: border-box !important;
+            margin-right: 6px !important;  /* 버튼과 간격 */
         `;
 
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
         speedDisplay.textContent = '1.00';
         speedDisplay.style.cssText = `
-            color: #eee; font-size: 1.2em; font-weight: bold; width: 60px; text-align: center;
-            min-height: 24px;
-            line-height: 24px;
-            display: inline-block;
-            vertical-align: middle;
+            color: #eee !important; font-size: 1.2em !important; font-weight: bold !important; width: 60px !important; text-align: center !important;
+            min-height: 20px !important;
+            line-height: 20px !important;
+            display: inline-block !important;
+            vertical-align: middle !important;
         `;
 
         const speedInput = document.createElement('input');
@@ -269,13 +333,13 @@
         speedInput.step = '0.1';
         speedInput.value = '1.0';
         speedInput.style.cssText = `
-            width: 20px;
-            height: 100%;
-            -webkit-appearance: slider-vertical;
-            writing-mode: bt-lr;
-            cursor: pointer;
-            margin: 0;
-            padding: 0;
+            width: 20px !important;
+            height: 100px !important; /* max-height에 맞춰 슬라이더 자체 높이 조절 */
+            -webkit-appearance: slider-vertical !important;
+            writing-mode: bt-lr !important;
+            cursor: pointer !important;
+            margin: 0 !important;
+            padding: 0 !important;
         `;
 
         speedSection.appendChild(speedInput);
@@ -285,60 +349,26 @@
 
         // 버튼 섹션 (2x2 그리드)
         const buttonSection = document.createElement('div');
-        buttonSection.style.cssText = `
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
-            gap: 8px;
-            flex-grow: 1;
-            align-content: center;
-            justify-items: stretch;
-            min-width: 100px;
-        `;
+        for (const prop in buttonSectionStyles) {
+            buttonSection.style.setProperty(prop, buttonSectionStyles[prop], 'important');
+        }
 
-        const buttonBaseStyle = `
-            background-color: #333; color: white; border: 1.5px solid #555;
-            padding: 8px 10px;
-            border-radius: 4px; cursor: pointer; transition: background-color 0.2s;
-            text-align: center;
-            font-size: 15px;
-            width: 48px !important; /* 명시적 고정 크기 */
-            height: 48px !important; /* 명시적 고정 크기 */
-            flex: none !important; /* flex 컨테이너에서 완전히 벗어나 고정 크기 유지 */
-            display: flex; /* 내부 텍스트 중앙 정렬 유지 */
-            align-items: center;
-            justify-content: center;
-            white-space: normal; /* 텍스트 줄바꿈 허용 */
-            overflow: hidden;
-            word-break: break-all;
-            line-height: 1.2;
-            box-sizing: border-box;
-        `;
+        // 버튼 생성 및 스타일 적용
+        const createButton = (action, text) => {
+            const btn = document.createElement('button');
+            btn.setAttribute('data-action', action);
+            btn.textContent = text;
+            btn.className = 'vcp-button';
+            for (const prop in initialButtonStyles) {
+                btn.style.setProperty(prop, initialButtonStyles[prop], 'important');
+            }
+            return btn;
+        };
 
-        const playPauseBtn = document.createElement('button');
-        playPauseBtn.setAttribute('data-action', 'play-pause');
-        playPauseBtn.textContent = '재생/멈춤';
-        playPauseBtn.className = 'vcp-button';
-        playPauseBtn.style.cssText = buttonBaseStyle;
-
-        const speedResetBtn = document.createElement('button');
-        speedResetBtn.setAttribute('data-action', 'reset-speed');
-        speedResetBtn.textContent = '배속1x';
-        speedResetBtn.className = 'vcp-button';
-        speedResetBtn.style.cssText = buttonBaseStyle;
-
-        const muteBtn = document.createElement('button');
-        muteBtn.setAttribute('data-action', 'mute');
-        muteBtn.textContent = '무음';
-        muteBtn.className = 'vcp-button';
-        muteBtn.style.cssText = buttonBaseStyle;
-
-        const speakBtn = document.createElement('button');
-        speakBtn.setAttribute('data-action', 'speak');
-        speakBtn.textContent = '소리';
-        speakBtn.className = 'vcp-button';
-        speakBtn.style.cssText = buttonBaseStyle;
-
+        const playPauseBtn = createButton('play-pause', '재생/멈춤');
+        const speedResetBtn = createButton('reset-speed', '배속1x');
+        const muteBtn = createButton('mute', '무음');
+        const speakBtn = createButton('speak', '소리');
 
         buttonSection.appendChild(playPauseBtn);
         buttonSection.appendChild(speedResetBtn);
@@ -429,7 +459,7 @@
             if (action) {
                 handleButtonClick(action);
             }
-            // ✅ 팝업 내부의 클릭 이벤트는 외부로 전파되지 않도록 중단
+            // 팝업 내부의 클릭 이벤트는 외부로 전파되지 않도록 중단
             e.stopPropagation();
         });
 
@@ -495,26 +525,23 @@
         if (!popupElement) return;
 
         if (isVisible) {
-            const styles = {
-                display: 'flex',
-                opacity: '0.75',
-                visibility: 'visible',
-                pointerEvents: 'auto',
-                zIndex: '2147483647',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-            };
-            for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
+            // 모든 초기 스타일을 !important와 함께 다시 적용
+            for (const prop in initialPopupStyles) {
+                popupElement.style.setProperty(prop, initialPopupStyles[prop], 'important');
+            }
+            // 강제로 보이게 설정
+            popupElement.style.setProperty('display', 'flex', 'important');
+            popupElement.style.setProperty('opacity', '0.75', 'important');
+            popupElement.style.setProperty('visibility', 'visible', 'important');
         } else {
             if (popupHideTimer) {
                 clearTimeout(popupHideTimer);
                 popupHideTimer = null;
             }
-            popupElement.style.display = 'none';
-            popupElement.style.opacity = '0';
-            popupElement.style.visibility = 'hidden';
+            // 강제로 숨김 설정
+            popupElement.style.setProperty('display', 'none', 'important');
+            popupElement.style.setProperty('opacity', '0', 'important');
+            popupElement.style.setProperty('visibility', 'hidden', 'important');
         }
     }
 
@@ -563,10 +590,11 @@
             adjustedX = Math.max(0, Math.min(adjustedX, window.innerWidth - popupRect.width));
             adjustedY = Math.max(0, Math.min(adjustedY, window.innerHeight - popupRect.height));
 
-            popupElement.style.left = `${adjustedX}px`;
-            popupElement.style.top = `${adjustedY}px`;
-            popupElement.style.transform = 'none';
-            popupElement.style.position = 'fixed';
+            popupElement.style.setProperty('left', `${adjustedX}px`, 'important');
+            popupElement.style.setProperty('top', `${adjustedY}px`, 'important');
+            popupElement.style.setProperty('transform', 'none', 'important');
+            // position은 fixed로 유지되어야 함. 전체화면에서도 fixed는 뷰포트 기준
+            popupElement.style.setProperty('position', 'fixed', 'important');
         } else {
             hidePopup();
         }
@@ -587,7 +615,7 @@
     }
 
     function selectVideoOnDocumentClick(e) {
-        // ✅ 팝업 내부를 클릭한 경우, 이 함수는 즉시 종료하고 팝업 자체의 이벤트 리스너가 처리하도록 합니다.
+        // 팝업 내부를 클릭한 경우, 이 함수는 즉시 종료하고 팝업 자체의 이벤트 리스너가 처리하도록 합니다.
         if (popupElement && e && popupElement.contains(e.target)) {
             resetPopupHideTimer(); // 팝업 내부 상호작용 시 타이머 리셋
             return;
@@ -778,8 +806,17 @@
                     });
                 });
             }
+            fixOverflowElement(document.documentElement);
+            fixOverflowElement(document.body);
         });
     }
+
+    function fixOverflowElement(element) {
+        if (element && window.getComputedStyle(element).overflow === 'hidden') {
+            element.style.setProperty('overflow', 'visible', 'important');
+        }
+    }
+
 
     function startCheckingVideoStatus() {
         if (checkVideoInterval) clearInterval(checkVideoInterval);
@@ -824,101 +861,126 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClickV10_PopupClickFix');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClickV27_UltraCompactLayout_Optimized');
 
         createPopupElement();
-        hidePopup();
+        hidePopup(); // 초기에는 숨김 상태로 시작
 
         document.addEventListener('fullscreenchange', () => {
             const fsEl = document.fullscreenElement;
             if (popupElement) {
                 if (fsEl) {
+                    // 팝업을 전체화면 요소의 자식으로 이동
                     fsEl.appendChild(popupElement);
-                    // 전체화면 진입 시 팝업 및 버튼 스타일 재적용
-                    // ✅ 팝업 자체의 핵심 레이아웃 속성을 다시 강하게 적용
-                    popupElement.style.setProperty('position', 'fixed', 'important');
-                    popupElement.style.setProperty('display', 'flex', 'important');
-                    popupElement.style.setProperty('flex-direction', 'column', 'important');
-                    popupElement.style.setProperty('align-items', 'center', 'important');
-                    popupElement.style.setProperty('justify-content', 'center', 'important');
-                    popupElement.style.setProperty('min-height', '150px', 'important');
-                    popupElement.style.setProperty('width', 'fit-content', 'important');
-                    popupElement.style.setProperty('max-width', 'initial', 'important');
-                    popupElement.style.setProperty('max-height', 'initial', 'important');
-                    popupElement.style.setProperty('flex-wrap', 'wrap', 'important');
-                    popupElement.style.setProperty('gap', '6px', 'important');
+                    // 전체화면 진입 시 팝업 가시성 강제 재적용
+                    setPopupVisibility(true); // 팝업을 보이게 설정
 
-                    // ✅ 버튼 스타일 재적용 (48px 고정)
+                    // 팝업 내부의 모든 버튼과 슬라이더 스타일도 다시 한번 강제 적용하여 안정성 확보
                     popupElement.querySelectorAll('.vcp-button').forEach(btn => {
-                        btn.style.setProperty('width', '48px', 'important');
-                        btn.style.setProperty('height', '48px', 'important');
-                        btn.style.setProperty('flex', 'none', 'important'); // flex 컨테이너에서 완전히 벗어나 고정 크기 유지
+                        for (const prop in initialButtonStyles) {
+                            btn.style.setProperty(prop, initialButtonStyles[prop], 'important');
+                        }
                     });
 
-                    if (popupElement.querySelector('#vcp-speed')) {
-                         popupElement.querySelector('#vcp-speed').style.height = 'calc(100% - 40px)';
+                    const speedInput = popupElement.querySelector('#vcp-speed');
+                    const speedDisplay = popupElement.querySelector('#vcp-speed-display');
+                    if (speedInput && speedDisplay) {
+                         // 슬라이더 높이 재조정 (전체화면 환경에 따라 필요할 수 있음)
+                         speedInput.style.setProperty('height', '100px', 'important');
+                         // 숫자 표시도 다시 한번 스타일 적용 (변동 없어도 명시적 재적용)
+                         speedDisplay.style.setProperty('font-size', '1.2em', 'important');
+                         speedDisplay.style.setProperty('min-height', '20px', 'important');
+                         speedDisplay.style.setProperty('line-height', '20px', 'important');
                     }
-                } else {
-                    document.body.appendChild(popupElement);
-                    // 전체 화면 종료 시 원래 스타일로 복원 (createPopupElement에서 설정된 기본값 사용)
-                    popupElement.style.removeProperty('position'); // fixed는 그대로 유지
-                    popupElement.style.removeProperty('display');
-                    popupElement.style.removeProperty('flex-direction');
-                    popupElement.style.removeProperty('align-items');
-                    popupElement.style.removeProperty('justify-content');
-                    popupElement.style.removeProperty('min-height');
-                    popupElement.style.removeProperty('width');
-                    popupElement.style.removeProperty('max-width');
-                    popupElement.style.removeProperty('max-height');
-                    popupElement.style.removeProperty('flex-wrap');
-                    popupElement.style.removeProperty('gap');
-
-                    // createPopupElement의 초기 스타일을 다시 적용하는 함수 호출
-                    const initialStyles = `
-                        background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
-                        padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
-                        display: none; opacity: 0; transition: opacity 0.3s;
-                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-                        width: fit-content;
-                        min-width: 180px;
-                        overflow: hidden; text-align: center; pointer-events: auto;
-                        max-width: 90vw;
-                        max-height: 90vh;
-                        display: flex;
-                        flex-wrap: wrap;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 6px;
-                    `;
-                    const tempDiv = document.createElement('div');
-                    tempDiv.style.cssText = initialStyles;
-                    for (const prop of Array.from(tempDiv.style)) {
-                        if (prop !== 'position') { // position은 기존 값 유지 (fixed)
-                            popupElement.style.setProperty(prop, tempDiv.style.getPropertyValue(prop), tempDiv.style.getPropertyPriority(prop));
+                    // contentContainer의 스타일도 재적용
+                    const contentContainer = popupElement.querySelector('div:nth-child(2)'); // 두번째 자식이 contentContainer
+                     if (contentContainer) {
+                        for (const prop in contentContainerStyles) {
+                            contentContainer.style.setProperty(prop, contentContainerStyles[prop], 'important');
                         }
                     }
-
-                    // 버튼 초기 스타일도 다시 적용
-                    popupElement.querySelectorAll('.vcp-button').forEach(btn => {
-                        const baseStyle = `
-                            background-color: #333; color: white; border: 1.5px solid #555;
-                            padding: 8px 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s;
-                            text-align: center; font-size: 15px;
-                            width: 48px !important; height: 48px !important; flex: none !important;
-                            display: flex; align-items: center; justify-content: center;
-                            white-space: normal; overflow: hidden; word-break: break-all;
-                            line-height: 1.2; box-sizing: border-box;
+                    // buttonSection의 스타일도 재적용
+                    const buttonSection = contentContainer.querySelector('div:nth-child(2)'); // contentContainer의 두번째 자식이 buttonSection
+                     if (buttonSection) {
+                        for (const prop in buttonSectionStyles) {
+                            buttonSection.style.setProperty(prop, buttonSectionStyles[prop], 'important');
+                        }
+                    }
+                    // speedSection의 스타일도 재적용
+                    const speedSection = contentContainer.querySelector('.vcp-section');
+                    if (speedSection) {
+                        speedSection.style.cssText = `
+                            display: flex !important;
+                            flex-direction: column !important;
+                            align-items: center !important;
+                            justify-content: center !important;
+                            height: auto !important;
+                            max-height: 140px !important;
+                            gap: 4px !important;
+                            padding: 4px !important;
+                            border-right: 1px solid #444 !important;
+                            box-sizing: border-box !important;
+                            margin-right: 6px !important;
                         `;
-                        btn.style.cssText = baseStyle;
+                    }
+
+
+                    // 위치도 다시 업데이트
+                    updatePopupPosition();
+                    resetPopupHideTimer(); // 전체화면 진입 시 타이머 리셋
+                } else {
+                    // 전체화면 종료 시 팝업을 다시 document.body로 이동
+                    document.body.appendChild(popupElement);
+                    // 전체 화면 종료 시 팝업 숨김 처리
+                    hidePopup();
+
+                    // 전체화면 종료 시에도 버튼 및 슬라이더의 초기 스타일을 다시 적용하여 원래 상태로 복원
+                    popupElement.querySelectorAll('.vcp-button').forEach(btn => {
+                        for (const prop in initialButtonStyles) {
+                            btn.style.setProperty(prop, initialButtonStyles[prop], 'important');
+                        }
                     });
 
-
-                    if (popupElement.querySelector('#vcp-speed')) {
-                        popupElement.querySelector('#vcp-speed').style.height = '100%';
+                    const speedInput = popupElement.querySelector('#vcp-speed');
+                    const speedDisplay = popupElement.querySelector('#vcp-speed-display');
+                    if (speedInput && speedDisplay) {
+                        speedInput.style.setProperty('height', '100px', 'important');
+                        speedDisplay.style.setProperty('font-size', '1.2em', 'important');
+                        speedDisplay.style.setProperty('min-height', '20px', 'important');
+                        speedDisplay.style.setProperty('line-height', '20px', 'important');
                     }
+                    const contentContainer = popupElement.querySelector('div:nth-child(2)');
+                     if (contentContainer) {
+                        for (const prop in contentContainerStyles) {
+                            contentContainer.style.setProperty(prop, contentContainerStyles[prop], 'important');
+                        }
+                    }
+                    const buttonSection = contentContainer.querySelector('div:nth-child(2)');
+                     if (buttonSection) {
+                        for (const prop in buttonSectionStyles) {
+                            buttonSection.style.setProperty(prop, buttonSectionStyles[prop], 'important');
+                        }
+                    }
+                    const speedSection = contentContainer.querySelector('.vcp-section');
+                    if (speedSection) {
+                        speedSection.style.cssText = `
+                            display: flex !important;
+                            flex-direction: column !important;
+                            align-items: center !important;
+                            justify-content: center !important;
+                            height: auto !important;
+                            max-height: 140px !important;
+                            gap: 4px !important;
+                            padding: 4px !important;
+                            border-right: 1px solid #444 !important;
+                            box-sizing: border-box !important;
+                            margin-right: 6px !important;
+                        `;
+                    }
+
+                    // 위치도 다시 업데이트
+                    updatePopupPosition();
                 }
-                updatePopupPosition();
-                resetPopupHideTimer();
             }
         });
 
@@ -931,7 +993,7 @@
         updateVideoList();
         setupDOMObserver();
         setupSPADetection();
-        fixOverflow();
+        fixOverflow(); // 문서 전체 overflow:hidden 제거 시도
 
         let touchStartY = 0;
         let touchMoved = false;
@@ -949,11 +1011,9 @@
         }, { passive: true });
 
         const handleInteraction = (e) => {
-            // ✅ 팝업 내부 요소 클릭 시에는 이 전역 이벤트 리스너를 건너뛰고 팝업 자체 리스너가 처리하도록 함
+            // 팝업 내부 요소 클릭 시에는 이 전역 이벤트 리스너를 건너뛰고 팝업 자체 리스너가 처리하도록 함
             if (popupElement && e && popupElement.contains(e.target)) {
                 if (popupElement.style.display !== 'none') {
-                    // 팝업이 보이는 상태에서 팝업 내부를 클릭하면 드래그나 다른 동작에 영향을 주지 않도록
-                    // 여기서 추가적인 처리를 하지 않고 바로 리턴합니다.
                     resetPopupHideTimer(); // 팝업 내부 클릭 시 타이머 리셋만 합니다.
                 }
                 return;
