@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.61: 자동 소리 재생 + SPA 대응 강화 + 팝업 조건 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation
+// @version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClick
 // @description Core video controls with streamlined UI. All videos auto-play with sound. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with vertical speed slider (ascending).
 // @match *://*/*
 // @grant none
@@ -25,17 +25,6 @@
     const POPUP_TIMEOUT_MS = 2000;
     const AUTO_CHECK_VIDEO_INTERVAL_MS = 500; // 0.5초마다 비디오 상태 체크 (위치 갱신)
 
-    // --- 자동 소리 재생을 허용할 사이트 목록 (이제 사용되지 않으므로 제거) ---
-    // const AUTO_UNMUTE_SITES = []; // 제거됨
-    // const isAutoUnmuteSite = false; // 항상 false이므로 변수도 제거됨
-
-    // --- 치지직/유튜브 관련 변수 제거 ---
-    // const isChzzkSite = location.hostname.includes('chzzk.naver.com'); // 제거됨
-    // const isYouTubeSite = location.hostname.includes('youtube.com'); // 제거됨
-
-    // --- isLazySrcBlockedSite 변수 및 관련 로직 제거 ---
-    // const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site)); // 제거됨
-
     // --- Utility Functions ---
     function findAllVideosDeep(root = document) {
         return Array.from(root.querySelectorAll('video, audio'));
@@ -43,8 +32,6 @@
 
     function findPlayableVideos() {
         const found = findAllVideosDeep();
-        // --- isLazySrcBlockedSite 조건문 제거 및 data-src 처리 로직 제거 ---
-        // if (!isLazySrcBlockedSite) found.forEach(v => { if (!v.src && v.dataset && v.dataset.src) v.src = v.dataset.src; }); // 제거됨
         const playableVideos = found.filter(v => {
             const style = window.getComputedStyle(v);
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
@@ -411,6 +398,7 @@
         popupElement.addEventListener('click', (e) => {
             const action = e.target.getAttribute('data-action');
             if (action) handleButtonClick(action);
+            e.stopPropagation(); // 팝업 내부 클릭은 상위로 이벤트 전파 방지
         });
 
         const speedInput = popupElement.querySelector('#vcp-speed');
@@ -437,6 +425,7 @@
             popupElement.style.position = 'fixed';
             popupElement.style.transform = 'none';
             document.body.style.userSelect = 'none';
+            e.stopPropagation(); // 드래그 시작 시 이벤트 전파 방지
         };
 
         const stopDrag = () => {
@@ -456,6 +445,7 @@
             if (clientX === undefined || clientY === undefined) return;
             popupElement.style.left = `${clientX - popupDragOffsetX}px`;
             popupElement.style.top = `${clientY - popupDragOffsetY}px`;
+            e.stopPropagation(); // 드래그 중 이벤트 전파 방지
         };
 
         dragHandle.addEventListener('mousedown', startDrag);
@@ -554,13 +544,16 @@
     }
 
     function selectVideoOnDocumentClick(e) {
-        // 팝업 내부 클릭 또는 드래그 중에는 무시
+        // --- 수정 시작 ---
+        // 팝업 내부 클릭 또는 드래그 중인 경우, 팝업 관련 동작만 수행하고 이벤트는 여기서 중단
         if (popupElement && e && popupElement.contains(e.target)) {
             resetPopupHideTimer();
             if (popupElement.style.display !== 'none') {
-                return;
+                e.stopPropagation(); // 팝업 내부 클릭은 페이지로 전파되지 않도록 막음
             }
+            return;
         }
+        // --- 수정 끝 ---
 
         updateVideoList();
 
@@ -623,11 +616,22 @@
                 currentVideo = null;
                 selectAndControlVideo(bestVideo); // 이 함수는 팝업을 띄우지 않음
 
-                if (currentVideo && e instanceof Event) {
+                if (currentVideo && e instanceof Event) { // e가 존재(클릭 이벤트)할 때만 팝업 표시
                     isManuallySelected = true; // 수동 선택
                     updatePopupPosition();
                     showPopup();
                     resetPopupHideTimer();
+                    // --- 추가: 비디오 자체나 관련 요소를 클릭한 경우, 이벤트 전파 중단 ---
+                    // 하지만 실제 페이지 이동은 막지 않도록, 이미 타겟 엘리먼트가 아닌 경우에만 stopPropagation
+                    // 이 부분은 복잡하므로 일단 전체적으로 팝업 이벤트만 막는 것에 집중
+                    if (e.target.tagName === 'VIDEO' || e.target.closest('a')) {
+                         // 비디오 또는 링크를 클릭한 경우, 팝업 로직은 실행하되 이벤트 버블링은 허용하여 페이지 이동이 되도록 함.
+                         // 하지만 'selectVideoOnDocumentClick' 자체가 캡처 단계에서 발생하므로,
+                         // 여기서는 팝업이 활성화되었을 때 다른 클릭을 막는 데 집중
+                    } else {
+                        // 팝업이 아닌 다른 일반 요소 클릭 시 팝업이 뜨는 경우, 이벤트 전파 중단
+                        // e.stopPropagation(); // 이 부분은 아래 document.body 리스너에서 처리
+                    }
                 } else {
                     isManuallySelected = false; // 자동 감지
                     hidePopup();
@@ -727,13 +731,13 @@
     }
 
     function fixOverflow() {
-        // --- 치지직/유튜브 관련 오버플로우 픽스 로직 제거 ---
+        // 이 함수는 현재 트위치 외 특별한 사이트 처리 로직이 없습니다.
         const overflowFixSites = [
-            // { domain: 'twitch.tv', selectors: ['div.video-player__container', 'div.video-player-theatre-mode__player', 'div.player-theatre-mode'] }, // 유지 또는 제거 결정
+            // { domain: 'twitch.tv', selectors: ['div.video-player__container', 'div.video-player-theatre-mode__player', 'div.player-theatre-mode'] },
         ];
         overflowFixSites.forEach(site => {
             if (location.hostname.includes(site.domain)) {
-                site.selectors.forEach(sel => { // `sel` 대신 `site.selectors.forEach(sel => { ... })` 사용
+                site.selectors.forEach(sel => {
                     document.querySelectorAll(sel).forEach(el => {
                         el.style.overflow = 'visible';
                     });
@@ -793,7 +797,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClick');
 
         createPopupElement();
         hidePopup();
@@ -822,7 +826,7 @@
         updateVideoList();
         setupDOMObserver();
         setupSPADetection();
-        fixOverflow(); // 오버플로우 픽스 함수 (필요하다면 Twitch 관련만 유지 가능)
+        fixOverflow(); // 오버플로우 픽스 함수
 
         let touchStartY = 0;
         let touchMoved = false;
@@ -839,30 +843,34 @@
             }
         }, { passive: true }); // 스크롤 성능 향상을 위해 passive 옵션 추가
 
+        // --- 수정 시작: 클릭 및 터치 종료 이벤트 처리 개선 ---
         document.body.addEventListener('click', (e) => {
-            if (popupElement && e && popupElement.contains(e.target)) {
-                resetPopupHideTimer();
-                return;
-            }
+            // 드래그 후 터치클릭 무시
             if (touchMoved) {
                 touchMoved = false; // 플래그 초기화
-                return; // 드래그 후 터치클릭 무시
+                return;
             }
             selectVideoOnDocumentClick(e);
-        }, true);
+        }, true); // 캡처 단계에서 이벤트 수신
 
-        // 이전 중복된 touchend 리스너는 삭제하고, 새로운 touchend 리스너를 추가하여 touchMoved 플래그를 확인합니다.
         document.body.addEventListener('touchend', (e) => {
-            if (popupElement && e && popupElement.contains(e.target)) {
-                resetPopupHideTimer();
-                return;
-            }
+            // 드래그 후 터치클릭 무시
             if (touchMoved) {
                 touchMoved = false; // 플래그 초기화
-                return; // 드래그 후 터치클릭 무시
+                return;
+            }
+            // 팝업 내부 클릭은 이미 setupPopupEventListeners에서 stopPropagation 처리됨.
+            // 팝업이 활성화되어 있고, 클릭된 요소가 비디오 또는 링크인 경우
+            // 스크립트의 팝업 UI 표시 로직은 작동하되, 웹사이트의 기본 클릭 동작은 허용
+            if (currentVideo && (e.target.tagName === 'VIDEO' || e.target.closest('a'))) {
+                // 비디오나 링크를 클릭한 경우, 스크립트가 팝업을 띄우는 것 외에 추가적인 stopPropagation은 하지 않음
+                // 이를 통해 기본 페이지 이동 동작을 방해하지 않도록 함.
+            } else {
+                // 그 외의 경우는 selectVideoOnDocumentClick에서 팝업이 뜨도록 처리
             }
             selectVideoOnDocumentClick(e);
-        }, true);
+        }, true); // 캡처 단계에서 이벤트 수신
+        // --- 수정 끝 ---
 
         startCheckingVideoStatus();
 
