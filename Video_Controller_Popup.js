@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.9: 모바일 터치 클릭 버그 재수정 및 UI 레이아웃 재점검)
+// @name Video Controller Popup (V4.11.10: 모바일 터치 클릭/오작동 최종 픽스)
 // @namespace Violentmonkey Scripts
-// @version 4.11.9_FixedMobileClickBug_UILayoutRecheck
+// @version 4.11.10_FixedMobileClickFinal_UILayoutMaintained
 // @description Core video controls with streamlined UI. All videos auto-play with sound. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with vertical speed slider (ascending).
 // @match *://*/*
 // @grant none
@@ -575,6 +575,8 @@
         }
     }
 
+    // selectVideoLogic 함수는 e.preventDefault()나 e.stopPropagation()을 직접 호출하지 않음.
+    // 이는 이벤트 핸들러에서 제어되어야 함.
     function selectVideoLogic(e) {
         // 클릭 이벤트가 팝업 내부에서 발생한 경우
         if (popupElement && e && popupElement.contains(e.target)) {
@@ -582,10 +584,11 @@
             return;
         }
 
-        // 클릭 이벤트가 팝업 외부에서 발생했고, 팝업이 이미 열려있었다면 팝업 숨김
+        // 팝업이 이미 열려있었고, 클릭이 팝업 외부에서 발생했다면 팝업 숨김
+        // 이 로직은 `click` 이벤트 핸들러 자체에서 `e.stopPropagation()`을 막았을 때만 실행
         if (popupElement && isPopupVisible && e && !popupElement.contains(e.target)) {
             hidePopup();
-            return; // 팝업을 숨겼으면 더 이상 비디오 선택 로직을 진행하지 않음
+            return;
         }
 
         // 팝업이 닫혀있거나, (e === null) 즉 자동 감지 호출인 경우에만 아래 로직 진행
@@ -649,14 +652,15 @@
                 currentVideo = null;
                 selectAndControlVideo(bestVideo); // 이 함수는 팝업을 띄우지 않음
 
-                if (e instanceof Event) { // 사용자 클릭일 때만 팝업 표시
+                // 이 경우에만 팝업을 표시 (사용자 클릭 또는 터치에 의해 트리거된 경우)
+                if (e instanceof Event) {
                     showPopup();
                     resetPopupHideTimer();
                 } else {
                     hidePopup(); // 자동 감지 시에는 팝업 숨김
                 }
             } else { // 이미 선택된 비디오가 그대로 유지될 때
-                if (e instanceof Event) { // 사용자 클릭일 때만 팝업 표시
+                if (e instanceof Event) { // 사용자 클릭/터치일 때만 팝업 표시
                     showPopup();
                     resetPopupHideTimer();
                 }
@@ -801,7 +805,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.9_FixedMobileClickBug_UILayoutRecheck');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.10_FixedMobileClickFinal_UILayoutMaintained');
 
         createPopupElement();
         hidePopup();
@@ -849,55 +853,68 @@
         setupSPADetection();
         fixOverflow();
 
-        // --- 모바일 터치 클릭 버그 재수정 시작 ---
+        // --- 모바일 터치 클릭/오작동 최종 픽스 로직 시작 ---
+        let touchStartX = 0;
         let touchStartY = 0;
         let touchMoved = false;
         const TOUCH_MOVE_THRESHOLD = 10; // 10px 이상 움직이면 스크롤로 간주
 
         document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             touchMoved = false;
         }, { passive: true }); // passive: true로 설정하여 스크롤 성능 향상
 
         document.addEventListener('touchmove', (e) => {
+            const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
             const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
-            if (deltaY > TOUCH_MOVE_THRESHOLD) {
+            if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
                 touchMoved = true;
             }
         }, { passive: true }); // passive: true
 
-        // 'click' 이벤트 리스너에 'touchMoved' 검사 로직 추가
+        // 'click' 이벤트 리스너: 캡처링 단계에서 먼저 처리
+        // 스크롤 발생 시 팝업 관련 로직과 웹사이트의 기본 클릭 동작을 모두 막음
         document.body.addEventListener('click', (e) => {
-            // popupElement가 존재하고, 팝업 내부에서 클릭이 일어났다면 타이머 리셋만 하고 종료
+            // 팝업 요소가 없거나 팝업 내부 클릭 시, 팝업 관련 타이머 리셋만 하고 본연의 클릭 동작 허용
             if (popupElement && popupElement.contains(e.target)) {
                 resetPopupHideTimer();
                 return;
             }
 
-            // 터치로 인해 스크롤이 발생했다면 클릭 이벤트를 무시
+            // 터치로 인해 스크롤이 발생했다면, 이 클릭 이벤트를 중지
             if (touchMoved) {
+                e.stopPropagation(); // 이벤트 버블링 중지 (웹사이트의 클릭 이벤트도 막음)
+                e.preventDefault(); // 기본 동작 방지 (링크 이동 등)
                 touchMoved = false; // 플래그 초기화
-                return;
-            }
-            selectVideoLogic(e); // 실제 비디오 선택 로직 실행
-        }, true); // capturing phase
-
-        // 'touchend' 이벤트 리스너도 'touchMoved' 검사 로직 추가
-        document.body.addEventListener('touchend', (e) => {
-            // popupElement가 존재하고, 팝업 내부에서 터치 종료가 일어났다면 타이머 리셋만 하고 종료
-            if (popupElement && popupElement.contains(e.target)) {
-                resetPopupHideTimer();
-                return;
+                return; // 팝업 선택 로직 실행 안함
             }
 
-            // 터치로 인해 스크롤이 발생했다면 클릭 이벤트를 무시
-            if (touchMoved) {
-                touchMoved = false; // 플래그 초기화
+            // 팝업이 이미 열려있었고, 클릭이 팝업 외부에서 발생했다면 팝업 숨김
+            if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
+                hidePopup();
+                // 이 경우 selectVideoLogic을 실행하지 않고, 웹사이트의 기본 클릭 동작은 허용
                 return;
             }
-            selectVideoLogic(e); // 실제 비디오 선택 로직 실행
-        }, true); // capturing phase
-        // --- 모바일 터치 클릭 버그 재수정 끝 ---
+
+            // 그 외의 경우 (터치 움직임이 없었고, 팝업 외부 클릭이 아니며, 팝업이 닫힌 상태 등)
+            // 비디오 선택 로직 실행 -> 여기서 팝업이 뜰 수 있음
+            selectVideoLogic(e);
+        }, true); // `true`는 capturing phase에서 이벤트를 가로채겠다는 의미
+
+        // 'touchend' 이벤트 리스너 (선택적: 'click' 이벤트가 충분히 제어한다면)
+        // touchend에서는 `selectVideoLogic`을 호출하지 않음으로써, `click` 이벤트가 단독으로 처리되도록 유도
+        // 왜냐하면 실제 "클릭"은 touchend 이후에 발생하므로, touchend에서 팝업 로직을 실행하면 이중으로 처리되거나
+        // 사이트의 링크 클릭 등 기본 동작을 방해할 수 있기 때문입니다.
+        // 다만, 모바일 환경에서 `click` 이벤트가 지연되거나 발생하지 않는 경우가 있어 `touchend`를 사용하기도 합니다.
+        // 현재는 `click` 이벤트에서 모든 제어를 하도록 하고, `touchend`에서는 별도 로직을 제거하여 충돌을 피합니다.
+
+        // 만약 'click' 이벤트가 특정 사이트에서 잘 발생하지 않는다면, touchend 로직을 다시 고려해야 합니다.
+        // 지금은 touchend에서는 `selectVideoLogic`을 명시적으로 호출하지 않도록 합니다.
+        // (이전 버전에서 touchend에 selectVideoLogic(e)가 있었으나, click 이벤트로 통합하여 제거했습니다.)
+        // 즉, 터치 끝 -> 움직임 없으면 -> `click` 이벤트 발동 -> `document.body`의 `click` 리스너에서 처리
+
+        // --- 모바일 터치 클릭/오작동 최종 픽스 로직 끝 ---
 
 
         startCheckingVideoStatus();
