@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.10.61: 자동 소리 재생 + SPA 대응 강화 + 팝업 조건 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClick
+// @version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClickV2
 // @description Core video controls with streamlined UI. All videos auto-play with sound. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with vertical speed slider (ascending).
 // @match *://*/*
 // @grant none
@@ -544,8 +544,8 @@
     }
 
     function selectVideoOnDocumentClick(e) {
-        // --- 수정 시작 ---
-        // 팝업 내부 클릭 또는 드래그 중인 경우, 팝업 관련 동작만 수행하고 이벤트는 여기서 중단
+        // --- V2 수정 시작: 중요한 로직 추가 ---
+        // 1. 팝업 내부 클릭 또는 드래그 중인 경우, 팝업 관련 동작만 수행하고 이벤트는 여기서 중단
         if (popupElement && e && popupElement.contains(e.target)) {
             resetPopupHideTimer();
             if (popupElement.style.display !== 'none') {
@@ -553,7 +553,29 @@
             }
             return;
         }
-        // --- 수정 끝 ---
+
+        // 2. 클릭된 요소가 링크(<a>) 또는 다른 클릭 가능한 인터랙티브 요소(버튼, input 등)인 경우
+        //    스크립트의 비디오 감지/팝업 표시 로직을 건너뛰고 원래 이벤트를 허용합니다.
+        //    (e.target.closest()를 사용하여 상위 부모 요소도 확인)
+        const clickedElement = e ? e.target : null;
+        if (clickedElement) {
+            // 클릭된 요소가 <a> 태그이거나, 특정 버튼, input 등 페이지 이동/상호작용을 유발하는 요소인지 확인
+            // 혹은, 클릭된 요소의 부모 중 `[onclick]`, `[role="button"]` 등 인터랙티브 요소가 있는지 확인
+            // 주의: 모든 클릭 가능한 요소를 포함시키면 팝업이 안 뜰 수 있으므로, 핵심적인 요소만 포함.
+            const isInteractiveElement = clickedElement.tagName === 'A' ||
+                                         clickedElement.tagName === 'BUTTON' ||
+                                         clickedElement.tagName === 'INPUT' ||
+                                         clickedElement.tagName === 'TEXTAREA' ||
+                                         clickedElement.tagName === 'SELECT' ||
+                                         clickedElement.closest('[onclick], [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])');
+
+            if (isInteractiveElement) {
+                // 이벤트를 스크립트가 가로채지 않고, 원래 요소로 전파되도록 허용
+                // 즉, 비디오 컨트롤 팝업을 띄우는 대신 페이지 이동 등 원래 동작이 수행되도록 함
+                return;
+            }
+        }
+        // --- V2 수정 끝 ---
 
         updateVideoList();
 
@@ -621,17 +643,6 @@
                     updatePopupPosition();
                     showPopup();
                     resetPopupHideTimer();
-                    // --- 추가: 비디오 자체나 관련 요소를 클릭한 경우, 이벤트 전파 중단 ---
-                    // 하지만 실제 페이지 이동은 막지 않도록, 이미 타겟 엘리먼트가 아닌 경우에만 stopPropagation
-                    // 이 부분은 복잡하므로 일단 전체적으로 팝업 이벤트만 막는 것에 집중
-                    if (e.target.tagName === 'VIDEO' || e.target.closest('a')) {
-                         // 비디오 또는 링크를 클릭한 경우, 팝업 로직은 실행하되 이벤트 버블링은 허용하여 페이지 이동이 되도록 함.
-                         // 하지만 'selectVideoOnDocumentClick' 자체가 캡처 단계에서 발생하므로,
-                         // 여기서는 팝업이 활성화되었을 때 다른 클릭을 막는 데 집중
-                    } else {
-                        // 팝업이 아닌 다른 일반 요소 클릭 시 팝업이 뜨는 경우, 이벤트 전파 중단
-                        // e.stopPropagation(); // 이 부분은 아래 document.body 리스너에서 처리
-                    }
                 } else {
                     isManuallySelected = false; // 자동 감지
                     hidePopup();
@@ -797,7 +808,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClick');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation_FixedPreviewClickV2');
 
         createPopupElement();
         hidePopup();
@@ -843,34 +854,20 @@
             }
         }, { passive: true }); // 스크롤 성능 향상을 위해 passive 옵션 추가
 
-        // --- 수정 시작: 클릭 및 터치 종료 이벤트 처리 개선 ---
-        document.body.addEventListener('click', (e) => {
+        // --- V2 수정 시작: document.body 이벤트 리스너 개선 ---
+        const handleInteraction = (e) => {
             // 드래그 후 터치클릭 무시
             if (touchMoved) {
                 touchMoved = false; // 플래그 초기화
                 return;
             }
             selectVideoOnDocumentClick(e);
-        }, true); // 캡처 단계에서 이벤트 수신
+        };
 
-        document.body.addEventListener('touchend', (e) => {
-            // 드래그 후 터치클릭 무시
-            if (touchMoved) {
-                touchMoved = false; // 플래그 초기화
-                return;
-            }
-            // 팝업 내부 클릭은 이미 setupPopupEventListeners에서 stopPropagation 처리됨.
-            // 팝업이 활성화되어 있고, 클릭된 요소가 비디오 또는 링크인 경우
-            // 스크립트의 팝업 UI 표시 로직은 작동하되, 웹사이트의 기본 클릭 동작은 허용
-            if (currentVideo && (e.target.tagName === 'VIDEO' || e.target.closest('a'))) {
-                // 비디오나 링크를 클릭한 경우, 스크립트가 팝업을 띄우는 것 외에 추가적인 stopPropagation은 하지 않음
-                // 이를 통해 기본 페이지 이동 동작을 방해하지 않도록 함.
-            } else {
-                // 그 외의 경우는 selectVideoOnDocumentClick에서 팝업이 뜨도록 처리
-            }
-            selectVideoOnDocumentClick(e);
-        }, true); // 캡처 단계에서 이벤트 수신
-        // --- 수정 끝 ---
+        // 캡처 단계에서 이벤트 수신
+        document.body.addEventListener('click', handleInteraction, true);
+        document.body.addEventListener('touchend', handleInteraction, true);
+        // --- V2 수정 끝 ---
 
         startCheckingVideoStatus();
 
