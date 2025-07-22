@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.8: UI 레이아웃 및 전체화면 세로 여백 최종 개선)
+// @name Video Controller Popup (V4.11.9: 모바일 터치 클릭 버그 재수정 및 UI 레이아웃 재점검)
 // @namespace Violentmonkey Scripts
-// @version 4.11.8_FixedFullscreenPopup_FixedClickHide_FixedUILayout_VerticalSpacing_FinalFix
+// @version 4.11.9_FixedMobileClickBug_UILayoutRecheck
 // @description Core video controls with streamlined UI. All videos auto-play with sound. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with vertical speed slider (ascending).
 // @match *://*/*
 // @grant none
@@ -546,10 +546,7 @@
             let targetY = videoRect.top + (videoRect.height / 2);
 
             let adjustedX = targetX - (popupRect.width / 2);
-            let adjustedY = targetY - (popupRect.height / 2);
-
-            adjustedX = Math.max(0, Math.min(adjustedX, window.innerWidth - popupRect.width));
-            adjustedY = Math.max(0, Math.min(adjustedY, window.innerHeight - popupRect.height));
+            let adjustedY = Math.max(0, Math.min(targetY - (popupRect.height / 2), window.innerHeight - popupRect.height)); // 팝업이 뷰포트 하단을 벗어나지 않도록 조정
 
             popupElement.style.left = `${adjustedX}px`;
             popupElement.style.top = `${adjustedY}px`;
@@ -804,7 +801,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.8_FixedFullscreenPopup_FixedClickHide_FixedUILayout_VerticalSpacing_FinalFix');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.9_FixedMobileClickBug_UILayoutRecheck');
 
         createPopupElement();
         hidePopup();
@@ -852,36 +849,55 @@
         setupSPADetection();
         fixOverflow();
 
+        // --- 모바일 터치 클릭 버그 재수정 시작 ---
         let touchStartY = 0;
         let touchMoved = false;
+        const TOUCH_MOVE_THRESHOLD = 10; // 10px 이상 움직이면 스크롤로 간주
 
         document.addEventListener('touchstart', (e) => {
             touchStartY = e.touches[0].clientY;
             touchMoved = false;
-        }, { passive: true });
+        }, { passive: true }); // passive: true로 설정하여 스크롤 성능 향상
 
         document.addEventListener('touchmove', (e) => {
             const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
-            if (deltaY > 10) {
+            if (deltaY > TOUCH_MOVE_THRESHOLD) {
                 touchMoved = true;
             }
-        }, { passive: true });
+        }, { passive: true }); // passive: true
 
+        // 'click' 이벤트 리스너에 'touchMoved' 검사 로직 추가
         document.body.addEventListener('click', (e) => {
-            if (touchMoved) {
-                touchMoved = false;
+            // popupElement가 존재하고, 팝업 내부에서 클릭이 일어났다면 타이머 리셋만 하고 종료
+            if (popupElement && popupElement.contains(e.target)) {
+                resetPopupHideTimer();
                 return;
             }
-            selectVideoLogic(e);
-        }, true);
 
-        document.body.addEventListener('touchend', (e) => {
+            // 터치로 인해 스크롤이 발생했다면 클릭 이벤트를 무시
             if (touchMoved) {
-                touchMoved = false;
+                touchMoved = false; // 플래그 초기화
                 return;
             }
-            selectVideoLogic(e);
-        }, true);
+            selectVideoLogic(e); // 실제 비디오 선택 로직 실행
+        }, true); // capturing phase
+
+        // 'touchend' 이벤트 리스너도 'touchMoved' 검사 로직 추가
+        document.body.addEventListener('touchend', (e) => {
+            // popupElement가 존재하고, 팝업 내부에서 터치 종료가 일어났다면 타이머 리셋만 하고 종료
+            if (popupElement && popupElement.contains(e.target)) {
+                resetPopupHideTimer();
+                return;
+            }
+
+            // 터치로 인해 스크롤이 발생했다면 클릭 이벤트를 무시
+            if (touchMoved) {
+                touchMoved = false; // 플래그 초기화
+                return;
+            }
+            selectVideoLogic(e); // 실제 비디오 선택 로직 실행
+        }, true); // capturing phase
+        // --- 모바일 터치 클릭 버그 재수정 끝 ---
 
 
         startCheckingVideoStatus();
