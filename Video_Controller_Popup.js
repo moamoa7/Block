@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.24: 클릭 이벤트 처리 강화)
+// @name Video Controller Popup (V4.11.14: 자동재생 개선 및 모바일 전체화면 클릭 버그 픽스 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.11.24_ClickFix_v2
+// @version 4.11.14_AutoplayAttemptImprovement_MobileFullScreenClickFix
 // @description Core video controls with streamlined UI. All videos auto-play with sound (if possible). Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with horizontal speed slider.
 // @match *://*/*
 // @grant none
@@ -39,13 +39,10 @@
             const rect = v.getBoundingClientRect();
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
             const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused; // 오디오 태그이거나 재생 중이면 크기 무시
-            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || v.src; // 비디오 미디어 데이터가 있거나 오디오 태그인지, src가 있는지
-            const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
+            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia; // 비디오 미디어 데이터가 있거나 오디오 태그인지
 
-            // 특정 사이트 또는 요소 제외 로직 (예: YouTube Shorts)
-            if (v.closest('ytd-reel-player-overlay-renderer')) {
-                return false;
-            }
+            // 스크린 외부에 있거나, 렌더링 되지 않은 비디오는 제외
+            const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
 
             return isVisible && isReasonableSize && hasMedia && isWithinViewport;
         });
@@ -78,36 +75,35 @@
         const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
         const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
         const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || currentVideo.tagName === 'AUDIO' || !currentVideo.paused;
-        const hasMedia = currentVideo.videoWidth > 0 || currentVideo.videoHeight > 0 || currentVideo.tagName === 'AUDIO' || currentVideo.src;
+        const hasMedia = currentVideo.videoWidth > 0 || currentVideo.videoHeight > 0 || currentVideo.tagName === 'AUDIO';
 
+        // 현재 풀스크린 상태를 고려하여 가시성 판단
         const fsEl = document.fullscreenElement;
         if (fsEl) {
+            // 풀스크린 요소가 현재 비디오를 포함하고 있는지 확인
             if (!fsEl.contains(currentVideo)) {
-                return false;
+                return false; // 풀스크린인데 현재 비디오가 그 안에 없으면 숨겨진 것으로 간주
             }
         }
-        if (currentVideo.closest('ytd-reel-player-overlay-renderer')) {
-            return false;
-        }
-
         return isVisible && isWithinViewport && isReasonableSize && hasMedia && document.body.contains(currentVideo);
     }
 
     function selectAndControlVideo(videoToControl) {
-        console.log('[VCP Debug] selectAndControlVideo called with:', videoToControl);
         if (!videoToControl) {
             if (currentVideo) { currentVideo.pause(); currentVideo = null; hidePopup(); }
-            console.log('[VCP Debug] No video to control. Hiding popup.');
             return;
         }
 
+        // 기존 currentVideo가 있고, 새로운 videoToControl과 다를 경우 원래 play() 메서드 복원
         if (currentVideo && currentVideo !== videoToControl && originalPlayMethods.has(currentVideo)) {
             currentVideo.play = originalPlayMethods.get(currentVideo);
             originalPlayMethods.delete(currentVideo);
         }
 
+        // 모든 감지된 비디오에 대해 처리
         findAllVideosDeep().forEach(video => {
             if (video !== videoToControl) {
+                // 현재 비디오가 아닌 다른 비디오는 무조건 일시 정지, 음소거, 볼륨 0, 현재 시간 0으로 초기화
                 if (originalPlayMethods.has(video) && video !== currentVideo) {
                     video.play = originalPlayMethods.get(video);
                     originalPlayMethods.delete(video);
@@ -118,43 +114,49 @@
                 video.muted = true;
                 video.volume = 0;
                 video.currentTime = 0;
-            } else {
+            } else { // videoToControl (새로 선택된 비디오)
+                // 현재 비디오가 아닌 경우에만 설정
                 if (currentVideo !== videoToControl) {
                     videoToControl.autoplay = true;
                     videoToControl.playsInline = true;
 
+                    // --- 핵심 부분: 자동재생 개선 시도 (소리 있는 재생 먼저, 실패 시 음소거 재생 시도) ---
+                    // 1. 소리 있는 재생 시도 (기본)
                     videoToControl.muted = false;
                     videoToControl.volume = 1.0;
-                    isManuallyMuted = false;
+                    isManuallyMuted = false; // 새로운 비디오 선택 시 수동 음소거 상태 초기화
 
                     videoToControl.play().catch(e => {
                         console.warn("[VCP] Autoplay with sound failed:", e.name, e.message, "Attempting muted autoplay.");
+                        // 2. 소리 있는 재생이 실패하면, 음소거 상태로 다시 재생 시도
                         videoToControl.muted = true;
-                        videoToControl.volume = 0;
-                        isManuallyMuted = true;
+                        videoToControl.volume = 0; // 음소거 상태에서는 볼륨도 0으로 설정
+                        isManuallyMuted = true; // 음소거 상태로 시작했음을 표시
                         videoToControl.play().catch(mutedError => {
                             console.error("[VCP] Muted autoplay also failed:", mutedError.name, mutedError.message);
                         });
                     });
+                    // --- 수정 끝 ---
                 }
             }
         });
 
+        // 최종적으로 currentVideo 설정 및 팝업 슬라이더 업데이트 (이 함수는 팝업을 띄우지 않음)
         if (currentVideo !== videoToControl) {
             currentVideo = videoToControl;
-            isManuallyPaused = false;
+            isManuallyPaused = false; // 새 비디오 선택 시 수동 정지 상태 초기화
             desiredPlaybackRate = currentVideo.playbackRate;
 
-            desiredVolume = currentVideo.volume;
-            isManuallyMuted = currentVideo.muted;
-            console.log('[VCP Debug] New currentVideo set:', currentVideo);
+            desiredVolume = currentVideo.volume; // 현재 비디오의 실제 볼륨을 반영
+            isManuallyMuted = currentVideo.muted; // 현재 비디오의 실제 뮤트 상태를 반영
         }
 
+        // 배속 및 볼륨 적용 (desired 값으로 강제)
         fixPlaybackRate(currentVideo, desiredPlaybackRate);
-        setNormalVolume(currentVideo, desiredVolume);
-        updatePopupSliders();
-        updatePlayPauseButton();
-        updateMuteSpeakButtons();
+        setNormalVolume(currentVideo, desiredVolume); // 이 함수 내에서 isManuallyMuted도 업데이트
+        updatePopupSliders(); // 팝업 슬라이더 UI 업데이트 (속도만 남음)
+        updatePlayPauseButton(); // 재생/멈춤 버튼 텍스트 업데이트
+        updateMuteSpeakButtons(); // 무음/소리 버튼 텍스트 업데이트
     }
 
     function fixPlaybackRate(video, rate) {
@@ -198,70 +200,42 @@
         popupElement.style.cssText = `
             position: fixed;
             background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
-            padding: 0; color: white; font-family: sans-serif; z-index: 2147483647 !important;
+            padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
             display: none; opacity: 0; transition: opacity 0.3s;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             width: fit-content;
-            min-width: 280px;
-            overflow: hidden; text-align: center; pointer-events: auto !important;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-        `;
-
-        const header = document.createElement('div');
-        header.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: bold; color: #ccc; padding: 5px;
-            background-color: #2a2a2a; border-bottom: 1px solid #444;
-            border-radius: 6px 6px 0 0; user-select: none; font-size: 16px;
+            min-width: 280px; /* 팝업 최소 너비 유지 */
+            overflow: hidden; text-align: center; pointer-events: auto;
+            display: flex; /* Flexbox로 내부 콘텐츠 정렬 */
+            flex-direction: column; /* 세로 방향 정렬 */
+            align-items: stretch; /* 자식 요소들이 너비를 꽉 채우도록 */
         `;
 
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
         dragHandle.textContent = '비디오.오디오 컨트롤러';
         dragHandle.style.cssText = `
-            flex-grow: 1;
-            text-align: center;
-            cursor: grab;
-            padding: 0 5px;
+            font-weight: bold; color: #ccc; padding: 5px;
+            background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab;
+            border-radius: 6px 6px 0 0; user-select: none; font-size: 16px;
         `;
-        header.appendChild(dragHandle);
+        popupElement.appendChild(dragHandle);
 
-        const closeButton = document.createElement('button');
-        closeButton.textContent = 'X';
-        closeButton.style.cssText = `
-            background: none; border: none; color: #ccc; font-size: 1.2em;
-            cursor: pointer; padding: 0 8px; line-height: 1;
-            transition: color 0.2s;
-        `;
-        closeButton.onmouseover = () => closeButton.style.color = 'white';
-        closeButton.onmouseout = () => closeButton.style.color = '#ccc';
-        closeButton.addEventListener('click', (e) => {
-            e.stopPropagation(); // 버튼 클릭 시 팝업 외부 클릭 이벤트 방지
-            hidePopup();
-            console.log('[VCP Debug] X button clicked. Hiding popup.');
-        });
-        header.appendChild(closeButton);
-        popupElement.appendChild(header);
-
-
+        // --- 배속 바 섹션 (상단) ---
         const speedSection = document.createElement('div');
         speedSection.className = 'vcp-section-speed';
         speedSection.style.cssText = `
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* 세로 정렬: 숫자 위에 슬라이더 */
             align-items: center;
             padding: 10px;
-            gap: 5px;
-            border-bottom: 1px solid #444;
+            gap: 5px; /* 숫자와 슬라이더 사이 간격 */
+            border-bottom: 1px solid #444; /* 하단 구분선 */
         `;
 
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
-        speedDisplay.textContent = '1.00x';
+        speedDisplay.textContent = '1.00x'; // x 추가
         speedDisplay.style.cssText = 'color: #eee; font-size: 1.2em; font-weight: bold; width: 100%; text-align: center;';
 
         const speedInput = document.createElement('input');
@@ -272,8 +246,8 @@
         speedInput.step = '0.1';
         speedInput.value = '1.0';
         speedInput.style.cssText = `
-            width: 90%;
-            height: 10px;
+            width: 90%; /* 가로 폭 채우기 */
+            height: 10px; /* 높이 줄임 */
             -webkit-appearance: none;
             appearance: none;
             background: #555;
@@ -283,21 +257,26 @@
             margin: 0;
             padding: 0;
         `;
-        speedSection.appendChild(speedDisplay);
-        speedSection.appendChild(speedInput);
+        // 슬라이더 썸 스타일 (커스텀)
+        // CSS in JS로 직접 썸 스타일을 제어하기는 어려우므로, 간단한 배경/테두리만 적용
+        // 더 복잡한 스타일은 별도 <style> 태그 삽입이 필요할 수 있습니다.
+
+        speedSection.appendChild(speedDisplay); // 숫자 먼저
+        speedSection.appendChild(speedInput);    // 슬라이더 나중
         popupElement.appendChild(speedSection);
 
+        // --- 버튼 섹션 (하단) ---
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = `
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
-            gap: 10px;
-            padding: 10px;
-            flex-grow: 1;
-            align-content: stretch;
+            gap: 10px; /* 버튼 간 간격 */
+            padding: 10px; /* 상하좌우 패딩 */
+            flex-grow: 1; /* 남은 공간을 채우도록 */
+            align-content: stretch; /* 그리드 콘텐츠를 수직으로 늘림 */
             justify-items: stretch;
-            min-height: 90px;
+            min-height: 90px; /* 버튼 4개 공간 확보 */
         `;
 
         const buttonStyle = `
@@ -341,11 +320,10 @@
         buttonSection.appendChild(speedResetBtn);
         buttonSection.appendChild(muteBtn);
         buttonSection.appendChild(speakBtn);
-        popupElement.appendChild(buttonSection);
+        popupElement.appendChild(buttonSection); // 버튼 섹션을 팝업에 추가
 
         document.body.appendChild(popupElement);
         setupPopupEventListeners();
-        console.log('[VCP Debug] Popup element created and appended to body.');
     }
 
     function updatePlayPauseButton() {
@@ -376,11 +354,7 @@
 
     function handleButtonClick(action) {
         if (!currentVideo) { return; }
-        console.log('[VCP Debug] Button clicked:', action);
-        // 전체 화면에서는 타이머 리셋하지 않음 (팝업이 계속 떠 있도록)
-        if (!document.fullscreenElement) {
-             resetPopupHideTimer();
-        }
+        resetPopupHideTimer();
 
         switch (action) {
             case 'play-pause':
@@ -429,50 +403,36 @@
         const speedInput = popupElement.querySelector('#vcp-speed');
         const speedDisplay = popupElement.querySelector('#vcp-speed-display');
         speedInput.addEventListener('input', () => {
-            // 전체 화면에서는 타이머 리셋하지 않음
-            if (!document.fullscreenElement) {
-                resetPopupHideTimer();
-            }
+            resetPopupHideTimer();
             const rate = parseFloat(speedInput.value);
             if (currentVideo) { fixPlaybackRate(currentVideo, rate); }
-            speedDisplay.textContent = rate.toFixed(2) + 'x';
-            console.log('[VCP Debug] Speed slider input:', rate);
+            speedDisplay.textContent = rate.toFixed(2) + 'x'; // x 추가
         });
 
         const dragHandle = popupElement.querySelector('#vcp-drag-handle');
         const startDrag = (e) => {
             if (e.target !== dragHandle) return;
-            // 전체 화면에서는 타이머 리셋하지 않음
-            if (!document.fullscreenElement) {
-                resetPopupHideTimer();
-            }
+            resetPopupHideTimer();
             isPopupDragging = true;
             dragHandle.style.cursor = 'grabbing';
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-            if (clientX === undefined || clientY === undefined) return;
+            if (clientX === undefined || clientY === undefined) return; // Prevent dragging with invalid coords
             const rect = popupElement.getBoundingClientRect();
             popupDragOffsetX = clientX - rect.left;
             popupDragOffsetY = clientY - rect.top;
-            if (!document.fullscreenElement) {
-                popupElement.style.position = 'fixed';
-            }
+            popupElement.style.position = 'fixed';
             popupElement.style.transform = 'none';
-            document.body.style.userSelect = 'none';
-            console.log('[VCP Debug] Popup drag started.');
+            document.body.style.userSelect = 'none'; // Prevent text selection during drag
         };
 
         const stopDrag = () => {
             if (isPopupDragging) {
                 isPopupDragging = false;
                 dragHandle.style.cursor = 'grab';
-                document.body.style.userSelect = '';
-                // 전체 화면에서는 타이머 리셋하지 않음
-                if (!document.fullscreenElement) {
-                    resetPopupHideTimer();
-                }
-                updatePopupPosition();
-                console.log('[VCP Debug] Popup drag stopped.');
+                document.body.style.userSelect = ''; // Re-enable text selection
+                resetPopupHideTimer();
+                updatePopupPosition(); // Recalculate position to fit within boundaries after drag
             }
         };
 
@@ -481,22 +441,14 @@
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
             if (clientX === undefined || clientY === undefined) return;
-
-            const fsEl = document.fullscreenElement;
-            if (fsEl) {
-                const fsRect = fsEl.getBoundingClientRect();
-                popupElement.style.left = `${clientX - popupDragOffsetX - fsRect.left}px`;
-                popupElement.style.top = `${clientY - popupDragOffsetY - fsRect.top}px`;
-            } else {
-                popupElement.style.left = `${clientX - popupDragOffsetX}px`;
-                popupElement.style.top = `${clientY - popupDragOffsetY}px`;
-            }
+            popupElement.style.left = `${clientX - popupDragOffsetX}px`;
+            popupElement.style.top = `${clientY - popupDragOffsetY}px`;
         };
 
         dragHandle.addEventListener('mousedown', startDrag);
         dragHandle.addEventListener('touchstart', startDrag, { passive: false });
         document.addEventListener('mousemove', dragPopup);
-        document.addEventListener('touchmove', dragPopup, { passive: false });
+        document.addEventListener('touchmove', dragPopup, { passive: false }); // 터치 이벤트 활성화
         document.addEventListener('mouseup', stopDrag);
         document.addEventListener('touchend', stopDrag);
         document.addEventListener('mouseleave', stopDrag);
@@ -506,16 +458,9 @@
         if (!popupElement) return;
 
         if (isVisible) {
-            const styles = {
-                display: 'flex',
-                opacity: '0.75',
-                visibility: 'visible',
-                pointerEvents: 'auto',
-                zIndex: '2147483647 !important'
-            };
+            const styles = { display: 'flex', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' }; // display: flex로 변경
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
             isPopupVisible = true;
-            console.log('[VCP Debug] Popup visibility set to TRUE.');
         } else {
             if (popupHideTimer) {
                 clearTimeout(popupHideTimer);
@@ -525,14 +470,12 @@
             popupElement.style.opacity = '0';
             popupElement.style.visibility = 'hidden';
             isPopupVisible = false;
-            console.log('[VCP Debug] Popup visibility set to FALSE.');
         }
     }
 
     function showPopup() {
         if (!currentVideo) {
             hidePopup();
-            console.log('[VCP Debug] showPopup: No currentVideo, hiding popup.');
             return;
         }
 
@@ -541,110 +484,83 @@
         updatePlayPauseButton();
         updateMuteSpeakButtons();
         updatePopupSliders();
-        console.log('[VCP Debug] Popup would be shown now.');
     }
 
     function hidePopup() { setPopupVisibility(false); }
 
     function resetPopupHideTimer() {
         if (popupHideTimer) clearTimeout(popupHideTimer);
-        // 전체 화면이 아닐 때만 팝업 자동 숨김 타이머를 설정합니다.
-        // Fullscreen 모드에서는 사용자가 직접 닫기 전까지 팝업이 유지됩니다.
-        if (!document.fullscreenElement && !isPopupDragging && isPopupVisible) {
+        // 팝업이 드래그 중이거나, 팝업 자체가 보이지 않는 상태에서는 타이머 설정 안 함
+        if (!isPopupDragging && isPopupVisible) {
             popupHideTimer = setTimeout(hidePopup, POPUP_TIMEOUT_MS);
-            console.log(`[VCP Debug] Popup hide timer reset for ${POPUP_TIMEOUT_MS}ms.`);
-        } else {
-            console.log('[VCP Debug] Popup hide timer NOT reset (fullscreen or dragging or not visible).');
         }
     }
 
     function updatePopupPosition() {
         if (!currentVideo || !popupElement || isPopupDragging) {
-            console.log('[VCP Debug] updatePopupPosition skipped (no video, no popup, or dragging).');
             return;
         }
 
+        const videoRect = currentVideo.getBoundingClientRect();
+        let popupRect = popupElement.getBoundingClientRect(); // 위치 업데이트 전에 최신 크기 가져오기
+
         const fsEl = document.fullscreenElement;
-        let videoToUseForPosition = currentVideo;
 
         if (fsEl) {
-            console.log('[VCP Debug] Fullscreen element detected:', fsEl);
-            if (!fsEl.contains(currentVideo)) {
-                console.log('[VCP Debug] currentVideo not in fullscreen element. Searching for alternative.');
-                const fsVideos = Array.from(fsEl.querySelectorAll('video, audio')).filter(v => {
-                    const rect = v.getBoundingClientRect();
-                    return rect.width > 0 && rect.height > 0 && fsEl.contains(v);
-                });
-                if (fsVideos.length > 0) {
-                    videoToUseForPosition = fsVideos.sort((a, b) => {
-                        const aRect = a.getBoundingClientRect();
-                        const bRect = b.getBoundingClientRect();
-                        return (bRect.width * bRect.height) - (aRect.width * aRect.height);
-                    })[0];
-                    console.log('[VCP Debug] Found largest video in fullscreen:', videoToUseForPosition);
-                    if (!videoToUseForPosition) {
-                        hidePopup();
-                        return;
-                    }
-                } else {
-                    console.log('[VCP Debug] No video found in fullscreen element. Hiding popup.');
-                    hidePopup();
-                    return;
-                }
-            } else {
-                console.log('[VCP Debug] currentVideo is in fullscreen element.');
-            }
-
-            const videoRect = videoToUseForPosition.getBoundingClientRect();
+            // 풀스크린 모드: 팝업 크기를 고정된 픽셀 값으로 강제
             popupElement.style.width = '280px';
             popupElement.style.minWidth = '280px';
-            popupElement.style.height = 'auto';
-            popupElement.style.minHeight = '150px';
+            // 높이 조정: 배속바 상단 + 버튼 하단 구조를 고려하여 더 유동적으로
+            popupElement.style.height = 'auto'; // auto로 두어 내부 콘텐츠에 맞게 조정
+            popupElement.style.minHeight = '150px'; // 최소 높이도 줄임 (새로운 UI에 맞게)
             popupElement.style.position = 'absolute'; // Fullscreen 요소 내부에 상대적 위치
             popupElement.style.transform = 'none';
 
-            const popupRect = popupElement.getBoundingClientRect();
+            // 크기 변경 후 다시 BoundingClientRect를 가져와 정확한 계산
+            popupRect = popupElement.getBoundingClientRect();
+
             const fsRect = fsEl.getBoundingClientRect();
 
-            let targetX = (videoRect.left - fsRect.left) + (videoRect.width / 2);
-            let targetY = (videoRect.top - fsRect.top) + (videoRect.height / 2);
+            // 비디오 중앙 기준으로 팝업 위치 계산
+            let targetX = videoRect.left - fsRect.left + (videoRect.width / 2);
+            let targetY = videoRect.top - fsRect.top + (videoRect.height / 2);
 
             let adjustedX = targetX - (popupRect.width / 2);
             let adjustedY = targetY - (popupRect.height / 2);
 
+            // fsEl 내부 경계에 맞추기
             adjustedX = Math.max(0, Math.min(adjustedX, fsRect.width - popupRect.width));
             adjustedY = Math.max(0, Math.min(adjustedY, fsRect.height - popupRect.height));
 
             popupElement.style.left = `${adjustedX}px`;
             popupElement.style.top = `${adjustedY}px`;
-            console.log(`[VCP Debug] Fullscreen popup position: left=${adjustedX}, top=${adjustedY}, videoRect:`, videoRect, "fsRect:", fsRect);
 
         } else {
-            const videoRect = currentVideo.getBoundingClientRect();
+            // 일반 모드: 팝업 크기를 원래대로 복원 (fit-content)
             popupElement.style.width = 'fit-content';
             popupElement.style.minWidth = '280px';
             popupElement.style.height = 'auto';
-            popupElement.style.minHeight = '150px';
-            popupElement.style.position = 'fixed';
+            popupElement.style.minHeight = '150px'; // 일반 모드 최소 높이 조정 (새로운 UI에 맞게)
+            popupElement.style.position = 'fixed'; // Viewport에 고정
             popupElement.style.transform = 'none';
 
-            const popupRect = popupElement.getBoundingClientRect();
+            // 크기 변경 후 다시 BoundingClientRect를 가져와 정확한 계산
+            popupRect = popupElement.getBoundingClientRect();
 
             let targetX = videoRect.left + (videoRect.width / 2);
             let targetY = videoRect.top + (videoRect.height / 2);
 
             let adjustedX = targetX - (popupRect.width / 2);
-            let adjustedY = Math.max(0, Math.min(targetY - (popupRect.height / 2), window.innerHeight - popupRect.height));
+            let adjustedY = Math.max(0, Math.min(targetY - (popupRect.height / 2), window.innerHeight - popupRect.height)); // 팝업이 뷰포트 하단을 벗어나지 않도록 조정
 
             popupElement.style.left = `${adjustedX}px`;
             popupElement.style.top = `${adjustedY}px`;
-            console.log(`[VCP Debug] Normal popup position: left=${adjustedX}, top=${adjustedY}, videoRect:`, videoRect);
         }
 
-        const isVideoVisible = videoToUseForPosition.getBoundingClientRect().top < window.innerHeight && videoToUseForPosition.getBoundingClientRect().bottom > 0 && videoToUseForPosition.getBoundingClientRect().left < window.innerWidth && videoToUseForPosition.getBoundingClientRect().right > 0;
+        // 비디오가 화면에 보이는지 최종 확인 (현재 버전의 updatePopupPosition 끝 부분)
+        const isVideoVisible = videoRect.top < window.innerHeight && videoRect.bottom > 0 && videoRect.left < window.innerWidth && videoRect.right > 0;
         if (!isVideoVisible) {
-            hidePopup();
-            console.log('[VCP Debug] Video is not visible, hiding popup.');
+            hidePopup(); // 비디오가 화면에서 벗어나면 팝업 숨김
         }
     }
 
@@ -658,117 +574,96 @@
         if (speedInput && speedDisplay) {
             const rate = currentVideo.playbackRate;
             speedInput.value = rate.toFixed(1);
-            speedDisplay.textContent = rate.toFixed(2) + 'x';
+            speedDisplay.textContent = rate.toFixed(2) + 'x'; // x 추가
             desiredPlaybackRate = rate;
         }
     }
 
+    // selectVideoLogic 함수는 e.preventDefault()나 e.stopPropagation()을 직접 호출하지 않음.
+    // 이는 이벤트 핸들러에서 제어되어야 함.
     function selectVideoLogic(e) {
-        console.log('[VCP Debug] selectVideoLogic triggered.');
-        updateVideoList();
+        updateVideoList(); // 항상 최신 비디오 목록을 가져옵니다.
 
+        // 현재 재생 중이거나 이전에 선택된 비디오가 있다면, 그 비디오를 최우선으로 고려합니다.
         let activeVideo = null;
-        const fsEl = document.fullscreenElement;
+        if (currentVideo && document.body.contains(currentVideo)) { // currentVideo가 DOM에 여전히 존재하면
+            activeVideo = currentVideo;
+        } else {
+            // 없다면, 가장 중요하다고 판단되는 비디오를 찾습니다.
+            const centerY = window.innerHeight / 2;
+            const centerX = window.innerWidth / 2;
 
-        if (fsEl) {
-            console.log('[VCP Debug] Fullscreen element found when selecting video:', fsEl);
-            const fsVideos = Array.from(fsEl.querySelectorAll('video, audio')).filter(v => {
+            const sorted = videos
+            .map(v => {
                 const rect = v.getBoundingClientRect();
-                return rect.width > 0 && rect.height > 0 && fsEl.contains(v);
-            });
+                const visibleWidth = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
+                const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+                const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
+                const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
 
-            if (fsVideos.length > 0) {
-                activeVideo = fsVideos.sort((a, b) => {
-                    const aRect = a.getBoundingClientRect();
-                    const bRect = b.getBoundingClientRect();
-                    return (bRect.width * bRect.height) - (aRect.width * aRect.height);
-                })[0];
-                console.log('[VCP Debug] Largest video in fullscreen:', activeVideo);
-            } else {
-                console.log('[VCP Debug] No videos found within fullscreen element.');
-            }
-        }
+                const centerScore = 1 / Math.pow(1 + centerDist, 5); // 중앙에 가까울수록 점수 높음
 
-        if (!activeVideo) {
-            if (currentVideo && document.body.contains(currentVideo)) {
-                activeVideo = currentVideo;
-                console.log('[VCP Debug] Reusing currentVideo as activeVideo.');
-            } else {
-                const centerY = window.innerHeight / 2;
-                const centerX = window.innerWidth / 2;
+                // 재생 중인 비디오는 가중치를 더 줍니다.
+                const isPlayingScore = (!v.paused && v.duration > 0 && !v.ended) ? 10000 : 0; // 재생 중이면 높은 가중치
 
-                const sorted = videos
-                .map(v => {
-                    const rect = v.getBoundingClientRect();
-                    const visibleWidth = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
-                    const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
-                    const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
-                    const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
+                const score = visibleArea * 0.7 + centerScore * 5000 * 0.3 + isPlayingScore;
 
-                    const centerScore = 1 / Math.pow(1 + centerDist, 5);
+                return { video: v, score };
+            })
+            .filter(({ score }) => score > 0)
+            .sort((a, b) => b.score - a.score);
 
-                    const isPlayingScore = (!v.paused && v.duration > 0 && !v.ended) ? 10000 : 0;
-
-                    const score = visibleArea * 0.7 + centerScore * 5000 * 0.3 + isPlayingScore;
-
-                    return { video: v, score };
-                })
-                .filter(({ score }) => score > 0)
-                .sort((a, b) => b.score - a.score);
-
-                activeVideo = sorted[0]?.video || null;
-                console.log('[VCP Debug] Selected activeVideo by score:', activeVideo);
-            }
+            activeVideo = sorted[0]?.video || null;
         }
 
         if (activeVideo) {
+            // 현재 선택된 비디오가 없거나, 다른 비디오가 선택되어야 하는 경우
             if (currentVideo !== activeVideo) {
-                if (currentVideo) currentVideo.pause();
-                selectAndControlVideo(activeVideo);
+                if (currentVideo) currentVideo.pause(); // 이전 비디오 일시정지
+                selectAndControlVideo(activeVideo); // 새로운 비디오 제어 시작
             }
 
+            // 사용자 클릭/터치 이벤트인 경우 팝업을 표시합니다.
             if (e instanceof Event) {
-                console.log('[VCP Debug] Event triggered showPopup.');
                 showPopup();
-                // 전체 화면이 아닐 때만 팝업 숨김 타이머를 리셋합니다.
-                if (!document.fullscreenElement) {
-                    resetPopupHideTimer();
-                }
+                resetPopupHideTimer();
             }
         } else {
+            // 유효한 비디오를 찾지 못했으면 팝업을 숨깁니다.
             if (currentVideo) {
                 currentVideo.pause();
             }
             currentVideo = null;
             hidePopup();
-            console.log('[VCP Debug] No active video, hiding popup.');
         }
     }
+
 
     let scrollTimeout = null;
     function handleScrollEvent() {
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
-            console.log('[VCP Debug] Scroll event handling.');
             updateVideoList();
 
+            // 현재 비디오가 더 이상 보이지 않거나 DOM에서 제거되었을 때만 팝업 숨김
             if (currentVideo && (!checkCurrentVideoVisibility() || !document.body.contains(currentVideo))) {
                 if (currentVideo) currentVideo.pause();
                 currentVideo = null;
                 hidePopup();
-                console.log('[VCP Debug] Current video not visible/present after scroll, hiding popup.');
             }
+
+            // 스크롤 시에도 비디오 선택 로직은 실행하되, 팝업은 자동으로 안 뜸 (e=null)
             selectVideoLogic(null);
         }, 100);
     }
 
     function updateVideoList() {
         findPlayableVideos();
+        // 현재 비디오가 유효하지 않으면 초기화
         if (currentVideo && (!document.body.contains(currentVideo) || !videos.includes(currentVideo))) {
             if (currentVideo) currentVideo.pause();
             currentVideo = null;
             hidePopup();
-            console.log('[VCP Debug] Current video removed from DOM or not in playable list, hiding popup.');
         }
     }
 
@@ -781,6 +676,7 @@
                     foundMediaChange = true;
                     break;
                 } else if (mutation.type === 'attributes' && mutation.target.matches('video, audio')) {
+                    // src, controls, display 스타일 등의 변경 감지
                     if (mutation.attributeName === 'src' || mutation.attributeName === 'controls' || mutation.attributeName === 'style') {
                         foundMediaChange = true;
                         break;
@@ -788,9 +684,8 @@
                 }
             }
             if (foundMediaChange) {
-                console.log('[VCP Debug] DOM change detected. Updating video list and selecting.');
                 updateVideoList();
-                selectVideoLogic(null);
+                selectVideoLogic(null); // DOM 변경 시 비디오 선택 로직은 실행하되, 팝업은 자동으로 안 뜸
             }
         };
         const mutationObserver = new MutationObserver(observerCallback);
@@ -814,14 +709,26 @@
     }
 
     function fixOverflow() {
-        document.body.style.setProperty('overflow', 'visible', 'important');
-        const fsObserver = new MutationObserver((mutations) => {
+        const overflowFixSites = []; // 여기에 특정 사이트의 오버플로우 문제를 해결하기 위한 설정 추가 가능
+        // 예시: overflowFixSites.push({ domain: 'youtube.com', selectors: ['ytd-app', 'ytd-page-manager'] });
+        overflowFixSites.forEach(site => {
+            if (location.hostname.includes(site.domain)) {
+                site.selectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => {
+                        el.style.setProperty('overflow', 'visible', 'important'); // 강제로 overflow를 visible로 변경
+                    });
+                });
+            }
+            // Add specific CSS for full-screen elements if needed
             if (document.fullscreenElement) {
-                document.fullscreenElement.style.setProperty('overflow', 'visible', 'important');
+                if (location.hostname.includes(site.domain)) {
+                    // Example: if a site's full-screen video container has 'overflow: hidden'
+                    // document.fullscreenElement.style.setProperty('overflow', 'visible', 'important');
+                }
             }
         });
-        fsObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
     }
+
 
     function startCheckingVideoStatus() {
         if (checkVideoInterval) clearInterval(checkVideoInterval);
@@ -836,29 +743,37 @@
                         video.volume = 0;
                     }
                 } else {
+                    // currentVideo는 외부 상호작용 (팝업 버튼 등)에 따라 재생/일시정지 상태가 변할 수 있으므로
+                    // isManuallyPaused 상태를 우선적으로 존중합니다.
                     if (video.paused && !video.ended && !isManuallyPaused) {
+                        // 사용자가 직접 정지하지 않았는데 비디오가 정지되어 있다면, 재생 시도
                         video.play().catch(e => {
-                            // console.warn("[VCP] Autoplay attempt failed in interval:", e.message);
+                            // 자동 재생 시도가 실패하면, 음소거 상태로 재시도 (여기서는 console.warn만 남김)
+                            // 실제 자동 재생 로직은 selectAndControlVideo에서 이미 처리됨
+                            // console.warn("Auto-play attempt failed during check:", e);
                         });
                     }
                     if (video.playbackRate !== desiredPlaybackRate) {
+                        // 비디오의 실제 재생 속도가 desiredPlaybackRate와 다르면 업데이트 (다른 스크립트 등 개입 대비)
                         desiredPlaybackRate = video.playbackRate;
                         updatePopupSliders();
                     }
+                    // 비디오의 실제 뮤트/볼륨 상태가 원하는 상태와 다르면 동기화
                     if (video.muted !== (isManuallyMuted || desiredVolume === 0) || Math.abs(video.volume - desiredVolume) > 0.005) {
                         video.volume = desiredVolume;
                         video.muted = isManuallyMuted || (desiredVolume === 0);
-                        updateMuteSpeakButtons();
+                        updateMuteSpeakButtons(); // UI 업데이트
                     }
                 }
             });
 
+            // 주기적인 체크 시에는 팝업을 자동으로 띄우지 않습니다.
+            // 단, 현재 선택된 비디오가 없으면 가장 적절한 비디오를 찾아 currentVideo를 설정합니다.
             if (!currentVideo) {
                 selectVideoLogic(null);
             }
 
-            // 팝업이 이미 표시되어 있다면 위치 및 UI 업데이트만 수행
-            if (popupElement && isPopupVisible && !isPopupDragging) {
+            if (popupElement && isPopupVisible && !isPopupDragging) { // 팝업이 보일 때만 업데이트
                 updatePopupPosition();
                 updatePlayPauseButton();
                 updateMuteSpeakButtons();
@@ -867,16 +782,17 @@
         }, AUTO_CHECK_VIDEO_INTERVAL_MS);
     }
 
+    // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 시작 ---
     let touchStartX = 0;
     let touchStartY = 0;
     let touchMoved = false;
-    const TOUCH_MOVE_THRESHOLD = 10;
+    const TOUCH_MOVE_THRESHOLD = 10; // 10px 이상 움직이면 스크롤로 간주
 
     document.addEventListener('touchstart', (e) => {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
-        touchMoved = false;
-    }, { passive: true });
+        touchMoved = false; // 매 터치 시작 시 초기화
+    }, { passive: true }); // passive: true로 스크롤 성능 최적화
 
     document.addEventListener('touchmove', (e) => {
         const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
@@ -884,185 +800,122 @@
         if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
             touchMoved = true;
         }
-    }, { passive: true });
+    }, { passive: true }); // passive: true로 스크롤 성능 최적화
 
+    // 'click' 이벤트 리스너: 캡처링 단계에서 먼저 처리하여 사용자 정의 로직 우선 적용
     document.body.addEventListener('click', (e) => {
-        console.log('[VCP Debug] Body click detected. Target:', e.target);
         if (!e) return;
 
-        // 1. 팝업 자체 또는 팝업의 자식 요소 클릭인지 확인
-        if (popupElement && popupElement.contains(e.target)) {
-            console.log('[VCP Debug] Click inside popup. Preventing hide and other actions.');
-            if (!document.fullscreenElement) {
-                resetPopupHideTimer(); // 전체 화면이 아닐 때만 타이머 리셋
-            }
-            e.stopPropagation(); // 팝업 내부 클릭 이벤트가 body로 전파되지 않도록 방지
+        // 1. 팝업 내부 클릭인 경우: 타이머 리셋만 하고 기본 동작 허용
+        if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
             return;
         }
 
-        // 2. 터치 이동이 있었는지 확인 (모바일에서 스크롤을 클릭으로 오인 방지)
+        // 2. 터치 드래그(스크롤)가 있었으면 클릭 무시 (의도치 않은 클릭 방지)
         if (touchMoved) {
-            touchMoved = false;
-            console.log('[VCP Debug] Touch moved, ignoring click.');
-            e.stopPropagation(); // 불필요한 이벤트 전파 방지
+            touchMoved = false; // 플래그 초기화
             return;
         }
 
-        // 3. <a> 태그(링크) 클릭인지 확인
-        if (e.target.closest('a')) {
-            console.log('[VCP Debug] Click on a link (<a> tag). Ignoring for popup control.');
-            // 브라우저의 기본 링크 동작을 허용하기 위해 return
+        // 3. 클릭된 요소가 링크(<a>)이거나 버튼 역할을 하는 요소인지 확인 (페이지 이동/버튼 기능 방해 방지)
+        const clickedLink = e.target.closest('a');
+        const isClickableElement = e.target.matches('button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
+        if (clickedLink || isClickableElement) {
             return;
         }
 
-        // 4. 팝업이 현재 보이는 상태라면 (팝업 외부 클릭으로 간주) 숨김
-        if (popupElement && isPopupVisible) {
-            console.log('[VCP Debug] Popup visible and click outside popup. Hiding popup.');
+        // 4. 팝업이 열려 있는데 팝업 외부를 클릭한 경우: 팝업 숨김
+        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
             hidePopup();
-            e.stopPropagation(); // 팝업을 숨겼으면 더 이상 로직 진행 방지
-            return;
+            // 하지만 풀스크린 상태에서는 클릭하면 팝업을 다시 띄워야 하므로, 이 hidePopup 호출 후 바로 return 하지 않습니다.
+            // 대신 selectVideoLogic에서 다시 팝업을 띄울지 결정합니다.
+            // return; // 제거
         }
 
-        // 5. 팝업이 숨겨져 있거나 없는 상태에서, 유효한 비디오/오디오 영역 클릭 시 팝업 표시
-        const target = e.target;
-        const clickedVideo = target.tagName === 'VIDEO' || target.tagName === 'AUDIO' ? target : target.closest('video, audio');
+        // 5. 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
+        selectVideoLogic(e); // 'e'를 전달하여 사용자 상호작용임을 알림
+    }, true); // `true`는 capturing phase에서 이벤트를 가로채겠다는 의미
 
-        if (clickedVideo) {
-            console.log('[VCP Debug] Click on a video/audio element or its container. Calling selectVideoLogic to show popup.');
-            selectVideoLogic(e); // 이벤트 객체를 전달하여 팝업 표시
-            e.stopPropagation(); // 영상 클릭 이벤트가 다른 요소에 영향을 주지 않도록 방지
-            // e.preventDefault(); // 스크롤바 선택 등의 문제를 막기 위해 경우에 따라 추가 고려
-        } else {
-            console.log('[VCP Debug] Click on a non-video/non-audio element, and popup is hidden. No action taken.');
-        }
-
-    }, true); // 이벤트 캡처링 단계에서 처리
-
+    // touchend 이벤트 핸들러: 모바일 환경에서 팝업을 즉시 띄우기 위해 selectVideoLogic을 직접 호출하도록 수정
     document.body.addEventListener('touchend', (e) => {
-        console.log('[VCP Debug] Body touchend detected. Target:', e.target);
         if (!e) return;
 
-        // 1. 팝업 자체 또는 팝업의 자식 요소 클릭인지 확인
-        if (popupElement && popupElement.contains(e.target)) {
-            console.log('[VCP Debug] Touchend inside popup. Preventing hide and other actions.');
-            if (!document.fullscreenElement) {
-                resetPopupHideTimer(); // 전체 화면이 아닐 때만 타이머 리셋
-            }
-            e.stopPropagation(); // 팝업 내부 클릭 이벤트가 body로 전파되지 않도록 방지
+        // 팝업 내부 터치 시 타이머 리셋
+        if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
             return;
         }
 
-        // 2. 터치 이동이 있었는지 확인
+        // 터치 드래그(스크롤)가 있었으면 팝업 표시를 막음
         if (touchMoved) {
-            touchMoved = false;
-            console.log('[VCP Debug] Touch moved, ignoring touchend.');
-            e.stopPropagation(); // 불필요한 이벤트 전파 방지
+            touchMoved = false; // 플래그 초기화
             return;
         }
 
-        // 3. <a> 태그(링크) 클릭인지 확인
-        if (e.target.closest('a')) {
-            console.log('[VCP Debug] Touchend on a link (<a> tag). Ignoring for popup control.');
+        // 클릭된 요소가 링크(<a>)이거나 버튼 역할을 하는 요소인지 확인
+        const clickedLink = e.target.closest('a');
+        const isClickableElement = e.target.matches('button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
+        if (clickedLink || isClickableElement) {
             return;
         }
 
-        // 4. 팝업이 현재 보이는 상태라면 (팝업 외부 클릭으로 간주) 숨김
-        if (popupElement && isPopupVisible) {
-            console.log('[VCP Debug] Popup visible and touchend outside popup. Hiding popup.');
+        // 팝업이 열려 있는데 팝업 외부를 터치한 경우: 팝업 숨김
+        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
             hidePopup();
-            e.stopPropagation(); // 팝업을 숨겼으면 더 이상 로직 진행 방지
-            return;
+            // 하지만 풀스크린 상태에서는 클릭하면 팝업을 다시 띄워야 하므로, 이 hidePopup 호출 후 바로 return 하지 않습니다.
+            // return; // 제거
         }
 
-        // 5. 팝업이 숨겨져 있거나 없는 상태에서, 유효한 비디오/오디오 영역 클릭 시 팝업 표시
-        const target = e.target;
-        const clickedVideo = target.tagName === 'VIDEO' || target.tagName === 'AUDIO' ? target : target.closest('video, audio');
+        // 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
+        selectVideoLogic(e); // 'e'를 전달하여 사용자 상호작용임을 알림
+    }, true); // `true`로 설정하여 capturing phase에서 이벤트 감지
 
-        if (clickedVideo) {
-            console.log('[VCP Debug] Touchend on a video/audio element or its container. Calling selectVideoLogic to show popup.');
-            selectVideoLogic(e); // 이벤트 객체를 전달하여 팝업 표시
-            e.stopPropagation(); // 영상 클릭 이벤트가 다른 요소에 영향을 주지 않도록 방지
-        } else {
-            console.log('[VCP Debug] Touchend on a non-video/non-audio element, and popup is hidden. No action taken.');
-        }
-    }, true); // 이벤트 캡처링 단계에서 처리
+    // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 끝 ---
 
-    // CSS를 동적으로 추가하는 함수
-    function addCustomStyles() {
-        const style = document.createElement('style');
-        style.type = 'text/css';
-        style.id = 'vcp-custom-styles'; // 스크립트가 추가한 스타일임을 명시
-        style.textContent = `
-            /* HTML5 기본 비디오 컨트롤 숨김 */
-            video::-webkit-media-controls {
-                display: none !important;
-            }
-            video::-moz-media-controls {
-                display: none !important;
-            }
-            video::--ms-media-controls { /* IE/Edge (벤더 프리픽스 주의) */
-                display: none !important;
-            }
-            video::media-controls { /* 표준 (향후 적용될 수 있음) */
-                display: none !important;
-            }
-        `;
-        document.head.appendChild(style);
-        console.log('[VCP Debug] Custom CSS added.');
-    }
 
     function initialize() {
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.24_ClickFix_v2');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.14_AutoplayAttemptImprovement_MobileFullScreenClickFix');
 
-        addCustomStyles(); // 커스텀 CSS 추가
         createPopupElement();
         hidePopup();
 
         document.addEventListener('fullscreenchange', () => {
             const fsEl = document.fullscreenElement;
-            console.log('[VCP Debug] Fullscreen change event. Current fullscreen element:', fsEl);
             if (popupElement) {
                 if (fsEl) {
-                    // 전체 화면 진입 시
-                    fsEl.appendChild(popupElement); // Fullscreen 요소 내부에 팝업 이동
-                    popupElement.style.setProperty('z-index', '2147483647', 'important');
-                    popupElement.style.setProperty('pointer-events', 'auto', 'important');
-
+                    fsEl.appendChild(popupElement);
+                    // 풀스크린 모드에서 팝업의 고정 크기
                     popupElement.style.width = '280px';
                     popupElement.style.minWidth = '280px';
-                    popupElement.style.height = 'auto';
-                    popupElement.style.minHeight = '150px';
-                    popupElement.style.position = 'absolute'; // Fullscreen 요소 내부에 상대적 위치
+                    popupElement.style.height = 'auto'; // auto로 두어 내부 콘텐츠에 맞게 조정
+                    popupElement.style.minHeight = '150px'; // 최소 높이도 줄임 (새로운 UI에 맞게)
+                    popupElement.style.position = 'absolute';
                     popupElement.style.transform = 'none';
 
                     updatePopupPosition();
-                    showPopup(); // 전체 화면 진입 시 팝업 표시
-                    console.log('[VCP Debug] Entered fullscreen, popup shown.');
+                    showPopup();
+                    resetPopupHideTimer();
                 } else {
-                    // 전체 화면 종료 시
                     document.body.appendChild(popupElement);
-                    popupElement.style.setProperty('z-index', '2147483647', 'important');
-                    popupElement.style.setProperty('pointer-events', 'auto', 'important');
-
+                    // 일반 모드에서 팝업의 유동적인 크기 (최소 너비만 유지)
                     popupElement.style.width = 'fit-content';
                     popupElement.style.minWidth = '280px';
                     popupElement.style.height = 'auto';
-                    popupElement.style.minHeight = '150px';
+                    popupElement.style.minHeight = '150px'; // 일반 모드 최소 높이 조정 (새로운 UI에 맞게)
                     popupElement.style.position = 'fixed';
                     popupElement.style.transform = 'none';
 
                     updatePopupPosition();
-                    hidePopup(); // 일반 화면으로 돌아오면 팝업 숨김
-                    console.log('[VCP Debug] Exited fullscreen, popup hidden.');
+                    hidePopup();
                 }
             }
         });
 
         window.addEventListener('resize', () => {
-            console.log('[VCP Debug] Window resize event. Updating popup position.');
             updatePopupPosition();
         });
 
