@@ -115,7 +115,7 @@
         fixPlaybackRate(currentVideo, desiredPlaybackRate);
         setNormalVolume(currentVideo, desiredVolume);
         updatePopupSliders();
-        updatePlayPauseButton();
+        // updatePlayPauseButton(); // 재생/멈춤 버튼 제거
         updateMuteSpeakButtons();
     }
 
@@ -221,17 +221,18 @@
         speedSection.appendChild(speedInput);
         popupElement.appendChild(speedSection);
 
+        // 버튼 섹션 수정: grid-template-columns를 1fr 1fr 1fr로 변경하여 3개의 버튼이 나란히 오도록 설정
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = `
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr; /* 3개의 열로 변경 */
+            grid-template-rows: 1fr; /* 1개의 행으로 변경 */
             gap: 10px;
             padding: 10px;
             flex-grow: 1;
             align-content: stretch;
             justify-items: stretch;
-            min-height: 90px;
+            min-height: 50px; /* 높이 조정 */
         `;
 
         const buttonStyle = `
@@ -251,10 +252,11 @@
             line-height: 1.2;
         `;
 
-        const playPauseBtn = document.createElement('button');
-        playPauseBtn.setAttribute('data-action', 'play-pause');
-        playPauseBtn.textContent = '재생/멈춤';
-        playPauseBtn.style.cssText = buttonStyle;
+        // 재생/멈춤 버튼 제거
+        // const playPauseBtn = document.createElement('button');
+        // playPauseBtn.setAttribute('data-action', 'play-pause');
+        // playPauseBtn.textContent = '재생/멈춤';
+        // playPauseBtn.style.cssText = buttonStyle;
 
         const speedResetBtn = document.createElement('button');
         speedResetBtn.setAttribute('data-action', 'reset-speed');
@@ -271,7 +273,7 @@
         speakBtn.textContent = '소리';
         speakBtn.style.cssText = buttonStyle;
 
-        buttonSection.appendChild(playPauseBtn);
+        // buttonSection.appendChild(playPauseBtn); // 재생/멈춤 버튼 제거
         buttonSection.appendChild(speedResetBtn);
         buttonSection.appendChild(muteBtn);
         buttonSection.appendChild(speakBtn);
@@ -282,12 +284,13 @@
     }
 
     function updatePlayPauseButton() {
-        const playPauseBtn = popupElement.querySelector('[data-action="play-pause"]');
-        if (playPauseBtn && currentVideo) {
-            playPauseBtn.textContent = currentVideo.paused ? '재생' : '멈춤';
-        } else if (playPauseBtn) {
-            playPauseBtn.textContent = '재생/멈춤';
-        }
+        // 이 함수는 더 이상 사용되지 않지만, 다른 곳에서 호출될 수 있으므로 일단 비워둠
+        // const playPauseBtn = popupElement.querySelector('[data-action="play-pause"]');
+        // if (playPauseBtn && currentVideo) {
+        //     playPauseBtn.textContent = currentVideo.paused ? '재생' : '멈춤';
+        // } else if (playPauseBtn) {
+        //     playPauseBtn.textContent = '재생/멈춤';
+        // }
     }
 
     function updateMuteSpeakButtons() {
@@ -312,24 +315,24 @@
         resetPopupHideTimer();
 
         switch (action) {
-            case 'play-pause':
-                if (currentVideo.paused) {
-                    isManuallyPaused = false;
-                    currentVideo.muted = isManuallyMuted;
-                    if (!isManuallyMuted && currentVideo.volume === 0) {
-                        currentVideo.volume = desiredVolume > 0 ? desiredVolume : 1.0;
-                    }
-                    currentVideo.play().catch(e => console.error("Play failed:", e));
-                } else {
-                    isManuallyPaused = true;
-                    currentVideo.pause();
-                }
-                // play/pause 버튼 클릭 시 lastPlayState를 즉시 업데이트
-                lastPlayState = currentVideo.paused ? 'paused' : 'playing';
-                updatePlayPauseButton();
-                updateMuteSpeakButtons();
-                updatePopupSliders();
-                break;
+            // 'play-pause' 케이스 제거
+            // case 'play-pause':
+            //     if (currentVideo.paused) {
+            //         isManuallyPaused = false;
+            //         currentVideo.muted = isManuallyMuted;
+            //         if (!isManuallyMuted && currentVideo.volume === 0) {
+            //             currentVideo.volume = desiredVolume > 0 ? desiredVolume : 1.0;
+            //         }
+            //         currentVideo.play().catch(e => console.error("Play failed:", e));
+            //     } else {
+            //         isManuallyPaused = true;
+            //         currentVideo.pause();
+            //     }
+            //     lastPlayState = currentVideo.paused ? 'paused' : 'playing';
+            //     updatePlayPauseButton();
+            //     updateMuteSpeakButtons();
+            //     updatePopupSliders();
+            //     break;
             case 'reset-speed':
                 desiredPlaybackRate = 1.0;
                 fixPlaybackRate(currentVideo, 1.0);
@@ -438,7 +441,7 @@
 
         setPopupVisibility(true);
         updatePopupPosition();
-        updatePlayPauseButton();
+        // updatePlayPauseButton(); // 재생/멈춤 버튼 제거
         updateMuteSpeakButtons();
         updatePopupSliders();
     }
@@ -785,7 +788,7 @@
         // 팝업이 보이고 드래그 중이 아니면 팝업 UI 업데이트
         if (popupElement && isPopupVisible && !isPopupDragging) {
             updatePopupPosition();
-            updatePlayPauseButton();
+            // updatePlayPauseButton(); // 재생/멈춤 버튼 제거
             updateMuteSpeakButtons();
             updatePopupSliders();
         }
