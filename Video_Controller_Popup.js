@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.11: 링크 클릭 오작동 최종 픽스)
+// @name Video Controller Popup (V4.11.12: UI 레이아웃 변경)
 // @namespace Violentmonkey Scripts
-// @version 4.11.11_FixedLinkClickIssue_UILayoutMaintained
-// @description Core video controls with streamlined UI. All videos auto-play with sound. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with vertical speed slider (ascending).
+// @version 4.11.12_UILayoutChanged_HorizontalSpeedbar
+// @description Core video controls with streamlined UI. All videos auto-play with sound. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with horizontal speed slider.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -195,50 +195,39 @@
             display: none; opacity: 0; transition: opacity 0.3s;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             width: fit-content;
-            min-width: 280px;
+            min-width: 280px; /* 팝업 최소 너비 유지 */
             overflow: hidden; text-align: center; pointer-events: auto;
+            display: flex; /* Flexbox로 내부 콘텐츠 정렬 */
+            flex-direction: column; /* 세로 방향 정렬 */
+            align-items: stretch; /* 자식 요소들이 너비를 꽉 채우도록 */
         `;
 
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
         dragHandle.textContent = '비디오.오디오 컨트롤러';
         dragHandle.style.cssText = `
-            font-weight: bold; margin-bottom: 8px; color: #ccc; padding: 5px;
+            font-weight: bold; color: #ccc; padding: 5px;
             background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab;
             border-radius: 6px 6px 0 0; user-select: none; font-size: 16px;
         `;
         popupElement.appendChild(dragHandle);
 
-        const contentContainer = document.createElement('div');
-        contentContainer.style.cssText = `
-            display: flex;
-            padding: 10px;
-            align-items: center;
-            gap: 10px;
-            min-height: 170px; /* 최소 높이 더 증가: 버튼 여백과 배속 숫자 확보 */
-            box-sizing: border-box;
-        `;
-
+        // --- 배속 바 섹션 (상단) ---
         const speedSection = document.createElement('div');
-        speedSection.className = 'vcp-section';
+        speedSection.className = 'vcp-section-speed';
         speedSection.style.cssText = `
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* 세로 정렬: 숫자 위에 슬라이더 */
             align-items: center;
-            justify-content: space-around; /* 슬라이더와 숫자 사이 간격 조정 (start -> around) */
-            height: 100%; /* 부모(contentContainer)의 높이를 따름 */
-            gap: 15px; /* 슬라이더와 숫자 사이 간격 유지 */
-            padding: 5px 0; /* 상하 패딩 유지 */
-            border-right: 1px solid #444;
-            box-sizing: border-box;
-            margin-right: 10px;
-            min-width: 60px;
+            padding: 10px;
+            gap: 5px; /* 숫자와 슬라이더 사이 간격 */
+            border-bottom: 1px solid #444; /* 하단 구분선 */
         `;
 
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
-        speedDisplay.textContent = '1.00';
-        speedDisplay.style.cssText = 'color: #eee; font-size: 1.2em; font-weight: bold; width: 60px; text-align: center;';
+        speedDisplay.textContent = '1.00x'; // x 추가
+        speedDisplay.style.cssText = 'color: #eee; font-size: 1.2em; font-weight: bold; width: 100%; text-align: center;';
 
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
@@ -248,31 +237,44 @@
         speedInput.step = '0.1';
         speedInput.value = '1.0';
         speedInput.style.cssText = `
-            width: 20px;
-            height: 100px;
-            -webkit-appearance: slider-vertical;
-            writing-mode: bt-lr;
+            width: 90%; /* 가로 폭 채우기 */
+            height: 10px; /* 높이 줄임 */
+            -webkit-appearance: none;
+            appearance: none;
+            background: #555;
+            outline: none;
+            border-radius: 5px;
             cursor: pointer;
             margin: 0;
             padding: 0;
         `;
+        // 슬라이더 썸 스타일 (커스텀)
+        speedInput.style.setProperty('--webkit-slider-thumb-background', '#bbb'); // CSS 변수 사용
+        speedInput.style.setProperty('--webkit-slider-thumb-width', '18px');
+        speedInput.style.setProperty('--webkit-slider-thumb-height', '18px');
+        speedInput.style.setProperty('--webkit-slider-thumb-border-radius', '50%');
 
-        speedSection.appendChild(speedInput);
-        speedSection.appendChild(speedDisplay);
+        // Note: For custom slider thumb, you might need to inject a style tag or use more complex CSS.
+        // For simplicity, we are using -webkit-appearance: none and basic background/border-radius.
+        // If more advanced styling is needed, consider:
+        // popupElement.insertAdjacentHTML('beforeend', `<style>#vcp-speed::-webkit-slider-thumb { ... }</style>`);
 
-        contentContainer.appendChild(speedSection);
+        speedSection.appendChild(speedDisplay); // 숫자 먼저
+        speedSection.appendChild(speedInput);   // 슬라이더 나중
+        popupElement.appendChild(speedSection);
 
+        // --- 버튼 섹션 (하단) ---
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = `
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-template-rows: repeat(2, minmax(40px, 1fr)); /* 최소 높이 40px, 남는 공간 균등 배분 */
-            gap: 10px; /* 버튼 간 간격 조정 (8px -> 10px) */
-            flex-grow: 1;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px; /* 버튼 간 간격 */
+            padding: 10px; /* 상하좌우 패딩 */
+            flex-grow: 1; /* 남은 공간을 채우도록 */
             align-content: stretch; /* 그리드 콘텐츠를 수직으로 늘림 */
             justify-items: stretch;
-            min-width: 180px;
-            padding-bottom: 5px; /* 버튼 섹션 하단에 추가 패딩 */
+            min-height: 90px; /* 버튼 4개 공간 확보 */
         `;
 
         const buttonStyle = `
@@ -316,9 +318,8 @@
         buttonSection.appendChild(speedResetBtn);
         buttonSection.appendChild(muteBtn);
         buttonSection.appendChild(speakBtn);
-        contentContainer.appendChild(buttonSection);
+        popupElement.appendChild(buttonSection); // 버튼 섹션을 팝업에 추가
 
-        popupElement.appendChild(contentContainer);
         document.body.appendChild(popupElement);
         setupPopupEventListeners();
     }
@@ -403,7 +404,7 @@
             resetPopupHideTimer();
             const rate = parseFloat(speedInput.value);
             if (currentVideo) { fixPlaybackRate(currentVideo, rate); }
-            speedDisplay.textContent = rate.toFixed(2);
+            speedDisplay.textContent = rate.toFixed(2) + 'x'; // x 추가
         });
 
         const dragHandle = popupElement.querySelector('#vcp-drag-handle');
@@ -454,7 +455,7 @@
         if (!popupElement) return;
 
         if (isVisible) {
-            const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
+            const styles = { display: 'flex', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' }; // display: flex로 변경
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
             isPopupVisible = true;
         } else {
@@ -506,8 +507,9 @@
             // 풀스크린 모드: 팝업 크기를 고정된 픽셀 값으로 강제
             popupElement.style.width = '280px';
             popupElement.style.minWidth = '280px';
-            popupElement.style.height = '210px'; /* 풀스크린 모드 높이 추가 증가 */
-            popupElement.style.minHeight = '210px'; /* 풀스크린 모드 최소 높이 추가 증가 */
+            // 높이 조정: 배속바 상단 + 버튼 하단 구조를 고려하여 더 유동적으로
+            popupElement.style.height = 'auto'; // auto로 두어 내부 콘텐츠에 맞게 조정
+            popupElement.style.minHeight = '150px'; // 최소 높이도 줄임 (새로운 UI에 맞게)
             popupElement.style.position = 'absolute'; // Fullscreen 요소 내부에 상대적 위치
             popupElement.style.transform = 'none';
 
@@ -535,7 +537,7 @@
             popupElement.style.width = 'fit-content';
             popupElement.style.minWidth = '280px';
             popupElement.style.height = 'auto';
-            popupElement.style.minHeight = '170px'; /* 일반 모드 최소 높이 증가 */
+            popupElement.style.minHeight = '150px'; // 일반 모드 최소 높이 조정 (새로운 UI에 맞게)
             popupElement.style.position = 'fixed'; // Viewport에 고정
             popupElement.style.transform = 'none';
 
@@ -570,7 +572,7 @@
         if (speedInput && speedDisplay) {
             const rate = currentVideo.playbackRate;
             speedInput.value = rate.toFixed(1);
-            speedDisplay.textContent = rate.toFixed(2);
+            speedDisplay.textContent = rate.toFixed(2) + 'x'; // x 추가
             desiredPlaybackRate = rate;
         }
     }
@@ -807,7 +809,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.11_FixedLinkClickIssue_UILayoutMaintained');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.12_UILayoutChanged_HorizontalSpeedbar');
 
         createPopupElement();
         hidePopup();
@@ -820,8 +822,8 @@
                     // 풀스크린 모드에서 팝업의 고정 크기
                     popupElement.style.width = '280px';
                     popupElement.style.minWidth = '280px';
-                    popupElement.style.height = '210px'; // 풀스크린 모드 높이 추가 증가
-                    popupElement.style.minHeight = '210px'; // 풀스크린 모드 최소 높이 추가 증가
+                    popupElement.style.height = 'auto'; // auto로 두어 내부 콘텐츠에 맞게 조정
+                    popupElement.style.minHeight = '150px'; // 최소 높이도 줄임 (새로운 UI에 맞게)
                     popupElement.style.position = 'absolute';
                     popupElement.style.transform = 'none';
 
@@ -834,7 +836,7 @@
                     popupElement.style.width = 'fit-content';
                     popupElement.style.minWidth = '280px';
                     popupElement.style.height = 'auto';
-                    popupElement.style.minHeight = '170px'; // 일반 모드 최소 높이 증가
+                    popupElement.style.minHeight = '150px'; // 일반 모드 최소 높이 조정 (새로운 UI에 맞게)
                     popupElement.style.position = 'fixed';
                     popupElement.style.transform = 'none';
 
