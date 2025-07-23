@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video Controller Popup - UI Sync Fix
+// @name         Video Controller Popup - Mobile Fix
 // @namespace    http://tampermonkey.net/
-// @version      4.11.16_UI_Sync_Fix
-// @description  Enhances video and audio playback control with a popup, improved autoplay, intelligent video selection, and UI synchronization.
+// @version      4.11.16_Mobile_Fix
+// @description  Enhances video and audio playback control with a popup, improved autoplay, intelligent video selection, and UI synchronization, with fixes for mobile popup flickering.
 // @author       YourName (Original by Others, Modified by Gemini)
 // @match        *://*/*
 // @grant        none
@@ -763,7 +763,6 @@
                 domMutationTimer = setTimeout(() => {
                     console.log('[VCP] DOM change detected and debounced. Re-scanning videos.');
                     updateVideoList();
-                    // selectVideoLogic(null); // IntersectionObserver 콜백에서 처리되므로 여기서는 제거
                     domMutationTimer = null;
                 }, DEBOUNCE_MUTATION_OBSERVER_MS);
             }
@@ -792,7 +791,6 @@
                 }
                 setupIntersectionObserver(); // 새 IntersectionObserver 설정
                 updateVideoList(); // 비디오 목록 다시 스캔
-                // selectVideoLogic(null); // IntersectionObserver 콜백에서 처리되므로 여기서는 제거
             }
         }).observe(document, { subtree: true, childList: true }); // document 자체의 변경을 감시하여 URL 변화에 대응
     }
@@ -901,55 +899,84 @@
     // document.body 대신 document에 직접 이벤트를 추가하여 모든 클릭 감지 (캡처링 단계)
     document.addEventListener('click', (e) => {
         if (!e) return;
-        // 팝업 내부 클릭은 팝업 숨김 타이머만 리셋
-        if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
+
+        // 팝업 내부 클릭은 무조건 타이머만 재설정하고 다른 로직은 중단
+        if (popupElement && popupElement.contains(e.target)) {
             resetPopupHideTimer();
-            return;
+            return; // 팝업 내부 클릭은 비디오 선택 로직이나 팝업 숨김을 트리거하지 않음
         }
-        // 터치 드래그 후 발생하는 클릭 이벤트 무시
+
+        // 터치 드래그 후 발생하는 클릭 이벤트 무시 (팝업이 뜨는 것을 막기 위함)
         if (touchMoved) {
             touchMoved = false;
+            // 드래그 후 클릭이어도 팝업이 현재 보인다면 숨김 타이머는 재설정
+            if (isPopupVisible) {
+                resetPopupHideTimer();
+            }
             return;
         }
-        // 링크 또는 클릭 가능한 요소는 무시
+
+        // 링크 또는 클릭 가능한 요소는 무시 (원래 페이지 기능 유지)
         const clickedLink = e.target.closest('a');
         const isClickableElement = e.target.matches('button, input, [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
         if (clickedLink || isClickableElement) {
+            // 이 경우에도 팝업이 현재 보인다면 숨김 타이머는 재설정
+            if (isPopupVisible) {
+                resetPopupHideTimer();
+            }
             return;
         }
-        // 팝업 외부 클릭 시 팝업 숨김
-        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
+
+        // --- 팝업 표시/숨김 로직 강화 ---
+        // 1. 비디오 선택 로직은 항상 실행
+        //    이 로직은 currentVideo를 설정하고 필요한 경우 showPopup()을 호출함
+        selectVideoLogic(e); // 이 함수 내부에서 팝업을 표시할지 결정하고 타이머를 시작함
+
+        // 2. 팝업 숨김은 다음 조건에서만 수행
+        //    - 팝업이 이미 보이고 있고,
+        //    - 클릭된 요소가 팝업 내부가 아니며,
+        //    - selectVideoLogic에서 새 비디오가 선택되지 않아 팝업을 showPopup()하지 않은 경우
+        const newVideoFoundAndShown = popupElement.style.display === 'flex' && popupElement.style.opacity === '1'; // 방금 팝업이 showPopup()으로 표시되었는지 확인
+        if (isPopupVisible && !popupElement.contains(e.target) && !newVideoFoundAndShown) {
+            // 방금 표시된 것이 아니라면 (즉, 비디오를 못 찾았거나, 다른 이유로 팝업이 표시되지 않았다면) 숨긴다.
             hidePopup();
         }
-        // 비디오 선택 로직 실행
-        selectVideoLogic(e);
+
     }, true); // true: 캡처링 단계에서 이벤트 감지
 
+    // touchend 이벤트도 유사하게 수정
     document.addEventListener('touchend', (e) => {
         if (!e) return;
-        // 팝업 내부 터치 종료는 팝업 숨김 타이머만 리셋
-        if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
+
+        if (popupElement && popupElement.contains(e.target)) {
             resetPopupHideTimer();
             return;
         }
-        // 터치 드래그 후 발생하는 터치 종료 이벤트 무시
+
         if (touchMoved) {
             touchMoved = false;
+            if (isPopupVisible) {
+                resetPopupHideTimer();
+            }
             return;
         }
-        // 링크 또는 클릭 가능한 요소는 무시
+
         const clickedLink = e.target.closest('a');
         const isClickableElement = e.target.matches('button, input, [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
         if (clickedLink || isClickableElement) {
+            if (isPopupVisible) {
+                resetPopupHideTimer();
+            }
             return;
         }
-        // 팝업 외부 터치 종료 시 팝업 숨김
-        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
+
+        selectVideoLogic(e);
+
+        const newVideoFoundAndShown = popupElement.style.display === 'flex' && popupElement.style.opacity === '1';
+        if (isPopupVisible && !popupElement.contains(e.target) && !newVideoFoundAndShown) {
             hidePopup();
         }
-        // 비디오 선택 로직 실행
-        selectVideoLogic(e);
-    }, true); // true: 캡처링 단계에서 이벤트 감지
+    }, true);
     // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 픽스 끝 ---
 
     /**
@@ -960,7 +987,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.16_UI_Sync_Fix');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.16_Mobile_Fix');
 
         createPopupElement();
         hidePopup(); // 초기에는 팝업 숨김
@@ -973,12 +1000,15 @@
             const fsEl = document.fullscreenElement;
             if (popupElement) {
                 if (fsEl) {
-                    // 전체 화면 진입 시 팝업 위치 저장 및 전체 화면 요소에 추가
+                    // 전체 화면 진입 시
                     popupPrevPosition = {
                         left: popupElement.style.left,
                         top: popupElement.style.top,
                     };
-                    fsEl.appendChild(popupElement);
+                    // 팝업이 이미 문서 body에 있다면 전체 화면 요소로 이동
+                    if (popupElement.parentNode === document.body) {
+                        fsEl.appendChild(popupElement);
+                    }
                     popupElement.style.width = '280px';
                     popupElement.style.minWidth = '280px';
                     popupElement.style.height = 'auto';
@@ -987,11 +1017,14 @@
                     popupElement.style.transform = 'none'; // translateX/Y 제거
 
                     updatePopupPosition(); // 전체 화면 내에서 위치 재조정
-                    showPopup();
-                    resetPopupHideTimer();
+                    showPopup(); // 팝업 명시적으로 표시
+                    resetPopupHideTimer(); // 타이머 재설정
                 } else {
-                    // 전체 화면 종료 시 팝업을 body로 다시 옮기고 이전 위치 복원
-                    document.body.appendChild(popupElement);
+                    // 전체 화면 종료 시
+                    // 팝업을 body로 다시 옮기기 전에, 현재 팝업의 부모가 document.body가 아니라면 이동
+                    if (popupElement.parentNode !== document.body) {
+                        document.body.appendChild(popupElement);
+                    }
                     if (popupPrevPosition) {
                         popupElement.style.left = popupPrevPosition.left;
                         popupElement.style.top = popupPrevPosition.top;
