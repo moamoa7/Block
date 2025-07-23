@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.15_FinalFix_UserUI: 사용자 요청 UI 적용, 전체화면 iframe 팝업 최종 복구)
+// @name Video Controller Popup (V4.11.16_FinalFix_Ultimate_LinkFix: 사용자 UI, 전체화면, 자동재생, 링크클릭 최종 복구)
 // @namespace Violentmonkey Scripts
-// @version 4.11.15_FinalFix_UserUI_FullscreenIframeFix_AutoplayAttemptImprovement
+// @version 4.11.16_FinalFix_Ultimate_LinkFix_FullscreenIframeFix_AutoplayAttemptImprovement
 // @description Core video controls with streamlined UI. All videos auto-play with sound (if possible). Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with horizontal speed slider at top.
 // @match *://*/*
 // @grant none
@@ -537,11 +537,26 @@
     }
 
     function selectVideoOnDocumentClick(e) {
+        // 팝업 내부 클릭 또는 드래그 중인 경우, 팝업 숨김 타이머만 리셋하고 종료
         if (popupElement && e && popupElement.contains(e.target)) {
             resetPopupHideTimer();
-            if (popupElement.style.display !== 'none') {
+            return; // 팝업 내부 클릭은 여기서 처리 종료
+        }
+
+        // 클릭된 요소나 그 부모 요소 중에 <a> 태그가 있는지 확인 (링크 클릭 방지 로직)
+        let targetElement = e.target;
+        while (targetElement && targetElement !== document.body) {
+            if (targetElement.tagName === 'A' || (targetElement.closest && targetElement.closest('a'))) {
+                // <a> 태그를 클릭한 경우, 스크립트의 비디오 선택 로직을 중단하고 웹사이트 기본 동작 허용
                 return;
             }
+            targetElement = targetElement.parentNode;
+        }
+
+        // touchMoved 플래그는 스크롤/드래그 시 팝업 방지용으로만 사용
+        if (touchMoved) {
+            touchMoved = false;
+            return; // 터치 이동이 있었으면 비디오 선택/팝업 표시 로직 중단
         }
 
         updateVideoList();
@@ -756,7 +771,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.15_FinalFix_UserUI_FullscreenIframeFix_AutoplayAttemptImprovement');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.16_FinalFix_Ultimate_LinkFix_FullscreenIframeFix_AutoplayAttemptImprovement');
 
         createPopupElement();
         hidePopup();
@@ -805,29 +820,56 @@
             }
         }, { passive: true });
 
+        // 기존 click/touchend 리스너 수정됨
         document.body.addEventListener('click', (e) => {
+            // 팝업 내부 클릭 또는 드래그 중인 경우, 팝업 숨김 타이머만 리셋하고 종료
             if (popupElement && e && popupElement.contains(e.target)) {
                 resetPopupHideTimer();
                 return;
             }
+
+            // 클릭된 요소나 그 부모 요소 중에 <a> 태그가 있는지 확인 (링크 클릭 방지 로직)
+            let targetElement = e.target;
+            while (targetElement && targetElement !== document.body) {
+                if (targetElement.tagName === 'A' || (targetElement.closest && targetElement.closest('a'))) {
+                    return; // <a> 태그를 클릭한 경우, 비디오 선택 로직 중단
+                }
+                targetElement = targetElement.parentNode;
+            }
+
+            // touchMoved 플래그는 스크롤/드래그 시 팝업 방지용으로만 사용
             if (touchMoved) {
                 touchMoved = false;
                 return;
             }
+
             selectVideoOnDocumentClick(e);
-        }, true);
+        }, true); // 캡처링 단계에서 처리
 
         document.body.addEventListener('touchend', (e) => {
+            // 팝업 내부 클릭 또는 드래그 중인 경우, 팝업 숨김 타이머만 리셋하고 종료
             if (popupElement && e && popupElement.contains(e.target)) {
                 resetPopupHideTimer();
                 return;
             }
+
+            // 클릭된 요소나 그 부모 요소 중에 <a> 태그가 있는지 확인 (링크 클릭 방지 로직)
+            let targetElement = e.target;
+            while (targetElement && targetElement !== document.body) {
+                if (targetElement.tagName === 'A' || (targetElement.closest && targetElement.closest('a'))) {
+                    return; // <a> 태그를 클릭한 경우, 비디오 선택 로직 중단
+                }
+                targetElement = targetElement.parentNode;
+            }
+
             if (touchMoved) {
                 touchMoved = false;
                 return;
             }
+
             selectVideoOnDocumentClick(e);
-        }, true);
+        }, true); // 캡처링 단계에서 처리
+
 
         startCheckingVideoStatus();
 
