@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.23: 클릭 필터링 제거)
+// @name Video Controller Popup (V4.11.24: 클릭 이벤트 처리 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.11.23_NoFilter
+// @version 4.11.24_ClickFix_v2
 // @description Core video controls with streamlined UI. All videos auto-play with sound (if possible). Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with horizontal speed slider.
 // @match *://*/*
 // @grant none
@@ -890,68 +890,101 @@
         console.log('[VCP Debug] Body click detected. Target:', e.target);
         if (!e) return;
 
-        // 클릭된 요소가 팝업 자체 또는 팝업의 자식 요소인지 확인
+        // 1. 팝업 자체 또는 팝업의 자식 요소 클릭인지 확인
         if (popupElement && popupElement.contains(e.target)) {
             console.log('[VCP Debug] Click inside popup. Preventing hide and other actions.');
-            // 팝업 내부 클릭 시 타이머 리셋 (전체 화면이 아닐 때만)
             if (!document.fullscreenElement) {
-                resetPopupHideTimer();
+                resetPopupHideTimer(); // 전체 화면이 아닐 때만 타이머 리셋
             }
-            return; // 팝업 내부 클릭은 다른 동작을 방해하지 않음
+            e.stopPropagation(); // 팝업 내부 클릭 이벤트가 body로 전파되지 않도록 방지
+            return;
         }
 
+        // 2. 터치 이동이 있었는지 확인 (모바일에서 스크롤을 클릭으로 오인 방지)
         if (touchMoved) {
             touchMoved = false;
             console.log('[VCP Debug] Touch moved, ignoring click.');
+            e.stopPropagation(); // 불필요한 이벤트 전파 방지
             return;
         }
 
-        // 팝업이 보이고, 팝업 외부를 클릭했을 때 팝업을 숨김
-        // (단, 팝업 내부 클릭은 위에서 이미 걸러졌고, 이제 다른 필터링은 없음)
+        // 3. <a> 태그(링크) 클릭인지 확인
+        if (e.target.closest('a')) {
+            console.log('[VCP Debug] Click on a link (<a> tag). Ignoring for popup control.');
+            // 브라우저의 기본 링크 동작을 허용하기 위해 return
+            return;
+        }
+
+        // 4. 팝업이 현재 보이는 상태라면 (팝업 외부 클릭으로 간주) 숨김
         if (popupElement && isPopupVisible) {
             console.log('[VCP Debug] Popup visible and click outside popup. Hiding popup.');
             hidePopup();
-            // 팝업을 숨긴 후에는 영상 선택 로직을 다시 실행하지 않음
+            e.stopPropagation(); // 팝업을 숨겼으면 더 이상 로직 진행 방지
             return;
         }
 
-        // 팝업이 숨겨져 있거나, 팝업이 없는 상태에서 모든 클릭 시 팝업 표시 로직 실행
-        console.log('[VCP Debug] Click outside popup (or popup hidden). Calling selectVideoLogic to show popup.');
-        selectVideoLogic(e);
+        // 5. 팝업이 숨겨져 있거나 없는 상태에서, 유효한 비디오/오디오 영역 클릭 시 팝업 표시
+        const target = e.target;
+        const clickedVideo = target.tagName === 'VIDEO' || target.tagName === 'AUDIO' ? target : target.closest('video, audio');
+
+        if (clickedVideo) {
+            console.log('[VCP Debug] Click on a video/audio element or its container. Calling selectVideoLogic to show popup.');
+            selectVideoLogic(e); // 이벤트 객체를 전달하여 팝업 표시
+            e.stopPropagation(); // 영상 클릭 이벤트가 다른 요소에 영향을 주지 않도록 방지
+            // e.preventDefault(); // 스크롤바 선택 등의 문제를 막기 위해 경우에 따라 추가 고려
+        } else {
+            console.log('[VCP Debug] Click on a non-video/non-audio element, and popup is hidden. No action taken.');
+        }
+
     }, true); // 이벤트 캡처링 단계에서 처리
 
     document.body.addEventListener('touchend', (e) => {
         console.log('[VCP Debug] Body touchend detected. Target:', e.target);
         if (!e) return;
 
-        // 클릭된 요소가 팝업 자체 또는 팝업의 자식 요소인지 확인
+        // 1. 팝업 자체 또는 팝업의 자식 요소 클릭인지 확인
         if (popupElement && popupElement.contains(e.target)) {
             console.log('[VCP Debug] Touchend inside popup. Preventing hide and other actions.');
-            // 팝업 내부 클릭 시 타이머 리셋 (전체 화면이 아닐 때만)
             if (!document.fullscreenElement) {
-                resetPopupHideTimer();
+                resetPopupHideTimer(); // 전체 화면이 아닐 때만 타이머 리셋
             }
-            return; // 팝업 내부 클릭은 다른 동작을 방해하지 않음
+            e.stopPropagation(); // 팝업 내부 클릭 이벤트가 body로 전파되지 않도록 방지
+            return;
         }
 
+        // 2. 터치 이동이 있었는지 확인
         if (touchMoved) {
             touchMoved = false;
             console.log('[VCP Debug] Touch moved, ignoring touchend.');
+            e.stopPropagation(); // 불필요한 이벤트 전파 방지
             return;
         }
 
-        // 팝업이 보이고, 팝업 외부를 클릭했을 때 팝업을 숨김
-        // (단, 팝업 내부 클릭은 위에서 이미 걸러졌고, 이제 다른 필터링은 없음)
+        // 3. <a> 태그(링크) 클릭인지 확인
+        if (e.target.closest('a')) {
+            console.log('[VCP Debug] Touchend on a link (<a> tag). Ignoring for popup control.');
+            return;
+        }
+
+        // 4. 팝업이 현재 보이는 상태라면 (팝업 외부 클릭으로 간주) 숨김
         if (popupElement && isPopupVisible) {
             console.log('[VCP Debug] Popup visible and touchend outside popup. Hiding popup.');
             hidePopup();
-            // 팝업을 숨긴 후에는 영상 선택 로직을 다시 실행하지 않음
+            e.stopPropagation(); // 팝업을 숨겼으면 더 이상 로직 진행 방지
             return;
         }
 
-        // 팝업이 숨겨져 있거나, 팝업이 없는 상태에서 모든 터치 종료 시 팝업 표시 로직 실행
-        console.log('[VCP Debug] Touchend outside popup (or popup hidden). Calling selectVideoLogic to show popup.');
-        selectVideoLogic(e);
+        // 5. 팝업이 숨겨져 있거나 없는 상태에서, 유효한 비디오/오디오 영역 클릭 시 팝업 표시
+        const target = e.target;
+        const clickedVideo = target.tagName === 'VIDEO' || target.tagName === 'AUDIO' ? target : target.closest('video, audio');
+
+        if (clickedVideo) {
+            console.log('[VCP Debug] Touchend on a video/audio element or its container. Calling selectVideoLogic to show popup.');
+            selectVideoLogic(e); // 이벤트 객체를 전달하여 팝업 표시
+            e.stopPropagation(); // 영상 클릭 이벤트가 다른 요소에 영향을 주지 않도록 방지
+        } else {
+            console.log('[VCP Debug] Touchend on a non-video/non-audio element, and popup is hidden. No action taken.');
+        }
     }, true); // 이벤트 캡처링 단계에서 처리
 
     // CSS를 동적으로 추가하는 함수
@@ -982,7 +1015,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.23_NoFilter');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.24_ClickFix_v2');
 
         addCustomStyles(); // 커스텀 CSS 추가
         createPopupElement();
