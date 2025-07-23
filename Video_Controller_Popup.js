@@ -25,17 +25,6 @@
     const POPUP_TIMEOUT_MS = 2000;
     const AUTO_CHECK_VIDEO_INTERVAL_MS = 500; // 0.5초마다 비디오 상태 체크 (위치 갱신)
 
-    // --- 자동 소리 재생을 허용할 사이트 목록 (이제 사용되지 않으므로 제거) ---
-    // const AUTO_UNMUTE_SITES = []; // 제거됨
-    // const isAutoUnmuteSite = false; // 항상 false이므로 변수도 제거됨
-
-    // --- 치지직/유튜브 관련 변수 제거 ---
-    // const isChzzkSite = location.hostname.includes('chzzk.naver.com'); // 제거됨
-    // const isYouTubeSite = location.hostname.includes('youtube.com'); // 제거됨
-
-    // --- isLazySrcBlockedSite 변수 및 관련 로직 제거 ---
-    // const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site)); // 제거됨
-
     // --- Utility Functions ---
     function findAllVideosDeep(root = document) {
         return Array.from(root.querySelectorAll('video, audio'));
@@ -43,8 +32,6 @@
 
     function findPlayableVideos() {
         const found = findAllVideosDeep();
-        // --- isLazySrcBlockedSite 조건문 제거 및 data-src 처리 로직 제거 ---
-        // if (!isLazySrcBlockedSite) found.forEach(v => { if (!v.src && v.dataset && v.dataset.src) v.src = v.dataset.src; }); // 제거됨
         const playableVideos = found.filter(v => {
             const style = window.getComputedStyle(v);
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
@@ -268,12 +255,9 @@
             height: 100px; /* 세로 슬라이더의 높이 (조절 가능) */
             -webkit-appearance: slider-vertical; /* Webkit 브라우저용 세로 슬라이더 */
             writing-mode: bt-lr; /* IE/Edge용 세로 모드 (bottom-to-top, left-to-right) */
-            /* transform: rotate(270deg); 이 속성은 제거하여 브라우저 기본 세로 슬라이더 기능을 활용 */
             cursor: pointer;
             margin: 0;
             padding: 0;
-            /* 큰 숫자가 위에, 작은 숫자가 아래에 오도록 min/max 값과 슬라이더 방향 일치 */
-            /* input range의 기본 세로 방향은 min이 아래, max가 위이므로 별도의 회전이 필요 없습니다. */
         `;
 
         speedSection.appendChild(speedInput);
@@ -491,7 +475,7 @@
         }
 
         setPopupVisibility(true);
-        updatePopupPosition();  // 여기서 바로 영상 위치로 이동
+        updatePopupPosition();  // 여기서 바로 영상 위치로 이동
         updatePlayPauseButton(); // 팝업 보일 때 버튼 상태 업데이트
         updateMuteSpeakButtons(); // 팝업 보일 때 버튼 상태 업데이트
         updatePopupSliders(); // 슬라이더 값도 정확히 동기화 (속도만)
@@ -641,7 +625,7 @@
                     resetPopupHideTimer();
                 } else { // 클릭이 아닌 자동 감지 시에는 팝업 숨김 (만약 이미 열려있다면)
                     if (popupElement && popupElement.style.display !== 'none') {
-                       hidePopup(); // 자동으로 뜬 팝업은 숨김
+                        hidePopup(); // 자동으로 뜬 팝업은 숨김
                     }
                 }
             }
@@ -727,13 +711,12 @@
     }
 
     function fixOverflow() {
-        // --- 치지직/유튜브 관련 오버플로우 픽스 로직 제거 ---
         const overflowFixSites = [
             // { domain: 'twitch.tv', selectors: ['div.video-player__container', 'div.video-player-theatre-mode__player', 'div.player-theatre-mode'] }, // 유지 또는 제거 결정
         ];
         overflowFixSites.forEach(site => {
             if (location.hostname.includes(site.domain)) {
-                site.selectors.forEach(sel => { // `sel` 대신 `site.selectors.forEach(sel => { ... })` 사용
+                site.selectors.forEach(sel => {
                     document.querySelectorAll(sel).forEach(el => {
                         el.style.overflow = 'visible';
                     });
@@ -848,10 +831,12 @@
                 touchMoved = false; // 플래그 초기화
                 return; // 드래그 후 터치클릭 무시
             }
+            // PC 환경 및 모바일에서 click 이벤트가 정상 발생할 경우 이 부분을 통해 팝업 표시
             selectVideoOnDocumentClick(e);
         }, true);
 
         // 이전 중복된 touchend 리스너는 삭제하고, 새로운 touchend 리스너를 추가하여 touchMoved 플래그를 확인합니다.
+        // --- 여기부터 수정된 부분 ---
         document.body.addEventListener('touchend', (e) => {
             if (popupElement && e && popupElement.contains(e.target)) {
                 resetPopupHideTimer();
@@ -861,8 +846,11 @@
                 touchMoved = false; // 플래그 초기화
                 return; // 드래그 후 터치클릭 무시
             }
+            // 모바일에서 click 이벤트가 제대로 작동하지 않을 경우, touchend에서 팝업을 띄우도록 함.
+            // touchMoved가 false일 때만 실행하여 드래그와 구분.
             selectVideoOnDocumentClick(e);
         }, true);
+        // --- 여기까지 수정된 부분 ---
 
         startCheckingVideoStatus();
 
