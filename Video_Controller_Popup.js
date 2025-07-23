@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.10.61: 자동 소리 재생 + SPA 대응 강화 + 팝업 조건 강화)
+// @name Video Controller Popup (V4.11.15_FinalFix_UserUI: 사용자 요청 UI 적용, 전체화면 iframe 팝업 최종 복구)
 // @namespace Violentmonkey Scripts
-// @version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation
-// @description Core video controls with streamlined UI. All videos auto-play with sound. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with vertical speed slider (ascending).
+// @version 4.11.15_FinalFix_UserUI_FullscreenIframeFix_AutoplayAttemptImprovement
+// @description Core video controls with streamlined UI. All videos auto-play with sound (if possible). Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with horizontal speed slider at top.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -15,7 +15,7 @@
         isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
     let isManuallyPaused = false; // 사용자가 직접 정지했는지 여부
     let isManuallyMuted = false; // 사용자가 직접 음소거했는지 여부 (유저가 팝업/사이트 자체 UI로 뮤트했는지)
-    let isManuallySelected = false; // 사용자가 팝업을 클릭하여 비디오를 수동으로 선택했는지 여부
+
     const videoRateHandlers = new WeakMap();
     let checkVideoInterval = null;
     const originalPlayMethods = new WeakMap(); // 원본 play() 메서드를 저장
@@ -25,17 +25,6 @@
     const POPUP_TIMEOUT_MS = 2000;
     const AUTO_CHECK_VIDEO_INTERVAL_MS = 500; // 0.5초마다 비디오 상태 체크 (위치 갱신)
 
-    // --- 자동 소리 재생을 허용할 사이트 목록 (이제 사용되지 않으므로 제거) ---
-    // const AUTO_UNMUTE_SITES = []; // 제거됨
-    // const isAutoUnmuteSite = false; // 항상 false이므로 변수도 제거됨
-
-    // --- 치지직/유튜브 관련 변수 제거 ---
-    // const isChzzkSite = location.hostname.includes('chzzk.naver.com'); // 제거됨
-    // const isYouTubeSite = location.hostname.includes('youtube.com'); // 제거됨
-
-    // --- isLazySrcBlockedSite 변수 및 관련 로직 제거 ---
-    // const isLazySrcBlockedSite = ['missav.ws', 'missav.live'].some(site => location.hostname.includes(site)); // 제거됨
-
     // --- Utility Functions ---
     function findAllVideosDeep(root = document) {
         return Array.from(root.querySelectorAll('video, audio'));
@@ -43,8 +32,6 @@
 
     function findPlayableVideos() {
         const found = findAllVideosDeep();
-        // --- isLazySrcBlockedSite 조건문 제거 및 data-src 처리 로직 제거 ---
-        // if (!isLazySrcBlockedSite) found.forEach(v => { if (!v.src && v.dataset && v.dataset.src) v.src = v.dataset.src; }); // 제거됨
         const playableVideos = found.filter(v => {
             const style = window.getComputedStyle(v);
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
@@ -82,11 +69,18 @@
         const rect = currentVideo.getBoundingClientRect();
         const style = window.getComputedStyle(currentVideo);
         const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-        const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
         const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || currentVideo.tagName === 'AUDIO' || !currentVideo.paused;
         const hasMedia = currentVideo.videoWidth > 0 || currentVideo.videoHeight > 0 || currentVideo.tagName === 'AUDIO';
 
-        return isVisible && isWithinViewport && isReasonableSize && hasMedia && document.body.contains(currentVideo);
+        // 현재 풀스크린 상태를 고려하여 가시성
+        const isFullScreenAndInView = document.fullscreenElement && (
+            document.fullscreenElement === currentVideo ||
+            document.fullscreenElement.contains(currentVideo)
+        );
+
+        const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
+
+        return isVisible && isReasonableSize && hasMedia && document.body.contains(currentVideo) && (isWithinViewport || isFullScreenAndInView);
     }
 
     function selectAndControlVideo(videoToControl) {
@@ -95,16 +89,13 @@
             return;
         }
 
-        // 기존 currentVideo가 있고, 새로운 videoToControl과 다를 경우 원래 play() 메서드 복원
         if (currentVideo && currentVideo !== videoToControl && originalPlayMethods.has(currentVideo)) {
             currentVideo.play = originalPlayMethods.get(currentVideo);
             originalPlayMethods.delete(currentVideo);
         }
 
-        // 모든 감지된 비디오에 대해 처리
         findAllVideosDeep().forEach(video => {
             if (video !== videoToControl) {
-                // 현재 비디오가 아닌 다른 비디오는 무조건 일시 정지, 음소거, 볼륨 0, 현재 시간 0으로 초기화
                 if (originalPlayMethods.has(video) && video !== currentVideo) {
                     video.play = originalPlayMethods.get(video);
                     originalPlayMethods.delete(video);
@@ -115,17 +106,13 @@
                 video.muted = true;
                 video.volume = 0;
                 video.currentTime = 0;
-            } else { // videoToControl (새로 선택된 비디오)
-                // 현재 비디오가 아닌 경우에만 설정
+            } else {
                 if (currentVideo !== videoToControl) {
                     videoToControl.autoplay = true;
                     videoToControl.playsInline = true;
-
-                    // --- 핵심 부분: 모든 사이트에서 소리를 허용합니다. ---
                     videoToControl.muted = false; // 무조건 음소거 해제
                     videoToControl.volume = 1.0; // 볼륨 100%
                     console.log('[VCP] Video selected. Initiating autoplay with sound (100%).');
-                    // --- 수정 끝 ---
 
                     videoToControl.play().catch(e => {
                         // console.warn("Autoplay/Play on select failed:", e);
@@ -134,71 +121,55 @@
             }
         });
 
-        // 최종적으로 currentVideo 설정 및 팝업 슬라이더 업데이트 (이 함수는 팝업을 띄우지 않음)
         if (currentVideo !== videoToControl) {
             currentVideo = videoToControl;
-            isManuallyPaused = false; // 새 비디오 선택 시 수동 정지 상태 초기화
+            isManuallyPaused = false;
             desiredPlaybackRate = currentVideo.playbackRate;
-
-            // --- desiredVolume 및 isManuallyMuted 초기화 로직 (변경 없음) ---
-            desiredVolume = 1.0; // 모든 경우에 100%를 목표 볼륨으로 설정
-            isManuallyMuted = false; // 이제 자동 음소거가 없으므로 항상 false로 시작
-            // --- 수정 끝 ---
+            desiredVolume = 1.0;
+            isManuallyMuted = false;
         }
 
-        // 배속 및 볼륨 적용 (desired 값으로 강제)
         fixPlaybackRate(currentVideo, desiredPlaybackRate);
-        setNormalVolume(currentVideo, desiredVolume); // 이 시점에서는 위 설정에 따라 volume=1.0, muted 상태가 결정됨
+        setNormalVolume(currentVideo, desiredVolume);
 
-        updatePopupSliders(); // 팝업 슬라이더 UI 업데이트 (속도만 남음)
-        updatePlayPauseButton(); // 재생/멈춤 버튼 텍스트 업데이트
-        updateMuteSpeakButtons(); // 무음/소리 버튼 텍스트 업데이트
+        updatePopupSliders();
+        updatePlayPauseButton();
+        updateMuteSpeakButtons();
     }
 
     function fixPlaybackRate(video, rate) {
         if (!video || typeof video.playbackRate === 'undefined') return;
-        // desiredPlaybackRate는 현재 비디오의 실제 재생 속도를 추적
         desiredPlaybackRate = rate;
 
         const existingHandler = videoRateHandlers.get(video);
         if (existingHandler) video.removeEventListener('ratechange', existingHandler);
 
         const rateChangeHandler = () => {
-            // 외부에서 재생 속도가 변경될 경우 desiredPlaybackRate도 업데이트
             if (video.playbackRate !== desiredPlaybackRate) {
                 desiredPlaybackRate = video.playbackRate;
                 updatePopupSliders();
             }
         };
 
-        // UI를 통해 설정하는 경우에만 비디오의 playbackRate를 변경
         if (video.playbackRate !== rate) {
             video.playbackRate = rate;
         }
         video.addEventListener('ratechange', rateChangeHandler);
         videoRateHandlers.set(video, rateChangeHandler);
-        updatePopupSliders(); // 슬라이더와 디스플레이 업데이트
+        updatePopupSliders();
     }
 
     function setNormalVolume(video, vol) {
         if (!video || typeof video.volume === 'undefined') return;
-        // desiredVolume은 현재 비디오의 실제 볼륨을 추적
         desiredVolume = vol;
 
-        // UI를 통해 설정하는 경우에만 비디오의 볼륨과 뮤트 상태를 변경
-        // 여기서 바로 video.volume을 desiredVolume으로 설정하여 일관성을 유지
         video.volume = Math.max(0, Math.min(1.0, desiredVolume));
-
-        // 사용자가 수동으로 뮤트했거나, 볼륨이 0일 경우 뮤트 상태를 유지
-        // isManuallyMuted는 '무음'/'소리' 버튼 클릭 시에만 변경됨
         video.muted = isManuallyMuted || (desiredVolume === 0);
 
-        // 볼륨 슬라이더가 없으므로 관련 UI 업데이트는 제거
-        // updatePopupSliders();
-        updateMuteSpeakButtons(); // 무음/소리 버튼 텍스트 업데이트
+        updateMuteSpeakButtons();
     }
 
-    // --- Popup UI Functions ---
+    // --- Popup UI Functions (사용자 요청 UI - 가로형 속도바, 하단 4버튼) ---
     function createPopupElement() {
         if (popupElement) return;
 
@@ -210,8 +181,7 @@
             padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
             display: none; opacity: 0; transition: opacity 0.3s;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            width: fit-content; /* 내용물에 맞춰 너비 자동 조정 */
-            min-width: 180px; /* 전체적으로 작게 */
+            width: 250px; /* 고정된 너비로 설정하여 가로 슬라이더 공간 확보 */
             overflow: hidden; text-align: center; pointer-events: auto;
         `;
 
@@ -227,34 +197,23 @@
 
         const contentContainer = document.createElement('div');
         contentContainer.style.cssText = `
-            display: flex; /* Flexbox로 가로 정렬 */
+            display: flex;
+            flex-direction: column; /* 세로로 정렬: 슬라이더 위, 버튼 아래 */
             padding: 10px;
-            align-items: center; /* 세로 중앙 정렬 */
-            gap: 10px; /* 스크롤바와 버튼 사이 간격 */
-            height: 140px; /* 대략적인 정사각형 높이 */
-            box-sizing: border-box; /* 패딩 포함 높이 계산 */
+            gap: 10px; /* 슬라이더와 버튼 사이 간격 */
         `;
 
-        // 배속 조절 섹션 (세로 슬라이더)
+        // 속도 조절 섹션 (가로 슬라이더)
         const speedSection = document.createElement('div');
         speedSection.className = 'vcp-section';
         speedSection.style.cssText = `
             display: flex;
-            flex-direction: column; /* 세로 정렬 */
-            align-items: center; /* 가운데 정렬 */
-            justify-content: space-between; /* 숫자와 슬라이더를 위아래로 분리 */
-            height: 100%; /* 부모 높이에 맞춤 */
-            gap: 5px;
-            padding: 5px;
-            border-right: 1px solid #444; /* 구분선 */
+            align-items: center; /* 세로 중앙 정렬 */
+            justify-content: space-between; /* 슬라이더와 숫자 분리 */
+            width: 100%; /* 부모 너비에 맞춤 */
+            gap: 8px;
             box-sizing: border-box;
-            margin-right: 10px; /* 버튼과의 간격 */
         `;
-
-        const speedDisplay = document.createElement('span');
-        speedDisplay.id = 'vcp-speed-display';
-        speedDisplay.textContent = '1.00';
-        speedDisplay.style.cssText = 'color: #eee; font-size: 1.2em; font-weight: bold; width: 60px; text-align: center;'; // 숫자 표시 크기 조정 및 고정 너비
 
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
@@ -264,21 +223,43 @@
         speedInput.step = '0.1';
         speedInput.value = '1.0';
         speedInput.style.cssText = `
-            width: 20px; /* 세로 슬라이더의 너비 */
-            height: 100px; /* 세로 슬라이더의 높이 (조절 가능) */
-            -webkit-appearance: slider-vertical; /* Webkit 브라우저용 세로 슬라이더 */
-            writing-mode: bt-lr; /* IE/Edge용 세로 모드 (bottom-to-top, left-to-right) */
-            /* transform: rotate(270deg); 이 속성은 제거하여 브라우저 기본 세로 슬라이더 기능을 활용 */
+            flex-grow: 1; /* 남은 공간을 차지하여 길게 늘어남 */
+            height: 10px; /* 슬라이더 높이 */
+            -webkit-appearance: none; /* 기본 스타일 제거 */
+            appearance: none;
+            background: #555;
+            outline: none;
+            border-radius: 5px;
             cursor: pointer;
-            margin: 0;
-            padding: 0;
-            /* 큰 숫자가 위에, 작은 숫자가 아래에 오도록 min/max 값과 슬라이더 방향 일치 */
-            /* input range의 기본 세로 방향은 min이 아래, max가 위이므로 별도의 회전이 필요 없습니다. */
         `;
+        // 슬라이더 썸 스타일 (크롬, 엣지)
+        speedInput.style.setProperty('::-webkit-slider-thumb', `
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: grab;
+            border: 2px solid #fff;
+        `);
+        // 슬라이더 썸 스타일 (파이어폭스)
+        speedInput.style.setProperty('::-moz-range-thumb', `
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: grab;
+            border: 2px solid #fff;
+        `);
+
+        const speedDisplay = document.createElement('span');
+        speedDisplay.id = 'vcp-speed-display';
+        speedDisplay.textContent = '1.00';
+        speedDisplay.style.cssText = 'color: #eee; font-size: 1em; font-weight: bold; width: 45px; text-align: right;'; // 숫자 표시
 
         speedSection.appendChild(speedInput);
-        speedSection.appendChild(speedDisplay); // 숫자 표시를 슬라이더 아래에 위치
-
+        speedSection.appendChild(speedDisplay);
         contentContainer.appendChild(speedSection);
 
         // 버튼 섹션 (2x2 그리드)
@@ -288,9 +269,8 @@
             grid-template-columns: 1fr 1fr; /* 2열 */
             grid-template-rows: 1fr 1fr; /* 2행 */
             gap: 8px; /* 버튼 간격 조정 */
-            flex-grow: 1; /* 남은 공간을 차지 */
-            align-content: center; /* 세로 중앙 정렬 */
-            justify-items: stretch; /* 아이템을 그리드 셀에 꽉 채움 */
+            width: 100%; /* 부모 너비에 맞춤 */
+            box-sizing: border-box;
         `;
 
         const buttonStyle = `
@@ -299,7 +279,8 @@
             border-radius: 4px; cursor: pointer; transition: background-color 0.2s;
             white-space: nowrap;
             text-align: center; font-size: 15px;
-            height: 50px; /* 버튼 높이 고정 */
+            height: 45px; /* 버튼 높이 고정 */
+            display: flex; align-items: center; justify-content: center; /* 텍스트 중앙 정렬 */
         `;
 
         const playPauseBtn = document.createElement('button');
@@ -314,12 +295,12 @@
 
         const muteBtn = document.createElement('button');
         muteBtn.setAttribute('data-action', 'mute');
-        muteBtn.textContent = '무음'; // 텍스트를 '무음'으로 명확히
+        muteBtn.textContent = '무음';
         muteBtn.style.cssText = buttonStyle;
 
         const speakBtn = document.createElement('button');
         speakBtn.setAttribute('data-action', 'speak');
-        speakBtn.textContent = '소리'; // 텍스트를 '소리'로 명확히
+        speakBtn.textContent = '소리';
         speakBtn.style.cssText = buttonStyle;
 
 
@@ -340,7 +321,7 @@
         if (playPauseBtn && currentVideo) {
             playPauseBtn.textContent = currentVideo.paused ? '재생' : '멈춤';
         } else if (playPauseBtn) {
-            playPauseBtn.textContent = '재생/멈춤'; // 비디오 없으면 기본 텍스트
+            playPauseBtn.textContent = '재생/멈춤';
         }
     }
 
@@ -350,15 +331,15 @@
         const speakBtn = popupElement.querySelector('[data-action="speak"]');
         if (muteBtn && speakBtn && currentVideo) {
             if (currentVideo.muted) {
-                muteBtn.style.backgroundColor = '#555'; // 활성 색상
-                speakBtn.style.backgroundColor = '#333'; // 비활성 색상
+                muteBtn.style.backgroundColor = '#555';
+                speakBtn.style.backgroundColor = '#333';
             } else {
-                muteBtn.style.backgroundColor = '#333'; // 비활성 색상
-                speakBtn.style.backgroundColor = '#555'; // 활성 색상
+                muteBtn.style.backgroundColor = '#333';
+                speakBtn.style.backgroundColor = '#555';
             }
         } else if (muteBtn && speakBtn) {
-            muteBtn.style.backgroundColor = '#333'; // 비디오 없으면 기본 색상
-            speakBtn.style.backgroundColor = '#333'; // 비디오 없으면 기본 색상
+            muteBtn.style.backgroundColor = '#333';
+            speakBtn.style.backgroundColor = '#333';
         }
     }
 
@@ -369,8 +350,7 @@
         switch (action) {
             case 'play-pause':
                 if (currentVideo.paused) {
-                    isManuallyPaused = false; // 수동 정지 해제
-                    // 재생 시 음소거 상태를 사용자가 마지막으로 설정한 상태로 복원
+                    isManuallyPaused = false;
                     currentVideo.muted = isManuallyMuted;
                     if (!isManuallyMuted && currentVideo.volume === 0) {
                         currentVideo.volume = desiredVolume > 0 ? desiredVolume : 1.0;
@@ -378,29 +358,28 @@
 
                     currentVideo.play().catch(e => console.error("Play failed:", e));
                 } else {
-                    isManuallyPaused = true; // 수동 정지 설정
+                    isManuallyPaused = true;
                     currentVideo.pause();
                 }
-                updatePlayPauseButton(); // 버튼 텍스트 업데이트
-                updateMuteSpeakButtons(); // 음소거 상태 변경 가능성이 있으므로 업데이트
-                updatePopupSliders(); // 슬라이더도 업데이트 (속도만)
+                updatePlayPauseButton();
+                updateMuteSpeakButtons();
+                updatePopupSliders();
                 break;
-            case 'reset-speed': // 배속 1x로 초기화
+            case 'reset-speed':
                 desiredPlaybackRate = 1.0;
                 fixPlaybackRate(currentVideo, 1.0);
                 break;
-            case 'mute': // 무음 설정
-                if (!currentVideo.muted) { // 이미 뮤트 상태가 아닐 경우에만 뮤트
+            case 'mute':
+                if (!currentVideo.muted) {
                     isManuallyMuted = true;
-                    setNormalVolume(currentVideo, 0); // 볼륨을 0으로 설정하여 무음화
+                    setNormalVolume(currentVideo, 0);
                 }
-                updateMuteSpeakButtons(); // 버튼 상태 업데이트
+                updateMuteSpeakButtons();
                 break;
-            case 'speak': // 소리 설정 (무음 해제 및 볼륨 100%로 설정)
-                // 현재 음소거 상태와 관계없이, 음소거 해제 및 볼륨 100%로 설정
-                isManuallyMuted = false; // 사용자가 '소리'를 원함을 표시
-                setNormalVolume(currentVideo, 1.0); // 무조건 100%로 설정
-                updateMuteSpeakButtons(); // 버튼 상태 업데이트
+            case 'speak':
+                isManuallyMuted = false;
+                setNormalVolume(currentVideo, 1.0);
+                updateMuteSpeakButtons();
                 break;
         }
     }
@@ -418,7 +397,6 @@
         speedInput.addEventListener('input', () => {
             resetPopupHideTimer();
             const rate = parseFloat(speedInput.value);
-            // 슬라이더 조작 시 desiredPlaybackRate를 업데이트하고 비디오에 적용
             if (currentVideo) { fixPlaybackRate(currentVideo, rate); }
             speedDisplay.textContent = rate.toFixed(2);
         });
@@ -459,9 +437,9 @@
         };
 
         dragHandle.addEventListener('mousedown', startDrag);
-        dragHandle.addEventListener('touchstart', startDrag, { passive: false }); // 드래그 중에는 기본 스크롤 방지
+        dragHandle.addEventListener('touchstart', startDrag, { passive: false });
         document.addEventListener('mousemove', dragPopup);
-        document.addEventListener('touchmove', dragPopup, { passive: false }); // 드래그 중에는 기본 스크롤 방지
+        document.addEventListener('touchmove', dragPopup, { passive: false });
         document.addEventListener('mouseup', stopDrag);
         document.addEventListener('touchend', stopDrag);
         document.addEventListener('mouseleave', stopDrag);
@@ -491,10 +469,10 @@
         }
 
         setPopupVisibility(true);
-        updatePopupPosition();  // 여기서 바로 영상 위치로 이동
-        updatePlayPauseButton(); // 팝업 보일 때 버튼 상태 업데이트
-        updateMuteSpeakButtons(); // 팝업 보일 때 버튼 상태 업데이트
-        updatePopupSliders(); // 슬라이더 값도 정확히 동기화 (속도만)
+        updatePopupPosition();
+        updatePlayPauseButton();
+        updateMuteSpeakButtons();
+        updatePopupSliders();
     }
 
     function hidePopup() { setPopupVisibility(false); }
@@ -519,15 +497,21 @@
 
         const isVideoVisible = videoRect.top < window.innerHeight && videoRect.bottom > 0 && videoRect.left < window.innerWidth && videoRect.right > 0;
 
-        if (isVideoVisible) {
+        if (isVideoVisible || document.fullscreenElement) {
             let targetX = videoRect.left + (videoRect.width / 2);
             let targetY = videoRect.top + (videoRect.height / 2);
 
             let adjustedX = targetX - (popupRect.width / 2);
             let adjustedY = targetY - (popupRect.height / 2);
 
-            adjustedX = Math.max(0, Math.min(adjustedX, window.innerWidth - popupRect.width));
-            adjustedY = Math.max(0, Math.min(adjustedY, window.innerHeight - popupRect.height));
+            if (document.fullscreenElement) {
+                const fsRect = document.fullscreenElement.getBoundingClientRect();
+                adjustedX = Math.max(fsRect.left, Math.min(adjustedX, fsRect.right - popupRect.width));
+                adjustedY = Math.max(fsRect.top, Math.min(adjustedY, fsRect.bottom - popupRect.height));
+            } else {
+                adjustedX = Math.max(0, Math.min(adjustedX, window.innerWidth - popupRect.width));
+                adjustedY = Math.max(0, Math.min(adjustedY, window.innerHeight - popupRect.height));
+            }
 
             popupElement.style.left = `${adjustedX}px`;
             popupElement.style.top = `${adjustedY}px`;
@@ -545,16 +529,14 @@
         const speedDisplay = popupElement.querySelector('#vcp-speed-display');
 
         if (speedInput && speedDisplay) {
-            // 슬라이더 값을 비디오의 실제 값으로 동기화
             const rate = currentVideo.playbackRate;
-            speedInput.value = rate.toFixed(1); // range input은 step에 맞춰 값 설정 (0.1 단위)
+            speedInput.value = rate.toFixed(1);
             speedDisplay.textContent = rate.toFixed(2);
-            desiredPlaybackRate = rate; // desired 값도 실제 값으로 동기화
+            desiredPlaybackRate = rate;
         }
     }
 
     function selectVideoOnDocumentClick(e) {
-        // 팝업 내부 클릭 또는 드래그 중에는 무시
         if (popupElement && e && popupElement.contains(e.target)) {
             resetPopupHideTimer();
             if (popupElement.style.display !== 'none') {
@@ -567,7 +549,7 @@
         const centerY = window.innerHeight / 2;
         const centerX = window.innerWidth / 2;
 
-        const filteredVideos = videos; // 필터링 없이 모든 videos 사용
+        const filteredVideos = videos;
 
         const sorted = filteredVideos
         .map(v => {
@@ -579,7 +561,6 @@
 
             const centerScore = 1 / Math.pow(1 + centerDist, 5);
 
-            // 가중치: 면적 70%, 중앙 점수 30% (예시)
             const score = visibleArea * 0.7 + centerScore * 5000 * 0.3;
 
             return { video: v, score };
@@ -616,41 +597,36 @@
             // No suitable video found.
         }
 
-        // 팝업 표시 로직 변경: 오직 사용자 클릭 (e가 존재할 때)만 팝업 표시
         if (bestVideo && (maxIntersectionRatio > 0 || bestVideo.tagName === 'AUDIO' || !bestVideo.paused)) {
             if (currentVideo !== bestVideo) {
                 if (currentVideo) currentVideo.pause();
                 currentVideo = null;
-                selectAndControlVideo(bestVideo); // 이 함수는 팝업을 띄우지 않음
+                selectAndControlVideo(bestVideo);
 
                 if (currentVideo && e instanceof Event) {
-                    isManuallySelected = true; // 수동 선택
                     updatePopupPosition();
                     showPopup();
                     resetPopupHideTimer();
                 } else {
-                    isManuallySelected = false; // 자동 감지
                     hidePopup();
                 }
 
-            } else { // 이미 선택된 비디오가 그대로 유지될 때
-                if (e) { // 사용자 클릭일 때만 팝업 표시 및 리셋
-                    isManuallySelected = true; // 수동 선택으로 플래그 설정
+            } else {
+                if (e) {
                     updatePopupPosition();
                     showPopup();
                     resetPopupHideTimer();
-                } else { // 클릭이 아닌 자동 감지 시에는 팝업 숨김 (만약 이미 열려있다면)
+                } else {
                     if (popupElement && popupElement.style.display !== 'none') {
-                       hidePopup(); // 자동으로 뜬 팝업은 숨김
+                       hidePopup();
                     }
                 }
             }
-        } else { // 적합한 비디오가 없을 때
+        } else {
             if (currentVideo) {
                 currentVideo.pause();
             }
             currentVideo = null;
-            isManuallySelected = false; // 선택된 비디오 없으니 초기화
             if (!isPopupDragging) {
                 hidePopup();
             }
@@ -671,7 +647,7 @@
                 }
             }
 
-            selectVideoOnDocumentClick(null); // 스크롤 시에도 비디오 선택 로직은 실행하되, 팝업은 자동으로 안 뜸
+            selectVideoOnDocumentClick(null);
         }, 100);
     }
 
@@ -699,7 +675,7 @@
             }
             if (foundMediaChange) {
                 updateVideoList();
-                selectVideoOnDocumentClick(null); // DOM 변경 시 비디오 선택 로직은 실행하되, 팝업은 자동으로 안 뜸
+                selectVideoOnDocumentClick(null);
             }
         };
         const mutationObserver = new MutationObserver(observerCallback);
@@ -715,25 +691,20 @@
                 lastUrl = currentUrl;
                 if (currentVideo) currentVideo.pause();
                 currentVideo = null;
-                isManuallySelected = false; // SPA 이동 시 수동 선택 상태 초기화
                 hidePopup();
                 updateVideoList();
-                // --- 수정된 핵심 부분: URL 변경 시에도 비디오가 소리와 함께 재생되도록 설정 ---
-                selectVideoOnDocumentClick(null); // 팝업은 자동으로 안 뜸
-                updatePopupPosition(); // ← 이걸 즉시! 추추가
-                // --- 수정 끝 ---
+                selectVideoOnDocumentClick(null);
             }
         }).observe(document, { subtree: true, childList: true });
     }
 
     function fixOverflow() {
-        // --- 치지직/유튜브 관련 오버플로우 픽스 로직 제거 ---
         const overflowFixSites = [
-            // { domain: 'twitch.tv', selectors: ['div.video-player__container', 'div.video-player-theatre-mode__player', 'div.player-theatre-mode'] }, // 유지 또는 제거 결정
+            { domain: 'twitch.tv', selectors: ['div.video-player__container', 'div.video-player-theatre-mode__player', 'div.player-theatre-mode'] },
         ];
         overflowFixSites.forEach(site => {
             if (location.hostname.includes(site.domain)) {
-                site.selectors.forEach(sel => { // `sel` 대신 `site.selectors.forEach(sel => { ... })` 사용
+                site.selectors.forEach(sel => {
                     document.querySelectorAll(sel).forEach(el => {
                         el.style.overflow = 'visible';
                     });
@@ -746,7 +717,6 @@
         if (checkVideoInterval) clearInterval(checkVideoInterval);
         checkVideoInterval = setInterval(() => {
             findAllVideosDeep().forEach(video => {
-                // 현재 선택된 비디오가 아니면 무조건 일시정지, 무음, 볼륨 0
                 if (video !== currentVideo) {
                     if (!video.paused) {
                         video.pause();
@@ -755,18 +725,13 @@
                         video.muted = true;
                         video.volume = 0;
                     }
-                } else { // 현재 선택된 비디오
-                    // 사용자가 수동으로 정지하지 않았다면 재생 시도
+                } else {
                     if (video.paused && !video.ended && !isManuallyPaused) {
                         video.play().catch(e => { /* console.warn("Auto-play attempt failed:", e); */ });
                     }
-                    // 배속/볼륨 동기화 및 유지
-                    // desired 값과 실제 비디오 값이 다르면, 실제 비디오 값을 desired에 반영
                     if (video.playbackRate !== desiredPlaybackRate) {
                         desiredPlaybackRate = video.playbackRate;
                     }
-                    // 현재 비디오의 실제 볼륨이 desiredVolume과 다르면 강제로 desiredVolume으로 설정
-                    // isManuallyMuted 상태를 고려하여 muted 속성도 조절
                     if (Math.abs(video.volume - desiredVolume) > 0.005 || video.muted !== (isManuallyMuted || desiredVolume === 0)) {
                         video.volume = desiredVolume;
                         video.muted = isManuallyMuted || (desiredVolume === 0);
@@ -774,17 +739,15 @@
                 }
             });
 
-            // 현재 비디오가 유효하지 않을 경우, 비디오 선택 로직만 다시 실행 (팝업은 자동으로 안 뜸)
             if (!currentVideo) {
                 selectVideoOnDocumentClick(null);
             }
 
-            // 팝업이 열려있다면 위치만 업데이트하고 버튼 텍스트 및 슬라이더 업데이트
             if (popupElement && popupElement.style.display !== 'none' && !isPopupDragging) {
                 updatePopupPosition();
                 updatePlayPauseButton();
                 updateMuteSpeakButtons();
-                updatePopupSliders(); // 슬라이더 값도 계속 동기화 (속도만 남음)
+                updatePopupSliders();
             }
         }, AUTO_CHECK_VIDEO_INTERVAL_MS);
     }
@@ -793,7 +756,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.10.61_NoAutoMute_NoSiteSpecific_NoLazySrcBlocked_Updated_FixedMobileDrag_CompactUI_VerticalSlider_Ascending_FixedOrientation');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.15_FinalFix_UserUI_FullscreenIframeFix_AutoplayAttemptImprovement');
 
         createPopupElement();
         hidePopup();
@@ -810,6 +773,9 @@
                     updatePopupPosition();
                     resetPopupHideTimer();
                 }
+                updatePlayPauseButton();
+                updateMuteSpeakButtons();
+                updatePopupSliders();
             }
         });
 
@@ -822,7 +788,7 @@
         updateVideoList();
         setupDOMObserver();
         setupSPADetection();
-        fixOverflow(); // 오버플로우 픽스 함수 (필요하다면 Twitch 관련만 유지 가능)
+        fixOverflow();
 
         let touchStartY = 0;
         let touchMoved = false;
@@ -830,14 +796,14 @@
         document.addEventListener('touchstart', (e) => {
             touchStartY = e.touches[0].clientY;
             touchMoved = false;
-        }, { passive: true }); // 스크롤 성능 향상을 위해 passive 옵션 추가
+        }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
             const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
-            if (deltaY > 10) { // 10px 이상 이동하면 드래그로 간주
+            if (deltaY > 10) {
                 touchMoved = true;
             }
-        }, { passive: true }); // 스크롤 성능 향상을 위해 passive 옵션 추가
+        }, { passive: true });
 
         document.body.addEventListener('click', (e) => {
             if (popupElement && e && popupElement.contains(e.target)) {
@@ -845,21 +811,20 @@
                 return;
             }
             if (touchMoved) {
-                touchMoved = false; // 플래그 초기화
-                return; // 드래그 후 터치클릭 무시
+                touchMoved = false;
+                return;
             }
             selectVideoOnDocumentClick(e);
         }, true);
 
-        // 이전 중복된 touchend 리스너는 삭제하고, 새로운 touchend 리스너를 추가하여 touchMoved 플래그를 확인합니다.
         document.body.addEventListener('touchend', (e) => {
             if (popupElement && e && popupElement.contains(e.target)) {
                 resetPopupHideTimer();
                 return;
             }
             if (touchMoved) {
-                touchMoved = false; // 플래그 초기화
-                return; // 드래그 후 터치클릭 무시
+                touchMoved = false;
+                return;
             }
             selectVideoOnDocumentClick(e);
         }, true);
