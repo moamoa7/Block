@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250721
+! Version: 20250723
 !
 !
 !
@@ -198,6 +198,8 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 sooplive.co.kr##.bnrimg_area
 ! - 메인 모르겠는데 떠 있는거
 sooplive.co.kr###soopi_wrap
+! - 채팅 위 연관상품
+sooplive.co.kr##.store_box.box
 sooplive.co.kr##.floating_btns
 ! - 구독 플러스
 sooplive.co.kr##.subs_plus.seasonal_area
@@ -1991,8 +1993,6 @@ www.spojoy.com###TopAdv250
 sports.donga.com##[class*="subcont_ad"]
 sports.donga.com##.view_center
 ##[class*="ad_aside"]
-! - 기타
-*/images/banner$domain=~ipo.chinairn.com|~www.shuame.com|~exp.qq.com
 !
 !
 ! 아이즈 IZE (https://www.ize.co.kr/)
@@ -4306,6 +4306,14 @@ teamblind.com/#@#[class^="ad"]
 ! https://forum.mobilism.org/
 ! - 메인 상단 안내
 ##.welcome-bar
+!
+!
+! https://www.daejeonsarangcard.kr/
+! - 팝업 해제에 따른 뿌연거 해결
+daejeonsarangcard.kr##.popupContainer
+! - ##[class^="ad"] 해제 - 일부 주소 삭제
+daejeonsarangcard.kr#@#[class^="ad"]
+
 !
 !
 !
