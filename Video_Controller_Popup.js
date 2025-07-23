@@ -259,7 +259,7 @@
         // 더 복잡한 스타일은 별도 <style> 태그 삽입이 필요할 수 있습니다.
 
         speedSection.appendChild(speedDisplay); // 숫자 먼저
-        speedSection.appendChild(speedInput);   // 슬라이더 나중
+        speedSection.appendChild(speedInput);    // 슬라이더 나중
         popupElement.appendChild(speedSection);
 
         // --- 버튼 섹션 (하단) ---
@@ -444,7 +444,7 @@
         dragHandle.addEventListener('mousedown', startDrag);
         dragHandle.addEventListener('touchstart', startDrag, { passive: false });
         document.addEventListener('mousemove', dragPopup);
-    	document.addEventListener('touchmove', dragPopup, { passive: false }); // 터치 이벤트 활성화
+        document.addEventListener('touchmove', dragPopup, { passive: false }); // 터치 이벤트 활성화
         document.addEventListener('mouseup', stopDrag);
         document.addEventListener('touchend', stopDrag);
         document.addEventListener('mouseleave', stopDrag);
@@ -552,7 +552,6 @@
             popupElement.style.left = `${adjustedX}px`;
             popupElement.style.top = `${adjustedY}px`;
         }
-        // --- 수정 끝 ---
 
         // 비디오가 화면에 보이는지 최종 확인
         const isVideoVisible = videoRect.top < window.innerHeight && videoRect.bottom > 0 && videoRect.left < window.innerWidth && videoRect.right > 0;
@@ -582,19 +581,6 @@
         // 이 함수 내부에서는 이벤트 전파/기본 동작 방지 로직을 두지 않고,
         // 오직 비디오를 선택하고 팝업을 표시할지 말지 결정하는 로직만 수행합니다.
 
-        // 클릭 이벤트가 팝업 내부에서 발생한 경우
-        if (popupElement && e && popupElement.contains(e.target)) {
-            resetPopupHideTimer(); // 팝업 내부 클릭 시 타이머 리셋만
-            return;
-        }
-
-        // 팝업이 이미 열려있었고, 클릭이 팝업 외부에서 발생했다면 팝업 숨김
-        if (popupElement && isPopupVisible && e && !popupElement.contains(e.target)) {
-            hidePopup();
-            return;
-        }
-
-        // 팝업이 닫혀있거나, (e === null) 즉 자동 감지 호출인 경우에만 아래 로직 진행
         updateVideoList();
 
         const centerY = window.innerHeight / 2;
@@ -745,7 +731,7 @@
     }
 
     function fixOverflow() {
-        const overflowFixSites = [];
+        const overflowFixSites = []; // 여기에 특정 사이트의 오버플로우 문제를 해결하기 위한 설정 추가 가능
         overflowFixSites.forEach(site => {
             if (location.hostname.includes(site.domain)) {
                 site.selectors.forEach(sel => {
@@ -815,6 +801,74 @@
         }, AUTO_CHECK_VIDEO_INTERVAL_MS);
     }
 
+    // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 시작 ---
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchMoved = false;
+    const TOUCH_MOVE_THRESHOLD = 10; // 10px 이상 움직이면 스크롤로 간주
+
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchMoved = false; // 매 터치 시작 시 초기화
+    }, { passive: true }); // passive: true로 스크롤 성능 최적화
+
+    document.addEventListener('touchmove', (e) => {
+        const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
+        const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+        if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+            touchMoved = true;
+        }
+    }, { passive: true }); // passive: true로 스크롤 성능 최적화
+
+    // 'click' 이벤트 리스너: 캡처링 단계에서 먼저 처리하여 사용자 정의 로직 우선 적용
+    document.body.addEventListener('click', (e) => {
+        if (!e) return;
+
+        // 1. 팝업 내부 클릭인 경우: 타이머 리셋만 하고 기본 동작 허용
+        if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
+            return; // 팝업 내부 클릭은 스크립트의 비디오 선택 로직을 건너뛰고 원래 동작을 따름
+        }
+
+        // 2. 터치 드래그(스크롤)가 있었으면 클릭 무시 (의도치 않은 클릭 방지)
+        if (touchMoved) {
+            touchMoved = false; // 플래그 초기화
+            return;
+        }
+
+        // 3. 클릭된 요소가 링크(<a>)이거나 버튼 역할을 하는 요소인지 확인 (페이지 이동/버튼 기능 방해 방지)
+        const clickedLink = e.target.closest('a');
+        const isClickableButton = e.target.matches('button, input[type="button"], [role="button"]');
+        if (clickedLink || isClickableButton) {
+            return; // 웹사이트의 원래 클릭 동작을 허용하고 스크립트 로직 중단
+        }
+
+        // 4. 팝업이 열려 있는데 팝업 외부를 클릭한 경우: 팝업 숨김
+        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
+            hidePopup();
+            return; // 팝업만 숨기고 웹사이트의 다른 클릭 동작은 허용
+        }
+
+        // 5. 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
+        selectVideoLogic(e);
+    }, true); // `true`는 capturing phase에서 이벤트를 가로채겠다는 의미
+
+    // touchend 이벤트 핸들러는 이제 selectVideoLogic을 직접 호출하지 않고,
+    // click 이벤트에 모든 제어권을 넘겨주어 충돌을 피합니다.
+    document.body.addEventListener('touchend', (e) => {
+        // 이 곳에서는 추가적인 비디오 선택 로직을 실행하지 않습니다.
+        // 모든 클릭/터치 관련 비디오 선택 로직은 'click' 이벤트 핸들러에서 처리됩니다.
+        // 다만, 팝업 내부 터치 시 타이머 리셋 로직은 필요할 수 있습니다.
+        if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
+            return;
+        }
+    }, true); // `true`로 설정하여 capturing phase에서 이벤트 감지
+
+    // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 끝 ---
+
+
     function initialize() {
         if (isInitialized) return;
         isInitialized = true;
@@ -866,74 +920,6 @@
         setupDOMObserver();
         setupSPADetection();
         fixOverflow();
-
-        // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 시작 ---
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchMoved = false;
-        const TOUCH_MOVE_THRESHOLD = 10; // 10px 이상 움직이면 스크롤로 간주
-
-        document.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-            touchMoved = false; // 매 터치 시작 시 초기화
-        }, { passive: true });
-
-        document.addEventListener('touchmove', (e) => {
-            const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
-            const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
-            if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
-                touchMoved = true;
-            }
-        }, { passive: true });
-
-        // 'click' 이벤트 리스너: 캡처링 단계에서 먼저 처리
-        document.body.addEventListener('click', (e) => {
-            // 1. 팝업 내부 클릭인 경우
-            if (popupElement && popupElement.contains(e.target)) {
-                resetPopupHideTimer();
-                return; // 팝업 내부의 클릭은 원래 동작 (버튼 클릭 등)을 허용하고 스크립트 로직 중단
-            }
-
-            // 2. 클릭된 요소가 링크(<a>)이거나 링크 역할을 하는 요소인지 확인
-            // `closest('a')`는 클릭된 요소부터 부모 방향으로 올라가면서 가장 가까운 'a' 태그를 찾습니다.
-            // 또는 `e.target`이 직접 버튼 태그이거나, 특정 클래스를 가진 이동 버튼인 경우를 추가할 수 있습니다.
-            const clickedLink = e.target.closest('a');
-            const isClickableButton = e.target.matches('button, input[type="button"], [role="button"]'); // 일반적인 버튼
-            const isTargetedForNavigation = (clickedLink || isClickableButton); // 또는 다른 웹사이트의 페이지 이동 요소들을 여기에 추가
-
-            if (isTargetedForNavigation) {
-                // 클릭된 요소가 링크나 버튼이라면, 스크립트의 비디오 선택/팝업 표시 로직을 건너뜁니다.
-                // 이렇게 하면 웹사이트의 원래 클릭 동작(페이지 이동, 버튼 기능 등)이 방해받지 않습니다.
-                return;
-            }
-
-            // 3. 터치 움직임(스크롤/드래그)이 있었던 경우
-            if (touchMoved) {
-                // 터치 움직임이 있었으면 클릭 이벤트를 무시 (팝업이 뜨는 것을 막음)
-                // 하지만 웹사이트의 기본 동작(예: 스크롤 후 놓았을 때 의도치 않은 클릭)도 막을 수 있음.
-                // 여기서는 `e.stopPropagation()`과 `e.preventDefault()`를 사용하지 않음으로써,
-                // 만약 웹사이트 자체에서 스크롤 중 발생한 클릭을 처리한다면 그게 작동하도록 둠.
-                // 단지 우리의 `selectVideoLogic`만 실행하지 않음.
-                touchMoved = false; // 플래그 초기화
-                return;
-            }
-
-            // 4. 팝업이 열려있는데, 팝업 외부를 클릭한 경우 (링크나 터치 움직임이 아닌 경우)
-            if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
-                hidePopup(); // 팝업만 숨기고, 웹사이트의 기본 클릭 동작은 허용
-                return;
-            }
-
-            // 5. 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
-            selectVideoLogic(e);
-        }, true); // `true`는 capturing phase에서 이벤트를 가로채겠다는 의미
-
-        // `touchend` 이벤트 핸들러는 이제 `selectVideoLogic`을 직접 호출하지 않고,
-        // `click` 이벤트에 모든 제어권을 넘겨주어 충돌을 피합니다.
-        // `click` 이벤트가 항상 `touchend` 이후에 발생함을 이용.
-
-        // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 끝 ---
 
         startCheckingVideoStatus();
 
