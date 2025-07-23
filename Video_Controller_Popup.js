@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.11: 링크 클릭 오작동 최종 픽스)
+// @name Video Controller Popup (V4.11.13: 자동재생 개선 시도)
 // @namespace Violentmonkey Scripts
-// @version 4.11.11_FixedLinkClickIssue_UILayoutMaintained
-// @description Core video controls with streamlined UI. All videos auto-play with sound. Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with vertical speed slider (ascending).
+// @version 4.11.13_AutoplayAttemptImprovement
+// @description Core video controls with streamlined UI. All videos auto-play with sound (if possible). Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with horizontal speed slider.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -117,15 +117,23 @@
                     videoToControl.autoplay = true;
                     videoToControl.playsInline = true;
 
-                    // --- 핵심 부분: 모든 사이트에서 소리를 허용합니다. ---
-                    videoToControl.muted = false; // 무조건 음소거 해제
-                    videoToControl.volume = 1.0; // 볼륨 100%
-                    console.log('[VCP] Video selected. Initiating autoplay with sound (100%).');
-                    // --- 수정 끝 ---
+                    // --- 핵심 부분: 자동재생 개선 시도 (소리 있는 재생 먼저, 실패 시 음소거 재생 시도) ---
+                    // 1. 소리 있는 재생 시도 (기본)
+                    videoToControl.muted = false;
+                    videoToControl.volume = 1.0;
+                    isManuallyMuted = false; // 새로운 비디오 선택 시 수동 음소거 상태 초기화
 
                     videoToControl.play().catch(e => {
-                        // console.warn("Autoplay/Play on select failed:", e);
+                        console.warn("[VCP] Autoplay with sound failed:", e.name, e.message, "Attempting muted autoplay.");
+                        // 2. 소리 있는 재생이 실패하면, 음소거 상태로 다시 재생 시도
+                        videoToControl.muted = true;
+                        videoToControl.volume = 0; // 음소거 상태에서는 볼륨도 0으로 설정
+                        isManuallyMuted = true; // 음소거 상태로 시작했음을 표시
+                        videoToControl.play().catch(mutedError => {
+                            console.error("[VCP] Muted autoplay also failed:", mutedError.name, mutedError.message);
+                        });
                     });
+                    // --- 수정 끝 ---
                 }
             }
         });
@@ -136,14 +144,13 @@
             isManuallyPaused = false; // 새 비디오 선택 시 수동 정지 상태 초기화
             desiredPlaybackRate = currentVideo.playbackRate;
 
-            desiredVolume = 1.0; // 모든 경우에 100%를 목표 볼륨으로 설정
-            isManuallyMuted = false; // 이제 자동 음소거가 없으므로 항상 false로 시작
+            desiredVolume = currentVideo.volume; // 현재 비디오의 실제 볼륨을 반영
+            isManuallyMuted = currentVideo.muted; // 현재 비디오의 실제 뮤트 상태를 반영
         }
 
         // 배속 및 볼륨 적용 (desired 값으로 강제)
         fixPlaybackRate(currentVideo, desiredPlaybackRate);
-        setNormalVolume(currentVideo, desiredVolume);
-
+        setNormalVolume(currentVideo, desiredVolume); // 이 함수 내에서 isManuallyMuted도 업데이트
         updatePopupSliders(); // 팝업 슬라이더 UI 업데이트 (속도만 남음)
         updatePlayPauseButton(); // 재생/멈춤 버튼 텍스트 업데이트
         updateMuteSpeakButtons(); // 무음/소리 버튼 텍스트 업데이트
@@ -176,7 +183,6 @@
         desiredVolume = vol;
 
         video.volume = Math.max(0, Math.min(1.0, desiredVolume));
-
         video.muted = isManuallyMuted || (desiredVolume === 0);
 
         updateMuteSpeakButtons();
@@ -195,50 +201,39 @@
             display: none; opacity: 0; transition: opacity 0.3s;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             width: fit-content;
-            min-width: 280px;
+            min-width: 280px; /* 팝업 최소 너비 유지 */
             overflow: hidden; text-align: center; pointer-events: auto;
+            display: flex; /* Flexbox로 내부 콘텐츠 정렬 */
+            flex-direction: column; /* 세로 방향 정렬 */
+            align-items: stretch; /* 자식 요소들이 너비를 꽉 채우도록 */
         `;
 
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
         dragHandle.textContent = '비디오.오디오 컨트롤러';
         dragHandle.style.cssText = `
-            font-weight: bold; margin-bottom: 8px; color: #ccc; padding: 5px;
+            font-weight: bold; color: #ccc; padding: 5px;
             background-color: #2a2a2a; border-bottom: 1px solid #444; cursor: grab;
             border-radius: 6px 6px 0 0; user-select: none; font-size: 16px;
         `;
         popupElement.appendChild(dragHandle);
 
-        const contentContainer = document.createElement('div');
-        contentContainer.style.cssText = `
-            display: flex;
-            padding: 10px;
-            align-items: center;
-            gap: 10px;
-            min-height: 170px; /* 최소 높이 더 증가: 버튼 여백과 배속 숫자 확보 */
-            box-sizing: border-box;
-        `;
-
+        // --- 배속 바 섹션 (상단) ---
         const speedSection = document.createElement('div');
-        speedSection.className = 'vcp-section';
+        speedSection.className = 'vcp-section-speed';
         speedSection.style.cssText = `
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* 세로 정렬: 숫자 위에 슬라이더 */
             align-items: center;
-            justify-content: space-around; /* 슬라이더와 숫자 사이 간격 조정 (start -> around) */
-            height: 100%; /* 부모(contentContainer)의 높이를 따름 */
-            gap: 15px; /* 슬라이더와 숫자 사이 간격 유지 */
-            padding: 5px 0; /* 상하 패딩 유지 */
-            border-right: 1px solid #444;
-            box-sizing: border-box;
-            margin-right: 10px;
-            min-width: 60px;
+            padding: 10px;
+            gap: 5px; /* 숫자와 슬라이더 사이 간격 */
+            border-bottom: 1px solid #444; /* 하단 구분선 */
         `;
 
         const speedDisplay = document.createElement('span');
         speedDisplay.id = 'vcp-speed-display';
-        speedDisplay.textContent = '1.00';
-        speedDisplay.style.cssText = 'color: #eee; font-size: 1.2em; font-weight: bold; width: 60px; text-align: center;';
+        speedDisplay.textContent = '1.00x'; // x 추가
+        speedDisplay.style.cssText = 'color: #eee; font-size: 1.2em; font-weight: bold; width: 100%; text-align: center;';
 
         const speedInput = document.createElement('input');
         speedInput.type = 'range';
@@ -248,31 +243,37 @@
         speedInput.step = '0.1';
         speedInput.value = '1.0';
         speedInput.style.cssText = `
-            width: 20px;
-            height: 100px;
-            -webkit-appearance: slider-vertical;
-            writing-mode: bt-lr;
+            width: 90%; /* 가로 폭 채우기 */
+            height: 10px; /* 높이 줄임 */
+            -webkit-appearance: none;
+            appearance: none;
+            background: #555;
+            outline: none;
+            border-radius: 5px;
             cursor: pointer;
             margin: 0;
             padding: 0;
         `;
+        // 슬라이더 썸 스타일 (커스텀)
+        // CSS in JS로 직접 썸 스타일을 제어하기는 어려우므로, 간단한 배경/테두리만 적용
+        // 더 복잡한 스타일은 별도 <style> 태그 삽입이 필요할 수 있습니다.
 
-        speedSection.appendChild(speedInput);
-        speedSection.appendChild(speedDisplay);
+        speedSection.appendChild(speedDisplay); // 숫자 먼저
+        speedSection.appendChild(speedInput);    // 슬라이더 나중
+        popupElement.appendChild(speedSection);
 
-        contentContainer.appendChild(speedSection);
-
+        // --- 버튼 섹션 (하단) ---
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = `
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-template-rows: repeat(2, minmax(40px, 1fr)); /* 최소 높이 40px, 남는 공간 균등 배분 */
-            gap: 10px; /* 버튼 간 간격 조정 (8px -> 10px) */
-            flex-grow: 1;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px; /* 버튼 간 간격 */
+            padding: 10px; /* 상하좌우 패딩 */
+            flex-grow: 1; /* 남은 공간을 채우도록 */
             align-content: stretch; /* 그리드 콘텐츠를 수직으로 늘림 */
             justify-items: stretch;
-            min-width: 180px;
-            padding-bottom: 5px; /* 버튼 섹션 하단에 추가 패딩 */
+            min-height: 90px; /* 버튼 4개 공간 확보 */
         `;
 
         const buttonStyle = `
@@ -316,9 +317,8 @@
         buttonSection.appendChild(speedResetBtn);
         buttonSection.appendChild(muteBtn);
         buttonSection.appendChild(speakBtn);
-        contentContainer.appendChild(buttonSection);
+        popupElement.appendChild(buttonSection); // 버튼 섹션을 팝업에 추가
 
-        popupElement.appendChild(contentContainer);
         document.body.appendChild(popupElement);
         setupPopupEventListeners();
     }
@@ -403,7 +403,7 @@
             resetPopupHideTimer();
             const rate = parseFloat(speedInput.value);
             if (currentVideo) { fixPlaybackRate(currentVideo, rate); }
-            speedDisplay.textContent = rate.toFixed(2);
+            speedDisplay.textContent = rate.toFixed(2) + 'x'; // x 추가
         });
 
         const dragHandle = popupElement.querySelector('#vcp-drag-handle');
@@ -444,7 +444,7 @@
         dragHandle.addEventListener('mousedown', startDrag);
         dragHandle.addEventListener('touchstart', startDrag, { passive: false });
         document.addEventListener('mousemove', dragPopup);
-    	document.addEventListener('touchmove', dragPopup, { passive: false }); // 터치 이벤트 활성화
+        document.addEventListener('touchmove', dragPopup, { passive: false }); // 터치 이벤트 활성화
         document.addEventListener('mouseup', stopDrag);
         document.addEventListener('touchend', stopDrag);
         document.addEventListener('mouseleave', stopDrag);
@@ -454,7 +454,7 @@
         if (!popupElement) return;
 
         if (isVisible) {
-            const styles = { display: 'block', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
+            const styles = { display: 'flex', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' }; // display: flex로 변경
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
             isPopupVisible = true;
         } else {
@@ -506,8 +506,9 @@
             // 풀스크린 모드: 팝업 크기를 고정된 픽셀 값으로 강제
             popupElement.style.width = '280px';
             popupElement.style.minWidth = '280px';
-            popupElement.style.height = '210px'; /* 풀스크린 모드 높이 추가 증가 */
-            popupElement.style.minHeight = '210px'; /* 풀스크린 모드 최소 높이 추가 증가 */
+            // 높이 조정: 배속바 상단 + 버튼 하단 구조를 고려하여 더 유동적으로
+            popupElement.style.height = 'auto'; // auto로 두어 내부 콘텐츠에 맞게 조정
+            popupElement.style.minHeight = '150px'; // 최소 높이도 줄임 (새로운 UI에 맞게)
             popupElement.style.position = 'absolute'; // Fullscreen 요소 내부에 상대적 위치
             popupElement.style.transform = 'none';
 
@@ -535,7 +536,7 @@
             popupElement.style.width = 'fit-content';
             popupElement.style.minWidth = '280px';
             popupElement.style.height = 'auto';
-            popupElement.style.minHeight = '170px'; /* 일반 모드 최소 높이 증가 */
+            popupElement.style.minHeight = '150px'; // 일반 모드 최소 높이 조정 (새로운 UI에 맞게)
             popupElement.style.position = 'fixed'; // Viewport에 고정
             popupElement.style.transform = 'none';
 
@@ -551,7 +552,6 @@
             popupElement.style.left = `${adjustedX}px`;
             popupElement.style.top = `${adjustedY}px`;
         }
-        // --- 수정 끝 ---
 
         // 비디오가 화면에 보이는지 최종 확인
         const isVideoVisible = videoRect.top < window.innerHeight && videoRect.bottom > 0 && videoRect.left < window.innerWidth && videoRect.right > 0;
@@ -570,7 +570,7 @@
         if (speedInput && speedDisplay) {
             const rate = currentVideo.playbackRate;
             speedInput.value = rate.toFixed(1);
-            speedDisplay.textContent = rate.toFixed(2);
+            speedDisplay.textContent = rate.toFixed(2) + 'x'; // x 추가
             desiredPlaybackRate = rate;
         }
     }
@@ -581,19 +581,6 @@
         // 이 함수 내부에서는 이벤트 전파/기본 동작 방지 로직을 두지 않고,
         // 오직 비디오를 선택하고 팝업을 표시할지 말지 결정하는 로직만 수행합니다.
 
-        // 클릭 이벤트가 팝업 내부에서 발생한 경우
-        if (popupElement && e && popupElement.contains(e.target)) {
-            resetPopupHideTimer(); // 팝업 내부 클릭 시 타이머 리셋만
-            return;
-        }
-
-        // 팝업이 이미 열려있었고, 클릭이 팝업 외부에서 발생했다면 팝업 숨김
-        if (popupElement && isPopupVisible && e && !popupElement.contains(e.target)) {
-            hidePopup();
-            return;
-        }
-
-        // 팝업이 닫혀있거나, (e === null) 즉 자동 감지 호출인 경우에만 아래 로직 진행
         updateVideoList();
 
         const centerY = window.innerHeight / 2;
@@ -744,7 +731,7 @@
     }
 
     function fixOverflow() {
-        const overflowFixSites = [];
+        const overflowFixSites = []; // 여기에 특정 사이트의 오버플로우 문제를 해결하기 위한 설정 추가 가능
         overflowFixSites.forEach(site => {
             if (location.hostname.includes(site.domain)) {
                 site.selectors.forEach(sel => {
@@ -777,15 +764,26 @@
                         video.volume = 0;
                     }
                 } else {
+                    // currentVideo는 외부 상호작용 (팝업 버튼 등)에 따라 재생/일시정지 상태가 변할 수 있으므로
+                    // isManuallyPaused 상태를 우선적으로 존중합니다.
                     if (video.paused && !video.ended && !isManuallyPaused) {
-                        video.play().catch(e => { /* console.warn("Auto-play attempt failed:", e); */ });
+                        // 사용자가 직접 정지하지 않았는데 비디오가 정지되어 있다면, 재생 시도
+                        video.play().catch(e => {
+                            // 자동 재생 시도가 실패하면, 음소거 상태로 재시도 (여기서는 console.warn만 남김)
+                            // 실제 자동 재생 로직은 selectAndControlVideo에서 이미 처리됨
+                            // console.warn("Auto-play attempt failed during check:", e);
+                        });
                     }
                     if (video.playbackRate !== desiredPlaybackRate) {
+                        // 비디오의 실제 재생 속도가 desiredPlaybackRate와 다르면 업데이트 (다른 스크립트 등 개입 대비)
                         desiredPlaybackRate = video.playbackRate;
+                        updatePopupSliders();
                     }
-                    if (Math.abs(video.volume - desiredVolume) > 0.005 || video.muted !== (isManuallyMuted || desiredVolume === 0)) {
+                    // 비디오의 실제 뮤트/볼륨 상태가 원하는 상태와 다르면 동기화
+                    if (video.muted !== (isManuallyMuted || desiredVolume === 0) || Math.abs(video.volume - desiredVolume) > 0.005) {
                         video.volume = desiredVolume;
                         video.muted = isManuallyMuted || (desiredVolume === 0);
+                        updateMuteSpeakButtons(); // UI 업데이트
                     }
                 }
             });
@@ -803,11 +801,79 @@
         }, AUTO_CHECK_VIDEO_INTERVAL_MS);
     }
 
+    // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 시작 ---
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchMoved = false;
+    const TOUCH_MOVE_THRESHOLD = 10; // 10px 이상 움직이면 스크롤로 간주
+
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchMoved = false; // 매 터치 시작 시 초기화
+    }, { passive: true }); // passive: true로 스크롤 성능 최적화
+
+    document.addEventListener('touchmove', (e) => {
+        const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
+        const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+        if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+            touchMoved = true;
+        }
+    }, { passive: true }); // passive: true로 스크롤 성능 최적화
+
+    // 'click' 이벤트 리스너: 캡처링 단계에서 먼저 처리하여 사용자 정의 로직 우선 적용
+    document.body.addEventListener('click', (e) => {
+        if (!e) return;
+
+        // 1. 팝업 내부 클릭인 경우: 타이머 리셋만 하고 기본 동작 허용
+        if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
+            return; // 팝업 내부 클릭은 스크립트의 비디오 선택 로직을 건너뛰고 원래 동작을 따름
+        }
+
+        // 2. 터치 드래그(스크롤)가 있었으면 클릭 무시 (의도치 않은 클릭 방지)
+        if (touchMoved) {
+            touchMoved = false; // 플래그 초기화
+            return;
+        }
+
+        // 3. 클릭된 요소가 링크(<a>)이거나 버튼 역할을 하는 요소인지 확인 (페이지 이동/버튼 기능 방해 방지)
+        const clickedLink = e.target.closest('a');
+        const isClickableButton = e.target.matches('button, input[type="button"], [role="button"]');
+        if (clickedLink || isClickableButton) {
+            return; // 웹사이트의 원래 클릭 동작을 허용하고 스크립트 로직 중단
+        }
+
+        // 4. 팝업이 열려 있는데 팝업 외부를 클릭한 경우: 팝업 숨김
+        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
+            hidePopup();
+            return; // 팝업만 숨기고 웹사이트의 다른 클릭 동작은 허용
+        }
+
+        // 5. 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
+        selectVideoLogic(e);
+    }, true); // `true`는 capturing phase에서 이벤트를 가로채겠다는 의미
+
+    // touchend 이벤트 핸들러는 이제 selectVideoLogic을 직접 호출하지 않고,
+    // click 이벤트에 모든 제어권을 넘겨주어 충돌을 피합니다.
+    document.body.addEventListener('touchend', (e) => {
+        // 이 곳에서는 추가적인 비디오 선택 로직을 실행하지 않습니다.
+        // 모든 클릭/터치 관련 비디오 선택 로직은 'click' 이벤트 핸들러에서 처리됩니다.
+        // 다만, 팝업 내부 터치 시 타이머 리셋 로직은 필요할 수 있습니다.
+        if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
+            return;
+        }
+    }, true); // `true`로 설정하여 capturing phase에서 이벤트 감지
+
+    // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 끝 ---
+
+
     function initialize() {
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.11_FixedLinkClickIssue_UILayoutMaintained');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.13_AutoplayAttemptImprovement');
 
         createPopupElement();
         hidePopup();
@@ -820,8 +886,8 @@
                     // 풀스크린 모드에서 팝업의 고정 크기
                     popupElement.style.width = '280px';
                     popupElement.style.minWidth = '280px';
-                    popupElement.style.height = '210px'; // 풀스크린 모드 높이 추가 증가
-                    popupElement.style.minHeight = '210px'; // 풀스크린 모드 최소 높이 추가 증가
+                    popupElement.style.height = 'auto'; // auto로 두어 내부 콘텐츠에 맞게 조정
+                    popupElement.style.minHeight = '150px'; // 최소 높이도 줄임 (새로운 UI에 맞게)
                     popupElement.style.position = 'absolute';
                     popupElement.style.transform = 'none';
 
@@ -834,7 +900,7 @@
                     popupElement.style.width = 'fit-content';
                     popupElement.style.minWidth = '280px';
                     popupElement.style.height = 'auto';
-                    popupElement.style.minHeight = '170px'; // 일반 모드 최소 높이 증가
+                    popupElement.style.minHeight = '150px'; // 일반 모드 최소 높이 조정 (새로운 UI에 맞게)
                     popupElement.style.position = 'fixed';
                     popupElement.style.transform = 'none';
 
@@ -854,74 +920,6 @@
         setupDOMObserver();
         setupSPADetection();
         fixOverflow();
-
-        // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 시작 ---
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchMoved = false;
-        const TOUCH_MOVE_THRESHOLD = 10; // 10px 이상 움직이면 스크롤로 간주
-
-        document.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-            touchMoved = false; // 매 터치 시작 시 초기화
-        }, { passive: true });
-
-        document.addEventListener('touchmove', (e) => {
-            const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
-            const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
-            if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
-                touchMoved = true;
-            }
-        }, { passive: true });
-
-        // 'click' 이벤트 리스너: 캡처링 단계에서 먼저 처리
-        document.body.addEventListener('click', (e) => {
-            // 1. 팝업 내부 클릭인 경우
-            if (popupElement && popupElement.contains(e.target)) {
-                resetPopupHideTimer();
-                return; // 팝업 내부의 클릭은 원래 동작 (버튼 클릭 등)을 허용하고 스크립트 로직 중단
-            }
-
-            // 2. 클릭된 요소가 링크(<a>)이거나 링크 역할을 하는 요소인지 확인
-            // `closest('a')`는 클릭된 요소부터 부모 방향으로 올라가면서 가장 가까운 'a' 태그를 찾습니다.
-            // 또는 `e.target`이 직접 버튼 태그이거나, 특정 클래스를 가진 이동 버튼인 경우를 추가할 수 있습니다.
-            const clickedLink = e.target.closest('a');
-            const isClickableButton = e.target.matches('button, input[type="button"], [role="button"]'); // 일반적인 버튼
-            const isTargetedForNavigation = (clickedLink || isClickableButton); // 또는 다른 웹사이트의 페이지 이동 요소들을 여기에 추가
-
-            if (isTargetedForNavigation) {
-                // 클릭된 요소가 링크나 버튼이라면, 스크립트의 비디오 선택/팝업 표시 로직을 건너뜁니다.
-                // 이렇게 하면 웹사이트의 원래 클릭 동작(페이지 이동, 버튼 기능 등)이 방해받지 않습니다.
-                return;
-            }
-
-            // 3. 터치 움직임(스크롤/드래그)이 있었던 경우
-            if (touchMoved) {
-                // 터치 움직임이 있었으면 클릭 이벤트를 무시 (팝업이 뜨는 것을 막음)
-                // 하지만 웹사이트의 기본 동작(예: 스크롤 후 놓았을 때 의도치 않은 클릭)도 막을 수 있음.
-                // 여기서는 `e.stopPropagation()`과 `e.preventDefault()`를 사용하지 않음으로써,
-                // 만약 웹사이트 자체에서 스크롤 중 발생한 클릭을 처리한다면 그게 작동하도록 둠.
-                // 단지 우리의 `selectVideoLogic`만 실행하지 않음.
-                touchMoved = false; // 플래그 초기화
-                return;
-            }
-
-            // 4. 팝업이 열려있는데, 팝업 외부를 클릭한 경우 (링크나 터치 움직임이 아닌 경우)
-            if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
-                hidePopup(); // 팝업만 숨기고, 웹사이트의 기본 클릭 동작은 허용
-                return;
-            }
-
-            // 5. 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
-            selectVideoLogic(e);
-        }, true); // `true`는 capturing phase에서 이벤트를 가로채겠다는 의미
-
-        // `touchend` 이벤트 핸들러는 이제 `selectVideoLogic`을 직접 호출하지 않고,
-        // `click` 이벤트에 모든 제어권을 넘겨주어 충돌을 피합니다.
-        // `click` 이벤트가 항상 `touchend` 이후에 발생함을 이용.
-
-        // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 끝 ---
 
         startCheckingVideoStatus();
 
