@@ -825,46 +825,36 @@
         hidePopup();
 
         document.addEventListener('fullscreenchange', () => {
-    const fsEl = document.fullscreenElement;
-    if (!popupElement) return;
+            const fsEl = document.fullscreenElement;
+            if (popupElement) {
+                if (fsEl) {
+                    fsEl.appendChild(popupElement);
+                    // 풀스크린 모드에서 팝업의 고정 크기
+                    popupElement.style.width = '280px';
+                    popupElement.style.minWidth = '280px';
+                    popupElement.style.height = 'auto'; // auto로 두어 내부 콘텐츠에 맞게 조정
+                    popupElement.style.minHeight = '150px'; // 최소 높이도 줄임 (새로운 UI에 맞게)
+                    popupElement.style.position = 'absolute';
+                    popupElement.style.transform = 'none';
 
-    if (fsEl) {
-        fsEl.appendChild(popupElement);
-        // 풀스크린 모드에서 팝업의 고정 크기
-        popupElement.style.width = '280px';
-        popupElement.style.minWidth = '280px';
-        popupElement.style.height = 'auto';
-        popupElement.style.minHeight = '150px';
-        popupElement.style.position = 'absolute';
-        popupElement.style.transform = 'none';
+                    updatePopupPosition();
+                    showPopup();
+                    resetPopupHideTimer();
+                } else {
+                    document.body.appendChild(popupElement);
+                    // 일반 모드에서 팝업의 유동적인 크기 (최소 너비만 유지)
+                    popupElement.style.width = 'fit-content';
+                    popupElement.style.minWidth = '280px';
+                    popupElement.style.height = 'auto';
+                    popupElement.style.minHeight = '150px'; // 일반 모드 최소 높이 조정 (새로운 UI에 맞게)
+                    popupElement.style.position = 'fixed';
+                    popupElement.style.transform = 'none';
 
-        updatePopupPosition();
-        resetPopupHideTimer();
-
-        // 👉 사용자가 클릭했을 때만 한 번 showPopup
-        let clicked = false;
-        const onClick = () => {
-            if (!clicked) {
-                clicked = true;
-                showPopup();
-                window.removeEventListener('click', onClick, true); // useCapture = true
+                    updatePopupPosition();
+                    hidePopup();
+                }
             }
-        };
-        window.addEventListener('click', onClick, true);
-    } else {
-        document.body.appendChild(popupElement);
-        // 일반 모드에서 팝업의 유동적인 크기
-        popupElement.style.width = 'fit-content';
-        popupElement.style.minWidth = '280px';
-        popupElement.style.height = 'auto';
-        popupElement.style.minHeight = '150px';
-        popupElement.style.position = 'fixed';
-        popupElement.style.transform = 'none';
-
-        updatePopupPosition();
-        hidePopup();
-    }
-});
+        });
 
         window.addEventListener('resize', () => {
             updatePopupPosition();
