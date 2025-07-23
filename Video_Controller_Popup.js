@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.13: 자동재생 개선 시도 및 모바일 전체화면 클릭 버그 픽스)
+// @name Video Controller Popup (V4.11.14: 자동재생 개선 및 모바일 전체화면 클릭 버그 픽스 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.11.13_AutoplayAttemptImprovement_MobileFix
+// @version 4.11.14_AutoplayAttemptImprovement_MobileFullScreenClickFix
 // @description Core video controls with streamlined UI. All videos auto-play with sound (if possible). Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with horizontal speed slider.
 // @match *://*/*
 // @grant none
@@ -38,10 +38,13 @@
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
-            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
+            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused; // 오디오 태그이거나 재생 중이면 크기 무시
+            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia; // 비디오 미디어 데이터가 있거나 오디오 태그인지
 
-            return isVisible && isReasonableSize && hasMedia;
+            // 스크린 외부에 있거나, 렌더링 되지 않은 비디오는 제외
+            const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
+
+            return isVisible && isReasonableSize && hasMedia && isWithinViewport;
         });
         videos = playableVideos;
         return playableVideos;
@@ -579,118 +582,60 @@
     // selectVideoLogic 함수는 e.preventDefault()나 e.stopPropagation()을 직접 호출하지 않음.
     // 이는 이벤트 핸들러에서 제어되어야 함.
     function selectVideoLogic(e) {
-        // 이 함수 내부에서는 이벤트 전파/기본 동작 방지 로직을 두지 않고,
-        // 오직 비디오를 선택하고 팝업을 표시할지 말지 결정하는 로직만 수행합니다.
+        updateVideoList(); // 항상 최신 비디오 목록을 가져옵니다.
 
-        updateVideoList();
-
-        const centerY = window.innerHeight / 2;
-        const centerX = window.innerWidth / 2;
-
-        const filteredVideos = videos;
-
-        const sorted = filteredVideos
-        .map(v => {
-            const rect = v.getBoundingClientRect();
-            const visibleWidth = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
-            const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
-            const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
-            const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
-
-            const centerScore = 1 / Math.pow(1 + centerDist, 5);
-
-            const score = visibleArea * 0.7 + centerScore * 5000 * 0.3;
-
-            return { video: v, score };
-        })
-        .filter(({ score }) => score > 0)
-        .sort((a, b) => b.score - a.score);
-
-        let bestVideo = sorted[0]?.video || null;
-
-        let maxIntersectionRatio = 0;
-        let foundPlayingVideo = null;
-
-        videos.forEach(video => {
-            const ratio = calculateIntersectionRatio(video);
-            const isPlaying = !video.paused && video.duration > 0 && !video.ended;
-
-            if (ratio >= 0.5 && isPlaying) { // 재생 중인 비디오 우선
-                foundPlayingVideo = video;
-            }
-
-            if (ratio > 0 && ratio > maxIntersectionRatio) {
-                maxIntersectionRatio = ratio;
-                if (!foundPlayingVideo) { // 재생 중인 비디오가 없다면 가장 많이 보이는 비디오 선택
-                    bestVideo = video;
-                }
-            }
-        });
-
-        if (foundPlayingVideo) {
-            bestVideo = foundPlayingVideo;
-        } else if (bestVideo) {
-            // Best intersection ratio video (already set)
+        // 현재 재생 중이거나 이전에 선택된 비디오가 있다면, 그 비디오를 최우선으로 고려합니다.
+        let activeVideo = null;
+        if (currentVideo && document.body.contains(currentVideo)) { // currentVideo가 DOM에 여전히 존재하면
+            activeVideo = currentVideo;
         } else {
-            // No suitable video found.
-            // --- 추가된 로직 시작 ---
-            // 풀스크린 상태에서 현재 currentVideo가 없거나 비디오를 찾지 못했을 때,
-            // 그리고 사용자의 명시적인 클릭/터치 이벤트인 경우,
-            // 이전 currentVideo가 있었고 풀스크린 상태가 유지된다면
-            // 이전 currentVideo를 다시 선택하려고 시도합니다.
-            if (document.fullscreenElement && !currentVideo && e instanceof Event) {
-                // 이전에 currentVideo였던 요소를 찾아보거나,
-                // 아니면 그냥 가장 점수가 높은 bestVideo를 사용하도록 합니다.
-                // 이 부분은 이전 currentVideo를 저장해두는 변수가 필요합니다.
-                // 현재 코드에서는 따로 이전 currentVideo를 저장하지 않으므로,
-                // 단순히 bestVideo가 없는 경우 팝업을 숨기는 것으로 처리합니다.
-                // 만약 전체 화면 시에도 특정 비디오를 계속 추적하고 싶다면,
-                // `currentVideo`가 `null`이 되더라도 `lastKnownFullscreenVideo` 같은 변수에
-                // 저장해두었다가 여기서 다시 활용하는 로직이 필요합니다.
-                // 여기서는 우선 가장 근접한 비디오가 없을 때 팝업을 숨기는 기존 로직을 따릅니다.
-            }
-            // --- 추가된 로직 끝 ---
+            // 없다면, 가장 중요하다고 판단되는 비디오를 찾습니다.
+            const centerY = window.innerHeight / 2;
+            const centerX = window.innerWidth / 2;
+
+            const sorted = videos
+            .map(v => {
+                const rect = v.getBoundingClientRect();
+                const visibleWidth = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
+                const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+                const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
+                const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
+
+                const centerScore = 1 / Math.pow(1 + centerDist, 5); // 중앙에 가까울수록 점수 높음
+
+                // 재생 중인 비디오는 가중치를 더 줍니다.
+                const isPlayingScore = (!v.paused && v.duration > 0 && !v.ended) ? 10000 : 0; // 재생 중이면 높은 가중치
+
+                const score = visibleArea * 0.7 + centerScore * 5000 * 0.3 + isPlayingScore;
+
+                return { video: v, score };
+            })
+            .filter(({ score }) => score > 0)
+            .sort((a, b) => b.score - a.score);
+
+            activeVideo = sorted[0]?.video || null;
         }
 
-        // --- 수정된 조건 시작: 전체 화면일 경우, 가장 최적의 비디오가 없더라도 currentVideo를 유지하거나,
-        //                 클릭 이벤트가 발생하면 팝업을 보여주도록 함 ---
-        if (bestVideo && (maxIntersectionRatio > 0 || bestVideo.tagName === 'AUDIO' || !bestVideo.paused)) {
-            if (currentVideo !== bestVideo) {
-                // 비디오가 바뀌면 기존 비디오 일시정지 및 초기화
-                if (currentVideo) currentVideo.pause();
-                currentVideo = null; // 중요: selectAndControlVideo가 currentVideo를 새로 설정
-                selectAndControlVideo(bestVideo);
-
-                // 사용자의 클릭/터치에 의해 트리거된 경우에만 팝업 표시
-                if (e instanceof Event) {
-                    showPopup();
-                    resetPopupHideTimer();
-                } else {
-                    hidePopup(); // 자동 감지 시에는 팝업 숨김
-                }
-            } else { // 이미 선택된 비디오가 그대로 유지될 때
-                // 사용자 클릭/터치일 때 팝업 표시 및 타이머 리셋
-                if (e instanceof Event) {
-                    showPopup();
-                    resetPopupHideTimer();
-                }
+        if (activeVideo) {
+            // 현재 선택된 비디오가 없거나, 다른 비디오가 선택되어야 하는 경우
+            if (currentVideo !== activeVideo) {
+                if (currentVideo) currentVideo.pause(); // 이전 비디오 일시정지
+                selectAndControlVideo(activeVideo); // 새로운 비디오 제어 시작
             }
-        } else if (currentVideo && document.fullscreenElement && e instanceof Event) {
-             // 전체 화면 상태에서 현재 currentVideo가 있지만, bestVideo가 없거나 가시성 조건에 안 맞을 때
-             // (예: 사이트 오버레이 때문에 비디오 Rect 계산이 꼬였을 때)
-             // 사용자의 클릭/터치라면 팝업을 보여주도록 강제합니다.
-             // 이 경우 currentVideo는 그대로 유지됩니다.
-             showPopup();
-             resetPopupHideTimer();
-        }
-        else { // 적합한 비디오가 없을 때
+
+            // 사용자 클릭/터치 이벤트인 경우 팝업을 표시합니다.
+            if (e instanceof Event) {
+                showPopup();
+                resetPopupHideTimer();
+            }
+        } else {
+            // 유효한 비디오를 찾지 못했으면 팝업을 숨깁니다.
             if (currentVideo) {
                 currentVideo.pause();
             }
             currentVideo = null;
             hidePopup();
         }
-        // --- 수정된 조건 끝 ---
     }
 
 
@@ -700,18 +645,21 @@
         scrollTimeout = setTimeout(() => {
             updateVideoList();
 
-            if (currentVideo && (!checkCurrentVideoVisibility())) {
+            // 현재 비디오가 더 이상 보이지 않거나 DOM에서 제거되었을 때만 팝업 숨김
+            if (currentVideo && (!checkCurrentVideoVisibility() || !document.body.contains(currentVideo))) {
                 if (currentVideo) currentVideo.pause();
                 currentVideo = null;
                 hidePopup();
             }
 
-            selectVideoLogic(null); // 스크롤 시에도 비디오 선택 로직은 실행하되, 팝업은 자동으로 안 뜸
+            // 스크롤 시에도 비디오 선택 로직은 실행하되, 팝업은 자동으로 안 뜸 (e=null)
+            selectVideoLogic(null);
         }, 100);
     }
 
     function updateVideoList() {
         findPlayableVideos();
+        // 현재 비디오가 유효하지 않으면 초기화
         if (currentVideo && (!document.body.contains(currentVideo) || !videos.includes(currentVideo))) {
             if (currentVideo) currentVideo.pause();
             currentVideo = null;
@@ -762,12 +710,12 @@
 
     function fixOverflow() {
         const overflowFixSites = []; // 여기에 특정 사이트의 오버플로우 문제를 해결하기 위한 설정 추가 가능
-        // 예시: overflowFixSites.push({ domain: 'youtube.com', selectors: ['ytd-app'] });
+        // 예시: overflowFixSites.push({ domain: 'youtube.com', selectors: ['ytd-app', 'ytd-page-manager'] });
         overflowFixSites.forEach(site => {
             if (location.hostname.includes(site.domain)) {
                 site.selectors.forEach(sel => {
                     document.querySelectorAll(sel).forEach(el => {
-                        el.style.overflow = 'visible'; // 강제로 overflow를 visible로 변경
+                        el.style.setProperty('overflow', 'visible', 'important'); // 강제로 overflow를 visible로 변경
                     });
                 });
             }
@@ -775,7 +723,7 @@
             if (document.fullscreenElement) {
                 if (location.hostname.includes(site.domain)) {
                     // Example: if a site's full-screen video container has 'overflow: hidden'
-                    // document.fullscreenElement.style.overflow = 'visible';
+                    // document.fullscreenElement.style.setProperty('overflow', 'visible', 'important');
                 }
             }
         });
@@ -819,6 +767,8 @@
                 }
             });
 
+            // 주기적인 체크 시에는 팝업을 자동으로 띄우지 않습니다.
+            // 단, 현재 선택된 비디오가 없으면 가장 적절한 비디오를 찾아 currentVideo를 설정합니다.
             if (!currentVideo) {
                 selectVideoLogic(null);
             }
@@ -878,12 +828,13 @@
         // 4. 팝업이 열려 있는데 팝업 외부를 클릭한 경우: 팝업 숨김
         if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
             hidePopup();
-            return;
+            // 하지만 풀스크린 상태에서는 클릭하면 팝업을 다시 띄워야 하므로, 이 hidePopup 호출 후 바로 return 하지 않습니다.
+            // 대신 selectVideoLogic에서 다시 팝업을 띄울지 결정합니다.
+            // return; // 제거
         }
 
         // 5. 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
-        // 풀스크린 상태에서는 비디오 외의 영역 클릭도 팝업을 띄우도록 허용
-        selectVideoLogic(e);
+        selectVideoLogic(e); // 'e'를 전달하여 사용자 상호작용임을 알림
     }, true); // `true`는 capturing phase에서 이벤트를 가로채겠다는 의미
 
     // touchend 이벤트 핸들러: 모바일 환경에서 팝업을 즉시 띄우기 위해 selectVideoLogic을 직접 호출하도록 수정
@@ -912,12 +863,12 @@
         // 팝업이 열려 있는데 팝업 외부를 터치한 경우: 팝업 숨김
         if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
             hidePopup();
-            return;
+            // 하지만 풀스크린 상태에서는 클릭하면 팝업을 다시 띄워야 하므로, 이 hidePopup 호출 후 바로 return 하지 않습니다.
+            // return; // 제거
         }
 
         // 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
-        // 풀스크린 상태에서는 비디오 외의 영역 터치도 팝업을 띄우도록 허용
-        selectVideoLogic(e);
+        selectVideoLogic(e); // 'e'를 전달하여 사용자 상호작용임을 알림
     }, true); // `true`로 설정하여 capturing phase에서 이벤트 감지
 
     // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 끝 ---
@@ -927,7 +878,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.13_AutoplayAttemptImprovement_MobileFix');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.14_AutoplayAttemptImprovement_MobileFullScreenClickFix');
 
         createPopupElement();
         hidePopup();
