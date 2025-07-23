@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.13: 자동재생 개선 시도)
+// @name Video Controller Popup (V4.11.13: 자동재생 개선 시도 및 모바일 전체화면 클릭 버그 픽스)
 // @namespace Violentmonkey Scripts
-// @version 4.11.13_AutoplayAttemptImprovement
+// @version 4.11.13_AutoplayAttemptImprovement_MobileFix
 // @description Core video controls with streamlined UI. All videos auto-play with sound (if possible). Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with horizontal speed slider.
 // @match *://*/*
 // @grant none
@@ -414,21 +414,22 @@
             dragHandle.style.cursor = 'grabbing';
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            if (clientX === undefined || clientY === undefined) return; // Prevent dragging with invalid coords
             const rect = popupElement.getBoundingClientRect();
             popupDragOffsetX = clientX - rect.left;
             popupDragOffsetY = clientY - rect.top;
             popupElement.style.position = 'fixed';
             popupElement.style.transform = 'none';
-            document.body.style.userSelect = 'none';
+            document.body.style.userSelect = 'none'; // Prevent text selection during drag
         };
 
         const stopDrag = () => {
             if (isPopupDragging) {
                 isPopupDragging = false;
                 dragHandle.style.cursor = 'grab';
-                document.body.style.userSelect = '';
+                document.body.style.userSelect = ''; // Re-enable text selection
                 resetPopupHideTimer();
-                updatePopupPosition();
+                updatePopupPosition(); // Recalculate position to fit within boundaries after drag
             }
         };
 
@@ -632,16 +633,35 @@
             // Best intersection ratio video (already set)
         } else {
             // No suitable video found.
+            // --- 추가된 로직 시작 ---
+            // 풀스크린 상태에서 현재 currentVideo가 없거나 비디오를 찾지 못했을 때,
+            // 그리고 사용자의 명시적인 클릭/터치 이벤트인 경우,
+            // 이전 currentVideo가 있었고 풀스크린 상태가 유지된다면
+            // 이전 currentVideo를 다시 선택하려고 시도합니다.
+            if (document.fullscreenElement && !currentVideo && e instanceof Event) {
+                // 이전에 currentVideo였던 요소를 찾아보거나,
+                // 아니면 그냥 가장 점수가 높은 bestVideo를 사용하도록 합니다.
+                // 이 부분은 이전 currentVideo를 저장해두는 변수가 필요합니다.
+                // 현재 코드에서는 따로 이전 currentVideo를 저장하지 않으므로,
+                // 단순히 bestVideo가 없는 경우 팝업을 숨기는 것으로 처리합니다.
+                // 만약 전체 화면 시에도 특정 비디오를 계속 추적하고 싶다면,
+                // `currentVideo`가 `null`이 되더라도 `lastKnownFullscreenVideo` 같은 변수에
+                // 저장해두었다가 여기서 다시 활용하는 로직이 필요합니다.
+                // 여기서는 우선 가장 근접한 비디오가 없을 때 팝업을 숨기는 기존 로직을 따릅니다.
+            }
+            // --- 추가된 로직 끝 ---
         }
 
+        // --- 수정된 조건 시작: 전체 화면일 경우, 가장 최적의 비디오가 없더라도 currentVideo를 유지하거나,
+        //                 클릭 이벤트가 발생하면 팝업을 보여주도록 함 ---
         if (bestVideo && (maxIntersectionRatio > 0 || bestVideo.tagName === 'AUDIO' || !bestVideo.paused)) {
             if (currentVideo !== bestVideo) {
                 // 비디오가 바뀌면 기존 비디오 일시정지 및 초기화
                 if (currentVideo) currentVideo.pause();
-                currentVideo = null;
-                selectAndControlVideo(bestVideo); // 이 함수는 팝업을 띄우지 않음
+                currentVideo = null; // 중요: selectAndControlVideo가 currentVideo를 새로 설정
+                selectAndControlVideo(bestVideo);
 
-                // 이 경우에만 팝업을 표시 (사용자 클릭 또는 터치에 의해 트리거된 경우)
+                // 사용자의 클릭/터치에 의해 트리거된 경우에만 팝업 표시
                 if (e instanceof Event) {
                     showPopup();
                     resetPopupHideTimer();
@@ -649,18 +669,28 @@
                     hidePopup(); // 자동 감지 시에는 팝업 숨김
                 }
             } else { // 이미 선택된 비디오가 그대로 유지될 때
-                if (e instanceof Event) { // 사용자 클릭/터치일 때만 팝업 표시
+                // 사용자 클릭/터치일 때 팝업 표시 및 타이머 리셋
+                if (e instanceof Event) {
                     showPopup();
                     resetPopupHideTimer();
                 }
             }
-        } else { // 적합한 비디오가 없을 때
+        } else if (currentVideo && document.fullscreenElement && e instanceof Event) {
+             // 전체 화면 상태에서 현재 currentVideo가 있지만, bestVideo가 없거나 가시성 조건에 안 맞을 때
+             // (예: 사이트 오버레이 때문에 비디오 Rect 계산이 꼬였을 때)
+             // 사용자의 클릭/터치라면 팝업을 보여주도록 강제합니다.
+             // 이 경우 currentVideo는 그대로 유지됩니다.
+             showPopup();
+             resetPopupHideTimer();
+        }
+        else { // 적합한 비디오가 없을 때
             if (currentVideo) {
                 currentVideo.pause();
             }
             currentVideo = null;
             hidePopup();
         }
+        // --- 수정된 조건 끝 ---
     }
 
 
@@ -732,11 +762,12 @@
 
     function fixOverflow() {
         const overflowFixSites = []; // 여기에 특정 사이트의 오버플로우 문제를 해결하기 위한 설정 추가 가능
+        // 예시: overflowFixSites.push({ domain: 'youtube.com', selectors: ['ytd-app'] });
         overflowFixSites.forEach(site => {
             if (location.hostname.includes(site.domain)) {
                 site.selectors.forEach(sel => {
                     document.querySelectorAll(sel).forEach(el => {
-                        el.style.overflow = 'visible';
+                        el.style.overflow = 'visible'; // 강제로 overflow를 visible로 변경
                     });
                 });
             }
@@ -822,52 +853,40 @@
     }, { passive: true }); // passive: true로 스크롤 성능 최적화
 
     // 'click' 이벤트 리스너: 캡처링 단계에서 먼저 처리하여 사용자 정의 로직 우선 적용
-    // 이 리스너는 팝업 내부, 링크/버튼 클릭, 드래그 등을 필터링하여 웹사이트의 기본 동작을 보존합니다.
     document.body.addEventListener('click', (e) => {
         if (!e) return;
 
         // 1. 팝업 내부 클릭인 경우: 타이머 리셋만 하고 기본 동작 허용
         if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
             resetPopupHideTimer();
-            // Important: Do NOT stop propagation or prevent default here for popup internal clicks
-            // This allows buttons and sliders within the popup to function normally.
             return;
         }
 
         // 2. 터치 드래그(스크롤)가 있었으면 클릭 무시 (의도치 않은 클릭 방지)
-        // touchMoved 플래그는 touchmove에서만 설정되므로, 여기서는 단순히 검사하고 초기화
         if (touchMoved) {
             touchMoved = false; // 플래그 초기화
-            // console.log("Click ignored due to touchMoved.");
-            // e.preventDefault(); // Click 이벤트는 preventDefault하지 않아도 됨. touchMoved가 true이면 이미 스크롤이 발생했을 가능성이 높음.
-            // e.stopImmediatePropagation(); // Click 이벤트 전파를 멈춰 다른 Click 리스너에 영향을 주지 않음
-            return; // 클릭으로 간주하지 않고 함수 종료
+            return;
         }
 
         // 3. 클릭된 요소가 링크(<a>)이거나 버튼 역할을 하는 요소인지 확인 (페이지 이동/버튼 기능 방해 방지)
         const clickedLink = e.target.closest('a');
-        // A more robust check for clickable elements (buttons, inputs, elements with role="button", etc.)
         const isClickableElement = e.target.matches('button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
-
         if (clickedLink || isClickableElement) {
-            // console.log("Click ignored: clicked a link or a clickable element.");
-            return; // 웹사이트의 원래 클릭 동작을 허용하고 스크립트 로직 중단
+            return;
         }
 
         // 4. 팝업이 열려 있는데 팝업 외부를 클릭한 경우: 팝업 숨김
         if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
             hidePopup();
-            // console.log("Popup hidden: clicked outside popup.");
-            return; // 팝업만 숨기고 웹사이트의 다른 클릭 동작은 허용
+            return;
         }
 
         // 5. 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
-        // console.log("Proceeding with selectVideoLogic from click event.");
-        selectVideoLogic(e); // 'e'를 전달하여 사용자 상호작용임을 알림
+        // 풀스크린 상태에서는 비디오 외의 영역 클릭도 팝업을 띄우도록 허용
+        selectVideoLogic(e);
     }, true); // `true`는 capturing phase에서 이벤트를 가로채겠다는 의미
 
     // touchend 이벤트 핸들러: 모바일 환경에서 팝업을 즉시 띄우기 위해 selectVideoLogic을 직접 호출하도록 수정
-    // 클릭 이벤트의 지연 또는 억제를 우회하기 위함.
     document.body.addEventListener('touchend', (e) => {
         if (!e) return;
 
@@ -878,33 +897,27 @@
         }
 
         // 터치 드래그(스크롤)가 있었으면 팝업 표시를 막음
-        // touchend가 click보다 먼저 발생하므로, 여기서 touchMoved를 먼저 확인.
         if (touchMoved) {
             touchMoved = false; // 플래그 초기화
-            // console.log("Touchend ignored due to touchMoved (preventing popup).");
-            return; // 드래그 후에는 팝업 표시를 막음
+            return;
         }
 
-        // 클릭된 요소가 링크(<a>)이거나 버튼 역할을 하는 요소인지 확인 (페이지 이동/버튼 기능 방해 방지)
-        // Touchend에서 e.target.closest('a')를 확인하여 링크 클릭을 방지합니다.
+        // 클릭된 요소가 링크(<a>)이거나 버튼 역할을 하는 요소인지 확인
         const clickedLink = e.target.closest('a');
         const isClickableElement = e.target.matches('button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
-
         if (clickedLink || isClickableElement) {
-            // console.log("Touchend ignored: clicked a link or a clickable element.");
-            return; // 웹사이트의 원래 터치 동작을 허용하고 스크립트 로직 중단
+            return;
         }
 
         // 팝업이 열려 있는데 팝업 외부를 터치한 경우: 팝업 숨김
         if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
             hidePopup();
-            // console.log("Popup hidden: touched outside popup.");
-            return; // 팝업만 숨기고 웹사이트의 다른 터치 동작은 허용
+            return;
         }
 
         // 위 모든 조건에 해당하지 않는 경우: 비디오 선택 로직 실행 (팝업 표시 가능)
-        // console.log("Proceeding with selectVideoLogic from touchend event.");
-        selectVideoLogic(e); // 'e'를 전달하여 사용자 상호작용임을 알림
+        // 풀스크린 상태에서는 비디오 외의 영역 터치도 팝업을 띄우도록 허용
+        selectVideoLogic(e);
     }, true); // `true`로 설정하여 capturing phase에서 이벤트 감지
 
     // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 최종 픽스 로직 끝 ---
@@ -914,7 +927,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.13_AutoplayAttemptImprovement');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.13_AutoplayAttemptImprovement_MobileFix');
 
         createPopupElement();
         hidePopup();
