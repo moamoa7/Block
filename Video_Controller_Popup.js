@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.11.24: Click／Touchend 통합)
 // @namespace Violentmonkey Scripts
-// @version 4.11.24_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange_EnhancedScrollHide_OptimizedScrollMove_FullscreenOptimized_ClickTouchendIntegrated
-// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance. Enhanced: Popup hides on scroll/touch if currentVideo is out of view. Optimized: onUserScrollOrTouchMove performance. Optimized: Fullscreen transition handling. Optimized: Click/Touchend event handling.
+// @version 4.11.24_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange_EnhancedScrollHide_OptimizedScrollMove_FullscreenOptimized_ClickTouchendIntegrated_RAF_Optimized_ThrottledDrag
+// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance. Enhanced: Popup hides on scroll/touch if currentVideo is out of view. Optimized: onUserScrollOrTouchMove performance. Optimized: Fullscreen transition handling. Optimized: Click/Touchend event handling. Optimized: requestAnimationFrame loop for precise UI updates. Optimized: Throttled drag for smoother popup movement.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -20,6 +20,7 @@
     let videoObserver = null;
     let observedVideosData = new Map();
     let lastPopupPosition = { left: -9999, top: -9999 };
+    let lastUpdatedPlaybackRate = null;
 
     const videoRateHandlers = new WeakMap();
 
@@ -32,6 +33,38 @@
     let spaDetectionObserverInstance = null;
 
     // --- Utility Functions ---
+
+    // ⭐ 추가: 스로틀링 유틸리티 함수
+    function throttle(func, delay) {
+        let lastCall = 0;
+        let timeoutId = null; // ⭐ 추가: 마지막 호출 보정을 위한 타이머 ID (요청에는 없었지만, 부드러움을 위해 추가)
+
+        return function(...args) {
+            const now = Date.now();
+            // ⭐ 보정: 마지막 호출 후 delay 내에 다시 호출되면, delay 이후에라도 한 번은 실행되도록
+            // 이 구현은 requestAnimationFrame 기반이 아닌 Date.now() 기반의 단순 스로틀링입니다.
+            // requestAnimationFrame과 동기화된 드래그를 원하면 별도의 로직이 필요합니다.
+            // 현재 요구사항은 DOM 업데이트 빈도 조절이므로 이대로도 충분합니다.
+            if (now - lastCall < delay) {
+                // 이전에 예약된 호출이 없다면, 현재 delay 시간 이후에 실행되도록 예약
+                if (!timeoutId) {
+                    timeoutId = setTimeout(() => {
+                        lastCall = Date.now();
+                        timeoutId = null;
+                        func.apply(this, args);
+                    }, delay - (now - lastCall));
+                }
+                return; // delay 내라면 바로 리턴하여 불필요한 호출 방지
+            }
+
+            // delay를 넘겼다면 즉시 실행
+            lastCall = now;
+            clearTimeout(timeoutId); // 예약된 이전 호출이 있다면 취소
+            timeoutId = null;
+            func.apply(this, args);
+        };
+    }
+
     function findAllVideosDeep(root = document) {
         let videos = Array.from(root.querySelectorAll('video, audio'));
         return videos;
@@ -43,7 +76,6 @@
             const style = window.getComputedStyle(v);
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
-            // isVisibleInViewport 함수로 가시성 검사를 대체하거나 보완
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
             const isReasonableSize = (rect.width >= 250 && rect.height >= 250);
             const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
@@ -54,14 +86,12 @@
         return playableVideos;
     }
 
-    // --- 새로 추가된 isVisibleInViewport 함수 ---
     function isVisibleInViewport(video) {
         const rect = video.getBoundingClientRect();
         return rect.bottom > 0 && rect.top < window.innerHeight &&
                rect.right > 0 && rect.left < window.innerWidth &&
                rect.width > 0 && rect.height > 0;
     }
-    // --- isVisibleInViewport 함수 끝 ---
 
     function selectAndControlVideo(videoToControl) {
         if (!videoToControl) {
@@ -79,6 +109,7 @@
             isManuallyMuted = currentVideo.muted;
             desiredPlaybackRate = currentVideo.playbackRate;
             desiredVolume = currentVideo.volume;
+            lastUpdatedPlaybackRate = null;
         }
 
         fixPlaybackRate(currentVideo, desiredPlaybackRate);
@@ -102,7 +133,7 @@
         const rateChangeHandler = () => {
             if (video.playbackRate !== desiredPlaybackRate) {
                 desiredPlaybackRate = video.playbackRate;
-                updatePopupSliders();
+                updatePopupSliders(); // 외부 ratechange 시 업데이트
             }
         };
         video.addEventListener('ratechange', rateChangeHandler);
@@ -267,11 +298,15 @@
         const speedInput = popupElement.querySelector('#vcp-speed');
         const speedDisplay = popupElement.querySelector('#vcp-speed-display');
 
-        if (speedInput) {
-            speedInput.value = desiredPlaybackRate.toFixed(1);
-        }
-        if (speedDisplay) {
-            speedDisplay.textContent = desiredPlaybackRate.toFixed(2) + 'x';
+        if (speedInput && speedDisplay) {
+            const currentRate = desiredPlaybackRate.toFixed(2);
+            const lastRate = lastUpdatedPlaybackRate !== null ? lastUpdatedPlaybackRate.toFixed(2) : null;
+
+            if (currentRate !== lastRate) {
+                speedInput.value = desiredPlaybackRate.toFixed(1);
+                speedDisplay.textContent = desiredPlaybackRate.toFixed(2) + 'x';
+                lastUpdatedPlaybackRate = desiredPlaybackRate;
+            }
         }
     }
 
@@ -299,6 +334,36 @@
         }
     }
 
+    // ⭐ dragPopup 함수 정의 (스코프 유지)
+    const dragPopup = (e) => {
+        if (!isPopupDragging) return;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        if (clientX === undefined || clientY === undefined) return;
+
+        const isFullscreen = document.fullscreenElement !== null;
+        let targetLeft, targetTop;
+
+        if (isFullscreen) {
+            const fsRect = document.fullscreenElement.getBoundingClientRect();
+            targetLeft = (clientX - popupDragOffsetX) - fsRect.left;
+            targetTop = (clientY - popupDragOffsetY) - fsRect.top;
+        } else {
+            targetLeft = clientX - popupDragOffsetX;
+            targetTop = clientY - popupDragOffsetY;
+        }
+
+        popupElement.style.left = `${targetLeft}px`;
+        popupElement.style.top = `${targetTop}px`;
+
+        lastPopupPosition.left = targetLeft;
+        lastPopupPosition.top = targetTop;
+    };
+
+    // ⭐ 스로틀링된 dragPopup 함수들 생성
+    const throttledDragPopupMouse = throttle(dragPopup, 16); // 60fps
+    const throttledDragPopupTouch = throttle(dragPopup, 30); // 약 30fps
+
     function setupPopupEventListeners() {
         if (!popupElement) return;
 
@@ -314,6 +379,7 @@
             const rate = parseFloat(speedInput.value);
             if (currentVideo) { fixPlaybackRate(currentVideo, rate); }
             speedDisplay.textContent = rate.toFixed(2) + 'x';
+            lastUpdatedPlaybackRate = rate;
         });
 
         const dragHandle = popupElement.querySelector('#vcp-drag-handle');
@@ -331,48 +397,29 @@
             document.body.style.userSelect = 'none';
         };
 
-        const stopDrag = () => {
+        const stopDrag = (e) => { // ⭐ e 인자 추가
             if (isPopupDragging) {
                 isPopupDragging = false;
                 dragHandle.style.cursor = 'grab';
                 document.body.style.userSelect = '';
                 resetPopupHideTimer();
                 lastPopupPosition = { left: -9999, top: -9999 };
+
+                // ⭐ 드래그 종료 시 마지막 위치 보정
+                if (e) { // 이벤트 객체가 있다면 (마우스/터치 업 이벤트에서)
+                    dragPopup(e); // 스로틀링 없이 원본 dragPopup 호출
+                }
             }
-        };
-
-        const dragPopup = (e) => {
-            if (!isPopupDragging) return;
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-            if (clientX === undefined || clientY === undefined) return;
-
-            const isFullscreen = document.fullscreenElement !== null;
-            let targetLeft, targetTop;
-
-            if (isFullscreen) {
-                const fsRect = document.fullscreenElement.getBoundingClientRect();
-                targetLeft = (clientX - popupDragOffsetX) - fsRect.left;
-                targetTop = (clientY - popupDragOffsetY) - fsRect.top;
-            } else {
-                targetLeft = clientX - popupDragOffsetX;
-                targetTop = clientY - popupDragOffsetY;
-            }
-
-            popupElement.style.left = `${targetLeft}px`;
-            popupElement.style.top = `${targetTop}px`;
-
-            lastPopupPosition.left = targetLeft;
-            lastPopupPosition.top = targetTop;
         };
 
         dragHandle.addEventListener('mousedown', startDrag);
         dragHandle.addEventListener('touchstart', startDrag, { passive: false });
-        document.addEventListener('mousemove', dragPopup);
-        document.addEventListener('touchmove', dragPopup, { passive: false });
+        // ⭐ 변경: 스로틀링된 함수 사용
+        document.addEventListener('mousemove', throttledDragPopupMouse);
+        document.addEventListener('touchmove', throttledDragPopupTouch, { passive: false });
         document.addEventListener('mouseup', stopDrag);
         document.addEventListener('touchend', stopDrag);
-        document.addEventListener('mouseleave', stopDrag);
+        document.addEventListener('mouseleave', stopDrag); // 마우스가 문서 밖으로 나갔을 때 드래그 종료
     }
 
     function setPopupVisibility(isVisible) {
@@ -470,7 +517,7 @@
         }
     }
 
-    // --- 비디오 우선순위 점수 계산 함수 (새로운 로직 적용) ---
+    // --- 비디오 우선순위 점수 계산 함수 ---
     function calculateVideoScore(video) {
         const rect = video.getBoundingClientRect();
         const centerX = window.innerWidth / 2;
@@ -488,7 +535,7 @@
         return score;
     }
 
-    // --- 교차 비율을 계산하는 별도 함수 (기존 intersectionRatio와는 다르게, 전체 면적 대비 가시 면적 비율) ---
+    // --- 교차 비율을 계산하는 별도 함수 ---
     function calculateIntersectionRatio(video) {
         const rect = video.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return 0;
@@ -518,7 +565,6 @@
             activeVideo = candidateVideos[0].video;
         }
 
-        // --- currentVideo 제거 조건 개선 적용 ---
         if (activeVideo) {
             selectAndControlVideo(activeVideo);
 
@@ -527,16 +573,14 @@
                 resetPopupHideTimer();
             }
         } else {
-            // 새롭게 선택된 비디오가 없을 때, 현재 비디오가 있다면 가시성 확인
             if (currentVideo && (!document.body.contains(currentVideo) || !isVisibleInViewport(currentVideo))) {
                 console.log('[VCP] Current video is not in DOM or not visible in viewport. Hiding popup.');
                 currentVideo = null;
                 hidePopup();
-            } else if (!currentVideo) { // 아예 선택된 비디오가 없을 경우
-                 hidePopup();
+            } else if (!currentVideo) {
+                hidePopup();
             }
         }
-        // --- 개선된 currentVideo 제거 조건 끝 ---
     }
 
     let scrollTimeout = null;
@@ -544,7 +588,6 @@
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
             updateVideoList();
-            // currentVideo가 DOM에 있지만 뷰포트 밖으로 완전히 벗어났을 경우
             if (currentVideo && (!document.body.contains(currentVideo) || !observedVideosData.has(currentVideo) || observedVideosData.get(currentVideo).intersectionRatio === 0 || !isVisibleInViewport(currentVideo))) {
                 currentVideo = null;
                 hidePopup();
@@ -573,15 +616,13 @@
                 hidePopup();
                 return;
             }
-            // 기존 isVideoVisibleInViewport 로직을 isVisibleInViewport로 대체
             if (!isVisibleInViewport(currentVideo)) {
                 hidePopup();
             }
         }, HIDE_DEBOUNCE_MS);
     }
-    // --- onUserScrollOrTouchMove() 최적화 적용 끝 ---
 
-    // --- DOM 변경 감지 및 데바운스 처리 함수 (함수화) ---
+    // --- DOM 변경 감지 및 데바운스 처리 함수 ---
     function setupDebouncedDOMObserver(onChangeCallback, debounceMs = 300) {
         let debounceTimer = null;
 
@@ -730,7 +771,6 @@
                 popupElement.style.top = `${actualTargetTop}px`;
             }
 
-            // 기존 isVideoVisibleInViewport 로직을 isVisibleInViewport로 대체
             if (!isVisibleInViewport(currentVideo)) {
                 hidePopup();
             }
@@ -914,6 +954,9 @@
                 spaDetectionObserverInstance.disconnect();
                 spaDetectionObserverInstance = null;
             }
+            // ⭐ 변경된 이벤트 리스너 제거: 스로틀링 함수도 제거 필요 (안전하게 추가)
+            document.removeEventListener('mousemove', throttledDragPopupMouse);
+            document.removeEventListener('touchmove', throttledDragPopupTouch, { passive: false });
         });
     }
 
@@ -922,7 +965,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.24_Refactored_VisibilityCheck.');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.24_Refactored_VisibilityCheck_RAF_Optimized_ThrottledDrag.');
 
         createPopupUI();
         setupPopupEventListeners();
