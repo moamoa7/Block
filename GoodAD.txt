@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250723
+! Version: 20250724
 !
 !
 !
@@ -2494,10 +2494,6 @@ clien.net#@#.ad_banner
 ! - - - Svideos JAV (https://avsshub.net/)
 !##[class="happy-inside-player"]
 ##.happy-inside-player
-! - 기타
-||mediadelivery.net/rum.js^$script
-/jquery.cookie.min.js^$script
-||histats.com^$3p
 ! - 차단 사이트
 !||waust.at^
 !
@@ -6093,4 +6089,7 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
+
+
 
