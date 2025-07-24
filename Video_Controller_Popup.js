@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.20: 다음 영상 이동 시 팝업 숨김)
+// @name Video Controller Popup (V4.11.21: 스크롤/터치 시 팝업 숨김 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.11.20_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange
-// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance.
+// @version 4.11.21_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange_EnhancedScrollHide
+// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance. Enhanced: Popup hides on scroll/touch if currentVideo is out of view.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -56,16 +56,14 @@
     function selectAndControlVideo(videoToControl) {
         if (!videoToControl) {
             if (currentVideo) {
-                // 현재 비디오가 null이 되면 팝업을 즉시 숨깁니다.
-                hidePopup();
+                hidePopup(); // 현재 비디오가 null이 되면 팝업을 즉시 숨깁니다.
             }
             currentVideo = null;
             return;
         }
 
         if (currentVideo !== videoToControl) {
-            // 비디오가 변경될 때 이전 팝업을 즉시 숨깁니다.
-            hidePopup();
+            hidePopup(); // 비디오가 변경될 때 이전 팝업을 즉시 숨깁니다.
             currentVideo = videoToControl;
 
             isManuallyMuted = currentVideo.muted;
@@ -437,6 +435,7 @@
         }
 
         const isVideoVisible = videoRect.top < window.innerHeight && videoRect.bottom > 0 && videoRect.left < window.innerWidth && videoRect.right > 0;
+        // 이 부분은 기존에도 팝업 숨김 로직이 있었으므로 유지
         if (!isVideoVisible) {
             hidePopup();
         }
@@ -560,7 +559,7 @@
         if (activeVideo) {
             // currentVideo가 변경되면 selectAndControlVideo 내에서 팝업을 숨기도록 함
             selectAndControlVideo(activeVideo);
-
+            
             if (e instanceof Event) { // 클릭/터치 이벤트일 때만 팝업 표시
                 showPopup();
                 resetPopupHideTimer();
@@ -584,6 +583,33 @@
             selectVideoLogic(); // 스크롤이 멈춘 후에도 적절한 비디오를 다시 선택하여 currentVideo 설정 유지 (팝업은 클릭해야 뜸)
         }, 100); // 100ms Debounce
     }
+
+    // --- 새로운 팝업 숨김 강화 로직 추가 ---
+    let hideCheckTimer = null;
+    function onUserScrollOrTouchMove() {
+        if (!isPopupVisible || isPopupDragging) return; // 팝업이 안보이거나 드래그 중이면 체크 불필요
+
+        if (hideCheckTimer) clearTimeout(hideCheckTimer);
+        hideCheckTimer = setTimeout(() => {
+            if (!currentVideo) { // 현재 선택된 비디오가 없으면 팝업 숨김
+                hidePopup();
+                return;
+            }
+            const rect = currentVideo.getBoundingClientRect();
+            // 비디오가 뷰포트 밖으로 완전히 벗어났는지 확인
+            const isVisible = rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth;
+            
+            if (!isVisible) {
+                hidePopup();
+                // currentVideo = null; // 여기서 currentVideo를 null로 설정하면 IntersectionObserver 등이 다음 비디오를 더 빨리 감지할 수 있음
+            }
+        }, 200); // 200ms debounce
+    }
+    // 기존 scroll 이벤트 리스너가 있으므로, 여기서는 touchmove만 추가합니다.
+    // 기존 window.addEventListener('scroll', handleScrollEvent, { passive: true });는 유지
+    // onUserScrollOrTouchMove는 handleScrollEvent와 별개로 팝업 가시성만을 독립적으로 처리합니다.
+    // window.addEventListener('scroll', onUserScrollOrTouchMove, { passive: true }); // handleScrollEvent와 중복 가능성, 아래 초기화에서 통합
+    // --- 새로운 팝업 숨김 강화 로직 끝 ---
 
     // --- DOM 변경 감지 및 데바운스 처리 함수 (함수화) ---
     function setupDebouncedDOMObserver(onChangeCallback, debounceMs = 300) {
@@ -691,7 +717,7 @@
             if (currentVideo.playbackRate !== desiredPlaybackRate) {
                 currentVideo.playbackRate = desiredPlaybackRate;
             }
-            if (currentVideo.muted !== isManuallyMuted) { // isManuallyMutter 오타 수정
+            if (currentVideo.muted !== isManuallyMuted) {
                 currentVideo.muted = isManuallyMuted;
             }
             if (!currentVideo.muted && Math.abs(currentVideo.volume - desiredVolume) > 0.005) {
@@ -743,6 +769,7 @@
         const deltaY = Math.abs(touch.clientY - touchStartY);
         if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
             touchMoved = true;
+            onUserScrollOrTouchMove(); // 터치 이동 시에도 팝업 숨김 로직 즉시 실행
         }
     }, { passive: true });
 
@@ -789,7 +816,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.20_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange.');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.21_EnhancedScrollHide.');
 
         createPopupElement();
         hidePopup(); // 팝업은 초기에는 숨겨둡니다.
@@ -868,7 +895,11 @@
             updatePopupPosition();
         });
 
-        window.addEventListener('scroll', handleScrollEvent, { passive: true });
+        // 기존 handleScrollEvent는 그대로 두고,
+        // onUserScrollOrTouchMove는 별도의 팝업 숨김 감시 로직으로 추가합니다.
+        window.addEventListener('scroll', onUserScrollOrTouchMove, { passive: true }); // 추가
+        window.addEventListener('touchmove', onUserScrollOrTouchMove, { passive: true }); // 추가
+        window.addEventListener('scroll', handleScrollEvent, { passive: true }); // 기존 유지
 
         fixOverflow(); // 이 함수는 현재 아무런 강제 스타일 변경을 하지 않음
 
@@ -892,12 +923,10 @@
                 domMutationObserverInstance.disconnect();
                 domMutationObserverInstance = null;
             }
-            if (spaDetectionObserverInstance) { // 이 변수는 이제 History API 감지에도 사용될 수 있음
-                // History API 감지 함수는 Observer 인스턴스를 반환하지 않으므로, 이 부분은 MutationObserver에만 해당
+            if (spaDetectionObserverInstance) {
                 spaDetectionObserverInstance.disconnect();
                 spaDetectionObserverInstance = null;
             }
-            // History API는 재정의되므로 별도의 해제 로직이 필요 없음. popstate 리스너는 window가 언로드되면 자동으로 해제됨.
         });
     }
 
