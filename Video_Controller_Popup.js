@@ -44,7 +44,7 @@
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia;
+            const isReasonableSize = (rect.width >= 250 && rect.height >= 250);  // 가로 세로 250px 이하는 제외
             const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
             const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
             return isVisible && isReasonableSize && hasMedia && isWithinViewport;
