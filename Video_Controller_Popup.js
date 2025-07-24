@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Video Controller Popup (V4.11.21: 스크롤/터치 시 팝업 숨김 강화)
 // @namespace Violentmonkey Scripts
-// @version 4.11.21_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange_EnhancedScrollHide
+// @version 4.11.21_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange_EnhancedScrollHide_NoInitialPopup
 // @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance. Enhanced: Popup hides on scroll/touch if currentVideo is out of view.
 // @match *://*/*
 // @grant none
@@ -125,15 +125,18 @@
             position: fixed; /* 기본적으로 fixed */
             background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
             padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; /* 항상 최상위 z-index */
-            display: none; opacity: 0; transition: opacity 0.3s;
+            opacity: 0; transition: opacity 0.3s;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             width: fit-content;
             min-width: 280px;
             overflow: hidden; text-align: center; pointer-events: auto;
-            display: flex;
+            display: flex; /* 초기에는 display: none !important로 설정되므로 여기서는 flex로 지정 */
             flex-direction: column;
             align-items: stretch;
         `;
+        // --- 팝업 생성 시 display: none !important 강제 적용 ---
+        popupElement.style.setProperty('display', 'none', 'important');
+        // ---
 
         const dragHandle = document.createElement('div');
         dragHandle.id = 'vcp-drag-handle';
@@ -349,13 +352,25 @@
         // --- 사용자 상호작용이 없으면 팝업 표시를 막음 ---
         if (isVisible && !hasUserInteracted) {
             console.log('[VCP] Popup visibility blocked: No user interaction yet.');
+            // 팝업이 이미 보이는 상태였다면 즉시 숨김
+            if (isPopupVisible) {
+                popupElement.style.setProperty('display', 'none', 'important');
+                popupElement.style.setProperty('opacity', '0', 'important');
+                popupElement.style.setProperty('visibility', 'hidden', 'important');
+                isPopupVisible = false;
+            }
             return;
         }
         // ---
 
         if (isVisible) {
-            const styles = { display: 'flex', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
-            for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
+            // --- setPopupVisibility(true)에서 display: flex !important 적용 ---
+            popupElement.style.setProperty('display', 'flex', 'important');
+            popupElement.style.setProperty('opacity', '0.75', 'important');
+            popupElement.style.setProperty('visibility', 'visible', 'important');
+            popupElement.style.setProperty('pointer-events', 'auto', 'important');
+            popupElement.style.setProperty('z-index', '2147483647', 'important');
+            // ---
             isPopupVisible = true;
             resetPopupHideTimer(); // 팝업이 보일 때마다 타이머 재설정
         } else {
@@ -363,9 +378,11 @@
                 clearTimeout(popupHideTimer);
                 popupHideTimer = null;
             }
-            popupElement.style.display = 'none';
-            popupElement.style.opacity = '0';
-            popupElement.style.visibility = 'hidden';
+            // --- setPopupVisibility(false)에서 display: none !important 적용 ---
+            popupElement.style.setProperty('display', 'none', 'important');
+            popupElement.style.setProperty('opacity', '0', 'important');
+            popupElement.style.setProperty('visibility', 'hidden', 'important');
+            // ---
             isPopupVisible = false;
         }
     }
@@ -460,6 +477,7 @@
 
             // IntersectionObserver는 스크롤과 같은 비동기적인 상황에서 호출되므로,
             // 이때는 팝업을 자동으로 띄우지 않도록 `e` 인자 없이 호출합니다.
+            // 하지만 currentVideo 설정은 여전히 필요하므로 selectVideoLogic 호출은 유지합니다.
             selectVideoLogic();
         };
 
@@ -545,7 +563,7 @@
 
             // 팝업은 명확히 사용자 클릭/터치 (e가 있고, e.type이 'click' 또는 'touchend'일 때) 에만 표시
             // 초기 로딩 시나 스크롤 등 비동기적인 호출에서는 팝업을 띄우지 않도록 합니다.
-            if (e && (e.type === 'click' || e.type === 'touchend')) {
+            if (e && (e.type === 'click' || e.type === 'touchend') && hasUserInteracted) {
                 showPopup();
                 resetPopupHideTimer();
             }
@@ -566,6 +584,7 @@
                 hidePopup();
             }
             // 스크롤 이벤트 후에는 팝업을 자동으로 띄우지 않으므로 `e` 인자 없이 호출
+            // 하지만 currentVideo 설정은 여전히 필요하므로 selectVideoLogic 호출은 유지합니다.
             selectVideoLogic();
         }, 100); // 100ms Debounce
     }
@@ -573,6 +592,9 @@
     // --- 새로운 팝업 숨김 강화 로직 추가 ---
     let hideCheckTimer = null;
     function onUserScrollOrTouchMove() {
+        // --- 사용자 상호작용이 없으면 이 로직도 실행하지 않음 ---
+        if (!hasUserInteracted) return;
+        // ---
         if (!isPopupVisible || isPopupDragging) return; // 팝업이 안보이거나 드래그 중이면 체크 불필요
 
         if (hideCheckTimer) clearTimeout(hideCheckTimer);
@@ -777,8 +799,18 @@
         if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
             hidePopup();
         }
-        // 이외의 경우 (비디오 영역 클릭 등으로 간주), 비디오 선택 로직 실행
-        selectVideoLogic(e); // 클릭 이벤트 발생 시에만 팝업을 표시하도록 e를 인자로 전달
+
+        // --- selectVideoLogic() 호출 조건 강화 ---
+        // 이외의 경우 (비디오 영역 클릭 등으로 간주), currentVideo가 아직 선택되지 않았다면 비디오 선택 로직 실행
+        // (즉, 첫 클릭 시에만 비디오 선택을 시도하여 팝업을 띄우도록 함)
+        if (!currentVideo) { // currentVideo가 없어야만 selectVideoLogic을 호출하여 새로운 비디오를 선택
+            selectVideoLogic(e); // 클릭 이벤트 발생 시에만 팝업을 표시하도록 e를 인자로 전달
+        } else if (popupElement && !popupElement.contains(e.target)) {
+            // 이미 currentVideo가 선택되었고, 팝업 외부를 클릭했지만 팝업이 숨겨지지 않았다면,
+            // 팝업이 다시 나타나도록 showPopup()을 명시적으로 호출 (타이머 재설정)
+            showPopup();
+        }
+        // ---
     }, true); // 캡처링 단계에서 이벤트 리스닝
 
     document.body.addEventListener('touchend', (e) => {
@@ -799,8 +831,13 @@
         if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
             hidePopup();
         }
-        // 이외의 경우 (비디오 영역 터치 등으로 간주), 비디오 선택 로직 실행
-        selectVideoLogic(e); // 터치 종료 이벤트 발생 시에만 팝업을 표시하도록 e를 인자로 전달
+        // --- selectVideoLogic() 호출 조건 강화 ---
+        if (!currentVideo) { // currentVideo가 없어야만 selectVideoLogic을 호출하여 새로운 비디오를 선택
+            selectVideoLogic(e); // 터치 종료 이벤트 발생 시에만 팝업을 표시하도록 e를 인자로 전달
+        } else if (popupElement && !popupElement.contains(e.target)) {
+            showPopup();
+        }
+        // ---
     }, true); // 캡처링 단계에서 이벤트 리스닝
     // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 픽스 끝 ---
 
@@ -818,8 +855,9 @@
         setupIntersectionObserver();
         updateVideoList(); // 초기 비디오 목록 감지 시작
 
-        // 초기 selectVideoLogic 호출 (이때는 hasUserInteracted가 false이므로 팝업은 뜨지 않음)
-        selectVideoLogic();
+        // --- 초기 selectVideoLogic 호출 제거 ---
+        // selectVideoLogic(); // 이 줄을 제거하여 초기 로딩 시 비디오 자동 선택 방지
+        // ---
 
         // --- DOM 변경 감지 및 SPA URL 변경 감지 초기화 ---
         const handleSpaUrlChange = (newUrl) => {
@@ -828,6 +866,7 @@
             hidePopup();
             updateVideoList();
             // SPA 변경 시에도 hasUserInteracted가 true일 때만 팝업이 표시되도록 selectVideoLogic에 e 없이 호출
+            // (즉, SPA 변경으로 새로운 비디오가 로드되더라도 사용자가 클릭하기 전에는 팝업이 뜨지 않음)
             selectVideoLogic();
         };
 
@@ -841,7 +880,7 @@
 
         // History API 감지 방식 활성화 (SPA URL 변경 감지 강화)
         setupHistoryListener(handleSpaUrlChange);
-        spaDetectionObserverInstance = setupSPADetection(handleSpaUrlChange); // MutationObserver 방식은 이 변수에 할당 유지
+        spaDetectionObserverInstance = setupSPADetection(handleUrlChange); // MutationObserver 방식은 이 변수에 할당 유지
 
         // --- 초기화 끝 ---
 
