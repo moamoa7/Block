@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.18: 영상 재생 시 팝업 자동 표시)
+// @name Video Controller Popup (V4.11.17: 스크롤 passive 최적화)
 // @namespace Violentmonkey Scripts
-// @version 4.11.18_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_AutoPopupOnPlay
-// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows automatically when video becomes active. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance.
+// @version 4.11.17_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll
+// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -69,9 +69,6 @@
             isManuallyMuted = currentVideo.muted;
             desiredPlaybackRate = currentVideo.playbackRate;
             desiredVolume = currentVideo.volume;
-            // 새 비디오가 선택될 때 팝업 자동 표시
-            showPopup();
-            resetPopupHideTimer(); // 자동 표시 후 타이머 시작
         }
 
         fixPlaybackRate(currentVideo, desiredPlaybackRate);
@@ -462,7 +459,7 @@
         const observerOptions = {
             root: null, // 뷰포트 기준
             rootMargin: '0px',
-            threshold: [0.3, 0.5, 0.7, 1.0] // 팝업 자동 표시를 위해 덜 민감하게 조정
+            threshold: [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0] // 5% 단위로 세분화
         };
 
         const observerCallback = (entries) => {
@@ -478,7 +475,7 @@
                 }
             });
 
-            selectVideoLogic(); // 스크롤 시 자동 감지되도록 인자 제거
+            selectVideoLogic(null);
         };
 
         videoObserver = new IntersectionObserver(observerCallback, observerOptions);
@@ -542,7 +539,7 @@
 
 
     // --- 개선된 selectVideoLogic 함수 ---
-    function selectVideoLogic(e) { // e는 이제 클릭 이벤트일 때만 넘어옴. 자동 선택 시에는 null
+    function selectVideoLogic(e) {
         let candidateVideos = Array.from(observedVideosData.entries())
             .filter(([video, data]) => data.intersectionRatio > 0)
             .map(([video, data]) => ({
@@ -560,9 +557,10 @@
 
         if (activeVideo) {
             if (currentVideo !== activeVideo) {
-                // 비디오 변경 시 selectAndControlVideo가 팝업을 표시합니다.
                 selectAndControlVideo(activeVideo);
-            } else if (e instanceof Event) { // 동일 비디오 클릭 시에도 팝업 표시 및 타이머 재설정
+            }
+
+            if (e instanceof Event) {
                 showPopup();
                 resetPopupHideTimer();
             }
@@ -582,7 +580,6 @@
                 currentVideo = null;
                 hidePopup();
             }
-            selectVideoLogic(); // 스크롤이 멈춘 후에도 적절한 비디오를 다시 선택하여 팝업 표시 여부 결정
         }, 100); // 100ms Debounce
     }
 
@@ -763,7 +760,7 @@
             hidePopup();
         }
         // 이외의 경우 (비디오 영역 클릭 등으로 간주), 비디오 선택 로직 실행
-        selectVideoLogic(e); // 클릭 이벤트 발생 시 팝업을 표시하도록 e를 인자로 전달
+        selectVideoLogic(e);
     }, true); // 캡처링 단계에서 이벤트 리스닝
 
     document.body.addEventListener('touchend', (e) => {
@@ -782,7 +779,7 @@
             hidePopup();
         }
         // 이외의 경우 (비디오 영역 터치 등으로 간주), 비디오 선택 로직 실행
-        selectVideoLogic(e); // 터치 종료 이벤트 발생 시 팝업을 표시하도록 e를 인자로 전달
+        selectVideoLogic(e);
     }, true); // 캡처링 단계에서 이벤트 리스닝
     // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 픽스 끝 ---
 
@@ -790,7 +787,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.18_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_AutoPopupOnPlay.');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.17_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll.');
 
         createPopupElement();
         hidePopup(); // 팝업은 초기에는 숨겨둡니다.
@@ -801,7 +798,7 @@
         updateVideoList(); // 초기 비디오 목록 감지 시작
 
         // 초기 selectVideoLogic 호출 (다른 비디오를 멈추지 않고, currentVideo만 설정)
-        selectVideoLogic(); // 초기화 시에도 팝업이 자동으로 뜰 수 있도록 인자 없이 호출
+        selectVideoLogic(null);
 
         // --- DOM 변경 감지 및 SPA URL 변경 감지 초기화 ---
         const handleSpaUrlChange = (newUrl) => {
@@ -809,14 +806,14 @@
             currentVideo = null; // currentVideo만 초기화
             hidePopup();
             updateVideoList();
-            selectVideoLogic(); // SPA 변경 시에도 다시 비디오 선택 로직 실행 (자동 팝업 표시)
+            selectVideoLogic(null); // SPA 변경 시에도 다시 비디오 선택 로직 실행
         };
 
         // MutationObserver 방식 활성화
         domMutationObserverInstance = setupDebouncedDOMObserver(() => {
             console.log('[VCP] DOM 변경 감지 (데바운스) - 비디오 목록 갱신');
             updateVideoList();
-            selectVideoLogic(); // DOM 변경 후 비디오 목록 갱신 시에도 팝업 자동 표시
+            selectVideoLogic(null);
         }, DEBOUNCE_MUTATION_OBSERVER_MS);
 
         // History API 감지 방식 활성화 (SPA URL 변경 감지 강화)
@@ -869,7 +866,9 @@
             updatePopupPosition();
         });
 
+        // --- 스크롤 이벤트 리스너에 passive: true 옵션 추가 ---
         window.addEventListener('scroll', handleScrollEvent, { passive: true });
+        // --- 스크롤 이벤트 리스너 변경 끝 ---
 
         fixOverflow(); // 이 함수는 현재 아무런 강제 스타일 변경을 하지 않음
 
