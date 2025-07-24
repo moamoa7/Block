@@ -23,7 +23,7 @@
     '/recaptcha/', '/challenge-platform/',  // 캡챠
     '/captcha/',  // 캡챠 (픽팍)
     '?urls=magnet',  // 픽팍으로 토렌트 받을때 필요
-    'gemini.google.com/_/bscframe',  // Google Gemini
+    'gemini.google.com/_/bscframe', 'googletagmanager.com/static/service_worker/57f0/sw_iframe',  // Google Gemini
     '/TranslateWebserverUi/',  // 구글 번역
     //'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     'notion.so',  // https://www.notion.so/ 로그인
