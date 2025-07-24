@@ -15,7 +15,7 @@
         isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
     let isManuallyMuted = false;  // 사용자가 팝업에서 수동으로 음소거했는지 여부
     let isPopupVisible = false;
-    let popupPrevPosition = null;
+    let popupPrevPosition = null; // 전체 화면 종료 시 팝업 위치 복원용
     let rafId = null;
     let videoObserver = null; // IntersectionObserver 인스턴스
     let observedVideosData = new Map(); // 각 비디오의 교차 비율, ID 등을 저장
@@ -118,9 +118,9 @@
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
         popupElement.style.cssText = `
-            position: fixed;
+            position: fixed; /* 기본적으로 fixed */
             background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
-            padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
+            padding: 0; color: white; font-family: sans-serif; z-index: 2147483647; /* 항상 최상위 z-index */
             display: none; opacity: 0; transition: opacity 0.3s;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             width: fit-content;
@@ -307,8 +307,7 @@
             const rect = popupElement.getBoundingClientRect();
             popupDragOffsetX = clientX - rect.left;
             popupDragOffsetY = clientY - rect.top;
-            popupElement.style.position = 'fixed';
-            popupElement.style.transform = 'none';
+            popupElement.style.position = 'fixed'; // 드래그 중에도 position: fixed 유지
             document.body.style.userSelect = 'none';
         };
 
@@ -318,7 +317,7 @@
                 dragHandle.style.cursor = 'grab';
                 document.body.style.userSelect = '';
                 resetPopupHideTimer();
-                updatePopupPosition();
+                updatePopupPosition(); // 드래그 종료 후 위치 업데이트
             }
         };
 
@@ -347,6 +346,7 @@
             const styles = { display: 'flex', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
             isPopupVisible = true;
+            resetPopupHideTimer(); // 팝업이 보일 때마다 타이머 재설정
         } else {
             if (popupHideTimer) {
                 clearTimeout(popupHideTimer);
@@ -388,54 +388,20 @@
         const videoRect = currentVideo.getBoundingClientRect();
         let popupRect = popupElement.getBoundingClientRect();
 
-        const fsEl = document.fullscreenElement;
+        let targetX = videoRect.left + (videoRect.width / 2);
+        let targetY = videoRect.top + (videoRect.height / 2);
 
-        if (fsEl) {
-            popupElement.style.width = '280px';
-            popupElement.style.minWidth = '280px';
-            popupElement.style.height = 'auto';
-            popupElement.style.minHeight = '150px';
-            popupElement.style.position = 'absolute';
-            popupElement.style.transform = 'none';
+        let adjustedX = targetX - (popupRect.width / 2);
+        let adjustedY = Math.max(0, Math.min(targetY - (popupRect.height / 2), window.innerHeight - popupRect.height));
 
-            popupRect = popupElement.getBoundingClientRect();
+        // 뷰포트 내에 팝업이 완전히 들어오도록 조정
+        adjustedX = Math.max(0, Math.min(adjustedX, window.innerWidth - popupRect.width));
+        adjustedY = Math.max(0, Math.min(adjustedY, window.innerHeight - popupRect.height));
 
-            const fsRect = fsEl.getBoundingClientRect();
-
-            let targetX = videoRect.left - fsRect.left + (videoRect.width / 2);
-            let targetY = videoRect.top - fsRect.top + (videoRect.height / 2);
-
-            let adjustedX = targetX - (popupRect.width / 2);
-            let adjustedY = targetY - (popupRect.height / 2);
-
-            adjustedX = Math.max(0, Math.min(adjustedX, fsRect.width - popupRect.width));
-            adjustedY = Math.max(0, Math.min(adjustedY, fsRect.height - popupRect.height));
-
-            popupElement.style.left = `${adjustedX}px`;
-            popupElement.style.top = `${adjustedY}px`;
-
-        } else {
-            popupElement.style.width = 'fit-content';
-            popupElement.style.minWidth = '280px';
-            popupElement.style.height = 'auto';
-            popupElement.style.minHeight = '150px';
-            popupElement.style.position = 'fixed';
-            popupElement.style.transform = 'none';
-
-            popupRect = popupElement.getBoundingClientRect();
-
-            let targetX = videoRect.left + (videoRect.width / 2);
-            let targetY = videoRect.top + (videoRect.height / 2);
-
-            let adjustedX = targetX - (popupRect.width / 2);
-            let adjustedY = Math.max(0, Math.min(targetY - (popupRect.height / 2), window.innerHeight - popupRect.height));
-
-            popupElement.style.left = `${adjustedX}px`;
-            popupElement.style.top = `${adjustedY}px`;
-        }
+        popupElement.style.left = `${adjustedX}px`;
+        popupElement.style.top = `${adjustedY}px`;
 
         const isVideoVisible = videoRect.top < window.innerHeight && videoRect.bottom > 0 && videoRect.left < window.innerWidth && videoRect.right > 0;
-        // 이 부분은 기존에도 팝업 숨김 로직이 있었으므로 유지
         if (!isVideoVisible) {
             hidePopup();
         }
@@ -538,7 +504,6 @@
         return totalArea > 0 ? visibleArea / totalArea : 0;
     }
 
-
     // --- 개선된 selectVideoLogic 함수 ---
     function selectVideoLogic(e) { // e는 이제 클릭 이벤트일 때만 넘어옴. 자동 선택 시에는 null
         let candidateVideos = Array.from(observedVideosData.entries())
@@ -559,7 +524,7 @@
         if (activeVideo) {
             // currentVideo가 변경되면 selectAndControlVideo 내에서 팝업을 숨기도록 함
             selectAndControlVideo(activeVideo);
-            
+
             if (e instanceof Event) { // 클릭/터치 이벤트일 때만 팝업 표시
                 showPopup();
                 resetPopupHideTimer();
@@ -598,7 +563,7 @@
             const rect = currentVideo.getBoundingClientRect();
             // 비디오가 뷰포트 밖으로 완전히 벗어났는지 확인
             const isVisible = rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth;
-            
+
             if (!isVisible) {
                 hidePopup();
                 // currentVideo = null; // 여기서 currentVideo를 null로 설정하면 IntersectionObserver 등이 다음 비디오를 더 빨리 감지할 수 있음
@@ -816,7 +781,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.21_EnhancedScrollHide.');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.21_YouTubeFullscreenFix.');
 
         createPopupElement();
         hidePopup(); // 팝업은 초기에는 숨겨둡니다.
@@ -855,38 +820,45 @@
             const fsEl = document.fullscreenElement;
             if (popupElement) {
                 if (fsEl) {
+                    // 전체 화면 진입 시
                     popupPrevPosition = {
                         left: popupElement.style.left,
                         top: popupElement.style.top,
                     };
+                    // 팝업을 전체 화면 요소의 자식으로 옮깁니다.
+                    // 이렇게 해야 iframe 내부의 풀스크린에서도 팝업이 보일 가능성이 높아집니다.
                     fsEl.appendChild(popupElement);
                     popupElement.style.width = '280px';
                     popupElement.style.minWidth = '280px';
                     popupElement.style.height = 'auto';
                     popupElement.style.minHeight = '150px';
+                    // 전체 화면 내에서는 position: absolute로 설정하여 부모(fsEl) 기준 위치
                     popupElement.style.position = 'absolute';
                     popupElement.style.transform = 'none';
 
                     updatePopupPosition();
-                    showPopup();
-                    resetPopupHideTimer();
+                    showPopup(); // 팝업 다시 표시 (타이머 자동 재설정)
+                    console.log('[VCP] Fullscreen entered. Popup moved to fullscreen element.');
                 } else {
+                    // 전체 화면 종료 시
+                    // 팝업을 다시 body로 이동
                     document.body.appendChild(popupElement);
                     if (popupPrevPosition) {
                         popupElement.style.left = popupPrevPosition.left;
                         popupElement.style.top = popupPrevPosition.top;
                         console.log('[VCP] Restored popup position to:', popupPrevPosition.left, popupPrevPosition.top);
                     } else {
-                        updatePopupPosition();
+                        updatePopupPosition(); // 이전 위치가 없으면 기본 위치로 재조정
                     }
                     popupElement.style.width = 'fit-content';
                     popupElement.style.minWidth = '280px';
                     popupElement.style.height = 'auto';
                     popupElement.style.minHeight = '150px';
-                    popupElement.style.position = 'fixed';
+                    popupElement.style.position = 'fixed'; // 기본 position: fixed로 복원
                     popupElement.style.transform = 'none';
 
-                    hidePopup();
+                    hidePopup(); // 전체 화면 종료 시 팝업 즉시 숨김
+                    console.log('[VCP] Fullscreen exited. Popup hidden immediately and restored to body.');
                 }
             }
         });
