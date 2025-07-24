@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Iframe Logger & Blocker (Violentmonkey용)
+// @name         Iframe Logger & Blocker (Violentmonkey용, SPA 강제유지 통합 / 동적최적화 / document-start)00
 // @namespace    none
-// @version      9.1
-// @description  iframe 탐지/차단 + 화이트리스트 + 로그 UI + SPA 강제유지 + 드래그 + Visibility 최적화 + SPA 보강 + 중복 방지 강화
+// @version      8.8
+// @description  iframe 탐지/차단 + 화이트리스트 + 로그 UI + SPA 강제유지 + 드래그
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -22,16 +22,15 @@
   const globalWhitelistKeywords = [
     '/recaptcha/', '/challenge-platform/',  // 캡챠
     '/captcha/',  // 캡챠 (픽팍)
-    //'.captcha.',  // 캡챠 (픽팍)
     '?urls=magnet',  // 픽팍으로 토렌트 받을때 필요
-    'translate',  // 구글 번역
+    '/TranslateWebserverUi/',  // 구글 번역
     //'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     'notion.so',  // https://www.notion.so/ 로그인
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
     '/embed-widget/', '/widgetembed/',  //https://wonforecast.com/ 초기 환율 안나오는거 해걸
     'twitter.com/widgets/widget_iframe',  // 트위터 게시물
     '_photo',  // 스포츠동아 사진 날라감 방지
-    '/videoembed/', 'player.kick.com', // https://poooo.ml/
+    'poochat.js', '/videoembed/', 'player.kick.com', // https://poooo.ml/
     '/messitv/',  // https://messitv8.com/ (메시티비)
     '/goattv/',  // https://goat-v.com/ (고트티비)
     'dlrstream.com',  // https://blacktv88.com/ (블랙티비)
@@ -40,8 +39,7 @@
     '/reystream/',  // https://gltv88.com/ (굿라이브티비)
     'supremejav.com',  // https://supjav.com/
     '/e/', '/t/', '/v/', // 각종 성인 영상
-    '/player',  // 티비위키.티비몬.티비핫 플레이어  AVseeTV 영상플레이어  https://sextb.date/ US영상
-    '/jwplayer/',  // AVseeTV 게시물 영상
+    '/player',  // 티비위키.티비몬.티비핫 플레이어  https://05.avsee.ru/  https://sextb.date/ US영상
     '7tv000.com', '7mmtv',  // https://7tv000.com/
     'njav',  // https://www.njav.com/
     '/stream/',  // https://missvod4.com/
@@ -63,9 +61,7 @@
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
-    '/static/js/', '/js/jquery/', // https://supjav.com/ 영상 실행 안되는거 (js)
-    'lazyload',  '/ajax/', '/assets/',  // https://fc2ppvdb.com/ 이미지 안나오는거 해결 (js)
-    '/cheditor/',  // https://www.ppomppu.co.kr/ - myeditor.config.editorpath를 설정하여 주십시오. 메시지 오류 해결
+    'lazyload',  '/ajax/', '/assets/',  // https://fc2ppvdb.com/ 이미지 안나오는거 해결
   ];
 
   const grayDomainWhitelistMap = {
@@ -77,8 +73,7 @@
   const ICON_ID = 'iframe-log-icon';
   const PANEL_ID = 'iframe-log-panel';
   let isEnabled = localStorage.getItem('iframeLoggerEnabled') !== 'false';
-  //let seen = new WeakSet();
-  let seen = new WeakMap();
+  let seen = new WeakSet();
   let logList = [], count = 0, logContent, countDisplay;
 
   if (allowedSites.includes(location.hostname)) {
@@ -236,58 +231,29 @@
   }
 
   // ======= iframe 로깅 =======
-  // iframe의 src가 동적으로 바뀌어도 중복 처리 여부를 src 기준으로 한번 더 검사
   function logIframe(iframe, reason = '') {
-    if (!isEnabled) return;
+    if (!isEnabled || seen.has(iframe)) return;
+    seen.add(iframe);
 
-    const src = iframe?.src || iframe?.getAttribute('src') || '';
-    if (!src || src === 'about:blank' || src.startsWith('chrome-extension://')) return;
-
-    const prevSrc = seen.get(iframe);
-    if (prevSrc === src) return;  // src가 같으면 이미 처리함
-
-    seen.set(iframe, src);  // iframe별로 현재 src 저장
+    let src = iframe?.src || iframe?.getAttribute('src') || '';
+    if (src === 'about:blank' || src.startsWith('chrome-extension://') || !src) return;
 
     const u = new URL(src, location.href);
     const domain = u.hostname, path = u.pathname + u.search;
 
     let color = 'red', keyword = '', matchedDomain = '';
-
-    // 개선된 if-else 구조로 화이트/그레이 리스트 검사 (첫 매칭시 종료)
-    const matchedKeyword = globalWhitelistKeywords.find(k => src.includes(k));
-    if (matchedKeyword) {
-      color = 'green';
-      keyword = matchedKeyword;
-    } else {
-      const matchedGray = grayWhitelistKeywords.find(k => src.includes(k));
-      if (matchedGray) {
-        color = 'gray';
-        keyword = matchedGray;
-      } else {
-        for (const host of Object.keys(whitelistMap)) {
-          if (domain.includes(host)) {
-            color = 'green';
-            matchedDomain = domain;
-            break;
-          }
-        }
-        if (!matchedDomain) {
-          for (const host of Object.keys(grayDomainWhitelistMap)) {
-            if (domain.includes(host)) {
-              color = 'gray';
-              matchedDomain = domain;
-              break;
-            }
-          }
-        }
-      }
+    const matchedKeywords = globalWhitelistKeywords.filter(k => src.includes(k));
+    if (matchedKeywords.length > 0) { color = 'green'; keyword = matchedKeywords.join(', '); }
+    const matchedGray = grayWhitelistKeywords.filter(k => src.includes(k));
+    if (matchedGray.length > 0) { color = 'gray'; keyword = matchedGray.join(', '); }
+    for (const [host] of Object.entries(whitelistMap)) {
+      if (domain.includes(host)) { matchedDomain = domain; color = 'green'; break; }
+    }
+    for (const [host] of Object.entries(grayDomainWhitelistMap)) {
+      if (domain.includes(host)) { matchedDomain = domain; color = 'gray'; break; }
     }
 
-    // 로그 문자열 생성 시 template literal + join 최적화
-    //const info = `[#${++count}] ${reason} ${src} (매칭키워드 : ${keyword || matchedDomain || '없음'})`;
-    const parts = [`[#${++count}]`, reason, src];
-    parts.push(` (매칭키워드 : ${keyword || matchedDomain || '없음'})`);
-    const info = parts.join('');
+    const info = `[#${++count}] ${reason} ${src} (매칭키워드 : ${keyword || matchedDomain || '없음'})`;
     console.warn('%c[Iframe]', `color:${color};font-weight:bold`, info);
 
     logList.push(info);
@@ -302,7 +268,7 @@
 
     updateCount();
 
-    if (!keyword && !matchedDomain && REMOVE_IFRAME) {
+    if (!matchedKeywords.length && !matchedGray.length && REMOVE_IFRAME) {
       setTimeout(() => iframe.remove(), 0);
     }
   }
@@ -313,17 +279,17 @@
 
   // ======= 동적 요소 추적 =======
   const mo = new MutationObserver(muts => {
-    muts.forEach(mutation => {
-      mutation.addedNodes.forEach(node => {
-        if (!node.tagName) return;  // 텍스트 노드 등 무시
-        const tag = node.tagName.toUpperCase();
-        if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT', 'SCRIPT'].includes(tag)) {  // iframe외 추적 대상을 늘림
-          //if (['IFRAME'].includes(tag)) {  // 일반적인 페이지에서는 iframe 외 다른 걸로는 많이 안나옴 (유튜브.틱톡 등 제외)
-          logIframe(node, '동적 추가 \n ▷');
-        }
-      });
+  muts.forEach(mutation => {
+    mutation.addedNodes.forEach(node => {
+      if (!node.tagName) return;  // 텍스트 노드 등 무시
+      const tag = node.tagName.toUpperCase();
+      if (['IFRAME', 'FRAME', 'EMBED', 'OBJECT', 'SCRIPT'].includes(tag)) {  // iframe외 추적 대상을 늘림
+      //if (['IFRAME'].includes(tag)) {  // 일반적인 페이지에서는 iframe 외 다른 걸로는 많이 안나옴 (유튜브.틱톡 등 제외)
+        logIframe(node, '동적 추가 \n ▷');
+      }
     });
   });
+});
 
   function safeObserveBody() {
     if (document.body) {
@@ -352,58 +318,13 @@
     keepAlive();
   }
 
-  // ✅ Visibility 상태 기반 최적화 적용
-  let intervalActive = true;
-  // 브라우저 탭이 활성화 상태가 아니면 setInterval이 멈춤 (탭이 보일 때만 스크립트가 CPU를 사용)
-  document.addEventListener('visibilitychange', () => {
-    intervalActive = document.visibilityState !== 'hidden';
-  });
-
-  // 동적 감지 및 UI 활성화 유지 (백업 역할)
-  // 초기 로드 안에서 못 잡은 iframe이나 MutationObserver가 못 잡은 걸 주기적으로 다시 체크하는 안전망
-  // 너무 빨리하면 CPU를 계속 태우면서 같은 걸 여러 번 처리 → 낭비 / 너무 느리면 동적 iframe이 화면에 잠시 보였다 사라질 수도 있음.
-  //setInterval(() => {
-    //if (!intervalActive) return;
-    //getAllIframes().forEach(iframe => logIframe(iframe, '초기 스캔 \n ▷'));
-  //}, 1000);  // 1초마다 감지 - 최대한 짧게 하면 js 차단수도 많아지지만 js 해제해야할것도 늘어남
-
-  // iframe 탐지 → loop() 로 교체
-  // 화면 리프레시마다 (보통 60fps → 약 16.7ms마다 1번) (CPU 부하는 높아짐)
-  // 사실상 setInterval(16)과 비슷하지만, 렌더링 직전에 실행되기 때문에 화면 깜박임과 싱크가 잘 맞아 부드러움
-  function loop() {
-    if (!intervalActive) return;
-    getAllIframes().forEach(iframe => logIframe(iframe, '초기 스캔 \n ▷'));
-    requestAnimationFrame(loop);  // requestAnimationFrame은 탭이 비활성화되면 자동으로 멈춰서 CPU 낭비를 줄여줌
-  }
-
-  // 아이콘/패널이 강제로 제거되거나 SPA로 사라졌을 때 다시 살려주는 역할
+  // 동적 감지 및 UI 활성화 유지
   setInterval(() => {
-    if (!intervalActive) return;
-    keepAlive();
-  }, 2000); // 2초마다 UI 유지
+    getAllIframes().forEach(iframe => logIframe(iframe, '초기 스캔 \n ▷'));
+  }, 0);
 
-  requestAnimationFrame(loop);
+  setInterval(keepAlive, 0);
 
   new MutationObserver(keepAlive).observe(document.documentElement, { childList: true, subtree: true });
-
-  // ✅ SPA popstate & pushState 감시 추가 (뒤로가기/앞으로가기 시에도 감지해서 UI/감시 유지)
-  //window.addEventListener('popstate', keepAlive);
-  //const originalPushState = history.pushState;
-  // SPA 내부 링크 이동 시에도 무조건 감지
-  //history.pushState = function () {
-    //originalPushState.apply(this, arguments);
-    //keepAlive();
-  //};
-
-  // 한 번만 패치하도록 플래그(window._pushStatePatched)를 사용해서 중복 실행을 방지
-  if (!window._pushStatePatched) {
-  const originalPushState = history.pushState;
-  history.pushState = function() {
-    originalPushState.apply(this, arguments);
-    keepAlive();
-  };
-  window._pushStatePatched = true;
-  }
-  window.addEventListener('popstate', keepAlive);
 
 })();
