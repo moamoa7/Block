@@ -673,7 +673,10 @@
 
     // --- requestAnimationFrame 기반 비디오 상태 루프 ---
     function videoStatusLoop() {
-        if (!currentVideo && !isPopupVisible) {
+        // ✅ 1. currentVideo null 처리 강화 적용됨
+        if (!currentVideo || !document.body.contains(currentVideo)) {
+            currentVideo = null;
+            hidePopup();
             stopVideoStatusLoop();
             return;
         }
