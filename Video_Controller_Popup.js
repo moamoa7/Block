@@ -459,7 +459,7 @@
         const observerOptions = {
             root: null, // 뷰포트 기준
             rootMargin: '0px',
-            threshold: [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0] // 5% 단위로 세분화
+            threshold: [0.3, 0.5, 0.7, 1.0] // 세분화 간략화
         };
 
         const observerCallback = (entries) => {
