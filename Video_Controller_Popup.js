@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.21: 스크롤/터치 시 팝업 숨김 강화)
+// @name Video Controller Popup (V4.11.24: Click/Touchend 통합)
 // @namespace Violentmonkey Scripts
-// @version 4.11.21_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange_EnhancedScrollHide
-// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance. Enhanced: Popup hides on scroll/touch if currentVideo is out of view.
+// @version 4.11.24_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange_EnhancedScrollHide_OptimizedScrollMove_FullscreenOptimized_ClickTouchendIntegrated
+// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance. Enhanced: Popup hides on scroll/touch if currentVideo is out of view. Optimized: onUserScrollOrTouchMove performance. Optimized: Fullscreen transition handling. Optimized: Click/Touchend event handling.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -549,14 +549,24 @@
         }, 100); // 100ms Debounce
     }
 
-    // --- 새로운 팝업 숨김 강화 로직 추가 ---
+    // --- onUserScrollOrTouchMove() 최적화 적용 ---
     let hideCheckTimer = null;
+    let lastHideCheckTime = 0;
+    const HIDE_DEBOUNCE_MS = 200; // 스크롤/터치 이벤트의 실제 처리 간격
+
     function onUserScrollOrTouchMove() {
-        if (!isPopupVisible || isPopupDragging) return; // 팝업이 안보이거나 드래그 중이면 체크 불필요
+        if (!isPopupVisible || isPopupDragging) return;
+
+        const now = Date.now();
+        // HIDE_DEBOUNCE_MS 간격 내에서는 getBoundingClientRect() 호출 및 setTimeout 재설정을 피함
+        if (now - lastHideCheckTime < HIDE_DEBOUNCE_MS) {
+            return;
+        }
+        lastHideCheckTime = now; // 마지막으로 체크 로직이 실행된 시간 업데이트
 
         if (hideCheckTimer) clearTimeout(hideCheckTimer);
         hideCheckTimer = setTimeout(() => {
-            if (!currentVideo) { // 현재 선택된 비디오가 없으면 팝업 숨김
+            if (!currentVideo) {
                 hidePopup();
                 return;
             }
@@ -566,15 +576,10 @@
 
             if (!isVisible) {
                 hidePopup();
-                // currentVideo = null; // 여기서 currentVideo를 null로 설정하면 IntersectionObserver 등이 다음 비디오를 더 빨리 감지할 수 있음
             }
-        }, 200); // 200ms debounce
+        }, HIDE_DEBOUNCE_MS); // 이 setTimeout은 마지막 이벤트 후 HIDE_DEBOUNCE_MS 후에 실행됨
     }
-    // 기존 scroll 이벤트 리스너가 있으므로, 여기서는 touchmove만 추가합니다.
-    // 기존 window.addEventListener('scroll', handleScrollEvent, { passive: true });는 유지
-    // onUserScrollOrTouchMove는 handleScrollEvent와 별개로 팝업 가시성만을 독립적으로 처리합니다.
-    // window.addEventListener('scroll', onUserScrollOrTouchMove, { passive: true }); // handleScrollEvent와 중복 가능성, 아래 초기화에서 통합
-    // --- 새로운 팝업 숨김 강화 로직 끝 ---
+    // --- onUserScrollOrTouchMove() 최적화 적용 끝 ---
 
     // --- DOM 변경 감지 및 데바운스 처리 함수 (함수화) ---
     function setupDebouncedDOMObserver(onChangeCallback, debounceMs = 300) {
@@ -673,7 +678,7 @@
 
     // --- requestAnimationFrame 기반 비디오 상태 루프 ---
     function videoStatusLoop() {
-        // ✅ 1. currentVideo null 처리 강화 적용됨
+        // ✅ currentVideo null 처리 강화 적용됨
         if (!currentVideo || !document.body.contains(currentVideo)) {
             currentVideo = null;
             hidePopup();
@@ -718,6 +723,49 @@
     }
     // --- requestAnimationFrame 기반 비디오 상태 루프 끝 ---
 
+    // --- Fullscreen 스타일 관리 함수 (개선 제안 적용) ---
+    function setPopupFullscreenStyles(isFullscreen) {
+        if (!popupElement) return;
+        if (isFullscreen) {
+            // 전체 화면 진입 시 스타일
+            popupElement.style.cssText = `
+                width: 280px;
+                min-width: 280px;
+                height: auto;
+                min-height: 150px;
+                position: absolute; /* 전체 화면 요소 기준 */
+                transform: none;
+                /* 기본 팝업 스타일 유지 */
+                background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
+                padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+                overflow: hidden; text-align: center; pointer-events: auto;
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+            `;
+        } else {
+            // 전체 화면 종료 시 스타일
+            popupElement.style.cssText = `
+                width: fit-content;
+                min-width: 280px;
+                height: auto;
+                min-height: 150px;
+                position: fixed; /* 뷰포트 기준 */
+                transform: none;
+                /* 기본 팝업 스타일 유지 */
+                background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
+                padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+                overflow: hidden; text-align: center; pointer-events: auto;
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+            `;
+        }
+    }
+    // --- Fullscreen 스타일 관리 함수 끝 ---
+
     // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 픽스 ---
     let touchStartX = 0;
     let touchStartY = 0;
@@ -741,50 +789,44 @@
         }
     }, { passive: true });
 
-    document.body.addEventListener('click', (e) => {
+    // --- Click / Touchend 핸들러 통합 (개선 제안 적용) ---
+    function handleUserClickOrTouch(e) {
         if (!e) return;
         // 팝업을 클릭한 경우는 팝업 숨김 타이머만 재설정하고 리턴
-        if (popupElement && isPopupVisible && popupElement.contains(e.target)) { resetPopupHideTimer(); return; }
+        if (popupElement && isPopupVisible && popupElement.contains(e.target)) {
+            resetPopupHideTimer();
+            return;
+        }
         // 터치 드래그가 발생한 경우 (클릭으로 간주하지 않음)
-        if (touchMoved) { touchMoved = false; return; }
-        // 링크나 클릭 가능한 UI 요소를 클릭한 경우 스크립트가 비디오를 선택하지 않음
-        const clickedLink = e.target.closest('a');
-        const isClickableElement = e.target.matches('button, input, [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
-        if (clickedLink || isClickableElement) return;
+        if (touchMoved) {
+            touchMoved = false;
+            return;
+        }
 
-        // 팝업이 보이고, 팝업 바깥을 클릭한 경우 팝업 숨김
+        // 링크나 클릭 가능한 UI 요소를 클릭/터치한 경우 스크립트가 비디오를 선택하지 않음
+        const clickedLink = e.target.closest('a');
+        const isClickable = e.target.matches('button, input, [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
+        if (clickedLink || isClickable) return;
+
+        // 팝업이 보이고, 팝업 바깥을 클릭/터치한 경우 팝업 숨김
         if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
             hidePopup();
         }
+
         // 이외의 경우 (비디오 영역 클릭 등으로 간주), 비디오 선택 로직 실행
-        selectVideoLogic(e); // 클릭 이벤트 발생 시에만 팝업을 표시하도록 e를 인자로 전달
-    }, true); // 캡처링 단계에서 이벤트 리스닝
+        selectVideoLogic(e); // 클릭/터치 이벤트 발생 시에만 팝업을 표시하도록 e를 인자로 전달
+    }
 
-    document.body.addEventListener('touchend', (e) => {
-        if (!e) return;
-        // 팝업을 터치한 경우는 팝업 숨김 타이머만 재설정하고 리턴
-        if (popupElement && isPopupVisible && popupElement.contains(e.target)) { resetPopupHideTimer(); return; }
-        // 터치 드래그가 발생한 경우 (클릭으로 간주하지 않음)
-        if (touchMoved) { touchMoved = false; return; }
-        // 링크나 클릭 가능한 UI 요소를 터치한 경우 스크립트가 비디오를 선택하지 않음
-        const clickedLink = e.target.closest('a');
-        const isClickableElement = e.target.matches('button, input, [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
-        if (clickedLink || isClickableElement) return;
-
-        // 팝업이 보이고, 팝업 바깥을 터치한 경우 팝업 숨김
-        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
-            hidePopup();
-        }
-        // 이외의 경우 (비디오 영역 터치 등으로 간주), 비디오 선택 로직 실행
-        selectVideoLogic(e); // 터치 종료 이벤트 발생 시에만 팝업을 표시하도록 e를 인자로 전달
-    }, true); // 캡처링 단계에서 이벤트 리스닝
+    document.body.addEventListener('click', handleUserClickOrTouch, true); // 캡처링 단계에서 이벤트 리스닝
+    document.body.addEventListener('touchend', handleUserClickOrTouch, true); // 캡처링 단계에서 이벤트 리스닝
+    // --- Click / Touchend 핸들러 통합 끝 ---
     // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 픽스 끝 ---
 
     function initialize() {
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.21_YouTubeFullscreenFix.');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.24_ClickTouchendIntegrated.');
 
         createPopupElement();
         hidePopup(); // 팝업은 초기에는 숨겨둡니다.
@@ -828,23 +870,16 @@
                         left: popupElement.style.left,
                         top: popupElement.style.top,
                     };
-                    // 팝업을 전체 화면 요소의 자식으로 옮깁니다.
-                    // 이렇게 해야 iframe 내부의 풀스크린에서도 팝업이 보일 가능성이 높아집니다.
+                    // 팝업을 전체 화면 요소의 자식으로 옮깁니다. (contains 체크 생략)
                     fsEl.appendChild(popupElement);
-                    popupElement.style.width = '280px';
-                    popupElement.style.minWidth = '280px';
-                    popupElement.style.height = 'auto';
-                    popupElement.style.minHeight = '150px';
-                    // 전체 화면 내에서는 position: absolute로 설정하여 부모(fsEl) 기준 위치
-                    popupElement.style.position = 'absolute';
-                    popupElement.style.transform = 'none';
+                    setPopupFullscreenStyles(true); // 전체 화면 스타일 적용
 
                     updatePopupPosition();
                     showPopup(); // 팝업 다시 표시 (타이머 자동 재설정)
                     console.log('[VCP] Fullscreen entered. Popup moved to fullscreen element.');
                 } else {
                     // 전체 화면 종료 시
-                    // 팝업을 다시 body로 이동
+                    // 팝업을 다시 body로 이동 (contains 체크 생략)
                     document.body.appendChild(popupElement);
                     if (popupPrevPosition) {
                         popupElement.style.left = popupPrevPosition.left;
@@ -853,12 +888,7 @@
                     } else {
                         updatePopupPosition(); // 이전 위치가 없으면 기본 위치로 재조정
                     }
-                    popupElement.style.width = 'fit-content';
-                    popupElement.style.minWidth = '280px';
-                    popupElement.style.height = 'auto';
-                    popupElement.style.minHeight = '150px';
-                    popupElement.style.position = 'fixed'; // 기본 position: fixed로 복원
-                    popupElement.style.transform = 'none';
+                    setPopupFullscreenStyles(false); // 전체 화면 종료 스타일 적용
 
                     hidePopup(); // 전체 화면 종료 시 팝업 즉시 숨김
                     console.log('[VCP] Fullscreen exited. Popup hidden immediately and restored to body.');
