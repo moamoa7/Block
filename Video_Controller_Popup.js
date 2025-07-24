@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.15: 자동재생 개선, 모바일 전체화면 클릭／위치 픽스, IntersectionObserver 최적화)
+// @name Video Controller Popup (V4.11.18: 영상 재생 시 팝업 자동 표시)
 // @namespace Violentmonkey Scripts
-// @version 4.11.15_AutoplayAttemptImprovement_MobileFullScreenClickFix_Debounce_FS_Pos_Restore_RAF_IO_Opt
-// @description Core video controls with streamlined UI. All videos auto-play with sound (if possible). Popup shows on click. Features dynamic Play/Pause, 1x speed reset, Mute, and Speak buttons. Improved SPA handling. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit.
+// @version 4.11.18_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_AutoPopupOnPlay
+// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows automatically when video becomes active. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -13,8 +13,7 @@
     // --- Core Variables & State Management ---
     let videos = [], currentVideo = null, popupElement = null, desiredPlaybackRate = 1.0, desiredVolume = 1.0,
         isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
-    let isManuallyPaused = false;
-    let isManuallyMuted = false;
+    let isManuallyMuted = false;  // 사용자가 팝업에서 수동으로 음소거했는지 여부
     let isPopupVisible = false;
     let popupPrevPosition = null;
     let rafId = null;
@@ -22,7 +21,6 @@
     let observedVideosData = new Map(); // 각 비디오의 교차 비율, ID 등을 저장
 
     const videoRateHandlers = new WeakMap();
-    const originalPlayMethods = new WeakMap();
 
     // Configuration
     let popupHideTimer = null;
@@ -31,15 +29,12 @@
 
     // MutationObserver 인스턴스를 저장하여 나중에 disconnect 할 수 있도록 전역 변수 추가
     let domMutationObserverInstance = null;
-    let spaDetectionObserverInstance = null;
-
-    // 재생 강제 반복 방지용 변수 추가
-    let lastPlayState = null; // 'playing', 'paused', null (초기 상태)
-
+    let spaDetectionObserverInstance = null; // History API 감지용으로 이름 변경 또는 추가
 
     // --- Utility Functions ---
     function findAllVideosDeep(root = document) {
-        return Array.from(root.querySelectorAll('video, audio'));
+        let videos = Array.from(root.querySelectorAll('video, audio'));
+        return videos;
     }
 
     function findPlayableVideos() {
@@ -49,7 +44,7 @@
             const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia || !v.paused;
+            const isReasonableSize = (rect.width >= 50 && rect.height >= 50) || isMedia;
             const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
             const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
             return isVisible && isReasonableSize && hasMedia && isWithinViewport;
@@ -60,62 +55,29 @@
 
     function selectAndControlVideo(videoToControl) {
         if (!videoToControl) {
-            if (currentVideo) { currentVideo.pause(); currentVideo = null; hidePopup(); }
+            if (currentVideo) {
+                // 이전 currentVideo에 대한 추가적인 정리 로직이 필요하다면 여기에 추가 (현재는 필요 없음)
+            }
+            currentVideo = null;
+            hidePopup();
             return;
         }
 
-        if (currentVideo && currentVideo !== videoToControl && originalPlayMethods.has(currentVideo)) {
-            currentVideo.play = originalPlayMethods.get(currentVideo);
-            originalPlayMethods.delete(currentVideo);
-        }
-
-        findAllVideosDeep().forEach(video => {
-            if (video !== videoToControl) {
-                if (originalPlayMethods.has(video) && video !== currentVideo) {
-                    video.play = originalPlayMethods.get(video);
-                    originalPlayMethods.delete(video);
-                }
-                if (!video.paused) {
-                    video.pause();
-                }
-                video.muted = true;
-                video.volume = 0;
-                video.currentTime = 0;
-            } else {
-                if (currentVideo !== videoToControl) {
-                    videoToControl.autoplay = true;
-                    videoToControl.playsInline = true;
-
-                    videoToControl.muted = false;
-                    videoToControl.volume = 1.0;
-                    isManuallyMuted = false;
-
-                    videoToControl.play().catch(e => {
-                        console.warn("[VCP] Autoplay with sound failed:", e.name, e.message, "Attempting muted autoplay.");
-                        videoToControl.muted = true;
-                        videoToControl.volume = 0;
-                        isManuallyMuted = true;
-                        videoToControl.play().catch(mutedError => {
-                            console.error("[VCP] Muted autoplay also failed:", mutedError.name, mutedError.message);
-                        });
-                    });
-                }
-            }
-        });
-
         if (currentVideo !== videoToControl) {
             currentVideo = videoToControl;
-            isManuallyPaused = false;
+
+            isManuallyMuted = currentVideo.muted;
             desiredPlaybackRate = currentVideo.playbackRate;
             desiredVolume = currentVideo.volume;
-            isManuallyMuted = currentVideo.muted;
-            lastPlayState = null; // 새 비디오 선택 시 재생 상태 초기화
+            // 새 비디오가 선택될 때 팝업 자동 표시
+            showPopup();
+            resetPopupHideTimer(); // 자동 표시 후 타이머 시작
         }
 
         fixPlaybackRate(currentVideo, desiredPlaybackRate);
         setNormalVolume(currentVideo, desiredVolume);
+
         updatePopupSliders();
-        // updatePlayPauseButton(); // 재생/멈춤 버튼 제거
         updateMuteSpeakButtons();
     }
 
@@ -126,18 +88,19 @@
         const existingHandler = videoRateHandlers.get(video);
         if (existingHandler) video.removeEventListener('ratechange', existingHandler);
 
+        if (video.playbackRate !== rate) {
+            video.playbackRate = rate;
+        }
+
         const rateChangeHandler = () => {
             if (video.playbackRate !== desiredPlaybackRate) {
                 desiredPlaybackRate = video.playbackRate;
                 updatePopupSliders();
             }
         };
-
-        if (video.playbackRate !== rate) {
-            video.playbackRate = rate;
-        }
         video.addEventListener('ratechange', rateChangeHandler);
         videoRateHandlers.set(video, rateChangeHandler);
+
         updatePopupSliders();
     }
 
@@ -221,19 +184,19 @@
         speedSection.appendChild(speedInput);
         popupElement.appendChild(speedSection);
 
-        // 버튼 섹션 수정: grid-template-columns를 1fr 1fr 1fr로 변경하여 3개의 버튼이 나란히 오도록 설정
+        // --- buttonSection 스타일 변경 ---
         const buttonSection = document.createElement('div');
         buttonSection.style.cssText = `
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr; /* 3개의 열로 변경 */
-            grid-template-rows: 1fr; /* 1개의 행으로 변경 */
-            gap: 10px;
+            display: flex; /* Flexbox 사용 */
+            flex-direction: row; /* 가로 배열 */
+            justify-content: space-around; /* 버튼들을 공간에 고르게 분배 */
+            align-items: center; /* 세로 중앙 정렬 */
+            gap: 10px; /* 버튼 간격 */
             padding: 10px;
             flex-grow: 1;
-            align-content: stretch;
-            justify-items: stretch;
-            min-height: 50px; /* 높이 조정 */
+            min-height: 50px;
         `;
+        // --- buttonSection 스타일 변경 끝 ---
 
         const buttonStyle = `
             background-color: #333; color: white; border: 1.5px solid #555;
@@ -243,20 +206,15 @@
             text-align: center; font-size: 14px;
             height: auto;
             min-height: 40px;
-            width: 100%;
-            min-width: 75px;
+            flex-basis: 0; /* flex item의 기본 크기를 0으로 설정 */
+            flex-grow: 1; /* 남은 공간을 균등하게 차지하도록 설정 */
+            max-width: 100px; /* 각 버튼의 최대 너비 설정 (선택 사항) */
             display: flex;
             justify-content: center;
             align-items: center;
             box-sizing: border-box;
             line-height: 1.2;
         `;
-
-        // 재생/멈춤 버튼 제거
-        // const playPauseBtn = document.createElement('button');
-        // playPauseBtn.setAttribute('data-action', 'play-pause');
-        // playPauseBtn.textContent = '재생/멈춤';
-        // playPauseBtn.style.cssText = buttonStyle;
 
         const speedResetBtn = document.createElement('button');
         speedResetBtn.setAttribute('data-action', 'reset-speed');
@@ -273,7 +231,6 @@
         speakBtn.textContent = '소리';
         speakBtn.style.cssText = buttonStyle;
 
-        // buttonSection.appendChild(playPauseBtn); // 재생/멈춤 버튼 제거
         buttonSection.appendChild(speedResetBtn);
         buttonSection.appendChild(muteBtn);
         buttonSection.appendChild(speakBtn);
@@ -281,16 +238,6 @@
 
         document.body.appendChild(popupElement);
         setupPopupEventListeners();
-    }
-
-    function updatePlayPauseButton() {
-        // 이 함수는 더 이상 사용되지 않지만, 다른 곳에서 호출될 수 있으므로 일단 비워둠
-        // const playPauseBtn = popupElement.querySelector('[data-action="play-pause"]');
-        // if (playPauseBtn && currentVideo) {
-        //     playPauseBtn.textContent = currentVideo.paused ? '재생' : '멈춤';
-        // } else if (playPauseBtn) {
-        //     playPauseBtn.textContent = '재생/멈춤';
-        // }
     }
 
     function updateMuteSpeakButtons() {
@@ -315,24 +262,6 @@
         resetPopupHideTimer();
 
         switch (action) {
-            // 'play-pause' 케이스 제거
-            // case 'play-pause':
-            //     if (currentVideo.paused) {
-            //         isManuallyPaused = false;
-            //         currentVideo.muted = isManuallyMuted;
-            //         if (!isManuallyMuted && currentVideo.volume === 0) {
-            //             currentVideo.volume = desiredVolume > 0 ? desiredVolume : 1.0;
-            //         }
-            //         currentVideo.play().catch(e => console.error("Play failed:", e));
-            //     } else {
-            //         isManuallyPaused = true;
-            //         currentVideo.pause();
-            //     }
-            //     lastPlayState = currentVideo.paused ? 'paused' : 'playing';
-            //     updatePlayPauseButton();
-            //     updateMuteSpeakButtons();
-            //     updatePopupSliders();
-            //     break;
             case 'reset-speed':
                 desiredPlaybackRate = 1.0;
                 fixPlaybackRate(currentVideo, 1.0);
@@ -441,7 +370,6 @@
 
         setPopupVisibility(true);
         updatePopupPosition();
-        // updatePlayPauseButton(); // 재생/멈춤 버튼 제거
         updateMuteSpeakButtons();
         updatePopupSliders();
     }
@@ -534,7 +462,7 @@
         const observerOptions = {
             root: null, // 뷰포트 기준
             rootMargin: '0px',
-            threshold: [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0] // 5% 단위로 세분화
+            threshold: [0.3, 0.5, 0.7, 1.0] // 팝업 자동 표시를 위해 덜 민감하게 조정
         };
 
         const observerCallback = (entries) => {
@@ -550,7 +478,7 @@
                 }
             });
 
-            selectVideoLogic(null); // 모든 교차 변화가 반영된 후 가장 적합한 비디오를 선택
+            selectVideoLogic(); // 스크롤 시 자동 감지되도록 인자 제거
         };
 
         videoObserver = new IntersectionObserver(observerCallback, observerOptions);
@@ -559,7 +487,6 @@
     function updateVideoList() {
         const currentPlayableVideos = findPlayableVideos();
 
-        // 기존에 관찰 중이던 비디오 중 현재 목록에 없는 것은 관찰 중단
         observedVideosData.forEach((value, video) => {
             if (!currentPlayableVideos.includes(video)) {
                 if (videoObserver) {
@@ -569,83 +496,79 @@
             }
         });
 
-        // 새로 찾은 비디오 중 아직 관찰하지 않는 비디오는 관찰 시작
         currentPlayableVideos.forEach(video => {
             if (videoObserver && !observedVideosData.has(video)) {
                 videoObserver.observe(video);
-                // 초기 상태를 반영하기 위해 0으로 시작 (콜백에서 업데이트됨)
                 observedVideosData.set(video, { intersectionRatio: 0, timestamp: Date.now() });
             }
         });
 
-        // currentVideo가 유효하지 않으면 초기화
         if (currentVideo && (!document.body.contains(currentVideo) || !currentPlayableVideos.includes(currentVideo))) {
-            if (currentVideo) currentVideo.pause();
             currentVideo = null;
             hidePopup();
-            lastPlayState = null; // 비디오 변경 시 재생 상태 초기화
         }
     }
 
-    // --- 비디오 우선순위 점수 계산 함수 ---
-    function calculateVideoScore(video, data) {
+    // --- 비디오 우선순위 점수 계산 함수 (새로운 로직 적용) ---
+    function calculateVideoScore(video) {
         const rect = video.getBoundingClientRect();
-        const centerDist = Math.hypot(
-            rect.left + rect.width / 2 - window.innerWidth / 2,
-            rect.top + rect.height / 2 - window.innerHeight / 2
-        );
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
 
-        // 중앙에 가까울수록 점수가 높아지도록 스케일링
+        const visibleWidth = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
+        const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+        const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
+
+        const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
         const centerScore = 1 / Math.pow(1 + centerDist, 5);
-        // 비디오가 재생 중이면 매우 높은 가중치 부여
-        const isPlayingScore = (!video.paused && video.duration > 0 && !video.ended) ? 10000 : 0;
 
-        // 교차 비율, 중앙 근접도, 재생 상태를 종합한 복합 점수
-        return data.intersectionRatio * 10000 + centerScore * 5000 + isPlayingScore;
+        const score = visibleArea * 0.7 + centerScore * 5000 * 0.3;
+
+        return score;
     }
 
+    // --- 교차 비율을 계산하는 별도 함수 (기존 intersectionRatio와는 다르게, 전체 면적 대비 가시 면적 비율) ---
+    function calculateIntersectionRatio(video) {
+        const rect = video.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return 0;
+
+        const visibleWidth = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
+        const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+        const visibleArea = Math.max(0, visibleWidth) * Math.max(0, visibleHeight);
+        const totalArea = rect.width * rect.height;
+
+        return totalArea > 0 ? visibleArea / totalArea : 0;
+    }
+
+
     // --- 개선된 selectVideoLogic 함수 ---
-    function selectVideoLogic(e) {
+    function selectVideoLogic(e) { // e는 이제 클릭 이벤트일 때만 넘어옴. 자동 선택 시에는 null
         let candidateVideos = Array.from(observedVideosData.entries())
-            .filter(([video, data]) => data.intersectionRatio > 0) // 뷰포트에 보이는 비디오만 필터링
+            .filter(([video, data]) => data.intersectionRatio > 0)
             .map(([video, data]) => ({
                 video,
-                // 분리된 calculateVideoScore 함수를 사용하여 점수 계산
-                score: calculateVideoScore(video, data),
-                intersectionRatio: data.intersectionRatio // IntersectionObserver 콜백 디버깅 또는 추가 로직을 위해 유지
+                score: calculateVideoScore(video),
+                intersectionRatio: calculateIntersectionRatio(video)
             }))
-            .sort((a, b) => b.score - a.score); // score 기준 1회만 정렬
+            .sort((a, b) => b.score - a.score);
 
         let activeVideo = null;
 
-        // 현재 비디오가 여전히 유효하고 화면에 보이면 그대로 유지 (최우선)
-        if (currentVideo && document.body.contains(currentVideo) && observedVideosData.has(currentVideo) && observedVideosData.get(currentVideo).intersectionRatio > 0) {
-            activeVideo = currentVideo;
-        } else if (candidateVideos.length > 0) {
-            // 그 외의 경우, 가장 score가 높은 비디오를 선택
+        if (candidateVideos.length > 0) {
             activeVideo = candidateVideos[0].video;
         }
 
         if (activeVideo) {
-            // 현재 제어 중인 비디오가 새로 선택된 비디오와 다르면 비디오 전환
             if (currentVideo !== activeVideo) {
-                if (currentVideo) currentVideo.pause(); // 기존 비디오 일시 정지
-                selectAndControlVideo(activeVideo); // 새 비디오 제어 시작
-            }
-
-            // 클릭 이벤트 등으로 호출된 경우에만 팝업 표시 및 타이머 재설정
-            if (e instanceof Event) {
+                // 비디오 변경 시 selectAndControlVideo가 팝업을 표시합니다.
+                selectAndControlVideo(activeVideo);
+            } else if (e instanceof Event) { // 동일 비디오 클릭 시에도 팝업 표시 및 타이머 재설정
                 showPopup();
                 resetPopupHideTimer();
             }
         } else {
-            // 제어할 비디오가 없으면 현재 비디오를 null로 설정하고 팝업 숨김
-            if (currentVideo) {
-                currentVideo.pause();
-            }
             currentVideo = null;
             hidePopup();
-            lastPlayState = null; // 비디오가 없으면 재생 상태 초기화
         }
     }
 
@@ -653,14 +576,14 @@
     function handleScrollEvent() {
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
+            // 스크롤 멈춘 후 실행할 작업
             updateVideoList();
             if (currentVideo && (!document.body.contains(currentVideo) || !observedVideosData.has(currentVideo) || observedVideosData.get(currentVideo).intersectionRatio === 0)) {
-                if (currentVideo) currentVideo.pause();
                 currentVideo = null;
                 hidePopup();
-                lastPlayState = null; // 스크롤로 비디오 사라지면 재생 상태 초기화
             }
-        }, 100);
+            selectVideoLogic(); // 스크롤이 멈춘 후에도 적절한 비디오를 다시 선택하여 팝업 표시 여부 결정
+        }, 100); // 100ms Debounce
     }
 
     // --- DOM 변경 감지 및 데바운스 처리 함수 (함수화) ---
@@ -706,35 +629,56 @@
         return observer;
     }
 
-    // --- SPA URL 변경 탐지 함수 (함수화) ---
+    // --- SPA URL 변경 탐지 함수 (MutationObserver 방식) ---
     function setupSPADetection(onUrlChangeCallback) {
         let lastUrl = location.href;
 
         const observer = new MutationObserver(() => {
             const currentUrl = location.href;
             if (currentUrl !== lastUrl) {
+                console.log(`[VCP][SPA-MO] URL 변경 감지: ${lastUrl} -> ${currentUrl}`);
                 lastUrl = currentUrl;
                 onUrlChangeCallback(currentUrl);
             }
         });
 
-        // document 전체를 관찰하여 URL 변경을 감지 (URL 변경은 일반적으로 DOM 변경을 동반함)
-        observer.observe(document, { subtree: true, childList: true });
-
+        observer.observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['href'] }); // href 속성 변경도 감지
         return observer;
     }
 
-    function fixOverflow() {
-        const overflowFixSites = []; // 필요한 경우 특정 사이트의 overflow 이슈를 처리합니다.
-        overflowFixSites.forEach(site => {
-            if (location.hostname.includes(site.domain)) {
-                site.selectors.forEach(sel => {
-                    document.querySelectorAll(sel).forEach(el => {
-                        el.style.setProperty('overflow', 'visible', 'important');
-                    });
-                });
+    // --- History API 감싸기 (SPA URL 변경 감지 강화) ---
+    function setupHistoryListener(onUrlChangeCallback) {
+        let lastUrl = location.href;
+
+        function checkUrlChange() {
+            const currentUrl = location.href;
+            if (currentUrl !== lastUrl) {
+                console.log(`[VCP][SPA-History] URL 변경 감지: ${lastUrl} -> ${currentUrl}`);
+                lastUrl = currentUrl;
+                onUrlChangeCallback(currentUrl);
             }
-        });
+        }
+
+        // 원래 함수 저장 및 재정의
+        const originalPushState = history.pushState;
+        const originalReplaceState = history.replaceState;
+
+        history.pushState = function(...args) {
+            originalPushState.apply(this, args);
+            checkUrlChange();
+        };
+
+        history.replaceState = function(...args) {
+            originalReplaceState.apply(this, args);
+            checkUrlChange();
+        };
+
+        // popstate 이벤트 리스너 추가 (뒤로가기/앞으로가기 버튼 감지)
+        window.addEventListener('popstate', checkUrlChange);
+    }
+
+    function fixOverflow() {
+        // 이 함수는 현재 아무런 강제 스타일 변경을 하지 않음
     }
 
     // --- requestAnimationFrame 기반 비디오 상태 루프 ---
@@ -744,56 +688,24 @@
             return;
         }
 
-        if (currentVideo && !currentVideo.ended) {
-            const isPlayingNow = !currentVideo.paused;
-
+        if (currentVideo) {
             if (currentVideo.playbackRate !== desiredPlaybackRate) {
                 currentVideo.playbackRate = desiredPlaybackRate;
-            }
-            if (Math.abs(currentVideo.volume - desiredVolume) > 0.005) {
-                currentVideo.volume = desiredVolume;
             }
             if (currentVideo.muted !== isManuallyMuted) {
                 currentVideo.muted = isManuallyMuted;
             }
-
-            // 재생 강제 반복 방지: 상태 변화를 감지해서 play() 호출
-            // 비디오가 현재 재생 중이 아니고 (일시 정지 상태), 수동으로 일시 정지한 상태가 아닐 때
-            if (!isPlayingNow && !isManuallyPaused) {
-                // 이전에 'playing' 상태가 아니었다면 (즉, 'paused' 또는 null 이었다면) play()를 시도
-                if (lastPlayState !== 'playing') {
-                    currentVideo.play().catch(e => {
-                        // play() 실패 시 (예: 사용자 제스처 필요) 콘솔에 경고만 표시
-                        console.warn("[VCP] Autoplay attempt failed in loop:", e.name, e.message);
-                    });
-                    lastPlayState = 'playing'; // 재생 시도 후 상태를 'playing'으로 변경
-                }
-            } else if (isPlayingNow) {
-                // 비디오가 현재 재생 중이라면 상태를 'playing'으로 유지
-                lastPlayState = 'playing';
-            } else {
-                // 그 외의 경우 (예: 수동 일시 정지 상태), 상태를 'paused'로 유지
-                lastPlayState = 'paused';
+            if (!currentVideo.muted && Math.abs(currentVideo.volume - desiredVolume) > 0.005) {
+                currentVideo.volume = desiredVolume;
             }
         }
 
-        // currentVideo를 제외한 다른 모든 비디오는 일시 정지 및 음소거
-        findAllVideosDeep().forEach(video => {
-            if (video !== currentVideo) {
-                if (!video.paused) { video.pause(); }
-                if (!video.muted || video.volume > 0) { video.muted = true; video.volume = 0; }
-            }
-        });
-
-        // 팝업이 보이고 드래그 중이 아니면 팝업 UI 업데이트
         if (popupElement && isPopupVisible && !isPopupDragging) {
             updatePopupPosition();
-            // updatePlayPauseButton(); // 재생/멈춤 버튼 제거
             updateMuteSpeakButtons();
             updatePopupSliders();
         }
 
-        // 다음 애니메이션 프레임에 루프 다시 실행
         rafId = requestAnimationFrame(videoStatusLoop);
     }
 
@@ -808,7 +720,6 @@
         if (rafId) {
             cancelAnimationFrame(rafId);
             rafId = null;
-            lastPlayState = null; // 루프 중단 시 재생 상태 초기화
             console.log('[VCP] Video status loop stopped.');
         }
     }
@@ -838,55 +749,81 @@
 
     document.body.addEventListener('click', (e) => {
         if (!e) return;
+        // 팝업을 클릭한 경우는 팝업 숨김 타이머만 재설정하고 리턴
         if (popupElement && isPopupVisible && popupElement.contains(e.target)) { resetPopupHideTimer(); return; }
+        // 터치 드래그가 발생한 경우 (클릭으로 간주하지 않음)
         if (touchMoved) { touchMoved = false; return; }
+        // 링크나 클릭 가능한 UI 요소를 클릭한 경우 스크립트가 비디오를 선택하지 않음
         const clickedLink = e.target.closest('a');
         const isClickableElement = e.target.matches('button, input, [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
         if (clickedLink || isClickableElement) return;
-        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) hidePopup();
-        selectVideoLogic(e);
-    }, true);
+
+        // 팝업이 보이고, 팝업 바깥을 클릭한 경우 팝업 숨김
+        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
+            hidePopup();
+        }
+        // 이외의 경우 (비디오 영역 클릭 등으로 간주), 비디오 선택 로직 실행
+        selectVideoLogic(e); // 클릭 이벤트 발생 시 팝업을 표시하도록 e를 인자로 전달
+    }, true); // 캡처링 단계에서 이벤트 리스닝
 
     document.body.addEventListener('touchend', (e) => {
         if (!e) return;
+        // 팝업을 터치한 경우는 팝업 숨김 타이머만 재설정하고 리턴
         if (popupElement && isPopupVisible && popupElement.contains(e.target)) { resetPopupHideTimer(); return; }
+        // 터치 드래그가 발생한 경우 (클릭으로 간주하지 않음)
         if (touchMoved) { touchMoved = false; return; }
+        // 링크나 클릭 가능한 UI 요소를 터치한 경우 스크립트가 비디오를 선택하지 않음
         const clickedLink = e.target.closest('a');
         const isClickableElement = e.target.matches('button, input, [role="button"], [tabindex]:not([tabindex="-1"]), label, select, textarea');
         if (clickedLink || isClickableElement) return;
-        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) hidePopup();
-        selectVideoLogic(e);
-    }, true);
+
+        // 팝업이 보이고, 팝업 바깥을 터치한 경우 팝업 숨김
+        if (popupElement && isPopupVisible && !popupElement.contains(e.target)) {
+            hidePopup();
+        }
+        // 이외의 경우 (비디오 영역 터치 등으로 간주), 비디오 선택 로직 실행
+        selectVideoLogic(e); // 터치 종료 이벤트 발생 시 팝업을 표시하도록 e를 인자로 전달
+    }, true); // 캡처링 단계에서 이벤트 리스닝
     // --- 모바일 터치/클릭 오작동 및 링크 클릭 문제 픽스 끝 ---
 
     function initialize() {
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.15_IntersectionObserver_Opt (Bugfix applied)');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.18_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_AutoPopupOnPlay.');
 
         createPopupElement();
-        hidePopup();
+        hidePopup(); // 팝업은 초기에는 숨겨둡니다.
+
+        console.log('[VCP] Initial forced pause/mute/play logic removed.');
 
         setupIntersectionObserver();
         updateVideoList(); // 초기 비디오 목록 감지 시작
 
+        // 초기 selectVideoLogic 호출 (다른 비디오를 멈추지 않고, currentVideo만 설정)
+        selectVideoLogic(); // 초기화 시에도 팝업이 자동으로 뜰 수 있도록 인자 없이 호출
+
         // --- DOM 변경 감지 및 SPA URL 변경 감지 초기화 ---
+        const handleSpaUrlChange = (newUrl) => {
+            console.log(`[VCP] SPA URL 변경 감지 콜백: ${newUrl} - 비디오 상태 초기화`);
+            currentVideo = null; // currentVideo만 초기화
+            hidePopup();
+            updateVideoList();
+            selectVideoLogic(); // SPA 변경 시에도 다시 비디오 선택 로직 실행 (자동 팝업 표시)
+        };
+
+        // MutationObserver 방식 활성화
         domMutationObserverInstance = setupDebouncedDOMObserver(() => {
             console.log('[VCP] DOM 변경 감지 (데바운스) - 비디오 목록 갱신');
             updateVideoList();
+            selectVideoLogic(); // DOM 변경 후 비디오 목록 갱신 시에도 팝업 자동 표시
         }, DEBOUNCE_MUTATION_OBSERVER_MS);
 
-        spaDetectionObserverInstance = setupSPADetection((newUrl) => {
-            console.log(`[VCP] SPA URL 변경 감지: ${newUrl} - 비디오 상태 초기화`);
-            if (currentVideo) currentVideo.pause();
-            currentVideo = null;
-            hidePopup();
-            lastPlayState = null; // SPA 변경 시 재생 상태 초기화
-            updateVideoList();
-        });
-        // --- 초기화 끝 ---
+        // History API 감지 방식 활성화 (SPA URL 변경 감지 강화)
+        setupHistoryListener(handleSpaUrlChange);
+        spaDetectionObserverInstance = setupSPADetection(handleSpaUrlChange); // MutationObserver 방식은 이 변수에 할당 유지
 
+        // --- 초기화 끝 ---
 
         document.addEventListener('fullscreenchange', () => {
             const fsEl = document.fullscreenElement;
@@ -932,11 +869,11 @@
             updatePopupPosition();
         });
 
-        window.addEventListener('scroll', handleScrollEvent);
+        window.addEventListener('scroll', handleScrollEvent, { passive: true });
 
-        fixOverflow();
+        fixOverflow(); // 이 함수는 현재 아무런 강제 스타일 변경을 하지 않음
 
-        startVideoStatusLoop();
+        startVideoStatusLoop(); // 스크립트의 주 루프 시작
 
         window.addEventListener('beforeunload', () => {
             console.log('[VCP] Page unloading. Clearing current video and stopping loops.');
@@ -956,13 +893,16 @@
                 domMutationObserverInstance.disconnect();
                 domMutationObserverInstance = null;
             }
-            if (spaDetectionObserverInstance) {
+            if (spaDetectionObserverInstance) { // 이 변수는 이제 History API 감지에도 사용될 수 있음
+                // History API 감지 함수는 Observer 인스턴스를 반환하지 않으므로, 이 부분은 MutationObserver에만 해당
                 spaDetectionObserverInstance.disconnect();
                 spaDetectionObserverInstance = null;
             }
+            // History API는 재정의되므로 별도의 해제 로직이 필요 없음. popstate 리스너는 window가 언로드되면 자동으로 해제됨.
         });
     }
 
+    // 문서 로딩 상태에 따라 초기화
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         initialize();
     } else {
