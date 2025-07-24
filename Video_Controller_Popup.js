@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.19: 팝업 자동 표시 롤백)
+// @name Video Controller Popup (V4.11.20: 다음 영상 이동 시 팝업 숨김)
 // @namespace Violentmonkey Scripts
-// @version 4.11.19_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup
+// @version 4.11.20_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange
 // @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance.
 // @match *://*/*
 // @grant none
@@ -56,22 +56,21 @@
     function selectAndControlVideo(videoToControl) {
         if (!videoToControl) {
             if (currentVideo) {
-                // 이전 currentVideo에 대한 추가적인 정리 로직이 필요하다면 여기에 추가 (현재는 필요 없음)
+                // 현재 비디오가 null이 되면 팝업을 즉시 숨깁니다.
+                hidePopup();
             }
             currentVideo = null;
-            hidePopup();
             return;
         }
 
         if (currentVideo !== videoToControl) {
+            // 비디오가 변경될 때 이전 팝업을 즉시 숨깁니다.
+            hidePopup();
             currentVideo = videoToControl;
 
             isManuallyMuted = currentVideo.muted;
             desiredPlaybackRate = currentVideo.playbackRate;
             desiredVolume = currentVideo.volume;
-            // 이전: 새 비디오가 선택될 때 팝업 자동 표시 (롤백: 제거)
-            // showPopup();
-            // resetPopupHideTimer();
         }
 
         fixPlaybackRate(currentVideo, desiredPlaybackRate);
@@ -559,10 +558,9 @@
         }
 
         if (activeVideo) {
-            if (currentVideo !== activeVideo) {
-                // 비디오 변경 시 selectAndControlVideo는 이제 팝업을 표시하지 않습니다.
-                selectAndControlVideo(activeVideo);
-            }
+            // currentVideo가 변경되면 selectAndControlVideo 내에서 팝업을 숨기도록 함
+            selectAndControlVideo(activeVideo);
+
             if (e instanceof Event) { // 클릭/터치 이벤트일 때만 팝업 표시
                 showPopup();
                 resetPopupHideTimer();
@@ -693,8 +691,8 @@
             if (currentVideo.playbackRate !== desiredPlaybackRate) {
                 currentVideo.playbackRate = desiredPlaybackRate;
             }
-            if (currentVideo.muted !== isManuallyMuted) {
-                currentVideo.muted = isManuallyMutter;
+            if (currentVideo.muted !== isManuallyMuted) { // isManuallyMutter 오타 수정
+                currentVideo.muted = isManuallyMuted;
             }
             if (!currentVideo.muted && Math.abs(currentVideo.volume - desiredVolume) > 0.005) {
                 currentVideo.volume = desiredVolume;
@@ -791,7 +789,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.19_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup.');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.20_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange.');
 
         createPopupElement();
         hidePopup(); // 팝업은 초기에는 숨겨둡니다.
