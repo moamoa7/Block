@@ -27,6 +27,10 @@
     const POPUP_TIMEOUT_MS = 2000;
     const DEBOUNCE_MUTATION_OBSERVER_MS = 300;
 
+    // --- 사용자 상호작용 감지 플래그 ---
+    let hasUserInteracted = false;
+    // ---
+
     // MutationObserver 인스턴스를 저장하여 나중에 disconnect 할 수 있도록 전역 변수 추가
     let domMutationObserverInstance = null;
     let spaDetectionObserverInstance = null; // History API 감지용으로 이름 변경 또는 추가
@@ -342,6 +346,13 @@
     function setPopupVisibility(isVisible) {
         if (!popupElement) return;
 
+        // --- 사용자 상호작용이 없으면 팝업 표시를 막음 ---
+        if (isVisible && !hasUserInteracted) {
+            console.log('[VCP] Popup visibility blocked: No user interaction yet.');
+            return;
+        }
+        // ---
+
         if (isVisible) {
             const styles = { display: 'flex', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
             for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
@@ -375,9 +386,14 @@
 
     function resetPopupHideTimer() {
         if (popupHideTimer) clearTimeout(popupHideTimer);
-        if (!isPopupDragging && isPopupVisible) {
+        // --- 사용자 상호작용이 없으면 타이머 설정을 막음 ---
+        if (!isPopupDragging && isPopupVisible && hasUserInteracted) {
             popupHideTimer = setTimeout(hidePopup, POPUP_TIMEOUT_MS);
+        } else if (!hasUserInteracted) {
+             // 팝업이 이미 보이지만, 사용자 상호작용이 없었다면 즉시 숨김
+             if (isPopupVisible) hidePopup();
         }
+        // ---
     }
 
     function updatePopupPosition() {
@@ -442,7 +458,9 @@
                 }
             });
 
-            selectVideoLogic(); // 스크롤 시 자동 감지되도록 인자 제거 (팝업 자동 표시 제거 후에도, 비디오 선택 로직은 필요)
+            // IntersectionObserver는 스크롤과 같은 비동기적인 상황에서 호출되므로,
+            // 이때는 팝업을 자동으로 띄우지 않도록 `e` 인자 없이 호출합니다.
+            selectVideoLogic();
         };
 
         videoObserver = new IntersectionObserver(observerCallback, observerOptions);
@@ -525,7 +543,9 @@
             // currentVideo가 변경되면 selectAndControlVideo 내에서 팝업을 숨기도록 함
             selectAndControlVideo(activeVideo);
 
-            if (e instanceof Event) { // 클릭/터치 이벤트일 때만 팝업 표시
+            // 팝업은 명확히 사용자 클릭/터치 (e가 있고, e.type이 'click' 또는 'touchend'일 때) 에만 표시
+            // 초기 로딩 시나 스크롤 등 비동기적인 호출에서는 팝업을 띄우지 않도록 합니다.
+            if (e && (e.type === 'click' || e.type === 'touchend')) {
                 showPopup();
                 resetPopupHideTimer();
             }
@@ -545,7 +565,8 @@
                 currentVideo = null;
                 hidePopup();
             }
-            selectVideoLogic(); // 스크롤이 멈춘 후에도 적절한 비디오를 다시 선택하여 currentVideo 설정 유지 (팝업은 클릭해야 뜸)
+            // 스크롤 이벤트 후에는 팝업을 자동으로 띄우지 않으므로 `e` 인자 없이 호출
+            selectVideoLogic();
         }, 100); // 100ms Debounce
     }
 
@@ -570,10 +591,6 @@
             }
         }, 200); // 200ms debounce
     }
-    // 기존 scroll 이벤트 리스너가 있으므로, 여기서는 touchmove만 추가합니다.
-    // 기존 window.addEventListener('scroll', handleScrollEvent, { passive: true });는 유지
-    // onUserScrollOrTouchMove는 handleScrollEvent와 별개로 팝업 가시성만을 독립적으로 처리합니다.
-    // window.addEventListener('scroll', onUserScrollOrTouchMove, { passive: true }); // handleScrollEvent와 중복 가능성, 아래 초기화에서 통합
     // --- 새로운 팝업 숨김 강화 로직 끝 ---
 
     // --- DOM 변경 감지 및 데바운스 처리 함수 (함수화) ---
@@ -690,7 +707,8 @@
             }
         }
 
-        if (popupElement && isPopupVisible && !isPopupDragging) {
+        // 팝업이 보이고, 드래그 중이 아니며, 사용자 상호작용이 있었을 때만 위치 및 슬라이더 업데이트
+        if (popupElement && isPopupVisible && !isPopupDragging && hasUserInteracted) {
             updatePopupPosition();
             updateMuteSpeakButtons();
             updatePopupSliders();
@@ -722,6 +740,9 @@
     const TOUCH_MOVE_THRESHOLD = 10;
 
     document.addEventListener('touchstart', (e) => {
+        // --- 사용자 상호작용 감지 ---
+        if (!hasUserInteracted) { hasUserInteracted = true; console.log('[VCP] User interacted (touchstart)'); }
+        // ---
         touchStartX = e.touches ? e.touches.item(0).clientX : e.clientX;
         touchStartY = e.touches ? e.touches.item(0).clientY : e.clientY;
         touchMoved = false;
@@ -739,6 +760,9 @@
     }, { passive: true });
 
     document.body.addEventListener('click', (e) => {
+        // --- 사용자 상호작용 감지 ---
+        if (!hasUserInteracted) { hasUserInteracted = true; console.log('[VCP] User interacted (click)'); }
+        // ---
         if (!e) return;
         // 팝업을 클릭한 경우는 팝업 숨김 타이머만 재설정하고 리턴
         if (popupElement && isPopupVisible && popupElement.contains(e.target)) { resetPopupHideTimer(); return; }
@@ -758,6 +782,9 @@
     }, true); // 캡처링 단계에서 이벤트 리스닝
 
     document.body.addEventListener('touchend', (e) => {
+        // --- 사용자 상호작용 감지 (touchend는 touchstart에서 이미 감지되지만, 안전을 위해 남겨둠) ---
+        if (!hasUserInteracted) { hasUserInteracted = true; console.log('[VCP] User interacted (touchend)'); }
+        // ---
         if (!e) return;
         // 팝업을 터치한 경우는 팝업 숨김 타이머만 재설정하고 리턴
         if (popupElement && isPopupVisible && popupElement.contains(e.target)) { resetPopupHideTimer(); return; }
@@ -781,7 +808,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.21_YouTubeFullscreenFix.');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.21_YouTubeFullscreenFix_NoAutoPopup.');
 
         createPopupElement();
         hidePopup(); // 팝업은 초기에는 숨겨둡니다.
@@ -791,7 +818,7 @@
         setupIntersectionObserver();
         updateVideoList(); // 초기 비디오 목록 감지 시작
 
-        // 초기 selectVideoLogic 호출 (팝업은 클릭해야 뜸)
+        // 초기 selectVideoLogic 호출 (이때는 hasUserInteracted가 false이므로 팝업은 뜨지 않음)
         selectVideoLogic();
 
         // --- DOM 변경 감지 및 SPA URL 변경 감지 초기화 ---
@@ -800,14 +827,16 @@
             currentVideo = null; // currentVideo만 초기화
             hidePopup();
             updateVideoList();
-            selectVideoLogic(); // SPA 변경 시에도 다시 비디오 선택 로직 실행 (팝업 자동 표시 없음)
+            // SPA 변경 시에도 hasUserInteracted가 true일 때만 팝업이 표시되도록 selectVideoLogic에 e 없이 호출
+            selectVideoLogic();
         };
 
         // MutationObserver 방식 활성화
         domMutationObserverInstance = setupDebouncedDOMObserver(() => {
             console.log('[VCP] DOM 변경 감지 (데바운스) - 비디오 목록 갱신');
             updateVideoList();
-            selectVideoLogic(); // DOM 변경 후 비디오 목록 갱신 시에도 팝업 자동 표시 없음
+            // DOM 변경 후 비디오 목록 갱신 시에도 hasUserInteracted가 true일 때만 팝업이 표시되도록 selectVideoLogic에 e 없이 호출
+            selectVideoLogic();
         }, DEBOUNCE_MUTATION_OBSERVER_MS);
 
         // History API 감지 방식 활성화 (SPA URL 변경 감지 강화)
@@ -836,9 +865,16 @@
                     popupElement.style.position = 'absolute';
                     popupElement.style.transform = 'none';
 
-                    updatePopupPosition();
-                    showPopup(); // 팝업 다시 표시 (타이머 자동 재설정)
-                    console.log('[VCP] Fullscreen entered. Popup moved to fullscreen element.');
+                    // --- 전체 화면 시에도 사용자 상호작용이 있었다면 팝업 표시 및 타이머 재설정 ---
+                    if (hasUserInteracted) {
+                        updatePopupPosition();
+                        showPopup(); // 팝업 다시 표시 (타이머 자동 재설정)
+                        console.log('[VCP] Fullscreen entered. Popup moved to fullscreen element and shown.');
+                    } else {
+                        hidePopup(); // 상호작용 없으면 숨김
+                        console.log('[VCP] Fullscreen entered. Popup hidden as no user interaction yet.');
+                    }
+                    // ---
                 } else {
                     // 전체 화면 종료 시
                     // 팝업을 다시 body로 이동
