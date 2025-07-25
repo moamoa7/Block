@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name Video Controller Popup (V4.11.24: Click／Touchend 통합)
+// @name Video Controller Popup (V4.11.24_EnhancedMediaDetection_FullscreenFix_DeepScan_RevertFS_FixRefError_RetryInit)
 // @namespace Violentmonkey Scripts
-// @version 4.11.24_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange_EnhancedScrollHide_OptimizedScrollMove_FullscreenOptimized_ClickTouchendIntegrated_RAF_Optimized_ThrottledDrag
-// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance. Enhanced: Popup hides on scroll/touch if currentVideo is out of view. Optimized: onUserScrollOrTouchMove performance. Optimized: Fullscreen transition handling. Optimized: Click/Touchend event handling. Optimized: requestAnimationFrame loop for precise UI updates. Optimized: Throttled drag for smoother popup movement.
+// @version 4.11.24_NoForcedControl_NoPlayPauseBtn_HorizontalBtns_EnhancedSPADetection_PassiveScroll_NoAutoPopup_HideOnVideoChange_EnhancedScrollHide_OptimizedScrollMove_FullscreenOptimized_ClickTouchendIntegrated_RAF_Optimized_ThrottledDrag_SPAOptimized_VideoStatusOptimized_VisibilityControl_PopupInView_EnhancedMediaDetection_FullscreenFix_DeepScan_RevertFS_FixClickFS_FixRefError_RetryInit
+// @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance. Enhanced: Popup hides on scroll/touch if currentVideo is out of view. Optimized: onUserScrollOrTouchMove performance. Optimized: Fullscreen transition handling. Optimized: Click/Touchend Integrated. Optimized: requestAnimationFrame loop for precise UI updates. Optimized: Throttled drag for smoother popup movement. Optimized: SPA handling for same URL/delayed video loads. Optimized: Video status update frequency. Optimized: Auto-pause/resume of RAF loop on tab visibility. Added: Auto-reposition popup if out of view. Enhanced: Detects hidden/background media using advanced techniques. Fixed: Popup visibility in fullscreen (Reverted to old method + CSS/Event Listener fix). Fixed: ReferenceError on setupGlobalEventListeners. Added: Retry initialization for delayed media.
 // @match *://*/*
 // @grant none
 // ==/UserScript==
@@ -15,38 +15,35 @@
         isPopupDragging = false, popupDragOffsetX = 0, popupDragOffsetY = 0, isInitialized = false;
     let isManuallyMuted = false;
     let isPopupVisible = false;
-    let popupPrevPosition = null;
     let rafId = null;
     let videoObserver = null;
     let observedVideosData = new Map();
     let lastPopupPosition = { left: -9999, top: -9999 };
     let lastUpdatedPlaybackRate = null;
 
+    // 비디오 상태 캐시
+    const videoStateCache = new WeakMap();
     const videoRateHandlers = new WeakMap();
 
     // Configuration
     let popupHideTimer = null;
     const POPUP_TIMEOUT_MS = 2000;
     const DEBOUNCE_MUTATION_OBSERVER_MS = 300;
+    const DETECT_HIDDEN_MEDIA = true;
 
     let domMutationObserverInstance = null;
     let spaDetectionObserverInstance = null;
+    let manualVideoElements = new Set();
 
     // --- Utility Functions ---
 
-    // ⭐ 추가: 스로틀링 유틸리티 함수
     function throttle(func, delay) {
         let lastCall = 0;
-        let timeoutId = null; // ⭐ 추가: 마지막 호출 보정을 위한 타이머 ID (요청에는 없었지만, 부드러움을 위해 추가)
+        let timeoutId = null;
 
         return function(...args) {
             const now = Date.now();
-            // ⭐ 보정: 마지막 호출 후 delay 내에 다시 호출되면, delay 이후에라도 한 번은 실행되도록
-            // 이 구현은 requestAnimationFrame 기반이 아닌 Date.now() 기반의 단순 스로틀링입니다.
-            // requestAnimationFrame과 동기화된 드래그를 원하면 별도의 로직이 필요합니다.
-            // 현재 요구사항은 DOM 업데이트 빈도 조절이므로 이대로도 충분합니다.
             if (now - lastCall < delay) {
-                // 이전에 예약된 호출이 없다면, 현재 delay 시간 이후에 실행되도록 예약
                 if (!timeoutId) {
                     timeoutId = setTimeout(() => {
                         lastCall = Date.now();
@@ -54,19 +51,120 @@
                         func.apply(this, args);
                     }, delay - (now - lastCall));
                 }
-                return; // delay 내라면 바로 리턴하여 불필요한 호출 방지
+                return;
             }
 
-            // delay를 넘겼다면 즉시 실행
             lastCall = now;
-            clearTimeout(timeoutId); // 예약된 이전 호출이 있다면 취소
+            clearTimeout(timeoutId);
             timeoutId = null;
             func.apply(this, args);
         };
     }
 
+    function hackAttachShadow() {
+        if (window._hasHackAttachShadow_) return;
+        try {
+            window._shadowDomList_ = window._shadowDomList_ || [];
+            if (window.Element && window.Element.prototype && window.Element.prototype.attachShadow) {
+                 window.Element.prototype._originalAttachShadow = window.Element.prototype.attachShadow;
+
+                window.Element.prototype.attachShadow = function() {
+                    const arg = arguments;
+                    if (arg[0] && arg[0].mode) {
+                        arg[0].mode = 'open';
+                    }
+                    const shadowRoot = this._originalAttachShadow.apply(this, arg);
+                    window._shadowDomList_.push(shadowRoot);
+
+                    setTimeout(() => {
+                         shadowRoot.querySelectorAll('video, audio').forEach(v => {
+                             if (!manualVideoElements.has(v)) {
+                                 manualVideoElements.add(v);
+                                 console.log('[VCP] Discovered media in new ShadowRoot:', v);
+                                 instrumentMediaElement(v);
+                             }
+                         });
+                         // Shadow DOM 내부 비디오 추가 시에도 즉시 비디오 목록 업데이트 및 선택 시도
+                         updateVideoList();
+                         selectVideoLogic();
+                    }, 0);
+
+                    return shadowRoot;
+                };
+                window._hasHackAttachShadow_ = true;
+                console.log('[VCP] Shadow DOM hack applied.');
+            }
+        } catch (e) {
+            console.error('[VCP] hackAttachShadow error:', e);
+        }
+    }
+
+    function instrumentMediaElement(mediaElement) {
+        if (!mediaElement || mediaElement._vcp_instrumented) return;
+        mediaElement._vcp_instrumented = true;
+
+        const proto = HTMLMediaElement.prototype;
+
+        ['playbackRate', 'volume', 'currentTime', 'src'].forEach(prop => {
+            const descriptor = Object.getOwnPropertyDescriptor(proto, prop);
+            if (descriptor && (descriptor.get || descriptor.set)) {
+                Object.defineProperty(mediaElement, prop, {
+                    configurable: true,
+                    enumerable: descriptor.enumerable,
+                    get: function() {
+                        const val = descriptor.get.apply(this, arguments);
+                        if (!manualVideoElements.has(this) && (this.tagName === 'VIDEO' || this.tagName === 'AUDIO')) {
+                            manualVideoElements.add(this);
+                            console.log(`[VCP] Discovered media via ${prop} get:`, this);
+                            updateVideoList(); // 발견 즉시 업데이트
+                        }
+                        return val;
+                    },
+                    set: function(value) {
+                        if (!manualVideoElements.has(this) && (this.tagName === 'VIDEO' || this.tagName === 'AUDIO')) {
+                             manualVideoElements.add(this);
+                             console.log(`[VCP] Discovered media via ${prop} set:`, this);
+                             updateVideoList(); // 발견 즉시 업데이트
+                        }
+                        return descriptor.set.apply(this, arguments);
+                    }
+                });
+            }
+        });
+
+        ['play', 'pause', 'load'].forEach(methodName => {
+            const originalMethod = mediaElement[methodName];
+            if (typeof originalMethod === 'function') {
+                mediaElement[methodName] = function() {
+                    if (!manualVideoElements.has(this) && (this.tagName === 'VIDEO' || this.tagName === 'AUDIO')) {
+                        manualVideoElements.add(this);
+                        console.log(`[VCP] Discovered media via ${methodName} call:`, this);
+                        updateVideoList(); // 발견 즉시 업데이트
+                    }
+                    return originalMethod.apply(this, arguments);
+                };
+            }
+        });
+        console.log('[VCP] Media element instrumented:', mediaElement);
+    }
+
     function findAllVideosDeep(root = document) {
         let videos = Array.from(root.querySelectorAll('video, audio'));
+        manualVideoElements.forEach(v => {
+            if (!videos.includes(v) && document.body.contains(v)) {
+                videos.push(v);
+            }
+        });
+        if (window._shadowDomList_) {
+            window._shadowDomList_.forEach(shadowRoot => {
+                Array.from(shadowRoot.querySelectorAll('video, audio')).forEach(v => {
+                    if (!videos.includes(v)) {
+                        videos.push(v);
+                        instrumentMediaElement(v);
+                    }
+                });
+            });
+        }
         return videos;
     }
 
@@ -74,13 +172,31 @@
         const found = findAllVideosDeep();
         const playableVideos = found.filter(v => {
             const style = window.getComputedStyle(v);
-            const isMedia = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
             const rect = v.getBoundingClientRect();
-            const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-            const isReasonableSize = (rect.width >= 250 && rect.height >= 250);
-            const hasMedia = v.videoWidth > 0 || v.videoHeight > 0 || isMedia;
-            const isWithinViewport = (rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0);
-            return isVisible && isReasonableSize && hasMedia && isWithinViewport;
+            const isMediaTag = v.tagName === 'AUDIO' || v.tagName === 'VIDEO';
+
+            const isReasonableSize = (v.tagName === 'AUDIO') ||
+                                     ((rect.width >= 1 && rect.height >= 1) || (v.videoWidth > 0 || v.videoHeight > 0));
+
+            const isVisuallyHiddenByCSS = style.display === 'none' || style.visibility === 'hidden' || style.opacity === 0;
+            const isAudible = !v.muted && v.volume > 0 && !v.paused && v.src && v.duration > 0 && !isNaN(v.duration);
+
+            let passesVisibilityCheck = !isVisuallyHiddenByCSS;
+
+            if (DETECT_HIDDEN_MEDIA && isAudible) {
+                passesVisibilityCheck = true;
+            }
+
+            let isWithinViewport = (rect.bottom > 0 && rect.top < window.innerHeight &&
+                                    rect.right > 0 && rect.left < window.innerWidth);
+
+            if (DETECT_HIDDEN_MEDIA && isAudible) {
+                isWithinViewport = true;
+            }
+
+            const hasLoadedMediaData = v.videoWidth > 0 || v.videoHeight > 0 || v.currentSrc;
+
+            return isMediaTag && hasLoadedMediaData && isReasonableSize && passesVisibilityCheck && isWithinViewport;
         });
         videos = playableVideos;
         return playableVideos;
@@ -133,7 +249,7 @@
         const rateChangeHandler = () => {
             if (video.playbackRate !== desiredPlaybackRate) {
                 desiredPlaybackRate = video.playbackRate;
-                updatePopupSliders(); // 외부 ratechange 시 업데이트
+                updatePopupSliders();
             }
         };
         video.addEventListener('ratechange', rateChangeHandler);
@@ -159,10 +275,9 @@
         popupElement = document.createElement('div');
         popupElement.id = 'video-controller-popup';
         popupElement.style.cssText = `
-            position: fixed;
             background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
-            padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
-            display: none; opacity: 0; transition: opacity 0.3s;
+            padding: 0; color: white; font-family: sans-serif; z-index: 2147483647 !important;
+            display: none; opacity: 0 !important; transition: opacity 0.3s;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             width: fit-content;
             min-width: 280px;
@@ -170,6 +285,7 @@
             display: flex;
             flex-direction: column;
             align-items: stretch;
+            visibility: hidden !important;
         `;
 
         const dragHandle = document.createElement('div');
@@ -334,24 +450,14 @@
         }
     }
 
-    // ⭐ dragPopup 함수 정의 (스코프 유지)
     const dragPopup = (e) => {
         if (!isPopupDragging) return;
         const clientX = e.clientX || (e.touches && e.touches[0].clientX);
         const clientY = e.clientY || (e.touches && e.touches[0].clientY);
         if (clientX === undefined || clientY === undefined) return;
 
-        const isFullscreen = document.fullscreenElement !== null;
-        let targetLeft, targetTop;
-
-        if (isFullscreen) {
-            const fsRect = document.fullscreenElement.getBoundingClientRect();
-            targetLeft = (clientX - popupDragOffsetX) - fsRect.left;
-            targetTop = (clientY - popupDragOffsetY) - fsRect.top;
-        } else {
-            targetLeft = clientX - popupDragOffsetX;
-            targetTop = clientY - popupDragOffsetY;
-        }
+        const targetLeft = clientX - popupDragOffsetX;
+        const targetTop = clientY - popupDragOffsetY;
 
         popupElement.style.left = `${targetLeft}px`;
         popupElement.style.top = `${targetTop}px`;
@@ -360,9 +466,52 @@
         lastPopupPosition.top = targetTop;
     };
 
-    // ⭐ 스로틀링된 dragPopup 함수들 생성
-    const throttledDragPopupMouse = throttle(dragPopup, 16); // 60fps
-    const throttledDragPopupTouch = throttle(dragPopup, 30); // 약 30fps
+    const throttledDragPopupMouse = throttle(dragPopup, 16);
+    const throttledDragPopupTouch = throttle(dragPopup, 30);
+
+    function keepPopupInView() {
+        if (!popupElement || popupElement.style.display === 'none') return;
+
+        const rect = popupElement.getBoundingClientRect();
+        const margin = 10;
+
+        let needsReposition = false;
+        let newLeft = rect.left;
+        let newTop = rect.top;
+
+        const targetElement = document.fullscreenElement || window;
+        const targetWidth = targetElement === window ? window.innerWidth : targetElement.offsetWidth;
+        const targetHeight = targetElement === window ? window.innerHeight : targetElement.offsetHeight;
+
+        let currentParentRect = { left: 0, top: 0 };
+        if (document.fullscreenElement && popupElement.offsetParent) {
+             currentParentRect = popupElement.offsetParent.getBoundingClientRect();
+        }
+
+        const currentPopupLeftRelToParent = rect.left - currentParentRect.left;
+        const currentPopupTopRelToParent = rect.top - currentParentRect.top;
+
+
+        if (currentPopupLeftRelToParent < margin || currentPopupLeftRelToParent > targetWidth - rect.width - margin) {
+            newLeft = margin;
+            needsReposition = true;
+        }
+        if (currentPopupTopRelToParent < margin || currentPopupTopRelToParent > targetHeight - rect.height - margin) {
+            newTop = margin;
+            needsReposition = true;
+        }
+
+        if (needsReposition) {
+            console.log('[VCP] Popup out of view, repositioning.');
+            popupElement.style.left = `${newLeft}px`;
+            popupElement.style.top = `${newTop}px`;
+
+            lastPopupPosition = {
+                left: newLeft + currentParentRect.left,
+                top: newTop + currentParentRect.top
+            };
+        }
+    }
 
     function setupPopupEventListeners() {
         if (!popupElement) return;
@@ -392,53 +541,56 @@
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
             if (clientX === undefined || clientY === undefined) return;
             const rect = popupElement.getBoundingClientRect();
-            popupDragOffsetX = clientX - rect.left;
-            popupDragOffsetY = clientY - rect.top;
+            const parentRect = popupElement.offsetParent ? popupElement.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
+            popupDragOffsetX = clientX - (rect.left - parentRect.left);
+            popupDragOffsetY = clientY - (rect.top - parentRect.top);
             document.body.style.userSelect = 'none';
         };
 
-        const stopDrag = (e) => { // ⭐ e 인자 추가
+        const stopDrag = (e) => {
             if (isPopupDragging) {
                 isPopupDragging = false;
                 dragHandle.style.cursor = 'grab';
                 document.body.style.userSelect = '';
                 resetPopupHideTimer();
-                lastPopupPosition = { left: -9999, top: -9999 };
 
-                // ⭐ 드래그 종료 시 마지막 위치 보정
-                if (e) { // 이벤트 객체가 있다면 (마우스/터치 업 이벤트에서)
-                    dragPopup(e); // 스로틀링 없이 원본 dragPopup 호출
+                if (e) {
+                    dragPopup(e);
                 }
+                keepPopupInView();
             }
         };
 
         dragHandle.addEventListener('mousedown', startDrag);
         dragHandle.addEventListener('touchstart', startDrag, { passive: false });
-        // ⭐ 변경: 스로틀링된 함수 사용
         document.addEventListener('mousemove', throttledDragPopupMouse);
         document.addEventListener('touchmove', throttledDragPopupTouch, { passive: false });
         document.addEventListener('mouseup', stopDrag);
         document.addEventListener('touchend', stopDrag);
-        document.addEventListener('mouseleave', stopDrag); // 마우스가 문서 밖으로 나갔을 때 드래그 종료
+        document.addEventListener('mouseleave', stopDrag);
     }
 
     function setPopupVisibility(isVisible) {
         if (!popupElement) return;
 
         if (isVisible) {
-            const styles = { display: 'flex', opacity: '0.75', visibility: 'visible', pointerEvents: 'auto', zIndex: '2147483647' };
-            for (const key in styles) popupElement.style.setProperty(key, styles[key], 'important');
+            popupElement.style.setProperty('display', 'flex', 'important');
+            popupElement.style.setProperty('opacity', '0.75', 'important');
+            popupElement.style.setProperty('visibility', 'visible', 'important');
+            popupElement.style.setProperty('pointer-events', 'auto', 'important');
+            popupElement.style.setProperty('z-index', '2147483647', 'important');
             isPopupVisible = true;
             resetPopupHideTimer();
             startVideoStatusLoop();
+            keepPopupInView();
         } else {
             if (popupHideTimer) {
                 clearTimeout(popupHideTimer);
                 popupHideTimer = null;
             }
-            popupElement.style.display = 'none';
-            popupElement.style.opacity = '0';
-            popupElement.style.visibility = 'hidden';
+            popupElement.style.setProperty('display', 'none', 'important');
+            popupElement.style.setProperty('opacity', '0', 'important');
+            popupElement.style.setProperty('visibility', 'hidden', 'important');
             isPopupVisible = false;
             stopVideoStatusLoop();
         }
@@ -448,6 +600,21 @@
         if (!currentVideo) {
             hidePopup();
             return;
+        }
+
+        const fsEl = document.fullscreenElement;
+        if (fsEl) {
+            if (popupElement.parentNode !== fsEl) {
+                fsEl.appendChild(popupElement);
+                console.log('[VCP] Popup moved to fullscreen element.');
+            }
+            popupElement.style.position = 'absolute';
+        } else {
+            if (popupElement.parentNode !== document.body) {
+                document.body.appendChild(popupElement);
+                console.log('[VCP] Popup moved to body.');
+            }
+            popupElement.style.position = 'fixed';
         }
 
         setPopupVisibility(true);
@@ -470,26 +637,36 @@
         const observerOptions = {
             root: null,
             rootMargin: '0px',
-            threshold: [0.3, 0.5, 0.7, 1.0]
+            threshold: [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0]
         };
 
         const observerCallback = (entries) => {
+            let needsLogicRecalculation = false;
             entries.forEach(entry => {
                 const video = entry.target;
-                if (entry.isIntersecting) {
+                const oldRatio = observedVideosData.has(video) ? observedVideosData.get(video).intersectionRatio : 0;
+                const newRatio = entry.intersectionRatio;
+
+                if (newRatio > 0) {
                     observedVideosData.set(video, {
-                        intersectionRatio: entry.intersectionRatio,
+                        intersectionRatio: newRatio,
                         timestamp: Date.now()
                     });
                 } else {
                     observedVideosData.delete(video);
                 }
+
+                if (Math.abs(newRatio - oldRatio) > 0.01) {
+                    needsLogicRecalculation = true;
+                }
             });
-            selectVideoLogic();
+            if (needsLogicRecalculation || !currentVideo || !observedVideosData.has(currentVideo)) {
+                 selectVideoLogic();
+            }
         };
 
         videoObserver = new IntersectionObserver(observerCallback, observerOptions);
-        updateVideoList(); // Initial video scan
+        updateVideoList();
     }
 
     function updateVideoList() {
@@ -509,6 +686,7 @@
                 videoObserver.observe(video);
                 observedVideosData.set(video, { intersectionRatio: 0, timestamp: Date.now() });
             }
+            instrumentMediaElement(video);
         });
 
         if (currentVideo && (!document.body.contains(currentVideo) || !currentPlayableVideos.includes(currentVideo))) {
@@ -517,7 +695,6 @@
         }
     }
 
-    // --- 비디오 우선순위 점수 계산 함수 ---
     function calculateVideoScore(video) {
         const rect = video.getBoundingClientRect();
         const centerX = window.innerWidth / 2;
@@ -530,12 +707,19 @@
         const centerDist = Math.hypot(rect.left + rect.width / 2 - centerX, rect.top + rect.height / 2 - centerY);
         const centerScore = 1 / Math.pow(1 + centerDist, 5);
 
-        const score = visibleArea * 0.7 + centerScore * 5000 * 0.3;
+        const isAudible = !video.muted && video.volume > 0 && !video.paused && video.src;
+
+        let score;
+        if (DETECT_HIDDEN_MEDIA && isAudible) {
+            score = 1000 + (visibleArea * 0.1) + (centerScore * 100);
+            if (video.tagName === 'AUDIO') score += 500;
+        } else {
+            score = visibleArea * 0.7 + centerScore * 5000 * 0.3;
+        }
 
         return score;
     }
 
-    // --- 교차 비율을 계산하는 별도 함수 ---
     function calculateIntersectionRatio(video) {
         const rect = video.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return 0;
@@ -548,10 +732,12 @@
         return totalArea > 0 ? visibleArea / totalArea : 0;
     }
 
-    // --- 개선된 selectVideoLogic 함수 ---
     function selectVideoLogic(e) {
         let candidateVideos = Array.from(observedVideosData.entries())
-            .filter(([video, data]) => data.intersectionRatio > 0)
+            .filter(([video, data]) => {
+                const isAudible = !video.muted && video.volume > 0 && !video.paused;
+                return data.intersectionRatio > 0 || (DETECT_HIDDEN_MEDIA && isAudible);
+            })
             .map(([video, data]) => ({
                 video,
                 score: calculateVideoScore(video),
@@ -573,8 +759,8 @@
                 resetPopupHideTimer();
             }
         } else {
-            if (currentVideo && (!document.body.contains(currentVideo) || !isVisibleInViewport(currentVideo))) {
-                console.log('[VCP] Current video is not in DOM or not visible in viewport. Hiding popup.');
+            if (currentVideo && (!document.body.contains(currentVideo) || (!isVisibleInViewport(currentVideo) && !(DETECT_HIDDEN_MEDIA && !currentVideo.muted && currentVideo.volume > 0)))) {
+                console.log('[VCP] Current video is not in DOM or not visible/audible. Hiding popup.');
                 currentVideo = null;
                 hidePopup();
             } else if (!currentVideo) {
@@ -588,7 +774,7 @@
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
             updateVideoList();
-            if (currentVideo && (!document.body.contains(currentVideo) || !observedVideosData.has(currentVideo) || observedVideosData.get(currentVideo).intersectionRatio === 0 || !isVisibleInViewport(currentVideo))) {
+            if (currentVideo && (!document.body.contains(currentVideo) || (!observedVideosData.has(currentVideo) || observedVideosData.get(currentVideo).intersectionRatio === 0) && !(DETECT_HIDDEN_MEDIA && !currentVideo.muted && currentVideo.volume > 0 && !currentVideo.paused) || !isVisibleInViewport(currentVideo))) {
                 currentVideo = null;
                 hidePopup();
             }
@@ -596,7 +782,6 @@
         }, 100);
     }
 
-    // --- onUserScrollOrTouchMove() 최적화 적용 ---
     let hideCheckTimer = null;
     let lastHideCheckTime = 0;
     const HIDE_DEBOUNCE_MS = 200;
@@ -616,13 +801,13 @@
                 hidePopup();
                 return;
             }
-            if (!isVisibleInViewport(currentVideo)) {
+            const isAudibleHiddenMedia = DETECT_HIDDEN_MEDIA && !currentVideo.muted && currentVideo.volume > 0 && !currentVideo.paused;
+            if (!isVisibleInViewport(currentVideo) && !isAudibleHiddenMedia) {
                 hidePopup();
             }
         }, HIDE_DEBOUNCE_MS);
     }
 
-    // --- DOM 변경 감지 및 데바운스 처리 함수 ---
     function setupDebouncedDOMObserver(onChangeCallback, debounceMs = 300) {
         let debounceTimer = null;
 
@@ -665,14 +850,19 @@
         return observer;
     }
 
-    // --- SPA URL 변경 탐지 함수 (MutationObserver 방식) ---
     function setupSPADetection() {
         let lastUrl = location.href;
 
         const handleSpaUrlChange = (newUrl) => {
+            if (currentVideo && newUrl === lastUrl) {
+                console.log(`[VCP] SPA URL 변경 감지 (동일 URL, 재실행 방지): ${newUrl}`);
+                return;
+            }
+
             console.log(`[VCP] SPA URL 변경 감지 콜백: ${newUrl} - 비디오 상태 초기화`);
             currentVideo = null;
             hidePopup();
+            manualVideoElements.clear();
             updateVideoList();
             selectVideoLogic();
         };
@@ -714,10 +904,9 @@
     }
 
     function fixOverflow() {
-        // This function currently does not enforce any style changes.
+        // Not used currently.
     }
 
-    // --- requestAnimationFrame 기반 비디오 상태 루프 (최적화 적용) ---
     function videoStatusLoop() {
         if (!currentVideo || !document.body.contains(currentVideo)) {
             currentVideo = null;
@@ -726,54 +915,92 @@
             return;
         }
 
-        if (currentVideo.playbackRate !== desiredPlaybackRate) {
-            currentVideo.playbackRate = desiredPlaybackRate;
-        }
-        if (currentVideo.muted !== isManuallyMuted) {
-            currentVideo.muted = isManuallyMuted;
-        }
-        if (!currentVideo.muted && Math.abs(currentVideo.volume - desiredVolume) > 0.005) {
-            currentVideo.volume = desiredVolume;
-        }
+        const currentRect = currentVideo.getBoundingClientRect();
+        const newState = {
+            playbackRate: currentVideo.playbackRate,
+            muted: currentVideo.muted,
+            volume: currentVideo.volume,
+            ended: currentVideo.ended,
+            rect: {
+                left: currentRect.left,
+                top: currentRect.top,
+                width: currentRect.width,
+                height: currentRect.height
+            }
+        };
 
-        if (popupElement && isPopupVisible && !isPopupDragging) {
-            updateMuteSpeakButtons();
-            updatePopupSliders();
+        const oldState = videoStateCache.get(currentVideo);
+        const stateChanged = !oldState ||
+                             newState.playbackRate !== oldState.playbackRate ||
+                             newState.muted !== oldState.muted ||
+                             newState.volume !== oldState.volume ||
+                             newState.ended !== oldState.ended ||
+                             newState.rect.left !== oldState.rect.left ||
+                             newState.rect.top !== oldState.rect.top ||
+                             newState.rect.width !== oldState.rect.width ||
+                             newState.rect.height !== oldState.rect.height;
 
-            const videoRect = currentVideo.getBoundingClientRect();
-            const popupWidth = popupElement.offsetWidth || 280;
-            const popupHeight = popupElement.offsetHeight || 150;
+        if (stateChanged) {
+            videoStateCache.set(currentVideo, newState);
 
-            let targetX = videoRect.left + (videoRect.width / 2) - (popupWidth / 2);
-            let targetY = videoRect.top + (videoRect.height / 2) - (popupHeight / 2);
-
-            targetX = Math.max(0, Math.min(targetX, window.innerWidth - popupWidth));
-            targetY = Math.max(0, Math.min(targetY, window.innerHeight - popupHeight));
-
-            const isFullscreen = document.fullscreenElement !== null;
-            let actualTargetLeft, actualTargetTop;
-
-            if (isFullscreen) {
-                const fsRect = document.fullscreenElement.getBoundingClientRect();
-                actualTargetLeft = targetX - fsRect.left;
-                actualTargetTop = targetY - fsRect.top;
-            } else {
-                actualTargetLeft = targetX;
-                actualTargetTop = targetY;
+            if (currentVideo.playbackRate !== desiredPlaybackRate) {
+                currentVideo.playbackRate = desiredPlaybackRate;
+            }
+            if (currentVideo.muted !== isManuallyMuted) {
+                currentVideo.muted = isManuallyMuted;
+            }
+            if (!currentVideo.muted && Math.abs(currentVideo.volume - desiredVolume) > 0.005) {
+                currentVideo.volume = desiredVolume;
             }
 
-            const delta = Math.abs(actualTargetLeft - lastPopupPosition.left) + Math.abs(actualTargetTop - lastPopupPosition.top);
-            if (delta > 1 || lastPopupPosition.left === -9999) {
-                lastPopupPosition.left = actualTargetLeft;
-                lastPopupPosition.top = actualTargetTop;
+            if (isPopupVisible) {
+                updateMuteSpeakButtons();
+                updatePopupSliders();
 
-                popupElement.style.left = `${actualTargetLeft}px`;
-                popupElement.style.top = `${actualTargetTop}px`;
-            }
+                if (!isPopupDragging) {
+                    const videoRect = currentVideo.getBoundingClientRect();
+                    const popupWidth = popupElement.offsetWidth || 280;
+                    const popupHeight = popupElement.offsetHeight || 150;
 
-            if (!isVisibleInViewport(currentVideo)) {
-                hidePopup();
+                    let targetX, targetY;
+                    let parentRectOffset = { left: 0, top: 0 };
+
+                    if (document.fullscreenElement) {
+                        const fsElRect = document.fullscreenElement.getBoundingClientRect();
+                        parentRectOffset = fsElRect;
+                        targetX = (videoRect.left - fsElRect.left) + (videoRect.width / 2) - (popupWidth / 2);
+                        targetY = (videoRect.top - fsElRect.top) + (videoRect.height / 2) - (popupHeight / 2);
+
+                        targetX = Math.max(0, Math.min(targetX, fsElRect.width - popupWidth));
+                        targetY = Math.max(0, Math.min(targetY, fsElRect.height - popupHeight));
+
+                    } else {
+                        targetX = videoRect.left + (videoRect.width / 2) - (popupWidth / 2);
+                        targetY = videoRect.top + (videoRect.height / 2) - (popupHeight / 2);
+
+                        targetX = Math.max(0, Math.min(targetX, window.innerWidth - popupWidth));
+                        targetY = Math.max(0, Math.min(targetY, window.innerHeight - popupHeight));
+                    }
+
+                    const currentPopupOffsetLeft = popupElement.getBoundingClientRect().left - parentRectOffset.left;
+                    const currentPopupOffsetTop = popupElement.getBoundingClientRect().top - parentRectOffset.top;
+
+                    const delta = Math.abs(targetX - currentPopupOffsetLeft) + Math.abs(targetY - currentPopupOffsetTop);
+
+                    if (delta > 1 || lastPopupPosition.left === -9999) {
+                        lastPopupPosition.left = targetX + parentRectOffset.left;
+                        lastPopupPosition.top = targetY + parentRectOffset.top;
+
+                        popupElement.style.left = `${targetX}px`;
+                        popupElement.style.top = `${targetY}px`;
+                    }
+                }
             }
+        }
+
+        const isAudibleHiddenMedia = DETECT_HIDDEN_MEDIA && !currentVideo.muted && currentVideo.volume > 0 && !currentVideo.paused;
+        if (isPopupVisible && !isVisibleInViewport(currentVideo) && !isAudibleHiddenMedia) {
+            hidePopup();
         }
 
         rafId = requestAnimationFrame(videoStatusLoop);
@@ -791,44 +1018,6 @@
             cancelAnimationFrame(rafId);
             rafId = null;
             console.log('[VCP] Video status loop stopped.');
-        }
-    }
-
-    // --- Fullscreen 스타일 관리 함수 ---
-    function setPopupFullscreenStyles(isFullscreen) {
-        if (!popupElement) return;
-        if (isFullscreen) {
-            popupElement.style.cssText = `
-                width: 280px;
-                min-width: 280px;
-                height: auto;
-                min-height: 150px;
-                position: absolute;
-                transform: none;
-                background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
-                padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-                overflow: hidden; text-align: center; pointer-events: auto;
-                display: flex;
-                flex-direction: column;
-                align-items: stretch;
-            `;
-        } else {
-            popupElement.style.cssText = `
-                width: fit-content;
-                min-width: 280px;
-                height: auto;
-                min-height: 150px;
-                position: fixed;
-                transform: none;
-                background: rgba(30, 30, 30, 0.9); border: 1px solid #444; border-radius: 8px;
-                padding: 0; color: white; font-family: sans-serif; z-index: 2147483647;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-                overflow: hidden; text-align: center; pointer-events: auto;
-                display: flex;
-                flex-direction: column;
-                align-items: stretch;
-            `;
         }
     }
 
@@ -885,8 +1074,58 @@
         window.addEventListener('scroll', onUserScrollOrTouchMove, { passive: true });
         window.addEventListener('touchmove', onUserScrollOrTouchMove, { passive: true });
         window.addEventListener('scroll', handleScrollEvent, { passive: true });
+
         window.addEventListener('resize', () => {
             lastPopupPosition = { left: -9999, top: -9999 };
+            keepPopupInView();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopVideoStatusLoop();
+                console.log('[VCP] Tab hidden, video status loop paused.');
+            } else {
+                startVideoStatusLoop();
+                console.log('[VCP] Tab visible, video status loop resumed.');
+            }
+        });
+    }
+
+
+    let currentFullscreenTarget = null;
+    function setupFullscreenHandling() {
+        document.addEventListener('fullscreenchange', () => {
+            const fsEl = document.fullscreenElement;
+            if (popupElement) {
+                if (currentFullscreenTarget) {
+                    currentFullscreenTarget.removeEventListener('click', handleUserClickOrTouch, true);
+                    currentFullscreenTarget.removeEventListener('touchend', handleUserClickOrTouch, true);
+                    console.log('[VCP] Removed fullscreen click listeners from previous target.');
+                }
+
+                if (fsEl) {
+                    console.log('[VCP] Fullscreen entered. Appending popup to fullscreen element.');
+                    if (popupElement.parentNode !== fsEl) {
+                        fsEl.appendChild(popupElement);
+                    }
+                    popupElement.style.position = 'absolute';
+                    fsEl.addEventListener('click', handleUserClickOrTouch, true);
+                    fsEl.addEventListener('touchend', handleUserClickOrTouch, true);
+                    currentFullscreenTarget = fsEl;
+
+                } else {
+                    console.log('[VCP] Fullscreen exited. Appending popup back to body.');
+                    if (popupElement.parentNode !== document.body) {
+                        document.body.appendChild(popupElement);
+                    }
+                    popupElement.style.position = 'fixed';
+                    currentFullscreenTarget = null;
+                }
+
+                lastPopupPosition = { left: -9999, top: -9999 };
+                keepPopupInView();
+                showPopup();
+            }
         });
     }
 
@@ -899,38 +1138,6 @@
         setupIntersectionObserver();
     }
 
-    function setupFullscreenHandling() {
-        document.addEventListener('fullscreenchange', () => {
-            const fsEl = document.fullscreenElement;
-            if (popupElement) {
-                if (fsEl) {
-                    popupPrevPosition = {
-                        left: popupElement.style.left,
-                        top: popupElement.style.top,
-                    };
-                    fsEl.appendChild(popupElement);
-                    setPopupFullscreenStyles(true);
-
-                    lastPopupPosition = { left: -9999, top: -9999 };
-                    showPopup();
-                    console.log('[VCP] Fullscreen entered. Popup moved to fullscreen element.');
-                } else {
-                    document.body.appendChild(popupElement);
-                    if (popupPrevPosition) {
-                        popupElement.style.left = popupPrevPosition.left;
-                        popupElement.style.top = popupPrevPosition.top;
-                        console.log('[VCP] Restored popup position to:', popupPrevPosition.left, popupPrevPosition.top);
-                    } else {
-                        lastPopupPosition = { left: -9999, top: -9999 };
-                    }
-                    setPopupFullscreenStyles(false);
-
-                    hidePopup();
-                    console.log('[VCP] Fullscreen exited. Popup hidden immediately and restored to body.');
-                }
-            }
-        });
-    }
 
     function cleanupOnUnload() {
         window.addEventListener('beforeunload', () => {
@@ -954,9 +1161,12 @@
                 spaDetectionObserverInstance.disconnect();
                 spaDetectionObserverInstance = null;
             }
-            // ⭐ 변경된 이벤트 리스너 제거: 스로틀링 함수도 제거 필요 (안전하게 추가)
             document.removeEventListener('mousemove', throttledDragPopupMouse);
             document.removeEventListener('touchmove', throttledDragPopupTouch, { passive: false });
+             if (currentFullscreenTarget) {
+                currentFullscreenTarget.removeEventListener('click', handleUserClickOrTouch, true);
+                currentFullscreenTarget.removeEventListener('touchend', handleUserClickOrTouch, true);
+            }
         });
     }
 
@@ -965,8 +1175,9 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.24_Refactored_VisibilityCheck_RAF_Optimized_ThrottledDrag.');
+        console.log('[VCP] Video Controller Popup script initialized. Version 4.11.24_EnhancedMediaDetection_FullscreenFix_DeepScan_RevertFS_FixRefError_RetryInit.');
 
+        hackAttachShadow();
         createPopupUI();
         setupPopupEventListeners();
         setupGlobalEventListeners();
@@ -976,13 +1187,26 @@
         cleanupOnUnload();
 
         hidePopup();
+        // ⭐ 초기화 시 비디오 목록 업데이트 및 선택 로직 즉시 실행
+        updateVideoList();
         selectVideoLogic();
         fixOverflow();
     }
 
+    // DOMContentLoaded 이후 바로 초기화
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         initialize();
     } else {
         window.addEventListener('DOMContentLoaded', initialize);
     }
+
+    // ⭐ 3초 후 재시도 로직 추가 (DOMContentLoaded 이후 동적으로 로드되는 미디어 대비)
+    setTimeout(() => {
+      if (!isInitialized || videos.length === 0) { // 초기화가 안되었거나 아직 비디오를 못 찾았다면
+        console.log('[VCP] Retrying initialization: Delayed media or SPA content might be present.');
+        // isInitialized를 다시 false로 설정하여 initialize()가 재실행되도록 함
+        isInitialized = false;
+        initialize();
+      }
+    }, 3000);
 })();
