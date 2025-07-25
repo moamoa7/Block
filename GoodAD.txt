@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250724
+! Version: 20250726
 !
 !
 !
@@ -522,6 +522,9 @@ v.daum.net#@#[class*="ad_"] [style]
 www.baidu.com#@#[class*="ad_"] [style]
 ! 펀비 (https://funbe536.com/) - 이미지 목록 사라짐
 [$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
+! - https://platinmods.com/ - 본문 내용 일부 안보임
+platinmods.com#@#[class*="ad_"] [style]
+
 
 
 
@@ -814,7 +817,7 @@ ygosu.com##.pull-left.btn-group
 ! 짱공유닷컴 (https://www.jjang0u.com/)
 ! - 맨 오른쪽 상단 작은 배너
 !##[class="top-banner"]
-!##.top-banner - ##[class*="-banner"]로 대체
+##.top-banner
 ! - 메인 상단 배너
 !##[id="banner-link"]
 !###banner-link - 아래 규칙으로 대체
@@ -903,10 +906,9 @@ inven.co.kr#@#div.banner
 ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 ! - 오른쪽 따라다니는 배너
 !##[class="floating-banner"]
-!##.floating-banner - ##[class*="-banner"] 로 대체
+##.floating-banner
 !##[class="ad-banner"]
 ##.ad-banner
-!##.ad-banner - ##[class*="-banner"] 로 대체
 ! - 게시물 위 상단 공간
 ##.main.container > div>[style]
 ! - 뽐쿠폰 배너
@@ -3154,7 +3156,7 @@ notion.so@@||/*/ads/*
 !
 ! 오늘의 중계 (https://today-sports7.com/)
 ! - 왼쪽 배너 공간
-!##.info-banner - ##[class*="-banner"]로 대체
+##.info-banner
 !
 !
 ! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/)
@@ -4592,6 +4594,8 @@ account.live.com#@#[class*="banner"]:has(img)
 [$domain=/^funbe\d+.com/]#@#[class*="banner"]:has(img)
 ! - - -  https://vexfile.com/ - 전체 사라짐
 vexfile.com#@#[class*="banner"]:has(img)
+! - https://kamilake.com/ - 페이지 안보임
+kamilake.com#@#[class*="banner"]:has(img)
 
 
 !##img[src*="/banner/"]
@@ -5030,27 +5034,27 @@ baidu.com#@#[class*="AD"]
 ! https://www.weather.go.kr/
 ! https://www.inven.co.kr/
 ! https://tv.naver.com/
-##[class*="-banner"]
+!##[class*="-banner"]
 ! - - - 예외
 ! - - - https://wdwd8.com/ -리스트 내용 사라짐
-[$domain=/^wdwd\d+.com/]#@#[class*="-banner"]
+![$domain=/^wdwd\d+.com/]#@#[class*="-banner"]
 ! - -- https://www.yna.co.kr/ - 화면 안보임
-yna.co.kr#@#[class*="-banner"]
+!yna.co.kr#@#[class*="-banner"]
 ! - - - tistory.com - 화면 안보임
-tistory.com#@#[class*="-banner"]
+!tistory.com#@#[class*="-banner"]
 ! - - - https://account.live.com/ - 화면 안보임
-account.live.com#@#[class*="-banner"]
+!account.live.com#@#[class*="-banner"]
 ! - 예외  툰코 (https://tkor023.com/) / 펀비 (https://funbe536.com/) 전체 사라짐
-[$domain=/^tkor\d+.com/]#@#[class*="-banner"]
-[$domain=/^funbe\d+.com/]#@#[class*="-banner"]
+![$domain=/^tkor\d+.com/]#@#[class*="-banner"]
+![$domain=/^funbe\d+.com/]#@#[class*="-banner"]
 ! - - -  https://vexfile.com/ - 전체 사라짐
-vexfile.com#@#[class*="-banner"]
+!vexfile.com#@#[class*="-banner"]
 
 
 
 ! https://www.weather.go.kr/
 ! https://tv.naver.com/
-##[class*="-banner-"]
+!##[class*="-banner-"]
 
 ! https://play.sooplive.co.kr/
 ! https://www.inven.co.kr/
@@ -6089,7 +6093,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
-
-
 
