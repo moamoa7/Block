@@ -5,6 +5,7 @@
 // @description Core video controls with streamlined UI. NO FORCED AUTOPLAY, PAUSE, or MUTE. Popup shows ONLY on click. Features dynamic 1x speed reset, Mute, and Speak buttons on a single row. Enhanced SPA handling with History API interception. Minimized UI with horizontal speed slider. Debounced MutationObserver and RequestAnimationFrame for performance. Uses IntersectionObserver for efficient video visibility detection. Restores popup position after fullscreen exit. Includes passive scroll event listener for smoother performance. Enhanced: Popup hides on scroll/touch if currentVideo is out of view. Optimized: onUserScrollOrTouchMove performance. Optimized: Fullscreen transition handling. Optimized: Click/Touchend Integrated. Optimized: requestAnimationFrame loop for precise UI updates. Optimized: Throttled drag for smoother popup movement. Optimized: SPA handling for same URL/delayed video loads. Optimized: Video status update frequency. Optimized: Auto-pause/resume of RAF loop on tab visibility. Added: Auto-reposition popup if out of view. Enhanced: Detects hidden/background media using advanced techniques. Fixed: Popup visibility in fullscreen (Reverted to old method + CSS/Event Listener fix). Fixed: ReferenceError on setupGlobalEventListeners. Added: Retry initialization for delayed media.
 // @match *://*/*
 // @grant none
+// @run-at document-idle
 // ==/UserScript==
 
 (function() {
