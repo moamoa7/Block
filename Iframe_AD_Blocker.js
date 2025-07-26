@@ -62,6 +62,7 @@
     '/vp/',  //쿠팡 - 옵션 선택이 안됨 해결
     '/payment',  // 결제시 사용하는 페이지 (쿠팡)
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
+    '/jwplayer/',   // https://05.avsee.ru/
     'lazyload',  '/ajax/', '/assets/',  // https://fc2ppvdb.com/ 이미지 안나오는거 해결
   ];
 
