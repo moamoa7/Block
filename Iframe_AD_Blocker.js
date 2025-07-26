@@ -64,6 +64,7 @@
     '/board/movie/',  // 디시인사이드 갤러리 동영상 삽입
     '/jwplayer/',   // https://05.avsee.ru/
     'lazyload',  '/ajax/', '/assets/',  // https://fc2ppvdb.com/ 이미지 안나오는거 해결
+    '/cheditor/cheditor',  // 뽐뿌 오류 해결
   ];
 
   const grayDomainWhitelistMap = {
