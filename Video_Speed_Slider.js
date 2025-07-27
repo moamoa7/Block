@@ -32,7 +32,7 @@
       height: auto;
       font-family: sans-serif;
       pointer-events: auto;
-      opacity: 0.2;
+      opacity: 0.3;
       transition: opacity 0.3s;
       user-select: none;
     }
@@ -90,9 +90,9 @@
 
   const slider = document.createElement('input');
   slider.type = 'range';
-  slider.min = '0.25';
-  slider.max = '3';
-  slider.step = '0.05';
+  slider.min = '0.2';
+  slider.max = '4';
+  slider.step = '0.2';
   slider.value = '1';
   slider.id = 'vm-speed-slider';
 
