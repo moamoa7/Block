@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Vertical Video Speed Slider (Fullscreen-safe, Long Press + Double Click Reset)
+// @name         Vertical Video Speed Slider (Fullscreen-safe, Long Press on Label + Double Click Reset)
 // @namespace    Violentmonkey Scripts
-// @version      1.4
-// @description  화면 오른쪽에 수직 배속 슬라이더 고정, 전체화면에서도 표시. 모바일 긴 클릭과 PC 더블클릭으로 1배속 초기화 기능 포함.
+// @version      1.5
+// @description  화면 오른쪽에 수직 배속 슬라이더 고정, 전체화면에서도 표시. Speed 텍스트 긴 누름과 PC 더블클릭으로 1배속 초기화 기능 포함.
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -34,6 +34,7 @@
       pointer-events: auto;
       opacity: 0.2;
       transition: opacity 0.3s;
+      user-select: none;
     }
     #${sliderId}:hover {
       opacity: 1;
@@ -47,6 +48,7 @@
       height: 150px;
       margin: 10px 0;
       cursor: pointer;
+      user-select: none;
     }
 
     #vm-speed-value {
@@ -62,6 +64,7 @@
       writing-mode: vertical-rl;
       text-orientation: mixed;
       margin-bottom: 6px;
+      cursor: pointer;
       user-select: none;
     }
   `;
@@ -111,14 +114,12 @@
       document.body.appendChild(container);
     }
   };
-
   document.addEventListener('fullscreenchange', reattachSlider);
 
-  // --- 모바일 긴 클릭(long press) + PC 더블클릭 초기화 기능 통합 ---
-
+  // --- Speed 레이블에 긴 누름(long press)으로 초기화 기능 ---
   let longPressTimer = null;
 
-  slider.addEventListener('pointerdown', (e) => {
+  label.addEventListener('pointerdown', (e) => {
     longPressTimer = setTimeout(() => {
       slider.value = '1';
       updateSpeed('1');
@@ -126,21 +127,21 @@
     }, 600); // 600ms 이상 누르면 초기화
   });
 
-  slider.addEventListener('pointermove', (e) => {
+  label.addEventListener('pointermove', (e) => {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
     }
   });
 
-  slider.addEventListener('pointerup', (e) => {
+  label.addEventListener('pointerup', (e) => {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
     }
   });
 
-  // PC용 더블클릭 초기화
+  // --- PC용 더블클릭 초기화 (슬라이더 대상) ---
   slider.addEventListener('dblclick', () => {
     slider.value = '1';
     updateSpeed('1');
