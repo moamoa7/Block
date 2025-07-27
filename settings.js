@@ -15,15 +15,15 @@
   // [1] 팝업/iframe 차단 + 레이어 제거 + 로그박스
   // ================================
 
-  const WHITELIST = ['google.com', 'trand.co.kr', 'aagag.com'];
+  const WHITELIST = ['google.com', 'trand.co.kr', 'aagag.com', 'etoland.co.kr'];
   const IFRAME_WHITELIST = [
-    'challenges.cloudflare.com',
-    '/player/',
-    '/embed/',
-    'video.kakao.com',
-    'player.bunny-frame.online',
-    'supremejav.com',
-    '/e/', '/v/',
+    '/recaptcha/',  // 캡챠
+    '/player',  // 티비위키.티비몬.티비핫 플레이어  https://05.avsee.ru/  https://sextb.date/ US영상(player.upn.one)
+    '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
+    'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
+    'pcmap.place.naver.com/',  // 네이버 지도
+    'supremejav.com',  // https://supjav.com/
+    '/e/', '/t/', '/v/', // 각종 성인 영상
   ];
 
   const hostname = location.hostname;
