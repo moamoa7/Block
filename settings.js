@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         새창/새탭 완전 차단기 + 배속 슬라이더 통합
 // @namespace    https://example.com/
-// @version      3.6.5
-// @description  window.open 차단 + 팝업 제거 + iframe 감시 + 동적 video 감지 + 배속 슬라이더
+// @version      3.6.7
+// @description  window.open 차단 + 팝업 제거 + iframe 감시 + 동적 video 감지 + 배속 슬라이더 (전체화면 대응 포함, 투명도 조절 포함)
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -38,7 +38,18 @@
       gap: 8px;
       backdrop-filter: blur(4px);
       user-select: none;
+      opacity: 0.3;
+      transition: opacity 0.3s ease;
+      cursor: default;
     `;
+
+    // 투명도 hover 효과 적용 (마우스 진입 시 투명도 1)
+    container.addEventListener('mouseenter', () => {
+      container.style.opacity = '1';
+    });
+    container.addEventListener('mouseleave', () => {
+      container.style.opacity = '0.3';
+    });
 
     label = document.createElement('div');
     label.textContent = '1x';
@@ -77,12 +88,26 @@
     container.appendChild(label);
     container.appendChild(input);
 
-    // 바로 body에 붙이지 말고 DOMContentLoaded에서 붙임
     if (document.readyState !== 'loading') {
       document.body.appendChild(container);
     } else {
       document.addEventListener('DOMContentLoaded', () => document.body.appendChild(container));
     }
+
+    // 전체화면 변경시 배속바 위치 재조정 함수 추가
+    function reattachSpeedBar() {
+      const fsEl = document.fullscreenElement;
+      if (fsEl) {
+        try {
+          fsEl.appendChild(container);
+        } catch {
+          document.body.appendChild(container);
+        }
+      } else {
+        document.body.appendChild(container);
+      }
+    }
+    document.addEventListener('fullscreenchange', reattachSpeedBar);
   }
 
   function updateSpeed(rate) {
@@ -97,7 +122,6 @@
     const isIframe = window.top !== window.self;
     const hasVideo = document.querySelectorAll('video').length > 0;
 
-    // iframe 내부면 무조건 보임, 아니면 영상 있을 때만 보임
     container.style.display = (isIframe || hasVideo) ? 'flex' : 'none';
   }
 
@@ -108,7 +132,6 @@
     updateSpeedBarVisibility();
   }
 
-  // DOM 변동 감지로 video 추가/제거 체크
   const observer = new MutationObserver(() => {
     if (!speedBarInitialized) return;
     updateSpeedBarVisibility();
@@ -363,6 +386,7 @@
       }
     });
     iframeObserver.observe(document.documentElement, { childList: true, subtree: true });
+
   }
 
   createLogBox();
