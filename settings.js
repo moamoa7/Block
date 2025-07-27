@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 + 의심 iframe 감시 + 경고 메시지 표시 (주소 포함) + 자동 사라짐
+// @name         새창/새탭 완전 차단기 + 배속 슬라이더 통합
 // @namespace    https://example.com/
-// @version      3.6.3
-// @description  window.open 차단 + 팝업/레이어 제거 + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 및 주소 표시 후 자동 제거
+// @version      3.6.5
+// @description  window.open 차단 + 팝업 제거 + iframe 감시 + 동적 video 감지 + 배속 슬라이더
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -10,6 +10,124 @@
 
 (function () {
   'use strict';
+
+  // -------------------------------
+  // 💠 배속바 관련 설정 및 함수
+  // -------------------------------
+  let speedBarInitialized = false;
+  let container, label, input;
+
+  function createSpeedControl() {
+    if (speedBarInitialized) return;
+    speedBarInitialized = true;
+
+    container = document.createElement('div');
+    container.id = 'videoSpeedControl';
+    container.style.cssText = `
+      position: fixed;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      z-index: 2147483647;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(4px);
+      user-select: none;
+    `;
+
+    label = document.createElement('div');
+    label.textContent = '1x';
+    label.style.cssText = `
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      user-select: none;
+    `;
+    label.title = '클릭 시 배속 1배속으로 초기화';
+    label.addEventListener('click', () => {
+      input.value = '1';
+      updateSpeed(1);
+    });
+
+    input = document.createElement('input');
+    input.type = 'range';
+    input.min = '0.1';
+    input.max = '5';
+    input.step = '0.1';
+    input.value = '1';
+    input.style.cssText = `
+      writing-mode: bt-lr;
+      -webkit-appearance: slider-vertical;
+      width: 30px;
+      height: 150px;
+      cursor: pointer;
+      user-select: none;
+    `;
+
+    input.addEventListener('input', () => {
+      const rate = parseFloat(input.value);
+      updateSpeed(rate);
+    });
+
+    container.appendChild(label);
+    container.appendChild(input);
+
+    // 바로 body에 붙이지 말고 DOMContentLoaded에서 붙임
+    if (document.readyState !== 'loading') {
+      document.body.appendChild(container);
+    } else {
+      document.addEventListener('DOMContentLoaded', () => document.body.appendChild(container));
+    }
+  }
+
+  function updateSpeed(rate) {
+    label.textContent = rate.toFixed(1) + 'x';
+    document.querySelectorAll('video').forEach(v => {
+      v.playbackRate = rate;
+    });
+  }
+
+  function updateSpeedBarVisibility() {
+    if (!container) return;
+    const isIframe = window.top !== window.self;
+    const hasVideo = document.querySelectorAll('video').length > 0;
+
+    // iframe 내부면 무조건 보임, 아니면 영상 있을 때만 보임
+    container.style.display = (isIframe || hasVideo) ? 'flex' : 'none';
+  }
+
+  function checkAndInitSpeedControl() {
+    if (!speedBarInitialized) {
+      createSpeedControl();
+    }
+    updateSpeedBarVisibility();
+  }
+
+  // DOM 변동 감지로 video 추가/제거 체크
+  const observer = new MutationObserver(() => {
+    if (!speedBarInitialized) return;
+    updateSpeedBarVisibility();
+  });
+
+  function initSpeedControlAndObserver() {
+    checkAndInitSpeedControl();
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  if (document.readyState !== 'loading') {
+    initSpeedControlAndObserver();
+  } else {
+    document.addEventListener('DOMContentLoaded', initSpeedControlAndObserver);
+  }
+
+  // -------------------------------
+  // 🔒 팝업 차단기 기존 로직
+  // -------------------------------
 
   const WHITELIST = ['google.com', 'trand.co.kr', 'aagag.com'];
   const IFRAME_WHITELIST = [
@@ -59,9 +177,7 @@
       pointer-events: none;
       transition: opacity 0.3s ease;
     `;
-    document.addEventListener('DOMContentLoaded', () => {
-      document.body.appendChild(box);
-    });
+    document.addEventListener('DOMContentLoaded', () => document.body.appendChild(box));
   }
 
   function addLog(msg) {
@@ -71,7 +187,6 @@
     box.style.pointerEvents = 'auto';
     const entry = document.createElement('div');
     entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    entry.style.textAlign = 'left';
     box.appendChild(entry);
     box.scrollTop = box.scrollHeight;
     setTimeout(() => {
@@ -91,7 +206,7 @@
         parseInt(style.zIndex) >= 1000 &&
         el.offsetWidth > window.innerWidth * 0.2 &&
         el.offsetHeight > window.innerHeight * 0.2 &&
-        !el.querySelector('video');  // 💡 video 포함된 요소는 제거 대상에서 제외
+        !el.querySelector('video');
       if (isFullScreenOverlay) {
         addLog(`🧹 레이어 팝업 제거됨: ${el.outerHTML.slice(0, 100)}...`);
         el.remove();
@@ -99,12 +214,9 @@
     });
   }
 
-  const popupLayerObserver = new MutationObserver(() => scanAndRemoveOverlays());
-  if (document.readyState !== 'loading') {
-    scanAndRemoveOverlays();
-  } else {
-    document.addEventListener('DOMContentLoaded', scanAndRemoveOverlays);
-  }
+  const popupLayerObserver = new MutationObserver(scanAndRemoveOverlays);
+  if (document.readyState !== 'loading') scanAndRemoveOverlays();
+  else document.addEventListener('DOMContentLoaded', scanAndRemoveOverlays);
   popupLayerObserver.observe(document.documentElement, { childList: true, subtree: true });
 
   if (!IS_ALLOWED) {
