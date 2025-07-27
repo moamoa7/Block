@@ -23,7 +23,7 @@
     'video.kakao.com',
     'player.bunny-frame.online',
     'supremejav.com',
-    '/e/',
+    '/e/', '/v/',
   ];
 
   const hostname = location.hostname;
