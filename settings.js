@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider
+// @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider
 // @namespace    https://example.com/
 // @version      3.7.0
-// @description  window.open 차단 + 팝업/레이어 제거 + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함)
+// @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함)
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -12,7 +12,7 @@
   'use strict';
 
   // ================================
-  // [1] 팝업/iframe 차단 + 레이어 제거 + 로그박스
+  // [1] 팝업/iframe 차단 + 레이어 제거(비활성화) + 로그박스
   // ================================
 
   const WHITELIST = ['google.com', 'trand.co.kr', 'aagag.com', 'etoland.co.kr'];
@@ -90,30 +90,75 @@
     }, 30000);
   }
 
-  // 레이어 팝업 제거 (video 포함된 요소는 제외)
-  function scanAndRemoveOverlays() {
-    document.querySelectorAll('div, section, aside, iframe').forEach(el => {
-      const style = getComputedStyle(el);
-      const isFullScreenOverlay =
-        (style.position === 'fixed' || (style.position === 'absolute' && style.top === '0px' && style.left === '0px')) &&
-        parseInt(style.zIndex) >= 1000 &&
-        el.offsetWidth > window.innerWidth * 0.2 &&
-        el.offsetHeight > window.innerHeight * 0.2 &&
-        !el.querySelector('video');
-      if (isFullScreenOverlay) {
-        addLog(`🧹 레이어 팝업 제거됨: ${el.outerHTML.slice(0, 100)}...`);
-        el.remove();
-      }
-    });
-  }
+  /*
+  // 레이어 팝업 제거 (비활성화)
+  // function isExcludedOverlay(el) {
+  //   const classAndId = (el.className + ' ' + el.id).toLowerCase();
 
-  const popupLayerObserver = new MutationObserver(() => scanAndRemoveOverlays());
-  if (document.readyState !== 'loading') {
-    scanAndRemoveOverlays();
-  } else {
-    document.addEventListener('DOMContentLoaded', scanAndRemoveOverlays);
-  }
-  popupLayerObserver.observe(document.documentElement, { childList: true, subtree: true });
+  //   // 예외 키워드 목록 (필수 UI일 가능성 있는 요소)
+  //   const excludeKeywords = ['menu', 'nav', 'login', 'header', 'modal', 'popup', 'dialog', 'tooltip', 'dropdown'];
+
+  //   // 클래스명 또는 id에 위 키워드 포함되면 제외
+  //   if (excludeKeywords.some(kw => classAndId.includes(kw))) {
+  //     return true;
+  //   }
+
+  //   // aria-role, role 속성도 체크 (예: navigation, dialog 등)
+  //   const role = el.getAttribute('role')?.toLowerCase() || '';
+  //   if (['navigation', 'dialog', 'menu', 'tooltip'].includes(role)) {
+  //     return true;
+  //   }
+
+  //   return false;
+  // }
+
+  // function scanAndRemoveOverlays() {
+  //   if (!document.documentElement) return;
+
+  //   const candidates = Array.from(document.querySelectorAll('div, section, aside, iframe')).filter(el => {
+  //     const style = getComputedStyle(el);
+  //     if (!style) return false;
+  //     if (style.position !== 'fixed' && !(style.position === 'absolute' && style.top === '0px' && style.left === '0px')) return false;
+  //     if (parseInt(style.zIndex) < 1000) return false;
+  //     if (el.offsetWidth <= window.innerWidth * 0.8) return false;
+  //     if (el.offsetHeight <= window.innerHeight * 0.8) return false;
+  //     if (el.querySelector('video')) return false;
+  //     return true;
+  //   });
+
+  //   candidates.forEach(el => {
+  //     if (isExcludedOverlay(el)) {
+  //       addLog(`ℹ️ 예외 처리됨 (메뉴/로그인 등): ${el.outerHTML.slice(0, 100)}...`);
+  //       return;
+  //     }
+  //     addLog(`🧹 레이어 팝업 제거됨: ${el.outerHTML.slice(0, 100)}...`);
+  //     el.remove();
+  //   });
+  // }
+
+  // 가능한 빨리 옵저버 등록
+  // function initPopupObserver() {
+  //   if (!document.documentElement) {
+  //     setTimeout(initPopupObserver, 10);
+  //     return;
+  //   }
+
+  //   scanAndRemoveOverlays();
+
+  //   const popupLayerObserver = new MutationObserver(() => scanAndRemoveOverlays());
+  //   popupLayerObserver.observe(document.documentElement, { childList: true, subtree: true });
+  // }
+
+  // if (document.readyState === 'loading') {
+  //   document.addEventListener('readystatechange', () => {
+  //     if (document.readyState !== 'loading') {
+  //       initPopupObserver();
+  //     }
+  //   });
+  // } else {
+  //   initPopupObserver();
+  // }
+  */
 
   // 팝업 차단
   if (!IS_ALLOWED) {
@@ -441,7 +486,6 @@
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  // document-end 시점과 유사하게 실행 예약
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSpeedSlider);
   } else {
