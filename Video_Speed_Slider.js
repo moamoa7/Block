@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Vertical Video Speed Slider (Fullscreen-safe, Long Press on Label + Double Click Reset)
+// @name         Vertical Video Speed Slider (Fullscreen-safe, 1x Reset Button)
 // @namespace    Violentmonkey Scripts
-// @version      1.5
-// @description  화면 오른쪽에 수직 배속 슬라이더 고정, 전체화면에서도 표시. Speed 텍스트 긴 누름과 PC 더블클릭으로 1배속 초기화 기능 포함.
+// @version      1.6
+// @description  화면 오른쪽에 수직 배속 슬라이더 고정, 전체화면에서도 표시. 1x 버튼 클릭 시 1배속 초기화.
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
@@ -22,13 +22,13 @@
       right: 0;
       transform: translateY(-50%);
       background: rgba(0, 0, 0, 0.7);
-      padding: 10px;
+      padding: 10px 8px;
       border-radius: 8px 0 0 8px;
       z-index: 2147483647 !important;
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 60px;
+      width: 70px;
       height: auto;
       font-family: sans-serif;
       pointer-events: auto;
@@ -40,13 +40,33 @@
       opacity: 1;
     }
 
+    #vm-speed-reset-btn {
+      background: #444;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 14px;
+      padding: 4px 6px;
+      cursor: pointer;
+      margin-bottom: 8px;
+      user-select: none;
+      width: 40px;
+      height: 30px;
+      line-height: 30px;
+      text-align: center;
+      font-weight: bold;
+    }
+    #vm-speed-reset-btn:hover {
+      background: #666;
+    }
+
     #vm-speed-slider {
       writing-mode: vertical-rl;
       -webkit-appearance: slider-vertical;
       appearance: slider-vertical;
       width: 30px;
       height: 150px;
-      margin: 10px 0;
+      margin: 0 0 10px 0;
       cursor: pointer;
       user-select: none;
     }
@@ -54,17 +74,6 @@
     #vm-speed-value {
       color: white;
       font-size: 13px;
-      margin-top: 4px;
-      user-select: none;
-    }
-
-    #vm-speed-label {
-      color: white;
-      font-size: 12px;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      margin-bottom: 6px;
-      cursor: pointer;
       user-select: none;
     }
   `;
@@ -73,9 +82,11 @@
   const container = document.createElement('div');
   container.id = sliderId;
 
-  const label = document.createElement('div');
-  label.id = 'vm-speed-label';
-  label.textContent = 'Speed';
+  // 1x 초기화 버튼
+  const resetBtn = document.createElement('button');
+  resetBtn.id = 'vm-speed-reset-btn';
+  resetBtn.textContent = '1x';
+  resetBtn.title = '클릭하면 1배속으로 초기화';
 
   const slider = document.createElement('input');
   slider.type = 'range';
@@ -89,7 +100,7 @@
   valueDisplay.id = 'vm-speed-value';
   valueDisplay.textContent = 'x1.00';
 
-  container.appendChild(label);
+  container.appendChild(resetBtn);
   container.appendChild(slider);
   container.appendChild(valueDisplay);
   document.body.appendChild(container);
@@ -105,6 +116,11 @@
   slider.addEventListener('input', () => updateSpeed(slider.value));
   updateSpeed(slider.value);
 
+  resetBtn.addEventListener('click', () => {
+    slider.value = '1';
+    updateSpeed('1');
+  });
+
   // 전체화면 감지 → 다시 붙이기
   const reattachSlider = () => {
     const fsEl = document.fullscreenElement;
@@ -114,37 +130,6 @@
       document.body.appendChild(container);
     }
   };
+
   document.addEventListener('fullscreenchange', reattachSlider);
-
-  // --- Speed 레이블에 긴 누름(long press)으로 초기화 기능 ---
-  let longPressTimer = null;
-
-  label.addEventListener('pointerdown', (e) => {
-    longPressTimer = setTimeout(() => {
-      slider.value = '1';
-      updateSpeed('1');
-      if (navigator.vibrate) navigator.vibrate(50);
-    }, 600); // 600ms 이상 누르면 초기화
-  });
-
-  label.addEventListener('pointermove', (e) => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
-  });
-
-  label.addEventListener('pointerup', (e) => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
-  });
-
-  // --- PC용 더블클릭 초기화 (슬라이더 대상) ---
-  slider.addEventListener('dblclick', () => {
-    slider.value = '1';
-    updateSpeed('1');
-  });
-
 })();
