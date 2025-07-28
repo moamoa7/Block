@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider
 // @namespace    https://example.com/
-// @version      3.7.0
+// @version      3.7.1
 // @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함)
 // @match        *://*/*
 // @grant        none
@@ -12,12 +12,14 @@
   'use strict';
 
   // ================================
-  // [1] 팝업/iframe 차단 + 레이어 제거(비활성화) + 로그박스
+  // [0] 설정: 도메인 화이트리스트 / iframe 예외 / iframe 차단 무시
   // ================================
 
-  const WHITELIST = ['google.com', 'trand.co.kr', 'aagag.com', 'etoland.co.kr'];
+  const WHITELIST = ['']; // 전체 스크립트 제외할 도메인 (window.open 차단 등도 무시)
   const IFRAME_WHITELIST = [
     '/recaptcha/',  // 캡챠
+    'escrow.auction.co.kr',  // 옥션
+    '/movie_view',  // 디시인사이드 동영상
     '/player',  // 티비위키.티비몬.티비핫 플레이어  https://05.avsee.ru/  https://sextb.date/ US영상(player.upn.one)
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
     'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
@@ -26,8 +28,19 @@
     '/e/', '/t/', '/v/', // 각종 성인 영상
   ];
 
+  const IFRAME_SKIP_DOMAINS = [
+    'auth.openai.com',
+  ]; // iframe 감시 자체를 하지 않을 도메인
+
   const hostname = location.hostname;
-  const IS_ALLOWED = WHITELIST.some(domain => hostname === domain || hostname.endsWith('.' + domain));
+
+  const IS_ALLOWED = WHITELIST.some(domain =>
+    hostname === domain || hostname.endsWith('.' + domain)
+  );
+
+  const IFRAME_SKIP = IFRAME_SKIP_DOMAINS.some(domain =>
+    hostname === domain || hostname.endsWith('.' + domain)
+  );
 
   function isIframeAllowed(src) {
     try {
@@ -62,13 +75,10 @@
       pointer-events: none;
       transition: opacity 0.3s ease;
     `;
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        document.body.appendChild(box);
-      });
-    } else {
-      document.body.appendChild(box);
-    }
+    const append = () => document.body.appendChild(box);
+    document.readyState === 'loading'
+      ? document.addEventListener('DOMContentLoaded', append)
+      : append();
   }
 
   function addLog(msg) {
@@ -90,77 +100,9 @@
     }, 30000);
   }
 
-  /*
-  // 레이어 팝업 제거 (비활성화)
-  // function isExcludedOverlay(el) {
-  //   const classAndId = (el.className + ' ' + el.id).toLowerCase();
-
-  //   // 예외 키워드 목록 (필수 UI일 가능성 있는 요소)
-  //   const excludeKeywords = ['menu', 'nav', 'login', 'header', 'modal', 'popup', 'dialog', 'tooltip', 'dropdown'];
-
-  //   // 클래스명 또는 id에 위 키워드 포함되면 제외
-  //   if (excludeKeywords.some(kw => classAndId.includes(kw))) {
-  //     return true;
-  //   }
-
-  //   // aria-role, role 속성도 체크 (예: navigation, dialog 등)
-  //   const role = el.getAttribute('role')?.toLowerCase() || '';
-  //   if (['navigation', 'dialog', 'menu', 'tooltip'].includes(role)) {
-  //     return true;
-  //   }
-
-  //   return false;
-  // }
-
-  // function scanAndRemoveOverlays() {
-  //   if (!document.documentElement) return;
-
-  //   const candidates = Array.from(document.querySelectorAll('div, section, aside, iframe')).filter(el => {
-  //     const style = getComputedStyle(el);
-  //     if (!style) return false;
-  //     if (style.position !== 'fixed' && !(style.position === 'absolute' && style.top === '0px' && style.left === '0px')) return false;
-  //     if (parseInt(style.zIndex) < 1000) return false;
-  //     if (el.offsetWidth <= window.innerWidth * 0.8) return false;
-  //     if (el.offsetHeight <= window.innerHeight * 0.8) return false;
-  //     if (el.querySelector('video')) return false;
-  //     return true;
-  //   });
-
-  //   candidates.forEach(el => {
-  //     if (isExcludedOverlay(el)) {
-  //       addLog(`ℹ️ 예외 처리됨 (메뉴/로그인 등): ${el.outerHTML.slice(0, 100)}...`);
-  //       return;
-  //     }
-  //     addLog(`🧹 레이어 팝업 제거됨: ${el.outerHTML.slice(0, 100)}...`);
-  //     el.remove();
-  //   });
-  // }
-
-  // 가능한 빨리 옵저버 등록
-  // function initPopupObserver() {
-  //   if (!document.documentElement) {
-  //     setTimeout(initPopupObserver, 10);
-  //     return;
-  //   }
-
-  //   scanAndRemoveOverlays();
-
-  //   const popupLayerObserver = new MutationObserver(() => scanAndRemoveOverlays());
-  //   popupLayerObserver.observe(document.documentElement, { childList: true, subtree: true });
-  // }
-
-  // if (document.readyState === 'loading') {
-  //   document.addEventListener('readystatechange', () => {
-  //     if (document.readyState !== 'loading') {
-  //       initPopupObserver();
-  //     }
-  //   });
-  // } else {
-  //   initPopupObserver();
-  // }
-  */
-
-  // 팝업 차단
+  // ================================
+  // [1] 팝업 차단 및 링크 새탭 열기 방지
+  // ================================
   if (!IS_ALLOWED) {
     const fakeWindow = new Proxy({}, {
       get: (_, prop) => {
@@ -184,7 +126,6 @@
       set: () => {},
       configurable: false,
     });
-
     try { unsafeWindow.open = blockOpen; } catch {}
     try {
       if (window.top !== window.self) {
@@ -194,17 +135,17 @@
     } catch {}
     Object.freeze(window.open);
 
-    // 링크 클릭 차단
     document.addEventListener('click', e => {
       const a = e.target.closest('a[target]');
-      if (a && ['_blank', '_new'].includes(a.target)) {
+      if (!a) return;
+      if (e.isTrusted && e.button === 0) return;
+      if (['_blank', '_new'].includes(a.target)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         addLog(`🚫 링크 클릭 차단됨: ${a.href}`);
       }
     }, true);
 
-    // 중간클릭, Ctrl/Meta/Shift + 클릭 차단
     document.addEventListener('mousedown', e => {
       if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
         const a = e.target.closest('a');
@@ -216,7 +157,6 @@
       }
     }, true);
 
-    // 동적 링크 target 변경 차단
     const origCreateElement = Document.prototype.createElement;
     Document.prototype.createElement = function (tag, ...args) {
       const el = origCreateElement.call(this, tag, ...args);
@@ -233,7 +173,6 @@
       return el;
     };
 
-    // form[target=_blank] 제출 차단
     document.addEventListener('submit', e => {
       const form = e.target;
       if (form?.target === '_blank') {
@@ -243,14 +182,12 @@
       }
     }, true);
 
-    // window.name 초기화 차단
     Object.defineProperty(window, 'name', {
       get: () => '',
       set: () => {},
       configurable: false,
     });
 
-    // 기타 차단: registerProtocolHandler, showModalDialog, Notification 권한 요청
     if (navigator.registerProtocolHandler) {
       navigator.registerProtocolHandler = () => {
         addLog('🚫 registerProtocolHandler 차단됨');
@@ -271,71 +208,69 @@
       };
     }
 
-    // iframe 감시
-    const iframeObserver = new MutationObserver(mutations => {
-      for (const m of mutations) {
-        for (const node of m.addedNodes) {
-          if (node.nodeType === 1 && node.tagName === 'IFRAME') {
-            const rawSrc = node.getAttribute('src') || node.src || '';
-            let fullSrc = rawSrc;
-            try {
-              fullSrc = new URL(rawSrc, location.href).href;
-            } catch {}
-            const style = getComputedStyle(node);
-            const display = style.display || '(unknown)';
-            const displayHidden = (display === 'none' || display === 'hidden' || node.hidden);
-
-            if (!isIframeAllowed(fullSrc) || displayHidden) {
-              addLog(`🛑 의심 iframe 감지됨 (src: ${fullSrc}, display: ${display})`);
+    // ================================
+    // [2] iframe 감시 (차단된 도메인에서만 실행)
+    // ================================
+    if (!IFRAME_SKIP) {
+      const iframeObserver = new MutationObserver(mutations => {
+        for (const m of mutations) {
+          for (const node of m.addedNodes) {
+            if (node.nodeType === 1 && node.tagName === 'IFRAME') {
+              const rawSrc = node.getAttribute('src') || node.src || '';
+              let fullSrc = rawSrc;
               try {
-                const warning = document.createElement('div');
-                warning.innerHTML = `
-                  🚫 차단된 iframe입니다<br>
-                  <small style="font-size:10px; color:#eee; user-select:text;">${fullSrc}</small>
-                `;
-                warning.style.cssText = `
-                  color: #fff;
-                  background: #d32f2f;
-                  padding: 6px 10px;
-                  font-size: 12px;
-                  font-family: monospace;
-                  border-radius: 4px;
-                  user-select: text;
-                  max-width: 90vw;
-                  word-break: break-all;
-                `;
-                node.parentNode.replaceChild(warning, node);
-                setTimeout(() => warning.remove(), 3000);
+                fullSrc = new URL(rawSrc, location.href).href;
               } catch {}
-            } else {
-              addLog(`✅ iframe 허용됨: ${fullSrc}`);
+              const style = getComputedStyle(node);
+              const display = style.display || '(unknown)';
+              const displayHidden = (display === 'none' || display === 'hidden' || node.hidden);
+
+              if (!isIframeAllowed(fullSrc) || displayHidden) {
+                addLog(`🛑 의심 iframe 감지됨 (src: ${fullSrc}, display: ${display})`);
+                try {
+                  const warning = document.createElement('div');
+                  warning.innerHTML = `
+                    🚫 차단된 iframe입니다<br>
+                    <small style="font-size:10px; color:#eee; user-select:text;">${fullSrc}</small>
+                  `;
+                  warning.style.cssText = `
+                    color: #fff;
+                    background: #d32f2f;
+                    padding: 6px 10px;
+                    font-size: 12px;
+                    font-family: monospace;
+                    border-radius: 4px;
+                    user-select: text;
+                    max-width: 90vw;
+                    word-break: break-all;
+                  `;
+                  node.parentNode.replaceChild(warning, node);
+                  setTimeout(() => warning.remove(), 10000);
+                } catch {}
+              } else {
+                addLog(`✅ iframe 허용됨: ${fullSrc}`);
+              }
             }
           }
         }
-      }
-    });
-    iframeObserver.observe(document.documentElement, { childList: true, subtree: true });
+      });
+      iframeObserver.observe(document.documentElement, { childList: true, subtree: true });
+    }
   }
 
   createLogBox();
 
   // ================================
-  // [2] Vertical Video Speed Slider (iframe & top window 모두 적용)
+  // [3] Vertical Video Speed Slider
   // ================================
-
-  // 슬라이더 실행은 DOM 준비 후, document-end 이후 실행 필요하여
-  // document-end 시점과 유사한 방식으로 실행 예약
   function initSpeedSlider() {
     if (window.__vmSpeedSliderInjected) return;
     window.__vmSpeedSliderInjected = true;
 
-    const sliderId = 'vm-speed-slider-container';
-
-    // 중복 DOM 제거 (슬라이더가 이미 있으면 제거)
-    const existing = document.getElementById(sliderId);
-    if (existing) existing.remove();
-
     const isIframe = window.top !== window.self;
+    const container = document.createElement('div');
+    const sliderId = 'vm-speed-slider-container';
+    container.id = sliderId;
 
     const style = document.createElement('style');
     style.textContent = `
@@ -359,56 +294,24 @@
         transition: opacity 0.3s;
         user-select: none;
       }
-      #${sliderId}:hover {
-        opacity: 1;
-      }
-
+      #${sliderId}:hover { opacity: 1; }
       #vm-speed-reset-btn {
-        background: #444;
-        border: none;
-        border-radius: 4px;
-        color: white;
-        font-size: 14px;
-        padding: 4px 6px;
-        cursor: pointer;
-        margin-bottom: 8px;
-        user-select: none;
-        width: 40px;
-        height: 30px;
-        line-height: 30px;
-        text-align: center;
-        font-weight: bold;
+        background: #444; border: none; border-radius: 4px; color: white;
+        font-size: 14px; padding: 4px 6px; cursor: pointer;
+        margin-bottom: 8px; width: 40px; height: 30px; font-weight: bold;
       }
-      #vm-speed-reset-btn:hover {
-        background: #666;
-      }
-
+      #vm-speed-reset-btn:hover { background: #666; }
       #vm-speed-slider {
-        writing-mode: vertical-rl;
-        -webkit-appearance: slider-vertical;
-        appearance: slider-vertical;
-        width: 30px;
-        height: 150px;
-        margin: 0 0 10px 0;
-        cursor: pointer;
-        user-select: none;
+        writing-mode: vertical-rl; appearance: slider-vertical;
+        width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer;
       }
-
-      #vm-speed-value {
-        color: white;
-        font-size: 13px;
-        user-select: none;
-      }
+      #vm-speed-value { color: white; font-size: 13px; }
     `;
     document.head.appendChild(style);
-
-    const container = document.createElement('div');
-    container.id = sliderId;
 
     const resetBtn = document.createElement('button');
     resetBtn.id = 'vm-speed-reset-btn';
     resetBtn.textContent = '1x';
-    resetBtn.title = '클릭하면 1배속으로 초기화';
 
     const slider = document.createElement('input');
     slider.type = 'range';
@@ -440,56 +343,35 @@
       updateSpeed('1');
     });
 
-    // 전체화면일 때 슬라이더 위치 조정
-    const reattachSlider = () => {
+    document.addEventListener('fullscreenchange', () => {
       const fsEl = document.fullscreenElement;
-      if (fsEl) {
-        fsEl.appendChild(container);
-      } else {
-        if (!document.body.contains(container)) {
-          document.body.appendChild(container);
-        }
-      }
-    };
-    document.addEventListener('fullscreenchange', reattachSlider);
+      if (fsEl) fsEl.appendChild(container);
+      else if (!document.body.contains(container)) document.body.appendChild(container);
+    });
 
-    // 슬라이더 표시 조건 업데이트
-    function updateSliderVisibility() {
+    const updateSliderVisibility = () => {
       const hasVideo = document.querySelectorAll('video').length > 0;
+      container.style.display = hasVideo ? 'flex' : 'none';
+    };
 
-      // iframe 안이거나 최상위 문서이거나, 영상이 있을 때만 표시
-      if ((isIframe && hasVideo) || (!isIframe && hasVideo)) {
-        container.style.display = 'flex';
-      } else {
-        container.style.display = 'none';
-      }
-    }
-
-    // 초기 DOM에 붙이고 표시 갱신
-    function append() {
+    const append = () => {
       if (!document.body.contains(container)) {
         document.body.appendChild(container);
       }
       updateSliderVisibility();
-    }
+    };
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', append);
-    } else {
-      append();
-    }
+    document.readyState === 'loading'
+      ? document.addEventListener('DOMContentLoaded', append)
+      : append();
 
-    // video 추가/제거 감지해 표시 갱신
-    const observer = new MutationObserver(() => {
-      updateSliderVisibility();
+    new MutationObserver(updateSliderVisibility).observe(document.documentElement, {
+      childList: true, subtree: true
     });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSpeedSlider);
-  } else {
-    initSpeedSlider();
-  }
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', initSpeedSlider)
+    : initSpeedSlider();
 
 })();
