@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 배속바 변경 (최소화 등)
 // @namespace    https://example.com/
-// @version      3.7.5
+// @version      3.7.6
 // @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함)
 // @match        *://*/*
 // @grant        none
@@ -323,14 +323,14 @@
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.min = '0.2';
-    slider.max = '4';
+    slider.max = '4.0';
     slider.step = '0.2';
-    slider.value = '1';
+    slider.value = '1.0';
     slider.id = 'vm-speed-slider';
 
     const valueDisplay = document.createElement('div');
     valueDisplay.id = 'vm-speed-value';
-    valueDisplay.textContent = 'x1.00';
+    valueDisplay.textContent = 'x1.0';
 
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'vm-speed-toggle-btn';
@@ -359,7 +359,7 @@
 
     const updateSpeed = (val) => {
       const speed = parseFloat(val);
-      valueDisplay.textContent = `x${speed.toFixed(2)}`;
+      valueDisplay.textContent = `x${speed.toFixed(1)}`;
       document.querySelectorAll('video').forEach(video => {
         video.playbackRate = speed;
       });
