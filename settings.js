@@ -303,7 +303,7 @@
         writing-mode: vertical-rl; appearance: slider-vertical;
         width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer;
       }
-      #vm-speed-value { color: red; font-size: 14px; }
+      #vm-speed-value { color: red; font-size: 18px; }
       #vm-speed-toggle-btn {
         background: transparent;
         border: none;
