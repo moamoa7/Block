@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 배속바 변경 (최소화 등)
 // @namespace    https://example.com/
-// @version      3.7.6
+// @version      3.7.7
 // @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함)
 // @match        *://*/*
 // @grant        none
@@ -165,6 +165,10 @@
             addLog(`🚫 동적 링크 target 차단됨: ${el.href || el.outerHTML}`);
             return;
           }
+          if (name === 'rel' && (value.includes('noopener') || value.includes('noreferrer'))) {
+            addLog(`🚫 rel="noopener" 또는 "noreferrer" 차단됨: ${el.outerHTML}`);
+            return;
+          }
           return origSetAttr.call(this, name, value);
         };
       }
@@ -258,7 +262,7 @@
 
   createLogBox();
 
-    // ================================
+  // ================================
   // [3] Vertical Video Speed Slider + 최소화 버튼
   // ================================
   function initSpeedSlider() {
@@ -276,7 +280,6 @@
         top: 50%;
         right: 0;
         transform: translateY(-50%);
-        //background: rgba(0, 0, 0, 0.05);
         background: transparent; /* ← 투명 */
         padding: 10px 8px;
         border-radius: 8px 0 0 8px;
@@ -359,7 +362,7 @@
 
     const updateSpeed = (val) => {
       const speed = parseFloat(val);
-      valueDisplay.textContent = `x${speed.toFixed(1)}`;
+      valueDisplay.textContent = `x${speed.toFixed(1)}`;  //.toFixed(1) → 소수점 첫째 자리까지만 표시 (1.5, 2.0, 3.2 등)
       document.querySelectorAll('video').forEach(video => {
         video.playbackRate = speed;
       });
