@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 최소화 버튼 + 배속바 배경 투명
+// @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 배속바 변경 (최소화 등)
 // @namespace    https://example.com/
-// @version      3.7.3
+// @version      3.7.4
 // @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함)
 // @match        *://*/*
 // @grant        none
@@ -57,12 +57,12 @@
       position: fixed;
       bottom: 0;
       right: 0;
-      max-height: 150px;
+      max-height: 250px;
       width: 350px;
       background: rgba(30,30,30,0.9);
       color: #fff;
       font-family: monospace;
-      font-size: 12px;
+      font-size: 14px;
       overflow-y: auto;
       padding: 8px;
       box-shadow: 0 0 8px #000;
@@ -229,7 +229,7 @@
                   const warning = document.createElement('div');
                   warning.innerHTML = `
                     🚫 차단된 iframe입니다<br>
-                    <small style="font-size:10px; color:#eee; user-select:text;">${fullSrc}</small>
+                    <small style="font-size:14px; color:#eee; user-select:text;">${fullSrc}</small>
                   `;
                   warning.style.cssText = `
                     color: #fff;
