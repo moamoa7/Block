@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 배속바 변경 (최소화 등)
 // @namespace    https://example.com/
-// @version      3.7.4
+// @version      3.7.5
 // @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함)
 // @match        *://*/*
 // @grant        none
@@ -235,7 +235,7 @@
                     color: #fff;
                     background: #d32f2f;
                     padding: 6px 10px;
-                    font-size: 12px;
+                    font-size: 14px;
                     font-family: monospace;
                     border-radius: 4px;
                     user-select: text;
@@ -276,7 +276,7 @@
         top: 50%;
         right: 0;
         transform: translateY(-50%);
-        //background: rgba(0, 0, 0, 0.1);
+        //background: rgba(0, 0, 0, 0.05);
         background: transparent; /* ← 투명 */
         padding: 10px 8px;
         border-radius: 8px 0 0 8px;
@@ -303,7 +303,7 @@
         writing-mode: vertical-rl; appearance: slider-vertical;
         width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer;
       }
-      #vm-speed-value { color: white; font-size: 13px; }
+      #vm-speed-value { color: red; font-size: 13px; }
       #vm-speed-toggle-btn {
         background: transparent;
         border: none;
@@ -322,9 +322,9 @@
 
     const slider = document.createElement('input');
     slider.type = 'range';
-    slider.min = '0.25';
-    slider.max = '3';
-    slider.step = '0.05';
+    slider.min = '0.2';
+    slider.max = '4';
+    slider.step = '0.2';
     slider.value = '1';
     slider.id = 'vm-speed-slider';
 
