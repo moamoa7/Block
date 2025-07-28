@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 최소화 버튼
+// @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 최소화 버튼 + 배속바 배경 투명
 // @namespace    https://example.com/
-// @version      3.7.2
+// @version      3.7.3
 // @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함)
 // @match        *://*/*
 // @grant        none
@@ -15,7 +15,7 @@
   // [0] 설정: 도메인 화이트리스트 / iframe 예외 / iframe 차단 무시
   // ================================
 
-  const WHITELIST = ['']; // 전체 스크립트 제외할 도메인 (window.open 차단 등도 무시)
+  const WHITELIST = ['escrow.auction.co.kr']; // 전체 스크립트 제외할 도메인 (window.open 차단 등도 무시)
   const IFRAME_WHITELIST = [
     '/recaptcha/',  // 캡챠
     'escrow.auction.co.kr',  // 옥션
@@ -28,9 +28,7 @@
     '/e/', '/t/', '/v/', // 각종 성인 영상
   ];
 
-  const IFRAME_SKIP_DOMAINS = [
-    'auth.openai.com',
-  ]; // iframe 감시 자체를 하지 않을 도메인
+  const IFRAME_SKIP_DOMAINS = ['auth.openai.com',]; // iframe 감시 자체를 하지 않을 도메인
 
   const hostname = location.hostname;
 
@@ -278,14 +276,15 @@
         top: 50%;
         right: 0;
         transform: translateY(-50%);
-        background: rgba(0, 0, 0, 0.7);
+        //background: rgba(0, 0, 0, 0.1);
+        background: transparent; /* ← 투명 */
         padding: 10px 8px;
         border-radius: 8px 0 0 8px;
         z-index: 2147483647 !important;
         display: none;
         flex-direction: column;
         align-items: center;
-        width: 70px;
+        width: 50px;
         height: auto;
         font-family: sans-serif;
         pointer-events: auto;
@@ -337,7 +336,14 @@
     toggleBtn.id = 'vm-speed-toggle-btn';
     toggleBtn.textContent = '🔽';
 
-    let isMinimized = false;
+    let isMinimized = true;   // ← 기본값을 최소화로 설정
+
+    // 초기 최소화 상태 적용
+    slider.style.display = 'none';
+    resetBtn.style.display = 'none';
+    valueDisplay.style.display = 'none';
+    toggleBtn.textContent = '🔼';
+
     toggleBtn.addEventListener('click', () => {
       isMinimized = !isMinimized;
       slider.style.display = isMinimized ? 'none' : '';
