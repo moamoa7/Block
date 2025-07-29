@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 배속바 변경 (최소화 등)
 // @namespace    https://example.com/
-// @version      3.7.8
+// @version      3.8.0
 // @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함) + 새 창 열기 방식 다각화 감지 + 이미 열린 새 창/탭 차단 + 배경에서 실행되는 스크립트 차단
 // @match        *://*/*
 // @grant        none
@@ -20,8 +20,8 @@
     '/recaptcha/',  // 캡챠
     'escrow.auction.co.kr',  // 옥션
     '/movie_view',  // 디시인사이드 동영상
-    '/player',  // 티비위키.티비몬.티비핫 플레이어  https://05.avsee.ru/  https://sextb.date/ US영상(player.upn.one)
-    '/embed/',  // 커뮤니티 등 게시물 동영상 삽입 (유튜브.트위치.인스타 등 - https://poooo.ml/등에도 적용)  쏘걸 등 성인영상
+    '/player',  // 티비위키.티비몬.티비핫 플레이어
+    '/embed/',  // 커뮤니티 등 게시물 동영상 삽입
     'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     'pcmap.place.naver.com/',  // 네이버 지도
     'supremejav.com',  // https://supjav.com/
@@ -95,13 +95,25 @@
         box.style.opacity = '0';
         box.style.pointerEvents = 'none';
       }
-    }, 30000);
+    }, 10000);
   }
 
   // ================================
   // [1] 팝업 차단 및 링크 새탭 열기 방지
   // ================================
   let openedWindows = new Set();  // 이미 열린 새 창을 추적하는 변수
+  let userClickedLinks = new Set();  // 사용자가 클릭한 링크 추적
+
+  // 사용자가 클릭한 링크만 허용
+  document.addEventListener('click', function (e) {
+    const target = e.target;
+
+    // 링크 클릭 시
+    const a = target.closest('a');
+    if (a && a.href) {
+      userClickedLinks.add(a.href);  // 클릭한 링크 저장
+    }
+  });
 
   // window.open 차단
   const fakeWindow = new Proxy({}, {
@@ -118,13 +130,21 @@
   const blockOpen = (...args) => {
     const url = args[0] || '(no URL)';
     addLog(`🚫 window.open 차단됨: ${url}`);
-    return fakeWindow;
+
+    // 사용자가 클릭한 링크만 새 탭을 열 수 있도록 허용
+    if (userClickedLinks.has(url)) {
+      openedWindows.add(url);
+      return window.open(url, '_blank');
+    }
+
+    // 그렇지 않으면 창을 차단하고 닫음
+    return fakeWindow;  // window.open 차단
   };
 
   Object.defineProperty(window, 'open', {
     get: () => blockOpen,
     set: () => {},
-    configurable: false,
+    configurable: false
   });
   try { unsafeWindow.open = blockOpen; } catch {}
   try {
@@ -146,7 +166,7 @@
   };
 
   // URL 클릭을 통한 새 탭 차단
-  document.addEventListener('click', e => {
+  document.addEventListener('click', function (e) {
     const a = e.target.closest('a[target]');
     if (!a) return;
     const url = a.href;
@@ -156,10 +176,17 @@
         e.stopImmediatePropagation();
       }
     }
+
+    // "javascript:" 링크 차단
+    if (a.href && a.href.startsWith("javascript:")) {
+      addLog(`🚫 javascript 링크 차단됨: ${a.href}`);
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
   }, true);
 
   // 중간 클릭과 단축키로 새 탭 열기 차단
-  document.addEventListener('mousedown', e => {
+  document.addEventListener('mousedown', function (e) {
     if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
       const a = e.target.closest('a');
       if (a?.target === '_blank') {
@@ -190,7 +217,7 @@
   };
 
   // Form에서 새 탭으로 제출되는 것을 차단
-  document.addEventListener('submit', e => {
+  document.addEventListener('submit', function (e) {
     const form = e.target;
     if (form?.target === '_blank') {
       e.preventDefault();
@@ -247,7 +274,7 @@
                   word-break: break-all;
                 `;
                 node.parentNode.replaceChild(warning, node);
-                setTimeout(() => warning.remove(), 10000);
+                setTimeout(() => warning.remove(), 3000);
               } catch {}
             } else {
               addLog(`✅ iframe 허용됨: ${fullSrc}`);
@@ -279,7 +306,7 @@
         top: 50%;
         right: 0;
         transform: translateY(-50%);
-        background: transparent; /* ← 투명 */
+        background: transparent;
         padding: 10px 8px;
         border-radius: 8px 0 0 8px;
         z-index: 2147483647 !important;
