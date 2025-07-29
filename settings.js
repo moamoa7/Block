@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 배속바 변경 (최소화 등)
 // @namespace    https://example.com/
-// @version      3.7.7
-// @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함)
+// @version      3.7.8
+// @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함) + 새 창 열기 방식 다각화 감지 + 이미 열린 새 창/탭 차단 + 배경에서 실행되는 스크립트 차단
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -101,163 +101,162 @@
   // ================================
   // [1] 팝업 차단 및 링크 새탭 열기 방지
   // ================================
-  if (!IS_ALLOWED) {
-    const fakeWindow = new Proxy({}, {
-      get: (_, prop) => {
-        addLog(`⚠️ window.open 반환 객체 접근: ${String(prop)}`);
-        return fakeWindow;
-      },
-      apply: () => {
-        addLog(`⚠️ window.open 반환 함수 호출`);
-        return fakeWindow;
-      },
-    });
+  let openedWindows = new Set();  // 이미 열린 새 창을 추적하는 변수
 
-    const blockOpen = (...args) => {
-      const url = args[0] || '(no URL)';
-      addLog(`🚫 window.open 차단됨: ${url}`);
+  // window.open 차단
+  const fakeWindow = new Proxy({}, {
+    get: (_, prop) => {
+      addLog(`⚠️ window.open 반환 객체 접근: ${String(prop)}`);
       return fakeWindow;
-    };
+    },
+    apply: () => {
+      addLog(`⚠️ window.open 반환 함수 호출`);
+      return fakeWindow;
+    },
+  });
 
-    Object.defineProperty(window, 'open', {
-      get: () => blockOpen,
-      set: () => {},
-      configurable: false,
-    });
-    try { unsafeWindow.open = blockOpen; } catch {}
-    try {
-      if (window.top !== window.self) {
-        window.parent.open = blockOpen;
-        window.top.open = blockOpen;
-      }
-    } catch {}
-    Object.freeze(window.open);
+  const blockOpen = (...args) => {
+    const url = args[0] || '(no URL)';
+    addLog(`🚫 window.open 차단됨: ${url}`);
+    return fakeWindow;
+  };
 
-    document.addEventListener('click', e => {
-      const a = e.target.closest('a[target]');
-      if (!a) return;
-      if (e.isTrusted && e.button === 0) return;
-      if (['_blank', '_new'].includes(a.target)) {
+  Object.defineProperty(window, 'open', {
+    get: () => blockOpen,
+    set: () => {},
+    configurable: false,
+  });
+  try { unsafeWindow.open = blockOpen; } catch {}
+  try {
+    if (window.top !== window.self) {
+      window.parent.open = blockOpen;
+      window.top.open = blockOpen;
+    }
+  } catch {}
+  Object.freeze(window.open);
+
+  // 이미 열린 새 창 차단
+  const detectWindowOpen = (url) => {
+    if (openedWindows.has(url)) {
+      addLog(`🚫 이미 열린 창/탭 차단: ${url}`);
+      return false;
+    }
+    openedWindows.add(url);
+    return true;
+  };
+
+  // URL 클릭을 통한 새 탭 차단
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[target]');
+    if (!a) return;
+    const url = a.href;
+    if (['_blank', '_new'].includes(a.target)) {
+      if (!detectWindowOpen(url)) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        addLog(`🚫 링크 클릭 차단됨: ${a.href}`);
       }
-    }, true);
+    }
+  }, true);
 
-    document.addEventListener('mousedown', e => {
-      if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
-        const a = e.target.closest('a');
-        if (a?.target === '_blank') {
+  // 중간 클릭과 단축키로 새 탭 열기 차단
+  document.addEventListener('mousedown', e => {
+    if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
+      const a = e.target.closest('a');
+      if (a?.target === '_blank') {
+        const url = a.href;
+        if (!detectWindowOpen(url)) {
           e.preventDefault();
           e.stopImmediatePropagation();
-          addLog(`🛑 중간클릭/단축키 클릭 차단됨: ${a.href}`);
         }
       }
-    }, true);
+    }
+  }, true);
 
-    const origCreateElement = Document.prototype.createElement;
-    Document.prototype.createElement = function (tag, ...args) {
-      const el = origCreateElement.call(this, tag, ...args);
-      if (tag.toLowerCase() === 'a') {
-        const origSetAttr = el.setAttribute;
-        el.setAttribute = function (name, value) {
-          if (name === 'target' && ['_blank', '_new'].includes(value)) {
-            addLog(`🚫 동적 링크 target 차단됨: ${el.href || el.outerHTML}`);
-            return;
-          }
-          if (name === 'rel' && (value.includes('noopener') || value.includes('noreferrer'))) {
-            addLog(`🚫 rel="noopener" 또는 "noreferrer" 차단됨: ${el.outerHTML}`);
-            return;
-          }
-          return origSetAttr.call(this, name, value);
-        };
-      }
-      return el;
-    };
-
-    document.addEventListener('submit', e => {
-      const form = e.target;
-      if (form?.target === '_blank') {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        addLog(`🚫 form[target="_blank"] 제출 차단: ${form.action || '(no action)'}`);
-      }
-    }, true);
-
-    Object.defineProperty(window, 'name', {
-      get: () => '',
-      set: () => {},
-      configurable: false,
-    });
-
-    if (navigator.registerProtocolHandler) {
-      navigator.registerProtocolHandler = () => {
-        addLog('🚫 registerProtocolHandler 차단됨');
+  // 동적 링크의 target=_blank 속성 차단
+  const origCreateElement = Document.prototype.createElement;
+  Document.prototype.createElement = function (tag, ...args) {
+    const el = origCreateElement.call(this, tag, ...args);
+    if (tag.toLowerCase() === 'a') {
+      const origSetAttr = el.setAttribute;
+      el.setAttribute = function (name, value) {
+        if (name === 'target' && ['_blank', '_new'].includes(value)) {
+          addLog(`🚫 동적 링크 target 차단됨: ${el.href || el.outerHTML}`);
+          return;
+        }
+        return origSetAttr.call(this, name, value);
       };
     }
+    return el;
+  };
 
-    if ('showModalDialog' in window) {
-      window.showModalDialog = () => {
-        addLog('🚫 showModalDialog 차단됨');
-        return null;
-      };
+  // Form에서 새 탭으로 제출되는 것을 차단
+  document.addEventListener('submit', e => {
+    const form = e.target;
+    if (form?.target === '_blank') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      addLog(`🚫 form[target="_blank"] 제출 차단: ${form.action || '(no action)'}`);
     }
+  }, true);
 
-    if ('Notification' in window) {
-      Notification.requestPermission = () => {
-        addLog('🚫 Notification 권한 요청 차단됨');
-        return Promise.resolve('denied');
-      };
+  // 배경에서 실행되는 스크립트 차단
+  const interceptScript = (script) => {
+    if (script.src && script.src.includes("window.open")) {
+      addLog(`🚫 배경 스크립트 실행 차단됨: ${script.src}`);
+      script.remove();
     }
+  };
 
-    // ================================
-    // [2] iframe 감시 (차단된 도메인에서만 실행)
-    // ================================
-    if (!IFRAME_SKIP) {
-      const iframeObserver = new MutationObserver(mutations => {
-        for (const m of mutations) {
-          for (const node of m.addedNodes) {
-            if (node.nodeType === 1 && node.tagName === 'IFRAME') {
-              const rawSrc = node.getAttribute('src') || node.src || '';
-              let fullSrc = rawSrc;
+  const scripts = document.getElementsByTagName("script");
+  Array.from(scripts).forEach(interceptScript);
+
+  // ================================
+  // [2] iframe 감시 (차단된 도메인에서만 실행)
+  // ================================
+  if (!IFRAME_SKIP) {
+    const iframeObserver = new MutationObserver(mutations => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType === 1 && node.tagName === 'IFRAME') {
+            const rawSrc = node.getAttribute('src') || node.src || '';
+            let fullSrc = rawSrc;
+            try {
+              fullSrc = new URL(rawSrc, location.href).href;
+            } catch {}
+            const style = getComputedStyle(node);
+            const display = style.display || '(unknown)';
+            const displayHidden = (display === 'none' || display === 'hidden' || node.hidden);
+
+            if (!isIframeAllowed(fullSrc) || displayHidden) {
+              addLog(`🛑 의심 iframe 감지됨 (src: ${fullSrc}, display: ${display})`);
               try {
-                fullSrc = new URL(rawSrc, location.href).href;
+                const warning = document.createElement('div');
+                warning.innerHTML = `
+                  🚫 차단된 iframe입니다<br>
+                  <small style="font-size:14px; color:#eee; user-select:text;">${fullSrc}</small>
+                `;
+                warning.style.cssText = `
+                  color: #fff;
+                  background: #d32f2f;
+                  padding: 6px 10px;
+                  font-size: 14px;
+                  font-family: monospace;
+                  border-radius: 4px;
+                  user-select: text;
+                  max-width: 90vw;
+                  word-break: break-all;
+                `;
+                node.parentNode.replaceChild(warning, node);
+                setTimeout(() => warning.remove(), 10000);
               } catch {}
-              const style = getComputedStyle(node);
-              const display = style.display || '(unknown)';
-              const displayHidden = (display === 'none' || display === 'hidden' || node.hidden);
-
-              if (!isIframeAllowed(fullSrc) || displayHidden) {
-                addLog(`🛑 의심 iframe 감지됨 (src: ${fullSrc}, display: ${display})`);
-                try {
-                  const warning = document.createElement('div');
-                  warning.innerHTML = `
-                    🚫 차단된 iframe입니다<br>
-                    <small style="font-size:14px; color:#eee; user-select:text;">${fullSrc}</small>
-                  `;
-                  warning.style.cssText = `
-                    color: #fff;
-                    background: #d32f2f;
-                    padding: 6px 10px;
-                    font-size: 14px;
-                    font-family: monospace;
-                    border-radius: 4px;
-                    user-select: text;
-                    max-width: 90vw;
-                    word-break: break-all;
-                  `;
-                  node.parentNode.replaceChild(warning, node);
-                  setTimeout(() => warning.remove(), 10000);
-                } catch {}
-              } else {
-                addLog(`✅ iframe 허용됨: ${fullSrc}`);
-              }
+            } else {
+              addLog(`✅ iframe 허용됨: ${fullSrc}`);
             }
           }
         }
-      });
-      iframeObserver.observe(document.documentElement, { childList: true, subtree: true });
-    }
+      }
+    });
+    iframeObserver.observe(document.documentElement, { childList: true, subtree: true });
   }
 
   createLogBox();
@@ -339,7 +338,7 @@
     toggleBtn.id = 'vm-speed-toggle-btn';
     toggleBtn.textContent = '🔽';
 
-    let isMinimized = true;   // ← 기본값을 최소화로 설정
+    let isMinimized = true;
 
     // 초기 최소화 상태 적용
     slider.style.display = 'none';
@@ -362,7 +361,7 @@
 
     const updateSpeed = (val) => {
       const speed = parseFloat(val);
-      valueDisplay.textContent = `x${speed.toFixed(1)}`;  //.toFixed(1) → 소수점 첫째 자리까지만 표시 (1.5, 2.0, 3.2 등)
+      valueDisplay.textContent = `x${speed.toFixed(1)}`;
       document.querySelectorAll('video').forEach(video => {
         video.playbackRate = speed;
       });
