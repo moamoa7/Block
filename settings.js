@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider
 // @namespace    https://example.com/
-// @version      3.8.2
-// @description  새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (트위터 예외 처리 추가)
+// @version      3.8.3
+// @description  새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (새 탭 열기 감시 해제)
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -101,7 +101,7 @@
   // ================================
   // [1] 팝업 차단 및 링크 새탭 열기 방지
   // ================================
-  let openedWindows = new Set();  // 이미 열린 새 창을 추적하는 변수
+  //let openedWindows = new Set();  // 이미 열린 새 창을 추적하는 변수
   let userClickedLinks = new Set();  // 사용자가 클릭한 링크 추적
 
   // 사용자가 클릭한 링크만 허용
@@ -133,7 +133,7 @@
 
     // 사용자가 클릭한 링크만 새 탭을 열 수 있도록 허용
     if (userClickedLinks.has(url)) {
-      openedWindows.add(url);
+      //openedWindows.add(url);
       return window.open(url, '_blank');
     }
 
@@ -156,36 +156,64 @@
   Object.freeze(window.open);
 
   // 이미 열린 새 창 차단
-  const detectWindowOpen = (url) => {
-    if (openedWindows.has(url)) {
-      addLog(`🚫 이미 열린 창/탭 차단: ${url}`);
-      return false;
-    }
-    openedWindows.add(url);
-    return true;
-  };
+  //const detectWindowOpen = (url) => {
+    //if (openedWindows.has(url)) {
+      //addLog(`🚫 이미 열린 창/탭 차단: ${url}`);
+      //return false;
+    //}
+    //openedWindows.add(url);
+
+    // 탭이 닫히면 openedWindows에서 해당 URL을 제거
+    //sessionStorage.setItem(url, "opened");
+
+    //window.addEventListener('beforeunload', () => {
+      //sessionStorage.removeItem(url);  // 탭이 닫히면 sessionStorage에서 URL 제거
+      //openedWindows.delete(url);  // 목록에서도 URL 제거
+    //});
+
+    //return true;
+  //};
+
+    // 새 탭 열기 시 sessionStorage 체크
+//document.addEventListener('click', (e) => {
+  //const a = e.target.closest('a[target]');
+  //if (!a) return;
+  //const url = a.href;
+
+  // 이미 열린 창일 경우 새 탭을 차단
+  //if (sessionStorage.getItem(url) === "opened") {
+    //addLog(`🚫 이미 열린 창/탭 차단: ${url}`);
+    //e.preventDefault();
+    //e.stopImmediatePropagation();
+  //}
+//});
 
   // URL 클릭을 통한 새 탭 차단
-  document.addEventListener('click', function (e) {
-    const a = e.target.closest('a[target]');
-    if (!a) return;
-    const url = a.href;
+  //document.addEventListener('click', function (e) {
+    //const a = e.target.closest('a[target]');
+    //if (!a) return;
+    //const url = a.href;
 
     // 나머지 링크는 기존 차단 로직을 따름
-    if (['_blank', '_new'].includes(a.target)) {
-      if (!detectWindowOpen(url)) {
+    //if (['_blank', '_new'].includes(a.target)) {
+      //if (!detectWindowOpen(url)) {
+        //e.preventDefault();
+        //e.stopImmediatePropagation();
+     // }
+    //}
+
+    // "javascript:" 링크 차단
+    document.addEventListener('click', function (e) {
+      const a = e.target.closest('a');
+      if (!a) return;
+      const url = a.href;
+
+      if (url && url.startsWith("javascript:")) {
+        addLog(`🚫 javascript 링크 차단됨: ${url}`);
         e.preventDefault();
         e.stopImmediatePropagation();
       }
-    }
-
-    // "javascript:" 링크 차단
-    if (a.href && a.href.startsWith("javascript:")) {
-      addLog(`🚫 javascript 링크 차단됨: ${a.href}`);
-      e.preventDefault();
-      e.stopImmediatePropagation();
-    }
-  }, true);
+    }, true);
 
   // 중간 클릭과 단축키로 새 탭 열기 차단
   document.addEventListener('mousedown', function (e) {
