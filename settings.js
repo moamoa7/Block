@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 배속바 변경 (최소화 등)
+// @name         새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider
 // @namespace    https://example.com/
-// @version      3.8.1
-// @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함) + 새 창 열기 방식 다각화 감지 + 이미 열린 새 창/탭 차단 + 배경에서 실행되는 스크립트 차단
+// @version      3.8.2
+// @description  새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (트위터 예외 처리 추가)
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -81,21 +81,21 @@
 
   function addLog(msg) {
     const box = document.getElementById('popupBlockerLogBox');
-    if (!box) return;
-    box.style.opacity = '1';
-    box.style.pointerEvents = 'auto';
+    if (!box) return;  // 로그 박스가 없으면 함수 종료
+    box.style.opacity = '1';  // 로그 박스 표시
+    box.style.pointerEvents = 'auto';  // 로그 박스 인터랙션 가능하게 설정
     const entry = document.createElement('div');
-    entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;  // 로그 메시지
     entry.style.textAlign = 'left';
     box.appendChild(entry);
-    box.scrollTop = box.scrollHeight;
+    box.scrollTop = box.scrollHeight;  // 스크롤을 최신 로그로 이동
     setTimeout(() => {
       entry.remove();
       if (!box.children.length) {
         box.style.opacity = '0';
-        box.style.pointerEvents = 'none';
+        box.style.pointerEvents = 'none';  // 로그 박스 숨기기
       }
-    }, 10000);
+    }, 10000);  // 10초 후에 로그 삭제
   }
 
   // ================================
@@ -170,6 +170,8 @@
     const a = e.target.closest('a[target]');
     if (!a) return;
     const url = a.href;
+
+    // 나머지 링크는 기존 차단 로직을 따름
     if (['_blank', '_new'].includes(a.target)) {
       if (!detectWindowOpen(url)) {
         e.preventDefault();
@@ -207,6 +209,13 @@
       const origSetAttr = el.setAttribute;
       el.setAttribute = function (name, value) {
         if (name === 'target' && ['_blank', '_new'].includes(value)) {
+          const href = el.href;
+
+        // 트위터와 같은 도메인은 예외 처리 (여기에 추가)
+        if (href.includes('twitter.com')) {
+          return origSetAttr.call(this, name, value); // 예외 처리된 링크는 허용
+        }
+          // 나머지 링크는 차단
           addLog(`🚫 동적 링크 target 차단됨: ${el.href || el.outerHTML}`);
           return;
         }
@@ -245,11 +254,23 @@
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (node.nodeType === 1 && node.tagName === 'IFRAME') {
+            // lazy load가 적용된 iframe일 경우
             const rawSrc = node.getAttribute('src') || node.src || '';
             let fullSrc = rawSrc;
+            // data-lazy-src 속성 처리
+            const lazySrc = node.getAttribute('data-lazy-src');
+            if (lazySrc) {
+              fullSrc = lazySrc;
+            }
+
             try {
-              fullSrc = new URL(rawSrc, location.href).href;
+              //fullSrc = new URL(rawSrc, location.href).href;
+              fullSrc = new URL(fullSrc, location.href).href;
             } catch {}
+
+            // Debug: Log iframe src
+            addLog(`🛑 iframe 감지됨: ${fullSrc}`);
+
             const style = getComputedStyle(node);
             const display = style.display || '(unknown)';
             const displayHidden = (display === 'none' || display === 'hidden' || node.hidden);
