@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         새창/새탭 완전 차단기 + iframe 고급 차단 + 레이어 제거 (비활성화) + 의심 iframe 감시 + 경고 메시지 표시 + Vertical Video Speed Slider + 배속바 변경 (최소화 등)
 // @namespace    https://example.com/
-// @version      3.8.0
+// @version      3.8.1
 // @description  window.open 차단 + 팝업/레이어 제거(비활성화) + iframe src/스타일 감시 + 허용 문자열 포함 시 예외 + 차단 iframe 경고 메시지 + 자동 사라짐 + 영상 배속 슬라이더(iframe 내부 포함) + 새 창 열기 방식 다각화 감지 + 이미 열린 새 창/탭 차단 + 배경에서 실행되는 스크립트 차단
 // @match        *://*/*
 // @grant        none
@@ -12,10 +12,10 @@
   'use strict';
 
   // ================================
-  // [0] 설정: 도메인 화이트리스트 / iframe 예외 / iframe 차단 무시
+  // [0] 설정: 도메인 화이트리스트
   // ================================
 
-  const WHITELIST = ['escrow.auction.co.kr']; // 전체 스크립트 제외할 도메인 (window.open 차단 등도 무시)
+  const WHITELIST = ['escrow.auction.co.kr']; // 새탭/새창 제외할 도메인 (window.open 차단 등도 무시)
   const IFRAME_WHITELIST = [
     '/recaptcha/',  // 캡챠
     'escrow.auction.co.kr',  // 옥션
