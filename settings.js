@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider
 // @namespace     https://example.com/
-// @version       3.8.4
-// @description   새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (새 탭 열기 감시 해제)
+// @version       3.8.5
+// @description   새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (새창 열기 감시 문제 해결)
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -17,10 +17,6 @@
 
   const WHITELIST = [
     'escrow.auction.co.kr',
-    'script.auction.co.kr',
-    'tracking.auction.co.kr',
-    'montelena.auction.co.kr',
-    'auction.co.kr' // Added if the main domain also triggers popups you want to allow
   ];
 
   const IFRAME_WHITELIST = [
@@ -120,6 +116,31 @@
       }
     } catch {}
     Object.freeze(window.open);
+
+    // "javascript:" 링크 차단
+    document.addEventListener('click', function (e) {
+      const a = e.target.closest('a');
+      if (!a) return;
+
+      const url = a.href;
+
+      if (url && url.startsWith("javascript:")) {
+        // javascript 링크에서 window.open 사용 시 차단
+        if (url.includes('window.open')) {
+          addLog(`🚫 javascript 링크 (window.open) 차단됨: ${url}`);
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          return;
+        }
+        // 추가로 다른 javascript 링크 처리할 경우
+        console.log(`javascript 링크 클릭됨: ${link}`);
+        // javascript 링크의 경우 차단 또는 허용하는 로직 추가 가능
+        e.preventDefault();  // 예시로 차단 처리
+        return;
+      }
+    }, true);
+
+
 
     // Intermediate clicks and hotkeys to block new tab opening
     document.addEventListener('mousedown', function (e) {
