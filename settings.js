@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider
-// @namespace    https://example.com/
-// @version      3.8.3
-// @description  새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (새 탭 열기 감시 해제)
-// @match        *://*/*
-// @grant        none
-// @run-at       document-start
+// @name          새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider
+// @namespace     https://example.com/
+// @version       3.8.4
+// @description   새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (새 탭 열기 감시 해제)
+// @match         *://*/*
+// @grant         none
+// @run-at        document-start
 // ==/UserScript==
 
 (function () {
@@ -15,27 +15,170 @@
   // [0] 설정: 도메인 화이트리스트
   // ================================
 
-  const WHITELIST = ['escrow.auction.co.kr']; // 새탭/새창 제외할 도메인 (window.open 차단 등도 무시)
-  const IFRAME_WHITELIST = [
-    '/recaptcha/',  // 캡챠
-    'escrow.auction.co.kr',  // 옥션
-    '/movie_view',  // 디시인사이드 동영상
-    '/player',  // 티비위키.티비몬.티비핫 플레이어
-    '/embed/',  // 커뮤니티 등 게시물 동영상 삽입
-    'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
-    'pcmap.place.naver.com/',  // 네이버 지도
-    'supremejav.com',  // https://supjav.com/
-    '/e/', '/t/', '/v/', // 각종 성인 영상
+  const WHITELIST = [
+    'escrow.auction.co.kr',
+    'script.auction.co.kr',
+    'tracking.auction.co.kr',
+    'montelena.auction.co.kr',
+    'auction.co.kr' // Added if the main domain also triggers popups you want to allow
   ];
 
-  const IFRAME_SKIP_DOMAINS = ['auth.openai.com',]; // iframe 감시 자체를 하지 않을 도메인
+  const IFRAME_WHITELIST = [
+    '/recaptcha/',
+    'escrow.auction.co.kr',
+    '/movie_view',
+    '/player',
+    '/embed/',
+    'player.bunny-frame.online',
+    'pcmap.place.naver.com/',
+    'supremejav.com',
+    '/e/', '/t/', '/v/',
+  ];
+
+  const IFRAME_SKIP_DOMAINS = ['auth.openai.com',];
 
   const hostname = location.hostname;
 
-  const IS_ALLOWED = WHITELIST.some(domain =>
-    hostname === domain || hostname.endsWith('.' + domain)
+  console.log('현재 hostname:', hostname);
+  console.log('화이트리스트:', WHITELIST);
+
+  const IS_ALLOWED_DOMAIN_FOR_POPUP = WHITELIST.some(domain =>
+    hostname.includes(domain) || window.location.href.includes(domain)
   );
 
+  console.log('IS_ALLOWED_DOMAIN_FOR_POPUP 값:', IS_ALLOWED_DOMAIN_FOR_POPUP);
+
+  if (IS_ALLOWED_DOMAIN_FOR_POPUP) {
+    console.log(`${hostname}은 팝업 허용 화이트리스트에 포함됨. window.open 재정의를 건너뜀.`);
+    // If the domain is whitelisted, do NOT proceed with window.open blocking.
+    // However, we still want to run iframe and video speed slider logic.
+  } else {
+    console.log(`${hostname}은 팝업 허용 화이트리스트에 포함되지 않음. window.open을 차단합니다.`);
+
+    // Store a reference to the original window.open before it's modified
+    const originalWindowOpen = window.open;
+
+    // ================================
+    // [1] 팝업 차단 및 링크 새탭 열기 방지 (ONLY IF NOT WHITELISTED FOR POPUPS)
+    // ================================
+    let userClickedLinks = new Set();
+
+    document.addEventListener('click', function (e) {
+      const target = e.target;
+      const a = target.closest('a');
+      if (a && a.href) {
+        console.log(`링크 클릭됨: ${a.href}`);
+        userClickedLinks.add(a.href);
+      }
+    });
+
+    const fakeWindow = new Proxy({}, {
+      get: (_, prop) => {
+        if (prop === 'focus') {
+          return () => {};
+        }
+        addLog(`⚠️ window.open 반환 객체 접근: ${String(prop)}`);
+        return fakeWindow;
+      },
+      apply: () => {
+        addLog(`⚠️ window.open 반환 함수 호출`);
+        return fakeWindow;
+      },
+    });
+
+    const blockOpen = (...args) => {
+      const url = args[0] || '(no URL)';
+      console.log(`Attempting to block URL: ${url}`);
+      addLog(`🚫 window.open 차단됨: ${url}`);
+
+      // This part is now simplified, as the outer IS_ALLOWED_DOMAIN_FOR_POPUP check
+      // determines if blockOpen is even assigned to window.open.
+      // So, if we reach here, it means we are NOT on a whitelisted popup domain.
+      // Therefore, we only allow if user explicitly clicked the *exact* URL.
+      if (userClickedLinks.has(url)) {
+          // This case should ideally not happen if the `javascript:` link is causing issues,
+          // as userClickedLinks won't contain the final target URL.
+          // This path might be useful for standard a[target="_blank"] clicks.
+          console.log(`사용자가 클릭한 링크: ${url} - 허용 (비-화이트리스트 도메인이지만 직접 클릭함)`);
+          return originalWindowOpen.apply(window, args);
+      }
+
+      console.log(`URL ${url}은 클릭되지 않았거나 화이트리스트 도메인이 아니므로 차단됩니다.`);
+      return fakeWindow;
+    };
+
+    Object.defineProperty(window, 'open', {
+      get: () => blockOpen,
+      set: () => {},
+      configurable: false
+    });
+    try { unsafeWindow.open = blockOpen; } catch {}
+    try {
+      if (window.top !== window.self) {
+        window.parent.open = blockOpen;
+        window.top.open = blockOpen;
+      }
+    } catch {}
+    Object.freeze(window.open);
+
+    // Intermediate clicks and hotkeys to block new tab opening
+    document.addEventListener('mousedown', function (e) {
+      if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
+        const a = e.target.closest('a');
+        if (a?.target === '_blank') {
+          const url = a.href;
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          // Directly call blockOpen to handle this
+          blockOpen(url, '_blank');
+        }
+      }
+    }, true);
+
+    // Dynamic link target=_blank blocking
+    const origCreateElement = Document.prototype.createElement;
+    Document.prototype.createElement = function (tag, ...args) {
+      const el = origCreateElement.call(this, tag, ...args);
+      if (tag.toLowerCase() === 'a') {
+        const origSetAttr = el.setAttribute;
+        el.setAttribute = function (name, value) {
+          if (name === 'target' && ['_blank', '_new'].includes(value)) {
+            const href = el.href;
+            if (href.includes('twitter.com')) {
+              return origSetAttr.call(this, name, value);
+            }
+            addLog(`🚫 동적 링크 target 차단됨: ${el.href || el.outerHTML}`);
+            return;
+          }
+          return origSetAttr.call(this, name, value);
+        };
+      }
+      return el;
+    };
+
+    // Form target=_blank submission blocking
+    document.addEventListener('submit', function (e) {
+      const form = e.target;
+      if (form?.target === '_blank') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        addLog(`🚫 form[target="_blank"] 제출 차단: ${form.action || '(no action)'}`);
+      }
+    }, true);
+
+    // Background script blocking (still simplistic, consider refining if needed)
+    const interceptScript = (script) => {
+      if (script.src && script.src.includes("window.open")) {
+        addLog(`🚫 배경 스크립트 실행 차단됨: ${script.src}`);
+        script.remove();
+      }
+    };
+
+    const scripts = document.getElementsByTagName("script");
+    Array.from(scripts).forEach(interceptScript);
+  } // End of window.open blocking scope
+
+  // IFRAME and Video Speed Slider logic runs regardless of popup whitelist
   const IFRAME_SKIP = IFRAME_SKIP_DOMAINS.some(domain =>
     hostname === domain || hostname.endsWith('.' + domain)
   );
@@ -81,224 +224,38 @@
 
   function addLog(msg) {
     const box = document.getElementById('popupBlockerLogBox');
-    if (!box) return;  // 로그 박스가 없으면 함수 종료
-    box.style.opacity = '1';  // 로그 박스 표시
-    box.style.pointerEvents = 'auto';  // 로그 박스 인터랙션 가능하게 설정
+    if (!box) return;
+    box.style.opacity = '1';
+    box.style.pointerEvents = 'auto';
     const entry = document.createElement('div');
-    entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;  // 로그 메시지
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
     entry.style.textAlign = 'left';
     box.appendChild(entry);
-    box.scrollTop = box.scrollHeight;  // 스크롤을 최신 로그로 이동
+    box.scrollTop = box.scrollHeight;
     setTimeout(() => {
       entry.remove();
       if (!box.children.length) {
         box.style.opacity = '0';
-        box.style.pointerEvents = 'none';  // 로그 박스 숨기기
+        box.style.pointerEvents = 'none';
       }
-    }, 10000);  // 10초 후에 로그 삭제
+    }, 10000);
   }
 
-  // ================================
-  // [1] 팝업 차단 및 링크 새탭 열기 방지
-  // ================================
-  //let openedWindows = new Set();  // 이미 열린 새 창을 추적하는 변수
-  let userClickedLinks = new Set();  // 사용자가 클릭한 링크 추적
-
-  // 사용자가 클릭한 링크만 허용
-  document.addEventListener('click', function (e) {
-    const target = e.target;
-
-    // 링크 클릭 시
-    const a = target.closest('a');
-    if (a && a.href) {
-      userClickedLinks.add(a.href);  // 클릭한 링크 저장
-    }
-  });
-
-  // window.open 차단
-  const fakeWindow = new Proxy({}, {
-    get: (_, prop) => {
-      addLog(`⚠️ window.open 반환 객체 접근: ${String(prop)}`);
-      return fakeWindow;
-    },
-    apply: () => {
-      addLog(`⚠️ window.open 반환 함수 호출`);
-      return fakeWindow;
-    },
-  });
-
-  const blockOpen = (...args) => {
-    const url = args[0] || '(no URL)';
-    addLog(`🚫 window.open 차단됨: ${url}`);
-
-    // 사용자가 클릭한 링크만 새 탭을 열 수 있도록 허용
-    if (userClickedLinks.has(url)) {
-      //openedWindows.add(url);
-      return window.open(url, '_blank');
-    }
-
-    // 그렇지 않으면 창을 차단하고 닫음
-    return fakeWindow;  // window.open 차단
-  };
-
-  Object.defineProperty(window, 'open', {
-    get: () => blockOpen,
-    set: () => {},
-    configurable: false
-  });
-  try { unsafeWindow.open = blockOpen; } catch {}
-  try {
-    if (window.top !== window.self) {
-      window.parent.open = blockOpen;
-      window.top.open = blockOpen;
-    }
-  } catch {}
-  Object.freeze(window.open);
-
-  // 이미 열린 새 창 차단
-  //const detectWindowOpen = (url) => {
-    //if (openedWindows.has(url)) {
-      //addLog(`🚫 이미 열린 창/탭 차단: ${url}`);
-      //return false;
-    //}
-    //openedWindows.add(url);
-
-    // 탭이 닫히면 openedWindows에서 해당 URL을 제거
-    //sessionStorage.setItem(url, "opened");
-
-    //window.addEventListener('beforeunload', () => {
-      //sessionStorage.removeItem(url);  // 탭이 닫히면 sessionStorage에서 URL 제거
-      //openedWindows.delete(url);  // 목록에서도 URL 제거
-    //});
-
-    //return true;
-  //};
-
-    // 새 탭 열기 시 sessionStorage 체크
-//document.addEventListener('click', (e) => {
-  //const a = e.target.closest('a[target]');
-  //if (!a) return;
-  //const url = a.href;
-
-  // 이미 열린 창일 경우 새 탭을 차단
-  //if (sessionStorage.getItem(url) === "opened") {
-    //addLog(`🚫 이미 열린 창/탭 차단: ${url}`);
-    //e.preventDefault();
-    //e.stopImmediatePropagation();
-  //}
-//});
-
-  // URL 클릭을 통한 새 탭 차단
-  //document.addEventListener('click', function (e) {
-    //const a = e.target.closest('a[target]');
-    //if (!a) return;
-    //const url = a.href;
-
-    // 나머지 링크는 기존 차단 로직을 따름
-    //if (['_blank', '_new'].includes(a.target)) {
-      //if (!detectWindowOpen(url)) {
-        //e.preventDefault();
-        //e.stopImmediatePropagation();
-     // }
-    //}
-
-    // "javascript:" 링크 차단
-    document.addEventListener('click', function (e) {
-      const a = e.target.closest('a');
-      if (!a) return;
-      const url = a.href;
-
-      if (url && url.startsWith("javascript:")) {
-        addLog(`🚫 javascript 링크 차단됨: ${url}`);
-        e.preventDefault();
-        e.stopImmediatePropagation();
-      }
-    }, true);
-
-  // 중간 클릭과 단축키로 새 탭 열기 차단
-  document.addEventListener('mousedown', function (e) {
-    if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
-      const a = e.target.closest('a');
-      if (a?.target === '_blank') {
-        const url = a.href;
-        if (!detectWindowOpen(url)) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-        }
-      }
-    }
-  }, true);
-
-  // 동적 링크의 target=_blank 속성 차단
-  const origCreateElement = Document.prototype.createElement;
-  Document.prototype.createElement = function (tag, ...args) {
-    const el = origCreateElement.call(this, tag, ...args);
-    if (tag.toLowerCase() === 'a') {
-      const origSetAttr = el.setAttribute;
-      el.setAttribute = function (name, value) {
-        if (name === 'target' && ['_blank', '_new'].includes(value)) {
-          const href = el.href;
-
-        // 트위터와 같은 도메인은 예외 처리 (여기에 추가)
-        if (href.includes('twitter.com')) {
-          return origSetAttr.call(this, name, value); // 예외 처리된 링크는 허용
-        }
-          // 나머지 링크는 차단
-          addLog(`🚫 동적 링크 target 차단됨: ${el.href || el.outerHTML}`);
-          return;
-        }
-        return origSetAttr.call(this, name, value);
-      };
-    }
-    return el;
-  };
-
-  // Form에서 새 탭으로 제출되는 것을 차단
-  document.addEventListener('submit', function (e) {
-    const form = e.target;
-    if (form?.target === '_blank') {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      addLog(`🚫 form[target="_blank"] 제출 차단: ${form.action || '(no action)'}`);
-    }
-  }, true);
-
-  // 배경에서 실행되는 스크립트 차단
-  const interceptScript = (script) => {
-    if (script.src && script.src.includes("window.open")) {
-      addLog(`🚫 배경 스크립트 실행 차단됨: ${script.src}`);
-      script.remove();
-    }
-  };
-
-  const scripts = document.getElementsByTagName("script");
-  Array.from(scripts).forEach(interceptScript);
-
-  // ================================
-  // [2] iframe 감시 (차단된 도메인에서만 실행)
-  // ================================
   if (!IFRAME_SKIP) {
     const iframeObserver = new MutationObserver(mutations => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (node.nodeType === 1 && node.tagName === 'IFRAME') {
-            // lazy load가 적용된 iframe일 경우
             const rawSrc = node.getAttribute('src') || node.src || '';
             let fullSrc = rawSrc;
-            // data-lazy-src 속성 처리
             const lazySrc = node.getAttribute('data-lazy-src');
             if (lazySrc) {
               fullSrc = lazySrc;
             }
-
             try {
-              //fullSrc = new URL(rawSrc, location.href).href;
               fullSrc = new URL(fullSrc, location.href).href;
             } catch {}
-
-            // Debug: Log iframe src
             addLog(`🛑 iframe 감지됨: ${fullSrc}`);
-
             const style = getComputedStyle(node);
             const display = style.display || '(unknown)';
             const displayHidden = (display === 'none' || display === 'hidden' || node.hidden);
@@ -337,9 +294,6 @@
 
   createLogBox();
 
-  // ================================
-  // [3] Vertical Video Speed Slider + 최소화 버튼
-  // ================================
   function initSpeedSlider() {
     if (window.__vmSpeedSliderInjected) return;
     window.__vmSpeedSliderInjected = true;
@@ -416,7 +370,6 @@
 
     let isMinimized = true;
 
-    // 초기 최소화 상태 적용
     slider.style.display = 'none';
     resetBtn.style.display = 'none';
     valueDisplay.style.display = 'none';
