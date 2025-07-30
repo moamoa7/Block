@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          새창/새탭 차단기 + iframe 차단 (완화 버전) + Vertical Video Speed Slider
 // @namespace     https://example.com/
-// @version       3.9.1 // 버전 업데이트
-// @description   새창/새탭 차단기 + iframe 차단 (과도한 간섭 완화) + Vertical Video Speed Slider
+// @version       3.9.3
+// @description   새창/새탭 차단기 + iframe 차단 (과도한 간섭 완화) + Vertical Video Speed Slider + about:blank 예외처리 + javascript 예외처리
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -18,24 +18,33 @@
   // 새탭/새창 제외할 도메인 (window.open 차단 등도 무시)
   const WHITELIST = [
     'escrow.auction.co.kr',
+    // 여기에 팝업/새 탭 차단을 해제할 도메인을 추가하세요.
+    // 이 도메인들은 window.open 및 'javascript:' 링크 차단에서 제외됩니다.
   ];
 
-  // 프레임 차단 제외할 도메인
-    const IFRAME_SKIP_DOMAINS = ['auth.openai.com', 'gemini.google.com']; // Gemini 추가
+  // 프레임 차단 제외할 도메인 (iframe 차단 로직 자체를 건너뛸 도메인)
+  const IFRAME_SKIP_DOMAINS = ['auth.openai.com', 'gemini.google.com'];
+
+  // 특정 부모 도메인에서 'about:blank' iframe을 허용할 경우 추가
+  const ABOUT_BLANK_ALLOW_PARENT_DOMAINS = [
+    // 여기에 'about:blank' iframe을 허용할 도메인을 추가하세요.
+    'cafe.naver.com',
+  ];
 
   // 프레임 차단 제외할 패턴 형식 (도메인 일부만 넣음)
   const IFRAME_WHITELIST = [
     'extension:',  // 확장프로그램
-    '/recaptcha/',  // 캡챠
-    'escrow.auction.co.kr',  // 옥션
-    '/movie_view',  // 디시인사이드 동영상
-    '/player',  // 티비위키.티비몬.티비핫 플레이어
-    '/embed/',  // 커뮤니티 등 게시물 동영상 삽입
-    '/videoembed/',  // https://poooo.ml/
-    'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
-    'pcmap.place.naver.com/',  // 네이버 지도
-    '/PostView.naver',   // 네이버 블로그
-    'supremejav.com',  // https://supjav.com/
+    '/recaptcha/', // 캡챠
+    'escrow.auction.co.kr', // 옥션
+    '/movie_view', // 디시인사이드 동영상
+    '/player',     // 티비위키.티비몬.티비핫 플레이어
+    '/embed/',     // 커뮤니티 등 게시물 동영상 삽입
+    '/videoembed/', // https://poooo.ml/
+    'player.bunny-frame.online', // 티비위키.티비몬.티비핫 플레이어
+    'pcmap.place.naver.com/', // 네이버 지도
+    'nhn',  // 네이버 카페
+    '/PostView.naver',    // 네이버 블로그
+    'supremejav.com', // https://supjav.com/
     '/e/', '/t/', '/v/', // 각종 성인 영상
   ];
 
@@ -50,7 +59,7 @@
     'profitableratecpm.com',
     'fractionfridgejudiciary.com',
     'vkeadqoff.com',  // avsee.ru - 매일 바뀔 수 있음
-    'javggvideo.xyz',  // javgg.net (TB 영상)
+    'javggvideo.xyz', // javgg.net (TB 영상)
     'brigadedelegatesandbox.com',
     'ak.stikroltiltoowi.net',
     'turboplayers.xyz',
@@ -180,11 +189,11 @@
     return fakeWindow;
   };
 
-  // 팝업 허용 화이트리스트에 없는 경우에만 window.open 재정의
+  // 팝업 허용 화이트리스트에 없는 경우에만 window.open 및 관련 차단 기능 재정의
   if (IS_ALLOWED_DOMAIN_FOR_POPUP) {
-    console.log(`${hostname}은 팝업 허용 화이트리스트에 포함됨. window.open 재정의를 건너뜀.`);
+    console.log(`${hostname}은 팝업 허용 화이트리스트에 포함됨. 팝업 및 'javascript:' 링크 차단을 건너뜀.`);
   } else {
-    console.log(`${hostname}은 팝업 허용 화이트리스트에 포함되지 않음. window.open을 차단합니다.`);
+    console.log(`${hostname}은 팝업 허용 화이트리스트에 포함되지 않음. 팝업 및 'javascript:' 링크를 차단합니다.`);
 
     // window.open 재정의
     Object.defineProperty(window, 'open', {
@@ -216,8 +225,9 @@
           e.stopImmediatePropagation();
           return;
         }
+        // window.open을 포함하지 않는 javascript: 링크는 기본 동작 허용
         console.log(`javascript 링크 클릭됨: ${url}`);
-        e.preventDefault(); // 모든 javascript: 링크 기본 동작 방지
+        // e.preventDefault(); // 이 부분을 주석 처리하여 'window.open'이 없는 javascript: 링크는 허용
         return;
       }
     }, true); // 캡처링 단계에서 처리
@@ -305,6 +315,47 @@
 
       // 강제 차단 패턴에 src가 일치하거나, 허용되지 않거나, 숨겨진 iframe인 경우
       const isForceBlockedIframeSrc = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => fullSrc.includes(pattern));
+
+      // about:blank 프레임 허용 로직 추가
+      // 현재 페이지의 hostname이 ABOUT_BLANK_ALLOW_PARENT_DOMAINS에 있으면 about:blank iframe 허용
+      const isAboutBlankAndAllowedParent = (fullSrc === 'about:blank' &&
+          ABOUT_BLANK_ALLOW_PARENT_DOMAINS.some(domain => hostname.includes(domain)));
+
+      if (isAboutBlankAndAllowedParent) {
+          addLog(`✅ 'about:blank' iframe 허용됨 (부모 도메인 화이트리스트): ${hostname}`);
+          // about:blank이지만 허용된 부모 도메인이므로 즉시 리턴하여 차단하지 않음
+          // 단, iframe 내부의 window.open은 여전히 차단될 수 있도록 노력합니다.
+          try {
+              node.addEventListener('load', () => {
+                  if (node.contentWindow) {
+                      try {
+                          Object.defineProperty(node.contentWindow, 'open', {
+                              get: () => blockOpen,
+                              set: () => {},
+                              configurable: false
+                          });
+                          Object.freeze(node.contentWindow.open);
+                          addLog(`✅ 허용된 'about:blank' iframe 내부 window.open 차단 주입 성공 (on load): ${fullSrc}`);
+                      } catch (e) {
+                          addLog(`⚠️ 허용된 'about:blank' iframe 내부 window.open 차단 주입 실패 (접근 오류 on load): ${e.message}`);
+                      }
+                  }
+              }, { once: true });
+              if (node.contentWindow && node.contentWindow.document.readyState !== 'loading') {
+                  Object.defineProperty(node.contentWindow, 'open', {
+                      get: () => blockOpen,
+                      set: () => {},
+                      configurable: false
+                  });
+                  Object.freeze(node.contentWindow.open);
+                  addLog(`✅ 허용된 'about:blank' iframe 내부 window.open 차단 즉시 주입 성공: ${fullSrc}`);
+              }
+          } catch (e) {
+              addLog(`⚠️ 허용된 'about:blank' iframe 내부 window.open 차단 시도 실패: ${e.message}`);
+          }
+          return;
+      }
+
 
       if (!isIframeAllowed(fullSrc) || displayHidden || isForceBlockedIframeSrc) {
           addLog(`🛑 의심/강제 차단 iframe 감지됨 (src: ${fullSrc}, display: ${display})`);
