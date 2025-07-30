@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider
 // @namespace     https://example.com/
-// @version       3.8.5
-// @description   새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (새창 열기 감시 문제 해결)
+// @version       3.8.6
+// @description   새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (사옹자 새창 열기 문제 해결)
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -51,22 +51,22 @@
   } else {
     console.log(`${hostname}은 팝업 허용 화이트리스트에 포함되지 않음. window.open을 차단합니다.`);
 
-    // Store a reference to the original window.open before it's modified
     const originalWindowOpen = window.open;
+    let userInitiatedAction = false; // New flag
 
-    // ================================
-    // [1] 팝업 차단 및 링크 새탭 열기 방지 (ONLY IF NOT WHITELISTED FOR POPUPS)
-    // ================================
-    let userClickedLinks = new Set();
+    // Set flag on user interaction
+    const setUserInitiatedAction = () => {
+      userInitiatedAction = true;
+      // Clear the flag after a short delay to prevent false positives for subsequent programmatic opens
+      setTimeout(() => {
+        userInitiatedAction = false;
+      }, 500); // Adjust delay as needed (e.g., 100ms to 500ms)
+    };
 
-    document.addEventListener('click', function (e) {
-      const target = e.target;
-      const a = target.closest('a');
-      if (a && a.href) {
-        console.log(`링크 클릭됨: ${a.href}`);
-        userClickedLinks.add(a.href);
-      }
-    });
+    // Listen for common user interaction events on the document
+    document.addEventListener('click', setUserInitiatedAction, true);
+    document.addEventListener('mousedown', setUserInitiatedAction, true);
+    document.addEventListener('keydown', setUserInitiatedAction, true);
 
     const fakeWindow = new Proxy({}, {
       get: (_, prop) => {
@@ -87,19 +87,13 @@
       console.log(`Attempting to block URL: ${url}`);
       addLog(`🚫 window.open 차단됨: ${url}`);
 
-      // This part is now simplified, as the outer IS_ALLOWED_DOMAIN_FOR_POPUP check
-      // determines if blockOpen is even assigned to window.open.
-      // So, if we reach here, it means we are NOT on a whitelisted popup domain.
-      // Therefore, we only allow if user explicitly clicked the *exact* URL.
-      if (userClickedLinks.has(url)) {
-          // This case should ideally not happen if the `javascript:` link is causing issues,
-          // as userClickedLinks won't contain the final target URL.
-          // This path might be useful for standard a[target="_blank"] clicks.
-          console.log(`사용자가 클릭한 링크: ${url} - 허용 (비-화이트리스트 도메인이지만 직접 클릭함)`);
-          return originalWindowOpen.apply(window, args);
+      // Allow if user interaction flag is set
+      if (userInitiatedAction) {
+        console.log(`사용자 상호작용 감지됨: ${url} - 허용`);
+        return originalWindowOpen.apply(window, args);
       }
 
-      console.log(`URL ${url}은 클릭되지 않았거나 화이트리스트 도메인이 아니므로 차단됩니다.`);
+      console.log(`URL ${url}은 사용자 상호작용 없이 호출되었으므로 차단됩니다.`);
       return fakeWindow;
     };
 
@@ -117,7 +111,7 @@
     } catch {}
     Object.freeze(window.open);
 
-    // "javascript:" 링크 차단
+    // "javascript:" 링크 차단 (keep this, it's good for security)
     document.addEventListener('click', function (e) {
       const a = e.target.closest('a');
       if (!a) return;
@@ -125,22 +119,17 @@
       const url = a.href;
 
       if (url && url.startsWith("javascript:")) {
-        // javascript 링크에서 window.open 사용 시 차단
         if (url.includes('window.open')) {
           addLog(`🚫 javascript 링크 (window.open) 차단됨: ${url}`);
           e.preventDefault();
           e.stopImmediatePropagation();
           return;
         }
-        // 추가로 다른 javascript 링크 처리할 경우
-        console.log(`javascript 링크 클릭됨: ${link}`);
-        // javascript 링크의 경우 차단 또는 허용하는 로직 추가 가능
-        e.preventDefault();  // 예시로 차단 처리
+        console.log(`javascript 링크 클릭됨: ${url}`);
+        e.preventDefault();
         return;
       }
     }, true);
-
-
 
     // Intermediate clicks and hotkeys to block new tab opening
     document.addEventListener('mousedown', function (e) {
@@ -150,13 +139,14 @@
           const url = a.href;
           e.preventDefault();
           e.stopImmediatePropagation();
-          // Directly call blockOpen to handle this
+          // The setUserInitiatedAction listener would have set the flag
+          // So, the blockOpen call will likely pass
           blockOpen(url, '_blank');
         }
       }
     }, true);
 
-    // Dynamic link target=_blank blocking
+    // Dynamic link target=_blank blocking (keep this, it's good)
     const origCreateElement = Document.prototype.createElement;
     Document.prototype.createElement = function (tag, ...args) {
       const el = origCreateElement.call(this, tag, ...args);
@@ -165,7 +155,7 @@
         el.setAttribute = function (name, value) {
           if (name === 'target' && ['_blank', '_new'].includes(value)) {
             const href = el.href;
-            if (href.includes('twitter.com')) {
+            if (href && href.includes('twitter.com')) { // Exception for twitter.com links
               return origSetAttr.call(this, name, value);
             }
             addLog(`🚫 동적 링크 target 차단됨: ${el.href || el.outerHTML}`);
@@ -177,7 +167,7 @@
       return el;
     };
 
-    // Form target=_blank submission blocking
+    // Form target=_blank submission blocking (keep this)
     document.addEventListener('submit', function (e) {
       const form = e.target;
       if (form?.target === '_blank') {
@@ -188,6 +178,10 @@
     }, true);
 
     // Background script blocking (still simplistic, consider refining if needed)
+    // This part might be overly aggressive and could break legitimate scripts.
+    // It's generally better to rely on window.open interception for runtime popups.
+    // Consider removing or refining this if it causes issues.
+    /*
     const interceptScript = (script) => {
       if (script.src && script.src.includes("window.open")) {
         addLog(`🚫 배경 스크립트 실행 차단됨: ${script.src}`);
@@ -197,6 +191,7 @@
 
     const scripts = document.getElementsByTagName("script");
     Array.from(scripts).forEach(interceptScript);
+    */
   } // End of window.open blocking scope
 
   // IFRAME and Video Speed Slider logic runs regardless of popup whitelist
