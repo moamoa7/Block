@@ -19,19 +19,22 @@
   const WHITELIST = [
     'escrow.auction.co.kr',
   ];
-  
+
   // 프레임 차단 제외할 도메인
     const IFRAME_SKIP_DOMAINS = ['auth.openai.com', 'gemini.google.com']; // Gemini 추가
-  
+
   // 프레임 차단 제외할 패턴 형식 (도메인 일부만 넣음)
   const IFRAME_WHITELIST = [
+    'extension:',  // 확장프로그램
     '/recaptcha/',  // 캡챠
     'escrow.auction.co.kr',  // 옥션
     '/movie_view',  // 디시인사이드 동영상
     '/player',  // 티비위키.티비몬.티비핫 플레이어
     '/embed/',  // 커뮤니티 등 게시물 동영상 삽입
+    '/videoembed/',  // https://poooo.ml/
     'player.bunny-frame.online',  // 티비위키.티비몬.티비핫 플레이어
     'pcmap.place.naver.com/',  // 네이버 지도
+    '/PostView.naver',   // 네이버 블로그
     'supremejav.com',  // https://supjav.com/
     '/e/', '/t/', '/v/', // 각종 성인 영상
   ];
@@ -44,6 +47,17 @@
     'ludicroustabletvelocity.com',
     'ascentomegaunsterile.com',
     'go.reebr.com',
+    'profitableratecpm.com',
+    'fractionfridgejudiciary.com',
+    'vkeadqoff.com',  // avsee.ru - 매일 바뀔 수 있음
+    'javggvideo.xyz',  // javgg.net (TB 영상)
+    'brigadedelegatesandbox.com',
+    'ak.stikroltiltoowi.net',
+    'turboplayers.xyz',
+    'spidertrippingwisplike.com',
+    'surrogateausteritywhence.com',
+    'buffooncountabletreble.com',
+    'tsyndicate.com',
     // 여기에 추가적으로 차단하고 싶은 도메인/패턴을 추가하세요.
     // 예: '.xyz', 'popup-ads.com', 'redirect-tracker.io'
   ];
