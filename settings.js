@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          새창/새탭 차단기 + iframe 차단 (완화 버전) + Vertical Video Speed Slider
 // @namespace     https://example.com/
-// @version       3.9.6
-// @description   새창/새탭 차단기 + iframe 차단 (과도한 간섭 완화) + Vertical Video Speed Slider + about:blank 예외처리 + javascript 예외처리 + 특정 레이어 차단
+// @version       3.9.7
+// @description   새창/새탭 차단기 + iframe 차단 (과도한 간섭 완화) + Vertical Video Speed Slider + about:blank 예외처리 + javascript 예외처리 + 특정 레이어 차단 + iframe 차단 완화 (ublock 사용 가능)
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -23,18 +23,16 @@
   ];
 
   // 프레임 차단 제외할 도메인 (iframe 차단 로직 자체를 건너뛸 도메인)
-  const IFRAME_SKIP_DOMAINS = ['auth.openai.com', 'gemini.google.com', 'extension:'];
+  const IFRAME_SKIP_DOMAINS = ['auth.openai.com', 'gemini.google.com'];
 
   // 특정 부모 도메인에서 'about:blank' iframe을 허용할 경우 추가
   const ABOUT_BLANK_ALLOW_PARENT_DOMAINS = [
     // 여기에 'about:blank' iframe을 허용할 도메인을 추가하세요.
-    'cafe.naver.com', 'youtube.com'
+    'cafe.naver.com', 'youtube.com', 'photos.google.com'
   ];
 
   // 프레임 차단 제외할 패턴 형식 (도메인 일부만 넣음)
   const IFRAME_WHITELIST = [
-    'extension:',  // 확장프로그램
-    'uBlock',
     '/recaptcha/', // 캡챠
     'escrow.auction.co.kr', // 옥션
     '/movie_view', // 디시인사이드 동영상
@@ -334,104 +332,73 @@
 
   // iframe 처리 헬퍼 함수
   const processIframe = (node, trigger) => {
-      const rawSrc = node.getAttribute('src') || node.src || '';
-      let fullSrc = rawSrc;
-      const lazySrc = node.getAttribute('data-lazy-src');
-      if (lazySrc) {
-          fullSrc = lazySrc;
-      }
-      try {
-          fullSrc = new URL(fullSrc, location.href).href;
-      } catch {}
+    const rawSrc = node.getAttribute('src') || node.src || '';
+    let fullSrc = rawSrc;
+    const lazySrc = node.getAttribute('data-lazy-src');
+    if (lazySrc) {
+        fullSrc = lazySrc;
+    }
+    try {
+        fullSrc = new URL(fullSrc, location.href).href;
+    } catch {}
 
-      addLog(`🛑 iframe 감지됨 (${trigger}): ${fullSrc}`);
-      const style = getComputedStyle(node);
-      const display = style.display || '(unknown)';
-      const displayHidden = (display === 'none' || display === 'hidden' || node.hidden);
+    addLog(`🛑 iframe 감지됨 (${trigger}): ${fullSrc}`);
+    const style = getComputedStyle(node);
+    const display = style.display || '(unknown)';
+    // const displayHidden = (display === 'none' || display === 'hidden' || node.hidden); // 이 변수는 이제 사용하지 않습니다.
 
-      // 강제 차단 패턴에 src가 일치하거나, 허용되지 않거나, 숨겨진 iframe인 경우
-      const isForceBlockedIframeSrc = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => fullSrc.includes(pattern));
+    // 강제 차단 패턴에 src가 일치하는지 확인
+    const isForceBlockedIframeSrc = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => fullSrc.includes(pattern));
 
-      // about:blank 프레임 허용 로직 추가
-      // 현재 페이지의 hostname이 ABOUT_BLANK_ALLOW_PARENT_DOMAINS에 있으면 about:blank iframe 허용
-      const isAboutBlankAndAllowedParent = (fullSrc === 'about:blank' &&
-          ABOUT_BLANK_ALLOW_PARENT_DOMAINS.some(domain => hostname.includes(domain)));
+    // ★★★ 변경된 로직 시작 ★★★
+    // 1. about:blank 프레임은 무시합니다 (이전 수정과 동일)
+    if (fullSrc === 'about:blank') {
+        addLog(`✅ 'about:blank' iframe 감지됨. 스크립트에서 완전히 무시합니다.`);
+        return; // about:blank는 여기서 완전히 처리 배제
+    }
 
-      if (isAboutBlankAndAllowedParent) {
-          addLog(`✅ 'about:blank' iframe 허용됨 (부모 도메인 화이트리스트): ${hostname}`);
-          // about:blank이지만 허용된 부모 도메인이므로 즉시 리턴하여 차단하지 않음
-          // 단, iframe 내부의 window.open은 여전히 차단될 수 있도록 노력합니다.
-          try {
-              node.addEventListener('load', () => {
-                  if (node.contentWindow) {
-                      try {
-                          Object.defineProperty(node.contentWindow, 'open', {
-                              get: () => blockOpen,
-                              set: () => {},
-                              configurable: false
-                          });
-                          Object.freeze(node.contentWindow.open);
-                          addLog(`✅ 허용된 'about:blank' iframe 내부 window.open 차단 주입 성공 (on load): ${fullSrc}`);
-                      } catch (e) {
-                          addLog(`⚠️ 허용된 'about:blank' iframe 내부 window.open 차단 주입 실패 (접근 오류 on load): ${e.message}`);
-                      }
-                  }
-              }, { once: true });
-              if (node.contentWindow && node.contentWindow.document.readyState !== 'loading') {
-                  Object.defineProperty(node.contentWindow, 'open', {
-                      get: () => blockOpen,
-                      set: () => {},
-                      configurable: false
-                  });
-                  Object.freeze(node.contentWindow.open);
-                  addLog(`✅ 허용된 'about:blank' iframe 내부 window.open 차단 즉시 주입 성공: ${fullSrc}`);
-              }
-          } catch (e) {
-              addLog(`⚠️ 허용된 'about:blank' iframe 내부 window.open 차단 시도 실패: ${e.message}`);
-          }
-          return;
-      }
+    // 2. 모든 iframe에 대해 window.open 차단 주입을 시도합니다.
+    // 이는 크로스-오리진 정책으로 막힐 수 있지만, 시도하는 것이 안전합니다.
+    try {
+        node.addEventListener('load', () => {
+            if (node.contentWindow) {
+                try {
+                    Object.defineProperty(node.contentWindow, 'open', {
+                        get: () => blockOpen,
+                        set: () => {},
+                        configurable: false
+                    });
+                    Object.freeze(node.contentWindow.open);
+                    addLog(`✅ iframe 내부 window.open 차단 주입 성공 (on load): ${fullSrc}`);
+                } catch (e) {
+                    addLog(`⚠️ iframe 내부 window.open 차단 주입 실패 (접근 오류 on load): ${e.message}`);
+                }
+            }
+        }, { once: true });
+
+        if (node.contentWindow && node.contentWindow.document.readyState !== 'loading') {
+            Object.defineProperty(node.contentWindow, 'open', {
+                get: () => blockOpen,
+                set: () => {},
+                configurable: false
+            });
+            Object.freeze(node.contentWindow.open);
+            addLog(`✅ iframe 내부 window.open 차단 즉시 주입 성공: ${fullSrc}`);
+        }
+    } catch (e) {
+        addLog(`⚠️ iframe 내부 window.open 차단 시도 실패: ${e.message}`);
+    }
 
 
-      if (!isIframeAllowed(fullSrc) || displayHidden || isForceBlockedIframeSrc) {
-          addLog(`🛑 의심/강제 차단 iframe 감지됨 (src: ${fullSrc}, display: ${display})`);
-          node.src = 'about:blank'; // 콘텐츠 로딩 방지를 위해 src를 about:blank로 강제 설정
-          node.removeAttribute('srcdoc'); // srcdoc 속성도 제거
+    // 3. 이제 오직 '강제 차단 패턴'에 걸리는 iframe만 src를 about:blank로 바꾸고 경고 메시지를 표시합니다.
+    // 'displayHidden' 조건과 'isIframeAllowed' (즉, 화이트리스트에 없는) 조건은 제거되었습니다.
+    if (isForceBlockedIframeSrc) {
+        addLog(`🛑 강제 차단 패턴에 의해 iframe 차단됨 (src: ${fullSrc}, display: ${display})`);
+        node.src = 'about:blank'; // 콘텐츠 로딩 방지를 위해 src를 about:blank로 강제 설정
+        node.removeAttribute('srcdoc'); // srcdoc 속성도 제거
 
-          // iframe 내부 window.open 차단 주입 시도 (크로스-오리진 정책에 의해 막힐 수 있음)
-          try {
-              node.addEventListener('load', () => { // 로드 이벤트 리스너 추가 (로드 후 주입 시도)
-                  if (node.contentWindow) {
-                      try {
-                          Object.defineProperty(node.contentWindow, 'open', {
-                              get: () => blockOpen,
-                              set: () => {},
-                              configurable: false
-                          });
-                          Object.freeze(node.contentWindow.open);
-                          addLog(`✅ iframe 내부 window.open 차단 주입 성공 (on load): ${fullSrc}`);
-                      } catch (e) {
-                          addLog(`⚠️ iframe 내부 window.open 차단 주입 실패 (접근 오류 on load): ${e.message}`);
-                      }
-                  }
-              }, { once: true });
-
-              // contentWindow가 이미 사용 가능한 경우 즉시 주입 시도
-              if (node.contentWindow && node.contentWindow.document.readyState !== 'loading') {
-                  Object.defineProperty(node.contentWindow, 'open', {
-                      get: () => blockOpen,
-                      set: () => {},
-                      configurable: false
-                  });
-                  Object.freeze(node.contentWindow.open);
-                  addLog(`✅ iframe 내부 window.open 차단 즉시 주입 성공: ${fullSrc}`);
-              }
-          } catch (e) {
-              addLog(`⚠️ iframe 내부 window.open 차단 시도 실패: ${e.message}`);
-          }
-
-          // 경고 메시지 표시
-          try {
+        // 경고 메시지 표시
+        try {
             const warning = document.createElement('div');
             warning.innerHTML = `
                 🚫 차단된 iframe입니다<br>
@@ -456,8 +423,6 @@
             `;
             removeBtn.onclick = () => {
                 warning.remove();
-                // 원본 iframe 노드가 아직 DOM에 존재하고 경고 메시지 부모와 동일한 경우에만 제거
-                // 이렇게 하면 경고 메시지가 iframe을 대체하지 않고 독립적으로 뜨는 경우에도 안전합니다.
                 if (node.parentNode && node.parentNode.contains(node) && warning.parentNode === node.parentNode) {
                     node.remove();
                 }
@@ -466,22 +431,22 @@
 
             if (node.parentNode) {
                 node.parentNode.replaceChild(warning, node);
-                // 10초 후 자동으로 경고 메시지 제거
                 setTimeout(() => {
-                    if (warning.parentNode) { // 경고 메시지가 아직 DOM에 존재하면 제거
+                    if (warning.parentNode) {
                         warning.remove();
                     }
-                }, 10000); // 10초 후에 제거
+                }, 10000);
             } else {
                 addLog(`⚠️ iframe에 부모 노드가 없어 경고 메시지를 표시할 수 없음: ${fullSrc}`);
             }
-          } catch (e) {
-              addLog(`⚠️ 경고 메시지 표시 실패: ${e.message}`);
-          }
-      } else {
-          addLog(`✅ iframe 허용됨: ${fullSrc}`);
-      }
-  };
+        } catch (e) {
+            addLog(`⚠️ 경고 메시지 표시 실패: ${e.message}`);
+        }
+    } else {
+        addLog(`✅ iframe 허용됨: ${fullSrc}`); // 강제 차단 대상이 아닌 iframe은 허용
+    }
+    // ★★★ 변경된 로직 끝 ★★★
+};
 
 
   if (!IFRAME_SKIP) {
