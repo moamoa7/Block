@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          새창/새탭 차단기 + iframe 차단 (완화 버전) + Vertical Video Speed Slider
 // @namespace     https://example.com/
-// @version       3.9.4
-// @description   새창/새탭 차단기 + iframe 차단 (과도한 간섭 완화) + Vertical Video Speed Slider + about:blank 예외처리 + javascript 예외처리
+// @version       3.9.6
+// @description   새창/새탭 차단기 + iframe 차단 (과도한 간섭 완화) + Vertical Video Speed Slider + about:blank 예외처리 + javascript 예외처리 + 특정 레이어 차단
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -23,7 +23,7 @@
   ];
 
   // 프레임 차단 제외할 도메인 (iframe 차단 로직 자체를 건너뛸 도메인)
-  const IFRAME_SKIP_DOMAINS = ['auth.openai.com', 'gemini.google.com'];
+  const IFRAME_SKIP_DOMAINS = ['auth.openai.com', 'gemini.google.com', 'extension:'];
 
   // 특정 부모 도메인에서 'about:blank' iframe을 허용할 경우 추가
   const ABOUT_BLANK_ALLOW_PARENT_DOMAINS = [
@@ -34,6 +34,7 @@
   // 프레임 차단 제외할 패턴 형식 (도메인 일부만 넣음)
   const IFRAME_WHITELIST = [
     'extension:',  // 확장프로그램
+    'uBlock',
     '/recaptcha/', // 캡챠
     'escrow.auction.co.kr', // 옥션
     '/movie_view', // 디시인사이드 동영상
@@ -42,7 +43,7 @@
     '/videoembed/', // https://poooo.ml/
     'player.bunny-frame.online', // 티비위키.티비몬.티비핫 플레이어
     'pcmap.place.naver.com/', // 네이버 지도
-    'nhn',  // 네이버 카페
+    'nhn',  // 네이버 카페 (네이버 관련 iframe을 포괄적으로 허용)
     '/PostView.naver',    // 네이버 블로그
     'supremejav.com', // https://supjav.com/
     '/e/', '/t/', '/v/', // 각종 성인 영상
@@ -70,6 +71,41 @@
     // 여기에 추가적으로 차단하고 싶은 도메인/패턴을 추가하세요.
     // 예: '.xyz', 'popup-ads.com', 'redirect-tracker.io'
   ];
+
+  // ================================
+  // ★ 추가된 설정: 차단할 레이어 클래스명 및 ID 리스트
+  // ================================
+  const BLOCK_LAYER_CLASSES = [
+    'ads',                // 광고
+    'ad_banner',          // 배너
+    'ad-overlay',         // 일반적인 광고 오버레이
+    'popup-wrap',         // 팝업 컨테이너 (사이트마다 다름)
+    'modal-bg',           // 모달 배경 (전체를 가리는 경우)
+    'cookie-consent-bar', // 쿠키 동의 배너
+    'survey-popup',       // 설문조사 팝업
+    'fixed-ad-bottom',    // 하단 고정 광고
+    'mobile-floating-ad', // 모바일 플로팅 광고
+    'pop-layer',          // (구)사이트에서 자주 쓰이는 팝업 클래스
+    'layer_pop',          // 또 다른 팝업 클래스
+    'blind',              // 배경을 가리는 블라인드 효과 (차단 시 배경만 보일 수 있음)
+    'loaded.lazyloaded.entered',
+    'custom-html-widget.textwidget',
+    'happy-header',
+    'happy-footer',
+    // 여기에 차단하고 싶은 다른 레이어 클래스명들을 추가하세요.
+    // 주의: 필수적인 UI까지 차단하지 않도록 주의
+  ];
+
+  const BLOCK_LAYER_IDS = [
+    'fullpage-ad',        // 전체 화면 광고 (id가 유일한 경우)
+    'promotion-modal',    // 특정 프로모션 모달
+    'pop_login',          // 로그인 팝업 등 (주의: 사이트 이용에 필수적일 수 있음)
+    'imgDiv', 'imgDiv2', 'imgDiv3', 'imgDiv4', 'imgDiv5', 'imgDiv6', 'imgDiv11', 'imgDiv12', 'imgDiv13', 'imgDiv21',           // 광고 배너
+    'header_banner',  // 상단 오른쪽 배너
+    // 여기에 차단하고 싶은 레이어의 ID들을 추가하세요.
+    // 주의: 필수적인 UI까지 차단하지 않도록 주의
+  ];
+
 
   const hostname = location.hostname;
 
@@ -279,7 +315,7 @@
   } // End of window.open blocking scope
 
   // ================================
-  // IFRAME 차단 및 Video Speed Slider 로직
+  // IFRAME 차단 및 Vertical Video Speed Slider 로직
   // (팝업 화이트리스트와 관계없이 실행)
   // ================================
 
@@ -476,6 +512,71 @@
   }
 
   // ================================
+  // ★ 추가된 로직: 특정 클래스명 및 ID 레이어 차단
+  // ================================
+  function blockSpecificLayersByIdAndClass() {
+    // CSS 규칙 주입 방식: ID와 Class 모두에 대해 display: none !important; 규칙을 강제 적용
+    const styleElement = document.createElement('style');
+    let cssRules = '';
+
+    // 클래스 규칙 추가
+    BLOCK_LAYER_CLASSES.forEach(className => {
+        cssRules += `.${className} { display: none !important; }\n`;
+    });
+
+    // ID 규칙 추가
+    BLOCK_LAYER_IDS.forEach(idName => {
+        cssRules += `#${idName} { display: none !important; }\n`;
+    });
+
+    styleElement.textContent = cssRules;
+    document.head.appendChild(styleElement);
+    addLog(`✨ 특정 클래스/ID 레이어 차단을 위한 CSS 규칙 주입 완료.`);
+
+    // MutationObserver를 사용하여 동적으로 추가되는 레이어 감지 및 차단
+    const layerObserver = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) { // Element 노드인 경우
+                        // 클래스 기반 차단
+                        BLOCK_LAYER_CLASSES.forEach(className => {
+                            if (node.classList.contains(className)) {
+                                node.style.setProperty('display', 'none', 'important');
+                                addLog(`🚫 클래스 '${className}' 레이어 차단됨 (동적 추가 - 직접)`);
+                            }
+                            // 추가된 노드 내부에 해당 클래스를 가진 요소가 있는지 확인
+                            node.querySelectorAll(`.${className}`).forEach(childEl => {
+                                childEl.style.setProperty('display', 'none', 'important');
+                                addLog(`🚫 클래스 '${className}' 레이어 차단됨 (동적 추가 - 하위)`);
+                            });
+                        });
+
+                        // ID 기반 차단
+                        BLOCK_LAYER_IDS.forEach(idName => {
+                            if (node.id === idName) {
+                                node.style.setProperty('display', 'none', 'important');
+                                addLog(`🚫 ID '${idName}' 레이어 차단됨 (동적 추가 - 직접)`);
+                            }
+                            // 추가된 노드 내부에 해당 ID를 가진 요소가 있는지 확인 (ID는 유일해야 하지만, 혹시 모를 경우)
+                            const childIdEl = node.querySelector(`#${idName}`);
+                            if (childIdEl) {
+                                childIdEl.style.setProperty('display', 'none', 'important');
+                                addLog(`🚫 ID '${idName}' 레이어 차단됨 (동적 추가 - 하위)`);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    });
+
+    // body 요소의 자식 노드 변경 및 하위 트리의 모든 변경 감지
+    layerObserver.observe(document.body, { childList: true, subtree: true });
+  }
+
+
+  // ================================
   // Video Speed Slider 기능
   // ================================
   function initSpeedSlider() {
@@ -638,8 +739,14 @@
     });
   }
 
-  // 스크립트 로드 상태에 따라 슬라이더 초기화
+  // 스크립트 로드 상태에 따라 기능 초기화
   document.readyState === 'loading'
-    ? document.addEventListener('DOMContentLoaded', initSpeedSlider)
-    : initSpeedSlider();
+    ? document.addEventListener('DOMContentLoaded', () => {
+        blockSpecificLayersByIdAndClass();
+        initSpeedSlider();
+      })
+    : (() => {
+        blockSpecificLayersByIdAndClass();
+        initSpeedSlider();
+      })();
 })();
