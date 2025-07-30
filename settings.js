@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          새창/새탭 차단기 + iframe 차단 (완화 버전) + Vertical Video Speed Slider
 // @namespace     https://example.com/
-// @version       3.9.3
+// @version       3.9.4
 // @description   새창/새탭 차단기 + iframe 차단 (과도한 간섭 완화) + Vertical Video Speed Slider + about:blank 예외처리 + javascript 예외처리
 // @match         *://*/*
 // @grant         none
@@ -28,7 +28,7 @@
   // 특정 부모 도메인에서 'about:blank' iframe을 허용할 경우 추가
   const ABOUT_BLANK_ALLOW_PARENT_DOMAINS = [
     // 여기에 'about:blank' iframe을 허용할 도메인을 추가하세요.
-    'cafe.naver.com',
+    'cafe.naver.com', 'youtube.com'
   ];
 
   // 프레임 차단 제외할 패턴 형식 (도메인 일부만 넣음)
