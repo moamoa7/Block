@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.29 // 개선: append() 중복 추가 방지, iframe src 참조 강화
+// @version       4.0.32 // 'recaptcha' 키워드 기반 화이트리스트 추가
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -17,10 +17,12 @@
   window.__MySuperScriptInitialized = true;
 
   // WHITELIST 도메인에 대해서는 팝업 및 특정 차단 기능을 미적용합니다.
+  // ✅ 개선: 'recaptcha' 키워드를 WHITELIST에 추가하여 관련 URL 자동 허용
   const WHITELIST = [
     'accounting.auction.co.kr',
     'buy.auction.co.kr',
     'nid.naver.com',
+    'recaptcha', // 'recaptcha' 문자열이 포함된 모든 URL을 허용
   ];
 
   // 특정 패턴을 포함하는 URL은 강제로 팝업 또는 iframe을 차단합니다. (필요시 추가)
@@ -33,6 +35,8 @@
 
   const hostname = location.hostname;
   // 현재 도메인 또는 URL이 WHITELIST에 포함되어 있는지 확인
+  // hostname.includes(domain) : 현재 페이지의 도메인(예: accounts.kakao.com)이 화이트리스트에 있는지
+  // window.location.href.includes(domain) : 현재 페이지의 전체 URL에 화이트리스트 도메인/경로가 포함되어 있는지 (iframe src를 URL로 비교할 때 사용)
   const IS_ALLOWED_DOMAIN_FOR_POPUP = WHITELIST.some(domain =>
     hostname.includes(domain) || window.location.href.includes(domain)
   );
@@ -617,7 +621,7 @@
           return; // sandbox가 있으면 허용
       }
 
-      // ✅ 개선: getAttribute('src')를 우선하여 실제 DOM 속성 값 참조
+      // getAttribute('src')를 우선하여 실제 DOM 속성 값 참조
       const rawSrc = node.getAttribute('src') || node.src || ''; // 원본 src 속성 또는 동적 src 값
       let fullSrc = rawSrc;
       const lazySrc = node.getAttribute('data-lazy-src'); // 지연 로딩 src 속성도 확인
@@ -625,6 +629,14 @@
       try { fullSrc = new URL(fullSrc, location.href).href; } catch {} // 상대 경로를 절대 경로로 변환
 
       addLog(`🛑 iframe 감지됨 (${trigger}): ${fullSrc}`);
+
+      // WHITELIST에 포함된 iframe 소스는 차단하지 않고 바로 반환
+      // 이렇게 WHITELIST 확인을 앞단에 배치하여 중요한 iframe이 차단 로직에 걸리지 않도록 함.
+      const isAllowedIframeSrc = WHITELIST.some(domain => fullSrc.includes(domain));
+      if (isAllowedIframeSrc) {
+        addLog(`✅ WHITELIST에 포함된 iframe 허용됨: ${fullSrc}`);
+        return;
+      }
 
       // 숨겨진/0x0 크기 iframe 차단 (클릭 덫 또는 악성 콘텐츠 로드 방지)
       const rect = node.getBoundingClientRect();
@@ -709,7 +721,7 @@
     };
 
     // WHITELIST에 없는 도메인에서만 iframe 차단 기능 활성화
-    if (!IS_ALLOWED_DOMAIN_FOR_POPUP) {
+    if (!IS_ALLOWED_DOMAIN_FOR_POPUP) { // 이 조건문은 여전히 중요합니다. 메인 페이지가 화이트리스트에 있으면 iframe 로직 전체를 건너뜁니다.
         // DOM 추가 감지를 위한 MutationObserver
         const iframeAddObserver = new MutationObserver(mutations => {
             for (const m of mutations) {
