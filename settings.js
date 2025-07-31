@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.51 // WHITELIST, IFRAME_SKIP_DOMAINS, IFRAME_WHITELIST 업데이트
+// @version       4.0.52 // FORCE_BLOCK_POPUP_PATTERNS 주석 개선
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -41,8 +41,8 @@
     // 'challenges.cloudflare.com' // IFRAME_SKIP_DOMAINS에 추가되었으므로 여기서는 제거
   ];
 
-  // 새탭/새창 무조건 차단 (새 창으로 튀어나오는 도메인 - about:blank 변경 후 메시지 출력) : ublock 에서 안되는 것만 등록 할 것
-  // 등록된 '악성 팝업 유발' iframe만 src="about:blank"로 변경하고 완전히 숨김
+  // 새탭/새창 유발 및 iframe 혹은 차단을 원하는 도메인/패턴 : ublock 에서 안되는 것만 등록 할 것
+  // 등록된 도메인은 src="about:blank"로 변경되고 실행 차단 및 완전히 숨김
   // 여기에 추가적으로 차단하고 싶은 도메인/패턴을 추가하세요.
   // 예: '.xyz', 'popup-ads.com', 'redirect-tracker.io'
   const FORCE_BLOCK_POPUP_PATTERNS = [
