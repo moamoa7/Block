@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.33 // Cloudflare challenges.cloudflare.com postMessage 로깅 무시 추가
+// @version       4.0.50 // 배속바 기본 최소화 상태로 변경
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -16,38 +16,66 @@
   }
   window.__MySuperScriptInitialized = true;
 
-  // WHITELIST 도메인에 대해서는 팝업 및 특정 차단 기능을 미적용합니다.
-  // 'recaptcha' 문자열이 포함된 모든 URL을 허용
+  // 새탭/새창 제외할 도메인 (window.open 차단 등도 무시)
+  // 여기에 팝업/새 탭 차단을 해제할 도메인을 추가하세요.
+  // 이 도메인들은 window.open 및 'javascript:' 링크 차단에서 제외됩니다.
   const WHITELIST = [
     'accounting.auction.co.kr',
     'buy.auction.co.kr',
-    'nid.naver.com',
+    'nid.naver.com',  // 네이버 로그인 안되는거 해결
+    'www.nate.com',  // 메인에서 로그인시 비밀번호 칸 입력 안되는거 해결
+    'recaptcha',
+    'challenges.cloudflare.com', // ✅ Cloudflare 챌린지: 팝업/새 탭 관련 로직 통과
+  ];
+
+  // 프레임 차단 제외할 도메인 (iframe 차단 로직 자체를 건너뛸 도메인)
+  // 여기에 추가하면 해당 도메인의 iframe은 스크립트가 전혀 건드리지 않습니다.
+  const IFRAME_SKIP_DOMAINS = [
+    'challenges.cloudflare.com', // ✅ Cloudflare 챌린지: 팝업/새 탭 관련 로직 통과
+  ]; // 현재는 비워둡니다. 필요시 추가하세요.
+
+  // 프레임 차단 제외할 패턴 형식 (도메인 일부만 넣음)
+  // 여기에 추가하면 해당 패턴이 포함된 iframe src는 차단되지 않습니다.
+  const IFRAME_WHITELIST = [
     'recaptcha',
   ];
 
-  // 특정 패턴을 포함하는 URL은 강제로 팝업 또는 iframe을 차단합니다. (필요시 추가)
-  const FORCE_BLOCK_POPUP_PATTERNS = [];
-
-  // postMessage 로깅 시 무시할 도메인 및 패턴
-  const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
-    'ok.ru',
-    'challenges.cloudflare.com', // ✅ 추가: Cloudflare 챌린지 관련 postMessage 로그 무시
+  // 새탭/새창 무조건 차단 (새 창으로 튀어나오는 도메인 - about:blank 변경 후 메시지 출력) : ublock 에서 안되는 것만 등록 할 것
+  // 등록된 '악성 팝업 유발' iframe만 src="about:blank"로 변경하고 완전히 숨김
+  // 여기에 추가적으로 차단하고 싶은 도메인/패턴을 추가하세요.
+  // 예: '.xyz', 'popup-ads.com', 'redirect-tracker.io'
+  const FORCE_BLOCK_POPUP_PATTERNS = [
+    // 여기에 수동으로 강제 차단할 도메인/패턴을 추가하세요.
+    // 예: 'bad-popup.com', '.xyz', 'tracking-ad.io'
   ];
-  const POSTMESSAGE_LOG_IGNORE_PATTERNS = ['{"event":"timeupdate"'];
 
+  // postMessage 로깅 시 무시할 도메인 및 패턴 (이제 전역 스코프에 올바르게 위치함)
+  const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
+      'ok.ru',
+  ];
+  const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
+      '{"event":"timeupdate"', // 비디오 플레이어의 흔한 timeupdate 메시지
+  ];
 
   const hostname = location.hostname;
-  // 현재 도메인 또는 URL이 WHITELIST에 포함되어 있는지 확인
-  const IS_ALLOWED_DOMAIN_FOR_POPUP = WHITELIST.some(domain =>
+  // 현재 도메인 또는 URL이 팝업 관련 WHITELIST에 포함되어 있는지 확인
+  const IS_ALLOWED_FOR_POPUP_BLOCKING = WHITELIST.some(domain =>
     hostname.includes(domain) || window.location.href.includes(domain)
   );
 
+  // 현재 도메인 또는 URL이 IFRAME_SKIP_DOMAINS에 포함되어 있는지 확인
+  const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain =>
+      hostname.includes(domain) || window.location.href.includes(domain)
+  );
+
   let logBoxRef = null; // 로그 박스 DOM 엘리먼트 참조
+  let isLogBoxReady = false; // 로그 박스 준비 상태 플래그
 
   // 로그 박스 생성 함수
   function createLogBox() {
     if (document.getElementById('popupBlockerLogBox')) {
         logBoxRef = document.getElementById('popupBlockerLogBox');
+        isLogBoxReady = true;
         return;
     }
 
@@ -78,6 +106,12 @@
         if (document.body && !document.body.contains(box)) {
             document.body.appendChild(box);
             logBoxRef = box;
+            isLogBoxReady = true; // 로그 박스 준비 완료
+            // 대기 중인 로그가 있다면 즉시 출력
+            while (pendingLogs.length > 0) {
+                const pendingMsg = pendingLogs.shift();
+                addLogToBox(pendingMsg);
+            }
         }
     };
 
@@ -89,29 +123,37 @@
     }
   }
 
+  const pendingLogs = []; // 로그 박스 준비 전 로그를 임시 저장할 배열
+
+  function addLogToBox(msg) {
+      if (!logBoxRef) return; // box가 없으면 아무것도 하지 않음 (콘솔 로그만 남기므로)
+      logBoxRef.style.opacity = '1';
+      logBoxRef.style.pointerEvents = 'auto';
+      const entry = document.createElement('div');
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      entry.style.textAlign = 'left';
+      logBoxRef.appendChild(entry);
+      logBoxRef.scrollTop = logBoxRef.scrollHeight;
+
+      // 일정 시간 후 로그 엔트리 자동 삭제 및 박스 숨김
+      setTimeout(() => {
+          if (entry.parentNode) entry.remove();
+          if (!logBoxRef.children.length) {
+              logBoxRef.style.opacity = '0';
+              logBoxRef.style.pointerEvents = 'none';
+          }
+      }, 10000);
+  }
+
   // 로그 메시지를 로그 박스에 추가하는 함수
   function addLog(msg) {
-    const box = logBoxRef || document.getElementById('popupBlockerLogBox');
-    if (!box) {
-        console.warn(`[MyScript Log - No Box Yet] ${msg}`);
-        return;
+    if (isLogBoxReady) {
+        addLogToBox(msg);
+    } else {
+        // 로그 박스가 준비되지 않았다면 임시 배열에 저장
+        pendingLogs.push(msg);
+        console.warn(`[MyScript Log - Pending/Debug] ${msg}`); // 디버깅을 위해 콘솔에도 출력
     }
-    box.style.opacity = '1';
-    box.style.pointerEvents = 'auto';
-    const entry = document.createElement('div');
-    entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    entry.style.textAlign = 'left';
-    box.appendChild(entry);
-    box.scrollTop = box.scrollHeight;
-
-    // 일정 시간 후 로그 엔트리 자동 삭제 및 박스 숨김
-    setTimeout(() => {
-        if (entry.parentNode) entry.remove();
-        if (!box.children.length) {
-            box.style.opacity = '0';
-            box.style.pointerEvents = 'none';
-        }
-    }, 10000);
   }
 
   createLogBox();
@@ -155,6 +197,7 @@
       const url = args[0] || '(no URL)';
       addLog(`🚫 window.open 차단 시도: ${url}`);
 
+      // FORCE_BLOCK_POPUP_PATTERNS에 있는 경우 무조건 차단
       const isForceBlocked = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => url.includes(pattern));
       if (isForceBlocked) {
         addLog(`🔥 강제 차단 패턴에 의해 팝업 차단됨: ${url}`);
@@ -182,7 +225,8 @@
       return getFakeWindow();
     };
 
-    if (!IS_ALLOWED_DOMAIN_FOR_POPUP) {
+    // 팝업 차단 로직은 IS_ALLOWED_FOR_POPUP_BLOCKING이 false일 때만 작동합니다.
+    if (!IS_ALLOWED_FOR_POPUP_BLOCKING) {
       try {
         Object.defineProperty(window, 'open', { get: () => blockOpen, set: () => {}, configurable: false });
         if (typeof unsafeWindow !== 'undefined' && unsafeWindow !== window) {
@@ -507,14 +551,16 @@
       const originalAddEventListener = EventTarget.prototype.addEventListener;
       EventTarget.prototype.addEventListener = function(type, listener, options) {
           if (type === 'beforeunload') {
-              addLog(`🚫 beforeunload 리스너 추가 시도 감지 및 차단: ${listener.toString().substring(0, 100)}...`);
+              console.warn(`[MyScript Debug] 🚫 beforeunload 리스너 추가 시도 감지 및 차단: ${listener.toString().substring(0, 100)}...`);
+              addLog(`🚫 beforeunload 리스너 추가 시도 감지 및 차단`);
               return;
           }
           return originalAddEventListener.call(this, type, listener, options);
       };
 
       window.addEventListener('beforeunload', function(e) {
-          addLog('🚫 beforeunload 이벤트 감지 및 강제 차단됨 (스크립트 개입)');
+          console.warn('[MyScript Debug] 🚫 beforeunload 이벤트 감지 및 강제 차단됨 (스크립트 개입)');
+          addLog('🚫 beforeunload 이벤트 감지 및 강제 차단됨');
           e.preventDefault();
           e.returnValue = '';
           e.stopImmediatePropagation();
@@ -537,18 +583,36 @@
       }, true);
 
       window.addEventListener('message', e => {
-          if (POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => e.origin.includes(domain))) {
-              if (typeof e.data === 'string' && POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => e.data.includes(pattern))) {
-                  return;
-              }
-              if (typeof e.data === 'object' && e.data !== null && e.data.event === 'timeupdate') {
-                  return;
-              }
+          // Cloudflare 챌린지 도메인에서 온 메시지라면 무조건 무시합니다.
+          if (e.origin.includes('challenges.cloudflare.com')) {
+              return;
           }
 
-          if (e.origin !== window.location.origin ||
-              (typeof e.data === 'string' && e.data.includes('http')) ||
-              (typeof e.data === 'object' && e.data !== null && 'url' in e.data)) {
+          // postMessage 로깅 시 무시할 도메인 (전역 변수 사용)
+          if (POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => e.origin.includes(domain))) {
+              return;
+          }
+
+          // 일반적인 무시 패턴 (POSTMESSAGE_LOG_IGNORE_PATTERNS 사용)
+          if (typeof e.data === 'string' && POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => e.data.includes(pattern))) {
+              return;
+          }
+          if (typeof e.data === 'object' && e.data !== null && e.data.event === 'timeupdate') {
+              return;
+          }
+
+          // 위 조건들에 해당하지 않는 "의심스러운" postMessage만 로깅합니다.
+          let isMessageSuspicious = false;
+
+          if (e.origin !== window.location.origin) {
+              isMessageSuspicious = true;
+          } else if (typeof e.data === 'string' && e.data.includes('http')) {
+              isMessageSuspicious = true;
+          } else if (typeof e.data === 'object' && e.data !== null && 'url' in e.data) {
+              isMessageSuspicious = true;
+          }
+
+          if (isMessageSuspicious) {
               addLog(`⚠️ postMessage 의심 감지됨: Origin=${e.origin}, Data=${JSON.stringify(e.data).substring(0, 100)}...`);
           }
       }, false);
@@ -557,6 +621,12 @@
   }
 
   function initIframeBlocker() {
+    // IFRAME_SKIP_DOMAINS에 현재 도메인이 포함되어 있다면 iframe 차단 로직 전체를 건너뜁니다.
+    if (IS_IFRAME_LOGIC_SKIPPED) {
+      addLog(`ℹ️ iframe 차단 로직 건너뜀 (IFRAME_SKIP_DOMAINS에 포함됨): ${hostname}`);
+      return;
+    }
+
     const processedIframes = new WeakSet();
 
     const processIframe = (node, trigger) => {
@@ -588,53 +658,14 @@
 
       addLog(`🛑 iframe 감지됨 (${trigger}): ${fullSrc}`);
 
-      const isAllowedIframeSrc = WHITELIST.some(domain => fullSrc.includes(domain));
+      // IFRAME_WHITELIST에 포함된 iframe은 허용합니다.
+      const isAllowedIframeSrc = IFRAME_WHITELIST.some(pattern => fullSrc.includes(pattern)); // 패턴 기반으로 확인
       if (isAllowedIframeSrc) {
-        addLog(`✅ WHITELIST에 포함된 iframe 허용됨: ${fullSrc}`);
+        addLog(`✅ IFRAME_WHITELIST에 포함된 iframe 허용됨: ${fullSrc}`);
         return;
       }
 
-      const rect = node.getBoundingClientRect();
-      const style = getComputedStyle(node);
-      const isHidden = (node.offsetWidth === 0 && node.offsetHeight === 0) ||
-                       (rect.width === 0 && rect.height === 0) ||
-                       (style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none');
-
-      if (isHidden) {
-          addLog(`🚫 숨겨진/0x0 크기 iframe 차단됨: ${fullSrc.substring(0, 100)}...`);
-          node.style.setProperty('display', 'none', 'important');
-          node.remove();
-          return;
-      }
-
-      node.addEventListener('load', () => {
-          if (node.contentWindow && node.contentDocument) {
-              node.contentDocument.addEventListener('DOMContentLoaded', () => {
-                  try {
-                      const iframeBlockOpen = (...args) => {
-                          const url = args[0] || '(no URL)';
-                          addLog(`🚫 iframe 내부 window.open 차단 시도: ${url}`);
-                          if (window.top && window.top.__MySuperScriptInitialized && typeof window.top.blockOpen === 'function') {
-                              addLog('🚫 iframe 내부에서 top.blockOpen 접근 시도 감지, 자체 차단');
-                              return getFakeWindow();
-                          }
-                          return getFakeWindow();
-                      };
-
-                      Object.defineProperty(node.contentWindow, 'open', {
-                          get: () => iframeBlockOpen,
-                          set: () => {},
-                          configurable: false
-                      });
-                      Object.freeze(node.contentWindow.open);
-                      addLog(`✅ iframe 내부 window.open 차단 주입 성공 (on DOMContentLoaded): ${fullSrc}`);
-                  } catch (e) {
-                      addLog(`⚠️ iframe 내부 window.open 차단 주입 실패 (접근 오류): ${e.message}`);
-                  }
-              }, { once: true });
-          }
-      }, { once: true });
-
+      // FORCE_BLOCK_POPUP_PATTERNS에 있는 경우 iframe도 강제 차단합니다.
       const isForceBlockedIframeSrc = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => fullSrc.includes(pattern));
       if (isForceBlockedIframeSrc) {
           addLog(`🛑 강제 차단 패턴에 의해 iframe 차단됨: ${fullSrc}`);
@@ -667,52 +698,68 @@
               addLog(`⚠️ 경고 메시지 표시 실패: ${e.message}`);
           }
       } else {
-          addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
+        const rect = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        const isHidden = (node.offsetWidth === 0 && node.offsetHeight === 0) ||
+                         (rect.width === 0 && rect.height === 0) ||
+                         (style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none');
+
+        if (isHidden) {
+            addLog(`🚫 숨겨진/0x0 크기 iframe 차단됨: ${fullSrc.substring(0, 100)}...`);
+            node.style.setProperty('display', 'none', 'important');
+            node.remove(); // 여기서 실제로 요소를 제거합니다.
+            return;
+        }
+
+        addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
       }
     };
 
-    if (!IS_ALLOWED_DOMAIN_FOR_POPUP) {
-        const iframeAddObserver = new MutationObserver(mutations => {
-            for (const m of mutations) {
-                if (m.type === 'childList') {
-                    for (const node of m.addedNodes) {
-                        if (node.nodeType === 1 && node.tagName === 'IFRAME') {
-                            processIframe(node, 'DOM 추가됨');
-                        }
+    const iframeAddObserver = new MutationObserver(mutations => {
+        for (const m of mutations) {
+            if (m.type === 'childList') {
+                for (const node of m.addedNodes) {
+                    if (node.nodeType === 1 && node.tagName === 'IFRAME') {
+                        processIframe(node, 'DOM 추가됨');
                     }
                 }
             }
-        });
-        iframeAddObserver.observe(document.documentElement, {
-            childList: true,
-            subtree: true
-        });
+        }
+    });
+    iframeAddObserver.observe(document.documentElement, {
+        childList: true,
+        subtree: true
+    });
 
-        const iframeSrcObserver = new MutationObserver(mutations => {
-            for (const m of mutations) {
-                if (m.type === 'attributes' && m.attributeName === 'src') {
-                    if (m.target.tagName === 'IFRAME') {
-                        processedIframes.delete(m.target);
-                        processIframe(m.target, 'src 속성 변경됨');
-                    }
+    const iframeSrcObserver = new MutationObserver(mutations => {
+        for (const m of mutations) {
+            if (m.type === 'attributes' && m.attributeName === 'src') {
+                if (m.target.tagName === 'IFRAME') {
+                    processedIframes.delete(m.target);
+                    processIframe(m.target, 'src 속성 변경됨');
                 }
             }
-        });
-        iframeSrcObserver.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['src'],
-            subtree: true
-        });
+        }
+    });
+    iframeSrcObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['src'],
+        subtree: true
+    });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('iframe').forEach(iframe => {
-                processIframe(iframe, '초기 로드');
-            });
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('iframe').forEach(iframe => {
+            processIframe(iframe, '초기 로드');
         });
-    }
+    });
   }
 
   function initSpeedSlider() {
+    // 팝업 WHITELIST 조건과 동일하게, Cloudflare 챌린지 페이지에서는 슬라이더가 나타나지 않도록 합니다.
+    if (IS_ALLOWED_FOR_POPUP_BLOCKING) {
+      return;
+    }
+
     if (window.__vmSpeedSliderInjectedInThisFrame) return;
     window.__vmSpeedSliderInjectedInThisFrame = true;
 
@@ -805,14 +852,15 @@
 
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'vm-speed-toggle-btn';
-    toggleBtn.textContent = '🔽';
 
-    let isMinimized = false;
+    // 🚩 초기 상태 변경: isMinimized를 true로 설정하여 시작 시 최소화되게 합니다.
+    let isMinimized = true;
 
-    slider.style.display = '';
-    resetBtn.style.display = '';
-    valueDisplay.style.display = '';
-    toggleBtn.textContent = '🔽';
+    // 🚩 초기 디스플레이 설정: 최소화 상태에 맞춰 요소를 숨깁니다.
+    slider.style.display = 'none';
+    resetBtn.style.display = 'none';
+    valueDisplay.style.display = 'none';
+    toggleBtn.textContent = '🔼'; // 최소화 상태일 때의 아이콘
 
     toggleBtn.addEventListener('click', () => {
       isMinimized = !isMinimized;
@@ -871,8 +919,9 @@
     });
   }
 
-  initPopupBlocker();
-  initIframeBlocker();
-  initSpeedSlider();
+  // 각 init 함수 호출 시, 해당 로직의 화이트리스트/블랙리스트 조건을 따르도록 수정
+  initPopupBlocker(); // IS_ALLOWED_FOR_POPUP_BLOCKING 조건에 따라 작동
+  initIframeBlocker(); // IS_IFRAME_LOGIC_SKIPPED 및 IFRAME_WHITELIST, FORCE_BLOCK_POPUP_PATTERNS 조건에 따라 작동
+  initSpeedSlider(); // IS_ALLOWED_FOR_POPUP_BLOCKING 조건에 따라 작동 (Cloudflare 챌린지 페이지에서는 숨김)
 
 })();
