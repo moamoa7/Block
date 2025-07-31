@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.60 // `pointer-events` 문법 오류 수정
+// @version       4.0.61 // 레이어 클릭 덫 무한 루프 문제 해결
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -17,64 +17,50 @@
   window.__MySuperScriptInitialized = true;
 
   // 새탭/새창 제외할 도메인 (window.open 차단 등도 무시)
-  // 여기에 팝업/새 탭 차단을 해제할 도메인을 추가하세요.
-  // 이 도메인들은 window.open 및 'javascript:' 링크 차단에서 제외됩니다.
   const WHITELIST = [
     'accounting.auction.co.kr',
     'buy.auction.co.kr',
-    'nid.naver.com',  // 네이버 로그인 안되는거 해결
-    'www.nate.com',  // 메인에서 로그인시 비밀번호 칸 입력 안되는거 해결
+    'nid.naver.com',
+    'www.nate.com',
     'recaptcha',
-    'challenges.cloudflare.com', // ✅ Cloudflare 챌린지: 팝업/새 탭 관련 로직 통과
-    '/e/',  // streamtape.com 영상 재생
+    'challenges.cloudflare.com',
+    '/e/',
   ];
 
   // 프레임 차단 제외할 도메인 (iframe 차단 로직 자체를 건너뛸 도메인)
-  // 여기에 추가하면 해당 도메인의 iframe은 스크립트가 전혀 건드리지 않습니다.
   const IFRAME_SKIP_DOMAINS = [
-    'challenges.cloudflare.com', // ✅ Cloudflare 챌린지: 팝업/새 탭 관련 로직 통과
+    'challenges.cloudflare.com',
   ];
 
-  // 프레임 차단 제외할 패턴 형식 (도메인 일부만 넣음)
-  // 여기에 추가하면 해당 패턴이 포함된 iframe src는 차단되지 않습니다.
+  // 프레임 차단 제외할 패턴 형식
   const IFRAME_WHITELIST = [
     'recaptcha',
-    // 'challenges.cloudflare.com' // IFRAME_SKIP_DOMAINS에 추가되었으므로 여기서는 제거
-    '/e/',  // streamtape.com 영상 재생
+    '/e/',
   ];
 
-  // 새탭/새창 유발 및 iframe 혹은 차단을 원하는 도메인/패턴 : ublock 에서 안되는 것만 등록 할 것
-  // 등록된 도메인은 src="about:blank"로 변경되고 실행 차단 및 완전히 숨김
-  // 여기에 추가적으로 차단하고 싶은 도메인/패턴을 추가하세요.
-  // 예: '.xyz', 'popup-ads.com', 'redirect-tracker.io'
-  const FORCE_BLOCK_POPUP_PATTERNS = [
-    // 여기에 수동으로 강제 차단할 도메인/패턴을 추가하세요.
-    // 예: 'bad-popup.com', '.xyz', 'tracking-ad.io'
-  ];
+  // 새탭/새창 유발 및 iframe 혹은 차단을 원하는 도메인/패턴
+  const FORCE_BLOCK_POPUP_PATTERNS = [];
 
-  // postMessage 로깅 시 무시할 도메인 및 패턴 (이제 전역 스코프에 올바르게 위치함)
+  // postMessage 로깅 시 무시할 도메인 및 패턴
   const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
       'ok.ru',
   ];
   const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
-      '{"event":"timeupdate"', // 비디오 플레이어의 흔한 timeupdate 메시지
+      '{"event":"timeupdate"',
   ];
 
   const hostname = location.hostname;
-  // 현재 도메인 또는 URL이 팝업 관련 WHITELIST에 포함되어 있는지 확인
   const IS_ALLOWED_FOR_POPUP_BLOCKING = WHITELIST.some(domain =>
     hostname.includes(domain) || window.location.href.includes(domain)
   );
 
-  // 현재 도메인 또는 URL이 IFRAME_SKIP_DOMAINS에 포함되어 있는지 확인
   const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain =>
       hostname.includes(domain) || window.location.href.includes(domain)
   );
 
-  let logBoxRef = null; // 로그 박스 DOM 엘리먼트 참조
-  let isLogBoxReady = false; // 로그 박스 준비 상태 플래그
+  let logBoxRef = null;
+  let isLogBoxReady = false;
 
-  // 로그 박스 생성 함수
   function createLogBox() {
     if (document.getElementById('popupBlockerLogBox')) {
         logBoxRef = document.getElementById('popupBlockerLogBox');
@@ -109,8 +95,7 @@
         if (document.body && !document.body.contains(box)) {
             document.body.appendChild(box);
             logBoxRef = box;
-            isLogBoxReady = true; // 로그 박스 준비 완료
-            // 대기 중인 로그가 있다면 즉시 출력
+            isLogBoxReady = true;
             while (pendingLogs.length > 0) {
                 const pendingMsg = pendingLogs.shift();
                 addLogToBox(pendingMsg);
@@ -118,7 +103,6 @@
         }
     };
 
-    // DOM이 완전히 로드되면 로그 박스 추가
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', appendToBody);
     } else {
@@ -126,10 +110,10 @@
     }
   }
 
-  const pendingLogs = []; // 로그 박스 준비 전 로그를 임시 저장할 배열
+  const pendingLogs = [];
 
   function addLogToBox(msg) {
-      if (!logBoxRef) return; // box가 없으면 아무것도 하지 않음 (콘솔 로그만 남기므로)
+      if (!logBoxRef) return;
       logBoxRef.style.opacity = '1';
       logBoxRef.style.pointerEvents = 'auto';
       const entry = document.createElement('div');
@@ -138,31 +122,26 @@
       logBoxRef.appendChild(entry);
       logBoxRef.scrollTop = logBoxRef.scrollHeight;
 
-      // 일정 시간 후 로그 엔트리 자동 삭제 및 박스 숨김
       setTimeout(() => {
           if (entry.parentNode) entry.remove();
           if (!logBoxRef.children.length) {
               logBoxRef.style.opacity = '0';
-              // 🚩 이곳의 문법 오류를 수정했습니다.
               logBoxRef.style.pointerEvents = 'none';
           }
       }, 10000);
   }
 
-  // 로그 메시지를 로그 박스에 추가하는 함수
   function addLog(msg) {
     if (isLogBoxReady) {
         addLogToBox(msg);
     } else {
-        // 로그 박스가 준비되지 않았다면 임시 배열에 저장
         pendingLogs.push(msg);
-        console.warn(`[MyScript Log - Pending/Debug] ${msg}`); // 디버깅을 위해 콘솔에도 출력
+        console.warn(`[MyScript Log - Pending/Debug] ${msg}`);
     }
   }
 
   createLogBox();
 
-  // 팝업 및 악성 스크립트 차단 로직 초기화
   function initPopupBlocker() {
     const originalWindowOpen = window.open;
     let userInitiatedAction = false;
@@ -201,7 +180,6 @@
       const url = args[0] || '(no URL)';
       addLog(`🚫 window.open 차단 시도: ${url}`);
 
-      // FORCE_BLOCK_POPUP_PATTERNS에 있는 경우 무조건 차단
       const isForceBlocked = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => url.includes(pattern));
       if (isForceBlocked) {
         addLog(`🔥 강제 차단 패턴에 의해 팝업 차단됨: ${url}`);
@@ -229,7 +207,6 @@
       return getFakeWindow();
     };
 
-    // 팝업 차단 로직은 IS_ALLOWED_FOR_POPUP_BLOCKING이 false일 때만 작동합니다.
     if (!IS_ALLOWED_FOR_POPUP_BLOCKING) {
       try {
         Object.defineProperty(window, 'open', { get: () => blockOpen, set: () => {}, configurable: false });
@@ -461,8 +438,6 @@
         return originalBlur.apply(this, arguments);
       };
 
-      // 🚩 전체화면 차단 로직이 여기 있었는데 삭제되었습니다.
-
       const originalScrollIntoView = Element.prototype.scrollIntoView;
       Element.prototype.scrollIntoView = function(...args) {
         addLog('⚠️ scrollIntoView 호출 감지됨: ' + this.outerHTML.slice(0, 100).replace(/\n/g, '') + '...');
@@ -480,6 +455,9 @@
         }
       });
 
+      // 🚩 레이어 클릭 덫 중복 감지 방지를 위한 WeakSet
+      const processedLayers = new WeakSet();
+
       const suspectLayer = node => {
         if (!(node instanceof HTMLElement)) return false;
         const style = getComputedStyle(node);
@@ -491,8 +469,13 @@
       };
 
       const checkLayerTrap = node => {
+        // 🚩 이미 처리된 요소는 바로 반환
+        if (processedLayers.has(node)) { return; }
+
         if (suspectLayer(node)) {
           addLog(`🛑 레이어 클릭 덫 의심 감지 및 숨김 처리: ${node.outerHTML.substring(0, 100)}...`);
+          // 🚩 처리하기 전에 WeakSet에 추가하여 무한 루프를 방지
+          processedLayers.add(node);
           node.style.setProperty('display', 'none', 'important');
           node.addEventListener('click', e => {
             e.preventDefault();
@@ -570,17 +553,14 @@
       }, true);
 
       window.addEventListener('message', e => {
-          // Cloudflare 챌린지 도메인에서 온 메시지라면 무조건 무시합니다.
           if (e.origin.includes('challenges.cloudflare.com')) {
               return;
           }
 
-          // postMessage 로깅 시 무시할 도메인 (전역 변수 사용)
           if (POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => e.origin.includes(domain))) {
               return;
           }
 
-          // 일반적인 무시 패턴 (POSTMESSAGE_LOG_IGNORE_PATTERNS 사용)
           if (typeof e.data === 'string' && POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => e.data.includes(pattern))) {
               return;
           }
@@ -588,7 +568,6 @@
               return;
           }
 
-          // 위 조건들에 해당하지 않는 "의심스러운" postMessage만 로깅합니다.
           let isMessageSuspicious = false;
 
           if (e.origin !== window.location.origin) {
@@ -603,12 +582,10 @@
               addLog(`⚠️ postMessage 의심 감지됨: Origin=${e.origin}, Data=${JSON.stringify(e.data).substring(0, 100)}...`);
           }
       }, false);
-
     }
   }
 
   function initIframeBlocker() {
-    // IFRAME_SKIP_DOMAINS에 현재 도메인이 포함되어 있다면 iframe 차단 로직 전체를 건너뜁니다.
     if (IS_IFRAME_LOGIC_SKIPPED) {
       addLog(`ℹ️ iframe 차단 로직 건너뜀 (IFRAME_SKIP_DOMAINS에 포함됨): ${hostname}`);
       return;
@@ -645,14 +622,12 @@
 
       addLog(`🛑 iframe 감지됨 (${trigger}): ${fullSrc}`);
 
-      // IFRAME_WHITELIST에 포함된 iframe은 허용합니다.
-      const isAllowedIframeSrc = IFRAME_WHITELIST.some(pattern => fullSrc.includes(pattern)); // 패턴 기반으로 확인
+      const isAllowedIframeSrc = IFRAME_WHITELIST.some(pattern => fullSrc.includes(pattern));
       if (isAllowedIframeSrc) {
         addLog(`✅ IFRAME_WHITELIST에 포함된 iframe 허용됨: ${fullSrc}`);
         return;
       }
 
-      // FORCE_BLOCK_POPUP_PATTERNS에 있는 경우 iframe도 강제 차단합니다.
       const isForceBlockedIframeSrc = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => fullSrc.includes(pattern));
       if (isForceBlockedIframeSrc) {
           addLog(`🛑 강제 차단 패턴에 의해 iframe 차단됨: ${fullSrc}`);
@@ -694,7 +669,7 @@
         if (isHidden) {
             addLog(`🚫 숨겨진/0x0 크기 iframe 차단됨: ${fullSrc.substring(0, 100)}...`);
             node.style.setProperty('display', 'none', 'important');
-            node.remove(); // 여기서 실제로 요소를 제거합니다.
+            node.remove();
             return;
         }
 
@@ -742,7 +717,6 @@
   }
 
   function initSpeedSlider() {
-    // 팝업 WHITELIST 조건과 동일하게, Cloudflare 챌린지 페이지에서는 슬라이더가 나타나지 않도록 합니다.
     if (IS_ALLOWED_FOR_POPUP_BLOCKING) {
       return;
     }
@@ -840,14 +814,12 @@
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'vm-speed-toggle-btn';
 
-    // 🚩 초기 상태: isMinimized를 true로 설정하여 시작 시 최소화되게 합니다.
     let isMinimized = true;
 
-    // 🚩 초기 디스플레이 설정: 최소화 상태에 맞춰 요소를 숨깁니다.
     slider.style.display = 'none';
     resetBtn.style.display = 'none';
     valueDisplay.style.display = 'none';
-    toggleBtn.textContent = '🔼'; // 최소화 상태일 때의 아이콘
+    toggleBtn.textContent = '🔼';
 
     toggleBtn.addEventListener('click', () => {
       isMinimized = !isMinimized;
@@ -906,9 +878,8 @@
     });
   }
 
-  // 각 init 함수 호출 시, 해당 로직의 화이트리스트/블랙리스트 조건을 따르도록 수정
-  initPopupBlocker(); // IS_ALLOWED_FOR_POPUP_BLOCKING 조건에 따라 작동
-  initIframeBlocker(); // IS_IFRAME_LOGIC_SKIPPED 및 IFRAME_WHITELIST, FORCE_BLOCK_POPUP_PATTERNS 조건에 따라 작동
-  initSpeedSlider(); // IS_ALLOWED_FOR_POPUP_BLOCKING 조건에 따라 작동 (Cloudflare 챌린지 페이지에서는 숨김)
+  initPopupBlocker();
+  initIframeBlocker();
+  initSpeedSlider();
 
 })();
