@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name          새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider (통합)
+// @name          새창/새탭 차단기 + iframe 수동 차단 + Vertical Video Speed Slider (통합)
 // @namespace     https://example.com/
 // @version       4.0.6 // 각 로직 독립성 강화 및 iframe 배속바 재활성화
-// @description   새창/새탭 차단기, iframe 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
+// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -373,7 +373,7 @@
         top: 50%;
         right: 0;
         transform: translateY(-50%);
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.0);
         padding: 10px 8px;
         border-radius: 8px 0 0 8px;
         z-index: 2147483647 !important;
