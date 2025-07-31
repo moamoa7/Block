@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.55 // 마우스 우클릭 차단 로직 완전 삭제
+// @version       4.0.56 // streamtape.com의 /e/ 경로 iframe 허용
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -26,6 +26,7 @@
     'www.nate.com',  // 메인에서 로그인시 비밀번호 칸 입력 안되는거 해결
     'recaptcha',
     'challenges.cloudflare.com', // ✅ Cloudflare 챌린지: 팝업/새 탭 관련 로직 통과
+    '/e/',  // streamtape.com 영상 재생
   ];
 
   // 프레임 차단 제외할 도메인 (iframe 차단 로직 자체를 건너뛸 도메인)
@@ -39,6 +40,7 @@
   const IFRAME_WHITELIST = [
     'recaptcha',
     // 'challenges.cloudflare.com' // IFRAME_SKIP_DOMAINS에 추가되었으므로 여기서는 제거
+    '/e/',  // streamtape.com 영상 재생
   ];
 
   // 새탭/새창 유발 및 iframe 혹은 차단을 원하는 도메인/패턴 : ublock 에서 안되는 것만 등록 할 것
