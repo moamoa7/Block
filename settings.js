@@ -387,7 +387,7 @@
         opacity: 0.3;
         transition: opacity 0.3s;
         user-select: none;
-        box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        box-shadow: 0 0 5px rgba(0,0,0,0.0);
       }
       #${sliderId}:hover { opacity: 1; }
       #vm-speed-reset-btn {
