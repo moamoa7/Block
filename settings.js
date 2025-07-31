@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.24 // beforeunload 차단 로직 강화
+// @version       4.0.25 // ok.ru postMessage 무한 로그 해결
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -23,6 +23,16 @@
 
   const IFRAME_SKIP_DOMAINS = [];
   const FORCE_BLOCK_POPUP_PATTERNS = [];
+
+  // ✅ postMessage 로그 무시할 도메인 및 패턴 추가
+  const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
+      'ok.ru', // ok.ru 에서 발생하는 동영상 timeupdate 로그 무시
+      // 다른 정상적인 통신으로 인해 로그가 과도하게 뜨는 도메인을 여기에 추가할 수 있습니다.
+  ];
+  const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
+      '{"event":"timeupdate"', // timeupdate 이벤트는 일반적으로 안전
+  ];
+
 
   const hostname = location.hostname;
   const IS_ALLOWED_DOMAIN_FOR_POPUP = WHITELIST.some(domain =>
@@ -500,27 +510,21 @@
         }
       }, true);
 
-      // beforeunload 차단 로직 강화 (더 많은 시나리오에서 기본 동작 막기 시도)
-      // `addEventListener` 자체를 덮어씌워 'beforeunload' 이벤트 추가를 무효화
       const originalAddEventListener = EventTarget.prototype.addEventListener;
       EventTarget.prototype.addEventListener = function(type, listener, options) {
           if (type === 'beforeunload') {
-              // addLog(`🚫 beforeunload 리스너 추가 시도 감지 및 차단: ${listener.toString().substring(0, 100)}...`);
-              // 경고 메시지를 띄우는 것이 목적이므로, 리스너 추가 자체를 막습니다.
-              // 하지만 합법적인 사용도 있을 수 있으므로, 주석 처리된 부분은 선택적입니다.
-               return; // 리스너 추가 자체를 완전히 막을 경우
+              addLog(`🚫 beforeunload 리스너 추가 시도 감지 및 차단: ${listener.toString().substring(0, 100)}...`);
+              return;
           }
           return originalAddEventListener.call(this, type, listener, options);
       };
 
-      // 그리고 기존의 이벤트 차단 리스너는 그대로 유지하여 혹시 모를 경우를 대비합니다.
       window.addEventListener('beforeunload', function(e) {
           addLog('🚫 beforeunload 이벤트 감지 및 강제 차단됨 (스크립트 개입)');
-          // 표준에 따라 경고창을 막기 위해 필요한 조치
           e.preventDefault();
           e.returnValue = '';
-          e.stopImmediatePropagation(); // 다른 beforeunload 리스너 실행 방지
-      }, true); // 캡처링 단계에서 처리하여 우선순위 높임
+          e.stopImmediatePropagation();
+      }, true);
 
       window.addEventListener('contextmenu', e => {
           addLog('🚫 마우스 우클릭 (contextmenu) 이벤트 차단됨');
@@ -530,7 +534,7 @@
 
       window.addEventListener('keydown', e => {
           if (e.ctrlKey || e.metaKey) {
-              if (e.key === 's' || e.key === 'p' || e.key === 'u' || (e.shiftKey && e.key === 'I')) { // I는 개발자 도구 (Ctrl+Shift+I)
+              if (e.key === 's' || e.key === 'p' || e.key === 'u' || (e.shiftKey && e.key === 'I')) {
                   addLog(`🚫 단축키 (${e.key}) 차단됨`);
                   e.preventDefault();
                   e.stopImmediatePropagation();
@@ -538,7 +542,21 @@
           }
       }, true);
 
+      // postMessage 감지 로직 수정 (로그 무시 조건 추가)
       window.addEventListener('message', e => {
+          // 로그 무시할 도메인인지 확인
+          if (POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => e.origin.includes(domain))) {
+              // 메시지 데이터가 특정 패턴을 포함하는지 확인 (예: timeupdate)
+              if (typeof e.data === 'string' && POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => e.data.includes(pattern))) {
+                  // 이 조건에 해당하면 로그를 출력하지 않고 리턴
+                  return;
+              }
+              if (typeof e.data === 'object' && e.data !== null && e.data.event === 'timeupdate') {
+                  return;
+              }
+          }
+
+          // 기존의 의심 감지 조건 (크로스-오리진 또는 URL 패턴)
           if (e.origin !== window.location.origin ||
               (typeof e.data === 'string' && e.data.includes('http')) ||
               (typeof e.data === 'object' && e.data !== null && 'url' in e.data)) {
