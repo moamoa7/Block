@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.59 // 전체화면 차단 로직 제거 및 tvwiki 화이트리스트에서 삭제
+// @version       4.0.60 // `pointer-events` 문법 오류 수정
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -143,7 +143,8 @@
           if (entry.parentNode) entry.remove();
           if (!logBoxRef.children.length) {
               logBoxRef.style.opacity = '0';
-              logBoxRef.style.pointer-events = 'none';
+              // 🚩 이곳의 문법 오류를 수정했습니다.
+              logBoxRef.style.pointerEvents = 'none';
           }
       }, 10000);
   }
