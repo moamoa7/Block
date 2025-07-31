@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name          새창/새탭 차단기 + iframe 차단 + Vertical Video Speed Slider
+// @name          새창/새탭 차단기 + iframe 차단 (수동) + Vertical Video Speed Slider
 // @namespace     https://example.com/
-// @version       3.9.8
-// @description   새창/새탭 차단기 + iframe 차단 완화 + Vertical Video Speed Slider + about:blank 제외 + javascript 예외처리 + 특정 레이어 차단
+// @version       4.0.0 // 버전 업데이트 (수정 내용 반영)
+// @description   새창/새탭 차단기 + iframe 차단 (수동) + about:blank 예외처리 + javascript 예외처리 (uBlock Origin과 완벽 호환) + Vertical Video Speed Slider
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -16,66 +16,24 @@
   // ================================
 
   // 새탭/새창 제외할 도메인 (window.open 차단 등도 무시)
+  // 여기에 팝업/새 탭 차단을 해제할 도메인을 추가하세요.
+  // 이 도메인들은 window.open 및 'javascript:' 링크 차단에서 제외됩니다.
   const WHITELIST = [
-    'escrow.auction.co.kr',
-    // 여기에 팝업/새 탭 차단을 해제할 도메인을 추가하세요.
-    // 이 도메인들은 window.open 및 'javascript:' 링크 차단에서 제외됩니다.
+    'accounting.auction.co.kr',
+    'buy.auction.co.kr',
   ];
 
   // 프레임 차단 제외할 도메인 (iframe 차단 로직 자체를 건너뛸 도메인)
-  const IFRAME_SKIP_DOMAINS = ['auth.openai.com', 'gemini.google.com'];
+  const IFRAME_SKIP_DOMAINS = [''];
 
   // 프레임 차단 제외할 패턴 형식 (도메인 일부만 넣음)
-  const IFRAME_WHITELIST = [
-    '/recaptcha/', // 캡챠
-    'escrow.auction.co.kr', // 옥션
-    '/movie_view', // 디시인사이드 동영상
-    '/player',       // 티비위키.티비몬.티비핫 플레이어
-    '/embed/',       // 커뮤니티 등 게시물 동영상 삽입
-    '/videoembed/', // https://poooo.ml/
-    'player.bunny-frame.online', // 티비위키.티비몬.티비핫 플레이어
-    'pcmap.place.naver.com/', // 네이버 지도
-    'nhn',  // 네이버 카페 (네이버 관련 iframe을 포괄적으로 허용)
-    '/PostView.naver',     // 네이버 블로그
-    'supremejav.com', // https://supjav.com/
-    '/e/', '/t/', '/v/', // 각종 성인 영상
-  ];
+  const IFRAME_WHITELIST = [''];
 
-  // ================================
-  // ★ 추가된 설정: 차단할 레이어 클래스명 및 ID 리스트
-  // ================================
-  const BLOCK_LAYER_CLASSES = [
-    'ads',             // 광고
-    'ad_banner',       // 배너
-    'ad-overlay',      // 일반적인 광고 오버레이
-    'popup-wrap',      // 팝업 컨테이너 (사이트마다 다름)
-    'modal-bg',        // 모달 배경 (전체를 가리는 경우)
-    'cookie-consent-bar', // 쿠키 동의 배너
-    'survey-popup',    // 설문조사 팝업
-    'fixed-ad-bottom', // 하단 고정 광고
-    'mobile-floating-ad', // 모바일 플로팅 광고
-    'pop-layer',       // (구)사이트에서 자주 쓰이는 팝업 클래스
-    'layer_pop',       // 또 다른 팝업 클래스
-    'blind',           // 배경을 가리는 블라인드 효과 (차단 시 배경만 보일 수 있음)
-    'loaded.lazyloaded.entered',
-    'custom-html-widget.textwidget',
-    'happy-header',
-    'happy-footer',
-    // 여기에 차단하고 싶은 다른 레이어 클래스명들을 추가하세요.
-    // 주의: 필수적인 UI까지 차단하지 않도록 주의
-  ];
-
-  const BLOCK_LAYER_IDS = [
-    'ads',
-    'fullpage-ad',     // 전체 화면 광고 (id가 유일한 경우)
-    'promotion-modal',   // 특정 프로모션 모달
-    'pop_login',       // 로그인 팝업 등 (주의: 사이트 이용에 필수적일 수 있음)
-    'imgDiv', 'imgDiv2', 'imgDiv3', 'imgDiv4', 'imgDiv5', 'imgDiv6', 'imgDiv11', 'imgDiv12', 'imgDiv13', 'imgDiv21',          // 광고 배너
-    'header_banner', // 상단 오른쪽 배너
-    // 여기에 차단하고 싶은 레이어의 ID들을 추가하세요.
-    // 주의: 필수적인 UI까지 차단하지 않도록 주의
-  ];
-
+  // 새탭/새창 무조건 차단 (새 창으로 튀어나오는 도메인 - about:blank 변경 후 메시지 출력) : ublock 에서 안되는 것만 등록 할 것
+  // 등록된 '악성 팝업 유발' iframe만 src="about:blank"로 변경하고 완전히 숨김
+  // 여기에 추가적으로 차단하고 싶은 도메인/패턴을 추가하세요.
+  // 예: '.xyz', 'popup-ads.com', 'redirect-tracker.io'
+  const FORCE_BLOCK_POPUP_PATTERNS = [''];
 
   const hostname = location.hostname;
 
@@ -178,9 +136,16 @@
     console.log(`Attempting to block URL: ${url}`);
     addLog(`🚫 window.open 차단 시도: ${url}`);
 
-    // 사용자 상호작용이 감지되면 허용
+    // 강제 차단 패턴에 있는 URL은 사용자 상호작용과 관계없이 무조건 차단
+    const isForceBlocked = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => url.includes(pattern));
+    if (isForceBlocked) {
+      addLog(`🔥 강제 차단 패턴에 의해 팝업 차단됨: ${url}`);
+      return fakeWindow; // 강제 차단
+    }
+
+    // 그 다음 사용자 상호작용을 검사합니다.
     if (userInitiatedAction) {
-      console.log(`사용자 상호작용 감지됨: ${url} - 허용`);
+      console.log(`사용자 상호작용 감지됨 (강제 차단 패턴 아님): ${url} - 허용`);
       return originalWindowOpen.apply(window, args);
     }
 
@@ -226,7 +191,6 @@
         }
         // window.open을 포함하지 않는 javascript: 링크는 기본 동작 허용
         console.log(`javascript 링크 클릭됨: ${url}`);
-        // e.preventDefault(); // 이 부분을 주석 처리하여 'window.open'이 없는 javascript: 링크는 허용
         return;
       }
     }, true); // 캡처링 단계에서 처리
@@ -286,6 +250,8 @@
     hostname === domain || hostname.endsWith('.' + domain)
   );
 
+  // isIframeAllowed 함수는 현재 iframe 차단 로직에서 직접 사용되지 않습니다.
+  // 대신 FORCE_BLOCK_POPUP_PATTERNS를 사용하여 uBlock Origin과의 호환성을 높였습니다.
   function isIframeAllowed(src) {
     try {
       const url = new URL(src, location.href);
@@ -301,107 +267,131 @@
     let fullSrc = rawSrc;
     const lazySrc = node.getAttribute('data-lazy-src');
     if (lazySrc) {
-      fullSrc = lazySrc;
+        fullSrc = lazySrc;
     }
     try {
-      fullSrc = new URL(fullSrc, location.href).href;
+        fullSrc = new URL(fullSrc, location.href).href;
     } catch {}
 
     addLog(`🛑 iframe 감지됨 (${trigger}): ${fullSrc}`);
     const style = getComputedStyle(node);
     const display = style.display || '(unknown)';
 
+    // 강제 차단 패턴에 src가 일치하는지 확인
+    const isForceBlockedIframeSrc = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => fullSrc.includes(pattern));
+
     // 1. about:blank 프레임은 무시합니다.
     if (fullSrc === 'about:blank') {
-      addLog(`✅ 'about:blank' iframe 감지됨. 스크립트에서 완전히 무시합니다.`);
-      return; // about:blank는 여기서 완전히 처리 배제
+        addLog(`✅ 'about:blank' iframe 감지됨. 스크립트에서 완전히 무시합니다.`);
+        return; // about:blank는 여기서 완전히 처리 배제
     }
 
     // 2. 모든 iframe에 대해 window.open 차단 주입을 시도합니다.
     // 이는 크로스-오리진 정책으로 막힐 수 있지만, 시도하는 것이 안전합니다.
     try {
-      node.addEventListener('load', () => {
-        if (node.contentWindow) {
-          try {
+        node.addEventListener('load', () => {
+            if (node.contentWindow) {
+              try {
+                  Object.defineProperty(node.contentWindow, 'open', {
+                      get: () => blockOpen,
+                      set: () => {},
+                      configurable: false
+                  });
+                  Object.freeze(node.contentWindow.open);
+                  addLog(`✅ iframe 내부 window.open 차단 주입 성공 (on load): ${fullSrc}`);
+              } catch (e) {
+                  addLog(`⚠️ iframe 내부 window.open 차단 주입 실패 (접근 오류 on load): ${e.message}`);
+              }
+            }
+        }, { once: true });
+
+        if (node.contentWindow && node.contentWindow.document.readyState !== 'loading') {
             Object.defineProperty(node.contentWindow, 'open', {
-              get: () => blockOpen,
-              set: () => {},
-              configurable: false
+                get: () => blockOpen,
+                set: () => {},
+                configurable: false
             });
             Object.freeze(node.contentWindow.open);
-            addLog(`✅ iframe 내부 window.open 차단 주입 성공 (on load): ${fullSrc}`);
-          } catch (e) {
-            addLog(`⚠️ iframe 내부 window.open 차단 주입 실패 (접근 오류 on load): ${e.message}`);
-          }
+            addLog(`✅ iframe 내부 window.open 차단 즉시 주입 성공: ${fullSrc}`);
         }
-      }, { once: true });
-
-      if (node.contentWindow && node.contentWindow.document.readyState !== 'loading') {
-        Object.defineProperty(node.contentWindow, 'open', {
-          get: () => blockOpen,
-          set: () => {},
-          configurable: false
-        });
-        Object.freeze(node.contentWindow.open);
-        addLog(`✅ iframe 내부 window.open 차단 즉시 주입 성공: ${fullSrc}`);
-      }
     } catch (e) {
-      addLog(`⚠️ iframe 내부 window.open 차단 시도 실패: ${e.message}`);
+        addLog(`⚠️ iframe 내부 window.open 차단 시도 실패: ${e.message}`);
     }
 
-    // 3. iframe 화이트리스트에 포함되지 않는 iframe은 차단됩니다.
-    if (!isIframeAllowed(fullSrc)) {
-      addLog(`🛑 iframe 화이트리스트에 없어 iframe 차단됨 (src: ${fullSrc}, display: ${display})`);
-      node.src = 'about:blank'; // 콘텐츠 로딩 방지를 위해 src를 about:blank로 강제 설정
-      node.removeAttribute('srcdoc'); // srcdoc 속성도 제거
+    // 3. 이제 오직 '강제 차단 패턴'에 걸리는 iframe만 src를 about:blank로 바꾸고 경고 메시지를 표시합니다.
+    // 기존의 'isIframeAllowed' 검사는 제거되어 uBlock Origin이 일반 iframe을 처리할 수 있도록 합니다.
+    if (isForceBlockedIframeSrc) {
+        addLog(`🛑 강제 차단 패턴에 의해 iframe 차단됨 (src: ${fullSrc}, display: ${display})`);
+        node.src = 'about:blank'; // 콘텐츠 로딩 방지를 위해 src를 about:blank로 강제 설정
+        node.removeAttribute('srcdoc'); // srcdoc 속성도 제거
 
-      // 경고 메시지 표시
-      try {
-        const warning = document.createElement('div');
-        warning.innerHTML = `
-          🚫 차단된 iframe입니다<br>
-          <small style="font-size:14px; color:#eee; user-select:text;">${fullSrc}</small>
+        // **!!! 여기부터 수정된 부분 !!!**
+        // iframe 자체를 완전히 숨깁니다.
+        node.style.cssText += `
+            display: none !important;
+            visibility: hidden !important;
+            width: 0px !important;
+            height: 0px !important;
+            pointer-events: none !important;
         `;
-        warning.style.cssText = `
-          color: #fff;
-          background: #d32f2f;
-          padding: 6px 10px;
-          font-size: 14px;
-          font-family: monospace;
-          border-radius: 4px;
-          user-select: text;
-          max-width: 90vw;
-          word-break: break-all;
-          position: relative;
-        `;
-        const removeBtn = document.createElement('button');
-        removeBtn.textContent = 'X';
-        removeBtn.style.cssText = `
-          position: absolute; top: 2px; right: 5px; background: none; border: none; color: white; cursor: pointer; font-weight: bold; font-size: 16px;
-        `;
-        removeBtn.onclick = () => {
-          warning.remove();
-          if (node.parentNode && node.parentNode.contains(node) && warning.parentNode === node.parentNode) {
-            node.remove();
-          }
-        };
-        warning.prepend(removeBtn);
 
-        if (node.parentNode) {
-          node.parentNode.replaceChild(warning, node);
-          setTimeout(() => {
-            if (warning.parentNode) {
-              warning.remove();
-            }
-          }, 10000);
-        } else {
-          addLog(`⚠️ iframe에 부모 노드가 없어 경고 메시지를 표시할 수 없음: ${fullSrc}`);
+        // 경고 메시지 표시를 위한 새로운 로직 (iframe을 DOM에서 제거하지 않고 오버레이)
+        try {
+            const warning = document.createElement('div');
+            warning.innerHTML = `
+                🚫 차단된 iframe입니다<br>
+                <small style="font-size:14px; color:#eee; user-select:text;">${fullSrc}</small>
+            `;
+            warning.style.cssText = `
+                position: fixed !important; /* iframe 위에 겹쳐지도록, 화면에 고정 */
+                top: ${node.getBoundingClientRect().top}px !important; /* 원본 iframe 위치 */
+                left: ${node.getBoundingClientRect().left}px !important; /* 원본 iframe 위치 */
+                width: ${node.getBoundingClientRect().width}px !important; /* 원본 iframe 크기 */
+                height: ${node.getBoundingClientRect().height}px !important; /* 원본 iframe 크기 */
+                display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important;
+                color: #fff !important;
+                background: rgba(211, 47, 47, 0.9) !important; /* 빨간색 반투명 배경 */
+                padding: 6px 10px !important;
+                font-size: 14px !important;
+                font-family: monospace !important;
+                border-radius: 4px !important;
+                user-select: text !important;
+                word-break: break-all !important;
+                z-index: 2147483647 !important; /* 최상위 z-index */
+                box-sizing: border-box !important; /* 패딩이 전체 크기에 포함되도록 */
+                opacity: 1 !important; /* 완전 불투명하게 */
+                pointer-events: auto !important; /* 경고 메시지 클릭 가능하게 */
+            `;
+
+            // 닫기 버튼 추가
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = 'X';
+            removeBtn.style.cssText = `
+                position: absolute !important; top: 2px !important; right: 5px !important; background: none !important; border: none !important; color: white !important; cursor: pointer !important; font-weight: bold !important; font-size: 16px !important;
+            `;
+            removeBtn.onclick = (e) => {
+                e.stopPropagation(); // 버튼 클릭이 다른 곳으로 전파되는 것을 막음
+                warning.remove();
+                addLog(`ℹ️ 사용자 요청으로 차단 메시지 제거: ${fullSrc}`);
+            };
+            warning.prepend(removeBtn);
+
+            document.body.appendChild(warning); // body에 추가
+
+            // 10초 후 자동 제거
+            setTimeout(() => {
+                if (warning.parentNode) {
+                    warning.remove();
+                    addLog(`ℹ️ 자동 제거된 차단 메시지: ${fullSrc}`);
+                }
+            }, 10000);
+
+        } catch (e) {
+            addLog(`⚠️ 경고 메시지 표시 실패: ${e.message}`);
         }
-      } catch (e) {
-        addLog(`⚠️ 경고 메시지 표시 실패: ${e.message}`);
-      }
     } else {
-      addLog(`✅ iframe 허용됨: ${fullSrc}`); // 화이트리스트 대상인 iframe은 허용
+        // uBlock Origin에게 처리를 위임한다는 것을 명확히 함
+        addLog(`✅ iframe 허용됨 (uBlock Origin에 의한 차단 확인 필요): ${fullSrc}`);
     }
   };
 
@@ -427,76 +417,11 @@
     // 문서 전체를 관찰
     iframeObserver.observe(document.documentElement, {
       childList: true, // 자식 노드 변경 감지
-      subtree: true,   // 모든 하위 노드까지 감지
+      subtree: true,    // 모든 하위 노드까지 감지
       attributes: true, // 속성 변경 감지
       attributeFilter: ['src'] // 'src' 속성만 필터링하여 감지
     });
   }
-
-  // ================================
-  // ★ 추가된 로직: 특정 클래스명 및 ID 레이어 차단
-  // ================================
-  function blockSpecificLayersByIdAndClass() {
-    // CSS 규칙 주입 방식: ID와 Class 모두에 대해 display: none !important; 규칙을 강제 적용
-    const styleElement = document.createElement('style');
-    let cssRules = '';
-
-    // 클래스 규칙 추가
-    BLOCK_LAYER_CLASSES.forEach(className => {
-        cssRules += `.${className} { display: none !important; }\n`;
-    });
-
-    // ID 규칙 추가
-    BLOCK_LAYER_IDS.forEach(idName => {
-        cssRules += `#${idName} { display: none !important; }\n`;
-    });
-
-    styleElement.textContent = cssRules;
-    document.head.appendChild(styleElement);
-    addLog(`✨ 특정 클래스/ID 레이어 차단을 위한 CSS 규칙 주입 완료.`);
-
-    // MutationObserver를 사용하여 동적으로 추가되는 레이어 감지 및 차단
-    const layerObserver = new MutationObserver(mutations => {
-        mutations.forEach(mutation => {
-            if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeType === 1) { // Element 노드인 경우
-                        // 클래스 기반 차단
-                        BLOCK_LAYER_CLASSES.forEach(className => {
-                            if (node.classList.contains(className)) {
-                                node.style.setProperty('display', 'none', 'important');
-                                addLog(`🚫 클래스 '${className}' 레이어 차단됨 (동적 추가 - 직접)`);
-                            }
-                            // 추가된 노드 내부에 해당 클래스를 가진 요소가 있는지 확인
-                            node.querySelectorAll(`.${className}`).forEach(childEl => {
-                                childEl.style.setProperty('display', 'none', 'important');
-                                addLog(`🚫 클래스 '${className}' 레이어 차단됨 (동적 추가 - 하위)`);
-                            });
-                        });
-
-                        // ID 기반 차단
-                        BLOCK_LAYER_IDS.forEach(idName => {
-                            if (node.id === idName) {
-                                node.style.setProperty('display', 'none', 'important');
-                                addLog(`🚫 ID '${idName}' 레이어 차단됨 (동적 추가 - 직접)`);
-                            }
-                            // 추가된 노드 내부에 해당 ID를 가진 요소가 있는지 확인 (ID는 유일해야 하지만, 혹시 모를 경우)
-                            const childIdEl = node.querySelector(`#${idName}`);
-                            if (childIdEl) {
-                                childIdEl.style.setProperty('display', 'none', 'important');
-                                addLog(`🚫 ID '${idName}' 레이어 차단됨 (동적 추가 - 하위)`);
-                            }
-                        });
-                    }
-                });
-            }
-        });
-    });
-
-    // body 요소의 자식 노드 변경 및 하위 트리의 모든 변경 감지
-    layerObserver.observe(document.body, { childList: true, subtree: true });
-  }
-
 
   // ================================
   // Video Speed Slider 기능
@@ -664,11 +589,9 @@
   // 스크립트 로드 상태에 따라 기능 초기화
   document.readyState === 'loading'
     ? document.addEventListener('DOMContentLoaded', () => {
-        blockSpecificLayersByIdAndClass();
         initSpeedSlider();
       })
     : (() => {
-        blockSpecificLayersByIdAndClass();
         initSpeedSlider();
       })();
 })();
