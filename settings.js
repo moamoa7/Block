@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.56 // streamtape.com의 /e/ 경로 iframe 허용
+// @version       4.0.59 // 전체화면 차단 로직 제거 및 tvwiki 화이트리스트에서 삭제
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -143,7 +143,7 @@
           if (entry.parentNode) entry.remove();
           if (!logBoxRef.children.length) {
               logBoxRef.style.opacity = '0';
-              logBoxRef.style.pointerEvents = 'none';
+              logBoxRef.style.pointer-events = 'none';
           }
       }, 10000);
   }
@@ -460,18 +460,7 @@
         return originalBlur.apply(this, arguments);
       };
 
-      const originalRequestFullscreen = HTMLElement.prototype.requestFullscreen;
-      if (originalRequestFullscreen) {
-          HTMLElement.prototype.requestFullscreen = function () {
-              if (userInitiatedAction) {
-                  addLog('✅ 사용자 상호작용으로 전체화면 진입 허용됨');
-                  return originalRequestFullscreen.apply(this, arguments);
-              } else {
-                  addLog('🚫 사용자 상호작용 없는 전체화면 진입 시도 차단됨');
-                  return Promise.reject(new Error('Fullscreen API blocked by script: No user interaction.'));
-              }
-          };
-      }
+      // 🚩 전체화면 차단 로직이 여기 있었는데 삭제되었습니다.
 
       const originalScrollIntoView = Element.prototype.scrollIntoView;
       Element.prototype.scrollIntoView = function(...args) {
