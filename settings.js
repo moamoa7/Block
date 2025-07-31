@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.50 // 배속바 기본 최소화 상태로 변경
+// @version       4.0.51 // WHITELIST, IFRAME_SKIP_DOMAINS, IFRAME_WHITELIST 업데이트
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -32,12 +32,13 @@
   // 여기에 추가하면 해당 도메인의 iframe은 스크립트가 전혀 건드리지 않습니다.
   const IFRAME_SKIP_DOMAINS = [
     'challenges.cloudflare.com', // ✅ Cloudflare 챌린지: 팝업/새 탭 관련 로직 통과
-  ]; // 현재는 비워둡니다. 필요시 추가하세요.
+  ];
 
   // 프레임 차단 제외할 패턴 형식 (도메인 일부만 넣음)
   // 여기에 추가하면 해당 패턴이 포함된 iframe src는 차단되지 않습니다.
   const IFRAME_WHITELIST = [
     'recaptcha',
+    // 'challenges.cloudflare.com' // IFRAME_SKIP_DOMAINS에 추가되었으므로 여기서는 제거
   ];
 
   // 새탭/새창 무조건 차단 (새 창으로 튀어나오는 도메인 - about:blank 변경 후 메시지 출력) : ublock 에서 안되는 것만 등록 할 것
@@ -853,7 +854,7 @@
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'vm-speed-toggle-btn';
 
-    // 🚩 초기 상태 변경: isMinimized를 true로 설정하여 시작 시 최소화되게 합니다.
+    // 🚩 초기 상태: isMinimized를 true로 설정하여 시작 시 최소화되게 합니다.
     let isMinimized = true;
 
     // 🚩 초기 디스플레이 설정: 최소화 상태에 맞춰 요소를 숨깁니다.
