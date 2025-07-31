@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.52 // FORCE_BLOCK_POPUP_PATTERNS 주석 개선
+// @version       4.0.55 // 마우스 우클릭 차단 로직 완전 삭제
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -564,12 +564,6 @@
           addLog('🚫 beforeunload 이벤트 감지 및 강제 차단됨');
           e.preventDefault();
           e.returnValue = '';
-          e.stopImmediatePropagation();
-      }, true);
-
-      window.addEventListener('contextmenu', e => {
-          addLog('🚫 마우스 우클릭 (contextmenu) 이벤트 차단됨');
-          e.preventDefault();
           e.stopImmediatePropagation();
       }, true);
 
