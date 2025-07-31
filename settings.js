@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.25 // ok.ru postMessage 무한 로그 해결
+// @version       4.0.26 // 네이버 로그인 문제 해결 (WHITELIST 추가)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -16,25 +16,26 @@
   }
   window.__MySuperScriptInitialized = true;
 
+  // ✅ WHITELIST에 'naver.com' 추가
   const WHITELIST = [
     'accounting.auction.co.kr',
     'buy.auction.co.kr',
+    'nid.naver.com',
   ];
 
   const IFRAME_SKIP_DOMAINS = [];
   const FORCE_BLOCK_POPUP_PATTERNS = [];
 
-  // ✅ postMessage 로그 무시할 도메인 및 패턴 추가
   const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
-      'ok.ru', // ok.ru 에서 발생하는 동영상 timeupdate 로그 무시
-      // 다른 정상적인 통신으로 인해 로그가 과도하게 뜨는 도메인을 여기에 추가할 수 있습니다.
+      'ok.ru',
   ];
   const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
-      '{"event":"timeupdate"', // timeupdate 이벤트는 일반적으로 안전
+      '{"event":"timeupdate"',
   ];
 
 
   const hostname = location.hostname;
+  // 현재 도메인 또는 URL이 WHITELIST에 포함되어 있는지 확인
   const IS_ALLOWED_DOMAIN_FOR_POPUP = WHITELIST.some(domain =>
     hostname.includes(domain) || window.location.href.includes(domain)
   );
@@ -189,6 +190,7 @@
       return getFakeWindow();
     };
 
+    // WHITELIST에 포함된 도메인에서는 팝업 및 기타 차단 기능 미적용
     if (!IS_ALLOWED_DOMAIN_FOR_POPUP) {
       try {
         Object.defineProperty(window, 'open', { get: () => blockOpen, set: () => {}, configurable: false });
@@ -343,6 +345,7 @@
           return originalClick.call(this);
       };
 
+      // JS로 form.submit() 호출 차단 로직 (WHITELIST에서는 미적용)
       const originalSubmit = HTMLFormElement.prototype.submit;
       HTMLFormElement.prototype.submit = function () {
           addLog('🚫 JS로 form.submit() 차단');
@@ -542,13 +545,9 @@
           }
       }, true);
 
-      // postMessage 감지 로직 수정 (로그 무시 조건 추가)
       window.addEventListener('message', e => {
-          // 로그 무시할 도메인인지 확인
           if (POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => e.origin.includes(domain))) {
-              // 메시지 데이터가 특정 패턴을 포함하는지 확인 (예: timeupdate)
               if (typeof e.data === 'string' && POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => e.data.includes(pattern))) {
-                  // 이 조건에 해당하면 로그를 출력하지 않고 리턴
                   return;
               }
               if (typeof e.data === 'object' && e.data !== null && e.data.event === 'timeupdate') {
@@ -556,7 +555,6 @@
               }
           }
 
-          // 기존의 의심 감지 조건 (크로스-오리진 또는 URL 패턴)
           if (e.origin !== window.location.origin ||
               (typeof e.data === 'string' && e.data.includes('http')) ||
               (typeof e.data === 'object' && e.data !== null && 'url' in e.data)) {
@@ -564,7 +562,7 @@
           }
       }, false);
 
-    }
+    } // end of if (!IS_ALLOWED_DOMAIN_FOR_POPUP)
   }
 
   function initIframeBlocker() {
@@ -680,7 +678,7 @@
       }
     };
 
-    if (!IFRAME_SKIP) {
+    if (!IS_ALLOWED_DOMAIN_FOR_POPUP) {
         const iframeAddObserver = new MutationObserver(mutations => {
             for (const m of mutations) {
                 if (m.type === 'childList') {
