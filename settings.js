@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.64 // Cloudflare 문제 해결을 위한 전면 수정
+// @version       4.0.65 // 로그내역 복사하기 버튼 추가
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -38,14 +38,14 @@
   window.__MySuperScriptInitialized = true;
 
   // 🚩 사용자 설정: 특정 도메인에서 개별 차단 기능을 해제합니다.
-  //   '도메인': ['기능이름', '기능이름', ...], 형태로 추가하세요.
-  //   - 'windowOpen': window.open 차단 해제
-  //   - 'formSubmit': form.submit() 차단 해제
-  //   - 'beforeunload': beforeunload 차단 해제
-  //   - 'layerTrap': 레이어 클릭 덫 차단 해제
-  //   - 'iframeHidden': 숨겨진 iframe 차단 해제
-  //   - 'iframeBase64': Base64 iframe 차단 해제
-  //   - 'iframeBlank': 'about:blank' iframe 차단 해제
+  //    '도메인': ['기능이름', '기능이름', ...], 형태로 추가하세요.
+  //    - 'windowOpen': window.open 차단 해제
+  //    - 'formSubmit': form.submit() 차단 해제
+  //    - 'beforeunload': beforeunload 차단 해제
+  //    - 'layerTrap': 레이어 클릭 덫 차단 해제
+  //    - 'iframeHidden': 숨겨진 iframe 차단 해제
+  //    - 'iframeBase64': Base64 iframe 차단 해제
+  //    - 'iframeBlank': 'about:blank' iframe 차단 해제
   const EXCEPTION_LIST = {
       // 예시: 'auction.co.kr': ['formSubmit', 'windowOpen'],
       // 예시: 'safe-site.com': ['beforeunload'],
@@ -83,42 +83,90 @@
 
   let logBoxRef = null;
   let isLogBoxReady = false;
+  let logBoxContainer = null;
+  let logContentBox = null;
+  let pendingLogs = [];
 
   function createLogBox() {
-    if (document.getElementById('popupBlockerLogBox')) {
-        logBoxRef = document.getElementById('popupBlockerLogBox');
-        isLogBoxReady = true;
-        return;
+    if (document.getElementById('popupBlockerLogContainer')) {
+      logBoxContainer = document.getElementById('popupBlockerLogContainer');
+      logContentBox = document.getElementById('popupBlockerLogBox');
+      isLogBoxReady = true;
+      return;
     }
 
-    const box = document.createElement('div');
-    box.id = 'popupBlockerLogBox';
-    box.style.cssText = `
+    logBoxContainer = document.createElement('div');
+    logBoxContainer.id = 'popupBlockerLogContainer';
+    logBoxContainer.style.cssText = `
       position: fixed;
       bottom: 0;
       right: 0;
-      max-height: 250px;
+      max-height: 100px;
       width: 350px;
+      z-index: 9999998;
+      border-top-left-radius: 8px;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      box-shadow: 0 0 8px #000;
+    `;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = '로그 복사';
+    copyBtn.id = 'popupBlockerCopyBtn';
+    copyBtn.style.cssText = `
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: rgba(50,50,50,0.9);
+      color: #fff;
+      border: none;
+      border-bottom-left-radius: 8px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      z-index: 9999999;
+      opacity: 0.8;
+    `;
+    copyBtn.onclick = () => {
+        if (logContentBox.textContent.trim()) {
+            navigator.clipboard.writeText(logContentBox.textContent.trim())
+                .then(() => {
+                    copyBtn.textContent = '복사 완료!';
+                    setTimeout(() => copyBtn.textContent = '로그 복사', 2000);
+                })
+                .catch(err => {
+                    console.error('클립보드 복사 실패:', err);
+                    copyBtn.textContent = '복사 실패!';
+                    setTimeout(() => copyBtn.textContent = '로그 복사', 2000);
+                });
+        }
+    };
+    logBoxContainer.appendChild(copyBtn);
+
+    logContentBox = document.createElement('div');
+    logContentBox.id = 'popupBlockerLogBox';
+    logContentBox.style.cssText = `
+      max-height: 100%;
+      width: 100%;
       background: rgba(30,30,30,0.9);
       color: #fff;
       font-family: monospace;
       font-size: 14px;
       overflow-y: auto;
       padding: 8px;
-      box-shadow: 0 0 8px #000;
-      z-index: 9999998;
-      border-top-left-radius: 8px;
+      padding-top: 25px; /* 버튼 공간 확보 */
       user-select: text;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
     `;
 
+    logBoxContainer.appendChild(logContentBox);
+
     const appendToBody = () => {
-        if (document.body && !document.body.contains(box)) {
-            document.body.appendChild(box);
-            logBoxRef = box;
+        if (document.body && !document.body.contains(logBoxContainer)) {
+            document.body.appendChild(logBoxContainer);
             isLogBoxReady = true;
+            logBoxRef = logContentBox;
             while (pendingLogs.length > 0) {
                 const pendingMsg = pendingLogs.shift();
                 addLogToBox(pendingMsg);
@@ -133,23 +181,21 @@
     }
   }
 
-  const pendingLogs = [];
-
   function addLogToBox(msg) {
-      if (!logBoxRef) return;
-      logBoxRef.style.opacity = '1';
-      logBoxRef.style.pointerEvents = 'auto';
+      if (!logContentBox) return;
+      logBoxContainer.style.opacity = '1';
+      logBoxContainer.style.pointerEvents = 'auto';
       const entry = document.createElement('div');
       entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
       entry.style.textAlign = 'left';
-      logBoxRef.appendChild(entry);
-      logBoxRef.scrollTop = logBoxRef.scrollHeight;
+      logContentBox.appendChild(entry);
+      logContentBox.scrollTop = logContentBox.scrollHeight;
 
       setTimeout(() => {
           if (entry.parentNode) entry.remove();
-          if (!logBoxRef.children.length) {
-              logBoxRef.style.opacity = '0';
-              logBoxRef.style.pointerEvents = 'none';
+          if (!logContentBox.children.length) {
+              logBoxContainer.style.opacity = '0';
+              logBoxContainer.style.pointerEvents = 'none';
           }
       }, 10000);
   }
@@ -492,10 +538,10 @@
         if (!(node instanceof HTMLElement)) return false;
         const style = getComputedStyle(node);
         return style.position === 'fixed' &&
-               parseInt(style.zIndex) > 1000 &&
-               parseFloat(style.opacity) < 0.2 &&
-               style.pointerEvents !== 'none' &&
-               node.hasAttribute('onclick');
+                parseInt(style.zIndex) > 1000 &&
+                parseFloat(style.opacity) < 0.2 &&
+                style.pointerEvents !== 'none' &&
+                node.hasAttribute('onclick');
       };
 
       const checkLayerTrap = node => {
@@ -697,8 +743,8 @@
         const rect = node.getBoundingClientRect();
         const style = getComputedStyle(node);
         const isHidden = (node.offsetWidth === 0 && node.offsetHeight === 0) ||
-                         (rect.width === 0 && rect.height === 0) ||
-                         (style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none');
+                               (rect.width === 0 && rect.height === 0) ||
+                               (style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none');
 
         // 🚩 숨겨진 iframe 차단 (개별 해제 가능)
         if (isHidden && !isFeatureAllowed('iframeHidden')) {
@@ -859,11 +905,6 @@
       valueDisplay.style.display = isMinimized ? 'none' : '';
       toggleBtn.textContent = isMinimized ? '🔼' : '🔽';
     });
-
-    container.appendChild(resetBtn);
-    container.appendChild(slider);
-    container.appendChild(valueDisplay);
-    container.appendChild(toggleBtn);
 
     const updateSpeed = (val) => {
       const speed = parseFloat(val);
