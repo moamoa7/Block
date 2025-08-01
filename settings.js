@@ -101,7 +101,7 @@
       position: fixed;
       bottom: 0;
       right: 0;
-      max-height: 100px;
+      max-height: 100px; /* <--- 수정된 부분 */
       width: 350px;
       z-index: 9999998;
       border-top-left-radius: 8px;
