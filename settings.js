@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.72
+// @version       4.0.73 (requestFullscreen() 차단과 window.location 리디렉션 차단 기능 추가)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -40,8 +40,9 @@
     'xo.nate.com':['formSubmit'],
     'www.nate.com':['formSubmit'],
     'accounts.kakao.com':['iframeHidden'],
-    'www.youtube.com':['iframeHidden'],
+    'www.youtube.com':['iframeHidden', 'fullscreen', 'location'],
     'translate.google.co.kr':['iframeHidden'],
+    'auth.openai.com':['iframeHidden'],
   };
 
   const IFRAME_SKIP_DOMAINS = [
@@ -643,6 +644,40 @@
             addLog(`⚠️ postMessage 의심 감지됨: Origin=${e.origin}, Data=${JSON.stringify(e.data).substring(0, 100)}...`);
         }
     }, false);
+
+    // 🚩 5. requestFullscreen() 자동 호출 감지 및 차단
+    if (!isFeatureAllowed('fullscreen')) {
+        try {
+            const originalRequestFullscreen = Document.prototype.requestFullscreen;
+            if (originalRequestFullscreen) {
+                Document.prototype.requestFullscreen = new Proxy(originalRequestFullscreen, {
+                    apply(target, thisArg, argumentsList) {
+                        addLog('🛑 자동 전체화면 차단');
+                        return Promise.reject('Blocked fullscreen request');
+                    }
+                });
+            }
+        } catch (e) {
+            addLog(`⚠️ requestFullscreen() 차단 실패: ${e.message}`);
+        }
+    }
+
+    // 🚩 6. 악성 window.location 리디렉션 차단
+    if (!isFeatureAllowed('location')) {
+        try {
+            Object.defineProperty(window, 'location', {
+              configurable: false,
+              enumerable: true,
+              get: () => location,
+              set: (val) => {
+                addLog('🛑 location 이동 차단 시도됨: ' + val);
+                console.warn('🛑 location 이동 차단 시도됨:', val);
+              }
+            });
+        } catch (e) {
+            addLog(`⚠️ window.location 차단 실패: ${e.message}`);
+        }
+    }
   }
 
   function initIframeBlocker() {
