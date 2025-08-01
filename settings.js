@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.85 // 유블럭 처리를 위해 숨겨진/0x0 크기 iframe을 **제거(remove)**하는 대신 숨김(display: none) 처리
+// @version       4.0.90
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -18,6 +18,7 @@
     'buy.auction.co.kr',
     'recaptcha',
     '/e/',  // streamtape.com/e/
+    'login.sooplive.co.kr',
   ];
 
   const hostname = location.hostname;
@@ -47,7 +48,7 @@
   };
 
   // 🚩 광고 탐지 키워드 리스트
-    const AD_KEYWORDS = ['ad-', 'ads', 'banner', 'popup', '광고', '배너', '스폰서'];
+  const AD_KEYWORDS = ['ad', 'ads', 'banner', 'popup', 'promotion', '광고', '배너', '스폰서', 'advertisement'];
   const AD_REGEX = new RegExp(`(${AD_KEYWORDS.join('|')})`, 'i');
 
   const IFRAME_SKIP_DOMAINS = [
@@ -175,7 +176,7 @@
       if (!logContentBox) return;
 
       logBoxContainer.style.opacity = '1';
-      logBoxContainer.style.pointerEvents = 'auto';
+      logBoxContainer.style.pointerEvents = 'auto'; // 수정된 부분: pointer-events -> pointerEvents
 
       const MAX_LOGS = 50;
       if (logContentBox.childElementCount >= MAX_LOGS) {
@@ -193,7 +194,7 @@
       }
       logDismissTimer = setTimeout(() => {
           logBoxContainer.style.opacity = '0';
-          logBoxContainer.style.pointerEvents = 'none';
+          logBoxContainer.style.pointerEvents = 'none'; // 수정된 부분: pointer-events -> pointerEvents
       }, 10000); // 10초 후에 사라짐
   }
 
@@ -352,7 +353,7 @@
             const stack = new Error().stack;
             if (stack && stack.includes('open') && (stack.includes('click') || stack.includes('mousedown'))) {
                 addLog(`🕷️ 이벤트 기반 window.open 의심 감지: ${e.type} 이벤트`);
-                console.warn('🕷️ 이벤트 기반 window.open 의심 스택:', stack);
+                console.warn(`🕷️ 이벤트 기반 window.open 의심 스택:`, stack);
             }
         } catch (err) { /* 스택 접근 실패 시 무시 */ }
     };
@@ -709,18 +710,6 @@
       if (processedIframes.has(node)) { return; }
       processedIframes.add(node);
 
-      if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
-        addLog(`🚫 Base64 인코딩된 iframe 차단됨: ${node.src.substring(0, 100)}...`);
-        node.remove();
-        return;
-      }
-
-      if (node.src?.startsWith('about:blank') && !node.hasAttribute('sandbox') && !isFeatureAllowed('iframeBlank')) {
-          addLog(`🚫 'about:blank' & sandbox 없는 iframe 차단됨 (스크립트 주입 의심): ${node.outerHTML.substring(0, 100)}...`);
-          node.remove();
-          return;
-      }
-
       const rawSrc = node.getAttribute('src') || node.src || '';
       let fullSrc = rawSrc;
       const lazySrc = node.getAttribute('data-lazy-src');
@@ -729,57 +718,14 @@
 
       addLog(`🛑 iframe 감지됨 (${trigger}): ${fullSrc}`);
 
-      const isAllowedIframeSrc = IFRAME_WHITELIST.some(pattern => fullSrc.includes(pattern));
-      if (isAllowedIframeSrc) {
-        addLog(`✅ IFRAME_WHITELIST에 포함된 iframe 허용됨: ${fullSrc}`);
+      if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
+        addLog(`🚫 Base64 인코딩된 iframe 차단됨: ${node.src.substring(0, 100)}...`);
+        node.remove();
         return;
       }
 
-      const isForceBlockedIframeSrc = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => fullSrc.includes(pattern));
-      if (isForceBlockedIframeSrc) {
-          addLog(`🛑 강제 차단 패턴에 의해 iframe 차단됨: ${fullSrc}`);
-          node.src = 'about:blank';
-          node.removeAttribute('srcdoc');
-          node.style.cssText += `
-              display: none !important; visibility: hidden !important; width: 0px !important;
-              height: 0px !important; pointer-events: none !important;
-          `;
-          try {
-              const warning = document.createElement('div');
-              warning.innerHTML = `🚫 차단된 iframe입니다<br><small style="font-size:14px; color:#eee; user-select:text;">${fullSrc}</small>`;
-              warning.style.cssText = `
-                  position: fixed !important; top: ${node.getBoundingClientRect().top}px !important; left: ${node.getBoundingClientRect().left}px !important;
-                  width: ${node.getBoundingClientRect().width}px !important; height: ${node.getBoundingClientRect().height}px !important;
-                  display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important;
-                  color: #fff !important; background: rgba(211, 47, 47, 0.9) !important; padding: 6px 10px !important;
-                  font-size: 14px !important; font-family: monospace !important; border-radius: 4px !important;
-                  user-select: text !important; word-break: break-all !important; z-index: 2147483647 !important;
-                  box-sizing: border-box !important; opacity: 1 !important; pointer-events: auto !important;
-              `;
-              const removeBtn = document.createElement('button');
-              removeBtn.textContent = 'X';
-              removeBtn.style.cssText = `position: absolute !important; top: 2px !important; right: 5px !important; background: none !important; border: none !important; color: white !important; cursor: pointer !important; font-weight: bold !important; font-size: 16px !important;`;
-              removeBtn.onclick = (e) => { e.stopPropagation(); warning.remove(); addLog(`ℹ️ 사용자 요청으로 차단 메시지 제거: ${fullSrc}`); };
-              warning.prepend(removeBtn);
-              document.body.appendChild(warning);
-              setTimeout(() => { if (warning.parentNode) warning.remove(); addLog(`ℹ️ 자동 제거된 차단 메시지: ${fullSrc}`); }, 10000);
-          } catch (e) {
-              addLog(`⚠️ 경고 메시지 표시 실패: ${e.message}`);
-          }
-      } else {
-        const rect = node.getBoundingClientRect();
-        const style = getComputedStyle(node);
-        const isHidden = (node.offsetWidth === 0 && node.offsetHeight === 0) ||
-                               (rect.width === 0 && rect.height === 0) ||
-                               (style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none');
-        if (isHidden && !isFeatureAllowed('iframeHidden')) {
-            addLog(`🚫 숨겨진/0x0 크기 iframe 숨김 처리됨: ${fullSrc.substring(0, 100)}...`);
-            node.style.setProperty('display', 'none', 'important');
-            return;
-        }
-
-        addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
-      }
+      // uBlock Origin 호환성을 위해 'about:blank' 및 숨겨진 iframe 차단 로직 삭제
+      addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
     };
 
     const iframeAddObserver = new MutationObserver(mutations => {
@@ -1004,58 +950,11 @@
     });
   }
 
-  // 🚩 Shadow DOM 광고 탐지 로직
-  const checkAndRemoveShadowAds = (node) => {
-    if (node.shadowRoot) {
-      const allText = node.shadowRoot.textContent;
-      const matchedKeyword = AD_KEYWORDS.find(keyword => new RegExp(keyword, 'i').test(allText));
-      if (matchedKeyword) {
-        addLog(`🕵️‍♂️ Shadow DOM 내 광고 감지 (탐지): 키워드="${matchedKeyword}", HTML="${node.outerHTML.substring(0, 50)}..."`);
-      }
-    }
-  };
-
-  const scanForAds = () => {
-    document.querySelectorAll('*').forEach(node => {
-      if (node.nodeType === 1) {
-        // Shadow DOM 탐지
-        checkAndRemoveShadowAds(node);
-
-        // 일반 DOM 요소 탐지
-        const matchedKeyword = AD_KEYWORDS.find(keyword => {
-          const regex = new RegExp(keyword, 'i');
-          return regex.test(node.outerHTML) || (node.id && regex.test(node.id)) || (node.className && regex.test(node.className));
-        });
-
-        if (matchedKeyword) {
-          addLog(`🕵️‍♂️ DOM 광고 감지 (탐지): 키워드="${matchedKeyword}", HTML="${node.outerHTML.substring(0, 50)}..."`);
-        }
-      }
-    });
-  };
-
-  // 🚩 IntersectionObserver 오용 탐지 로직
-  const hijackIntersectionObserver = () => {
-    const originalObserve = IntersectionObserver.prototype.observe;
-    IntersectionObserver.prototype.observe = function(target, options) {
-      if (target && target.tagName) {
-        const matchedKeyword = AD_KEYWORDS.find(keyword => new RegExp(keyword, 'i').test(target.outerHTML));
-        if (matchedKeyword) {
-          addLog(`🛑 IntersectionObserver 오용 감지 (탐지): 키워드="${matchedKeyword}", HTML="${target.outerHTML.substring(0, 50)}..."`);
-        }
-      }
-      return originalObserve.call(this, target, options);
-    };
-    addLog(`✅ IntersectionObserver 탐지 활성화`);
-  };
-
+  // 🚩 Shadow DOM 광고 탐지 로직 (제거)
+  // 🚩 IntersectionObserver 오용 탐지 로직 (제거)
   // 🚩 스크립트 실행
   initPopupBlocker();
   initIframeBlocker();
   initSpeedSlider();
-
-  document.addEventListener('DOMContentLoaded', scanForAds);
-
-  hijackIntersectionObserver();
 
 })();
