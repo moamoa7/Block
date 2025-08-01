@@ -32,12 +32,12 @@
       return;
   }
   window.__MySuperScriptInitialized = true;
-  
+
   // 🚩 특정 기능만 예외적으로 허용할 도메인 목록
   // { '도메인명': ['예외기능1', '예외기능2'] } 형식으로 추가합니다.
   const EXCEPTION_LIST = {
   };
-  
+
   // 🚩 iframe 차단 로직을 건너뛸 도메인 목록
   const IFRAME_SKIP_DOMAINS = [
   ];
@@ -55,7 +55,7 @@
       'twitch.tv',
       'ext-twitch.tv',
   ];
-  
+
   // 🚩 postMessage 로그를 무시할 패턴
   const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
       '{"event":"timeupdate"',
@@ -100,7 +100,7 @@
       transition: opacity 0.3s ease;
       box-shadow: 0 0 8px #000;
     `;
-    
+
     // 🚩 수정된 부분: iframe에서는 로그 창을 강제로 숨김
     if (!isTopFrame) {
       logBoxContainer.style.display = 'none';
@@ -180,7 +180,7 @@
 
   function addLogToBox(msg) {
       if (!logContentBox) return;
-      
+
       const logText = `[${new Date().toLocaleTimeString()}] ${msg}`;
       logHistory.push(logText); // 🚩 로그를 배열에 저장
       if (logHistory.length > 50) { // 로그 개수 제한
@@ -194,7 +194,7 @@
       if (logContentBox.childElementCount >= MAX_LOGS) {
           logContentBox.removeChild(logContentBox.firstChild);
       }
-      
+
       const entry = document.createElement('div');
       entry.textContent = logText;
       entry.style.textAlign = 'left';
@@ -464,7 +464,7 @@
         return originalClick.call(this);
       };
     }
-    
+
     const origAttachShadow = Element.prototype.attachShadow;
     if (origAttachShadow) {
         Element.prototype.attachShadow = function(init) {
@@ -485,7 +485,6 @@
     document.addEventListener('click', e => {
         const el = e.target;
         if (!(el instanceof HTMLElement)) return;
-
         const style = getComputedStyle(el);
         const isHiddenByStyle = (parseFloat(style.opacity) === 0 || style.visibility === 'hidden');
         const isZeroSize = (el.offsetWidth === 0 && el.offsetHeight === 0);
@@ -546,7 +545,6 @@
 
     if (!isFeatureAllowed('layerTrap')) {
       const processedLayers = new WeakSet();
-
       const suspectLayer = node => {
         if (!(node instanceof HTMLElement)) return false;
         const style = getComputedStyle(node);
@@ -559,7 +557,6 @@
 
       const checkLayerTrap = node => {
         if (processedLayers.has(node)) { return; }
-
         if (suspectLayer(node)) {
           addLog(`🛑 레이어 클릭 덫 의심 감지 및 숨김 처리: ${node.outerHTML.substring(0, 100)}...`);
           processedLayers.add(node);
@@ -632,7 +629,6 @@
       }, true);
     }
 
-
     window.addEventListener('keydown', e => {
         if (e.ctrlKey || e.metaKey) {
             if (e.key === 's' || e.key === 'p' || e.key === 'u' || (e.shiftKey && e.key === 'I')) {
@@ -647,20 +643,16 @@
         if (e.origin.includes('challenges.cloudflare.com')) {
             return;
         }
-
         if (POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => e.origin.includes(domain))) {
             return;
         }
-
         if (typeof e.data === 'string' && POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => e.data.includes(pattern))) {
             return;
         }
         if (typeof e.data === 'object' && e.data !== null && e.data.event === 'timeupdate') {
             return;
         }
-
         let isMessageSuspicious = false;
-
         if (e.origin !== window.location.origin) {
             isMessageSuspicious = true;
         } else if (typeof e.data === 'string' && e.data.includes('http')) {
@@ -668,13 +660,11 @@
         } else if (typeof e.data === 'object' && e.data !== null && 'url' in e.data) {
             isMessageSuspicious = true;
         }
-
         if (isMessageSuspicious) {
             addLog(`⚠️ postMessage 의심 감지됨: Origin=${e.origin}, Data=${JSON.stringify(e.data).substring(0, 100)}...`);
         }
     }, false);
 
-    // 🚩 5. requestFullscreen() 자동 호출 감지 및 차단
     if (!isFeatureAllowed('fullscreen')) {
         try {
             const originalRequestFullscreen = Document.prototype.requestFullscreen;
@@ -691,7 +681,6 @@
         }
     }
 
-    // 🚩 6. 악성 window.location 리디렉션 차단
     if (!isFeatureAllowed('location')) {
         try {
             Object.defineProperty(window, 'location', {
@@ -713,56 +702,50 @@
     const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain =>
         hostname.includes(domain) || window.location.href.includes(domain)
     );
-
     if (IS_IFRAME_LOGIC_SKIPPED) {
       addLog(`ℹ️ iframe 차단 로직 건너뜀 (IFRAME_SKIP_DOMAINS에 포함됨): ${hostname}`);
       return;
     }
 
     const processedIframes = new WeakSet();
-
     const processIframe = (node, trigger) => {
       if (processedIframes.has(node)) { return; }
       processedIframes.add(node);
-      
       const rawSrc = node.getAttribute('src') || node.src || '';
       let fullSrc = rawSrc;
       const lazySrc = node.getAttribute('data-lazy-src');
       if (lazySrc) { fullSrc = lazySrc; }
       try { fullSrc = new URL(fullSrc, location.href).href; } catch {}
-
       const iframeId = node.id || '';
       const iframeClasses = node.className || '';
       const parentId = node.parentElement ? node.parentElement.id || '' : '';
       const parentClasses = node.parentElement ? node.parentElement.className || '' || node.parentElement.className : '';
-
-      // 🚩 여기에 강제 iframe 차단 패턴을 추가합니다.
-      // uBlock Origin으로 차단되지 않는 광고나 특정 iframe의 패턴을 추가하세요.
       const forceBlockPatterns = [
-          'adsbygoogle',
-          'google_ads_frame',
-          'doubleclick.net',
-          // 여기에 차단하고 싶은 iframe 주소의 일부를 추가하세요.
+        '/ads/',
+        'adsbygoogle',
+        'banner',  // compass.adop.cc
+        'doubleclick',
+        'iframe',  // adpnut.com (mypikpak.com 하단 사라짐)  // home_iframead - javgg.net (islandjav182.fun/discourage072925.shop/api/spots/)
+        '/smartpop/',
+        '/widgets/',
+        '8dk5q9tp.xyz',  // javplayer.org, sextb.date
+        's.amazon-adsystem.com',
+        // 여기에 차단하고 싶은 iframe 주소의 일부를 추가하세요.
       ];
-
       const isForcedBlocked = forceBlockPatterns.some(pattern => {
           return fullSrc.includes(pattern) || iframeId.includes(pattern) || iframeClasses.includes(pattern) || parentId.includes(pattern) || parentClasses.includes(pattern);
       });
-      
       if (isForcedBlocked) {
           addLog(`🚫 iframe 강제 차단됨 (패턴 일치) [id: "${iframeId}", class: "${iframeClasses}", parent_id: "${parentId}", parent_class: "${parentClasses}"]: ${fullSrc}`);
           node.remove();
           return;
       }
-
       addLog(`🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}", parent_id: "${parentId}", parent_class: "${parentClasses}"]: ${fullSrc}`);
-
       if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
         addLog(`🚫 Base64 인코딩된 iframe 차단됨: ${node.src.substring(0, 100)}...`);
         node.remove();
         return;
       }
-      
       addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
     };
 
@@ -805,11 +788,9 @@
     });
   }
 
-  // --- 배속 조절기 함수 최종 수정 ---
   function initSpeedSlider() {
     if (window.__vmSpeedSliderInjectedInThisFrame) return;
     window.__vmSpeedSliderInjectedInThisFrame = true;
-
     const sliderId = 'vm-speed-slider-container';
     let container = document.getElementById(sliderId);
     let playbackUpdateTimer = null;
@@ -829,8 +810,6 @@
         if (valueDisplay) {
             valueDisplay.textContent = `x${speed.toFixed(1)}`;
         }
-        
-        // 지연 시간을 두어 playbackRate 변경을 안정화
         if (playbackUpdateTimer) clearTimeout(playbackUpdateTimer);
         playbackUpdateTimer = setTimeout(() => {
             updateVideoSpeed(speed);
@@ -840,7 +819,6 @@
     const createSliderElements = () => {
         container = document.createElement('div');
         container.id = sliderId;
-
         const style = document.createElement('style');
         style.textContent = `
             #${sliderId} {
@@ -852,7 +830,7 @@
                 padding: 10px 8px;
                 border-radius: 8px 0 0 8px;
                 z-index: 2147483647 !important;
-                display: none; /* 초기 상태는 숨겨져 있음 */
+                display: none;
                 flex-direction: column;
                 align-items: center;
                 width: 50px;
@@ -924,7 +902,6 @@
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'vm-speed-toggle-btn';
         toggleBtn.textContent = '🔼';
-        
         let isMinimized = true;
 
         const updateToggleButton = () => {
@@ -949,7 +926,6 @@
         container.appendChild(slider);
         container.appendChild(valueDisplay);
         container.appendChild(toggleBtn);
-        
         updateToggleButton();
         return container;
     };
@@ -970,7 +946,7 @@
             }
         }
     };
-    
+
     document.addEventListener('fullscreenchange', () => {
         const fsEl = document.fullscreenElement;
         if (fsEl) fsEl.appendChild(container);
@@ -982,12 +958,12 @@
     } else {
         checkVideosAndDisplay();
     }
-    
+
     new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
       childList: true, subtree: true
     });
   }
-  
+
   initPopupBlocker();
   initIframeBlocker();
   initSpeedSlider();
