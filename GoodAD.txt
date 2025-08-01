@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250726
+! Version: 20250801
 !
 !
 !
@@ -2344,7 +2344,7 @@ sextb.date##.hidden-md.right.col-3
 !
 ! JAVFC2.XYZ (https://javfc2.xyz/)
 ! - 상단 배너 이미지 공간 (유니콘Pro)
-!!###ads
+###ads
 ! - 기타
 /matomo.js^$script
 ! - 팝업 방지
