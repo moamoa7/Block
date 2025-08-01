@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.73 (requestFullscreen() 차단과 window.location 리디렉션 차단 기능 추가)
+// @version       4.0.85 // 유블럭 처리를 위해 숨겨진/0x0 크기 iframe을 **제거(remove)**하는 대신 숨김(display: none) 처리
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -17,7 +17,7 @@
     'accounting.auction.co.kr',
     'buy.auction.co.kr',
     'recaptcha',
-    '/e/',
+    '/e/',  // streamtape.com/e/
   ];
 
   const hostname = location.hostname;
@@ -43,7 +43,12 @@
     'www.youtube.com':['iframeHidden', 'fullscreen', 'location'],
     'translate.google.co.kr':['iframeHidden'],
     'auth.openai.com':['iframeHidden'],
+    'mypikpak.com':['iframeHidden'],
   };
+
+  // 🚩 광고 탐지 키워드 리스트
+    const AD_KEYWORDS = ['ad-', 'ads', 'banner', 'popup', '광고', '배너', '스폰서'];
+  const AD_REGEX = new RegExp(`(${AD_KEYWORDS.join('|')})`, 'i');
 
   const IFRAME_SKIP_DOMAINS = [
   ];
@@ -70,6 +75,7 @@
   let logBoxContainer = null;
   let logContentBox = null;
   let pendingLogs = [];
+  let logDismissTimer = null;
 
   function createLogBox() {
     if (document.getElementById('popupBlockerLogContainer')) {
@@ -167,21 +173,28 @@
 
   function addLogToBox(msg) {
       if (!logContentBox) return;
+
       logBoxContainer.style.opacity = '1';
       logBoxContainer.style.pointerEvents = 'auto';
+
+      const MAX_LOGS = 50;
+      if (logContentBox.childElementCount >= MAX_LOGS) {
+          logContentBox.removeChild(logContentBox.firstChild);
+      }
+
       const entry = document.createElement('div');
       entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
       entry.style.textAlign = 'left';
       logContentBox.appendChild(entry);
       logContentBox.scrollTop = logContentBox.scrollHeight;
 
-      setTimeout(() => {
-          if (entry.parentNode) entry.remove();
-          if (!logContentBox.children.length) {
-              logBoxContainer.style.opacity = '0';
-              logBoxContainer.style.pointerEvents = 'none';
-          }
-      }, 10000);
+      if (logDismissTimer) {
+          clearTimeout(logDismissTimer);
+      }
+      logDismissTimer = setTimeout(() => {
+          logBoxContainer.style.opacity = '0';
+          logBoxContainer.style.pointerEvents = 'none';
+      }, 10000); // 10초 후에 사라짐
   }
 
   function addLog(msg) {
@@ -411,9 +424,9 @@
     if (!isFeatureAllowed('windowOpen')) {
         const originalClick = HTMLElement.prototype.click;
         HTMLElement.prototype.click = function () {
-            const suspicious = this.tagName === 'A' && this.href && (this.href.includes('ad') || this.href.includes('banner'));
+            const suspicious = this.tagName === 'A' && this.href && (AD_REGEX.test(this.href));
             if (suspicious) {
-                addLog(`🚫 JS로 만든 링크 click() 차단: ${this.href}`);
+                addLog(`🚫 JS로 만든 링크 click() 탐지: ${this.href}`);
                 return;
             }
             return originalClick.call(this);
@@ -432,8 +445,8 @@
     const originalDocumentWriteln = document.writeln;
 
     document.write = document.writeln = function(...args) {
-      addLog('🚫 document.write/writeln 호출 감지됨 (광고/피싱 의심) - 차단됨');
-      console.warn('🚫 document.write/writeln 호출 감지됨 (차단됨):', ...args);
+      addLog('🚫 document.write/writeln 호출 감지됨 (광고/피싱 의심)');
+      console.warn('🚫 document.write/writeln 호출 감지됨:', ...args);
     };
 
     const origAttachShadow = Element.prototype.attachShadow;
@@ -698,14 +711,12 @@
 
       if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
         addLog(`🚫 Base64 인코딩된 iframe 차단됨: ${node.src.substring(0, 100)}...`);
-        node.style.setProperty('display', 'none', 'important');
         node.remove();
         return;
       }
 
       if (node.src?.startsWith('about:blank') && !node.hasAttribute('sandbox') && !isFeatureAllowed('iframeBlank')) {
           addLog(`🚫 'about:blank' & sandbox 없는 iframe 차단됨 (스크립트 주입 의심): ${node.outerHTML.substring(0, 100)}...`);
-          node.style.setProperty('display', 'none', 'important');
           node.remove();
           return;
       }
@@ -761,11 +772,9 @@
         const isHidden = (node.offsetWidth === 0 && node.offsetHeight === 0) ||
                                (rect.width === 0 && rect.height === 0) ||
                                (style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none');
-
         if (isHidden && !isFeatureAllowed('iframeHidden')) {
-            addLog(`🚫 숨겨진/0x0 크기 iframe 차단됨: ${fullSrc.substring(0, 100)}...`);
+            addLog(`🚫 숨겨진/0x0 크기 iframe 숨김 처리됨: ${fullSrc.substring(0, 100)}...`);
             node.style.setProperty('display', 'none', 'important');
-            node.remove();
             return;
         }
 
@@ -995,8 +1004,58 @@
     });
   }
 
+  // 🚩 Shadow DOM 광고 탐지 로직
+  const checkAndRemoveShadowAds = (node) => {
+    if (node.shadowRoot) {
+      const allText = node.shadowRoot.textContent;
+      const matchedKeyword = AD_KEYWORDS.find(keyword => new RegExp(keyword, 'i').test(allText));
+      if (matchedKeyword) {
+        addLog(`🕵️‍♂️ Shadow DOM 내 광고 감지 (탐지): 키워드="${matchedKeyword}", HTML="${node.outerHTML.substring(0, 50)}..."`);
+      }
+    }
+  };
+
+  const scanForAds = () => {
+    document.querySelectorAll('*').forEach(node => {
+      if (node.nodeType === 1) {
+        // Shadow DOM 탐지
+        checkAndRemoveShadowAds(node);
+
+        // 일반 DOM 요소 탐지
+        const matchedKeyword = AD_KEYWORDS.find(keyword => {
+          const regex = new RegExp(keyword, 'i');
+          return regex.test(node.outerHTML) || (node.id && regex.test(node.id)) || (node.className && regex.test(node.className));
+        });
+
+        if (matchedKeyword) {
+          addLog(`🕵️‍♂️ DOM 광고 감지 (탐지): 키워드="${matchedKeyword}", HTML="${node.outerHTML.substring(0, 50)}..."`);
+        }
+      }
+    });
+  };
+
+  // 🚩 IntersectionObserver 오용 탐지 로직
+  const hijackIntersectionObserver = () => {
+    const originalObserve = IntersectionObserver.prototype.observe;
+    IntersectionObserver.prototype.observe = function(target, options) {
+      if (target && target.tagName) {
+        const matchedKeyword = AD_KEYWORDS.find(keyword => new RegExp(keyword, 'i').test(target.outerHTML));
+        if (matchedKeyword) {
+          addLog(`🛑 IntersectionObserver 오용 감지 (탐지): 키워드="${matchedKeyword}", HTML="${target.outerHTML.substring(0, 50)}..."`);
+        }
+      }
+      return originalObserve.call(this, target, options);
+    };
+    addLog(`✅ IntersectionObserver 탐지 활성화`);
+  };
+
+  // 🚩 스크립트 실행
   initPopupBlocker();
   initIframeBlocker();
   initSpeedSlider();
+
+  document.addEventListener('DOMContentLoaded', scanForAds);
+
+  hijackIntersectionObserver();
 
 })();
