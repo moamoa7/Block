@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.104
+// @version       4.0.106 (로그내역 줄바꿈)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -32,12 +32,12 @@
       return;
   }
   window.__MySuperScriptInitialized = true;
-
+  
   // 🚩 특정 기능만 예외적으로 허용할 도메인 목록
   // { '도메인명': ['예외기능1', '예외기능2'] } 형식으로 추가합니다.
   const EXCEPTION_LIST = {
   };
-
+  
   // 🚩 iframe 차단 로직을 건너뛸 도메인 목록
   const IFRAME_SKIP_DOMAINS = [
   ];
@@ -50,17 +50,16 @@
   const FORCE_BLOCK_POPUP_PATTERNS = [];
 
   // 🚩 postMessage 로그를 무시할 도메인
-  // 트위치에서 발생하는 반복적인 로그를 무시하도록 추가함
   const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
       'ok.ru',
       'twitch.tv',
       'ext-twitch.tv',
   ];
-
+  
   // 🚩 postMessage 로그를 무시할 패턴
   const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
       '{"event":"timeupdate"',
-      'twitch-ext-context', // 트위치 확장 기능에서 발생하는 반복적인 로그
+      'twitch-ext-context',
   ];
 
   const isFeatureAllowed = (featureName) => {
@@ -75,6 +74,7 @@
   let pendingLogs = [];
   let logDismissTimer = null;
   let isTopFrame = window.self === window.top;
+  const logHistory = []; // 🚩 로그를 저장할 배열 추가
 
   function createLogBox() {
     if (document.getElementById('popupBlockerLogContainer')) {
@@ -100,7 +100,7 @@
       transition: opacity 0.3s ease;
       box-shadow: 0 0 8px #000;
     `;
-
+    
     // 🚩 수정된 부분: iframe에서는 로그 창을 강제로 숨김
     if (!isTopFrame) {
       logBoxContainer.style.display = 'none';
@@ -125,8 +125,10 @@
       opacity: 0.8;
     `;
     copyBtn.onclick = () => {
-        if (logContentBox.textContent.trim()) {
-            navigator.clipboard.writeText(logContentBox.textContent.trim())
+        // 🚩 수정된 부분: logHistory 배열의 내용을 복사
+        if (logHistory.length > 0) {
+            const logText = logHistory.join('\n');
+            navigator.clipboard.writeText(logText)
                 .then(() => {
                     copyBtn.textContent = '복사 완료!';
                     setTimeout(() => copyBtn.textContent = '로그 복사', 2000);
@@ -178,6 +180,12 @@
 
   function addLogToBox(msg) {
       if (!logContentBox) return;
+      
+      const logText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logHistory.push(logText); // 🚩 로그를 배열에 저장
+      if (logHistory.length > 50) { // 로그 개수 제한
+          logHistory.shift();
+      }
 
       logBoxContainer.style.opacity = '1';
       logBoxContainer.style.pointerEvents = 'auto';
@@ -186,9 +194,9 @@
       if (logContentBox.childElementCount >= MAX_LOGS) {
           logContentBox.removeChild(logContentBox.firstChild);
       }
-
+      
       const entry = document.createElement('div');
-      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      entry.textContent = logText;
       entry.style.textAlign = 'left';
       logContentBox.appendChild(entry);
       logContentBox.scrollTop = logContentBox.scrollHeight;
@@ -456,7 +464,7 @@
         return originalClick.call(this);
       };
     }
-
+    
     const origAttachShadow = Element.prototype.attachShadow;
     if (origAttachShadow) {
         Element.prototype.attachShadow = function(init) {
@@ -716,7 +724,7 @@
     const processIframe = (node, trigger) => {
       if (processedIframes.has(node)) { return; }
       processedIframes.add(node);
-
+      
       const rawSrc = node.getAttribute('src') || node.src || '';
       let fullSrc = rawSrc;
       const lazySrc = node.getAttribute('data-lazy-src');
@@ -731,24 +739,16 @@
       // 🚩 여기에 강제 iframe 차단 패턴을 추가합니다.
       // uBlock Origin으로 차단되지 않는 광고나 특정 iframe의 패턴을 추가하세요.
       const forceBlockPatterns = [
-        '/ads/',
-        'adsbygoogle',
-        'google_ads_frame',
-        'googletagmanager.com',
-        'doubleclick',
-        '/smartpop/',
-        '/widgets/',
-        'home_iframead',
-        'col-12 col-sm-12 col-md-12 col-lg-12 col-xl-3 d-none d-xl-block',
-        's.amazon-adsystem.com',
-	      'loader.fmkorea.com/_loader/',
-        // 여기에 차단하고 싶은 iframe 주소의 일부를 추가하세요.
+          'adsbygoogle',
+          'google_ads_frame',
+          'doubleclick.net',
+          // 여기에 차단하고 싶은 iframe 주소의 일부를 추가하세요.
       ];
 
       const isForcedBlocked = forceBlockPatterns.some(pattern => {
           return fullSrc.includes(pattern) || iframeId.includes(pattern) || iframeClasses.includes(pattern) || parentId.includes(pattern) || parentClasses.includes(pattern);
       });
-
+      
       if (isForcedBlocked) {
           addLog(`🚫 iframe 강제 차단됨 (패턴 일치) [id: "${iframeId}", class: "${iframeClasses}", parent_id: "${parentId}", parent_class: "${parentClasses}"]: ${fullSrc}`);
           node.remove();
@@ -762,7 +762,7 @@
         node.remove();
         return;
       }
-
+      
       addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
     };
 
@@ -829,7 +829,7 @@
         if (valueDisplay) {
             valueDisplay.textContent = `x${speed.toFixed(1)}`;
         }
-
+        
         // 지연 시간을 두어 playbackRate 변경을 안정화
         if (playbackUpdateTimer) clearTimeout(playbackUpdateTimer);
         playbackUpdateTimer = setTimeout(() => {
@@ -924,7 +924,7 @@
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'vm-speed-toggle-btn';
         toggleBtn.textContent = '🔼';
-
+        
         let isMinimized = true;
 
         const updateToggleButton = () => {
@@ -949,7 +949,7 @@
         container.appendChild(slider);
         container.appendChild(valueDisplay);
         container.appendChild(toggleBtn);
-
+        
         updateToggleButton();
         return container;
     };
@@ -970,7 +970,7 @@
             }
         }
     };
-
+    
     document.addEventListener('fullscreenchange', () => {
         const fsEl = document.fullscreenElement;
         if (fsEl) fsEl.appendChild(container);
@@ -982,12 +982,12 @@
     } else {
         checkVideosAndDisplay();
     }
-
+    
     new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
       childList: true, subtree: true
     });
   }
-
+  
   initPopupBlocker();
   initIframeBlocker();
   initSpeedSlider();
