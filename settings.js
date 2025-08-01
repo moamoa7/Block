@@ -54,13 +54,13 @@
   const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
       'ok.ru',
       'twitch.tv',
-      //'ext-twitch.tv',
+      'ext-twitch.tv',
   ];
 
   // 🚩 postMessage 로그를 무시할 패턴
   const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
       '{"event":"timeupdate"',
-      //'twitch-ext-context', // 트위치 확장 기능에서 발생하는 반복적인 로그
+      'twitch-ext-context', // 트위치 확장 기능에서 발생하는 반복적인 로그
   ];
 
   const isFeatureAllowed = (featureName) => {
@@ -731,10 +731,18 @@
       // 🚩 여기에 강제 iframe 차단 패턴을 추가합니다.
       // uBlock Origin으로 차단되지 않는 광고나 특정 iframe의 패턴을 추가하세요.
       const forceBlockPatterns = [
-          'adsbygoogle',
-          'google_ads_frame',
-          'doubleclick.net',
-          // 여기에 차단하고 싶은 iframe 주소의 일부를 추가하세요.
+        '/ads/',
+        'adsbygoogle',
+        'google_ads_frame',
+        'googletagmanager.com',
+        'doubleclick',
+        '/smartpop/',
+        '/widgets/',
+        'home_iframead',
+        'col-12 col-sm-12 col-md-12 col-lg-12 col-xl-3 d-none d-xl-block',
+        's.amazon-adsystem.com',
+	      'loader.fmkorea.com/_loader/',
+        // 여기에 차단하고 싶은 iframe 주소의 일부를 추가하세요.
       ];
 
       const isForcedBlocked = forceBlockPatterns.some(pattern => {
