@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.65 // 로그내역 복사하기 버튼 추가
+// @version       4.0.72
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -12,14 +12,12 @@
   'use strict';
 
   // 🚩 최상단에서 스크립트 전체 실행 여부 결정
-  // 이 스크립트의 모든 기능을 끄고 싶은 도메인/패턴을 아래 WHITELIST에 추가하세요. (브라우저 주소 넣어야 함)
-  // www.google.com/recaptcha/ 제외
   const WHITELIST = [
     'challenges.cloudflare.com',
     'accounting.auction.co.kr',
     'buy.auction.co.kr',
     'recaptcha',
-    '/e/',  // streamtape.com/e/
+    '/e/',
   ];
 
   const hostname = location.hostname;
@@ -28,47 +26,32 @@
   );
 
   if (IS_ENTIRE_SCRIPT_ALLOWED) {
-    return; // WHITELIST에 있으면 스크립트 전체를 종료
+    return;
   }
 
-  // 이 아래부터는 WHITELIST에 없는 도메인에서만 실행됩니다.
   if (window.__MySuperScriptInitialized) {
       return;
   }
   window.__MySuperScriptInitialized = true;
 
-  // 🚩 사용자 설정: 특정 도메인에서 개별 차단 기능을 해제합니다.
-  //    '도메인': ['기능이름', '기능이름', ...], 형태로 추가하세요.
-  //    - 'windowOpen': window.open 차단 해제
-  //    - 'formSubmit': form.submit() 차단 해제
-  //    - 'beforeunload': beforeunload 차단 해제
-  //    - 'layerTrap': 레이어 클릭 덫 차단 해제
-  //    - 'iframeHidden': 숨겨진 iframe 차단 해제
-  //    - 'iframeBase64': Base64 iframe 차단 해제
-  //    - 'iframeBlank': 'about:blank' iframe 차단 해제
   const EXCEPTION_LIST = {
-      // 예시: 'auction.co.kr': ['formSubmit', 'windowOpen'],
-      // 예시: 'safe-site.com': ['beforeunload'],
-      // 예시: 'example.com': ['iframeHidden', 'iframeBase64'],
     'cineaste.co.kr':['formSubmit'],
     'nid.naver.com':['formSubmit'],
     'xo.nate.com':['formSubmit'],
     'www.nate.com':['formSubmit'],
-    'accounts.kakao.com':['iframeHidden']
+    'accounts.kakao.com':['iframeHidden'],
+    'www.youtube.com':['iframeHidden'],
+    'translate.google.co.kr':['iframeHidden'],
   };
 
-  // 프레임 차단 제외할 도메인 (iframe 차단 로직 자체를 건너뛸 도메인)
   const IFRAME_SKIP_DOMAINS = [
   ];
 
-  // 프레임 차단 제외할 패턴 형식
   const IFRAME_WHITELIST = [
   ];
 
-  // 새탭/새창 유발 및 iframe 혹은 차단을 원하는 도메인/패턴
   const FORCE_BLOCK_POPUP_PATTERNS = [];
 
-  // postMessage 로깅 시 무시할 도메인 및 패턴
   const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
       'ok.ru',
   ];
@@ -101,7 +84,7 @@
       position: fixed;
       bottom: 0;
       right: 0;
-      max-height: 100px; /* <--- 수정된 부분 */
+      max-height: 100px;
       width: 350px;
       z-index: 9999998;
       border-top-left-radius: 8px;
@@ -156,7 +139,7 @@
       font-size: 14px;
       overflow-y: auto;
       padding: 8px;
-      padding-top: 25px; /* 버튼 공간 확보 */
+      padding-top: 25px;
       user-select: text;
     `;
 
@@ -678,7 +661,6 @@
       if (processedIframes.has(node)) { return; }
       processedIframes.add(node);
 
-      // 🚩 Base64 iframe 차단 (개별 해제 가능)
       if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
         addLog(`🚫 Base64 인코딩된 iframe 차단됨: ${node.src.substring(0, 100)}...`);
         node.style.setProperty('display', 'none', 'important');
@@ -686,7 +668,6 @@
         return;
       }
 
-      // 🚩 'about:blank' iframe 차단 (개별 해제 가능)
       if (node.src?.startsWith('about:blank') && !node.hasAttribute('sandbox') && !isFeatureAllowed('iframeBlank')) {
           addLog(`🚫 'about:blank' & sandbox 없는 iframe 차단됨 (스크립트 주입 의심): ${node.outerHTML.substring(0, 100)}...`);
           node.style.setProperty('display', 'none', 'important');
@@ -746,7 +727,6 @@
                                (rect.width === 0 && rect.height === 0) ||
                                (style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none');
 
-        // 🚩 숨겨진 iframe 차단 (개별 해제 가능)
         if (isHidden && !isFeatureAllowed('iframeHidden')) {
             addLog(`🚫 숨겨진/0x0 크기 iframe 차단됨: ${fullSrc.substring(0, 100)}...`);
             node.style.setProperty('display', 'none', 'important');
@@ -797,155 +777,185 @@
     });
   }
 
+  // --- 배속 조절기 함수 최종 수정 ---
   function initSpeedSlider() {
     if (window.__vmSpeedSliderInjectedInThisFrame) return;
     window.__vmSpeedSliderInjectedInThisFrame = true;
 
-    const container = document.createElement('div');
     const sliderId = 'vm-speed-slider-container';
-    container.id = sliderId;
+    let container = document.getElementById(sliderId);
+    let playbackUpdateTimer = null;
 
-    const style = document.createElement('style');
-    style.textContent = `
-      #${sliderId} {
-        position: fixed;
-        top: 50%;
-        right: 0;
-        transform: translateY(-50%);
-        background: rgba(0, 0, 0, 0.0);
-        padding: 10px 8px;
-        border-radius: 8px 0 0 8px;
-        z-index: 2147483647 !important;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 50px;
-        height: auto;
-        font-family: sans-serif;
-        pointer-events: auto;
-        opacity: 0.3;
-        transition: opacity 0.3s;
-        user-select: none;
-        box-shadow: 0 0 5px rgba(0,0,0,0.0);
-      }
-      #${sliderId}:hover { opacity: 1; }
-      #vm-speed-reset-btn {
-        background: #444; border: none; border-radius: 4px; color: white;
-        font-size: 14px; padding: 4px 6px; cursor: pointer;
-        margin-bottom: 8px; width: 40px; height: 30px; font-weight: bold;
-      }
-      #vm-speed-reset-btn:hover { background: #666; }
-      #vm-speed-slider {
-        writing-mode: vertical-rl;
-        appearance: slider-vertical;
-        width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer;
-        background: #555;
-        border-radius: 5px;
-      }
-      #vm-speed-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 20px;
-          height: 20px;
-          background: #f44336;
-          border-radius: 50%;
-          cursor: pointer;
-          border: 1px solid #ddd;
-      }
-      #vm-speed-slider::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          background: #f44336;
-          border-radius: 50%;
-          cursor: pointer;
-          border: 1px solid #ddd;
-      }
-      #vm-speed-value { color: red; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
-      #vm-speed-toggle-btn {
-        background: transparent;
-        border: none;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        margin-top: 4px;
-      }
-      #vm-speed-toggle-btn:hover { color: #ccc; }
-    `;
-    document.head.appendChild(style);
-
-    const resetBtn = document.createElement('button');
-    resetBtn.id = 'vm-speed-reset-btn';
-    resetBtn.textContent = '1x';
-
-    const slider = document.createElement('input');
-    slider.type = 'range';
-    slider.min = '0.2';
-    slider.max = '4.0';
-    slider.step = '0.2';
-    slider.value = '1.0';
-    slider.id = 'vm-speed-slider';
-
-    const valueDisplay = document.createElement('div');
-    valueDisplay.id = 'vm-speed-value';
-    valueDisplay.textContent = 'x1.0';
-
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'vm-speed-toggle-btn';
-
-    let isMinimized = true;
-
-    slider.style.display = 'none';
-    resetBtn.style.display = 'none';
-    valueDisplay.style.display = 'none';
-    toggleBtn.textContent = '🔼';
-
-    toggleBtn.addEventListener('click', () => {
-      isMinimized = !isMinimized;
-      slider.style.display = isMinimized ? 'none' : '';
-      resetBtn.style.display = isMinimized ? 'none' : '';
-      valueDisplay.style.display = isMinimized ? 'none' : '';
-      toggleBtn.textContent = isMinimized ? '🔼' : '🔽';
-    });
-
-    const updateSpeed = (val) => {
-      const speed = parseFloat(val);
-      valueDisplay.textContent = `x${speed.toFixed(1)}`;
-      document.querySelectorAll('video').forEach(video => {
-        video.playbackRate = speed;
-      });
+    const updateVideoSpeed = (speed) => {
+        const videoElements = document.querySelectorAll('video');
+        if (videoElements.length > 0) {
+            videoElements.forEach(video => {
+                video.playbackRate = speed;
+            });
+        }
     };
 
-    slider.addEventListener('input', () => updateSpeed(slider.value));
-    resetBtn.addEventListener('click', () => {
-      slider.value = '1';
-      updateSpeed('1');
-    });
+    const onSliderChange = (val) => {
+        const speed = parseFloat(val);
+        const valueDisplay = document.getElementById('vm-speed-value');
+        if (valueDisplay) {
+            valueDisplay.textContent = `x${speed.toFixed(1)}`;
+        }
+
+        // 지연 시간을 두어 playbackRate 변경을 안정화
+        if (playbackUpdateTimer) clearTimeout(playbackUpdateTimer);
+        playbackUpdateTimer = setTimeout(() => {
+            updateVideoSpeed(speed);
+        }, 100);
+    };
+
+    const createSliderElements = () => {
+        container = document.createElement('div');
+        container.id = sliderId;
+
+        const style = document.createElement('style');
+        style.textContent = `
+            #${sliderId} {
+                position: fixed;
+                top: 50%;
+                right: 0;
+                transform: translateY(-50%);
+                background: rgba(0, 0, 0, 0.0);
+                padding: 10px 8px;
+                border-radius: 8px 0 0 8px;
+                z-index: 2147483647 !important;
+                display: none; /* 초기 상태는 숨겨져 있음 */
+                flex-direction: column;
+                align-items: center;
+                width: 50px;
+                height: auto;
+                font-family: sans-serif;
+                pointer-events: auto;
+                opacity: 0.3;
+                transition: opacity 0.3s;
+                user-select: none;
+                box-shadow: 0 0 5px rgba(0,0,0,0.0);
+            }
+            #${sliderId}:hover { opacity: 1; }
+            #vm-speed-reset-btn {
+                background: #444; border: none; border-radius: 4px; color: white;
+                font-size: 14px; padding: 4px 6px; cursor: pointer;
+                margin-bottom: 8px; width: 40px; height: 30px; font-weight: bold;
+            }
+            #vm-speed-reset-btn:hover { background: #666; }
+            #vm-speed-slider {
+                writing-mode: vertical-rl;
+                appearance: slider-vertical;
+                width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer;
+                background: #555;
+                border-radius: 5px;
+            }
+            #vm-speed-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 20px;
+                height: 20px;
+                background: #f44336;
+                border-radius: 50%;
+                cursor: pointer;
+                border: 1px solid #ddd;
+            }
+            #vm-speed-slider::-moz-range-thumb {
+                width: 20px;
+                height: 20px;
+                background: #f44336;
+                border-radius: 50%;
+                cursor: pointer;
+                border: 1px solid #ddd;
+            }
+            #vm-speed-value { color: red; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
+            #vm-speed-toggle-btn {
+                background: transparent;
+                border: none;
+                color: white;
+                font-size: 18px;
+                cursor: pointer;
+                margin-top: 4px;
+            }
+            #vm-speed-toggle-btn:hover { color: #ccc; }
+        `;
+        document.head.appendChild(style);
+
+        const resetBtn = document.createElement('button');
+        resetBtn.id = 'vm-speed-reset-btn';
+        resetBtn.textContent = '1x';
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0.2';
+        slider.max = '4.0';
+        slider.step = '0.2';
+        slider.value = '1.0';
+        slider.id = 'vm-speed-slider';
+        const valueDisplay = document.createElement('div');
+        valueDisplay.id = 'vm-speed-value';
+        valueDisplay.textContent = 'x1.0';
+        const toggleBtn = document.createElement('button');
+        toggleBtn.id = 'vm-speed-toggle-btn';
+        toggleBtn.textContent = '🔼';
+
+        let isMinimized = true;
+
+        const updateToggleButton = () => {
+            slider.style.display = isMinimized ? 'none' : '';
+            resetBtn.style.display = isMinimized ? 'none' : '';
+            valueDisplay.style.display = isMinimized ? 'none' : '';
+            toggleBtn.textContent = isMinimized ? '🔼' : '🔽';
+        };
+
+        toggleBtn.addEventListener('click', () => {
+            isMinimized = !isMinimized;
+            updateToggleButton();
+        });
+
+        slider.addEventListener('input', () => onSliderChange(slider.value));
+        resetBtn.addEventListener('click', () => {
+            slider.value = '1.0';
+            onSliderChange('1.0');
+        });
+
+        container.appendChild(resetBtn);
+        container.appendChild(slider);
+        container.appendChild(valueDisplay);
+        container.appendChild(toggleBtn);
+
+        updateToggleButton();
+        return container;
+    };
+
+    const checkVideosAndDisplay = () => {
+        const videoElements = document.querySelectorAll('video');
+        if (videoElements.length > 0) {
+            if (!container) {
+                container = createSliderElements();
+                document.body.appendChild(container);
+            }
+            container.style.display = 'flex';
+            const slider = document.getElementById('vm-speed-slider');
+            updateVideoSpeed(slider ? slider.value : '1.0');
+        } else {
+            if (container) {
+                container.style.display = 'none';
+            }
+        }
+    };
 
     document.addEventListener('fullscreenchange', () => {
-      const fsEl = document.fullscreenElement;
-      if (fsEl) fsEl.appendChild(container);
-      else if (document.body && !document.body.contains(container)) document.body.appendChild(container);
+        const fsEl = document.fullscreenElement;
+        if (fsEl) fsEl.appendChild(container);
+        else checkVideosAndDisplay();
     });
 
-    const updateSliderVisibility = () => {
-      const hasVideo = document.querySelectorAll('video').length > 0;
-      container.style.display = hasVideo ? 'flex' : 'none';
-    };
-
-    const append = () => {
-        if (document.body && !document.body.contains(container)) {
-            document.body.appendChild(container);
-        }
-        updateSliderVisibility();
-        updateSpeed(slider.value);
-    };
-
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', append);
+        document.addEventListener('DOMContentLoaded', checkVideosAndDisplay);
     } else {
-        append();
+        checkVideosAndDisplay();
     }
 
-    new MutationObserver(updateSliderVisibility).observe(document.documentElement, {
+    new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
       childList: true, subtree: true
     });
   }
