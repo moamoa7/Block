@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.95
+// @version       4.0.98
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -37,7 +37,7 @@
   // { '도메인명': ['예외기능1', '예외기능2'] } 형식으로 추가합니다.
   const EXCEPTION_LIST = {
   };
-  
+
   // 🚩 iframe 차단 로직을 건너뛸 도메인 목록
   const IFRAME_SKIP_DOMAINS = [
   ];
@@ -53,7 +53,7 @@
   const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
       'ok.ru',
   ];
-  
+
   // 🚩 postMessage 로그를 무시할 패턴
   const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
       '{"event":"timeupdate"',
@@ -167,15 +167,15 @@
 
   function addLogToBox(msg) {
       if (!logContentBox) return;
-      
+
       logBoxContainer.style.opacity = '1';
-      logBoxContainer.style.pointer-events = 'auto';
+      logBoxContainer.style.pointerEvents = 'auto';
 
       const MAX_LOGS = 50;
       if (logContentBox.childElementCount >= MAX_LOGS) {
           logContentBox.removeChild(logContentBox.firstChild);
       }
-      
+
       const entry = document.createElement('div');
       entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
       entry.style.textAlign = 'left';
@@ -187,7 +187,7 @@
       }
       logDismissTimer = setTimeout(() => {
           logBoxContainer.style.opacity = '0';
-          logBoxContainer.style.pointer-events = 'none';
+          logBoxContainer.style.pointerEvents = 'none';
       }, 10000); // 10초 후에 사라짐
   }
 
@@ -425,7 +425,7 @@
         return originalClick.call(this);
       };
     }
-    
+
     const origAttachShadow = Element.prototype.attachShadow;
     if (origAttachShadow) {
         Element.prototype.attachShadow = function(init) {
@@ -685,7 +685,7 @@
     const processIframe = (node, trigger) => {
       if (processedIframes.has(node)) { return; }
       processedIframes.add(node);
-      
+
       const rawSrc = node.getAttribute('src') || node.src || '';
       let fullSrc = rawSrc;
       const lazySrc = node.getAttribute('data-lazy-src');
@@ -699,7 +699,7 @@
         node.remove();
         return;
       }
-      
+
       addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
     };
 
@@ -766,7 +766,7 @@
         if (valueDisplay) {
             valueDisplay.textContent = `x${speed.toFixed(1)}`;
         }
-        
+
         // 지연 시간을 두어 playbackRate 변경을 안정화
         if (playbackUpdateTimer) clearTimeout(playbackUpdateTimer);
         playbackUpdateTimer = setTimeout(() => {
@@ -861,7 +861,7 @@
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'vm-speed-toggle-btn';
         toggleBtn.textContent = '🔼';
-        
+
         let isMinimized = true;
 
         const updateToggleButton = () => {
@@ -886,7 +886,7 @@
         container.appendChild(slider);
         container.appendChild(valueDisplay);
         container.appendChild(toggleBtn);
-        
+
         updateToggleButton();
         return container;
     };
@@ -907,7 +907,7 @@
             }
         }
     };
-    
+
     document.addEventListener('fullscreenchange', () => {
         const fsEl = document.fullscreenElement;
         if (fsEl) fsEl.appendChild(container);
@@ -919,12 +919,12 @@
     } else {
         checkVideosAndDisplay();
     }
-    
+
     new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
       childList: true, subtree: true
     });
   }
-  
+
   initPopupBlocker();
   initIframeBlocker();
   initSpeedSlider();
