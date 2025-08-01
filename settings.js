@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.100
+// @version       4.0.104
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -50,13 +50,17 @@
   const FORCE_BLOCK_POPUP_PATTERNS = [];
 
   // 🚩 postMessage 로그를 무시할 도메인
+  // 트위치에서 발생하는 반복적인 로그를 무시하도록 추가함
   const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
       'ok.ru',
+      'twitch.tv',
+      //'ext-twitch.tv',
   ];
 
   // 🚩 postMessage 로그를 무시할 패턴
   const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
       '{"event":"timeupdate"',
+      //'twitch-ext-context', // 트위치 확장 기능에서 발생하는 반복적인 로그
   ];
 
   const isFeatureAllowed = (featureName) => {
@@ -70,6 +74,7 @@
   let logContentBox = null;
   let pendingLogs = [];
   let logDismissTimer = null;
+  let isTopFrame = window.self === window.top;
 
   function createLogBox() {
     if (document.getElementById('popupBlockerLogContainer')) {
@@ -95,6 +100,12 @@
       transition: opacity 0.3s ease;
       box-shadow: 0 0 8px #000;
     `;
+
+    // 🚩 수정된 부분: iframe에서는 로그 창을 강제로 숨김
+    if (!isTopFrame) {
+      logBoxContainer.style.display = 'none';
+      logBoxContainer.style.pointerEvents = 'none';
+    }
 
     const copyBtn = document.createElement('button');
     copyBtn.textContent = '로그 복사';
@@ -192,12 +203,32 @@
   }
 
   function addLog(msg) {
-    if (isLogBoxReady) {
-        addLogToBox(msg);
+    if (isTopFrame) {
+      if (isLogBoxReady) {
+          addLogToBox(msg);
+      } else {
+          pendingLogs.push(msg);
+          console.warn(`[MyScript Log - Pending/Debug] ${msg}`);
+      }
     } else {
-        pendingLogs.push(msg);
-        console.warn(`[MyScript Log - Pending/Debug] ${msg}`);
+        try {
+            window.parent.postMessage({ type: 'MY_SCRIPT_LOG', message: msg }, '*');
+        } catch (e) {
+            // 🚩 수정된 부분: iframe에서 postMessage 실패 시 로그 창을 강제로 숨김
+            if (logBoxContainer) {
+              logBoxContainer.style.display = 'none';
+            }
+            console.warn(`[MyScript Log - iframe error] ${msg}`);
+        }
     }
+  }
+
+  if (isTopFrame) {
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'MY_SCRIPT_LOG') {
+        addLog(event.data.message);
+      }
+    });
   }
 
   createLogBox();
@@ -695,7 +726,7 @@
       const iframeId = node.id || '';
       const iframeClasses = node.className || '';
       const parentId = node.parentElement ? node.parentElement.id || '' : '';
-      const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
+      const parentClasses = node.parentElement ? node.parentElement.className || '' || node.parentElement.className : '';
 
       // 🚩 여기에 강제 iframe 차단 패턴을 추가합니다.
       // uBlock Origin으로 차단되지 않는 광고나 특정 iframe의 패턴을 추가하세요.
