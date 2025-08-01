@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.90
+// @version       4.0.95
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -12,13 +12,11 @@
   'use strict';
 
   // 🚩 최상단에서 스크립트 전체 실행 여부 결정
+  // 스크립트 실행이 문제를 일으키는 도메인을 추가합니다.
   const WHITELIST = [
     'challenges.cloudflare.com',
-    'accounting.auction.co.kr',
-    'buy.auction.co.kr',
     'recaptcha',
-    '/e/',  // streamtape.com/e/
-    'login.sooplive.co.kr',
+    '/e/',
   ];
 
   const hostname = location.hostname;
@@ -35,33 +33,28 @@
   }
   window.__MySuperScriptInitialized = true;
 
+  // 🚩 특정 기능만 예외적으로 허용할 도메인 목록
+  // { '도메인명': ['예외기능1', '예외기능2'] } 형식으로 추가합니다.
   const EXCEPTION_LIST = {
-    'cineaste.co.kr':['formSubmit'],
-    'nid.naver.com':['formSubmit'],
-    'xo.nate.com':['formSubmit'],
-    'www.nate.com':['formSubmit'],
-    'accounts.kakao.com':['iframeHidden'],
-    'www.youtube.com':['iframeHidden', 'fullscreen', 'location'],
-    'translate.google.co.kr':['iframeHidden'],
-    'auth.openai.com':['iframeHidden'],
-    'mypikpak.com':['iframeHidden'],
   };
-
-  // 🚩 광고 탐지 키워드 리스트
-  const AD_KEYWORDS = ['ad', 'ads', 'banner', 'popup', 'promotion', '광고', '배너', '스폰서', 'advertisement'];
-  const AD_REGEX = new RegExp(`(${AD_KEYWORDS.join('|')})`, 'i');
-
+  
+  // 🚩 iframe 차단 로직을 건너뛸 도메인 목록
   const IFRAME_SKIP_DOMAINS = [
   ];
 
+  // 🚩 iframe 중 특정 조건에 관계없이 항상 허용할 목록 (현재 미사용)
   const IFRAME_WHITELIST = [
   ];
 
+  // 🚩 window.open()을 무조건 차단할 패턴
   const FORCE_BLOCK_POPUP_PATTERNS = [];
 
+  // 🚩 postMessage 로그를 무시할 도메인
   const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
       'ok.ru',
   ];
+  
+  // 🚩 postMessage 로그를 무시할 패턴
   const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
       '{"event":"timeupdate"',
   ];
@@ -174,15 +167,15 @@
 
   function addLogToBox(msg) {
       if (!logContentBox) return;
-
+      
       logBoxContainer.style.opacity = '1';
-      logBoxContainer.style.pointerEvents = 'auto'; // 수정된 부분: pointer-events -> pointerEvents
+      logBoxContainer.style.pointer-events = 'auto';
 
       const MAX_LOGS = 50;
       if (logContentBox.childElementCount >= MAX_LOGS) {
           logContentBox.removeChild(logContentBox.firstChild);
       }
-
+      
       const entry = document.createElement('div');
       entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
       entry.style.textAlign = 'left';
@@ -194,7 +187,7 @@
       }
       logDismissTimer = setTimeout(() => {
           logBoxContainer.style.opacity = '0';
-          logBoxContainer.style.pointerEvents = 'none'; // 수정된 부분: pointer-events -> pointerEvents
+          logBoxContainer.style.pointer-events = 'none';
       }, 10000); // 10초 후에 사라짐
   }
 
@@ -423,33 +416,16 @@
     };
 
     if (!isFeatureAllowed('windowOpen')) {
-        const originalClick = HTMLElement.prototype.click;
-        HTMLElement.prototype.click = function () {
-            const suspicious = this.tagName === 'A' && this.href && (AD_REGEX.test(this.href));
-            if (suspicious) {
-                addLog(`🚫 JS로 만든 링크 click() 탐지: ${this.href}`);
-                return;
-            }
-            return originalClick.call(this);
-        };
-    }
-
-    if (!isFeatureAllowed('formSubmit')) {
-        const originalSubmit = HTMLFormElement.prototype.submit;
-        HTMLFormElement.prototype.submit = function () {
-            addLog('🚫 JS로 form.submit() 차단');
+      const originalClick = HTMLElement.prototype.click;
+      HTMLElement.prototype.click = function () {
+        if (this.tagName === 'A' && this.href) {
+            addLog(`🚫 JS로 만든 링크 click() 탐지 및 차단됨: ${this.href}`);
             return;
-        };
+        }
+        return originalClick.call(this);
+      };
     }
-
-    const originalDocumentWrite = document.write;
-    const originalDocumentWriteln = document.writeln;
-
-    document.write = document.writeln = function(...args) {
-      addLog('🚫 document.write/writeln 호출 감지됨 (광고/피싱 의심)');
-      console.warn('🚫 document.write/writeln 호출 감지됨:', ...args);
-    };
-
+    
     const origAttachShadow = Element.prototype.attachShadow;
     if (origAttachShadow) {
         Element.prototype.attachShadow = function(init) {
@@ -709,7 +685,7 @@
     const processIframe = (node, trigger) => {
       if (processedIframes.has(node)) { return; }
       processedIframes.add(node);
-
+      
       const rawSrc = node.getAttribute('src') || node.src || '';
       let fullSrc = rawSrc;
       const lazySrc = node.getAttribute('data-lazy-src');
@@ -723,8 +699,7 @@
         node.remove();
         return;
       }
-
-      // uBlock Origin 호환성을 위해 'about:blank' 및 숨겨진 iframe 차단 로직 삭제
+      
       addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
     };
 
@@ -791,7 +766,7 @@
         if (valueDisplay) {
             valueDisplay.textContent = `x${speed.toFixed(1)}`;
         }
-
+        
         // 지연 시간을 두어 playbackRate 변경을 안정화
         if (playbackUpdateTimer) clearTimeout(playbackUpdateTimer);
         playbackUpdateTimer = setTimeout(() => {
@@ -886,7 +861,7 @@
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'vm-speed-toggle-btn';
         toggleBtn.textContent = '🔼';
-
+        
         let isMinimized = true;
 
         const updateToggleButton = () => {
@@ -911,7 +886,7 @@
         container.appendChild(slider);
         container.appendChild(valueDisplay);
         container.appendChild(toggleBtn);
-
+        
         updateToggleButton();
         return container;
     };
@@ -932,7 +907,7 @@
             }
         }
     };
-
+    
     document.addEventListener('fullscreenchange', () => {
         const fsEl = document.fullscreenElement;
         if (fsEl) fsEl.appendChild(container);
@@ -944,15 +919,12 @@
     } else {
         checkVideosAndDisplay();
     }
-
+    
     new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
       childList: true, subtree: true
     });
   }
-
-  // 🚩 Shadow DOM 광고 탐지 로직 (제거)
-  // 🚩 IntersectionObserver 오용 탐지 로직 (제거)
-  // 🚩 스크립트 실행
+  
   initPopupBlocker();
   initIframeBlocker();
   initSpeedSlider();
