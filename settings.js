@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.98
+// @version       4.0.100
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
 // @match         *://*/*
 // @grant         none
@@ -692,7 +692,31 @@
       if (lazySrc) { fullSrc = lazySrc; }
       try { fullSrc = new URL(fullSrc, location.href).href; } catch {}
 
-      addLog(`🛑 iframe 감지됨 (${trigger}): ${fullSrc}`);
+      const iframeId = node.id || '';
+      const iframeClasses = node.className || '';
+      const parentId = node.parentElement ? node.parentElement.id || '' : '';
+      const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
+
+      // 🚩 여기에 강제 iframe 차단 패턴을 추가합니다.
+      // uBlock Origin으로 차단되지 않는 광고나 특정 iframe의 패턴을 추가하세요.
+      const forceBlockPatterns = [
+          'adsbygoogle',
+          'google_ads_frame',
+          'doubleclick.net',
+          // 여기에 차단하고 싶은 iframe 주소의 일부를 추가하세요.
+      ];
+
+      const isForcedBlocked = forceBlockPatterns.some(pattern => {
+          return fullSrc.includes(pattern) || iframeId.includes(pattern) || iframeClasses.includes(pattern) || parentId.includes(pattern) || parentClasses.includes(pattern);
+      });
+
+      if (isForcedBlocked) {
+          addLog(`🚫 iframe 강제 차단됨 (패턴 일치) [id: "${iframeId}", class: "${iframeClasses}", parent_id: "${parentId}", parent_class: "${parentClasses}"]: ${fullSrc}`);
+          node.remove();
+          return;
+      }
+
+      addLog(`🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}", parent_id: "${parentId}", parent_class: "${parentClasses}"]: ${fullSrc}`);
 
       if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
         addLog(`🚫 Base64 인코딩된 iframe 차단됨: ${node.src.substring(0, 100)}...`);
