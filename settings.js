@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.11 (iframe 로그 간소화)
+// @version       6.1.15 (TypeError: WeakMap.clear is not a function 해결)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -807,10 +807,17 @@ function initDragBar() {
     window.__vmDragBarInjectedInThisFrame = true;
 
     const timeDisplayId = 'vm-time-display';
-    let isDragging = false, startX = 0, isHorizontalDrag = false, totalTimeChange = 0, startY = 0;
-    let hideTimeDisplayTimer = null;
-    const DRAG_THRESHOLD = 10, TIME_CHANGE_SENSITIVITY = 2, VERTICAL_DRAG_THRESHOLD = 20;
-    let originalPointerEvents = null;
+    const dragState = {
+        isDragging: false,
+        isHorizontalDrag: false,
+        startX: 0,
+        startY: 0,
+        totalTimeChange: 0,
+        debounceTimer: null,
+        originalPointerEvents: new WeakMap(),
+    };
+
+    const DRAG_THRESHOLD = 10, TIME_CHANGE_SENSITIVITY = 2, VERTICAL_DRAG_THRESHOLD = 20, DEBOUNCE_DELAY = 100;
 
     const createTimeDisplay = () => {
         const newTimeDisplay = document.createElement('div');
@@ -836,10 +843,9 @@ function initDragBar() {
             dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
             dragBarTimeDisplay.style.display = 'block';
             dragBarTimeDisplay.style.opacity = '1';
-            if (hideTimeDisplayTimer) clearTimeout(hideTimeDisplayTimer);
         } else {
             dragBarTimeDisplay.style.opacity = '0';
-            hideTimeDisplayTimer = setTimeout(() => { dragBarTimeDisplay.style.display = 'none'; }, 300);
+            setTimeout(() => { dragBarTimeDisplay.style.display = 'none'; }, 300);
         }
     };
 
@@ -848,26 +854,24 @@ function initDragBar() {
     const handleStart = (e) => {
         if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
         const videos = findAllVideos();
-        // 동영상이 없거나 재생 중이 아닐 때는 드래그바 로직 비활성화
-        if (videos.length === 0 || videos.every(v => v.paused)) {
-            return;
-        }
+        if (videos.length === 0 || videos.every(v => v.paused)) return;
 
-        isDragging = true;
-        isHorizontalDrag = false;
+        // 드래그 시작 시 바로 기본 동작 차단
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        dragState.isDragging = true;
+        dragState.isHorizontalDrag = false;
         const pos = getPosition(e);
-        startX = pos.clientX;
-        startY = pos.clientY; // 세로 드래그 감지를 위해 추가
-        totalTimeChange = 0;
+        dragState.startX = pos.clientX;
+        dragState.startY = pos.clientY;
+        dragState.totalTimeChange = 0;
 
         if (e.button === 2) return;
-
-        // 터치 시작 시 바로 preventDefault를 호출하지 않고, 드래그가 시작될 때까지 기다림
-        // 이를 통해 탭(Tap) 이벤트는 플레이어의 기본 동작(UI 표시)을 유발할 수 있음
     };
 
     const handleMove = (e) => {
-        if (!isDragging) return;
+        if (!dragState.isDragging) return;
 
         const videos = findAllVideos();
         if (videos.length === 0) {
@@ -878,25 +882,23 @@ function initDragBar() {
         const pos = getPosition(e);
         const currentX = pos.clientX;
         const currentY = pos.clientY;
-        const dragDistanceX = currentX - startX;
-        const dragDistanceY = currentY - startY;
+        const dragDistanceX = currentX - dragState.startX;
+        const dragDistanceY = currentY - dragState.startY;
 
-        if (!isHorizontalDrag) {
+        if (!dragState.isHorizontalDrag) {
             const isHorizontalMovement = Math.abs(dragDistanceX) > Math.abs(dragDistanceY);
             const isPastThreshold = Math.abs(dragDistanceX) > DRAG_THRESHOLD || (e.touches && e.touches.length > 1);
 
-            // 수평 드래그 또는 두 손가락 터치 시 드래그바 활성화
             if (isPastThreshold && isHorizontalMovement) {
-                isHorizontalDrag = true;
+                dragState.isHorizontalDrag = true;
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 document.body.style.userSelect = 'none';
                 videos.forEach(video => {
-                    originalPointerEvents = video.style.pointerEvents;
+                    dragState.originalPointerEvents.set(video, video.style.pointerEvents);
                     video.style.pointerEvents = 'none';
                 });
             } else if (Math.abs(dragDistanceY) > VERTICAL_DRAG_THRESHOLD) {
-                // 세로 드래그가 감지되면 드래그바 로직을 취소하고 스크롤 허용
                 handleEnd();
                 return;
             } else {
@@ -904,46 +906,58 @@ function initDragBar() {
             }
         }
 
-        if (isHorizontalDrag) {
+        if (dragState.isHorizontalDrag) {
             e.preventDefault();
             e.stopImmediatePropagation();
 
             const timeChange = Math.round(dragDistanceX / TIME_CHANGE_SENSITIVITY);
 
             if (timeChange !== 0) {
-                totalTimeChange += timeChange;
-                updateTimeDisplay(totalTimeChange);
+                dragState.totalTimeChange += timeChange;
+                updateTimeDisplay(dragState.totalTimeChange);
 
-                videos.forEach(video => {
-                    if (video.duration && !isNaN(video.duration)) {
-                        video.currentTime += timeChange;
-                    }
-                });
-                startX = currentX;
+                if (dragState.debounceTimer) clearTimeout(dragState.debounceTimer);
+                dragState.debounceTimer = setTimeout(() => {
+                    videos.forEach(video => {
+                        if (video.duration && !isNaN(video.duration)) {
+                            video.currentTime += dragState.totalTimeChange;
+                        }
+                    });
+                    dragState.totalTimeChange = 0;
+                    dragState.startX = currentX;
+                }, DEBOUNCE_DELAY);
+
+                dragState.startX = currentX;
             }
         }
     };
 
     const handleEnd = (e) => {
-        if (!isDragging) return;
+        if (!dragState.isDragging) return;
 
-        // 드래그바 기능이 사용된 경우에만 UI 숨김
-        if (isHorizontalDrag) {
+        if (dragState.isHorizontalDrag) {
             updateTimeDisplay(0);
         }
 
-        isDragging = false;
-
         const videos = findAllVideos();
         videos.forEach(video => {
-             if (originalPointerEvents !== null) {
-                video.style.pointerEvents = originalPointerEvents;
+             if (dragState.originalPointerEvents.has(video)) {
+                video.style.pointerEvents = dragState.originalPointerEvents.get(video);
              }
         });
-        originalPointerEvents = null;
-        totalTimeChange = 0;
-        isHorizontalDrag = false;
-        document.body.style.userSelect = ''; // 드래그 종료 시 user-select 복구
+
+        // WeakMap 초기화 (clear() 대신 새 WeakMap 객체로 교체)
+        dragState.originalPointerEvents = new WeakMap();
+
+        if (dragState.debounceTimer) {
+            clearTimeout(dragState.debounceTimer);
+            dragState.debounceTimer = null;
+        }
+
+        dragState.isDragging = false;
+        dragState.totalTimeChange = 0;
+        dragState.isHorizontalDrag = false;
+        document.body.style.userSelect = '';
     };
 
     const handleFullscreenChange = () => {
@@ -972,6 +986,12 @@ function initDragBar() {
     document.addEventListener('mousedown', handleStart, { passive: false, capture: true });
     document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
     document.addEventListener('mouseup', handleEnd, { passive: false, capture: true });
+    document.addEventListener('mouseout', (e) => {
+        // 마우스가 브라우저 밖으로 나갔을 때 드래그 종료
+        if (e.relatedTarget === null) {
+            handleEnd();
+        }
+    }, { passive: false, capture: true });
     document.addEventListener('touchstart', handleStart, { passive: false, capture: true });
     document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
     document.addEventListener('touchend', handleEnd, { passive: false, capture: true });
