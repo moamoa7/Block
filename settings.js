@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.15 (TypeError: WeakMap.clear is not a function 해결)
+// @version       6.1.16 (모바일 영상 버튼 클릭 버그 수정 및 WeakMap.clear 오류 해결)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -743,10 +743,14 @@ function initSpeedSlider() {
         toggleBtn.id = 'vm-speed-toggle-btn'; toggleBtn.textContent = '🔼';
 
         const updateToggleButton = () => {
-            slider.style.display = isSpeedSliderMinimized ? 'none' : '';
-            resetBtn.style.display = isSpeedSliderMinimized ? 'none' : '';
-            valueDisplay.style.display = isSpeedSliderMinimized ? 'none' : '';
-            toggleBtn.textContent = isSpeedSliderMinimized ? '🔼' : '🔽';
+            const sliderEl = document.getElementById('vm-speed-slider');
+            const resetBtnEl = document.getElementById('vm-speed-reset-btn');
+            const valueDisplayEl = document.getElementById('vm-speed-value');
+
+            if (sliderEl) sliderEl.style.display = isSpeedSliderMinimized ? 'none' : '';
+            if (resetBtnEl) resetBtnEl.style.display = isSpeedSliderMinimized ? 'none' : '';
+            if (valueDisplayEl) valueDisplayEl.style.display = isSpeedSliderMinimized ? 'none' : '';
+            if (toggleBtn) toggleBtn.textContent = isSpeedSliderMinimized ? '🔼' : '🔽';
         };
 
         toggleBtn.addEventListener('click', (e) => {
@@ -856,10 +860,6 @@ function initDragBar() {
         const videos = findAllVideos();
         if (videos.length === 0 || videos.every(v => v.paused)) return;
 
-        // 드래그 시작 시 바로 기본 동작 차단
-        e.preventDefault();
-        e.stopImmediatePropagation();
-
         dragState.isDragging = true;
         dragState.isHorizontalDrag = false;
         const pos = getPosition(e);
@@ -891,6 +891,7 @@ function initDragBar() {
 
             if (isPastThreshold && isHorizontalMovement) {
                 dragState.isHorizontalDrag = true;
+                // 드래그가 시작된 후에만 preventDefault 호출
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 document.body.style.userSelect = 'none';
@@ -983,19 +984,19 @@ function initDragBar() {
         }
     };
 
-    document.addEventListener('mousedown', handleStart, { passive: false, capture: true });
+    document.addEventListener('mousedown', handleStart, { passive: true, capture: true });
     document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
-    document.addEventListener('mouseup', handleEnd, { passive: false, capture: true });
+    document.addEventListener('mouseup', handleEnd, { passive: true, capture: true });
     document.addEventListener('mouseout', (e) => {
         // 마우스가 브라우저 밖으로 나갔을 때 드래그 종료
         if (e.relatedTarget === null) {
             handleEnd();
         }
-    }, { passive: false, capture: true });
-    document.addEventListener('touchstart', handleStart, { passive: false, capture: true });
+    }, { passive: true, capture: true });
+    document.addEventListener('touchstart', handleStart, { passive: true, capture: true });
     document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
-    document.addEventListener('touchend', handleEnd, { passive: false, capture: true });
-    document.addEventListener('touchcancel', handleEnd, { passive: false, capture: true });
+    document.addEventListener('touchend', handleEnd, { passive: true, capture: true });
+    document.addEventListener('touchcancel', handleEnd, { passive: true, capture: true });
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     videoUIFlags.dragBarInitialized = true;
