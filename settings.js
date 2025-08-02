@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name          PopupBlocker_Iframe_VideoSpeed
-// @namespace     https://example.com/
-// @version       6.1.0 (모든 기능 통합 및 최적화)
-// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
-// @match         *://*/*
-// @grant         none
-// @run-at        document-start
+// @name          PopupBlocker_Iframe_VideoSpeed
+// @namespace     https://example.com/
+// @version        6.1.0 (모든 기능 통합 및 최적화)
+// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
+// @match         *://*/*
+// @grant         none
+// @run-at        document-start
 // ==/UserScript==
 
 (function () {
@@ -14,7 +14,7 @@
     // --- 사용자 설정 ---
     const USER_SETTINGS = {
         enableVideoDebugBorder: false, // 영상 요소에 빨간 테두리를 표시할지 여부
-        scanInterval: 10000,           // iframe 재탐색 주기 (밀리초), 0으로 설정하면 비활성화
+        scanInterval: 10000,           // iframe 재탐색 주기 (밀리초), 0으로 설정하면 비활성화
     };
 
     // --- 전역 상태 및 중복 방지 ---
@@ -869,18 +869,17 @@ function initDragBar() {
         const dragDistanceX = currentX - startX, dragDistanceY = currentY - startY;
         const isHorizontalDrag = Math.abs(dragDistanceX) > Math.abs(dragDistanceY) * DRAG_DIRECTION_THRESHOLD;
 
-        // 드래그가 임계값을 넘는 순간 바로 시간 표시 UI를 활성화합니다.
         if (!isDragStarted && Math.abs(dragDistanceX) > DRAG_THRESHOLD && isHorizontalDrag) {
             isDragStarted = true;
-            e.preventDefault(); // 기본 동작(스크롤 등) 방지
+            e.preventDefault();
             e.stopImmediatePropagation();
-            updateTimeDisplay(0); // 드래그 시작 시 '0초 이동' 표시
+            updateTimeDisplay(0);
         }
         
         if (isDragStarted && isHorizontalDrag) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            const timeChange = Math.round(dragDistanceX / 2);
+            const timeChange = Math.round((currentX - startX) / 2);
             totalTimeChange += timeChange;
             updateTimeDisplay(totalTimeChange);
 
@@ -902,12 +901,32 @@ function initDragBar() {
         isDragging = false; isDragStarted = false; startX = 0; startY = 0; totalTimeChange = 0;
         document.body.style.userSelect = ''; updateTimeDisplay(0);
     };
+
+    // 모바일 환경을 고려하여 수정된 전체화면 핸들러
     const handleFullscreenChange = () => {
         if (!dragBarTimeDisplay) return;
+
         const fsElement = document.fullscreenElement;
-        if (fsElement) { fsElement.appendChild(dragBarTimeDisplay); }
-        else if (document.body) { document.body.appendChild(dragBarTimeDisplay); }
+
+        if (fsElement) {
+            if (dragBarTimeDisplay.parentNode) {
+                dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
+            }
+            fsElement.appendChild(dragBarTimeDisplay);
+        } else {
+            if (dragBarTimeDisplay.parentNode) {
+                dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
+            }
+            document.body.appendChild(dragBarTimeDisplay);
+            
+            // 모바일에서 화면이 제대로 돌아오지 않는 문제 해결 시도
+            window.dispatchEvent(new Event('resize'));
+            document.body.style.display = 'none';
+            document.body.offsetWidth; // 강제로 리플로우 발생
+            document.body.style.display = '';
+        }
     };
+
     document.addEventListener('mousedown', handleStart, true);
     document.addEventListener('mousemove', handleMove, true);
     document.addEventListener('mouseup', handleEnd, true);
