@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.128 (모바일 스크롤 개선)
+// @version       4.0.130 (각자의 로직대로 기능 충실)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -11,7 +11,7 @@
 (function () {
     'use strict';
 
-    // 🚩 최상단에서 스크립트 전체 실행 여부 결정
+    // 🚩 스크립트 전체 실행 여부 결정
     const WHITELIST = [
         'challenges.cloudflare.com',
         'recaptcha',
@@ -24,15 +24,20 @@
     if (IS_ENTIRE_SCRIPT_ALLOWED) {
         return;
     }
-    if (window.__MySuperScriptInitialized) {
+    // 각 프레임에서 한 번만 실행되도록 체크
+    if (window.hasOwnProperty('__MySuperScriptInitialized') && window.__MySuperScriptInitialized) {
         return;
     }
-    window.__MySuperScriptInitialized = true;
+    Object.defineProperty(window, '__MySuperScriptInitialized', {
+        value: true,
+        writable: false,
+        configurable: false
+    });
+
     const EXCEPTION_LIST = {
         'supjav.com': ['iframeBlocker'],
     };
     const IFRAME_SKIP_DOMAINS = [];
-    const IFRAME_WHITELIST = [];
     const FORCE_BLOCK_POPUP_PATTERNS = [];
     const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
         'google.com',
@@ -52,12 +57,12 @@
     let logContentBox = null;
     let pendingLogs = [];
     let logDismissTimer = null;
-    let isTopFrame = window.self === window.top;
+    const isTopFrame = window.self === window.top;
     const logHistory = [];
     let isSpeedSliderMinimized = true;
-    let playerIframe = null;
 
     function createLogBox() {
+        if (!isTopFrame) return;
         if (document.getElementById('popupBlockerLogContainer')) {
             logBoxContainer = document.getElementById('popupBlockerLogContainer');
             logContentBox = document.getElementById('popupBlockerLogBox');
@@ -80,10 +85,6 @@
             transition: opacity 0.3s ease;
             box-shadow: 0 0 8px #000;
         `;
-        if (!isTopFrame) {
-            logBoxContainer.style.display = 'none';
-            logBoxContainer.style.pointerEvents = 'none';
-        }
         const copyBtn = document.createElement('button');
         copyBtn.textContent = '로그 복사';
         copyBtn.id = 'popupBlockerCopyBtn';
@@ -200,8 +201,9 @@
                 addLog(event.data.message);
             }
         });
+        createLogBox();
     }
-    createLogBox();
+
     function initPopupBlocker() {
         const originalWindowOpen = window.open;
         let userInitiatedAction = false;
@@ -315,10 +317,8 @@
         };
         document.addEventListener('click', function (e) {
             const a = e.target.closest('a');
-            if (!a) return;
-            const url = a.href;
-            if (url && url.startsWith("javascript:") && url.includes('window.open')) {
-                addLog(`🚫 javascript 링크 (window.open) 차단됨: ${url}`);
+            if (a && a.href && a.href.startsWith("javascript:") && a.href.includes('window.open')) {
+                addLog(`🚫 javascript 링크 (window.open) 차단됨: ${a.href}`);
                 e.preventDefault();
                 e.stopImmediatePropagation();
             }
@@ -593,6 +593,7 @@
             }
         }
     }
+
     function initIframeBlocker() {
         const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain =>
             hostname.includes(domain) || window.location.href.includes(domain)
@@ -679,17 +680,15 @@
         });
     }
 
-    // 🚩 UI를 iframe 내부에 삽입하는 로직으로 재구성
-    const injectUI = (targetDocument) => {
-        if (!targetDocument || targetDocument.__MySuperUIScriptInjected) return;
-        targetDocument.__MySuperUIScriptInjected = true;
-
-        // 배속 슬라이더
+    function initSpeedSlider() {
+        if (window.__vmSpeedSliderInjectedInThisFrame) return;
+        window.__vmSpeedSliderInjectedInThisFrame = true;
+        const sliderId = 'vm-speed-slider-container';
         let container = null;
         let playbackUpdateTimer = null;
 
         const updateVideoSpeed = (speed) => {
-            const videoElements = targetDocument.querySelectorAll('video');
+            const videoElements = document.querySelectorAll('video');
             if (videoElements.length > 0) {
                 videoElements.forEach(video => {
                     video.playbackRate = speed;
@@ -699,7 +698,7 @@
 
         const onSliderChange = (val) => {
             const speed = parseFloat(val);
-            const valueDisplay = targetDocument.getElementById('vm-speed-value');
+            const valueDisplay = document.getElementById('vm-speed-value');
             if (valueDisplay) {
                 valueDisplay.textContent = `x${speed.toFixed(1)}`;
             }
@@ -710,11 +709,11 @@
         };
 
         const createSliderElements = () => {
-            container = targetDocument.createElement('div');
-            container.id = 'vm-speed-slider-container';
-            const style = targetDocument.createElement('style');
+            container = document.createElement('div');
+            container.id = sliderId;
+            const style = document.createElement('style');
             style.textContent = `
-                #vm-speed-slider-container {
+                #${sliderId} {
                     position: fixed;
                     top: 50%;
                     right: 0;
@@ -736,7 +735,7 @@
                     box-shadow: 0 0 5px rgba(0,0,0,0.0);
                     will-change: transform, opacity;
                 }
-                #vm-speed-slider-container:hover { opacity: 1; }
+                #${sliderId}:hover { opacity: 1; }
                 #vm-speed-reset-btn {
                     background: #444; border: none; border-radius: 4px; color: white;
                     font-size: 14px; padding: 4px 6px; cursor: pointer;
@@ -778,25 +777,25 @@
                 }
                 #vm-speed-toggle-btn:hover { color: #ccc; }
             `;
-            targetDocument.head.appendChild(style);
+            document.head.appendChild(style);
 
-            const resetBtn = targetDocument.createElement('button');
+            const resetBtn = document.createElement('button');
             resetBtn.id = 'vm-speed-reset-btn';
             resetBtn.textContent = '1x';
-            const slider = targetDocument.createElement('input');
+            const slider = document.createElement('input');
             slider.type = 'range';
             slider.min = '0.2';
             slider.max = '4.0';
             slider.step = '0.2';
             slider.value = '1.0';
             slider.id = 'vm-speed-slider';
-            const valueDisplay = targetDocument.createElement('div');
+            const valueDisplay = document.createElement('div');
             valueDisplay.id = 'vm-speed-value';
             valueDisplay.textContent = 'x1.0';
-            const toggleBtn = targetDocument.createElement('button');
+            const toggleBtn = document.createElement('button');
             toggleBtn.id = 'vm-speed-toggle-btn';
             toggleBtn.textContent = '🔼';
-            let isSpeedSliderMinimized = true;
+            isSpeedSliderMinimized = true;
 
             const updateToggleButton = () => {
                 slider.style.display = isSpeedSliderMinimized ? 'none' : '';
@@ -826,14 +825,14 @@
         };
 
         const checkVideosAndDisplay = () => {
-            const videoElements = targetDocument.querySelectorAll('video');
+            const videoElements = document.querySelectorAll('video');
             if (videoElements.length > 0) {
                 if (!container) {
                     container = createSliderElements();
-                    targetDocument.body.appendChild(container);
+                    document.body.appendChild(container);
                 }
                 container.style.display = 'flex';
-                const slider = targetDocument.getElementById('vm-speed-slider');
+                const slider = document.getElementById('vm-speed-slider');
                 updateVideoSpeed(slider ? slider.value : '1.0');
             } else {
                 if (container) {
@@ -842,23 +841,24 @@
             }
         };
 
-        targetDocument.addEventListener('fullscreenchange', () => {
-            const fsEl = targetDocument.fullscreenElement;
+        document.addEventListener('fullscreenchange', () => {
+            const fsEl = document.fullscreenElement;
             if (fsEl && container) fsEl.appendChild(container);
-            else if (targetDocument.body && container) targetDocument.body.appendChild(container);
+            else if (document.body && container) document.body.appendChild(container);
         });
 
-        if (targetDocument.readyState === 'loading') {
-            targetDocument.addEventListener('DOMContentLoaded', checkVideosAndDisplay);
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkVideosAndDisplay);
         } else {
             checkVideosAndDisplay();
         }
 
-        new MutationObserver(checkVideosAndDisplay).observe(targetDocument.documentElement, {
+        new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
             childList: true, subtree: true
         });
+    }
 
-        // 드래그바
+    function initDragBar() {
         let isDragging = false;
         let startX = 0;
         let startY = 0;
@@ -871,10 +871,12 @@
         const DRAG_DIRECTION_THRESHOLD = 2;
 
         const createTimeDisplay = () => {
-            let existingTimeDisplay = targetDocument.getElementById(timeDisplayId);
-            if (existingTimeDisplay) { return existingTimeDisplay; }
+            let existingTimeDisplay = document.getElementById(timeDisplayId);
+            if (existingTimeDisplay) {
+                return existingTimeDisplay;
+            }
 
-            const newTimeDisplay = targetDocument.createElement('div');
+            const newTimeDisplay = document.createElement('div');
             newTimeDisplay.id = timeDisplayId;
             newTimeDisplay.style.cssText = `
                 position: fixed !important;
@@ -899,20 +901,28 @@
         };
 
         const attachTimeDisplayToCorrectElement = () => {
-            if (!timeDisplay) { timeDisplay = createTimeDisplay(); }
-            if (targetDocument.body && !targetDocument.body.contains(timeDisplay)) {
-                targetDocument.body.appendChild(timeDisplay);
+            if (!timeDisplay) {
+                timeDisplay = createTimeDisplay();
+            }
+
+            if (document.body && !document.body.contains(timeDisplay)) {
+                document.body.appendChild(timeDisplay);
             }
         };
 
         const updateTimeDisplay = (timeChange) => {
-            if (!timeDisplay) { attachTimeDisplayToCorrectElement(); }
+            if (!timeDisplay) {
+                attachTimeDisplayToCorrectElement();
+            }
+
             if (timeChange !== 0) {
                 const sign = timeChange > 0 ? '+' : '';
                 timeDisplay.textContent = `${sign}${timeChange.toFixed(1)}초 이동`;
                 timeDisplay.style.display = 'block';
                 timeDisplay.style.opacity = '1';
-                if (hideTimeDisplayTimer) { clearTimeout(hideTimeDisplayTimer); }
+                if (hideTimeDisplayTimer) {
+                    clearTimeout(hideTimeDisplayTimer);
+                }
             } else {
                 timeDisplay.style.opacity = '0';
                 hideTimeDisplayTimer = setTimeout(() => {
@@ -922,11 +932,16 @@
         };
 
         const getXPosition = (e) => {
-            if (e.touches && e.touches.length > 0) { return e.touches[0].clientX; }
+            if (e.touches && e.touches.length > 0) {
+                return e.touches[0].clientX;
+            }
             return e.clientX;
         };
+
         const getYPosition = (e) => {
-            if (e.touches && e.touches.length > 0) { return e.touches[0].clientY; }
+            if (e.touches && e.touches.length > 0) {
+                return e.touches[0].clientY;
+            }
             return e.clientY;
         };
 
@@ -934,15 +949,17 @@
             if (e.target.closest('#vm-speed-slider-container') || e.target.closest('#vm-time-display')) {
                 return;
             }
-            const videoElements = targetDocument.querySelectorAll('video');
-            if (videoElements.length === 0) { return; }
+            const videoElements = document.querySelectorAll('video');
+            if (videoElements.length === 0) {
+                 return;
+            }
 
             isDragging = true;
             isDragStarted = false;
             startX = getXPosition(e);
             startY = getYPosition(e);
             totalTimeChange = 0;
-            targetDocument.body.style.userSelect = 'none';
+            document.body.style.userSelect = 'none';
         };
 
         const handleMove = (e) => {
@@ -967,7 +984,7 @@
                 totalTimeChange += timeChange;
                 updateTimeDisplay(totalTimeChange);
 
-                targetDocument.querySelectorAll('video').forEach(video => {
+                document.querySelectorAll('video').forEach(video => {
                     if (video.duration && !isNaN(video.duration)) {
                         video.currentTime += timeChange;
                     }
@@ -987,119 +1004,42 @@
             startX = 0;
             startY = 0;
             totalTimeChange = 0;
-            targetDocument.body.style.userSelect = '';
+            document.body.style.userSelect = '';
             updateTimeDisplay(0);
         };
 
-        targetDocument.addEventListener('mousedown', handleStart, true);
-        targetDocument.addEventListener('mousemove', handleMove, true);
-        targetDocument.addEventListener('mouseup', handleEnd, true);
-        targetDocument.addEventListener('touchstart', handleStart, { passive: false, capture: true });
-        targetDocument.addEventListener('touchmove', handleMove, { passive: false, capture: true });
-        targetDocument.addEventListener('touchend', handleEnd, { capture: true });
-        targetDocument.addEventListener('touchcancel', handleEnd, { capture: true });
+        document.addEventListener('mousedown', handleStart, true);
+        document.addEventListener('mousemove', handleMove, true);
+        document.addEventListener('mouseup', handleEnd, true);
+        document.addEventListener('touchstart', handleStart, { passive: false, capture: true });
+        document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
+        document.addEventListener('touchend', handleEnd, { capture: true });
+        document.addEventListener('touchcancel', handleEnd, { capture: true });
 
         const videoObserverCallback = (mutations) => {
-            const videoExists = targetDocument.querySelectorAll('video').length > 0;
-            if (videoExists && !targetDocument.getElementById(timeDisplayId)) {
+            const videoExists = document.querySelectorAll('video').length > 0;
+            if (videoExists && !document.getElementById(timeDisplayId)) {
                 attachTimeDisplayToCorrectElement();
-            } else if (!videoExists && targetDocument.getElementById(timeDisplayId)) {
-                const existingDisplay = targetDocument.getElementById(timeDisplayId);
+            } else if (!videoExists && document.getElementById(timeDisplayId)) {
+                const existingDisplay = document.getElementById(timeDisplayId);
                 if (existingDisplay) existingDisplay.remove();
             }
         };
 
-        new MutationObserver(videoObserverCallback).observe(targetDocument.documentElement, {
+        new MutationObserver(videoObserverCallback).observe(document.documentElement, {
             childList: true, subtree: true
         });
 
-        if (targetDocument.readyState !== 'loading') {
+        if (document.readyState !== 'loading') {
             videoObserverCallback();
         } else {
-            targetDocument.addEventListener('DOMContentLoaded', videoObserverCallback);
+            document.addEventListener('DOMContentLoaded', videoObserverCallback);
         }
-    };
-
-
-    // 🚩 메인 로직
-    if (isTopFrame) {
-        window.addEventListener('message', (event) => {
-            const isVideoControlMessage = (data) => {
-                if (typeof data !== 'object' || data === null) return false;
-                const messageKeys = Object.keys(data);
-                return ['play', 'pause', 'seek', 'setPlaybackRate', 'fastForward'].some(key => messageKeys.includes(key));
-            };
-
-            if (isVideoControlMessage(event.data)) {
-                addLog(`✅ 영상 제어 메시지 감지됨: ${JSON.stringify(event.data).substring(0, 100)}...`);
-                playerIframe = event.source.frameElement;
-
-                if (playerIframe) {
-                    addLog(`🌟 영상 플레이어 iframe 식별 완료: ${playerIframe.id || 'N/A'}`);
-                    try {
-                        if (playerIframe.contentDocument) {
-                            injectUI(playerIframe.contentDocument);
-                        }
-                    } catch (e) {
-                        addLog(`⚠️ iframe 접근 권한 없음: ${e.message}`);
-                    }
-                }
-            }
-        }, false);
-
-        const iframeObserver = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList') {
-                    for (const node of mutation.addedNodes) {
-                        if (node.tagName === 'IFRAME') {
-                            const iframe = node;
-                            if (iframe.id === 'video-player' || iframe.src.includes('supjav.com') || iframe.src.includes('ok.ru')) {
-                                addLog(`✅ 특정 iframe(${iframe.id || 'N/A'}) 감지, UI 주입 시도`);
-                                try {
-                                    if (iframe.contentDocument) {
-                                        injectUI(iframe.contentDocument);
-                                    } else {
-                                        iframe.addEventListener('load', () => {
-                                            if (iframe.contentDocument) {
-                                                injectUI(iframe.contentDocument);
-                                            }
-                                        }, { once: true });
-                                    }
-                                } catch (e) {
-                                    addLog(`⚠️ iframe 접근 권한 없음: ${e.message}`);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        iframeObserver.observe(document.body, { childList: true, subtree: true });
-
-        document.querySelectorAll('iframe').forEach(iframe => {
-            if (iframe.id === 'video-player' || iframe.src.includes('supjav.com') || iframe.src.includes('ok.ru')) {
-                addLog(`✅ 초기 로드 시 특정 iframe(${iframe.id || 'N/A'}) 감지, UI 주입 시도`);
-                try {
-                    if (iframe.contentDocument) {
-                        injectUI(iframe.contentDocument);
-                    } else {
-                        iframe.addEventListener('load', () => {
-                            if (iframe.contentDocument) {
-                                injectUI(iframe.contentDocument);
-                            }
-                        }, { once: true });
-                    }
-                } catch (e) {
-                    addLog(`⚠️ iframe 접근 권한 없음: ${e.message}`);
-                }
-            }
-        });
     }
 
-    if (!playerIframe) {
-        injectUI(document);
-    }
-
+    // 🚩 모든 컨텍스트에서 전체 기능 실행
     initPopupBlocker();
     initIframeBlocker();
+    initSpeedSlider();
+    initDragBar();
 })();
