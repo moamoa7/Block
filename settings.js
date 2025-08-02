@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.130 (각자의 로직대로 기능 충실)
+// @version       4.0.134 (드래그바 전체 화면 가림 문제 최종 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -900,19 +900,12 @@
             return newTimeDisplay;
         };
 
-        const attachTimeDisplayToCorrectElement = () => {
-            if (!timeDisplay) {
-                timeDisplay = createTimeDisplay();
-            }
-
-            if (document.body && !document.body.contains(timeDisplay)) {
-                document.body.appendChild(timeDisplay);
-            }
-        };
-
         const updateTimeDisplay = (timeChange) => {
             if (!timeDisplay) {
-                attachTimeDisplayToCorrectElement();
+                timeDisplay = createTimeDisplay();
+                if (document.body) {
+                    document.body.appendChild(timeDisplay);
+                }
             }
 
             if (timeChange !== 0) {
@@ -1008,6 +1001,21 @@
             updateTimeDisplay(0);
         };
 
+        const handleFullscreenChange = () => {
+            if (!timeDisplay) return;
+
+            const fsElement = document.fullscreenElement;
+            if (fsElement) {
+                // 전체 화면 요소에 드래그바를 직접 부착
+                fsElement.appendChild(timeDisplay);
+            } else {
+                // 전체 화면이 아닐 때는 다시 body에 부착
+                if (document.body) {
+                    document.body.appendChild(timeDisplay);
+                }
+            }
+        };
+
         document.addEventListener('mousedown', handleStart, true);
         document.addEventListener('mousemove', handleMove, true);
         document.addEventListener('mouseup', handleEnd, true);
@@ -1016,10 +1024,14 @@
         document.addEventListener('touchend', handleEnd, { capture: true });
         document.addEventListener('touchcancel', handleEnd, { capture: true });
 
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+
         const videoObserverCallback = (mutations) => {
             const videoExists = document.querySelectorAll('video').length > 0;
             if (videoExists && !document.getElementById(timeDisplayId)) {
-                attachTimeDisplayToCorrectElement();
+                if (document.body) {
+                    updateTimeDisplay(0);
+                }
             } else if (!videoExists && document.getElementById(timeDisplayId)) {
                 const existingDisplay = document.getElementById(timeDisplayId);
                 if (existingDisplay) existingDisplay.remove();
