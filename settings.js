@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.9 (Uncaught SyntaxError: Invalid left-hand side in assignment 오류 수정)
+// @version       6.1.10 (모바일 터치 이벤트 처리 강화)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -823,13 +823,13 @@ function initDragBar() {
         `;
         return newTimeDisplay;
     };
-
+    
     const updateTimeDisplay = (timeChange) => {
         if (!dragBarTimeDisplay) {
             dragBarTimeDisplay = createTimeDisplay();
             if (document.body) document.body.appendChild(dragBarTimeDisplay);
         }
-
+        
         if (timeChange !== 0) {
             const sign = timeChange > 0 ? '+' : '';
             dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
@@ -841,9 +841,9 @@ function initDragBar() {
             hideTimeDisplayTimer = setTimeout(() => { dragBarTimeDisplay.style.display = 'none'; }, 300);
         }
     };
-
+    
     const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
-
+    
     const handleStart = (e) => {
         if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
         const videos = findAllVideos();
@@ -858,22 +858,22 @@ function initDragBar() {
         startX = pos.clientX;
         startY = pos.clientY; // 세로 드래그 감지를 위해 추가
         totalTimeChange = 0;
-
-        // 마우스 오른쪽 버튼은 무시
+        
         if (e.button === 2) return;
-
-        // 터치 시작 시 기본 동작을 막지 않고, 드래그가 시작될 때까지 기다림
+        
+        // 터치 시작 시 바로 preventDefault를 호출하지 않고, 드래그가 시작될 때까지 기다림
+        // 이를 통해 탭(Tap) 이벤트는 플레이어의 기본 동작(UI 표시)을 유발할 수 있음
     };
 
     const handleMove = (e) => {
         if (!isDragging) return;
-
+        
         const videos = findAllVideos();
         if (videos.length === 0) {
             handleEnd();
             return;
         }
-
+        
         const pos = getPosition(e);
         const currentX = pos.clientX;
         const currentY = pos.clientY;
@@ -881,8 +881,11 @@ function initDragBar() {
         const dragDistanceY = currentY - startY;
 
         if (!isHorizontalDrag) {
+            const isHorizontalMovement = Math.abs(dragDistanceX) > Math.abs(dragDistanceY);
+            const isPastThreshold = Math.abs(dragDistanceX) > DRAG_THRESHOLD || (e.touches && e.touches.length > 1);
+
             // 수평 드래그 또는 두 손가락 터치 시 드래그바 활성화
-            if (Math.abs(dragDistanceX) > DRAG_THRESHOLD && Math.abs(dragDistanceX) > Math.abs(dragDistanceY) || (e.touches && e.touches.length > 1)) {
+            if (isPastThreshold && isHorizontalMovement) {
                 isHorizontalDrag = true;
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -899,13 +902,13 @@ function initDragBar() {
                 return;
             }
         }
-
+        
         if (isHorizontalDrag) {
             e.preventDefault();
             e.stopImmediatePropagation();
-
+            
             const timeChange = Math.round(dragDistanceX / TIME_CHANGE_SENSITIVITY);
-
+            
             if (timeChange !== 0) {
                 totalTimeChange += timeChange;
                 updateTimeDisplay(totalTimeChange);
@@ -919,17 +922,17 @@ function initDragBar() {
             }
         }
     };
-
-    const handleEnd = () => {
+    
+    const handleEnd = (e) => {
         if (!isDragging) return;
-
+        
         // 드래그바 기능이 사용된 경우에만 UI 숨김
         if (isHorizontalDrag) {
             updateTimeDisplay(0);
         }
 
         isDragging = false;
-
+        
         const videos = findAllVideos();
         videos.forEach(video => {
              if (originalPointerEvents !== null) {
@@ -964,7 +967,7 @@ function initDragBar() {
             window.dispatchEvent(new Event('resize'));
         }
     };
-
+    
     document.addEventListener('mousedown', handleStart, { passive: false, capture: true });
     document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
     document.addEventListener('mouseup', handleEnd, { passive: false, capture: true });
@@ -973,7 +976,7 @@ function initDragBar() {
     document.addEventListener('touchend', handleEnd, { passive: false, capture: true });
     document.addEventListener('touchcancel', handleEnd, { passive: false, capture: true });
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-
+    
     videoUIFlags.dragBarInitialized = true;
 }
 
