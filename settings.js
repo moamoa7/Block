@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.142 (UI 충돌 해결 및 버그 수정)
+// @version       4.0.146 (영상 감지 로직 강화 및 항상 표시 기능)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -31,7 +31,7 @@
         writable: false,
         configurable: false
     });
-    
+
     const EXCEPTION_LIST = {
         'supjav.com': ['iframeBlocker'],
     };
@@ -57,10 +57,13 @@
     let logDismissTimer = null;
     const isTopFrame = window.self === window.top;
     const logHistory = [];
+    let speedSliderContainer = null;
+    let dragBarTimeDisplay = null;
     let isSpeedSliderMinimized = true;
 
     // UI 충돌 방지를 위한 전역 상태 변수
     let isUIBeingUsed = false;
+    let playbackUpdateTimer = null;
 
     function createLogBox() {
         if (!isTopFrame) return;
@@ -594,7 +597,7 @@
             }
         }
     }
-    
+
     function initIframeBlocker() {
         const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain =>
             hostname.includes(domain) || window.location.href.includes(domain)
@@ -696,48 +699,15 @@
         }
         return results;
     }
-    
-    const allVideos = new Set();
-    const videoIntersectionObserver = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                allVideos.add(entry.target);
-            } else {
-                allVideos.delete(entry.target);
-            }
-        });
-        if (allVideos.size === 0) {
-            hideSpeedSlider();
-        }
-    });
 
     function initSpeedSlider() {
-        if (window.__vmSpeedSliderInjectedInThisFrame) return;
-        window.__vmSpeedSliderInjectedInThisFrame = true;
         const sliderId = 'vm-speed-slider-container';
-        let container = null;
-        let playbackUpdateTimer = null;
-    
-        const updateVideoSpeed = (speed) => {
-            document.querySelectorAll('video').forEach(video => {
-                video.playbackRate = speed;
-            });
-        };
-    
-        const onSliderChange = (val) => {
-            const speed = parseFloat(val);
-            const valueDisplay = document.getElementById('vm-speed-value');
-            if (valueDisplay) {
-                valueDisplay.textContent = `x${speed.toFixed(1)}`;
-            }
-            if (playbackUpdateTimer) clearTimeout(playbackUpdateTimer);
-            playbackUpdateTimer = setTimeout(() => {
-                updateVideoSpeed(speed);
-            }, 100);
-        };
-    
+        if (speedSliderContainer && document.body.contains(speedSliderContainer)) {
+            return;
+        }
+
         const createSliderElements = () => {
-            container = document.createElement('div');
+            const container = document.createElement('div');
             container.id = sliderId;
             const style = document.createElement('style');
             style.textContent = `
@@ -806,7 +776,7 @@
                 #vm-speed-toggle-btn:hover { color: #ccc; }
             `;
             document.head.appendChild(style);
-    
+
             const resetBtn = document.createElement('button');
             resetBtn.id = 'vm-speed-reset-btn';
             resetBtn.textContent = '1x';
@@ -823,21 +793,20 @@
             const toggleBtn = document.createElement('button');
             toggleBtn.id = 'vm-speed-toggle-btn';
             toggleBtn.textContent = '🔼';
-            isSpeedSliderMinimized = true;
-    
+
             const updateToggleButton = () => {
                 slider.style.display = isSpeedSliderMinimized ? 'none' : '';
                 resetBtn.style.display = isSpeedSliderMinimized ? 'none' : '';
                 valueDisplay.style.display = isSpeedSliderMinimized ? 'none' : '';
                 toggleBtn.textContent = isSpeedSliderMinimized ? '🔼' : '🔽';
             };
-    
+
             toggleBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 isSpeedSliderMinimized = !isSpeedSliderMinimized;
                 updateToggleButton();
             });
-    
+
             slider.addEventListener('input', () => onSliderChange(slider.value));
             resetBtn.addEventListener('click', () => {
                 slider.value = '1.0';
@@ -848,7 +817,7 @@
             container.addEventListener('mouseup', () => isUIBeingUsed = false, true);
             container.addEventListener('touchstart', () => isUIBeingUsed = true, true);
             container.addEventListener('touchend', () => isUIBeingUsed = false, true);
-    
+
             container.appendChild(resetBtn);
             container.appendChild(slider);
             container.appendChild(valueDisplay);
@@ -857,81 +826,74 @@
             return container;
         };
 
-        const showSpeedSlider = () => {
-            if (!container) {
-                container = createSliderElements();
-                document.body.appendChild(container);
+        const updateVideoSpeed = (speed) => {
+            document.querySelectorAll('video').forEach(video => {
+                video.playbackRate = speed;
+            });
+        };
+
+        const onSliderChange = (val) => {
+            const speed = parseFloat(val);
+            const valueDisplay = document.getElementById('vm-speed-value');
+            if (valueDisplay) {
+                valueDisplay.textContent = `x${speed.toFixed(1)}`;
             }
-            container.style.display = 'flex';
+            if (playbackUpdateTimer) clearTimeout(playbackUpdateTimer);
+            playbackUpdateTimer = setTimeout(() => {
+                updateVideoSpeed(speed);
+            }, 100);
+        };
+
+        const showSpeedSlider = () => {
+            if (!speedSliderContainer) {
+                speedSliderContainer = createSliderElements();
+                document.body.appendChild(speedSliderContainer);
+            }
+            speedSliderContainer.style.display = 'flex';
             const slider = document.getElementById('vm-speed-slider');
             updateVideoSpeed(slider ? slider.value : '1.0');
         };
 
         const hideSpeedSlider = () => {
-            if (container) {
-                container.style.display = 'none';
+            if (speedSliderContainer) {
+                speedSliderContainer.style.display = 'none';
             }
         };
 
         const checkVideosAndToggleSlider = () => {
-            const videos = document.querySelectorAll('video');
+            const videos = findAllVideos();
             if (videos.length > 0) {
                 showSpeedSlider();
-                videos.forEach(video => videoIntersectionObserver.observe(video));
             } else {
                 hideSpeedSlider();
             }
         };
-        
+
         document.addEventListener('fullscreenchange', () => {
             const fsEl = document.fullscreenElement;
-            if (fsEl && container) fsEl.appendChild(container);
-            else if (document.body && container) document.body.appendChild(container);
-        });
-    
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', checkVideosAndToggleSlider);
-        } else {
-            checkVideosAndToggleSlider();
-        }
-    
-        const videoMutationObserver = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => {
-                if (mutation.type === 'childList') {
-                    findAllVideos(mutation.target).forEach(video => {
-                        videoIntersectionObserver.observe(video);
-                    });
-                    checkVideosAndToggleSlider();
-                }
-            });
-        });
-        videoMutationObserver.observe(document.documentElement, {
-            childList: true, subtree: true
+            if (fsEl && speedSliderContainer) fsEl.appendChild(speedSliderContainer);
+            else if (document.body && speedSliderContainer) document.body.appendChild(speedSliderContainer);
         });
 
-        findAllVideos().forEach(video => {
-            videoIntersectionObserver.observe(video);
-        });
+        checkVideosAndToggleSlider();
     }
 
     function initDragBar() {
+        if (dragBarTimeDisplay && document.body.contains(dragBarTimeDisplay)) {
+            return;
+        }
+
         let isDragging = false;
         let startX = 0;
         let startY = 0;
         let isDragStarted = false;
         let totalTimeChange = 0;
-        let timeDisplay = null;
         let hideTimeDisplayTimer = null;
         const timeDisplayId = 'vm-time-display';
         const DRAG_THRESHOLD = 10;
         const DRAG_DIRECTION_THRESHOLD = 2;
-        
+
         const createTimeDisplay = () => {
-            let existingTimeDisplay = document.getElementById(timeDisplayId);
-            if (existingTimeDisplay) {
-                return existingTimeDisplay;
-            }
-            
             const newTimeDisplay = document.createElement('div');
             newTimeDisplay.id = timeDisplayId;
             newTimeDisplay.style.cssText = `
@@ -957,25 +919,25 @@
         };
 
         const updateTimeDisplay = (timeChange) => {
-            if (!timeDisplay) {
-                timeDisplay = createTimeDisplay();
+            if (!dragBarTimeDisplay) {
+                dragBarTimeDisplay = createTimeDisplay();
                 if (document.body) {
-                    document.body.appendChild(timeDisplay);
+                    document.body.appendChild(dragBarTimeDisplay);
                 }
             }
 
             if (timeChange !== 0) {
                 const sign = timeChange > 0 ? '+' : '';
-                timeDisplay.textContent = `${sign}${timeChange}초 이동`;
-                timeDisplay.style.display = 'block';
-                timeDisplay.style.opacity = '1';
+                dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
+                dragBarTimeDisplay.style.display = 'block';
+                dragBarTimeDisplay.style.opacity = '1';
                 if (hideTimeDisplayTimer) {
                     clearTimeout(hideTimeDisplayTimer);
                 }
             } else {
-                timeDisplay.style.opacity = '0';
+                dragBarTimeDisplay.style.opacity = '0';
                 hideTimeDisplayTimer = setTimeout(() => {
-                    timeDisplay.style.display = 'none';
+                    dragBarTimeDisplay.style.display = 'none';
                 }, 300);
             }
         };
@@ -986,16 +948,17 @@
             }
             return e.clientX;
         };
-        
+
         const getYPosition = (e) => {
             if (e.touches && e.touches.length > 0) {
                 return e.touches[0].clientY;
             }
             return e.clientY;
         };
-        
+
         const getVisibleVideo = () => {
-            return [...document.querySelectorAll('video')].find(video => {
+            const videos = findAllVideos();
+            return videos.find(video => {
                 const rect = video.getBoundingClientRect();
                 return (
                     rect.top >= 0 &&
@@ -1050,7 +1013,7 @@
                 const timeChange = Math.round(dragDistanceX / 2);
                 totalTimeChange += timeChange;
                 updateTimeDisplay(totalTimeChange);
-                
+
                 if (video.duration && !isNaN(video.duration)) {
                     video.currentTime += timeChange;
                 }
@@ -1072,16 +1035,16 @@
             document.body.style.userSelect = '';
             updateTimeDisplay(0);
         };
-        
+
         const handleFullscreenChange = () => {
-            if (!timeDisplay) return;
-            
+            if (!dragBarTimeDisplay) return;
+
             const fsElement = document.fullscreenElement;
             if (fsElement) {
-                fsElement.appendChild(timeDisplay);
+                fsElement.appendChild(dragBarTimeDisplay);
             } else {
                 if (document.body) {
-                    document.body.appendChild(timeDisplay);
+                    document.body.appendChild(dragBarTimeDisplay);
                 }
             }
         };
@@ -1093,32 +1056,59 @@
         document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
         document.addEventListener('touchend', handleEnd, { capture: true });
         document.addEventListener('touchcancel', handleEnd, { capture: true });
-        
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        
-        const timeDisplayObserver = new MutationObserver(() => {
-            if (document.querySelectorAll('video').length > 0 && !document.getElementById(timeDisplayId)) {
-                if (document.body) {
-                    updateTimeDisplay(0);
-                }
-            } else if (document.querySelectorAll('video').length === 0 && document.getElementById(timeDisplayId)) {
-                const existingDisplay = document.getElementById(timeDisplayId);
-                if (existingDisplay) existingDisplay.remove();
-            }
-        });
-        timeDisplayObserver.observe(document.documentElement, { childList: true, subtree: true });
 
-        if (document.readyState !== 'loading') {
-            if (document.querySelectorAll('video').length > 0) updateTimeDisplay(0);
-        } else {
-            document.addEventListener('DOMContentLoaded', () => {
-                if (document.querySelectorAll('video').length > 0) updateTimeDisplay(0);
-            });
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+        if (document.querySelectorAll('video').length > 0) {
+            updateTimeDisplay(0);
         }
     }
-    
+
+    let checkInterval = null;
+    const videoMutationObserver = new MutationObserver(() => {
+        if (document.querySelector('video')) {
+            tryInitVideoUI();
+        }
+    });
+
+    function tryInitVideoUI() {
+        if (window.hasOwnProperty('__vmVideoUIInjected') && window.__vmVideoUIInjected) {
+            return;
+        }
+        Object.defineProperty(window, '__vmVideoUIInjected', {
+            value: true,
+            writable: false,
+            configurable: false
+        });
+
+        const initUI = () => {
+            initSpeedSlider();
+            initDragBar();
+            if (!document.querySelector('video')) {
+                videoMutationObserver.observe(document.body, { childList: true, subtree: true });
+                if (!checkInterval) {
+                    checkInterval = setInterval(() => {
+                        if (document.querySelector('video')) {
+                            initSpeedSlider();
+                            initDragBar();
+                            clearInterval(checkInterval);
+                            checkInterval = null;
+                        }
+                    }, 1000);
+                }
+            }
+        };
+
+        if (document.body) {
+            initUI();
+        } else {
+            document.addEventListener('DOMContentLoaded', initUI);
+        }
+    }
+
     initPopupBlocker();
     initIframeBlocker();
-    initSpeedSlider();
-    initDragBar();
+
+    // 스크립트 로드 즉시 실행
+    tryInitVideoUI();
 })();
