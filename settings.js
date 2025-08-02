@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.121 (드래그 시간표시 위치 변경)
+// @version       4.0.124 (GPU 가속 레이어 위로 UI 표시)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -682,7 +682,7 @@
         const sliderId = 'vm-speed-slider-container';
         let container = null;
         let playbackUpdateTimer = null;
-
+    
         const updateVideoSpeed = (speed) => {
             const videoElements = document.querySelectorAll('video');
             if (videoElements.length > 0) {
@@ -691,7 +691,7 @@
                 });
             }
         };
-
+    
         const onSliderChange = (val) => {
             const speed = parseFloat(val);
             const valueDisplay = document.getElementById('vm-speed-value');
@@ -703,7 +703,7 @@
                 updateVideoSpeed(speed);
             }, 100);
         };
-
+    
         const createSliderElements = () => {
             container = document.createElement('div');
             container.id = sliderId;
@@ -773,7 +773,7 @@
                 #vm-speed-toggle-btn:hover { color: #ccc; }
             `;
             document.head.appendChild(style);
-
+    
             const resetBtn = document.createElement('button');
             resetBtn.id = 'vm-speed-reset-btn';
             resetBtn.textContent = '1x';
@@ -791,26 +791,26 @@
             toggleBtn.id = 'vm-speed-toggle-btn';
             toggleBtn.textContent = '🔼';
             isSpeedSliderMinimized = true;
-
+    
             const updateToggleButton = () => {
                 slider.style.display = isSpeedSliderMinimized ? 'none' : '';
                 resetBtn.style.display = isSpeedSliderMinimized ? 'none' : '';
                 valueDisplay.style.display = isSpeedSliderMinimized ? 'none' : '';
                 toggleBtn.textContent = isSpeedSliderMinimized ? '🔼' : '🔽';
             };
-
+    
             toggleBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 isSpeedSliderMinimized = !isSpeedSliderMinimized;
                 updateToggleButton();
             });
-
+    
             slider.addEventListener('input', () => onSliderChange(slider.value));
             resetBtn.addEventListener('click', () => {
                 slider.value = '1.0';
                 onSliderChange('1.0');
             });
-
+    
             container.appendChild(resetBtn);
             container.appendChild(slider);
             container.appendChild(valueDisplay);
@@ -818,7 +818,7 @@
             updateToggleButton();
             return container;
         };
-
+    
         const checkVideosAndDisplay = () => {
             const videoElements = document.querySelectorAll('video');
             if (videoElements.length > 0) {
@@ -835,25 +835,25 @@
                 }
             }
         };
-
+    
         document.addEventListener('fullscreenchange', () => {
             const fsEl = document.fullscreenElement;
             if (fsEl && container) fsEl.appendChild(container);
             else if (document.body && container) document.body.appendChild(container);
         });
-
+    
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', checkVideosAndDisplay);
         } else {
             checkVideosAndDisplay();
         }
-
+    
         new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
             childList: true, subtree: true
         });
     }
 
-    // 🚩 initDragBar() 함수 로직 (개선 버전)
+    // 🚩 initDragBar() 함수 로직
     function initDragBar() {
         let isDragging = false;
         let startX = 0;
@@ -868,32 +868,43 @@
             if (existingTimeDisplay) {
                 return existingTimeDisplay;
             }
-
+            
             const newTimeDisplay = document.createElement('div');
             newTimeDisplay.id = timeDisplayId;
             newTimeDisplay.style.cssText = `
-                position: fixed;
+                position: fixed !important;
                 top: 50%;
                 left: 50%;
-                transform: translate(-50%, -50%);
+                transform: translate(-50%, -50%) translateZ(9999px);
                 background: rgba(0, 0, 0, 0.7);
                 color: white;
                 padding: 10px 20px;
                 border-radius: 5px;
                 font-size: 1.5rem;
-                z-index: 2147483647;
+                z-index: 2147483647 !important;
                 display: none;
                 pointer-events: none;
                 transition: opacity 0.3s ease-out;
                 opacity: 1;
+                text-align: center;
+                white-space: nowrap;
+                will-change: transform, opacity;
             `;
             return newTimeDisplay;
         };
 
-        const updateTimeDisplay = (timeChange) => {
+        const attachTimeDisplayToCorrectElement = () => {
             if (!timeDisplay) {
                 timeDisplay = createTimeDisplay();
-                // appendChild 위치를 결정하는 함수 호출
+            }
+
+            if (document.body && !document.body.contains(timeDisplay)) {
+                document.body.appendChild(timeDisplay);
+            }
+        };
+
+        const updateTimeDisplay = (timeChange) => {
+            if (!timeDisplay) {
                 attachTimeDisplayToCorrectElement();
             }
 
@@ -919,31 +930,14 @@
             }
             return e.clientX;
         };
-
-        const attachTimeDisplayToCorrectElement = () => {
-            const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-            let parentEl = document.body || document.documentElement;
-
-            if (fsEl) {
-                // 전체 화면 모드일 경우 해당 요소에 직접 추가
-                parentEl = fsEl;
-            } else if (!parentEl.contains(timeDisplay)) {
-                // 일반 모드일 경우 body에 추가
-                parentEl = document.body;
-            }
-
-            if (timeDisplay && parentEl && !parentEl.contains(timeDisplay)) {
-                parentEl.appendChild(timeDisplay);
-            }
-        };
-
+        
         const handleStart = (e) => {
             if (e.target.closest('#vm-speed-slider-container') ||
                 e.target.closest('#vm-drag-bar-container') ||
                 e.target.closest('#vm-time-display')) {
                 return;
             }
-
+            
             const videoElements = document.querySelectorAll('video');
             if (videoElements.length === 0) {
                  return;
@@ -1000,21 +994,16 @@
         document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
         document.addEventListener('touchend', handleEnd, { capture: true });
         document.addEventListener('touchcancel', handleEnd, { capture: true });
-
-        // 전체화면 변경 시 UI 위치를 재조정
-        document.addEventListener('fullscreenchange', attachTimeDisplayToCorrectElement);
-
-        // 비디오 엘리먼트 감지 및 UI 초기화
+        
         const videoObserverCallback = (mutations) => {
             const videoExists = document.querySelectorAll('video').length > 0;
             if (videoExists && !document.getElementById(timeDisplayId)) {
-                timeDisplay = createTimeDisplay();
                 attachTimeDisplayToCorrectElement();
             } else if (!videoExists && document.getElementById(timeDisplayId)) {
                 document.getElementById(timeDisplayId).remove();
             }
         };
-
+        
         new MutationObserver(videoObserverCallback).observe(document.documentElement, {
             childList: true, subtree: true
         });
@@ -1025,7 +1014,7 @@
             document.addEventListener('DOMContentLoaded', videoObserverCallback);
         }
     }
-
+    
     initPopupBlocker();
     initIframeBlocker();
     initSpeedSlider();
