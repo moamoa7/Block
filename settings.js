@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.109 (영상 드래그바 추가)
-// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, 영상 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
+// @version       4.0.110 (영상 드래그바 추가 - 모바일에서도 가능하게)
+// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -958,7 +958,7 @@
   function initDragBar() {
       let isDragging = false;
       let startX = 0;
-      let totalTimeChange = 0; // 누적 시간을 저장할 변수
+      let totalTimeChange = 0;
       let timeDisplay = null;
 
       const createTimeDisplay = () => {
@@ -985,25 +985,31 @@
           }
       };
 
-      document.addEventListener('mousedown', (e) => {
-          // 배속바가 최소화되지 않았고, 마우스 왼쪽 버튼 클릭 시
-          if (!isSpeedSliderMinimized && e.button === 0) {
+      const getXPosition = (e) => {
+          if (e.touches && e.touches.length > 0) {
+              return e.touches[0].clientX;
+          }
+          return e.clientX;
+      };
+
+      const handleStart = (e) => {
+          if (!isSpeedSliderMinimized) {
               isDragging = true;
-              startX = e.clientX;
-              totalTimeChange = 0; // 드래그 시작 시 누적 시간 초기화
-              e.preventDefault();
+              startX = getXPosition(e);
+              totalTimeChange = 0;
               document.body.style.userSelect = 'none';
+              e.preventDefault();
               updateTimeDisplay(totalTimeChange);
           }
-      });
+      };
 
-      document.addEventListener('mousemove', (e) => {
+      const handleMove = (e) => {
           if (isDragging) {
-              const currentX = e.clientX;
+              const currentX = getXPosition(e);
               const dragDistance = currentX - startX;
               const timeChange = dragDistance / 10;
 
-              totalTimeChange += timeChange; // 총 이동 시간에 현재 변화량 누적
+              totalTimeChange += timeChange;
               updateTimeDisplay(totalTimeChange);
 
               document.querySelectorAll('video').forEach(video => {
@@ -1014,9 +1020,9 @@
 
               startX = currentX;
           }
-      });
+      };
 
-      document.addEventListener('mouseup', () => {
+      const handleEnd = () => {
           if (isDragging) {
               isDragging = false;
               startX = 0;
@@ -1026,7 +1032,18 @@
                   timeDisplay.style.display = 'none';
               }
           }
-      });
+      };
+
+      // PC (마우스) 이벤트
+      document.addEventListener('mousedown', handleStart);
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleEnd);
+
+      // 모바일 (터치) 이벤트
+      document.addEventListener('touchstart', handleStart, { passive: false });
+      document.addEventListener('touchmove', handleMove, { passive: false });
+      document.addEventListener('touchend', handleEnd);
+      document.addEventListener('touchcancel', handleEnd); // 터치 취소 이벤트 추가
   }
 
   initPopupBlocker();
