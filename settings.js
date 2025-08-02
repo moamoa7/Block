@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.110 (영상 드래그바 추가 - 모바일에서도 가능하게)
+// @version       4.0.111 (영상 드래그바 추가 - 모바일에서도 가능하게 .배속바 클릭 안되는거 해결)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -902,10 +902,11 @@
             toggleBtn.textContent = isSpeedSliderMinimized ? '🔼' : '🔽';
         };
 
-        toggleBtn.addEventListener('click', () => {
-            isSpeedSliderMinimized = !isSpeedSliderMinimized;
-            updateToggleButton();
-        });
+        toggleBtn.addEventListener('click', (e) => {
+         e.stopPropagation(); // 이벤트 버블링 방지
+          isSpeedSliderMinimized = !isSpeedSliderMinimized;
+          updateToggleButton();
+      });
 
         slider.addEventListener('input', () => onSliderChange(slider.value));
         resetBtn.addEventListener('click', () => {
