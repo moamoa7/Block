@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.7 (모바일 재생 문제 수정)
+// @version       6.1.9 (Uncaught SyntaxError: Invalid left-hand side in assignment 오류 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -806,9 +806,9 @@ function initDragBar() {
     window.__vmDragBarInjectedInThisFrame = true;
 
     const timeDisplayId = 'vm-time-display';
-    let isDragging = false, startX = 0, isHorizontalDrag = false, totalTimeChange = 0;
+    let isDragging = false, startX = 0, isHorizontalDrag = false, totalTimeChange = 0, startY = 0;
     let hideTimeDisplayTimer = null;
-    const DRAG_THRESHOLD = 10, TIME_CHANGE_SENSITIVITY = 2;
+    const DRAG_THRESHOLD = 10, TIME_CHANGE_SENSITIVITY = 2, VERTICAL_DRAG_THRESHOLD = 20;
     let originalPointerEvents = null;
 
     const createTimeDisplay = () => {
@@ -845,25 +845,24 @@ function initDragBar() {
     const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
 
     const handleStart = (e) => {
-        // 드래그바가 활성화될 조건을 추가
+        if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
         const videos = findAllVideos();
+        // 동영상이 없거나 재생 중이 아닐 때는 드래그바 로직 비활성화
         if (videos.length === 0 || videos.every(v => v.paused)) {
             return;
         }
-
-        if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
 
         isDragging = true;
         isHorizontalDrag = false;
         const pos = getPosition(e);
         startX = pos.clientX;
+        startY = pos.clientY; // 세로 드래그 감지를 위해 추가
         totalTimeChange = 0;
 
-        if (e.type === 'touchstart') {
-            e.stopPropagation();
-        } else {
-            e.preventDefault();
-        }
+        // 마우스 오른쪽 버튼은 무시
+        if (e.button === 2) return;
+
+        // 터치 시작 시 기본 동작을 막지 않고, 드래그가 시작될 때까지 기다림
     };
 
     const handleMove = (e) => {
@@ -877,17 +876,25 @@ function initDragBar() {
 
         const pos = getPosition(e);
         const currentX = pos.clientX;
+        const currentY = pos.clientY;
         const dragDistanceX = currentX - startX;
+        const dragDistanceY = currentY - startY;
 
         if (!isHorizontalDrag) {
-            if (Math.abs(dragDistanceX) > DRAG_THRESHOLD) {
+            // 수평 드래그 또는 두 손가락 터치 시 드래그바 활성화
+            if (Math.abs(dragDistanceX) > DRAG_THRESHOLD && Math.abs(dragDistanceX) > Math.abs(dragDistanceY) || (e.touches && e.touches.length > 1)) {
                 isHorizontalDrag = true;
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 document.body.style.userSelect = 'none';
                 videos.forEach(video => {
                     originalPointerEvents = video.style.pointerEvents;
                     video.style.pointerEvents = 'none';
                 });
+            } else if (Math.abs(dragDistanceY) > VERTICAL_DRAG_THRESHOLD) {
+                // 세로 드래그가 감지되면 드래그바 로직을 취소하고 스크롤 허용
+                handleEnd();
+                return;
             } else {
                 return;
             }
@@ -916,8 +923,12 @@ function initDragBar() {
     const handleEnd = () => {
         if (!isDragging) return;
 
+        // 드래그바 기능이 사용된 경우에만 UI 숨김
+        if (isHorizontalDrag) {
+            updateTimeDisplay(0);
+        }
+
         isDragging = false;
-        updateTimeDisplay(0);
 
         const videos = findAllVideos();
         videos.forEach(video => {
@@ -928,6 +939,7 @@ function initDragBar() {
         originalPointerEvents = null;
         totalTimeChange = 0;
         isHorizontalDrag = false;
+        document.body.style.userSelect = ''; // 드래그 종료 시 user-select 복구
     };
 
     const handleFullscreenChange = () => {
