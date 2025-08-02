@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.134 (드래그바 전체 화면 가림 문제 최종 수정)
+// @version       4.0.135 (드래그바 시간 이동 단위 초단위로 변경)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -910,7 +910,8 @@
 
             if (timeChange !== 0) {
                 const sign = timeChange > 0 ? '+' : '';
-                timeDisplay.textContent = `${sign}${timeChange.toFixed(1)}초 이동`;
+                // 🚩 정수 초 단위로만 표시하도록 수정
+                timeDisplay.textContent = `${sign}${timeChange}초 이동`;
                 timeDisplay.style.display = 'block';
                 timeDisplay.style.opacity = '1';
                 if (hideTimeDisplayTimer) {
@@ -973,7 +974,8 @@
                 e.preventDefault();
                 e.stopImmediatePropagation();
 
-                const timeChange = dragDistanceX / 10;
+                // 🚩 드래그 감도를 대폭 증가시키고, 정수 초로 반올림
+                const timeChange = Math.round(dragDistanceX / 2);
                 totalTimeChange += timeChange;
                 updateTimeDisplay(totalTimeChange);
 
@@ -1006,10 +1008,8 @@
 
             const fsElement = document.fullscreenElement;
             if (fsElement) {
-                // 전체 화면 요소에 드래그바를 직접 부착
                 fsElement.appendChild(timeDisplay);
             } else {
-                // 전체 화면이 아닐 때는 다시 body에 부착
                 if (document.body) {
                     document.body.appendChild(timeDisplay);
                 }
