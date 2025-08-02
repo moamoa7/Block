@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.124 (GPU 가속 레이어 위로 UI 표시)
+// @version       4.0.125 (배속바, 드래그바 모두 GPU 가속 레이어 위에 표시)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -713,7 +713,7 @@
                     position: fixed;
                     top: 50%;
                     right: 0;
-                    transform: translateY(-50%);
+                    transform: translateY(-50%) translateZ(9999px);
                     background: rgba(0, 0, 0, 0.0);
                     padding: 10px 8px;
                     border-radius: 8px 0 0 8px;
@@ -729,6 +729,7 @@
                     transition: opacity 0.3s;
                     user-select: none;
                     box-shadow: 0 0 5px rgba(0,0,0,0.0);
+                    will-change: transform, opacity;
                 }
                 #${sliderId}:hover { opacity: 1; }
                 #vm-speed-reset-btn {
