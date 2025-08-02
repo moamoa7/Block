@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.140 (속도 조절바 기능 개선)
+// @version       4.0.142 (UI 충돌 해결 및 버그 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -31,7 +31,7 @@
         writable: false,
         configurable: false
     });
-
+    
     const EXCEPTION_LIST = {
         'supjav.com': ['iframeBlocker'],
     };
@@ -58,6 +58,9 @@
     const isTopFrame = window.self === window.top;
     const logHistory = [];
     let isSpeedSliderMinimized = true;
+
+    // UI 충돌 방지를 위한 전역 상태 변수
+    let isUIBeingUsed = false;
 
     function createLogBox() {
         if (!isTopFrame) return;
@@ -591,7 +594,7 @@
             }
         }
     }
-
+    
     function initIframeBlocker() {
         const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain =>
             hostname.includes(domain) || window.location.href.includes(domain)
@@ -693,8 +696,7 @@
         }
         return results;
     }
-
-    // Intersection Observer는 이제 비디오 목록을 최신 상태로 유지하는 데만 사용
+    
     const allVideos = new Set();
     const videoIntersectionObserver = new IntersectionObserver(entries => {
         entries.forEach(entry => {
@@ -704,7 +706,6 @@
                 allVideos.delete(entry.target);
             }
         });
-        // 모든 비디오가 사라지면 슬라이더를 숨깁니다.
         if (allVideos.size === 0) {
             hideSpeedSlider();
         }
@@ -716,14 +717,13 @@
         const sliderId = 'vm-speed-slider-container';
         let container = null;
         let playbackUpdateTimer = null;
-
+    
         const updateVideoSpeed = (speed) => {
-            // 모든 비디오에 대해 속도 일괄 적용
             document.querySelectorAll('video').forEach(video => {
                 video.playbackRate = speed;
             });
         };
-
+    
         const onSliderChange = (val) => {
             const speed = parseFloat(val);
             const valueDisplay = document.getElementById('vm-speed-value');
@@ -735,7 +735,7 @@
                 updateVideoSpeed(speed);
             }, 100);
         };
-
+    
         const createSliderElements = () => {
             container = document.createElement('div');
             container.id = sliderId;
@@ -806,7 +806,7 @@
                 #vm-speed-toggle-btn:hover { color: #ccc; }
             `;
             document.head.appendChild(style);
-
+    
             const resetBtn = document.createElement('button');
             resetBtn.id = 'vm-speed-reset-btn';
             resetBtn.textContent = '1x';
@@ -824,26 +824,31 @@
             toggleBtn.id = 'vm-speed-toggle-btn';
             toggleBtn.textContent = '🔼';
             isSpeedSliderMinimized = true;
-
+    
             const updateToggleButton = () => {
                 slider.style.display = isSpeedSliderMinimized ? 'none' : '';
                 resetBtn.style.display = isSpeedSliderMinimized ? 'none' : '';
                 valueDisplay.style.display = isSpeedSliderMinimized ? 'none' : '';
                 toggleBtn.textContent = isSpeedSliderMinimized ? '🔼' : '🔽';
             };
-
+    
             toggleBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 isSpeedSliderMinimized = !isSpeedSliderMinimized;
                 updateToggleButton();
             });
-
+    
             slider.addEventListener('input', () => onSliderChange(slider.value));
             resetBtn.addEventListener('click', () => {
                 slider.value = '1.0';
                 onSliderChange('1.0');
             });
 
+            container.addEventListener('mousedown', () => isUIBeingUsed = true, true);
+            container.addEventListener('mouseup', () => isUIBeingUsed = false, true);
+            container.addEventListener('touchstart', () => isUIBeingUsed = true, true);
+            container.addEventListener('touchend', () => isUIBeingUsed = false, true);
+    
             container.appendChild(resetBtn);
             container.appendChild(slider);
             container.appendChild(valueDisplay);
@@ -877,19 +882,19 @@
                 hideSpeedSlider();
             }
         };
-
+        
         document.addEventListener('fullscreenchange', () => {
             const fsEl = document.fullscreenElement;
             if (fsEl && container) fsEl.appendChild(container);
             else if (document.body && container) document.body.appendChild(container);
         });
-
+    
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', checkVideosAndToggleSlider);
         } else {
             checkVideosAndToggleSlider();
         }
-
+    
         const videoMutationObserver = new MutationObserver((mutations) => {
             mutations.forEach(mutation => {
                 if (mutation.type === 'childList') {
@@ -920,13 +925,13 @@
         const timeDisplayId = 'vm-time-display';
         const DRAG_THRESHOLD = 10;
         const DRAG_DIRECTION_THRESHOLD = 2;
-
+        
         const createTimeDisplay = () => {
             let existingTimeDisplay = document.getElementById(timeDisplayId);
             if (existingTimeDisplay) {
                 return existingTimeDisplay;
             }
-
+            
             const newTimeDisplay = document.createElement('div');
             newTimeDisplay.id = timeDisplayId;
             newTimeDisplay.style.cssText = `
@@ -981,14 +986,14 @@
             }
             return e.clientX;
         };
-
+        
         const getYPosition = (e) => {
             if (e.touches && e.touches.length > 0) {
                 return e.touches[0].clientY;
             }
             return e.clientY;
         };
-
+        
         const getVisibleVideo = () => {
             return [...document.querySelectorAll('video')].find(video => {
                 const rect = video.getBoundingClientRect();
@@ -1002,7 +1007,7 @@
         };
 
         const handleStart = (e) => {
-            if (e.target.closest('#vm-speed-slider-container') || e.target.closest('#vm-time-display')) {
+            if (isUIBeingUsed || e.target.closest('#vm-time-display')) {
                 return;
             }
             const video = getVisibleVideo();
@@ -1045,7 +1050,7 @@
                 const timeChange = Math.round(dragDistanceX / 2);
                 totalTimeChange += timeChange;
                 updateTimeDisplay(totalTimeChange);
-
+                
                 if (video.duration && !isNaN(video.duration)) {
                     video.currentTime += timeChange;
                 }
@@ -1067,10 +1072,10 @@
             document.body.style.userSelect = '';
             updateTimeDisplay(0);
         };
-
+        
         const handleFullscreenChange = () => {
             if (!timeDisplay) return;
-
+            
             const fsElement = document.fullscreenElement;
             if (fsElement) {
                 fsElement.appendChild(timeDisplay);
@@ -1088,9 +1093,9 @@
         document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
         document.addEventListener('touchend', handleEnd, { capture: true });
         document.addEventListener('touchcancel', handleEnd, { capture: true });
-
+        
         document.addEventListener('fullscreenchange', handleFullscreenChange);
-
+        
         const timeDisplayObserver = new MutationObserver(() => {
             if (document.querySelectorAll('video').length > 0 && !document.getElementById(timeDisplayId)) {
                 if (document.body) {
@@ -1111,7 +1116,7 @@
             });
         }
     }
-
+    
     initPopupBlocker();
     initIframeBlocker();
     initSpeedSlider();
