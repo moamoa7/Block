@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.111 (영상 드래그바 추가 - 모바일에서도 가능하게 .배속바 클릭 안되는거 해결)
+// @version       4.0.112 (영상 드래그바 추가 - 모바일에서도 가능하게 .배속바 클릭 안되는거 해결)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -957,95 +957,108 @@
   }
 
   function initDragBar() {
-      let isDragging = false;
-      let startX = 0;
-      let totalTimeChange = 0;
-      let timeDisplay = null;
+    let isDragging = false;
+    let startX = 0;
+    let totalTimeChange = 0;
+    let timeDisplay = null;
+    let videoElement = null;
 
-      const createTimeDisplay = () => {
-          if (document.getElementById('vm-time-display')) {
-              timeDisplay = document.getElementById('vm-time-display');
-              return;
-          }
-          timeDisplay = document.createElement('div');
-          timeDisplay.id = 'vm-time-display';
-          document.body.appendChild(timeDisplay);
-      };
+    const DRAG_THRESHOLD = 5; // 드래그로 인식할 최소 거리 (픽셀)
 
-      const updateTimeDisplay = (timeChange) => {
-          if (!timeDisplay) {
-              createTimeDisplay();
-          }
+    const createTimeDisplay = () => {
+        if (!timeDisplay) {
+            timeDisplay = document.createElement('div');
+            timeDisplay.id = 'vm-time-display';
+            timeDisplay.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-size: 1.5rem;
+                z-index: 2147483647;
+                display: none;
+                pointer-events: none;
+            `;
+        }
+    };
 
-          if (timeChange !== 0) {
-              const sign = timeChange > 0 ? '+' : '';
-              timeDisplay.textContent = `${sign}${timeChange.toFixed(1)}초 이동`;
-              timeDisplay.style.display = 'block';
-          } else {
-              timeDisplay.style.display = 'none';
-          }
-      };
+    const getXPosition = (e) => {
+        if (e.touches && e.touches.length > 0) {
+            return e.touches[0].clientX;
+        }
+        return e.clientX;
+    };
 
-      const getXPosition = (e) => {
-          if (e.touches && e.touches.length > 0) {
-              return e.touches[0].clientX;
-          }
-          return e.clientX;
-      };
+    const handleStart = (e) => {
+        if (isSpeedSliderMinimized) return;
+        if (e.target.closest('#vm-speed-slider-container')) return;
 
-      const handleStart = (e) => {
-          if (!isSpeedSliderMinimized) {
-              isDragging = true;
-              startX = getXPosition(e);
-              totalTimeChange = 0;
-              document.body.style.userSelect = 'none';
-              e.preventDefault();
-              updateTimeDisplay(totalTimeChange);
-          }
-      };
+        videoElement = e.target.closest('video');
+        if (!videoElement) return;
 
-      const handleMove = (e) => {
-          if (isDragging) {
-              const currentX = getXPosition(e);
-              const dragDistance = currentX - startX;
-              const timeChange = dragDistance / 10;
+        isDragging = true;
+        startX = getXPosition(e);
+        totalTimeChange = 0;
+        document.body.style.userSelect = 'none';
 
-              totalTimeChange += timeChange;
-              updateTimeDisplay(totalTimeChange);
+        createTimeDisplay();
 
-              document.querySelectorAll('video').forEach(video => {
-                  if (video.duration && !isNaN(video.duration)) {
-                      video.currentTime += timeChange;
-                  }
-              });
+        if (!document.body.contains(timeDisplay)) {
+            document.body.appendChild(timeDisplay);
+        }
+    };
 
-              startX = currentX;
-          }
-      };
+    const handleMove = (e) => {
+        if (isDragging && videoElement) {
+            const currentX = getXPosition(e);
+            const dragDistance = currentX - startX;
 
-      const handleEnd = () => {
-          if (isDragging) {
-              isDragging = false;
-              startX = 0;
-              totalTimeChange = 0;
-              document.body.style.userSelect = '';
-              if (timeDisplay) {
-                  timeDisplay.style.display = 'none';
-              }
-          }
-      };
+            if (Math.abs(dragDistance) > DRAG_THRESHOLD) {
+                const timeChange = dragDistance / 10;
+                totalTimeChange += timeChange;
 
-      // PC (마우스) 이벤트
-      document.addEventListener('mousedown', handleStart);
-      document.addEventListener('mousemove', handleMove);
-      document.addEventListener('mouseup', handleEnd);
+                if (videoElement.duration && !isNaN(videoElement.duration)) {
+                    videoElement.currentTime += timeChange;
+                }
 
-      // 모바일 (터치) 이벤트
-      document.addEventListener('touchstart', handleStart, { passive: false });
-      document.addEventListener('touchmove', handleMove, { passive: false });
-      document.addEventListener('touchend', handleEnd);
-      document.addEventListener('touchcancel', handleEnd); // 터치 취소 이벤트 추가
-  }
+                if (timeDisplay) {
+                    const sign = totalTimeChange > 0 ? '+' : '';
+                    timeDisplay.textContent = `${sign}${totalTimeChange.toFixed(1)}초 이동`;
+                    timeDisplay.style.display = 'block';
+                }
+
+                e.preventDefault();
+            }
+            startX = currentX;
+        }
+    };
+
+    const handleEnd = () => {
+        if (isDragging) {
+            isDragging = false;
+            startX = 0;
+            totalTimeChange = 0;
+            document.body.style.userSelect = '';
+            if (timeDisplay) {
+                timeDisplay.style.display = 'none';
+            }
+            videoElement = null;
+        }
+    };
+
+    document.addEventListener('mousedown', handleStart, true);
+    document.addEventListener('mousemove', handleMove, true);
+    document.addEventListener('mouseup', handleEnd, true);
+
+    document.addEventListener('touchstart', handleStart, { passive: false, capture: true });
+    document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
+    document.addEventListener('touchend', handleEnd, { capture: true });
+    document.addEventListener('touchcancel', handleEnd, { capture: true });
+}
 
   initPopupBlocker();
   initIframeBlocker();
