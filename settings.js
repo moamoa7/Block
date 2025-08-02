@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.112 (영상 드래그바 추가 - 모바일에서도 가능하게 .배속바 클릭 안되는거 해결)
+// @version       4.0.113 (영상 드래그바 추가 - 전체화면에서 가능하게 추가)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -963,14 +963,14 @@
     let timeDisplay = null;
     let videoElement = null;
 
-    const DRAG_THRESHOLD = 5; // 드래그로 인식할 최소 거리 (픽셀)
+    const DRAG_THRESHOLD = 5;
 
     const createTimeDisplay = () => {
         if (!timeDisplay) {
             timeDisplay = document.createElement('div');
             timeDisplay.id = 'vm-time-display';
             timeDisplay.style.cssText = `
-                position: fixed;
+                position: absolute;
                 top: 20px;
                 left: 50%;
                 transform: translateX(-50%);
@@ -1007,8 +1007,13 @@
 
         createTimeDisplay();
 
-        if (!document.body.contains(timeDisplay)) {
-            document.body.appendChild(timeDisplay);
+        const parent = videoElement.parentElement;
+        if (parent && parent.style.position !== 'relative' && parent.style.position !== 'absolute') {
+            parent.style.position = 'relative';
+        }
+
+        if (parent && !parent.contains(timeDisplay)) {
+            parent.appendChild(timeDisplay);
         }
     };
 
@@ -1050,14 +1055,30 @@
         }
     };
 
+    // PC (마우스) 이벤트
     document.addEventListener('mousedown', handleStart, true);
     document.addEventListener('mousemove', handleMove, true);
     document.addEventListener('mouseup', handleEnd, true);
 
+    // 모바일 (터치) 이벤트
     document.addEventListener('touchstart', handleStart, { passive: false, capture: true });
     document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
     document.addEventListener('touchend', handleEnd, { capture: true });
     document.addEventListener('touchcancel', handleEnd, { capture: true });
+
+    // 전체화면 전환 이벤트 리스너
+    document.addEventListener('fullscreenchange', () => {
+        if (timeDisplay) {
+            const fullscreenEl = document.fullscreenElement || document.webkitFullscreenElement;
+            if (fullscreenEl && videoElement && fullscreenEl.contains(videoElement)) {
+                if (!fullscreenEl.contains(timeDisplay)) {
+                    fullscreenEl.appendChild(timeDisplay);
+                }
+            } else if (timeDisplay.parentElement !== document.body) {
+                document.body.appendChild(timeDisplay);
+            }
+        }
+    });
 }
 
   initPopupBlocker();
