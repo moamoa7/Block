@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.6 (드래그 종료 시 현재 시간 표시 기능 삭제)
+// @version       6.1.7 (모바일 재생 문제 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -845,9 +845,13 @@ function initDragBar() {
     const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
 
     const handleStart = (e) => {
-        if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
+        // 드래그바가 활성화될 조건을 추가
         const videos = findAllVideos();
-        if (videos.length === 0) return;
+        if (videos.length === 0 || videos.every(v => v.paused)) {
+            return;
+        }
+
+        if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
 
         isDragging = true;
         isHorizontalDrag = false;
@@ -915,7 +919,7 @@ function initDragBar() {
         isDragging = false;
         updateTimeDisplay(0);
 
-        document.body.style.userSelect = '';
+        const videos = findAllVideos();
         videos.forEach(video => {
              if (originalPointerEvents !== null) {
                 video.style.pointerEvents = originalPointerEvents;
