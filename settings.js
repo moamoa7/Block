@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.107 (beforeunload 기능 제거)
-// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화 (beforeunload 기능 제거)
+// @version       4.0.109 (영상 드래그바 추가)
+// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, 영상 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -15,7 +15,7 @@
   const WHITELIST = [
     'challenges.cloudflare.com',
     'recaptcha',
-    '/e/',
+    '/e/',  // streamtape.com 영상 재생
   ];
 
   const hostname = location.hostname;
@@ -764,6 +764,8 @@
     });
   }
 
+  let isSpeedSliderMinimized = true;
+
   function initSpeedSlider() {
     if (window.__vmSpeedSliderInjectedInThisFrame) return;
     window.__vmSpeedSliderInjectedInThisFrame = true;
@@ -859,6 +861,19 @@
                 margin-top: 4px;
             }
             #vm-speed-toggle-btn:hover { color: #ccc; }
+            #vm-time-display {
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-size: 1.5rem;
+                z-index: 2147483647;
+                display: none;
+            }
         `;
         document.head.appendChild(style);
 
@@ -878,17 +893,17 @@
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'vm-speed-toggle-btn';
         toggleBtn.textContent = '🔼';
-        let isMinimized = true;
+        isSpeedSliderMinimized = true;
 
         const updateToggleButton = () => {
-            slider.style.display = isMinimized ? 'none' : '';
-            resetBtn.style.display = isMinimized ? 'none' : '';
-            valueDisplay.style.display = isMinimized ? 'none' : '';
-            toggleBtn.textContent = isMinimized ? '🔼' : '🔽';
+            slider.style.display = isSpeedSliderMinimized ? 'none' : '';
+            resetBtn.style.display = isSpeedSliderMinimized ? 'none' : '';
+            valueDisplay.style.display = isSpeedSliderMinimized ? 'none' : '';
+            toggleBtn.textContent = isSpeedSliderMinimized ? '🔼' : '🔽';
         };
 
         toggleBtn.addEventListener('click', () => {
-            isMinimized = !isMinimized;
+            isSpeedSliderMinimized = !isSpeedSliderMinimized;
             updateToggleButton();
         });
 
@@ -940,8 +955,83 @@
     });
   }
 
+  function initDragBar() {
+      let isDragging = false;
+      let startX = 0;
+      let totalTimeChange = 0; // 누적 시간을 저장할 변수
+      let timeDisplay = null;
+
+      const createTimeDisplay = () => {
+          if (document.getElementById('vm-time-display')) {
+              timeDisplay = document.getElementById('vm-time-display');
+              return;
+          }
+          timeDisplay = document.createElement('div');
+          timeDisplay.id = 'vm-time-display';
+          document.body.appendChild(timeDisplay);
+      };
+
+      const updateTimeDisplay = (timeChange) => {
+          if (!timeDisplay) {
+              createTimeDisplay();
+          }
+
+          if (timeChange !== 0) {
+              const sign = timeChange > 0 ? '+' : '';
+              timeDisplay.textContent = `${sign}${timeChange.toFixed(1)}초 이동`;
+              timeDisplay.style.display = 'block';
+          } else {
+              timeDisplay.style.display = 'none';
+          }
+      };
+
+      document.addEventListener('mousedown', (e) => {
+          // 배속바가 최소화되지 않았고, 마우스 왼쪽 버튼 클릭 시
+          if (!isSpeedSliderMinimized && e.button === 0) {
+              isDragging = true;
+              startX = e.clientX;
+              totalTimeChange = 0; // 드래그 시작 시 누적 시간 초기화
+              e.preventDefault();
+              document.body.style.userSelect = 'none';
+              updateTimeDisplay(totalTimeChange);
+          }
+      });
+
+      document.addEventListener('mousemove', (e) => {
+          if (isDragging) {
+              const currentX = e.clientX;
+              const dragDistance = currentX - startX;
+              const timeChange = dragDistance / 10;
+
+              totalTimeChange += timeChange; // 총 이동 시간에 현재 변화량 누적
+              updateTimeDisplay(totalTimeChange);
+
+              document.querySelectorAll('video').forEach(video => {
+                  if (video.duration && !isNaN(video.duration)) {
+                      video.currentTime += timeChange;
+                  }
+              });
+
+              startX = currentX;
+          }
+      });
+
+      document.addEventListener('mouseup', () => {
+          if (isDragging) {
+              isDragging = false;
+              startX = 0;
+              totalTimeChange = 0;
+              document.body.style.userSelect = '';
+              if (timeDisplay) {
+                  timeDisplay.style.display = 'none';
+              }
+          }
+      });
+  }
+
   initPopupBlocker();
   initIframeBlocker();
   initSpeedSlider();
+  initDragBar();
 
 })();
