@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.106 (로그내역 줄바꿈)
-// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화
+// @version       4.0.107 (beforeunload 기능 제거)
+// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider를 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화, Z-index 클릭 덫 감시 및 자동 이동/Base64 iframe 차단 강화 (beforeunload 기능 제거)
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -12,7 +12,6 @@
   'use strict';
 
   // 🚩 최상단에서 스크립트 전체 실행 여부 결정
-  // 스크립트 실행이 문제를 일으키는 도메인을 추가합니다.
   const WHITELIST = [
     'challenges.cloudflare.com',
     'recaptcha',
@@ -34,7 +33,6 @@
   window.__MySuperScriptInitialized = true;
 
   // 🚩 특정 기능만 예외적으로 허용할 도메인 목록
-  // { '도메인명': ['예외기능1', '예외기능2'] } 형식으로 추가합니다.
   const EXCEPTION_LIST = {
   };
 
@@ -51,15 +49,14 @@
 
   // 🚩 postMessage 로그를 무시할 도메인
   const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
+      'google.com',
       'ok.ru',
       'twitch.tv',
-      'ext-twitch.tv',
   ];
 
   // 🚩 postMessage 로그를 무시할 패턴
   const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
       '{"event":"timeupdate"',
-      'twitch-ext-context',
   ];
 
   const isFeatureAllowed = (featureName) => {
@@ -74,7 +71,7 @@
   let pendingLogs = [];
   let logDismissTimer = null;
   let isTopFrame = window.self === window.top;
-  const logHistory = []; // 🚩 로그를 저장할 배열 추가
+  const logHistory = [];
 
   function createLogBox() {
     if (document.getElementById('popupBlockerLogContainer')) {
@@ -101,7 +98,6 @@
       box-shadow: 0 0 8px #000;
     `;
 
-    // 🚩 수정된 부분: iframe에서는 로그 창을 강제로 숨김
     if (!isTopFrame) {
       logBoxContainer.style.display = 'none';
       logBoxContainer.style.pointerEvents = 'none';
@@ -125,7 +121,6 @@
       opacity: 0.8;
     `;
     copyBtn.onclick = () => {
-        // 🚩 수정된 부분: logHistory 배열의 내용을 복사
         if (logHistory.length > 0) {
             const logText = logHistory.join('\n');
             navigator.clipboard.writeText(logText)
@@ -182,8 +177,8 @@
       if (!logContentBox) return;
 
       const logText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-      logHistory.push(logText); // 🚩 로그를 배열에 저장
-      if (logHistory.length > 50) { // 로그 개수 제한
+      logHistory.push(logText);
+      if (logHistory.length > 50) {
           logHistory.shift();
       }
 
@@ -207,7 +202,7 @@
       logDismissTimer = setTimeout(() => {
           logBoxContainer.style.opacity = '0';
           logBoxContainer.style.pointerEvents = 'none';
-      }, 10000); // 10초 후에 사라짐
+      }, 10000);
   }
 
   function addLog(msg) {
@@ -222,7 +217,6 @@
         try {
             window.parent.postMessage({ type: 'MY_SCRIPT_LOG', message: msg }, '*');
         } catch (e) {
-            // 🚩 수정된 부분: iframe에서 postMessage 실패 시 로그 창을 강제로 숨김
             if (logBoxContainer) {
               logBoxContainer.style.display = 'none';
             }
@@ -609,26 +603,6 @@
       }
     }, true);
 
-    if (!isFeatureAllowed('beforeunload')) {
-      const originalAddEventListener = EventTarget.prototype.addEventListener;
-      EventTarget.prototype.addEventListener = function(type, listener, options) {
-          if (type === 'beforeunload') {
-              console.warn(`[MyScript Debug] 🚫 beforeunload 리스너 추가 시도 감지 및 차단: ${listener.toString().substring(0, 100)}...`);
-              addLog(`🚫 beforeunload 리스너 추가 시도 감지 및 차단`);
-              return;
-          }
-          return originalAddEventListener.call(this, type, listener, options);
-      };
-
-      window.addEventListener('beforeunload', function(e) {
-          console.warn('[MyScript Debug] 🚫 beforeunload 이벤트 감지 및 강제 차단됨 (스크립트 개입)');
-          addLog('🚫 beforeunload 이벤트 감지 및 강제 차단됨');
-          e.preventDefault();
-          e.returnValue = '';
-          e.stopImmediatePropagation();
-      }, true);
-    }
-
     window.addEventListener('keydown', e => {
         if (e.ctrlKey || e.metaKey) {
             if (e.key === 's' || e.key === 'p' || e.key === 'u' || (e.shiftKey && e.key === 'I')) {
@@ -721,11 +695,13 @@
       const parentId = node.parentElement ? node.parentElement.id || '' : '';
       const parentClasses = node.parentElement ? node.parentElement.className || '' || node.parentElement.className : '';
       const forceBlockPatterns = [
-        '/ads/',
+        '/ads/',  // zicf.inven.co.kr/RealMedia/ads/
         'adsbygoogle',
-        'banner',  // compass.adop.cc
+        'banner',  // compass.adop.cc / cdn.nhnace.com / soonwe.com
         'doubleclick',
-        'iframe',  // adpnut.com (mypikpak.com 하단 사라짐)  // home_iframead - javgg.net (islandjav182.fun/discourage072925.shop/api/spots/)
+        'adpnut.com', // 딴지일보
+        'iframead',  // javgg.net (islandjav182.fun/discourage072925.shop/api/spots/)
+        'loader.fmkorea.com/_loader/',  // 에펨코리아
         '/smartpop/',
         '/widgets/',
         '8dk5q9tp.xyz',  // javplayer.org, sextb.date
