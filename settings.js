@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.140 (속도 조절바 기능 개선)
+// @version       4.0.135 (드래그바 시간 이동 단위 초단위로 변경)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -11,6 +11,7 @@
 (function () {
     'use strict';
 
+    // 🚩 스크립트 전체 실행 여부 결정
     const WHITELIST = [
         'challenges.cloudflare.com',
         'recaptcha',
@@ -23,6 +24,7 @@
     if (IS_ENTIRE_SCRIPT_ALLOWED) {
         return;
     }
+    // 각 프레임에서 한 번만 실행되도록 체크
     if (window.hasOwnProperty('__MySuperScriptInitialized') && window.__MySuperScriptInitialized) {
         return;
     }
@@ -678,38 +680,6 @@
         });
     }
 
-    function findAllVideos(root = document) {
-        const results = [];
-        const treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-        let currentNode = treeWalker.currentNode;
-        while (currentNode) {
-            if (currentNode.tagName === 'VIDEO') {
-                results.push(currentNode);
-            }
-            if (currentNode.shadowRoot) {
-                results.push(...findAllVideos(currentNode.shadowRoot));
-            }
-            currentNode = treeWalker.nextNode();
-        }
-        return results;
-    }
-
-    // Intersection Observer는 이제 비디오 목록을 최신 상태로 유지하는 데만 사용
-    const allVideos = new Set();
-    const videoIntersectionObserver = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                allVideos.add(entry.target);
-            } else {
-                allVideos.delete(entry.target);
-            }
-        });
-        // 모든 비디오가 사라지면 슬라이더를 숨깁니다.
-        if (allVideos.size === 0) {
-            hideSpeedSlider();
-        }
-    });
-
     function initSpeedSlider() {
         if (window.__vmSpeedSliderInjectedInThisFrame) return;
         window.__vmSpeedSliderInjectedInThisFrame = true;
@@ -718,10 +688,12 @@
         let playbackUpdateTimer = null;
 
         const updateVideoSpeed = (speed) => {
-            // 모든 비디오에 대해 속도 일괄 적용
-            document.querySelectorAll('video').forEach(video => {
-                video.playbackRate = speed;
-            });
+            const videoElements = document.querySelectorAll('video');
+            if (videoElements.length > 0) {
+                videoElements.forEach(video => {
+                    video.playbackRate = speed;
+                });
+            }
         };
 
         const onSliderChange = (val) => {
@@ -852,29 +824,20 @@
             return container;
         };
 
-        const showSpeedSlider = () => {
-            if (!container) {
-                container = createSliderElements();
-                document.body.appendChild(container);
-            }
-            container.style.display = 'flex';
-            const slider = document.getElementById('vm-speed-slider');
-            updateVideoSpeed(slider ? slider.value : '1.0');
-        };
-
-        const hideSpeedSlider = () => {
-            if (container) {
-                container.style.display = 'none';
-            }
-        };
-
-        const checkVideosAndToggleSlider = () => {
-            const videos = document.querySelectorAll('video');
-            if (videos.length > 0) {
-                showSpeedSlider();
-                videos.forEach(video => videoIntersectionObserver.observe(video));
+        const checkVideosAndDisplay = () => {
+            const videoElements = document.querySelectorAll('video');
+            if (videoElements.length > 0) {
+                if (!container) {
+                    container = createSliderElements();
+                    document.body.appendChild(container);
+                }
+                container.style.display = 'flex';
+                const slider = document.getElementById('vm-speed-slider');
+                updateVideoSpeed(slider ? slider.value : '1.0');
             } else {
-                hideSpeedSlider();
+                if (container) {
+                    container.style.display = 'none';
+                }
             }
         };
 
@@ -885,27 +848,13 @@
         });
 
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', checkVideosAndToggleSlider);
+            document.addEventListener('DOMContentLoaded', checkVideosAndDisplay);
         } else {
-            checkVideosAndToggleSlider();
+            checkVideosAndDisplay();
         }
 
-        const videoMutationObserver = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => {
-                if (mutation.type === 'childList') {
-                    findAllVideos(mutation.target).forEach(video => {
-                        videoIntersectionObserver.observe(video);
-                    });
-                    checkVideosAndToggleSlider();
-                }
-            });
-        });
-        videoMutationObserver.observe(document.documentElement, {
+        new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
             childList: true, subtree: true
-        });
-
-        findAllVideos().forEach(video => {
-            videoIntersectionObserver.observe(video);
         });
     }
 
@@ -961,6 +910,7 @@
 
             if (timeChange !== 0) {
                 const sign = timeChange > 0 ? '+' : '';
+                // 🚩 정수 초 단위로만 표시하도록 수정
                 timeDisplay.textContent = `${sign}${timeChange}초 이동`;
                 timeDisplay.style.display = 'block';
                 timeDisplay.style.opacity = '1';
@@ -989,24 +939,12 @@
             return e.clientY;
         };
 
-        const getVisibleVideo = () => {
-            return [...document.querySelectorAll('video')].find(video => {
-                const rect = video.getBoundingClientRect();
-                return (
-                    rect.top >= 0 &&
-                    rect.left >= 0 &&
-                    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-                    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-                );
-            });
-        };
-
         const handleStart = (e) => {
             if (e.target.closest('#vm-speed-slider-container') || e.target.closest('#vm-time-display')) {
                 return;
             }
-            const video = getVisibleVideo();
-            if (!video) {
+            const videoElements = document.querySelectorAll('video');
+            if (videoElements.length === 0) {
                  return;
             }
 
@@ -1020,12 +958,6 @@
 
         const handleMove = (e) => {
             if (!isDragging) return;
-
-            const video = getVisibleVideo();
-            if (!video) {
-                handleEnd();
-                return;
-            }
 
             const currentX = getXPosition(e);
             const currentY = getYPosition(e);
@@ -1042,13 +974,16 @@
                 e.preventDefault();
                 e.stopImmediatePropagation();
 
+                // 🚩 드래그 감도를 대폭 증가시키고, 정수 초로 반올림
                 const timeChange = Math.round(dragDistanceX / 2);
                 totalTimeChange += timeChange;
                 updateTimeDisplay(totalTimeChange);
 
-                if (video.duration && !isNaN(video.duration)) {
-                    video.currentTime += timeChange;
-                }
+                document.querySelectorAll('video').forEach(video => {
+                    if (video.duration && !isNaN(video.duration)) {
+                        video.currentTime += timeChange;
+                    }
+                });
                 startX = currentX;
                 startY = currentY;
             } else if (!isDragStarted && Math.abs(dragDistanceY) > DRAG_THRESHOLD) {
@@ -1091,27 +1026,30 @@
 
         document.addEventListener('fullscreenchange', handleFullscreenChange);
 
-        const timeDisplayObserver = new MutationObserver(() => {
-            if (document.querySelectorAll('video').length > 0 && !document.getElementById(timeDisplayId)) {
+        const videoObserverCallback = (mutations) => {
+            const videoExists = document.querySelectorAll('video').length > 0;
+            if (videoExists && !document.getElementById(timeDisplayId)) {
                 if (document.body) {
                     updateTimeDisplay(0);
                 }
-            } else if (document.querySelectorAll('video').length === 0 && document.getElementById(timeDisplayId)) {
+            } else if (!videoExists && document.getElementById(timeDisplayId)) {
                 const existingDisplay = document.getElementById(timeDisplayId);
                 if (existingDisplay) existingDisplay.remove();
             }
+        };
+
+        new MutationObserver(videoObserverCallback).observe(document.documentElement, {
+            childList: true, subtree: true
         });
-        timeDisplayObserver.observe(document.documentElement, { childList: true, subtree: true });
 
         if (document.readyState !== 'loading') {
-            if (document.querySelectorAll('video').length > 0) updateTimeDisplay(0);
+            videoObserverCallback();
         } else {
-            document.addEventListener('DOMContentLoaded', () => {
-                if (document.querySelectorAll('video').length > 0) updateTimeDisplay(0);
-            });
+            document.addEventListener('DOMContentLoaded', videoObserverCallback);
         }
     }
 
+    // 🚩 모든 컨텍스트에서 전체 기능 실행
     initPopupBlocker();
     initIframeBlocker();
     initSpeedSlider();
