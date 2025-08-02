@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.125 (배속바, 드래그바 모두 GPU 가속 레이어 위에 표시)
+// @version       4.0.126 (iframe postMessage 기반 영상 플레이어 식별)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -53,6 +53,8 @@
     let isTopFrame = window.self === window.top;
     const logHistory = [];
     let isSpeedSliderMinimized = true;
+    let playerIframe = null; // 🚩 실제 영상 플레이어 iframe을 저장할 변수
+
     function createLogBox() {
         if (document.getElementById('popupBlockerLogContainer')) {
             logBoxContainer = document.getElementById('popupBlockerLogContainer');
@@ -682,7 +684,7 @@
         const sliderId = 'vm-speed-slider-container';
         let container = null;
         let playbackUpdateTimer = null;
-    
+
         const updateVideoSpeed = (speed) => {
             const videoElements = document.querySelectorAll('video');
             if (videoElements.length > 0) {
@@ -691,7 +693,7 @@
                 });
             }
         };
-    
+
         const onSliderChange = (val) => {
             const speed = parseFloat(val);
             const valueDisplay = document.getElementById('vm-speed-value');
@@ -703,7 +705,7 @@
                 updateVideoSpeed(speed);
             }, 100);
         };
-    
+
         const createSliderElements = () => {
             container = document.createElement('div');
             container.id = sliderId;
@@ -774,7 +776,7 @@
                 #vm-speed-toggle-btn:hover { color: #ccc; }
             `;
             document.head.appendChild(style);
-    
+
             const resetBtn = document.createElement('button');
             resetBtn.id = 'vm-speed-reset-btn';
             resetBtn.textContent = '1x';
@@ -792,26 +794,26 @@
             toggleBtn.id = 'vm-speed-toggle-btn';
             toggleBtn.textContent = '🔼';
             isSpeedSliderMinimized = true;
-    
+
             const updateToggleButton = () => {
                 slider.style.display = isSpeedSliderMinimized ? 'none' : '';
                 resetBtn.style.display = isSpeedSliderMinimized ? 'none' : '';
                 valueDisplay.style.display = isSpeedSliderMinimized ? 'none' : '';
                 toggleBtn.textContent = isSpeedSliderMinimized ? '🔼' : '🔽';
             };
-    
+
             toggleBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 isSpeedSliderMinimized = !isSpeedSliderMinimized;
                 updateToggleButton();
             });
-    
+
             slider.addEventListener('input', () => onSliderChange(slider.value));
             resetBtn.addEventListener('click', () => {
                 slider.value = '1.0';
                 onSliderChange('1.0');
             });
-    
+
             container.appendChild(resetBtn);
             container.appendChild(slider);
             container.appendChild(valueDisplay);
@@ -819,7 +821,7 @@
             updateToggleButton();
             return container;
         };
-    
+
         const checkVideosAndDisplay = () => {
             const videoElements = document.querySelectorAll('video');
             if (videoElements.length > 0) {
@@ -836,19 +838,19 @@
                 }
             }
         };
-    
+
         document.addEventListener('fullscreenchange', () => {
             const fsEl = document.fullscreenElement;
             if (fsEl && container) fsEl.appendChild(container);
             else if (document.body && container) document.body.appendChild(container);
         });
-    
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', checkVideosAndDisplay);
         } else {
             checkVideosAndDisplay();
         }
-    
+
         new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
             childList: true, subtree: true
         });
@@ -869,7 +871,7 @@
             if (existingTimeDisplay) {
                 return existingTimeDisplay;
             }
-            
+
             const newTimeDisplay = document.createElement('div');
             newTimeDisplay.id = timeDisplayId;
             newTimeDisplay.style.cssText = `
@@ -931,14 +933,14 @@
             }
             return e.clientX;
         };
-        
+
         const handleStart = (e) => {
             if (e.target.closest('#vm-speed-slider-container') ||
                 e.target.closest('#vm-drag-bar-container') ||
                 e.target.closest('#vm-time-display')) {
                 return;
             }
-            
+
             const videoElements = document.querySelectorAll('video');
             if (videoElements.length === 0) {
                  return;
@@ -995,7 +997,7 @@
         document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
         document.addEventListener('touchend', handleEnd, { capture: true });
         document.addEventListener('touchcancel', handleEnd, { capture: true });
-        
+
         const videoObserverCallback = (mutations) => {
             const videoExists = document.querySelectorAll('video').length > 0;
             if (videoExists && !document.getElementById(timeDisplayId)) {
@@ -1004,7 +1006,7 @@
                 document.getElementById(timeDisplayId).remove();
             }
         };
-        
+
         new MutationObserver(videoObserverCallback).observe(document.documentElement, {
             childList: true, subtree: true
         });
@@ -1015,7 +1017,31 @@
             document.addEventListener('DOMContentLoaded', videoObserverCallback);
         }
     }
-    
+
+    // 🚩 postMessage 감시 및 UI 주입 로직
+    if (isTopFrame) {
+        window.addEventListener('message', (event) => {
+            const isVideoControlMessage = (data) => {
+                if (typeof data !== 'object' || data === null) return false;
+                const messageKeys = Object.keys(data);
+                return ['play', 'pause', 'seek', 'setPlaybackRate', 'fastForward'].some(key => messageKeys.includes(key));
+            };
+
+            if (isVideoControlMessage(event.data)) {
+                addLog(`✅ 영상 제어 메시지 감지됨: ${JSON.stringify(event.data).substring(0, 100)}...`);
+                // 메시지를 보낸 iframe의 window 객체에서 iframe 요소를 찾습니다.
+                playerIframe = event.source.frameElement;
+
+                if (playerIframe) {
+                    addLog(`🌟 영상 플레이어 iframe 식별 완료! ID: ${playerIframe.id || 'N/A'}, src: ${playerIframe.src.substring(0, 100)}...`);
+                    // 이제 이 iframe에 배속바와 드래그바를 주입하는 로직을 실행할 수 있습니다.
+                    // 이 로직은 initSpeedSlider와 initDragBar의 기능을 iframe 내부에 주입하는 방식으로 재구성해야 합니다.
+                    // 이 예시에서는 메인 프레임에 대한 로직만 유지합니다. 실제로는 이 시점에 iframe 내부 DOM에 접근하여 UI를 생성해야 합니다.
+                }
+            }
+        }, false);
+    }
+
     initPopupBlocker();
     initIframeBlocker();
     initSpeedSlider();
