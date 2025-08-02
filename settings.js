@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       4.0.126 (iframe postMessage 기반 영상 플레이어 식별)
+// @version       4.0.128 (모바일 스크롤 개선)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -28,7 +28,9 @@
         return;
     }
     window.__MySuperScriptInitialized = true;
-    const EXCEPTION_LIST = {};
+    const EXCEPTION_LIST = {
+        'supjav.com': ['iframeBlocker'],
+    };
     const IFRAME_SKIP_DOMAINS = [];
     const IFRAME_WHITELIST = [];
     const FORCE_BLOCK_POPUP_PATTERNS = [];
@@ -53,7 +55,7 @@
     let isTopFrame = window.self === window.top;
     const logHistory = [];
     let isSpeedSliderMinimized = true;
-    let playerIframe = null; // 🚩 실제 영상 플레이어 iframe을 저장할 변수
+    let playerIframe = null;
 
     function createLogBox() {
         if (document.getElementById('popupBlockerLogContainer')) {
@@ -595,8 +597,8 @@
         const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain =>
             hostname.includes(domain) || window.location.href.includes(domain)
         );
-        if (IS_IFRAME_LOGIC_SKIPPED) {
-            addLog(`ℹ️ iframe 차단 로직 건너뜀 (IFRAME_SKIP_DOMAINS에 포함됨): ${hostname}`);
+        if (IS_IFRAME_LOGIC_SKIPPED || isFeatureAllowed('iframeBlocker')) {
+            addLog(`ℹ️ iframe 차단 로직 건너뜀 (설정 또는 예외 목록에 포함됨): ${hostname}`);
             return;
         }
         const processedIframes = new WeakSet();
@@ -677,16 +679,17 @@
         });
     }
 
-    // 🚩 initSpeedSlider() 함수 로직
-    function initSpeedSlider() {
-        if (window.__vmSpeedSliderInjectedInThisFrame) return;
-        window.__vmSpeedSliderInjectedInThisFrame = true;
-        const sliderId = 'vm-speed-slider-container';
+    // 🚩 UI를 iframe 내부에 삽입하는 로직으로 재구성
+    const injectUI = (targetDocument) => {
+        if (!targetDocument || targetDocument.__MySuperUIScriptInjected) return;
+        targetDocument.__MySuperUIScriptInjected = true;
+
+        // 배속 슬라이더
         let container = null;
         let playbackUpdateTimer = null;
 
         const updateVideoSpeed = (speed) => {
-            const videoElements = document.querySelectorAll('video');
+            const videoElements = targetDocument.querySelectorAll('video');
             if (videoElements.length > 0) {
                 videoElements.forEach(video => {
                     video.playbackRate = speed;
@@ -696,7 +699,7 @@
 
         const onSliderChange = (val) => {
             const speed = parseFloat(val);
-            const valueDisplay = document.getElementById('vm-speed-value');
+            const valueDisplay = targetDocument.getElementById('vm-speed-value');
             if (valueDisplay) {
                 valueDisplay.textContent = `x${speed.toFixed(1)}`;
             }
@@ -707,11 +710,11 @@
         };
 
         const createSliderElements = () => {
-            container = document.createElement('div');
-            container.id = sliderId;
-            const style = document.createElement('style');
+            container = targetDocument.createElement('div');
+            container.id = 'vm-speed-slider-container';
+            const style = targetDocument.createElement('style');
             style.textContent = `
-                #${sliderId} {
+                #vm-speed-slider-container {
                     position: fixed;
                     top: 50%;
                     right: 0;
@@ -733,7 +736,7 @@
                     box-shadow: 0 0 5px rgba(0,0,0,0.0);
                     will-change: transform, opacity;
                 }
-                #${sliderId}:hover { opacity: 1; }
+                #vm-speed-slider-container:hover { opacity: 1; }
                 #vm-speed-reset-btn {
                     background: #444; border: none; border-radius: 4px; color: white;
                     font-size: 14px; padding: 4px 6px; cursor: pointer;
@@ -775,25 +778,25 @@
                 }
                 #vm-speed-toggle-btn:hover { color: #ccc; }
             `;
-            document.head.appendChild(style);
+            targetDocument.head.appendChild(style);
 
-            const resetBtn = document.createElement('button');
+            const resetBtn = targetDocument.createElement('button');
             resetBtn.id = 'vm-speed-reset-btn';
             resetBtn.textContent = '1x';
-            const slider = document.createElement('input');
+            const slider = targetDocument.createElement('input');
             slider.type = 'range';
             slider.min = '0.2';
             slider.max = '4.0';
             slider.step = '0.2';
             slider.value = '1.0';
             slider.id = 'vm-speed-slider';
-            const valueDisplay = document.createElement('div');
+            const valueDisplay = targetDocument.createElement('div');
             valueDisplay.id = 'vm-speed-value';
             valueDisplay.textContent = 'x1.0';
-            const toggleBtn = document.createElement('button');
+            const toggleBtn = targetDocument.createElement('button');
             toggleBtn.id = 'vm-speed-toggle-btn';
             toggleBtn.textContent = '🔼';
-            isSpeedSliderMinimized = true;
+            let isSpeedSliderMinimized = true;
 
             const updateToggleButton = () => {
                 slider.style.display = isSpeedSliderMinimized ? 'none' : '';
@@ -823,14 +826,14 @@
         };
 
         const checkVideosAndDisplay = () => {
-            const videoElements = document.querySelectorAll('video');
+            const videoElements = targetDocument.querySelectorAll('video');
             if (videoElements.length > 0) {
                 if (!container) {
                     container = createSliderElements();
-                    document.body.appendChild(container);
+                    targetDocument.body.appendChild(container);
                 }
                 container.style.display = 'flex';
-                const slider = document.getElementById('vm-speed-slider');
+                const slider = targetDocument.getElementById('vm-speed-slider');
                 updateVideoSpeed(slider ? slider.value : '1.0');
             } else {
                 if (container) {
@@ -839,40 +842,39 @@
             }
         };
 
-        document.addEventListener('fullscreenchange', () => {
-            const fsEl = document.fullscreenElement;
+        targetDocument.addEventListener('fullscreenchange', () => {
+            const fsEl = targetDocument.fullscreenElement;
             if (fsEl && container) fsEl.appendChild(container);
-            else if (document.body && container) document.body.appendChild(container);
+            else if (targetDocument.body && container) targetDocument.body.appendChild(container);
         });
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', checkVideosAndDisplay);
+        if (targetDocument.readyState === 'loading') {
+            targetDocument.addEventListener('DOMContentLoaded', checkVideosAndDisplay);
         } else {
             checkVideosAndDisplay();
         }
 
-        new MutationObserver(checkVideosAndDisplay).observe(document.documentElement, {
+        new MutationObserver(checkVideosAndDisplay).observe(targetDocument.documentElement, {
             childList: true, subtree: true
         });
-    }
 
-    // 🚩 initDragBar() 함수 로직
-    function initDragBar() {
+        // 드래그바
         let isDragging = false;
         let startX = 0;
+        let startY = 0;
         let isDragStarted = false;
         let totalTimeChange = 0;
         let timeDisplay = null;
         let hideTimeDisplayTimer = null;
         const timeDisplayId = 'vm-time-display';
+        const DRAG_THRESHOLD = 10;
+        const DRAG_DIRECTION_THRESHOLD = 2;
 
         const createTimeDisplay = () => {
-            let existingTimeDisplay = document.getElementById(timeDisplayId);
-            if (existingTimeDisplay) {
-                return existingTimeDisplay;
-            }
+            let existingTimeDisplay = targetDocument.getElementById(timeDisplayId);
+            if (existingTimeDisplay) { return existingTimeDisplay; }
 
-            const newTimeDisplay = document.createElement('div');
+            const newTimeDisplay = targetDocument.createElement('div');
             newTimeDisplay.id = timeDisplayId;
             newTimeDisplay.style.cssText = `
                 position: fixed !important;
@@ -897,28 +899,20 @@
         };
 
         const attachTimeDisplayToCorrectElement = () => {
-            if (!timeDisplay) {
-                timeDisplay = createTimeDisplay();
-            }
-
-            if (document.body && !document.body.contains(timeDisplay)) {
-                document.body.appendChild(timeDisplay);
+            if (!timeDisplay) { timeDisplay = createTimeDisplay(); }
+            if (targetDocument.body && !targetDocument.body.contains(timeDisplay)) {
+                targetDocument.body.appendChild(timeDisplay);
             }
         };
 
         const updateTimeDisplay = (timeChange) => {
-            if (!timeDisplay) {
-                attachTimeDisplayToCorrectElement();
-            }
-
+            if (!timeDisplay) { attachTimeDisplayToCorrectElement(); }
             if (timeChange !== 0) {
                 const sign = timeChange > 0 ? '+' : '';
                 timeDisplay.textContent = `${sign}${timeChange.toFixed(1)}초 이동`;
                 timeDisplay.style.display = 'block';
                 timeDisplay.style.opacity = '1';
-                if (hideTimeDisplayTimer) {
-                    clearTimeout(hideTimeDisplayTimer);
-                }
+                if (hideTimeDisplayTimer) { clearTimeout(hideTimeDisplayTimer); }
             } else {
                 timeDisplay.style.opacity = '0';
                 hideTimeDisplayTimer = setTimeout(() => {
@@ -928,54 +922,60 @@
         };
 
         const getXPosition = (e) => {
-            if (e.touches && e.touches.length > 0) {
-                return e.touches[0].clientX;
-            }
+            if (e.touches && e.touches.length > 0) { return e.touches[0].clientX; }
             return e.clientX;
+        };
+        const getYPosition = (e) => {
+            if (e.touches && e.touches.length > 0) { return e.touches[0].clientY; }
+            return e.clientY;
         };
 
         const handleStart = (e) => {
-            if (e.target.closest('#vm-speed-slider-container') ||
-                e.target.closest('#vm-drag-bar-container') ||
-                e.target.closest('#vm-time-display')) {
+            if (e.target.closest('#vm-speed-slider-container') || e.target.closest('#vm-time-display')) {
                 return;
             }
-
-            const videoElements = document.querySelectorAll('video');
-            if (videoElements.length === 0) {
-                 return;
-            }
+            const videoElements = targetDocument.querySelectorAll('video');
+            if (videoElements.length === 0) { return; }
 
             isDragging = true;
             isDragStarted = false;
             startX = getXPosition(e);
+            startY = getYPosition(e);
             totalTimeChange = 0;
-            document.body.style.userSelect = 'none';
+            targetDocument.body.style.userSelect = 'none';
         };
 
         const handleMove = (e) => {
             if (!isDragging) return;
 
             const currentX = getXPosition(e);
+            const currentY = getYPosition(e);
             const dragDistanceX = currentX - startX;
+            const dragDistanceY = currentY - startY;
 
-            if (!isDragStarted && Math.abs(dragDistanceX) > 5) {
+            const isHorizontalDrag = Math.abs(dragDistanceX) > Math.abs(dragDistanceY) * DRAG_DIRECTION_THRESHOLD;
+
+            if (!isDragStarted && Math.abs(dragDistanceX) > DRAG_THRESHOLD) {
                 isDragStarted = true;
-                e.preventDefault();
-                e.stopImmediatePropagation();
             }
 
-            if (isDragStarted) {
+            if (isDragStarted && isHorizontalDrag) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
                 const timeChange = dragDistanceX / 10;
                 totalTimeChange += timeChange;
                 updateTimeDisplay(totalTimeChange);
 
-                document.querySelectorAll('video').forEach(video => {
+                targetDocument.querySelectorAll('video').forEach(video => {
                     if (video.duration && !isNaN(video.duration)) {
                         video.currentTime += timeChange;
                     }
                 });
                 startX = currentX;
+                startY = currentY;
+            } else if (!isDragStarted && Math.abs(dragDistanceY) > DRAG_THRESHOLD) {
+                handleEnd();
             }
         };
 
@@ -985,40 +985,43 @@
             isDragging = false;
             isDragStarted = false;
             startX = 0;
+            startY = 0;
             totalTimeChange = 0;
-            document.body.style.userSelect = '';
+            targetDocument.body.style.userSelect = '';
             updateTimeDisplay(0);
         };
 
-        document.addEventListener('mousedown', handleStart, true);
-        document.addEventListener('mousemove', handleMove, true);
-        document.addEventListener('mouseup', handleEnd, true);
-        document.addEventListener('touchstart', handleStart, { passive: false, capture: true });
-        document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
-        document.addEventListener('touchend', handleEnd, { capture: true });
-        document.addEventListener('touchcancel', handleEnd, { capture: true });
+        targetDocument.addEventListener('mousedown', handleStart, true);
+        targetDocument.addEventListener('mousemove', handleMove, true);
+        targetDocument.addEventListener('mouseup', handleEnd, true);
+        targetDocument.addEventListener('touchstart', handleStart, { passive: false, capture: true });
+        targetDocument.addEventListener('touchmove', handleMove, { passive: false, capture: true });
+        targetDocument.addEventListener('touchend', handleEnd, { capture: true });
+        targetDocument.addEventListener('touchcancel', handleEnd, { capture: true });
 
         const videoObserverCallback = (mutations) => {
-            const videoExists = document.querySelectorAll('video').length > 0;
-            if (videoExists && !document.getElementById(timeDisplayId)) {
+            const videoExists = targetDocument.querySelectorAll('video').length > 0;
+            if (videoExists && !targetDocument.getElementById(timeDisplayId)) {
                 attachTimeDisplayToCorrectElement();
-            } else if (!videoExists && document.getElementById(timeDisplayId)) {
-                document.getElementById(timeDisplayId).remove();
+            } else if (!videoExists && targetDocument.getElementById(timeDisplayId)) {
+                const existingDisplay = targetDocument.getElementById(timeDisplayId);
+                if (existingDisplay) existingDisplay.remove();
             }
         };
 
-        new MutationObserver(videoObserverCallback).observe(document.documentElement, {
+        new MutationObserver(videoObserverCallback).observe(targetDocument.documentElement, {
             childList: true, subtree: true
         });
 
-        if (document.readyState !== 'loading') {
+        if (targetDocument.readyState !== 'loading') {
             videoObserverCallback();
         } else {
-            document.addEventListener('DOMContentLoaded', videoObserverCallback);
+            targetDocument.addEventListener('DOMContentLoaded', videoObserverCallback);
         }
-    }
+    };
 
-    // 🚩 postMessage 감시 및 UI 주입 로직
+
+    // 🚩 메인 로직
     if (isTopFrame) {
         window.addEventListener('message', (event) => {
             const isVideoControlMessage = (data) => {
@@ -1029,21 +1032,74 @@
 
             if (isVideoControlMessage(event.data)) {
                 addLog(`✅ 영상 제어 메시지 감지됨: ${JSON.stringify(event.data).substring(0, 100)}...`);
-                // 메시지를 보낸 iframe의 window 객체에서 iframe 요소를 찾습니다.
                 playerIframe = event.source.frameElement;
 
                 if (playerIframe) {
-                    addLog(`🌟 영상 플레이어 iframe 식별 완료! ID: ${playerIframe.id || 'N/A'}, src: ${playerIframe.src.substring(0, 100)}...`);
-                    // 이제 이 iframe에 배속바와 드래그바를 주입하는 로직을 실행할 수 있습니다.
-                    // 이 로직은 initSpeedSlider와 initDragBar의 기능을 iframe 내부에 주입하는 방식으로 재구성해야 합니다.
-                    // 이 예시에서는 메인 프레임에 대한 로직만 유지합니다. 실제로는 이 시점에 iframe 내부 DOM에 접근하여 UI를 생성해야 합니다.
+                    addLog(`🌟 영상 플레이어 iframe 식별 완료: ${playerIframe.id || 'N/A'}`);
+                    try {
+                        if (playerIframe.contentDocument) {
+                            injectUI(playerIframe.contentDocument);
+                        }
+                    } catch (e) {
+                        addLog(`⚠️ iframe 접근 권한 없음: ${e.message}`);
+                    }
                 }
             }
         }, false);
+
+        const iframeObserver = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList') {
+                    for (const node of mutation.addedNodes) {
+                        if (node.tagName === 'IFRAME') {
+                            const iframe = node;
+                            if (iframe.id === 'video-player' || iframe.src.includes('supjav.com') || iframe.src.includes('ok.ru')) {
+                                addLog(`✅ 특정 iframe(${iframe.id || 'N/A'}) 감지, UI 주입 시도`);
+                                try {
+                                    if (iframe.contentDocument) {
+                                        injectUI(iframe.contentDocument);
+                                    } else {
+                                        iframe.addEventListener('load', () => {
+                                            if (iframe.contentDocument) {
+                                                injectUI(iframe.contentDocument);
+                                            }
+                                        }, { once: true });
+                                    }
+                                } catch (e) {
+                                    addLog(`⚠️ iframe 접근 권한 없음: ${e.message}`);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        iframeObserver.observe(document.body, { childList: true, subtree: true });
+
+        document.querySelectorAll('iframe').forEach(iframe => {
+            if (iframe.id === 'video-player' || iframe.src.includes('supjav.com') || iframe.src.includes('ok.ru')) {
+                addLog(`✅ 초기 로드 시 특정 iframe(${iframe.id || 'N/A'}) 감지, UI 주입 시도`);
+                try {
+                    if (iframe.contentDocument) {
+                        injectUI(iframe.contentDocument);
+                    } else {
+                        iframe.addEventListener('load', () => {
+                            if (iframe.contentDocument) {
+                                injectUI(iframe.contentDocument);
+                            }
+                        }, { once: true });
+                    }
+                } catch (e) {
+                    addLog(`⚠️ iframe 접근 권한 없음: ${e.message}`);
+                }
+            }
+        });
+    }
+
+    if (!playerIframe) {
+        injectUI(document);
     }
 
     initPopupBlocker();
     initIframeBlocker();
-    initSpeedSlider();
-    initDragBar();
 })();
