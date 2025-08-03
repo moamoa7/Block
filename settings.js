@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.43 (범용 SPA 감지 적용 / iframe 비디오 로드 문제 해결 / appendChild.createSliderElements 오류 수정)
+// @version       6.1.44 (옵저버 중복 생성 방지 추가)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -225,7 +225,7 @@
                 }
             }
         }
-
+        
         if (isLogBoxReady) {
             addLogToBox(msg);
         } else {
@@ -633,7 +633,7 @@
             node.remove();
             return;
         }
-
+        
         const logMsg = `🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}"] | 현재: ${window.location.href} | 대상: ${fullSrc}`;
         addLogOnce(`iframe_detected_${fullSrc}`, logMsg);
 
@@ -1192,7 +1192,7 @@
             addLogOnce('recursive_iframe_scan_fail', `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
         }
     }
-
+    
     // --- 비디오 UI 감지 및 토글을 위한 애니메이션 프레임 루프 ---
     function startVideoUIWatcher() {
         function checkVideos() {
@@ -1216,7 +1216,7 @@
         if (location.href !== lastURL) {
             lastURL = location.href;
             addLogOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${location.href}`);
-
+            
             OBSERVER_MAP.forEach(observer => observer.disconnect());
             PROCESSED_DOCUMENTS.clear();
             PROCESSED_NODES.clear();
@@ -1231,7 +1231,7 @@
             }
         }
     }
-
+    
     ['pushState', 'replaceState'].forEach(type => {
         const orig = history[type];
         history[type] = function (...args) {
