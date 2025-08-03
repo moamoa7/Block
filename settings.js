@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.2.31 (최종 안정화)
+// @version       6.2.32 (드래그 이벤트 리스너 개선)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -239,7 +239,7 @@
                 }
             }
         }
-
+        
         if (isLogBoxReady) {
             addLogToBox(msg);
         } else {
@@ -542,7 +542,7 @@
                 if (typeof e.data === 'object' && e.data !== null && e.data.event === 'timeupdate') {
                     return;
                 }
-
+                
                 const logMsg = `⚠️ postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${e.origin} | 데이터: ${JSON.stringify(e.data).substring(0, 100)}...`;
                 addLogOnce('suspicious_postmessage', logMsg);
             }, false);
@@ -606,7 +606,7 @@
             try { fullSrc = new URL(fullSrc, location.href).href; } catch (e) {
                 console.warn(`iframe URL 파싱 실패: ${rawSrc}`, e);
             }
-
+            
             if (PROCESSED_IFRAMES.has(node)) {
                 if (node.src !== node.previousSrc) {
                     node.previousSrc = node.src;
@@ -627,7 +627,7 @@
             const iframeClasses = node.className || '';
             const parentId = node.parentElement ? node.parentElement.id || '' : '';
             const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
-
+            
             const isForcedBlocked = IFRAME_FORCE_BLOCK_PATTERNS.some(pattern => {
                 return fullSrc.includes(pattern) || iframeId.includes(pattern) || iframeClasses.includes(pattern) || parentId.includes(pattern) || parentClasses.includes(pattern);
             });
@@ -638,7 +638,7 @@
                 if (node.parentNode) node.parentNode.removeChild(node);
                 return;
             }
-
+            
             const logMsg = `🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}"] | 현재: ${window.location.href} | 대상: ${fullSrc}`;
             addLogOnce(`iframe_detected_${fullSrc}`, logMsg);
 
@@ -678,7 +678,7 @@
 
                 const logMsg = `🛑 레이어 클릭 덫 의심 감지 및 제거 | 현재: ${window.location.href} | 요소: ${node.outerHTML.substring(0, 50)}...`;
                 addLogOnce('layer_trap_detected', logMsg);
-
+                
                 node.addEventListener('click', e => {
                     e.preventDefault();
                     e.stopImmediatePropagation();
@@ -770,6 +770,14 @@
 
             const initLogic = () => {
                 videoControls.init();
+                const videos = videoFinder.findAll();
+                if (videos.length > 0) {
+                    speedSlider.show();
+                    dragBar.show();
+                } else {
+                    speedSlider.hide();
+                    dragBar.hide();
+                }
                 video.removeEventListener('canplay', initLogic);
             };
 
@@ -885,7 +893,7 @@
             const slider = document.getElementById('vm-speed-slider');
 
             if (!video || !sliderContainer || !slider) return;
-
+            
             // 배속바를 뷰포트의 오른쪽 중앙에 고정
             sliderContainer.style.position = 'fixed';
             sliderContainer.style.top = '50%';
@@ -903,6 +911,17 @@
                 newHeight = Math.min(maxHeight, Math.max(minHeight, newHeight));
             }
             slider.style.height = `${newHeight}px`;
+
+            if (document.fullscreenElement) {
+                if (sliderContainer.parentNode !== document.fullscreenElement) {
+                     document.fullscreenElement.appendChild(sliderContainer);
+                }
+            } else {
+                if (sliderContainer.parentNode !== document.body) {
+                    document.body.appendChild(sliderContainer);
+                }
+            }
+            sliderContainer.style.display = 'flex';
         }
     };
 
@@ -1094,7 +1113,7 @@
                 document.body.style.userSelect = '';
                 videoUIFlags.isUIBeingUsed = false;
             };
-
+            
             document.addEventListener('mousedown', handleStart, { passive: true, capture: true });
             document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
             document.addEventListener('mouseup', handleEnd, { passive: true, capture: true });
@@ -1107,8 +1126,39 @@
             document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
             document.addEventListener('touchend', handleEnd, { passive: true, capture: true });
             document.addEventListener('touchcancel', handleEnd, { passive: true, capture: true });
-
+            
             videoUIFlags.dragBarInitialized = true;
+        },
+        show: function() {
+            if (!this.dragBarTimeDisplay) {
+                this.init.call(this);
+            }
+        },
+        hide: function() {
+             if (this.dragBarTimeDisplay) {
+                this.dragBarTimeDisplay.style.display = 'none';
+             }
+        },
+        updatePosition: function() {
+            const dragBarTimeDisplay = this.dragBarTimeDisplay;
+            if (!dragBarTimeDisplay) return;
+            const fsElement = document.fullscreenElement;
+
+            if (fsElement) {
+                if (dragBarTimeDisplay.parentNode !== fsElement) {
+                    if (dragBarTimeDisplay.parentNode) {
+                        dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
+                    }
+                    fsElement.appendChild(dragBarTimeDisplay);
+                }
+            } else {
+                if (dragBarTimeDisplay.parentNode !== document.body) {
+                    if (dragBarTimeDisplay.parentNode) {
+                        dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
+                    }
+                    document.body.appendChild(dragBarTimeDisplay);
+                }
+            }
         }
     };
 
@@ -1231,7 +1281,7 @@
             addLogOnce('recursive_iframe_scan_fail', `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
         }
     }
-
+    
     // --- 비디오 UI 감지 및 토글을 위한 애니메이션 프레임 루프 ---
     function startVideoUIWatcher() {
         if (!FeatureFlags.videoControls) return;
@@ -1248,7 +1298,7 @@
 
         requestAnimationFrame(checkVideos);
     }
-
+    
     // --- 범용 SPA 감지 로직 ---
     let lastURL = location.href;
 
@@ -1256,7 +1306,7 @@
         if (location.href !== lastURL && document.readyState !== 'loading') {
             lastURL = location.href;
             addLogOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${location.href}`);
-
+            
             OBSERVER_MAP.forEach(observer => observer.disconnect());
             PROCESSED_DOCUMENTS.clear();
             PROCESSED_NODES.clear();
@@ -1271,7 +1321,7 @@
             }
         }
     }
-
+    
     ['pushState', 'replaceState'].forEach(type => {
         const orig = history[type];
         history[type] = function (...args) {
@@ -1287,7 +1337,7 @@
             onNavigate('interval 감지');
         }
     }, 1000);
-
+    
     const handleFullscreenChange = () => {
         const fsElement = document.fullscreenElement;
         if (fsElement) {
@@ -1331,7 +1381,7 @@
             window.dispatchEvent(new Event('resize'));
         }
     };
-
+    
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     // --- 초기 실행 함수 ---
