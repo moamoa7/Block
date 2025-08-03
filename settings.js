@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.37 (전체화면 버튼 관련 로직 제거)
+// @version       6.1.37 (로그 중복 방지 강화)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -20,6 +20,7 @@
     const PROCESSED_NODES = new WeakSet();
     const PROCESSED_IFRAMES = new WeakSet();
     const PROCESSED_DOCUMENTS = new WeakSet();
+    const PROCESSED_VIDEOS = new WeakSet(); // 비디오 중복 처리를 위한 WeakSet 추가
     const OBSERVER_MAP = new WeakMap();
 
     // --- 공통 변수 ---
@@ -645,7 +646,7 @@
         }
     }
 
-    // --- 영상 탐색 로직 (최적화) ---
+    // --- 비디오 탐색 로직 (최적화) ---
     function findAllVideosInDoc(doc) {
         const videos = new Set();
         try {
@@ -668,13 +669,16 @@
             doc.head.appendChild(style);
         }
         videos.forEach(video => {
-            if (video.style.pointerEvents === 'none') {
-                video.style.setProperty('pointer-events', 'auto', 'important');
-                addLog(`✅ 비디오 포인터 이벤트 복구: ${video.src || video.currentSrc}`);
-            }
-            if (USER_SETTINGS.enableVideoDebugBorder && !video.classList.contains('my-video-ui-initialized')) {
-                video.classList.add('my-video-ui-initialized');
-                addLog(`💡 비디오 요소에 빨간 테두리 추가됨: ${video.tagName}`);
+            if (!PROCESSED_VIDEOS.has(video)) {
+                if (video.style.pointerEvents === 'none') {
+                    video.style.setProperty('pointer-events', 'auto', 'important');
+                    addLog(`✅ 비디오 포인터 이벤트 복구: ${video.src || video.currentSrc}`);
+                }
+                if (USER_SETTINGS.enableVideoDebugBorder && !video.classList.contains('my-video-ui-initialized')) {
+                    video.classList.add('my-video-ui-initialized');
+                    addLog(`💡 비디오 요소에 빨간 테두리 추가됨: ${video.tagName}`);
+                }
+                PROCESSED_VIDEOS.add(video);
             }
         });
         return Array.from(videos);
@@ -768,12 +772,12 @@
 
             // 이전에 존재했던 전체화면 버튼 이벤트 리스너를 제거
             // fullscreenBtn.addEventListener('click', (e) => {
-            //     e.stopPropagation();
-            //     if (videoOverlay) {
-            //         closeVideoOverlay();
-            //     } else {
-            //         createVideoOverlay();
-            //     }
+            //      e.stopPropagation();
+            //      if (videoOverlay) {
+            //          closeVideoOverlay();
+            //      } else {
+            //          createVideoOverlay();
+            //      }
             // });
 
             slider.addEventListener('input', () => onSliderChange(slider.value));
@@ -1053,8 +1057,9 @@
                 initIframeBlocker(node, trigger);
                 handleIframeLoad(node);
             }
-            if (node.tagName === 'VIDEO') {
+            if (node.tagName === 'VIDEO' && !PROCESSED_VIDEOS.has(node)) {
                 initVideoUI();
+                PROCESSED_VIDEOS.add(node);
             }
             checkLayerTrap(node);
         }
@@ -1107,6 +1112,10 @@
                             initIframeBlocker(targetNode, 'iframe src 변경');
                         }
                         checkLayerTrap(targetNode);
+                        if (targetNode.tagName === 'VIDEO' && !PROCESSED_VIDEOS.has(targetNode)) {
+                            initVideoUI();
+                            PROCESSED_VIDEOS.add(targetNode);
+                        }
                     }
                 }
             });
@@ -1176,6 +1185,7 @@
         PROCESSED_DOCUMENTS.clear();
         PROCESSED_NODES.clear();
         PROCESSED_IFRAMES.clear();
+        PROCESSED_VIDEOS.clear(); // SPA 페이지 이동 시 비디오 목록 초기화
         // DOM 로드 후 스크립트 재실행
         document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
     });
