@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.44 (옵저버 중복 생성 방지 추가)
+// @version       6.1.45 (video.currentSrc 우선 및 iframe 접근 불가 로그 제거)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -705,13 +705,15 @@
 
         videos.forEach(video => {
             if (!PROCESSED_VIDEOS.has(video)) {
+                // video.currentSrc가 더 정확하므로 우선 사용
+                const videoSource = video.currentSrc || video.src;
                 if (video.style.pointerEvents === 'none') {
                     video.style.setProperty('pointer-events', 'auto', 'important');
-                    addLogOnce(`video_pointer_event_restore_${video.src || video.currentSrc}`, `✅ 비디오 포인터 이벤트 복구 | 현재: ${window.location.href} | 대상: ${video.src || video.currentSrc}`);
+                    addLogOnce(`video_pointer_event_restore_${videoSource}`, `✅ 비디오 포인터 이벤트 복구 | 현재: ${window.location.href} | 대상: ${videoSource}`);
                 }
                 if (USER_SETTINGS.enableVideoDebugBorder && !video.classList.contains('my-video-ui-initialized')) {
                     video.classList.add('my-video-ui-initialized');
-                    addLogOnce(`video_debug_border_added_${video.src || video.currentSrc}`, `💡 비디오 요소에 빨간 테두리 추가됨 | 현재: ${window.location.href} | 대상: ${video.tagName}`);
+                    addLogOnce(`video_debug_border_added_${videoSource}`, `💡 비디오 요소에 빨간 테두리 추가됨 | 현재: ${window.location.href} | 대상: ${video.tagName}`);
                 }
                 PROCESSED_VIDEOS.add(video);
             }
@@ -728,7 +730,7 @@
                     videos.push(...findAllVideosInDoc(iframeDocument));
                 }
             } catch (e) {
-                // iframe 접근 실패 로그가 중복되지 않도록 처리
+                // iframe 접근 불가 로그는 제거.
             }
         });
         return videos;
@@ -1108,19 +1110,16 @@
                     initVideoUI();
                 }
             } else if (iframe.src) {
-                const logMsg = `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
-                addLogOnce('iframe_access_fail', logMsg);
                 PROCESSED_IFRAMES.add(iframe);
             }
         } catch (e) {
-            const logMsg = `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
-            addLogOnce('iframe_access_fail', logMsg);
             PROCESSED_IFRAMES.add(iframe);
         }
     }
 
     // --- 통합 MutationObserver 로직 (중첩 iframe 재귀 탐색 강화) ---
     function startUnifiedObserver(targetDocument = document) {
+        if (OBSERVER_MAP.has(targetDocument)) return;
         if (!targetDocument.body || PROCESSED_DOCUMENTS.has(targetDocument)) {
             return;
         }
@@ -1169,8 +1168,6 @@
                         }
                     } catch(e) {
                         if (!PROCESSED_IFRAMES.has(iframe)) {
-                            const logMsg = `⚠️ 중첩 iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
-                            addLogOnce(`nested_iframe_access_fail_${iframe.src}`, logMsg);
                             PROCESSED_IFRAMES.add(iframe);
                         }
                     }
@@ -1182,8 +1179,6 @@
                     startUnifiedObserver(iframeDoc);
                 } else if (!iframeDoc) {
                     if (!PROCESSED_IFRAMES.has(iframe)) {
-                        const logMsg = `⚠️ 중첩 iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
-                        addLogOnce(`nested_iframe_access_fail_onload_fail_${iframe.src}`, logMsg);
                         PROCESSED_IFRAMES.add(iframe);
                     }
                 }
