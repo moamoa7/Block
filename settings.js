@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.37 (로그 중복 방지 강화 2)
+// @version       6.1.38 (로그 개선 및 레이어 팝업 알림 추가)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -22,7 +22,7 @@
     const PROCESSED_DOCUMENTS = new WeakSet();
     const PROCESSED_VIDEOS = new WeakSet();
     const OBSERVER_MAP = new WeakMap();
-    const LOGGED_KEYS_WITH_TIMER = new Map(); // 로그 중복 방지용 Map
+    const LOGGED_KEYS_WITH_TIMER = new Map();
 
     // --- 공통 변수 ---
     let logBoxRef = null;
@@ -97,7 +97,7 @@
         }
     }
 
-    // --- 로그 기능 ---
+    // --- 로그 기능 (출처 정보 추가) ---
     function createLogBox() {
         if (!isTopFrame) return;
         if (document.getElementById('popupBlockerLogContainer')) {
@@ -214,22 +214,26 @@
         }, 10000);
     }
     function addLog(msg) {
-        if (isTopFrame) {
-            if (isLogBoxReady) {
-                addLogToBox(msg);
-            } else {
-                pendingLogs.push(msg);
-                console.warn(`[MyScript Log - Pending/Debug] ${msg}`);
-            }
-        } else {
+        // iframe 내부에서 호출 시, 상위 프레임으로 메시지 전달
+        if (!isTopFrame) {
             try {
                 window.parent.postMessage({ type: 'MY_SCRIPT_LOG', message: msg }, '*');
+                return;
             } catch (e) {
+                // Cross-origin iframe에서 접근 실패 시 직접 로그 출력
+                console.warn(`[MyScript Log - iframe error] ${msg}`);
                 if (logBoxContainer) {
                     logBoxContainer.style.display = 'none';
                 }
-                console.warn(`[MyScript Log - iframe error] ${msg}`);
             }
+        }
+
+        // 최상위 프레임에서 직접 로그 출력
+        if (isLogBoxReady) {
+            addLogToBox(msg);
+        } else {
+            pendingLogs.push(msg);
+            console.warn(`[MyScript Log - Pending/Debug] ${msg}`);
         }
     }
     if (isTopFrame) {
@@ -272,25 +276,30 @@
         window.addEventListener('focus', () => { lastBlurTime = 0; });
         const blockOpen = (...args) => {
             const url = args[0] || '(no URL)';
-            addLogOnce('window_open_attempt', `🚫 window.open 차단 시도: ${url}`);
+            const logMsg = `🚫 window.open 차단 시도 | 현재: ${window.location.href} | 대상: ${url}`;
+            addLogOnce('window_open_attempt', logMsg);
             const isForceBlocked = FORCE_BLOCK_POPUP_PATTERNS.some(pattern => url.includes(pattern));
             if (isForceBlocked) {
-                addLogOnce('force_block_popup', `🔥 강제 차단 패턴에 의해 팝업 차단됨: ${url}`);
+                const forceLogMsg = `🔥 강제 차단 패턴에 의해 팝업 차단됨 | 현재: ${window.location.href} | 대상: ${url}`;
+                addLogOnce('force_block_popup', forceLogMsg);
                 return getFakeWindow();
             }
             const currentTime = Date.now();
             const timeSinceVisibilityChange = currentTime - lastVisibilityChangeTime;
             const timeSinceBlur = currentTime - lastBlurTime;
             if (lastVisibilityChangeTime > 0 && timeSinceVisibilityChange < 1000) {
-                addLogOnce('suspicious_visibility_open', `👁️ 탭 비활성화 후 ${timeSinceVisibilityChange}ms 만에 window.open 호출 의심됨: ${url}`);
-                console.warn(`👁️ 탭 비활성화 후 ${timeSinceVisibilityChange}ms 만에 window.open 호출 의심됨: ${url}`);
+                const susLogMsg = `👁️ 탭 비활성화 후 ${timeSinceVisibilityChange}ms 만에 window.open 호출 의심됨 | 현재: ${window.location.href} | 대상: ${url}`;
+                addLogOnce('suspicious_visibility_open', susLogMsg);
+                console.warn(susLogMsg);
             }
             if (lastBlurTime > 0 && timeSinceBlur < 1000) {
-                addLogOnce('suspicious_blur_open', `👁️ 탭 블러 후 ${timeSinceBlur}ms 만에 window.open 호출 의심됨: ${url}`);
-                console.warn(`👁️ 탭 블러 후 ${timeSinceBlur}ms 만에 window.open 호출 의심됨: ${url}`);
+                const susLogMsg = `👁️ 탭 블러 후 ${timeSinceBlur}ms 만에 window.open 호출 의심됨 | 현재: ${window.location.href} | 대상: ${url}`;
+                addLogOnce('suspicious_blur_open', susLogMsg);
+                console.warn(susLogMsg);
             }
             if (userInitiatedAction || isFeatureAllowed('windowOpen')) {
-                addLogOnce('user_allowed_open', `✅ 사용자 상호작용 감지, window.open 허용: ${url}`);
+                const allowLogMsg = `✅ 사용자 상호작용 감지, window.open 허용 | 현재: ${window.location.href} | 대상: ${url}`;
+                addLogOnce('user_allowed_open', allowLogMsg);
                 const features = (args[2] || '') + ',noopener,noreferrer';
                 return originalWindowOpen.apply(window, [args[0], args[1], features]);
             }
@@ -357,7 +366,8 @@
         document.addEventListener('click', function (e) {
             const a = e.target.closest('a');
             if (a && a.href && a.href.startsWith("javascript:") && a.href.includes('window.open')) {
-                addLogOnce('js_link_open_blocked', `🚫 javascript 링크 (window.open) 차단됨: ${a.href}`);
+                const logMsg = `🚫 javascript 링크 (window.open) 차단됨 | 현재: ${window.location.href} | 대상: ${a.href}`;
+                addLogOnce('js_link_open_blocked', logMsg);
                 e.preventDefault();
                 e.stopImmediatePropagation();
             }
@@ -366,8 +376,9 @@
             try {
                 const stack = new Error().stack;
                 if (stack && stack.includes('open') && (stack.includes('click') || stack.includes('mousedown'))) {
-                    addLogOnce('suspicious_event_open', `🕷️ 이벤트 기반 window.open 의심 감지: ${e.type} 이벤트`);
-                    console.warn(`🕷️ 이벤트 기반 window.open 의심 스택:`, stack);
+                    const logMsg = `🕷️ 이벤트 기반 window.open 의심 감지: ${e.type} 이벤트 | 현재: ${window.location.href}`;
+                    addLogOnce('suspicious_event_open', logMsg);
+                    console.warn(logMsg, stack);
                 }
             } catch (err) { /* 스택 접근 실패 시 무시 */ }
         };
@@ -391,7 +402,8 @@
                 el.setAttribute = function (name, value) {
                     if (name === 'target' && ['_blank', '_new'].includes(value) && !isFeatureAllowed('windowOpen')) {
                         if (el.href && el.href.includes('twitter.com')) { return origSetAttr.call(this, name, value); }
-                        addLogOnce('dynamic_target_blank_blocked', `🚫 동적 링크 target="_blank" 설정 차단됨: ${el.href || el.outerHTML}`);
+                        const logMsg = `🚫 동적 링크 target="_blank" 설정 차단됨 | 현재: ${window.location.href} | 대상: ${el.href || el.outerHTML}`;
+                        addLogOnce('dynamic_target_blank_blocked', logMsg);
                         return;
                     }
                     return origSetAttr.call(this, name, value);
@@ -404,7 +416,8 @@
             if (form?.target === '_blank' && !isFeatureAllowed('formSubmit')) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                addLogOnce('form_target_blank_blocked', `🚫 form[target="_blank"] 제출 차단: ${form.action || '(no action)'}`);
+                const logMsg = `🚫 form[target="_blank"] 제출 차단 | 현재: ${window.location.href} | 대상: ${form.action || '(no action)'}`;
+                addLogOnce('form_target_blank_blocked', logMsg);
             }
         }, true);
         const origSetTimeout = window.setTimeout;
@@ -413,7 +426,7 @@
             if (typeof fn === 'function') {
                 const fnString = fn.toString();
                 if (fnString.includes('window.open') && !isFeatureAllowed('windowOpen')) {
-                    addLogOnce('setTimeout_window_open_blocked', '🚫 setTimeout 내부의 window.open 차단됨');
+                    addLogOnce('setTimeout_window_open_blocked', `🚫 setTimeout 내부의 window.open 차단됨 | 현재: ${window.location.href}`);
                     return;
                 }
             }
@@ -423,7 +436,7 @@
             if (typeof fn === 'function') {
                 const fnString = fn.toString();
                 if (fnString.includes('window.open') && !isFeatureAllowed('windowOpen')) {
-                    addLogOnce('setInterval_window_open_blocked', '🚫 setInterval 내부의 window.open 차단됨');
+                    addLogOnce('setInterval_window_open_blocked', `🚫 setInterval 내부의 window.open 차단됨 | 현재: ${window.location.href}`);
                     return;
                 }
             }
@@ -433,7 +446,8 @@
             const originalClick = HTMLElement.prototype.click;
             HTMLElement.prototype.click = function () {
                 if (this.tagName === 'A' && this.href) {
-                    addLogOnce('js_click_link_blocked', `🚫 JS로 만든 링크 click() 탐지 및 차단됨: ${this.href}`);
+                    const logMsg = `🚫 JS로 만든 링크 click() 탐지 및 차단됨 | 현재: ${window.location.href} | 대상: ${this.href}`;
+                    addLogOnce('js_click_link_blocked', logMsg);
                     return;
                 }
                 return originalClick.call(this);
@@ -446,8 +460,8 @@
                 const origAddEventListener = shadowRoot.addEventListener;
                 shadowRoot.addEventListener = function(type, listener, options) {
                     if (type === 'click') {
-                        addLogOnce('shadow_dom_click_listener_detected', '🚨 Shadow DOM 내 클릭 리스너 감지됨');
-                        console.warn('🚨 Shadow DOM 내 클릭 리스너 감지됨:', this, type, listener);
+                        addLogOnce('shadow_dom_click_listener_detected', `🚨 Shadow DOM 내 클릭 리스너 감지됨 | 현재: ${window.location.href}`);
+                        console.warn(`🚨 Shadow DOM 내 클릭 리스너 감지됨 | 현재: ${window.location.href}`, this, type, listener);
                     }
                     return origAddEventListener.call(this, type, listener, options);
                 };
@@ -463,39 +477,41 @@
             const rect = el.getBoundingClientRect();
             const isOffscreen = (rect.right < 0 || rect.bottom < 0 || rect.left > window.innerWidth || rect.top > window.innerHeight);
             if ((isHiddenByStyle || isZeroSize || isOffscreen) && el.hasAttribute('onclick')) {
-                addLogOnce('suspicious_hidden_click_area', `🕳️ 의심 클릭 영역 감지됨: ${el.tagName} (${isHiddenByStyle ? '숨김' : ''}${isZeroSize ? '0크기' : ''}${isOffscreen ? '오프스크린' : ''})`);
-                console.warn('🕳️ 의심 클릭 영역 요소:', el);
+                const logMsg = `🕳️ 의심 클릭 영역 감지됨: ${el.tagName} (${isHiddenByStyle ? '숨김' : ''}${isZeroSize ? '0크기' : ''}${isOffscreen ? '오프스크린' : ''}) | 현재: ${window.location.href}`;
+                addLogOnce('suspicious_hidden_click_area', logMsg);
+                console.warn(logMsg, el);
             }
         }, true);
         const originalExecCommand = Document.prototype.execCommand;
         Document.prototype.execCommand = function(commandId, showUI, value) {
             if (commandId === 'copy') {
-                addLogOnce('exec_command_copy_detected', `📋 document.execCommand('copy') 호출 감지됨`);
-                console.warn('📋 document.execCommand("copy") 호출됨:', commandId, showUI, value);
+                addLogOnce('exec_command_copy_detected', `📋 document.execCommand('copy') 호출 감지됨 | 현재: ${window.location.href}`);
+                console.warn(`📋 document.execCommand("copy") 호출됨 | 현재: ${window.location.href}`, commandId, showUI, value);
             }
             return originalExecCommand.call(this, commandId, showUI, value);
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
             const originalWriteText = navigator.clipboard.writeText;
             navigator.clipboard.writeText = async function(data) {
-                addLogOnce('clipboard_writetext_detected', `📋 navigator.clipboard.writeText() 호출 감지됨: ${String(data).slice(0, 50)}...`);
-                console.warn('📋 navigator.clipboard.writeText() 호출됨:', data);
+                addLogOnce('clipboard_writetext_detected', `📋 navigator.clipboard.writeText() 호출 감지됨: ${String(data).slice(0, 50)}... | 현재: ${window.location.href}`);
+                console.warn(`📋 navigator.clipboard.writeText() 호출됨 | 현재: ${window.location.href}`, data);
                 return originalWriteText.call(this, data);
             };
         }
         const originalFocus = window.focus;
         window.focus = function () {
-            addLogOnce('window_focus_blocked', '🚫 window.focus() 호출 차단됨');
+            addLogOnce('window_focus_blocked', `🚫 window.focus() 호출 차단됨 | 현재: ${window.location.href}`);
         };
         const originalBlur = window.blur;
         window.blur = function () {
-            addLogOnce('window_blur_detected', '⚠️ window.blur() 호출 감지됨');
+            addLogOnce('window_blur_detected', `⚠️ window.blur() 호출 감지됨 | 현재: ${window.location.href}`);
             return originalBlur.apply(this, arguments);
         };
         const originalScrollIntoView = Element.prototype.scrollIntoView;
         Element.prototype.scrollIntoView = function(...args) {
             const key = `scroll_into_view_${this.tagName}_${this.id || this.className}`;
-            addLogOnce(key, '⚠️ scrollIntoView 호출 감지됨: ' + this.outerHTML.slice(0, 100).replace(/\n/g, '') + '...');
+            const logMsg = `⚠️ scrollIntoView 호출 감지됨: ${this.outerHTML.slice(0, 100).replace(/\n/g, '')}... | 현재: ${window.location.href}`;
+            addLogOnce(key, logMsg);
             return originalScrollIntoView.apply(this, args);
         };
         document.addEventListener('DOMContentLoaded', () => {
@@ -503,7 +519,7 @@
             for (const meta of metas) {
                 const content = meta.getAttribute('content') || '';
                 if (content.includes('url=')) {
-                    addLogOnce('meta_refresh_blocked', `🚫 meta refresh 리디렉션 차단됨: ${content}`);
+                    addLogOnce('meta_refresh_blocked', `🚫 meta refresh 리디렉션 차단됨 | 현재: ${window.location.href} | 대상: ${content}`);
                     meta.remove();
                 }
             }
@@ -513,13 +529,15 @@
             if (a?.download && a.href && /\.(exe|apk|bat|scr|zip|msi|cmd|com)/i.test(a.href)) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                addLogOnce('auto_download_blocked', `🚫 자동 다운로드 차단됨: ${a.href}`);
+                const logMsg = `🚫 자동 다운로드 차단됨 | 현재: ${window.location.href} | 대상: ${a.href}`;
+                addLogOnce('auto_download_blocked', logMsg);
             }
         }, true);
         window.addEventListener('keydown', e => {
             if (e.ctrlKey || e.metaKey) {
                 if (e.key === 's' || e.key === 'p' || e.key === 'u' || (e.shiftKey && e.key === 'I')) {
-                    addLogOnce('hotkey_blocked', `🚫 단축키 (${e.key}) 차단됨`);
+                    const logMsg = `🚫 단축키 (${e.key}) 차단됨 | 현재: ${window.location.href}`;
+                    addLogOnce('hotkey_blocked', logMsg);
                     e.preventDefault();
                     e.stopImmediatePropagation();
                 }
@@ -547,7 +565,8 @@
                 isMessageSuspicious = true;
             }
             if (isMessageSuspicious) {
-                addLogOnce('suspicious_postmessage', `⚠️ postMessage 의심 감지됨: Origin=${e.origin}, Data=${JSON.stringify(e.data).substring(0, 100)}...`);
+                const logMsg = `⚠️ postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${e.origin} | 데이터: ${JSON.stringify(e.data).substring(0, 100)}...`;
+                addLogOnce('suspicious_postmessage', logMsg);
             }
         }, false);
         if (!isFeatureAllowed('fullscreen')) {
@@ -556,7 +575,7 @@
                 if (originalRequestFullscreen) {
                     Document.prototype.requestFullscreen = new Proxy(originalRequestFullscreen, {
                         apply(target, thisArg, argumentsList) {
-                            addLogOnce('auto_fullscreen_blocked', '🛑 자동 전체화면 차단');
+                            addLogOnce('auto_fullscreen_blocked', `🛑 자동 전체화면 차단 | 현재: ${window.location.href}`);
                             return Promise.reject('Blocked fullscreen request');
                         }
                     });
@@ -572,8 +591,9 @@
                     enumerable: true,
                     get: () => location,
                     set: (val) => {
-                        addLogOnce('location_change_blocked', '🛑 location 이동 차단 시도됨: ' + val);
-                        console.warn('🛑 location 이동 차단 시도됨:', val);
+                        const logMsg = `🛑 location 이동 차단 시도됨 | 현재: ${window.location.href} | 대상: ${val}`;
+                        addLogOnce('location_change_blocked', logMsg);
+                        console.warn(logMsg);
                     }
                 });
             } catch (e) {
@@ -611,20 +631,23 @@
         });
 
         if (isForcedBlocked) {
-            addLogOnce('force_blocked_iframe', `🚫 iframe 강제 차단됨 (패턴 일치) [id: "${iframeId}", class: "${iframeClasses}"]: ${fullSrc}`);
+            const logMsg = `🚫 iframe 강제 차단됨 (패턴 일치) [id: "${iframeId}", class: "${iframeClasses}"] | 현재: ${window.location.href} | 대상: ${fullSrc}`;
+            addLogOnce(`force_blocked_iframe_${fullSrc}`, logMsg);
             node.remove();
             return;
         }
-        
-        const logKey = `iframe_detected_${fullSrc}`;
-        addLogOnce(logKey, `🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}"]: ${fullSrc}`);
+
+        const logMsg = `🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}"] | 현재: ${window.location.href} | 대상: ${fullSrc}`;
+        addLogOnce(`iframe_detected_${fullSrc}`, logMsg);
 
         if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
-            addLogOnce('base64_iframe_blocked', `🚫 Base64 인코딩된 iframe 차단됨: ${node.src.substring(0, 100)}...`);
+            const b64LogMsg = `🚫 Base64 인코딩된 iframe 차단됨 | 현재: ${window.location.href} | 대상: ${node.src.substring(0, 100)}...`;
+            addLogOnce('base64_iframe_blocked', b64LogMsg);
             node.remove();
             return;
         }
-        addLogOnce('iframe_allowed', `✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
+        const allowMsg = `✅ iframe 허용됨 (다른 확장 프로그램에 의한 차단 확인 필요) | 현재: ${window.location.href} | 대상: ${fullSrc}`;
+        addLogOnce('iframe_allowed', allowMsg);
     }
 
     // --- 레이어 클릭 덫 로직 ---
@@ -640,12 +663,13 @@
 
             if (isSuspect) {
                 processedLayerTraps.add(node);
-                addLogOnce('layer_trap_detected', `🛑 레이어 클릭 덫 의심 감지 및 숨김 처리: ${node.outerHTML.substring(0, 100)}...`);
+                const logMsg = `🛑 레이어 클릭 덫 의심 감지 및 제거 | 현재: ${window.location.href} | 요소: ${node.outerHTML.substring(0, 50)}...`;
+                addLogOnce('layer_trap_detected', logMsg);
                 node.style.setProperty('display', 'none', 'important');
                 node.addEventListener('click', e => {
                     e.preventDefault();
                     e.stopImmediatePropagation();
-                    addLogOnce('hidden_layer_click_blocked', '🚫 숨겨진 레이어 클릭 차단됨');
+                    addLogOnce('hidden_layer_click_blocked', `🚫 숨겨진 레이어 클릭 차단됨 | 현재: ${window.location.href}`);
                 }, true);
             }
         }
@@ -677,11 +701,11 @@
             if (!PROCESSED_VIDEOS.has(video)) {
                 if (video.style.pointerEvents === 'none') {
                     video.style.setProperty('pointer-events', 'auto', 'important');
-                    addLogOnce(`video_pointer_event_restore_${video.src || video.currentSrc}`, `✅ 비디오 포인터 이벤트 복구: ${video.src || video.currentSrc}`);
+                    addLogOnce(`video_pointer_event_restore_${video.src || video.currentSrc}`, `✅ 비디오 포인터 이벤트 복구 | 현재: ${window.location.href} | 대상: ${video.src || video.currentSrc}`);
                 }
                 if (USER_SETTINGS.enableVideoDebugBorder && !video.classList.contains('my-video-ui-initialized')) {
                     video.classList.add('my-video-ui-initialized');
-                    addLogOnce(`video_debug_border_added_${video.src || video.currentSrc}`, `💡 비디오 요소에 빨간 테두리 추가됨: ${video.tagName}`);
+                    addLogOnce(`video_debug_border_added_${video.src || video.currentSrc}`, `💡 비디오 요소에 빨간 테두리 추가됨 | 현재: ${window.location.href} | 대상: ${video.tagName}`);
                 }
                 PROCESSED_VIDEOS.add(video);
             }
@@ -707,7 +731,7 @@
     // --- 오버레이 로직 추가 (검은 배경 오버레이로 변경) ---
     function createVideoOverlay() {
         // 이 함수를 더 이상 사용하지 않음
-        addLogOnce('video_overlay_deprecated', '⚠️ 비디오 오버레이 기능은 제거되었습니다.');
+        addLogOnce('video_overlay_deprecated', `⚠️ 비디오 오버레이 기능은 제거되었습니다 | 현재: ${window.location.href}`);
     }
 
     function closeVideoOverlay() {
@@ -746,7 +770,7 @@
                 #vm-speed-reset-btn:hover { background: #666; }
                 #vm-speed-slider {
                     writing-mode: vertical-lr;
-                    direction: rtl; /* slider-vertical 대신 사용 */
+                    direction: rtl;
                     width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer;
                     background: #555; border-radius: 5px;
                 }
@@ -770,21 +794,6 @@
             const valueDisplay = document.createElement('div');
             valueDisplay.id = 'vm-speed-value'; valueDisplay.textContent = 'x1.0';
 
-            // 이전에 존재했던 전체화면 버튼 생성 로직을 제거
-            // const fullscreenBtn = document.createElement('button');
-            // fullscreenBtn.id = 'vm-fullscreen-toggle-btn';
-            // fullscreenBtn.innerHTML = '⛶';
-
-            // 이전에 존재했던 전체화면 버튼 이벤트 리스너를 제거
-            // fullscreenBtn.addEventListener('click', (e) => {
-            //      e.stopPropagation();
-            //      if (videoOverlay) {
-            //          closeVideoOverlay();
-            //      } else {
-            //          createVideoOverlay();
-            //      }
-            // });
-
             slider.addEventListener('input', () => onSliderChange(slider.value));
             resetBtn.addEventListener('click', () => {
                 slider.value = '1.0'; onSliderChange('1.0');
@@ -796,8 +805,6 @@
             container.appendChild(resetBtn);
             container.appendChild(slider);
             container.appendChild(valueDisplay);
-            // 이전에 존재했던 전체화면 버튼 추가 로직을 제거
-            // container.appendChild(fullscreenBtn);
             return container;
         };
         const updateVideoSpeed = (speed) => {
@@ -1082,7 +1089,8 @@
         try {
             const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
             if (iframeDocument && !PROCESSED_DOCUMENTS.has(iframeDocument)) {
-                addLogOnce('iframe_load_detected', `▶️ iframe 로드 감지, 내부 스크립트 실행 시작: ${iframe.src}`);
+                const logMsg = `▶️ iframe 로드 감지, 내부 스크립트 실행 시작 | 현재: ${window.location.href} | 대상: ${iframe.src}`;
+                addLogOnce('iframe_load_detected', logMsg);
                 PROCESSED_IFRAMES.add(iframe);
                 startUnifiedObserver(iframeDocument);
                 const videos = findAllVideosInDoc(iframeDocument);
@@ -1090,11 +1098,13 @@
                     initVideoUI();
                 }
             } else if (iframe.src) {
-                addLogOnce('iframe_access_fail', `⚠️ iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+                const logMsg = `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
+                addLogOnce('iframe_access_fail', logMsg);
                 PROCESSED_IFRAMES.add(iframe);
             }
         } catch (e) {
-            addLogOnce('iframe_access_fail', `⚠️ iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+            const logMsg = `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
+            addLogOnce('iframe_access_fail', logMsg);
             PROCESSED_IFRAMES.add(iframe);
         }
     }
@@ -1129,7 +1139,7 @@
         observer.observe(targetDocument.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'style', 'class', 'onclick'] });
         PROCESSED_DOCUMENTS.add(targetDocument);
         OBSERVER_MAP.set(targetDocument, observer);
-        addLogOnce('observer_active', `✅ 통합 감시자 활성화 (Target: ${targetDocument === document ? '메인 프레임' : 'iframe'})`);
+        addLogOnce('observer_active', `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`);
 
         try {
             targetDocument.querySelectorAll('iframe').forEach(iframe => {
@@ -1144,7 +1154,8 @@
                         }
                     } catch(e) {
                         if (!PROCESSED_IFRAMES.has(iframe)) {
-                            addLogOnce('nested_iframe_access_fail', `⚠️ 중첩 iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+                            const logMsg = `⚠️ 중첩 iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
+                            addLogOnce(`nested_iframe_access_fail_${iframe.src}`, logMsg);
                             PROCESSED_IFRAMES.add(iframe);
                         }
                     }
@@ -1156,7 +1167,8 @@
                     startUnifiedObserver(iframeDoc);
                 } else if (!iframeDoc) {
                     if (!PROCESSED_IFRAMES.has(iframe)) {
-                        addLogOnce('nested_iframe_access_fail_onload_fail', `⚠️ 중첩 iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+                        const logMsg = `⚠️ 중첩 iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
+                        addLogOnce(`nested_iframe_access_fail_onload_fail_${iframe.src}`, logMsg);
                         PROCESSED_IFRAMES.add(iframe);
                     }
                 }
@@ -1190,8 +1202,8 @@
         PROCESSED_DOCUMENTS.clear();
         PROCESSED_NODES.clear();
         PROCESSED_IFRAMES.clear();
-        PROCESSED_VIDEOS.clear(); // SPA 페이지 이동 시 비디오 목록 초기화
-        LOGGED_KEYS_WITH_TIMER.clear(); // SPA 페이지 이동 시 모든 로그 키 초기화
+        PROCESSED_VIDEOS.clear();
+        LOGGED_KEYS_WITH_TIMER.clear();
         // DOM 로드 후 스크립트 재실행
         document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
     });
