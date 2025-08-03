@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.38 (로그 개선 및 레이어 팝업 알림 추가)
+// @version       6.1.43 (범용 SPA 감지 적용 / iframe 비디오 로드 문제 해결 / appendChild.createSliderElements 오류 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -214,13 +214,11 @@
         }, 10000);
     }
     function addLog(msg) {
-        // iframe 내부에서 호출 시, 상위 프레임으로 메시지 전달
         if (!isTopFrame) {
             try {
                 window.parent.postMessage({ type: 'MY_SCRIPT_LOG', message: msg }, '*');
                 return;
             } catch (e) {
-                // Cross-origin iframe에서 접근 실패 시 직접 로그 출력
                 console.warn(`[MyScript Log - iframe error] ${msg}`);
                 if (logBoxContainer) {
                     logBoxContainer.style.display = 'none';
@@ -228,7 +226,6 @@
             }
         }
 
-        // 최상위 프레임에서 직접 로그 출력
         if (isLogBoxReady) {
             addLogToBox(msg);
         } else {
@@ -692,11 +689,20 @@
             }
         });
 
-        if (USER_SETTINGS.enableVideoDebugBorder && doc.head) {
-            let style = doc.createElement('style');
-            style.textContent = `.my-video-ui-initialized { outline: 2px solid red !important; }`;
-            doc.head.appendChild(style);
+        if (USER_SETTINGS.enableVideoDebugBorder) {
+            let style = doc.querySelector('style#video-debug-style');
+            if (!style) {
+                style = doc.createElement('style');
+                style.id = 'video-debug-style';
+                style.textContent = `.my-video-ui-initialized { outline: 2px solid red !important; }`;
+                if (doc.head) {
+                    doc.head.appendChild(style);
+                } else if (doc.body) {
+                    doc.body.appendChild(style);
+                }
+            }
         }
+
         videos.forEach(video => {
             if (!PROCESSED_VIDEOS.has(video)) {
                 if (video.style.pointerEvents === 'none') {
@@ -784,7 +790,11 @@
                 }
                 #vm-speed-value { color: red; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
             `;
-            document.head.appendChild(style);
+            if (document.head) {
+                document.head.appendChild(style);
+            } else if (document.body) {
+                document.body.appendChild(style);
+            }
             const resetBtn = document.createElement('button');
             resetBtn.id = 'vm-speed-reset-btn';
             resetBtn.textContent = '1x';
@@ -834,7 +844,6 @@
             const videos = findAllVideos();
             if (videos.length > 0) { showSpeedSlider(); } else { hideSpeedSlider(); }
         };
-
         checkVideosAndToggleSlider();
         videoUIFlags.speedSliderInitialized = true;
     }
@@ -1093,6 +1102,7 @@
                 addLogOnce('iframe_load_detected', logMsg);
                 PROCESSED_IFRAMES.add(iframe);
                 startUnifiedObserver(iframeDocument);
+
                 const videos = findAllVideosInDoc(iframeDocument);
                 if (videos.length > 0) {
                     initVideoUI();
@@ -1136,10 +1146,15 @@
             });
         });
 
-        observer.observe(targetDocument.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'style', 'class', 'onclick'] });
-        PROCESSED_DOCUMENTS.add(targetDocument);
-        OBSERVER_MAP.set(targetDocument, observer);
-        addLogOnce('observer_active', `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`);
+        const rootElement = targetDocument.documentElement || targetDocument.body;
+        if (rootElement) {
+            observer.observe(rootElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'style', 'class', 'onclick'] });
+            PROCESSED_DOCUMENTS.add(targetDocument);
+            OBSERVER_MAP.set(targetDocument, observer);
+            addLogOnce('observer_active', `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`);
+        } else {
+            addLogOnce('observer_activation_failed', `⚠️ 통합 감시자 활성화 실패 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`);
+        }
 
         try {
             targetDocument.querySelectorAll('iframe').forEach(iframe => {
@@ -1178,14 +1193,67 @@
         }
     }
 
+    // --- 비디오 UI 감지 및 토글을 위한 애니메이션 프레임 루프 ---
+    function startVideoUIWatcher() {
+        function checkVideos() {
+            const videos = findAllVideos();
+            if (videos.length > 0) {
+                initVideoUI();
+            } else {
+                if (speedSliderContainer) {
+                    speedSliderContainer.style.display = 'none';
+                }
+            }
+            requestAnimationFrame(checkVideos);
+        }
+        requestAnimationFrame(checkVideos);
+    }
+
+    // --- 범용 SPA 감지 로직 ---
+    let lastURL = location.href;
+
+    function onNavigate(reason = 'URL 변경 감지') {
+        if (location.href !== lastURL) {
+            lastURL = location.href;
+            addLogOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${location.href}`);
+
+            OBSERVER_MAP.forEach(observer => observer.disconnect());
+            PROCESSED_DOCUMENTS.clear();
+            PROCESSED_NODES.clear();
+            PROCESSED_IFRAMES.clear();
+            PROCESSED_VIDEOS.clear();
+            LOGGED_KEYS_WITH_TIMER.clear();
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
+            } else {
+                initialLoadLogic();
+            }
+        }
+    }
+
+    ['pushState', 'replaceState'].forEach(type => {
+        const orig = history[type];
+        history[type] = function (...args) {
+            orig.apply(this, args);
+            onNavigate(`history.${type}`);
+        };
+    });
+
+    window.addEventListener('popstate', () => onNavigate('popstate'));
+
+    setInterval(() => {
+        if (location.href !== lastURL) {
+            onNavigate('interval 감지');
+        }
+    }, 1000);
+
     // --- 초기 실행 함수 ---
     function initialLoadLogic() {
         addLogOnce('script_init_start', '🎉 스크립트 초기화 시작');
         initPopupBlocker();
         startUnifiedObserver(document);
-        if (findAllVideos().length > 0) {
-            initVideoUI();
-        }
+        startVideoUIWatcher();
     }
 
     if (document.readyState === 'loading') {
@@ -1193,18 +1261,4 @@
     } else {
         initialLoadLogic();
     }
-
-    // SPA(Single Page Application) 페이지 이동 감지
-    window.addEventListener('yt-navigate-start', () => {
-        addLogOnce('spa_navigation_detected', '🔄 페이지 이동 감지, 스크립트 재실행');
-        // 기존 옵저버 연결 해제
-        OBSERVER_MAP.forEach(observer => observer.disconnect());
-        PROCESSED_DOCUMENTS.clear();
-        PROCESSED_NODES.clear();
-        PROCESSED_IFRAMES.clear();
-        PROCESSED_VIDEOS.clear();
-        LOGGED_KEYS_WITH_TIMER.clear();
-        // DOM 로드 후 스크립트 재실행
-        document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
-    });
 })();
