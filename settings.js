@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.2.2 (missav.ws 영상 로드 오류 수정)
+// @version       6.2.3 (오류 수정 및 유연성 확보)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -69,7 +69,7 @@
     Object.defineProperty(window, '__MySuperScriptInitialized', {
         value: true,
         writable: false,
-        configurable: false
+        configurable: true // configurable을 true로 변경
     });
 
     const EXCEPTION_LIST = {
@@ -231,7 +231,7 @@
                 }
             }
         }
-
+        
         if (isLogBoxReady) {
             addLogToBox(msg);
         } else {
@@ -312,7 +312,8 @@
             };
             if (!isFeatureAllowed('windowOpen')) {
                 try {
-                    Object.defineProperty(window, 'open', { get: () => blockOpen, set: () => {}, configurable: false });
+                    // configurable: true로 변경하여 필요시 재정의 가능하도록
+                    Object.defineProperty(window, 'open', { get: () => blockOpen, set: () => {}, configurable: true });
                     if (typeof unsafeWindow !== 'undefined' && unsafeWindow !== window) {
                         unsafeWindow.open = blockOpen;
                     }
@@ -628,7 +629,7 @@
             }
 
             try { fullSrc = new URL(fullSrc, location.href).href; } catch {}
-
+            
             if (PROCESSED_IFRAMES.has(node)) {
                 // 이미 처리된 iframe의 src가 변경된 경우
                 if (node.src !== node.previousSrc) {
@@ -650,7 +651,7 @@
             const iframeClasses = node.className || '';
             const parentId = node.parentElement ? node.parentElement.id || '' : '';
             const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
-
+            
             const forceBlockPatterns = [
                 '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
                 'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
@@ -666,7 +667,7 @@
                 node.remove();
                 return;
             }
-
+            
             const logMsg = `🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}"] | 현재: ${window.location.href} | 대상: ${fullSrc}`;
             addLogOnce(`iframe_detected_${fullSrc}`, logMsg);
 
@@ -706,7 +707,7 @@
 
                 const logMsg = `🛑 레이어 클릭 덫 의심 감지 및 제거 | 현재: ${window.location.href} | 요소: ${node.outerHTML.substring(0, 50)}...`;
                 addLogOnce('layer_trap_detected', logMsg);
-
+                
                 node.addEventListener('click', e => {
                     e.preventDefault();
                     e.stopImmediatePropagation();
@@ -750,7 +751,6 @@
 
             videos.forEach(video => {
                 if (!PROCESSED_VIDEOS.has(video)) {
-                    // video.currentSrc가 더 정확하므로 우선 사용
                     const videoSource = video.currentSrc || video.src;
                     if (video.style.pointerEvents === 'none') {
                         video.style.setProperty('pointer-events', 'auto', 'important');
@@ -781,7 +781,7 @@
             return videos;
         }
     };
-
+    
     // --- 비디오 UI 통합 초기화 함수 ---
     const videoControls = {
         init: () => {
@@ -793,23 +793,17 @@
                 dragBar.init();
             }
         },
-        // 비디오가 로딩 완료된 후에 UI를 초기화하는 함수
         initWhenReady: (video) => {
-            // 비디오가 이미 처리되었거나, 이벤트 리스너가 중복 등록되지 않도록 방지
-            if (PROCESSED_VIDEOS.has(video)) return;
-
+            if (PROCESSED_VIDEOS.has(video) || !FeatureFlags.videoControls) return;
+            
             const initLogic = () => {
-                // UI가 아직 초기화되지 않았다면 초기화
                 videoControls.init();
-                // 모든 비디오를 다시 찾아 UI 표시/숨김 상태 업데이트
                 const videos = videoFinder.findAll();
                 if (videos.length > 0) {
                     speedSlider.show();
                 } else {
                     speedSlider.hide();
                 }
-
-                // 이벤트 리스너 제거 (한 번만 실행되도록)
                 video.removeEventListener('canplay', initLogic);
             };
 
@@ -914,8 +908,8 @@
             if (speedSliderContainer) { speedSliderContainer.style.display = 'none'; }
         }
     };
-
-    // --- 드래그바 로직 (최종 수정) ---
+    
+    // --- 드래그바 로직 ---
     const dragBar = {
         init: () => {
             if (window.__vmDragBarInjectedInThisFrame) return;
@@ -1150,7 +1144,6 @@
                 handleIframeLoad(node);
             }
             if (node.tagName === 'VIDEO' && !PROCESSED_VIDEOS.has(node)) {
-                // 비디오 요소가 로딩 완료된 시점에 UI 초기화를 시도
                 videoControls.initWhenReady(node);
                 PROCESSED_VIDEOS.add(node);
             }
@@ -1259,7 +1252,7 @@
             addLogOnce('recursive_iframe_scan_fail', `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
         }
     }
-
+    
     // --- 비디오 UI 감지 및 토글을 위한 애니메이션 프레임 루프 ---
     function startVideoUIWatcher() {
         if (!FeatureFlags.videoControls) return;
@@ -1279,11 +1272,10 @@
     let lastURL = location.href;
 
     function onNavigate(reason = 'URL 변경 감지') {
-        // 문서가 로딩 중일 때는 재실행을 막아 중복 실행 방지
         if (location.href !== lastURL && document.readyState !== 'loading') {
             lastURL = location.href;
             addLogOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${location.href}`);
-
+            
             OBSERVER_MAP.forEach(observer => observer.disconnect());
             PROCESSED_DOCUMENTS.clear();
             PROCESSED_NODES.clear();
@@ -1298,7 +1290,7 @@
             }
         }
     }
-
+    
     ['pushState', 'replaceState'].forEach(type => {
         const orig = history[type];
         history[type] = function (...args) {
