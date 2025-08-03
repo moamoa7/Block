@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.46 (checkLayerTrap 로직 개선)
+// @version       6.1.47 (iframe 로직 최적화 및 보안 강화)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -601,7 +601,10 @@
 
     // --- iframe 차단기 로직 ---
     function initIframeBlocker(node, trigger) {
-        if (PROCESSED_IFRAMES.has(node) || isFeatureAllowed('iframeBlocker')) return;
+        if (isFeatureAllowed('iframeBlocker') || PROCESSED_IFRAMES.has(node)) {
+            return;
+        }
+
         PROCESSED_IFRAMES.add(node);
         const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain => hostname.includes(domain) || window.location.href.includes(domain));
         if (IS_IFRAME_LOGIC_SKIPPED) {
@@ -618,6 +621,15 @@
         const iframeClasses = node.className || '';
         const parentId = node.parentElement ? node.parentElement.id || '' : '';
         const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
+        
+        // blob: 또는 javascript: URI 즉시 차단
+        if (fullSrc.startsWith('blob:') || fullSrc.startsWith('javascript:')) {
+            node.remove();
+            const logMsg = `🚫 의심 iframe 제거됨 (스킴 차단) | 현재: ${window.location.href} | 대상: ${fullSrc}`;
+            addLogOnce(`blocked_suspicious_src_${fullSrc}`, logMsg);
+            return;
+        }
+
         const forceBlockPatterns = [
             '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
             'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
