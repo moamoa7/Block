@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.20 (드래그바 로직 최종 수정)
+// @version       6.1.37 (전체화면 시간 표시 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -14,7 +14,6 @@
     // --- 사용자 설정 ---
     const USER_SETTINGS = {
         enableVideoDebugBorder: false,
-        scanInterval: 10000,
     };
 
     // --- 전역 상태 및 중복 방지 ---
@@ -33,7 +32,9 @@
     const logHistory = [];
     let speedSliderContainer = null;
     let dragBarTimeDisplay = null;
-    let isSpeedSliderMinimized = true;
+    let videoOverlay = null;
+    let originalVideo = null;
+    let clonedVideo = null;
 
     const videoUIFlags = {
         speedSliderInitialized: false,
@@ -577,606 +578,751 @@
         }
     }
 
-// --- iframe 차단기 로직 ---
-function initIframeBlocker(node, trigger) {
-    if (PROCESSED_IFRAMES.has(node) || isFeatureAllowed('iframeBlocker')) return;
-    PROCESSED_IFRAMES.add(node);
-    const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain => hostname.includes(domain) || window.location.href.includes(domain));
-    if (IS_IFRAME_LOGIC_SKIPPED) {
-          addLogOnce('iframe_logic_skip', `ℹ️ iframe 차단 로직 건너뜀 (설정 또는 예외 목록): ${hostname}`);
-          return;
-    }
-
-    const rawSrc = node.getAttribute('src') || node.src || '';
-    let fullSrc = rawSrc;
-    const lazySrc = node.getAttribute('data-lazy-src');
-    if (lazySrc) { fullSrc = lazySrc; }
-    try { fullSrc = new URL(fullSrc, location.href).href; } catch {}
-    const iframeId = node.id || '';
-    const iframeClasses = node.className || '';
-    const parentId = node.parentElement ? node.parentElement.id || '' : '';
-    const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
-    const forceBlockPatterns = [
-        '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
-        'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
-        '8dk5q9tp.xyz', 's.amazon-adsystem.com',
-    ];
-    const isForcedBlocked = forceBlockPatterns.some(pattern => {
-        return fullSrc.includes(pattern) || iframeId.includes(pattern) || iframeClasses.includes(pattern) || parentId.includes(pattern) || parentClasses.includes(pattern);
-    });
-
-    if (isForcedBlocked) {
-        addLog(`🚫 iframe 강제 차단됨 (패턴 일치) [id: "${iframeId}", class: "${iframeClasses}"]: ${fullSrc}`);
-        node.remove();
-        return;
-    }
-
-    addLog(`🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}"]: ${fullSrc}`);
-    if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
-        addLog(`🚫 Base64 인코딩된 iframe 차단됨: ${node.src.substring(0, 100)}...`);
-        node.remove();
-        return;
-    }
-    addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
-}
-
-// --- 레이어 클릭 덫 로직 ---
-const processedLayerTraps = new WeakSet();
-function checkLayerTrap(node) {
-    if (!isFeatureAllowed('layerTrap') && node instanceof HTMLElement && !processedLayerTraps.has(node)) {
-        const style = getComputedStyle(node);
-        const isSuspect = style.position === 'fixed' &&
-                          parseInt(style.zIndex) > 1000 &&
-                          parseFloat(style.opacity) < 0.2 &&
-                          style.pointerEvents !== 'none' &&
-                          node.hasAttribute('onclick');
-
-        if (isSuspect) {
-            processedLayerTraps.add(node);
-            addLog(`🛑 레이어 클릭 덫 의심 감지 및 숨김 처리: ${node.outerHTML.substring(0, 100)}...`);
-            node.style.setProperty('display', 'none', 'important');
-            node.addEventListener('click', e => {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                addLog('🚫 숨겨진 레이어 클릭 차단됨');
-            }, true);
-        }
-    }
-}
-
-// --- 영상 탐색 로직 (최적화) ---
-function findAllVideosInDoc(doc) {
-    const videos = new Set();
-    try {
-        doc.querySelectorAll('video').forEach(v => videos.add(v));
-    } catch (e) {
-        addLog(`⚠️ 'querySelectorAll' 실행 실패: ${e.message}`);
-    }
-
-    const potentialVideoContainers = doc.querySelectorAll('div[data-src], div[data-video], div[data-video-id], div[class*="video"], div[id*="player"]');
-    potentialVideoContainers.forEach(container => {
-        const videoElement = container.querySelector('video');
-        if (videoElement) {
-            videos.add(videoElement);
-        }
-    });
-
-    if (USER_SETTINGS.enableVideoDebugBorder && doc.head) {
-        let style = doc.createElement('style');
-        style.textContent = `.my-video-ui-initialized { outline: 2px solid red !important; }`;
-        doc.head.appendChild(style);
-    }
-    videos.forEach(video => {
-        if (video.style.pointerEvents === 'none') {
-            video.style.setProperty('pointer-events', 'auto', 'important');
-            addLog(`✅ 비디오 포인터 이벤트 복구: ${video.src || video.currentSrc}`);
-        }
-        if (USER_SETTINGS.enableVideoDebugBorder && !video.classList.contains('my-video-ui-initialized')) {
-            video.classList.add('my-video-ui-initialized');
-            addLog(`💡 비디오 요소에 빨간 테두리 추가됨: ${video.tagName}`);
-        }
-    });
-    return Array.from(videos);
-}
-
-function findAllVideos() {
-    let videos = findAllVideosInDoc(document);
-    document.querySelectorAll('iframe').forEach(iframe => {
-        try {
-            const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-            if (iframeDocument) {
-                videos.push(...findAllVideosInDoc(iframeDocument));
-            }
-        } catch (e) {
-            // iframe 접근 실패 로그가 중복되지 않도록 처리
-        }
-    });
-    return videos;
-}
-
-// --- 배속 슬라이더 로직 ---
-function initSpeedSlider() {
-    if (window.__vmSpeedSliderInjectedInThisFrame) return;
-    window.__vmSpeedSliderInjectedInThisFrame = true;
-
-    const sliderId = 'vm-speed-slider-container';
-    const createSliderElements = () => {
-        const container = document.createElement('div');
-        container.id = sliderId;
-        const style = document.createElement('style');
-        style.textContent = `
-            #${sliderId} {
-                position: fixed; top: 50%; right: 0; transform: translateY(-50%);
-                background: rgba(0, 0, 0, 0.0); padding: 10px 8px; border-radius: 8px 0 0 8px;
-                z-index: 2147483647 !important; display: none; flex-direction: column;
-                align-items: center; width: 50px; height: auto; font-family: sans-serif;
-                pointer-events: auto; opacity: 0.3; transition: opacity 0.3s; user-select: none;
-                box-shadow: 0 0 5px rgba(0,0,0,0.0); will-change: transform, opacity;
-            }
-            #${sliderId}:hover { opacity: 1; }
-            #vm-speed-reset-btn {
-                background: #444; border: none; border-radius: 4px; color: white;
-                font-size: 14px; padding: 4px 6px; cursor: pointer;
-                margin-bottom: 8px; width: 40px; height: 30px; font-weight: bold;
-            }
-            #vm-speed-reset-btn:hover { background: #666; }
-            #vm-speed-slider {
-                writing-mode: vertical-rl; appearance: slider-vertical;
-                width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer;
-                background: #555; border-radius: 5px;
-            }
-            #vm-speed-slider::-webkit-slider-thumb {
-                -webkit-appearance: none; width: 20px; height: 20px; background: #f44336;
-                border-radius: 50%; cursor: pointer; border: 1px solid #ddd;
-            }
-            #vm-speed-slider::-moz-range-thumb {
-                width: 20px; height: 20px; background: #f44336; border-radius: 50%;
-                cursor: pointer; border: 1px solid #ddd;
-            }
-            #vm-speed-value { color: red; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
-            #vm-speed-toggle-btn {
-                background: transparent; border: none; color: white;
-                font-size: 18px; cursor: pointer; margin-top: 4px;
-            }
-            #vm-speed-toggle-btn:hover { color: #ccc; }
-        `;
-        document.head.appendChild(style);
-        const resetBtn = document.createElement('button');
-        resetBtn.id = 'vm-speed-reset-btn';
-        resetBtn.textContent = '1x';
-        const slider = document.createElement('input');
-        slider.type = 'range'; slider.min = '0.2'; slider.max = '4.0';
-        slider.step = '0.2'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
-        const valueDisplay = document.createElement('div');
-        valueDisplay.id = 'vm-speed-value'; valueDisplay.textContent = 'x1.0';
-        const toggleBtn = document.createElement('button');
-        toggleBtn.id = 'vm-speed-toggle-btn'; toggleBtn.textContent = '🔼';
-
-        const updateToggleButton = () => {
-            const sliderEl = document.getElementById('vm-speed-slider');
-            const resetBtnEl = document.getElementById('vm-speed-reset-btn');
-            const valueDisplayEl = document.getElementById('vm-speed-value');
-
-            if (sliderEl) sliderEl.style.display = isSpeedSliderMinimized ? 'none' : '';
-            if (resetBtnEl) resetBtnEl.style.display = isSpeedSliderMinimized ? 'none' : '';
-            if (valueDisplayEl) valueDisplayEl.style.display = isSpeedSliderMinimized ? 'none' : '';
-            if (toggleBtn) toggleBtn.textContent = isSpeedSliderMinimized ? '🔼' : '🔽';
-        };
-
-        toggleBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); isSpeedSliderMinimized = !isSpeedSliderMinimized;
-            updateToggleButton();
-        });
-
-        slider.addEventListener('input', () => onSliderChange(slider.value));
-        resetBtn.addEventListener('click', () => {
-            slider.value = '1.0'; onSliderChange('1.0');
-        });
-        container.addEventListener('mousedown', () => videoUIFlags.isUIBeingUsed = true, true);
-        container.addEventListener('mouseup', () => videoUIFlags.isUIBeingUsed = false, true);
-        container.addEventListener('touchstart', () => videoUIFlags.isUIBeingUsed = true, true);
-        container.addEventListener('touchend', () => videoUIFlags.isUIBeingUsed = false, true);
-        container.appendChild(resetBtn); container.appendChild(slider);
-        container.appendChild(valueDisplay); container.appendChild(toggleBtn);
-        updateToggleButton(); return container;
-    };
-    const updateVideoSpeed = (speed) => {
-        findAllVideos().forEach(video => { video.playbackRate = speed; });
-    };
-    const onSliderChange = (val) => {
-        const speed = parseFloat(val);
-        const valueDisplay = document.getElementById('vm-speed-value');
-        if (valueDisplay) { valueDisplay.textContent = `x${speed.toFixed(1)}`; }
-        if (videoUIFlags.playbackUpdateTimer) clearTimeout(videoUIFlags.playbackUpdateTimer);
-        videoUIFlags.playbackUpdateTimer = setTimeout(() => { updateVideoSpeed(speed); }, 100);
-    };
-    const showSpeedSlider = () => {
-        if (!speedSliderContainer) {
-            speedSliderContainer = createSliderElements();
-            document.body.appendChild(speedSliderContainer);
-        }
-        speedSliderContainer.style.display = 'flex';
-        const slider = document.getElementById('vm-speed-slider');
-        updateVideoSpeed(slider ? slider.value : '1.0');
-    };
-    const hideSpeedSlider = () => {
-        if (speedSliderContainer) { speedSliderContainer.style.display = 'none'; }
-    };
-    const checkVideosAndToggleSlider = () => {
-        const videos = findAllVideos();
-        if (videos.length > 0) { showSpeedSlider(); } else { hideSpeedSlider(); }
-    };
-    document.addEventListener('fullscreenchange', () => {
-        const fsEl = document.fullscreenElement;
-        if (fsEl && speedSliderContainer) fsEl.appendChild(speedSliderContainer);
-        else if (document.body && speedSliderContainer) document.body.appendChild(speedSliderContainer);
-    });
-    checkVideosAndToggleSlider();
-    videoUIFlags.speedSliderInitialized = true;
-}
-
-// --- 드래그바 로직 (최종 수정) ---
-function initDragBar() {
-    if (window.__vmDragBarInjectedInThisFrame) return;
-    window.__vmDragBarInjectedInThisFrame = true;
-
-    const timeDisplayId = 'vm-time-display';
-    const dragState = {
-        isDragging: false,
-        isHorizontalDrag: false,
-        startX: 0,
-        startY: 0,
-        lastUpdateTime: 0,
-        currentDragDistanceX: 0,
-        totalTimeChange: 0,
-        originalPointerEvents: new WeakMap(),
-    };
-
-    const DRAG_THRESHOLD = 10;
-    const TIME_CHANGE_SENSITIVITY = 2;
-    const VERTICAL_DRAG_THRESHOLD = 20;
-    const THROTTLE_DELAY = 100;
-
-    let throttleTimer = null;
-
-    const createTimeDisplay = () => {
-        const newTimeDisplay = document.createElement('div');
-        newTimeDisplay.id = timeDisplayId;
-        newTimeDisplay.style.cssText = `
-            position: fixed !important; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px; border-radius: 5px;
-            font-size: 1.5rem; z-index: 2147483647 !important; display: none; pointer-events: none;
-            transition: opacity 0.3s ease-out; opacity: 1; text-align: center; white-space: nowrap;
-            will-change: transform, opacity;
-        `;
-        return newTimeDisplay;
-    };
-
-    const updateTimeDisplay = (timeChange) => {
-        if (!dragBarTimeDisplay) {
-            dragBarTimeDisplay = createTimeDisplay();
-            if (document.body) document.body.appendChild(dragBarTimeDisplay);
-        }
-
-        if (timeChange !== 0) {
-            const sign = timeChange > 0 ? '+' : '';
-            dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
-            dragBarTimeDisplay.style.display = 'block';
-            dragBarTimeDisplay.style.opacity = '1';
-        } else {
-            dragBarTimeDisplay.style.opacity = '0';
-            setTimeout(() => { dragBarTimeDisplay.style.display = 'none'; }, 300);
-        }
-    };
-
-    const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
-
-    const handleStart = (e) => {
-        if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
-        const videos = findAllVideos();
-        if (videos.length === 0 || videos.every(v => v.paused)) return;
-
-        dragState.isDragging = true;
-        dragState.isHorizontalDrag = false;
-        const pos = getPosition(e);
-        dragState.startX = pos.clientX;
-        dragState.startY = pos.clientY;
-        dragState.currentDragDistanceX = 0;
-        dragState.totalTimeChange = 0;
-
-        if (e.button === 2) return;
-    };
-
-    const applyTimeChange = () => {
-        const videos = findAllVideos();
-        const timeToApply = Math.round(dragState.currentDragDistanceX / TIME_CHANGE_SENSITIVITY);
-
-        if (timeToApply !== 0) {
-            videos.forEach(video => {
-                if (video.duration && !isNaN(video.duration)) {
-                    video.currentTime += timeToApply;
-                }
-            });
-            dragState.currentDragDistanceX = 0; // 적용 후 이동 거리 초기화
-            updateTimeDisplay(dragState.totalTimeChange); // 최종 누적 시간으로 표시 업데이트
-        }
-    };
-
-    const handleMove = (e) => {
-        if (!dragState.isDragging) return;
-
-        const videos = findAllVideos();
-        if (videos.length === 0) {
-            handleEnd();
+    // --- iframe 차단기 로직 ---
+    function initIframeBlocker(node, trigger) {
+        if (PROCESSED_IFRAMES.has(node) || isFeatureAllowed('iframeBlocker')) return;
+        PROCESSED_IFRAMES.add(node);
+        const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain => hostname.includes(domain) || window.location.href.includes(domain));
+        if (IS_IFRAME_LOGIC_SKIPPED) {
+            addLogOnce('iframe_logic_skip', `ℹ️ iframe 차단 로직 건너뜀 (설정 또는 예외 목록): ${hostname}`);
             return;
         }
 
-        const pos = getPosition(e);
-        const currentX = pos.clientX;
-        const currentY = pos.clientY;
-
-        if (!dragState.isHorizontalDrag) {
-            const dragDistanceX = currentX - dragState.startX;
-            const dragDistanceY = currentY - dragState.startY;
-            const isHorizontalMovement = Math.abs(dragDistanceX) > Math.abs(dragDistanceY);
-            const isPastThreshold = Math.abs(dragDistanceX) > DRAG_THRESHOLD || (e.touches && e.touches.length > 1);
-
-            if (isPastThreshold && isHorizontalMovement) {
-                dragState.isHorizontalDrag = true;
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                document.body.style.userSelect = 'none';
-                videos.forEach(video => {
-                    dragState.originalPointerEvents.set(video, video.style.pointerEvents);
-                    video.style.pointerEvents = 'none';
-                });
-            } else if (Math.abs(dragDistanceY) > VERTICAL_DRAG_THRESHOLD) {
-                handleEnd();
-                return;
-            } else {
-                return;
-            }
-        }
-
-        if (dragState.isHorizontalDrag) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-
-            const deltaX = currentX - dragState.lastUpdateTime;
-            dragState.currentDragDistanceX += deltaX;
-            dragState.totalTimeChange = Math.round( (currentX - dragState.startX) / TIME_CHANGE_SENSITIVITY );
-
-            updateTimeDisplay(dragState.totalTimeChange);
-
-            if (throttleTimer === null) {
-                throttleTimer = setTimeout(() => {
-                    applyTimeChange();
-                    throttleTimer = null;
-                }, THROTTLE_DELAY);
-            }
-            dragState.lastUpdateTime = currentX;
-        }
-    };
-
-    const handleEnd = (e) => {
-        if (!dragState.isDragging) return;
-
-        if (throttleTimer) {
-            clearTimeout(throttleTimer);
-            throttleTimer = null;
-            applyTimeChange();
-        }
-
-        updateTimeDisplay(0);
-
-        const videos = findAllVideos();
-        videos.forEach(video => {
-             if (dragState.originalPointerEvents.has(video)) {
-                video.style.pointerEvents = dragState.originalPointerEvents.get(video);
-             }
+        const rawSrc = node.getAttribute('src') || node.src || '';
+        let fullSrc = rawSrc;
+        const lazySrc = node.getAttribute('data-lazy-src');
+        if (lazySrc) { fullSrc = lazySrc; }
+        try { fullSrc = new URL(fullSrc, location.href).href; } catch {}
+        const iframeId = node.id || '';
+        const iframeClasses = node.className || '';
+        const parentId = node.parentElement ? node.parentElement.id || '' : '';
+        const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
+        const forceBlockPatterns = [
+            '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
+            'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
+            '8dk5q9tp.xyz', 's.amazon-adsystem.com',
+        ];
+        const isForcedBlocked = forceBlockPatterns.some(pattern => {
+            return fullSrc.includes(pattern) || iframeId.includes(pattern) || iframeClasses.includes(pattern) || parentId.includes(pattern) || parentClasses.includes(pattern);
         });
 
-        dragState.originalPointerEvents = new WeakMap();
+        if (isForcedBlocked) {
+            addLog(`🚫 iframe 강제 차단됨 (패턴 일치) [id: "${iframeId}", class: "${iframeClasses}"]: ${fullSrc}`);
+            node.remove();
+            return;
+        }
 
-        dragState.isDragging = false;
-        dragState.currentDragDistanceX = 0;
-        dragState.totalTimeChange = 0;
-        dragState.isHorizontalDrag = false;
-        document.body.style.userSelect = '';
-    };
+        addLog(`🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}"]: ${fullSrc}`);
+        if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
+            addLog(`🚫 Base64 인코딩된 iframe 차단됨: ${node.src.substring(0, 100)}...`);
+            node.remove();
+            return;
+        }
+        addLog(`✅ iframe 허용됨 (uBlock Origin과 같은 다른 확장 프로그램에 의한 차단도 확인 필요): ${fullSrc}`);
+    }
 
-    const handleFullscreenChange = () => {
-        if (!dragBarTimeDisplay) return;
-        const fsElement = document.fullscreenElement;
-        if (fsElement) {
+    // --- 레이어 클릭 덫 로직 ---
+    const processedLayerTraps = new WeakSet();
+    function checkLayerTrap(node) {
+        if (!isFeatureAllowed('layerTrap') && node instanceof HTMLElement && !processedLayerTraps.has(node)) {
+            const style = getComputedStyle(node);
+            const isSuspect = style.position === 'fixed' &&
+                parseInt(style.zIndex) > 1000 &&
+                parseFloat(style.opacity) < 0.2 &&
+                style.pointerEvents !== 'none' &&
+                node.hasAttribute('onclick');
+
+            if (isSuspect) {
+                processedLayerTraps.add(node);
+                addLog(`🛑 레이어 클릭 덫 의심 감지 및 숨김 처리: ${node.outerHTML.substring(0, 100)}...`);
+                node.style.setProperty('display', 'none', 'important');
+                node.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    addLog('🚫 숨겨진 레이어 클릭 차단됨');
+                }, true);
+            }
+        }
+    }
+
+    // --- 영상 탐색 로직 (최적화) ---
+    function findAllVideosInDoc(doc) {
+        const videos = new Set();
+        try {
+            doc.querySelectorAll('video').forEach(v => videos.add(v));
+        } catch (e) {
+            addLog(`⚠️ 'querySelectorAll' 실행 실패: ${e.message}`);
+        }
+
+        const potentialVideoContainers = doc.querySelectorAll('div[data-src], div[data-video], div[data-video-id], div[class*="video"], div[id*="player"]');
+        potentialVideoContainers.forEach(container => {
+            const videoElement = container.querySelector('video');
+            if (videoElement) {
+                videos.add(videoElement);
+            }
+        });
+
+        if (USER_SETTINGS.enableVideoDebugBorder && doc.head) {
+            let style = doc.createElement('style');
+            style.textContent = `.my-video-ui-initialized { outline: 2px solid red !important; }`;
+            doc.head.appendChild(style);
+        }
+        videos.forEach(video => {
+            if (video.style.pointerEvents === 'none') {
+                video.style.setProperty('pointer-events', 'auto', 'important');
+                addLog(`✅ 비디오 포인터 이벤트 복구: ${video.src || video.currentSrc}`);
+            }
+            if (USER_SETTINGS.enableVideoDebugBorder && !video.classList.contains('my-video-ui-initialized')) {
+                video.classList.add('my-video-ui-initialized');
+                addLog(`💡 비디오 요소에 빨간 테두리 추가됨: ${video.tagName}`);
+            }
+        });
+        return Array.from(videos);
+    }
+
+    function findAllVideos() {
+        let videos = findAllVideosInDoc(document);
+        document.querySelectorAll('iframe').forEach(iframe => {
+            try {
+                const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+                if (iframeDocument) {
+                    videos.push(...findAllVideosInDoc(iframeDocument));
+                }
+            } catch (e) {
+                // iframe 접근 실패 로그가 중복되지 않도록 처리
+            }
+        });
+        return videos;
+    }
+
+    // --- 오버레이 로직 추가 (검은 배경 오버레이로 변경) ---
+    function createVideoOverlay() {
+        if (document.getElementById('video-overlay')) return;
+
+        const videos = findAllVideos();
+        if (videos.length === 0) {
+            addLog('⚠️ 오버레이를 생성할 비디오를 찾을 수 없습니다.');
+            return;
+        }
+
+        originalVideo = videos[0];
+        clonedVideo = originalVideo.cloneNode(true);
+
+        addLog('🖼️ 불투명한 가상 전체화면 오버레이 생성');
+
+        const overlayStyle = document.createElement('style');
+        overlayStyle.id = 'video-overlay-style';
+        overlayStyle.textContent = `
+            #video-overlay {
+                position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
+                background-color: rgba(0,0,0,1);
+                z-index: 2147483647 !important;
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                pointer-events: auto; opacity: 0;
+                transition: opacity 0.3s ease-in;
+            }
+            #video-overlay .cloned-video {
+                width: 100%; height: 100%; max-width: 100%; max-height: 100%;
+                object-fit: contain;
+                position: relative; z-index: 2147483648;
+            }
+            #video-overlay .close-btn {
+                position: absolute; top: 10px; right: 10px;
+                background-color: rgba(50, 50, 50, 0.7); color: white;
+                border: none; border-radius: 5px; padding: 5px 10px;
+                cursor: pointer; z-index: 2147483649; pointer-events: auto;
+            }
+        `;
+        document.head.appendChild(overlayStyle);
+
+        videoOverlay = document.createElement('div');
+        videoOverlay.id = 'video-overlay';
+
+        clonedVideo.classList.add('cloned-video');
+        originalVideo.style.display = 'none';
+
+        videoOverlay.appendChild(clonedVideo);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'X';
+        closeBtn.classList.add('close-btn');
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            closeVideoOverlay();
+        };
+        videoOverlay.appendChild(closeBtn);
+
+        document.body.appendChild(videoOverlay);
+
+        if (speedSliderContainer && speedSliderContainer.parentNode) {
+            speedSliderContainer.parentNode.removeChild(speedSliderContainer);
+        } else if (!speedSliderContainer) {
+            initSpeedSlider();
+        }
+        videoOverlay.appendChild(speedSliderContainer);
+        Object.assign(speedSliderContainer.style, {
+            position: 'absolute', right: '0', top: '50%',
+            transform: 'translateY(-50%)', pointerEvents: 'auto',
+            zIndex: '2147483649',
+        });
+
+        // 가상 오버레이에서는 dragBarTimeDisplay를 오버레이 내부에 추가합니다.
+        if (!dragBarTimeDisplay) {
+            initDragBar();
+        }
+        if (dragBarTimeDisplay) {
             if (dragBarTimeDisplay.parentNode) {
                 dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
             }
-            fsElement.appendChild(dragBarTimeDisplay);
-        } else {
-            if (dragBarTimeDisplay.parentNode) {
-                dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
+            videoOverlay.appendChild(dragBarTimeDisplay);
+        }
+
+        let hideTimer = null;
+        const hideUI = () => {
+            if (!videoUIFlags.isUIBeingUsed) {
+                speedSliderContainer.style.opacity = '0';
             }
+        };
+        const showUI = () => {
+            if (hideTimer) clearTimeout(hideTimer);
+            speedSliderContainer.style.opacity = '1';
+            hideTimer = setTimeout(hideUI, 3000);
+        };
+
+        videoOverlay.addEventListener('mousemove', showUI);
+        videoOverlay.addEventListener('mouseenter', showUI);
+        videoOverlay.addEventListener('mouseleave', () => {
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = setTimeout(hideUI, 500);
+        });
+        videoOverlay.addEventListener('click', showUI);
+
+        document.addEventListener('keydown', handleOverlayKeydown);
+
+        setTimeout(() => {
+            videoOverlay.style.opacity = '1';
+        }, 50);
+    }
+
+    function closeVideoOverlay() {
+        if (!videoOverlay) return;
+
+        addLog('🖼️ 가상 전체화면 오버레이 닫기');
+
+        const overlayStyle = document.getElementById('video-overlay-style');
+        if(overlayStyle) {
+            overlayStyle.remove();
+        }
+
+        if (speedSliderContainer && videoOverlay.contains(speedSliderContainer)) {
+            document.body.appendChild(speedSliderContainer);
+            Object.assign(speedSliderContainer.style, {
+                position: 'fixed', right: '0', top: '50%',
+                transform: 'translateY(-50%)', pointerEvents: 'auto',
+                opacity: '0.3',
+                zIndex: '2147483647',
+            });
+        }
+
+        if (dragBarTimeDisplay && videoOverlay.contains(dragBarTimeDisplay)) {
             document.body.appendChild(dragBarTimeDisplay);
-            const forceReflow = () => {
-                document.body.style.transform = 'scale(1)';
-                document.body.offsetWidth;
-                document.body.style.transform = '';
-            };
-            setTimeout(forceReflow, 100);
-            window.dispatchEvent(new Event('resize'));
         }
-    };
 
-    document.addEventListener('mousedown', handleStart, { passive: true, capture: true });
-    document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
-    document.addEventListener('mouseup', handleEnd, { passive: true, capture: true });
-    document.addEventListener('mouseout', (e) => {
-        if (e.relatedTarget === null) {
-            handleEnd();
+        if (originalVideo) {
+            originalVideo.style.display = '';
         }
-    }, { passive: true, capture: true });
-    document.addEventListener('touchstart', handleStart, { passive: true, capture: true });
-    document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
-    document.addEventListener('touchend', handleEnd, { passive: true, capture: true });
-    document.addEventListener('touchcancel', handleEnd, { passive: true, capture: true });
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
 
-    videoUIFlags.dragBarInitialized = true;
-}
+        videoOverlay.style.opacity = '0';
+        setTimeout(() => {
+            if (videoOverlay) {
+                videoOverlay.remove();
+                videoOverlay = null;
+                originalVideo = null;
+                clonedVideo = null;
+            }
+        }, 300);
 
-// --- 비디오 UI 통합 초기화 함수 추가 ---
-function initVideoUI() {
-    if (!videoUIFlags.speedSliderInitialized) {
-        initSpeedSlider();
-    }
-    if (!videoUIFlags.dragBarInitialized) {
-        initDragBar();
-    }
-}
-
-// --- 노드 및 자식 노드 처리 ---
-function processNodeAndChildren(node, trigger) {
-    if (!node || PROCESSED_NODES.has(node)) return;
-    PROCESSED_NODES.add(node);
-
-    if (node.nodeType === 1) {
-        if (node.tagName === 'IFRAME') {
-            initIframeBlocker(node, trigger);
-            handleIframeLoad(node);
-        }
-        if (node.tagName === 'VIDEO') {
-            initVideoUI();
-        }
-        checkLayerTrap(node);
+        document.removeEventListener('keydown', handleOverlayKeydown);
     }
 
-    if (node.children) {
-        for (const child of node.children) {
-            processNodeAndChildren(child, trigger);
+    function handleOverlayKeydown(e) {
+        if (e.key === 'Escape') {
+            closeVideoOverlay();
         }
     }
-}
 
-// --- iframe 로드 및 내부 탐색 처리 ---
-function handleIframeLoad(iframe) {
-    if (PROCESSED_IFRAMES.has(iframe)) return;
-    try {
-        const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-        if (iframeDocument && !PROCESSED_DOCUMENTS.has(iframeDocument)) {
-            addLog(`▶️ iframe 로드 감지, 내부 스크립트 실행 시작: ${iframe.src}`);
-            PROCESSED_IFRAMES.add(iframe);
-            startUnifiedObserver(iframeDocument);
-            const videos = findAllVideosInDoc(iframeDocument);
-            if (videos.length > 0) {
+    // --- 배속 슬라이더 로직 ---
+    function initSpeedSlider() {
+        if (window.__vmSpeedSliderInjectedInThisFrame) return;
+        window.__vmSpeedSliderInjectedInThisFrame = true;
+
+        const sliderId = 'vm-speed-slider-container';
+        const createSliderElements = () => {
+            const container = document.createElement('div');
+            container.id = sliderId;
+            const style = document.createElement('style');
+            style.textContent = `
+                #${sliderId} {
+                    position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+                    background: rgba(0, 0, 0, 0.0); padding: 10px 8px; border-radius: 8px 0 0 8px;
+                    z-index: 2147483647 !important; display: none; flex-direction: column;
+                    align-items: center; width: 50px; height: auto; font-family: sans-serif;
+                    pointer-events: auto; opacity: 0.3; transition: opacity 0.3s; user-select: none;
+                    box-shadow: 0 0 5px rgba(0,0,0,0.0); will-change: transform, opacity;
+                }
+                #${sliderId}:hover { opacity: 1; }
+                #vm-speed-reset-btn {
+                    background: #444; border: none; border-radius: 4px; color: white;
+                    font-size: 14px; padding: 4px 6px; cursor: pointer;
+                    margin-bottom: 8px; width: 40px; height: 30px; font-weight: bold;
+                }
+                #vm-speed-reset-btn:hover { background: #666; }
+                #vm-speed-slider {
+                    writing-mode: vertical-lr;
+                    direction: rtl; /* slider-vertical 대신 사용 */
+                    width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer;
+                    background: #555; border-radius: 5px;
+                }
+                #vm-speed-slider::-webkit-slider-thumb {
+                    -webkit-appearance: none; width: 20px; height: 20px; background: #f44336;
+                    border-radius: 50%; cursor: pointer; border: 1px solid #ddd;
+                }
+                #vm-speed-slider::-moz-range-thumb {
+                    width: 20px; height: 20px; background: #f44336; border-radius: 50%;
+                    cursor: pointer; border: 1px solid #ddd;
+                }
+                #vm-speed-value { color: red; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
+                #vm-fullscreen-toggle-btn {
+                    background: transparent; border: none; color: white;
+                    font-size: 18px; cursor: pointer; margin-top: 4px;
+                    padding: 0; display: flex; align-items: center; justify-content: center;
+                    width: 40px; height: 30px;
+                }
+                #vm-fullscreen-toggle-btn:hover { color: #ccc; }
+            `;
+            document.head.appendChild(style);
+            const resetBtn = document.createElement('button');
+            resetBtn.id = 'vm-speed-reset-btn';
+            resetBtn.textContent = '1x';
+            const slider = document.createElement('input');
+            slider.type = 'range'; slider.min = '0.2'; slider.max = '4.0';
+            slider.step = '0.2'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
+            const valueDisplay = document.createElement('div');
+            valueDisplay.id = 'vm-speed-value'; valueDisplay.textContent = 'x1.0';
+            const fullscreenBtn = document.createElement('button');
+            fullscreenBtn.id = 'vm-fullscreen-toggle-btn';
+            fullscreenBtn.innerHTML = '⛶';
+
+            fullscreenBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (videoOverlay) {
+                    closeVideoOverlay();
+                } else {
+                    createVideoOverlay();
+                }
+            });
+
+            slider.addEventListener('input', () => onSliderChange(slider.value));
+            resetBtn.addEventListener('click', () => {
+                slider.value = '1.0'; onSliderChange('1.0');
+            });
+            container.addEventListener('mousedown', () => videoUIFlags.isUIBeingUsed = true, true);
+            container.addEventListener('mouseup', () => videoUIFlags.isUIBeingUsed = false, true);
+            container.addEventListener('touchstart', () => videoUIFlags.isUIBeingUsed = true, true);
+            container.addEventListener('touchend', () => videoUIFlags.isUIBeingUsed = false, true);
+            container.appendChild(resetBtn);
+            container.appendChild(slider);
+            container.appendChild(valueDisplay);
+            container.appendChild(fullscreenBtn);
+            return container;
+        };
+        const updateVideoSpeed = (speed) => {
+            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            videos.forEach(video => { video.playbackRate = speed; });
+        };
+        const onSliderChange = (val) => {
+            const speed = parseFloat(val);
+            const valueDisplay = document.getElementById('vm-speed-value');
+            if (valueDisplay) { valueDisplay.textContent = `x${speed.toFixed(1)}`; }
+            if (videoUIFlags.playbackUpdateTimer) clearTimeout(videoUIFlags.playbackUpdateTimer);
+            videoUIFlags.playbackUpdateTimer = setTimeout(() => { updateVideoSpeed(speed); }, 100);
+        };
+        const showSpeedSlider = () => {
+            if (!speedSliderContainer) {
+                speedSliderContainer = createSliderElements();
+                document.body.appendChild(speedSliderContainer);
+            }
+            speedSliderContainer.style.display = 'flex';
+            const slider = document.getElementById('vm-speed-slider');
+            updateVideoSpeed(slider ? slider.value : '1.0');
+        };
+        const hideSpeedSlider = () => {
+            if (speedSliderContainer) { speedSliderContainer.style.display = 'none'; }
+        };
+        const checkVideosAndToggleSlider = () => {
+            const videos = findAllVideos();
+            if (videos.length > 0) { showSpeedSlider(); } else { hideSpeedSlider(); }
+        };
+
+        checkVideosAndToggleSlider();
+        videoUIFlags.speedSliderInitialized = true;
+    }
+
+    // --- 드래그바 로직 (최종 수정) ---
+    function initDragBar() {
+        if (window.__vmDragBarInjectedInThisFrame) return;
+        window.__vmDragBarInjectedInThisFrame = true;
+
+        const timeDisplayId = 'vm-time-display';
+        const dragState = {
+            isDragging: false,
+            isHorizontalDrag: false,
+            startX: 0,
+            startY: 0,
+            lastUpdateTime: 0,
+            currentDragDistanceX: 0,
+            totalTimeChange: 0,
+            originalPointerEvents: new WeakMap(),
+        };
+
+        const DRAG_THRESHOLD = 10;
+        const TIME_CHANGE_SENSITIVITY = 2;
+        const VERTICAL_DRAG_THRESHOLD = 20;
+        const THROTTLE_DELAY = 100;
+
+        let throttleTimer = null;
+
+        const createTimeDisplay = () => {
+            const newTimeDisplay = document.createElement('div');
+            newTimeDisplay.id = timeDisplayId;
+            newTimeDisplay.style.cssText = `
+                position: fixed !important; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px; border-radius: 5px;
+                font-size: 1.5rem; z-index: 2147483647 !important; display: none; pointer-events: none;
+                transition: opacity 0.3s ease-out; opacity: 1; text-align: center; white-space: nowrap;
+                will-change: transform, opacity;
+            `;
+            return newTimeDisplay;
+        };
+
+        const updateTimeDisplay = (timeChange) => {
+            if (!dragBarTimeDisplay) {
+                dragBarTimeDisplay = createTimeDisplay();
+                if (document.body) document.body.appendChild(dragBarTimeDisplay);
+            }
+
+            if (timeChange !== 0) {
+                const sign = timeChange > 0 ? '+' : '';
+                dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
+                dragBarTimeDisplay.style.display = 'block';
+                dragBarTimeDisplay.style.opacity = '1';
+            } else {
+                dragBarTimeDisplay.style.opacity = '0';
+                setTimeout(() => { dragBarTimeDisplay.style.display = 'none'; }, 300);
+            }
+        };
+
+        const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
+
+        const handleStart = (e) => {
+            if (e.target.closest('#vm-speed-slider-container, #vm-time-display, #video-overlay button')) return;
+            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            if (videos.length === 0 || videos.every(v => v.paused)) return;
+
+            dragState.isDragging = true;
+            dragState.isHorizontalDrag = false;
+            const pos = getPosition(e);
+            dragState.startX = pos.clientX;
+            dragState.startY = pos.clientY;
+            dragState.currentDragDistanceX = 0;
+            dragState.totalTimeChange = 0;
+
+            if (e.button === 2) return;
+        };
+
+        const applyTimeChange = () => {
+            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            const timeToApply = Math.round(dragState.currentDragDistanceX / TIME_CHANGE_SENSITIVITY);
+
+            if (timeToApply !== 0) {
+                videos.forEach(video => {
+                    if (video.duration && !isNaN(video.duration)) {
+                        video.currentTime += timeToApply;
+                    }
+                });
+                dragState.currentDragDistanceX = 0;
+                updateTimeDisplay(dragState.totalTimeChange);
+            }
+        };
+
+        const handleMove = (e) => {
+            if (!dragState.isDragging) return;
+
+            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            if (videos.length === 0) {
+                handleEnd();
+                return;
+            }
+
+            const pos = getPosition(e);
+            const currentX = pos.clientX;
+            const currentY = pos.clientY;
+
+            if (!dragState.isHorizontalDrag) {
+                const dragDistanceX = currentX - dragState.startX;
+                const dragDistanceY = currentY - dragState.startY;
+                const isHorizontalMovement = Math.abs(dragDistanceX) > Math.abs(dragDistanceY);
+                const isPastThreshold = Math.abs(dragDistanceX) > DRAG_THRESHOLD || (e.touches && e.touches.length > 1);
+
+                if (isPastThreshold && isHorizontalMovement) {
+                    dragState.isHorizontalDrag = true;
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    document.body.style.userSelect = 'none';
+                    videos.forEach(video => {
+                        dragState.originalPointerEvents.set(video, video.style.pointerEvents);
+                        video.style.pointerEvents = 'none';
+                    });
+                } else if (Math.abs(dragDistanceY) > VERTICAL_DRAG_THRESHOLD) {
+                    handleEnd();
+                    return;
+                } else {
+                    return;
+                }
+            }
+
+            if (dragState.isHorizontalDrag) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                const deltaX = currentX - dragState.lastUpdateTime;
+                dragState.currentDragDistanceX += deltaX;
+                dragState.totalTimeChange = Math.round( (currentX - dragState.startX) / TIME_CHANGE_SENSITIVITY );
+
+                updateTimeDisplay(dragState.totalTimeChange);
+
+                if (throttleTimer === null) {
+                    throttleTimer = setTimeout(() => {
+                        applyTimeChange();
+                        throttleTimer = null;
+                    }, THROTTLE_DELAY);
+                }
+                dragState.lastUpdateTime = currentX;
+            }
+        };
+
+        const handleEnd = (e) => {
+            if (!dragState.isDragging) return;
+
+            if (throttleTimer) {
+                clearTimeout(throttleTimer);
+                throttleTimer = null;
+                applyTimeChange();
+            }
+
+            updateTimeDisplay(0);
+
+            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            videos.forEach(video => {
+                if (dragState.originalPointerEvents.has(video)) {
+                    video.style.pointerEvents = dragState.originalPointerEvents.get(video);
+                }
+            });
+
+            dragState.originalPointerEvents = new WeakMap();
+
+            dragState.isDragging = false;
+            dragState.currentDragDistanceX = 0;
+            dragState.totalTimeChange = 0;
+            dragState.isHorizontalDrag = false;
+            document.body.style.userSelect = '';
+        };
+
+        const handleFullscreenChange = () => {
+            if (!dragBarTimeDisplay) return;
+            const fsElement = document.fullscreenElement;
+            if (fsElement) {
+                if (dragBarTimeDisplay.parentNode) {
+                    dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
+                }
+                fsElement.appendChild(dragBarTimeDisplay);
+            } else {
+                if (dragBarTimeDisplay.parentNode) {
+                    dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
+                }
+                document.body.appendChild(dragBarTimeDisplay);
+                const forceReflow = () => {
+                    document.body.style.transform = 'scale(1)';
+                    document.body.offsetWidth;
+                    document.body.style.transform = '';
+                };
+                setTimeout(forceReflow, 100);
+                window.dispatchEvent(new Event('resize'));
+            }
+        };
+
+        document.addEventListener('mousedown', handleStart, { passive: true, capture: true });
+        document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
+        document.addEventListener('mouseup', handleEnd, { passive: true, capture: true });
+        document.addEventListener('mouseout', (e) => {
+            if (e.relatedTarget === null) {
+                handleEnd();
+            }
+        }, { passive: true, capture: true });
+        document.addEventListener('touchstart', handleStart, { passive: true, capture: true });
+        document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
+        document.addEventListener('touchend', handleEnd, { passive: true, capture: true });
+        document.addEventListener('touchcancel', handleEnd, { passive: true, capture: true });
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+        videoUIFlags.dragBarInitialized = true;
+    }
+
+    // --- 비디오 UI 통합 초기화 함수 추가 ---
+    function initVideoUI() {
+        if (!videoUIFlags.speedSliderInitialized) {
+            initSpeedSlider();
+        }
+        if (!videoUIFlags.dragBarInitialized) {
+            initDragBar();
+        }
+    }
+
+    // --- 노드 및 자식 노드 처리 ---
+    function processNodeAndChildren(node, trigger) {
+        if (!node || PROCESSED_NODES.has(node)) return;
+        PROCESSED_NODES.add(node);
+
+        if (node.nodeType === 1) {
+            if (node.tagName === 'IFRAME') {
+                initIframeBlocker(node, trigger);
+                handleIframeLoad(node);
+            }
+            if (node.tagName === 'VIDEO') {
                 initVideoUI();
             }
-        } else if (iframe.src) {
+            checkLayerTrap(node);
+        }
+
+        if (node.children) {
+            for (const child of node.children) {
+                processNodeAndChildren(child, trigger);
+            }
+        }
+    }
+
+    // --- iframe 로드 및 내부 탐색 처리 ---
+    function handleIframeLoad(iframe) {
+        if (PROCESSED_IFRAMES.has(iframe)) return;
+        try {
+            const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+            if (iframeDocument && !PROCESSED_DOCUMENTS.has(iframeDocument)) {
+                addLog(`▶️ iframe 로드 감지, 내부 스크립트 실행 시작: ${iframe.src}`);
+                PROCESSED_IFRAMES.add(iframe);
+                startUnifiedObserver(iframeDocument);
+                const videos = findAllVideosInDoc(iframeDocument);
+                if (videos.length > 0) {
+                    initVideoUI();
+                }
+            } else if (iframe.src) {
+                addLogOnce('iframe_access_fail', `⚠️ iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+                PROCESSED_IFRAMES.add(iframe);
+            }
+        } catch (e) {
             addLogOnce('iframe_access_fail', `⚠️ iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
             PROCESSED_IFRAMES.add(iframe);
         }
-    } catch (e) {
-        addLogOnce('iframe_access_fail', `⚠️ iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
-        PROCESSED_IFRAMES.add(iframe);
-    }
-}
-
-// --- 통합 MutationObserver 로직 (중첩 iframe 재귀 탐색 강화) ---
-function startUnifiedObserver(targetDocument = document) {
-    if (!targetDocument.body || PROCESSED_DOCUMENTS.has(targetDocument)) {
-        return;
     }
 
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach(node => processNodeAndChildren(node, '동적 추가'));
-            } else if (mutation.type === 'attributes') {
-                const targetNode = mutation.target;
-                if (targetNode.nodeType === 1) {
-                    if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
-                        PROCESSED_IFRAMES.delete(targetNode);
-                        initIframeBlocker(targetNode, 'iframe src 변경');
+    // --- 통합 MutationObserver 로직 (중첩 iframe 재귀 탐색 강화) ---
+    function startUnifiedObserver(targetDocument = document) {
+        if (!targetDocument.body || PROCESSED_DOCUMENTS.has(targetDocument)) {
+            return;
+        }
+
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach(node => processNodeAndChildren(node, '동적 추가'));
+                } else if (mutation.type === 'attributes') {
+                    const targetNode = mutation.target;
+                    if (targetNode.nodeType === 1) {
+                        if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
+                            PROCESSED_IFRAMES.delete(targetNode);
+                            initIframeBlocker(targetNode, 'iframe src 변경');
+                        }
+                        checkLayerTrap(targetNode);
                     }
-                    checkLayerTrap(targetNode);
                 }
-            }
+            });
         });
-    });
 
-    observer.observe(targetDocument.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'style', 'class', 'onclick'] });
-    PROCESSED_DOCUMENTS.add(targetDocument);
-    OBSERVER_MAP.set(targetDocument, observer);
-    addLog(`✅ 통합 감시자 활성화 (Target: ${targetDocument === document ? '메인 프레임' : 'iframe'})`);
+        observer.observe(targetDocument.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'style', 'class', 'onclick'] });
+        PROCESSED_DOCUMENTS.add(targetDocument);
+        OBSERVER_MAP.set(targetDocument, observer);
+        addLog(`✅ 통합 감시자 활성화 (Target: ${targetDocument === document ? '메인 프레임' : 'iframe'})`);
 
-    try {
-        targetDocument.querySelectorAll('iframe').forEach(iframe => {
-            if (PROCESSED_IFRAMES.has(iframe)) return;
+        try {
+            targetDocument.querySelectorAll('iframe').forEach(iframe => {
+                if (PROCESSED_IFRAMES.has(iframe)) return;
 
-            iframe.addEventListener('load', () => {
-                try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
-                        PROCESSED_IFRAMES.add(iframe);
-                        startUnifiedObserver(iframeDoc);
+                iframe.addEventListener('load', () => {
+                    try {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
+                            PROCESSED_IFRAMES.add(iframe);
+                            startUnifiedObserver(iframeDoc);
+                        }
+                    } catch(e) {
+                        if (!PROCESSED_IFRAMES.has(iframe)) {
+                            addLogOnce('nested_iframe_access_fail', `⚠️ 중첩 iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+                            PROCESSED_IFRAMES.add(iframe);
+                        }
                     }
-                } catch(e) {
+                }, { once: true });
+
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
+                    PROCESSED_IFRAMES.add(iframe);
+                    startUnifiedObserver(iframeDoc);
+                } else if (!iframeDoc) {
                     if (!PROCESSED_IFRAMES.has(iframe)) {
                         addLogOnce('nested_iframe_access_fail', `⚠️ 중첩 iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
                         PROCESSED_IFRAMES.add(iframe);
                     }
                 }
-            }, { once: true });
-
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-            if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
-                PROCESSED_IFRAMES.add(iframe);
-                startUnifiedObserver(iframeDoc);
-            } else if (!iframeDoc) {
-                if (!PROCESSED_IFRAMES.has(iframe)) {
-                    addLogOnce('nested_iframe_access_fail', `⚠️ 중첩 iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
-                    PROCESSED_IFRAMES.add(iframe);
-                }
-            }
-        });
-    } catch(e) {
-        addLogOnce('recursive_iframe_scan_fail', `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
-    }
-}
-
-// --- iframe 초기 스캔 및 주기적 재스캔 ---
-function scanAndProcessIframes() {
-    document.querySelectorAll('iframe').forEach(iframe => {
-        if (!PROCESSED_IFRAMES.has(iframe)) {
-            initIframeBlocker(iframe, '재스캔');
-            iframe.addEventListener('load', () => handleIframeLoad(iframe), { once: true });
-            if (iframe.contentDocument) {
-                handleIframeLoad(iframe);
-            }
+            });
+        } catch(e) {
+            addLogOnce('recursive_iframe_scan_fail', `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
         }
+    }
+
+    // --- 초기 실행 함수 ---
+    function initialLoadLogic() {
+        addLog('🎉 스크립트 초기화 시작');
+        initPopupBlocker();
+        startUnifiedObserver(document);
+        if (findAllVideos().length > 0) {
+            initVideoUI();
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialLoadLogic);
+    } else {
+        initialLoadLogic();
+    }
+
+    // SPA(Single Page Application) 페이지 이동 감지
+    window.addEventListener('yt-navigate-start', () => {
+        addLog('🔄 페이지 이동 감지, 스크립트 재실행');
+        // 기존 옵저버 연결 해제
+        OBSERVER_MAP.forEach(observer => observer.disconnect());
+        PROCESSED_DOCUMENTS.clear();
+        PROCESSED_NODES.clear();
+        PROCESSED_IFRAMES.clear();
+        // DOM 로드 후 스크립트 재실행
+        document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
     });
-}
 
-// --- 초기 실행 함수 ---
-function initialLoadLogic() {
-    addLog('🎉 스크립트 초기화 시작');
-    initPopupBlocker();
-
-    startUnifiedObserver(document);
-
-    scanAndProcessIframes();
-    if (USER_SETTINGS.scanInterval > 0) {
-        setInterval(scanAndProcessIframes, USER_SETTINGS.scanInterval);
-    }
-
-    if (findAllVideos().length > 0) {
-        initVideoUI();
-    }
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialLoadLogic);
-} else {
-    initialLoadLogic();
-}
 })();
