@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.2.29 (최종 안정화)
+// @version       6.2.31 (최종 안정화)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -770,14 +770,6 @@
 
             const initLogic = () => {
                 videoControls.init();
-                const videos = videoFinder.findAll();
-                if (videos.length > 0) {
-                    speedSlider.show();
-                    dragBar.show();
-                } else {
-                    speedSlider.hide();
-                    dragBar.hide();
-                }
                 video.removeEventListener('canplay', initLogic);
             };
 
@@ -891,22 +883,8 @@
             const video = document.querySelector('video');
             const sliderContainer = this.speedSliderContainer;
             const slider = document.getElementById('vm-speed-slider');
-            if (!video || !sliderContainer || !slider) {
-                 if (sliderContainer) {
-                    sliderContainer.style.display = 'none';
-                 }
-                 return;
-            }
 
-            const videoRect = video.getBoundingClientRect();
-            let rect = videoRect;
-
-            if (videoRect.width === 0 || videoRect.height === 0) {
-                const parent = video.offsetParent;
-                if (parent) {
-                    rect = parent.getBoundingClientRect();
-                }
-            }
+            if (!video || !sliderContainer || !slider) return;
 
             // 배속바를 뷰포트의 오른쪽 중앙에 고정
             sliderContainer.style.position = 'fixed';
@@ -920,21 +898,11 @@
             } else {
                 const minHeight = 100;
                 const maxHeight = 300;
+                const rect = video.getBoundingClientRect();
                 newHeight = rect.height * 0.8;
                 newHeight = Math.min(maxHeight, Math.max(minHeight, newHeight));
             }
             slider.style.height = `${newHeight}px`;
-
-            if (document.fullscreenElement) {
-                if (sliderContainer.parentNode !== document.fullscreenElement) {
-                     document.fullscreenElement.appendChild(sliderContainer);
-                }
-            } else {
-                if (sliderContainer.parentNode !== document.body) {
-                    document.body.appendChild(sliderContainer);
-                }
-            }
-            sliderContainer.style.display = 'flex';
         }
     };
 
@@ -1127,29 +1095,6 @@
                 videoUIFlags.isUIBeingUsed = false;
             };
 
-            const handleFullscreenChange = () => {
-                if (!this.dragBarTimeDisplay) return;
-                const fsElement = document.fullscreenElement;
-                if (fsElement) {
-                    if (this.dragBarTimeDisplay.parentNode) {
-                        this.dragBarTimeDisplay.parentNode.removeChild(this.dragBarTimeDisplay);
-                    }
-                    fsElement.appendChild(this.dragBarTimeDisplay);
-                } else {
-                    if (this.dragBarTimeDisplay.parentNode) {
-                        this.dragBarTimeDisplay.parentNode.removeChild(this.dragBarTimeDisplay);
-                    }
-                    document.body.appendChild(this.dragBarTimeDisplay);
-                    const forceReflow = () => {
-                        document.body.style.transform = 'scale(1)';
-                        document.body.offsetWidth;
-                        document.body.style.transform = '';
-                    };
-                    setTimeout(forceReflow, 100);
-                    window.dispatchEvent(new Event('resize'));
-                }
-            };
-
             document.addEventListener('mousedown', handleStart, { passive: true, capture: true });
             document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
             document.addEventListener('mouseup', handleEnd, { passive: true, capture: true });
@@ -1162,7 +1107,6 @@
             document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
             document.addEventListener('touchend', handleEnd, { passive: true, capture: true });
             document.addEventListener('touchcancel', handleEnd, { passive: true, capture: true });
-            document.addEventListener('fullscreenchange', handleFullscreenChange);
 
             videoUIFlags.dragBarInitialized = true;
         }
@@ -1294,7 +1238,7 @@
 
         function checkVideos() {
             const videos = videoFinder.findAll();
-            if (videos.length > 0 && !videoUIFlags.isUIBeingUsed) {
+            if (videos.length > 0) {
                 speedSlider.show();
             } else {
                 speedSlider.hide();
@@ -1343,6 +1287,52 @@
             onNavigate('interval 감지');
         }
     }, 1000);
+
+    const handleFullscreenChange = () => {
+        const fsElement = document.fullscreenElement;
+        if (fsElement) {
+            // 전체화면 진입 시
+            if (speedSlider.speedSliderContainer) {
+                if (speedSlider.speedSliderContainer.parentNode) {
+                    speedSlider.speedSliderContainer.parentNode.removeChild(speedSlider.speedSliderContainer);
+                }
+                fsElement.appendChild(speedSlider.speedSliderContainer);
+            }
+            if (dragBar.dragBarTimeDisplay) {
+                if (dragBar.dragBarTimeDisplay.parentNode) {
+                    dragBar.dragBarTimeDisplay.parentNode.removeChild(dragBar.dragBarTimeDisplay);
+                }
+                fsElement.appendChild(dragBar.dragBarTimeDisplay);
+            }
+        } else {
+            // 전체화면 해제 시
+            if (speedSlider.speedSliderContainer) {
+                if (speedSlider.speedSliderContainer.parentNode !== document.body) {
+                    if (speedSlider.speedSliderContainer.parentNode) {
+                        speedSlider.speedSliderContainer.parentNode.removeChild(speedSlider.speedSliderContainer);
+                    }
+                    document.body.appendChild(speedSlider.speedSliderContainer);
+                }
+            }
+            if (dragBar.dragBarTimeDisplay) {
+                if (dragBar.dragBarTimeDisplay.parentNode !== document.body) {
+                    if (dragBar.dragBarTimeDisplay.parentNode) {
+                        dragBar.dragBarTimeDisplay.parentNode.removeChild(dragBar.dragBarTimeDisplay);
+                    }
+                    document.body.appendChild(dragBar.dragBarTimeDisplay);
+                }
+            }
+            const forceReflow = () => {
+                document.body.style.transform = 'scale(1)';
+                document.body.offsetWidth;
+                document.body.style.transform = '';
+            };
+            setTimeout(forceReflow, 100);
+            window.dispatchEvent(new Event('resize'));
+        }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     // --- 초기 실행 함수 ---
     function initialLoadLogic() {
