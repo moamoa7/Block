@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.2.0 (구조 개선 및 안정성 강화)
+// @version       6.2.1 (최종 개선 버전)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -42,6 +42,7 @@
     let speedSliderContainer = null;
     let dragBarTimeDisplay = null;
 
+    // 비디오 UI 관련 상태
     const videoUIFlags = {
         speedSliderInitialized: false,
         dragBarInitialized: false,
@@ -385,7 +386,7 @@
                         console.warn(logMsg, stack);
                     }
                 } catch (err) { /* 스택 접근 실패 시 무시 */ }
-            };
+                };
             document.addEventListener('click', monitorSuspiciousOpenCall, true);
             document.addEventListener('mousedown', monitorSuspiciousOpenCall, true);
             document.addEventListener('mousedown', function (e) {
@@ -611,33 +612,44 @@
     const iframeBlocker = {
         init: (node, trigger) => {
             if (!FeatureFlags.iframeBlocker) return;
-            if (isFeatureAllowed('iframeBlocker') || PROCESSED_IFRAMES.has(node)) {
-                return;
-            }
-
-            PROCESSED_IFRAMES.add(node);
-            const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain => hostname.includes(domain) || window.location.href.includes(domain));
-            if (IS_IFRAME_LOGIC_SKIPPED) {
-                addLogOnce('iframe_logic_skip', `ℹ️ iframe 차단 로직 건너뜀 (설정 또는 예외 목록): ${hostname}`);
-                return;
-            }
+            if (isFeatureAllowed('iframeBlocker')) return;
 
             const rawSrc = node.getAttribute('src') || node.src || '';
             let fullSrc = rawSrc;
             const lazySrc = node.getAttribute('data-lazy-src');
             if (lazySrc) { fullSrc = lazySrc; }
-            try { fullSrc = new URL(fullSrc, location.href).href; } catch {}
-            const iframeId = node.id || '';
-            const iframeClasses = node.className || '';
-            const parentId = node.parentElement ? node.parentElement.id || '' : '';
-            const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
-            
+
+            // blob: 또는 javascript: URI 즉시 차단
             if (fullSrc.startsWith('blob:') || fullSrc.startsWith('javascript:')) {
                 node.remove();
                 const logMsg = `🚫 의심 iframe 제거됨 (스킴 차단) | 현재: ${window.location.href} | 대상: ${fullSrc}`;
                 addLogOnce(`blocked_suspicious_src_${fullSrc}`, logMsg);
                 return;
             }
+
+            try { fullSrc = new URL(fullSrc, location.href).href; } catch {}
+            
+            if (PROCESSED_IFRAMES.has(node)) {
+                // 이미 처리된 iframe의 src가 변경된 경우
+                if (node.src !== node.previousSrc) {
+                    node.previousSrc = node.src; // 현재 src 저장
+                    const logMsg = `🔄 iframe src 변경 감지 | 현재: ${window.location.href} | 대상: ${fullSrc}`;
+                    addLogOnce(`iframe_src_change_${fullSrc}`, logMsg);
+                }
+                return;
+            }
+            PROCESSED_IFRAMES.add(node);
+
+            const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain => hostname.includes(domain) || window.location.href.includes(domain));
+            if (IS_IFRAME_LOGIC_SKIPPED) {
+                addLogOnce('iframe_logic_skip', `ℹ️ iframe 차단 로직 건너뜀 (설정 또는 예외 목록): ${hostname}`);
+                return;
+            }
+
+            const iframeId = node.id || '';
+            const iframeClasses = node.className || '';
+            const parentId = node.parentElement ? node.parentElement.id || '' : '';
+            const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
             
             const forceBlockPatterns = [
                 '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
@@ -673,7 +685,8 @@
     const layerTrap = {
         processed: new WeakSet(),
         check: (node) => {
-            if (!FeatureFlags.layerTrap || !(node instanceof HTMLElement) || layerTrap.processed.has(node)) {
+            if (!FeatureFlags.layerTrap) return;
+            if (!(node instanceof HTMLElement) || layerTrap.processed.has(node)) {
                 return;
             }
 
@@ -767,16 +780,18 @@
         }
     };
     
-    // --- 비디오 UI 통합 초기화 함수 추가 ---
-    function initVideoUI() {
-        if (!FeatureFlags.videoControls) return;
-        if (!videoUIFlags.speedSliderInitialized) {
-            speedSlider.init();
+    // --- 비디오 UI 통합 초기화 함수 ---
+    const videoControls = {
+        init: () => {
+            if (!FeatureFlags.videoControls) return;
+            if (!videoUIFlags.speedSliderInitialized) {
+                speedSlider.init();
+            }
+            if (!videoUIFlags.dragBarInitialized) {
+                dragBar.init();
+            }
         }
-        if (!videoUIFlags.dragBarInitialized) {
-            dragBar.init();
-        }
-    }
+    };
 
     // --- 배속 슬라이더 로직 ---
     const speedSlider = {
@@ -892,12 +907,14 @@
                 currentDragDistanceX: 0,
                 totalTimeChange: 0,
                 originalPointerEvents: new WeakMap(),
+                // 적응형 스로틀 관련 변수
+                throttleDelay: 100,
+                lastDragTimestamp: Date.now(),
             };
 
             const DRAG_THRESHOLD = 10;
             const TIME_CHANGE_SENSITIVITY = 2;
             const VERTICAL_DRAG_THRESHOLD = 20;
-            const THROTTLE_DELAY = 100;
 
             let throttleTimer = null;
 
@@ -1010,11 +1027,21 @@
 
                     updateTimeDisplay(dragState.totalTimeChange);
 
+                    const now = Date.now();
+                    const timeSinceLastUpdate = now - dragState.lastDragTimestamp;
+
+                    // 적응형 스로틀 로직
+                    if (timeSinceLastUpdate > 50) { // 50ms보다 긴 간격이면
+                        const dragSpeed = Math.abs(currentX - dragState.lastUpdateTime) / timeSinceLastUpdate;
+                        dragState.throttleDelay = dragSpeed > 1 ? 150 : 80; // 빠르면 간격 늘리고, 느리면 줄임
+                    }
+                    dragState.lastDragTimestamp = now;
+
                     if (throttleTimer === null) {
                         throttleTimer = setTimeout(() => {
                             applyTimeChange();
                             throttleTimer = null;
-                        }, THROTTLE_DELAY);
+                        }, dragState.throttleDelay);
                     }
                     dragState.lastUpdateTime = currentX;
                 }
@@ -1099,7 +1126,7 @@
                 handleIframeLoad(node);
             }
             if (node.tagName === 'VIDEO' && !PROCESSED_VIDEOS.has(node)) {
-                initVideoUI();
+                videoControls.init();
                 PROCESSED_VIDEOS.add(node);
             }
             layerTrap.check(node);
@@ -1125,12 +1152,14 @@
 
                 const videos = videoFinder.findInDoc(iframeDocument);
                 if (videos.length > 0) {
-                    initVideoUI();
+                    videoControls.init();
                 }
             } else if (iframe.src) {
                 PROCESSED_IFRAMES.add(iframe);
             }
         } catch (e) {
+            const logMsg = `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
+            addLogOnce(`iframe_access_fail_${iframe.src}`, logMsg);
             PROCESSED_IFRAMES.add(iframe);
         }
     }
@@ -1155,7 +1184,7 @@
                         }
                         layerTrap.check(targetNode);
                         if (targetNode.tagName === 'VIDEO' && !PROCESSED_VIDEOS.has(targetNode)) {
-                            initVideoUI();
+                            videoControls.init();
                             PROCESSED_VIDEOS.add(targetNode);
                         }
                     }
