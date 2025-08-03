@@ -697,158 +697,16 @@
 
     // --- 오버레이 로직 추가 (검은 배경 오버레이로 변경) ---
     function createVideoOverlay() {
-        if (document.getElementById('video-overlay')) return;
-
-        const videos = findAllVideos();
-        if (videos.length === 0) {
-            addLog('⚠️ 오버레이를 생성할 비디오를 찾을 수 없습니다.');
-            return;
-        }
-
-        originalVideo = videos[0];
-        clonedVideo = originalVideo.cloneNode(true);
-
-        addLog('🖼️ 불투명한 가상 전체화면 오버레이 생성');
-
-        const overlayStyle = document.createElement('style');
-        overlayStyle.id = 'video-overlay-style';
-        overlayStyle.textContent = `
-            #video-overlay {
-                position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
-                background-color: rgba(0,0,0,1);
-                z-index: 2147483647 !important;
-                display: flex; flex-direction: column; align-items: center; justify-content: center;
-                pointer-events: auto; opacity: 0;
-                transition: opacity 0.3s ease-in;
-            }
-            #video-overlay .cloned-video {
-                width: 100%; height: 100%; max-width: 100%; max-height: 100%;
-                object-fit: contain;
-                position: relative; z-index: 2147483648;
-            }
-            #video-overlay .close-btn {
-                position: absolute; top: 10px; right: 10px;
-                background-color: rgba(50, 50, 50, 0.7); color: white;
-                border: none; border-radius: 5px; padding: 5px 10px;
-                cursor: pointer; z-index: 2147483649; pointer-events: auto;
-            }
-        `;
-        document.head.appendChild(overlayStyle);
-
-        videoOverlay = document.createElement('div');
-        videoOverlay.id = 'video-overlay';
-
-        clonedVideo.classList.add('cloned-video');
-        originalVideo.style.display = 'none';
-
-        videoOverlay.appendChild(clonedVideo);
-
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'X';
-        closeBtn.classList.add('close-btn');
-        closeBtn.onclick = (e) => {
-            e.stopPropagation();
-            closeVideoOverlay();
-        };
-        videoOverlay.appendChild(closeBtn);
-
-        document.body.appendChild(videoOverlay);
-
-        if (speedSliderContainer && speedSliderContainer.parentNode) {
-            speedSliderContainer.parentNode.removeChild(speedSliderContainer);
-        } else if (!speedSliderContainer) {
-            initSpeedSlider();
-        }
-        videoOverlay.appendChild(speedSliderContainer);
-        Object.assign(speedSliderContainer.style, {
-            position: 'absolute', right: '0', top: '50%',
-            transform: 'translateY(-50%)', pointerEvents: 'auto',
-            zIndex: '2147483649',
-        });
-
-        // 가상 오버레이에서는 dragBarTimeDisplay를 오버레이 내부에 추가합니다.
-        if (!dragBarTimeDisplay) {
-            initDragBar();
-        }
-        if (dragBarTimeDisplay) {
-            if (dragBarTimeDisplay.parentNode) {
-                dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
-            }
-            videoOverlay.appendChild(dragBarTimeDisplay);
-        }
-
-        let hideTimer = null;
-        const hideUI = () => {
-            if (!videoUIFlags.isUIBeingUsed) {
-                speedSliderContainer.style.opacity = '0';
-            }
-        };
-        const showUI = () => {
-            if (hideTimer) clearTimeout(hideTimer);
-            speedSliderContainer.style.opacity = '1';
-            hideTimer = setTimeout(hideUI, 3000);
-        };
-
-        videoOverlay.addEventListener('mousemove', showUI);
-        videoOverlay.addEventListener('mouseenter', showUI);
-        videoOverlay.addEventListener('mouseleave', () => {
-            if (hideTimer) clearTimeout(hideTimer);
-            hideTimer = setTimeout(hideUI, 500);
-        });
-        videoOverlay.addEventListener('click', showUI);
-
-        document.addEventListener('keydown', handleOverlayKeydown);
-
-        setTimeout(() => {
-            videoOverlay.style.opacity = '1';
-        }, 50);
+        // 이 함수를 더 이상 사용하지 않음
+        addLog('⚠️ 비디오 오버레이 기능은 제거되었습니다.');
     }
 
     function closeVideoOverlay() {
-        if (!videoOverlay) return;
-
-        addLog('🖼️ 가상 전체화면 오버레이 닫기');
-
-        const overlayStyle = document.getElementById('video-overlay-style');
-        if(overlayStyle) {
-            overlayStyle.remove();
-        }
-
-        if (speedSliderContainer && videoOverlay.contains(speedSliderContainer)) {
-            document.body.appendChild(speedSliderContainer);
-            Object.assign(speedSliderContainer.style, {
-                position: 'fixed', right: '0', top: '50%',
-                transform: 'translateY(-50%)', pointerEvents: 'auto',
-                opacity: '0.3',
-                zIndex: '2147483647',
-            });
-        }
-
-        if (dragBarTimeDisplay && videoOverlay.contains(dragBarTimeDisplay)) {
-            document.body.appendChild(dragBarTimeDisplay);
-        }
-
-        if (originalVideo) {
-            originalVideo.style.display = '';
-        }
-
-        videoOverlay.style.opacity = '0';
-        setTimeout(() => {
-            if (videoOverlay) {
-                videoOverlay.remove();
-                videoOverlay = null;
-                originalVideo = null;
-                clonedVideo = null;
-            }
-        }, 300);
-
-        document.removeEventListener('keydown', handleOverlayKeydown);
+        // 이 함수를 더 이상 사용하지 않음
     }
 
     function handleOverlayKeydown(e) {
-        if (e.key === 'Escape') {
-            closeVideoOverlay();
-        }
+        // 이 함수를 더 이상 사용하지 않음
     }
 
     // --- 배속 슬라이더 로직 ---
@@ -892,13 +750,6 @@
                     cursor: pointer; border: 1px solid #ddd;
                 }
                 #vm-speed-value { color: red; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
-                #vm-fullscreen-toggle-btn {
-                    background: transparent; border: none; color: white;
-                    font-size: 18px; cursor: pointer; margin-top: 4px;
-                    padding: 0; display: flex; align-items: center; justify-content: center;
-                    width: 40px; height: 30px;
-                }
-                #vm-fullscreen-toggle-btn:hover { color: #ccc; }
             `;
             document.head.appendChild(style);
             const resetBtn = document.createElement('button');
@@ -909,18 +760,21 @@
             slider.step = '0.2'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
             const valueDisplay = document.createElement('div');
             valueDisplay.id = 'vm-speed-value'; valueDisplay.textContent = 'x1.0';
-            const fullscreenBtn = document.createElement('button');
-            fullscreenBtn.id = 'vm-fullscreen-toggle-btn';
-            fullscreenBtn.innerHTML = '⛶';
+            
+            // 이전에 존재했던 전체화면 버튼 생성 로직을 제거
+            // const fullscreenBtn = document.createElement('button');
+            // fullscreenBtn.id = 'vm-fullscreen-toggle-btn';
+            // fullscreenBtn.innerHTML = '⛶';
 
-            fullscreenBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (videoOverlay) {
-                    closeVideoOverlay();
-                } else {
-                    createVideoOverlay();
-                }
-            });
+            // 이전에 존재했던 전체화면 버튼 이벤트 리스너를 제거
+            // fullscreenBtn.addEventListener('click', (e) => {
+            //     e.stopPropagation();
+            //     if (videoOverlay) {
+            //         closeVideoOverlay();
+            //     } else {
+            //         createVideoOverlay();
+            //     }
+            // });
 
             slider.addEventListener('input', () => onSliderChange(slider.value));
             resetBtn.addEventListener('click', () => {
@@ -933,11 +787,12 @@
             container.appendChild(resetBtn);
             container.appendChild(slider);
             container.appendChild(valueDisplay);
-            container.appendChild(fullscreenBtn);
+            // 이전에 존재했던 전체화면 버튼 추가 로직을 제거
+            // container.appendChild(fullscreenBtn);
             return container;
         };
         const updateVideoSpeed = (speed) => {
-            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            const videos = findAllVideos();
             videos.forEach(video => { video.playbackRate = speed; });
         };
         const onSliderChange = (val) => {
@@ -963,7 +818,7 @@
             const videos = findAllVideos();
             if (videos.length > 0) { showSpeedSlider(); } else { hideSpeedSlider(); }
         };
-
+        
         checkVideosAndToggleSlider();
         videoUIFlags.speedSliderInitialized = true;
     }
@@ -984,14 +839,14 @@
             totalTimeChange: 0,
             originalPointerEvents: new WeakMap(),
         };
-
+        
         const DRAG_THRESHOLD = 10;
         const TIME_CHANGE_SENSITIVITY = 2;
         const VERTICAL_DRAG_THRESHOLD = 20;
         const THROTTLE_DELAY = 100;
-
+        
         let throttleTimer = null;
-
+        
         const createTimeDisplay = () => {
             const newTimeDisplay = document.createElement('div');
             newTimeDisplay.id = timeDisplayId;
@@ -1004,13 +859,13 @@
             `;
             return newTimeDisplay;
         };
-
+        
         const updateTimeDisplay = (timeChange) => {
             if (!dragBarTimeDisplay) {
                 dragBarTimeDisplay = createTimeDisplay();
                 if (document.body) document.body.appendChild(dragBarTimeDisplay);
             }
-
+            
             if (timeChange !== 0) {
                 const sign = timeChange > 0 ? '+' : '';
                 dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
@@ -1021,12 +876,12 @@
                 setTimeout(() => { dragBarTimeDisplay.style.display = 'none'; }, 300);
             }
         };
-
+        
         const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
-
+        
         const handleStart = (e) => {
-            if (e.target.closest('#vm-speed-slider-container, #vm-time-display, #video-overlay button')) return;
-            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
+            const videos = findAllVideos();
             if (videos.length === 0 || videos.every(v => v.paused)) return;
 
             dragState.isDragging = true;
@@ -1036,14 +891,14 @@
             dragState.startY = pos.clientY;
             dragState.currentDragDistanceX = 0;
             dragState.totalTimeChange = 0;
-
+            
             if (e.button === 2) return;
         };
-
+        
         const applyTimeChange = () => {
-            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            const videos = findAllVideos();
             const timeToApply = Math.round(dragState.currentDragDistanceX / TIME_CHANGE_SENSITIVITY);
-
+            
             if (timeToApply !== 0) {
                 videos.forEach(video => {
                     if (video.duration && !isNaN(video.duration)) {
@@ -1054,16 +909,16 @@
                 updateTimeDisplay(dragState.totalTimeChange);
             }
         };
-
+        
         const handleMove = (e) => {
             if (!dragState.isDragging) return;
-
-            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            
+            const videos = findAllVideos();
             if (videos.length === 0) {
                 handleEnd();
                 return;
             }
-
+            
             const pos = getPosition(e);
             const currentX = pos.clientX;
             const currentY = pos.clientY;
@@ -1090,15 +945,15 @@
                     return;
                 }
             }
-
+            
             if (dragState.isHorizontalDrag) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-
+                
                 const deltaX = currentX - dragState.lastUpdateTime;
                 dragState.currentDragDistanceX += deltaX;
                 dragState.totalTimeChange = Math.round( (currentX - dragState.startX) / TIME_CHANGE_SENSITIVITY );
-
+                
                 updateTimeDisplay(dragState.totalTimeChange);
 
                 if (throttleTimer === null) {
@@ -1110,25 +965,25 @@
                 dragState.lastUpdateTime = currentX;
             }
         };
-
+        
         const handleEnd = (e) => {
             if (!dragState.isDragging) return;
-
+            
             if (throttleTimer) {
                 clearTimeout(throttleTimer);
                 throttleTimer = null;
                 applyTimeChange();
             }
-
+            
             updateTimeDisplay(0);
 
-            const videos = videoOverlay && clonedVideo ? [clonedVideo] : findAllVideos();
+            const videos = findAllVideos();
             videos.forEach(video => {
                 if (dragState.originalPointerEvents.has(video)) {
                     video.style.pointerEvents = dragState.originalPointerEvents.get(video);
                 }
             });
-
+            
             dragState.originalPointerEvents = new WeakMap();
 
             dragState.isDragging = false;
@@ -1280,7 +1135,7 @@
                         }
                     }
                 }, { once: true });
-
+                
                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                 if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
                     PROCESSED_IFRAMES.add(iframe);
@@ -1324,5 +1179,4 @@
         // DOM 로드 후 스크립트 재실행
         document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
     });
-
 })();
