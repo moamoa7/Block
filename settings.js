@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.2.19 (위치/크기 자동 조절 로직 수정)
+// @version       6.2.29 (최종 안정화)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -92,6 +92,7 @@
     };
 
     const isTopFrame = window.self === window.top;
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isFeatureAllowed = (featureName) => {
         const exceptions = EXCEPTION_LIST[hostname] || [];
         return exceptions.includes(featureName);
@@ -772,8 +773,10 @@
                 const videos = videoFinder.findAll();
                 if (videos.length > 0) {
                     speedSlider.show();
+                    dragBar.show();
                 } else {
                     speedSlider.hide();
+                    dragBar.hide();
                 }
                 video.removeEventListener('canplay', initLogic);
             };
@@ -873,9 +876,8 @@
             videoUIFlags.playbackUpdateTimer = setTimeout(() => { speedSlider.updateSpeed(speed); }, 100);
         },
         show: function() {
-            if (videoUIFlags.isUIBeingUsed) return;
             if (!this.speedSliderContainer) {
-                this.init.call(this);
+                this.init();
             }
             this.speedSliderContainer.style.display = 'flex';
             this.updatePositionAndSize();
@@ -889,20 +891,43 @@
             const video = document.querySelector('video');
             const sliderContainer = this.speedSliderContainer;
             const slider = document.getElementById('vm-speed-slider');
-            if (!video || !sliderContainer || !slider) return;
+            if (!video || !sliderContainer || !slider) {
+                 if (sliderContainer) {
+                    sliderContainer.style.display = 'none';
+                 }
+                 return;
+            }
 
-            // 크기 조정 (최소/최대 높이 제한)
-            const minHeight = 100;
-            const maxHeight = 300;
-            const rect = video.getBoundingClientRect();
-            let newHeight = rect.height * 0.8;
-            newHeight = Math.min(maxHeight, Math.max(minHeight, newHeight));
+            const videoRect = video.getBoundingClientRect();
+            let rect = videoRect;
+
+            if (videoRect.width === 0 || videoRect.height === 0) {
+                const parent = video.offsetParent;
+                if (parent) {
+                    rect = parent.getBoundingClientRect();
+                }
+            }
+
+            // 배속바를 뷰포트의 오른쪽 중앙에 고정
+            sliderContainer.style.position = 'fixed';
+            sliderContainer.style.top = '50%';
+            sliderContainer.style.right = '0';
+            sliderContainer.style.transform = 'translateY(-50%)';
+
+            let newHeight;
+            if (isMobile) {
+                newHeight = 100;
+            } else {
+                const minHeight = 100;
+                const maxHeight = 300;
+                newHeight = rect.height * 0.8;
+                newHeight = Math.min(maxHeight, Math.max(minHeight, newHeight));
+            }
             slider.style.height = `${newHeight}px`;
 
-            // 전체화면 모드 처리
             if (document.fullscreenElement) {
                 if (sliderContainer.parentNode !== document.fullscreenElement) {
-                    document.fullscreenElement.appendChild(sliderContainer);
+                     document.fullscreenElement.appendChild(sliderContainer);
                 }
             } else {
                 if (sliderContainer.parentNode !== document.body) {
@@ -1269,12 +1294,10 @@
 
         function checkVideos() {
             const videos = videoFinder.findAll();
-            if (videos.length > 0) {
+            if (videos.length > 0 && !videoUIFlags.isUIBeingUsed) {
                 speedSlider.show();
-                dragBar.show();
             } else {
                 speedSlider.hide();
-                dragBar.hide();
             }
             requestAnimationFrame(checkVideos);
         }
