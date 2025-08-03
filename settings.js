@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.16 (모바일 영상 버튼 클릭 버그 수정 및 WeakMap.clear 오류 해결)
+// @version       6.1.17 (드래그바 로직 개선)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -914,7 +914,7 @@ function initDragBar() {
             const timeChange = Math.round(dragDistanceX / TIME_CHANGE_SENSITIVITY);
 
             if (timeChange !== 0) {
-                dragState.totalTimeChange += timeChange;
+                dragState.totalTimeChange = timeChange; // 누적 대신 현재 이동거리로 덮어쓰기
                 updateTimeDisplay(dragState.totalTimeChange);
 
                 if (dragState.debounceTimer) clearTimeout(dragState.debounceTimer);
@@ -925,10 +925,8 @@ function initDragBar() {
                         }
                     });
                     dragState.totalTimeChange = 0;
-                    dragState.startX = currentX;
+                    dragState.startX = currentX; // 디바운스 완료 후 startX 갱신
                 }, DEBOUNCE_DELAY);
-
-                dragState.startX = currentX;
             }
         }
     };
