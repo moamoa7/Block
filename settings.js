@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.37 (전체화면 시간 표시 수정)
+// @version       6.1.37 (전체화면 버튼 관련 로직 제거)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -760,7 +760,7 @@
             slider.step = '0.2'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
             const valueDisplay = document.createElement('div');
             valueDisplay.id = 'vm-speed-value'; valueDisplay.textContent = 'x1.0';
-            
+
             // 이전에 존재했던 전체화면 버튼 생성 로직을 제거
             // const fullscreenBtn = document.createElement('button');
             // fullscreenBtn.id = 'vm-fullscreen-toggle-btn';
@@ -818,7 +818,7 @@
             const videos = findAllVideos();
             if (videos.length > 0) { showSpeedSlider(); } else { hideSpeedSlider(); }
         };
-        
+
         checkVideosAndToggleSlider();
         videoUIFlags.speedSliderInitialized = true;
     }
@@ -839,14 +839,14 @@
             totalTimeChange: 0,
             originalPointerEvents: new WeakMap(),
         };
-        
+
         const DRAG_THRESHOLD = 10;
         const TIME_CHANGE_SENSITIVITY = 2;
         const VERTICAL_DRAG_THRESHOLD = 20;
         const THROTTLE_DELAY = 100;
-        
+
         let throttleTimer = null;
-        
+
         const createTimeDisplay = () => {
             const newTimeDisplay = document.createElement('div');
             newTimeDisplay.id = timeDisplayId;
@@ -859,13 +859,13 @@
             `;
             return newTimeDisplay;
         };
-        
+
         const updateTimeDisplay = (timeChange) => {
             if (!dragBarTimeDisplay) {
                 dragBarTimeDisplay = createTimeDisplay();
                 if (document.body) document.body.appendChild(dragBarTimeDisplay);
             }
-            
+
             if (timeChange !== 0) {
                 const sign = timeChange > 0 ? '+' : '';
                 dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
@@ -876,9 +876,9 @@
                 setTimeout(() => { dragBarTimeDisplay.style.display = 'none'; }, 300);
             }
         };
-        
+
         const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
-        
+
         const handleStart = (e) => {
             if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
             const videos = findAllVideos();
@@ -891,14 +891,14 @@
             dragState.startY = pos.clientY;
             dragState.currentDragDistanceX = 0;
             dragState.totalTimeChange = 0;
-            
+
             if (e.button === 2) return;
         };
-        
+
         const applyTimeChange = () => {
             const videos = findAllVideos();
             const timeToApply = Math.round(dragState.currentDragDistanceX / TIME_CHANGE_SENSITIVITY);
-            
+
             if (timeToApply !== 0) {
                 videos.forEach(video => {
                     if (video.duration && !isNaN(video.duration)) {
@@ -909,16 +909,16 @@
                 updateTimeDisplay(dragState.totalTimeChange);
             }
         };
-        
+
         const handleMove = (e) => {
             if (!dragState.isDragging) return;
-            
+
             const videos = findAllVideos();
             if (videos.length === 0) {
                 handleEnd();
                 return;
             }
-            
+
             const pos = getPosition(e);
             const currentX = pos.clientX;
             const currentY = pos.clientY;
@@ -945,15 +945,15 @@
                     return;
                 }
             }
-            
+
             if (dragState.isHorizontalDrag) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                
+
                 const deltaX = currentX - dragState.lastUpdateTime;
                 dragState.currentDragDistanceX += deltaX;
                 dragState.totalTimeChange = Math.round( (currentX - dragState.startX) / TIME_CHANGE_SENSITIVITY );
-                
+
                 updateTimeDisplay(dragState.totalTimeChange);
 
                 if (throttleTimer === null) {
@@ -965,16 +965,16 @@
                 dragState.lastUpdateTime = currentX;
             }
         };
-        
+
         const handleEnd = (e) => {
             if (!dragState.isDragging) return;
-            
+
             if (throttleTimer) {
                 clearTimeout(throttleTimer);
                 throttleTimer = null;
                 applyTimeChange();
             }
-            
+
             updateTimeDisplay(0);
 
             const videos = findAllVideos();
@@ -983,7 +983,7 @@
                     video.style.pointerEvents = dragState.originalPointerEvents.get(video);
                 }
             });
-            
+
             dragState.originalPointerEvents = new WeakMap();
 
             dragState.isDragging = false;
@@ -1135,7 +1135,7 @@
                         }
                     }
                 }, { once: true });
-                
+
                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                 if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
                     PROCESSED_IFRAMES.add(iframe);
