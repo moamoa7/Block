@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.1.17 (드래그바 로직 개선)
+// @version       6.1.19 (드래그바 로직 재수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -82,6 +82,16 @@
         const exceptions = EXCEPTION_LIST[hostname] || [];
         return exceptions.includes(featureName);
     };
+
+    // --- 로그 출력 제어용 WeakSet 추가 ---
+    const loggedKeys = new Set();
+
+    function addLogOnce(key, message) {
+        if (!loggedKeys.has(key)) {
+            loggedKeys.add(key);
+            addLog(message);
+        }
+    }
 
     // --- 로그 기능 ---
     function createLogBox() {
@@ -573,7 +583,7 @@ function initIframeBlocker(node, trigger) {
     PROCESSED_IFRAMES.add(node);
     const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain => hostname.includes(domain) || window.location.href.includes(domain));
     if (IS_IFRAME_LOGIC_SKIPPED) {
-          addLog(`ℹ️ iframe 차단 로직 건너뜀 (설정 또는 예외 목록): ${hostname}`);
+          addLogOnce('iframe_logic_skip', `ℹ️ iframe 차단 로직 건너뜀 (설정 또는 예외 목록): ${hostname}`);
           return;
     }
 
@@ -587,7 +597,7 @@ function initIframeBlocker(node, trigger) {
     const parentId = node.parentElement ? node.parentElement.id || '' : '';
     const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
     const forceBlockPatterns = [
-        '/ads/', 'adsbygoogle', 'banner', 'doubleclick', 'adpnut.com',
+        '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
         'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
         '8dk5q9tp.xyz', 's.amazon-adsystem.com',
     ];
@@ -805,7 +815,7 @@ function initSpeedSlider() {
     videoUIFlags.speedSliderInitialized = true;
 }
 
-// --- 드래그바 로직 (수정) ---
+// --- 드래그바 로직 (재수정) ---
 function initDragBar() {
     if (window.__vmDragBarInjectedInThisFrame) return;
     window.__vmDragBarInjectedInThisFrame = true;
@@ -817,11 +827,14 @@ function initDragBar() {
         startX: 0,
         startY: 0,
         totalTimeChange: 0,
-        debounceTimer: null,
+        lastUpdateTime: 0,
         originalPointerEvents: new WeakMap(),
     };
 
-    const DRAG_THRESHOLD = 10, TIME_CHANGE_SENSITIVITY = 2, VERTICAL_DRAG_THRESHOLD = 20, DEBOUNCE_DELAY = 100;
+    const DRAG_THRESHOLD = 10;
+    const TIME_CHANGE_SENSITIVITY = 2;
+    const VERTICAL_DRAG_THRESHOLD = 20;
+    const THROTTLE_DELAY = 100;
 
     const createTimeDisplay = () => {
         const newTimeDisplay = document.createElement('div');
@@ -882,16 +895,15 @@ function initDragBar() {
         const pos = getPosition(e);
         const currentX = pos.clientX;
         const currentY = pos.clientY;
-        const dragDistanceX = currentX - dragState.startX;
-        const dragDistanceY = currentY - dragState.startY;
 
         if (!dragState.isHorizontalDrag) {
+            const dragDistanceX = currentX - dragState.startX;
+            const dragDistanceY = currentY - dragState.startY;
             const isHorizontalMovement = Math.abs(dragDistanceX) > Math.abs(dragDistanceY);
             const isPastThreshold = Math.abs(dragDistanceX) > DRAG_THRESHOLD || (e.touches && e.touches.length > 1);
 
             if (isPastThreshold && isHorizontalMovement) {
                 dragState.isHorizontalDrag = true;
-                // 드래그가 시작된 후에만 preventDefault 호출
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 document.body.style.userSelect = 'none';
@@ -911,22 +923,24 @@ function initDragBar() {
             e.preventDefault();
             e.stopImmediatePropagation();
 
+            const now = Date.now();
+            const dragDistanceX = currentX - dragState.startX;
             const timeChange = Math.round(dragDistanceX / TIME_CHANGE_SENSITIVITY);
 
-            if (timeChange !== 0) {
-                dragState.totalTimeChange = timeChange; // 누적 대신 현재 이동거리로 덮어쓰기
-                updateTimeDisplay(dragState.totalTimeChange);
+            // 총 이동 시간을 누적
+            dragState.totalTimeChange = timeChange;
+            updateTimeDisplay(dragState.totalTimeChange);
 
-                if (dragState.debounceTimer) clearTimeout(dragState.debounceTimer);
-                dragState.debounceTimer = setTimeout(() => {
-                    videos.forEach(video => {
-                        if (video.duration && !isNaN(video.duration)) {
-                            video.currentTime += dragState.totalTimeChange;
-                        }
-                    });
-                    dragState.totalTimeChange = 0;
-                    dragState.startX = currentX; // 디바운스 완료 후 startX 갱신
-                }, DEBOUNCE_DELAY);
+            // 스로틀 적용
+            if (now - dragState.lastUpdateTime > THROTTLE_DELAY) {
+                videos.forEach(video => {
+                    if (video.duration && !isNaN(video.duration)) {
+                        video.currentTime += dragState.totalTimeChange;
+                    }
+                });
+                dragState.lastUpdateTime = now;
+                dragState.totalTimeChange = 0; // 적용 후 누적 시간 초기화
+                dragState.startX = currentX; // 스로틀 간격마다 기준점 업데이트
             }
         }
     };
@@ -934,24 +948,25 @@ function initDragBar() {
     const handleEnd = (e) => {
         if (!dragState.isDragging) return;
 
-        if (dragState.isHorizontalDrag) {
-            updateTimeDisplay(0);
+        // 드래그 종료 시 남아있는 누적 시간 적용
+        const videos = findAllVideos();
+        if (videos.length > 0 && dragState.totalTimeChange !== 0) {
+            videos.forEach(video => {
+                if (video.duration && !isNaN(video.duration)) {
+                    video.currentTime += dragState.totalTimeChange;
+                }
+            });
         }
 
-        const videos = findAllVideos();
+        updateTimeDisplay(0);
+
         videos.forEach(video => {
              if (dragState.originalPointerEvents.has(video)) {
                 video.style.pointerEvents = dragState.originalPointerEvents.get(video);
              }
         });
 
-        // WeakMap 초기화 (clear() 대신 새 WeakMap 객체로 교체)
         dragState.originalPointerEvents = new WeakMap();
-
-        if (dragState.debounceTimer) {
-            clearTimeout(dragState.debounceTimer);
-            dragState.debounceTimer = null;
-        }
 
         dragState.isDragging = false;
         dragState.totalTimeChange = 0;
@@ -986,7 +1001,6 @@ function initDragBar() {
     document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
     document.addEventListener('mouseup', handleEnd, { passive: true, capture: true });
     document.addEventListener('mouseout', (e) => {
-        // 마우스가 브라우저 밖으로 나갔을 때 드래그 종료
         if (e.relatedTarget === null) {
             handleEnd();
         }
@@ -1047,11 +1061,11 @@ function handleIframeLoad(iframe) {
                 initVideoUI();
             }
         } else if (iframe.src) {
-            addLog(`⚠️ iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+            addLogOnce('iframe_access_fail', `⚠️ iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
             PROCESSED_IFRAMES.add(iframe);
         }
     } catch (e) {
-        addLog(`⚠️ iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+        addLogOnce('iframe_access_fail', `⚠️ iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
         PROCESSED_IFRAMES.add(iframe);
     }
 }
@@ -1097,7 +1111,7 @@ function startUnifiedObserver(targetDocument = document) {
                     }
                 } catch(e) {
                     if (!PROCESSED_IFRAMES.has(iframe)) {
-                        addLog(`⚠️ 중첩 iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+                        addLogOnce('nested_iframe_access_fail', `⚠️ 중첩 iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
                         PROCESSED_IFRAMES.add(iframe);
                     }
                 }
@@ -1109,13 +1123,13 @@ function startUnifiedObserver(targetDocument = document) {
                 startUnifiedObserver(iframeDoc);
             } else if (!iframeDoc) {
                 if (!PROCESSED_IFRAMES.has(iframe)) {
-                    addLog(`⚠️ 중첩 iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
+                    addLogOnce('nested_iframe_access_fail', `⚠️ 중첩 iframe 접근 실패 (Cross-Origin): ${iframe.src}`);
                     PROCESSED_IFRAMES.add(iframe);
                 }
             }
         });
     } catch(e) {
-        addLog(`⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
+        addLogOnce('recursive_iframe_scan_fail', `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
     }
 }
 
