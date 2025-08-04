@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
-// @namespace     https.com/
-// @version       6.2.106 (모바일 UX 개선 및 안정화)
+// @namespace     https://com/
+// @version       6.2.107 (a 태그 클릭 충돌 문제 해결)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -519,13 +519,13 @@
             if (!this.speedSliderContainer.parentNode) {
                 document.body.appendChild(this.speedSliderContainer);
             }
-
+            
             const targetParent = document.fullscreenElement || document.body;
             if (this.speedSliderContainer.parentNode !== targetParent) {
                 this.speedSliderContainer.parentNode.removeChild(this.speedSliderContainer);
                 targetParent.appendChild(this.speedSliderContainer);
             }
-
+            
             this.speedSliderContainer.style.display = 'flex';
             this.updatePositionAndSize();
             const slider = document.getElementById('vm-speed-slider');
@@ -706,7 +706,7 @@
                 }
                 if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
 
-                if (isMobile && e.touches) {
+                if (isMobile) {
                     e.preventDefault();
                     e.stopImmediatePropagation();
                 } else {
@@ -1116,5 +1116,5 @@
         alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
         document: { write: () => {}, writeln: () => {} },
     });
-
+    
 })();
