@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.108 (이벤트 충돌 방지 로직 보강)
+// @version       6.2.106 (모바일 UX 개선 및 안정화)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -519,13 +519,13 @@
             if (!this.speedSliderContainer.parentNode) {
                 document.body.appendChild(this.speedSliderContainer);
             }
-
+            
             const targetParent = document.fullscreenElement || document.body;
             if (this.speedSliderContainer.parentNode !== targetParent) {
                 this.speedSliderContainer.parentNode.removeChild(this.speedSliderContainer);
                 targetParent.appendChild(this.speedSliderContainer);
             }
-
+            
             this.speedSliderContainer.style.display = 'flex';
             this.updatePositionAndSize();
             const slider = document.getElementById('vm-speed-slider');
@@ -596,7 +596,7 @@
             if (!this.dragBarTimeDisplay.parentNode) {
                 document.body.appendChild(this.dragBarTimeDisplay);
             }
-
+            
             const targetParent = document.fullscreenElement || document.body;
             if (this.dragBarTimeDisplay.parentNode !== targetParent) {
                  if (this.dragBarTimeDisplay.parentNode) {
@@ -613,7 +613,7 @@
         init: function() {
             if (videoUIFlags.dragBarInitialized) return;
             videoUIFlags.dragBarInitialized = true;
-
+            
             const dragState = {
                 isDragging: false,
                 isHorizontalDrag: false,
@@ -638,7 +638,7 @@
                 const sign = seconds < 0 ? '-' : '+';
                 const minutes = Math.floor(absSeconds / 60);
                 const remainingSeconds = Math.floor(absSeconds % 60);
-
+            
                 const paddedMinutes = String(minutes).padStart(2, '0');
                 const paddedSeconds = String(remainingSeconds).padStart(2, '0');
 
@@ -652,7 +652,7 @@
                     parent.appendChild(this.dragBarTimeDisplay);
                 }
                 if (!this.dragBarTimeDisplay) return;
-
+            
                 if (timeChange !== 0) {
                     this.dragBarTimeDisplay.textContent = `${formatTime(timeChange)} 이동`;
                     this.dragBarTimeDisplay.style.display = 'block';
@@ -667,7 +667,7 @@
                     }, 300);
                 }
             };
-
+            
             const cancelDrag = () => {
                 if (!dragState.isDragging) return;
 
@@ -859,7 +859,7 @@
             videoUIFlags.dragBarInitialized = true;
         }
     };
-
+    
     // throttle 함수 정의
     function throttle(func, limit) {
       let inThrottle;
@@ -1116,5 +1116,5 @@
         alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
         document: { write: () => {}, writeln: () => {} },
     });
-
+    
 })();
