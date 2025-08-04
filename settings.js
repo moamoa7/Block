@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://com/
-// @version       6.2.89 (최적화 및 안정성 강화)
+// @version       6.2.89 (하이브리드 비디오 감지 로직 적용)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -49,6 +49,10 @@
         '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
         'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
         '8dk5q9tp.xyz', 's.amazon-adsystem.com',
+    ];
+    const IGNORED_IFRAME_PATTERNS = [
+        /^javascript:/,
+        /^(blob|data):/,
     ];
 
     // --- 스크립트 초기 실행 전 예외 처리 ---
@@ -261,7 +265,7 @@
             const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => event.origin.includes(domain));
             if (isIgnoredDomain) return;
 
-            const msgData = typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
+            const msgData = typeof event.data === 'string' ? event.data : JSON.stringify(e.data);
             if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
                 return;
             }
@@ -1044,10 +1048,7 @@
     const handlers = [
         {
             match: (node) => node.tagName === 'IFRAME',
-            action: (node, trigger) => {
-                iframeBlocker.init(node, trigger);
-                handleIframeLoad(node);
-            }
+            action: (node, trigger) => iframeBlocker.init(node, trigger)
         },
         {
             match: (node) => node.tagName === 'VIDEO',
@@ -1111,7 +1112,7 @@
     // --- 통합 MutationObserver 로직 (중첩 iframe 재귀 탐색 강화) ---
     function startUnifiedObserver(targetDocument = document) {
         if (PROCESSED_DOCUMENTS.has(targetDocument)) {
-            addLogOnce('observer_reinit_prevented', '감시자 초기화 재실행 방지', 'allow');
+            addLogOnce('observer_reinit_prevented', '감시자 초기화 재실행 방지', 'info');
             return;
         }
 
@@ -1161,16 +1162,12 @@
     function startVideoUIWatcher(targetDocument = document) {
         if (!FeatureFlags.videoControls) return;
 
-        let videoCheckInterval;
-        let active = true;
-
         const checkVideos = () => {
-            if (!active) return;
-
             const videos = videoFinder.findAll();
             let isAnyVideoAvailable = false;
 
             videos.forEach(video => {
+                // 비디오가 DOM에 존재하고, 크기가 0보다 크거나 (보이는 상태이거나) readyState가 1 이상일 때
                 if (video.readyState >= 1 || (video.clientWidth > 0 && video.clientHeight > 0)) {
                     isAnyVideoAvailable = true;
                 }
@@ -1187,12 +1184,11 @@
             } else {
                 speedSlider.hide();
                 dragBar.hide();
-                window.__videoUIInitialized = false;
             }
         };
 
         const throttledCheck = throttle(checkVideos, 1000);
-        videoCheckInterval = setInterval(throttledCheck, 1500);
+        setInterval(throttledCheck, 1500);
         addLogOnce('video_watcher_started', '비디오 감시 루프 시작', 'allow');
     }
 
@@ -1310,4 +1306,11 @@
       };
     }
 
+    function safeInitializeAll(doc, source = 'unknown') {
+        if (!doc || PROCESSED_DOCUMENTS.has(doc)) return;
+        PROCESSED_DOCUMENTS.add(doc);
+        const logMsg = `initializeAll() 실행 | 출처: ${source} | 문서: ${doc.URL}`;
+        addLogOnce(`init_doc_${doc.URL}`, logMsg, 'allow');
+        initializeAll(doc);
+    }
 })();
