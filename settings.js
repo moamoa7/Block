@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.96 (스코프 문제 해결)
+// @version       6.2.96 (UX 및 안정성 개선)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
