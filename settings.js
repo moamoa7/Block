@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.2.68 (하이브리드 비디오 감지 로직 적용)
+// @version       6.2.69 (최적화 및 모듈화)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -67,10 +67,10 @@
     });
 
     // --- 전역 상태 및 중복 방지 ---
-    const PROCESSED_NODES = new Set();
-    const PROCESSED_IFRAMES = new Set();
-    const PROCESSED_DOCUMENTS = new Set();
-    const PROCESSED_VIDEOS = new Set();
+    const PROCESSED_NODES = new WeakSet();
+    const PROCESSED_IFRAMES = new WeakSet();
+    const PROCESSED_DOCUMENTS = new WeakSet();
+    const PROCESSED_VIDEOS = new WeakSet();
     const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
     let dragBarTimeDisplay = null;
@@ -93,6 +93,7 @@
         isUIBeingUsed: false,
         playbackUpdateTimer: null,
     };
+    window.__videoUIInitialized = false;
 
     const isTopFrame = window.self === window.top;
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -454,7 +455,7 @@
     const iframeBlocker = {
         init: (node, trigger) => {
             if (!FeatureFlags.iframeBlocker) return;
-            if (isFeatureAllowed('iframeBlocker') || PROCESSED_IFRAMES.has(node)) {
+            if (PROCESSED_IFRAMES.has(node)) {
                 return;
             }
 
@@ -514,10 +515,9 @@
 
     // --- 레이어 클릭 덫 로직 ---
     const layerTrap = {
-        processed: new WeakSet(),
         check: (node) => {
             if (!FeatureFlags.layerTrap) return;
-            if (!(node instanceof HTMLElement) || layerTrap.processed.has(node)) {
+            if (!(node instanceof HTMLElement)) {
                 return;
             }
 
@@ -531,7 +531,6 @@
             const hasSuspiciousHandler = suspiciousHandlers.some(handler => node.hasAttribute(handler));
 
             if (isSuspect && hasSuspiciousHandler) {
-                layerTrap.processed.add(node);
                 node.style.setProperty('display', 'none', 'important');
                 node.setAttribute('data-popupblocker-status', 'removed');
 
@@ -995,21 +994,39 @@
         }
     };
 
-    // --- 노드 및 자식 노드 처리 ---
+    // --- 핸들러 테이블 기반 노드 처리 로직 ---
+    const handlers = [
+        {
+            match: (node) => node.tagName === 'IFRAME',
+            action: (node) => {
+                iframeBlocker.init(node, '동적 추가');
+                handleIframeLoad(node);
+            }
+        },
+        {
+            match: (node) => node.tagName === 'VIDEO',
+            action: (node) => {
+                // 비디오 UI는 startVideoUIWatcher에서 통합 관리
+            }
+        },
+        {
+            match: (node) => node.nodeType === 1,
+            action: (node) => layerTrap.check(node)
+        }
+    ];
+
     function processNodeAndChildren(node, trigger) {
         if (!node || PROCESSED_NODES.has(node)) return;
         PROCESSED_NODES.add(node);
 
-        if (node.nodeType === 1) {
-            if (node.tagName === 'IFRAME') {
-                iframeBlocker.init(node, trigger);
-                handleIframeLoad(node);
+        for (const handler of handlers) {
+            if (handler.match(node)) {
+                try {
+                    handler.action(node, trigger);
+                } catch (e) {
+                    addLogOnce(`handler_error_${handler.match.toString().substring(0, 20)}`, `⚠️ 핸들러 오류 발생: ${e.message}`);
+                }
             }
-            if (node.tagName === 'VIDEO' && !PROCESSED_VIDEOS.has(node)) {
-                videoControls.initWhenReady(node);
-                PROCESSED_VIDEOS.add(node);
-            }
-            layerTrap.check(node);
         }
 
         if (node.children) {
@@ -1028,7 +1045,7 @@
                 const logMsg = `▶️ iframe 로드 감지, 내부 스크립트 실행 시작 | 현재: ${window.location.href} | 대상: ${iframe.src}`;
                 addLogOnce('iframe_load_detected', logMsg);
                 PROCESSED_IFRAMES.add(iframe);
-                startUnifiedObserver(iframeDocument);
+                initializeAll(iframeDocument);
             } else if (iframe.src) {
                 PROCESSED_IFRAMES.add(iframe);
             }
@@ -1057,11 +1074,10 @@
                             PROCESSED_IFRAMES.delete(targetNode);
                             iframeBlocker.init(targetNode, 'iframe src 변경');
                         }
-                        layerTrap.check(targetNode);
-                        if (targetNode.tagName === 'VIDEO' && !PROCESSED_VIDEOS.has(targetNode)) {
-                            videoControls.initWhenReady(targetNode);
-                            PROCESSED_VIDEOS.add(targetNode);
+                        if (targetNode.tagName === 'VIDEO' && mutation.attributeName === 'style') {
+                             // do something
                         }
+                        layerTrap.check(targetNode);
                     }
                 }
             });
@@ -1086,7 +1102,7 @@
                         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                         if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
                             PROCESSED_IFRAMES.add(iframe);
-                            startUnifiedObserver(iframeDoc);
+                            initializeAll(iframeDoc);
                         }
                     } catch(e) {
                         if (!PROCESSED_IFRAMES.has(iframe)) {
@@ -1098,7 +1114,7 @@
                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                 if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
                     PROCESSED_IFRAMES.add(iframe);
-                    startUnifiedObserver(iframeDoc);
+                    initializeAll(iframeDoc);
                 } else if (!iframeDoc) {
                     if (!PROCESSED_IFRAMES.has(iframe)) {
                         PROCESSED_IFRAMES.add(iframe);
@@ -1111,23 +1127,54 @@
         }
     }
 
-    // --- 비디오 UI 감지 및 토글을 위한 애니메이션 프레임 루프 ---
-    function startVideoUIWatcher() {
+    // --- 비디오 UI 감지 및 토글을 위한 통합 루프 ---
+    function startVideoUIWatcher(targetDocument = document) {
         if (!FeatureFlags.videoControls) return;
 
-        function checkVideos() {
+        const checkVideos = () => {
             const videos = videoFinder.findAll();
-            if (videos.length > 0) {
+            let isAnyVideoVisible = false;
+
+            videos.forEach(video => {
+                if (video.readyState >= 1) { // 비디오가 재생 가능한 상태
+                    const rect = video.getBoundingClientRect();
+                    // 화면 내에 있는지, 크기가 있는지 확인
+                    if (rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight) {
+                        isAnyVideoVisible = true;
+                    }
+                }
+            });
+
+            if (isAnyVideoVisible) {
+                if (!window.__videoUIInitialized) {
+                    window.__videoUIInitialized = true;
+                    speedSlider.init();
+                    dragBar.init();
+                    addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료');
+                }
                 speedSlider.show();
                 dragBar.show();
             } else {
                 speedSlider.hide();
                 dragBar.hide();
+                window.__videoUIInitialized = false;
             }
-            requestAnimationFrame(checkVideos);
-        }
+        };
 
-        requestAnimationFrame(checkVideos);
+        const throttle = (fn, delay) => {
+            let timer = null;
+            return () => {
+                if (!timer) {
+                    timer = setTimeout(() => {
+                        fn();
+                        timer = null;
+                    }, delay);
+                }
+            };
+        };
+        const throttledCheck = throttle(checkVideos, 1000);
+        setInterval(throttledCheck, 1500);
+        addLogOnce('video_watcher_started', '✅ 비디오 감시 루프 시작');
     }
 
     // --- 범용 SPA 감지 로직 ---
@@ -1150,12 +1197,9 @@
                 PROCESSED_IFRAMES.clear();
                 PROCESSED_VIDEOS.clear();
                 LOGGED_KEYS_WITH_TIMER.clear();
+                window.__videoUIInitialized = false;
 
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
-                } else {
-                    initialLoadLogic();
-                }
+                initializeAll(document);
             }, 1000);
         }
     }
@@ -1203,19 +1247,21 @@
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
-    // --- 초기 실행 함수 ---
-    function initialLoadLogic() {
-        if (isInitialLoadFinished) return;
+    // --- 단일 초기 실행 함수 ---
+    function initializeAll(targetDocument = document) {
+        if (isInitialLoadFinished && targetDocument === document) return;
         isInitialLoadFinished = true;
         addLogOnce('script_init_start', '🎉 스크립트 초기화 시작');
+
         popupBlocker.init();
-        startUnifiedObserver(document);
-        startVideoUIWatcher();
+        startUnifiedObserver(targetDocument);
+        startVideoUIWatcher(targetDocument);
     }
 
+    // --- 초기 진입점 ---
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initialLoadLogic);
+        document.addEventListener('DOMContentLoaded', () => initializeAll(document));
     } else {
-        initialLoadLogic();
+        initializeAll(document);
     }
 })();
