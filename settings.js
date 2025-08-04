@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.99 (로그 시스템 재정비 및 드래그 버그 수정)
+// @version       6.2.97 (dragBar UX 및 안정성 개선)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -48,7 +48,7 @@
     const IFRAME_FORCE_BLOCK_PATTERNS = [
         '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
         'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
-        '8dkq9tp.xyz', 's.amazon-adsystem.com',
+        '8dk5q9tp.xyz', 's.amazon-adsystem.com',
     ];
 
     // --- 스크립트 초기 실행 전 예외 처리 ---
@@ -859,21 +859,21 @@
                 currentDragDistanceX: 0,
                 totalTimeChange: 0,
                 originalPointerEvents: new Map(),
-                recoveryTimer: null,
-                throttleTimer: null,
+                recoveryTimer: null
             };
 
             const DRAG_THRESHOLD = 10;
             const TIME_CHANGE_SENSITIVITY = 2;
             const VERTICAL_DRAG_THRESHOLD = 20;
-            
+
+            let throttleTimer = null;
+
             const updateTimeDisplay = (timeChange) => {
                 if (!this.dragBarTimeDisplay) {
                     this.dragBarTimeDisplay = this.createTimeDisplay();
                     const parent = document.fullscreenElement || document.body;
                     parent.appendChild(this.dragBarTimeDisplay);
                 }
-                if (!this.dragBarTimeDisplay) return;
 
                 if (timeChange !== 0) {
                     const sign = timeChange > 0 ? '+' : '';
@@ -883,23 +883,19 @@
                 } else {
                     this.dragBarTimeDisplay.style.opacity = '0';
                     clearTimeout(this.dragBarTimeDisplay.timer);
-                    this.dragBarTimeDisplay.timer = setTimeout(() => {
-                        if (this.dragBarTimeDisplay.style.opacity === '0') {
-                            this.dragBarTimeDisplay.style.display = 'none';
-                        }
-                    }, 300);
+                    this.dragBarTimeDisplay.timer = setTimeout(() => { this.dragBarTimeDisplay.style.display = 'none'; }, 300);
                 }
             };
-
+            
             const cancelDrag = () => {
                 if (!dragState.isDragging) return;
 
+                if (throttleTimer) {
+                    clearTimeout(throttleTimer);
+                    throttleTimer = null;
+                }
                 if (dragState.recoveryTimer) {
                     clearTimeout(dragState.recoveryTimer);
-                }
-                if (dragState.throttleTimer) {
-                    clearTimeout(dragState.throttleTimer);
-                    dragState.throttleTimer = null;
                 }
 
                 updateTimeDisplay(0);
@@ -929,13 +925,9 @@
                 }
                 if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
 
-                if (isMobile && e.touches) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                } else {
-                    e.preventDefault();
-                }
-                
+                if (e.touches) e.preventDefault();
+                e.stopImmediatePropagation();
+
                 const videos = videoFinder.findAll();
                 if (videos.length === 0 || videos.every(v => v.paused)) {
                     videoUIFlags.isUIBeingUsed = false;
@@ -957,22 +949,16 @@
 
             const applyTimeChange = () => {
                 const videos = videoFinder.findAll();
-                const timeToApply = Math.round(dragState.currentDragDistanceX / 2);
+                const timeToApply = Math.round(dragState.currentDragDistanceX / TIME_CHANGE_SENSITIVITY);
 
                 if (timeToApply !== 0) {
                     videos.forEach(video => {
-                        if (video && video.duration && isFinite(video.duration)) {
-                            const newTime = Math.min(video.duration, Math.max(0, video.currentTime + timeToApply));
-                            addLogOnce(`time_change_${Date.now()}`, `[dragBar] 이동 시도: ${video.currentTime.toFixed(2)}s → ${newTime.toFixed(2)}s`, 'info');
-                            video.currentTime = newTime;
-                            
-                            setTimeout(() => {
-                                addLogOnce(`time_check_${Date.now()}`, `[dragBar] 실제 적용됨? 현재 시간: ${video.currentTime.toFixed(2)}s`, 'info');
-                            }, 500);
+                        if (video.duration && !isNaN(video.duration)) {
+                            video.currentTime += timeToApply;
                         }
                     });
                     dragState.currentDragDistanceX = 0;
-                    this.updateTimeDisplay(dragState.totalTimeChange);
+                    updateTimeDisplay(dragState.totalTimeChange);
                 }
             };
 
@@ -992,25 +978,26 @@
                 const pos = getPosition(e);
                 const currentX = pos.clientX;
                 const currentY = pos.clientY;
-                const dx = Math.abs(currentX - dragState.startX);
-                const dy = Math.abs(currentY - dragState.startY);
 
                 if (!dragState.isHorizontalDrag) {
-                    if (dx > 10 && dy < dx * 1.5) {
-                        dragState.isHorizontalDrag = true;
-                        if (isMobile) {
-                           e.preventDefault();
-                           e.stopImmediatePropagation();
-                        }
-                        document.body.style.userSelect = 'none';
-                        videos.forEach(video => {
-                            dragState.originalPointerEvents.set(video, video.style.pointerEvents);
-                            video.style.pointerEvents = 'none';
-                        });
-                    } else if (dy > 10) {
+                    const dx = Math.abs(currentX - dragState.startX);
+                    const dy = Math.abs(currentY - dragState.startY);
+
+                    // 수직 드래그 또는 너무 짧은 이동 → 드래그 무시
+                    if (dx < 10 || dy > dx * 1.5) {
                         cancelDrag();
                         return;
                     }
+
+                    dragState.isHorizontalDrag = true;
+                    if (e.touches) e.preventDefault();
+                    e.stopImmediatePropagation();
+
+                    document.body.style.userSelect = 'none';
+                    videos.forEach(video => {
+                        dragState.originalPointerEvents.set(video, video.style.pointerEvents);
+                        video.style.pointerEvents = 'none';
+                    });
                 }
 
                 if (dragState.isHorizontalDrag) {
@@ -1019,9 +1006,9 @@
 
                     const deltaX = currentX - dragState.lastUpdateX;
                     dragState.currentDragDistanceX += deltaX;
-                    dragState.totalTimeChange = Math.round( (currentX - dragState.startX) / 2 );
+                    dragState.totalTimeChange = Math.round( (currentX - dragState.startX) / TIME_CHANGE_SENSITIVITY );
 
-                    this.updateTimeDisplay(dragState.totalTimeChange);
+                    updateTimeDisplay(dragState.totalTimeChange);
 
                     const now = Date.now();
                     const timeSinceLastUpdate = now - dragState.lastDragTimestamp;
@@ -1032,10 +1019,10 @@
                     }
                     dragState.lastDragTimestamp = now;
 
-                    if (dragState.throttleTimer === null) {
-                        dragState.throttleTimer = setTimeout(() => {
+                    if (throttleTimer === null) {
+                        throttleTimer = setTimeout(() => {
                             applyTimeChange();
-                            dragState.throttleTimer = null;
+                            throttleTimer = null;
                         }, dragState.throttleDelay);
                     }
                     dragState.lastUpdateX = currentX;
@@ -1045,30 +1032,6 @@
             const handleEnd = (e) => {
                 if (!dragState.isDragging) return;
                 cancelDrag();
-            };
-            
-            this.updateTimeDisplay = (timeChange) => {
-                if (!this.dragBarTimeDisplay) {
-                    this.dragBarTimeDisplay = this.createTimeDisplay();
-                    const parent = document.fullscreenElement || document.body;
-                    parent.appendChild(this.dragBarTimeDisplay);
-                }
-                if (!this.dragBarTimeDisplay) return;
-                
-                if (timeChange !== 0) {
-                    const sign = timeChange > 0 ? '+' : '';
-                    this.dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
-                    this.dragBarTimeDisplay.style.display = 'block';
-                    this.dragBarTimeDisplay.style.opacity = '1';
-                } else {
-                    this.dragBarTimeDisplay.style.opacity = '0';
-                    clearTimeout(this.dragBarTimeDisplay.timer);
-                    this.dragBarTimeDisplay.timer = setTimeout(() => {
-                        if (this.dragBarTimeDisplay.style.opacity === '0') {
-                            this.dragBarTimeDisplay.style.display = 'none';
-                        }
-                    }, 300);
-                }
             };
 
             // 드래그 관련 이벤트 리스너 등록
@@ -1085,21 +1048,9 @@
             document.addEventListener('touchend', handleEnd, { passive: false, capture: true });
             document.addEventListener('touchcancel', handleEnd, { passive: false, capture: true });
             
-            // 탭 변경/포커스 상실 시 드래그 상태 강제 복구 (지연 처리)
-            let cancelTimeout;
-            const delayedCancelDrag = () => {
-              if (dragState.dragging) {
-                cancelTimeout = setTimeout(() => {
-                  if (dragState.dragging) cancelDrag();
-                }, 300);
-              }
-            };
-            window.addEventListener('visibilitychange', () => {
-              if (document.hidden) delayedCancelDrag();
-              else clearTimeout(cancelTimeout);
-            });
-            window.addEventListener('blur', delayedCancelDrag);
-            window.addEventListener('focus', () => clearTimeout(cancelTimeout));
+            // 탭 변경/포커스 상실 시 드래그 상태 강제 복구
+            window.addEventListener('visibilitychange', () => { if(document.hidden) cancelDrag(); });
+            window.addEventListener('blur', cancelDrag);
 
             this.dragBarTimeDisplay = this.createTimeDisplay();
             videoUIFlags.dragBarInitialized = true;
