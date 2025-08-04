@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.104 (드래그 시간 보정 로직 추가)
+// @version       6.2.105 (모바일 UX 개선 및 안정화)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -613,7 +613,7 @@
         init: function() {
             if (videoUIFlags.dragBarInitialized) return;
             videoUIFlags.dragBarInitialized = true;
-
+            
             const dragState = {
                 isDragging: false,
                 isHorizontalDrag: false,
@@ -638,7 +638,7 @@
                 const sign = seconds < 0 ? '-' : '+';
                 const minutes = Math.floor(absSeconds / 60);
                 const remainingSeconds = Math.floor(absSeconds % 60);
-
+            
                 const paddedMinutes = String(minutes).padStart(2, '0');
                 const paddedSeconds = String(remainingSeconds).padStart(2, '0');
 
@@ -652,7 +652,7 @@
                     parent.appendChild(this.dragBarTimeDisplay);
                 }
                 if (!this.dragBarTimeDisplay) return;
-
+            
                 if (timeChange !== 0) {
                     this.dragBarTimeDisplay.textContent = `${formatTime(timeChange)} 이동`;
                     this.dragBarTimeDisplay.style.display = 'block';
@@ -667,7 +667,7 @@
                     }, 300);
                 }
             };
-
+            
             const cancelDrag = () => {
                 if (!dragState.isDragging) return;
 
@@ -859,20 +859,6 @@
             videoUIFlags.dragBarInitialized = true;
         }
     };
-
-    // throttle 함수 정의
-    function throttle(func, limit) {
-      let inThrottle;
-      return function() {
-        const args = arguments;
-        const context = this;
-        if (!inThrottle) {
-          func.apply(context, args);
-          inThrottle = true;
-          setTimeout(() => inThrottle = false, limit);
-        }
-      };
-    }
 
     // --- 핸들러 테이블 기반 노드 처리 로직 ---
     const handlers = [
@@ -1116,5 +1102,5 @@
         alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
         document: { write: () => {}, writeln: () => {} },
     });
-
+    
 })();
