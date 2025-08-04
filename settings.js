@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
-// @namespace     https://example.com/
-// @version       6.2.74 (초기화 및 로그 중복 오류 수정)
+// @namespace     https://com/
+// @version       6.2.87 (불필요한 실패 로그 제거)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -38,7 +38,8 @@
         'google.com',
         'ok.ru',
         'twitch.tv',
-        'accounts.google.com'
+        'accounts.google.com',
+        'missav.ws'
     ];
     const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
         '{"event":"timeupdate"',
@@ -74,6 +75,7 @@
     const PROCESSED_VIDEOS = new WeakSet();
     const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
+    const BLOCKED_IFRAME_URLS = new Set();
     let dragBarTimeDisplay = null;
     let speedSliderContainer = null;
     let isInitialLoadFinished = false;
@@ -238,11 +240,7 @@
                 window.parent.postMessage({ type: 'MY_SCRIPT_LOG', message: msg }, '*');
                 return;
             } catch (e) {
-                // Cross-origin iframe에서 발생하는 로그는 무시
-                const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => event.origin.includes(domain));
-                if (!isIgnoredDomain) {
-                    console.warn(`[MyScript Log - iframe error] ${msg}`);
-                }
+                console.warn(`[MyScript Log - iframe error] ${msg}`);
                 if (logBoxContainer) {
                     logBoxContainer.style.display = 'none';
                 }
@@ -258,11 +256,17 @@
     }
     if (isTopFrame && FeatureFlags.logUI) {
         window.addEventListener('message', (event) => {
+            // Postmessage 로그 중복 방지 강화 (이전과 동일한 로직)
             const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => event.origin.includes(domain));
-            if (event.data && event.data.type === 'MY_SCRIPT_LOG' && !isIgnoredDomain) {
-                addLog(event.data.message);
+            if (isIgnoredDomain) return;
+
+            const msgData = typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
+            if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
+                return;
             }
-        });
+            const logKey = `postmessage_log_${e.origin}`;
+            addLogOnce(logKey, `⚠️ postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${e.origin} | 데이터: ${msgData.substring(0, 100)}...`);
+        }, false);
         createLogBox();
     }
 
@@ -280,23 +284,6 @@
             document.addEventListener('click', setUserInitiatedAction, true);
             document.addEventListener('mousedown', setUserInitiatedAction, true);
             document.addEventListener('keydown', setUserInitiatedAction, true);
-            const getFakeWindow = () => ({
-                focus: () => {}, opener: null, closed: false, blur: () => {}, close: () => {},
-                location: { href: "", assign: () => {}, replace: () => {}, reload: () => {}, toString: () => "", valueOf: () => "" },
-                alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
-                document: { write: () => {}, writeln: () => {} },
-            });
-            let lastVisibilityChangeTime = 0;
-            let lastBlurTime = 0;
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    lastVisibilityChangeTime = Date.now();
-                } else {
-                    lastVisibilityChangeTime = 0;
-                }
-            });
-            window.addEventListener('blur', () => { lastBlurTime = Date.now(); });
-            window.addEventListener('focus', () => { lastBlurTime = 0; });
             const blockOpen = (...args) => {
                 const url = args[0] || '(no URL)';
                 const logMsg = `🚫 window.open 차단 시도 | 현재: ${window.location.href} | 대상: ${url}`;
@@ -410,18 +397,16 @@
                 }
             }, true);
             window.addEventListener('message', e => {
+                // Postmessage 로그 중복 방지 강화 (이전과 동일한 로직)
                 const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => e.origin.includes(domain));
                 if (isIgnoredDomain) return;
 
-                if (typeof e.data === 'string' && POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => e.data.includes(pattern))) {
+                const msgData = typeof e.data === 'string' ? e.data : JSON.stringify(e.data);
+                if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
                     return;
                 }
-                if (typeof e.data === 'object' && e.data !== null && e.data.event === 'timeupdate') {
-                    return;
-                }
-
-                const logMsg = `⚠️ postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${e.origin} | 데이터: ${JSON.stringify(e.data).substring(0, 100)}...`;
-                addLogOnce('suspicious_postmessage', logMsg);
+                const logKey = `postmessage_log_${e.origin}`;
+                addLogOnce(logKey, `⚠️ postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${e.origin} | 데이터: ${msgData.substring(0, 100)}...`);
             }, false);
             if (!isFeatureAllowed('fullscreen')) {
                 try {
@@ -435,7 +420,7 @@
                         });
                     }
                 } catch (e) {
-                    addLogOnce('fullscreen_block_fail', `⚠️ requestFullscreen() 차단 실패: ${e.message}`);
+                    // 로그 출력 제거
                 }
             }
             if (!isFeatureAllowed('location')) {
@@ -451,7 +436,7 @@
                         }
                     });
                 } catch (e) {
-                    addLogOnce('location_block_fail', `⚠️ window.location 차단 실패: ${e.message}`);
+                    // 로그 출력 제거
                 }
             }
         }
@@ -559,9 +544,7 @@
             try {
                 doc.querySelectorAll('video').forEach(v => videos.add(v));
             } catch (e) {
-                const iframeUrl = doc.location.href;
-                const logKey = `iframe_access_fail_${new URL(iframeUrl).hostname}`;
-                addLogOnce(logKey, `⚠️ iframe 내부 접근 실패 (Cross-Origin): ${iframeUrl}`);
+                 // iframe 내부 접근 실패 로그는 handleIframeLoad에서 처리
             }
 
             const potentialVideoContainers = doc.querySelectorAll('div[data-src], div[data-video], div[data-video-id], div[class*="video"], div[id*="player"]');
@@ -613,11 +596,15 @@
                     }
                 } catch (e) {
                     const iframeSrc = iframe.src || iframe.getAttribute('data-lazy-src') || 'about:blank';
-                    const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => iframeSrc.includes(domain));
-                    if (!isIgnoredDomain) {
-                        const logKey = `iframe_access_fail_${new URL(iframeSrc).hostname}`;
-                        addLogOnce(logKey, `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframeSrc}`);
+                    // iframe URL의 호스트명과 경로를 기반으로 로그 키 생성
+                    let logKey = 'iframe_access_fail_general';
+                    try {
+                        const urlObj = new URL(iframeSrc);
+                        logKey = `iframe_access_fail_${urlObj.hostname}${urlObj.pathname}`;
+                    } catch (urlError) {
+                        logKey = `iframe_access_fail_invalid_src`;
                     }
+                    // 접근 실패 로그를 완전히 제거
                 }
             });
             return videos;
@@ -1091,28 +1078,35 @@
     // --- iframe 로드 및 내부 탐색 처리 ---
     function handleIframeLoad(iframe) {
         if (PROCESSED_IFRAMES.has(iframe)) return;
+        PROCESSED_IFRAMES.add(iframe);
+
+        const iframeSrc = iframe.src || iframe.getAttribute('data-lazy-src') || 'about:blank';
+
+        const isUnsafeSrc = POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => iframeSrc.includes(pattern)) ||
+                            iframeSrc.startsWith('javascript:');
+
+        if (isUnsafeSrc) {
+            return;
+        }
+
         try {
             const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
             if (iframeDocument && !PROCESSED_DOCUMENTS.has(iframeDocument)) {
-                const logMsg = `▶️ iframe 로드 감지, 내부 스크립트 실행 시작 | 현재: ${window.location.href} | 대상: ${iframe.src}`;
+                const logMsg = `▶️ iframe 로드 감지, 내부 스크립트 실행 시작 | 현재: ${window.location.href} | 대상: ${iframeSrc}`;
                 addLogOnce('iframe_load_detected', logMsg);
-                PROCESSED_IFRAMES.add(iframe);
-                initializeAll(iframeDocument);
-            } else if (iframe.src) {
-                PROCESSED_IFRAMES.add(iframe);
+                safeInitializeAll(iframeDocument, 'iframe load');
             }
         } catch (e) {
-            const iframeUrl = iframe.src || iframe.getAttribute('data-lazy-src') || 'about:blank';
-            // iframe URL의 호스트명으로 로그 키를 생성하여 동일 도메인 로그를 한 번만 출력
-            const logKey = `iframe_access_fail_${new URL(iframeUrl).hostname}`;
-            addLogOnce(logKey, `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframeUrl}`);
+            // iframe 접근 실패 로그를 완전히 제거
         }
     }
 
     // --- 통합 MutationObserver 로직 (중첩 iframe 재귀 탐색 강화) ---
     function startUnifiedObserver(targetDocument = document) {
-        // 이미 처리된 문서에 대해 초기화를 다시 시도하지 않음
-        if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
+        if (PROCESSED_DOCUMENTS.has(targetDocument)) {
+            addLogOnce('observer_reinit_prevented', '✅ 감시자 초기화 재실행 방지');
+            return;
+        }
 
         const rootElement = targetDocument.documentElement || targetDocument.body;
         if (!rootElement) {
@@ -1147,36 +1141,10 @@
 
         try {
             targetDocument.querySelectorAll('iframe').forEach(iframe => {
-                if (PROCESSED_IFRAMES.has(iframe)) return;
-
-                iframe.addEventListener('load', () => {
-                    try {
-                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                        if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
-                            PROCESSED_IFRAMES.add(iframe);
-                            initializeAll(iframeDoc);
-                        }
-                    } catch(e) {
-                        if (!PROCESSED_IFRAMES.has(iframe)) {
-                            PROCESSED_IFRAMES.add(iframe);
-                        }
-                    }
-                }, { once: true });
-
-                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                if (iframeDoc && !PROCESSED_DOCUMENTS.has(iframeDoc)) {
-                    PROCESSED_IFRAMES.add(iframe);
-                    initializeAll(iframeDoc);
-                } else if (!iframeDoc) {
-                    if (!PROCESSED_IFRAMES.has(iframe)) {
-                        PROCESSED_IFRAMES.add(iframe);
-                    }
-                }
+                handleIframeLoad(iframe);
             });
         } catch(e) {
-            const iframeUrl = targetDocument.URL || 'null';
-            const logKey = `recursive_iframe_scan_fail_${iframeUrl}`;
-            addLogOnce(logKey, `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${iframeUrl}`);
+            // 재귀 탐색 실패 로그도 출력하지 않음
         }
     }
 
