@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.126 (WeakSet 초기화 오류 수정)
+// @version       6.2.127 (모든 수정사항 통합 및 최종 검증)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -144,7 +144,7 @@
             logBoxContainer.style.pointerEvents = 'none';
         }, 10000);
     }
-
+    
     function addLog(msg) {
         if (!FeatureFlags.logUI) return;
         if (!isTopFrame) {
@@ -722,13 +722,13 @@
             if (!this.speedSliderContainer.parentNode) {
                 document.body.appendChild(this.speedSliderContainer);
             }
-
+            
             const targetParent = document.fullscreenElement || document.body;
             if (this.speedSliderContainer.parentNode !== targetParent) {
                 this.speedSliderContainer.parentNode.removeChild(this.speedSliderContainer);
                 targetParent.appendChild(this.speedSliderContainer);
             }
-
+            
             this.speedSliderContainer.style.display = 'flex';
             this.updatePositionAndSize();
             const slider = document.getElementById('vm-speed-slider');
@@ -816,7 +816,7 @@
         init: function() {
             if (videoUIFlags.dragBarInitialized) return;
             videoUIFlags.dragBarInitialized = true;
-
+            
             const dragState = {
                 isDragging: false,
                 isHorizontalDrag: false,
@@ -841,7 +841,7 @@
                 const sign = seconds < 0 ? '-' : '+';
                 const minutes = Math.floor(absSeconds / 60);
                 const remainingSeconds = Math.floor(absSeconds % 60);
-
+            
                 const paddedMinutes = String(minutes).padStart(2, '0');
                 const paddedSeconds = String(remainingSeconds).padStart(2, '0');
 
@@ -855,7 +855,7 @@
                     parent.appendChild(this.dragBarTimeDisplay);
                 }
                 if (!this.dragBarTimeDisplay) return;
-
+            
                 if (timeChange !== 0) {
                     this.dragBarTimeDisplay.textContent = `${formatTime(timeChange)} 이동`;
                     this.dragBarTimeDisplay.style.display = 'block';
@@ -870,7 +870,7 @@
                     }, 300);
                 }
             };
-
+            
             const cancelDrag = () => {
                 if (!dragState.isDragging) return;
 
@@ -1171,6 +1171,7 @@
             addLogOnce('observer_active', `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`, 'info');
         } catch(e) {
             addLogOnce('observer_observe_failed', `⚠️ 감시자 연결 실패: ${e.message}`, 'warn');
+            return;
         }
 
         try {
@@ -1207,11 +1208,11 @@
             addLogOnce(logKey, `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${iframeUrl}`, 'warn');
         }
     }
-
+    
     // --- 비디오 UI 감지 및 토글을 위한 통합 루프 ---
     function startVideoUIWatcher(targetDocument = document) {
         if (!FeatureFlags.videoControls) return;
-
+        
         const checkVideos = () => {
             const videos = videoFinder.findAll();
             let isAnyVideoAvailable = false;
@@ -1224,10 +1225,9 @@
             });
 
             if (isAnyVideoAvailable) {
-                if (!window.__videoUIInitialized) {
-                    window.__videoUIInitialized = true;
-                    speedSlider.init();
-                    dragBar.init();
+                if (!__videoUIInitialized) {
+                    __videoUIInitialized = true;
+                    videoControls.init();
                     addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
                 }
                 speedSlider.show();
@@ -1235,7 +1235,7 @@
             } else {
                 speedSlider.hide();
                 dragBar.hide();
-                window.__videoUIInitialized = false;
+                __videoUIInitialized = false;
             }
         };
 
@@ -1270,12 +1270,12 @@
                 addLogOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`, 'info');
 
                 OBSERVER_MAP.forEach(observer => observer.disconnect());
-                PROCESSED_DOCUMENTS.clear();
-                PROCESSED_NODES.clear();
-                PROCESSED_IFRAMES.clear();
-                PROCESSED_VIDEOS.clear();
+                PROCESSED_DOCUMENTS = new WeakSet();
+                PROCESSED_NODES = new WeakSet();
+                PROCESSED_IFRAMES = new WeakSet();
+                PROCESSED_VIDEOS = new WeakSet();
                 LOGGED_KEYS_WITH_TIMER.clear();
-                window.__videoUIInitialized = false;
+                __videoUIInitialized = false;
 
                 initializeAll(document);
             }, 1000);
@@ -1291,7 +1291,7 @@
     });
 
     window.addEventListener('popstate', () => onNavigate('popstate'));
-
+    
     // --- 드래그바 시간 표시가 전체 화면에서 보이지 않는 문제 해결 ---
     const handleFullscreenChange = () => {
         const fsElement = document.fullscreenElement;
@@ -1330,17 +1330,17 @@
             return;
         }
 
-        addLogOnce('script_init_start', '🎉 스크립트 초기화 시작', 'info');
-
+        PROCESSED_DOCUMENTS.add(targetDocument);
+        addLogOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 'info');
+        
         if (targetDocument === document) {
             popupBlocker.init();
-            isInitialLoadFinished = true;
         }
-
+        
         startUnifiedObserver(targetDocument);
         startVideoUIWatcher(targetDocument);
     }
-
+    
     // --- 초기 진입점 ---
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -1359,11 +1359,5 @@
         alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
         document: { write: () => {}, writeln: () => {} },
     });
-
-    function safeInitializeAll(doc, source = 'unknown') {
-        if (!doc || PROCESSED_DOCUMENTS.has(doc)) return;
-        PROCESSED_DOCUMENTS.add(doc);
-        addLogOnce(`initialize_all_${doc.URL}`, `▶️ initializeAll() 실행 | 출처: ${source} | 문서: ${doc.URL}`, 'info');
-        initializeAll(doc);
-    }
+    
 })();
