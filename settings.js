@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.2.57 (전체화면 버그 수정)
+// @version       6.2.67 (안정적인 비디오 감지 로직으로 복구)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -30,6 +30,7 @@
         'recaptcha',
         '/e/',
     ];
+    // EXCEPTION_LIST에 supjav.com을 다시 추가하여 iframeBlocker 기능을 우회하도록 함
     const EXCEPTION_LIST = {
         'supjav.com': ['iframeBlocker'],
     };
@@ -453,8 +454,10 @@
     // --- iframe 차단기 로직 ---
     const iframeBlocker = {
         init: (node, trigger) => {
-            if (!FeatureFlags.iframeBlocker) return;
-            if (isFeatureAllowed('iframeBlocker') || PROCESSED_IFRAMES.has(node)) {
+            // isFeatureAllowed 로직을 iframeBlocker의 기능 자체를 끄는 용도로 사용
+            if (isFeatureAllowed('iframeBlocker')) return;
+
+            if (!FeatureFlags.iframeBlocker || PROCESSED_IFRAMES.has(node)) {
                 return;
             }
 
@@ -482,12 +485,7 @@
                 return;
             }
 
-            const forceBlockPatterns = [
-                '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
-                'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
-                '8dk5q9tp.xyz', 's.amazon-adsystem.com',
-            ];
-            const isForcedBlocked = forceBlockPatterns.some(pattern => {
+            const isForcedBlocked = IFRAME_FORCE_BLOCK_PATTERNS.some(pattern => {
                 return fullSrc.includes(pattern) || iframeId.includes(pattern) || iframeClasses.includes(pattern) || parentId.includes(pattern) || parentClasses.includes(pattern);
             });
 
@@ -573,7 +571,7 @@
             if (USER_SETTINGS.enableVideoDebugBorder) {
                 let style = doc.querySelector('style#video-debug-style');
                 if (!style) {
-                    style = doc.createElement('style');
+                    style = document.createElement('style');
                     style.id = 'video-debug-style';
                     style.textContent = `.my-video-ui-initialized { outline: 2px solid red !important; }`;
                     if (doc.head) {
@@ -646,8 +644,7 @@
     const speedSlider = {
         speedSliderContainer: null,
         init: function() {
-            if (window.__vmSpeedSliderInjectedInThisFrame) return;
-            window.__vmSpeedSliderInjectedInThisFrame = true;
+            if (videoUIFlags.speedSliderInitialized) return;
 
             const sliderId = 'vm-speed-slider-container';
             const createSliderElements = () => {
@@ -712,10 +709,9 @@
                 container.appendChild(resetBtn);
                 container.appendChild(slider);
                 container.appendChild(valueDisplay);
-                return container;
+                speedSliderContainer = container; // 변수에 할당
             };
-            this.speedSliderContainer = createSliderElements();
-            document.body.appendChild(this.speedSliderContainer);
+            createSliderElements(); // 요소 생성
             videoUIFlags.speedSliderInitialized = true;
         },
         updateSpeed: (speed) => {
@@ -733,20 +729,30 @@
             videoUIFlags.playbackUpdateTimer = setTimeout(() => { speedSlider.updateSpeed(speed); }, 100);
         },
         show: function() {
-            if (!this.speedSliderContainer) {
+            if (!speedSliderContainer) {
                 this.init();
             }
-            this.speedSliderContainer.style.display = 'flex';
+            if (!speedSliderContainer.parentNode) {
+                document.body.appendChild(speedSliderContainer);
+            }
+
+            const targetParent = document.fullscreenElement || document.body;
+            if (speedSliderContainer.parentNode !== targetParent) {
+                speedSliderContainer.parentNode.removeChild(speedSliderContainer);
+                targetParent.appendChild(speedSliderContainer);
+            }
+
+            speedSliderContainer.style.display = 'flex';
             this.updatePositionAndSize();
             const slider = document.getElementById('vm-speed-slider');
             this.updateSpeed(slider.value || '1.0');
         },
         hide: function() {
-            if (this.speedSliderContainer) { this.speedSliderContainer.style.display = 'none'; }
+            if (speedSliderContainer) { speedSliderContainer.style.display = 'none'; }
         },
         updatePositionAndSize: function() {
             const video = document.querySelector('video');
-            const sliderContainer = this.speedSliderContainer;
+            const sliderContainer = speedSliderContainer;
             const slider = document.getElementById('vm-speed-slider');
 
             if (!video || !sliderContainer || !slider) return;
@@ -801,6 +807,17 @@
             if (!this.dragBarTimeDisplay) {
                 this.init();
             }
+            if (!this.dragBarTimeDisplay.parentNode) {
+                document.body.appendChild(this.dragBarTimeDisplay);
+            }
+
+            const targetParent = document.fullscreenElement || document.body;
+            if (this.dragBarTimeDisplay.parentNode !== targetParent) {
+                 if (this.dragBarTimeDisplay.parentNode) {
+                    this.dragBarTimeDisplay.parentNode.removeChild(this.dragBarTimeDisplay);
+                }
+                targetParent.appendChild(this.dragBarTimeDisplay);
+            }
         },
         hide: function() {
              if (this.dragBarTimeDisplay) {
@@ -833,7 +850,6 @@
             let throttleTimer = null;
 
             const updateTimeDisplay = (timeChange) => {
-                // 이 함수가 호출될 때 dragBarTimeDisplay가 없으면 생성하고 부모에 추가
                 if (!dragBarTimeDisplay) {
                     dragBarTimeDisplay = dragBar.createTimeDisplay();
                     const parent = document.fullscreenElement || document.body;
@@ -996,9 +1012,24 @@
             document.addEventListener('touchend', handleEnd, { passive: true, capture: true });
             document.addEventListener('touchcancel', handleEnd, { passive: true, capture: true });
 
+            this.dragBarTimeDisplay = this.createTimeDisplay(); // 요소를 생성하여 변수에 할당
             videoUIFlags.dragBarInitialized = true;
         }
     };
+
+    // throttle 함수 정의
+    function throttle(func, limit) {
+      let inThrottle;
+      return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+          func.apply(context, args);
+          inThrottle = true;
+          setTimeout(() => inThrottle = false, limit);
+        }
+      };
+    }
 
     // --- 노드 및 자식 노드 처리 ---
     function processNodeAndChildren(node, trigger) {
@@ -1034,11 +1065,6 @@
                 addLogOnce('iframe_load_detected', logMsg);
                 PROCESSED_IFRAMES.add(iframe);
                 startUnifiedObserver(iframeDocument);
-
-                const videos = videoFinder.findInDoc(iframeDocument);
-                if (videos.length > 0) {
-                    videos.forEach(video => videoControls.initWhenReady(video));
-                }
             } else if (iframe.src) {
                 PROCESSED_IFRAMES.add(iframe);
             }
@@ -1121,7 +1147,7 @@
         }
     }
 
-    // --- 비디오 UI 감지 및 토글을 위한 애니메이션 프레임 루프 ---
+    // --- 비디오 UI 감지: requestAnimationFrame 루프 ---
     function startVideoUIWatcher() {
         if (!FeatureFlags.videoControls) return;
 
@@ -1140,53 +1166,12 @@
         requestAnimationFrame(checkVideos);
     }
 
-    // --- 범용 SPA 감지 로직 ---
-    let lastURL = location.href;
-    let spaNavigationTimer = null;
-
-    function onNavigate(reason = 'URL 변경 감지') {
-        const url = location.href;
-        if (url !== lastURL) {
-            if (spaNavigationTimer) {
-                clearTimeout(spaNavigationTimer);
-            }
-            spaNavigationTimer = setTimeout(() => {
-                lastURL = url;
-                addLogOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`);
-
-                OBSERVER_MAP.forEach(observer => observer.disconnect());
-                PROCESSED_DOCUMENTS.clear();
-                PROCESSED_NODES.clear();
-                PROCESSED_IFRAMES.clear();
-                PROCESSED_VIDEOS.clear();
-                LOGGED_KEYS_WITH_TIMER.clear();
-
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
-                } else {
-                    initialLoadLogic();
-                }
-            }, 1000);
-        }
-    }
-
-    ['pushState', 'replaceState'].forEach(type => {
-        const orig = history[type];
-        history[type] = function (...args) {
-            orig.apply(this, args);
-            onNavigate(`history.${type}`);
-        };
-    });
-
-    window.addEventListener('popstate', () => onNavigate('popstate'));
-
     // --- 드래그바 시간 표시가 전체 화면에서 보이지 않는 문제 해결 ---
     const handleFullscreenChange = () => {
         const fsElement = document.fullscreenElement;
 
         // `speedSliderContainer`와 `dragBarTimeDisplay`의 부모 요소를 전체화면 상태에 따라 변경
         const updateParent = (element) => {
-            // 요소가 아직 생성되지 않았으면 무시
             if (!element) return;
             const targetParent = fsElement || document.body;
             if (element.parentNode !== targetParent) {
@@ -1197,8 +1182,8 @@
             }
         };
 
-        updateParent(speedSliderContainer);
-        updateParent(dragBarTimeDisplay);
+        if (speedSliderContainer) updateParent(speedSliderContainer);
+        if (dragBarTimeDisplay) updateParent(dragBarTimeDisplay);
 
         // 전체 화면에서 벗어날 때 강제로 리플로우를 유도하고 리사이즈 이벤트를 발생시켜 UI가 제대로 재배치되도록 함
         if (!fsElement) {
