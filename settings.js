@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.2.32 (드래그 이벤트 리스너 개선)
-// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Speed Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
+// @version       6.2.57 (전체화면 버그 수정)
+// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -67,12 +67,15 @@
     });
 
     // --- 전역 상태 및 중복 방지 ---
-    const PROCESSED_NODES = new WeakSet();
-    const PROCESSED_IFRAMES = new WeakSet();
-    const PROCESSED_DOCUMENTS = new WeakSet();
-    const PROCESSED_VIDEOS = new WeakSet();
+    const PROCESSED_NODES = new Set();
+    const PROCESSED_IFRAMES = new Set();
+    const PROCESSED_DOCUMENTS = new Set();
+    const PROCESSED_VIDEOS = new Set();
     const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
+    let dragBarTimeDisplay = null;
+    let speedSliderContainer = null;
+    let isInitialLoadFinished = false;
 
     // --- 공통 변수 ---
     let logBoxRef = null;
@@ -239,7 +242,7 @@
                 }
             }
         }
-        
+
         if (isLogBoxReady) {
             addLogToBox(msg);
         } else {
@@ -380,139 +383,6 @@
                 }
                 return originalReplaceState.apply(this, args);
             };
-            document.addEventListener('click', function (e) {
-                const a = e.target.closest('a');
-                if (a && a.href && a.href.startsWith("javascript:") && a.href.includes('window.open')) {
-                    const logMsg = `🚫 javascript 링크 (window.open) 차단됨 | 현재: ${window.location.href} | 대상: ${a.href}`;
-                    addLogOnce('js_link_open_blocked', logMsg);
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                }
-            }, true);
-            const monitorSuspiciousOpenCall = (e) => {
-                try {
-                    const stack = new Error().stack;
-                    if (stack && stack.includes('open') && (stack.includes('click') || stack.includes('mousedown'))) {
-                        const logMsg = `🕷️ 이벤트 기반 window.open 의심 감지: ${e.type} 이벤트 | 현재: ${window.location.href}`;
-                        addLogOnce('suspicious_event_open', logMsg);
-                        console.warn(logMsg, stack);
-                    }
-                } catch (err) { /* 스택 접근 실패 시 무시 */ }
-                };
-            document.addEventListener('click', monitorSuspiciousOpenCall, true);
-            document.addEventListener('mousedown', monitorSuspiciousOpenCall, true);
-            document.addEventListener('mousedown', function (e) {
-                if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
-                    const a = e.target.closest('a');
-                    if (a?.target === '_blank' && !isFeatureAllowed('windowOpen')) {
-                        e.preventDefault();
-                        e.stopImmediatePropagation();
-                        blockOpen(a.href, '_blank');
-                    }
-                }
-            }, true);
-            const origCreateElement = Document.prototype.createElement;
-            Document.prototype.createElement = function (tag, ...args) {
-                const el = origCreateElement.call(this, tag, ...args);
-                if (tag.toLowerCase() === 'a') {
-                    const origSetAttr = el.setAttribute;
-                    el.setAttribute = function (name, value) {
-                        if (name === 'target' && ['_blank', '_new'].includes(value) && !isFeatureAllowed('windowOpen')) {
-                            if (el.href && el.href.includes('twitter.com')) { return origSetAttr.call(this, name, value); }
-                            const logMsg = `🚫 동적 링크 target="_blank" 설정 차단됨 | 현재: ${window.location.href} | 대상: ${el.href || el.outerHTML}`;
-                            addLogOnce('dynamic_target_blank_blocked', logMsg);
-                            return;
-                        }
-                        return origSetAttr.call(this, name, value);
-                    };
-                }
-                return el;
-            };
-            const originalClick = HTMLElement.prototype.click;
-            HTMLElement.prototype.click = function () {
-                if (this.tagName === 'A' && (!this.href || this.href.startsWith('javascript:'))) {
-                    const logMsg = `🚫 JS로 만든 링크 click() 탐지 및 차단됨 | 현재: ${window.location.href} | 대상: ${this.href}`;
-                    addLogOnce('js_click_link_blocked', logMsg);
-                    return;
-                }
-                return originalClick.call(this);
-            };
-            const origAttachShadow = Element.prototype.attachShadow;
-            if (origAttachShadow) {
-                const processedShadowRoots = new WeakSet();
-                Element.prototype.attachShadow = function(init) {
-                    const shadowRoot = origAttachShadow.call(this, init);
-                    if (!processedShadowRoots.has(shadowRoot)) {
-                        startUnifiedObserver(shadowRoot);
-                        processedShadowRoots.add(shadowRoot);
-                    }
-                    const origAddEventListener = shadowRoot.addEventListener;
-                    shadowRoot.addEventListener = function(type, listener, options) {
-                        if (type === 'click') {
-                            addLogOnce('shadow_dom_click_listener_detected', `🚨 Shadow DOM 내 클릭 리스너 감지됨 | 현재: ${window.location.href}`);
-                            console.warn(`🚨 Shadow DOM 내 클릭 리스너 감지됨 | 현재: ${window.location.href}`, this, type, listener);
-                        }
-                        return origAddEventListener.call(this, type, listener, options);
-                    };
-                    return shadowRoot;
-                };
-            }
-            document.addEventListener('click', e => {
-                const el = e.target;
-                if (!(el instanceof HTMLElement)) return;
-                const style = getComputedStyle(el);
-                const isHiddenByStyle = (parseFloat(style.opacity) === 0 || style.visibility === 'hidden');
-                const isZeroSize = (el.offsetWidth === 0 && el.offsetHeight === 0);
-                const rect = el.getBoundingClientRect();
-                const isOffscreen = (rect.right < 0 || rect.bottom < 0 || rect.left > window.innerWidth || rect.top > window.innerHeight);
-                if ((isHiddenByStyle || isZeroSize || isOffscreen) && el.hasAttribute('onclick')) {
-                    const logMsg = `🕳️ 의심 클릭 영역 감지됨: ${el.tagName} (${isHiddenByStyle ? '숨김' : ''}${isZeroSize ? '0크기' : ''}${isOffscreen ? '오프스크린' : ''}) | 현재: ${window.location.href}`;
-                    addLogOnce('suspicious_hidden_click_area', logMsg);
-                    console.warn(logMsg, el);
-                }
-            }, true);
-            const originalExecCommand = Document.prototype.execCommand;
-            Document.prototype.execCommand = function(commandId, showUI, value) {
-                if (commandId === 'copy') {
-                    addLogOnce('exec_command_copy_detected', `📋 document.execCommand('copy') 호출 감지됨 | 현재: ${window.location.href}`);
-                    console.warn(`📋 document.execCommand("copy") 호출됨 | 현재: ${window.location.href}`, commandId, showUI, value);
-                }
-                return originalExecCommand.call(this, commandId, showUI, value);
-            };
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                const originalWriteText = navigator.clipboard.writeText;
-                navigator.clipboard.writeText = async function(data) {
-                    addLogOnce('clipboard_writetext_detected', `📋 navigator.clipboard.writeText() 호출 감지됨: ${String(data).slice(0, 50)}... | 현재: ${window.location.href}`);
-                    console.warn(`📋 navigator.clipboard.writeText() 호출됨 | 현재: ${window.location.href}`, data);
-                    return originalWriteText.call(this, data);
-                };
-            }
-            const originalFocus = window.focus;
-            window.focus = function () {
-                addLogOnce('window_focus_blocked', `🚫 window.focus() 호출 차단됨 | 현재: ${window.location.href}`);
-            };
-            const originalBlur = window.blur;
-            window.blur = function () {
-                addLogOnce('window_blur_detected', `⚠️ window.blur() 호출 감지됨 | 현재: ${window.location.href}`);
-                return originalBlur.apply(this, arguments);
-            };
-            const originalScrollIntoView = Element.prototype.scrollIntoView;
-            Element.prototype.scrollIntoView = function(...args) {
-                const key = `scroll_into_view_${this.tagName}_${this.id || this.className}`;
-                const logMsg = `⚠️ scrollIntoView 호출 감지됨: ${this.outerHTML.slice(0, 100).replace(/\n/g, '')}... | 현재: ${window.location.href}`;
-                addLogOnce(key, logMsg);
-                return originalScrollIntoView.apply(this, args);
-            };
-            document.addEventListener('DOMContentLoaded', () => {
-                const metas = document.querySelectorAll('meta[http-equiv="refresh"]');
-                for (const meta of metas) {
-                    const content = meta.getAttribute('content') || '';
-                    if (content.includes('url=')) {
-                        addLogOnce('meta_refresh_blocked', `🚫 meta refresh 리디렉션 차단됨 | 현재: ${window.location.href} | 대상: ${content}`);
-                        meta.remove();
-                    }
-                }
-            });
             document.addEventListener('click', (e) => {
                 const a = e.target.closest('a');
                 if (a?.download && a.href && /\.(exe|apk|bat|scr|zip|msi|cmd|com)/i.test(a.href)) {
@@ -542,7 +412,7 @@
                 if (typeof e.data === 'object' && e.data !== null && e.data.event === 'timeupdate') {
                     return;
                 }
-                
+
                 const logMsg = `⚠️ postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${e.origin} | 데이터: ${JSON.stringify(e.data).substring(0, 100)}...`;
                 addLogOnce('suspicious_postmessage', logMsg);
             }, false);
@@ -584,51 +454,40 @@
     const iframeBlocker = {
         init: (node, trigger) => {
             if (!FeatureFlags.iframeBlocker) return;
-            if (isFeatureAllowed('iframeBlocker')) return;
-
-            if (!node.hasAttribute('sandbox')) {
-                node.setAttribute('sandbox', USER_SETTINGS.defaultIframeSandbox);
-                addLogOnce('sandbox_added', `🛡️ iframe sandbox 속성 자동 추가 | 대상: ${node.src}`);
-            }
-
-            const rawSrc = node.getAttribute('src') || node.src || '';
-            let fullSrc = rawSrc;
-            const lazySrc = node.getAttribute('data-lazy-src');
-            if (lazySrc) { fullSrc = lazySrc; }
-
-            if (fullSrc.startsWith('blob:') || fullSrc.startsWith('javascript:')) {
-                if (node.parentNode) node.parentNode.removeChild(node);
-                const logMsg = `🚫 의심 iframe 제거됨 (스킴 차단) | 현재: ${window.location.href} | 대상: ${fullSrc}`;
-                addLogOnce(`blocked_suspicious_src_${fullSrc}`, logMsg);
+            if (isFeatureAllowed('iframeBlocker') || PROCESSED_IFRAMES.has(node)) {
                 return;
             }
 
-            try { fullSrc = new URL(fullSrc, location.href).href; } catch (e) {
-                console.warn(`iframe URL 파싱 실패: ${rawSrc}`, e);
-            }
-            
-            if (PROCESSED_IFRAMES.has(node)) {
-                if (node.src !== node.previousSrc) {
-                    node.previousSrc = node.src;
-                    const logMsg = `🔄 iframe src 변경 감지 | 현재: ${window.location.href} | 대상: ${fullSrc}`;
-                    addLogOnce(`iframe_src_change_${fullSrc}`, logMsg);
-                }
-                return;
-            }
             PROCESSED_IFRAMES.add(node);
-
             const IS_IFRAME_LOGIC_SKIPPED = IFRAME_SKIP_DOMAINS.some(domain => hostname.includes(domain) || window.location.href.includes(domain));
             if (IS_IFRAME_LOGIC_SKIPPED) {
                 addLogOnce('iframe_logic_skip', `ℹ️ iframe 차단 로직 건너옴 (설정 또는 예외 목록): ${hostname}`);
                 return;
             }
 
+            const rawSrc = node.getAttribute('src') || node.src || '';
+            let fullSrc = rawSrc;
+            const lazySrc = node.getAttribute('data-lazy-src');
+            if (lazySrc) { fullSrc = lazySrc; }
+            try { fullSrc = new URL(fullSrc, location.href).href; } catch {}
             const iframeId = node.id || '';
             const iframeClasses = node.className || '';
             const parentId = node.parentElement ? node.parentElement.id || '' : '';
             const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
-            
-            const isForcedBlocked = IFRAME_FORCE_BLOCK_PATTERNS.some(pattern => {
+
+            if (fullSrc.startsWith('blob:') || fullSrc.startsWith('javascript:')) {
+                node.remove();
+                const logMsg = `🚫 의심 iframe 제거됨 (스킴 차단) | 현재: ${window.location.href} | 대상: ${fullSrc}`;
+                addLogOnce(`blocked_suspicious_src_${fullSrc}`, logMsg);
+                return;
+            }
+
+            const forceBlockPatterns = [
+                '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
+                'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
+                '8dk5q9tp.xyz', 's.amazon-adsystem.com',
+            ];
+            const isForcedBlocked = forceBlockPatterns.some(pattern => {
                 return fullSrc.includes(pattern) || iframeId.includes(pattern) || iframeClasses.includes(pattern) || parentId.includes(pattern) || parentClasses.includes(pattern);
             });
 
@@ -638,9 +497,14 @@
                 if (node.parentNode) node.parentNode.removeChild(node);
                 return;
             }
-            
+
             const logMsg = `🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}"] | 현재: ${window.location.href} | 대상: ${fullSrc}`;
             addLogOnce(`iframe_detected_${fullSrc}`, logMsg);
+
+            if (!node.hasAttribute('sandbox')) {
+                node.setAttribute('sandbox', USER_SETTINGS.defaultIframeSandbox);
+                addLogOnce('sandbox_added', `🛡️ iframe sandbox 속성 자동 추가 | 대상: ${node.src}`);
+            }
 
             if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
                 const b64LogMsg = `🚫 Base64 인코딩된 iframe 차단됨 | 현재: ${window.location.href} | 대상: ${node.src.substring(0, 100)}...`;
@@ -678,7 +542,7 @@
 
                 const logMsg = `🛑 레이어 클릭 덫 의심 감지 및 제거 | 현재: ${window.location.href} | 요소: ${node.outerHTML.substring(0, 50)}...`;
                 addLogOnce('layer_trap_detected', logMsg);
-                
+
                 node.addEventListener('click', e => {
                     e.preventDefault();
                     e.stopImmediatePropagation();
@@ -746,8 +610,9 @@
                         videos.push(...videoFinder.findInDoc(iframeDocument));
                     }
                 } catch (e) {
-                    const logMsg = `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
-                    addLogOnce(`iframe_access_fail_${iframe.src}`, logMsg);
+                    const iframeSrc = iframe.src || iframe.getAttribute('data-lazy-src') || 'about:blank';
+                    const logMsgKey = `iframe_access_fail_${iframeSrc}`.substring(0, 50);
+                    addLogOnce(logMsgKey, `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframeSrc}`);
                 }
             });
             return videos;
@@ -770,14 +635,6 @@
 
             const initLogic = () => {
                 videoControls.init();
-                const videos = videoFinder.findAll();
-                if (videos.length > 0) {
-                    speedSlider.show();
-                    dragBar.show();
-                } else {
-                    speedSlider.hide();
-                    dragBar.hide();
-                }
                 video.removeEventListener('canplay', initLogic);
             };
 
@@ -804,7 +661,7 @@
                         z-index: 2147483647 !important; display: none; flex-direction: column;
                         align-items: center; width: 50px; height: auto; font-family: sans-serif;
                         pointer-events: auto; opacity: 0.3; transition: opacity 0.3s; user-select: none;
-                        box-shadow: 0 0 5px rgba(0,0,0,0.0); will-change: transform, opacity;
+                        box-shadow: 0 0 0px rgba(0,0,0,0.0); will-change: transform, opacity;
                     }
                     #${sliderId}:hover { opacity: 1; }
                     #vm-speed-reset-btn {
@@ -893,7 +750,7 @@
             const slider = document.getElementById('vm-speed-slider');
 
             if (!video || !sliderContainer || !slider) return;
-            
+
             // 배속바를 뷰포트의 오른쪽 중앙에 고정
             sliderContainer.style.position = 'fixed';
             sliderContainer.style.top = '50%';
@@ -914,7 +771,7 @@
 
             if (document.fullscreenElement) {
                 if (sliderContainer.parentNode !== document.fullscreenElement) {
-                     document.fullscreenElement.appendChild(sliderContainer);
+                    document.fullscreenElement.appendChild(sliderContainer);
                 }
             } else {
                 if (sliderContainer.parentNode !== document.body) {
@@ -928,9 +785,32 @@
     // --- 드래그바 로직 ---
     const dragBar = {
         dragBarTimeDisplay: null,
+        createTimeDisplay: function() {
+            const newTimeDisplay = document.createElement('div');
+            newTimeDisplay.id = 'vm-time-display';
+            newTimeDisplay.style.cssText = `
+                position: fixed !important; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px; border-radius: 5px;
+                font-size: 1.5rem; z-index: 2147483647 !important; display: none; pointer-events: none;
+                transition: opacity 0.3s ease-out; opacity: 1; text-align: center; white-space: nowrap;
+                will-change: transform, opacity;
+            `;
+            return newTimeDisplay;
+        },
+        show: function() {
+            if (!this.dragBarTimeDisplay) {
+                this.init();
+            }
+        },
+        hide: function() {
+             if (this.dragBarTimeDisplay) {
+                 this.dragBarTimeDisplay.style.display = 'none';
+             }
+        },
         init: function() {
-            if (window.__vmDragBarInjectedInThisFrame) return;
-            window.__vmDragBarInjectedInThisFrame = true;
+            if (videoUIFlags.dragBarInitialized) return;
+            videoUIFlags.dragBarInitialized = true;
+            addLogOnce('dragbar_init_success', '✅ 드래그바 기능 초기화 성공');
 
             const timeDisplayId = 'vm-time-display';
             const dragState = {
@@ -941,7 +821,7 @@
                 lastUpdateX: 0,
                 currentDragDistanceX: 0,
                 totalTimeChange: 0,
-                originalPointerEvents: new WeakMap(),
+                originalPointerEvents: new Map(),
                 throttleDelay: 100,
                 lastDragTimestamp: Date.now(),
             };
@@ -952,34 +832,23 @@
 
             let throttleTimer = null;
 
-            const createTimeDisplay = () => {
-                const newTimeDisplay = document.createElement('div');
-                newTimeDisplay.id = timeDisplayId;
-                newTimeDisplay.style.cssText = `
-                    position: fixed !important; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                    background: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px; border-radius: 5px;
-                    font-size: 1.5rem; z-index: 2147483647 !important; display: none; pointer-events: none;
-                    transition: opacity 0.3s ease-out; opacity: 1; text-align: center; white-space: nowrap;
-                    will-change: transform, opacity;
-                `;
-                return newTimeDisplay;
-            };
-
             const updateTimeDisplay = (timeChange) => {
-                if (!this.dragBarTimeDisplay) {
-                    this.dragBarTimeDisplay = createTimeDisplay();
-                    if (document.body) document.body.appendChild(this.dragBarTimeDisplay);
+                // 이 함수가 호출될 때 dragBarTimeDisplay가 없으면 생성하고 부모에 추가
+                if (!dragBarTimeDisplay) {
+                    dragBarTimeDisplay = dragBar.createTimeDisplay();
+                    const parent = document.fullscreenElement || document.body;
+                    parent.appendChild(dragBarTimeDisplay);
                 }
 
                 if (timeChange !== 0) {
                     const sign = timeChange > 0 ? '+' : '';
-                    this.dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
-                    this.dragBarTimeDisplay.style.display = 'block';
-                    this.dragBarTimeDisplay.style.opacity = '1';
+                    dragBarTimeDisplay.textContent = `${sign}${timeChange}초 이동`;
+                    dragBarTimeDisplay.style.display = 'block';
+                    dragBarTimeDisplay.style.opacity = '1';
                 } else {
-                    this.dragBarTimeDisplay.style.opacity = '0';
-                    clearTimeout(this.dragBarTimeDisplay.timer);
-                    this.dragBarTimeDisplay.timer = setTimeout(() => { this.dragBarTimeDisplay.style.display = 'none'; }, 300);
+                    dragBarTimeDisplay.style.opacity = '0';
+                    clearTimeout(dragBarTimeDisplay.timer);
+                    dragBarTimeDisplay.timer = setTimeout(() => { dragBarTimeDisplay.style.display = 'none'; }, 300);
                 }
             };
 
@@ -1104,7 +973,7 @@
                     }
                 });
 
-                dragState.originalPointerEvents = new WeakMap();
+                dragState.originalPointerEvents = new Map();
 
                 dragState.isDragging = false;
                 dragState.currentDragDistanceX = 0;
@@ -1113,7 +982,7 @@
                 document.body.style.userSelect = '';
                 videoUIFlags.isUIBeingUsed = false;
             };
-            
+
             document.addEventListener('mousedown', handleStart, { passive: true, capture: true });
             document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
             document.addEventListener('mouseup', handleEnd, { passive: true, capture: true });
@@ -1126,39 +995,8 @@
             document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
             document.addEventListener('touchend', handleEnd, { passive: true, capture: true });
             document.addEventListener('touchcancel', handleEnd, { passive: true, capture: true });
-            
-            videoUIFlags.dragBarInitialized = true;
-        },
-        show: function() {
-            if (!this.dragBarTimeDisplay) {
-                this.init.call(this);
-            }
-        },
-        hide: function() {
-             if (this.dragBarTimeDisplay) {
-                this.dragBarTimeDisplay.style.display = 'none';
-             }
-        },
-        updatePosition: function() {
-            const dragBarTimeDisplay = this.dragBarTimeDisplay;
-            if (!dragBarTimeDisplay) return;
-            const fsElement = document.fullscreenElement;
 
-            if (fsElement) {
-                if (dragBarTimeDisplay.parentNode !== fsElement) {
-                    if (dragBarTimeDisplay.parentNode) {
-                        dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
-                    }
-                    fsElement.appendChild(dragBarTimeDisplay);
-                }
-            } else {
-                if (dragBarTimeDisplay.parentNode !== document.body) {
-                    if (dragBarTimeDisplay.parentNode) {
-                        dragBarTimeDisplay.parentNode.removeChild(dragBarTimeDisplay);
-                    }
-                    document.body.appendChild(dragBarTimeDisplay);
-                }
-            }
+            videoUIFlags.dragBarInitialized = true;
         }
     };
 
@@ -1205,9 +1043,9 @@
                 PROCESSED_IFRAMES.add(iframe);
             }
         } catch (e) {
-            const logMsg = `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframe.src}`;
-            addLogOnce(`iframe_access_fail_${iframe.src}`, logMsg);
-            PROCESSED_IFRAMES.add(iframe);
+            const iframeSrc = iframe.src || iframe.getAttribute('data-lazy-src') || 'about:blank';
+            const logMsgKey = `iframe_access_fail_${iframeSrc}`.substring(0, 50);
+            addLogOnce(logMsgKey, `⚠️ iframe 접근 실패 (Cross-Origin) | 현재: ${window.location.href} | 대상: ${iframeSrc}`);
         }
     }
 
@@ -1278,10 +1116,11 @@
                 }
             });
         } catch(e) {
-            addLogOnce('recursive_iframe_scan_fail', `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
+            const logMsgKey = `recursive_iframe_scan_fail_${targetDocument.URL || 'null'}`.substring(0, 50);
+            addLogOnce(logMsgKey, `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
         }
     }
-    
+
     // --- 비디오 UI 감지 및 토글을 위한 애니메이션 프레임 루프 ---
     function startVideoUIWatcher() {
         if (!FeatureFlags.videoControls) return;
@@ -1290,38 +1129,47 @@
             const videos = videoFinder.findAll();
             if (videos.length > 0) {
                 speedSlider.show();
+                dragBar.show();
             } else {
                 speedSlider.hide();
+                dragBar.hide();
             }
             requestAnimationFrame(checkVideos);
         }
 
         requestAnimationFrame(checkVideos);
     }
-    
+
     // --- 범용 SPA 감지 로직 ---
     let lastURL = location.href;
+    let spaNavigationTimer = null;
 
     function onNavigate(reason = 'URL 변경 감지') {
-        if (location.href !== lastURL && document.readyState !== 'loading') {
-            lastURL = location.href;
-            addLogOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${location.href}`);
-            
-            OBSERVER_MAP.forEach(observer => observer.disconnect());
-            PROCESSED_DOCUMENTS.clear();
-            PROCESSED_NODES.clear();
-            PROCESSED_IFRAMES.clear();
-            PROCESSED_VIDEOS.clear();
-            LOGGED_KEYS_WITH_TIMER.clear();
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
-            } else {
-                initialLoadLogic();
+        const url = location.href;
+        if (url !== lastURL) {
+            if (spaNavigationTimer) {
+                clearTimeout(spaNavigationTimer);
             }
+            spaNavigationTimer = setTimeout(() => {
+                lastURL = url;
+                addLogOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`);
+
+                OBSERVER_MAP.forEach(observer => observer.disconnect());
+                PROCESSED_DOCUMENTS.clear();
+                PROCESSED_NODES.clear();
+                PROCESSED_IFRAMES.clear();
+                PROCESSED_VIDEOS.clear();
+                LOGGED_KEYS_WITH_TIMER.clear();
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initialLoadLogic, { once: true });
+                } else {
+                    initialLoadLogic();
+                }
+            }, 1000);
         }
     }
-    
+
     ['pushState', 'replaceState'].forEach(type => {
         const orig = history[type];
         history[type] = function (...args) {
@@ -1332,46 +1180,28 @@
 
     window.addEventListener('popstate', () => onNavigate('popstate'));
 
-    setInterval(() => {
-        if (location.href !== lastURL) {
-            onNavigate('interval 감지');
-        }
-    }, 1000);
-    
+    // --- 드래그바 시간 표시가 전체 화면에서 보이지 않는 문제 해결 ---
     const handleFullscreenChange = () => {
         const fsElement = document.fullscreenElement;
-        if (fsElement) {
-            // 전체화면 진입 시
-            if (speedSlider.speedSliderContainer) {
-                if (speedSlider.speedSliderContainer.parentNode) {
-                    speedSlider.speedSliderContainer.parentNode.removeChild(speedSlider.speedSliderContainer);
+
+        // `speedSliderContainer`와 `dragBarTimeDisplay`의 부모 요소를 전체화면 상태에 따라 변경
+        const updateParent = (element) => {
+            // 요소가 아직 생성되지 않았으면 무시
+            if (!element) return;
+            const targetParent = fsElement || document.body;
+            if (element.parentNode !== targetParent) {
+                if (element.parentNode) {
+                    element.parentNode.removeChild(element);
                 }
-                fsElement.appendChild(speedSlider.speedSliderContainer);
+                targetParent.appendChild(element);
             }
-            if (dragBar.dragBarTimeDisplay) {
-                if (dragBar.dragBarTimeDisplay.parentNode) {
-                    dragBar.dragBarTimeDisplay.parentNode.removeChild(dragBar.dragBarTimeDisplay);
-                }
-                fsElement.appendChild(dragBar.dragBarTimeDisplay);
-            }
-        } else {
-            // 전체화면 해제 시
-            if (speedSlider.speedSliderContainer) {
-                if (speedSlider.speedSliderContainer.parentNode !== document.body) {
-                    if (speedSlider.speedSliderContainer.parentNode) {
-                        speedSlider.speedSliderContainer.parentNode.removeChild(speedSlider.speedSliderContainer);
-                    }
-                    document.body.appendChild(speedSlider.speedSliderContainer);
-                }
-            }
-            if (dragBar.dragBarTimeDisplay) {
-                if (dragBar.dragBarTimeDisplay.parentNode !== document.body) {
-                    if (dragBar.dragBarTimeDisplay.parentNode) {
-                        dragBar.dragBarTimeDisplay.parentNode.removeChild(dragBar.dragBarTimeDisplay);
-                    }
-                    document.body.appendChild(dragBar.dragBarTimeDisplay);
-                }
-            }
+        };
+
+        updateParent(speedSliderContainer);
+        updateParent(dragBarTimeDisplay);
+
+        // 전체 화면에서 벗어날 때 강제로 리플로우를 유도하고 리사이즈 이벤트를 발생시켜 UI가 제대로 재배치되도록 함
+        if (!fsElement) {
             const forceReflow = () => {
                 document.body.style.transform = 'scale(1)';
                 document.body.offsetWidth;
@@ -1381,11 +1211,13 @@
             window.dispatchEvent(new Event('resize'));
         }
     };
-    
+
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     // --- 초기 실행 함수 ---
     function initialLoadLogic() {
+        if (isInitialLoadFinished) return;
+        isInitialLoadFinished = true;
         addLogOnce('script_init_start', '🎉 스크립트 초기화 시작');
         popupBlocker.init();
         startUnifiedObserver(document);
