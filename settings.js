@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://example.com/
-// @version       6.2.69 (최적화 및 모듈화)
+// @version       6.2.70 (모바일 핀치 투 줌 버그 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -455,7 +455,7 @@
     const iframeBlocker = {
         init: (node, trigger) => {
             if (!FeatureFlags.iframeBlocker) return;
-            if (PROCESSED_IFRAMES.has(node)) {
+            if (isFeatureAllowed('iframeBlocker') || PROCESSED_IFRAMES.has(node)) {
                 return;
             }
 
@@ -640,9 +640,8 @@
     const speedSlider = {
         speedSliderContainer: null,
         init: function() {
-            if (window.__vmSpeedSliderInjectedInThisFrame) return;
-            window.__vmSpeedSliderInjectedInThisFrame = true;
-
+            if (videoUIFlags.speedSliderInitialized) return;
+            
             const sliderId = 'vm-speed-slider-container';
             const createSliderElements = () => {
                 const container = document.createElement('div');
@@ -706,10 +705,9 @@
                 container.appendChild(resetBtn);
                 container.appendChild(slider);
                 container.appendChild(valueDisplay);
-                return container;
+                speedSliderContainer = container; // 변수에 할당
             };
-            this.speedSliderContainer = createSliderElements();
-            document.body.appendChild(this.speedSliderContainer);
+            createSliderElements(); // 요소 생성
             videoUIFlags.speedSliderInitialized = true;
         },
         updateSpeed: (speed) => {
@@ -727,20 +725,30 @@
             videoUIFlags.playbackUpdateTimer = setTimeout(() => { speedSlider.updateSpeed(speed); }, 100);
         },
         show: function() {
-            if (!this.speedSliderContainer) {
+            if (!speedSliderContainer) {
                 this.init();
             }
-            this.speedSliderContainer.style.display = 'flex';
+            if (!speedSliderContainer.parentNode) {
+                document.body.appendChild(speedSliderContainer);
+            }
+            
+            const targetParent = document.fullscreenElement || document.body;
+            if (speedSliderContainer.parentNode !== targetParent) {
+                speedSliderContainer.parentNode.removeChild(speedSliderContainer);
+                targetParent.appendChild(speedSliderContainer);
+            }
+            
+            speedSliderContainer.style.display = 'flex';
             this.updatePositionAndSize();
             const slider = document.getElementById('vm-speed-slider');
             this.updateSpeed(slider.value || '1.0');
         },
         hide: function() {
-            if (this.speedSliderContainer) { this.speedSliderContainer.style.display = 'none'; }
+            if (speedSliderContainer) { speedSliderContainer.style.display = 'none'; }
         },
         updatePositionAndSize: function() {
             const video = document.querySelector('video');
-            const sliderContainer = this.speedSliderContainer;
+            const sliderContainer = speedSliderContainer;
             const slider = document.getElementById('vm-speed-slider');
 
             if (!video || !sliderContainer || !slider) return;
@@ -795,6 +803,17 @@
             if (!this.dragBarTimeDisplay) {
                 this.init();
             }
+            if (!this.dragBarTimeDisplay.parentNode) {
+                document.body.appendChild(this.dragBarTimeDisplay);
+            }
+            
+            const targetParent = document.fullscreenElement || document.body;
+            if (this.dragBarTimeDisplay.parentNode !== targetParent) {
+                 if (this.dragBarTimeDisplay.parentNode) {
+                    this.dragBarTimeDisplay.parentNode.removeChild(this.dragBarTimeDisplay);
+                }
+                targetParent.appendChild(this.dragBarTimeDisplay);
+            }
         },
         hide: function() {
              if (this.dragBarTimeDisplay) {
@@ -806,7 +825,6 @@
             videoUIFlags.dragBarInitialized = true;
             addLogOnce('dragbar_init_success', '✅ 드래그바 기능 초기화 성공');
 
-            const timeDisplayId = 'vm-time-display';
             const dragState = {
                 isDragging: false,
                 isHorizontalDrag: false,
@@ -849,6 +867,10 @@
 
             const handleStart = (e) => {
                 if (e.button === 2) return;
+                // 모바일 핀치 투 줌(두 손가락 터치)일 경우 드래그 기능 중단
+                if (e.touches && e.touches.length > 1) {
+                    return;
+                }
                 if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
 
                 const videos = videoFinder.findAll();
@@ -885,6 +907,11 @@
 
             const handleMove = (e) => {
                 if (!dragState.isDragging) return;
+                // 모바일 핀치 투 줌(두 손가락 터치)일 경우 드래그 기능 중단
+                if (e.touches && e.touches.length > 1) {
+                    handleEnd();
+                    return;
+                }
 
                 const videos = videoFinder.findAll();
                 if (videos.length === 0) {
@@ -988,11 +1015,25 @@
             document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
             document.addEventListener('touchend', handleEnd, { passive: true, capture: true });
             document.addEventListener('touchcancel', handleEnd, { passive: true, capture: true });
-
+            
             this.dragBarTimeDisplay = this.createTimeDisplay(); // 요소를 생성하여 변수에 할당
             videoUIFlags.dragBarInitialized = true;
         }
     };
+    
+    // throttle 함수 정의
+    function throttle(func, limit) {
+      let inThrottle;
+      return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+          func.apply(context, args);
+          inThrottle = true;
+          setTimeout(() => inThrottle = false, limit);
+        }
+      };
+    }
 
     // --- 핸들러 테이블 기반 노드 처리 로직 ---
     const handlers = [
@@ -1018,7 +1059,7 @@
     function processNodeAndChildren(node, trigger) {
         if (!node || PROCESSED_NODES.has(node)) return;
         PROCESSED_NODES.add(node);
-
+        
         for (const handler of handlers) {
             if (handler.match(node)) {
                 try {
@@ -1028,7 +1069,7 @@
                 }
             }
         }
-
+        
         if (node.children) {
             for (const child of node.children) {
                 processNodeAndChildren(child, trigger);
@@ -1126,26 +1167,23 @@
             addLogOnce(logMsgKey, `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${targetDocument.URL}`);
         }
     }
-
+    
     // --- 비디오 UI 감지 및 토글을 위한 통합 루프 ---
     function startVideoUIWatcher(targetDocument = document) {
         if (!FeatureFlags.videoControls) return;
 
         const checkVideos = () => {
             const videos = videoFinder.findAll();
-            let isAnyVideoVisible = false;
+            let isAnyVideoAvailable = false;
 
             videos.forEach(video => {
-                if (video.readyState >= 1) { // 비디오가 재생 가능한 상태
-                    const rect = video.getBoundingClientRect();
-                    // 화면 내에 있는지, 크기가 있는지 확인
-                    if (rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight) {
-                        isAnyVideoVisible = true;
-                    }
+                // 비디오가 DOM에 존재하고, 크기가 0보다 크거나 (보이는 상태이거나) readyState가 1 이상일 때
+                if (video.readyState >= 1 || (video.clientWidth > 0 && video.clientHeight > 0)) {
+                    isAnyVideoAvailable = true;
                 }
             });
 
-            if (isAnyVideoVisible) {
+            if (isAnyVideoAvailable) {
                 if (!window.__videoUIInitialized) {
                     window.__videoUIInitialized = true;
                     speedSlider.init();
@@ -1252,12 +1290,12 @@
         if (isInitialLoadFinished && targetDocument === document) return;
         isInitialLoadFinished = true;
         addLogOnce('script_init_start', '🎉 스크립트 초기화 시작');
-
+        
         popupBlocker.init();
         startUnifiedObserver(targetDocument);
         startVideoUIWatcher(targetDocument);
     }
-
+    
     // --- 초기 진입점 ---
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => initializeAll(document));
