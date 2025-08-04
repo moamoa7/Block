@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https://com/
-// @version       6.2.87 (불필요한 실패 로그 제거)
+// @version       6.2.88 (최적화 및 안정성 강화)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -256,7 +256,6 @@
     }
     if (isTopFrame && FeatureFlags.logUI) {
         window.addEventListener('message', (event) => {
-            // Postmessage 로그 중복 방지 강화 (이전과 동일한 로직)
             const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => event.origin.includes(domain));
             if (isIgnoredDomain) return;
 
@@ -264,8 +263,8 @@
             if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
                 return;
             }
-            const logKey = `postmessage_log_${e.origin}`;
-            addLogOnce(logKey, `⚠️ postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${e.origin} | 데이터: ${msgData.substring(0, 100)}...`);
+            const logKey = `postmessage_log_${event.origin}`;
+            addLogOnce(logKey, `⚠️ postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${event.origin} | 데이터: ${msgData.substring(0, 100)}...`);
         }, false);
         createLogBox();
     }
@@ -397,7 +396,6 @@
                 }
             }, true);
             window.addEventListener('message', e => {
-                // Postmessage 로그 중복 방지 강화 (이전과 동일한 로직)
                 const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => e.origin.includes(domain));
                 if (isIgnoredDomain) return;
 
@@ -467,10 +465,20 @@
             const parentId = node.parentElement ? node.parentElement.id || '' : '';
             const parentClasses = node.parentElement ? node.parentElement.className || '' : '';
 
+            // --- 로그 키 최적화: 도메인 및 경로 기반 키 사용 ---
+            let logKeyBase = 'iframe';
+            try {
+                const urlObj = new URL(fullSrc);
+                const pathPrefix = urlObj.pathname.split('/').slice(0, 3).join('/');
+                logKeyBase = `${urlObj.hostname}${pathPrefix}`;
+            } catch {
+                logKeyBase = 'invalid-src-url';
+            }
+
             if (fullSrc.startsWith('blob:') || fullSrc.startsWith('javascript:')) {
-                node.remove();
+                try { node.remove(); } catch {}
                 const logMsg = `🚫 의심 iframe 제거됨 (스킴 차단) | 현재: ${window.location.href} | 대상: ${fullSrc}`;
-                addLogOnce(`blocked_suspicious_src_${fullSrc}`, logMsg);
+                addLogOnce(`blocked_suspicious_src_${logKeyBase}`, logMsg);
                 return;
             }
 
@@ -480,27 +488,31 @@
 
             if (isForcedBlocked) {
                 const logMsg = `🚫 iframe 강제 차단됨 (패턴 일치) [id: "${iframeId}", class: "${iframeClasses}"] | 현재: ${window.location.href} | 대상: ${fullSrc}`;
-                addLogOnce(`force_blocked_iframe_${fullSrc}`, logMsg);
-                if (node.parentNode) node.parentNode.removeChild(node);
+                addLogOnce(`force_blocked_iframe_${logKeyBase}`, logMsg);
+                try { if (node.parentNode) node.parentNode.removeChild(node); } catch {}
                 return;
             }
 
             const logMsg = `🛑 iframe 감지됨 (${trigger}) [id: "${iframeId}", class: "${iframeClasses}"] | 현재: ${window.location.href} | 대상: ${fullSrc}`;
-            addLogOnce(`iframe_detected_${fullSrc}`, logMsg);
+            addLogOnce(`iframe_detected_${logKeyBase}`, logMsg);
 
             if (!node.hasAttribute('sandbox')) {
-                node.setAttribute('sandbox', USER_SETTINGS.defaultIframeSandbox);
-                addLogOnce('sandbox_added', `🛡️ iframe sandbox 속성 자동 추가 | 대상: ${node.src}`);
+                try {
+                    node.setAttribute('sandbox', USER_SETTINGS.defaultIframeSandbox);
+                    addLogOnce('sandbox_added', `🛡️ iframe sandbox 속성 자동 추가 | 대상: ${node.src}`);
+                } catch(e) {
+                    addLogOnce(`sandbox_add_fail_${logKeyBase}`, `⚠️ sandbox 추가 실패: ${e.message}`);
+                }
             }
 
             if (node.src?.startsWith('data:text/html;base64,') && !isFeatureAllowed('iframeBase64')) {
                 const b64LogMsg = `🚫 Base64 인코딩된 iframe 차단됨 | 현재: ${window.location.href} | 대상: ${node.src.substring(0, 100)}...`;
-                addLogOnce('base64_iframe_blocked', b64LogMsg);
-                if (node.parentNode) node.parentNode.removeChild(node);
+                addLogOnce(`base64_iframe_blocked_${logKeyBase}`, b64LogMsg);
+                try { if (node.parentNode) node.parentNode.removeChild(node); } catch {}
                 return;
             }
             const allowMsg = `✅ iframe 허용됨 (다른 확장 프로그램에 의한 차단 확인 필요) | 현재: ${window.location.href} | 대상: ${fullSrc}`;
-            addLogOnce('iframe_allowed', allowMsg);
+            addLogOnce(`iframe_allowed_${logKeyBase}`, allowMsg);
         }
     };
 
@@ -512,27 +524,31 @@
                 return;
             }
 
-            const style = getComputedStyle(node);
-            const isSuspect = style.position === 'fixed' &&
-                parseInt(style.zIndex) > 1000 &&
-                parseFloat(style.opacity) < 0.2 &&
-                style.pointerEvents !== 'none';
+            try {
+                const style = getComputedStyle(node);
+                const isSuspect = style.position === 'fixed' &&
+                    parseInt(style.zIndex) > 1000 &&
+                    parseFloat(style.opacity) < 0.2 &&
+                    style.pointerEvents !== 'none';
 
-            const suspiciousHandlers = ['onclick', 'onmousedown', 'onmouseup', 'onpointerdown', 'ontouchstart'];
-            const hasSuspiciousHandler = suspiciousHandlers.some(handler => node.hasAttribute(handler));
+                const suspiciousHandlers = ['onclick', 'onmousedown', 'onmouseup', 'onpointerdown', 'ontouchstart'];
+                const hasSuspiciousHandler = suspiciousHandlers.some(handler => node.hasAttribute(handler));
 
-            if (isSuspect && hasSuspiciousHandler) {
-                node.style.setProperty('display', 'none', 'important');
-                node.setAttribute('data-popupblocker-status', 'removed');
+                if (isSuspect && hasSuspiciousHandler) {
+                    node.style.setProperty('display', 'none', 'important');
+                    node.setAttribute('data-popupblocker-status', 'removed');
 
-                const logMsg = `🛑 레이어 클릭 덫 의심 감지 및 제거 | 현재: ${window.location.href} | 요소: ${node.outerHTML.substring(0, 50)}...`;
-                addLogOnce('layer_trap_detected', logMsg);
+                    const logMsg = `🛑 레이어 클릭 덫 의심 감지 및 제거 | 현재: ${window.location.href} | 요소: ${node.outerHTML.substring(0, 50)}...`;
+                    addLogOnce('layer_trap_detected', logMsg);
 
-                node.addEventListener('click', e => {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    addLogOnce('hidden_layer_click_blocked', `🚫 숨겨진 레이어 클릭 차단됨 | 현재: ${window.location.href}`);
-                }, true);
+                    node.addEventListener('click', e => {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        addLogOnce('hidden_layer_click_blocked', `🚫 숨겨진 레이어 클릭 차단됨 | 현재: ${window.location.href}`);
+                    }, true);
+                }
+            } catch(e) {
+                addLogOnce('layer_trap_check_error', `⚠️ 레이어 트랩 체크 오류: ${e.message}`);
             }
         }
     };
@@ -595,16 +611,7 @@
                         videos.push(...videoFinder.findInDoc(iframeDocument));
                     }
                 } catch (e) {
-                    const iframeSrc = iframe.src || iframe.getAttribute('data-lazy-src') || 'about:blank';
-                    // iframe URL의 호스트명과 경로를 기반으로 로그 키 생성
-                    let logKey = 'iframe_access_fail_general';
-                    try {
-                        const urlObj = new URL(iframeSrc);
-                        logKey = `iframe_access_fail_${urlObj.hostname}${urlObj.pathname}`;
-                    } catch (urlError) {
-                        logKey = `iframe_access_fail_invalid_src`;
-                    }
-                    // 접근 실패 로그를 완전히 제거
+                    // iframe 접근 실패 로그를 완전히 제거
                 }
             });
             return videos;
@@ -751,7 +758,6 @@
 
             if (!video || !sliderContainer || !slider) return;
 
-            // 배속바를 뷰포트의 오른쪽 중앙에 고정
             sliderContainer.style.position = 'fixed';
             sliderContainer.style.top = '50%';
             sliderContainer.style.right = '0';
@@ -1037,10 +1043,7 @@
     const handlers = [
         {
             match: (node) => node.tagName === 'IFRAME',
-            action: (node) => {
-                iframeBlocker.init(node, '동적 추가');
-                handleIframeLoad(node);
-            }
+            action: (node, trigger) => iframeBlocker.init(node, trigger)
         },
         {
             match: (node) => node.tagName === 'VIDEO',
@@ -1123,12 +1126,9 @@
                     if (targetNode.nodeType === 1) {
                         if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
                             PROCESSED_IFRAMES.delete(targetNode);
-                            iframeBlocker.init(targetNode, 'iframe src 변경');
+                            processNodeAndChildren(targetNode, 'iframe src 변경');
                         }
-                        if (targetNode.tagName === 'VIDEO' && mutation.attributeName === 'style') {
-                             // do something
-                        }
-                        layerTrap.check(targetNode);
+                        processNodeAndChildren(targetNode, '속성 변경');
                     }
                 }
             });
@@ -1166,8 +1166,7 @@
             if (isAnyVideoAvailable) {
                 if (!window.__videoUIInitialized) {
                     window.__videoUIInitialized = true;
-                    speedSlider.init();
-                    dragBar.init();
+                    videoControls.init();
                     addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료');
                 }
                 speedSlider.show();
@@ -1175,21 +1174,9 @@
             } else {
                 speedSlider.hide();
                 dragBar.hide();
-                window.__videoUIInitialized = false;
             }
         };
 
-        const throttle = (fn, delay) => {
-            let timer = null;
-            return () => {
-                if (!timer) {
-                    timer = setTimeout(() => {
-                        fn();
-                        timer = null;
-                    }, delay);
-                }
-            };
-        };
         const throttledCheck = throttle(checkVideos, 1000);
         setInterval(throttledCheck, 1500);
         addLogOnce('video_watcher_started', '✅ 비디오 감시 루프 시작');
@@ -1236,7 +1223,6 @@
     const handleFullscreenChange = () => {
         const fsElement = document.fullscreenElement;
 
-        // `speedSliderContainer`와 `dragBarTimeDisplay`의 부모 요소를 전체화면 상태에 따라 변경
         const updateParent = (element) => {
             if (!element) return;
             const targetParent = fsElement || document.body;
@@ -1251,7 +1237,6 @@
         if (speedSliderContainer) updateParent(speedSliderContainer);
         if (dragBarTimeDisplay) updateParent(dragBarTimeDisplay);
 
-        // 전체 화면에서 벗어날 때 강제로 리플로우를 유도하고 리사이즈 이벤트를 발생시켜 UI가 제대로 재배치되도록 함
         if (!fsElement) {
             const forceReflow = () => {
                 document.body.style.transform = 'scale(1)';
@@ -1274,7 +1259,6 @@
 
         addLogOnce('script_init_start', '🎉 스크립트 초기화 시작');
 
-        // 메인 문서일 경우에만 팝업 차단기 초기화
         if (targetDocument === document) {
             popupBlocker.init();
             isInitialLoadFinished = true;
