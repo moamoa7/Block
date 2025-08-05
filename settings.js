@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.137 (최종 수정)
+// @version       6.2.140 (최종 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -107,7 +107,7 @@
         dragBarInitialized: false,
         isUIBeingUsed: false,
         playbackUpdateTimer: null,
-        isMinimized: false,
+        isMinimized: true, // 기본 상태를 최소화로 변경
     };
     let __videoUIInitialized = false;
 
@@ -159,7 +159,7 @@
             logBoxContainer.style.pointerEvents = 'none';
         }, 10000);
     }
-
+    
     function addLog(msg) {
         if (!FeatureFlags.logUI) return;
         if (!isTopFrame) {
@@ -534,7 +534,7 @@
                 const style = getComputedStyle(node);
                 const isSuspect = (style.position === 'fixed' &&
                                     parseInt(style.zIndex) > 1000 &&
-                                    (parseFloat(style.opacity) < 0.2 || style.visibility === 'hidden' || style.display === 'none') &&
+                                    (style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none') &&
                                     style.pointerEvents !== 'none');
 
                 const suspiciousHandlers = ['onclick', 'onmousedown', 'onmouseup', 'onpointerdown', 'ontouchstart'];
@@ -646,7 +646,7 @@
             if (videoUIFlags.speedSliderInitialized) return;
 
             const sliderId = 'vm-speed-slider-container';
-
+            
             const createSliderElements = () => {
                 const container = document.createElement('div');
                 container.id = sliderId;
@@ -656,11 +656,11 @@
                 style.textContent = `
                     #${sliderId} {
                         position: fixed; top: 50%; right: 0; transform: translateY(-50%);
-                        background: rgba(0, 0, 0, 0.5); padding: 10px 8px; border-radius: 8px;
+                        background: rgba(0, 0, 0, 0.0); padding: 10px 8px; border-radius: 8px;
                         z-index: 2147483647 !important; display: none; flex-direction: column;
                         align-items: center; width: 50px; height: auto; font-family: sans-serif;
                         pointer-events: auto; opacity: 0.3; transition: all 0.3s ease; user-select: none;
-                        box-shadow: 0 0 8px rgba(0,0,0,0.5); will-change: transform, opacity, width;
+                        box-shadow: 0 0 8px rgba(0,0,0,0.0); will-change: transform, opacity, width;
                     }
                     #${sliderId}:hover { opacity: 1; }
                     #vm-speed-reset-btn {
@@ -722,10 +722,9 @@
                 container.appendChild(slider);
                 container.appendChild(valueDisplay);
 
-                // 최소화/복구 버튼 추가
                 const toggleBtn = document.createElement('button');
                 toggleBtn.id = 'vm-toggle-btn';
-                toggleBtn.textContent = '▼';
+                toggleBtn.textContent = videoUIFlags.isMinimized ? '▲' : '▼';
                 toggleBtn.onclick = (e) => {
                     e.stopPropagation();
                     this.toggleMinimize();
@@ -733,6 +732,13 @@
                 container.appendChild(toggleBtn);
 
                 this.speedSliderContainer = container;
+                // 초기 상태에 맞춰 스타일 적용
+                if(videoUIFlags.isMinimized) {
+                    container.style.width = '30px';
+                    slider.style.display = 'none';
+                    valueDisplay.style.display = 'none';
+                    resetBtn.style.display = 'none';
+                }
             };
             createSliderElements();
             videoUIFlags.speedSliderInitialized = true;
@@ -743,15 +749,17 @@
             const valueDisplay = document.getElementById('vm-speed-value');
             const resetBtn = document.getElementById('vm-speed-reset-btn');
             const toggleBtn = document.getElementById('vm-toggle-btn');
-
+        
             videoUIFlags.isMinimized = !videoUIFlags.isMinimized;
-
+        
             if (videoUIFlags.isMinimized) {
                 container.style.width = '30px';
                 slider.style.display = 'none';
                 valueDisplay.style.display = 'none';
                 resetBtn.style.display = 'none';
                 toggleBtn.textContent = '▲';
+                // 드래그바 비활성화
+                dragBar.hide();
             } else {
                 container.style.width = '50px';
                 slider.style.display = 'block';
@@ -759,6 +767,12 @@
                 resetBtn.style.display = 'block';
                 toggleBtn.textContent = '▼';
                 this.updatePositionAndSize();
+                // 드래그바 활성화 (단, 비디오가 재생 중일 때만)
+                const videos = videoFinder.findAll();
+                const isVideoPlaying = videos.some(v => !v.paused);
+                if (isVideoPlaying) {
+                    dragBar.show();
+                }
             }
         },
         updateSpeed: (speed) => {
@@ -784,7 +798,7 @@
             if (!this.speedSliderContainer.parentNode) {
                 document.body.appendChild(this.speedSliderContainer);
             }
-
+            
             const targetParent = document.fullscreenElement || document.body;
             if (this.speedSliderContainer.parentNode !== targetParent) {
                 if (this.speedSliderContainer.parentNode) {
@@ -792,7 +806,7 @@
                 }
                 targetParent.appendChild(this.speedSliderContainer);
             }
-
+            
             this.speedSliderContainer.style.display = 'flex';
             this.updatePositionAndSize();
             const slider = document.getElementById('vm-speed-slider');
@@ -866,6 +880,12 @@
             return newTimeDisplay;
         },
         show: function() {
+            // 배속바가 최소화 상태일 경우 드래그바 비활성화
+            if (videoUIFlags.isMinimized) {
+                this.hide();
+                return;
+            }
+            
             if (!this.dragBarTimeDisplay) {
                 this.init();
             }
@@ -891,7 +911,7 @@
         init: function() {
             if (videoUIFlags.dragBarInitialized) return;
             videoUIFlags.dragBarInitialized = true;
-
+            
             const dragState = {
                 isDragging: false,
                 isHorizontalDrag: false,
@@ -914,7 +934,7 @@
                 const sign = seconds < 0 ? '-' : '+';
                 const minutes = Math.floor(absSeconds / 60);
                 const remainingSeconds = Math.floor(absSeconds % 60);
-
+            
                 const paddedMinutes = String(minutes).padStart(2, '0');
                 const paddedSeconds = String(remainingSeconds).padStart(2, '0');
 
@@ -928,7 +948,7 @@
                     parent.appendChild(this.dragBarTimeDisplay);
                 }
                 if (!this.dragBarTimeDisplay) return;
-
+            
                 if (timeChange !== 0) {
                     this.dragBarTimeDisplay.textContent = `${formatTime(timeChange)} 이동`;
                     this.dragBarTimeDisplay.style.display = 'block';
@@ -943,7 +963,7 @@
                     }, 300);
                 }
             };
-
+            
             const cancelDrag = () => {
                 if (!dragState.isDragging) return;
 
@@ -976,6 +996,9 @@
             const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
 
             const handleStart = (e) => {
+                // 배속바가 최소화된 상태일 경우 드래그 기능 비활성화
+                if(videoUIFlags.isMinimized) return;
+
                 if (e.button === 2) return;
                 if (e.touches && e.touches.length > 1) {
                     return;
@@ -1281,11 +1304,11 @@
             addLogOnce(logKey, `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${iframeUrl}`, 'warn');
         }
     }
-
+    
     // --- 비디오 UI 감지 및 토글을 위한 통합 루프 ---
     function startVideoUIWatcher(targetDocument = document) {
         if (!FeatureFlags.videoControls) return;
-
+        
         const checkVideos = () => {
             const videos = videoFinder.findAll();
             let isAnyVideoAvailable = false;
@@ -1304,7 +1327,12 @@
                     addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
                 }
                 speedSlider.show();
-                dragBar.show();
+                // 배속바가 최소화 상태가 아닐 때만 드래그바 표시
+                if (!videoUIFlags.isMinimized) {
+                    dragBar.show();
+                } else {
+                    dragBar.hide();
+                }
             } else {
                 speedSlider.hide();
                 dragBar.hide();
@@ -1353,7 +1381,7 @@
     });
 
     window.addEventListener('popstate', () => onNavigate('popstate'));
-
+    
     // --- 드래그바 시간 표시가 전체 화면에서 보이지 않는 문제 해결 ---
     const handleFullscreenChange = () => {
         const fsElement = document.fullscreenElement;
@@ -1394,15 +1422,24 @@
 
         PROCESSED_DOCUMENTS.add(targetDocument);
         addLogOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 'info');
-
+        
         if (targetDocument === document) {
             popupBlocker.init();
+        }
+        
+        // 초기 로드 시 모든 비디오에 대해 initWhenReady 호출
+        if (FeatureFlags.videoControls) {
+            videoFinder.findAll(targetDocument).forEach(video => {
+                if (!PROCESSED_VIDEOS.has(video)) {
+                    videoControls.initWhenReady(video);
+                }
+            });
         }
 
         startUnifiedObserver(targetDocument);
         startVideoUIWatcher(targetDocument);
     }
-
+    
     // --- 초기 진입점 ---
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -1421,5 +1458,5 @@
         alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
         document: { write: () => {}, writeln: () => {} },
     });
-
+    
 })();
