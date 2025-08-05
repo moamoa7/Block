@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.143 (최종 수정)
+// @version       6.2.145 (최종 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -86,7 +86,6 @@
     let PROCESSED_NODES = new WeakSet();
     let PROCESSED_IFRAMES = new WeakSet();
     let PROCESSED_DOCUMENTS = new WeakSet();
-    let PROCESSED_VIDEOS = new WeakSet();
     const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
     const BLOCKED_IFRAME_URLS = new Set();
@@ -104,9 +103,11 @@
     // 비디오 UI 관련 상태 (각 모듈에서 관리하도록 변경)
     const videoUIFlags = {
         isUIBeingUsed: false,
-        isMinimized: true,
     };
     let __videoUIInitialized = false;
+
+    // 비디오 초기화 상태를 추적하는 WeakMap
+    const VIDEO_INIT_STATE = new WeakMap();
 
     const isTopFrame = window.self === window.top;
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -554,19 +555,27 @@
     // --- 비디오 탐색 로직 ---
     const videoFinder = {
         findInDoc: (doc) => {
-            const videos = new Set();
-            try {
-                doc.querySelectorAll('video').forEach(v => videos.add(v));
-            } catch (e) {
-            }
+            const videos = [];
 
-            const potentialVideoContainers = doc.querySelectorAll('div[data-src], div[data-video], div[data-video-id], div[class*="video"], div[id*="player"]');
-            potentialVideoContainers.forEach(container => {
-                const videoElement = container.querySelector('video');
-                if (videoElement) {
-                    videos.add(videoElement);
+            try {
+                const walker = doc.createTreeWalker(
+                    doc.body,
+                    NodeFilter.SHOW_ELEMENT,
+                    {
+                        acceptNode(node) {
+                            return node.tagName === 'VIDEO' ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+                        }
+                    },
+                    false
+                );
+
+                let currentNode;
+                while ((currentNode = walker.nextNode())) {
+                    videos.push(currentNode);
                 }
-            });
+            } catch(e) {
+                addLogOnce('tree_walker_error', `TreeWalker 오류: ${e.message}`, 5000, 'warn');
+            }
 
             if (USER_SETTINGS.enableVideoDebugBorder) {
                 let style = doc.querySelector('style#video-debug-style');
@@ -582,20 +591,7 @@
                 }
             }
 
-            videos.forEach(video => {
-                if (!PROCESSED_VIDEOS.has(video)) {
-                    const sources = [...video.querySelectorAll('source')].map(s => s.src).filter(Boolean);
-                    const videoSource = video.currentSrc || video.src || sources[0] || '';
-                    if (video.style.pointerEvents === 'none') {
-                        video.style.setProperty('pointer-events', 'auto', 'important');
-                    }
-                    if (USER_SETTINGS.enableVideoDebugBorder && !video.classList.contains('my-video-ui-initialized')) {
-                        video.classList.add('my-video-ui-initialized');
-                    }
-                    PROCESSED_VIDEOS.add(video);
-                }
-            });
-            return Array.from(videos);
+            return videos;
         },
         findAll: () => {
             let videos = videoFinder.findInDoc(document);
@@ -1136,6 +1132,58 @@
         }
     };
 
+    // --- 비디오 UI 통합 초기화 함수 ---
+    const videoControls = {
+        init: () => {
+            if (!FeatureFlags.videoControls) return;
+            addLogOnce('video_controls_init_start', '비디오 UI 컨트롤러 초기화 시작', 'info');
+            if (speedSlider && !speedSlider.initialized) {
+                speedSlider.init();
+            }
+            if (dragBar && !dragBar.initialized) {
+                dragBar.init();
+            }
+        },
+        initWhenReady: (video) => {
+            if (VIDEO_INIT_STATE.has(video)) return;
+
+            const tryInit = () => {
+                // 비디오가 DOM에 연결되어 있지 않으면 정리
+                if (!video.isConnected) {
+                    VIDEO_INIT_STATE.delete(video);
+                    return;
+                }
+
+                if (video.readyState >= 1) {
+                    VIDEO_INIT_STATE.set(video, true);
+                    // 비디오가 준비되면 UI 부착
+                    videoControls.attachUI(video);
+                } else {
+                    // 비디오가 준비될 때까지 기다림 (폴링)
+                    setTimeout(tryInit, 300);
+                }
+            };
+
+            // 첫 시도
+            tryInit();
+        },
+        attachUI: (video) => {
+            // UI를 비디오에 연결하는 로직 (예: 이벤트 리스너 추가 등)
+            // 현재 스크립트에서는 모든 비디오에 전역 UI를 적용하므로 이 부분은 전역 플래그로만 관리
+            if (!__videoUIInitialized) {
+                __videoUIInitialized = true;
+                if (speedSlider) speedSlider.init();
+                if (dragBar) dragBar.init();
+                addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
+            }
+        },
+        detachUI: (video) => {
+            // DOM에서 비디오가 제거될 때 호출될 로직
+            // 현재는 전역 UI이므로 전체를 숨기거나 초기화하는 로직이 필요
+        }
+    };
+
+
     function throttle(func, limit) {
       let inThrottle;
       return function() {
@@ -1198,7 +1246,6 @@
         }
 
         try {
-            // 동일 출처(Same-Origin)인 경우에만 iframe 내부 문서에 접근
             if (iframe.contentWindow && iframe.contentWindow.location.hostname === location.hostname) {
                 const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
                 if (iframeDocument && !PROCESSED_DOCUMENTS.has(iframeDocument)) {
@@ -1231,6 +1278,11 @@
             mutations.forEach((mutation) => {
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach(node => processNodeAndChildren(node, '동적 추가'));
+                    mutation.removedNodes.forEach(node => {
+                        if (node.tagName === 'VIDEO') {
+                            if (videoControls) videoControls.detachUI(node);
+                        }
+                    });
                 } else if (mutation.type === 'attributes') {
                     const targetNode = mutation.target;
                     if (targetNode.nodeType === 1) {
@@ -1248,7 +1300,6 @@
         });
 
         try {
-            // 성능 최적화를 위해 style, class 변경 감지는 제외
             observer.observe(rootElement, {
                 childList: true,
                 subtree: true,
@@ -1329,7 +1380,6 @@
                 PROCESSED_DOCUMENTS = new WeakSet();
                 PROCESSED_NODES = new WeakSet();
                 PROCESSED_IFRAMES = new WeakSet();
-                PROCESSED_VIDEOS = new WeakSet();
                 LOGGED_KEYS_WITH_TIMER.clear();
                 __videoUIInitialized = false;
 
@@ -1396,10 +1446,11 @@
         }
 
         if (FeatureFlags.videoControls) {
-            videoFinder.findAll(targetDocument).forEach(video => {
-                if (!PROCESSED_VIDEOS.has(video)) {
-                    videoControls.initWhenReady(video);
-                }
+            const allVideos = videoFinder.findAll(targetDocument);
+            allVideos.forEach(video => {
+                 if (!VIDEO_INIT_STATE.has(video)) {
+                     videoControls.initWhenReady(video);
+                 }
             });
         }
 
