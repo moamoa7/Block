@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.159 (최종 수정)
+// @version       6.2.173 (최종 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -105,6 +105,7 @@
     let pendingLogs = [];
     let logDismissTimer = null;
     const logHistory = [];
+    const LOGGED_MESSAGE_COUNT = new Map();
 
     // 비디오 UI 관련 상태 (각 모듈에서 관리하도록 변경)
     const videoUIFlags = {
@@ -134,14 +135,14 @@
 
         if (!lastLogTime || currentTime - lastLogTime > delay) {
             LOGGED_KEYS_WITH_TIMER.set(key, currentTime);
-            const ICONS = { info: 'ℹ️', warn: '⚠️', block: '🚫', allow: '✅' };
+            const ICONS = { info: 'ℹ️', warn: '⚠️', error: '🔴', block: '🚫', allow: '✅' };
             const fullMsg = `${ICONS[level] || ''} ${message}`;
-            addLog(fullMsg, level);
+            addLog(fullMsg, level, key);
         }
     }
 
     // --- 로그 기능 (출처 정보 추가) ---
-    function addLogToBox(msg) {
+    function addLogToBox(msg, key) {
         if (!logContentBox) return;
         const logText = `[${new Date().toLocaleTimeString()}] ${msg}`;
         logHistory.push(logText);
@@ -157,6 +158,7 @@
         const entry = document.createElement('div');
         entry.textContent = logText;
         entry.style.textAlign = 'left';
+        entry.setAttribute('data-log-key', key);
         logContentBox.appendChild(entry);
         logContentBox.scrollTop = logContentBox.scrollHeight;
         if (logDismissTimer) {
@@ -167,18 +169,27 @@
             logBoxContainer.style.pointerEvents = 'none';
         }, 10000);
     }
-    
-    function addLog(msg, level = 'info') {
+
+    function addLog(msg, level, key = '') {
+        // 'window.opener' 실패 메시지는 로그 박스에 표시하지 않음
+        if (msg.includes('window.opener 속성 차단 실패')) {
+            console.warn(`[MyScript Log] ${msg}`);
+            return;
+        }
+
+        // 모든 로그를 콘솔에 출력
+        console.log(`[MyScript Log] ${msg}`);
+
         if (!FeatureFlags.logUI) return;
 
+        // 경고, 에러 메시지는 UI에 표시하지 않음
         if (level === 'warn' || level === 'error' || level === 'block') {
-            console.warn(`[MyScript Log] ${msg}`);
             return;
         }
 
         if (!isTopFrame) {
             try {
-                window.parent.postMessage({ type: 'MY_SCRIPT_LOG', message: msg, level: level }, '*');
+                window.parent.postMessage({ type: 'MY_SCRIPT_LOG', message: msg, level: level, key: key }, '*');
                 return;
             } catch (e) {
                 console.warn(`[MyScript Log - iframe error] ${msg}`);
@@ -189,10 +200,9 @@
         }
 
         if (isLogBoxReady) {
-            addLogToBox(msg);
+            addLogToBox(msg, key);
         } else {
             pendingLogs.push(msg);
-            console.warn(`[MyScript Log - Pending/Debug] ${msg}`);
         }
     }
 
@@ -295,8 +305,17 @@
             if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
                 return;
             }
-            const logKey = `postmessage_log_${event.origin}`;
-            addLogOnce(logKey, `postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${event.origin} | 데이터: ${msgData.substring(0, 100)}...`, 'warn');
+            const logKey = `postmessage_log_${event.origin}_${msgData.substring(0, 50)}`;
+
+            if (event.data.type === 'MY_SCRIPT_LOG') {
+                 if (event.data.message.includes('window.opener') && event.data.level === 'warn') {
+                    addLogOnce(event.data.key, event.data.message, 5000, 'warn');
+                 } else {
+                    addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
+                 }
+            } else {
+                addLogOnce(logKey, `postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${event.origin} | 데이터: ${msgData.substring(0, 100)}...`, 5000, 'warn');
+            }
         }, false);
         createLogBox();
     }
@@ -475,7 +494,7 @@
             }
         }
     };
-    
+
     // --- layerTrap 모듈 정의 ---
     const layerTrap = (() => {
         const PROCESSED_ELEMENTS = new WeakSet();
@@ -522,7 +541,7 @@
                 addLogOnce('layertrap_remove_error', `trap remove() 실패: ${e.message}`, 5000, 'error');
             }
         };
-        
+
         const highlightTrap = (el) => {
             if (el.hasAttribute('data-trap-badge')) return;
             el.style.outline = '3px solid red';
@@ -660,7 +679,7 @@
     const videoFinder = {
         findInDoc: (doc) => {
             const videos = [];
-            
+
             try {
                 const walker = doc.createTreeWalker(
                     doc.body,
@@ -694,7 +713,7 @@
                     }
                 }
             }
-            
+
             return videos;
         },
         findAll: () => {
@@ -721,12 +740,12 @@
     const speedSlider = {
         speedSliderContainer: null,
         initialized: false,
-        isMinimized: true,
+        isMinimized: JSON.parse(localStorage.getItem('speedSliderMinimized') || 'true'),
         init: function() {
             if (this.initialized) return;
 
             const sliderId = 'vm-speed-slider-container';
-            
+
             const createSliderElements = () => {
                 const container = document.createElement('div');
                 container.id = sliderId;
@@ -812,7 +831,7 @@
                 container.appendChild(toggleBtn);
 
                 this.speedSliderContainer = container;
-                
+
                 if(this.isMinimized) {
                     container.style.width = '30px';
                     slider.style.display = 'none';
@@ -829,9 +848,10 @@
             const valueDisplay = document.getElementById('vm-speed-value');
             const resetBtn = document.getElementById('vm-speed-reset-btn');
             const toggleBtn = document.getElementById('vm-toggle-btn');
-        
+
             this.isMinimized = !this.isMinimized;
-        
+            localStorage.setItem('speedSliderMinimized', this.isMinimized);
+
             if (this.isMinimized) {
                 container.style.width = '30px';
                 slider.style.display = 'none';
@@ -878,7 +898,7 @@
             if (!this.speedSliderContainer.parentNode) {
                 document.body.appendChild(this.speedSliderContainer);
             }
-            
+
             const targetParent = document.fullscreenElement || document.body;
             if (this.speedSliderContainer.parentNode !== targetParent) {
                 if (this.speedSliderContainer.parentNode) {
@@ -890,7 +910,7 @@
                     addLogOnce('fullscreen_ui_append_error', `UI 추가 실패: ${e.message}`, 5000, 'error');
                 }
             }
-            
+
             this.speedSliderContainer.style.display = 'flex';
             this.updatePositionAndSize();
             const slider = document.getElementById('vm-speed-slider');
@@ -952,7 +972,6 @@
         dragBarTimeDisplay: null,
         initialized: false,
         createTimeDisplay: function() {
-            // 이미 존재하는 요소가 있다면 재사용
             const existingDisplay = document.getElementById('vm-time-display');
             if (existingDisplay) {
                 return existingDisplay;
@@ -975,12 +994,12 @@
                 this.hide();
                 return;
             }
-            
+
             if (!this.dragBarTimeDisplay) {
                 this.init();
             }
             if (!this.dragBarTimeDisplay) return;
-            
+
             this.dragBarTimeDisplay.style.display = 'block';
 
             if (!this.dragBarTimeDisplay.parentNode) {
@@ -1007,7 +1026,7 @@
         init: function() {
             if (this.initialized) return;
             this.initialized = true;
-            
+
             const dragState = {
                 isDragging: false,
                 isHorizontalDrag: false,
@@ -1024,7 +1043,7 @@
                 initialTime: 0,
                 lastMoveTime: Date.now(),
             };
-            
+
             const DRAG_THRESHOLD = 10;
             const ACCELERATION_THRESHOLD = 5;
 
@@ -1033,13 +1052,13 @@
                 const sign = seconds < 0 ? '-' : '+';
                 const minutes = Math.floor(absSeconds / 60);
                 const remainingSeconds = Math.floor(absSeconds % 60);
-            
+
                 const paddedMinutes = String(minutes).padStart(2, '0');
                 const paddedSeconds = String(remainingSeconds).padStart(2, '0');
 
                 return `${sign}${paddedMinutes}분${paddedSeconds}초`;
             };
-            
+
             const formatAbsoluteTime = (seconds) => {
                 const minutes = Math.floor(seconds / 60);
                 const remainingSeconds = Math.floor(seconds % 60);
@@ -1071,7 +1090,7 @@
                     }, 300);
                 }
             };
-            
+
             const cancelDrag = () => {
                 if (!dragState.isDragging) return;
 
@@ -1082,14 +1101,8 @@
                     clearTimeout(dragState.throttleTimer);
                     dragState.throttleTimer = null;
                 }
-                
-                // 이벤트 리스너 제거
-                document.removeEventListener('mousemove', handleMove, true);
-                document.removeEventListener('mouseup', handleEnd, true);
-                document.removeEventListener('touchmove', handleMove, true);
-                document.removeEventListener('touchend', handleEnd, true);
-                
-                updateTimeDisplay(0, 0);
+
+                updateTimeDisplay(0);
 
                 const videos = videoFinder.findAll();
                 videos.forEach(video => {
@@ -1105,6 +1118,11 @@
                 dragState.isHorizontalDrag = false;
                 document.body.style.userSelect = '';
                 videoUIFlags.isUIBeingUsed = false;
+
+                document.removeEventListener('mousemove', handleMove, true);
+                document.removeEventListener('mouseup', handleEnd, true);
+                document.removeEventListener('touchmove', handleMove, true);
+                document.removeEventListener('touchend', handleEnd, true);
             };
 
             const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
@@ -1118,13 +1136,13 @@
                         return;
                     }
                     if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
-                    
+
                     const videos = videoFinder.findAll();
                     if (videos.length === 0) {
                         videoUIFlags.isUIBeingUsed = false;
                         return;
                     }
-                    
+
                     document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
                     document.addEventListener('mouseup', handleEnd, { passive: false, capture: true });
                     document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
@@ -1199,12 +1217,12 @@
                     const currentY = pos.clientY;
                     const dx = Math.abs(currentX - dragState.startX);
                     const dy = Math.abs(currentY - dragState.startY);
-                    
+
                     const timeNow = Date.now();
                     const timeDiff = timeNow - dragState.lastMoveTime;
                     const moveDist = currentX - dragState.lastUpdateX;
                     const dragSpeed = timeDiff > 0 ? Math.abs(moveDist / timeDiff) : 0;
-                    
+
                     let timeMultiplier = 1;
                     if (dragSpeed > 0.5) timeMultiplier = 2;
                     if (dragSpeed > 1.5) timeMultiplier = 3;
@@ -1263,7 +1281,7 @@
             const handleEnd = (e) => {
                 try {
                     if (!dragState.isDragging) return;
-                    
+
                     applyTimeChange();
                     cancelDrag();
                 } catch(e) {
@@ -1327,7 +1345,7 @@
                     setTimeout(tryInit, 300);
                 }
             };
-            
+
             tryInit();
         },
         attachUI: (video) => {
@@ -1337,7 +1355,7 @@
                 if (dragBar) dragBar.init();
                 addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
             }
-            
+
             if (!VIDEO_STATE.get(video).eventListenersAttached) {
                 video.addEventListener('loadedmetadata', () => {
                     if(speedSlider) speedSlider.updatePositionAndSize();
@@ -1398,9 +1416,9 @@
     function runQueue() {
         if (isRunning) return;
         isRunning = true;
-        
+
         const next = taskQueue.shift();
-        
+
         if (next) {
             if (typeof requestIdleCallback === 'function') {
                 requestIdleCallback(() => {
@@ -1475,7 +1493,7 @@
             }
         }
     }
-    
+
     // --- iframe 로드 및 내부 탐색 처리 ---
     function handleIframeLoad(iframe) {
         if (PROCESSED_IFRAMES.has(iframe)) return;
@@ -1500,13 +1518,13 @@
                         }
                     }
                 } catch (e) {}
-                
+
                 if (Date.now() - start > maxWait) {
                     clearInterval(interval);
                 }
             }, 300);
         };
-        
+
         try {
             if (iframe.contentWindow && iframe.contentWindow.location && iframe.contentWindow.location.hostname === location.hostname) {
                 const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
@@ -1548,11 +1566,11 @@
         });
 
         try {
-            observer.observe(rootElement, { 
-                childList: true, 
-                subtree: true, 
-                attributes: true, 
-                attributeFilter: ['src', 'onclick', 'onmousedown', 'onmouseup', 'onpointerdown', 'ontouchstart'] 
+            observer.observe(rootElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['src', 'onclick', 'onmousedown', 'onmouseup', 'onpointerdown', 'ontouchstart']
             });
             PROCESSED_DOCUMENTS.add(targetDocument);
             OBSERVER_MAP.set(targetDocument, observer);
@@ -1572,11 +1590,11 @@
             addLogOnce(logKey, `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${iframeUrl}`, 'warn');
         }
     }
-    
+
     // --- 비디오 UI 감지 및 토글을 위한 통합 루프 ---
     function startVideoUIWatcher(targetDocument = document) {
         if (!FeatureFlags.videoControls) return;
-        
+
         const checkVideos = () => {
             const videos = videoFinder.findAll();
             let isAnyVideoAvailable = false;
@@ -1595,7 +1613,7 @@
                     addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
                 }
                 if (speedSlider) speedSlider.show();
-                
+
                 if (speedSlider && !speedSlider.isMinimized && dragBar && typeof dragBar.show === 'function') {
                     dragBar.show();
                 } else if (dragBar && typeof dragBar.hide === 'function') {
@@ -1632,7 +1650,7 @@
                 PROCESSED_IFRAMES = new WeakSet();
                 LOGGED_KEYS_WITH_TIMER.clear();
                 __videoUIInitialized = false;
-                
+
                 OBSERVER_MAP.forEach(observer => observer.disconnect());
 
                 initializeAll(document);
@@ -1653,7 +1671,7 @@
     });
 
     window.addEventListener('popstate', () => onNavigate('popstate'));
-    
+
     // --- 드래그바 시간 표시가 전체 화면에서 보이지 않는 문제 해결 ---
     const handleFullscreenChange = () => {
         const fsElement = document.fullscreenElement;
@@ -1698,11 +1716,11 @@
 
         PROCESSED_DOCUMENTS.add(targetDocument);
         addLogOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 'info');
-        
+
         if (targetDocument === document) {
             popupBlocker.init();
         }
-        
+
         if (FeatureFlags.videoControls) {
             const allVideos = videoFinder.findAll(targetDocument);
             allVideos.forEach(video => {
@@ -1713,7 +1731,7 @@
                  }, 1);
             });
         }
-        
+
         targetDocument.querySelectorAll('iframe').forEach(iframe => {
             enqueueTask(() => handleIframeLoad(iframe), 0);
         });
@@ -1721,7 +1739,7 @@
         startUnifiedObserver(targetDocument);
         startVideoUIWatcher(targetDocument);
     }
-    
+
     // --- 초기 진입점 ---
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -1740,7 +1758,7 @@
         alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
         document: { write: () => {}, writeln: () => {} },
     });
-    
+
     // --- 전역 예외 처리기 등록 ---
     window.onerror = (message, source, lineno, colno, error) => {
         if (message && typeof message === 'string' && (message.includes('PartnersCoupang') || message.includes('TSOutstreamVideo') || message.includes('bp2mtg1') || message.includes('slsu98x'))) {
@@ -1755,8 +1773,23 @@
     // --- postMessage 리스너 등록 ---
     window.addEventListener('message', (event) => {
         try {
-            if (event.data.type === 'iframeReady' && event.origin === location.origin) {
-                addLogOnce('iframe_ready', `iframe (${event.origin}) 로드 완료 메시지 수신`, 5000, 'info');
+            if (event.data.type === 'MY_SCRIPT_LOG') {
+                 // 'window.opener' 오류 메시지 필터링
+                 if (event.data.message.includes('window.opener') && event.data.level === 'warn') {
+                    addLogOnce(event.data.key, event.data.message, 5000, 'warn');
+                 } else {
+                    addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
+                 }
+            } else {
+                const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => event.origin.includes(domain));
+                if (isIgnoredDomain) return;
+
+                const msgData = typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
+                if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
+                    return;
+                }
+                const logKey = `postmessage_log_${event.origin}_${msgData.substring(0, 50)}`;
+                addLogOnce(logKey, `postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${event.origin} | 데이터: ${msgData.substring(0, 100)}...`, 5000, 'warn');
             }
         } catch(e) {
             addLogOnce('postmessage_parse_error', `postMessage 파싱 오류: ${e.message}`, 5000, 'error');
