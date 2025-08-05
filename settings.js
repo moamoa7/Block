@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.173 (최종 수정)
-// @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
+// @version       6.2.175 (최종 수정)
+// @description   🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         none
 // @run-at        document-start
@@ -169,7 +169,7 @@
             logBoxContainer.style.pointerEvents = 'none';
         }, 10000);
     }
-
+    
     function addLog(msg, level, key = '') {
         // 'window.opener' 실패 메시지는 로그 박스에 표시하지 않음
         if (msg.includes('window.opener 속성 차단 실패')) {
@@ -306,8 +306,9 @@
                 return;
             }
             const logKey = `postmessage_log_${event.origin}_${msgData.substring(0, 50)}`;
-
+            
             if (event.data.type === 'MY_SCRIPT_LOG') {
+                 // 'window.opener' 오류 메시지 필터링
                  if (event.data.message.includes('window.opener') && event.data.level === 'warn') {
                     addLogOnce(event.data.key, event.data.message, 5000, 'warn');
                  } else {
@@ -494,7 +495,7 @@
             }
         }
     };
-
+    
     // --- layerTrap 모듈 정의 ---
     const layerTrap = (() => {
         const PROCESSED_ELEMENTS = new WeakSet();
@@ -541,7 +542,7 @@
                 addLogOnce('layertrap_remove_error', `trap remove() 실패: ${e.message}`, 5000, 'error');
             }
         };
-
+        
         const highlightTrap = (el) => {
             if (el.hasAttribute('data-trap-badge')) return;
             el.style.outline = '3px solid red';
@@ -679,7 +680,7 @@
     const videoFinder = {
         findInDoc: (doc) => {
             const videos = [];
-
+            
             try {
                 const walker = doc.createTreeWalker(
                     doc.body,
@@ -713,7 +714,7 @@
                     }
                 }
             }
-
+            
             return videos;
         },
         findAll: () => {
@@ -745,7 +746,7 @@
             if (this.initialized) return;
 
             const sliderId = 'vm-speed-slider-container';
-
+            
             const createSliderElements = () => {
                 const container = document.createElement('div');
                 container.id = sliderId;
@@ -831,7 +832,7 @@
                 container.appendChild(toggleBtn);
 
                 this.speedSliderContainer = container;
-
+                
                 if(this.isMinimized) {
                     container.style.width = '30px';
                     slider.style.display = 'none';
@@ -848,7 +849,7 @@
             const valueDisplay = document.getElementById('vm-speed-value');
             const resetBtn = document.getElementById('vm-speed-reset-btn');
             const toggleBtn = document.getElementById('vm-toggle-btn');
-
+        
             this.isMinimized = !this.isMinimized;
             localStorage.setItem('speedSliderMinimized', this.isMinimized);
 
@@ -898,7 +899,7 @@
             if (!this.speedSliderContainer.parentNode) {
                 document.body.appendChild(this.speedSliderContainer);
             }
-
+            
             const targetParent = document.fullscreenElement || document.body;
             if (this.speedSliderContainer.parentNode !== targetParent) {
                 if (this.speedSliderContainer.parentNode) {
@@ -910,7 +911,7 @@
                     addLogOnce('fullscreen_ui_append_error', `UI 추가 실패: ${e.message}`, 5000, 'error');
                 }
             }
-
+            
             this.speedSliderContainer.style.display = 'flex';
             this.updatePositionAndSize();
             const slider = document.getElementById('vm-speed-slider');
@@ -994,12 +995,12 @@
                 this.hide();
                 return;
             }
-
+            
             if (!this.dragBarTimeDisplay) {
                 this.init();
             }
             if (!this.dragBarTimeDisplay) return;
-
+            
             this.dragBarTimeDisplay.style.display = 'block';
 
             if (!this.dragBarTimeDisplay.parentNode) {
@@ -1026,7 +1027,7 @@
         init: function() {
             if (this.initialized) return;
             this.initialized = true;
-
+            
             const dragState = {
                 isDragging: false,
                 isHorizontalDrag: false,
@@ -1043,7 +1044,7 @@
                 initialTime: 0,
                 lastMoveTime: Date.now(),
             };
-
+            
             const DRAG_THRESHOLD = 10;
             const ACCELERATION_THRESHOLD = 5;
 
@@ -1052,13 +1053,13 @@
                 const sign = seconds < 0 ? '-' : '+';
                 const minutes = Math.floor(absSeconds / 60);
                 const remainingSeconds = Math.floor(absSeconds % 60);
-
+            
                 const paddedMinutes = String(minutes).padStart(2, '0');
                 const paddedSeconds = String(remainingSeconds).padStart(2, '0');
 
                 return `${sign}${paddedMinutes}분${paddedSeconds}초`;
             };
-
+            
             const formatAbsoluteTime = (seconds) => {
                 const minutes = Math.floor(seconds / 60);
                 const remainingSeconds = Math.floor(seconds % 60);
@@ -1090,7 +1091,7 @@
                     }, 300);
                 }
             };
-
+            
             const cancelDrag = () => {
                 if (!dragState.isDragging) return;
 
@@ -1118,7 +1119,7 @@
                 dragState.isHorizontalDrag = false;
                 document.body.style.userSelect = '';
                 videoUIFlags.isUIBeingUsed = false;
-
+                
                 document.removeEventListener('mousemove', handleMove, true);
                 document.removeEventListener('mouseup', handleEnd, true);
                 document.removeEventListener('touchmove', handleMove, true);
@@ -1136,13 +1137,13 @@
                         return;
                     }
                     if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
-
+                    
                     const videos = videoFinder.findAll();
                     if (videos.length === 0) {
                         videoUIFlags.isUIBeingUsed = false;
                         return;
                     }
-
+                    
                     document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
                     document.addEventListener('mouseup', handleEnd, { passive: false, capture: true });
                     document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
@@ -1217,12 +1218,12 @@
                     const currentY = pos.clientY;
                     const dx = Math.abs(currentX - dragState.startX);
                     const dy = Math.abs(currentY - dragState.startY);
-
+                    
                     const timeNow = Date.now();
                     const timeDiff = timeNow - dragState.lastMoveTime;
                     const moveDist = currentX - dragState.lastUpdateX;
                     const dragSpeed = timeDiff > 0 ? Math.abs(moveDist / timeDiff) : 0;
-
+                    
                     let timeMultiplier = 1;
                     if (dragSpeed > 0.5) timeMultiplier = 2;
                     if (dragSpeed > 1.5) timeMultiplier = 3;
@@ -1281,7 +1282,7 @@
             const handleEnd = (e) => {
                 try {
                     if (!dragState.isDragging) return;
-
+                    
                     applyTimeChange();
                     cancelDrag();
                 } catch(e) {
@@ -1345,7 +1346,7 @@
                     setTimeout(tryInit, 300);
                 }
             };
-
+            
             tryInit();
         },
         attachUI: (video) => {
@@ -1355,7 +1356,7 @@
                 if (dragBar) dragBar.init();
                 addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
             }
-
+            
             if (!VIDEO_STATE.get(video).eventListenersAttached) {
                 video.addEventListener('loadedmetadata', () => {
                     if(speedSlider) speedSlider.updatePositionAndSize();
@@ -1416,9 +1417,9 @@
     function runQueue() {
         if (isRunning) return;
         isRunning = true;
-
+        
         const next = taskQueue.shift();
-
+        
         if (next) {
             if (typeof requestIdleCallback === 'function') {
                 requestIdleCallback(() => {
@@ -1493,7 +1494,7 @@
             }
         }
     }
-
+    
     // --- iframe 로드 및 내부 탐색 처리 ---
     function handleIframeLoad(iframe) {
         if (PROCESSED_IFRAMES.has(iframe)) return;
@@ -1518,13 +1519,13 @@
                         }
                     }
                 } catch (e) {}
-
+                
                 if (Date.now() - start > maxWait) {
                     clearInterval(interval);
                 }
             }, 300);
         };
-
+        
         try {
             if (iframe.contentWindow && iframe.contentWindow.location && iframe.contentWindow.location.hostname === location.hostname) {
                 const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
@@ -1566,11 +1567,11 @@
         });
 
         try {
-            observer.observe(rootElement, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['src', 'onclick', 'onmousedown', 'onmouseup', 'onpointerdown', 'ontouchstart']
+            observer.observe(rootElement, { 
+                childList: true, 
+                subtree: true, 
+                attributes: true, 
+                attributeFilter: ['src', 'onclick', 'onmousedown', 'onmouseup', 'onpointerdown', 'ontouchstart'] 
             });
             PROCESSED_DOCUMENTS.add(targetDocument);
             OBSERVER_MAP.set(targetDocument, observer);
@@ -1590,11 +1591,11 @@
             addLogOnce(logKey, `⚠️ iframe 재귀 탐색 실패 (Cross-Origin): ${iframeUrl}`, 'warn');
         }
     }
-
+    
     // --- 비디오 UI 감지 및 토글을 위한 통합 루프 ---
     function startVideoUIWatcher(targetDocument = document) {
         if (!FeatureFlags.videoControls) return;
-
+        
         const checkVideos = () => {
             const videos = videoFinder.findAll();
             let isAnyVideoAvailable = false;
@@ -1613,7 +1614,7 @@
                     addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
                 }
                 if (speedSlider) speedSlider.show();
-
+                
                 if (speedSlider && !speedSlider.isMinimized && dragBar && typeof dragBar.show === 'function') {
                     dragBar.show();
                 } else if (dragBar && typeof dragBar.hide === 'function') {
@@ -1650,7 +1651,7 @@
                 PROCESSED_IFRAMES = new WeakSet();
                 LOGGED_KEYS_WITH_TIMER.clear();
                 __videoUIInitialized = false;
-
+                
                 OBSERVER_MAP.forEach(observer => observer.disconnect());
 
                 initializeAll(document);
@@ -1671,7 +1672,7 @@
     });
 
     window.addEventListener('popstate', () => onNavigate('popstate'));
-
+    
     // --- 드래그바 시간 표시가 전체 화면에서 보이지 않는 문제 해결 ---
     const handleFullscreenChange = () => {
         const fsElement = document.fullscreenElement;
@@ -1716,11 +1717,11 @@
 
         PROCESSED_DOCUMENTS.add(targetDocument);
         addLogOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 'info');
-
+        
         if (targetDocument === document) {
             popupBlocker.init();
         }
-
+        
         if (FeatureFlags.videoControls) {
             const allVideos = videoFinder.findAll(targetDocument);
             allVideos.forEach(video => {
@@ -1731,7 +1732,7 @@
                  }, 1);
             });
         }
-
+        
         targetDocument.querySelectorAll('iframe').forEach(iframe => {
             enqueueTask(() => handleIframeLoad(iframe), 0);
         });
@@ -1739,7 +1740,7 @@
         startUnifiedObserver(targetDocument);
         startVideoUIWatcher(targetDocument);
     }
-
+    
     // --- 초기 진입점 ---
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -1758,7 +1759,7 @@
         alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
         document: { write: () => {}, writeln: () => {} },
     });
-
+    
     // --- 전역 예외 처리기 등록 ---
     window.onerror = (message, source, lineno, colno, error) => {
         if (message && typeof message === 'string' && (message.includes('PartnersCoupang') || message.includes('TSOutstreamVideo') || message.includes('bp2mtg1') || message.includes('slsu98x'))) {
@@ -1775,7 +1776,7 @@
         try {
             if (event.data.type === 'MY_SCRIPT_LOG') {
                  // 'window.opener' 오류 메시지 필터링
-                 if (event.data.message.includes('window.opener') && event.data.level === 'warn') {
+                 if (event.data.message.includes('window.opener')) {
                     addLogOnce(event.data.key, event.data.message, 5000, 'warn');
                  } else {
                     addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
@@ -1783,7 +1784,7 @@
             } else {
                 const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => event.origin.includes(domain));
                 if (isIgnoredDomain) return;
-
+                
                 const msgData = typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
                 if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
                     return;
