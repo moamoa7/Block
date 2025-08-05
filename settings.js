@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.146 (최종 수정)
+// @version       6.2.148 (최종 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -862,7 +862,6 @@
             return newTimeDisplay;
         },
         show: function() {
-            // 배속바가 최소화 상태일 경우 드래그바 비활성화
             if (speedSlider.isMinimized) {
                 this.hide();
                 return;
@@ -907,9 +906,12 @@
                 throttleTimer: null,
                 lastDragTimestamp: 0,
                 throttleDelay: 80,
+                initialTime: 0,
+                lastMoveTime: Date.now(),
             };
 
             const DRAG_THRESHOLD = 10;
+            const ACCELERATION_THRESHOLD = 5; // 드래그 가속도 임계값 (픽셀/ms)
 
             const formatTime = (seconds) => {
                 const absSeconds = Math.abs(seconds);
@@ -923,7 +925,16 @@
                 return `${sign}${paddedMinutes}분${paddedSeconds}초`;
             };
 
-            const updateTimeDisplay = (timeChange) => {
+            const formatAbsoluteTime = (seconds) => {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                const paddedMinutes = String(minutes).padStart(2, '0');
+                const paddedSeconds = String(remainingSeconds).padStart(2, '0');
+                return `${paddedMinutes}:${paddedSeconds}`;
+            };
+
+
+            const updateTimeDisplay = (totalTimeChange) => {
                 if (!this.dragBarTimeDisplay) {
                     this.dragBarTimeDisplay = this.createTimeDisplay();
                     const parent = document.fullscreenElement || document.body;
@@ -931,8 +942,10 @@
                 }
                 if (!this.dragBarTimeDisplay) return;
 
-                if (timeChange !== 0) {
-                    this.dragBarTimeDisplay.textContent = `${formatTime(timeChange)} 이동`;
+                if (totalTimeChange !== 0) {
+                    this.dragBarTimeDisplay.innerHTML = `
+                        <div>${formatTime(totalTimeChange)}</div>
+                    `;
                     this.dragBarTimeDisplay.style.display = 'block';
                     this.dragBarTimeDisplay.style.opacity = '1';
                 } else {
@@ -957,7 +970,7 @@
                     dragState.throttleTimer = null;
                 }
 
-                updateTimeDisplay(0);
+                updateTimeDisplay(0, 0);
 
                 const videos = videoFinder.findAll();
                 videos.forEach(video => {
@@ -978,129 +991,159 @@
             const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
 
             const handleStart = (e) => {
-                // speedSlider 사용 중이거나 최소화 상태일 경우 dragBar 기능 비활성화
-                if(videoUIFlags.isUIBeingUsed || speedSlider.isMinimized) return;
+                try {
+                    // speedSlider 사용 중이거나 최소화 상태일 경우 dragBar 기능 비활성화
+                    if(videoUIFlags.isUIBeingUsed || speedSlider.isMinimized) return;
 
-                if (e.button === 2) return;
-                if (e.touches && e.touches.length > 1) {
-                    return;
+                    if (e.button === 2) return;
+                    if (e.touches && e.touches.length > 1) {
+                        return;
+                    }
+                    if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
+
+                    const videos = videoFinder.findAll();
+                    if (videos.length === 0) {
+                        videoUIFlags.isUIBeingUsed = false;
+                        return;
+                    }
+
+                    if (!isMobile) {
+                        e.preventDefault();
+                    }
+
+                    videoUIFlags.isUIBeingUsed = true;
+                    dragState.isDragging = true;
+                    dragState.isHorizontalDrag = false;
+                    const pos = getPosition(e);
+                    dragState.startX = pos.clientX;
+                    dragState.startY = pos.clientY;
+                    dragState.lastUpdateX = pos.clientX;
+                    dragState.currentDragDistanceX = 0;
+                    dragState.totalTimeChange = 0;
+                    dragState.initialTime = videos[0]?.currentTime || 0;
+                    dragState.lastMoveTime = Date.now();
+
+                    // 드래그 시작 시점의 현재 시간 표시 (미리보기)
+                    updateTimeDisplay(dragState.totalTimeChange);
+                    dragState.recoveryTimer = setTimeout(cancelDrag, 5000);
+                } catch(e) {
+                    addLogOnce('dragBar_handleStart_error', `드래그 시작 오류: ${e.message}`, 5000, 'error');
                 }
-                if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
-
-                const videos = videoFinder.findAll();
-                if (videos.length === 0) {
-                    videoUIFlags.isUIBeingUsed = false;
-                    return;
-                }
-
-                if (!isMobile) {
-                    e.preventDefault();
-                }
-
-                videoUIFlags.isUIBeingUsed = true;
-                dragState.isDragging = true;
-                dragState.isHorizontalDrag = false;
-                const pos = getPosition(e);
-                dragState.startX = pos.clientX;
-                dragState.startY = pos.clientY;
-                dragState.lastUpdateX = pos.clientX;
-                dragState.currentDragDistanceX = 0;
-                dragState.totalTimeChange = 0;
-
-                dragState.recoveryTimer = setTimeout(cancelDrag, 5000);
             };
 
             const applyTimeChange = () => {
-                const videos = videoFinder.findAll();
-                const timeToApply = Math.round(dragState.currentDragDistanceX / 2);
+                try {
+                    const videos = videoFinder.findAll();
+                    const timeToApply = Math.round(dragState.currentDragDistanceX / 2);
 
-                if (timeToApply !== 0) {
-                    videos.forEach(video => {
-                        if (video && video.duration && isFinite(video.duration)) {
-                            const newTime = Math.min(video.duration, Math.max(0, video.currentTime + timeToApply));
-                            video.currentTime = newTime;
+                    if (timeToApply !== 0) {
+                        videos.forEach(video => {
+                            if (video && video.duration && isFinite(video.duration)) {
+                                const newTime = Math.min(video.duration, Math.max(0, video.currentTime + timeToApply));
+                                video.currentTime = newTime;
 
-                            setTimeout(() => {
-                                if (Math.abs(video.currentTime - newTime) > 0.3) {
-                                    video.currentTime = newTime;
-                                }
-                            }, 100);
-                        }
-                    });
-                    dragState.currentDragDistanceX = 0;
-                    updateTimeDisplay(dragState.totalTimeChange);
+                                setTimeout(() => {
+                                    if (Math.abs(video.currentTime - newTime) > 0.3) {
+                                        video.currentTime = newTime;
+                                    }
+                                }, 100);
+                            }
+                        });
+                        dragState.currentDragDistanceX = 0;
+                        updateTimeDisplay(dragState.totalTimeChange);
+                    }
+                } catch(e) {
+                    addLogOnce('dragBar_applyTimeChange_error', `시간 변경 적용 오류: ${e.message}`, 5000, 'error');
                 }
             };
 
             const handleMove = (e) => {
-                if (!dragState.isDragging) return;
-                if (e.touches && e.touches.length > 1) {
-                    cancelDrag();
-                    return;
-                }
-
-                const videos = videoFinder.findAll();
-                if (videos.length === 0) {
-                    cancelDrag();
-                    return;
-                }
-
-                const pos = getPosition(e);
-                const currentX = pos.clientX;
-                const currentY = pos.clientY;
-                const dx = Math.abs(currentX - dragState.startX);
-                const dy = Math.abs(currentY - dragState.startY);
-
-                if (!dragState.isHorizontalDrag) {
-                    if (dx > 10 && dy < dx * 1.5) {
-                        dragState.isHorizontalDrag = true;
-                        if (isMobile) {
-                           e.preventDefault();
-                           e.stopImmediatePropagation();
-                        }
-                        document.body.style.userSelect = 'none';
-                        videos.forEach(video => {
-                            dragState.originalPointerEvents.set(video, video.style.pointerEvents);
-                            video.style.pointerEvents = 'none';
-                        });
-                    } else if (dy > 10) {
+                try {
+                    if (!dragState.isDragging) return;
+                    if (e.touches && e.touches.length > 1) {
                         cancelDrag();
                         return;
                     }
-                }
 
-                if (dragState.isHorizontalDrag) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-
-                    const deltaX = currentX - dragState.lastUpdateX;
-                    dragState.currentDragDistanceX += deltaX;
-                    dragState.totalTimeChange = Math.round( (currentX - dragState.startX) / 2 );
-
-                    updateTimeDisplay(dragState.totalTimeChange);
-
-                    const now = Date.now();
-                    const timeSinceLastUpdate = now - dragState.lastDragTimestamp;
-
-                    if (timeSinceLastUpdate > 50) {
-                        const dragSpeed = Math.abs(currentX - dragState.lastUpdateX) / timeSinceLastUpdate;
-                        dragState.throttleDelay = dragSpeed > 1 ? 150 : 80;
+                    const videos = videoFinder.findAll();
+                    if (videos.length === 0) {
+                        cancelDrag();
+                        return;
                     }
-                    dragState.lastDragTimestamp = now;
 
-                    if (dragState.throttleTimer === null) {
-                        dragState.throttleTimer = setTimeout(() => {
-                            applyTimeChange();
-                            dragState.throttleTimer = null;
-                        }, dragState.throttleDelay);
+                    const pos = getPosition(e);
+                    const currentX = pos.clientX;
+                    const currentY = pos.clientY;
+                    const dx = Math.abs(currentX - dragState.startX);
+                    const dy = Math.abs(currentY - dragState.startY);
+
+                    const timeNow = Date.now();
+                    const timeDiff = timeNow - dragState.lastMoveTime;
+                    const moveDist = currentX - dragState.lastUpdateX;
+                    const dragSpeed = timeDiff > 0 ? Math.abs(moveDist / timeDiff) : 0;
+
+                    let timeMultiplier = 1;
+                    if (dragSpeed > 0.5) timeMultiplier = 2;
+                    if (dragSpeed > 1.5) timeMultiplier = 3;
+                    if (dragSpeed > 3) timeMultiplier = 5;
+
+                    if (!dragState.isHorizontalDrag) {
+                        if (dx > 10 && dy < dx * 1.5) {
+                            dragState.isHorizontalDrag = true;
+                            if (isMobile) {
+                                e.preventDefault();
+                                e.stopImmediatePropagation();
+                            }
+                            document.body.style.userSelect = 'none';
+                            videos.forEach(video => {
+                                dragState.originalPointerEvents.set(video, video.style.pointerEvents);
+                                video.style.pointerEvents = 'none';
+                            });
+                        } else if (dy > 10) {
+                            cancelDrag();
+                            return;
+                        }
                     }
-                    dragState.lastUpdateX = currentX;
+
+                    if (dragState.isHorizontalDrag) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+
+                        const deltaX = currentX - dragState.lastUpdateX;
+                        dragState.currentDragDistanceX += deltaX * timeMultiplier;
+                        dragState.totalTimeChange = Math.round( (currentX - dragState.startX) / 2 );
+
+                        updateTimeDisplay(dragState.totalTimeChange);
+
+                        const now = Date.now();
+                        const timeSinceLastUpdate = now - dragState.lastDragTimestamp;
+
+                        if (timeSinceLastUpdate > 50) {
+                            dragState.throttleDelay = dragSpeed > 1 ? 150 : 80;
+                        }
+                        dragState.lastDragTimestamp = now;
+
+                        if (dragState.throttleTimer === null) {
+                            dragState.throttleTimer = setTimeout(() => {
+                                applyTimeChange();
+                                dragState.throttleTimer = null;
+                            }, dragState.throttleDelay);
+                        }
+                        dragState.lastUpdateX = currentX;
+                        dragState.lastMoveTime = timeNow;
+                    }
+                } catch(e) {
+                    addLogOnce('dragBar_handleMove_error', `드래그 이동 오류: ${e.message}`, 5000, 'error');
                 }
             };
 
             const handleEnd = (e) => {
-                if (!dragState.isDragging) return;
-                cancelDrag();
+                try {
+                    if (!dragState.isDragging) return;
+                    cancelDrag();
+                } catch(e) {
+                    addLogOnce('dragBar_handleEnd_error', `드래그 종료 오류: ${e.message}`, 5000, 'error');
+                }
             };
 
             document.addEventListener('mousedown', handleStart, { passive: false, capture: true });
@@ -1174,13 +1217,12 @@
                 addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
             }
 
-            // 비디오 메타데이터 변화 감지
             if (!VIDEO_STATE.get(video).eventListenersAttached) {
                 video.addEventListener('loadedmetadata', () => {
                     if(speedSlider) speedSlider.updatePositionAndSize();
                 });
                 video.addEventListener('durationchange', () => {
-                    // durationchange에 대한 특정 로직 (예: UI 업데이트)
+                    if(dragBar) dragBar.updateTimeDisplay(0);
                 });
                 if (typeof ResizeObserver !== 'undefined') {
                     new ResizeObserver(() => {
@@ -1196,7 +1238,34 @@
         }
     };
 
-    // 지연 초기화 Queue
+
+    const mutationQueue = [];
+    let mutationTimer = null;
+    const processMutations = (mutations) => {
+        mutations.forEach(mutation => {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(node => processNodeAndChildren(node, '동적 추가'));
+                mutation.removedNodes.forEach(node => {
+                    if (node.tagName === 'VIDEO' && VIDEO_STATE.has(node)) {
+                        videoControls.detachUI(node);
+                    }
+                });
+            } else if (mutation.type === 'attributes') {
+                const targetNode = mutation.target;
+                if (targetNode.nodeType === 1) {
+                    if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
+                        PROCESSED_IFRAMES.delete(targetNode);
+                        iframeBlocker.init(targetNode, 'iframe src 변경');
+                    }
+                    if (targetNode.tagName === 'VIDEO' && mutation.attributeName === 'style') {
+                            // do something
+                    }
+                    layerTrap.check(targetNode);
+                }
+            }
+        });
+    };
+
     function enqueueTask(fn, priority = 0) {
         taskQueue.push({ fn, priority });
         taskQueue.sort((a, b) => b.priority - a.priority);
@@ -1316,7 +1385,6 @@
                 }
             } else {
                 addLogOnce('iframe_load_cross_origin', `⚠️ Cross-Origin iframe 접근 시도됨 | 대상: ${iframeSrc}`, 5000, 'warn');
-                // Cross-Origin인 경우, 로드 이벤트를 기다리거나 폴링을 시도
                 iframe.addEventListener('load', () => pollIframeReady(iframe), { once: true });
             }
         } catch (e) {
@@ -1339,29 +1407,13 @@
             return;
         }
 
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'childList') {
-                    mutation.addedNodes.forEach(node => processNodeAndChildren(node, '동적 추가'));
-                    mutation.removedNodes.forEach(node => {
-                        if (node.tagName === 'VIDEO' && VIDEO_STATE.has(node)) {
-                            videoControls.detachUI(node);
-                        }
-                    });
-                } else if (mutation.type === 'attributes') {
-                    const targetNode = mutation.target;
-                    if (targetNode.nodeType === 1) {
-                        if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
-                            PROCESSED_IFRAMES.delete(targetNode);
-                            iframeBlocker.init(targetNode, 'iframe src 변경');
-                        }
-                        if (targetNode.tagName === 'VIDEO' && mutation.attributeName === 'style') {
-                             // do something
-                        }
-                        layerTrap.check(targetNode);
-                    }
-                }
-            });
+        const observer = new MutationObserver(mutations => {
+            mutationQueue.push(...mutations);
+            if (mutationTimer) clearTimeout(mutationTimer);
+            mutationTimer = setTimeout(() => {
+                processMutations(mutationQueue);
+                mutationQueue = [];
+            }, 100);
         });
 
         try {
@@ -1380,7 +1432,9 @@
         }
 
         try {
-            targetDocument.querySelectorAll('iframe').forEach(handleIframeLoad);
+            targetDocument.querySelectorAll('iframe').forEach(iframe => {
+                enqueueTask(() => handleIframeLoad(iframe), 0);
+            });
         } catch(e) {
             const iframeUrl = targetDocument.URL || 'null';
             const logKey = `recursive_iframe_scan_fail_${iframeUrl}`;
@@ -1476,7 +1530,11 @@
                  if (element.parentNode) {
                     element.parentNode.removeChild(element);
                 }
-                targetParent.appendChild(element);
+                try {
+                    targetParent.appendChild(element);
+                } catch(e) {
+                    addLogOnce('fullscreen_ui_append_error', `UI 추가 실패: ${e.message}`, 5000, 'error');
+                }
             }
         };
 
@@ -1514,7 +1572,9 @@
             const allVideos = videoFinder.findAll(targetDocument);
             allVideos.forEach(video => {
                  enqueueTask(() => {
-                     videoControls.initWhenReady(video);
+                     if (!VIDEO_STATE.has(video)) {
+                         videoControls.initWhenReady(video);
+                     }
                  }, 1);
             });
         }
@@ -1544,6 +1604,25 @@
         location: { href: "", assign: () => {}, replace: () => {}, reload: () => {}, toString: () => "", valueOf: () => "" },
         alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
         document: { write: () => {}, writeln: () => {} },
+    });
+
+    // --- 전역 예외 처리기 등록 ---
+    window.onerror = (message, source, lineno, colno, error) => {
+      addLogOnce('global_error', `전역 오류: ${message} at ${source}:${lineno}:${colno}`, 0, 'error');
+    };
+    window.onunhandledrejection = event => {
+      addLogOnce('promise_rejection', `Promise 거부: ${event.reason}`, 0, 'error');
+    };
+
+    // --- postMessage 리스너 등록 ---
+    window.addEventListener('message', (event) => {
+        try {
+            if (event.data.type === 'iframeReady' && event.origin === location.origin) {
+                addLogOnce('iframe_ready', `iframe (${event.origin}) 로드 완료 메시지 수신`, 5000, 'info');
+            }
+        } catch(e) {
+            addLogOnce('postmessage_parse_error', `postMessage 파싱 오류: ${e.message}`, 5000, 'error');
+        }
     });
 
 })();
