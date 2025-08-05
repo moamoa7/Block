@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.176 (최종 수정)
+// @version       6.2.180 (최종 수정)
 // @description   🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         none
@@ -129,7 +129,6 @@
 
     // --- 로그 출력 제어용 함수 (중복 방지 로직 포함) ---
     function addLogOnce(key, message, delay = 5000, level = 'info') {
-        if (!FeatureFlags.logUI) return;
         const currentTime = Date.now();
         const lastLogTime = LOGGED_KEYS_WITH_TIMER.get(key);
 
@@ -171,12 +170,10 @@
     }
     
     function addLog(msg, level, key = '') {
-        // 모든 로그를 콘솔에 출력
         console.log(`[MyScript Log] ${msg}`);
-        
+
         if (!FeatureFlags.logUI) return;
 
-        // 경고, 에러 메시지는 UI에 표시하지 않음
         if (level === 'warn' || level === 'error' || level === 'block') {
             return;
         }
@@ -299,10 +296,17 @@
             if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
                 return;
             }
+            
+            // postMessage 데이터에 비디오 주소가 포함된 경우 비디오 감시 로직을 즉시 재실행
+            if (msgData.includes('src":"http') || msgData.includes('src":"https') || msgData.includes('url":"http') || msgData.includes('url":"https')) {
+                // 비디오 감시 루프를 다시 시작하여 비디오를 찾도록 합니다.
+                setTimeout(() => startVideoUIWatcher(document), 1000);
+            }
+
             const logKey = `postmessage_log_${event.origin}_${msgData.substring(0, 50)}`;
             
             if (event.data.type === 'MY_SCRIPT_LOG') {
-                 if (event.data.message.includes('window.opener') && event.data.level === 'warn') {
+                 if (event.data.message.includes('window.opener')) {
                     addLogOnce(event.data.key, event.data.message, 5000, 'warn');
                  } else {
                     addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
@@ -364,7 +368,6 @@
             };
             if (!isFeatureAllowed('windowOpen')) {
                 try {
-                    const originalOpen = window.open;
                     Object.defineProperty(window, 'open', {
                         get: () => blockOpen,
                         set: () => {},
@@ -382,8 +385,8 @@
                     Object.defineProperty(window, 'opener', {
                         get() { return null; },
                         set() {},
-                        configurable: true,
-                        writable: true,
+                        configurable: false,
+                        writable: false,
                     });
                     addLogOnce('opener_blocked', 'window.opener 속성 차단됨', 'block');
                 } catch (e) {
@@ -447,46 +450,34 @@
                 if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
                     return;
                 }
-                const logKey = `postmessage_log_${event.origin}`;
-                addLogOnce(logKey, `postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${event.origin} | 데이터: ${msgData.substring(0, 100)}...`, 'warn');
-            }, false);
-            if (!isFeatureAllowed('fullscreen')) {
-                try {
-                    const originalRequestFullscreen = Document.prototype.requestFullscreen;
-                    if (originalRequestFullscreen) {
-                        Document.prototype.requestFullscreen = new Proxy(originalRequestFullscreen, {
-                            apply(target, thisArg, argumentsList) {
-                                addLogOnce('fullscreen_request_blocked', '전체 화면 요청 차단됨', 'block');
-                                return Promise.reject('Blocked fullscreen request');
+                
+                // postMessage 데이터에 비디오 주소가 포함된 경우 비디오 감시 로직을 즉시 재실행
+                if (msgData.includes('src":"http') || msgData.includes('src":"https') || msgData.includes('url":"http') || msgData.includes('url":"https')) {
+                    setTimeout(() => {
+                        const allVideos = videoFinder.findAll(document);
+                        allVideos.forEach(video => {
+                            if (!VIDEO_STATE.has(video)) {
+                                videoControls.initWhenReady(video);
                             }
                         });
-                    }
-                } catch (e) {
+                    }, 500); // 비디오 요소가 DOM에 추가될 시간을 줍니다.
                 }
-            }
-            if (!isFeatureAllowed('location')) {
-                try {
-                    Object.defineProperty(window, 'location', {
-                        configurable: true,
-                        enumerable: true,
-                        get: () => location,
-                        set: (val) => {
-                            addLogOnce('location_change_blocked', `location 이동 차단 시도됨 | 대상: ${val}`, 'block');
-                        }
-                    });
-                    const originalAssign = location.assign;
-                    location.assign = (val) => {
-                         addLogOnce('location_assign_blocked', `location.assign 이동 차단 시도됨 | 대상: ${val}`, 'block');
-                    };
-                    const originalReplace = location.replace;
-                    location.replace = (val) => {
-                         addLogOnce('location_replace_blocked', `location.replace 이동 차단 시도됨 | 대상: ${val}`, 'block');
-                    };
 
-                } catch (e) {
+                const logKey = `postmessage_log_${event.origin}_${msgData.substring(0, 50)}`;
+                
+                if (event.data.type === 'MY_SCRIPT_LOG') {
+                     if (event.data.message.includes('window.opener')) {
+                        addLogOnce(event.data.key, event.data.message, 5000, 'warn');
+                     } else {
+                        addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
+                     }
+                } else {
+                    addLogOnce(logKey, `postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${event.origin} | 데이터: ${msgData.substring(0, 100)}...`, 5000, 'warn');
                 }
-            }
+            }, false);
+            createLogBox();
         }
+
     };
     
     // --- layerTrap 모듈 정의 ---
@@ -546,8 +537,8 @@
             badge.setAttribute('data-trap-badge', 'true');
             badge.style.cssText = `
                 position: fixed;
-                top: ${el.getBoundingClientRect().top}px;
-                left: ${el.getBoundingClientRect().left}px;
+                top: ${el.getBoundingClientRect().top + window.scrollY}px;
+                left: ${el.getBoundingClientRect().left + window.scrollX}px;
                 background: red;
                 color: white;
                 font-size: 12px;
@@ -1699,7 +1690,6 @@
     window.addEventListener('message', (event) => {
         try {
             if (event.data.type === 'MY_SCRIPT_LOG') {
-                 // 'window.opener' 오류 메시지 필터링
                  if (event.data.message.includes('window.opener')) {
                     addLogOnce(event.data.key, event.data.message, 5000, 'warn');
                  } else {
