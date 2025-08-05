@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.127 (모든 수정사항 통합 및 최종 검증)
+// @version       6.2.128 (최종 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -1227,7 +1227,8 @@
             if (isAnyVideoAvailable) {
                 if (!__videoUIInitialized) {
                     __videoUIInitialized = true;
-                    videoControls.init();
+                    speedSlider.init();
+                    dragBar.init();
                     addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
                 }
                 speedSlider.show();
