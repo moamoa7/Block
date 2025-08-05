@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.145 (최종 수정)
+// @version       6.2.146 (최종 수정)
 // @description   새창/새탭 차단기, iframe 수동 차단, Vertical Video Slider, PC/모바일 드래그바로 재생 시간 조절을 하나의 스크립트에서 각 로직이 독립적으로 동작하도록 최적화
 // @match         *://*/*
 // @grant         none
@@ -107,7 +107,11 @@
     let __videoUIInitialized = false;
 
     // 비디오 초기화 상태를 추적하는 WeakMap
-    const VIDEO_INIT_STATE = new WeakMap();
+    const VIDEO_STATE = new WeakMap();
+
+    // 지연 초기화 Queue
+    const taskQueue = [];
+    let isRunning = false;
 
     const isTopFrame = window.self === window.top;
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1132,7 +1136,6 @@
         }
     };
 
-    // --- 비디오 UI 통합 초기화 함수 ---
     const videoControls = {
         init: () => {
             if (!FeatureFlags.videoControls) return;
@@ -1145,43 +1148,85 @@
             }
         },
         initWhenReady: (video) => {
-            if (VIDEO_INIT_STATE.has(video)) return;
+            if (VIDEO_STATE.has(video)) return;
+            VIDEO_STATE.set(video, { initialized: true });
 
             const tryInit = () => {
-                // 비디오가 DOM에 연결되어 있지 않으면 정리
                 if (!video.isConnected) {
-                    VIDEO_INIT_STATE.delete(video);
+                    VIDEO_STATE.delete(video);
                     return;
                 }
 
                 if (video.readyState >= 1) {
-                    VIDEO_INIT_STATE.set(video, true);
-                    // 비디오가 준비되면 UI 부착
                     videoControls.attachUI(video);
                 } else {
-                    // 비디오가 준비될 때까지 기다림 (폴링)
                     setTimeout(tryInit, 300);
                 }
             };
 
-            // 첫 시도
             tryInit();
         },
         attachUI: (video) => {
-            // UI를 비디오에 연결하는 로직 (예: 이벤트 리스너 추가 등)
-            // 현재 스크립트에서는 모든 비디오에 전역 UI를 적용하므로 이 부분은 전역 플래그로만 관리
             if (!__videoUIInitialized) {
                 __videoUIInitialized = true;
                 if (speedSlider) speedSlider.init();
                 if (dragBar) dragBar.init();
                 addLogOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 'info');
             }
+
+            // 비디오 메타데이터 변화 감지
+            if (!VIDEO_STATE.get(video).eventListenersAttached) {
+                video.addEventListener('loadedmetadata', () => {
+                    if(speedSlider) speedSlider.updatePositionAndSize();
+                });
+                video.addEventListener('durationchange', () => {
+                    // durationchange에 대한 특정 로직 (예: UI 업데이트)
+                });
+                if (typeof ResizeObserver !== 'undefined') {
+                    new ResizeObserver(() => {
+                        if(speedSlider) speedSlider.updatePositionAndSize();
+                    }).observe(video);
+                }
+                VIDEO_STATE.set(video, { ...VIDEO_STATE.get(video), eventListenersAttached: true });
+            }
         },
         detachUI: (video) => {
-            // DOM에서 비디오가 제거될 때 호출될 로직
-            // 현재는 전역 UI이므로 전체를 숨기거나 초기화하는 로직이 필요
+            VIDEO_STATE.delete(video);
+            addLogOnce(`video_ui_detached_${video.src}`, `비디오 제거됨, UI 상태 초기화`, 5000, 'info');
         }
     };
+
+    // 지연 초기화 Queue
+    function enqueueTask(fn, priority = 0) {
+        taskQueue.push({ fn, priority });
+        taskQueue.sort((a, b) => b.priority - a.priority);
+        runQueue();
+    }
+
+    function runQueue() {
+        if (isRunning) return;
+        isRunning = true;
+
+        const next = taskQueue.shift();
+
+        if (next) {
+            if (typeof requestIdleCallback === 'function') {
+                requestIdleCallback(() => {
+                    next.fn();
+                    isRunning = false;
+                    runQueue();
+                });
+            } else {
+                setTimeout(() => {
+                    next.fn();
+                    isRunning = false;
+                    runQueue();
+                }, 16);
+            }
+        } else {
+            isRunning = false;
+        }
+    }
 
 
     function throttle(func, limit) {
@@ -1245,6 +1290,23 @@
             return;
         }
 
+        const pollIframeReady = (iframe, maxWait = 5000) => {
+            const start = Date.now();
+            const interval = setInterval(() => {
+                try {
+                    const iframeDoc = iframe.contentDocument;
+                    if (iframeDoc && iframeDoc.readyState === 'complete') {
+                        clearInterval(interval);
+                        initializeAll(iframeDoc);
+                    }
+                } catch (e) {}
+
+                if (Date.now() - start > maxWait) {
+                    clearInterval(interval);
+                }
+            }, 300);
+        };
+
         try {
             if (iframe.contentWindow && iframe.contentWindow.location.hostname === location.hostname) {
                 const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
@@ -1254,10 +1316,13 @@
                 }
             } else {
                 addLogOnce('iframe_load_cross_origin', `⚠️ Cross-Origin iframe 접근 시도됨 | 대상: ${iframeSrc}`, 5000, 'warn');
+                // Cross-Origin인 경우, 로드 이벤트를 기다리거나 폴링을 시도
+                iframe.addEventListener('load', () => pollIframeReady(iframe), { once: true });
             }
         } catch (e) {
             const logKey = `iframe_access_fail_${iframeSrc}`.substring(0, 50);
             addLogOnce(logKey, `⚠️ Cross-Origin iframe 접근 실패: ${iframeSrc}`, 0, 'warn');
+            iframe.addEventListener('load', () => pollIframeReady(iframe), { once: true });
         }
     }
 
@@ -1279,8 +1344,8 @@
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach(node => processNodeAndChildren(node, '동적 추가'));
                     mutation.removedNodes.forEach(node => {
-                        if (node.tagName === 'VIDEO') {
-                            if (videoControls) videoControls.detachUI(node);
+                        if (node.tagName === 'VIDEO' && VIDEO_STATE.has(node)) {
+                            videoControls.detachUI(node);
                         }
                     });
                 } else if (mutation.type === 'attributes') {
@@ -1448,13 +1513,15 @@
         if (FeatureFlags.videoControls) {
             const allVideos = videoFinder.findAll(targetDocument);
             allVideos.forEach(video => {
-                 if (!VIDEO_INIT_STATE.has(video)) {
+                 enqueueTask(() => {
                      videoControls.initWhenReady(video);
-                 }
+                 }, 1);
             });
         }
 
-        targetDocument.querySelectorAll('iframe').forEach(handleIframeLoad);
+        targetDocument.querySelectorAll('iframe').forEach(iframe => {
+            enqueueTask(() => handleIframeLoad(iframe), 0);
+        });
 
         startUnifiedObserver(targetDocument);
         startVideoUIWatcher(targetDocument);
