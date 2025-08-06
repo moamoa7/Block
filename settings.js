@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name 			PopupBlocker_Iframe_VideoSpeed
-// @namespace 		https.com/
-// @version 		6.2.223
-// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
-// @match 			*://*/*
-// @grant 			none
-// @run-at 			document-start
+// @name          PopupBlocker_Iframe_VideoSpeed
+// @namespace      https.com/
+// @version        6.3.0 (리팩토링 및 기능 개선)
+// @description    🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
+// @match          *://*/*
+// @grant          none
+// @run-at         document-start
 // ==/UserScript==
 
 (function () {
@@ -80,7 +80,6 @@
     let PROCESSED_DOCUMENTS = new WeakSet();
     const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
-    const VIDEO_STATE = new WeakMap();
     const isTopFrame = window.self === window.top;
 
     // --- 유틸리티 함수 ---
@@ -124,6 +123,11 @@
         let logDismissTimer = null;
         const logHistory = [];
         const pendingLogs = [];
+        let logFilter = ['info', 'warn', 'error', 'block', 'allow'];
+
+        function setFilter(filters) {
+            logFilter = filters;
+        }
 
         function addLogToBox(msg) {
             if (!logContentBox) {
@@ -157,9 +161,11 @@
             }, 10000);
         }
 
-        function addLog(msg, level = 'info') {
+        function addLog(msg, level = 'info', category = 'general') {
+            if (!logFilter.includes(level) && !logFilter.includes(category)) return;
+
             const ICONS = { info: 'ℹ️', warn: '⚠️', 'error': '🔴', 'block': '🚫', 'allow': '✅' };
-            const fullMsg = `[${new Date().toLocaleTimeString()}] ${ICONS[level] || ''} ${msg}`;
+            const fullMsg = `[${new Date().toLocaleTimeString()}] ${ICONS[level] || ''} [${category}] ${msg}`;
 
             console[level] ? console[level](fullMsg) : console.log(fullMsg);
 
@@ -177,12 +183,12 @@
             addLogToBox(fullMsg);
         }
 
-        function addLogOnce(key, message, delay = 5000, level = 'info') {
+        function addLogOnce(key, message, delay = 5000, level = 'info', category = 'general') {
             const currentTime = Date.now();
             const lastLogTime = LOGGED_KEYS_WITH_TIMER.get(key);
             if (!lastLogTime || currentTime - lastLogTime > delay) {
                 LOGGED_KEYS_WITH_TIMER.set(key, currentTime);
-                addLog(message, level);
+                addLog(message, level, category);
             }
         }
 
@@ -237,7 +243,7 @@
             }
         }
 
-        return { init, add: addLog, addOnce: addLogOnce };
+        return { init, add: addLog, addOnce: addLogOnce, setFilter };
     })();
 
     // --- 팝업/광고 차단기 모듈 ---
@@ -269,7 +275,7 @@
 
         const init = () => {
             if (!FeatureFlags.popupBlocker) return;
-            logManager.addOnce('init_popup_blocker', '팝업 차단 로직 초기화', 5000, 'info');
+            logManager.addOnce('init_popup_blocker', '팝업 차단 로직 초기화', 5000, 'info', 'popup');
 
             document.addEventListener('click', setUserInitiatedAction, true);
             document.addEventListener('mousedown', setUserInitiatedAction, true);
@@ -284,7 +290,7 @@
                     Object.defineProperty(window, 'opener', { get: () => null, set: () => {}, configurable: false, writable: false });
                 }
             } catch (e) {
-                logManager.addOnce('window_prop_redefine_fail', `window.open/opener 재정의 실패: ${e.message}`, 5000, 'warn');
+                logManager.addOnce('window_prop_redefine_fail', `window.open/opener 재정의 실패: ${e.message}`, 5000, 'warn', 'popup');
             }
 
             const originalPushState = history.pushState;
@@ -303,12 +309,15 @@
                 if (a?.download && a.href && /\.(exe|apk|bat|scr|zip|msi|cmd|com)/i.test(a.href)) {
                     e.preventDefault();
                     e.stopImmediatePropagation();
-                    logManager.addOnce('dangerous_file_download_blocked', `위험 파일 다운로드 차단됨 | 대상: ${a.href}`, 5000, 'block');
+                    logManager.addOnce('dangerous_file_download_blocked', `위험 파일 다운로드 차단됨 | 대상: ${a.href}`, 5000, 'block', 'security');
                 }
             }, true);
         };
+        const destroy = () => {
+            // Not implemented for this module as it's meant to run once
+        };
 
-        return { init };
+        return { init, destroy };
     })();
 
     // --- 네트워크 모니터링 모듈 ---
@@ -317,7 +326,6 @@
         const originalFetch = window.fetch;
         let capturedVideoURLs = new Set();
         const blobToOriginalURLMap = new Map();
-
         const mediaSourceBlobMap = new WeakMap();
 
         const knownExtensions = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.mov', '.avi', '.flv', '.aac', '.ogg', '.mp3'];
@@ -325,8 +333,8 @@
             if (!url || typeof url !== 'string') return false;
             const normalizedUrl = url.toLowerCase();
             return knownExtensions.some(ext => normalizedUrl.includes(ext)) ||
-                           normalizedUrl.includes('mime=video') ||
-                           normalizedUrl.includes('video/');
+                   normalizedUrl.includes('mime=video') ||
+                   normalizedUrl.includes('video/');
         };
 
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream');
@@ -359,7 +367,7 @@
             if (capturedVideoURLs.has(normalizedUrl)) return;
             capturedVideoURLs.add(normalizedUrl);
 
-            logManager.addOnce(`network_detected_${normalizedUrl.substring(0, 50)}`, `🎥 네트워크 영상 URL 감지됨 (${sourceType}) | 원본: ${originalURL}`, 5000, 'info');
+            logManager.addOnce(`network_detected_${normalizedUrl.substring(0, 50)}`, `🎥 네트워크 영상 URL 감지됨 (${sourceType}) | 원본: ${originalURL}`, 5000, 'info', 'network');
 
             requestIdleCallback(() => {
                 const videos = videoFinder.findAll();
@@ -373,49 +381,51 @@
         };
 
         const hookPrototypes = () => {
-            // XHR 후킹은 유지
-            XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                if (isVideoUrl(url)) trackAndAttach(url, 'xhr');
-                return originalXHR.apply(this, [method, url, ...args]);
-            };
-
-            // fetch 후킹은 제거하고, 원본 fetch만 사용하도록 복원
-            if (originalFetch) {
-                window.fetch = async function(...args) {
-                    const url = args[0] && typeof args[0] === 'object' ? args[0].url : args[0];
-                    let res;
-                    try {
-                        res = await originalFetch.apply(this, args);
-                        const clone = res.clone();
-                        const contentType = clone.headers.get("content-type");
-                        if (isVideoUrl(url) || isVideoMimeType(contentType)) {
-                            trackAndAttach(url, 'fetch');
-
-                            // blob to original url map is still useful for some scenarios
-                            clone.blob().then(blob => {
-                                if (blob.type.includes('video') || blob.type.includes('octet-stream')) {
-                                    const blobURL = URL.createObjectURL(blob);
-                                    blobToOriginalURLMap.set(blobURL, url);
-                                }
-                            }).catch(e => {
-                                // Ignore if blob conversion fails
-                                logManager.addOnce('blob_capture_error_safe', `Blob URL 매핑 중 오류 발생 (무시): ${e.message}`, 5000, 'warn');
-                            });
-                        }
-                    } catch (e) {
-                           logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}`, 5000, 'error');
-                           throw e;
-                    }
-
-                    return res;
+            try {
+                XMLHttpRequest.prototype.open = function(method, url, ...args) {
+                    if (isVideoUrl(url)) trackAndAttach(url, 'xhr');
+                    return originalXHR.apply(this, [method, url, ...args]);
                 };
+            } catch (e) {
+                logManager.addOnce('xhr_hook_fail', `⚠️ XHR 후킹 실패: ${e.message}`, 5000, 'warn', 'network');
+            }
+
+            try {
+                if (originalFetch) {
+                    window.fetch = async function(...args) {
+                        const url = args[0] && typeof args[0] === 'object' ? args[0].url : args[0];
+                        let res;
+                        try {
+                            res = await originalFetch.apply(this, args);
+                            const clone = res.clone();
+                            const contentType = clone.headers.get("content-type");
+                            if (isVideoUrl(url) || isVideoMimeType(contentType)) {
+                                trackAndAttach(url, 'fetch');
+                                clone.blob().then(blob => {
+                                    if (blob.type.includes('video') || blob.type.includes('octet-stream')) {
+                                        const blobURL = URL.createObjectURL(blob);
+                                        blobToOriginalURLMap.set(blobURL, url);
+                                    }
+                                }).catch(e => {
+                                    logManager.addOnce('blob_capture_error_safe', `Blob URL 매핑 중 오류 발생 (무시): ${e.message}`, 5000, 'warn', 'network');
+                                });
+                            }
+                        } catch (e) {
+                            logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}`, 5000, 'error', 'network');
+                            throw e;
+                        }
+                        return res;
+                    };
+                }
+            } catch (e) {
+                logManager.addOnce('fetch_hook_fail', `⚠️ Fetch 후킹 실패: ${e.message}`, 5000, 'warn', 'network');
             }
 
             try {
                 const origAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
                 if (origAddSourceBuffer) {
                     MediaSource.prototype.addSourceBuffer = function(mimeType) {
-                        logManager.addOnce('mse_detected', `🧪 MediaSource.addSourceBuffer 호출됨, MIME: ${mimeType}`, 5000, 'info');
+                        logManager.addOnce('mse_detected', `🧪 MediaSource.addSourceBuffer 호출됨, MIME: ${mimeType}`, 5000, 'info', 'network');
                         return origAddSourceBuffer.apply(this, [mimeType]);
                     };
                 }
@@ -423,52 +433,68 @@
                 const origEndOfStream = MediaSource.prototype.endOfStream;
                 if (origEndOfStream) {
                     MediaSource.prototype.endOfStream = function(...args) {
-                        logManager.addOnce('mse_endofstream', `🧪 MediaSource.endOfStream 호출됨`, 5000, 'info');
+                        logManager.addOnce('mse_endofstream', `🧪 MediaSource.endOfStream 호출됨`, 5000, 'info', 'network');
                         return origEndOfStream.apply(this, args);
                     };
                 }
             } catch (e) {
-                logManager.addOnce('mse_hook_fail', `⚠️ MediaSource 후킹 실패: ${e.message}`, 5000, 'warn');
+                logManager.addOnce('mse_hook_fail', `⚠️ MediaSource 후킹 실패: ${e.message}`, 5000, 'warn', 'network');
             }
 
-            const origSrcObjDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "srcObject");
-            if (origSrcObjDescriptor?.set) {
-                Object.defineProperty(HTMLMediaElement.prototype, "srcObject", {
-                    set(obj) {
-                        logManager.addOnce('srcObject_set', `🛰️ video.srcObject 변경 감지`, 5000, 'info');
-                        if (obj) trackAndAttach(obj, 'srcObject');
-                        return origSrcObjDescriptor.set.call(this, obj);
-                    },
-                    get() { return origSrcObjDescriptor.get.call(this); }
-                });
+            try {
+                const origSrcObjDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "srcObject");
+                if (origSrcObjDescriptor?.set) {
+                    Object.defineProperty(HTMLMediaElement.prototype, "srcObject", {
+                        set(obj) {
+                            logManager.addOnce('srcObject_set', `🛰️ video.srcObject 변경 감지`, 5000, 'info', 'network');
+                            if (obj) trackAndAttach(obj, 'srcObject');
+                            return origSrcObjDescriptor.set.call(this, obj);
+                        },
+                        get() { return origSrcObjDescriptor.get.call(this); }
+                    });
+                }
+            } catch (e) {
+                logManager.addOnce('srcObject_hook_fail', `⚠️ srcObject 후킹 실패: ${e.message}`, 5000, 'warn', 'network');
             }
 
-            const origSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "src");
-            if (origSrcDescriptor?.set) {
-                Object.defineProperty(HTMLMediaElement.prototype, "src", {
-                    set(value) {
-                        if (value && isVideoUrl(value)) trackAndAttach(value, 'video_src_set');
-                        return origSrcDescriptor.set.call(this, value);
-                    },
-                    get() { return origSrcDescriptor.get.call(this); }
-                });
+            try {
+                const origSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "src");
+                if (origSrcDescriptor?.set) {
+                    Object.defineProperty(HTMLMediaElement.prototype, "src", {
+                        set(value) {
+                            if (value && isVideoUrl(value)) trackAndAttach(value, 'video_src_set');
+                            return origSrcDescriptor.set.call(this, value);
+                        },
+                        get() { return origSrcDescriptor.get.call(this); }
+                    });
+                }
+            } catch (e) {
+                logManager.addOnce('src_hook_fail', `⚠️ src 후킹 실패: ${e.message}`, 5000, 'warn', 'network');
             }
 
-            const originalCreateObjectURL = URL.createObjectURL;
-            if (originalCreateObjectURL) {
-                URL.createObjectURL = function(obj) {
-                    const url = originalCreateObjectURL.call(this, obj);
-                    // MSE 객체는 URL에 대한 정보를 가지고 있지 않으므로, 이 매핑은 필요 없음
-                    const type = obj instanceof MediaSource ? 'MediaSource' : 'Blob';
-                    logManager.addOnce(`createObjectURL_${url}`, `[URL] createObjectURL 호출됨: 타입=${type} URL=${url}`, 5000, 'info');
-                    if (isVideoUrl(url)) trackAndAttach(url, type);
-                    return url;
-                };
+            try {
+                const originalCreateObjectURL = URL.createObjectURL;
+                if (originalCreateObjectURL) {
+                    URL.createObjectURL = function(obj) {
+                        const url = originalCreateObjectURL.call(this, obj);
+                        const type = obj instanceof MediaSource ? 'MediaSource' : 'Blob';
+                        logManager.addOnce(`createObjectURL_${url}`, `[URL] createObjectURL 호출됨: 타입=${type} URL=${url}`, 5000, 'info', 'network');
+                        if (isVideoUrl(url)) trackAndAttach(url, type);
+                        return url;
+                    };
+                }
+            } catch (e) {
+                logManager.addOnce('createObjectURL_hook_fail', `⚠️ createObjectURL 후킹 실패: ${e.message}`, 5000, 'warn', 'network');
             }
+        };
+
+        const destroy = () => {
+            // Revert hooks if necessary
         };
 
         return {
             init: hookPrototypes,
+            destroy,
             getOriginalURLIfBlob,
             isVideoUrl,
             trackAndAttach,
@@ -501,18 +527,23 @@
             PROCESSED_ELEMENTS.add(el);
             try {
                 el.style.display = 'none';
-                logManager.addOnce(`trap_removed_${Date.now()}`, `🧲 레이어 트랩 숨김 | 제거 방식: style.display='none'`, 10000, 'warn');
+                logManager.addOnce(`trap_removed_${Date.now()}`, `🧲 레이어 트랩 숨김 | 제거 방식: style.display='none'`, 10000, 'warn', 'adblock');
             } catch (e) {
-                logManager.addOnce('layertrap_remove_error', `trap 처리 실패: ${e.message}`, 5000, 'error');
+                logManager.addOnce('layertrap_remove_error', `trap 처리 실패: ${e.message}`, 5000, 'error', 'adblock');
             }
         };
 
         const highlightTrap = (el) => { /* ... (기존 코드와 동일) ... */ };
-        const scan = (doc) => doc.querySelectorAll('body *').forEach(el => {
-            if (isTrap(el)) handleTrap(el);
-        });
+        const scan = (doc) => {
+            if (!FeatureFlags.layerTrap) return;
+            doc.querySelectorAll('body *').forEach(el => {
+                if (isTrap(el)) handleTrap(el);
+            });
+        };
+        const init = () => {};
+        const destroy = () => {};
 
-        return { check: isTrap, handleTrap, scan };
+        return { init, destroy, check: isTrap, handleTrap, scan };
     })();
 
     // --- 비디오 탐색 모듈 ---
@@ -523,7 +554,7 @@
                 if (doc && doc.readyState !== 'complete') {
                     return [];
                 }
-                logManager.addOnce('tree_walker_error', '⚠️ TreeWalker 오류: doc 또는 doc.body가 유효하지 않음', 5000, 'warn');
+                logManager.addOnce('tree_walker_error', '⚠️ TreeWalker 오류: doc 또는 doc.body가 유효하지 않음', 5000, 'warn', 'video');
                 return videos;
             }
             try {
@@ -535,7 +566,7 @@
                     videos.push(currentNode);
                 }
             } catch (e) {
-                logManager.addOnce('tree_walker_error', `⚠️ TreeWalker 오류: ${e.message}`, 5000, 'warn');
+                logManager.addOnce('tree_walker_error', `⚠️ TreeWalker 오류: ${e.message}`, 5000, 'warn', 'video');
             }
 
             doc.querySelectorAll('div.jw-player, div[id*="player"], div.video-js, div[class*="video-container"], div.vjs-tech').forEach(container => {
@@ -574,6 +605,7 @@
 
     // --- 비디오 UI 모듈 (슬라이더) ---
     const speedSlider = (() => {
+        const VIDEO_STATE = new WeakMap();
         let speedSliderContainer;
         let playbackUpdateTimer;
         let isMinimized = JSON.parse(localStorage.getItem('speedSliderMinimized') || 'true');
@@ -620,7 +652,11 @@
             const validSpeed = parseFloat(speed);
             if (isNaN(validSpeed)) return;
             const videos = videoFinder.findAll();
-            videos.forEach(video => { video.playbackRate = validSpeed; });
+            videos.forEach(video => {
+                if (video.playbackRate !== validSpeed) {
+                    video.playbackRate = validSpeed;
+                }
+            });
         };
 
         const onSliderChange = (val) => {
@@ -730,8 +766,14 @@
                 targetParent.appendChild(sliderContainer);
             }
         };
+        const destroy = () => {
+            if (speedSliderContainer) {
+                speedSliderContainer.remove();
+                speedSliderContainer = null;
+            }
+        };
 
-        return { init, show, hide, updatePositionAndSize, isMinimized: () => isMinimized };
+        return { init, destroy, show, hide, updatePositionAndSize, isMinimized: () => isMinimized };
     })();
 
     // --- 비디오 UI 모듈 (드래그 바) ---
@@ -804,7 +846,7 @@
                 document.removeEventListener('touchmove', handleMove, true);
                 document.removeEventListener('touchend', handleEnd, true);
             } catch(e) {
-                logManager.addOnce('drag_cancel_error', `드래그 취소 오류: ${e.message}`, 5000, 'error');
+                logManager.addOnce('drag_cancel_error', `드래그 취소 오류: ${e.message}`, 5000, 'error', 'ui');
             }
         };
 
@@ -874,7 +916,7 @@
                     dragState.lastUpdateX = currentX;
                 }
             } catch(e) {
-                logManager.addOnce('drag_move_error', `드래그 이동 오류: ${e.message}`, 5000, 'error');
+                logManager.addOnce('drag_move_error', `드래그 이동 오류: ${e.message}`, 5000, 'error', 'ui');
                 cancelDrag();
             }
         };
@@ -885,7 +927,7 @@
                 applyTimeChange();
                 cancelDrag();
             } catch(e) {
-                logManager.addOnce('drag_end_error', `드래그 종료 오류: ${e.message}`, 5000, 'error');
+                logManager.addOnce('drag_end_error', `드래그 종료 오류: ${e.message}`, 5000, 'error', 'ui');
                 cancelDrag();
             }
         };
@@ -933,8 +975,16 @@
                 cancelDrag();
             }
         };
+        const destroy = () => {
+            document.removeEventListener('mousedown', handleStart, true);
+            document.removeEventListener('touchstart', handleStart, true);
+            if (dragBarTimeDisplay) {
+                dragBarTimeDisplay.remove();
+                dragBarTimeDisplay = null;
+            }
+        };
 
-        return { init, show, hide, updateTimeDisplay };
+        return { init, destroy, show, hide, updateTimeDisplay };
     })();
 
     // --- 동적 비디오 URL 표시 모듈 ---
@@ -948,12 +998,16 @@
             button.className = 'dynamic-video-url-btn';
             button.textContent = '🎞️';
             button.title = '비디오 URL 복사';
+            button.setAttribute('aria-label', 'Copy video URL');
             Object.assign(button.style, {
                 position: 'absolute', top: '5px', right: '5px', zIndex: '2147483647',
                 background: 'rgba(0, 0, 0, 0.7)', color: 'white', border: 'none',
                 borderRadius: '5px', padding: '5px 10px', cursor: 'pointer',
-                pointerEvents: 'auto', display: 'block', transition: 'background 0.3s'
+                pointerEvents: 'auto', display: 'block', transition: 'opacity 0.3s'
             });
+            button.style.opacity = '0'; // Initially hidden
+            targetElement.addEventListener('mouseenter', () => { button.style.opacity = '1'; });
+            targetElement.addEventListener('mouseleave', () => { button.style.opacity = '0'; });
 
             button.onclick = (e) => {
                 e.stopPropagation(); e.preventDefault();
@@ -980,53 +1034,73 @@
                 targetElement.style.position = 'relative';
             }
             targetElement.appendChild(button);
-            logManager.add(`✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 'info');
+            logManager.add(`✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 'info', 'ui');
+        },
+        destroy: (targetElement) => {
+            const button = targetElement.querySelector('.dynamic-video-url-btn');
+            if (button) button.remove();
         }
     };
 
     // --- 비디오 컨트롤 모듈 ---
     const videoControls = (() => {
-        const initWhenReady = (video) => {
-            if (!video || PROCESSED_NODES.has(video)) return;
-            PROCESSED_NODES.add(video);
+        const VIDEO_STATE = new WeakMap();
 
-            const videoLoaded = () => {
-                const videoData = VIDEO_STATE.get(video) || { originalSrc: video.src, hasControls: video.hasAttribute('controls') };
-                VIDEO_STATE.set(video, videoData);
-                logManager.addOnce(`video_ready_${videoData.originalSrc || 'no-src'}`, `🎬 비디오 준비됨 | src: ${videoData.originalSrc}`, 5000, 'info');
+        const initWhenReady = (video) => {
+            if (!video || VIDEO_STATE.has(video)) return;
+
+            const videoData = { isInitialized: false, originalSrc: video.src };
+            VIDEO_STATE.set(video, videoData);
+
+            const onLoaded = () => {
+                if (videoData.isInitialized) return;
+                videoData.isInitialized = true;
+                logManager.addOnce(`video_ready_${video.src || 'no-src'}`, `🎬 비디오 준비됨 | src: ${video.src}`, 5000, 'info', 'video');
 
                 if (video.src && networkMonitor.isVideoUrl(video.src)) {
                     networkMonitor.trackAndAttach(video.src, 'video_src_initial');
                 }
-
-                if (video.parentElement && video.clientWidth > 0 && video.clientHeight > 0) {
-                    const parentContainer = videoFinder.findLargestParent(video);
-                    if (parentContainer) dynamicVideoUI.attach(parentContainer, video.src);
-                }
+                const parentContainer = videoFinder.findLargestParent(video);
+                if (parentContainer) dynamicVideoUI.attach(parentContainer, video.src);
             };
 
             if (video.readyState >= 1) {
-                videoLoaded();
+                onLoaded();
             } else {
-                video.addEventListener('loadedmetadata', videoLoaded, { once: true });
-                video.addEventListener('play', videoLoaded, { once: true });
-                video.addEventListener('playing', videoLoaded, { once: true });
+                video.addEventListener('loadedmetadata', onLoaded, { once: true });
+                video.addEventListener('play', onLoaded, { once: true });
+                video.addEventListener('playing', onLoaded, { once: true });
             }
         };
 
-        const detachUI = (video) => {
-            const videoData = VIDEO_STATE.get(video);
-            if (videoData) {
-                VIDEO_STATE.delete(video);
-            }
+        const destroy = (video) => {
+            if (!video || !VIDEO_STATE.has(video)) return;
+            VIDEO_STATE.delete(video);
+            // clean up any event listeners if needed
         };
-        return { initWhenReady, detachUI };
+
+        const init = (targetDocument) => {
+            videoFinder.findInDoc(targetDocument).forEach(v => {
+                try {
+                    initWhenReady(v);
+                } catch (e) {
+                    logManager.addOnce(`video_init_fail_${v.id || 'no-id'}`, `비디오 초기화 실패: ${e.message}`, 5000, 'error', 'video');
+                }
+            });
+        };
+
+        return { init, destroy };
     })();
 
     // --- Iframe 차단 모듈 ---
     const iframeBlocker = (() => {
         const checkIframe = (iframe) => {
             const iframeSrc = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('data-lazy-src') || '';
+            const suspiciousKeywords = /ad|banner|tracking/i;
+            if (iframe.srcdoc && suspiciousKeywords.test(iframe.srcdoc)) {
+                logManager.addOnce('iframe_srcdoc_block', `🚫 srcdoc 기반 광고 iframe 차단됨`, 5000, 'block', 'adblock');
+                return true;
+            }
             const isAd = IGNORED_IFRAME_PATTERNS.some(p => p.test(iframeSrc)) || IFRAME_FORCE_BLOCK_PATTERNS.some(p => iframeSrc.includes(p));
             return isAd;
         };
@@ -1038,21 +1112,24 @@
 
             iframe.src = 'about:blank';
             iframe.style.display = 'none';
-            logManager.addOnce(`iframe_block_${iframeId}`, `🚫 iframe 차단됨 | ID: ${iframeId} | src: ${iframeSrc.substring(0, 50)}...`, 5000, 'block');
+            logManager.addOnce(`iframe_block_${iframeId}`, `🚫 iframe 차단됨 | ID: ${iframeId} | src: ${iframeSrc.substring(0, 50)}...`, 5000, 'block', 'adblock');
         };
+        const init = () => {};
+        const destroy = () => {};
 
-        return { checkIframe, block };
+        return { init, destroy, checkIframe, block };
     })();
 
     // --- SPA 및 MutationObserver 통합 모듈 ---
     const spaMonitor = (() => {
         let lastURL = location.href;
+        let urlCheckInterval;
 
         const onNavigate = (reason = 'URL 변경 감지') => {
             const url = location.href;
             if (url !== lastURL) {
                 lastURL = url;
-                logManager.addOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
+                logManager.addOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`, 5000, 'info', 'spa');
 
                 PROCESSED_DOCUMENTS.clear();
                 PROCESSED_NODES.clear();
@@ -1067,20 +1144,38 @@
         };
 
         const init = () => {
-            ['pushState', 'replaceState'].forEach(type => {
-                const orig = history[type];
-                history[type] = function (...args) {
-                    try {
-                        orig.apply(this, args);
-                        onNavigate(`history.${type}`);
-                    } catch(e) {
-                        logManager.addOnce('history_api_error', `History API 오류: ${e.message}`, 5000, 'error');
+            try {
+                ['pushState', 'replaceState'].forEach(type => {
+                    const orig = history[type];
+                    history[type] = function (...args) {
+                        try {
+                            orig.apply(this, args);
+                            onNavigate(`history.${type}`);
+                        } catch(e) {
+                            logManager.addOnce('history_api_error', `History API 오류: ${e.message}`, 5000, 'error', 'spa');
+                        }
+                    };
+                });
+                window.addEventListener('popstate', () => onNavigate('popstate'));
+
+                // 보강된 SPA 감지
+                urlCheckInterval = setInterval(() => {
+                    if (location.href !== lastURL) {
+                        onNavigate('Interval-based URL check');
                     }
-                };
-            });
-            window.addEventListener('popstate', () => onNavigate('popstate'));
+                }, 500);
+
+            } catch (e) {
+                logManager.addOnce('spa_monitor_init_fail', `SPA 감지 초기화 실패: ${e.message}`, 5000, 'error', 'spa');
+            }
         };
-        return { init, onNavigate };
+
+        const destroy = () => {
+            clearInterval(urlCheckInterval);
+            // Unhook history API if possible, but it's tricky
+        };
+
+        return { init, destroy, onNavigate };
     })();
 
     // --- 주요 기능 통합 및 실행 ---
@@ -1098,7 +1193,7 @@
 
             const tryInit = (retries = 5, delay = 1000) => {
                 if (retries <= 0) {
-                    logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 실패 (최대 재시도 횟수 초과) | src: ${iframeSrc}`, 5000, 'warn');
+                    logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 실패 (최대 재시도 횟수 초과) | src: ${iframeSrc}`, 5000, 'warn', 'iframe');
                     return;
                 }
 
@@ -1121,57 +1216,62 @@
 
         const processMutations = (mutations, targetDocument) => {
             mutations.forEach(mutation => {
-                if (mutation.type === 'childList') {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === 1) {
-                            if (node.tagName === 'IFRAME' && !PROCESSED_IFRAMES.has(node)) {
-                                if (iframeBlocker.checkIframe(node)) {
-                                    iframeBlocker.block(node);
-                                } else {
-                                    handleIframeLoad(node);
-                                }
-                            }
-                            node.querySelectorAll('iframe').forEach(iframe => {
-                                if (!PROCESSED_IFRAMES.has(iframe)) {
-                                    if (iframeBlocker.checkIframe(iframe)) {
-                                        iframeBlocker.block(iframe);
+                try {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach(node => {
+                            if (node.nodeType === 1) {
+                                if (node.tagName === 'IFRAME' && !PROCESSED_IFRAMES.has(node)) {
+                                    if (iframeBlocker.checkIframe(node)) {
+                                        iframeBlocker.block(node);
                                     } else {
-                                        handleIframeLoad(iframe);
+                                        handleIframeLoad(node);
                                     }
                                 }
-                            });
-                            node.querySelectorAll('video').forEach(video => videoControls.initWhenReady(video));
-                        }
-                    });
-                    mutation.removedNodes.forEach(node => {
-                        if (node.nodeType === 1 && node.tagName === 'VIDEO' && VIDEO_STATE.has(node)) {
-                            videoControls.detachUI(node);
-                        }
-                    });
-                } else if (mutation.type === 'attributes') {
-                    const targetNode = mutation.target;
-                    if (targetNode.nodeType === 1) {
-                        if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
-                            PROCESSED_IFRAMES.delete(targetNode);
-                            if (iframeBlocker.checkIframe(targetNode)) {
-                                iframeBlocker.block(targetNode);
-                            } else {
-                                handleIframeLoad(targetNode);
+                                node.querySelectorAll('iframe').forEach(iframe => {
+                                    if (!PROCESSED_IFRAMES.has(iframe)) {
+                                        if (iframeBlocker.checkIframe(iframe)) {
+                                            iframeBlocker.block(iframe);
+                                        } else {
+                                            handleIframeLoad(iframe);
+                                        }
+                                    }
+                                });
+                                node.querySelectorAll('video').forEach(video => videoControls.initWhenReady(video));
+                            }
+                        });
+                        mutation.removedNodes.forEach(node => {
+                            if (node.nodeType === 1 && node.tagName === 'VIDEO' && videoControls.destroy) {
+                                videoControls.destroy(node);
+                                dynamicVideoUI.destroy(videoFinder.findLargestParent(node));
+                            }
+                        });
+                    } else if (mutation.type === 'attributes') {
+                        const targetNode = mutation.target;
+                        if (targetNode.nodeType === 1) {
+                            if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
+                                PROCESSED_IFRAMES.delete(targetNode);
+                                if (iframeBlocker.checkIframe(targetNode)) {
+                                    iframeBlocker.block(targetNode);
+                                } else {
+                                    handleIframeLoad(targetNode);
+                                }
+                            }
+                            if (FeatureFlags.layerTrap && (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                                if (layerTrap.check(targetNode)) layerTrap.handleTrap(targetNode);
+                            }
+                            if (targetNode.tagName === 'VIDEO' && (mutation.attributeName === 'src' || mutation.attributeName === 'controls')) {
+                                videoControls.initWhenReady(targetNode);
                             }
                         }
-                        if (FeatureFlags.layerTrap && (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
-                            if (layerTrap.check(targetNode)) layerTrap.handleTrap(targetNode);
-                        }
-                        if (targetNode.tagName === 'VIDEO' && (mutation.attributeName === 'src' || mutation.attributeName === 'controls')) {
-                            videoControls.initWhenReady(targetNode);
-                        }
                     }
+                } catch (e) {
+                    logManager.addOnce('mutation_processing_error', `변이 처리 중 오류 발생: ${e.message}`, 5000, 'error', 'system');
                 }
             });
         };
 
         const startUnifiedObserver = (targetDocument = document) => {
-            if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
+            if (PROCESSED_DOCUMENTS.has(targetDocument) || !targetDocument.body) return;
             PROCESSED_DOCUMENTS.add(targetDocument);
 
             const rootElement = targetDocument.documentElement || targetDocument.body;
@@ -1184,11 +1284,11 @@
             });
 
             OBSERVER_MAP.set(targetDocument, observer);
-            logManager.addOnce('observer_active', `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`, 5000, 'info');
+            logManager.addOnce(`observer_active_${targetDocument.URL}`, `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`, 5000, 'info', 'system');
         };
 
         const startVideoUIWatcher = (targetDocument = document) => {
-            if (!FeatureFlags.videoControls) return;
+            if (!FeatureFlags.videoControls || !isTopFrame) return;
             if (videoUIWatcherInterval) clearInterval(videoUIWatcherInterval);
 
             const checkVideos = () => {
@@ -1204,19 +1304,20 @@
             };
 
             videoUIWatcherInterval = setInterval(throttle(checkVideos, 1000), 1500);
-            logManager.addOnce('video_watcher_started', '✅ 비디오 감시 루프 시작', 5000, 'info');
+            logManager.addOnce('video_watcher_started', '✅ 비디오 감시 루프 시작', 5000, 'info', 'video');
         };
 
         const initializeAll = (targetDocument = document) => {
             if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
             PROCESSED_DOCUMENTS.add(targetDocument);
-            logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 5000, 'info');
+            logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 5000, 'info', 'system');
 
             if (targetDocument === document) {
-                popupBlocker.init();
-                networkMonitor.init();
-                spaMonitor.init();
-                logManager.init();
+                try { popupBlocker.init(); } catch(e) { logManager.addOnce('popup_init_error', `팝업 차단 초기화 오류: ${e.message}`, 5000, 'error', 'system'); }
+                try { networkMonitor.init(); } catch(e) { logManager.addOnce('network_init_error', `네트워크 모니터링 초기화 오류: ${e.message}`, 5000, 'error', 'system'); }
+                try { spaMonitor.init(); } catch(e) { logManager.addOnce('spa_init_error', `SPA 모니터링 초기화 오류: ${e.message}`, 5000, 'error', 'system'); }
+                try { logManager.init(); } catch(e) { console.error('Log UI initialization failed:', e); }
+
                 document.addEventListener('fullscreenchange', () => {
                     speedSlider.updatePositionAndSize();
                     if (!speedSlider.isMinimized()) {
@@ -1225,23 +1326,24 @@
                         dragBar.hide();
                     }
                 });
-                speedSlider.init();
-                dragBar.init();
+                try { speedSlider.init(); } catch(e) { logManager.addOnce('slider_init_error', `속도 슬라이더 초기화 오류: ${e.message}`, 5000, 'error', 'system'); }
+                try { dragBar.init(); } catch(e) { logManager.addOnce('dragbar_init_error', `드래그 바 초기화 오류: ${e.message}`, 5000, 'error', 'system'); }
             }
 
             startUnifiedObserver(targetDocument);
             startVideoUIWatcher(targetDocument);
 
-            layerTrap.scan(targetDocument);
-            videoFinder.findInDoc(targetDocument).forEach(video => {
-                videoControls.initWhenReady(video);
-            });
+            try { layerTrap.scan(targetDocument); } catch(e) { logManager.addOnce('layertrap_scan_error', `레이어 트랩 스캔 오류: ${e.message}`, 5000, 'error', 'system'); }
+            try { videoControls.init(targetDocument); } catch(e) { logManager.addOnce('videocontrols_init_error', `비디오 컨트롤 초기화 오류: ${e.message}`, 5000, 'error', 'system'); }
+
             targetDocument.querySelectorAll('iframe').forEach(iframe => {
-                 if (iframeBlocker.checkIframe(iframe)) {
-                     iframeBlocker.block(iframe);
-                 } else {
-                     handleIframeLoad(iframe);
-                 }
+                if (!PROCESSED_IFRAMES.has(iframe)) {
+                    if (iframeBlocker.checkIframe(iframe)) {
+                        iframeBlocker.block(iframe);
+                    } else {
+                        handleIframeLoad(iframe);
+                    }
+                }
             });
         };
 
@@ -1263,16 +1365,20 @@
     // --- 전역 에러 핸들러 ---
     const ORIGINAL_ONERROR = window.onerror;
     window.onerror = (message, source, lineno, colno, error) => {
-        if (message === 'Script error.' || (typeof source === 'string' && source.includes('supjav.php'))) {
-            return true;
-        }
+        const knownThirdPartyErrors = [
+            "OAS_RICH", "NAVER_ADPOST_V2", "PRINT_NAVER_ADPOST_V2", "wcs_do", "list_end_run",
+            "jihpv16", "ouis7pv" // Add new patterns as they are found
+        ];
+        const isThirdParty = knownThirdPartyErrors.some(name => message && typeof message === 'string' && message.includes(`${name}`)) ||
+                            (source && typeof source === 'string' && /humoruniv|donga|etoland|inven|ppomppu/.test(source)) ||
+                            (message && typeof message === 'string' && (message.includes('Script error.') || message.includes('PartnersCoupang') || message.includes('TSOutstreamVideo')));
 
-        if (message && typeof message === 'string' && (message.includes('PartnersCoupang') || message.includes('TSOutstreamVideo'))) {
+        if (isThirdParty) {
             return true;
         }
 
         const errorMsg = `전역 오류: ${message} at ${source}:${lineno}:${colno}`;
-        logManager.addOnce('global_error', errorMsg, 5000, 'error');
+        logManager.addOnce('global_error', errorMsg, 5000, 'error', 'system');
 
         if (ORIGINAL_ONERROR) {
             return ORIGINAL_ONERROR.apply(this, arguments);
@@ -1280,6 +1386,6 @@
         return false;
     };
     window.onunhandledrejection = event => {
-        logManager.addOnce('promise_rejection', `Promise 거부: ${event.reason}`, 5000, 'error');
+        logManager.addOnce('promise_rejection', `Promise 거부: ${event.reason}`, 5000, 'error', 'system');
     };
 })();
