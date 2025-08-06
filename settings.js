@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.190 (버그 수정)
+// @version       6.2.192 (동적 비디오 감지 고도화)
 // @description   🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         none
@@ -459,51 +459,124 @@
     };
 
     // --- 네트워크 요청 모니터링 모듈 ---
-    const networkMonitor = {
-        init: () => {
-            // XMLHttpRequest.open() 가로채기
-            const originalXhrOpen = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                if (url && typeof url === 'string') {
-                    networkMonitor.checkUrlForVideo(url, 'XMLHttpRequest');
+    const networkMonitor = (() => {
+        const capturedVideoURLs = new Set();
+        const originalMediaSource = window.MediaSource;
+        const originalXHR = window.XMLHttpRequest;
+        const originalFetch = window.fetch;
+
+        const knownExtensions = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.mov', '.avi', '.flv', '.aac', '.ogg', '.mp3'];
+        const isVideoUrl = (url) => {
+            try {
+                if (!url || typeof url !== 'string') return false;
+                return knownExtensions.some(ext => url.toLowerCase().includes(ext)) ||
+                       url.startsWith('blob:') ||
+                       url.includes('mime=video') ||
+                       url.includes('video/');
+            } catch { return false; }
+        };
+
+        const trackAndAttach = (url) => {
+            if (capturedVideoURLs.has(url)) return;
+            capturedVideoURLs.add(url);
+            addLogOnce(`network_detected_${url.substring(0, 50)}`, `🎥 네트워크 영상 URL 감지됨: ${url}`, 5000, 'info');
+
+            setTimeout(() => {
+                const videos = videoFinder.findAll(document);
+                if (videos.length > 0) {
+                    videos.forEach(video => {
+                        // 가장 넓은 비디오 컨테이너에 UI 부착 시도
+                        const target = videoFinder.findLargestParent(video);
+                        if (target) {
+                            dynamicVideoUI.attach(target, url);
+                        }
+                    });
                 }
-                return originalXhrOpen.apply(this, [method, url, ...args]);
-            };
+            }, 500);
+        };
 
-            // fetch() 가로채기
-            const originalFetch = window.fetch;
-            if (typeof originalFetch !== 'undefined') {
-                window.fetch = function(...args) {
-                    const url = args[0] instanceof Request ? args[0].url : args[0];
-                    if (url && typeof url === 'string') {
-                        networkMonitor.checkUrlForVideo(url, 'fetch');
-                    }
-                    return originalFetch.apply(this, args);
+        const hookXHR = () => {
+            window.XMLHttpRequest = function() {
+                const xhr = new originalXHR();
+                const open = xhr.open;
+                xhr.open = function(method, url, ...rest) {
+                    if (isVideoUrl(url)) trackAndAttach(url);
+                    return open.call(this, method, url, ...rest);
                 };
+                return xhr;
+            };
+        };
+
+        const hookFetch = () => {
+            if (!originalFetch) return;
+            window.fetch = async function(input, init) {
+                let url = typeof input === 'string' ? input : input?.url;
+                if (isVideoUrl(url)) trackAndAttach(url);
+                return originalFetch.apply(this, arguments);
+            };
+        };
+
+        const hookMediaSource = () => {
+            if (!originalMediaSource) return;
+            try {
+                const origAddSourceBuffer = originalMediaSource.prototype.addSourceBuffer;
+                originalMediaSource.prototype.addSourceBuffer = function(...args) {
+                    addLogOnce('mse_detected', '🧪 MediaSource.addSourceBuffer 감지됨', 5000, 'info');
+                    setTimeout(() => startVideoUIWatcher(document), 1000);
+                    return origAddSourceBuffer.apply(this, args);
+                };
+            } catch(e) {
+                addLogOnce('mse_hook_error', `MediaSource 후킹 실패: ${e.message}`, 5000, 'warn');
             }
-            addLogOnce('network_monitor_init', '📡 네트워크 요청 감시자 활성화', 5000, 'info');
-        },
+        };
 
-        checkUrlForVideo: (url, type) => {
-            const VIDEO_PATTERNS = [
-                /\.mp4($|\?)/i, /\.m3u8($|\?)/i, /\.ts($|\?)/i, /\.webm($|\?)/i,
-                /\.mkv($|\?)/i, /\.mov($|\?)/i, /\.avi($|\?)/i, /\.flv($|\?)/i,
-                /\.mpd($|\?)/i, /\.aac($|\?)/i, /\.ogg($|\?)/i, /\.mp3($|\?)/i,
-                /video_player/i, /video-ads/i, /jwplayer/i, /html5player/i,
-                /hls\.js/i, /dash\.js/i, /stream/i, /player/i,
-                /bunny-frame/i // 특정 플레이어 도메인 추가
-            ];
+        const hookVideoElement = () => {
+            const origSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+            const origSrcObjectDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'srcObject');
 
-            if (VIDEO_PATTERNS.some(pattern => pattern.test(url))) {
-                addLogOnce(`video_network_request_${url.substring(0, 50)}`, `🎞️ 비디오 네트워크 요청 감지됨 | 타입: ${type} | URL: ${url.substring(0, 100)}`, 10000, 'warn');
-
-                // 동적 비디오 로딩에 대비하여 재탐색을 요청
-                setTimeout(() => {
-                    startVideoUIWatcher(document);
-                }, 1000);
+            if (origSrcDescriptor?.set) {
+                Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+                    set(value) {
+                        if (typeof value === 'string' && isVideoUrl(value)) {
+                            addLogOnce('video_src_set', `🎥 video.src 변경 감지: ${value}`, 5000, 'info');
+                            setTimeout(() => startVideoUIWatcher(document), 100);
+                            trackAndAttach(value);
+                        }
+                        return origSrcDescriptor.set.call(this, value);
+                    },
+                    get() { return origSrcDescriptor.get.call(this); }
+                });
             }
-        }
-    };
+
+            if (origSrcObjectDescriptor?.set) {
+                Object.defineProperty(HTMLMediaElement.prototype, 'srcObject', {
+                    set(value) {
+                        if (value) {
+                            addLogOnce('srcObject_set', '🛰️ video.srcObject 변경 감지', 5000, 'info');
+                            setTimeout(() => startVideoUIWatcher(document), 100);
+                        }
+                        return origSrcObjectDescriptor.set.call(this, value);
+                    },
+                    get() { return origSrcObjectDescriptor.get.call(this); }
+                });
+            }
+        };
+
+        return {
+            init: () => {
+                try {
+                    hookXHR();
+                    hookFetch();
+                    hookMediaSource();
+                    hookVideoElement();
+                    addLogOnce('network_monitor_ready', '📡 네트워크 모니터링 활성화됨', 3000, 'info');
+                } catch (e) {
+                    addLogOnce('network_monitor_error', `네트워크 모니터 초기화 오류: ${e.message}`, 5000, 'error');
+                }
+            },
+            getCapturedURLs: () => [...capturedVideoURLs]
+        };
+    })();
 
     // --- layerTrap 모듈 정의 ---
     const layerTrap = (() => {
@@ -1462,7 +1535,6 @@
         }
     }
 
-
     function throttle(func, limit) {
         let inThrottle;
         return function() {
@@ -1819,5 +1891,4 @@
             addLogOnce('postmessage_parse_error', `postMessage 파싱 오류: ${e.message}`, 5000, 'error');
         }
     });
-
 })();
