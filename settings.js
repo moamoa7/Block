@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.205
+// @version       6.2.207
 // @description   🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         none
@@ -309,6 +309,11 @@
 
     // --- 네트워크 모니터링 모듈 ---
     const networkMonitor = (() => {
+        const originalXHR = XMLHttpRequest.prototype.open;
+        const originalFetch = window.fetch;
+        const originalCreateObjectURL = URL.createObjectURL;
+        const blobToOriginalURLMap = new Map();
+
         const knownExtensions = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.mov', '.avi', '.flv', '.aac', '.ogg', '.mp3'];
         const isVideoUrl = (url) => {
             if (!url || typeof url !== 'string') return false;
@@ -332,63 +337,103 @@
             }
         };
 
-        const trackAndAttach = (url) => {
-            const normalizedUrl = normalizeURL(url);
+        const getOriginalURLIfBlob = (url) => {
+            return blobToOriginalURLMap.get(url) || url;
+        };
+
+        const trackAndAttach = (url, sourceType = 'network') => {
+            const originalURL = getOriginalURLIfBlob(url);
+            const normalizedUrl = normalizeURL(originalURL);
             if (VIDEO_URL_CACHE.has(normalizedUrl)) return;
             VIDEO_URL_CACHE.add(normalizedUrl);
-            logManager.addOnce(`network_detected_${normalizedUrl.substring(0, 50)}`, `🎥 네트워크 영상 URL 감지됨: ${url}`, 5000, 'info');
+
+            logManager.addOnce(`network_detected_${normalizedUrl.substring(0, 50)}`, `🎥 네트워크 영상 URL 감지됨 (${sourceType}) | 원본: ${originalURL}`, 5000, 'info');
 
             requestIdleCallback(() => {
                 const videos = videoFinder.findAll();
                 if (videos.length > 0) {
                     videos.forEach(video => {
                         const target = videoFinder.findLargestParent(video);
-                        if (target) dynamicVideoUI.attach(target, url);
+                        if (target) dynamicVideoUI.attach(target, originalURL);
                     });
                 }
             });
         };
 
         const hookPrototypes = () => {
-            const originalXHR = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                if (isVideoUrl(url)) trackAndAttach(url);
+                if (isVideoUrl(url)) trackAndAttach(url, 'xhr');
                 return originalXHR.apply(this, [method, url, ...args]);
             };
 
-            const originalFetch = window.fetch;
             if (originalFetch) {
                 window.fetch = async function(input, init) {
-                    let url = typeof input === 'string' ? input : input?.url;
-                    if (isVideoUrl(url)) trackAndAttach(url);
-                    return originalFetch.apply(this, arguments);
-                };
-            }
-
-            const originalMediaSource = window.MediaSource;
-            if (originalMediaSource) {
-                const origAddSourceBuffer = originalMediaSource.prototype.addSourceBuffer;
-                originalMediaSource.prototype.addSourceBuffer = function(...args) {
-                    logManager.addOnce('mse_detected', '🧪 MediaSource.addSourceBuffer 감지됨', 5000, 'info');
-                    requestIdleCallback(() => startVideoUIWatcher(document));
-                    return origAddSourceBuffer.apply(this, args);
-                };
-            }
-
-            const originalCreateObjectURL = URL.createObjectURL;
-            if (originalCreateObjectURL) {
-                URL.createObjectURL = function(obj) {
-                    const blobUrl = originalCreateObjectURL.call(URL, obj);
-                    if (obj instanceof MediaSource) {
-                        logManager.addOnce(`blob_mse_${blobUrl}`, `🔗 MSE blob URL 생성됨: ${blobUrl}`, 5000, 'info');
-                        trackAndAttach(blobUrl);
+                    const res = await originalFetch.apply(this, arguments);
+                    let url = typeof input === 'string' ? input : (input.url || '');
+                    if (isVideoUrl(url)) {
+                        trackAndAttach(url, 'fetch');
+                        const clone = res.clone();
+                        clone.blob().then(blob => {
+                          const blobURL = URL.createObjectURL(blob);
+                          blobToOriginalURLMap.set(blobURL, url);
+                        }).catch(e => logManager.addOnce('blob_capture_error', `Blob URL 매핑 실패: ${e.message}`, 5000, 'warn'));
                     }
-                    return blobUrl;
+                    return res;
+                };
+            }
+
+            const origAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
+            if (origAddSourceBuffer) {
+                MediaSource.prototype.addSourceBuffer = function(mimeType) {
+                    logManager.addOnce('mse_detected', `🧪 MediaSource.addSourceBuffer 호출됨, MIME: ${mimeType}`, 5000, 'info');
+                    return origAddSourceBuffer.apply(this, [mimeType]);
+                };
+            }
+
+            const origEndOfStream = MediaSource.prototype.endOfStream;
+            if (origEndOfStream) {
+                MediaSource.prototype.endOfStream = function(...args) {
+                    logManager.addOnce('mse_endofstream', `🧪 MediaSource.endOfStream 호출됨`, 5000, 'info');
+                    return origEndOfStream.apply(this, args);
+                };
+            }
+
+            const origSrcObjDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "srcObject");
+            if (origSrcObjDescriptor?.set) {
+                Object.defineProperty(HTMLMediaElement.prototype, "srcObject", {
+                    set(obj) {
+                        logManager.addOnce('srcObject_set', `🛰️ video.srcObject 변경 감지`, 5000, 'info');
+                        if (obj) trackAndAttach(obj, 'srcObject');
+                        return origSrcObjDescriptor.set.call(this, obj);
+                    },
+                    get() { return origSrcObjDescriptor.get.call(this); }
+                });
+            }
+
+            const origSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "src");
+            if (origSrcDescriptor?.set) {
+                Object.defineProperty(HTMLMediaElement.prototype, "src", {
+                    set(value) {
+                        if (value && isVideoUrl(value)) trackAndAttach(value, 'video_src_set');
+                        return origSrcDescriptor.set.call(this, value);
+                    },
+                    get() { return origSrcDescriptor.get.call(this); }
+                });
+            }
+
+            const origCreateObjectURL = URL.createObjectURL;
+            if (origCreateObjectURL) {
+                URL.createObjectURL = function(obj) {
+                    const url = origCreateObjectURL.call(this, obj);
+                    const type = obj instanceof MediaSource ? 'MediaSource' : 'Blob';
+                    logManager.addOnce(`createObjectURL_${url}`, `[URL] createObjectURL 호출됨: 타입=${type} URL=${url}`, 5000, 'info');
+                    if (isVideoUrl(url)) trackAndAttach(url, type);
+                    return url;
                 };
             }
         };
 
-        return { init: hookPrototypes, getCapturedURLs: () => [...VIDEO_URL_CACHE] };
+        return { init: hookPrototypes, getOriginalURLIfBlob };
     })();
 
     // --- layerTrap 모듈 ---
@@ -588,7 +633,7 @@
                 valueDisplay.id = 'vm-speed-value'; valueDisplay.textContent = 'x1.0';
 
                 const toggleBtn = document.createElement('button');
-                toggleBtn.id = 'vm-toggle-btn'; toggleBtn.textContent = isMinimized ? '▼' : '▲'; // 초기 상태에 따른 버튼 텍스트 설정
+                toggleBtn.id = 'vm-toggle-btn'; toggleBtn.textContent = isMinimized ? '▼' : '▲';
                 toggleBtn.addEventListener('click', toggleMinimize);
 
                 speedSliderContainer.append(resetBtn, slider, valueDisplay, toggleBtn);
@@ -856,7 +901,8 @@
 
             button.onclick = (e) => {
                 e.stopPropagation(); e.preventDefault();
-                navigator.clipboard.writeText(url).then(() => {
+                const originalUrl = networkMonitor.getOriginalURLIfBlob(url);
+                navigator.clipboard.writeText(originalUrl).then(() => {
                     const originalText = button.textContent;
                     button.textContent = 'URL 복사됨!';
                     setTimeout(() => button.textContent = originalText, 2000);
@@ -920,6 +966,10 @@
                 mutation.removedNodes.forEach(node => {
                     if (node.tagName === 'VIDEO' && VIDEO_STATE.has(node)) {
                         videoControls.detachUI(node);
+                    }
+                    if (node.tagName === 'DIV' && node.querySelector('.dynamic-video-url-btn')) {
+                        const btn = node.querySelector('.dynamic-video-url-btn');
+                        if (btn) btn.remove();
                     }
                 });
             } else if (mutation.type === 'attributes') {
