@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.192 (동적 비디오 감지 고도화)
+// @version       6.2.194 (문법 오류 수정)
 // @description   🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         none
@@ -106,6 +106,7 @@
     const logHistory = [];
     const LOGGED_MESSAGE_COUNT = new Map();
     const DYNAMIC_VIDEO_URL = new WeakMap();
+    const VIDEO_URL_CACHE = new Set();
 
     // 비디오 UI 관련 상태 (각 모듈에서 관리하도록 변경)
     const videoUIFlags = {
@@ -460,32 +461,48 @@
 
     // --- 네트워크 요청 모니터링 모듈 ---
     const networkMonitor = (() => {
-        const capturedVideoURLs = new Set();
         const originalMediaSource = window.MediaSource;
         const originalXHR = window.XMLHttpRequest;
         const originalFetch = window.fetch;
+        const originalCreateObjectURL = URL.createObjectURL;
+        const originalRevokeObjectURL = URL.revokeObjectURL;
 
         const knownExtensions = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.mov', '.avi', '.flv', '.aac', '.ogg', '.mp3'];
         const isVideoUrl = (url) => {
             try {
                 if (!url || typeof url !== 'string') return false;
-                return knownExtensions.some(ext => url.toLowerCase().includes(ext)) ||
-                       url.startsWith('blob:') ||
-                       url.includes('mime=video') ||
-                       url.includes('video/');
+                const normalizedUrl = url.toLowerCase();
+                return knownExtensions.some(ext => normalizedUrl.includes(ext)) ||
+                       normalizedUrl.includes('mime=video') ||
+                       normalizedUrl.includes('video/');
             } catch { return false; }
         };
 
+        const normalizeURL = (url) => {
+            try {
+                const u = new URL(url);
+                u.searchParams.forEach((_, key) => {
+                    if (key.toLowerCase().includes('token') || key.toLowerCase().includes('session') || key.toLowerCase().includes('time')) {
+                        u.searchParams.delete(key);
+                    }
+                });
+                return u.toString();
+            } catch {
+                return url;
+            }
+        };
+
         const trackAndAttach = (url) => {
-            if (capturedVideoURLs.has(url)) return;
-            capturedVideoURLs.add(url);
-            addLogOnce(`network_detected_${url.substring(0, 50)}`, `🎥 네트워크 영상 URL 감지됨: ${url}`, 5000, 'info');
+            const normalizedUrl = normalizeURL(url);
+            if (VIDEO_URL_CACHE.has(normalizedUrl)) return;
+            VIDEO_URL_CACHE.add(normalizedUrl);
+
+            addLogOnce(`network_detected_${normalizedUrl.substring(0, 50)}`, `🎥 네트워크 영상 URL 감지됨: ${url}`, 5000, 'info');
 
             setTimeout(() => {
                 const videos = videoFinder.findAll(document);
                 if (videos.length > 0) {
                     videos.forEach(video => {
-                        // 가장 넓은 비디오 컨테이너에 UI 부착 시도
                         const target = videoFinder.findLargestParent(video);
                         if (target) {
                             dynamicVideoUI.attach(target, url);
@@ -530,34 +547,51 @@
             }
         };
 
-        const hookVideoElement = () => {
-            const origSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
-            const origSrcObjectDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'srcObject');
+        const hookBlobURL = () => {
+            if (!originalCreateObjectURL) return;
+            URL.createObjectURL = function(obj) {
+                const blobUrl = originalCreateObjectURL.call(URL, obj);
+                if (obj instanceof MediaSource) {
+                    addLogOnce(`blob_mse_${blobUrl}`, `🔗 MSE blob URL 생성됨: ${blobUrl}`, 5000, 'info');
+                    trackAndAttach(blobUrl);
+                }
+                return blobUrl;
+            };
+            URL.revokeObjectURL = function(url) {
+                addLogOnce(`blob_revoke_${url}`, `🗑️ blob URL 해제됨: ${url}`, 5000, 'info');
+                return originalRevokeObjectURL.call(URL, url);
+            };
+        };
 
-            if (origSrcDescriptor?.set) {
-                Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+        const hookVideoElement = () => {
+            const videoProto = HTMLVideoElement.prototype;
+            const originalSrcObjectDescriptor = Object.getOwnPropertyDescriptor(videoProto, 'srcObject');
+            const originalSrcDescriptor = Object.getOwnPropertyDescriptor(videoProto, 'src');
+
+            if (originalSrcObjectDescriptor?.set) {
+                Object.defineProperty(videoProto, 'srcObject', {
+                    set(value) {
+                        if (value) {
+                            addLogOnce('srcObject_set', '🛰️ video.srcObject 변경 감지', 5000, 'info');
+                            setTimeout(() => startVideoUIWatcher(document), 100);
+                        }
+                        return originalSrcObjectDescriptor.set.call(this, value);
+                    },
+                    get() { return originalSrcObjectDescriptor.get.call(this); }
+                });
+            }
+
+            if (originalSrcDescriptor?.set) {
+                Object.defineProperty(videoProto, 'src', {
                     set(value) {
                         if (typeof value === 'string' && isVideoUrl(value)) {
                             addLogOnce('video_src_set', `🎥 video.src 변경 감지: ${value}`, 5000, 'info');
                             setTimeout(() => startVideoUIWatcher(document), 100);
                             trackAndAttach(value);
                         }
-                        return origSrcDescriptor.set.call(this, value);
+                        return originalSrcDescriptor.set.call(this, value);
                     },
-                    get() { return origSrcDescriptor.get.call(this); }
-                });
-            }
-
-            if (origSrcObjectDescriptor?.set) {
-                Object.defineProperty(HTMLMediaElement.prototype, 'srcObject', {
-                    set(value) {
-                        if (value) {
-                            addLogOnce('srcObject_set', '🛰️ video.srcObject 변경 감지', 5000, 'info');
-                            setTimeout(() => startVideoUIWatcher(document), 100);
-                        }
-                        return origSrcObjectDescriptor.set.call(this, value);
-                    },
-                    get() { return origSrcObjectDescriptor.get.call(this); }
+                    get() { return originalSrcDescriptor.get.call(this); }
                 });
             }
         };
@@ -568,13 +602,14 @@
                     hookXHR();
                     hookFetch();
                     hookMediaSource();
+                    hookBlobURL();
                     hookVideoElement();
                     addLogOnce('network_monitor_ready', '📡 네트워크 모니터링 활성화됨', 3000, 'info');
                 } catch (e) {
                     addLogOnce('network_monitor_error', `네트워크 모니터 초기화 오류: ${e.message}`, 5000, 'error');
                 }
             },
-            getCapturedURLs: () => [...capturedVideoURLs]
+            getCapturedURLs: () => [...VIDEO_URL_CACHE]
         };
     })();
 
@@ -1043,12 +1078,6 @@
             }
             if (!this.dragBarTimeDisplay) return;
 
-            this.dragBarTimeDisplay.style.display = 'block';
-
-            if (!this.dragBarTimeDisplay.parentNode) {
-                document.body.appendChild(this.dragBarTimeDisplay);
-            }
-
             const targetParent = document.fullscreenElement || document.body;
             if (this.dragBarTimeDisplay.parentNode !== targetParent) {
                 if (this.dragBarTimeDisplay.parentNode) {
@@ -1060,6 +1089,8 @@
                     addLogOnce('fullscreen_ui_append_error', `UI 추가 실패: ${e.message}`, 5000, 'error');
                 }
             }
+
+            this.dragBarTimeDisplay.style.display = 'block';
         },
         hide: function() {
             if (this.dragBarTimeDisplay) {
@@ -1125,7 +1156,7 @@
                     this.dragBarTimeDisplay.style.opacity = '1';
                 } else {
                     this.dragBarTimeDisplay.style.opacity = '0';
-                    clearTimeout(this.dragBarTimeDisplay.timer);
+                    if (this.dragBarTimeDisplay.timer) clearTimeout(this.dragBarTimeDisplay.timer);
                     this.dragBarTimeDisplay.timer = setTimeout(() => {
                         if (this.dragBarTimeDisplay.style.opacity === '0') {
                             this.dragBarTimeDisplay.style.display = 'none';
@@ -1450,7 +1481,6 @@
                 borderRadius: '5px',
                 padding: '5px 10px',
                 cursor: 'pointer',
-                fontSize: '12px',
                 pointerEvents: 'auto',
                 display: 'block'
             });
@@ -1469,13 +1499,16 @@
                 });
             };
 
-            targetElement.style.position = targetElement.style.position || 'relative';
+            // 부모 요소에 position 속성이 없으면 relative로 설정하여 버튼 위치 고정
+            if (getComputedStyle(targetElement).position === 'static') {
+                targetElement.style.position = 'relative';
+            }
             targetElement.appendChild(button);
             addLog(`✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 'info');
         }
     };
 
-    const mutationQueue = [];
+    let mutationQueue = [];
     let mutationTimer = null;
     const processMutations = (mutations) => {
         mutations.forEach(mutation => {
@@ -1579,6 +1612,7 @@
                 try {
                     handler.action(node, trigger);
                 } catch (e) {
+                    addLogOnce(`handler_error_${handler.match(node)}`, `핸들러 처리 오류: ${e.message}`, 5000, 'error');
                 }
             }
         }
@@ -1601,8 +1635,7 @@
         }
 
         const pollIframeReady = (iframe, maxWait = 5000) => {
-            const start = Date.now();
-            const interval = setInterval(() => {
+            let interval = setInterval(() => {
                 try {
                     const iframeDoc = iframe.contentDocument;
                     if (iframeDoc && iframeDoc.readyState === 'complete') {
@@ -1619,6 +1652,7 @@
                     clearInterval(interval);
                 }
             }, 300);
+            const start = Date.now();
         };
 
         try {
