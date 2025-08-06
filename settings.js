@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         PopupBlocker_Iframe_VideoSpeed
-// @namespace    https.com/
-// @version      6.2.189 (로그 필터링 복구)
-// @description  🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
-// @match        *://*/*
-// @grant        none
-// @run-at       document-start
+// @name          PopupBlocker_Iframe_VideoSpeed
+// @namespace     https.com/
+// @version       6.2.190 (버그 수정)
+// @description   🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
+// @match         *://*/*
+// @grant         none
+// @run-at        document-start
 // ==/UserScript==
 
 (function () {
@@ -28,7 +28,6 @@
         blockList: [], // 강제 제거할 요소의 CSS 선택자
         layerTrapPreview: false // trap 감지 시 시각적으로 표시 (디버그용)
     };
-
 
     // --- 기능별 상수 및 예외 처리 ---
     const WHITELIST = [
@@ -106,10 +105,12 @@
     let logDismissTimer = null;
     const logHistory = [];
     const LOGGED_MESSAGE_COUNT = new Map();
+    const DYNAMIC_VIDEO_URL = new WeakMap();
 
     // 비디오 UI 관련 상태 (각 모듈에서 관리하도록 변경)
     const videoUIFlags = {
         isUIBeingUsed: false,
+        playbackUpdateTimer: null,
     };
     let __videoUIInitialized = false;
 
@@ -306,11 +307,11 @@
             const logKey = `postmessage_log_${event.origin}_${msgData.substring(0, 50)}`;
 
             if (event.data.type === 'MY_SCRIPT_LOG') {
-                 if (event.data.message.includes('window.opener')) {
-                     addLogOnce(event.data.key, event.data.message, 5000, 'warn');
-                 } else {
-                     addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
-                 }
+                if (event.data.message.includes('window.opener')) {
+                    addLogOnce(event.data.key, event.data.message, 5000, 'warn');
+                } else {
+                    addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
+                }
             } else {
                 addLogOnce(logKey, `postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${event.origin} | 데이터: ${msgData.substring(0, 100)}...`, 5000, 'warn');
             }
@@ -450,27 +451,11 @@
                 if (POSTMESSAGE_LOG_IGNORE_PATTERNS.some(pattern => msgData.includes(pattern))) {
                     return;
                 }
-
-                // postMessage 데이터에 비디오 주소가 포함된 경우 비디오 감시 로직을 즉시 재실행
-                if (msgData.includes('src":"http') || msgData.includes('src":"https') || msgData.includes('url":"http') || msgData.includes('url":"https')) {
-                    setTimeout(() => startVideoUIWatcher(document), 1000);
-                }
-
                 const logKey = `postmessage_log_${event.origin}_${msgData.substring(0, 50)}`;
-
-                if (event.data.type === 'MY_SCRIPT_LOG') {
-                     if (event.data.message.includes('window.opener')) {
-                         addLogOnce(event.data.key, event.data.message, 5000, 'warn');
-                     } else {
-                         addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
-                     }
-                } else {
-                    addLogOnce(logKey, `postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${event.origin} | 데이터: ${msgData.substring(0, 100)}...`, 5000, 'warn');
-                }
+                addLogOnce(logKey, `postMessage 의심 감지됨 | 현재: ${window.location.href} | 참조: ${event.origin} | 데이터: ${msgData.substring(0, 100)}...`, 5000, 'warn');
             }, false);
             createLogBox();
         }
-
     };
 
     // --- 네트워크 요청 모니터링 모듈 ---
@@ -514,21 +499,8 @@
 
                 // 동적 비디오 로딩에 대비하여 재탐색을 요청
                 setTimeout(() => {
-                    const videos = videoFinder.findAll(document);
-                    if (videos.length > 0) {
-                        videos.forEach(video => {
-                            if (video instanceof HTMLVideoElement && (video.src === url || video.currentSrc === url)) {
-                                DYNAMIC_VIDEO_URL.set(video, url);
-                            } else {
-                                // 비디오 요소가 아닌 경우, 가장 넓은 부모 요소를 찾아 UI 부착
-                                const largeElement = videoFinder.findLargestParent(video);
-                                if (largeElement) {
-                                    DYNAMIC_VIDEO_URL.set(largestElement, url);
-                                }
-                            }
-                        });
-                    }
-                }, 500);
+                    startVideoUIWatcher(document);
+                }, 1000);
             }
         }
     };
@@ -549,7 +521,7 @@
                 const rect = el.getBoundingClientRect();
 
                 const isLarge = rect.width >= window.innerWidth * 0.9 &&
-                                 rect.height >= window.innerHeight * 0.9;
+                                rect.height >= window.innerHeight * 0.9;
                 const isFixedOrAbs = style.position === 'fixed' || style.position === 'absolute';
                 const zIndex = parseInt(style.zIndex) || 0;
                 const hasPointerEvents = style.pointerEvents !== 'none';
@@ -677,8 +649,8 @@
             playerContainers.forEach(container => {
                 // 컨테이너 내부에 <video> 태그가 없지만, 컨테이너 자체가 비디오를 렌더링할 가능성
                 if (!container.querySelector('video') && container.clientWidth > 0 && container.clientHeight > 0) {
-                     videos.push(container);
-                     addLogOnce(`dynamic_container_found_${container.id || container.className}`, `🎥 동적 비디오 컨테이너 감지됨: ${container.id || container.className}`, 5000, 'info');
+                    videos.push(container);
+                    addLogOnce(`dynamic_container_found_${container.id || container.className}`, `🎥 동적 비디오 컨테이너 감지됨: ${container.id || container.className}`, 5000, 'info');
                 }
             });
 
@@ -931,15 +903,15 @@
 
             let newHeight;
             if (video) {
-                 if (isMobile) {
-                     newHeight = 100;
-                 } else {
-                     const minHeight = 100;
-                     const maxHeight = 300;
-                     const rect = video.getBoundingClientRect();
-                     newHeight = rect.height * 0.8;
-                     newHeight = Math.min(maxHeight, Math.max(minHeight, newHeight));
-                 }
+                if (isMobile) {
+                    newHeight = 100;
+                } else {
+                    const minHeight = 100;
+                    const maxHeight = 300;
+                    const rect = video.getBoundingClientRect();
+                    newHeight = rect.height * 0.8;
+                    newHeight = Math.min(maxHeight, Math.max(minHeight, newHeight));
+                }
             } else {
                 newHeight = 150;
             }
@@ -1006,9 +978,9 @@
 
             const targetParent = document.fullscreenElement || document.body;
             if (this.dragBarTimeDisplay.parentNode !== targetParent) {
-                 if (this.dragBarTimeDisplay.parentNode) {
-                     this.dragBarTimeDisplay.parentNode.removeChild(this.dragBarTimeDisplay);
-                 }
+                if (this.dragBarTimeDisplay.parentNode) {
+                    this.dragBarTimeDisplay.parentNode.removeChild(this.dragBarTimeDisplay);
+                }
                 try {
                     targetParent.appendChild(this.dragBarTimeDisplay);
                 } catch(e) {
@@ -1017,9 +989,9 @@
             }
         },
         hide: function() {
-             if (this.dragBarTimeDisplay) {
-                 this.dragBarTimeDisplay.style.display = 'none';
-             }
+            if (this.dragBarTimeDisplay) {
+                this.dragBarTimeDisplay.style.display = 'none';
+            }
         },
         init: function() {
             if (this.initialized) return;
@@ -1164,6 +1136,7 @@
                     dragState.lastMoveTime = Date.now();
 
                     updateTimeDisplay(dragState.totalTimeChange);
+                    clearTimeout(dragState.recoveryTimer);
                     dragState.recoveryTimer = setTimeout(cancelDrag, 5000);
                 } catch(e) {
                     addLogOnce('dragBar_handleStart_error', `드래그 시작 오류: ${e.message}`, 5000, 'error');
@@ -1298,15 +1271,16 @@
 
             let cancelTimeout;
             const delayedCancelDrag = () => {
-              if (dragState.isDragging) {
-                cancelTimeout = setTimeout(() => {
-                  if (dragState.isDragging) cancelDrag();
-                }, 300);
-              }
+                if (dragState.isDragging) {
+                    clearTimeout(cancelTimeout);
+                    cancelTimeout = setTimeout(() => {
+                        if (dragState.isDragging) cancelDrag();
+                    }, 300);
+                }
             };
             window.addEventListener('visibilitychange', () => {
-              if (document.hidden) delayedCancelDrag();
-              else clearTimeout(cancelTimeout);
+                if (document.hidden) delayedCancelDrag();
+                else clearTimeout(cancelTimeout);
             });
             window.addEventListener('blur', delayedCancelDrag);
             window.addEventListener('focus', () => clearTimeout(cancelTimeout));
@@ -1362,14 +1336,20 @@
                     if(dragBar) dragBar.updateTimeDisplay(0);
                 });
                 if (typeof ResizeObserver !== 'undefined') {
-                    new ResizeObserver(() => {
+                    const observer = new ResizeObserver(() => {
                         if(speedSlider) speedSlider.updatePositionAndSize();
-                    }).observe(video);
+                    });
+                    observer.observe(video);
+                    VIDEO_STATE.set(video, { ...VIDEO_STATE.get(video), observer: observer });
                 }
                 VIDEO_STATE.set(video, { ...VIDEO_STATE.get(video), eventListenersAttached: true });
             }
         },
         detachUI: (video) => {
+            const state = VIDEO_STATE.get(video);
+            if (state && state.observer) {
+                state.observer.disconnect();
+            }
             VIDEO_STATE.delete(video);
             addLogOnce(`video_ui_detached_${video.src}`, `비디오 제거됨, UI 상태 초기화`, 5000, 'info');
         }
@@ -1422,7 +1402,6 @@
         }
     };
 
-
     const mutationQueue = [];
     let mutationTimer = null;
     const processMutations = (mutations) => {
@@ -1442,7 +1421,7 @@
                         iframeBlocker.init(targetNode, 'iframe src 변경');
                     }
                     if (targetNode.tagName === 'VIDEO' && mutation.attributeName === 'style') {
-                             // do something
+                        // do something
                     }
                     if (FeatureFlags.layerTrap) {
                         if (layerTrap.check(targetNode)) layerTrap.handleTrap(targetNode);
@@ -1485,16 +1464,16 @@
 
 
     function throttle(func, limit) {
-      let inThrottle;
-      return function() {
-        const args = arguments;
-        const context = this;
-        if (!inThrottle) {
-          func.apply(context, args);
-          inThrottle = true;
-          setTimeout(() => inThrottle = false, limit);
-        }
-      };
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
     }
 
     // --- 핸들러 테이블 기반 노드 처리 로직 ---
@@ -1725,9 +1704,9 @@
             if (!element) return;
             const targetParent = fsElement || document.body;
             if (element.parentNode !== targetParent) {
-                 if (element.parentNode) {
-                     element.parentNode.removeChild(element);
-                 }
+                if (element.parentNode) {
+                    element.parentNode.removeChild(element);
+                }
                 try {
                     targetParent.appendChild(element);
                 } catch(e) {
@@ -1770,11 +1749,11 @@
         if (FeatureFlags.videoControls) {
             const allVideos = videoFinder.findAll(targetDocument);
             allVideos.forEach(video => {
-                 enqueueTask(() => {
-                     if (!VIDEO_STATE.has(video)) {
-                         videoControls.initWhenReady(video);
-                     }
-                 }, 1);
+                enqueueTask(() => {
+                    if (!VIDEO_STATE.has(video)) {
+                        videoControls.initWhenReady(video);
+                    }
+                }, 1);
             });
         }
 
@@ -1813,18 +1792,18 @@
         addLogOnce('global_error', `전역 오류: ${message} at ${source}:${lineno}:${colno}`, 0, 'error');
     };
     window.onunhandledrejection = event => {
-      addLogOnce('promise_rejection', `Promise 거부: ${event.reason}`, 0, 'error');
+        addLogOnce('promise_rejection', `Promise 거부: ${event.reason}`, 0, 'error');
     };
 
     // --- postMessage 리스너 등록 ---
     window.addEventListener('message', (event) => {
         try {
             if (event.data.type === 'MY_SCRIPT_LOG') {
-                 if (event.data.message.includes('window.opener')) {
-                     addLogOnce(event.data.key, event.data.message, 5000, 'warn');
-                 } else {
-                     addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
-                 }
+                if (event.data.message.includes('window.opener')) {
+                    addLogOnce(event.data.key, event.data.message, 5000, 'warn');
+                } else {
+                    addLogOnce(event.data.key, event.data.message, 5000, event.data.level);
+                }
             } else {
                 const isIgnoredDomain = POSTMESSAGE_LOG_IGNORE_DOMAINS.some(domain => event.origin.includes(domain));
                 if (isIgnoredDomain) return;
