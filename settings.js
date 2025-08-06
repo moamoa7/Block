@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          PopupBlocker_Iframe_VideoSpeed
 // @namespace     https.com/
-// @version       6.2.207
+// @version       6.2.219
 // @description   🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         none
@@ -81,9 +81,8 @@
     const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
     const VIDEO_STATE = new WeakMap();
-    const VIDEO_URL_CACHE = new Set();
     const isTopFrame = window.self === window.top;
-
+    
     // --- 유틸리티 함수 ---
     const isFeatureAllowed = (featureName) => {
         const exceptions = EXCEPTION_LIST[hostname] || [];
@@ -134,8 +133,10 @@
             logHistory.push(msg);
             if (logHistory.length > 50) logHistory.shift();
 
-            logBoxContainer.style.opacity = '1';
-            logBoxContainer.style.pointerEvents = 'auto';
+            if (logBoxContainer) {
+                logBoxContainer.style.opacity = '1';
+                logBoxContainer.style.pointerEvents = 'auto';
+            }
 
             const MAX_LOGS = 50;
             if (logContentBox.childElementCount >= MAX_LOGS) {
@@ -184,26 +185,27 @@
                 addLog(message, level);
             }
         }
-
+        
         function init() {
             if (!isTopFrame || !FeatureFlags.logUI || document.getElementById('popupBlockerLogContainer')) return;
-
+            
             logBoxContainer = document.createElement('div');
             logBoxContainer.id = 'popupBlockerLogContainer';
-            logBoxContainer.style.cssText = `
-                position: fixed; bottom: 0; right: 0; max-height: 100px;
-                width: 350px; z-index: 9999998; border-top-left-radius: 8px;
-                overflow: hidden; opacity: 0; pointer-events: none;
-                transition: opacity 0.3s ease; box-shadow: 0 0 8px #000;
-            `;
+            Object.assign(logBoxContainer.style, {
+                position: 'fixed', bottom: '0', right: '0', maxHeight: '100px',
+                width: '350px', zIndex: '9999998', borderTopLeftRadius: '8px',
+                overflow: 'hidden', opacity: '0', pointerEvents: 'none',
+                transition: 'opacity 0.3s ease', boxShadow: '0 0 8px #000'
+            });
+
             const copyBtn = document.createElement('button');
             copyBtn.textContent = '로그 복사';
-            copyBtn.style.cssText = `
-                position: absolute; top: 0; right: 0; background: rgba(50,50,50,0.9);
-                color: #fff; border: none; border-bottom-left-radius: 8px;
-                padding: 4px 8px; font-size: 12px; cursor: pointer; z-index: 9999999;
-                opacity: 0.8;
-            `;
+            Object.assign(copyBtn.style, {
+                position: 'absolute', top: '0', right: '0', background: 'rgba(50,50,50,0.9)',
+                color: '#fff', border: 'none', borderBottomLeftRadius: '8px',
+                padding: '4px 8px', fontSize: '12px', cursor: 'pointer', zIndex: '9999999',
+                opacity: '0.8'
+            });
             copyBtn.onclick = () => {
                 if (logHistory.length > 0) {
                     const logText = logHistory.join('\n');
@@ -217,19 +219,21 @@
                 }
             };
             logBoxContainer.appendChild(copyBtn);
-
+            
             logContentBox = document.createElement('div');
             logContentBox.id = 'popupBlockerLogBox';
-            logContentBox.style.cssText = `
-                max-height: 100%; width: 100%; background: rgba(30,30,30,0.9);
-                color: #fff; font-family: monospace; font-size: 14px;
-                overflow-y: auto; padding: 8px; padding-top: 25px; user-select: text;
-            `;
+            Object.assign(logContentBox.style, {
+                maxHeight: '100%', width: '100%', background: 'rgba(30,30,30,0.9)',
+                color: '#fff', fontFamily: 'monospace', fontSize: '14px',
+                overflowY: 'auto', padding: '8px', paddingTop: '25px', userSelect: 'text'
+            });
             logBoxContainer.appendChild(logContentBox);
 
-            document.body.appendChild(logBoxContainer);
-            while (pendingLogs.length > 0) {
-                addLogToBox(pendingLogs.shift());
+            if (document.body) {
+                document.body.appendChild(logBoxContainer);
+                while (pendingLogs.length > 0) {
+                    addLogToBox(pendingLogs.shift());
+                }
             }
         }
 
@@ -312,6 +316,7 @@
         const originalXHR = XMLHttpRequest.prototype.open;
         const originalFetch = window.fetch;
         const originalCreateObjectURL = URL.createObjectURL;
+        let capturedVideoURLs = new Set();
         const blobToOriginalURLMap = new Map();
 
         const knownExtensions = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.mov', '.avi', '.flv', '.aac', '.ogg', '.mp3'];
@@ -340,13 +345,13 @@
         const getOriginalURLIfBlob = (url) => {
             return blobToOriginalURLMap.get(url) || url;
         };
-
+        
         const trackAndAttach = (url, sourceType = 'network') => {
             const originalURL = getOriginalURLIfBlob(url);
             const normalizedUrl = normalizeURL(originalURL);
-            if (VIDEO_URL_CACHE.has(normalizedUrl)) return;
-            VIDEO_URL_CACHE.add(normalizedUrl);
-
+            if (capturedVideoURLs.has(normalizedUrl)) return;
+            capturedVideoURLs.add(normalizedUrl);
+            
             logManager.addOnce(`network_detected_${normalizedUrl.substring(0, 50)}`, `🎥 네트워크 영상 URL 감지됨 (${sourceType}) | 원본: ${originalURL}`, 5000, 'info');
 
             requestIdleCallback(() => {
@@ -433,7 +438,7 @@
             }
         };
 
-        return { init: hookPrototypes, getOriginalURLIfBlob };
+        return { init: hookPrototypes, getOriginalURLIfBlob, capturedVideoURLs, setCapturedVideoURLs: (urls) => { capturedVideoURLs = urls; } };
     })();
 
     // --- layerTrap 모듈 ---
@@ -561,7 +566,11 @@
                     font-weight: bold; width: 40px; height: 30px; margin-top: 8px;
                     transition: transform 0.2s ease-in-out; }
             `;
-            (document.head || document.body).appendChild(style);
+            if (document.head) {
+                document.head.appendChild(style);
+            } else if (document.body) {
+                document.body.appendChild(style);
+            }
         };
 
         const updateSpeed = (speed) => {
@@ -587,7 +596,7 @@
             const valueDisplay = container.querySelector('#vm-speed-value');
             const resetBtn = container.querySelector('#vm-speed-reset-btn');
             const toggleBtn = container.querySelector('#vm-toggle-btn');
-
+            
             isMinimized = !isMinimized;
             localStorage.setItem('speedSliderMinimized', isMinimized);
 
@@ -596,14 +605,14 @@
                 if (slider) slider.style.display = 'none';
                 if (valueDisplay) valueDisplay.style.display = 'none';
                 if (resetBtn) resetBtn.style.display = 'none';
-                if (toggleBtn) toggleBtn.textContent = '▼'; // 최소화 버튼은 아래 방향 화살표
+                if (toggleBtn) toggleBtn.textContent = '▼';
                 dragBar.hide();
             } else {
                 container.style.width = '50px';
                 if (slider) slider.style.display = 'block';
                 if (valueDisplay) valueDisplay.style.display = 'block';
                 if (resetBtn) resetBtn.style.display = 'block';
-                if (toggleBtn) toggleBtn.textContent = '▲'; // 최대화 버튼은 위 방향 화살표
+                if (toggleBtn) toggleBtn.textContent = '▲';
                 speedSlider.updatePositionAndSize();
                 const isVideoPlaying = videoFinder.findAll().some(v => !v.paused);
                 if (isVideoPlaying) dragBar.show();
@@ -613,12 +622,12 @@
         const init = () => {
             createSliderElements();
             if (!document.body) return;
-
+            
             speedSliderContainer = document.getElementById('vm-speed-slider-container');
             if (!speedSliderContainer) {
                 speedSliderContainer = document.createElement('div');
                 speedSliderContainer.id = 'vm-speed-slider-container';
-
+                
                 const slider = document.createElement('input');
                 slider.type = 'range'; slider.min = '0.2'; slider.max = '4.0';
                 slider.step = '0.2'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
@@ -633,13 +642,13 @@
                 valueDisplay.id = 'vm-speed-value'; valueDisplay.textContent = 'x1.0';
 
                 const toggleBtn = document.createElement('button');
-                toggleBtn.id = 'vm-toggle-btn'; toggleBtn.textContent = isMinimized ? '▼' : '▲';
+                toggleBtn.id = 'vm-toggle-btn'; toggleBtn.textContent = isMinimized ? '▲' : '▼';
                 toggleBtn.addEventListener('click', toggleMinimize);
 
                 speedSliderContainer.append(resetBtn, slider, valueDisplay, toggleBtn);
                 document.body.appendChild(speedSliderContainer);
             }
-
+            
             if (isMinimized) {
                 speedSliderContainer.style.width = '30px';
                 const slider = speedSliderContainer.querySelector('#vm-speed-slider');
@@ -722,7 +731,7 @@
         const applyTimeChange = () => {
             const videos = videoFinder.findAll();
             const timeToApply = Math.round(dragState.totalTimeChange / DRAG_CONFIG.PIXELS_PER_SECOND);
-
+            
             if (timeToApply !== 0) {
                 videos.forEach(video => {
                     if (video && video.duration && isFinite(video.duration)) {
@@ -740,13 +749,13 @@
                 clearTimeout(dragState.throttleTimer);
                 dragState.throttleTimer = null;
                 updateTimeDisplay(0);
-
+                
                 dragState.isDragging = false;
                 dragState.currentDragDistanceX = 0;
                 dragState.totalTimeChange = 0;
                 dragState.isHorizontalDrag = false;
-                document.body.style.userSelect = '';
-
+                if(document.body) document.body.style.userSelect = '';
+                
                 document.removeEventListener('mousemove', handleMove, true);
                 document.removeEventListener('mouseup', handleEnd, true);
                 document.removeEventListener('touchmove', handleMove, true);
@@ -762,7 +771,7 @@
             if (speedSlider.isMinimized() || dragState.isDragging || e.button === 2) {
                 return;
             }
-            if (e.target.closest('#vm-speed-slider-container, #vm-time-display')) {
+            if (e.target && e.target.closest('#vm-speed-slider-container, #vm-time-display')) {
                 return;
             }
             const videos = videoFinder.findAll();
@@ -802,7 +811,7 @@
                     if (dx > 10 && dy < dx * 1.5) {
                         dragState.isHorizontalDrag = true;
                         e.preventDefault(); e.stopImmediatePropagation();
-                        document.body.style.userSelect = 'none';
+                        if(document.body) document.body.style.userSelect = 'none';
                     } else if (dy > 10) {
                         return cancelDrag();
                     }
@@ -814,10 +823,9 @@
                     dragState.currentDragDistanceX += deltaX;
                     dragState.totalTimeChange = Math.round(dragState.currentDragDistanceX / DRAG_CONFIG.PIXELS_PER_SECOND);
                     updateTimeDisplay(dragState.totalTimeChange);
-
+                    
                     const now = Date.now();
                     if (now - dragState.lastDragTimestamp > 150) {
-                        // applyTimeChange();
                         dragState.lastDragTimestamp = now;
                     }
                     dragState.lastUpdateX = currentX;
@@ -845,15 +853,19 @@
             if (!dragBarTimeDisplay) {
                 dragBarTimeDisplay = document.createElement('div');
                 dragBarTimeDisplay.id = 'vm-time-display';
-                dragBarTimeDisplay.style.cssText = `
-                    position: fixed !important; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                    background: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px; border-radius: 5px;
-                    font-size: 1.5rem; z-index: 2147483647 !important; display: none; pointer-events: none;
-                    transition: opacity 0.3s ease-out; opacity: 1; text-align: center; white-space: nowrap;
-                `;
+                Object.assign(dragBarTimeDisplay.style, {
+                    position: 'fixed', top: '50%', left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    background: 'rgba(0, 0, 0, 0.7)', color: 'white',
+                    padding: '10px 20px', borderRadius: '5px',
+                    fontSize: '1.5rem', zIndex: '2147483647',
+                    display: 'none', pointerEvents: 'none',
+                    transition: 'opacity 0.3s ease-out', opacity: '1',
+                    textAlign: 'center', whiteSpace: 'nowrap'
+                });
                 document.body.appendChild(dragBarTimeDisplay);
             }
-
+            
             document.addEventListener('mousedown', handleStart, { passive: false, capture: true });
             document.addEventListener('touchstart', handleStart, { passive: false, capture: true });
             document.addEventListener('mouseout', (e) => { if (e.relatedTarget === null) handleEnd(); }, true);
@@ -864,7 +876,7 @@
             if (!dragBarTimeDisplay) init();
             if (!dragBarTimeDisplay) return;
             const targetParent = document.fullscreenElement || document.body;
-            if (dragBarTimeDisplay.parentNode !== targetParent) {
+            if (targetParent && dragBarTimeDisplay.parentNode !== targetParent) {
                 targetParent.appendChild(dragBarTimeDisplay);
             }
             dragBarTimeDisplay.style.display = 'block';
@@ -942,32 +954,57 @@
     })();
 
     // --- SPA 및 MutationObserver 통합 모듈 ---
-    let mutationQueue = [];
-    let mutationTimer = null;
-    let videoUIWatcherInterval = null;
-    let lastURL = location.href;
+    const spaMonitor = (() => {
+        let lastURL = location.href;
+        
+        const onNavigate = (reason = 'URL 변경 감지') => {
+            const url = location.href;
+            if (url !== lastURL) {
+                lastURL = url;
+                logManager.addOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
+
+                PROCESSED_DOCUMENTS.clear();
+                PROCESSED_NODES.clear();
+                PROCESSED_IFRAMES.clear();
+                LOGGED_KEYS_WITH_TIMER.clear();
+                
+                OBSERVER_MAP.forEach(observer => observer.disconnect());
+                OBSERVER_MAP.clear();
+
+                initializeAll(document);
+            }
+        };
+
+        const init = () => {
+            ['pushState', 'replaceState'].forEach(type => {
+                const orig = history[type];
+                history[type] = function (...args) {
+                    try {
+                        orig.apply(this, args);
+                        onNavigate(`history.${type}`);
+                    } catch(e) {
+                        logManager.addOnce('history_api_error', `History API 오류: ${e.message}`, 5000, 'error');
+                    }
+                };
+            });
+            window.addEventListener('popstate', () => onNavigate('popstate'));
+        };
+        return { init, onNavigate };
+    })();
+    
 
     const processMutations = (mutations) => {
+        const affectedNodes = new Set();
         mutations.forEach(mutation => {
             if (mutation.type === 'childList') {
                 mutation.addedNodes.forEach(node => {
-                    if (node.nodeType === 1) {
-                        if (node.tagName === 'IFRAME') {
-                            iframeBlocker.init(node, '동적 추가');
-                        }
-                        if (node.tagName === 'VIDEO') {
-                            videoControls.initWhenReady(node);
-                        }
-                        if (FeatureFlags.layerTrap && layerTrap.check(node)) {
-                            layerTrap.handleTrap(node);
-                        }
-                    }
+                    if (node.nodeType === 1) affectedNodes.add(node);
                 });
                 mutation.removedNodes.forEach(node => {
-                    if (node.tagName === 'VIDEO' && VIDEO_STATE.has(node)) {
+                    if (node.nodeType === 1 && node.tagName === 'VIDEO' && VIDEO_STATE.has(node)) {
                         videoControls.detachUI(node);
                     }
-                    if (node.tagName === 'DIV' && node.querySelector('.dynamic-video-url-btn')) {
+                    if (node.nodeType === 1 && node.querySelector('.dynamic-video-url-btn')) {
                         const btn = node.querySelector('.dynamic-video-url-btn');
                         if (btn) btn.remove();
                     }
@@ -979,10 +1016,24 @@
                         PROCESSED_IFRAMES.delete(targetNode);
                         iframeBlocker.init(targetNode, 'iframe src 변경');
                     }
+                    if (FeatureFlags.layerTrap && (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                        if (layerTrap.check(targetNode)) layerTrap.handleTrap(targetNode);
+                    }
                 }
             }
         });
+        
+        affectedNodes.forEach(node => {
+            videoFinder.findInDoc(node).forEach(video => {
+                if (video.tagName === 'VIDEO') videoControls.initWhenReady(video);
+            });
+            if (FeatureFlags.layerTrap && layerTrap.check(node)) {
+                layerTrap.handleTrap(node);
+            }
+        });
     };
+
+    let videoUIWatcherInterval = null;
 
     function startUnifiedObserver(targetDocument = document) {
         if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
@@ -990,12 +1041,7 @@
         if (!rootElement) return;
 
         const observer = new MutationObserver(mutations => {
-            mutationQueue.push(...mutations);
-            if (mutationTimer) clearTimeout(mutationTimer);
-            mutationTimer = setTimeout(() => {
-                processMutations(mutationQueue);
-                mutationQueue = [];
-            }, 100);
+            processMutations(mutations);
         });
 
         observer.observe(rootElement, { childList: true, subtree: true, attributes: true,
@@ -1003,75 +1049,12 @@
         PROCESSED_DOCUMENTS.add(targetDocument);
         OBSERVER_MAP.set(targetDocument, observer);
         logManager.addOnce('observer_active', `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`, 5000, 'info');
-
+        
         targetDocument.querySelectorAll('iframe').forEach(iframe => {
             handleIframeLoad(iframe);
         });
     }
 
-    function handleIframeLoad(iframe) {
-        if (PROCESSED_IFRAMES.has(iframe)) return;
-        PROCESSED_IFRAMES.add(iframe);
-        const iframeSrc = iframe.src || 'about:blank';
-        if (IGNORED_IFRAME_PATTERNS.some(p => p.test(iframeSrc))) return;
-
-        try {
-            if (iframe.contentWindow && iframe.contentWindow.location && iframe.contentWindow.location.hostname === location.hostname) {
-                const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-                if (iframeDocument && !PROCESSED_DOCUMENTS.has(iframeDocument)) {
-                    initializeAll(iframeDocument);
-                }
-            } else {
-                logManager.addOnce(`iframe_load_cross_origin_${iframe.id || 'no-id'}`, `⚠️ Cross-Origin iframe 접근 시도됨 | 대상: ${iframeSrc}`, 5000, 'warn');
-            }
-        } catch (e) {
-            logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 오류 (Cross-Origin)`, 5000, 'warn');
-        }
-    }
-
-    // --- 비디오 컨트롤러 모듈 ---
-    const videoControls = {
-        initWhenReady: (video) => {
-            if (VIDEO_STATE.has(video)) return;
-            const tryInit = () => {
-                if (!video.isConnected) {
-                    VIDEO_STATE.delete(video);
-                    return;
-                }
-                if (video.readyState >= 1) {
-                    videoControls.attachUI(video);
-                } else {
-                    setTimeout(tryInit, 300);
-                }
-            };
-            VIDEO_STATE.set(video, { initialized: true });
-            tryInit();
-        },
-        attachUI: (video) => {
-            if (VIDEO_STATE.get(video).uiAttached) return;
-            const state = VIDEO_STATE.get(video);
-            state.uiAttached = true;
-            if (speedSlider) speedSlider.show();
-            if (dragBar && !speedSlider.isMinimized()) dragBar.show();
-            logManager.addOnce('video_ui_init_success', '✅ 비디오 UI 감지 및 초기화 완료', 5000, 'info');
-
-            video.addEventListener('loadedmetadata', speedSlider.updatePositionAndSize);
-            video.addEventListener('durationchange', () => dragBar.updateTimeDisplay(0));
-            if ('ResizeObserver' in window) {
-                const observer = new ResizeObserver(speedSlider.updatePositionAndSize);
-                observer.observe(video);
-                state.observer = observer;
-            }
-            VIDEO_STATE.set(video, state);
-        },
-        detachUI: (video) => {
-            const state = VIDEO_STATE.get(video);
-            if (state?.observer) state.observer.disconnect();
-            VIDEO_STATE.delete(video);
-        }
-    };
-
-    // --- 비디오 UI 감지 루프 (보조) ---
     function startVideoUIWatcher(targetDocument = document) {
         if (!FeatureFlags.videoControls) return;
         if (videoUIWatcherInterval) clearInterval(videoUIWatcherInterval);
@@ -1092,21 +1075,67 @@
         logManager.addOnce('video_watcher_started', '✅ 비디오 감시 루프 시작', 5000, 'info');
     }
 
-    // --- SPA 감지 로직 ---
-    function onNavigate(reason = 'URL 변경 감지') {
-        const url = location.href;
-        if (url !== lastURL) {
-            lastURL = url;
-            logManager.addOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
-            PROCESSED_DOCUMENTS.clear();
-            PROCESSED_NODES.clear();
-            PROCESSED_IFRAMES.clear();
-            LOGGED_KEYS_WITH_TIMER.clear();
-            OBSERVER_MAP.forEach(observer => observer.disconnect());
-            initializeAll(document);
+    function tryInitIframe(iframe, retries = 5, delay = 1000) {
+        let attempts = 0;
+        const attempt = () => {
+            try {
+                if (iframe.contentDocument) {
+                    initializeAll(iframe.contentDocument);
+                    observeIframeButtons(iframe.contentDocument);
+                } else if (attempts < retries) {
+                    attempts++;
+                    setTimeout(attempt, delay);
+                } else {
+                    logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 실패 (최대 재시도 횟수 초과)`, 5000, 'warn');
+                }
+            } catch(e) {
+                if (attempts < retries) {
+                    attempts++;
+                    setTimeout(attempt, delay);
+                } else {
+                    logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 오류: ${e.message}`, 5000, 'warn');
+                }
+            }
+        };
+        attempt();
+    }
+
+    function observeIframeButtons(iframeDocument) {
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                mutation.removedNodes.forEach(node => {
+                    if (node.querySelector && node.querySelector('.dynamic-video-url-btn')) {
+                        const btn = node.querySelector('.dynamic-video-url-btn');
+                        if (btn) btn.remove();
+                    }
+                });
+            });
+        });
+        observer.observe(iframeDocument.body, { childList: true, subtree: true });
+    }
+
+    function handleIframeLoad(iframe) {
+        if (PROCESSED_IFRAMES.has(iframe)) return;
+        PROCESSED_IFRAMES.add(iframe);
+        const iframeSrc = iframe.src || 'about:blank';
+        if (IGNORED_IFRAME_PATTERNS.some(p => p.test(iframeSrc))) return;
+
+        try {
+            if (iframe.contentWindow && iframe.contentWindow.location && iframe.contentWindow.location.hostname === location.hostname) {
+                const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+                if (iframeDocument && !PROCESSED_DOCUMENTS.has(iframeDocument)) {
+                    initializeAll(iframeDocument);
+                    observeIframeButtons(iframeDocument);
+                }
+            } else {
+                logManager.addOnce(`iframe_load_cross_origin_${iframe.id || 'no-id'}`, `⚠️ Cross-Origin iframe 접근 시도됨 | 대상: ${iframeSrc}`, 5000, 'warn');
+                iframe.addEventListener('load', () => tryInitIframe(iframe), { once: true });
+            }
+        } catch (e) {
+            logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 오류 (Cross-Origin)`, 5000, 'warn');
+            iframe.addEventListener('load', () => tryInitIframe(iframe), { once: true });
         }
     }
-    window.addEventListener('popstate', () => onNavigate('popstate'));
 
     // --- 단일 초기 실행 함수 ---
     function initializeAll(targetDocument = document) {
@@ -1117,6 +1146,7 @@
         if (targetDocument === document) {
             popupBlocker.init();
             networkMonitor.init();
+            spaMonitor.init();
             document.addEventListener('fullscreenchange', speedSlider.updatePositionAndSize);
             document.addEventListener('fullscreenchange', () => {
                 if (!speedSlider.isMinimized()) {
@@ -1127,11 +1157,42 @@
             });
         }
 
-        startUnifiedObserver(targetDocument);
+        const rootElement = targetDocument.documentElement || targetDocument.body;
+        if (rootElement) {
+            const observer = new MutationObserver(mutations => {
+                const affectedNodes = new Set();
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) affectedNodes.add(node);
+                    });
+                    mutation.removedNodes.forEach(node => {
+                        if (node.nodeType === 1 && node.tagName === 'VIDEO' && VIDEO_STATE.has(node)) {
+                            videoControls.detachUI(node);
+                        }
+                        if (node.nodeType === 1 && node.querySelector('.dynamic-video-url-btn')) {
+                            const btn = node.querySelector('.dynamic-video-url-btn');
+                            if (btn) btn.remove();
+                        }
+                    });
+                });
+                affectedNodes.forEach(node => {
+                    videoFinder.findInDoc(node).forEach(video => {
+                        if (video.tagName === 'VIDEO') videoControls.initWhenReady(video);
+                    });
+                    if (FeatureFlags.layerTrap && layerTrap.check(node)) layerTrap.handleTrap(node);
+                });
+            });
+            observer.observe(rootElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'style', 'class', 'href'] });
+            OBSERVER_MAP.set(targetDocument, observer);
+        }
+
         startVideoUIWatcher(targetDocument);
         layerTrap.scan(targetDocument);
         videoFinder.findInDoc(targetDocument).forEach(video => {
             videoControls.initWhenReady(video);
+        });
+        targetDocument.querySelectorAll('iframe').forEach(iframe => {
+            handleIframeLoad(iframe);
         });
     }
 
