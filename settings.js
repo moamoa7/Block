@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.10
+// @version 		6.4.11
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -931,7 +931,6 @@
             const video = videos.find(v => v.clientWidth > 0 && v.clientHeight > 0);
             const slider = sliderContainer.querySelector('#vm-speed-slider');
             
-            // ✅ 플레이어 높이의 30%로 제한, 최소 100px 유지
             const newHeight = video ? Math.max(100, video.getBoundingClientRect().height * 0.3) : 100;
 
             if (slider) slider.style.height = `${newHeight}px`;
