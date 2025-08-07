@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.14
+// @version 		6.4.10
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -461,7 +461,7 @@
                 }
             });
         };
-        
+
         // --- postMessage 리스너 ---
         const handlePostMessage = (event) => {
             if (!event.data || typeof event.data !== 'object') return;
@@ -785,7 +785,6 @@
         let speedSliderContainer;
         let playbackUpdateTimer;
         let isMinimized = JSON.parse(localStorage.getItem('speedSliderMinimized') || 'true');
-        let hoverTimer;
 
         const createSliderElements = () => {
             if (document.getElementById('vm-speed-slider-style')) return;
@@ -797,12 +796,10 @@
                     background: rgba(0, 0, 0, 0.0); padding: 10px 8px; border-radius: 8px;
                     z-index: 2147483647 !important; display: none; flex-direction: column;
                     align-items: center; width: 50px; height: auto; font-family: sans-serif;
-                    opacity: 0.3; transition: all 0.3s ease; user-select: none;
+                    pointer-events: auto; opacity: 0.3; transition: all 0.3s ease; user-select: none;
                     box-shadow: 0 0 8px rgba(0,0,0,0.0); will-change: transform, opacity, width;
-                    pointer-events: none; /* ✅ 기본적으로 비활성화 */
                 }
-                #vm-speed-slider-container:hover { opacity: 1; pointer-events: auto; }
-                #vm-speed-slider-container.active { opacity: 1; pointer-events: auto; }
+                #vm-speed-slider-container:hover { opacity: 1; }
                 #vm-speed-reset-btn { background: #444; border: none; border-radius: 4px; color: white;
                     font-size: 14px; padding: 4px 6px; cursor: pointer; margin-bottom: 8px;
                     width: 40px; height: 30px; font-weight: bold; }
@@ -912,28 +909,6 @@
                 if (valueDisplay) valueDisplay.style.display = 'none';
                 if (resetBtn) resetBtn.style.display = 'none';
             }
-            
-            // ✅ 터치 및 마우스 이벤트에 따른 pointer-events 제어
-            if (speedSliderContainer) {
-                speedSliderContainer.addEventListener('mouseenter', () => {
-                    clearTimeout(hoverTimer);
-                    speedSliderContainer.style.pointerEvents = 'auto';
-                });
-                speedSliderContainer.addEventListener('mouseleave', () => {
-                    hoverTimer = setTimeout(() => {
-                        speedSliderContainer.style.pointerEvents = 'none';
-                    }, 1000);
-                });
-                 speedSliderContainer.addEventListener('touchstart', () => {
-                     clearTimeout(hoverTimer);
-                     speedSliderContainer.style.pointerEvents = 'auto';
-                 });
-                 speedSliderContainer.addEventListener('touchend', () => {
-                     hoverTimer = setTimeout(() => {
-                         speedSliderContainer.style.pointerEvents = 'none';
-                     }, 1000);
-                 });
-            }
         };
 
         const show = () => {
@@ -956,6 +931,7 @@
             const video = videos.find(v => v.clientWidth > 0 && v.clientHeight > 0);
             const slider = sliderContainer.querySelector('#vm-speed-slider');
             
+            // ✅ 플레이어 높이의 30%로 제한, 최소 100px 유지
             const newHeight = video ? Math.max(100, video.getBoundingClientRect().height * 0.3) : 100;
 
             if (slider) slider.style.height = `${newHeight}px`;
@@ -1503,3 +1479,77 @@
         };
 
         const initializeAll = (targetDocument = document) => {
+            if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
+            PROCESSED_DOCUMENTS.add(targetDocument);
+            logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 5000, 'info');
+
+            if (targetDocument === document) {
+                popupBlocker.init();
+                networkMonitor.init();
+                spaMonitor.init();
+                logManager.init();
+                document.addEventListener('fullscreenchange', () => {
+                    speedSlider.updatePositionAndSize();
+                    if (!speedSlider.isMinimized()) {
+                        dragBar.show();
+                    } else {
+                        dragBar.hide();
+                    }
+                });
+                speedSlider.init();
+                dragBar.init();
+                jwplayerMonitor.init(window);
+            }
+
+            startUnifiedObserver(targetDocument);
+            startVideoUIWatcher(targetDocument);
+
+            layerTrap.scan(targetDocument);
+            videoFinder.findInDoc(targetDocument).forEach(video => {
+                videoControls.initWhenReady(video);
+            });
+            targetDocument.querySelectorAll('iframe').forEach(iframe => {
+                if (!iframeBlocker.enhancedCheckAndBlock(iframe)) {
+                    handleIframeLoad(iframe);
+                }
+            });
+        };
+
+        return {
+            initializeAll,
+        };
+
+    })();
+
+    // --- 초기 진입점 ---
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            App.initializeAll(document);
+        });
+    } else {
+        App.initializeAll(document);
+    }
+
+    // --- 전역 에러 핸들러 ---
+    const ORIGINAL_ONERROR = window.onerror;
+    window.onerror = (message, source, lineno, colno, error) => {
+        if (message === 'Script error.' || (typeof source === 'string' && source.includes('supjav.php'))) {
+            return true;
+        }
+
+        if (message && typeof message === 'string' && (message.includes('PartnersCoupang') || message.includes('TSOutstreamVideo'))) {
+            return true;
+        }
+
+        const errorMsg = `전역 오류: ${message} at ${source}:${lineno}:${colno}`;
+        logManager.addOnce('global_error', errorMsg, 5000, 'error');
+
+        if (ORIGINAL_ONERROR) {
+            return ORIGINAL_ONERROR.apply(this, arguments);
+        }
+        return false;
+    };
+    window.onunhandledrejection = event => {
+        logManager.addOnce('promise_rejection', `Promise 거부: ${event.reason}`, 5000, 'error');
+    };
+})();
