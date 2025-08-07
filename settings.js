@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.1
+// @version 		6.4.3
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -292,26 +292,6 @@
             } catch (e) {
                 logManager.addOnce('window_prop_redefine_fail', `window.open/opener 재정의 실패: ${e.message}`, 5000, 'warn');
             }
-
-            const originalPushState = history.pushState;
-            history.pushState = function(...args) {
-                if (args[2] && new URL(args[2], window.location.href).hostname !== lastHostnameOnLoad && window.name) window.name = '';
-                return originalPushState.apply(this, args);
-            };
-            const originalReplaceState = history.replaceState;
-            history.replaceState = function(...args) {
-                if (args[2] && new URL(args[2], window.location.href).hostname !== lastHostnameOnLoad && window.name) window.name = '';
-                return originalReplaceState.apply(this, args);
-            };
-
-            document.addEventListener('click', (e) => {
-                const a = e.target.closest('a');
-                if (a?.download && a.href && /\.(exe|apk|bat|scr|zip|msi|cmd|com)/i.test(a.href)) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    logManager.addOnce('dangerous_file_download_blocked', `위험 파일 다운로드 차단됨 | 대상: ${a.href}`, 5000, 'block');
-                }
-            }, true);
         };
 
         return { init };
@@ -324,10 +304,10 @@
         let capturedVideoURLs = new Set();
         const blobToOriginalURLMap = new Map();
         const mediaSourceBlobMap = new Map();
-        let lastCapturedM3U8 = null; // ✅ 마지막으로 감지된 m3u8 URL을 저장하는 변수
+        let lastCapturedM3U8 = null;
+        let lastCapturedMPD = null;
 
-        // ✅ 추적할 영상 관련 확장자 목록 확장
-        const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.ts', '.mp4', '.webm', '.m4s', '.vtt', '.aac', '.mpd', '.mp3'];
+        const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.vtt', '.aac', '.mp3'];
         const isVideoLikeRequest = (url) => {
             if (!url || typeof url !== 'string') return false;
             try {
@@ -348,6 +328,45 @@
 
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t');
 
+        // ✅ DASH 매니페스트 파서
+        async function parseMPD(mpdURL) {
+            try {
+                const response = await fetch(mpdURL);
+                const text = await response.text();
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(text, "application/xml");
+
+                const baseURLNode = xml.querySelector('BaseURL');
+                const baseURL = baseURLNode ? new URL(baseURLNode.textContent.trim(), mpdURL).href : mpdURL.replace(/\/[^/]*$/, '/');
+
+                const representations = xml.querySelectorAll('Representation');
+                representations.forEach(rep => {
+                    const template = rep.querySelector('SegmentTemplate');
+                    if (template) {
+                        const media = template.getAttribute('media');
+                        const init = template.getAttribute('initialization');
+                        const startNumber = parseInt(template.getAttribute('startNumber') || "1");
+                        const count = 3;
+
+                        if (init) {
+                            trackAndAttach(new URL(init, baseURL).href, 'dash_init');
+                        }
+
+                        for (let i = startNumber; i < startNumber + count; i++) {
+                            const seg = media.replace('$Number$', i);
+                            trackAndAttach(new URL(seg, baseURL).href, 'dash_segment');
+                        }
+                    }
+                });
+
+                logManager.addOnce(`parsed_mpd_${mpdURL}`, `✅ MPD 파싱 완료: ${mpdURL}`, 5000, 'info');
+
+            } catch (err) {
+                logManager.addOnce(`parse_mpd_fail_${mpdURL}`, `⚠️ MPD 파싱 실패: ${mpdURL} - ${err.message}`, 5000, 'error');
+            }
+        }
+
+
         const normalizeURL = (url) => {
             try {
                 const u = new URL(url);
@@ -365,22 +384,26 @@
         const getOriginalURLIfBlob = (url) => {
             const originalUrl = blobToOriginalURLMap.get(url) || url;
             if (originalUrl.startsWith('blob:') && mediaSourceBlobMap.has(url)) {
-                 return mediaSourceBlobMap.get(url)
+                 const mappedUrl = mediaSourceBlobMap.get(url);
+                 // ✅ Blob에 매핑된 URL이 있으면 그 URL을 우선 반환, 없으면 최신 매니페스트 URL을 반환
+                 return (mappedUrl && mappedUrl !== 'MediaSource') ? mappedUrl : (lastCapturedM3U8 || lastCapturedMPD || url);
             }
-            // ✅ blob: URL인 경우, 마지막으로 감지된 m3u8 URL을 대체
-            if (url.startsWith('blob:') && lastCapturedM3U8) {
-                return lastCapturedM3U8;
+            if (url.startsWith('blob:') && (lastCapturedM3U8 || lastCapturedMPD)) {
+                return lastCapturedM3U8 || lastCapturedMPD;
             }
             return originalUrl;
         };
 
         const trackAndAttach = (url, sourceType = 'network') => {
-            const originalURL = getOriginalURLIfBlob(url);
+            const originalURL = url;
             const normalizedUrl = normalizeURL(originalURL);
 
-            // ✅ m3u8 URL은 특별히 저장
             if (normalizedUrl.toLowerCase().endsWith('.m3u8')) {
                 lastCapturedM3U8 = normalizedUrl;
+            }
+            if (normalizedUrl.toLowerCase().endsWith('.mpd')) {
+                lastCapturedMPD = normalizedUrl;
+                parseMPD(normalizedUrl);
             }
 
             if (capturedVideoURLs.has(normalizedUrl)) return;
@@ -400,10 +423,9 @@
         };
 
         const hookPrototypes = () => {
-            // ✅ XHR 후킹 강화: open과 send를 모두 후킹하여 URL과 Content-Type을 함께 감지
             const originalOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                this._url = url; // url을 객체에 저장
+                this._url = url;
                 return originalOpen.apply(this, [method, url, ...args]);
             };
 
@@ -419,7 +441,6 @@
                 return originalSend.apply(this, sendArgs);
             };
 
-            // ✅ fetch 후킹 강화: 요청 URL과 응답 MIME type을 함께 감지
             if (originalFetch) {
                 window.fetch = async function(...args) {
                     const url = args[0] && typeof args[0] === 'object' ? args[0].url : args[0];
@@ -448,28 +469,16 @@
                 };
             }
 
+            // ✅ MediaSource.addSourceBuffer 후킹
             try {
-                // MediaSource API 후킹 강화
-                const origAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
-                if (origAddSourceBuffer) {
-                    MediaSource.prototype.addSourceBuffer = function(mimeType) {
-                        logManager.addOnce('mse_detected', `🧪 MediaSource.addSourceBuffer 호출됨, MIME: ${mimeType}`, 5000, 'info');
-                        const sourceBuffer = origAddSourceBuffer.apply(this, [mimeType]);
-
-                        const origAppend = sourceBuffer.appendBuffer;
-                        sourceBuffer.appendBuffer = function(data) {
-                            logManager.addOnce('sourcebuffer_append', `🧪 SourceBuffer에 데이터 추가됨`, 5000, 'info');
-                            return origAppend.apply(this, [data]);
-                        };
-                        return sourceBuffer;
-                    };
-                }
-
-                const origEndOfStream = MediaSource.prototype.endOfStream;
-                if (origEndOfStream) {
-                    MediaSource.prototype.endOfStream = function(...args) {
-                        logManager.addOnce('mse_endofstream', `🧪 MediaSource.endOfStream 호출됨`, 5000, 'info');
-                        return origEndOfStream.apply(this, args);
+                const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
+                if (originalAddSourceBuffer) {
+                    MediaSource.prototype.addSourceBuffer = function (mimeType) {
+                        const lower = mimeType.toLowerCase();
+                        if (lower.includes('video/mp4') || lower.includes('video/webm') || lower.includes('audio/mp4') || lower.includes('mpegurl')) {
+                             trackAndAttach(`[MSE] ${mimeType}`, 'mse_stream');
+                        }
+                        return originalAddSourceBuffer.call(this, mimeType);
                     };
                 }
             } catch (e) {
@@ -498,7 +507,6 @@
                 });
             }
 
-            // ✅ URL.createObjectURL 후킹 강화
             const originalCreateObjectURL = URL.createObjectURL;
             if (originalCreateObjectURL) {
                 URL.createObjectURL = function(obj) {
@@ -506,7 +514,7 @@
                     const type = obj instanceof MediaSource ? 'MediaSource' : 'Blob';
 
                     if (type === 'MediaSource') {
-                        mediaSourceBlobMap.set(url, 'MediaSource');
+                        mediaSourceBlobMap.set(url, lastCapturedM3U8 || lastCapturedMPD || 'MediaSource');
                         logManager.addOnce(`createObjectURL_mse_${url}`, `[URL] MediaSource에 Blob URL 할당됨: ${url}`, 5000, 'info');
                     } else if (isVideoMimeType(obj.type)) {
                         blobToOriginalURLMap.set(url, url);
@@ -518,13 +526,22 @@
             }
         };
 
+        const resetState = () => {
+            capturedVideoURLs.clear();
+            blobToOriginalURLMap.clear();
+            mediaSourceBlobMap.clear();
+            lastCapturedM3U8 = null;
+            lastCapturedMPD = null;
+        };
+
         return {
             init: hookPrototypes,
             getOriginalURLIfBlob,
             isVideoUrl,
             trackAndAttach,
             capturedVideoURLs,
-            setCapturedVideoURLs: (urls) => { capturedVideoURLs = urls; }
+            setCapturedVideoURLs: (urls) => { capturedVideoURLs = urls; },
+            resetState
         };
     })();
 
@@ -1008,7 +1025,7 @@
 
                 button.onclick = (e) => {
                     e.stopPropagation(); e.preventDefault();
-                    const urlToCopy = url.startsWith('blob:') ? networkMonitor.getOriginalURLIfBlob(url) : url; // ✅ blob:일 경우 대체 URL 사용
+                    const urlToCopy = networkMonitor.getOriginalURLIfBlob(url);
                     if (!urlToCopy || urlToCopy.startsWith('blob:')) {
                         logManager.add('⚠️ 복사할 유효한 URL을 찾을 수 없음', 'warn');
                         return;
@@ -1134,26 +1151,30 @@
                 PROCESSED_NODES.clear();
                 PROCESSED_IFRAMES.clear();
                 LOGGED_KEYS_WITH_TIMER.clear();
+                networkMonitor.resetState();
 
                 OBSERVER_MAP.forEach(observer => observer.disconnect());
                 OBSERVER_MAP.clear();
 
-                App.initializeAll(document);
+                // SPA 탐색 시 DOM이 완전히 갱신되지 않을 수 있으므로, 일정 시간 후에 재탐색
+                setTimeout(() => {
+                    App.initializeAll(document);
+                }, 300);
             }
         };
 
+        const overrideHistoryMethod = (methodName) => {
+            const original = history[methodName];
+            history[methodName] = function(...args) {
+                const result = original.apply(this, args);
+                onNavigate(`history.${methodName}`);
+                return result;
+            };
+        };
+
         const init = () => {
-            ['pushState', 'replaceState'].forEach(type => {
-                const orig = history[type];
-                history[type] = function (...args) {
-                    try {
-                        orig.apply(this, args);
-                        onNavigate(`history.${type}`);
-                    } catch(e) {
-                        logManager.addOnce('history_api_error', `History API 오류: ${e.message}`, 5000, 'error');
-                    }
-                };
-            });
+            overrideHistoryMethod('pushState');
+            overrideHistoryMethod('replaceState');
             window.addEventListener('popstate', () => onNavigate('popstate'));
         };
         return { init, onNavigate };
