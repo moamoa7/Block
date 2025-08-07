@@ -36,7 +36,7 @@
 
     // --- 기능별 상수 및 예외 처리 ---
     const WHITELIST = [
-        'challenges.cloudflare.com', 'recaptcha', '/e/', 'poooo.ml',
+        'challenges.cloudflare.com', 'recaptcha', '/e/',
     ];
     const EXCEPTION_LIST = {
         'supjav.com': ['iframeBlocker'],
@@ -1304,9 +1304,16 @@
     const iframeBlocker = (() => {
         const SANDBOX_ATTR = 'sandbox';
 
-        const isBlockedSrc = (src) => {
+        // URL이 허용 패턴에 포함되는지 확인하는 함수 (이름 변경: isAllowedSrc)
+        const isAllowedSrc = (src) => {
             const srcToTest = src || '';
-            return IGNORED_IFRAME_PATTERNS.some(p => p.test(srcToTest)) || IFRAME_FORCE_BLOCK_PATTERNS.some(p => srcToTest.includes(p));
+            return IGNORED_IFRAME_PATTERNS.some(p => p.test(srcToTest));
+        };
+
+        // URL이 강제 차단 패턴에 포함되는지 확인하는 함수
+        const isForceBlockSrc = (src) => {
+            const srcToTest = src || '';
+            return IFRAME_FORCE_BLOCK_PATTERNS.some(p => srcToTest.includes(p));
         };
 
         const blockIframe = (iframe, reason = '차단됨') => {
@@ -1341,26 +1348,43 @@
             if (PROCESSED_IFRAMES.has(iframe)) return false;
 
             const srcAttrs = ['src', 'data-src', 'data-lazy-src', 'srcdoc'];
+            let srcVal = '';
             for (const attr of srcAttrs) {
                 const val = iframe.getAttribute(attr);
-                if (val && isBlockedSrc(val)) {
-                    blockIframe(iframe, 'URL 패턴 매칭');
-                    PROCESSED_IFRAMES.add(iframe);
-                    return true;
+                if (val) {
+                    srcVal = val;
+                    break;
                 }
             }
 
+            // 허용 목록에 있으면 바로 통과 (차단하지 않음)
+            if (isAllowedSrc(srcVal)) {
+                logManager.addOnce(`iframe_allowed_url_${iframe.id || 'no-id'}_${Date.now()}`, `✅ iframe 허용됨 (예외 목록) | src: ${srcVal.substring(0, 50)}...`, 5000, 'allow');
+                PROCESSED_IFRAMES.add(iframe);
+                return false;
+            }
+
+            // 강제 차단 목록에 있으면 차단
+            if (isForceBlockSrc(srcVal)) {
+                 blockIframe(iframe, 'URL 패턴 매칭(강제 차단)');
+                 PROCESSED_IFRAMES.add(iframe);
+                 return true;
+            }
+
+            // 키워드 검사 후 차단
             if (checkIframeContentKeywords(iframe)) {
                 blockIframe(iframe, '유해 키워드 검출');
                 PROCESSED_IFRAMES.add(iframe);
                 return true;
             }
 
+            // 샌드박스 속성 추가 (필요시)
             if (!iframe.hasAttribute(SANDBOX_ATTR)) {
                  iframe.setAttribute(SANDBOX_ATTR, 'allow-scripts allow-same-origin');
                  logManager.addOnce(`iframe_sandboxed_${iframe.id || 'no-id'}`, `⚠️ iframe에 sandbox 적용됨`, 5000, 'info');
             }
 
+            PROCESSED_IFRAMES.add(iframe);
             return false;
         };
 
