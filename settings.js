@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.2.223
+// @version 		6.3.0 (유해 키워드 차단으로 iframe 차단)
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -17,7 +17,8 @@
         iframeBlocker: true,
         layerTrap: true,
         videoControls: true,
-        logUI: true
+        logUI: true,
+        keywordBlocker: true // ✅ 새로운 기능 플래그 추가
     };
     const USER_SETTINGS = {
         enableVideoDebugBorder: false,
@@ -58,6 +59,12 @@
         /html5player\.ru/, /video_player\.js/, /googlesyndication\.com/,
         /adservice\.google\.com/,
     ].map(p => (typeof p === 'string' ? new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) : p));
+
+    // ✅ 유해 키워드 목록 추가
+    const IFRAME_CONTENT_BLOCK_KEYWORDS = [
+      '무료 성인', '카지노', '섹스', '성인 채팅', '벗방', '돈벌기', '도박',
+      '파트너스 활동을 통해 일정액의 수수료를 지급받을 수 있습니다', '성인광고'
+    ];
 
     // --- 스크립트 초기 실행 전 예외 처리 ---
     const hostname = location.hostname;
@@ -325,8 +332,8 @@
             if (!url || typeof url !== 'string') return false;
             const normalizedUrl = url.toLowerCase();
             return knownExtensions.some(ext => normalizedUrl.includes(ext)) ||
-                           normalizedUrl.includes('mime=video') ||
-                           normalizedUrl.includes('video/');
+                                   normalizedUrl.includes('mime=video') ||
+                                   normalizedUrl.includes('video/');
         };
 
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream');
@@ -403,8 +410,8 @@
                             });
                         }
                     } catch (e) {
-                           logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}`, 5000, 'error');
-                           throw e;
+                            logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}`, 5000, 'error');
+                            throw e;
                     }
 
                     return res;
@@ -1027,8 +1034,28 @@
     const iframeBlocker = (() => {
         const checkIframe = (iframe) => {
             const iframeSrc = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('data-lazy-src') || '';
-            const isAd = IGNORED_IFRAME_PATTERNS.some(p => p.test(iframeSrc)) || IFRAME_FORCE_BLOCK_PATTERNS.some(p => iframeSrc.includes(p));
-            return isAd;
+            const isAdByPattern = IGNORED_IFRAME_PATTERNS.some(p => p.test(iframeSrc)) || IFRAME_FORCE_BLOCK_PATTERNS.some(p => iframeSrc.includes(p));
+            return isAdByPattern;
+        };
+
+        const checkIframeContent = (iframe) => {
+            if (!FeatureFlags.keywordBlocker || !iframe.src || iframe.src.startsWith('about:')) return false;
+
+            try {
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                if (!doc || !doc.body) return false;
+
+                const text = doc.body.textContent || '';
+                for (const keyword of IFRAME_CONTENT_BLOCK_KEYWORDS) {
+                    if (text.includes(keyword)) {
+                        logManager.addOnce(`iframe_keyword_block_${iframe.id || 'no-id'}`, `🚫 iframe 유해 키워드 차단됨 | 키워드: ${keyword} | src: ${iframe.src.substring(0, 50)}...`, 5000, 'block');
+                        return true;
+                    }
+                }
+            } catch (e) {
+                // Same-Origin Policy (SOP) 오류는 무시
+            }
+            return false;
         };
 
         const block = (iframe) => {
@@ -1041,7 +1068,7 @@
             logManager.addOnce(`iframe_block_${iframeId}`, `🚫 iframe 차단됨 | ID: ${iframeId} | src: ${iframeSrc.substring(0, 50)}...`, 5000, 'block');
         };
 
-        return { checkIframe, block };
+        return { checkIframe, checkIframeContent, block };
     })();
 
     // --- SPA 및 MutationObserver 통합 모듈 ---
@@ -1105,6 +1132,11 @@
                 try {
                     const doc = iframe.contentDocument;
                     if (doc && doc.body) {
+                        // iframe 내용 로드 후 키워드 검사
+                        if (iframeBlocker.checkIframeContent(iframe)) {
+                           iframeBlocker.block(iframe);
+                           return;
+                        }
                         initializeAll(doc);
                     } else {
                         setTimeout(() => tryInit(retries - 1, delay), delay);
@@ -1125,7 +1157,7 @@
                     mutation.addedNodes.forEach(node => {
                         if (node.nodeType === 1) {
                             if (node.tagName === 'IFRAME' && !PROCESSED_IFRAMES.has(node)) {
-                                if (iframeBlocker.checkIframe(node)) {
+                                if (iframeBlocker.checkIframe(node) || iframeBlocker.checkIframeContent(node)) {
                                     iframeBlocker.block(node);
                                 } else {
                                     handleIframeLoad(node);
@@ -1133,7 +1165,7 @@
                             }
                             node.querySelectorAll('iframe').forEach(iframe => {
                                 if (!PROCESSED_IFRAMES.has(iframe)) {
-                                    if (iframeBlocker.checkIframe(iframe)) {
+                                    if (iframeBlocker.checkIframe(iframe) || iframeBlocker.checkIframeContent(iframe)) {
                                         iframeBlocker.block(iframe);
                                     } else {
                                         handleIframeLoad(iframe);
@@ -1153,7 +1185,7 @@
                     if (targetNode.nodeType === 1) {
                         if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
                             PROCESSED_IFRAMES.delete(targetNode);
-                            if (iframeBlocker.checkIframe(targetNode)) {
+                            if (iframeBlocker.checkIframe(targetNode) || iframeBlocker.checkIframeContent(targetNode)) {
                                 iframeBlocker.block(targetNode);
                             } else {
                                 handleIframeLoad(targetNode);
@@ -1237,7 +1269,7 @@
                 videoControls.initWhenReady(video);
             });
             targetDocument.querySelectorAll('iframe').forEach(iframe => {
-                 if (iframeBlocker.checkIframe(iframe)) {
+                 if (iframeBlocker.checkIframe(iframe) || iframeBlocker.checkIframeContent(iframe)) {
                      iframeBlocker.block(iframe);
                  } else {
                      handleIframeLoad(iframe);
