@@ -1633,7 +1633,9 @@ window.onerror = (message, source, lineno, colno, error) => {
         message.includes('OAS_RICH') ||
         message.includes('Piclick') ||
         message.includes('HawkEyes') ||
-        message.includes('list_end_run')
+        message.includes('list_end_run') ||
+        // 새로 추가된 부분
+        message.includes('showM320View')
     )) {
         return true;
     }
