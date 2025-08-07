@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		12.0.0 (popupBlocker 강화)
-// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V12)
+// @version 		13.0.0
+// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V13)
 // @match 			*://*/*
 // @grant 			none
 // @run-at 			document-start
@@ -296,6 +296,11 @@
             );
         };
 
+        const logPopup = (status, reason, url) => {
+            const level = status === 'BLOCKED' ? 'warn' : 'info';
+            logManager?.addOnce?.(`popup_${status.toLowerCase()}_${getDomain(url)}`, `🔗 ${status}: ${reason} | ${getDomain(url)}`, 6000, level);
+        };
+
         const overrideOpen = () => {
             window.open = function (url, name, specs, replace) {
                 const domain = getDomain(url || '');
@@ -313,13 +318,14 @@
                 const blocked = reasons.length > 0;
 
                 if (blocked) {
-                    console.warn(`🛑 팝업 차단됨 [${reasons.join(', ')}] → ${url || '(빈 URL)'}`);
-                    logManager?.addOnce?.(`popup_block_${Date.now()}`, `🛑 팝업 차단 [${reasons.join(', ')}]`, 6000, 'warn');
-                    return null;
+                    logPopup('BLOCKED', reasons.join(', '), url);
+                    return getFakeWindow(); // null 대신 더미 객체 반환
                 }
 
-                const popup = originalOpen.call(this, url, name, specs, replace);
                 popupCount++;
+                logPopup('ALLOWED', '정상 허용', url);
+
+                const popup = originalOpen.call(this, url, name, specs, replace);
 
                 if (popup && AUTO_CLOSE_DELAY > 0) {
                     setTimeout(() => {
@@ -327,8 +333,6 @@
                     }, AUTO_CLOSE_DELAY);
                 }
 
-                console.info(`✅ 팝업 허용: ${domain}`);
-                logManager?.addOnce?.(`popup_allow_${Date.now()}`, `✅ 팝업 허용: ${domain}`, 4000, 'info');
                 return popup;
             };
         };
@@ -342,7 +346,7 @@
                     enumerable: true
                 });
             } catch (err) {
-                console.warn('⚠️ window.open 보호 실패:', err);
+                logManager?.addOnce?.('window_open_lock_fail', `⚠️ window.open 보호 실패: ${err.message}`, 5000, 'warn');
             }
         };
 
@@ -355,20 +359,25 @@
 
         const blockInIframe = () => {
             if (window.self !== window.top) {
-                window.open = () => null;
-                console.warn('🧱 iframe 내 팝업 차단 적용');
+                window.open = function(url, ...rest) {
+                    logManager?.addOnce?.(`popup_iframe_block_${Date.now()}`, `🧱 iframe 내 팝업 차단 | ${url || '(빈 URL)'}`, 5000, 'warn');
+                    return getFakeWindow(); // 더미 객체 반환
+                };
             }
         };
 
         const resetCount = () => { popupCount = 0; };
 
         const init = () => {
-          registerUserEvents();
-          overrideOpen();
-          blockInIframe();    // <-- 이 부분을 먼저 호출하여 재할당
-          lockOpen();         // <-- 그 다음에 최종적으로 'open'을 잠금
-          console.log('✅ popupBlocker 초기화 완료');
-      };
+            if (window.self !== window.top) {
+                blockInIframe();
+            } else {
+                registerUserEvents();
+                overrideOpen();
+                lockOpen();
+            }
+            logManager?.add?.('popup_blocker_init', '✅ popupBlocker 초기화 완료', 5000, 'debug');
+        };
 
         return {
             init,
@@ -396,6 +405,11 @@
                 const lowerUrl = url.toLowerCase().split('?')[0];
                 const hasVideoExtension = TRACKED_VIDEO_EXTENSIONS.some(ext => lowerUrl.endsWith(ext));
                 const hasVideoMimeType = mimeType?.startsWith('video/') || mimeType?.includes('application/vnd.apple.mpegurl') || mimeType?.includes('application/dash+xml');
+
+                // .ts 확장자는 반드시 MIME 타입이 video/mp2t일 때만 유효하다고 가정
+                if (lowerUrl.endsWith('.ts') && mimeType && !mimeType.includes('video/mp2t')) {
+                    return false;
+                }
 
                 return hasVideoExtension || hasVideoMimeType;
             } catch (e) {
@@ -575,7 +589,7 @@
         const hookPrototypes = () => {
             const originalOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                this._url = url;
+                this.__pbivs_originalUrl = url;
                 if (typeof url === 'string' && url.includes('.m3u8')) {
                     parseM3U8(url);
                 }
@@ -586,7 +600,7 @@
             XMLHttpRequest.prototype.send = function(...sendArgs) {
                 this.addEventListener('load', () => {
                     const contentType = this.getResponseHeader('Content-Type');
-                    const url = this._url;
+                    const url = this.__pbivs_originalUrl;
                     if (isVideoLikeRequest(url, contentType) || isVideoMimeType(contentType)) {
                         trackAndAttach(url, 'xhr_load');
                     }
@@ -603,19 +617,24 @@
                     let res;
                     try {
                         res = await originalFetch.apply(this, args);
-                        const clone = res.clone();
-                        const contentType = clone.headers.get("content-type");
-                        if (isVideoLikeRequest(url, contentType) || isVideoMimeType(contentType)) {
-                            trackAndAttach(url, 'fetch');
+                        const contentType = res.headers.get("content-type");
 
-                            clone.blob().then(blob => {
-                                if (isVideoMimeType(blob.type)) {
-                                    const blobURL = URL.createObjectURL(blob);
-                                    blobToOriginalURLMap.set(blobURL, url);
-                                }
-                            }).catch(e => {
-                                logManager.addOnce('blob_capture_error_safe', `Blob URL 매핑 중 오류 발생 (무시): ${e.message}`, 5000, 'warn');
-                            });
+                        // 응답 본문을 읽기 전에 clone() 시도
+                        try {
+                            const clone = res.clone();
+                            if (isVideoLikeRequest(url, contentType) || isVideoMimeType(contentType)) {
+                                trackAndAttach(url, 'fetch');
+                                clone.blob().then(blob => {
+                                    if (isVideoMimeType(blob.type)) {
+                                        const blobURL = URL.createObjectURL(blob);
+                                        blobToOriginalURLMap.set(blobURL, url);
+                                    }
+                                }).catch(e => {
+                                    logManager.addOnce('blob_capture_error_safe', `Blob URL 매핑 중 오류 발생 (무시): ${e.message}`, 5000, 'warn');
+                                });
+                            }
+                        } catch (e) {
+                           logManager.addOnce('fetch_clone_fail', `⚠️ Fetch 응답 clone 실패: ${e.message}`, 5000, 'warn');
                         }
                     } catch (e) {
                         logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}\n${e.stack}`, 5000, 'error');
@@ -1517,7 +1536,8 @@
 
     // --- 주요 기능 통합 및 실행 ---
     const App = (() => {
-        let videoUIWatcherInterval = null;
+        const VIDEO_WATCHER_MAP = new Map();
+        const OBSERVER_MAP = new Map();
         let isInitialized = false;
 
         const handleIframeLoad = (iframe) => {
@@ -1539,7 +1559,7 @@
 
             const tryInit = (retries = 5, delay = 1000) => {
                 if (retries <= 0) {
-                    logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 실패 (최대 재시도 횟수 초과) | src: ${iframeSrc}`, 5000, 'warn');
+                    logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 실패 (최대 재시도 초과) | src: ${iframeSrc}`, 5000, 'warn');
                     return;
                 }
 
@@ -1613,6 +1633,11 @@
             const rootElement = targetDocument.documentElement || targetDocument.body;
             if (!rootElement) return;
 
+            if (OBSERVER_MAP.has(targetDocument)) {
+                const existingObserver = OBSERVER_MAP.get(targetDocument);
+                if (existingObserver) existingObserver.disconnect();
+            }
+
             const observer = new MutationObserver(mutations => processMutations(mutations, targetDocument));
             observer.observe(rootElement, {
                 childList: true, subtree: true, attributes: true,
@@ -1625,7 +1650,10 @@
 
         const startVideoUIWatcher = (targetDocument = document) => {
             if (!FeatureFlags.videoControls) return;
-            if (videoUIWatcherInterval) clearInterval(videoUIWatcherInterval);
+
+            if (VIDEO_WATCHER_MAP.has(targetDocument)) {
+                clearInterval(VIDEO_WATCHER_MAP.get(targetDocument));
+            }
 
             const checkVideos = () => {
                 const videos = videoFinder.findAll(targetDocument);
@@ -1639,8 +1667,10 @@
                 }
             };
 
-            videoUIWatcherInterval = setInterval(throttle(checkVideos, 1000), 1500);
-            logManager.addOnce('video_watcher_started', '✅ 비디오 감시 루프 시작', 5000, 'info');
+            const interval = setInterval(throttle(checkVideos, 1000), 1500);
+            VIDEO_WATCHER_MAP.set(targetDocument, interval);
+
+            logManager.addOnce('video_watcher_started', `✅ 비디오 감시 루프 시작 | ${targetDocument === document ? '메인' : 'iframe'}`, 5000, 'info');
         };
 
         const initializeAll = (targetDocument = document) => {
