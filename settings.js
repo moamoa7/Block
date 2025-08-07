@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.3.0 (유해 키워드 차단으로 iframe 차단)
+// @version 		6.4.1
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -18,7 +18,7 @@
         layerTrap: true,
         videoControls: true,
         logUI: true,
-        keywordBlocker: true // ✅ 새로운 기능 플래그 추가
+        keywordBlocker: true
     };
     const USER_SETTINGS = {
         enableVideoDebugBorder: false,
@@ -60,7 +60,6 @@
         /adservice\.google\.com/,
     ].map(p => (typeof p === 'string' ? new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) : p));
 
-    // ✅ 유해 키워드 목록 추가
     const IFRAME_CONTENT_BLOCK_KEYWORDS = [
       '무료 성인', '카지노', '섹스', '성인 채팅', '벗방', '돈벌기', '도박',
       '파트너스 활동을 통해 일정액의 수수료를 지급받을 수 있습니다', '성인광고'
@@ -324,19 +323,30 @@
         const originalFetch = window.fetch;
         let capturedVideoURLs = new Set();
         const blobToOriginalURLMap = new Map();
+        const mediaSourceBlobMap = new Map();
+        let lastCapturedM3U8 = null; // ✅ 마지막으로 감지된 m3u8 URL을 저장하는 변수
 
-        const mediaSourceBlobMap = new WeakMap();
+        // ✅ 추적할 영상 관련 확장자 목록 확장
+        const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.ts', '.mp4', '.webm', '.m4s', '.vtt', '.aac', '.mpd', '.mp3'];
+        const isVideoLikeRequest = (url) => {
+            if (!url || typeof url !== 'string') return false;
+            try {
+                const lowerUrl = url.toLowerCase().split('?')[0];
+                return TRACKED_VIDEO_EXTENSIONS.some(ext => lowerUrl.endsWith(ext));
+            } catch (e) {
+                return false;
+            }
+        };
 
-        const knownExtensions = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.mov', '.avi', '.flv', '.aac', '.ogg', '.mp3'];
         const isVideoUrl = (url) => {
             if (!url || typeof url !== 'string') return false;
             const normalizedUrl = url.toLowerCase();
-            return knownExtensions.some(ext => normalizedUrl.includes(ext)) ||
-                                   normalizedUrl.includes('mime=video') ||
-                                   normalizedUrl.includes('video/');
+            return isVideoLikeRequest(normalizedUrl) ||
+                   normalizedUrl.includes('mime=video') ||
+                   normalizedUrl.includes('video/');
         };
 
-        const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream');
+        const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t');
 
         const normalizeURL = (url) => {
             try {
@@ -357,12 +367,22 @@
             if (originalUrl.startsWith('blob:') && mediaSourceBlobMap.has(url)) {
                  return mediaSourceBlobMap.get(url)
             }
+            // ✅ blob: URL인 경우, 마지막으로 감지된 m3u8 URL을 대체
+            if (url.startsWith('blob:') && lastCapturedM3U8) {
+                return lastCapturedM3U8;
+            }
             return originalUrl;
         };
 
         const trackAndAttach = (url, sourceType = 'network') => {
             const originalURL = getOriginalURLIfBlob(url);
             const normalizedUrl = normalizeURL(originalURL);
+
+            // ✅ m3u8 URL은 특별히 저장
+            if (normalizedUrl.toLowerCase().endsWith('.m3u8')) {
+                lastCapturedM3U8 = normalizedUrl;
+            }
+
             if (capturedVideoURLs.has(normalizedUrl)) return;
             capturedVideoURLs.add(normalizedUrl);
 
@@ -380,13 +400,26 @@
         };
 
         const hookPrototypes = () => {
-            // XHR 후킹은 유지
+            // ✅ XHR 후킹 강화: open과 send를 모두 후킹하여 URL과 Content-Type을 함께 감지
+            const originalOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                if (isVideoUrl(url)) trackAndAttach(url, 'xhr');
-                return originalXHR.apply(this, [method, url, ...args]);
+                this._url = url; // url을 객체에 저장
+                return originalOpen.apply(this, [method, url, ...args]);
             };
 
-            // fetch 후킹은 제거하고, 원본 fetch만 사용하도록 복원
+            const originalSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.send = function(...sendArgs) {
+                this.addEventListener('load', () => {
+                    const contentType = this.getResponseHeader('Content-Type');
+                    const url = this._url;
+                    if (isVideoLikeRequest(url) || isVideoMimeType(contentType)) {
+                        trackAndAttach(url, 'xhr_load');
+                    }
+                });
+                return originalSend.apply(this, sendArgs);
+            };
+
+            // ✅ fetch 후킹 강화: 요청 URL과 응답 MIME type을 함께 감지
             if (originalFetch) {
                 window.fetch = async function(...args) {
                     const url = args[0] && typeof args[0] === 'object' ? args[0].url : args[0];
@@ -398,32 +431,37 @@
                         if (isVideoUrl(url) || isVideoMimeType(contentType)) {
                             trackAndAttach(url, 'fetch');
 
-                            // blob to original url map is still useful for some scenarios
                             clone.blob().then(blob => {
-                                if (blob.type.includes('video') || blob.type.includes('octet-stream')) {
+                                if (isVideoMimeType(blob.type)) {
                                     const blobURL = URL.createObjectURL(blob);
                                     blobToOriginalURLMap.set(blobURL, url);
                                 }
                             }).catch(e => {
-                                // Ignore if blob conversion fails
                                 logManager.addOnce('blob_capture_error_safe', `Blob URL 매핑 중 오류 발생 (무시): ${e.message}`, 5000, 'warn');
                             });
                         }
                     } catch (e) {
-                            logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}`, 5000, 'error');
-                            throw e;
+                        logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}`, 5000, 'error');
+                        throw e;
                     }
-
                     return res;
                 };
             }
 
             try {
+                // MediaSource API 후킹 강화
                 const origAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
                 if (origAddSourceBuffer) {
                     MediaSource.prototype.addSourceBuffer = function(mimeType) {
                         logManager.addOnce('mse_detected', `🧪 MediaSource.addSourceBuffer 호출됨, MIME: ${mimeType}`, 5000, 'info');
-                        return origAddSourceBuffer.apply(this, [mimeType]);
+                        const sourceBuffer = origAddSourceBuffer.apply(this, [mimeType]);
+
+                        const origAppend = sourceBuffer.appendBuffer;
+                        sourceBuffer.appendBuffer = function(data) {
+                            logManager.addOnce('sourcebuffer_append', `🧪 SourceBuffer에 데이터 추가됨`, 5000, 'info');
+                            return origAppend.apply(this, [data]);
+                        };
+                        return sourceBuffer;
                     };
                 }
 
@@ -442,8 +480,7 @@
             if (origSrcObjDescriptor?.set) {
                 Object.defineProperty(HTMLMediaElement.prototype, "srcObject", {
                     set(obj) {
-                        logManager.addOnce('srcObject_set', `🛰️ video.srcObject 변경 감지`, 5000, 'info');
-                        if (obj) trackAndAttach(obj, 'srcObject');
+                        logManager.addOnce('srcObject_set', `🛰️ video.srcObject 변경 감지 (스트림) | 복사 기능 제한될 수 있음`, 5000, 'warn');
                         return origSrcObjDescriptor.set.call(this, obj);
                     },
                     get() { return origSrcObjDescriptor.get.call(this); }
@@ -461,14 +498,21 @@
                 });
             }
 
+            // ✅ URL.createObjectURL 후킹 강화
             const originalCreateObjectURL = URL.createObjectURL;
             if (originalCreateObjectURL) {
                 URL.createObjectURL = function(obj) {
                     const url = originalCreateObjectURL.call(this, obj);
-                    // MSE 객체는 URL에 대한 정보를 가지고 있지 않으므로, 이 매핑은 필요 없음
                     const type = obj instanceof MediaSource ? 'MediaSource' : 'Blob';
-                    logManager.addOnce(`createObjectURL_${url}`, `[URL] createObjectURL 호출됨: 타입=${type} URL=${url}`, 5000, 'info');
-                    if (isVideoUrl(url)) trackAndAttach(url, type);
+
+                    if (type === 'MediaSource') {
+                        mediaSourceBlobMap.set(url, 'MediaSource');
+                        logManager.addOnce(`createObjectURL_mse_${url}`, `[URL] MediaSource에 Blob URL 할당됨: ${url}`, 5000, 'info');
+                    } else if (isVideoMimeType(obj.type)) {
+                        blobToOriginalURLMap.set(url, url);
+                        logManager.addOnce(`createObjectURL_blob_${url}`, `[URL] 비디오 Blob URL 생성됨: ${url}`, 5000, 'info');
+                        trackAndAttach(url, 'createObjectURL');
+                    }
                     return url;
                 };
             }
@@ -948,46 +992,51 @@
     const dynamicVideoUI = {
         attach: (targetElement, url) => {
             if (!targetElement) return;
-            const existingButton = targetElement.querySelector('.dynamic-video-url-btn');
-            if (existingButton) return;
+            let existingButton = targetElement.querySelector('.dynamic-video-url-btn');
 
-            const button = document.createElement('button');
-            button.className = 'dynamic-video-url-btn';
-            button.textContent = '🎞️';
-            button.title = '비디오 URL 복사';
-            Object.assign(button.style, {
-                position: 'absolute', top: '5px', right: '5px', zIndex: '2147483647',
-                background: 'rgba(0, 0, 0, 0.7)', color: 'white', border: 'none',
-                borderRadius: '5px', padding: '5px 10px', cursor: 'pointer',
-                pointerEvents: 'auto', display: 'block', transition: 'background 0.3s'
-            });
-
-            button.onclick = (e) => {
-                e.stopPropagation(); e.preventDefault();
-                const originalUrl = networkMonitor.getOriginalURLIfBlob(url);
-                navigator.clipboard.writeText(originalUrl).then(() => {
-                    const originalText = button.textContent;
-                    button.textContent = '✅ 복사 완료!';
-                    button.style.background = 'rgba(40, 167, 69, 0.7)';
-                    setTimeout(() => {
-                        button.textContent = originalText;
-                        button.style.background = 'rgba(0, 0, 0, 0.7)';
-                    }, 1500);
-                }).catch(() => {
-                    const originalText = button.textContent;
-                    button.textContent = '❌ 복사 실패!';
-                    button.style.background = 'rgba(220, 53, 69, 0.7)';
-                    setTimeout(() => {
-                        button.textContent = originalText;
-                        button.style.background = 'rgba(0, 0, 0, 0.7)';
-                    }, 1500);
+            if (!existingButton) {
+                const button = document.createElement('button');
+                button.className = 'dynamic-video-url-btn';
+                button.textContent = '🎞️';
+                button.title = '비디오 URL 복사';
+                Object.assign(button.style, {
+                    position: 'absolute', top: '5px', right: '5px', zIndex: '2147483647',
+                    background: 'rgba(0, 0, 0, 0.7)', color: 'white', border: 'none',
+                    borderRadius: '5px', padding: '5px 10px', cursor: 'pointer',
+                    pointerEvents: 'auto', display: 'block', transition: 'background 0.3s'
                 });
-            };
-            if (getComputedStyle(targetElement).position === 'static') {
-                targetElement.style.position = 'relative';
+
+                button.onclick = (e) => {
+                    e.stopPropagation(); e.preventDefault();
+                    const urlToCopy = url.startsWith('blob:') ? networkMonitor.getOriginalURLIfBlob(url) : url; // ✅ blob:일 경우 대체 URL 사용
+                    if (!urlToCopy || urlToCopy.startsWith('blob:')) {
+                        logManager.add('⚠️ 복사할 유효한 URL을 찾을 수 없음', 'warn');
+                        return;
+                    }
+                    navigator.clipboard.writeText(urlToCopy).then(() => {
+                        const originalText = button.textContent;
+                        button.textContent = '✅ 복사 완료!';
+                        button.style.background = 'rgba(40, 167, 69, 0.7)';
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                            button.style.background = 'rgba(0, 0, 0, 0.7)';
+                        }, 1500);
+                    }).catch(() => {
+                        const originalText = button.textContent;
+                        button.textContent = '❌ 복사 실패!';
+                        button.style.background = 'rgba(220, 53, 69, 0.7)';
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                            button.style.background = 'rgba(0, 0, 0, 0.7)';
+                        }, 1500);
+                    });
+                };
+                if (getComputedStyle(targetElement).position === 'static') {
+                    targetElement.style.position = 'relative';
+                }
+                targetElement.appendChild(button);
+                logManager.add(`✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 'info');
             }
-            targetElement.appendChild(button);
-            logManager.add(`✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 'info');
         }
     };
 
@@ -1132,7 +1181,6 @@
                 try {
                     const doc = iframe.contentDocument;
                     if (doc && doc.body) {
-                        // iframe 내용 로드 후 키워드 검사
                         if (iframeBlocker.checkIframeContent(iframe)) {
                            iframeBlocker.block(iframe);
                            return;
