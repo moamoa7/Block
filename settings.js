@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		8.0.0
-// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V8)
+// @version 		9.0.0
+// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V9)
 // @match 			*://*/*
 // @grant 			none
 // @run-at 			document-start
@@ -36,7 +36,7 @@
 
     // --- 기능별 상수 및 예외 처리 ---
     const WHITELIST = [
-        'challenges.cloudflare.com', 'recaptcha', '/e/',
+        'challenges.cloudflare.com', 'recaptcha', '/e/', 'poooo.ml',
     ];
     const EXCEPTION_LIST = {
         'supjav.com': ['iframeBlocker'],
@@ -55,10 +55,10 @@
     ];
     const IGNORED_IFRAME_PATTERNS = [
         /e\.mail\.ru/, /youtube\.com\/embed/, /player\.vimeo\.com/,
-        /player\.twitch\.tv/, /ok\.ru\/videoembed/, /w\.naver\.com\/v2/,
+        /player\.twitch\.tv/, /ok\.ru/, /w\.naver\.com\/v2/,
         /serviceapi\.nmv\.naver\.com/, /pstatic\.net\/movie\/svc\/popup/,
         /html5player\.ru/, /video_player\.js/, /googlesyndication\.com/,
-        /adservice\.google\.com/,
+        /adservice\.google\.com/, /poooo\.ml/,
     ].map(p => (typeof p === 'string' ? new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) : p));
 
     const IFRAME_CONTENT_BLOCK_KEYWORDS = [
@@ -305,18 +305,18 @@
         const mediaSourceBlobMap = new Map();
         let lastCapturedM3U8 = null;
         let lastCapturedMPD = null;
-        
+
         const PROCESSED_MANIFESTS = new Set();
-        
+
         const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.mov', '.flv', '.avi'];
-        
+
         const isVideoLikeRequest = (url, mimeType) => {
             if (!url || typeof url !== 'string') return false;
             try {
                 const lowerUrl = url.toLowerCase().split('?')[0];
                 const hasVideoExtension = TRACKED_VIDEO_EXTENSIONS.some(ext => lowerUrl.endsWith(ext));
                 const hasVideoMimeType = mimeType?.startsWith('video/') || mimeType?.includes('application/vnd.apple.mpegurl') || mimeType?.includes('application/dash+xml');
-                
+
                 return hasVideoExtension || hasVideoMimeType;
             } catch (e) {
                 return false;
@@ -330,7 +330,7 @@
         };
 
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
-        
+
         async function parseMPD(mpdURL) {
             if (PROCESSED_MANIFESTS.has(mpdURL)) return;
             PROCESSED_MANIFESTS.add(mpdURL);
@@ -343,7 +343,7 @@
 
                 const baseURLNode = xml.querySelector('BaseURL');
                 const baseURL = baseURLNode ? new URL(baseURLNode.textContent.trim(), mpdURL).href : mpdURL.replace(/\/[^/]*$/, '/');
-                
+
                 const representations = xml.querySelectorAll('Representation');
                 representations.forEach(rep => {
                     const template = rep.querySelector('SegmentTemplate');
@@ -369,16 +369,16 @@
                 logManager.addOnce(`parse_mpd_fail_${mpdURL}`, `⚠️ MPD 파싱 실패: ${mpdURL} - ${err.message}`, 5000, 'error');
             }
         }
-        
+
         async function parseM3U8(m3u8URL, depth = 0) {
              if (depth > 2 || PROCESSED_MANIFESTS.has(m3u8URL)) return;
              PROCESSED_MANIFESTS.add(m3u8URL);
-        
+
              try {
                  const res = await fetch(m3u8URL);
                  const text = await res.text();
                  const base = m3u8URL.split('/').slice(0, -1).join('/') + '/';
-        
+
                  if (text.includes('#EXT-X-STREAM-INF')) {
                      const subURLs = [...text.matchAll(/^[^#].+\.m3u8$/gm)]
                          .map(m => new URL(m[0].trim(), base).href);
@@ -387,19 +387,19 @@
                      }
                      return;
                  }
-        
+
                  const segments = [...text.matchAll(/^[^#][^\r\n]*\.ts$/gm)]
                      .map(m => new URL(m[0].trim(), base).href);
-        
+
                  segments.forEach(url => trackAndAttach(url, 'hls_segment'));
-        
+
                  logManager.addOnce(`parsed_m3u8_${m3u8URL}`, `✅ M3U8 파싱 완료 (세그먼트 ${segments.length}개)`, 5000, 'info');
-        
+
              } catch (err) {
                  logManager.addOnce(`parse_m3u8_fail_${m3u8URL}`, `⚠️ M3U8 파싱 실패: ${m3u8URL} - ${err.message}`, 5000, 'error');
              }
         }
-        
+
         const normalizeURL = (url) => {
             try {
                 const urlObj = new URL(url, location.href);
@@ -426,7 +426,7 @@
             }
             return originalUrl;
         };
-        
+
         const reportVideoURL = (url, context = '') => {
             if (!capturedVideoURLs.has(url)) {
                 capturedVideoURLs.add(url);
@@ -438,7 +438,7 @@
         const trackAndAttach = (url, sourceType = 'network') => {
             const originalURL = url;
             const normalizedUrl = normalizeURL(originalURL);
-            
+
             let videoType = '';
             if (normalizedUrl.toLowerCase().endsWith('.m3u8')) {
                 lastCapturedM3U8 = normalizedUrl;
@@ -472,16 +472,20 @@
 
         // --- postMessage 리스너 ---
         const handlePostMessage = (event) => {
-            const trustedOrigins = [location.origin, 'https://www.youtube.com']; // 예시로 신뢰 출처 추가
+            const trustedOrigins = [location.origin];
+            try {
+                if (window.parent) trustedOrigins.push(new URL(window.parent.location.href).origin);
+            } catch(e) {}
+
             if (!trustedOrigins.includes(event.origin) || !event.data || typeof event.data !== 'object') {
                 return;
             }
-            
+
             const { source, type, url, file, src } = event.data;
             const videoUrl = url || file || src;
-            
+
             if (source !== 'PopupBlocker_Iframe_VideoSpeed' && type !== 'video_url') return;
-            
+
             if (typeof videoUrl === 'string' && isVideoUrl(videoUrl)) {
                  logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
                  reportVideoURL(videoUrl, 'postMessage');
@@ -523,7 +527,7 @@
                         const contentType = clone.headers.get("content-type");
                         if (isVideoLikeRequest(url, contentType) || isVideoMimeType(contentType)) {
                             trackAndAttach(url, 'fetch');
-                            
+
                             clone.blob().then(blob => {
                                 if (isVideoMimeType(blob.type)) {
                                     const blobURL = URL.createObjectURL(blob);
@@ -534,19 +538,19 @@
                             });
                         }
                     } catch (e) {
-                        logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}`, 5000, 'error');
+                        logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}\n${e.stack}`, 5000, 'error');
                         throw e;
                     }
                     return res;
                 };
             }
-            
+
             try {
                 const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
                 if (originalAddSourceBuffer) {
                     MediaSource.prototype.addSourceBuffer = function (mimeType) {
                         const lower = mimeType.toLowerCase();
-                        if (lower.includes('video/mp4') || lower.includes('video/webm') || lower.includes('audio/mp4') || lower.includes('mpegurl')) {
+                        if (lower.includes('video/mp4') || lower.includes('video/webm') || lower.includes('audio/mp4') || lower.includes('mpegurl') || lower.includes('dash')) {
                              trackAndAttach(`[MSE] ${mimeType}`, 'mse_stream');
                         }
                         return originalAddSourceBuffer.call(this, mimeType);
@@ -582,9 +586,8 @@
             if (originalCreateObjectURL) {
                 URL.createObjectURL = function(obj) {
                     const url = originalCreateObjectURL.call(this, obj);
-                    const type = obj instanceof MediaSource ? 'MediaSource' : 'Blob';
-                    
-                    if (type === 'MediaSource') {
+
+                    if (obj instanceof MediaSource) {
                         mediaSourceBlobMap.set(url, lastCapturedM3U8 || lastCapturedMPD || 'MediaSource');
                         logManager.addOnce(`createObjectURL_mse_${url}`, `[URL] MediaSource에 Blob URL 할당됨: ${url}`, 5000, 'info');
                     } else if (obj instanceof Blob && isVideoMimeType(obj.type)) {
@@ -596,7 +599,7 @@
                 };
             }
         };
-        
+
         const resetState = () => {
             capturedVideoURLs.clear();
             blobToOriginalURLMap.clear();
@@ -622,7 +625,7 @@
             resetState
         };
     })();
-    
+
     // --- JWPlayer 모니터링 모듈 추가 ---
     const jwplayerMonitor = (() => {
         let isJWHooked = false;
@@ -660,7 +663,7 @@
             if (pollingInterval) clearInterval(pollingInterval);
             if (pollingTimeout) clearTimeout(pollingTimeout);
             let pollingActive = true;
-            
+
             pollingTimeout = setTimeout(() => {
                 pollingActive = false;
                 if (pollingInterval) clearInterval(pollingInterval);
@@ -684,7 +687,7 @@
                 }
             }, 2000);
         }
-        
+
         const resetState = () => {
             lastItemURL = null;
             if (pollingInterval) {
@@ -731,8 +734,19 @@
         const handleTrap = (el) => {
             PROCESSED_ELEMENTS.add(el);
             try {
+                const id = el.id ? `#${el.id}` : '';
+                const classes = Array.from(el.classList).map(cls => `.${cls}`).join('');
+                const elementInfo = `${el.tagName.toLowerCase()}${id}${classes}`;
+                const truncatedHtml = el.outerHTML.slice(0, 100);
+
                 el.style.display = 'none';
-                logManager.addOnce(`trap_removed_${Date.now()}`, `🧲 레이어 트랩 숨김 | 제거 방식: style.display='none'`, 10000, 'warn');
+
+                logManager.addOnce(
+                    `trap_removed_${Date.now()}`,
+                    `🧲 레이어 트랩 숨김 | 제거 방식: style.display='none' | 요소: <${elementInfo}> | 내용: ${truncatedHtml}...`,
+                    10000,
+                    'warn'
+                );
             } catch (e) {
                 logManager.addOnce('layertrap_remove_error', `trap 처리 실패: ${e.message}`, 5000, 'error');
             }
@@ -962,7 +976,7 @@
             const videos = videoFinder.findAll();
             const video = videos.find(v => v.clientWidth > 0 && v.clientHeight > 0);
             const slider = sliderContainer.querySelector('#vm-speed-slider');
-            
+
             const newHeight = video ? Math.max(100, video.getBoundingClientRect().height * 0.3) : 100;
 
             if (slider) slider.style.height = `${newHeight}px`;
@@ -1081,7 +1095,7 @@
             dragState.totalTimeChange = 0;
             dragState.lastMoveTime = Date.now();
             updateTimeDisplay(dragState.totalTimeChange);
-            
+
             if (dragState.recoveryTimer) clearTimeout(dragState.recoveryTimer);
             dragState.recoveryTimer = setTimeout(cancelDrag, 5000);
 
@@ -1294,12 +1308,12 @@
             const srcToTest = src || '';
             return IGNORED_IFRAME_PATTERNS.some(p => p.test(srcToTest)) || IFRAME_FORCE_BLOCK_PATTERNS.some(p => srcToTest.includes(p));
         };
-        
+
         const blockIframe = (iframe, reason = '차단됨') => {
             if (!FeatureFlags.iframeBlocker) return;
             const iframeSrc = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('srcdoc') || 'unknown';
             const iframeId = iframe.id || 'no-id';
-            
+
             try {
                 iframe.src = 'about:blank';
                 iframe.style.display = 'none';
@@ -1312,7 +1326,7 @@
 
         const checkIframeContentKeywords = (iframe) => {
             if (!FeatureFlags.keywordBlocker) return false;
-            
+
             try {
                 const doc = iframe.contentDocument || iframe.contentWindow.document;
                 if (!doc || !doc.body) return false;
@@ -1335,7 +1349,7 @@
                     return true;
                 }
             }
-            
+
             if (checkIframeContentKeywords(iframe)) {
                 blockIframe(iframe, '유해 키워드 검출');
                 PROCESSED_IFRAMES.add(iframe);
@@ -1349,7 +1363,7 @@
 
             return false;
         };
-        
+
         return { enhancedCheckAndBlock, blockIframe };
     })();
 
@@ -1380,7 +1394,7 @@
                 }
             }, 200);
         };
-        
+
         const overrideHistoryMethod = (methodName) => {
             const original = history[methodName];
             history[methodName] = function(...args) {
@@ -1408,7 +1422,7 @@
                 return;
             }
             PROCESSED_IFRAMES.add(iframe);
-            
+
             try {
                 if (iframe.contentWindow) {
                     jwplayerMonitor.init(iframe.contentWindow);
