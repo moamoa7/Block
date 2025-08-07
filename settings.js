@@ -1617,7 +1617,7 @@
         App.initializeAll(document);
     }
 
-    // --- 전역 에러 핸들러 ---
+// --- 전역 에러 핸들러 ---
 const ORIGINAL_ONERROR = window.onerror;
 window.onerror = (message, source, lineno, colno, error) => {
     // 특정 오류 메시지 또는 소스 파일은 무시
@@ -1625,7 +1625,7 @@ window.onerror = (message, source, lineno, colno, error) => {
         return true;
     }
 
-    // 광고/추적 스크립트 관련 오류 무시 (수정된 부분)
+    // 광고/추적 스크립트 관련 오류 무시 (최신 버전)
     if (message && typeof message === 'string' && (
         message.includes('PartnersCoupang') ||
         message.includes('TSOutstreamVideo') ||
@@ -1634,8 +1634,9 @@ window.onerror = (message, source, lineno, colno, error) => {
         message.includes('Piclick') ||
         message.includes('HawkEyes') ||
         message.includes('list_end_run') ||
+        message.includes('showM320View') ||
         // 새로 추가된 부분
-        message.includes('showM320View')
+        message.includes('showM320Float')
     )) {
         return true;
     }
@@ -1650,5 +1651,4 @@ window.onerror = (message, source, lineno, colno, error) => {
 };
 window.onunhandledrejection = event => {
     logManager.addOnce('promise_rejection', `Promise 거부: ${event.reason}\n${event.reason?.stack || ''}`, 5000, 'error');
-};
-})();
+};})();
