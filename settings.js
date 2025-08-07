@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.10
-// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
+// @version 		7.0.0
+// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V7)
 // @match 			*://*/*
 // @grant 			none
 // @run-at 			document-start
@@ -32,6 +32,7 @@
     const DRAG_CONFIG = {
         PIXELS_PER_SECOND: 2
     };
+    const POLLING_TIMEOUT_MS = 2 * 60 * 1000; // 2분 후 polling 중지
 
     // --- 기능별 상수 및 예외 처리 ---
     const WHITELIST = [
@@ -61,8 +62,8 @@
     ].map(p => (typeof p === 'string' ? new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) : p));
 
     const IFRAME_CONTENT_BLOCK_KEYWORDS = [
-      '무료 성인', '카지노', '섹스', '성인 채팅', '벗방', '돈벌기', '도박',
-      '파트너스 활동을 통해 일정액의 수수료를 지급받을 수 있습니다', '성인광고'
+        '무료 성인', '카지노', '섹스', '성인 채팅', '벗방', '돈벌기', '도박',
+        '파트너스 활동을 통해 일정액의 수수료를 지급받을 수 있습니다', '성인광고'
     ];
 
     // --- 스크립트 초기 실행 전 예외 처리 ---
@@ -164,7 +165,7 @@
         }
 
         function addLog(msg, level = 'info') {
-            const ICONS = { info: 'ℹ️', warn: '⚠️', 'error': '🔴', 'block': '🚫', 'allow': '✅' };
+            const ICONS = { info: 'ℹ️', warn: '⚠️', 'error': '🔴', 'block': '🚫', 'allow': '✅', 'debug': '🔧' };
             const fullMsg = `[${new Date().toLocaleTimeString()}] ${ICONS[level] || ''} ${msg}`;
 
             console[level] ? console[level](fullMsg) : console.log(fullMsg);
@@ -250,7 +251,6 @@
     const popupBlocker = (() => {
         const originalWindowOpen = window.open;
         let userInitiatedAction = false;
-        let lastHostnameOnLoad = location.hostname;
 
         const setUserInitiatedAction = () => {
             userInitiatedAction = true;
@@ -275,7 +275,6 @@
 
         const init = () => {
             if (!FeatureFlags.popupBlocker) return;
-            logManager.addOnce('init_popup_blocker', '팝업 차단 로직 초기화', 5000, 'info');
 
             document.addEventListener('click', setUserInitiatedAction, true);
             document.addEventListener('mousedown', setUserInitiatedAction, true);
@@ -309,12 +308,14 @@
         
         const PROCESSED_MANIFESTS = new Set();
         
-        const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.vtt', '.aac', '.mp3'];
+        const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s'];
         const isVideoLikeRequest = (url) => {
             if (!url || typeof url !== 'string') return false;
             try {
                 const lowerUrl = url.toLowerCase().split('?')[0];
-                return TRACKED_VIDEO_EXTENSIONS.some(ext => lowerUrl.endsWith(ext));
+                return TRACKED_VIDEO_EXTENSIONS.some(ext => lowerUrl.endsWith(ext)) ||
+                       url.match(/\.m3u8(\?|$)/i) ||
+                       url.match(/\.mpd(\?|$)/i);
             } catch (e) {
                 return false;
             }
@@ -324,8 +325,8 @@
             if (!url || typeof url !== 'string') return false;
             const normalizedUrl = url.toLowerCase();
             return isVideoLikeRequest(normalizedUrl) ||
-                   normalizedUrl.includes('mime=video') ||
-                   normalizedUrl.includes('video/');
+                    normalizedUrl.includes('mime=video') ||
+                    normalizedUrl.includes('video/');
         };
 
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t');
@@ -401,13 +402,14 @@
         
         const normalizeURL = (url) => {
             try {
-                const u = new URL(url);
-                u.searchParams.forEach((_, key) => {
+                const urlObj = new URL(url, location.href);
+                urlObj.hash = '';
+                urlObj.searchParams.forEach((_, key) => {
                     if (key.toLowerCase().includes('token') || key.toLowerCase().includes('session') || key.toLowerCase().includes('time')) {
-                        u.searchParams.delete(key);
+                        urlObj.searchParams.delete(key);
                     }
                 });
-                return u.toString();
+                return urlObj.toString();
             } catch {
                 return url;
             }
@@ -416,11 +418,11 @@
         const getOriginalURLIfBlob = (url) => {
             const originalUrl = blobToOriginalURLMap.get(url) || url;
             if (originalUrl.startsWith('blob:')) {
-                 const mappedUrl = mediaSourceBlobMap.get(url);
-                 if (mappedUrl && mappedUrl !== 'MediaSource') {
-                     return mappedUrl;
-                 }
-                 return lastCapturedM3U8 || lastCapturedMPD || url;
+                const mappedUrl = mediaSourceBlobMap.get(url);
+                if (mappedUrl && mappedUrl !== 'MediaSource') {
+                    return mappedUrl;
+                }
+                return lastCapturedM3U8 || lastCapturedMPD || url;
             }
             return originalUrl;
         };
@@ -437,19 +439,28 @@
             const originalURL = url;
             const normalizedUrl = normalizeURL(originalURL);
             
+            let videoType = '';
             if (normalizedUrl.toLowerCase().endsWith('.m3u8')) {
                 lastCapturedM3U8 = normalizedUrl;
                 parseM3U8(normalizedUrl);
+                videoType = '[HLS]';
             }
             if (normalizedUrl.toLowerCase().endsWith('.mpd')) {
                 lastCapturedMPD = normalizedUrl;
                 parseMPD(normalizedUrl);
+                videoType = '[DASH]';
+            }
+            if (normalizedUrl.startsWith('blob:')) {
+                videoType = '[BLOB]';
+            }
+            if (!videoType) {
+                videoType = '[기타]';
             }
 
             if (capturedVideoURLs.has(normalizedUrl)) return;
             capturedVideoURLs.add(normalizedUrl);
 
-            logManager.addOnce(`network_detected_${normalizedUrl.substring(0, 50)}`, `🎥 네트워크 영상 URL 감지됨 (${sourceType}) | 원본: ${originalURL}`, 5000, 'info');
+            logManager.addOnce(`network_detected_${normalizedUrl.substring(0, 50)}`, `🎥 ${videoType} 네트워크 영상 URL 감지됨 (${sourceType}) | 원본: ${originalURL}`, 5000, 'info');
 
             requestIdleCallback(() => {
                 const videos = videoFinder.findAll();
@@ -475,8 +486,8 @@
             const isValidMessage = (messageType.includes('video') || messageType.includes('url')) && isVideoUrl(videoUrl);
             
             if (isValidMessage) {
-                 logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
-                 reportVideoURL(videoUrl, 'postMessage');
+                logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
+                reportVideoURL(videoUrl, 'postMessage');
             }
         };
 
@@ -620,6 +631,7 @@
         let isJWHooked = false;
         let lastItemURL = null;
         let pollingInterval = null;
+        let pollingTimeout = null;
 
         function hookJWPlayerSetup(context = window) {
             if (isJWHooked || typeof context.jwplayer !== 'function') return;
@@ -649,7 +661,17 @@
 
         function startPolling(context = window) {
             if (pollingInterval) clearInterval(pollingInterval);
+            if (pollingTimeout) clearTimeout(pollingTimeout);
+            let pollingActive = true;
+            
+            pollingTimeout = setTimeout(() => {
+                pollingActive = false;
+                if (pollingInterval) clearInterval(pollingInterval);
+                logManager.addOnce('jw_polling_timeout', '📴 JWPlayer 폴링 중지됨 (타임아웃)', 5000, 'info');
+            }, POLLING_TIMEOUT_MS);
+
             pollingInterval = setInterval(() => {
+                if (!pollingActive) return;
                 try {
                     const player = context.jwplayer?.();
                     if (player?.getItem) {
@@ -671,6 +693,10 @@
             if (pollingInterval) {
                 clearInterval(pollingInterval);
                 pollingInterval = null;
+            }
+            if (pollingTimeout) {
+                clearTimeout(pollingTimeout);
+                pollingTimeout = null;
             }
             isJWHooked = false;
         };
@@ -770,7 +796,13 @@
             while (current && current !== document.body) {
                 const rect = current.getBoundingClientRect();
                 const area = rect.width * rect.height;
+                const style = window.getComputedStyle(current);
+                const isRelativeOrAbsolute = style.position === 'relative' || style.position === 'absolute';
                 if (area > largestArea && area < window.innerWidth * window.innerHeight * 0.9) {
+                    if (isRelativeOrAbsolute) {
+                         // 스마트 컨테이너 발견, 이보다 더 큰 부모는 UI 부착에 적합하지 않을 수 있음
+                         return current;
+                    }
                     largestArea = area;
                     largestElement = current;
                 }
@@ -931,7 +963,6 @@
             const video = videos.find(v => v.clientWidth > 0 && v.clientHeight > 0);
             const slider = sliderContainer.querySelector('#vm-speed-slider');
             
-            // ✅ 플레이어 높이의 30%로 제한, 최소 100px 유지
             const newHeight = video ? Math.max(100, video.getBoundingClientRect().height * 0.3) : 100;
 
             if (slider) slider.style.height = `${newHeight}px`;
@@ -1484,8 +1515,11 @@
             logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 5000, 'info');
 
             if (targetDocument === document) {
+                logManager.addOnce('popup_blocker_status', `✅ [popupBlocker] 활성`, 5000, 'debug');
                 popupBlocker.init();
+                logManager.addOnce('network_monitor_status', `✅ [networkMonitor] 활성 (fetch/XHR 후킹)`, 5000, 'debug');
                 networkMonitor.init();
+                logManager.addOnce('spa_monitor_status', `✅ [spaMonitor] 활성 (History API 후킹)`, 5000, 'debug');
                 spaMonitor.init();
                 logManager.init();
                 document.addEventListener('fullscreenchange', () => {
@@ -1498,6 +1532,7 @@
                 });
                 speedSlider.init();
                 dragBar.init();
+                logManager.addOnce('jwplayer_monitor_status', `✅ [jwplayerMonitor] 활성`, 5000, 'debug');
                 jwplayerMonitor.init(window);
             }
 
