@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		7.0.0
-// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V7)
+// @version 		8.0.0
+// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V8)
 // @match 			*://*/*
 // @grant 			none
 // @run-at 			document-start
@@ -308,14 +308,16 @@
         
         const PROCESSED_MANIFESTS = new Set();
         
-        const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s'];
-        const isVideoLikeRequest = (url) => {
+        const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.mov', '.flv', '.avi'];
+        
+        const isVideoLikeRequest = (url, mimeType) => {
             if (!url || typeof url !== 'string') return false;
             try {
                 const lowerUrl = url.toLowerCase().split('?')[0];
-                return TRACKED_VIDEO_EXTENSIONS.some(ext => lowerUrl.endsWith(ext)) ||
-                       url.match(/\.m3u8(\?|$)/i) ||
-                       url.match(/\.mpd(\?|$)/i);
+                const hasVideoExtension = TRACKED_VIDEO_EXTENSIONS.some(ext => lowerUrl.endsWith(ext));
+                const hasVideoMimeType = mimeType?.startsWith('video/') || mimeType?.includes('application/vnd.apple.mpegurl') || mimeType?.includes('application/dash+xml');
+                
+                return hasVideoExtension || hasVideoMimeType;
             } catch (e) {
                 return false;
             }
@@ -324,12 +326,10 @@
         const isVideoUrl = (url) => {
             if (!url || typeof url !== 'string') return false;
             const normalizedUrl = url.toLowerCase();
-            return isVideoLikeRequest(normalizedUrl) ||
-                    normalizedUrl.includes('mime=video') ||
-                    normalizedUrl.includes('video/');
+            return normalizedUrl.includes('mime=video') || isVideoLikeRequest(url, '');
         };
 
-        const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t');
+        const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
         
         async function parseMPD(mpdURL) {
             if (PROCESSED_MANIFESTS.has(mpdURL)) return;
@@ -444,16 +444,13 @@
                 lastCapturedM3U8 = normalizedUrl;
                 parseM3U8(normalizedUrl);
                 videoType = '[HLS]';
-            }
-            if (normalizedUrl.toLowerCase().endsWith('.mpd')) {
+            } else if (normalizedUrl.toLowerCase().endsWith('.mpd')) {
                 lastCapturedMPD = normalizedUrl;
                 parseMPD(normalizedUrl);
                 videoType = '[DASH]';
-            }
-            if (normalizedUrl.startsWith('blob:')) {
+            } else if (normalizedUrl.startsWith('blob:')) {
                 videoType = '[BLOB]';
-            }
-            if (!videoType) {
+            } else {
                 videoType = '[기타]';
             }
 
@@ -475,19 +472,19 @@
 
         // --- postMessage 리스너 ---
         const handlePostMessage = (event) => {
-            if (!event.data || typeof event.data !== 'object') return;
+            const trustedOrigins = [location.origin, 'https://www.youtube.com']; // 예시로 신뢰 출처 추가
+            if (!trustedOrigins.includes(event.origin) || !event.data || typeof event.data !== 'object') {
+                return;
+            }
             
-            const { type, url, file, src } = event.data;
+            const { source, type, url, file, src } = event.data;
             const videoUrl = url || file || src;
             
-            if (typeof videoUrl !== 'string') return;
+            if (source !== 'PopupBlocker_Iframe_VideoSpeed' && type !== 'video_url') return;
             
-            const messageType = type || '';
-            const isValidMessage = (messageType.includes('video') || messageType.includes('url')) && isVideoUrl(videoUrl);
-            
-            if (isValidMessage) {
-                logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
-                reportVideoURL(videoUrl, 'postMessage');
+            if (typeof videoUrl === 'string' && isVideoUrl(videoUrl)) {
+                 logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
+                 reportVideoURL(videoUrl, 'postMessage');
             }
         };
 
@@ -506,7 +503,7 @@
                 this.addEventListener('load', () => {
                     const contentType = this.getResponseHeader('Content-Type');
                     const url = this._url;
-                    if (isVideoLikeRequest(url) || isVideoMimeType(contentType)) {
+                    if (isVideoLikeRequest(url, contentType) || isVideoMimeType(contentType)) {
                         trackAndAttach(url, 'xhr_load');
                     }
                 });
@@ -524,7 +521,7 @@
                         res = await originalFetch.apply(this, args);
                         const clone = res.clone();
                         const contentType = clone.headers.get("content-type");
-                        if (isVideoUrl(url) || isVideoMimeType(contentType)) {
+                        if (isVideoLikeRequest(url, contentType) || isVideoMimeType(contentType)) {
                             trackAndAttach(url, 'fetch');
                             
                             clone.blob().then(blob => {
@@ -590,7 +587,7 @@
                     if (type === 'MediaSource') {
                         mediaSourceBlobMap.set(url, lastCapturedM3U8 || lastCapturedMPD || 'MediaSource');
                         logManager.addOnce(`createObjectURL_mse_${url}`, `[URL] MediaSource에 Blob URL 할당됨: ${url}`, 5000, 'info');
-                    } else if (isVideoMimeType(obj.type)) {
+                    } else if (obj instanceof Blob && isVideoMimeType(obj.type)) {
                         blobToOriginalURLMap.set(url, url);
                         logManager.addOnce(`createObjectURL_blob_${url}`, `[URL] 비디오 Blob URL 생성됨: ${url}`, 5000, 'info');
                         trackAndAttach(url, 'createObjectURL');
@@ -769,7 +766,7 @@
                     videos.push(currentNode);
                 }
             } catch (e) {
-                logManager.addOnce('tree_walker_error', `⚠️ TreeWalker 오류: ${e.message}`, 5000, 'warn');
+                logManager.addOnce('tree_walker_error', `⚠️ TreeWalker 오류: ${e.message}\n${e.stack}`, 5000, 'warn');
             }
 
             doc.querySelectorAll('div.jw-player, div[id*="player"], div.video-js, div[class*="video-container"], div.vjs-tech').forEach(container => {
@@ -817,6 +814,7 @@
         let speedSliderContainer;
         let playbackUpdateTimer;
         let isMinimized = JSON.parse(localStorage.getItem('speedSliderMinimized') || 'true');
+        let isInitialized = false;
 
         const createSliderElements = () => {
             if (document.getElementById('vm-speed-slider-style')) return;
@@ -903,6 +901,8 @@
         };
 
         const init = () => {
+            if (isInitialized) return;
+            isInitialized = true;
             createSliderElements();
             if (!document.body) return;
 
@@ -985,6 +985,7 @@
             currentDragDistanceX: 0, totalTimeChange: 0,
             recoveryTimer: null, throttleTimer: null, lastDragTimestamp: 0
         };
+        let isInitialized = false;
 
         const formatTime = (seconds) => {
             const absSeconds = Math.abs(seconds);
@@ -1009,13 +1010,15 @@
                     if (dragBarTimeDisplay.style.opacity === '0') {
                         dragBarTimeDisplay.style.display = 'none';
                     }
+                    dragBarTimeDisplay.timer = null;
                 }, 300);
             }
         };
 
         const applyTimeChange = () => {
             const videos = videoFinder.findAll();
-            const timeToApply = Math.round(dragState.totalTimeChange / DRAG_CONFIG.PIXELS_PER_SECOND);
+            const pixelsPerSecond = DRAG_CONFIG?.PIXELS_PER_SECOND || 2;
+            const timeToApply = Math.round(dragState.totalTimeChange / pixelsPerSecond);
 
             if (timeToApply !== 0) {
                 videos.forEach(video => {
@@ -1030,9 +1033,14 @@
         const cancelDrag = () => {
             if (!dragState.isDragging) return;
             try {
-                clearTimeout(dragState.recoveryTimer);
-                clearTimeout(dragState.throttleTimer);
-                dragState.throttleTimer = null;
+                if (dragState.recoveryTimer) {
+                    clearTimeout(dragState.recoveryTimer);
+                    dragState.recoveryTimer = null;
+                }
+                if (dragState.throttleTimer) {
+                    clearTimeout(dragState.throttleTimer);
+                    dragState.throttleTimer = null;
+                }
                 updateTimeDisplay(0);
 
                 dragState.isDragging = false;
@@ -1040,13 +1048,14 @@
                 dragState.totalTimeChange = 0;
                 dragState.isHorizontalDrag = false;
                 if(document.body) document.body.style.userSelect = '';
+                if(document.body) document.body.style.touchAction = '';
 
                 document.removeEventListener('mousemove', handleMove, true);
                 document.removeEventListener('mouseup', handleEnd, true);
                 document.removeEventListener('touchmove', handleMove, true);
                 document.removeEventListener('touchend', handleEnd, true);
             } catch(e) {
-                logManager.addOnce('drag_cancel_error', `드래그 취소 오류: ${e.message}`, 5000, 'error');
+                logManager.addOnce('drag_cancel_error', `드래그 취소 오류: ${e.message}\n${e.stack}`, 5000, 'error');
             }
         };
 
@@ -1072,7 +1081,8 @@
             dragState.totalTimeChange = 0;
             dragState.lastMoveTime = Date.now();
             updateTimeDisplay(dragState.totalTimeChange);
-            clearTimeout(dragState.recoveryTimer);
+            
+            if (dragState.recoveryTimer) clearTimeout(dragState.recoveryTimer);
             dragState.recoveryTimer = setTimeout(cancelDrag, 5000);
 
             document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
@@ -1084,7 +1094,9 @@
         const handleMove = (e) => {
             if (!dragState.isDragging) return;
             try {
-                if (e.touches && e.touches.length > 1) return cancelDrag();
+                if ((e.touches && e.touches.length > 1) || (e.pointerType === 'touch' && e.pointerId > 1)) {
+                    return cancelDrag();
+                }
                 const videos = videoFinder.findAll();
                 if (videos.length === 0) return cancelDrag();
                 const pos = getPosition(e);
@@ -1097,6 +1109,7 @@
                         dragState.isHorizontalDrag = true;
                         e.preventDefault(); e.stopImmediatePropagation();
                         if(document.body) document.body.style.userSelect = 'none';
+                        if(document.body) document.body.style.touchAction = 'none';
                     } else if (dy > 10) {
                         return cancelDrag();
                     }
@@ -1106,7 +1119,8 @@
                     e.preventDefault(); e.stopImmediatePropagation();
                     const deltaX = currentX - dragState.lastUpdateX;
                     dragState.currentDragDistanceX += deltaX;
-                    dragState.totalTimeChange = Math.round(dragState.currentDragDistanceX / DRAG_CONFIG.PIXELS_PER_SECOND);
+                    const pixelsPerSecond = DRAG_CONFIG?.PIXELS_PER_SECOND || 2;
+                    dragState.totalTimeChange = Math.round(dragState.currentDragDistanceX / pixelsPerSecond);
                     updateTimeDisplay(dragState.totalTimeChange);
 
                     const now = Date.now();
@@ -1116,7 +1130,7 @@
                     dragState.lastUpdateX = currentX;
                 }
             } catch(e) {
-                logManager.addOnce('drag_move_error', `드래그 이동 오류: ${e.message}`, 5000, 'error');
+                logManager.addOnce('drag_move_error', `드래그 이동 오류: ${e.message}\n${e.stack}`, 5000, 'error');
                 cancelDrag();
             }
         };
@@ -1127,12 +1141,14 @@
                 applyTimeChange();
                 cancelDrag();
             } catch(e) {
-                logManager.addOnce('drag_end_error', `드래그 종료 오류: ${e.message}`, 5000, 'error');
+                logManager.addOnce('drag_end_error', `드래그 종료 오류: ${e.message}\n${e.stack}`, 5000, 'error');
                 cancelDrag();
             }
         };
 
         const init = () => {
+            if (isInitialized) return;
+            isInitialized = true;
             if (!document.body) return;
             dragBarTimeDisplay = document.getElementById('vm-time-display');
             if (!dragBarTimeDisplay) {
@@ -1385,6 +1401,7 @@
     // --- 주요 기능 통합 및 실행 ---
     const App = (() => {
         let videoUIWatcherInterval = null;
+        let isInitialized = false;
 
         const handleIframeLoad = (iframe) => {
             if (!iframe || PROCESSED_IFRAMES.has(iframe)) {
@@ -1515,6 +1532,8 @@
             logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 5000, 'info');
 
             if (targetDocument === document) {
+                if(isInitialized) return;
+                isInitialized = true;
                 logManager.addOnce('popup_blocker_status', `✅ [popupBlocker] 활성`, 5000, 'debug');
                 popupBlocker.init();
                 logManager.addOnce('network_monitor_status', `✅ [networkMonitor] 활성 (fetch/XHR 후킹)`, 5000, 'debug');
@@ -1577,7 +1596,7 @@
         }
 
         const errorMsg = `전역 오류: ${message} at ${source}:${lineno}:${colno}`;
-        logManager.addOnce('global_error', errorMsg, 5000, 'error');
+        logManager.addOnce('global_error', `${errorMsg}\n${error?.stack || ''}`, 5000, 'error');
 
         if (ORIGINAL_ONERROR) {
             return ORIGINAL_ONERROR.apply(this, arguments);
@@ -1585,6 +1604,6 @@
         return false;
     };
     window.onunhandledrejection = event => {
-        logManager.addOnce('promise_rejection', `Promise 거부: ${event.reason}`, 5000, 'error');
+        logManager.addOnce('promise_rejection', `Promise 거부: ${event.reason}\n${event.reason?.stack || ''}`, 5000, 'error');
     };
 })();
