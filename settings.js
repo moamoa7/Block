@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.3
+// @version 		6.4.4
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -307,6 +307,8 @@
         let lastCapturedM3U8 = null;
         let lastCapturedMPD = null;
 
+        const PROCESSED_MANIFESTS = new Set();
+
         const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.vtt', '.aac', '.mp3'];
         const isVideoLikeRequest = (url) => {
             if (!url || typeof url !== 'string') return false;
@@ -328,8 +330,10 @@
 
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t');
 
-        // ✅ DASH 매니페스트 파서
         async function parseMPD(mpdURL) {
+            if (PROCESSED_MANIFESTS.has(mpdURL)) return;
+            PROCESSED_MANIFESTS.add(mpdURL);
+
             try {
                 const response = await fetch(mpdURL);
                 const text = await response.text();
@@ -351,7 +355,6 @@
                         if (init) {
                             trackAndAttach(new URL(init, baseURL).href, 'dash_init');
                         }
-
                         for (let i = startNumber; i < startNumber + count; i++) {
                             const seg = media.replace('$Number$', i);
                             trackAndAttach(new URL(seg, baseURL).href, 'dash_segment');
@@ -366,6 +369,38 @@
             }
         }
 
+        // ✅ m3u8 파서
+        async function parseM3U8(m3u8URL, depth = 0) {
+             if (depth > 2 || PROCESSED_MANIFESTS.has(m3u8URL)) return;
+             PROCESSED_MANIFESTS.add(m3u8URL);
+
+             try {
+                 const res = await fetch(m3u8URL);
+                 const text = await res.text();
+                 const base = m3u8URL.split('/').slice(0, -1).join('/') + '/';
+
+                 if (text.includes('#EXT-X-STREAM-INF')) {
+                     // 마스터 플레이리스트: 하위 .m3u8 URL을 재귀적으로 파싱
+                     const subURLs = [...text.matchAll(/^[^#].+\.m3u8$/gm)]
+                         .map(m => new URL(m[0].trim(), base).href);
+                     for (const sub of subURLs) {
+                         await parseM3U8(sub, depth + 1);
+                     }
+                     return;
+                 }
+
+                 // 미디어 플레이리스트: .ts 세그먼트 추출
+                 const segments = [...text.matchAll(/^[^#][^\r\n]*\.ts$/gm)]
+                     .map(m => new URL(m[0].trim(), base).href);
+
+                 segments.forEach(url => trackAndAttach(url, 'hls_segment'));
+
+                 logManager.addOnce(`parsed_m3u8_${m3u8URL}`, `✅ M3U8 파싱 완료 (세그먼트 ${segments.length}개)`, 5000, 'info');
+
+             } catch (err) {
+                 logManager.addOnce(`parse_m3u8_fail_${m3u8URL}`, `⚠️ M3U8 파싱 실패: ${m3u8URL} - ${err.message}`, 5000, 'error');
+             }
+        }
 
         const normalizeURL = (url) => {
             try {
@@ -383,13 +418,12 @@
 
         const getOriginalURLIfBlob = (url) => {
             const originalUrl = blobToOriginalURLMap.get(url) || url;
-            if (originalUrl.startsWith('blob:') && mediaSourceBlobMap.has(url)) {
+            if (originalUrl.startsWith('blob:')) {
                  const mappedUrl = mediaSourceBlobMap.get(url);
-                 // ✅ Blob에 매핑된 URL이 있으면 그 URL을 우선 반환, 없으면 최신 매니페스트 URL을 반환
-                 return (mappedUrl && mappedUrl !== 'MediaSource') ? mappedUrl : (lastCapturedM3U8 || lastCapturedMPD || url);
-            }
-            if (url.startsWith('blob:') && (lastCapturedM3U8 || lastCapturedMPD)) {
-                return lastCapturedM3U8 || lastCapturedMPD;
+                 if (mappedUrl && mappedUrl !== 'MediaSource') {
+                     return mappedUrl;
+                 }
+                 return lastCapturedM3U8 || lastCapturedMPD || url;
             }
             return originalUrl;
         };
@@ -400,6 +434,7 @@
 
             if (normalizedUrl.toLowerCase().endsWith('.m3u8')) {
                 lastCapturedM3U8 = normalizedUrl;
+                parseM3U8(normalizedUrl);
             }
             if (normalizedUrl.toLowerCase().endsWith('.mpd')) {
                 lastCapturedMPD = normalizedUrl;
@@ -426,6 +461,10 @@
             const originalOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url, ...args) {
                 this._url = url;
+                // ✅ XHR.open에서 .m3u8 감지
+                if (typeof url === 'string' && url.includes('.m3u8')) {
+                    parseM3U8(url);
+                }
                 return originalOpen.apply(this, [method, url, ...args]);
             };
 
@@ -444,6 +483,10 @@
             if (originalFetch) {
                 window.fetch = async function(...args) {
                     const url = args[0] && typeof args[0] === 'object' ? args[0].url : args[0];
+                    // ✅ fetch에서 .m3u8 감지
+                    if (typeof url === 'string' && url.includes('.m3u8')) {
+                        parseM3U8(url);
+                    }
                     let res;
                     try {
                         res = await originalFetch.apply(this, args);
@@ -469,7 +512,6 @@
                 };
             }
 
-            // ✅ MediaSource.addSourceBuffer 후킹
             try {
                 const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
                 if (originalAddSourceBuffer) {
@@ -532,6 +574,7 @@
             mediaSourceBlobMap.clear();
             lastCapturedM3U8 = null;
             lastCapturedMPD = null;
+            PROCESSED_MANIFESTS.clear();
         };
 
         return {
@@ -544,6 +587,76 @@
             resetState
         };
     })();
+
+    // ✅ JWPlayer 모니터링 모듈 추가
+    const jwplayerMonitor = (() => {
+        let isJWHooked = false;
+        let lastItemURL = null;
+        let pollingInterval = null;
+
+        function hookJWPlayerSetup(context = window) {
+            if (isJWHooked || typeof context.jwplayer !== 'function') return;
+            isJWHooked = true;
+
+            const original = context.jwplayer;
+            context.jwplayer = function (...args) {
+                const player = original.apply(this, args);
+
+                if (player && typeof player.setup === 'function') {
+                    const originalSetup = player.setup;
+                    player.setup = function (config) {
+                        try {
+                            const file = config?.file || config?.playlist?.[0]?.file;
+                            if (file) {
+                                networkMonitor.trackAndAttach(file, 'jwplayer_setup');
+                            }
+                        } catch (err) {
+                            logManager.addOnce('jw_setup_hook_err', `⚠️ jwplayer.setup 후킹 오류: ${err.message}`, 5000, 'error');
+                        }
+                        return originalSetup.call(this, config);
+                    };
+                }
+                return player;
+            };
+        }
+
+        function startPolling(context = window) {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(() => {
+                try {
+                    const player = context.jwplayer?.();
+                    if (player?.getItem) {
+                        const item = player.getItem();
+                        const file = item?.file;
+                        if (file && file !== lastItemURL) {
+                            lastItemURL = file;
+                            networkMonitor.trackAndAttach(file, 'jwplayer_polling');
+                        }
+                    }
+                } catch (e) {
+                    // cross-origin iframe or player not ready
+                }
+            }, 2000);
+        }
+
+        const resetState = () => {
+            lastItemURL = null;
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+            isJWHooked = false;
+        };
+
+        return {
+            init(context = window) {
+                hookJWPlayerSetup(context);
+                startPolling(context);
+            },
+            resetState
+        };
+    })();
+
 
     // --- layerTrap 모듈 ---
     const layerTrap = (() => {
@@ -1026,8 +1139,8 @@
                 button.onclick = (e) => {
                     e.stopPropagation(); e.preventDefault();
                     const urlToCopy = networkMonitor.getOriginalURLIfBlob(url);
-                    if (!urlToCopy || urlToCopy.startsWith('blob:')) {
-                        logManager.add('⚠️ 복사할 유효한 URL을 찾을 수 없음', 'warn');
+                    if (!urlToCopy || urlToCopy.startsWith('blob:') || urlToCopy.startsWith('[MSE]')) {
+                        logManager.addOnce('no_valid_url_to_copy', '⚠️ 복사할 유효한 URL을 찾을 수 없음', 5000, 'warn');
                         return;
                     }
                     navigator.clipboard.writeText(urlToCopy).then(() => {
@@ -1052,7 +1165,7 @@
                     targetElement.style.position = 'relative';
                 }
                 targetElement.appendChild(button);
-                logManager.add(`✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 'info');
+                logManager.addOnce(`dynamic_ui_${url}`, `✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 5000, 'info');
             }
         }
     };
@@ -1152,11 +1265,11 @@
                 PROCESSED_IFRAMES.clear();
                 LOGGED_KEYS_WITH_TIMER.clear();
                 networkMonitor.resetState();
+                jwplayerMonitor.resetState(); // ✅ JWPlayer 모니터링 상태 초기화
 
                 OBSERVER_MAP.forEach(observer => observer.disconnect());
                 OBSERVER_MAP.clear();
 
-                // SPA 탐색 시 DOM이 완전히 갱신되지 않을 수 있으므로, 일정 시간 후에 재탐색
                 setTimeout(() => {
                     App.initializeAll(document);
                 }, 300);
@@ -1189,6 +1302,15 @@
                 return;
             }
             PROCESSED_IFRAMES.add(iframe);
+
+            // ✅ iframe 내부의 JWPlayer도 후킹
+            try {
+                if (iframe.contentWindow) {
+                    jwplayerMonitor.init(iframe.contentWindow);
+                }
+            } catch (e) {
+                // Cross-origin iframe
+            }
 
             const iframeSrc = iframe.src || 'about:blank';
             if (IGNORED_IFRAME_PATTERNS.some(p => p.test(iframeSrc))) return;
@@ -1328,6 +1450,7 @@
                 });
                 speedSlider.init();
                 dragBar.init();
+                jwplayerMonitor.init(window); // ✅ 메인 프레임 JWPlayer 초기화
             }
 
             startUnifiedObserver(targetDocument);
