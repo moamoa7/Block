@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250801
+! Version: 20250807
 !
 !
 !
@@ -686,8 +686,6 @@ inven.co.kr##.roulette-open.inven-float-alarm
 inven.co.kr###invenAppSuggestion
 ! - 오류 방지
 @@||07c225f3.online^
-! - 기타
-/ad_
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
@@ -2498,6 +2496,8 @@ clien.net#@#.ad_banner
 ##.happy-inside-player
 ! - 차단 사이트
 !||waust.at^
+! - 영상 차단 해제 (List-KR)
+@@||hcdn1.maxsocdn.net^$from=sogirl.so
 !
 !
 ! 쏘걸.net (https://www.xn--av-t21i858e.net/)
@@ -4311,7 +4311,11 @@ teamblind.com/#@#[class^="ad"]
 daejeonsarangcard.kr##.popupContainer
 ! - ##[class^="ad"] 해제 - 일부 주소 삭제
 daejeonsarangcard.kr#@#[class^="ad"]
-
+!
+!
+! https://mib19.co.kr/
+! ##[class^="ad"] 해제
+mib19.co.kr#@#[class^="ad"]
 !
 !
 !
