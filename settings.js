@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.7
+// @version 		6.4.10
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -462,6 +462,24 @@
             });
         };
 
+        // --- postMessage 리스너 ---
+        const handlePostMessage = (event) => {
+            if (!event.data || typeof event.data !== 'object') return;
+            
+            const { type, url, file, src } = event.data;
+            const videoUrl = url || file || src;
+            
+            if (typeof videoUrl !== 'string') return;
+            
+            const messageType = type || '';
+            const isValidMessage = (messageType.includes('video') || messageType.includes('url')) && isVideoUrl(videoUrl);
+            
+            if (isValidMessage) {
+                 logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
+                 reportVideoURL(videoUrl, 'postMessage');
+            }
+        };
+
         const hookPrototypes = () => {
             const originalOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url, ...args) {
@@ -568,23 +586,6 @@
                     }
                     return url;
                 };
-            }
-        };
-        
-        const handlePostMessage = (event) => {
-            if (!event.data || typeof event.data !== 'object') return;
-            
-            const { type, url, file, src } = event.data;
-            const videoUrl = url || file || src;
-            
-            if (typeof videoUrl !== 'string') return;
-            
-            const messageType = type || '';
-            const isValidMessage = (messageType.includes('video') || messageType.includes('url')) && isVideoUrl(videoUrl);
-            
-            if (isValidMessage) {
-                 logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
-                 reportVideoURL(videoUrl, 'postMessage');
             }
         };
         
@@ -929,7 +930,10 @@
             const videos = videoFinder.findAll();
             const video = videos.find(v => v.clientWidth > 0 && v.clientHeight > 0);
             const slider = sliderContainer.querySelector('#vm-speed-slider');
-            const newHeight = video ? Math.min(300, Math.max(100, video.getBoundingClientRect().height * 0.8)) : 150;
+            
+            // ✅ 플레이어 높이의 30%로 제한, 최소 100px 유지
+            const newHeight = video ? Math.max(100, video.getBoundingClientRect().height * 0.3) : 100;
+
             if (slider) slider.style.height = `${newHeight}px`;
 
             const targetParent = document.fullscreenElement || document.body;
@@ -1247,7 +1251,7 @@
         const blockIframe = (iframe, reason = '차단됨') => {
             if (!FeatureFlags.iframeBlocker) return;
             const iframeSrc = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('srcdoc') || 'unknown';
-            const iframeId = iframe.id || 'unknown';
+            const iframeId = iframe.id || 'no-id';
             
             try {
                 iframe.src = 'about:blank';
@@ -1268,14 +1272,12 @@
                 const text = doc.body.textContent || '';
                 return IFRAME_CONTENT_BLOCK_KEYWORDS.some(keyword => text.includes(keyword));
             } catch (e) {
-                // SOP 예외 시, content 접근 불가로 간주하고 안전모드 차단
                 return true;
             }
         };
 
         const enhancedCheckAndBlock = (iframe) => {
-            // 이미 처리된 iframe은 무시
-            if (PROCESSED_IFRAMES.has(iframe)) return;
+            if (PROCESSED_IFRAMES.has(iframe)) return false;
 
             const srcAttrs = ['src', 'data-src', 'data-lazy-src', 'srcdoc'];
             for (const attr of srcAttrs) {
@@ -1293,7 +1295,6 @@
                 return true;
             }
 
-            // 차단하지 않는 iframe에는 sandbox 적용하여 보안 강화
             if (!iframe.hasAttribute(SANDBOX_ATTR)) {
                  iframe.setAttribute(SANDBOX_ATTR, 'allow-scripts allow-same-origin');
                  logManager.addOnce(`iframe_sandboxed_${iframe.id || 'no-id'}`, `⚠️ iframe에 sandbox 적용됨`, 5000, 'info');
@@ -1318,7 +1319,6 @@
                     lastURL = url;
                     logManager.addOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
 
-                    // 모든 상태 초기화
                     PROCESSED_DOCUMENTS.clear();
                     PROCESSED_NODES.clear();
                     PROCESSED_IFRAMES.clear();
@@ -1326,14 +1326,12 @@
                     networkMonitor.resetState();
                     jwplayerMonitor.resetState();
 
-                    // 기존 옵저버 연결 해제
                     OBSERVER_MAP.forEach(observer => observer.disconnect());
                     OBSERVER_MAP.clear();
 
-                    // 새로운 DOM 상태로 다시 초기화
                     App.initializeAll(document);
                 }
-            }, 200); // 디바운스 200ms 적용
+            }, 200);
         };
         
         const overrideHistoryMethod = (methodName) => {
@@ -1384,7 +1382,7 @@
                     const doc = iframe.contentDocument;
                     if (doc && doc.body) {
                         if (iframeBlocker.enhancedCheckAndBlock(iframe)) {
-                           return; // 차단되었으므로 여기서 중단
+                           return;
                         }
                         initializeAll(doc);
                     } else {
