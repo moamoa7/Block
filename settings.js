@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.4
+// @version 		6.4.5
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -306,9 +306,9 @@
         const mediaSourceBlobMap = new Map();
         let lastCapturedM3U8 = null;
         let lastCapturedMPD = null;
-
+        
         const PROCESSED_MANIFESTS = new Set();
-
+        
         const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.vtt', '.aac', '.mp3'];
         const isVideoLikeRequest = (url) => {
             if (!url || typeof url !== 'string') return false;
@@ -329,7 +329,7 @@
         };
 
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t');
-
+        
         async function parseMPD(mpdURL) {
             if (PROCESSED_MANIFESTS.has(mpdURL)) return;
             PROCESSED_MANIFESTS.add(mpdURL);
@@ -342,7 +342,7 @@
 
                 const baseURLNode = xml.querySelector('BaseURL');
                 const baseURL = baseURLNode ? new URL(baseURLNode.textContent.trim(), mpdURL).href : mpdURL.replace(/\/[^/]*$/, '/');
-
+                
                 const representations = xml.querySelectorAll('Representation');
                 representations.forEach(rep => {
                     const template = rep.querySelector('SegmentTemplate');
@@ -368,19 +368,17 @@
                 logManager.addOnce(`parse_mpd_fail_${mpdURL}`, `⚠️ MPD 파싱 실패: ${mpdURL} - ${err.message}`, 5000, 'error');
             }
         }
-
-        // ✅ m3u8 파서
+        
         async function parseM3U8(m3u8URL, depth = 0) {
              if (depth > 2 || PROCESSED_MANIFESTS.has(m3u8URL)) return;
              PROCESSED_MANIFESTS.add(m3u8URL);
-
+        
              try {
                  const res = await fetch(m3u8URL);
                  const text = await res.text();
                  const base = m3u8URL.split('/').slice(0, -1).join('/') + '/';
-
+        
                  if (text.includes('#EXT-X-STREAM-INF')) {
-                     // 마스터 플레이리스트: 하위 .m3u8 URL을 재귀적으로 파싱
                      const subURLs = [...text.matchAll(/^[^#].+\.m3u8$/gm)]
                          .map(m => new URL(m[0].trim(), base).href);
                      for (const sub of subURLs) {
@@ -388,20 +386,19 @@
                      }
                      return;
                  }
-
-                 // 미디어 플레이리스트: .ts 세그먼트 추출
+        
                  const segments = [...text.matchAll(/^[^#][^\r\n]*\.ts$/gm)]
                      .map(m => new URL(m[0].trim(), base).href);
-
+        
                  segments.forEach(url => trackAndAttach(url, 'hls_segment'));
-
+        
                  logManager.addOnce(`parsed_m3u8_${m3u8URL}`, `✅ M3U8 파싱 완료 (세그먼트 ${segments.length}개)`, 5000, 'info');
-
+        
              } catch (err) {
                  logManager.addOnce(`parse_m3u8_fail_${m3u8URL}`, `⚠️ M3U8 파싱 실패: ${m3u8URL} - ${err.message}`, 5000, 'error');
              }
         }
-
+        
         const normalizeURL = (url) => {
             try {
                 const u = new URL(url);
@@ -431,7 +428,7 @@
         const trackAndAttach = (url, sourceType = 'network') => {
             const originalURL = url;
             const normalizedUrl = normalizeURL(originalURL);
-
+            
             if (normalizedUrl.toLowerCase().endsWith('.m3u8')) {
                 lastCapturedM3U8 = normalizedUrl;
                 parseM3U8(normalizedUrl);
@@ -461,7 +458,6 @@
             const originalOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url, ...args) {
                 this._url = url;
-                // ✅ XHR.open에서 .m3u8 감지
                 if (typeof url === 'string' && url.includes('.m3u8')) {
                     parseM3U8(url);
                 }
@@ -483,7 +479,6 @@
             if (originalFetch) {
                 window.fetch = async function(...args) {
                     const url = args[0] && typeof args[0] === 'object' ? args[0].url : args[0];
-                    // ✅ fetch에서 .m3u8 감지
                     if (typeof url === 'string' && url.includes('.m3u8')) {
                         parseM3U8(url);
                     }
@@ -494,7 +489,7 @@
                         const contentType = clone.headers.get("content-type");
                         if (isVideoUrl(url) || isVideoMimeType(contentType)) {
                             trackAndAttach(url, 'fetch');
-
+                            
                             clone.blob().then(blob => {
                                 if (isVideoMimeType(blob.type)) {
                                     const blobURL = URL.createObjectURL(blob);
@@ -511,7 +506,7 @@
                     return res;
                 };
             }
-
+            
             try {
                 const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
                 if (originalAddSourceBuffer) {
@@ -554,7 +549,7 @@
                 URL.createObjectURL = function(obj) {
                     const url = originalCreateObjectURL.call(this, obj);
                     const type = obj instanceof MediaSource ? 'MediaSource' : 'Blob';
-
+                    
                     if (type === 'MediaSource') {
                         mediaSourceBlobMap.set(url, lastCapturedM3U8 || lastCapturedMPD || 'MediaSource');
                         logManager.addOnce(`createObjectURL_mse_${url}`, `[URL] MediaSource에 Blob URL 할당됨: ${url}`, 5000, 'info');
@@ -568,6 +563,20 @@
             }
         };
 
+        // ✅ postMessage 리스너 추가
+        const handlePostMessage = (event) => {
+            if (!event.data || typeof event.data !== 'object') return;
+            const { type, url, file, src } = event.data;
+            const videoUrl = url || file || src;
+            if (!videoUrl || typeof videoUrl !== 'string') return;
+
+            // ✅ postMessage에서 수신된 URL을 검증
+            if (isVideoUrl(videoUrl) && !capturedVideoURLs.has(videoUrl)) {
+                 logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
+                 trackAndAttach(videoUrl, 'postMessage');
+            }
+        };
+        
         const resetState = () => {
             capturedVideoURLs.clear();
             blobToOriginalURLMap.clear();
@@ -577,8 +586,14 @@
             PROCESSED_MANIFESTS.clear();
         };
 
+        const init = () => {
+             hookPrototypes();
+             // ✅ 메인 윈도우에 postMessage 리스너 등록
+             window.addEventListener('message', handlePostMessage, false);
+        };
+
         return {
-            init: hookPrototypes,
+            init,
             getOriginalURLIfBlob,
             isVideoUrl,
             trackAndAttach,
@@ -587,8 +602,8 @@
             resetState
         };
     })();
-
-    // ✅ JWPlayer 모니터링 모듈 추가
+    
+    // --- JWPlayer 모니터링 모듈 추가 ---
     const jwplayerMonitor = (() => {
         let isJWHooked = false;
         let lastItemURL = null;
@@ -638,7 +653,7 @@
                 }
             }, 2000);
         }
-
+        
         const resetState = () => {
             lastItemURL = null;
             if (pollingInterval) {
@@ -1265,7 +1280,7 @@
                 PROCESSED_IFRAMES.clear();
                 LOGGED_KEYS_WITH_TIMER.clear();
                 networkMonitor.resetState();
-                jwplayerMonitor.resetState(); // ✅ JWPlayer 모니터링 상태 초기화
+                jwplayerMonitor.resetState();
 
                 OBSERVER_MAP.forEach(observer => observer.disconnect());
                 OBSERVER_MAP.clear();
@@ -1275,7 +1290,7 @@
                 }, 300);
             }
         };
-
+        
         const overrideHistoryMethod = (methodName) => {
             const original = history[methodName];
             history[methodName] = function(...args) {
@@ -1302,8 +1317,7 @@
                 return;
             }
             PROCESSED_IFRAMES.add(iframe);
-
-            // ✅ iframe 내부의 JWPlayer도 후킹
+            
             try {
                 if (iframe.contentWindow) {
                     jwplayerMonitor.init(iframe.contentWindow);
@@ -1450,7 +1464,7 @@
                 });
                 speedSlider.init();
                 dragBar.init();
-                jwplayerMonitor.init(window); // ✅ 메인 프레임 JWPlayer 초기화
+                jwplayerMonitor.init(window);
             }
 
             startUnifiedObserver(targetDocument);
