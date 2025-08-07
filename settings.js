@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.13
+// @version 		6.4.14
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -922,7 +922,7 @@
                 speedSliderContainer.addEventListener('mouseleave', () => {
                     hoverTimer = setTimeout(() => {
                         speedSliderContainer.style.pointerEvents = 'none';
-                    }, 1000); // 1초 후 비활성화
+                    }, 1000);
                 });
                  speedSliderContainer.addEventListener('touchstart', () => {
                      clearTimeout(hoverTimer);
@@ -931,7 +931,7 @@
                  speedSliderContainer.addEventListener('touchend', () => {
                      hoverTimer = setTimeout(() => {
                          speedSliderContainer.style.pointerEvents = 'none';
-                     }, 1000); // 1초 후 비활성화
+                     }, 1000);
                  });
             }
         };
@@ -1503,77 +1503,3 @@
         };
 
         const initializeAll = (targetDocument = document) => {
-            if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
-            PROCESSED_DOCUMENTS.add(targetDocument);
-            logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 5000, 'info');
-
-            if (targetDocument === document) {
-                popupBlocker.init();
-                networkMonitor.init();
-                spaMonitor.init();
-                logManager.init();
-                document.addEventListener('fullscreenchange', () => {
-                    speedSlider.updatePositionAndSize();
-                    if (!speedSlider.isMinimized()) {
-                        dragBar.show();
-                    } else {
-                        dragBar.hide();
-                    }
-                });
-                speedSlider.init();
-                dragBar.init();
-                jwplayerMonitor.init(window);
-            }
-
-            startUnifiedObserver(targetDocument);
-            startVideoUIWatcher(targetDocument);
-
-            layerTrap.scan(targetDocument);
-            videoFinder.findInDoc(targetDocument).forEach(video => {
-                videoControls.initWhenReady(video);
-            });
-            targetDocument.querySelectorAll('iframe').forEach(iframe => {
-                if (!iframeBlocker.enhancedCheckAndBlock(iframe)) {
-                    handleIframeLoad(iframe);
-                }
-            });
-        };
-
-        return {
-            initializeAll,
-        };
-
-    })();
-
-    // --- 초기 진입점 ---
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            App.initializeAll(document);
-        });
-    } else {
-        App.initializeAll(document);
-    }
-
-    // --- 전역 에러 핸들러 ---
-    const ORIGINAL_ONERROR = window.onerror;
-    window.onerror = (message, source, lineno, colno, error) => {
-        if (message === 'Script error.' || (typeof source === 'string' && source.includes('supjav.php'))) {
-            return true;
-        }
-
-        if (message && typeof message === 'string' && (message.includes('PartnersCoupang') || message.includes('TSOutstreamVideo'))) {
-            return true;
-        }
-
-        const errorMsg = `전역 오류: ${message} at ${source}:${lineno}:${colno}`;
-        logManager.addOnce('global_error', errorMsg, 5000, 'error');
-
-        if (ORIGINAL_ONERROR) {
-            return ORIGINAL_ONERROR.apply(this, arguments);
-        }
-        return false;
-    };
-    window.onunhandledrejection = event => {
-        logManager.addOnce('promise_rejection', `Promise 거부: ${event.reason}`, 5000, 'error');
-    };
-})();
