@@ -363,12 +363,12 @@
         const resetCount = () => { popupCount = 0; };
 
         const init = () => {
-            registerUserEvents();
-            overrideOpen();
-            lockOpen();
-            blockInIframe();
-            console.log('✅ popupBlocker 초기화 완료');
-        };
+          registerUserEvents();
+          overrideOpen();
+          blockInIframe();    // <-- 이 부분을 먼저 호출하여 재할당
+          lockOpen();         // <-- 그 다음에 최종적으로 'open'을 잠금
+          console.log('✅ popupBlocker 초기화 완료');
+      };
 
         return {
             init,
