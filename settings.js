@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.6
+// @version 		6.4.7
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -306,9 +306,9 @@
         const mediaSourceBlobMap = new Map();
         let lastCapturedM3U8 = null;
         let lastCapturedMPD = null;
-
+        
         const PROCESSED_MANIFESTS = new Set();
-
+        
         const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.vtt', '.aac', '.mp3'];
         const isVideoLikeRequest = (url) => {
             if (!url || typeof url !== 'string') return false;
@@ -329,7 +329,7 @@
         };
 
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t');
-
+        
         async function parseMPD(mpdURL) {
             if (PROCESSED_MANIFESTS.has(mpdURL)) return;
             PROCESSED_MANIFESTS.add(mpdURL);
@@ -342,7 +342,7 @@
 
                 const baseURLNode = xml.querySelector('BaseURL');
                 const baseURL = baseURLNode ? new URL(baseURLNode.textContent.trim(), mpdURL).href : mpdURL.replace(/\/[^/]*$/, '/');
-
+                
                 const representations = xml.querySelectorAll('Representation');
                 representations.forEach(rep => {
                     const template = rep.querySelector('SegmentTemplate');
@@ -368,16 +368,16 @@
                 logManager.addOnce(`parse_mpd_fail_${mpdURL}`, `⚠️ MPD 파싱 실패: ${mpdURL} - ${err.message}`, 5000, 'error');
             }
         }
-
+        
         async function parseM3U8(m3u8URL, depth = 0) {
              if (depth > 2 || PROCESSED_MANIFESTS.has(m3u8URL)) return;
              PROCESSED_MANIFESTS.add(m3u8URL);
-
+        
              try {
                  const res = await fetch(m3u8URL);
                  const text = await res.text();
                  const base = m3u8URL.split('/').slice(0, -1).join('/') + '/';
-
+        
                  if (text.includes('#EXT-X-STREAM-INF')) {
                      const subURLs = [...text.matchAll(/^[^#].+\.m3u8$/gm)]
                          .map(m => new URL(m[0].trim(), base).href);
@@ -386,19 +386,19 @@
                      }
                      return;
                  }
-
+        
                  const segments = [...text.matchAll(/^[^#][^\r\n]*\.ts$/gm)]
                      .map(m => new URL(m[0].trim(), base).href);
-
+        
                  segments.forEach(url => trackAndAttach(url, 'hls_segment'));
-
+        
                  logManager.addOnce(`parsed_m3u8_${m3u8URL}`, `✅ M3U8 파싱 완료 (세그먼트 ${segments.length}개)`, 5000, 'info');
-
+        
              } catch (err) {
                  logManager.addOnce(`parse_m3u8_fail_${m3u8URL}`, `⚠️ M3U8 파싱 실패: ${m3u8URL} - ${err.message}`, 5000, 'error');
              }
         }
-
+        
         const normalizeURL = (url) => {
             try {
                 const u = new URL(url);
@@ -424,7 +424,7 @@
             }
             return originalUrl;
         };
-
+        
         const reportVideoURL = (url, context = '') => {
             if (!capturedVideoURLs.has(url)) {
                 capturedVideoURLs.add(url);
@@ -436,7 +436,7 @@
         const trackAndAttach = (url, sourceType = 'network') => {
             const originalURL = url;
             const normalizedUrl = normalizeURL(originalURL);
-
+            
             if (normalizedUrl.toLowerCase().endsWith('.m3u8')) {
                 lastCapturedM3U8 = normalizedUrl;
                 parseM3U8(normalizedUrl);
@@ -497,7 +497,7 @@
                         const contentType = clone.headers.get("content-type");
                         if (isVideoUrl(url) || isVideoMimeType(contentType)) {
                             trackAndAttach(url, 'fetch');
-
+                            
                             clone.blob().then(blob => {
                                 if (isVideoMimeType(blob.type)) {
                                     const blobURL = URL.createObjectURL(blob);
@@ -514,7 +514,7 @@
                     return res;
                 };
             }
-
+            
             try {
                 const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
                 if (originalAddSourceBuffer) {
@@ -557,7 +557,7 @@
                 URL.createObjectURL = function(obj) {
                     const url = originalCreateObjectURL.call(this, obj);
                     const type = obj instanceof MediaSource ? 'MediaSource' : 'Blob';
-
+                    
                     if (type === 'MediaSource') {
                         mediaSourceBlobMap.set(url, lastCapturedM3U8 || lastCapturedMPD || 'MediaSource');
                         logManager.addOnce(`createObjectURL_mse_${url}`, `[URL] MediaSource에 Blob URL 할당됨: ${url}`, 5000, 'info');
@@ -570,24 +570,24 @@
                 };
             }
         };
-
+        
         const handlePostMessage = (event) => {
             if (!event.data || typeof event.data !== 'object') return;
-
+            
             const { type, url, file, src } = event.data;
             const videoUrl = url || file || src;
-
+            
             if (typeof videoUrl !== 'string') return;
-
+            
             const messageType = type || '';
             const isValidMessage = (messageType.includes('video') || messageType.includes('url')) && isVideoUrl(videoUrl);
-
+            
             if (isValidMessage) {
                  logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
                  reportVideoURL(videoUrl, 'postMessage');
             }
         };
-
+        
         const resetState = () => {
             capturedVideoURLs.clear();
             blobToOriginalURLMap.clear();
@@ -613,7 +613,7 @@
             resetState
         };
     })();
-
+    
     // --- JWPlayer 모니터링 모듈 추가 ---
     const jwplayerMonitor = (() => {
         let isJWHooked = false;
@@ -664,7 +664,7 @@
                 }
             }, 2000);
         }
-
+        
         const resetState = () => {
             lastItemURL = null;
             if (pollingInterval) {
@@ -1237,71 +1237,105 @@
 
     // --- Iframe 차단 모듈 ---
     const iframeBlocker = (() => {
-        const checkIframe = (iframe) => {
-            const iframeSrc = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('data-lazy-src') || '';
-            const isAdByPattern = IGNORED_IFRAME_PATTERNS.some(p => p.test(iframeSrc)) || IFRAME_FORCE_BLOCK_PATTERNS.some(p => iframeSrc.includes(p));
-            return isAdByPattern;
+        const SANDBOX_ATTR = 'sandbox';
+
+        const isBlockedSrc = (src) => {
+            const srcToTest = src || '';
+            return IGNORED_IFRAME_PATTERNS.some(p => p.test(srcToTest)) || IFRAME_FORCE_BLOCK_PATTERNS.some(p => srcToTest.includes(p));
+        };
+        
+        const blockIframe = (iframe, reason = '차단됨') => {
+            if (!FeatureFlags.iframeBlocker) return;
+            const iframeSrc = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('srcdoc') || 'unknown';
+            const iframeId = iframe.id || 'unknown';
+            
+            try {
+                iframe.src = 'about:blank';
+                iframe.style.display = 'none';
+                iframe.setAttribute('blocked-by', 'PopupBlocker_Iframe_VideoSpeed');
+                logManager.addOnce(`iframe_blocked_${iframeId}_${Date.now()}`, `🚫 iframe ${reason} | src: ${iframeSrc.substring(0, 50)}...`, 5000, 'block');
+            } catch {
+                iframe.remove();
+            }
         };
 
-        const checkIframeContent = (iframe) => {
-            if (!FeatureFlags.keywordBlocker || !iframe.src || iframe.src.startsWith('about:')) return false;
-
+        const checkIframeContentKeywords = (iframe) => {
+            if (!FeatureFlags.keywordBlocker) return false;
+            
             try {
                 const doc = iframe.contentDocument || iframe.contentWindow.document;
                 if (!doc || !doc.body) return false;
-
                 const text = doc.body.textContent || '';
-                for (const keyword of IFRAME_CONTENT_BLOCK_KEYWORDS) {
-                    if (text.includes(keyword)) {
-                        logManager.addOnce(`iframe_keyword_block_${iframe.id || 'no-id'}`, `🚫 iframe 유해 키워드 차단됨 | 키워드: ${keyword} | src: ${iframe.src.substring(0, 50)}...`, 5000, 'block');
-                        return true;
-                    }
-                }
+                return IFRAME_CONTENT_BLOCK_KEYWORDS.some(keyword => text.includes(keyword));
             } catch (e) {
-                // Same-Origin Policy (SOP) 오류는 무시
+                // SOP 예외 시, content 접근 불가로 간주하고 안전모드 차단
+                return true;
             }
+        };
+
+        const enhancedCheckAndBlock = (iframe) => {
+            // 이미 처리된 iframe은 무시
+            if (PROCESSED_IFRAMES.has(iframe)) return;
+
+            const srcAttrs = ['src', 'data-src', 'data-lazy-src', 'srcdoc'];
+            for (const attr of srcAttrs) {
+                const val = iframe.getAttribute(attr);
+                if (val && isBlockedSrc(val)) {
+                    blockIframe(iframe, 'URL 패턴 매칭');
+                    PROCESSED_IFRAMES.add(iframe);
+                    return true;
+                }
+            }
+            
+            if (checkIframeContentKeywords(iframe)) {
+                blockIframe(iframe, '유해 키워드 검출');
+                PROCESSED_IFRAMES.add(iframe);
+                return true;
+            }
+
+            // 차단하지 않는 iframe에는 sandbox 적용하여 보안 강화
+            if (!iframe.hasAttribute(SANDBOX_ATTR)) {
+                 iframe.setAttribute(SANDBOX_ATTR, 'allow-scripts allow-same-origin');
+                 logManager.addOnce(`iframe_sandboxed_${iframe.id || 'no-id'}`, `⚠️ iframe에 sandbox 적용됨`, 5000, 'info');
+            }
+
             return false;
         };
-
-        const block = (iframe) => {
-            if (!FeatureFlags.iframeBlocker) return;
-            const iframeSrc = iframe.src || '';
-            const iframeId = iframe.id || 'unknown';
-
-            iframe.src = 'about:blank';
-            iframe.style.display = 'none';
-            logManager.addOnce(`iframe_block_${iframeId}`, `🚫 iframe 차단됨 | ID: ${iframeId} | src: ${iframeSrc.substring(0, 50)}...`, 5000, 'block');
-        };
-
-        return { checkIframe, checkIframeContent, block };
+        
+        return { enhancedCheckAndBlock, blockIframe };
     })();
 
     // --- SPA 및 MutationObserver 통합 모듈 ---
     const spaMonitor = (() => {
         let lastURL = location.href;
+        let debounceTimer = null;
 
         const onNavigate = (reason = 'URL 변경 감지') => {
-            const url = location.href;
-            if (url !== lastURL) {
-                lastURL = url;
-                logManager.addOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const url = location.href;
+                if (url !== lastURL) {
+                    lastURL = url;
+                    logManager.addOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
 
-                PROCESSED_DOCUMENTS.clear();
-                PROCESSED_NODES.clear();
-                PROCESSED_IFRAMES.clear();
-                LOGGED_KEYS_WITH_TIMER.clear();
-                networkMonitor.resetState();
-                jwplayerMonitor.resetState();
+                    // 모든 상태 초기화
+                    PROCESSED_DOCUMENTS.clear();
+                    PROCESSED_NODES.clear();
+                    PROCESSED_IFRAMES.clear();
+                    LOGGED_KEYS_WITH_TIMER.clear();
+                    networkMonitor.resetState();
+                    jwplayerMonitor.resetState();
 
-                OBSERVER_MAP.forEach(observer => observer.disconnect());
-                OBSERVER_MAP.clear();
+                    // 기존 옵저버 연결 해제
+                    OBSERVER_MAP.forEach(observer => observer.disconnect());
+                    OBSERVER_MAP.clear();
 
-                setTimeout(() => {
+                    // 새로운 DOM 상태로 다시 초기화
                     App.initializeAll(document);
-                }, 300);
-            }
+                }
+            }, 200); // 디바운스 200ms 적용
         };
-
+        
         const overrideHistoryMethod = (methodName) => {
             const original = history[methodName];
             history[methodName] = function(...args) {
@@ -1328,7 +1362,7 @@
                 return;
             }
             PROCESSED_IFRAMES.add(iframe);
-
+            
             try {
                 if (iframe.contentWindow) {
                     jwplayerMonitor.init(iframe.contentWindow);
@@ -1349,9 +1383,8 @@
                 try {
                     const doc = iframe.contentDocument;
                     if (doc && doc.body) {
-                        if (iframeBlocker.checkIframeContent(iframe)) {
-                           iframeBlocker.block(iframe);
-                           return;
+                        if (iframeBlocker.enhancedCheckAndBlock(iframe)) {
+                           return; // 차단되었으므로 여기서 중단
                         }
                         initializeAll(doc);
                     } else {
@@ -1372,20 +1405,14 @@
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach(node => {
                         if (node.nodeType === 1) {
-                            if (node.tagName === 'IFRAME' && !PROCESSED_IFRAMES.has(node)) {
-                                if (iframeBlocker.checkIframe(node) || iframeBlocker.checkIframeContent(node)) {
-                                    iframeBlocker.block(node);
-                                } else {
+                            if (node.tagName === 'IFRAME') {
+                                if (!iframeBlocker.enhancedCheckAndBlock(node)) {
                                     handleIframeLoad(node);
                                 }
                             }
                             node.querySelectorAll('iframe').forEach(iframe => {
-                                if (!PROCESSED_IFRAMES.has(iframe)) {
-                                    if (iframeBlocker.checkIframe(iframe) || iframeBlocker.checkIframeContent(iframe)) {
-                                        iframeBlocker.block(iframe);
-                                    } else {
-                                        handleIframeLoad(iframe);
-                                    }
+                                if (!iframeBlocker.enhancedCheckAndBlock(iframe)) {
+                                     handleIframeLoad(iframe);
                                 }
                             });
                             node.querySelectorAll('video').forEach(video => videoControls.initWhenReady(video));
@@ -1401,9 +1428,7 @@
                     if (targetNode.nodeType === 1) {
                         if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
                             PROCESSED_IFRAMES.delete(targetNode);
-                            if (iframeBlocker.checkIframe(targetNode) || iframeBlocker.checkIframeContent(targetNode)) {
-                                iframeBlocker.block(targetNode);
-                            } else {
+                            if (!iframeBlocker.enhancedCheckAndBlock(targetNode)) {
                                 handleIframeLoad(targetNode);
                             }
                         }
@@ -1428,7 +1453,7 @@
             const observer = new MutationObserver(mutations => processMutations(mutations, targetDocument));
             observer.observe(rootElement, {
                 childList: true, subtree: true, attributes: true,
-                attributeFilter: ['src', 'style', 'class', 'href', 'controls']
+                attributeFilter: ['src', 'style', 'class', 'href', 'controls', 'sandbox', 'data-src', 'srcdoc']
             });
 
             OBSERVER_MAP.set(targetDocument, observer);
@@ -1486,11 +1511,9 @@
                 videoControls.initWhenReady(video);
             });
             targetDocument.querySelectorAll('iframe').forEach(iframe => {
-                 if (iframeBlocker.checkIframe(iframe) || iframeBlocker.checkIframeContent(iframe)) {
-                     iframeBlocker.block(iframe);
-                 } else {
-                     handleIframeLoad(iframe);
-                 }
+                if (!iframeBlocker.enhancedCheckAndBlock(iframe)) {
+                    handleIframeLoad(iframe);
+                }
             });
         };
 
