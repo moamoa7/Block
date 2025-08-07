@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		6.4.12
+// @version 		6.4.13
 // @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match 			*://*/*
 // @grant 			none
@@ -785,6 +785,7 @@
         let speedSliderContainer;
         let playbackUpdateTimer;
         let isMinimized = JSON.parse(localStorage.getItem('speedSliderMinimized') || 'true');
+        let hoverTimer;
 
         const createSliderElements = () => {
             if (document.getElementById('vm-speed-slider-style')) return;
@@ -796,10 +797,11 @@
                     background: rgba(0, 0, 0, 0.0); padding: 10px 8px; border-radius: 8px;
                     z-index: 2147483647 !important; display: none; flex-direction: column;
                     align-items: center; width: 50px; height: auto; font-family: sans-serif;
-                    pointer-events: none; opacity: 0.3; transition: all 0.3s ease; user-select: none;
+                    opacity: 0.3; transition: all 0.3s ease; user-select: none;
                     box-shadow: 0 0 8px rgba(0,0,0,0.0); will-change: transform, opacity, width;
+                    pointer-events: none; /* ✅ 기본적으로 비활성화 */
                 }
-                #vm-speed-slider-container:hover { opacity: 1; }
+                #vm-speed-slider-container:hover { opacity: 1; pointer-events: auto; }
                 #vm-speed-slider-container.active { opacity: 1; pointer-events: auto; }
                 #vm-speed-reset-btn { background: #444; border: none; border-radius: 4px; color: white;
                     font-size: 14px; padding: 4px 6px; cursor: pointer; margin-bottom: 8px;
@@ -910,16 +912,27 @@
                 if (valueDisplay) valueDisplay.style.display = 'none';
                 if (resetBtn) resetBtn.style.display = 'none';
             }
-
-            // ✅ 배속바가 터치를 방해하지 않도록 이벤트 리스너 추가
+            
+            // ✅ 터치 및 마우스 이벤트에 따른 pointer-events 제어
             if (speedSliderContainer) {
-                speedSliderContainer.addEventListener('mouseenter', () => speedSliderContainer.style.pointerEvents = 'auto');
-                speedSliderContainer.addEventListener('mouseleave', () => speedSliderContainer.style.pointerEvents = 'none');
-                // 모바일 터치 이벤트 처리
-                speedSliderContainer.addEventListener('touchstart', () => speedSliderContainer.style.pointerEvents = 'auto');
-                speedSliderContainer.addEventListener('touchend', () => {
-                    setTimeout(() => speedSliderContainer.style.pointerEvents = 'none', 500);
+                speedSliderContainer.addEventListener('mouseenter', () => {
+                    clearTimeout(hoverTimer);
+                    speedSliderContainer.style.pointerEvents = 'auto';
                 });
+                speedSliderContainer.addEventListener('mouseleave', () => {
+                    hoverTimer = setTimeout(() => {
+                        speedSliderContainer.style.pointerEvents = 'none';
+                    }, 1000); // 1초 후 비활성화
+                });
+                 speedSliderContainer.addEventListener('touchstart', () => {
+                     clearTimeout(hoverTimer);
+                     speedSliderContainer.style.pointerEvents = 'auto';
+                 });
+                 speedSliderContainer.addEventListener('touchend', () => {
+                     hoverTimer = setTimeout(() => {
+                         speedSliderContainer.style.pointerEvents = 'none';
+                     }, 1000); // 1초 후 비활성화
+                 });
             }
         };
 
