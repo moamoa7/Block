@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name 			PopupBlocker_Iframe_VideoSpeed
 // @namespace 		https.com/
-// @version 		9.0.0
-// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V9)
+// @version 		10.0.0
+// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V10)
 // @match 			*://*/*
 // @grant 			none
 // @run-at 			document-start
