@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name 			VideoSpeed_Lite_Final_LogEnhanced
+// @name 			VideoSpeed_Lite_Final_LogEnhanced_v13_iframeFix
 // @namespace 		https.com/
-// @version 		13.0.1
+// @version 		13.0.2
 // @description 	🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (로그 상세화 버전)
 // @match 			*://*/*
 // @grant 			none
@@ -219,12 +219,13 @@
             return originalUrl;
         };
 
-        const attachThrottled = throttle(() => {
+        const attachThrottled = throttle((url) => {
+             // attach 함수의 인자로 URL을 전달하도록 수정
             const videos = videoFinder.findAll();
             videos.forEach(v => {
                 const target = videoFinder.findLargestParent(v);
                 if (target) {
-                    dynamicVideoUI.attach(target, v.src || lastCapturedM3U8 || lastCapturedMPD || '');
+                    dynamicVideoUI.attach(url || v.src); // 직접 감지된 URL을 전달
                 }
             });
         }, 1000);
@@ -233,7 +234,7 @@
             const norm = normalizeURL(url);
             if (capturedVideoURLs.has(norm)) return;
             capturedVideoURLs.add(norm);
-            attachThrottled();
+            attachThrottled(norm);
 
             if (blobToOriginalURLMap.size > 200) blobToOriginalURLMap.clear();
             if (mediaSourceBlobMap.size > 100) mediaSourceBlobMap.clear();
@@ -842,49 +843,76 @@
     })();
 
     // --- 동적 비디오 URL 표시 모듈 ---
-    const dynamicVideoUI = {
-        attach: (targetElement, url) => {
-            if (!targetElement) return;
-            let existingButton = targetElement.querySelector('.dynamic-video-url-btn');
-            if (!existingButton) {
-                const button = document.createElement('button');
-                button.className = 'dynamic-video-url-btn';
-                button.textContent = '🎞️';
-                button.title = '비디오 URL 복사';
-                Object.assign(button.style, {
-                    position: 'absolute', top: '5px', right: '5px', zIndex: '2147483647 !important',
-                    background: 'rgba(0, 0, 0, 0.7)', color: 'white', border: 'none',
-                    borderRadius: '5px', padding: '5px 10px', cursor: 'pointer',
-                    pointerEvents: 'auto', display: 'block !important', transition: 'background 0.3s'
-                });
-                button.onclick = (e) => {
-                    e.stopPropagation(); e.preventDefault();
-                    const urlToCopy = networkMonitor.getOriginalURLIfBlob(url);
-                    if (!urlToCopy || urlToCopy.startsWith('blob:') || urlToCopy.startsWith('[MSE]')) {
-                        logManager.addOnce('no_valid_url_to_copy', '⚠️ 복사할 유효한 URL을 찾을 수 없음', 5000, 'warn');
-                        return;
-                    }
-                    navigator.clipboard.writeText(urlToCopy).then(() => {
-                        const originalText = button.textContent;
-                        button.textContent = '✅ 복사 완료!';
-                        button.style.background = 'rgba(40, 167, 69, 0.7)';
-                        setTimeout(() => { button.textContent = originalText; button.style.background = 'rgba(0, 0, 0, 0.7)'; }, 1500);
-                    }).catch(() => {
-                        const originalText = button.textContent;
-                        button.textContent = '❌ 복사 실패!';
-                        button.style.background = 'rgba(220, 53, 69, 0.7)';
-                        setTimeout(() => { button.textContent = originalText; button.style.background = 'rgba(0, 0, 0, 0.7)'; }, 1500);
-                    });
-                };
-                if (getComputedStyle(targetElement).position === 'static') {
-                    targetElement.style.position = 'relative';
-                }
-                targetElement.appendChild(button);
-                // 로그 메시지 상세화
-                logManager.addOnce(`dynamic_ui_${url}`, `✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 5000, 'info');
+    const dynamicVideoUI = (() => {
+        let button;
+        let currentUrl = null;
+
+        const init = () => {
+            if (!document.body) return;
+            button = document.createElement('button');
+            button.id = 'dynamic-video-url-btn';
+            button.textContent = '🎞️ URL';
+            button.title = '비디오 URL 복사';
+            Object.assign(button.style, {
+                position: 'fixed',
+                top: '10px',
+                right: '10px',
+                zIndex: '2147483647',
+                background: 'rgba(0, 0, 0, 0.0)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                padding: '5px 10px',
+                cursor: 'pointer',
+                pointerEvents: 'auto',
+                display: 'none', // 초기에는 숨김
+                transition: 'background 0.3s'
+            });
+            document.body.appendChild(button);
+
+            button.onclick = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+
+            const urlToCopy = networkMonitor.getOriginalURLIfBlob(currentUrl);
+
+            if (!urlToCopy || urlToCopy.startsWith('blob:')) {
+                logManager.addOnce('no_original_url_to_copy', '⚠️ 원본 URL을 찾을 수 없습니다.', 5000, 'warn');
+                const originalText = button.textContent;
+                button.textContent = '⚠️ 원본 URL을 찾을 수 없습니다.';
+                button.style.background = 'rgba(255, 193, 7, 0.7)'; // 경고색 (노란색)
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = 'rgba(0, 0, 0, 0.0)';
+                }, 1500); // 1.5초 후 원래대로 돌아갑니다.
+                return;
             }
-        }
-    };
+
+            navigator.clipboard.writeText(urlToCopy).then(() => {
+                const originalText = button.textContent;
+                button.textContent = '✅ 복사 완료!';
+                button.style.background = 'rgba(40, 167, 69, 0.7)';
+                setTimeout(() => { button.textContent = originalText; button.style.background = 'rgba(0, 0, 0, 0.7)'; }, 1500);
+            }).catch(() => {
+                const originalText = button.textContent;
+                button.textContent = '❌ 복사 실패!';
+                button.style.background = 'rgba(220, 53, 69, 0.7)';
+                setTimeout(() => { button.textContent = originalText; button.style.background = 'rgba(0, 0, 0, 0.7)'; }, 1500);
+            });
+            };
+        };
+
+        const attach = (url) => {
+            if (!button) init();
+            if (!button) return;
+
+            currentUrl = url;
+            button.style.display = 'block';
+            logManager.addOnce(`dynamic_ui_${url}`, `✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 5000, 'info');
+        };
+
+        return { attach };
+    })();
 
     // --- 비디오 컨트롤 모듈 ---
     const videoControls = (() => {
@@ -901,7 +929,7 @@
                 }
                 if (video.parentElement && video.clientWidth > 0 && video.clientHeight > 0) {
                     const parentContainer = videoFinder.findLargestParent(video);
-                    if (parentContainer) dynamicVideoUI.attach(parentContainer, video.src);
+                    if (parentContainer) dynamicVideoUI.attach(video.src); // 수정된 attach 함수 호출
                 }
             };
             if (video.readyState >= 1) {
@@ -1081,6 +1109,7 @@
                 });
                 speedSlider.init();
                 dragBar.init();
+                //dynamicVideoUI.init(); // dynamicVideoUI 모듈 초기화
                 logManager.addOnce('jwplayer_monitor_status', `✅ [jwplayerMonitor] 활성`, 5000, 'debug');
                 jwplayerMonitor.init(window);
             }
