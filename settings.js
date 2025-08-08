@@ -852,10 +852,10 @@
                 button.textContent = '🎞️';
                 button.title = '비디오 URL 복사';
                 Object.assign(button.style, {
-                    position: 'absolute', top: '5px', right: '5px', zIndex: '2147483647',
+                    position: 'absolute', top: '5px', right: '5px', zIndex: '2147483647 !important',
                     background: 'rgba(0, 0, 0, 0.7)', color: 'white', border: 'none',
                     borderRadius: '5px', padding: '5px 10px', cursor: 'pointer',
-                    pointerEvents: 'auto', display: 'block', transition: 'background 0.3s'
+                    pointerEvents: 'auto', display: 'block !important', transition: 'background 0.3s'
                 });
                 button.onclick = (e) => {
                     e.stopPropagation(); e.preventDefault();
