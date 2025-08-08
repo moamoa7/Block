@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name 			PopupBlocker_Iframe_VideoSpeed
+// @name 			VideoSpeed_Lite_Final
 // @namespace 		https.com/
 // @version 		13.0.0
-// @description 	🚫 팝업/iframe 차단 + 🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (V13)
+// @description 	🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (최종 최소화 버전)
 // @match 			*://*/*
 // @grant 			none
 // @run-at 			document-start
@@ -13,67 +13,15 @@
 
     // --- 전역 설정 및 기능 플래그 ---
     const FeatureFlags = {
-        popupBlocker: true,
-        iframeBlocker: true,
-        layerTrap: true,
         videoControls: true,
         logUI: true,
-        keywordBlocker: true
-    };
-    const USER_SETTINGS = {
-        enableVideoDebugBorder: false,
-        defaultIframeSandbox: 'allow-scripts allow-same-origin allow-popups'
-    };
-    const TrapConfig = {
-        allowList: [],
-        blockList: [],
-        layerTrapPreview: false
     };
     const DRAG_CONFIG = {
         PIXELS_PER_SECOND: 2
     };
     const POLLING_TIMEOUT_MS = 2 * 60 * 1000; // 2분 후 polling 중지
 
-    // --- 기능별 상수 및 예외 처리 ---
-    const WHITELIST = [
-        'challenges.cloudflare.com', 'recaptcha', '/e/',
-    ];
-    const EXCEPTION_LIST = {
-        'supjav.com': ['iframeBlocker'],
-    };
-    const FORCE_BLOCK_POPUP_PATTERNS = [];
-    const POSTMESSAGE_LOG_IGNORE_DOMAINS = [
-        'google.com', 'ok.ru', 'twitch.tv', 'accounts.google.com', 'missav.ws'
-    ];
-    const POSTMESSAGE_LOG_IGNORE_PATTERNS = [
-        '{"event":"timeupdate"',
-    ];
-    const IFRAME_FORCE_BLOCK_PATTERNS = [
-        '/ads/', 'adsbygoogle', 'doubleclick', 'adpnut.com',
-        'iframead', 'loader.fmkorea.com/_loader/', '/smartpop/',
-        '8dkq9tp.xyz', 's.amazon-adsystem.com',
-    ];
-    const IGNORED_IFRAME_PATTERNS = [
-        /e\.mail\.ru/, /youtube\.com\/embed/, /player\.vimeo\.com/,
-        /player\.twitch\.tv/, /ok\.ru\/videoembed/, /w\.naver\.com\/v2/,
-        /serviceapi\.nmv\.naver\.com/, /pstatic\.net\/movie\/svc\/popup/,
-        /html5player\.ru/, /video_player\.js/, /googlesyndication\.com/,
-        /adservice\.google\.com/,
-    ].map(p => (typeof p === 'string' ? new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) : p));
-
-    const IFRAME_CONTENT_BLOCK_KEYWORDS = [
-        '무료 성인', '카지노', '섹스', '성인 채팅', '벗방', '돈벌기', '도박',
-        '파트너스 활동을 통해 일정액의 수수료를 지급받을 수 있습니다', '성인광고'
-    ];
-
     // --- 스크립트 초기 실행 전 예외 처리 ---
-    const hostname = location.hostname;
-    const IS_ENTIRE_SCRIPT_ALLOWED = WHITELIST.some(domain =>
-        hostname.includes(domain) || window.location.href.includes(domain)
-    );
-    if (IS_ENTIRE_SCRIPT_ALLOWED) {
-        return;
-    }
     if (window.hasOwnProperty('__MySuperScriptInitialized') && window.__MySuperScriptInitialized) {
         return;
     }
@@ -91,18 +39,6 @@
     const isTopFrame = window.self === window.top;
 
     // --- 유틸리티 함수 ---
-    const isFeatureAllowed = (featureName) => {
-        const exceptions = EXCEPTION_LIST[hostname] || [];
-        return !exceptions.includes(featureName);
-    };
-
-    const getFakeWindow = () => ({
-        focus: () => {}, opener: null, closed: false, blur: () => {}, close: () => {},
-        location: { href: "", assign: () => {}, replace: () => {}, reload: () => {}, toString: () => "", valueOf: () => "" },
-        alert: () => {}, confirm: () => {}, prompt: () => {}, postMessage: () => {},
-        document: { write: () => {}, writeln: () => {} },
-    });
-
     function throttle(func, limit) {
         let inThrottle;
         return function(...args) {
@@ -165,7 +101,7 @@
         }
 
         function addLog(msg, level = 'info') {
-            const ICONS = { info: 'ℹ️', warn: '⚠️', 'error': '🔴', 'block': '🚫', 'allow': '✅', 'debug': '🔧' };
+            const ICONS = { info: 'ℹ️', warn: '⚠️', 'error': '🔴', 'allow': '✅', 'debug': '🔧' };
             const fullMsg = `[${new Date().toLocaleTimeString()}] ${ICONS[level] || ''} ${msg}`;
 
             console[level] ? console[level](fullMsg) : console.log(fullMsg);
@@ -247,144 +183,6 @@
         return { init, add: addLog, addOnce: addLogOnce };
     })();
 
-    // --- 팝업/광고 차단기 모듈 (수정됨) ---
-    const popupBlocker = (() => {
-        const ALLOW_ON_USER_INTERACTION = true;
-        const AUTO_CLOSE_DELAY = 300; // ms
-        const MAX_POPUPS_PER_SESSION = 5;
-
-        const WHITELIST = ['example.com'];
-        const BLACKLIST = ['ads.example.net', 'badpopup.site'];
-
-        const BLOCKED_KEYWORDS = [
-            'adclick', 'redirect', 'tracking', 'popunder', 'doubleclick'
-        ];
-
-        const MIN_WIDTH = 100;
-        const MIN_HEIGHT = 100;
-
-        let popupCount = 0;
-        let lastInteractionTime = 0;
-        const originalOpen = window.open;
-
-        const getDomain = url => {
-            try {
-                return new URL(url).hostname;
-            } catch { return ''; }
-        };
-
-        const isUserInitiated = () => {
-            return Date.now() - lastInteractionTime < 500;
-        };
-
-        const isBlockedURL = (url = '') => {
-            const domain = getDomain(url);
-            const lower = url.toLowerCase();
-
-            if (WHITELIST.some(w => domain.endsWith(w))) return false;
-            if (BLACKLIST.some(b => domain.endsWith(b))) return true;
-
-            return BLOCKED_KEYWORDS.some(k => lower.includes(k));
-        };
-
-        const isSuspiciousSize = (options) => {
-            if (!options) return false;
-            const win = options.toLowerCase();
-            return /width=\d+/.test(win) && /height=\d+/.test(win) && (
-                parseInt(win.match(/width=(\d+)/)?.[1] || 0) < MIN_WIDTH ||
-                parseInt(win.match(/height=(\d+)/)?.[1] || 0) < MIN_HEIGHT
-            );
-        };
-
-        const logPopup = (status, reason, url) => {
-            const level = status === 'BLOCKED' ? 'warn' : 'info';
-            logManager?.addOnce?.(`popup_${status.toLowerCase()}_${getDomain(url)}`, `🔗 ${status}: ${reason} | ${getDomain(url)}`, 6000, level);
-        };
-
-        const overrideOpen = () => {
-            window.open = function (url, name, specs, replace) {
-                const domain = getDomain(url || '');
-                const userClick = isUserInitiated();
-                const keywordBlocked = isBlockedURL(url);
-                const sizeBlocked = isSuspiciousSize(specs);
-                const overLimit = popupCount >= MAX_POPUPS_PER_SESSION;
-
-                const reasons = [];
-                if (!userClick) reasons.push('비사용자 이벤트');
-                if (keywordBlocked) reasons.push('키워드');
-                if (sizeBlocked) reasons.push('작은창');
-                if (overLimit) reasons.push('횟수 초과');
-
-                const blocked = reasons.length > 0;
-
-                if (blocked) {
-                    logPopup('BLOCKED', reasons.join(', '), url);
-                    return getFakeWindow(); // null 대신 더미 객체 반환
-                }
-
-                popupCount++;
-                logPopup('ALLOWED', '정상 허용', url);
-
-                const popup = originalOpen.call(this, url, name, specs, replace);
-
-                if (popup && AUTO_CLOSE_DELAY > 0) {
-                    setTimeout(() => {
-                        try { popup.close(); } catch {}
-                    }, AUTO_CLOSE_DELAY);
-                }
-
-                return popup;
-            };
-        };
-
-        const lockOpen = () => {
-            try {
-                Object.defineProperty(window, 'open', {
-                    value: window.open,
-                    writable: false,
-                    configurable: false,
-                    enumerable: true
-                });
-            } catch (err) {
-                logManager?.addOnce?.('window_open_lock_fail', `⚠️ window.open 보호 실패: ${err.message}`, 5000, 'warn');
-            }
-        };
-
-        const registerUserEvents = () => {
-            const updateTime = () => { lastInteractionTime = Date.now(); };
-            ['click', 'keydown', 'mousedown', 'touchstart'].forEach(evt =>
-                window.addEventListener(evt, updateTime, true)
-            );
-        };
-
-        const blockInIframe = () => {
-            if (window.self !== window.top) {
-                window.open = function(url, ...rest) {
-                    logManager?.addOnce?.(`popup_iframe_block_${Date.now()}`, `🧱 iframe 내 팝업 차단 | ${url || '(빈 URL)'}`, 5000, 'warn');
-                    return getFakeWindow(); // 더미 객체 반환
-                };
-            }
-        };
-
-        const resetCount = () => { popupCount = 0; };
-
-        const init = () => {
-            if (window.self !== window.top) {
-                blockInIframe();
-            } else {
-                registerUserEvents();
-                overrideOpen();
-                lockOpen();
-            }
-            logManager?.add?.('popup_blocker_init', '✅ popupBlocker 초기화 완료', 5000, 'debug');
-        };
-
-        return {
-            init,
-            resetCount
-        };
-    })();
-
     // --- 네트워크 모니터링 모듈 ---
     const networkMonitor = (() => {
         const originalXHR = XMLHttpRequest.prototype.open;
@@ -396,7 +194,6 @@
         let lastCapturedMPD = null;
 
         const PROCESSED_MANIFESTS = new Set();
-
         const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.mov', '.flv', '.avi'];
 
         const isVideoLikeRequest = (url, mimeType) => {
@@ -405,12 +202,9 @@
                 const lowerUrl = url.toLowerCase().split('?')[0];
                 const hasVideoExtension = TRACKED_VIDEO_EXTENSIONS.some(ext => lowerUrl.endsWith(ext));
                 const hasVideoMimeType = mimeType?.startsWith('video/') || mimeType?.includes('application/vnd.apple.mpegurl') || mimeType?.includes('application/dash+xml');
-
-                // .ts 확장자는 반드시 MIME 타입이 video/mp2t일 때만 유효하다고 가정
                 if (lowerUrl.endsWith('.ts') && mimeType && !mimeType.includes('video/mp2t')) {
                     return false;
                 }
-
                 return hasVideoExtension || hasVideoMimeType;
             } catch (e) {
                 return false;
@@ -428,16 +222,13 @@
         async function parseMPD(mpdURL) {
             if (PROCESSED_MANIFESTS.has(mpdURL)) return;
             PROCESSED_MANIFESTS.add(mpdURL);
-
             try {
                 const response = await fetch(mpdURL);
                 const text = await response.text();
                 const parser = new DOMParser();
                 const xml = parser.parseFromString(text, "application/xml");
-
                 const baseURLNode = xml.querySelector('BaseURL');
                 const baseURL = baseURLNode ? new URL(baseURLNode.textContent.trim(), mpdURL).href : mpdURL.replace(/\/[^/]*$/, '/');
-
                 const representations = xml.querySelectorAll('Representation');
                 representations.forEach(rep => {
                     const template = rep.querySelector('SegmentTemplate');
@@ -446,7 +237,6 @@
                         const init = template.getAttribute('initialization');
                         const startNumber = parseInt(template.getAttribute('startNumber') || "1");
                         const count = 3;
-
                         if (init) {
                             trackAndAttach(new URL(init, baseURL).href, 'dash_init');
                         }
@@ -456,42 +246,32 @@
                         }
                     }
                 });
-
                 logManager.addOnce(`parsed_mpd_${mpdURL}`, `✅ MPD 파싱 완료: ${mpdURL}`, 5000, 'info');
-
             } catch (err) {
                 logManager.addOnce(`parse_mpd_fail_${mpdURL}`, `⚠️ MPD 파싱 실패: ${mpdURL} - ${err.message}`, 5000, 'error');
             }
         }
 
         async function parseM3U8(m3u8URL, depth = 0) {
-             if (depth > 2 || PROCESSED_MANIFESTS.has(m3u8URL)) return;
-             PROCESSED_MANIFESTS.add(m3u8URL);
-
-             try {
-                 const res = await fetch(m3u8URL);
-                 const text = await res.text();
-                 const base = m3u8URL.split('/').slice(0, -1).join('/') + '/';
-
-                 if (text.includes('#EXT-X-STREAM-INF')) {
-                     const subURLs = [...text.matchAll(/^[^#].+\.m3u8$/gm)]
-                         .map(m => new URL(m[0].trim(), base).href);
-                     for (const sub of subURLs) {
-                         await parseM3U8(sub, depth + 1);
-                     }
-                     return;
-                 }
-
-                 const segments = [...text.matchAll(/^[^#][^\r\n]*\.ts$/gm)]
-                     .map(m => new URL(m[0].trim(), base).href);
-
-                 segments.forEach(url => trackAndAttach(url, 'hls_segment'));
-
-                 logManager.addOnce(`parsed_m3u8_${m3u8URL}`, `✅ M3U8 파싱 완료 (세그먼트 ${segments.length}개)`, 5000, 'info');
-
-             } catch (err) {
-                 logManager.addOnce(`parse_m3u8_fail_${m3u8URL}`, `⚠️ M3U8 파싱 실패: ${m3u8URL} - ${err.message}`, 5000, 'error');
-             }
+            if (depth > 2 || PROCESSED_MANIFESTS.has(m3u8URL)) return;
+            PROCESSED_MANIFESTS.add(m3u8URL);
+            try {
+                const res = await fetch(m3u8URL);
+                const text = await res.text();
+                const base = m3u8URL.split('/').slice(0, -1).join('/') + '/';
+                if (text.includes('#EXT-X-STREAM-INF')) {
+                    const subURLs = [...text.matchAll(/^[^#].+\.m3u8$/gm)].map(m => new URL(m[0].trim(), base).href);
+                    for (const sub of subURLs) {
+                        await parseM3U8(sub, depth + 1);
+                    }
+                    return;
+                }
+                const segments = [...text.matchAll(/^[^#][^\r\n]*\.ts$/gm)].map(m => new URL(m[0].trim(), base).href);
+                segments.forEach(url => trackAndAttach(url, 'hls_segment'));
+                logManager.addOnce(`parsed_m3u8_${m3u8URL}`, `✅ M3U8 파싱 완료 (세그먼트 ${segments.length}개)`, 5000, 'info');
+            } catch (err) {
+                logManager.addOnce(`parse_m3u8_fail_${m3u8URL}`, `⚠️ M3U8 파싱 실패: ${m3u8URL} - ${err.message}`, 5000, 'error');
+            }
         }
 
         const normalizeURL = (url) => {
@@ -532,7 +312,6 @@
         const trackAndAttach = (url, sourceType = 'network') => {
             const originalURL = url;
             const normalizedUrl = normalizeURL(originalURL);
-
             let videoType = '';
             if (normalizedUrl.toLowerCase().endsWith('.m3u8')) {
                 lastCapturedM3U8 = normalizedUrl;
@@ -547,12 +326,9 @@
             } else {
                 videoType = '[기타]';
             }
-
             if (capturedVideoURLs.has(normalizedUrl)) return;
             capturedVideoURLs.add(normalizedUrl);
-
             logManager.addOnce(`network_detected_${normalizedUrl.substring(0, 50)}`, `🎥 ${videoType} 네트워크 영상 URL 감지됨 (${sourceType}) | 원본: ${originalURL}`, 5000, 'info');
-
             requestIdleCallback(() => {
                 const videos = videoFinder.findAll();
                 if (videos.length > 0) {
@@ -562,28 +338,6 @@
                     });
                 }
             });
-        };
-
-        // --- postMessage 리스너 ---
-        const handlePostMessage = (event) => {
-            const trustedOrigins = [location.origin];
-            try {
-                if (window.parent) trustedOrigins.push(new URL(window.parent.location.href).origin);
-            } catch(e) {}
-
-            if (!trustedOrigins.includes(event.origin) || !event.data || typeof event.data !== 'object') {
-                return;
-            }
-
-            const { source, type, url, file, src } = event.data;
-            const videoUrl = url || file || src;
-
-            if (source !== 'PopupBlocker_Iframe_VideoSpeed' && type !== 'video_url') return;
-
-            if (typeof videoUrl === 'string' && isVideoUrl(videoUrl)) {
-                 logManager.addOnce(`post_message_video_url_${videoUrl.substring(0, 50)}`, `🎥 postMessage를 통해 영상 URL 감지됨 | URL: ${videoUrl}`, 5000, 'info');
-                 reportVideoURL(videoUrl, 'postMessage');
-            }
         };
 
         const hookPrototypes = () => {
@@ -618,8 +372,6 @@
                     try {
                         res = await originalFetch.apply(this, args);
                         const contentType = res.headers.get("content-type");
-
-                        // 응답 본문을 읽기 전에 clone() 시도
                         try {
                             const clone = res.clone();
                             if (isVideoLikeRequest(url, contentType) || isVideoMimeType(contentType)) {
@@ -634,7 +386,7 @@
                                 });
                             }
                         } catch (e) {
-                           logManager.addOnce('fetch_clone_fail', `⚠️ Fetch 응답 clone 실패: ${e.message}`, 5000, 'warn');
+                            logManager.addOnce('fetch_clone_fail', `⚠️ Fetch 응답 clone 실패: ${e.message}`, 5000, 'warn');
                         }
                     } catch (e) {
                         logManager.addOnce('fetch_hook_error', `⚠️ Fetch 후킹 중 오류 발생: ${e.message}\n${e.stack}`, 5000, 'error');
@@ -650,7 +402,7 @@
                     MediaSource.prototype.addSourceBuffer = function (mimeType) {
                         const lower = mimeType.toLowerCase();
                         if (lower.includes('video/mp4') || lower.includes('video/webm') || lower.includes('audio/mp4') || lower.includes('mpegurl') || lower.includes('dash')) {
-                             trackAndAttach(`[MSE] ${mimeType}`, 'mse_stream');
+                            trackAndAttach(`[MSE] ${mimeType}`, 'mse_stream');
                         }
                         return originalAddSourceBuffer.call(this, mimeType);
                     };
@@ -685,7 +437,6 @@
             if (originalCreateObjectURL) {
                 URL.createObjectURL = function(obj) {
                     const url = originalCreateObjectURL.call(this, obj);
-
                     if (obj instanceof MediaSource) {
                         mediaSourceBlobMap.set(url, lastCapturedM3U8 || lastCapturedMPD || 'MediaSource');
                         logManager.addOnce(`createObjectURL_mse_${url}`, `[URL] MediaSource에 Blob URL 할당됨: ${url}`, 5000, 'info');
@@ -709,8 +460,7 @@
         };
 
         const init = () => {
-             hookPrototypes();
-             window.addEventListener('message', handlePostMessage, false);
+            hookPrototypes();
         };
 
         return {
@@ -735,11 +485,9 @@
         function hookJWPlayerSetup(context = window) {
             if (isJWHooked || typeof context.jwplayer !== 'function') return;
             isJWHooked = true;
-
             const original = context.jwplayer;
             context.jwplayer = function (...args) {
                 const player = original.apply(this, args);
-
                 if (player && typeof player.setup === 'function') {
                     const originalSetup = player.setup;
                     player.setup = function (config) {
@@ -762,13 +510,11 @@
             if (pollingInterval) clearInterval(pollingInterval);
             if (pollingTimeout) clearTimeout(pollingTimeout);
             let pollingActive = true;
-
             pollingTimeout = setTimeout(() => {
                 pollingActive = false;
                 if (pollingInterval) clearInterval(pollingInterval);
                 logManager.addOnce('jw_polling_timeout', '📴 JWPlayer 폴링 중지됨 (타임아웃)', 5000, 'info');
             }, POLLING_TIMEOUT_MS);
-
             pollingInterval = setInterval(() => {
                 if (!pollingActive) return;
                 try {
@@ -809,56 +555,6 @@
         };
     })();
 
-
-    // --- layerTrap 모듈 ---
-    const layerTrap = (() => {
-        const PROCESSED_ELEMENTS = new WeakSet();
-        const isTrap = (el) => {
-            if (!(el instanceof HTMLElement) || PROCESSED_ELEMENTS.has(el)) return false;
-            if (TrapConfig.allowList.some(sel => el.matches(sel))) return false;
-            if (TrapConfig.blockList.some(sel => el.matches(sel))) return true;
-
-            const style = getComputedStyle(el);
-            const rect = el.getBoundingClientRect();
-            const isLarge = rect.width >= window.innerWidth * 0.9 && rect.height >= window.innerHeight * 0.9;
-            const isFixedOrAbs = style.position === 'fixed' || style.position === 'absolute';
-            const zIndex = parseInt(style.zIndex) || 0;
-            const hasPointerEvents = style.pointerEvents !== 'none';
-            const hasOnClick = el.onclick || el.onpointerdown || (el.onmousedown && hasPointerEvents);
-            const isSuspicious = isLarge && isFixedOrAbs && zIndex > 100 && (hasPointerEvents || hasOnClick);
-            if (isSuspicious && TrapConfig.layerTrapPreview) highlightTrap(el);
-            return isSuspicious;
-        };
-
-        const handleTrap = (el) => {
-            PROCESSED_ELEMENTS.add(el);
-            try {
-                const id = el.id ? `#${el.id}` : '';
-                const classes = Array.from(el.classList).map(cls => `.${cls}`).join('');
-                const elementInfo = `${el.tagName.toLowerCase()}${id}${classes}`;
-                const truncatedHtml = el.outerHTML.slice(0, 100);
-
-                el.style.display = 'none';
-
-                logManager.addOnce(
-                    `trap_removed_${Date.now()}`,
-                    `🧲 레이어 트랩 숨김 | 제거 방식: style.display='none' | 요소: <${elementInfo}> | 내용: ${truncatedHtml}...`,
-                    10000,
-                    'warn'
-                );
-            } catch (e) {
-                logManager.addOnce('layertrap_remove_error', `trap 처리 실패: ${e.message}`, 5000, 'error');
-            }
-        };
-
-        const highlightTrap = (el) => { /* ... (기존 코드와 동일) ... */ };
-        const scan = (doc) => doc.querySelectorAll('body *').forEach(el => {
-            if (isTrap(el)) handleTrap(el);
-        });
-
-        return { check: isTrap, handleTrap, scan };
-    })();
-
     // --- 비디오 탐색 모듈 ---
     const videoFinder = {
         findInDoc: (doc) => {
@@ -881,7 +577,6 @@
             } catch (e) {
                 logManager.addOnce('tree_walker_error', `⚠️ TreeWalker 오류: ${e.message}\n${e.stack}`, 5000, 'warn');
             }
-
             doc.querySelectorAll('div.jw-player, div[id*="player"], div.video-js, div[class*="video-container"], div.vjs-tech').forEach(container => {
                 if (!container.querySelector('video') && container.clientWidth > 0 && container.clientHeight > 0) {
                     videos.push(container);
@@ -910,8 +605,7 @@
                 const isRelativeOrAbsolute = style.position === 'relative' || style.position === 'absolute';
                 if (area > largestArea && area < window.innerWidth * window.innerHeight * 0.9) {
                     if (isRelativeOrAbsolute) {
-                         // 스마트 컨테이너 발견, 이보다 더 큰 부모는 UI 부착에 적합하지 않을 수 있음
-                         return current;
+                        return current;
                     }
                     largestArea = area;
                     largestElement = current;
@@ -990,10 +684,8 @@
             const valueDisplay = container.querySelector('#vm-speed-value');
             const resetBtn = container.querySelector('#vm-speed-reset-btn');
             const toggleBtn = container.querySelector('#vm-toggle-btn');
-
             isMinimized = !isMinimized;
             localStorage.setItem('speedSliderMinimized', isMinimized);
-
             if (isMinimized) {
                 container.style.width = '30px';
                 if (slider) slider.style.display = 'none';
@@ -1018,33 +710,26 @@
             isInitialized = true;
             createSliderElements();
             if (!document.body) return;
-
             speedSliderContainer = document.getElementById('vm-speed-slider-container');
             if (!speedSliderContainer) {
                 speedSliderContainer = document.createElement('div');
                 speedSliderContainer.id = 'vm-speed-slider-container';
-
                 const slider = document.createElement('input');
                 slider.type = 'range'; slider.min = '0.2'; slider.max = '4.0';
                 slider.step = '0.2'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
                 slider.addEventListener('input', e => onSliderChange(e.target.value), true);
                 slider.addEventListener('change', e => updateSpeed(parseFloat(e.target.value)), true);
-
                 const resetBtn = document.createElement('button');
                 resetBtn.id = 'vm-speed-reset-btn'; resetBtn.textContent = '1x';
                 resetBtn.addEventListener('click', e => { slider.value = '1.0'; onSliderChange('1.0'); });
-
                 const valueDisplay = document.createElement('div');
                 valueDisplay.id = 'vm-speed-value'; valueDisplay.textContent = 'x1.0';
-
                 const toggleBtn = document.createElement('button');
                 toggleBtn.id = 'vm-toggle-btn'; toggleBtn.textContent = isMinimized ? '▼' : '▲';
                 toggleBtn.addEventListener('click', toggleMinimize);
-
                 speedSliderContainer.append(resetBtn, slider, valueDisplay, toggleBtn);
                 document.body.appendChild(speedSliderContainer);
             }
-
             if (isMinimized) {
                 speedSliderContainer.style.width = '30px';
                 const slider = speedSliderContainer.querySelector('#vm-speed-slider');
@@ -1075,11 +760,8 @@
             const videos = videoFinder.findAll();
             const video = videos.find(v => v.clientWidth > 0 && v.clientHeight > 0);
             const slider = sliderContainer.querySelector('#vm-speed-slider');
-
             const newHeight = video ? Math.max(100, video.getBoundingClientRect().height * 0.3) : 100;
-
             if (slider) slider.style.height = `${newHeight}px`;
-
             const targetParent = document.fullscreenElement || document.body;
             if (sliderContainer.parentNode !== targetParent) {
                 targetParent.appendChild(sliderContainer);
@@ -1099,7 +781,6 @@
             recoveryTimer: null, throttleTimer: null, lastDragTimestamp: 0
         };
         let isInitialized = false;
-
         const formatTime = (seconds) => {
             const absSeconds = Math.abs(seconds);
             const sign = seconds < 0 ? '-' : '+';
@@ -1132,7 +813,6 @@
             const videos = videoFinder.findAll();
             const pixelsPerSecond = DRAG_CONFIG?.PIXELS_PER_SECOND || 2;
             const timeToApply = Math.round(dragState.totalTimeChange / pixelsPerSecond);
-
             if (timeToApply !== 0) {
                 videos.forEach(video => {
                     if (video && video.duration && isFinite(video.duration)) {
@@ -1155,14 +835,12 @@
                     dragState.throttleTimer = null;
                 }
                 updateTimeDisplay(0);
-
                 dragState.isDragging = false;
                 dragState.currentDragDistanceX = 0;
                 dragState.totalTimeChange = 0;
                 dragState.isHorizontalDrag = false;
                 if(document.body) document.body.style.userSelect = '';
                 if(document.body) document.body.style.touchAction = '';
-
                 document.removeEventListener('mousemove', handleMove, true);
                 document.removeEventListener('mouseup', handleEnd, true);
                 document.removeEventListener('touchmove', handleMove, true);
@@ -1173,7 +851,6 @@
         };
 
         const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
-
         const handleStart = (e) => {
             if (speedSlider.isMinimized() || dragState.isDragging || e.button === 2) {
                 return;
@@ -1183,7 +860,6 @@
             }
             const videos = videoFinder.findAll();
             if (videos.length === 0) return;
-
             e.stopPropagation();
             dragState.isDragging = true;
             const pos = getPosition(e);
@@ -1194,10 +870,8 @@
             dragState.totalTimeChange = 0;
             dragState.lastMoveTime = Date.now();
             updateTimeDisplay(dragState.totalTimeChange);
-
             if (dragState.recoveryTimer) clearTimeout(dragState.recoveryTimer);
             dragState.recoveryTimer = setTimeout(cancelDrag, 5000);
-
             document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
             document.addEventListener('mouseup', handleEnd, { passive: false, capture: true });
             document.addEventListener('touchmove', handleMove, { passive: false, capture: true });
@@ -1215,7 +889,6 @@
                 const pos = getPosition(e);
                 const currentX = pos.clientX;
                 const dx = Math.abs(currentX - dragState.startX);
-
                 if (!dragState.isHorizontalDrag) {
                     const dy = Math.abs(pos.clientY - dragState.startY);
                     if (dx > 10 && dy < dx * 1.5) {
@@ -1227,7 +900,6 @@
                         return cancelDrag();
                     }
                 }
-
                 if (dragState.isHorizontalDrag) {
                     e.preventDefault(); e.stopImmediatePropagation();
                     const deltaX = currentX - dragState.lastUpdateX;
@@ -1235,7 +907,6 @@
                     const pixelsPerSecond = DRAG_CONFIG?.PIXELS_PER_SECOND || 2;
                     dragState.totalTimeChange = Math.round(dragState.currentDragDistanceX / pixelsPerSecond);
                     updateTimeDisplay(dragState.totalTimeChange);
-
                     const now = Date.now();
                     if (now - dragState.lastDragTimestamp > 150) {
                         dragState.lastDragTimestamp = now;
@@ -1279,7 +950,6 @@
                 });
                 document.body.appendChild(dragBarTimeDisplay);
             }
-
             document.addEventListener('mousedown', handleStart, { passive: false, capture: true });
             document.addEventListener('touchstart', handleStart, { passive: false, capture: true });
             document.addEventListener('mouseout', (e) => { if (e.relatedTarget === null) handleEnd(); }, true);
@@ -1313,7 +983,6 @@
         attach: (targetElement, url) => {
             if (!targetElement) return;
             let existingButton = targetElement.querySelector('.dynamic-video-url-btn');
-
             if (!existingButton) {
                 const button = document.createElement('button');
                 button.className = 'dynamic-video-url-btn';
@@ -1325,7 +994,6 @@
                     borderRadius: '5px', padding: '5px 10px', cursor: 'pointer',
                     pointerEvents: 'auto', display: 'block', transition: 'background 0.3s'
                 });
-
                 button.onclick = (e) => {
                     e.stopPropagation(); e.preventDefault();
                     const urlToCopy = networkMonitor.getOriginalURLIfBlob(url);
@@ -1365,22 +1033,18 @@
         const initWhenReady = (video) => {
             if (!video || PROCESSED_NODES.has(video)) return;
             PROCESSED_NODES.add(video);
-
             const videoLoaded = () => {
                 const videoData = VIDEO_STATE.get(video) || { originalSrc: video.src, hasControls: video.hasAttribute('controls') };
                 VIDEO_STATE.set(video, videoData);
                 logManager.addOnce(`video_ready_${videoData.originalSrc || 'no-src'}`, `🎬 비디오 준비됨 | src: ${videoData.originalSrc}`, 5000, 'info');
-
                 if (video.src && networkMonitor.isVideoUrl(video.src)) {
                     networkMonitor.trackAndAttach(video.src, 'video_src_initial');
                 }
-
                 if (video.parentElement && video.clientWidth > 0 && video.clientHeight > 0) {
                     const parentContainer = videoFinder.findLargestParent(video);
                     if (parentContainer) dynamicVideoUI.attach(parentContainer, video.src);
                 }
             };
-
             if (video.readyState >= 1) {
                 videoLoaded();
             } else {
@@ -1399,96 +1063,10 @@
         return { initWhenReady, detachUI };
     })();
 
-    // --- Iframe 차단 모듈 ---
-    const iframeBlocker = (() => {
-        const SANDBOX_ATTR = 'sandbox';
-
-        const isAllowedSrc = (src) => {
-            const srcToTest = src || '';
-            return IGNORED_IFRAME_PATTERNS.some(p => p.test(srcToTest));
-        };
-
-        const isForceBlockSrc = (src) => {
-            const srcToTest = src || '';
-            return IFRAME_FORCE_BLOCK_PATTERNS.some(p => srcToTest.includes(p));
-        };
-
-        const blockIframe = (iframe, reason = '차단됨') => {
-            if (!FeatureFlags.iframeBlocker) return;
-            const iframeSrc = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('srcdoc') || 'unknown';
-            const iframeId = iframe.id || 'no-id';
-
-            try {
-                iframe.src = 'about:blank';
-                iframe.style.display = 'none';
-                iframe.setAttribute('blocked-by', 'PopupBlocker_Iframe_VideoSpeed');
-                logManager.addOnce(`iframe_blocked_${iframeId}_${Date.now()}`, `🚫 iframe ${reason} | src: ${iframeSrc.substring(0, 50)}...`, 5000, 'block');
-            } catch {
-                iframe.remove();
-            }
-        };
-
-        const checkIframeContentKeywords = (iframe) => {
-            if (!FeatureFlags.keywordBlocker) return false;
-
-            try {
-                const doc = iframe.contentDocument || iframe.contentWindow.document;
-                if (!doc || !doc.body) return false;
-                const text = doc.body.textContent || '';
-                return IFRAME_CONTENT_BLOCK_KEYWORDS.some(keyword => text.includes(keyword));
-            } catch (e) {
-                return true;
-            }
-        };
-
-        const enhancedCheckAndBlock = (iframe) => {
-            if (PROCESSED_IFRAMES.has(iframe)) return false;
-
-            const srcAttrs = ['src', 'data-src', 'data-lazy-src', 'srcdoc'];
-            let srcVal = '';
-            for (const attr of srcAttrs) {
-                const val = iframe.getAttribute(attr);
-                if (val) {
-                    srcVal = val;
-                    break;
-                }
-            }
-
-            if (isAllowedSrc(srcVal)) {
-                logManager.addOnce(`iframe_allowed_url_${iframe.id || 'no-id'}_${Date.now()}`, `✅ iframe 허용됨 (예외 목록) | src: ${srcVal.substring(0, 50)}...`, 5000, 'allow');
-                PROCESSED_IFRAMES.add(iframe);
-                return false;
-            }
-
-            if (isForceBlockSrc(srcVal)) {
-                 blockIframe(iframe, 'URL 패턴 매칭(강제 차단)');
-                 PROCESSED_IFRAMES.add(iframe);
-                 return true;
-            }
-
-            if (checkIframeContentKeywords(iframe)) {
-                blockIframe(iframe, '유해 키워드 검출');
-                PROCESSED_IFRAMES.add(iframe);
-                return true;
-            }
-
-            if (!iframe.hasAttribute(SANDBOX_ATTR)) {
-                 iframe.setAttribute(SANDBOX_ATTR, 'allow-scripts allow-same-origin');
-                 logManager.addOnce(`iframe_sandboxed_${iframe.id || 'no-id'}`, `⚠️ iframe에 sandbox 적용됨`, 5000, 'info');
-            }
-
-            PROCESSED_IFRAMES.add(iframe);
-            return false;
-        };
-
-        return { enhancedCheckAndBlock, blockIframe };
-    })();
-
     // --- SPA 및 MutationObserver 통합 모듈 ---
     const spaMonitor = (() => {
         let lastURL = location.href;
         let debounceTimer = null;
-
         const onNavigate = (reason = 'URL 변경 감지') => {
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
@@ -1496,22 +1074,14 @@
                 if (url !== lastURL) {
                     lastURL = url;
                     logManager.addOnce(`spa_navigate_${Date.now()}`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
-
                     PROCESSED_DOCUMENTS = new WeakSet();
                     PROCESSED_NODES = new WeakSet();
                     PROCESSED_IFRAMES = new WeakSet();
-
                     LOGGED_KEYS_WITH_TIMER.clear();
                     networkMonitor.resetState();
                     jwplayerMonitor.resetState();
-
                     OBSERVER_MAP.forEach(observer => observer.disconnect());
                     OBSERVER_MAP.clear();
-
-                    if(popupBlocker && typeof popupBlocker.resetCount === 'function') {
-                        popupBlocker.resetCount();
-                    }
-
                     App.initializeAll(document);
                 }
             }, 200);
@@ -1545,30 +1115,21 @@
                 return;
             }
             PROCESSED_IFRAMES.add(iframe);
-
             try {
                 if (iframe.contentWindow) {
                     jwplayerMonitor.init(iframe.contentWindow);
                 }
-            } catch (e) {
-                // Cross-origin iframe
-            }
+            } catch (e) {}
 
             const iframeSrc = iframe.src || 'about:blank';
-            if (IGNORED_IFRAME_PATTERNS.some(p => p.test(iframeSrc))) return;
-
             const tryInit = (retries = 5, delay = 1000) => {
                 if (retries <= 0) {
                     logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 실패 (최대 재시도 초과) | src: ${iframeSrc}`, 5000, 'warn');
                     return;
                 }
-
                 try {
                     const doc = iframe.contentDocument;
                     if (doc && doc.body) {
-                        if (iframeBlocker.enhancedCheckAndBlock(iframe)) {
-                           return;
-                        }
                         initializeAll(doc);
                     } else {
                         setTimeout(() => tryInit(retries - 1, delay), delay);
@@ -1577,9 +1138,7 @@
                     setTimeout(() => tryInit(retries - 1, delay), delay);
                 }
             };
-
             iframe.addEventListener('load', () => tryInit(), { once: true });
-
             tryInit(1);
         };
 
@@ -1589,14 +1148,10 @@
                     mutation.addedNodes.forEach(node => {
                         if (node.nodeType === 1) {
                             if (node.tagName === 'IFRAME') {
-                                if (!iframeBlocker.enhancedCheckAndBlock(node)) {
-                                    handleIframeLoad(node);
-                                }
+                                handleIframeLoad(node);
                             }
                             node.querySelectorAll('iframe').forEach(iframe => {
-                                if (!iframeBlocker.enhancedCheckAndBlock(iframe)) {
-                                     handleIframeLoad(iframe);
-                                }
+                                handleIframeLoad(iframe);
                             });
                             node.querySelectorAll('video').forEach(video => videoControls.initWhenReady(video));
                         }
@@ -1611,12 +1166,7 @@
                     if (targetNode.nodeType === 1) {
                         if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
                             PROCESSED_IFRAMES.delete(targetNode);
-                            if (!iframeBlocker.enhancedCheckAndBlock(targetNode)) {
-                                handleIframeLoad(targetNode);
-                            }
-                        }
-                        if (FeatureFlags.layerTrap && (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
-                            if (layerTrap.check(targetNode)) layerTrap.handleTrap(targetNode);
+                            handleIframeLoad(targetNode);
                         }
                         if (targetNode.tagName === 'VIDEO' && (mutation.attributeName === 'src' || mutation.attributeName === 'controls')) {
                             videoControls.initWhenReady(targetNode);
@@ -1629,32 +1179,26 @@
         const startUnifiedObserver = (targetDocument = document) => {
             if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
             PROCESSED_DOCUMENTS.add(targetDocument);
-
             const rootElement = targetDocument.documentElement || targetDocument.body;
             if (!rootElement) return;
-
             if (OBSERVER_MAP.has(targetDocument)) {
                 const existingObserver = OBSERVER_MAP.get(targetDocument);
                 if (existingObserver) existingObserver.disconnect();
             }
-
             const observer = new MutationObserver(mutations => processMutations(mutations, targetDocument));
             observer.observe(rootElement, {
                 childList: true, subtree: true, attributes: true,
                 attributeFilter: ['src', 'style', 'class', 'href', 'controls', 'sandbox', 'data-src', 'srcdoc']
             });
-
             OBSERVER_MAP.set(targetDocument, observer);
             logManager.addOnce('observer_active', `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`, 5000, 'info');
         };
 
         const startVideoUIWatcher = (targetDocument = document) => {
             if (!FeatureFlags.videoControls) return;
-
             if (VIDEO_WATCHER_MAP.has(targetDocument)) {
                 clearInterval(VIDEO_WATCHER_MAP.get(targetDocument));
             }
-
             const checkVideos = () => {
                 const videos = videoFinder.findAll(targetDocument);
                 const isAnyVideoAvailable = videos.some(v => v.readyState >= 1 || (v.clientWidth > 0 && v.clientHeight > 0));
@@ -1666,10 +1210,8 @@
                     if (dragBar) dragBar.hide();
                 }
             };
-
             const interval = setInterval(throttle(checkVideos, 1000), 1500);
             VIDEO_WATCHER_MAP.set(targetDocument, interval);
-
             logManager.addOnce('video_watcher_started', `✅ 비디오 감시 루프 시작 | ${targetDocument === document ? '메인' : 'iframe'}`, 5000, 'info');
         };
 
@@ -1677,12 +1219,9 @@
             if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
             PROCESSED_DOCUMENTS.add(targetDocument);
             logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작 | 문서: ${targetDocument === document ? '메인' : targetDocument.URL}`, 5000, 'info');
-
             if (targetDocument === document) {
                 if(isInitialized) return;
                 isInitialized = true;
-                logManager.addOnce('popup_blocker_status', `✅ [popupBlocker] 활성`, 5000, 'debug');
-                popupBlocker.init();
                 logManager.addOnce('network_monitor_status', `✅ [networkMonitor] 활성 (fetch/XHR 후킹)`, 5000, 'debug');
                 networkMonitor.init();
                 logManager.addOnce('spa_monitor_status', `✅ [spaMonitor] 활성 (History API 후킹)`, 5000, 'debug');
@@ -1701,18 +1240,13 @@
                 logManager.addOnce('jwplayer_monitor_status', `✅ [jwplayerMonitor] 활성`, 5000, 'debug');
                 jwplayerMonitor.init(window);
             }
-
             startUnifiedObserver(targetDocument);
             startVideoUIWatcher(targetDocument);
-
-            layerTrap.scan(targetDocument);
             videoFinder.findInDoc(targetDocument).forEach(video => {
                 videoControls.initWhenReady(video);
             });
             targetDocument.querySelectorAll('iframe').forEach(iframe => {
-                if (!iframeBlocker.enhancedCheckAndBlock(iframe)) {
-                    handleIframeLoad(iframe);
-                }
+                handleIframeLoad(iframe);
             });
         };
 
@@ -1722,19 +1256,6 @@
 
     })();
 
-    // --- 오류 무시 필터 ---
-    const IGNORED_ERRORS = [
-        'PartnersCoupang',
-        'TSOutstreamVideo',
-        'PRINT_NAVER_ADPOST_V2',
-        'OAS_RICH',
-        'Piclick',
-        'HawkEyes',
-        'list_end_run',
-        'showM320View',
-        'showM320Float',
-    ];
-
     // --- 초기 진입점 ---
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -1743,26 +1264,4 @@
     } else {
         App.initializeAll(document);
     }
-
-    // --- 전역 에러 핸들러 ---
-    const ORIGINAL_ONERROR = window.onerror;
-    window.onerror = (message, source, lineno, colno, error) => {
-        if (message === 'Script error.' || (typeof source === 'string' && source.includes('supjav.php'))) {
-            return true;
-        }
-
-        if (message && typeof message === 'string' && IGNORED_ERRORS.some(key => message.includes(key))) {
-            return true;
-        }
-
-        if (typeof ORIGINAL_ONERROR === 'function') {
-            return ORIGINAL_ONERROR(message, source, lineno, colno, error);
-        }
-
-        return false;
-    };
-
-    window.onunhandledrejection = event => {
-        logManager.addOnce('promise_rejection', `Promise 거부: ${event.reason}\n${event.reason?.stack || ''}`, 5000, 'error');
-    };
 })();
