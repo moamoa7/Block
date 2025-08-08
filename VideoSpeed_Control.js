@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name            VideoSpeed_Control
 // @namespace       https.com/
-// @version         1.0.0
-// @description     🎞️ 비디오 속도 조절 UI (슬라이더, 드래그 제스처)
+// @version         1.1.0
+// @description     🎞️ 비디오 속도 조절 UI (슬라이더, 드래그 제스처) (최종 버전)
 // @match           *://*/*
 // @grant           none
 // @run-at          document-start
@@ -410,7 +410,6 @@
     // --- 통신 모듈 (다른 스크립트와 상호작용) ---
     const communicator = (() => {
         const handleMessage = (event) => {
-            // 메시지 출처 확인
             if (event.source !== window || !event.data || event.data.source !== 'VideoURL_Logger') {
                 return;
             }
@@ -418,11 +417,7 @@
             const { type, payload } = event.data;
 
             if (type === 'VIDEO_URL_DETECTED' && payload.url) {
-                // 비디오 URL이 감지되면 UI 활성화 로직을 실행
-                const video = document.querySelector(`video[src="${payload.url}"]`);
-                if (video) {
-                     videoUIWatcher.init();
-                }
+                videoUIWatcher.init();
             }
         };
 
@@ -437,11 +432,11 @@
         document.addEventListener('DOMContentLoaded', () => {
             speedSlider.init();
             dragBar.init();
-            videoUIWatcher.init();
+            communicator.init();
         });
     } else {
         speedSlider.init();
         dragBar.init();
-        videoUIWatcher.init();
+        communicator.init();
     }
 })();
