@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name 			VideoSpeed_Lite_Final_LogEnhanced_v13_iframeFix
+// @name 			VideoSpeed_Lite_Final_Unified_v14
 // @namespace 		https.com/
-// @version 		13.0.2
-// @description 	🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (로그 상세화 버전)
+// @version 		14.0.0
+// @description 	🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (네트워크/API/DOM 후킹 강화 버전)
 // @match 			*://*/*
 // @grant 			none
 // @run-at 			document-start
@@ -15,6 +15,7 @@
     const FeatureFlags = {
         videoControls: true,
         logUI: true,
+        enhanceURLDetection: true,
     };
     const DRAG_CONFIG = {
         PIXELS_PER_SECOND: 2
@@ -189,13 +190,13 @@
         const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.mov', '.flv', '.avi'];
 
         const isVideoLikeRequest = (url) => {
-            return /\.(m3u8|mpd|mp4|webm|mov|avi|flv|ts)(\?|#|$)/i.test(url);
+            return /\.(m3u8|mpd|mp4|webm|mov|avi|flv|ts|m4s)(\?|#|$)/i.test(url);
         };
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
         const isVideoUrl = (url) => {
             if (!url || typeof url !== 'string') return false;
             const normalizedUrl = url.toLowerCase();
-            return normalizedUrl.includes('mime=video') || isVideoLikeRequest(url);
+            return normalizedUrl.includes('mime=video') || isVideoLikeRequest(url) || normalizedUrl.startsWith('blob:') && blobToOriginalURLMap.has(normalizedUrl);
         };
         const normalizeURL = (url) => {
             try {
@@ -220,14 +221,9 @@
         };
 
         const attachThrottled = throttle((url) => {
-             // attach 함수의 인자로 URL을 전달하도록 수정
-            const videos = videoFinder.findAll();
-            videos.forEach(v => {
-                const target = videoFinder.findLargestParent(v);
-                if (target) {
-                    dynamicVideoUI.attach(url || v.src); // 직접 감지된 URL을 전달
-                }
-            });
+            if (!url) return;
+            logManager.addOnce(`attach_ui_${url.substring(0,50)}`, `UI에 영상 URL 등록: ${url}`, 5000, 'info');
+            dynamicVideoUI.attach(url);
         }, 1000);
 
         const trackAndAttach = (url) => {
@@ -258,10 +254,8 @@
                         if (media) trackAndAttach(new URL(media.replace(/\$Number.*$/, ''), baseURL).href);
                     }
                 });
-                // 로그 메시지 상세화
                 logManager.addOnce(`parsed_mpd_${mpdURL}`, `✅ MPD 파싱 완료: ${mpdURL}`, 5000, 'info');
             } catch (err) {
-                // 로그 메시지 상세화
                 logManager.addOnce(`parse_mpd_fail_${mpdURL}`, `⚠️ MPD 파싱 실패: ${mpdURL} - ${err.message}`, 5000, 'error');
             }
         }
@@ -284,11 +278,34 @@
                     }
                 }
                 if (depth === 0) lastCapturedM3U8 = m3u8URL;
-                // 로그 메시지 상세화
                 logManager.addOnce(`parsed_m3u8_${m3u8URL}`, `✅ M3U8 파싱 완료: ${m3u8URL}`, 5000, 'info');
             } catch (err) {
-                // 로그 메시지 상세화
                 logManager.addOnce(`parse_m3u8_fail_${m3u8URL}`, `⚠️ M3U8 파싱 실패: ${m3u8URL} - ${err.message}`, 5000, 'error');
+            }
+        }
+
+        async function parseJSONResponse(url, responseClone) {
+            try {
+                const json = await responseClone.json();
+                const urls = [];
+                function recursiveSearch(obj) {
+                    if (typeof obj === 'string' && isVideoLikeRequest(obj)) {
+                        urls.push(obj);
+                    } else if (typeof obj === 'object' && obj !== null) {
+                        for (const key in obj) {
+                            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                                recursiveSearch(obj[key]);
+                            }
+                        }
+                    }
+                }
+                recursiveSearch(json);
+                if (urls.length) {
+                    logManager.addOnce(`api_json_urls_${url.substring(0,50)}`, `🔎 API 응답(JSON) 내 영상 URL 발견: ${urls.join(', ')}`, 5000, 'info');
+                    urls.forEach(trackAndAttach);
+                }
+            } catch (e) {
+                // JSON 파싱 오류는 무시
             }
         }
 
@@ -308,8 +325,7 @@
                 this.addEventListener('load', () => {
                     const contentType = this.getResponseHeader('Content-Type');
                     const url = this.__pbivs_originalUrl;
-                    if (isVideoUrl(url) || isVideoMimeType(contentType)) {
-                         // 로그 메시지 상세화
+                    if (url && isVideoUrl(url) || isVideoMimeType(contentType)) {
                         logManager.addOnce(`network_detected_xhr_${url.substring(0,50)}`, `🎥 XHR 영상 URL 감지됨: ${url}`, 5000, 'info');
                         trackAndAttach(url);
                     }
@@ -325,13 +341,25 @@
                         else if (url.includes('.mpd')) parseMPD(url);
                     }
                     const res = await originalFetch.call(this, input, init);
+                    const resClone = res.clone();
                     const contentType = res.headers.get("content-type");
                     if (isVideoUrl(url) || isVideoMimeType(contentType)) {
-                        // 로그 메시지 상세화
                         logManager.addOnce(`network_detected_fetch_${url.substring(0,50)}`, `🎥 fetch 영상 URL 감지됨: ${url}`, 5000, 'info');
                         trackAndAttach(url);
                     }
+                    if (contentType?.includes('application/json')) {
+                        parseJSONResponse(url, resClone);
+                    }
                     return res;
+                };
+            }
+
+            // MediaSource 후킹 (addSourceBuffer)
+            const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
+            if (originalAddSourceBuffer) {
+                MediaSource.prototype.addSourceBuffer = function(mimeType) {
+                    logManager.addOnce(`mse_add_source_buffer`, `🛰️ MediaSource.addSourceBuffer 호출됨 | MIME: ${mimeType}`, 5000, 'debug');
+                    return originalAddSourceBuffer.apply(this, arguments);
                 };
             }
 
@@ -357,7 +385,6 @@
                 Object.defineProperty(HTMLMediaElement.prototype, "src", {
                     set(value) {
                         if (value && isVideoUrl(value)) {
-                            // 로그 메시지 상세화
                             logManager.addOnce(`video_src_set_${value.substring(0,50)}`, `🎥 video.src 변경 감지: ${value}`, 5000, 'info');
                             trackAndAttach(value);
                         }
@@ -375,16 +402,40 @@
                         if (lastCapturedM3U8 || lastCapturedMPD) {
                             const originalUrl = lastCapturedM3U8 || lastCapturedMPD;
                             mediaSourceBlobMap.set(obj, originalUrl);
-                            // 로그 메시지 상세화
                             logManager.addOnce(`createObjectURL_mse_${url}`, `[URL] MediaSource에 Blob URL 할당됨 (원본: ${originalUrl})`, 5000, 'info');
                         }
                     } else if (obj instanceof Blob && isVideoMimeType(obj.type)) {
                         blobToOriginalURLMap.set(url, url);
-                        // 로그 메시지 상세화
                         logManager.addOnce(`createObjectURL_blob_${url}`, `[URL] 비디오 Blob URL 생성됨: ${url}`, 5000, 'info');
                         trackAndAttach(url);
                     }
                     return url;
+                };
+            }
+        };
+
+        const hookDecoders = () => {
+            const originalAtob = window.atob;
+            if (originalAtob) {
+                window.atob = function(str) {
+                    const decoded = originalAtob.apply(this, arguments);
+                    if (typeof decoded === 'string' && isVideoLikeRequest(decoded)) {
+                        logManager.addOnce(`atob_decoded_${decoded.substring(0,50)}`, `🔑 atob()로 복호화된 영상 URL 감지: ${decoded}`, 5000, 'info');
+                        trackAndAttach(decoded);
+                    }
+                    return decoded;
+                };
+            }
+
+            const originalDecodeURIComponent = window.decodeURIComponent;
+            if (originalDecodeURIComponent) {
+                window.decodeURIComponent = function(str) {
+                    const decoded = originalDecodeURIComponent.apply(this, arguments);
+                    if (typeof decoded === 'string' && isVideoLikeRequest(decoded)) {
+                        logManager.addOnce(`decode_uri_component_${decoded.substring(0,50)}`, `🔑 decodeURIComponent()로 복호화된 영상 URL 감지: ${decoded}`, 5000, 'info');
+                        trackAndAttach(decoded);
+                    }
+                    return decoded;
                 };
             }
         };
@@ -399,7 +450,10 @@
         };
 
         const init = () => {
-            hookPrototypes();
+            if (FeatureFlags.enhanceURLDetection) {
+                hookPrototypes();
+                hookDecoders();
+            }
         };
 
         return {
@@ -423,12 +477,12 @@
                 const playlist = player.getPlaylist?.();
                 if (!playlist) return;
                 playlist.forEach(item => {
-                    if (item?.file && item.file !== lastItemURL) {
-                        lastItemURL = item.file;
-                        if (networkMonitor.isVideoUrl(item.file)) {
-                            // 로그 메시지 상세화
-                            logManager.addOnce(`jwplayer_polling_${item.file.substring(0,50)}`, `🎥 JWPlayer 영상 URL 감지됨: ${item.file}`, 5000, 'info');
-                            networkMonitor.reportVideoURL(item.file);
+                    const fileUrl = item?.file || item?.sources?.[0]?.file;
+                    if (fileUrl && fileUrl !== lastItemURL) {
+                        lastItemURL = fileUrl;
+                        if (networkMonitor.isVideoUrl(fileUrl)) {
+                            logManager.addOnce(`jwplayer_polling_${fileUrl.substring(0,50)}`, `🎥 JWPlayer 영상 URL 감지됨: ${fileUrl}`, 5000, 'info');
+                            networkMonitor.reportVideoURL(fileUrl);
                         }
                     }
                 });
@@ -453,6 +507,7 @@
             };
             Object.assign(context.jwplayer, origJW);
             isHooked = true;
+            logManager.addOnce('jwplayer_hooked', `✅ JWPlayer 후킹 성공`, 5000, 'info');
         };
 
         const startPolling = (player) => {
@@ -487,6 +542,21 @@
             doc.querySelectorAll('div.jw-player, div[id*="player"], div.video-js, div[class*="video-container"], div.vjs-tech').forEach(container => {
                 if (!container.querySelector('video') && container.clientWidth > 0 && container.clientHeight > 0) {
                     videos.push(container);
+                }
+            });
+            doc.querySelectorAll('[data-src], [data-video], [data-url]').forEach(el => {
+                const src = el.getAttribute('data-src') || el.getAttribute('data-video') || el.getAttribute('data-url');
+                if (src && networkMonitor.isVideoUrl(src)) {
+                    logManager.addOnce(`dom_data_url_${src.substring(0,50)}`, `🔍 DOM 데이터 속성에서 URL 감지: ${src}`, 5000, 'info');
+                    networkMonitor.trackAndAttach(src);
+                }
+            });
+            doc.querySelectorAll('script:not([src])').forEach(script => {
+                const text = script.textContent;
+                const urls = [...text.matchAll(/https?:\/\/[^\s'"]+\.(mp4|m3u8|mpd|blob:[^\s'"]+)/gi)].map(m => m[0]);
+                if (urls.length) {
+                    logManager.addOnce(`inline_script_urls_${urls[0].substring(0,50)}`, `🔍 인라인 스크립트에서 URL 감지: ${urls.join(', ')}`, 5000, 'info');
+                    urls.forEach(networkMonitor.trackAndAttach);
                 }
             });
             return videos;
@@ -846,6 +916,9 @@
     const dynamicVideoUI = (() => {
         let button;
         let currentUrl = null;
+        // 새 변수 추가: 실제 스트리밍 URL이 이미 감지되었는지 여부를 저장
+        let hasStreamUrlBeenAttached = false;
+
 
         const init = () => {
             if (!document.body) return;
@@ -865,7 +938,7 @@
                 padding: '5px 10px',
                 cursor: 'pointer',
                 pointerEvents: 'auto',
-                display: 'none', // 초기에는 숨김
+                display: 'none',
                 transition: 'background 0.3s'
             });
             document.body.appendChild(button);
@@ -880,11 +953,11 @@
                 logManager.addOnce('no_original_url_to_copy', '⚠️ 원본 URL을 찾을 수 없습니다.', 5000, 'warn');
                 const originalText = button.textContent;
                 button.textContent = '⚠️ 원본 URL을 찾을 수 없습니다.';
-                button.style.background = 'rgba(255, 193, 7, 0.7)'; // 경고색 (노란색)
+                button.style.background = 'rgba(255, 193, 7, 0.7)';
                 setTimeout(() => {
                     button.textContent = originalText;
                     button.style.background = 'rgba(0, 0, 0, 0.0)';
-                }, 1500); // 1.5초 후 원래대로 돌아갑니다.
+                }, 1500);
                 return;
             }
 
@@ -906,9 +979,25 @@
             if (!button) init();
             if (!button) return;
 
+            // --- 여기에 새로운 우선순위 로직 추가 ---
+            const isStreamingUrl = url.includes('.m3u8') || url.includes('.mpd');
+            const isPreviewUrl = url.includes('preview.mp4');
+
+            if (hasStreamUrlBeenAttached && isPreviewUrl) {
+                logManager.addOnce('preview_url_ignored', `ℹ️ 실제 스트리밍 URL이 이미 감지되어 미리보기 URL 무시: ${url}`, 5000, 'info');
+                return;
+            }
+
+            if (isStreamingUrl) {
+                hasStreamUrlBeenAttached = true;
+                logManager.addOnce('stream_url_attached', `✅ 실제 스트리밍 URL이 감지되어 UI에 등록: ${url}`, 5000, 'info');
+            } else {
+                 logManager.addOnce('normal_url_attached', `ℹ️ 일반 영상 URL이 UI에 등록: ${url}`, 5000, 'info');
+            }
+
             currentUrl = url;
             button.style.display = 'block';
-            logManager.addOnce(`dynamic_ui_${url}`, `✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 5000, 'info');
+            //logManager.addOnce(`dynamic_ui_${url}`, `✅ 동적 비디오 URL 버튼 생성됨: ${url}`, 5000, 'info');
         };
 
         return { attach };
@@ -922,14 +1011,13 @@
             const videoLoaded = () => {
                 const videoData = VIDEO_STATE.get(video) || { originalSrc: video.src, hasControls: video.hasAttribute('controls') };
                 VIDEO_STATE.set(video, videoData);
-                // 로그 메시지 상세화
                 logManager.addOnce(`video_ready_${videoData.originalSrc || 'no-src'}`, `🎬 비디오 준비됨 | src: ${videoData.originalSrc}`, 5000, 'info');
                 if (video.src && networkMonitor.isVideoUrl(video.src)) {
                     networkMonitor.trackAndAttach(video.src);
                 }
                 if (video.parentElement && video.clientWidth > 0 && video.clientHeight > 0) {
                     const parentContainer = videoFinder.findLargestParent(video);
-                    if (parentContainer) dynamicVideoUI.attach(video.src); // 수정된 attach 함수 호출
+                    if (parentContainer) dynamicVideoUI.attach(video.src);
                 }
             };
             if (video.readyState >= 1) {
@@ -959,7 +1047,6 @@
                 const url = location.href;
                 if (url !== lastURL) {
                     lastURL = url;
-                    // 로그 메시지 상세화
                     logManager.addOnce(`spa_navigate`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
                     PROCESSED_DOCUMENTS = new WeakSet();
                     PROCESSED_NODES = new WeakSet();
@@ -991,8 +1078,6 @@
     // --- 주요 기능 통합 및 실행 ---
     const App = (() => {
         const VIDEO_WATCHER_MAP = new Map();
-        const OBSERVER_MAP = new Map();
-        let isInitialized = false;
 
         const handleIframeLoad = (iframe) => {
             if (!iframe || PROCESSED_IFRAMES.has(iframe)) return;
@@ -1006,7 +1091,6 @@
             const iframeSrc = iframe.src || 'about:blank';
             const tryInit = (retries = 5, delay = 1000) => {
                 if (retries <= 0) {
-                    // 로그 메시지 상세화
                     logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 실패 (최대 재시도 초과) | src: ${iframeSrc}`, 5000, 'warn');
                     return;
                 }
@@ -1035,6 +1119,12 @@
                             }
                             node.querySelectorAll('iframe').forEach(iframe => handleIframeLoad(iframe));
                             node.querySelectorAll('video').forEach(video => videoControls.initWhenReady(video));
+                            if (node.hasAttribute && (node.hasAttribute('data-src') || node.hasAttribute('data-video'))) {
+                                const src = node.getAttribute('data-src') || node.getAttribute('data-video') || node.getAttribute('data-url');
+                                if (src && networkMonitor.isVideoUrl(src)) {
+                                    networkMonitor.trackAndAttach(src);
+                                }
+                            }
                         }
                     });
                     mutation.removedNodes.forEach(node => {
@@ -1066,7 +1156,7 @@
             const observer = new MutationObserver(mutations => processMutations(mutations, targetDocument));
             observer.observe(rootElement, {
                 childList: true, subtree: true, attributes: true,
-                attributeFilter: ['src', 'style', 'class', 'href', 'controls', 'sandbox', 'data-src', 'srcdoc']
+                attributeFilter: ['src', 'style', 'class', 'href', 'controls', 'sandbox', 'data-src', 'srcdoc', 'data-video', 'data-url']
             });
             OBSERVER_MAP.set(targetDocument, observer);
             logManager.addOnce('observer_active', `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`, 5000, 'info');
@@ -1096,11 +1186,7 @@
             PROCESSED_DOCUMENTS.add(targetDocument);
             logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작`, 5000, 'info');
             if (targetDocument === document) {
-                if(isInitialized) return;
-                isInitialized = true;
-                logManager.addOnce('network_monitor_status', `✅ [networkMonitor] 활성`, 5000, 'debug');
                 networkMonitor.init();
-                logManager.addOnce('spa_monitor_status', `✅ [spaMonitor] 활성`, 5000, 'debug');
                 spaMonitor.init();
                 document.addEventListener('fullscreenchange', () => {
                     speedSlider.updatePositionAndSize();
@@ -1109,8 +1195,7 @@
                 });
                 speedSlider.init();
                 dragBar.init();
-                //dynamicVideoUI.init(); // dynamicVideoUI 모듈 초기화
-                logManager.addOnce('jwplayer_monitor_status', `✅ [jwplayerMonitor] 활성`, 5000, 'debug');
+                //dynamicVideoUI.init();
                 jwplayerMonitor.init(window);
             }
             startUnifiedObserver(targetDocument);
