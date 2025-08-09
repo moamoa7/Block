@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name VideoSpeed_Control
 // @namespace https.com/
-// @version 15.9
-// @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (개선판)
+// @version 15.11
+// @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
 // @match *://*/*
 // @grant GM_xmlhttpRequest
 // @grant none
@@ -18,8 +18,8 @@
         videoControls: true,
         logUI: true,
         enhanceURLDetection: true,
-        spaPartialUpdate: true, // SPA 부분 업데이트 기능 활성화
-        detailedLogging: true, // 상세 로그 기능 활성화
+        spaPartialUpdate: true,
+        detailedLogging: true,
     };
     const DRAG_CONFIG = {
         PIXELS_PER_SECOND: 2
@@ -236,13 +236,14 @@
         return { init, add: addLog, addOnce: addLogOnce, logIframeContext, logMediaContext, logSPANavigation, logErrorWithContext };
     })();
 
-    // --- 네트워크 모니터링 모듈 (강화 버전) ---
+    // --- 네트워크 모니터링 모듈 (최종 개선 버전) ---
     const networkMonitor = (() => {
         const VIDEO_URL_CACHE = new Set();
         const blobSourceMap = new Map();
         const mediaSourceMap = new Map();
         const trackedMediaElements = new WeakSet();
         let lastManifestURL = null;
+        let _hooked = false;
 
         const isMediaUrl = (url) => /\.(m3u8|mpd|mp4|webm|ts|m4s|mp3|ogg)(\?|#|$)/i.test(url) || url.includes('mime=video') || url.includes('type=video') || url.includes('mime=audio') || url.includes('type=audio');
         const isMediaMimeType = (mime) => mime?.includes('video/') || mime?.includes('audio/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
@@ -254,6 +255,32 @@
 
         const getOriginalURL = (url) => blobSourceMap.get(url) || url;
 
+        const addVideoURL = (url, context = {}) => {
+            const normUrl = normalizeURL(url);
+            if (!normUrl || VIDEO_URL_CACHE.has(normUrl)) return;
+            VIDEO_URL_CACHE.add(normUrl);
+
+            const details = [
+                context.source ? `소스: ${context.source}` : '',
+                context.rect ? `크기: ${Math.round(context.rect.width)}x${Math.round(context.rect.height)}` : '',
+                context.currentTime != null ? `시간: ${context.currentTime.toFixed(1)}s` : '',
+                context.iframe ? `iframe: ${context.iframe}` : '',
+            ].filter(Boolean).join(' | ');
+
+            logManager.addOnce(
+                `[EarlyCapture]${normUrl}`,
+                `🎯 [EarlyCapture] 동적 영상 URL 감지: ${normUrl} | ${details}`,
+                5000,
+                'info'
+            );
+
+            dynamicMediaUI.show(normUrl);
+
+            if (context.element && !trackedMediaElements.has(context.element)) {
+                trackedMediaElements.add(context.element);
+            }
+        };
+
         const handleManifestParsing = (url, text) => {
             if (!text) return;
             lastManifestURL = url;
@@ -263,7 +290,7 @@
                 lines.forEach(line => {
                     const abs = normalizeURL(line, url);
                     if (isMediaUrl(abs)) {
-                        trackAndAttach(null, abs);
+                        addVideoURL(abs, { source: 'M3U8 Manifest' });
                     }
                 });
             } else if (lower.endsWith('.mpd') || text.includes('<MPD')) {
@@ -273,128 +300,135 @@
                 urls.forEach(u => {
                     const abs = normalizeURL(u, url);
                     if (isMediaUrl(abs)) {
-                        trackAndAttach(null, abs);
+                        addVideoURL(abs, { source: 'MPD Manifest' });
                     }
                 });
             }
         };
 
-        const trackAndAttach = (mediaEl, url) => {
-            const normUrl = normalizeURL(url);
-            if (!VIDEO_URL_CACHE.has(normUrl)) {
-                VIDEO_URL_CACHE.add(normUrl);
-                logManager.addOnce(`network_url_detected_${normUrl}`, `💻 영상 URL 감지됨: ${normUrl}`, 5000, 'info');
-                dynamicMediaUI.show(normUrl);
-            }
-            if (mediaEl && !trackedMediaElements.has(mediaEl)) {
-                trackedMediaElements.add(mediaEl);
-            }
-        };
+        const hookVideoProto = () => {
+            if (_hooked) return;
+            _hooked = true;
 
-        const hookFetch = () => {
-            const originalFetch = window.fetch;
-            window.fetch = async (...args) => {
-                const res = await originalFetch.apply(this, args);
-                const url = normalizeURL(typeof args[0] === 'string' ? args[0] : args[0]?.url);
-                const contentType = res.headers.get("content-type");
+            const videoProto = HTMLMediaElement.prototype;
+            if (!videoProto) return;
 
-                if (isMediaUrl(url) || isMediaMimeType(contentType)) {
-                    trackAndAttach(null, url);
-                } else if (contentType?.includes('application/json')) {
-                    const resClone = res.clone();
-                    try {
-                        const json = await resClone.json();
-                        const urls = [];
-                        function recursiveSearch(obj) {
-                            if (typeof obj === 'string' && isMediaUrl(obj)) {
-                                urls.push(obj);
-                            } else if (typeof obj === 'object' && obj !== null) {
-                                for (const key in obj) {
-                                    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                                        recursiveSearch(obj[key]);
-                                    }
-                                }
+            const origSetSrc = Object.getOwnPropertyDescriptor(videoProto, 'src')?.set;
+            if (origSetSrc) {
+                Object.defineProperty(videoProto, 'src', {
+                    set: function(value) {
+                        try {
+                            addVideoURL(value, {
+                                source: 'video.src setter',
+                                rect: this.getBoundingClientRect(),
+                                currentTime: this.currentTime,
+                                iframe: isTopFrame ? null : location.href,
+                                element: this
+                            });
+                        } catch (e) { logManager.logErrorWithContext(e, this); }
+                        return origSetSrc.call(this, value);
+                    },
+                    get: Object.getOwnPropertyDescriptor(videoProto, 'src').get
+                });
+            }
+
+            const origSetSrcObj = Object.getOwnPropertyDescriptor(videoProto, 'srcObject')?.set;
+            if (origSetSrcObj) {
+                Object.defineProperty(videoProto, 'srcObject', {
+                    set: function(stream) {
+                        try {
+                            if (stream) {
+                                addVideoURL(`blob:${location.origin}/MediaStream`, {
+                                    source: 'video.srcObject setter',
+                                    rect: this.getBoundingClientRect(),
+                                    currentTime: this.currentTime,
+                                    iframe: isTopFrame ? null : location.href,
+                                    element: this
+                                });
                             }
-                        }
-                        recursiveSearch(json);
-                        urls.forEach(u => trackAndAttach(null, u));
-                    } catch (e) {
-                         logManager.addOnce(`fetch_json_error_${url}`, `Fetch JSON 파싱 오류: ${e.message}\n${e.stack}`, 5000, 'error');
-                    }
-                }
-
-                if (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd')) {
-                    res.clone().text().then(text => handleManifestParsing(url, text));
-                }
-
-                return res;
-            };
-        };
-
-        const hookXHR = () => {
-            const originalOpen = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-                this.__pbivs_originalUrl = url;
-                if (isMediaUrl(url)) {
-                    trackAndAttach(null, url);
-                }
-                return originalOpen.call(this, method, url, ...rest);
-            };
-
-            const originalSend = XMLHttpRequest.prototype.send;
-            XMLHttpRequest.prototype.send = function(...sendArgs) {
-                this.addEventListener('load', () => {
-                    const url = this.__pbivs_originalUrl;
-                    const contentType = this.getResponseHeader('Content-Type');
-                    if (url && (isMediaUrl(url) || isMediaMimeType(contentType))) {
-                        trackAndAttach(null, url);
-                    }
+                        } catch (e) { logManager.logErrorWithContext(e, this); }
+                        return origSetSrcObj.call(this, stream);
+                    },
+                    get: Object.getOwnPropertyDescriptor(videoProto, 'srcObject').get
                 });
-                return originalSend.apply(this, sendArgs);
-            };
+            }
         };
 
-        const hookMediaSource = () => {
+        const hookFetchXHR = () => {
+            const origFetch = window.fetch;
+            if (origFetch) {
+                window.fetch = async function(...args) {
+                    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+                    const res = await origFetch.apply(this, args);
+                    try {
+                        const contentType = res.headers.get("content-type");
+                        if (isMediaUrl(url) || isMediaMimeType(contentType)) {
+                            addVideoURL(url, { source: 'Fetch' });
+                        }
+                        if (url && (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd'))) {
+                            res.clone().text().then(text => handleManifestParsing(url, text));
+                        }
+                    } catch (e) { logManager.logErrorWithContext(e, null); }
+                    return res;
+                };
+            }
+
+            const origOpen = XMLHttpRequest.prototype.open;
+            if (origOpen) {
+                XMLHttpRequest.prototype.open = function(method, url) {
+                    this._url = url;
+                    return origOpen.apply(this, arguments);
+                };
+
+                const origSend = XMLHttpRequest.prototype.send;
+                XMLHttpRequest.prototype.send = function(...sendArgs) {
+                    this.addEventListener('load', () => {
+                        const url = this._url;
+                        try {
+                            const contentType = this.getResponseHeader('Content-Type');
+                            if (isMediaUrl(url) || isMediaMimeType(contentType)) {
+                                addVideoURL(url, { source: 'XHR' });
+                            }
+                            if (url && (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd')) && this.response) {
+                                handleManifestParsing(url, this.response);
+                            }
+                        } catch(e) { logManager.logErrorWithContext(e, null); }
+                    });
+                    return origSend.apply(this, sendArgs);
+                };
+            }
+        };
+
+        const hookMediaSourceAPI = () => {
             if (!window.MediaSource) return;
-            const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
-            MediaSource.prototype.addSourceBuffer = function (mimeType) {
-                if (/video|audio/i.test(mimeType)) {
-                    if (!this.__mediaStreamInfo) this.__mediaStreamInfo = {};
-                    this.__mediaStreamInfo.mimeType = mimeType;
-                    this._linkedManifestURL = lastManifestURL;
-                }
-                const result = originalAddSourceBuffer.apply(this, arguments);
-                logManager.addOnce('mse-buffer', 'MSE 버퍼 생성됨: ' + mimeType, 5000, 'debug');
-                return result;
-            };
-        };
 
-        const hookCreateObjectURL = () => {
-            const originalCreateObjectURL = URL.createObjectURL;
-            URL.createObjectURL = function (obj) {
-                const url = originalCreateObjectURL.apply(this, arguments);
-                if (obj instanceof MediaSource) {
-                    const linkedManifest = obj._linkedManifestURL;
-                    if (linkedManifest) {
-                        blobSourceMap.set(url, linkedManifest);
-                        logManager.addOnce(`blob_url_mapped_${url}`, `🔗 Blob URL 생성 및 매핑: ${url} -> ${linkedManifest}`, 5000, 'debug');
-                        trackAndAttach(null, linkedManifest);
+            const origAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
+            if (origAddSourceBuffer) {
+                MediaSource.prototype.addSourceBuffer = function(mimeType) {
+                    if (/video|audio/i.test(mimeType)) {
+                        logManager.addOnce(`[EarlyCapture]MSE_MIME_${mimeType}`, `🧩 [EarlyCapture] MSE MIME 감지: ${mimeType}`, 5000, 'info');
                     }
-                }
-                if (obj instanceof Blob && isMediaMimeType(obj.type)) {
-                    blobSourceMap.set(url, url);
-                    trackAndAttach(null, url);
-                }
-                return url;
-            };
+                    return origAddSourceBuffer.call(this, mimeType);
+                };
+            }
+
+            const origCreateObjectURL = URL.createObjectURL;
+            if (origCreateObjectURL) {
+                URL.createObjectURL = function(obj) {
+                    const url = origCreateObjectURL.apply(this, arguments);
+                    if (obj instanceof MediaSource) {
+                        addVideoURL(url, { source: 'createObjectURL(MediaSource)' });
+                    }
+                    return url;
+                };
+            }
         };
 
         const init = () => {
             if (FeatureFlags.enhanceURLDetection) {
-                hookFetch();
-                hookXHR();
-                hookMediaSource();
-                hookCreateObjectURL();
+                hookVideoProto();
+                hookFetchXHR();
+                hookMediaSourceAPI();
             }
         };
 
@@ -402,7 +436,7 @@
             VIDEO_URL_CACHE.clear();
             blobSourceMap.clear();
             mediaSourceMap.clear();
-        }, trackAndAttach };
+        }, trackAndAttach: addVideoURL };
     })();
     if (networkMonitor) networkMonitor.init();
 
@@ -421,7 +455,7 @@
                         lastItemURL = fileUrl;
                         if (networkMonitor && networkMonitor.isMediaUrl(fileUrl)) {
                             logManager.addOnce(`jwplayer_polling_${fileUrl}`, `🎥 JWPlayer 영상 URL 감지됨: ${fileUrl}`, 5000, 'info');
-                            networkMonitor.trackAndAttach(null, fileUrl);
+                            networkMonitor.trackAndAttach(fileUrl);
                         }
                     }
                 });
@@ -487,14 +521,14 @@
             doc.querySelectorAll('[data-src], [data-video], [data-url]').forEach(el => {
                 const src = el.getAttribute('data-src') || el.getAttribute('data-video') || el.getAttribute('data-url');
                 if (src && networkMonitor && networkMonitor.isMediaUrl(src)) {
-                    networkMonitor.trackAndAttach(null, src);
+                    networkMonitor.trackAndAttach(src);
                 }
             });
             doc.querySelectorAll('script:not([src])').forEach(script => {
                 const text = script.textContent;
                 const urls = [...text.matchAll(/https?:\/\/[^\s'"]+\.(mp4|m3u8|mpd|blob:[^\s'"]+)/gi)].map(m => m[0]);
                 if (urls.length) {
-                    urls.forEach(u => networkMonitor && networkMonitor.trackAndAttach(null, u));
+                    urls.forEach(u => networkMonitor && networkMonitor.trackAndAttach(u));
                 }
             });
             return medias;
@@ -959,7 +993,7 @@
             };
         };
 
-        const show = () => {
+        const show = (url) => {
             if (isVisible) return;
             if (!isInitialized) init();
             if (!button) return;
@@ -985,7 +1019,7 @@
             const obs = new MutationObserver(() => {
                 media.querySelectorAll('source').forEach(srcEl => {
                     if (srcEl.src) {
-                        if (networkMonitor) networkMonitor.trackAndAttach(null, srcEl.src);
+                        if (networkMonitor) networkMonitor.trackAndAttach(srcEl.src, { element: media });
                     }
                 });
             });
@@ -1203,12 +1237,12 @@
                             logManager.addOnce(`data_src_forced_${url}`, `🖼️ data-src -> src 강제 할당: ${url}`, 5000, 'info');
                         }
                     }
-                    networkMonitor.trackAndAttach(null, url);
+                    networkMonitor.trackAndAttach(url, { element: media });
                 }
 
                 media.querySelectorAll('source').forEach(source => {
                     if (source.src && networkMonitor) {
-                        networkMonitor.trackAndAttach(null, source.src);
+                        networkMonitor.trackAndAttach(source.src);
                     }
                 });
             });
