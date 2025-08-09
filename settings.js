@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          VideoSpeed_Control
 // @namespace     https.com/
-// @version       15.3
+// @version       15.4
 // @description   🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         GM_xmlhttpRequest
@@ -264,7 +264,7 @@
                         recursiveSearch(json);
                         urls.forEach(u => trackAndAttach(null, u));
                     } catch (e) {
-                         logManager.add(`Fetch JSON 파싱 오류: ${e.message}\n${e.stack}`, 'error');
+                         logManager.addOnce(`fetch_json_error_${url.substring(0,50)}`, `Fetch JSON 파싱 오류: ${e.message}\n${e.stack}`, 5000, 'error');
                     }
                 }
 
@@ -348,6 +348,8 @@
             mediaSourceMap.clear();
         }, trackAndAttach };
     })();
+    // --- 네트워크 후킹을 문서 로딩 시작 시점에 즉시 활성화 ---
+    if (networkMonitor) networkMonitor.init();
 
     // --- JWPlayer 모니터링 모듈 추가 ---
     const jwplayerMonitor = (() => {
@@ -363,7 +365,7 @@
                     const fileUrl = item?.file || item?.sources?.[0]?.file;
                     if (fileUrl && fileUrl !== lastItemURL) {
                         lastItemURL = fileUrl;
-                        if (networkMonitor.isVideoUrl(fileUrl)) {
+                        if (networkMonitor && networkMonitor.isVideoUrl(fileUrl)) {
                             logManager.addOnce(`jwplayer_polling_${fileUrl.substring(0,50)}`, `🎥 JWPlayer 영상 URL 감지됨: ${fileUrl}`, 5000, 'info');
                             networkMonitor.trackAndAttach(null, fileUrl);
                         }
@@ -431,7 +433,7 @@
             });
             doc.querySelectorAll('[data-src], [data-video], [data-url]').forEach(el => {
                 const src = el.getAttribute('data-src') || el.getAttribute('data-video') || el.getAttribute('data-url');
-                if (src && networkMonitor.isVideoUrl(src)) {
+                if (src && networkMonitor && networkMonitor.isVideoUrl(src)) {
                     networkMonitor.trackAndAttach(null, src);
                 }
             });
@@ -439,7 +441,7 @@
                 const text = script.textContent;
                 const urls = [...text.matchAll(/https?:\/\/[^\s'"]+\.(mp4|m3u8|mpd|blob:[^\s'"]+)/gi)].map(m => m[0]);
                 if (urls.length) {
-                    urls.forEach(u => networkMonitor.trackAndAttach(null, u));
+                    urls.forEach(u => networkMonitor && networkMonitor.trackAndAttach(null, u));
                 }
             });
             return videos;
@@ -509,8 +511,10 @@
         const onSliderChange = (val) => {
             const speed = parseFloat(val);
             if (isNaN(speed)) return;
-            const valueDisplay = speedSliderContainer.querySelector('#vm-speed-value');
-            if (valueDisplay) valueDisplay.textContent = `x${speed.toFixed(1)}`;
+            if (speedSliderContainer) {
+                const valueDisplay = speedSliderContainer.querySelector('#vm-speed-value');
+                if (valueDisplay) valueDisplay.textContent = `x${speed.toFixed(1)}`;
+            }
             if (playbackUpdateTimer) clearTimeout(playbackUpdateTimer);
             playbackUpdateTimer = setTimeout(() => updateSpeed(speed), 100);
         };
@@ -622,7 +626,7 @@
             const newHeight = video ? Math.max(100, video.getBoundingClientRect().height * 0.3) : 100;
             if (slider) slider.style.height = `${newHeight}px`;
             const targetParent = document.fullscreenElement || document.body;
-            if (sliderContainer.parentNode !== targetParent) {
+            if (targetParent && sliderContainer.parentNode !== targetParent) {
                 targetParent.appendChild(sliderContainer);
             }
         };
@@ -923,7 +927,7 @@
             const obs = new MutationObserver(() => {
                 video.querySelectorAll('source').forEach(srcEl => {
                     if (srcEl.src) {
-                        networkMonitor.trackAndAttach(null, srcEl.src);
+                        if (networkMonitor) networkMonitor.trackAndAttach(null, srcEl.src);
                     }
                 });
             });
@@ -935,7 +939,7 @@
             if (hasVideo) {
                 if (speedSlider) speedSlider.show();
                 if (dragBar && speedSlider && !speedSlider.isMinimized()) dragBar.show();
-                if (networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicVideoUI.show();
+                if (networkMonitor && networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicVideoUI.show();
             } else {
                 if (speedSlider) speedSlider.hide();
                 if (dragBar) dragBar.hide();
@@ -956,7 +960,7 @@
                 const videoData = VIDEO_STATE.get(video) || { originalSrc: video.src, hasControls: video.hasAttribute('controls') };
                 VIDEO_STATE.set(video, videoData);
                 logManager.addOnce(`video_ready_${videoData.originalSrc || 'no-src'}`, `🎬 비디오 준비됨 | src: ${videoData.originalSrc}`, 5000, 'info');
-                if (video.src && networkMonitor.VIDEO_URL_CACHE.has(video.src)) {
+                if (video.src && networkMonitor && networkMonitor.VIDEO_URL_CACHE.has(video.src)) {
                     if (dynamicVideoUI) dynamicVideoUI.show();
                 }
                 updateUIVisibility();
@@ -994,7 +998,7 @@
                     logManager.addOnce(`spa_navigate`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
                     clearProcessedSets();
                     LOGGED_KEYS_WITH_TIMER.clear();
-                    networkMonitor.resetState();
+                    if(networkMonitor) networkMonitor.resetState();
                     OBSERVER_MAP.forEach(observer => observer.disconnect());
                     OBSERVER_MAP.clear();
                     App.initializeAll(document);
@@ -1058,14 +1062,28 @@
                     }
                 }
             };
-            intervalId = setInterval(tryInit, 1000); // 1초 간격 재시도
+            intervalId = setInterval(tryInit, 1000);
             tryInit();
 
             try {
-                if (iframe.contentWindow) {
+                if (iframe.contentWindow && jwplayerMonitor) {
                     jwplayerMonitor.init(iframe.contentWindow);
                 }
             } catch (e) {}
+        };
+
+        const scanExistingVideos = () => {
+            const videos = videoFinder.findAll();
+            videos.forEach(video => {
+                if (video.src && networkMonitor) {
+                    networkMonitor.trackAndAttach(null, video.src);
+                }
+                video.querySelectorAll('source').forEach(source => {
+                    if (source.src && networkMonitor) {
+                        networkMonitor.trackAndAttach(null, source.src);
+                    }
+                });
+            });
         };
 
         const processMutations = (mutations, targetDocument) => {
@@ -1076,14 +1094,16 @@
                         if (node.tagName === 'IFRAME') {
                             handleIframeLoad(node);
                         } else if (node.tagName === 'VIDEO') {
-                            videoControls.initWhenReady(node);
+                            if (videoControls) videoControls.initWhenReady(node);
                         } else {
                             node.querySelectorAll('iframe').forEach(iframe => handleIframeLoad(iframe));
-                            node.querySelectorAll('video').forEach(video => videoControls.initWhenReady(video));
+                            node.querySelectorAll('video').forEach(video => {
+                                if (videoControls) videoControls.initWhenReady(video);
+                            });
                         }
                     });
                     mutation.removedNodes.forEach(node => {
-                        if (node.nodeType === 1 && node.tagName === 'VIDEO' && VIDEO_STATE.has(node)) {
+                        if (node.nodeType === 1 && node.tagName === 'VIDEO' && VIDEO_STATE.has(node) && videoControls) {
                             videoControls.detachUI(node);
                         }
                     });
@@ -1095,7 +1115,7 @@
                         handleIframeLoad(targetNode);
                     }
                     if (targetNode.tagName === 'VIDEO' && (mutation.attributeName === 'src' || mutation.attributeName === 'controls')) {
-                        videoControls.initWhenReady(targetNode);
+                        if (videoControls) videoControls.initWhenReady(targetNode);
                     }
                 }
             });
@@ -1123,7 +1143,6 @@
             PROCESSED_DOCUMENTS.add(targetDocument);
             logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작`, 5000, 'info');
             if (targetDocument === document) {
-                if(networkMonitor) networkMonitor.init();
                 if(spaMonitor) spaMonitor.init();
                 document.addEventListener('fullscreenchange', () => {
                     if(speedSlider) speedSlider.updatePositionAndSize();
@@ -1138,9 +1157,12 @@
                 if(jwplayerMonitor) jwplayerMonitor.init(window);
             }
             startUnifiedObserver(targetDocument);
-            videoFinder.findInDoc(targetDocument).forEach(video => videoControls.initWhenReady(video));
+            scanExistingVideos(); // 초기 로딩 시 기존 비디오 URL 강제 스캔
+            videoFinder.findInDoc(targetDocument).forEach(video => {
+                if (videoControls) videoControls.initWhenReady(video);
+            });
             targetDocument.querySelectorAll('iframe').forEach(iframe => handleIframeLoad(iframe));
-            videoControls.updateUIVisibility();
+            if (videoControls) videoControls.updateUIVisibility();
         };
 
         return {
@@ -1149,13 +1171,14 @@
     })();
 
     // --- 초기 진입점 ---
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
+    // 모든 리소스가 로드된 후 스크립트 실행
+    if (document.readyState === 'complete') {
+        logManager.init();
+        App.initializeAll(document);
+    } else {
+        window.addEventListener('load', () => {
             logManager.init();
             App.initializeAll(document);
         });
-    } else {
-        logManager.init();
-        App.initializeAll(document);
     }
 })();
