@@ -893,78 +893,11 @@
 
     // --- dynamicMediaUI 모듈 ---
     const dynamicMediaUI = (() => {
-        const attached = new WeakMap();
-
-        function attach(media, url) {
-            if (!media || !url) return;
-            if (attached.has(media)) {
-                const btn = attached.get(media);
-                if (btn) btn.dataset.url = url;
-                return;
-            }
-
-            const btn = document.createElement("button");
-            btn.textContent = "🎞️ URL";
-            btn.title = "미디어 URL 복사";
-            Object.assign(btn.style, {
-                position: "absolute",
-                zIndex: 2147483647,
-                top: "5px",
-                right: "5px",
-                padding: "2px 6px",
-                background: "rgba(0,0,0,0.6)",
-                color: "white",
-                border: "none",
-                borderRadius: "3px",
-                cursor: "pointer",
-                pointerEvents: "auto",
-                display: "none"
-            });
-            btn.dataset.url = url;
-
-            btn.onclick = e => {
-                e.stopPropagation();
-                e.preventDefault();
-                const urlToCopy = btn.dataset.url;
-                if (!urlToCopy) {
-                    logManager.add('⚠️ URL이 없습니다.', 'warn');
-                    return;
-                }
-                navigator.clipboard.writeText(urlToCopy).then(() => {
-                    const originalText = btn.textContent;
-                    btn.textContent = "✅ 복사 완료";
-                    setTimeout(() => btn.textContent = originalText, 1500);
-                }).catch(() => {
-                    const originalText = btn.textContent;
-                    btn.textContent = "❌ 복사 실패";
-                    setTimeout(() => btn.textContent = originalText, 1500);
-                });
-            };
-
-            const container = media.offsetParent || media.parentElement || document.body;
-            container.style.position = container.style.position || "relative";
-            container.appendChild(btn);
-            attached.set(media, btn);
-        }
-
-        function show(url) {
-            mediaFinder.findAll().forEach(media => {
-                const btn = attached.get(media);
-                if (btn) {
-                    btn.style.display = 'block';
-                    btn.dataset.url = url; // 모든 미디어 버튼에 최신 URL을 업데이트
-                }
-            });
-        }
-
-        function hide() {
-            mediaFinder.findAll().forEach(media => {
-                const btn = attached.get(media);
-                if (btn) btn.style.display = 'none';
-            });
-        }
-
-        return { attach, show, hide };
+      return {
+        attach: () => {},
+        show: () => {},
+        hide: () => {}
+      };
     })();
 
     // --- mediaControls 모듈 ---
@@ -1252,7 +1185,7 @@
                 if(spaMonitor) spaMonitor.init();
                 if(speedSlider) speedSlider.init();
                 if(dragBar) dragBar.init();
-                if(dynamicMediaUI) dynamicMediaUI.init();
+                //if(dynamicMediaUI) dynamicMediaUI.init();
                 if(jwplayerMonitor) jwplayerMonitor.init(window);
                 if(networkMonitor) networkMonitor.init(window);
 
