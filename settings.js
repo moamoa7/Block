@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name VideoSpeed_Control
 // @namespace https.com/
-// @version 15.11
+// @version 15.18
 // @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
 // @match *://*/*
 // @grant GM_xmlhttpRequest
@@ -20,9 +20,18 @@
         enhanceURLDetection: true,
         spaPartialUpdate: true,
         detailedLogging: true,
+        previewFiltering: true, // 미리보기 필터링 기능 활성화
     };
     const DRAG_CONFIG = {
         PIXELS_PER_SECOND: 2
+    };
+
+    // --- 미리보기 정의 및 설정 (전역 스코프로 이동) ---
+    const PREVIEW_CONFIG = {
+        PATTERNS: [/preview/i, /thumb/i, /sprite/i, /teaser/i, /sample/i, /poster/i, /thumbnail/i],
+        DURATION_THRESHOLD: 12,   // 초 단위: 이 이하이면 프리뷰로 간주
+        MIN_PIXEL_AREA: 2000,     // 가로*세로 면적이 작으면 프리뷰일 가능성
+        LOG_LEVEL_FOR_SKIP: 'debug' // skip 로그 레벨
     };
 
     // --- 스크립트 초기 실행 전 예외 처리 ---
@@ -40,6 +49,7 @@
     const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
     const MEDIA_STATE = new WeakMap();
+    const PREVIEW_ELEMENTS = new WeakSet(); // 미리보기 전용 WeakSet
     const isTopFrame = window.self === window.top;
 
     // --- 유틸리티 함수 ---
@@ -255,9 +265,25 @@
 
         const getOriginalURL = (url) => blobSourceMap.get(url) || url;
 
-        const addVideoURL = (url, context = {}) => {
+        const isPreviewURL = (url) => {
+            if (!url || typeof url !== 'string') return false;
+            try {
+              const u = url.toLowerCase();
+              return PREVIEW_CONFIG.PATTERNS.some(p => p.test(u));
+            } catch (e) { return false; }
+        };
+
+        const trackAndAttach = (url, context = {}) => {
+            if (!url) return;
             const normUrl = normalizeURL(url);
-            if (!normUrl || VIDEO_URL_CACHE.has(normUrl)) return;
+
+            // 통합된 미리보기 URL 필터링
+            if (FeatureFlags.previewFiltering && isPreviewURL(normUrl)) {
+                 logManager.addOnce(`[Skip:Preview]${normUrl}`, `🔴 [Skip:Preview] URL 필터링에서 미리보기 URL (${normUrl}) 감지, 무시`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                 return;
+            }
+
+            if (VIDEO_URL_CACHE.has(normUrl)) return;
             VIDEO_URL_CACHE.add(normUrl);
 
             const details = [
@@ -290,7 +316,7 @@
                 lines.forEach(line => {
                     const abs = normalizeURL(line, url);
                     if (isMediaUrl(abs)) {
-                        addVideoURL(abs, { source: 'M3U8 Manifest' });
+                        trackAndAttach(abs, { source: 'M3U8 Manifest' });
                     }
                 });
             } else if (lower.endsWith('.mpd') || text.includes('<MPD')) {
@@ -300,7 +326,7 @@
                 urls.forEach(u => {
                     const abs = normalizeURL(u, url);
                     if (isMediaUrl(abs)) {
-                        addVideoURL(abs, { source: 'MPD Manifest' });
+                        trackAndAttach(abs, { source: 'MPD Manifest' });
                     }
                 });
             }
@@ -318,7 +344,11 @@
                 Object.defineProperty(videoProto, 'src', {
                     set: function(value) {
                         try {
-                            addVideoURL(value, {
+                            if (FeatureFlags.previewFiltering && isPreviewURL(value)) {
+                                logManager.addOnce(`[Skip:Preview_set_src]${value}`, `🔴 [Skip:Preview] video.src setter에서 미리보기 URL (${value}) 감지, 무시`, 5000, 'warn');
+                                return origSetSrc.call(this, value);
+                            }
+                            trackAndAttach(value, {
                                 source: 'video.src setter',
                                 rect: this.getBoundingClientRect(),
                                 currentTime: this.currentTime,
@@ -338,7 +368,7 @@
                     set: function(stream) {
                         try {
                             if (stream) {
-                                addVideoURL(`blob:${location.origin}/MediaStream`, {
+                                trackAndAttach(`blob:${location.origin}/MediaStream`, {
                                     source: 'video.srcObject setter',
                                     rect: this.getBoundingClientRect(),
                                     currentTime: this.currentTime,
@@ -359,11 +389,24 @@
             if (origFetch) {
                 window.fetch = async function(...args) {
                     const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+
+                    if (FeatureFlags.previewFiltering && isPreviewURL(url)) {
+                        logManager.addOnce(`[Skip:Preview_fetch_pre]${url}`, `🔴 [Skip:Preview] Fetch 요청 단계에서 미리보기 URL (${url}) 감지, 무시`, 5000, 'warn');
+                        return new Response(null, { status: 200, statusText: 'OK' });
+                    }
+
                     const res = await origFetch.apply(this, args);
                     try {
                         const contentType = res.headers.get("content-type");
+                        const contentLength = res.headers.get("content-length");
+
+                        if (FeatureFlags.previewFiltering && (contentLength && parseInt(contentLength, 10) < 200 * 1024)) {
+                            logManager.addOnce(`[Skip:Preview_fetch]${url}`, `🔴 [Skip:Preview] Fetch에서 미리보기 URL (${url}) 감지, 무시`, 5000, 'warn');
+                            return res;
+                        }
+
                         if (isMediaUrl(url) || isMediaMimeType(contentType)) {
-                            addVideoURL(url, { source: 'Fetch' });
+                            trackAndAttach(url, { source: 'Fetch' });
                         }
                         if (url && (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd'))) {
                             res.clone().text().then(text => handleManifestParsing(url, text));
@@ -386,8 +429,13 @@
                         const url = this._url;
                         try {
                             const contentType = this.getResponseHeader('Content-Type');
+                            const contentLength = this.getResponseHeader('Content-Length');
+                            if (FeatureFlags.previewFiltering && (isPreviewURL(url) || (contentLength && parseInt(contentLength, 10) < 200 * 1024))) {
+                                logManager.addOnce(`[Skip:Preview_xhr]${url}`, `🔴 [Skip:Preview] XHR에서 미리보기 URL (${url}) 감지, 무시`, 5000, 'warn');
+                                return;
+                            }
                             if (isMediaUrl(url) || isMediaMimeType(contentType)) {
-                                addVideoURL(url, { source: 'XHR' });
+                                trackAndAttach(url, { source: 'XHR' });
                             }
                             if (url && (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd')) && this.response) {
                                 handleManifestParsing(url, this.response);
@@ -400,29 +448,29 @@
         };
 
         const hookMediaSourceAPI = () => {
-            if (!window.MediaSource) return;
+             if (!window.MediaSource) return;
 
-            const origAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
-            if (origAddSourceBuffer) {
-                MediaSource.prototype.addSourceBuffer = function(mimeType) {
-                    if (/video|audio/i.test(mimeType)) {
-                        logManager.addOnce(`[EarlyCapture]MSE_MIME_${mimeType}`, `🧩 [EarlyCapture] MSE MIME 감지: ${mimeType}`, 5000, 'info');
-                    }
-                    return origAddSourceBuffer.call(this, mimeType);
-                };
-            }
+             const origAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
+             if (origAddSourceBuffer) {
+                 MediaSource.prototype.addSourceBuffer = function(mimeType) {
+                     if (/video|audio/i.test(mimeType)) {
+                         logManager.addOnce(`[EarlyCapture]MSE_MIME_${mimeType}`, `🧩 [EarlyCapture] MSE MIME 감지: ${mimeType}`, 5000, 'info');
+                     }
+                     return origAddSourceBuffer.call(this, mimeType);
+                 };
+             }
 
-            const origCreateObjectURL = URL.createObjectURL;
-            if (origCreateObjectURL) {
-                URL.createObjectURL = function(obj) {
-                    const url = origCreateObjectURL.apply(this, arguments);
-                    if (obj instanceof MediaSource) {
-                        addVideoURL(url, { source: 'createObjectURL(MediaSource)' });
-                    }
-                    return url;
-                };
-            }
-        };
+             const origCreateObjectURL = URL.createObjectURL;
+             if (origCreateObjectURL) {
+                 URL.createObjectURL = function(obj) {
+                     const url = origCreateObjectURL.apply(this, arguments);
+                     if (obj instanceof MediaSource) {
+                         trackAndAttach(url, { source: 'createObjectURL(MediaSource)' });
+                     }
+                     return url;
+                 };
+             }
+         };
 
         const init = () => {
             if (FeatureFlags.enhanceURLDetection) {
@@ -436,7 +484,7 @@
             VIDEO_URL_CACHE.clear();
             blobSourceMap.clear();
             mediaSourceMap.clear();
-        }, trackAndAttach: addVideoURL };
+        }, trackAndAttach, isPreviewURL };
     })();
     if (networkMonitor) networkMonitor.init();
 
@@ -1011,6 +1059,7 @@
     })();
 
     const mediaControls = (() => {
+        const PREVIEW_ELEMENTS = new WeakSet();
 
         const observeMediaSources = (media) => {
             if (PROCESSED_NODES.has(media)) return;
@@ -1043,19 +1092,53 @@
             if (!media || PROCESSED_NODES.has(media)) return;
             PROCESSED_NODES.add(media);
 
+            // 미리보기 영상인 경우 초기화 로직 중단
+            if (media.tagName === 'VIDEO' || media.tagName === 'AUDIO') {
+                const src = media.currentSrc || media.src || media.dataset.src;
+                if (src && networkMonitor.isPreviewURL(src)) {
+                     PREVIEW_ELEMENTS.add(media);
+                     logManager.addOnce(`skip_init_by_url_${src}`, `🔴 [Skip:Preview] 미디어 초기화 단계에서 미리보기 URL (${src}) 감지, 초기화 건너뜀`, 5000, 'warn');
+                     return;
+                }
+            }
+
+
             observeMediaSources(media);
 
-            media.addEventListener('play', () => { updateUIVisibility(); logManager.logMediaContext(media, '재생 시작'); }, true);
-            media.addEventListener('pause', () => { updateUIVisibility(); logManager.logMediaContext(media, '일시 정지'); }, true);
-            media.addEventListener('ended', () => { updateUIVisibility(); logManager.logMediaContext(media, '종료'); }, true);
-            media.addEventListener('loadedmetadata', () => {
-                const mediaData = MEDIA_STATE.get(media) || { originalSrc: media.src, hasControls: media.hasAttribute('controls') };
-                MEDIA_STATE.set(media, mediaData);
-                logManager.logMediaContext(media, '미디어 로드 완료', 'info');
-                if (media.src && networkMonitor && networkMonitor.VIDEO_URL_CACHE.has(media.src)) {
-                    if (dynamicMediaUI) dynamicMediaUI.show();
+            media.addEventListener('loadedmetadata', function checkDuration() {
+                 if (FeatureFlags.previewFiltering && this.duration && this.duration > 0 && this.duration < PREVIEW_CONFIG.DURATION_THRESHOLD) {
+                     PREVIEW_ELEMENTS.add(media);
+                     logManager.addOnce(`skip_preview_by_duration_${media.src}`, `🔴 [Skip:Preview] 미디어 로드 완료, 영상 길이가 ${this.duration.toFixed(1)}s 이므로 무시`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                     return;
+                 }
+                 this.removeEventListener('loadedmetadata', checkDuration);
+            }, { once: true });
+
+
+            media.addEventListener('play', () => {
+                if (PREVIEW_ELEMENTS.has(media)) {
+                    // 사용자가 재생 버튼을 누른 경우, 미리보기로 판단하지 않음
+                    PREVIEW_ELEMENTS.delete(media);
+                    logManager.addOnce(`promote_from_preview_${media.src}`, `▶️ 미리보기 영상 재생 시작, 정식 미디어로 승격 처리`, 5000, 'info');
                 }
                 updateUIVisibility();
+                logManager.logMediaContext(media, '재생 시작');
+            }, true);
+
+            media.addEventListener('pause', () => { updateUIVisibility(); logManager.logMediaContext(media, '일시 정지'); }, true);
+            media.addEventListener('ended', () => { updateUIVisibility(); logManager.logMediaContext(media, '종료'); }, true);
+
+            media.addEventListener('loadedmetadata', () => {
+                // 이전에 미리보기로 마킹된 영상이 아닌 경우에만 처리
+                if (!PREVIEW_ELEMENTS.has(media)) {
+                    const mediaData = MEDIA_STATE.get(media) || { originalSrc: media.src, hasControls: media.hasAttribute('controls') };
+                    MEDIA_STATE.set(media, mediaData);
+                    logManager.logMediaContext(media, '미디어 로드 완료', 'info');
+                    if (media.src && networkMonitor && networkMonitor.VIDEO_URL_CACHE.has(media.src)) {
+                        if (dynamicMediaUI) dynamicMediaUI.show();
+                    }
+                    updateUIVisibility();
+                }
             }, { once: true });
         };
 
@@ -1063,6 +1146,9 @@
             const mediaData = MEDIA_STATE.get(media);
             if (mediaData) {
                 MEDIA_STATE.delete(media);
+            }
+            if (PREVIEW_ELEMENTS.has(media)) {
+                PREVIEW_ELEMENTS.delete(media);
             }
             updateUIVisibility();
         };
@@ -1233,7 +1319,12 @@
                 if (url && networkMonitor && networkMonitor.isMediaUrl(url)) {
                     if (media.tagName === 'VIDEO' || media.tagName === 'AUDIO') {
                         if (!media.src && media.dataset.src) {
-                            media.src = media.dataset.src;
+                            const candidate = media.dataset.src;
+                            if (networkMonitor.isPreviewURL(candidate)) {
+                                logManager.addOnce(`skip_assign_data_src`, `⚠️ data-src assignment skipped (preview): ${candidate}`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                                return;
+                            }
+                            media.src = candidate;
                             logManager.addOnce(`data_src_forced_${url}`, `🖼️ data-src -> src 강제 할당: ${url}`, 5000, 'info');
                         }
                     }
@@ -1277,8 +1368,13 @@
                         handleIframeLoad(targetNode);
                     }
                     if ((targetNode.tagName === 'VIDEO' || targetNode.tagName === 'AUDIO') && (mutation.attributeName === 'src' || mutation.attributeName === 'controls' || mutation.attributeName === 'data-src')) {
-                        if (targetNode.dataset.src && !targetNode.src) {
-                            targetNode.src = targetNode.dataset.src;
+                         if (targetNode.dataset.src && !targetNode.src) {
+                            const candidate = targetNode.dataset.src;
+                            if (networkMonitor.isPreviewURL(candidate)) {
+                                logManager.addOnce(`skip_assign_data_src_mut`, `⚠️ data-src assignment skipped (preview) | src: ${candidate}`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                                return;
+                            }
+                            targetNode.src = candidate;
                             logManager.addOnce(`data_src_mutation_${targetNode.dataset.src}`, `🖼️ DOM 변경 감지, data-src -> src 업데이트: ${targetNode.dataset.src}`, 5000, 'info');
                         }
                         if (mediaControls) mediaControls.initWhenReady(targetNode);
