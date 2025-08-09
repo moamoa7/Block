@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          VideoSpeed_Control
 // @namespace     https.com/
-// @version       15.4
+// @version       15.8
 // @description   🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         GM_xmlhttpRequest
@@ -37,7 +37,7 @@
     let PROCESSED_DOCUMENTS = new WeakSet();
     const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
-    const VIDEO_STATE = new WeakMap();
+    const MEDIA_STATE = new WeakMap();
     const isTopFrame = window.self === window.top;
 
     // --- 유틸리티 함수 ---
@@ -186,11 +186,11 @@
         const VIDEO_URL_CACHE = new Set();
         const blobSourceMap = new Map();
         const mediaSourceMap = new Map();
-        const trackedVideoElements = new WeakSet();
+        const trackedMediaElements = new WeakSet();
         let lastManifestURL = null;
 
-        const isVideoUrl = (url) => /\.(m3u8|mpd|mp4|webm|ts|m4s)(\?|#|$)/i.test(url) || url.includes('mime=video') || url.includes('type=video');
-        const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
+        const isMediaUrl = (url) => /\.(m3u8|mpd|mp4|webm|ts|m4s|mp3|ogg)(\?|#|$)/i.test(url) || url.includes('mime=video') || url.includes('type=video') || url.includes('mime=audio') || url.includes('type=audio');
+        const isMediaMimeType = (mime) => mime?.includes('video/') || mime?.includes('audio/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
 
         const normalizeURL = (url, base) => {
             try { return new URL(url, base || location.href).href; }
@@ -201,13 +201,13 @@
 
         const handleManifestParsing = (url, text) => {
             if (!text) return;
-            lastManifestURL = url; // 현재 매니페스트 URL 저장
+            lastManifestURL = url;
             const lower = url.toLowerCase();
             if (lower.endsWith('.m3u8') || text.includes('#EXTM3U')) {
                 const lines = (text.match(/^[^#][^\r\n]+$/gm) || []).map(l => l.trim());
                 lines.forEach(line => {
                     const abs = normalizeURL(line, url);
-                    if (isVideoUrl(abs)) {
+                    if (isMediaUrl(abs)) {
                         trackAndAttach(null, abs);
                     }
                 });
@@ -217,22 +217,22 @@
                 const urls = Array.from(xml.querySelectorAll("BaseURL, SegmentTemplate")).map(el => el.textContent.trim() || el.getAttribute('initialization') || el.getAttribute('media')).filter(u => u);
                 urls.forEach(u => {
                     const abs = normalizeURL(u, url);
-                    if (isVideoUrl(abs)) {
+                    if (isMediaUrl(abs)) {
                         trackAndAttach(null, abs);
                     }
                 });
             }
         };
 
-        const trackAndAttach = (videoEl, url) => {
+        const trackAndAttach = (mediaEl, url) => {
             const normUrl = normalizeURL(url);
             if (!VIDEO_URL_CACHE.has(normUrl)) {
                 VIDEO_URL_CACHE.add(normUrl);
                 logManager.addOnce(`network_url_detected_${normUrl.substring(0,50)}`, `💻 영상 URL 감지됨: ${normUrl}`, 5000, 'info');
-                dynamicVideoUI.show(normUrl);
+                dynamicMediaUI.show(normUrl);
             }
-            if (videoEl && !trackedVideoElements.has(videoEl)) {
-                trackedVideoElements.add(videoEl);
+            if (mediaEl && !trackedMediaElements.has(mediaEl)) {
+                trackedMediaElements.add(mediaEl);
             }
         };
 
@@ -243,7 +243,7 @@
                 const url = normalizeURL(typeof args[0] === 'string' ? args[0] : args[0]?.url);
                 const contentType = res.headers.get("content-type");
 
-                if (isVideoUrl(url) || isVideoMimeType(contentType)) {
+                if (isMediaUrl(url) || isMediaMimeType(contentType)) {
                     trackAndAttach(null, url);
                 } else if (contentType?.includes('application/json')) {
                     const resClone = res.clone();
@@ -251,7 +251,7 @@
                         const json = await resClone.json();
                         const urls = [];
                         function recursiveSearch(obj) {
-                            if (typeof obj === 'string' && isVideoUrl(obj)) {
+                            if (typeof obj === 'string' && isMediaUrl(obj)) {
                                 urls.push(obj);
                             } else if (typeof obj === 'object' && obj !== null) {
                                 for (const key in obj) {
@@ -280,7 +280,7 @@
             const originalOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function (method, url, ...rest) {
                 this.__pbivs_originalUrl = url;
-                if (isVideoUrl(url)) {
+                if (isMediaUrl(url)) {
                     trackAndAttach(null, url);
                 }
                 return originalOpen.call(this, method, url, ...rest);
@@ -291,7 +291,7 @@
                 this.addEventListener('load', () => {
                     const url = this.__pbivs_originalUrl;
                     const contentType = this.getResponseHeader('Content-Type');
-                    if (url && (isVideoUrl(url) || isVideoMimeType(contentType))) {
+                    if (url && (isMediaUrl(url) || isMediaMimeType(contentType))) {
                         trackAndAttach(null, url);
                     }
                 });
@@ -304,8 +304,9 @@
             const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
             MediaSource.prototype.addSourceBuffer = function (mimeType) {
                 if (/video|audio/i.test(mimeType)) {
-                    if (!this.__videoStreamInfo) this.__videoStreamInfo = {};
-                    this.__videoStreamInfo.mimeType = mimeType;
+                    if (!this.__mediaStreamInfo) this.__mediaStreamInfo = {};
+                    this.__mediaStreamInfo.mimeType = mimeType;
+                    this._linkedManifestURL = lastManifestURL;
                 }
                 const result = originalAddSourceBuffer.apply(this, arguments);
                 logManager.addOnce('mse-buffer', 'MSE 버퍼 생성됨: ' + mimeType, 5000, 'debug');
@@ -318,14 +319,14 @@
             URL.createObjectURL = function (obj) {
                 const url = originalCreateObjectURL.apply(this, arguments);
                 if (obj instanceof MediaSource) {
-                    const lastManifest = lastManifestURL;
-                    if (lastManifest) {
-                        blobSourceMap.set(url, lastManifest);
-                        logManager.addOnce(`blob_url_mapped_${url.substring(0,50)}`, `🔗 Blob URL 생성 및 매핑: ${url} -> ${lastManifest}`, 5000, 'debug');
-                        trackAndAttach(null, lastManifest);
+                    const linkedManifest = obj._linkedManifestURL;
+                    if (linkedManifest) {
+                        blobSourceMap.set(url, linkedManifest);
+                        logManager.addOnce(`blob_url_mapped_${url.substring(0,50)}`, `🔗 Blob URL 생성 및 매핑: ${url} -> ${linkedManifest}`, 5000, 'debug');
+                        trackAndAttach(null, linkedManifest);
                     }
                 }
-                if (obj instanceof Blob && isVideoMimeType(obj.type)) {
+                if (obj instanceof Blob && isMediaMimeType(obj.type)) {
                     blobSourceMap.set(url, url);
                     trackAndAttach(null, url);
                 }
@@ -342,16 +343,14 @@
             }
         };
 
-        return { init, getOriginalURL, isVideoUrl, VIDEO_URL_CACHE, resetState: () => {
+        return { init, getOriginalURL, isMediaUrl, VIDEO_URL_CACHE, resetState: () => {
             VIDEO_URL_CACHE.clear();
             blobSourceMap.clear();
             mediaSourceMap.clear();
         }, trackAndAttach };
     })();
-    // --- 네트워크 후킹을 문서 로딩 시작 시점에 즉시 활성화 ---
     if (networkMonitor) networkMonitor.init();
 
-    // --- JWPlayer 모니터링 모듈 추가 ---
     const jwplayerMonitor = (() => {
         let lastItemURL = null;
         let pollTimer = null;
@@ -365,7 +364,7 @@
                     const fileUrl = item?.file || item?.sources?.[0]?.file;
                     if (fileUrl && fileUrl !== lastItemURL) {
                         lastItemURL = fileUrl;
-                        if (networkMonitor && networkMonitor.isVideoUrl(fileUrl)) {
+                        if (networkMonitor && networkMonitor.isMediaUrl(fileUrl)) {
                             logManager.addOnce(`jwplayer_polling_${fileUrl.substring(0,50)}`, `🎥 JWPlayer 영상 URL 감지됨: ${fileUrl}`, 5000, 'info');
                             networkMonitor.trackAndAttach(null, fileUrl);
                         }
@@ -420,20 +419,19 @@
         return { init: hookJWPlayer, resetState };
     })();
 
-    // --- 비디오 탐색 모듈 ---
-    const videoFinder = {
+    const mediaFinder = {
         findInDoc: (doc) => {
-            const videos = [];
-            if (!doc || !doc.body) return videos;
-            doc.querySelectorAll('video').forEach(v => videos.push(v));
+            const medias = [];
+            if (!doc || !doc.body) return medias;
+            doc.querySelectorAll('video, audio').forEach(m => medias.push(m));
             doc.querySelectorAll('div.jw-player, div[id*="player"], div.video-js, div[class*="video-container"], div.vjs-tech').forEach(container => {
-                if (!container.querySelector('video') && container.clientWidth > 0 && container.clientHeight > 0) {
-                    videos.push(container);
+                if (!container.querySelector('video, audio') && container.clientWidth > 0 && container.clientHeight > 0) {
+                    medias.push(container);
                 }
             });
             doc.querySelectorAll('[data-src], [data-video], [data-url]').forEach(el => {
                 const src = el.getAttribute('data-src') || el.getAttribute('data-video') || el.getAttribute('data-url');
-                if (src && networkMonitor && networkMonitor.isVideoUrl(src)) {
+                if (src && networkMonitor && networkMonitor.isMediaUrl(src)) {
                     networkMonitor.trackAndAttach(null, src);
                 }
             });
@@ -444,17 +442,17 @@
                     urls.forEach(u => networkMonitor && networkMonitor.trackAndAttach(null, u));
                 }
             });
-            return videos;
+            return medias;
         },
         findAll: () => {
-            let videos = videoFinder.findInDoc(document);
+            let medias = mediaFinder.findInDoc(document);
             document.querySelectorAll('iframe').forEach(iframe => {
                 try {
                     const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-                    if (iframeDocument) videos.push(...videoFinder.findInDoc(iframeDocument));
+                    if (iframeDocument) medias.push(...mediaFinder.findInDoc(iframeDocument));
                 } catch (e) {}
             });
-            return videos;
+            return medias;
         },
         findLargestParent: (element) => {
             let largestElement = element;
@@ -476,7 +474,6 @@
         }
     };
 
-    // --- 비디오 UI 모듈 (슬라이더) ---
     const speedSlider = (() => {
         let speedSliderContainer;
         let playbackUpdateTimer;
@@ -504,8 +501,8 @@
         const updateSpeed = (speed) => {
             const validSpeed = parseFloat(speed);
             if (isNaN(validSpeed)) return;
-            const videos = videoFinder.findAll();
-            videos.forEach(video => { video.playbackRate = validSpeed; });
+            const medias = mediaFinder.findAll();
+            medias.forEach(media => { media.playbackRate = validSpeed; });
         };
 
         const onSliderChange = (val) => {
@@ -542,8 +539,8 @@
                 if (resetBtn) resetBtn.style.display = 'block';
                 if (toggleBtn) toggleBtn.textContent = '▲';
                 if (speedSlider) speedSlider.updatePositionAndSize();
-                const isVideoPlaying = videoFinder.findAll().some(v => !v.paused);
-                if (isVideoPlaying && dragBar) dragBar.show();
+                const isMediaPlaying = mediaFinder.findAll().some(m => !m.paused);
+                if (isMediaPlaying && dragBar) dragBar.show();
             }
         };
 
@@ -620,10 +617,10 @@
         const updatePositionAndSize = () => {
             const sliderContainer = speedSliderContainer;
             if (!sliderContainer) return;
-            const videos = videoFinder.findAll();
-            const video = videos.find(v => v.clientWidth > 0 && v.clientHeight > 0);
+            const medias = mediaFinder.findAll();
+            const media = medias.find(m => m.clientWidth > 0 && m.clientHeight > 0);
             const slider = sliderContainer.querySelector('#vm-speed-slider');
-            const newHeight = video ? Math.max(100, video.getBoundingClientRect().height * 0.3) : 100;
+            const newHeight = media ? Math.max(100, media.getBoundingClientRect().height * 0.3) : 100;
             if (slider) slider.style.height = `${newHeight}px`;
             const targetParent = document.fullscreenElement || document.body;
             if (targetParent && sliderContainer.parentNode !== targetParent) {
@@ -634,7 +631,6 @@
         return { init, show, hide, updatePositionAndSize, isMinimized: () => isMinimized };
     })();
 
-    // --- 비디오 UI 모듈 (드래그 바) ---
     const dragBar = (() => {
         let dragBarTimeDisplay;
         const dragState = {
@@ -675,14 +671,14 @@
         };
 
         const applyTimeChange = () => {
-            const videos = videoFinder.findAll();
+            const medias = mediaFinder.findAll();
             const pixelsPerSecond = DRAG_CONFIG?.PIXELS_PER_SECOND || 2;
             const timeToApply = Math.round(dragState.totalTimeChange / pixelsPerSecond);
             if (timeToApply !== 0) {
-                videos.forEach(video => {
-                    if (video && video.duration && isFinite(video.duration)) {
-                        const newTime = Math.min(video.duration, Math.max(0, video.currentTime + timeToApply));
-                        video.currentTime = newTime;
+                medias.forEach(media => {
+                    if (media && media.duration && isFinite(media.duration)) {
+                        const newTime = Math.min(media.duration, Math.max(0, media.currentTime + timeToApply));
+                        media.currentTime = newTime;
                     }
                 });
             }
@@ -715,8 +711,8 @@
         const handleStart = (e) => {
             if (!speedSlider || speedSlider.isMinimized() || dragState.isDragging || e.button === 2) return;
             if (e.target && e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
-            const videos = videoFinder.findAll();
-            if (videos.length === 0) return;
+            const medias = mediaFinder.findAll();
+            if (medias.length === 0) return;
             e.stopPropagation();
             dragState.isDragging = true;
             const pos = getPosition(e);
@@ -739,8 +735,8 @@
             if (!dragState.isDragging) return;
             try {
                 if ((e.touches && e.touches.length > 1) || (e.pointerType === 'touch' && e.pointerId > 1)) return cancelDrag();
-                const videos = videoFinder.findAll();
-                if (videos.length === 0) return cancelDrag();
+                const medias = mediaFinder.findAll();
+                if (medias.length === 0) return cancelDrag();
                 const pos = getPosition(e);
                 const currentX = pos.clientX;
                 const dx = Math.abs(currentX - dragState.startX);
@@ -830,8 +826,7 @@
         return { init, show, hide, updateTimeDisplay };
     })();
 
-    // --- 동적 비디오 URL 표시 모듈 ---
-    const dynamicVideoUI = (() => {
+    const dynamicMediaUI = (() => {
         let button;
         let isInitialized = false;
         let isVisible = false;
@@ -845,9 +840,9 @@
             }
 
             button = document.createElement('button');
-            button.id = 'dynamic-video-url-btn';
+            button.id = 'dynamic-media-url-btn';
             button.textContent = '🎞️ URL';
-            button.title = '비디오 URL 복사';
+            button.title = '미디어 URL 복사';
             Object.assign(button.style, {
                 position: 'fixed',
                 top: '10px',
@@ -917,60 +912,59 @@
         return { init, show, hide };
     })();
 
-    // --- 비디오 컨트롤 모듈 ---
-    const videoControls = (() => {
+    const mediaControls = (() => {
 
-        const observeVideoSources = (video) => {
-            if (PROCESSED_NODES.has(video)) return;
-            PROCESSED_NODES.add(video);
+        const observeMediaSources = (media) => {
+            if (PROCESSED_NODES.has(media)) return;
+            PROCESSED_NODES.add(media);
 
             const obs = new MutationObserver(() => {
-                video.querySelectorAll('source').forEach(srcEl => {
+                media.querySelectorAll('source').forEach(srcEl => {
                     if (srcEl.src) {
                         if (networkMonitor) networkMonitor.trackAndAttach(null, srcEl.src);
                     }
                 });
             });
-            obs.observe(video, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+            obs.observe(media, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
         };
 
         const updateUIVisibility = throttle(() => {
-            const hasVideo = videoFinder.findAll().some(v => v.readyState >= 1 || (!v.paused && v.clientWidth > 0 && v.clientHeight > 0));
-            if (hasVideo) {
+            const hasMedia = mediaFinder.findAll().some(m => m.readyState >= 1 || (!m.paused && (m.tagName === 'AUDIO' || (m.clientWidth > 0 && m.clientHeight > 0))));
+            if (hasMedia) {
                 if (speedSlider) speedSlider.show();
                 if (dragBar && speedSlider && !speedSlider.isMinimized()) dragBar.show();
-                if (networkMonitor && networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicVideoUI.show();
+                if (networkMonitor && networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicMediaUI.show();
             } else {
                 if (speedSlider) speedSlider.hide();
                 if (dragBar) dragBar.hide();
-                if (dynamicVideoUI) dynamicVideoUI.hide();
+                if (dynamicMediaUI) dynamicMediaUI.hide();
             }
         }, 500);
 
-        const initWhenReady = (video) => {
-            if (!video || PROCESSED_NODES.has(video)) return;
-            PROCESSED_NODES.add(video);
+        const initWhenReady = (media) => {
+            if (!media || PROCESSED_NODES.has(media)) return;
+            PROCESSED_NODES.add(media);
 
-            observeVideoSources(video);
+            observeMediaSources(media);
 
-            video.addEventListener('play', () => { updateUIVisibility(); }, true);
-            video.addEventListener('pause', () => { updateUIVisibility(); }, true);
-            video.addEventListener('ended', () => { updateUIVisibility(); }, true);
-            video.addEventListener('loadedmetadata', () => {
-                const videoData = VIDEO_STATE.get(video) || { originalSrc: video.src, hasControls: video.hasAttribute('controls') };
-                VIDEO_STATE.set(video, videoData);
-                logManager.addOnce(`video_ready_${videoData.originalSrc || 'no-src'}`, `🎬 비디오 준비됨 | src: ${videoData.originalSrc}`, 5000, 'info');
-                if (video.src && networkMonitor && networkMonitor.VIDEO_URL_CACHE.has(video.src)) {
-                    if (dynamicVideoUI) dynamicVideoUI.show();
+            media.addEventListener('play', () => { updateUIVisibility(); }, true);
+            media.addEventListener('pause', () => { updateUIVisibility(); }, true);
+            media.addEventListener('ended', () => { updateUIVisibility(); }, true);
+            media.addEventListener('loadedmetadata', () => {
+                const mediaData = MEDIA_STATE.get(media) || { originalSrc: media.src, hasControls: media.hasAttribute('controls') };
+                MEDIA_STATE.set(media, mediaData);
+                logManager.addOnce(`media_ready_${mediaData.originalSrc || 'no-src'}`, `🎬 미디어 준비됨 | src: ${mediaData.originalSrc}`, 5000, 'info');
+                if (media.src && networkMonitor && networkMonitor.VIDEO_URL_CACHE.has(media.src)) {
+                    if (dynamicMediaUI) dynamicMediaUI.show();
                 }
                 updateUIVisibility();
             }, { once: true });
         };
 
-        const detachUI = (video) => {
-            const videoData = VIDEO_STATE.get(video);
-            if (videoData) {
-                VIDEO_STATE.delete(video);
+        const detachUI = (media) => {
+            const mediaData = MEDIA_STATE.get(media);
+            if (mediaData) {
+                MEDIA_STATE.delete(media);
             }
             updateUIVisibility();
         };
@@ -978,7 +972,6 @@
         return { initWhenReady, detachUI, updateUIVisibility };
     })();
 
-    // --- SPA 및 MutationObserver 통합 모듈 ---
     const spaMonitor = (() => {
         let lastURL = location.href;
         let debounceTimer = null;
@@ -1021,7 +1014,6 @@
         return { init, onNavigate };
     })();
 
-    // --- 주요 기능 통합 및 실행 ---
     const App = (() => {
         const handleIframeLoad = (iframe) => {
             if (!iframe) return;
@@ -1072,13 +1064,31 @@
             } catch (e) {}
         };
 
-        const scanExistingVideos = () => {
-            const videos = videoFinder.findAll();
-            videos.forEach(video => {
-                if (video.src && networkMonitor) {
-                    networkMonitor.trackAndAttach(null, video.src);
+        const scanExistingMedia = () => {
+            const medias = mediaFinder.findAll();
+
+            // 크기 기준으로 미디어 요소 정렬 (가장 큰 요소 우선)
+            medias.sort((a, b) => {
+                const rectA = a.getBoundingClientRect();
+                const rectB = b.getBoundingClientRect();
+                return (rectB.width * rectB.height) - (rectA.width * rectA.height);
+            });
+
+            medias.forEach(media => {
+                const url = media.src || media.dataset.src;
+                if (url && networkMonitor && networkMonitor.isMediaUrl(url)) {
+                    // src가 비어있고 data-src가 있으면 src로 할당하여 로딩 강제 시작
+                    if (media.tagName === 'VIDEO' || media.tagName === 'AUDIO') {
+                        if (!media.src && media.dataset.src) {
+                            media.src = media.dataset.src;
+                            logManager.addOnce(`data_src_forced_${url.substring(0, 50)}`, `🖼️ data-src -> src 강제 할당: ${url}`, 5000, 'info');
+                        }
+                    }
+                    networkMonitor.trackAndAttach(null, url);
                 }
-                video.querySelectorAll('source').forEach(source => {
+
+                // source 태그의 src도 감지
+                media.querySelectorAll('source').forEach(source => {
                     if (source.src && networkMonitor) {
                         networkMonitor.trackAndAttach(null, source.src);
                     }
@@ -1093,18 +1103,18 @@
                         if (node.nodeType !== 1) return;
                         if (node.tagName === 'IFRAME') {
                             handleIframeLoad(node);
-                        } else if (node.tagName === 'VIDEO') {
-                            if (videoControls) videoControls.initWhenReady(node);
+                        } else if (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') {
+                            if (mediaControls) mediaControls.initWhenReady(node);
                         } else {
                             node.querySelectorAll('iframe').forEach(iframe => handleIframeLoad(iframe));
-                            node.querySelectorAll('video').forEach(video => {
-                                if (videoControls) videoControls.initWhenReady(video);
+                            node.querySelectorAll('video, audio').forEach(media => {
+                                if (mediaControls) mediaControls.initWhenReady(media);
                             });
                         }
                     });
                     mutation.removedNodes.forEach(node => {
-                        if (node.nodeType === 1 && node.tagName === 'VIDEO' && VIDEO_STATE.has(node) && videoControls) {
-                            videoControls.detachUI(node);
+                        if (node.nodeType === 1 && (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') && MEDIA_STATE.has(node) && mediaControls) {
+                            mediaControls.detachUI(node);
                         }
                     });
                 } else if (mutation.type === 'attributes') {
@@ -1114,8 +1124,13 @@
                         PROCESSED_IFRAMES.delete(targetNode);
                         handleIframeLoad(targetNode);
                     }
-                    if (targetNode.tagName === 'VIDEO' && (mutation.attributeName === 'src' || mutation.attributeName === 'controls')) {
-                        if (videoControls) videoControls.initWhenReady(targetNode);
+                    if ((targetNode.tagName === 'VIDEO' || targetNode.tagName === 'AUDIO') && (mutation.attributeName === 'src' || mutation.attributeName === 'controls' || mutation.attributeName === 'data-src')) {
+                         // data-src 변경 시 src를 강제로 업데이트
+                        if (targetNode.dataset.src && !targetNode.src) {
+                            targetNode.src = targetNode.dataset.src;
+                            logManager.addOnce(`data_src_mutation_${targetNode.dataset.src.substring(0, 50)}`, `🖼️ DOM 변경 감지, data-src -> src 업데이트: ${targetNode.dataset.src}`, 5000, 'info');
+                        }
+                        if (mediaControls) mediaControls.initWhenReady(targetNode);
                     }
                 }
             });
@@ -1153,16 +1168,16 @@
                 });
                 if(speedSlider) speedSlider.init();
                 if(dragBar) dragBar.init();
-                if(dynamicVideoUI) dynamicVideoUI.init();
+                if(dynamicMediaUI) dynamicMediaUI.init();
                 if(jwplayerMonitor) jwplayerMonitor.init(window);
             }
             startUnifiedObserver(targetDocument);
-            scanExistingVideos(); // 초기 로딩 시 기존 비디오 URL 강제 스캔
-            videoFinder.findInDoc(targetDocument).forEach(video => {
-                if (videoControls) videoControls.initWhenReady(video);
+            scanExistingMedia();
+            mediaFinder.findInDoc(targetDocument).forEach(media => {
+                if (mediaControls) mediaControls.initWhenReady(media);
             });
             targetDocument.querySelectorAll('iframe').forEach(iframe => handleIframeLoad(iframe));
-            if (videoControls) videoControls.updateUIVisibility();
+            if (mediaControls) mediaControls.updateUIVisibility();
         };
 
         return {
@@ -1170,8 +1185,6 @@
         };
     })();
 
-    // --- 초기 진입점 ---
-    // 모든 리소스가 로드된 후 스크립트 실행
     if (document.readyState === 'complete') {
         logManager.init();
         App.initializeAll(document);
