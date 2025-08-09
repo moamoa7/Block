@@ -191,28 +191,29 @@
     // --- 네트워크 모니터링 모듈 (강화 버전) ---
     const networkMonitor = (() => {
         const VIDEO_URL_CACHE = new Set();
-        const blobMap = new Map();
+        const blobSourceMap = new Map();
         const mediaSourceMap = new Map();
         const trackedVideoElements = new WeakSet();
+        let lastManifestURL = null;
 
         const isVideoUrl = (url) => /\.(m3u8|mpd|mp4|webm|ts|m4s)(\?|#|$)/i.test(url) || url.includes('mime=video') || url.includes('type=video');
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
 
-        const normalizeURL = (url) => {
-            try { return new URL(url, location.href).href; }
+        const normalizeURL = (url, base) => {
+            try { return new URL(url, base || location.href).href; }
             catch { return url; }
         };
 
-        const getOriginalURL = (url) => blobMap.get(url) || url;
+        const getOriginalURL = (url) => blobSourceMap.get(url) || url;
 
         const handleManifestParsing = (url, text) => {
             if (!text) return;
+            lastManifestURL = url; // 현재 매니페스트 URL 저장
             const lower = url.toLowerCase();
             if (lower.endsWith('.m3u8') || text.includes('#EXTM3U')) {
-                const base = url.split('/').slice(0, -1).join('/') + '/';
                 const lines = (text.match(/^[^#][^\r\n]+$/gm) || []).map(l => l.trim());
                 lines.forEach(line => {
-                    const abs = normalizeURL(line, base);
+                    const abs = normalizeURL(line, url); // base URL 적용
                     if (isVideoUrl(abs)) {
                         trackAndAttach(null, abs);
                     }
@@ -311,7 +312,9 @@
                     if (!this.__videoStreamInfo) this.__videoStreamInfo = {};
                     this.__videoStreamInfo.mimeType = mimeType;
                 }
-                return originalAddSourceBuffer.apply(this, arguments);
+                const result = originalAddSourceBuffer.apply(this, arguments);
+                logManager.addOnce('mse-buffer', 'MSE 버퍼 생성됨: ' + mimeType, 5000, 'debug');
+                return result;
             };
         };
 
@@ -321,64 +324,51 @@
                 const url = originalCreateObjectURL.apply(this, arguments);
                 if (obj instanceof MediaSource) {
                     const info = obj.__videoStreamInfo || {};
-                    const lastManifest = Array.from(VIDEO_URL_CACHE)
-                        .reverse()
-                        .find(u => /\.(m3u8|mpd)$/i.test(u));
+                    const lastManifest = lastManifestURL;
                     if (lastManifest) {
-                        blobMap.set(url, lastManifest);
+                        blobSourceMap.set(url, lastManifest);
                         logManager.addOnce(`blob_url_mapped_${url.substring(0,50)}`, `🔗 Blob URL 생성 및 매핑: ${url} -> ${lastManifest}`, 5000, 'debug');
                         trackAndAttach(null, lastManifest);
                     }
                 }
                 if (obj instanceof Blob && isVideoMimeType(obj.type)) {
-                    blobMap.set(url, url);
+                    blobSourceMap.set(url, url);
                     trackAndAttach(null, url);
                 }
                 return url;
             };
         };
 
-        const observeVideoSources = () => {
-            const handleVideo = (video) => {
-                const checkAndMap = () => {
-                    const currentSrc = video.src;
-                    if (!currentSrc) return;
-                    if (trackedVideoElements.has(video)) return;
+        const observeVideoSources = (video) => {
+            if (PROCESSED_NODES.has(video)) return;
+            PROCESSED_NODES.add(video);
 
-                    if (currentSrc.startsWith('blob:') && blobMap.has(currentSrc)) {
-                        const manifestURL = blobMap.get(currentSrc);
+            const checkAndMap = () => {
+                const currentSrc = video.src;
+                if (currentSrc && !trackedVideoElements.has(video)) {
+                    if (currentSrc.startsWith('blob:') && blobSourceMap.has(currentSrc)) {
+                        const manifestURL = blobSourceMap.get(currentSrc);
                         trackAndAttach(video, manifestURL);
                     } else if (isVideoUrl(currentSrc)) {
                         trackAndAttach(video, currentSrc);
-                    } else {
-                        const originalUrl = mediaSourceMap.get(video.srcObject);
-                        if (originalUrl) {
-                            trackAndAttach(video, originalUrl);
-                        }
                     }
-                };
-                checkAndMap();
-
-                const obs = new MutationObserver(checkAndMap);
-                obs.observe(video, { attributes: true, attributeFilter: ["src", "srcObject"] });
+                }
+                video.querySelectorAll('source').forEach(srcEl => {
+                    if (srcEl.src) {
+                        trackAndAttach(null, normalizeURL(srcEl.src));
+                    }
+                });
             };
 
-            document.querySelectorAll("video").forEach(handleVideo);
-            const mo = new MutationObserver(muts => {
-                muts.forEach(m => {
-                    m.addedNodes.forEach(node => {
-                        if (node.tagName === "VIDEO") handleVideo(node);
-                    });
-                });
-            });
-            if (document.body) {
-                mo.observe(document.body, { childList: true, subtree: true });
-            }
+            checkAndMap();
+
+            const obs = new MutationObserver(checkAndMap);
+            obs.observe(video, { attributes: true, attributeFilter: ["src", "srcObject"], childList: true, subtree: true });
         };
 
         const resetState = () => {
             VIDEO_URL_CACHE.clear();
-            blobMap.clear();
+            blobSourceMap.clear();
             mediaSourceMap.clear();
         };
 
@@ -388,11 +378,10 @@
                 hookXHR();
                 hookMediaSource();
                 hookCreateObjectURL();
-                observeVideoSources();
             }
         };
 
-        return { init, getOriginalURL, isVideoUrl, VIDEO_URL_CACHE, resetState, trackAndAttach };
+        return { init, getOriginalURL, isVideoUrl, VIDEO_URL_CACHE, resetState, trackAndAttach, observeVideoSources };
     })();
 
     // --- JWPlayer 모니터링 모듈 추가 ---
@@ -946,9 +935,28 @@
 
     // --- 비디오 컨트롤 모듈 ---
     const videoControls = (() => {
+
+        const observeVideoSources = (video) => {
+            if (PROCESSED_NODES.has(video)) return;
+            PROCESSED_NODES.add(video);
+
+            const obs = new MutationObserver(() => {
+                video.querySelectorAll('source').forEach(srcEl => {
+                    if (srcEl.src) {
+                        networkMonitor.trackAndAttach(null, srcEl.src);
+                    }
+                });
+            });
+            obs.observe(video, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+        };
+
         const initWhenReady = (video) => {
             if (!video || PROCESSED_NODES.has(video)) return;
             PROCESSED_NODES.add(video);
+
+            // <source> 감시 추가
+            observeVideoSources(video);
+
             const videoLoaded = () => {
                 const videoData = VIDEO_STATE.get(video) || { originalSrc: video.src, hasControls: video.hasAttribute('controls') };
                 VIDEO_STATE.set(video, videoData);
@@ -965,6 +973,7 @@
                 video.addEventListener('playing', videoLoaded, { once: true });
             }
         };
+
         const detachUI = (video) => {
             const videoData = VIDEO_STATE.get(video);
             if (videoData) {
