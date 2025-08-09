@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name VideoSpeed_Control
 // @namespace https.com/
-// @version 15.18
+// @version 15.19 (드래그바 시간표시 오류 수정)
 // @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
 // @match *://*/*
 // @grant GM_xmlhttpRequest
@@ -29,8 +29,8 @@
     // --- 미리보기 정의 및 설정 (전역 스코프로 이동) ---
     const PREVIEW_CONFIG = {
         PATTERNS: [/preview/i, /thumb/i, /sprite/i, /teaser/i, /sample/i, /poster/i, /thumbnail/i],
-        DURATION_THRESHOLD: 12,   // 초 단위: 이 이하이면 프리뷰로 간주
-        MIN_PIXEL_AREA: 2000,     // 가로*세로 면적이 작으면 프리뷰일 가능성
+        DURATION_THRESHOLD: 12,    // 초 단위: 이 이하이면 프리뷰로 간주
+        MIN_PIXEL_AREA: 2000,      // 가로*세로 면적이 작으면 프리뷰일 가능성
         LOG_LEVEL_FOR_SKIP: 'debug' // skip 로그 레벨
     };
 
@@ -453,21 +453,21 @@
              const origAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
              if (origAddSourceBuffer) {
                  MediaSource.prototype.addSourceBuffer = function(mimeType) {
-                     if (/video|audio/i.test(mimeType)) {
-                         logManager.addOnce(`[EarlyCapture]MSE_MIME_${mimeType}`, `🧩 [EarlyCapture] MSE MIME 감지: ${mimeType}`, 5000, 'info');
-                     }
-                     return origAddSourceBuffer.call(this, mimeType);
+                      if (/video|audio/i.test(mimeType)) {
+                          logManager.addOnce(`[EarlyCapture]MSE_MIME_${mimeType}`, `🧩 [EarlyCapture] MSE MIME 감지: ${mimeType}`, 5000, 'info');
+                      }
+                      return origAddSourceBuffer.call(this, mimeType);
                  };
              }
 
              const origCreateObjectURL = URL.createObjectURL;
              if (origCreateObjectURL) {
                  URL.createObjectURL = function(obj) {
-                     const url = origCreateObjectURL.apply(this, arguments);
-                     if (obj instanceof MediaSource) {
-                         trackAndAttach(url, { source: 'createObjectURL(MediaSource)' });
-                     }
-                     return url;
+                      const url = origCreateObjectURL.apply(this, arguments);
+                      if (obj instanceof MediaSource) {
+                          trackAndAttach(url, { source: 'createObjectURL(MediaSource)' });
+                      }
+                      return url;
                  };
              }
          };
@@ -686,7 +686,7 @@
                 if (toggleBtn) toggleBtn.textContent = '▲';
                 if (speedSlider) speedSlider.updatePositionAndSize();
                 const isMediaPlaying = mediaFinder.findAll().some(m => !m.paused);
-                if (isMediaPlaying && dragBar) dragBar.show();
+                if (isMediaPlaying && dragBar) dragBar.show(0); // show(0)으로 호출하여 UI는 보이지만 텍스트는 표시되지 않게 함.
             }
         };
 
@@ -786,6 +786,7 @@
             recoveryTimer: null, throttleTimer: null, lastDragTimestamp: 0
         };
         let isInitialized = false;
+        let hideTimeout;
         let isVisible = false;
 
         const formatTime = (seconds) => {
@@ -798,22 +799,31 @@
             return `${sign}${paddedMinutes}분${paddedSeconds}초`;
         };
 
-        const updateTimeDisplay = (totalTimeChange) => {
-            if (!dragBarTimeDisplay) return;
-            if (totalTimeChange !== 0) {
-                dragBarTimeDisplay.textContent = formatTime(totalTimeChange);
-                dragBarTimeDisplay.style.display = 'block';
-                dragBarTimeDisplay.style.opacity = '1';
-            } else {
-                dragBarTimeDisplay.style.opacity = '0';
-                if (dragBarTimeDisplay.timer) clearTimeout(dragBarTimeDisplay.timer);
-                dragBarTimeDisplay.timer = setTimeout(() => {
-                    if (dragBarTimeDisplay.style.opacity === '0') {
-                        dragBarTimeDisplay.style.display = 'none';
-                    }
-                    dragBarTimeDisplay.timer = null;
-                }, 300);
+        const showTimeDisplay = (totalTimeChange) => {
+            if (!dragBarTimeDisplay || isNaN(totalTimeChange) || totalTimeChange === 0) return;
+
+            clearTimeout(hideTimeout);
+
+            const targetParent = document.fullscreenElement || document.body;
+            if (dragBarTimeDisplay.parentNode !== targetParent) {
+                dragBarTimeDisplay.parentNode?.removeChild(dragBarTimeDisplay);
+                targetParent.appendChild(dragBarTimeDisplay);
             }
+
+            dragBarTimeDisplay.textContent = formatTime(totalTimeChange);
+            dragBarTimeDisplay.style.display = 'block';
+            dragBarTimeDisplay.style.opacity = '1';
+            isVisible = true;
+        };
+
+        const hideTimeDisplay = () => {
+            if (!dragBarTimeDisplay || !isVisible) return;
+
+            dragBarTimeDisplay.style.opacity = '0';
+            hideTimeout = setTimeout(() => {
+                dragBarTimeDisplay.style.display = 'none';
+                isVisible = false;
+            }, 300);
         };
 
         const applyTimeChange = () => {
@@ -837,7 +847,7 @@
                     clearTimeout(dragState.recoveryTimer);
                     dragState.recoveryTimer = null;
                 }
-                updateTimeDisplay(0);
+                hideTimeDisplay();
                 dragState.isDragging = false;
                 dragState.currentDragDistanceX = 0;
                 dragState.totalTimeChange = 0;
@@ -868,7 +878,7 @@
             dragState.currentDragDistanceX = 0;
             dragState.totalTimeChange = 0;
             dragState.lastMoveTime = Date.now();
-            updateTimeDisplay(dragState.totalTimeChange);
+            showTimeDisplay(dragState.totalTimeChange);
             if (dragState.recoveryTimer) clearTimeout(dragState.recoveryTimer);
             dragState.recoveryTimer = setTimeout(cancelDrag, 5000);
             document.addEventListener('mousemove', handleMove, { passive: false, capture: true });
@@ -903,7 +913,7 @@
                     dragState.currentDragDistanceX += deltaX;
                     const pixelsPerSecond = DRAG_CONFIG?.PIXELS_PER_SECOND || 2;
                     dragState.totalTimeChange = Math.round(dragState.currentDragDistanceX / pixelsPerSecond);
-                    updateTimeDisplay(dragState.totalTimeChange);
+                    showTimeDisplay(dragState.totalTimeChange);
                     dragState.lastUpdateX = currentX;
                 }
             } catch(e) {
@@ -915,11 +925,28 @@
         const handleEnd = () => {
             if (!dragState.isDragging) return;
             try {
+                hideTimeDisplay();
                 applyTimeChange();
-                cancelDrag();
+                dragState.isDragging = false;
+                dragState.currentDragDistanceX = 0;
+                dragState.totalTimeChange = 0;
+                dragState.isHorizontalDrag = false;
+                if(document.body) document.body.style.userSelect = '';
+                if(document.body) document.body.style.touchAction = '';
+                document.removeEventListener('mousemove', handleMove, true);
+                document.removeEventListener('mouseup', handleEnd, true);
+                document.removeEventListener('touchmove', handleMove, true);
+                document.removeEventListener('touchend', handleEnd, true);
+
             } catch(e) {
                 logManager.logErrorWithContext(e, null);
-                cancelDrag();
+                dragState.isDragging = false;
+                if(document.body) document.body.style.userSelect = '';
+                if(document.body) document.body.style.touchAction = '';
+                document.removeEventListener('mousemove', handleMove, true);
+                document.removeEventListener('mouseup', handleEnd, true);
+                document.removeEventListener('touchmove', handleMove, true);
+                document.removeEventListener('touchend', handleEnd, true);
             }
         };
 
@@ -943,6 +970,7 @@
                     display: 'none', pointerEvents: 'none', transition: 'opacity 0.3s ease-out',
                     opacity: '1', textAlign: 'center', whiteSpace: 'nowrap'
                 });
+                // 초기에는 body에 추가, 전체화면 시 동적으로 이동
                 document.body.appendChild(dragBarTimeDisplay);
             }
             document.addEventListener('mousedown', handleStart, { passive: false, capture: true });
@@ -951,25 +979,7 @@
             document.addEventListener('touchcancel', handleEnd, { passive: false, capture: true });
         };
 
-        const show = () => {
-            if (isVisible) return;
-            if (!dragBarTimeDisplay) init();
-            if (!dragBarTimeDisplay) return;
-            const targetParent = document.fullscreenElement || document.body;
-            if (targetParent && dragBarTimeDisplay.parentNode !== targetParent) {
-                targetParent.appendChild(dragBarTimeDisplay);
-            }
-            dragBarTimeDisplay.style.display = 'block';
-            isVisible = true;
-        };
-
-        const hide = () => {
-            if (!isVisible) return;
-            if (dragBarTimeDisplay) dragBarTimeDisplay.style.display = 'none';
-            if (dragState.isDragging) cancelDrag();
-            isVisible = false;
-        };
-        return { init, show, hide, updateTimeDisplay };
+        return { init, show: showTimeDisplay, hide: hideTimeDisplay, updateTimeDisplay: showTimeDisplay };
     })();
 
     const dynamicMediaUI = (() => {
@@ -1079,7 +1089,7 @@
             const hasMedia = mediaFinder.findAll().some(m => m.readyState >= 1 || (!m.paused && (m.tagName === 'AUDIO' || (m.clientWidth > 0 && m.clientHeight > 0))));
             if (hasMedia) {
                 if (speedSlider) speedSlider.show();
-                if (dragBar && speedSlider && !speedSlider.isMinimized()) dragBar.show();
+                if (dragBar && speedSlider && !speedSlider.isMinimized()) dragBar.show(0);
                 if (networkMonitor && networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicMediaUI.show();
             } else {
                 if (speedSlider) speedSlider.hide();
@@ -1106,7 +1116,7 @@
             observeMediaSources(media);
 
             media.addEventListener('loadedmetadata', function checkDuration() {
-                 if (FeatureFlags.previewFiltering && this.duration && this.duration > 0 && this.duration < PREVIEW_CONFIG.DURATION_THRESHOLD) {
+                 if (FeatureFlags.previewFiltering && this.duration > 0 && this.duration < PREVIEW_CONFIG.DURATION_THRESHOLD) {
                      PREVIEW_ELEMENTS.add(media);
                      logManager.addOnce(`skip_preview_by_duration_${media.src}`, `🔴 [Skip:Preview] 미디어 로드 완료, 영상 길이가 ${this.duration.toFixed(1)}s 이므로 무시`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
                      return;
@@ -1325,7 +1335,7 @@
                                 return;
                             }
                             media.src = candidate;
-                            logManager.addOnce(`data_src_forced_${url}`, `🖼️ data-src -> src 강제 할당: ${url}`, 5000, 'info');
+                            logManager.addOnce(`data_src_mutation_${candidate}`, `🖼️ DOM 변경 감지, data-src -> src 업데이트: ${candidate}`, 5000, 'info');
                         }
                     }
                     networkMonitor.trackAndAttach(url, { element: media });
@@ -1369,14 +1379,14 @@
                     }
                     if ((targetNode.tagName === 'VIDEO' || targetNode.tagName === 'AUDIO') && (mutation.attributeName === 'src' || mutation.attributeName === 'controls' || mutation.attributeName === 'data-src')) {
                          if (targetNode.dataset.src && !targetNode.src) {
-                            const candidate = targetNode.dataset.src;
-                            if (networkMonitor.isPreviewURL(candidate)) {
-                                logManager.addOnce(`skip_assign_data_src_mut`, `⚠️ data-src assignment skipped (preview) | src: ${candidate}`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
-                                return;
-                            }
-                            targetNode.src = candidate;
-                            logManager.addOnce(`data_src_mutation_${targetNode.dataset.src}`, `🖼️ DOM 변경 감지, data-src -> src 업데이트: ${targetNode.dataset.src}`, 5000, 'info');
-                        }
+                              const candidate = targetNode.dataset.src;
+                              if (networkMonitor.isPreviewURL(candidate)) {
+                                  logManager.addOnce(`skip_assign_data_src_mut`, `⚠️ data-src assignment skipped (preview) | src: ${candidate}`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                                  return;
+                              }
+                              targetNode.src = candidate;
+                              logManager.addOnce(`data_src_mutation_${candidate}`, `🖼️ DOM 변경 감지, data-src -> src 업데이트: ${candidate}`, 5000, 'info');
+                          }
                         if (mediaControls) mediaControls.initWhenReady(targetNode);
                     }
                 }
@@ -1407,13 +1417,19 @@
             if (targetDocument === document) {
                 logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작`, 5000, 'info');
                 if(spaMonitor) spaMonitor.init();
+
                 document.addEventListener('fullscreenchange', () => {
                     if(speedSlider) speedSlider.updatePositionAndSize();
-                    if(speedSlider && dragBar) {
-                        if (!speedSlider.isMinimized()) dragBar.show();
-                        else dragBar.hide();
+                    if(dragBar) {
+                        const isMediaPlaying = mediaFinder.findAll().some(m => !m.paused);
+                        if (isMediaPlaying && !speedSlider.isMinimized()) {
+                            // dragBar.show(); // showTimeDisplay를 직접 호출하는 대신, dragbar.show()로 통일
+                        } else {
+                            dragBar.hide(); // hideTimeDisplay를 직접 호출
+                        }
                     }
                 });
+
                 if(speedSlider) speedSlider.init();
                 if(dragBar) dragBar.init();
                 if(dynamicMediaUI) dynamicMediaUI.init();
