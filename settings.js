@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name 			    VideoSpeed_Lite_Final_Unified_v22
-// @namespace 		https.com/
-// @version 		  15.0
-// @description 	🎞️ 비디오 속도 제어 UI + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (네트워크/API/DOM 후킹 강화 버전)
-// @match 			  *://*/*
-// @grant 			  GM_xmlhttpRequest
-// @grant 			  none
-// @connect 		  *
-// @run-at 			  document-start
+// @name          VideoSpeed_Control
+// @namespace     https.com/
+// @version       15.2
+// @description   🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
+// @match         *://*/*
+// @grant         GM_xmlhttpRequest
+// @grant         none
+// @connect       *
+// @run-at        document-start
 // ==/UserScript==
 
 (function () {
@@ -39,7 +39,6 @@
     const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
     const VIDEO_STATE = new WeakMap();
-    const VIDEO_URL_CACHE = new Set();
     const isTopFrame = window.self === window.top;
 
     // --- 유틸리티 함수 ---
@@ -189,405 +188,211 @@
         return { init, add: addLog, addOnce: addLogOnce };
     })();
 
-    // --- 네트워크 모니터링 모듈 ---
+    // --- 네트워크 모니터링 모듈 (강화 버전) ---
     const networkMonitor = (() => {
-        const originalXHR = XMLHttpRequest.prototype.open;
-        const originalFetch = window.fetch;
-        let capturedVideoURLs = new Set();
-        const blobToOriginalURLMap = new Map();
-        const mediaSourceBlobMap = new Map();
-        let lastCapturedM3U8 = null;
-        let lastCapturedMPD = null;
-        const TRACKED_VIDEO_EXTENSIONS = ['.m3u8', '.mpd', '.ts', '.mp4', '.webm', '.m4s', '.mov', '.flv', '.avi'];
+        const VIDEO_URL_CACHE = new Set();
+        const blobMap = new Map();
+        const mediaSourceMap = new Map();
+        const trackedVideoElements = new WeakSet();
 
-        const isVideoLikeRequest = (url) => {
-            return /\.(m3u8|mpd|mp4|webm|mov|avi|flv|ts|m4s)(\?|#|$)/i.test(url);
-        };
+        const isVideoUrl = (url) => /\.(m3u8|mpd|mp4|webm|ts|m4s)(\?|#|$)/i.test(url) || url.includes('mime=video') || url.includes('type=video');
         const isVideoMimeType = (mime) => mime?.includes('video/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
-        const isVideoUrl = (url) => {
-            if (!url || typeof url !== 'string') return false;
-            const normalizedUrl = url.toLowerCase();
-            return normalizedUrl.includes('mime=video') || isVideoLikeRequest(url) || normalizedUrl.startsWith('blob:') && blobToOriginalURLMap.has(normalizedUrl);
-        };
+
         const normalizeURL = (url) => {
-            try {
-                const u = new URL(url, location.href);
-                u.hash = '';
-                return u.toString();
-            } catch {
-                return url;
-            }
+            try { return new URL(url, location.href).href; }
+            catch { return url; }
         };
 
-        const getOriginalURLIfBlob = (url) => {
-            const originalUrl = blobToOriginalURLMap.get(url) || url;
-            if (originalUrl.startsWith('blob:')) {
-                const mappedUrl = mediaSourceBlobMap.get(url);
-                if (mappedUrl && mappedUrl !== 'MediaSource') {
-                    return mappedUrl;
-                }
-                return lastCapturedM3U8 || lastCapturedMPD || url;
-            }
-            return originalUrl;
-        };
+        const getOriginalURL = (url) => blobMap.get(url) || url;
 
-        const trackAndAttach = (url) => {
-            const norm = normalizeURL(url);
-            if (capturedVideoURLs.has(norm)) return;
-            capturedVideoURLs.add(norm);
-
-            logManager.addOnce(`network_url_detected_${norm.substring(0,50)}`, `💻 영상 URL 감지됨: ${norm}`, 5000, 'info');
-
-            if (blobToOriginalURLMap.size > 200) blobToOriginalURLMap.clear();
-            if (mediaSourceBlobMap.size > 100) mediaSourceBlobMap.clear();
-        };
-
-        const fetchTextCrossOrigin = (url, callback) => {
-            // GM_xmlhttpRequest가 지원되는지 확인
-            if (typeof GM_xmlhttpRequest === 'function') {
-                GM_xmlhttpRequest({
-                    method: "GET",
-                    url: url,
-                    headers: {
-                        "User-Agent": navigator.userAgent,
-                        "Accept": "*/*"
-                    },
-                    onload: function (res) {
-                        if (res.status >= 200 && res.status < 300) {
-                            callback(null, res.responseText);
-                        } else {
-                            callback(new Error(`HTTP Error ${res.status}`));
-                        }
-                    },
-                    onerror: function () {
-                        callback(new Error("Network Error"));
+        const handleManifestParsing = (url, text) => {
+            if (!text) return;
+            const lower = url.toLowerCase();
+            if (lower.endsWith('.m3u8') || text.includes('#EXTM3U')) {
+                const base = url.split('/').slice(0, -1).join('/') + '/';
+                const lines = (text.match(/^[^#][^\r\n]+$/gm) || []).map(l => l.trim());
+                lines.forEach(line => {
+                    const abs = normalizeURL(line, base);
+                    if (isVideoUrl(abs)) {
+                        trackAndAttach(null, abs);
                     }
                 });
-            } else {
-                // GM_xmlhttpRequest가 지원되지 않는 경우, 기존 fetch() 사용
-                fetch(url)
-                    .then(res => {
-                        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-                        return res.text();
-                    })
-                    .then(text => callback(null, text))
-                    .catch(err => callback(err));
+            } else if (lower.endsWith('.mpd') || text.includes('<MPD')) {
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(text, "application/xml");
+                const urls = Array.from(xml.querySelectorAll("BaseURL, SegmentTemplate")).map(el => el.textContent.trim() || el.getAttribute('initialization') || el.getAttribute('media')).filter(u => u);
+                urls.forEach(u => {
+                    const abs = normalizeURL(u, url);
+                    if (isVideoUrl(abs)) {
+                        trackAndAttach(null, abs);
+                    }
+                });
             }
         };
 
-        async function parseMPD(url) {
-            if (VIDEO_URL_CACHE.has(url)) return;
-            VIDEO_URL_CACHE.add(url);
+        const trackAndAttach = (videoEl, url) => {
+            const normUrl = normalizeURL(url);
+            if (!VIDEO_URL_CACHE.has(normUrl)) {
+                VIDEO_URL_CACHE.add(normUrl);
+                logManager.addOnce(`network_url_detected_${normUrl.substring(0,50)}`, `💻 영상 URL 감지됨: ${normUrl}`, 5000, 'info');
+                dynamicVideoUI.show(normUrl);
+            }
+            if (videoEl && !trackedVideoElements.has(videoEl)) {
+                trackedVideoElements.add(videoEl);
+            }
+        };
 
-            fetchTextCrossOrigin(url, (err, text) => {
-                if (err) {
-                    logManager.addOnce(`mpd_parse_fail_${url.substring(0,50)}`, `⚠️ MPD 파싱 실패: ${url} - ${err.message}`, 5000, 'error');
-                    return;
-                }
+        const hookFetch = () => {
+            const originalFetch = window.fetch;
+            window.fetch = async (...args) => {
+                const res = await originalFetch.apply(this, args);
+                const url = normalizeURL(typeof args[0] === 'string' ? args[0] : args[0]?.url);
+                const contentType = res.headers.get("content-type");
 
-                if (!text.includes("<MPD")) {
-                    logManager.addOnce(`mpd_parse_fail_no_tag_${url.substring(0,50)}`, `⚠️ MPD 파싱 실패 (MPD 태그 없음): ${url}`, 5000, 'warn');
-                    return;
-                }
-
-                try {
-                    const parser = new DOMParser();
-                    const xml = parser.parseFromString(text, "application/xml");
-
-                    const baseURLs = Array.from(xml.getElementsByTagName("BaseURL"))
-                        .map(el => el.textContent.trim());
-                    const base = baseURLs[0] ? new URL(baseURLs[0], url).href : url;
-
-                    const segmentTemplates = Array.from(xml.getElementsByTagName("SegmentTemplate"));
-                    const segmentBases = Array.from(xml.getElementsByTagName("SegmentBase"));
-                    const representations = Array.from(xml.getElementsByTagName("Representation"));
-
-                    logManager.addOnce(`mpd_parse_success_${url.substring(0,50)}`, `ℹ️ ✅ MPD 파싱 완료: ${url}`, 5000, 'info');
-                    lastCapturedMPD = url;
-
-                    // ✅ SegmentTemplate
-                    for (const template of segmentTemplates) {
-                        const media = template.getAttribute("media");
-                        const init = template.getAttribute("initialization");
-                        const startNumber = parseInt(template.getAttribute("startNumber") || "1", 10);
-                        if (init) {
-                            const initURL = new URL(init, base).href;
-                            if (!VIDEO_URL_CACHE.has(initURL)) {
-                                VIDEO_URL_CACHE.add(initURL);
-                                logManager.addOnce(`mpd_init_${initURL.substring(0,50)}`, `🔰 MPD 초기화 세그먼트: ${initURL}`, 5000, 'stream');
-                                trackAndAttach(initURL);
-                            }
-                        }
-                        if (media?.includes("$Number$")) {
-                            for (let i = startNumber; i < startNumber + 3; i++) {
-                                const seg = media.replace("$Number$", i);
-                                const segURL = new URL(seg, base).href;
-                                if (!VIDEO_URL_CACHE.has(segURL)) {
-                                    VIDEO_URL_CACHE.add(segURL);
-                                    logManager.addOnce(`mpd_seg_${segURL.substring(0,50)}`, `▶️ MPD 예측 세그먼트: ${segURL}`, 5000, 'stream');
-                                    trackAndAttach(segURL);
-                                }
-                            }
-                        }
-                    }
-                    // ✅ SegmentBase (e.g. YouTube)
-                    for (const baseTag of segmentBases) {
-                        const indexRange = baseTag.getAttribute("indexRange");
-                        if (indexRange) {
-                            for (const rep of representations) {
-                                const baseURLTag = rep.getElementsByTagName("BaseURL")[0];
-                                if (baseURLTag) {
-                                    const mediaURL = new URL(baseURLTag.textContent.trim(), url).href;
-                                    if (!VIDEO_URL_CACHE.has(mediaURL)) {
-                                        VIDEO_URL_CACHE.add(mediaURL);
-                                        logManager.addOnce(`mpd_base_${mediaURL.substring(0,50)}`, `▶️ SegmentBase 미디어 URL: ${mediaURL}`, 5000, 'stream');
-                                        trackAndAttach(mediaURL);
+                if (isVideoUrl(url) || isVideoMimeType(contentType)) {
+                    trackAndAttach(null, url);
+                } else if (contentType?.includes('application/json')) {
+                    const resClone = res.clone();
+                    try {
+                        const json = await resClone.json();
+                        const urls = [];
+                        function recursiveSearch(obj) {
+                            if (typeof obj === 'string' && isVideoUrl(obj)) {
+                                urls.push(obj);
+                            } else if (typeof obj === 'object' && obj !== null) {
+                                for (const key in obj) {
+                                    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                                        recursiveSearch(obj[key]);
                                     }
                                 }
                             }
                         }
-                    }
-                } catch (err) {
-                    logManager.addOnce(`parse_mpd_fail_dom_${url.substring(0,50)}`, `⚠️ MPD DOM 파싱 실패: ${url} - ${err.message}`, 5000, 'error');
-                }
-            });
-        }
-
-        async function parseM3U8(url, depth = 0) {
-            if (depth > 2 || VIDEO_URL_CACHE.has(url)) return;
-            VIDEO_URL_CACHE.add(url);
-
-            fetchTextCrossOrigin(url, (err, text) => {
-                if (err) {
-                    logManager.addOnce(`m3u8_parse_fail_${url.substring(0,50)}`, `⚠️ M3U8 파싱 실패: ${url} - ${err.message}`, 5000, 'error');
-                    return;
+                        recursiveSearch(json);
+                        urls.forEach(u => trackAndAttach(null, u));
+                    } catch (e) {}
                 }
 
-                if (!text.includes('#EXTM3U')) {
-                    logManager.addOnce(`m3u8_parse_fail_header_${url.substring(0,50)}`, `⚠️ M3U8 파싱 실패 (헤더 누락): ${url}`, 5000, 'warn');
-                    return;
+                if (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd')) {
+                    res.clone().text().then(text => handleManifestParsing(url, text));
                 }
 
-                const isMaster = text.includes('#EXT-X-STREAM-INF');
-                if (isMaster) {
-                    logManager.addOnce(`m3u8_master_${url.substring(0,50)}`, `ℹ️ ✅ M3U8 Master 감지: ${url}`, 5000, 'info');
-                } else {
-                    logManager.addOnce(`m3u8_variant_${url.substring(0,50)}`, `ℹ️ ✅ M3U8 Variant 감지: ${url}`, 5000, 'info');
-                }
-                if (depth === 0) lastCapturedM3U8 = url;
-
-                const base = url.split('/').slice(0, -1).join('/') + '/';
-                const lines = (text.match(/^[^#][^\r\n]+$/gm) || []).map(l => l.trim());
-
-                for (const line of lines) {
-                    const abs = new URL(line, base).href;
-                    if (abs.toLowerCase().endsWith('.m3u8')) {
-                        parseM3U8(abs, depth + 1);
-                    } else if (isMediaSegmentURL(abs)) {
-                        if (!VIDEO_URL_CACHE.has(abs)) {
-                            VIDEO_URL_CACHE.add(abs);
-                            logManager.addOnce(`m3u8_seg_${abs.substring(0,50)}`, `▶️ M3U8 세그먼트: ${abs}`, 5000, 'stream');
-                            trackAndAttach(abs);
-                        }
-                    }
-                }
-            });
-        }
-
-        const isMediaSegmentURL = (url) => {
-            return /\.(ts|mp4|m4s|webm)(\?|#|$)/i.test(url);
-        }
-
-        async function parseJSONResponse(url, responseClone) {
-            try {
-                const json = await responseClone.json();
-                const urls = [];
-                function recursiveSearch(obj) {
-                    if (typeof obj === 'string' && isVideoLikeRequest(obj)) {
-                        urls.push(obj);
-                    } else if (typeof obj === 'object' && obj !== null) {
-                        for (const key in obj) {
-                            if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                                recursiveSearch(obj[key]);
-                            }
-                        }
-                    }
-                }
-                recursiveSearch(json);
-                if (urls.length) {
-                    logManager.addOnce(`api_json_urls_${url.substring(0,50)}`, `🔎 API 응답(JSON) 내 영상 URL 발견: ${urls.join(', ')}`, 5000, 'info');
-                    urls.forEach(trackAndAttach);
-                }
-            } catch (e) {
-                // JSON 파싱 오류는 무시
-            }
-        }
-
-        async function handleStreamManifest(url, contentType = "") {
-            if (VIDEO_URL_CACHE.has(url)) return;
-            const lower = url.toLowerCase();
-            if (lower.endsWith(".m3u8") || contentType?.includes("application/vnd.apple.mpegurl")) {
-                parseM3U8(url);
-            } else if (lower.endsWith(".mpd") || contentType?.includes("application/dash+xml")) {
-                parseMPD(url);
-            }
-        }
-
-        const hookPrototypes = () => {
-            const origOpen = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                this.__pbivs_originalUrl = url;
-                if (url) {
-                    handleStreamManifest(url);
-                }
-                return origOpen.apply(this, [method, url, ...args]);
+                return res;
             };
-
-            const origSend = XMLHttpRequest.prototype.send;
-            XMLHttpRequest.prototype.send = function(...sendArgs) {
-                this.addEventListener('load', () => {
-                    const contentType = this.getResponseHeader('Content-Type');
-                    const url = this.__pbivs_originalUrl;
-                    if (url && (isVideoUrl(url) || isVideoMimeType(contentType))) {
-                        logManager.addOnce(`network_detected_xhr_${url.substring(0,50)}`, `🎥 XHR 영상 URL 감지됨: ${url}`, 5000, 'info');
-                        trackAndAttach(url);
-                    }
-                });
-                return origSend.apply(this, sendArgs);
-            };
-
-            if (originalFetch) {
-                window.fetch = async function(input, init) {
-                    const url = typeof input === 'string' ? input : input.url;
-                    if (url) {
-                        await handleStreamManifest(url);
-                    }
-                    const res = await originalFetch.call(this, input, init);
-                    const resClone = res.clone();
-                    const contentType = res.headers.get("content-type");
-                    if (isVideoUrl(url) || isVideoMimeType(contentType)) {
-                        logManager.addOnce(`network_detected_fetch_${url.substring(0,50)}`, `🎥 fetch 영상 URL 감지됨: ${url}`, 5000, 'info');
-                        trackAndAttach(url);
-                    }
-                    if (contentType?.includes('application/json')) {
-                        parseJSONResponse(url, resClone);
-                    }
-                    // handleStreamManifest는 이제 비동기 fetch가 아닌 동기식 GM_xmlhttpRequest를 사용
-                    // 따라서 이 부분에서 다시 호출할 필요 없음
-                    return res;
-                };
-            }
-
-            // MediaSource 후킹 (addSourceBuffer)
-            const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
-            if (originalAddSourceBuffer) {
-                MediaSource.prototype.addSourceBuffer = function(mimeType) {
-                    logManager.addOnce(`mse_add_source_buffer`, `🛰️ MediaSource.addSourceBuffer 호출됨 | MIME: ${mimeType}`, 5000, 'debug');
-                    return originalAddSourceBuffer.apply(this, arguments);
-                };
-            }
-
-            const origSrcObjDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "srcObject");
-            if (origSrcObjDescriptor?.set) {
-                Object.defineProperty(HTMLMediaElement.prototype, "srcObject", {
-                    set(obj) {
-                        if (obj instanceof MediaSource) {
-                            const originalUrl = mediaSourceBlobMap.get(obj);
-                            if (originalUrl) {
-                                trackAndAttach(originalUrl);
-                                logManager.addOnce('srcObject_stream_detected', `🛰️ srcObject 스트림 감지됨 (원본: ${originalUrl})`, 5000, 'info');
-                            }
-                        }
-                        return origSrcObjDescriptor.set.call(this, obj);
-                    },
-                    get() { return origSrcObjDescriptor.get.call(this); }
-                });
-            }
-
-            const origSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "src");
-            if (origSrcDescriptor?.set) {
-                Object.defineProperty(HTMLMediaElement.prototype, "src", {
-                    set(value) {
-                        if (value && isVideoUrl(value)) {
-                            logManager.addOnce(`video_src_set_${value.substring(0,50)}`, `🎥 video.src 변경 감지: ${value}`, 5000, 'info');
-                            trackAndAttach(value);
-                        }
-                        return origSrcDescriptor.set.call(this, value);
-                    },
-                    get() { return origSrcDescriptor.get.call(this); }
-                });
-            }
-
-            const originalCreateObjectURL = URL.createObjectURL;
-            if (originalCreateObjectURL) {
-                URL.createObjectURL = function(obj) {
-                    const url = originalCreateObjectURL.call(this, obj);
-                    if (obj instanceof MediaSource) {
-                        if (lastCapturedM3U8 || lastCapturedMPD) {
-                            const originalUrl = lastCapturedM3U8 || lastCapturedMPD;
-                            mediaSourceBlobMap.set(obj, originalUrl);
-                            logManager.addOnce('createObjectURL_mse_${url}', `[URL] MediaSource에 Blob URL 할당됨 (원본: ${originalUrl})`, 5000, 'info');
-                        }
-                    } else if (obj instanceof Blob && isVideoMimeType(obj.type)) {
-                        blobToOriginalURLMap.set(url, url);
-                        logManager.addOnce(`createObjectURL_blob_${url}`, `[URL] 비디오 Blob URL 생성됨: ${url}`, 5000, 'info');
-                        trackAndAttach(url);
-                    }
-                    return url;
-                };
-            }
         };
 
-        const hookDecoders = () => {
-            const originalAtob = window.atob;
-            if (originalAtob) {
-                window.atob = function(str) {
-                    const decoded = originalAtob.apply(this, arguments);
-                    if (typeof decoded === 'string' && isVideoLikeRequest(decoded)) {
-                        logManager.addOnce(`atob_decoded_${decoded.substring(0,50)}`, `🔑 atob()로 복호화된 영상 URL 감지: ${decoded}`, 5000, 'info');
-                        trackAndAttach(decoded);
-                    }
-                    return decoded;
-                };
-            }
+        const hookXHR = () => {
+            const originalOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+                this.__pbivs_originalUrl = url;
+                if (isVideoUrl(url)) {
+                    trackAndAttach(null, url);
+                }
+                return originalOpen.call(this, method, url, ...rest);
+            };
 
-            const originalDecodeURIComponent = window.decodeURIComponent;
-            if (originalDecodeURIComponent) {
-                window.decodeURIComponent = function(str) {
-                    const decoded = originalDecodeURIComponent.apply(this, arguments);
-                    if (typeof decoded === 'string' && isVideoLikeRequest(decoded)) {
-                        logManager.addOnce(`decode_uri_component_${decoded.substring(0,50)}`, `🔑 decodeURIComponent()로 복호화된 영상 URL 감지: ${decoded}`, 5000, 'info');
-                        trackAndAttach(decoded);
+            const originalSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.send = function(...sendArgs) {
+                this.addEventListener('load', () => {
+                    const url = this.__pbivs_originalUrl;
+                    const contentType = this.getResponseHeader('Content-Type');
+                    if (url && (isVideoUrl(url) || isVideoMimeType(contentType))) {
+                        trackAndAttach(null, url);
                     }
-                    return decoded;
+                });
+                return originalSend.apply(this, sendArgs);
+            };
+        };
+
+        const hookMediaSource = () => {
+            if (!window.MediaSource) return;
+            const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
+            MediaSource.prototype.addSourceBuffer = function (mimeType) {
+                if (/video|audio/i.test(mimeType)) {
+                    if (!this.__videoStreamInfo) this.__videoStreamInfo = {};
+                    this.__videoStreamInfo.mimeType = mimeType;
+                }
+                return originalAddSourceBuffer.apply(this, arguments);
+            };
+        };
+
+        const hookCreateObjectURL = () => {
+            const originalCreateObjectURL = URL.createObjectURL;
+            URL.createObjectURL = function (obj) {
+                const url = originalCreateObjectURL.apply(this, arguments);
+                if (obj instanceof MediaSource) {
+                    const info = obj.__videoStreamInfo || {};
+                    const lastManifest = Array.from(VIDEO_URL_CACHE)
+                        .reverse()
+                        .find(u => /\.(m3u8|mpd)$/i.test(u));
+                    if (lastManifest) {
+                        blobMap.set(url, lastManifest);
+                        logManager.addOnce(`blob_url_mapped_${url.substring(0,50)}`, `🔗 Blob URL 생성 및 매핑: ${url} -> ${lastManifest}`, 5000, 'debug');
+                        trackAndAttach(null, lastManifest);
+                    }
+                }
+                if (obj instanceof Blob && isVideoMimeType(obj.type)) {
+                    blobMap.set(url, url);
+                    trackAndAttach(null, url);
+                }
+                return url;
+            };
+        };
+
+        const observeVideoSources = () => {
+            const handleVideo = (video) => {
+                const checkAndMap = () => {
+                    const currentSrc = video.src;
+                    if (!currentSrc) return;
+                    if (trackedVideoElements.has(video)) return;
+
+                    if (currentSrc.startsWith('blob:') && blobMap.has(currentSrc)) {
+                        const manifestURL = blobMap.get(currentSrc);
+                        trackAndAttach(video, manifestURL);
+                    } else if (isVideoUrl(currentSrc)) {
+                        trackAndAttach(video, currentSrc);
+                    } else {
+                        const originalUrl = mediaSourceMap.get(video.srcObject);
+                        if (originalUrl) {
+                            trackAndAttach(video, originalUrl);
+                        }
+                    }
                 };
+                checkAndMap();
+
+                const obs = new MutationObserver(checkAndMap);
+                obs.observe(video, { attributes: true, attributeFilter: ["src", "srcObject"] });
+            };
+
+            document.querySelectorAll("video").forEach(handleVideo);
+            const mo = new MutationObserver(muts => {
+                muts.forEach(m => {
+                    m.addedNodes.forEach(node => {
+                        if (node.tagName === "VIDEO") handleVideo(node);
+                    });
+                });
+            });
+            if (document.body) {
+                mo.observe(document.body, { childList: true, subtree: true });
             }
         };
 
         const resetState = () => {
-            capturedVideoURLs.clear();
-            blobToOriginalURLMap.clear();
-            mediaSourceBlobMap.clear();
-            lastCapturedM3U8 = null;
-            lastCapturedMPD = null;
             VIDEO_URL_CACHE.clear();
+            blobMap.clear();
+            mediaSourceMap.clear();
         };
 
         const init = () => {
             if (FeatureFlags.enhanceURLDetection) {
-                hookPrototypes();
-                hookDecoders();
+                hookFetch();
+                hookXHR();
+                hookMediaSource();
+                hookCreateObjectURL();
+                observeVideoSources();
             }
         };
 
-        return {
-            init,
-            getOriginalURLIfBlob,
-            isVideoUrl,
-            trackAndAttach,
-            reportVideoURL: trackAndAttach,
-            resetState
-        };
+        return { init, getOriginalURL, isVideoUrl, VIDEO_URL_CACHE, resetState, trackAndAttach };
     })();
 
     // --- JWPlayer 모니터링 모듈 추가 ---
@@ -606,7 +411,7 @@
                         lastItemURL = fileUrl;
                         if (networkMonitor.isVideoUrl(fileUrl)) {
                             logManager.addOnce(`jwplayer_polling_${fileUrl.substring(0,50)}`, `🎥 JWPlayer 영상 URL 감지됨: ${fileUrl}`, 5000, 'info');
-                            networkMonitor.reportVideoURL(fileUrl);
+                            networkMonitor.trackAndAttach(null, fileUrl);
                         }
                     }
                 });
@@ -672,7 +477,7 @@
                 const src = el.getAttribute('data-src') || el.getAttribute('data-video') || el.getAttribute('data-url');
                 if (src && networkMonitor.isVideoUrl(src)) {
                     logManager.addOnce(`dom_data_url_${src.substring(0,50)}`, `🔍 DOM 데이터 속성에서 URL 감지: ${src}`, 5000, 'info');
-                    networkMonitor.trackAndAttach(src);
+                    networkMonitor.trackAndAttach(null, src);
                 }
             });
             doc.querySelectorAll('script:not([src])').forEach(script => {
@@ -680,7 +485,7 @@
                 const urls = [...text.matchAll(/https?:\/\/[^\s'"]+\.(mp4|m3u8|mpd|blob:[^\s'"]+)/gi)].map(m => m[0]);
                 if (urls.length) {
                     logManager.addOnce(`inline_script_urls_${urls[0].substring(0,50)}`, `🔍 인라인 스크립트에서 URL 감지: ${urls.join(', ')}`, 5000, 'info');
-                    urls.forEach(networkMonitor.trackAndAttach);
+                    urls.forEach(u => networkMonitor.trackAndAttach(null, u));
                 }
             });
             return videos;
@@ -1097,7 +902,7 @@
                 e.stopPropagation();
                 e.preventDefault();
 
-                const urlToCopy = networkMonitor.getOriginalURLIfBlob([...VIDEO_URL_CACHE].pop());
+                const urlToCopy = networkMonitor.getOriginalURL([...networkMonitor.VIDEO_URL_CACHE].pop());
                 logManager.add(`[URL] 복사 시도: ${urlToCopy || 'URL 없음'}`, 'info');
 
                 if (!urlToCopy || urlToCopy.startsWith('blob:')) {
@@ -1126,9 +931,10 @@
             };
         };
 
-        const show = (url) => {
+        const show = () => {
             if (!isInitialized) init();
             if (!button) return;
+            button.style.display = 'block';
         };
 
         const hide = () => {
@@ -1147,11 +953,8 @@
                 const videoData = VIDEO_STATE.get(video) || { originalSrc: video.src, hasControls: video.hasAttribute('controls') };
                 VIDEO_STATE.set(video, videoData);
                 logManager.addOnce(`video_ready_${videoData.originalSrc || 'no-src'}`, `🎬 비디오 준비됨 | src: ${videoData.originalSrc}`, 5000, 'info');
-                if (video.src && networkMonitor.isVideoUrl(video.src)) {
-                    networkMonitor.trackAndAttach(video.src);
-                }
-                if (video.parentElement && video.clientWidth > 0 && video.clientHeight > 0) {
-                    const parentContainer = videoFinder.findLargestParent(video);
+                if (video.src && networkMonitor.VIDEO_URL_CACHE.has(video.src)) {
+                    dynamicVideoUI.show();
                 }
             };
             if (video.readyState >= 1) {
@@ -1256,7 +1059,7 @@
                             if (node.hasAttribute && (node.hasAttribute('data-src') || node.hasAttribute('data-video'))) {
                                 const src = node.getAttribute('data-src') || node.getAttribute('data-video') || node.getAttribute('data-url');
                                 if (src && networkMonitor.isVideoUrl(src)) {
-                                    networkMonitor.trackAndAttach(src);
+                                    networkMonitor.trackAndAttach(null, src);
                                 }
                             }
                         }
@@ -1306,11 +1109,12 @@
                 if (isAnyVideoAvailable) {
                     if (speedSlider) speedSlider.show();
                     if (dragBar && !speedSlider.isMinimized()) dragBar.show();
+                    if (networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicVideoUI.show();
                 } else {
                     if (speedSlider) speedSlider.hide();
                     if (dragBar) dragBar.hide();
+                    dynamicVideoUI.hide();
                 }
-                dynamicVideoUI.hide();
             };
             const interval = setInterval(throttle(checkVideos, 1000), 1500);
             VIDEO_WATCHER_MAP.set(targetDocument, interval);
