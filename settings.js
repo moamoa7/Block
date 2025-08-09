@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          VideoSpeed_Control
 // @namespace     https.com/
-// @version       15.2
+// @version       15.3
 // @description   🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         GM_xmlhttpRequest
@@ -22,7 +22,6 @@
     const DRAG_CONFIG = {
         PIXELS_PER_SECOND: 2
     };
-    const POLLING_TIMEOUT_MS = 2 * 60 * 1000;
 
     // --- 스크립트 초기 실행 전 예외 처리 ---
     if (window.hasOwnProperty('__MySuperScriptInitialized') && window.__MySuperScriptInitialized) {
@@ -52,16 +51,6 @@
             }
         };
     }
-
-    const requestIdleCallback = window.requestIdleCallback || function (cb) {
-        const start = Date.now();
-        return setTimeout(() => {
-            cb({
-                didTimeout: false,
-                timeRemaining: () => Math.max(0, 50 - (Date.now() - start))
-            });
-        }, 16);
-    };
 
     // --- 로그 모듈 ---
     const logManager = (() => {
@@ -104,7 +93,11 @@
         function addLog(msg, level = 'info') {
             const ICONS = { info: 'ℹ️', warn: '⚠️', 'error': '🔴', 'allow': '✅', 'debug': '🔧', 'stream': '▶️' };
             const fullMsg = `[${new Date().toLocaleTimeString()}] ${ICONS[level] || ''} ${msg}`;
-            console[level] ? console[level](fullMsg) : console.log(fullMsg);
+            if (console[level]) {
+                console[level](fullMsg);
+            } else {
+                console.log(fullMsg);
+            }
             if (!FeatureFlags.logUI) return;
             if (!isTopFrame) {
                 try {
@@ -213,7 +206,7 @@
             if (lower.endsWith('.m3u8') || text.includes('#EXTM3U')) {
                 const lines = (text.match(/^[^#][^\r\n]+$/gm) || []).map(l => l.trim());
                 lines.forEach(line => {
-                    const abs = normalizeURL(line, url); // base URL 적용
+                    const abs = normalizeURL(line, url);
                     if (isVideoUrl(abs)) {
                         trackAndAttach(null, abs);
                     }
@@ -270,7 +263,9 @@
                         }
                         recursiveSearch(json);
                         urls.forEach(u => trackAndAttach(null, u));
-                    } catch (e) {}
+                    } catch (e) {
+                         logManager.add(`Fetch JSON 파싱 오류: ${e.message}\n${e.stack}`, 'error');
+                    }
                 }
 
                 if (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd')) {
@@ -323,7 +318,6 @@
             URL.createObjectURL = function (obj) {
                 const url = originalCreateObjectURL.apply(this, arguments);
                 if (obj instanceof MediaSource) {
-                    const info = obj.__videoStreamInfo || {};
                     const lastManifest = lastManifestURL;
                     if (lastManifest) {
                         blobSourceMap.set(url, lastManifest);
@@ -339,39 +333,6 @@
             };
         };
 
-        const observeVideoSources = (video) => {
-            if (PROCESSED_NODES.has(video)) return;
-            PROCESSED_NODES.add(video);
-
-            const checkAndMap = () => {
-                const currentSrc = video.src;
-                if (currentSrc && !trackedVideoElements.has(video)) {
-                    if (currentSrc.startsWith('blob:') && blobSourceMap.has(currentSrc)) {
-                        const manifestURL = blobSourceMap.get(currentSrc);
-                        trackAndAttach(video, manifestURL);
-                    } else if (isVideoUrl(currentSrc)) {
-                        trackAndAttach(video, currentSrc);
-                    }
-                }
-                video.querySelectorAll('source').forEach(srcEl => {
-                    if (srcEl.src) {
-                        trackAndAttach(null, normalizeURL(srcEl.src));
-                    }
-                });
-            };
-
-            checkAndMap();
-
-            const obs = new MutationObserver(checkAndMap);
-            obs.observe(video, { attributes: true, attributeFilter: ["src", "srcObject"], childList: true, subtree: true });
-        };
-
-        const resetState = () => {
-            VIDEO_URL_CACHE.clear();
-            blobSourceMap.clear();
-            mediaSourceMap.clear();
-        };
-
         const init = () => {
             if (FeatureFlags.enhanceURLDetection) {
                 hookFetch();
@@ -381,7 +342,11 @@
             }
         };
 
-        return { init, getOriginalURL, isVideoUrl, VIDEO_URL_CACHE, resetState, trackAndAttach, observeVideoSources };
+        return { init, getOriginalURL, isVideoUrl, VIDEO_URL_CACHE, resetState: () => {
+            VIDEO_URL_CACHE.clear();
+            blobSourceMap.clear();
+            mediaSourceMap.clear();
+        }, trackAndAttach };
     })();
 
     // --- JWPlayer 모니터링 모듈 추가 ---
@@ -404,7 +369,9 @@
                         }
                     }
                 });
-            } catch (e) {}
+            } catch (e) {
+                logManager.addOnce(`jwplayer_check_error`, `JWPlayer 체크 오류: ${e.message}\n${e.stack}`, 5000, 'error');
+            }
         };
 
         const hookJWPlayer = (context) => {
@@ -465,7 +432,6 @@
             doc.querySelectorAll('[data-src], [data-video], [data-url]').forEach(el => {
                 const src = el.getAttribute('data-src') || el.getAttribute('data-video') || el.getAttribute('data-url');
                 if (src && networkMonitor.isVideoUrl(src)) {
-                    logManager.addOnce(`dom_data_url_${src.substring(0,50)}`, `🔍 DOM 데이터 속성에서 URL 감지: ${src}`, 5000, 'info');
                     networkMonitor.trackAndAttach(null, src);
                 }
             });
@@ -473,7 +439,6 @@
                 const text = script.textContent;
                 const urls = [...text.matchAll(/https?:\/\/[^\s'"]+\.(mp4|m3u8|mpd|blob:[^\s'"]+)/gi)].map(m => m[0]);
                 if (urls.length) {
-                    logManager.addOnce(`inline_script_urls_${urls[0].substring(0,50)}`, `🔍 인라인 스크립트에서 URL 감지: ${urls.join(', ')}`, 5000, 'info');
                     urls.forEach(u => networkMonitor.trackAndAttach(null, u));
                 }
             });
@@ -515,6 +480,7 @@
         let playbackUpdateTimer;
         let isMinimized = JSON.parse(localStorage.getItem('speedSliderMinimized') || 'true');
         let isInitialized = false;
+        let isVisible = false;
 
         const createSliderElements = () => {
             if (document.getElementById('vm-speed-slider-style')) return;
@@ -564,16 +530,16 @@
                 if (valueDisplay) valueDisplay.style.display = 'none';
                 if (resetBtn) resetBtn.style.display = 'none';
                 if (toggleBtn) toggleBtn.textContent = '▼';
-                dragBar.hide();
+                if (dragBar) dragBar.hide();
             } else {
                 container.style.width = '50px';
                 if (slider) slider.style.display = 'block';
                 if (valueDisplay) valueDisplay.style.display = 'block';
                 if (resetBtn) resetBtn.style.display = 'block';
                 if (toggleBtn) toggleBtn.textContent = '▲';
-                speedSlider.updatePositionAndSize();
+                if (speedSlider) speedSlider.updatePositionAndSize();
                 const isVideoPlaying = videoFinder.findAll().some(v => !v.paused);
-                if (isVideoPlaying) dragBar.show();
+                if (isVideoPlaying && dragBar) dragBar.show();
             }
         };
 
@@ -629,6 +595,7 @@
         };
 
         const show = () => {
+            if (isVisible) return;
             if (!speedSliderContainer) init();
             if (!speedSliderContainer) return;
             if (!document.body.contains(speedSliderContainer)) {
@@ -638,9 +605,12 @@
             updatePositionAndSize();
             const slider = speedSliderContainer.querySelector('#vm-speed-slider');
             if (slider) updateSpeed(slider.value);
+            isVisible = true;
         };
         const hide = () => {
+            if (!isVisible) return;
             if (speedSliderContainer) speedSliderContainer.style.display = 'none';
+            isVisible = false;
         };
 
         const updatePositionAndSize = () => {
@@ -670,6 +640,7 @@
             recoveryTimer: null, throttleTimer: null, lastDragTimestamp: 0
         };
         let isInitialized = false;
+        let isVisible = false;
 
         const formatTime = (seconds) => {
             const absSeconds = Math.abs(seconds);
@@ -738,7 +709,7 @@
 
         const getPosition = (e) => e.touches && e.touches.length > 0 ? e.touches[0] : e;
         const handleStart = (e) => {
-            if (speedSlider.isMinimized() || dragState.isDragging || e.button === 2) return;
+            if (!speedSlider || speedSlider.isMinimized() || dragState.isDragging || e.button === 2) return;
             if (e.target && e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
             const videos = videoFinder.findAll();
             if (videos.length === 0) return;
@@ -835,6 +806,7 @@
         };
 
         const show = () => {
+            if (isVisible) return;
             if (!dragBarTimeDisplay) init();
             if (!dragBarTimeDisplay) return;
             const targetParent = document.fullscreenElement || document.body;
@@ -842,11 +814,14 @@
                 targetParent.appendChild(dragBarTimeDisplay);
             }
             dragBarTimeDisplay.style.display = 'block';
+            isVisible = true;
         };
 
         const hide = () => {
+            if (!isVisible) return;
             if (dragBarTimeDisplay) dragBarTimeDisplay.style.display = 'none';
             if (dragState.isDragging) cancelDrag();
+            isVisible = false;
         };
         return { init, show, hide, updateTimeDisplay };
     })();
@@ -855,6 +830,7 @@
     const dynamicVideoUI = (() => {
         let button;
         let isInitialized = false;
+        let isVisible = false;
 
         const init = () => {
             if (isInitialized) return;
@@ -892,7 +868,7 @@
                 e.preventDefault();
 
                 const urlToCopy = networkMonitor.getOriginalURL([...networkMonitor.VIDEO_URL_CACHE].pop());
-                logManager.add(`[URL] 복사 시도: ${urlToCopy || 'URL 없음'}`, 'info');
+                logManager.addOnce(`url_copy_attempt_${Date.now()}`, `[URL] 복사 시도: ${urlToCopy || 'URL 없음'}`, 5000, 'info');
 
                 if (!urlToCopy || urlToCopy.startsWith('blob:')) {
                     logManager.add('⚠️ 원본 URL을 찾을 수 없습니다.', 'warn');
@@ -921,13 +897,17 @@
         };
 
         const show = () => {
+            if (isVisible) return;
             if (!isInitialized) init();
             if (!button) return;
             button.style.display = 'block';
+            isVisible = true;
         };
 
         const hide = () => {
+            if (!isVisible) return;
             if (button) button.style.display = 'none';
+            isVisible = false;
         }
 
         return { init, show, hide };
@@ -950,28 +930,37 @@
             obs.observe(video, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
         };
 
+        const updateUIVisibility = throttle(() => {
+            const hasVideo = videoFinder.findAll().some(v => v.readyState >= 1 || (!v.paused && v.clientWidth > 0 && v.clientHeight > 0));
+            if (hasVideo) {
+                if (speedSlider) speedSlider.show();
+                if (dragBar && speedSlider && !speedSlider.isMinimized()) dragBar.show();
+                if (networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicVideoUI.show();
+            } else {
+                if (speedSlider) speedSlider.hide();
+                if (dragBar) dragBar.hide();
+                if (dynamicVideoUI) dynamicVideoUI.hide();
+            }
+        }, 500);
+
         const initWhenReady = (video) => {
             if (!video || PROCESSED_NODES.has(video)) return;
             PROCESSED_NODES.add(video);
 
-            // <source> 감시 추가
             observeVideoSources(video);
 
-            const videoLoaded = () => {
+            video.addEventListener('play', () => { updateUIVisibility(); }, true);
+            video.addEventListener('pause', () => { updateUIVisibility(); }, true);
+            video.addEventListener('ended', () => { updateUIVisibility(); }, true);
+            video.addEventListener('loadedmetadata', () => {
                 const videoData = VIDEO_STATE.get(video) || { originalSrc: video.src, hasControls: video.hasAttribute('controls') };
                 VIDEO_STATE.set(video, videoData);
                 logManager.addOnce(`video_ready_${videoData.originalSrc || 'no-src'}`, `🎬 비디오 준비됨 | src: ${videoData.originalSrc}`, 5000, 'info');
                 if (video.src && networkMonitor.VIDEO_URL_CACHE.has(video.src)) {
-                    dynamicVideoUI.show();
+                    if (dynamicVideoUI) dynamicVideoUI.show();
                 }
-            };
-            if (video.readyState >= 1) {
-                videoLoaded();
-            } else {
-                video.addEventListener('loadedmetadata', videoLoaded, { once: true });
-                video.addEventListener('play', videoLoaded, { once: true });
-                video.addEventListener('playing', videoLoaded, { once: true });
-            }
+                updateUIVisibility();
+            }, { once: true });
         };
 
         const detachUI = (video) => {
@@ -979,14 +968,23 @@
             if (videoData) {
                 VIDEO_STATE.delete(video);
             }
+            updateUIVisibility();
         };
-        return { initWhenReady, detachUI };
+
+        return { initWhenReady, detachUI, updateUIVisibility };
     })();
 
     // --- SPA 및 MutationObserver 통합 모듈 ---
     const spaMonitor = (() => {
         let lastURL = location.href;
         let debounceTimer = null;
+
+        const clearProcessedSets = () => {
+            PROCESSED_DOCUMENTS = new WeakSet();
+            PROCESSED_NODES = new WeakSet();
+            PROCESSED_IFRAMES = new WeakSet();
+        };
+
         const onNavigate = (reason = 'URL 변경 감지') => {
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
@@ -994,9 +992,7 @@
                 if (url !== lastURL) {
                     lastURL = url;
                     logManager.addOnce(`spa_navigate`, `🔄 ${reason} | URL: ${url}`, 5000, 'info');
-                    PROCESSED_DOCUMENTS = new WeakSet();
-                    PROCESSED_NODES = new WeakSet();
-                    PROCESSED_IFRAMES = new WeakSet();
+                    clearProcessedSets();
                     LOGGED_KEYS_WITH_TIMER.clear();
                     networkMonitor.resetState();
                     OBSERVER_MAP.forEach(observer => observer.disconnect());
@@ -1023,54 +1019,67 @@
 
     // --- 주요 기능 통합 및 실행 ---
     const App = (() => {
-        const VIDEO_WATCHER_MAP = new Map();
-
         const handleIframeLoad = (iframe) => {
-            if (!iframe || PROCESSED_IFRAMES.has(iframe)) return;
+            if (!iframe) return;
+
+            const iframeSrc = iframe.src || 'about:blank';
+            let isSameOrigin = false;
+            try {
+                if (iframe.contentDocument) isSameOrigin = true;
+            } catch(e) {}
+
+            if (!isSameOrigin) {
+                logManager.addOnce(`iframe_external_${iframeSrc}`, `⚠️ 외부 도메인 iframe, 초기화 건너뜀`, 5000, 'info');
+                return;
+            }
+
+            if (PROCESSED_IFRAMES.has(iframe)) return;
             PROCESSED_IFRAMES.add(iframe);
+
+            let retries = 0;
+            const maxRetries = 5;
+            let intervalId;
+
+            const tryInit = () => {
+                try {
+                    const doc = iframe.contentDocument;
+                    if (doc && doc.body) {
+                        clearInterval(intervalId);
+                        initializeAll(doc);
+                        logManager.addOnce(`iframe_init_success_${iframeSrc}`, `✅ iframe 초기화 성공`, 5000, 'info');
+                    } else if (++retries >= maxRetries) {
+                        clearInterval(intervalId);
+                        logManager.addOnce(`iframe_init_fail_${iframeSrc}`, `⚠️ iframe 초기화 실패 (재시도 초과)`, 5000, 'warn');
+                    }
+                } catch (e) {
+                    if (++retries >= maxRetries) {
+                        clearInterval(intervalId);
+                        logManager.addOnce(`iframe_init_error_${iframeSrc}`, `⚠️ iframe 초기화 오류: ${e.message}\n${e.stack}`, 5000, 'error');
+                    }
+                }
+            };
+            intervalId = setInterval(tryInit, 1000); // 1초 간격 재시도
+            tryInit();
+
             try {
                 if (iframe.contentWindow) {
                     jwplayerMonitor.init(iframe.contentWindow);
                 }
             } catch (e) {}
-
-            const iframeSrc = iframe.src || 'about:blank';
-            const tryInit = (retries = 5, delay = 1000) => {
-                if (retries <= 0) {
-                    logManager.addOnce(`iframe_access_fail_${iframe.id || 'no-id'}`, `⚠️ iframe 접근 실패 (최대 재시도 초과) | src: ${iframeSrc}`, 5000, 'warn');
-                    return;
-                }
-                try {
-                    const doc = iframe.contentDocument;
-                    if (doc && doc.body) {
-                        initializeAll(doc);
-                    } else {
-                        setTimeout(() => tryInit(retries - 1, delay), delay);
-                    }
-                } catch (e) {
-                    setTimeout(() => tryInit(retries - 1, delay), delay);
-                }
-            };
-            iframe.addEventListener('load', () => tryInit(), { once: true });
-            tryInit(1);
         };
 
         const processMutations = (mutations, targetDocument) => {
             mutations.forEach(mutation => {
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === 1) {
-                            if (node.tagName === 'IFRAME') {
-                                handleIframeLoad(node);
-                            }
+                        if (node.nodeType !== 1) return;
+                        if (node.tagName === 'IFRAME') {
+                            handleIframeLoad(node);
+                        } else if (node.tagName === 'VIDEO') {
+                            videoControls.initWhenReady(node);
+                        } else {
                             node.querySelectorAll('iframe').forEach(iframe => handleIframeLoad(iframe));
                             node.querySelectorAll('video').forEach(video => videoControls.initWhenReady(video));
-                            if (node.hasAttribute && (node.hasAttribute('data-src') || node.hasAttribute('data-video'))) {
-                                const src = node.getAttribute('data-src') || node.getAttribute('data-video') || node.getAttribute('data-url');
-                                if (src && networkMonitor.isVideoUrl(src)) {
-                                    networkMonitor.trackAndAttach(null, src);
-                                }
-                            }
                         }
                     });
                     mutation.removedNodes.forEach(node => {
@@ -1080,14 +1089,13 @@
                     });
                 } else if (mutation.type === 'attributes') {
                     const targetNode = mutation.target;
-                    if (targetNode.nodeType === 1) {
-                        if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
-                            PROCESSED_IFRAMES.delete(targetNode);
-                            handleIframeLoad(targetNode);
-                        }
-                        if (targetNode.tagName === 'VIDEO' && (mutation.attributeName === 'src' || mutation.attributeName === 'controls')) {
-                            videoControls.initWhenReady(targetNode);
-                        }
+                    if (targetNode.nodeType !== 1) return;
+                    if (targetNode.tagName === 'IFRAME' && mutation.attributeName === 'src') {
+                        PROCESSED_IFRAMES.delete(targetNode);
+                        handleIframeLoad(targetNode);
+                    }
+                    if (targetNode.tagName === 'VIDEO' && (mutation.attributeName === 'src' || mutation.attributeName === 'controls')) {
+                        videoControls.initWhenReady(targetNode);
                     }
                 }
             });
@@ -1098,36 +1106,16 @@
             PROCESSED_DOCUMENTS.add(targetDocument);
             const rootElement = targetDocument.documentElement || targetDocument.body;
             if (!rootElement) return;
-            if (OBSERVER_MAP.has(targetDocument)) OBSERVER_MAP.get(targetDocument).disconnect();
-            const observer = new MutationObserver(mutations => processMutations(mutations, targetDocument));
+            if (OBSERVER_MAP.has(targetDocument)) {
+                OBSERVER_MAP.get(targetDocument).disconnect();
+            }
+            const observer = new MutationObserver(processMutations);
             observer.observe(rootElement, {
                 childList: true, subtree: true, attributes: true,
-                attributeFilter: ['src', 'style', 'class', 'href', 'controls', 'sandbox', 'data-src', 'srcdoc', 'data-video', 'data-url']
+                attributeFilter: ['src', 'controls', 'data-src', 'data-video', 'data-url']
             });
             OBSERVER_MAP.set(targetDocument, observer);
             logManager.addOnce('observer_active', `✅ 통합 감시자 활성화 | 대상: ${targetDocument === document ? '메인 프레임' : 'iframe'}`, 5000, 'info');
-        };
-
-        const startVideoUIWatcher = (targetDocument = document) => {
-            if (!FeatureFlags.videoControls) return;
-            if (VIDEO_WATCHER_MAP.has(targetDocument)) clearInterval(VIDEO_WATCHER_MAP.get(targetDocument));
-            const checkVideos = () => {
-                const videos = videoFinder.findAll(targetDocument);
-                const isAnyVideoAvailable = videos.some(v => v.readyState >= 1 || (v.clientWidth > 0 && v.clientHeight > 0));
-
-                if (isAnyVideoAvailable) {
-                    if (speedSlider) speedSlider.show();
-                    if (dragBar && !speedSlider.isMinimized()) dragBar.show();
-                    if (networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicVideoUI.show();
-                } else {
-                    if (speedSlider) speedSlider.hide();
-                    if (dragBar) dragBar.hide();
-                    dynamicVideoUI.hide();
-                }
-            };
-            const interval = setInterval(throttle(checkVideos, 1000), 1500);
-            VIDEO_WATCHER_MAP.set(targetDocument, interval);
-            logManager.addOnce('video_watcher_started', `✅ 비디오 감시 루프 시작`, 5000, 'info');
         };
 
         const initializeAll = (targetDocument = document) => {
@@ -1135,22 +1123,24 @@
             PROCESSED_DOCUMENTS.add(targetDocument);
             logManager.addOnce('script_init_start', `🎉 스크립트 초기화 시작`, 5000, 'info');
             if (targetDocument === document) {
-                networkMonitor.init();
-                spaMonitor.init();
+                if(networkMonitor) networkMonitor.init();
+                if(spaMonitor) spaMonitor.init();
                 document.addEventListener('fullscreenchange', () => {
-                    speedSlider.updatePositionAndSize();
-                    if (!speedSlider.isMinimized()) dragBar.show();
-                    else dragBar.hide();
+                    if(speedSlider) speedSlider.updatePositionAndSize();
+                    if(speedSlider && dragBar) {
+                        if (!speedSlider.isMinimized()) dragBar.show();
+                        else dragBar.hide();
+                    }
                 });
-                speedSlider.init();
-                dragBar.init();
-                dynamicVideoUI.init();
-                jwplayerMonitor.init(window);
+                if(speedSlider) speedSlider.init();
+                if(dragBar) dragBar.init();
+                if(dynamicVideoUI) dynamicVideoUI.init();
+                if(jwplayerMonitor) jwplayerMonitor.init(window);
             }
             startUnifiedObserver(targetDocument);
-            startVideoUIWatcher(targetDocument);
             videoFinder.findInDoc(targetDocument).forEach(video => videoControls.initWhenReady(video));
             targetDocument.querySelectorAll('iframe').forEach(iframe => handleIframeLoad(iframe));
+            videoControls.updateUIVisibility();
         };
 
         return {
