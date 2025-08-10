@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name VideoSpeed_Control
 // @namespace https.com/
-// @version 15.24 (안정성 및 URL 감지 강화)
-// @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
+// @version 15.25 (안정성 및 URL 감지 강화)
+// @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
 // @match *://*/*
 // @grant GM_xmlhttpRequest
 // @grant none
@@ -12,6 +12,45 @@
 
 (function () {
     'use strict';
+
+    // --- 원시(Native) 함수를 안전하게 저장하여 외부 스크립트 간섭 방지 ---
+    const originalMethods = {
+        Object: {
+            defineProperty: Object.defineProperty,
+            defineProperties: Object.defineProperties
+        }
+    };
+
+    // --- Shadow DOM 'closed' 모드 우회 로직 (h5player에서 가져옴) ---
+    function hackAttachShadow() {
+        if (window._hasHackAttachShadow_) return;
+        try {
+            window._shadowDomList_ = [];
+            window.Element.prototype._attachShadow = window.Element.prototype.attachShadow;
+            window.Element.prototype.attachShadow = function() {
+                const arg = arguments;
+                if (arg[0] && arg[0].mode) {
+                    arg[0].mode = 'open'; // 강제로 open 모드로 설정
+                }
+                const shadowRoot = this._attachShadow.apply(this, arg);
+                window._shadowDomList_.push(shadowRoot);
+                document.dispatchEvent(new window.CustomEvent('addShadowRoot', { detail: { shadowRoot } }));
+                // 원본의 closed 모드를 위장
+                if (arg[0] && arg[0].mode === 'closed') {
+                    originalMethods.Object.defineProperty(this, 'shadowRoot', {
+                        get: () => null
+                    });
+                }
+                return shadowRoot;
+            };
+            window._hasHackAttachShadow_ = true;
+        } catch (e) {
+            console.error('hackAttachShadow error by VideoSpeed_Control', e);
+        }
+    }
+
+    hackAttachShadow();
+
 
     // --- 전역 설정 및 기능 플래그 ---
     const FeatureFlags = {
@@ -47,7 +86,7 @@
     if (window.hasOwnProperty('__MySuperScriptInitialized') && window.__MySuperScriptInitialized) {
         return;
     }
-    Object.defineProperty(window, '__MySuperScriptInitialized', {
+    originalMethods.Object.defineProperty(window, '__MySuperScriptInitialized', {
         value: true, writable: false, configurable: true
     });
 
@@ -633,6 +672,12 @@
                     if (iframeDocument) medias.push(...mediaFinder.findInDoc(iframeDocument));
                 } catch (e) {}
             });
+            // Shadow DOM 내부 탐색 로직 추가
+            if (window._shadowDomList_) {
+                window._shadowDomList_.forEach(shadowRoot => {
+                    medias.push(...mediaFinder.findInDoc(shadowRoot));
+                });
+            }
             return medias;
         },
         findInSubtree: (node) => {
@@ -672,21 +717,21 @@
         let isVisible = false;
 
         const createSliderElements = () => {
-            if (document.getElementById('vm-speed-slider-style')) return;
-            const style = document.createElement('style');
-            style.id = 'vm-speed-slider-style';
-            style.textContent = `
-                #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: rgba(0, 0, 0, 0.0); padding: 10px 8px; border-radius: 8px; z-index: 2147483647 !important; display: none; flex-direction: column; align-items: center; width: 50px; height: auto; font-family: sans-serif; pointer-events: auto; opacity: 0.3; transition: all 0.3s ease; user-select: none; box-shadow: 0 0 8px rgba(0,0,0,0.0); will-change: transform, opacity, width; }
-                #vm-speed-slider-container:hover { opacity: 1; }
-                #vm-speed-reset-btn { background: #444; border: none; border-radius: 4px; color: white; font-size: 14px; padding: 4px 6px; cursor: pointer; margin-bottom: 8px; width: 40px; height: 30px; font-weight: bold; }
-                #vm-speed-reset-btn:hover { background: #666; }
-                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer; background: #555; border-radius: 5px; }
-                #vm-speed-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #f44336; border-radius: 50%; cursor: pointer; border: 1px solid #ddd; }
-                #vm-speed-value { color: red; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
-                #vm-toggle-btn { background: #444; border: none; border-radius: 4px; color: white; font-size: 12px; padding: 4px 6px; cursor: pointer; font-weight: bold; width: 40px; height: 30px; margin-top: 8px; transition: transform 0.2s ease-in-out; }
-            `;
-            (document.head || document.body).appendChild(style);
-        };
+            if (document.getElementById('vm-speed-slider-style')) return;
+            const style = document.createElement('style');
+            style.id = 'vm-speed-slider-style';
+            style.textContent = `
+                #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: rgba(0, 0, 0, 0.0); padding: 10px 8px; border-radius: 8px; z-index: 2147483647 !important; display: none; flex-direction: column; align-items: center; width: 50px; height: auto; font-family: sans-serif; pointer-events: auto; opacity: 0.3; transition: all 0.3s ease; user-select: none; box-shadow: 0 0 8px rgba(0,0,0,0.0); will-change: transform, opacity, width; }
+                #vm-speed-slider-container:hover { opacity: 1; }
+                #vm-speed-reset-btn { background: #444; border: none; border-radius: 4px; color: white; font-size: 14px; padding: 4px 6px; cursor: pointer; margin-bottom: 8px; width: 40px; height: 30px; font-weight: bold; }
+                #vm-speed-reset-btn:hover { background: #666; }
+                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 30px; height: 150px; margin: 0 0 10px 0; cursor: pointer; background: #555; border-radius: 5px; }
+                #vm-speed-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #f44336; border-radius: 50%; cursor: pointer; border: 1px solid #ddd; }
+                #vm-speed-value { color: red; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
+                #vm-toggle-btn { background: #444; border: none; border-radius: 4px; color: white; font-size: 12px; padding: 4px 6px; cursor: pointer; font-weight: bold; width: 40px; height: 30px; margin-top: 8px; transition: transform 0.2s ease-in-out; }
+            `;
+            (document.head || document.body).appendChild(style);
+        };
 
         const updateSpeed = (speed) => {
             const validSpeed = parseFloat(speed);
