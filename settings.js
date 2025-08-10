@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name VideoSpeed_Control
 // @namespace https.com/
-// @version 15.21 (재통합 개선판)
+// @version 15.23 (안정성 강화)
 // @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
 // @match *://*/*
 // @grant GM_xmlhttpRequest
@@ -461,16 +461,15 @@
                  URL.createObjectURL = function(obj) {
                       const url = origCreateObjectURL.apply(this, arguments);
                       if (obj instanceof MediaSource) {
-                           trackAndAttach(url, { source: 'createObjectURL(MediaSource)' });
+                          trackAndAttach(url, { source: 'createObjectURL(MediaSource)' });
                       }
                       return url;
                  };
              }
-         };
+        };
 
         const init = () => {
-            if (FeatureFlags.enhanceURLDetection && !_hooked) {
-                _hooked = true;
+            if (FeatureFlags.enhanceURLDetection) {
                 hookVideoProto();
                 hookFetchXHR();
                 hookMediaSourceAPI();
@@ -483,8 +482,6 @@
             mediaSourceMap.clear();
         }, trackAndAttach, isPreviewURL };
     })();
-
-    if (networkMonitor) networkMonitor.init();
 
     const jwplayerMonitor = (() => {
         let lastItemURL = null;
