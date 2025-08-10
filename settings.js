@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name VideoSpeed_Control
 // @namespace https.com/
-// @version 15.25 (안정성 및 URL 감지 강화)
+// @version 15.26 (안정성 및 URL 감지 강화)
 // @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
 // @match *://*/*
 // @grant GM_xmlhttpRequest
@@ -52,6 +52,162 @@
     hackAttachShadow();
 
 
+    /**
+     * ConfigManager 클래스: 설정값을 안전하게 읽고 쓰는 역할 (h5player에서 가져옴)
+     */
+    class ConfigManager {
+        constructor (opts) {
+            this.opts = opts;
+            this.isLocalStorageUsable = () => {
+                try {
+                    const test = '__test__';
+                    localStorage.setItem(test, test);
+                    localStorage.removeItem(test);
+                    return true;
+                } catch(e) {
+                    return false;
+                }
+            };
+            this.isGlobalStorageUsable = () => window.GM_setValue && window.GM_getValue;
+            this.getConfObj(); // 초기 로딩 시 설정 동기화
+        }
+
+        getConfKeyName (confPath = '') { return this.opts.prefix + confPath.replace(/\./g, '_'); }
+        getConfPath (keyName = '') { return keyName.replace(this.opts.prefix, '').replace(/_/g, '.'); }
+
+        get(confPath) {
+            const localConf = this.getLocalStorage(confPath);
+            if (localConf !== null && localConf !== undefined) return localConf;
+            const globalConf = this.getGlobalStorage(confPath);
+            if (globalConf !== null && globalConf !== undefined) return globalConf;
+            return this.getMemoryStorage(confPath);
+        }
+        set(confPath, val) {
+            this.setLocalStorage(confPath, val);
+            this.setGlobalStorage(confPath, val);
+        }
+
+        getMemoryStorage(confPath) {
+            if (typeof confPath !== 'string') return null;
+            let result = this.opts.config;
+            const pathArr = confPath.split('.');
+            for(let key of pathArr) {
+                if(result === undefined) return undefined;
+                result = result[key];
+            }
+            return result;
+        }
+
+        getLocalStorage(confPath) {
+            if (this.isLocalStorageUsable()) {
+                const key = this.getConfKeyName(confPath);
+                let localConf = localStorage.getItem(key);
+                if (localConf !== null) {
+                    try { return JSON.parse(localConf); } catch (e) { return localConf; }
+                }
+            }
+            return null;
+        }
+
+        getGlobalStorage(confPath) {
+            if (this.isGlobalStorageUsable()) {
+                const key = this.getConfKeyName(confPath);
+                const globalConf = GM_getValue(key);
+                if (globalConf !== undefined) return globalConf;
+            }
+            return null;
+        }
+
+        setLocalStorage(confPath, val) {
+            if (this.isLocalStorageUsable()) {
+                const key = this.getConfKeyName(confPath);
+                const value = typeof val === 'object' ? JSON.stringify(val) : val;
+                localStorage.setItem(key, value);
+            }
+        }
+
+        setGlobalStorage(confPath, val) {
+            if (this.isGlobalStorageUsable()) {
+                const key = this.getConfKeyName(confPath);
+                GM_setValue(key, val);
+            }
+        }
+
+        getConfObj () {
+            const config = JSON.parse(JSON.stringify(this.opts.config));
+            const mergeConfig = (source, target) => {
+                for (const key in source) {
+                    if (source.hasOwnProperty(key)) {
+                        if (typeof source[key] === 'object' && source[key] !== null) {
+                            if (!target[key]) target[key] = {};
+                            mergeConfig(source[key], target[key]);
+                        } else {
+                            target[key] = source[key];
+                        }
+                    }
+                }
+            };
+            // GM_getValue로 저장된 설정 불러오기
+            if (this.isGlobalStorageUsable()) {
+                const globalKeys = GM_listValues();
+                globalKeys.forEach(key => {
+                    if (key.startsWith(this.opts.prefix)) {
+                        const confPath = this.getConfPath(key);
+                        const val = GM_getValue(key);
+                        let tempObj = {};
+                        let ref = tempObj;
+                        confPath.split('.').forEach((p, i, arr) => {
+                            ref[p] = (i === arr.length - 1) ? val : {};
+                            ref = ref[p];
+                        });
+                        mergeConfig(tempObj, config);
+                    }
+                });
+            }
+            this.opts.config = config;
+            return this.opts.config;
+        }
+    }
+    const configManager = new ConfigManager({
+        prefix: '_video_speed_',
+        config: {
+            isMinimized: true,
+            isInitialized: false,
+        }
+    });
+
+
+    // --- DOM 요소가 로드될 때까지 기다리는 ready 함수 (h5player에서 가져옴) ---
+    function ready(selector, fn, doc = document) {
+        const MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
+        const docRoot = doc.documentElement || doc.body;
+
+        if (!docRoot) return;
+
+        const check = (sel, callback) => {
+            const elements = doc.querySelectorAll(sel);
+            for (const element of elements) {
+                if (!PROCESSED_NODES.has(element)) {
+                    PROCESSED_NODES.add(element);
+                    callback.call(element, element);
+                }
+            }
+        };
+
+        if (!OBSERVER_MAP.has(doc)) {
+            const observer = new MutationObserver(() => {
+                const listeners = OBSERVER_MAP.get(doc).listeners || [];
+                listeners.forEach(item => check(item.selector, item.fn));
+            });
+            observer.observe(docRoot, { childList: true, subtree: true });
+            OBSERVER_MAP.set(doc, { observer, listeners: [] });
+        }
+
+        const listenerInfo = OBSERVER_MAP.get(doc);
+        listenerInfo.listeners.push({ selector, fn });
+        check(selector, fn);
+    }
+
     // --- 전역 설정 및 기능 플래그 ---
     const FeatureFlags = {
         videoControls: true,
@@ -94,7 +250,6 @@
     let PROCESSED_NODES = new WeakSet();
     let PROCESSED_IFRAMES = new WeakSet();
     let PROCESSED_DOCUMENTS = new WeakSet();
-    const OBSERVER_MAP = new Map();
     const LOGGED_KEYS_WITH_TIMER = new Map();
     const MEDIA_STATE = new WeakMap();
     const PREVIEW_ELEMENTS = new WeakSet();
@@ -418,9 +573,12 @@
             const videoProto = HTMLMediaElement.prototype;
             if (!videoProto) return;
 
-            const origSetSrc = Object.getOwnPropertyDescriptor(videoProto, 'src')?.set;
+            const origSrcDescriptor = Object.getOwnPropertyDescriptor(videoProto, 'src');
+            const origSetSrc = origSrcDescriptor?.set;
             if (origSetSrc) {
-                Object.defineProperty(videoProto, 'src', {
+                originalMethods.Object.defineProperty(videoProto, 'src', {
+                    configurable: origSrcDescriptor.configurable,
+                    enumerable: origSrcDescriptor.enumerable,
                     set: function(value) {
                         try {
                             if (FeatureFlags.previewFiltering && isPreviewURL(value)) {
@@ -437,13 +595,16 @@
                         } catch (e) { logManager.logErrorWithContext(e, this); }
                         return origSetSrc.call(this, value);
                     },
-                    get: Object.getOwnPropertyDescriptor(videoProto, 'src').get
+                    get: origSrcDescriptor.get
                 });
             }
 
-            const origSetSrcObj = Object.getOwnPropertyDescriptor(videoProto, 'srcObject')?.set;
+            const origSrcObjectDescriptor = Object.getOwnPropertyDescriptor(videoProto, 'srcObject');
+            const origSetSrcObj = origSrcObjectDescriptor?.set;
             if (origSetSrcObj) {
-                Object.defineProperty(videoProto, 'srcObject', {
+                originalMethods.Object.defineProperty(videoProto, 'srcObject', {
+                    configurable: origSrcObjectDescriptor.configurable,
+                    enumerable: origSrcObjectDescriptor.enumerable,
                     set: function(stream) {
                         try {
                             if (stream) {
@@ -458,7 +619,7 @@
                         } catch (e) { logManager.logErrorWithContext(e, this); }
                         return origSetSrcObj.call(this, stream);
                     },
-                    get: Object.getOwnPropertyDescriptor(videoProto, 'srcObject').get
+                    get: origSrcObjectDescriptor.get
                 });
             }
         };
@@ -633,7 +794,6 @@
         const resetState = () => {
             lastItemURL = null;
             stopPolling();
-            isHooked = false;
         };
 
         return { init: hookJWPlayer, resetState };
@@ -712,15 +872,16 @@
     const speedSlider = (() => {
         let speedSliderContainer;
         let playbackUpdateTimer;
-        let isMinimized = JSON.parse(localStorage.getItem('speedSliderMinimized') || 'true');
-        let isInitialized = false;
+        // 설정값을 configManager를 통해 불러옴
+        let isMinimized = configManager.get('isMinimized');
+        let isInitialized = configManager.get('isInitialized');
         let isVisible = false;
 
         const createSliderElements = () => {
-            if (document.getElementById('vm-speed-slider-style')) return;
-            const style = document.createElement('style');
-            style.id = 'vm-speed-slider-style';
-            style.textContent = `
+            if (document.getElementById('vm-speed-slider-style')) return;
+            const style = document.createElement('style');
+            style.id = 'vm-speed-slider-style';
+            style.textContent = `
                 #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: rgba(0, 0, 0, 0.0); padding: 10px 8px; border-radius: 8px; z-index: 2147483647 !important; display: none; flex-direction: column; align-items: center; width: 50px; height: auto; font-family: sans-serif; pointer-events: auto; opacity: 0.3; transition: all 0.3s ease; user-select: none; box-shadow: 0 0 8px rgba(0,0,0,0.0); will-change: transform, opacity, width; }
                 #vm-speed-slider-container:hover { opacity: 1; }
                 #vm-speed-reset-btn { background: #444; border: none; border-radius: 4px; color: white; font-size: 14px; padding: 4px 6px; cursor: pointer; margin-bottom: 8px; width: 40px; height: 30px; font-weight: bold; }
@@ -730,8 +891,8 @@
                 #vm-speed-value { color: red; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
                 #vm-toggle-btn { background: #444; border: none; border-radius: 4px; color: white; font-size: 12px; padding: 4px 6px; cursor: pointer; font-weight: bold; width: 40px; height: 30px; margin-top: 8px; transition: transform 0.2s ease-in-out; }
             `;
-            (document.head || document.body).appendChild(style);
-        };
+            (document.head || document.body).appendChild(style);
+        };
 
         const updateSpeed = (speed) => {
             const validSpeed = parseFloat(speed);
@@ -759,7 +920,7 @@
             const resetBtn = container.querySelector('#vm-speed-reset-btn');
             const toggleBtn = container.querySelector('#vm-toggle-btn');
             isMinimized = !isMinimized;
-            localStorage.setItem('speedSliderMinimized', isMinimized);
+            configManager.set('isMinimized', isMinimized); // configManager로 설정 저장
             if (isMinimized) {
                 container.style.width = '30px';
                 if (slider) slider.style.display = 'none';
@@ -780,8 +941,8 @@
         };
 
         const init = () => {
-            if (isInitialized) return;
-            isInitialized = true;
+            if (configManager.get('isInitialized')) return;
+            configManager.set('isInitialized', true);
             createSliderElements();
             if (!document.body) {
                 document.addEventListener('DOMContentLoaded', init);
@@ -949,6 +1110,13 @@
                 document.removeEventListener('touchend', handleEnd, true);
             } catch(e) {
                 logManager.logErrorWithContext(e, null);
+                dragState.isDragging = false;
+                if(document.body) document.body.style.userSelect = '';
+                if(document.body) document.body.style.touchAction = '';
+                document.removeEventListener('mousemove', handleMove, true);
+                document.removeEventListener('mouseup', handleEnd, true);
+                document.removeEventListener('touchmove', handleMove, true);
+                document.removeEventListener('touchend', handleEnd, true);
             }
         };
 
@@ -1208,8 +1376,8 @@
                      PREVIEW_ELEMENTS.add(media);
                      logManager.addOnce(`skip_preview_by_duration_${media.src}`, `🔴 [Skip:Preview] 미디어 로드 완료, 영상 길이가 ${this.duration.toFixed(1)}s 이므로 무시`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
                      return;
-                 }
-                 this.removeEventListener('loadedmetadata', checkDuration);
+                }
+                this.removeEventListener('loadedmetadata', checkDuration);
             }, { once: true });
 
 
