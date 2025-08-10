@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name VideoSpeed_Control
 // @namespace https.com/
-// @version 15.20 (코드 최적화)
+// @version 15.21 (재통합 개선판)
 // @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
 // @match *://*/*
 // @grant GM_xmlhttpRequest
@@ -246,59 +246,69 @@
         return { init, add: addLog, addOnce: addLogOnce, logIframeContext, logMediaContext, logSPANavigation, logErrorWithContext };
     })();
 
-    // --- networkMonitor 모듈 ---
+    // --- 네트워크 모니터링 모듈 (15.19 버전 통합) ---
     const networkMonitor = (() => {
         const VIDEO_URL_CACHE = new Set();
-        const MIME_CACHE = new Set();
-        const HINT_EXTENSIONS = /\.(mp4|m3u8|mpd|webm|ts|m4s|mp3|ogg)(\?|#|$)/i;
-        const HINT_MIME = /^video\/|application\/(vnd\.apple\.mpegurl|dash\+xml)/i;
-
+        const blobSourceMap = new Map();
+        const mediaSourceMap = new Map();
+        const trackedMediaElements = new WeakSet();
+        let lastManifestURL = null;
         let _hooked = false;
 
-        function isMediaUrl(url) {
-            return HINT_EXTENSIONS.test(url) || url.includes('mime=video') || url.includes('type=video') || url.includes('mime=audio') || url.includes('type=audio');
-        }
+        const isMediaUrl = (url) => /\.(m3u8|mpd|mp4|webm|ts|m4s|mp3|ogg)(\?|#|$)/i.test(url) || url.includes('mime=video') || url.includes('type=video') || url.includes('mime=audio') || url.includes('type=audio');
+        const isMediaMimeType = (mime) => mime?.includes('video/') || mime?.includes('audio/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
 
-        function isMediaMimeType(mime) {
-            return mime?.includes('video/') || mime?.includes('audio/') || mime?.includes('octet-stream') || mime?.includes('mpegurl') || mime?.includes('mp2t') || mime?.includes('application/dash+xml');
-        }
+        const normalizeURL = (url, base) => {
+            try { return new URL(url, base || location.href).href; }
+            catch { return url; }
+        };
 
-        function normalizeURL(url) {
-            try { return new URL(url, location.href).href; } catch { return url; }
-        }
+        const getOriginalURL = (url) => blobSourceMap.get(url) || url;
 
-        function isPreviewURL(url) {
+        const isPreviewURL = (url) => {
             if (!url || typeof url !== 'string') return false;
             try {
                 const u = url.toLowerCase();
                 return PREVIEW_CONFIG.PATTERNS.some(p => p.test(u));
             } catch (e) { return false; }
-        }
+        };
 
-        function trackAndAttach(url, context = {}) {
+        const trackAndAttach = (url, context = {}) => {
             if (!url) return;
             const normUrl = normalizeURL(url);
 
             if (FeatureFlags.previewFiltering && isPreviewURL(normUrl)) {
-                logManager.addOnce(`[Skip:Preview]${normUrl}`, `🔴 [Skip:Preview] URL 필터링에서 미리보기 URL (${normUrl}) 감지, 무시`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
-                return;
+                 logManager.addOnce(`[Skip:Preview]${normUrl}`, `🔴 [Skip:Preview] URL 필터링에서 미리보기 URL (${normUrl}) 감지, 무시`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                 return;
             }
 
             if (VIDEO_URL_CACHE.has(normUrl)) return;
             VIDEO_URL_CACHE.add(normUrl);
 
+            const details = [
+                context.source ? `소스: ${context.source}` : '',
+                context.rect ? `크기: ${Math.round(context.rect.width)}x${Math.round(context.rect.height)}` : '',
+                context.currentTime != null ? `시간: ${context.currentTime.toFixed(1)}s` : '',
+                context.iframe ? `iframe: ${context.iframe}` : '',
+            ].filter(Boolean).join(' | ');
+
             logManager.addOnce(
                 `[EarlyCapture]${normUrl}`,
-                `🎯 [EarlyCapture] 동적 영상 URL 감지: ${normUrl} | 소스: ${context.source || 'DOM'}`,
+                `🎯 [EarlyCapture] 동적 영상 URL 감지: ${normUrl} | ${details}`,
                 5000,
                 'info'
             );
 
             dynamicMediaUI.show(normUrl);
-        }
 
-        function handleManifestParsing(url, text) {
+            if (context.element && !trackedMediaElements.has(context.element)) {
+                trackedMediaElements.add(context.element);
+            }
+        };
+
+        const handleManifestParsing = (url, text) => {
             if (!text) return;
+            lastManifestURL = url;
             const lower = url.toLowerCase();
             if (lower.endsWith('.m3u8') || text.includes('#EXTM3U')) {
                 const lines = (text.match(/^[^#][^\r\n]+$/gm) || []).map(l => l.trim());
@@ -319,98 +329,163 @@
                     }
                 });
             }
-        }
+        };
 
-        function hookNetwork(win) {
-            if (win._nmHooked) return;
-            win._nmHooked = true;
+        const hookVideoProto = () => {
+            const videoProto = HTMLMediaElement.prototype;
+            if (!videoProto) return;
 
-            const origFetch = win.fetch;
+            const origSetSrc = Object.getOwnPropertyDescriptor(videoProto, 'src')?.set;
+            if (origSetSrc) {
+                Object.defineProperty(videoProto, 'src', {
+                    set: function(value) {
+                        try {
+                            if (FeatureFlags.previewFiltering && isPreviewURL(value)) {
+                                logManager.addOnce(`[Skip:Preview_set_src]${value}`, `🔴 [Skip:Preview] video.src setter에서 미리보기 URL (${value}) 감지, 무시`, 5000, 'warn');
+                                return origSetSrc.call(this, value);
+                            }
+                            trackAndAttach(value, {
+                                source: 'video.src setter',
+                                rect: this.getBoundingClientRect(),
+                                currentTime: this.currentTime,
+                                iframe: isTopFrame ? null : location.href,
+                                element: this
+                            });
+                        } catch (e) { logManager.logErrorWithContext(e, this); }
+                        return origSetSrc.call(this, value);
+                    },
+                    get: Object.getOwnPropertyDescriptor(videoProto, 'src').get
+                });
+            }
+
+            const origSetSrcObj = Object.getOwnPropertyDescriptor(videoProto, 'srcObject')?.set;
+            if (origSetSrcObj) {
+                Object.defineProperty(videoProto, 'srcObject', {
+                    set: function(stream) {
+                        try {
+                            if (stream) {
+                                trackAndAttach(`blob:${location.origin}/MediaStream`, {
+                                    source: 'video.srcObject setter',
+                                    rect: this.getBoundingClientRect(),
+                                    currentTime: this.currentTime,
+                                    iframe: isTopFrame ? null : location.href,
+                                    element: this
+                                });
+                            }
+                        } catch (e) { logManager.logErrorWithContext(e, this); }
+                        return origSetSrcObj.call(this, stream);
+                    },
+                    get: Object.getOwnPropertyDescriptor(videoProto, 'srcObject').get
+                });
+            }
+        };
+
+        const hookFetchXHR = () => {
+            const origFetch = window.fetch;
             if (origFetch) {
-                win.fetch = async function(...args) {
+                window.fetch = async function(...args) {
                     const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
-                    if (FeatureFlags.previewFiltering && isPreviewURL(url)) return new Response(null, { status: 200, statusText: 'OK' });
+
+                    if (FeatureFlags.previewFiltering && isPreviewURL(url)) {
+                        logManager.addOnce(`[Skip:Preview_fetch_pre]${url}`, `🔴 [Skip:Preview] Fetch 요청 단계에서 미리보기 URL (${url}) 감지, 무시`, 5000, 'warn');
+                        return new Response(null, { status: 200, statusText: 'OK' });
+                    }
+
                     const res = await origFetch.apply(this, args);
                     try {
                         const contentType = res.headers.get("content-type");
+                        const contentLength = res.headers.get("content-length");
+
+                        if (FeatureFlags.previewFiltering && (contentLength && parseInt(contentLength, 10) < 200 * 1024)) {
+                            logManager.addOnce(`[Skip:Preview_fetch]${url}`, `🔴 [Skip:Preview] Fetch에서 미리보기 URL (${url}) 감지, 무시`, 5000, 'warn');
+                            return res;
+                        }
+
                         if (isMediaUrl(url) || isMediaMimeType(contentType)) {
                             trackAndAttach(url, { source: 'Fetch' });
-                            if (url && (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd'))) {
-                                res.clone().text().then(text => handleManifestParsing(url, text));
-                            }
+                        }
+                        if (url && (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd'))) {
+                            res.clone().text().then(text => handleManifestParsing(url, text));
                         }
                     } catch (e) { logManager.logErrorWithContext(e, null); }
                     return res;
                 };
             }
 
-            const origOpen = win.XMLHttpRequest.prototype.open;
-            const origSend = win.XMLHttpRequest.prototype.send;
-            if (origOpen && origSend) {
-                win.XMLHttpRequest.prototype.open = function(method, url) {
-                    this._nm_url = url;
+            const origOpen = XMLHttpRequest.prototype.open;
+            if (origOpen) {
+                XMLHttpRequest.prototype.open = function(method, url) {
+                    this._url = url;
                     return origOpen.apply(this, arguments);
                 };
-                win.XMLHttpRequest.prototype.send = function(...sendArgs) {
+
+                const origSend = XMLHttpRequest.prototype.send;
+                XMLHttpRequest.prototype.send = function(...sendArgs) {
                     this.addEventListener('load', () => {
-                        const url = this._nm_url;
+                        const url = this._url;
                         try {
                             const contentType = this.getResponseHeader('Content-Type');
+                            const contentLength = this.getResponseHeader('Content-Length');
+                            if (FeatureFlags.previewFiltering && (isPreviewURL(url) || (contentLength && parseInt(contentLength, 10) < 200 * 1024))) {
+                                logManager.addOnce(`[Skip:Preview_xhr]${url}`, `🔴 [Skip:Preview] XHR에서 미리보기 URL (${url}) 감지, 무시`, 5000, 'warn');
+                                return;
+                            }
                             if (isMediaUrl(url) || isMediaMimeType(contentType)) {
                                 trackAndAttach(url, { source: 'XHR' });
-                                if (url && (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd')) && this.response) {
-                                    handleManifestParsing(url, this.response);
-                                }
+                            }
+                            if (url && (url.toLowerCase().endsWith('.m3u8') || url.toLowerCase().endsWith('.mpd')) && this.response) {
+                                handleManifestParsing(url, this.response);
                             }
                         } catch(e) { logManager.logErrorWithContext(e, null); }
                     });
                     return origSend.apply(this, sendArgs);
                 };
             }
-        }
+        };
 
-        function hookMediaSource(win) {
-            if (!win.MediaSource || win._nmMediaHooked) return;
-            win._nmMediaHooked = true;
+        const hookMediaSourceAPI = () => {
+             if (!window.MediaSource) return;
 
-            const origAddSourceBuffer = win.MediaSource.prototype.addSourceBuffer;
-            if (origAddSourceBuffer) {
-                win.MediaSource.prototype.addSourceBuffer = function(mime) {
-                    try { MIME_CACHE.add(mime); } catch {}
-                    return origAddSourceBuffer.apply(this, arguments);
-                };
+             const origAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
+             if (origAddSourceBuffer) {
+                 MediaSource.prototype.addSourceBuffer = function(mimeType) {
+                      if (/video|audio/i.test(mimeType)) {
+                          logManager.addOnce(`[EarlyCapture]MSE_MIME_${mimeType}`, `🧩 [EarlyCapture] MSE MIME 감지: ${mimeType}`, 5000, 'info');
+                      }
+                      return origAddSourceBuffer.call(this, mimeType);
+                 };
+             }
+
+             const origCreateObjectURL = URL.createObjectURL;
+             if (origCreateObjectURL) {
+                 URL.createObjectURL = function(obj) {
+                      const url = origCreateObjectURL.apply(this, arguments);
+                      if (obj instanceof MediaSource) {
+                           trackAndAttach(url, { source: 'createObjectURL(MediaSource)' });
+                      }
+                      return url;
+                 };
+             }
+         };
+
+        const init = () => {
+            if (FeatureFlags.enhanceURLDetection && !_hooked) {
+                _hooked = true;
+                hookVideoProto();
+                hookFetchXHR();
+                hookMediaSourceAPI();
             }
+        };
 
-            const proto = win.HTMLMediaElement.prototype;
-            const origSrcDesc = Object.getOwnPropertyDescriptor(proto, "src");
-            if (origSrcDesc) {
-                Object.defineProperty(proto, "src", {
-                    set: function(v) {
-                        try {
-                            const url = normalizeURL(v);
-                            if (url.startsWith("blob:") || HINT_EXTENSIONS.test(url)) {
-                                trackAndAttach(url, { source: 'video.src setter', element: this });
-                            }
-                        } catch {}
-                        return origSrcDesc.set.call(this, v);
-                    },
-                    get: origSrcDesc.get,
-                    configurable: true
-                });
-            }
-        }
-
-        function init(win = window) {
-            if (FeatureFlags.enhanceURLDetection) {
-                hookNetwork(win);
-                hookMediaSource(win);
-            }
-        }
-
-        return { init, isMediaUrl, isPreviewURL, VIDEO_URL_CACHE, trackAndAttach };
+        return { init, getOriginalURL, isMediaUrl, VIDEO_URL_CACHE, resetState: () => {
+            VIDEO_URL_CACHE.clear();
+            blobSourceMap.clear();
+            mediaSourceMap.clear();
+        }, trackAndAttach, isPreviewURL };
     })();
 
-    // --- jwplayerMonitor 모듈 ---
+    if (networkMonitor) networkMonitor.init();
+
     const jwplayerMonitor = (() => {
         let lastItemURL = null;
         let pollTimer = null;
@@ -431,14 +506,12 @@
                     }
                 });
             } catch (e) {
-                logManager.logErrorWithContext(e, null);
+                 logManager.logErrorWithContext(e, null);
             }
         };
 
         const hookJWPlayer = (context) => {
             if (isHooked || !context.jwplayer) return;
-            isHooked = true;
-
             const origJW = context.jwplayer;
             context.jwplayer = function (...args) {
                 const player = origJW.apply(this, args);
@@ -454,6 +527,7 @@
                 return player;
             };
             Object.assign(context.jwplayer, origJW);
+            isHooked = true;
             logManager.addOnce('jwplayer_hooked', `✅ JWPlayer 후킹 성공`, 5000, 'info');
         };
 
@@ -480,7 +554,6 @@
         return { init: hookJWPlayer, resetState };
     })();
 
-    // --- mediaFinder 모듈 ---
     const mediaFinder = {
         findInDoc: (doc) => {
             const medias = [];
@@ -525,9 +598,26 @@
             node.querySelectorAll('video, audio').forEach(m => medias.push(m));
             return medias;
         },
+        findLargestParent: (element) => {
+            let largestElement = element;
+            let largestArea = 0;
+            let current = element;
+            while (current && current !== document.body) {
+                const rect = current.getBoundingClientRect();
+                const area = rect.width * rect.height;
+                const style = window.getComputedStyle(current);
+                const isRelativeOrAbsolute = style.position === 'relative' || style.position === 'absolute';
+                if (area > largestArea && area < window.innerWidth * window.innerHeight * 0.9) {
+                    if (isRelativeOrAbsolute) return current;
+                    largestArea = area;
+                    largestElement = current;
+                }
+                current = current.parentElement;
+            }
+            return largestElement;
+        }
     };
 
-    // --- speedSlider 모듈 ---
     const speedSlider = (() => {
         let speedSliderContainer;
         let playbackUpdateTimer;
@@ -685,7 +775,6 @@
         return { init, show, hide, updatePositionAndSize, isMinimized: () => isMinimized };
     })();
 
-    // --- dragBar 모듈 ---
     const dragBar = (() => {
         let dragBarTimeDisplay;
         const dragState = {
@@ -709,13 +798,10 @@
         };
 
         const showTimeDisplay = (totalTimeChange) => {
-            if (!dragBarTimeDisplay || isNaN(totalTimeChange)) return;
-            if (totalTimeChange === 0) {
-                hideTimeDisplay();
-                return;
-            }
+            if (!dragBarTimeDisplay || isNaN(totalTimeChange) || totalTimeChange === 0) return;
 
             clearTimeout(hideTimeout);
+
             const targetParent = document.fullscreenElement || document.body;
             if (dragBarTimeDisplay.parentNode !== targetParent) {
                 dragBarTimeDisplay.parentNode?.removeChild(dragBarTimeDisplay);
@@ -730,6 +816,7 @@
 
         const hideTimeDisplay = () => {
             if (!dragBarTimeDisplay || !isVisible) return;
+
             dragBarTimeDisplay.style.opacity = '0';
             hideTimeout = setTimeout(() => {
                 dragBarTimeDisplay.style.display = 'none';
@@ -891,85 +978,95 @@
         return { init, show: showTimeDisplay, hide: hideTimeDisplay, updateTimeDisplay: showTimeDisplay };
     })();
 
-    // --- dynamicMediaUI 모듈 ---
     const dynamicMediaUI = (() => {
-        const attached = new WeakMap();
+        let button;
+        let isInitialized = false;
+        let isVisible = false;
 
-        function attach(media, url) {
-            return; // 이 줄을 추가하면 버튼이 생성되지 않습니다.
-            if (!media || !url) return;
-            if (attached.has(media)) {
-                const btn = attached.get(media);
-                if (btn) btn.dataset.url = url;
+        const init = () => {
+            if (isInitialized) return;
+            isInitialized = true;
+            if (!document.body) {
+                document.addEventListener('DOMContentLoaded', init);
                 return;
             }
 
-            const btn = document.createElement("button");
-            btn.textContent = "🎞️ URL";
-            btn.title = "미디어 URL 복사";
-            Object.assign(btn.style, {
-                position: "absolute",
-                zIndex: 2147483647,
-                top: "5px",
-                right: "5px",
-                padding: "2px 6px",
-                background: "rgba(0,0,0,0.6)",
-                color: "white",
-                border: "none",
-                borderRadius: "3px",
-                cursor: "pointer",
-                pointerEvents: "auto",
-                display: "none"
+            button = document.createElement('button');
+            button.id = 'dynamic-media-url-btn';
+            button.textContent = '🎞️ URL';
+            button.title = '미디어 URL 복사';
+            Object.assign(button.style, {
+                position: 'fixed',
+                top: '10px',
+                right: '10px',
+                zIndex: '2147483647',
+                background: 'rgba(0, 0, 0, 0.0)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                padding: '5px 10px',
+                cursor: 'pointer',
+                pointerEvents: 'auto',
+                display: 'none',
+                transition: 'background 0.3s'
             });
-            btn.dataset.url = url;
+            if (document.body && !document.body.contains(button)) {
+                document.body.appendChild(button);
+            }
 
-            btn.onclick = e => {
+            button.onclick = (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                const urlToCopy = btn.dataset.url;
-                if (!urlToCopy) {
-                    logManager.add('⚠️ URL이 없습니다.', 'warn');
+
+                const urlToCopy = networkMonitor.getOriginalURL([...networkMonitor.VIDEO_URL_CACHE].pop());
+                logManager.addOnce(`url_copy_attempt_${Date.now()}`, `[URL] 복사 시도: ${urlToCopy || 'URL 없음'}`, 5000, 'info');
+
+                if (!urlToCopy || urlToCopy.startsWith('blob:')) {
+                    logManager.add('⚠️ 원본 URL을 찾을 수 없습니다.', 'warn');
+                    const originalText = button.textContent;
+                    button.textContent = '⚠️ URL 없음';
+                    button.style.background = 'rgba(255, 193, 7, 0.7)';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.style.background = 'rgba(0, 0, 0, 0.0)';
+                    }, 1500);
                     return;
                 }
+
                 navigator.clipboard.writeText(urlToCopy).then(() => {
-                    const originalText = btn.textContent;
-                    btn.textContent = "✅ 복사 완료";
-                    setTimeout(() => btn.textContent = originalText, 1500);
+                    const originalText = button.textContent;
+                    button.textContent = '✅ 복사 완료!';
+                    button.style.background = 'rgba(40, 167, 69, 0.7)';
+                    setTimeout(() => { button.textContent = originalText; button.style.background = 'rgba(0, 0, 0, 0.7)'; }, 1500);
                 }).catch(() => {
-                    const originalText = btn.textContent;
-                    btn.textContent = "❌ 복사 실패";
-                    setTimeout(() => btn.textContent = originalText, 1500);
+                    const originalText = button.textContent;
+                    button.textContent = '❌ 복사 실패!';
+                    button.style.background = 'rgba(220, 53, 69, 0.7)';
+                    setTimeout(() => { button.textContent = originalText; button.style.background = 'rgba(0, 0, 0, 0.7)'; }, 1500);
                 });
             };
+        };
 
-            const container = media.offsetParent || media.parentElement || document.body;
-            container.style.position = container.style.position || "relative";
-            container.appendChild(btn);
-            attached.set(media, btn);
+        const show = (url) => {
+            if (isVisible) return;
+            if (!isInitialized) init();
+            if (!button) return;
+            button.style.display = 'block';
+            isVisible = true;
+        };
+
+        const hide = () => {
+            if (!isVisible) return;
+            if (button) button.style.display = 'none';
+            isVisible = false;
         }
 
-        function show(url) {
-            mediaFinder.findAll().forEach(media => {
-                const btn = attached.get(media);
-                if (btn) {
-                    btn.style.display = 'block';
-                    btn.dataset.url = url; // 모든 미디어 버튼에 최신 URL을 업데이트
-                }
-            });
-        }
-
-        function hide() {
-            mediaFinder.findAll().forEach(media => {
-                const btn = attached.get(media);
-                if (btn) btn.style.display = 'none';
-            });
-        }
-
-        return { attach, show, hide };
+        return { init, show, hide };
     })();
 
-    // --- mediaControls 모듈 ---
     const mediaControls = (() => {
+        const PREVIEW_ELEMENTS = new WeakSet();
+
         const observeMediaSources = (media) => {
             if (PROCESSED_NODES.has(media)) return;
             PROCESSED_NODES.add(media);
@@ -977,7 +1074,7 @@
             const obs = new MutationObserver(() => {
                 media.querySelectorAll('source').forEach(srcEl => {
                     if (srcEl.src) {
-                        networkMonitor.trackAndAttach(srcEl.src, { element: media });
+                        if (networkMonitor) networkMonitor.trackAndAttach(srcEl.src, { element: media });
                     }
                 });
             });
@@ -985,11 +1082,11 @@
         };
 
         const updateUIVisibility = throttle(() => {
-            const hasMedia = mediaFinder.findAll().some(m => !PREVIEW_ELEMENTS.has(m) && (m.readyState >= 1 || (!m.paused && (m.tagName === 'AUDIO' || (m.clientWidth > 0 && m.clientHeight > 0)))));
+            const hasMedia = mediaFinder.findAll().some(m => m.readyState >= 1 || (!m.paused && (m.tagName === 'AUDIO' || (m.clientWidth > 0 && m.clientHeight > 0))));
             if (hasMedia) {
                 if (speedSlider) speedSlider.show();
                 if (dragBar && speedSlider && !speedSlider.isMinimized()) dragBar.show(0);
-                if (networkMonitor && networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicMediaUI.show([...networkMonitor.VIDEO_URL_CACHE].pop());
+                if (networkMonitor && networkMonitor.VIDEO_URL_CACHE.size > 0) dynamicMediaUI.show();
             } else {
                 if (speedSlider) speedSlider.hide();
                 if (dragBar) dragBar.hide();
@@ -998,27 +1095,30 @@
         }, 500);
 
         const initWhenReady = (media) => {
-            if (!media) return;
+            if (!media || PROCESSED_NODES.has(media)) return;
+            PROCESSED_NODES.add(media);
 
-            // 미리보기 URL 패턴으로 필터링
-            const src = media.currentSrc || media.src || media.dataset.src;
-            if (src && networkMonitor.isPreviewURL(src)) {
-                PREVIEW_ELEMENTS.add(media);
-                logManager.addOnce(`skip_init_by_url_${src}`, `🔴 [Skip:Preview] 미디어 초기화 단계에서 미리보기 URL (${src}) 감지, 초기화 건너뜀`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
-                return;
+            if (media.tagName === 'VIDEO' || media.tagName === 'AUDIO') {
+                const src = media.currentSrc || media.src || media.dataset.src;
+                if (src && networkMonitor.isPreviewURL(src)) {
+                     PREVIEW_ELEMENTS.add(media);
+                     logManager.addOnce(`skip_init_by_url_${src}`, `🔴 [Skip:Preview] 미디어 초기화 단계에서 미리보기 URL (${src}) 감지, 초기화 건너뜀`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                     return;
+                }
             }
 
-            // 미디어 로드 완료 후 길이로 다시 필터링
-            media.addEventListener('loadedmetadata', function checkDuration() {
-                if (FeatureFlags.previewFiltering && this.duration > 0 && this.duration < PREVIEW_CONFIG.DURATION_THRESHOLD) {
-                    PREVIEW_ELEMENTS.add(media);
-                    logManager.addOnce(`skip_preview_by_duration_${media.src}`, `🔴 [Skip:Preview] 미디어 로드 완료, 영상 길이가 ${this.duration.toFixed(1)}s 이므로 무시`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
-                    return;
-                }
-                this.removeEventListener('loadedmetadata', checkDuration);
-            }, { once: true });
 
             observeMediaSources(media);
+
+            media.addEventListener('loadedmetadata', function checkDuration() {
+                 if (FeatureFlags.previewFiltering && this.duration > 0 && this.duration < PREVIEW_CONFIG.DURATION_THRESHOLD) {
+                     PREVIEW_ELEMENTS.add(media);
+                     logManager.addOnce(`skip_preview_by_duration_${media.src}`, `🔴 [Skip:Preview] 미디어 로드 완료, 영상 길이가 ${this.duration.toFixed(1)}s 이므로 무시`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                     return;
+                 }
+                 this.removeEventListener('loadedmetadata', checkDuration);
+            }, { once: true });
+
 
             media.addEventListener('play', () => {
                 if (PREVIEW_ELEMENTS.has(media)) {
@@ -1034,19 +1134,22 @@
 
             media.addEventListener('loadedmetadata', () => {
                 if (!PREVIEW_ELEMENTS.has(media)) {
+                    const mediaData = MEDIA_STATE.get(media) || { originalSrc: media.src, hasControls: media.hasAttribute('controls') };
+                    MEDIA_STATE.set(media, mediaData);
                     logManager.logMediaContext(media, '미디어 로드 완료', 'info');
                     if (media.src && networkMonitor && networkMonitor.VIDEO_URL_CACHE.has(media.src)) {
-                        dynamicMediaUI.show(media.src);
+                        if (dynamicMediaUI) dynamicMediaUI.show();
                     }
                     updateUIVisibility();
                 }
             }, { once: true });
-
-            if (media.src) networkMonitor.trackAndAttach(media.src, { source: 'Initial media src', element: media });
-            dynamicMediaUI.attach(media, src);
         };
 
         const detachUI = (media) => {
+            const mediaData = MEDIA_STATE.get(media);
+            if (mediaData) {
+                MEDIA_STATE.delete(media);
+            }
             if (PREVIEW_ELEMENTS.has(media)) {
                 PREVIEW_ELEMENTS.delete(media);
             }
@@ -1056,7 +1159,6 @@
         return { initWhenReady, detachUI, updateUIVisibility };
     })();
 
-    // --- spaPartialUpdate 모듈 ---
     const spaPartialUpdate = (() => {
         const detectChangedRegion = (doc) => {
             const contentContainers = doc.querySelectorAll('main, div#app, div.page-content');
@@ -1071,18 +1173,23 @@
 
         const partialUpdate = () => {
             logManager.addOnce(`spa_partial_update_start`, `🟢 SPA 부분 업데이트 시작`, 5000, 'info');
+
             const changedRegion = detectChangedRegion(document);
             if (!changedRegion) {
                 App.initializeAll(document);
                 return;
             }
+
             const medias = mediaFinder.findInSubtree(changedRegion);
+
             medias.forEach(media => {
                 if (!PROCESSED_NODES.has(media)) {
                     mediaControls.initWhenReady(media);
                 }
             });
+
             mediaControls.updateUIVisibility();
+
             logManager.addOnce(
                 `spa_partial_update_success`,
                 `🟢 SPA 부분 업데이트 완료: 변경 영역 내 미디어 ${medias.length}개 재초기화`,
@@ -1090,13 +1197,20 @@
                 'info'
             );
         };
+
         return { partialUpdate };
     })();
 
-    // --- spaMonitor 모듈 ---
     const spaMonitor = (() => {
         let lastURL = location.href;
         let debounceTimer = null;
+
+        const clearProcessedSets = () => {
+            PROCESSED_DOCUMENTS = new WeakSet();
+            PROCESSED_NODES = new WeakSet();
+            PROCESSED_IFRAMES = new WeakSet();
+        };
+
         const onNavigate = (reason = 'URL 변경 감지') => {
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
@@ -1104,15 +1218,14 @@
                 if (url !== lastURL) {
                     logManager.logSPANavigation(lastURL, url, reason);
                     lastURL = url;
+
                     if (FeatureFlags.spaPartialUpdate) {
                         spaPartialUpdate.partialUpdate();
                     } else {
                         logManager.addOnce(`spa_navigate_full_init`, `🔄 전체 페이지 초기화`, 5000, 'warn');
-                        PROCESSED_DOCUMENTS = new WeakSet();
-                        PROCESSED_NODES = new WeakSet();
-                        PROCESSED_IFRAMES = new WeakSet();
+                        clearProcessedSets();
                         LOGGED_KEYS_WITH_TIMER.clear();
-                        if(jwplayerMonitor) jwplayerMonitor.resetState();
+                        if(networkMonitor) networkMonitor.resetState();
                         OBSERVER_MAP.forEach(observer => observer.disconnect());
                         OBSERVER_MAP.clear();
                         App.initializeAll(document);
@@ -1136,22 +1249,29 @@
         return { init, onNavigate };
     })();
 
-    // --- App 모듈 ---
     const App = (() => {
         const handleIframeLoad = (iframe) => {
             if (!iframe) return;
+
+            const iframeSrc = iframe.src || 'about:blank';
             let isSameOrigin = false;
-            try { if (iframe.contentDocument) isSameOrigin = true; } catch(e) {}
+            try {
+                if (iframe.contentDocument) isSameOrigin = true;
+            } catch(e) {}
+
             if (!isSameOrigin) {
                 logManager.logIframeContext(iframe, '외부 도메인, 건너뜀');
                 return;
             }
+
             if (PROCESSED_IFRAMES.has(iframe)) return;
             PROCESSED_IFRAMES.add(iframe);
             logManager.logIframeContext(iframe, '초기화 시작');
+
             let retries = 0;
             const maxRetries = 5;
             let intervalId;
+
             const tryInit = () => {
                 try {
                     const doc = iframe.contentDocument;
@@ -1173,17 +1293,47 @@
             };
             intervalId = setInterval(tryInit, 1000);
             tryInit();
+
             try {
                 if (iframe.contentWindow && jwplayerMonitor) {
                     jwplayerMonitor.init(iframe.contentWindow);
                 }
-            } catch (e) { logManager.logErrorWithContext(e, iframe); }
+            } catch (e) {
+                 logManager.logErrorWithContext(e, iframe);
+            }
         };
 
-        const scanAndInitMedia = (doc) => {
+        const scanExistingMedia = (doc) => {
             const medias = mediaFinder.findInDoc(doc);
+
+            medias.sort((a, b) => {
+                const rectA = a.getBoundingClientRect();
+                const rectB = b.getBoundingClientRect();
+                return (rectB.width * rectB.height) - (rectA.width * rectA.height);
+            });
+
             medias.forEach(media => {
-                mediaControls.initWhenReady(media);
+                const url = media.src || media.dataset.src;
+                if (url && networkMonitor && networkMonitor.isMediaUrl(url)) {
+                    if (media.tagName === 'VIDEO' || media.tagName === 'AUDIO') {
+                        if (!media.src && media.dataset.src) {
+                            const candidate = media.dataset.src;
+                            if (networkMonitor.isPreviewURL(candidate)) {
+                                logManager.addOnce(`skip_assign_data_src`, `⚠️ data-src assignment skipped (preview): ${candidate}`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                                return;
+                            }
+                            media.src = candidate;
+                            logManager.addOnce(`data_src_mutation_${candidate}`, `🖼️ DOM 변경 감지, data-src -> src 업데이트: ${candidate}`, 5000, 'info');
+                        }
+                    }
+                    networkMonitor.trackAndAttach(url, { element: media });
+                }
+
+                media.querySelectorAll('source').forEach(source => {
+                    if (source.src && networkMonitor) {
+                        networkMonitor.trackAndAttach(source.src);
+                    }
+                });
             });
         };
 
@@ -1194,12 +1344,17 @@
                         if (node.nodeType !== 1) return;
                         if (node.tagName === 'IFRAME') {
                             handleIframeLoad(node);
+                        } else if (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') {
+                            if (mediaControls) mediaControls.initWhenReady(node);
                         } else {
-                            mediaFinder.findInSubtree(node).forEach(media => mediaControls.initWhenReady(media));
+                            node.querySelectorAll('iframe').forEach(iframe => handleIframeLoad(iframe));
+                            node.querySelectorAll('video, audio').forEach(media => {
+                                if (mediaControls) mediaControls.initWhenReady(media);
+                            });
                         }
                     });
                     mutation.removedNodes.forEach(node => {
-                        if (node.nodeType === 1 && (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') && mediaControls) {
+                        if (node.nodeType === 1 && (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') && MEDIA_STATE.has(node) && mediaControls) {
                             mediaControls.detachUI(node);
                         }
                     });
@@ -1210,21 +1365,20 @@
                         PROCESSED_IFRAMES.delete(targetNode);
                         handleIframeLoad(targetNode);
                     }
-                    if ((targetNode.tagName === 'VIDEO' || targetNode.tagName === 'AUDIO') && (mutation.attributeName === 'src' || mutation.attributeName === 'data-src')) {
-                        if (targetNode.dataset.src && !targetNode.src) {
-                             const candidate = targetNode.dataset.src;
-                             if (networkMonitor.isPreviewURL(candidate)) {
-                                 logManager.addOnce(`skip_assign_data_src_mut`, `⚠️ data-src assignment skipped (preview) | src: ${candidate}`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
-                                 return;
-                             }
-                             targetNode.src = candidate;
-                             logManager.addOnce(`data_src_mutation_${candidate}`, `🖼️ DOM 변경 감지, data-src -> src 업데이트: ${candidate}`, 5000, 'info');
-                         }
-                        mediaControls.initWhenReady(targetNode);
+                    if ((targetNode.tagName === 'VIDEO' || targetNode.tagName === 'AUDIO') && (mutation.attributeName === 'src' || mutation.attributeName === 'controls' || mutation.attributeName === 'data-src')) {
+                         if (targetNode.dataset.src && !targetNode.src) {
+                              const candidate = targetNode.dataset.src;
+                              if (networkMonitor.isPreviewURL(candidate)) {
+                                  logManager.addOnce(`skip_assign_data_src_mut`, `⚠️ data-src assignment skipped (preview) | src: ${candidate}`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
+                                  return;
+                              }
+                              targetNode.src = candidate;
+                              logManager.addOnce(`data_src_mutation_${candidate}`, `🖼️ DOM 변경 감지, data-src -> src 업데이트: ${candidate}`, 5000, 'info');
+                          }
+                        if (mediaControls) mediaControls.initWhenReady(targetNode);
                     }
                 }
             });
-            mediaControls.updateUIVisibility();
         };
 
         const startUnifiedObserver = (targetDocument = document) => {
@@ -1253,9 +1407,8 @@
                 if(spaMonitor) spaMonitor.init();
                 if(speedSlider) speedSlider.init();
                 if(dragBar) dragBar.init();
-                //if(dynamicMediaUI) dynamicMediaUI.init();
+                if(dynamicMediaUI) dynamicMediaUI.init();
                 if(jwplayerMonitor) jwplayerMonitor.init(window);
-                if(networkMonitor) networkMonitor.init(window);
 
                 document.addEventListener('fullscreenchange', () => {
                     if(speedSlider) speedSlider.updatePositionAndSize();
@@ -1268,17 +1421,20 @@
                         }
                     }
                 });
-            } else {
-                try {
-                    if(networkMonitor) networkMonitor.init(targetDocument.defaultView);
-                } catch {}
             }
+            if (networkMonitor) networkMonitor.init();
             startUnifiedObserver(targetDocument);
-            scanAndInitMedia(targetDocument);
+            scanExistingMedia(targetDocument);
+            mediaFinder.findInDoc(targetDocument).forEach(media => {
+                if (mediaControls) mediaControls.initWhenReady(media);
+            });
             targetDocument.querySelectorAll('iframe').forEach(iframe => handleIframeLoad(iframe));
-            mediaControls.updateUIVisibility();
+            if (mediaControls) mediaControls.updateUIVisibility();
         };
-        return { initializeAll };
+
+        return {
+            initializeAll,
+        };
     })();
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
