@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name VideoSpeed_Control
 // @namespace https.com/
-// @version 15.27 (최종 개선판)
+// @version 15.28 (보안 및 안정성 강화 - iframe 접근 보안 강화/클립보드 복사 fallback/XSS 취약점 방지)
 // @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
 // @match *://*/*
 // @grant GM_xmlhttpRequest
@@ -262,6 +262,47 @@
         };
     }
 
+    // (2) 클립보드 복사 fallback — 비동기/동기 모두 지원
+    async function copyToClipboard(text) {
+        if (!text) {
+            logManager.add('⚠️ 복사할 내용이 없습니다.', 'warn');
+            return false;
+        }
+        try {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                await navigator.clipboard.writeText(text);
+                logManager.addOnce('clipboard_api_success', '클립보드 API로 복사 성공', 5000, 'allow');
+                return true;
+            } else {
+                throw new Error('Clipboard API not available');
+            }
+        } catch (err) {
+            logManager.addOnce('clipboard_api_failed', `클립보드 API 실패, fallback 시도: ${err.message}`, 5000, 'warn');
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            Object.assign(textarea.style, {
+                position: 'fixed', top: '-9999px', left: '-9999px', opacity: '0',
+                pointerEvents: 'none', zIndex: '-1'
+            });
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textarea);
+                if (!successful) throw new Error('execCommand copy 실패');
+                logManager.addOnce('execCommand_success', 'execCommand로 복사 성공', 5000, 'allow');
+                return true;
+            } catch (error) {
+                document.body.removeChild(textarea);
+                logManager.addOnce('execCommand_failed', `클립보드 복사 실패: ${error.message}`, 5000, 'error');
+                return false;
+            }
+        }
+    }
+
+
     // --- 로그 모듈 ---
     const logManager = (() => {
         let logBoxContainer = null;
@@ -270,6 +311,7 @@
         const logHistory = [];
         const pendingLogs = [];
 
+        // (3) XSS 취약점 방지 — 안전하게 텍스트 노출
         function addLogToBox(msg) {
             if (!logContentBox) {
                 pendingLogs.push(msg);
@@ -286,7 +328,7 @@
                 logContentBox.removeChild(logContentBox.firstChild);
             }
             const entry = document.createElement('div');
-            entry.textContent = msg;
+            entry.textContent = msg; // **textContent 사용**
             entry.style.textAlign = 'left';
             logContentBox.appendChild(entry);
             logContentBox.scrollTop = logContentBox.scrollHeight;
@@ -406,12 +448,14 @@
             copyBtn.onclick = () => {
                 if (logHistory.length > 0) {
                     const logText = logHistory.join('\n');
-                    navigator.clipboard.writeText(logText).then(() => {
-                        copyBtn.textContent = '복사 완료!';
-                        setTimeout(() => copyBtn.textContent = '로그 복사', 2000);
-                    }).catch(() => {
-                        copyBtn.textContent = '복사 실패!';
-                        setTimeout(() => copyBtn.textContent = '로그 복사', 2000);
+                    copyToClipboard(logText).then(success => {
+                         if (success) {
+                            copyBtn.textContent = '복사 완료!';
+                            setTimeout(() => copyBtn.textContent = '로그 복사', 2000);
+                         } else {
+                            copyBtn.textContent = '복사 실패!';
+                            setTimeout(() => copyBtn.textContent = '로그 복사', 2000);
+                         }
                     });
                 }
             };
@@ -871,7 +915,7 @@
         let playbackUpdateTimer;
         // 설정값을 configManager를 통해 불러옴
         let isMinimized = configManager.get('isMinimized');
-        let isInitialized = configManager.get('isInitialized');
+        let isInitialized = false;
         let isVisible = false;
 
         const createSliderElements = () => {
@@ -938,8 +982,8 @@
         };
 
         const init = () => {
-            if (configManager.get('isInitialized')) return;
-            configManager.set('isInitialized', true);
+            if (isInitialized) return;
+            isInitialized = true;
             createSliderElements();
             if (!document.body) {
                 document.addEventListener('DOMContentLoaded', init);
@@ -1278,18 +1322,17 @@
                 }
 
                 const finalUrl = networkMonitor.getOriginalURL(urlToCopy);
-
                 logManager.addOnce(`url_copy_attempt_${Date.now()}`, `[URL] 복사 시도: ${finalUrl || 'URL 없음'}`, 5000, 'info');
 
-                navigator.clipboard.writeText(finalUrl).then(() => {
-                    const originalText = button.textContent;
-                    button.textContent = '✅ 복사 완료!';
-                    button.style.background = 'rgba(40, 167, 69, 0.7)';
-                    setTimeout(() => { button.textContent = originalText; button.style.background = 'rgba(0, 0, 0, 0.7)'; }, 1500);
-                }).catch(() => {
-                    const originalText = button.textContent;
-                    button.textContent = '❌ 복사 실패!';
-                    button.style.background = 'rgba(220, 53, 69, 0.7)';
+                copyToClipboard(finalUrl).then(success => {
+                    const originalText = '🎞️ URL';
+                    if (success) {
+                        button.textContent = '✅ 복사 완료!';
+                        button.style.background = 'rgba(40, 167, 69, 0.7)';
+                    } else {
+                        button.textContent = '❌ 복사 실패!';
+                        button.style.background = 'rgba(220, 53, 69, 0.7)';
+                    }
                     setTimeout(() => { button.textContent = originalText; button.style.background = 'rgba(0, 0, 0, 0.7)'; }, 1500);
                 });
             };
@@ -1498,17 +1541,29 @@
     })();
 
     const App = (() => {
+        // (1) iframe 접근 보안 강화 함수
+        function canAccessIframe(iframe) {
+            try {
+                if (iframe.hasAttribute('sandbox')) {
+                    const sandbox = iframe.getAttribute('sandbox');
+                    if (!sandbox.includes('allow-same-origin')) {
+                        // same-origin 권한 없으면 접근 불가
+                        return false;
+                    }
+                }
+                const doc = iframe.contentDocument;
+                return !!doc;
+            } catch (e) {
+                return false;
+            }
+        }
+
         const handleIframeLoad = (iframe) => {
             if (!iframe) return;
 
-            const iframeSrc = iframe.src || 'about:blank';
-            let isSameOrigin = false;
-            try {
-                if (iframe.contentDocument) isSameOrigin = true;
-            } catch(e) {}
-
-            if (!isSameOrigin) {
-                logManager.logIframeContext(iframe, '외부 도메인, 건너뜀');
+            // (1) 수정: iframe 접근 가능 여부 검사
+            if (!canAccessIframe(iframe)) {
+                logManager.logIframeContext(iframe, '접근 불가 (보안 정책)');
                 return;
             }
 
@@ -1684,6 +1739,8 @@
             initializeAll,
         };
     })();
+
+    const OBSERVER_MAP = new Map();
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         logManager.init();
