@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250807
+! Version: 20250811
 !
 !
 !
@@ -861,7 +861,7 @@ lol.inven.co.kr#@#.banner
 instiz.net##.imgad
 ! - 배너
 instiz.net##div[style]:has(> [id^='sense'])
-##[id*="sense"]
+instiz.net##[id*="sense"]
 !
 !
 ! 나무위키 (https://namu.wiki/)
