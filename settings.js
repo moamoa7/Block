@@ -1,16 +1,16 @@
 // ==UserScript==
-// @name         VideoSpeed_Control
-// @namespace    https.com/
-// @version      15.30-final-optimized-fixed
-// @description  🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최적화 및 버그 수정 최종판)
-// @match        *://*/*
-// @grant        GM_xmlhttpRequest
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_listValues
-// @grant        none
-// @connect      *
-// @run-at       document-start
+// @name        VideoSpeed_Control
+// @namespace   https.com/
+// @version     15.30-final-optimized-fixed 2
+// @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최적화 및 버그 수정 최종판)
+// @match       *://*/*
+// @grant       GM_xmlhttpRequest
+// @grant       GM_setValue
+// @grant       GM_getValue
+// @grant       GM_listValues
+// @grant       none
+// @connect     *
+// @run-at      document-start
 // ==/UserScript==
 
 (function () {
@@ -649,6 +649,10 @@
             try {
                 if (speedSlider && speedSlider.isMinimized() || e.button === 2) return;
                 if(e.target.closest('#vm-speed-slider-container, #vm-time-display')) return;
+                // 수정된 드래그 기능 제한 로직: 재생 중인 VIDEO 요소가 있을 때만 작동
+                if (!mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused)) {
+                    return;
+                }
 
                 const pos = e.touches ? e.touches[0] : e;
                 state.dragging = true; state.startX = pos.clientX; state.startY = pos.clientY; state.accX = 0;
@@ -741,10 +745,13 @@
                 mo.observe(media, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
             } catch (e) { logManager.logErrorWithContext(e, media); }
         }
+        // 수정된 배속바 표시 로직: document에 media 요소가 존재하면 항상 표시
         const updateUIVisibility = throttle(() => {
             try {
-                const hasMedia = mediaFinder.findAll().some(m => (m.tagName === 'VIDEO' || m.tagName === 'AUDIO') && (m.readyState >= 1 || !m.paused));
-                if (hasMedia) { speedSlider.show(); dragBar.show(); dynamicMediaUI.show(); } else { speedSlider.hide(); dragBar.hide(); dynamicMediaUI.hide(); }
+                const hasMedia = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' || m.tagName === 'AUDIO');
+                if (hasMedia) { speedSlider.show(); } else { speedSlider.hide(); }
+                const hasPlayingVideo = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused);
+                if (hasPlayingVideo) { dragBar.show(); dynamicMediaUI.show(); } else { dragBar.hide(); dynamicMediaUI.hide(); }
             } catch (e) { logManager.logErrorWithContext(e, null); }
         }, 400);
 
