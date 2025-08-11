@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        VideoSpeed_Control
 // @namespace   https.com/
-// @version     17.1-beta-optimized-fixed (오류 수정)
+// @version     17.1-beta-optimized-fixed (오류 수정 - 미리보기 검은화면 수정)
 // @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최적화 및 버그 수정)
 // @match       *://*/*
 // @grant       GM_xmlhttpRequest
@@ -322,11 +322,20 @@
         미리보기 감지
         ============================ */
     const PREVIEW_CONFIG = {
-        PATTERNS: [/preview/i, /thumb/i, /sprite/i, /teaser/i, /sample/i, /poster/i, /thumbnail/i, /trailer/i, /preroll/i, /lowres/i, /mini_preview/i],
-        DURATION_THRESHOLD: 12,
-        MIN_PIXEL_AREA: 2000,
-        LOG_LEVEL_FOR_SKIP: 'warn'
-    };
+        PATTERNS: [
+            /preview/i, /thumb/i, /sprite/i, /teaser/i, /sample/i, /poster/i, /thumbnail/i,
+            /teaser_clip/i, /trailers?/i, /trailer_/i, /clip_preview/i,
+            /sprite_/i, /sprite-/i, /thumbs?\//i, /thumbsprite/i, /thumb_strip/i,
+            /sample_clip/i, /demo(s)?\//i, /clip_sample/i,
+            /preroll/i, /pre_roll/i, /ads_preview/i,
+            /scene_preview/i, /scenepreview/i, /snapshots?/i,
+            /posterframe/i, /poster_frame/i, /cover_preview/i,
+            /lowres/i, /low_res/i, /mini_preview/i, /micro_preview/i
+        ],
+        DURATION_THRESHOLD: 12,
+        MIN_PIXEL_AREA: 2000,
+        LOG_LEVEL_FOR_SKIP: 'warn'
+    };
     function isPreviewURL(url) {
         if (!url || typeof url !== 'string') return false;
         try { const u = url.toLowerCase(); return PREVIEW_CONFIG.PATTERNS.some(p => p.test(u)); } catch (e) { return false; }
@@ -1134,8 +1143,9 @@
                         if (m.dataset && m.dataset.src && !m.src) {
                             const candidate = m.dataset.src;
                             if (FeatureFlags.previewFiltering && isPreviewURL(candidate)) logManager.addOnce('skip_data_src', `⚠️ data-src 미리보기 스킵: ${candidate}`, 3000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
-                            else { m.src = candidate; logManager.addOnce('assign_data_src', `data-src -> src 할당: ${candidate}`, 3000, 'info'); }
+                            return;
                         }
+                        m.src = candidate; logManager.addOnce('assign_data_src', `data-src -> src 할당: ${candidate}`, 3000, 'info');
                         m.querySelectorAll && m.querySelectorAll('source').forEach(s => { if (s.src) networkMonitor.trackAndAttach(s.src, { element: m }); });
                         const url = m.currentSrc || m.src;
                         if (url && networkMonitor.isMediaUrl(url)) networkMonitor.trackAndAttach(url, { element: m });
