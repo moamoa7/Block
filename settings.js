@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name VideoSpeed_Control
 // @namespace https.com/
-// @version 15.29 (코드 및 로직 개선 - 이벤트 중복 등록 방지 / 상태 관리 모듈화 개선 / 네트워크 모니터 연동 — 이벤트 기반 개선 / 비동기 iframe 초기화 개선 (MutationObserver 기반))
-// @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최종 개선판)
+// @version 15.30 (성능 최적화 - MutationObserver 필터링 강화 / Media Element 탐색 최적화 / Debounce / Throttle 적절한 적용)
+// @description 🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합
 // @match *://*/*
 // @grant GM_xmlhttpRequest
 // @grant none
