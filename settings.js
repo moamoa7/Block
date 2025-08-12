@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          VideoSpeed_Control
 // @namespace     https.com/
-// @version       17.6 (콘솔 클리어 방지 추가 / 로그내역 위치 수정 / URL 복사 수정)
+// @version       17.6 (콘솔 클리어 방지 추가 / 로그내역 위치 수정 / URL 복사 수정 (투명처리 포함))
 // @description    🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         GM_xmlhttpRequest
@@ -1004,7 +1004,7 @@ const jwplayerMonitor = (() => {
         btn = document.getElementById('dynamic-media-url-btn');
         if (!btn) {
             btn = document.createElement('button'); btn.id = 'dynamic-media-url-btn'; btn.textContent = '🎞️ URL';
-            Object.assign(btn.style, { position: 'fixed', top: '10px', right: '10px', zIndex: '2147483647', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', padding: '6px 8px', borderRadius: '6px', display: 'none', cursor: 'pointer', transition: 'background 0.3s' });
+            Object.assign(btn.style, { position: 'fixed', top: '10px', right: '10px', zIndex: '2147483647', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', padding: '6px 8px', borderRadius: '6px', display: 'none', cursor: 'pointer', transition: 'background 0.3s', opacity: '0', });
             document.body.appendChild(btn);
         }
         addOnceEventListener(btn, 'click', async (e) => {
