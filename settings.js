@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          VideoSpeed_Control
 // @namespace     https.com/
-// @version       17.6 (콘솔 클리어 방지 추가 / 로그내역 위치 수정)
+// @version       17.6 (콘솔 클리어 방지 추가 / 로그내역 위치 수정 / URL 복사 수정)
 // @description    🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         GM_xmlhttpRequest
@@ -998,40 +998,43 @@ const jwplayerMonitor = (() => {
     })();
 
     const dynamicMediaUI = (() => {
-        let btn, inited = false, visible = false, lastUrl = null;
-        function init() {
-            if (inited) return; inited = true;
-            btn = document.getElementById('dynamic-media-url-btn');
-            if (!btn) {
-                btn = document.createElement('button'); btn.id = 'dynamic-media-url-btn'; btn.textContent = '🎞️ URL';
-                Object.assign(btn.style, { position: 'fixed', top: '10px', right: '10px', zIndex: '2147483647', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', padding: '6px 8px', borderRadius: '6px', display: 'none', cursor: 'pointer', transition: 'background 0.3s' });
-                document.body.appendChild(btn);
-            }
-            addOnceEventListener(btn, 'click', async (e) => {
-                e.preventDefault(); e.stopPropagation();
-
-                const originalText = btn.textContent;
-                btn.textContent = '복사 중...';
-
-                const url = lastUrl || [...networkMonitor.VIDEO_URL_CACHE.keys()].pop();
-                if (!url) {
-                    logManager.addOnce('no_url', '⚠️ 감지된 URL 없음', 3000, 'warn');
-                    btn.textContent = '⚠️ 없음';
-                    setTimeout(() => btn.textContent = originalText, 1500);
-                    return;
-                }
-
-                const final = networkMonitor.getOriginalURL(url) || url;
-                const ok = await copyToClipboard(final);
-
-                btn.textContent = ok ? '✅ 복사 완료' : '❌ 복사 실패';
-                setTimeout(() => btn.textContent = originalText, 1500);
-            }, true);
+    let btn, inited = false, visible = false, lastUrl = null;
+    function init() {
+        if (inited) return; inited = true;
+        btn = document.getElementById('dynamic-media-url-btn');
+        if (!btn) {
+            btn = document.createElement('button'); btn.id = 'dynamic-media-url-btn'; btn.textContent = '🎞️ URL';
+            Object.assign(btn.style, { position: 'fixed', top: '10px', right: '10px', zIndex: '2147483647', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', padding: '6px 8px', borderRadius: '6px', display: 'none', cursor: 'pointer', transition: 'background 0.3s' });
+            document.body.appendChild(btn);
         }
-        function show(url) { if (!inited) init(); if (url) lastUrl = url; if (!btn) return; btn.style.display = 'block'; visible = true; }
-        function hide() { if (!btn) return; btn.style.display = 'none'; visible = false; }
-        return { init, show, hide };
-    })();
+        addOnceEventListener(btn, 'click', async (e) => {
+            e.preventDefault(); e.stopPropagation();
+
+            const originalText = btn.textContent;
+            btn.textContent = '복사 중...';
+
+            // 모든 감지된 URL을 가져와서 배열로 변환
+            const allUrls = Array.from(networkMonitor.VIDEO_URL_CACHE.keys());
+
+            if (allUrls.length === 0) {
+                logManager.addOnce('no_url', '⚠️ 감지된 URL 없음', 3000, 'warn');
+                btn.textContent = '⚠️ 없음';
+                setTimeout(() => btn.textContent = originalText, 1500);
+                return;
+            }
+
+            // 모든 URL을 줄바꿈으로 연결하여 복사
+            const final = allUrls.map(url => networkMonitor.getOriginalURL(url) || url).join('\n');
+            const ok = await copyToClipboard(final);
+
+            btn.textContent = ok ? `✅ ${allUrls.length}개 URL 복사 완료` : '❌ 복사 실패';
+            setTimeout(() => btn.textContent = originalText, 2500);
+        }, true);
+    }
+    function show(url) { if (!inited) init(); if (url) lastUrl = url; if (!btn) return; btn.style.display = 'block'; visible = true; }
+    function hide() { if (!btn) return; btn.style.display = 'none'; visible = false; }
+    return { init, show, hide };
+})();
 
     /* ============================
         mediaControls: per-media init/observe
