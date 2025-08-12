@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          VideoSpeed_Control
 // @namespace     https.com/
-// @version       17.5 (기타 최적화 3)
+// @version       17.6 (콘솔 클리어 방지 추가 / 로그내역 위치 수정)
 // @description    🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         GM_xmlhttpRequest
@@ -15,6 +15,28 @@
 
 (function () {
     'use strict';
+
+     /* ============================
+        콘솔 클리어 방지 (추가된 코드)
+        ============================ */
+    (function() {
+        try {
+            if (window.console && console.clear) {
+                const originalClear = console.clear;
+                console.clear = function() {
+                    console.log('--- 🚫 console.clear()가 차단되었습니다. ---');
+                };
+                Object.defineProperty(console, 'clear', {
+                    configurable: false,
+                    writable: false,
+                    value: console.clear
+                });
+                console.log('✅ 콘솔 클리어 방지 기능이 활성화되었습니다.');
+            }
+        } catch (e) {
+            console.error('콘솔 클리어 방지 로직에 오류가 발생했습니다:', e);
+        }
+    })();
 
     /* ============================
         설정: 전역 기능 및 제외 도메인
@@ -282,14 +304,14 @@
             container = document.createElement('div');
             container.id = 'vm-log-container';
             Object.assign(container.style, {
-                position: 'fixed', bottom: '0', right: '0', width: '350px', maxHeight: '100px',
-                zIndex: '2147483646', pointerEvents: 'none', background: 'rgba(30,30,30,0.9)', color: '#fff',
-                fontFamily: 'monospace', fontSize: '14px', borderTopLeftRadius: '8px', overflow: 'hidden',
-                opacity: '0', transition: 'opacity 0.3s ease', boxShadow: '0 0 8px #000'
-            });
+              position: 'fixed', bottom: '0', right: '0', width: '350px', maxHeight: '30px',
+              zIndex: '2147483646', pointerEvents: 'none', background: 'transparent', color: '#fff',
+              fontFamily: 'monospace', fontSize: '14px', borderTopLeftRadius: '8px', overflow: 'hidden',
+              opacity: '0', transition: 'opacity 0.3s ease', boxShadow: 'none'
+          });
             const copyBtn = document.createElement('button');
             copyBtn.textContent = '로그 복사';
-            Object.assign(copyBtn.style, { position: 'absolute', top: '0', right: '0', background: 'rgba(50,50,50,0.9)', color: '#fff', border: 'none', borderBottomLeftRadius: '8px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer', zIndex: '2147483647', opacity: '0.8' });
+            Object.assign(copyBtn.style, { position: 'absolute', top: '0', right: '0', background: 'red', color: '#fff', border: 'none', borderBottomLeftRadius: '8px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer', zIndex: '2147483647', opacity: '0.8' });
             copyBtn.addEventListener('click', async () => {
                 const ok = await copyToClipboard(history.join('\n'));
                 copyBtn.textContent = ok ? '복사 완료' : '복사 실패'; setTimeout(() => copyBtn.textContent = '로그 복사', 1500);
@@ -665,9 +687,6 @@
         };
     })();
 
-    /* ============================
-        JWPlayer 모니터
-        ============================ */
     /* ============================
      JWPlayer 모니터
      ============================ */
