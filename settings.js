@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          VideoSpeed_Control
 // @namespace     https.com/
-// @version       17.3 (기타 최적화)
+// @version       17.4 (기타 최적화 2)
 // @description    🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최적화 및 버그 수정)
 // @match         *://*/*
 // @grant         GM_xmlhttpRequest
@@ -49,6 +49,7 @@
         enhanceURLDetection: true,
         spaPartialUpdate: true,
         detailedLogging: true,
+        logLevel: 'INFO', // DEBUG, INFO, WARN, ERROR
         previewFiltering: true,
         popupBlocker: true,
         iframeProtection: true,
@@ -248,6 +249,11 @@
             }, 10000);
         }
         function safeAdd(msg, level = 'info') {
+            const levels = { 'debug': 0, 'info': 1, 'warn': 2, 'error': 3 };
+            const currentLevel = levels[FeatureFlags.logLevel.toLowerCase()] || 1;
+            const msgLevel = levels[level] || 1;
+            if (msgLevel < currentLevel) return;
+
             const icons = { info: 'ℹ️', warn: '⚠️', error: '🔴', allow: '✅', debug: '🔧', stream: '▶️' };
             const full = `[${new Date().toLocaleTimeString()}] ${icons[level] || ''} ${msg}`;
             if (FeatureFlags.detailedLogging) {
@@ -314,8 +320,9 @@
         function logErrorWithContext(err, ctx) {
             if (!FeatureFlags.detailedLogging) return;
             const stack = err && err.stack ? err.stack : String(err);
-            const dom = ctx && ctx.tagName ? ctx.tagName : 'N/A';
-            addOnce(`err_${Date.now()}`, `❗ 에러: ${err?.message || err} | ctx:${dom}\n${stack}`, 10000, 'error');
+            const dom = ctx && ctx.tagName ? ctx.tagName : (ctx && ctx.message ? ctx.message : 'N/A');
+            const message = `❗ 에러: ${err?.message || err} | 컨텍스트: ${dom}`;
+            addOnce(`err_${Date.now()}`, message, 10000, 'error');
         }
         return { init: initUI, add: add, addOnce, logMediaContext, logIframeContext, logErrorWithContext };
     })();
@@ -347,9 +354,10 @@
         강화형 networkMonitor
         ============================ */
     const networkMonitor = (() => {
-        const VIDEO_URL_CACHE = new Set();
+        const VIDEO_URL_CACHE = new Map();
         const BLOB_URL_MAP = new Map();
         const MAX_CACHE_SIZE = 500;
+        const CACHE_EXPIRATION_TIME = 60 * 1000; // 60초
         let initialized = false;
 
         const VIDEO_EXT_REGEX = /\.(mp4|webm|m3u8|mpd)(\?|#|$)/i;
@@ -373,6 +381,16 @@
             } catch {}
             return url;
         };
+
+        function cleanupCache() {
+            const now = Date.now();
+            for (const [url, timestamp] of VIDEO_URL_CACHE.entries()) {
+                if (now - timestamp > CACHE_EXPIRATION_TIME) {
+                    VIDEO_URL_CACHE.delete(url);
+                }
+            }
+        }
+        setInterval(cleanupCache, CACHE_EXPIRATION_TIME);
 
         function extractURLsFromText(text) {
           const matches = text.match(URL_REGEX);
@@ -430,13 +448,15 @@
                 return;
             }
             if (VIDEO_URL_CACHE.has(norm)) return;
-            VIDEO_URL_CACHE.add(norm);
+            VIDEO_URL_CACHE.set(norm, Date.now()); // Map에 URL과 타임스탬프 저장
 
             if (VIDEO_URL_CACHE.size > MAX_CACHE_SIZE) {
-                // 제안된 비동기 캐시 삭제 로직 반영
+                // 비동기 캐시 삭제 로직 반영
                 setTimeout(() => {
-                    const first = VIDEO_URL_CACHE.values().next().value;
-                    VIDEO_URL_CACHE.delete(first);
+                    const first = VIDEO_URL_CACHE.keys().next().value;
+                    if (first) {
+                      VIDEO_URL_CACHE.delete(first);
+                    }
                 }, 0);
             }
 
@@ -445,7 +465,7 @@
             if (ctx.rect) details.push(`size:${Math.round(ctx.rect.width)}x${Math.round(ctx.rect.height)}`);
             logManager.addOnce(`early_${norm}`, `🎯 동적 영상 URL 감지: ${norm} | ${details.join(' | ')}`, 5000, 'info');
             try { dynamicMediaUI && dynamicMediaUI.show(norm); } catch (e) {}
-            if (ctx.element && !MediaStateManager.has(ctx.element)) MediaStateManager.set(ctx.element, { trackedUrl: norm });
+            if (ctx.element && !MediaStateManager.has(ctx.element)) MediaStateManager.set(ctx.element, { trackedUrl: norm, isInitialized: false });
         }
 
         function parseMPD(xmlText, baseURL) {
@@ -474,8 +494,7 @@
                     if (url) trackAndAttach(normalizeURL(url, effectiveBase), {source: 'MPD BaseURL'});
                 });
             } catch (e) {
-                // 제안된 에러 핸들링 강화 반영
-                logManager.logErrorWithContext(new Error(`MPD 파싱 실패: ${e.message}`), null);
+                logManager.logErrorWithContext(e, { message: 'MPD 파싱 실패', url: baseURL });
             }
         }
 
@@ -500,15 +519,13 @@
                 }
                 logManager.addOnce(`m3u8_parsed_${baseURL}`, `🔍 M3U8 파싱 완료: ${baseURL}`, 5000, 'info');
             } catch (e) {
-                // 제안된 에러 핸들링 강화 반영
-                logManager.logErrorWithContext(new Error(`M3U8 파싱 실패: ${e.message}`), null);
+                logManager.logErrorWithContext(e, { message: 'M3U8 파싱 실패', url: baseURL });
             }
         }
 
         const handleResponse = async (url, resp) => {
             try {
                 const ct = resp.headers.get('content-type') || '';
-                // 제안된 네트워크 추적 최적화 반영
                 if (isMediaUrl(url) || isMediaMimeType(ct)) {
                     trackAndAttach(url, { source: 'fetch/xhr' });
                     const text = await resp.clone().text();
@@ -523,7 +540,6 @@
             }
         };
 
-
         function hookXHR() {
             if (!originalMethods.XMLHttpRequest.open || !originalMethods.XMLHttpRequest.send) return;
             window.XMLHttpRequest.prototype.open = function (method, url) { this._reqUrl = url; return originalMethods.XMLHttpRequest.open.apply(this, arguments); };
@@ -532,7 +548,6 @@
                     try {
                         const url = normalizeURL(this._reqUrl);
                         const ct = this.getResponseHeader && this.getResponseHeader('Content-Type');
-                        // 제안된 네트워크 추적 최적화 반영
                         if (isMediaUrl(url) || isMediaMimeType(ct)) {
                             handleResponse(url, new Response(this.response, { headers: { 'content-type': ct || '' } }));
                         }
@@ -936,11 +951,23 @@
             }
             addOnceEventListener(btn, 'click', async (e) => {
                 e.preventDefault(); e.stopPropagation();
-                const url = lastUrl || [...networkMonitor.VIDEO_URL_CACHE].values().next().value;
-                if (!url) { logManager.addOnce('no_url', '⚠️ 감지된 URL 없음', 3000, 'warn'); btn.textContent = '⚠️ 없음'; setTimeout(() => btn.textContent = '🎞️ URL', 1500); return; }
+
+                const originalText = btn.textContent;
+                btn.textContent = '복사 중...';
+
+                const url = lastUrl || [...networkMonitor.VIDEO_URL_CACHE.keys()].pop();
+                if (!url) {
+                    logManager.addOnce('no_url', '⚠️ 감지된 URL 없음', 3000, 'warn');
+                    btn.textContent = '⚠️ 없음';
+                    setTimeout(() => btn.textContent = originalText, 1500);
+                    return;
+                }
+
                 const final = networkMonitor.getOriginalURL(url) || url;
                 const ok = await copyToClipboard(final);
-                btn.textContent = ok ? '✅ 복사' : '❌ 실패'; setTimeout(() => btn.textContent = '🎞️ URL', 1500);
+
+                btn.textContent = ok ? '✅ 복사 완료' : '❌ 복사 실패';
+                setTimeout(() => btn.textContent = originalText, 1500);
             }, true);
         }
         function show(url) { if (!inited) init(); if (url) lastUrl = url; if (!btn) return; btn.style.display = 'block'; visible = true; }
@@ -1149,8 +1176,6 @@
                     if (hasVideo || iframe.clientWidth > 100) {
                         logAndKeepIframe(iframe, '보안 정책으로 인해 제어 불가능');
                     } else {
-                        // 기존 로직은 iframe을 대체했지만, 제안에 따라 로그만 남기고 원본 유지하는 것이 더 유연할 수 있음.
-                        // 하지만 기존 로직을 유지하되, 차단 메시지 표시 기준을 더 명확히 함.
                         if (!iframeSrc || iframeSrc.startsWith('about:blank')) {
                            logAndKeepIframe(iframe, 'src가 비어있거나 차단됨');
                         } else {
