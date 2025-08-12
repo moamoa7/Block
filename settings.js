@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          VideoSpeed_Control
 // @namespace     https.com/
-// @version       17.4 (기타 최적화 2)
-// @description    🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최적화 및 버그 수정)
+// @version       17.5 (기타 최적화 3)
+// @description    🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합
 // @match         *://*/*
 // @grant         GM_xmlhttpRequest
 // @grant         GM_setValue
@@ -320,8 +320,8 @@
         function logErrorWithContext(err, ctx) {
             if (!FeatureFlags.detailedLogging) return;
             const stack = err && err.stack ? err.stack : String(err);
-            const dom = ctx && ctx.tagName ? ctx.tagName : (ctx && ctx.message ? ctx.message : 'N/A');
-            const message = `❗ 에러: ${err?.message || err} | 컨텍스트: ${dom}`;
+            const contextMessage = typeof ctx === 'object' && ctx.message ? ctx.message : (ctx && ctx.tagName ? ctx.tagName : 'N/A');
+            const message = `❗ 에러: ${err?.message || err} | 컨텍스트: ${contextMessage}`;
             addOnce(`err_${Date.now()}`, message, 10000, 'error');
         }
         return { init: initUI, add: add, addOnce, logMediaContext, logIframeContext, logErrorWithContext };
@@ -448,10 +448,9 @@
                 return;
             }
             if (VIDEO_URL_CACHE.has(norm)) return;
-            VIDEO_URL_CACHE.set(norm, Date.now()); // Map에 URL과 타임스탬프 저장
+            VIDEO_URL_CACHE.set(norm, Date.now());
 
             if (VIDEO_URL_CACHE.size > MAX_CACHE_SIZE) {
-                // 비동기 캐시 삭제 로직 반영
                 setTimeout(() => {
                     const first = VIDEO_URL_CACHE.keys().next().value;
                     if (first) {
@@ -669,41 +668,81 @@
     /* ============================
         JWPlayer 모니터
         ============================ */
-    const jwplayerMonitor = (() => {
-        let isHooked = false;
-        function hook(ctx) {
-            if (!ctx || isHooked) return;
-            try {
-                const jw = ctx.jwplayer;
-                if (!jw || typeof jw !== 'function') return;
-                const orig = jw.bind(ctx);
-                ctx.jwplayer = function () {
-                    const p = orig.apply(this, arguments);
+    /* ============================
+     JWPlayer 모니터
+     ============================ */
+const jwplayerMonitor = (() => {
+    let isHooked = false;
+
+    // 모든 JWPlayer 인스턴스를 찾아 후킹하는 메인 함수
+    function hookAllPlayers() {
+        if (isHooked) return;
+
+        // jwplayer 전역 객체가 로드될 때까지 기다림
+        const waitForJWPlayer = new Promise((resolve, reject) => {
+            const interval = setInterval(() => {
+                if (window.jwplayer && typeof window.jwplayer === 'function') {
+                    clearInterval(interval);
+                    resolve(window.jwplayer);
+                }
+            }, 100);
+
+            setTimeout(() => {
+                clearInterval(interval);
+                reject('JWPlayer 로딩 실패');
+            }, 5000); // 5초 대기
+        });
+
+        waitForJWPlayer.then(jw => {
+            // 페이지의 모든 잠재적인 JWPlayer 요소를 찾음
+            const playerElements = document.querySelectorAll('[id^="jwplayer-"], .jw-player, div[id]');
+
+            playerElements.forEach(playerElement => {
+                const playerId = playerElement.id;
+                if (playerId) {
                     try {
-                        if (p && typeof p.setup === 'function') {
-                            const origSetup = p.setup.bind(p);
-                            p.setup = function (cfg) { const res = origSetup(cfg); setTimeout(() => tryDetect(p), 500); return res; };
+                        const playerInstance = jw(playerId);
+                        if (playerInstance) {
+                            // 인스턴스를 성공적으로 찾았으면 후킹 로직 적용
+                            const originalSetup = playerInstance.setup;
+                            playerInstance.setup = function(config) {
+                                const result = originalSetup.apply(this, arguments);
+                                setTimeout(() => tryDetect(this), 500);
+                                return result;
+                            };
+                            logManager.addOnce(`jw_hooked_${playerId}`, `✅ JWPlayer(${playerId}) 훅 적용`, 3000, 'info');
                         }
-                    } catch (e) {}
-                    return p;
-                };
-                Object.assign(ctx.jwplayer, jw);
-                isHooked = true;
-                logManager.addOnce('jw_hooked', '✅ JWPlayer 훅 적용', 3000, 'info');
-            } catch (e) { logManager.logErrorWithContext(e, null); }
+                    } catch (e) {
+                        logManager.logErrorWithContext(e, { message: `JWPlayer 인스턴스(${playerId}) 후킹 실패` });
+                    }
+                }
+            });
+            isHooked = true;
+
+        }).catch(err => {
+            // JWPlayer가 로드되지 않았어도 별도의 경고 메시지는 출력하지 않음
+            // 다른 감지 로직이 동영상을 찾을 것이기 때문
+        });
+    }
+
+    // JWPlayer 인스턴스에서 동영상 URL을 찾음
+    function tryDetect(player) {
+        try {
+            const list = player.getPlaylist && player.getPlaylist();
+            if (!list || !list.length) return;
+            list.forEach(item => {
+                const f = item.file || (item.sources && item.sources[0] && item.sources[0].file);
+                if (f && networkMonitor.isMediaUrl(f)) networkMonitor.trackAndAttach(f, { source: 'jwplayer' });
+            });
+        } catch (e) {
+            logManager.logErrorWithContext(e, { message: 'JWPlayer 플레이리스트 감지 실패' });
         }
-        function tryDetect(player) {
-            try {
-                const list = player.getPlaylist && player.getPlaylist();
-                if (!list || !list.length) return;
-                list.forEach(item => {
-                    const f = item.file || (item.sources && item.sources[0] && item.sources[0].file);
-                    if (f && networkMonitor.isMediaUrl(f)) networkMonitor.trackAndAttach(f, { source: 'jwplayer' });
-                });
-            } catch (e) { logManager.logErrorWithContext(e, null); }
-        }
-        return { init: hook };
-    })();
+    }
+
+    return {
+        init: () => hookAllPlayers()
+    };
+})();
 
     /* ============================
         mediaFinder (문서/iframe/Shadow DOM 탐색)
