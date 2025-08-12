@@ -311,7 +311,7 @@
           });
             const copyBtn = document.createElement('button');
             copyBtn.textContent = '로그 복사';
-            Object.assign(copyBtn.style, { position: 'absolute', top: '0', right: '0', background: 'red', color: '#fff', border: 'none', borderBottomLeftRadius: '8px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer', zIndex: '2147483647', opacity: '0.8' });
+            Object.assign(copyBtn.style, { position: 'absolute', top: '0', right: '0', background: 'red', color: '#fff', border: 'none', borderBottomLeftRadius: '8px', padding: '4px 8px', fontSize: '14px', cursor: 'pointer', zIndex: '2147483647', opacity: '0.8' });
             copyBtn.addEventListener('click', async () => {
                 const ok = await copyToClipboard(history.join('\n'));
                 copyBtn.textContent = ok ? '복사 완료' : '복사 실패'; setTimeout(() => copyBtn.textContent = '로그 복사', 1500);
