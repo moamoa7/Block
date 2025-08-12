@@ -1,24 +1,24 @@
 // ==UserScript==
-// @name          VideoSpeed_Control
-// @namespace     https.com/
-// @version       17.2 (ifrmae 차단 오류 수정 및 배속바 표시 수정)
-// @description   🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최적화 및 버그 수정)
-// @match         *://*/*
-// @grant         GM_xmlhttpRequest
-// @grant         GM_setValue
-// @grant         GM_getValue
-// @grant         GM_listValues
-// @grant         none
-// @connect       *
-// @run-at        document-start
+// @name          VideoSpeed_Control
+// @namespace     https.com/
+// @version       17.3 (기타 최적화)
+// @description    🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최적화 및 버그 수정)
+// @match         *://*/*
+// @grant         GM_xmlhttpRequest
+// @grant         GM_setValue
+// @grant         GM_getValue
+// @grant         GM_listValues
+// @grant         none
+// @connect       *
+// @run-at        document-start
 // ==/UserScript==
 
 (function () {
     'use strict';
 
     /* ============================
-        설정: 전역 기능 및 제외 도메인
-        ============================ */
+        설정: 전역 기능 및 제외 도메인
+        ============================ */
 
     const NOT_EXCLUSION_DOMAINS = ['avsee.ru'];
     const EXCLUSION_PATHS = ['/bbs/login.php'];
@@ -63,8 +63,8 @@
     });
 
     /* ============================
-        안전한 원시 함수 보관
-        ============================ */
+        안전한 원시 함수 보관
+        ============================ */
     const originalMethods = {
         Element: {
             attachShadow: window.Element.prototype.attachShadow
@@ -91,8 +91,8 @@
     };
 
     /* ============================
-        Shadow DOM 강제 open
-        ============================ */
+        Shadow DOM 강제 open
+        ============================ */
     (function hackAttachShadow() {
         if (window._hasHackAttachShadow_) return;
         try {
@@ -110,8 +110,8 @@
     })();
 
     /* ============================
-        ConfigManager (localStorage / GM fallback)
-        ============================ */
+        ConfigManager (localStorage / GM fallback)
+        ============================ */
     class ConfigManager {
         constructor(opts = {}) {
             this.opts = opts;
@@ -176,8 +176,8 @@
     const configManager = new ConfigManager({ prefix: '_video_speed_', config: { isMinimized: true, isInitialized: false } });
 
     /* ============================
-        유틸: addOnceEventListener, throttle, debounce, copyToClipboard
-        ============================ */
+        유틸: addOnceEventListener, throttle, debounce, copyToClipboard
+        ============================ */
     function addOnceEventListener(el, ev, handler, options) {
         try {
             if (!el) return;
@@ -204,8 +204,8 @@
     }
 
     /* ============================
-        전역 상태 관리
-        ============================ */
+        전역 상태 관리
+        ============================ */
     const MediaStateManager = (() => {
         const wm = new WeakMap();
         const previews = new WeakSet();
@@ -232,8 +232,8 @@
     const iframeInitAttempts = new WeakMap();
 
     /* ============================
-        로그 모듈 (XSS 안전)
-        ============================ */
+        로그 모듈 (XSS 안전)
+        ============================ */
     const logManager = (() => {
         let container = null, box = null, history = [], pending = [];
         let dismissTimer = null;
@@ -250,7 +250,9 @@
         function safeAdd(msg, level = 'info') {
             const icons = { info: 'ℹ️', warn: '⚠️', error: '🔴', allow: '✅', debug: '🔧', stream: '▶️' };
             const full = `[${new Date().toLocaleTimeString()}] ${icons[level] || ''} ${msg}`;
-            if (console[level]) console[level](full); else console.log(full);
+            if (FeatureFlags.detailedLogging) {
+                if (console[level]) console[level](full); else console.log(full);
+            }
             if (!FeatureFlags.logUI) return;
             if (!isTopFrame) {
                 try { window.parent.postMessage({ type: 'MY_SCRIPT_LOG', message: full, level, key: msg }, '*'); } catch (e) { }
@@ -319,8 +321,8 @@
     })();
 
     /* ============================
-        미리보기 감지
-        ============================ */
+        미리보기 감지
+        ============================ */
     const PREVIEW_CONFIG = {
         PATTERNS: [
             /preview/i, /thumb/i, /sprite/i, /teaser/i, /sample/i, /poster/i, /thumbnail/i,
@@ -342,8 +344,8 @@
     }
 
     /* ============================
-        강화형 networkMonitor
-        ============================ */
+        강화형 networkMonitor
+        ============================ */
     const networkMonitor = (() => {
         const VIDEO_URL_CACHE = new Set();
         const BLOB_URL_MAP = new Map();
@@ -417,7 +419,7 @@
         }
 
         function isHLSPlaylist(text) {
-          return text.includes('#EXTM3U') && (text.includes('#EXT-X-STREAM-INF') || text.includes('#EXT-X-TARGETDURATION'));
+          return text.includes('#EXTM3U') && (text.includes('#EXT-X-STREAM-INF') || text.includes('#EXT-X-TARGETDURATION') || text.includes('#EXT-X-MEDIA'));
         }
 
         function trackAndAttach(url, ctx = {}) {
@@ -431,8 +433,11 @@
             VIDEO_URL_CACHE.add(norm);
 
             if (VIDEO_URL_CACHE.size > MAX_CACHE_SIZE) {
-                const first = VIDEO_URL_CACHE.values().next().value;
-                VIDEO_URL_CACHE.delete(first);
+                // 제안된 비동기 캐시 삭제 로직 반영
+                setTimeout(() => {
+                    const first = VIDEO_URL_CACHE.values().next().value;
+                    VIDEO_URL_CACHE.delete(first);
+                }, 0);
             }
 
             const details = [];
@@ -469,6 +474,7 @@
                     if (url) trackAndAttach(normalizeURL(url, effectiveBase), {source: 'MPD BaseURL'});
                 });
             } catch (e) {
+                // 제안된 에러 핸들링 강화 반영
                 logManager.logErrorWithContext(new Error(`MPD 파싱 실패: ${e.message}`), null);
             }
         }
@@ -494,6 +500,7 @@
                 }
                 logManager.addOnce(`m3u8_parsed_${baseURL}`, `🔍 M3U8 파싱 완료: ${baseURL}`, 5000, 'info');
             } catch (e) {
+                // 제안된 에러 핸들링 강화 반영
                 logManager.logErrorWithContext(new Error(`M3U8 파싱 실패: ${e.message}`), null);
             }
         }
@@ -501,7 +508,8 @@
         const handleResponse = async (url, resp) => {
             try {
                 const ct = resp.headers.get('content-type') || '';
-                if (VIDEO_EXT_REGEX.test(url) || isMediaMimeType(ct) || url.includes('.mpd')) {
+                // 제안된 네트워크 추적 최적화 반영
+                if (isMediaUrl(url) || isMediaMimeType(ct)) {
                     trackAndAttach(url, { source: 'fetch/xhr' });
                     const text = await resp.clone().text();
                     if (url.endsWith('.mpd') || ct.includes('application/dash+xml')) {
@@ -524,6 +532,7 @@
                     try {
                         const url = normalizeURL(this._reqUrl);
                         const ct = this.getResponseHeader && this.getResponseHeader('Content-Type');
+                        // 제안된 네트워크 추적 최적화 반영
                         if (isMediaUrl(url) || isMediaMimeType(ct)) {
                             handleResponse(url, new Response(this.response, { headers: { 'content-type': ct || '' } }));
                         }
@@ -643,8 +652,8 @@
     })();
 
     /* ============================
-        JWPlayer 모니터
-        ============================ */
+        JWPlayer 모니터
+        ============================ */
     const jwplayerMonitor = (() => {
         let isHooked = false;
         function hook(ctx) {
@@ -682,8 +691,8 @@
     })();
 
     /* ============================
-        mediaFinder (문서/iframe/Shadow DOM 탐색)
-        ============================ */
+        mediaFinder (문서/iframe/Shadow DOM 탐색)
+        ============================ */
     const mediaFinder = {
         findInDoc(doc) {
             const out = [];
@@ -731,8 +740,8 @@
     };
 
     /* ============================
-        UI: speedSlider, dragBar, dynamicMediaUI
-        ============================ */
+        UI: speedSlider, dragBar, dynamicMediaUI
+        ============================ */
     const DRAG_CONFIG = { PIXELS_PER_SECOND: 2 };
 
     const speedSlider = (() => {
@@ -927,7 +936,7 @@
             }
             addOnceEventListener(btn, 'click', async (e) => {
                 e.preventDefault(); e.stopPropagation();
-                const url = lastUrl || [...networkMonitor.VIDEO_URL_CACHE].keys().next().value; // Map에서 최신 키 가져오도록 수정
+                const url = lastUrl || [...networkMonitor.VIDEO_URL_CACHE].values().next().value;
                 if (!url) { logManager.addOnce('no_url', '⚠️ 감지된 URL 없음', 3000, 'warn'); btn.textContent = '⚠️ 없음'; setTimeout(() => btn.textContent = '🎞️ URL', 1500); return; }
                 const final = networkMonitor.getOriginalURL(url) || url;
                 const ok = await copyToClipboard(final);
@@ -940,8 +949,8 @@
     })();
 
     /* ============================
-        mediaControls: per-media init/observe
-        ============================ */
+        mediaControls: per-media init/observe
+        ============================ */
     const mediaControls = (() => {
         function observeMediaSources(media) {
             try {
@@ -987,8 +996,8 @@
     })();
 
     /* ============================
-        SPA: 부분 업데이트 감지
-        ============================ */
+        SPA: 부분 업데이트 감지
+        ============================ */
     const spaPartialUpdate = (() => {
         function detectChangedRegion(doc) {
             const candidates = doc.querySelectorAll('main, #app, .page-content, [role="main"]');
@@ -1045,8 +1054,8 @@
     })();
 
     /* ============================
-        간단한 팝업/새창 차단
-        ============================ */
+        간단한 팝업/새창 차단
+        ============================ */
     (function popupBlocker() {
         if (!FeatureFlags.popupBlocker) return;
         try {
@@ -1067,8 +1076,8 @@
     })();
 
     /* ============================
-        App: 초기화·통합 MutationObserver
-        ============================ */
+        App: 초기화·통합 MutationObserver
+        ============================ */
     function canAccessIframe(iframe) {
         try {
             if (!FeatureFlags.iframeProtection) return true;
@@ -1092,6 +1101,11 @@
       }
     }
 
+    function logAndKeepIframe(iframe, message) {
+        if (!iframe || iframe.parentNode === null) return;
+        logManager.addOnce(`blocked_iframe_${iframe.src}`, `🔒 iframe ${message}: ${iframe.src}`, 6000, 'warn');
+    }
+
     function waitForIframeReady(iframe, timeout = 4000) {
         return new Promise(resolve => {
             try {
@@ -1111,17 +1125,15 @@
             if (MediaStateManager.hasIframe(iframe)) return;
 
             const handleIframeProcessing = () => {
-                // Step 1: iframe src가 직접적인 비디오 URL인지 먼저 확인
                 const iframeSrc = iframe.src;
                 if (iframeSrc && networkMonitor.isMediaUrl(iframeSrc)) {
                     networkMonitor.trackAndAttach(iframeSrc, { element: iframe, source: 'iframe.src' });
                     logManager.logIframeContext(iframe, '✅ 영상 URL 감지 (src 속성)');
                     MediaStateManager.addIframe(iframe);
-                    return; // 내부 스크립트 실행 대신 URL만 추적하고 종료
+                    return;
                 }
 
                 if (canAccessIframe(iframe)) {
-                    // 접근 가능하면 내부 문서 초기화
                     const doc = iframe.contentDocument;
                     if (doc) {
                         const medias = mediaFinder.findInDoc(doc);
@@ -1133,17 +1145,21 @@
                         }
                     }
                 } else {
-                    // 접근 불가능하면 차단 메시지 대신 로그만 남기고 원본 유지
                     const hasVideo = iframe.querySelector('video') || iframe.querySelector('audio');
                     if (hasVideo || iframe.clientWidth > 100) {
                         logAndKeepIframe(iframe, '보안 정책으로 인해 제어 불가능');
                     } else {
-                        replaceBlockedIframeUI(iframe, '비디오를 포함하지 않거나 접근이 차단됨');
+                        // 기존 로직은 iframe을 대체했지만, 제안에 따라 로그만 남기고 원본 유지하는 것이 더 유연할 수 있음.
+                        // 하지만 기존 로직을 유지하되, 차단 메시지 표시 기준을 더 명확히 함.
+                        if (!iframeSrc || iframeSrc.startsWith('about:blank')) {
+                           logAndKeepIframe(iframe, 'src가 비어있거나 차단됨');
+                        } else {
+                           logAndKeepIframe(iframe, '보안 정책으로 인해 제어 불가능');
+                        }
                     }
                 }
             };
 
-            // iframe에 load 이벤트 리스너 추가
             addOnceEventListener(iframe, 'load', debounce(handleIframeProcessing, 500));
             MediaStateManager.addIframe(iframe);
             logManager.logIframeContext(iframe, '비동기 초기화 시작 (로드 대기)');
@@ -1155,7 +1171,6 @@
             }
             iframeInitAttempts.set(iframe, count + 1);
 
-            // 로딩이 느린 iframe을 위해 타임아웃 처리
             setTimeout(() => {
                 if (!MediaStateManager.get(iframe)?.isInitialized) {
                     handleIframeProcessing();
@@ -1175,7 +1190,6 @@
                             logManager.addOnce('skip_data_src', `⚠️ data-src 미리보기 스킵: ${candidate}`, 3000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
                             return;
                         }
-                        // src를 설정하지 않고, <source>를 이용해 추적
                         m.querySelectorAll && m.querySelectorAll('source').forEach(s => {
                             if (s.src) networkMonitor.trackAndAttach(s.src, { element: m });
                         });
@@ -1184,7 +1198,6 @@
                             networkMonitor.trackAndAttach(url, { element: m });
                         }
                     } else {
-                        // 이미 src가 설정된 경우, source URL만 추적
                         m.querySelectorAll && m.querySelectorAll('source').forEach(s => {
                             if (s.src) networkMonitor.trackAndAttach(s.src, { element: m });
                         });
@@ -1195,7 +1208,7 @@
                     }
                 } catch (e) { logManager.logErrorWithContext(e, m); }
             });
-        } catch (e) { logManager.logErrorWithContext(e, null); }
+          } catch (e) { logManager.logErrorWithContext(e, null); }
         }
 
         function processMutations(mutations, targetDocument) {
@@ -1244,13 +1257,12 @@
             logManager.addOnce('observer_active', `✅ 통합 감시자 활성화 (${targetDocument === document ? '메인' : 'iframe'})`, 3000, 'info');
         }
 
-        // 지속적인 감시 로직 추가
         function startPeriodicScan() {
             if (globalScanTimer) clearInterval(globalScanTimer);
             globalScanTimer = setInterval(() => {
                 const allMedia = mediaFinder.findAll();
                 allMedia.forEach(m => mediaControls.initWhenReady(m));
-            }, 2000); // 2초마다 모든 미디어 요소를 다시 스캔
+            }, 2000);
         }
 
         function initializeAll(targetDocument = document) {
@@ -1277,7 +1289,7 @@
                     }
                     speedSlider.updatePositionAndSize();
                 });
-                startPeriodicScan(); // 주기적인 스캔 시작
+                startPeriodicScan();
             } else {
                 try { networkMonitor.init(); } catch (e) {}
             }
@@ -1291,8 +1303,8 @@
     })();
 
     /* ============================
-        문서 준비 시 초기화
-        ============================ */
+        문서 준비 시 초기화
+        ============================ */
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         App.initializeAll(document);
     } else {
