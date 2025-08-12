@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      17.7 (유튜브 추출 강화 / 주기적 스캔 추가)
-// @description  🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합
+// @version      17.8 (제안 기반 성능 개선)
+// @description  🎞️ 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (드래그 로직 수정)
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
@@ -378,17 +378,26 @@
      * 강화형 networkMonitor
      * ============================ */
     const networkMonitor = (() => {
+        // [개선] VIDEO_URL_CACHE를 Map(url -> { timestamp: Date.now() }) 형태로 개선
         const VIDEO_URL_CACHE = new Map();
         const BLOB_URL_MAP = new Map();
         const MAX_CACHE_SIZE = 500;
-        const CACHE_EXPIRATION_TIME = 60 * 1000; // 60초
+        const CACHE_EXPIRATION_TIME = 3 * 60 * 1000; // 3분으로 만료 시간 설정
         let initialized = false;
 
         const VIDEO_EXT_REGEX = /\.(mp4|webm|m3u8|mpd|ts|m4s)(\?|#|$)/i;
+        // [개선] 세그먼트 식별을 위한 정규식 추가
+        const MEDIA_SEGMENT_REGEX = /\.(ts|m4s|aac)(\?|#|$)/i;
         const YOUTUBE_URL_REGEX = /youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\//i;
         const VIDEO_MIME_PATTERN = /(video|application\/(dash\+xml|vnd\.apple\.mpegurl|x-mpegURL))/i;
         const ABS_URL_REGEX = /^[a-z][a-z0-9+\-.]*:/i;
         const URL_REGEX = /\bhttps?:\/\/[^\s'"<>]+/gi;
+
+        // [개선] isMediaSegment 함수 추가
+        const isMediaSegment = (url) => {
+            if (typeof url !== 'string') return false;
+            return MEDIA_SEGMENT_REGEX.test(url);
+        };
 
         const isMediaUrl = (url) => {
             if (typeof url !== 'string') return false;
@@ -407,15 +416,16 @@
             return url;
         };
 
+        // [개선] 타임스탬프 기반 캐시 정리 기능 추가
         function cleanupCache() {
             const now = Date.now();
-            for (const [url, timestamp] of VIDEO_URL_CACHE.entries()) {
-                if (now - timestamp > CACHE_EXPIRATION_TIME) {
+            for (const [url, data] of VIDEO_URL_CACHE.entries()) {
+                if (now - data.timestamp > CACHE_EXPIRATION_TIME) {
                     VIDEO_URL_CACHE.delete(url);
                 }
             }
         }
-        setInterval(cleanupCache, CACHE_EXPIRATION_TIME);
+        setInterval(cleanupCache, 60 * 1000); // 1분마다 캐시 정리 실행
 
         function extractURLsFromText(text) {
             const matches = text.match(URL_REGEX);
@@ -465,22 +475,38 @@
             return text.includes('#EXTM3U') && (text.includes('#EXT-X-STREAM-INF') || text.includes('#EXT-X-TARGETDURATION') || text.includes('#EXT-X-MEDIA'));
         }
 
+        // [개선] trackAndAttach 함수에 캐시 확인 및 세그먼트 필터링 로직 통합
         function trackAndAttach(url, ctx = {}) {
             if (!url) return;
+
+            // 1. 미디어 세그먼트인 경우, 처리 중단 (성능 향상)
+            if (isMediaSegment(url)) {
+                logManager.addOnce(`skip_segment_${url}`, `🔧 [Skip:Segment] 미디어 세그먼트 요청 무시: ${url.substring(0,80)}...`, 10000, 'debug');
+                return;
+            }
+
             const norm = normalizeURL(url);
+
+            // 2. 캐시에 이미 존재하는 경우, 타임스탬프만 갱신하고 처리 중단 (중복 방지)
+            if (VIDEO_URL_CACHE.has(norm)) {
+                const cacheEntry = VIDEO_URL_CACHE.get(norm);
+                cacheEntry.timestamp = Date.now(); // 타임스탬프 갱신
+                return;
+            }
+
             if (FeatureFlags.previewFiltering && isPreviewURL(norm)) {
                 logManager.addOnce(`skip_preview_${norm}`, `🔴 [Skip:Preview] 미리보기로 판단되어 무시: ${norm}`, 5000, PREVIEW_CONFIG.LOG_LEVEL_FOR_SKIP);
                 return;
             }
-            if (VIDEO_URL_CACHE.has(norm)) return;
-            VIDEO_URL_CACHE.set(norm, Date.now());
+
+            // 3. 캐시에 추가
+            VIDEO_URL_CACHE.set(norm, { timestamp: Date.now() });
 
             if (VIDEO_URL_CACHE.size > MAX_CACHE_SIZE) {
                 setTimeout(() => {
+                    // 가장 오래된 항목 삭제
                     const first = VIDEO_URL_CACHE.keys().next().value;
-                    if (first) {
-                        VIDEO_URL_CACHE.delete(first);
-                    }
+                    if (first) VIDEO_URL_CACHE.delete(first);
                 }, 0);
             }
 
@@ -488,8 +514,13 @@
             if (ctx.source) details.push(`src:${ctx.source}`);
             if (ctx.rect) details.push(`size:${Math.round(ctx.rect.width)}x${Math.round(ctx.rect.height)}`);
             logManager.addOnce(`early_${norm}`, `🎯 동적 영상 URL 감지: ${norm.substring(0, 80)}... | ${details.join(' | ')}`, 5000, 'info');
+
+            // 4. UI 호출
             try { dynamicMediaUI && dynamicMediaUI.show(norm); } catch (e) {}
-            if (ctx.element && !MediaStateManager.has(ctx.element)) MediaStateManager.set(ctx.element, { trackedUrl: norm, isInitialized: false });
+
+            if (ctx.element && !MediaStateManager.has(ctx.element)) {
+                MediaStateManager.set(ctx.element, { trackedUrl: norm, isInitialized: false });
+            }
         }
 
         function parseMPD(xmlText, baseURL) {
@@ -531,11 +562,8 @@
                         const segmentURL = lines[i + 1]?.trim();
                         if (!segmentURL) continue;
                         const fullURL = normalizeURL(segmentURL, baseURL);
-                        if (/\.(mp4|webm|ts|m3u8|mpd)$/i.test(fullURL)) {
-                            trackAndAttach(fullURL, { source: 'M3U8 Segment' });
-                        } else {
-                            logManager.addOnce(`ignored_m3u8_seg_${fullURL}`, `⚠️ [무시] M3U8에서 영상 확장자가 아닌 세그먼트: ${fullURL}`, 5000, 'warn');
-                        }
+                        // 세그먼트 URL은 trackAndAttach에서 필터링되므로, 여기서는 모든 URL을 전달
+                        trackAndAttach(fullURL, { source: 'M3U8 Segment' });
                         i++;
                     } else if (l && !l.startsWith('#')) {
                         trackAndAttach(normalizeURL(l, baseURL), { source: 'M3U8 sub-playlist' });
@@ -549,6 +577,9 @@
 
         const handleResponse = async (url, resp) => {
             try {
+                // [개선] 세그먼트 요청은 여기서도 조기 리턴
+                if(isMediaSegment(url)) return;
+
                 const ct = resp.headers.get('content-type') || '';
                 if (isMediaUrl(url) || isMediaMimeType(ct)) {
                     trackAndAttach(url, { source: 'fetch/xhr' });
@@ -571,6 +602,9 @@
                 this.addEventListener('load', function () {
                     try {
                         const url = normalizeURL(this._reqUrl);
+                        // [개선] 세그먼트 요청은 handleResponse 호출 전에 필터링
+                        if(isMediaSegment(url)) return;
+
                         const ct = this.getResponseHeader && this.getResponseHeader('Content-Type');
                         if (isMediaUrl(url) || isMediaMimeType(ct)) {
                             handleResponse(url, new Response(this.response, { headers: { 'content-type': ct || '' } }));
@@ -586,6 +620,10 @@
             window.fetch = async function (...args) {
                 let reqURL = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url);
                 try {
+                    // [개선] 세그먼트 요청은 네트워크 요청 후 처리 전에 필터링
+                    if(isMediaSegment(reqURL)) {
+                        return await originalMethods.Fetch.apply(this, args);
+                    }
                     const res = await originalMethods.Fetch.apply(this, args);
                     handleResponse(reqURL, res.clone());
                     return res;
@@ -606,6 +644,7 @@
                                 for (const box of boxes) {
                                     if (box.type === 'ftyp' || box.type === 'moof') {
                                         logManager.addOnce(`mse_dash_${box.type}`, `🧩 DASH 세그먼트 감지: ${box.type}`, 3000, 'info');
+                                        // DASH 세그먼트는 구체적인 URL이 없으므로, 가상 URL을 사용하되 UI 호출은 지양
                                         trackAndAttach('mse-dash-segment', { type: 'mse-segment', box: box.type });
                                     }
                                 }
@@ -974,7 +1013,9 @@
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => display.style.display = 'none', 300); } visible = false; };
         function onStart(e) {
             try {
-                if (speedSlider && !speedSlider.isMinimized() || e.button === 2) return;
+                // [수정] 배속바가 '최소화' 상태일 때 드래그가 시작되지 않도록 로직 수정
+                if (speedSlider && speedSlider.isMinimized() || e.button === 2) return;
+
                 if(e.target.closest('#vm-speed-slider-container, #vm-time-display, #vm-log-container')) return;
                 if (!mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused)) {
                     return;
@@ -1048,7 +1089,14 @@
                 const originalText = '🎞️ URL';
                 btn.textContent = '복사 중...';
 
-                const allUrls = Array.from(networkMonitor.VIDEO_URL_CACHE.keys());
+                // [개선] 캐시에서 URL 목록을 가져올 때, 만료되지 않은 URL만 필터링
+                const allUrls = [];
+                const now = Date.now();
+                for (const [url, data] of networkMonitor.VIDEO_URL_CACHE.entries()) {
+                    if (now - data.timestamp < CACHE_EXPIRATION_TIME) {
+                        allUrls.push(url);
+                    }
+                }
 
                 if (allUrls.length === 0) {
                     logManager.addOnce('no_url', '⚠️ 감지된 URL 없음', 3000, 'warn');
@@ -1094,7 +1142,9 @@
         }, 400);
 
         function initWhenReady(media) {
+            // [검증] MediaStateManager.has(media) 체크로 중복 초기화 방지 (기존 로직 유지)
             if (!media || MediaStateManager.has(media)) return;
+
             MediaStateManager.set(media, { isInitialized: true });
             if ((media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
                 const src = media.currentSrc || media.src || (media.dataset && media.dataset.src);
@@ -1364,8 +1414,8 @@
                      const playerResponse = window.ytplayer.config.player_response || (window.ytplayer.config.args ? window.ytplayer.config.args.player_response : null);
                      if (playerResponse) {
                          try {
-                              const streamingData = (typeof playerResponse === 'string' ? JSON.parse(playerResponse) : playerResponse).streamingData;
-                              if (streamingData) {
+                             const streamingData = (typeof playerResponse === 'string' ? JSON.parse(playerResponse) : playerResponse).streamingData;
+                             if (streamingData) {
                                  const formats = (streamingData.formats || []).concat(streamingData.adaptiveFormats || []);
                                  formats.forEach(format => {
                                      // isTracked 함수를 사용하여 이미 추적된 URL인지 확인
@@ -1374,7 +1424,7 @@
                                          networkMonitor.trackAndAttach(format.url, { source: 'ytplayer.periodic_scan' });
                                      }
                                  });
-                              }
+                             }
                          } catch(e) { /* 주기적 검사에서는 파싱 오류 무시 */ }
                      }
                 }
