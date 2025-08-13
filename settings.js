@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      20.6 (고급 팝업 차단 로직 통합)
+// @version      20.8 (JWPlayer 초기 로딩 감지 로직 복원)
 // @description  🎞️ [성능 튜닝] 비디오 속도 제어 + 📹 YouTube 주소 추출 강화 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 + 🛡️ 고급 팝업 차단
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -918,8 +918,6 @@
             } catch (e) { logManager.logErrorWithContext(e, { message: 'MPD 파싱 실패', url: baseURL }); }
         }
 
-        // ((★★★★★ 최종 수정 지점 ★★★★★))
-        // 이전 버전(v17.6)의 필터링 로직과 최신 버전의 파싱 로직을 결합하여 안정성 향상
         function parseM3U8(text, baseURL) {
             const urls = new Set();
             try {
@@ -930,7 +928,6 @@
 
                     let potentialUrl = null;
 
-                    // 1. 표준 HLS 태그에서 URL 추출
                     if (l.startsWith('#EXT-X-STREAM-INF')) {
                         potentialUrl = lines[i + 1]?.trim();
                         if (potentialUrl && !potentialUrl.startsWith('#')) i++;
@@ -941,7 +938,6 @@
                         potentialUrl = l;
                     }
 
-                    // 2. 추출된 URL이 유효한 미디어인지 최종 필터링 (v17.6의 장점 복원)
                     if (potentialUrl) {
                         const normalizedUrl = normalizeURL(potentialUrl, baseURL);
                         if (isMediaUrl(normalizedUrl)) {
@@ -1301,12 +1297,16 @@
                         if (s && networkMonitor.isMediaUrl(s)) networkMonitor.trackAndAttach(s, { source: 'data-attr' });
                     } catch (e) {}
                 });
+
+                // ⭐️⭐️⭐️ [해결] 구버전(v18.0)의 강력한 인라인 스크립트 스캔 로직을 복원 ⭐️⭐️⭐️
                 doc.querySelectorAll('script:not([src])').forEach(sc => {
                     try {
                         const txt = sc.textContent || '';
-                        extractURLsFromText(txt).forEach(u => networkMonitor.trackAndAttach(u, { source: 'inline-script' }));
+                        const matches = [...txt.matchAll(/https?:\/\/[^\s'"]+\.(mp4|m3u8|mpd|webm|ts|m4s)/gi)].map(m => m[0]);
+                        matches.forEach(u => networkMonitor.trackAndAttach(u, { source: 'inline-script' }));
                     } catch (e) {}
                 });
+
                 if (window._shadowDomList_) {
                     window._shadowDomList_.forEach(sr => {
                         try { sr.querySelectorAll && sr.querySelectorAll('video,audio').forEach(m => out.push(m)); } catch (e) {}
@@ -1710,6 +1710,7 @@
             return !!(iframe.contentDocument || iframe.contentWindow?.document);
         } catch (e) { return false; }
     }
+
     function showIframeAccessFailureNotice(iframe, message) {
         if (!iframe || !iframe.parentNode) return;
         const noticeId = `vsc-iframe-notice-${iframe.src || Math.random()}`;
@@ -1717,25 +1718,23 @@
 
         const notice = document.createElement('div');
         notice.id = noticeId;
-        // 수정: 부드러운 사라짐 효과를 위한 transition 및 초기 opacity 추가
         notice.style.cssText = 'color:red; padding:5px; background:#fee; font-size:12px; border:1px solid red; margin-top:4px; text-align: center; opacity: 1; transition: opacity 0.5s ease-out;';
         notice.textContent = `⚠️ ${message}`;
         try {
             iframe.parentNode.insertBefore(notice, iframe.nextSibling);
 
-          // 추가: 3초 뒤에 알림이 자동으로 사라지도록 설정
-          setTimeout(() => {
-              notice.style.opacity = '0';
-              // 애니메이션(0.5초)이 끝난 후 DOM에서 완전히 제거
-              setTimeout(() => {
-                  if (notice.parentNode) {
-                      notice.parentNode.removeChild(notice);
-                  }
-              }, 500);
-          }, 3000); // 3초 동안 표시
+            setTimeout(() => {
+                notice.style.opacity = '0';
+                setTimeout(() => {
+                    if (notice.parentNode) {
+                        notice.parentNode.removeChild(notice);
+                    }
+                }, 500);
+            }, 5000);
 
         } catch(e) { logManager.logErrorWithContext(e, { message: 'Failed to insert iframe notice' }); }
     }
+
     const App = (() => {
         let globalScanTimer = null;
         let intersectionObserver;
