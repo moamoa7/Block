@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      19.0 (제안 기반 성능 개선 및 로직 강화)
-// @description  🎞️ [최적화] 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (지연 로드 및 상태 관리 강화)
+// @version      20.0 (YouTube 주소 추출 로직 통합)
+// @description  🎞️ [최적화] 비디오 속도 제어 + 📹 YouTube 주소 추출 강화 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
@@ -218,40 +218,34 @@
     }
     function debounce(fn, wait) { let t; return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; }
     async function copyToClipboard(text) {
-    if (!text) return false;
-
-    // 1. 최신 방식 시도
-    try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(text);
-            return true; // 성공 시 여기서 즉시 종료
+        if (!text) return false;
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch (e) {
+            logManager.add('클립보드 API 실패, 폴백 시도', 'warn');
         }
-    } catch (e) {
-        logManager.add('클립보드 API 실패, 폴백 시도', 'warn');
-    }
-
-    // 2. 구식 폴백 방식 시도
-    try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.top = '-9999px';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        ta.focus(); // 일부 브라우저에서 포커스가 필요
-        const successful = document.execCommand('copy');
-        document.body.removeChild(ta);
-        if (successful) {
-            return true; // 성공 시 true 반환
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.top = '-9999px';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            ta.focus();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(ta);
+            if (successful) {
+                return true;
+            }
+        } catch (e) {
+            logManager.logErrorWithContext(e, { message: 'Textarea 클립보드 복사 실패' });
         }
-    } catch (e) {
-        logManager.logErrorWithContext(e, { message: 'Textarea 클립보드 복사 실패' });
+        return false;
     }
-
-    // 모든 방법이 실패한 경우
-    return false;
-}
 
     /* ============================
      * 전역 상태 관리
@@ -374,17 +368,12 @@
                 addOnce(`iframe_${src}_${message}`, `🧩 iframe ${message} | src: ${src}`, 6000, 'info');
             } catch (e) {}
         }
-        // ((제안 2-2. 에러 로그 상세화 반영))
         function logErrorWithContext(err, ctx) {
             if (!FeatureFlags.detailedLogging) return;
             const contextMessage = typeof ctx === 'object' && ctx.message ? ctx.message : (ctx && ctx.tagName ? ctx.tagName : 'N/A');
             const message = `❗ 에러: ${err?.message || err} | 컨텍스트: ${contextMessage}`;
             const stack = err && err.stack ? err.stack : 'No stack trace available';
-
-            // UI 로그에는 간결한 메시지 표시
             addOnce(`err_${Date.now()}`, message, 10000, 'error');
-
-            // 콘솔에는 상세 스택 정보 출력
             console.error(`[VideoSpeed_Control Error] ${message}\nContext Object:`, ctx || 'N/A', '\nStack Trace:\n', stack);
         }
         return { init: () => {}, add, addOnce, logMediaContext, logIframeContext, logErrorWithContext };
@@ -413,8 +402,88 @@
         try { const u = url.toLowerCase(); return PREVIEW_CONFIG.PATTERNS.some(p => p.test(u)); } catch (e) { return false; }
     }
 
+    // =========================================================================================
+// ===[ 최종 ]=== YouTube 데이터 직접 요청 방식 mediaFinder (CSP 완벽 우회)
+// =========================================================================================
+const youtubeMediaFinder = (() => {
+    // ytInitialPlayerResponse 객체에서 URL을 추출하는 파서
+    function parsePlayerResponse(playerResponse) {
+        if (!playerResponse) return [];
+        let urls = [];
+        try {
+            const streamingData = playerResponse.streamingData;
+            if (streamingData) {
+                const formats = (streamingData.formats || []).concat(streamingData.adaptiveFormats || []);
+                const extractedUrls = formats
+                    .map(fmt => fmt.url || (fmt.signatureCipher && new URLSearchParams(fmt.signatureCipher).get('url')))
+                    .filter(Boolean);
+                urls = urls.concat(extractedUrls);
+            }
+            return [...new Set(urls)];
+        } catch (e) {
+            logManager.logErrorWithContext(e, { message: 'parsePlayerResponse failed' });
+            return [];
+        }
+    }
+
+    // GM_xmlhttpRequest를 이용해 페이지 데이터를 가져와서 파싱하는 메인 함수
+    function fetchAndParse() {
+        if (typeof GM_xmlhttpRequest !== 'function') {
+            logManager.add('GM_xmlhttpRequest를 사용할 수 없어 YT 감지가 제한됩니다.', 'warn');
+            return;
+        }
+
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: location.href,
+            onload: function(response) {
+                try {
+                    if (response.status < 200 || response.status >= 300) return;
+                    const html = response.responseText;
+                    // HTML에서 ytInitialPlayerResponse 객체 부분을 정규식으로 추출
+                    const match = html.match(/var ytInitialPlayerResponse = ({.+?});/);
+                    if (match && match[1]) {
+                        const playerResponse = JSON.parse(match[1]);
+                        const urls = parsePlayerResponse(playerResponse);
+                        urls.forEach(url => {
+                            if (url && !networkMonitor.isTracked(url)) {
+                                logManager.addOnce(`yt_detect_${url.slice(0, 100)}`, `🎯 [YT] 동적 영상 URL 감지: ${url.slice(0, 100)}...`, 5000, 'info');
+                                networkMonitor.trackAndAttach(url, { source: 'youtubeMediaFinder.GM' });
+                            }
+                        });
+                    }
+                } catch (e) {
+                    logManager.logErrorWithContext(e, { message: 'GM_xmlhttpRequest onload failed' });
+                }
+            },
+            onerror: function(error) {
+                 logManager.logErrorWithContext(error, { message: 'GM_xmlhttpRequest failed' });
+            }
+        });
+    }
+
+    function isYouTubeMediaUrl(url) {
+        if (!url || typeof url !== 'string') return false;
+        try {
+            const u = new URL(url);
+            return (u.hostname.endsWith('youtube.com') || u.hostname.endsWith('googlevideo.com')) &&
+                   (url.includes('.m3u8') || url.includes('.mpd') || url.includes('videoplayback'));
+        } catch {
+            return false;
+        }
+    }
+
+    // 주기적 검사는 이제 fetchAndParse를 호출
+    function scanAndTrack() {
+        fetchAndParse();
+    }
+
+    return { isYouTubeMediaUrl, scanAndTrack };
+})();
+
+
     /* ============================
-     * 강화형 networkMonitor (HLS/DASH 파싱 포함)
+     * 강화형 networkMonitor (HLS/DASH 파싱 및 YouTube 감시 강화)
      * ============================ */
     const networkMonitor = (() => {
         const VIDEO_URL_CACHE = new Map();
@@ -436,7 +505,7 @@
         };
         const isMediaUrl = (url) => {
             if (typeof url !== 'string') return false;
-            return VIDEO_EXT_REGEX.test(url) || YOUTUBE_URL_REGEX.test(url) || url.includes('videoplayback') || url.includes('mime=video') || url.includes('type=video') || url.includes('mime=audio');
+            return VIDEO_EXT_REGEX.test(url) || YOUTUBE_URL_REGEX.test(url) || youtubeMediaFinder.isYouTubeMediaUrl(url) || url.includes('mime=video') || url.includes('type=video') || url.includes('mime=audio');
         };
         const isMediaMimeType = (mime) => {
             if (typeof mime !== 'string') return false;
@@ -504,7 +573,7 @@
             return text.includes('#EXTM3U') && (text.includes('#EXT-X-STREAM-INF') || text.includes('#EXT-X-TARGETDURATION') || text.includes('#EXT-X-MEDIA'));
         }
         function trackAndAttach(url, ctx = {}) {
-            if (!url) return;
+            if (!url || typeof url !== 'string') return;
             if (isMediaSegment(url)) {
                 logManager.addOnce(`skip_segment_${url}`, `🔧 [Skip:Segment] 미디어 세그먼트 요청 무시: ${url.substring(0,80)}...`, 10000, 'debug');
                 return;
@@ -535,7 +604,6 @@
                 MediaStateManager.set(ctx.element, { trackedUrl: norm, isInitialized: false });
             }
         }
-        // ((제안 5-1.은 이미 더 상세한 로직으로 구현되어 있어 기존 코드 유지))
         function parseMPD(xmlText, baseURL) {
             try {
                 const parser = new DOMParser();
@@ -594,7 +662,14 @@
         };
         function hookXHR() {
             if (!originalMethods.XMLHttpRequest.open || !originalMethods.XMLHttpRequest.send) return;
-            window.XMLHttpRequest.prototype.open = function (method, url) { this._reqUrl = url; return originalMethods.XMLHttpRequest.open.apply(this, arguments); };
+            // ===[ 수정 ]=== 기존 XHR 후킹에 YouTube URL 감지 로직 추가
+            window.XMLHttpRequest.prototype.open = function (method, url) {
+                if (url && typeof url === 'string' && youtubeMediaFinder.isYouTubeMediaUrl(url)) {
+                    trackAndAttach(url, { source: 'xhr.open (yt)' });
+                }
+                this._reqUrl = url;
+                return originalMethods.XMLHttpRequest.open.apply(this, arguments);
+            };
             window.XMLHttpRequest.prototype.send = function (...args) {
                 this.addEventListener('load', function () {
                     try {
@@ -611,8 +686,12 @@
         }
         function hookFetch() {
             if (!originalMethods.Fetch) return;
+            // ===[ 수정 ]=== 기존 fetch 후킹에 YouTube URL 감지 로직 추가
             window.fetch = async function (...args) {
                 let reqURL = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url);
+                if (reqURL && youtubeMediaFinder.isYouTubeMediaUrl(reqURL)) {
+                    trackAndAttach(reqURL, { source: 'fetch (yt)' });
+                }
                 try {
                     if(isMediaSegment(reqURL)) {
                         return await originalMethods.Fetch.apply(this, args);
@@ -636,7 +715,7 @@
                                 for (const box of boxes) {
                                     if (box.type === 'ftyp' || box.type === 'moof') {
                                         logManager.addOnce(`mse_dash_${box.type}`, `🧩 DASH 세그먼트 감지: ${box.type}`, 3000, 'info');
-                                        trackAndAttach('mse-dash-segment', { type: 'mse-segment', box: box.type });
+                                        //trackAndAttach('mse-dash-segment', { type: 'mse-segment', box: box.type });
                                     }
                                 }
                             } catch (e) { logManager.logErrorWithContext(e, { message: 'appendBuffer hook failed' }); }
@@ -710,7 +789,7 @@
             getOriginalURL: (url) => BLOB_URL_MAP.get(url) || url,
             isTracked: (url) => VIDEO_URL_CACHE.has(normalizeURL(url)),
             VIDEO_URL_CACHE,
-            CACHE_EXPIRATION_TIME, // 이 줄을 추가합니다.
+            CACHE_EXPIRATION_TIME,
             resetState: () => { VIDEO_URL_CACHE.clear(); BLOB_URL_MAP.clear(); logManager.add('🔄 네트워크 상태 초기화 완료', 'debug'); }
         };
     })();
@@ -775,35 +854,19 @@
             if (!doc) return out;
             try {
                 doc.querySelectorAll('video, audio').forEach(m => out.push(m));
+                // 유튜브 iframe 감지 로직은 youtubeMediaFinder와 중복될 수 있으나, 안전을 위해 유지
                 doc.querySelectorAll('iframe[src*="youtube.com/embed/"], iframe[src*="youtu.be/"]').forEach(m => {
                     const src = m.src;
                     if (src) networkMonitor.trackAndAttach(src, { source: 'youtube-iframe', element: m });
                 });
+                // 기존의 ytplayer 분석 로직은 새로운 youtubeMediaFinder.scanAndTrack()으로 대체되어 더욱 강력하게 동작하므로,
+                // 이 부분은 주기적 검사로 충분히 커버됩니다. 스크립트 로딩 시점의 스냅샷으로 남겨둘 수 있습니다.
                 if (window.ytplayer && window.ytplayer.config) {
-                    const args = window.ytplayer.config.args || {};
-                    const playerResponseData = args.player_response || window.ytplayer.config.player_response;
-                    const streamMap = args.url_encoded_fmt_stream_map || args.adaptive_fmts;
-                    if (streamMap && typeof streamMap === 'string') {
-                        streamMap.split(',').forEach(fmt => {
-                            const urlMatch = fmt.match(/url=([^&]+)/);
-                            if (urlMatch && urlMatch[1]) {
-                                try {
-                                    const url = decodeURIComponent(urlMatch[1]);
-                                    networkMonitor.trackAndAttach(url, { source: 'ytplayer.config.args' });
-                                } catch (e) {}
-                            }
-                        });
-                    }
-                    if (args.hlsManifestUrl) {
-                        networkMonitor.trackAndAttach(args.hlsManifestUrl, { source: 'ytplayer.hls' });
-                    }
-                    if (args.dashmpd) {
-                        networkMonitor.trackAndAttach(args.dashmpd, { source: 'ytplayer.dash' });
-                    }
-                    if (playerResponseData) {
-                        try {
+                    try {
+                        const playerResponseData = window.ytplayer.config.args?.player_response || window.ytplayer.config.player_response;
+                        if (playerResponseData) {
                             const response = typeof playerResponseData === 'string' ? JSON.parse(playerResponseData) : playerResponseData;
-                            if (response && response.streamingData) {
+                            if (response?.streamingData) {
                                 const formats = (response.streamingData.formats || []).concat(response.streamingData.adaptiveFormats || []);
                                 formats.forEach(format => {
                                     if (format.url) {
@@ -811,8 +874,8 @@
                                     }
                                 });
                             }
-                        } catch (e) { logManager.logErrorWithContext(e, { message: 'player_response 파싱 실패' }); }
-                    }
+                        }
+                    } catch (e) { /* 초기 스캔 오류는 무시 */ }
                 }
                 doc.querySelectorAll('div[id*="player"], div[class*="video"], div[class*="vjs-"], .jw-player, .video-container').forEach(c => {
                     if (!c.querySelector('video, audio, iframe') && c.clientWidth > 20 && c.clientHeight > 20) out.push(c);
@@ -1041,10 +1104,10 @@
                 const allUrls = [];
                 const now = Date.now();
                 for (const [url, data] of networkMonitor.VIDEO_URL_CACHE.entries()) {
-    if (now - data.timestamp < networkMonitor.CACHE_EXPIRATION_TIME) { // networkMonitor를 통해 접근
-        allUrls.push(url);
-    }
-}
+                    if (now - data.timestamp < networkMonitor.CACHE_EXPIRATION_TIME) {
+                        allUrls.push(url);
+                    }
+                }
                 if (allUrls.length === 0) {
                     logManager.addOnce('no_url', '⚠️ 감지된 URL 없음', 3000, 'warn');
                     btn.textContent = '⚠️ 없음';
@@ -1078,28 +1141,23 @@
             } catch (e) { logManager.logErrorWithContext(e, media); }
         }
         const updateUIVisibility = throttle(() => {
-  try {
-    const medias = mediaFinder.findAll();
-    const hasMedia = medias.some(m => m.tagName === 'VIDEO' || m.tagName === 'AUDIO');
-    const hasPlayingVideo = medias.some(m => m.tagName === 'VIDEO' && !m.paused);
-
-    if (hasMedia) {
-      speedSlider.show();
-      dynamicMediaUI.show();
-    } else {
-      speedSlider.hide();
-      dynamicMediaUI.hide();
-    }
-
-    if (hasPlayingVideo) {
-      dragBar.show();
-    } else {
-      dragBar.hide();
-    }
-  } catch (e) {
-    logManager.logErrorWithContext(e, null);
-  }
-}, 400);
+            try {
+                const hasMedia = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' || m.tagName === 'AUDIO');
+                if (hasMedia) {
+                    speedSlider.show();
+                    dynamicMediaUI.show();
+                } else {
+                    speedSlider.hide();
+                    dynamicMediaUI.hide();
+                }
+                const hasPlayingVideo = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused);
+                if (hasPlayingVideo) {
+                    dragBar.show();
+                } else {
+                    dragBar.hide();
+                }
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'updateUIVisibility failed' }); }
+        }, 400);
         function initWhenReady(media) {
             if (!media || MediaStateManager.has(media)) return;
             MediaStateManager.set(media, { isInitialized: true });
@@ -1155,7 +1213,6 @@
             const orig = originalMethods.History[fnName];
             history[fnName] = function () { const res = orig.apply(this, arguments); onNavigate(`history.${fnName}`); return res; };
         }
-        // ((제안 5-2. 정교한 SPA 내비게이션 감지 반영))
         function onNavigate() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
@@ -1165,9 +1222,14 @@
                     const nowUrl = new URL(now);
                     const prevUrl = new URL(prev);
 
+                  // ▼▼▼ 이 부분 추가 ▼▼▼
+            // 유튜브에서 네비게이션이 발생하면 항상 새로운 데이터를 가져옴
+            if (location.hostname.includes('youtube.com')) {
+                youtubeMediaFinder.scanAndTrack();
+            }
+
                     if (nowUrl.origin === prevUrl.origin && nowUrl.pathname === prevUrl.pathname) {
                         logManager.addOnce(`spa_nav_same_page`, `🔄 SPA 동일 페이지 이동 감지 (쿼리/해시 변경)`, 4000, 'info');
-                        // 경로 변경이 아닌 경우, 전체 초기화 대신 부분 업데이트 수행
                         if (FeatureFlags.spaPartialUpdate) {
                             spaPartialUpdate.partialUpdate();
                         }
@@ -1176,13 +1238,12 @@
                         if (FeatureFlags.enhanceURLDetection) {
                             networkMonitor.resetState();
                         }
-                        // 페이지 경로가 바뀌었으므로 전체 재초기화 로직 수행
                         PROCESSED_DOCUMENTS = new WeakSet();
                         App.initializeAll(document);
                     }
                     lastURL = now;
                 }
-            }, 200);
+            }, 300);
         }
         function init() { overrideHistory('pushState'); overrideHistory('replaceState'); addOnceEventListener(window, 'popstate', () => onNavigate()); }
         return { init, onNavigate };
@@ -1194,7 +1255,6 @@
     (function popupBlocker() {
         if (!FeatureFlags.popupBlocker) return;
         try {
-            // ((제안 6-2.는 이미 구현되어 있어 기존 코드 유지))
             window.open = function (url, target, features) {
                 try {
                     logManager.addOnce('blocked_window_open', `🔒 window.open 차단 시도: ${url}`, 3000, 'warn');
@@ -1224,11 +1284,10 @@
             return !!(iframe.contentDocument || iframe.contentWindow?.document);
         } catch (e) { return false; }
     }
-    // ((제안 2-1. iframe 접근 제한에 대한 UI 알림 함수 추가))
     function showIframeAccessFailureNotice(iframe, message) {
         if (!iframe || !iframe.parentNode) return;
         const noticeId = `vsc-iframe-notice-${iframe.src || Math.random()}`;
-        if (document.getElementById(noticeId)) return; // 중복 방지
+        if (document.getElementById(noticeId)) return;
 
         const notice = document.createElement('div');
         notice.id = noticeId;
@@ -1241,9 +1300,8 @@
     const App = (() => {
         let globalScanTimer = null;
         let intersectionObserver;
-        const MEDIA_TAGS = 'video, audio, iframe'; // ((제안 1-1 반영))
+        const MEDIA_TAGS = 'video, audio, iframe';
 
-        // ((제안 1-3. IntersectionObserver 개선 반영))
         function initIntersectionObserver() {
             if (intersectionObserver) return;
             intersectionObserver = new IntersectionObserver((entries) => {
@@ -1258,14 +1316,12 @@
                         }
                     }
                 });
-            }, { threshold: 0.5 }); // threshold 값 0.5로 변경
-            logManager.addOnce('intersection_observer_active', '✅ IntersectionObserver 활성화 (Threshold: 0.5)', 3000, 'info');
+            }, { threshold: 0.75 });
+            logManager.addOnce('intersection_observer_active', '✅ IntersectionObserver 활성화 (Threshold: 0.75)', 3000, 'info');
         }
-        // ((제안 2-1 & 6-1. iframe 접근 제한 처리 개선))
         function initIframe(iframe) {
             if (!iframe || MediaStateManager.hasIframe(iframe)) return;
             MediaStateManager.addIframe(iframe);
-
             const handleIframeProcessing = () => {
                 const iframeSrc = iframe.src;
                 if (iframeSrc && networkMonitor.isMediaUrl(iframeSrc)) {
@@ -1285,7 +1341,6 @@
                     showIframeAccessFailureNotice(iframe, message);
                 }
             };
-
             const count = iframeInitAttempts.get(iframe) || 0;
             if (count >= 3) {
                 const message = '최대 재시도 횟수 초과로 초기화 포기';
@@ -1294,16 +1349,13 @@
                 return;
             }
             iframeInitAttempts.set(iframe, count + 1);
-
             addOnceEventListener(iframe, 'load', debounce(handleIframeProcessing, 500));
             logManager.logIframeContext(iframe, '비동기 초기화 시작 (로드 대기)');
-
-            // 재시도 타이머
             setTimeout(() => {
                 if (!MediaStateManager.get(iframe)?.isInitialized) {
                     handleIframeProcessing();
                 }
-            }, 3000 * (count + 1)); // 시도 횟수에 따라 지연시간 증가 (간단한 백오프)
+            }, 3000 * (count + 1));
         }
         function scanExistingMedia(doc) {
             try {
@@ -1311,14 +1363,12 @@
                 medias.forEach(m => mediaControls.initWhenReady(m));
             } catch (e) { logManager.logErrorWithContext(e, { message: 'scanExistingMedia failed' }); }
         }
-        // ((제안 1-1. MutationObserver 처리 개선 반영))
         function processMutations(mutations) {
             for (const mut of mutations) {
                 try {
                     if (mut.type === 'childList') {
                         mut.addedNodes.forEach(n => {
-                            if (n.nodeType !== 1) return; // 엘리먼트 노드만 처리
-                            // 1. 추가된 노드 자체가 미디어 태그인지 확인
+                            if (n.nodeType !== 1) return;
                             if (n.matches && n.matches(MEDIA_TAGS)) {
                                 if (n.tagName === 'IFRAME') {
                                     initIframe(n);
@@ -1330,7 +1380,6 @@
                                     }
                                 }
                             } else if (n.querySelectorAll) {
-                                // 2. 자식 노드 중에 미디어 태그가 있는지 확인
                                 n.querySelectorAll(MEDIA_TAGS).forEach(m => {
                                     if (m.tagName === 'IFRAME') {
                                         initIframe(m);
@@ -1373,36 +1422,36 @@
             PROCESSED_DOCUMENTS.add(targetDocument);
             logManager.addOnce('observer_active', `✅ 통합 감시자 활성화 (${targetDocument === document ? '메인' : 'iframe'})`, 3000, 'info');
         }
+        // ===[ 수정 ]=== 주기적 검사에 YouTube 스캔 로직 통합
         function startPeriodicScan() {
-            if (globalScanTimer) clearInterval(globalScanTimer);
-            globalScanTimer = setInterval(() => {
-                const allMedia = mediaFinder.findAll();
-                allMedia.forEach(m => {
-                    mediaControls.initWhenReady(m);
-                    if (intersectionObserver && (m.tagName === 'VIDEO' || m.tagName === 'AUDIO') && !m.hasAttribute('data-vsc-observed')) {
-                        intersectionObserver.observe(m);
-                        m.setAttribute('data-vsc-observed', 'true');
-                    }
-                });
-                if (window.ytplayer && window.ytplayer.config) {
-                     const playerResponse = window.ytplayer.config.player_response || (window.ytplayer.config.args ? window.ytplayer.config.args.player_response : null);
-                     if (playerResponse) {
-                         try {
-                             const streamingData = (typeof playerResponse === 'string' ? JSON.parse(playerResponse) : playerResponse).streamingData;
-                             if (streamingData) {
-                                 const formats = (streamingData.formats || []).concat(streamingData.adaptiveFormats || []);
-                                 formats.forEach(format => {
-                                     if (format.url && !networkMonitor.isTracked(format.url)) {
-                                         logManager.addOnce(`yt_periodic_scan_${format.url}`, `🔄 주기적 스캔으로 새 YouTube URL 발견`, 5000, 'info');
-                                         networkMonitor.trackAndAttach(format.url, { source: 'ytplayer.periodic_scan' });
-                                     }
-                                 });
-                             }
-                         } catch(e) { /* 주기적 검사에서는 파싱 오류 무시 */ }
-                     }
-                }
-            }, 2500);
+    if (globalScanTimer) clearInterval(globalScanTimer);
+
+    // 유튜브 전용 스캔 함수
+    const scanYouTube = () => {
+        if (location.hostname.includes('youtube.com')) {
+            youtubeMediaFinder.scanAndTrack();
         }
+    };
+
+    // 일반 미디어 스캔 함수
+    const scanGeneralMedia = () => {
+        const allMedia = mediaFinder.findAll();
+        allMedia.forEach(m => {
+            mediaControls.initWhenReady(m);
+            if (intersectionObserver && (m.tagName === 'VIDEO' || m.tagName === 'AUDIO') && !m.hasAttribute('data-vsc-observed')) {
+                intersectionObserver.observe(m);
+                m.setAttribute('data-vsc-observed', 'true');
+            }
+        });
+    };
+
+    // 최초 실행
+    scanGeneralMedia();
+    scanYouTube(); // 페이지 로드 시 즉시 실행
+
+    // 주기적 검사 설정 (일반 미디어는 계속 검사, 유튜브는 필요 시 SPA 감지기가 재호출)
+    globalScanTimer = setInterval(scanGeneralMedia, 3000);
+}
         function initializeAll(targetDocument = document) {
             if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
             if (targetDocument === document) {
@@ -1431,6 +1480,13 @@
                     }
                     speedSlider.updatePositionAndSize();
                 });
+
+              // ▼▼▼ 이 부분 추가 ▼▼▼
+        // YouTube의 경우, 주기적 검사 시작 전에 즉시 한 번 실행하여 초기 데이터를 확보
+        if (location.hostname.includes('youtube.com')) {
+            setTimeout(() => youtubeMediaFinder.scanAndTrack(), 500); // 페이지 로드 후 잠시 뒤 실행
+        }
+
                 startPeriodicScan();
             } else {
                 try { if (FeatureFlags.enhanceURLDetection) networkMonitor.init(); } catch (e) {}
