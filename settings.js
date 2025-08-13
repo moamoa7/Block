@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      20.8 (JWPlayer 초기 로딩 감지 로직 복원)
-// @description  🎞️ [성능 튜닝] 비디오 속도 제어 + 📹 YouTube 주소 추출 강화 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 + 🛡️ 고급 팝업 차단
+// @version      21.0 (개선 사항 반영)
+// @description  🎞️ [개선판] UI ShadowDOM 격리 + ⚡성능 최적화 + 🔧YouTube 탐지 강화 + ✨미디어 세션 API 연동
 // @match        *://*/*
+// @grant        GM.getValue
+// @grant        GM.setValue
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -63,17 +65,18 @@
     }
 
     const FeatureFlags = {
-        videoControls: true,        // 비디오 컨트롤 UI (속도, 드래그) 활성화
-        logUI: true,                // 화면 로그 UI 활성화
-        enhanceURLDetection: true,  // 네트워크 요청 감지를 통한 URL 추출 강화
-        spaPartialUpdate: true,     // SPA 환경에서 부분 업데이트 지원
-        detailedLogging: true,      // 콘솔에 상세 로그 출력
-        logLevel: 'INFO',           // 로그 레벨 (DEBUG, INFO, WARN, ERROR)
-        previewFiltering: true,     // 짧거나 미리보기인 영상 필터링
-        popupBlocker: true,         // 고급 팝업 차단 기능 활성화
-        iframeProtection: true,     // 보안상 위험한 iframe 접근 제어
+        videoControls: true,
+        logUI: true,
+        enhanceURLDetection: true,
+        spaPartialUpdate: true,
+        detailedLogging: true,
+        logLevel: 'INFO',
+        previewFiltering: true,
+        popupBlocker: true,
+        iframeProtection: true,
         enforceIframeSandbox: false,
-        preventUnloadRedirects: true // 페이지 이탈 시도 차단 기능 (팝업 블로커)
+        preventUnloadRedirects: true,
+        mediaSessionIntegration: true, // ✨ 신규 기능: 미디어 세션 API 연동 플래그
     };
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) {
@@ -136,66 +139,85 @@
     })();
 
     /* ============================
-     * ConfigManager (localStorage / GM fallback)
+     * 🔧 로직 강화: ConfigManager (Modern GM API 지원 및 비동기 처리)
      * ============================ */
     class ConfigManager {
         constructor(opts = {}) {
             this.opts = opts;
             this.opts.config = this.opts.config || {};
-            this._syncFromGlobal();
+            this.isInitialized = false;
         }
+
+        async init() {
+            if (this.isInitialized) return;
+            await this._syncFromGlobal();
+            this.isInitialized = true;
+        }
+
         _key(p = '') { return (this.opts.prefix || '_vs_') + p.replace(/\./g, '_'); }
         isLocalUsable() {
             try { localStorage.setItem('__test__', '1'); localStorage.removeItem('__test__'); return true; } catch (e) { return false; }
         }
-        isGlobalUsable() {
-            return typeof GM_getValue === 'function' && typeof GM_setValue === 'function' && typeof GM_listValues === 'function';
-        }
-        get(path) {
+
+        async get(path) {
+            // 우선순위: localStorage -> GM.* API -> GM_* API -> 기본값
             if (this.isLocalUsable()) {
                 try {
                     const v = localStorage.getItem(this._key(path));
                     if (v !== null) { try { return JSON.parse(v); } catch (e) { return v; } }
                 } catch (e) {}
             }
-            if (this.isGlobalUsable()) {
+
+            if (typeof GM !== 'undefined' && typeof GM.getValue === 'function') {
+                try {
+                    const gv = await GM.getValue(this._key(path));
+                    if (gv !== undefined) return gv;
+                } catch (e) {}
+            } else if (typeof GM_getValue === 'function') {
                 try {
                     const gv = GM_getValue(this._key(path));
                     if (gv !== undefined) return gv;
                 } catch (e) {}
             }
+
             if (!path) return this.opts.config;
             let cur = this.opts.config;
             const parts = path.split('.');
             for (const p of parts) { if (!cur || typeof cur !== 'object') return undefined; cur = cur[p]; }
             return cur;
         }
-        set(path, val) {
+
+        async set(path, val) {
             if (this.isLocalUsable()) {
                 try { localStorage.setItem(this._key(path), typeof val === 'object' ? JSON.stringify(val) : String(val)); } catch (e) {}
             }
-            if (this.isGlobalUsable()) {
+
+            if (typeof GM !== 'undefined' && typeof GM.setValue === 'function') {
+                try { await GM.setValue(this._key(path), val); } catch (e) {}
+            } else if (typeof GM_setValue === 'function') {
                 try { GM_setValue(this._key(path), val); } catch (e) {}
             }
+
             const parts = path.split('.');
             let cur = this.opts.config;
             for (let i = 0; i < parts.length - 1; i++) { if (!cur[parts[i]]) cur[parts[i]] = {}; cur = cur[parts[i]]; }
             cur[parts[parts.length - 1]] = val;
         }
-        _syncFromGlobal() {
-            if (!this.isGlobalUsable()) return;
+
+        async _syncFromGlobal() {
+            if (typeof GM_listValues !== 'function') return;
             try {
                 const keys = GM_listValues();
-                keys.forEach(k => {
+                for (const k of keys) {
                     if (k.startsWith(this.opts.prefix || '')) {
                         const path = k.replace(this.opts.prefix, '').replace(/_/g, '.');
-                        const val = GM_getValue(k);
+                        const val = await this.get(path); // Use async get
                         const parts = path.split('.');
                         let cur = this.opts.config;
                         for (let i = 0; i < parts.length - 1; i++) { if (!cur[parts[i]]) cur[parts[i]] = {}; cur = cur[parts[i]]; }
                         cur[parts[parts.length - 1]] = val;
                     }
-                });
+                }
             } catch (e) {}
         }
     }
@@ -204,12 +226,13 @@
     /* ============================
      * Live FeatureFlags (console에서 즉시 반영)
      * ============================ */
-    (function enableLiveFeatureFlags(){
+    (async function enableLiveFeatureFlags(){
+        await configManager.init(); // 설정 로드 대기
         const listeners = new Set();
         function notify(k,v){ try{ listeners.forEach(fn=>fn(k,v)); }catch{} }
 
         const flagsKey = '_feature_flags_cache';
-        const initial = Object.assign({}, FeatureFlags, configManager.get(flagsKey) || {});
+        const initial = Object.assign({}, FeatureFlags, await configManager.get(flagsKey) || {});
         Object.keys(FeatureFlags).forEach(k => { if (k in initial) { FeatureFlags[k] = initial[k]; } });
 
         const proxy = new Proxy(FeatureFlags, {
@@ -217,8 +240,8 @@
             set(t, p, v){
                 const ok = Reflect.set(t,p,v);
                 try {
-                    const saved = Object.assign({}, configManager.get(flagsKey)||{}, {[p]: v});
-                    configManager.set(flagsKey, saved);
+                    // 비동기 set 호출, 하지만 프록시 set은 async가 될 수 없으므로 await하지 않음 (fire and forget)
+                    configManager.set(flagsKey, Object.assign({}, t));
                     logManager && logManager.addOnce(`flag_${String(p)}_${String(v)}`, `🧩 FeatureFlag 변경: ${String(p)} = ${String(v)}`, 2500, 'info');
                     notify(String(p), v);
                 } catch {}
@@ -351,6 +374,73 @@
     const OBSERVER_MAP = new Map();
 
     /* ============================
+     * 💡 아키텍처 개선: UI Manager (Shadow DOM 캡슐화)
+     * ============================ */
+    const uiManager = (() => {
+        let host, shadowRoot;
+
+        function init() {
+            if (host) return;
+            host = document.createElement('div');
+            host.id = 'vsc-ui-host';
+            host.style.position = 'fixed';
+            host.style.top = '0';
+            host.style.left = '0';
+            host.style.width = '100%';
+            host.style.height = '100%';
+            host.style.pointerEvents = 'none';
+            host.style.zIndex = '2147483647';
+
+            shadowRoot = host.attachShadow({ mode: 'open' });
+
+            const style = document.createElement('style');
+            style.textContent = `
+                :host {
+                    pointer-events: none;
+                }
+                * {
+                    pointer-events: auto;
+                }
+                /* Log Manager UI */
+                #vm-log-container { position: fixed; bottom: 0; right: 0; width: 350px; max-height: 30px; z-index: 100; pointer-events: none; background: transparent; color: #fff; font-family: monospace; font-size: 14px; border-top-left-radius: 8px; overflow: hidden; opacity: 0; transition: opacity 0.3s ease, max-height 0.3s ease; box-shadow: none; }
+                #vm-log-container:hover { max-height: 200px; }
+                #vm-log-copy-btn { position: absolute; top: 0; right: 0; background: #c0392b; color: #fff; border: none; border-bottom-left-radius: 8px; padding: 4px 8px; font-size: 14px; cursor: pointer; z-index: 101; opacity: 0.8; }
+                #vm-log-box { max-height: 100%; overflow-y: auto; padding: 8px; padding-top: 25px; user-select: text; text-align: left; background: rgba(30, 30, 30, 0.7); backdrop-filter: blur(2px); border-top-left-radius: 8px; }
+
+                /* Speed Slider UI */
+                #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity .2s, width .3s, background .2s; pointer-events: auto; }
+                #vm-speed-slider-container:hover { opacity: 1; background: rgba(0,0,0,0.4); }
+                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 120px; margin: 0; accent-color: #e74c3c; }
+                #vm-speed-value { color: #f44336; font-weight: bold; font-size: 14px; margin-top: 6px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+                .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin:4px 0; }
+                .vm-toggle-btn { transition: transform 0.2s ease-in-out; }
+
+                /* Drag Bar UI */
+                #vm-time-display { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 102; background: rgba(0,0,0,0.7); color: #fff; padding: 10px 20px; border-radius: 5px; font-size: 1.5rem; display: none; opacity: 1; transition: opacity 0.3s ease-out; pointer-events: none; }
+
+                /* Dynamic Media UI */
+                #dynamic-media-url-btn { position: fixed; top: 45px; right: 10px; z-index: 100; background: rgba(0,0,0,0.6); color: #fff; border: none; padding: 6px 8px; border-radius: 6px; display: none; cursor: pointer; transition: background 0.3s; opacity: 1; }
+            `;
+            shadowRoot.appendChild(style);
+            (document.body || document.documentElement).appendChild(host);
+        }
+
+        function getShadowRoot() {
+            if (!shadowRoot) init();
+            return shadowRoot;
+        }
+
+        function moveUiTo(targetElement) {
+            if (host && targetElement && host.parentNode !== targetElement) {
+                targetElement.appendChild(host);
+            }
+        }
+
+        return { init, getShadowRoot, moveUiTo };
+    })();
+
+
+    /* ============================
      * 로그 모듈 (XSS 안전 및 UI 지연 초기화)
      * ============================ */
     const logManager = (() => {
@@ -389,9 +479,9 @@
             }
 
             if (!box) { pending.push(full); return; }
-            history.push(full); if (history.length > 50) history.shift();
-            const el = document.createElement('div'); el.textContent = full; el.style.textAlign = 'left';
-            while(box.childElementCount >= 50) box.removeChild(box.firstChild);
+            history.push(full); if (history.length > 100) history.shift();
+            const el = document.createElement('div'); el.textContent = full;
+            while(box.childElementCount >= 100) box.removeChild(box.firstChild);
             box.appendChild(el); box.scrollTop = box.scrollHeight;
             showLogContainer();
         }
@@ -403,27 +493,28 @@
         }
         function initUI() {
             if (!isTopFrame || container) return;
+            const shadowRoot = uiManager.getShadowRoot();
+
             container = document.createElement('div');
             container.id = 'vm-log-container';
-            Object.assign(container.style, {
-                position: 'fixed', bottom: '0', right: '0', width: '350px', maxHeight: '30px',
-                zIndex: '2147483646', pointerEvents: 'none', background: 'transparent', color: '#fff',
-                fontFamily: 'monospace', fontSize: '14px', borderTopLeftRadius: '8px', overflow: 'hidden',
-                opacity: '0', transition: 'opacity 0.3s ease, max-height 0.3s ease', boxShadow: 'none'
-            });
+
             const copyBtn = document.createElement('button');
+            copyBtn.id = 'vm-log-copy-btn';
             copyBtn.textContent = '로그 복사';
-            Object.assign(copyBtn.style, { position: 'absolute', top: '0', right: '0', background: 'red', color: '#fff', border: 'none', borderBottomLeftRadius: '8px', padding: '4px 8px', fontSize: '14px', cursor: 'pointer', zIndex: '2147483647', opacity: '0.8' });
-            copyBtn.addEventListener('click', async () => {
+            copyBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
                 const ok = await copyToClipboard(history.join('\n'));
                 copyBtn.textContent = ok ? '복사 완료' : '복사 실패'; setTimeout(() => copyBtn.textContent = '로그 복사', 1500);
             });
+
             box = document.createElement('div');
-            Object.assign(box.style, { maxHeight: '100%', overflowY: 'auto', padding: '8px', paddingTop: '25px', userSelect: 'text' });
+            box.id = 'vm-log-box';
+
             container.addEventListener('mouseenter', () => container.style.maxHeight = '200px');
             container.addEventListener('mouseleave', () => container.style.maxHeight = '30px');
             container.appendChild(copyBtn); container.appendChild(box);
-            if (document.body) document.body.appendChild(container); else window.addEventListener('DOMContentLoaded', () => { if (!document.body.contains(container)) document.body.appendChild(container); });
+            shadowRoot.appendChild(container);
+
             pending.forEach(p => { const e = document.createElement('div'); e.textContent = p; box.appendChild(e); }); pending = [];
         }
         function logMediaContext(media, message, level = 'info') {
@@ -451,7 +542,7 @@
             addOnce(`err_${Date.now()}`, message, 10000, 'error');
             console.error(`[VideoSpeed_Control Error] ${message}\nContext Object:`, ctx || 'N/A', '\nStack Trace:\n', stack);
         }
-        return { init: () => {}, add, addOnce, logMediaContext, logIframeContext, logErrorWithContext };
+        return { init: initUI, add, addOnce, logMediaContext, logIframeContext, logErrorWithContext };
     })();
 
     /* ============================
@@ -593,7 +684,7 @@
                     return originalMethods.window.showModalDialog.apply(this, args);
                 }
                 logManager.addOnce(`blocked_modal_dialog_${args[0]}`, `🛡️ [Popup] 비정상적인 모달 다이얼로그 차단: ${args[0]}`, 5000, 'popup');
-                 showBlockedNotice('모달 다이얼로그 차단됨', args[0], () => {
+                    showBlockedNotice('모달 다이얼로그 차단됨', args[0], () => {
                     logManager.add(`[Popup] 사용자가 차단된 모달을 수동으로 허용: ${args[0]}`, 'info');
                     originalMethods.window.showModalDialog.apply(window, args);
                 });
@@ -601,11 +692,12 @@
             };
         }
 
-        // 페이지 이탈 시도 감지
+        // 🔧 로직 강화: 페이지 이탈 시도 감지 시 사용자 인터랙션 확인
         if (FeatureFlags.preventUnloadRedirects) {
             window.onbeforeunload = function(event) {
                 const isHttps = location.protocol === "https:";
-                if (!isHttps) {
+                // 사용자의 직접적인 행동 없이(예: 스크립트에 의해) HTTP 페이지에서 이탈 시도 시에만 경고
+                if (!isHttps && !isUserInitiated()) {
                     const message = "다른 페이지로 강제 이동하려는 시도가 감지되었습니다. 현재 페이지에 머무르시겠습니까?";
                     logManager.addOnce(`unload_redirect_attempt`, `🛡️ [Popup] 페이지 이탈 시도 감지.`, 5000, 'warn');
                     if (event) event.returnValue = message;
@@ -618,7 +710,6 @@
         }
 
         try { Object.defineProperty(window, 'opener', { get: () => null, configurable: true }); } catch (e) {}
-
         logManager.addOnce('advanced_popup_blocker_active', '🛡️ 고급 팝업 차단 기능 활성화', 5000, 'info');
     })();
 
@@ -745,11 +836,11 @@
         function scanAndTrack() {
             fetchAndParse();
         }
-        return { isYouTubeMediaUrl, scanAndTrack };
+        return { isYouTubeMediaUrl, scanAndTrack, parsePlayerResponse, extractAndParsePlayerResponse };
     })();
 
     /* ============================
-     * 강화형 networkMonitor (HLS/DASH 파싱 및 YouTube 감시 강화)
+     * ⚡ 성능 최적화 & 🔧 로직 강화: networkMonitor
      * ============================ */
     const networkMonitor = (() => {
         const VIDEO_URL_CACHE = new Map();
@@ -765,6 +856,7 @@
         const VIDEO_MIME_PATTERN = /(video|application\/(dash\+xml|vnd\.apple\.mpegurl|x-mpegURL))/i;
         const ABS_URL_REGEX = /^[a-z][a-z0-9+\-.]*:/i;
         const URL_REGEX = /\bhttps?:\/\/[^\s'"<>]+/gi;
+        const YOUTUBE_PLAYER_API_REGEX = /\/youtubei\/v1\/player/i; // 🔧 로직 강화: YouTube 플레이어 API 정규식
 
         const SKIP_HOSTS = [
             'doubleclick.net','googletagservices.com','googlesyndication.com','adservice.google.com',
@@ -785,6 +877,12 @@
         }
         function maybeContainsMediaURL(text){
             return /https?:\/\/[^\s"'<>]+?\.(?:m3u8|mpd|mp4|webm|ts|m4s)(?:[?#][^\s"'<>]*)?/i.test(text);
+        }
+
+        // ⚡ 성능 최적화: 텍스트 기반 콘텐츠 타입인지 확인하는 헬퍼
+        function isTextBasedContentType(ct){
+            if (!ct) return false;
+            return /json|text|xml|mpegurl|x-www-form-urlencoded/i.test(ct);
         }
 
         const isMediaSegment = (url) => {
@@ -962,14 +1060,26 @@
                 const ct = (resp.headers.get('content-type') || '').toLowerCase();
                 const cl = parseInt(resp.headers.get('content-length') || '0', 10);
 
+                // 🔧 로직 강화: YouTube 플레이어 API 응답 특별 처리
+                if (YOUTUBE_PLAYER_API_REGEX.test(url)) {
+                    logManager.addOnce('yt_player_api_detected', '🎯 [YT] 플레이어 API 요청 감지', 5000, 'debug');
+                    const responseData = await resp.clone().json();
+                    const urls = youtubeMediaFinder.parsePlayerResponse(responseData);
+                    urls.forEach(u => trackAndAttach(u, { source: 'youtube-player-api' }));
+                    return;
+                }
+
                 if (isMediaUrl(url)) {
                     trackAndAttach(url, { source: 'fetch/xhr' });
-                    const text = await resp.clone().text();
-                    if (url.endsWith('.mpd') || ct.includes('application/dash+xml')) {
-                        parseMPD(text, url);
-                    } else if (url.endsWith('.m3u8') || isHLSPlaylist(text)) {
-                        const found = parseM3U8(text, url);
-                        found.forEach(u => trackAndAttach(u, { source: 'M3U8 SubPlaylist/Track' }));
+                    // ⚡ 성능 최적화: 텍스트 기반 콘텐츠 타입일 때만 파싱 시도
+                    if (isTextBasedContentType(ct)) {
+                        const text = await resp.clone().text();
+                        if (url.endsWith('.mpd') || ct.includes('application/dash+xml')) {
+                            parseMPD(text, url);
+                        } else if (url.endsWith('.m3u8') || isHLSPlaylist(text)) {
+                            const found = parseM3U8(text, url);
+                            found.forEach(u => trackAndAttach(u, { source: 'M3U8 SubPlaylist/Track' }));
+                        }
                     }
                     return;
                 }
@@ -979,24 +1089,27 @@
                         logManager.addOnce(`skip_image_like_video_${url}`, `🔧 [Skip] 비디오 MIME 타입을 가졌지만 이미지 URL이므로 무시: ${url.substring(0,80)}...`, 10000, 'debug');
                         return;
                     }
-                    trackAndAttach(url, { source: 'fetch/xhr' });
-                    const text = await resp.clone().text();
-                    if (ct.includes('application/dash+xml')) {
-                        parseMPD(text, url);
-                    } else if (ct.includes('mpegurl') || isHLSPlaylist(text)) {
-                        const found = parseM3U8(text, url);
-                        found.forEach(u => trackAndAttach(u, { source: 'M3U8 SubPlaylist/Track' }));
+                    trackAndAttach(url, { source: 'fetch/xhr mime' });
+                    if (isTextBasedContentType(ct)) {
+                        const text = await resp.clone().text();
+                        if (ct.includes('application/dash+xml')) {
+                            parseMPD(text, url);
+                        } else if (ct.includes('mpegurl') || isHLSPlaylist(text)) {
+                            const found = parseM3U8(text, url);
+                            found.forEach(u => trackAndAttach(u, { source: 'M3U8 SubPlaylist/Track' }));
+                        }
                     }
                     return;
                 }
 
-                if (cl > 0 && cl > 1_000_000) return;
-                const textPeek = await resp.clone().text();
-                if (maybeContainsMediaURL(textPeek)) {
-                    const urls = extractURLsFromText(textPeek);
-                    urls.forEach(u => {
-                        if(isMediaUrl(u)) trackAndAttach(u, { source: 'heuristic' });
-                    });
+                // ⚡ 성능 최적화: 텍스트 기반이 유력한 경우에만 내용 스캔 (용량 제한)
+                if (cl > 0 && cl < 1_000_000 && isTextBasedContentType(ct)) {
+                    const textPeek = await resp.clone().text();
+                    if (maybeContainsMediaURL(textPeek)) {
+                        extractURLsFromText(textPeek).forEach(u => {
+                            if(isMediaUrl(u)) trackAndAttach(u, { source: 'heuristic' });
+                        });
+                    }
                 }
             } catch (e) {
                 logManager.logErrorWithContext(e, { message: 'handleResponse optimized failed', url: url });
@@ -1006,25 +1119,24 @@
         function hookXHR() {
             if (!originalMethods.XMLHttpRequest.open || !originalMethods.XMLHttpRequest.send) return;
             window.XMLHttpRequest.prototype.open = function (method, url) {
-                if (url && (isAdOrBeacon(url) || !isMediaUrl(url))) {
-                    this._skipVSC = true;
-                } else {
-                    this._skipVSC = false;
+                if (url && typeof url === 'string') {
+                    this._reqUrl = url;
+                    if (youtubeMediaFinder.isYouTubeMediaUrl(url)) {
+                        trackAndAttach(url, { source: 'xhr.open (yt)' });
+                    }
                 }
-                if (url && typeof url === 'string' && youtubeMediaFinder.isYouTubeMediaUrl(url)) {
-                    trackAndAttach(url, { source: 'xhr.open (yt)' });
-                }
-                this._reqUrl = url;
                 return originalMethods.XMLHttpRequest.open.apply(this, arguments);
             };
             window.XMLHttpRequest.prototype.send = function (...args) {
-                if (this._skipVSC) {
-                    return originalMethods.XMLHttpRequest.send.apply(this, args);
-                }
                 this.addEventListener('load', function () {
                     try {
                         const url = normalizeURL(this._reqUrl);
-                        handleResponse(url, new Response(this.response, { headers: { 'content-type': (this.getResponseHeader && this.getResponseHeader('Content-Type')) || '' } }));
+                        // XHR Response는 타입 구분이 어려우므로, Response 객체를 만들어 일관되게 처리
+                        const headers = new Headers();
+                        const ct = this.getResponseHeader && this.getResponseHeader('Content-Type');
+                        if (ct) headers.set('content-type', ct);
+                        const response = new Response(this.response, { headers });
+                        handleResponse(url, response);
                     } catch (e) { logManager.logErrorWithContext(e, { message: 'XHR load handler failed' }); }
                 });
                 return originalMethods.XMLHttpRequest.send.apply(this, args);
@@ -1210,53 +1322,77 @@
     })();
 
     /* ============================
-     * JWPlayer 모니터
+     * ⚡ 성능 최적화: JWPlayer 모니터 (이벤트 기반)
      * ============================ */
     const jwplayerMonitor = (() => {
-        const hookedPlayerIds = new Set();
-        function hookAllPlayers() {
-            const waitForJWPlayer = new Promise((resolve, reject) => {
-                const interval = setInterval(() => {
-                    if (window.jwplayer && typeof window.jwplayer === 'function') {
-                        clearInterval(interval);
-                        resolve(window.jwplayer);
-                    }
-                }, 100);
-                setTimeout(() => { clearInterval(interval); reject('JWPlayer 로딩 실패'); }, 5000);
-            });
-            waitForJWPlayer.then(jw => {
-                const playerElements = document.querySelectorAll('[id^="jwplayer-"], .jw-player, div[id]');
-                playerElements.forEach(playerElement => {
-                    const playerId = playerElement.id;
-                    if (playerId && !hookedPlayerIds.has(playerId)) {
+        let hooked = false;
+
+        function hookJwplayerInstance(jw) {
+            if (!jw || typeof jw !== 'function' || jw._vsc_hooked) return;
+
+            const originalJwplayer = jw;
+            // jwplayer() 함수 자체를 후킹하여 모든 인스턴스 생성 감지
+            window.jwplayer = function(selector) {
+                const playerInstance = originalJwplayer.apply(this, arguments);
+                if (playerInstance && playerInstance.setup && !playerInstance._vsc_setup_hooked) {
+                     logManager.addOnce(`jw_instance_created_${selector}`, `✅ JWPlayer 인스턴스(${selector}) 감지 및 훅 준비`, 5000, 'info');
+                    const originalSetup = playerInstance.setup;
+                    playerInstance.setup = function(config) {
                         try {
-                            const playerInstance = jw(playerId);
-                            if (playerInstance) {
-                                hookedPlayerIds.add(playerId);
-                                const originalSetup = playerInstance.setup;
-                                playerInstance.setup = function(config) {
-                                    const result = originalSetup.apply(this, arguments);
-                                    setTimeout(() => tryDetect(this), 500);
-                                    return result;
-                                };
-                                logManager.addOnce(`jw_hooked_${playerId}`, `✅ JWPlayer(${playerId}) 훅 적용`, 5000, 'info');
+                            if (config && config.playlist) {
+                                [].concat(config.playlist).forEach(item => {
+                                    const file = item.file || (item.sources && item.sources[0] && item.sources[0].file);
+                                    if (file) networkMonitor.trackAndAttach(file, { source: 'jwplayer.setup' });
+                                });
                             }
-                        } catch (e) { logManager.logErrorWithContext(e, { message: `JWPlayer 인스턴스(${playerId}) 후킹 실패` }); }
-                    }
-                });
-            }).catch(err => {});
+                        } catch(e) { logManager.logErrorWithContext(e, { message: 'JWPlayer setup hook failed' }); }
+
+                        const result = originalSetup.apply(this, arguments);
+                        playerInstance.on('ready', () => tryDetect(playerInstance));
+                        return result;
+                    };
+                    playerInstance._vsc_setup_hooked = true;
+                }
+                return playerInstance;
+            };
+            window.jwplayer._vsc_hooked = true;
         }
+
         function tryDetect(player) {
             try {
                 const list = player.getPlaylist && player.getPlaylist();
                 if (!list || !list.length) return;
                 list.forEach(item => {
                     const f = item.file || (item.sources && item.sources[0] && item.sources[0].file);
-                    if (f && networkMonitor.isMediaUrl(f)) networkMonitor.trackAndAttach(f, { source: 'jwplayer' });
+                    if (f && networkMonitor.isMediaUrl(f)) networkMonitor.trackAndAttach(f, { source: 'jwplayer.getPlaylist' });
                 });
             } catch (e) { logManager.logErrorWithContext(e, { message: 'JWPlayer 플레이리스트 감지 실패' }); }
         }
-        return { init: () => hookAllPlayers() };
+
+        function init() {
+            if (hooked) return;
+            hooked = true;
+
+            // 이미 jwplayer가 로드된 경우
+            if (window.jwplayer) {
+                hookJwplayerInstance(window.jwplayer);
+            }
+
+            // jwplayer가 나중에 로드될 경우를 대비해 defineProperty 사용
+            let _jwplayer = window.jwplayer;
+            try {
+                Object.defineProperty(window, 'jwplayer', {
+                    get() { return _jwplayer; },
+                    set(value) {
+                        _jwplayer = value;
+                        hookJwplayerInstance(value);
+                        logManager.addOnce('jwplayer_detected', '✅ JWPlayer 라이브러리 동적 로드 감지', 5000, 'info');
+                    },
+                    configurable: true,
+                });
+            } catch(e) { logManager.logErrorWithContext(e, { message: 'Failed to hook window.jwplayer property' }); }
+        }
+        return { init };
     })();
 
     /* ============================
@@ -1298,7 +1434,6 @@
                     } catch (e) {}
                 });
 
-                // ⭐️⭐️⭐️ [해결] 구버전(v18.0)의 강력한 인라인 스크립트 스캔 로직을 복원 ⭐️⭐️⭐️
                 doc.querySelectorAll('script:not([src])').forEach(sc => {
                     try {
                         const txt = sc.textContent || '';
@@ -1332,25 +1467,93 @@
     };
 
     /* ============================
-     * UI: speedSlider, dragBar, dynamicMediaUI
+     * ✨ 신규 기능: 미디어 세션 API 매니저
+     * ============================ */
+    const mediaSessionManager = (() => {
+        function setSession(media) {
+            if (!FeatureFlags.mediaSessionIntegration || !('mediaSession' in navigator)) return;
+
+            try {
+                const title = document.title || '재생 중인 미디어';
+                navigator.mediaSession.metadata = new window.MediaMetadata({
+                    title: title,
+                    artist: window.location.hostname,
+                    album: 'VideoSpeed_Control',
+                });
+
+                navigator.mediaSession.setActionHandler('play', () => media.play());
+                navigator.mediaSession.setActionHandler('pause', () => media.pause());
+                navigator.mediaSession.setActionHandler('seekbackward', (details) => { media.currentTime = Math.max(0, media.currentTime - (details.seekOffset || 10)); });
+                navigator.mediaSession.setActionHandler('seekforward', (details) => { media.currentTime = Math.min(media.duration, media.currentTime + (details.seekOffset || 10)); });
+
+                logManager.addOnce('media_session_set', '✨ 미디어 세션 설정 완료', 5000, 'info');
+            } catch (e) {
+                logManager.logErrorWithContext(e, { message: '미디어 세션 설정 실패' });
+            }
+        }
+
+        function clearSession() {
+            if (!FeatureFlags.mediaSessionIntegration || !('mediaSession' in navigator)) return;
+            try {
+                navigator.mediaSession.metadata = null;
+                navigator.mediaSession.setActionHandler('play', null);
+                navigator.mediaSession.setActionHandler('pause', null);
+                navigator.mediaSession.setActionHandler('seekbackward', null);
+                navigator.mediaSession.setActionHandler('seekforward', null);
+            } catch(e) {
+                logManager.logErrorWithContext(e, { message: '미디어 세션 해제 실패' });
+            }
+        }
+
+        return { setSession, clearSession };
+    })();
+
+    /* ============================
+     * 💡 아키텍처 개선: UI 로직 (Shadow DOM 사용하도록 수정)
      * ============================ */
     const DRAG_CONFIG = { PIXELS_PER_SECOND: 2 };
     const speedSlider = (() => {
-        let container = null, inited = false, isMin = !!configManager.get('isMinimized'), visible = false, updateTimer;
-        function createStyle() {
-            if (document.getElementById('vm-speed-slider-style')) return;
-            const style = document.createElement('style');
-            style.id = 'vm-speed-slider-style';
-            style.textContent = `
-                #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px; z-index: 2147483647; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity .2s, width .3s; pointer-events: auto; }
-                #vm-speed-slider-container:hover { opacity: 1; }
-                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 120px; }
-                #vm-speed-value { color: #f44336; font-weight: bold; font-size: 14px; margin-top: 6px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
-                .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin:4px 0; }
-                .vm-toggle-btn { transition: transform 0.2s ease-in-out; }
-            `;
-            (document.head || document.documentElement).appendChild(style);
+        let container = null, inited = false, isMin = true, visible = false, updateTimer;
+
+        async function init() {
+            if (inited) return;
+            isMin = !!(await configManager.get('isMinimized'));
+            inited = true;
+
+            const shadowRoot = uiManager.getShadowRoot();
+            container = shadowRoot.getElementById('vm-speed-slider-container');
+            if (!container) {
+                container = document.createElement('div'); container.id = 'vm-speed-slider-container';
+                const reset = document.createElement('button'); reset.className = 'vm-btn'; reset.textContent = '1x';
+                const slider = document.createElement('input'); slider.type = 'range'; slider.min = '0.2'; slider.max = '4.0'; slider.step = '0.1'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
+                const val = document.createElement('div'); val.id = 'vm-speed-value'; val.textContent = 'x1.0';
+                const toggle = document.createElement('button'); toggle.className = 'vm-btn vm-toggle-btn';
+
+                reset.addEventListener('click', () => { slider.value = '1.0'; applySpeed(1.0); val.textContent = 'x1.0'; });
+                slider.addEventListener('input', (e) => { const s = parseFloat(e.target.value); val.textContent = `x${s.toFixed(1)}`; if (updateTimer) clearTimeout(updateTimer); updateTimer = setTimeout(() => applySpeed(s), 100); });
+                toggle.addEventListener('click', async () => {
+                    isMin = !isMin;
+                    await configManager.set('isMinimized', isMin);
+                    updateAppearance();
+                });
+
+                container.appendChild(reset); container.appendChild(slider); container.appendChild(val); container.appendChild(toggle);
+                shadowRoot.appendChild(container);
+            }
+            updateAppearance();
         }
+
+        function updateAppearance() {
+            if (!container) return;
+            const isHidden = isMin;
+            container.style.width = isHidden ? '30px' : '50px';
+            [container.querySelector('#vm-speed-slider'), container.querySelector('#vm-speed-value'), container.querySelector('.vm-btn:first-of-type')].forEach(el => {
+                if (el) el.style.display = isHidden ? 'none' : 'block';
+            });
+            const toggleBtn = container.querySelector('.vm-toggle-btn');
+            if(toggleBtn) toggleBtn.textContent = isHidden ? '◀' : '▶';
+        }
+
         function applySpeed(speed) {
             try {
                 mediaFinder.findAll().forEach(md => {
@@ -1358,50 +1561,15 @@
                 });
             } catch (e) { logManager.logErrorWithContext(e, { message: 'applySpeed failed' }); }
         }
-        function init() {
-            if (inited) return; inited = true;
-            createStyle();
-            container = document.getElementById('vm-speed-slider-container');
-            if (!container) {
-                container = document.createElement('div'); container.id = 'vm-speed-slider-container';
-                const reset = document.createElement('button'); reset.className = 'vm-btn'; reset.textContent = '1x';
-                const slider = document.createElement('input'); slider.type = 'range'; slider.min = '0.2'; slider.max = '4.0'; slider.step = '0.1'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
-                const val = document.createElement('div'); val.id = 'vm-speed-value'; val.textContent = 'x1.0';
-                const toggle = document.createElement('button'); toggle.className = 'vm-btn vm-toggle-btn'; toggle.textContent = isMin ? '▼' : '▲';
-                reset.addEventListener('click', () => { slider.value = '1.0'; applySpeed(1.0); val.textContent = 'x1.0'; });
-                slider.addEventListener('input', (e) => { const s = parseFloat(e.target.value); val.textContent = `x${s.toFixed(1)}`; if (updateTimer) clearTimeout(updateTimer); updateTimer = setTimeout(() => applySpeed(s), 100); });
-                toggle.addEventListener('click', () => {
-                    isMin = !isMin;
-                    configManager.set('isMinimized', isMin);
-                    const isHidden = isMin;
-                    container.style.width = isHidden ? '30px' : '50px';
-                    [container.querySelector('#vm-speed-slider'), container.querySelector('#vm-speed-value'), container.querySelector('.vm-btn:first-of-type')].forEach(el => {
-                        if (el) el.style.display = isHidden ? 'none' : 'block';
-                    });
-                    const toggleBtn = container.querySelector('.vm-toggle-btn');
-                    if(toggleBtn) toggleBtn.textContent = isHidden ? '▼' : '▲';
-                });
-                container.appendChild(reset); container.appendChild(slider); container.appendChild(val); container.appendChild(toggle);
-            }
-            const appendTo = document.fullscreenElement || document.body;
-            if (appendTo && !appendTo.contains(container)) {
-                appendTo.appendChild(container);
-            }
-                const isHidden = isMin;
-                container.style.width = isHidden ? '30px' : '50px';
-                [container.querySelector('#vm-speed-slider'), container.querySelector('#vm-speed-value'), container.querySelector('.vm-btn:first-of-type')].forEach(el => {
-                    if (el) el.style.display = isHidden ? 'none' : 'block';
-                });
-                const toggleBtn = container.querySelector('.vm-toggle-btn');
-                if(toggleBtn) toggleBtn.textContent = isHidden ? '▼' : '▲';
-        }
-        function show() { if (!inited) init(); if (!container) return; container.style.display = 'flex'; visible = true; }
+
+        async function show() { if (!inited) await init(); if (!container) return; container.style.display = 'flex'; visible = true; }
         function hide() { if (!container) return; container.style.display = 'none'; visible = false; }
+
         function updatePositionAndSize() {
             try {
                 const m = mediaFinder.findAll().find(x => x.clientWidth > 0 && x.clientHeight > 0);
-                const slider = container && container.querySelector('#vm-speed-slider');
-                if (m && slider) { slider.style.height = Math.max(80, m.getBoundingClientRect().height * 0.25) + 'px'; }
+                const sliderEl = container && container.querySelector('#vm-speed-slider');
+                if (m && sliderEl) { sliderEl.style.height = Math.max(80, m.getBoundingClientRect().height * 0.25) + 'px'; }
             } catch (e) {}
         }
         return { init, show, hide, updatePositionAndSize, isMinimized: () => isMin, container: () => container };
@@ -1431,15 +1599,12 @@
         }
         const showDisplay = (v) => {
             if (!display) {
-                display = document.getElementById('vm-time-display');
+                const shadowRoot = uiManager.getShadowRoot();
+                display = shadowRoot.getElementById('vm-time-display');
                 if (!display) {
                     display = document.createElement('div'); display.id = 'vm-time-display';
-                    Object.assign(display.style, { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: '2147483647', background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '10px 20px', borderRadius: '5px', fontSize: '1.5rem', display: 'none', opacity: '1', transition: 'opacity 0.3s ease-out' });
+                    shadowRoot.appendChild(display);
                 }
-            }
-            const appendTo = document.fullscreenElement || document.body;
-            if (appendTo && !appendTo.contains(display)) {
-                appendTo.appendChild(display);
             }
             display.textContent = fmt(v);
             display.style.display = 'block';
@@ -1449,8 +1614,10 @@
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => display.style.display = 'none', 300); } visible = false; };
         function onStart(e) {
             try {
-                if (speedSlider && speedSlider.isMinimized() || e.button === 2) return;
-                if(e.target.closest('#vm-speed-slider-container, #vm-time-display, #vm-log-container')) return;
+                // Shadow DOM 내부의 UI 요소 클릭 시 드래그 방지
+                if (e.composedPath && e.composedPath()[0].shadowRoot) return;
+
+                if(e.button === 2) return;
                 if (!mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused)) { return; }
                 const pos = e.touches ? e.touches[0] : e;
                 state.dragging = true; state.startX = pos.clientX; state.startY = pos.clientY; state.accX = 0;
@@ -1505,11 +1672,11 @@
         let btn, inited = false, visible = false;
         function init() {
             if (inited) return; inited = true;
-            btn = document.getElementById('dynamic-media-url-btn');
+            const shadowRoot = uiManager.getShadowRoot();
+            btn = shadowRoot.getElementById('dynamic-media-url-btn');
             if (!btn) {
                 btn = document.createElement('button'); btn.id = 'dynamic-media-url-btn'; btn.textContent = '🎞️ URL';
-                Object.assign(btn.style, { position: 'fixed', top: '45px', right: '10px', zIndex: '2147483647', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', padding: '6px 8px', borderRadius: '6px', display: 'none', cursor: 'pointer', transition: 'background 0.3s', opacity: '1', });
-                document.body.appendChild(btn);
+                shadowRoot.appendChild(btn);
             }
             addOnceEventListener(btn, 'click', async (e) => {
                 e.preventDefault(); e.stopPropagation();
@@ -1557,11 +1724,11 @@
                 mo.observe(media, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
             } catch (e) { logManager.logErrorWithContext(e, media); }
         }
-        const updateUIVisibility = throttle(() => {
+        const updateUIVisibility = throttle(async () => {
             try {
                 const hasMedia = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' || m.tagName === 'AUDIO');
                 if (hasMedia) {
-                    speedSlider.show();
+                    await speedSlider.show();
                     dynamicMediaUI.show();
                 } else {
                     speedSlider.hide();
@@ -1598,9 +1765,21 @@
                 updateUIVisibility();
                 logManager.logMediaContext(media, '미디어 로드 완료');
             }, { once: true });
-            addManagedEventListener(media, 'play', () => { updateUIVisibility(); logManager.logMediaContext(media, '재생 시작'); }, true);
-            addManagedEventListener(media, 'pause', () => { updateUIVisibility(); logManager.logMediaContext(media, '일시정지'); }, true);
-            addManagedEventListener(media, 'ended', () => { updateUIVisibility(); logManager.logMediaContext(media, '종료'); }, true);
+            addManagedEventListener(media, 'play', () => {
+                updateUIVisibility();
+                logManager.logMediaContext(media, '재생 시작');
+                mediaSessionManager.setSession(media); // ✨ 미디어 세션 설정
+            }, true);
+            addManagedEventListener(media, 'pause', () => {
+                updateUIVisibility();
+                logManager.logMediaContext(media, '일시정지');
+                mediaSessionManager.clearSession(); // ✨ 미디어 세션 해제
+            }, true);
+            addManagedEventListener(media, 'ended', () => {
+                updateUIVisibility();
+                logManager.logMediaContext(media, '종료');
+                mediaSessionManager.clearSession(); // ✨ 미디어 세션 해제
+            }, true);
         }
         function detachUI(media) { try { if (MediaStateManager.has(media)) MediaStateManager.delete(media); } catch (e) {} }
         return { initWhenReady, detachUI, updateUIVisibility };
@@ -1914,32 +2093,28 @@
             globalScanTimer = setInterval(scanTask, 3000);
         }
 
-        function initializeAll(targetDocument = document) {
+        async function initializeAll(targetDocument = document) {
             if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
 
             if (targetDocument === document) {
                 try {
+                    await configManager.init();
+                    uiManager.init();
                     logManager.init();
-                    logManager.addOnce('script_init_start', '🎉 VideoSpeed_Control 초기화 시작', 5000, 'info');
+                    logManager.addOnce('script_init_start', '🎉 VideoSpeed_Control 초기화 시작 (v21.0)', 5000, 'info');
                     if (FeatureFlags.spaPartialUpdate) spaMonitor.init();
                     if (FeatureFlags.videoControls) {
-                        speedSlider.init();
+                        await speedSlider.init();
                         dragBar.init();
                         dynamicMediaUI.init();
-                        jwplayerMonitor.init(window);
+                        jwplayerMonitor.init();
                     }
                     if (FeatureFlags.enhanceURLDetection) networkMonitor.init();
                     if (FeatureFlags.videoControls || FeatureFlags.enhanceURLDetection) initIntersectionObserver();
                 } catch (e) { logManager.logErrorWithContext(e, { message: 'Main initialization failed' }); }
 
                 addOnceEventListener(document, 'fullscreenchange', () => {
-                    const targetParent = document.fullscreenElement || document.body;
-                    if(speedSlider.container() && speedSlider.container().parentNode !== targetParent) {
-                        targetParent.appendChild(speedSlider.container());
-                    }
-                    if(dragBar.display() && dragBar.display().parentNode !== targetParent) {
-                        targetParent.appendChild(dragBar.display());
-                    }
+                    uiManager.moveUiTo(document.fullscreenElement || document.body);
                     speedSlider.updatePositionAndSize();
                 });
 
