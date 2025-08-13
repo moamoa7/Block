@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      18.0 (성능 최적화 및 제안 기반 개선)
+// @version      19.0 (제안 기반 성능 개선 및 로직 강화)
 // @description  🎞️ [최적화] 비디오 속도 제어 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (지연 로드 및 상태 관리 강화)
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -63,8 +63,8 @@
     }
 
     const FeatureFlags = {
-        videoControls: true,        // 비디오 컨트롤 UI (속도, 드래그) 활성화
-        logUI: true,                // 화면 로그 UI 활성화
+        videoControls: true,      // 비디오 컨트롤 UI (속도, 드래그) 활성화
+        logUI: true,              // 화면 로그 UI 활성화
         enhanceURLDetection: true,  // 네트워크 요청 감지를 통한 URL 추출 강화
         spaPartialUpdate: true,     // SPA 환경에서 부분 업데이트 지원
         detailedLogging: true,      // 콘솔에 상세 로그 출력
@@ -218,10 +218,40 @@
     }
     function debounce(fn, wait) { let t; return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; }
     async function copyToClipboard(text) {
-        if (!text) return false;
-        try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; } } catch (e) {}
-        try { const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); return true; } catch (e) { return false; }
+    if (!text) return false;
+
+    // 1. 최신 방식 시도
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true; // 성공 시 여기서 즉시 종료
+        }
+    } catch (e) {
+        logManager.add('클립보드 API 실패, 폴백 시도', 'warn');
     }
+
+    // 2. 구식 폴백 방식 시도
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.focus(); // 일부 브라우저에서 포커스가 필요
+        const successful = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (successful) {
+            return true; // 성공 시 true 반환
+        }
+    } catch (e) {
+        logManager.logErrorWithContext(e, { message: 'Textarea 클립보드 복사 실패' });
+    }
+
+    // 모든 방법이 실패한 경우
+    return false;
+}
 
     /* ============================
      * 전역 상태 관리
@@ -276,17 +306,15 @@
             const icons = { info: 'ℹ️', warn: '⚠️', error: '🔴', allow: '✅', debug: '🔧', stream: '▶️' };
             const full = `[${new Date().toLocaleTimeString()}] ${icons[level] || ''} ${msg}`;
             if (FeatureFlags.detailedLogging) {
-                if (console[level]) console[level](full); else console.log(full);
+                if (console[level] && typeof console[level] === 'function') console[level](full); else console.log(full);
             }
 
-            // [개선] UI 관련 로직은 FeatureFlags.logUI가 true일 때만 실행
             if (!FeatureFlags.logUI) return;
             if (!isTopFrame) {
                 try { window.parent.postMessage({ type: 'MY_SCRIPT_LOG', message: full, level, key: msg }, '*'); } catch (e) { }
                 return;
             }
 
-            // [개선] 로그 UI를 최초 사용 시점에 생성 (Lazy Initialization)
             if (!container) {
                 initUI();
             }
@@ -305,7 +333,7 @@
             if (!LOGGED_KEYS_WITH_TIMER.has(key)) { LOGGED_KEYS_WITH_TIMER.set(key, now); safeAdd(msg, lvl); }
         }
         function initUI() {
-            if (!isTopFrame || container) return; // 중복 실행 방지
+            if (!isTopFrame || container) return;
             container = document.createElement('div');
             container.id = 'vm-log-container';
             Object.assign(container.style, {
@@ -346,14 +374,19 @@
                 addOnce(`iframe_${src}_${message}`, `🧩 iframe ${message} | src: ${src}`, 6000, 'info');
             } catch (e) {}
         }
+        // ((제안 2-2. 에러 로그 상세화 반영))
         function logErrorWithContext(err, ctx) {
             if (!FeatureFlags.detailedLogging) return;
-            const stack = err && err.stack ? err.stack : String(err);
             const contextMessage = typeof ctx === 'object' && ctx.message ? ctx.message : (ctx && ctx.tagName ? ctx.tagName : 'N/A');
             const message = `❗ 에러: ${err?.message || err} | 컨텍스트: ${contextMessage}`;
+            const stack = err && err.stack ? err.stack : 'No stack trace available';
+
+            // UI 로그에는 간결한 메시지 표시
             addOnce(`err_${Date.now()}`, message, 10000, 'error');
+
+            // 콘솔에는 상세 스택 정보 출력
+            console.error(`[VideoSpeed_Control Error] ${message}\nContext Object:`, ctx || 'N/A', '\nStack Trace:\n', stack);
         }
-        // [개선] initUI를 외부에서 호출하지 않으므로 init 함수는 비워둠
         return { init: () => {}, add, addOnce, logMediaContext, logIframeContext, logErrorWithContext };
     })();
 
@@ -381,13 +414,13 @@
     }
 
     /* ============================
-     * 강화형 networkMonitor
+     * 강화형 networkMonitor (HLS/DASH 파싱 포함)
      * ============================ */
     const networkMonitor = (() => {
         const VIDEO_URL_CACHE = new Map();
         const BLOB_URL_MAP = new Map();
         const MAX_CACHE_SIZE = 500;
-        const CACHE_EXPIRATION_TIME = 3 * 60 * 1000; // 3분
+        const CACHE_EXPIRATION_TIME = 3 * 60 * 1000;
         let initialized = false;
 
         const VIDEO_EXT_REGEX = /\.(mp4|webm|m3u8|mpd|ts|m4s)(\?|#|$)/i;
@@ -502,6 +535,7 @@
                 MediaStateManager.set(ctx.element, { trackedUrl: norm, isInitialized: false });
             }
         }
+        // ((제안 5-1.은 이미 더 상세한 로직으로 구현되어 있어 기존 코드 유지))
         function parseMPD(xmlText, baseURL) {
             try {
                 const parser = new DOMParser();
@@ -556,7 +590,7 @@
                         parseM3U8(text, url);
                     }
                 }
-            } catch (e) { logManager.logErrorWithContext(e, null); }
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'handleResponse failed', url: url }); }
         };
         function hookXHR() {
             if (!originalMethods.XMLHttpRequest.open || !originalMethods.XMLHttpRequest.send) return;
@@ -570,7 +604,7 @@
                         if (isMediaUrl(url) || isMediaMimeType(ct)) {
                             handleResponse(url, new Response(this.response, { headers: { 'content-type': ct || '' } }));
                         }
-                    } catch (e) { logManager.logErrorWithContext(e, null); }
+                    } catch (e) { logManager.logErrorWithContext(e, { message: 'XHR load handler failed' }); }
                 });
                 return originalMethods.XMLHttpRequest.send.apply(this, args);
             };
@@ -586,7 +620,7 @@
                     const res = await originalMethods.Fetch.apply(this, args);
                     handleResponse(reqURL, res.clone());
                     return res;
-                } catch (err) { logManager.logErrorWithContext(err, null); throw err; }
+                } catch (err) { logManager.logErrorWithContext(err, { message: 'fetch failed', url: reqURL }); throw err; }
             };
         }
         function hookBlob() {
@@ -605,11 +639,12 @@
                                         trackAndAttach('mse-dash-segment', { type: 'mse-segment', box: box.type });
                                     }
                                 }
-                            } catch (e) { logManager.logErrorWithContext(e, null); }
+                            } catch (e) { logManager.logErrorWithContext(e, { message: 'appendBuffer hook failed' }); }
                             return origAppendBuffer.apply(this, arguments);
                         };
                         return sourceBuffer;
                     } catch (e) {
+                        logManager.logErrorWithContext(e, { message: 'addSourceBuffer hook failed' });
                         return originalMethods.MediaSource.addSourceBuffer.apply(this, arguments);
                     }
                 };
@@ -661,7 +696,6 @@
             init() {
                 if (initialized) return;
                 initialized = true;
-                // [개선] enhanceURLDetection 플래그가 false이면 후킹을 실행하지 않음
                 if (!FeatureFlags.enhanceURLDetection) return;
                 try {
                     hookFetch();
@@ -669,14 +703,14 @@
                     hookBlob();
                     hookWebSocket();
                     logManager.addOnce('network_monitor_active', '✅ 네트워크 모니터 활성화', 3000, 'info');
-                } catch (e) { logManager.logErrorWithContext(e, null); }
+                } catch (e) { logManager.logErrorWithContext(e, { message: 'networkMonitor init failed' }); }
             },
             trackAndAttach,
             isMediaUrl,
             getOriginalURL: (url) => BLOB_URL_MAP.get(url) || url,
             isTracked: (url) => VIDEO_URL_CACHE.has(normalizeURL(url)),
             VIDEO_URL_CACHE,
-            // [개선] SPA 네비게이션 시 호출될 상태 리셋 함수
+            CACHE_EXPIRATION_TIME, // 이 줄을 추가합니다.
             resetState: () => { VIDEO_URL_CACHE.clear(); BLOB_URL_MAP.clear(); logManager.add('🔄 네트워크 상태 초기화 완료', 'debug'); }
         };
     })();
@@ -801,7 +835,7 @@
                         try { sr.querySelectorAll && sr.querySelectorAll('video,audio').forEach(m => out.push(m)); } catch (e) {}
                     });
                 }
-            } catch (e) { logManager.logErrorWithContext(e, null); }
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'findInDoc failed' }); }
             return out;
         },
         findAll() {
@@ -845,7 +879,7 @@
                 mediaFinder.findAll().forEach(md => {
                     try { if (md.tagName === 'VIDEO' || md.tagName === 'AUDIO') md.playbackRate = speed; } catch (e) {}
                 });
-            } catch (e) { logManager.logErrorWithContext(e, null); }
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'applySpeed failed' }); }
         }
         function init() {
             if (inited) return; inited = true;
@@ -876,13 +910,13 @@
             if (appendTo && !appendTo.contains(container)) {
                 appendTo.appendChild(container);
             }
-             const isHidden = isMin;
-             container.style.width = isHidden ? '30px' : '50px';
-             [container.querySelector('#vm-speed-slider'), container.querySelector('#vm-speed-value'), container.querySelector('.vm-btn:first-of-type')].forEach(el => {
-                  if (el) el.style.display = isHidden ? 'none' : 'block';
-             });
-             const toggleBtn = container.querySelector('.vm-toggle-btn');
-             if(toggleBtn) toggleBtn.textContent = isHidden ? '▼' : '▲';
+              const isHidden = isMin;
+              container.style.width = isHidden ? '30px' : '50px';
+              [container.querySelector('#vm-speed-slider'), container.querySelector('#vm-speed-value'), container.querySelector('.vm-btn:first-of-type')].forEach(el => {
+                    if (el) el.style.display = isHidden ? 'none' : 'block';
+              });
+              const toggleBtn = container.querySelector('.vm-toggle-btn');
+              if(toggleBtn) toggleBtn.textContent = isHidden ? '▼' : '▲';
         }
         function show() { if (!inited) init(); if (!container) return; container.style.display = 'flex'; visible = true; }
         function hide() { if (!container) return; container.style.display = 'none'; visible = false; }
@@ -916,7 +950,7 @@
                         m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec));
                     } catch (e) {}
                 });
-            } catch (e) { logManager.logErrorWithContext(e, null); }
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar apply failed' }); }
         }
         const showDisplay = (v) => {
             if (!display) {
@@ -947,7 +981,7 @@
                 document.addEventListener('mouseup', onEnd, { passive: false, capture: true });
                 document.addEventListener('touchmove', onMove, { passive: false, capture: true });
                 document.addEventListener('touchend', onEnd, { passive: false, capture: true });
-            } catch (e) { logManager.logErrorWithContext(e, null); }
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar onStart failed' }); }
         }
         function onMove(e) {
             if (!state.dragging) return;
@@ -970,7 +1004,7 @@
                     state.startX = pos.clientX;
                     showDisplay(state.accX / (DRAG_CONFIG.PIXELS_PER_SECOND || 2));
                 }
-            } catch (e) { logManager.logErrorWithContext(e, null); onEnd(); }
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar onMove failed' }); onEnd(); }
         }
         function onEnd() {
             if (!state.dragging) return;
@@ -1007,10 +1041,10 @@
                 const allUrls = [];
                 const now = Date.now();
                 for (const [url, data] of networkMonitor.VIDEO_URL_CACHE.entries()) {
-                    if (now - data.timestamp < CACHE_EXPIRATION_TIME) {
-                        allUrls.push(url);
-                    }
-                }
+    if (now - data.timestamp < networkMonitor.CACHE_EXPIRATION_TIME) { // networkMonitor를 통해 접근
+        allUrls.push(url);
+    }
+}
                 if (allUrls.length === 0) {
                     logManager.addOnce('no_url', '⚠️ 감지된 URL 없음', 3000, 'warn');
                     btn.textContent = '⚠️ 없음';
@@ -1044,15 +1078,28 @@
             } catch (e) { logManager.logErrorWithContext(e, media); }
         }
         const updateUIVisibility = throttle(() => {
-            try {
-                // UI 표시는 videoControls 플래그가 활성화된 경우에만 실행
-                if (!FeatureFlags.videoControls) return;
-                const hasMedia = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' || m.tagName === 'AUDIO');
-                if (hasMedia) { speedSlider.show(); } else { speedSlider.hide(); }
-                const hasPlayingVideo = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused);
-                if (hasPlayingVideo) { dragBar.show(); dynamicMediaUI.show(); } else { dragBar.hide(); dynamicMediaUI.hide(); }
-            } catch (e) { logManager.logErrorWithContext(e, null); }
-        }, 400);
+  try {
+    const medias = mediaFinder.findAll();
+    const hasMedia = medias.some(m => m.tagName === 'VIDEO' || m.tagName === 'AUDIO');
+    const hasPlayingVideo = medias.some(m => m.tagName === 'VIDEO' && !m.paused);
+
+    if (hasMedia) {
+      speedSlider.show();
+      dynamicMediaUI.show();
+    } else {
+      speedSlider.hide();
+      dynamicMediaUI.hide();
+    }
+
+    if (hasPlayingVideo) {
+      dragBar.show();
+    } else {
+      dragBar.hide();
+    }
+  } catch (e) {
+    logManager.logErrorWithContext(e, null);
+  }
+}, 400);
         function initWhenReady(media) {
             if (!media || MediaStateManager.has(media)) return;
             MediaStateManager.set(media, { isInitialized: true });
@@ -1108,6 +1155,7 @@
             const orig = originalMethods.History[fnName];
             history[fnName] = function () { const res = orig.apply(this, arguments); onNavigate(`history.${fnName}`); return res; };
         }
+        // ((제안 5-2. 정교한 SPA 내비게이션 감지 반영))
         function onNavigate() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
@@ -1116,21 +1164,23 @@
                 if (now !== prev) {
                     const nowUrl = new URL(now);
                     const prevUrl = new URL(prev);
+
                     if (nowUrl.origin === prevUrl.origin && nowUrl.pathname === prevUrl.pathname) {
                         logManager.addOnce(`spa_nav_same_page`, `🔄 SPA 동일 페이지 이동 감지 (쿼리/해시 변경)`, 4000, 'info');
+                        // 경로 변경이 아닌 경우, 전체 초기화 대신 부분 업데이트 수행
+                        if (FeatureFlags.spaPartialUpdate) {
+                            spaPartialUpdate.partialUpdate();
+                        }
                     } else {
                         logManager.addOnce(`spa_nav_${now}`, `🔄 SPA 네비게이션: ${prev} -> ${now}`, 4000, 'info');
+                        if (FeatureFlags.enhanceURLDetection) {
+                            networkMonitor.resetState();
+                        }
+                        // 페이지 경로가 바뀌었으므로 전체 재초기화 로직 수행
+                        PROCESSED_DOCUMENTS = new WeakSet();
+                        App.initializeAll(document);
                     }
                     lastURL = now;
-                    // [개선] 네비게이션 시 네트워크 관련 상태 초기화
-                    if (FeatureFlags.enhanceURLDetection) {
-                        networkMonitor.resetState();
-                    }
-                    if (FeatureFlags.spaPartialUpdate) {
-                        spaPartialUpdate.partialUpdate();
-                    } else {
-                        PROCESSED_DOCUMENTS = new WeakSet(); App.initializeAll(document);
-                    }
                 }
             }, 200);
         }
@@ -1142,9 +1192,9 @@
      * 간단한 팝업/새창 차단
      * ============================ */
     (function popupBlocker() {
-        // [개선] FeatureFlags.popupBlocker가 false이면 기능 비활성화
         if (!FeatureFlags.popupBlocker) return;
         try {
+            // ((제안 6-2.는 이미 구현되어 있어 기존 코드 유지))
             window.open = function (url, target, features) {
                 try {
                     logManager.addOnce('blocked_window_open', `🔒 window.open 차단 시도: ${url}`, 3000, 'warn');
@@ -1158,7 +1208,7 @@
                 } catch (err) {}
             }, true);
             try { Object.defineProperty(window, 'opener', { get: () => null, configurable: true }); } catch (e) {}
-        } catch (e) { logManager.logErrorWithContext(e, null); }
+        } catch (e) { logManager.logErrorWithContext(e, { message: 'popupBlocker init failed' }); }
     })();
 
     /* ============================
@@ -1174,20 +1224,26 @@
             return !!(iframe.contentDocument || iframe.contentWindow?.document);
         } catch (e) { return false; }
     }
-    function replaceBlockedIframeUI(iframe) {
-        if (!iframe || iframe.parentNode === null) return;
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'background:#000;color:#fff;text-align:center;padding:10px;border:1px solid red;';
-        wrapper.textContent = '⚠️ 차단된 iframe입니다. (스크립트 접근 불가)';
-        try { iframe.parentNode.replaceChild(wrapper, iframe); } catch (e) { logManager.logErrorWithContext(e, wrapper); }
-    }
-    function logAndKeepIframe(iframe, message) {
-        if (!iframe || iframe.parentNode === null) return;
-        logManager.addOnce(`blocked_iframe_${iframe.src}`, `🔒 iframe ${message}: ${iframe.src}`, 6000, 'warn');
+    // ((제안 2-1. iframe 접근 제한에 대한 UI 알림 함수 추가))
+    function showIframeAccessFailureNotice(iframe, message) {
+        if (!iframe || !iframe.parentNode) return;
+        const noticeId = `vsc-iframe-notice-${iframe.src || Math.random()}`;
+        if (document.getElementById(noticeId)) return; // 중복 방지
+
+        const notice = document.createElement('div');
+        notice.id = noticeId;
+        notice.style.cssText = 'color:red; padding:5px; background:#fee; font-size:12px; border:1px solid red; margin-top:4px; text-align: center;';
+        notice.textContent = `⚠️ ${message}`;
+        try {
+           iframe.parentNode.insertBefore(notice, iframe.nextSibling);
+        } catch(e) { logManager.logErrorWithContext(e, { message: 'Failed to insert iframe notice' }); }
     }
     const App = (() => {
         let globalScanTimer = null;
         let intersectionObserver;
+        const MEDIA_TAGS = 'video, audio, iframe'; // ((제안 1-1 반영))
+
+        // ((제안 1-3. IntersectionObserver 개선 반영))
         function initIntersectionObserver() {
             if (intersectionObserver) return;
             intersectionObserver = new IntersectionObserver((entries) => {
@@ -1202,12 +1258,14 @@
                         }
                     }
                 });
-            }, { threshold: 0.5 });
-            logManager.addOnce('intersection_observer_active', '✅ IntersectionObserver 활성화', 3000, 'info');
+            }, { threshold: 0.5 }); // threshold 값 0.5로 변경
+            logManager.addOnce('intersection_observer_active', '✅ IntersectionObserver 활성화 (Threshold: 0.5)', 3000, 'info');
         }
+        // ((제안 2-1 & 6-1. iframe 접근 제한 처리 개선))
         function initIframe(iframe) {
             if (!iframe || MediaStateManager.hasIframe(iframe)) return;
             MediaStateManager.addIframe(iframe);
+
             const handleIframeProcessing = () => {
                 const iframeSrc = iframe.src;
                 if (iframeSrc && networkMonitor.isMediaUrl(iframeSrc)) {
@@ -1219,48 +1277,70 @@
                     const doc = iframe.contentDocument;
                     if (doc) {
                         initializeAll(doc);
-                        logManager.logIframeContext(iframe, `비동기 초기화 성공 (미디어 감지)`);
+                        logManager.logIframeContext(iframe, `비동기 초기화 성공`);
                     }
                 } else {
-                    logAndKeepIframe(iframe, '보안 정책으로 인해 제어 불가능');
+                    const message = '보안 정책으로 인해 제어 불가';
+                    logManager.addOnce(`blocked_iframe_${iframe.src}`, `🔒 iframe ${message}: ${iframe.src}`, 6000, 'warn');
+                    showIframeAccessFailureNotice(iframe, message);
                 }
             };
-            addOnceEventListener(iframe, 'load', debounce(handleIframeProcessing, 500));
-            logManager.logIframeContext(iframe, '비동기 초기화 시작 (로드 대기)');
+
             const count = iframeInitAttempts.get(iframe) || 0;
             if (count >= 3) {
-                logManager.logIframeContext(iframe, '최대 재시도 횟수 초과. 초기화 포기.');
+                const message = '최대 재시도 횟수 초과로 초기화 포기';
+                logManager.addOnce(`iframe_init_fail_${iframe.src}`, `❌ iframe 초기화 3회 실패: ${iframe.src}`, 8000, 'error');
+                showIframeAccessFailureNotice(iframe, message);
                 return;
             }
             iframeInitAttempts.set(iframe, count + 1);
+
+            addOnceEventListener(iframe, 'load', debounce(handleIframeProcessing, 500));
+            logManager.logIframeContext(iframe, '비동기 초기화 시작 (로드 대기)');
+
+            // 재시도 타이머
             setTimeout(() => {
                 if (!MediaStateManager.get(iframe)?.isInitialized) {
                     handleIframeProcessing();
                 }
-            }, 6000);
+            }, 3000 * (count + 1)); // 시도 횟수에 따라 지연시간 증가 (간단한 백오프)
         }
         function scanExistingMedia(doc) {
             try {
                 const medias = mediaFinder.findInDoc(doc);
                 medias.forEach(m => mediaControls.initWhenReady(m));
-            } catch (e) { logManager.logErrorWithContext(e, null); }
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'scanExistingMedia failed' }); }
         }
+        // ((제안 1-1. MutationObserver 처리 개선 반영))
         function processMutations(mutations) {
             for (const mut of mutations) {
                 try {
                     if (mut.type === 'childList') {
                         mut.addedNodes.forEach(n => {
-                            if (n.nodeType !== 1) return;
-                            const tag = n.tagName;
-                            if (tag === 'IFRAME') initIframe(n);
-                            else if (tag === 'VIDEO' || tag === 'AUDIO') {
-                                mediaControls.initWhenReady(n);
-                                if (intersectionObserver) intersectionObserver.observe(n);
-                            } else {
-                                n.querySelectorAll && n.querySelectorAll('iframe').forEach(ifr => initIframe(ifr));
-                                n.querySelectorAll && n.querySelectorAll('video,audio').forEach(m => {
-                                    mediaControls.initWhenReady(m);
-                                    if (intersectionObserver) intersectionObserver.observe(m);
+                            if (n.nodeType !== 1) return; // 엘리먼트 노드만 처리
+                            // 1. 추가된 노드 자체가 미디어 태그인지 확인
+                            if (n.matches && n.matches(MEDIA_TAGS)) {
+                                if (n.tagName === 'IFRAME') {
+                                    initIframe(n);
+                                } else {
+                                    mediaControls.initWhenReady(n);
+                                    if (intersectionObserver && !n.hasAttribute('data-vsc-observed')) {
+                                        intersectionObserver.observe(n);
+                                        n.setAttribute('data-vsc-observed', 'true');
+                                    }
+                                }
+                            } else if (n.querySelectorAll) {
+                                // 2. 자식 노드 중에 미디어 태그가 있는지 확인
+                                n.querySelectorAll(MEDIA_TAGS).forEach(m => {
+                                    if (m.tagName === 'IFRAME') {
+                                        initIframe(m);
+                                    } else {
+                                        mediaControls.initWhenReady(m);
+                                        if (intersectionObserver && !m.hasAttribute('data-vsc-observed')) {
+                                            intersectionObserver.observe(m);
+                                            m.setAttribute('data-vsc-observed', 'true');
+                                        }
+                                    }
                                 });
                             }
                         });
@@ -1299,7 +1379,7 @@
                 const allMedia = mediaFinder.findAll();
                 allMedia.forEach(m => {
                     mediaControls.initWhenReady(m);
-                    if (intersectionObserver && !m.closest('[data-vsc-observed]')) {
+                    if (intersectionObserver && (m.tagName === 'VIDEO' || m.tagName === 'AUDIO') && !m.hasAttribute('data-vsc-observed')) {
                         intersectionObserver.observe(m);
                         m.setAttribute('data-vsc-observed', 'true');
                     }
@@ -1327,10 +1407,9 @@
             if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
             if (targetDocument === document) {
                 try {
-                    logManager.init(); // UI 생성 없는 안전한 초기화
+                    logManager.init();
                     logManager.addOnce('script_init_start', '🎉 VideoSpeed_Control 초기화 시작', 4000, 'info');
 
-                    // --- [개선] FeatureFlags 기반 지연 초기화 (Lazy Initialization) ---
                     if (FeatureFlags.spaPartialUpdate) spaMonitor.init();
                     if (FeatureFlags.videoControls) {
                         speedSlider.init();
@@ -1340,9 +1419,8 @@
                     }
                     if (FeatureFlags.enhanceURLDetection) networkMonitor.init();
                     if (FeatureFlags.videoControls || FeatureFlags.enhanceURLDetection) initIntersectionObserver();
-                    // ---
 
-                } catch (e) { logManager.logErrorWithContext(e, null); }
+                } catch (e) { logManager.logErrorWithContext(e, { message: 'Main initialization failed' }); }
                 addOnceEventListener(document, 'fullscreenchange', () => {
                     const targetParent = document.fullscreenElement || document.body;
                     if(speedSlider.container() && speedSlider.container().parentNode !== targetParent) {
