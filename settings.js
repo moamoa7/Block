@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      20.3 (지연 로딩 감지 수정)
-// @description  🎞️ [최적화] 비디오 속도 제어 + 📹 YouTube 주소 추출 강화 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최적화 제안 반영)
+// @version      20.4 (성능 튜닝 및 고급 기능)
+// @description  🎞️ [성능 튜닝] 비디오 속도 제어 + 📹 YouTube 주소 추출 강화 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (고급 제안 반영)
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
@@ -195,6 +195,36 @@
     }
     const configManager = new ConfigManager({ prefix: '_video_speed_', config: { isMinimized: true, isInitialized: false } });
 
+    // === 제안 1. 반영: Live FeatureFlags (console에서 즉시 반영) ===
+    (function enableLiveFeatureFlags(){
+        const listeners = new Set();
+        function notify(k,v){ try{ listeners.forEach(fn=>fn(k,v)); }catch{} }
+
+        const flagsKey = '_feature_flags_cache';
+        const initial = Object.assign({}, FeatureFlags, configManager.get(flagsKey) || {});
+        Object.keys(FeatureFlags).forEach(k => { if (k in initial) { FeatureFlags[k] = initial[k]; } });
+
+        const proxy = new Proxy(FeatureFlags, {
+            get(t, p){ return Reflect.get(t,p); },
+            set(t, p, v){
+                const ok = Reflect.set(t,p,v);
+                try {
+                    const saved = Object.assign({}, configManager.get(flagsKey)||{}, {[p]: v});
+                    configManager.set(flagsKey, saved);
+                    logManager && logManager.addOnce(`flag_${String(p)}_${String(v)}`, `🧩 FeatureFlag 변경: ${String(p)} = ${String(v)}`, 2500, 'info');
+                    notify(String(p), v);
+                } catch {}
+                return ok;
+            }
+        });
+
+        window.VSC = Object.assign(window.VSC||{}, {
+            flags: proxy,
+            setFlag: (k,v)=>{ proxy[k] = v; },
+            onFlagChange: (fn)=>{ listeners.add(fn); return ()=>listeners.delete(fn); }
+        });
+    })();
+
     /* ============================
      * 유틸: addOnceEventListener, throttle, debounce, copyToClipboard
      * ============================ */
@@ -273,7 +303,6 @@
     const LOGGED_KEYS_WITH_TIMER = new Map();
     const isTopFrame = window.self === window.top;
     const OBSERVER_MAP = new Map();
-    const iframeInitAttempts = new WeakMap();
 
     /* ============================
      * 로그 모듈 (XSS 안전 및 UI 지연 초기화)
@@ -555,6 +584,28 @@
         const ABS_URL_REGEX = /^[a-z][a-z0-9+\-.]*:/i;
         const URL_REGEX = /\bhttps?:\/\/[^\s'"<>]+/gi;
 
+        // === 제안 3. 반영: 감지 최적화 유틸 ===
+        const SKIP_HOSTS = [
+            'doubleclick.net','googletagservices.com','googlesyndication.com','adservice.google.com',
+            'scorecardresearch.com','facebook.com','google-analytics.com','analytics.google.com',
+            'hotjar.com','branch.io','adjust.com','app-measurement.com'
+        ];
+        function isAdOrBeacon(u){
+            try { const h = new URL(u, location.href).hostname; return SKIP_HOSTS.some(s=>h.endsWith(s)); } catch{ return false; }
+        }
+        function shouldInspectByMime(ct){ // 진짜 미디어/HLS/DASH만
+            if (!ct) return false;
+            ct = ct.toLowerCase();
+            return ct.startsWith('video/') ||
+                   ct.includes('application/dash+xml') ||
+                   ct.includes('application/vnd.apple.mpegurl') ||
+                   ct.includes('application/x-mpegurl') ||
+                   ct.startsWith('audio/');
+        }
+        function maybeContainsMediaURL(text){
+            return /https?:\/\/[^\s"'<>]+?\.(?:m3u8|mpd|mp4|webm|ts|m4s)(?:[?#][^\s"'<>]*)?/i.test(text);
+        }
+
         const isMediaSegment = (url) => {
             if (typeof url !== 'string') return false;
             return MEDIA_SEGMENT_REGEX.test(url);
@@ -714,25 +765,61 @@
             } catch (e) { logManager.logErrorWithContext(e, { message: 'M3U8 파싱 실패', url: baseURL }); }
             return [...urls];
         }
+
+        // 제안 3. 반영: handleResponse 함수 치환
         const handleResponse = async (url, resp) => {
             try {
-                if(isMediaSegment(url)) return;
-                const ct = resp.headers.get('content-type') || '';
-                if (isMediaUrl(url) || isMediaMimeType(ct)) {
+                if(!url || isMediaSegment(url) || isAdOrBeacon(url)) return;
+
+                const ct = (resp.headers.get('content-type') || '').toLowerCase();
+                const cl = parseInt(resp.headers.get('content-length') || '0', 10);
+
+                if (isMediaUrl(url)) {
+                    trackAndAttach(url, { source: 'fetch/xhr' });
+                    if (url.endsWith('.mpd') || ct.includes('application/dash+xml')) {
+                        const text = await resp.clone().text();
+                        parseMPD(text, url);
+                    } else if (url.endsWith('.m3u8')) {
+                        const text = await resp.clone().text();
+                        const found = parseM3U8(text, url);
+                        found.forEach(u => trackAndAttach(u, { source: 'M3U8 SubPlaylist/Track' }));
+                    }
+                    return;
+                }
+
+                if (shouldInspectByMime(ct)) {
                     trackAndAttach(url, { source: 'fetch/xhr' });
                     const text = await resp.clone().text();
-                    if (url.endsWith('.mpd') || ct.includes('application/dash+xml')) {
+                    if (ct.includes('application/dash+xml')) {
                         parseMPD(text, url);
-                    } else if (url.endsWith('.m3u8') || isHLSPlaylist(text)) {
-                        const foundUrls = parseM3U8(text, url); // 수정된 함수 호출
-                        foundUrls.forEach(u => trackAndAttach(u, { source: 'M3U8 SubPlaylist/Track' }));
+                    } else if (ct.includes('mpegurl') || isHLSPlaylist(text)) {
+                        const found = parseM3U8(text, url);
+                        found.forEach(u => trackAndAttach(u, { source: 'M3U8 SubPlaylist/Track' }));
                     }
+                    return;
                 }
-            } catch (e) { logManager.logErrorWithContext(e, { message: 'handleResponse failed', url: url }); }
+
+                if (cl > 0 && cl > 1_000_000) return; // 1MB 초과면 건너뜀
+                const textPeek = await resp.clone().text();
+                if (maybeContainsMediaURL(textPeek)) {
+                    const urls = extractURLsFromText(textPeek);
+                    urls.forEach(u => {
+                        if(isMediaUrl(u)) trackAndAttach(u, { source: 'heuristic' });
+                    });
+                }
+            } catch (e) {
+                logManager.logErrorWithContext(e, { message: 'handleResponse optimized failed', url: url });
+            }
         };
+
         function hookXHR() {
             if (!originalMethods.XMLHttpRequest.open || !originalMethods.XMLHttpRequest.send) return;
             window.XMLHttpRequest.prototype.open = function (method, url) {
+                if (url && (isAdOrBeacon(url) || !isMediaUrl(url))) {
+                     this._skipVSC = true;
+                } else {
+                     this._skipVSC = false;
+                }
                 if (url && typeof url === 'string' && youtubeMediaFinder.isYouTubeMediaUrl(url)) {
                     trackAndAttach(url, { source: 'xhr.open (yt)' });
                 }
@@ -740,14 +827,13 @@
                 return originalMethods.XMLHttpRequest.open.apply(this, arguments);
             };
             window.XMLHttpRequest.prototype.send = function (...args) {
+                if (this._skipVSC) {
+                     return originalMethods.XMLHttpRequest.send.apply(this, args);
+                }
                 this.addEventListener('load', function () {
                     try {
                         const url = normalizeURL(this._reqUrl);
-                        if(isMediaSegment(url)) return;
-                        const ct = this.getResponseHeader && this.getResponseHeader('Content-Type');
-                        if (isMediaUrl(url) || isMediaMimeType(ct)) {
-                            handleResponse(url, new Response(this.response, { headers: { 'content-type': ct || '' } }));
-                        }
+                        handleResponse(url, new Response(this.response, { headers: { 'content-type': (this.getResponseHeader && this.getResponseHeader('Content-Type')) || '' } }));
                     } catch (e) { logManager.logErrorWithContext(e, { message: 'XHR load handler failed' }); }
                 });
                 return originalMethods.XMLHttpRequest.send.apply(this, args);
@@ -757,17 +843,22 @@
             if (!originalMethods.Fetch) return;
             window.fetch = async function (...args) {
                 let reqURL = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url);
+                if (reqURL && isAdOrBeacon(reqURL)) {
+                    return originalMethods.Fetch.apply(this, args);
+                }
                 if (reqURL && youtubeMediaFinder.isYouTubeMediaUrl(reqURL)) {
                     trackAndAttach(reqURL, { source: 'fetch (yt)' });
                 }
                 try {
-                    if(isMediaSegment(reqURL)) {
-                        return await originalMethods.Fetch.apply(this, args);
-                    }
                     const res = await originalMethods.Fetch.apply(this, args);
                     handleResponse(reqURL, res.clone());
                     return res;
-                } catch (err) { logManager.logErrorWithContext(err, { message: 'fetch failed', url: reqURL }); throw err; }
+                } catch (err) {
+                    if(!String(err).includes('Failed to fetch')) { // 네트워크 오류는 무시
+                        logManager.logErrorWithContext(err, { message: 'fetch failed', url: reqURL });
+                    }
+                    throw err;
+                }
             };
         }
         function hookBlob() {
@@ -1434,78 +1525,112 @@
             }, { threshold: 0.75 });
             logManager.addOnce('intersection_observer_active', '✅ IntersectionObserver 활성화 (Threshold: 0.75)', 5000, 'info');
         }
+
+        // 제안 2. 반영: iframe 초기화 재시도 (지수 백오프/가시성 체크)
         function initIframe(iframe) {
             if (!iframe || MediaStateManager.hasIframe(iframe)) return;
             MediaStateManager.addIframe(iframe);
-            const handleIframeProcessing = () => {
-                const iframeSrc = iframe.src;
-                if (iframeSrc && networkMonitor.isMediaUrl(iframeSrc)) {
-                    networkMonitor.trackAndAttach(iframeSrc, { element: iframe, source: 'iframe.src' });
-                    logManager.logIframeContext(iframe, '✅ 영상 URL 감지 (src 속성)');
-                    return;
-                }
-                if (canAccessIframe(iframe)) {
-                    const doc = iframe.contentDocument;
-                    if (doc) {
-                        initializeAll(doc);
-                        logManager.logIframeContext(iframe, `비동기 초기화 성공`);
+
+            const maxAttempts = 5;
+            const attempt = (n=1) => {
+                const src = iframe.src || 'about:blank';
+                const rect = iframe.getBoundingClientRect?.() || {width:0,height:0};
+                const isVisibleEnough = rect.width * rect.height > 100 * 100;
+
+                const run = () => {
+                    if (src && networkMonitor.isMediaUrl(src)) {
+                        networkMonitor.trackAndAttach(src, { element: iframe, source: 'iframe.src' });
+                        logManager.logIframeContext(iframe, '✅ 영상 URL 감지 (src)');
+                        return true;
                     }
-                } else {
-                    const message = '보안 정책으로 인해 제어 불가';
-                    logManager.addOnce(`blocked_iframe_${iframe.src}`, `🔒 iframe ${message}: ${iframe.src}`, 6000, 'warn');
-                    showIframeAccessFailureNotice(iframe, message);
+                    if (canAccessIframe(iframe)) {
+                        const doc = iframe.contentDocument;
+                        if (doc && doc.readyState !== 'uninitialized') {
+                           initializeAll(doc);
+                           logManager.logIframeContext(iframe, `비동기 초기화 성공 (시도 ${n})`);
+                           return true;
+                        }
+                    } else {
+                        const message = '보안 정책으로 인해 제어 불가';
+                        logManager.addOnce(`blocked_iframe_${src}`, `🔒 iframe ${message}: ${src}`, 6000, 'warn');
+                        showIframeAccessFailureNotice(iframe, message);
+                        return true; // 블록된 경우 재시도 중지
+                    }
+                    return false; // 문서가 아직 준비되지 않음
+                };
+
+                let success = false;
+                if (isVisibleEnough) {
+                    success = run();
+                }
+
+                if (!success && n < maxAttempts) {
+                    const backoff = 500 * Math.pow(2, n - 1); // 0.5s, 1s, 2s, 4s
+                    setTimeout(() => attempt(n + 1), backoff);
+                } else if (!success && n >= maxAttempts) {
+                    logManager.logIframeContext(iframe, `초기화 마지막 시도`);
+                    run(); // 마지막으로 한 번 더 시도
                 }
             };
-            const count = iframeInitAttempts.get(iframe) || 0;
-            if (count >= 3) {
-                const message = '최대 재시도 횟수 초과로 초기화 포기';
-                logManager.addOnce(`iframe_init_fail_${iframe.src}`, `❌ iframe 초기화 3회 실패: ${iframe.src}`, 8000, 'error');
-                showIframeAccessFailureNotice(iframe, message);
-                return;
-            }
-            iframeInitAttempts.set(iframe, count + 1);
-            addOnceEventListener(iframe, 'load', debounce(handleIframeProcessing, 500));
-            logManager.logIframeContext(iframe, '비동기 초기화 시작 (로드 대기)');
-            setTimeout(() => {
-                if (!MediaStateManager.get(iframe)?.isInitialized) {
-                    handleIframeProcessing();
-                }
-            }, 3000 * (count + 1));
+
+            addOnceEventListener(iframe, 'load', debounce(() => attempt(1), 400), true);
+            const mo = new MutationObserver(() => debounce(() => attempt(1), 400)());
+            mo.observe(iframe, { attributes: true, attributeFilter: ['src', 'srcdoc'] });
+
+            logManager.logIframeContext(iframe, '비동기 초기화 시작 (로드/백오프)');
+            setTimeout(() => attempt(1), 600);
         }
+
         function scanExistingMedia(doc) {
             try {
                 const medias = mediaFinder.findInDoc(doc);
                 medias.forEach(m => mediaControls.initWhenReady(m));
             } catch (e) { logManager.logErrorWithContext(e, { message: 'scanExistingMedia failed' }); }
         }
-        function processMutations(mutations) {
-            for (const mut of mutations) {
-                try {
+
+        // 제안 4. 반영: SPA MutationObserver 부하 최소화
+        function startUnifiedObserver(targetDocument = document) {
+            if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
+
+            const root = targetDocument.documentElement || targetDocument.body;
+            if (!root) return;
+
+            const region = (() => {
+                const cand = targetDocument.querySelector('main, #app, .page-content, [role="main"], #content');
+                return cand || root;
+            })();
+
+            if (OBSERVER_MAP.has(targetDocument)) { OBSERVER_MAP.get(targetDocument).disconnect(); }
+
+            const fastPath = (node) => {
+                if (!node || node.nodeType !== 1) return false;
+                const tag = node.tagName;
+                if (tag === 'VIDEO' || tag === 'AUDIO' || tag === 'IFRAME') return true;
+                const cls = (node.className || '') + ' ' + (node.id || '');
+                return /video|player|jwplayer|vjs-|ytp-|media|playlist|iframe/i.test(cls);
+            };
+
+            const processNode = (n) => {
+                if (n.tagName === 'IFRAME') {
+                    initIframe(n);
+                } else {
+                    mediaControls.initWhenReady(n);
+                    if (intersectionObserver && !n.hasAttribute('data-vsc-observed')) {
+                        intersectionObserver.observe(n);
+                        n.setAttribute('data-vsc-observed', 'true');
+                    }
+                }
+            };
+
+            const observer = new MutationObserver(debounce((mutations) => {
+                for (const mut of mutations) {
                     if (mut.type === 'childList') {
                         mut.addedNodes.forEach(n => {
                             if (n.nodeType !== 1) return;
-                            if (n.matches && n.matches(MEDIA_TAGS)) {
-                                if (n.tagName === 'IFRAME') {
-                                    initIframe(n);
-                                } else {
-                                    mediaControls.initWhenReady(n);
-                                    if (intersectionObserver && !n.hasAttribute('data-vsc-observed')) {
-                                        intersectionObserver.observe(n);
-                                        n.setAttribute('data-vsc-observed', 'true');
-                                    }
-                                }
+                            if (fastPath(n)) {
+                                processNode(n);
                             } else if (n.querySelectorAll) {
-                                n.querySelectorAll(MEDIA_TAGS).forEach(m => {
-                                    if (m.tagName === 'IFRAME') {
-                                        initIframe(m);
-                                    } else {
-                                        mediaControls.initWhenReady(m);
-                                        if (intersectionObserver && !m.hasAttribute('data-vsc-observed')) {
-                                            intersectionObserver.observe(m);
-                                            m.setAttribute('data-vsc-observed', 'true');
-                                        }
-                                    }
-                                });
+                                n.querySelectorAll('video, audio, iframe').forEach(processNode);
                             }
                         });
                         mut.removedNodes.forEach(n => {
@@ -1519,27 +1644,26 @@
                         if (!t || t.nodeType !== 1) continue;
                         if (t.tagName === 'IFRAME' && mut.attributeName === 'src') { MediaStateManager.deleteIframe(t); initIframe(t); }
                         if ((t.tagName === 'VIDEO' || t.tagName === 'AUDIO') && (mut.attributeName === 'src' || mut.attributeName.startsWith('data-'))) {
-                                mediaControls.initWhenReady(t);
-                                t.removeAttribute('data-tracked');
+                            mediaControls.initWhenReady(t);
+                            t.removeAttribute('data-tracked');
                         }
                     }
-                } catch (e) { logManager.logErrorWithContext(e, mut.target); }
-            }
-        }
-        function startUnifiedObserver(targetDocument = document) {
-            if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
-            const root = targetDocument.documentElement || targetDocument.body;
-            if (!root) return;
-            if (OBSERVER_MAP.has(targetDocument)) { OBSERVER_MAP.get(targetDocument).disconnect(); }
-            const observer = new MutationObserver(debounce(processMutations, 80));
-            observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'controls', 'data-src', 'data-video', 'data-url', 'poster'] });
+                }
+            }, 80));
+
+            observer.observe(region, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['src','data-src','data-video','data-url','poster']
+            });
+
             OBSERVER_MAP.set(targetDocument, observer);
             PROCESSED_DOCUMENTS.add(targetDocument);
             logManager.addOnce('observer_active', `✅ 통합 감시자 활성화 (${targetDocument === document ? '메인' : 'iframe'})`, 5000, 'info');
         }
 
         // App 모듈 내부 (스크립트 하단)
-
         // ====[ 제안 반영: 주기적 스캔 로직 재구성 ]====
         function startPeriodicScan() {
             if (globalScanTimer) clearInterval(globalScanTimer);
