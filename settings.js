@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      20.5 (성능 튜닝 및 고급 기능 + 제안 반영 + M3U8 파싱 로직 복원 및 강화)
-// @description  🎞️ [성능 튜닝] 비디오 속도 제어 + 📹 YouTube 주소 추출 강화 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (고급 제안 반영)
+// @version      20.6 (고급 팝업 차단 로직 통합)
+// @description  🎞️ [성능 튜닝] 비디오 속도 제어 + 📹 YouTube 주소 추출 강화 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 + 🛡️ 고급 팝업 차단
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
@@ -63,16 +63,17 @@
     }
 
     const FeatureFlags = {
-        videoControls: true,       // 비디오 컨트롤 UI (속도, 드래그) 활성화
-        logUI: true,               // 화면 로그 UI 활성화
-        enhanceURLDetection: true, // 네트워크 요청 감지를 통한 URL 추출 강화
-        spaPartialUpdate: true,    // SPA 환경에서 부분 업데이트 지원
-        detailedLogging: true,     // 콘솔에 상세 로그 출력
-        logLevel: 'INFO',          // 로그 레벨 (DEBUG, INFO, WARN, ERROR)
-        previewFiltering: true,    // 짧거나 미리보기인 영상 필터링
-        popupBlocker: true,        // 간단한 팝업 차단 기능 활성화
-        iframeProtection: true,    // 보안상 위험한 iframe 접근 제어
-        enforceIframeSandbox: false
+        videoControls: true,        // 비디오 컨트롤 UI (속도, 드래그) 활성화
+        logUI: true,                // 화면 로그 UI 활성화
+        enhanceURLDetection: true,  // 네트워크 요청 감지를 통한 URL 추출 강화
+        spaPartialUpdate: true,     // SPA 환경에서 부분 업데이트 지원
+        detailedLogging: true,      // 콘솔에 상세 로그 출력
+        logLevel: 'INFO',           // 로그 레벨 (DEBUG, INFO, WARN, ERROR)
+        previewFiltering: true,     // 짧거나 미리보기인 영상 필터링
+        popupBlocker: true,         // 고급 팝업 차단 기능 활성화
+        iframeProtection: true,     // 보안상 위험한 iframe 접근 제어
+        enforceIframeSandbox: false,
+        preventUnloadRedirects: true // 페이지 이탈 시도 차단 기능 (팝업 블로커)
     };
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) {
@@ -109,7 +110,9 @@
         },
         WebSocket: window.WebSocket,
         window: {
-            open: window.open
+            open: window.open,
+            showModalDialog: window.showModalDialog,
+            onbeforeunload: window.onbeforeunload
         }
     };
 
@@ -364,12 +367,12 @@
             }, 10000);
         }
         function safeAdd(msg, level = 'info') {
-            const levels = { 'debug': 0, 'info': 1, 'warn': 2, 'error': 3 };
+            const levels = { 'debug': 0, 'info': 1, 'warn': 2, 'error': 3, 'popup': 1 };
             const currentLevel = levels[FeatureFlags.logLevel.toLowerCase()] || 1;
             const msgLevel = levels[level] || 1;
             if (msgLevel < currentLevel) return;
 
-            const icons = { info: 'ℹ️', warn: '⚠️', error: '🔴', allow: '✅', debug: '🔧', stream: '▶️', global: '💥' };
+            const icons = { info: 'ℹ️', warn: '⚠️', error: '🔴', allow: '✅', debug: '🔧', stream: '▶️', global: '💥', popup: '🛡️' };
             const full = `[${new Date().toLocaleTimeString()}] ${icons[level] || ''} ${msg}`;
             if (FeatureFlags.detailedLogging) {
                 if (console[level] && typeof console[level] === 'function') console[level](full); else console.log(full);
@@ -475,6 +478,150 @@
             errorHandler(event.reason, { message: 'Unhandled Promise Rejection' });
         });
     })();
+
+    /* ============================
+     * 고급 팝업 차단 (로직 통합)
+     * ============================ */
+    (function enhancedPopupBlocker() {
+        if (!FeatureFlags.popupBlocker) return;
+
+        // ---------------------- 화이트리스트 설정 ----------------------
+        const POPUP_WHITELIST = [
+            "example.com",
+            "google.com",
+            "youtube.com"
+        ];
+        function isWhitelisted(hostname) {
+            return POPUP_WHITELIST.some(domain => hostname.toLowerCase().includes(domain));
+        }
+
+        if (isWhitelisted(location.hostname)) {
+            logManager.add(`[Popup Blocker] 화이트리스트 사이트 (${location.hostname}), 차단 비활성화`, 'info');
+            return;
+        }
+
+        let lastUserInteractionTime = 0;
+        const USER_ACTION_GRACE_PERIOD = 150; // ms
+
+        function updateUserInteractionTime() {
+            lastUserInteractionTime = Date.now();
+        }
+
+        function isUserInitiated() {
+            return (Date.now() - lastUserInteractionTime) < USER_ACTION_GRACE_PERIOD;
+        }
+
+        function showBlockedNotice(title, url, onAllow, closeTimeout = 5000) {
+            const notice = document.createElement("div");
+            Object.assign(notice.style, {
+                background: 'rgba(30, 30, 30, 0.95)', borderBottom: '1px solid #ff4500',
+                boxSizing: 'border-box', color: '#fff', fontFamily: 'sans-serif',
+                fontSize: '14px', padding: '10px 15px', position: 'fixed',
+                left: '0', right: '0', top: '-100px',
+                transition: 'top .3s ease-in-out', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', zIndex: '2147483647',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.5)', textShadow: '1px 1px 2px #000',
+            });
+
+            const textContainer = document.createElement("span");
+            textContainer.textContent = `🛡️ ${title}: `;
+
+            const urlSpan = document.createElement("span");
+            urlSpan.textContent = url ? (url.length > 80 ? url.substring(0, 77) + '...' : url) : 'https://www.lingq.com/en/learn-korean-online/translate/ko/%EC%97%86%EC%9D%8C/';
+            Object.assign(urlSpan.style, { opacity: '0.8', marginLeft: '8px', wordBreak: 'break-all' });
+
+            const buttonContainer = document.createElement("div");
+
+            const allowButton = document.createElement("button");
+            allowButton.textContent = "허용";
+            Object.assign(allowButton.style, {
+                background: '#4CAF50', color: 'white', border: 'none',
+                borderRadius: '4px', padding: '5px 10px', marginLeft: '10px', cursor: 'pointer',
+            });
+            allowButton.onclick = (e) => {
+                e.stopPropagation();
+                if (onAllow) onAllow();
+                closeNotice();
+            };
+
+            const closeButton = document.createElement("button");
+            closeButton.innerHTML = "&#x2715;"; // ╳
+            Object.assign(closeButton.style, {
+                background: 'transparent', color: '#ccc', border: 'none',
+                fontSize: '16px', marginLeft: '10px', cursor: 'pointer',
+            });
+            const closeNotice = () => {
+                notice.style.top = `-${notice.offsetHeight}px`;
+                setTimeout(() => notice.remove(), 300);
+            };
+            closeButton.onclick = (e) => { e.stopPropagation(); closeNotice(); };
+
+            textContainer.appendChild(urlSpan);
+            buttonContainer.appendChild(allowButton);
+            buttonContainer.appendChild(closeButton);
+            notice.appendChild(textContainer);
+            notice.appendChild(buttonContainer);
+            document.body.appendChild(notice);
+
+            setTimeout(() => { notice.style.top = '0'; }, 10);
+            setTimeout(closeNotice, closeTimeout);
+        }
+
+        addOnceEventListener(window, 'mousedown', updateUserInteractionTime, true);
+        addOnceEventListener(window, 'click', updateUserInteractionTime, true);
+        addOnceEventListener(window, 'change', updateUserInteractionTime, true);
+
+        // window.open 재정의
+        window.open = function (...args) {
+            if (isUserInitiated()) {
+                logManager.add(`[Popup] 사용자 클릭으로 팝업 허용: ${args[0]}`, 'debug');
+                return originalMethods.window.open.apply(this, args);
+            }
+            logManager.addOnce(`blocked_window_open_${args[0]}`, `🛡️ [Popup] 비정상적인 팝업 차단: ${args[0]}`, 5000, 'popup');
+            showBlockedNotice('팝업 차단됨', args[0], () => {
+                logManager.add(`[Popup] 사용자가 차단된 팝업을 수동으로 허용: ${args[0]}`, 'info');
+                originalMethods.window.open.apply(window, args);
+            });
+            return null;
+        };
+
+        // window.showModalDialog 재정의
+        if (originalMethods.window.showModalDialog) {
+            window.showModalDialog = function (...args) {
+                if (isUserInitiated()) {
+                    logManager.add(`[Popup] 사용자 클릭으로 모달 허용: ${args[0]}`, 'debug');
+                    return originalMethods.window.showModalDialog.apply(this, args);
+                }
+                logManager.addOnce(`blocked_modal_dialog_${args[0]}`, `🛡️ [Popup] 비정상적인 모달 다이얼로그 차단: ${args[0]}`, 5000, 'popup');
+                 showBlockedNotice('모달 다이얼로그 차단됨', args[0], () => {
+                    logManager.add(`[Popup] 사용자가 차단된 모달을 수동으로 허용: ${args[0]}`, 'info');
+                    originalMethods.window.showModalDialog.apply(window, args);
+                });
+                return null;
+            };
+        }
+
+        // 페이지 이탈 시도 감지
+        if (FeatureFlags.preventUnloadRedirects) {
+            window.onbeforeunload = function(event) {
+                const isHttps = location.protocol === "https:";
+                if (!isHttps) {
+                    const message = "다른 페이지로 강제 이동하려는 시도가 감지되었습니다. 현재 페이지에 머무르시겠습니까?";
+                    logManager.addOnce(`unload_redirect_attempt`, `🛡️ [Popup] 페이지 이탈 시도 감지.`, 5000, 'warn');
+                    if (event) event.returnValue = message;
+                    return message;
+                }
+                if (typeof originalMethods.window.onbeforeunload === "function") {
+                    return originalMethods.window.onbeforeunload.apply(window, arguments);
+                }
+            };
+        }
+
+        try { Object.defineProperty(window, 'opener', { get: () => null, configurable: true }); } catch (e) {}
+
+        logManager.addOnce('advanced_popup_blocker_active', '🛡️ 고급 팝업 차단 기능 활성화', 5000, 'info');
+    })();
+
 
     /* ============================
      * 미리보기 감지
@@ -1551,28 +1698,6 @@
     })();
 
     /* ============================
-     * 간단한 팝업/새창 차단
-     * ============================ */
-    (function popupBlocker() {
-        if (!FeatureFlags.popupBlocker) return;
-        try {
-            window.open = function (url, target, features) {
-                try {
-                    logManager.addOnce('blocked_window_open', `🔒 window.open 차단 시도: ${url}`, 5000, 'warn');
-                    return null;
-                } catch (e) { return originalMethods.window.open.apply(this, arguments); }
-            };
-            addOnceEventListener(document, 'click', (e) => {
-                try {
-                    const a = e.target.closest && e.target.closest('a[target="_blank"]');
-                    if (a && !a.rel.includes('noopener')) a.rel = (a.rel ? a.rel + ' ' : '') + 'noopener noreferrer';
-                } catch (err) {}
-            }, true);
-            try { Object.defineProperty(window, 'opener', { get: () => null, configurable: true }); } catch (e) {}
-        } catch (e) { logManager.logErrorWithContext(e, { message: 'popupBlocker init failed' }); }
-    })();
-
-    /* ============================
      * App: 초기화·통합 MutationObserver
      * ============================ */
     function canAccessIframe(iframe) {
@@ -1592,10 +1717,23 @@
 
         const notice = document.createElement('div');
         notice.id = noticeId;
-        notice.style.cssText = 'color:red; padding:5px; background:#fee; font-size:12px; border:1px solid red; margin-top:4px; text-align: center;';
+        // 수정: 부드러운 사라짐 효과를 위한 transition 및 초기 opacity 추가
+        notice.style.cssText = 'color:red; padding:5px; background:#fee; font-size:12px; border:1px solid red; margin-top:4px; text-align: center; opacity: 1; transition: opacity 0.5s ease-out;';
         notice.textContent = `⚠️ ${message}`;
         try {
             iframe.parentNode.insertBefore(notice, iframe.nextSibling);
+
+          // 추가: 3초 뒤에 알림이 자동으로 사라지도록 설정
+          setTimeout(() => {
+              notice.style.opacity = '0';
+              // 애니메이션(0.5초)이 끝난 후 DOM에서 완전히 제거
+              setTimeout(() => {
+                  if (notice.parentNode) {
+                      notice.parentNode.removeChild(notice);
+                  }
+              }, 500);
+          }, 3000); // 3초 동안 표시
+
         } catch(e) { logManager.logErrorWithContext(e, { message: 'Failed to insert iframe notice' }); }
     }
     const App = (() => {
