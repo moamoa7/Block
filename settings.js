@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      20.2 (제안사항 반영)
+// @version      20.3 (지연 로딩 감지 수정)
 // @description  🎞️ [최적화] 비디오 속도 제어 + 📹 YouTube 주소 추출 강화 + 🔍 SPA/iframe/ShadowDOM 동적 탐지 + 📋 로그 뷰어 통합 (최적화 제안 반영)
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -379,32 +379,31 @@
         return { init: () => {}, add, addOnce, logMediaContext, logIframeContext, logErrorWithContext };
     })();
 
-    // 제안 10. 반영: 전역 에러 핸들링
-   // 제안 10. 반영: 전역 에러 핸들링 (ResizeObserver 알림 필터링 및 문법 오류 수정)
-    (function setupGlobalErrorHandlers() {
-        if (!isTopFrame) return; // 최상위 프레임에서만 핸들러 등록
-        const errorHandler = (err, context) => {
-            try {
-                const errMsg = err ? (err.message || String(err)) : 'Unknown error';
+    // 제안 10. 반영: 전역 에러 핸들링 (ResizeObserver 알림 필터링 및 문법 오류 수정)
+    (function setupGlobalErrorHandlers() {
+        if (!isTopFrame) return; // 최상위 프레임에서만 핸들러 등록
+        const errorHandler = (err, context) => {
+            try {
+                const errMsg = err ? (err.message || String(err)) : 'Unknown error';
 
-                // "ResizeObserver loop..."는 무시해도 되는 브라우저 알림이므로 필터링합니다.
-                if (errMsg.includes('ResizeObserver loop completed with undelivered notifications')) {
-                    return;
-                } // <-- 누락되었던 닫는 괄호 '}'를 추가했습니다.
+                // "ResizeObserver loop..."는 무시해도 되는 브라우저 알림이므로 필터링합니다.
+                if (errMsg.includes('ResizeObserver loop completed with undelivered notifications')) {
+                    return;
+                }
 
-                logManager.addOnce(`global_err_${errMsg.substring(0, 50)}`, `💥 전역 에러 감지: ${errMsg}`, 10000, 'global');
-                logManager.logErrorWithContext(err, context);
-            } catch (e) {
-                console.error('[VSC] Global error handler failed:', e);
-            }
-        };
-        addOnceEventListener(window, 'error', event => {
-            errorHandler(event.error || event.message, { message: 'Global window.onerror' });
-        });
-        addOnceEventListener(window, 'unhandledrejection', event => {
-            errorHandler(event.reason, { message: 'Unhandled Promise Rejection' });
-        });
-    })();
+                logManager.addOnce(`global_err_${errMsg.substring(0, 50)}`, `💥 전역 에러 감지: ${errMsg}`, 10000, 'global');
+                logManager.logErrorWithContext(err, context);
+            } catch (e) {
+                console.error('[VSC] Global error handler failed:', e);
+            }
+        };
+        addOnceEventListener(window, 'error', event => {
+            errorHandler(event.error || event.message, { message: 'Global window.onerror' });
+        });
+        addOnceEventListener(window, 'unhandledrejection', event => {
+            errorHandler(event.reason, { message: 'Unhandled Promise Rejection' });
+        });
+    })();
 
     /* ============================
      * 미리보기 감지
@@ -1243,6 +1242,15 @@
         }, 400);
         function initWhenReady(media) {
             if (!media || MediaStateManager.has(media)) return;
+
+            // 지연 로딩된 비디오 SRC를 즉시 추적하기 위한 로직 추가
+            if (media.tagName === 'VIDEO' || media.tagName === 'AUDIO') {
+                const src = media.currentSrc || media.src;
+                if (src && !networkMonitor.isTracked(src)) {
+                    networkMonitor.trackAndAttach(src, { element: media, source: 'media-element-src' });
+                }
+            }
+
             MediaStateManager.set(media, { isInitialized: true });
             if ((media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
                 const src = media.currentSrc || media.src || (media.dataset && media.dataset.src);
