@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light)
 // @namespace    https.com/
-// @version      22.6 (배속바 기본 : 최소화 재적용)
-// @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중
+// @version      22.7 (배속바 기본 : 최소화 재적용, optimized)
+// @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중 (CPU/메모리 최적화 적용)
 // @match        *://*/*
 // @grant        GM.getValue
 // @grant        GM.setValue
@@ -269,7 +269,7 @@
 
     let PROCESSED_DOCUMENTS = new WeakSet();
     const isTopFrame = window.self === window.top;
-    const OBSERVER_MAP = new Map();
+    const OBSERVER_MAP = new Map(); // Document -> MutationObserver
     let activeMediaCache = [];
 
     /* ============================
@@ -445,6 +445,28 @@
     const dragBar = (() => {
         let display = null, inited = false, visible = false;
         let state = { dragging: false, isHorizontalDrag: false, startX: 0, startY: 0, accX: 0 };
+
+        // preTouchMove: 초기(패시브) 터치 무브 핸들러 (임계치 도달 전)
+        function preTouchMove(e) {
+            try {
+                if (!state.dragging) return;
+                const pos = e.touches ? e.touches[0] : e;
+                const dx = pos.clientX - state.startX;
+                const dy = pos.clientY - state.startY;
+                if (Math.abs(dx) > 10 && Math.abs(dy) < Math.abs(dx)) {
+                    // 이제 진짜 드래그로 전환: passive:false onMove 로 교체
+                    document.removeEventListener('touchmove', preTouchMove, true);
+                    document.addEventListener('touchmove', onMove, { passive: false, capture: true });
+                    state.isHorizontalDrag = true;
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                } else if (Math.abs(dy) > 10) {
+                    // 세로 스크롤로 간주 -> 종료
+                    onEnd();
+                }
+            } catch (err) { console.error('preTouchMove error', err); }
+        }
+
         function fmt(s) {
             const sign = s < 0 ? '-' : '+';
             const a = Math.abs(Math.round(s));
@@ -481,6 +503,7 @@
             visible = true;
         };
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => display.style.display = 'none', 300); } visible = false; };
+
         function onStart(e) {
             try {
                 // [부활한 로직 1] 배속바가 최소화 상태이면 드래그 중단
@@ -489,25 +512,34 @@
                 }
 
                 // [부활한 로직 2] 클릭 경로에 배속바 UI가 포함되면 드래그 중단
-                const path = e.composedPath();
-                if (path.some(el => el.id === 'vm-speed-slider-container')) {
+                const path = e.composedPath ? e.composedPath() : (e.path || []);
+                if (path && path.some(el => el && el.id === 'vm-speed-slider-container')) {
                     return;
                 }
 
-                 if (e.button === 2) return;
-                 // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
-                 if (!activeMediaCache.some(m => m.tagName === 'VIDEO' && !m.paused)) { return; }
-                 const pos = e.touches ? e.touches[0] : e;
-                 state.dragging = true;
-                 state.startX = pos.clientX;
-                 state.startY = pos.clientY;
-                 state.accX = 0;
-                 document.addEventListener('mousemove', onMove, { passive: false, capture: true });
-                 document.addEventListener('mouseup', onEnd, { passive: false, capture: true });
-                 document.addEventListener('touchmove', onMove, { passive: false, capture: true });
-                 document.addEventListener('touchend', onEnd, { passive: false, capture: true });
+                if (e.type === 'mousedown' && e.button === 2) return;
+                // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
+                if (!activeMediaCache.some(m => m.tagName === 'VIDEO' && !m.paused)) { return; }
+
+                const pos = e.touches ? e.touches[0] : e;
+                state.dragging = true;
+                state.startX = pos.clientX;
+                state.startY = pos.clientY;
+                state.accX = 0;
+
+                if (e.type === 'mousedown') {
+                    // 마우스용: 즉시 non-passive move 등록
+                    document.addEventListener('mousemove', onMove, { passive: false, capture: true });
+                } else if (e.type === 'touchstart') {
+                    // 터치용: 초기엔 passive:true 검사 핸들러로 대충 감지 -> 임계치 넘으면 교체
+                    document.addEventListener('touchmove', preTouchMove, { passive: true, capture: true });
+                }
+
+                document.addEventListener('mouseup', onEnd, { passive: false, capture: true });
+                document.addEventListener('touchend', onEnd, { passive: false, capture: true });
             } catch (e) { console.error('dragBar onStart failed:', e); }
         }
+
         function onMove(e) {
             if (!state.dragging) return;
             try {
@@ -537,15 +569,20 @@
             state.dragging = false; state.accX = 0; state.isHorizontalDrag = false;
             hideDisplay();
             document.body.style.userSelect = ''; document.body.style.touchAction = '';
+            // mouse listeners
             document.removeEventListener('mousemove', onMove, true);
-            document.removeEventListener('mouseup', onEnd, true);
+            // touch listeners: remove both possible handlers
             document.removeEventListener('touchmove', onMove, true);
+            document.removeEventListener('touchmove', preTouchMove, true);
+            document.removeEventListener('mouseup', onEnd, true);
             document.removeEventListener('touchend', onEnd, true);
         }
         function init() {
             if (inited) return; inited = true;
+            // mousedown with non-passive so we can preventDefault if needed
             addOnceEventListener(document, 'mousedown', onStart, { passive: false, capture: true });
-            addOnceEventListener(document, 'touchstart', onStart, { passive: false, capture: true });
+            // touchstart passive true (we will promote to non-passive on demand)
+            addOnceEventListener(document, 'touchstart', onStart, { passive: true, capture: true });
         }
         return { init, show: () => visible && display && (display.style.display = 'block'), hide: hideDisplay, display: () => display };
     })();
@@ -601,12 +638,23 @@
         let lastURL = location.href;
         let isSpaMonitorInitialized = false;
 
+        function cleanupAllDocuments() {
+            try {
+                for (const [doc, obs] of OBSERVER_MAP.entries()) {
+                    try { obs.disconnect(); } catch (e) {}
+                }
+                OBSERVER_MAP.clear();
+                PROCESSED_DOCUMENTS = new WeakSet();
+                activeMediaCache = [];
+            } catch (e) {}
+        }
+
         function onNavigate() {
             // setTimeout은 수동 debounce 역할
             setTimeout(() => {
                 const now = location.href;
                 if (now !== lastURL) {
-                    PROCESSED_DOCUMENTS = new WeakSet();
+                    cleanupAllDocuments();
                     App.initializeAll(document);
                     lastURL = now;
                 }
@@ -628,16 +676,45 @@
      * App: 메인 컨트롤러
      * ============================ */
     function scanTask() {
+        // 스캔 시점에 최신 미디어 목록 갱신
         activeMediaCache = mediaFinder.findAll();
         activeMediaCache.forEach(m => mediaControls.initWhenReady(m));
         mediaControls.updateUIVisibility();
     }
     const debouncedScanTask = debounce(scanTask, 100);
 
+    // 문서 단위 정리 함수
+    function cleanupDocument(targetDocument) {
+        try {
+            if (!targetDocument) return;
+            // disconnect observer for this doc
+            const obs = OBSERVER_MAP.get(targetDocument);
+            if (obs) {
+                try { obs.disconnect(); } catch (e) {}
+                OBSERVER_MAP.delete(targetDocument);
+            }
+            // remove from processed set
+            try { PROCESSED_DOCUMENTS.delete(targetDocument); } catch (e) {}
+            // if it was an iframe doc, clear media state for its elements
+            try {
+                const medias = mediaFinder.findInDoc(targetDocument);
+                medias.forEach(m => {
+                    try {
+                        removeAllManagedEventListeners(m);
+                        MediaStateManager.delete(m);
+                    } catch (e) {}
+                });
+            } catch (e) {}
+            // refresh global cache
+            scanTask();
+        } catch (e) { console.error('cleanupDocument failed', e); }
+    }
+
     const App = (() => {
         function initIframe(iframe) {
             if (!iframe || MediaStateManager.hasIframe(iframe)) return;
             MediaStateManager.addIframe(iframe);
+
             const attempt = () => {
                 try {
                     if (iframe.contentDocument) {
@@ -647,11 +724,50 @@
             };
             addOnceEventListener(iframe, 'load', debounce(attempt, 400), true);
             attempt();
+
+            // iframe 이 DOM에서 제거되는 것을 감지하여 정리
+            // (상위 문서의 observer 콜백에서도 제거를 감지하지만, 여기에 안전장치 추가)
+            try {
+                const parentDoc = iframe.ownerDocument;
+                if (parentDoc) {
+                    const remover = new MutationObserver((mutations) => {
+                        for (const mu of mutations) {
+                            for (const n of mu.removedNodes) {
+                                if (n === iframe) {
+                                    // iframe 제거 -> 해당 contentDocument 정리
+                                    try {
+                                        if (iframe.contentDocument) cleanupDocument(iframe.contentDocument);
+                                    } catch (e) {}
+                                    try { remover.disconnect(); } catch (e) {}
+                                }
+                            }
+                        }
+                    });
+                    remover.observe(parentDoc, { childList: true, subtree: true });
+                }
+            } catch (e) {}
         }
 
         function startUnifiedObserver(targetDocument = document) {
             if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
-            const observer = new MutationObserver(() => debouncedScanTask());
+            const observer = new MutationObserver((mutations) => {
+                // 변경 감지 시 전체 스캔을 디바운스하여 수행
+                let foundRemovedIframeDocs = [];
+                for (const mu of mutations) {
+                    // 제거된 iframe 있으면 해당 문서 정리
+                    for (const n of mu.removedNodes) {
+                        if (n && n.tagName === 'IFRAME') {
+                            try {
+                                if (n.contentDocument) foundRemovedIframeDocs.push(n.contentDocument);
+                            } catch (e) {}
+                        }
+                    }
+                }
+                if (foundRemovedIframeDocs.length) {
+                    foundRemovedIframeDocs.forEach(doc => cleanupDocument(doc));
+                }
+                debouncedScanTask();
+            });
             observer.observe(targetDocument, { childList: true, subtree: true });
             OBSERVER_MAP.set(targetDocument, observer);
             PROCESSED_DOCUMENTS.add(targetDocument);
@@ -663,15 +779,15 @@
             if (targetDocument === document) {
                 await configManager.init();
                 uiManager.init();
-                console.log('🎉 VideoSpeed_Control (Lite) 초기화');
+                console.log('🎉 VideoSpeed_Control (Lite) 초기화 (optimized)');
                 if (FeatureFlags.spaPartialUpdate) spaMonitor.init();
                 await speedSlider.init();
                 dragBar.init();
-                // 주기적 스캔(안전망)
-                setInterval(scanTask, 5000);
+                // 주기적 스캔 제거 (안전망 제거)
+                // setInterval(scanTask, 5000); // 제거됨
             }
 
-            // [수정] fullscreenchange 이벤트 핸들러에 speedSlider.updatePositionAndSize() 호출 제거 (해당 함수 없음)
+            // fullscreen 변경 시 UI 루트 이동
             addOnceEventListener(document, 'fullscreenchange', () => {
                     uiManager.moveUiTo(document.fullscreenElement || document.body);
                 });
@@ -679,10 +795,24 @@
             startUnifiedObserver(targetDocument);
             scanTask(); // 초기 스캔
             // 스크립트 실행 시점에 이미 존재하는 iframe 처리
-            targetDocument.querySelectorAll('iframe').forEach(ifr => initIframe(ifr));
+            try {
+                targetDocument.querySelectorAll('iframe').forEach(ifr => initIframe(ifr));
+            } catch (e) {}
         }
         return { initializeAll };
     })();
+
+    /* 페이지 언로드 시 전체 정리 (모든 문서/iframe observer disconnect) */
+    window.addEventListener('unload', () => {
+        try {
+            for (const [doc, obs] of OBSERVER_MAP.entries()) {
+                try { obs.disconnect(); } catch (e) {}
+            }
+            OBSERVER_MAP.clear();
+            PROCESSED_DOCUMENTS = new WeakSet();
+            activeMediaCache = [];
+        } catch (e) {}
+    }, { capture: true });
 
     /* ============================
      * 스크립트 실행
