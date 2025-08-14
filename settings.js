@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Light - Master Hybrid)
+// @name         VideoSpeed_Control (Ultimate Hybrid)
 // @namespace    https.com/
-// @version      23.25-Patch.13-Perf-Tuned
-// @description  🎞️ [최종 완성판] 드래그 탐색 성능을 requestAnimationFrame으로 최적화하고, 모든 편의 기능을 포함한 최종 안정화 버전입니다.
+// @version      24.01-Final-Architecture
+// @description  🎞️ [최종 완성] Map 기반 상태관리, RAF Throttle, requestIdleCallback 등 고급 아키텍처를 적용하여 안정성, 성능, 확장성을 모두 갖춘 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -16,7 +16,7 @@
      * ============================ */
     const FeatureFlags = { debug: false };
     const SEEN_MEDIA = new WeakSet();
-    let activeMediaCache = [];
+    const activeMediaMap = new Map();
     let uiVisible = false;
 
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (FeatureFlags.debug) console.error(`[VideoSpeed] Error in ${label}:`, e); } };
@@ -25,7 +25,6 @@
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
 
-    // 콘솔 클리어 방지
     safeExec(() => {
         if (window.console && console.clear) {
             const originalClear = console.clear;
@@ -34,7 +33,6 @@
         }
     }, 'consoleClearProtection');
 
-    // Shadow DOM 강제 open
     (function hackAttachShadow() {
         if (window._hasHackAttachShadow_) return;
         safeExec(() => {
@@ -107,7 +105,11 @@
             updateAppearance();
         }
         const updateValueText = (speed) => valueEl && (valueEl.textContent = `x${speed.toFixed(1)}`);
-        const applySpeed = (speed) => activeMediaCache.forEach(m => { if (m.playbackRate !== speed) safeExec(() => { m.playbackRate = speed; }); });
+        const applySpeed = (speed) => {
+            for (const media of activeMediaMap.keys()) {
+                if (media.playbackRate !== speed) safeExec(() => { media.playbackRate = speed; });
+            }
+        };
         function updateAppearance() {
             if (!container) return;
             container.classList.toggle('minimized', isMinimized);
@@ -125,6 +127,7 @@
         let display, inited = false;
         let state = { dragging: false, startX: 0, startY: 0, accX: 0 };
         let lastDelta = 0;
+        let rafScheduled = false;
 
         function onStart(e) {
             safeExec(() => {
@@ -133,10 +136,8 @@
                 if (!videoElement || videoElement.paused) return;
                 if (speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container'))) return;
                 if (e.type === 'mousedown' && e.button !== 0) return;
-
                 const pos = e.touches ? e.touches[0] : e;
                 Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, accX: 0 });
-
                 const options = { passive: false, capture: true };
                 document.addEventListener(e.type === 'mousedown' ? 'mousemove' : 'touchmove', onMove, options);
                 document.addEventListener(e.type === 'mousedown' ? 'mouseup' : 'touchend', onEnd, options);
@@ -149,13 +150,15 @@
             e.stopImmediatePropagation();
             safeExec(() => {
                 const pos = e.touches ? e.touches[0] : e;
-                const dx = pos.clientX - state.startX;
-                state.accX += dx;
+                state.accX += pos.clientX - state.startX;
                 state.startX = pos.clientX;
-                // [개선] UI 업데이트를 requestAnimationFrame으로 최적화
-                window.requestAnimationFrame(() => {
-                    showDisplay(state.accX);
-                });
+                if (!rafScheduled) {
+                    rafScheduled = true;
+                    window.requestAnimationFrame(() => {
+                        showDisplay(state.accX);
+                        rafScheduled = false;
+                    });
+                }
             }, 'dragBar.onMove');
         }
 
@@ -175,7 +178,9 @@
         function applySeek() {
             const deltaSec = Math.round(state.accX / 2);
             if (!deltaSec) return;
-            activeMediaCache.forEach(m => { if (isFinite(m.duration)) m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec)); });
+            for (const m of activeMediaMap.keys()) {
+                if (isFinite(m.duration)) m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec));
+            }
         }
 
         function init() {
@@ -211,7 +216,7 @@
         };
         return { init: () => safeExec(init, 'dragBar.init') };
     })();
-
+    
     const mediaSessionManager = (() => {
         const getSeekTime = (rate) => Math.min(Math.max(1, 5 * rate), 15);
         const setSession = (media) => {
@@ -222,18 +227,26 @@
                 navigator.mediaSession.setActionHandler('pause', () => media.pause());
                 navigator.mediaSession.setActionHandler('seekbackward', () => { media.currentTime -= getSeekTime(media.playbackRate); });
                 navigator.mediaSession.setActionHandler('seekforward', () => { media.currentTime += getSeekTime(media.playbackRate); });
+                if ('seekto' in navigator.mediaSession) {
+                    navigator.mediaSession.setActionHandler('seekto', (details) => {
+                        if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); return; }
+                        media.currentTime = details.seekTime;
+                    });
+                }
             }, 'mediaSession.set');
         };
         const clearSession = () => {
             if (!('mediaSession' in navigator)) return;
             safeExec(() => {
                 navigator.mediaSession.metadata = null;
-                ['play', 'pause', 'seekbackward', 'seekforward'].forEach(h => navigator.mediaSession.setActionHandler(h, null));
+                ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(h => {
+                    try { navigator.mediaSession.setActionHandler(h, null); } catch {}
+                });
             }, 'mediaSession.clear');
         };
         return { setSession, clearSession };
     })();
-
+    
     /* ============================
      * 미디어 검색 및 하이브리드 스캔 로직
      * ============================ */
@@ -250,49 +263,62 @@
         });
         return [...new Set(media)];
     }
+    
+    const mediaEventHandlers = {
+        play: (media) => { scanTask(true); mediaSessionManager.setSession(media); },
+        pause: (media) => { scanTask(true); mediaSessionManager.clearSession(media); },
+        ended: (media) => { scanTask(true); mediaSessionManager.clearSession(media); },
+    };
 
     function initMedia(media) {
         if (!media || SEEN_MEDIA.has(media)) return;
         SEEN_MEDIA.add(media);
-        const updateUI = () => scanTask(true);
-        media.addEventListener('play', () => { updateUI(); mediaSessionManager.setSession(media); });
-        media.addEventListener('pause', () => { updateUI(); mediaSessionManager.clearSession(); });
-        media.addEventListener('ended', () => { updateUI(); mediaSessionManager.clearSession(); });
+        Object.entries(mediaEventHandlers).forEach(([evt, handler]) => {
+            media.addEventListener(evt, () => handler(media));
+        });
     }
-
+    
     const scanTask = (isUiUpdateOnly = false) => {
         const allMedia = findAllMedia();
-        if (!isUiUpdateOnly) allMedia.forEach(initMedia);
-        activeMediaCache = allMedia.filter(m => m.isConnected);
-        const shouldBeVisible = activeMediaCache.length > 0;
+        if (!isUiUpdateOnly) {
+            allMedia.forEach(initMedia);
+        }
+
+        activeMediaMap.clear();
+        allMedia.forEach(m => {
+            if (m.isConnected) {
+                activeMediaMap.set(m, {}); // value: for future state
+            }
+        });
+        
+        const shouldBeVisible = activeMediaMap.size > 0;
         if (uiVisible !== shouldBeVisible) {
             uiVisible = shouldBeVisible;
             uiVisible ? speedSlider.show() : speedSlider.hide();
         }
     };
-
+    
     const debouncedScanTask = debounce(scanTask, 350);
 
     function scanAddedNodes(nodes) {
-        let foundNew = false;
+        const mediaElements = [];
         nodes.forEach(node => {
             if (node.nodeType !== 1) return;
-            const mediaElements = [];
             if (node.matches?.('video, audio')) mediaElements.push(node);
             node.querySelectorAll?.('video, audio').forEach(m => mediaElements.push(m));
-            if(mediaElements.length > 0) {
-                mediaElements.forEach(initMedia);
-                foundNew = true;
-            }
         });
-        if (foundNew) scanTask(true);
+        
+        if(mediaElements.length > 0) {
+            mediaElements.forEach(initMedia);
+            scanTask(true);
+        }
     }
 
     /* ============================
      * 초기화
      * ============================ */
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (v23.25-Patch.13-Perf-Tuned) Initialized.');
+        console.log('🎉 VideoSpeed_Control (v24.01-Final-Architecture) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
@@ -300,13 +326,17 @@
         const observer = new MutationObserver(mutations => {
             const addedNodes = mutations.flatMap(m => (m.type === 'childList' ? [...m.addedNodes] : []));
             if (addedNodes.length > 0) {
-                scanAddedNodes(addedNodes);
+                if ('requestIdleCallback' in window) {
+                    window.requestIdleCallback(() => scanAddedNodes(addedNodes), { timeout: 1000 });
+                } else {
+                    scanAddedNodes(addedNodes);
+                }
             } else {
                 debouncedScanTask();
             }
         });
         observer.observe(document.documentElement, { childList: true, subtree: true });
-
+        
         document.addEventListener('addShadowRoot', debouncedScanTask);
 
         const originalPushState = history.pushState;
@@ -315,9 +345,9 @@
             scanTask();
         };
         window.addEventListener('popstate', () => scanTask());
-
+        
         document.addEventListener('fullscreenchange', () => uiManager.moveUiTo(document.fullscreenElement || document.body));
-
+        
         scanTask();
     }
 
