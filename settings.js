@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light)
 // @namespace    https.com/
-// @version      23.1 (안정성 강화)
+// @version      23.15 (activeMediaCache 수정)
 // @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중 (안정성 강화)
 // @match        *://*/*
 // @grant        GM.getValue
@@ -533,7 +533,7 @@
             for (const obs of OBSERVER_MAP.values()) obs.disconnect();
             OBSERVER_MAP.clear();
             PROCESSED_DOCUMENTS = new WeakSet();
-            activeMediaCache = [];
+            activeMediaCache = activeMediaCache.filter(m => document.contains(m) || (m.ownerDocument && document.contains(m.ownerDocument.documentElement)));
 
             mediaControls.updateUIVisibility();
 
