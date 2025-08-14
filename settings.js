@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      22.3 (드래그바 버그 수정)
+// @version      22.4 (성능 최적화 및 안정성 개선)
 // @description  🎞️ [개선판] UI ShadowDOM 격리 + ⚡성능 최적화 + 🔧YouTube 탐지 강화 + ✨미디어 세션 API 연동
 // @match        *://*/*
 // @grant        GM.getValue
@@ -371,6 +371,9 @@
     const LOGGED_KEYS_WITH_TIMER = new Map();
     const isTopFrame = window.self === window.top;
     const OBSERVER_MAP = new Map();
+    // [개선] 현재 활성화된 미디어 목록을 저장하는 캐시. DOM 탐색 최소화를 위해 사용.
+    let activeMediaCache = [];
+
 
     /* ============================
      * 💡 아키텍처 개선: UI Manager (Shadow DOM 캡슐화)
@@ -844,10 +847,10 @@
             logManager.addOnce(`early_${norm}`, `🎯 동적 영상 URL 감지: ${norm.substring(0, 80)}... | ${details.join(' | ')}`, 5000, 'info');
             try {
               if (FeatureFlags.videoControls) {
-                  dynamicMediaUI.show(norm);
+                  dynamicMediaUI.show();
                   speedSlider.show();
               }
-          } catch (e) {}
+            } catch (e) {}
             if (ctx.element && !MediaStateManager.has(ctx.element)) {
                 MediaStateManager.set(ctx.element, { trackedUrl: norm, isInitialized: false });
             }
@@ -1416,7 +1419,8 @@
 
         function applySpeed(speed) {
             try {
-                mediaFinder.findAll().forEach(md => {
+                // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
+                activeMediaCache.forEach(md => {
                     try { if (md.tagName === 'VIDEO' || md.tagName === 'AUDIO') md.playbackRate = speed; } catch (e) {}
                 });
             } catch (e) { logManager.logErrorWithContext(e, { message: 'applySpeed failed' }); }
@@ -1427,7 +1431,8 @@
 
         function updatePositionAndSize() {
             try {
-                const m = mediaFinder.findAll().find(x => x.clientWidth > 0 && x.clientHeight > 0);
+                // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
+                const m = activeMediaCache.find(x => x.clientWidth > 0 && x.clientHeight > 0);
                 const sliderEl = container && container.querySelector('#vm-speed-slider');
                 if (m && sliderEl) { sliderEl.style.height = Math.max(80, m.getBoundingClientRect().height * 0.25) + 'px'; }
             } catch (e) {}
@@ -1448,7 +1453,8 @@
             const deltaSec = Math.round(state.accX / (DRAG_CONFIG?.PIXELS_PER_SECOND || 2));
             if (!deltaSec) return;
             try {
-                mediaFinder.findAll().forEach(m => {
+                // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
+                activeMediaCache.forEach(m => {
                     try {
                         if (!(m.tagName === 'VIDEO' || m.tagName === 'AUDIO')) return;
                         if (!isFinite(m.duration)) return;
@@ -1474,28 +1480,29 @@
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => display.style.display = 'none', 300); } visible = false; };
         function onStart(e) {
             try {
-              // [부활한 로직 1] 배속바가 최소화 상태이면 드래그 중단
-              if (speedSlider.isMinimized()) {
-                  return;
-              }
+                // [부활한 로직 1] 배속바가 최소화 상태이면 드래그 중단
+                if (speedSlider.isMinimized()) {
+                    return;
+                }
 
-              // [부활한 로직 2] 클릭 경로에 배속바 UI가 포함되면 드래그 중단
-              const path = e.composedPath();
-              if (path.some(el => el.id === 'vm-speed-slider-container')) {
-                  return;
-              }
+                // [부활한 로직 2] 클릭 경로에 배속바 UI가 포함되면 드래그 중단
+                const path = e.composedPath();
+                if (path.some(el => el.id === 'vm-speed-slider-container')) {
+                    return;
+                }
 
                  if (e.button === 2) return;
-                 if (!mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused)) { return; }
-                const pos = e.touches ? e.touches[0] : e;
-                state.dragging = true;
-                state.startX = pos.clientX;
-                state.startY = pos.clientY;
-                state.accX = 0;
-                document.addEventListener('mousemove', onMove, { passive: false, capture: true });
-                document.addEventListener('mouseup', onEnd, { passive: false, capture: true });
-                document.addEventListener('touchmove', onMove, { passive: false, capture: true });
-                document.addEventListener('touchend', onEnd, { passive: false, capture: true });
+                 // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
+                 if (!activeMediaCache.some(m => m.tagName === 'VIDEO' && !m.paused)) { return; }
+                 const pos = e.touches ? e.touches[0] : e;
+                 state.dragging = true;
+                 state.startX = pos.clientX;
+                 state.startY = pos.clientY;
+                 state.accX = 0;
+                 document.addEventListener('mousemove', onMove, { passive: false, capture: true });
+                 document.addEventListener('mouseup', onEnd, { passive: false, capture: true });
+                 document.addEventListener('touchmove', onMove, { passive: false, capture: true });
+                 document.addEventListener('touchend', onEnd, { passive: false, capture: true });
             } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar onStart failed' }); }
         }
         function onMove(e) {
@@ -1597,7 +1604,8 @@
         }
         const updateUIVisibility = async () => {
             try {
-                const hasMedia = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' || m.tagName === 'AUDIO');
+                // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
+                const hasMedia = activeMediaCache.some(m => m.tagName === 'VIDEO' || m.tagName === 'AUDIO');
                 if (hasMedia) {
                     await speedSlider.show();
                     dynamicMediaUI.show();
@@ -1605,7 +1613,8 @@
                     speedSlider.hide();
                     dynamicMediaUI.hide();
                 }
-                const hasPlayingVideo = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused);
+                // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
+                const hasPlayingVideo = activeMediaCache.some(m => m.tagName === 'VIDEO' && !m.paused);
                 if (hasPlayingVideo) {
                     dragBar.show();
                 } else {
@@ -1701,6 +1710,7 @@
             const orig = originalMethods.History[fnName];
             history[fnName] = function () { const res = orig.apply(this, arguments); onNavigate(`history.${fnName}`); return res; };
         }
+        // 이 함수는 setTimeout을 이용해 수동으로 debounce(연속 호출 방지) 처리되고 있습니다.
         function onNavigate() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
@@ -1785,6 +1795,28 @@
         } catch(e) { logManager.logErrorWithContext(e, { message: 'Failed to insert iframe notice' }); }
     }
 
+    // [개선] 미디어 스캔 및 캐시 업데이트 로직을 별도 함수로 분리하여 재사용성 높임
+    function scanTask() {
+        const allMedia = mediaFinder.findAll();
+        activeMediaCache = allMedia; // 캐시 업데이트
+
+        allMedia.forEach(m => {
+            mediaControls.initWhenReady(m);
+            if (App.intersectionObserver && (m.tagName === 'VIDEO' || m.tagName === 'AUDIO') && !m.hasAttribute('data-vsc-observed')) {
+                App.intersectionObserver.observe(m);
+                m.setAttribute('data-vsc-observed', 'true');
+            }
+        });
+
+        mediaControls.updateUIVisibility(); // UI 상태 동기화
+
+        if (location.hostname.includes('youtube.com')) {
+            scanYouTubeDebounced();
+        }
+    }
+
+    const debouncedScanTask = debounce(scanTask, 100);
+
     const App = (() => {
         let globalScanTimer = null;
         let intersectionObserver;
@@ -1864,6 +1896,8 @@
 
         function scanExistingMedia(doc) {
             try {
+                // 이 함수는 이제 초기 스캔과 캐시 업데이트를 담당하는 scanTask로 대체됨.
+                // 하지만 혹시 모를 직접 호출을 위해 로직은 남겨둠.
                 const medias = mediaFinder.findInDoc(doc);
                 medias.forEach(m => mediaControls.initWhenReady(m));
             } catch (e) { logManager.logErrorWithContext(e, { message: 'scanExistingMedia failed' }); }
@@ -1902,11 +1936,13 @@
                 }
             };
 
-            const observer = new MutationObserver(debounce((mutations) => {
+            const observer = new MutationObserver((mutations) => {
+                let needsScan = false;
                 for (const mut of mutations) {
                     if (mut.type === 'childList') {
                         mut.addedNodes.forEach(n => {
                             if (n.nodeType !== 1) return;
+                            needsScan = true; // 노드가 추가되면 스캔 필요
                             if (fastPath(n)) {
                                 processNode(n);
                             } else if (n.querySelectorAll) {
@@ -1915,6 +1951,7 @@
                         });
                         mut.removedNodes.forEach(n => {
                             if (n.nodeType === 1 && (n.tagName === 'VIDEO' || n.tagName === 'AUDIO')) {
+                                needsScan = true; // 노드가 제거되면 스캔 필요
                                 mediaControls.detachUI(n);
                                 removeAllManagedEventListeners(n);
                                 if (intersectionObserver) intersectionObserver.unobserve(n);
@@ -1927,10 +1964,15 @@
                         if ((t.tagName === 'VIDEO' || t.tagName === 'AUDIO') && (mut.attributeName === 'src' || mut.attributeName.startsWith('data-'))) {
                             mediaControls.initWhenReady(t);
                             t.removeAttribute('data-tracked');
+                            needsScan = true;
                         }
                     }
                 }
-            }, 80));
+                // [개선] Mutation이 발생했을 때만 디바운스된 스캔 실행
+                if (needsScan) {
+                    debouncedScanTask();
+                }
+            });
 
             observer.observe(region, {
                 childList: true,
@@ -1946,22 +1988,9 @@
 
         function startPeriodicScan() {
             if (globalScanTimer) clearInterval(globalScanTimer);
-            const scanTask = () => {
-                const allMedia = mediaFinder.findAll();
-                allMedia.forEach(m => {
-                    mediaControls.initWhenReady(m);
-                    if (intersectionObserver && (m.tagName === 'VIDEO' || m.tagName === 'AUDIO') && !m.hasAttribute('data-vsc-observed')) {
-                        intersectionObserver.observe(m);
-                        m.setAttribute('data-vsc-observed', 'true');
-                    }
-                });
-                if (location.hostname.includes('youtube.com')) {
-                    scanYouTubeDebounced();
-                }
-            };
-
             scanTask();
-            globalScanTimer = setInterval(scanTask, 3000);
+            // [개선] 안전망 스캔 주기를 3초에서 5초로 늘려 자원 사용량 감소
+            globalScanTimer = setInterval(scanTask, 5000);
         }
 
         async function initializeAll(targetDocument = document) {
@@ -1972,7 +2001,7 @@
                     await configManager.init();
                     uiManager.init();
                     logManager.init();
-                    logManager.addOnce('script_init_start', '🎉 VideoSpeed_Control 초기화 시작 (v21.0)', 5000, 'info');
+                    logManager.addOnce('script_init_start', '🎉 VideoSpeed_Control 초기화 시작 (v22.4)', 5000, 'info');
                     if (FeatureFlags.spaPartialUpdate) spaMonitor.init();
                     if (FeatureFlags.videoControls) {
                         await speedSlider.init();
@@ -1998,11 +2027,16 @@
             }
 
             startUnifiedObserver(targetDocument);
-            scanExistingMedia(targetDocument);
+            scanTask(); // 초기 미디어 스캔 및 캐시 생성
+
+            // MutationObserver는 동적으로 추가되는 iframe을 감지하지만,
+            // 스크립트 실행 시점에 이미 존재하는 iframe을 처리하기 위해 이 초기 스캔은 필수적입니다.
             targetDocument.querySelectorAll('iframe').forEach(ifr => initIframe(ifr));
-            mediaControls.updateUIVisibility();
         }
-        return { initializeAll };
+        return {
+            initializeAll,
+            get intersectionObserver() { return intersectionObserver; }
+        };
     })();
 
     /* ============================
