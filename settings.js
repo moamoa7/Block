@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light - Patched for YouTube & TrustedHTML)
 // @namespace    https.com/
-// @version      23.25-Patch.2
-// @description  🎞️ [최종 수정] TrustedHTML 보안 정책을 준수하도록 UI 생성 로직을 변경하여 최신 브라우저 및 사이트와의 호환성을 확보했습니다.
+// @version      23.25-Patch.3-Optimized
+// @description  🎞️ [최적화 적용] MutationObserver 증분 처리, SPA 탐색 최적화, iframe/ShadowDOM 감지 강화를 통해 성능과 안정성을 대폭 개선했습니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -202,8 +202,6 @@
             const shadowRoot = uiManager.getShadowRoot();
             if (!shadowRoot) return;
 
-            // --- Start of TrustedHTML Patch ---
-            // .innerHTML 할당 대신 수동으로 요소를 생성하여 Trusted Types 보안 정책을 준수합니다.
             container = document.createElement('div');
             container.id = 'vm-speed-slider-container';
 
@@ -234,7 +232,6 @@
             container.appendChild(toggleButton);
             shadowRoot.appendChild(container);
 
-            // 생성된 요소에 직접 이벤트 리스너를 연결합니다.
             resetButton.addEventListener('click', () => {
                 sliderEl.value = '1.0';
                 applySpeed(1.0);
@@ -249,7 +246,6 @@
                 isMinimized = !isMinimized;
                 updateAppearance();
             });
-            // --- End of TrustedHTML Patch ---
 
             inited = true;
             updateAppearance();
@@ -407,7 +403,6 @@
      * ============================ */
     const mediaControls = (() => {
         const uiState = { hasMedia: null };
-
         const isPreview = (media) => (media.duration > 0 && media.duration < PREVIEW_CONFIG.DURATION_THRESHOLD);
 
         function updateUIVisibility() {
@@ -447,7 +442,7 @@
         const onNavigate = debounce(() => {
             if (location.href !== lastURL) {
                 lastURL = location.href;
-                App.cleanupAndReinitialize();
+                App.onSpaNavigation(); //
             }
         }, 200);
 
@@ -462,126 +457,205 @@
     })();
 
     const App = (() => {
-    const scanTask = () => safeExec(() => {
-        activeMediaCache = findAllMedia();
-        activeMediaCache.forEach(mediaControls.initMedia);
-        mediaControls.updateUIVisibility();
-    }, 'scanTask');
+        // --- 최적화: 증분 업데이트를 위한 전역 상태 ---
+        const SEEN_MEDIA = new WeakSet();
+        const OBSERVED_SHADOW_ROOTS = new WeakSet();
 
-    const debouncedScanTask = debounce(scanTask, 250);
+        /**
+         * 지정된 노드와 그 하위에서 미디어 요소를 재귀적으로 수집합니다.
+         */
+        function collectMediaFromNode(node, out) {
+            if (!node) return;
+            // Element 또는 DocumentFragment 노드만 처리
+            if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return;
 
-    const mediaFinder = {
-        findInDoc(doc) {
-            const out = [];
-            if (!doc) return out;
-            try {
-                doc.querySelectorAll('video, audio').forEach(m => out.push(m));
-                if (window._shadowDomList_) {
-                    window._shadowDomList_.forEach(sr => {
-                        try {
-                            if (sr && sr.querySelectorAll) {
-                                sr.querySelectorAll('video,audio').forEach(m => out.push(m));
-                            }
-                        } catch (e) { /* Shadow DOM 접근 오류 무시 */ }
-                    });
-                }
-            } catch (e) {
-                if (FeatureFlags.debug) console.error('[VideoSpeed] findInDoc failed:', e);
+            if (node instanceof HTMLMediaElement) {
+                out.push(node);
             }
-            return out;
-        },
-        findAll() {
+            if (node.querySelectorAll) {
+                node.querySelectorAll('video, audio').forEach(m => out.push(m));
+            }
+            if (node.shadowRoot) {
+                collectMediaFromNode(node.shadowRoot, out);
+            }
+        }
+
+        /**
+         * MutationObserver 콜백: 추가된 노드만 검사하여 성능을 최적화합니다.
+         */
+        function processMutations(mutations) {
+            const newlyFound = [];
+            for (const mutation of mutations) {
+                mutation.addedNodes.forEach(node => {
+                    collectMediaFromNode(node, newlyFound);
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.tagName === 'IFRAME') {
+                           observeIframeWithRetry(node);
+                        }
+                        node.querySelectorAll?.('iframe').forEach(observeIframeWithRetry);
+                    }
+                });
+            }
+
+            if (newlyFound.length > 0) {
+                const uniqueNewMedia = [...new Set(newlyFound)].filter(m => !SEEN_MEDIA.has(m));
+                if (uniqueNewMedia.length > 0) {
+                    uniqueNewMedia.forEach(m => SEEN_MEDIA.add(m));
+                    activeMediaCache.push(...uniqueNewMedia);
+                    uniqueNewMedia.forEach(mediaControls.initMedia);
+                    mediaControls.updateUIVisibility();
+                }
+            }
+        }
+
+        /**
+         * Shadow DOM 루트를 실시간으로 감시합니다.
+         */
+        function observeShadowRoot(root) {
+            if (!root || OBSERVED_SHADOW_ROOTS.has(root)) return;
+            OBSERVED_SHADOW_ROOTS.add(root);
+
+            const observer = new MutationObserver(processMutations);
+            observer.observe(root, { childList: true, subtree: true });
+
+            // 새로 관찰 시작한 루트 내부를 즉시 스캔
+            const newlyFound = [];
+            collectMediaFromNode(root, newlyFound);
+            const uniqueNewMedia = [...new Set(newlyFound)].filter(m => !SEEN_MEDIA.has(m));
+            if (uniqueNewMedia.length > 0) {
+                uniqueNewMedia.forEach(m => SEEN_MEDIA.add(m));
+                activeMediaCache.push(...uniqueNewMedia);
+                uniqueNewMedia.forEach(mediaControls.initMedia);
+                mediaControls.updateUIVisibility();
+            }
+        }
+
+        /**
+         * 스크립트 초기화 시점에 이미 존재하는 Shadow DOM 들에 Observer를 부착합니다.
+         */
+        function attachShadowObserversIfAny() {
+            if (window._shadowDomList_) {
+                window._shadowDomList_.forEach(observeShadowRoot);
+            }
+        }
+
+        /**
+         * iframe 내부 문서가 로드될 때까지 재시도하며 Observer를 설정합니다.
+         */
+        function observeIframeWithRetry(iframe, tries = 0) {
+            const MAX_TRIES = 20; // 100ms * 20 = 2초
+            const TRY_DELAY = 100;
+
+            try {
+                if (iframe?.contentDocument) {
+                    startUnifiedObserver(iframe.contentDocument);
+                    return; // 성공 시 종료
+                }
+            } catch (_) { /* cross-origin 접근 오류는 무시 */ }
+
+            if (tries < MAX_TRIES) {
+                setTimeout(() => observeIframeWithRetry(iframe, tries + 1), TRY_DELAY);
+            }
+        }
+
+        /**
+         * 초기 페이지 로드 시 1회만 실행되는 전체 미디어 스캔 함수입니다.
+         */
+        function initialFullScan() {
+            safeExec(() => {
+                const allMedia = findAllMedia();
+                const unique = allMedia.filter(m => !SEEN_MEDIA.has(m));
+
+                unique.forEach(m => SEEN_MEDIA.add(m));
+                activeMediaCache = unique.slice();
+                unique.forEach(mediaControls.initMedia);
+                mediaControls.updateUIVisibility();
+            }, 'initialFullScan');
+        }
+
+        function findAllMedia() {
             const allMedia = [];
             safeExec(() => {
-                allMedia.push(...this.findInDoc(document));
+                collectMediaFromNode(document, allMedia);
                 document.querySelectorAll('iframe').forEach(iframe => {
                     try {
                         if (iframe.contentDocument) {
-                            allMedia.push(...this.findInDoc(iframe.contentDocument));
+                            collectMediaFromNode(iframe.contentDocument, allMedia);
                         }
                     } catch (e) { /* Cross-origin iframe 접근 오류 무시 */ }
                 });
-            }, 'mediaFinder.findAll');
+            }, 'findAllMedia');
             return [...new Set(allMedia)];
-        },
-    };
+        }
 
-    function findAllMedia() {
-        return mediaFinder.findAll();
-    }
+        function startUnifiedObserver(targetDocument) {
+            if (!targetDocument || PROCESSED_DOCUMENTS.has(targetDocument)) return;
+            const body = targetDocument.body || targetDocument;
+            if (!body) return; // body가 아직 없으면 관찰 불가
 
-    function startUnifiedObserver(targetDocument) {
-        if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
+            const observer = new MutationObserver(processMutations);
+            observer.observe(body, { childList: true, subtree: true });
 
-        const observer = new MutationObserver(debouncedScanTask);
-        const observeTarget = targetDocument.body || targetDocument;
-        observer.observe(observeTarget, { childList: true, subtree: true });
+            OBSERVER_MAP.set(targetDocument, observer);
+            PROCESSED_DOCUMENTS.add(targetDocument);
+        }
 
-        OBSERVER_MAP.set(targetDocument, observer);
-        PROCESSED_DOCUMENTS.add(targetDocument);
-    }
-
-    function initAllDocuments(doc) {
-        safeExec(() => {
-            startUnifiedObserver(doc);
-            doc.querySelectorAll('iframe').forEach(iframe => {
-                try { if (iframe.contentDocument) initAllDocuments(iframe.contentDocument); } catch (e) {}
-                iframe.addEventListener('load', () => {
-                    try { if (iframe.contentDocument) initAllDocuments(iframe.contentDocument); } catch (e) {}
-                }, { once: true });
-            });
-        }, 'initAllDocuments');
-    }
-
-    function initialize() {
-        console.log('🎉 VideoSpeed_Control (v23.25-Patch.2) Initialized.');
-        uiManager.init();
-        speedSlider.init();
-        dragBar.init();
-        if (FeatureFlags.spaPartialUpdate) spaMonitor.init();
-
-        document.addEventListener('fullscreenchange', () => {
-            uiManager.moveUiTo(document.fullscreenElement || document.body);
-        });
-
-        document.addEventListener('addShadowRoot', e => {
+        function initAllDocuments(doc) {
             safeExec(() => {
-                const root = e.detail.shadowRoot;
-                root.querySelectorAll('video,audio').forEach(media => {
-                    if (!MediaStateManager.has(media)) {
-                        activeMediaCache.push(media);
-                        mediaControls.initMedia(media);
-                    }
+                startUnifiedObserver(doc);
+                doc.querySelectorAll('iframe').forEach(iframe => {
+                    observeIframeWithRetry(iframe);
+                    iframe.addEventListener('load', () => observeIframeWithRetry(iframe), { once: true });
                 });
+            }, 'initAllDocuments');
+        }
+
+        function initialize() {
+            console.log('🎉 VideoSpeed_Control (v23.25-Patch.3-Optimized) Initialized.');
+            uiManager.init();
+            speedSlider.init();
+            dragBar.init();
+            if (FeatureFlags.spaPartialUpdate) spaMonitor.init();
+
+            document.addEventListener('fullscreenchange', () => {
+                uiManager.moveUiTo(document.fullscreenElement || document.body);
+            });
+
+            document.addEventListener('addShadowRoot', e => {
+                safeExec(() => observeShadowRoot(e.detail.shadowRoot), 'addShadowRoot handler');
+            });
+
+            attachShadowObserversIfAny(); // 기존 Shadow DOM 관찰
+            initAllDocuments(document); // 메인 문서 및 iframe 관찰 시작
+            initialFullScan(); // 초기 1회 전체 스캔
+        }
+
+        /**
+         * SPA 네비게이션 시, 전체 재설정 대신 가벼운 부분 업데이트를 수행합니다.
+         */
+        function onSpaNavigation() {
+            console.log('[VideoSpeed] SPA Navigation detected. Performing partial update...');
+            safeExec(() => {
+                // 1. DOM에서 제거된 미디어 캐시 정리
+                activeMediaCache = activeMediaCache.filter(m => m.isConnected);
+
+                // 2. 문서 body를 기준으로 증분 스캔하여 새로 추가된 미디어 탐색
+                const newlyFound = [];
+                collectMediaFromNode(document.body, newlyFound);
+                const uniqueNewMedia = [...new Set(newlyFound)].filter(m => !SEEN_MEDIA.has(m));
+
+                if (uniqueNewMedia.length > 0) {
+                    uniqueNewMedia.forEach(m => SEEN_MEDIA.add(m));
+                    activeMediaCache.push(...uniqueNewMedia);
+                    uniqueNewMedia.forEach(mediaControls.initMedia);
+                }
+
                 mediaControls.updateUIVisibility();
-            }, 'addShadowRoot handler');
-        });
+            }, 'onSpaNavigation');
+        }
 
-        initAllDocuments(document);
-        scanTask(); // 초기 스캔
-    }
-
-    // =======================================================
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 이 부분이 누락되었습니다 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // =======================================================
-    function cleanupAndReinitialize() {
-        console.log('[VideoSpeed] SPA Navigation detected. Re-initializing...');
-        for (const obs of OBSERVER_MAP.values()) obs.disconnect();
-        OBSERVER_MAP.clear();
-        PROCESSED_DOCUMENTS = new WeakSet();
-        activeMediaCache = activeMediaCache.filter(m => document.contains(m) || (m.ownerDocument && document.contains(m.ownerDocument.documentElement)));
-
-        mediaControls.updateUIVisibility();
-
-        initAllDocuments(document);
-        scanTask();
-    }
-
-    return { initialize, cleanupAndReinitialize };
-})();
-// =======================================================
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 여기까지가 App 모듈입니다 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-// =======================================================
+        return { initialize, onSpaNavigation };
+    })();
 
     /* ============================
      * 스크립트 실행
