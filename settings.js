@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Lightweight)
+// @name         VideoSpeed_Control (Light)
 // @namespace    https.com/
-// @version      22.5 (플레이어 제어 전용)
+// @version      22.5 (버그 수정)
 // @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중
 // @match        *://*/*
 // @grant        GM.getValue
@@ -62,13 +62,10 @@
         return;
     }
 
-    // 기능 플래그에서 URL 추적 관련 항목 제거
+    // 기능 플래그에서 URL 추적 및 로그 관련 항목 제거
     const FeatureFlags = {
         videoControls: true,
-        logUI: true,
         spaPartialUpdate: true,
-        detailedLogging: true,
-        logLevel: 'INFO',
         previewFiltering: true,
         iframeProtection: true,
         mediaSessionIntegration: true,
@@ -229,7 +226,7 @@
             }
             MANAGED_LISTENERS.get(el).set(key, { ev, handler, options });
         } catch (e) {
-            logManager.logErrorWithContext(e, { message: 'addManagedEventListener failed' });
+            console.error('addManagedEventListener failed:', e);
         }
     }
 
@@ -242,10 +239,9 @@
                 }
                 MANAGED_LISTENERS.delete(el);
                 if (el._vm_handlers) el._vm_handlers.clear();
-                logManager.addOnce(`listeners_cleared_${el.tagName}`, `🎧 Listeners cleaned for removed <${el.tagName}>`, 5000, 'debug');
             }
         } catch (e) {
-            logManager.logErrorWithContext(e, { message: 'removeAllManagedEventListeners failed' });
+            console.error('removeAllManagedEventListeners failed:', e);
         }
     }
 
@@ -272,7 +268,6 @@
     })();
 
     let PROCESSED_DOCUMENTS = new WeakSet();
-    const LOGGED_KEYS_WITH_TIMER = new Map();
     const isTopFrame = window.self === window.top;
     const OBSERVER_MAP = new Map();
     let activeMediaCache = [];
@@ -300,9 +295,6 @@
             style.textContent = `
                 :host { pointer-events: none; }
                 * { pointer-events: auto; }
-                #vm-log-container { position: fixed; bottom: 0; right: 0; width: 350px; max-height: 30px; z-index: 100; pointer-events: none; background: transparent; color: #fff; font-family: monospace; font-size: 14px; border-top-left-radius: 8px; overflow: hidden; opacity: 0; transition: opacity 0.3s ease, max-height 0.3s ease; box-shadow: none; }
-                #vm-log-container:hover { max-height: 350px; }
-                #vm-log-box { max-height: 100%; overflow-y: auto; padding: 8px; user-select: text; text-align: left; background: rgba(30, 30, 30, 0.7); backdrop-filter: blur(2px); border-top-left-radius: 8px; }
                 #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity .2s, width .3s, background .2s; pointer-events: auto; }
                 #vm-speed-slider-container:hover { opacity: 1; background: rgba(0,0,0,0.0); }
                 #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 120px; margin: 0; accent-color: #e74c3c; }
@@ -328,71 +320,9 @@
     })();
 
     /* ============================
-     * 로그 모듈
-     * ============================ */
-    const logManager = (() => {
-        let container = null, box = null, pending = [];
-        function safeAdd(msg, level = 'info') {
-            const levels = { 'debug': 0, 'info': 1, 'warn': 2, 'error': 3 };
-            const currentLevel = levels[FeatureFlags.logLevel.toLowerCase()] || 1;
-            const msgLevel = levels[level] || 1;
-            if (msgLevel < currentLevel) return;
-
-            const icons = { info: 'ℹ️', warn: '⚠️', error: '🔴', debug: '🔧' };
-            const full = `[${new Date().toLocaleTimeString()}] ${icons[level] || ''} ${msg}`;
-            if (FeatureFlags.detailedLogging) console.log(full);
-
-            if (!FeatureFlags.logUI || !isTopFrame) return;
-
-            if (!container) initUI();
-            if (!box) { pending.push(full); return; }
-
-            const el = document.createElement('div');
-            el.textContent = full;
-            if (box.childElementCount >= 100) box.removeChild(box.firstChild);
-            box.appendChild(el);
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function initUI() {
-            if (!isTopFrame || container) return;
-            const shadowRoot = uiManager.getShadowRoot();
-            container = document.createElement('div');
-            container.id = 'vm-log-container';
-            box = document.createElement('div');
-            box.id = 'vm-log-box';
-            container.appendChild(box);
-            shadowRoot.appendChild(container);
-            pending.forEach(p => safeAdd(p));
-            pending = [];
-        }
-
-        function logMediaContext(media, message, level = 'info') {
-            if (!FeatureFlags.detailedLogging || !media) return;
-            try {
-                const rect = media.getBoundingClientRect();
-                const playing = !media.paused;
-                const src = media.currentSrc || media.src || 'none';
-                const duration = isFinite(media.duration) ? media.duration.toFixed(1) : 'N/A';
-                addOnce(`media_${src}_${message}`, `🎬 ${message} | ${Math.round(rect.width)}x${Math.round(rect.height)} | ${duration}s | ${playing ? '재생중' : '정지'}`, 5000, level);
-            } catch (e) {}
-        }
-        function addOnce(key, msg, delay = 6000, lvl = 'info') {
-            if (!LOGGED_KEYS_WITH_TIMER.has(key)) {
-                LOGGED_KEYS_WITH_TIMER.set(key, setTimeout(() => LOGGED_KEYS_WITH_TIMER.delete(key), delay));
-                safeAdd(msg, lvl);
-            }
-        }
-        function logErrorWithContext(err, ctx) {
-            const msg = `❗ 에러: ${err?.message || err} | 컨텍스트: ${ctx?.message || 'N/A'}`;
-            safeAdd(msg, 'error');
-        }
-        return { init: initUI, add: safeAdd, addOnce, logMediaContext, logErrorWithContext };
-    })();
-
-    /* ============================
      * 미리보기 감지
      * ============================ */
+    // 재생 시간이 12초보다 짧은 영상에는 속도 조절 UI가 나타나지 않도록
     const PREVIEW_CONFIG = { DURATION_THRESHOLD: 12 };
 
     /* ============================
@@ -409,7 +339,7 @@
                         try { sr.querySelectorAll && sr.querySelectorAll('video,audio').forEach(m => out.push(m)); } catch (e) {}
                     });
                 }
-            } catch (e) { logManager.logErrorWithContext(e, { message: 'findInDoc failed' }); }
+            } catch (e) { console.error('findInDoc failed:', e); }
             return out;
         },
         findAll() {
@@ -438,7 +368,7 @@
                 navigator.mediaSession.setActionHandler('seekbackward', (details) => { media.currentTime = Math.max(0, media.currentTime - (details.seekOffset || 10)); });
                 navigator.mediaSession.setActionHandler('seekforward', (details) => { media.currentTime = Math.min(media.duration, media.currentTime + (details.seekOffset || 10)); });
             } catch (e) {
-                logManager.logErrorWithContext(e, { message: '미디어 세션 설정 실패' });
+                console.error('미디어 세션 설정 실패:', e);
             }
         }
         function clearSession() {
@@ -506,7 +436,7 @@
     })();
 
     const dragBar = (() => {
-        let display = null, inited = false;
+        let display = null, inited = false, visible = false;
         let state = { dragging: false, isHorizontalDrag: false, startX: 0, startY: 0, accX: 0 };
         function fmt(s) {
             const sign = s < 0 ? '-' : '+';
@@ -516,14 +446,18 @@
             return `${sign}${mm}분${ss}초`;
         }
         function apply() {
-            const deltaSec = Math.round(state.accX / (DRAG_CONFIG.PIXELS_PER_SECOND || 2));
+            const deltaSec = Math.round(state.accX / (DRAG_CONFIG?.PIXELS_PER_SECOND || 2));
             if (!deltaSec) return;
-            activeMediaCache.forEach(m => {
-                try {
-                    if (!(m.tagName === 'VIDEO' || m.tagName === 'AUDIO') || !isFinite(m.duration)) return;
-                    m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec));
-                } catch (e) {}
-            });
+            try {
+                // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
+                activeMediaCache.forEach(m => {
+                    try {
+                        if (!(m.tagName === 'VIDEO' || m.tagName === 'AUDIO')) return;
+                        if (!isFinite(m.duration)) return;
+                        m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec));
+                    } catch (e) {}
+                });
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar apply failed' }); }
         }
         const showDisplay = (v) => {
             if (!display) {
@@ -536,53 +470,77 @@
             }
             display.textContent = fmt(v);
             display.style.display = 'block';
+            display.style.opacity = '1';
+            visible = true;
         };
-        const hideDisplay = () => { if (display) { display.style.display = 'none'; }};
+        const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => display.style.display = 'none', 300); } visible = false; };
         function onStart(e) {
             try {
-                if (speedSlider.isMinimized() || e.button === 2 || e.composedPath().some(el => el.id === 'vm-speed-slider-container')) return;
-                if (!activeMediaCache.some(m => m.tagName === 'VIDEO' && !m.paused)) return;
+                // [부활한 로직 1] 배속바가 최소화 상태이면 드래그 중단
+                if (speedSlider.isMinimized()) {
+                    return;
+                }
 
-                const pos = e.touches ? e.touches[0] : e;
-                state.dragging = true;
-                state.startX = pos.clientX;
-                state.startY = pos.clientY;
-                state.accX = 0;
-                document.addEventListener('mousemove', onMove, { passive: false, capture: true });
-                document.addEventListener('mouseup', onEnd, { passive: false, capture: true });
+                // [부활한 로직 2] 클릭 경로에 배속바 UI가 포함되면 드래그 중단
+                const path = e.composedPath();
+                if (path.some(el => el.id === 'vm-speed-slider-container')) {
+                    return;
+                }
+
+                 if (e.button === 2) return;
+                 // [개선] DOM 전체 탐색 대신 캐시된 미디어 목록 사용
+                 if (!activeMediaCache.some(m => m.tagName === 'VIDEO' && !m.paused)) { return; }
+                 const pos = e.touches ? e.touches[0] : e;
+                 state.dragging = true;
+                 state.startX = pos.clientX;
+                 state.startY = pos.clientY;
+                 state.accX = 0;
+                 document.addEventListener('mousemove', onMove, { passive: false, capture: true });
+                 document.addEventListener('mouseup', onEnd, { passive: false, capture: true });
+                 document.addEventListener('touchmove', onMove, { passive: false, capture: true });
+                 document.addEventListener('touchend', onEnd, { passive: false, capture: true });
             } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar onStart failed' }); }
         }
         function onMove(e) {
             if (!state.dragging) return;
-            const pos = e.touches ? e.touches[0] : e;
-            const dx = pos.clientX - state.startX;
-            const dy = pos.clientY - state.startY;
-            if (!state.isHorizontalDrag) {
-                if (Math.abs(dx) > 10 && Math.abs(dy) < Math.abs(dx)) {
-                    state.isHorizontalDrag = true;
-                } else if (Math.abs(dy) > 10) { onEnd(); return; }
-            }
-            if (state.isHorizontalDrag) {
-                e.preventDefault(); e.stopImmediatePropagation();
-                state.accX += dx;
-                state.startX = pos.clientX;
-                showDisplay(state.accX / DRAG_CONFIG.PIXELS_PER_SECOND);
-            }
+            try {
+                if ((e.touches && e.touches.length > 1) || (e.pointerType === 'touch' && e.pointerId > 1)) return onEnd();
+                const pos = e.touches ? e.touches[0] : e;
+                const dx = pos.clientX - state.startX;
+                const dy = pos.clientY - state.startY;
+                if (!state.isHorizontalDrag) {
+                    if (Math.abs(dx) > 10 && Math.abs(dy) < Math.abs(dx)) {
+                        state.isHorizontalDrag = true;
+                        e.preventDefault(); e.stopImmediatePropagation();
+                        document.body.style.userSelect = 'none';
+                        document.body.style.touchAction = 'none';
+                    } else if (Math.abs(dy) > 10) { return onEnd(); }
+                }
+                if (state.isHorizontalDrag) {
+                    e.preventDefault(); e.stopImmediatePropagation();
+                    state.accX += dx;
+                    state.startX = pos.clientX;
+                    showDisplay(state.accX / (DRAG_CONFIG.PIXELS_PER_SECOND || 2));
+                }
+            } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar onMove failed' }); onEnd(); }
         }
         function onEnd() {
             if (!state.dragging) return;
-            if (state.isHorizontalDrag) apply();
-            state.dragging = false;
-            state.isHorizontalDrag = false;
+            apply();
+            state.dragging = false; state.accX = 0; state.isHorizontalDrag = false;
             hideDisplay();
+            document.body.style.userSelect = ''; document.body.style.touchAction = '';
             document.removeEventListener('mousemove', onMove, true);
             document.removeEventListener('mouseup', onEnd, true);
+            document.removeEventListener('touchmove', onMove, true);
+            document.removeEventListener('touchend', onEnd, true);
         }
         function init() {
             if (inited) return; inited = true;
             addOnceEventListener(document, 'mousedown', onStart, { passive: false, capture: true });
+            addOnceEventListener(document, 'touchstart', onStart, { passive: false, capture: true });
         }
-        return { init, show: () => { if (display) display.style.display = 'block'; }, hide: hideDisplay };
+        return { init, show: () => visible && display && (display.style.display = 'block'), hide: hideDisplay, display: () => display };
     })();
 
     /* ============================
@@ -611,7 +569,6 @@
 
             addManagedEventListener(media, 'loadedmetadata', function () {
                 updateUIVisibility();
-                logManager.logMediaContext(media, '미디어 로드 완료');
             }, { once: true });
             addManagedEventListener(media, 'play', () => {
                 updateUIVisibility();
@@ -642,7 +599,6 @@
             setTimeout(() => {
                 const now = location.href;
                 if (now !== lastURL) {
-                    logManager.add(`🔄 SPA 네비게이션: ${lastURL} -> ${now}`, 'info');
                     PROCESSED_DOCUMENTS = new WeakSet();
                     App.initializeAll(document);
                     lastURL = now;
@@ -700,14 +656,18 @@
             if (targetDocument === document) {
                 await configManager.init();
                 uiManager.init();
-                logManager.init();
-                logManager.add('🎉 VideoSpeed_Control (Lite) 초기화', 'info');
+                console.log('🎉 VideoSpeed_Control (Lite) 초기화');
                 if (FeatureFlags.spaPartialUpdate) spaMonitor.init();
                 await speedSlider.init();
                 dragBar.init();
                 // 주기적 스캔(안전망)
                 setInterval(scanTask, 5000);
             }
+
+            addOnceEventListener(document, 'fullscreenchange', () => {
+                    uiManager.moveUiTo(document.fullscreenElement || document.body);
+                    speedSlider.updatePositionAndSize();
+                });
 
             startUnifiedObserver(targetDocument);
             scanTask(); // 초기 스캔
