@@ -399,7 +399,7 @@
             if (!container) {
                 container = document.createElement('div'); container.id = 'vm-speed-slider-container';
                 const reset = document.createElement('button'); reset.className = 'vm-btn'; reset.textContent = '1x';
-                const slider = document.createElement('input'); slider.type = 'range'; slider.min = '0.2'; slider.max = '4.0'; slider.step = '0.1'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
+                const slider = document.createElement('input'); slider.type = 'range'; slider.min = '0.2'; slider.max = '4.0'; slider.step = '0.2'; slider.value = '1.0'; slider.id = 'vm-speed-slider';
                 const val = document.createElement('div'); val.id = 'vm-speed-value'; val.textContent = 'x1.0';
                 const toggle = document.createElement('button'); toggle.className = 'vm-btn';
 
