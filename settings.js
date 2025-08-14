@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light - Master Hybrid)
 // @namespace    https.com/
-// @version      23.25-Patch.11-Master-Hybrid
-// @description  🎞️ [최종 완성판] 사용자의 완벽한 하이브리드 탐색 로직과 모든 편의 기능(드래그 탐색, UI 최소화 등)을 결합한 가장 안정적이고 강력한 최종 버전입니다.
+// @version      23.25-Patch.12-Overlay-Fix
+// @description  🎞️ [최종 완성판] 투명 오버레이가 덮인 비디오 플레이어에서도 드래그 탐색이 가능하도록 로직을 개선한 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -129,7 +129,11 @@
         function onStart(e) {
             safeExec(() => {
                 const target = e.target;
-                if (target?.tagName !== 'VIDEO') return;
+
+                let videoElement = (target?.tagName === 'VIDEO') ? target : target?.parentElement?.querySelector('video');
+
+                if (!videoElement || videoElement.paused) return;
+
                 if (speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container'))) return;
                 if (e.type === 'mousedown' && e.button !== 0) return;
 
@@ -161,8 +165,10 @@
                 applySeek();
                 Object.assign(state, { dragging: false, accX: 0 });
                 hideDisplay();
-                ['mousemove', 'touchmove', 'mouseup', 'touchend'].forEach(type => document.removeEventListener(type, onMove, true));
-                ['mousemove', 'touchmove', 'mouseup', 'touchend'].forEach(type => document.removeEventListener(type, onEnd, true));
+                document.removeEventListener('mousemove', onMove, true);
+                document.removeEventListener('touchmove', onMove, true);
+                document.removeEventListener('mouseup', onEnd, true);
+                document.removeEventListener('touchend', onEnd, true);
             }, 'dragBar.onEnd');
         }
 
@@ -196,6 +202,7 @@
             display.style.display = 'block';
             display.style.opacity = '1';
         };
+
         const hideDisplay = () => {
             if (display) {
                 display.style.opacity = '0';
@@ -228,7 +235,7 @@
     })();
 
     /* ============================
-     * 미디어 검색 및 하이브리드 스캔 로직 (사용자 아이디어 적용)
+     * 미디어 검색 및 하이브리드 스캔 로직
      * ============================ */
     function findAllMedia(doc = document) {
         const media = [];
@@ -273,7 +280,6 @@
             const mediaElements = [];
             if (node.matches?.('video, audio')) mediaElements.push(node);
             node.querySelectorAll?.('video, audio').forEach(m => mediaElements.push(m));
-
             if(mediaElements.length > 0) {
                 mediaElements.forEach(initMedia);
                 foundNew = true;
@@ -286,12 +292,11 @@
      * 초기화
      * ============================ */
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (v23.25-Patch.10-Final-Hybrid-SPA) Initialized.');
+        console.log('🎉 VideoSpeed_Control (v23.25-Patch.12.1-Error-Fix) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
 
-        // 지능형 하이브리드 MutationObserver
         const observer = new MutationObserver(mutations => {
             const addedNodes = mutations.flatMap(m => (m.type === 'childList' ? [...m.addedNodes] : []));
             if (addedNodes.length > 0) {
@@ -302,18 +307,17 @@
         });
         observer.observe(document.documentElement, { childList: true, subtree: true });
 
-        // Shadow DOM 생성 감지
         document.addEventListener('addShadowRoot', debouncedScanTask);
 
-        // SPA 네비게이션 감지
         const originalPushState = history.pushState;
-        history.pushState = function() { originalPushState.apply(this, arguments); scanTask(); };
+        history.pushState = function() {
+            originalPushState.apply(this, arguments);
+            scanTask();
+        };
         window.addEventListener('popstate', () => scanTask());
 
-        // 전체 화면 변경 감지
         document.addEventListener('fullscreenchange', () => uiManager.moveUiTo(document.fullscreenElement || document.body));
 
-        // 최초 실행
         scanTask();
     }
 
