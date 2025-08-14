@@ -1,14 +1,9 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light)
 // @namespace    https.com/
-// @version      22.8 (DOM 감시 범위 축소)
+// @version      22.8 (DOM 감시 범위 축소) (임시저장)
 // @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중 (CPU/메모리 최적화 적용)
 // @match        *://*/*
-// @grant        GM.getValue
-// @grant        GM.setValue
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_listValues
 // @grant        none
 // @run-at       document-start
 // ==/UserScript==
@@ -685,30 +680,33 @@
 
     // 문서 단위 정리 함수
     function cleanupDocument(targetDocument) {
-        try {
-            if (!targetDocument) return;
-            // disconnect observer for this doc
-            const obs = OBSERVER_MAP.get(targetDocument);
-            if (obs) {
-                try { obs.disconnect(); } catch (e) {}
-                OBSERVER_MAP.delete(targetDocument);
-            }
-            // remove from processed set
-            try { PROCESSED_DOCUMENTS.delete(targetDocument); } catch (e) {}
-            // if it was an iframe doc, clear media state for its elements
-            try {
-                const medias = mediaFinder.findInDoc(targetDocument);
-                medias.forEach(m => {
-                    try {
-                        removeAllManagedEventListeners(m);
-                        MediaStateManager.delete(m);
-                    } catch (e) {}
-                });
-            } catch (e) {}
-            // refresh global cache
-            scanTask();
-        } catch (e) { console.error('cleanupDocument failed', e); }
-    }
+      if (!targetDocument) return;
+
+      // disconnect observer for this document
+      const obs = OBSERVER_MAP.get(targetDocument);
+      if (obs) {
+          obs.disconnect();
+          OBSERVER_MAP.delete(targetDocument);
+      }
+
+      // remove from processed set
+      PROCESSED_DOCUMENTS.delete(targetDocument);
+
+      // clear media state for its elements if it's an iframe doc
+      try {
+          const medias = mediaFinder.findInDoc(targetDocument);
+          for (const m of medias) {
+              removeAllManagedEventListeners(m);
+              MediaStateManager.delete(m);
+          }
+      } catch (err) {
+          console.warn("Failed to clear media state:", err);
+      }
+
+      // optionally refresh global cache if really needed
+      // scanTask(); // ← 필요 시만 실행
+  }
+
 
     const App = (() => {
         function initIframe(iframe) {
@@ -785,8 +783,6 @@
                 if (FeatureFlags.spaPartialUpdate) spaMonitor.init();
                 await speedSlider.init();
                 dragBar.init();
-                // 주기적 스캔 제거 (안전망 제거)
-                // setInterval(scanTask, 5000); // 제거됨
             }
 
             // fullscreen 변경 시 UI 루트 이동
