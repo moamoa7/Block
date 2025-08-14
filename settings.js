@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light - Master Hybrid)
 // @namespace    https.com/
-// @version      23.25-Patch.12-Overlay-Fix
-// @description  🎞️ [최종 완성판] 투명 오버레이가 덮인 비디오 플레이어에서도 드래그 탐색이 가능하도록 로직을 개선한 최종 버전입니다.
+// @version      23.25-Patch.13-Perf-Tuned
+// @description  🎞️ [최종 완성판] 드래그 탐색 성능을 requestAnimationFrame으로 최적화하고, 모든 편의 기능을 포함한 최종 안정화 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -129,11 +129,8 @@
         function onStart(e) {
             safeExec(() => {
                 const target = e.target;
-
                 let videoElement = (target?.tagName === 'VIDEO') ? target : target?.parentElement?.querySelector('video');
-
                 if (!videoElement || videoElement.paused) return;
-
                 if (speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container'))) return;
                 if (e.type === 'mousedown' && e.button !== 0) return;
 
@@ -155,7 +152,10 @@
                 const dx = pos.clientX - state.startX;
                 state.accX += dx;
                 state.startX = pos.clientX;
-                showDisplay(state.accX);
+                // [개선] UI 업데이트를 requestAnimationFrame으로 최적화
+                window.requestAnimationFrame(() => {
+                    showDisplay(state.accX);
+                });
             }, 'dragBar.onMove');
         }
 
@@ -292,7 +292,7 @@
      * 초기화
      * ============================ */
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (v23.25-Patch.12.1-Error-Fix) Initialized.');
+        console.log('🎉 VideoSpeed_Control (v23.25-Patch.13-Perf-Tuned) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
