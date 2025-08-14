@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light)
 // @namespace    https.com/
-// @version      23.0 (고급 최적화 제안 반영)
-// @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중 (고급 최적화 적용)
+// @version      23.1 (안정성 강화)
+// @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중 (안정성 강화)
 // @match        *://*/*
 // @grant        GM.getValue
 // @grant        GM.setValue
@@ -20,7 +20,7 @@
      * 설정: 전역 기능 및 제외 도메인
      * ============================ */
     const FeatureFlags = {
-        debug: false, // 디버그 로그 출력 여부
+        debug: false,
         videoControls: true,
         spaPartialUpdate: true,
         previewFiltering: true,
@@ -30,7 +30,7 @@
 
     const NOT_EXCLUSION_DOMAINS = ['avsee.ru'];
     const EXCLUSION_PATHS = ['/bbs/login.php'];
-    const PREVIEW_CONFIG = { DURATION_THRESHOLD: 12 }; // 12초 미만은 미리보기로 간주
+    const PREVIEW_CONFIG = { DURATION_THRESHOLD: 12 };
 
     /* ============================
      * 유틸리티 함수
@@ -93,12 +93,12 @@
     }, 'consoleClearProtection');
 
     /* ============================
-     * Shadow DOM 강제 open (미디어 탐지를 위한 핵심 기능)
+     * Shadow DOM 강제 open
      * ============================ */
     (function hackAttachShadow() {
         if (window._hasHackAttachShadow_) return;
         safeExec(() => {
-            window._shadowDomList_ = [];
+            window._shadowDomList_ = window._shadowDomList_ || [];
             const originalAttachShadow = window.Element.prototype.attachShadow;
             window.Element.prototype.attachShadow = function () {
                 const args = arguments;
@@ -157,7 +157,6 @@
                 }
                 #vm-speed-slider-container:hover { opacity: 1; }
                 #vm-speed-slider-container.minimized { width: 30px; }
-
                 #vm-speed-slider, #vm-speed-value, #vm-speed-slider-container .vm-btn.reset {
                     opacity: 1;
                     transform: scaleY(1);
@@ -196,7 +195,6 @@
             }
         };
     })();
-
 
     /* ============================
      * 핵심 로직 모듈
@@ -242,7 +240,14 @@
         }
 
         const updateValueText = (speed) => valueEl.textContent = `x${speed.toFixed(1)}`;
-        const applySpeed = (speed) => activeMediaCache.forEach(m => safeExec(() => { m.playbackRate = speed; }));
+
+        const applySpeed = (speed) => {
+            activeMediaCache.forEach(m => {
+                if (!m.paused && m.playbackRate !== speed) {
+                     safeExec(() => { m.playbackRate = speed; });
+                }
+            });
+        };
 
         function updateAppearance() {
             if (!container) return;
@@ -259,8 +264,9 @@
     })();
 
     const dragBar = (() => {
-        let display, inited = false, visible = false;
-        let state = { dragging: false, isHorizontalDrag: false, startX: 0, startY: 0, accX: 0 };
+        let display, inited = false;
+        let state = { dragging: false, startX: 0, startY: 0, accX: 0 };
+        let lastDelta = 0;
 
         function onStart(e) {
             safeExec(() => {
@@ -269,7 +275,7 @@
                 if (!activeMediaCache.some(m => m.tagName === 'VIDEO' && !m.paused)) return;
 
                 const pos = e.touches ? e.touches[0] : e;
-                Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, accX: 0, isHorizontalDrag: false });
+                Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, accX: 0 });
 
                 const options = { passive: false, capture: true };
                 document.addEventListener(e.type === 'mousedown' ? 'mousemove' : 'touchmove', onMove, options);
@@ -287,7 +293,7 @@
                 const dx = pos.clientX - state.startX;
                 state.accX += dx;
                 state.startX = pos.clientX;
-                showDisplay(state.accX / 2); // 2 pixels per second
+                showDisplay(state.accX);
             }, 'dragBar.onMove');
         }
 
@@ -309,45 +315,51 @@
             if (!deltaSec) return;
             activeMediaCache.forEach(m => {
                  if (isFinite(m.duration)) {
-                    m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec));
-                }
+                     m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec));
+                 }
             });
         }
 
         function init() {
             if (inited) return;
             document.addEventListener('mousedown', onStart, { capture: true });
-            document.addEventListener('touchstart', onStart, { passive: true, capture: true }); // Start passive
+            document.addEventListener('touchstart', onStart, { passive: true, capture: true });
             inited = true;
         }
 
         const showDisplay = (pixels) => {
+            const s = Math.round(pixels / 2);
+            if (s === lastDelta) return;
+            lastDelta = s;
+
             if (!display) {
                 const shadowRoot = uiManager.getShadowRoot();
                 display = document.createElement('div');
                 display.id = 'vm-time-display';
                 shadowRoot.appendChild(display);
             }
-            const s = pixels / 2;
             const sign = s < 0 ? '-' : '+';
-            const a = Math.abs(Math.round(s));
+            const a = Math.abs(s);
             const mm = Math.floor(a / 60).toString().padStart(2, '0');
             const ss = (a % 60).toString().padStart(2, '0');
             display.textContent = `${sign}${mm}분 ${ss}초`;
             display.style.display = 'block';
             display.style.opacity = '1';
-            visible = true;
         };
         const hideDisplay = () => {
             if (display) {
                 display.style.opacity = '0';
                 setTimeout(() => { if (display) display.style.display = 'none'; }, 300);
             }
-            visible = false;
         };
 
         return { init: () => safeExec(init, 'dragBar.init') };
     })();
+
+    const getSeekTime = (rate) => {
+        const SEEK_MIN = 1, SEEK_MAX = 15, SEEK_BASE = 5;
+        return Math.min(Math.max(SEEK_MIN, SEEK_BASE * rate), SEEK_MAX);
+    };
 
     const mediaSessionManager = (() => {
         const setSession = (media) => {
@@ -358,12 +370,10 @@
                     artist: window.location.hostname,
                     album: 'VideoSpeed_Control',
                 });
-                // [개선 4] 재생속도에 비례한 탐색 시간 적용 (기본 5초)
-                const seekTime = (details) => (details.seekOffset || 5 * media.playbackRate);
                 navigator.mediaSession.setActionHandler('play', () => media.play());
                 navigator.mediaSession.setActionHandler('pause', () => media.pause());
-                navigator.mediaSession.setActionHandler('seekbackward', (d) => { media.currentTime -= seekTime(d); });
-                navigator.mediaSession.setActionHandler('seekforward', (d) => { media.currentTime += seekTime(d); });
+                navigator.mediaSession.setActionHandler('seekbackward', () => { media.currentTime -= getSeekTime(media.playbackRate); });
+                navigator.mediaSession.setActionHandler('seekforward', () => { media.currentTime += getSeekTime(media.playbackRate); });
             }, 'mediaSession.set');
         };
         const clearSession = () => {
@@ -376,30 +386,21 @@
         return { setSession, clearSession };
     })();
 
-
     /* ============================
      * 메인 컨트롤러 (App)
      * ============================ */
     const mediaControls = (() => {
-        const uiState = { hasMedia: null, hasPlayingVideo: null };
+        const uiState = { hasMedia: null };
 
         const isPreview = (media) => (media.duration > 0 && media.duration < PREVIEW_CONFIG.DURATION_THRESHOLD);
 
-        async function updateUIVisibility() {
-            // [개선 1, 2] 미리보기 영상을 제외하고, UI 상태 변경이 있을 때만 DOM 조작
+        function updateUIVisibility() {
             const nonPreviewMedia = activeMediaCache.filter(m => !isPreview(m));
             const newHasMedia = nonPreviewMedia.length > 0;
-            const newHasPlayingVideo = nonPreviewMedia.some(m => m.tagName === 'VIDEO' && !m.paused);
 
             if (newHasMedia !== uiState.hasMedia) {
                 newHasMedia ? speedSlider.show() : speedSlider.hide();
                 uiState.hasMedia = newHasMedia;
-            }
-            // dragBar는 재생 중일때만 의미 있으므로 그대로 둠
-            if (newHasPlayingVideo) {
-                // dragBar.show(); // dragBar는 onMove에서 직접 처리
-            } else {
-                // dragBar.hide();
             }
         }
 
@@ -426,17 +427,14 @@
     })();
 
     const spaMonitor = (() => {
-        let lastURL = location.href, navTimer = null;
-        // [개선 5] 디바운스 로직을 개선하여 중복 실행 방지
-        const onNavigate = () => {
-            clearTimeout(navTimer);
-            navTimer = setTimeout(() => {
-                if (location.href !== lastURL) {
-                    lastURL = location.href;
-                    App.cleanupAndReinitialize();
-                }
-            }, 200);
-        };
+        let lastURL = location.href;
+        const onNavigate = debounce(() => {
+            if (location.href !== lastURL) {
+                lastURL = location.href;
+                App.cleanupAndReinitialize();
+            }
+        }, 200);
+
         const init = () => {
             const originalPushState = history.pushState;
             history.pushState = function() { originalPushState.apply(this, arguments); onNavigate(); };
@@ -454,7 +452,8 @@
             mediaControls.updateUIVisibility();
         }, 'scanTask');
 
-        const debouncedScanTask = debounce(scanTask, 100);
+        // [안정성 수정] DOM 전체를 스캔하는 안정적인 방식을 기본으로 사용
+        const debouncedScanTask = debounce(scanTask, 250);
 
         function findAllMedia() {
             const media = [];
@@ -468,17 +467,18 @@
                 document.querySelectorAll('iframe').forEach(iframe => {
                     try {
                         if (iframe.contentDocument) {
-                           iframe.contentDocument.querySelectorAll('video, audio').forEach(m => media.push(m));
+                            iframe.contentDocument.querySelectorAll('video, audio').forEach(m => media.push(m));
                         }
                     } catch (e) {}
                 });
             }, 'findAllMedia');
-            return [...new Set(media)]; // 중복 제거
+            return [...new Set(media)];
         }
 
         function startUnifiedObserver(targetDocument) {
             if (PROCESSED_DOCUMENTS.has(targetDocument)) return;
 
+            // [안정성 수정] MutationObserver는 이제 안정적인 전체 스캔을 호출합니다.
             const observer = new MutationObserver(debouncedScanTask);
             const observeTarget = targetDocument.body || targetDocument;
             observer.observe(observeTarget, { childList: true, subtree: true });
@@ -500,7 +500,7 @@
         }
 
         function initialize() {
-            console.log('🎉 VideoSpeed_Control (v23.0) Initialized.');
+            console.log('🎉 VideoSpeed_Control (v23.2) Initialized.');
             uiManager.init();
             speedSlider.init();
             dragBar.init();
@@ -508,6 +508,20 @@
 
             document.addEventListener('fullscreenchange', () => {
                  uiManager.moveUiTo(document.fullscreenElement || document.body);
+            });
+
+            // Shadow DOM 추가 시에는 즉시 스캔하여 반응성 유지
+            document.addEventListener('addShadowRoot', e => {
+                safeExec(() => {
+                    const root = e.detail.shadowRoot;
+                    root.querySelectorAll('video,audio').forEach(media => {
+                        if (!MediaStateManager.has(media)) {
+                             activeMediaCache.push(media);
+                             mediaControls.initMedia(media);
+                        }
+                    });
+                    mediaControls.updateUIVisibility();
+                }, 'addShadowRoot handler');
             });
 
             initAllDocuments(document);
@@ -520,6 +534,8 @@
             OBSERVER_MAP.clear();
             PROCESSED_DOCUMENTS = new WeakSet();
             activeMediaCache = [];
+
+            mediaControls.updateUIVisibility();
 
             initAllDocuments(document);
             scanTask();
