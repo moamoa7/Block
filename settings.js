@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      22.1 (팝업 차단 로직 제거)
+// @version      22.2 (자잘한 버그 수정)
 // @description  🎞️ [개선판] UI ShadowDOM 격리 + ⚡성능 최적화 + 🔧YouTube 탐지 강화 + ✨미디어 세션 API 연동
 // @match        *://*/*
 // @grant        GM.getValue
@@ -402,13 +402,13 @@
                 }
                 /* Log Manager UI */
                 #vm-log-container { position: fixed; bottom: 0; right: 0; width: 350px; max-height: 30px; z-index: 100; pointer-events: none; background: transparent; color: #fff; font-family: monospace; font-size: 14px; border-top-left-radius: 8px; overflow: hidden; opacity: 0; transition: opacity 0.3s ease, max-height 0.3s ease; box-shadow: none; }
-                #vm-log-container:hover { max-height: 200px; }
+                #vm-log-container:hover { max-height: 350px; }
                 #vm-log-copy-btn { position: absolute; top: 0; right: 0; background: #c0392b; color: #fff; border: none; border-bottom-left-radius: 8px; padding: 4px 8px; font-size: 14px; cursor: pointer; z-index: 101; opacity: 0.8; }
                 #vm-log-box { max-height: 100%; overflow-y: auto; padding: 8px; padding-top: 25px; user-select: text; text-align: left; background: rgba(30, 30, 30, 0.7); backdrop-filter: blur(2px); border-top-left-radius: 8px; }
 
                 /* Speed Slider UI */
                 #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity .2s, width .3s, background .2s; pointer-events: auto; }
-                #vm-speed-slider-container:hover { opacity: 1; background: rgba(0,0,0,0.4); }
+                #vm-speed-slider-container:hover { opacity: 1; background: rgba(0,0,0,0.0); }
                 #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 120px; margin: 0; accent-color: #e74c3c; }
                 #vm-speed-value { color: #f44336; font-weight: bold; font-size: 14px; margin-top: 6px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
                 .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin:4px 0; }
@@ -418,7 +418,7 @@
                 #vm-time-display { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 102; background: rgba(0,0,0,0.7); color: #fff; padding: 10px 20px; border-radius: 5px; font-size: 1.5rem; display: none; opacity: 1; transition: opacity 0.3s ease-out; pointer-events: none; }
 
                 /* Dynamic Media UI */
-                #dynamic-media-url-btn { position: fixed; top: 45px; right: 10px; z-index: 100; background: rgba(0,0,0,0.6); color: #fff; border: none; padding: 6px 8px; border-radius: 6px; display: none; cursor: pointer; transition: background 0.3s; opacity: 1; }
+                #dynamic-media-url-btn { position: fixed; top: 45px; right: 10px; z-index: 100; background: rgba(0,0,0,0.0); color: #fff; border: none; padding: 6px 8px; border-radius: 6px; display: none; cursor: pointer; transition: background 0.3s; opacity: 1; }
             `;
             shadowRoot.appendChild(style);
             (document.body || document.documentElement).appendChild(host);
@@ -842,7 +842,12 @@
             if (ctx.source) details.push(`src:${ctx.source}`);
             if (ctx.rect) details.push(`size:${Math.round(ctx.rect.width)}x${Math.round(ctx.rect.height)}`);
             logManager.addOnce(`early_${norm}`, `🎯 동적 영상 URL 감지: ${norm.substring(0, 80)}... | ${details.join(' | ')}`, 5000, 'info');
-            try { if (FeatureFlags.videoControls) dynamicMediaUI && dynamicMediaUI.show(norm); } catch (e) {}
+            try {
+              if (FeatureFlags.videoControls) {
+                  dynamicMediaUI.show(norm);
+                  speedSlider.show();
+              }
+          } catch (e) {}
             if (ctx.element && !MediaStateManager.has(ctx.element)) {
                 MediaStateManager.set(ctx.element, { trackedUrl: norm, isInitialized: false });
             }
@@ -1406,7 +1411,7 @@
                 if (el) el.style.display = isHidden ? 'none' : 'block';
             });
             const toggleBtn = container.querySelector('.vm-toggle-btn');
-            if(toggleBtn) toggleBtn.textContent = isHidden ? '◀' : '▶';
+            if(toggleBtn) toggleBtn.textContent = isHidden ? '🔻' : '🔺';
         }
 
         function applySpeed(speed) {
@@ -1579,7 +1584,7 @@
                 mo.observe(media, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
             } catch (e) { logManager.logErrorWithContext(e, media); }
         }
-        const updateUIVisibility = throttle(async () => {
+        const updateUIVisibility = async () => {
             try {
                 const hasMedia = mediaFinder.findAll().some(m => m.tagName === 'VIDEO' || m.tagName === 'AUDIO');
                 if (hasMedia) {
@@ -1596,7 +1601,7 @@
                     dragBar.hide();
                 }
             } catch (e) { logManager.logErrorWithContext(e, { message: 'updateUIVisibility failed' }); }
-        }, 400);
+        };
         function initWhenReady(media) {
             if (!media || MediaStateManager.has(media)) return;
 
