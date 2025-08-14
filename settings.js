@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light - Patched for YouTube & TrustedHTML)
 // @namespace    https.com/
-// @version      23.25-Patch.4-Stable
-// @description  🎞️ [안정성 강화] iframe 중복 관찰 방지, 메모리 자동 정리, 속도 제어 범위 확대, 드래그 탐색 이벤트 조건 강화로 안정성을 최종 개선했습니다.
+// @version      23.25-Patch.5-Final
+// @description  🎞️ [최종 안정화] Iframe의 동적 src 변경을 MutationObserver로 감지하여, 최신 SPA 사이트에서의 미디어 탐색 안정성을 극대화했습니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -255,7 +255,6 @@
 
         const applySpeed = (speed) => {
             activeMediaCache.forEach(m => {
-                // [개선] 일시정지 여부와 관계없이 속도를 적용하여 사용성 개선
                 if (m.playbackRate !== speed) {
                      safeExec(() => { m.playbackRate = speed; });
                 }
@@ -284,20 +283,10 @@
         function onStart(e) {
             safeExec(() => {
                 const target = e.target;
-                // [개선] 이벤트 충돌 방지를 위해 드래그 시작 조건을 대폭 강화
-                // 1. 이벤트 발생 지점이 <video> 태그가 아니면 즉시 중단
-                if (target?.tagName !== 'VIDEO') return;
-
-                // 2. 재생 중이 아닌 비디오는 무시
-                if (target.paused) return;
-
-                // 3. 자체 UI 요소 위에서는 동작하지 않음
+                if (target?.tagName !== 'VIDEO' || target.paused) return;
                 if (speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container'))) return;
-
-                // 4. 마우스 왼쪽 버튼이 아닐 경우 무시
                 if (e.type === 'mousedown' && e.button !== 0) return;
 
-                // 모든 조건을 통과하면 드래그 시작
                 const pos = e.touches ? e.touches[0] : e;
                 Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, accX: 0 });
 
@@ -309,7 +298,6 @@
 
         function onMove(e) {
             if (!state.dragging) return;
-            // [개선] 의도된 동작이므로 페이지 스크롤 등 다른 기본 동작 방지
             e.preventDefault();
             e.stopImmediatePropagation();
 
@@ -472,7 +460,7 @@
     const App = (() => {
         const SEEN_MEDIA = new WeakSet();
         const OBSERVED_SHADOW_ROOTS = new WeakSet();
-        const SEEN_IFRAMES = new WeakSet(); // [개선] iframe 중복 관찰 방지용
+        const SEEN_IFRAMES = new WeakSet();
 
         function collectMediaFromNode(node, out) {
             if (!node) return;
@@ -493,13 +481,12 @@
             const newlyFound = [];
             for (const mutation of mutations) {
                 mutation.addedNodes.forEach(node => {
+                    if (node.nodeType !== Node.ELEMENT_NODE) return;
                     collectMediaFromNode(node, newlyFound);
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.tagName === 'IFRAME') {
-                           observeIframeWithRetry(node);
-                        }
-                        node.querySelectorAll?.('iframe').forEach(observeIframeWithRetry);
+                    if (node.tagName === 'IFRAME') {
+                       handleIframe(node);
                     }
+                    node.querySelectorAll?.('iframe').forEach(handleIframe);
                 });
             }
 
@@ -537,27 +524,42 @@
                 window._shadowDomList_.forEach(observeShadowRoot);
             }
         }
-
-        function observeIframeWithRetry(iframe, tries = 0) {
-            // [개선] 이미 처리중인 iframe은 재시도하지 않음
-            if (!iframe || SEEN_IFRAMES.has(iframe)) return;
-
+        
+        function observeIframeWithRetry(iframe) {
+            let tries = 0;
             const MAX_TRIES = 20;
             const TRY_DELAY = 100;
+            
+            function tryObserving() {
+                try {
+                    if (iframe.contentDocument) {
+                        startUnifiedObserver(iframe.contentDocument);
+                        return;
+                    }
+                } catch (_) {}
 
-            try {
-                if (iframe.contentDocument) {
-                    SEEN_IFRAMES.add(iframe); // 성공 시점에 등록
-                    startUnifiedObserver(iframe.contentDocument);
-                    return;
+                if (++tries < MAX_TRIES) {
+                    setTimeout(tryObserving, TRY_DELAY);
                 }
-            } catch (_) { /* cross-origin 오류 무시 */ }
-
-            if (tries < MAX_TRIES) {
-                setTimeout(() => observeIframeWithRetry(iframe, tries + 1), TRY_DELAY);
             }
+            tryObserving();
         }
 
+        /**
+         * [개선] Iframe의 load 이벤트와 src 속성 변경을 모두 감지하여 처리
+         */
+        function handleIframe(iframe) {
+            if (!iframe || SEEN_IFRAMES.has(iframe)) return;
+            SEEN_IFRAMES.add(iframe);
+
+            iframe.addEventListener('load', () => observeIframeWithRetry(iframe));
+            
+            const attrObserver = new MutationObserver(() => observeIframeWithRetry(iframe));
+            attrObserver.observe(iframe, { attributes: true, attributeFilter: ['src'] });
+            
+            observeIframeWithRetry(iframe); // 최초 즉시 시도
+        }
+        
         function initialFullScan() {
             safeExec(() => {
                 const allMedia = findAllMedia();
@@ -579,7 +581,7 @@
                         if (iframe.contentDocument) {
                             collectMediaFromNode(iframe.contentDocument, allMedia);
                         }
-                    } catch (e) { /* Cross-origin 오류 무시 */ }
+                    } catch (e) {}
                 });
             }, 'findAllMedia');
             return [...new Set(allMedia)];
@@ -593,35 +595,23 @@
             PROCESSED_DOCUMENTS.add(targetDocument);
             const observer = new MutationObserver(processMutations);
             observer.observe(body, { childList: true, subtree: true });
-
+            
             OBSERVER_MAP.set(targetDocument, observer);
+            
+            // Observer 시작 후 즉시 내부 iframe도 처리
+            targetDocument.querySelectorAll('iframe').forEach(handleIframe);
         }
 
-        function initAllDocuments(doc) {
-            safeExec(() => {
-                startUnifiedObserver(doc);
-                doc.querySelectorAll('iframe').forEach(iframe => {
-                    observeIframeWithRetry(iframe);
-                    // [개선] SPA에서 src 변경 시 재탐색을 위해 'once' 옵션 제거
-                    iframe.addEventListener('load', () => observeIframeWithRetry(iframe));
-                });
-            }, 'initAllDocuments');
-        }
-
-        /**
-         * [개선] 주기적으로 DOM과 연결이 끊어진 미디어를 캐시에서 제거합니다.
-         */
         function periodicCacheCleanup() {
             const beforeCount = activeMediaCache.length;
             activeMediaCache = activeMediaCache.filter(m => m.isConnected);
-            const afterCount = activeMediaCache.length;
-            if (beforeCount > afterCount) {
+            if (beforeCount > activeMediaCache.length) {
                 mediaControls.updateUIVisibility();
             }
         }
 
         function initialize() {
-            console.log('🎉 VideoSpeed_Control (v23.25-Patch.4-Stable) Initialized.');
+            console.log('🎉 VideoSpeed_Control (v23.25-Patch.5-Final) Initialized.');
             uiManager.init();
             speedSlider.init();
             dragBar.init();
@@ -636,10 +626,9 @@
             });
 
             attachShadowObserversIfAny();
-            initAllDocuments(document);
+            startUnifiedObserver(document);
             initialFullScan();
 
-            // [개선] 5초마다 캐시 정리하여 메모리 누수 방지
             setInterval(periodicCacheCleanup, 5000);
         }
 
@@ -647,7 +636,9 @@
             console.log('[VideoSpeed] SPA Navigation detected. Performing partial update...');
             safeExec(() => {
                 activeMediaCache = activeMediaCache.filter(m => m.isConnected);
-
+                mediaControls.updateUIVisibility();
+                
+                // 새로운 페이지의 미디어를 찾기 위해 증분 스캔 실행
                 const newlyFound = [];
                 collectMediaFromNode(document.body, newlyFound);
                 const uniqueNewMedia = [...new Set(newlyFound)].filter(m => !SEEN_MEDIA.has(m));
@@ -656,9 +647,8 @@
                     uniqueNewMedia.forEach(m => SEEN_MEDIA.add(m));
                     activeMediaCache.push(...uniqueNewMedia);
                     uniqueNewMedia.forEach(mediaControls.initMedia);
+                    mediaControls.updateUIVisibility();
                 }
-
-                mediaControls.updateUIVisibility();
             }, 'onSpaNavigation');
         }
 
