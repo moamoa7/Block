@@ -4,11 +4,6 @@
 // @version      23.15 (activeMediaCache 수정)
 // @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중 (안정성 강화)
 // @match        *://*/*
-// @grant        GM.getValue
-// @grant        GM.setValue
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_listValues
 // @grant        none
 // @run-at       document-start
 // ==/UserScript==
