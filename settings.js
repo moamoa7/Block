@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light)
 // @namespace    https.com/
-// @version      23.15 (activeMediaCache 수정)
+// @version      23.2 (배속바 간격 0.2로 수정)
 // @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중 (안정성 강화)
 // @match        *://*/*
 // @grant        none
@@ -206,7 +206,7 @@
             container.id = 'vm-speed-slider-container';
             container.innerHTML = `
                 <button class="vm-btn reset" title="Reset speed to 1x">1x</button>
-                <input type="range" min="0.2" max="4.0" step="0.1" value="1.0" id="vm-speed-slider">
+                <input type="range" min="0.2" max="4.0" step="0.2" value="1.0" id="vm-speed-slider">
                 <div id="vm-speed-value">x1.0</div>
                 <button class="vm-btn toggle" title="Toggle Speed Controller">🔺</button>
             `;
