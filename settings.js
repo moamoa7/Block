@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control
 // @namespace    https.com/
-// @version      22.2 (자잘한 버그 수정)
+// @version      22.3 (드래그바 버그 수정)
 // @description  🎞️ [개선판] UI ShadowDOM 격리 + ⚡성능 최적화 + 🔧YouTube 탐지 강화 + ✨미디어 세션 API 연동
 // @match        *://*/*
 // @grant        GM.getValue
@@ -1474,13 +1474,24 @@
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => display.style.display = 'none', 300); } visible = false; };
         function onStart(e) {
             try {
-                // Shadow DOM 내부의 UI 요소 클릭 시 드래그 방지
-                if (e.composedPath && e.composedPath()[0].shadowRoot) return;
+              // [부활한 로직 1] 배속바가 최소화 상태이면 드래그 중단
+              if (speedSlider.isMinimized()) {
+                  return;
+              }
 
-                if(e.button === 2) return;
-                if (!mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused)) { return; }
+              // [부활한 로직 2] 클릭 경로에 배속바 UI가 포함되면 드래그 중단
+              const path = e.composedPath();
+              if (path.some(el => el.id === 'vm-speed-slider-container')) {
+                  return;
+              }
+
+                 if (e.button === 2) return;
+                 if (!mediaFinder.findAll().some(m => m.tagName === 'VIDEO' && !m.paused)) { return; }
                 const pos = e.touches ? e.touches[0] : e;
-                state.dragging = true; state.startX = pos.clientX; state.startY = pos.clientY; state.accX = 0;
+                state.dragging = true;
+                state.startX = pos.clientX;
+                state.startY = pos.clientY;
+                state.accX = 0;
                 document.addEventListener('mousemove', onMove, { passive: false, capture: true });
                 document.addEventListener('mouseup', onEnd, { passive: false, capture: true });
                 document.addEventListener('touchmove', onMove, { passive: false, capture: true });
