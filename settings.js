@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light)
 // @namespace    https.com/
-// @version      23.2 (배속바 간격 0.2로 수정)
+// @version      23.25 (배속바 모든 영상에 표시로 변경)
 // @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중 (안정성 강화)
 // @match        *://*/*
 // @grant        none
@@ -25,7 +25,7 @@
 
     const NOT_EXCLUSION_DOMAINS = ['avsee.ru'];
     const EXCLUSION_PATHS = ['/bbs/login.php'];
-    const PREVIEW_CONFIG = { DURATION_THRESHOLD: 12 };
+    const PREVIEW_CONFIG = { DURATION_THRESHOLD: 0 };
 
     /* ============================
      * 유틸리티 함수
