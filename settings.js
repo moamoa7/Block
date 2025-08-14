@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Light)
 // @namespace    https.com/
-// @version      22.5 (버그 수정)
+// @version      22.6 (배속바 기본 : 최소화 재적용)
 // @description  🎞️ [경량화 버전] 동영상 재생 속도 및 시간 제어 기능에만 집중
 // @match        *://*/*
 // @grant        GM.getValue
@@ -114,7 +114,7 @@
     })();
 
     /* ============================
-     * 설정 관리: ConfigManager
+     * 설정 관리: ConfigManager (참고: 배속바 최소화 상태 저장은 제거됨)
      * ============================ */
     class ConfigManager {
         constructor(opts = {}) {
@@ -195,7 +195,7 @@
             } catch (e) {}
         }
     }
-    const configManager = new ConfigManager({ prefix: '_video_speed_', config: { isMinimized: true, isInitialized: false } });
+    const configManager = new ConfigManager({ prefix: '_video_speed_', config: { isInitialized: false } });
 
     /* ============================
      * 유틸 함수
@@ -386,11 +386,12 @@
      * ============================ */
     const DRAG_CONFIG = { PIXELS_PER_SECOND: 2 };
     const speedSlider = (() => {
-        let container = null, inited = false, isMin = true;
+        let container = null, inited = false, isMin = true; // isMin 기본값을 true(최소화)로 설정
 
         async function init() {
             if (inited) return;
-            isMin = !!(await configManager.get('isMinimized'));
+            // [변경] 저장된 최소화 상태를 불러오는 로직 제거. 항상 isMin = true로 시작합니다.
+            // isMin = !!(await configManager.get('isMinimized'));
             inited = true;
 
             const shadowRoot = uiManager.getShadowRoot();
@@ -404,7 +405,13 @@
 
                 reset.addEventListener('click', () => { slider.value = '1.0'; applySpeed(1.0); val.textContent = 'x1.0'; });
                 slider.addEventListener('input', (e) => { const s = parseFloat(e.target.value); val.textContent = `x${s.toFixed(1)}`; applySpeed(s); });
-                toggle.addEventListener('click', async () => { isMin = !isMin; await configManager.set('isMinimized', isMin); updateAppearance(); });
+
+                // [변경] 토글 버튼 클릭 시 상태를 저장하는 로직 제거
+                toggle.addEventListener('click', () => {
+                    isMin = !isMin;
+                    // await configManager.set('isMinimized', isMin);
+                    updateAppearance();
+                });
 
                 container.appendChild(reset); container.appendChild(slider); container.appendChild(val); container.appendChild(toggle);
                 shadowRoot.appendChild(container);
@@ -457,7 +464,7 @@
                         m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec));
                     } catch (e) {}
                 });
-            } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar apply failed' }); }
+            } catch (e) { console.error('dragBar apply failed:', e); }
         }
         const showDisplay = (v) => {
             if (!display) {
@@ -499,7 +506,7 @@
                  document.addEventListener('mouseup', onEnd, { passive: false, capture: true });
                  document.addEventListener('touchmove', onMove, { passive: false, capture: true });
                  document.addEventListener('touchend', onEnd, { passive: false, capture: true });
-            } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar onStart failed' }); }
+            } catch (e) { console.error('dragBar onStart failed:', e); }
         }
         function onMove(e) {
             if (!state.dragging) return;
@@ -522,7 +529,7 @@
                     state.startX = pos.clientX;
                     showDisplay(state.accX / (DRAG_CONFIG.PIXELS_PER_SECOND || 2));
                 }
-            } catch (e) { logManager.logErrorWithContext(e, { message: 'dragBar onMove failed' }); onEnd(); }
+            } catch (e) { console.error('dragBar onMove failed:', e); onEnd(); }
         }
         function onEnd() {
             if (!state.dragging) return;
@@ -664,9 +671,9 @@
                 setInterval(scanTask, 5000);
             }
 
+            // [수정] fullscreenchange 이벤트 핸들러에 speedSlider.updatePositionAndSize() 호출 제거 (해당 함수 없음)
             addOnceEventListener(document, 'fullscreenchange', () => {
                     uiManager.moveUiTo(document.fullscreenElement || document.body);
-                    speedSlider.updatePositionAndSize();
                 });
 
             startUnifiedObserver(targetDocument);
