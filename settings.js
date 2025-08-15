@@ -45,8 +45,8 @@
         // --- 📱 모바일 필터 값 ---
         const MOBILE_SETTINGS = {
             GAMMA_VALUE: 1.15,
-            SHARPEN_ID: 'Sharpen6',
-            KERNEL_MATRIX: '-1 -1.125 -1 -1.125 9.75 -1.125 -1 -1.125 -1',
+            SHARPEN_ID: 'Sharpen5',
+            KERNEL_MATRIX: '1 -1 1 -1 -.5 -1 1 -1 1',
             BLUR_STD_DEVIATION: '0.4',
             SHADOWS_VALUE: -2,
             HIGHLIGHTS_VALUE: 5,
