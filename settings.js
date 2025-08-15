@@ -31,7 +31,7 @@
     const filterManager = (() => {
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.5' };
-        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen7', KERNEL_MATRIX: '-1 -1.125 -1 -1.125 9.75 -1.125 -1 -1.125 -1', BLUR_STD_DEVIATION: '0.5' };
+        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen6', KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1', BLUR_STD_DEVIATION: '0.5' };
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
         let isEnabled = true;
 
