@@ -42,7 +42,7 @@
 
         // --- 📱 모바일 필터 값 ---
         const MOBILE_SETTINGS = {
-            GAMMA_VALUE: 1.25,
+            GAMMA_VALUE: 1.2,
             SHARPEN_ID: 'Sharpen6',
             KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1',
             BLUR_STD_DEVIATION: '0.4',
