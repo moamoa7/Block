@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Ultimate Hybrid)
 // @namespace    https.com/
-// @version      24.01.1-Fix
+// @version      24.02-Fix
 // @description  🎞️ [오류 수정] 리팩토링 과정에서 누락된 특정 페이지 예외 처리 로직을 복원하여 CAPTCHA 등과의 충돌 문제를 해결했습니다.
 // @match        *://*/*
 // @grant        none
@@ -15,41 +15,41 @@
      * 설정 및 유틸리티
      * ============================ */
     const FeatureFlags = { debug: false };
-    const SEEN_MEDIA = new WeakSet();
-    const activeMediaMap = new Map();
-    let uiVisible = false;
-
-    // [복원] 예외 처리 설정
-    const NOT_EXCLUSION_DOMAINS = ['avsee.ru'];
-    const EXCLUSION_PATHS = ['/bbs/login.php'];
+    const EXCLUSION_KEYWORDS = ['login', 'signin', 'auth', 'captcha', 'signup'];
+    const SPECIFIC_EXCLUSIONS = [
+        { domain: 'avsee.ru', path: '/bbs/login.php' },
+    ];
 
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (FeatureFlags.debug) console.error(`[VideoSpeed] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; };
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
-    Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
 
-    // [복원] 예외 처리 로직
     function isExcluded() {
-        let excluded = false;
-        safeExec(() => {
-            const url = new URL(location.href);
-            const host = url.hostname;
-            const path = url.pathname;
-            const domainMatch = NOT_EXCLUSION_DOMAINS.some(d => host === d || host.endsWith('.' + d));
-            if (domainMatch && EXCLUSION_PATHS.some(p => path.startsWith(p))) {
-                excluded = true;
-            }
-        }, 'isExcluded');
-        return excluded;
+        const url = location.href.toLowerCase();
+        const hostname = location.hostname.toLowerCase();
+        if (EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) {
+            if (FeatureFlags.debug) console.log(`[VideoSpeed] Excluded by keyword found in URL: ${url}`);
+            return true;
+        }
+        if (SPECIFIC_EXCLUSIONS.some(rule => hostname.includes(rule.domain) && url.includes(rule.path))) {
+            if (FeatureFlags.debug) console.log(`[VideoSpeed] Excluded by specific rule for domain: ${hostname}`);
+            return true;
+        }
+        return false;
     }
 
     if (isExcluded()) {
-        if (FeatureFlags.debug) console.log(`[VideoSpeed] Disabled on ${location.href}`);
+        console.log(`[VideoSpeed] Skipped on excluded page: ${location.href}`);
         return;
     }
 
-    // 콘솔 클리어 방지
+    Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
+
+    const SEEN_MEDIA = new WeakSet();
+    const activeMediaMap = new Map();
+    let uiVisible = false;
+
     safeExec(() => {
         if (window.console && console.clear) {
             const originalClear = console.clear;
@@ -58,7 +58,6 @@
         }
     }, 'consoleClearProtection');
 
-    // Shadow DOM 강제 open
     (function hackAttachShadow() {
         if (window._hasHackAttachShadow_) return;
         safeExec(() => {
@@ -75,7 +74,6 @@
             window._hasHackAttachShadow_ = true;
         }, 'hackAttachShadow');
     })();
-
 
     /* ============================
      * UI 관리 (모든 기능 포함)
