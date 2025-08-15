@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Ultimate Hybrid)
 // @namespace    https.com/
-// @version      24.01-Final-Architecture
-// @description  🎞️ [최종 완성] Map 기반 상태관리, RAF Throttle, requestIdleCallback 등 고급 아키텍처를 적용하여 안정성, 성능, 확장성을 모두 갖춘 최종 버전입니다.
+// @version      24.01.1-Fix
+// @description  🎞️ [오류 수정] 리팩토링 과정에서 누락된 특정 페이지 예외 처리 로직을 복원하여 CAPTCHA 등과의 충돌 문제를 해결했습니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -19,12 +19,37 @@
     const activeMediaMap = new Map();
     let uiVisible = false;
 
+    // [복원] 예외 처리 설정
+    const NOT_EXCLUSION_DOMAINS = ['avsee.ru'];
+    const EXCLUSION_PATHS = ['/bbs/login.php'];
+
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (FeatureFlags.debug) console.error(`[VideoSpeed] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; };
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
 
+    // [복원] 예외 처리 로직
+    function isExcluded() {
+        let excluded = false;
+        safeExec(() => {
+            const url = new URL(location.href);
+            const host = url.hostname;
+            const path = url.pathname;
+            const domainMatch = NOT_EXCLUSION_DOMAINS.some(d => host === d || host.endsWith('.' + d));
+            if (domainMatch && EXCLUSION_PATHS.some(p => path.startsWith(p))) {
+                excluded = true;
+            }
+        }, 'isExcluded');
+        return excluded;
+    }
+
+    if (isExcluded()) {
+        if (FeatureFlags.debug) console.log(`[VideoSpeed] Disabled on ${location.href}`);
+        return;
+    }
+
+    // 콘솔 클리어 방지
     safeExec(() => {
         if (window.console && console.clear) {
             const originalClear = console.clear;
@@ -33,6 +58,7 @@
         }
     }, 'consoleClearProtection');
 
+    // Shadow DOM 강제 open
     (function hackAttachShadow() {
         if (window._hasHackAttachShadow_) return;
         safeExec(() => {
@@ -216,7 +242,7 @@
         };
         return { init: () => safeExec(init, 'dragBar.init') };
     })();
-    
+
     const mediaSessionManager = (() => {
         const getSeekTime = (rate) => Math.min(Math.max(1, 5 * rate), 15);
         const setSession = (media) => {
@@ -246,7 +272,7 @@
         };
         return { setSession, clearSession };
     })();
-    
+
     /* ============================
      * 미디어 검색 및 하이브리드 스캔 로직
      * ============================ */
@@ -263,7 +289,7 @@
         });
         return [...new Set(media)];
     }
-    
+
     const mediaEventHandlers = {
         play: (media) => { scanTask(true); mediaSessionManager.setSession(media); },
         pause: (media) => { scanTask(true); mediaSessionManager.clearSession(media); },
@@ -277,7 +303,7 @@
             media.addEventListener(evt, () => handler(media));
         });
     }
-    
+
     const scanTask = (isUiUpdateOnly = false) => {
         const allMedia = findAllMedia();
         if (!isUiUpdateOnly) {
@@ -287,17 +313,17 @@
         activeMediaMap.clear();
         allMedia.forEach(m => {
             if (m.isConnected) {
-                activeMediaMap.set(m, {}); // value: for future state
+                activeMediaMap.set(m, {});
             }
         });
-        
+
         const shouldBeVisible = activeMediaMap.size > 0;
         if (uiVisible !== shouldBeVisible) {
             uiVisible = shouldBeVisible;
             uiVisible ? speedSlider.show() : speedSlider.hide();
         }
     };
-    
+
     const debouncedScanTask = debounce(scanTask, 350);
 
     function scanAddedNodes(nodes) {
@@ -307,7 +333,7 @@
             if (node.matches?.('video, audio')) mediaElements.push(node);
             node.querySelectorAll?.('video, audio').forEach(m => mediaElements.push(m));
         });
-        
+
         if(mediaElements.length > 0) {
             mediaElements.forEach(initMedia);
             scanTask(true);
@@ -318,7 +344,7 @@
      * 초기화
      * ============================ */
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (v24.01-Final-Architecture) Initialized.');
+        console.log('🎉 VideoSpeed_Control (v24.01.1-Fix) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
@@ -336,7 +362,7 @@
             }
         });
         observer.observe(document.documentElement, { childList: true, subtree: true });
-        
+
         document.addEventListener('addShadowRoot', debouncedScanTask);
 
         const originalPushState = history.pushState;
@@ -345,9 +371,9 @@
             scanTask();
         };
         window.addEventListener('popstate', () => scanTask());
-        
+
         document.addEventListener('fullscreenchange', () => uiManager.moveUiTo(document.fullscreenElement || document.body));
-        
+
         scanTask();
     }
 
