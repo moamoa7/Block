@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Truly Final TouchFix)
+// @name         VideoSpeed_Control (Final TouchFix)
 // @namespace    https://com/
-// @version      24.08-Final-Stable-TouchFix2
-// @description  🎞️ 모바일 핀치 줌 오작동 문제를 수정한 최종 안정화 버전입니다.
+// @version      24.08-Final-Stable-TouchFix3
+// @description  🎞️ 드래그 종료 시 시간 표시 오류(레이스 컨디션)를 수정한 최종 안정화 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -108,21 +108,11 @@
 
         function onStart(e) {
             safeExec(() => {
-                const target = e.target;
-                let videoElement = (target?.tagName === 'VIDEO') ? target : target?.parentElement?.querySelector('video');
+                let videoElement = (e.target?.tagName === 'VIDEO') ? e.target : e.target?.parentElement?.querySelector('video');
                 if (!videoElement || videoElement.paused || speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container')) || (e.type === 'mousedown' && e.button !== 0)) return;
-
-                // 첫 터치 이벤트에서 손가락이 여러 개면 시작하지 않음 (이중 방어)
                 if (e.touches && e.touches.length > 1) return;
-
                 const pos = e.touches ? e.touches[0] : e;
-                Object.assign(state, {
-                    dragging: true,
-                    startX: pos.clientX, startY: pos.clientY,
-                    currentX: pos.clientX, currentY: pos.clientY,
-                    accX: 0, directionConfirmed: false
-                });
-
+                Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false });
                 const options = { passive: false, capture: true };
                 document.addEventListener(e.type === 'mousedown' ? 'mousemove' : 'touchmove', onMove, options);
                 document.addEventListener(e.type === 'mousedown' ? 'mouseup' : 'touchend', onEnd, options);
@@ -131,40 +121,29 @@
 
         function onMove(e) {
             if (!state.dragging) return;
-
-            // ✨ 1. 움직임 감지 시 다중 터치(핀치 줌)가 발생하면 즉시 드래그 종료
-            if (e.touches && e.touches.length > 1) {
-                onEnd();
-                return;
-            }
-
+            if (e.touches && e.touches.length > 1) { onEnd(); return; }
             const pos = e.touches ? e.touches[0] : e;
             state.currentX = pos.clientX;
             state.currentY = pos.clientY;
-
             if (!state.directionConfirmed) {
                 const deltaX = Math.abs(state.currentX - state.startX);
                 const deltaY = Math.abs(state.currentY - state.startY);
-
-                if (deltaX > deltaY + 5) { // 좌우 움직임이 명확할 때만 (허용치 5px)
-                    state.directionConfirmed = true;
-                } else if (deltaY > deltaX + 5) {
-                    onEnd(); // 수직 스크롤로 판단되면 종료
-                    return;
-                }
+                if (deltaX > deltaY + 5) { state.directionConfirmed = true; }
+                else if (deltaY > deltaX + 5) { onEnd(); return; }
             }
-
             if (state.directionConfirmed) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
+                e.preventDefault(); e.stopImmediatePropagation();
                 safeExec(() => {
-                    const movementX = state.currentX - state.startX; // 마지막 move 이벤트 이후의 실제 이동량
+                    const movementX = state.currentX - (state.startX || state.currentX);
                     state.accX += movementX;
-                    state.startX = state.currentX; // 시작점을 현재 위치로 갱신
+                    state.startX = state.currentX;
                     if (!rafScheduled) {
                         rafScheduled = true;
                         window.requestAnimationFrame(() => {
-                            showDisplay(state.accX);
+                            // ✨ 레이스 컨디션 방지를 위해 드래그 상태 확인
+                            if (state.dragging) {
+                                showDisplay(state.accX);
+                            }
                             rafScheduled = false;
                         });
                     }
@@ -203,7 +182,7 @@
 
     // --- 초기화 ---
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (v24.08-Final-Stable-TouchFix2) Initialized.');
+        console.log('🎉 VideoSpeed_Control (v24.08-Final-Stable-TouchFix3) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
