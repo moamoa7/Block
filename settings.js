@@ -42,10 +42,10 @@
 
         // --- 📱 모바일 필터 값 ---
         const MOBILE_SETTINGS = {
-            GAMMA_VALUE: 1.35,
+            GAMMA_VALUE: 1.25,
             SHARPEN_ID: 'Sharpen6',
             KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1',
-            BLUR_STD_DEVIATION: '0.45',
+            BLUR_STD_DEVIATION: '0.4',
             SHADOWS_VALUE: -8, // ✨ 어두운 영역 밝기
         };
 
