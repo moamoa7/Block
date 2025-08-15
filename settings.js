@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Ultimate Merged Version)
+// @name         VideoSpeed_Control (Filter Order Fix)
 // @namespace    https://com/
-// @version      25.08-Ultimate-Merged
-// @description  🎞️ Highlights 기능과 개선된 터치 로직을 통합한 최종 완전판입니다.
+// @version      25.08-Ultimate-FilterOrderFix
+// @description  🎞️ 필터 적용 순서를 최적화하여 더 자연스러운 화질을 제공합니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -11,7 +11,7 @@
 (function () {
     'use strict';
 
-    // --- 설정 및 유틸리티 ---
+    // --- 설정 및 유틸리티 (변경 없음) ---
     const FeatureFlags = { debug: false };
     const EXCLUSION_KEYWORDS = ['login', 'signin', 'auth', 'captcha', 'signup'];
     const SPECIFIC_EXCLUSIONS = [{ domain: 'avsee.ru', path: '/bbs/login.php' }];
@@ -27,23 +27,28 @@
     safeExec(() => { if (window.console && console.clear) { const o = console.clear; console.clear = () => console.log('--- 🚫 console.clear() blocked ---'); Object.defineProperty(console, 'clear', { configurable: false, writable: false, value: console.clear }); } }, 'consoleClearProtection');
     (function hackAttachShadow() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const o = window.Element.prototype.attachShadow; window.Element.prototype.attachShadow = function () { const a = arguments; if (a[0] && a[0].mode) a[0].mode = 'open'; const r = o.apply(this, a); window._shadowDomList_.push(r); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: r } })); return r; }; window._hasHackAttachShadow_ = true; }, 'hackAttachShadow'); })();
 
-    // --- 비디오 필터 모듈 (Highlights 포함) ---
+    // --- 비디오 필터 모듈 (CSS 순서 수정됨) ---
     const filterManager = (() => {
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5 };
         const MOBILE_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen6', KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5 };
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
         let isEnabled = true;
+
         function createSvgFiltersAndStyle() {
             if (document.getElementById('video-enhancer-svg-filters')) return;
-            const svgNs = 'http://www.w3.org/2000/svg'; const svgFilters = document.createElementNS(svgNs, 'svg'); svgFilters.id = 'video-enhancer-svg-filters'; svgFilters.style.display = 'none';
+            const svgNs = 'http://www.w3.org/2000/svg';
+            const svgFilters = document.createElementNS(svgNs, 'svg');
+            svgFilters.id = 'video-enhancer-svg-filters'; svgFilters.style.display = 'none';
             const softeningFilter = document.createElementNS(svgNs, 'filter'); softeningFilter.id = 'SofteningFilter'; const gaussianBlur = document.createElementNS(svgNs, 'feGaussianBlur'); gaussianBlur.setAttribute('stdDeviation', settings.BLUR_STD_DEVIATION); softeningFilter.appendChild(gaussianBlur); svgFilters.appendChild(softeningFilter);
             const sharpenFilter = document.createElementNS(svgNs, 'filter'); sharpenFilter.id = settings.SHARPEN_ID; const convolveMatrix = document.createElementNS(svgNs, 'feConvolveMatrix'); Object.entries({ order: '3 3', preserveAlpha: 'true', kernelMatrix: settings.KERNEL_MATRIX, mode: 'multiply' }).forEach(([k, v]) => convolveMatrix.setAttribute(k, v)); sharpenFilter.appendChild(convolveMatrix); svgFilters.appendChild(sharpenFilter);
             const gammaFilter = document.createElementNS(svgNs, 'filter'); gammaFilter.id = 'gamma-filter'; const feComponentTransfer = document.createElementNS(svgNs, 'feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => { const feFunc = document.createElementNS(svgNs, `feFunc${ch}`); feFunc.setAttribute('type', 'gamma'); feFunc.setAttribute('exponent', (1 / settings.GAMMA_VALUE).toString()); feComponentTransfer.appendChild(feFunc); }); gammaFilter.appendChild(feComponentTransfer); svgFilters.appendChild(gammaFilter);
             const linearAdjustFilter = document.createElementNS(svgNs, 'filter'); linearAdjustFilter.id = 'linear-adjust-filter'; const linearComponentTransfer = document.createElementNS(svgNs, 'feComponentTransfer'); const shadowIntercept = settings.SHADOWS_VALUE / 200; const highlightSlope = 1 + (settings.HIGHLIGHTS_VALUE / 100); ['R', 'G', 'B'].forEach(ch => { const feFunc = document.createElementNS(svgNs, `feFunc${ch}`); feFunc.setAttribute('type', 'linear'); feFunc.setAttribute('slope', highlightSlope.toString()); feFunc.setAttribute('intercept', shadowIntercept.toString()); linearComponentTransfer.appendChild(feFunc); }); linearAdjustFilter.appendChild(linearComponentTransfer); svgFilters.appendChild(linearAdjustFilter);
             (document.body || document.documentElement).appendChild(svgFilters);
+
             const styleElement = document.createElement('style'); styleElement.id = 'video-enhancer-styles';
-            styleElement.textContent = `html.video-filter-active video, html.video-filter-active iframe { filter: url(#gamma-filter) url(#linear-adjust-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) !important; }`;
+            // ✨ 필터 적용 순서를 원본 확장 프로그램과 동일하게 변경
+            styleElement.textContent = `html.video-filter-active video, html.video-filter-active iframe { filter: url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; }`;
             (document.head || document.documentElement).appendChild(styleElement);
         }
         function updateState() { document.documentElement.classList.toggle('video-filter-active', isEnabled); const button = uiManager.getShadowRoot()?.getElementById('vm-filter-toggle-btn'); if (button) button.textContent = isEnabled ? '🌞' : '🌚'; }
@@ -53,7 +58,7 @@
         };
     })();
 
-    // --- UI 관리 (사용자님 수정 적용) ---
+    // --- UI 관리 ---
     const uiManager = (() => {
         let host, shadowRoot;
         function init() {
@@ -63,18 +68,9 @@
             const style = document.createElement('style');
             style.textContent = `
                 :host { pointer-events: none; } * { pointer-events: auto; }
-                #vm-speed-slider-container {
-                    position: fixed; top: 50%; right: 0;
-                    transform: translateY(-50%);
-                    background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100;
-                    display: none; flex-direction: column; align-items: center; width: 50px;
-                    opacity: 0.3;
-                    transition: opacity 0.5s ease, width 0.3s, background 0.2s;
-                }
+                #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; }
                 #vm-speed-slider-container.touched { opacity: 1; }
-                @media (hover: hover) and (pointer: fine) {
-                    #vm-speed-slider-container:hover { opacity: 1; }
-                }
+                @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } }
                 #vm-speed-slider-container.minimized { width: 30px; }
                 #vm-speed-slider, #vm-speed-value, #vm-speed-slider-container .vm-btn { opacity: 1; transform: scaleY(1); transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
                 #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; }
@@ -90,11 +86,9 @@
         return { init: () => safeExec(init, 'uiManager.init'), getShadowRoot: () => (shadowRoot || (init(), shadowRoot)), moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); } };
     })();
 
-    // --- speedSlider 모듈 (사용자님 수정 적용) ---
     const speedSlider = (() => {
         let container, inited = false, isMinimized = true;
         let fadeOutTimer;
-
         function init() {
             if (inited) return;
             const shadowRoot = uiManager.getShadowRoot();
@@ -117,13 +111,8 @@
 
             const startInteraction = () => { clearTimeout(fadeOutTimer); container.classList.add('touched'); };
             const endInteractionSoon = () => { clearTimeout(fadeOutTimer); fadeOutTimer = setTimeout(() => { container.classList.remove('touched'); }, 3000); };
-
-            container.addEventListener('pointerdown', startInteraction, { passive: true });
-            container.addEventListener('pointerup', endInteractionSoon, { passive: true });
-            container.addEventListener('pointercancel', endInteractionSoon, { passive: true });
-            container.addEventListener('touchstart', startInteraction, { passive: true });
-            container.addEventListener('touchend', endInteractionSoon, { passive: true });
-            container.addEventListener('touchcancel', endInteractionSoon, { passive: true });
+            const onDocumentTouchEnd = () => { endInteractionSoon(); document.removeEventListener('touchend', onDocumentTouchEnd); document.removeEventListener('touchcancel', onDocumentTouchEnd); };
+            container.addEventListener('touchstart', () => { clearTimeout(fadeOutTimer); container.classList.add('touched'); document.addEventListener('touchend', onDocumentTouchEnd); document.addEventListener('touchcancel', onDocumentTouchEnd); }, { passive: true });
             sliderEl.addEventListener('change', endInteractionSoon, { passive: true });
             sliderEl.addEventListener('blur', endInteractionSoon, { passive: true });
 
