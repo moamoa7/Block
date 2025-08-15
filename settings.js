@@ -30,8 +30,8 @@
     // --- 비디오 필터 모듈 ---
     const filterManager = (() => {
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-        const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.5' };
-        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen6', KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1', BLUR_STD_DEVIATION: '0.5' };
+        const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.2, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.5' };
+        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.2, SHARPEN_ID: 'Sharpen6', KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1', BLUR_STD_DEVIATION: '0.5' };
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
         let isEnabled = true;
 
