@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Ultimate Final Fix)
 // @namespace    https://com/
-// @version      24.08-Ultimate-Final-Fix3
+// @version      24.08-Ultimate-Final-Fix4
 // @description  🎞️ ReferenceError (media is not defined) 오류를 수정한 최종 완전판입니다.
 // @match        *://*/*
 // @grant        none
@@ -133,7 +133,7 @@
         container.append(filterToggleButton, resetButton, sliderEl, valueEl, toggleButton);
         shadowRoot.appendChild(container);
 
-        // Shadow DOM 안에 스타일 추가 — 흐려지는 효과 포함
+        // Shadow DOM 안 CSS (터치 후 흐려짐 포함)
         const style = document.createElement('style');
         style.textContent = `
             :host { pointer-events: none; }
@@ -186,7 +186,7 @@
         `;
         shadowRoot.appendChild(style);
 
-        // 속도 적용 함수
+        // 속도 적용
         const applySpeed = (speed) => {
             for (const media of activeMediaMap.keys()) {
                 if (media.playbackRate !== speed) {
@@ -223,25 +223,24 @@
             updateAppearance();
         });
 
-        // 터치 후 3초 뒤 흐려짐
-        const startFadeOut = () => {
+        // 모바일 터치 흐려짐 로직 — Shadow DOM 내부에서 완결
+        container.addEventListener('touchstart', () => {
+            clearTimeout(fadeOutTimer);
+            container.classList.add('touched');
+        }, { passive: true });
+
+        container.addEventListener('touchend', () => {
             clearTimeout(fadeOutTimer);
             fadeOutTimer = setTimeout(() => {
                 container.classList.remove('touched');
             }, 3000);
-        };
+        }, { passive: true });
 
-        const onDocumentTouchEnd = () => {
-            startFadeOut();
-            document.removeEventListener('touchend', onDocumentTouchEnd);
-            document.removeEventListener('touchcancel', onDocumentTouchEnd);
-        };
-
-        container.addEventListener('touchstart', () => {
+        container.addEventListener('touchcancel', () => {
             clearTimeout(fadeOutTimer);
-            container.classList.add('touched');
-            document.addEventListener('touchend', onDocumentTouchEnd, { passive: true });
-            document.addEventListener('touchcancel', onDocumentTouchEnd, { passive: true });
+            fadeOutTimer = setTimeout(() => {
+                container.classList.remove('touched');
+            }, 3000);
         }, { passive: true });
 
         inited = true;
@@ -261,6 +260,7 @@
         isMinimized: () => isMinimized
     };
 })();
+
 
 
 
