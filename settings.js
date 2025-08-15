@@ -30,8 +30,8 @@
     // --- 비디오 필터 모듈 ---
     const filterManager = (() => {
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-        const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.04, SHARPEN_ID: 'Sharpen2', KERNEL_MATRIX: '1 -1 1 -1 -1 -1 1 -1 1', BLUR_STD_DEVIATION: '0.6' };
-        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.04, SHARPEN_ID: 'Sharpen7', KERNEL_MATRIX: '-1 -1.125 -1 -1.125 9.75 -1.125 -1 -1.125 -1', BLUR_STD_DEVIATION: '0.6' };
+        const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.1, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.5' };
+        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.1, SHARPEN_ID: 'Sharpen5', KERNEL_MATRIX: '1 -1 1 -1 -.5 -1 1 -1 1', BLUR_STD_DEVIATION: '0.5' };
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
         let isEnabled = true;
 
@@ -42,7 +42,7 @@
             svgFilters.id = 'video-enhancer-svg-filters'; svgFilters.style.display = 'none';
             const softeningFilter = document.createElementNS(svgNs, 'filter'); softeningFilter.id = 'SofteningFilter'; const gaussianBlur = document.createElementNS(svgNs, 'feGaussianBlur'); gaussianBlur.setAttribute('stdDeviation', settings.BLUR_STD_DEVIATION); softeningFilter.appendChild(gaussianBlur); svgFilters.appendChild(softeningFilter);
             const sharpenFilter = document.createElementNS(svgNs, 'filter'); sharpenFilter.id = settings.SHARPEN_ID; const convolveMatrix = document.createElementNS(svgNs, 'feConvolveMatrix'); Object.entries({ order: '3 3', preserveAlpha: 'true', kernelMatrix: settings.KERNEL_MATRIX, mode: 'multiply' }).forEach(([k, v]) => convolveMatrix.setAttribute(k, v)); sharpenFilter.appendChild(convolveMatrix); svgFilters.appendChild(sharpenFilter);
-            const gammaFilter = document.createElementNS(svgNs, 'filter'); gammaFilter.id = 'gamma-filter'; const feComponentTransfer = document.createElementNS(svgNs, 'feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => { const feFunc = document.createElementNS(svgNs, `feFunc${ch}`); feFunc.setAttribute('type', 'gamma'); feFunc.setAttribute('exponent', (0.9 / settings.GAMMA_VALUE).toString()); feComponentTransfer.appendChild(feFunc); }); gammaFilter.appendChild(feComponentTransfer); svgFilters.appendChild(gammaFilter);
+            const gammaFilter = document.createElementNS(svgNs, 'filter'); gammaFilter.id = 'gamma-filter'; const feComponentTransfer = document.createElementNS(svgNs, 'feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => { const feFunc = document.createElementNS(svgNs, `feFunc${ch}`); feFunc.setAttribute('type', 'gamma'); feFunc.setAttribute('exponent', (1 / settings.GAMMA_VALUE).toString()); feComponentTransfer.appendChild(feFunc); }); gammaFilter.appendChild(feComponentTransfer); svgFilters.appendChild(gammaFilter);
             (document.body || document.documentElement).appendChild(svgFilters);
             const styleElement = document.createElement('style'); styleElement.id = 'video-enhancer-styles';
             styleElement.textContent = `html.video-filter-active video, html.video-filter-active iframe { filter: url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) !important; }`;
