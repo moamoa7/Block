@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Stable Version)
-// @namespace    https.com/
-// @version      24.08-Stable
-// @description  🎞️ 비디오 속도/탐색 제어 및 화질 필터(ON/OFF, PC/모바일 분리) 기능이 포함된 최종 안정화 버전입니다.
+// @name         VideoSpeed_Control (Truly Final Stable Version)
+// @namespace    https://com/
+// @version      24.08-Final-Stable
+// @description  🎞️ 드래그 버그를 수정한 최종 안정화 버전입니다. 모든 기능이 포함되어 있습니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -89,32 +89,139 @@
     })();
 
     const speedSlider = (() => {
-        let container;
+        let container, sliderEl, valueEl, inited = false, isMinimized = true;
         function init() {
+            if (inited) return;
             const shadowRoot = uiManager.getShadowRoot();
-            if (!shadowRoot || shadowRoot.getElementById('vm-speed-slider-container')) return;
+            if (!shadowRoot) return;
             container = document.createElement('div'); container.id = 'vm-speed-slider-container';
             const filterToggleButton = document.createElement('button'); filterToggleButton.id = 'vm-filter-toggle-btn'; filterToggleButton.className = 'vm-btn'; filterToggleButton.title = 'Toggle Video Filter'; filterToggleButton.textContent = '🌞'; filterToggleButton.addEventListener('click', () => filterManager.toggle());
             const resetButton = document.createElement('button'); resetButton.className = 'vm-btn reset'; resetButton.title = 'Reset speed to 1x'; resetButton.textContent = '1x';
-            const sliderEl = document.createElement('input'); sliderEl.type = 'range'; sliderEl.min = '0.2'; sliderEl.max = '4.0'; sliderEl.step = '0.2'; sliderEl.value = '1.0'; sliderEl.id = 'vm-speed-slider';
-            const valueEl = document.createElement('div'); valueEl.id = 'vm-speed-value'; valueEl.textContent = 'x1.0';
+            sliderEl = document.createElement('input'); sliderEl.type = 'range'; sliderEl.min = '0.2'; sliderEl.max = '4.0'; sliderEl.step = '0.2'; sliderEl.value = '1.0'; sliderEl.id = 'vm-speed-slider';
+            valueEl = document.createElement('div'); valueEl.id = 'vm-speed-value'; valueEl.textContent = 'x1.0';
             const toggleButton = document.createElement('button'); toggleButton.className = 'vm-btn toggle'; toggleButton.title = 'Toggle Speed Controller';
             container.append(filterToggleButton, resetButton, sliderEl, valueEl, toggleButton);
             shadowRoot.appendChild(container);
 
-            let isMinimized = true;
             const applySpeed = (speed) => { for (const media of activeMediaMap.keys()) { if (media.playbackRate !== speed) safeExec(() => { media.playbackRate = speed; }); } };
-            const updateAppearance = (minimized) => { if (container) { container.classList.toggle('minimized', minimized); container.querySelector('.toggle').textContent = minimized ? '🔻' : '🔺'; } };
-            resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); valueEl.textContent = `x1.0`; });
-            sliderEl.addEventListener('input', (e) => { const speed = parseFloat(e.target.value); applySpeed(speed); valueEl.textContent = `x${speed.toFixed(1)}`; });
-            toggleButton.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(isMinimized); });
-            updateAppearance(isMinimized);
+            const updateValueText = (speed) => valueEl && (valueEl.textContent = `x${speed.toFixed(1)}`);
+            function updateAppearance() {
+                if (!container) return;
+                container.classList.toggle('minimized', isMinimized);
+                container.querySelector('.toggle').textContent = isMinimized ? '🔻' : '🔺';
+            }
+            resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); });
+            sliderEl.addEventListener('input', (e) => { const speed = parseFloat(e.target.value); applySpeed(speed); updateValueText(speed); });
+            toggleButton.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(); });
+            inited = true;
+            updateAppearance();
         }
-        return { init: () => safeExec(init, 'speedSlider.init'), show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; }, hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; } };
+        return {
+            init: () => safeExec(init, 'speedSlider.init'),
+            show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; },
+            hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; },
+            isMinimized: () => isMinimized
+        };
     })();
 
-    // --- 나머지 모든 모듈 (탐색 바, 미디어 세션, 스캔 로직) ---
-    const dragBar = (() => { let d, i = !1, s = { d: !1, x: 0, y: 0, a: 0 }, l = 0, r = !1; function o(e) { safeExec(() => { let t = (e.target?.tagName === "VIDEO" ? e.target : e.target?.parentElement?.querySelector("video")); if (!t || t.paused || (e.composedPath && e.composedPath().some(el => el.id === "vm-speed-slider-container")) || (e.type === "mousedown" && e.button !== 0)) return; const o = e.touches ? e.touches[0] : e; Object.assign(s, { d: !0, x: o.clientX, y: o.clientY, a: 0 }); const a = { passive: !1, capture: !0 }; document.addEventListener(e.type === "mousedown" ? "mousemove" : "touchmove", n, a), document.addEventListener(e.type === "mousedown" ? "mouseup" : "touchend", c, a) }, "dragBar.onStart") } function n(e) { if (!s.d) return; e.preventDefault(), e.stopImmediatePropagation(), safeExec(() => { const t = e.touches ? e.touches[0] : e; s.a += t.clientX - s.x, s.x = t.clientX, r || (r = !0, window.requestAnimationFrame(() => { a(s.a), r = !1 })) }, "dragBar.onMove") } function c() { if (!s.d) return; safeExec(() => { m(), Object.assign(s, { d: !1, a: 0 }), u(), document.removeEventListener("mousemove", n, !0), document.removeEventListener("touchmove", n, !0), document.removeEventListener("mouseup", c, !0), document.removeEventListener("touchend", c, !0) }, "dragBar.onEnd") } function m() { const e = Math.round(s.a / 2); if (!e) return; for (const t of activeMediaMap.keys()) isFinite(t.duration) && (t.currentTime = Math.min(t.duration, Math.max(0, t.currentTime + e))) } function p() { i || (document.addEventListener("mousedown", o, { capture: !0 }), document.addEventListener("touchstart", o, { passive: !0, capture: !0 }), i = !0) } const a = e => { const t = Math.round(e / 2); if (t === l) return; l = t, d || (d = document.createElement("div"), d.id = "vm-time-display", uiManager.getShadowRoot().appendChild(d)); const o = t < 0 ? "-" : "+", n = Math.abs(t), c = Math.floor(n / 60).toString().padStart(2, "0"), m = (n % 60).toString().padStart(2, "0"); d.textContent = `${o}${c}분 ${m}초`, d.style.display = "block", d.style.opacity = "1" }, u = () => { d && (d.style.opacity = "0", setTimeout(() => { d && (d.style.display = "none") }, 300)) }; return { init: () => safeExec(p, "dragBar.init") } })();
+    // --- ✨ 탐색 바 (전체 코드로 복원) ---
+    const dragBar = (() => {
+        let display, inited = false;
+        let state = { dragging: false, startX: 0, startY: 0, accX: 0 };
+        let lastDelta = 0;
+        let rafScheduled = false;
+
+        function onStart(e) {
+            safeExec(() => {
+                const target = e.target;
+                let videoElement = (target?.tagName === 'VIDEO') ? target : target?.parentElement?.querySelector('video');
+                if (!videoElement || videoElement.paused) return;
+                // ✨ 버그의 핵심: speedSlider.isMinimized() 호출이 여기서 이뤄져야 합니다.
+                if (speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container'))) return;
+                if (e.type === 'mousedown' && e.button !== 0) return;
+
+                const pos = e.touches ? e.touches[0] : e;
+                Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, accX: 0 });
+                const options = { passive: false, capture: true };
+                document.addEventListener(e.type === 'mousedown' ? 'mousemove' : 'touchmove', onMove, options);
+                document.addEventListener(e.type === 'mousedown' ? 'mouseup' : 'touchend', onEnd, options);
+            }, 'dragBar.onStart');
+        }
+
+        function onMove(e) {
+            if (!state.dragging) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            safeExec(() => {
+                const pos = e.touches ? e.touches[0] : e;
+                state.accX += pos.clientX - state.startX;
+                state.startX = pos.clientX;
+                if (!rafScheduled) {
+                    rafScheduled = true;
+                    window.requestAnimationFrame(() => {
+                        showDisplay(state.accX);
+                        rafScheduled = false;
+                    });
+                }
+            }, 'dragBar.onMove');
+        }
+
+        function onEnd() {
+            if (!state.dragging) return;
+            safeExec(() => {
+                applySeek();
+                Object.assign(state, { dragging: false, accX: 0 });
+                hideDisplay();
+                document.removeEventListener('mousemove', onMove, true);
+                document.removeEventListener('touchmove', onMove, true);
+                document.removeEventListener('mouseup', onEnd, true);
+                document.removeEventListener('touchend', onEnd, true);
+            }, 'dragBar.onEnd');
+        }
+
+        function applySeek() {
+            const deltaSec = Math.round(state.accX / 2);
+            if (!deltaSec) return;
+            for (const m of activeMediaMap.keys()) {
+                if (isFinite(m.duration)) m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec));
+            }
+        }
+
+        function init() {
+            if (inited) return;
+            document.addEventListener('mousedown', onStart, { capture: true });
+            document.addEventListener('touchstart', onStart, { passive: true, capture: true });
+            inited = true;
+        }
+
+        const showDisplay = (pixels) => {
+            const s = Math.round(pixels / 2);
+            if (s === lastDelta) return; lastDelta = s;
+            if (!display) {
+                const shadowRoot = uiManager.getShadowRoot();
+                display = document.createElement('div');
+                display.id = 'vm-time-display';
+                shadowRoot.appendChild(display);
+            }
+            const sign = s < 0 ? '-' : '+';
+            const a = Math.abs(s);
+            const mm = Math.floor(a / 60).toString().padStart(2, '0');
+            const ss = (a % 60).toString().padStart(2, '0');
+            display.textContent = `${sign}${mm}분 ${ss}초`;
+            display.style.display = 'block';
+            display.style.opacity = '1';
+        };
+
+        const hideDisplay = () => {
+            if (display) {
+                display.style.opacity = '0';
+                setTimeout(() => { if (display) display.style.display = 'none'; }, 300);
+            }
+        };
+        return { init: () => safeExec(init, 'dragBar.init') };
+    })();
+
+    // --- ✨ 나머지 모듈 (전체 코드로 복원) ---
     const mediaSessionManager = (() => { const getSeekTime = (rate) => Math.min(Math.max(1, 5 * rate), 15); const setSession = (media) => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = new window.MediaMetadata({ title: document.title, artist: location.hostname, album: 'VideoSpeed_Control' }); navigator.mediaSession.setActionHandler('play', () => media.play()); navigator.mediaSession.setActionHandler('pause', () => media.pause()); navigator.mediaSession.setActionHandler('seekbackward', () => { media.currentTime -= getSeekTime(media.playbackRate); }); navigator.mediaSession.setActionHandler('seekforward', () => { media.currentTime += getSeekTime(media.playbackRate); }); if ('seekto' in navigator.mediaSession) { navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); return; } media.currentTime = details.seekTime; }); } }, 'mediaSession.set'); }; const clearSession = () => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(h => { try { navigator.mediaSession.setActionHandler(h, null); } catch { } }); }, 'mediaSession.clear'); }; return { setSession, clearSession }; })();
     function findAllMedia(doc = document) { const m = []; safeExec(() => { doc.querySelectorAll('video, audio').forEach(e => m.push(e)); (window._shadowDomList_ || []).forEach(s => s.querySelectorAll('video, audio').forEach(e => m.push(e))); if (doc === document) { document.querySelectorAll('iframe').forEach(i => { try { if (i.contentDocument) m.push(...findAllMedia(i.contentDocument)); } catch { } }); } }); return [...new Set(m)]; }
     const mediaEventHandlers = { play: (m) => { scanTask(true); mediaSessionManager.setSession(m); }, pause: (m) => { scanTask(true); mediaSessionManager.clearSession(m); }, ended: (m) => { scanTask(true); mediaSessionManager.clearSession(m); }, };
@@ -125,7 +232,7 @@
 
     // --- 초기화 ---
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (v24.08-Stable) Initialized.');
+        console.log('🎉 VideoSpeed_Control (v24.08-Final-Stable) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
