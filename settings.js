@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Filter Order Fix)
+// @name         VideoSpeed_Control (All Filters Included)
 // @namespace    https://com/
-// @version      25.08-Ultimate-FilterOrderFix
-// @description  🎞️ 필터 적용 순서를 최적화하여 더 자연스러운 화질을 제공합니다.
+// @version      25.08-Ultimate-AllFilters
+// @description  🎞️ 채도(Saturation)를 포함한 모든 화질 보정 기능과 버그 수정이 적용된 최종 완전판입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -11,7 +11,7 @@
 (function () {
     'use strict';
 
-    // --- 설정 및 유틸리티 (변경 없음) ---
+    // --- 설정 및 유틸리티 ---
     const FeatureFlags = { debug: false };
     const EXCLUSION_KEYWORDS = ['login', 'signin', 'auth', 'captcha', 'signup'];
     const SPECIFIC_EXCLUSIONS = [{ domain: 'avsee.ru', path: '/bbs/login.php' }];
@@ -27,11 +27,32 @@
     safeExec(() => { if (window.console && console.clear) { const o = console.clear; console.clear = () => console.log('--- 🚫 console.clear() blocked ---'); Object.defineProperty(console, 'clear', { configurable: false, writable: false, value: console.clear }); } }, 'consoleClearProtection');
     (function hackAttachShadow() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const o = window.Element.prototype.attachShadow; window.Element.prototype.attachShadow = function () { const a = arguments; if (a[0] && a[0].mode) a[0].mode = 'open'; const r = o.apply(this, a); window._shadowDomList_.push(r); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: r } })); return r; }; window._hasHackAttachShadow_ = true; }, 'hackAttachShadow'); })();
 
-    // --- 비디오 필터 모듈 (CSS 순서 수정됨) ---
+    // --- 비디오 필터 모듈 (Saturation 추가됨) ---
     const filterManager = (() => {
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-        const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5 };
-        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen6', KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5 };
+
+        // --- 🖥️ 데스크톱 필터 값 ---
+        const DESKTOP_SETTINGS = {
+            GAMMA_VALUE: 1.15,
+            SHARPEN_ID: 'Sharpen1',
+            KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1',
+            BLUR_STD_DEVIATION: '0.4',
+            SHADOWS_VALUE: -2,
+            HIGHLIGHTS_VALUE: 5,
+            SATURATION_VALUE: 110, // ✨ 채도 (100이 기본)
+        };
+
+        // --- 📱 모바일 필터 값 ---
+        const MOBILE_SETTINGS = {
+            GAMMA_VALUE: 1.15,
+            SHARPEN_ID: 'Sharpen6',
+            KERNEL_MATRIX: '-1 -1.125 -1 -1.125 9.75 -1.125 -1 -1.125 -1',
+            BLUR_STD_DEVIATION: '0.4',
+            SHADOWS_VALUE: -2,
+            HIGHLIGHTS_VALUE: 5,
+            SATURATION_VALUE: 110, // ✨ 채도 (100이 기본)
+        };
+
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
         let isEnabled = true;
 
@@ -47,8 +68,10 @@
             (document.body || document.documentElement).appendChild(svgFilters);
 
             const styleElement = document.createElement('style'); styleElement.id = 'video-enhancer-styles';
-            // ✨ 필터 적용 순서를 원본 확장 프로그램과 동일하게 변경
-            styleElement.textContent = `html.video-filter-active video, html.video-filter-active iframe { filter: url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; }`;
+            // ✨ CSS 필터 체인 맨 앞에 saturate() 추가
+            styleElement.textContent = `html.video-filter-active video, html.video-filter-active iframe {
+                filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important;
+            }`;
             (document.head || document.documentElement).appendChild(styleElement);
         }
         function updateState() { document.documentElement.classList.toggle('video-filter-active', isEnabled); const button = uiManager.getShadowRoot()?.getElementById('vm-filter-toggle-btn'); if (button) button.textContent = isEnabled ? '🌞' : '🌚'; }
@@ -149,7 +172,7 @@
 
     // --- 초기화 ---
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (Ultimate Merged Version) Initialized.');
+        console.log('🎉 VideoSpeed_Control (All Filters Included) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
