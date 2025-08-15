@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Final TouchFix)
+// @name         VideoSpeed_Control (Touch Fade Fix)
 // @namespace    https://com/
-// @version      24.08-Final-Stable-TouchFix3
-// @description  🎞️ 드래그 종료 시 시간 표시 오류(레이스 컨디션)를 수정한 최종 안정화 버전입니다.
+// @version      24.08-Final-Stable-TouchFadeFix
+// @description  🎞️ 모바일에서 터치 후 배속바가 다시 흐려지도록 수정된 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -53,7 +53,7 @@
         };
     })();
 
-    // --- UI 관리 (변경 없음) ---
+    // --- UI 관리 (수정됨) ---
     const uiManager = (() => {
         let host, shadowRoot;
         function init() {
@@ -61,7 +61,28 @@
             host = document.createElement('div'); host.id = 'vsc-ui-host'; Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: '2147483647' });
             shadowRoot = host.attachShadow({ mode: 'open' });
             const style = document.createElement('style');
-            style.textContent = `:host{pointer-events:none}*{pointer-events:auto}#vm-speed-slider-container{position:fixed;top:50%;right:0;transform:translateY(-50%);background:transparent;padding:6px;border-radius:8px 0 0 8px;z-index:100;display:none;flex-direction:column;align-items:center;width:50px;opacity:.3;transition:opacity .2s,width .3s,background .2s}#vm-speed-slider-container:hover{opacity:1}#vm-speed-slider-container.minimized{width:30px}#vm-speed-slider,#vm-speed-value,#vm-speed-slider-container .vm-btn{opacity:1;transform:scaleY(1);transition:opacity .2s,transform .2s;transform-origin:bottom}#vm-speed-slider-container.minimized>:not(.toggle){opacity:0;transform:scaleY(0);height:0;margin:0;padding:0}.vm-btn{background:#444;color:#fff;border-radius:4px;border:none;padding:4px 6px;cursor:pointer;margin-top:4px;font-size:12px}#vm-speed-slider{writing-mode:vertical-lr;direction:rtl;width:32px;height:120px;margin:4px 0;accent-color:#e74c3c}#vm-speed-value{color:#f44336;font-weight:700;font-size:14px;text-shadow:1px 1px 2px rgba(0,0,0,.5)}#vm-filter-toggle-btn{font-size:16px;padding:2px 4px}#vm-time-display{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:102;background:rgba(0,0,0,.7);color:#fff;padding:10px 20px;border-radius:5px;font-size:1.5rem;display:none;opacity:1;transition:opacity .3s ease-out;pointer-events:none}`;
+            style.textContent = `
+                :host { pointer-events: none; } * { pointer-events: auto; }
+                #vm-speed-slider-container {
+                    position: fixed; top: 50%; right: 0;
+                    transform: translateY(-50%);
+                    background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100;
+                    display: none; flex-direction: column; align-items: center; width: 50px;
+                    opacity: 0.3; transition: opacity .2s, width .3s, background .2s;
+                }
+                #vm-speed-slider-container:hover,
+                #vm-speed-slider-container.touched { /* ✨ 모바일 터치 피드백을 위한 스타일 추가 */
+                    opacity: 1;
+                }
+                #vm-speed-slider-container.minimized { width: 30px; }
+                #vm-speed-slider, #vm-speed-value, #vm-speed-slider-container .vm-btn { opacity: 1; transform: scaleY(1); transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
+                #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; }
+                .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; }
+                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 120px; margin: 4px 0; accent-color: #e74c3c; }
+                #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); }
+                #vm-filter-toggle-btn { font-size: 16px; padding: 2px 4px; }
+                #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }
+            `;
             shadowRoot.appendChild(style);
             (document.body || document.documentElement).appendChild(host);
         }
@@ -82,12 +103,29 @@
             const toggleButton = document.createElement('button'); toggleButton.className = 'vm-btn toggle'; toggleButton.title = 'Toggle Speed Controller';
             container.append(filterToggleButton, resetButton, sliderEl, valueEl, toggleButton);
             shadowRoot.appendChild(container);
+
             const applySpeed = (speed) => { for (const media of activeMediaMap.keys()) { if (media.playbackRate !== speed) safeExec(() => { media.playbackRate = speed; }); } };
             const updateValueText = (speed) => valueEl && (valueEl.textContent = `x${speed.toFixed(1)}`);
             function updateAppearance() { if (!container) return; container.classList.toggle('minimized', isMinimized); container.querySelector('.toggle').textContent = isMinimized ? '🔻' : '🔺'; }
             resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); });
             sliderEl.addEventListener('input', (e) => { const speed = parseFloat(e.target.value); applySpeed(speed); updateValueText(speed); });
             toggleButton.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(); });
+
+            // ✨ 모바일 터치 페이드아웃 기능 추가
+            let fadeOutTimer;
+            const startFadeOut = () => {
+                clearTimeout(fadeOutTimer);
+                fadeOutTimer = setTimeout(() => {
+                    container.classList.remove('touched');
+                }, 3000); // 3초 후 흐려짐
+            };
+            container.addEventListener('touchstart', () => {
+                clearTimeout(fadeOutTimer);
+                container.classList.add('touched');
+            }, { passive: true });
+            container.addEventListener('touchend', startFadeOut);
+            container.addEventListener('touchcancel', startFadeOut);
+
             inited = true;
             updateAppearance();
         }
@@ -99,18 +137,17 @@
         };
     })();
 
-    // --- ✨ 탐색 바 (터치 로직 수정됨) ---
+    // --- 나머지 모든 모듈 (변경 없음, 전체 코드) ---
     const dragBar = (() => {
         let display, inited = false;
         let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false };
         let lastDelta = 0;
         let rafScheduled = false;
-
         function onStart(e) {
             safeExec(() => {
+                if (e.touches && e.touches.length > 1) return;
                 let videoElement = (e.target?.tagName === 'VIDEO') ? e.target : e.target?.parentElement?.querySelector('video');
                 if (!videoElement || videoElement.paused || speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container')) || (e.type === 'mousedown' && e.button !== 0)) return;
-                if (e.touches && e.touches.length > 1) return;
                 const pos = e.touches ? e.touches[0] : e;
                 Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false });
                 const options = { passive: false, capture: true };
@@ -118,7 +155,6 @@
                 document.addEventListener(e.type === 'mousedown' ? 'mouseup' : 'touchend', onEnd, options);
             }, 'dragBar.onStart');
         }
-
         function onMove(e) {
             if (!state.dragging) return;
             if (e.touches && e.touches.length > 1) { onEnd(); return; }
@@ -134,23 +170,19 @@
             if (state.directionConfirmed) {
                 e.preventDefault(); e.stopImmediatePropagation();
                 safeExec(() => {
-                    const movementX = state.currentX - (state.startX || state.currentX);
+                    const movementX = state.currentX - state.startX;
                     state.accX += movementX;
                     state.startX = state.currentX;
                     if (!rafScheduled) {
                         rafScheduled = true;
                         window.requestAnimationFrame(() => {
-                            // ✨ 레이스 컨디션 방지를 위해 드래그 상태 확인
-                            if (state.dragging) {
-                                showDisplay(state.accX);
-                            }
+                            if (state.dragging) { showDisplay(state.accX); }
                             rafScheduled = false;
                         });
                     }
                 }, 'dragBar.onMove');
             }
         }
-
         function onEnd() {
             if (!state.dragging) return;
             safeExec(() => {
@@ -163,15 +195,12 @@
                 document.removeEventListener('touchend', onEnd, true);
             }, 'dragBar.onEnd');
         }
-
         function applySeek() { const deltaSec = Math.round(state.accX / 2); if (!deltaSec) return; for (const m of activeMediaMap.keys()) { if (isFinite(m.duration)) m.currentTime = Math.min(m.duration, Math.max(0, m.currentTime + deltaSec)); } }
         function init() { if (inited) return; document.addEventListener('mousedown', onStart, { capture: true }); document.addEventListener('touchstart', onStart, { passive: true, capture: true }); inited = true; }
         const showDisplay = (pixels) => { const s = Math.round(pixels / 2); if (s === lastDelta) return; lastDelta = s; if (!display) { const shadowRoot = uiManager.getShadowRoot(); display = document.createElement('div'); display.id = 'vm-time-display'; shadowRoot.appendChild(display); } const sign = s < 0 ? '-' : '+'; const a = Math.abs(s); const mm = Math.floor(a / 60).toString().padStart(2, '0'); const ss = (a % 60).toString().padStart(2, '0'); display.textContent = `${sign}${mm}분 ${ss}초`; display.style.display = 'block'; display.style.opacity = '1'; };
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => { if (display) display.style.display = 'none'; }, 300); } };
         return { init: () => safeExec(init, 'dragBar.init') };
     })();
-
-    // --- 나머지 모든 모듈 (변경 없음) ---
     const mediaSessionManager = (() => { const getSeekTime = (rate) => Math.min(Math.max(1, 5 * rate), 15); const setSession = (media) => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = new window.MediaMetadata({ title: document.title, artist: location.hostname, album: 'VideoSpeed_Control' }); navigator.mediaSession.setActionHandler('play', () => media.play()); navigator.mediaSession.setActionHandler('pause', () => media.pause()); navigator.mediaSession.setActionHandler('seekbackward', () => { media.currentTime -= getSeekTime(media.playbackRate); }); navigator.mediaSession.setActionHandler('seekforward', () => { media.currentTime += getSeekTime(media.playbackRate); }); if ('seekto' in navigator.mediaSession) { navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); return; } media.currentTime = details.seekTime; }); } }, 'mediaSession.set'); }; const clearSession = () => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(h => { try { navigator.mediaSession.setActionHandler(h, null); } catch { } }); }, 'mediaSession.clear'); }; return { setSession, clearSession }; })();
     function findAllMedia(doc = document) { const m = []; safeExec(() => { doc.querySelectorAll('video, audio').forEach(e => m.push(e)); (window._shadowDomList_ || []).forEach(s => s.querySelectorAll('video, audio').forEach(e => m.push(e))); if (doc === document) { document.querySelectorAll('iframe').forEach(i => { try { if (i.contentDocument) m.push(...findAllMedia(i.contentDocument)); } catch { } }); } }); return [...new Set(m)]; }
     const mediaEventHandlers = { play: (m) => { scanTask(true); mediaSessionManager.setSession(m); }, pause: (m) => { scanTask(true); mediaSessionManager.clearSession(m); }, ended: (m) => { scanTask(true); mediaSessionManager.clearSession(m); }, };
@@ -182,7 +211,7 @@
 
     // --- 초기화 ---
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (v24.08-Final-Stable-TouchFix3) Initialized.');
+        console.log('🎉 VideoSpeed_Control (v24.08-Final-Stable-TouchFadeFix) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
