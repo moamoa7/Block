@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Desktop/Mobile Filters)
 // @namespace    https.com/
-// @version      24.08-Filter-Mobile
+// @version      24.08-Filter-Mobile (값 수정1)
 // @description  🎞️ 데스크톱과 모바일 환경을 감지하여 각각 다른 비디오 필터를 적용합니다.
 // @match        *://*/*
 // @grant        none
@@ -51,10 +51,10 @@
     const filterManager = (() => {
         // ✨ 1. 모바일 기기 감지
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-        
+
         // --- 🖥️ 데스크톱 필터 값 (PC 환경에서 수정할 부분) ---
         const DESKTOP_SETTINGS = {
-            GAMMA_VALUE: 1.04,
+            GAMMA_VALUE: 1.05,
             SHARPEN_ID: 'Sharpen3',
             KERNEL_MATRIX: '-1 -1.5 -1 -1.5 13 -1.5 -1 -1.5 -1',
             BLUR_STD_DEVIATION: '0.6',
@@ -63,14 +63,14 @@
         // --- 📱 모바일 필터 값 (모바일 환경에서 수정할 부분) ---
         const MOBILE_SETTINGS = {
             GAMMA_VALUE: 1.05,
-            SHARPEN_ID: 'Sharpen6',
-            KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1',
-            BLUR_STD_DEVIATION: '0.7',
+            SHARPEN_ID: 'Sharpen10',
+            KERNEL_MATRIX: '-1 -1.25 -1 -1.25 9.5 -1.25 -1 -1.25 -1',
+            BLUR_STD_DEVIATION: '0.6',
         };
 
         // ✨ 2. 현재 기기에 맞는 설정 선택
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
-        
+
         let isEnabled = true;
 
         function createSvgFilters() {
@@ -126,7 +126,7 @@
             `;
             (document.head || document.documentElement).appendChild(styleElement);
         }
-        
+
         function updateState() {
             document.documentElement.classList.toggle('video-filter-active', isEnabled);
             const button = uiManager.getShadowRoot()?.getElementById('vm-filter-toggle-btn');
@@ -191,7 +191,7 @@
             const shadowRoot = uiManager.getShadowRoot();
             if (!shadowRoot) return;
             container = document.createElement('div'); container.id = 'vm-speed-slider-container';
-            
+
             const filterToggleButton = document.createElement('button');
             filterToggleButton.id = 'vm-filter-toggle-btn';
             filterToggleButton.className = 'vm-btn';
@@ -203,7 +203,7 @@
             sliderEl = document.createElement('input'); sliderEl.type = 'range'; sliderEl.min = '0.2'; sliderEl.max = '4.0'; sliderEl.step = '0.2'; sliderEl.value = '1.0'; sliderEl.id = 'vm-speed-slider';
             valueEl = document.createElement('div'); valueEl.id = 'vm-speed-value'; valueEl.textContent = 'x1.0';
             const toggleButton = document.createElement('button'); toggleButton.className = 'vm-btn toggle'; toggleButton.title = 'Toggle Speed Controller';
-            
+
             container.append(filterToggleButton, resetButton, sliderEl, valueEl, toggleButton);
             shadowRoot.appendChild(container);
 
@@ -227,7 +227,7 @@
             isMinimized: () => isMinimized
         };
     })();
-    
+
     const dragBar = (() => { let d,i=!1,s={d:!1,x:0,y:0,a:0},l=0,r=!1;function o(e){safeExec(()=>{let t=(e.target?.tagName==="VIDEO"?e.target:e.target?.parentElement?.querySelector("video"));if(!t||t.paused)return;if(speedSlider.isMinimized()||(e.composedPath&&e.composedPath().some(el=>el.id==="vm-speed-slider-container")))return;if(e.type==="mousedown"&&e.button!==0)return;const o=e.touches?e.touches[0]:e;Object.assign(s,{d:!0,x:o.clientX,y:o.clientY,a:0});const a={passive:!1,capture:!0};document.addEventListener(e.type==="mousedown"?"mousemove":"touchmove",n,a),document.addEventListener(e.type==="mousedown"?"mouseup":"touchend",c,a)},"dragBar.onStart")}function n(e){if(!s.d)return;e.preventDefault(),e.stopImmediatePropagation(),safeExec(()=>{const t=e.touches?e.touches[0]:e;s.a+=t.clientX-s.x,s.x=t.clientX,r||(r=!0,window.requestAnimationFrame(()=>{a(s.a),r=!1}))},"dragBar.onMove")}function c(){if(!s.d)return;safeExec(()=>{m(),Object.assign(s,{d:!1,a:0}),u(),document.removeEventListener("mousemove",n,!0),document.removeEventListener("touchmove",n,!0),document.removeEventListener("mouseup",c,!0),document.removeEventListener("touchend",c,!0)},"dragBar.onEnd")}function m(){const e=Math.round(s.a/2);if(!e)return;for(const t of activeMediaMap.keys())isFinite(t.duration)&&(t.currentTime=Math.min(t.duration,Math.max(0,t.currentTime+e)))}function p(){i||(document.addEventListener("mousedown",o,{capture:!0}),document.addEventListener("touchstart",o,{passive:!0,capture:true}),i=!0)}const a=e=>{const t=Math.round(e/2);if(t===l)return;l=t,d||(d=document.createElement("div"),d.id="vm-time-display",uiManager.getShadowRoot().appendChild(d));const o=t<0?"-":"+",n=Math.abs(t),c=Math.floor(n/60).toString().padStart(2,"0"),m=(n%60).toString().padStart(2,"0");d.textContent=`${o}${c}분 ${m}초`,d.style.display="block",d.style.opacity="1"},u=()=>{d&&(d.style.opacity="0",setTimeout(()=>{d&&(d.style.display="none")},300))};return{init:()=>safeExec(p,"dragBar.init")}})();
     const mediaSessionManager = (() => { const getSeekTime = (rate) => Math.min(Math.max(1, 5 * rate), 15); const setSession = (media) => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = new window.MediaMetadata({ title: document.title, artist: location.hostname, album: 'VideoSpeed_Control' }); navigator.mediaSession.setActionHandler('play', () => media.play()); navigator.mediaSession.setActionHandler('pause', () => media.pause()); navigator.mediaSession.setActionHandler('seekbackward', () => { media.currentTime -= getSeekTime(media.playbackRate); }); navigator.mediaSession.setActionHandler('seekforward', () => { media.currentTime += getSeekTime(media.playbackRate); }); if ('seekto' in navigator.mediaSession) { navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); return; } media.currentTime = details.seekTime; }); } }, 'mediaSession.set'); }; const clearSession = () => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(h => { try { navigator.mediaSession.setActionHandler(h, null); } catch { } }); }, 'mediaSession.clear'); }; return { setSession, clearSession }; })();
     const scanTask = (isUiUpdateOnly = false) => { const allMedia = findAllMedia(); if (!isUiUpdateOnly) { allMedia.forEach(initMedia); } activeMediaMap.clear(); allMedia.forEach(m => { if (m.isConnected) { activeMediaMap.set(m, {}); } }); const shouldBeVisible = activeMediaMap.size > 0; if (uiVisible !== shouldBeVisible) { uiVisible = shouldBeVisible; uiVisible ? speedSlider.show() : speedSlider.hide(); } };
