@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Touch Fix Version)
+// @name         VideoSpeed_Control (Truly Final TouchFix)
 // @namespace    https://com/
-// @version      24.08-Final-Stable-TouchFix
-// @description  🎞️ 모바일 환경의 핀치 줌 및 수직 스크롤 드래그 오류를 수정한 최종 버전입니다.
+// @version      24.08-Final-Stable-TouchFix2
+// @description  🎞️ 모바일 핀치 줌 오작동 문제를 수정한 최종 안정화 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -31,14 +31,12 @@
     const filterManager = (() => {
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.35, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.45', SHADOWS_VALUE: -8 };
-        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.10, SHARPEN_ID: 'Sharpen6', KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: 0 };
+        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.1, SHARPEN_ID: 'Sharpen6', KERNEL_MATRIX: '-1 -1.25 -1 -1.25 11 -1.25 -1 -1.25 -1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: 0 };
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
         let isEnabled = true;
         function createSvgFiltersAndStyle() {
             if (document.getElementById('video-enhancer-svg-filters')) return;
-            const svgNs = 'http://www.w3.org/2000/svg';
-            const svgFilters = document.createElementNS(svgNs, 'svg');
-            svgFilters.id = 'video-enhancer-svg-filters'; svgFilters.style.display = 'none';
+            const svgNs = 'http://www.w3.org/2000/svg'; const svgFilters = document.createElementNS(svgNs, 'svg'); svgFilters.id = 'video-enhancer-svg-filters'; svgFilters.style.display = 'none';
             const softeningFilter = document.createElementNS(svgNs, 'filter'); softeningFilter.id = 'SofteningFilter'; const gaussianBlur = document.createElementNS(svgNs, 'feGaussianBlur'); gaussianBlur.setAttribute('stdDeviation', settings.BLUR_STD_DEVIATION); softeningFilter.appendChild(gaussianBlur); svgFilters.appendChild(softeningFilter);
             const sharpenFilter = document.createElementNS(svgNs, 'filter'); sharpenFilter.id = settings.SHARPEN_ID; const convolveMatrix = document.createElementNS(svgNs, 'feConvolveMatrix'); Object.entries({ order: '3 3', preserveAlpha: 'true', kernelMatrix: settings.KERNEL_MATRIX, mode: 'multiply' }).forEach(([k, v]) => convolveMatrix.setAttribute(k, v)); sharpenFilter.appendChild(convolveMatrix); svgFilters.appendChild(sharpenFilter);
             const gammaFilter = document.createElementNS(svgNs, 'filter'); gammaFilter.id = 'gamma-filter'; const feComponentTransfer = document.createElementNS(svgNs, 'feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => { const feFunc = document.createElementNS(svgNs, `feFunc${ch}`); feFunc.setAttribute('type', 'gamma'); feFunc.setAttribute('exponent', (1 / settings.GAMMA_VALUE).toString()); feComponentTransfer.appendChild(feFunc); }); gammaFilter.appendChild(feComponentTransfer); svgFilters.appendChild(gammaFilter);
@@ -110,22 +108,19 @@
 
         function onStart(e) {
             safeExec(() => {
-                // ✨ 1. 다중 터치(핀치 줌) 방어 로직 추가
-                if (e.touches && e.touches.length > 1) return;
-
                 const target = e.target;
                 let videoElement = (target?.tagName === 'VIDEO') ? target : target?.parentElement?.querySelector('video');
                 if (!videoElement || videoElement.paused || speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container')) || (e.type === 'mousedown' && e.button !== 0)) return;
 
+                // 첫 터치 이벤트에서 손가락이 여러 개면 시작하지 않음 (이중 방어)
+                if (e.touches && e.touches.length > 1) return;
+
                 const pos = e.touches ? e.touches[0] : e;
                 Object.assign(state, {
                     dragging: true,
-                    startX: pos.clientX,
-                    startY: pos.clientY,
-                    currentX: pos.clientX,
-                    currentY: pos.clientY,
-                    accX: 0,
-                    directionConfirmed: false // 드래그 방향 초기화
+                    startX: pos.clientX, startY: pos.clientY,
+                    currentX: pos.clientX, currentY: pos.clientY,
+                    accX: 0, directionConfirmed: false
                 });
 
                 const options = { passive: false, capture: true };
@@ -136,32 +131,36 @@
 
         function onMove(e) {
             if (!state.dragging) return;
+
+            // ✨ 1. 움직임 감지 시 다중 터치(핀치 줌)가 발생하면 즉시 드래그 종료
+            if (e.touches && e.touches.length > 1) {
+                onEnd();
+                return;
+            }
+
             const pos = e.touches ? e.touches[0] : e;
             state.currentX = pos.clientX;
             state.currentY = pos.clientY;
 
-            // ✨ 2. 드래그 방향 결정 로직 추가
             if (!state.directionConfirmed) {
                 const deltaX = Math.abs(state.currentX - state.startX);
                 const deltaY = Math.abs(state.currentY - state.startY);
 
-                // 상하보다 좌우 움직임이 더 클 때만 탐색 기능 활성화
-                if (deltaX > deltaY + 2) { // 약간의 허용치(2px) 추가
+                if (deltaX > deltaY + 5) { // 좌우 움직임이 명확할 때만 (허용치 5px)
                     state.directionConfirmed = true;
-                } else if (deltaY > deltaX + 2) {
-                    // 수직 스크롤로 판단되면 드래그 즉시 종료
-                    onEnd();
+                } else if (deltaY > deltaX + 5) {
+                    onEnd(); // 수직 스크롤로 판단되면 종료
                     return;
                 }
             }
 
-            // 수평 드래그로 확정된 경우에만 탐색 로직 실행
             if (state.directionConfirmed) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 safeExec(() => {
-                    state.accX += state.currentX - state.startX;
-                    state.startX = state.currentX; // startX를 현재 위치로 계속 갱신
+                    const movementX = state.currentX - state.startX; // 마지막 move 이벤트 이후의 실제 이동량
+                    state.accX += movementX;
+                    state.startX = state.currentX; // 시작점을 현재 위치로 갱신
                     if (!rafScheduled) {
                         rafScheduled = true;
                         window.requestAnimationFrame(() => {
@@ -176,7 +175,7 @@
         function onEnd() {
             if (!state.dragging) return;
             safeExec(() => {
-                if(state.directionConfirmed) applySeek(); // 수평 드래그였을 때만 시간 적용
+                if (state.directionConfirmed) applySeek();
                 Object.assign(state, { dragging: false, accX: 0, directionConfirmed: false });
                 hideDisplay();
                 document.removeEventListener('mousemove', onMove, true);
@@ -204,7 +203,7 @@
 
     // --- 초기화 ---
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (v24.08-Final-Stable-TouchFix) Initialized.');
+        console.log('🎉 VideoSpeed_Control (v24.08-Final-Stable-TouchFix2) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
