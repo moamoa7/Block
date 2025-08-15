@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Ultimate Final Fix)
 // @namespace    https://com/
-// @version      24.08-Ultimate-Final-Fix
+// @version      24.08-Ultimate-Final-Fix2
 // @description  🎞️ ReferenceError (media is not defined) 오류를 수정한 최종 완전판입니다.
 // @match        *://*/*
 // @grant        none
@@ -90,55 +90,120 @@
     })();
 
     const speedSlider = (() => {
-        let container, inited = false, isMinimized = true;
-        let fadeOutTimer;
+    let container, inited = false, isMinimized = true;
+    let fadeOutTimer;
 
-        function init() {
-            if (inited) return;
-            const shadowRoot = uiManager.getShadowRoot();
-            if (!shadowRoot) return;
-            container = document.createElement('div'); container.id = 'vm-speed-slider-container';
-            const filterToggleButton = document.createElement('button'); filterToggleButton.id = 'vm-filter-toggle-btn'; filterToggleButton.className = 'vm-btn'; filterToggleButton.title = 'Toggle Video Filter'; filterToggleButton.textContent = '🌞'; filterToggleButton.addEventListener('click', () => filterManager.toggle());
-            const resetButton = document.createElement('button'); resetButton.className = 'vm-btn reset'; resetButton.title = 'Reset speed to 1x'; resetButton.textContent = '1x';
-            const sliderEl = document.createElement('input'); sliderEl.type = 'range'; sliderEl.min = '0.2'; sliderEl.max = '4.0'; sliderEl.step = '0.2'; sliderEl.value = '1.0'; sliderEl.id = 'vm-speed-slider';
-            const valueEl = document.createElement('div'); valueEl.id = 'vm-speed-value'; valueEl.textContent = 'x1.0';
-            const toggleButton = document.createElement('button'); toggleButton.className = 'vm-btn toggle'; toggleButton.title = 'Toggle Speed Controller';
-            container.append(filterToggleButton, resetButton, sliderEl, valueEl, toggleButton);
-            shadowRoot.appendChild(container);
+    function init() {
+        if (inited) return;
+        const shadowRoot = uiManager.getShadowRoot();
+        if (!shadowRoot) return;
+        container = document.createElement('div');
+        container.id = 'vm-speed-slider-container';
 
-            const applySpeed = (speed) => { for (const media of activeMediaMap.keys()) { if (media.playbackRate !== speed) safeExec(() => { media.playbackRate = speed; }); } };
-            const updateValueText = (speed) => valueEl && (valueEl.textContent = `x${speed.toFixed(1)}`);
-            function updateAppearance() { if (!container) return; container.classList.toggle('minimized', isMinimized); container.querySelector('.toggle').textContent = isMinimized ? '🔻' : '🔺'; }
-            resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); });
-            sliderEl.addEventListener('input', (e) => { const speed = parseFloat(e.target.value); applySpeed(speed); updateValueText(speed); });
-            toggleButton.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(); });
+        // 버튼들 생성
+        const filterToggleButton = document.createElement('button');
+        filterToggleButton.id = 'vm-filter-toggle-btn';
+        filterToggleButton.className = 'vm-btn';
+        filterToggleButton.title = 'Toggle Video Filter';
+        filterToggleButton.textContent = '🌞';
+        filterToggleButton.addEventListener('click', () => filterManager.toggle());
 
-            const startFadeOut = () => {
-                clearTimeout(fadeOutTimer);
-                fadeOutTimer = setTimeout(() => { container.classList.remove('touched'); }, 3000);
-            };
-            const onDocumentTouchEnd = () => {
-                startFadeOut();
-                document.removeEventListener('touchend', onDocumentTouchEnd);
-                document.removeEventListener('touchcancel', onDocumentTouchEnd);
-            };
-            container.addEventListener('touchstart', () => {
-                clearTimeout(fadeOutTimer);
-                container.classList.add('touched');
-                document.addEventListener('touchend', onDocumentTouchEnd);
-                document.addEventListener('touchcancel', onDocumentTouchEnd);
-            }, { passive: true });
+        const resetButton = document.createElement('button');
+        resetButton.className = 'vm-btn reset';
+        resetButton.title = 'Reset speed to 1x';
+        resetButton.textContent = '1x';
 
-            inited = true;
-            updateAppearance();
-        }
-        return {
-            init: () => safeExec(init, 'speedSlider.init'),
-            show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; },
-            hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; },
-            isMinimized: () => isMinimized
+        const sliderEl = document.createElement('input');
+        sliderEl.type = 'range';
+        sliderEl.min = '0.2';
+        sliderEl.max = '4.0';
+        sliderEl.step = '0.2';
+        sliderEl.value = '1.0';
+        sliderEl.id = 'vm-speed-slider';
+
+        const valueEl = document.createElement('div');
+        valueEl.id = 'vm-speed-value';
+        valueEl.textContent = 'x1.0';
+
+        const toggleButton = document.createElement('button');
+        toggleButton.className = 'vm-btn toggle';
+        toggleButton.title = 'Toggle Speed Controller';
+
+        container.append(filterToggleButton, resetButton, sliderEl, valueEl, toggleButton);
+        shadowRoot.appendChild(container);
+
+        // CSS 수정 — touched 제거 시 opacity 부드럽게 감소
+        const style = document.createElement('style');
+        style.textContent = `
+            #vm-speed-slider-container {
+                opacity: 0.3;
+                transition: opacity 0.5s ease, width 0.3s, background 0.2s;
+            }
+            #vm-speed-slider-container.touched {
+                opacity: 1;
+            }
+        `;
+        shadowRoot.appendChild(style);
+
+        // 속도 적용
+        const applySpeed = (speed) => {
+            for (const media of activeMediaMap.keys()) {
+                if (media.playbackRate !== speed) safeExec(() => { media.playbackRate = speed; });
+            }
         };
-    })();
+        const updateValueText = (speed) => valueEl && (valueEl.textContent = `x${speed.toFixed(1)}`);
+        function updateAppearance() {
+            if (!container) return;
+            container.classList.toggle('minimized', isMinimized);
+            container.querySelector('.toggle').textContent = isMinimized ? '🔻' : '🔺';
+        }
+
+        resetButton.addEventListener('click', () => {
+            sliderEl.value = '1.0';
+            applySpeed(1.0);
+            updateValueText(1.0);
+        });
+        sliderEl.addEventListener('input', (e) => {
+            const speed = parseFloat(e.target.value);
+            applySpeed(speed);
+            updateValueText(speed);
+        });
+        toggleButton.addEventListener('click', () => {
+            isMinimized = !isMinimized;
+            updateAppearance();
+        });
+
+        // 터치 후 손 떼면 3초 후 흐려짐
+        const startFadeOut = () => {
+            clearTimeout(fadeOutTimer);
+            fadeOutTimer = setTimeout(() => {
+                container.classList.remove('touched');
+            }, 3000); // 3초 뒤 opacity 줄어듦
+        };
+        const onDocumentTouchEnd = () => {
+            startFadeOut();
+            document.removeEventListener('touchend', onDocumentTouchEnd);
+            document.removeEventListener('touchcancel', onDocumentTouchEnd);
+        };
+        container.addEventListener('touchstart', () => {
+            clearTimeout(fadeOutTimer);
+            container.classList.add('touched');
+            document.addEventListener('touchend', onDocumentTouchEnd);
+            document.addEventListener('touchcancel', onDocumentTouchEnd);
+        }, { passive: true });
+
+        inited = true;
+        updateAppearance();
+    }
+
+    return {
+        init: () => safeExec(init, 'speedSlider.init'),
+        show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; },
+        hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; },
+        isMinimized: () => isMinimized
+    };
+})();
+
 
     // --- 탐색 바 ---
     const dragBar = (() => {
