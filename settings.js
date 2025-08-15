@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Desktop/Mobile Filters)
 // @namespace    https.com/
-// @version      24.08-Filter-Mobile (값 수정7)
+// @version      24.08-Filter-Mobile (값 수정8)
 // @description  🎞️ 데스크톱과 모바일 환경을 감지하여 각각 다른 비디오 필터를 적용합니다.
 // @match        *://*/*
 // @grant        none
@@ -63,8 +63,8 @@
         // --- 📱 모바일 필터 값 (모바일 환경에서 수정할 부분) ---
         const MOBILE_SETTINGS = {
             GAMMA_VALUE: 1.04,
-            SHARPEN_ID: 'Sharpen7',
-            KERNEL_MATRIX: '-1 -1.125 -1 -1.125 9.75 -1.125 -1 -1.125 -1',
+            SHARPEN_ID: 'Sharpen8',
+            KERNEL_MATRIX: '-1 -1.25 -1 -1.25 10 -1.25 -1 -1.25 -1',
             BLUR_STD_DEVIATION: '0.6',
         };
 
