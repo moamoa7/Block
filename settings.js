@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Ultimate Final Fix)
 // @namespace    https://com/
-// @version      24.08-Ultimate-Final-Fix2
+// @version      24.08-Ultimate-Final-Fix3
 // @description  🎞️ ReferenceError (media is not defined) 오류를 수정한 최종 완전판입니다.
 // @match        *://*/*
 // @grant        none
@@ -97,10 +97,11 @@
         if (inited) return;
         const shadowRoot = uiManager.getShadowRoot();
         if (!shadowRoot) return;
+
         container = document.createElement('div');
         container.id = 'vm-speed-slider-container';
 
-        // 버튼들 생성
+        // 버튼 생성
         const filterToggleButton = document.createElement('button');
         filterToggleButton.id = 'vm-filter-toggle-btn';
         filterToggleButton.className = 'vm-btn';
@@ -132,64 +133,115 @@
         container.append(filterToggleButton, resetButton, sliderEl, valueEl, toggleButton);
         shadowRoot.appendChild(container);
 
-        // CSS 수정 — touched 제거 시 opacity 부드럽게 감소
+        // Shadow DOM 안에 스타일 추가 — 흐려지는 효과 포함
         const style = document.createElement('style');
         style.textContent = `
+            :host { pointer-events: none; }
+            * { pointer-events: auto; }
             #vm-speed-slider-container {
+                position: fixed; top: 50%; right: 0;
+                transform: translateY(-50%);
+                background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100;
+                display: none; flex-direction: column; align-items: center; width: 50px;
                 opacity: 0.3;
                 transition: opacity 0.5s ease, width 0.3s, background 0.2s;
             }
+            #vm-speed-slider-container:hover,
             #vm-speed-slider-container.touched {
                 opacity: 1;
+            }
+            #vm-speed-slider-container.minimized {
+                width: 30px;
+            }
+            #vm-speed-slider, #vm-speed-value, #vm-speed-slider-container .vm-btn {
+                opacity: 1; transform: scaleY(1);
+                transition: opacity 0.2s, transform 0.2s;
+                transform-origin: bottom;
+            }
+            #vm-speed-slider-container.minimized > :not(.toggle) {
+                opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0;
+            }
+            .vm-btn {
+                background: #444; color: white; border-radius: 4px; border: none;
+                padding: 4px 6px; cursor: pointer; margin-top: 4px; font-size: 12px;
+            }
+            #vm-speed-slider {
+                writing-mode: vertical-lr; direction: rtl;
+                width: 32px; height: 120px; margin: 4px 0;
+                accent-color: #e74c3c;
+            }
+            #vm-speed-value {
+                color: #f44336; font-weight: 700; font-size: 14px;
+                text-shadow: 1px 1px 2px rgba(0,0,0,.5);
+            }
+            #vm-filter-toggle-btn { font-size: 16px; padding: 2px 4px; }
+            #vm-time-display {
+                position: fixed; top: 50%; left: 50%;
+                transform: translate(-50%,-50%);
+                z-index: 102; background: rgba(0,0,0,.7); color: #fff;
+                padding: 10px 20px; border-radius: 5px; font-size: 1.5rem;
+                display: none; opacity: 1; transition: opacity .3s ease-out;
+                pointer-events: none;
             }
         `;
         shadowRoot.appendChild(style);
 
-        // 속도 적용
+        // 속도 적용 함수
         const applySpeed = (speed) => {
             for (const media of activeMediaMap.keys()) {
-                if (media.playbackRate !== speed) safeExec(() => { media.playbackRate = speed; });
+                if (media.playbackRate !== speed) {
+                    safeExec(() => { media.playbackRate = speed; });
+                }
             }
         };
-        const updateValueText = (speed) => valueEl && (valueEl.textContent = `x${speed.toFixed(1)}`);
+
+        const updateValueText = (speed) => {
+            if (valueEl) valueEl.textContent = `x${speed.toFixed(1)}`;
+        };
+
         function updateAppearance() {
             if (!container) return;
             container.classList.toggle('minimized', isMinimized);
             container.querySelector('.toggle').textContent = isMinimized ? '🔻' : '🔺';
         }
 
+        // 이벤트
         resetButton.addEventListener('click', () => {
             sliderEl.value = '1.0';
             applySpeed(1.0);
             updateValueText(1.0);
         });
+
         sliderEl.addEventListener('input', (e) => {
             const speed = parseFloat(e.target.value);
             applySpeed(speed);
             updateValueText(speed);
         });
+
         toggleButton.addEventListener('click', () => {
             isMinimized = !isMinimized;
             updateAppearance();
         });
 
-        // 터치 후 손 떼면 3초 후 흐려짐
+        // 터치 후 3초 뒤 흐려짐
         const startFadeOut = () => {
             clearTimeout(fadeOutTimer);
             fadeOutTimer = setTimeout(() => {
                 container.classList.remove('touched');
-            }, 3000); // 3초 뒤 opacity 줄어듦
+            }, 3000);
         };
+
         const onDocumentTouchEnd = () => {
             startFadeOut();
             document.removeEventListener('touchend', onDocumentTouchEnd);
             document.removeEventListener('touchcancel', onDocumentTouchEnd);
         };
+
         container.addEventListener('touchstart', () => {
             clearTimeout(fadeOutTimer);
             container.classList.add('touched');
-            document.addEventListener('touchend', onDocumentTouchEnd);
-            document.addEventListener('touchcancel', onDocumentTouchEnd);
+            document.addEventListener('touchend', onDocumentTouchEnd, { passive: true });
+            document.addEventListener('touchcancel', onDocumentTouchEnd, { passive: true });
         }, { passive: true });
 
         inited = true;
@@ -198,11 +250,18 @@
 
     return {
         init: () => safeExec(init, 'speedSlider.init'),
-        show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; },
-        hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; },
+        show: () => {
+            const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container');
+            if (el) el.style.display = 'flex';
+        },
+        hide: () => {
+            const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container');
+            if (el) el.style.display = 'none';
+        },
         isMinimized: () => isMinimized
     };
 })();
+
 
 
     // --- 탐색 바 ---
