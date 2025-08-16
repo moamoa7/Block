@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Optimized)
+// @name         VideoSpeed_Control (Ultimate Optimized & Fixed)
 // @namespace    https://com/
-// @version      26.00-Ultimate-Optimized
-// @description  🎞️ GPU 가속 및 재생 속도 제어 로직을 최적화한 버전입니다.
+// @version      26.01-Ultimate-Optimized-Fixed
+// @description  🎞️ 모든 최적화(GPU, 속도, UX, 안정성)가 적용되고 오류가 수정된 최종 완전판입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -27,7 +27,7 @@
     safeExec(() => { if (window.console && console.clear) { const o = console.clear; console.clear = () => console.log('--- 🚫 console.clear() blocked ---'); Object.defineProperty(console, 'clear', { configurable: false, writable: false, value: console.clear }); } }, 'consoleClearProtection');
     (function hackAttachShadow() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const o = window.Element.prototype.attachShadow; window.Element.prototype.attachShadow = function () { const a = arguments; if (a[0] && a[0].mode) a[0].mode = 'open'; const r = o.apply(this, a); window._shadowDomList_.push(r); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: r } })); return r; }; window._hasHackAttachShadow_ = true; }, 'hackAttachShadow'); })();
 
-    // --- 비디오 필터 모듈 (GPU 가속 CSS 분리) ---
+    // --- 비디오 필터 모듈 ---
     const filterManager = (() => {
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 };
@@ -43,9 +43,7 @@
             const gammaFilter = document.createElementNS(svgNs, 'filter'); gammaFilter.id = 'gamma-filter'; const feComponentTransfer = document.createElementNS(svgNs, 'feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => { const feFunc = document.createElementNS(svgNs, `feFunc${ch}`); feFunc.setAttribute('type', 'gamma'); feFunc.setAttribute('exponent', (1 / settings.GAMMA_VALUE).toString()); feComponentTransfer.appendChild(feFunc); }); gammaFilter.appendChild(feComponentTransfer); svgFilters.appendChild(gammaFilter);
             const linearAdjustFilter = document.createElementNS(svgNs, 'filter'); linearAdjustFilter.id = 'linear-adjust-filter'; const linearComponentTransfer = document.createElementNS(svgNs, 'feComponentTransfer'); const shadowIntercept = settings.SHADOWS_VALUE / 200; const highlightSlope = 1 + (settings.HIGHLIGHTS_VALUE / 100); ['R', 'G', 'B'].forEach(ch => { const feFunc = document.createElementNS(svgNs, `feFunc${ch}`); feFunc.setAttribute('type', 'linear'); feFunc.setAttribute('slope', highlightSlope.toString()); feFunc.setAttribute('intercept', shadowIntercept.toString()); linearComponentTransfer.appendChild(feFunc); }); linearAdjustFilter.appendChild(linearComponentTransfer); svgFilters.appendChild(linearAdjustFilter);
             (document.body || document.documentElement).appendChild(svgFilters);
-
             const styleElement = document.createElement('style'); styleElement.id = 'video-enhancer-styles';
-            // ✨ GPU 가속 CSS를 별도의 클래스로 분리
             styleElement.textContent = `
                 html.video-filter-active video,
                 html.video-filter-active iframe {
@@ -82,7 +80,7 @@
                 #vm-speed-slider, #vm-speed-value, #vm-speed-slider-container .vm-btn { opacity: 1; transform: scaleY(1); transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
                 #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; }
                 .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; }
-                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 120px; margin: 4px 0; accent-color: #e74c3c; }
+                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 120px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; }
                 #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); }
                 #vm-filter-toggle-btn { font-size: 16px; padding: 2px 4px; }
                 #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }
@@ -114,24 +112,25 @@
             function updateAppearance() { if (!container) return; container.classList.toggle('minimized', isMinimized); container.querySelector('.toggle').textContent = isMinimized ? '🔻' : '🔺'; }
             resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); });
 
-            // ✨ playbackRate 변경을 디바운스 처리
             const debouncedApplySpeed = debounce(applySpeed, 100);
             sliderEl.addEventListener('input', (e) => {
                 const speed = parseFloat(e.target.value);
-                updateValueText(speed); // UI 피드백은 즉시
-                debouncedApplySpeed(speed); // 실제 속도 적용은 지연
+                updateValueText(speed);
+                debouncedApplySpeed(speed);
                 container.classList.add('touched');
                 clearTimeout(fadeOutTimer);
             });
-
             toggleButton.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(); });
-
             const startInteraction = () => { clearTimeout(fadeOutTimer); container.classList.add('touched'); };
             const endInteractionSoon = () => { clearTimeout(fadeOutTimer); fadeOutTimer = setTimeout(() => { container.classList.remove('touched'); }, 3000); };
             const onDocumentTouchEnd = () => { endInteractionSoon(); document.removeEventListener('touchend', onDocumentTouchEnd); document.removeEventListener('touchcancel', onDocumentTouchEnd); };
             container.addEventListener('touchstart', () => { clearTimeout(fadeOutTimer); container.classList.add('touched'); document.addEventListener('touchend', onDocumentTouchEnd); document.addEventListener('touchcancel', onDocumentTouchEnd); }, { passive: true });
             sliderEl.addEventListener('change', endInteractionSoon, { passive: true });
             sliderEl.addEventListener('blur', endInteractionSoon, { passive: true });
+
+            const stopEventPropagation = e => e.stopPropagation();
+            sliderEl.addEventListener('touchstart', stopEventPropagation, { passive: true });
+            sliderEl.addEventListener('touchmove', stopEventPropagation, { passive: true });
 
             inited = true;
             updateAppearance();
@@ -144,7 +143,7 @@
         };
     })();
 
-    // --- 나머지 모든 모듈 (전체 코드, ✨ scanTask 수정됨) ---
+    // --- 나머지 모든 모듈 (✨전체 코드로 복원됨) ---
     const dragBar = (() => {
         let display, inited = false; let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false }; let lastDelta = 0; let rafScheduled = false;
         function onStart(e) { safeExec(() => { if (e.touches && e.touches.length > 1) return; let videoElement = (e.target?.tagName === 'VIDEO') ? e.target : e.target?.parentElement?.querySelector('video'); if (!videoElement || videoElement.paused || speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container')) || (e.type === 'mousedown' && e.button !== 0)) return; const pos = e.touches ? e.touches[0] : e; Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false }); const options = { passive: false, capture: true }; document.addEventListener(e.type === 'mousedown' ? 'mousemove' : 'touchmove', onMove, options); document.addEventListener(e.type === 'mousedown' ? 'mouseup' : 'touchend', onEnd, options); }, 'dragBar.onStart'); }
@@ -156,11 +155,37 @@
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => { if (display) display.style.display = 'none'; }, 300); } };
         return { init: () => safeExec(init, 'dragBar.init') };
     })();
-    const mediaSessionManager = (() => { const getSeekTime = (rate) => Math.min(Math.max(1, 5 * rate), 15); const setSession = (media) => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = new window.MediaMetadata({ title: document.title, artist: location.hostname, album: 'VideoSpeed_Control' }); navigator.mediaSession.setActionHandler('play', () => media.play()); navigator.mediaSession.setActionHandler('pause', () => media.pause()); navigator.mediaSession.setActionHandler('seekbackward', () => { media.currentTime -= getSeekTime(media.playbackRate); }); navigator.mediaSession.setActionHandler('seekforward', () => { media.currentTime += getSeekTime(media.playbackRate); }); if ('seekto' in navigator.mediaSession) { navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); return; } media.currentTime = details.seekTime; }); } }, 'mediaSession.set'); }; const clearSession = () => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(h => { try { navigator.mediaSession.setActionHandler(h, null); } catch { } }); }, 'mediaSession.clear'); }; return { setSession, clearSession }; })();
-    function findAllMedia(doc = document) { const m = []; safeExec(() => { doc.querySelectorAll('video, audio').forEach(e => m.push(e)); (window._shadowDomList_ || []).forEach(sr => sr.querySelectorAll('video, audio').forEach(e => m.push(e))); if (doc === document) { document.querySelectorAll('iframe').forEach(iframe => { try { if (iframe.contentDocument) m.push(...findAllMedia(iframe.contentDocument)); } catch { } }); } }); return [...new Set(m)]; }
-    const mediaEventHandlers = { play: (media) => { scanTask(true); mediaSessionManager.setSession(media); }, pause: (media) => { scanTask(true); mediaSessionManager.clearSession(media); }, ended: (media) => { scanTask(true); mediaSessionManager.clearSession(media); }, };
-    function initMedia(media) { if (!media || SEEN_MEDIA.has(media)) return; SEEN_MEDIA.add(media); Object.entries(mediaEventHandlers).forEach(([evt, handler]) => { media.addEventListener(evt, () => handler(media)); }); }
-
+    const mediaSessionManager = (() => {
+        const getSeekTime = (rate) => Math.min(Math.max(1, 5 * rate), 15);
+        const setSession = (media) => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = new window.MediaMetadata({ title: document.title, artist: location.hostname, album: 'VideoSpeed_Control' }); navigator.mediaSession.setActionHandler('play', () => media.play()); navigator.mediaSession.setActionHandler('pause', () => media.pause()); navigator.mediaSession.setActionHandler('seekbackward', () => { media.currentTime -= getSeekTime(media.playbackRate); }); navigator.mediaSession.setActionHandler('seekforward', () => { media.currentTime += getSeekTime(media.playbackRate); }); if ('seekto' in navigator.mediaSession) { navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); return; } media.currentTime = details.seekTime; }); } }, 'mediaSession.set'); };
+        const clearSession = () => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(h => { try { navigator.mediaSession.setActionHandler(h, null); } catch { } }); }, 'mediaSession.clear'); };
+        return { setSession, clearSession };
+    })();
+    function findAllMedia(doc = document) {
+        const media = [];
+        safeExec(() => {
+            doc.querySelectorAll('video, audio').forEach(m => media.push(m));
+            (window._shadowDomList_ || []).forEach(sr => sr.querySelectorAll('video, audio').forEach(m => media.push(m)));
+            if (doc === document) {
+                document.querySelectorAll('iframe').forEach(iframe => {
+                    try { if (iframe.contentDocument) media.push(...findAllMedia(iframe.contentDocument)); } catch { }
+                });
+            }
+        });
+        return [...new Set(media)];
+    }
+    const mediaEventHandlers = {
+        play: (media) => { scanTask(true); mediaSessionManager.setSession(media); },
+        pause: (media) => { scanTask(true); mediaSessionManager.clearSession(media); },
+        ended: (media) => { scanTask(true); mediaSessionManager.clearSession(media); },
+    };
+    function initMedia(media) {
+        if (!media || SEEN_MEDIA.has(media)) return;
+        SEEN_MEDIA.add(media);
+        Object.entries(mediaEventHandlers).forEach(([evt, handler]) => {
+            media.addEventListener(evt, () => handler(media));
+        });
+    }
     const scanTask = (isUiUpdateOnly = false) => {
         const allMedia = findAllMedia();
         if (!isUiUpdateOnly) {
@@ -168,33 +193,37 @@
         }
         activeMediaMap.clear();
         allMedia.forEach(m => {
-            if (m.isConnected) {
-                activeMediaMap.set(m, {});
-            }
+            if (m.isConnected) { activeMediaMap.set(m, {}); }
         });
-
-        // ✨ will-change 최적화 로직
-        // 모든 비디오를 순회하며 재생 중인 것에만 GPU 가속 클래스 적용
         allMedia.forEach(video => {
             if (video.tagName === 'VIDEO') {
                 const isPlaying = !video.paused && !video.ended;
                 video.classList.toggle('vsc-gpu-accelerated', isPlaying);
             }
         });
-
         const shouldBeVisible = activeMediaMap.size > 0;
         if (uiVisible !== shouldBeVisible) {
             uiVisible = shouldBeVisible;
             uiVisible ? speedSlider.show() : speedSlider.hide();
         }
     };
-
     const debouncedScanTask = debounce(scanTask, 350);
-    function scanAddedNodes(nodes) { const mediaElements = []; nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) mediaElements.push(node); node.querySelectorAll?.('video, audio').forEach(m => mediaElements.push(m)); }); if (mediaElements.length > 0) { mediaElements.forEach(initMedia); scanTask(true); } }
+    function scanAddedNodes(nodes) {
+        const mediaElements = [];
+        nodes.forEach(node => {
+            if (node.nodeType !== 1) return;
+            if (node.matches?.('video, audio')) mediaElements.push(node);
+            node.querySelectorAll?.('video, audio').forEach(m => mediaElements.push(m));
+        });
+        if (mediaElements.length > 0) {
+            mediaElements.forEach(initMedia);
+            scanTask(true);
+        }
+    }
 
     // --- 초기화 ---
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (Optimized) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Optimized Patch) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
@@ -205,6 +234,10 @@
         const originalPushState = history.pushState; history.pushState = function () { originalPushState.apply(this, arguments); scanTask(); };
         window.addEventListener('popstate', () => scanTask());
         document.addEventListener('fullscreenchange', () => uiManager.moveUiTo(document.fullscreenElement || document.body));
+        window.addEventListener('beforeunload', () => {
+            if (observer) observer.disconnect();
+            if (FeatureFlags.debug) console.log('[VideoSpeed] Cleaned up MutationObserver.');
+        });
         scanTask();
     }
 
