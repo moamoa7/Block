@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Trusted Types Fix)
+// @name         VideoSpeed_Control (Integrated Final)
 // @namespace    https://com/
-// @version      27.11-TrustedTypesFix
-// @description  🎞️ Trusted Types 보안 정책을 준수하도록 UI 생성 로직을 수정하여 최신 웹사이트와의 호환성을 확보했습니다.
+// @version      27.13-Integrated
+// @description  🎞️ 재생 안정성 및 오디오 리셋 기능이 포함된 최신 통합 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -11,7 +11,7 @@
 (function () {
     'use strict';
 
-    // --- Configuration and Constants (No changes) ---
+    // --- Configuration and Constants ---
     const CONFIG = {
         DEBUG: false,
         DEBOUNCE_DELAY: 350,
@@ -43,7 +43,7 @@
         }
     };
 
-    // --- Utilities & Guards (No changes) ---
+    // --- Utilities & Guards ---
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VideoSpeed] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn.apply(this, args), wait); }; };
     let idleCallbackId;
@@ -58,10 +58,7 @@
         if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) return true;
         return CONFIG.SPECIFIC_EXCLUSIONS.some(rule => hostname.includes(rule.domain) && url.includes(rule.path));
     }
-    if (isExcluded()) {
-        if (CONFIG.DEBUG) console.log(`[VideoSpeed] Skipped on excluded page: ${location.href}`);
-        return;
-    }
+    if (isExcluded()) { return; }
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
     const activeMedia = new Set();
     const processedMedia = new WeakSet();
@@ -92,12 +89,14 @@
         }, 'hackAttachShadow');
     })();
 
-    // --- Modules ---
-
-    const audioManager = (() => { /* ... No changes ... */
+    /**
+     * Manages all Web Audio API enhancements with Lazy Initialization and Reset.
+     */
+    const audioManager = (() => {
         let isNormalizerEnabled = false;
         let currentEQState = 'off';
         const audioGraphMap = new WeakMap();
+
         function createAudioGraph(context) {
             const settings = CONFIG.AUDIO_NORMALIZER_SETTINGS;
             const compressor = context.createDynamicsCompressor();
@@ -116,6 +115,7 @@
             const gain = context.createGain();
             return { compressor, bassFilter, trebleFilter, gain };
         }
+
         function applyEQPreset(media) {
             if (!audioGraphMap.has(media)) return;
             const graph = audioGraphMap.get(media);
@@ -123,6 +123,7 @@
             graph.bassFilter.gain.setValueAtTime(preset.bassGain, graph.context.currentTime);
             graph.trebleFilter.gain.setValueAtTime(preset.trebleGain, graph.context.currentTime);
         }
+
         function updateAudioGraph(media) {
             if (!audioGraphMap.has(media)) return;
             const graph = audioGraphMap.get(media);
@@ -132,13 +133,14 @@
                 chain.unshift(graph.compressor);
             }
             let currentNode = graph.source;
-            for (const nextNode of chain) {
+            for(const nextNode of chain) {
                 currentNode.connect(nextNode);
                 currentNode = nextNode;
             }
             currentNode.connect(graph.context.destination);
         }
-        function processMedia(media) {
+
+        function initAudioContext(media) {
             if (audioGraphMap.has(media)) return;
             safeExec(() => {
                 const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -147,8 +149,13 @@
                 audioGraphMap.set(media, { context, source, compressor, bassFilter, trebleFilter, gain });
                 applyEQPreset(media);
                 updateAudioGraph(media);
-            }, 'audioManager.processMedia');
+            }, 'audioManager.initAudioContext');
         }
+
+        function processMedia(media) {
+            media.addEventListener('play', () => initAudioContext(media), { once: true });
+        }
+
         function cleanupMedia(media) {
             if (audioGraphMap.has(media)) {
                 safeExec(() => {
@@ -157,12 +164,14 @@
                 }, 'audioManager.cleanupMedia');
             }
         }
+
         function toggleNormalizer() {
             isNormalizerEnabled = !isNormalizerEnabled;
             const button = uiManager.getShadowRoot()?.getElementById('vm-normalize-toggle-btn');
             if (button) button.textContent = isNormalizerEnabled ? '🌙' : '☀️';
             for (const media of activeMedia) updateAudioGraph(media);
         }
+
         function cycleEQ() {
             const states = ['off', 'treble', 'bass'];
             const icons = ['🚫', '🔊', '🎬'];
@@ -173,9 +182,27 @@
             if (button) button.textContent = icons[nextIndex];
             for (const media of activeMedia) applyEQPreset(media);
         }
-        return { processMedia, cleanupMedia, toggleNormalizer, cycleEQ };
+
+        function resetAudio() {
+            isNormalizerEnabled = false;
+            currentEQState = 'off';
+            const shadowRoot = uiManager.getShadowRoot();
+            if (shadowRoot) {
+                const normalizeButton = shadowRoot.getElementById('vm-normalize-toggle-btn');
+                const eqButton = shadowRoot.getElementById('vm-eq-toggle-btn');
+                if (normalizeButton) normalizeButton.textContent = '☀️';
+                if (eqButton) eqButton.textContent = '🚫';
+            }
+            for (const media of activeMedia) {
+                updateAudioGraph(media);
+                applyEQPreset(media);
+            }
+        }
+
+        return { processMedia, cleanupMedia, toggleNormalizer, cycleEQ, resetAudio };
     })();
-    const filterManager = (() => { /* ... No changes ... */
+
+    const filterManager = (() => {
         const isFilterDisabledForSite = CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname);
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const settings = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
@@ -223,10 +250,6 @@
             isEnabled: () => isFilterDisabledForSite ? false : isEnabled,
         };
     })();
-
-    /**
-     * [FIX] Manages the UI host and shadow root, using createElement to comply with Trusted Types.
-     */
     const uiManager = (() => {
         let host, shadowRoot;
         function init() {
@@ -235,22 +258,8 @@
             host.id = 'vsc-ui-host';
             Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX });
             shadowRoot = host.attachShadow({ mode: 'open' });
-
             const style = document.createElement('style');
-            style.textContent = `
-                :host { pointer-events: none; } * { pointer-events: auto; }
-                #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; }
-                #vm-speed-slider-container.touched { opacity: 1; }
-                @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } }
-                #vm-speed-slider-container.minimized { width: 30px; }
-                #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
-                #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; }
-                .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; }
-                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; }
-                #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); }
-                #vm-filter-toggle-btn, #vm-normalize-toggle-btn, #vm-eq-toggle-btn { font-size: 16px; padding: 2px 4px; }
-                #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }
-            `;
+            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; } #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; } #vm-speed-slider-container.touched { opacity: 1; } @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } } #vm-speed-slider-container.minimized { width: 30px; } #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; } #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; } .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; } #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; } #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); } #vm-filter-toggle-btn, #vm-normalize-toggle-btn, #vm-eq-toggle-btn { font-size: 16px; padding: 2px 4px; } #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }`;
             shadowRoot.appendChild(style);
             (document.body || document.documentElement).appendChild(host);
         }
@@ -260,47 +269,29 @@
             moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); }
         };
     })();
-
-    /**
-     * [FIX] Manages the speed slider UI, using createElement to comply with Trusted Types.
-     */
     const speedSlider = (() => {
         let container, inited = false, isMinimized = true, fadeOutTimer;
-
-        // Helper to create buttons
         const createButton = (id, title, textContent) => {
-            const button = document.createElement('button');
-            if (id) button.id = id;
-            button.className = 'vm-btn';
-            button.title = title;
-            button.textContent = textContent;
-            return button;
+            const button = document.createElement('button'); if (id) button.id = id; button.className = 'vm-btn'; button.title = title; button.textContent = textContent; return button;
         };
-
         function init() {
             if (inited) return;
             const shadowRoot = uiManager.getShadowRoot();
             if (!shadowRoot) return;
-
             container = document.createElement('div');
             container.id = 'vm-speed-slider-container';
-
             const filterButton = createButton('vm-filter-toggle-btn', 'Toggle Video Filter', '🌞');
             const normalizeButton = createButton('vm-normalize-toggle-btn', 'Toggle Volume Normalization (Night Mode)', '☀️');
             const eqButton = createButton('vm-eq-toggle-btn', 'Cycle EQ Preset (Off / Treble / Bass)', '🚫');
-            const resetButton = createButton(null, 'Reset speed to 1x', '1x');
+            const resetButton = createButton(null, 'Reset speed & audio', '1x');
             resetButton.classList.add('reset');
-
             const sliderEl = document.createElement('input');
             Object.assign(sliderEl, { type: 'range', min: '0.2', max: '4.0', step: '0.2', value: '1.0', id: 'vm-speed-slider' });
-
             const valueEl = document.createElement('div');
             valueEl.id = 'vm-speed-value';
             valueEl.textContent = 'x1.0';
-
             const toggleButton = createButton(null, 'Toggle Speed Controller', '');
             toggleButton.classList.add('toggle');
-
             container.append(filterButton, normalizeButton, eqButton, resetButton, sliderEl, valueEl, toggleButton);
             shadowRoot.appendChild(container);
 
@@ -310,7 +301,13 @@
             const updateValueText = (speed) => { if (valueEl) valueEl.textContent = `x${speed.toFixed(1)}`; };
             const updateAppearance = () => { if (!container) return; container.classList.toggle('minimized', isMinimized); toggleButton.textContent = isMinimized ? '🔻' : '🔺'; };
 
-            resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); });
+            resetButton.addEventListener('click', () => {
+                sliderEl.value = '1.0';
+                applySpeed(1.0);
+                updateValueText(1.0);
+                audioManager.resetAudio();
+            });
+
             filterButton.addEventListener('click', () => filterManager.toggle());
             normalizeButton.addEventListener('click', () => audioManager.toggleNormalizer());
             eqButton.addEventListener('click', () => audioManager.cycleEQ());
@@ -329,147 +326,55 @@
             inited = true;
             updateAppearance();
         }
-        return {
-            init: () => safeExec(init, 'speedSlider.init'),
-            show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; },
-            hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; },
-            isMinimized: () => isMinimized,
-        };
+        return { init: () => safeExec(init, 'speedSlider.init'), show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; }, hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; }, isMinimized: () => isMinimized, };
     })();
-
-    const dragBar = (() => { /* ... No changes ... */
-        let display, inited = false;
-        let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false };
-        let lastDelta = 0;
-        let rafScheduled = false;
+    const dragBar = (() => {
+        let display, inited = false; let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false }; let lastDelta = 0; let rafScheduled = false;
         function findAssociatedVideo(target) { if (target.tagName === 'VIDEO') return target; const videoInChildren = target.querySelector('video'); if (videoInChildren) return videoInChildren; if (target.parentElement) { return target.parentElement.querySelector('video'); } return null; }
         const getEventPosition = (event) => event.touches ? event.touches[0] : event;
         const onStart = (event) => safeExec(() => {
-            if (event.touches && event.touches.length > 1) return;
-            if (event.type === 'mousedown' && event.button !== 0) return;
-            const videoElement = findAssociatedVideo(event.target);
-            if (!videoElement || videoElement.paused || speedSlider.isMinimized() || event.composedPath().some(el => el.id === 'vm-speed-slider-container')) return;
-            const pos = getEventPosition(event);
-            Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false });
-            const options = { passive: false, capture: true };
-            const moveEvent = event.type === 'mousedown' ? 'mousemove' : 'touchmove';
-            const endEvent = event.type === 'mousedown' ? 'mouseup' : 'touchend';
-            document.addEventListener(moveEvent, onMove, options);
-            document.addEventListener(endEvent, onEnd, options);
+            if (event.touches && event.touches.length > 1) return; if (event.type === 'mousedown' && event.button !== 0) return; const videoElement = findAssociatedVideo(event.target); if (!videoElement || videoElement.paused || speedSlider.isMinimized() || event.composedPath().some(el => el.id === 'vm-speed-slider-container')) return; const pos = getEventPosition(event); Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false }); const options = { passive: false, capture: true }; const moveEvent = event.type === 'mousedown' ? 'mousemove' : 'touchmove'; const endEvent = event.type === 'mousedown' ? 'mouseup' : 'touchend'; document.addEventListener(moveEvent, onMove, options); document.addEventListener(endEvent, onEnd, options);
         }, 'dragBar.onStart');
         const onMove = (event) => {
-            if (!state.dragging) return;
-            if (event.touches && event.touches.length > 1) { onEnd(); return; }
-            const pos = getEventPosition(event);
-            state.currentX = pos.clientX;
-            state.currentY = pos.clientY;
-            if (!state.directionConfirmed) {
-                const deltaX = Math.abs(state.currentX - state.startX);
-                const deltaY = Math.abs(state.currentY - state.startY);
-                if (deltaX > deltaY + 5) { state.directionConfirmed = true; } else if (deltaY > deltaX + 5) { onEnd(); return; }
-            }
-            if (state.directionConfirmed) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-                const movementX = state.currentX - state.startX;
-                state.accX += movementX;
-                state.startX = state.currentX;
-                if (!rafScheduled) {
-                    rafScheduled = true;
-                    window.requestAnimationFrame(() => { if (state.dragging) showDisplay(state.accX); rafScheduled = false; });
-                }
-            }
+            if (!state.dragging) return; if (event.touches && event.touches.length > 1) { onEnd(); return; } const pos = getEventPosition(event); state.currentX = pos.clientX; state.currentY = pos.clientY; if (!state.directionConfirmed) { const deltaX = Math.abs(state.currentX - state.startX); const deltaY = Math.abs(state.currentY - state.startY); if (deltaX > deltaY + 5) { state.directionConfirmed = true; } else if (deltaY > deltaX + 5) { onEnd(); return; } } if (state.directionConfirmed) { event.preventDefault(); event.stopImmediatePropagation(); const movementX = state.currentX - state.startX; state.accX += movementX; state.startX = state.currentX; if (!rafScheduled) { rafScheduled = true; window.requestAnimationFrame(() => { if (state.dragging) showDisplay(state.accX); rafScheduled = false; }); } }
         };
         const onEnd = () => {
-            if (!state.dragging) return;
-            if (state.directionConfirmed) applySeek();
-            Object.assign(state, { dragging: false, accX: 0, directionConfirmed: false });
-            hideDisplay();
-            document.removeEventListener('mousemove', onMove, true);
-            document.removeEventListener('touchmove', onMove, true);
-            document.removeEventListener('mouseup', onEnd, true);
-            document.removeEventListener('touchend', onEnd, true);
+            if (!state.dragging) return; if (state.directionConfirmed) applySeek(); Object.assign(state, { dragging: false, accX: 0, directionConfirmed: false }); hideDisplay(); document.removeEventListener('mousemove', onMove, true); document.removeEventListener('touchmove', onMove, true); document.removeEventListener('mouseup', onEnd, true); document.removeEventListener('touchend', onEnd, true);
         };
         const applySeek = () => { const deltaSec = Math.round(state.accX / 2); if (Math.abs(deltaSec) < 1) return; for (const media of activeMedia) { if (isFinite(media.duration)) { media.currentTime = Math.min(media.duration, Math.max(0, media.currentTime + deltaSec)); } } };
         const showDisplay = (pixels) => {
-            const seconds = Math.round(pixels / 2);
-            if (seconds === lastDelta) return;
-            lastDelta = seconds;
-            if (!display) {
-                const shadowRoot = uiManager.getShadowRoot();
-                if(!shadowRoot) return;
-                display = document.createElement('div');
-                display.id = 'vm-time-display';
-                shadowRoot.appendChild(display);
-            }
-            const sign = seconds < 0 ? '-' : '+';
-            const absSeconds = Math.abs(seconds);
-            const minutes = Math.floor(absSeconds / 60).toString().padStart(2, '0');
-            const remainingSeconds = (absSeconds % 60).toString().padStart(2, '0');
-            display.textContent = `${sign}${minutes}분 ${remainingSeconds}초`;
-            display.style.display = 'block';
-            display.style.opacity = '1';
+            const seconds = Math.round(pixels / 2); if (seconds === lastDelta) return; lastDelta = seconds; if (!display) { const shadowRoot = uiManager.getShadowRoot(); if(!shadowRoot) return; display = document.createElement('div'); display.id = 'vm-time-display'; shadowRoot.appendChild(display); } const sign = seconds < 0 ? '-' : '+'; const absSeconds = Math.abs(seconds); const minutes = Math.floor(absSeconds / 60).toString().padStart(2, '0'); const remainingSeconds = (absSeconds % 60).toString().padStart(2, '0'); display.textContent = `${sign}${minutes}분 ${remainingSeconds}초`; display.style.display = 'block'; display.style.opacity = '1';
         };
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => { if (display) display.style.display = 'none'; }, 300); } };
-        return {
-            init: () => { if (inited) return; safeExec(() => { document.addEventListener('mousedown', onStart, { capture: true }); document.addEventListener('touchstart', onStart, { passive: true, capture: true }); inited = true; }, 'dragBar.init'); }
-        };
+        return { init: () => { if (inited) return; safeExec(() => { document.addEventListener('mousedown', onStart, { capture: true }); document.addEventListener('touchstart', onStart, { passive: true, capture: true }); inited = true; }, 'dragBar.init'); } };
     })();
-    const mediaSessionManager = (() => { /* ... No changes ... */
+    const mediaSessionManager = (() => {
         const getSeekTime = (media) => {
-            if (!media || !isFinite(media.duration)) return 10;
-            const dynamicSeekTime = Math.floor(media.duration * CONFIG.SEEK_TIME_PERCENT);
-            return Math.min(dynamicSeekTime, CONFIG.SEEK_TIME_MAX_SEC);
+            if (!media || !isFinite(media.duration)) return 10; const dynamicSeekTime = Math.floor(media.duration * CONFIG.SEEK_TIME_PERCENT); return Math.min(dynamicSeekTime, CONFIG.SEEK_TIME_MAX_SEC);
         };
         const getTextFromSelectors = (selectors) => {
-            if (!Array.isArray(selectors)) return null;
-            for (const selector of selectors) {
-                const element = document.querySelector(selector);
-                if (element) return element.textContent.trim();
-            }
-            return null;
+            if (!Array.isArray(selectors)) return null; for (const selector of selectors) { const element = document.querySelector(selector); if (element) return element.textContent.trim(); } return null;
         };
         const getMetadata = () => {
-            const hostname = location.hostname;
-            const rule = CONFIG.SITE_METADATA_RULES[hostname];
-            if (rule) {
-                const title = getTextFromSelectors(rule.title) || document.title;
-                const artist = getTextFromSelectors(rule.artist) || location.hostname;
-                return { title, artist };
-            }
-            return { title: document.title, artist: location.hostname };
+            const hostname = location.hostname; const rule = CONFIG.SITE_METADATA_RULES[hostname]; if (rule) { const title = getTextFromSelectors(rule.title) || document.title; const artist = getTextFromSelectors(rule.artist) || location.hostname; return { title, artist }; } return { title: document.title, artist: location.hostname };
         };
         const setAction = (action, handler) => {
-            try { navigator.mediaSession.setActionHandler(action, handler); } catch (error) {
-                if(CONFIG.DEBUG) console.warn(`[VideoSpeed] MediaSession action "${action}" not supported.`);
-            }
+            try { navigator.mediaSession.setActionHandler(action, handler); } catch (error) { if(CONFIG.DEBUG) console.warn(`[VideoSpeed] MediaSession action "${action}" not supported.`); }
         };
         const setSession = (media) => {
             if (!('mediaSession' in navigator)) return;
             safeExec(() => {
-                const { title, artist } = getMetadata();
-                navigator.mediaSession.metadata = new window.MediaMetadata({ title, artist, album: 'VideoSpeed_Control' });
-                setAction('play', () => media.play());
-                setAction('pause', () => media.pause());
-                setAction('seekbackward', () => { media.currentTime -= getSeekTime(media); });
-                setAction('seekforward', () => { media.currentTime += getSeekTime(media); });
-                setAction('seekto', (details) => {
-                    if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); }
-                    else { media.currentTime = details.seekTime; }
-                });
+                const { title, artist } = getMetadata(); navigator.mediaSession.metadata = new window.MediaMetadata({ title, artist, album: 'VideoSpeed_Control' }); setAction('play', () => media.play()); setAction('pause', () => media.pause()); setAction('seekbackward', () => { media.currentTime -= getSeekTime(media); }); setAction('seekforward', () => { media.currentTime += getSeekTime(media); }); setAction('seekto', (details) => { if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); } else { media.currentTime = details.seekTime; } });
             }, 'mediaSession.set');
         };
         const clearSession = () => {
             if (!('mediaSession' in navigator) || activeMedia.size > 0) return;
             safeExec(() => {
-                navigator.mediaSession.metadata = null;
-                ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(action => setAction(action, null));
+                navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(action => setAction(action, null));
             }, 'mediaSession.clear');
         };
         return { setSession, clearSession };
     })();
-
-    // --- Media Scanning and Management (No changes) ---
     const mediaListenerMap = new WeakMap();
     let intersectionObserver = null;
     function findAllMedia(doc = document) {
@@ -555,9 +460,8 @@
     const handleAddedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) attachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(attachMediaListeners); }); };
     const handleRemovedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) detachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
 
-    // --- Initialization ---
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (Full EQ) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Integrated) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
@@ -592,13 +496,13 @@
         window.addEventListener('beforeunload', () => {
             mutationObserver.disconnect();
             intersectionObserver.disconnect();
-        });
-        scanForMedia();
-    }
+});
+scanForMedia();
+}
 
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        initialize();
-    } else {
-        window.addEventListener('DOMContentLoaded', initialize, { once: true });
-    }
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initialize();
+} else {
+    window.addEventListener('DOMContentLoaded', initialize, { once: true });
+}
 })();
