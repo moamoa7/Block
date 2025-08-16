@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (True Final Version with All Optimizations)
+// @name         VideoSpeed_Control (MediaSession Optimized)
 // @namespace    https://com/
-// @version      27.02-True-Final
-// @description  🎞️ 모든 기능, 최적화, 버그 수정이 포함된 진정한 최종 완전판입니다.
+// @version      27.03-MediaSession-Tweak
+// @description  🎞️ MediaSession의 탐색 시간을 영상 길이에 비례하여 동적으로 조절합니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -33,6 +33,7 @@
         const MOBILE_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen5', KERNEL_MATRIX: '1 -1 1 -1 -.5 -1 1 -1 1', BLUR_STD_DEVIATION: '0.45', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 };
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
         let isEnabled = true;
+
         function createSvgFiltersAndStyle() {
             if (document.getElementById('video-enhancer-svg-filters')) return;
             const svgNs = 'http://www.w3.org/2000/svg'; const svgFilters = document.createElementNS(svgNs, 'svg'); svgFilters.id = 'video-enhancer-svg-filters'; svgFilters.style.display = 'none';
@@ -152,12 +153,34 @@
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => { if (display) display.style.display = 'none'; }, 300); } };
         return { init: () => safeExec(init, 'dragBar.init') };
     })();
+
+    // --- MediaSession 모듈 (✨ 탐색 시간 동적 계산 로직 추가) ---
     const mediaSessionManager = (() => {
-        const getSeekTime = (rate) => Math.min(Math.max(1, 5 * rate), 15);
-        const setSession = (media) => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = new window.MediaMetadata({ title: document.title, artist: location.hostname, album: 'VideoSpeed_Control' }); navigator.mediaSession.setActionHandler('play', () => media.play()); navigator.mediaSession.setActionHandler('pause', () => media.pause()); navigator.mediaSession.setActionHandler('seekbackward', () => { media.currentTime -= getSeekTime(media.playbackRate); }); navigator.mediaSession.setActionHandler('seekforward', () => { media.currentTime += getSeekTime(media.playbackRate); }); if ('seekto' in navigator.mediaSession) { navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); return; } media.currentTime = details.seekTime; }); } }, 'mediaSession.set'); };
+        const getSeekTime = (media) => {
+            if (!media || !isFinite(media.duration)) return 10; // 기본값 10초
+            // 영상 길이의 5%를 점프 시간으로 하되, 최대 15초를 넘지 않도록 함
+            return Math.min(Math.floor(media.duration * 0.05), 15);
+        };
+        const setSession = (media) => {
+            if (!('mediaSession' in navigator)) return;
+            safeExec(() => {
+                navigator.mediaSession.metadata = new window.MediaMetadata({ title: document.title, artist: location.hostname, album: 'VideoSpeed_Control' });
+                navigator.mediaSession.setActionHandler('play', () => media.play());
+                navigator.mediaSession.setActionHandler('pause', () => media.pause());
+                navigator.mediaSession.setActionHandler('seekbackward', () => { media.currentTime -= getSeekTime(media); });
+                navigator.mediaSession.setActionHandler('seekforward', () => { media.currentTime += getSeekTime(media); });
+                if ('seekto' in navigator.mediaSession) {
+                    navigator.mediaSession.setActionHandler('seekto', (details) => {
+                        if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); return; }
+                        media.currentTime = details.seekTime;
+                    });
+                }
+            }, 'mediaSession.set');
+        };
         const clearSession = () => { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(h => { try { navigator.mediaSession.setActionHandler(h, null); } catch { } }); }, 'mediaSession.clear'); };
         return { setSession, clearSession };
     })();
+
     function findAllMedia(doc = document) { const media = []; safeExec(() => { doc.querySelectorAll('video, audio').forEach(m => media.push(m)); (window._shadowDomList_ || []).forEach(sr => sr.querySelectorAll('video, audio').forEach(m => media.push(m))); if (doc === document) { document.querySelectorAll('iframe').forEach(iframe => { try { if (iframe.contentDocument) media.push(...findAllMedia(iframe.contentDocument)); } catch { } }); } }); return [...new Set(media)]; }
 
     function updateVideoFilterState(video) {
@@ -223,7 +246,7 @@
 
     // --- 초기화 ---
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (All Optimizations) Initialized.');
+        console.log('🎉 VideoSpeed_Control (MediaSession Optimized) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
