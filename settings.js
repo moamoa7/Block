@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Dynamic Sharpen)
+// @name         VideoSpeed_Control (Sharpen Indicator)
 // @namespace    https://com/
-// @version      27.15-DynamicSharpen
-// @description  🎞️ 해상도에 따라 3단계로 샤프닝 강도를 자동 조절하는 기능 및 모든 안정성 수정이 포함된 최종 버전입니다.
+// @version      27.16-SharpenIndicator
+// @description  🎞️ 영상 필터 버튼의 툴팁에 현재 적용된 동적 샤프닝 단계를 표시하는 기능이 추가되었습니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -22,15 +22,12 @@
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
-
-        // [MODIFIED] Sharpening levels for dynamic adjustment based on resolution
         SHARPEN_LEVELS: {
             high:   '1 -1 1 -1 -2 -1 1 -1 1',
             medium: '-1 -1.5 -1 -1.5 13 -1.5 -1 -1.5 -1',
             low:    '1 -1 1 -1 -.5 -1 1 -1 1',
             off:    '0 0 0 0 1 0 0 0 0',
         },
-
         SITE_METADATA_RULES: {
             'www.youtube.com': {
                 title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'],
@@ -99,127 +96,17 @@
         let isNormalizerEnabled = false;
         let currentEQState = 'off';
         const audioGraphMap = new WeakMap();
-
-        function createAudioGraph(context) {
-            const settings = CONFIG.AUDIO_NORMALIZER_SETTINGS;
-            const compressor = context.createDynamicsCompressor();
-            compressor.threshold.setValueAtTime(settings.threshold, context.currentTime);
-            compressor.knee.setValueAtTime(settings.knee, context.currentTime);
-            compressor.ratio.setValueAtTime(settings.ratio, context.currentTime);
-            compressor.attack.setValueAtTime(settings.attack, context.currentTime);
-            compressor.release.setValueAtTime(settings.release, context.currentTime);
-            const eqSettings = CONFIG.EQ_SETTINGS;
-            const bassFilter = context.createBiquadFilter();
-            bassFilter.type = 'lowshelf';
-            bassFilter.frequency.value = eqSettings.bassFrequency;
-            const trebleFilter = context.createBiquadFilter();
-            trebleFilter.type = 'highshelf';
-            trebleFilter.frequency.value = eqSettings.trebleFrequency;
-            const gain = context.createGain();
-            return { compressor, bassFilter, trebleFilter, gain };
-        }
-
-        function applyEQPreset(media) {
-            if (!audioGraphMap.has(media)) return;
-            const graph = audioGraphMap.get(media);
-            const preset = CONFIG.EQ_PRESETS[currentEQState];
-            graph.bassFilter.gain.setValueAtTime(preset.bassGain, graph.context.currentTime);
-            graph.trebleFilter.gain.setValueAtTime(preset.trebleGain, graph.context.currentTime);
-        }
-
-        function updateAudioGraph(media) {
-            if (!audioGraphMap.has(media)) return;
-            const graph = audioGraphMap.get(media);
-            graph.source.disconnect();
-            const chain = [graph.bassFilter, graph.trebleFilter, graph.gain];
-            if (isNormalizerEnabled) {
-                chain.unshift(graph.compressor);
-            }
-            let currentNode = graph.source;
-            for(const nextNode of chain) {
-                currentNode.connect(nextNode);
-                currentNode = nextNode;
-            }
-            currentNode.connect(graph.context.destination);
-        }
-
-        function initAudioContext(media) {
-            if (audioGraphMap.has(media)) return;
-            safeExec(() => {
-                const context = new (window.AudioContext || window.webkitAudioContext)();
-                const source = context.createMediaElementSource(media);
-                const { compressor, bassFilter, trebleFilter, gain } = createAudioGraph(context);
-                audioGraphMap.set(media, { context, source, compressor, bassFilter, trebleFilter, gain });
-                applyEQPreset(media);
-                updateAudioGraph(media);
-            }, 'audioManager.initAudioContext');
-        }
-
-        function processMedia(media) {
-            media.addEventListener('play', () => initAudioContext(media), { once: true });
-        }
-
-        function cleanupMedia(media) {
-            if (audioGraphMap.has(media)) {
-                safeExec(() => {
-                    audioGraphMap.get(media).context.close();
-                    audioGraphMap.delete(media);
-                }, 'audioManager.cleanupMedia');
-            }
-        }
-
-        function suspendContext(media) {
-            if (audioGraphMap.has(media)) {
-                const graph = audioGraphMap.get(media);
-                if (graph.context.state === 'running') {
-                    graph.context.suspend();
-                }
-            }
-        }
-
-        function resumeContext(media) {
-            if (audioGraphMap.has(media)) {
-                const graph = audioGraphMap.get(media);
-                if (graph.context.state === 'suspended') {
-                    graph.context.resume();
-                }
-            }
-        }
-
-        function toggleNormalizer() {
-            isNormalizerEnabled = !isNormalizerEnabled;
-            const button = uiManager.getShadowRoot()?.getElementById('vm-normalize-toggle-btn');
-            if (button) button.textContent = isNormalizerEnabled ? '🌙' : '☀️';
-            for (const media of activeMedia) updateAudioGraph(media);
-        }
-
-        function cycleEQ() {
-            const states = ['off', 'treble', 'bass'];
-            const icons = ['🚫', '🔊', '🎬'];
-            const currentIndex = states.indexOf(currentEQState);
-            const nextIndex = (currentIndex + 1) % states.length;
-            currentEQState = states[nextIndex];
-            const button = uiManager.getShadowRoot()?.getElementById('vm-eq-toggle-btn');
-            if (button) button.textContent = icons[nextIndex];
-            for (const media of activeMedia) applyEQPreset(media);
-        }
-
-        function resetAudio() {
-            isNormalizerEnabled = false;
-            currentEQState = 'off';
-            const shadowRoot = uiManager.getShadowRoot();
-            if (shadowRoot) {
-                const normalizeButton = shadowRoot.getElementById('vm-normalize-toggle-btn');
-                const eqButton = shadowRoot.getElementById('vm-eq-toggle-btn');
-                if (normalizeButton) normalizeButton.textContent = '☀️';
-                if (eqButton) eqButton.textContent = '🚫';
-            }
-            for (const media of activeMedia) {
-                updateAudioGraph(media);
-                applyEQPreset(media);
-            }
-        }
-
+        function createAudioGraph(context) { const settings = CONFIG.AUDIO_NORMALIZER_SETTINGS; const compressor = context.createDynamicsCompressor(); compressor.threshold.setValueAtTime(settings.threshold, context.currentTime); compressor.knee.setValueAtTime(settings.knee, context.currentTime); compressor.ratio.setValueAtTime(settings.ratio, context.currentTime); compressor.attack.setValueAtTime(settings.attack, context.currentTime); compressor.release.setValueAtTime(settings.release, context.currentTime); const eqSettings = CONFIG.EQ_SETTINGS; const bassFilter = context.createBiquadFilter(); bassFilter.type = 'lowshelf'; bassFilter.frequency.value = eqSettings.bassFrequency; const trebleFilter = context.createBiquadFilter(); trebleFilter.type = 'highshelf'; trebleFilter.frequency.value = eqSettings.trebleFrequency; const gain = context.createGain(); return { compressor, bassFilter, trebleFilter, gain }; }
+        function applyEQPreset(media) { if (!audioGraphMap.has(media)) return; const graph = audioGraphMap.get(media); const preset = CONFIG.EQ_PRESETS[currentEQState]; graph.bassFilter.gain.setValueAtTime(preset.bassGain, graph.context.currentTime); graph.trebleFilter.gain.setValueAtTime(preset.trebleGain, graph.context.currentTime); }
+        function updateAudioGraph(media) { if (!audioGraphMap.has(media)) return; const graph = audioGraphMap.get(media); graph.source.disconnect(); const chain = [graph.bassFilter, graph.trebleFilter, graph.gain]; if (isNormalizerEnabled) { chain.unshift(graph.compressor); } let currentNode = graph.source; for(const nextNode of chain) { currentNode.connect(nextNode); currentNode = nextNode; } currentNode.connect(graph.context.destination); }
+        function initAudioContext(media) { if (audioGraphMap.has(media)) return; safeExec(() => { const context = new (window.AudioContext || window.webkitAudioContext)(); const source = context.createMediaElementSource(media); const { compressor, bassFilter, trebleFilter, gain } = createAudioGraph(context); audioGraphMap.set(media, { context, source, compressor, bassFilter, trebleFilter, gain }); applyEQPreset(media); updateAudioGraph(media); }, 'audioManager.initAudioContext'); }
+        function processMedia(media) { media.addEventListener('play', () => initAudioContext(media), { once: true }); }
+        function cleanupMedia(media) { if (audioGraphMap.has(media)) { safeExec(() => { audioGraphMap.get(media).context.close(); audioGraphMap.delete(media); }, 'audioManager.cleanupMedia'); } }
+        function suspendContext(media) { if (audioGraphMap.has(media)) { const graph = audioGraphMap.get(media); if (graph.context.state === 'running') { graph.context.suspend(); } } }
+        function resumeContext(media) { if (audioGraphMap.has(media)) { const graph = audioGraphMap.get(media); if (graph.context.state === 'suspended') { graph.context.resume(); } } }
+        function toggleNormalizer() { isNormalizerEnabled = !isNormalizerEnabled; const button = uiManager.getShadowRoot()?.getElementById('vm-normalize-toggle-btn'); if (button) button.textContent = isNormalizerEnabled ? '🌙' : '☀️'; for (const media of activeMedia) updateAudioGraph(media); }
+        function cycleEQ() { const states = ['off', 'treble', 'bass']; const icons = ['🚫', '🔊', '🎬']; const currentIndex = states.indexOf(currentEQState); const nextIndex = (currentIndex + 1) % states.length; currentEQState = states[nextIndex]; const button = uiManager.getShadowRoot()?.getElementById('vm-eq-toggle-btn'); if (button) button.textContent = icons[nextIndex]; for (const media of activeMedia) applyEQPreset(media); }
+        function resetAudio() { isNormalizerEnabled = false; currentEQState = 'off'; const shadowRoot = uiManager.getShadowRoot(); if (shadowRoot) { const normalizeButton = shadowRoot.getElementById('vm-normalize-toggle-btn'); const eqButton = shadowRoot.getElementById('vm-eq-toggle-btn'); if (normalizeButton) normalizeButton.textContent = '☀️'; if (eqButton) eqButton.textContent = '🚫'; } for (const media of activeMedia) { updateAudioGraph(media); applyEQPreset(media); } }
         return { processMedia, cleanupMedia, toggleNormalizer, cycleEQ, resetAudio, suspendContext, resumeContext };
     })();
 
@@ -228,51 +115,33 @@
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const settings = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
         let isEnabled = true;
-
-        const createSvgElement = (tag, attributes = {}) => {
-            const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-            for (const [key, value] of Object.entries(attributes)) { el.setAttribute(key, value); }
-            return el;
-        };
-
+        const createSvgElement = (tag, attributes = {}) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const [key, value] of Object.entries(attributes)) { el.setAttribute(key, value); } return el; };
         function createSvgFiltersAndStyle() {
             if (isFilterDisabledForSite || document.getElementById('video-enhancer-svg-filters')) return;
             const svgFilters = createSvgElement('svg', { id: 'video-enhancer-svg-filters' });
             svgFilters.style.display = 'none';
             const softeningFilter = createSvgElement('filter', { id: 'SofteningFilter' });
             softeningFilter.appendChild(createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION }));
-
             const sharpenFilter = createSvgElement('filter', { id: settings.SHARPEN_ID });
-            const convolveMatrix = createSvgElement('feConvolveMatrix', {
-                id: 'dynamic-convolve-matrix',
-                order: '3 3',
-                preserveAlpha: 'true',
-                kernelMatrix: CONFIG.SHARPEN_LEVELS.medium,
-                mode: 'multiply'
-            });
+            const convolveMatrix = createSvgElement('feConvolveMatrix', { id: 'dynamic-convolve-matrix', order: '3 3', preserveAlpha: 'true', kernelMatrix: CONFIG.SHARPEN_LEVELS.medium, mode: 'multiply' });
             sharpenFilter.appendChild(convolveMatrix);
-
             const gammaFilter = createSvgElement('filter', { id: 'gamma-filter' });
             const feCompTransferGamma = createSvgElement('feComponentTransfer');
             ['R', 'G', 'B'].forEach(ch => { feCompTransferGamma.appendChild(createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })); });
             gammaFilter.appendChild(feCompTransferGamma);
-
             const linearAdjustFilter = createSvgElement('filter', { id: 'linear-adjust-filter' });
             const feCompTransferLinear = createSvgElement('feComponentTransfer');
             const shadowIntercept = settings.SHADOWS_VALUE / 200;
             const highlightSlope = 1 + (settings.HIGHLIGHTS_VALUE / 100);
             ['R', 'G', 'B'].forEach(ch => { feCompTransferLinear.appendChild(createSvgElement(`feFunc${ch}`, { type: 'linear', slope: highlightSlope.toString(), intercept: shadowIntercept.toString() })); });
             linearAdjustFilter.appendChild(feCompTransferLinear);
-
             svgFilters.append(softeningFilter, sharpenFilter, gammaFilter, linearAdjustFilter);
             (document.body || document.documentElement).appendChild(svgFilters);
-
             const styleElement = document.createElement('style');
             styleElement.id = 'video-enhancer-styles';
             styleElement.textContent = `video.video-filter-active, iframe.video-filter-active { filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; } .vsc-gpu-accelerated { transform: translateZ(0); will-change: transform; }`;
             (document.head || document.documentElement).appendChild(styleElement);
         }
-
         function updateState() {
             if (isFilterDisabledForSite) return;
             document.documentElement.classList.toggle('video-filter-main-switch-on', isEnabled);
@@ -280,7 +149,6 @@
             if (button) button.textContent = isEnabled ? '🌞' : '🌚';
             scanForMedia(true);
         }
-
         function setSharpenLevel(level = 'medium') {
             const convolveMatrix = document.getElementById('dynamic-convolve-matrix');
             if (convolveMatrix) {
@@ -289,14 +157,12 @@
                     convolveMatrix.setAttribute('kernelMatrix', newMatrix);
                 }
             }
+            const button = uiManager.getShadowRoot()?.getElementById('vm-filter-toggle-btn');
+            if (button) {
+                button.title = `Toggle Video Filter (Level: ${level})`;
+            }
         }
-
-        return {
-            init: () => safeExec(() => { createSvgFiltersAndStyle(); updateState(); }, 'filterManager.init'),
-            toggle: () => { if (isFilterDisabledForSite) return; isEnabled = !isEnabled; updateState(); },
-            isEnabled: () => isFilterDisabledForSite ? false : isEnabled,
-            setSharpenLevel,
-        };
+        return { init: () => safeExec(() => { createSvgFiltersAndStyle(); updateState(); }, 'filterManager.init'), toggle: () => { if (isFilterDisabledForSite) return; isEnabled = !isEnabled; updateState(); }, isEnabled: () => isFilterDisabledForSite ? false : isEnabled, setSharpenLevel };
     })();
 
     const uiManager = (() => {
@@ -312,11 +178,7 @@
             shadowRoot.appendChild(style);
             (document.body || document.documentElement).appendChild(host);
         }
-        return {
-            init: () => safeExec(init, 'uiManager.init'),
-            getShadowRoot: () => { if (!shadowRoot) init(); return shadowRoot; },
-            moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); }
-        };
+        return { init: () => safeExec(init, 'uiManager.init'), getShadowRoot: () => { if (!shadowRoot) init(); return shadowRoot; }, moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); } };
     })();
 
     const speedSlider = (() => {
@@ -455,7 +317,7 @@
         let shouldHaveFilter = isPlaying && isVisible && mainSwitchOn;
 
         const height = video.videoHeight || 0;
-        let sharpenLevel = 'medium'; // Default for unknown or SD
+        let sharpenLevel = 'medium'; // Default for unknown resolution
         if (height >= 1080) {
             sharpenLevel = 'high';
         } else if (height >= 720) {
@@ -481,8 +343,8 @@
             if (activeMedia.size <= 1) mediaSessionManager.clearSession();
         },
         ended: (event) => {
-            // Use cleanupMedia for 'ended' to fully release resources
-            detachMediaListeners(event.target);
+            const media = event.target;
+            detachMediaListeners(media);
             if (activeMedia.size <= 1) mediaSessionManager.clearSession();
         },
     };
