@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Ultimate Optimized & Fixed)
+// @name         VideoSpeed_Control (True Final Version)
 // @namespace    https://com/
-// @version      26.01-Ultimate-Optimized-Fixed
-// @description  🎞️ 모든 최적화(GPU, 속도, UX, 안정성)가 적용되고 오류가 수정된 최종 완전판입니다.
+// @version      27.00-True-Final
+// @description  🎞️ 모든 최적화(GPU, 속도, UX) 및 안정성/메모리 누수 방지 로직이 모두 포함된 진정한 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -21,7 +21,6 @@
     function isExcluded() { const url = location.href.toLowerCase(); const hostname = location.hostname.toLowerCase(); if (EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) return true; if (SPECIFIC_EXCLUSIONS.some(rule => hostname.includes(rule.domain) && url.includes(rule.path))) return true; return false; }
     if (isExcluded()) { console.log(`[VideoSpeed] Skipped on excluded page: ${location.href}`); return; }
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
-    const SEEN_MEDIA = new WeakSet();
     const activeMediaMap = new Map();
     let uiVisible = false;
     safeExec(() => { if (window.console && console.clear) { const o = console.clear; console.clear = () => console.log('--- 🚫 console.clear() blocked ---'); Object.defineProperty(console, 'clear', { configurable: false, writable: false, value: console.clear }); } }, 'consoleClearProtection');
@@ -45,8 +44,8 @@
             (document.body || document.documentElement).appendChild(svgFilters);
             const styleElement = document.createElement('style'); styleElement.id = 'video-enhancer-styles';
             styleElement.textContent = `
-                html.video-filter-active video,
-                html.video-filter-active iframe {
+                html.video-filter-active video, 
+                html.video-filter-active iframe { 
                     filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important;
                 }
                 .vsc-gpu-accelerated {
@@ -111,7 +110,7 @@
             const updateValueText = (speed) => valueEl && (valueEl.textContent = `x${speed.toFixed(1)}`);
             function updateAppearance() { if (!container) return; container.classList.toggle('minimized', isMinimized); container.querySelector('.toggle').textContent = isMinimized ? '🔻' : '🔺'; }
             resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); });
-
+            
             const debouncedApplySpeed = debounce(applySpeed, 100);
             sliderEl.addEventListener('input', (e) => {
                 const speed = parseFloat(e.target.value);
@@ -127,7 +126,7 @@
             container.addEventListener('touchstart', () => { clearTimeout(fadeOutTimer); container.classList.add('touched'); document.addEventListener('touchend', onDocumentTouchEnd); document.addEventListener('touchcancel', onDocumentTouchEnd); }, { passive: true });
             sliderEl.addEventListener('change', endInteractionSoon, { passive: true });
             sliderEl.addEventListener('blur', endInteractionSoon, { passive: true });
-
+            
             const stopEventPropagation = e => e.stopPropagation();
             sliderEl.addEventListener('touchstart', stopEventPropagation, { passive: true });
             sliderEl.addEventListener('touchmove', stopEventPropagation, { passive: true });
@@ -143,7 +142,9 @@
         };
     })();
 
-    // --- 나머지 모든 모듈 (✨전체 코드로 복원됨) ---
+    // --- ✨ 나머지 모든 모듈 (리스너 관리 로직 추가됨) ---
+    const mediaListenerMap = new WeakMap();
+
     const dragBar = (() => {
         let display, inited = false; let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false }; let lastDelta = 0; let rafScheduled = false;
         function onStart(e) { safeExec(() => { if (e.touches && e.touches.length > 1) return; let videoElement = (e.target?.tagName === 'VIDEO') ? e.target : e.target?.parentElement?.querySelector('video'); if (!videoElement || videoElement.paused || speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container')) || (e.type === 'mousedown' && e.button !== 0)) return; const pos = e.touches ? e.touches[0] : e; Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false }); const options = { passive: false, capture: true }; document.addEventListener(e.type === 'mousedown' ? 'mousemove' : 'touchmove', onMove, options); document.addEventListener(e.type === 'mousedown' ? 'mouseup' : 'touchend', onEnd, options); }, 'dragBar.onStart'); }
@@ -180,11 +181,23 @@
         ended: (media) => { scanTask(true); mediaSessionManager.clearSession(media); },
     };
     function initMedia(media) {
-        if (!media || SEEN_MEDIA.has(media)) return;
-        SEEN_MEDIA.add(media);
+        if (!media || mediaListenerMap.has(media)) return;
+        const listeners = {};
         Object.entries(mediaEventHandlers).forEach(([evt, handler]) => {
-            media.addEventListener(evt, () => handler(media));
+            const listener = () => handler(media);
+            listeners[evt] = listener;
+            media.addEventListener(evt, listener);
         });
+        mediaListenerMap.set(media, listeners);
+    }
+    function cleanupMedia(media) {
+        if (!mediaListenerMap.has(media)) return;
+        const listeners = mediaListenerMap.get(media);
+        Object.entries(listeners).forEach(([evt, listener]) => {
+            media.removeEventListener(evt, listener);
+        });
+        mediaListenerMap.delete(media);
+        if (FeatureFlags.debug) console.log('[VideoSpeed] Event listeners cleaned up for removed media element.');
     }
     const scanTask = (isUiUpdateOnly = false) => {
         const allMedia = findAllMedia();
@@ -220,6 +233,15 @@
             scanTask(true);
         }
     }
+    function scanRemovedNodes(nodes) {
+        nodes.forEach(node => {
+            if (node.nodeType !== 1) return;
+            if (node.matches?.('video, audio')) {
+                cleanupMedia(node);
+            }
+            node.querySelectorAll?.('video, audio').forEach(cleanupMedia);
+        });
+    }
 
     // --- 초기화 ---
     function initialize() {
@@ -228,16 +250,32 @@
         speedSlider.init();
         dragBar.init();
         filterManager.init();
-        const observer = new MutationObserver(mutations => { const a = mutations.flatMap(m => (m.type === 'childList' ? [...m.addedNodes] : [])); if (a.length > 0) { if ('requestIdleCallback' in window) { window.requestIdleCallback(() => scanAddedNodes(a), { timeout: 1000 }); } else { scanAddedNodes(a); } } else { debouncedScanTask(); } });
+        
+        const observer = new MutationObserver(mutations => {
+            const addedNodes = [];
+            const removedNodes = [];
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList') {
+                    addedNodes.push(...mutation.addedNodes);
+                    removedNodes.push(...mutation.removedNodes);
+                }
+            }
+            if (removedNodes.length > 0) scanRemovedNodes(removedNodes);
+            if (addedNodes.length > 0) scanAddedNodes(addedNodes);
+            if(addedNodes.length === 0 && removedNodes.length === 0) debouncedScanTask();
+        });
         observer.observe(document.documentElement, { childList: true, subtree: true });
+        
         document.addEventListener('addShadowRoot', debouncedScanTask);
         const originalPushState = history.pushState; history.pushState = function () { originalPushState.apply(this, arguments); scanTask(); };
         window.addEventListener('popstate', () => scanTask());
         document.addEventListener('fullscreenchange', () => uiManager.moveUiTo(document.fullscreenElement || document.body));
+        
         window.addEventListener('beforeunload', () => {
             if (observer) observer.disconnect();
             if (FeatureFlags.debug) console.log('[VideoSpeed] Cleaned up MutationObserver.');
         });
+        
         scanTask();
     }
 
