@@ -20,12 +20,12 @@
         SEEK_TIME_MAX_SEC: 15,
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '-5', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '-5', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         SHARPEN_LEVELS: {
-            high:   '1 -1 1 -1 -5 -1 1 -1 1',
-            medium: '1 -1 1 -1 -2 -1 1 -1 1',
-            low:    '1 -1 1 -1 -1 -1 1 -1 1',
+            high:   '0 -1 0 -1 5 -1 0 -1 0',
+            medium: '-1 -2 -1 -2 16 -2 -1 -2 -1',
+            low:    '1 -1 1 -1 -2 -1 1 -1 1',
             off:    '0 0 0 0 1 0 0 0 0',
         },
         SITE_METADATA_RULES: {
