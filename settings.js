@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (All Filters Included)
+// @name         VideoSpeed_Control (Optimized)
 // @namespace    https://com/
-// @version      25.08-Ultimate-AllFilters
-// @description  🎞️ 채도(Saturation)를 포함한 모든 화질 보정 기능과 버그 수정이 적용된 최종 완전판입니다.
+// @version      26.00-Ultimate-Optimized
+// @description  🎞️ GPU 가속 및 재생 속도 제어 로직을 최적화한 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -27,40 +27,17 @@
     safeExec(() => { if (window.console && console.clear) { const o = console.clear; console.clear = () => console.log('--- 🚫 console.clear() blocked ---'); Object.defineProperty(console, 'clear', { configurable: false, writable: false, value: console.clear }); } }, 'consoleClearProtection');
     (function hackAttachShadow() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const o = window.Element.prototype.attachShadow; window.Element.prototype.attachShadow = function () { const a = arguments; if (a[0] && a[0].mode) a[0].mode = 'open'; const r = o.apply(this, a); window._shadowDomList_.push(r); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: r } })); return r; }; window._hasHackAttachShadow_ = true; }, 'hackAttachShadow'); })();
 
-    // --- 비디오 필터 모듈 (Saturation 추가됨) ---
+    // --- 비디오 필터 모듈 (GPU 가속 CSS 분리) ---
     const filterManager = (() => {
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-
-        // --- 🖥️ 데스크톱 필터 값 ---
-        const DESKTOP_SETTINGS = {
-            GAMMA_VALUE: 1.15,
-            SHARPEN_ID: 'Sharpen1',
-            KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1',
-            BLUR_STD_DEVIATION: '0.4',
-            SHADOWS_VALUE: -2,
-            HIGHLIGHTS_VALUE: 5,
-            SATURATION_VALUE: 105, // ✨ 채도 (100이 기본)
-        };
-
-        // --- 📱 모바일 필터 값 ---
-        const MOBILE_SETTINGS = {
-            GAMMA_VALUE: 1.15,
-            SHARPEN_ID: 'Sharpen5',
-            KERNEL_MATRIX: '1 -1 1 -1 -.5 -1 1 -1 1',
-            BLUR_STD_DEVIATION: '0.4',
-            SHADOWS_VALUE: -2,
-            HIGHLIGHTS_VALUE: 5,
-            SATURATION_VALUE: 105, // ✨ 채도 (100이 기본)
-        };
-
+        const DESKTOP_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 };
+        const MOBILE_SETTINGS = { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen5', KERNEL_MATRIX: '1 -1 1 -1 -.5 -1 1 -1 1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 };
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
         let isEnabled = true;
 
         function createSvgFiltersAndStyle() {
             if (document.getElementById('video-enhancer-svg-filters')) return;
-            const svgNs = 'http://www.w3.org/2000/svg';
-            const svgFilters = document.createElementNS(svgNs, 'svg');
-            svgFilters.id = 'video-enhancer-svg-filters'; svgFilters.style.display = 'none';
+            const svgNs = 'http://www.w3.org/2000/svg'; const svgFilters = document.createElementNS(svgNs, 'svg'); svgFilters.id = 'video-enhancer-svg-filters'; svgFilters.style.display = 'none';
             const softeningFilter = document.createElementNS(svgNs, 'filter'); softeningFilter.id = 'SofteningFilter'; const gaussianBlur = document.createElementNS(svgNs, 'feGaussianBlur'); gaussianBlur.setAttribute('stdDeviation', settings.BLUR_STD_DEVIATION); softeningFilter.appendChild(gaussianBlur); svgFilters.appendChild(softeningFilter);
             const sharpenFilter = document.createElementNS(svgNs, 'filter'); sharpenFilter.id = settings.SHARPEN_ID; const convolveMatrix = document.createElementNS(svgNs, 'feConvolveMatrix'); Object.entries({ order: '3 3', preserveAlpha: 'true', kernelMatrix: settings.KERNEL_MATRIX, mode: 'multiply' }).forEach(([k, v]) => convolveMatrix.setAttribute(k, v)); sharpenFilter.appendChild(convolveMatrix); svgFilters.appendChild(sharpenFilter);
             const gammaFilter = document.createElementNS(svgNs, 'filter'); gammaFilter.id = 'gamma-filter'; const feComponentTransfer = document.createElementNS(svgNs, 'feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => { const feFunc = document.createElementNS(svgNs, `feFunc${ch}`); feFunc.setAttribute('type', 'gamma'); feFunc.setAttribute('exponent', (1 / settings.GAMMA_VALUE).toString()); feComponentTransfer.appendChild(feFunc); }); gammaFilter.appendChild(feComponentTransfer); svgFilters.appendChild(gammaFilter);
@@ -68,10 +45,17 @@
             (document.body || document.documentElement).appendChild(svgFilters);
 
             const styleElement = document.createElement('style'); styleElement.id = 'video-enhancer-styles';
-            // ✨ CSS 필터 체인 맨 앞에 saturate() 추가
-            styleElement.textContent = `html.video-filter-active video, html.video-filter-active iframe {
-                filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important;
-            }`;
+            // ✨ GPU 가속 CSS를 별도의 클래스로 분리
+            styleElement.textContent = `
+                html.video-filter-active video,
+                html.video-filter-active iframe {
+                    filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important;
+                }
+                .vsc-gpu-accelerated {
+                    transform: translateZ(0);
+                    will-change: transform;
+                }
+            `;
             (document.head || document.documentElement).appendChild(styleElement);
         }
         function updateState() { document.documentElement.classList.toggle('video-filter-active', isEnabled); const button = uiManager.getShadowRoot()?.getElementById('vm-filter-toggle-btn'); if (button) button.textContent = isEnabled ? '🌞' : '🌚'; }
@@ -129,7 +113,17 @@
             const updateValueText = (speed) => valueEl && (valueEl.textContent = `x${speed.toFixed(1)}`);
             function updateAppearance() { if (!container) return; container.classList.toggle('minimized', isMinimized); container.querySelector('.toggle').textContent = isMinimized ? '🔻' : '🔺'; }
             resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); });
-            sliderEl.addEventListener('input', (e) => { const speed = parseFloat(e.target.value); applySpeed(speed); updateValueText(speed); container.classList.add('touched'); clearTimeout(fadeOutTimer); });
+
+            // ✨ playbackRate 변경을 디바운스 처리
+            const debouncedApplySpeed = debounce(applySpeed, 100);
+            sliderEl.addEventListener('input', (e) => {
+                const speed = parseFloat(e.target.value);
+                updateValueText(speed); // UI 피드백은 즉시
+                debouncedApplySpeed(speed); // 실제 속도 적용은 지연
+                container.classList.add('touched');
+                clearTimeout(fadeOutTimer);
+            });
+
             toggleButton.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(); });
 
             const startInteraction = () => { clearTimeout(fadeOutTimer); container.classList.add('touched'); };
@@ -150,7 +144,7 @@
         };
     })();
 
-    // --- 나머지 모든 모듈 (전체 코드) ---
+    // --- 나머지 모든 모듈 (전체 코드, ✨ scanTask 수정됨) ---
     const dragBar = (() => {
         let display, inited = false; let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false }; let lastDelta = 0; let rafScheduled = false;
         function onStart(e) { safeExec(() => { if (e.touches && e.touches.length > 1) return; let videoElement = (e.target?.tagName === 'VIDEO') ? e.target : e.target?.parentElement?.querySelector('video'); if (!videoElement || videoElement.paused || speedSlider.isMinimized() || (e.composedPath && e.composedPath().some(el => el.id === 'vm-speed-slider-container')) || (e.type === 'mousedown' && e.button !== 0)) return; const pos = e.touches ? e.touches[0] : e; Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false }); const options = { passive: false, capture: true }; document.addEventListener(e.type === 'mousedown' ? 'mousemove' : 'touchmove', onMove, options); document.addEventListener(e.type === 'mousedown' ? 'mouseup' : 'touchend', onEnd, options); }, 'dragBar.onStart'); }
@@ -166,13 +160,41 @@
     function findAllMedia(doc = document) { const m = []; safeExec(() => { doc.querySelectorAll('video, audio').forEach(e => m.push(e)); (window._shadowDomList_ || []).forEach(sr => sr.querySelectorAll('video, audio').forEach(e => m.push(e))); if (doc === document) { document.querySelectorAll('iframe').forEach(iframe => { try { if (iframe.contentDocument) m.push(...findAllMedia(iframe.contentDocument)); } catch { } }); } }); return [...new Set(m)]; }
     const mediaEventHandlers = { play: (media) => { scanTask(true); mediaSessionManager.setSession(media); }, pause: (media) => { scanTask(true); mediaSessionManager.clearSession(media); }, ended: (media) => { scanTask(true); mediaSessionManager.clearSession(media); }, };
     function initMedia(media) { if (!media || SEEN_MEDIA.has(media)) return; SEEN_MEDIA.add(media); Object.entries(mediaEventHandlers).forEach(([evt, handler]) => { media.addEventListener(evt, () => handler(media)); }); }
-    const scanTask = (isUiUpdateOnly = false) => { const allMedia = findAllMedia(); if (!isUiUpdateOnly) { allMedia.forEach(initMedia); } activeMediaMap.clear(); allMedia.forEach(m => { if (m.isConnected) { activeMediaMap.set(m, {}); } }); const shouldBeVisible = activeMediaMap.size > 0; if (uiVisible !== shouldBeVisible) { uiVisible = shouldBeVisible; uiVisible ? speedSlider.show() : speedSlider.hide(); } };
+
+    const scanTask = (isUiUpdateOnly = false) => {
+        const allMedia = findAllMedia();
+        if (!isUiUpdateOnly) {
+            allMedia.forEach(initMedia);
+        }
+        activeMediaMap.clear();
+        allMedia.forEach(m => {
+            if (m.isConnected) {
+                activeMediaMap.set(m, {});
+            }
+        });
+
+        // ✨ will-change 최적화 로직
+        // 모든 비디오를 순회하며 재생 중인 것에만 GPU 가속 클래스 적용
+        allMedia.forEach(video => {
+            if (video.tagName === 'VIDEO') {
+                const isPlaying = !video.paused && !video.ended;
+                video.classList.toggle('vsc-gpu-accelerated', isPlaying);
+            }
+        });
+
+        const shouldBeVisible = activeMediaMap.size > 0;
+        if (uiVisible !== shouldBeVisible) {
+            uiVisible = shouldBeVisible;
+            uiVisible ? speedSlider.show() : speedSlider.hide();
+        }
+    };
+
     const debouncedScanTask = debounce(scanTask, 350);
     function scanAddedNodes(nodes) { const mediaElements = []; nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) mediaElements.push(node); node.querySelectorAll?.('video, audio').forEach(m => mediaElements.push(m)); }); if (mediaElements.length > 0) { mediaElements.forEach(initMedia); scanTask(true); } }
 
     // --- 초기화 ---
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (All Filters Included) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Optimized) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
