@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Sharpen Indicator)
+// @name         VideoSpeed_Control (Final)
 // @namespace    https://com/
-// @version      27.16-SharpenIndicator
-// @description  🎞️ 영상 필터 버튼의 툴팁에 현재 적용된 동적 샤프닝 단계를 표시하는 기능이 추가되었습니다.
+// @version      27.19-Final
+// @description  🎞️ 모든 기능(오디오, 동적필터, UI표시)과 안정성 패치(재생오류, 무한루프, 리소스관리)가 포함된 최종 통합 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -50,264 +50,143 @@
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VideoSpeed] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn.apply(this, args), wait); }; };
     let idleCallbackId;
-    const scheduleIdleTask = (task) => {
-        if (idleCallbackId) window.cancelIdleCallback(idleCallbackId);
-        idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 });
-    };
+    const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
-    function isExcluded() {
-        const url = location.href.toLowerCase();
-        const hostname = location.hostname.toLowerCase();
-        if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) return true;
-        return CONFIG.SPECIFIC_EXCLUSIONS.some(rule => hostname.includes(rule.domain) && url.includes(rule.path));
-    }
+    function isExcluded() { const url = location.href.toLowerCase(); const hostname = location.hostname.toLowerCase(); if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) return true; return CONFIG.SPECIFIC_EXCLUSIONS.some(rule => hostname.includes(rule.domain) && url.includes(rule.path)); }
     if (isExcluded()) { return; }
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
     const activeMedia = new Set();
     const processedMedia = new WeakSet();
     let isUiVisible = false;
-    (function protectConsoleClear() {
-        if (!CONFIG.DEBUG) return;
-        safeExec(() => {
-            if (window.console && console.clear) {
-                const originalClear = console.clear;
-                console.clear = () => console.log('--- 🚫 console.clear() blocked by VideoSpeed_Control (Debug Mode) ---');
-                Object.defineProperty(console, 'clear', { configurable: false, writable: false, value: console.clear });
-            }
-        }, 'consoleClearProtection');
-    })();
-    (function openAllShadowRoots() {
-        if (window._hasHackAttachShadow_) return;
-        safeExec(() => {
-            window._shadowDomList_ = window._shadowDomList_ || [];
-            const originalAttachShadow = window.Element.prototype.attachShadow;
-            window.Element.prototype.attachShadow = function (options) {
-                const modifiedOptions = { ...options, mode: 'open' };
-                const shadowRoot = originalAttachShadow.apply(this, [modifiedOptions]);
-                window._shadowDomList_.push(new WeakRef(shadowRoot));
-                document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot } }));
-                return shadowRoot;
-            };
-            window._hasHackAttachShadow_ = true;
-        }, 'hackAttachShadow');
-    })();
+    (function protectConsoleClear() { if (!CONFIG.DEBUG) return; safeExec(() => { if (window.console && console.clear) { const originalClear = console.clear; console.clear = () => console.log('--- 🚫 console.clear() blocked by VideoSpeed_Control (Debug Mode) ---'); Object.defineProperty(console, 'clear', { configurable: false, writable: false, value: console.clear }); } }, 'consoleClearProtection'); })();
+    (function openAllShadowRoots() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const originalAttachShadow = window.Element.prototype.attachShadow; window.Element.prototype.attachShadow = function (options) { const modifiedOptions = { ...options, mode: 'open' }; const shadowRoot = originalAttachShadow.apply(this, [modifiedOptions]); window._shadowDomList_.push(new WeakRef(shadowRoot)); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot } })); return shadowRoot; }; window._hasHackAttachShadow_ = true; }, 'hackAttachShadow'); })();
 
     const audioManager = (() => {
-        let isNormalizerEnabled = false;
-        let currentEQState = 'off';
-        const audioGraphMap = new WeakMap();
-        function createAudioGraph(context) { const settings = CONFIG.AUDIO_NORMALIZER_SETTINGS; const compressor = context.createDynamicsCompressor(); compressor.threshold.setValueAtTime(settings.threshold, context.currentTime); compressor.knee.setValueAtTime(settings.knee, context.currentTime); compressor.ratio.setValueAtTime(settings.ratio, context.currentTime); compressor.attack.setValueAtTime(settings.attack, context.currentTime); compressor.release.setValueAtTime(settings.release, context.currentTime); const eqSettings = CONFIG.EQ_SETTINGS; const bassFilter = context.createBiquadFilter(); bassFilter.type = 'lowshelf'; bassFilter.frequency.value = eqSettings.bassFrequency; const trebleFilter = context.createBiquadFilter(); trebleFilter.type = 'highshelf'; trebleFilter.frequency.value = eqSettings.trebleFrequency; const gain = context.createGain(); return { compressor, bassFilter, trebleFilter, gain }; }
-        function applyEQPreset(media) { if (!audioGraphMap.has(media)) return; const graph = audioGraphMap.get(media); const preset = CONFIG.EQ_PRESETS[currentEQState]; graph.bassFilter.gain.setValueAtTime(preset.bassGain, graph.context.currentTime); graph.trebleFilter.gain.setValueAtTime(preset.trebleGain, graph.context.currentTime); }
-        function updateAudioGraph(media) { if (!audioGraphMap.has(media)) return; const graph = audioGraphMap.get(media); graph.source.disconnect(); const chain = [graph.bassFilter, graph.trebleFilter, graph.gain]; if (isNormalizerEnabled) { chain.unshift(graph.compressor); } let currentNode = graph.source; for(const nextNode of chain) { currentNode.connect(nextNode); currentNode = nextNode; } currentNode.connect(graph.context.destination); }
-        function initAudioContext(media) { if (audioGraphMap.has(media)) return; safeExec(() => { const context = new (window.AudioContext || window.webkitAudioContext)(); const source = context.createMediaElementSource(media); const { compressor, bassFilter, trebleFilter, gain } = createAudioGraph(context); audioGraphMap.set(media, { context, source, compressor, bassFilter, trebleFilter, gain }); applyEQPreset(media); updateAudioGraph(media); }, 'audioManager.initAudioContext'); }
+        let isNormalizerEnabled = false; let currentEQState = 'off'; const audioGraphMap = new WeakMap();
+        function createAudioGraph(context) { const s = CONFIG.AUDIO_NORMALIZER_SETTINGS; const c = context.createDynamicsCompressor(); c.threshold.setValueAtTime(s.threshold, context.currentTime); c.knee.setValueAtTime(s.knee, context.currentTime); c.ratio.setValueAtTime(s.ratio, context.currentTime); c.attack.setValueAtTime(s.attack, context.currentTime); c.release.setValueAtTime(s.release, context.currentTime); const e = CONFIG.EQ_SETTINGS; const b = context.createBiquadFilter(); b.type = 'lowshelf'; b.frequency.value = e.bassFrequency; const t = context.createBiquadFilter(); t.type = 'highshelf'; t.frequency.value = e.trebleFrequency; const g = context.createGain(); return { compressor: c, bassFilter: b, trebleFilter: t, gain: g }; }
+        function applyEQPreset(media) { if (!audioGraphMap.has(media)) return; const g = audioGraphMap.get(media); const p = CONFIG.EQ_PRESETS[currentEQState]; g.bassFilter.gain.setValueAtTime(p.bassGain, g.context.currentTime); g.trebleFilter.gain.setValueAtTime(p.trebleGain, g.context.currentTime); }
+        function updateAudioGraph(media) { if (!audioGraphMap.has(media)) return; const g = audioGraphMap.get(media); g.source.disconnect(); const chain = [g.bassFilter, g.trebleFilter, g.gain]; if (isNormalizerEnabled) { chain.unshift(g.compressor); } let current = g.source; for(const node of chain) { current.connect(node); current = node; } current.connect(g.context.destination); }
+        function initAudioContext(media) { if (audioGraphMap.has(media)) return; safeExec(() => { const context = new (window.AudioContext || window.webkitAudioContext)(); const source = context.createMediaElementSource(media); const graph = createAudioGraph(context); audioGraphMap.set(media, { context, source, ...graph }); applyEQPreset(media); updateAudioGraph(media); }, 'audioManager.init'); }
         function processMedia(media) { media.addEventListener('play', () => initAudioContext(media), { once: true }); }
-        function cleanupMedia(media) { if (audioGraphMap.has(media)) { safeExec(() => { audioGraphMap.get(media).context.close(); audioGraphMap.delete(media); }, 'audioManager.cleanupMedia'); } }
-        function suspendContext(media) { if (audioGraphMap.has(media)) { const graph = audioGraphMap.get(media); if (graph.context.state === 'running') { graph.context.suspend(); } } }
-        function resumeContext(media) { if (audioGraphMap.has(media)) { const graph = audioGraphMap.get(media); if (graph.context.state === 'suspended') { graph.context.resume(); } } }
+        function cleanupMedia(media) { if (audioGraphMap.has(media)) { safeExec(() => { audioGraphMap.get(media).context.close(); audioGraphMap.delete(media); }, 'audioManager.cleanup'); } }
+        function suspendContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'running') { audioGraphMap.get(media).context.suspend(); } }
+        function resumeContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'suspended') { audioGraphMap.get(media).context.resume(); } }
         function toggleNormalizer() { isNormalizerEnabled = !isNormalizerEnabled; const button = uiManager.getShadowRoot()?.getElementById('vm-normalize-toggle-btn'); if (button) button.textContent = isNormalizerEnabled ? '🌙' : '☀️'; for (const media of activeMedia) updateAudioGraph(media); }
-        function cycleEQ() { const states = ['off', 'treble', 'bass']; const icons = ['🚫', '🔊', '🎬']; const currentIndex = states.indexOf(currentEQState); const nextIndex = (currentIndex + 1) % states.length; currentEQState = states[nextIndex]; const button = uiManager.getShadowRoot()?.getElementById('vm-eq-toggle-btn'); if (button) button.textContent = icons[nextIndex]; for (const media of activeMedia) applyEQPreset(media); }
-        function resetAudio() { isNormalizerEnabled = false; currentEQState = 'off'; const shadowRoot = uiManager.getShadowRoot(); if (shadowRoot) { const normalizeButton = shadowRoot.getElementById('vm-normalize-toggle-btn'); const eqButton = shadowRoot.getElementById('vm-eq-toggle-btn'); if (normalizeButton) normalizeButton.textContent = '☀️'; if (eqButton) eqButton.textContent = '🚫'; } for (const media of activeMedia) { updateAudioGraph(media); applyEQPreset(media); } }
+        function cycleEQ() { const states = ['off', 'treble', 'bass']; const icons = ['🚫', '🔊', '🎬']; const idx = (states.indexOf(currentEQState) + 1) % states.length; currentEQState = states[idx]; const button = uiManager.getShadowRoot()?.getElementById('vm-eq-toggle-btn'); if (button) button.textContent = icons[idx]; for (const media of activeMedia) applyEQPreset(media); }
+        function resetAudio() { isNormalizerEnabled = false; currentEQState = 'off'; const root = uiManager.getShadowRoot(); if (root) { const normBtn = root.getElementById('vm-normalize-toggle-btn'); const eqBtn = root.getElementById('vm-eq-toggle-btn'); if (normBtn) normBtn.textContent = '☀️'; if (eqBtn) eqBtn.textContent = '🚫'; } for (const media of activeMedia) { updateAudioGraph(media); applyEQPreset(media); } }
         return { processMedia, cleanupMedia, toggleNormalizer, cycleEQ, resetAudio, suspendContext, resumeContext };
-    })();
-
-    const filterManager = (() => {
-        const isFilterDisabledForSite = CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname);
-        const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-        const settings = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
-        let isEnabled = true;
-        const createSvgElement = (tag, attributes = {}) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const [key, value] of Object.entries(attributes)) { el.setAttribute(key, value); } return el; };
-        function createSvgFiltersAndStyle() {
-            if (isFilterDisabledForSite || document.getElementById('video-enhancer-svg-filters')) return;
-            const svgFilters = createSvgElement('svg', { id: 'video-enhancer-svg-filters' });
-            svgFilters.style.display = 'none';
-            const softeningFilter = createSvgElement('filter', { id: 'SofteningFilter' });
-            softeningFilter.appendChild(createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION }));
-            const sharpenFilter = createSvgElement('filter', { id: settings.SHARPEN_ID });
-            const convolveMatrix = createSvgElement('feConvolveMatrix', { id: 'dynamic-convolve-matrix', order: '3 3', preserveAlpha: 'true', kernelMatrix: CONFIG.SHARPEN_LEVELS.medium, mode: 'multiply' });
-            sharpenFilter.appendChild(convolveMatrix);
-            const gammaFilter = createSvgElement('filter', { id: 'gamma-filter' });
-            const feCompTransferGamma = createSvgElement('feComponentTransfer');
-            ['R', 'G', 'B'].forEach(ch => { feCompTransferGamma.appendChild(createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })); });
-            gammaFilter.appendChild(feCompTransferGamma);
-            const linearAdjustFilter = createSvgElement('filter', { id: 'linear-adjust-filter' });
-            const feCompTransferLinear = createSvgElement('feComponentTransfer');
-            const shadowIntercept = settings.SHADOWS_VALUE / 200;
-            const highlightSlope = 1 + (settings.HIGHLIGHTS_VALUE / 100);
-            ['R', 'G', 'B'].forEach(ch => { feCompTransferLinear.appendChild(createSvgElement(`feFunc${ch}`, { type: 'linear', slope: highlightSlope.toString(), intercept: shadowIntercept.toString() })); });
-            linearAdjustFilter.appendChild(feCompTransferLinear);
-            svgFilters.append(softeningFilter, sharpenFilter, gammaFilter, linearAdjustFilter);
-            (document.body || document.documentElement).appendChild(svgFilters);
-            const styleElement = document.createElement('style');
-            styleElement.id = 'video-enhancer-styles';
-            styleElement.textContent = `video.video-filter-active, iframe.video-filter-active { filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; } .vsc-gpu-accelerated { transform: translateZ(0); will-change: transform; }`;
-            (document.head || document.documentElement).appendChild(styleElement);
-        }
-        function updateState() {
-            if (isFilterDisabledForSite) return;
-            document.documentElement.classList.toggle('video-filter-main-switch-on', isEnabled);
-            const button = uiManager.getShadowRoot()?.getElementById('vm-filter-toggle-btn');
-            if (button) button.textContent = isEnabled ? '🌞' : '🌚';
-            scanForMedia(true);
-        }
-        function setSharpenLevel(level = 'medium') {
-            const convolveMatrix = document.getElementById('dynamic-convolve-matrix');
-            if (convolveMatrix) {
-                const newMatrix = CONFIG.SHARPEN_LEVELS[level];
-                if (convolveMatrix.getAttribute('kernelMatrix') !== newMatrix) {
-                    convolveMatrix.setAttribute('kernelMatrix', newMatrix);
-                }
-            }
-            const button = uiManager.getShadowRoot()?.getElementById('vm-filter-toggle-btn');
-            if (button) {
-                button.title = `Toggle Video Filter (Level: ${level})`;
-            }
-        }
-        return { init: () => safeExec(() => { createSvgFiltersAndStyle(); updateState(); }, 'filterManager.init'), toggle: () => { if (isFilterDisabledForSite) return; isEnabled = !isEnabled; updateState(); }, isEnabled: () => isFilterDisabledForSite ? false : isEnabled, setSharpenLevel };
     })();
 
     const uiManager = (() => {
         let host, shadowRoot;
-        function init() {
-            if (host) return;
-            host = document.createElement('div');
-            host.id = 'vsc-ui-host';
-            Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX });
-            shadowRoot = host.attachShadow({ mode: 'open' });
-            const style = document.createElement('style');
-            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; } #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; } #vm-speed-slider-container.touched { opacity: 1; } @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } } #vm-speed-slider-container.minimized { width: 30px; } #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; } #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; } .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; } #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; } #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); } #vm-filter-toggle-btn, #vm-normalize-toggle-btn, #vm-eq-toggle-btn { font-size: 16px; padding: 2px 4px; } #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }`;
-            shadowRoot.appendChild(style);
-            (document.body || document.documentElement).appendChild(host);
-        }
+        function init() { if (host) return; host = document.createElement('div'); host.id = 'vsc-ui-host'; Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX }); shadowRoot = host.attachShadow({ mode: 'open' }); const style = document.createElement('style'); style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; } #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; } #vm-speed-slider-container.touched { opacity: 1; } @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } } #vm-speed-slider-container.minimized { width: 30px; } #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; } #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; } .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; } #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; } #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); } #vm-filter-toggle-btn, #vm-normalize-toggle-btn, #vm-eq-toggle-btn { font-size: 16px; padding: 2px 4px; } #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }`; shadowRoot.appendChild(style); (document.body || document.documentElement).appendChild(host); }
         return { init: () => safeExec(init, 'uiManager.init'), getShadowRoot: () => { if (!shadowRoot) init(); return shadowRoot; }, moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); } };
+    })();
+
+    const filterManager = (() => {
+        const isFilterDisabledForSite = CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname);
+        const settings = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
+        let isEnabled = true; let currentSharpenLevel = 'medium';
+        const createSvgElement = (tag, attr) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); return el; };
+        function createSvgFiltersAndStyle() { if (isFilterDisabledForSite || document.getElementById('video-enhancer-svg-filters')) return; const svg = createSvgElement('svg', { id: 'video-enhancer-svg-filters', style: 'display:none' }); const soft = createSvgElement('filter', { id: 'SofteningFilter' }); soft.appendChild(createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION })); const sharp = createSvgElement('filter', { id: settings.SHARPEN_ID }); sharp.appendChild(createSvgElement('feConvolveMatrix', { id: 'dynamic-convolve-matrix', order: '3 3', preserveAlpha: 'true', kernelMatrix: CONFIG.SHARPEN_LEVELS.medium, mode: 'multiply' })); const gamma = createSvgElement('filter', { id: 'gamma-filter' }); const gammaTransfer = createSvgElement('feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => gammaTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() }))); gamma.appendChild(gammaTransfer); const linear = createSvgElement('filter', { id: 'linear-adjust-filter' }); const linearTransfer = createSvgElement('feComponentTransfer'); const intercept = settings.SHADOWS_VALUE / 200; const slope = 1 + (settings.HIGHLIGHTS_VALUE / 100); ['R', 'G', 'B'].forEach(ch => linearTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'linear', slope: slope.toString(), intercept: intercept.toString() }))); linear.appendChild(linearTransfer); svg.append(soft, sharp, gamma, linear); (document.body || document.documentElement).appendChild(svg); const style = document.createElement('style'); style.id = 'video-enhancer-styles'; style.textContent = `video.video-filter-active, iframe.video-filter-active { filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; } .vsc-gpu-accelerated { transform: translateZ(0); will-change: transform; }`; (document.head || document.documentElement).appendChild(style); }
+        function updateState() { if (isFilterDisabledForSite) return; document.documentElement.classList.toggle('video-filter-main-switch-on', isEnabled); updateFilterButtonUI(); scanForMedia(true); }
+        function setSharpenLevel(level = 'medium') { currentSharpenLevel = level; const matrix = document.getElementById('dynamic-convolve-matrix'); if (matrix) { const newMatrix = CONFIG.SHARPEN_LEVELS[level]; if (matrix.getAttribute('kernelMatrix') !== newMatrix) matrix.setAttribute('kernelMatrix', newMatrix); } }
+        return { init: () => safeExec(() => { createSvgFiltersAndStyle(); updateState(); }, 'filter.init'), toggle: () => { if (isFilterDisabledForSite) return; isEnabled = !isEnabled; updateState(); }, isEnabled: () => !isFilterDisabledForSite && isEnabled, setSharpenLevel, getCurrentSharpenLevel: () => currentSharpenLevel, };
     })();
 
     const speedSlider = (() => {
         let container, inited = false, isMinimized = true, fadeOutTimer;
-        const createButton = (id, title, textContent) => {
-            const button = document.createElement('button'); if (id) button.id = id; button.className = 'vm-btn'; button.title = title; button.textContent = textContent; return button;
-        };
+        const createButton = (id, title, text) => { const btn = document.createElement('button'); if(id) btn.id = id; btn.className = 'vm-btn'; btn.title = title; btn.textContent = text; return btn; };
         function init() {
             if (inited) return;
-            const shadowRoot = uiManager.getShadowRoot();
-            if (!shadowRoot) return;
-            container = document.createElement('div');
-            container.id = 'vm-speed-slider-container';
-            const filterButton = createButton('vm-filter-toggle-btn', 'Toggle Video Filter', '🌞');
-            const normalizeButton = createButton('vm-normalize-toggle-btn', 'Toggle Volume Normalization (Night Mode)', '☀️');
-            const eqButton = createButton('vm-eq-toggle-btn', 'Cycle EQ Preset (Off / Treble / Bass)', '🚫');
-            const resetButton = createButton(null, 'Reset speed & audio', '1x');
-            resetButton.classList.add('reset');
-            const sliderEl = document.createElement('input');
-            Object.assign(sliderEl, { type: 'range', min: '0.2', max: '4.0', step: '0.2', value: '1.0', id: 'vm-speed-slider' });
-            const valueEl = document.createElement('div');
-            valueEl.id = 'vm-speed-value';
-            valueEl.textContent = 'x1.0';
-            const toggleButton = createButton(null, 'Toggle Speed Controller', '');
-            toggleButton.classList.add('toggle');
-            container.append(filterButton, normalizeButton, eqButton, resetButton, sliderEl, valueEl, toggleButton);
+            const shadowRoot = uiManager.getShadowRoot(); if (!shadowRoot) return;
+            container = document.createElement('div'); container.id = 'vm-speed-slider-container';
+            const filterBtn = createButton('vm-filter-toggle-btn', 'Toggle Video Filter (Level: medium)', '🌞 M');
+            const normBtn = createButton('vm-normalize-toggle-btn', 'Toggle Volume Normalization (Night Mode)', '☀️');
+            const eqBtn = createButton('vm-eq-toggle-btn', 'Cycle EQ Preset (Off / Treble / Bass)', '🚫');
+            const resetBtn = createButton(null, 'Reset speed & audio', '1x'); resetBtn.classList.add('reset');
+            const sliderEl = document.createElement('input'); Object.assign(sliderEl, { type: 'range', min: '0.2', max: '4.0', step: '0.2', value: '1.0', id: 'vm-speed-slider' });
+            const valueEl = document.createElement('div'); valueEl.id = 'vm-speed-value'; valueEl.textContent = 'x1.0';
+            const toggleBtn = createButton(null, 'Toggle Speed Controller', ''); toggleBtn.classList.add('toggle');
+            container.append(filterBtn, normBtn, eqBtn, resetBtn, sliderEl, valueEl, toggleBtn);
             shadowRoot.appendChild(container);
 
-            if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) { filterButton.style.display = 'none'; }
-
-            const applySpeed = (speed) => { for (const media of activeMedia) { if (media.playbackRate !== speed) { safeExec(() => { media.playbackRate = speed; }); } } };
-            const updateValueText = (speed) => { if (valueEl) valueEl.textContent = `x${speed.toFixed(1)}`; };
-            const updateAppearance = () => { if (!container) return; container.classList.toggle('minimized', isMinimized); toggleButton.textContent = isMinimized ? '🔻' : '🔺'; };
-
-            resetButton.addEventListener('click', () => {
-                sliderEl.value = '1.0';
-                applySpeed(1.0);
-                updateValueText(1.0);
-                audioManager.resetAudio();
-            });
-
-            filterButton.addEventListener('click', () => filterManager.toggle());
-            normalizeButton.addEventListener('click', () => audioManager.toggleNormalizer());
-            eqButton.addEventListener('click', () => audioManager.cycleEQ());
-            toggleButton.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(); });
-
+            if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) filterBtn.style.display = 'none';
+            const applySpeed = speed => { for (const media of activeMedia) if (media.playbackRate !== speed) safeExec(() => { media.playbackRate = speed; }); };
+            const updateValueText = speed => { if (valueEl) valueEl.textContent = `x${speed.toFixed(1)}`; };
+            const updateAppearance = () => { if (!container) return; container.classList.toggle('minimized', isMinimized); toggleBtn.textContent = isMinimized ? '🔻' : '🔺'; };
+            resetBtn.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); audioManager.resetAudio(); });
+            filterBtn.addEventListener('click', () => filterManager.toggle());
+            normBtn.addEventListener('click', () => audioManager.toggleNormalizer());
+            eqBtn.addEventListener('click', () => audioManager.cycleEQ());
+            toggleBtn.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(); });
             const debouncedApplySpeed = debounce(applySpeed, 100);
-            sliderEl.addEventListener('input', (event) => { const speed = parseFloat(event.target.value); updateValueText(speed); debouncedApplySpeed(speed); container.classList.add('touched'); clearTimeout(fadeOutTimer); });
-            const endInteractionSoon = () => { clearTimeout(fadeOutTimer); fadeOutTimer = setTimeout(() => container.classList.remove('touched'), 3000); };
-            const onDocumentTouchEnd = () => { endInteractionSoon(); document.removeEventListener('touchend', onDocumentTouchEnd); document.removeEventListener('touchcancel', onDocumentTouchEnd); };
-            container.addEventListener('touchstart', () => { clearTimeout(fadeOutTimer); container.classList.add('touched'); document.addEventListener('touchend', onDocumentTouchEnd); document.addEventListener('touchcancel', onDocumentTouchEnd); }, { passive: true });
-            sliderEl.addEventListener('change', endInteractionSoon, { passive: true });
-            sliderEl.addEventListener('blur', endInteractionSoon, { passive: true });
-            const stopPropagation = e => e.stopPropagation();
-            sliderEl.addEventListener('touchstart', stopPropagation, { passive: true });
-            sliderEl.addEventListener('touchmove', stopPropagation, { passive: true });
+            sliderEl.addEventListener('input', e => { const speed = parseFloat(e.target.value); updateValueText(speed); debouncedApplySpeed(speed); container.classList.add('touched'); clearTimeout(fadeOutTimer); });
+            const endInteraction = () => { clearTimeout(fadeOutTimer); fadeOutTimer = setTimeout(() => container.classList.remove('touched'), 3000); };
+            const onTouchEnd = () => { endInteraction(); document.removeEventListener('touchend', onTouchEnd); document.removeEventListener('touchcancel', onTouchEnd); };
+            container.addEventListener('touchstart', () => { clearTimeout(fadeOutTimer); container.classList.add('touched'); document.addEventListener('touchend', onTouchEnd); document.addEventListener('touchcancel', onTouchEnd); }, { passive: true });
+            sliderEl.addEventListener('change', endInteraction, { passive: true });
+            sliderEl.addEventListener('blur', endInteraction, { passive: true });
+            const stopProp = e => e.stopPropagation();
+            sliderEl.addEventListener('touchstart', stopProp, { passive: true });
+            sliderEl.addEventListener('touchmove', stopProp, { passive: true });
             inited = true;
             updateAppearance();
         }
-        return { init: () => safeExec(init, 'speedSlider.init'), show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; }, hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; }, isMinimized: () => isMinimized, };
+        return { init: () => safeExec(init, 'speedSlider.init'), show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; }, hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; }, isMinimized: () => isMinimized };
     })();
 
     const dragBar = (() => {
         let display, inited = false; let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false }; let lastDelta = 0; let rafScheduled = false;
-        function findAssociatedVideo(target) { if (target.tagName === 'VIDEO') return target; const videoInChildren = target.querySelector('video'); if (videoInChildren) return videoInChildren; if (target.parentElement) { return target.parentElement.querySelector('video'); } return null; }
-        const getEventPosition = (event) => event.touches ? event.touches[0] : event;
-        const onStart = (event) => safeExec(() => {
-            if (event.touches && event.touches.length > 1) return; if (event.type === 'mousedown' && event.button !== 0) return; const videoElement = findAssociatedVideo(event.target); if (!videoElement || videoElement.paused || speedSlider.isMinimized() || event.composedPath().some(el => el.id === 'vm-speed-slider-container')) return; const pos = getEventPosition(event); Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false }); const options = { passive: false, capture: true }; const moveEvent = event.type === 'mousedown' ? 'mousemove' : 'touchmove'; const endEvent = event.type === 'mousedown' ? 'mouseup' : 'touchend'; document.addEventListener(moveEvent, onMove, options); document.addEventListener(endEvent, onEnd, options);
-        }, 'dragBar.onStart');
-        const onMove = (event) => {
-            if (!state.dragging) return; if (event.touches && event.touches.length > 1) { onEnd(); return; } const pos = getEventPosition(event); state.currentX = pos.clientX; state.currentY = pos.clientY; if (!state.directionConfirmed) { const deltaX = Math.abs(state.currentX - state.startX); const deltaY = Math.abs(state.currentY - state.startY); if (deltaX > deltaY + 5) { state.directionConfirmed = true; } else if (deltaY > deltaX + 5) { onEnd(); return; } } if (state.directionConfirmed) { event.preventDefault(); event.stopImmediatePropagation(); const movementX = state.currentX - state.startX; state.accX += movementX; state.startX = state.currentX; if (!rafScheduled) { rafScheduled = true; window.requestAnimationFrame(() => { if (state.dragging) showDisplay(state.accX); rafScheduled = false; }); } }
+        function findAssociatedVideo(target) { if (target.tagName === 'VIDEO') return target; const v = target.querySelector('video'); if (v) return v; if (target.parentElement) return target.parentElement.querySelector('video'); return null; }
+        const getEventPosition = e => e.touches ? e.touches[0] : e;
+        const onStart = e => safeExec(() => {
+            if (e.touches && e.touches.length > 1 || (e.type === 'mousedown' && e.button !== 0)) return;
+            const video = findAssociatedVideo(e.target);
+            if (!video || video.paused || speedSlider.isMinimized() || e.composedPath().some(el => el.id === 'vm-speed-slider-container')) return;
+            const pos = getEventPosition(e); Object.assign(state, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false });
+            const options = { passive: false, capture: true }; document.addEventListener(e.type === 'mousedown' ? 'mousemove' : 'touchmove', onMove, options); document.addEventListener(e.type === 'mousedown' ? 'mouseup' : 'touchend', onEnd, options);
+        }, 'drag.start');
+        const onMove = e => {
+            if (!state.dragging) return; if (e.touches && e.touches.length > 1) return onEnd();
+            const pos = getEventPosition(e); state.currentX = pos.clientX; state.currentY = pos.clientY;
+            if (!state.directionConfirmed) { const dX = Math.abs(state.currentX - state.startX); const dY = Math.abs(state.currentY - state.startY); if (dX > dY + 5) state.directionConfirmed = true; else if (dY > dX + 5) return onEnd(); }
+            if (state.directionConfirmed) { e.preventDefault(); e.stopImmediatePropagation(); state.accX += state.currentX - state.startX; state.startX = state.currentX; if (!rafScheduled) { rafScheduled = true; window.requestAnimationFrame(() => { if (state.dragging) showDisplay(state.accX); rafScheduled = false; }); } }
         };
         const onEnd = () => {
             if (!state.dragging) return; if (state.directionConfirmed) applySeek(); Object.assign(state, { dragging: false, accX: 0, directionConfirmed: false }); hideDisplay(); document.removeEventListener('mousemove', onMove, true); document.removeEventListener('touchmove', onMove, true); document.removeEventListener('mouseup', onEnd, true); document.removeEventListener('touchend', onEnd, true);
         };
-        const applySeek = () => { const deltaSec = Math.round(state.accX / 2); if (Math.abs(deltaSec) < 1) return; for (const media of activeMedia) { if (isFinite(media.duration)) { media.currentTime = Math.min(media.duration, Math.max(0, media.currentTime + deltaSec)); } } };
-        const showDisplay = (pixels) => {
-            const seconds = Math.round(pixels / 2); if (seconds === lastDelta) return; lastDelta = seconds; if (!display) { const shadowRoot = uiManager.getShadowRoot(); if(!shadowRoot) return; display = document.createElement('div'); display.id = 'vm-time-display'; shadowRoot.appendChild(display); } const sign = seconds < 0 ? '-' : '+'; const absSeconds = Math.abs(seconds); const minutes = Math.floor(absSeconds / 60).toString().padStart(2, '0'); const remainingSeconds = (absSeconds % 60).toString().padStart(2, '0'); display.textContent = `${sign}${minutes}분 ${remainingSeconds}초`; display.style.display = 'block'; display.style.opacity = '1';
+        const applySeek = () => { const delta = Math.round(state.accX / 2); if (Math.abs(delta) < 1) return; for (const media of activeMedia) if (isFinite(media.duration)) media.currentTime = Math.min(media.duration, Math.max(0, media.currentTime + delta)); };
+        const showDisplay = pixels => {
+            const seconds = Math.round(pixels / 2); if (seconds === lastDelta) return; lastDelta = seconds;
+            if (!display) { const root = uiManager.getShadowRoot(); if(!root) return; display = document.createElement('div'); display.id = 'vm-time-display'; root.appendChild(display); }
+            const sign = seconds < 0 ? '-' : '+'; const abs = Math.abs(seconds); const mins = Math.floor(abs / 60).toString().padStart(2, '0'); const secs = (abs % 60).toString().padStart(2, '0'); display.textContent = `${sign}${mins}분 ${secs}초`; display.style.display = 'block'; display.style.opacity = '1';
         };
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => { if (display) display.style.display = 'none'; }, 300); } };
-        return { init: () => { if (inited) return; safeExec(() => { document.addEventListener('mousedown', onStart, { capture: true }); document.addEventListener('touchstart', onStart, { passive: true, capture: true }); inited = true; }, 'dragBar.init'); } };
+        return { init: () => { if (inited) return; safeExec(() => { document.addEventListener('mousedown', onStart, { capture: true }); document.addEventListener('touchstart', onStart, { passive: true, capture: true }); inited = true; }, 'drag.init'); } };
     })();
 
     const mediaSessionManager = (() => {
-        const getSeekTime = (media) => {
-            if (!media || !isFinite(media.duration)) return 10; const dynamicSeekTime = Math.floor(media.duration * CONFIG.SEEK_TIME_PERCENT); return Math.min(dynamicSeekTime, CONFIG.SEEK_TIME_MAX_SEC);
-        };
-        const getTextFromSelectors = (selectors) => {
-            if (!Array.isArray(selectors)) return null; for (const selector of selectors) { const element = document.querySelector(selector); if (element) return element.textContent.trim(); } return null;
-        };
-        const getMetadata = () => {
-            const hostname = location.hostname; const rule = CONFIG.SITE_METADATA_RULES[hostname]; if (rule) { const title = getTextFromSelectors(rule.title) || document.title; const artist = getTextFromSelectors(rule.artist) || location.hostname; return { title, artist }; } return { title: document.title, artist: location.hostname };
-        };
-        const setAction = (action, handler) => {
-            try { navigator.mediaSession.setActionHandler(action, handler); } catch (error) { if(CONFIG.DEBUG) console.warn(`[VideoSpeed] MediaSession action "${action}" not supported.`); }
-        };
-        const setSession = (media) => {
-            if (!('mediaSession' in navigator)) return;
-            safeExec(() => {
-                const { title, artist } = getMetadata(); navigator.mediaSession.metadata = new window.MediaMetadata({ title, artist, album: 'VideoSpeed_Control' }); setAction('play', () => media.play()); setAction('pause', () => media.pause()); setAction('seekbackward', () => { media.currentTime -= getSeekTime(media); }); setAction('seekforward', () => { media.currentTime += getSeekTime(media); }); setAction('seekto', (details) => { if (details.fastSeek && 'fastSeek' in media) { media.fastSeek(details.seekTime); } else { media.currentTime = details.seekTime; } });
-            }, 'mediaSession.set');
-        };
-        const clearSession = () => {
-            if (!('mediaSession' in navigator) || activeMedia.size > 0) return;
-            safeExec(() => {
-                navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(action => setAction(action, null));
-            }, 'mediaSession.clear');
-        };
-        return { setSession, clearSession };
+        const getSeekTime = m => { if (!m || !isFinite(m.duration)) return 10; return Math.min(Math.floor(m.duration * CONFIG.SEEK_TIME_PERCENT), CONFIG.SEEK_TIME_MAX_SEC); };
+        const getText = sels => { if (!Array.isArray(sels)) return null; for (const sel of sels) { const el = document.querySelector(sel); if (el) return el.textContent.trim(); } return null; };
+        const getMeta = () => { const rule = CONFIG.SITE_METADATA_RULES[location.hostname]; if (rule) { return { title: getText(rule.title) || document.title, artist: getText(rule.artist) || location.hostname }; } return { title: document.title, artist: location.hostname }; };
+        const setAction = (act, h) => { try { navigator.mediaSession.setActionHandler(act, h); } catch (e) {} };
+        return { setSession: m => { if (!('mediaSession' in navigator)) return; safeExec(() => { const { title, artist } = getMeta(); navigator.mediaSession.metadata = new window.MediaMetadata({ title, artist, album: 'VideoSpeed_Control' }); setAction('play', () => m.play()); setAction('pause', () => m.pause()); setAction('seekbackward', () => { m.currentTime -= getSeekTime(m); }); setAction('seekforward', () => { m.currentTime += getSeekTime(m); }); setAction('seekto', d => { if (d.fastSeek && 'fastSeek' in m) { m.fastSeek(d.seekTime); } else { m.currentTime = d.seekTime; } }); }, 'mediaSession.set'); }, clearSession: () => { if (!('mediaSession' in navigator) || activeMedia.size > 0) return; safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(a => setAction(a, null)); }, 'mediaSession.clear'); } };
     })();
 
     const mediaListenerMap = new WeakMap();
     let intersectionObserver = null;
-    function findAllMedia(doc = document) {
-        const mediaElements = [];
-        safeExec(() => {
-            mediaElements.push(...doc.querySelectorAll('video, audio'));
-            window._shadowDomList_ = (window._shadowDomList_ || []).filter(ref => ref.deref());
-            window._shadowDomList_.forEach(ref => {
-                const shadowRoot = ref.deref();
-                if (shadowRoot) { mediaElements.push(...shadowRoot.querySelectorAll('video, audio')); }
-            });
-            if (doc === document) {
-                doc.querySelectorAll('iframe').forEach(iframe => {
-                    try { if (iframe.contentDocument) { mediaElements.push(...findAllMedia(iframe.contentDocument)); } } catch (error) {}
-                });
-            }
-        });
-        return [...new Set(mediaElements)];
+    function findAllMedia(doc = document) { const elems = []; safeExec(() => { elems.push(...doc.querySelectorAll('video, audio')); (window._shadowDomList_ || []).filter(r => r.deref()).forEach(r => { const root = r.deref(); if(root) elems.push(...root.querySelectorAll('video, audio')); }); if (doc === document) doc.querySelectorAll('iframe').forEach(f => { try { if (f.contentDocument) elems.push(...findAllMedia(f.contentDocument)); } catch (e) {} }); }); return [...new Set(elems)]; }
+
+    function updateFilterButtonUI() {
+        const button = uiManager.getShadowRoot()?.getElementById('vm-filter-toggle-btn');
+        if (button) {
+            const level = filterManager.getCurrentSharpenLevel();
+            const levelChar = level.charAt(0).toUpperCase();
+            const isEnabled = filterManager.isEnabled();
+            button.textContent = isEnabled ? `🌞 ${levelChar}` : `🌚 ${levelChar}`;
+            button.title = `Toggle Video Filter (Level: ${level})`;
+        }
     }
 
     function updateVideoFilterState(video) {
@@ -317,142 +196,87 @@
         let shouldHaveFilter = isPlaying && isVisible && mainSwitchOn;
 
         const height = video.videoHeight || 0;
-        let sharpenLevel = 'medium'; // Default for unknown resolution
-        if (height >= 1080) {
-            sharpenLevel = 'high';
-        } else if (height >= 720) {
-            sharpenLevel = 'medium';
-        } else if (height > 0) {
-            sharpenLevel = 'low';
-        }
-        filterManager.setSharpenLevel(sharpenLevel);
+        let sharpenLevel = 'medium';
+        if (height >= 1080) sharpenLevel = 'high';
+        else if (height >= 720) sharpenLevel = 'medium';
+        else if (height > 0) sharpenLevel = 'low';
 
+        filterManager.setSharpenLevel(sharpenLevel);
         video.classList.toggle('video-filter-active', shouldHaveFilter);
+        updateFilterButtonUI();
     }
 
     const mediaEventHandlers = {
-        play: (event) => {
-            const media = event.target;
-            audioManager.resumeContext(media);
-            updateVideoFilterState(media);
-            scanForMedia(true);
-            mediaSessionManager.setSession(media);
-        },
-        pause: (event) => {
-            audioManager.suspendContext(event.target);
-            if (activeMedia.size <= 1) mediaSessionManager.clearSession();
-        },
-        ended: (event) => {
-            const media = event.target;
-            detachMediaListeners(media);
-            if (activeMedia.size <= 1) mediaSessionManager.clearSession();
-        },
+        play: e => { const m = e.target; audioManager.resumeContext(m); updateVideoFilterState(m); scanForMedia(true); mediaSessionManager.setSession(m); },
+        pause: e => { audioManager.suspendContext(e.target); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
+        ended: e => { const m = e.target; detachMediaListeners(m); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
     };
 
     function attachMediaListeners(media) {
         if (!media || processedMedia.has(media)) return;
         audioManager.processMedia(media);
         const listeners = {};
-        for (const [eventName, handler] of Object.entries(mediaEventHandlers)) {
-            listeners[eventName] = handler;
-            media.addEventListener(eventName, handler);
-        }
+        for (const [evt, handler] of Object.entries(mediaEventHandlers)) { listeners[evt] = handler; media.addEventListener(evt, handler); }
         mediaListenerMap.set(media, listeners);
         processedMedia.add(media);
-        if (intersectionObserver && media.tagName === 'VIDEO') {
-            intersectionObserver.observe(media);
-        }
+        if (intersectionObserver && media.tagName === 'VIDEO') intersectionObserver.observe(media);
     }
 
     function detachMediaListeners(media) {
         if (!mediaListenerMap.has(media)) return;
         audioManager.cleanupMedia(media);
         const listeners = mediaListenerMap.get(media);
-        for (const [eventName, listener] of Object.entries(listeners)) {
-            media.removeEventListener(eventName, listener);
-        }
+        for (const [evt, listener] of Object.entries(listeners)) media.removeEventListener(evt, listener);
         mediaListenerMap.delete(media);
         processedMedia.delete(media);
-        if (intersectionObserver && media.tagName === 'VIDEO') {
-            intersectionObserver.unobserve(media);
-        }
+        if (intersectionObserver && media.tagName === 'VIDEO') intersectionObserver.unobserve(media);
     }
 
     const scanForMedia = (isUiUpdateOnly = false) => {
         const allMedia = findAllMedia();
-        if (!isUiUpdateOnly) {
-            allMedia.forEach(attachMediaListeners);
-        }
+        if (!isUiUpdateOnly) allMedia.forEach(attachMediaListeners);
         activeMedia.clear();
-        allMedia.forEach(media => {
-            if (media.isConnected) { activeMedia.add(media); }
-        });
-        allMedia.forEach(media => {
-            if (media.tagName === 'VIDEO') {
-                const isPlaying = !media.paused && !media.ended;
-                media.classList.toggle('vsc-gpu-accelerated', isPlaying);
-                updateVideoFilterState(media);
-            }
-        });
+        allMedia.forEach(m => { if (m.isConnected) activeMedia.add(m); });
+        allMedia.forEach(m => { if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); } });
         const shouldBeVisible = activeMedia.size > 0;
-        if (isUiVisible !== shouldBeVisible) {
-            isUiVisible = shouldBeVisible;
-            if (isUiVisible) speedSlider.show();
-            else speedSlider.hide();
-        }
+        if (isUiVisible !== shouldBeVisible) { isUiVisible = shouldBeVisible; if (isUiVisible) speedSlider.show(); else speedSlider.hide(); }
     };
 
     const debouncedScanTask = debounce(scanForMedia, CONFIG.DEBOUNCE_DELAY);
-    const handleAddedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) attachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(attachMediaListeners); }); };
-    const handleRemovedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) detachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
+    const handleAddedNodes = nodes => { nodes.forEach(n => { if (n.nodeType !== 1) return; if (n.matches?.('video, audio')) attachMediaListeners(n); n.querySelectorAll?.('video, audio').forEach(attachMediaListeners); }); };
+    const handleRemovedNodes = nodes => { nodes.forEach(n => { if (n.nodeType !== 1) return; if (n.matches?.('video, audio')) detachMediaListeners(n); n.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
 
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (Stable) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Final Fix) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
         filterManager.init();
         intersectionObserver = new IntersectionObserver(entries => {
-            entries.forEach(entry => {
-                entry.target.dataset.isVisible = entry.isIntersecting;
-                updateVideoFilterState(entry.target);
-            });
+            entries.forEach(e => { e.target.dataset.isVisible = e.isIntersecting; updateVideoFilterState(e.target); });
         }, { threshold: 0.1 });
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                document.querySelectorAll('video.video-filter-active').forEach(v => v.classList.remove('video-filter-active'));
-            } else { scanForMedia(true); }
-        });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) { document.querySelectorAll('video.video-filter-active').forEach(v => v.classList.remove('video-filter-active')); } else { scanForMedia(true); } });
         const mutationObserver = new MutationObserver(mutations => {
-            let mediaChanged = false;
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList') {
-                    if (mutation.addedNodes.length > 0) { handleAddedNodes(mutation.addedNodes); mediaChanged = true; }
-                    if (mutation.removedNodes.length > 0) { handleRemovedNodes(mutation.removedNodes); mediaChanged = true; }
+            let changed = false;
+            for (const mut of mutations) {
+                if (mut.type === 'childList') {
+                    if (mut.addedNodes.length > 0) { handleAddedNodes(mut.addedNodes); changed = true; }
+                    if (mut.removedNodes.length > 0) { handleRemovedNodes(mut.removedNodes); changed = true; }
                 }
             }
-            if (mediaChanged) scheduleIdleTask(() => scanForMedia(true));
+            if (changed) scheduleIdleTask(() => scanForMedia(true));
         });
         mutationObserver.observe(document.documentElement, { childList: true, subtree: true });
         document.addEventListener('addShadowRoot', debouncedScanTask);
-
         const originalPushState = history.pushState;
         history.pushState = function(...args) {
             let result;
-            try {
-                result = originalPushState.apply(this, args);
-            } finally {
-                scheduleIdleTask(() => scanForMedia());
-            }
+            try { result = originalPushState.apply(this, args); } finally { scheduleIdleTask(() => scanForMedia()); }
             return result;
         };
-
         window.addEventListener('popstate', () => scheduleIdleTask(() => scanForMedia()));
         document.addEventListener('fullscreenchange', () => uiManager.moveUiTo(document.fullscreenElement || document.body));
-        window.addEventListener('beforeunload', () => {
-            mutationObserver.disconnect();
-            intersectionObserver.disconnect();
-        });
+        window.addEventListener('beforeunload', () => { mutationObserver.disconnect(); intersectionObserver.disconnect(); });
         scanForMedia();
     }
 
