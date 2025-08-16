@@ -39,7 +39,7 @@
             BLUR_STD_DEVIATION: '0.4',
             SHADOWS_VALUE: -2,
             HIGHLIGHTS_VALUE: 5,
-            SATURATION_VALUE: 110, // ✨ 채도 (100이 기본)
+            SATURATION_VALUE: 105, // ✨ 채도 (100이 기본)
         };
 
         // --- 📱 모바일 필터 값 ---
@@ -50,7 +50,7 @@
             BLUR_STD_DEVIATION: '0.4',
             SHADOWS_VALUE: -2,
             HIGHLIGHTS_VALUE: 5,
-            SATURATION_VALUE: 110, // ✨ 채도 (100이 기본)
+            SATURATION_VALUE: 105, // ✨ 채도 (100이 기본)
         };
 
         const settings = isMobile ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
