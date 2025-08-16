@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Full EQ)
+// @name         VideoSpeed_Control (Trusted Types Fix)
 // @namespace    https://com/
-// @version      27.10-FullEQ
-// @description  🎞️ 3단 로테이션 EQ 프리셋(기본/고음/저음) 및 음량 평준화 기능이 추가된 최종 버전입니다.
+// @version      27.11-TrustedTypesFix
+// @description  🎞️ Trusted Types 보안 정책을 준수하도록 UI 생성 로직을 수정하여 최신 웹사이트와의 호환성을 확보했습니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -11,7 +11,7 @@
 (function () {
     'use strict';
 
-    // --- Configuration and Constants ---
+    // --- Configuration and Constants (No changes) ---
     const CONFIG = {
         DEBUG: false,
         DEBOUNCE_DELAY: 350,
@@ -22,7 +22,6 @@
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen7', KERNEL_MATRIX: '-1 -1.125 -1 -1.125 9.75 -1.125 -1 -1.125 -1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
-
         SITE_METADATA_RULES: {
             'www.youtube.com': {
                 title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'],
@@ -31,24 +30,20 @@
             'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] },
             'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] },
         },
-
         FILTER_EXCLUSION_DOMAINS: [],
-
         AUDIO_NORMALIZER_SETTINGS: { threshold: -40, knee: 30, ratio: 12, attack: 0.003, release: 0.25 },
-
-        // [NEW] Settings for EQ presets.
         EQ_SETTINGS: {
-            bassFrequency: 400,    // Below this frequency is considered "bass"
-            trebleFrequency: 5000, // Above this frequency is considered "treble"
+            bassFrequency: 400,
+            trebleFrequency: 5000,
         },
         EQ_PRESETS: {
             off:    { bassGain: 0, trebleGain: 0 },
-            treble: { bassGain: -2, trebleGain: 5 }, // Treble Boost: Cut bass slightly, boost treble
-            bass:   { bassGain: 6, trebleGain: 0 },  // Bass Boost: Boost bass, keep treble neutral
+            treble: { bassGain: -2, trebleGain: 5 },
+            bass:   { bassGain: 6, trebleGain: 0 },
         }
     };
 
-    // --- Utilities ---
+    // --- Utilities & Guards (No changes) ---
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VideoSpeed] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn.apply(this, args), wait); }; };
     let idleCallbackId;
@@ -56,8 +51,6 @@
         if (idleCallbackId) window.cancelIdleCallback(idleCallbackId);
         idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 });
     };
-
-    // --- Script Initialization Guard & Global State (No changes) ---
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     function isExcluded() {
         const url = location.href.toLowerCase();
@@ -70,12 +63,9 @@
         return;
     }
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
-
     const activeMedia = new Set();
     const processedMedia = new WeakSet();
     let isUiVisible = false;
-
-    // --- Environment Hacks & Protections (No changes) ---
     (function protectConsoleClear() {
         if (!CONFIG.DEBUG) return;
         safeExec(() => {
@@ -102,15 +92,12 @@
         }, 'hackAttachShadow');
     })();
 
+    // --- Modules ---
 
-    /**
-     * [UPGRADE] Manages all Web Audio API enhancements (Normalization and EQ).
-     */
-    const audioManager = (() => {
+    const audioManager = (() => { /* ... No changes ... */
         let isNormalizerEnabled = false;
-        let currentEQState = 'off'; // 'off', 'treble', 'bass'
+        let currentEQState = 'off';
         const audioGraphMap = new WeakMap();
-
         function createAudioGraph(context) {
             const settings = CONFIG.AUDIO_NORMALIZER_SETTINGS;
             const compressor = context.createDynamicsCompressor();
@@ -119,21 +106,16 @@
             compressor.ratio.setValueAtTime(settings.ratio, context.currentTime);
             compressor.attack.setValueAtTime(settings.attack, context.currentTime);
             compressor.release.setValueAtTime(settings.release, context.currentTime);
-
             const eqSettings = CONFIG.EQ_SETTINGS;
             const bassFilter = context.createBiquadFilter();
             bassFilter.type = 'lowshelf';
             bassFilter.frequency.value = eqSettings.bassFrequency;
-
             const trebleFilter = context.createBiquadFilter();
             trebleFilter.type = 'highshelf';
             trebleFilter.frequency.value = eqSettings.trebleFrequency;
-
             const gain = context.createGain();
-
             return { compressor, bassFilter, trebleFilter, gain };
         }
-
         function applyEQPreset(media) {
             if (!audioGraphMap.has(media)) return;
             const graph = audioGraphMap.get(media);
@@ -141,38 +123,32 @@
             graph.bassFilter.gain.setValueAtTime(preset.bassGain, graph.context.currentTime);
             graph.trebleFilter.gain.setValueAtTime(preset.trebleGain, graph.context.currentTime);
         }
-
         function updateAudioGraph(media) {
             if (!audioGraphMap.has(media)) return;
             const graph = audioGraphMap.get(media);
-
             graph.source.disconnect();
             const chain = [graph.bassFilter, graph.trebleFilter, graph.gain];
             if (isNormalizerEnabled) {
-                chain.unshift(graph.compressor); // Add compressor at the start if enabled
+                chain.unshift(graph.compressor);
             }
-
             let currentNode = graph.source;
-            for(const nextNode of chain) {
+            for (const nextNode of chain) {
                 currentNode.connect(nextNode);
                 currentNode = nextNode;
             }
             currentNode.connect(graph.context.destination);
         }
-
         function processMedia(media) {
             if (audioGraphMap.has(media)) return;
             safeExec(() => {
                 const context = new (window.AudioContext || window.webkitAudioContext)();
                 const source = context.createMediaElementSource(media);
                 const { compressor, bassFilter, trebleFilter, gain } = createAudioGraph(context);
-
                 audioGraphMap.set(media, { context, source, compressor, bassFilter, trebleFilter, gain });
                 applyEQPreset(media);
                 updateAudioGraph(media);
             }, 'audioManager.processMedia');
         }
-
         function cleanupMedia(media) {
             if (audioGraphMap.has(media)) {
                 safeExec(() => {
@@ -181,33 +157,24 @@
                 }, 'audioManager.cleanupMedia');
             }
         }
-
         function toggleNormalizer() {
             isNormalizerEnabled = !isNormalizerEnabled;
             const button = uiManager.getShadowRoot()?.getElementById('vm-normalize-toggle-btn');
             if (button) button.textContent = isNormalizerEnabled ? '🌙' : '☀️';
             for (const media of activeMedia) updateAudioGraph(media);
         }
-
         function cycleEQ() {
             const states = ['off', 'treble', 'bass'];
             const icons = ['🚫', '🔊', '🎬'];
             const currentIndex = states.indexOf(currentEQState);
             const nextIndex = (currentIndex + 1) % states.length;
             currentEQState = states[nextIndex];
-
             const button = uiManager.getShadowRoot()?.getElementById('vm-eq-toggle-btn');
             if (button) button.textContent = icons[nextIndex];
-
             for (const media of activeMedia) applyEQPreset(media);
         }
-
         return { processMedia, cleanupMedia, toggleNormalizer, cycleEQ };
     })();
-
-
-    // --- Other Modules (Filter, UI, SpeedSlider, DragBar, MediaSession) ---
-    // (No major changes in the modules below, only UI integration)
     const filterManager = (() => { /* ... No changes ... */
         const isFilterDisabledForSite = CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname);
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
@@ -256,7 +223,11 @@
             isEnabled: () => isFilterDisabledForSite ? false : isEnabled,
         };
     })();
-    const uiManager = (() => { /* ... UI Style Update ... */
+
+    /**
+     * [FIX] Manages the UI host and shadow root, using createElement to comply with Trusted Types.
+     */
+    const uiManager = (() => {
         let host, shadowRoot;
         function init() {
             if (host) return;
@@ -264,7 +235,23 @@
             host.id = 'vsc-ui-host';
             Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX });
             shadowRoot = host.attachShadow({ mode: 'open' });
-            shadowRoot.innerHTML = `<style>:host { pointer-events: none; } * { pointer-events: auto; } #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; } #vm-speed-slider-container.touched { opacity: 1; } @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } } #vm-speed-slider-container.minimized { width: 30px; } #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; } #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; } .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; } #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; } #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); } #vm-filter-toggle-btn, #vm-normalize-toggle-btn, #vm-eq-toggle-btn { font-size: 16px; padding: 2px 4px; } #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }</style>`;
+
+            const style = document.createElement('style');
+            style.textContent = `
+                :host { pointer-events: none; } * { pointer-events: auto; }
+                #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; }
+                #vm-speed-slider-container.touched { opacity: 1; }
+                @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } }
+                #vm-speed-slider-container.minimized { width: 30px; }
+                #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
+                #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; }
+                .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; }
+                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; }
+                #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); }
+                #vm-filter-toggle-btn, #vm-normalize-toggle-btn, #vm-eq-toggle-btn { font-size: 16px; padding: 2px 4px; }
+                #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }
+            `;
+            shadowRoot.appendChild(style);
             (document.body || document.documentElement).appendChild(host);
         }
         return {
@@ -273,31 +260,49 @@
             moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); }
         };
     })();
-    const speedSlider = (() => { /* ... UI Button Update ... */
+
+    /**
+     * [FIX] Manages the speed slider UI, using createElement to comply with Trusted Types.
+     */
+    const speedSlider = (() => {
         let container, inited = false, isMinimized = true, fadeOutTimer;
+
+        // Helper to create buttons
+        const createButton = (id, title, textContent) => {
+            const button = document.createElement('button');
+            if (id) button.id = id;
+            button.className = 'vm-btn';
+            button.title = title;
+            button.textContent = textContent;
+            return button;
+        };
+
         function init() {
             if (inited) return;
             const shadowRoot = uiManager.getShadowRoot();
             if (!shadowRoot) return;
+
             container = document.createElement('div');
             container.id = 'vm-speed-slider-container';
-            container.innerHTML = `
-                <button id="vm-filter-toggle-btn" class="vm-btn" title="Toggle Video Filter">🌞</button>
-                <button id="vm-normalize-toggle-btn" class="vm-btn" title="Toggle Volume Normalization (Night Mode)">☀️</button>
-                <button id="vm-eq-toggle-btn" class="vm-btn" title="Cycle EQ Preset (Off / Treble / Bass)">🚫</button>
-                <button class="vm-btn reset" title="Reset speed to 1x">1x</button>
-                <input type="range" min="0.2" max="4.0" step="0.2" value="1.0" id="vm-speed-slider">
-                <div id="vm-speed-value">x1.0</div>
-                <button class="vm-btn toggle" title="Toggle Speed Controller"></button>
-            `;
+
+            const filterButton = createButton('vm-filter-toggle-btn', 'Toggle Video Filter', '🌞');
+            const normalizeButton = createButton('vm-normalize-toggle-btn', 'Toggle Volume Normalization (Night Mode)', '☀️');
+            const eqButton = createButton('vm-eq-toggle-btn', 'Cycle EQ Preset (Off / Treble / Bass)', '🚫');
+            const resetButton = createButton(null, 'Reset speed to 1x', '1x');
+            resetButton.classList.add('reset');
+
+            const sliderEl = document.createElement('input');
+            Object.assign(sliderEl, { type: 'range', min: '0.2', max: '4.0', step: '0.2', value: '1.0', id: 'vm-speed-slider' });
+
+            const valueEl = document.createElement('div');
+            valueEl.id = 'vm-speed-value';
+            valueEl.textContent = 'x1.0';
+
+            const toggleButton = createButton(null, 'Toggle Speed Controller', '');
+            toggleButton.classList.add('toggle');
+
+            container.append(filterButton, normalizeButton, eqButton, resetButton, sliderEl, valueEl, toggleButton);
             shadowRoot.appendChild(container);
-            const sliderEl = container.querySelector('#vm-speed-slider');
-            const valueEl = container.querySelector('#vm-speed-value');
-            const toggleButton = container.querySelector('.toggle');
-            const resetButton = container.querySelector('.reset');
-            const filterButton = container.querySelector('#vm-filter-toggle-btn');
-            const normalizeButton = container.querySelector('#vm-normalize-toggle-btn');
-            const eqButton = container.querySelector('#vm-eq-toggle-btn');
 
             if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) { filterButton.style.display = 'none'; }
 
@@ -331,6 +336,7 @@
             isMinimized: () => isMinimized,
         };
     })();
+
     const dragBar = (() => { /* ... No changes ... */
         let display, inited = false;
         let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false };
@@ -463,12 +469,10 @@
         return { setSession, clearSession };
     })();
 
-
-    // --- Media Scanning and Management ---
+    // --- Media Scanning and Management (No changes) ---
     const mediaListenerMap = new WeakMap();
     let intersectionObserver = null;
-
-    function findAllMedia(doc = document) { /* ... No changes ... */
+    function findAllMedia(doc = document) {
         const mediaElements = [];
         safeExec(() => {
             mediaElements.push(...doc.querySelectorAll('video, audio'));
@@ -485,20 +489,18 @@
         });
         return [...new Set(mediaElements)];
     }
-    function updateVideoFilterState(video) { /* ... No changes ... */
+    function updateVideoFilterState(video) {
         const isPlaying = !video.paused && !video.ended;
         const isVisible = video.dataset.isVisible === 'true';
         const mainSwitchOn = filterManager.isEnabled();
         const shouldHaveFilter = isPlaying && isVisible && mainSwitchOn;
         video.classList.toggle('video-filter-active', shouldHaveFilter);
     }
-
     const mediaEventHandlers = {
         play: (event) => { const media = event.target; updateVideoFilterState(media); scanForMedia(true); mediaSessionManager.setSession(media); },
         pause: (event) => { if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
         ended: (event) => { if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
     };
-
     function attachMediaListeners(media) {
         if (!media || processedMedia.has(media)) return;
         audioManager.processMedia(media);
@@ -513,7 +515,6 @@
             intersectionObserver.observe(media);
         }
     }
-
     function detachMediaListeners(media) {
         if (!mediaListenerMap.has(media)) return;
         audioManager.cleanupMedia(media);
@@ -527,8 +528,7 @@
             intersectionObserver.unobserve(media);
         }
     }
-
-    const scanForMedia = (isUiUpdateOnly = false) => { /* ... No changes ... */
+    const scanForMedia = (isUiUpdateOnly = false) => {
         const allMedia = findAllMedia();
         if (!isUiUpdateOnly) {
             allMedia.forEach(attachMediaListeners);
@@ -551,15 +551,14 @@
             else speedSlider.hide();
         }
     };
-
     const debouncedScanTask = debounce(scanForMedia, CONFIG.DEBOUNCE_DELAY);
     const handleAddedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) attachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(attachMediaListeners); }); };
     const handleRemovedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) detachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
 
+    // --- Initialization ---
     function initialize() {
         console.log('🎉 VideoSpeed_Control (Full EQ) Initialized.');
         uiManager.init();
-        // audioManager.init(); // No init needed
         speedSlider.init();
         dragBar.init();
         filterManager.init();
