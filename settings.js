@@ -20,7 +20,7 @@
         SEEK_TIME_MAX_SEC: 15,   // max 15 seconds
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen3', KERNEL_MATRIX: '-1 -1.5 -1 -1.5 13 -1.5 -1 -1.5 -1', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen2', KERNEL_MATRIX: '1 -1 1 -1 -1 -1 1 -1 1', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 },
 
         // [UPGRADE] Robust site-specific rules with fallback selectors.
