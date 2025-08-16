@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Professional)
+// @name         VideoSpeed_Control (Audio Enhanced)
 // @namespace    https://com/
-// @version      27.08-Professional
-// @description  🎞️ 성능, 메모리 관리, 안정성이 대폭 향상된 최종 버전입니다. 견고한 메타데이터, 지능형 스캔 등 모든 고급 기능을 지원합니다.
+// @version      27.09-AudioEnhancer
+// @description  🎞️ 음량 평준화(야간 모드) 기능이 추가되었습니다. 성능, 메모리 관리, 안정성이 대폭 향상된 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -16,36 +16,32 @@
         DEBUG: false,
         DEBOUNCE_DELAY: 350,
         MAX_Z_INDEX: 2147483647,
-        SEEK_TIME_PERCENT: 0.05, // 5% of video duration
-        SEEK_TIME_MAX_SEC: 15,   // max 15 seconds
+        SEEK_TIME_PERCENT: 0.05,
+        SEEK_TIME_MAX_SEC: 15,
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen7', KERNEL_MATRIX: '-1 -1.125 -1 -1.125 9.75 -1.125 -1 -1.125 -1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
 
-        // [UPGRADE] Robust site-specific rules with fallback selectors.
         SITE_METADATA_RULES: {
             'www.youtube.com': {
-                title: [
-                    'h1.ytd-watch-metadata #video-primary-info-renderer #title', // Current main title
-                    'h1.title.ytd-video-primary-info-renderer' // Older structure
-                ],
-                artist: [
-                    '#owner-name a', // Current channel name
-                    '#upload-info.ytd-video-owner-renderer a'
-                ],
+                title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'],
+                artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'],
             },
-            'www.netflix.com': {
-                title: ['.title-title', '.video-title'],
-                artist: ['Netflix'],
-            },
-            'www.tving.com': {
-                title: ['h2.program__title__main', '.title-main'],
-                artist: ['TVING'],
-            },
+            'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] },
+            'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] },
         },
 
         FILTER_EXCLUSION_DOMAINS: [],
+        
+        // [NEW] Settings for the audio normalizer (dynamics compressor).
+        AUDIO_NORMALIZER_SETTINGS: {
+            threshold: -40, // Decibels. The level above which compression starts.
+            knee: 30,       // Decibels. A range around the threshold where the curve smoothly transitions.
+            ratio: 12,      // The amount of compression. 12:1 is a reasonably strong setting.
+            attack: 0.003,  // Seconds. How quickly to start compressing.
+            release: 0.25   // Seconds. How quickly to stop compressing.
+        }
     };
 
     // --- Utilities ---
@@ -78,7 +74,7 @@
 
     // --- Environment Hacks & Protections ---
     (function protectConsoleClear() {
-        if (!CONFIG.DEBUG) return; // [UPGRADE] Only active in debug mode.
+        if (!CONFIG.DEBUG) return;
         safeExec(() => {
             if (window.console && console.clear) {
                 const originalClear = console.clear;
@@ -91,7 +87,6 @@
     (function openAllShadowRoots() {
         if (window._hasHackAttachShadow_) return;
         safeExec(() => {
-            // [UPGRADE] Use WeakRef to prevent memory leaks in SPAs.
             window._shadowDomList_ = window._shadowDomList_ || [];
             const originalAttachShadow = window.Element.prototype.attachShadow;
             window.Element.prototype.attachShadow = function (options) {
@@ -104,13 +99,94 @@
             window._hasHackAttachShadow_ = true;
         }, 'hackAttachShadow');
     })();
+    
+
+    /**
+     * [NEW] Manages Web Audio API enhancements like volume normalization.
+     */
+    const audioManager = (() => {
+        let isEnabled = false;
+        const audioGraphMap = new WeakMap(); // mediaElement -> { context, source, compressor, gain }
+
+        // Create and configure the dynamics compressor node
+        function createCompressor(context) {
+            const compressor = context.createDynamicsCompressor();
+            const settings = CONFIG.AUDIO_NORMALIZER_SETTINGS;
+            compressor.threshold.setValueAtTime(settings.threshold, context.currentTime);
+            compressor.knee.setValueAtTime(settings.knee, context.currentTime);
+            compressor.ratio.setValueAtTime(settings.ratio, context.currentTime);
+            compressor.attack.setValueAtTime(settings.attack, context.currentTime);
+            compressor.release.setValueAtTime(settings.release, context.currentTime);
+            return compressor;
+        }
+
+        // Connects the audio nodes for a given media element
+        function updateAudioGraph(media) {
+            if (!audioGraphMap.has(media)) return;
+            const graph = audioGraphMap.get(media);
+            
+            // Disconnect everything to be safe
+            graph.source.disconnect();
+
+            if (isEnabled) {
+                // Connect through the compressor: source -> compressor -> gain -> destination
+                graph.source.connect(graph.compressor);
+                graph.compressor.connect(graph.gain);
+            } else {
+                // Bypass the compressor: source -> gain -> destination
+                graph.source.connect(graph.gain);
+            }
+            // Always connect the gain node to the final destination
+            graph.gain.connect(graph.context.destination);
+        }
+
+        function processMedia(media) {
+            if (audioGraphMap.has(media)) return;
+            safeExec(() => {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const source = context.createMediaElementSource(media);
+                const compressor = createCompressor(context);
+                const gain = context.createGain();
+
+                audioGraphMap.set(media, { context, source, compressor, gain });
+                updateAudioGraph(media); // Initial connection
+            }, 'audioManager.processMedia');
+        }
+        
+        function cleanupMedia(media) {
+            if (audioGraphMap.has(media)) {
+                safeExec(() => {
+                    const graph = audioGraphMap.get(media);
+                    graph.context.close(); // Close the audio context to free up resources
+                    audioGraphMap.delete(media);
+                }, 'audioManager.cleanupMedia');
+            }
+        }
+
+        function toggle() {
+            isEnabled = !isEnabled;
+            const button = uiManager.getShadowRoot()?.getElementById('vm-normalize-toggle-btn');
+            if (button) {
+                button.textContent = isEnabled ? '🌙' : '☀️';
+            }
+            for (const media of activeMedia) {
+                updateAudioGraph(media);
+            }
+        }
+
+        return {
+            init: () => {}, // No specific init needed, driven by media detection
+            processMedia,
+            cleanupMedia,
+            toggle,
+        };
+    })();
 
 
     /**
      * Manages SVG filters for video enhancement.
      */
     const filterManager = (() => {
-        // ... (No changes in this module, it's already robust)
         const isFilterDisabledForSite = CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname);
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const settings = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
@@ -164,7 +240,6 @@
      * Manages the UI host and shadow root.
      */
     const uiManager = (() => {
-        // ... (No changes in this module)
         let host, shadowRoot;
         function init() {
             if (host) return;
@@ -172,7 +247,7 @@
             host.id = 'vsc-ui-host';
             Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX });
             shadowRoot = host.attachShadow({ mode: 'open' });
-            shadowRoot.innerHTML = `<style>:host { pointer-events: none; } * { pointer-events: auto; } #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; } #vm-speed-slider-container.touched { opacity: 1; } @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } } #vm-speed-slider-container.minimized { width: 30px; } #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; } #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; } .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; } #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; } #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); } #vm-filter-toggle-btn { font-size: 16px; padding: 2px 4px; } #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }</style>`;
+            shadowRoot.innerHTML = `<style>:host { pointer-events: none; } * { pointer-events: auto; } #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; } #vm-speed-slider-container.touched { opacity: 1; } @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } } #vm-speed-slider-container.minimized { width: 30px; } #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; } #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; } .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; } #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; } #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); } #vm-filter-toggle-btn, #vm-normalize-toggle-btn { font-size: 16px; padding: 2px 4px; } #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }</style>`;
             (document.body || document.documentElement).appendChild(host);
         }
         return {
@@ -187,7 +262,6 @@
      * Manages the speed slider UI and functionality.
      */
     const speedSlider = (() => {
-        // ... (No changes in this module)
         let container, inited = false, isMinimized = true, fadeOutTimer;
         function init() {
             if (inited) return;
@@ -195,20 +269,35 @@
             if (!shadowRoot) return;
             container = document.createElement('div');
             container.id = 'vm-speed-slider-container';
-            container.innerHTML = `<button id="vm-filter-toggle-btn" class="vm-btn" title="Toggle Video Filter">🌞</button><button class="vm-btn reset" title="Reset speed to 1x">1x</button><input type="range" min="0.2" max="4.0" step="0.2" value="1.0" id="vm-speed-slider"><div id="vm-speed-value">x1.0</div><button class="vm-btn toggle" title="Toggle Speed Controller"></button>`;
+            // [UI UPDATE] Add the new audio normalizer button
+            container.innerHTML = `
+                <button id="vm-filter-toggle-btn" class="vm-btn" title="Toggle Video Filter">🌞</button>
+                <button id="vm-normalize-toggle-btn" class="vm-btn" title="Toggle Volume Normalization (Night Mode)">☀️</button>
+                <button class="vm-btn reset" title="Reset speed to 1x">1x</button>
+                <input type="range" min="0.2" max="4.0" step="0.2" value="1.0" id="vm-speed-slider">
+                <div id="vm-speed-value">x1.0</div>
+                <button class="vm-btn toggle" title="Toggle Speed Controller"></button>
+            `;
             shadowRoot.appendChild(container);
+            
             const sliderEl = container.querySelector('#vm-speed-slider');
             const valueEl = container.querySelector('#vm-speed-value');
             const toggleButton = container.querySelector('.toggle');
             const resetButton = container.querySelector('.reset');
             const filterButton = container.querySelector('#vm-filter-toggle-btn');
+            const normalizeButton = container.querySelector('#vm-normalize-toggle-btn'); // New button
+
             if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) { filterButton.style.display = 'none'; }
+            
             const applySpeed = (speed) => { for (const media of activeMedia) { if (media.playbackRate !== speed) { safeExec(() => { media.playbackRate = speed; }); } } };
             const updateValueText = (speed) => { if (valueEl) valueEl.textContent = `x${speed.toFixed(1)}`; };
             const updateAppearance = () => { if (!container) return; container.classList.toggle('minimized', isMinimized); toggleButton.textContent = isMinimized ? '🔻' : '🔺'; };
+            
             resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); });
             filterButton.addEventListener('click', () => filterManager.toggle());
+            normalizeButton.addEventListener('click', () => audioManager.toggle()); // Event listener for new button
             toggleButton.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(); });
+            
             const debouncedApplySpeed = debounce(applySpeed, 100);
             sliderEl.addEventListener('input', (event) => { const speed = parseFloat(event.target.value); updateValueText(speed); debouncedApplySpeed(speed); container.classList.add('touched'); clearTimeout(fadeOutTimer); });
             const endInteractionSoon = () => { clearTimeout(fadeOutTimer); fadeOutTimer = setTimeout(() => container.classList.remove('touched'), 3000); };
@@ -235,7 +324,6 @@
      * Manages drag-to-seek functionality on video elements.
      */
     const dragBar = (() => {
-        // ... (No changes in this module)
         let display, inited = false;
         let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false };
         let lastDelta = 0;
@@ -324,8 +412,6 @@
             const dynamicSeekTime = Math.floor(media.duration * CONFIG.SEEK_TIME_PERCENT);
             return Math.min(dynamicSeekTime, CONFIG.SEEK_TIME_MAX_SEC);
         };
-
-        // Helper to find text content from an array of selectors.
         const getTextFromSelectors = (selectors) => {
             if (!Array.isArray(selectors)) return null;
             for (const selector of selectors) {
@@ -334,11 +420,9 @@
             }
             return null;
         };
-
         const getMetadata = () => {
             const hostname = location.hostname;
             const rule = CONFIG.SITE_METADATA_RULES[hostname];
-
             if (rule) {
                 const title = getTextFromSelectors(rule.title) || document.title;
                 const artist = getTextFromSelectors(rule.artist) || location.hostname;
@@ -346,14 +430,11 @@
             }
             return { title: document.title, artist: location.hostname };
         };
-
-        // Helper to reduce boilerplate for setActionHandler.
         const setAction = (action, handler) => {
             try { navigator.mediaSession.setActionHandler(action, handler); } catch (error) {
                 if(CONFIG.DEBUG) console.warn(`[VideoSpeed] MediaSession action "${action}" not supported.`);
             }
         };
-
         const setSession = (media) => {
             if (!('mediaSession' in navigator)) return;
             safeExec(() => {
@@ -369,7 +450,6 @@
                 });
             }, 'mediaSession.set');
         };
-
         const clearSession = () => {
             if (!('mediaSession' in navigator) || activeMedia.size > 0) return;
             safeExec(() => {
@@ -377,7 +457,6 @@
                 ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(action => setAction(action, null));
             }, 'mediaSession.clear');
         };
-
         return { setSession, clearSession };
     })();
 
@@ -390,21 +469,14 @@
         const mediaElements = [];
         safeExec(() => {
             mediaElements.push(...doc.querySelectorAll('video, audio'));
-            // [UPGRADE] Dereference WeakRefs and clean up the list.
             window._shadowDomList_ = (window._shadowDomList_ || []).filter(ref => ref.deref());
             window._shadowDomList_.forEach(ref => {
                 const shadowRoot = ref.deref();
-                if (shadowRoot) {
-                    mediaElements.push(...shadowRoot.querySelectorAll('video, audio'));
-                }
+                if (shadowRoot) { mediaElements.push(...shadowRoot.querySelectorAll('video, audio')); }
             });
             if (doc === document) {
                 doc.querySelectorAll('iframe').forEach(iframe => {
-                    try {
-                        if (iframe.contentDocument) {
-                            mediaElements.push(...findAllMedia(iframe.contentDocument));
-                        }
-                    } catch (error) { /* Cross-origin iframe */ }
+                    try { if (iframe.contentDocument) { mediaElements.push(...findAllMedia(iframe.contentDocument)); } } catch (error) {}
                 });
             }
         });
@@ -426,14 +498,15 @@
     };
 
     function attachMediaListeners(media) {
-        if (!media || processedMedia.has(media)) return; // [UPGRADE] Skip already processed media.
+        if (!media || processedMedia.has(media)) return;
+        audioManager.processMedia(media); // Let audio manager process the element
         const listeners = {};
         for (const [eventName, handler] of Object.entries(mediaEventHandlers)) {
             listeners[eventName] = handler;
             media.addEventListener(eventName, handler);
         }
         mediaListenerMap.set(media, listeners);
-        processedMedia.add(media); // Mark as processed.
+        processedMedia.add(media);
         if (intersectionObserver && media.tagName === 'VIDEO') {
             intersectionObserver.observe(media);
         }
@@ -441,12 +514,13 @@
 
     function detachMediaListeners(media) {
         if (!mediaListenerMap.has(media)) return;
+        audioManager.cleanupMedia(media); // Clean up audio graph
         const listeners = mediaListenerMap.get(media);
         for (const [eventName, listener] of Object.entries(listeners)) {
             media.removeEventListener(eventName, listener);
         }
         mediaListenerMap.delete(media);
-        processedMedia.delete(media); // Allow reprocessing if re-added.
+        processedMedia.delete(media);
         if (intersectionObserver && media.tagName === 'VIDEO') {
             intersectionObserver.unobserve(media);
         }
@@ -458,14 +532,10 @@
         if (!isUiUpdateOnly) {
             allMedia.forEach(attachMediaListeners);
         }
-
         activeMedia.clear();
         allMedia.forEach(media => {
-            if (media.isConnected) {
-                activeMedia.add(media);
-            }
+            if (media.isConnected) { activeMedia.add(media); }
         });
-
         allMedia.forEach(media => {
             if (media.tagName === 'VIDEO') {
                 const isPlaying = !media.paused && !media.ended;
@@ -473,7 +543,6 @@
                 updateVideoFilterState(media);
             }
         });
-
         const shouldBeVisible = activeMedia.size > 0;
         if (isUiVisible !== shouldBeVisible) {
             isUiVisible = shouldBeVisible;
@@ -486,31 +555,24 @@
     const handleAddedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) attachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(attachMediaListeners); }); };
     const handleRemovedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) detachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
 
-    /**
-     * Main initialization function.
-     */
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (Professional) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Audio Enhanced) Initialized.');
         uiManager.init();
+        audioManager.init();
         speedSlider.init();
         dragBar.init();
         filterManager.init();
-
         intersectionObserver = new IntersectionObserver(entries => {
             entries.forEach(entry => {
                 entry.target.dataset.isVisible = entry.isIntersecting;
                 updateVideoFilterState(entry.target);
             });
         }, { threshold: 0.1 });
-
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 document.querySelectorAll('video.video-filter-active').forEach(v => v.classList.remove('video-filter-active'));
-            } else {
-                scanForMedia(true);
-            }
+            } else { scanForMedia(true); }
         });
-
         const mutationObserver = new MutationObserver(mutations => {
             let mediaChanged = false;
             for (const mutation of mutations) {
@@ -519,22 +581,19 @@
                     if (mutation.removedNodes.length > 0) { handleRemovedNodes(mutation.removedNodes); mediaChanged = true; }
                 }
             }
-            if (mediaChanged) scheduleIdleTask(() => scanForMedia(true)); // [UPGRADE] Use requestIdleCallback
+            if (mediaChanged) scheduleIdleTask(() => scanForMedia(true));
         });
         mutationObserver.observe(document.documentElement, { childList: true, subtree: true });
-
         document.addEventListener('addShadowRoot', debouncedScanTask);
         const originalPushState = history.pushState;
         history.pushState = function (...args) { originalPushState.apply(this, args); scanForMedia(); };
         window.addEventListener('popstate', () => scanForMedia());
         document.addEventListener('fullscreenchange', () => uiManager.moveUiTo(document.fullscreenElement || document.body));
-
         window.addEventListener('beforeunload', () => {
             mutationObserver.disconnect();
             intersectionObserver.disconnect();
             if (CONFIG.DEBUG) console.log('[VideoSpeed] Cleaned up Observers.');
         });
-
         scanForMedia();
     }
 
