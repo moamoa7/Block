@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Audio Enhanced)
+// @name         VideoSpeed_Control (Full EQ)
 // @namespace    https://com/
-// @version      27.09-AudioEnhancer
-// @description  🎞️ 음량 평준화(야간 모드) 기능이 추가되었습니다. 성능, 메모리 관리, 안정성이 대폭 향상된 최종 버전입니다.
+// @version      27.10-FullEQ
+// @description  🎞️ 3단 로테이션 EQ 프리셋(기본/고음/저음) 및 음량 평준화 기능이 추가된 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -33,14 +33,18 @@
         },
 
         FILTER_EXCLUSION_DOMAINS: [],
-        
-        // [NEW] Settings for the audio normalizer (dynamics compressor).
-        AUDIO_NORMALIZER_SETTINGS: {
-            threshold: -40, // Decibels. The level above which compression starts.
-            knee: 30,       // Decibels. A range around the threshold where the curve smoothly transitions.
-            ratio: 12,      // The amount of compression. 12:1 is a reasonably strong setting.
-            attack: 0.003,  // Seconds. How quickly to start compressing.
-            release: 0.25   // Seconds. How quickly to stop compressing.
+
+        AUDIO_NORMALIZER_SETTINGS: { threshold: -40, knee: 30, ratio: 12, attack: 0.003, release: 0.25 },
+
+        // [NEW] Settings for EQ presets.
+        EQ_SETTINGS: {
+            bassFrequency: 400,    // Below this frequency is considered "bass"
+            trebleFrequency: 5000, // Above this frequency is considered "treble"
+        },
+        EQ_PRESETS: {
+            off:    { bassGain: 0, trebleGain: 0 },
+            treble: { bassGain: -2, trebleGain: 5 }, // Treble Boost: Cut bass slightly, boost treble
+            bass:   { bassGain: 6, trebleGain: 0 },  // Bass Boost: Boost bass, keep treble neutral
         }
     };
 
@@ -53,7 +57,7 @@
         idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 });
     };
 
-    // --- Script Initialization Guard ---
+    // --- Script Initialization Guard & Global State (No changes) ---
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     function isExcluded() {
         const url = location.href.toLowerCase();
@@ -67,12 +71,11 @@
     }
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
 
-    // --- Global State ---
     const activeMedia = new Set();
     const processedMedia = new WeakSet();
     let isUiVisible = false;
 
-    // --- Environment Hacks & Protections ---
+    // --- Environment Hacks & Protections (No changes) ---
     (function protectConsoleClear() {
         if (!CONFIG.DEBUG) return;
         safeExec(() => {
@@ -83,7 +86,6 @@
             }
         }, 'consoleClearProtection');
     })();
-
     (function openAllShadowRoots() {
         if (window._hasHackAttachShadow_) return;
         safeExec(() => {
@@ -99,45 +101,63 @@
             window._hasHackAttachShadow_ = true;
         }, 'hackAttachShadow');
     })();
-    
+
 
     /**
-     * [NEW] Manages Web Audio API enhancements like volume normalization.
+     * [UPGRADE] Manages all Web Audio API enhancements (Normalization and EQ).
      */
     const audioManager = (() => {
-        let isEnabled = false;
-        const audioGraphMap = new WeakMap(); // mediaElement -> { context, source, compressor, gain }
+        let isNormalizerEnabled = false;
+        let currentEQState = 'off'; // 'off', 'treble', 'bass'
+        const audioGraphMap = new WeakMap();
 
-        // Create and configure the dynamics compressor node
-        function createCompressor(context) {
-            const compressor = context.createDynamicsCompressor();
+        function createAudioGraph(context) {
             const settings = CONFIG.AUDIO_NORMALIZER_SETTINGS;
+            const compressor = context.createDynamicsCompressor();
             compressor.threshold.setValueAtTime(settings.threshold, context.currentTime);
             compressor.knee.setValueAtTime(settings.knee, context.currentTime);
             compressor.ratio.setValueAtTime(settings.ratio, context.currentTime);
             compressor.attack.setValueAtTime(settings.attack, context.currentTime);
             compressor.release.setValueAtTime(settings.release, context.currentTime);
-            return compressor;
+
+            const eqSettings = CONFIG.EQ_SETTINGS;
+            const bassFilter = context.createBiquadFilter();
+            bassFilter.type = 'lowshelf';
+            bassFilter.frequency.value = eqSettings.bassFrequency;
+
+            const trebleFilter = context.createBiquadFilter();
+            trebleFilter.type = 'highshelf';
+            trebleFilter.frequency.value = eqSettings.trebleFrequency;
+
+            const gain = context.createGain();
+
+            return { compressor, bassFilter, trebleFilter, gain };
         }
 
-        // Connects the audio nodes for a given media element
+        function applyEQPreset(media) {
+            if (!audioGraphMap.has(media)) return;
+            const graph = audioGraphMap.get(media);
+            const preset = CONFIG.EQ_PRESETS[currentEQState];
+            graph.bassFilter.gain.setValueAtTime(preset.bassGain, graph.context.currentTime);
+            graph.trebleFilter.gain.setValueAtTime(preset.trebleGain, graph.context.currentTime);
+        }
+
         function updateAudioGraph(media) {
             if (!audioGraphMap.has(media)) return;
             const graph = audioGraphMap.get(media);
-            
-            // Disconnect everything to be safe
-            graph.source.disconnect();
 
-            if (isEnabled) {
-                // Connect through the compressor: source -> compressor -> gain -> destination
-                graph.source.connect(graph.compressor);
-                graph.compressor.connect(graph.gain);
-            } else {
-                // Bypass the compressor: source -> gain -> destination
-                graph.source.connect(graph.gain);
+            graph.source.disconnect();
+            const chain = [graph.bassFilter, graph.trebleFilter, graph.gain];
+            if (isNormalizerEnabled) {
+                chain.unshift(graph.compressor); // Add compressor at the start if enabled
             }
-            // Always connect the gain node to the final destination
-            graph.gain.connect(graph.context.destination);
+
+            let currentNode = graph.source;
+            for(const nextNode of chain) {
+                currentNode.connect(nextNode);
+                currentNode = nextNode;
+            }
+            currentNode.connect(graph.context.destination);
         }
 
         function processMedia(media) {
@@ -145,48 +165,50 @@
             safeExec(() => {
                 const context = new (window.AudioContext || window.webkitAudioContext)();
                 const source = context.createMediaElementSource(media);
-                const compressor = createCompressor(context);
-                const gain = context.createGain();
+                const { compressor, bassFilter, trebleFilter, gain } = createAudioGraph(context);
 
-                audioGraphMap.set(media, { context, source, compressor, gain });
-                updateAudioGraph(media); // Initial connection
+                audioGraphMap.set(media, { context, source, compressor, bassFilter, trebleFilter, gain });
+                applyEQPreset(media);
+                updateAudioGraph(media);
             }, 'audioManager.processMedia');
         }
-        
+
         function cleanupMedia(media) {
             if (audioGraphMap.has(media)) {
                 safeExec(() => {
-                    const graph = audioGraphMap.get(media);
-                    graph.context.close(); // Close the audio context to free up resources
+                    audioGraphMap.get(media).context.close();
                     audioGraphMap.delete(media);
                 }, 'audioManager.cleanupMedia');
             }
         }
 
-        function toggle() {
-            isEnabled = !isEnabled;
+        function toggleNormalizer() {
+            isNormalizerEnabled = !isNormalizerEnabled;
             const button = uiManager.getShadowRoot()?.getElementById('vm-normalize-toggle-btn');
-            if (button) {
-                button.textContent = isEnabled ? '🌙' : '☀️';
-            }
-            for (const media of activeMedia) {
-                updateAudioGraph(media);
-            }
+            if (button) button.textContent = isNormalizerEnabled ? '🌙' : '☀️';
+            for (const media of activeMedia) updateAudioGraph(media);
         }
 
-        return {
-            init: () => {}, // No specific init needed, driven by media detection
-            processMedia,
-            cleanupMedia,
-            toggle,
-        };
+        function cycleEQ() {
+            const states = ['off', 'treble', 'bass'];
+            const icons = ['🚫', '🔊', '🎬'];
+            const currentIndex = states.indexOf(currentEQState);
+            const nextIndex = (currentIndex + 1) % states.length;
+            currentEQState = states[nextIndex];
+
+            const button = uiManager.getShadowRoot()?.getElementById('vm-eq-toggle-btn');
+            if (button) button.textContent = icons[nextIndex];
+
+            for (const media of activeMedia) applyEQPreset(media);
+        }
+
+        return { processMedia, cleanupMedia, toggleNormalizer, cycleEQ };
     })();
 
 
-    /**
-     * Manages SVG filters for video enhancement.
-     */
-    const filterManager = (() => {
+    // --- Other Modules (Filter, UI, SpeedSlider, DragBar, MediaSession) ---
+    // (No major changes in the modules below, only UI integration)
+    const filterManager = (() => { /* ... No changes ... */
         const isFilterDisabledForSite = CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname);
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const settings = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
@@ -234,12 +256,7 @@
             isEnabled: () => isFilterDisabledForSite ? false : isEnabled,
         };
     })();
-
-
-    /**
-     * Manages the UI host and shadow root.
-     */
-    const uiManager = (() => {
+    const uiManager = (() => { /* ... UI Style Update ... */
         let host, shadowRoot;
         function init() {
             if (host) return;
@@ -247,7 +264,7 @@
             host.id = 'vsc-ui-host';
             Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX });
             shadowRoot = host.attachShadow({ mode: 'open' });
-            shadowRoot.innerHTML = `<style>:host { pointer-events: none; } * { pointer-events: auto; } #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; } #vm-speed-slider-container.touched { opacity: 1; } @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } } #vm-speed-slider-container.minimized { width: 30px; } #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; } #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; } .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; } #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; } #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); } #vm-filter-toggle-btn, #vm-normalize-toggle-btn { font-size: 16px; padding: 2px 4px; } #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }</style>`;
+            shadowRoot.innerHTML = `<style>:host { pointer-events: none; } * { pointer-events: auto; } #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; } #vm-speed-slider-container.touched { opacity: 1; } @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } } #vm-speed-slider-container.minimized { width: 30px; } #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; } #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; } .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; } #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; } #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); } #vm-filter-toggle-btn, #vm-normalize-toggle-btn, #vm-eq-toggle-btn { font-size: 16px; padding: 2px 4px; } #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }</style>`;
             (document.body || document.documentElement).appendChild(host);
         }
         return {
@@ -256,12 +273,7 @@
             moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); }
         };
     })();
-
-
-    /**
-     * Manages the speed slider UI and functionality.
-     */
-    const speedSlider = (() => {
+    const speedSlider = (() => { /* ... UI Button Update ... */
         let container, inited = false, isMinimized = true, fadeOutTimer;
         function init() {
             if (inited) return;
@@ -269,35 +281,36 @@
             if (!shadowRoot) return;
             container = document.createElement('div');
             container.id = 'vm-speed-slider-container';
-            // [UI UPDATE] Add the new audio normalizer button
             container.innerHTML = `
                 <button id="vm-filter-toggle-btn" class="vm-btn" title="Toggle Video Filter">🌞</button>
                 <button id="vm-normalize-toggle-btn" class="vm-btn" title="Toggle Volume Normalization (Night Mode)">☀️</button>
+                <button id="vm-eq-toggle-btn" class="vm-btn" title="Cycle EQ Preset (Off / Treble / Bass)">🚫</button>
                 <button class="vm-btn reset" title="Reset speed to 1x">1x</button>
                 <input type="range" min="0.2" max="4.0" step="0.2" value="1.0" id="vm-speed-slider">
                 <div id="vm-speed-value">x1.0</div>
                 <button class="vm-btn toggle" title="Toggle Speed Controller"></button>
             `;
             shadowRoot.appendChild(container);
-            
             const sliderEl = container.querySelector('#vm-speed-slider');
             const valueEl = container.querySelector('#vm-speed-value');
             const toggleButton = container.querySelector('.toggle');
             const resetButton = container.querySelector('.reset');
             const filterButton = container.querySelector('#vm-filter-toggle-btn');
-            const normalizeButton = container.querySelector('#vm-normalize-toggle-btn'); // New button
+            const normalizeButton = container.querySelector('#vm-normalize-toggle-btn');
+            const eqButton = container.querySelector('#vm-eq-toggle-btn');
 
             if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) { filterButton.style.display = 'none'; }
-            
+
             const applySpeed = (speed) => { for (const media of activeMedia) { if (media.playbackRate !== speed) { safeExec(() => { media.playbackRate = speed; }); } } };
             const updateValueText = (speed) => { if (valueEl) valueEl.textContent = `x${speed.toFixed(1)}`; };
             const updateAppearance = () => { if (!container) return; container.classList.toggle('minimized', isMinimized); toggleButton.textContent = isMinimized ? '🔻' : '🔺'; };
-            
+
             resetButton.addEventListener('click', () => { sliderEl.value = '1.0'; applySpeed(1.0); updateValueText(1.0); });
             filterButton.addEventListener('click', () => filterManager.toggle());
-            normalizeButton.addEventListener('click', () => audioManager.toggle()); // Event listener for new button
+            normalizeButton.addEventListener('click', () => audioManager.toggleNormalizer());
+            eqButton.addEventListener('click', () => audioManager.cycleEQ());
             toggleButton.addEventListener('click', () => { isMinimized = !isMinimized; updateAppearance(); });
-            
+
             const debouncedApplySpeed = debounce(applySpeed, 100);
             sliderEl.addEventListener('input', (event) => { const speed = parseFloat(event.target.value); updateValueText(speed); debouncedApplySpeed(speed); container.classList.add('touched'); clearTimeout(fadeOutTimer); });
             const endInteractionSoon = () => { clearTimeout(fadeOutTimer); fadeOutTimer = setTimeout(() => container.classList.remove('touched'), 3000); };
@@ -318,12 +331,7 @@
             isMinimized: () => isMinimized,
         };
     })();
-
-
-    /**
-     * Manages drag-to-seek functionality on video elements.
-     */
-    const dragBar = (() => {
+    const dragBar = (() => { /* ... No changes ... */
         let display, inited = false;
         let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false };
         let lastDelta = 0;
@@ -401,12 +409,7 @@
             init: () => { if (inited) return; safeExec(() => { document.addEventListener('mousedown', onStart, { capture: true }); document.addEventListener('touchstart', onStart, { passive: true, capture: true }); inited = true; }, 'dragBar.init'); }
         };
     })();
-
-
-    /**
-     * Manages MediaSession API integration with dynamic seek time and rich metadata.
-     */
-    const mediaSessionManager = (() => {
+    const mediaSessionManager = (() => { /* ... No changes ... */
         const getSeekTime = (media) => {
             if (!media || !isFinite(media.duration)) return 10;
             const dynamicSeekTime = Math.floor(media.duration * CONFIG.SEEK_TIME_PERCENT);
@@ -465,7 +468,7 @@
     const mediaListenerMap = new WeakMap();
     let intersectionObserver = null;
 
-    function findAllMedia(doc = document) {
+    function findAllMedia(doc = document) { /* ... No changes ... */
         const mediaElements = [];
         safeExec(() => {
             mediaElements.push(...doc.querySelectorAll('video, audio'));
@@ -482,8 +485,7 @@
         });
         return [...new Set(mediaElements)];
     }
-
-    function updateVideoFilterState(video) {
+    function updateVideoFilterState(video) { /* ... No changes ... */
         const isPlaying = !video.paused && !video.ended;
         const isVisible = video.dataset.isVisible === 'true';
         const mainSwitchOn = filterManager.isEnabled();
@@ -499,7 +501,7 @@
 
     function attachMediaListeners(media) {
         if (!media || processedMedia.has(media)) return;
-        audioManager.processMedia(media); // Let audio manager process the element
+        audioManager.processMedia(media);
         const listeners = {};
         for (const [eventName, handler] of Object.entries(mediaEventHandlers)) {
             listeners[eventName] = handler;
@@ -514,7 +516,7 @@
 
     function detachMediaListeners(media) {
         if (!mediaListenerMap.has(media)) return;
-        audioManager.cleanupMedia(media); // Clean up audio graph
+        audioManager.cleanupMedia(media);
         const listeners = mediaListenerMap.get(media);
         for (const [eventName, listener] of Object.entries(listeners)) {
             media.removeEventListener(eventName, listener);
@@ -524,10 +526,9 @@
         if (intersectionObserver && media.tagName === 'VIDEO') {
             intersectionObserver.unobserve(media);
         }
-        if (CONFIG.DEBUG) console.log('[VideoSpeed] Event listeners cleaned up for removed media element.');
     }
 
-    const scanForMedia = (isUiUpdateOnly = false) => {
+    const scanForMedia = (isUiUpdateOnly = false) => { /* ... No changes ... */
         const allMedia = findAllMedia();
         if (!isUiUpdateOnly) {
             allMedia.forEach(attachMediaListeners);
@@ -556,9 +557,9 @@
     const handleRemovedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) detachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
 
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (Audio Enhanced) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Full EQ) Initialized.');
         uiManager.init();
-        audioManager.init();
+        // audioManager.init(); // No init needed
         speedSlider.init();
         dragBar.init();
         filterManager.init();
@@ -592,7 +593,6 @@
         window.addEventListener('beforeunload', () => {
             mutationObserver.disconnect();
             intersectionObserver.disconnect();
-            if (CONFIG.DEBUG) console.log('[VideoSpeed] Cleaned up Observers.');
         });
         scanForMedia();
     }
