@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Integrated Final)
+// @name         VideoSpeed_Control (Dynamic Sharpen)
 // @namespace    https://com/
-// @version      27.13-Integrated
-// @description  🎞️ 재생 안정성 및 오디오 리셋 기능이 포함된 최신 통합 버전입니다.
+// @version      27.15-DynamicSharpen
+// @description  🎞️ 해상도에 따라 3단계로 샤프닝 강도를 자동 조절하는 기능 및 모든 안정성 수정이 포함된 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -20,8 +20,17 @@
         SEEK_TIME_MAX_SEC: 15,
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen7', KERNEL_MATRIX: '-1 -1.125 -1 -1.125 9.75 -1.125 -1 -1.125 -1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
+
+        // [MODIFIED] Sharpening levels for dynamic adjustment based on resolution
+        SHARPEN_LEVELS: {
+            high:   '1 -1 1 -1 -2 -1 1 -1 1',
+            medium: '-1 -1.5 -1 -1.5 13 -1.5 -1 -1.5 -1',
+            low:    '1 -1 1 -1 -.5 -1 1 -1 1',
+            off:    '0 0 0 0 1 0 0 0 0',
+        },
+
         SITE_METADATA_RULES: {
             'www.youtube.com': {
                 title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'],
@@ -32,10 +41,7 @@
         },
         FILTER_EXCLUSION_DOMAINS: [],
         AUDIO_NORMALIZER_SETTINGS: { threshold: -40, knee: 30, ratio: 12, attack: 0.003, release: 0.25 },
-        EQ_SETTINGS: {
-            bassFrequency: 400,
-            trebleFrequency: 5000,
-        },
+        EQ_SETTINGS: { bassFrequency: 400, trebleFrequency: 5000 },
         EQ_PRESETS: {
             off:    { bassGain: 0, trebleGain: 0 },
             treble: { bassGain: -2, trebleGain: 5 },
@@ -89,9 +95,6 @@
         }, 'hackAttachShadow');
     })();
 
-    /**
-     * Manages all Web Audio API enhancements with Lazy Initialization and Reset.
-     */
     const audioManager = (() => {
         let isNormalizerEnabled = false;
         let currentEQState = 'off';
@@ -165,6 +168,24 @@
             }
         }
 
+        function suspendContext(media) {
+            if (audioGraphMap.has(media)) {
+                const graph = audioGraphMap.get(media);
+                if (graph.context.state === 'running') {
+                    graph.context.suspend();
+                }
+            }
+        }
+
+        function resumeContext(media) {
+            if (audioGraphMap.has(media)) {
+                const graph = audioGraphMap.get(media);
+                if (graph.context.state === 'suspended') {
+                    graph.context.resume();
+                }
+            }
+        }
+
         function toggleNormalizer() {
             isNormalizerEnabled = !isNormalizerEnabled;
             const button = uiManager.getShadowRoot()?.getElementById('vm-normalize-toggle-btn');
@@ -199,7 +220,7 @@
             }
         }
 
-        return { processMedia, cleanupMedia, toggleNormalizer, cycleEQ, resetAudio };
+        return { processMedia, cleanupMedia, toggleNormalizer, cycleEQ, resetAudio, suspendContext, resumeContext };
     })();
 
     const filterManager = (() => {
@@ -207,36 +228,51 @@
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const settings = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
         let isEnabled = true;
+
         const createSvgElement = (tag, attributes = {}) => {
             const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
             for (const [key, value] of Object.entries(attributes)) { el.setAttribute(key, value); }
             return el;
         };
+
         function createSvgFiltersAndStyle() {
             if (isFilterDisabledForSite || document.getElementById('video-enhancer-svg-filters')) return;
             const svgFilters = createSvgElement('svg', { id: 'video-enhancer-svg-filters' });
             svgFilters.style.display = 'none';
             const softeningFilter = createSvgElement('filter', { id: 'SofteningFilter' });
             softeningFilter.appendChild(createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION }));
+
             const sharpenFilter = createSvgElement('filter', { id: settings.SHARPEN_ID });
-            sharpenFilter.appendChild(createSvgElement('feConvolveMatrix', { order: '3 3', preserveAlpha: 'true', kernelMatrix: settings.KERNEL_MATRIX, mode: 'multiply' }));
+            const convolveMatrix = createSvgElement('feConvolveMatrix', {
+                id: 'dynamic-convolve-matrix',
+                order: '3 3',
+                preserveAlpha: 'true',
+                kernelMatrix: CONFIG.SHARPEN_LEVELS.medium,
+                mode: 'multiply'
+            });
+            sharpenFilter.appendChild(convolveMatrix);
+
             const gammaFilter = createSvgElement('filter', { id: 'gamma-filter' });
             const feCompTransferGamma = createSvgElement('feComponentTransfer');
             ['R', 'G', 'B'].forEach(ch => { feCompTransferGamma.appendChild(createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })); });
             gammaFilter.appendChild(feCompTransferGamma);
+
             const linearAdjustFilter = createSvgElement('filter', { id: 'linear-adjust-filter' });
             const feCompTransferLinear = createSvgElement('feComponentTransfer');
             const shadowIntercept = settings.SHADOWS_VALUE / 200;
             const highlightSlope = 1 + (settings.HIGHLIGHTS_VALUE / 100);
             ['R', 'G', 'B'].forEach(ch => { feCompTransferLinear.appendChild(createSvgElement(`feFunc${ch}`, { type: 'linear', slope: highlightSlope.toString(), intercept: shadowIntercept.toString() })); });
             linearAdjustFilter.appendChild(feCompTransferLinear);
+
             svgFilters.append(softeningFilter, sharpenFilter, gammaFilter, linearAdjustFilter);
             (document.body || document.documentElement).appendChild(svgFilters);
+
             const styleElement = document.createElement('style');
             styleElement.id = 'video-enhancer-styles';
             styleElement.textContent = `video.video-filter-active, iframe.video-filter-active { filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; } .vsc-gpu-accelerated { transform: translateZ(0); will-change: transform; }`;
             (document.head || document.documentElement).appendChild(styleElement);
         }
+
         function updateState() {
             if (isFilterDisabledForSite) return;
             document.documentElement.classList.toggle('video-filter-main-switch-on', isEnabled);
@@ -244,12 +280,25 @@
             if (button) button.textContent = isEnabled ? '🌞' : '🌚';
             scanForMedia(true);
         }
+
+        function setSharpenLevel(level = 'medium') {
+            const convolveMatrix = document.getElementById('dynamic-convolve-matrix');
+            if (convolveMatrix) {
+                const newMatrix = CONFIG.SHARPEN_LEVELS[level];
+                if (convolveMatrix.getAttribute('kernelMatrix') !== newMatrix) {
+                    convolveMatrix.setAttribute('kernelMatrix', newMatrix);
+                }
+            }
+        }
+
         return {
             init: () => safeExec(() => { createSvgFiltersAndStyle(); updateState(); }, 'filterManager.init'),
             toggle: () => { if (isFilterDisabledForSite) return; isEnabled = !isEnabled; updateState(); },
             isEnabled: () => isFilterDisabledForSite ? false : isEnabled,
+            setSharpenLevel,
         };
     })();
+
     const uiManager = (() => {
         let host, shadowRoot;
         function init() {
@@ -269,6 +318,7 @@
             moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); }
         };
     })();
+
     const speedSlider = (() => {
         let container, inited = false, isMinimized = true, fadeOutTimer;
         const createButton = (id, title, textContent) => {
@@ -328,6 +378,7 @@
         }
         return { init: () => safeExec(init, 'speedSlider.init'), show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; }, hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; }, isMinimized: () => isMinimized, };
     })();
+
     const dragBar = (() => {
         let display, inited = false; let state = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false }; let lastDelta = 0; let rafScheduled = false;
         function findAssociatedVideo(target) { if (target.tagName === 'VIDEO') return target; const videoInChildren = target.querySelector('video'); if (videoInChildren) return videoInChildren; if (target.parentElement) { return target.parentElement.querySelector('video'); } return null; }
@@ -348,6 +399,7 @@
         const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => { if (display) display.style.display = 'none'; }, 300); } };
         return { init: () => { if (inited) return; safeExec(() => { document.addEventListener('mousedown', onStart, { capture: true }); document.addEventListener('touchstart', onStart, { passive: true, capture: true }); inited = true; }, 'dragBar.init'); } };
     })();
+
     const mediaSessionManager = (() => {
         const getSeekTime = (media) => {
             if (!media || !isFinite(media.duration)) return 10; const dynamicSeekTime = Math.floor(media.duration * CONFIG.SEEK_TIME_PERCENT); return Math.min(dynamicSeekTime, CONFIG.SEEK_TIME_MAX_SEC);
@@ -375,6 +427,7 @@
         };
         return { setSession, clearSession };
     })();
+
     const mediaListenerMap = new WeakMap();
     let intersectionObserver = null;
     function findAllMedia(doc = document) {
@@ -394,18 +447,46 @@
         });
         return [...new Set(mediaElements)];
     }
+
     function updateVideoFilterState(video) {
         const isPlaying = !video.paused && !video.ended;
         const isVisible = video.dataset.isVisible === 'true';
         const mainSwitchOn = filterManager.isEnabled();
-        const shouldHaveFilter = isPlaying && isVisible && mainSwitchOn;
+        let shouldHaveFilter = isPlaying && isVisible && mainSwitchOn;
+
+        const height = video.videoHeight || 0;
+        let sharpenLevel = 'medium'; // Default for unknown or SD
+        if (height >= 1080) {
+            sharpenLevel = 'high';
+        } else if (height >= 720) {
+            sharpenLevel = 'medium';
+        } else if (height > 0) {
+            sharpenLevel = 'low';
+        }
+        filterManager.setSharpenLevel(sharpenLevel);
+
         video.classList.toggle('video-filter-active', shouldHaveFilter);
     }
+
     const mediaEventHandlers = {
-        play: (event) => { const media = event.target; updateVideoFilterState(media); scanForMedia(true); mediaSessionManager.setSession(media); },
-        pause: (event) => { if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
-        ended: (event) => { if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
+        play: (event) => {
+            const media = event.target;
+            audioManager.resumeContext(media);
+            updateVideoFilterState(media);
+            scanForMedia(true);
+            mediaSessionManager.setSession(media);
+        },
+        pause: (event) => {
+            audioManager.suspendContext(event.target);
+            if (activeMedia.size <= 1) mediaSessionManager.clearSession();
+        },
+        ended: (event) => {
+            // Use cleanupMedia for 'ended' to fully release resources
+            detachMediaListeners(event.target);
+            if (activeMedia.size <= 1) mediaSessionManager.clearSession();
+        },
     };
+
     function attachMediaListeners(media) {
         if (!media || processedMedia.has(media)) return;
         audioManager.processMedia(media);
@@ -420,6 +501,7 @@
             intersectionObserver.observe(media);
         }
     }
+
     function detachMediaListeners(media) {
         if (!mediaListenerMap.has(media)) return;
         audioManager.cleanupMedia(media);
@@ -433,6 +515,7 @@
             intersectionObserver.unobserve(media);
         }
     }
+
     const scanForMedia = (isUiUpdateOnly = false) => {
         const allMedia = findAllMedia();
         if (!isUiUpdateOnly) {
@@ -456,12 +539,13 @@
             else speedSlider.hide();
         }
     };
+
     const debouncedScanTask = debounce(scanForMedia, CONFIG.DEBOUNCE_DELAY);
     const handleAddedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) attachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(attachMediaListeners); }); };
     const handleRemovedNodes = (nodes) => { nodes.forEach(node => { if (node.nodeType !== 1) return; if (node.matches?.('video, audio')) detachMediaListeners(node); node.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
 
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (Integrated) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Stable) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
@@ -489,20 +573,30 @@
         });
         mutationObserver.observe(document.documentElement, { childList: true, subtree: true });
         document.addEventListener('addShadowRoot', debouncedScanTask);
+
         const originalPushState = history.pushState;
-        history.pushState = function (...args) { originalPushState.apply(this, args); scanForMedia(); };
-        window.addEventListener('popstate', () => scanForMedia());
+        history.pushState = function(...args) {
+            let result;
+            try {
+                result = originalPushState.apply(this, args);
+            } finally {
+                scheduleIdleTask(() => scanForMedia());
+            }
+            return result;
+        };
+
+        window.addEventListener('popstate', () => scheduleIdleTask(() => scanForMedia()));
         document.addEventListener('fullscreenchange', () => uiManager.moveUiTo(document.fullscreenElement || document.body));
         window.addEventListener('beforeunload', () => {
             mutationObserver.disconnect();
             intersectionObserver.disconnect();
-});
-scanForMedia();
-}
+        });
+        scanForMedia();
+    }
 
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    initialize();
-} else {
-    window.addEventListener('DOMContentLoaded', initialize, { once: true });
-}
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initialize();
+    } else {
+        window.addEventListener('DOMContentLoaded', initialize, { once: true });
+    }
 })();
