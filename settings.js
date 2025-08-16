@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Final Refactored)
+// @name         VideoSpeed_Control (Enhanced)
 // @namespace    https://com/
-// @version      27.05-Final-DragFix
-// @description  🎞️ MediaSession의 탐색 시간을 영상 길이에 비례하여 동적으로 조절하며, 가독성, 유지보수성 및 드래그 안정성을 향상시켰습니다.
+// @version      27.06-Enhanced
+// @description  🎞️ MediaSession 메타데이터 최적화 및 필터 안정성이 향상되었습니다. 동적 탐색, 드래그 탐색 등 모든 기능을 지원합니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -22,6 +22,27 @@
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen5', KERNEL_MATRIX: '1 -1 1 -1 -.5 -1 1 -1 1', BLUR_STD_DEVIATION: '0.45', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.15, SHARPEN_ID: 'Sharpen1', KERNEL_MATRIX: '1 -1 1 -1 -2 -1 1 -1 1', BLUR_STD_DEVIATION: '0.45', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 },
+
+        // [ENHANCEMENT] Site-specific rules for fetching accurate media titles.
+        SITE_METADATA_RULES: {
+            'www.youtube.com': {
+                title: 'h1.ytd-watch-metadata #video-primary-info-renderer #title',
+                artist: '#owner-name a',
+            },
+            'www.netflix.com': {
+                title: '.title-title',
+                artist: 'Netflix',
+            },
+            'www.tving.com': {
+                title: 'h2.program__title__main',
+                artist: 'TVING',
+            },
+        },
+
+        // [ENHANCEMENT] List of domains where the video filter feature should be disabled to prevent conflicts.
+        FILTER_EXCLUSION_DOMAINS: [
+            // 'example.com', // Add domains here if the filter causes issues.
+        ],
     };
 
     // --- Utilities ---
@@ -78,6 +99,7 @@
      * Manages SVG filters for video enhancement.
      */
     const filterManager = (() => {
+        const isFilterDisabledForSite = CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname);
         const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
         const settings = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
         let isEnabled = true;
@@ -91,7 +113,7 @@
         };
 
         function createSvgFiltersAndStyle() {
-            if (document.getElementById('video-enhancer-svg-filters')) return;
+            if (isFilterDisabledForSite || document.getElementById('video-enhancer-svg-filters')) return;
 
             const svgFilters = createSvgElement('svg', { id: 'video-enhancer-svg-filters' });
             svgFilters.style.display = 'none';
@@ -137,6 +159,7 @@
         }
 
         function updateState() {
+            if (isFilterDisabledForSite) return;
             document.documentElement.classList.toggle('video-filter-main-switch-on', isEnabled);
             const button = uiManager.getShadowRoot()?.getElementById('vm-filter-toggle-btn');
             if (button) button.textContent = isEnabled ? '🌞' : '🌚';
@@ -145,8 +168,12 @@
 
         return {
             init: () => safeExec(() => { createSvgFiltersAndStyle(); updateState(); }, 'filterManager.init'),
-            toggle: () => { isEnabled = !isEnabled; updateState(); },
-            isEnabled: () => isEnabled,
+            toggle: () => {
+                if (isFilterDisabledForSite) return;
+                isEnabled = !isEnabled;
+                updateState();
+            },
+            isEnabled: () => isFilterDisabledForSite ? false : isEnabled,
         };
     })();
 
@@ -216,6 +243,11 @@
             const toggleButton = container.querySelector('.toggle');
             const resetButton = container.querySelector('.reset');
             const filterButton = container.querySelector('#vm-filter-toggle-btn');
+            
+            // Hide filter button on excluded sites
+            if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) {
+                filterButton.style.display = 'none';
+            }
 
             const applySpeed = (speed) => {
                 for (const media of activeMediaMap.keys()) {
@@ -264,7 +296,7 @@
 
 
     /**
-     * Manages drag-to-seek functionality on video elements. (Corrected Version)
+     * Manages drag-to-seek functionality on video elements.
      */
     const dragBar = (() => {
         let display, inited = false;
@@ -272,19 +304,10 @@
         let lastDelta = 0;
         let rafScheduled = false;
 
-        /**
-         * Finds the relevant video element from the event target.
-         * Searches self, children, and parent to handle various player structures.
-         * @param {EventTarget} target The element that was clicked.
-         * @returns {HTMLVideoElement|null}
-         */
         function findAssociatedVideo(target) {
-            // 1. Is the target itself a video?
             if (target.tagName === 'VIDEO') return target;
-            // 2. Does the target contain a video? (e.g., clicking a container)
             const videoInChildren = target.querySelector('video');
             if (videoInChildren) return videoInChildren;
-            // 3. Is there a video in the parent? (e.g., clicking a sibling overlay/control)
             if (target.parentElement) {
                 return target.parentElement.querySelector('video');
             }
@@ -296,9 +319,7 @@
         const onStart = (event) => safeExec(() => {
             if (event.touches && event.touches.length > 1) return;
             if (event.type === 'mousedown' && event.button !== 0) return;
-
             const videoElement = findAssociatedVideo(event.target);
-
             if (!videoElement || videoElement.paused || speedSlider.isMinimized() || event.composedPath().some(el => el.id === 'vm-speed-slider-container')) return;
 
             const pos = getEventPosition(event);
@@ -314,29 +335,25 @@
         const onMove = (event) => {
             if (!state.dragging) return;
             if (event.touches && event.touches.length > 1) { onEnd(); return; }
-
             const pos = getEventPosition(event);
             state.currentX = pos.clientX;
             state.currentY = pos.clientY;
-
             if (!state.directionConfirmed) {
                 const deltaX = Math.abs(state.currentX - state.startX);
                 const deltaY = Math.abs(state.currentY - state.startY);
-                if (deltaX > deltaY + 5) { // Horizontal gesture confirmed
+                if (deltaX > deltaY + 5) {
                     state.directionConfirmed = true;
-                } else if (deltaY > deltaX + 5) { // Vertical gesture, cancel seek
+                } else if (deltaY > deltaX + 5) {
                     onEnd();
                     return;
                 }
             }
-
             if (state.directionConfirmed) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 const movementX = state.currentX - state.startX;
                 state.accX += movementX;
                 state.startX = state.currentX;
-
                 if (!rafScheduled) {
                     rafScheduled = true;
                     window.requestAnimationFrame(() => {
@@ -359,7 +376,7 @@
         };
 
         const applySeek = () => {
-            const deltaSec = Math.round(state.accX / 2); // 2 pixels per second
+            const deltaSec = Math.round(state.accX / 2);
             if (Math.abs(deltaSec) < 1) return;
             for (const media of activeMediaMap.keys()) {
                 if (isFinite(media.duration)) {
@@ -372,7 +389,6 @@
             const seconds = Math.round(pixels / 2);
             if (seconds === lastDelta) return;
             lastDelta = seconds;
-
             if (!display) {
                 const shadowRoot = uiManager.getShadowRoot();
                 if(!shadowRoot) return;
@@ -410,7 +426,7 @@
 
 
     /**
-     * Manages MediaSession API integration with dynamic seek time.
+     * Manages MediaSession API integration with dynamic seek time and rich metadata.
      */
     const mediaSessionManager = (() => {
         const getSeekTime = (media) => {
@@ -419,14 +435,29 @@
             return Math.min(dynamicSeekTime, CONFIG.SEEK_TIME_MAX_SEC);
         };
 
+        const getMetadata = () => {
+            const hostname = location.hostname;
+            const rule = CONFIG.SITE_METADATA_RULES[hostname];
+
+            if (rule && document.querySelector(rule.title)) {
+                const title = document.querySelector(rule.title)?.textContent.trim() || document.title;
+                const artist = document.querySelector(rule.artist)?.textContent.trim() || location.hostname;
+                return { title, artist };
+            }
+
+            return { title: document.title, artist: location.hostname };
+        };
+
         const setSession = (media) => {
             if (!('mediaSession' in navigator)) return;
             safeExec(() => {
+                const { title, artist } = getMetadata();
                 navigator.mediaSession.metadata = new window.MediaMetadata({
-                    title: document.title,
-                    artist: location.hostname,
+                    title: title,
+                    artist: artist,
                     album: 'VideoSpeed_Control'
                 });
+
                 const handlers = {
                     play: () => media.play(),
                     pause: () => media.pause(),
@@ -561,7 +592,7 @@
      * Main initialization function.
      */
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (Final Refactored) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Enhanced) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
