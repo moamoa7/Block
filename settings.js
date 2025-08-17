@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Definitive Final)
 // @namespace    https://com/
-// @version      28.05-DefinitiveFinal
+// @version      29.05-DefinitiveFinal
 // @description  🎞️ 모든 기능과 안정성 패치를 통합하고 코드 실행 순서 오류를 수정한 최종 안정화 버전입니다.
 // @match        *://*/*
 // @grant        none
