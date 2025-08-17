@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Exclusion)
 // @namespace    https://com/
-// @version      30.03-Exclusion
-// @description  🎞️ 문제가 발생하는 사이트에서 오디오 기능을 제외하는 옵션을 추가하여 안정성을 확보한 최종 버전입니다.
+// @version      30.04-Refined
+// @description  🎞️ 미디어 타입에 따라 기능을 선택적으로 로드하고, UI를 개선하여 안정성과 편의성을 모두 확보한 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -34,7 +34,7 @@
             'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] },
         },
         FILTER_EXCLUSION_DOMAINS: [],
-        AUDIO_EXCLUSION_DOMAINS: ['www.youtube.com', 'm.youtube.com'], // [NEW]
+        AUDIO_EXCLUSION_DOMAINS: ['www.youtube.com', 'm.youtube.com'],
         AUDIO_PRESETS: {
             off: { compressor: { threshold: 0, knee: 0, ratio: 1, attack: 0, release: 0.25 }, eq: { bassGain: 0, trebleGain: 0 }, icon: "🚫" },
             speech: { compressor: { threshold: -35, knee: 20, ratio: 6, attack: 0.01, release: 0.3 }, eq: { bassGain: -1, trebleGain: 4 }, icon: "🎙️" },
@@ -90,19 +90,45 @@
 
     const uiManager = (() => {
         let host, shadowRoot;
-        function init() { if (host) return; host = document.createElement('div'); host.id = 'vsc-ui-host'; Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX }); shadowRoot = host.attachShadow({ mode: 'open' }); const style = document.createElement('style'); style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; } #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; } #vm-speed-slider-container.touched { opacity: 1; } @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } } #vm-speed-slider-container.minimized { width: 30px; } #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; } #vm-speed-slider-container.minimized > :not(.toggle) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; } .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; } #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; } #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); } #vm-filter-toggle-btn, #vm-audio-mode-btn { font-size: 16px; padding: 2px 4px; } #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }`; shadowRoot.appendChild(style); (document.body || document.documentElement).appendChild(host); }
+        function init() {
+            if (host) return;
+            host = document.createElement('div'); host.id = 'vsc-ui-host'; Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX });
+            shadowRoot = host.attachShadow({ mode: 'open' });
+            const style = document.createElement('style');
+            style.textContent = `:host { pointer-events: none; }
+            * { pointer-events: auto; }
+            #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: center; width: 50px; opacity: 0.3; transition: opacity 0.5s ease, width 0.3s, background 0.2s; }
+            #vm-speed-slider-container.touched { opacity: 1; }
+            @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } }
+            #vm-speed-slider-container.minimized { width: 30px; }
+            #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
+            #vm-speed-slider-container.minimized > :not(.toggle):not(#vm-filter-toggle-btn):not(#vm-audio-mode-btn) { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; }
+            .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; margin-top: 4px; font-size:12px; }
+            #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; }
+            #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); }
+            #vm-filter-toggle-btn, #vm-audio-mode-btn { font-size: 16px; padding: 2px 4px; }
+            #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }`;
+            shadowRoot.appendChild(style);
+            (document.body || document.documentElement).appendChild(host);
+        }
         return { init: () => safeExec(init, 'uiManager.init'), getShadowRoot: () => { if (!shadowRoot) init(); return shadowRoot; }, moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); } };
     })();
 
     const filterManager = (() => {
         const isFilterDisabledForSite = CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname);
         let currentFilterMode = 'off';
+        let isInitialized = false; // [NEW]
         const createSvgElement = (tag, attr) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); return el; };
-        function createSvgFiltersAndStyle() { if (isFilterDisabledForSite || document.getElementById('video-enhancer-svg-filters')) return; const settings = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS; const svg = createSvgElement('svg', { id: 'video-enhancer-svg-filters', style: 'display:none' }); const soft = createSvgElement('filter', { id: 'SofteningFilter' }); soft.appendChild(createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION })); const sharp = createSvgElement('filter', { id: settings.SHARPEN_ID }); sharp.appendChild(createSvgElement('feConvolveMatrix', { id: 'dynamic-convolve-matrix', order: '3 3', preserveAlpha: 'true', kernelMatrix: CONFIG.SHARPEN_LEVELS.off, mode: 'multiply' })); const gamma = createSvgElement('filter', { id: 'gamma-filter' }); const gammaTransfer = createSvgElement('feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => gammaTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() }))); gamma.appendChild(gammaTransfer); const linear = createSvgElement('filter', { id: 'linear-adjust-filter' }); const linearTransfer = createSvgElement('feComponentTransfer'); const intercept = settings.SHADOWS_VALUE / 200; const slope = 1 + (settings.HIGHLIGHTS_VALUE / 100); ['R', 'G', 'B'].forEach(ch => linearTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'linear', slope: slope.toString(), intercept: intercept.toString() }))); linear.appendChild(linearTransfer); svg.append(soft, sharp, gamma, linear); (document.body || document.documentElement).appendChild(svg); const style = document.createElement('style'); style.id = 'video-enhancer-styles'; style.textContent = `video.video-filter-active, iframe.video-filter-active { filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; } .vsc-gpu-accelerated { transform: translateZ(0); will-change: transform; }`; (document.head || document.documentElement).appendChild(style); }
-        function setSharpenLevel(level = 'off') { const matrix = document.getElementById('dynamic-convolve-matrix'); if (matrix) { const newMatrix = CONFIG.SHARPEN_LEVELS[level]; if (matrix.getAttribute('kernelMatrix') !== newMatrix) matrix.setAttribute('kernelMatrix', newMatrix); } }
-        function cycleFilterMode() { if (isFilterDisabledForSite) return; const modes = ['high', 'medium', 'low', 'off']; currentFilterMode = modes[(modes.indexOf(currentFilterMode) + 1) % modes.length]; for (const video of activeMedia) { updateVideoFilterState(video); } }
+        function createSvgFiltersAndStyle() { if (document.getElementById('video-enhancer-svg-filters')) return; const settings = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS; const svg = createSvgElement('svg', { id: 'video-enhancer-svg-filters', style: 'display:none' }); const soft = createSvgElement('filter', { id: 'SofteningFilter' }); soft.appendChild(createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION })); const sharp = createSvgElement('filter', { id: settings.SHARPEN_ID }); sharp.appendChild(createSvgElement('feConvolveMatrix', { id: 'dynamic-convolve-matrix', order: '3 3', preserveAlpha: 'true', kernelMatrix: CONFIG.SHARPEN_LEVELS.off, mode: 'multiply' })); const gamma = createSvgElement('filter', { id: 'gamma-filter' }); const gammaTransfer = createSvgElement('feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => gammaTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() }))); gamma.appendChild(gammaTransfer); const linear = createSvgElement('filter', { id: 'linear-adjust-filter' }); const linearTransfer = createSvgElement('feComponentTransfer'); const intercept = settings.SHADOWS_VALUE / 200; const slope = 1 + (settings.HIGHLIGHTS_VALUE / 100); ['R', 'G', 'B'].forEach(ch => linearTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'linear', slope: slope.toString(), intercept: intercept.toString() }))); linear.appendChild(linearTransfer); svg.append(soft, sharp, gamma, linear); (document.body || document.documentElement).appendChild(svg); const style = document.createElement('style'); style.id = 'video-enhancer-styles'; style.textContent = `video.video-filter-active, iframe.video-filter-active { filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; } .vsc-gpu-accelerated { transform: translateZ(0); will-change: transform; }`; (document.head || document.documentElement).appendChild(style); }
+        function initialize() { // [NEW]
+            if (isInitialized || isFilterDisabledForSite) return;
+            safeExec(createSvgFiltersAndStyle, 'filter.init');
+            isInitialized = true;
+        }
+        function setSharpenLevel(level = 'off') { if (!isInitialized) return; const matrix = document.getElementById('dynamic-convolve-matrix'); if (matrix) { const newMatrix = CONFIG.SHARPEN_LEVELS[level]; if (matrix.getAttribute('kernelMatrix') !== newMatrix) matrix.setAttribute('kernelMatrix', newMatrix); } }
+        function cycleFilterMode() { if (isFilterDisabledForSite || !isInitialized) return; const modes = ['high', 'medium', 'low', 'off']; currentFilterMode = modes[(modes.indexOf(currentFilterMode) + 1) % modes.length]; for (const video of activeMedia) { updateVideoFilterState(video); } }
         function resetFilter() { currentFilterMode = 'off'; scanForMedia(true); }
-        return { init: () => safeExec(createSvgFiltersAndStyle, 'filter.init'), cycleFilterMode, getFilterMode: () => currentFilterMode, setSharpenLevel, resetFilter };
+        return { init: initialize, cycleFilterMode, getFilterMode: () => currentFilterMode, setSharpenLevel, resetFilter, isInitialized: () => isInitialized };
     })();
 
     const speedSlider = (() => {
@@ -118,7 +144,7 @@
             const sliderEl = document.createElement('input'); Object.assign(sliderEl, { type: 'range', min: '0.2', max: '4.0', step: '0.2', value: '1.0', id: 'vm-speed-slider' });
             const valueEl = document.createElement('div'); valueEl.id = 'vm-speed-value'; valueEl.textContent = 'x1.0';
             const toggleBtn = createButton(null, 'Toggle Speed Controller', ''); toggleBtn.classList.add('toggle');
-            container.append(filterBtn, audioBtn, resetBtn, sliderEl, valueEl, toggleBtn);
+            container.append(filterBtn, audioBtn, resetBtn, sliderEl, valueEl, toggleBtn); // [MODIFIED]
             shadowRoot.appendChild(container);
             if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) filterBtn.style.display = 'none';
             if (CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname)) audioBtn.style.display = 'none';
@@ -182,6 +208,7 @@
     }
 
     function updateVideoFilterState(video) {
+        if (!filterManager.isInitialized()) return;
         const isPlaying = !video.paused && !video.ended;
         const isVisible = video.dataset.isVisible === 'true';
         const filterMode = filterManager.getFilterMode();
@@ -192,13 +219,18 @@
     }
 
     const mediaEventHandlers = {
-        play: e => { const m = e.target; audioManager.resumeContext(m); updateVideoFilterState(m); mediaSessionManager.setSession(m); },
-        pause: e => { audioManager.suspendContext(e.target); updateVideoFilterState(e.target); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
+        play: e => { const m = e.target; audioManager.resumeContext(m); if (m.tagName === 'VIDEO') updateVideoFilterState(m); mediaSessionManager.setSession(m); },
+        pause: e => { const m = e.target; audioManager.suspendContext(m); if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
         ended: e => { const m = e.target; detachMediaListeners(m); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
     };
 
     function attachMediaListeners(media) {
         if (!media || processedMedia.has(media)) return;
+        if (media.tagName === 'VIDEO') { // [MODIFIED]
+            if (!filterManager.isInitialized()) {
+                filterManager.init();
+            }
+        }
         audioManager.processMedia(media);
         const listeners = {};
         for (const [evt, handler] of Object.entries(mediaEventHandlers)) { listeners[evt] = handler; media.addEventListener(evt, handler); }
@@ -238,9 +270,9 @@
         uiManager.init();
         speedSlider.init();
         dragBar.init();
-        filterManager.init();
+        // filterManager.init(); // [REMOVED]
         intersectionObserver = new IntersectionObserver(entries => {
-            entries.forEach(e => { e.target.dataset.isVisible = e.isIntersecting; updateVideoFilterState(e.target); });
+            entries.forEach(e => { e.target.dataset.isVisible = e.isIntersecting; if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target); });
         }, { threshold: 0.1 });
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
