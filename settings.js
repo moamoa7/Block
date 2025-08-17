@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Race Condition Fix)
+// @name         VideoSpeed_Control (Exclusion)
 // @namespace    https://com/
-// @version      29.15-RaceConditionFix
-// @description  🎞️ 오디오 기능이 간헐적으로 활성화되지 않던 문제(Race Condition)를 수정한 최종 안정화 버전입니다.
+// @version      30.03-Exclusion
+// @description  🎞️ 문제가 발생하는 사이트에서 오디오 기능을 제외하는 옵션을 추가하여 안정성을 확보한 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -34,6 +34,7 @@
             'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] },
         },
         FILTER_EXCLUSION_DOMAINS: [],
+        AUDIO_EXCLUSION_DOMAINS: ['www.youtube.com'], // [NEW]
         AUDIO_PRESETS: {
             off: { compressor: { threshold: 0, knee: 0, ratio: 1, attack: 0, release: 0.25 }, eq: { bassGain: 0, trebleGain: 0 }, icon: "🚫" },
             speech: { compressor: { threshold: -35, knee: 20, ratio: 6, attack: 0.01, release: 0.3 }, eq: { bassGain: -1, trebleGain: 4 }, icon: "🎙️" },
@@ -59,19 +60,15 @@
     (function openAllShadowRoots() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const originalAttachShadow = window.Element.prototype.attachShadow; window.Element.prototype.attachShadow = function (options) { const modifiedOptions = { ...options, mode: 'open' }; const shadowRoot = originalAttachShadow.apply(this, [modifiedOptions]); window._shadowDomList_.push(new WeakRef(shadowRoot)); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot } })); return shadowRoot; }; window._hasHackAttachShadow_ = true; }, 'hackAttachShadow'); })();
 
     const audioManager = (() => {
+        const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
         const PRESET_ORDER = ['off', 'speech', 'movie', 'music'];
         let currentAudioMode = 'off';
         const audioGraphMap = new WeakMap();
-        function applyAudioPreset(media) { if (!audioGraphMap.has(media)) return; const graph = audioGraphMap.get(media); const preset = CONFIG.AUDIO_PRESETS[currentAudioMode]; const c = graph.compressor; const cs = preset.compressor; c.threshold.setValueAtTime(cs.threshold, graph.context.currentTime); c.knee.setValueAtTime(cs.knee, graph.context.currentTime); c.ratio.setValueAtTime(cs.ratio, graph.context.currentTime); c.attack.setValueAtTime(cs.attack, graph.context.currentTime); c.release.setValueAtTime(cs.release, graph.context.currentTime); const eq = preset.eq; graph.bassFilter.gain.setValueAtTime(eq.bassGain, graph.context.currentTime); graph.trebleFilter.gain.setValueAtTime(eq.trebleGain, graph.context.currentTime); }
+        function applyAudioPreset(media) { if (isAudioDisabledForSite || !audioGraphMap.has(media)) return; const graph = audioGraphMap.get(media); const preset = CONFIG.AUDIO_PRESETS[currentAudioMode]; const c = graph.compressor; const cs = preset.compressor; c.threshold.setValueAtTime(cs.threshold, graph.context.currentTime); c.knee.setValueAtTime(cs.knee, graph.context.currentTime); c.ratio.setValueAtTime(cs.ratio, graph.context.currentTime); c.attack.setValueAtTime(cs.attack, graph.context.currentTime); c.release.setValueAtTime(cs.release, graph.context.currentTime); const eq = preset.eq; graph.bassFilter.gain.setValueAtTime(eq.bassGain, graph.context.currentTime); graph.trebleFilter.gain.setValueAtTime(eq.trebleGain, graph.context.currentTime); }
         function createAudioGraph(context) { const compressor = context.createDynamicsCompressor(); const bassFilter = context.createBiquadFilter(); bassFilter.type = 'lowshelf'; bassFilter.frequency.value = CONFIG.EQ_SETTINGS.bassFrequency; const trebleFilter = context.createBiquadFilter(); trebleFilter.type = 'highshelf'; trebleFilter.frequency.value = CONFIG.EQ_SETTINGS.trebleFrequency; const gain = context.createGain(); compressor.connect(bassFilter).connect(trebleFilter).connect(gain).connect(context.destination); return { compressor, bassFilter, trebleFilter, gain }; }
-
         function initAudioContext(media, attempt = 1) {
-            if (audioGraphMap.has(media)) return;
-            // [FIX] Check if video is ready. If not, wait and retry.
-            if (media.readyState < 3 && attempt < 10) {
-                setTimeout(() => initAudioContext(media, attempt + 1), 100);
-                return;
-            }
+            if (isAudioDisabledForSite || audioGraphMap.has(media)) return;
+            if (media.readyState < 3 && attempt < 10) { setTimeout(() => initAudioContext(media, attempt + 1), 100); return; }
             safeExec(() => {
                 if (!media.isConnected) return;
                 const context = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
@@ -82,14 +79,9 @@
                 applyAudioPreset(media);
             }, 'audioManager.init');
         }
-
-        function processMedia(media) {
-            // [FIX] Remove { once: true } to allow re-triggering if the first attempt fails.
-            media.addEventListener('play', () => initAudioContext(media));
-        }
-
-        function cycleAudioMode() { const currentIndex = PRESET_ORDER.indexOf(currentAudioMode); const nextIndex = (currentIndex + 1) % PRESET_ORDER.length; currentAudioMode = PRESET_ORDER[nextIndex]; const button = uiManager.getShadowRoot()?.getElementById('vm-audio-mode-btn'); if (button) { button.textContent = CONFIG.AUDIO_PRESETS[currentAudioMode].icon; button.title = `Cycle Audio Mode (${currentAudioMode})`; } for (const media of activeMedia) applyAudioPreset(media); }
-        function resetAudio() { currentAudioMode = 'off'; filterManager.resetFilter(); const root = uiManager.getShadowRoot(); if (root) { const audioBtn = root.getElementById('vm-audio-mode-btn'); if (audioBtn) { audioBtn.textContent = CONFIG.AUDIO_PRESETS.off.icon; audioBtn.title = 'Cycle Audio Mode (off)'; } } for (const media of activeMedia) applyAudioPreset(media); }
+        function processMedia(media) { if (isAudioDisabledForSite) return; media.addEventListener('play', () => initAudioContext(media), { once: true }); }
+        function cycleAudioMode() { if (isAudioDisabledForSite) return; const currentIndex = PRESET_ORDER.indexOf(currentAudioMode); const nextIndex = (currentIndex + 1) % PRESET_ORDER.length; currentAudioMode = PRESET_ORDER[nextIndex]; const button = uiManager.getShadowRoot()?.getElementById('vm-audio-mode-btn'); if (button) { button.textContent = CONFIG.AUDIO_PRESETS[currentAudioMode].icon; button.title = `Cycle Audio Mode (${currentAudioMode})`; } for (const media of activeMedia) applyAudioPreset(media); }
+        function resetAudio() { if (isAudioDisabledForSite) return; currentAudioMode = 'off'; filterManager.resetFilter(); const root = uiManager.getShadowRoot(); if (root) { const audioBtn = root.getElementById('vm-audio-mode-btn'); if (audioBtn) { audioBtn.textContent = CONFIG.AUDIO_PRESETS.off.icon; audioBtn.title = 'Cycle Audio Mode (off)'; } } for (const media of activeMedia) { if(audioGraphMap.has(media)) applyAudioPreset(media); } }
         function cleanupMedia(media) { if (audioGraphMap.has(media)) { safeExec(() => { audioGraphMap.get(media).context.close(); audioGraphMap.delete(media); }, 'audioManager.cleanup'); } }
         function suspendContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'running') { safeExec(() => audioGraphMap.get(media).context.suspend(), 'suspend'); } }
         function resumeContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'suspended') { safeExec(() => audioGraphMap.get(media).context.resume(), 'resume'); } }
@@ -129,6 +121,7 @@
             container.append(filterBtn, audioBtn, resetBtn, sliderEl, valueEl, toggleBtn);
             shadowRoot.appendChild(container);
             if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) filterBtn.style.display = 'none';
+            if (CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname)) audioBtn.style.display = 'none';
             const applySpeed = speed => { for (const media of activeMedia) if (media.playbackRate !== speed) safeExec(() => { media.playbackRate = speed; }); };
             const updateValueText = speed => { if (valueEl) valueEl.textContent = `x${speed.toFixed(1)}`; };
             const updateAppearance = () => { if (!container) return; container.classList.toggle('minimized', isMinimized); toggleBtn.textContent = isMinimized ? '🔻' : '🔺'; };
@@ -192,9 +185,8 @@
         const isPlaying = !video.paused && !video.ended;
         const isVisible = video.dataset.isVisible === 'true';
         const filterMode = filterManager.getFilterMode();
-
         const shouldHaveFilter = isPlaying && isVisible && filterMode !== 'off';
-        filterManager.setSharpenLevel(shouldHaveFilter ? filterMode : 'off');
+        filterManager.setSharpenLevel(filterMode);
         video.classList.toggle('video-filter-active', shouldHaveFilter);
         updateFilterButtonUI();
     }
