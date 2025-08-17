@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Definitive Final)
+// @name         VideoSpeed_Control (Simplified)
 // @namespace    https://com/
-// @version      29.06-PresetEQ
-// @description  🎞️ 오디오 제어 기능을 목적별 프리셋(영화/스피치/음악) 순환 방식으로 통합하여 사용성을 극대화했습니다.
+// @version      29.14 (오디오 일부 로직 삭제)
+// @description  🎞️ 효과가 미미하고 혼란을 유발하던 스테레오 확장 기능을 제거하여 스크립트를 최종 최적화했습니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -20,8 +20,8 @@
         SEEK_TIME_MAX_SEC: 15,
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         SHARPEN_LEVELS: {
             high:   '0 -1 0 -1 5 -1 0 -1 0',
             medium: '0 -0.5 0 -0.5 3 -0.5 0 -0.5 0',
@@ -64,13 +64,26 @@
         const audioGraphMap = new WeakMap();
         function applyAudioPreset(media) { if (!audioGraphMap.has(media)) return; const graph = audioGraphMap.get(media); const preset = CONFIG.AUDIO_PRESETS[currentAudioMode]; const c = graph.compressor; const cs = preset.compressor; c.threshold.setValueAtTime(cs.threshold, graph.context.currentTime); c.knee.setValueAtTime(cs.knee, graph.context.currentTime); c.ratio.setValueAtTime(cs.ratio, graph.context.currentTime); c.attack.setValueAtTime(cs.attack, graph.context.currentTime); c.release.setValueAtTime(cs.release, graph.context.currentTime); const eq = preset.eq; graph.bassFilter.gain.setValueAtTime(eq.bassGain, graph.context.currentTime); graph.trebleFilter.gain.setValueAtTime(eq.trebleGain, graph.context.currentTime); }
         function createAudioGraph(context) { const compressor = context.createDynamicsCompressor(); const bassFilter = context.createBiquadFilter(); bassFilter.type = 'lowshelf'; bassFilter.frequency.value = CONFIG.EQ_SETTINGS.bassFrequency; const trebleFilter = context.createBiquadFilter(); trebleFilter.type = 'highshelf'; trebleFilter.frequency.value = CONFIG.EQ_SETTINGS.trebleFrequency; const gain = context.createGain(); compressor.connect(bassFilter).connect(trebleFilter).connect(gain).connect(context.destination); return { compressor, bassFilter, trebleFilter, gain }; }
-        function initAudioContext(media) { if (audioGraphMap.has(media)) return; safeExec(() => { const context = new (window.AudioContext || window.webkitAudioContext)(); const source = context.createMediaElementSource(media); const graphNodes = createAudioGraph(context); source.connect(graphNodes.compressor); audioGraphMap.set(media, { context, source, ...graphNodes }); applyAudioPreset(media); }, 'audioManager.init'); }
+        function initAudioContext(media) {
+            if (audioGraphMap.has(media)) return;
+            setTimeout(() => {
+                safeExec(() => {
+                    if (!media.isConnected) return;
+                    const context = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+                    const source = context.createMediaElementSource(media);
+                    const graphNodes = createAudioGraph(context);
+                    source.connect(graphNodes.compressor);
+                    audioGraphMap.set(media, { context, source, ...graphNodes });
+                    applyAudioPreset(media);
+                }, 'audioManager.init');
+            }, 150);
+        }
         function cycleAudioMode() { const currentIndex = PRESET_ORDER.indexOf(currentAudioMode); const nextIndex = (currentIndex + 1) % PRESET_ORDER.length; currentAudioMode = PRESET_ORDER[nextIndex]; const button = uiManager.getShadowRoot()?.getElementById('vm-audio-mode-btn'); if (button) { button.textContent = CONFIG.AUDIO_PRESETS[currentAudioMode].icon; button.title = `Cycle Audio Mode (${currentAudioMode})`; } for (const media of activeMedia) applyAudioPreset(media); }
         function resetAudio() { currentAudioMode = 'off'; filterManager.resetFilter(); const root = uiManager.getShadowRoot(); if (root) { const audioBtn = root.getElementById('vm-audio-mode-btn'); if (audioBtn) { audioBtn.textContent = CONFIG.AUDIO_PRESETS.off.icon; audioBtn.title = 'Cycle Audio Mode (off)'; } } for (const media of activeMedia) applyAudioPreset(media); }
         function processMedia(media) { media.addEventListener('play', () => initAudioContext(media), { once: true }); }
         function cleanupMedia(media) { if (audioGraphMap.has(media)) { safeExec(() => { audioGraphMap.get(media).context.close(); audioGraphMap.delete(media); }, 'audioManager.cleanup'); } }
-        function suspendContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'running') { audioGraphMap.get(media).context.suspend(); } }
-        function resumeContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'suspended') { audioGraphMap.get(media).context.resume(); } }
+        function suspendContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'running') { safeExec(() => audioGraphMap.get(media).context.suspend(), 'suspend'); } }
+        function resumeContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'suspended') { safeExec(() => audioGraphMap.get(media).context.resume(), 'resume'); } }
         return { processMedia, cleanupMedia, cycleAudioMode, resetAudio, suspendContext, resumeContext };
     })();
 
@@ -87,16 +100,8 @@
         const createSvgElement = (tag, attr) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); return el; };
         function createSvgFiltersAndStyle() { if (isFilterDisabledForSite || document.getElementById('video-enhancer-svg-filters')) return; const svg = createSvgElement('svg', { id: 'video-enhancer-svg-filters', style: 'display:none' }); const soft = createSvgElement('filter', { id: 'SofteningFilter' }); soft.appendChild(createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION })); const sharp = createSvgElement('filter', { id: settings.SHARPEN_ID }); sharp.appendChild(createSvgElement('feConvolveMatrix', { id: 'dynamic-convolve-matrix', order: '3 3', preserveAlpha: 'true', kernelMatrix: CONFIG.SHARPEN_LEVELS.off, mode: 'multiply' })); const gamma = createSvgElement('filter', { id: 'gamma-filter' }); const gammaTransfer = createSvgElement('feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => gammaTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() }))); gamma.appendChild(gammaTransfer); const linear = createSvgElement('filter', { id: 'linear-adjust-filter' }); const linearTransfer = createSvgElement('feComponentTransfer'); const intercept = settings.SHADOWS_VALUE / 200; const slope = 1 + (settings.HIGHLIGHTS_VALUE / 100); ['R', 'G', 'B'].forEach(ch => linearTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'linear', slope: slope.toString(), intercept: intercept.toString() }))); linear.appendChild(linearTransfer); svg.append(soft, sharp, gamma, linear); (document.body || document.documentElement).appendChild(svg); const style = document.createElement('style'); style.id = 'video-enhancer-styles'; style.textContent = `video.video-filter-active, iframe.video-filter-active { filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; } .vsc-gpu-accelerated { transform: translateZ(0); will-change: transform; }`; (document.head || document.documentElement).appendChild(style); }
         function setSharpenLevel(level = 'off') { const matrix = document.getElementById('dynamic-convolve-matrix'); if (matrix) { const newMatrix = CONFIG.SHARPEN_LEVELS[level]; if (matrix.getAttribute('kernelMatrix') !== newMatrix) matrix.setAttribute('kernelMatrix', newMatrix); } }
-        function cycleFilterMode() {
-            if (isFilterDisabledForSite) return;
-            const modes = ['high', 'medium', 'low', 'off'];
-            currentFilterMode = modes[(modes.indexOf(currentFilterMode) + 1) % modes.length];
-            for (const video of activeMedia) { updateVideoFilterState(video); }
-        }
-        function resetFilter() {
-            currentFilterMode = 'off';
-            scanForMedia(true);
-        }
+        function cycleFilterMode() { if (isFilterDisabledForSite) return; const modes = ['high', 'medium', 'low', 'off']; currentFilterMode = modes[(modes.indexOf(currentFilterMode) + 1) % modes.length]; for (const video of activeMedia) { updateVideoFilterState(video); } }
+        function resetFilter() { currentFilterMode = 'off'; scanForMedia(true); }
         return { init: () => safeExec(createSvgFiltersAndStyle, 'filter.init'), cycleFilterMode, getFilterMode: () => currentFilterMode, setSharpenLevel, resetFilter };
     })();
 
@@ -181,15 +186,14 @@
         const filterMode = filterManager.getFilterMode();
 
         const shouldHaveFilter = isPlaying && isVisible && filterMode !== 'off';
-
         filterManager.setSharpenLevel(filterMode);
         video.classList.toggle('video-filter-active', shouldHaveFilter);
         updateFilterButtonUI();
     }
 
     const mediaEventHandlers = {
-        play: e => { const m = e.target; audioManager.resumeContext(m); updateVideoFilterState(m); },
-        pause: e => { audioManager.suspendContext(e.target); updateVideoFilterState(e.target); },
+        play: e => { const m = e.target; audioManager.resumeContext(m); updateVideoFilterState(m); mediaSessionManager.setSession(m); },
+        pause: e => { audioManager.suspendContext(e.target); updateVideoFilterState(e.target); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
         ended: e => { const m = e.target; detachMediaListeners(m); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
     };
 
@@ -230,7 +234,7 @@
     const handleRemovedNodes = nodes => { nodes.forEach(n => { if (n.nodeType !== 1) return; if (n.matches?.('video, audio')) detachMediaListeners(n); n.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
 
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (Final Logic Fix) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Definitive Final) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
@@ -238,7 +242,15 @@
         intersectionObserver = new IntersectionObserver(entries => {
             entries.forEach(e => { e.target.dataset.isVisible = e.isIntersecting; updateVideoFilterState(e.target); });
         }, { threshold: 0.1 });
-        document.addEventListener('visibilitychange', () => { if (document.hidden) { document.querySelectorAll('video.video-filter-active').forEach(v => v.classList.remove('video-filter-active')); } else { scanForMedia(true); } });
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                document.querySelectorAll('video.video-filter-active').forEach(v => v.classList.remove('video-filter-active'));
+                for (const media of activeMedia) { audioManager.suspendContext(media); }
+            } else {
+                scanForMedia(true);
+                for (const media of activeMedia) { audioManager.resumeContext(media); }
+            }
+        });
         const mutationObserver = new MutationObserver(mutations => {
             let changed = false;
             for (const mut of mutations) {
