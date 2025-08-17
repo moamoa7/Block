@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Architecture Fix)
+// @name         VideoSpeed_Control (Definitive Final)
 // @namespace    https://com/
-// @version      29.00-ArchitectureFix
-// @description  🎞️ 필터 순환 기능의 근본적인 호출 구조 오류를 해결하고 모든 기능을 통합한 최종 안정화 버전입니다.
+// @version      28.05-DefinitiveFinal
+// @description  🎞️ 모든 기능과 안정성 패치를 통합하고 코드 실행 순서 오류를 수정한 최종 안정화 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -20,8 +20,8 @@
         SEEK_TIME_MAX_SEC: 15,
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         SHARPEN_LEVELS: {
             high:   '0 -1 0 -1 5 -1 0 -1 0',
             medium: '0 -1 0 -1 7 -1 0 -1 0',
@@ -36,7 +36,12 @@
         FILTER_EXCLUSION_DOMAINS: [],
         AUDIO_NORMALIZER_SETTINGS: { threshold: -40, knee: 30, ratio: 12, attack: 0.003, release: 0.25 },
         EQ_SETTINGS: { bassFrequency: 400, trebleFrequency: 5000 },
-        EQ_PRESETS: { off: { bassGain: 0, trebleGain: 0 }, treble: { bassGain: -2, trebleGain: 5 }, bass: { bassGain: 6, trebleGain: 0 }, }
+        EQ_PRESETS: {
+            off:    { bassGain: 0,  trebleGain: 0 },
+            speech: { bassGain: -1, trebleGain: 4 },
+            movie:  { bassGain: 4,  trebleGain: 2 },
+            music:  { bassGain: 2,  trebleGain: 1 },
+        }
     };
 
     // --- Utilities & Guards ---
@@ -65,8 +70,8 @@
         function suspendContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'running') { audioGraphMap.get(media).context.suspend(); } }
         function resumeContext(media) { if (audioGraphMap.has(media) && audioGraphMap.get(media).context.state === 'suspended') { audioGraphMap.get(media).context.resume(); } }
         function toggleNormalizer() { isNormalizerEnabled = !isNormalizerEnabled; const button = uiManager.getShadowRoot()?.getElementById('vm-normalize-toggle-btn'); if (button) button.textContent = isNormalizerEnabled ? '🌙' : '☀️'; for (const media of activeMedia) updateAudioGraph(media); }
-        function cycleEQ() { const states = ['off', 'treble', 'bass']; const icons = ['🚫', '🔊', '🎬']; const idx = (states.indexOf(currentEQState) + 1) % states.length; currentEQState = states[idx]; const button = uiManager.getShadowRoot()?.getElementById('vm-eq-toggle-btn'); if (button) button.textContent = icons[idx]; for (const media of activeMedia) applyEQPreset(media); }
-        function resetAudio() { isNormalizerEnabled = false; currentEQState = 'off'; filterManager.resetFilter(); const root = uiManager.getShadowRoot(); if (root) { const normBtn = root.getElementById('vm-normalize-toggle-btn'); const eqBtn = root.getElementById('vm-eq-toggle-btn'); if (normBtn) normBtn.textContent = '☀️'; if (eqBtn) eqBtn.textContent = '🚫'; } for (const media of activeMedia) { updateAudioGraph(media); applyEQPreset(media); } }
+        function cycleEQ() { const states = ['off', 'speech', 'movie', 'music']; const icons = {'off': '🚫', 'speech': '🎙️', 'movie': '🎬', 'music': '🎵'}; const currentIndex = states.indexOf(currentEQState); const nextIndex = (currentIndex + 1) % states.length; currentEQState = states[nextIndex]; const button = uiManager.getShadowRoot()?.getElementById('vm-eq-toggle-btn'); if (button) { button.textContent = icons[currentEQState]; button.title = `Cycle EQ Preset (${currentEQState})`; } for (const media of activeMedia) applyEQPreset(media); }
+        function resetAudio() { isNormalizerEnabled = false; currentEQState = 'off'; filterManager.resetFilter(); const root = uiManager.getShadowRoot(); if (root) { const normBtn = root.getElementById('vm-normalize-toggle-btn'); const eqBtn = root.getElementById('vm-eq-toggle-btn'); if (normBtn) normBtn.textContent = '☀️'; if (eqBtn) { eqBtn.textContent = '🚫'; eqBtn.title = 'Cycle EQ Preset (off)'; } } for (const media of activeMedia) { updateAudioGraph(media); applyEQPreset(media); } }
         return { processMedia, cleanupMedia, toggleNormalizer, cycleEQ, resetAudio, suspendContext, resumeContext };
     })();
 
@@ -83,13 +88,11 @@
         const createSvgElement = (tag, attr) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); return el; };
         function createSvgFiltersAndStyle() { if (isFilterDisabledForSite || document.getElementById('video-enhancer-svg-filters')) return; const svg = createSvgElement('svg', { id: 'video-enhancer-svg-filters', style: 'display:none' }); const soft = createSvgElement('filter', { id: 'SofteningFilter' }); soft.appendChild(createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION })); const sharp = createSvgElement('filter', { id: settings.SHARPEN_ID }); sharp.appendChild(createSvgElement('feConvolveMatrix', { id: 'dynamic-convolve-matrix', order: '3 3', preserveAlpha: 'true', kernelMatrix: CONFIG.SHARPEN_LEVELS.off, mode: 'multiply' })); const gamma = createSvgElement('filter', { id: 'gamma-filter' }); const gammaTransfer = createSvgElement('feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => gammaTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() }))); gamma.appendChild(gammaTransfer); const linear = createSvgElement('filter', { id: 'linear-adjust-filter' }); const linearTransfer = createSvgElement('feComponentTransfer'); const intercept = settings.SHADOWS_VALUE / 200; const slope = 1 + (settings.HIGHLIGHTS_VALUE / 100); ['R', 'G', 'B'].forEach(ch => linearTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'linear', slope: slope.toString(), intercept: intercept.toString() }))); linear.appendChild(linearTransfer); svg.append(soft, sharp, gamma, linear); (document.body || document.documentElement).appendChild(svg); const style = document.createElement('style'); style.id = 'video-enhancer-styles'; style.textContent = `video.video-filter-active, iframe.video-filter-active { filter: saturate(${settings.SATURATION_VALUE}%) url(#gamma-filter) url(#SofteningFilter) url(#${settings.SHARPEN_ID}) url(#linear-adjust-filter) !important; } .vsc-gpu-accelerated { transform: translateZ(0); will-change: transform; }`; (document.head || document.documentElement).appendChild(style); }
         function setSharpenLevel(level = 'off') { const matrix = document.getElementById('dynamic-convolve-matrix'); if (matrix) { const newMatrix = CONFIG.SHARPEN_LEVELS[level]; if (matrix.getAttribute('kernelMatrix') !== newMatrix) matrix.setAttribute('kernelMatrix', newMatrix); } }
-
         function cycleFilterMode() {
             if (isFilterDisabledForSite) return;
             const modes = ['high', 'medium', 'low', 'off'];
             const nextIndex = (modes.indexOf(currentFilterMode) + 1) % modes.length;
             currentFilterMode = modes[nextIndex];
-
             updateFilterButtonUI();
             for (const video of activeMedia) {
                 updateVideoFilterState(video);
@@ -97,7 +100,6 @@
         }
         function resetFilter() {
             currentFilterMode = 'off';
-            // scanForMedia(true) is better here to force redraw on all videos
             scanForMedia(true);
         }
         return { init: () => safeExec(createSvgFiltersAndStyle, 'filter.init'), cycleFilterMode, getFilterMode: () => currentFilterMode, setSharpenLevel, resetFilter };
@@ -112,7 +114,7 @@
             container = document.createElement('div'); container.id = 'vm-speed-slider-container';
             const filterBtn = createButton('vm-filter-toggle-btn', 'Cycle Filter Mode (Off)', '🌚');
             const normBtn = createButton('vm-normalize-toggle-btn', 'Toggle Volume Normalization (Night Mode)', '☀️');
-            const eqBtn = createButton('vm-eq-toggle-btn', 'Cycle EQ Preset (Off / Treble / Bass)', '🚫');
+            const eqBtn = createButton('vm-eq-toggle-btn', 'Cycle EQ Preset (Off)', '🚫');
             const resetBtn = createButton(null, 'Reset speed & audio', '1x'); resetBtn.classList.add('reset');
             const sliderEl = document.createElement('input'); Object.assign(sliderEl, { type: 'range', min: '0.2', max: '4.0', step: '0.2', value: '1.0', id: 'vm-speed-slider' });
             const valueEl = document.createElement('div'); valueEl.id = 'vm-speed-value'; valueEl.textContent = 'x1.0';
@@ -187,14 +189,15 @@
 
         const shouldHaveFilter = isPlaying && isVisible && filterMode !== 'off';
 
+        // The sharpen level is now the same as the mode.
+        // If mode is 'off', the 'off' (neutral) matrix is used.
         filterManager.setSharpenLevel(filterMode);
         video.classList.toggle('video-filter-active', shouldHaveFilter);
-        updateFilterButtonUI();
     }
 
     const mediaEventHandlers = {
         play: e => { const m = e.target; audioManager.resumeContext(m); updateVideoFilterState(m); scanForMedia(true); mediaSessionManager.setSession(m); },
-        pause: e => { audioManager.suspendContext(e.target); updateVideoFilterState(e.target); },
+        pause: e => { audioManager.suspendContext(e.target); updateVideoFilterState(e.target); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
         ended: e => { const m = e.target; detachMediaListeners(m); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); },
     };
 
