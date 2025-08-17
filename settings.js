@@ -24,8 +24,8 @@
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         SHARPEN_LEVELS: {
             high:   '0 -1 0 -1 5 -1 0 -1 0',
-            medium: '0 -1 0 -1 6 -1 0 -1 0',
-            low:    '0 -1 0 -1 7 -1 0 -1 0',
+            medium: '0 -1 0 -1 7 -1 0 -1 0',
+            low:    '0 -1 0 -1 9 -1 0 -1 0',
             off:    '0 0 0 0 1 0 0 0 0',
         },
         SITE_METADATA_RULES: {
