@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Exclusion)
 // @namespace    https://com/
-// @version      32.00-MemorySafe
-// @description  🎞️ 메모리 누수 방지를 위한 이벤트 리스너 및 참조 해제 로직을 적용하여 장기적 안정성을 확보한 최종 버전입니다.
+// @version      32.01-CompatibilityFix
+// @description  🎞️ 중앙 상태 관리 도입 및 UI 렌더링 최적화 등 내부 구조를 리팩토링 / 🎞️ 예외 처리된 사이트(유튜브 등)와의 호환성 문제를 해결하여 장기적 안정성과 성능을 개선한 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -60,14 +60,15 @@
     (function openAllShadowRoots() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const originalAttachShadow = window.Element.prototype.attachShadow; window.Element.prototype.attachShadow = function (options) { const modifiedOptions = { ...options, mode: 'open' }; const shadowRoot = originalAttachShadow.apply(this, [modifiedOptions]); window._shadowDomList_.push(new WeakRef(shadowRoot)); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot } })); return shadowRoot; }; window._hasHackAttachShadow_ = true; }, 'hackAttachShadow'); })();
 
     const audioManager = (() => {
-        const isBypassDomain = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
+        // [수정] isBypassDomain -> isAudioDisabledForSite 로 명칭 변경 및 역할 명확화
+        const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
         let ctx = null;
         let compressor, bassFilter, trebleFilter, masterGain;
         const sourceMap = new WeakMap();
         let currentAudioMode = 'off';
 
         function ensureContext() {
-            if (ctx) return;
+            if (ctx || isAudioDisabledForSite) return; // [수정] 예외 도메인에서는 컨텍스트 생성 안함
             try {
                 ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
                 compressor = ctx.createDynamicsCompressor();
@@ -87,32 +88,12 @@
             const source = ctx.createMediaElementSource(media);
             const preGain = ctx.createGain(); preGain.gain.value = 1;
             source.connect(preGain).connect(compressor);
-            sourceMap.set(media, { source, preGain, bypassed: false });
-            if (!isBypassDomain) applyAudioPresetToNodes();
-        }
-
-        function bypassMedia(media, shouldBypass) {
-            if (!ctx) return;
-            const rec = sourceMap.get(media);
-            if (!rec || rec.bypassed === shouldBypass) return;
-            const now = ctx.currentTime;
-            rec.preGain.gain.setValueAtTime(rec.preGain.gain.value, now);
-            rec.preGain.gain.linearRampToValueAtTime(0, now + 0.01);
-            setTimeout(() => {
-                try { rec.preGain.disconnect(); } catch (_) {}
-                if (shouldBypass) {
-                    rec.preGain.connect(ctx.destination);
-                } else {
-                    rec.preGain.connect(compressor);
-                }
-                rec.preGain.gain.setValueAtTime(0, ctx.currentTime);
-                rec.preGain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.02);
-                rec.bypassed = shouldBypass;
-            }, 10);
+            sourceMap.set(media, { source, preGain });
+            applyAudioPresetToNodes();
         }
 
         function applyAudioPresetToNodes() {
-            if (isBypassDomain || !ctx) return;
+            if (!ctx) return;
             const preset = CONFIG.AUDIO_PRESETS[currentAudioMode] || CONFIG.AUDIO_PRESETS.off;
             const c = compressor, cs = preset.compressor;
             const now = ctx.currentTime;
@@ -126,24 +107,21 @@
         }
 
         function processMedia(media) {
+            if (isAudioDisabledForSite) return; // [수정] 예외 도메인이면 아무 작업도 하지 않음
             media.addEventListener('play', () => {
                 ensureContext();
                 if (!ctx) return;
                 connectMedia(media);
-                if (isBypassDomain) {
-                    bypassMedia(media, true);
-                }
             }, { once: true });
         }
 
         function cleanupMedia(media) {
-            if (!ctx) return;
+            if (isAudioDisabledForSite || !ctx) return; // [수정] 예외 도메인이면 아무 작업도 하지 않음
             const rec = sourceMap.get(media);
             if (!rec) return;
             try {
                 rec.source.disconnect();
                 rec.preGain.disconnect();
-                // [제안 반영] mediaElement 참조를 끊어 메모리 회수(GC) 가속화
                 try {
                     if (rec.source && "mediaElement" in rec.source) {
                         rec.source.mediaElement = null;
@@ -157,7 +135,7 @@
         }
 
         function setAudioMode(mode) {
-            if (isBypassDomain || !CONFIG.AUDIO_PRESETS[mode]) return;
+            if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return;
             currentAudioMode = mode;
             applyAudioPresetToNodes();
         }
@@ -165,13 +143,13 @@
         function resetAudio() { setAudioMode('off'); }
 
         function suspendContext() {
-            if (!ctx) return;
+            if (isAudioDisabledForSite || !ctx) return; // [수정] 예외 도메인이면 아무 작업도 하지 않음
             const anyPlaying = Array.from(activeMedia).some(m => !m.paused && !m.ended);
             if (!anyPlaying && ctx.state === 'running') ctx.suspend().catch(()=>{});
         }
 
         function resumeContext() {
-            if (!ctx) return;
+            if (isAudioDisabledForSite || !ctx) return; // [수정] 예외 도메인이면 아무 작업도 하지 않음
             if (ctx.state === 'suspended') ctx.resume().catch(()=>{});
         }
 
@@ -189,40 +167,23 @@
             #vm-speed-slider-container.touched, #vm-speed-slider-container.menu-visible { opacity: 1; }
             #vm-speed-slider-container.menu-visible { background: rgba(0,0,0,0.4); }
             @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } }
-            
-            #vm-speed-slider-container.minimized { width: 50px; } 
-            
+            #vm-speed-slider-container.minimized { width: 50px; }
             #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
-            
             #vm-speed-slider-container .vm-collapsible { display: flex; flex-direction: column; align-items: flex-end; width: 50px; margin-top: 4px; }
-
             #vm-speed-slider-container.minimized .vm-collapsible { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; }
             .vm-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 50px; }
             .vm-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 0; margin-right: 5px; background: rgba(20,20,20,0.7); border-radius: 4px; padding: 2px; }
             .vm-control-group.submenu-visible .vm-submenu { display: flex; }
-
             .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; }
             .vm-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
             .vm-submenu .vm-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; }
-            
             .vm-btn-main { font-size: 16px; padding: 2px 4px; width: 30px; height: 100%; }
-
-            .vm-btn.reset, .vm-btn.toggle { 
-                font-size: 16px; 
-                padding: 0; 
-                width: 30px; 
-                height: 28px; 
-                display: flex; 
-                align-items: center; 
-                justify-content: center; 
-                box-sizing: border-box; 
-            }
+            .vm-btn.reset, .vm-btn.toggle { font-size: 16px; padding: 0; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
             .vm-btn.toggle { margin-top: 4px; }
-            
             #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; }
             #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); padding-right: 5px; }
             #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }`; shadowRoot.appendChild(style); (document.body || document.documentElement).appendChild(host); }
-        return { init: () => safeExec(init, 'uiManager.init'), getShadowRoot: () => { if (!shadowRoot) init(); return shadowRoot; }, moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); } };
+        return { init: () => safeExec(init, 'uiManager.init'), getShadowRoot: () => shadowRoot, moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); } };
     })();
 
     const filterManager = (() => {
@@ -247,7 +208,7 @@
 
             const videoControlGroup = document.createElement('div'); videoControlGroup.className = 'vm-control-group'; videoControlGroup.style.position = 'relative';
             const audioControlGroup = document.createElement('div'); audioControlGroup.className = 'vm-control-group'; audioControlGroup.style.position = 'relative';
-            
+
             const filterBtnMain = createButton('vm-main-filter-btn', 'Video Filter Settings', '🌞', 'vm-btn vm-btn-main');
             const audioBtnMain = createButton('vm-main-audio-btn', 'Audio Preset Settings', '🎧', 'vm-btn vm-btn-main');
             const filterSubMenu = document.createElement('div'); filterSubMenu.className = 'vm-submenu';
@@ -260,7 +221,7 @@
 
             videoControlGroup.append(filterBtnMain, filterSubMenu);
             audioControlGroup.append(audioBtnMain, audioSubMenu);
-            
+
             const collapsibleWrapper = document.createElement('div'); collapsibleWrapper.className = 'vm-collapsible';
             const resetBtn = createButton(null, 'Reset speed & audio', '1x', 'vm-btn reset');
             const sliderEl = document.createElement('input'); Object.assign(sliderEl, { type: 'range', min: '0.2', max: '4.0', step: '0.2', value: '1.0', id: 'vm-speed-slider' });
@@ -297,10 +258,10 @@
                     container.classList.add('menu-visible');
                 }
             };
-            
+
             filterBtnMain.addEventListener('click', () => toggleSubMenu(videoControlGroup));
             audioBtnMain.addEventListener('click', () => toggleSubMenu(audioControlGroup));
-            
+
             filterSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vm-btn')) { filterManager.setFilterMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); } });
             audioSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vm-btn')) { audioManager.setAudioMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); } });
 
@@ -319,7 +280,7 @@
             const stopProp = e => e.stopPropagation();
             sliderEl.addEventListener('touchstart', stopProp, { passive: true });
             sliderEl.addEventListener('touchmove', stopProp, { passive: true });
-            
+
             inited = true; updateAppearance(); updateActiveButtons();
         }
         return { init: () => safeExec(init, 'speedSlider.init'), show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; }, hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; }, isMinimized: () => isMinimized };
@@ -333,8 +294,8 @@
     function findAllMedia(doc = document) { const elems = []; safeExec(() => { elems.push(...doc.querySelectorAll('video, audio')); (window._shadowDomList_ || []).filter(r => r.deref()).forEach(r => { const root = r.deref(); if(root) elems.push(...root.querySelectorAll('video, audio')); }); if (doc === document) doc.querySelectorAll('iframe').forEach(f => { try { if (f.contentDocument) elems.push(...findAllMedia(f.contentDocument)); } catch (e) {} }); }); return [...new Set(elems)]; }
 
     function updateVideoFilterState(video) { if (!filterManager.isInitialized()) return; const isPlaying = !video.paused && !video.ended; const isVisible = video.dataset.isVisible === 'true'; const filterMode = filterManager.getFilterMode(); const shouldHaveFilter = isPlaying && isVisible && filterMode !== 'off'; filterManager.setSharpenLevel(filterMode); video.classList.toggle('video-filter-active', shouldHaveFilter); }
-    const mediaEventHandlers = { play: e => { const m = e.target; audioManager.resumeContext(m); if (m.tagName === 'VIDEO') updateVideoFilterState(m); mediaSessionManager.setSession(m); }, pause: e => { const m = e.target; audioManager.suspendContext(m); if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); }, ended: e => { const m = e.target; detachMediaListeners(m); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); }, };
-    
+    const mediaEventHandlers = { play: e => { const m = e.target; audioManager.resumeContext(); if (m.tagName === 'VIDEO') updateVideoFilterState(m); mediaSessionManager.setSession(m); }, pause: e => { const m = e.target; audioManager.suspendContext(); if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); }, ended: e => { const m = e.target; detachMediaListeners(m); if (activeMedia.size <= 1) mediaSessionManager.clearSession(); }, };
+
     function attachMediaListeners(media) {
         if (!media || processedMedia.has(media)) return;
         if (media.tagName === 'VIDEO') { if (!filterManager.isInitialized()) filterManager.init(); }
@@ -351,31 +312,30 @@
 
     function detachMediaListeners(media) {
         if (!mediaListenerMap.has(media)) return;
-
-        // [제안 반영] 등록했던 이벤트 리스너를 명시적으로 제거하여 메모리 누수 방지
         const listeners = mediaListenerMap.get(media);
         for (const [evt, listener] of Object.entries(listeners)) {
             media.removeEventListener(evt, listener);
         }
-
-        audioManager.cleanupMedia(media); // 오디오 노드 정리
+        audioManager.cleanupMedia(media);
         mediaListenerMap.delete(media);
         processedMedia.delete(media);
         if (intersectionObserver && media.tagName === 'VIDEO') intersectionObserver.unobserve(media);
     }
-    
+
     const scanForMedia = (isUiUpdateOnly = false) => { const allMedia = findAllMedia(); if (!isUiUpdateOnly) allMedia.forEach(attachMediaListeners); const oldMedia = new Set(activeMedia); activeMedia.clear(); allMedia.forEach(m => { if (m.isConnected) { activeMedia.add(m); oldMedia.delete(m); } }); oldMedia.forEach(detachMediaListeners); allMedia.forEach(m => { if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); } }); const shouldBeVisible = activeMedia.size > 0; if (isUiVisible !== shouldBeVisible) { isUiVisible = shouldBeVisible; if (isUiVisible) speedSlider.show(); else speedSlider.hide(); } };
 
     const debouncedScanTask = debounce(scanForMedia, CONFIG.DEBOUNCE_DELAY);
     const handleAddedNodes = nodes => { nodes.forEach(n => { if (n.nodeType !== 1) return; if (n.matches?.('video, audio')) attachMediaListeners(n); n.querySelectorAll?.('video, audio').forEach(attachMediaListeners); }); };
     const handleRemovedNodes = nodes => { nodes.forEach(n => { if (n.nodeType !== 1) return; if (n.matches?.('video, audio')) detachMediaListeners(n); n.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
+
     function initialize() {
         console.log('🎉 VideoSpeed_Control (Memory Safe) Initialized.');
         uiManager.init();
-        speedSlider.init();
-        dragBar.init();
+        const shadowRoot = uiManager.getShadowRoot();
+        speedSlider.init(shadowRoot);
+        dragBar.init(shadowRoot);
         intersectionObserver = new IntersectionObserver(entries => { entries.forEach(e => { e.target.dataset.isVisible = e.isIntersecting; if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target); }); }, { threshold: 0.1 });
-        document.addEventListener('visibilitychange', () => { if (document.hidden) { document.querySelectorAll('video.video-filter-active').forEach(v => v.classList.remove('video-filter-active')); for (const media of activeMedia) { audioManager.suspendContext(media); } } else { scanForMedia(true); for (const media of activeMedia) { audioManager.resumeContext(media); } } });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) { document.querySelectorAll('video.video-filter-active').forEach(v => v.classList.remove('video-filter-active')); for (const media of activeMedia) { audioManager.suspendContext(); } } else { scanForMedia(true); for (const media of activeMedia) { audioManager.resumeContext(); } } });
         const mutationObserver = new MutationObserver(mutations => { let changed = false; for (const mut of mutations) { if (mut.type === 'childList') { if (mut.addedNodes.length > 0) { handleAddedNodes(mut.addedNodes); changed = true; } if (mut.removedNodes.length > 0) { handleRemovedNodes(mut.removedNodes); changed = true; } } } if (changed) scheduleIdleTask(() => scanForMedia()); });
         mutationObserver.observe(document.documentElement, { childList: true, subtree: true });
         document.addEventListener('addShadowRoot', debouncedScanTask);
@@ -385,5 +345,6 @@
         window.addEventListener('beforeunload', () => { mutationObserver.disconnect(); intersectionObserver.disconnect(); });
         scanForMedia();
     }
+
     if (document.readyState === 'complete' || document.readyState === 'interactive') { initialize(); } else { window.addEventListener('DOMContentLoaded', initialize, { once: true }); }
 })();
