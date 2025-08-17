@@ -23,9 +23,9 @@
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         SHARPEN_LEVELS: {
-            high:   '0 -2.25 0 -2.25 10 -2.25 0 -2.25 0',
-            medium: '0 -1.5 0 -1.5 7 -1.5 0 -1.5 0',
-            low:    '0 -1 0 -1 5 -1 0 -1 0',
+            high:   '0 -1 0 -1 5 -1 0 -1 0',
+            medium: '0 -0.5 0 -0.5 3 -0.5 0 -0.5 0',
+            low:    '0 -0.125 0 -0.125 1.5 -0.125 0 -0.125 0',
             off:    '0 0 0 0 1 0 0 0 0',
         },
         SITE_METADATA_RULES: {
