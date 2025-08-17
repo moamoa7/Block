@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Exclusion)
 // @namespace    https://com/
-// @version      30.09-UIVisibilityFix
-// @description  🎞️ 비디오/오디오 제어 UI를 하위 메뉴 방식으로 변경하여 사용 편의성을 극대화한 버전입니다.
+// @version      30.12-ButtonSizeFix
+// @description  🎞️ 모든 제어 버튼의 크기 및 간격을 통일하여 UI의 시각적 일관성을 확보한 최종 버전입니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -83,25 +83,37 @@
             #vm-speed-slider-container.touched, #vm-speed-slider-container.menu-visible { opacity: 1; }
             #vm-speed-slider-container.menu-visible { background: rgba(0,0,0,0.4); }
             @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } }
-
-            #vm-speed-slider-container.minimized { width: 50px; }
-
+            
+            #vm-speed-slider-container.minimized { width: 50px; } 
+            
             #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
-
-            #vm-speed-slider-container .vm-collapsible { display: flex; flex-direction: column; align-items: flex-end; width: 50px; }
+            
+            #vm-speed-slider-container .vm-collapsible { display: flex; flex-direction: column; align-items: flex-end; width: 50px; margin-top: 4px; }
 
             #vm-speed-slider-container.minimized .vm-collapsible { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; }
             .vm-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 50px; }
             .vm-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 0; margin-right: 5px; background: rgba(20,20,20,0.7); border-radius: 4px; padding: 2px; }
             .vm-control-group.submenu-visible .vm-submenu { display: flex; }
 
-            /* [삭제] .vm-control-group.submenu-visible .vm-btn-main { display: none; } */
-
             .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; }
             .vm-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
             .vm-submenu .vm-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; }
+            
             .vm-btn-main { font-size: 16px; padding: 2px 4px; width: 30px; height: 100%; }
 
+            /* [추가] 1x, 토글 버튼 크기 및 스타일 통일 */
+            .vm-btn.reset, .vm-btn.toggle { 
+                font-size: 16px; 
+                padding: 0; 
+                width: 30px; 
+                height: 28px; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                box-sizing: border-box; 
+            }
+            .vm-btn.toggle { margin-top: 4px; }
+            
             #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; }
             #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); padding-right: 5px; }
             #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }`; shadowRoot.appendChild(style); (document.body || document.documentElement).appendChild(host); }
@@ -130,7 +142,7 @@
 
             const videoControlGroup = document.createElement('div'); videoControlGroup.className = 'vm-control-group'; videoControlGroup.style.position = 'relative';
             const audioControlGroup = document.createElement('div'); audioControlGroup.className = 'vm-control-group'; audioControlGroup.style.position = 'relative';
-
+            
             const filterBtnMain = createButton('vm-main-filter-btn', 'Video Filter Settings', '🌞', 'vm-btn vm-btn-main');
             const audioBtnMain = createButton('vm-main-audio-btn', 'Audio Preset Settings', '🎧', 'vm-btn vm-btn-main');
             const filterSubMenu = document.createElement('div'); filterSubMenu.className = 'vm-submenu';
@@ -143,7 +155,7 @@
 
             videoControlGroup.append(filterBtnMain, filterSubMenu);
             audioControlGroup.append(audioBtnMain, audioSubMenu);
-
+            
             const collapsibleWrapper = document.createElement('div'); collapsibleWrapper.className = 'vm-collapsible';
             const resetBtn = createButton(null, 'Reset speed & audio', '1x', 'vm-btn reset');
             const sliderEl = document.createElement('input'); Object.assign(sliderEl, { type: 'range', min: '0.2', max: '4.0', step: '0.2', value: '1.0', id: 'vm-speed-slider' });
@@ -157,7 +169,6 @@
             if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) videoControlGroup.style.display = 'none';
             if (CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname)) audioControlGroup.style.display = 'none';
 
-            // --- [수정] UI 로직 및 이벤트 리스너 ---
             const controlGroups = [videoControlGroup, audioControlGroup];
             const updateActiveButtons = () => {
                 const currentFilter = filterManager.getFilterMode();
@@ -181,10 +192,10 @@
                     container.classList.add('menu-visible');
                 }
             };
-
+            
             filterBtnMain.addEventListener('click', () => toggleSubMenu(videoControlGroup));
             audioBtnMain.addEventListener('click', () => toggleSubMenu(audioControlGroup));
-
+            
             filterSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vm-btn')) { filterManager.setFilterMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); } });
             audioSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vm-btn')) { audioManager.setAudioMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); } });
 
@@ -203,7 +214,7 @@
             const stopProp = e => e.stopPropagation();
             sliderEl.addEventListener('touchstart', stopProp, { passive: true });
             sliderEl.addEventListener('touchmove', stopProp, { passive: true });
-
+            
             inited = true; updateAppearance(); updateActiveButtons();
         }
         return { init: () => safeExec(init, 'speedSlider.init'), show: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; }, hide: () => { const el = uiManager.getShadowRoot()?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; }, isMinimized: () => isMinimized };
@@ -226,7 +237,7 @@
     const handleAddedNodes = nodes => { nodes.forEach(n => { if (n.nodeType !== 1) return; if (n.matches?.('video, audio')) attachMediaListeners(n); n.querySelectorAll?.('video, audio').forEach(attachMediaListeners); }); };
     const handleRemovedNodes = nodes => { nodes.forEach(n => { if (n.nodeType !== 1) return; if (n.matches?.('video, audio')) detachMediaListeners(n); n.querySelectorAll?.('video, audio').forEach(detachMediaListeners); }); };
     function initialize() {
-        console.log('🎉 VideoSpeed_Control (UI Visibility Fix) Initialized.');
+        console.log('🎉 VideoSpeed_Control (Button Size Fix) Initialized.');
         uiManager.init();
         speedSlider.init();
         dragBar.init();
