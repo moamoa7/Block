@@ -34,7 +34,7 @@
             'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] },
         },
         FILTER_EXCLUSION_DOMAINS: [],
-        AUDIO_EXCLUSION_DOMAINS: ['www.youtube.com'], // [NEW]
+        AUDIO_EXCLUSION_DOMAINS: ['www.youtube.com', 'm.youtube.com'], // [NEW]
         AUDIO_PRESETS: {
             off: { compressor: { threshold: 0, knee: 0, ratio: 1, attack: 0, release: 0.25 }, eq: { bassGain: 0, trebleGain: 0 }, icon: "🚫" },
             speech: { compressor: { threshold: -35, knee: 20, ratio: 6, attack: 0.01, release: 0.3 }, eq: { bassGain: -1, trebleGain: 4 }, icon: "🎙️" },
