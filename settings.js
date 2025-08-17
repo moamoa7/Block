@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Definitive Final)
 // @namespace    https://com/
-// @version      29.05-DefinitiveFinal
-// @description  🎞️ 모든 기능과 안정성 패치를 통합하고 코드 실행 순서 오류를 수정한 최종 안정화 버전입니다.
+// @version      29.05-PresetEQ
+// @description  🎞️ EQ 기능을 목적별 프리셋(스피치/영화/음악) 순환 방식으로 대폭 개선했습니다.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
