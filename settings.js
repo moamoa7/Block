@@ -227,14 +227,14 @@
                 * { pointer-events: auto; }
                 #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.5s ease, background 0.2s; }
                 #vm-speed-slider-container.touched, #vm-speed-slider-container.menu-visible { opacity: 1; }
-                #vm-speed-slider-container.menu-visible { background: rgba(0,0,0,0.4); }
+                #vm-speed-slider-container.menu-visible { background: rgba(0,0,0,0.0); }
                 @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } }
                 #vm-speed-slider-container.minimized { width: 50px; }
                 #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
                 #vm-speed-slider-container .vm-collapsible { display: flex; flex-direction: column; align-items: flex-end; width: 50px; margin-top: 4px; }
                 #vm-speed-slider-container.minimized .vm-collapsible { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; }
                 .vm-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 50px; }
-                .vm-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 0; margin-right: 5px; background: rgba(20,20,20,0.7); border-radius: 4px; padding: 2px; }
+                .vm-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 0; margin-right: 5px; background: rgba(0,0,0,0.0); border-radius: 4px; padding: 2px; }
                 .vm-control-group.submenu-visible .vm-submenu { display: flex; }
                 .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; }
                 .vm-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
