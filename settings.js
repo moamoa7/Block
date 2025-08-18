@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Exclusion)
 // @namespace    https://com/
-// @version      34.03-GraphFix-Final
-// @description  🎞️ 오디오 프리셋 변경 시 모든 필터 파라미터를 명시적으로 초기화하여, 잔류 설정 없이 필터가 항상 정확하게 적용되도록 수정했습니다.
+// @version      34.04
+// @description  🎞️ AUDIO_PRESETS - music 값 변경
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -56,8 +56,8 @@
             music: {
                 gain: 1.05,
                 eq: [
-                    { freq: 60, gain: 4 }, { freq: 150, gain: 3 }, { freq: 400, gain: 1.5 },
-                    { freq: 1000, gain: 0 }, { freq: 3000, gain: 1.5 }, { freq: 6000, gain: 2 },
+                    { freq: 60, gain: 3.5 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1.2 },
+                    { freq: 1000, gain: 0 }, { freq: 3000, gain: 1.2 }, { freq: 6000, gain: 1.5 },
                     { freq: 12000, gain: 1 }
                 ]
             }
