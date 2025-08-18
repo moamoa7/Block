@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         VideoSpeed_Control (Exclusion)
+// @name         VideoSpeed_Control
 // @namespace    https://com/
-// @version      34.11
-// @description  아이콘 프레임 투명으로 수정
+// @version      34.12
+// @description  EXCLUSION_KEYWORDS 추가
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -18,7 +18,7 @@
         MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05,
         SEEK_TIME_MAX_SEC: 15,
-        EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup'],
+        EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
