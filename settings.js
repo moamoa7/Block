@@ -23,10 +23,10 @@
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         SHARPEN_LEVELS: {
-            high:   '0 -1 0 -1 6.5 -1 0 -1 0',
-            medium: '0 -0.6 0 -0.6 4 -0.6 0 -0.6 0',
-            low:    '0 -0.3 0 -0.3 2.5 -0.3 0 -0.3 0',
-            off:    '0 0 0 0 1 0 0 0 0',
+            high:   '0 -1 0 -1 10 -1 0 -1 0',
+            medium: '0 -0.5 0 -0.5 5 -0.5 0 -0.5 0',
+            low:    '0 -0.25 0 -0.25 2.5 -0.25 0 -0.25 0',
+            off:    '0 -0.1 0 -0.1 1 -0.1 0 -0.1 0',
         },
         SITE_METADATA_RULES: {
             'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], },
