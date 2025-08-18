@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Exclusion)
 // @namespace    https://com/
-// @version      34.10
-// @description  1x 버튼 리셋 내용 수정 (속도만 리셋되게)
+// @version      34.11
+// @description  아이콘 프레임 투명으로 수정
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -233,7 +233,7 @@
                 #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
                 #vm-speed-slider-container .vm-collapsible { display: flex; flex-direction: column; align-items: flex-end; width: 50px; margin-top: 4px; }
                 #vm-speed-slider-container.minimized .vm-collapsible { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; }
-                .vm-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 50px; }
+                .vm-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 25px; }
                 .vm-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 0; margin-right: 5px; background: rgba(0,0,0,0.0); border-radius: 4px; padding: 2px; }
                 .vm-control-group.submenu-visible .vm-submenu { display: flex; }
                 .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; }
