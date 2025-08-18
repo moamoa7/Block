@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Exclusion)
 // @namespace    https://com/
-// @version      34.04
-// @description  🎞️ AUDIO_PRESETS - music 값 변경
+// @version      34.05
+// @description  🎞️ VIDEO SHARPEN 값 수정
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -23,9 +23,9 @@
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 110 },
         SHARPEN_LEVELS: {
-            high:   '0 -1 0 -1 5 -1 0 -1 0',
-            medium: '0 -0.5 0 -0.5 3 -0.5 0 -0.5 0',
-            low:    '0 -0.125 0 -0.125 1.5 -0.125 0 -0.125 0',
+            high:   '0 -1 0 -1 6.5 -1 0 -1 0',
+            medium: '0 -0.6 0 -0.6 4 -0.6 0 -0.6 0',
+            low:    '0 -0.3 0 -0.3 2.5 -0.3 0 -0.3 0',
             off:    '0 0 0 0 1 0 0 0 0',
         },
         SITE_METADATA_RULES: {
