@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Exclusion)
 // @namespace    https://com/
-// @version      34.08
-// @description  🎞️ VIDEO SHARPEN 값 수정
+// @version      34.09
+// @description  🎞️ AUDIO_PRESETS 값 수정
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -38,27 +38,27 @@
         AUDIO_PRESETS: {
             off: { gain: 1, eq: [] },
             speech: {
-                gain: 1.0,
+                gain: 1.1,
                 eq: [
-                    { freq: 100, gain: 3 }, { freq: 250, gain: 2 }, { freq: 500, gain: 1 },
-                    { freq: 1000, gain: 0 }, { freq: 2000, gain: 1.5 }, { freq: 4000, gain: 2 },
-                    { freq: 8000, gain: 1 }
+                    { freq: 100, gain: -2 }, { freq: 250, gain: 1 }, { freq: 500, gain: 3 },
+                    { freq: 1000, gain: 4 }, { freq: 2000, gain: 4.5 }, { freq: 4000, gain: 2 },
+                    { freq: 8000, gain: -1 }
                 ]
             },
             movie: {
-                gain: 1.15,
+                gain: 1.25,
                 eq: [
-                    { freq: 80, gain: 4 }, { freq: 200, gain: 3 }, { freq: 500, gain: 1 },
-                    { freq: 1000, gain: 1 }, { freq: 3000, gain: 2 }, { freq: 6000, gain: 2 },
-                    { freq: 10000, gain: 1 }
+                    { freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 },
+                    { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 },
+                    { freq: 10000, gain: 4 }
                 ]
             },
             music: {
-                gain: 1.05,
+                gain: 1.1,
                 eq: [
-                    { freq: 60, gain: 3.5 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1.2 },
-                    { freq: 1000, gain: 0 }, { freq: 3000, gain: 1.2 }, { freq: 6000, gain: 1.5 },
-                    { freq: 12000, gain: 1 }
+                    { freq: 60, gain: 5 }, { freq: 150, gain: 3 }, { freq: 400, gain: 1 },
+                    { freq: 1000, gain: 0.5 }, { freq: 3000, gain: 2.5 }, { freq: 6000, gain: 4 },
+                    { freq: 12000, gain: 3.5 }
                 ]
             }
         },
