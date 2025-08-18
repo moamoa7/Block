@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VideoSpeed_Control (Exclusion)
 // @namespace    https://com/
-// @version      34.09
-// @description  🎞️ AUDIO_PRESETS 값 수정
+// @version      34.10
+// @description  1x 버튼 리셋 내용 수정 (속도만 리셋되게)
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -284,7 +284,7 @@
             audioControlGroup.append(audioBtnMain, audioSubMenu);
 
             const collapsibleWrapper = document.createElement('div'); collapsibleWrapper.className = 'vm-collapsible';
-            const resetBtn = createButton(null, 'Reset speed & audio', '1x', 'vm-btn reset');
+            const resetBtn = createButton(null, 'Reset speed', '1x', 'vm-btn reset');
             const sliderEl = document.createElement('input'); Object.assign(sliderEl, { type: 'range', min: '0.2', max: '4.0', step: '0.2', value: '1.0', id: 'vm-speed-slider' });
             const valueEl = document.createElement('div'); valueEl.id = 'vm-speed-value'; valueEl.textContent = 'x1.0';
             collapsibleWrapper.append(resetBtn, sliderEl, valueEl);
@@ -330,7 +330,7 @@
             const updateValueText = speed => { if (valueEl) valueEl.textContent = `x${speed.toFixed(1)}`; };
             const updateAppearance = () => { if (!container) return; container.classList.toggle('minimized', state.isMinimized); toggleBtn.textContent = state.isMinimized ? '🔻' : '🔺'; if (state.isMinimized) hideAllSubMenus(); };
 
-            resetBtn.addEventListener('click', () => { sliderEl.value = '1.0'; state.rAF.latestSpeed = 1.0; applySpeed(1.0); updateValueText(1.0); audioManager.resetAudio(); filterManager.resetFilter(); updateActiveButtons(); });
+            resetBtn.addEventListener('click', () => { sliderEl.value = '1.0'; state.rAF.latestSpeed = 1.0; applySpeed(1.0); updateValueText(1.0); });
             toggleBtn.addEventListener('click', () => { state.isMinimized = !state.isMinimized; updateAppearance(); });
 
             sliderEl.addEventListener('input', e => {
