@@ -25,9 +25,9 @@
         // --- NEW: Image Filter Settings ---
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.10, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 },
         SHARPEN_LEVELS: {
-            high:   '0 -1.2 0 -1.2 5.8 -1.2 0 -1.2 0',
-            medium: '0 -0.8 0 -0.8 4.2 -0.8 0 -0.8 0',
-            low:    '0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0',
+            high:   '0 -1.5 0 -1.5 7.0 -1.5 0 -1.5 0',
+            medium: '0 -1 0 -1 5.0 -1 0 -1 0',
+            low:    '0 -0.5 0 -0.5 3.0 -0.5 0 -0.5 0',
             off:    '0 -0.12 0 -0.12 1.48 -0.12 0 -0.12 0',
         },
         // --- MODIFIED: Independent Sharpen Levels for Images ---
