@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         VideoSpeed_Control
+// @name         Video_Image_Control
 // @namespace    https://com/
 // @version      35.0
 // @description  이미지 필터 및 UI 추가
@@ -25,9 +25,9 @@
         // --- NEW: Image Filter Settings ---
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.10, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 },
         SHARPEN_LEVELS: {
-            high:   '0 -0.8 0 -0.8 4.2 -0.8 0 -0.8 0',
-            medium: '0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0',
-            low:    '0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0',
+            high:   '0 -1.2 0 -1.2 5.8 -1.2 0 -1.2 0',
+            medium: '0 -0.8 0 -0.8 4.2 -0.8 0 -0.8 0',
+            low:    '0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0',
             off:    '0 -0.12 0 -0.12 1.48 -0.12 0 -0.12 0',
         },
         // --- MODIFIED: Independent Sharpen Levels for Images ---
@@ -457,9 +457,18 @@
             const audioControls = root.getElementById('vsc-audio-controls');
             const imageControls = root.getElementById('vsc-image-controls');
 
+            // NEW: 배속 조절 슬라이더 부분을 직접 제어하기 위해 요소를 가져옵니다.
+            const speedControlSlider = root.querySelector('.vm-collapsible');
+            const toggleButton = root.querySelector('.vm-btn.toggle');
+
             if (videoControls) videoControls.style.display = hasVideo ? 'flex' : 'none';
             if (audioControls) audioControls.style.display = hasAudio ? 'flex' : 'none';
             if (imageControls) imageControls.style.display = hasImage ? 'flex' : 'none';
+
+            // NEW: 비디오나 오디오가 있을 때만 배속 조절 슬라이더와 토글 버튼을 표시합니다.
+            const shouldShowSpeedControls = hasVideo || hasAudio;
+            if (speedControlSlider) speedControlSlider.style.display = shouldShowSpeedControls ? 'flex' : 'none';
+            if (toggleButton) toggleButton.style.display = shouldShowSpeedControls ? 'flex' : 'none';
 
             const anyMedia = hasVideo || hasAudio || hasImage;
             if (state.isUiVisible !== anyMedia) {
