@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      35.3-no-persist
-// @description  이미지.비디오.오디오 기본값 설정 기능 추가 및 UI 이동 기능 (위치 저장 없음)
+// @version      35.4
+// @description  비디오 반복 재생시 오디오 문제로 재생 안되는 문제 해결
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -146,6 +146,26 @@
             sourceMap.set(media, { source });
             applyAudioPresetToNodes();
         }
+        function connectMedia(media) {
+              if (!ctx) return;
+              if (ctx.state === 'suspended') { ctx.resume().catch(()=>{}); }
+
+              let rec = sourceMap.get(media);
+              if (!rec) {
+                  // 소스가 없으면 새로 생성하고 sourceMap에 저장
+                  const source = ctx.createMediaElementSource(media);
+                  rec = { source };
+                  sourceMap.set(media, rec);
+              }
+
+              // 기존 연결을 안전하게 해제한 후 다시 연결
+              try { rec.source.disconnect(); } catch (e) {}
+
+              const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
+              rec.source.connect(firstNode);
+
+              applyAudioPresetToNodes();
+          }
         function applyAudioPresetToNodes() {
             if (!ctx) return;
             const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off;
@@ -195,6 +215,17 @@
                 sourceMap.delete(media);
             }
         }
+          function cleanupMedia(media) {
+              if (isAudioDisabledForSite || !ctx) return;
+              const rec = sourceMap.get(media);
+              if (!rec) return;
+              try {
+                  // 오디오 그래프에서 연결만 해제하고, sourceMap에서는 삭제하지 않음
+                  rec.source.disconnect();
+              } catch (err) {
+                  if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err);
+              }
+          }
         function setAudioMode(mode) {
             if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return;
             state.currentAudioMode = mode;
