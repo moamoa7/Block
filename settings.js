@@ -29,12 +29,12 @@
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 6, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.05, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.6', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 107 },
-        IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 105 },
+        IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 105 },
         SHARPEN_LEVELS: {
             high:   '0 -1.5 0 -1.5 7.0 -1.5 0 -1.5 0',
             medium: '0 -1 0 -1 5.0 -1 0 -1 0',
             low:    '0 -0.5 0 -0.5 3.0 -0.5 0 -0.5 0',
-            off:    '0 -0.12 0 -0.12 1.48 -0.12 0 -0.12 0',
+            off:    '0 -0.1 0 -0.1 1.4 -0.1 0 -0.1 0',
         },
         IMAGE_SHARPEN_LEVELS: {
             high:   '0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0',
