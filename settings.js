@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      35.4
+// @version      35.5
 // @description  UI 아이콘 크기 재통일
 // @match        *://*/*
 // @grant        none
