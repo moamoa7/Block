@@ -31,13 +31,13 @@
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.05, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.6', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 105 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
         SHARPEN_LEVELS: {
-            high:   '0 -1.5 0 -1.5 7.0 -1.5 0 -1.5 0',
-            medium: '0 -1 0 -1 5.0 -1 0 -1 0',
-            low:    '0 -0.5 0 -0.5 3.0 -0.5 0 -0.5 0',
+            high:   '0 -0.75 0 -0.75 4.0 -0.75 0 -0.75 0',
+            medium: '0 -0.5 0 -0.5 3.0 -0.5 0 -0.5 0',
+            low:    '0 -0.25 0 -0.25 2.0 -0.25 0 -0.25 0',
             off:    '0 -0.1 0 -0.1 1.4 -0.1 0 -0.1 0',
         },
         IMAGE_SHARPEN_LEVELS: {
-            high:   '0 -0.8 0 -0.8 4.2 -0.8 0 -0.8 0',
+            high:   '0 -0.6 0 -0.6 3.4 -0.6 0 -0.6 0',
             medium: '0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0',
             low:    '0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0',
             off:    '0 -0.1 0 -0.1 1.4 -0.1 0 -0.1 0',
