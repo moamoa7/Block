@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      35.0
-// @description  이미지 필터 및 UI 추가
+// @version      35.1
+// @description  이미지.비디오.오디오 기본값 설정 기능 추가
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -13,6 +13,13 @@
 
     // --- Configuration and Constants ---
     const CONFIG = {
+        // --- NEW: Default Filter Settings ---
+        // 여기에서 비디오, 이미지, 오디오 필터의 기본 모드를 설정할 수 있습니다.
+        // 페이지 로드 시 이 설정이 기본값으로 적용됩니다.
+        DEFAULT_VIDEO_FILTER_MODE: 'medium', // 사용 가능한 값: 'off', 'low', 'medium', 'high'
+        DEFAULT_IMAGE_FILTER_MODE: 'medium', // 사용 가능한 값: 'off', 'low', 'medium', 'high'
+        DEFAULT_AUDIO_PRESET: 'movie',      // 사용 가능한 값: 'off', 'speech', 'movie', 'music'
+
         DEBUG: false,
         DEBOUNCE_DELAY: 350,
         MAX_Z_INDEX: 2147483647,
@@ -22,7 +29,6 @@
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -4, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.20, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.6', SHADOWS_VALUE: -4, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 110 },
-        // --- NEW: Image Filter Settings ---
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.10, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 105 },
         SHARPEN_LEVELS: {
             high:   '0 -1.5 0 -1.5 7.0 -1.5 0 -1.5 0',
@@ -30,9 +36,8 @@
             low:    '0 -0.5 0 -0.5 3.0 -0.5 0 -0.5 0',
             off:    '0 -0.12 0 -0.12 1.48 -0.12 0 -0.12 0',
         },
-        // --- MODIFIED: Independent Sharpen Levels for Images ---
         IMAGE_SHARPEN_LEVELS: {
-            high:   '0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0', // 비디오보다 약간 부드러운 값으로 변경
+            high:   '0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0',
             medium: '0 -0.3 0 -0.3 2.2 -0.3 0 -0.3 0',
             low:    '0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0',
             off:    '0 -0.1 0 -0.1 1.4 -0.1 0 -0.1 0',
@@ -88,14 +93,15 @@
     const state = {
         activeMedia: new Set(),
         processedMedia: new WeakSet(),
-        activeImages: new Set(), // NEW: Track active images
-        processedImages: new WeakSet(), // NEW: Track processed images
+        activeImages: new Set(),
+        processedImages: new WeakSet(),
         mediaListenerMap: new WeakMap(),
         isUiVisible: false,
         isMinimized: true,
-        currentFilterMode: 'off',
-        currentImageFilterMode: 'off', // NEW: State for image filter
-        currentAudioMode: 'off',
+        // --- MODIFIED: Initialize state with default values from CONFIG ---
+        currentFilterMode: CONFIG.DEFAULT_VIDEO_FILTER_MODE || 'off',
+        currentImageFilterMode: CONFIG.DEFAULT_IMAGE_FILTER_MODE || 'off',
+        currentAudioMode: CONFIG.DEFAULT_AUDIO_PRESET || 'off',
         ui: { shadowRoot: null },
         rAF: { pendingSpeedUpdate: false, latestSpeed: 1.0 }
     };
@@ -249,7 +255,6 @@
         return { init: initialize, setFilterMode, getFilterMode: () => state.currentFilterMode, setSharpenLevel, resetFilter, isInitialized: () => isInitialized };
     })();
 
-    // --- NEW: Image Filter Manager (cloned and adapted from filterManager) ---
     const imageFilterManager = (() => {
         const isFilterDisabledForSite = CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS.includes(location.hostname);
         let isInitialized = false;
@@ -270,30 +275,29 @@
             const shadowRoot = state.ui.shadowRoot; if (!shadowRoot) return;
             const container = document.createElement('div'); container.id = 'vm-speed-slider-container';
 
-            // --- Groups for Video, Audio, and Image controls ---
             const videoControlGroup = document.createElement('div'); videoControlGroup.id = 'vsc-video-controls'; videoControlGroup.className = 'vm-control-group'; videoControlGroup.style.position = 'relative';
             const audioControlGroup = document.createElement('div'); audioControlGroup.id = 'vsc-audio-controls'; audioControlGroup.className = 'vm-control-group'; audioControlGroup.style.position = 'relative';
             const imageControlGroup = document.createElement('div'); imageControlGroup.id = 'vsc-image-controls'; imageControlGroup.className = 'vm-control-group'; imageControlGroup.style.position = 'relative';
 
             const filterBtnMain = createButton('vm-main-filter-btn', 'Video Filter Settings', '🌞', 'vm-btn vm-btn-main');
             const audioBtnMain = createButton('vm-main-audio-btn', 'Audio Preset Settings', '🎧', 'vm-btn vm-btn-main');
-            const imageBtnMain = createButton('vm-main-image-btn', 'Image Filter Settings', '🎨', 'vm-btn vm-btn-main'); // NEW
+            const imageBtnMain = createButton('vm-main-image-btn', 'Image Filter Settings', '🎨', 'vm-btn vm-btn-main');
 
             const filterSubMenu = document.createElement('div'); filterSubMenu.className = 'vm-submenu';
             const audioSubMenu = document.createElement('div'); audioSubMenu.className = 'vm-submenu';
-            const imageSubMenu = document.createElement('div'); imageSubMenu.className = 'vm-submenu'; // NEW
+            const imageSubMenu = document.createElement('div'); imageSubMenu.className = 'vm-submenu';
 
             const filterModes = { H: 'high', M: 'medium', L: 'low', '🚫': 'off' };
             Object.entries(filterModes).forEach(([text, mode]) => {
                 const btn = createButton(null, `Filter: ${mode}`, text); btn.dataset.mode = mode; filterSubMenu.appendChild(btn);
-                const imgBtn = createButton(null, `Image Filter: ${mode}`, text); imgBtn.dataset.mode = mode; imageSubMenu.appendChild(imgBtn); // NEW
+                const imgBtn = createButton(null, `Image Filter: ${mode}`, text); imgBtn.dataset.mode = mode; imageSubMenu.appendChild(imgBtn);
             });
             const audioModes = { '🎙️': 'speech', '🎬': 'movie', '🎵': 'music', '🚫': 'off' };
             Object.entries(audioModes).forEach(([text, mode]) => { const btn = createButton(null, `Audio: ${mode}`, text); btn.dataset.mode = mode; audioSubMenu.appendChild(btn); });
 
             videoControlGroup.append(filterBtnMain, filterSubMenu);
             audioControlGroup.append(audioBtnMain, audioSubMenu);
-            imageControlGroup.append(imageBtnMain, imageSubMenu); // NEW
+            imageControlGroup.append(imageBtnMain, imageSubMenu);
 
             const collapsibleWrapper = document.createElement('div'); collapsibleWrapper.className = 'vm-collapsible';
             const resetBtn = createButton(null, 'Reset speed', '1x', 'vm-btn reset');
@@ -302,12 +306,11 @@
             collapsibleWrapper.append(resetBtn, sliderEl, valueEl);
 
             const toggleBtn = createButton(null, 'Toggle Speed Controller', '', 'vm-btn toggle');
-            // --- MODIFIED: UI Element Order Changed ---
-            container.append(imageControlGroup, videoControlGroup, audioControlGroup, collapsibleWrapper, toggleBtn); // 이미지 필터(🎨)를 최상단으로
+            container.append(imageControlGroup, videoControlGroup, audioControlGroup, collapsibleWrapper, toggleBtn);
             shadowRoot.appendChild(container);
 
             if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) videoControlGroup.style.display = 'none';
-            if (CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) imageControlGroup.style.display = 'none'; // NEW
+            if (CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS.includes(location.hostname)) imageControlGroup.style.display = 'none';
             if (CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname)) audioControlGroup.style.display = 'none';
 
             const controlGroups = [videoControlGroup, audioControlGroup, imageControlGroup];
@@ -320,9 +323,9 @@
                 audioSubMenu.querySelectorAll('.vm-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === currentAudio));
                 audioBtnMain.classList.toggle('active', currentAudio !== 'off');
 
-                const currentImageFilter = imageFilterManager.getFilterMode(); // NEW
-                imageSubMenu.querySelectorAll('.vm-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === currentImageFilter)); // NEW
-                imageBtnMain.classList.toggle('active', currentImageFilter !== 'off'); // NEW
+                const currentImageFilter = imageFilterManager.getFilterMode();
+                imageSubMenu.querySelectorAll('.vm-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === currentImageFilter));
+                imageBtnMain.classList.toggle('active', currentImageFilter !== 'off');
             };
 
             const hideAllSubMenus = () => {
@@ -341,11 +344,11 @@
 
             filterBtnMain.addEventListener('click', () => toggleSubMenu(videoControlGroup));
             audioBtnMain.addEventListener('click', () => toggleSubMenu(audioControlGroup));
-            imageBtnMain.addEventListener('click', () => toggleSubMenu(imageControlGroup)); // NEW
+            imageBtnMain.addEventListener('click', () => toggleSubMenu(imageControlGroup));
 
             filterSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vm-btn')) { filterManager.setFilterMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); } });
             audioSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vm-btn')) { audioManager.setAudioMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); } });
-            imageSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vm-btn')) { imageFilterManager.setFilterMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); } }); // NEW
+            imageSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vm-btn')) { imageFilterManager.setFilterMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); } });
 
             const applySpeed = speed => { for (const media of state.activeMedia) if (media.playbackRate !== speed) safeExec(() => { media.playbackRate = speed; }); };
             const updateValueText = speed => { if (valueEl) valueEl.textContent = `x${speed.toFixed(1)}`; };
@@ -457,7 +460,6 @@
             const audioControls = root.getElementById('vsc-audio-controls');
             const imageControls = root.getElementById('vsc-image-controls');
 
-            // NEW: 배속 조절 슬라이더 부분을 직접 제어하기 위해 요소를 가져옵니다.
             const speedControlSlider = root.querySelector('.vm-collapsible');
             const toggleButton = root.querySelector('.vm-btn.toggle');
 
@@ -465,7 +467,6 @@
             if (audioControls) audioControls.style.display = hasAudio ? 'flex' : 'none';
             if (imageControls) imageControls.style.display = hasImage ? 'flex' : 'none';
 
-            // NEW: 비디오나 오디오가 있을 때만 배속 조절 슬라이더와 토글 버튼을 표시합니다.
             const shouldShowSpeedControls = hasVideo || hasAudio;
             if (speedControlSlider) speedControlSlider.style.display = shouldShowSpeedControls ? 'flex' : 'none';
             if (toggleButton) toggleButton.style.display = shouldShowSpeedControls ? 'flex' : 'none';
