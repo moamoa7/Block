@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      35.1
-// @description  이미지.비디오.오디오 기본값 설정 기능 추가
+// @version      35.3-no-persist
+// @description  이미지.비디오.오디오 기본값 설정 기능 추가 및 UI 이동 기능 (위치 저장 없음)
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -18,7 +18,7 @@
         // 페이지 로드 시 이 설정이 기본값으로 적용됩니다.
         DEFAULT_VIDEO_FILTER_MODE: 'medium', // 사용 가능한 값: 'off', 'low', 'medium', 'high'
         DEFAULT_IMAGE_FILTER_MODE: 'medium', // 사용 가능한 값: 'off', 'low', 'medium', 'high'
-        DEFAULT_AUDIO_PRESET: 'movie',      // 사용 가능한 값: 'off', 'speech', 'movie', 'music'
+        DEFAULT_AUDIO_PRESET: 'movie',     // 사용 가능한 값: 'off', 'speech', 'movie', 'music'
 
         DEBUG: false,
         DEBOUNCE_DELAY: 350,
@@ -218,28 +218,30 @@
 
     const uiManager = (() => {
         let host;
-        function init() { if (host) return; host = document.createElement('div'); host.id = 'vsc-ui-host'; Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX }); state.ui.shadowRoot = host.attachShadow({ mode: 'open' }); const style = document.createElement('style'); style.textContent = `:host { pointer-events: none; }
-                * { pointer-events: auto; }
-                #vm-speed-slider-container { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: transparent; padding: 6px; border-radius: 8px 0 0 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.5s ease, background 0.2s; }
-                #vm-speed-slider-container.touched, #vm-speed-slider-container.menu-visible { opacity: 1; }
-                #vm-speed-slider-container.menu-visible { background: rgba(0,0,0,0.0); }
-                @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } }
-                #vm-speed-slider-container.minimized { width: 50px; }
-                #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
-                #vm-speed-slider-container .vm-collapsible { display: flex; flex-direction: column; align-items: flex-end; width: 50px; margin-top: 4px; }
-                #vm-speed-slider-container.minimized .vm-collapsible { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; }
-                .vm-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 25px; }
-                .vm-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 0; margin-right: 5px; background: rgba(0,0,0,0.0); border-radius: 4px; padding: 2px; }
-                .vm-control-group.submenu-visible .vm-submenu { display: flex; }
-                .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; }
-                .vm-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
-                .vm-submenu .vm-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; }
-                .vm-btn-main { font-size: 16px; padding: 2px 4px; width: 30px; height: 100%; }
-                .vm-btn.reset, .vm-btn.toggle { font-size: 16px; padding: 0; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
-                .vm-btn.toggle { margin-top: 4px; }
-                #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; }
-                #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); padding-right: 5px; }
-                #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }`; state.ui.shadowRoot.appendChild(style); (document.body || document.documentElement).appendChild(host); }
+        function init() { if (host) return; host = document.createElement('div'); host.id = 'vsc-ui-host'; Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX }); state.ui.shadowRoot = host.attachShadow({ mode: 'open' }); const style = document.createElement('style');
+        style.textContent = `:host { pointer-events: none; }
+                        * { pointer-events: auto; }
+                        #vm-speed-slider-container { position: fixed; top: 50%; right: 10px; background: transparent; padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.5s ease, background 0.2s; transform: translateY(-50%); }
+                        #vm-speed-slider-container.touched, #vm-speed-slider-container.menu-visible { opacity: 1; }
+                        #vm-speed-slider-container.menu-visible { background: rgba(0,0,0,0.0); }
+                        @media (hover: hover) and (pointer: fine) { #vm-speed-slider-container:hover { opacity: 1; } }
+                        #vm-speed-slider-container.minimized { width: 50px; }
+                        #vm-speed-slider-container > :not(.toggle) { transition: opacity 0.2s, transform 0.2s; transform-origin: bottom; }
+                        #vm-speed-slider-container .vm-collapsible { display: flex; flex-direction: column; align-items: flex-end; width: 50px; margin-top: 4px; }
+                        #vm-speed-slider-container.minimized .vm-collapsible { opacity: 0; transform: scaleY(0); height: 0; margin: 0; padding: 0; visibility: hidden; }
+                        .vm-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 25px; }
+                        .vm-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 0; margin-right: 5px; background: rgba(0,0,0,0.0); border-radius: 4px; padding: 2px; }
+                        .vm-control-group.submenu-visible .vm-submenu { display: flex; }
+                        .vm-btn { background: #444; color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; }
+                        .vm-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
+                        .vm-submenu .vm-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; }
+                        .vm-btn-main { font-size: 16px; padding: 2px 4px; width: 30px; height: 100%; }
+                        .vm-btn.reset, .vm-btn.toggle { font-size: 16px; padding: 0; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+                        .vm-btn.toggle { margin-top: 4px; cursor: grab; }
+                        #vm-speed-slider { writing-mode: vertical-lr; direction: rtl; width: 32px; height: 60px; margin: 4px 0; accent-color: #e74c3c; touch-action: none; }
+                        #vm-speed-value { color: #f44336; font-weight:700; font-size:14px; text-shadow:1px 1px 2px rgba(0,0,0,.5); padding-right: 5px; }
+                        #vm-time-display { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:102; background:rgba(0,0,0,.7); color:#fff; padding:10px 20px; border-radius:5px; font-size:1.5rem; display:none; opacity:1; transition:opacity .3s ease-out; pointer-events:none; }`;
+        state.ui.shadowRoot.appendChild(style); (document.body || document.documentElement).appendChild(host); }
         return { init: () => safeExec(init, 'uiManager.init'), moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); } };
     })();
 
@@ -355,7 +357,6 @@
             const updateAppearance = () => { if (!container) return; container.classList.toggle('minimized', state.isMinimized); toggleBtn.textContent = state.isMinimized ? '🔻' : '🔺'; if (state.isMinimized) hideAllSubMenus(); };
 
             resetBtn.addEventListener('click', () => { sliderEl.value = '1.0'; state.rAF.latestSpeed = 1.0; applySpeed(1.0); updateValueText(1.0); });
-            toggleBtn.addEventListener('click', () => { state.isMinimized = !state.isMinimized; updateAppearance(); });
 
             sliderEl.addEventListener('input', e => {
                 const speed = parseFloat(e.target.value);
@@ -376,7 +377,100 @@
             sliderEl.addEventListener('change', endInteraction, { passive: true });
             sliderEl.addEventListener('blur', endInteraction, { passive: true });
 
-            inited = true; updateAppearance(); updateActiveButtons();
+            // --- UI 이동 및 클릭 방지 로직 시작 ---
+            const dragState = {
+                isDragging: false,
+                hasMoved: false, // 드래그 여부 확인 플래그
+                startX: 0,
+                startY: 0,
+                initialTop: 0,
+                initialRight: 0,
+            };
+
+            // ** 수정된 클릭 핸들러 **
+            toggleBtn.addEventListener('click', (e) => {
+                // 드래그 직후에 발생하는 의도치 않은 클릭 이벤트를 무시
+                if (dragState.hasMoved) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+                state.isMinimized = !state.isMinimized;
+                updateAppearance();
+            });
+
+            const onDragStart = (e) => {
+                if (e.target !== toggleBtn) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                dragState.isDragging = true;
+                dragState.hasMoved = false; // 드래그 시작 시 초기화
+
+                const pos = e.touches ? e.touches[0] : e;
+                dragState.startX = pos.clientX;
+                dragState.startY = pos.clientY;
+
+                const rect = container.getBoundingClientRect();
+                dragState.initialTop = rect.top;
+                dragState.initialRight = window.innerWidth - rect.right;
+
+                container.style.transform = 'none';
+                toggleBtn.style.cursor = 'grabbing';
+                document.body.style.userSelect = 'none';
+
+                document.addEventListener('mousemove', onDragMove, { passive: false });
+                document.addEventListener('mouseup', onDragEnd, { passive: false });
+                document.addEventListener('touchmove', onDragMove, { passive: false });
+                document.addEventListener('touchend', onDragEnd, { passive: false });
+            };
+
+            const onDragMove = (e) => {
+                if (!dragState.isDragging) return;
+                e.preventDefault();
+
+                dragState.hasMoved = true; // 이동이 감지되면 플래그 설정
+
+                const pos = e.touches ? e.touches[0] : e;
+                const deltaX = pos.clientX - dragState.startX;
+                const deltaY = pos.clientY - dragState.startY;
+
+                let newTop = dragState.initialTop + deltaY;
+                let newRight = dragState.initialRight - deltaX;
+
+                const containerRect = container.getBoundingClientRect();
+                newTop = Math.max(0, Math.min(window.innerHeight - containerRect.height, newTop));
+                newRight = Math.max(0, Math.min(window.innerWidth - containerRect.width, newRight));
+
+                container.style.top = `${newTop}px`;
+                container.style.right = `${newRight}px`;
+                container.style.left = 'auto';
+                container.style.bottom = 'auto';
+            };
+
+            const onDragEnd = () => {
+                if (!dragState.isDragging) return;
+                dragState.isDragging = false;
+
+                toggleBtn.style.cursor = 'grab';
+                document.body.style.userSelect = '';
+
+                document.removeEventListener('mousemove', onDragMove);
+                document.removeEventListener('mouseup', onDragEnd);
+                document.removeEventListener('touchmove', onDragMove);
+                document.removeEventListener('touchend', onDragEnd);
+
+                // 위치 저장 로직 제거됨
+            };
+
+            toggleBtn.addEventListener('mousedown', onDragStart);
+            toggleBtn.addEventListener('touchstart', onDragStart, { passive: false });
+            // --- UI 이동 및 클릭 방지 로직 종료 ---
+
+            inited = true;
+            // 위치 로드 로직 제거됨
+            updateAppearance();
+            updateActiveButtons();
         }
         return { init: () => safeExec(init, 'speedSlider.init'), show: () => { const el = state.ui.shadowRoot?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'flex'; }, hide: () => { const el = state.ui.shadowRoot?.getElementById('vm-speed-slider-container'); if (el) el.style.display = 'none'; }, isMinimized: () => state.isMinimized };
     })();
