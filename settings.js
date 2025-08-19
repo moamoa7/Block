@@ -2,7 +2,7 @@
 // @name         Video_Image_Control
 // @namespace    https://com/
 // @version      35.4
-// @description  비디오 반복 재생시 오디오 문제로 재생 안되는 문제 해결
+// @description  UI 아이콘 크기 재통일
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
