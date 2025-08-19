@@ -29,7 +29,7 @@
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.05, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.6', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 105 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
         SHARPEN_LEVELS: {  mobile: '0 -1.2 0 -1.2 5.8 -1.2 0 -1.2 0', high: '0 -0.7 0 -0.7 3.8 -0.7 0 -0.7 0', medium: '0 -0.5 0 -0.5 3.0 -0.5 0 -0.5 0', low: '0 -0.3 0 -0.3 2.2 -0.3 0 -0.3 0', off: '0 -0.1 0 -0.1 1.4 -0.1 0 -0.1 0', },
-        IMAGE_SHARPEN_LEVELS: { mobile: '0 -1.2 0 -1.2 5.8 -1.2 0 -1.2 0', high: '0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0', medium: '0 -0.25 0 -0.25 2.0 -0.25 0 -0.25 0', low: '0 -0.15 0 -0.15 1.6 -0.15 0 -0.15 0', off: '0 -0.1 0 -0.1 1.4 -0.1 0 -0.1 0', },
+        IMAGE_SHARPEN_LEVELS: { mobile: '0 -1 0 -1 5.0 -1 0 -1 0', high: '0 -0.5 0 -0.5 3.0 -0.5 0 -0.5 0', medium: '0 -0.3 0 -0.3 2.2 -0.3 0 -0.3 0', low: '0 -0.15 0 -0.15 1.6 -0.15 0 -0.15 0', off: '0 -0.1 0 -0.1 1.4 -0.1 0 -0.1 0', },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] }, },
         FILTER_EXCLUSION_DOMAINS: [],
         IMAGE_FILTER_EXCLUSION_DOMAINS: [],
