@@ -394,6 +394,12 @@
         filterManager.init();
         imageFilterManager.init();
         speedSlider.init(); // 로딩 UI 생성
+        setTimeout(() => {
+            const container = state.ui.shadowRoot?.getElementById('vsc-container');
+            if (container && !container.dataset.rendered) {
+                speedSlider.hide();
+            }
+        }, 3000);
         dragBar.init();
         mediaSessionManager.init();
 
