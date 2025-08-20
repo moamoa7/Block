@@ -71,7 +71,7 @@
     function calculateSharpenMatrix(level) {
         const parsedLevel = parseInt(level, 10);
         if (isNaN(parsedLevel) || parsedLevel === 0) return '0 0 0 0 1 0 0 0 0';
-        const intensity = 1.4 + (parsedLevel - 1) * (4.6 / 14);
+        const intensity = 1.4 + (parsedLevel - 1) * (8.6 / 14);
         const off = (1 - intensity) / 4;
         return `0 ${off} 0 ${off} ${intensity} ${off} 0 ${off} 0`;
     }
