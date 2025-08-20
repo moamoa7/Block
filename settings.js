@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      40.6
+// @version      40.7
 // @description  모바일 UI 투명도 문제 최종 수정
 // @match        *://*/*
 // @grant        none
@@ -367,7 +367,6 @@
             dragHandleBtn.addEventListener('touchstart', onDragStart, { passive: false });
 
             container.addEventListener('click', resetFadeTimer);
-            container.addEventListener('touchstart', resetFadeTimer, { passive: true });
 
             updateActiveButtons();
         }
