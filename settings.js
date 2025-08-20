@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      40.2
-// @description  모바일 ui클릭 후 흐려지지 않는 문제 수정
+// @version      40.3
+// @description  모바일 ui클릭 후 흐려지지 않는 문제 재수정
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -160,10 +160,22 @@
     const uiManager = (() => { let host; function init() { if (host) return; host = document.createElement('div'); host.id = 'vsc-ui-host'; Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX }); state.ui.shadowRoot = host.attachShadow({ mode: 'open' }); const style = document.createElement('style'); style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; } #vsc-container { position: fixed; top: 50%; right: 10px; background: rgba(0,0,0,0.1); padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); } #vsc-container.touched, #vsc-container.menu-visible { opacity: 1; } @media (hover: hover) { #vsc-container:hover { opacity: 1;} } .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 30px; position: relative; } .vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 5px; background: rgba(0,0,0,0.7); border-radius: 4px; padding: 5px; align-items: center; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-submenu .vsc-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; } .vsc-btn-main { font-size: 16px; padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; } .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: 4px; padding: 4px 6px; font-size: 13px; } #vsc-time-display, #vsc-delay-info { position:fixed; z-index:10001; background:rgba(0,0,0,.7); color:#fff; padding:5px 10px; border-radius:5px; font-size:1.2rem; pointer-events:none; } #vsc-time-display { top:50%; left:50%; transform:translate(-50%,-50%); } #vsc-delay-info { bottom: 10px; right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; } .vsc-loading-indicator { font-size: 18px; padding: 8px; color: white; }`; state.ui.shadowRoot.appendChild(style); (document.body || document.documentElement).appendChild(host); } return { init: () => safeExec(init, 'uiManager.init'), moveUiTo: (target) => { if (host && target && host.parentNode !== target) target.appendChild(host); } }; })();
     const speedSlider = (() => {
     let inited = false, fadeOutTimer;
-    // --- 변경점 1: hideAllSubMenus 함수를 상위 스코프에 미리 선언 ---
-    let hideAllSubMenus = () => {};
+    let hideAllSubMenus = () => { };
 
     const createButton = (id, title, text, className = 'vsc-btn') => { const btn = document.createElement('button'); if (id) btn.id = id; btn.className = className; btn.title = title; btn.textContent = text; return btn; };
+
+    // 타이머 설정 함수를 분리하여 재사용하기 쉽게 만듦
+    const resetFadeTimer = () => {
+        const container = state.ui.shadowRoot?.getElementById('vsc-container');
+        if (!container) return;
+
+        clearTimeout(fadeOutTimer);
+        container.classList.add('touched');
+        fadeOutTimer = setTimeout(() => {
+            container.classList.remove('touched');
+            hideAllSubMenus(); // 타이머 만료 시 메뉴도 함께 닫음
+        }, 3000);
+    };
 
     function init() {
         if (inited) return;
@@ -190,7 +202,8 @@
         container.innerHTML = '';
         container.dataset.rendered = 'true';
 
-        const createFilterControl = (id, labelText, mainIcon, changeHandler) => { const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group'; const mainBtn = createButton(null, labelText, mainIcon, 'vsc-btn vsc-btn-main'); const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu'; const select = document.createElement('select'); select.className = 'vsc-select'; const titleOption = document.createElement('option'); titleOption.value = ""; titleOption.textContent = labelText; titleOption.disabled = true; select.appendChild(titleOption); const offOption = document.createElement('option'); offOption.value = '0'; offOption.textContent = '꺼짐'; select.appendChild(offOption); for (let i = 1; i <= 15; i++) { const option = document.createElement('option'); option.value = i; option.textContent = `${i}단계`; select.appendChild(option); } select.addEventListener('change', e => { changeHandler(e.target.value); setTimeout(() => group.classList.remove('submenu-visible'), 200); }); subMenu.appendChild(select); group.append(mainBtn, subMenu); return group; };
+        // 'select' 메뉴 변경 시 hideAllSubMenus를 호출하도록 버그 수정
+        const createFilterControl = (id, labelText, mainIcon, changeHandler) => { const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group'; const mainBtn = createButton(null, labelText, mainIcon, 'vsc-btn vsc-btn-main'); const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu'; const select = document.createElement('select'); select.className = 'vsc-select'; const titleOption = document.createElement('option'); titleOption.value = ""; titleOption.textContent = labelText; titleOption.disabled = true; select.appendChild(titleOption); const offOption = document.createElement('option'); offOption.value = '0'; offOption.textContent = '꺼짐'; select.appendChild(offOption); for (let i = 1; i <= 15; i++) { const option = document.createElement('option'); option.value = i; option.textContent = `${i}단계`; select.appendChild(option); } select.addEventListener('change', e => { changeHandler(e.target.value); hideAllSubMenus(); }); subMenu.appendChild(select); group.append(mainBtn, subMenu); return group; };
         const videoControlGroup = createFilterControl('vsc-video-controls', '영상 선명도', '🌞', setVideoFilterLevel);
         const imageControlGroup = createFilterControl('vsc-image-controls', '이미지 선명도', '🎨', setImageFilterLevel);
         const audioControlGroup = document.createElement('div'); audioControlGroup.id = 'vsc-audio-controls'; audioControlGroup.className = 'vsc-control-group'; const audioBtnMain = createButton('vsc-audio-btn', '오디오 프리셋', '🎧', 'vsc-btn vsc-btn-main'); const audioSubMenu = document.createElement('div'); audioSubMenu.className = 'vsc-submenu'; const audioModes = { '🎙️': 'speech', '🎬': 'movie', '🎵': 'music', '🚫': 'off' }; Object.entries(audioModes).forEach(([text, mode]) => { const btn = createButton(null, `오디오: ${mode}`, text); btn.dataset.mode = mode; audioSubMenu.appendChild(btn); }); audioControlGroup.append(audioBtnMain, audioSubMenu);
@@ -249,18 +262,26 @@
 
         const controlGroups = [videoControlGroup, imageControlGroup, audioControlGroup, speedControlGroup];
 
-        // --- 변경점 2: 상위 스코프에 선언된 함수에 실제 로직 할당 ---
-        // const hideAllSubMenus = () => { ... }; -> hideAllSubMenus = () => { ... };
         hideAllSubMenus = () => {
             controlGroups.forEach(group => group.classList.remove('submenu-visible'));
             container.classList.remove('menu-visible');
         };
 
-        const toggleSubMenu = (groupToShow) => { const isOpening = !groupToShow.classList.contains('submenu-visible'); hideAllSubMenus(); if (isOpening) { groupToShow.classList.add('submenu-visible'); container.classList.add('menu-visible'); } };
-        videoControlGroup.querySelector('.vsc-btn-main').addEventListener('click', () => toggleSubMenu(videoControlGroup));
-        imageControlGroup.querySelector('.vsc-btn-main').addEventListener('click', () => toggleSubMenu(imageControlGroup));
-        audioBtnMain.addEventListener('click', () => toggleSubMenu(audioControlGroup));
-        speedBtnMain.addEventListener('click', () => toggleSubMenu(speedControlGroup));
+        const handleMenuButtonClick = (e, groupToShow) => {
+            e.stopPropagation(); // 이벤트가 컨테이너로 전파되는 것을 막음
+            const isOpening = !groupToShow.classList.contains('submenu-visible');
+            hideAllSubMenus();
+            if (isOpening) {
+                groupToShow.classList.add('submenu-visible');
+                container.classList.add('menu-visible');
+            }
+            resetFadeTimer(); // 버튼을 눌렀을 때도 타이머를 리셋
+        };
+
+        videoControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, videoControlGroup));
+        imageControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, imageControlGroup));
+        audioBtnMain.addEventListener('click', (e) => handleMenuButtonClick(e, audioControlGroup));
+        speedBtnMain.addEventListener('click', (e) => handleMenuButtonClick(e, speedControlGroup));
 
         const updateActiveButtons = () => {
             const videoSelect = shadowRoot.querySelector('#vsc-video-controls select');
@@ -276,7 +297,7 @@
             const currentAudio = state.currentAudioMode;
             audioSubMenu.querySelectorAll('.vsc-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === currentAudio));
         };
-        audioSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vsc-btn')) { audioManager.setAudioMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); } });
+        audioSubMenu.addEventListener('click', (e) => { if (e.target.matches('.vsc-btn')) { e.stopPropagation(); audioManager.setAudioMode(e.target.dataset.mode); hideAllSubMenus(); updateActiveButtons(); resetFadeTimer(); } });
 
         const dragState = { isDragging: false, hasMoved: false, startX: 0, startY: 0, initialTop: 0, initialRight: 0 };
         const DRAG_THRESHOLD = 5;
@@ -334,20 +355,9 @@
         dragHandleBtn.addEventListener('mousedown', onDragStart);
         dragHandleBtn.addEventListener('touchstart', onDragStart, { passive: false });
 
-        const activateAndFade = () => {
-            const container = state.ui.shadowRoot?.getElementById('vsc-container');
-            if (!container) return; // container가 없는 경우를 대비
-
-            clearTimeout(fadeOutTimer);
-            container.classList.add('touched');
-            fadeOutTimer = setTimeout(() => {
-                container.classList.remove('touched');
-                // --- 변경점 3: 3초 후 UI가 흐려질 때 서브메뉴도 함께 닫음 ---
-                hideAllSubMenus();
-            }, 3000);
-        };
-        container.addEventListener('click', activateAndFade);
-        container.addEventListener('touchstart', activateAndFade, { passive: true });
+        // 컨테이너 클릭/터치 시에는 타이머 리셋만 담당하도록 단순화
+        container.addEventListener('click', resetFadeTimer);
+        container.addEventListener('touchstart', resetFadeTimer, { passive: true });
 
         updateActiveButtons();
     }
