@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      40.3
-// @description  모바일 ui클릭 후 흐려지지 않는 문제 재수정
+// @version      40.4
+// @description  모바일 ui클릭 후 흐려지지 않는 문제 재재수정
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -173,7 +173,7 @@
         container.classList.add('touched');
         fadeOutTimer = setTimeout(() => {
             container.classList.remove('touched');
-            hideAllSubMenus(); // 타이머 만료 시 메뉴도 함께 닫음
+            //hideAllSubMenus(); // 타이머 만료 시 메뉴도 함께 닫음
         }, 3000);
     };
 
