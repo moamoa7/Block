@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Final Debug)
+// @name         Video_Image_Control
 // @namespace    https://com/
-// @version      41.1-debug
-// @description  모바일 UI 타이머 문제의 근본 원인 진단을 위한 최종 스크립트
+// @version      42.0
+// @description  모바일 UI 타이머 페이드 아웃 문제 최종 수정 (직접 스타일 제어)
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -21,7 +21,7 @@
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 15 : 10,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 10 : 5,
         DEFAULT_AUDIO_PRESET: 'movie',
-        DEBUG: true, // 디버그 로그 활성화
+        DEBUG: false,
         DEBOUNCE_DELAY: 350,
         MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05,
@@ -71,7 +71,7 @@
             Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX });
             state.ui.shadowRoot = host.attachShadow({ mode: 'open' });
             const style = document.createElement('style');
-            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; } #vsc-container { position: fixed; top: 50%; right: 10px; background: rgba(0,0,0,0.1); padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s, background-color 0.2s; transform: translateY(-50%); } #vsc-container.touched { opacity: 1; } @media (hover: hover) { #vsc-container:hover { opacity: 1;} } #vsc-container.debug-active { background-color: rgba(0, 0, 255, 0.5) !important; } #vsc-container.debug-fired { background-color: rgba(255, 0, 0, 0.5) !important; } .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 30px; position: relative; } .vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 5px; background: rgba(0,0,0,0.7); border-radius: 4px; padding: 5px; align-items: center; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-submenu .vsc-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; } .vsc-btn-main { font-size: 16px; padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; } .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: 4px; padding: 4px 6px; font-size: 13px; } #vsc-time-display, #vsc-delay-info { position:fixed; z-index:10001; background:rgba(0,0,0,.7); color:#fff; padding:5px 10px; border-radius:5px; font-size:1.2rem; pointer-events:none; } #vsc-time-display { top:50%; left:50%; transform:translate(-50%,-50%); } #vsc-delay-info { bottom: 10px; right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; } .vsc-loading-indicator { font-size: 18px; padding: 8px; color: white; }`;
+            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; } #vsc-container { position: fixed; top: 50%; right: 10px; background: rgba(0,0,0,0.1); padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); } #vsc-container.touched { opacity: 1; } @media (hover: hover) { #vsc-container:hover { opacity: 1;} } .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 30px; position: relative; } .vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 5px; background: rgba(0,0,0,0.7); border-radius: 4px; padding: 5px; align-items: center; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-submenu .vsc-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; } .vsc-btn-main { font-size: 16px; padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; } .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: 4px; padding: 4px 6px; font-size: 13px; } #vsc-time-display, #vsc-delay-info { position:fixed; z-index:10001; background:rgba(0,0,0,.7); color:#fff; padding:5px 10px; border-radius:5px; font-size:1.2rem; pointer-events:none; } #vsc-time-display { top:50%; left:50%; transform:translate(-50%,-50%); } #vsc-delay-info { bottom: 10px; right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; } .vsc-loading-indicator { font-size: 18px; padding: 8px; color: white; }`;
             state.ui.shadowRoot.appendChild(style);
             (document.body || document.documentElement).appendChild(host);
         }
@@ -87,25 +87,16 @@
             const container = state.ui.shadowRoot?.getElementById('vsc-container');
             if (!container) return;
 
-            container.classList.remove('debug-fired');
-            container.classList.add('debug-active');
-            console.log('[VSC DEBUG] Timer reset! UI background should be BLUE.');
-
             clearTimeout(fadeOutTimer);
+
+            // Make it opaque: remove any inline style and add the .touched class
+            container.style.opacity = '';
             container.classList.add('touched');
 
             fadeOutTimer = setTimeout(() => {
-                container.classList.remove('debug-active');
-                container.classList.add('debug-fired');
-                console.log('[VSC DEBUG] 3-second timer fired! UI background should be RED.');
-                
                 container.classList.remove('touched');
-
-                // Turn red back to normal after a short delay for visibility
-                setTimeout(() => {
-                    container.classList.remove('debug-fired');
-                }, 500);
-
+                // BRUTE FORCE FIX: Directly set the inline style to guarantee the fade-out.
+                container.style.opacity = '0.3';
             }, 3000);
         };
 
@@ -174,7 +165,7 @@
     function cleanup() { safeExec(() => { if (mainObserver) mainObserver.disconnect(); if (intersectionObserver) intersectionObserver.disconnect(); document.removeEventListener('visibilitychange', visibilityChangeListener); document.removeEventListener('fullscreenchange', fullscreenChangeListener); window.removeEventListener('beforeunload', beforeUnloadListener); if (spaNavigationHandler) spaNavigationHandler.cleanup(); state.activeMedia.forEach(detachMediaListeners); state.activeImages.forEach(detachImageListeners); autoDelayManager.stop(); const host = document.getElementById('vsc-ui-host'); if(host) host.remove(); }, 'cleanup'); }
     function start() {
         resetState();
-        console.log(`🎉 Video_Image_Control (v${GM_info?.script?.version || '41.1-debug'}) Initialized.`);
+        console.log(`🎉 Video_Image_Control (v42.0) Initialized.`);
         uiManager.init();
         filterManager.init();
         imageFilterManager.init();
