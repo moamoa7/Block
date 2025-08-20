@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      42.1
-// @description  초기 아이콘 크기 통일
+// @version      43.0
+// @description  영상/이미지 필터, 오디오 EQ, 사용자 설정, 모바일 제스처, 자동 가로모드를 지원하는 통합 컨트롤러
 // @match        *://*/*
-// @grant        none
 // @run-at       document-start
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_registerMenuCommand
 // ==/UserScript==
 
 (function () {
@@ -21,6 +23,7 @@
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 15 : 10,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 10 : 5,
         DEFAULT_AUDIO_PRESET: 'movie',
+        LONG_PRESS_RATE: 4.0, // NEW: 길게 눌러 배속 값
         DEBUG: false,
         DEBOUNCE_DELAY: 350,
         MAX_Z_INDEX: 2147483647,
@@ -41,9 +44,68 @@
         MAX_EQ_BANDS: 7,
         DELAY_ADJUSTER: { CHECK_INTERVAL: 100, HISTORY_DURATION: 2000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1000, SPEED_LEVELS: [ { minDelay: 5000, playbackRate: 1.3 }, { minDelay: 3000, playbackRate: 1.25 }, { minDelay: 2500, playbackRate: 1.2 }, { minDelay: 2000, playbackRate: 1.15 }, { minDelay: 1500, playbackRate: 1.1 }, { minDelay: 0, playbackRate: 1.05 } ], NORMAL_RATE: 1.0 }
     };
+
+    // NEW: 사용자 설정 관리 모듈 시작
+    const settingsManager = (() => {
+        const settings = {};
+        const definitions = {
+            videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 15 },
+            imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 15 },
+            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'speech', 'movie', 'music'] },
+            longPressRate: { name: '길게 눌러 재생 배속', default: CONFIG.LONG_PRESS_RATE, type: 'number', min: 1, max: 16 }
+        };
+
+        function init() {
+            Object.keys(definitions).forEach(key => {
+                const def = definitions[key];
+                settings[key] = GM_getValue(key, def.default);
+
+                GM_registerMenuCommand(`${def.name} 설정`, () => {
+                    let promptText, currentValue = GM_getValue(key, def.default);
+                    if (def.type === 'number') {
+                        promptText = `${def.name} 값을 입력하세요.\n(범위: ${def.min}-${def.max}, 현재값: ${currentValue})`;
+                    } else if (def.type === 'string' && def.options) {
+                        promptText = `${def.name} 값을 입력하세요.\n(옵션: ${def.options.join(', ')}, 현재값: ${currentValue})`;
+                    }
+                    const newValue = prompt(promptText, currentValue);
+
+                    if (newValue === null) return;
+
+                    let processedValue = newValue;
+                    if (def.type === 'number') {
+                        processedValue = parseFloat(newValue);
+                        if (isNaN(processedValue) || processedValue < def.min || processedValue > def.max) {
+                            alert(`잘못된 값입니다. ${def.min}과 ${def.max} 사이의 숫자를 입력해주세요.`);
+                            return;
+                        }
+                    } else if (def.type === 'string' && def.options) {
+                        if (!def.options.includes(newValue)) {
+                            alert(`잘못된 값입니다. 다음 중 하나를 선택하세요: ${def.options.join(', ')}`);
+                            return;
+                        }
+                    }
+                    set(key, processedValue);
+                    alert(`${def.name}이(가) '${processedValue}'(으)로 설정되었습니다. 변경사항을 즉시 적용하려면 페이지를 새로고침하세요.`);
+                });
+            });
+        }
+
+        const get = (key) => settings[key];
+        const set = (key, value) => {
+            settings[key] = value;
+            GM_setValue(key, value);
+        };
+
+        return { init, get, set };
+    })();
+    // NEW: 사용자 설정 관리 모듈 종료
+
     let state = {};
-    function resetState() { state = { activeMedia: new Set(), processedMedia: new WeakSet(), activeImages: new Set(), processedImages: new WeakSet(), mediaListenerMap: new WeakMap(), isUiVisible: false, isMinimized: true, isDragSeekEnabled: false, currentVideoFilterLevel: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL || 0, currentImageFilterLevel: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL || 0, currentAudioMode: CONFIG.DEFAULT_AUDIO_PRESET || 'off', ui: { shadowRoot: null }, delayHistory: [], isDelayAdjusting: false, delayCheckInterval: null, currentPlaybackRate: 1.0 }; }
-    resetState();
+    function resetState() { state = { activeMedia: new Set(), processedMedia: new WeakSet(), activeImages: new Set(), processedImages: new WeakSet(), mediaListenerMap: new WeakMap(), isUiVisible: false, isMinimized: true, isDragSeekEnabled: false, currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || 0, currentImageFilterLevel: settingsManager.get('imageFilterLevel') || 0, currentAudioMode: settingsManager.get('audioPreset') || 'off', ui: { shadowRoot: null }, delayHistory: [], isDelayAdjusting: false, delayCheckInterval: null, currentPlaybackRate: 1.0 }; }
+
+    // MODIFIED: resetState()는 settingsManager.init() 이후에 호출되어야 함
+    // resetState();
+
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn.apply(this, args), wait); }; };
     let idleCallbackId;
@@ -58,9 +120,13 @@
     class SvgFilterManager { #isInitialized = false; #styleElement = null; #svgNode = null; #options; constructor(options) { this.#options = options; } getSvgNode() { return this.#svgNode; } isInitialized() { return this.#isInitialized; } toggleStyleSheet(enable) { if (this.#styleElement) this.#styleElement.media = enable ? 'all' : 'none'; } init() { if (this.#isInitialized) return; safeExec(() => { const { svgNode, styleElement } = this.#createElements(); this.#svgNode = svgNode; this.#styleElement = styleElement; (document.body || document.documentElement).appendChild(this.#svgNode); (document.head || document.documentElement).appendChild(this.#styleElement); this.#isInitialized = true; }, `${this.constructor.name}.init`); } setSharpenMatrix(matrix, rootNode = document) { if (!this.isInitialized()) return; const matrixEl = rootNode.getElementById(this.#options.matrixId); if (matrixEl && matrixEl.getAttribute('kernelMatrix') !== matrix) { matrixEl.setAttribute('kernelMatrix', matrix); } } #createElements() { const createSvgElement = (tag, attr) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); return el; }; const { settings, svgId, styleId, matrixId, className } = this.#options; const svg = createSvgElement('svg', { id: svgId, style: 'display:none; position:absolute; width:0; height:0;' }); const soft = createSvgElement('filter', { id: `${settings.SHARPEN_ID}_soft` }); soft.appendChild(createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION })); const sharp = createSvgElement('filter', { id: settings.SHARPEN_ID }); sharp.appendChild(createSvgElement('feConvolveMatrix', { id: matrixId, order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', mode: 'multiply' })); const gamma = createSvgElement('filter', { id: `${settings.SHARPEN_ID}_gamma` }); const gammaTransfer = createSvgElement('feComponentTransfer'); ['R', 'G', 'B'].forEach(ch => gammaTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() }))); gamma.appendChild(gammaTransfer); const linear = createSvgElement('filter', { id: `${settings.SHARPEN_ID}_linear` }); const linearTransfer = createSvgElement('feComponentTransfer'); const intercept = settings.SHADOWS_VALUE / 200; const slope = 1 + (settings.HIGHLIGHTS_VALUE / 100); ['R', 'G', 'B'].forEach(ch => linearTransfer.appendChild(createSvgElement(`feFunc${ch}`, { type: 'linear', slope: slope.toString(), intercept: intercept.toString() }))); linear.appendChild(linearTransfer); svg.append(soft, sharp, gamma, linear); const style = document.createElement('style'); style.id = styleId; style.textContent = `.${className} { filter: saturate(${settings.SATURATION_VALUE}%) url(#${gamma.id}) url(#${soft.id}) url(#${sharp.id}) url(#${linear.id}) !important; } .vsc-gpu-accelerated { transform: translateZ(0); will-change: transform; }`; return { svgNode: svg, styleElement: style }; } }
     const filterManager = new SvgFilterManager({ settings: isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', matrixId: 'vsc-dynamic-convolve-matrix', className: 'vsc-video-filter-active' });
     const imageFilterManager = new SvgFilterManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
-    function setVideoFilterLevel(level) { if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname) || !filterManager.isInitialized()) return; const newLevel = parseInt(level, 10); state.currentVideoFilterLevel = isNaN(newLevel) ? 0 : newLevel; const newMatrix = calculateSharpenMatrix(state.currentVideoFilterLevel); filterManager.setSharpenMatrix(newMatrix); (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => filterManager.setSharpenMatrix(newMatrix, root)); state.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') updateVideoFilterState(media); }); }
-    function setImageFilterLevel(level) { if (CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS.includes(location.hostname) || !imageFilterManager.isInitialized()) return; const newLevel = parseInt(level, 10); state.currentImageFilterLevel = isNaN(newLevel) ? 0 : newLevel; const newMatrix = calculateSharpenMatrix(state.currentImageFilterLevel); imageFilterManager.setSharpenMatrix(newMatrix); (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => imageFilterManager.setSharpenMatrix(newMatrix, root)); state.activeImages.forEach(image => updateImageFilterState(image)); }
-    const audioManager = (() => { const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname); let ctx = null; let masterGain; const eqFilters = []; const sourceMap = new WeakMap(); function ensureContext() { if (ctx || isAudioDisabledForSite) return; try { ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); masterGain = ctx.createGain(); for (let i = 0; i < CONFIG.MAX_EQ_BANDS; i++) { const eqFilter = ctx.createBiquadFilter(); eqFilter.type = 'peaking'; eqFilters.push(eqFilter); if (i > 0) { eqFilters[i - 1].connect(eqFilter); } } if (eqFilters.length > 0) { eqFilters[eqFilters.length - 1].connect(masterGain); } masterGain.connect(ctx.destination); } catch (e) { if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e); ctx = null; } } function connectMedia(media) { if (!ctx) return; if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); } let rec = sourceMap.get(media); if (!rec) { const source = ctx.createMediaElementSource(media); rec = { source }; sourceMap.set(media, rec); } try { rec.source.disconnect(); } catch (e) {} const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain; rec.source.connect(firstNode); applyAudioPresetToNodes(); } function applyAudioPresetToNodes() { if (!ctx) return; const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off; const now = ctx.currentTime; const rampTime = 0.05; masterGain.gain.cancelScheduledValues(now); masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime); for (let i = 0; i < eqFilters.length; i++) { const band = preset.eq[i]; const filter = eqFilters[i]; filter.gain.cancelScheduledValues(now); filter.frequency.cancelScheduledValues(now); filter.Q.cancelScheduledValues(now); if (band) { filter.frequency.setValueAtTime(band.freq, now); filter.gain.linearRampToValueAtTime(band.gain, now + rampTime); filter.Q.setValueAtTime(1.41, now); } else { filter.frequency.setValueAtTime(1000, now); filter.Q.setValueAtTime(1.41, now); filter.gain.linearRampToValueAtTime(0, now + rampTime); } } } function processMedia(media) { if (isAudioDisabledForSite) return; media.addEventListener('play', () => { ensureContext(); if (!ctx) return; if (!sourceMap.has(media)) { connectMedia(media); } else { resumeContext(); } }); } function cleanupMedia(media) { if (isAudioDisabledForSite || !ctx) return; const rec = sourceMap.get(media); if (!rec) return; try { rec.source.disconnect(); } catch (err) { if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err); } } function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; applyAudioPresetToNodes(); } return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext: () => safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(()=>{}); }), resumeContext: () => safeExec(() => { if(ctx && ctx.state === 'suspended') ctx.resume().catch(()=>{}); }) }; })();
+
+    function setVideoFilterLevel(level) { if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname) || !filterManager.isInitialized()) return; const newLevel = parseInt(level, 10); state.currentVideoFilterLevel = isNaN(newLevel) ? 0 : newLevel; settingsManager.set('videoFilterLevel', state.currentVideoFilterLevel); const newMatrix = calculateSharpenMatrix(state.currentVideoFilterLevel); filterManager.setSharpenMatrix(newMatrix); (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => filterManager.setSharpenMatrix(newMatrix, root)); state.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') updateVideoFilterState(media); }); }
+    function setImageFilterLevel(level) { if (CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS.includes(location.hostname) || !imageFilterManager.isInitialized()) return; const newLevel = parseInt(level, 10); state.currentImageFilterLevel = isNaN(newLevel) ? 0 : newLevel; settingsManager.set('imageFilterLevel', state.currentImageFilterLevel); const newMatrix = calculateSharpenMatrix(state.currentImageFilterLevel); imageFilterManager.setSharpenMatrix(newMatrix); (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => imageFilterManager.setSharpenMatrix(newMatrix, root)); state.activeImages.forEach(image => updateImageFilterState(image)); }
+
+    const audioManager = (() => { const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname); let ctx = null; let masterGain; const eqFilters = []; const sourceMap = new WeakMap(); function ensureContext() { if (ctx || isAudioDisabledForSite) return; try { ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); masterGain = ctx.createGain(); for (let i = 0; i < CONFIG.MAX_EQ_BANDS; i++) { const eqFilter = ctx.createBiquadFilter(); eqFilter.type = 'peaking'; eqFilters.push(eqFilter); if (i > 0) { eqFilters[i - 1].connect(eqFilter); } } if (eqFilters.length > 0) { eqFilters[eqFilters.length - 1].connect(masterGain); } masterGain.connect(ctx.destination); } catch (e) { if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e); ctx = null; } } function connectMedia(media) { if (!ctx) return; if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); } let rec = sourceMap.get(media); if (!rec) { const source = ctx.createMediaElementSource(media); rec = { source }; sourceMap.set(media, rec); } try { rec.source.disconnect(); } catch (e) {} const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain; rec.source.connect(firstNode); applyAudioPresetToNodes(); } function applyAudioPresetToNodes() { if (!ctx) return; const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off; const now = ctx.currentTime; const rampTime = 0.05; masterGain.gain.cancelScheduledValues(now); masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime); for (let i = 0; i < eqFilters.length; i++) { const band = preset.eq[i]; const filter = eqFilters[i]; filter.gain.cancelScheduledValues(now); filter.frequency.cancelScheduledValues(now); filter.Q.cancelScheduledValues(now); if (band) { filter.frequency.setValueAtTime(band.freq, now); filter.gain.linearRampToValueAtTime(band.gain, now + rampTime); filter.Q.setValueAtTime(1.41, now); } else { filter.frequency.setValueAtTime(1000, now); filter.Q.setValueAtTime(1.41, now); filter.gain.linearRampToValueAtTime(0, now + rampTime); } } } function processMedia(media) { if (isAudioDisabledForSite) return; media.addEventListener('play', () => { ensureContext(); if (!ctx) return; if (!sourceMap.has(media)) { connectMedia(media); } else { resumeContext(); } }); } function cleanupMedia(media) { if (isAudioDisabledForSite || !ctx) return; const rec = sourceMap.get(media); if (!rec) return; try { rec.source.disconnect(); } catch (err) { if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err); } }
+    function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
+    return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext: () => safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(()=>{}); }), resumeContext: () => safeExec(() => { if(ctx && ctx.state === 'suspended') ctx.resume().catch(()=>{}); }) }; })();
 
     const uiManager = (() => {
         let host;
@@ -71,7 +137,8 @@
             Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX });
             state.ui.shadowRoot = host.attachShadow({ mode: 'open' });
             const style = document.createElement('style');
-            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; } #vsc-container { position: fixed; top: 50%; right: 10px; background: rgba(0,0,0,0.1); padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); } #vsc-container.touched { opacity: 1; } @media (hover: hover) { #vsc-container:hover { opacity: 1;} } .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 30px; position: relative; } .vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 5px; background: rgba(0,0,0,0.7); border-radius: 4px; padding: 5px; align-items: center; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-submenu .vsc-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; } .vsc-btn-main { font-size: 16px; padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; } .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: 4px; padding: 4px 6px; font-size: 13px; } #vsc-time-display, #vsc-delay-info { position:fixed; z-index:10001; background:rgba(0,0,0,.7); color:#fff; padding:5px 10px; border-radius:5px; font-size:1.2rem; pointer-events:none; } #vsc-time-display { top:50%; left:50%; transform:translate(-50%,-50%); } #vsc-delay-info { bottom: 10px; right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; } .vsc-loading-indicator { font-size: 16px; color: white; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }`;
+            // MODIFIED: #vsc-gesture-indicator 스타일 추가
+            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; } #vsc-container { position: fixed; top: 50%; right: 10px; background: rgba(0,0,0,0.1); padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); } #vsc-container.touched { opacity: 1; } @media (hover: hover) { #vsc-container:hover { opacity: 1;} } .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 30px; position: relative; } .vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 5px; background: rgba(0,0,0,0.7); border-radius: 4px; padding: 5px; align-items: center; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-submenu .vsc-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; } .vsc-btn-main { font-size: 16px; padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; } .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: 4px; padding: 4px 6px; font-size: 13px; } #vsc-time-display, #vsc-delay-info, #vsc-gesture-indicator { position:fixed; z-index:10001; background:rgba(0,0,0,.7); color:#fff; padding:5px 10px; border-radius:5px; font-size:1.2rem; pointer-events:none; } #vsc-time-display, #vsc-gesture-indicator { top:50%; left:50%; transform:translate(-50%,-50%); } #vsc-delay-info { bottom: 10px; right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; } .vsc-loading-indicator { font-size: 16px; color: white; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }`;
             state.ui.shadowRoot.appendChild(style);
             (document.body || document.documentElement).appendChild(host);
         }
@@ -82,26 +149,18 @@
         let inited = false, fadeOutTimer;
         let hideAllSubMenus = () => { };
         const createButton = (id, title, text, className = 'vsc-btn') => { const btn = document.createElement('button'); if (id) btn.id = id; btn.className = className; btn.title = title; btn.textContent = text; return btn; };
-
         const resetFadeTimer = () => {
             const container = state.ui.shadowRoot?.getElementById('vsc-container');
             if (!container) return;
-
             clearTimeout(fadeOutTimer);
-
-            // Make it opaque: remove any inline style and add the .touched class
             container.style.opacity = '';
             container.classList.add('touched');
-
             fadeOutTimer = setTimeout(() => {
                 container.classList.remove('touched');
-                // BRUTE FORCE FIX: Directly set the inline style to guarantee the fade-out.
                 container.style.opacity = '0.3';
             }, 3000);
         };
-
         function init() { if (inited) return; const shadowRoot = state.ui.shadowRoot; if (!shadowRoot) return; const container = document.createElement('div'); container.id = 'vsc-container'; const loadingIndicator = document.createElement('div'); loadingIndicator.className = 'vsc-loading-indicator'; loadingIndicator.textContent = '⏱️'; container.appendChild(loadingIndicator); shadowRoot.appendChild(container); inited = true; }
-
         function renderControls() {
             const shadowRoot = state.ui.shadowRoot;
             if (!shadowRoot) return;
@@ -142,6 +201,94 @@
     })();
 
     const dragBar = (() => { let display, inited = false; let dragState = { dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, accX: 0, directionConfirmed: false }; let lastDelta = 0; let rafScheduled = false; function findAssociatedVideo(target) { if (target.tagName === 'VIDEO') return target; const v = target.querySelector('video'); if (v) return v; if (target.parentElement) return target.parentElement.querySelector('video'); return null; } const getEventPosition = e => e.touches ? e.touches[0] : e; const onStart = e => safeExec(() => { if (e.touches && e.touches.length > 1 || (e.type === 'mousedown' && e.button !== 0)) return; const video = findAssociatedVideo(e.target); if (!video || !state.isDragSeekEnabled || e.composedPath().some(el => el.id === 'vsc-container')) return; const pos = getEventPosition(e); Object.assign(dragState, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false }); const options = { passive: false, capture: true }; document.addEventListener(e.type === 'mousedown' ? 'mousemove' : 'touchmove', onMove, options); document.addEventListener(e.type === 'mousedown' ? 'mouseup' : 'touchend', onEnd, options); }, 'drag.start'); const onMove = e => { if (!dragState.dragging) return; if (e.touches && e.touches.length > 1) return onEnd(); const pos = getEventPosition(e); dragState.currentX = pos.clientX; dragState.currentY = pos.clientY; if (!dragState.directionConfirmed) { const dX = Math.abs(dragState.currentX - dragState.startX); const dY = Math.abs(dragState.currentY - dragState.startY); if (dX > dY + 5) dragState.directionConfirmed = true; else if (dY > dX + 5) return onEnd(); } if (dragState.directionConfirmed) { e.preventDefault(); e.stopImmediatePropagation(); dragState.accX += dragState.currentX - dragState.startX; dragState.startX = dragState.currentX; if (!rafScheduled) { rafScheduled = true; window.requestAnimationFrame(() => { if (dragState.dragging) showDisplay(dragState.accX); rafScheduled = false; }); } } }; const onEnd = () => { if (!dragState.dragging) return; if (dragState.directionConfirmed) applySeek(); Object.assign(dragState, { dragging: false, accX: 0, directionConfirmed: false }); hideDisplay(); document.removeEventListener('mousemove', onMove, true); document.removeEventListener('touchmove', onMove, true); document.removeEventListener('mouseup', onEnd, true); document.removeEventListener('touchend', onEnd, true); }; const applySeek = () => { const delta = Math.round(dragState.accX / 2); if (Math.abs(delta) < 1) return; for (const media of state.activeMedia) if (isFinite(media.duration)) media.currentTime = Math.min(media.duration, Math.max(0, media.currentTime + delta)); }; const showDisplay = pixels => { const seconds = Math.round(pixels / 2); if (seconds === lastDelta) return; lastDelta = seconds; if (!display) { const root = state.ui.shadowRoot; if(!root) return; display = document.createElement('div'); display.id = 'vsc-time-display'; root.appendChild(display); } const sign = seconds < 0 ? '-' : '+'; const abs = Math.abs(seconds); const mins = Math.floor(abs / 60).toString().padStart(2, '0'); const secs = (abs % 60).toString().padStart(2, '0'); display.textContent = `${sign}${mins}:${secs}`; display.style.display = 'block'; display.style.opacity = '1'; }; const hideDisplay = () => { if (display) { display.style.opacity = '0'; setTimeout(() => { if (display) display.style.display = 'none'; }, 300); } }; return { init: () => { if (inited) return; safeExec(() => { document.addEventListener('mousedown', onStart, { capture: true }); document.addEventListener('touchstart', onStart, { passive: true, capture: true }); inited = true; }, 'drag.init'); } }; })();
+
+    // NEW: 모바일 제스처 관리자 시작
+    const mobileGestureManager = (() => {
+        let longPressTimer = null;
+        let gestureIndicator = null;
+        const LONG_PRESS_DELAY = 800;
+
+        const findAssociatedVideo = (target) => {
+            if (target.tagName === 'VIDEO') return target;
+            const v = target.closest('body, .player, #player, #movie_player')?.querySelector('video');
+            return v || null;
+        };
+
+        const showIndicator = (text) => {
+            if (!state.ui.shadowRoot) return;
+            if (!gestureIndicator) {
+                gestureIndicator = document.createElement('div');
+                gestureIndicator.id = 'vsc-gesture-indicator';
+                state.ui.shadowRoot.appendChild(gestureIndicator);
+            }
+            gestureIndicator.textContent = text;
+            gestureIndicator.style.display = 'block';
+            gestureIndicator.style.opacity = '1';
+        };
+
+        const hideIndicator = () => {
+            if (gestureIndicator) {
+                gestureIndicator.style.opacity = '0';
+                setTimeout(() => {
+                    if (gestureIndicator) gestureIndicator.style.display = 'none';
+                }, 300);
+            }
+        };
+
+        const onTouchStart = (e) => {
+            if (e.touches.length !== 1 || state.isDragSeekEnabled || e.composedPath().some(el => el.id === 'vsc-container')) return;
+
+            const video = findAssociatedVideo(e.target);
+            if (!video) return;
+
+            longPressTimer = setTimeout(() => {
+                safeExec(() => {
+                    video.dataset.originalRate = video.playbackRate;
+                    const highSpeedRate = settingsManager.get('longPressRate');
+                    video.playbackRate = highSpeedRate;
+                    showIndicator(`x ${highSpeedRate.toFixed(1)}`);
+                });
+                longPressTimer = null;
+            }, LONG_PRESS_DELAY);
+        };
+
+        const onTouchMove = () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        };
+
+        const onTouchEnd = () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            let rateChanged = false;
+            for (const media of state.activeMedia) {
+                if (media.dataset.originalRate) {
+                    safeExec(() => {
+                        media.playbackRate = parseFloat(media.dataset.originalRate);
+                        delete media.dataset.originalRate;
+                    });
+                    rateChanged = true;
+                }
+            }
+            if (rateChanged) hideIndicator();
+        };
+
+        const init = () => {
+            if (!isMobile) return;
+            document.addEventListener('touchstart', onTouchStart, { passive: true });
+            document.addEventListener('touchmove', onTouchMove, { passive: true });
+            document.addEventListener('touchend', onTouchEnd, { passive: true });
+            document.addEventListener('touchcancel', onTouchEnd, { passive: true });
+        };
+
+        return { init: () => safeExec(init, 'mobileGestureManager.init') };
+    })();
+    // NEW: 모바일 제스처 관리자 종료
+
     const mediaSessionManager = (() => { let inited = false; const getSeekTime = m => { if (!m || !isFinite(m.duration)) return 10; return Math.min(Math.floor(m.duration * CONFIG.SEEK_TIME_PERCENT), CONFIG.SEEK_TIME_MAX_SEC); }; const getText = sels => { if (!Array.isArray(sels)) return null; for (const sel of sels) { const el = document.querySelector(sel); if (el) return el.textContent.trim(); } return null; }; const getMeta = () => { const rule = CONFIG.SITE_METADATA_RULES[location.hostname]; if (rule) { return { title: getText(rule.title) || document.title, artist: getText(rule.artist) || location.hostname }; } return { title: document.title, artist: location.hostname }; }; const setAction = (act, h) => { try { navigator.mediaSession.setActionHandler(act, h); } catch (e) {} }; function init() { if (inited) return; inited = true; } function setSession(m) { if (!('mediaSession' in navigator)) return; safeExec(() => { const { title, artist } = getMeta(); navigator.mediaSession.metadata = new window.MediaMetadata({ title, artist, album: 'Video_Image_Control' }); setAction('play', () => m.play()); setAction('pause', () => m.pause()); setAction('seekbackward', () => { m.currentTime -= getSeekTime(m); }); setAction('seekforward', () => { m.currentTime += getSeekTime(m); }); setAction('seekto', d => { if (d.fastSeek && 'fastSeek' in m) { m.fastSeek(d.seekTime); } else { m.currentTime = d.seekTime; } }); }, 'mediaSession.set'); } function clearSession() { if (!('mediaSession' in navigator) || state.activeMedia.size > 0) return; safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(a => setAction(a, null)); }, 'mediaSession.clear'); } return { init, setSession, clearSession }; })();
     const autoDelayManager = (() => { let video = null; const D_CONFIG = CONFIG.DELAY_ADJUSTER; function findVideo() { return state.activeMedia.size > 0 ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') : null; } function calculateDelay(videoElement) { if (!videoElement || !videoElement.buffered || videoElement.buffered.length === 0) return null; try { const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1); const delay = bufferedEnd - videoElement.currentTime; return delay >= 0 ? delay * 1000 : null; } catch (e) { return null; } } function getPlaybackRate(averageDelay) { for (const config of D_CONFIG.SPEED_LEVELS) { if (averageDelay >= config.minDelay) return config.playbackRate; } return D_CONFIG.SPEED_LEVELS[D_CONFIG.SPEED_LEVELS.length - 1].playbackRate; } function adjustPlaybackRate(rate) { if (!video || Math.abs(video.playbackRate - rate) < 0.01) return; safeExec(() => { video.playbackRate = rate; state.currentPlaybackRate = rate; }); } function displayDelayInfo(averageDelay) { if (!state.ui.shadowRoot) return; let infoEl = state.ui.shadowRoot.getElementById('vsc-delay-info'); if (!infoEl) { infoEl = document.createElement('div'); infoEl.id = 'vsc-delay-info'; state.ui.shadowRoot.appendChild(infoEl); } const status = state.isDelayAdjusting ? `${state.currentPlaybackRate.toFixed(2)}x` : '1.00x'; infoEl.textContent = `딜레이: ${averageDelay.toFixed(0)}ms (${status})`; } function checkAndAdjust() { if (!video) video = findVideo(); if (!video) return; const currentDelay = calculateDelay(video); if (currentDelay === null) return; const now = Date.now(); state.delayHistory.push({ delay: currentDelay, timestamp: now }); state.delayHistory = state.delayHistory.filter(item => now - item.timestamp <= D_CONFIG.HISTORY_DURATION); if (state.delayHistory.length === 0) return; const averageDelay = state.delayHistory.reduce((sum, item) => sum + item.delay, 0) / state.delayHistory.length; displayDelayInfo(averageDelay); if (!state.isDelayAdjusting && averageDelay >= D_CONFIG.TRIGGER_DELAY) { state.isDelayAdjusting = true; } else if (state.isDelayAdjusting && averageDelay <= D_CONFIG.TARGET_DELAY) { state.isDelayAdjusting = false; adjustPlaybackRate(D_CONFIG.NORMAL_RATE); } if (state.isDelayAdjusting) { const newRate = getPlaybackRate(averageDelay); adjustPlaybackRate(newRate); } } function start() { if (state.delayCheckInterval) return; video = null; state.delayCheckInterval = setInterval(checkAndAdjust, D_CONFIG.CHECK_INTERVAL); } function stop() { if (state.delayCheckInterval) { clearInterval(state.delayCheckInterval); state.delayCheckInterval = null; } const infoEl = state.ui.shadowRoot?.getElementById('vsc-delay-info'); if(infoEl) infoEl.remove(); if(video) { safeExec(() => { if(video.playbackRate !== 1.0) video.playbackRate = 1.0; }); video = null;} } return { start, stop }; })();
     let intersectionObserver = null;
@@ -155,7 +302,7 @@
     function attachImageListeners(image) { if (!image || state.processedImages.has(image)) return; injectFiltersIntoRoot(image, imageFilterManager); state.processedImages.add(image); if (intersectionObserver) intersectionObserver.observe(image); }
     function detachMediaListeners(media) { if (!state.mediaListenerMap.has(media)) return; const listeners = state.mediaListenerMap.get(media); for (const [evt, listener] of Object.entries(listeners)) { media.removeEventListener(evt, listener); } audioManager.cleanupMedia(media); state.mediaListenerMap.delete(media); state.processedMedia.delete(media); if (intersectionObserver) intersectionObserver.unobserve(media); }
     function detachImageListeners(image) { if (!state.processedImages.has(image)) return; state.processedImages.delete(image); if (intersectionObserver) intersectionObserver.unobserve(image); }
-    const scanAndApply = () => { const allMedia = findAllMedia(); allMedia.forEach(attachMediaListeners); const oldMedia = new Set(state.activeMedia); state.activeMedia.clear(); allMedia.forEach(m => { if (m.isConnected) { state.activeMedia.add(m); oldMedia.delete(m); } }); oldMedia.forEach(detachMediaListeners); allMedia.forEach(m => { if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); } }); const allImages = findAllImages(); allImages.forEach(attachImageListeners); const oldImages = new Set(state.activeImages); state.activeImages.clear(); allImages.forEach(img => { if (img.isConnected) { state.activeImages.add(img); oldImages.delete(img); } }); oldImages.forEach(detachImageListeners); allImages.forEach(updateImageFilterState); const root = state.ui.shadowRoot; if (root) { const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO'); const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO') || hasVideo; const hasImage = state.activeImages.size > 0; filterManager.toggleStyleSheet(hasVideo); imageFilterManager.toggleStyleSheet(hasImage); const videoControls = root.getElementById('vsc-video-controls'); if (videoControls) videoControls.style.display = hasVideo ? 'flex' : 'none'; const audioControls = root.getElementById('vsc-audio-controls'); if (audioControls) audioControls.style.display = hasAudio ? 'flex' : 'none'; const imageControls = root.getElementById('vsc-image-controls'); if (imageControls) imageControls.style.display = hasImage ? 'flex' : 'none'; const speedControls = root.getElementById('vsc-speed-controls'); if (speedControls) speedControls.style.display = (hasVideo || hasAudio) ? 'flex' : 'none'; const anyMedia = hasVideo || hasAudio || hasImage; if (state.isUiVisible !== anyMedia) { state.isUiVisible = anyMedia; if (state.isUiVisible) speedSlider.renderControls(); else speedSlider.hide(); } } };
+    const scanAndApply = () => { const allMedia = findAllMedia(); allMedia.forEach(attachMediaListeners); const oldMedia = new Set(state.activeMedia); state.activeMedia.clear(); allMedia.forEach(m => { if (m.isConnected) { state.activeMedia.add(m); oldMedia.delete(m); } }); oldMedia.forEach(detachMediaListeners); allMedia.forEach(m => { if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); } }); const allImages = findAllImages(); allImages.forEach(attachImageListeners); const oldImages = new Set(state.activeImages); state.activeImages.clear(); allImages.forEach(img => { if (img.isConnected) { state.activeImages.add(img); oldImages.delete(img); } }); oldImages.forEach(detachImageListeners); allImages.forEach(updateImageFilterState); const root = state.ui.shadowRoot; if (root) { const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO'); const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO') || hasVideo; const hasImage = state.activeImages.size > 0; filterManager.toggleStyleSheet(hasVideo); imageFilterManager.toggleStyleSheet(hasImage); const videoControls = root.getElementById('vsc-video-controls'); if (videoControls) videoControls.style.display = hasVideo ? 'flex' : 'none'; const audioControls = root.getElementById('vsc-audio-controls'); if (audioControls) audioControls.style.display = hasAudio ? 'flex' : 'none'; const imageControls = root.getElementById('vsc-image-controls'); if (imageControls) imageControls.style.display = hasImage ? 'flex' : 'none'; const speedControls = root.getElementById('vsc-speed-controls'); if (speedControls) speedControls.style.display = (hasVideo || hasAudio) ? 'flex' : 'none'; const anyMedia = hasVideo || hasAudio || hasImage; if (state.isUiVisible !== anyMedia) { state.isUiVisible = anyMedia; if (state.isUiVisible) { speedSlider.renderControls(); speedSlider.show(); } else { speedSlider.hide(); } } } };
     const debouncedScanTask = debounce(scanAndApply, CONFIG.DEBOUNCE_DELAY);
     let mainObserver = null;
     let visibilityChangeListener = null;
@@ -163,34 +310,64 @@
     let beforeUnloadListener = null;
     let spaNavigationHandler = null;
     function cleanup() { safeExec(() => { if (mainObserver) mainObserver.disconnect(); if (intersectionObserver) intersectionObserver.disconnect(); document.removeEventListener('visibilitychange', visibilityChangeListener); document.removeEventListener('fullscreenchange', fullscreenChangeListener); window.removeEventListener('beforeunload', beforeUnloadListener); if (spaNavigationHandler) spaNavigationHandler.cleanup(); state.activeMedia.forEach(detachMediaListeners); state.activeImages.forEach(detachImageListeners); autoDelayManager.stop(); const host = document.getElementById('vsc-ui-host'); if(host) host.remove(); }, 'cleanup'); }
+
     function start() {
+        settingsManager.init(); // NEW: 설정 관리자 초기화
         resetState();
-        console.log(`🎉 Video_Image_Control (v42.0) Initialized.`);
+        console.log(`🎉 Video_Image_Control (v43.0) Initialized.`);
         uiManager.init();
         filterManager.init();
         imageFilterManager.init();
         speedSlider.init();
         setTimeout(() => { const container = state.ui.shadowRoot?.getElementById('vsc-container'); if (container && !container.dataset.rendered) { speedSlider.hide(); } }, 5000);
         dragBar.init();
+        mobileGestureManager.init(); // NEW: 모바일 제스처 관리자 초기화
         mediaSessionManager.init();
         speedSlider.show(true);
+
         const isLive = isLiveStreamPage();
-        if (isLive) { autoDelayManager.start(); }
+        if (isLive) { autoDelayManager.start(); speedSlider.setMode('live'); } else { speedSlider.setMode('vod'); }
+
         intersectionObserver = new IntersectionObserver(entries => { entries.forEach(e => { e.target.dataset.isVisible = String(e.isIntersecting); if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target); if (e.target.tagName === 'IMG') updateImageFilterState(e.target); }); }, { threshold: 0.1 });
         visibilityChangeListener = () => { if (document.hidden) { document.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(v => v.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active')); for (const media of state.activeMedia) { audioManager.suspendContext(); } } else { scheduleIdleTask(scanAndApply); for (const media of state.activeMedia) { audioManager.resumeContext(); } } };
         document.addEventListener('visibilitychange', visibilityChangeListener);
+
         mainObserver = new MutationObserver(debounce(() => scheduleIdleTask(scanAndApply), CONFIG.DEBOUNCE_DELAY));
         mainObserver.observe(document.documentElement, { childList: true, subtree: true });
         document.addEventListener('addShadowRoot', debouncedScanTask);
-        fullscreenChangeListener = () => uiManager.moveUiTo(document.fullscreenElement || document.body);
+
+        // MODIFIED: 전체 화면 변경 리스너 (자동 가로 모드 추가)
+        fullscreenChangeListener = async () => {
+            uiManager.moveUiTo(document.fullscreenElement || document.body);
+            if (isMobile && document.fullscreenElement) {
+                const video = document.fullscreenElement.querySelector('video') || (document.fullscreenElement.tagName === 'VIDEO' ? document.fullscreenElement : null);
+                if (video) {
+                    const lockLandscape = async () => {
+                        if (video.videoWidth > video.videoHeight) {
+                            try {
+                                await screen.orientation.lock('landscape');
+                            } catch (err) { console.warn('[VSC] Landscape lock failed:', err); }
+                        }
+                    };
+                    if (video.readyState >= 1) { await lockLandscape(); }
+                    else { video.addEventListener('loadedmetadata', lockLandscape, { once: true }); }
+                }
+            } else if (isMobile && !document.fullscreenElement) {
+                 try { if (screen.orientation && typeof screen.orientation.unlock === 'function') { screen.orientation.unlock(); } } catch (e) {}
+            }
+        };
         document.addEventListener('fullscreenchange', fullscreenChangeListener);
+
         beforeUnloadListener = () => cleanup();
         window.addEventListener('beforeunload', beforeUnloadListener);
         setVideoFilterLevel(state.currentVideoFilterLevel);
         setImageFilterLevel(state.currentImageFilterLevel);
+        audioManager.setAudioMode(state.currentAudioMode);
         scheduleIdleTask(scanAndApply);
     }
+
     spaNavigationHandler = (() => { let lastHref = location.href; const onLocationChange = () => { if (location.href === lastHref) return; lastHref = location.href; cleanup(); setTimeout(start, 500); }; ['pushState', 'replaceState'].forEach(method => { const original = history[method]; history[method] = function (...args) { const result = original.apply(this, args); window.dispatchEvent(new Event('locationchange')); return result; }; }); window.addEventListener('popstate', onLocationChange); window.addEventListener('locationchange', onLocationChange); return { cleanup: () => { window.removeEventListener('popstate', onLocationChange); window.removeEventListener('locationchange', onLocationChange); } }; })();
+
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         start();
     } else {
