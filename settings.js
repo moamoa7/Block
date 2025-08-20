@@ -2,7 +2,7 @@
 // @name         Video_Image_Control
 // @namespace    https://com/
 // @version      39.6
-// @description  UI 투명 및 배경 재조정 / 아이콘 크기 재조정
+// @description  UI 투명 및 배경 재조정 / 오디오 필터로 포커스 이동 문제 해결 / 버튼 아이콘 크기 재조정 / 초기 시계아이콘 탐색 3초 → 5초로 변경
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
