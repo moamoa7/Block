@@ -18,8 +18,8 @@
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
 
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 15 : 8,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 12 : 2,
+        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 12 : 8,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 8 : 4,
         DEFAULT_AUDIO_PRESET: 'movie',
         DEBUG: false,
         DEBOUNCE_DELAY: 350,
@@ -71,7 +71,7 @@
     function calculateSharpenMatrix(level) {
         const parsedLevel = parseInt(level, 10);
         if (isNaN(parsedLevel) || parsedLevel === 0) return '0 0 0 0 1 0 0 0 0';
-        const intensity = 1.4 + (parsedLevel - 1) * (6.6 / 14);
+        const intensity = 1.4 + (parsedLevel - 1) * (4.6 / 14);
         const off = (1 - intensity) / 4;
         return `0 ${off} 0 ${off} ${intensity} ${off} 0 ${off} 0`;
     }
