@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      48.4
-// @description  오디오 관련 리소스를 메모리 누수 방지 / SPA 네비게이션 안정성 강화 / 모바일 호환성 강화
+// @version      48.6
+// @description  딜레이 미터 수동 리셋 기능 추가 (재시작 시 '계산 중' 상태 표시)
 // @match        *://*/*
 // @run-at       document-start
 // @grant        none
@@ -22,7 +22,7 @@
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 4 : 2,
         DEFAULT_AUDIO_PRESET: 'movie',
         LONG_PRESS_RATE: 4.0,
-        DEBUG: true,
+        DEBUG: false,
         DEBOUNCE_DELAY: 300,
         MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05,
@@ -186,7 +186,6 @@
         const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
         let ctx = null, masterGain;
         const eqFilters = [], sourceMap = new WeakMap();
-
         function ensureContext() {
             if (ctx || isAudioDisabledForSite) return;
             try {
@@ -240,10 +239,9 @@
         function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
         function suspendContext() { safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
         function resumeContext() { safeExec(() => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); }); }
-        /** IMPROVEMENT: Added function to completely close the AudioContext for resource cleanup */
         function closeContext() {
             if (ctx && ctx.state !== 'closed') {
-                ctx.close().then(() => ctx = null).catch(() => {});
+                ctx.close().then(() => ctx = null).catch(() => { ctx = null; });
             }
         }
         return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext, closeContext };
@@ -685,10 +683,42 @@
         function calculateAdjustedDelay(videoElement) { const rawDelay = calculateDelay(videoElement); if (rawDelay === null) return null; const clampedDelay = Math.min(Math.max(rawDelay, 0), 5000); return clampedDelay * FEEL_DELAY_FACTOR; }
         function getPlaybackRate(avgDelay) { for (const config of D_CONFIG.SPEED_LEVELS) { if (avgDelay >= config.minDelay) return config.playbackRate; } return D_CONFIG.SPEED_LEVELS[D_CONFIG.SPEED_LEVELS.length - 1].playbackRate; }
         function adjustPlaybackRate(targetRate) { if (!video) return; const diff = targetRate - video.playbackRate; if (Math.abs(diff) < 0.01) return; safeExec(() => { video.playbackRate += diff * SMOOTH_STEP; state.currentPlaybackRate = video.playbackRate; }); }
-        function displayDelayInfo(avgDelay, minDelay) {
-            if (!state.ui.shadowRoot) return; let infoEl = state.ui.shadowRoot.getElementById('vsc-delay-info'); if (!infoEl) { infoEl = document.createElement('div'); infoEl.id = 'vsc-delay-info'; state.ui.shadowRoot.appendChild(infoEl); }
-            const status = state.isDelayAdjusting ? `${state.currentPlaybackRate.toFixed(2)}x` : '1.00x'; infoEl.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
+
+        function displayDelayInfo(messageOrAvg, minDelay) {
+            if (!state.ui.shadowRoot) return;
+            let infoEl = state.ui.shadowRoot.getElementById('vsc-delay-info');
+            if (!infoEl) {
+                infoEl = document.createElement('div');
+                infoEl.id = 'vsc-delay-info';
+                state.ui.shadowRoot.appendChild(infoEl);
+            }
+            let textSpan = infoEl.querySelector('span');
+            if (!textSpan) {
+                textSpan = document.createElement('span');
+                infoEl.prepend(textSpan);
+            }
+            if (typeof messageOrAvg === 'string') {
+                textSpan.textContent = messageOrAvg;
+            } else {
+                const avgDelay = messageOrAvg;
+                const status = state.isDelayAdjusting ? `${state.currentPlaybackRate.toFixed(2)}x` : '1.00x';
+                textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
+            }
+            let refreshBtn = infoEl.querySelector('.vsc-delay-refresh-btn');
+            if (!refreshBtn) {
+                refreshBtn = document.createElement('button');
+                refreshBtn.textContent = '🔄';
+                refreshBtn.title = '딜레이 측정 재시작';
+                refreshBtn.className = 'vsc-delay-refresh-btn';
+                Object.assign(refreshBtn.style, { background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '5px', fontSize: '14px', padding: '0 2px' });
+                refreshBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    restart();
+                });
+                infoEl.appendChild(refreshBtn);
+            }
         }
+
         function sampleInitialDelayAndFPS() {
             return new Promise(resolve => {
                 const startTime = Date.now(); let lastFrame = performance.now(); let fpsSamples = [];
@@ -734,10 +764,18 @@
             if (state.delayCheckInterval) { clearInterval(state.delayCheckInterval); state.delayCheckInterval = null; }
             if (localIntersectionObserver) { localIntersectionObserver.disconnect(); localIntersectionObserver = null; }
             const infoEl = state.ui.shadowRoot?.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
-            if (video) { safeExec(() => { if (video.playbackRate !== 1.0) video.playbackRate = 1.0; }); video = null; }
+            if (video) { safeExec(()=>{ if(video.playbackRate!==1.0) video.playbackRate=1.0; }); video=null; }
             samplingData = [];
         }
-        return { start, stop };
+        function restart() {
+            safeExec(() => {
+                stop();
+                displayDelayInfo("딜레이: 계산 중...");
+                start();
+                if (CONFIG.DEBUG) console.log("🔄️ autoDelayManager manually restarted.");
+            }, 'autoDelayManager.restart');
+        }
+        return { start, stop, restart };
     })();
 
     // =================================================================================
@@ -891,7 +929,7 @@
             state.activeMedia.forEach(detachMediaListeners);
             state.activeImages.forEach(detachImageListeners);
             autoDelayManager.stop();
-            audioManager.closeContext(); // IMPROVEMENT: Fully close audio context
+            audioManager.closeContext();
             const host = document.getElementById(UI_SELECTORS.HOST);
             if (host) host.remove();
             uiManager.reset();
@@ -930,7 +968,6 @@
                     try {
                         result = original.apply(this, args);
                     } finally {
-                        /** IMPROVEMENT: Use try...finally to guarantee event dispatch */
                         window.dispatchEvent(new Event(`vsc:${method}`));
                     }
                     return result;
@@ -993,7 +1030,6 @@
                     if (video) {
                         const lockLandscape = async () => {
                             if (video.videoWidth > video.videoHeight) {
-                                /** IMPROVEMENT: Check for iOS compatibility before locking orientation */
                                 if (screen.orientation?.lock) {
                                     try { await screen.orientation.lock('landscape'); } catch (err) { /* ignore */ }
                                 }
