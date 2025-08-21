@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name          Video_Image_Control
-// @namespace     https://com/
-// @version       46.5
-// @description   GM_setValue, GM_getValue, GM_registerMenuCommand 로직 삭제
-// @match         *://*/*
-// @run-at        document-start
-// @grant         none
+// @name Video_Image_Control
+// @namespace https://com/
+// @version 46.7
+// @description 이미지/비디오 필터 구간 수정 15단계 → 6단계 (모바일에서 한번에 선택 가능하게)
+// @match *://*/*
+// @run-at document-start
+// @grant none
 // ==/UserScript==
 
 (function () {
@@ -18,8 +18,8 @@
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
 
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 15 : 10,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 10 : 5,
+        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 5 : 3,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 5 : 2,
         DEFAULT_AUDIO_PRESET: 'movie',
         LONG_PRESS_RATE: 4.0,
         DEBUG: false,
@@ -47,8 +47,8 @@
     const settingsManager = (() => {
         const settings = {};
         const definitions = {
-            videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 15 },
-            imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 15 },
+            videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 6 },
+            imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 6 },
             audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'speech', 'movie', 'music'] },
             longPressRate: { name: '길게 눌러 재생 배속', default: CONFIG.LONG_PRESS_RATE, type: 'number', min: 1, max: 16 }
         };
@@ -64,7 +64,7 @@
             settings[key] = value;
         };
 
-        return { init, get, set };
+        return { init, get, set, definitions }; // definitions를 리턴 객체에 추가
     })();
 
     let state = {};
@@ -74,7 +74,7 @@
     const debounce = (fn, wait) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn.apply(this, args), wait); }; };
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
-    function calculateSharpenMatrix(level) { const parsedLevel = parseInt(level, 10); if (isNaN(parsedLevel) || parsedLevel === 0) return '0 0 0 0 1 0 0 0 0'; const intensity = 1.0 + (parsedLevel - 1) * (5.0 / 14); const off = (1 - intensity) / 4; return `0 ${off} 0 ${off} ${intensity} ${off} 0 ${off} 0`; }
+    function calculateSharpenMatrix(level) { const parsedLevel = parseInt(level, 10); if (isNaN(parsedLevel) || parsedLevel === 0) return '0 0 0 0 1 0 0 0 0'; const intensity = 1.0 + (parsedLevel - 1) * (5.0 / 5); const off = (1 - intensity) / 4; return `0 ${off} 0 ${off} ${intensity} ${off} 0 ${off} 0`; }
     function isLiveStreamPage() { const url = location.href; return CONFIG.LIVE_STREAM_URLS.some(pattern => url.includes(pattern)); }
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     function isExcluded() { const url = location.href.toLowerCase(); const hostname = location.hostname.toLowerCase(); if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) return true; return CONFIG.SPECIFIC_EXCLUSIONS.some(rule => hostname.includes(rule.domain) && url.includes(rule.path)); }
@@ -425,7 +425,7 @@
             }
 
             container.dataset.rendered = 'true';
-            const createFilterControl = (id, labelText, mainIcon, changeHandler) => {
+            const createFilterControl = (id, labelText, mainIcon, changeHandler, maxLevel) => {
                 const group = document.createElement('div');
                 group.id = id;
                 group.className = 'vsc-control-group';
@@ -443,12 +443,15 @@
                 offOption.value = '0';
                 offOption.textContent = '꺼짐';
                 select.appendChild(offOption);
-                for (let i = 1; i <= 15; i++) {
+
+                // NEW: maxLevel 값을 사용하여 동적으로 옵션 생성
+                for (let i = 1; i <= maxLevel; i++) {
                     const option = document.createElement('option');
                     option.value = i;
                     option.textContent = `${i}단계`;
                     select.appendChild(option);
                 }
+
                 select.addEventListener('change', e => {
                     changeHandler(e.target.value);
                     hideAllSubMenus();
@@ -458,8 +461,11 @@
                 return group;
             };
 
-            const videoControlGroup = createFilterControl('vsc-video-controls', '영상 선명도', '🌞', setVideoFilterLevel);
-            const imageControlGroup = createFilterControl('vsc-image-controls', '이미지 선명도', '🎨', setImageFilterLevel);
+            const maxVideoLevel = settingsManager.definitions.videoFilterLevel.max;
+            const maxImageLevel = settingsManager.definitions.imageFilterLevel.max;
+
+            const videoControlGroup = createFilterControl('vsc-video-controls', '영상 선명도', '🌞', setVideoFilterLevel, maxVideoLevel);
+            const imageControlGroup = createFilterControl('vsc-image-controls', '이미지 선명도', '🎨', setImageFilterLevel, maxImageLevel);
             const audioControlGroup = document.createElement('div');
             audioControlGroup.id = 'vsc-audio-controls';
             audioControlGroup.className = 'vsc-control-group';
@@ -1337,7 +1343,7 @@
         scheduleIdleTask(scanAndApply);
     }
 
-    //spaNavigationHandler = (() => { let lastHref = location.href; const onLocationChange = () => { if (location.href === lastHref) return; lastHref = location.href; cleanup(); setTimeout(start, 500); }; ['pushState', 'replaceState'].forEach(method => { const original = history[method]; history[method] = function (...args) { const result = original.apply(this, args); window.dispatchEvent(new Event('locationchange')); return result; }; }); window.addEventListener('popstate', onLocationChange); window.addEventListener('locationchange', onLocationChange); return { cleanup: () => { window.removeEventListener('popstate', onLocationChange); window.removeEventListener('locationchange', onLocationChange); } }; })();
+    spaNavigationHandler = (() => { let lastHref = location.href; const onLocationChange = () => { if (location.href === lastHref) return; lastHref = location.href; cleanup(); setTimeout(start, 500); }; ['pushState', 'replaceState'].forEach(method => { const original = history[method]; history[method] = function (...args) { const result = original.apply(this, args); window.dispatchEvent(new Event('locationchange')); return result; }; }); window.addEventListener('popstate', onLocationChange); window.addEventListener('locationchange', onLocationChange); return { cleanup: () => { window.removeEventListener('popstate', onLocationChange); window.removeEventListener('locationchange', onLocationChange); } }; })();
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         start();
