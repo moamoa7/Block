@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (v48.2 Final)
+// @name         Video_Image_Control (v48.3 Final)
 // @namespace    https://com/
-// @version      48.2
-// @description  초기화 순서 및 문법 오류를 모두 수정한 최종 버전 (Final version with all initialization and syntax errors fixed)
+// @version      48.3
+// @description  이벤트 이름 충돌 방지 및 옵저버 재생성 로직을 추가한 최종 안정화 버전
 // @match        *://*/*
 // @run-at       document-start
 // @grant        none
@@ -244,7 +244,6 @@
 
     const uiManager = (() => {
         let host;
-        /** FIXED: Corrected syntax error from backticks to commas */
         const styleRules = [
             ':host { pointer-events: none; }',
             '* { pointer-events: auto; }',
@@ -790,16 +789,8 @@
         }
     }
 
-    let intersectionObserver = new IntersectionObserver(entries => {
-        entries.forEach(e => {
-            e.target.dataset.isVisible = String(e.isIntersecting);
-            if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
-            if (e.target.tagName === 'IMG') updateImageFilterState(e.target);
-        });
-    });
-
     function attachMediaListeners(media) {
-        if (!media || state.processedMedia.has(media)) return;
+        if (!media || state.processedMedia.has(media) || !intersectionObserver) return;
         if (media.tagName === 'VIDEO') injectFiltersIntoRoot(media, filterManager);
         audioManager.processMedia(media);
         const listeners = {};
@@ -809,7 +800,7 @@
         intersectionObserver.observe(media);
     }
     function attachImageListeners(image) {
-        if (!image || state.processedImages.has(image)) return;
+        if (!image || state.processedImages.has(image) || !intersectionObserver) return;
         injectFiltersIntoRoot(image, imageFilterManager);
         state.processedImages.add(image);
         intersectionObserver.observe(image);
@@ -821,12 +812,12 @@
         audioManager.cleanupMedia(media);
         state.mediaListenerMap.delete(media);
         state.processedMedia.delete(media);
-        intersectionObserver.unobserve(media);
+        if (intersectionObserver) intersectionObserver.unobserve(media);
     }
     function detachImageListeners(image) {
         if (!state.processedImages.has(image)) return;
         state.processedImages.delete(image);
-        intersectionObserver.unobserve(image);
+        if (intersectionObserver) intersectionObserver.unobserve(image);
     }
 
     const scanAndApply = () => {
@@ -873,19 +864,21 @@
     // =================================================================================
 
     const debouncedScanTask = debounce(scanAndApply, CONFIG.DEBOUNCE_DELAY);
-    let mainObserver = null, visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null, spaNavigationHandler = null;
+    let mainObserver = null;
+    let intersectionObserver = null;
+    let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null, spaNavigationHandler = null;
 
     function cleanup() {
         safeExec(() => {
             if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
-            if (intersectionObserver) { intersectionObserver.disconnect(); }
+            if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
             if (visibilityChangeListener) { document.removeEventListener('visibilitychange', visibilityChangeListener); visibilityChangeListener = null; }
             if (fullscreenChangeListener) { document.removeEventListener('fullscreenchange', fullscreenChangeListener); fullscreenChangeListener = null; }
             if (beforeUnloadListener) { window.removeEventListener('beforeunload', beforeUnloadListener); beforeUnloadListener = null; }
             if (spaNavigationHandler) {
                 window.removeEventListener('popstate', spaNavigationHandler);
-                window.removeEventListener('pushState', spaNavigationHandler);
-                window.removeEventListener('replaceState', spaNavigationHandler);
+                window.removeEventListener('vsc:pushState', spaNavigationHandler);
+                window.removeEventListener('vsc:replaceState', spaNavigationHandler);
                 spaNavigationHandler = null;
             }
             state.activeMedia.forEach(detachMediaListeners);
@@ -898,7 +891,7 @@
         }, 'cleanup');
     }
 
-    function ensureMainObserver() {
+    function ensureObservers() {
         if (!mainObserver) {
             mainObserver = new MutationObserver(mutations => {
                 if (!mutations.some(m => m.target.id === UI_SELECTORS.HOST)) {
@@ -906,6 +899,15 @@
                 }
             });
             mainObserver.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+        }
+        if (!intersectionObserver) {
+            intersectionObserver = new IntersectionObserver(entries => {
+                entries.forEach(e => {
+                    e.target.dataset.isVisible = String(e.isIntersecting);
+                    if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
+                    if (e.target.tagName === 'IMG') updateImageFilterState(e.target);
+                });
+            });
         }
     }
 
@@ -917,14 +919,14 @@
             if (original) {
                  history[method] = function(...args) {
                     const result = original.apply(this, args);
-                    window.dispatchEvent(new Event(method));
+                    window.dispatchEvent(new Event(`vsc:${method}`));
                     return result;
                 }
             }
         });
         window.addEventListener('popstate', spaNavigationHandler);
-        window.addEventListener('pushState', spaNavigationHandler);
-        window.addEventListener('replaceState', spaNavigationHandler);
+        window.addEventListener('vsc:pushState', spaNavigationHandler);
+        window.addEventListener('vsc:replaceState', spaNavigationHandler);
         document.addEventListener('addShadowRoot', debouncedScanTask);
     }
 
@@ -935,7 +937,7 @@
     }
 
     function start(isReinit = false) {
-        resetState(); // Always reset state at the beginning of an init or re-init
+        resetState();
 
         uiManager.init();
         filterManager.init();
@@ -944,6 +946,8 @@
         dragBar.init();
         mobileGestureManager.init();
         mediaSessionManager.init();
+
+        ensureObservers();
 
         const isLive = isLiveStreamPage();
         if (isLive) {
@@ -955,9 +959,8 @@
 
         controlPanelManager.renderControls();
         controlPanelManager.show();
-        ensureMainObserver();
 
-        if (!isReinit) { // Only attach global listeners once
+        if (!isReinit) {
             hookSpaNavigation();
             visibilityChangeListener = () => {
                 if (document.hidden) {
