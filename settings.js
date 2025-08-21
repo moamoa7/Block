@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video_Image_Control
 // @namespace https://com/
-// @version 47.6
-// @description SPA(Single-Page Application) 최적화
+// @version 47.7
+// @description 요소 미감지시 이동 버튼 표시 문제 해결
 // @match *://*/*
 // @run-at document-start
 // @grant none
@@ -540,13 +540,15 @@
 
             const dragHandleBtn = createButton('vsc-drag-handle', 'UI 이동', '✥', 'vsc-btn vsc-btn-main');
             dragHandleBtn.style.cursor = 'grab';
+
             const dragHandleGroup = document.createElement('div');
+            dragHandleGroup.id = 'vsc-drag-handle-group'; // <-- 새로운 ID 추가
             dragHandleGroup.className = 'vsc-control-group';
             dragHandleGroup.appendChild(dragHandleBtn);
             container.append(imageControlGroup, videoControlGroup, audioControlGroup, speedControlGroup, pipControlGroup, dragHandleGroup);
-            const controlGroups = [videoControlGroup, imageControlGroup, audioControlGroup, speedControlGroup];
+            const controlGroups = [videoControlGroup, imageControlGroup, audioControlGroup, speedControlGroup, dragHandleGroup]; // <-- dragHandleGroup을 배열에 추가
             hideAllSubMenus = () => {
-                controlGroups.forEach(group => group.classList.remove('submenu-visible'));
+              controlGroups.forEach(group => group.classList.remove('submenu-visible'));
             };
             const handleMenuButtonClick = (e, groupToShow) => {
                 e.stopPropagation();
@@ -1292,13 +1294,17 @@
         });
         oldImages.forEach(detachImageListeners);
         allImages.forEach(updateImageFilterState);
+
         const root = state.ui.shadowRoot;
         if (root) {
             const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
             const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO') || hasVideo;
             const hasImage = state.activeImages.size > 0;
+
             filterManager.toggleStyleSheet(hasVideo);
             imageFilterManager.toggleStyleSheet(hasImage);
+
+            // 각 컨트롤 그룹의 표시 여부를 개별적으로 설정
             const videoControls = root.getElementById('vsc-video-controls');
             if (videoControls) videoControls.style.display = hasVideo ? 'flex' : 'none';
             const audioControls = root.getElementById('vsc-audio-controls');
@@ -1309,16 +1315,21 @@
             if (speedControls) speedControls.style.display = (hasVideo || hasAudio) ? 'flex' : 'none';
             const pipControls = root.getElementById('vsc-pip-controls');
             if (pipControls) pipControls.style.display = hasVideo && pipButtonManager.isAvailable() ? 'flex' : 'none';
-            const anyMedia = hasVideo || hasAudio || hasImage;
-            if (state.isUiVisible !== anyMedia) {
-                state.isUiVisible = anyMedia;
-                if (state.isUiVisible) {
-                    speedSlider.renderControls();
-                    speedSlider.show();
-                } else {
-                    speedSlider.hide();
-                }
+
+            const dragHandleGroup = root.getElementById('vsc-drag-handle-group');
+            if (dragHandleGroup) {
+              dragHandleGroup.style.display = (hasVideo || hasAudio || hasImage) ? 'flex' : 'none';
             }
+
+            const isAnyGroupVisible = [
+        videoControls, audioControls, imageControls,
+        speedControls, pipControls, dragHandleGroup
+    ].some(group => group && group.style.display !== 'none');
+
+    const container = root.getElementById('vsc-container');
+    if (container) {
+        container.style.display = isAnyGroupVisible ? 'flex' : 'none';
+    }
         }
     };
 
