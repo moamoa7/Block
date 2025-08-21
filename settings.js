@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video_Image_Control
 // @namespace https://com/
-// @version 47.5
-// @description SPA UI 표시 문제 해결
+// @version 47.6
+// @description SPA(Single-Page Application) 최적화
 // @match *://*/*
 // @run-at document-start
 // @grant none
@@ -951,8 +951,6 @@
         return { init, setSession, clearSession };
     })();
 
-    let intersectionObserver = null;
-
     const autoDelayManager = (() => {
         let video = null;
         const D_CONFIG = CONFIG.DELAY_ADJUSTER;
@@ -1331,6 +1329,15 @@
     let beforeUnloadListener = null;
     let spaNavigationHandler = null;
 
+    // IntersectionObserver를 즉시 초기화하여 항상 정의된 상태로 만듭니다.
+    let intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+            e.target.dataset.isVisible = String(e.isIntersecting);
+            if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
+            if (e.target.tagName === 'IMG') updateImageFilterState(e.target);
+        });
+    });
+
     /** 리소스 정리 (메모리 누수 방지) */
     function cleanup() {
         safeExec(() => {
@@ -1356,8 +1363,8 @@
             }
             if (spaNavigationHandler) {
                 window.removeEventListener('popstate', spaNavigationHandler);
-                // 기존의 history.pushState 및 replaceState 래핑 해제는 복잡하므로,
-                // 스크립트 재실행에만 의존하는 것이 더 안전합니다.
+                window.removeEventListener('pushstate', spaNavigationHandler);
+                window.removeEventListener('replacestate', spaNavigationHandler);
                 spaNavigationHandler = null;
             }
             state.activeMedia.forEach(detachMediaListeners);
@@ -1389,9 +1396,24 @@
     function hookSpaNavigation() {
         if (spaNavigationHandler) return; // 이미 연결됨 → 중복 방지
 
-        // popstate 이벤트와 debounce를 사용하여 안정적으로 재초기화
+        // popstate, pushstate, replacestate 이벤트를 모두 감지
         spaNavigationHandler = debounce(reinit, 500);
-        window.addEventListener("popstate", spaNavigationHandler);
+
+        // window.history 메서드 래핑
+        const wrapHistoryMethod = method => {
+            const original = history[method];
+            history[method] = function(...args) {
+                const result = original.apply(this, args);
+                // 커스텀 이벤트를 dispatch하여 spaNavigationHandler를 트리거합니다.
+                window.dispatchEvent(new Event(method));
+                return result;
+            }
+        };
+        ['pushState', 'replaceState'].forEach(wrapHistoryMethod);
+
+        window.addEventListener('popstate', spaNavigationHandler);
+        window.addEventListener('pushstate', spaNavigationHandler);
+        window.addEventListener('replacestate', spaNavigationHandler);
 
         // SPA 환경에서 DOM이 완전히 재구성될 때를 대비해 MutationObserver도 활용
         document.addEventListener('addShadowRoot', debouncedScanTask);
@@ -1499,9 +1521,7 @@
                 }
             } else if (isMobile && !document.fullscreenElement) {
                 try {
-                    if (screen.orientation && typeof screen.orientation.unlock === 'function') {
-                        screen.orientation.unlock();
-                    }
+                    screen.orientation?.unlock?.();
                 } catch (e) {}
             }
         };
