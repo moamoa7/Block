@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video_Image_Control
 // @namespace https://com/
-// @version 46.7
-// @description 이미지/비디오 필터 구간 수정 15단계 → 6단계 (모바일에서 한번에 선택 가능하게)
+// @version 46.8
+// @description 이미지.비디오 기본값 변경
 // @match *://*/*
 // @run-at document-start
 // @grant none
@@ -19,7 +19,7 @@
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 5 : 3,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 5 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 4 : 2,
         DEFAULT_AUDIO_PRESET: 'movie',
         LONG_PRESS_RATE: 4.0,
         DEBUG: false,
