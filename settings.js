@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name         Video_Image_Control
-// @namespace    https://com/
-// @version      45.0
-// @description  PIP모드 추가 / TrustedHTML 반영
-// @match        *://*/*
-// @run-at       document-start
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_registerMenuCommand
+// @name          Video_Image_Control
+// @namespace     https://com/
+// @version       46.0
+// @description   치지직 등 동적 요소 감지 수정
+// @match         *://*/*
+// @run-at        document-start
+// @grant         GM_setValue
+// @grant         GM_getValue
+// @grant         GM_registerMenuCommand
 // ==/UserScript==
 
 (function () {
@@ -25,7 +25,7 @@
         DEFAULT_AUDIO_PRESET: 'movie',
         LONG_PRESS_RATE: 4.0,
         DEBUG: false,
-        DEBOUNCE_DELAY: 350,
+        DEBOUNCE_DELAY: 300,
         MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05,
         SEEK_TIME_MAX_SEC: 15,
@@ -120,9 +120,27 @@
     function setVideoFilterLevel(level) { if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname) || !filterManager.isInitialized()) return; const newLevel = parseInt(level, 10); state.currentVideoFilterLevel = isNaN(newLevel) ? 0 : newLevel; settingsManager.set('videoFilterLevel', state.currentVideoFilterLevel); const newMatrix = calculateSharpenMatrix(state.currentVideoFilterLevel); filterManager.setSharpenMatrix(newMatrix); (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => filterManager.setSharpenMatrix(newMatrix, root)); state.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') updateVideoFilterState(media); }); }
     function setImageFilterLevel(level) { if (CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS.includes(location.hostname) || !imageFilterManager.isInitialized()) return; const newLevel = parseInt(level, 10); state.currentImageFilterLevel = isNaN(newLevel) ? 0 : newLevel; settingsManager.set('imageFilterLevel', state.currentImageFilterLevel); const newMatrix = calculateSharpenMatrix(state.currentImageFilterLevel); imageFilterManager.setSharpenMatrix(newMatrix); (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => imageFilterManager.setSharpenMatrix(newMatrix, root)); state.activeImages.forEach(image => updateImageFilterState(image)); }
 
-    const audioManager = (() => { const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname); let ctx = null; let masterGain; const eqFilters = []; const sourceMap = new WeakMap(); function ensureContext() { if (ctx || isAudioDisabledForSite) return; try { ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); masterGain = ctx.createGain(); for (let i = 0; i < CONFIG.MAX_EQ_BANDS; i++) { const eqFilter = ctx.createBiquadFilter(); eqFilter.type = 'peaking'; eqFilters.push(eqFilter); if (i > 0) { eqFilters[i - 1].connect(eqFilter); } } if (eqFilters.length > 0) { eqFilters[eqFilters.length - 1].connect(masterGain); } masterGain.connect(ctx.destination); } catch (e) { if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e); ctx = null; } } function connectMedia(media) { if (!ctx) return; if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); } let rec = sourceMap.get(media); if (!rec) { const source = ctx.createMediaElementSource(media); rec = { source }; sourceMap.set(media, rec); } try { rec.source.disconnect(); } catch (e) {} const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain; rec.source.connect(firstNode); applyAudioPresetToNodes(); } function applyAudioPresetToNodes() { if (!ctx) return; const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off; const now = ctx.currentTime; const rampTime = 0.05; masterGain.gain.cancelScheduledValues(now); masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime); for (let i = 0; i < eqFilters.length; i++) { const band = preset.eq[i]; const filter = eqFilters[i]; filter.gain.cancelScheduledValues(now); filter.frequency.cancelScheduledValues(now); filter.Q.cancelScheduledValues(now); if (band) { filter.frequency.setValueAtTime(band.freq, now); filter.gain.linearRampToValueAtTime(band.gain, now + rampTime); filter.Q.setValueAtTime(1.41, now); } else { filter.frequency.setValueAtTime(1000, now); filter.Q.setValueAtTime(1.41, now); filter.gain.linearRampToValueAtTime(0, now + rampTime); } } } function processMedia(media) { if (isAudioDisabledForSite) return; media.addEventListener('play', () => { ensureContext(); if (!ctx) return; if (!sourceMap.has(media)) { connectMedia(media); } else { resumeContext(); } }); } function cleanupMedia(media) { if (isAudioDisabledForSite || !ctx) return; const rec = sourceMap.get(media); if (!rec) return; try { rec.source.disconnect(); } catch (err) { if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err); } }
-    function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
-    return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext: () => safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(()=>{}); }), resumeContext: () => safeExec(() => { if(ctx && ctx.state === 'suspended') ctx.resume().catch(()=>{}); }) }; })();
+    const audioManager = (() => { const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname); let ctx = null; let masterGain; const eqFilters = []; const sourceMap = new WeakMap();
+        function ensureContext() { if (ctx || isAudioDisabledForSite) return; try { ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); masterGain = ctx.createGain(); for (let i = 0; i < CONFIG.MAX_EQ_BANDS; i++) { const eqFilter = ctx.createBiquadFilter(); eqFilter.type = 'peaking'; eqFilters.push(eqFilter); if (i > 0) { eqFilters[i - 1].connect(eqFilter); } } if (eqFilters.length > 0) { eqFilters[eqFilters.length - 1].connect(masterGain); } masterGain.connect(ctx.destination); } catch (e) { if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e); ctx = null; } }
+        function connectMedia(media) { if (!ctx) return; if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); } let rec = sourceMap.get(media); if (!rec) { const source = ctx.createMediaElementSource(media); rec = { source }; sourceMap.set(media, rec); } try { rec.source.disconnect(); } catch (e) {} const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain; rec.source.connect(firstNode); applyAudioPresetToNodes(); }
+        function applyAudioPresetToNodes() { if (!ctx) return; const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off; const now = ctx.currentTime; const rampTime = 0.05; masterGain.gain.cancelScheduledValues(now); masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime); for (let i = 0; i < eqFilters.length; i++) { const band = preset.eq[i]; const filter = eqFilters[i]; filter.gain.cancelScheduledValues(now); filter.frequency.cancelScheduledValues(now); filter.Q.cancelScheduledValues(now); if (band) { filter.frequency.setValueAtTime(band.freq, now); filter.gain.linearRampToValueAtTime(band.gain, now + rampTime); filter.Q.setValueAtTime(1.41, now); } else { filter.frequency.setValueAtTime(1000, now); filter.Q.setValueAtTime(1.41, now); filter.gain.linearRampToValueAtTime(0, now + rampTime); } } }
+        function processMedia(media) { if (isAudioDisabledForSite) return; media.addEventListener('play', () => { ensureContext(); if (!ctx) return; if (!sourceMap.has(media)) { connectMedia(media); } else { resumeContext(); } }); }
+        function cleanupMedia(media) { if (isAudioDisabledForSite || !ctx) return; const rec = sourceMap.get(media); if (!rec) return; try { rec.source.disconnect(); } catch (err) { if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err); } }
+        function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
+        // private 함수를 public으로 변경
+        function suspendContext() {
+            safeExec(() => {
+                const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended);
+                if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(()=>{});
+            });
+        }
+        function resumeContext() {
+            safeExec(() => {
+                if(ctx && ctx.state === 'suspended') ctx.resume().catch(()=>{});
+            });
+        }
+        return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext };
+    })();
 
     const uiManager = (() => {
         let host;
@@ -228,11 +246,11 @@
             const container = shadowRoot.getElementById('vsc-container');
             if (!container || container.dataset.rendered) return;
 
-            // 기존: container.innerHTML = '';
-            // 수정: 자식 노드를 하나씩 제거하는 안전한 방법 사용
-            while (container.firstChild) {
-                container.removeChild(container.firstChild);
-            }
+            // 기존: container.innerHTML = '';
+            // 수정: 자식 노드를 하나씩 제거하는 안전한 방법 사용
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
 
             container.dataset.rendered = 'true';
             const createFilterControl = (id, labelText, mainIcon, changeHandler) => { const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group'; const mainBtn = createButton(null, labelText, mainIcon, 'vsc-btn vsc-btn-main'); const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu'; const select = document.createElement('select'); select.className = 'vsc-select'; const titleOption = document.createElement('option'); titleOption.value = ""; titleOption.textContent = labelText; titleOption.disabled = true; select.appendChild(titleOption); const offOption = document.createElement('option'); offOption.value = '0'; offOption.textContent = '꺼짐'; select.appendChild(offOption); for (let i = 1; i <= 15; i++) { const option = document.createElement('option'); option.value = i; option.textContent = `${i}단계`; select.appendChild(option); } select.addEventListener('change', e => { changeHandler(e.target.value); hideAllSubMenus(); }); subMenu.appendChild(select); group.append(mainBtn, subMenu); return group; };
@@ -391,7 +409,7 @@
         filterManager.init();
         imageFilterManager.init();
         speedSlider.init();
-        setTimeout(() => { const container = state.ui.shadowRoot?.getElementById('vsc-container'); if (container && !container.dataset.rendered) { speedSlider.hide(); } }, 5000);
+        setTimeout(() => { const container = state.ui.shadowRoot?.getElementById('vsc-container'); if (container && !container.dataset.rendered) { speedSlider.hide(); } }, 10000);
         dragBar.init();
         mobileGestureManager.init();
         mediaSessionManager.init();
@@ -404,9 +422,16 @@
         visibilityChangeListener = () => { if (document.hidden) { document.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(v => v.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active')); for (const media of state.activeMedia) { audioManager.suspendContext(); } } else { scheduleIdleTask(scanAndApply); for (const media of state.activeMedia) { audioManager.resumeContext(); } } };
         document.addEventListener('visibilitychange', visibilityChangeListener);
 
-        mainObserver = new MutationObserver(debounce(() => scheduleIdleTask(scanAndApply), CONFIG.DEBOUNCE_DELAY));
-        mainObserver.observe(document.documentElement, { childList: true, subtree: true });
-        document.addEventListener('addShadowRoot', debouncedScanTask);
+        // --- 수정된 부분 시작 ---
+        const scanAndApplyImmediately = () => {
+            scheduleIdleTask(scanAndApply);
+        };
+
+        mainObserver = new MutationObserver(scanAndApplyImmediately);
+        mainObserver.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+
+        document.addEventListener('addShadowRoot', scanAndApplyImmediately);
+        // --- 수정된 부분 끝 ---
 
         fullscreenChangeListener = async () => {
             uiManager.moveUiTo(document.fullscreenElement || document.body);
@@ -437,7 +462,7 @@
         scheduleIdleTask(scanAndApply);
     }
 
-    spaNavigationHandler = (() => { let lastHref = location.href; const onLocationChange = () => { if (location.href === lastHref) return; lastHref = location.href; cleanup(); setTimeout(start, 500); }; ['pushState', 'replaceState'].forEach(method => { const original = history[method]; history[method] = function (...args) { const result = original.apply(this, args); window.dispatchEvent(new Event('locationchange')); return result; }; }); window.addEventListener('popstate', onLocationChange); window.addEventListener('locationchange', onLocationChange); return { cleanup: () => { window.removeEventListener('popstate', onLocationChange); window.removeEventListener('locationchange', onLocationChange); } }; })();
+    //spaNavigationHandler = (() => { let lastHref = location.href; const onLocationChange = () => { if (location.href === lastHref) return; lastHref = location.href; cleanup(); setTimeout(start, 500); }; ['pushState', 'replaceState'].forEach(method => { const original = history[method]; history[method] = function (...args) { const result = original.apply(this, args); window.dispatchEvent(new Event('locationchange')); return result; }; }); window.addEventListener('popstate', onLocationChange); window.addEventListener('locationchange', onLocationChange); return { cleanup: () => { window.removeEventListener('popstate', onLocationChange); window.removeEventListener('locationchange', onLocationChange); } }; })();
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         start();
