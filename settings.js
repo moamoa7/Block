@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video_Image_Control
 // @namespace https://com/
-// @version 47.4
-// @description SPA 실시간 방송 딜레이 자동 감소 로직 구현 (로직 강화)
+// @version 47.5
+// @description SPA UI 표시 문제 해결
 // @match *://*/*
 // @run-at document-start
 // @grant none
@@ -641,8 +641,8 @@
                 document.body.style.userSelect = '';
                 document.removeEventListener('mousemove', onDragMove);
                 document.removeEventListener('mouseup', onDragEnd);
-                document.removeEventListener('touchmove', onDragMove);
-                document.removeEventListener('touchend', onDragEnd);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onEnd);
             };
             dragHandleBtn.addEventListener('mousedown', onDragStart);
             dragHandleBtn.addEventListener('touchstart', onDragStart, { passive: false });
@@ -951,196 +951,196 @@
         return { init, setSession, clearSession };
     })();
 
-let intersectionObserver = null;
+    let intersectionObserver = null;
 
-const autoDelayManager = (() => {
-    let video = null;
-    const D_CONFIG = CONFIG.DELAY_ADJUSTER;
+    const autoDelayManager = (() => {
+        let video = null;
+        const D_CONFIG = CONFIG.DELAY_ADJUSTER;
 
-    let FEEL_DELAY_FACTOR = 0.7;    // 실시간 조정 가능
-    let SMOOTH_STEP = 0.02;     // 실시간 조정 가능
+        let FEEL_DELAY_FACTOR = 0.7;    // 실시간 조정 가능
+        let SMOOTH_STEP = 0.02;      // 실시간 조정 가능
 
-    const SAMPLING_DURATION = 2000; // ms
-    const FPS_SAMPLING_INTERVAL = 200; // ms
-    let samplingData = [];
+        const SAMPLING_DURATION = 2000; // ms
+        const FPS_SAMPLING_INTERVAL = 200; // ms
+        let samplingData = [];
 
-    function findVideo() {
-        return state.activeMedia.size > 0
-            ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO')
-            : null;
-    }
-
-    function calculateDelay(videoElement) {
-        if (!videoElement || !videoElement.buffered || videoElement.buffered.length === 0) return null;
-        try {
-            const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1);
-            const delay = bufferedEnd - videoElement.currentTime;
-            return delay >= 0 ? delay * 1000 : null;
-        } catch {
-            return null;
+        function findVideo() {
+            return state.activeMedia.size > 0
+                ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO')
+                : null;
         }
-    }
 
-    function calculateAdjustedDelay(videoElement) {
-        const rawDelay = calculateDelay(videoElement);
-        if (rawDelay === null) return null;
-        const clampedDelay = Math.min(Math.max(rawDelay, 0), 5000);
-        return clampedDelay * FEEL_DELAY_FACTOR;
-    }
-
-    function getPlaybackRate(avgDelay) {
-        for (const config of D_CONFIG.SPEED_LEVELS) {
-            if (avgDelay >= config.minDelay) return config.playbackRate;
-        }
-        return D_CONFIG.SPEED_LEVELS[D_CONFIG.SPEED_LEVELS.length - 1].playbackRate;
-    }
-
-    function adjustPlaybackRate(targetRate) {
-        if (!video) return;
-        const diff = targetRate - video.playbackRate;
-        if (Math.abs(diff) < 0.01) return;
-        safeExec(() => {
-            video.playbackRate += diff * SMOOTH_STEP;
-            state.currentPlaybackRate = video.playbackRate;
-        });
-    }
-
-    function displayDelayInfo(avgDelay, minDelay) {
-        if (!state.ui.shadowRoot) return;
-        let infoEl = state.ui.shadowRoot.getElementById('vsc-delay-info');
-        if (!infoEl) {
-            infoEl = document.createElement('div');
-            infoEl.id = 'vsc-delay-info';
-            infoEl.style.cssText = `
-                position:fixed;
-                bottom:5px;
-                right:5px;
-                color:white;
-                background:rgba(0,0,0,0.5);
-                padding:4px 8px;
-                border-radius:4px;
-                font-size:12px;
-                z-index:9999;
-            `;
-            state.ui.shadowRoot.appendChild(infoEl);
-        }
-        const status = state.isDelayAdjusting ? `${state.currentPlaybackRate.toFixed(2)}x` : '1.00x';
-        infoEl.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
-    }
-
-    function sampleInitialDelayAndFPS() {
-        return new Promise(resolve => {
-            const startTime = Date.now();
-            let lastFrame = performance.now();
-            let fpsSamples = [];
-
-            function sampleFrame() {
-                const now = performance.now();
-                const delta = now - lastFrame;
-                lastFrame = now;
-                fpsSamples.push(1000 / delta);
-
-                const delay = calculateDelay(video);
-                if (delay !== null) samplingData.push(delay);
-
-                if (Date.now() - startTime < SAMPLING_DURATION) {
-                    requestAnimationFrame(sampleFrame);
-                } else {
-                    const avgDelay = samplingData.reduce((a,b)=>a+b,0)/samplingData.length || 0;
-                    const minDelay = Math.min(...samplingData);
-                    const avgFPS = fpsSamples.reduce((a,b)=>a+b,0)/fpsSamples.length || 60;
-                    resolve({ avgDelay, minDelay, avgFPS });
-                }
+        function calculateDelay(videoElement) {
+            if (!videoElement || !videoElement.buffered || videoElement.buffered.length === 0) return null;
+            try {
+                const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1);
+                const delay = bufferedEnd - videoElement.currentTime;
+                return delay >= 0 ? delay * 1000 : null;
+            } catch {
+                return null;
             }
-            sampleFrame();
-        });
-    }
-
-    function autoOptimizeParameters({ avgDelay, minDelay, avgFPS }) {
-        FEEL_DELAY_FACTOR = Math.min(Math.max(0.5, 1000 / (avgDelay + 1)), 1.0);
-        SMOOTH_STEP = Math.min(Math.max(0.01, avgFPS / 60 * 0.05), 0.1);
-        console.log(`autoDelayManager 초기 최적화 완료: FEEL_DELAY_FACTOR=${FEEL_DELAY_FACTOR.toFixed(2)}, SMOOTH_STEP=${SMOOTH_STEP.toFixed(3)}`);
-    }
-
-    function checkAndAdjust() {
-        if (!video) video = findVideo();
-        if (!video) return;
-
-        const adjustedDelay = calculateAdjustedDelay(video);
-        if (adjustedDelay === null) return;
-
-        const now = Date.now();
-        state.delayHistory.push({ delay: adjustedDelay, timestamp: now });
-        state.delayHistory = state.delayHistory.filter(item => now - item.timestamp <= D_CONFIG.HISTORY_DURATION);
-
-        if (state.delayHistory.length === 0) return;
-
-        const avgDelay = state.delayHistory.reduce((sum,item)=>sum+item.delay,0)/state.delayHistory.length;
-        const minDelay = Math.min(...state.delayHistory.map(i=>i.delay));
-        displayDelayInfo(avgDelay, minDelay);
-
-        if (!state.isDelayAdjusting && avgDelay >= D_CONFIG.TRIGGER_DELAY) state.isDelayAdjusting = true;
-        else if (state.isDelayAdjusting && avgDelay <= D_CONFIG.TARGET_DELAY) {
-            state.isDelayAdjusting = false;
-            adjustPlaybackRate(D_CONFIG.NORMAL_RATE);
         }
 
-        if (state.isDelayAdjusting) {
-            const newRate = getPlaybackRate(avgDelay);
-            adjustPlaybackRate(newRate);
+        function calculateAdjustedDelay(videoElement) {
+            const rawDelay = calculateDelay(videoElement);
+            if (rawDelay === null) return null;
+            const clampedDelay = Math.min(Math.max(rawDelay, 0), 5000);
+            return clampedDelay * FEEL_DELAY_FACTOR;
         }
-    }
 
-    function setupIntersectionObserver() {
-        if (intersectionObserver) return;
-        intersectionObserver = new IntersectionObserver(entries => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting && entry.target.tagName === 'VIDEO') video = entry.target;
+        function getPlaybackRate(avgDelay) {
+            for (const config of D_CONFIG.SPEED_LEVELS) {
+                if (avgDelay >= config.minDelay) return config.playbackRate;
+            }
+            return D_CONFIG.SPEED_LEVELS[D_CONFIG.SPEED_LEVELS.length - 1].playbackRate;
+        }
+
+        function adjustPlaybackRate(targetRate) {
+            if (!video) return;
+            const diff = targetRate - video.playbackRate;
+            if (Math.abs(diff) < 0.01) return;
+            safeExec(() => {
+                video.playbackRate += diff * SMOOTH_STEP;
+                state.currentPlaybackRate = video.playbackRate;
             });
-        }, { threshold: 0.5 });
-
-        state.activeMedia.forEach(media => {
-            if (media.tagName === 'VIDEO') intersectionObserver.observe(media);
-        });
-    }
-
-    async function start() {
-        if (state.delayCheckInterval) return;
-        video = null;
-        setupIntersectionObserver();
-
-        // 샘플링 후 초기 최적화
-        video = findVideo();
-        if (video) {
-            const sample = await sampleInitialDelayAndFPS();
-            autoOptimizeParameters(sample);
-            // 샘플링 데이터로 바로 초기 딜레이 반영
-            state.delayHistory = samplingData.map(d => ({ delay: d, timestamp: Date.now() }));
         }
 
-        state.delayCheckInterval = setInterval(checkAndAdjust, D_CONFIG.CHECK_INTERVAL);
-    }
+        function displayDelayInfo(avgDelay, minDelay) {
+            if (!state.ui.shadowRoot) return;
+            let infoEl = state.ui.shadowRoot.getElementById('vsc-delay-info');
+            if (!infoEl) {
+                infoEl = document.createElement('div');
+                infoEl.id = 'vsc-delay-info';
+                infoEl.style.cssText = `
+                    position:fixed;
+                    bottom:5px;
+                    right:5px;
+                    color:white;
+                    background:rgba(0,0,0,0.5);
+                    padding:4px 8px;
+                    border-radius:4px;
+                    font-size:12px;
+                    z-index:9999;
+                `;
+                state.ui.shadowRoot.appendChild(infoEl);
+            }
+            const status = state.isDelayAdjusting ? `${state.currentPlaybackRate.toFixed(2)}x` : '1.00x';
+            infoEl.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
+        }
 
-    function stop() {
-        if (state.delayCheckInterval) {
-            clearInterval(state.delayCheckInterval);
-            state.delayCheckInterval = null;
-        }
-        if (intersectionObserver) {
-            intersectionObserver.disconnect();
-            intersectionObserver = null;
-        }
-        const infoEl = state.ui.shadowRoot?.getElementById('vsc-delay-info');
-        if (infoEl) infoEl.remove();
-        if (video) {
-            safeExec(()=>{ if(video.playbackRate!==1.0) video.playbackRate=1.0; });
-            video=null;
-        }
-        samplingData = [];
-    }
+        function sampleInitialDelayAndFPS() {
+            return new Promise(resolve => {
+                const startTime = Date.now();
+                let lastFrame = performance.now();
+                let fpsSamples = [];
 
-    return { start, stop };
-})();
+                function sampleFrame() {
+                    const now = performance.now();
+                    const delta = now - lastFrame;
+                    lastFrame = now;
+                    fpsSamples.push(1000 / delta);
+
+                    const delay = calculateDelay(video);
+                    if (delay !== null) samplingData.push(delay);
+
+                    if (Date.now() - startTime < SAMPLING_DURATION) {
+                        requestAnimationFrame(sampleFrame);
+                    } else {
+                        const avgDelay = samplingData.reduce((a,b)=>a+b,0)/samplingData.length || 0;
+                        const minDelay = Math.min(...samplingData);
+                        const avgFPS = fpsSamples.reduce((a,b)=>a+b,0)/fpsSamples.length || 60;
+                        resolve({ avgDelay, minDelay, avgFPS });
+                    }
+                }
+                sampleFrame();
+            });
+        }
+
+        function autoOptimizeParameters({ avgDelay, minDelay, avgFPS }) {
+            FEEL_DELAY_FACTOR = Math.min(Math.max(0.5, 1000 / (avgDelay + 1)), 1.0);
+            SMOOTH_STEP = Math.min(Math.max(0.01, avgFPS / 60 * 0.05), 0.1);
+            console.log(`autoDelayManager 초기 최적화 완료: FEEL_DELAY_FACTOR=${FEEL_DELAY_FACTOR.toFixed(2)}, SMOOTH_STEP=${SMOOTH_STEP.toFixed(3)}`);
+        }
+
+        function checkAndAdjust() {
+            if (!video) video = findVideo();
+            if (!video) return;
+
+            const adjustedDelay = calculateAdjustedDelay(video);
+            if (adjustedDelay === null) return;
+
+            const now = Date.now();
+            state.delayHistory.push({ delay: adjustedDelay, timestamp: now });
+            state.delayHistory = state.delayHistory.filter(item => now - item.timestamp <= D_CONFIG.HISTORY_DURATION);
+
+            if (state.delayHistory.length === 0) return;
+
+            const avgDelay = state.delayHistory.reduce((sum,item)=>sum+item.delay,0)/state.delayHistory.length;
+            const minDelay = Math.min(...state.delayHistory.map(i=>i.delay));
+            displayDelayInfo(avgDelay, minDelay);
+
+            if (!state.isDelayAdjusting && avgDelay >= D_CONFIG.TRIGGER_DELAY) state.isDelayAdjusting = true;
+            else if (state.isDelayAdjusting && avgDelay <= D_CONFIG.TARGET_DELAY) {
+                state.isDelayAdjusting = false;
+                adjustPlaybackRate(D_CONFIG.NORMAL_RATE);
+            }
+
+            if (state.isDelayAdjusting) {
+                const newRate = getPlaybackRate(avgDelay);
+                adjustPlaybackRate(newRate);
+            }
+        }
+
+        function setupIntersectionObserver() {
+            if (intersectionObserver) return;
+            intersectionObserver = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && entry.target.tagName === 'VIDEO') video = entry.target;
+                });
+            }, { threshold: 0.5 });
+
+            state.activeMedia.forEach(media => {
+                if (media.tagName === 'VIDEO') intersectionObserver.observe(media);
+            });
+        }
+
+        async function start() {
+            if (state.delayCheckInterval) return;
+            video = null;
+            setupIntersectionObserver();
+
+            // 샘플링 후 초기 최적화
+            video = findVideo();
+            if (video) {
+                const sample = await sampleInitialDelayAndFPS();
+                autoOptimizeParameters(sample);
+                // 샘플링 데이터로 바로 초기 딜레이 반영
+                state.delayHistory = samplingData.map(d => ({ delay: d, timestamp: Date.now() }));
+            }
+
+            state.delayCheckInterval = setInterval(checkAndAdjust, D_CONFIG.CHECK_INTERVAL);
+        }
+
+        function stop() {
+            if (state.delayCheckInterval) {
+                clearInterval(state.delayCheckInterval);
+                state.delayCheckInterval = null;
+            }
+            if (intersectionObserver) {
+                intersectionObserver.disconnect();
+                intersectionObserver = null;
+            }
+            const infoEl = state.ui.shadowRoot?.getElementById('vsc-delay-info');
+            if (infoEl) infoEl.remove();
+            if (video) {
+                safeExec(()=>{ if(video.playbackRate!==1.0) video.playbackRate=1.0; });
+                video=null;
+            }
+            samplingData = [];
+        }
+
+        return { start, stop };
+    })();
 
 
     function findAllMedia(doc = document) {
@@ -1355,7 +1355,9 @@ const autoDelayManager = (() => {
                 beforeUnloadListener = null;
             }
             if (spaNavigationHandler) {
-                window.removeEventListener('spa-navigate', spaNavigationHandler);
+                window.removeEventListener('popstate', spaNavigationHandler);
+                // 기존의 history.pushState 및 replaceState 래핑 해제는 복잡하므로,
+                // 스크립트 재실행에만 의존하는 것이 더 안전합니다.
                 spaNavigationHandler = null;
             }
             state.activeMedia.forEach(detachMediaListeners);
@@ -1387,19 +1389,12 @@ const autoDelayManager = (() => {
     function hookSpaNavigation() {
         if (spaNavigationHandler) return; // 이미 연결됨 → 중복 방지
 
-        const wrapHistory = (fn) => function() {
-            const ret = fn.apply(this, arguments);
-            window.dispatchEvent(new Event("spa-navigate"));
-            return ret;
-        };
-
-        history.pushState = wrapHistory(history.pushState);
-        history.replaceState = wrapHistory(history.replaceState);
-
-        window.addEventListener("popstate", () => window.dispatchEvent(new Event("spa-navigate")));
-
+        // popstate 이벤트와 debounce를 사용하여 안정적으로 재초기화
         spaNavigationHandler = debounce(reinit, 500);
-        window.addEventListener("spa-navigate", spaNavigationHandler);
+        window.addEventListener("popstate", spaNavigationHandler);
+
+        // SPA 환경에서 DOM이 완전히 재구성될 때를 대비해 MutationObserver도 활용
+        document.addEventListener('addShadowRoot', debouncedScanTask);
     }
 
     /** SPA 재초기화 */
@@ -1435,17 +1430,6 @@ const autoDelayManager = (() => {
         audioManager.setAudioMode(state.currentAudioMode);
 
         ensureObservers();
-
-        // --- UI 강제 복구 (SPA 전환 직후 DOM 안정화 대응) ---
-        setTimeout(() => {
-            const container = state.ui?.shadowRoot?.getElementById('vsc-container');
-            if (!container || !container.dataset.rendered) {
-                console.warn("[VSC] UI container missing, forcing re-render...");
-                uiManager.moveUiTo(document.fullscreenElement || document.body);
-                speedSlider.renderControls();
-                speedSlider.show(true);
-            }
-        }, 800);
     }
 
     /** 초기 실행 */
