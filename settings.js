@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (v48.3 Final)
+// @name         Video_Image_Control
 // @namespace    https://com/
-// @version      48.3
-// @description  이벤트 이름 충돌 방지 및 옵저버 재생성 로직을 추가한 최종 안정화 버전
+// @version      48.4
+// @description  오디오 관련 리소스를 메모리 누수 방지 / SPA 네비게이션 안정성 강화 / 모바일 호환성 강화
 // @match        *://*/*
 // @run-at       document-start
 // @grant        none
@@ -186,6 +186,7 @@
         const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
         let ctx = null, masterGain;
         const eqFilters = [], sourceMap = new WeakMap();
+
         function ensureContext() {
             if (ctx || isAudioDisabledForSite) return;
             try {
@@ -239,7 +240,13 @@
         function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
         function suspendContext() { safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
         function resumeContext() { safeExec(() => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); }); }
-        return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext };
+        /** IMPROVEMENT: Added function to completely close the AudioContext for resource cleanup */
+        function closeContext() {
+            if (ctx && ctx.state !== 'closed') {
+                ctx.close().then(() => ctx = null).catch(() => {});
+            }
+        }
+        return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext, closeContext };
     })();
 
     const uiManager = (() => {
@@ -884,6 +891,7 @@
             state.activeMedia.forEach(detachMediaListeners);
             state.activeImages.forEach(detachImageListeners);
             autoDelayManager.stop();
+            audioManager.closeContext(); // IMPROVEMENT: Fully close audio context
             const host = document.getElementById(UI_SELECTORS.HOST);
             if (host) host.remove();
             uiManager.reset();
@@ -918,8 +926,13 @@
             const original = history[method];
             if (original) {
                  history[method] = function(...args) {
-                    const result = original.apply(this, args);
-                    window.dispatchEvent(new Event(`vsc:${method}`));
+                    let result;
+                    try {
+                        result = original.apply(this, args);
+                    } finally {
+                        /** IMPROVEMENT: Use try...finally to guarantee event dispatch */
+                        window.dispatchEvent(new Event(`vsc:${method}`));
+                    }
                     return result;
                 }
             }
@@ -978,11 +991,20 @@
                 if (isMobile && document.fullscreenElement) {
                     const video = document.fullscreenElement.querySelector('video') || (document.fullscreenElement.tagName === 'VIDEO' ? document.fullscreenElement : null);
                     if (video) {
-                        const lockLandscape = async () => { if (video.videoWidth > video.videoHeight) { try { await screen.orientation.lock('landscape'); } catch (err) { /* ignore */ } } };
+                        const lockLandscape = async () => {
+                            if (video.videoWidth > video.videoHeight) {
+                                /** IMPROVEMENT: Check for iOS compatibility before locking orientation */
+                                if (screen.orientation?.lock) {
+                                    try { await screen.orientation.lock('landscape'); } catch (err) { /* ignore */ }
+                                }
+                            }
+                        };
                         if (video.readyState >= 1) await lockLandscape(); else video.addEventListener('loadedmetadata', lockLandscape, { once: true });
                     }
                 } else if (isMobile && !document.fullscreenElement) {
-                    try { screen.orientation?.unlock?.(); } catch (e) {}
+                    if (screen.orientation?.unlock) {
+                        try { screen.orientation.unlock(); } catch (e) {}
+                    }
                 }
             };
             document.addEventListener('fullscreenchange', fullscreenChangeListener);
