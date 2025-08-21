@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video_Image_Control
 // @namespace https://com/
-// @version 46.8
-// @description 이미지.비디오 기본값 변경
+// @version 46.9
+// @description spaNavigationHandler 로직 삭제 - 치치직등에서 ui업뎃 안됨 해결
 // @match *://*/*
 // @run-at document-start
 // @grant none
@@ -1342,8 +1342,6 @@
         audioManager.setAudioMode(state.currentAudioMode);
         scheduleIdleTask(scanAndApply);
     }
-
-    spaNavigationHandler = (() => { let lastHref = location.href; const onLocationChange = () => { if (location.href === lastHref) return; lastHref = location.href; cleanup(); setTimeout(start, 500); }; ['pushState', 'replaceState'].forEach(method => { const original = history[method]; history[method] = function (...args) { const result = original.apply(this, args); window.dispatchEvent(new Event('locationchange')); return result; }; }); window.addEventListener('popstate', onLocationChange); window.addEventListener('locationchange', onLocationChange); return { cleanup: () => { window.removeEventListener('popstate', onLocationChange); window.removeEventListener('locationchange', onLocationChange); } }; })();
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         start();
