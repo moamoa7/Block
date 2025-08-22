@@ -18,7 +18,7 @@
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
 
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 5 : 4,
+        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 5 : 3,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 4 : 2,
         DEFAULT_AUDIO_PRESET: 'movie',
         DEBUG: false,
@@ -39,7 +39,7 @@
         AUDIO_EXCLUSION_DOMAINS: [],
         AUDIO_PRESETS: { off: { gain: 1, eq: [] }, speech: { gain: 1.1, eq: [{ freq: 100, gain: -2 }, { freq: 250, gain: 1 }, { freq: 500, gain: 3 }, { freq: 1000, gain: 4 }, { freq: 2000, gain: 4.5 }, { freq: 4000, gain: 2 }, { freq: 8000, gain: -1 }] }, movie: { gain: 1.25, eq: [{ freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 }, { freq: 10000, gain: 4 }] }, music: { gain: 1.1, eq: [{ freq: 60, gain: 5 }, { freq: 150, gain: 3 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 0.5 }, { freq: 3000, gain: 2.5 }, { freq: 6000, gain: 4 }, { freq: 12000, gain: 3.5 }] } },
         MAX_EQ_BANDS: 7,
-        DELAY_ADJUSTER: { CHECK_INTERVAL: 500, HISTORY_DURATION: 1000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1000, SPEED_LEVELS: [{ minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1500, playbackRate: 1.00 }], NORMAL_RATE: 1.0 }
+        DELAY_ADJUSTER: { CHECK_INTERVAL: 500, HISTORY_DURATION: 1000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1000, SPEED_LEVELS: [{ minDelay: 3000, playbackRate: 1.20 }, { minDelay: 2500, playbackRate: 1.15 }, { minDelay: 2000, playbackRate: 1.10 }, { minDelay: 1500, playbackRate: 1.05 }, { minDelay: 1000, playbackRate: 1.00 }], NORMAL_RATE: 1.0 }
     };
 
     const UI_SELECTORS = {
@@ -370,12 +370,8 @@
             const speedBtnMain = shadowRoot.getElementById('vsc-speed-btn');
             if (!speedBtnMain) return;
 
-            if (parseFloat(speed) === 1.0) {
-                speedBtnMain.textContent = '⏱️';
-            } else {
-                const speedText = parseFloat(speed).toFixed(2).replace(/\.?0+$/, "");
-                speedBtnMain.textContent = `${speedText}x`;
-            }
+            const speedText = parseFloat(speed).toFixed(2).replace(/\.?0+$/, "");
+            speedBtnMain.textContent = `${speedText}x`;
         }
 
         const createButton = (id, title, text, className = 'vsc-btn') => {
@@ -769,7 +765,7 @@
             } else {
                 const avgDelay = messageOrAvg;
                 // [수정] 조건부로 1.00x를 표시하던 것을 항상 실제 속도(currentPlaybackRate)를 표시하도록 변경
-                const status = `${state.currentPlaybackRate.toFixed(2)}x`;
+                const status = `${state.currentPlaybackRate.toFixed(3)}x`;
                 textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
             }
             let refreshBtn = infoEl.querySelector('.vsc-delay-refresh-btn');
@@ -810,7 +806,7 @@
             const minDelay = Math.min(...state.delayHistory.map(i => i.delay));
             displayDelayInfo(avgDelay, minDelay);
             if (!state.isDelayAdjusting && avgDelay >= D_CONFIG.TRIGGER_DELAY) state.isDelayAdjusting = true;
-            else if (state.isDelayAdjusting && avgDelay <= D_CONFIG.TARGET_DELAY) { state.isDelayAdjusting = false; adjustPlaybackRate(D_CONFIG.NORMAL_RATE); }
+            else if (state.isDelayAdjusting && avgDelay <= D_CONFIG.TARGET_DELAY) { state.isDelayAdjusting = false; video.playbackRate = D_CONFIG.NORMAL_RATE; adjustPlaybackRate(D_CONFIG.NORMAL_RATE); }
             if (state.isDelayAdjusting) { const newRate = getPlaybackRate(avgDelay); adjustPlaybackRate(newRate); }
         }
         function setupIntersectionObserver() {
