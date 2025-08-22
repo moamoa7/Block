@@ -19,7 +19,7 @@
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 5 : 4,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 4 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 5 : 2,
         DEFAULT_AUDIO_PRESET: 'movie',
         LONG_PRESS_RATE: 4.0,
         DEBUG: false,
