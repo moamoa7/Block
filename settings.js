@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      50.6
-// @description  번개 아이콘 PC / 모바일 이동 가능 패치
+// @version      50.7
+// @description  번개 아이콘 / 모바일 드래그 경합 문제 패치
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1317,9 +1317,10 @@
 
         document.body.appendChild(trigger);
 
-        // [변경] 마우스와 터치 이벤트를 모두 처리하는 통합 함수들로 재구성
         const onDragStart = (e) => {
-            e.preventDefault();
+            // [수정] 꾹 누르기 기능과의 충돌을 막기 위해 이벤트 전파를 막습니다.
+            e.stopPropagation();
+
             isDragging = true;
             wasDragged = false;
 
@@ -1332,7 +1333,7 @@
             initialTop = rect.top;
 
             trigger.style.cursor = 'grabbing';
-            trigger.style.transition = 'none'; // 드래그 중에는 부드러운 움직임 효과 제거
+            trigger.style.transition = 'none';
 
             document.addEventListener('mousemove', onDragMove);
             document.addEventListener('touchmove', onDragMove, { passive: false });
@@ -1352,16 +1353,16 @@
             }
 
             if (wasDragged) {
+                // [수정] 실제로 드래그가 시작되었을 때만 기본 동작(스크롤 등)을 막습니다.
                 e.preventDefault();
                 let newLeft = initialLeft + deltaX;
                 let newTop = initialTop + deltaY;
 
-                // 화면 밖으로 나가지 않도록 위치 보정
                 newLeft = Math.max(0, Math.min(window.innerWidth - trigger.offsetWidth, newLeft));
                 newTop = Math.max(0, Math.min(window.innerHeight - trigger.offsetHeight, newTop));
 
                 trigger.style.right = 'auto';
-                trigger.style.transform = 'none'; // 위치 직접 설정 시 transform 초기화
+                trigger.style.transform = 'none';
                 trigger.style.left = `${newLeft}px`;
                 trigger.style.top = `${newTop}px`;
             }
@@ -1371,7 +1372,7 @@
             if (!isDragging) return;
             isDragging = false;
             trigger.style.cursor = 'pointer';
-            trigger.style.transition = 'transform 0.2s, background-color 0.2s'; // 트랜지션 효과 복원
+            trigger.style.transition = 'transform 0.2s, background-color 0.2s';
 
             document.removeEventListener('mousemove', onDragMove);
             document.removeEventListener('touchmove', onDragMove);
