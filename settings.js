@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      50.1
-// @description  닫기 버튼을 누르면 드래그 기능을 포함한 모든 실시간 상태가 설정과 함께 완전히 초기화
+// @version      50.4
+// @description  배속 표시 기능 및 mobileGestureManager 강화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -287,7 +287,6 @@
             const style = document.createElement('style');
             style.textContent = styleRules.join('\n');
             state.ui.shadowRoot.appendChild(style);
-            // [FIX] UI가 전체화면 iframe 내에서 재호출될 때 올바른 위치에 나타나도록 수정
             const attachTarget = document.fullscreenElement || document.body || document.documentElement;
             attachTarget.appendChild(host);
         }
@@ -326,9 +325,27 @@
     const speedSlider = (() => {
         let inited = false, fadeOutTimer;
         let hideAllSubMenus = () => {};
+        let speedDisplayTimer;
 
         function reset() {
             inited = false;
+            clearTimeout(speedDisplayTimer);
+        }
+
+        function updateSpeedDisplay(speed) {
+            const shadowRoot = state.ui.shadowRoot;
+            if (!shadowRoot) return;
+            const speedBtnMain = shadowRoot.getElementById('vsc-speed-btn');
+            if (!speedBtnMain) return;
+
+            clearTimeout(speedDisplayTimer);
+
+            const speedText = parseFloat(speed).toFixed(2).replace(/\.?0+$/, "");
+            speedBtnMain.textContent = `${speedText}x`;
+
+            speedDisplayTimer = setTimeout(() => {
+                if (speedBtnMain) speedBtnMain.textContent = '⏱️';
+            }, 2000);
         }
 
         const createButton = (id, title, text, className = 'vsc-btn') => {
@@ -605,6 +622,7 @@
             hide: () => { const el = state.ui.shadowRoot?.getElementById('vsc-container'); if (el) el.style.display = 'none'; },
             setMode,
             resetFadeTimer,
+            updateSpeedDisplay,
         };
     })();
 
@@ -671,16 +689,47 @@
     const mobileGestureManager = (() => {
         let longPressTimer = null, gestureIndicator = null;
         const LONG_PRESS_DELAY = 800;
-        const findAssociatedVideo = (target) => { if (target.tagName === 'VIDEO') return target; const v = target.closest('body, .player, #player, #movie_player')?.querySelector('video'); return v || null; };
+
+        const findAssociatedVideo = () => {
+            const videos = Array.from(state.activeMedia).filter(m => m.tagName === 'VIDEO' && m.isConnected);
+            if (videos.length === 0) return null;
+            if (videos.length === 1) return videos[0];
+            const playingVideo = videos.find(v => !v.paused && !v.ended && v.currentTime > 0);
+            if (playingVideo) return playingVideo;
+            let largestVideo = null;
+            let maxArea = 0;
+            videos.forEach(video => {
+                const rect = video.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0 && rect.top < window.innerHeight && rect.bottom > 0) {
+                    const area = rect.width * rect.height;
+                    if (area > maxArea) {
+                        maxArea = area;
+                        largestVideo = video;
+                    }
+                }
+            });
+            return largestVideo || videos[0] || null;
+        };
+
         const showIndicator = (text) => {
             if (!state.ui.shadowRoot) return;
-            if (!gestureIndicator) { gestureIndicator = document.createElement('div'); gestureIndicator.id = 'vsc-gesture-indicator'; state.ui.shadowRoot.appendChild(gestureIndicator); }
-            gestureIndicator.textContent = text; gestureIndicator.style.display = 'block';
+            if (!gestureIndicator) {
+                gestureIndicator = document.createElement('div');
+                gestureIndicator.id = 'vsc-gesture-indicator';
+                gestureIndicator.style.zIndex = CONFIG.MAX_Z_INDEX;
+                state.ui.shadowRoot.appendChild(gestureIndicator);
+            }
+            gestureIndicator.textContent = text;
+            gestureIndicator.style.display = 'block';
+            gestureIndicator.style.opacity = '1';
         };
+
         const hideIndicator = () => { if (gestureIndicator) { gestureIndicator.style.opacity = '0'; setTimeout(() => { if (gestureIndicator) gestureIndicator.style.display = 'none'; }, 300); } };
+
         const onTouchStart = (e) => {
             if (e.touches.length !== 1 || state.isDragSeekEnabled || e.composedPath().some(el => el.id === 'vsc-container')) return;
-            const video = findAssociatedVideo(e.target); if (!video) return;
+            const video = findAssociatedVideo();
+            if (!video) return;
             longPressTimer = setTimeout(() => {
                 safeExec(() => {
                     video.dataset.originalRate = video.playbackRate;
@@ -691,7 +740,9 @@
                 longPressTimer = null;
             }, LONG_PRESS_DELAY);
         };
+
         const onTouchMove = () => { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } };
+
         const onTouchEnd = () => {
             if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
             let rateChanged = false;
@@ -877,6 +928,7 @@
         play: e => { const m = e.target; audioManager.resumeContext(); if (m.tagName === 'VIDEO') updateVideoFilterState(m); mediaSessionManager.setSession(m); },
         pause: e => { const m = e.target; audioManager.suspendContext(); if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).filter(med => !med.paused).length === 0) mediaSessionManager.clearSession(); },
         ended: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).filter(med => !med.paused).length === 0) mediaSessionManager.clearSession(); },
+        ratechange: e => { speedSlider.updateSpeedDisplay(e.target.playbackRate); },
     };
 
     function injectFiltersIntoRoot(element, manager) {
@@ -958,7 +1010,6 @@
                 if (el) el.style.display = visible ? 'flex' : 'none';
             };
 
-            // ((로직 변경)) 시계 클릭 시점에 감지된 요소에 해당하는 UI만 표시
             setDisplay('vsc-video-controls', hasVideo);
             setDisplay('vsc-audio-controls', hasAudio);
             setDisplay('vsc-image-controls', hasImage);
@@ -982,11 +1033,10 @@
     let intersectionObserver = null;
     let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null, spaNavigationHandler = null;
     let isInitialized = false;
-    let triggerElement = null; // [FIX] 전체화면 전환 시 아이콘 참조를 유지하기 위한 변수
+    let triggerElement = null;
 
     function cleanup() {
         safeExec(() => {
-            // [FIX] 3단계 완전 소독 및 강제 초기화 로직
 
             if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
             if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
@@ -997,12 +1047,9 @@
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
 
-            // --- 3단계 필터 완전 소독 ---
-            // 1단계: 필터 레벨을 0으로 설정하여 효과를 '없음'으로 변경
             setVideoFilterLevel(0);
             setImageFilterLevel(0);
 
-            // 2단계: 페이지 전체에서 강제로 필터 클래스를 찾아 제거 (가장 확실한 방법)
             const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
             allRoots.forEach(root => {
                 root.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(el => {
@@ -1010,12 +1057,9 @@
                 });
             });
 
-            // 3단계: 필터 스타일시트 자체를 비활성화하여 원천 차단
             filterManager.toggleStyleSheet(false);
             imageFilterManager.toggleStyleSheet(false);
-            // --- 소독 완료 ---
 
-            // 모든 미디어 요소의 재생속도를 1배로 강제 초기화
             findAllMedia().forEach(media => {
                 safeExec(() => {
                     if (media.playbackRate !== 1.0) media.playbackRate = 1.0;
@@ -1028,9 +1072,8 @@
             const host = state.ui.hostElement;
             if (host) host.remove();
 
-            // [FIX] 드래그 탐색 상태를 포함한 모든 실시간 상태 초기화
             resetState();
-            settingsManager.init(); // (설정 메모리 초기화): UI를 닫을 때 설정 값을 기본값으로 초기화
+            settingsManager.init();
 
             uiManager.reset();
             speedSlider.reset();
@@ -1174,115 +1217,112 @@
         if (CONFIG.DEBUG) console.log("🎉 Video_Image_Control initialized.");
     }
 
-    function createTriggerButton() {
-        if (triggerElement || document.getElementById(UI_SELECTORS.TRIGGER)) return;
+    function createTriggerButton() {
+        if (triggerElement || document.getElementById(UI_SELECTORS.TRIGGER)) return;
 
-        // ((로직 변경)) 초기 시계 아이콘 나올때 태그 검사 실시
-        const hasMedia = findAllMedia().length > 0;
-        const hasImages = findAllImages().length > 0;
-        if (!hasMedia && !hasImages) {
-            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. Trigger button will not be displayed.");
-            return; // 태그 요소 미 감지시 시계 안보이게
-        }
+        const hasMedia = findAllMedia().length > 0;
+        const hasImages = findAllImages().length > 0;
+        if (!hasMedia && !hasImages) {
+            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. Trigger button will not be displayed.");
+            return;
+        }
 
-        const trigger = document.createElement('div');
-        triggerElement = trigger; // [FIX] 전역 변수에 참조 저장
-        trigger.id = UI_SELECTORS.TRIGGER;
-        trigger.textContent = '⚡';
-        Object.assign(trigger.style, {
-          position: 'fixed',
-          top: '50%',             // 화면 세로 70% 위치
-          right: '0vw',            // 화면 왼쪽 여백
-          transform: 'translateY(-50%)', // 세로 가운데 정렬
-          width: '40px',
-          height: '40px',
-          background: 'rgba(0, 0, 0, 0.5)',
-          color: 'white',
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '24px',
-          cursor: 'pointer',
-          zIndex: CONFIG.MAX_Z_INDEX,
-          userSelect: 'none',
-          transition: 'transform 0.2s, background-color 0.2s'
-      });
+        const trigger = document.createElement('div');
+        triggerElement = trigger;
+        trigger.id = UI_SELECTORS.TRIGGER;
+        trigger.textContent = '⚡';
+        Object.assign(trigger.style, {
+            position: 'fixed',
+            top: '50%',
+            right: '0vw',
+            transform: 'translateY(-50%)',
+            width: '40px',
+            height: '40px',
+            background: 'rgba(0, 0, 0, 0.5)',
+            color: 'white',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '24px',
+            cursor: 'pointer',
+            zIndex: CONFIG.MAX_Z_INDEX,
+            userSelect: 'none',
+            transition: 'transform 0.2s, background-color 0.2s'
+        });
 
-        let isDragging = false;
-        let wasDragged = false;
-        let startX, startY;
+        let isDragging = false;
+        let wasDragged = false;
+        let startX, startY;
 
-        trigger.addEventListener('click', (e) => {
-            if (wasDragged) {
-                e.stopPropagation();
-                return;
-            }
-            if (isInitialized) {
-                cleanup();
-                trigger.textContent = '⚡';
-                trigger.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            } else {
-                start();
-                trigger.textContent = '❌';
-                trigger.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
-            }
-        });
+        trigger.addEventListener('click', (e) => {
+            if (wasDragged) {
+                e.stopPropagation();
+                wasDragged = false; // 드래그 후 클릭 방지 상태 초기화
+                return;
+            }
+            if (isInitialized) {
+                cleanup();
+                trigger.textContent = '⚡';
+                trigger.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            } else {
+                start();
+                trigger.textContent = '❌';
+                trigger.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
+            }
+        });
 
-        document.body.appendChild(trigger);
+        document.body.appendChild(trigger);
 
-        trigger.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            wasDragged = false;
-            startX = e.clientX;
-            startY = e.clientY;
-            trigger.style.cursor = 'grabbing';
-            e.preventDefault();
-        });
+        trigger.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            wasDragged = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            trigger.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
 
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
 
-            // [FIX] 클릭 시 미세한 움직임으로 위치가 변경되는 문제 해결
-            // 드래그 시작으로 간주되기 전에는 위치를 업데이트하지 않음
-            if (!wasDragged) {
-                if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) {
-                    wasDragged = true;
-                }
-            }
+            if (!wasDragged) {
+                if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) {
+                    wasDragged = true;
+                }
+            }
 
-            // 드래그가 확인된 경우에만 위치를 변경
-            if (wasDragged) {
-                const x = e.clientX - (trigger.offsetWidth / 2);
-                const y = e.clientY - (trigger.offsetHeight / 2);
+            if (wasDragged) {
+                const x = e.clientX - (trigger.offsetWidth / 2);
+                const y = e.clientY - (trigger.offsetHeight / 2);
 
-                trigger.style.right = 'auto';
-                trigger.style.bottom = 'auto';
-                trigger.style.left = `${x}px`;
-                trigger.style.top = `${y}px`;
-            }
-        });
+                trigger.style.right = 'auto';
+                trigger.style.bottom = 'auto';
+                trigger.style.left = `${x}px`;
+                trigger.style.top = `${y}px`;
+            }
+        });
 
-        document.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-                trigger.style.cursor = 'pointer';
-            }
-        });
-    }
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                trigger.style.cursor = 'pointer';
+                // 드래그가 끝났을 때 바로 wasDragged를 초기화하면, mouseup과 click이 동시에 발생하여 클릭이 막히지 않는 경우가 있음
+                // click 이벤트에서 처리하도록 변경
+            }
+        });
+    }
 
-    if (!isExcluded()) {
-        // 동적으로 로딩되는 미디어를 감지하기 위해 2초 지연 후 아이콘 생성
-        setTimeout(() => {
-            createTriggerButton();
-        }, 2000);
+    if (!isExcluded()) {
+        setTimeout(() => {
+            createTriggerButton();
+        }, 2000);
 
-        // [FIX] 프레임 영상 전체화면 전환/복귀 시 아이콘이 사라지는 문제 해결
-        document.addEventListener('fullscreenchange', () => {
-            if (triggerElement) {
-                const targetRoot = document.fullscreenElement || document.body;
-                targetRoot.appendChild(triggerElement);
-            }
-        });
-    }
+        document.addEventListener('fullscreenchange', () => {
+            if (triggerElement) {
+                const targetRoot = document.fullscreenElement || document.body;
+                targetRoot.appendChild(triggerElement);
+            }
+        });
+    }
 })();
