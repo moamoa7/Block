@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      50.5
-// @description  모바일 롱프레스 안정화 및 오디오 필터 문제 해결
+// @version      50.6
+// @description  번개 아이콘 PC / 모바일 이동 가능 패치
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1259,99 +1259,129 @@
         if (CONFIG.DEBUG) console.log("🎉 Video_Image_Control initialized.");
     }
 
-    function createTriggerButton() {
-        if (triggerElement || document.getElementById(UI_SELECTORS.TRIGGER)) return;
+    function createTriggerButton() {
+        if (triggerElement || document.getElementById(UI_SELECTORS.TRIGGER)) return;
 
-        const hasMedia = findAllMedia().length > 0;
-        const hasImages = findAllImages().length > 0;
-        if (!hasMedia && !hasImages) {
-            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. Trigger button will not be displayed.");
-            return;
-        }
+        const hasMedia = findAllMedia().length > 0;
+        const hasImages = findAllImages().length > 0;
+        if (!hasMedia && !hasImages) {
+            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. Trigger button will not be displayed.");
+            return;
+        }
 
-        const trigger = document.createElement('div');
-        triggerElement = trigger;
-        trigger.id = UI_SELECTORS.TRIGGER;
-        trigger.textContent = '⚡';
-        Object.assign(trigger.style, {
-            position: 'fixed',
-            top: '50%',
-            right: '0vw',
-            transform: 'translateY(-50%)',
-            width: '40px',
-            height: '40px',
-            background: 'rgba(0, 0, 0, 0.5)',
-            color: 'white',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            cursor: 'pointer',
-            zIndex: CONFIG.MAX_Z_INDEX,
-            userSelect: 'none',
-            transition: 'transform 0.2s, background-color 0.2s'
-        });
+        const trigger = document.createElement('div');
+        triggerElement = trigger;
+        trigger.id = UI_SELECTORS.TRIGGER;
+        trigger.textContent = '⚡';
+        Object.assign(trigger.style, {
+            position: 'fixed',
+            top: '50%',
+            right: '0vw',
+            transform: 'translateY(-50%)',
+            width: '40px',
+            height: '40px',
+            background: 'rgba(0, 0, 0, 0.5)',
+            color: 'white',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '24px',
+            cursor: 'pointer',
+            zIndex: CONFIG.MAX_Z_INDEX,
+            userSelect: 'none',
+            transition: 'transform 0.2s, background-color 0.2s'
+        });
 
-        let isDragging = false;
-        let wasDragged = false;
-        let startX, startY;
+        let isDragging = false;
+        let wasDragged = false;
+        let startX, startY;
+        let initialLeft, initialTop;
 
-        trigger.addEventListener('click', (e) => {
-            if (wasDragged) {
-                e.stopPropagation();
-                wasDragged = false;
-                return;
-            }
-            if (isInitialized) {
-                cleanup();
-                trigger.textContent = '⚡';
-                trigger.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            } else {
-                start();
-                trigger.textContent = '❌';
-                trigger.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
-            }
-        });
+        trigger.addEventListener('click', (e) => {
+            if (wasDragged) {
+                e.stopPropagation();
+                wasDragged = false;
+                return;
+            }
+            if (isInitialized) {
+                cleanup();
+                trigger.textContent = '⚡';
+                trigger.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            } else {
+                start();
+                trigger.textContent = '❌';
+                trigger.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
+            }
+        });
 
-        document.body.appendChild(trigger);
+        document.body.appendChild(trigger);
 
-        trigger.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            wasDragged = false;
-            startX = e.clientX;
-            startY = e.clientY;
-            trigger.style.cursor = 'grabbing';
-            e.preventDefault();
-        });
+        // [변경] 마우스와 터치 이벤트를 모두 처리하는 통합 함수들로 재구성
+        const onDragStart = (e) => {
+            e.preventDefault();
+            isDragging = true;
+            wasDragged = false;
 
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
+            const pos = e.touches ? e.touches[0] : e;
+            startX = pos.clientX;
+            startY = pos.clientY;
 
-            if (!wasDragged) {
-                if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) {
-                    wasDragged = true;
-                }
-            }
+            const rect = trigger.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
 
-            if (wasDragged) {
-                const x = e.clientX - (trigger.offsetWidth / 2);
-                const y = e.clientY - (trigger.offsetHeight / 2);
+            trigger.style.cursor = 'grabbing';
+            trigger.style.transition = 'none'; // 드래그 중에는 부드러운 움직임 효과 제거
 
-                trigger.style.right = 'auto';
-                trigger.style.bottom = 'auto';
-                trigger.style.left = `${x}px`;
-                trigger.style.top = `${y}px`;
-            }
-        });
+            document.addEventListener('mousemove', onDragMove);
+            document.addEventListener('touchmove', onDragMove, { passive: false });
+            document.addEventListener('mouseup', onDragEnd);
+            document.addEventListener('touchend', onDragEnd);
+        };
 
-        document.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-                trigger.style.cursor = 'pointer';
-            }
-        });
-    }
+        const onDragMove = (e) => {
+            if (!isDragging) return;
+
+            const pos = e.touches ? e.touches[0] : e;
+            const deltaX = pos.clientX - startX;
+            const deltaY = pos.clientY - startY;
+
+            if (!wasDragged && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+                wasDragged = true;
+            }
+
+            if (wasDragged) {
+                e.preventDefault();
+                let newLeft = initialLeft + deltaX;
+                let newTop = initialTop + deltaY;
+
+                // 화면 밖으로 나가지 않도록 위치 보정
+                newLeft = Math.max(0, Math.min(window.innerWidth - trigger.offsetWidth, newLeft));
+                newTop = Math.max(0, Math.min(window.innerHeight - trigger.offsetHeight, newTop));
+
+                trigger.style.right = 'auto';
+                trigger.style.transform = 'none'; // 위치 직접 설정 시 transform 초기화
+                trigger.style.left = `${newLeft}px`;
+                trigger.style.top = `${newTop}px`;
+            }
+        };
+
+        const onDragEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            trigger.style.cursor = 'pointer';
+            trigger.style.transition = 'transform 0.2s, background-color 0.2s'; // 트랜지션 효과 복원
+
+            document.removeEventListener('mousemove', onDragMove);
+            document.removeEventListener('touchmove', onDragMove);
+            document.removeEventListener('mouseup', onDragEnd);
+            document.removeEventListener('touchend', onDragEnd);
+        };
+
+        trigger.addEventListener('mousedown', onDragStart);
+        trigger.addEventListener('touchstart', onDragStart, { passive: false });
+    }
 
     if (!isExcluded()) {
         setTimeout(() => {
