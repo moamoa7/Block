@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      50.4
-// @description  배속 표시 기능 및 mobileGestureManager 강화
+// @version      50.5
+// @description  모바일 롱프레스 안정화 및 오디오 필터 문제 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -19,7 +19,7 @@
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 5 : 4,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 5 : 3,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 4 : 2,
         DEFAULT_AUDIO_PRESET: 'movie',
         LONG_PRESS_RATE: 4.0,
         DEBUG: false,
@@ -191,70 +191,106 @@
         state.activeImages.forEach(image => updateImageFilterState(image));
     }
 
-    const audioManager = (() => {
-        const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
-        let ctx = null, masterGain;
-        const eqFilters = [], sourceMap = new WeakMap();
-        function ensureContext() {
-            if (ctx || isAudioDisabledForSite) return;
-            try {
-                ctx = new(window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-                masterGain = ctx.createGain();
-                for (let i = 0; i < CONFIG.MAX_EQ_BANDS; i++) {
-                    const eqFilter = ctx.createBiquadFilter(); eqFilter.type = 'peaking';
-                    eqFilters.push(eqFilter);
-                    if (i > 0) eqFilters[i - 1].connect(eqFilter);
-                }
-                if (eqFilters.length > 0) eqFilters[eqFilters.length - 1].connect(masterGain);
-                masterGain.connect(ctx.destination);
-            } catch (e) { if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e); ctx = null; }
-        }
-        function connectMedia(media) {
-            if (!ctx) return;
-            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-            let rec = sourceMap.get(media);
-            if (!rec) { const source = ctx.createMediaElementSource(media); rec = { source }; sourceMap.set(media, rec); }
-            try { rec.source.disconnect(); } catch (e) {}
-            const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
-            rec.source.connect(firstNode);
-            applyAudioPresetToNodes();
-        }
-        function applyAudioPresetToNodes() {
-            if (!ctx) return;
-            const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off;
-            const now = ctx.currentTime, rampTime = 0.05;
-            masterGain.gain.cancelScheduledValues(now);
-            masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime);
-            for (let i = 0; i < eqFilters.length; i++) {
-                const band = preset.eq[i], filter = eqFilters[i];
-                filter.gain.cancelScheduledValues(now); filter.frequency.cancelScheduledValues(now); filter.Q.cancelScheduledValues(now);
-                if (band) { filter.frequency.setValueAtTime(band.freq, now); filter.gain.linearRampToValueAtTime(band.gain, now + rampTime); filter.Q.setValueAtTime(1.41, now); }
-                else { filter.frequency.setValueAtTime(1000, now); filter.Q.setValueAtTime(1.41, now); filter.gain.linearRampToValueAtTime(0, now + rampTime); }
-            }
-        }
-        function processMedia(media) {
-            if (isAudioDisabledForSite) return;
-            media.addEventListener('play', () => {
-                ensureContext(); if (!ctx) return;
-                if (!sourceMap.has(media)) connectMedia(media); else resumeContext();
-            });
-        }
-        function cleanupMedia(media) {
-            if (isAudioDisabledForSite || !ctx) return;
-            const rec = sourceMap.get(media); if (!rec) return;
-            try { rec.source.disconnect(); }
-            catch (err) { if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err); }
-        }
-        function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
-        function suspendContext() { safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
-        function resumeContext() { safeExec(() => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); }); }
-        function closeContext() {
-            if (ctx && ctx.state !== 'closed') {
-                ctx.close().then(() => ctx = null).catch(() => { ctx = null; });
-            }
-        }
-        return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext, closeContext };
-    })();
+    const audioManager = (() => {
+        const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
+        let ctx = null, masterGain;
+        const eqFilters = [], sourceMap = new WeakMap();
+        function ensureContext() {
+            if (ctx || isAudioDisabledForSite) return;
+            try {
+                ctx = new(window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+                masterGain = ctx.createGain();
+                for (let i = 0; i < CONFIG.MAX_EQ_BANDS; i++) {
+                    const eqFilter = ctx.createBiquadFilter(); eqFilter.type = 'peaking';
+                    eqFilters.push(eqFilter);
+                    if (i > 0) eqFilters[i - 1].connect(eqFilter);
+                }
+                if (eqFilters.length > 0) eqFilters[eqFilters.length - 1].connect(masterGain);
+                masterGain.connect(ctx.destination);
+            } catch (e) { if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e); ctx = null; }
+        }
+        function connectMedia(media) {
+            if (!ctx) return;
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+            if (sourceMap.has(media)) {
+                try {
+                    const rec = sourceMap.get(media);
+                    rec.source.disconnect();
+                    const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
+                    rec.source.connect(firstNode);
+                } catch(e) { /* 재연결 실패는 무시 */ }
+                return;
+            }
+
+            try {
+                const source = ctx.createMediaElementSource(media);
+                const rec = { source };
+                sourceMap.set(media, rec);
+                const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
+                rec.source.connect(firstNode);
+                applyAudioPresetToNodes();
+            } catch (e) {
+                if (e.name === 'SecurityError') {
+                    console.warn('[VSC] Audio processing failed due to CORS policy.');
+                    const audioBtn = state.ui.shadowRoot?.getElementById('vsc-audio-btn');
+                    if (audioBtn) {
+                        audioBtn.disabled = true;
+                        audioBtn.style.opacity = '0.5';
+                        audioBtn.style.cursor = 'not-allowed';
+                        audioBtn.title = '보안 정책(CORS)으로 인해 이 영상의 오디오는 제어할 수 없습니다.';
+                    }
+                } else {
+                    if (CONFIG.DEBUG) console.error('[VSC] Error connecting media to audio context:', e);
+                }
+            }
+        }
+        function applyAudioPresetToNodes() {
+            if (!ctx) return;
+            const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off;
+            const now = ctx.currentTime, rampTime = 0.05;
+            masterGain.gain.cancelScheduledValues(now);
+            masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime);
+            for (let i = 0; i < eqFilters.length; i++) {
+                const band = preset.eq[i], filter = eqFilters[i];
+                filter.gain.cancelScheduledValues(now); filter.frequency.cancelScheduledValues(now); filter.Q.cancelScheduledValues(now);
+                if (band) { filter.frequency.setValueAtTime(band.freq, now); filter.gain.linearRampToValueAtTime(band.gain, now + rampTime); filter.Q.setValueAtTime(1.41, now); }
+                else { filter.frequency.setValueAtTime(1000, now); filter.Q.setValueAtTime(1.41, now); filter.gain.linearRampToValueAtTime(0, now + rampTime); }
+            }
+        }
+        function processMedia(media) {
+            if (isAudioDisabledForSite) return;
+            // [수정] 'play' 이벤트를 기다리는 것 외에, 이미 재생중인 경우도 처리
+            const connectAndResume = () => {
+                ensureContext();
+                if (!ctx) return;
+                connectMedia(media);
+                resumeContext();
+            };
+
+            media.addEventListener('play', connectAndResume);
+
+            // [수정] 스크립트가 로드됐을 때 영상이 이미 재생 중이라면 즉시 필터 연결
+            if (!media.paused && media.currentTime > 0) {
+                if (CONFIG.DEBUG) console.log('[VSC] Media already playing. Connecting audio filters immediately.');
+                connectAndResume();
+            }
+        }
+        function cleanupMedia(media) {
+            if (isAudioDisabledForSite || !ctx) return;
+            const rec = sourceMap.get(media); if (!rec) return;
+            try { rec.source.disconnect(); }
+            catch (err) { if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err); }
+        }
+        function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
+        function suspendContext() { safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
+        function resumeContext() { safeExec(() => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); }); }
+        function closeContext() {
+            if (ctx && ctx.state !== 'closed') {
+                ctx.close().then(() => ctx = null).catch(() => { ctx = null; });
+            }
+        }
+        return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext, closeContext };
+    })();
 
     const uiManager = (() => {
         const styleRules = [
@@ -325,11 +361,9 @@
     const speedSlider = (() => {
         let inited = false, fadeOutTimer;
         let hideAllSubMenus = () => {};
-        let speedDisplayTimer;
 
         function reset() {
             inited = false;
-            clearTimeout(speedDisplayTimer);
         }
 
         function updateSpeedDisplay(speed) {
@@ -338,14 +372,12 @@
             const speedBtnMain = shadowRoot.getElementById('vsc-speed-btn');
             if (!speedBtnMain) return;
 
-            clearTimeout(speedDisplayTimer);
-
-            const speedText = parseFloat(speed).toFixed(2).replace(/\.?0+$/, "");
-            speedBtnMain.textContent = `${speedText}x`;
-
-            speedDisplayTimer = setTimeout(() => {
-                if (speedBtnMain) speedBtnMain.textContent = '⏱️';
-            }, 2000);
+            if (parseFloat(speed) === 1.0) {
+                speedBtnMain.textContent = '⏱️';
+            } else {
+                const speedText = parseFloat(speed).toFixed(2).replace(/\.?0+$/, "");
+                speedBtnMain.textContent = `${speedText}x`;
+            }
         }
 
         const createButton = (id, title, text, className = 'vsc-btn') => {
@@ -687,7 +719,8 @@
     })();
 
     const mobileGestureManager = (() => {
-        let longPressTimer = null, gestureIndicator = null;
+        let tapTimer = null, longPressTimer = null, gestureIndicator = null;
+        const TAP_WINDOW = 150; // 탭으로 간주할 시간 (ms)
         const LONG_PRESS_DELAY = 800;
 
         const findAssociatedVideo = () => {
@@ -726,25 +759,39 @@
 
         const hideIndicator = () => { if (gestureIndicator) { gestureIndicator.style.opacity = '0'; setTimeout(() => { if (gestureIndicator) gestureIndicator.style.display = 'none'; }, 300); } };
 
-        const onTouchStart = (e) => {
-            if (e.touches.length !== 1 || state.isDragSeekEnabled || e.composedPath().some(el => el.id === 'vsc-container')) return;
-            const video = findAssociatedVideo();
-            if (!video) return;
-            longPressTimer = setTimeout(() => {
-                safeExec(() => {
-                    video.dataset.originalRate = video.playbackRate;
-                    const highSpeedRate = settingsManager.get('longPressRate');
-                    video.playbackRate = highSpeedRate;
-                    showIndicator(`x ${highSpeedRate.toFixed(1)}`);
-                });
-                longPressTimer = null;
-            }, LONG_PRESS_DELAY);
+        const clearTimers = () => {
+            if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; }
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
         };
 
-        const onTouchMove = () => { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } };
+        const onTouchStart = (e) => {
+            clearTimers();
+            if (e.touches.length !== 1 || state.isDragSeekEnabled || e.composedPath().some(el => el.id === 'vsc-container')) return;
+
+            const video = findAssociatedVideo();
+            if (!video) return;
+
+            // [개선 1] 탭 유예 시간을 두어 일반 탭과 롱프레스 구분
+            tapTimer = setTimeout(() => {
+                tapTimer = null; // 탭 시간이 지났으므로 타이머 해제
+                longPressTimer = setTimeout(() => {
+                    safeExec(() => {
+                        video.dataset.originalRate = video.playbackRate;
+                        const highSpeedRate = settingsManager.get('longPressRate');
+                        video.playbackRate = highSpeedRate;
+                        showIndicator(`x ${highSpeedRate.toFixed(1)}`);
+                    });
+                    longPressTimer = null;
+                }, LONG_PRESS_DELAY - TAP_WINDOW); // 이미 TAP_WINDOW만큼 기다렸으므로 빼줌
+            }, TAP_WINDOW);
+        };
+
+        const onTouchMove = () => {
+            clearTimers();
+        };
 
         const onTouchEnd = () => {
-            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+            clearTimers();
             let rateChanged = false;
             for (const media of state.activeMedia) {
                 if (media.dataset.originalRate) {
@@ -754,6 +801,7 @@
             }
             if (rateChanged) hideIndicator();
         };
+
         const init = () => { if (!isMobile) return; document.addEventListener('touchstart', onTouchStart, { passive: true }); document.addEventListener('touchmove', onTouchMove, { passive: true }); document.addEventListener('touchend', onTouchEnd, { passive: true }); document.addEventListener('touchcancel', onTouchEnd, { passive: true }); };
         return { init: () => safeExec(init, 'mobileGestureManager.init') };
     })();
@@ -1060,14 +1108,8 @@
             filterManager.toggleStyleSheet(false);
             imageFilterManager.toggleStyleSheet(false);
 
-            findAllMedia().forEach(media => {
-                safeExec(() => {
-                    if (media.playbackRate !== 1.0) media.playbackRate = 1.0;
-                    if (media.dataset.originalRate) delete media.dataset.originalRate;
-                });
-            });
-
-            audioManager.closeContext();
+            // [변경] 오디오 컨텍스트를 완전히 닫는 대신, 모든 효과를 끄는 'off' 모드로 설정
+            audioManager.setAudioMode('off');
 
             const host = state.ui.hostElement;
             if (host) host.remove();
@@ -1258,7 +1300,7 @@
         trigger.addEventListener('click', (e) => {
             if (wasDragged) {
                 e.stopPropagation();
-                wasDragged = false; // 드래그 후 클릭 방지 상태 초기화
+                wasDragged = false;
                 return;
             }
             if (isInitialized) {
@@ -1307,8 +1349,6 @@
             if (isDragging) {
                 isDragging = false;
                 trigger.style.cursor = 'pointer';
-                // 드래그가 끝났을 때 바로 wasDragged를 초기화하면, mouseup과 click이 동시에 발생하여 클릭이 막히지 않는 경우가 있음
-                // click 이벤트에서 처리하도록 변경
             }
         });
     }
