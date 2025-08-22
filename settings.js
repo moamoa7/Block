@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      50.8
-// @description  딜레이 미터기 수정
+// @version      50.9
+// @description  mobileGestureManager (모바일 배속 일부 기능 삭제)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -21,7 +21,6 @@
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 5 : 4,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 4 : 2,
         DEFAULT_AUDIO_PRESET: 'movie',
-        LONG_PRESS_RATE: 4.0,
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
         MAX_Z_INDEX: 2147483647,
@@ -59,8 +58,7 @@
         const definitions = {
             videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 6 },
             imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 6 },
-            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'speech', 'movie', 'music'] },
-            longPressRate: { name: '길게 눌러 재생 배속', default: CONFIG.LONG_PRESS_RATE, type: 'number', min: 1, max: 16 }
+            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'speech', 'movie', 'music'] }
         };
         function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
         const get = (key) => settings[key];
@@ -191,106 +189,106 @@
         state.activeImages.forEach(image => updateImageFilterState(image));
     }
 
-    const audioManager = (() => {
-        const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
-        let ctx = null, masterGain;
-        const eqFilters = [], sourceMap = new WeakMap();
-        function ensureContext() {
-            if (ctx || isAudioDisabledForSite) return;
-            try {
-                ctx = new(window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-                masterGain = ctx.createGain();
-                for (let i = 0; i < CONFIG.MAX_EQ_BANDS; i++) {
-                    const eqFilter = ctx.createBiquadFilter(); eqFilter.type = 'peaking';
-                    eqFilters.push(eqFilter);
-                    if (i > 0) eqFilters[i - 1].connect(eqFilter);
-                }
-                if (eqFilters.length > 0) eqFilters[eqFilters.length - 1].connect(masterGain);
-                masterGain.connect(ctx.destination);
-            } catch (e) { if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e); ctx = null; }
-        }
-        function connectMedia(media) {
-            if (!ctx) return;
-            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-            if (sourceMap.has(media)) {
-                try {
-                    const rec = sourceMap.get(media);
-                    rec.source.disconnect();
-                    const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
-                    rec.source.connect(firstNode);
-                } catch(e) { /* 재연결 실패는 무시 */ }
-                return;
-            }
+    const audioManager = (() => {
+        const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
+        let ctx = null, masterGain;
+        const eqFilters = [], sourceMap = new WeakMap();
+        function ensureContext() {
+            if (ctx || isAudioDisabledForSite) return;
+            try {
+                ctx = new(window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+                masterGain = ctx.createGain();
+                for (let i = 0; i < CONFIG.MAX_EQ_BANDS; i++) {
+                    const eqFilter = ctx.createBiquadFilter(); eqFilter.type = 'peaking';
+                    eqFilters.push(eqFilter);
+                    if (i > 0) eqFilters[i - 1].connect(eqFilter);
+                }
+                if (eqFilters.length > 0) eqFilters[eqFilters.length - 1].connect(masterGain);
+                masterGain.connect(ctx.destination);
+            } catch (e) { if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e); ctx = null; }
+        }
+        function connectMedia(media) {
+            if (!ctx) return;
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+            if (sourceMap.has(media)) {
+                try {
+                    const rec = sourceMap.get(media);
+                    rec.source.disconnect();
+                    const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
+                    rec.source.connect(firstNode);
+                } catch(e) { /* 재연결 실패는 무시 */ }
+                return;
+            }
 
-            try {
-                const source = ctx.createMediaElementSource(media);
-                const rec = { source };
-                sourceMap.set(media, rec);
-                const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
-                rec.source.connect(firstNode);
-                applyAudioPresetToNodes();
-            } catch (e) {
-                if (e.name === 'SecurityError') {
-                    console.warn('[VSC] Audio processing failed due to CORS policy.');
-                    const audioBtn = state.ui.shadowRoot?.getElementById('vsc-audio-btn');
-                    if (audioBtn) {
-                        audioBtn.disabled = true;
-                        audioBtn.style.opacity = '0.5';
-                        audioBtn.style.cursor = 'not-allowed';
-                        audioBtn.title = '보안 정책(CORS)으로 인해 이 영상의 오디오는 제어할 수 없습니다.';
-                    }
-                } else {
-                    if (CONFIG.DEBUG) console.error('[VSC] Error connecting media to audio context:', e);
-                }
-            }
-        }
-        function applyAudioPresetToNodes() {
-            if (!ctx) return;
-            const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off;
-            const now = ctx.currentTime, rampTime = 0.05;
-            masterGain.gain.cancelScheduledValues(now);
-            masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime);
-            for (let i = 0; i < eqFilters.length; i++) {
-                const band = preset.eq[i], filter = eqFilters[i];
-                filter.gain.cancelScheduledValues(now); filter.frequency.cancelScheduledValues(now); filter.Q.cancelScheduledValues(now);
-                if (band) { filter.frequency.setValueAtTime(band.freq, now); filter.gain.linearRampToValueAtTime(band.gain, now + rampTime); filter.Q.setValueAtTime(1.41, now); }
-                else { filter.frequency.setValueAtTime(1000, now); filter.Q.setValueAtTime(1.41, now); filter.gain.linearRampToValueAtTime(0, now + rampTime); }
-            }
-        }
-        function processMedia(media) {
-            if (isAudioDisabledForSite) return;
+            try {
+                const source = ctx.createMediaElementSource(media);
+                const rec = { source };
+                sourceMap.set(media, rec);
+                const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
+                rec.source.connect(firstNode);
+                applyAudioPresetToNodes();
+            } catch (e) {
+                if (e.name === 'SecurityError') {
+                    console.warn('[VSC] Audio processing failed due to CORS policy.');
+                    const audioBtn = state.ui.shadowRoot?.getElementById('vsc-audio-btn');
+                    if (audioBtn) {
+                        audioBtn.disabled = true;
+                        audioBtn.style.opacity = '0.5';
+                        audioBtn.style.cursor = 'not-allowed';
+                        audioBtn.title = '보안 정책(CORS)으로 인해 이 영상의 오디오는 제어할 수 없습니다.';
+                    }
+                } else {
+                    if (CONFIG.DEBUG) console.error('[VSC] Error connecting media to audio context:', e);
+                }
+            }
+        }
+        function applyAudioPresetToNodes() {
+            if (!ctx) return;
+            const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off;
+            const now = ctx.currentTime, rampTime = 0.05;
+            masterGain.gain.cancelScheduledValues(now);
+            masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime);
+            for (let i = 0; i < eqFilters.length; i++) {
+                const band = preset.eq[i], filter = eqFilters[i];
+                filter.gain.cancelScheduledValues(now); filter.frequency.cancelScheduledValues(now); filter.Q.cancelScheduledValues(now);
+                if (band) { filter.frequency.setValueAtTime(band.freq, now); filter.gain.linearRampToValueAtTime(band.gain, now + rampTime); filter.Q.setValueAtTime(1.41, now); }
+                else { filter.frequency.setValueAtTime(1000, now); filter.Q.setValueAtTime(1.41, now); filter.gain.linearRampToValueAtTime(0, now + rampTime); }
+            }
+        }
+        function processMedia(media) {
+            if (isAudioDisabledForSite) return;
             // [수정] 'play' 이벤트를 기다리는 것 외에, 이미 재생중인 경우도 처리
-            const connectAndResume = () => {
-                ensureContext();
-                if (!ctx) return;
-                connectMedia(media);
-                resumeContext();
-            };
+            const connectAndResume = () => {
+                ensureContext();
+                if (!ctx) return;
+                connectMedia(media);
+                resumeContext();
+            };
 
-            media.addEventListener('play', connectAndResume);
+            media.addEventListener('play', connectAndResume);
 
             // [수정] 스크립트가 로드됐을 때 영상이 이미 재생 중이라면 즉시 필터 연결
-            if (!media.paused && media.currentTime > 0) {
-                if (CONFIG.DEBUG) console.log('[VSC] Media already playing. Connecting audio filters immediately.');
-                connectAndResume();
-            }
-        }
-        function cleanupMedia(media) {
-            if (isAudioDisabledForSite || !ctx) return;
-            const rec = sourceMap.get(media); if (!rec) return;
-            try { rec.source.disconnect(); }
-            catch (err) { if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err); }
-        }
-        function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
-        function suspendContext() { safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
-        function resumeContext() { safeExec(() => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); }); }
-        function closeContext() {
-            if (ctx && ctx.state !== 'closed') {
-                ctx.close().then(() => ctx = null).catch(() => { ctx = null; });
-            }
-        }
-        return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext, closeContext };
-    })();
+            if (!media.paused && media.currentTime > 0) {
+                if (CONFIG.DEBUG) console.log('[VSC] Media already playing. Connecting audio filters immediately.');
+                connectAndResume();
+            }
+        }
+        function cleanupMedia(media) {
+            if (isAudioDisabledForSite || !ctx) return;
+            const rec = sourceMap.get(media); if (!rec) return;
+            try { rec.source.disconnect(); }
+            catch (err) { if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err); }
+        }
+        function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
+        function suspendContext() { safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
+        function resumeContext() { safeExec(() => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); }); }
+        function closeContext() {
+            if (ctx && ctx.state !== 'closed') {
+                ctx.close().then(() => ctx = null).catch(() => { ctx = null; });
+            }
+        }
+        return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext, closeContext };
+    })();
 
     const uiManager = (() => {
         const styleRules = [
@@ -718,94 +716,6 @@
         return { init: () => { if (inited) return; safeExec(() => { document.addEventListener('mousedown', onStart, { capture: true }); document.addEventListener('touchstart', onStart, { passive: true, capture: true }); inited = true; }, 'drag.init'); } };
     })();
 
-    const mobileGestureManager = (() => {
-        let tapTimer = null, longPressTimer = null, gestureIndicator = null;
-        const TAP_WINDOW = 150; // 탭으로 간주할 시간 (ms)
-        const LONG_PRESS_DELAY = 800;
-
-        const findAssociatedVideo = () => {
-            const videos = Array.from(state.activeMedia).filter(m => m.tagName === 'VIDEO' && m.isConnected);
-            if (videos.length === 0) return null;
-            if (videos.length === 1) return videos[0];
-            const playingVideo = videos.find(v => !v.paused && !v.ended && v.currentTime > 0);
-            if (playingVideo) return playingVideo;
-            let largestVideo = null;
-            let maxArea = 0;
-            videos.forEach(video => {
-                const rect = video.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0 && rect.top < window.innerHeight && rect.bottom > 0) {
-                    const area = rect.width * rect.height;
-                    if (area > maxArea) {
-                        maxArea = area;
-                        largestVideo = video;
-                    }
-                }
-            });
-            return largestVideo || videos[0] || null;
-        };
-
-        const showIndicator = (text) => {
-            if (!state.ui.shadowRoot) return;
-            if (!gestureIndicator) {
-                gestureIndicator = document.createElement('div');
-                gestureIndicator.id = 'vsc-gesture-indicator';
-                gestureIndicator.style.zIndex = CONFIG.MAX_Z_INDEX;
-                state.ui.shadowRoot.appendChild(gestureIndicator);
-            }
-            gestureIndicator.textContent = text;
-            gestureIndicator.style.display = 'block';
-            gestureIndicator.style.opacity = '1';
-        };
-
-        const hideIndicator = () => { if (gestureIndicator) { gestureIndicator.style.opacity = '0'; setTimeout(() => { if (gestureIndicator) gestureIndicator.style.display = 'none'; }, 300); } };
-
-        const clearTimers = () => {
-            if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; }
-            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-        };
-
-        const onTouchStart = (e) => {
-            clearTimers();
-            if (e.touches.length !== 1 || state.isDragSeekEnabled || e.composedPath().some(el => el.id === 'vsc-container')) return;
-
-            const video = findAssociatedVideo();
-            if (!video) return;
-
-            // [개선 1] 탭 유예 시간을 두어 일반 탭과 롱프레스 구분
-            tapTimer = setTimeout(() => {
-                tapTimer = null; // 탭 시간이 지났으므로 타이머 해제
-                longPressTimer = setTimeout(() => {
-                    safeExec(() => {
-                        video.dataset.originalRate = video.playbackRate;
-                        const highSpeedRate = settingsManager.get('longPressRate');
-                        video.playbackRate = highSpeedRate;
-                        showIndicator(`x ${highSpeedRate.toFixed(1)}`);
-                    });
-                    longPressTimer = null;
-                }, LONG_PRESS_DELAY - TAP_WINDOW); // 이미 TAP_WINDOW만큼 기다렸으므로 빼줌
-            }, TAP_WINDOW);
-        };
-
-        const onTouchMove = () => {
-            clearTimers();
-        };
-
-        const onTouchEnd = () => {
-            clearTimers();
-            let rateChanged = false;
-            for (const media of state.activeMedia) {
-                if (media.dataset.originalRate) {
-                    safeExec(() => { media.playbackRate = parseFloat(media.dataset.originalRate); delete media.dataset.originalRate; });
-                    rateChanged = true;
-                }
-            }
-            if (rateChanged) hideIndicator();
-        };
-
-        const init = () => { if (!isMobile) return; document.addEventListener('touchstart', onTouchStart, { passive: true }); document.addEventListener('touchmove', onTouchMove, { passive: true }); document.addEventListener('touchend', onTouchEnd, { passive: true }); document.addEventListener('touchcancel', onTouchEnd, { passive: true }); };
-        return { init: () => safeExec(init, 'mobileGestureManager.init') };
-    })();
-
     const mediaSessionManager = (() => {
         let inited = false;
         const getSeekTime = m => { if (!m || !isFinite(m.duration)) return 10; return Math.min(Math.floor(m.duration * CONFIG.SEEK_TIME_PERCENT), CONFIG.SEEK_TIME_MAX_SEC); };
@@ -841,41 +751,41 @@
         function getPlaybackRate(avgDelay) { for (const config of D_CONFIG.SPEED_LEVELS) { if (avgDelay >= config.minDelay) { return config.playbackRate; } } return D_CONFIG.NORMAL_RATE; }
         function adjustPlaybackRate(targetRate) { if (!video) return; const diff = targetRate - video.playbackRate; if (Math.abs(diff) < 0.01) return; safeExec(() => { video.playbackRate += diff * SMOOTH_STEP; state.currentPlaybackRate = video.playbackRate; }); }
 
-        function displayDelayInfo(messageOrAvg, minDelay) {
-            if (!state.ui.shadowRoot) return;
-            let infoEl = state.ui.shadowRoot.getElementById('vsc-delay-info');
-            if (!infoEl) {
-                infoEl = document.createElement('div');
-                infoEl.id = 'vsc-delay-info';
-                state.ui.shadowRoot.appendChild(infoEl);
-            }
-            let textSpan = infoEl.querySelector('span');
-            if (!textSpan) {
-                textSpan = document.createElement('span');
-                infoEl.prepend(textSpan);
-            }
-            if (typeof messageOrAvg === 'string') {
-                textSpan.textContent = messageOrAvg;
-            } else {
-                const avgDelay = messageOrAvg;
-                // [수정] 조건부로 1.00x를 표시하던 것을 항상 실제 속도(currentPlaybackRate)를 표시하도록 변경
-                const status = `${state.currentPlaybackRate.toFixed(2)}x`;
-                textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
-            }
-            let refreshBtn = infoEl.querySelector('.vsc-delay-refresh-btn');
-            if (!refreshBtn) {
-                refreshBtn = document.createElement('button');
-                refreshBtn.textContent = '🔄';
-                refreshBtn.title = '딜레이 측정 재시작';
-                refreshBtn.className = 'vsc-delay-refresh-btn';
-                Object.assign(refreshBtn.style, { background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '5px', fontSize: '14px', padding: '0 2px', verticalAlign: 'middle' });
-                refreshBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    restart();
-                });
-                infoEl.appendChild(refreshBtn);
-            }
-        }
+        function displayDelayInfo(messageOrAvg, minDelay) {
+            if (!state.ui.shadowRoot) return;
+            let infoEl = state.ui.shadowRoot.getElementById('vsc-delay-info');
+            if (!infoEl) {
+                infoEl = document.createElement('div');
+                infoEl.id = 'vsc-delay-info';
+                state.ui.shadowRoot.appendChild(infoEl);
+            }
+            let textSpan = infoEl.querySelector('span');
+            if (!textSpan) {
+                textSpan = document.createElement('span');
+                infoEl.prepend(textSpan);
+            }
+            if (typeof messageOrAvg === 'string') {
+                textSpan.textContent = messageOrAvg;
+            } else {
+                const avgDelay = messageOrAvg;
+                // [수정] 조건부로 1.00x를 표시하던 것을 항상 실제 속도(currentPlaybackRate)를 표시하도록 변경
+                const status = `${state.currentPlaybackRate.toFixed(2)}x`;
+                textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
+            }
+            let refreshBtn = infoEl.querySelector('.vsc-delay-refresh-btn');
+            if (!refreshBtn) {
+                refreshBtn = document.createElement('button');
+                refreshBtn.textContent = '🔄';
+                refreshBtn.title = '딜레이 측정 재시작';
+                refreshBtn.className = 'vsc-delay-refresh-btn';
+                Object.assign(refreshBtn.style, { background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '5px', fontSize: '14px', padding: '0 2px', verticalAlign: 'middle' });
+                refreshBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    restart();
+                });
+                infoEl.appendChild(refreshBtn);
+            }
+        }
 
         function sampleInitialDelayAndFPS() {
             return new Promise(resolve => {
@@ -1109,8 +1019,8 @@
             filterManager.toggleStyleSheet(false);
             imageFilterManager.toggleStyleSheet(false);
 
-            // [변경] 오디오 컨텍스트를 완전히 닫는 대신, 모든 효과를 끄는 'off' 모드로 설정
-            audioManager.setAudioMode('off');
+            // [변경] 오디오 컨텍스트를 완전히 닫는 대신, 모든 효과를 끄는 'off' 모드로 설정
+            audioManager.setAudioMode('off');
 
             const host = state.ui.hostElement;
             if (host) host.remove();
@@ -1191,7 +1101,6 @@
         imageFilterManager.init();
         speedSlider.init();
         dragBar.init();
-        mobileGestureManager.init();
         mediaSessionManager.init();
 
         ensureObservers();
@@ -1260,130 +1169,130 @@
         if (CONFIG.DEBUG) console.log("🎉 Video_Image_Control initialized.");
     }
 
-    function createTriggerButton() {
-        if (triggerElement || document.getElementById(UI_SELECTORS.TRIGGER)) return;
+    function createTriggerButton() {
+        if (triggerElement || document.getElementById(UI_SELECTORS.TRIGGER)) return;
 
-        const hasMedia = findAllMedia().length > 0;
-        const hasImages = findAllImages().length > 0;
-        if (!hasMedia && !hasImages) {
-            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. Trigger button will not be displayed.");
-            return;
-        }
+        const hasMedia = findAllMedia().length > 0;
+        const hasImages = findAllImages().length > 0;
+        if (!hasMedia && !hasImages) {
+            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. Trigger button will not be displayed.");
+            return;
+        }
 
-        const trigger = document.createElement('div');
-        triggerElement = trigger;
-        trigger.id = UI_SELECTORS.TRIGGER;
-        trigger.textContent = '⚡';
-        Object.assign(trigger.style, {
-            position: 'fixed',
-            top: '50%',
-            right: '0vw',
-            transform: 'translateY(-50%)',
-            width: '40px',
-            height: '40px',
-            background: 'rgba(0, 0, 0, 0.5)',
-            color: 'white',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            cursor: 'pointer',
-            zIndex: CONFIG.MAX_Z_INDEX,
-            userSelect: 'none',
-            transition: 'transform 0.2s, background-color 0.2s'
-        });
+        const trigger = document.createElement('div');
+        triggerElement = trigger;
+        trigger.id = UI_SELECTORS.TRIGGER;
+        trigger.textContent = '⚡';
+        Object.assign(trigger.style, {
+            position: 'fixed',
+            top: '50%',
+            right: '0vw',
+            transform: 'translateY(-50%)',
+            width: '40px',
+            height: '40px',
+            background: 'rgba(0, 0, 0, 0.5)',
+            color: 'white',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '24px',
+            cursor: 'pointer',
+            zIndex: CONFIG.MAX_Z_INDEX,
+            userSelect: 'none',
+            transition: 'transform 0.2s, background-color 0.2s'
+        });
 
-        let isDragging = false;
-        let wasDragged = false;
-        let startX, startY;
-        let initialLeft, initialTop;
+        let isDragging = false;
+        let wasDragged = false;
+        let startX, startY;
+        let initialLeft, initialTop;
 
-        trigger.addEventListener('click', (e) => {
-            if (wasDragged) {
-                e.stopPropagation();
-                wasDragged = false;
-                return;
-            }
-            if (isInitialized) {
-                cleanup();
-                trigger.textContent = '⚡';
-                trigger.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            } else {
-                start();
-                trigger.textContent = '❌';
-                trigger.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
-            }
-        });
+        trigger.addEventListener('click', (e) => {
+            if (wasDragged) {
+                e.stopPropagation();
+                wasDragged = false;
+                return;
+            }
+            if (isInitialized) {
+                cleanup();
+                trigger.textContent = '⚡';
+                trigger.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            } else {
+                start();
+                trigger.textContent = '❌';
+                trigger.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
+            }
+        });
 
-        document.body.appendChild(trigger);
+        document.body.appendChild(trigger);
 
-        const onDragStart = (e) => {
-            // [수정] 꾹 누르기 기능과의 충돌을 막기 위해 이벤트 전파를 막습니다.
-            e.stopPropagation();
+        const onDragStart = (e) => {
+            // [수정] 꾹 누르기 기능과의 충돌을 막기 위해 이벤트 전파를 막습니다.
+            e.stopPropagation();
 
-            isDragging = true;
-            wasDragged = false;
+            isDragging = true;
+            wasDragged = false;
 
-            const pos = e.touches ? e.touches[0] : e;
-            startX = pos.clientX;
-            startY = pos.clientY;
+            const pos = e.touches ? e.touches[0] : e;
+            startX = pos.clientX;
+            startY = pos.clientY;
 
-            const rect = trigger.getBoundingClientRect();
-            initialLeft = rect.left;
-            initialTop = rect.top;
+            const rect = trigger.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
 
-            trigger.style.cursor = 'grabbing';
-            trigger.style.transition = 'none';
+            trigger.style.cursor = 'grabbing';
+            trigger.style.transition = 'none';
 
-            document.addEventListener('mousemove', onDragMove);
-            document.addEventListener('touchmove', onDragMove, { passive: false });
-            document.addEventListener('mouseup', onDragEnd);
-            document.addEventListener('touchend', onDragEnd);
-        };
+            document.addEventListener('mousemove', onDragMove);
+            document.addEventListener('touchmove', onDragMove, { passive: false });
+            document.addEventListener('mouseup', onDragEnd);
+            document.addEventListener('touchend', onDragEnd);
+        };
 
-        const onDragMove = (e) => {
-            if (!isDragging) return;
+        const onDragMove = (e) => {
+            if (!isDragging) return;
 
-            const pos = e.touches ? e.touches[0] : e;
-            const deltaX = pos.clientX - startX;
-            const deltaY = pos.clientY - startY;
+            const pos = e.touches ? e.touches[0] : e;
+            const deltaX = pos.clientX - startX;
+            const deltaY = pos.clientY - startY;
 
-            if (!wasDragged && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
-                wasDragged = true;
-            }
+            if (!wasDragged && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+                wasDragged = true;
+            }
 
-            if (wasDragged) {
-                // [수정] 실제로 드래그가 시작되었을 때만 기본 동작(스크롤 등)을 막습니다.
-                e.preventDefault();
-                let newLeft = initialLeft + deltaX;
-                let newTop = initialTop + deltaY;
+            if (wasDragged) {
+                // [수정] 실제로 드래그가 시작되었을 때만 기본 동작(스크롤 등)을 막습니다.
+                e.preventDefault();
+                let newLeft = initialLeft + deltaX;
+                let newTop = initialTop + deltaY;
 
                 newLeft = Math.max(0, Math.min(window.innerWidth - trigger.offsetWidth, newLeft));
                 newTop = Math.max(0, Math.min(window.innerHeight - trigger.offsetHeight, newTop));
 
-                trigger.style.right = 'auto';
-                trigger.style.transform = 'none';
-                trigger.style.left = `${newLeft}px`;
-                trigger.style.top = `${newTop}px`;
-            }
-        };
+                trigger.style.right = 'auto';
+                trigger.style.transform = 'none';
+                trigger.style.left = `${newLeft}px`;
+                trigger.style.top = `${newTop}px`;
+            }
+        };
 
-        const onDragEnd = () => {
-            if (!isDragging) return;
-            isDragging = false;
-            trigger.style.cursor = 'pointer';
-            trigger.style.transition = 'transform 0.2s, background-color 0.2s';
+        const onDragEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            trigger.style.cursor = 'pointer';
+            trigger.style.transition = 'transform 0.2s, background-color 0.2s';
 
-            document.removeEventListener('mousemove', onDragMove);
-            document.removeEventListener('touchmove', onDragMove);
-            document.removeEventListener('mouseup', onDragEnd);
-            document.removeEventListener('touchend', onDragEnd);
-        };
+            document.removeEventListener('mousemove', onDragMove);
+            document.removeEventListener('touchmove', onDragMove);
+            document.removeEventListener('mouseup', onDragEnd);
+            document.removeEventListener('touchend', onDragEnd);
+        };
 
-        trigger.addEventListener('mousedown', onDragStart);
-        trigger.addEventListener('touchstart', onDragStart, { passive: false });
-    }
+        trigger.addEventListener('mousedown', onDragStart);
+        trigger.addEventListener('touchstart', onDragStart, { passive: false });
+    }
 
     if (!isExcluded()) {
         setTimeout(() => {
