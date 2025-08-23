@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      51.0
-// @description  calculateSharpenMatrix(level) 계산식 및 DESKTOP_FILTER_SETTINGS 수정 (-1 에서 0.5로) (BLUR_STD_DEVIATION 0.6 에서 0.5로)
+// @version      51.1
+// @description  PC / 모바일 기본 레벨값 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
