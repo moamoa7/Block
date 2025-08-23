@@ -2,7 +2,7 @@
 // @name         Video_Image_Control
 // @namespace    https://com/
 // @version      51.4
-// @description  clamp()를 사용한 통합 스타일 적용
+// @description  모바일 환경 고려한 vmin 통일
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -295,7 +295,7 @@
     const styleRules = [
         ':host { pointer-events: none; }',
         '* { pointer-events: auto; }',
-        '#vsc-container { position: fixed; top: 50%; right: 5vmin; background: rgba(0,0,0,0.1); padding: clamp(6px, 1.2vmin, 10px); border-radius: clamp(8px, 1.5vmin, 12px); z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); }',
+        '#vsc-container { position: fixed; top: 50%; right: 7vmin; background: rgba(0,0,0,0.1); padding: clamp(6px, 1.2vmin, 10px); border-radius: clamp(8px, 1.5vmin, 12px); z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); }',
         '#vsc-container.touched { opacity: 1; }',
         '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
         '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(26px, 5.5vmin, 32px); width: clamp(28px, 6vmin, 34px); position: relative; }',
