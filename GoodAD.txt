@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250811
+! Version: 20250823
 !
 !
 !
@@ -316,7 +316,7 @@ twitch.tv###twilight-sticky-footer-root
 twitch.tv##.react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 기타
 ! - 광고?
-||*.ads.*
+!||*.ads.*
 ! - 차단 사이트
 !||edge.ads.twitch.tv^
 !||scorecardresearch.com^
@@ -4317,6 +4317,11 @@ daejeonsarangcard.kr#@#[class^="ad"]
 ! ##[class^="ad"] 해제
 mib19.co.kr#@#[class^="ad"]
 !
+!
+! https://www.xfree.com/
+!  - 팝업 해제
+xfree.com#@#[class^="ad"]
+
 !
 !
 !
