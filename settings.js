@@ -19,7 +19,7 @@
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 4 : 2,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 4 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 5 : 2,
         DEFAULT_AUDIO_PRESET: 'movie',
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
@@ -27,11 +27,11 @@
         SEEK_TIME_PERCENT: 0.05,
         SEEK_TIME_MAX_SEC: 15,
         IMAGE_MIN_SIZE: 350,
-        LIVE_STREAM_URLS: ['play.sooplive.co.kr/', 'chzzk.naver.com/'],
+        LIVE_STREAM_URLS: ['play.sooplive.co.kr/', 'chzzk.naver.com/', 'twitch.tv', 'kick.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.05, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 105 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.05, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.5', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 105 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.5', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] }, },
         FILTER_EXCLUSION_DOMAINS: [],
@@ -39,7 +39,7 @@
         AUDIO_EXCLUSION_DOMAINS: [],
         AUDIO_PRESETS: { off: { gain: 1, eq: [] }, speech: { gain: 1.1, eq: [{ freq: 100, gain: -2 }, { freq: 250, gain: 1 }, { freq: 500, gain: 3 }, { freq: 1000, gain: 4 }, { freq: 2000, gain: 4.5 }, { freq: 4000, gain: 2 }, { freq: 8000, gain: -1 }] }, movie: { gain: 1.25, eq: [{ freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 }, { freq: 10000, gain: 4 }] }, music: { gain: 1.1, eq: [{ freq: 60, gain: 5 }, { freq: 150, gain: 3 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 0.5 }, { freq: 3000, gain: 2.5 }, { freq: 6000, gain: 4 }, { freq: 12000, gain: 3.5 }] } },
         MAX_EQ_BANDS: 7,
-        DELAY_ADJUSTER: { CHECK_INTERVAL: 500, HISTORY_DURATION: 1000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1000, SPEED_LEVELS: [{ minDelay: 3000, playbackRate: 1.20 }, { minDelay: 2500, playbackRate: 1.15 }, { minDelay: 2000, playbackRate: 1.10 }, { minDelay: 1500, playbackRate: 1.05 }, { minDelay: 1000, playbackRate: 1.00 }], NORMAL_RATE: 1.0 }
+        DELAY_ADJUSTER: { CHECK_INTERVAL: 500, HISTORY_DURATION: 1000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500, SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.050 }, { minDelay: 3750, playbackRate: 1.045}, { minDelay: 3500, playbackRate: 1.040 }, { minDelay: 3250, playbackRate: 1.035 }, { minDelay: 3000, playbackRate: 1.030 }, { minDelay: 2750, playbackRate: 1.025 }, { minDelay: 2500, playbackRate: 1.020 }, { minDelay: 2250, playbackRate: 1.015 }, { minDelay: 2000, playbackRate: 1.010 }, { minDelay: 1750, playbackRate: 1.005 }, { minDelay: 1500, playbackRate: 1.000 }], NORMAL_RATE: 1.0 }
     };
 
     const UI_SELECTORS = {
@@ -294,7 +294,7 @@
         const styleRules = [
             ':host { pointer-events: none; }',
             '* { pointer-events: auto; }',
-            '#vsc-container { position: fixed; top: 50%; right: 40px; background: rgba(0,0,0,0.1); padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); }',
+            '#vsc-container { position: fixed; top: 50%; right: 5vmin; background: rgba(0,0,0,0.1); padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); }',
             '#vsc-container.touched { opacity: 1; }',
             '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
             '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 30px; position: relative; }',
@@ -307,7 +307,7 @@
             '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: 4px; padding: 4px 6px; font-size: 13px; }',
             '#vsc-time-display, #vsc-delay-info, #vsc-gesture-indicator { position:fixed; z-index:10001; background:rgba(0,0,0,.7); color:#fff; padding:5px 10px; border-radius:5px; font-size:1.2rem; pointer-events:none; }',
             '#vsc-time-display, #vsc-gesture-indicator { top:50%; left:50%; transform:translate(-50%,-50%); }',
-            '#vsc-delay-info { display: flex; align-items: center; bottom: 10px; left: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; }',
+            '#vsc-delay-info { display: flex; align-items: center; bottom: 10px; Right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; }',
             '.vsc-loading-indicator { font-size: 16px; color: white; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
             '#vsc-pip-btn { background: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 36 36\' width=\'100%25\' height=\'100%25\'%3E%3Cpath d=\'M25,17 L17,17 L17,23 L25,23 L25,17 L25,17 Z M29,25 L29,10.98 C29,9.88 28.1,9 27,9 L9,9 C7.9,9 7,9.88 7,10.98 L7,25 C7,26.1 7.9,27 9,27 L27,27 C28.1,27 29,26.1 29,25 L29,25 Z M27,25.02 L9,25.02 L9,10.97 L27,10.97 L27,25.02 L27,25.02 Z\' fill=\'%23fff\'/%3E%3C/svg%3E") no-repeat center; background-size: 70% 70%; }',
         ];
@@ -478,7 +478,7 @@
             speedSubMenu.style.gap = '4px';
             const speedSelect = document.createElement('select');
             speedSelect.className = 'vsc-select';
-            const speeds = [0.2, 1, 2, 3, 4];
+            const speeds = [0.2, 1, 1.5, 2, 3, 4];
             speeds.forEach(speed => {
                 const option = document.createElement('option');
                 option.value = speed;
@@ -737,7 +737,7 @@
     const autoDelayManager = (() => {
         let video = null;
         const D_CONFIG = CONFIG.DELAY_ADJUSTER;
-        let FEEL_DELAY_FACTOR = 0.7, SMOOTH_STEP = 0.02;
+        let FEEL_DELAY_FACTOR = 1.0, SMOOTH_STEP = 1;
         const SAMPLING_DURATION = 2000;
         let samplingData = [];
         let localIntersectionObserver;
@@ -764,7 +764,7 @@
                 textSpan.textContent = messageOrAvg;
             } else {
                 const avgDelay = messageOrAvg;
-                // [수정] 조건부로 1.00x를 표시하던 것을 항상 실제 속도(currentPlaybackRate)를 표시하도록 변경
+                // [수정] 조건부로 1.000x를 표시하던 것을 항상 실제 속도(currentPlaybackRate)를 표시하도록 변경
                 const status = `${state.currentPlaybackRate.toFixed(3)}x`;
                 textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
             }
@@ -1182,10 +1182,10 @@
         Object.assign(trigger.style, {
             position: 'fixed',
             top: '50%',
-            right: '0vw',
+            right: '0vmin',
             transform: 'translateY(-50%)',
-            width: '40px',
-            height: '40px',
+            width: '4vmin',
+            height: '4vmin',
             background: 'rgba(0, 0, 0, 0.5)',
             color: 'white',
             borderRadius: '50%',
