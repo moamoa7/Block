@@ -18,7 +18,7 @@
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
 
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 4 : 2,
+        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 5 : 2,
         DEFAULT_AUDIO_PRESET: 'movie',
         DEBUG: false,
@@ -39,7 +39,7 @@
         AUDIO_EXCLUSION_DOMAINS: [],
         AUDIO_PRESETS: { off: { gain: 1, eq: [] }, speech: { gain: 1.1, eq: [{ freq: 100, gain: -2 }, { freq: 250, gain: 1 }, { freq: 500, gain: 3 }, { freq: 1000, gain: 4 }, { freq: 2000, gain: 4.5 }, { freq: 4000, gain: 2 }, { freq: 8000, gain: -1 }] }, movie: { gain: 1.25, eq: [{ freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 }, { freq: 10000, gain: 4 }] }, music: { gain: 1.1, eq: [{ freq: 60, gain: 5 }, { freq: 150, gain: 3 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 0.5 }, { freq: 3000, gain: 2.5 }, { freq: 6000, gain: 4 }, { freq: 12000, gain: 3.5 }] } },
         MAX_EQ_BANDS: 7,
-        DELAY_ADJUSTER: { CHECK_INTERVAL: 500, HISTORY_DURATION: 1000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500, SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.050 }, { minDelay: 3750, playbackRate: 1.045}, { minDelay: 3500, playbackRate: 1.040 }, { minDelay: 3250, playbackRate: 1.035 }, { minDelay: 3000, playbackRate: 1.030 }, { minDelay: 2750, playbackRate: 1.025 }, { minDelay: 2500, playbackRate: 1.020 }, { minDelay: 2250, playbackRate: 1.015 }, { minDelay: 2000, playbackRate: 1.010 }, { minDelay: 1750, playbackRate: 1.005 }, { minDelay: 1500, playbackRate: 1.000 }], NORMAL_RATE: 1.0 }
+        DELAY_ADJUSTER: { CHECK_INTERVAL: 500, HISTORY_DURATION: 1000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500, SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.10 }, { minDelay: 3750, playbackRate: 1.09 }, { minDelay: 3500, playbackRate: 1.08 }, { minDelay: 3250, playbackRate: 1.07 }, { minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2750, playbackRate: 1.05 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2250, playbackRate: 1.03 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1750, playbackRate: 1.01 }, { minDelay: 1500, playbackRate: 1.00 }], NORMAL_RATE: 1.0 }
     };
 
     const UI_SELECTORS = {
@@ -1182,7 +1182,7 @@
         Object.assign(trigger.style, {
             position: 'fixed',
             top: '50%',
-            right: '0vmin',
+            right: '1vmin',
             transform: 'translateY(-50%)',
             width: '4vmin',
             height: '4vmin',
