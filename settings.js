@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      51.8 (UI Fade Logic Update)
-// @description  UI 자동 숨김 로직 변경 (10초, 선택 시 즉시 숨김)
+// @version      51.9 (CORS Audio Fix)
+// @description  CORS 정책으로 인한 오디오 음소거 문제 해결 (요청 시 오디오 처리)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -23,7 +23,7 @@
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 6 : 2,
-        DEFAULT_AUDIO_PRESET: 'movie',
+        DEFAULT_AUDIO_PRESET: 'off', // [수정] 기본값을 'off'로 변경
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
         MAX_Z_INDEX: 2147483647,
@@ -40,7 +40,7 @@
         FILTER_EXCLUSION_DOMAINS: [],
         IMAGE_FILTER_EXCLUSION_DOMAINS: [],
         AUDIO_EXCLUSION_DOMAINS: [],
-        AUDIO_PRESETS: { off: { gain: 1, eq: [] }, speech: { gain: 1.05, eq: [{ freq: 80, gain: -3 }, { freq: 200, gain: -1 }, { freq: 500, gain: 2 }, { freq: 1000, gain: 4 }, { freq: 3000, gain: 5 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: -2 }] }, movie: { gain: 1.25, eq: [{ freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 }, { freq: 10000, gain: 4 }] }, music: { gain: 1.15, eq: [{ freq: 60, gain: 4 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 1 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 3.5 }, { freq: 12000, gain: 3 }] }, classical: { gain: 1, eq: [{ freq: 60, gain: 2 }, { freq: 200, gain: 1 }, { freq: 500, gain: 0 }, { freq: 2000, gain: 3 }, { freq: 4000, gain: 4 }, { freq: 8000, gain: 3 }, { freq: 12000, gain: 4 }] }, jazz: { gain: 1.05, eq: [{ freq: 80, gain: 2 }, { freq: 200, gain: 1 }, { freq: 500, gain: 2 }, { freq: 1000, gain: 3 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 2 }, { freq: 10000, gain: 3 }] }, lounge: { gain: 0.95, eq: [{ freq: 60, gain: 3 }, { freq: 150, gain: 2 }, { freq: 400, gain: 1 }, { freq: 1000, gain: -1 }, { freq: 3000, gain: 0 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: 1 }] }, gaming: { gain: 1.1, eq: [{ freq: 60, gain: 3 }, { freq: 250, gain: -1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 5 }, { freq: 4000, gain: 6 }, { freq: 8000, gain: 4 }, { freq: 12000, gain: 2 }] } },
+        AUDIO_PRESETS: { off: { gain: 1, eq: [] }, speech: { gain: 1.05, eq: [{ freq: 80, gain: -3 }, { freq: 200, gain: -1 }, { freq: 500, gain: 2 }, { freq: 1000, gain: 4 }, { freq: 3000, gain: 5 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: -2 }] }, liveBroadcast: { gain: 1.1, eq: [{ freq: 80, gain: 2 }, { freq: 150, gain: 1.5 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 3.5 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: 2 }] }, movie: { gain: 1.25, eq: [{ freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 }, { freq: 10000, gain: 4 }] }, music: { gain: 1.15, eq: [{ freq: 60, gain: 4 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 1 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 3.5 }, { freq: 12000, gain: 3 }] }, gaming: { gain: 1.1, eq: [{ freq: 60, gain: 3 }, { freq: 250, gain: -1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 5 }, { freq: 4000, gain: 6 }, { freq: 8000, gain: 4 }, { freq: 12000, gain: 2 }] } },
         MAX_EQ_BANDS: 7,
         DELAY_ADJUSTER: { CHECK_INTERVAL: 500, HISTORY_DURATION: 1000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500, SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.10 }, { minDelay: 3750, playbackRate: 1.09 }, { minDelay: 3500, playbackRate: 1.08 }, { minDelay: 3250, playbackRate: 1.07 }, { minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2750, playbackRate: 1.05 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2250, playbackRate: 1.03 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1750, playbackRate: 1.01 }, { minDelay: 1500, playbackRate: 1.00 }], NORMAL_RATE: 1.0 }
     };
@@ -61,7 +61,7 @@
         const definitions = {
             videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 6 },
             imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 6 },
-            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'speech', 'movie', 'music', 'classical', 'jazz', 'lounge', 'gaming'] }
+            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'speech', 'liveBroadcast', 'movie', 'music', 'gaming'] }
         };
         function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
         const get = (key) => settings[key];
@@ -192,10 +192,12 @@
         state.activeImages.forEach(image => updateImageFilterState(image));
     }
 
+    // [대체] audioManager 모듈 전체를 수정된 로직으로 교체
     const audioManager = (() => {
         const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
         let ctx = null, masterGain;
         const eqFilters = [], sourceMap = new WeakMap();
+
         function ensureContext() {
             if (ctx || isAudioDisabledForSite) return;
             try {
@@ -208,86 +210,104 @@
                 }
                 if (eqFilters.length > 0) eqFilters[eqFilters.length - 1].connect(masterGain);
                 masterGain.connect(ctx.destination);
-            } catch (e) { if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e); ctx = null; }
-        }
-        function connectMedia(media) {
-            if (!ctx) return;
-            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-            if (sourceMap.has(media)) {
-                try {
-                    const rec = sourceMap.get(media);
-                    rec.source.disconnect();
-                    const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
-                    rec.source.connect(firstNode);
-                } catch(e) { /* 재연결 실패는 무시 */ }
-                return;
+            } catch (e) {
+                if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e);
+                ctx = null;
             }
+        }
 
+        function connectMedia(media) {
+            if (!ctx || sourceMap.has(media)) return;
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
             try {
                 const source = ctx.createMediaElementSource(media);
-                const rec = { source };
-                sourceMap.set(media, rec);
+                sourceMap.set(media, { source });
                 const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
-                rec.source.connect(firstNode);
-                applyAudioPresetToNodes();
+                source.connect(firstNode);
             } catch (e) {
                 if (e.name === 'SecurityError') {
-                    console.warn('[VSC] Audio processing failed due to CORS policy.');
-                    const audioBtn = state.ui.shadowRoot?.getElementById('vsc-audio-btn');
+                    console.warn('[VSC] Audio processing failed due to CORS policy. Disabling audio features for this video.');
+                    const audioBtn = uiContainer?.querySelector('#vsc-ui-host')?.shadowRoot.getElementById('vsc-audio-btn');
                     if (audioBtn) {
                         audioBtn.disabled = true;
                         audioBtn.style.opacity = '0.5';
                         audioBtn.style.cursor = 'not-allowed';
                         audioBtn.title = '보안 정책(CORS)으로 인해 이 영상의 오디오는 제어할 수 없습니다.';
                     }
+                    closeContext();
                 } else {
-                    if (CONFIG.DEBUG) console.error('[VSC] Error connecting media to audio context:', e);
+                    if (CONFIG.DEBUG) console.error('[VSC] Error connecting media:', e);
                 }
             }
         }
+
         function applyAudioPresetToNodes() {
             if (!ctx) return;
             const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off;
-            const now = ctx.currentTime, rampTime = 0.05;
+            const now = ctx.currentTime;
+            const rampTime = 0.05;
             masterGain.gain.cancelScheduledValues(now);
             masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime);
+
             for (let i = 0; i < eqFilters.length; i++) {
-                const band = preset.eq[i], filter = eqFilters[i];
-                filter.gain.cancelScheduledValues(now); filter.frequency.cancelScheduledValues(now); filter.Q.cancelScheduledValues(now);
-                if (band) { filter.frequency.setValueAtTime(band.freq, now); filter.gain.linearRampToValueAtTime(band.gain, now + rampTime); filter.Q.setValueAtTime(1.41, now); }
-                else { filter.frequency.setValueAtTime(1000, now); filter.Q.setValueAtTime(1.41, now); filter.gain.linearRampToValueAtTime(0, now + rampTime); }
+                const band = preset.eq[i];
+                const filter = eqFilters[i];
+                filter.gain.cancelScheduledValues(now);
+                filter.frequency.cancelScheduledValues(now);
+                filter.Q.cancelScheduledValues(now);
+
+                if (band) {
+                    filter.frequency.setValueAtTime(band.freq, now);
+                    filter.gain.linearRampToValueAtTime(band.gain, now + rampTime);
+                    filter.Q.setValueAtTime(1.41, now);
+                } else {
+                    filter.gain.linearRampToValueAtTime(0, now + rampTime);
+                }
             }
         }
-        function processMedia(media) {
-            if (isAudioDisabledForSite) return;
-            const connectAndResume = () => {
+
+        function processMedia(media) {}
+
+        function cleanupMedia(media) {
+            if (!ctx) return;
+            const rec = sourceMap.get(media);
+            if (!rec) return;
+            try { rec.source.disconnect(); } catch (err) {}
+            sourceMap.delete(media);
+        }
+
+        function setAudioMode(mode) {
+            if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return;
+
+            if (mode === 'off' && !ctx) {
+                state.currentAudioMode = 'off';
+                settingsManager.set('audioPreset', 'off');
+                return;
+            }
+
+            if (mode !== 'off' && !ctx) {
                 ensureContext();
                 if (!ctx) return;
-                connectMedia(media);
-                resumeContext();
-            };
-
-            media.addEventListener('play', connectAndResume);
-
-            if (!media.paused && media.currentTime > 0) {
-                if (CONFIG.DEBUG) console.log('[VSC] Media already playing. Connecting audio filters immediately.');
-                connectAndResume();
+                state.activeMedia.forEach(media => connectMedia(media));
             }
+
+            state.currentAudioMode = mode;
+            settingsManager.set('audioPreset', mode);
+            applyAudioPresetToNodes();
         }
-        function cleanupMedia(media) {
-            if (isAudioDisabledForSite || !ctx) return;
-            const rec = sourceMap.get(media); if (!rec) return;
-            try { rec.source.disconnect(); }
-            catch (err) { if (CONFIG.DEBUG) console.warn("audioManager.cleanupMedia error:", err); }
-        }
-        function setAudioMode(mode) { if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return; state.currentAudioMode = mode; settingsManager.set('audioPreset', mode); applyAudioPresetToNodes(); }
-        function suspendContext() { safeExec(() => { const anyPlaying = Array.from(state.activeMedia).some(m => !m.paused && !m.ended); if (ctx && !anyPlaying && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
+
+        function suspendContext() { safeExec(() => { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
         function resumeContext() { safeExec(() => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); }); }
+
         function closeContext() {
             if (ctx && ctx.state !== 'closed') {
-                ctx.close().then(() => ctx = null).catch(() => { ctx = null; });
+                ctx.close().then(() => {
+                    ctx = null;
+                    eqFilters.length = 0;
+                }).catch(() => { ctx = null; });
             }
         }
+
         return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext, closeContext };
     })();
 
@@ -356,7 +376,6 @@
         let inited = false, fadeOutTimer;
         let hideAllSubMenus = () => {};
 
-        // [추가] UI를 흐리게 하고 서브메뉴를 닫는 통합 함수
         function startFadeSequence() {
             const container = state.ui.shadowRoot?.getElementById('vsc-container');
             if (!container) return;
@@ -394,7 +413,6 @@
             clearTimeout(fadeOutTimer);
             container.style.opacity = '';
             container.classList.add('touched');
-            // [수정] 시간 10초로 변경, 타임아웃 시 startFadeSequence 호출
             fadeOutTimer = setTimeout(startFadeSequence, 10000);
         };
 
@@ -448,7 +466,6 @@
                 }
                 select.addEventListener('change', e => {
                     changeHandler(e.target.value);
-                    // [수정] 선택 시 즉시 흐려지도록 변경
                     clearTimeout(fadeOutTimer);
                     startFadeSequence();
                 });
@@ -467,7 +484,7 @@
             const audioBtnMain = createButton('vsc-audio-btn', '오디오 프리셋', '🎧', 'vsc-btn vsc-btn-main');
             const audioSubMenu = document.createElement('div');
             audioSubMenu.className = 'vsc-submenu';
-            const audioModes = { '🎙️': 'speech', '🎬': 'movie', '🎵': 'music', '🎻': 'classical', '🎷': 'jazz', '☕': 'lounge', '🎮': 'gaming', '🚫': 'off' };
+            const audioModes = { '🎙️': 'speech', '📡': 'liveBroadcast', '🎬': 'movie', '🎵': 'music', '🎮': 'gaming', '🚫': 'off' };
             Object.entries(audioModes).forEach(([text, mode]) => {
                 const btn = createButton(null, `오디오: ${mode}`, text);
                 btn.dataset.mode = mode;
@@ -564,7 +581,6 @@
                     e.stopPropagation();
                     audioManager.setAudioMode(e.target.dataset.mode);
                     updateActiveButtons();
-                    // [수정] 선택 시 즉시 흐려지도록 변경
                     clearTimeout(fadeOutTimer);
                     startFadeSequence();
                 }
