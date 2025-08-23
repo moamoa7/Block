@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      51.6 (Mobile Click Fix)
-// @description  모바일 터치 클릭 충돌 해결, UI 이동 핸들을 번개 아이콘으로 통합
+// @version      51.7
+// @description  AUDIO_PRESETS 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -40,7 +40,7 @@
         FILTER_EXCLUSION_DOMAINS: [],
         IMAGE_FILTER_EXCLUSION_DOMAINS: [],
         AUDIO_EXCLUSION_DOMAINS: [],
-        AUDIO_PRESETS: { off: { gain: 1, eq: [] }, speech: { gain: 1.1, eq: [{ freq: 100, gain: -2 }, { freq: 250, gain: 1 }, { freq: 500, gain: 3 }, { freq: 1000, gain: 4 }, { freq: 2000, gain: 4.5 }, { freq: 4000, gain: 2 }, { freq: 8000, gain: -1 }] }, movie: { gain: 1.25, eq: [{ freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 }, { freq: 10000, gain: 4 }] }, music: { gain: 1.1, eq: [{ freq: 60, gain: 5 }, { freq: 150, gain: 3 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 0.5 }, { freq: 3000, gain: 2.5 }, { freq: 6000, gain: 4 }, { freq: 12000, gain: 3.5 }] } },
+        AUDIO_PRESETS: { off: { gain: 1, eq: [] }, speech: { gain: 1.05, eq: [{ freq: 80, gain: -3 }, { freq: 200, gain: -1 }, { freq: 500, gain: 2 }, { freq: 1000, gain: 4 }, { freq: 3000, gain: 5 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: -2 }] }, movie: { gain: 1.25, eq: [{ freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 }, { freq: 10000, gain: 4 }] }, music: { gain: 1.15, eq: [{ freq: 60, gain: 4 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 1 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 3.5 }, { freq: 12000, gain: 3 }] }, classical: { gain: 1, eq: [{ freq: 60, gain: 2 }, { freq: 200, gain: 1 }, { freq: 500, gain: 0 }, { freq: 2000, gain: 3 }, { freq: 4000, gain: 4 }, { freq: 8000, gain: 3 }, { freq: 12000, gain: 4 }] }, jazz: { gain: 1.05, eq: [{ freq: 80, gain: 2 }, { freq: 200, gain: 1 }, { freq: 500, gain: 2 }, { freq: 1000, gain: 3 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 2 }, { freq: 10000, gain: 3 }] }, lounge: { gain: 0.95, eq: [{ freq: 60, gain: 3 }, { freq: 150, gain: 2 }, { freq: 400, gain: 1 }, { freq: 1000, gain: -1 }, { freq: 3000, gain: 0 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: 1 }] }, gaming: { gain: 1.1, eq: [{ freq: 60, gain: 3 }, { freq: 250, gain: -1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 5 }, { freq: 4000, gain: 6 }, { freq: 8000, gain: 4 }, { freq: 12000, gain: 2 }] } },
         MAX_EQ_BANDS: 7,
         DELAY_ADJUSTER: { CHECK_INTERVAL: 500, HISTORY_DURATION: 1000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500, SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.10 }, { minDelay: 3750, playbackRate: 1.09 }, { minDelay: 3500, playbackRate: 1.08 }, { minDelay: 3250, playbackRate: 1.07 }, { minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2750, playbackRate: 1.05 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2250, playbackRate: 1.03 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1750, playbackRate: 1.01 }, { minDelay: 1500, playbackRate: 1.00 }], NORMAL_RATE: 1.0 }
     };
@@ -61,7 +61,7 @@
         const definitions = {
             videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 6 },
             imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 6 },
-            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'speech', 'movie', 'music'] }
+            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'speech', 'movie', 'music', 'classical', 'jazz', 'lounge', 'gaming'] }
         };
         function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
         const get = (key) => settings[key];
@@ -461,7 +461,7 @@
             const audioBtnMain = createButton('vsc-audio-btn', '오디오 프리셋', '🎧', 'vsc-btn vsc-btn-main');
             const audioSubMenu = document.createElement('div');
             audioSubMenu.className = 'vsc-submenu';
-            const audioModes = { '🎙️': 'speech', '🎬': 'movie', '🎵': 'music', '🚫': 'off' };
+            const audioModes = { '🎙️': 'speech', '🎬': 'movie', '🎵': 'music', '🎻': 'classical', '🎷': 'jazz', '☕': 'lounge', '🎮': 'gaming', '🚫': 'off' };
             Object.entries(audioModes).forEach(([text, mode]) => {
                 const btn = createButton(null, `오디오: ${mode}`, text);
                 btn.dataset.mode = mode;
