@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      51.5 (Unified Drag Handle)
-// @description  UI 이동 핸들을 번개 아이콘으로 통합, clamp 적용 및 UI 컨테이너로 안정적인 간격 유지
+// @version      51.6 (Mobile Click Fix)
+// @description  모바일 터치 클릭 충돌 해결, UI 이동 핸들을 번개 아이콘으로 통합
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -108,6 +108,9 @@
     if (isExcluded()) return;
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
     (function openAllShadowRoots() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const originalAttachShadow = Element.prototype.attachShadow; Element.prototype.attachShadow = function (options) { const modifiedOptions = { ...options, mode: 'open' }; const shadowRoot = originalAttachShadow.apply(this, [modifiedOptions]); window._shadowDomList_.push(new WeakRef(shadowRoot)); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot } })); return shadowRoot; }; window._hasHackAttachShadow_ = true; }, 'openAllShadowRoots'); })();
+
+    // ... (SvgFilterManager, setVideoFilterLevel, setImageFilterLevel, audioManager 모듈은 변경 없음) ...
+    // ... (pipButtonManager 모듈도 변경 없음) ...
 
     // =================================================================================
     // 3. 핵심 모듈 (Core Modules)
@@ -519,7 +522,6 @@
                 pipControlGroup.appendChild(pipBtn);
             }
 
-            // [삭제] 이동 버튼(dragHandle) 관련 코드 제거
             container.append(imageControlGroup, videoControlGroup, audioControlGroup, speedControlGroup, pipControlGroup);
 
             const controlGroups = [videoControlGroup, imageControlGroup, audioControlGroup, speedControlGroup];
@@ -672,112 +674,145 @@
         return { init, setSession, clearSession };
     })();
 
-    const autoDelayManager = (() => {
-        let video = null;
-        const D_CONFIG = CONFIG.DELAY_ADJUSTER;
-        let FEEL_DELAY_FACTOR = 1.0, SMOOTH_STEP = 1;
-        const SAMPLING_DURATION = 2000;
-        let samplingData = [];
-        let localIntersectionObserver;
-        function findVideo() { return state.activeMedia.size > 0 ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') : null; }
-        function calculateDelay(videoElement) { if (!videoElement || !videoElement.buffered || videoElement.buffered.length === 0) return null; try { const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1); const delay = bufferedEnd - videoElement.currentTime; return delay >= 0 ? delay * 1000 : null; } catch { return null; } }
-        function calculateAdjustedDelay(videoElement) { const rawDelay = calculateDelay(videoElement); if (rawDelay === null) return null; const clampedDelay = Math.min(Math.max(rawDelay, 0), 5000); return clampedDelay * FEEL_DELAY_FACTOR; }
-        function getPlaybackRate(avgDelay) { for (const config of D_CONFIG.SPEED_LEVELS) { if (avgDelay >= config.minDelay) { return config.playbackRate; } } return D_CONFIG.NORMAL_RATE; }
-        function adjustPlaybackRate(targetRate) { if (!video) return; const diff = targetRate - video.playbackRate; if (Math.abs(diff) < 0.01) return; safeExec(() => { video.playbackRate += diff * SMOOTH_STEP; state.currentPlaybackRate = video.playbackRate; }); }
+const autoDelayManager = (() => {
+    let video = null;
+    const D_CONFIG = CONFIG.DELAY_ADJUSTER;
+    let FEEL_DELAY_FACTOR = 1.0, SMOOTH_STEP = 1;
+    const SAMPLING_DURATION = 2000;
+    let samplingData = [];
+    let localIntersectionObserver;
+    function findVideo() { return state.activeMedia.size > 0 ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') : null; }
+    function calculateDelay(videoElement) { if (!videoElement || !videoElement.buffered || videoElement.buffered.length === 0) return null; try { const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1); const delay = bufferedEnd - videoElement.currentTime; return delay >= 0 ? delay * 1000 : null; } catch { return null; } }
+    function calculateAdjustedDelay(videoElement) { const rawDelay = calculateDelay(videoElement); if (rawDelay === null) return null; const clampedDelay = Math.min(Math.max(rawDelay, 0), 5000); return clampedDelay * FEEL_DELAY_FACTOR; }
+    function getPlaybackRate(avgDelay) { for (const config of D_CONFIG.SPEED_LEVELS) { if (avgDelay >= config.minDelay) { return config.playbackRate; } } return D_CONFIG.NORMAL_RATE; }
+    function adjustPlaybackRate(targetRate) { if (!video) return; const diff = targetRate - video.playbackRate; if (Math.abs(diff) < 0.01) return; safeExec(() => { video.playbackRate += diff * SMOOTH_STEP; state.currentPlaybackRate = video.playbackRate; }); }
 
-        function displayDelayInfo(messageOrAvg, minDelay) {
-            if (!state.ui.shadowRoot) return;
-            let infoEl = state.ui.shadowRoot.getElementById('vsc-delay-info');
-            if (!infoEl) {
-                infoEl = document.createElement('div');
-                infoEl.id = 'vsc-delay-info';
-                state.ui.shadowRoot.appendChild(infoEl);
-            }
-            let textSpan = infoEl.querySelector('span');
-            if (!textSpan) {
-                textSpan = document.createElement('span');
-                infoEl.prepend(textSpan);
-            }
-            if (typeof messageOrAvg === 'string') {
-                textSpan.textContent = messageOrAvg;
-            } else {
-                const avgDelay = messageOrAvg;
-                const status = `${state.currentPlaybackRate.toFixed(3)}x`;
-                textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
-            }
-            let refreshBtn = infoEl.querySelector('.vsc-delay-refresh-btn');
-            if (!refreshBtn) {
-                refreshBtn = document.createElement('button');
-                refreshBtn.textContent = '🔄';
-                refreshBtn.title = '딜레이 측정 재시작';
-                refreshBtn.className = 'vsc-delay-refresh-btn';
-                Object.assign(refreshBtn.style, { background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '5px', fontSize: '14px', padding: '0 2px', verticalAlign: 'middle' });
-                refreshBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    restart();
-                });
-                infoEl.appendChild(refreshBtn);
-            }
-        }
+    function displayDelayInfo(messageOrAvg, minDelay) {
+        // [수정] document에서 직접 요소를 찾음
+        let infoEl = document.getElementById('vsc-delay-info');
+        if (!infoEl) {
+            infoEl = document.createElement('div');
+            infoEl.id = 'vsc-delay-info';
 
-        function sampleInitialDelayAndFPS() {
-            return new Promise(resolve => {
-                const startTime = Date.now(); let lastFrame = performance.now(); let fpsSamples = [];
-                function sampleFrame() {
-                    const now = performance.now(); const delta = now - lastFrame; lastFrame = now; fpsSamples.push(1000 / delta);
-                    const delay = calculateDelay(video); if (delay !== null) samplingData.push(delay);
-                    if (Date.now() - startTime < SAMPLING_DURATION) { requestAnimationFrame(sampleFrame); }
-                    else { const avgDelay = samplingData.reduce((a, b) => a + b, 0) / samplingData.length || 0; const minDelay = Math.min(...samplingData); const avgFPS = fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length || 60; resolve({ avgDelay, minDelay, avgFPS }); }
-                }
-                sampleFrame();
+            // [수정] 스타일을 JS로 직접 적용
+            Object.assign(infoEl.style, {
+                position: 'fixed',
+                bottom: '50px',
+                right: '10px',
+                zIndex: CONFIG.MAX_Z_INDEX - 1,
+                background: 'rgba(0,0,0,.7)',
+                color: '#fff',
+                padding: '5px 10px',
+                borderRadius: '5px',
+                fontFamily: 'monospace',
+                fontSize: '10pt',
+                lineHeight: '1.2',
+                opacity: '0.8',
+                display: 'flex',
+                alignItems: 'center',
+                pointerEvents: 'none'
             });
+
+            // [수정] document.body에 직접 추가
+            document.body.appendChild(infoEl);
         }
-        function autoOptimizeParameters({ avgDelay, minDelay, avgFPS }) { FEEL_DELAY_FACTOR = Math.min(Math.max(0.5, 1000 / (avgDelay + 1)), 1.0); SMOOTH_STEP = Math.min(Math.max(0.01, avgFPS / 60 * 0.05), 0.1); if (CONFIG.DEBUG) console.log(`autoDelayManager 초기 최적화 완료: FEEL_DELAY_FACTOR=${FEEL_DELAY_FACTOR.toFixed(2)}, SMOOTH_STEP=${SMOOTH_STEP.toFixed(3)}`); }
-        function checkAndAdjust() {
-            if (!video) video = findVideo(); if (!video) return;
-            const adjustedDelay = calculateAdjustedDelay(video); if (adjustedDelay === null) return;
-            const now = Date.now(); state.delayHistory.push({ delay: adjustedDelay, timestamp: now });
-            state.delayHistory = state.delayHistory.filter(item => now - item.timestamp <= D_CONFIG.HISTORY_DURATION);
-            if (state.delayHistory.length === 0) return;
-            const avgDelay = state.delayHistory.reduce((sum, item) => sum + item.delay, 0) / state.delayHistory.length;
-            const minDelay = Math.min(...state.delayHistory.map(i => i.delay));
-            displayDelayInfo(avgDelay, minDelay);
-            if (!state.isDelayAdjusting && avgDelay >= D_CONFIG.TRIGGER_DELAY) state.isDelayAdjusting = true;
-            else if (state.isDelayAdjusting && avgDelay <= D_CONFIG.TARGET_DELAY) { state.isDelayAdjusting = false; video.playbackRate = D_CONFIG.NORMAL_RATE; adjustPlaybackRate(D_CONFIG.NORMAL_RATE); }
-            if (state.isDelayAdjusting) { const newRate = getPlaybackRate(avgDelay); adjustPlaybackRate(newRate); }
+
+        let textSpan = infoEl.querySelector('span');
+        if (!textSpan) {
+            textSpan = document.createElement('span');
+            infoEl.prepend(textSpan);
         }
-        function setupIntersectionObserver() {
-            if (localIntersectionObserver) return;
-            localIntersectionObserver = new IntersectionObserver(entries => { entries.forEach(entry => { if (entry.isIntersecting && entry.target.tagName === 'VIDEO') video = entry.target; }); }, { threshold: 0.5 });
-            state.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') localIntersectionObserver.observe(media); });
+        if (typeof messageOrAvg === 'string') {
+            textSpan.textContent = messageOrAvg;
+        } else {
+            const avgDelay = messageOrAvg;
+            const status = `${state.currentPlaybackRate.toFixed(3)}x`;
+            textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
         }
-        async function start() {
-            if (state.delayCheckInterval) return; video = null;
-            setupIntersectionObserver();
-            video = findVideo();
-            if (video) {
-                const sample = await sampleInitialDelayAndFPS(); autoOptimizeParameters(sample);
-                state.delayHistory = samplingData.map(d => ({ delay: d, timestamp: Date.now() }));
+        let refreshBtn = infoEl.querySelector('.vsc-delay-refresh-btn');
+        if (!refreshBtn) {
+            refreshBtn = document.createElement('button');
+            refreshBtn.textContent = '🔄';
+            refreshBtn.title = '딜레이 측정 재시작';
+            refreshBtn.className = 'vsc-delay-refresh-btn';
+            Object.assign(refreshBtn.style, {
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                marginLeft: '5px',
+                fontSize: '14px',
+                padding: '0 2px',
+                verticalAlign: 'middle',
+                pointerEvents: 'auto' // 버튼은 클릭 가능하도록
+            });
+            refreshBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                restart();
+            });
+            infoEl.appendChild(refreshBtn);
+        }
+    }
+
+    function sampleInitialDelayAndFPS() {
+        return new Promise(resolve => {
+            const startTime = Date.now(); let lastFrame = performance.now(); let fpsSamples = [];
+            function sampleFrame() {
+                const now = performance.now(); const delta = now - lastFrame; lastFrame = now; fpsSamples.push(1000 / delta);
+                const delay = calculateDelay(video); if (delay !== null) samplingData.push(delay);
+                if (Date.now() - startTime < SAMPLING_DURATION) { requestAnimationFrame(sampleFrame); }
+                else { const avgDelay = samplingData.reduce((a, b) => a + b, 0) / samplingData.length || 0; const minDelay = Math.min(...samplingData); const avgFPS = fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length || 60; resolve({ avgDelay, minDelay, avgFPS }); }
             }
-            state.delayCheckInterval = setInterval(checkAndAdjust, D_CONFIG.CHECK_INTERVAL);
+            sampleFrame();
+        });
+    }
+    function autoOptimizeParameters({ avgDelay, minDelay, avgFPS }) { FEEL_DELAY_FACTOR = Math.min(Math.max(0.5, 1000 / (avgDelay + 1)), 1.0); SMOOTH_STEP = Math.min(Math.max(0.01, avgFPS / 60 * 0.05), 0.1); if (CONFIG.DEBUG) console.log(`autoDelayManager 초기 최적화 완료: FEEL_DELAY_FACTOR=${FEEL_DELAY_FACTOR.toFixed(2)}, SMOOTH_STEP=${SMOOTH_STEP.toFixed(3)}`); }
+    function checkAndAdjust() {
+        if (!video) video = findVideo(); if (!video) return;
+        const adjustedDelay = calculateAdjustedDelay(video); if (adjustedDelay === null) return;
+        const now = Date.now(); state.delayHistory.push({ delay: adjustedDelay, timestamp: now });
+        state.delayHistory = state.delayHistory.filter(item => now - item.timestamp <= D_CONFIG.HISTORY_DURATION);
+        if (state.delayHistory.length === 0) return;
+        const avgDelay = state.delayHistory.reduce((sum, item) => sum + item.delay, 0) / state.delayHistory.length;
+        const minDelay = Math.min(...state.delayHistory.map(i => i.delay));
+        displayDelayInfo(avgDelay, minDelay);
+        if (!state.isDelayAdjusting && avgDelay >= D_CONFIG.TRIGGER_DELAY) state.isDelayAdjusting = true;
+        else if (state.isDelayAdjusting && avgDelay <= D_CONFIG.TARGET_DELAY) { state.isDelayAdjusting = false; video.playbackRate = D_CONFIG.NORMAL_RATE; adjustPlaybackRate(D_CONFIG.NORMAL_RATE); }
+        if (state.isDelayAdjusting) { const newRate = getPlaybackRate(avgDelay); adjustPlaybackRate(newRate); }
+    }
+    function setupIntersectionObserver() {
+        if (localIntersectionObserver) return;
+        localIntersectionObserver = new IntersectionObserver(entries => { entries.forEach(entry => { if (entry.isIntersecting && entry.target.tagName === 'VIDEO') video = entry.target; }); }, { threshold: 0.5 });
+        state.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') localIntersectionObserver.observe(media); });
+    }
+    async function start() {
+        if (state.delayCheckInterval) return; video = null;
+        setupIntersectionObserver();
+        video = findVideo();
+        if (video) {
+            const sample = await sampleInitialDelayAndFPS(); autoOptimizeParameters(sample);
+            state.delayHistory = samplingData.map(d => ({ delay: d, timestamp: Date.now() }));
         }
-        function stop() {
-            if (state.delayCheckInterval) { clearInterval(state.delayCheckInterval); state.delayCheckInterval = null; }
-            if (localIntersectionObserver) { localIntersectionObserver.disconnect(); localIntersectionObserver = null; }
-            const infoEl = state.ui.shadowRoot?.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
-            if (video) { safeExec(()=>{ if(video.playbackRate!==1.0) video.playbackRate=1.0; }); video=null; }
-            samplingData = [];
-        }
-        function restart() {
-            safeExec(() => {
-                stop();
-                displayDelayInfo("딜레이: 계산 중...");
-                start();
-                if (CONFIG.DEBUG) console.log("🔄️ autoDelayManager manually restarted.");
-            }, 'autoDelayManager.restart');
-        }
-        return { start, stop, restart };
-    })();
+        state.delayCheckInterval = setInterval(checkAndAdjust, D_CONFIG.CHECK_INTERVAL);
+    }
+    function stop() {
+        if (state.delayCheckInterval) { clearInterval(state.delayCheckInterval); state.delayCheckInterval = null; }
+        if (localIntersectionObserver) { localIntersectionObserver.disconnect(); localIntersectionObserver = null; }
+        // [수정] document에서 직접 찾아 제거
+        const infoEl = document.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
+        if (video) { safeExec(()=>{ if(video.playbackRate!==1.0) video.playbackRate=1.0; }); video=null; }
+        samplingData = [];
+    }
+    function restart() {
+        safeExec(() => {
+            stop();
+            displayDelayInfo("딜레이: 계산 중...");
+            start();
+            if (CONFIG.DEBUG) console.log("🔄️ autoDelayManager manually restarted.");
+        }, 'autoDelayManager.restart');
+    }
+    return { start, stop, restart };
+})();
 
     // =================================================================================
     // 4. DOM 스캔 및 이벤트 관리 (DOM Scanning and Event Management)
@@ -1118,8 +1153,6 @@
 
             isDragging = true;
             wasDragged = false;
-            e.preventDefault();
-            e.stopPropagation();
 
             const pos = e.touches ? e.touches[0] : e;
             startX = pos.clientX;
@@ -1147,7 +1180,7 @@
 
             if (!wasDragged && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
                 wasDragged = true;
-                uiContainer.style.transition = 'none'; // 드래그 시작 시 부드러운 효과 제거
+                uiContainer.style.transition = 'none';
                 uiContainer.style.transform = 'none';
             }
 
@@ -1173,7 +1206,7 @@
             isDragging = false;
             triggerElement.style.cursor = 'pointer';
             document.body.style.userSelect = '';
-            uiContainer.style.transition = ''; // 드래그 종료 후 부드러운 효과 복원
+            uiContainer.style.transition = '';
 
             document.removeEventListener('mousemove', onDragMove);
             document.removeEventListener('mouseup', onDragEnd);
@@ -1184,7 +1217,7 @@
         };
 
         triggerElement.addEventListener('mousedown', onDragStart);
-        triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
+        triggerElement.addEventListener('touchstart', onDragStart, { passive: true });
 
         triggerElement.addEventListener('click', (e) => {
             if (wasDragged) {
