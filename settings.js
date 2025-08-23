@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      51.1
-// @description  PC / 모바일 기본 레벨값 변경
+// @version      51.2
+// @description  배속 구간 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -478,7 +478,7 @@
             speedSubMenu.style.gap = '4px';
             const speedSelect = document.createElement('select');
             speedSelect.className = 'vsc-select';
-            const speeds = [0.2, 1, 1.5, 2, 3, 4];
+            const speeds = [0.2, 0.6, 1, 1.2, 2, 4];
             speeds.forEach(speed => {
                 const option = document.createElement('option');
                 option.value = speed;
