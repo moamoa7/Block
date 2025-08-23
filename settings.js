@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      51.3
-// @description  BLUR_STD_DEVIATION 0.4로 변경 / IMAGE_MIN_SIZE 최소크기 335로 변경
+// @version      51.5 (Unified Drag Handle)
+// @description  UI 이동 핸들을 번개 아이콘으로 통합, clamp 적용 및 UI 컨테이너로 안정적인 간격 유지
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -10,6 +10,9 @@
 
 (function () {
     'use strict';
+
+    // UI 요소들을 담을 최상위 컨테이너 변수
+    let uiContainer = null;
 
     // =================================================================================
     // 1. 설정 및 상수 (Configuration and Constants)
@@ -46,7 +49,7 @@
         HOST: 'vsc-ui-host',
         CONTAINER: 'vsc-container',
         TRIGGER: 'vsc-trigger-button',
-        CONTROL_GROUP: 'vsc-control-group', SUBMENU: 'vsc-submenu', BTN: 'vsc-btn', BTN_MAIN: 'vsc-btn-main', SELECT: 'vsc-select', VIDEO_CONTROLS: 'vsc-video-controls', IMAGE_CONTROLS: 'vsc-image-controls', AUDIO_CONTROLS: 'vsc-audio-controls', SPEED_CONTROLS: 'vsc-speed-controls', PIP_CONTROLS: 'vsc-pip-controls', DRAG_HANDLE_GROUP: 'vsc-drag-handle-group', DRAG_HANDLE: 'vsc-drag-handle',
+        CONTROL_GROUP: 'vsc-control-group', SUBMENU: 'vsc-submenu', BTN: 'vsc-btn', BTN_MAIN: 'vsc-btn-main', SELECT: 'vsc-select', VIDEO_CONTROLS: 'vsc-video-controls', IMAGE_CONTROLS: 'vsc-image-controls', AUDIO_CONTROLS: 'vsc-audio-controls', SPEED_CONTROLS: 'vsc-speed-controls', PIP_CONTROLS: 'vsc-pip-controls'
     };
 
     // =================================================================================
@@ -257,7 +260,6 @@
         }
         function processMedia(media) {
             if (isAudioDisabledForSite) return;
-            // [수정] 'play' 이벤트를 기다리는 것 외에, 이미 재생중인 경우도 처리
             const connectAndResume = () => {
                 ensureContext();
                 if (!ctx) return;
@@ -267,7 +269,6 @@
 
             media.addEventListener('play', connectAndResume);
 
-            // [수정] 스크립트가 로드됐을 때 영상이 이미 재생 중이라면 즉시 필터 연결
             if (!media.paused && media.currentTime > 0) {
                 if (CONFIG.DEBUG) console.log('[VSC] Media already playing. Connecting audio filters immediately.');
                 connectAndResume();
@@ -294,17 +295,17 @@
         const styleRules = [
             ':host { pointer-events: none; }',
             '* { pointer-events: auto; }',
-            '#vsc-container { position: fixed; top: 50%; right: 5vmin; background: rgba(0,0,0,0.1); padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); }',
+            '#vsc-container { background: rgba(0,0,0,0.1); padding: clamp(6px, 1.2vmin, 10px); border-radius: clamp(8px, 1.5vmin, 12px); z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; }',
             '#vsc-container.touched { opacity: 1; }',
             '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
-            '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 30px; position: relative; }',
-            '.vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 5px; background: rgba(0,0,0,0.7); border-radius: 4px; padding: 5px; align-items: center; }',
+            '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(26px, 5.5vmin, 32px); width: clamp(28px, 6vmin, 34px); position: relative; }',
+            '.vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(5px, 1vmin, 8px); align-items: center; }',
             '.vsc-control-group.submenu-visible .vsc-submenu { display: flex; }',
-            '.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; }',
+            '.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(12px, 2vmin, 14px); }',
             '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
-            '.vsc-submenu .vsc-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; }',
-            '.vsc-btn-main { font-size: 16px; padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
-            '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: 4px; padding: 4px 6px; font-size: 13px; }',
+            '.vsc-submenu .vsc-btn { min-width: auto; font-size: clamp(13px, 2.5vmin, 15px); padding: clamp(2px, 0.5vmin, 4px) clamp(4px, 1vmin, 6px); margin: 0 clamp(2px, 0.4vmin, 3px); }',
+            '.vsc-btn-main { font-size: clamp(15px, 3vmin, 18px); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
+            '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); }',
             '#vsc-time-display, #vsc-delay-info, #vsc-gesture-indicator { position:fixed; z-index:10001; background:rgba(0,0,0,.7); color:#fff; padding:5px 10px; border-radius:5px; font-size:1.2rem; pointer-events:none; }',
             '#vsc-time-display, #vsc-gesture-indicator { top:50%; left:50%; transform:translate(-50%,-50%); }',
             '#vsc-delay-info { display: flex; align-items: center; bottom: 50px; Right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; }',
@@ -315,22 +316,17 @@
             if (state.ui.hostElement) return;
             const host = document.createElement('div');
             host.id = UI_SELECTORS.HOST;
-            Object.assign(host.style, { position: 'fixed', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: CONFIG.MAX_Z_INDEX });
+            host.style.pointerEvents = 'none';
             state.ui.shadowRoot = host.attachShadow({ mode: 'open' });
             state.ui.hostElement = host;
             const style = document.createElement('style');
             style.textContent = styleRules.join('\n');
             state.ui.shadowRoot.appendChild(style);
-            const attachTarget = document.fullscreenElement || document.body || document.documentElement;
-            attachTarget.appendChild(host);
         }
-        function reset() {
-            // state is reset globally in resetState()
-        }
+        function reset() {}
         return {
             init: () => safeExec(init, 'uiManager.init'),
             reset: () => safeExec(reset, 'uiManager.reset'),
-            moveUiTo: (target) => { if (state.ui.hostElement && target && state.ui.hostElement.parentNode !== target) target.appendChild(state.ui.hostElement); },
         };
     })();
 
@@ -522,13 +518,10 @@
             if (pipBtn) {
                 pipControlGroup.appendChild(pipBtn);
             }
-            const dragHandleBtn = createButton('vsc-drag-handle', 'UI 이동', '✥', 'vsc-btn vsc-btn-main');
-            dragHandleBtn.style.cursor = 'grab';
-            const dragHandleGroup = document.createElement('div');
-            dragHandleGroup.id = 'vsc-drag-handle-group';
-            dragHandleGroup.className = 'vsc-control-group';
-            dragHandleGroup.appendChild(dragHandleBtn);
-            container.append(imageControlGroup, videoControlGroup, audioControlGroup, speedControlGroup, pipControlGroup, dragHandleGroup);
+
+            // [삭제] 이동 버튼(dragHandle) 관련 코드 제거
+            container.append(imageControlGroup, videoControlGroup, audioControlGroup, speedControlGroup, pipControlGroup);
+
             const controlGroups = [videoControlGroup, imageControlGroup, audioControlGroup, speedControlGroup];
             hideAllSubMenus = () => {
                 controlGroups.forEach(group => group.classList.remove('submenu-visible'));
@@ -567,62 +560,7 @@
                     resetFadeTimer();
                 }
             });
-            const dragState = { isDragging: false, hasMoved: false, startX: 0, startY: 0 };
-            const DRAG_THRESHOLD = 5;
-            const onDragStart = (e) => {
-                if (!dragHandleBtn.contains(e.target)) return;
-                e.preventDefault();
-                e.stopPropagation();
-                dragState.isDragging = true;
-                dragState.hasMoved = false;
-                const pos = e.touches ? e.touches[0] : e;
-                dragState.startX = pos.clientX;
-                dragState.startY = pos.clientY;
-                const rect = container.getBoundingClientRect();
-                dragState.initialTop = rect.top;
-                dragState.initialRight = window.innerWidth - rect.right;
-                dragHandleBtn.style.cursor = 'grabbing';
-                document.body.style.userSelect = 'none';
-                document.addEventListener('mousemove', onDragMove, { passive: false });
-                document.addEventListener('mouseup', onDragEnd, { passive: false });
-                document.addEventListener('touchmove', onDragMove, { passive: false });
-                document.addEventListener('touchend', onDragEnd, { passive: false });
-            };
-            const onDragMove = (e) => {
-                if (!dragState.isDragging) return;
-                const pos = e.touches ? e.touches[0] : e;
-                const totalDeltaX = pos.clientX - dragState.startX;
-                const totalDeltaY = pos.clientY - dragState.startY;
-                if (!dragState.hasMoved && (Math.abs(totalDeltaX) > DRAG_THRESHOLD || Math.abs(totalDeltaY) > DRAG_THRESHOLD)) {
-                    dragState.hasMoved = true;
-                    container.style.transform = 'none';
-                }
-                if (dragState.hasMoved) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    let newTop = dragState.initialTop + totalDeltaY;
-                    let newRight = dragState.initialRight - totalDeltaX;
-                    const containerRect = container.getBoundingClientRect();
-                    newTop = Math.max(0, Math.min(window.innerHeight - containerRect.height, newTop));
-                    newRight = Math.max(0, Math.min(window.innerWidth - containerRect.width, newRight));
-                    container.style.top = `${newTop}px`;
-                    container.style.right = `${newRight}px`;
-                    container.style.left = 'auto';
-                    container.style.bottom = 'auto';
-                }
-            };
-            const onDragEnd = () => {
-                if (!dragState.isDragging) return;
-                dragState.isDragging = false;
-                dragHandleBtn.style.cursor = 'grab';
-                document.body.style.userSelect = '';
-                document.removeEventListener('mousemove', onDragMove);
-                document.removeEventListener('mouseup', onDragEnd);
-                document.removeEventListener('touchmove', onDragMove);
-                document.removeEventListener('touchend', onDragEnd);
-            };
-            dragHandleBtn.addEventListener('mousedown', onDragStart);
-            dragHandleBtn.addEventListener('touchstart', onDragStart, { passive: false });
+
             container.addEventListener('pointerdown', resetFadeTimer);
             updateActiveButtons();
         }
@@ -662,7 +600,7 @@
         const onStart = e => safeExec(() => {
             if (e.touches && e.touches.length > 1 || (e.type === 'mousedown' && e.button !== 0)) return;
             const video = findAssociatedVideo(e.target);
-            if (!video || !state.isDragSeekEnabled || e.composedPath().some(el => el.id === 'vsc-container')) return;
+            if (!video || !state.isDragSeekEnabled || e.composedPath().some(el => el.id === 'vsc-global-container')) return;
             const pos = getEventPosition(e);
             Object.assign(dragState, { dragging: true, startX: pos.clientX, startY: pos.clientY, currentX: pos.clientX, currentY: pos.clientY, accX: 0, directionConfirmed: false });
             const options = { passive: false, capture: true };
@@ -703,7 +641,7 @@
         const applySeek = () => { const delta = Math.round(dragState.accX / 2); if (Math.abs(delta) < 1) return; for (const media of state.activeMedia) if (isFinite(media.duration)) media.currentTime = Math.min(media.duration, Math.max(0, media.currentTime + delta)); };
         const showDisplay = pixels => {
             const seconds = Math.round(pixels / 2); if (seconds === lastDelta) return; lastDelta = seconds;
-            if (!display) { const root = state.ui.shadowRoot; if (!root) return; display = document.createElement('div'); display.id = 'vsc-time-display'; root.appendChild(display); }
+            if (!display) { const root = state.ui.shadowRoot || uiContainer?.querySelector('#vsc-ui-host')?.shadowRoot; if (!root) return; display = document.createElement('div'); display.id = 'vsc-time-display'; root.appendChild(display); }
             const sign = seconds < 0 ? '-' : '+'; const abs = Math.abs(seconds); const mins = Math.floor(abs / 60).toString().padStart(2, '0'); const secs = (abs % 60).toString().padStart(2, '0');
             display.textContent = `${sign}${mins}:${secs}`;
             display.style.display = 'block'; display.style.opacity = '1';
@@ -764,7 +702,6 @@
                 textSpan.textContent = messageOrAvg;
             } else {
                 const avgDelay = messageOrAvg;
-                // [수정] 조건부로 1.000x를 표시하던 것을 항상 실제 속도(currentPlaybackRate)를 표시하도록 변경
                 const status = `${state.currentPlaybackRate.toFixed(3)}x`;
                 textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
             }
@@ -972,12 +909,8 @@
             const hasAnyMedia = hasVideo || hasAudio;
             setDisplay('vsc-speed-controls', hasAnyMedia);
             setDisplay('vsc-pip-controls', hasVideo && pipButtonManager.isAvailable());
-
-            const isAnyMediaPresent = hasAnyMedia || hasImage;
-            setDisplay('vsc-drag-handle-group', isAnyMediaPresent);
         }
     };
-
 
     // =================================================================================
     // 5. 초기화 및 라이프사이클 (Initialization and Lifecycle)
@@ -995,9 +928,13 @@
 
             if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
             if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
-            if (visibilityChangeListener) { document.removeEventListener('visibilitychange', visibilityChangeListener); visibilityChangeListener = null; }
-            if (fullscreenChangeListener) { document.removeEventListener('fullscreenchange', fullscreenChangeListener); fullscreenChangeListener = null; }
-            if (beforeUnloadListener) { window.removeEventListener('beforeunload', beforeUnloadListener); beforeUnloadListener = null; }
+            if (spaNavigationHandler) {
+                 window.removeEventListener('popstate', spaNavigationHandler);
+                 window.removeEventListener('vsc:pushState', spaNavigationHandler);
+                 window.removeEventListener('vsc:replaceState', spaNavigationHandler);
+                 document.removeEventListener('addShadowRoot', debouncedScanTask);
+                 spaNavigationHandler = null;
+            }
 
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
@@ -1015,11 +952,9 @@
             filterManager.toggleStyleSheet(false);
             imageFilterManager.toggleStyleSheet(false);
 
-            // [변경] 오디오 컨텍스트를 완전히 닫는 대신, 모든 효과를 끄는 'off' 모드로 설정
             audioManager.setAudioMode('off');
 
-            const host = state.ui.hostElement;
-            if (host) host.remove();
+            if (state.ui.hostElement) state.ui.hostElement.remove();
 
             resetState();
             settingsManager.init();
@@ -1035,11 +970,11 @@
     function ensureObservers() {
         if (!mainObserver) {
             mainObserver = new MutationObserver(mutations => {
-                if (!mutations.some(m => m.target.id === UI_SELECTORS.HOST)) {
+                if (!mutations.some(m => m.target.id === 'vsc-global-container')) {
                     scheduleIdleTask(scanAndApply);
                 }
             });
-            mainObserver.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+            mainObserver.observe(document.documentElement, { childList: true, subtree: true });
         }
         if (!intersectionObserver) {
             intersectionObserver = new IntersectionObserver(entries => {
@@ -1058,28 +993,31 @@
             if (location.href === state.lastUrl) {
                 return;
             }
-            if (triggerElement) {
-                triggerElement.remove();
-                triggerElement = null;
-            }
+            if (uiContainer) uiContainer.remove();
+            uiContainer = null;
+            triggerElement = null;
             cleanup();
-            createTriggerButton();
+            initializeGlobalUI();
         }, 500);
 
-        ['pushState', 'replaceState'].forEach(method => {
-            const original = history[method];
-            if (original) {
-                history[method] = function(...args) {
-                    let result;
-                    try {
-                        result = original.apply(this, args);
-                    } finally {
-                        window.dispatchEvent(new Event(`vsc:${method}`));
+        if (!window.vscPatchedHistory) {
+            ['pushState', 'replaceState'].forEach(method => {
+                const original = history[method];
+                if (original) {
+                    history[method] = function(...args) {
+                        let result;
+                        try {
+                            result = original.apply(this, args);
+                        } finally {
+                            window.dispatchEvent(new Event(`vsc:${method}`));
+                        }
+                        return result;
                     }
-                    return result;
                 }
-            }
-        });
+            });
+            window.vscPatchedHistory = true;
+        }
+
         window.addEventListener('popstate', spaNavigationHandler);
         window.addEventListener('vsc:pushState', spaNavigationHandler);
         window.addEventListener('vsc:replaceState', spaNavigationHandler);
@@ -1093,6 +1031,10 @@
         state.lastUrl = location.href;
 
         uiManager.init();
+        if (uiContainer && state.ui.hostElement) {
+             uiContainer.appendChild(state.ui.hostElement);
+        }
+
         filterManager.init();
         imageFilterManager.init();
         speedSlider.init();
@@ -1112,50 +1054,6 @@
         speedSlider.renderControls();
         speedSlider.show();
 
-        hookSpaNavigation();
-
-        visibilityChangeListener = () => {
-            if (document.hidden) {
-                document.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(v => v.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active'));
-                audioManager.suspendContext();
-            } else {
-                scheduleIdleTask(scanAndApply);
-                audioManager.resumeContext();
-            }
-        };
-        document.addEventListener('visibilitychange', visibilityChangeListener);
-
-        fullscreenChangeListener = async () => {
-            const fullscreenElement = document.fullscreenElement || document.body;
-            uiManager.moveUiTo(fullscreenElement);
-            if (triggerElement) {
-                fullscreenElement.appendChild(triggerElement);
-            }
-            speedSlider.show();
-            speedSlider.resetFadeTimer();
-            if (isMobile && document.fullscreenElement) {
-                const video = document.fullscreenElement.querySelector('video') || (document.fullscreenElement.tagName === 'VIDEO' ? document.fullscreenElement : null);
-                if (video) {
-                    const lockLandscape = async () => {
-                        if (video.videoWidth > video.videoHeight) {
-                            if (screen.orientation?.lock) {
-                                try { await screen.orientation.lock('landscape'); } catch (err) {}
-                            }
-                        }
-                    };
-                    if (video.readyState >= 1) await lockLandscape(); else video.addEventListener('loadedmetadata', lockLandscape, { once: true });
-                }
-            } else if (isMobile && !document.fullscreenElement) {
-                if (screen.orientation?.unlock) {
-                    try { screen.orientation.unlock(); } catch (e) {}
-                }
-            }
-        };
-        document.addEventListener('fullscreenchange', fullscreenChangeListener);
-
-        beforeUnloadListener = () => cleanup();
-        window.addEventListener('beforeunload', beforeUnloadListener);
-
         setVideoFilterLevel(state.currentVideoFilterLevel);
         setImageFilterLevel(state.currentImageFilterLevel);
         audioManager.setAudioMode(state.currentAudioMode);
@@ -1165,86 +1063,79 @@
         if (CONFIG.DEBUG) console.log("🎉 Video_Image_Control initialized.");
     }
 
-    function createTriggerButton() {
-        if (triggerElement || document.getElementById(UI_SELECTORS.TRIGGER)) return;
+    function initializeGlobalUI() {
+        if (document.getElementById('vsc-global-container')) return;
 
         const hasMedia = findAllMedia().length > 0;
         const hasImages = findAllImages().length > 0;
         if (!hasMedia && !hasImages) {
-            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. Trigger button will not be displayed.");
+            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. UI will not be created.");
             return;
         }
 
-        const trigger = document.createElement('div');
-        triggerElement = trigger;
-        trigger.id = UI_SELECTORS.TRIGGER;
-        trigger.textContent = '⚡';
-        Object.assign(trigger.style, {
+        uiContainer = document.createElement('div');
+        uiContainer.id = 'vsc-global-container';
+        Object.assign(uiContainer.style, {
             position: 'fixed',
             top: '50%',
-            right: '1vmin',
+            right: '1.5vmin',
             transform: 'translateY(-50%)',
-            width: '4vmin',
-            height: '4vmin',
+            zIndex: CONFIG.MAX_Z_INDEX,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+        });
+
+        triggerElement = document.createElement('div');
+        triggerElement.id = UI_SELECTORS.TRIGGER;
+        triggerElement.textContent = '⚡';
+        Object.assign(triggerElement.style, {
+            width: 'clamp(32px, 7vmin, 44px)',
+            height: 'clamp(32px, 7vmin, 44px)',
             background: 'rgba(0, 0, 0, 0.5)',
             color: 'white',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '24px',
+            fontSize: 'clamp(20px, 4vmin, 26px)',
             cursor: 'pointer',
-            zIndex: CONFIG.MAX_Z_INDEX,
             userSelect: 'none',
-            transition: 'transform 0.2s, background-color 0.2s'
+            transition: 'transform 0.2s, background-color 0.2s',
+            order: '2'
         });
+        uiContainer.appendChild(triggerElement);
+        document.body.appendChild(uiContainer);
 
         let isDragging = false;
         let wasDragged = false;
         let startX, startY;
-        let initialLeft, initialTop;
-
-        trigger.addEventListener('click', (e) => {
-            if (wasDragged) {
-                e.stopPropagation();
-                wasDragged = false;
-                return;
-            }
-            if (isInitialized) {
-                cleanup();
-                trigger.textContent = '⚡';
-                trigger.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            } else {
-                start();
-                trigger.textContent = '❌';
-                trigger.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
-            }
-        });
-
-        document.body.appendChild(trigger);
+        let initialTop, initialRight;
+        const DRAG_THRESHOLD = 5;
 
         const onDragStart = (e) => {
-            // [수정] 꾹 누르기 기능과의 충돌을 막기 위해 이벤트 전파를 막습니다.
-            e.stopPropagation();
+            if (e.target !== triggerElement) return;
 
             isDragging = true;
             wasDragged = false;
+            e.preventDefault();
+            e.stopPropagation();
 
             const pos = e.touches ? e.touches[0] : e;
             startX = pos.clientX;
             startY = pos.clientY;
 
-            const rect = trigger.getBoundingClientRect();
-            initialLeft = rect.left;
+            const rect = uiContainer.getBoundingClientRect();
             initialTop = rect.top;
+            initialRight = window.innerWidth - rect.right;
 
-            trigger.style.cursor = 'grabbing';
-            trigger.style.transition = 'none';
+            triggerElement.style.cursor = 'grabbing';
+            document.body.style.userSelect = 'none';
 
-            document.addEventListener('mousemove', onDragMove);
+            document.addEventListener('mousemove', onDragMove, { passive: false });
+            document.addEventListener('mouseup', onDragEnd, { passive: false });
             document.addEventListener('touchmove', onDragMove, { passive: false });
-            document.addEventListener('mouseup', onDragEnd);
-            document.addEventListener('touchend', onDragEnd);
+            document.addEventListener('touchend', onDragEnd, { passive: false });
         };
 
         const onDragMove = (e) => {
@@ -1254,52 +1145,99 @@
             const deltaX = pos.clientX - startX;
             const deltaY = pos.clientY - startY;
 
-            if (!wasDragged && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+            if (!wasDragged && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
                 wasDragged = true;
+                uiContainer.style.transition = 'none'; // 드래그 시작 시 부드러운 효과 제거
+                uiContainer.style.transform = 'none';
             }
 
             if (wasDragged) {
-                // [수정] 실제로 드래그가 시작되었을 때만 기본 동작(스크롤 등)을 막습니다.
                 e.preventDefault();
-                let newLeft = initialLeft + deltaX;
+                e.stopImmediatePropagation();
                 let newTop = initialTop + deltaY;
+                let newRight = initialRight - deltaX;
+                const containerRect = uiContainer.getBoundingClientRect();
 
-                newLeft = Math.max(0, Math.min(window.innerWidth - trigger.offsetWidth, newLeft));
-                newTop = Math.max(0, Math.min(window.innerHeight - trigger.offsetHeight, newTop));
+                newTop = Math.max(0, Math.min(window.innerHeight - containerRect.height, newTop));
+                newRight = Math.max(0, Math.min(window.innerWidth - containerRect.width, newRight));
 
-                trigger.style.right = 'auto';
-                trigger.style.transform = 'none';
-                trigger.style.left = `${newLeft}px`;
-                trigger.style.top = `${newTop}px`;
+                uiContainer.style.top = `${newTop}px`;
+                uiContainer.style.right = `${newRight}px`;
+                uiContainer.style.left = 'auto';
+                uiContainer.style.bottom = 'auto';
             }
         };
 
         const onDragEnd = () => {
             if (!isDragging) return;
             isDragging = false;
-            trigger.style.cursor = 'pointer';
-            trigger.style.transition = 'transform 0.2s, background-color 0.2s';
+            triggerElement.style.cursor = 'pointer';
+            document.body.style.userSelect = '';
+            uiContainer.style.transition = ''; // 드래그 종료 후 부드러운 효과 복원
 
             document.removeEventListener('mousemove', onDragMove);
-            document.removeEventListener('touchmove', onDragMove);
             document.removeEventListener('mouseup', onDragEnd);
+            document.removeEventListener('touchmove', onDragMove);
             document.removeEventListener('touchend', onDragEnd);
+
+            setTimeout(() => { wasDragged = false; }, 0);
         };
 
-        trigger.addEventListener('mousedown', onDragStart);
-        trigger.addEventListener('touchstart', onDragStart, { passive: false });
+        triggerElement.addEventListener('mousedown', onDragStart);
+        triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
+
+        triggerElement.addEventListener('click', (e) => {
+            if (wasDragged) {
+                e.stopPropagation();
+                return;
+            }
+            if (isInitialized) {
+                cleanup();
+                triggerElement.textContent = '⚡';
+                triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            } else {
+                start();
+                if (state.ui.hostElement) {
+                    state.ui.hostElement.style.order = '1';
+                }
+                triggerElement.textContent = '❌';
+                triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
+            }
+        });
+
+        // 페이지 라이프사이클 이벤트 리스너 등록 (한 번만)
+        if (!visibilityChangeListener) {
+            visibilityChangeListener = () => {
+                if (document.hidden) {
+                    document.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(v => v.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active'));
+                    audioManager.suspendContext();
+                } else {
+                    scheduleIdleTask(scanAndApply);
+                    audioManager.resumeContext();
+                }
+            };
+            document.addEventListener('visibilitychange', visibilityChangeListener);
+        }
+        if (!fullscreenChangeListener) {
+            fullscreenChangeListener = async () => {
+                const targetRoot = document.fullscreenElement || document.body;
+                if (uiContainer) {
+                    targetRoot.appendChild(uiContainer);
+                }
+            };
+            document.addEventListener('fullscreenchange', fullscreenChangeListener);
+        }
+        if (!beforeUnloadListener) {
+            beforeUnloadListener = () => {
+                if(uiContainer) uiContainer.remove();
+                cleanup();
+            };
+            window.addEventListener('beforeunload', beforeUnloadListener);
+        }
+        hookSpaNavigation();
     }
 
     if (!isExcluded()) {
-        setTimeout(() => {
-            createTriggerButton();
-        }, 2000);
-
-        document.addEventListener('fullscreenchange', () => {
-            if (triggerElement) {
-                const targetRoot = document.fullscreenElement || document.body;
-                targetRoot.appendChild(triggerElement);
-            }
-        });
+        setTimeout(initializeGlobalUI, 2000);
     }
 })();
