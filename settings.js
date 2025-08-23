@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      51.4
-// @description  모바일 환경 고려한 vmin 통일
+// @version      51.3
+// @description  BLUR_STD_DEVIATION 0.4로 변경 / IMAGE_MIN_SIZE 최소크기 335로 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -291,27 +291,26 @@
     })();
 
     const uiManager = (() => {
-    // [수정] clamp()를 사용한 PC/모바일 통합 스타일 규칙
-    const styleRules = [
-        ':host { pointer-events: none; }',
-        '* { pointer-events: auto; }',
-        '#vsc-container { position: fixed; top: 50%; right: 7vmin; background: rgba(0,0,0,0.1); padding: clamp(6px, 1.2vmin, 10px); border-radius: clamp(8px, 1.5vmin, 12px); z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); }',
-        '#vsc-container.touched { opacity: 1; }',
-        '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
-        '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(26px, 5.5vmin, 32px); width: clamp(28px, 6vmin, 34px); position: relative; }',
-        '.vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(5px, 1vmin, 8px); align-items: center; }',
-        '.vsc-control-group.submenu-visible .vsc-submenu { display: flex; }',
-        '.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(12px, 2vmin, 14px); }',
-        '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
-        '.vsc-submenu .vsc-btn { min-width: auto; font-size: clamp(13px, 2.5vmin, 15px); padding: clamp(2px, 0.5vmin, 4px) clamp(4px, 1vmin, 6px); margin: 0 clamp(2px, 0.4vmin, 3px); }',
-        '.vsc-btn-main { font-size: clamp(15px, 3vmin, 18px); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
-        '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); }',
-        '#vsc-time-display, #vsc-delay-info, #vsc-gesture-indicator { position:fixed; z-index:10001; background:rgba(0,0,0,.7); color:#fff; padding:5px 10px; border-radius:5px; font-size:1.2rem; pointer-events:none; }',
-        '#vsc-time-display, #vsc-gesture-indicator { top:50%; left:50%; transform:translate(-50%,-50%); }',
-        '#vsc-delay-info { display: flex; align-items: center; bottom: 50px; Right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; }',
-        '.vsc-loading-indicator { font-size: 16px; color: white; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
-        '#vsc-pip-btn { background: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 36 36\' width=\'100%25\' height=\'100%25\'%3E%3Cpath d=\'M25,17 L17,17 L17,23 L25,23 L25,17 L25,17 Z M29,25 L29,10.98 C29,9.88 28.1,9 27,9 L9,9 C7.9,9 7,9.88 7,10.98 L7,25 C7,26.1 7.9,27 9,27 L27,27 C28.1,27 29,26.1 29,25 L29,25 Z M27,25.02 L9,25.02 L9,10.97 L27,10.97 L27,25.02 L27,25.02 Z\' fill=\'%23fff\'/%3E%3C/svg%3E") no-repeat center; background-size: 70% 70%; }',
-    ];
+        const styleRules = [
+            ':host { pointer-events: none; }',
+            '* { pointer-events: auto; }',
+            '#vsc-container { position: fixed; top: 50%; right: 5vmin; background: rgba(0,0,0,0.1); padding: 6px; border-radius: 8px; z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; transform: translateY(-50%); }',
+            '#vsc-container.touched { opacity: 1; }',
+            '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
+            '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; height: 28px; width: 30px; position: relative; }',
+            '.vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 5px; background: rgba(0,0,0,0.7); border-radius: 4px; padding: 5px; align-items: center; }',
+            '.vsc-control-group.submenu-visible .vsc-submenu { display: flex; }',
+            '.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius:4px; border:none; padding:4px 6px; cursor:pointer; font-size:12px; }',
+            '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
+            '.vsc-submenu .vsc-btn { min-width: 24px; font-size: 14px; padding: 2px 4px; margin: 0 2px; }',
+            '.vsc-btn-main { font-size: 16px; padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
+            '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: 4px; padding: 4px 6px; font-size: 13px; }',
+            '#vsc-time-display, #vsc-delay-info, #vsc-gesture-indicator { position:fixed; z-index:10001; background:rgba(0,0,0,.7); color:#fff; padding:5px 10px; border-radius:5px; font-size:1.2rem; pointer-events:none; }',
+            '#vsc-time-display, #vsc-gesture-indicator { top:50%; left:50%; transform:translate(-50%,-50%); }',
+            '#vsc-delay-info { display: flex; align-items: center; bottom: 50px; Right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; }',
+            '.vsc-loading-indicator { font-size: 16px; color: white; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
+            '#vsc-pip-btn { background: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 36 36\' width=\'100%25\' height=\'100%25\'%3E%3Cpath d=\'M25,17 L17,17 L17,23 L25,23 L25,17 L25,17 Z M29,25 L29,10.98 C29,9.88 28.1,9 27,9 L9,9 C7.9,9 7,9.88 7,10.98 L7,25 C7,26.1 7.9,27 9,27 L27,27 C28.1,27 29,26.1 29,25 L29,25 Z M27,25.02 L9,25.02 L9,10.97 L27,10.97 L27,25.02 L27,25.02 Z\' fill=\'%23fff\'/%3E%3C/svg%3E") no-repeat center; background-size: 70% 70%; }',
+        ];
         function init() {
             if (state.ui.hostElement) return;
             const host = document.createElement('div');
@@ -1180,21 +1179,20 @@
         triggerElement = trigger;
         trigger.id = UI_SELECTORS.TRIGGER;
         trigger.textContent = '⚡';
-        // [수정] clamp()를 사용한 통합 스타일
         Object.assign(trigger.style, {
             position: 'fixed',
             top: '50%',
-            right: 'clamp(10px, 2vmin, 20px)',
+            right: '1vmin',
             transform: 'translateY(-50%)',
-            width: 'clamp(32px, 7vmin, 44px)',
-            height: 'clamp(32px, 7vmin, 44px)',
+            width: '4vmin',
+            height: '4vmin',
             background: 'rgba(0, 0, 0, 0.5)',
             color: 'white',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 'clamp(20px, 4vmin, 26px)',
+            fontSize: '24px',
             cursor: 'pointer',
             zIndex: CONFIG.MAX_Z_INDEX,
             userSelect: 'none',
