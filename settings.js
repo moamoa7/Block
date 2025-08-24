@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      56.5
-// @description  SPA 네비게이션 및 딜레이 미터기 안정성 개선
+// @version      57.0
+// @description  딜레이 미터기 URL 기반 활성화 및 CORS 경고 메시지 복원
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -37,6 +37,7 @@
         SPEED_PRESETS: [4, 2, 1, 0.2],
         UI_DRAG_THRESHOLD: 5,
         UI_WARN_TIMEOUT: 10000,
+        LIVE_STREAM_URLS: ['play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 103 },
@@ -52,7 +53,7 @@
             CHECK_INTERVAL: 500, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500,
             SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.10 }, { minDelay: 3750, playbackRate: 1.09 }, { minDelay: 3500, playbackRate: 1.08 }, { minDelay: 3250, playbackRate: 1.07 }, { minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2750, playbackRate: 1.05 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2250, playbackRate: 1.03 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1750, playbackRate: 1.01 }, { minDelay: 1500, playbackRate: 1.00 }],
             NORMAL_RATE: 1.0,
-            MAX_VALID_DELAY_SEC: 20 // 최대 유효 딜레이 시간(초). VOD와 Live를 구분하는 기준값.
+            MAX_VALID_DELAY_SEC: 20
         }
     };
 
@@ -123,6 +124,11 @@
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
     function calculateSharpenMatrix(level) { const parsedLevel = parseInt(level, 10); if (isNaN(parsedLevel) || parsedLevel === 0) return '0 0 0 0 1 0 0 0 0'; const intensity = 1 + (parsedLevel - 0.5) * (5.0 / 5); const off = (1 - intensity) / 4; return `0 ${off} 0 ${off} ${intensity} ${off} 0 ${off} 0`; }
+
+    function isLiveStreamPage() {
+        const url = location.href;
+        return CONFIG.LIVE_STREAM_URLS.some(pattern => url.includes(pattern));
+    }
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     function isExcluded() { const url = location.href.toLowerCase(); const hostname = location.hostname.toLowerCase(); if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) return true; return CONFIG.SPECIFIC_EXCLUSIONS.some(rule => hostname.includes(rule.domain) && url.includes(rule.path)); }
@@ -526,93 +532,14 @@
         let isAdjusting = false;
 
         function findVideo() {
-            // 유튜브의 경우, 광고나 미리보기가 아닌 메인 비디오를 명확하게 타겟팅
-            if (location.hostname.includes("youtube.com")) {
-                const mainVideo = document.querySelector('#movie_player .html5-main-video');
-                // 찾은 비디오가 스크립트에서 관리 중인 활성 미디어 목록에 있는지 확인
-                if (mainVideo && state.activeMedia.has(mainVideo)) {
-                    return mainVideo;
-                }
-            }
-            // 다른 사이트나 유튜브에서 메인 비디오를 못찾은 경우, 기존 방식으로 찾되 작은 비디오는 제외
             return Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO' && m.offsetWidth > 100 && m.offsetHeight > 100) || null;
         }
-
-        function isLiveStream(videoElement) {
-            if (!videoElement) return false;
-            try {
-                // YouTube: 가장 정확하고 안정적인 방법으로 우선 처리
-                if (location.hostname.includes("youtube.com")) {
-                    const player = videoElement.closest('#movie_player');
-                    if (player) {
-                        // 라이브 배지가 있으면 무조건 라이브 스트림
-                        if (player.querySelector(".ytp-live-badge.ytp-button")) return true;
-                        // 총 영상 길이 표시 요소가 있으면 무조건 VOD (일반 영상)
-                        if (player.querySelector(".ytp-time-duration")) return false;
-                    }
-                    // 광고, 로딩 중 등 애매한 상황에서는 미터기를 표시하지 않도록 VOD로 간주
-                    return false;
-                }
-
-                // Kick.com
-                if (location.hostname.includes("kick.com")) {
-                    if (document.querySelector("div[data-test-selector='stream-live-indicator']")) return true;
-                    const liveBadge = [...document.querySelectorAll("div, span")].some(el => el.textContent.trim() === "LIVE");
-                    if (liveBadge) return true;
-                }
-
-                // Twitch.tv
-                if (location.hostname.includes("twitch.tv")) {
-                    if (document.querySelector("[data-a-target='stream-live-indicator']")) return true;
-                    if (!window.__twitchLiveObserverSetup) {
-                        window.__twitchIsLive = false;
-                        const observer = new MutationObserver(() => {
-                            if (document.querySelector("[data-a-target='stream-live-indicator']")) {
-                                window.__twitchIsLive = true;
-                                observer.disconnect();
-                            }
-                        });
-                        observer.observe(document.body, { childList: true, subtree: true });
-                        window.__twitchLiveObserverSetup = true;
-                    }
-                    if (window.__twitchIsLive) return true;
-                }
-
-                // --- 범용 규칙 (YouTube가 아닐 때만 실행됨) ---
-                if (videoElement.duration === Infinity) return true;
-
-                const src = videoElement.currentSrc || videoElement.src || "";
-                if (/m3u8(\?|$)/i.test(src) || /mpd(\?|$)/i.test(src)) {
-                    if (videoElement.seekable && videoElement.seekable.length > 0) {
-                        const liveWindowEnd = videoElement.seekable.end(videoElement.seekable.length - 1);
-                        if (isFinite(liveWindowEnd) && liveWindowEnd - videoElement.currentTime < 60) {
-                            return true;
-                        }
-                    }
-                    // VOD임이 확실하면(길이가 유한하면) false 반환
-                    if (isFinite(videoElement.duration) && videoElement.duration > 0) {
-                        return false;
-                    }
-                    return true; // 불확실하면 일단 라이브로 간주
-                }
-
-                if (videoElement.seekable && videoElement.seekable.length > 0) {
-                    const liveWindowEnd = videoElement.seekable.end(videoElement.seekable.length - 1);
-                    if (liveWindowEnd - videoElement.currentTime < 60) return true;
-                }
-
-            } catch (e) { /* console.warn("isLiveStream 판별 실패:", e); */ }
-
-            return false;
-        }
-
 
         function calculateDelay(videoElement) {
             if (!videoElement || !videoElement.buffered || videoElement.buffered.length === 0) return null;
             try {
                 const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1);
                 const delay = bufferedEnd - videoElement.currentTime;
-                // VOD의 경우 delay가 비정상적으로 크거나 음수일 수 있으므로 유효 범위를 벗어나면 null 반환
                 if (delay < 0 || delay > D_CONFIG.MAX_VALID_DELAY_SEC) return null;
                 return delay * 1000;
             } catch { return null; }
@@ -693,11 +620,9 @@
                 return;
             }
 
-            const isLive = isLiveStream(video);
             const rawDelay = calculateDelay(video);
 
-            // isLiveStream이 true로 판단했더라도, 실제 계산된 딜레이 값이 유효하지 않으면 VOD로 최종 간주 (안전장치)
-            if (isLive && rawDelay !== null) {
+            if (rawDelay !== null) {
                 recordDelay(rawDelay);
                 const weightedData = calculateWeightedDelay();
                 if (!weightedData) return;
@@ -876,12 +801,9 @@
             const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO') || hasVideo;
             const hasImage = state.activeImages.size > 0;
 
-            // ▼▼▼ 수정된 부분 ▼▼▼
-            // 배속 버튼 컨테이너의 표시 여부를 여기서 결정합니다.
             if (speedButtonsContainer) {
                 speedButtonsContainer.style.display = hasVideo ? 'flex' : 'none';
             }
-            // ▲▲▲ 수정된 부분 ▲▲▲
 
             if (hasVideo) state.mediaTypesEverFound.video = true;
             if (hasAudio) state.mediaTypesEverFound.audio = true;
@@ -1012,12 +934,15 @@
         mediaSessionManager.init();
         ensureObservers();
 
+        // CORS 경고 메시지 표시 로직
         const hasMedia = findAllMedia().length > 0;
         if (hasMedia) {
             showWarningMessage("주의: 일부 영상은 오디오 필터 적용 시 CORS 보안 정책으로 인해 무음 처리될 수 있습니다.");
         }
 
-        autoDelayManager.start();
+        if (isLiveStreamPage()) {
+            autoDelayManager.start();
+        }
 
         speedSlider.renderControls();
         speedSlider.show();
