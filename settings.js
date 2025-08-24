@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      53.6
-// @description  드래그 UI 개선(transform 사용) / 속도 버튼 동적 구성 / 에러 핸들링 강화
+// @version      54.6
+// @description  최적화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -28,17 +28,20 @@
         DEFAULT_AUDIO_PRESET: 'off',
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
+        THROTTLE_DELAY: 100,
         MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05,
         SEEK_TIME_MAX_SEC: 15,
         IMAGE_MIN_SIZE: 335,
         VIDEO_MIN_SIZE: 200,
         SPEED_PRESETS: [4, 2, 1, 0.2],
+        UI_DRAG_THRESHOLD: 5,
+        UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['play.sooplive.co.kr/', 'chzzk.naver.com/', 'twitch.tv', 'kick.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.5', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_VIATION: '0.5', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] }, },
         FILTER_EXCLUSION_DOMAINS: [],
@@ -96,6 +99,25 @@
 
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { console.error(`[VSC] Error in ${label}:`, e); } }
     const debounce = (fn, wait) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn.apply(this, args), wait); }; };
+    const throttle = (fn, wait) => {
+        let inThrottle, lastFn, lastTime;
+        return function() {
+            const context = this, args = arguments;
+            if (!inThrottle) {
+                fn.apply(context, args);
+                lastTime = Date.now();
+                inThrottle = true;
+            } else {
+                clearTimeout(lastFn);
+                lastFn = setTimeout(function() {
+                    if (Date.now() - lastTime >= wait) {
+                        fn.apply(context, args);
+                        lastTime = Date.now();
+                    }
+                }, Math.max(wait - (Date.now() - lastTime), 0));
+            }
+        };
+    };
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
     function calculateSharpenMatrix(level) { const parsedLevel = parseInt(level, 10); if (isNaN(parsedLevel) || parsedLevel === 0) return '0 0 0 0 1 0 0 0 0'; const intensity = 1 + (parsedLevel - 0.5) * (5.0 / 5); const off = (1 - intensity) / 4; return `0 ${off} 0 ${off} ${intensity} ${off} 0 ${off} 0`; }
@@ -484,10 +506,11 @@
             safeExec(() => {
                 const { title, artist } = getMeta();
                 navigator.mediaSession.metadata = new window.MediaMetadata({ title, artist, album: 'Video_Image_Control' });
-                setAction('play', () => m.play()); setAction('pause', () => m.pause());
-                setAction('seekbackward', () => { m.currentTime -= getSeekTime(m); });
-                setAction('seekforward', () => { m.currentTime += getSeekTime(m); });
-                setAction('seekto', d => { if (d.fastSeek && 'fastSeek' in m) { m.fastSeek(d.seekTime); } else { m.currentTime = d.seekTime; } });
+                setAction('play', () => safeExec(() => m.play()));
+                setAction('pause', () => safeExec(() => m.pause()));
+                setAction('seekbackward', () => safeExec(() => { m.currentTime -= getSeekTime(m); }));
+                setAction('seekforward', () => safeExec(() => { m.currentTime += getSeekTime(m); }));
+                setAction('seekto', d => safeExec(() => { if (d.fastSeek && 'fastSeek' in m) { m.fastSeek(d.seekTime); } else { m.currentTime = d.seekTime; } }));
             }, 'mediaSession.set');
         }
         function clearSession() { if (!('mediaSession' in navigator)) return; safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(a => setAction(a, null)); }, 'mediaSession.clear'); }
@@ -511,11 +534,7 @@
             if (!infoEl) {
                 infoEl = document.createElement('div');
                 infoEl.id = 'vsc-delay-info';
-                Object.assign(infoEl.style, {
-                    position: 'fixed', bottom: '50px', right: '10px', zIndex: CONFIG.MAX_Z_INDEX - 1, background: 'rgba(0,0,0,.7)',
-                    color: '#fff', padding: '5px 10px', borderRadius: '5px', fontFamily: 'monospace', fontSize: '10pt',
-                    lineHeight: '1.2', opacity: '0.8', display: 'flex', alignItems: 'center', pointerEvents: 'none'
-                });
+                infoEl.className = 'vsc-delay-info';
                 document.body.appendChild(infoEl);
             }
             let textSpan = infoEl.querySelector('span');
@@ -523,23 +542,21 @@
                 textSpan = document.createElement('span');
                 infoEl.prepend(textSpan);
             }
-            if (typeof messageOrAvg === 'string') {
-                textSpan.textContent = messageOrAvg;
-            } else {
-                const avgDelay = messageOrAvg;
-                const status = `${state.currentPlaybackRate.toFixed(3)}x`;
-                textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
-            }
+            requestAnimationFrame(() => {
+                if (typeof messageOrAvg === 'string') {
+                    textSpan.textContent = messageOrAvg;
+                } else {
+                    const avgDelay = messageOrAvg;
+                    const status = `${state.currentPlaybackRate.toFixed(3)}x`;
+                    textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
+                }
+            });
             let refreshBtn = infoEl.querySelector('.vsc-delay-refresh-btn');
             if (!refreshBtn) {
                 refreshBtn = document.createElement('button');
                 refreshBtn.textContent = '🔄';
                 refreshBtn.title = '딜레이 측정 재시작';
                 refreshBtn.className = 'vsc-delay-refresh-btn';
-                Object.assign(refreshBtn.style, {
-                    background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '5px',
-                    fontSize: '14px', padding: '0 2px', verticalAlign: 'middle', pointerEvents: 'auto'
-                });
                 refreshBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     restart();
@@ -556,7 +573,7 @@
                     if (Date.now() - startTime < SAMPLING_DURATION) { requestAnimationFrame(sampleFrame); }
                     else { const avgDelay = samplingData.reduce((a, b) => a + b, 0) / samplingData.length || 0; const minDelay = Math.min(...samplingData); const avgFPS = fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length || 60; resolve({ avgDelay, minDelay, avgFPS }); }
                 }
-                sampleFrame();
+                safeExec(() => requestAnimationFrame(sampleFrame));
             });
         }
         function autoOptimizeParameters({ avgDelay, minDelay, avgFPS }) {
@@ -612,17 +629,21 @@
 
     function findAllMedia(doc = document) {
         const elems = [];
+        const query = 'video, audio';
+        const minSize = CONFIG.VIDEO_MIN_SIZE;
+        const filterFn = media => {
+            if (media.tagName === 'AUDIO') return true;
+            const rect = media.getBoundingClientRect();
+            return rect.width >= minSize && rect.height >= minSize;
+        };
         safeExec(() => {
-            const query = 'video, audio';
-            const minSize = CONFIG.VIDEO_MIN_SIZE;
-            const filterFn = media => {
-                if (media.tagName === 'AUDIO') return true;
-                const rect = media.getBoundingClientRect();
-                return rect.width >= minSize && rect.height >= minSize;
-            };
             elems.push(...Array.from(doc.querySelectorAll(query)).filter(filterFn));
             (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => {
-                 elems.push(...Array.from(root.querySelectorAll(query)).filter(filterFn));
+                try {
+                    elems.push(...Array.from(root.querySelectorAll(query)).filter(filterFn));
+                } catch (e) {
+                    console.warn('[VSC] Failed to query a shadow root.', e);
+                }
             });
             doc.querySelectorAll('iframe').forEach(f => {
                 try {
@@ -637,9 +658,9 @@
 
     function findAllImages(doc = document) {
         const elems = [];
+        const size = CONFIG.IMAGE_MIN_SIZE;
+        const filterFn = img => img.naturalWidth > size && img.naturalHeight > size;
         safeExec(() => {
-            const size = CONFIG.IMAGE_MIN_SIZE;
-            const filterFn = img => img.naturalWidth > size && img.naturalHeight > size;
             elems.push(...Array.from(doc.querySelectorAll('img')).filter(filterFn));
             (window._shadowDomList_ || []).filter(r => r.deref()).forEach(r => { const root = r.deref(); if (root) elems.push(...Array.from(root.querySelectorAll('img')).filter(filterFn)); });
         });
@@ -663,7 +684,8 @@
         if (!speedButtonsContainer) return;
         speedButtonsContainer.querySelectorAll('button').forEach(b => {
             const buttonRate = parseFloat(b.dataset.speed);
-            b.classList.toggle('active', Math.abs(buttonRate - rate) < 0.01);
+            const isActive = Math.abs(buttonRate - rate) < 0.01;
+            b.style.boxShadow = isActive ? '0 0 5px #3498db, 0 0 10px #3498db inset' : 'none';
         });
     }
 
@@ -763,6 +785,9 @@
         safeExec(() => {
             if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
             if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
+            if (visibilityChangeListener) { document.removeEventListener('visibilitychange', visibilityChangeListener); visibilityChangeListener = null; }
+            if (fullscreenChangeListener) { document.removeEventListener('fullscreenchange', fullscreenChangeListener); fullscreenChangeListener = null; }
+            if (beforeUnloadListener) { window.removeEventListener('beforeunload', beforeUnloadListener); beforeUnloadListener = null; }
             if (spaNavigationHandler) {
                 window.removeEventListener('popstate', spaNavigationHandler);
                 window.removeEventListener('vsc:pushState', spaNavigationHandler);
@@ -785,6 +810,9 @@
             audioManager.setAudioMode('off');
             if (state.ui.hostElement) state.ui.hostElement.remove();
             if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
+            const filterControls = state.ui.shadowRoot?.getElementById('vsc-container');
+            if (filterControls) filterControls.style.display = 'none';
+            // if (uiContainer) uiContainer.remove(); // BUG FIX: Do not remove the main container
             resetState();
             settingsManager.init();
             uiManager.reset();
@@ -796,7 +824,11 @@
 
     function ensureObservers() {
         if (!mainObserver) {
-            mainObserver = new MutationObserver(() => scheduleIdleTask(scanAndApply));
+            mainObserver = new MutationObserver((mutations) => {
+                if (mutations.some(m => m.addedNodes.length > 0 || m.removedNodes.length > 0)) {
+                    scheduleIdleTask(() => scanAndApply());
+                }
+            });
             mainObserver.observe(document.documentElement, { childList: true, subtree: true });
         }
         if (!intersectionObserver) {
@@ -806,7 +838,7 @@
                     if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
                     if (e.target.tagName === 'IMG') updateImageFilterState(e.target);
                 });
-            });
+            }, { rootMargin: '200px 0px 200px 0px' });
         }
     }
 
@@ -814,10 +846,6 @@
         if (spaNavigationHandler) return;
         spaNavigationHandler = debounce(() => {
             if (location.href === state.lastUrl) return;
-            if (uiContainer) uiContainer.remove();
-            uiContainer = null;
-            triggerElement = null;
-            speedButtonsContainer = null;
             cleanup();
             initializeGlobalUI();
         }, 500);
@@ -891,42 +919,27 @@
         warningEl.id = 'vsc-warning-bar';
         const messageSpan = document.createElement('span');
         const closeBtn = document.createElement('button');
+        let hideTimeout;
 
         Object.assign(warningEl.style, {
-            position: 'fixed',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(30, 30, 30, 0.9)',
-            color: 'white',
-            padding: '12px 20px',
-            borderRadius: '8px',
-            zIndex: CONFIG.MAX_Z_INDEX - 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '15px',
-            fontSize: '14px',
-            fontFamily: 'sans-serif',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-            opacity: '0',
-            transition: 'opacity 0.5s ease-in-out',
-            maxWidth: '90%',
+            position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(30, 30, 30, 0.9)', color: 'white', padding: '12px 20px',
+            borderRadius: '8px', zIndex: CONFIG.MAX_Z_INDEX - 1, display: 'flex',
+            alignItems: 'center', gap: '15px', fontSize: '14px', fontFamily: 'sans-serif',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.3)', opacity: '0',
+            transition: 'opacity 0.5s ease-in-out', maxWidth: '90%',
         });
 
         messageSpan.textContent = message;
 
         Object.assign(closeBtn.style, {
-            background: 'none',
-            border: 'none',
-            color: '#aaa',
-            fontSize: '20px',
-            cursor: 'pointer',
-            lineHeight: '1',
-            padding: '0',
+            background: 'none', border: 'none', color: '#aaa', fontSize: '20px',
+            cursor: 'pointer', lineHeight: '1', padding: '0',
         });
         closeBtn.innerHTML = '&times;';
 
         const removeWarning = () => {
+            clearTimeout(hideTimeout);
             warningEl.style.opacity = '0';
             setTimeout(() => warningEl.remove(), 500);
         };
@@ -936,7 +949,7 @@
         document.body.appendChild(warningEl);
 
         setTimeout(() => (warningEl.style.opacity = '1'), 100);
-        setTimeout(removeWarning, 10000);
+        hideTimeout = setTimeout(removeWarning, CONFIG.UI_WARN_TIMEOUT);
     }
 
     function initializeGlobalUI() {
@@ -979,10 +992,20 @@
             btn.textContent = `${speed}x`;
             btn.dataset.speed = speed;
             btn.className = 'vsc-btn';
+            // BUG FIX: Apply styles directly to prevent them from being overridden by site CSS.
             Object.assign(btn.style, {
-                width: 'clamp(38px, 8vmin, 50px)', height: 'clamp(28px, 6vmin, 36px)', fontSize: 'clamp(12px, 2.2vmin, 14px)',
+                width: 'clamp(38px, 8vmin, 50px)',
+                height: 'clamp(28px, 6vmin, 36px)',
+                fontSize: 'clamp(12px, 2.2vmin, 14px)',
+                background: 'rgba(0, 0, 0, 0.5)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'clamp(4px, 0.8vmin, 6px)',
+                cursor: 'pointer',
             });
-            if (speed === 1.0) btn.classList.add('active');
+            if (speed === 1.0) {
+                 btn.style.boxShadow = '0 0 5px #3498db, 0 0 10px #3498db inset';
+            }
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const newSpeed = parseFloat(btn.dataset.speed);
@@ -998,111 +1021,111 @@
         // [개선] 드래그 UI 로직: CSS transform을 사용하여 성능 및 부드러움 개선
         // =====================================================================
         let isDragging = false;
-let wasDragged = false;
-let startPos = { x: 0, y: 0 };
-let translatePos = { x: 0, y: 0 }; // 최종 커밋된 위치
-let startRect = null;
-const DRAG_THRESHOLD = 5;
+        let wasDragged = false;
+        let startPos = { x: 0, y: 0 };
+        let translatePos = { x: 0, y: 0 }; // 최종 커밋된 위치
+        let startRect = null;
+        const DRAG_THRESHOLD = 5;
 
-// 화면 크기 변화 시 translate를 화면 경계 내로 제한
-const clampTranslate = () => {
-    if (!uiContainer) return;
+        // 화면 크기 변화 시 translate를 화면 경계 내로 제한
+        const clampTranslate = () => {
+            if (!uiContainer) return;
 
-    const rect = uiContainer.getBoundingClientRect();
-    const parentWidth = window.innerWidth;
-    const parentHeight = window.innerHeight;
+            const rect = uiContainer.getBoundingClientRect();
+            const parentWidth = window.innerWidth;
+            const parentHeight = window.innerHeight;
 
-    let newX = translatePos.x;
-    let newY = translatePos.y;
+            let newX = translatePos.x;
+            let newY = translatePos.y;
 
-    if (rect.left < 0) newX -= rect.left;
-    if (rect.top < 0) newY -= rect.top;
-    if (rect.right > parentWidth) newX -= (rect.right - parentWidth);
-    if (rect.bottom > parentHeight) newY -= (rect.bottom - parentHeight);
+            if (rect.left < 0) newX -= rect.left;
+            if (rect.top < 0) newY -= rect.top;
+            if (rect.right > parentWidth) newX -= (rect.right - parentWidth);
+            if (rect.bottom > parentHeight) newY -= (rect.bottom - parentHeight);
 
-    translatePos.x = newX;
-    translatePos.y = newY;
+            translatePos.x = newX;
+            translatePos.y = newY;
 
-    uiContainer.style.transform = `translateY(-50%) translate(${translatePos.x}px, ${translatePos.y}px)`;
-};
+            uiContainer.style.transform = `translateY(-50%) translate(${translatePos.x}px, ${translatePos.y}px)`;
+        };
 
-const onDragStart = (e) => {
-    if (!e.composedPath().includes(uiContainer)) return;
+        const onDragStart = (e) => {
+            if (!e.composedPath().includes(uiContainer)) return;
 
-    isDragging = true;
-    wasDragged = false;
-    const pos = e.touches ? e.touches[0] : e;
-    startPos = { x: pos.clientX, y: pos.clientY };
-    startRect = uiContainer.getBoundingClientRect();
+            isDragging = true;
+            wasDragged = false;
+            const pos = e.touches ? e.touches[0] : e;
+            startPos = { x: pos.clientX, y: pos.clientY };
+            startRect = uiContainer.getBoundingClientRect();
 
-    uiContainer.style.transition = 'none';
-    uiContainer.style.cursor = 'grabbing';
-    document.body.style.userSelect = 'none';
+            uiContainer.style.transition = 'none';
+            uiContainer.style.cursor = 'grabbing';
+            document.body.style.userSelect = 'none';
 
-    document.addEventListener('mousemove', onDragMove, { passive: false });
-    document.addEventListener('mouseup', onDragEnd, { passive: true });
-    document.addEventListener('touchmove', onDragMove, { passive: false });
-    document.addEventListener('touchend', onDragEnd, { passive: true });
-};
+            document.addEventListener('mousemove', onDragMove, { passive: false });
+            document.addEventListener('mouseup', onDragEnd, { passive: true });
+            document.addEventListener('touchmove', onDragMove, { passive: false });
+            document.addEventListener('touchend', onDragEnd, { passive: true });
+        };
 
-const onDragMove = (e) => {
-    if (!isDragging) return;
-    e.preventDefault();
+        const onDragMove = (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
 
-    const pos = e.touches ? e.touches[0] : e;
-    const deltaX = pos.clientX - startPos.x;
-    const deltaY = pos.clientY - startPos.y;
+            const pos = e.touches ? e.touches[0] : e;
+            const deltaX = pos.clientX - startPos.x;
+            const deltaY = pos.clientY - startPos.y;
 
-    let newLeft = startRect.left + deltaX;
-    let newTop = startRect.top + deltaY;
+            let newLeft = startRect.left + deltaX;
+            let newTop = startRect.top + deltaY;
 
-    // 화면 경계 내로 제한
-    const parentWidth = window.innerWidth;
-    const parentHeight = window.innerHeight;
-    newLeft = Math.max(0, Math.min(newLeft, parentWidth - startRect.width));
-    newTop = Math.max(0, Math.min(newTop, parentHeight - startRect.height));
+            // 화면 경계 내로 제한
+            const parentWidth = window.innerWidth;
+            const parentHeight = window.innerHeight;
+            newLeft = Math.max(0, Math.min(newLeft, parentWidth - startRect.width));
+            newTop = Math.max(0, Math.min(newTop, parentHeight - startRect.height));
 
-    const finalTranslateX = translatePos.x + (newLeft - startRect.left);
-    const finalTranslateY = translatePos.y + (newTop - startRect.top);
+            const finalTranslateX = translatePos.x + (newLeft - startRect.left);
+            const finalTranslateY = translatePos.y + (newTop - startRect.top);
 
-    uiContainer.style.transform = `translateY(-50%) translate(${finalTranslateX}px, ${finalTranslateY}px)`;
+            uiContainer.style.transform = `translateY(-50%) translate(${finalTranslateX}px, ${finalTranslateY}px)`;
 
-    if (!wasDragged && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
-        wasDragged = true;
-    }
-};
+            if (!wasDragged && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
+                wasDragged = true;
+            }
+        };
 
-const onDragEnd = (e) => {
-    if (!isDragging) return;
+        const onDragEnd = (e) => {
+            if (!isDragging) return;
 
-    const finalTransform = uiContainer.style.transform;
-    const matches = finalTransform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
-    if (matches) {
-        translatePos.x = parseFloat(matches[1]);
-        translatePos.y = parseFloat(matches[2]);
-    }
+            const finalTransform = uiContainer.style.transform;
+            const matches = finalTransform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
+            if (matches) {
+                translatePos.x = parseFloat(matches[1]);
+                translatePos.y = parseFloat(matches[2]);
+            }
 
-    isDragging = false;
-    uiContainer.style.transition = '';
-    uiContainer.style.cursor = 'pointer';
-    document.body.style.userSelect = '';
+            isDragging = false;
+            uiContainer.style.transition = '';
+            uiContainer.style.cursor = 'pointer';
+            document.body.style.userSelect = '';
 
-    document.removeEventListener('mousemove', onDragMove);
-    document.removeEventListener('mouseup', onDragEnd);
-    document.removeEventListener('touchmove', onDragMove);
-    document.removeEventListener('touchend', onDragEnd);
+            document.removeEventListener('mousemove', onDragMove);
+            document.removeEventListener('mouseup', onDragEnd);
+            document.removeEventListener('touchmove', onDragMove);
+            document.removeEventListener('touchend', onDragEnd);
 
-    setTimeout(() => { wasDragged = false; }, 0);
-};
+            setTimeout(() => { wasDragged = false; }, 0);
+        };
 
-// 이벤트 등록
-uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
-uiContainer.addEventListener('touchstart', onDragStart, { passive: true });
+        // 이벤트 등록
+        uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
+        uiContainer.addEventListener('touchstart', onDragStart, { passive: true });
 
-// 화면 크기 변화 시 위치 재조정
-const debouncedClamp = debounce(clampTranslate, 100);
-window.addEventListener('resize', debouncedClamp);
-window.addEventListener('orientationchange', debouncedClamp);
+        // 화면 크기 변화 시 위치 재조정
+        const debouncedClamp = debounce(clampTranslate, 100);
+        window.addEventListener('resize', debouncedClamp);
+        window.addEventListener('orientationchange', debouncedClamp);
 
         triggerElement.addEventListener('click', (e) => {
             if (wasDragged) {
