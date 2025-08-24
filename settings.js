@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      53.4
-// @description  CORS 경고 메시지를 항상 표시
+// @version      53.5
+// @description  속도 버튼 동적 구성 / 에러 핸들링 강화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -33,6 +33,7 @@
         SEEK_TIME_MAX_SEC: 15,
         IMAGE_MIN_SIZE: 335,
         VIDEO_MIN_SIZE: 200,
+        SPEED_PRESETS: [4, 2, 1, 0.2], // [개선] 속도 버튼 동적 구성
         LIVE_STREAM_URLS: ['play.sooplive.co.kr/', 'chzzk.naver.com/', 'twitch.tv', 'kick.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
@@ -93,7 +94,8 @@
         });
     }
 
-    const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } }
+    // [개선] 에러 핸들링 강화: DEBUG 모드가 아니어도 콘솔에 에러를 항상 표시
+    const safeExec = (fn, label = '') => { try { fn(); } catch (e) { console.error(`[VSC] Error in ${label}:`, e); } }
     const debounce = (fn, wait) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn.apply(this, args), wait); }; };
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
@@ -972,7 +974,7 @@
         Object.assign(speedButtonsContainer.style, {
             display: 'none', flexDirection: 'column', gap: '5px'
         });
-        const speeds = [4, 2, 1, 0.2];
+        const speeds = CONFIG.SPEED_PRESETS; // [개선] 하드코딩된 배열 대신 CONFIG 값 사용
         speeds.forEach(speed => {
             const btn = document.createElement('button');
             btn.textContent = `${speed}x`;
@@ -1059,9 +1061,17 @@
                 triggerElement.textContent = '⚡';
                 triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             } else {
-                start();
-                triggerElement.textContent = '❌';
-                triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
+                // [개선] 에러 핸들링 강화: start() 실행 중 에러 발생 시 UI로 피드백
+                try {
+                    start();
+                    triggerElement.textContent = '❌';
+                    triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
+                } catch (err) {
+                    console.error('[VSC] Failed to initialize.', err);
+                    triggerElement.textContent = '⚠️'; // 에러 아이콘으로 변경
+                    triggerElement.title = '스크립트 초기화 실패! 콘솔을 확인하세요.';
+                    triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.7)'; // 주황색 배경
+                }
             }
         });
         if (!visibilityChangeListener) {
