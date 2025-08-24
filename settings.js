@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      56.4
+// @version      56.5
 // @description  SPA 네비게이션 및 딜레이 미터기 안정성 개선
 // @match        *://*/*
 // @run-at       document-end
@@ -875,6 +875,14 @@
             const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
             const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO') || hasVideo;
             const hasImage = state.activeImages.size > 0;
+
+            // ▼▼▼ 수정된 부분 ▼▼▼
+            // 배속 버튼 컨테이너의 표시 여부를 여기서 결정합니다.
+            if (speedButtonsContainer) {
+                speedButtonsContainer.style.display = hasVideo ? 'flex' : 'none';
+            }
+            // ▲▲▲ 수정된 부분 ▲▲▲
+
             if (hasVideo) state.mediaTypesEverFound.video = true;
             if (hasAudio) state.mediaTypesEverFound.audio = true;
             if (hasImage) state.mediaTypesEverFound.image = true;
@@ -1010,13 +1018,6 @@
         }
 
         autoDelayManager.start();
-
-        const hasActiveVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
-        if (!hasActiveVideo) {
-            if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
-        } else {
-            if (speedButtonsContainer) speedButtonsContainer.style.display = 'flex';
-        }
 
         speedSlider.renderControls();
         speedSlider.show();
