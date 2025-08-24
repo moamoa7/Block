@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      53.5
-// @description  속도 버튼 동적 구성 / 에러 핸들링 강화
+// @version      53.6
+// @description  드래그 UI 개선(transform 사용) / 속도 버튼 동적 구성 / 에러 핸들링 강화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -33,7 +33,7 @@
         SEEK_TIME_MAX_SEC: 15,
         IMAGE_MIN_SIZE: 335,
         VIDEO_MIN_SIZE: 200,
-        SPEED_PRESETS: [4, 2, 1, 0.2], // [개선] 속도 버튼 동적 구성
+        SPEED_PRESETS: [4, 2, 1, 0.2],
         LIVE_STREAM_URLS: ['play.sooplive.co.kr/', 'chzzk.naver.com/', 'twitch.tv', 'kick.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
@@ -94,7 +94,6 @@
         });
     }
 
-    // [개선] 에러 핸들링 강화: DEBUG 모드가 아니어도 콘솔에 에러를 항상 표시
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { console.error(`[VSC] Error in ${label}:`, e); } }
     const debounce = (fn, wait) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn.apply(this, args), wait); }; };
     let idleCallbackId;
@@ -859,6 +858,10 @@
         const isLive = isLiveStreamPage();
         const hasMedia = findAllMedia().length > 0;
 
+        if (hasMedia) {
+            showWarningMessage("주의: 일부 영상은 오디오 필터 적용 시 CORS 보안 정책으로 인해 무음 처리될 수 있습니다.");
+        }
+
         if (isLive || !hasMedia) {
             if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
         } else {
@@ -945,10 +948,6 @@
             return;
         }
 
-        if (hasMedia) {
-            showWarningMessage("주의: 일부 영상은 오디오 필터 적용 시 CORS 보안 정책으로 인해 무음 처리될 수 있습니다.");
-        }
-
         uiContainer = document.createElement('div');
         uiContainer.id = 'vsc-global-container';
         Object.assign(uiContainer.style, {
@@ -974,7 +973,7 @@
         Object.assign(speedButtonsContainer.style, {
             display: 'none', flexDirection: 'column', gap: '5px'
         });
-        const speeds = CONFIG.SPEED_PRESETS; // [개선] 하드코딩된 배열 대신 CONFIG 값 사용
+        const speeds = CONFIG.SPEED_PRESETS;
         speeds.forEach(speed => {
             const btn = document.createElement('button');
             btn.textContent = `${speed}x`;
@@ -994,63 +993,78 @@
         });
         uiContainer.append(mainControlsWrapper, speedButtonsContainer);
         document.body.appendChild(uiContainer);
-        let isDragging = false, wasDragged = false, startX, startY, initialTop, initialRight;
+
+        // =====================================================================
+        // [개선] 드래그 UI 로직: CSS transform을 사용하여 성능 및 부드러움 개선
+        // =====================================================================
+        let isDragging = false;
+        let wasDragged = false;
+        let startPos = { x: 0, y: 0 };
+        let translatePos = { x: 0, y: 0 }; // 최종 커밋된 위치
         const DRAG_THRESHOLD = 5;
+
         const onDragStart = (e) => {
             if (!e.composedPath().includes(uiContainer)) return;
+
             isDragging = true;
             wasDragged = false;
             const pos = e.touches ? e.touches[0] : e;
-            startX = pos.clientX;
-            startY = pos.clientY;
-            const rect = uiContainer.getBoundingClientRect();
-            initialTop = rect.top;
-            initialRight = window.innerWidth - rect.right;
+            startPos = { x: pos.clientX, y: pos.clientY };
+
+            uiContainer.style.transition = 'none'; // 드래그 중에는 transition 비활성화
             uiContainer.style.cursor = 'grabbing';
             document.body.style.userSelect = 'none';
+
             document.addEventListener('mousemove', onDragMove, { passive: false });
-            document.addEventListener('mouseup', onDragEnd, { passive: false });
+            document.addEventListener('mouseup', onDragEnd, { passive: true });
             document.addEventListener('touchmove', onDragMove, { passive: false });
-            document.addEventListener('touchend', onDragEnd, { passive: false });
+            document.addEventListener('touchend', onDragEnd, { passive: true });
         };
+
         const onDragMove = (e) => {
             if (!isDragging) return;
+            e.preventDefault();
+
             const pos = e.touches ? e.touches[0] : e;
-            const deltaX = pos.clientX - startX;
-            const deltaY = pos.clientY - startY;
+            const deltaX = pos.clientX - startPos.x;
+            const deltaY = pos.clientY - startPos.y;
+
+            // 마지막 커밋 위치에서 현재 이동량을 더해 transform 적용
+            uiContainer.style.transform = `translateY(-50%) translate(${translatePos.x + deltaX}px, ${translatePos.y + deltaY}px)`;
+
             if (!wasDragged && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
                 wasDragged = true;
-                uiContainer.style.transition = 'none';
-                uiContainer.style.transform = 'none';
-            }
-            if (wasDragged) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                let newTop = initialTop + deltaY;
-                let newRight = initialRight - deltaX;
-                const containerRect = uiContainer.getBoundingClientRect();
-                newTop = Math.max(0, Math.min(window.innerHeight - containerRect.height, newTop));
-                newRight = Math.max(0, Math.min(window.innerWidth - containerRect.width, newRight));
-                uiContainer.style.top = `${newTop}px`;
-                uiContainer.style.right = `${newRight}px`;
-                uiContainer.style.left = 'auto';
-                uiContainer.style.bottom = 'auto';
             }
         };
-        const onDragEnd = () => {
+
+        const onDragEnd = (e) => {
             if (!isDragging) return;
+
+            const pos = e.changedTouches ? e.changedTouches[0] : e;
+            const finalDeltaX = pos.clientX - startPos.x;
+            const finalDeltaY = pos.clientY - startPos.y;
+
+            // 최종 위치를 업데이트
+            translatePos.x += finalDeltaX;
+            translatePos.y += finalDeltaY;
+
             isDragging = false;
+            uiContainer.style.transition = ''; // transition 복원
             uiContainer.style.cursor = 'pointer';
             document.body.style.userSelect = '';
-            uiContainer.style.transition = '';
+
             document.removeEventListener('mousemove', onDragMove);
             document.removeEventListener('mouseup', onDragEnd);
             document.removeEventListener('touchmove', onDragMove);
             document.removeEventListener('touchend', onDragEnd);
+
+            // 클릭 이벤트가 발생하기 전에 wasDragged가 초기화되는 것을 막기 위해 setTimeout 사용
             setTimeout(() => { wasDragged = false; }, 0);
         };
-        uiContainer.addEventListener('mousedown', onDragStart);
+
+        uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
         uiContainer.addEventListener('touchstart', onDragStart, { passive: true });
+
         triggerElement.addEventListener('click', (e) => {
             if (wasDragged) {
                 e.stopPropagation();
@@ -1061,19 +1075,19 @@
                 triggerElement.textContent = '⚡';
                 triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             } else {
-                // [개선] 에러 핸들링 강화: start() 실행 중 에러 발생 시 UI로 피드백
                 try {
                     start();
                     triggerElement.textContent = '❌';
                     triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
                 } catch (err) {
                     console.error('[VSC] Failed to initialize.', err);
-                    triggerElement.textContent = '⚠️'; // 에러 아이콘으로 변경
+                    triggerElement.textContent = '⚠️';
                     triggerElement.title = '스크립트 초기화 실패! 콘솔을 확인하세요.';
-                    triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.7)'; // 주황색 배경
+                    triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.7)';
                 }
             }
         });
+
         if (!visibilityChangeListener) {
             visibilityChangeListener = () => {
                 if (document.hidden) {
