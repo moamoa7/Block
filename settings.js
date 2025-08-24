@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      53.2
-// @description  미디어가 없을 때 배속 버튼이 표시되지 않도록 로직 수정
+// @version      53.3
+// @description  VIDEO_MIN_SIZE 추가하여 작은 영상은 제어 대상에서 제외
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -32,6 +32,7 @@
         SEEK_TIME_PERCENT: 0.05,
         SEEK_TIME_MAX_SEC: 15,
         IMAGE_MIN_SIZE: 335,
+        VIDEO_MIN_SIZE: 200, // [추가] 비디오의 최소 너비/높이 값 (이 값보다 작으면 제어 대상에서 제외)
         LIVE_STREAM_URLS: ['play.sooplive.co.kr/', 'chzzk.naver.com/', 'twitch.tv', 'kick.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
@@ -604,15 +605,41 @@
         return { start, stop, restart };
     })();
 
+    // [수정] 비디오 크기를 체크하는 로직을 추가
     function findAllMedia(doc = document) {
         const elems = [];
         safeExec(() => {
-            elems.push(...doc.querySelectorAll('video, audio'));
-            (window._shadowDomList_ || []).filter(r => r.deref()).forEach(r => { const root = r.deref(); if (root) elems.push(...root.querySelectorAll('video, audio')); });
-            doc.querySelectorAll('iframe').forEach(f => { try { if (f.contentDocument) elems.push(...findAllMedia(f.contentDocument)); } catch (e) {} });
+            const query = 'video, audio';
+            const minSize = CONFIG.VIDEO_MIN_SIZE;
+
+            const filterFn = media => {
+                // 오디오 요소는 크기 체크 없이 항상 포함
+                if (media.tagName === 'AUDIO') return true;
+                // 비디오 요소는 실제 표시되는 크기를 기준으로 필터링
+                const rect = media.getBoundingClientRect();
+                return rect.width >= minSize && rect.height >= minSize;
+            };
+
+            // 현재 문서에서 미디어 찾기 및 필터링
+            elems.push(...Array.from(doc.querySelectorAll(query)).filter(filterFn));
+
+            // 그림자 DOM(Shadow DOM) 내부에서 미디어 찾기 및 필터링
+            (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => {
+                 elems.push(...Array.from(root.querySelectorAll(query)).filter(filterFn));
+            });
+
+            // 아이프레임(iframe) 내부에서 재귀적으로 미디어 찾기
+            doc.querySelectorAll('iframe').forEach(f => {
+                try {
+                    if (f.contentDocument) {
+                        elems.push(...findAllMedia(f.contentDocument));
+                    }
+                } catch (e) {}
+            });
         });
         return [...new Set(elems)];
     }
+
     function findAllImages(doc = document) {
         const elems = [];
         safeExec(() => {
