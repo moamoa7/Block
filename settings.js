@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      51.9 (CORS Audio Fix)
-// @description  CORS 정책으로 인한 오디오 음소거 문제 해결 (요청 시 오디오 처리)
+// @version      52.0
+// @description  audioManager.processMedia 함수 수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -266,7 +266,13 @@
             }
         }
 
-        function processMedia(media) {}
+        function processMedia(media) {
+       // 오디오 컨텍스트가 이미 활성화된 상태(프리셋이 켜진 상태)라면,
+        // 새로 발견된 미디어도 즉시 오디오 효과에 연결합니다.
+        if (ctx) {
+            connectMedia(media);
+        }
+    }
 
         function cleanupMedia(media) {
             if (!ctx) return;
