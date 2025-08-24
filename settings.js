@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      57.0
-// @description  딜레이 미터기 URL 기반 활성화 및 CORS 경고 메시지 복원
+// @version      57.1
+// @description  고급 딜레이 미터기 자동 최적화 로직 적용, URL 기반 활성화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -53,7 +53,6 @@
             CHECK_INTERVAL: 500, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500,
             SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.10 }, { minDelay: 3750, playbackRate: 1.09 }, { minDelay: 3500, playbackRate: 1.08 }, { minDelay: 3250, playbackRate: 1.07 }, { minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2750, playbackRate: 1.05 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2250, playbackRate: 1.03 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1750, playbackRate: 1.01 }, { minDelay: 1500, playbackRate: 1.00 }],
             NORMAL_RATE: 1.0,
-            MAX_VALID_DELAY_SEC: 20
         }
     };
 
@@ -95,6 +94,7 @@
             ui: { shadowRoot: null, hostElement: null },
             delayCheckInterval: null,
             currentPlaybackRate: 1.0,
+            isDelayAdjusting: false,
             mediaTypesEverFound: { video: false, audio: false, image: false },
             lastUrl: ''
         });
@@ -529,10 +529,13 @@
         const D_CONFIG = CONFIG.DELAY_ADJUSTER;
         const DELAY_HISTORY_SIZE = 30;
         let delayHistory = [];
-        let isAdjusting = false;
+        let samplingData = [];
+        let FEEL_DELAY_FACTOR = 1.0;
+        let SMOOTH_STEP = 0.05;
+        let localIntersectionObserver;
 
         function findVideo() {
-            return Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO' && m.offsetWidth > 100 && m.offsetHeight > 100) || null;
+            return state.activeMedia.size > 0 ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') : null;
         }
 
         function calculateDelay(videoElement) {
@@ -540,23 +543,33 @@
             try {
                 const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1);
                 const delay = bufferedEnd - videoElement.currentTime;
-                if (delay < 0 || delay > D_CONFIG.MAX_VALID_DELAY_SEC) return null;
-                return delay * 1000;
-            } catch { return null; }
+                return delay >= 0 ? delay * 1000 : null;
+            } catch {
+                return null;
+            }
         }
 
         function recordDelay(rawDelay) {
-            delayHistory.push({ delay: rawDelay, timestamp: Date.now() });
+            const now = Date.now();
+            delayHistory.push({ delay: rawDelay, timestamp: now });
             if (delayHistory.length > DELAY_HISTORY_SIZE) delayHistory.shift();
         }
 
         function calculateWeightedDelay() {
-            if (delayHistory.length < 5) return null;
-            const weights = delayHistory.map((_, i) => (i + 1));
+            if (delayHistory.length === 0) return null;
+            const weights = delayHistory.map((_, i) => (i + 1) / delayHistory.length);
             const totalWeight = weights.reduce((a, b) => a + b, 0);
             const weightedAvg = delayHistory.reduce((sum, entry, i) => sum + entry.delay * weights[i], 0) / totalWeight;
             const minDelay = Math.min(...delayHistory.map(d => d.delay));
-            return { weightedAvg, minDelay };
+            const maxDelay = Math.max(...delayHistory.map(d => d.delay));
+            return { weightedAvg, minDelay, maxDelay };
+        }
+
+        function autoOptimizeParameters({ weightedAvg, minDelay, maxDelay }) {
+            FEEL_DELAY_FACTOR = Math.min(Math.max(0.5, 1000 / (weightedAvg + 1)), 1.0);
+            const variance = maxDelay - minDelay;
+            SMOOTH_STEP = Math.min(Math.max(0.01, 0.05 / (1 + variance / 500)), 0.1);
+            if (CONFIG.DEBUG) console.log(`[autoDelayManager] 최적화: FEEL_DELAY_FACTOR=${FEEL_DELAY_FACTOR.toFixed(2)}, SMOOTH_STEP=${SMOOTH_STEP.toFixed(3)}, weightedAvg=${weightedAvg.toFixed(0)}ms`);
         }
 
         function getPlaybackRate(avgDelay) {
@@ -569,19 +582,11 @@
         function adjustPlaybackRate(videoElement, targetRate) {
             if (!videoElement) return;
             const diff = targetRate - videoElement.playbackRate;
-            if (Math.abs(diff) < 0.01) {
-                if(videoElement.playbackRate !== targetRate) safeExec(() => videoElement.playbackRate = targetRate);
-                return;
-            };
+            if (Math.abs(diff) < 0.01) return;
             safeExec(() => {
-                videoElement.playbackRate += diff * 0.1;
+                videoElement.playbackRate += diff * SMOOTH_STEP * FEEL_DELAY_FACTOR;
                 state.currentPlaybackRate = videoElement.playbackRate;
             });
-        }
-
-        function hideDelayInfo() {
-             const infoEl = document.getElementById('vsc-delay-info');
-             if (infoEl) infoEl.remove();
         }
 
         function displayDelayInfo(messageOrAvg, minDelay) {
@@ -593,7 +598,7 @@
                     position: 'fixed', bottom: '50px', right: '10px', zIndex: CONFIG.MAX_Z_INDEX - 1,
                     background: 'rgba(0,0,0,.7)', color: '#fff', padding: '5px 10px', borderRadius: '5px',
                     fontFamily: 'monospace', fontSize: '10pt', lineHeight: '1.2', opacity: '0.8',
-                    display: 'flex', alignItems: 'center', pointerEvents: 'auto'
+                    display: 'flex', alignItems: 'center', pointerEvents: 'none'
                 });
                 document.body.appendChild(infoEl);
             }
@@ -602,69 +607,114 @@
                 textSpan = document.createElement('span');
                 infoEl.prepend(textSpan);
             }
-            requestAnimationFrame(() => {
-                if (typeof messageOrAvg === 'string') {
-                    textSpan.textContent = messageOrAvg;
-                } else {
-                    const avgDelay = messageOrAvg;
-                    const status = `${state.currentPlaybackRate.toFixed(3)}x`;
-                    textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
-                }
-            });
+            if (typeof messageOrAvg === 'string') {
+                textSpan.textContent = messageOrAvg;
+            } else {
+                const avgDelay = messageOrAvg;
+                const status = `${state.currentPlaybackRate.toFixed(3)}x`;
+                textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
+            }
+            let refreshBtn = infoEl.querySelector('.vsc-delay-refresh-btn');
+            if (!refreshBtn) {
+                refreshBtn = document.createElement('button');
+                refreshBtn.textContent = '🔄';
+                refreshBtn.title = '딜레이 측정 재시작';
+                refreshBtn.className = 'vsc-delay-refresh-btn';
+                Object.assign(refreshBtn.style, {
+                    background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '5px',
+                    fontSize: '14px', padding: '0 2px', verticalAlign: 'middle', pointerEvents: 'auto'
+                });
+                refreshBtn.addEventListener('click', (e) => { e.stopPropagation(); restart(); });
+                infoEl.appendChild(refreshBtn);
+            }
         }
 
         function checkAndAdjust() {
-            video = findVideo();
-            if (!video || !video.isConnected) {
-                hideDelayInfo();
-                return;
-            }
-
+            if (!video) video = findVideo();
+            if (!video) return;
             const rawDelay = calculateDelay(video);
-
-            if (rawDelay !== null) {
-                recordDelay(rawDelay);
-                const weightedData = calculateWeightedDelay();
-                if (!weightedData) return;
-
-                const { weightedAvg, minDelay } = weightedData;
-                displayDelayInfo(weightedAvg, minDelay);
-
-                if (!isAdjusting && weightedAvg >= D_CONFIG.TRIGGER_DELAY) isAdjusting = true;
-                else if (isAdjusting && weightedAvg <= D_CONFIG.TARGET_DELAY) {
-                    isAdjusting = false;
-                }
-
-                if (isAdjusting) {
-                    const newRate = getPlaybackRate(weightedAvg);
-                    adjustPlaybackRate(video, newRate);
-                } else {
-                    adjustPlaybackRate(video, D_CONFIG.NORMAL_RATE);
-                }
-            } else {
-                hideDelayInfo();
-                if (isAdjusting) {
-                    isAdjusting = false;
-                    adjustPlaybackRate(video, D_CONFIG.NORMAL_RATE);
-                }
+            if (rawDelay === null) return;
+            recordDelay(rawDelay);
+            const weightedData = calculateWeightedDelay();
+            if (!weightedData) return;
+            const { weightedAvg, minDelay, maxDelay } = weightedData;
+            autoOptimizeParameters({ weightedAvg, minDelay, maxDelay });
+            displayDelayInfo(weightedAvg, minDelay);
+            if (!state.isDelayAdjusting && weightedAvg >= D_CONFIG.TRIGGER_DELAY) state.isDelayAdjusting = true;
+            else if (state.isDelayAdjusting && weightedAvg <= D_CONFIG.TARGET_DELAY) {
+                state.isDelayAdjusting = false;
+                adjustPlaybackRate(video, D_CONFIG.NORMAL_RATE);
+            }
+            if (state.isDelayAdjusting) {
+                const newRate = getPlaybackRate(weightedAvg);
+                adjustPlaybackRate(video, newRate);
             }
         }
 
-        function start() {
+        function setupIntersectionObserver() {
+            if (localIntersectionObserver) return;
+            localIntersectionObserver = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && entry.target.tagName === 'VIDEO') video = entry.target;
+                });
+            }, { threshold: 0.5 });
+            state.activeMedia.forEach(media => {
+                if (media.tagName === 'VIDEO') localIntersectionObserver.observe(media);
+            });
+        }
+
+        async function start() {
             if (state.delayCheckInterval) return;
-            state.delayCheckInterval = setInterval(checkAndAdjust, CONFIG.DELAY_ADJUSTER.CHECK_INTERVAL);
+            video = null;
+            setupIntersectionObserver();
+            video = findVideo();
+            if (video) {
+                samplingData = [];
+                const sampleDuration = 2000;
+                const startTime = Date.now();
+                await new Promise(resolve => {
+                    function sampleFrame() {
+                        const delay = calculateDelay(video);
+                        if (delay !== null) samplingData.push(delay);
+                        if (Date.now() - startTime < sampleDuration) requestAnimationFrame(sampleFrame);
+                        else resolve();
+                    }
+                    sampleFrame();
+                });
+                samplingData.forEach(d => recordDelay(d));
+                const weightedData = calculateWeightedDelay();
+                if (weightedData) autoOptimizeParameters(weightedData);
+            }
+            state.delayCheckInterval = setInterval(checkAndAdjust, D_CONFIG.CHECK_INTERVAL);
         }
 
         function stop() {
-            if (state.delayCheckInterval) { clearInterval(state.delayCheckInterval); state.delayCheckInterval = null; }
-            hideDelayInfo();
-            if (video) safeExec(() => { if(video.playbackRate !== 1.0) video.playbackRate = 1.0; });
-            video = null;
+            if (state.delayCheckInterval) {
+                clearInterval(state.delayCheckInterval);
+                state.delayCheckInterval = null;
+            }
+            if (localIntersectionObserver) {
+                localIntersectionObserver.disconnect();
+                localIntersectionObserver = null;
+            }
+            const infoEl = document.getElementById('vsc-delay-info');
+            if (infoEl) infoEl.remove();
+            if (video) safeExec(() => { if (video.playbackRate !== 1.0) video.playbackRate = 1.0; video = null; });
             delayHistory = [];
-            isAdjusting = false;
+            samplingData = [];
+            state.isDelayAdjusting = false;
         }
 
-        return { start, stop };
+        function restart() {
+            safeExec(() => {
+                stop();
+                displayDelayInfo("딜레이: 계산 중...");
+                start();
+                if (CONFIG.DEBUG) console.log("🔄️ autoDelayManager manually restarted.");
+            }, 'autoDelayManager.restart');
+        }
+
+        return { start, stop, restart };
     })();
 
     function findAllMedia(doc = document) {
@@ -934,7 +984,6 @@
         mediaSessionManager.init();
         ensureObservers();
 
-        // CORS 경고 메시지 표시 로직
         const hasMedia = findAllMedia().length > 0;
         if (hasMedia) {
             showWarningMessage("주의: 일부 영상은 오디오 필터 적용 시 CORS 보안 정책으로 인해 무음 처리될 수 있습니다.");
