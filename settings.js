@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      54.9
-// @description  UI 로직 모듈화로 유지보수성 향상 / 딜레이 미터기 스타일 누락 버그 수정 및 라이브 방송 URL 인식률 개선 / 유튜브 TrustedHTML 보안 정책 오류 수정
+// @version      56.0
+// @description  TrustedHTML 보안 정책 오류 수정 / 딜레이 미터기(autoDelayManager) 로직 전면 개선 / SPA 네비게이션 로직 및 플랫폼별 라이브 방송 판별 기능 강화 / 단축키 기능 추가 및 안정성 개선
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -37,11 +37,10 @@
         SPEED_PRESETS: [4, 2, 1, 0.2],
         UI_DRAG_THRESHOLD: 5,
         UI_WARN_TIMEOUT: 10000,
-        LIVE_STREAM_URLS: ['play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_VIATION: '0.5', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.5', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] }, },
         FILTER_EXCLUSION_DOMAINS: [],
@@ -49,7 +48,7 @@
         AUDIO_EXCLUSION_DOMAINS: [],
         AUDIO_PRESETS: { off: { gain: 1, eq: [] }, speech: { gain: 1.05, eq: [{ freq: 80, gain: -3 }, { freq: 200, gain: -1 }, { freq: 500, gain: 2 }, { freq: 1000, gain: 4 }, { freq: 3000, gain: 5 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: -2 }] }, liveBroadcast: { gain: 1.1, eq: [{ freq: 80, gain: 2 }, { freq: 150, gain: 1.5 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 3.5 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: 2 }] }, movie: { gain: 1.25, eq: [{ freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 }, { freq: 10000, gain: 4 }] }, music: { gain: 1.15, eq: [{ freq: 60, gain: 4 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 1 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 3.5 }, { freq: 12000, gain: 3 }] }, gaming: { gain: 1.1, eq: [{ freq: 60, gain: 3 }, { freq: 250, gain: -1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 5 }, { freq: 4000, gain: 6 }, { freq: 8000, gain: 4 }, { freq: 12000, gain: 2 }] } },
         MAX_EQ_BANDS: 7,
-        DELAY_ADJUSTER: { CHECK_INTERVAL: 500, HISTORY_DURATION: 1000, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500, SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.10 }, { minDelay: 3750, playbackRate: 1.09 }, { minDelay: 3500, playbackRate: 1.08 }, { minDelay: 3250, playbackRate: 1.07 }, { minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2750, playbackRate: 1.05 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2250, playbackRate: 1.03 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1750, playbackRate: 1.01 }, { minDelay: 1500, playbackRate: 1.00 }], NORMAL_RATE: 1.0 }
+        DELAY_ADJUSTER: { CHECK_INTERVAL: 500, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500, SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.10 }, { minDelay: 3750, playbackRate: 1.09 }, { minDelay: 3500, playbackRate: 1.08 }, { minDelay: 3250, playbackRate: 1.07 }, { minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2750, playbackRate: 1.05 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2250, playbackRate: 1.03 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1750, playbackRate: 1.01 }, { minDelay: 1500, playbackRate: 1.00 }], NORMAL_RATE: 1.0 }
     };
 
     const UI_SELECTORS = {
@@ -88,8 +87,6 @@
             currentImageFilterLevel: settingsManager.get('imageFilterLevel') || 0,
             currentAudioMode: settingsManager.get('audioPreset') || 'off',
             ui: { shadowRoot: null, hostElement: null },
-            delayHistory: [],
-            isDelayAdjusting: false,
             delayCheckInterval: null,
             currentPlaybackRate: 1.0,
             mediaTypesEverFound: { video: false, audio: false, image: false },
@@ -121,7 +118,7 @@
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
     function calculateSharpenMatrix(level) { const parsedLevel = parseInt(level, 10); if (isNaN(parsedLevel) || parsedLevel === 0) return '0 0 0 0 1 0 0 0 0'; const intensity = 1 + (parsedLevel - 0.5) * (5.0 / 5); const off = (1 - intensity) / 4; return `0 ${off} 0 ${off} ${intensity} ${off} 0 ${off} 0`; }
-    function isLiveStreamPage() { const url = location.href; return CONFIG.LIVE_STREAM_URLS.some(pattern => url.includes(pattern)); }
+
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     function isExcluded() { const url = location.href.toLowerCase(); const hostname = location.hostname.toLowerCase(); if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) return true; return CONFIG.SPECIFIC_EXCLUSIONS.some(rule => hostname.includes(rule.domain) && url.includes(rule.path)); }
     if (isExcluded()) return;
@@ -328,7 +325,6 @@
             '.vsc-submenu .vsc-btn { min-width: auto; font-size: clamp(13px, 2.5vmin, 15px); padding: clamp(2px, 0.5vmin, 4px) clamp(4px, 1vmin, 6px); margin: 0 clamp(2px, 0.4vmin, 3px); }',
             '.vsc-btn-main { font-size: clamp(15px, 3vmin, 18px); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
             '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); }',
-            // '.vsc-delay-info' 스타일은 Shadow DOM이 아닌 body에 직접 추가되므로 여기서는 제거.
             '.vsc-loading-indicator { font-size: 16px; color: white; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
         ];
         function init() {
@@ -520,27 +516,106 @@
     const autoDelayManager = (() => {
         let video = null;
         const D_CONFIG = CONFIG.DELAY_ADJUSTER;
-        let FEEL_DELAY_FACTOR = 1.0, SMOOTH_STEP = 1;
-        const SAMPLING_DURATION = 2000;
-        let samplingData = [];
-        let localIntersectionObserver;
-        function findVideo() { return state.activeMedia.size > 0 ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') : null; }
-        function calculateDelay(videoElement) { if (!videoElement || !videoElement.buffered || videoElement.buffered.length === 0) return null; try { const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1); const delay = bufferedEnd - videoElement.currentTime; return delay >= 0 ? delay * 1000 : null; } catch { return null; } }
-        function calculateAdjustedDelay(videoElement) { const rawDelay = calculateDelay(videoElement); if (rawDelay === null) return null; const clampedDelay = Math.min(Math.max(rawDelay, 0), 5000); return clampedDelay * FEEL_DELAY_FACTOR; }
-        function getPlaybackRate(avgDelay) { for (const config of D_CONFIG.SPEED_LEVELS) { if (avgDelay >= config.minDelay) { return config.playbackRate; } } return D_CONFIG.NORMAL_RATE; }
-        function adjustPlaybackRate(targetRate) { if (!video) return; const diff = targetRate - video.playbackRate; if (Math.abs(diff) < 0.01) return; safeExec(() => { video.playbackRate += diff * SMOOTH_STEP; state.currentPlaybackRate = video.playbackRate; }); }
+        const DELAY_HISTORY_SIZE = 30;
+        let delayHistory = [];
+        let isAdjusting = false;
+
+        function isLiveStream(videoElement) {
+            if (!videoElement) return false;
+            try {
+                if (videoElement.duration === Infinity) return true;
+                const src = videoElement.currentSrc || videoElement.src || "";
+                if (/m3u8(\?|$)/i.test(src) || /mpd(\?|$)/i.test(src)) return true;
+                if (videoElement.seekable && videoElement.seekable.length > 0) {
+                    const liveWindowEnd = videoElement.seekable.end(videoElement.seekable.length - 1);
+                    if (liveWindowEnd - videoElement.currentTime < 60) return true;
+                }
+                 if (location.hostname.includes("youtube.com") && document.querySelector(".ytp-live-badge")) return true;
+                 if (location.hostname.includes("kick.com")) {
+                    if (document.querySelector("div[data-test-selector='stream-live-indicator']")) return true;
+                     const liveBadge = [...document.querySelectorAll("div, span")].some(el => el.textContent.trim() === "LIVE");
+                    if (liveBadge) return true;
+                }
+                 if (location.hostname.includes("twitch.tv")) {
+                    if (document.querySelector("[data-a-target='stream-live-indicator']")) return true;
+                     if (!window.__twitchLiveObserverSetup) {
+                        window.__twitchIsLive = false;
+                        const observer = new MutationObserver(() => {
+                            if (document.querySelector("[data-a-target='stream-live-indicator']")) {
+                                window.__twitchIsLive = true;
+                            }
+                        });
+                        observer.observe(document.body, { childList: true, subtree: true });
+                        window.__twitchLiveObserverSetup = true;
+                    }
+                    if (window.__twitchIsLive) return true;
+                }
+            } catch (e) { /* console.warn("isLiveStream 판별 실패:", e); */ }
+            return false;
+        }
+
+        function findVideo() {
+            return Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') || null;
+        }
+
+        function calculateDelay(videoElement) {
+            if (!videoElement || !videoElement.buffered || videoElement.buffered.length === 0) return null;
+            try {
+                const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1);
+                const delay = bufferedEnd - videoElement.currentTime;
+                return delay >= 0 ? delay * 1000 : null;
+            } catch { return null; }
+        }
+
+        function recordDelay(rawDelay) {
+            delayHistory.push({ delay: rawDelay, timestamp: Date.now() });
+            if (delayHistory.length > DELAY_HISTORY_SIZE) delayHistory.shift();
+        }
+
+        function calculateWeightedDelay() {
+            if (delayHistory.length < 5) return null;
+            const weights = delayHistory.map((_, i) => (i + 1));
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            const weightedAvg = delayHistory.reduce((sum, entry, i) => sum + entry.delay * weights[i], 0) / totalWeight;
+            const minDelay = Math.min(...delayHistory.map(d => d.delay));
+            return { weightedAvg, minDelay };
+        }
+
+        function getPlaybackRate(avgDelay) {
+            for (const config of D_CONFIG.SPEED_LEVELS) {
+                if (avgDelay >= config.minDelay) return config.playbackRate;
+            }
+            return D_CONFIG.NORMAL_RATE;
+        }
+
+        function adjustPlaybackRate(videoElement, targetRate) {
+            if (!videoElement) return;
+            const diff = targetRate - videoElement.playbackRate;
+            if (Math.abs(diff) < 0.01) {
+                if(videoElement.playbackRate !== targetRate) safeExec(() => videoElement.playbackRate = targetRate);
+                return;
+            };
+            safeExec(() => {
+                videoElement.playbackRate += diff * 0.1;
+                state.currentPlaybackRate = videoElement.playbackRate;
+            });
+        }
+
+        function hideDelayInfo() {
+             const infoEl = document.getElementById('vsc-delay-info');
+             if (infoEl) infoEl.remove();
+        }
+
         function displayDelayInfo(messageOrAvg, minDelay) {
             let infoEl = document.getElementById('vsc-delay-info');
             if (!infoEl) {
                 infoEl = document.createElement('div');
                 infoEl.id = 'vsc-delay-info';
-                // BUG FIX: 딜레이 미터기 UI가 Shadow DOM 밖에 생성되므로 직접 스타일을 적용
                 Object.assign(infoEl.style, {
                     position: 'fixed', bottom: '50px', right: '10px', zIndex: CONFIG.MAX_Z_INDEX - 1,
-                    background: 'rgba(0,0,0,0.7)', color: 'white', padding: '5px 10px',
-                    borderRadius: '5px', fontFamily: 'monospace', fontSize: '10pt',
-                    lineHeight: '1.2', opacity: '0.8', display: 'flex', alignItems: 'center',
-                    pointerEvents: 'none'
+                    background: 'rgba(0,0,0,.7)', color: '#fff', padding: '5px 10px', borderRadius: '5px',
+                    fontFamily: 'monospace', fontSize: '10pt', lineHeight: '1.2', opacity: '0.8',
+                    display: 'flex', alignItems: 'center', pointerEvents: 'auto'
                 });
                 document.body.appendChild(infoEl);
             }
@@ -558,86 +633,60 @@
                     textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms (min: ${minDelay.toFixed(0)}ms) / 속도: ${status}`;
                 }
             });
-            let refreshBtn = infoEl.querySelector('.vsc-delay-refresh-btn');
-            if (!refreshBtn) {
-                refreshBtn = document.createElement('button');
-                refreshBtn.textContent = '🔄';
-                refreshBtn.title = '딜레이 측정 재시작';
-                refreshBtn.className = 'vsc-delay-refresh-btn';
-                // BUG FIX: 새로고침 버튼에도 직접 스타일 적용
-                Object.assign(refreshBtn.style, {
-                    background: 'none', border: 'none', color: 'white', cursor: 'pointer',
-                    marginLeft: '5px', fontSize: '14px', padding: '0 2px',
-                    verticalAlign: 'middle', pointerEvents: 'auto'
-                });
-                refreshBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    restart();
-                });
-                infoEl.appendChild(refreshBtn);
-            }
         }
-        function sampleInitialDelayAndFPS() {
-            return new Promise(resolve => {
-                const startTime = Date.now(); let lastFrame = performance.now(); let fpsSamples = [];
-                function sampleFrame() {
-                    const now = performance.now(); const delta = now - lastFrame; lastFrame = now; fpsSamples.push(1000 / delta);
-                    const delay = calculateDelay(video); if (delay !== null) samplingData.push(delay);
-                    if (Date.now() - startTime < SAMPLING_DURATION) { requestAnimationFrame(sampleFrame); }
-                    else { const avgDelay = samplingData.reduce((a, b) => a + b, 0) / samplingData.length || 0; const minDelay = Math.min(...samplingData); const avgFPS = fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length || 60; resolve({ avgDelay, minDelay, avgFPS }); }
-                }
-                safeExec(() => requestAnimationFrame(sampleFrame));
-            });
-        }
-        function autoOptimizeParameters({ avgDelay, minDelay, avgFPS }) {
-            FEEL_DELAY_FACTOR = Math.min(Math.max(0.5, 1000 / (avgDelay + 1)), 1.0);
-            SMOOTH_STEP = Math.min(Math.max(0.01, avgFPS / 60 * 0.05), 0.1);
-            if (CONFIG.DEBUG) console.log(`autoDelayManager 초기 최적화 완료: FEEL_DELAY_FACTOR=${FEEL_DELAY_FACTOR.toFixed(2)}, SMOOTH_STEP=${SMOOTH_STEP.toFixed(3)}`);
-        }
+
         function checkAndAdjust() {
-            if (!video) video = findVideo(); if (!video) return;
-            const adjustedDelay = calculateAdjustedDelay(video); if (adjustedDelay === null) return;
-            const now = Date.now(); state.delayHistory.push({ delay: adjustedDelay, timestamp: now });
-            state.delayHistory = state.delayHistory.filter(item => now - item.timestamp <= D_CONFIG.HISTORY_DURATION);
-            if (state.delayHistory.length === 0) return;
-            const avgDelay = state.delayHistory.reduce((sum, item) => sum + item.delay, 0) / state.delayHistory.length;
-            const minDelay = Math.min(...state.delayHistory.map(i => i.delay));
-            displayDelayInfo(avgDelay, minDelay);
-            if (!state.isDelayAdjusting && avgDelay >= D_CONFIG.TRIGGER_DELAY) state.isDelayAdjusting = true;
-            else if (state.isDelayAdjusting && avgDelay <= D_CONFIG.TARGET_DELAY) { state.isDelayAdjusting = false; video.playbackRate = D_CONFIG.NORMAL_RATE; adjustPlaybackRate(D_CONFIG.NORMAL_RATE); }
-            if (state.isDelayAdjusting) { const newRate = getPlaybackRate(avgDelay); adjustPlaybackRate(newRate); }
-        }
-        function setupIntersectionObserver() {
-            if (localIntersectionObserver) return;
-            localIntersectionObserver = new IntersectionObserver(entries => { entries.forEach(entry => { if (entry.isIntersecting && entry.target.tagName === 'VIDEO') video = entry.target; }); }, { threshold: 0.5 });
-            state.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') localIntersectionObserver.observe(media); });
-        }
-        async function start() {
-            if (state.delayCheckInterval) return; video = null;
-            setupIntersectionObserver();
             video = findVideo();
-            if (video) {
-                const sample = await sampleInitialDelayAndFPS(); autoOptimizeParameters(sample);
-                state.delayHistory = samplingData.map(d => ({ delay: d, timestamp: Date.now() }));
+            if (!video || !video.isConnected) {
+                hideDelayInfo();
+                return;
             }
-            state.delayCheckInterval = setInterval(checkAndAdjust, D_CONFIG.CHECK_INTERVAL);
+
+            if (isLiveStream(video)) {
+                const rawDelay = calculateDelay(video);
+                if (rawDelay === null) return;
+                recordDelay(rawDelay);
+                const weightedData = calculateWeightedDelay();
+                if (!weightedData) return;
+
+                const { weightedAvg, minDelay } = weightedData;
+                displayDelayInfo(weightedAvg, minDelay);
+
+                if (!isAdjusting && weightedAvg >= D_CONFIG.TRIGGER_DELAY) isAdjusting = true;
+                else if (isAdjusting && weightedAvg <= D_CONFIG.TARGET_DELAY) {
+                    isAdjusting = false;
+                }
+
+                if (isAdjusting) {
+                    const newRate = getPlaybackRate(weightedAvg);
+                    adjustPlaybackRate(video, newRate);
+                } else {
+                    adjustPlaybackRate(video, D_CONFIG.NORMAL_RATE);
+                }
+            } else {
+                hideDelayInfo();
+                if (isAdjusting) {
+                    isAdjusting = false;
+                    adjustPlaybackRate(video, D_CONFIG.NORMAL_RATE);
+                }
+            }
         }
+
+        function start() {
+            if (state.delayCheckInterval) return;
+            state.delayCheckInterval = setInterval(checkAndAdjust, CONFIG.DELAY_ADJUSTER.CHECK_INTERVAL);
+        }
+
         function stop() {
             if (state.delayCheckInterval) { clearInterval(state.delayCheckInterval); state.delayCheckInterval = null; }
-            if (localIntersectionObserver) { localIntersectionObserver.disconnect(); localIntersectionObserver = null; }
-            const infoEl = document.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
-            if (video) { safeExec(()=>{ if(video.playbackRate!==1.0) video.playbackRate=1.0; }); video=null; }
-            samplingData = [];
+            hideDelayInfo();
+            if (video) safeExec(() => { if(video.playbackRate !== 1.0) video.playbackRate = 1.0; });
+            video = null;
+            delayHistory = [];
+            isAdjusting = false;
         }
-        function restart() {
-            safeExec(() => {
-                stop();
-                displayDelayInfo("딜레이: 계산 중...");
-                start();
-                if (CONFIG.DEBUG) console.log("🔄️ autoDelayManager manually restarted.");
-            }, 'autoDelayManager.restart');
-        }
-        return { start, stop, restart };
+
+        return { start, stop };
     })();
 
     function findAllMedia(doc = document) {
@@ -647,7 +696,7 @@
         const filterFn = media => {
             if (media.tagName === 'AUDIO') return true;
             const rect = media.getBoundingClientRect();
-            return rect.width >= minSize && rect.height >= minSize;
+            return rect.width >= minSize || rect.height >= minSize;
         };
         safeExec(() => {
             elems.push(...Array.from(doc.querySelectorAll(query)).filter(filterFn));
@@ -858,8 +907,15 @@
         if (spaNavigationHandler) return;
         spaNavigationHandler = debounce(() => {
             if (location.href === state.lastUrl) return;
+
+            if (uiContainer) {
+                uiContainer.remove();
+                uiContainer = null;
+                triggerElement = null;
+                speedButtonsContainer = null;
+            }
             cleanup();
-            initializeGlobalUI();
+            setTimeout(initializeGlobalUI, 500);
         }, 500);
         if (!window.vscPatchedHistory) {
             ['pushState', 'replaceState'].forEach(method => {
@@ -895,21 +951,18 @@
         mediaSessionManager.init();
         ensureObservers();
 
-        const isLive = isLiveStreamPage();
         const hasMedia = findAllMedia().length > 0;
-
         if (hasMedia) {
             showWarningMessage("주의: 일부 영상은 오디오 필터 적용 시 CORS 보안 정책으로 인해 무음 처리될 수 있습니다.");
         }
 
-        if (isLive || !hasMedia) {
+        autoDelayManager.start();
+
+        const hasActiveVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
+        if (!hasActiveVideo) {
             if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
         } else {
             if (speedButtonsContainer) speedButtonsContainer.style.display = 'flex';
-        }
-
-        if (isLive) {
-            autoDelayManager.start();
         }
 
         speedSlider.renderControls();
@@ -949,7 +1002,6 @@
             cursor: 'pointer', lineHeight: '1', padding: '0',
         });
 
-        // BUG FIX: 유튜브의 TrustedHTML 보안 정책 준수를 위해 innerHTML 대신 textContent 사용
         closeBtn.textContent = '×';
 
         const removeWarning = () => {
@@ -967,14 +1019,11 @@
     }
 
     // =================================================================================
-    // 4. 전역 UI 관리자 (Global UI Manager) - [리팩토링]
+    // 4. 전역 UI 관리자 (Global UI Manager)
     // =================================================================================
     const globalUIManager = (() => {
-        // 드래그 상태 관리를 위한 비공개 변수
         let isDragging = false, wasDragged = false;
         let startPos = { x: 0, y: 0 }, translatePos = { x: 0, y: 0 }, startRect = null;
-
-        // 전역 이벤트 리스너 참조
         let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null;
 
         function createUIElements() {
@@ -1162,7 +1211,6 @@
         }
 
         function cleanupGlobalListeners() {
-            // 이 함수는 cleanup 과정에서 호출되어 전역 리스너들을 제거합니다.
             if (visibilityChangeListener) {
                 document.removeEventListener('visibilitychange', visibilityChangeListener);
                 visibilityChangeListener = null;
@@ -1195,18 +1243,30 @@
 
     function initializeGlobalUI() {
         if (document.getElementById('vsc-global-container')) return;
-        const hasMedia = findAllMedia().length > 0;
-        const hasImages = findAllImages().length > 0;
-        if (!hasMedia && !hasImages) {
-            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. UI will not be created.");
-            return;
-        }
 
-        globalUIManager.init();
-        hookSpaNavigation();
+        const initialMediaCheck = () => {
+            const hasMedia = findAllMedia().length > 0;
+            const hasImages = findAllImages().length > 0;
+            if (hasMedia || hasImages) {
+                if (!document.getElementById('vsc-global-container')) {
+                     globalUIManager.init();
+                     hookSpaNavigation();
+                }
+                if (mediaObserver) mediaObserver.disconnect();
+            }
+        };
+
+        const mediaObserver = new MutationObserver(debounce(initialMediaCheck, 500));
+        mediaObserver.observe(document.body, { childList: true, subtree: true });
+
+        initialMediaCheck();
     }
 
     if (!isExcluded()) {
-        setTimeout(initializeGlobalUI, 2000);
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => setTimeout(initializeGlobalUI, 2000));
+        } else {
+            setTimeout(initializeGlobalUI, 2000);
+        }
     }
 })();
