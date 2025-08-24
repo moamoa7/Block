@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      54.6
-// @description  최적화
+// @version      54.9
+// @description  UI 로직 모듈화로 유지보수성 향상 / 딜레이 미터기 스타일 누락 버그 수정 및 라이브 방송 URL 인식률 개선 / 유튜브 TrustedHTML 보안 정책 오류 수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -33,11 +33,11 @@
         SEEK_TIME_PERCENT: 0.05,
         SEEK_TIME_MAX_SEC: 15,
         IMAGE_MIN_SIZE: 335,
-        VIDEO_MIN_SIZE: 200,
+        VIDEO_MIN_SIZE: 0,
         SPEED_PRESETS: [4, 2, 1, 0.2],
         UI_DRAG_THRESHOLD: 5,
         UI_WARN_TIMEOUT: 10000,
-        LIVE_STREAM_URLS: ['play.sooplive.co.kr/', 'chzzk.naver.com/', 'twitch.tv', 'kick.com'],
+        LIVE_STREAM_URLS: ['play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
@@ -328,7 +328,7 @@
             '.vsc-submenu .vsc-btn { min-width: auto; font-size: clamp(13px, 2.5vmin, 15px); padding: clamp(2px, 0.5vmin, 4px) clamp(4px, 1vmin, 6px); margin: 0 clamp(2px, 0.4vmin, 3px); }',
             '.vsc-btn-main { font-size: clamp(15px, 3vmin, 18px); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
             '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); }',
-            '#vsc-delay-info { display: flex; align-items: center; bottom: 50px; Right: 10px; font-family: monospace; font-size: 10pt; line-height: 1.2; opacity: 0.8; }',
+            // '.vsc-delay-info' 스타일은 Shadow DOM이 아닌 body에 직접 추가되므로 여기서는 제거.
             '.vsc-loading-indicator { font-size: 16px; color: white; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
         ];
         function init() {
@@ -534,7 +534,14 @@
             if (!infoEl) {
                 infoEl = document.createElement('div');
                 infoEl.id = 'vsc-delay-info';
-                infoEl.className = 'vsc-delay-info';
+                // BUG FIX: 딜레이 미터기 UI가 Shadow DOM 밖에 생성되므로 직접 스타일을 적용
+                Object.assign(infoEl.style, {
+                    position: 'fixed', bottom: '50px', right: '10px', zIndex: CONFIG.MAX_Z_INDEX - 1,
+                    background: 'rgba(0,0,0,0.7)', color: 'white', padding: '5px 10px',
+                    borderRadius: '5px', fontFamily: 'monospace', fontSize: '10pt',
+                    lineHeight: '1.2', opacity: '0.8', display: 'flex', alignItems: 'center',
+                    pointerEvents: 'none'
+                });
                 document.body.appendChild(infoEl);
             }
             let textSpan = infoEl.querySelector('span');
@@ -557,6 +564,12 @@
                 refreshBtn.textContent = '🔄';
                 refreshBtn.title = '딜레이 측정 재시작';
                 refreshBtn.className = 'vsc-delay-refresh-btn';
+                // BUG FIX: 새로고침 버튼에도 직접 스타일 적용
+                Object.assign(refreshBtn.style, {
+                    background: 'none', border: 'none', color: 'white', cursor: 'pointer',
+                    marginLeft: '5px', fontSize: '14px', padding: '0 2px',
+                    verticalAlign: 'middle', pointerEvents: 'auto'
+                });
                 refreshBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     restart();
@@ -778,16 +791,15 @@
     const debouncedScanTask = debounce(scanAndApply, CONFIG.DEBOUNCE_DELAY);
     let mainObserver = null;
     let intersectionObserver = null;
-    let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null, spaNavigationHandler = null;
     let isInitialized = false;
 
     function cleanup() {
         safeExec(() => {
             if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
             if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
-            if (visibilityChangeListener) { document.removeEventListener('visibilitychange', visibilityChangeListener); visibilityChangeListener = null; }
-            if (fullscreenChangeListener) { document.removeEventListener('fullscreenchange', fullscreenChangeListener); fullscreenChangeListener = null; }
-            if (beforeUnloadListener) { window.removeEventListener('beforeunload', beforeUnloadListener); beforeUnloadListener = null; }
+
+            globalUIManager.cleanupGlobalListeners();
+
             if (spaNavigationHandler) {
                 window.removeEventListener('popstate', spaNavigationHandler);
                 window.removeEventListener('vsc:pushState', spaNavigationHandler);
@@ -812,7 +824,6 @@
             if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
             const filterControls = state.ui.shadowRoot?.getElementById('vsc-container');
             if (filterControls) filterControls.style.display = 'none';
-            // if (uiContainer) uiContainer.remove(); // BUG FIX: Do not remove the main container
             resetState();
             settingsManager.init();
             uiManager.reset();
@@ -842,6 +853,7 @@
         }
     }
 
+    let spaNavigationHandler = null;
     function hookSpaNavigation() {
         if (spaNavigationHandler) return;
         spaNavigationHandler = debounce(() => {
@@ -936,7 +948,9 @@
             background: 'none', border: 'none', color: '#aaa', fontSize: '20px',
             cursor: 'pointer', lineHeight: '1', padding: '0',
         });
-        closeBtn.innerHTML = '&times;';
+
+        // BUG FIX: 유튜브의 TrustedHTML 보안 정책 준수를 위해 innerHTML 대신 textContent 사용
+        closeBtn.textContent = '×';
 
         const removeWarning = () => {
             clearTimeout(hideTimeout);
@@ -952,186 +966,75 @@
         hideTimeout = setTimeout(removeWarning, CONFIG.UI_WARN_TIMEOUT);
     }
 
-    function initializeGlobalUI() {
-        if (document.getElementById('vsc-global-container')) return;
-        const hasMedia = findAllMedia().length > 0;
-        const hasImages = findAllImages().length > 0;
-        if (!hasMedia && !hasImages) {
-            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. UI will not be created.");
-            return;
+    // =================================================================================
+    // 4. 전역 UI 관리자 (Global UI Manager) - [리팩토링]
+    // =================================================================================
+    const globalUIManager = (() => {
+        // 드래그 상태 관리를 위한 비공개 변수
+        let isDragging = false, wasDragged = false;
+        let startPos = { x: 0, y: 0 }, translatePos = { x: 0, y: 0 }, startRect = null;
+
+        // 전역 이벤트 리스너 참조
+        let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null;
+
+        function createUIElements() {
+            uiContainer = document.createElement('div');
+            uiContainer.id = 'vsc-global-container';
+            Object.assign(uiContainer.style, {
+                position: 'fixed', top: '50%', right: '1.5vmin', transform: 'translateY(-50%)',
+                zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-start', gap: '10px'
+            });
+
+            const mainControlsWrapper = document.createElement('div');
+            mainControlsWrapper.id = 'vsc-main-controls-wrapper';
+            Object.assign(mainControlsWrapper.style, {
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px'
+            });
+
+            triggerElement = document.createElement('div');
+            triggerElement.id = UI_SELECTORS.TRIGGER;
+            triggerElement.textContent = '⚡';
+            Object.assign(triggerElement.style, {
+                width: 'clamp(32px, 7vmin, 44px)', height: 'clamp(32px, 7vmin, 44px)', background: 'rgba(0, 0, 0, 0.5)',
+                color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 'clamp(20px, 4vmin, 26px)', cursor: 'pointer', userSelect: 'none', transition: 'transform 0.2s, background-color 0.2s'
+            });
+
+            speedButtonsContainer = document.createElement('div');
+            speedButtonsContainer.id = 'vsc-speed-buttons-container';
+            Object.assign(speedButtonsContainer.style, {
+                display: 'none', flexDirection: 'column', gap: '5px'
+            });
+
+            CONFIG.SPEED_PRESETS.forEach(speed => {
+                const btn = document.createElement('button');
+                btn.textContent = `${speed}x`;
+                btn.dataset.speed = speed;
+                btn.className = 'vsc-btn';
+                Object.assign(btn.style, {
+                    width: 'clamp(38px, 8vmin, 50px)', height: 'clamp(28px, 6vmin, 36px)', fontSize: 'clamp(12px, 2.2vmin, 14px)',
+                    background: 'rgba(0, 0, 0, 0.5)', color: 'white', border: 'none',
+                    borderRadius: 'clamp(4px, 0.8vmin, 6px)', cursor: 'pointer',
+                });
+                if (speed === 1.0) {
+                    btn.style.boxShadow = '0 0 5px #3498db, 0 0 10px #3498db inset';
+                }
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const newSpeed = parseFloat(btn.dataset.speed);
+                    state.activeMedia.forEach(media => safeExec(() => { media.playbackRate = newSpeed; }));
+                    updateActiveSpeedButton(newSpeed);
+                });
+                speedButtonsContainer.appendChild(btn);
+            });
+
+            mainControlsWrapper.appendChild(triggerElement);
+            uiContainer.append(mainControlsWrapper, speedButtonsContainer);
+            document.body.appendChild(uiContainer);
         }
 
-        uiContainer = document.createElement('div');
-        uiContainer.id = 'vsc-global-container';
-        Object.assign(uiContainer.style, {
-            position: 'fixed', top: '50%', right: '1.5vmin', transform: 'translateY(-50%)',
-            zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-start', gap: '10px'
-        });
-        const mainControlsWrapper = document.createElement('div');
-        mainControlsWrapper.id = 'vsc-main-controls-wrapper';
-        Object.assign(mainControlsWrapper.style, {
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px'
-        });
-        triggerElement = document.createElement('div');
-        triggerElement.id = UI_SELECTORS.TRIGGER;
-        triggerElement.textContent = '⚡';
-        Object.assign(triggerElement.style, {
-            width: 'clamp(32px, 7vmin, 44px)', height: 'clamp(32px, 7vmin, 44px)', background: 'rgba(0, 0, 0, 0.5)',
-            color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 'clamp(20px, 4vmin, 26px)', cursor: 'pointer', userSelect: 'none', transition: 'transform 0.2s, background-color 0.2s'
-        });
-        mainControlsWrapper.appendChild(triggerElement);
-        speedButtonsContainer = document.createElement('div');
-        speedButtonsContainer.id = 'vsc-speed-buttons-container';
-        Object.assign(speedButtonsContainer.style, {
-            display: 'none', flexDirection: 'column', gap: '5px'
-        });
-        const speeds = CONFIG.SPEED_PRESETS;
-        speeds.forEach(speed => {
-            const btn = document.createElement('button');
-            btn.textContent = `${speed}x`;
-            btn.dataset.speed = speed;
-            btn.className = 'vsc-btn';
-            // BUG FIX: Apply styles directly to prevent them from being overridden by site CSS.
-            Object.assign(btn.style, {
-                width: 'clamp(38px, 8vmin, 50px)',
-                height: 'clamp(28px, 6vmin, 36px)',
-                fontSize: 'clamp(12px, 2.2vmin, 14px)',
-                background: 'rgba(0, 0, 0, 0.5)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'clamp(4px, 0.8vmin, 6px)',
-                cursor: 'pointer',
-            });
-            if (speed === 1.0) {
-                 btn.style.boxShadow = '0 0 5px #3498db, 0 0 10px #3498db inset';
-            }
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const newSpeed = parseFloat(btn.dataset.speed);
-                state.activeMedia.forEach(media => safeExec(() => { media.playbackRate = newSpeed; }));
-                updateActiveSpeedButton(newSpeed);
-            });
-            speedButtonsContainer.appendChild(btn);
-        });
-        uiContainer.append(mainControlsWrapper, speedButtonsContainer);
-        document.body.appendChild(uiContainer);
-
-        // =====================================================================
-        // [개선] 드래그 UI 로직: CSS transform을 사용하여 성능 및 부드러움 개선
-        // =====================================================================
-        let isDragging = false;
-        let wasDragged = false;
-        let startPos = { x: 0, y: 0 };
-        let translatePos = { x: 0, y: 0 }; // 최종 커밋된 위치
-        let startRect = null;
-        const DRAG_THRESHOLD = 5;
-
-        // 화면 크기 변화 시 translate를 화면 경계 내로 제한
-        const clampTranslate = () => {
-            if (!uiContainer) return;
-
-            const rect = uiContainer.getBoundingClientRect();
-            const parentWidth = window.innerWidth;
-            const parentHeight = window.innerHeight;
-
-            let newX = translatePos.x;
-            let newY = translatePos.y;
-
-            if (rect.left < 0) newX -= rect.left;
-            if (rect.top < 0) newY -= rect.top;
-            if (rect.right > parentWidth) newX -= (rect.right - parentWidth);
-            if (rect.bottom > parentHeight) newY -= (rect.bottom - parentHeight);
-
-            translatePos.x = newX;
-            translatePos.y = newY;
-
-            uiContainer.style.transform = `translateY(-50%) translate(${translatePos.x}px, ${translatePos.y}px)`;
-        };
-
-        const onDragStart = (e) => {
-            if (!e.composedPath().includes(uiContainer)) return;
-
-            isDragging = true;
-            wasDragged = false;
-            const pos = e.touches ? e.touches[0] : e;
-            startPos = { x: pos.clientX, y: pos.clientY };
-            startRect = uiContainer.getBoundingClientRect();
-
-            uiContainer.style.transition = 'none';
-            uiContainer.style.cursor = 'grabbing';
-            document.body.style.userSelect = 'none';
-
-            document.addEventListener('mousemove', onDragMove, { passive: false });
-            document.addEventListener('mouseup', onDragEnd, { passive: true });
-            document.addEventListener('touchmove', onDragMove, { passive: false });
-            document.addEventListener('touchend', onDragEnd, { passive: true });
-        };
-
-        const onDragMove = (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-
-            const pos = e.touches ? e.touches[0] : e;
-            const deltaX = pos.clientX - startPos.x;
-            const deltaY = pos.clientY - startPos.y;
-
-            let newLeft = startRect.left + deltaX;
-            let newTop = startRect.top + deltaY;
-
-            // 화면 경계 내로 제한
-            const parentWidth = window.innerWidth;
-            const parentHeight = window.innerHeight;
-            newLeft = Math.max(0, Math.min(newLeft, parentWidth - startRect.width));
-            newTop = Math.max(0, Math.min(newTop, parentHeight - startRect.height));
-
-            const finalTranslateX = translatePos.x + (newLeft - startRect.left);
-            const finalTranslateY = translatePos.y + (newTop - startRect.top);
-
-            uiContainer.style.transform = `translateY(-50%) translate(${finalTranslateX}px, ${finalTranslateY}px)`;
-
-            if (!wasDragged && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
-                wasDragged = true;
-            }
-        };
-
-        const onDragEnd = (e) => {
-            if (!isDragging) return;
-
-            const finalTransform = uiContainer.style.transform;
-            const matches = finalTransform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
-            if (matches) {
-                translatePos.x = parseFloat(matches[1]);
-                translatePos.y = parseFloat(matches[2]);
-            }
-
-            isDragging = false;
-            uiContainer.style.transition = '';
-            uiContainer.style.cursor = 'pointer';
-            document.body.style.userSelect = '';
-
-            document.removeEventListener('mousemove', onDragMove);
-            document.removeEventListener('mouseup', onDragEnd);
-            document.removeEventListener('touchmove', onDragMove);
-            document.removeEventListener('touchend', onDragEnd);
-
-            setTimeout(() => { wasDragged = false; }, 0);
-        };
-
-        // 이벤트 등록
-        uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
-        uiContainer.addEventListener('touchstart', onDragStart, { passive: true });
-
-        // 화면 크기 변화 시 위치 재조정
-        const debouncedClamp = debounce(clampTranslate, 100);
-        window.addEventListener('resize', debouncedClamp);
-        window.addEventListener('orientationchange', debouncedClamp);
-
-        triggerElement.addEventListener('click', (e) => {
-            if (wasDragged) {
-                e.stopPropagation();
-                return;
-            }
+        function handleTriggerClick() {
+            if (wasDragged) return;
             if (isInitialized) {
                 cleanup();
                 triggerElement.textContent = '⚡';
@@ -1148,34 +1051,158 @@
                     triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.7)';
                 }
             }
-        });
+        }
 
-        if (!visibilityChangeListener) {
-            visibilityChangeListener = () => {
-                if (document.hidden) {
-                    document.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(v => v.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active'));
-                    audioManager.suspendContext();
-                } else {
-                    scheduleIdleTask(scanAndApply);
-                    audioManager.resumeContext();
+        function attachDragAndDrop() {
+            const clampTranslate = () => {
+                if (!uiContainer) return;
+                const rect = uiContainer.getBoundingClientRect();
+                const parentWidth = window.innerWidth;
+                const parentHeight = window.innerHeight;
+                let newX = translatePos.x;
+                let newY = translatePos.y;
+                if (rect.left < 0) newX -= rect.left;
+                if (rect.top < 0) newY -= rect.top;
+                if (rect.right > parentWidth) newX -= (rect.right - parentWidth);
+                if (rect.bottom > parentHeight) newY -= (rect.bottom - parentHeight);
+                translatePos.x = newX;
+                translatePos.y = newY;
+                uiContainer.style.transform = `translateY(-50%) translate(${translatePos.x}px, ${translatePos.y}px)`;
+            };
+
+            const onDragStart = (e) => {
+                if (!e.composedPath().includes(uiContainer)) return;
+                isDragging = true;
+                wasDragged = false;
+                const pos = e.touches ? e.touches[0] : e;
+                startPos = { x: pos.clientX, y: pos.clientY };
+                startRect = uiContainer.getBoundingClientRect();
+                uiContainer.style.transition = 'none';
+                uiContainer.style.cursor = 'grabbing';
+                document.body.style.userSelect = 'none';
+                document.addEventListener('mousemove', onDragMove, { passive: false });
+                document.addEventListener('mouseup', onDragEnd, { passive: true });
+                document.addEventListener('touchmove', onDragMove, { passive: false });
+                document.addEventListener('touchend', onDragEnd, { passive: true });
+            };
+
+            const onDragMove = (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const pos = e.touches ? e.touches[0] : e;
+                const deltaX = pos.clientX - startPos.x;
+                const deltaY = pos.clientY - startPos.y;
+                let newLeft = startRect.left + deltaX;
+                let newTop = startRect.top + deltaY;
+                const parentWidth = window.innerWidth;
+                const parentHeight = window.innerHeight;
+                newLeft = Math.max(0, Math.min(newLeft, parentWidth - startRect.width));
+                newTop = Math.max(0, Math.min(newTop, parentHeight - startRect.height));
+                const finalTranslateX = translatePos.x + (newLeft - startRect.left);
+                const finalTranslateY = translatePos.y + (newTop - startRect.top);
+                uiContainer.style.transform = `translateY(-50%) translate(${finalTranslateX}px, ${finalTranslateY}px)`;
+                if (!wasDragged && (Math.abs(deltaX) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(deltaY) > CONFIG.UI_DRAG_THRESHOLD)) {
+                    wasDragged = true;
                 }
             };
-            document.addEventListener('visibilitychange', visibilityChangeListener);
-        }
-        if (!fullscreenChangeListener) {
-            fullscreenChangeListener = () => {
-                const targetRoot = document.fullscreenElement || document.body;
-                if (uiContainer) targetRoot.appendChild(uiContainer);
+
+            const onDragEnd = () => {
+                if (!isDragging) return;
+                const finalTransform = uiContainer.style.transform;
+                const matches = finalTransform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
+                if (matches) {
+                    translatePos.x = parseFloat(matches[1]);
+                    translatePos.y = parseFloat(matches[2]);
+                }
+                isDragging = false;
+                uiContainer.style.transition = '';
+                uiContainer.style.cursor = 'pointer';
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', onDragMove);
+                document.removeEventListener('mouseup', onDragEnd);
+                document.removeEventListener('touchmove', onDragMove);
+                document.removeEventListener('touchend', onDragEnd);
+                setTimeout(() => { wasDragged = false; }, 0);
             };
-            document.addEventListener('fullscreenchange', fullscreenChangeListener);
+
+            uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
+            uiContainer.addEventListener('touchstart', onDragStart, { passive: true });
+            const debouncedClamp = debounce(clampTranslate, 100);
+            window.addEventListener('resize', debouncedClamp);
+            window.addEventListener('orientationchange', debouncedClamp);
         }
-        if (!beforeUnloadListener) {
-            beforeUnloadListener = () => {
-                if(uiContainer) uiContainer.remove();
-                cleanup();
-            };
-            window.addEventListener('beforeunload', beforeUnloadListener);
+
+        function attachGlobalListeners() {
+            if (!visibilityChangeListener) {
+                visibilityChangeListener = () => {
+                    if (document.hidden) {
+                        document.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(v => v.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active'));
+                        audioManager.suspendContext();
+                    } else {
+                        scheduleIdleTask(scanAndApply);
+                        audioManager.resumeContext();
+                    }
+                };
+                document.addEventListener('visibilitychange', visibilityChangeListener);
+            }
+            if (!fullscreenChangeListener) {
+                fullscreenChangeListener = () => {
+                    const targetRoot = document.fullscreenElement || document.body;
+                    if (uiContainer) targetRoot.appendChild(uiContainer);
+                };
+                document.addEventListener('fullscreenchange', fullscreenChangeListener);
+            }
+            if (!beforeUnloadListener) {
+                beforeUnloadListener = () => {
+                    if(uiContainer) uiContainer.remove();
+                    cleanup();
+                };
+                window.addEventListener('beforeunload', beforeUnloadListener);
+            }
         }
+
+        function cleanupGlobalListeners() {
+            // 이 함수는 cleanup 과정에서 호출되어 전역 리스너들을 제거합니다.
+            if (visibilityChangeListener) {
+                document.removeEventListener('visibilitychange', visibilityChangeListener);
+                visibilityChangeListener = null;
+            }
+            if (fullscreenChangeListener) {
+                document.removeEventListener('fullscreenchange', fullscreenChangeListener);
+                fullscreenChangeListener = null;
+            }
+            if (beforeUnloadListener) {
+                window.removeEventListener('beforeunload', beforeUnloadListener);
+                beforeUnloadListener = null;
+            }
+        }
+
+        function init() {
+            createUIElements();
+            triggerElement.addEventListener('click', (e) => {
+                if(wasDragged) {
+                    e.stopPropagation();
+                    return;
+                }
+                handleTriggerClick();
+            });
+            attachDragAndDrop();
+            attachGlobalListeners();
+        }
+
+        return { init, cleanupGlobalListeners };
+    })();
+
+    function initializeGlobalUI() {
+        if (document.getElementById('vsc-global-container')) return;
+        const hasMedia = findAllMedia().length > 0;
+        const hasImages = findAllImages().length > 0;
+        if (!hasMedia && !hasImages) {
+            if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. UI will not be created.");
+            return;
+        }
+
+        globalUIManager.init();
         hookSpaNavigation();
     }
 
