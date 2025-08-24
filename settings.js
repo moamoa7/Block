@@ -998,72 +998,111 @@
         // [개선] 드래그 UI 로직: CSS transform을 사용하여 성능 및 부드러움 개선
         // =====================================================================
         let isDragging = false;
-        let wasDragged = false;
-        let startPos = { x: 0, y: 0 };
-        let translatePos = { x: 0, y: 0 }; // 최종 커밋된 위치
-        const DRAG_THRESHOLD = 5;
+let wasDragged = false;
+let startPos = { x: 0, y: 0 };
+let translatePos = { x: 0, y: 0 }; // 최종 커밋된 위치
+let startRect = null;
+const DRAG_THRESHOLD = 5;
 
-        const onDragStart = (e) => {
-            if (!e.composedPath().includes(uiContainer)) return;
+// 화면 크기 변화 시 translate를 화면 경계 내로 제한
+const clampTranslate = () => {
+    if (!uiContainer) return;
 
-            isDragging = true;
-            wasDragged = false;
-            const pos = e.touches ? e.touches[0] : e;
-            startPos = { x: pos.clientX, y: pos.clientY };
+    const rect = uiContainer.getBoundingClientRect();
+    const parentWidth = window.innerWidth;
+    const parentHeight = window.innerHeight;
 
-            uiContainer.style.transition = 'none'; // 드래그 중에는 transition 비활성화
-            uiContainer.style.cursor = 'grabbing';
-            document.body.style.userSelect = 'none';
+    let newX = translatePos.x;
+    let newY = translatePos.y;
 
-            document.addEventListener('mousemove', onDragMove, { passive: false });
-            document.addEventListener('mouseup', onDragEnd, { passive: true });
-            document.addEventListener('touchmove', onDragMove, { passive: false });
-            document.addEventListener('touchend', onDragEnd, { passive: true });
-        };
+    if (rect.left < 0) newX -= rect.left;
+    if (rect.top < 0) newY -= rect.top;
+    if (rect.right > parentWidth) newX -= (rect.right - parentWidth);
+    if (rect.bottom > parentHeight) newY -= (rect.bottom - parentHeight);
 
-        const onDragMove = (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
+    translatePos.x = newX;
+    translatePos.y = newY;
 
-            const pos = e.touches ? e.touches[0] : e;
-            const deltaX = pos.clientX - startPos.x;
-            const deltaY = pos.clientY - startPos.y;
+    uiContainer.style.transform = `translateY(-50%) translate(${translatePos.x}px, ${translatePos.y}px)`;
+};
 
-            // 마지막 커밋 위치에서 현재 이동량을 더해 transform 적용
-            uiContainer.style.transform = `translateY(-50%) translate(${translatePos.x + deltaX}px, ${translatePos.y + deltaY}px)`;
+const onDragStart = (e) => {
+    if (!e.composedPath().includes(uiContainer)) return;
 
-            if (!wasDragged && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
-                wasDragged = true;
-            }
-        };
+    isDragging = true;
+    wasDragged = false;
+    const pos = e.touches ? e.touches[0] : e;
+    startPos = { x: pos.clientX, y: pos.clientY };
+    startRect = uiContainer.getBoundingClientRect();
 
-        const onDragEnd = (e) => {
-            if (!isDragging) return;
+    uiContainer.style.transition = 'none';
+    uiContainer.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
 
-            const pos = e.changedTouches ? e.changedTouches[0] : e;
-            const finalDeltaX = pos.clientX - startPos.x;
-            const finalDeltaY = pos.clientY - startPos.y;
+    document.addEventListener('mousemove', onDragMove, { passive: false });
+    document.addEventListener('mouseup', onDragEnd, { passive: true });
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('touchend', onDragEnd, { passive: true });
+};
 
-            // 최종 위치를 업데이트
-            translatePos.x += finalDeltaX;
-            translatePos.y += finalDeltaY;
+const onDragMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
 
-            isDragging = false;
-            uiContainer.style.transition = ''; // transition 복원
-            uiContainer.style.cursor = 'pointer';
-            document.body.style.userSelect = '';
+    const pos = e.touches ? e.touches[0] : e;
+    const deltaX = pos.clientX - startPos.x;
+    const deltaY = pos.clientY - startPos.y;
 
-            document.removeEventListener('mousemove', onDragMove);
-            document.removeEventListener('mouseup', onDragEnd);
-            document.removeEventListener('touchmove', onDragMove);
-            document.removeEventListener('touchend', onDragEnd);
+    let newLeft = startRect.left + deltaX;
+    let newTop = startRect.top + deltaY;
 
-            // 클릭 이벤트가 발생하기 전에 wasDragged가 초기화되는 것을 막기 위해 setTimeout 사용
-            setTimeout(() => { wasDragged = false; }, 0);
-        };
+    // 화면 경계 내로 제한
+    const parentWidth = window.innerWidth;
+    const parentHeight = window.innerHeight;
+    newLeft = Math.max(0, Math.min(newLeft, parentWidth - startRect.width));
+    newTop = Math.max(0, Math.min(newTop, parentHeight - startRect.height));
 
-        uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
-        uiContainer.addEventListener('touchstart', onDragStart, { passive: true });
+    const finalTranslateX = translatePos.x + (newLeft - startRect.left);
+    const finalTranslateY = translatePos.y + (newTop - startRect.top);
+
+    uiContainer.style.transform = `translateY(-50%) translate(${finalTranslateX}px, ${finalTranslateY}px)`;
+
+    if (!wasDragged && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
+        wasDragged = true;
+    }
+};
+
+const onDragEnd = (e) => {
+    if (!isDragging) return;
+
+    const finalTransform = uiContainer.style.transform;
+    const matches = finalTransform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
+    if (matches) {
+        translatePos.x = parseFloat(matches[1]);
+        translatePos.y = parseFloat(matches[2]);
+    }
+
+    isDragging = false;
+    uiContainer.style.transition = '';
+    uiContainer.style.cursor = 'pointer';
+    document.body.style.userSelect = '';
+
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup', onDragEnd);
+    document.removeEventListener('touchmove', onDragMove);
+    document.removeEventListener('touchend', onDragEnd);
+
+    setTimeout(() => { wasDragged = false; }, 0);
+};
+
+// 이벤트 등록
+uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
+uiContainer.addEventListener('touchstart', onDragStart, { passive: true });
+
+// 화면 크기 변화 시 위치 재조정
+const debouncedClamp = debounce(clampTranslate, 100);
+window.addEventListener('resize', debouncedClamp);
+window.addEventListener('orientationchange', debouncedClamp);
 
         triggerElement.addEventListener('click', (e) => {
             if (wasDragged) {
