@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      53.1
-// @description  audioManager.processMedia 함수 수정 및 UI 레이아웃 변경 (배속 버튼 분리)
+// @version      53.2
+// @description  미디어가 없을 때 배속 버튼이 표시되지 않도록 로직 수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -25,7 +25,7 @@
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 6 : 2,
-        DEFAULT_AUDIO_PRESET: 'off', // [수정] 기본값을 'off'로 변경
+        DEFAULT_AUDIO_PRESET: 'off',
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
         MAX_Z_INDEX: 2147483647,
@@ -54,10 +54,6 @@
         CONTROL_GROUP: 'vsc-control-group', SUBMENU: 'vsc-submenu', BTN: 'vsc-btn', BTN_MAIN: 'vsc-btn-main', SELECT: 'vsc-select', VIDEO_CONTROLS: 'vsc-video-controls', IMAGE_CONTROLS: 'vsc-image-controls', AUDIO_CONTROLS: 'vsc-audio-controls'
     };
 
-    // =================================================================================
-    // 2. 상태 및 유틸리티 (State and Utilities)
-    // =================================================================================
-
     const settingsManager = (() => {
         const settings = {};
         const definitions = {
@@ -72,7 +68,6 @@
     })();
 
     settingsManager.init();
-
     const state = {};
     function resetState() {
         Object.keys(state).forEach(key => delete state[key]);
@@ -108,10 +103,6 @@
     if (isExcluded()) return;
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
     (function openAllShadowRoots() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const originalAttachShadow = Element.prototype.attachShadow; Element.prototype.attachShadow = function (options) { const modifiedOptions = { ...options, mode: 'open' }; const shadowRoot = originalAttachShadow.apply(this, [modifiedOptions]); window._shadowDomList_.push(new WeakRef(shadowRoot)); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot } })); return shadowRoot; }; window._hasHackAttachShadow_ = true; }, 'openAllShadowRoots'); })();
-
-    // =================================================================================
-    // 3. 핵심 모듈 (Core Modules)
-    // =================================================================================
 
     class SvgFilterManager {
         #isInitialized = false; #styleElement = null; #svgNode = null; #options;
@@ -167,7 +158,6 @@
     function setVideoFilterLevel(level) {
         if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname) && level > 0) return;
         if (!filterManager.isInitialized() && level > 0) filterManager.init();
-
         const newLevel = parseInt(level, 10);
         state.currentVideoFilterLevel = isNaN(newLevel) ? 0 : newLevel;
         settingsManager.set('videoFilterLevel', state.currentVideoFilterLevel);
@@ -182,7 +172,6 @@
     function setImageFilterLevel(level) {
         if (CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS.includes(location.hostname) && level > 0) return;
         if (!imageFilterManager.isInitialized() && level > 0) imageFilterManager.init();
-
         const newLevel = parseInt(level, 10);
         state.currentImageFilterLevel = isNaN(newLevel) ? 0 : newLevel;
         settingsManager.set('imageFilterLevel', state.currentImageFilterLevel);
@@ -196,7 +185,6 @@
         const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
         let ctx = null, masterGain;
         const eqFilters = [], sourceMap = new WeakMap();
-
         function ensureContext() {
             if (ctx || isAudioDisabledForSite) return;
             try {
@@ -214,7 +202,6 @@
                 ctx = null;
             }
         }
-
         function connectMedia(media) {
             if (!ctx || sourceMap.has(media)) return;
             if (ctx.state === 'suspended') ctx.resume().catch(() => {});
@@ -239,7 +226,6 @@
                 }
             }
         }
-
         function applyAudioPresetToNodes() {
             if (!ctx) return;
             const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off;
@@ -247,14 +233,12 @@
             const rampTime = 0.05;
             masterGain.gain.cancelScheduledValues(now);
             masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime);
-
             for (let i = 0; i < eqFilters.length; i++) {
                 const band = preset.eq[i];
                 const filter = eqFilters[i];
                 filter.gain.cancelScheduledValues(now);
                 filter.frequency.cancelScheduledValues(now);
                 filter.Q.cancelScheduledValues(now);
-
                 if (band) {
                     filter.frequency.setValueAtTime(band.freq, now);
                     filter.gain.linearRampToValueAtTime(band.gain, now + rampTime);
@@ -264,13 +248,11 @@
                 }
             }
         }
-
         function processMedia(media) {
             if (ctx) {
                 connectMedia(media);
             }
         }
-
         function cleanupMedia(media) {
             if (!ctx) return;
             const rec = sourceMap.get(media);
@@ -278,7 +260,6 @@
             try { rec.source.disconnect(); } catch (err) {}
             sourceMap.delete(media);
         }
-
         function setAudioMode(mode) {
             if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return;
             if (mode === 'off' && !ctx) {
@@ -295,10 +276,8 @@
             settingsManager.set('audioPreset', mode);
             applyAudioPresetToNodes();
         }
-
         function suspendContext() { safeExec(() => { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
         function resumeContext() { safeExec(() => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); }); }
-
         function closeContext() {
             if (ctx && ctx.state !== 'closed') {
                 ctx.close().then(() => {
@@ -349,7 +328,6 @@
     const speedSlider = (() => {
         let inited = false, fadeOutTimer;
         let hideAllSubMenus = () => {};
-
         function startFadeSequence() {
             const container = state.ui.shadowRoot?.getElementById('vsc-container');
             if (!container) return;
@@ -357,11 +335,9 @@
             container.classList.remove('touched');
             container.style.opacity = '0.3';
         }
-
         function reset() {
             inited = false;
         }
-
         const createButton = (id, title, text, className = 'vsc-btn') => {
             const btn = document.createElement('button');
             if (id) btn.id = id;
@@ -370,7 +346,6 @@
             btn.textContent = text;
             return btn;
         };
-
         const resetFadeTimer = () => {
             const container = state.ui.shadowRoot?.getElementById('vsc-container');
             if (!container) return;
@@ -379,7 +354,6 @@
             container.classList.add('touched');
             fadeOutTimer = setTimeout(startFadeSequence, 10000);
         };
-
         function init() {
             if (inited) return;
             const shadowRoot = state.ui.shadowRoot;
@@ -389,13 +363,11 @@
             shadowRoot.appendChild(container);
             inited = true;
         }
-
         function renderControls() {
             const shadowRoot = state.ui.shadowRoot;
             if (!shadowRoot) return;
             const container = shadowRoot.getElementById('vsc-container');
             if (!container || container.dataset.rendered) return;
-
             while (container.firstChild) {
                 container.removeChild(container.firstChild);
             }
@@ -409,19 +381,16 @@
                 subMenu.className = 'vsc-submenu';
                 const select = document.createElement('select');
                 select.className = 'vsc-select';
-
                 const disabledOption = document.createElement('option');
                 disabledOption.value = "";
                 disabledOption.textContent = labelText;
                 disabledOption.disabled = true;
                 disabledOption.selected = true;
                 select.appendChild(disabledOption);
-
                 const offOption = document.createElement('option');
                 offOption.value = "0";
                 offOption.textContent = "꺼짐";
                 select.appendChild(offOption);
-
                 for (let i = 1; i <= maxLevel; i++) {
                     const option = document.createElement('option');
                     option.value = i;
@@ -437,7 +406,6 @@
                 group.append(mainBtn, subMenu);
                 return group;
             };
-
             const maxVideoLevel = settingsManager.definitions.videoFilterLevel.max;
             const maxImageLevel = settingsManager.definitions.imageFilterLevel.max;
             const videoControlGroup = createFilterControl('vsc-video-controls', '영상 선명도', '🌞', setVideoFilterLevel, maxVideoLevel);
@@ -455,10 +423,7 @@
                 audioSubMenu.appendChild(btn);
             });
             audioControlGroup.append(audioBtnMain, audioSubMenu);
-            
-            // <<< HIGHLIGHT: 기존의 배속 조절 UI 생성 로직을 여기서 완전히 제거했습니다.
             container.append(imageControlGroup, videoControlGroup, audioControlGroup);
-
             const controlGroups = [videoControlGroup, imageControlGroup, audioControlGroup];
             hideAllSubMenus = () => {
                 controlGroups.forEach(group => group.classList.remove('submenu-visible'));
@@ -475,7 +440,6 @@
             videoControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, videoControlGroup));
             imageControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, imageControlGroup));
             audioBtnMain.addEventListener('click', (e) => handleMenuButtonClick(e, audioControlGroup));
-            
             const updateActiveButtons = () => {
                 const videoSelect = shadowRoot.querySelector('#vsc-video-controls select');
                 if (videoSelect) videoSelect.value = state.currentVideoFilterLevel;
@@ -493,11 +457,9 @@
                     startFadeSequence();
                 }
             });
-
             container.addEventListener('pointerdown', resetFadeTimer);
             updateActiveButtons();
         }
-
         return {
             init: () => safeExec(init, 'speedSlider.init'),
             reset: () => safeExec(reset, 'speedSlider.reset'),
@@ -542,7 +504,6 @@
         function calculateAdjustedDelay(videoElement) { const rawDelay = calculateDelay(videoElement); if (rawDelay === null) return null; const clampedDelay = Math.min(Math.max(rawDelay, 0), 5000); return clampedDelay * FEEL_DELAY_FACTOR; }
         function getPlaybackRate(avgDelay) { for (const config of D_CONFIG.SPEED_LEVELS) { if (avgDelay >= config.minDelay) { return config.playbackRate; } } return D_CONFIG.NORMAL_RATE; }
         function adjustPlaybackRate(targetRate) { if (!video) return; const diff = targetRate - video.playbackRate; if (Math.abs(diff) < 0.01) return; safeExec(() => { video.playbackRate += diff * SMOOTH_STEP; state.currentPlaybackRate = video.playbackRate; }); }
-
         function displayDelayInfo(messageOrAvg, minDelay) {
             let infoEl = document.getElementById('vsc-delay-info');
             if (!infoEl) {
@@ -584,7 +545,6 @@
                 infoEl.appendChild(refreshBtn);
             }
         }
-
         function sampleInitialDelayAndFPS() {
             return new Promise(resolve => {
                 const startTime = Date.now(); let lastFrame = performance.now(); let fpsSamples = [];
@@ -643,10 +603,6 @@
         }
         return { start, stop, restart };
     })();
-
-    // =================================================================================
-    // 4. DOM 스캔 및 이벤트 관리 (DOM Scanning and Event Management)
-    // =================================================================================
 
     function findAllMedia(doc = document) {
         const elems = [];
@@ -748,7 +704,6 @@
         allMedia.forEach(m => { if (m.isConnected) { state.activeMedia.add(m); oldMedia.delete(m); } });
         oldMedia.forEach(detachMediaListeners);
         allMedia.forEach(m => { if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); } });
-
         const allImages = findAllImages();
         allImages.forEach(attachImageListeners);
         const oldImages = new Set(state.activeImages);
@@ -756,34 +711,25 @@
         allImages.forEach(img => { if (img.isConnected) { state.activeImages.add(img); oldImages.delete(img); } });
         oldImages.forEach(detachImageListeners);
         allImages.forEach(updateImageFilterState);
-
         const root = state.ui.shadowRoot;
         if (root) {
             const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
             const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO') || hasVideo;
             const hasImage = state.activeImages.size > 0;
-
             if (hasVideo) state.mediaTypesEverFound.video = true;
             if (hasAudio) state.mediaTypesEverFound.audio = true;
             if (hasImage) state.mediaTypesEverFound.image = true;
-
             filterManager.toggleStyleSheet(state.mediaTypesEverFound.video);
             imageFilterManager.toggleStyleSheet(state.mediaTypesEverFound.image);
-
             const setDisplay = (id, visible) => {
                 const el = root.getElementById(id);
                 if (el) el.style.display = visible ? 'flex' : 'none';
             };
-
             setDisplay('vsc-video-controls', hasVideo);
             setDisplay('vsc-audio-controls', hasAudio);
             setDisplay('vsc-image-controls', hasImage);
         }
     };
-
-    // =================================================================================
-    // 5. 초기화 및 라이프사이클 (Initialization and Lifecycle)
-    // =================================================================================
 
     const debouncedScanTask = debounce(scanAndApply, CONFIG.DEBOUNCE_DELAY);
     let mainObserver = null;
@@ -796,33 +742,27 @@
             if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
             if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
             if (spaNavigationHandler) {
-                 window.removeEventListener('popstate', spaNavigationHandler);
-                 window.removeEventListener('vsc:pushState', spaNavigationHandler);
-                 window.removeEventListener('vsc:replaceState', spaNavigationHandler);
-                 document.removeEventListener('addShadowRoot', debouncedScanTask);
-                 spaNavigationHandler = null;
+                window.removeEventListener('popstate', spaNavigationHandler);
+                window.removeEventListener('vsc:pushState', spaNavigationHandler);
+                window.removeEventListener('vsc:replaceState', spaNavigationHandler);
+                document.removeEventListener('addShadowRoot', debouncedScanTask);
+                spaNavigationHandler = null;
             }
-
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
             setVideoFilterLevel(0);
             setImageFilterLevel(0);
-
             const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
             allRoots.forEach(root => {
                 root.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(el => {
                     el.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active', 'vsc-gpu-accelerated');
                 });
             });
-
             filterManager.toggleStyleSheet(false);
             imageFilterManager.toggleStyleSheet(false);
             audioManager.setAudioMode('off');
             if (state.ui.hostElement) state.ui.hostElement.remove();
-            
-            // <<< HIGHLIGHT: 비활성화 시 배속 버튼 컨테이너를 숨깁니다.
             if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
-
             resetState();
             settingsManager.init();
             uiManager.reset();
@@ -859,7 +799,6 @@
             cleanup();
             initializeGlobalUI();
         }, 500);
-
         if (!window.vscPatchedHistory) {
             ['pushState', 'replaceState'].forEach(method => {
                 const original = history[method];
@@ -873,7 +812,6 @@
             });
             window.vscPatchedHistory = true;
         }
-
         window.addEventListener('popstate', spaNavigationHandler);
         window.addEventListener('vsc:pushState', spaNavigationHandler);
         window.addEventListener('vsc:replaceState', spaNavigationHandler);
@@ -882,16 +820,13 @@
 
     function start() {
         if (isInitialized) return;
-
         resetState();
         state.lastUrl = location.href;
         uiManager.init();
-
         if (uiContainer && state.ui.hostElement) {
             const mainControlsWrapper = uiContainer.querySelector('#vsc-main-controls-wrapper');
-            if(mainControlsWrapper) mainControlsWrapper.appendChild(state.ui.hostElement);
+            if (mainControlsWrapper) mainControlsWrapper.appendChild(state.ui.hostElement);
         }
-        
         filterManager.init();
         imageFilterManager.init();
         speedSlider.init();
@@ -899,54 +834,49 @@
         ensureObservers();
 
         const isLive = isLiveStreamPage();
-        // <<< HIGHLIGHT: 활성화 시 라이브 스트림 여부에 따라 배속 버튼 컨테이너 표시 여부를 결정합니다.
-        if (isLive) {
-            autoDelayManager.start();
+        const hasMedia = findAllMedia().length > 0;
+
+        if (isLive || !hasMedia) {
             if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
         } else {
             if (speedButtonsContainer) speedButtonsContainer.style.display = 'flex';
         }
 
+        if (isLive) {
+            autoDelayManager.start();
+        }
+
         speedSlider.renderControls();
         speedSlider.show();
-
         setVideoFilterLevel(state.currentVideoFilterLevel);
         setImageFilterLevel(state.currentImageFilterLevel);
         audioManager.setAudioMode(state.currentAudioMode);
         scheduleIdleTask(scanAndApply);
-
         const initialRate = state.activeMedia.size > 0 ? Array.from(state.activeMedia)[0].playbackRate : 1.0;
         updateActiveSpeedButton(initialRate);
-
         isInitialized = true;
         if (CONFIG.DEBUG) console.log("🎉 Video_Image_Control initialized.");
     }
 
     function initializeGlobalUI() {
         if (document.getElementById('vsc-global-container')) return;
-
         const hasMedia = findAllMedia().length > 0;
         const hasImages = findAllImages().length > 0;
         if (!hasMedia && !hasImages) {
             if (CONFIG.DEBUG) console.log("[VSC] No media or large images found. UI will not be created.");
             return;
         }
-
         uiContainer = document.createElement('div');
         uiContainer.id = 'vsc-global-container';
         Object.assign(uiContainer.style, {
             position: 'fixed', top: '50%', right: '1.5vmin', transform: 'translateY(-50%)',
             zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-start', gap: '10px'
         });
-
-        // <<< HIGHLIGHT: 여기가 바로 요청하신 UI 구조 변경의 핵심입니다.
-        // 1. 메인 컨트롤(트리거 버튼 + 설정 패널)을 감싸는 래퍼
         const mainControlsWrapper = document.createElement('div');
         mainControlsWrapper.id = 'vsc-main-controls-wrapper';
         Object.assign(mainControlsWrapper.style, {
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px'
         });
-
         triggerElement = document.createElement('div');
         triggerElement.id = UI_SELECTORS.TRIGGER;
         triggerElement.textContent = '⚡';
@@ -956,15 +886,12 @@
             fontSize: 'clamp(20px, 4vmin, 26px)', cursor: 'pointer', userSelect: 'none', transition: 'transform 0.2s, background-color 0.2s'
         });
         mainControlsWrapper.appendChild(triggerElement);
-
-        // 2. 새로운 배속 버튼 컨테이너 생성 및 버튼 추가
         speedButtonsContainer = document.createElement('div');
         speedButtonsContainer.id = 'vsc-speed-buttons-container';
         Object.assign(speedButtonsContainer.style, {
             display: 'none', flexDirection: 'column', gap: '5px'
         });
-        
-        const speeds = [4, 2, 1, 0.2]; // 버튼 순서
+        const speeds = [4, 2, 1, 0.2];
         speeds.forEach(speed => {
             const btn = document.createElement('button');
             btn.textContent = `${speed}x`;
@@ -974,7 +901,6 @@
                 width: 'clamp(38px, 8vmin, 50px)', height: 'clamp(28px, 6vmin, 36px)', fontSize: 'clamp(12px, 2.2vmin, 14px)',
             });
             if (speed === 1.0) btn.classList.add('active');
-
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const newSpeed = parseFloat(btn.dataset.speed);
@@ -983,15 +909,10 @@
             });
             speedButtonsContainer.appendChild(btn);
         });
-        
-        // 최종적으로 uiContainer에 래퍼(설정창)와 배속 버튼 컨테이너를 나란히 추가
         uiContainer.append(mainControlsWrapper, speedButtonsContainer);
         document.body.appendChild(uiContainer);
-        // <<< HIGHLIGHT: UI 구조 변경 끝
-
         let isDragging = false, wasDragged = false, startX, startY, initialTop, initialRight;
         const DRAG_THRESHOLD = 5;
-
         const onDragStart = (e) => {
             if (!e.composedPath().includes(uiContainer)) return;
             isDragging = true;
@@ -1009,13 +930,11 @@
             document.addEventListener('touchmove', onDragMove, { passive: false });
             document.addEventListener('touchend', onDragEnd, { passive: false });
         };
-
         const onDragMove = (e) => {
             if (!isDragging) return;
             const pos = e.touches ? e.touches[0] : e;
             const deltaX = pos.clientX - startX;
             const deltaY = pos.clientY - startY;
-
             if (!wasDragged && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
                 wasDragged = true;
                 uiContainer.style.transition = 'none';
@@ -1035,7 +954,6 @@
                 uiContainer.style.bottom = 'auto';
             }
         };
-
         const onDragEnd = () => {
             if (!isDragging) return;
             isDragging = false;
@@ -1048,10 +966,8 @@
             document.removeEventListener('touchend', onDragEnd);
             setTimeout(() => { wasDragged = false; }, 0);
         };
-        
         uiContainer.addEventListener('mousedown', onDragStart);
         uiContainer.addEventListener('touchstart', onDragStart, { passive: true });
-
         triggerElement.addEventListener('click', (e) => {
             if (wasDragged) {
                 e.stopPropagation();
@@ -1067,7 +983,6 @@
                 triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
             }
         });
-
         if (!visibilityChangeListener) {
             visibilityChangeListener = () => {
                 if (document.hidden) {
