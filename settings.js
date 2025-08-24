@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      56.0
-// @description  TrustedHTML 보안 정책 오류 수정 / 딜레이 미터기(autoDelayManager) 로직 전면 개선 / SPA 네비게이션 로직 및 플랫폼별 라이브 방송 판별 기능 강화 / 단축키 기능 추가 및 안정성 개선
+// @version      56.4
+// @description  SPA 네비게이션 및 딜레이 미터기 안정성 개선
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -24,7 +24,7 @@
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 2,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 6 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 5 : 2,
         DEFAULT_AUDIO_PRESET: 'off',
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
@@ -39,8 +39,8 @@
         UI_WARN_TIMEOUT: 10000,
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
         SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.5', SHADOWS_VALUE: -3, HIGHLIGHTS_VALUE: 10, SATURATION_VALUE: 103 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 103 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.5', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 103 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] }, },
         FILTER_EXCLUSION_DOMAINS: [],
@@ -48,7 +48,12 @@
         AUDIO_EXCLUSION_DOMAINS: [],
         AUDIO_PRESETS: { off: { gain: 1, eq: [] }, speech: { gain: 1.05, eq: [{ freq: 80, gain: -3 }, { freq: 200, gain: -1 }, { freq: 500, gain: 2 }, { freq: 1000, gain: 4 }, { freq: 3000, gain: 5 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: -2 }] }, liveBroadcast: { gain: 1.1, eq: [{ freq: 80, gain: 2 }, { freq: 150, gain: 1.5 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 3.5 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: 2 }] }, movie: { gain: 1.25, eq: [{ freq: 80, gain: 6 }, { freq: 200, gain: 4 }, { freq: 500, gain: 1 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3.5 }, { freq: 6000, gain: 5 }, { freq: 10000, gain: 4 }] }, music: { gain: 1.15, eq: [{ freq: 60, gain: 4 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 1 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 3.5 }, { freq: 12000, gain: 3 }] }, gaming: { gain: 1.1, eq: [{ freq: 60, gain: 3 }, { freq: 250, gain: -1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 5 }, { freq: 4000, gain: 6 }, { freq: 8000, gain: 4 }, { freq: 12000, gain: 2 }] } },
         MAX_EQ_BANDS: 7,
-        DELAY_ADJUSTER: { CHECK_INTERVAL: 500, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500, SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.10 }, { minDelay: 3750, playbackRate: 1.09 }, { minDelay: 3500, playbackRate: 1.08 }, { minDelay: 3250, playbackRate: 1.07 }, { minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2750, playbackRate: 1.05 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2250, playbackRate: 1.03 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1750, playbackRate: 1.01 }, { minDelay: 1500, playbackRate: 1.00 }], NORMAL_RATE: 1.0 }
+        DELAY_ADJUSTER: {
+            CHECK_INTERVAL: 500, TRIGGER_DELAY: 1500, TARGET_DELAY: 1500,
+            SPEED_LEVELS: [{ minDelay: 4000, playbackRate: 1.10 }, { minDelay: 3750, playbackRate: 1.09 }, { minDelay: 3500, playbackRate: 1.08 }, { minDelay: 3250, playbackRate: 1.07 }, { minDelay: 3000, playbackRate: 1.06 }, { minDelay: 2750, playbackRate: 1.05 }, { minDelay: 2500, playbackRate: 1.04 }, { minDelay: 2250, playbackRate: 1.03 }, { minDelay: 2000, playbackRate: 1.02 }, { minDelay: 1750, playbackRate: 1.01 }, { minDelay: 1500, playbackRate: 1.00 }],
+            NORMAL_RATE: 1.0,
+            MAX_VALID_DELAY_SEC: 20 // 최대 유효 딜레이 시간(초). VOD와 Live를 구분하는 기준값.
+        }
     };
 
     const UI_SELECTORS = {
@@ -520,29 +525,51 @@
         let delayHistory = [];
         let isAdjusting = false;
 
+        function findVideo() {
+            // 유튜브의 경우, 광고나 미리보기가 아닌 메인 비디오를 명확하게 타겟팅
+            if (location.hostname.includes("youtube.com")) {
+                const mainVideo = document.querySelector('#movie_player .html5-main-video');
+                // 찾은 비디오가 스크립트에서 관리 중인 활성 미디어 목록에 있는지 확인
+                if (mainVideo && state.activeMedia.has(mainVideo)) {
+                    return mainVideo;
+                }
+            }
+            // 다른 사이트나 유튜브에서 메인 비디오를 못찾은 경우, 기존 방식으로 찾되 작은 비디오는 제외
+            return Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO' && m.offsetWidth > 100 && m.offsetHeight > 100) || null;
+        }
+
         function isLiveStream(videoElement) {
             if (!videoElement) return false;
             try {
-                if (videoElement.duration === Infinity) return true;
-                const src = videoElement.currentSrc || videoElement.src || "";
-                if (/m3u8(\?|$)/i.test(src) || /mpd(\?|$)/i.test(src)) return true;
-                if (videoElement.seekable && videoElement.seekable.length > 0) {
-                    const liveWindowEnd = videoElement.seekable.end(videoElement.seekable.length - 1);
-                    if (liveWindowEnd - videoElement.currentTime < 60) return true;
+                // YouTube: 가장 정확하고 안정적인 방법으로 우선 처리
+                if (location.hostname.includes("youtube.com")) {
+                    const player = videoElement.closest('#movie_player');
+                    if (player) {
+                        // 라이브 배지가 있으면 무조건 라이브 스트림
+                        if (player.querySelector(".ytp-live-badge.ytp-button")) return true;
+                        // 총 영상 길이 표시 요소가 있으면 무조건 VOD (일반 영상)
+                        if (player.querySelector(".ytp-time-duration")) return false;
+                    }
+                    // 광고, 로딩 중 등 애매한 상황에서는 미터기를 표시하지 않도록 VOD로 간주
+                    return false;
                 }
-                 if (location.hostname.includes("youtube.com") && document.querySelector(".ytp-live-badge")) return true;
-                 if (location.hostname.includes("kick.com")) {
+
+                // Kick.com
+                if (location.hostname.includes("kick.com")) {
                     if (document.querySelector("div[data-test-selector='stream-live-indicator']")) return true;
-                     const liveBadge = [...document.querySelectorAll("div, span")].some(el => el.textContent.trim() === "LIVE");
+                    const liveBadge = [...document.querySelectorAll("div, span")].some(el => el.textContent.trim() === "LIVE");
                     if (liveBadge) return true;
                 }
-                 if (location.hostname.includes("twitch.tv")) {
+
+                // Twitch.tv
+                if (location.hostname.includes("twitch.tv")) {
                     if (document.querySelector("[data-a-target='stream-live-indicator']")) return true;
-                     if (!window.__twitchLiveObserverSetup) {
+                    if (!window.__twitchLiveObserverSetup) {
                         window.__twitchIsLive = false;
                         const observer = new MutationObserver(() => {
                             if (document.querySelector("[data-a-target='stream-live-indicator']")) {
                                 window.__twitchIsLive = true;
+                                observer.disconnect();
                             }
                         });
                         observer.observe(document.body, { childList: true, subtree: true });
@@ -550,20 +577,44 @@
                     }
                     if (window.__twitchIsLive) return true;
                 }
+
+                // --- 범용 규칙 (YouTube가 아닐 때만 실행됨) ---
+                if (videoElement.duration === Infinity) return true;
+
+                const src = videoElement.currentSrc || videoElement.src || "";
+                if (/m3u8(\?|$)/i.test(src) || /mpd(\?|$)/i.test(src)) {
+                    if (videoElement.seekable && videoElement.seekable.length > 0) {
+                        const liveWindowEnd = videoElement.seekable.end(videoElement.seekable.length - 1);
+                        if (isFinite(liveWindowEnd) && liveWindowEnd - videoElement.currentTime < 60) {
+                            return true;
+                        }
+                    }
+                    // VOD임이 확실하면(길이가 유한하면) false 반환
+                    if (isFinite(videoElement.duration) && videoElement.duration > 0) {
+                        return false;
+                    }
+                    return true; // 불확실하면 일단 라이브로 간주
+                }
+
+                if (videoElement.seekable && videoElement.seekable.length > 0) {
+                    const liveWindowEnd = videoElement.seekable.end(videoElement.seekable.length - 1);
+                    if (liveWindowEnd - videoElement.currentTime < 60) return true;
+                }
+
             } catch (e) { /* console.warn("isLiveStream 판별 실패:", e); */ }
+
             return false;
         }
 
-        function findVideo() {
-            return Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') || null;
-        }
 
         function calculateDelay(videoElement) {
             if (!videoElement || !videoElement.buffered || videoElement.buffered.length === 0) return null;
             try {
                 const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1);
                 const delay = bufferedEnd - videoElement.currentTime;
-                return delay >= 0 ? delay * 1000 : null;
+                // VOD의 경우 delay가 비정상적으로 크거나 음수일 수 있으므로 유효 범위를 벗어나면 null 반환
+                if (delay < 0 || delay > D_CONFIG.MAX_VALID_DELAY_SEC) return null;
+                return delay * 1000;
             } catch { return null; }
         }
 
@@ -642,9 +693,11 @@
                 return;
             }
 
-            if (isLiveStream(video)) {
-                const rawDelay = calculateDelay(video);
-                if (rawDelay === null) return;
+            const isLive = isLiveStream(video);
+            const rawDelay = calculateDelay(video);
+
+            // isLiveStream이 true로 판단했더라도, 실제 계산된 딜레이 값이 유효하지 않으면 VOD로 최종 간주 (안전장치)
+            if (isLive && rawDelay !== null) {
                 recordDelay(rawDelay);
                 const weightedData = calculateWeightedDelay();
                 if (!weightedData) return;
