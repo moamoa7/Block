@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      58.4
-// @description  딜레이 미터기 로직 개선 및 설정값 내부화
+// @version      58.5
+// @description  모바일 메뉴 클릭시 효과 삭제
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -294,7 +294,7 @@
     const uiManager = (() => {
         const styleRules = [
             ':host { pointer-events: none; }',
-            '* { pointer-events: auto; }',
+            '* { pointer-events: auto; -webkit-tap-highlight-color: transparent; }',
             '#vsc-container { background: rgba(0,0,0,0.1); padding: clamp(6px, 1.2vmin, 10px); border-radius: clamp(8px, 1.5vmin, 12px); z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; margin-top: 5px; }',
             '#vsc-container.touched { opacity: 1; }',
             '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
@@ -1004,7 +1004,8 @@
             Object.assign(triggerElement.style, {
                 width: 'clamp(32px, 7vmin, 44px)', height: 'clamp(32px, 7vmin, 44px)', background: 'rgba(0, 0, 0, 0.5)',
                 color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 'clamp(20px, 4vmin, 26px)', cursor: 'pointer', userSelect: 'none', transition: 'transform 0.2s, background-color 0.2s'
+                fontSize: 'clamp(20px, 4vmin, 26px)', cursor: 'pointer', userSelect: 'none', transition: 'transform 0.2s, background-color 0.2s', // 여기에 쉼표(,)를 추가하세요.
+                '-webkit-tap-highlight-color': 'transparent'
             });
 
             speedButtonsContainer = document.createElement('div');
@@ -1022,6 +1023,7 @@
                     width: 'clamp(38px, 8vmin, 50px)', height: 'clamp(28px, 6vmin, 36px)', fontSize: 'clamp(12px, 2.2vmin, 14px)',
                     background: 'rgba(0, 0, 0, 0.5)', color: 'white', border: 'none',
                     borderRadius: 'clamp(4px, 0.8vmin, 6px)', cursor: 'pointer',
+                    '-webkit-tap-highlight-color': 'transparent'
                 });
                 if (speed === 1.0) {
                     btn.style.boxShadow = '0 0 5px #3498db, 0 0 10px #3498db inset';
