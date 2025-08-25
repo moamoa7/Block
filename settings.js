@@ -1022,7 +1022,7 @@
                 btn.className = 'vsc-btn';
                 Object.assign(btn.style, {
                     width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)',
-                    background: 'rgba(52, 152, 219, 0.5)', color: 'white', border: 'none',
+                    background: 'rgba(52, 152, 219, 0.25)', color: 'white', border: 'none',
                     borderRadius: 'clamp(4px, 0.8vmin, 6px)', cursor: 'pointer',
                     '-webkit-tap-highlight-color': 'transparent'
                 });
@@ -1058,7 +1058,7 @@
                     console.error('[VSC] Failed to initialize.', err);
                     triggerElement.textContent = '⚠️';
                     triggerElement.title = '스크립트 초기화 실패! 콘솔을 확인하세요.';
-                    triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.7)';
+                    triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.5)';
                 }
             }
         }
