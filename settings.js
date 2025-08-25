@@ -34,7 +34,7 @@
         SEEK_TIME_MAX_SEC: 15,
         IMAGE_MIN_SIZE: 335,
         VIDEO_MIN_SIZE: 0,
-        SPEED_PRESETS: [8, 4, 2, 1, 0.5, 0.2],
+        SPEED_PRESETS: [8, 4, 2, 1.5, 1, 0.5, 0.2],
         UI_DRAG_THRESHOLD: 5,
         UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com'],
