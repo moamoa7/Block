@@ -503,7 +503,7 @@
     const CHECK_INTERVAL = 500;
     const TARGET_DELAY = 1500;
     const MIN_RATE = 0.9;
-    const MAX_RATE = 1.5;
+    const MAX_RATE = 1.1;
     const TOLERANCE = 150;
 
     let localIntersectionObserver;
