@@ -1053,7 +1053,7 @@
                 try {
                     start();
                     triggerElement.textContent = '❌';
-                    triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.6)';
+                    triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
                 } catch (err) {
                     console.error('[VSC] Failed to initialize.', err);
                     triggerElement.textContent = '⚠️';
