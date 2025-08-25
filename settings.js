@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      58.5
-// @description  모바일 메뉴 클릭시 효과 삭제
+// @version      58.6
+// @description  로그인 문제 (캡챠 동반) 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -38,8 +38,8 @@
         UI_DRAG_THRESHOLD: 5,
         UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com'],
-        EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com'],
-        SPECIFIC_EXCLUSIONS: [{ domain: 'avsee.ru', path: '/bbs/login.php' }],
+        EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com', 'challenges.cloudflare.com'],
+        SPECIFIC_EXCLUSIONS: [],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 103 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.4', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 103 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
@@ -101,9 +101,22 @@
     function calculateSharpenMatrix(level) { const parsedLevel = parseInt(level, 10); if (isNaN(parsedLevel) || parsedLevel === 0) return '0 0 0 0 1 0 0 0 0'; const intensity = 1 + (parsedLevel - 0.5) * (5.0 / 5); const off = (1 - intensity) / 4; return `0 ${off} 0 ${off} ${intensity} ${off} 0 ${off} 0`; }
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
-    function isExcluded() { const url = location.href.toLowerCase(); const hostname = location.hostname.toLowerCase(); if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) return true; return CONFIG.SPECIFIC_EXCLUSIONS.some(rule => hostname.includes(rule.domain) && url.includes(rule.path)); }
-    if (isExcluded()) return;
-    Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
+    function isExcluded() {
+    const url = location.href.toLowerCase();
+
+    if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) {
+        return true;
+    }
+
+    // 페이지 요소(iframe)를 검사하는 로직도 추가하면 더 안전하지만,
+    // 대부분의 경우 위의 URL 검사만으로도 충분합니다.
+    if (document.querySelector('iframe[src*="challenges.cloudflare.com"]')) {
+        return true;
+    }
+
+    return false;
+}
+    if (isExcluded()) return; Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
     (function openAllShadowRoots() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const originalAttachShadow = Element.prototype.attachShadow; Element.prototype.attachShadow = function (options) { const modifiedOptions = { ...options, mode: 'open' }; const shadowRoot = originalAttachShadow.apply(this, [modifiedOptions]); window._shadowDomList_.push(new WeakRef(shadowRoot)); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot } })); return shadowRoot; }; window._hasHackAttachShadow_ = true; }, 'openAllShadowRoots'); })();
 
     class SvgFilterManager {
