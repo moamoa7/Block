@@ -23,8 +23,8 @@
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
 
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 4 : 2,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 4 : 2,
+        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 2,
         DEFAULT_AUDIO_PRESET: 'off',
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
