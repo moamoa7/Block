@@ -502,8 +502,8 @@
     // 모든 관련 설정을 내부 상수로 관리
     const CHECK_INTERVAL = 500;
     const TARGET_DELAY = 1500;
-    const MIN_RATE = 0.9;
-    const MAX_RATE = 1.1;
+    const MIN_RATE = 0.95;
+    const MAX_RATE = 1.05;
     const TOLERANCE = 150;
 
     let localIntersectionObserver;
@@ -989,7 +989,7 @@
             uiContainer.id = 'vsc-global-container';
             Object.assign(uiContainer.style, {
                 position: 'fixed', top: '50%', right: '1.5vmin', transform: 'translateY(-50%)',
-                zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-start', gap: '10px',
+                zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-end', gap: '10px',
                 '-webkit-tap-highlight-color': 'transparent'
             });
 
@@ -1012,7 +1012,7 @@
             speedButtonsContainer = document.createElement('div');
             speedButtonsContainer.id = 'vsc-speed-buttons-container';
             Object.assign(speedButtonsContainer.style, {
-                display: 'none', flexDirection: 'column', gap: '5px'
+                display: 'none', flexDirection: 'column', gap: '5px', alignItems: 'center'
             });
 
             CONFIG.SPEED_PRESETS.forEach(speed => {
@@ -1021,7 +1021,7 @@
                 btn.dataset.speed = speed;
                 btn.className = 'vsc-btn';
                 Object.assign(btn.style, {
-                    width: 'clamp(38px, 8vmin, 50px)', height: 'clamp(28px, 6vmin, 36px)', fontSize: 'clamp(12px, 2.2vmin, 14px)',
+                    width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)',
                     background: 'rgba(0, 0, 0, 0.5)', color: 'white', border: 'none',
                     borderRadius: 'clamp(4px, 0.8vmin, 6px)', cursor: 'pointer',
                     '-webkit-tap-highlight-color': 'transparent'
