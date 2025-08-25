@@ -34,7 +34,7 @@
         SEEK_TIME_MAX_SEC: 15,
         IMAGE_MIN_SIZE: 335,
         VIDEO_MIN_SIZE: 0,
-        SPEED_PRESETS: [8, 4, 2, 1.5, 1.25, 1, 0.5, 0.25],
+        SPEED_PRESETS: [8, 4, 2, 1.5, 1.2, 1, 0.5, 0.2],
         UI_DRAG_THRESHOLD: 5,
         UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com'],
@@ -1021,7 +1021,7 @@
                 btn.dataset.speed = speed;
                 btn.className = 'vsc-btn';
                 Object.assign(btn.style, {
-                    width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(11px, 2vmin, 13px)',
+                    width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)',
                     background: 'rgba(0, 0, 0, 0.5)', color: 'white', border: 'none',
                     borderRadius: 'clamp(4px, 0.8vmin, 6px)', cursor: 'pointer',
                     '-webkit-tap-highlight-color': 'transparent'
