@@ -988,8 +988,8 @@
             uiContainer = document.createElement('div');
             uiContainer.id = 'vsc-global-container';
             Object.assign(uiContainer.style, {
-                position: 'fixed', top: '50%', right: '1.5vmin', transform: 'translateY(-50%)',
-                zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-end', gap: '10px',
+                position: 'fixed', top: '50%', right: '1vmin', transform: 'translateY(-50%)',
+                zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'center', gap: '0px',
                 '-webkit-tap-highlight-color': 'transparent'
             });
 
