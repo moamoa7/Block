@@ -945,7 +945,7 @@
         let hideTimeout;
 
         Object.assign(warningEl.style, {
-            position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
+            position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
             background: 'rgba(30, 30, 30, 0.9)', color: 'white', padding: '12px 20px',
             borderRadius: '8px', zIndex: CONFIG.MAX_Z_INDEX - 1, display: 'flex',
             alignItems: 'center', gap: '15px', fontSize: '14px', fontFamily: 'sans-serif',
