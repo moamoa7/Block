@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video_Image_Control
 // @namespace https://com/
-// @version 58.9
-// @description ui 일부 작동 변경
+// @version 58.8
+// @description 오디오셋 변경 및 선택 옵션 상자로 변경
 // @match *://*/*
 // @run-at document-end
 // @grant none
@@ -24,7 +24,7 @@
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 2 : 1,
         DEFAULT_AUDIO_PRESET: 'off',
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
