@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video_Image_Control
 // @namespace https://com/
-// @version 59.0
-// @description shadowRoot에 접근 문제 해결
+// @version 59.1
+// @description 풀스크린 자동 스냅 및 SPA 지원 강화
 // @match *://*/*
 // @run-at document-end
 // @grant none
@@ -15,6 +15,9 @@
     let uiContainer = null;
     let triggerElement = null;
     let speedButtonsContainer = null;
+
+    // SPA 지원 강화를 위한 titleObserver 변수 추가
+    let titleObserver = null;
 
     // =================================================================================
     // 1. 설정 및 상수 (Configuration and Constants)
@@ -347,7 +350,6 @@
     const speedSlider = (() => {
         let inited = false, fadeOutTimer;
         let hideAllSubMenus = () => {};
-        // ====[수정]====> 이제 이 함수는 필터 컨테이너만 제어합니다.
         function startFadeSequence() {
             const container = state.ui?.shadowRoot?.getElementById('vsc-container');
             if (!container) return;
@@ -366,7 +368,6 @@
             btn.textContent = text;
             return btn;
         };
-        // ====[수정]====> 이제 이 함수는 필터 컨테이너만 제어합니다.
         const resetFadeTimer = () => {
             const container = state.ui?.shadowRoot?.getElementById('vsc-container');
             if (!container) return;
@@ -824,6 +825,8 @@
         safeExec(() => {
             if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
             if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
+            // [SPA 지원 강화] titleObserver 정리 로직 추가
+            if (titleObserver) { titleObserver.disconnect(); titleObserver = null; }
 
             globalUIManager.cleanupGlobalListeners();
 
@@ -944,6 +947,21 @@
         scheduleIdleTask(scanAndApply);
         const initialRate = state.activeMedia.size > 0 ? Array.from(state.activeMedia)[0].playbackRate : 1.0;
         updateActiveSpeedButton(initialRate);
+
+        // [SPA 지원 강화] 타이틀 변경 감지 Observer 시작
+        if (!titleObserver) {
+            const titleElement = document.querySelector('head > title');
+            if (titleElement) {
+                titleObserver = new MutationObserver(() => {
+                    const activeVideo = Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO' && !m.paused);
+                    if (activeVideo) {
+                        mediaSessionManager.setSession(activeVideo);
+                    }
+                });
+                titleObserver.observe(titleElement, { childList: true });
+            }
+        }
+
         isInitialized = true;
         if (CONFIG.DEBUG) console.log("🎉 Video_Image_Control initialized.");
     }
@@ -998,7 +1016,23 @@
 
         let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null;
 
-        // ====[수정]====> 전역 타이머 및 페이드 로직을 제거하고 speedSlider의 것을 사용하도록 위임합니다.
+        // [풀스크린 자동 스냅] clampTranslate 함수를 attachDragAndDrop 밖으로 이동
+        const clampTranslate = () => {
+            if (!uiContainer) return;
+            const rect = uiContainer.getBoundingClientRect();
+            const parentWidth = window.innerWidth;
+            const parentHeight = window.innerHeight;
+            let newX = translatePos.x;
+            let newY = translatePos.y;
+            if (rect.left < 0) newX -= rect.left;
+            if (rect.top < 0) newY -= rect.top;
+            if (rect.right > parentWidth) newX -= (rect.right - parentWidth);
+            if (rect.bottom > parentHeight) newY -= (rect.bottom - parentHeight);
+            translatePos.x = newX;
+            translatePos.y = newY;
+            uiContainer.style.transform = `translateY(-50%) translate(${translatePos.x}px, ${translatePos.y}px)`;
+        };
+
         function createUIElements() {
             uiContainer = document.createElement('div');
             uiContainer.id = 'vsc-global-container';
@@ -1030,7 +1064,6 @@
             speedButtonsContainer.id = 'vsc-speed-buttons-container';
             Object.assign(speedButtonsContainer.style, {
                 display: 'none', flexDirection: 'column', gap: '5px', alignItems: 'center',
-                // ====[수정]====> 배속 버튼은 항상 흐리게 표시되도록 고정된 투명도를 설정합니다.
                 opacity: '0.3'
             });
 
@@ -1064,7 +1097,6 @@
             mainControlsWrapper.appendChild(triggerElement);
             uiContainer.append(mainControlsWrapper, speedButtonsContainer);
             document.body.appendChild(uiContainer);
-
         }
 
         function handleTriggerClick() {
@@ -1085,29 +1117,12 @@
                     triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.5)';
                 }
             }
-            // ====[수정]====> 클릭 시 필터 패널이 다시 보이도록 speedSlider의 타이머를 리셋합니다.
             if (speedSlider.resetFadeTimer) {
                 speedSlider.resetFadeTimer();
             }
         }
 
         function attachDragAndDrop() {
-            const clampTranslate = () => {
-                if (!uiContainer) return;
-                const rect = uiContainer.getBoundingClientRect();
-                const parentWidth = window.innerWidth;
-                const parentHeight = window.innerHeight;
-                let newX = translatePos.x;
-                let newY = translatePos.y;
-                if (rect.left < 0) newX -= rect.left;
-                if (rect.top < 0) newY -= rect.top;
-                if (rect.right > parentWidth) newX -= (rect.right - parentWidth);
-                if (rect.bottom > parentHeight) newY -= (rect.bottom - parentHeight);
-                translatePos.x = newX;
-                translatePos.y = newY;
-                uiContainer.style.transform = `translateY(-50%) translate(${translatePos.x}px, ${translatePos.y}px)`;
-            };
-
             const onDragStart = (e) => {
                 if (!e.composedPath().includes(uiContainer)) return;
                 isDragging = true;
@@ -1161,12 +1176,11 @@
                 document.removeEventListener('touchmove', onDragMove);
                 document.removeEventListener('touchend', onDragEnd);
                 setTimeout(() => { wasDragged = false; }, 0);
-                // ====[수정]====> 드래그 종료 시 필터 패널이 다시 보이도록 speedSlider의 타이머를 리셋합니다.
                 if (speedSlider.resetFadeTimer) {
                     speedSlider.resetFadeTimer();
                 }
             };
-            // ====[수정]====> 모바일 드래그 중 스크롤 방지를 위해 touchstart를 passive: false로 변경합니다.
+
             uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
             uiContainer.addEventListener('touchstart', onDragStart, { passive: false });
             const debouncedClamp = debounce(clampTranslate, 100);
@@ -1188,9 +1202,13 @@
                 document.addEventListener('visibilitychange', visibilityChangeListener);
             }
             if (!fullscreenChangeListener) {
+                // [풀스크린 자동 스냅] 풀스크린 변경 시 UI 위치 재조정
                 fullscreenChangeListener = () => {
                     const targetRoot = document.fullscreenElement || document.body;
-                    if (uiContainer) targetRoot.appendChild(uiContainer);
+                    if (uiContainer) {
+                        targetRoot.appendChild(uiContainer);
+                        setTimeout(clampTranslate, 100); // DOM 변경 후 좌표 계산을 위해 약간의 딜레이
+                    }
                 };
                 document.addEventListener('fullscreenchange', fullscreenChangeListener);
             }
