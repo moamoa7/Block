@@ -1066,7 +1066,7 @@
             } else {
                 try {
                     start();
-                    triggerElement.textContent = '❌';
+                    triggerElement.textContent = '🛑';
                     triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
                 } catch (err) {
                     console.error('[VSC] Failed to initialize.', err);
