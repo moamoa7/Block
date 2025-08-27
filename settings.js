@@ -55,7 +55,7 @@
             master: { name: 'master', gain: 1.0, eq: [{ freq: 60, gain: 2.0 }, { freq: 150, gain: 2.6 }, { freq: 400, gain: 2.3 }, { freq: 1000, gain: 1.0 }, { freq: 2500, gain: 2.3 }, { freq: 6000, gain: 3.7 }, { freq: 12000, gain: 4.6 }] },
             music: { name: 'music', gain: 1.1, eq: [{ freq: 60, gain: 2.5 }, { freq: 150, gain: 2 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 1 }, { freq: 3000, gain: 2.5 }, { freq: 6000, gain: 2.5 }, { freq: 12000, gain: 2 }] },
             gaming: { name: 'gaming', gain: 1.15, eq: [{ freq: 60, gain: 3 }, { freq: 250, gain: -1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 5 }, { freq: 4000, gain: 6 }, { freq: 8000, gain: 4 }, { freq: 12000, gain: 2 }] },
-            liveBroadcast: { name: 'liveBroadcast', gain: 1.15, eq: [{ freq: 80, gain: 2 }, { freq: 150, gain: 1.5 }, { freq: 400, gain: 1 }, { freq: 1000, gain: 3 }, { freq: 2000, gain: 3.5 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 2 }, { freq: 12000, gain: 2 }] },
+            liveBroadcast: { name: 'liveBroadcast', gain: 1.15, eq: [{ freq: 60, gain: 2.5 }, { freq: 150, gain: 2.0 }, { freq: 400, gain: 1.5 }, { freq: 1000, gain: 2.0 }, { freq: 3000, gain: 2.0 }, { freq: 6000, gain: 2.0 }, { freq: 12000, gain: 1.8 }] },
             movie: { name: 'movie', gain: 1.2, eq: [{ freq: 80, gain: 3.5 }, { freq: 200, gain: 3 }, { freq: 500, gain: 1.5 }, { freq: 1000, gain: 2 }, { freq: 3000, gain: 3 }, { freq: 6000, gain: 3 }, { freq: 10000, gain: 2.5 }] }
         },
         MAX_EQ_BANDS: 7
