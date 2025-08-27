@@ -52,11 +52,12 @@
         AUDIO_EXCLUSION_DOMAINS: [],
         AUDIO_PRESETS: {
             off: { name: '꺼짐', gain: 1, eq: [] },
-            master: { name: 'master', gain: 1, eq: [{ freq: 60, gain: 2.0 }, { freq: 150, gain: 2.6 }, { freq: 400, gain: 2.3 }, { freq: 1000, gain: 1.0 }, { freq: 2500, gain: 2.3 }, { freq: 6000, gain: 3.7 }, { freq: 12000, gain: 4.6 }] },
-            music: { name: 'music', gain: 1.1, eq: [{ freq: 60, gain: 2.5 }, { freq: 150, gain: 2.0 }, { freq: 400, gain: 1.0 }, { freq: 1000, gain: 1.0 }, { freq: 3000, gain: 2.5 }, { freq: 6000, gain: 2.5 }, { freq: 12000, gain: 2.0 }] },
-            gaming: { name: 'gaming', gain: 1.15, eq: [{ freq: 60, gain: 3.0 }, { freq: 250, gain: -1.0 }, { freq: 1000, gain: 3.0 }, { freq: 2000, gain: 5.0 }, { freq: 4000, gain: 6.0 }, { freq: 8000, gain: 4.0 }, { freq: 12000, gain: 2.0 }] },
-            liveBroadcast: { name: 'liveBroadcast', gain: 1.15, eq: [{ freq: 60, gain: 3.0 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1.8 }, { freq: 1000, gain: 2.0 }, { freq: 3000, gain: 2.2 }, { freq: 6000, gain: 1.8 }, { freq: 12000, gain: 1.2 }] },
-            movie: { name: 'movie', gain: 1.2, eq: [{ freq: 80, gain: 3.5 }, { freq: 200, gain: 3.0 }, { freq: 500, gain: 1.5 }, { freq: 1000, gain: 2.0 }, { freq: 3000, gain: 3.0 }, { freq: 6000, gain: 3.0 }, { freq: 10000, gain: 2.5 }] }
+            dynamic: { name: 'dynamic', gain: 1.0, eq: [{ freq: 60, gain: 2.0 }, { freq: 150, gain: 2.6 }, { freq: 400, gain: 2.3 }, { freq: 1000, gain: 1.0 }, { freq: 2500, gain: 2.3 }, { freq: 6000, gain: 3.7 }, { freq: 12000, gain: 4.6 }] },
+            master : { name: 'master', gain: 1.05, eq: [{ freq: 60, gain: 1.5 }, { freq: 150, gain: 2.0 }, { freq: 400, gain: 1.8 }, { freq: 1000, gain: 2.2 }, { freq: 3000, gain: 2.0 }, { freq: 6000, gain: 2.0 }, { freq: 12000, gain: 2.2 }] },
+            music: { name: 'music', gain: 1.1, eq: [{ freq: 60, gain: 3.5 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1.0 }, { freq: 1000, gain: 1.0 }, { freq: 3000, gain: 2.5 }, { freq: 6000, gain: 3.0 }, { freq: 12000, gain: 4.0 }] },
+            gaming: { name: 'gaming', gain: 1.15, eq: [{ freq: 60, gain: 2.5 }, { freq: 250, gain: -1.0 }, { freq: 1000, gain: 2.5 }, { freq: 2000, gain: 5.0 }, { freq: 4000, gain: 6.0 }, { freq: 8000, gain: 4.5 }, { freq: 12000, gain: 2.0 }] },
+            liveBroadcast: { name: 'liveBroadcast', gain: 1.15, eq: [{ freq: 80, gain: -0.5 }, { freq: 150, gain: 1.5 }, { freq: 400, gain: 1.5 }, { freq: 1500, gain: 3.0 }, { freq: 2500, gain: 3.5 }, { freq: 4000, gain: 2.0 }, { freq: 8000, gain: 1.5 }] },
+            movie: { name: 'movie', gain: 1.2, eq: [{ freq: 80, gain: 4.0 }, { freq: 200, gain: 2.5 }, { freq: 500, gain: 1.5 }, { freq: 1000, gain: 2.0 }, { freq: 3000, gain: 3.0 }, { freq: 6000, gain: 3.0 }, { freq: 10000, gain: 3.0 }] }
         },
         MAX_EQ_BANDS: 7
     };
@@ -73,7 +74,7 @@
         const definitions = {
             videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 5 },
             imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 5 },
-            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'master', 'liveBroadcast', 'movie', 'music', 'gaming'] }
+            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'master', 'dynamic', 'liveBroadcast', 'movie', 'music', 'gaming'] }
         };
         function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
         const get = (key) => settings[key];
@@ -436,6 +437,7 @@
             const audioOptions = [
                 { value: "off", text: "꺼짐" },
                 { value: "master", text: "master" },
+                { value: "dynamic", text: "dynamic" },
                 { value: "music", text: "music" },
                 { value: "gaming", text: "gaming" },
                 { value: "liveBroadcast", text: "liveBroadcast" },
