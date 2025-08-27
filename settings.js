@@ -74,7 +74,7 @@
         const definitions = {
             videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 5 },
             imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 5 },
-            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'master', 'dynamic', 'liveBroadcast', 'movie', 'music', 'gaming'] }
+            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'dynamic', 'master', 'liveBroadcast', 'movie', 'music', 'gaming'] }
         };
         function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
         const get = (key) => settings[key];
@@ -436,8 +436,8 @@
             ];
             const audioOptions = [
                 { value: "off", text: "꺼짐" },
-                { value: "master", text: "master" },
                 { value: "dynamic", text: "dynamic" },
+                { value: "master", text: "master" },
                 { value: "music", text: "music" },
                 { value: "gaming", text: "gaming" },
                 { value: "liveBroadcast", text: "liveBroadcast" },
