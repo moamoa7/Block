@@ -1098,11 +1098,6 @@ poooo.ml##.h30
 ! - ##.ad 복원 - 채팅창 아이콘 사라짐
 poooo.ml#@#.ad
 ! - 기타
-||top-fwz1.mail.ru^
-||tns-counter.ru^
-||apptracer.ru^$3p
-||ok.ru/dk?cmd=videostatnew
-_ads.js?
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
@@ -4585,7 +4580,7 @@ kick.com#@#a[href]:has(img[src*="banner"])
 
 !##[class*="banner"] img
 ! - - - 예외 - https://etoland.co.kr/bbs/board.php?bo_table=squid_chance 이미지 사라짐 / 아래로 바꾸면 배너공간 안남고 사라짐
-##[class*="banner"]:has(img)
+!##[class*="banner"]:has(img)
 ! - - - 예외
 ! - --  https://www.clien.net/ - 댓글 없어짐
 clien.net#@#[class*="banner"]:has(img)
@@ -4606,6 +4601,8 @@ account.live.com#@#[class*="banner"]:has(img)
 vexfile.com#@#[class*="banner"]:has(img)
 ! - https://kamilake.com/ - 페이지 안보임
 kamilake.com#@#[class*="banner"]:has(img)
+! - - - https://ok.ru/ - 페이지 아무것도 안보임
+ok.ru#@#[class*="banner"]:has(img)
 
 
 !##img[src*="/banner/"]
@@ -5041,6 +5038,28 @@ baidu.com#@#[class*="AD"]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ! https://www.weather.go.kr/
 ! https://www.inven.co.kr/
 ! https://tv.naver.com/
@@ -5337,6 +5356,20 @@ poooo.ml#@#[class*="layer"]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 !!! 기본
 ! - - - 기상청 (https://www.weather.go.kr/)
 ! - - - 티비핫 (https://tvhot.store/)
@@ -5435,7 +5468,7 @@ jobkorea.co.kr#@#a[href][target*="blank"]:has(img[src*=".gif"])
 [$domain=/^today-sports\d+.com/]#@#a[href][target*="blank"]:has(img[src*=".gif"])
 ! - https://www.jusocon.com/ - 일부 아이콘 사라짐
 jusocon.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
-https://www.slrclub.com/ - 이미지 안보임
+!- - - https://www.slrclub.com/ - 이미지 안보임
 slrclub.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
 
 
@@ -5850,6 +5883,9 @@ chzzk.naver.com#@#[class*="popup"]
 !ips.go.kr#@#[class*="popup"]
 ! - kbcard.com - 화면 안보임
 kbcard.com#@#[class*="popup"]
+
+
+
 
 !
 !
