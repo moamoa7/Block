@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name Video_Image_Control
-// @namespace https://com/
-// @version 59.2
-// @description AUDIO_PRESETS 수정
-// @match *://*/*
-// @run-at document-end
-// @grant none
+// @name         Video_Image_Control
+// @namespace    https://com/
+// @version      59.3
+// @description  오디오 필터 전체 삭제
+// @match        *://*/*
+// @run-at       document-end
+// @grant        none
 // ==/UserScript==
 
 (function () {
@@ -28,7 +28,6 @@
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 2 : 1,
-        DEFAULT_AUDIO_PRESET: 'off',
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
         THROTTLE_DELAY: 100,
@@ -49,32 +48,20 @@
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] }, },
         FILTER_EXCLUSION_DOMAINS: [],
         IMAGE_FILTER_EXCLUSION_DOMAINS: [],
-        AUDIO_EXCLUSION_DOMAINS: [],
-        AUDIO_PRESETS: {
-            off: { name: '꺼짐', gain: 1, eq: [] },
-            dynamic: { name: 'dynamic', gain: 1.0, eq: [{ freq: 60, gain: 2.0 }, { freq: 150, gain: 2.6 }, { freq: 400, gain: 2.3 }, { freq: 1000, gain: 1.0 }, { freq: 2500, gain: 2.3 }, { freq: 6000, gain: 3.7 }, { freq: 12000, gain: 4.6 }] },
-            master : { name: 'master', gain: 1.05, eq: [{ freq: 60, gain: 1.5 }, { freq: 150, gain: 2.0 }, { freq: 400, gain: 1.8 }, { freq: 1000, gain: 2.2 }, { freq: 3000, gain: 2.0 }, { freq: 6000, gain: 2.0 }, { freq: 12000, gain: 2.2 }] },
-            music: { name: 'music', gain: 1.1, eq: [{ freq: 60, gain: 3.5 }, { freq: 150, gain: 2.5 }, { freq: 400, gain: 1.0 }, { freq: 1000, gain: 1.0 }, { freq: 3000, gain: 2.5 }, { freq: 6000, gain: 3.0 }, { freq: 12000, gain: 4.0 }] },
-            gaming: { name: 'gaming', gain: 1.15, eq: [{ freq: 60, gain: 2.5 }, { freq: 250, gain: -1.0 }, { freq: 1000, gain: 2.5 }, { freq: 2000, gain: 5.0 }, { freq: 4000, gain: 6.0 }, { freq: 8000, gain: 4.5 }, { freq: 12000, gain: 2.0 }] },
-            liveBroadcast: { name: 'liveBroadcast', gain: 1.15, eq: [{ freq: 80, gain: -0.5 }, { freq: 150, gain: 1.5 }, { freq: 400, gain: 1.5 }, { freq: 1500, gain: 3.0 }, { freq: 2500, gain: 3.5 }, { freq: 4000, gain: 2.0 }, { freq: 8000, gain: 1.5 }] },
-            movie: { name: 'movie', gain: 1.2, eq: [{ freq: 80, gain: 4.0 }, { freq: 200, gain: 2.5 }, { freq: 500, gain: 1.5 }, { freq: 1000, gain: 2.0 }, { freq: 3000, gain: 3.0 }, { freq: 6000, gain: 3.0 }, { freq: 10000, gain: 3.0 }] }
-        },
-        MAX_EQ_BANDS: 7
     };
 
     const UI_SELECTORS = {
         HOST: 'vsc-ui-host',
         CONTAINER: 'vsc-container',
         TRIGGER: 'vsc-trigger-button',
-        CONTROL_GROUP: 'vsc-control-group', SUBMENU: 'vsc-submenu', BTN: 'vsc-btn', BTN_MAIN: 'vsc-btn-main', SELECT: 'vsc-select', VIDEO_CONTROLS: 'vsc-video-controls', IMAGE_CONTROLS: 'vsc-image-controls', AUDIO_CONTROLS: 'vsc-audio-controls'
+        CONTROL_GROUP: 'vsc-control-group', SUBMENU: 'vsc-submenu', BTN: 'vsc-btn', BTN_MAIN: 'vsc-btn-main', SELECT: 'vsc-select', VIDEO_CONTROLS: 'vsc-video-controls', IMAGE_CONTROLS: 'vsc-image-controls'
     };
 
     const settingsManager = (() => {
         const settings = {};
         const definitions = {
             videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 5 },
-            imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 5 },
-            audioPreset: { name: '기본 오디오 프리셋', default: CONFIG.DEFAULT_AUDIO_PRESET, type: 'string', options: ['off', 'dynamic', 'master', 'liveBroadcast', 'movie', 'music', 'gaming'] }
+            imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 5 }
         };
         function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
         const get = (key) => settings[key];
@@ -96,11 +83,10 @@
             isMinimized: true,
             currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || 0,
             currentImageFilterLevel: settingsManager.get('imageFilterLevel') || 0,
-            currentAudioMode: settingsManager.get('audioPreset') || 'off',
             ui: { shadowRoot: null, hostElement: null },
             delayCheckInterval: null,
             currentPlaybackRate: 1.0,
-            mediaTypesEverFound: { video: false, audio: false, image: false },
+            mediaTypesEverFound: { video: false, image: false },
             lastUrl: ''
         });
     }
@@ -204,114 +190,6 @@
         (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => imageFilterManager.setSharpenMatrix(newMatrix, root));
         state.activeImages.forEach(image => updateImageFilterState(image));
     }
-
-    const audioManager = (() => {
-        const isAudioDisabledForSite = CONFIG.AUDIO_EXCLUSION_DOMAINS.includes(location.hostname);
-        let ctx = null, masterGain;
-        const eqFilters = [], sourceMap = new WeakMap();
-        function ensureContext() {
-            if (ctx || isAudioDisabledForSite) return;
-            try {
-                ctx = new(window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-                masterGain = ctx.createGain();
-                for (let i = 0; i < CONFIG.MAX_EQ_BANDS; i++) {
-                    const eqFilter = ctx.createBiquadFilter(); eqFilter.type = 'peaking';
-                    eqFilters.push(eqFilter);
-                    if (i > 0) eqFilters[i - 1].connect(eqFilter);
-                }
-                if (eqFilters.length > 0) eqFilters[eqFilters.length - 1].connect(masterGain);
-                masterGain.connect(ctx.destination);
-            } catch (e) {
-                if (CONFIG.DEBUG) console.error("[VSC] AudioContext creation failed:", e);
-                ctx = null;
-            }
-        }
-        function connectMedia(media) {
-            if (!ctx || sourceMap.has(media)) return;
-            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-            try {
-                const source = ctx.createMediaElementSource(media);
-                sourceMap.set(media, { source });
-                const firstNode = eqFilters.length > 0 ? eqFilters[0] : masterGain;
-                source.connect(firstNode);
-            } catch (e) {
-                if (e.name === 'SecurityError') {
-                    console.warn('[VSC] Audio processing failed due to CORS policy. Disabling audio features for this video.');
-                    const audioBtn = uiContainer?.querySelector('#vsc-ui-host')?.shadowRoot.getElementById('vsc-audio-btn');
-                    if (audioBtn) {
-                        audioBtn.disabled = true;
-                        audioBtn.style.opacity = '0.5';
-                        audioBtn.style.cursor = 'not-allowed';
-                        audioBtn.title = '보안 정책(CORS)으로 인해 이 영상의 오디오는 제어할 수 없습니다.';
-                    }
-                    closeContext();
-                } else {
-                    if (CONFIG.DEBUG) console.error('[VSC] Error connecting media:', e);
-                }
-            }
-        }
-        function applyAudioPresetToNodes() {
-            if (!ctx) return;
-            const preset = CONFIG.AUDIO_PRESETS[state.currentAudioMode] || CONFIG.AUDIO_PRESETS.off;
-            const now = ctx.currentTime;
-            const rampTime = 0.05;
-            masterGain.gain.cancelScheduledValues(now);
-            masterGain.gain.linearRampToValueAtTime(preset.gain, now + rampTime);
-            for (let i = 0; i < eqFilters.length; i++) {
-                const band = preset.eq[i];
-                const filter = eqFilters[i];
-                filter.gain.cancelScheduledValues(now);
-                filter.frequency.cancelScheduledValues(now);
-                filter.Q.cancelScheduledValues(now);
-                if (band) {
-                    filter.frequency.setValueAtTime(band.freq, now);
-                    filter.gain.linearRampToValueAtTime(band.gain, now + rampTime);
-                    filter.Q.setValueAtTime(1.41, now);
-                } else {
-                    filter.gain.linearRampToValueAtTime(0, now + rampTime);
-                }
-            }
-        }
-        function processMedia(media) {
-            if (ctx) {
-                connectMedia(media);
-            }
-        }
-        function cleanupMedia(media) {
-            if (!ctx) return;
-            const rec = sourceMap.get(media);
-            if (!rec) return;
-            try { rec.source.disconnect(); } catch (err) {}
-            sourceMap.delete(media);
-        }
-        function setAudioMode(mode) {
-            if (isAudioDisabledForSite || !CONFIG.AUDIO_PRESETS[mode]) return;
-            if (mode === 'off' && !ctx) {
-                state.currentAudioMode = 'off';
-                settingsManager.set('audioPreset', 'off');
-                return;
-            }
-            if (mode !== 'off' && !ctx) {
-                ensureContext();
-                if (!ctx) return;
-                state.activeMedia.forEach(media => connectMedia(media));
-            }
-            state.currentAudioMode = mode;
-            settingsManager.set('audioPreset', mode);
-            applyAudioPresetToNodes();
-        }
-        function suspendContext() { safeExec(() => { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); }); }
-        function resumeContext() { safeExec(() => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); }); }
-        function closeContext() {
-            if (ctx && ctx.state !== 'closed') {
-                ctx.close().then(() => {
-                    ctx = null;
-                    eqFilters.length = 0;
-                }).catch(() => { ctx = null; });
-            }
-        }
-        return { processMedia, cleanupMedia, setAudioMode, getAudioMode: () => state.currentAudioMode, suspendContext, resumeContext, closeContext };
-    })();
 
     const uiManager = (() => {
         const styleRules = [
@@ -434,22 +312,12 @@
                 { value: "0", text: "꺼짐" },
                 ...Array.from({ length: settingsManager.definitions.imageFilterLevel.max }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))
             ];
-            const audioOptions = [
-                { value: "off", text: "꺼짐" },
-                { value: "dynamic", text: "dynamic" },
-                { value: "master", text: "master" },
-                { value: "music", text: "music" },
-                { value: "gaming", text: "gaming" },
-                { value: "liveBroadcast", text: "liveBroadcast" },
-                { value: "movie", text: "movie" }
-            ];
 
             const videoControlGroup = createFilterControl('vsc-video-controls', '영상 선명도', '✨', setVideoFilterLevel, videoOptions);
             const imageControlGroup = createFilterControl('vsc-image-controls', '이미지 선명도', '🎨', setImageFilterLevel, imageOptions);
-            const audioControlGroup = createFilterControl('vsc-audio-controls', '오디오 EQ', '🎧', audioManager.setAudioMode, audioOptions);
 
-            container.append(imageControlGroup, videoControlGroup, audioControlGroup);
-            const controlGroups = [videoControlGroup, imageControlGroup, audioControlGroup];
+            container.append(imageControlGroup, videoControlGroup);
+            const controlGroups = [videoControlGroup, imageControlGroup];
             hideAllSubMenus = () => {
                 controlGroups.forEach(group => group.classList.remove('submenu-visible'));
             };
@@ -464,15 +332,12 @@
             };
             videoControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, videoControlGroup));
             imageControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, imageControlGroup));
-            audioControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, audioControlGroup));
 
             const updateActiveButtons = () => {
                 const videoSelect = shadowRoot.querySelector('#vsc-video-controls select');
                 if (videoSelect) videoSelect.value = state.currentVideoFilterLevel;
                 const imageSelect = shadowRoot.querySelector('#vsc-image-controls select');
                 if (imageSelect) imageSelect.value = state.currentImageFilterLevel;
-                const audioSelect = shadowRoot.querySelector('#vsc-audio-controls select');
-                if (audioSelect) audioSelect.value = state.currentAudioMode;
             };
 
             container.addEventListener('pointerdown', resetFadeTimer);
@@ -729,8 +594,8 @@
     }
 
     const mediaEventHandlers = {
-        play: e => { const m = e.target; audioManager.resumeContext(); if (m.tagName === 'VIDEO') updateVideoFilterState(m); mediaSessionManager.setSession(m); },
-        pause: e => { const m = e.target; audioManager.suspendContext(); if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).filter(med => !med.paused).length === 0) mediaSessionManager.clearSession(); },
+        play: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); mediaSessionManager.setSession(m); },
+        pause: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).filter(med => !med.paused).length === 0) mediaSessionManager.clearSession(); },
         ended: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).filter(med => !med.paused).length === 0) mediaSessionManager.clearSession(); },
         ratechange: e => { updateActiveSpeedButton(e.target.playbackRate); },
     };
@@ -751,7 +616,6 @@
     function attachMediaListeners(media) {
         if (!media || state.processedMedia.has(media) || !intersectionObserver) return;
         if (media.tagName === 'VIDEO') injectFiltersIntoRoot(media, filterManager);
-        audioManager.processMedia(media);
         const listeners = {};
         for (const [evt, handler] of Object.entries(mediaEventHandlers)) { listeners[evt] = handler; media.addEventListener(evt, handler); }
         state.mediaListenerMap.set(media, listeners);
@@ -768,7 +632,6 @@
         if (!state.mediaListenerMap.has(media)) return;
         const listeners = state.mediaListenerMap.get(media);
         for (const [evt, listener] of Object.entries(listeners)) media.removeEventListener(evt, listener);
-        audioManager.cleanupMedia(media);
         state.mediaListenerMap.delete(media);
         if (intersectionObserver) intersectionObserver.unobserve(media);
     }
@@ -796,7 +659,6 @@
         const root = state.ui?.shadowRoot;
         if (root) {
             const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
-            const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO') || hasVideo;
             const hasImage = state.activeImages.size > 0;
 
             if (speedButtonsContainer) {
@@ -804,7 +666,6 @@
             }
 
             if (hasVideo) state.mediaTypesEverFound.video = true;
-            if (hasAudio) state.mediaTypesEverFound.audio = true;
             if (hasImage) state.mediaTypesEverFound.image = true;
             filterManager.toggleStyleSheet(state.mediaTypesEverFound.video);
             imageFilterManager.toggleStyleSheet(state.mediaTypesEverFound.image);
@@ -813,7 +674,6 @@
                 if (el) el.style.display = visible ? 'flex' : 'none';
             };
             setDisplay('vsc-video-controls', hasVideo);
-            setDisplay('vsc-audio-controls', hasAudio);
             setDisplay('vsc-image-controls', hasImage);
         }
     };
@@ -851,7 +711,6 @@
             });
             filterManager.toggleStyleSheet(false);
             imageFilterManager.toggleStyleSheet(false);
-            audioManager.setAudioMode('off');
             if (state.ui?.hostElement) state.ui.hostElement.remove();
             if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
             const filterControls = state.ui?.shadowRoot?.getElementById('vsc-container');
@@ -934,18 +793,12 @@
         mediaSessionManager.init();
         ensureObservers();
 
-        const hasMedia = findAllMedia().length > 0;
-        if (hasMedia) {
-            showWarningMessage("주의: 일부 영상은 오디오 필터 적용 시 CORS 보안 정책으로 인해 무음 처리될 수 있습니다.");
-        }
-
         autoDelayManager.start();
 
         speedSlider.renderControls();
         speedSlider.show();
         setVideoFilterLevel(state.currentVideoFilterLevel);
         setImageFilterLevel(state.currentImageFilterLevel);
-        audioManager.setAudioMode(state.currentAudioMode);
         scheduleIdleTask(scanAndApply);
         const initialRate = state.activeMedia.size > 0 ? Array.from(state.activeMedia)[0].playbackRate : 1.0;
         updateActiveSpeedButton(initialRate);
@@ -1195,10 +1048,8 @@
                 visibilityChangeListener = () => {
                     if (document.hidden) {
                         document.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(v => v.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active'));
-                        audioManager.suspendContext();
                     } else {
                         scheduleIdleTask(scanAndApply);
-                        audioManager.resumeContext();
                     }
                 };
                 document.addEventListener('visibilitychange', visibilityChangeListener);
