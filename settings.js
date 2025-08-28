@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      59.3
-// @description  오디오 필터 전체 삭제
+// @version      59.4
+// @description  번개 아이콘 2초 대기 없음 / cleanup함수 초기화 문제로 비디오 필터 미적용 문제 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -71,6 +71,7 @@
 
     settingsManager.init();
     const state = {};
+    resetState()
     function resetState() {
         Object.keys(state).forEach(key => delete state[key]);
         Object.assign(state, {
@@ -1130,9 +1131,9 @@
 
     if (!isExcluded()) {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => setTimeout(initializeGlobalUI, 2000));
+            document.addEventListener('DOMContentLoaded', () => setTimeout(initializeGlobalUI, 0));
         } else {
-            setTimeout(initializeGlobalUI, 2000);
+            setTimeout(initializeGlobalUI, 0);
         }
     }
 })();
