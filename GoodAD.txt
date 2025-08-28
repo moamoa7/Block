@@ -4447,6 +4447,8 @@ xfree.com#@#[class^="ad"]
 ||*/*/ad-*
 ! - 예외 (레딧 시간흐름 및 댓글 안보임 해결 - 스크립트 차단 문제)
 @@||redditstatic.com/*/ad-*$script
+! - 예외 (틱톡 .js)
+@@/ad-violation-*
 ||*/*/ad-*/*
 ! - 예외 (텍스트 안보임 해결)
 @@github.com*$xhr
