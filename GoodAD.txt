@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250823
+! Version: 20250828
 !
 !
 !
@@ -309,11 +309,11 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 !
 ! 트위치 (https://www.twitch.tv/)
 ! - 상단 안내 문구
-twitch.tv##.jsWNyu.Layout-sc-1xcs6mc-0
+twitch.tv##.kfZRQZ.Layout-sc-1xcs6mc-0
 ! - 하단 회원가입 안내 문구
 twitch.tv###twilight-sticky-footer-root
 ! - 콤보 안내 문구
-twitch.tv##.react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
+twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 기타
 ! - 광고?
 !||*.ads.*
@@ -4498,10 +4498,11 @@ xfree.com#@#[class^="ad"]
 !||*/*/popup/*
 !||*/*/popup*
 ||*/*/*popup*
+@@/*/*popup*
 ! - 에외 (디시인사이드 약간 깨짐) (옥션 주문상세팝업 안뜸)
 @@||*/*/*popup*$css,script
 ! - - - 와우 멤버쉽 탈퇴하고자 팝업 눌럿을때 팝업에 아무것도 안나옴
-@@||*/*/*popup*$frame,domain=loyalty.coupang.com
+@@||*/*/*popup*$frame,domain=loyalty.coupang.com|escrow.auction.co.kr
 ! - https://www.ips.go.kr/ - 로그인 차단
 @@||*/*/*popup*.hbs
 !||*/*/popup*/*
