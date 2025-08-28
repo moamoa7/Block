@@ -2,7 +2,7 @@
 // @name         Video_Image_Control
 // @namespace    https://com/
 // @version      59.7
-// @description  이미지 사이즈 제한 - 355 재설정
+// @description  이미지 사이즈 제한 - 355px 재설정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -27,7 +27,7 @@
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 2 : 1,
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
         THROTTLE_DELAY: 100,
@@ -44,7 +44,7 @@
         SPECIFIC_EXCLUSIONS: [],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 110 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.2', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 110 },
-        IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
+        IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0.3', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] }, },
         FILTER_EXCLUSION_DOMAINS: [],
         IMAGE_FILTER_EXCLUSION_DOMAINS: [],
