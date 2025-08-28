@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      59.4
-// @description  번개 아이콘 2초 대기 없음 / cleanup함수 초기화 문제로 비디오 필터 미적용 문제 해결
+// @version      59.5
+// @description  이미지 사이즈 제한 없앰
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -34,7 +34,7 @@
         MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05,
         SEEK_TIME_MAX_SEC: 15,
-        IMAGE_MIN_SIZE: 335,
+        IMAGE_MIN_SIZE: 0,
         VIDEO_MIN_SIZE: 0,
         SPEED_PRESETS: [4, 2, 1.5, 1, 0.2],
         UI_DRAG_THRESHOLD: 5,
