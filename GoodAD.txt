@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      59.4
-// @description  번개 아이콘 2초 대기 없음 / cleanup함수 초기화 문제로 비디오 필터 미적용 문제 해결
+// @version      59.5
+// @description  이미지 사이즈 제한 없앰
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -27,7 +27,7 @@
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 4 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
         THROTTLE_DELAY: 100,
