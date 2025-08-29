@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      60.0
-// @description  실시간 딜레이 조정 - 2000으로 재설정
+// @version      60.1
+// @description  실시간 딜미터기 조정 - 5회 측정 후 딜미터기 보이는 걸로 수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -488,7 +488,10 @@
 
             const newRate = getPlaybackRate(avgDelay);
             adjustPlaybackRate(video, newRate);
+            //displayDelayInfo(avgDelay, rawDelay);
+            if (delayHistory.length >= 5) { // 측정값이 5개 이상 쌓이면 표시
             displayDelayInfo(avgDelay, rawDelay);
+            }
         }
 
         function setupIntersectionObserver() {
@@ -920,7 +923,7 @@
             speedButtonsContainer.id = 'vsc-speed-buttons-container';
             Object.assign(speedButtonsContainer.style, {
                 display: 'none', flexDirection: 'column', gap: '5px', alignItems: 'center',
-                opacity: '0.3'
+                opacity: '0.7'
             });
 
             CONFIG.SPEED_PRESETS.forEach(speed => {
