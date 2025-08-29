@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control
+// @name         Video_Image_Control (with Audio Tuner)
 // @namespace    https://com/
-// @version      61.2 (HPF for Clarity)
-// @description  Added High-Pass Filter to the stereo effect to prevent muddiness. Audio mixing method.
+// @version      62.0 (Integrated Tuner)
+// @description  All-in-one script with real-time Delay/HPF sliders for the stereo widening effect.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -47,7 +47,7 @@
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_STEREO_WIDENING_ENABLED: false,
         STEREO_WIDENING_DELAY_MS: 25,
-        STEREO_HPF_FREQUENCY: 120, // ★★★ 스테레오 효과 저음 차단 필터 (Hz), 높이면 저음이 더 많이 제거됨
+        STEREO_HPF_FREQUENCY: 120,
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
         THROTTLE_DELAY: 100,
@@ -115,8 +115,11 @@
             isMinimized: true,
             currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || 0,
             currentImageFilterLevel: settingsManager.get('imageFilterLevel') || 0,
-            isStereoWideningEnabled: CONFIG.DEFAULT_STEREO_WIDENING_ENABLED, // 스테레오 확장 상태 추가
-            audioContextMap: new WeakMap(), // 오디오 컨텍스트 저장용 WeakMap 추가
+            isStereoWideningEnabled: CONFIG.DEFAULT_STEREO_WIDENING_ENABLED,
+            audioContextMap: new WeakMap(),
+            // 오디오 튜너의 현재 상태를 저장
+            currentDelayMs: CONFIG.STEREO_WIDENING_DELAY_MS,
+            currentHpfHz: CONFIG.STEREO_HPF_FREQUENCY,
             ui: { shadowRoot: null, hostElement: null },
             delayCheckInterval: null,
             currentPlaybackRate: 1.0,
@@ -199,87 +202,65 @@
     const filterManager = new SvgFilterManager({ settings: isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', matrixId: 'vsc-dynamic-convolve-matrix', className: 'vsc-video-filter-active' });
     const imageFilterManager = new SvgFilterManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
 
-    // =================================================================================
-    // ★★★★★ 스테레오 확장 관리자 (Stereo Widening Manager) - HPF 필터 추가됨 ★★★★★
-    // =================================================================================
     const stereoWideningManager = (() => {
-        const WIDENING_DELAY_SEC = CONFIG.STEREO_WIDENING_DELAY_MS / 1000;
-
         function createAudioGraph(media) {
             const context = new (window.AudioContext || window.webkitAudioContext)();
             const source = context.createMediaElementSource(media);
 
-            // 노드 생성
             const dryGain = context.createGain();
             const wetGain = context.createGain();
             const splitter = context.createChannelSplitter(2);
             const merger = context.createChannelMerger(2);
             const delay = context.createDelay();
-            const hpf = context.createBiquadFilter(); // High-Pass Filter 추가
+            const hpf = context.createBiquadFilter();
 
-            // 초기값 설정
-            delay.delayTime.value = WIDENING_DELAY_SEC;
+            // 초기값 설정 (전역 state에서 현재 튜너 값을 가져옴)
+            delay.delayTime.value = state.currentDelayMs / 1000;
             dryGain.gain.value = 1.0;
-            wetGain.gain.value = 0.0;
-
-            // HPF 필터 설정
+            wetGain.gain.value = state.isStereoWideningEnabled ? 1.0 : 0.0;
             hpf.type = 'highpass';
-            hpf.frequency.value = CONFIG.STEREO_HPF_FREQUENCY; // 설정값에서 주파수 가져오기
-            hpf.Q.value = 0.7; // 일반적인 Q값
+            hpf.frequency.value = state.currentHpfHz;
+            hpf.Q.value = 0.7;
 
-            // 1. 원본(Dry) 경로: 소스 -> Dry 게인 -> 최종 출력
             source.connect(dryGain).connect(context.destination);
-
-            // 2. 효과(Wet) 경로: 소스 -> 분리 -> 딜레이 -> 합치기 -> ★HPF 필터★ -> Wet 게인 -> 최종 출력
             source.connect(splitter);
             splitter.connect(delay, 0);
             splitter.connect(merger, 1, 1);
             delay.connect(merger, 0, 0);
-            merger.connect(hpf).connect(wetGain).connect(context.destination); // merger 다음에 hpf 연결
+            merger.connect(hpf).connect(wetGain).connect(context.destination);
 
-            const nodes = { context, source, dryGain, wetGain };
+            const nodes = { context, source, dryGain, wetGain, delay, hpf };
             state.audioContextMap.set(media, nodes);
             return nodes;
         }
 
         function apply(media) {
-            if (media.tagName !== 'VIDEO' && media.tagName !== 'AUDIO') return;
             let nodes = state.audioContextMap.get(media);
             if (!nodes) {
                 try {
                     if (media.HAVE_CURRENT_DATA) {
                        nodes = createAudioGraph(media);
                     } else {
-                        media.addEventListener('canplay', () => {
-                           if (!state.audioContextMap.has(media)) createAudioGraph(media);
-                        }, { once: true });
+                        media.addEventListener('canplay', () => !state.audioContextMap.has(media) && createAudioGraph(media), { once: true });
                         return;
                     }
-                } catch (e) {
-                    console.error('[VSC] 오디오 그래프 생성 실패:', e);
-                    return;
-                }
+                } catch (e) { console.error('[VSC] 오디오 그래프 생성 실패:', e); return; }
             }
-            if (nodes.context.state === 'suspended') {
-                nodes.context.resume();
-            }
+            if (nodes.context.state === 'suspended') nodes.context.resume();
             nodes.wetGain.gain.setValueAtTime(1, nodes.context.currentTime);
         }
 
         function remove(media) {
-            let nodes = state.audioContextMap.get(media);
-            if (!nodes) return;
-            nodes.wetGain.gain.setValueAtTime(0, nodes.context.currentTime);
+            const nodes = state.audioContextMap.get(media);
+            if (nodes) nodes.wetGain.gain.setValueAtTime(0, nodes.context.currentTime);
         }
 
         function cleanupForMedia(media) {
-            let nodes = state.audioContextMap.get(media);
+            const nodes = state.audioContextMap.get(media);
             if (nodes) {
                 safeExec(() => {
                     nodes.source.disconnect();
-                    if (nodes.context.state !== 'closed') {
-                        nodes.context.close();
-                    }
+                    if (nodes.context.state !== 'closed') nodes.context.close();
                 });
                 state.audioContextMap.delete(media);
             }
@@ -290,17 +271,9 @@
 
     function setStereoWideningEnabled(enabled) {
         state.isStereoWideningEnabled = !!enabled;
-
-        const btn = state.ui.shadowRoot?.getElementById('vsc-stereo-btn');
+        const btn = state.ui.shadowRoot?.getElementById('vsc-stereo-toggle');
         if (btn) btn.classList.toggle('active', state.isStereoWideningEnabled);
-
-        state.activeMedia.forEach(media => {
-            if (state.isStereoWideningEnabled) {
-                stereoWideningManager.apply(media);
-            } else {
-                stereoWideningManager.remove(media);
-            }
-        });
+        state.activeMedia.forEach(media => state.isStereoWideningEnabled ? stereoWideningManager.apply(media) : stereoWideningManager.remove(media));
     }
 
     function setVideoFilterLevel(level) {
@@ -312,9 +285,7 @@
         const newMatrix = calculateSharpenMatrix(state.currentVideoFilterLevel);
         filterManager.setSharpenMatrix(newMatrix);
         (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => filterManager.setSharpenMatrix(newMatrix, root));
-        state.activeMedia.forEach(media => {
-            if (media.tagName === 'VIDEO') updateVideoFilterState(media);
-        });
+        state.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') updateVideoFilterState(media); });
     }
 
     function setImageFilterLevel(level) {
@@ -337,14 +308,15 @@
             '#vsc-container.touched { opacity: 1; }',
             '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
             '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(26px, 5.5vmin, 32px); width: clamp(28px, 6vmin, 34px); position: relative; }',
-            '.vsc-submenu { display: none; flex-direction: row; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(5px, 1vmin, 8px); align-items: center; }',
+            '.vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(8px, 1.5vmin, 12px); gap: clamp(8px, 1.5vmin, 12px); width: 200px; }',
             '.vsc-control-group.submenu-visible .vsc-submenu { display: flex; }',
             '.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(12px, 2vmin, 14px); }',
             '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
-            '.vsc-submenu .vsc-btn { min-width: auto; font-size: clamp(13px, 2.5vmin, 15px); padding: clamp(2px, 0.5vmin, 4px) clamp(4px, 1vmin, 6px); margin: 0 clamp(2px, 0.4vmin, 3px); }',
             '.vsc-btn-main { font-size: clamp(15px, 3vmin, 18px); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
             '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); }',
-            '.vsc-loading-indicator { font-size: 16px; color: white; width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
+            '.slider-control { display: flex; flex-direction: column; gap: 5px; }',
+            '.slider-control label { display: flex; justify-content: space-between; font-size: 13px; color: white; }',
+            'input[type=range] { width: 100%; margin: 0; }'
         ];
         function init() {
             if (state.ui.hostElement) return;
@@ -358,10 +330,7 @@
             state.ui.shadowRoot.appendChild(style);
         }
         function reset() {}
-        return {
-            init: () => safeExec(init, 'uiManager.init'),
-            reset: () => safeExec(reset, 'uiManager.reset'),
-        };
+        return { init: () => safeExec(init, 'uiManager.init'), reset: () => safeExec(reset, 'uiManager.reset') };
     })();
 
     const speedSlider = (() => {
@@ -374,9 +343,7 @@
             container.classList.remove('touched');
             container.style.opacity = '0.3';
         }
-        function reset() {
-            inited = false;
-        }
+        function reset() { inited = false; }
         const createButton = (id, title, text, className = 'vsc-btn') => {
             const btn = document.createElement('button');
             if (id) btn.id = id;
@@ -407,104 +374,121 @@
             if (!shadowRoot) return;
             const container = shadowRoot.getElementById('vsc-container');
             if (!container || container.dataset.rendered) return;
-            while (container.firstChild) {
-                container.removeChild(container.firstChild);
-            }
+            container.innerHTML = '';
             container.dataset.rendered = 'true';
-            const createFilterControl = (id, labelText, mainIcon, changeHandler, options) => {
+
+            // --- 헬퍼 함수 ---
+            const createControlGroup = (id, mainIcon, title) => {
                 const group = document.createElement('div');
                 group.id = id;
                 group.className = 'vsc-control-group';
-                const mainBtn = createButton(null, labelText, mainIcon, 'vsc-btn vsc-btn-main');
+                const mainBtn = createButton(null, title, mainIcon, 'vsc-btn vsc-btn-main');
                 const subMenu = document.createElement('div');
                 subMenu.className = 'vsc-submenu';
+                group.append(mainBtn, subMenu);
+                return { group, mainBtn, subMenu };
+            };
+
+            const createSelectControl = (labelText, options, changeHandler) => {
                 const select = document.createElement('select');
                 select.className = 'vsc-select';
-                const disabledOption = document.createElement('option');
-                disabledOption.value = "";
-                disabledOption.textContent = labelText;
+                const disabledOption = new Option(labelText, "", true, true);
                 disabledOption.disabled = true;
-                disabledOption.selected = true;
-                select.appendChild(disabledOption);
-                options.forEach(opt => {
-                    const option = document.createElement('option');
-                    option.value = opt.value;
-                    option.textContent = opt.text;
-                    select.appendChild(option);
-                });
+                select.add(disabledOption);
+                options.forEach(opt => select.add(new Option(opt.text, opt.value)));
                 select.addEventListener('change', e => {
                     changeHandler(e.target.value);
-                    clearTimeout(fadeOutTimer);
                     startFadeSequence();
                 });
-                subMenu.appendChild(select);
-                group.append(mainBtn, subMenu);
-                return group;
+                return select;
             };
 
-            const videoOptions = [
-                { value: "0", text: "꺼짐" },
-                ...Array.from({ length: settingsManager.definitions.videoFilterLevel.max }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))
-            ];
-            const imageOptions = [
-                { value: "0", text: "꺼짐" },
-                ...Array.from({ length: settingsManager.definitions.imageFilterLevel.max }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))
-            ];
-
-            const videoControlGroup = createFilterControl('vsc-video-controls', '영상 선명도', '✨', setVideoFilterLevel, videoOptions);
-            const imageControlGroup = createFilterControl('vsc-image-controls', '이미지 선명도', '🎨', setImageFilterLevel, imageOptions);
-
-            // 스테레오 확장 버튼 추가
-            const stereoControlGroup = document.createElement('div');
-            stereoControlGroup.id = 'vsc-stereo-controls';
-            stereoControlGroup.className = 'vsc-control-group';
-            const stereoBtn = createButton('vsc-stereo-btn', '스테레오 확장', '🎧', 'vsc-btn vsc-btn-main');
-            if (state.isStereoWideningEnabled) stereoBtn.classList.add('active');
-            stereoBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                setStereoWideningEnabled(!state.isStereoWideningEnabled);
-                resetFadeTimer();
-            });
-            stereoControlGroup.appendChild(stereoBtn);
-
-            container.append(imageControlGroup, videoControlGroup, stereoControlGroup);
-            const controlGroups = [videoControlGroup, imageControlGroup];
-            hideAllSubMenus = () => {
-                controlGroups.forEach(group => group.classList.remove('submenu-visible'));
+            const createSliderControl = (label, id, min, max, step, value, unit) => {
+                const controlDiv = document.createElement('div');
+                controlDiv.className = 'slider-control';
+                const labelEl = document.createElement('label');
+                const valueSpan = document.createElement('span');
+                valueSpan.id = `${id}Val`;
+                valueSpan.textContent = `${value}${unit}`;
+                labelEl.textContent = `${label}: `;
+                labelEl.appendChild(valueSpan);
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.id = id;
+                slider.min = min; slider.max = max; slider.step = step; slider.value = value;
+                controlDiv.append(labelEl, slider);
+                return { controlDiv, slider, valueSpan };
             };
+
+            // --- 컨트롤 생성 ---
+            const videoOptions = [{ value: "0", text: "꺼짐" }, ...Array.from({ length: 5 }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))];
+            const imageOptions = [{ value: "0", text: "꺼짐" }, ...Array.from({ length: 5 }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))];
+
+            const { group: imageGroup, subMenu: imageSubMenu } = createControlGroup('vsc-image-controls', '🎨', '이미지 선명도');
+            imageSubMenu.appendChild(createSelectControl('이미지 선명도', imageOptions, setImageFilterLevel));
+
+            const { group: videoGroup, subMenu: videoSubMenu } = createControlGroup('vsc-video-controls', '✨', '영상 선명도');
+            videoSubMenu.appendChild(createSelectControl('영상 선명도', videoOptions, setVideoFilterLevel));
+
+            const { group: stereoGroup, subMenu: stereoSubMenu } = createControlGroup('vsc-stereo-controls', '🎧', '스테레오 확장');
+
+            // 튜너 UI 생성
+            const toggleBtn = createButton('vsc-stereo-toggle', '효과 ON/OFF', '효과 켜기', 'vsc-btn');
+            toggleBtn.style.width = '100%';
+            toggleBtn.onclick = () => setStereoWideningEnabled(!state.isStereoWideningEnabled);
+
+            const delaySlider = createSliderControl('Delay', 'delaySlider', 0, 40, 1, state.currentDelayMs, 'ms');
+            delaySlider.slider.oninput = () => {
+                const val = parseFloat(delaySlider.slider.value);
+                state.currentDelayMs = val;
+                delaySlider.valueSpan.textContent = `${val}ms`;
+                for (const nodes of state.audioContextMap.values()) {
+                    if (nodes.delay) nodes.delay.delayTime.value = val / 1000;
+                }
+            };
+
+            const hpfSlider = createSliderControl('HPF', 'hpfSlider', 50, 500, 10, state.currentHpfHz, 'Hz');
+            hpfSlider.slider.oninput = () => {
+                const val = parseFloat(hpfSlider.slider.value);
+                state.currentHpfHz = val;
+                hpfSlider.valueSpan.textContent = `${val}Hz`;
+                for (const nodes of state.audioContextMap.values()) {
+                    if (nodes.hpf) nodes.hpf.frequency.value = val;
+                }
+            };
+
+            stereoSubMenu.append(toggleBtn, delaySlider.controlDiv, hpfSlider.controlDiv);
+            container.append(imageGroup, videoGroup, stereoGroup);
+
+            // 메뉴 상호작용
+            const allGroups = [imageGroup, videoGroup, stereoGroup];
+            hideAllSubMenus = () => allGroups.forEach(g => g.classList.remove('submenu-visible'));
             const handleMenuButtonClick = (e, groupToShow) => {
                 e.stopPropagation();
                 const isOpening = !groupToShow.classList.contains('submenu-visible');
                 hideAllSubMenus();
-                if (isOpening) {
-                    groupToShow.classList.add('submenu-visible');
-                }
+                if (isOpening) groupToShow.classList.add('submenu-visible');
                 resetFadeTimer();
             };
-            videoControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, videoControlGroup));
-            imageControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, imageControlGroup));
+            allGroups.forEach(g => g.querySelector('.vsc-btn-main').onclick = (e) => handleMenuButtonClick(e, g));
 
             const updateActiveButtons = () => {
-                const videoSelect = shadowRoot.querySelector('#vsc-video-controls select');
-                if (videoSelect) videoSelect.value = state.currentVideoFilterLevel;
-                const imageSelect = shadowRoot.querySelector('#vsc-image-controls select');
-                if (imageSelect) imageSelect.value = state.currentImageFilterLevel;
-                const stereoButton = shadowRoot.querySelector('#vsc-stereo-btn');
-                if (stereoButton) stereoButton.classList.toggle('active', state.isStereoWideningEnabled);
+                shadowRoot.querySelector('#vsc-image-controls select').value = state.currentImageFilterLevel;
+                shadowRoot.querySelector('#vsc-video-controls select').value = state.currentVideoFilterLevel;
+                const stereoToggle = shadowRoot.getElementById('vsc-stereo-toggle');
+                if (stereoToggle) {
+                    stereoToggle.classList.toggle('active', state.isStereoWideningEnabled);
+                    stereoToggle.textContent = state.isStereoWideningEnabled ? '효과 켜짐' : '효과 꺼짐';
+                }
             };
-
             container.addEventListener('pointerdown', resetFadeTimer);
             updateActiveButtons();
         }
         return {
-            init: () => safeExec(init, 'speedSlider.init'),
-            reset: () => safeExec(reset, 'speedSlider.reset'),
-            renderControls: () => safeExec(renderControls, 'speedSlider.renderControls'),
+            init: () => safeExec(init, 'speedSlider.init'), reset: () => safeExec(reset, 'speedSlider.reset'), renderControls: () => safeExec(renderControls, 'speedSlider.renderControls'),
             show: () => { const el = state.ui.shadowRoot?.getElementById('vsc-container'); if (el) { el.style.display = 'flex'; resetFadeTimer(); } },
             hide: () => { const el = state.ui.shadowRoot?.getElementById('vsc-container'); if (el) el.style.display = 'none'; },
-            clearFadeTimer: () => clearTimeout(fadeOutTimer),
-            doFade: startFadeSequence,
-            resetFadeTimer: resetFadeTimer
+            doFade: startFadeSequence, resetFadeTimer: resetFadeTimer
         };
     })();
 
@@ -807,9 +791,7 @@
         oldMedia.forEach(detachMediaListeners);
         allMedia.forEach(m => {
             if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); }
-            if (state.isStereoWideningEnabled) { // 스캔 시 스테레오 효과 적용
-                stereoWideningManager.apply(m);
-            }
+            if (state.isStereoWideningEnabled) { stereoWideningManager.apply(m); }
         });
         const allImages = findAllImages();
         allImages.forEach(attachImageListeners);
@@ -839,7 +821,7 @@
             };
             setDisplay('vsc-video-controls', hasVideo);
             setDisplay('vsc-image-controls', hasImage);
-            setDisplay('vsc-stereo-controls', hasAnyMedia); // 오디오/비디오가 있을 때 스테레오 버튼 표시
+            setDisplay('vsc-stereo-controls', hasAnyMedia);
         }
     };
 
@@ -852,7 +834,6 @@
         safeExec(() => {
             if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
             if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
-            // [SPA 지원 강화] titleObserver 정리 로직 추가
             if (titleObserver) { titleObserver.disconnect(); titleObserver = null; }
 
             globalUIManager.cleanupGlobalListeners();
@@ -866,7 +847,7 @@
             }
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
-            setStereoWideningEnabled(false); // 스테레오 효과 비활성화 및 정리
+            setStereoWideningEnabled(false);
             setVideoFilterLevel(0);
             setImageFilterLevel(0);
             const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
@@ -958,32 +939,26 @@
         speedSlider.init();
         mediaSessionManager.init();
         ensureObservers();
-
         autoDelayManager.start();
-
         speedSlider.renderControls();
         speedSlider.show();
         setVideoFilterLevel(state.currentVideoFilterLevel);
         setImageFilterLevel(state.currentImageFilterLevel);
-        setStereoWideningEnabled(state.isStereoWideningEnabled); // 초기 상태 적용
+        setStereoWideningEnabled(state.isStereoWideningEnabled);
         scheduleIdleTask(scanAndApply);
         const initialRate = state.activeMedia.size > 0 ? Array.from(state.activeMedia)[0].playbackRate : 1.0;
         updateActiveSpeedButton(initialRate);
 
-        // [SPA 지원 강화] 타이틀 변경 감지 Observer 시작
         if (!titleObserver) {
             const titleElement = document.querySelector('head > title');
             if (titleElement) {
                 titleObserver = new MutationObserver(() => {
                     const activeVideo = Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO' && !m.paused);
-                    if (activeVideo) {
-                        mediaSessionManager.setSession(activeVideo);
-                    }
+                    if (activeVideo) mediaSessionManager.setSession(activeVideo);
                 });
                 titleObserver.observe(titleElement, { childList: true });
             }
         }
-
         isInitialized = true;
         if (CONFIG.DEBUG) console.log("🎉 Video_Image_Control initialized.");
     }
@@ -1029,16 +1004,12 @@
         hideTimeout = setTimeout(removeWarning, CONFIG.UI_WARN_TIMEOUT);
     }
 
-    // =================================================================================
-    // 4. 전역 UI 관리자 (Global UI Manager)
-    // =================================================================================
     const globalUIManager = (() => {
         let isDragging = false, wasDragged = false;
         let startPos = { x: 0, y: 0 }, translatePos = { x: 0, y: 0 }, startRect = null;
 
         let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null;
 
-        // [풀스크린 자동 스냅] clampTranslate 함수를 attachDragAndDrop 밖으로 이동
         const clampTranslate = () => {
             if (!uiContainer) return;
             const rect = uiContainer.getBoundingClientRect();
@@ -1108,10 +1079,7 @@
                     const newSpeed = parseFloat(btn.dataset.speed);
                     state.activeMedia.forEach(media => safeExec(() => { media.playbackRate = newSpeed; }));
                     updateActiveSpeedButton(newSpeed);
-                    if (speedSlider.clearFadeTimer && speedSlider.doFade) {
-                        speedSlider.clearFadeTimer();
-                        speedSlider.doFade();
-                    }
+                    if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
                 });
                 speedButtonsContainer.appendChild(btn);
             });
@@ -1139,21 +1107,17 @@
                     triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.5)';
                 }
             }
-            if (speedSlider.resetFadeTimer) {
-                speedSlider.resetFadeTimer();
-            }
+            if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
         }
 
         function attachDragAndDrop() {
             const onDragStart = (e) => {
                 if (!e.composedPath().includes(uiContainer)) return;
-                isDragging = true;
-                wasDragged = false;
+                isDragging = true; wasDragged = false;
                 const pos = e.touches ? e.touches[0] : e;
                 startPos = { x: pos.clientX, y: pos.clientY };
                 startRect = uiContainer.getBoundingClientRect();
-                uiContainer.style.transition = 'none';
-                uiContainer.style.cursor = 'grabbing';
+                uiContainer.style.transition = 'none'; uiContainer.style.cursor = 'grabbing';
                 document.body.style.userSelect = 'none';
                 document.addEventListener('mousemove', onDragMove, { passive: false });
                 document.addEventListener('mouseup', onDragEnd, { passive: true });
@@ -1190,17 +1154,14 @@
                     translatePos.y = parseFloat(matches[2]);
                 }
                 isDragging = false;
-                uiContainer.style.transition = '';
-                uiContainer.style.cursor = 'pointer';
+                uiContainer.style.transition = ''; uiContainer.style.cursor = 'pointer';
                 document.body.style.userSelect = '';
                 document.removeEventListener('mousemove', onDragMove);
                 document.removeEventListener('mouseup', onDragEnd);
                 document.removeEventListener('touchmove', onDragMove);
                 document.removeEventListener('touchend', onDragEnd);
                 setTimeout(() => { wasDragged = false; }, 0);
-                if (speedSlider.resetFadeTimer) {
-                    speedSlider.resetFadeTimer();
-                }
+                if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
             };
 
             uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
@@ -1226,14 +1187,14 @@
                     const targetRoot = document.fullscreenElement || document.body;
                     if (uiContainer) {
                         targetRoot.appendChild(uiContainer);
-                        setTimeout(clampTranslate, 100); // DOM 변경 후 좌표 계산을 위해 약간의 딜레이
+                        setTimeout(clampTranslate, 100);
                     }
                 };
                 document.addEventListener('fullscreenchange', fullscreenChangeListener);
             }
             if (!beforeUnloadListener) {
                 beforeUnloadListener = () => {
-                    if(uiContainer) uiContainer.remove();
+                    if (uiContainer) uiContainer.remove();
                     cleanup();
                 };
                 window.addEventListener('beforeunload', beforeUnloadListener);
@@ -1241,30 +1202,16 @@
         }
 
         function cleanupGlobalListeners() {
-            if (visibilityChangeListener) {
-                document.removeEventListener('visibilitychange', visibilityChangeListener);
-                visibilityChangeListener = null;
-            }
-            if (fullscreenChangeListener) {
-                document.removeEventListener('fullscreenchange', fullscreenChangeListener);
-                fullscreenChangeListener = null;
-            }
-            if (beforeUnloadListener) {
-                window.removeEventListener('beforeunload', beforeUnloadListener);
-                beforeUnloadListener = null;
-            }
+            if (visibilityChangeListener) { document.removeEventListener('visibilitychange', visibilityChangeListener); visibilityChangeListener = null; }
+            if (fullscreenChangeListener) { document.removeEventListener('fullscreenchange', fullscreenChangeListener); fullscreenChangeListener = null; }
+            if (beforeUnloadListener) { window.removeEventListener('beforeunload', beforeUnloadListener); beforeUnloadListener = null; }
         }
 
         function init() {
             createUIElements();
             uiContainer.addEventListener('click', (e) => {
-                if (wasDragged) {
-                    e.stopPropagation();
-                    return;
-                }
-                if (e.target.id === UI_SELECTORS.TRIGGER) {
-                    handleTriggerClick();
-                }
+                if (wasDragged) { e.stopPropagation(); return; }
+                if (e.target.id === UI_SELECTORS.TRIGGER) handleTriggerClick();
             });
             attachDragAndDrop();
             attachGlobalListeners();
@@ -1275,7 +1222,6 @@
 
     function initializeGlobalUI() {
         if (document.getElementById('vsc-global-container')) return;
-
         const initialMediaCheck = () => {
             const hasMedia = findAllMedia().length > 0;
             const hasImages = findAllImages().length > 0;
@@ -1287,10 +1233,8 @@
                 if (mediaObserver) mediaObserver.disconnect();
             }
         };
-
         const mediaObserver = new MutationObserver(debounce(initialMediaCheck, 500));
         mediaObserver.observe(document.body, { childList: true, subtree: true });
-
         initialMediaCheck();
     }
 
