@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      60.1
-// @description  실시간 딜미터기 조정 - 5회 측정 후 딜미터기 보이는 걸로 수정
+// @version      60.3
+// @description  TARGET_DELAY를 스크립트 내에서 직접 설정하는 방식으로 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -25,6 +25,23 @@
 
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
 
+    // ===============================================================================
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ [ 라이브 딜레이 설정 ] ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    //
+    // 사이트별로 원하는 딜레이 값을 밀리초(ms) 단위로 직접 입력하세요. (1000ms = 1초)
+    //
+    const TARGET_DELAYS = {
+        "youtube.com": 2750,
+        "chzzk.naver.com": 1500,
+        "play.sooplive.co.kr": 2000,
+        "twitch.tv": 2000,
+        "kick.com": 2000,
+    };
+    const DEFAULT_TARGET_DELAY = 2000; // 목록에 없는 사이트의 기본 딜레이 값
+    //
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ [ 라이브 딜레이 설정 끝 ] ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ===============================================================================
+
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
@@ -39,7 +56,7 @@
         SPEED_PRESETS: [4, 2, 1.5, 1, 0.2],
         UI_DRAG_THRESHOLD: 5,
         UI_WARN_TIMEOUT: 10000,
-        LIVE_STREAM_URLS: ['play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com'],
+        LIVE_STREAM_URLS: ['play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'youtube.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com', 'challenges.cloudflare.com'],
         SPECIFIC_EXCLUSIONS: [],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 115 },
@@ -56,6 +73,17 @@
         TRIGGER: 'vsc-trigger-button',
         CONTROL_GROUP: 'vsc-control-group', SUBMENU: 'vsc-submenu', BTN: 'vsc-btn', BTN_MAIN: 'vsc-btn-main', SELECT: 'vsc-select', VIDEO_CONTROLS: 'vsc-video-controls', IMAGE_CONTROLS: 'vsc-image-controls'
     };
+
+    // 현재 사이트에 맞는 TARGET_DELAY 값을 가져오는 함수
+    function getTargetDelay() {
+        const host = location.hostname;
+        for (const site in TARGET_DELAYS) {
+            if (host.includes(site)) {
+                return TARGET_DELAYS[site];
+            }
+        }
+        return DEFAULT_TARGET_DELAY; // 기본값
+    }
 
     const settingsManager = (() => {
         const settings = {};
@@ -385,9 +413,8 @@
         let delayHistory = [];
 
         const CHECK_INTERVAL = 500;
-        const TARGET_DELAY = 2000;
-        const MIN_RATE = 0.95;
-        const MAX_RATE = 1.05;
+        const MIN_RATE = 0.90;
+        const MAX_RATE = 1.10;
         const TOLERANCE = 150;
 
         let localIntersectionObserver;
@@ -427,7 +454,8 @@
         }
 
         function getPlaybackRate(avgDelay) {
-            const diff = avgDelay - TARGET_DELAY;
+            const targetDelay = getTargetDelay(); // Use the global function
+            const diff = avgDelay - targetDelay;
             if (Math.abs(diff) <= TOLERANCE) {
                 return 1.0;
             }
@@ -490,7 +518,7 @@
             adjustPlaybackRate(video, newRate);
             //displayDelayInfo(avgDelay, rawDelay);
             if (delayHistory.length >= 5) { // 측정값이 5개 이상 쌓이면 표시
-            displayDelayInfo(avgDelay, rawDelay);
+                displayDelayInfo(avgDelay, rawDelay);
             }
         }
 
@@ -1059,7 +1087,6 @@
                 document.addEventListener('visibilitychange', visibilityChangeListener);
             }
             if (!fullscreenChangeListener) {
-                // [풀스크린 자동 스냅] 풀스크린 변경 시 UI 위치 재조정
                 fullscreenChangeListener = () => {
                     const targetRoot = document.fullscreenElement || document.body;
                     if (uiContainer) {
