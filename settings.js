@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      60.3
-// @description  TARGET_DELAY를 스크립트 내에서 직접 설정하는 방식으로 변경
+// @version      60.4
+// @description  PC/모바일 영상 이동, 확대/축소 기능 추가
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -129,15 +129,8 @@
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     function isExcluded() {
         const url = location.href.toLowerCase();
-
-        if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) {
-            return true;
-        }
-
-        if (document.querySelector('iframe[src*="challenges.cloudflare.com"]')) {
-            return true;
-        }
-
+        if (CONFIG.EXCLUSION_KEYWORDS.some(keyword => url.includes(keyword))) return true;
+        if (document.querySelector('iframe[src*="challenges.cloudflare.com"]')) return true;
         return false;
     }
     if (isExcluded()) return; Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
@@ -345,7 +338,14 @@
             const videoControlGroup = createFilterControl('vsc-video-controls', '영상 선명도', '✨', setVideoFilterLevel, videoOptions);
             const imageControlGroup = createFilterControl('vsc-image-controls', '이미지 선명도', '🎨', setImageFilterLevel, imageOptions);
 
-            container.append(imageControlGroup, videoControlGroup);
+            // 영상 이동/확대 버튼 추가
+            const transformBtnGroup = document.createElement('div');
+            transformBtnGroup.id = 'vsc-transform-controls';
+            transformBtnGroup.className = 'vsc-control-group';
+            const transformBtn = createButton(null, '영상 이동/확대', '✥', 'vsc-btn vsc-btn-main');
+            transformBtnGroup.appendChild(transformBtn);
+
+            container.append(transformBtnGroup, imageControlGroup, videoControlGroup);
             const controlGroups = [videoControlGroup, imageControlGroup];
             hideAllSubMenus = () => {
                 controlGroups.forEach(group => group.classList.remove('submenu-visible'));
@@ -361,6 +361,22 @@
             };
             videoControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, videoControlGroup));
             imageControlGroup.querySelector('.vsc-btn-main').addEventListener('click', (e) => handleMenuButtonClick(e, imageControlGroup));
+
+            transformBtn.addEventListener('click', () => {
+                const videos = Array.from(state.activeMedia).filter(m => m.tagName === 'VIDEO' && m.offsetParent);
+                if (videos.length === 0) return;
+                const mainVideo = videos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0];
+
+                if (videoTransformer.isTransformed(mainVideo)) {
+                    videoTransformer.revert(mainVideo);
+                    transformBtn.classList.remove('active');
+                } else {
+                    videoTransformer.apply(mainVideo);
+                    transformBtn.classList.add('active');
+                }
+                 resetFadeTimer();
+            });
+
 
             const updateActiveButtons = () => {
                 const videoSelect = shadowRoot.querySelector('#vsc-video-controls select');
@@ -516,7 +532,6 @@
 
             const newRate = getPlaybackRate(avgDelay);
             adjustPlaybackRate(video, newRate);
-            //displayDelayInfo(avgDelay, rawDelay);
             if (delayHistory.length >= 5) { // 측정값이 5개 이상 쌓이면 표시
                 displayDelayInfo(avgDelay, rawDelay);
             }
@@ -538,13 +553,11 @@
             if (!CONFIG.LIVE_STREAM_URLS.some(domain => location.href.includes(domain))) return;
             if (location.href.includes('youtube.com') && !isYouTubeLive()) return;
             if (state.delayCheckInterval) return;
-
             delayHistory = [];
             video = findVideo();
             if(video) {
                 state.currentPlaybackRate = video.playbackRate;
             }
-
             setupIntersectionObserver();
             state.delayCheckInterval = setInterval(checkAndAdjust, CHECK_INTERVAL);
         }
@@ -559,9 +572,200 @@
             const infoEl = document.getElementById('vsc-delay-info');
             if (infoEl) infoEl.remove();
         }
-
         return { start, stop };
     })();
+
+    // =================================================================================
+    // 5. 영상 확대/축소 및 패닝 모듈 (Video Transformer Module) - 동적 탐지 최종 버전
+    // =================================================================================
+    const videoTransformer = (() => {
+        const transformedVideos = new WeakMap();
+
+        // 헬퍼 함수들
+        function addManagedEventListener(video, target, type, handler, options) {
+            target.addEventListener(type, handler, options);
+            transformedVideos.get(video).eventListeners.push({ target, type, handler, options });
+        }
+        function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+        // ★★★ 지능형 타겟 탐색 함수 ★★★
+        function findOptimalTargets(video) {
+            let transformTarget = video;
+            let eventTarget = video;
+
+            if (location.hostname.includes("play.sooplive.co.kr")) {
+                // SOOP LIVE는 구조가 매우 복잡하므로, video를 기준으로 상위 요소를 탐색
+                const playerRoot = video.closest('div[class*="player_layout"]');
+                if (playerRoot) {
+                    // 실제 변형(transform)을 적용할 시각적 컨테이너
+                    const visualContainer = playerRoot.querySelector('div[class*="player_container"]');
+                    // 실제 사용자 이벤트(클릭, 터치)를 받는 최상위 레이어
+                    const eventLayer = playerRoot.querySelector('div[class*="interaction_area"]');
+
+                    if (visualContainer && eventLayer) {
+                        transformTarget = visualContainer;
+                        eventTarget = eventLayer;
+                        console.log("SOOP LIVE 지능형 탐색 성공: Transform Target과 Event Target을 분리합니다.");
+                    }
+                }
+            }
+            // 다른 사이트에서는 video 자체를 대상으로 사용
+            return { transformTarget, eventTarget };
+        }
+
+
+        function apply(video) {
+            if (transformedVideos.has(video)) return;
+
+            const { transformTarget, eventTarget } = findOptimalTargets(video);
+
+            const wrapper = document.createElement("div");
+            Object.assign(wrapper.style, {
+                position: "relative",
+                width: transformTarget.clientWidth + "px",
+                height: transformTarget.clientHeight + "px",
+                overflow: "hidden",
+                display: "inline-block",
+            });
+
+            const originalState = {
+                parent: transformTarget.parentElement,
+                nextSibling: transformTarget.nextElementSibling,
+                cssText: transformTarget.style.cssText,
+            };
+
+            if (transformTarget.parentNode) {
+                transformTarget.parentNode.insertBefore(wrapper, transformTarget);
+            }
+            wrapper.appendChild(transformTarget);
+            transformedVideos.set(video, { video, wrapper, originalState, eventListeners: [] });
+
+            Object.assign(transformTarget.style, {
+                width: "100%", height: "100%", top: "0", left: "0",
+                position: "absolute", transformOrigin: "center center",
+                touchAction: "none", transition: "transform 0.1s ease-out",
+            });
+
+            // (이하 상태 변수 및 이벤트 핸들러 로직은 이전과 거의 동일)
+            let scale = 1, lastScale = 1, panX = 0, panY = 0, lastPanX = 0, lastPanY = 0;
+            let isPinching = false, isPanning = false, startX = 0, startY = 0, initialDistance = 0;
+            let lastTap = 0;
+
+            function applyTransform() {
+                const maxPanX = (scale - 1) * wrapper.clientWidth / (2 * scale);
+                const maxPanY = (scale - 1) * wrapper.clientHeight / (2 * scale);
+                panX = clamp(panX, -maxPanX, maxPanX);
+                panY = clamp(panY, -maxPanY, maxPanY);
+                transformTarget.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            }
+
+            function onDoubleTap(e) {
+                const now = Date.now();
+                if (now - lastTap < 300) {
+                    scale = scale > 1 ? 1 : 2; lastScale = scale;
+                    panX = panY = lastPanX = lastPanY = 0;
+                    applyTransform();
+                }
+                lastTap = now;
+            }
+
+            function onPointerDown(e) {
+                const touches = e.touches;
+                if (touches && touches.length === 2) {
+                    isPinching = true;
+                    const dx = touches[0].clientX - touches[1].clientX;
+                    const dy = touches[0].clientY - touches[1].clientY;
+                    initialDistance = Math.sqrt(dx*dx + dy*dy);
+                } else if ((touches && touches.length === 1) || !touches) {
+                    if (scale > 1) {
+                        isPanning = true;
+                        startX = touches ? touches[0].clientX : e.clientX;
+                        startY = touches ? touches[0].clientY : e.clientY;
+                    }
+                }
+            }
+
+            function onPointerMove(e) {
+                if (!isPanning && !isPinching) return;
+                e.preventDefault(); e.stopPropagation();
+                const touches = e.touches;
+                if (isPinching && touches && touches.length === 2) {
+                    const dx = touches[0].clientX - touches[1].clientX;
+                    const dy = touches[0].clientY - touches[1].clientY;
+                    const newDistance = Math.sqrt(dx*dx + dy*dy);
+                    scale = lastScale * (newDistance / initialDistance);
+                    scale = clamp(scale, 1, 5);
+                } else if (isPanning) {
+                    const currentX = touches ? touches[0].clientX : e.clientX;
+                    const currentY = touches ? touches[0].clientY : e.clientY;
+                    panX = lastPanX + (currentX - startX);
+                    panY = lastPanY + (currentY - startY);
+                }
+                applyTransform();
+            }
+
+            function onPointerUp() {
+                if (isPanning || isPinching) {
+                    lastPanX = panX; lastPanY = panY; lastScale = scale;
+                    isPanning = isPinching = false;
+                }
+            }
+
+            function onWheel(e) {
+                if (!e.shiftKey && !e.ctrlKey) return;
+                e.preventDefault(); e.stopPropagation();
+                scale += e.deltaY * -0.005;
+                scale = clamp(scale, 1, 5);
+                lastScale = scale;
+                applyTransform();
+            }
+
+            addManagedEventListener(video, eventTarget, 'mousedown', onPointerDown);
+            addManagedEventListener(video, document, 'mousemove', onPointerMove);
+            addManagedEventListener(video, document, 'mouseup', onPointerUp);
+            addManagedEventListener(video, eventTarget, 'wheel', onWheel, { passive: false });
+            addManagedEventListener(video, eventTarget, 'touchstart', onPointerDown, { passive: false });
+            addManagedEventListener(video, document, 'touchmove', onPointerMove, { passive: false });
+            addManagedEventListener(video, document, 'touchend', onPointerUp);
+            addManagedEventListener(video, eventTarget, 'dblclick', onDoubleTap);
+        }
+
+        function revert(video) {
+            if (!transformedVideos.has(video)) return;
+            const { wrapper, originalState, eventListeners } = transformedVideos.get(video);
+            const transformTarget = wrapper.firstChild;
+            eventListeners.forEach(({ target, type, handler, options }) => {
+                target.removeEventListener(type, handler, options);
+            });
+            transformTarget.style.cssText = originalState.cssText;
+            if (originalState.parent) {
+                originalState.parent.insertBefore(transformTarget, wrapper);
+            }
+            wrapper.remove();
+            transformedVideos.delete(video);
+        }
+
+        // --- 동적 감시 로직 ---
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
+                    if (node.tagName === 'VIDEO' && !transformedVideos.has(node)) {
+                        console.log("동적 비디오 생성 감지:", node);
+                        // 이 부분에 apply(node)를 직접 호출하거나, 사용자 버튼 클릭 시 적용할 수 있도록 준비
+                    }
+                }
+            }
+        });
+
+        // 페이지 전체를 감시 시작 (스크립트 로드 시)
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        return { apply, revert, isTransformed: (v) => transformedVideos.has(v) };
+    })();
+
+
+
+
 
     function findAllMedia(doc = document) {
         const elems = [];
@@ -707,6 +911,7 @@
             };
             setDisplay('vsc-video-controls', hasVideo);
             setDisplay('vsc-image-controls', hasImage);
+            setDisplay('vsc-transform-controls', hasVideo); // 영상 이동/확대 버튼 가시성
         }
     };
 
@@ -719,8 +924,15 @@
         safeExec(() => {
             if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
             if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
-            // [SPA 지원 강화] titleObserver 정리 로직 추가
             if (titleObserver) { titleObserver.disconnect(); titleObserver = null; }
+
+            // 활성화된 영상 이동/확대 기능 모두 원상 복구
+            const activeVideos = Array.from(state.activeMedia).filter(m => m.tagName === 'VIDEO');
+            activeVideos.forEach(video => {
+                if (videoTransformer.isTransformed(video)) {
+                    videoTransformer.revert(video);
+                }
+            });
 
             globalUIManager.cleanupGlobalListeners();
 
@@ -835,7 +1047,6 @@
         const initialRate = state.activeMedia.size > 0 ? Array.from(state.activeMedia)[0].playbackRate : 1.0;
         updateActiveSpeedButton(initialRate);
 
-        // [SPA 지원 강화] 타이틀 변경 감지 Observer 시작
         if (!titleObserver) {
             const titleElement = document.querySelector('head > title');
             if (titleElement) {
@@ -903,7 +1114,6 @@
 
         let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null;
 
-        // [풀스크린 자동 스냅] clampTranslate 함수를 attachDragAndDrop 밖으로 이동
         const clampTranslate = () => {
             if (!uiContainer) return;
             const rect = uiContainer.getBoundingClientRect();
@@ -1091,7 +1301,7 @@
                     const targetRoot = document.fullscreenElement || document.body;
                     if (uiContainer) {
                         targetRoot.appendChild(uiContainer);
-                        setTimeout(clampTranslate, 100); // DOM 변경 후 좌표 계산을 위해 약간의 딜레이
+                        setTimeout(clampTranslate, 100);
                     }
                 };
                 document.addEventListener('fullscreenchange', fullscreenChangeListener);
