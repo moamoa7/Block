@@ -32,7 +32,7 @@
     //
     const TARGET_DELAYS = {
         "youtube.com": 2750,
-        "chzzk.naver.com": 1500,
+        "chzzk.naver.com": 2000,
         "play.sooplive.co.kr": 2000,
         "twitch.tv": 2000,
         "kick.com": 2000,
