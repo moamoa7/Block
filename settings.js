@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      60.5 (60.3 롤백)
-// @description  TARGET_DELAY를 스크립트 내에서 직접 설정하는 방식으로 변경
+// @version      61.1 (Mixing Method Update)
+// @description  Audio effect changed to a Dry/Wet mixing method. Image/video quality controls maintained.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -45,6 +45,8 @@
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
+        DEFAULT_STEREO_WIDENING_ENABLED: false, // 스테레오 확장 기본 활성화 여부
+        STEREO_WIDENING_DELAY_MS: 25, // 스테레오 확장 딜레이 (ms)
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
         THROTTLE_DELAY: 100,
@@ -112,6 +114,8 @@
             isMinimized: true,
             currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || 0,
             currentImageFilterLevel: settingsManager.get('imageFilterLevel') || 0,
+            isStereoWideningEnabled: CONFIG.DEFAULT_STEREO_WIDENING_ENABLED, // 스테레오 확장 상태 추가
+            audioContextMap: new WeakMap(), // 오디오 컨텍스트 저장용 WeakMap 추가
             ui: { shadowRoot: null, hostElement: null },
             delayCheckInterval: null,
             currentPlaybackRate: 1.0,
@@ -193,6 +197,108 @@
     }
     const filterManager = new SvgFilterManager({ settings: isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', matrixId: 'vsc-dynamic-convolve-matrix', className: 'vsc-video-filter-active' });
     const imageFilterManager = new SvgFilterManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
+
+    // =================================================================================
+    // ★★★★★ 스테레오 확장 관리자 (Stereo Widening Manager) - 믹싱 방식으로 수정 ★★★★★
+    // =================================================================================
+    const stereoWideningManager = (() => {
+        const WIDENING_DELAY_SEC = CONFIG.STEREO_WIDENING_DELAY_MS / 1000;
+
+        function createAudioGraph(media) {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const source = context.createMediaElementSource(media);
+
+            // 노드 생성
+            const dryGain = context.createGain(); // 원본(Dry) 소리 제어
+            const wetGain = context.createGain(); // 효과(Wet) 소리 제어
+            const splitter = context.createChannelSplitter(2);
+            const merger = context.createChannelMerger(2);
+            const delay = context.createDelay();
+
+            // 초기값 설정
+            delay.delayTime.value = WIDENING_DELAY_SEC;
+            dryGain.gain.value = 1.0; // 원본 소리는 항상 100%
+            wetGain.gain.value = 0.0; // 효과음은 기본적으로 끔
+
+            // 1. 원본(Dry) 경로: 소스 -> Dry 게인 -> 최종 출력
+            source.connect(dryGain).connect(context.destination);
+
+            // 2. 효과(Wet) 경로: 소스 -> 분리 -> 딜레이 -> 합치기 -> Wet 게인 -> 최종 출력
+            source.connect(splitter);
+            splitter.connect(delay, 0);      // 왼쪽 채널에 딜레이
+            splitter.connect(merger, 1, 1);  // 오른쪽 채널은 바로 합치기로
+            delay.connect(merger, 0, 0);     // 딜레이된 왼쪽 채널을 합치기로
+            merger.connect(wetGain).connect(context.destination); // 합쳐진 소리를 Wet 게인을 거쳐 최종 출력
+
+            // 두 경로의 소리가 최종 출력(destination)에서 자동으로 섞임(Mixing)
+
+            const nodes = { context, source, dryGain, wetGain };
+            state.audioContextMap.set(media, nodes);
+            return nodes;
+        }
+
+        function apply(media) {
+            if (media.tagName !== 'VIDEO' && media.tagName !== 'AUDIO') return;
+            let nodes = state.audioContextMap.get(media);
+            if (!nodes) {
+                try {
+                    if (media.HAVE_CURRENT_DATA) {
+                       nodes = createAudioGraph(media);
+                    } else {
+                        media.addEventListener('canplay', () => {
+                           if (!state.audioContextMap.has(media)) createAudioGraph(media);
+                        }, { once: true });
+                        return;
+                    }
+                } catch (e) {
+                    console.error('[VSC] 오디오 그래프 생성 실패:', e);
+                    return;
+                }
+            }
+            if (nodes.context.state === 'suspended') {
+                nodes.context.resume();
+            }
+            // Wet 소리의 볼륨을 1로 설정하여 효과를 켬
+            nodes.wetGain.gain.setValueAtTime(1, nodes.context.currentTime);
+        }
+
+        function remove(media) {
+            let nodes = state.audioContextMap.get(media);
+            if (!nodes) return;
+            // Wet 소리의 볼륨을 0으로 설정하여 효과를 끔 (Dry 소리는 계속 재생됨)
+            nodes.wetGain.gain.setValueAtTime(0, nodes.context.currentTime);
+        }
+
+        function cleanupForMedia(media) {
+            let nodes = state.audioContextMap.get(media);
+            if (nodes) {
+                safeExec(() => {
+                    nodes.source.disconnect();
+                    if (nodes.context.state !== 'closed') {
+                        nodes.context.close();
+                    }
+                });
+                state.audioContextMap.delete(media);
+            }
+        }
+
+        return { apply, remove, cleanupForMedia };
+    })();
+
+    function setStereoWideningEnabled(enabled) {
+        state.isStereoWideningEnabled = !!enabled;
+
+        const btn = state.ui.shadowRoot?.getElementById('vsc-stereo-btn');
+        if (btn) btn.classList.toggle('active', state.isStereoWideningEnabled);
+
+        state.activeMedia.forEach(media => {
+            if (state.isStereoWideningEnabled) {
+                stereoWideningManager.apply(media);
+            } else {
+                stereoWideningManager.remove(media);
+            }
+        });
+    }
 
     function setVideoFilterLevel(level) {
         if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname) && level > 0) return;
@@ -345,7 +451,20 @@
             const videoControlGroup = createFilterControl('vsc-video-controls', '영상 선명도', '✨', setVideoFilterLevel, videoOptions);
             const imageControlGroup = createFilterControl('vsc-image-controls', '이미지 선명도', '🎨', setImageFilterLevel, imageOptions);
 
-            container.append(imageControlGroup, videoControlGroup);
+            // 스테레오 확장 버튼 추가
+            const stereoControlGroup = document.createElement('div');
+            stereoControlGroup.id = 'vsc-stereo-controls';
+            stereoControlGroup.className = 'vsc-control-group';
+            const stereoBtn = createButton('vsc-stereo-btn', '스테레오 확장', '🎧', 'vsc-btn vsc-btn-main');
+            if (state.isStereoWideningEnabled) stereoBtn.classList.add('active');
+            stereoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setStereoWideningEnabled(!state.isStereoWideningEnabled);
+                resetFadeTimer();
+            });
+            stereoControlGroup.appendChild(stereoBtn);
+
+            container.append(imageControlGroup, videoControlGroup, stereoControlGroup);
             const controlGroups = [videoControlGroup, imageControlGroup];
             hideAllSubMenus = () => {
                 controlGroups.forEach(group => group.classList.remove('submenu-visible'));
@@ -367,6 +486,8 @@
                 if (videoSelect) videoSelect.value = state.currentVideoFilterLevel;
                 const imageSelect = shadowRoot.querySelector('#vsc-image-controls select');
                 if (imageSelect) imageSelect.value = state.currentImageFilterLevel;
+                const stereoButton = shadowRoot.querySelector('#vsc-stereo-btn');
+                if (stereoButton) stereoButton.classList.toggle('active', state.isStereoWideningEnabled);
             };
 
             container.addEventListener('pointerdown', resetFadeTimer);
@@ -666,6 +787,7 @@
         for (const [evt, listener] of Object.entries(listeners)) media.removeEventListener(evt, listener);
         state.mediaListenerMap.delete(media);
         if (intersectionObserver) intersectionObserver.unobserve(media);
+        stereoWideningManager.cleanupForMedia(media); // 오디오 컨텍스트 정리
     }
     function detachImageListeners(image) {
         if (!state.processedImages.has(image)) return;
@@ -680,7 +802,12 @@
         state.activeMedia.clear();
         allMedia.forEach(m => { if (m.isConnected) { state.activeMedia.add(m); oldMedia.delete(m); } });
         oldMedia.forEach(detachMediaListeners);
-        allMedia.forEach(m => { if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); } });
+        allMedia.forEach(m => {
+            if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); }
+            if (state.isStereoWideningEnabled) { // 스캔 시 스테레오 효과 적용
+                stereoWideningManager.apply(m);
+            }
+        });
         const allImages = findAllImages();
         allImages.forEach(attachImageListeners);
         const oldImages = new Set(state.activeImages);
@@ -691,7 +818,9 @@
         const root = state.ui?.shadowRoot;
         if (root) {
             const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
+            const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO');
             const hasImage = state.activeImages.size > 0;
+            const hasAnyMedia = hasVideo || hasAudio;
 
             if (speedButtonsContainer) {
                 speedButtonsContainer.style.display = hasVideo ? 'flex' : 'none';
@@ -707,6 +836,7 @@
             };
             setDisplay('vsc-video-controls', hasVideo);
             setDisplay('vsc-image-controls', hasImage);
+            setDisplay('vsc-stereo-controls', hasAnyMedia); // 오디오/비디오가 있을 때 스테레오 버튼 표시
         }
     };
 
@@ -733,6 +863,7 @@
             }
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
+            setStereoWideningEnabled(false); // 스테레오 효과 비활성화 및 정리
             setVideoFilterLevel(0);
             setImageFilterLevel(0);
             const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
@@ -831,6 +962,7 @@
         speedSlider.show();
         setVideoFilterLevel(state.currentVideoFilterLevel);
         setImageFilterLevel(state.currentImageFilterLevel);
+        setStereoWideningEnabled(state.isStereoWideningEnabled); // 초기 상태 적용
         scheduleIdleTask(scanAndApply);
         const initialRate = state.activeMedia.size > 0 ? Array.from(state.activeMedia)[0].playbackRate : 1.0;
         updateActiveSpeedButton(initialRate);
