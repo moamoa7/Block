@@ -923,7 +923,7 @@
             speedButtonsContainer.id = 'vsc-speed-buttons-container';
             Object.assign(speedButtonsContainer.style, {
                 display: 'none', flexDirection: 'column', gap: '5px', alignItems: 'center',
-                opacity: '0.7'
+                opacity: '0.5'
             });
 
             CONFIG.SPEED_PRESETS.forEach(speed => {
