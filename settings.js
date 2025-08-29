@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      61.1 (Mixing Method Update)
-// @description  Audio effect changed to a Dry/Wet mixing method. Image/video quality controls maintained.
+// @version      61.2 (HPF for Clarity)
+// @description  Added High-Pass Filter to the stereo effect to prevent muddiness. Audio mixing method.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -45,8 +45,9 @@
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
-        DEFAULT_STEREO_WIDENING_ENABLED: false, // 스테레오 확장 기본 활성화 여부
-        STEREO_WIDENING_DELAY_MS: 25, // 스테레오 확장 딜레이 (ms)
+        DEFAULT_STEREO_WIDENING_ENABLED: false,
+        STEREO_WIDENING_DELAY_MS: 25,
+        STEREO_HPF_FREQUENCY: 120, // ★★★ 스테레오 효과 저음 차단 필터 (Hz), 높이면 저음이 더 많이 제거됨
         DEBUG: false,
         DEBOUNCE_DELAY: 300,
         THROTTLE_DELAY: 100,
@@ -199,7 +200,7 @@
     const imageFilterManager = new SvgFilterManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
 
     // =================================================================================
-    // ★★★★★ 스테레오 확장 관리자 (Stereo Widening Manager) - 믹싱 방식으로 수정 ★★★★★
+    // ★★★★★ 스테레오 확장 관리자 (Stereo Widening Manager) - HPF 필터 추가됨 ★★★★★
     // =================================================================================
     const stereoWideningManager = (() => {
         const WIDENING_DELAY_SEC = CONFIG.STEREO_WIDENING_DELAY_MS / 1000;
@@ -209,28 +210,32 @@
             const source = context.createMediaElementSource(media);
 
             // 노드 생성
-            const dryGain = context.createGain(); // 원본(Dry) 소리 제어
-            const wetGain = context.createGain(); // 효과(Wet) 소리 제어
+            const dryGain = context.createGain();
+            const wetGain = context.createGain();
             const splitter = context.createChannelSplitter(2);
             const merger = context.createChannelMerger(2);
             const delay = context.createDelay();
+            const hpf = context.createBiquadFilter(); // High-Pass Filter 추가
 
             // 초기값 설정
             delay.delayTime.value = WIDENING_DELAY_SEC;
-            dryGain.gain.value = 1.0; // 원본 소리는 항상 100%
-            wetGain.gain.value = 0.0; // 효과음은 기본적으로 끔
+            dryGain.gain.value = 1.0;
+            wetGain.gain.value = 0.0;
+
+            // HPF 필터 설정
+            hpf.type = 'highpass';
+            hpf.frequency.value = CONFIG.STEREO_HPF_FREQUENCY; // 설정값에서 주파수 가져오기
+            hpf.Q.value = 0.7; // 일반적인 Q값
 
             // 1. 원본(Dry) 경로: 소스 -> Dry 게인 -> 최종 출력
             source.connect(dryGain).connect(context.destination);
 
-            // 2. 효과(Wet) 경로: 소스 -> 분리 -> 딜레이 -> 합치기 -> Wet 게인 -> 최종 출력
+            // 2. 효과(Wet) 경로: 소스 -> 분리 -> 딜레이 -> 합치기 -> ★HPF 필터★ -> Wet 게인 -> 최종 출력
             source.connect(splitter);
-            splitter.connect(delay, 0);      // 왼쪽 채널에 딜레이
-            splitter.connect(merger, 1, 1);  // 오른쪽 채널은 바로 합치기로
-            delay.connect(merger, 0, 0);     // 딜레이된 왼쪽 채널을 합치기로
-            merger.connect(wetGain).connect(context.destination); // 합쳐진 소리를 Wet 게인을 거쳐 최종 출력
-
-            // 두 경로의 소리가 최종 출력(destination)에서 자동으로 섞임(Mixing)
+            splitter.connect(delay, 0);
+            splitter.connect(merger, 1, 1);
+            delay.connect(merger, 0, 0);
+            merger.connect(hpf).connect(wetGain).connect(context.destination); // merger 다음에 hpf 연결
 
             const nodes = { context, source, dryGain, wetGain };
             state.audioContextMap.set(media, nodes);
@@ -258,14 +263,12 @@
             if (nodes.context.state === 'suspended') {
                 nodes.context.resume();
             }
-            // Wet 소리의 볼륨을 1로 설정하여 효과를 켬
             nodes.wetGain.gain.setValueAtTime(1, nodes.context.currentTime);
         }
 
         function remove(media) {
             let nodes = state.audioContextMap.get(media);
             if (!nodes) return;
-            // Wet 소리의 볼륨을 0으로 설정하여 효과를 끔 (Dry 소리는 계속 재생됨)
             nodes.wetGain.gain.setValueAtTime(0, nodes.context.currentTime);
         }
 
