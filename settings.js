@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Audio Tuner)
 // @namespace    https://com/
-// @version      62.0 (Integrated Tuner)
-// @description  All-in-one script with real-time Delay/HPF sliders for the stereo widening effect.
+// @version      62.2 (Correct Drag Fix)
+// @description  All-in-one script with real-time Delay/HPF sliders. Correctly fixed UI drag issue for Shadow DOM.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -272,7 +272,10 @@
     function setStereoWideningEnabled(enabled) {
         state.isStereoWideningEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-stereo-toggle');
-        if (btn) btn.classList.toggle('active', state.isStereoWideningEnabled);
+        if (btn) {
+            btn.classList.toggle('active', state.isStereoWideningEnabled);
+            btn.textContent = state.isStereoWideningEnabled ? '효과 켜짐' : '효과 꺼짐';
+        }
         state.activeMedia.forEach(media => state.isStereoWideningEnabled ? stereoWideningManager.apply(media) : stereoWideningManager.remove(media));
     }
 
@@ -392,6 +395,7 @@
             const createSelectControl = (labelText, options, changeHandler) => {
                 const select = document.createElement('select');
                 select.className = 'vsc-select';
+                select.style.width = '100%';
                 const disabledOption = new Option(labelText, "", true, true);
                 disabledOption.disabled = true;
                 select.add(disabledOption);
@@ -432,7 +436,6 @@
 
             const { group: stereoGroup, subMenu: stereoSubMenu } = createControlGroup('vsc-stereo-controls', '🎧', '스테레오 확장');
 
-            // 튜너 UI 생성
             const toggleBtn = createButton('vsc-stereo-toggle', '효과 ON/OFF', '효과 켜기', 'vsc-btn');
             toggleBtn.style.width = '100%';
             toggleBtn.onclick = () => setStereoWideningEnabled(!state.isStereoWideningEnabled);
@@ -624,8 +627,7 @@
 
             const newRate = getPlaybackRate(avgDelay);
             adjustPlaybackRate(video, newRate);
-            //displayDelayInfo(avgDelay, rawDelay);
-            if (delayHistory.length >= 5) { // 측정값이 5개 이상 쌓이면 표시
+            if (delayHistory.length >= 5) {
                 displayDelayInfo(avgDelay, rawDelay);
             }
         }
@@ -774,7 +776,7 @@
         for (const [evt, listener] of Object.entries(listeners)) media.removeEventListener(evt, listener);
         state.mediaListenerMap.delete(media);
         if (intersectionObserver) intersectionObserver.unobserve(media);
-        stereoWideningManager.cleanupForMedia(media); // 오디오 컨텍스트 정리
+        stereoWideningManager.cleanupForMedia(media);
     }
     function detachImageListeners(image) {
         if (!state.processedImages.has(image)) return;
@@ -1112,7 +1114,16 @@
 
         function attachDragAndDrop() {
             const onDragStart = (e) => {
+                // ★★★ 드래그 문제 수정 (Shadow DOM 대응) ★★★
+                // composedPath()를 사용해 Shadow DOM 내부의 실제 클릭 요소를 찾습니다.
+                const trueTarget = e.composedPath()[0];
+                const targetTag = trueTarget.tagName.toUpperCase();
+                if (['BUTTON', 'SELECT', 'INPUT'].includes(targetTag)) {
+                    return; // 상호작용 요소에서는 드래그를 시작하지 않습니다.
+                }
+
                 if (!e.composedPath().includes(uiContainer)) return;
+
                 isDragging = true; wasDragged = false;
                 const pos = e.touches ? e.touches[0] : e;
                 startPos = { x: pos.clientX, y: pos.clientY };
