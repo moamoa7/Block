@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      60.4
-// @description  모바일 세로 영상 전체화면 시 자동 회전 기능 추가
+// @version      60.5 (60.3 롤백)
+// @description  TARGET_DELAY를 스크립트 내에서 직접 설정하는 방식으로 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1088,38 +1088,11 @@
             }
             if (!fullscreenChangeListener) {
                 fullscreenChangeListener = () => {
-                    // --- 기존 UI 위치 조정 로직 ---
                     const targetRoot = document.fullscreenElement || document.body;
                     if (uiContainer) {
                         targetRoot.appendChild(uiContainer);
-                        setTimeout(clampTranslate, 100);
+                        setTimeout(clampTranslate, 100); // DOM 변경 후 좌표 계산을 위해 약간의 딜레이
                     }
-                    // --- 여기까지 기존 로직 ---
-
-                    // ▼▼▼▼▼ [추가된 로직] 모바일 세로 영상 전체화면 시 화면 회전 ▼▼▼▼▼
-                    if (isMobile) {
-                        const fullscreenVideo = document.fullscreenElement;
-
-                        // 전체화면으로 진입했고, 해당 요소가 비디오일 경우
-                        if (fullscreenVideo && fullscreenVideo.tagName === 'VIDEO') {
-                            // 비디오의 실제 크기를 바탕으로 세로 영상인지 확인 (height > width)
-                            if (fullscreenVideo.videoHeight > fullscreenVideo.videoWidth) {
-                                // 화면 회전 API가 지원되는지 확인
-                                if (screen.orientation && typeof screen.orientation.lock === 'function') {
-                                    // 화면을 가로 모드로 잠금
-                                    screen.orientation.lock('landscape').catch(err => {
-                                        console.warn('[VSC] 화면 회전 잠금에 실패했습니다. 사용자가 권한을 거부했을 수 있습니다.', err);
-                                    });
-                                }
-                            }
-                        } else {
-                            // 전체화면에서 빠져나왔을 경우, 화면 회전 잠금을 해제
-                            if (screen.orientation && typeof screen.orientation.unlock === 'function') {
-                                screen.orientation.unlock();
-                            }
-                        }
-                    }
-                    // ▲▲▲▲▲ [추가된 로직 끝] ▲▲▲▲▲
                 };
                 document.addEventListener('fullscreenchange', fullscreenChangeListener);
             }
