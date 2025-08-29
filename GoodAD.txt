@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250828
+! Version: 20250829
 !
 !
 !
@@ -1014,9 +1014,6 @@ damoang.net#@#[class*="div-gpt-ad"]
 !
 !
 ! 루리웹 (https://bbs.ruliweb.com/)
-! - 기타
-##[id^="ad-"]
-zoneid=
 ! - 차단 사이트
 !||ad4989.co.kr^
 !||innity.net^
