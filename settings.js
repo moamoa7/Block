@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control
 // @namespace    https://com/
-// @version      59.9
-// @description  실시간 딜레이 조정 - 치지직/트위치/kick 삭제
+// @version      60.0
+// @description  실시간 딜레이 조정 - 2000으로 재설정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -39,7 +39,7 @@
         SPEED_PRESETS: [4, 2, 1.5, 1, 0.2],
         UI_DRAG_THRESHOLD: 5,
         UI_WARN_TIMEOUT: 10000,
-        LIVE_STREAM_URLS: ['play.sooplive.co.kr'],
+        LIVE_STREAM_URLS: ['play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com', 'challenges.cloudflare.com'],
         SPECIFIC_EXCLUSIONS: [],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 115 },
@@ -385,7 +385,7 @@
         let delayHistory = [];
 
         const CHECK_INTERVAL = 500;
-        const TARGET_DELAY = 3000;
+        const TARGET_DELAY = 2000;
         const MIN_RATE = 0.95;
         const MAX_RATE = 1.05;
         const TOLERANCE = 150;
