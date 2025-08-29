@@ -2,7 +2,7 @@
 // @name         Video_Image_Control
 // @namespace    https://com/
 // @version      59.8
-// @description  TARGET_DELAY 변경 (기존 1500 → 2500)
+// @description  TARGET_DELAY 변경 (기존 1500 → 3000)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -385,7 +385,7 @@
         let delayHistory = [];
 
         const CHECK_INTERVAL = 500;
-        const TARGET_DELAY = 2500;
+        const TARGET_DELAY = 3000;
         const MIN_RATE = 0.95;
         const MAX_RATE = 1.05;
         const TOLERANCE = 150;
