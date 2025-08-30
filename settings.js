@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Spatial Audio)
 // @namespace    https://com/
-// @version      69.6 (Mobile Compatibility & Stability)
-// @description  Separates audio processing logic for mobile and desktop. Uses a stable StereoPanner on mobile to prevent audio failures, while retaining full M/S and HRTF effects on desktop.
+// @version      69.7 (Fix: Refined Mobile Detection)
+// @description  Strengthened the mobile detection logic to prevent misidentifying PCs as mobile, restoring full functionality on desktop.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -13,7 +13,8 @@
 
     let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
 
-    const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+    // MODIFIED: Strengthened mobile detection to be more specific and avoid false positives on PCs.
+    const isMobile = /(iPhone|iPad|iPod|Android)/i.test(navigator.userAgent);
 
     const TARGET_DELAYS = {
         "youtube.com": 2750, "chzzk.naver.com": 2000, "play.sooplive.co.kr": 2000,
@@ -450,10 +451,10 @@
 
     function setWideningEnabled(enabled) {
         if (isMobile) {
-            // On mobile, this button has no effect, so just update UI
             state.isWideningEnabled = !!enabled;
             const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
             if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '확장 ON' : '확장 OFF'; }
+            showWarningMessage('모바일 환경에서는 스테레오 확장 기능이 지원되지 않습니다.');
             return;
         }
         if (enabled) activateAudioContexts();
@@ -465,10 +466,10 @@
 
     function setSpatialAudioEnabled(enabled) {
         if (isMobile) {
-            // On mobile, this button has no effect, so just update UI
             state.isSpatialEnabled = !!enabled;
             const btn = state.ui.shadowRoot?.getElementById('vsc-spatial-toggle');
             if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '공간음향 ON' : '공간음향 OFF'; }
+            showWarningMessage('모바일 환경에서는 공간 음향 기능이 지원되지 않습니다.');
             return;
         }
         if (enabled) activateAudioContexts();
@@ -740,13 +741,19 @@
             };
 
             stereoSubMenu.append(btnGroup1, wideningSlider.controlDiv, hpfSlider.controlDiv, depthSlider.controlDiv, lfoRateSlider.controlDiv, panSlider.controlDiv, reverbSlider.controlDiv, reverbLengthSlider.controlDiv, btnGroup2, btnGroup3);
-            
+
             // Disable complex audio controls on mobile
             if (isMobile) {
-                [wideningSlider, hpfSlider, depthSlider, reverbSlider, reverbLengthSlider, lfoRateSlider].forEach(c => c.controlDiv.style.opacity = '0.5');
-                [...stereoSubMenu.querySelectorAll('input, button')].forEach(el => el.disabled = true);
+                [...stereoSubMenu.querySelectorAll('input, button')].forEach(el => {
+                    if (el.id !== 'panSlider' && el.id !== 'vsc-stereo-reset') {
+                        el.disabled = true;
+                        if (el.parentElement.className === 'slider-control') {
+                           el.parentElement.style.opacity = '0.5';
+                        }
+                    }
+                });
                 const mobileMessage = document.createElement('p');
-                mobileMessage.textContent = 'Pan 기능만 사용 가능합니다.';
+                mobileMessage.textContent = '모바일에서는 Pan과 초기화만 가능합니다.';
                 mobileMessage.style.cssText = 'color: #ccc; font-size: 12px; text-align: center; margin-top: 10px;';
                 stereoSubMenu.appendChild(mobileMessage);
             }
