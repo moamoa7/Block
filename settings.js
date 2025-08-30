@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Spatial Audio)
 // @namespace    https://com/
-// @version      67.0 (Enhanced Audio Control & Stability)
-// @description  Added Pan, Reverb, LFO Rate, Reverb Length sliders. Improved AudioContext handling and error reporting.
+// @version      68.0 (M/S Widening Implementation)
+// @description  Replaced Haas delay widener with a professional Mid/Side processing algorithm for superior stereo expansion.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -26,15 +26,15 @@
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
         // 오디오 설정
         DEFAULT_WIDENING_ENABLED: false,
-        WIDENING_DELAY_MS: 25,
+        DEFAULT_WIDENING_FACTOR: 1.0, // M/S 확장 계수 (1: 원본, >1: 확장, <1: 축소)
         // 공간 음향(HRTF) 설정
         DEFAULT_SPATIAL_ENABLED: false,
-        DEFAULT_LFO_RATE: 0.2, // LFO Rate 기본값 추가
+        DEFAULT_LFO_RATE: 0.2,
         SPATIAL_DEFAULT_DEPTH: 2.0,
         SPATIAL_RANDOM_RANGE: 0,
         DEFAULT_STEREO_PAN: 0,
         DEFAULT_REVERB_MIX: 0,
-        DEFAULT_REVERB_LENGTH: 2.0, // Reverb Length 기본값 추가
+        DEFAULT_REVERB_LENGTH: 2.0,
         // 볼륨 연동 설정
         DEFAULT_VOLUME_FOLLOWER_ENABLED: false,
         VOLUME_FOLLOWER_STRENGTH: 20.0,
@@ -94,16 +94,16 @@
             isVolumeFollowerEnabled: CONFIG.DEFAULT_VOLUME_FOLLOWER_ENABLED,
             isDynamicDepthEnabled: CONFIG.DEFAULT_DYNAMIC_DEPTH_ENABLED,
             audioContextMap: new WeakMap(),
-            currentDelayMs: CONFIG.WIDENING_DELAY_MS,
+            currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
             currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
             currentSpatialDepth: CONFIG.SPATIAL_DEFAULT_DEPTH,
             currentStereoPan: CONFIG.DEFAULT_STEREO_PAN,
             currentReverbMix: CONFIG.DEFAULT_REVERB_MIX,
-            currentReverbLength: CONFIG.DEFAULT_REVERB_LENGTH, // 상태 추가
-            currentLfoRate: CONFIG.DEFAULT_LFO_RATE, // 상태 추가
+            currentReverbLength: CONFIG.DEFAULT_REVERB_LENGTH,
+            currentLfoRate: CONFIG.DEFAULT_LFO_RATE,
             ui: { shadowRoot: null, hostElement: null }, delayCheckInterval: null,
             currentPlaybackRate: 1.0, mediaTypesEverFound: { video: false, image: false }, lastUrl: '',
-            audioContextWarningShown: false // 오디오 컨텍스트 경고 플래그
+            audioContextWarningShown: false
         });
     }
 
@@ -195,11 +195,17 @@
             }
 
             const nodes = { context, source, dryGain: context.createGain(),
-                wetGainWiden: context.createGain(), splitterWiden: context.createChannelSplitter(2), mergerWiden: context.createChannelMerger(2),
-                delay: context.createDelay(), hpfWiden: context.createBiquadFilter(),
+                // M/S Widening Nodes
+                wetGainWiden: context.createGain(), ms_splitter: context.createChannelSplitter(2), ms_mid_sum: context.createGain(),
+                ms_mid_level: context.createGain(), ms_side_invert_R: context.createGain(), ms_side_sum: context.createGain(),
+                ms_side_level: context.createGain(), ms_side_gain: context.createGain(), ms_decode_L_sum: context.createGain(),
+                ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
+                hpfWiden: context.createBiquadFilter(),
+                // Spatial Audio Nodes
                 wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
                 pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
                 lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
+                // Common Nodes
                 stereoPanner: context.createStereoPanner(),
                 convolver: context.createConvolver(), wetGainReverb: context.createGain(),
                 analyser: context.createAnalyser(), analyserData: null,
@@ -208,9 +214,32 @@
             // Common path
             nodes.stereoPanner.pan.value = state.currentStereoPan;
 
-            // Widening Path
+            // M/S Widening Path
             nodes.wetGainWiden.gain.value = state.isWideningEnabled ? 1.0 : 0.0;
-            nodes.delay.delayTime.value = state.currentDelayMs / 1000;
+            // M/S 인코딩 (L/R -> M/S)
+            nodes.ms_mid_level.gain.value = 0.5;
+            nodes.ms_side_invert_R.gain.value = -1;
+            nodes.ms_side_level.gain.value = 0.5;
+            nodes.ms_splitter.connect(nodes.ms_mid_sum, 0);       // L -> Mid Sum
+            nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);       // R -> Mid Sum
+            nodes.ms_mid_sum.connect(nodes.ms_mid_level);         // (L+R) -> Mid Level (Mid 생성)
+            nodes.ms_splitter.connect(nodes.ms_side_sum, 0);      // L -> Side Sum
+            nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1); // R -> Inverter
+            nodes.ms_side_invert_R.connect(nodes.ms_side_sum);    // -R -> Side Sum
+            nodes.ms_side_sum.connect(nodes.ms_side_level);       // (L-R) -> Side Level (Side 생성)
+            // Side 채널 처리 (확장)
+            nodes.ms_side_gain.gain.value = state.currentWideningFactor;
+            nodes.ms_side_level.connect(nodes.ms_side_gain);
+            // M/S 디코딩 (M/S -> L'/R')
+            nodes.ms_decode_invert_Side.gain.value = -1;
+            nodes.ms_mid_level.connect(nodes.ms_decode_L_sum);    // Mid -> L' Sum
+            nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);    // Side -> L' Sum (L' = Mid + Side)
+            nodes.ms_mid_level.connect(nodes.ms_decode_R_sum);    // Mid -> R' Sum
+            nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side); // Side -> Inverter
+            nodes.ms_decode_invert_Side.connect(nodes.ms_decode_R_sum); // -Side -> R' Sum (R' = Mid - Side)
+            // 최종 채널 병합
+            nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0);
+            nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
             nodes.hpfWiden.type = 'highpass';
             nodes.hpfWiden.frequency.value = state.currentHpfHz;
 
@@ -238,11 +267,9 @@
             nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
             nodes.stereoPanner.connect(nodes.analyser);
 
-            // Widening Route
-            nodes.stereoPanner.connect(nodes.splitterWiden);
-            nodes.splitterWiden.connect(nodes.delay, 0).connect(nodes.mergerWiden, 0, 0);
-            nodes.splitterWiden.connect(nodes.mergerWiden, 1, 1);
-            nodes.mergerWiden.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(context.destination);
+            // Widening Route (M/S)
+            nodes.stereoPanner.connect(nodes.ms_splitter);
+            nodes.ms_merger.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(context.destination);
 
             // Spatial Route
             nodes.stereoPanner.connect(nodes.splitterSpatial);
@@ -279,6 +306,14 @@
             const ctx = gainNode.context;
             gainNode.gain.cancelScheduledValues(ctx.currentTime);
             gainNode.gain.linearRampToValueAtTime(targetValue, ctx.currentTime + duration);
+        };
+
+        const setParamWithFade = (audioParam, targetValue, duration = 0.05) => {
+            if (!audioParam || !isFinite(targetValue)) return;
+            const ctx = audioParam.context;
+            if (!ctx) return;
+            audioParam.cancelScheduledValues(ctx.currentTime);
+            audioParam.linearRampToValueAtTime(targetValue, ctx.currentTime + duration);
         };
 
         const setGain = (media, gainNodeName, value) => {
@@ -368,6 +403,7 @@
 
         return {
             setWidening: (m, e) => setGain(m, 'wetGainWiden', e ? 1.0 : 0.0),
+            setWideningFactor: (m, v) => { const n = getOrCreateNodes(m); if(n) setParamWithFade(n.ms_side_gain.gain, v); },
             setSpatial: (m, e) => setGain(m, 'wetGainSpatial', e ? 1.0 : 0.0),
             setPan: (m, v) => { const n = getOrCreateNodes(m); if(n) n.stereoPanner.pan.linearRampToValueAtTime(v, n.context.currentTime + 0.05); },
             setReverb: (m, v) => setGain(m, 'wetGainReverb', v),
@@ -380,7 +416,6 @@
         };
     })();
 
-    // 오디오 컨텍스트 활성화를 위한 함수
     function activateAudioContexts() {
         state.activeMedia.forEach(media => stereoWideningManager.ensureContextResumed(media));
     }
@@ -408,7 +443,7 @@
         const btn = state.ui.shadowRoot?.getElementById('vsc-follower-toggle');
         if (btn) { btn.classList.toggle('active', !!enabled); btn.textContent = enabled ? '연동 ON' : '연동 OFF'; }
 
-        if(enabled) setDynamicDepthEnabled(false); // Mutually exclusive
+        if(enabled) setDynamicDepthEnabled(false);
 
         state.activeMedia.forEach(media => stereoWideningManager.setVolumeFollower(media, enabled));
         const slider = state.ui.shadowRoot?.getElementById('depthSlider');
@@ -421,7 +456,7 @@
         const btn = state.ui.shadowRoot?.getElementById('vsc-dynamic-depth-toggle');
         if (btn) { btn.classList.toggle('active', !!enabled); }
 
-        if(enabled) setVolumeFollowerEnabled(false); // Mutually exclusive
+        if(enabled) setVolumeFollowerEnabled(false);
 
         state.activeMedia.forEach(media => stereoWideningManager.setDynamicDepth(media, enabled));
     }
@@ -550,12 +585,12 @@
             spatialBtn.onclick = () => setSpatialAudioEnabled(!state.isSpatialEnabled);
             btnGroup1.append(widenBtn, spatialBtn);
 
-            const delaySlider = createSliderControl('Delay', 'delaySlider', 0, 40, 1, state.currentDelayMs, 'ms');
-            delaySlider.slider.oninput = () => {
-                const val = parseFloat(delaySlider.slider.value);
-                state.currentDelayMs = val;
-                delaySlider.valueSpan.textContent = `${val}ms`;
-                for (const nodes of state.audioContextMap.values()) { if (nodes.delay) nodes.delay.delayTime.value = val / 1000; }
+            const wideningSlider = createSliderControl('스테레오 확장', 'wideningSlider', 0, 3, 0.1, state.currentWideningFactor, 'x');
+            wideningSlider.slider.oninput = () => {
+                const val = parseFloat(wideningSlider.slider.value);
+                state.currentWideningFactor = val;
+                wideningSlider.valueSpan.textContent = `${val.toFixed(1)}x`;
+                state.activeMedia.forEach(m => stereoWideningManager.setWideningFactor(m, val));
             };
 
             const hpfSlider = createSliderControl('HPF', 'hpfSlider', 50, 500, 10, state.currentHpfHz, 'Hz');
@@ -595,7 +630,6 @@
                 state.activeMedia.forEach(m => stereoWideningManager.setReverb(m, val));
             };
 
-            // Reverb Length Slider 추가
             const reverbLengthSlider = createSliderControl('잔향 길이', 'reverbLengthSlider', 0.1, 5, 0.1, state.currentReverbLength, 's');
             reverbLengthSlider.slider.oninput = () => {
                 const val = parseFloat(reverbLengthSlider.slider.value);
@@ -604,7 +638,6 @@
                 state.activeMedia.forEach(m => stereoWideningManager.updateReverb(m, val));
             };
 
-            // LFO Rate Slider 추가
             const lfoRateSlider = createSliderControl('공간 속도', 'lfoRateSlider', 0.1, 2, 0.1, state.currentLfoRate, 'Hz');
             lfoRateSlider.slider.oninput = () => {
                 const val = parseFloat(lfoRateSlider.slider.value);
@@ -626,17 +659,17 @@
 
             resetBtn.onclick = () => {
                 const defaults = {
-                    delay: CONFIG.WIDENING_DELAY_MS, hpf: CONFIG.EFFECTS_HPF_FREQUENCY,
+                    widening: CONFIG.DEFAULT_WIDENING_FACTOR, hpf: CONFIG.EFFECTS_HPF_FREQUENCY,
                     depth: CONFIG.SPATIAL_DEFAULT_DEPTH, pan: CONFIG.DEFAULT_STEREO_PAN,
                     reverb: CONFIG.DEFAULT_REVERB_MIX, reverbLen: CONFIG.DEFAULT_REVERB_LENGTH,
                     lfoRate: CONFIG.DEFAULT_LFO_RATE,
                 };
-                state.currentDelayMs = defaults.delay; state.currentHpfHz = defaults.hpf;
+                state.currentWideningFactor = defaults.widening; state.currentHpfHz = defaults.hpf;
                 state.currentSpatialDepth = defaults.depth; state.currentStereoPan = defaults.pan;
                 state.currentReverbMix = defaults.reverb; state.currentReverbLength = defaults.reverbLen;
                 state.currentLfoRate = defaults.lfoRate;
 
-                delaySlider.slider.value = defaults.delay; delaySlider.valueSpan.textContent = `${defaults.delay}ms`;
+                wideningSlider.slider.value = defaults.widening; wideningSlider.valueSpan.textContent = `${defaults.widening.toFixed(1)}x`;
                 hpfSlider.slider.value = defaults.hpf; hpfSlider.valueSpan.textContent = `${defaults.hpf}Hz`;
                 depthSlider.slider.value = defaults.depth; depthSlider.valueSpan.textContent = defaults.depth.toFixed(1);
                 panSlider.slider.value = defaults.pan; panSlider.valueSpan.textContent = defaults.pan.toFixed(1);
@@ -645,23 +678,23 @@
                 lfoRateSlider.slider.value = defaults.lfoRate; lfoRateSlider.valueSpan.textContent = `${defaults.lfoRate.toFixed(1)}Hz`;
 
                 state.activeMedia.forEach(m => {
+                    stereoWideningManager.setWideningFactor(m, defaults.widening);
+                    stereoWideningManager.updateReverb(m, defaults.reverbLen);
+
                     const nodes = state.audioContextMap.get(m);
                     if (!nodes) return;
-                    if (nodes.delay) nodes.delay.delayTime.value = defaults.delay / 1000;
                     if (nodes.hpfWiden) nodes.hpfWiden.frequency.value = defaults.hpf;
                     if (nodes.hpfSpatial) nodes.hpfSpatial.frequency.value = defaults.hpf;
                     if(nodes.stereoPanner) nodes.stereoPanner.pan.value = defaults.pan;
                     if(nodes.wetGainReverb) nodes.wetGainReverb.gain.value = defaults.reverb;
                     if(nodes.lfo) nodes.lfo.frequency.value = defaults.lfoRate;
-                    stereoWideningManager.updateReverb(m, defaults.reverbLen);
-
                     if (!state.isVolumeFollowerEnabled && !state.isDynamicDepthEnabled && nodes.lfoDepth) {
                         nodes.lfoDepth.gain.value = defaults.depth;
                     }
                 });
             };
 
-            stereoSubMenu.append(btnGroup1, delaySlider.controlDiv, hpfSlider.controlDiv, depthSlider.controlDiv, lfoRateSlider.controlDiv, panSlider.controlDiv, reverbSlider.controlDiv, reverbLengthSlider.controlDiv, btnGroup2, btnGroup3);
+            stereoSubMenu.append(btnGroup1, wideningSlider.controlDiv, hpfSlider.controlDiv, depthSlider.controlDiv, lfoRateSlider.controlDiv, panSlider.controlDiv, reverbSlider.controlDiv, reverbLengthSlider.controlDiv, btnGroup2, btnGroup3);
             container.append(imageGroup, videoGroup, stereoGroup);
 
             const allGroups = [imageGroup, videoGroup, stereoGroup];
