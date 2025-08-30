@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Spatial Audio)
 // @namespace    https://com/
-// @version      69.8 (Mobile LFO Panning & Final Stability)
-// @description  Implements a lightweight LFO-driven StereoPanner for mobile spatial audio, providing a stable auto-pan effect while retaining full HRTF on desktop. Finalized cleanup logic.
+// @version      69.9 (Mobile Sound Enhance & Finalization)
+// @description  Implements EQ boost and max-width safety for mobile spatial audio. Provides a rich, stable audio experience on mobile while retaining full features on desktop.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -196,31 +196,46 @@
             let nodes;
 
             if (isMobile) {
-                console.warn("[VSC] 모바일 환경 감지: 오디오 효과를 안정적인 LFO Panner 모드로 전환합니다.");
+                console.warn("[VSC] 모바일 환경 감지: 오디오 효과를 안정적인 LFO Panner + EQ 모드로 전환합니다.");
                 nodes = {
                     context, source,
                     stereoPanner: context.createStereoPanner(),
                     analyser: context.createAnalyser(),
                     lfo: context.createOscillator(),
                     lfoDepth: context.createGain(),
+                    lowShelf: context.createBiquadFilter(),
+                    highShelf: context.createBiquadFilter(),
                     wetGainSpatial: context.createGain(),
                     analyserData: null,
                     // Mock nodes to prevent errors
                     wetGainWiden: context.createGain(),
                 };
                 nodes.wetGainWiden.gain.value = 0;
-                nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1 : 0;
+                
+                // EQ setup
+                nodes.lowShelf.type = 'lowshelf';
+                nodes.lowShelf.frequency.value = 150;
+                nodes.lowShelf.gain.value = 2.0; // +2dB boost
+                nodes.highShelf.type = 'highshelf';
+                nodes.highShelf.frequency.value = 5000;
+                nodes.highShelf.gain.value = 2.0; // +2dB boost
                 
                 // LFO setup for auto-panning
+                nodes.lfo.type = 'sine';
                 nodes.lfo.frequency.value = state.currentLfoRate;
-                nodes.lfoDepth.gain.value = state.isSpatialEnabled ? state.currentSpatialDepth / 10 : 0; // Mobile depth is more sensitive
+                const depth = Math.min(Math.abs(state.currentSpatialDepth) / 5, 0.5); // Limit max pan width to ±0.5
+                nodes.lfoDepth.gain.value = state.isSpatialEnabled ? depth : 0;
                 
+                // Main audio path (Dry)
                 const dryGain = context.createGain();
-                const wetGain = context.createGain();
-                
                 source.connect(dryGain).connect(context.destination);
+
+                // Effect path (Wet)
+                const effectChain = source.connect(nodes.lowShelf);
+                effectChain.connect(nodes.highShelf).connect(nodes.stereoPanner).connect(nodes.wetGainSpatial).connect(context.destination);
                 
-                source.connect(nodes.stereoPanner).connect(wetGain).connect(context.destination);
+                dryGain.gain.value = state.isSpatialEnabled ? 0 : 1;
+                nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1 : 0;
                 
                 nodes.lfo.connect(nodes.lfoDepth).connect(nodes.stereoPanner.pan);
                 nodes.lfo.start();
@@ -366,7 +381,7 @@
         };
 
         function setVolumeFollower(media, enabled) {
-            if (isMobile) return; // Feature disabled on mobile
+            if (isMobile) return;
             if (enabled) {
                 runAnalyser(media, (nodes, rms) => {
                     setGainWithFade(nodes.lfoDepth, rms * CONFIG.VOLUME_FOLLOWER_STRENGTH, 0.05);
@@ -379,7 +394,7 @@
         }
 
         function setDynamicDepth(media, enabled) {
-            if (isMobile) return; // Feature disabled on mobile
+            if (isMobile) return;
             if (enabled) {
                 runAnalyser(media, (nodes, rms) => {
                     const dynamicDepth = state.currentSpatialDepth + (rms * CONFIG.DYNAMIC_DEPTH_FACTOR);
@@ -407,7 +422,12 @@
             if (nodes && nodes.stereoPanner) {
                 safeExec(() => {
                     nodes.source.disconnect();
-                    nodes.source.connect(nodes.stereoPanner);
+                    if (isMobile && nodes.dryGain) { // Mobile has a dry/wet path
+                         nodes.source.connect(nodes.dryGain);
+                         nodes.source.connect(nodes.lowShelf);
+                    } else { // Desktop connects to main panner
+                        nodes.source.connect(nodes.stereoPanner);
+                    }
                 }, 'reconnectGraph');
             }
         }
@@ -447,7 +467,10 @@
                 const n = getOrCreateNodes(m);
                 if (n) {
                     if (isMobile) {
-                        n.lfoDepth.gain.value = e ? state.currentSpatialDepth / 10 : 0;
+                        const depth = Math.min(Math.abs(state.currentSpatialDepth) / 5, 0.5);
+                        if (n.lfoDepth) n.lfoDepth.gain.value = e ? depth : 0;
+                        if (n.dryGain) n.dryGain.gain.value = e ? 0 : 1;
+                        if (n.wetGainSpatial) n.wetGainSpatial.gain.value = e ? 1 : 0;
                     } else {
                         setGain(m, 'wetGainSpatial', e ? 1.0 : 0.0);
                     }
@@ -475,7 +498,7 @@
             state.isWideningEnabled = !!enabled;
             const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
             if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '확장 ON' : '확장 OFF'; }
-            if (enabled) showWarningMessage('모바일 환경에서는 스테레오 확장 기능이 지원되지 않습니다.');
+            if (enabled) showWarningMessage('모바일에서는 스테레오 확장 기능이 지원되지 않습니다.');
             return;
         }
         if (enabled) activateAudioContexts();
@@ -674,7 +697,8 @@
                     const nodes = state.audioContextMap.get(media);
                     if (nodes && nodes.lfoDepth) {
                         if (isMobile) {
-                            nodes.lfoDepth.gain.value = val / 10; // Mobile depth is more sensitive
+                            const depth = Math.min(Math.abs(val) / 5, 0.5);
+                            nodes.lfoDepth.gain.value = depth;
                         } else if (!state.isVolumeFollowerEnabled) {
                             nodes.lfoDepth.gain.value = val;
                         }
@@ -757,7 +781,7 @@
                     if(nodes.lfo) nodes.lfo.frequency.value = defaults.lfoRate;
                     if (nodes.lfoDepth) {
                        if (isMobile) {
-                            nodes.lfoDepth.gain.value = defaults.depth / 10;
+                            nodes.lfoDepth.gain.value = defaults.depth / 5;
                        } else if (!state.isVolumeFollowerEnabled && !state.isDynamicDepthEnabled) {
                             nodes.lfoDepth.gain.value = defaults.depth;
                        }
