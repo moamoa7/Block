@@ -222,7 +222,7 @@
 
                 source.connect(nodes.stereoPanner);
                 nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination); // Dry path
-                
+
                 const wetMixer = context.createGain();
                 nodes.stereoPanner.connect(wetMixer);
                 wetMixer.connect(nodes.wetGain).connect(context.destination); // Wet path
@@ -239,7 +239,7 @@
                 nodes.delaySurroundSplitter.connect(nodes.delaySurroundMerger, 0, 0);
                 nodes.delaySurroundSplitter.connect(nodes.delayNode, 1).connect(nodes.delaySurroundMerger, 0, 1);
                 nodes.delaySurroundMerger.connect(nodes.wetGainDelaySurround).connect(nodes.wetGain);
-                
+
                 // Set initial dry/wet mix
                 const anyEffectOn = state.isDelaySurroundEnabled || state.currentReverbMix > 0;
                 nodes.dryGain.gain.value = anyEffectOn ? 0 : 1;
@@ -295,7 +295,7 @@
                 nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(nodes.wetGain);
                 nodes.lfo.connect(nodes.lfoDepth); nodes.lfoDepth.connect(nodes.pannerL.positionX); nodes.lfoDepth.connect(nodes.pannerR.positionX);
                 nodes.lfo.start();
-                
+
                 // Reverb Path
                 nodes.wetGainReverb.gain.value = state.currentReverbMix;
                 try { nodes.convolver.buffer = createReverbImpulseResponse(context, state.currentReverbLength); } catch(e) {}
@@ -305,7 +305,7 @@
                 nodes.dryGain.gain.value = anyEffectOn ? 0 : 1;
                 nodes.wetGain.gain.value = anyEffectOn ? 1 : 0;
             }
-            
+
             source.connect(nodes.analyser);
             state.audioContextMap.set(media, nodes);
             return nodes;
@@ -322,7 +322,7 @@
             }
             return null;
         }
-        
+
         function updateDryWetMix(media) {
             const nodes = state.audioContextMap.get(media);
             if (!nodes) return;
@@ -333,7 +333,7 @@
             } else {
                 anyEffectOn = state.isWideningEnabled || state.isSpatialEnabled || state.currentReverbMix > 0;
             }
-            
+
             nodes.dryGain.gain.linearRampToValueAtTime(anyEffectOn ? 0 : 1, nodes.context.currentTime + 0.05);
             nodes.wetGain.gain.linearRampToValueAtTime(anyEffectOn ? 1 : 0, nodes.context.currentTime + 0.05);
         }
@@ -359,7 +359,7 @@
             ensureContextResumed(media);
             setGainWithFade(nodes[gainNodeName], value);
         };
-        
+
         function cleanupForMedia(media) {
             const nodes = state.audioContextMap.get(media);
             if (nodes) {
@@ -432,7 +432,29 @@
         if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '딜레이 ON' : '딜레이 OFF'; }
         state.activeMedia.forEach(media => stereoWideningManager.setDelaySurround(media, enabled));
     }
-    
+
+    // ================== FIXED PART START ==================
+    function setVolumeFollowerEnabled(enabled) {
+        if (isMobile) return;
+        state.isVolumeFollowerEnabled = !!enabled;
+        const btn = state.ui.shadowRoot?.getElementById('vsc-follower-toggle');
+        if (btn) {
+            btn.classList.toggle('active', enabled);
+            btn.textContent = enabled ? '연동 ON' : '연동 OFF';
+        }
+    }
+
+    function setDynamicDepthEnabled(enabled) {
+        if (isMobile) return;
+        state.isDynamicDepthEnabled = !!enabled;
+        const btn = state.ui.shadowRoot?.getElementById('vsc-dynamic-depth-toggle');
+        if (btn) {
+            btn.classList.toggle('active', enabled);
+            btn.textContent = enabled ? '동적 ON' : '동적 OFF';
+        }
+    }
+    // ================== FIXED PART END ==================
+
     function resetEffectStatesToDefault() {
         setWideningEnabled(CONFIG.DEFAULT_WIDENING_ENABLED);
         setSpatialAudioEnabled(CONFIG.DEFAULT_SPATIAL_ENABLED);
