@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Spatial Audio)
 // @namespace    https://com/
-// @version      66.3 (Final Variable Fix)
+// @version      66.4 (Final Variable Fix)
 // @description  Fixed a variable name error causing initialization failure. All features are now stable.
 // @match        *://*/*
 // @run-at       document-end
@@ -31,6 +31,10 @@
         DEFAULT_SPATIAL_ENABLED: false,
         SPATIAL_LFO_RATE: 0.2,
         SPATIAL_DEFAULT_DEPTH: 2.0,
+        SPATIAL_RANDOM_RANGE: 0,
+        // 볼륨 연동 설정
+        DEFAULT_VOLUME_FOLLOWER_ENABLED: false,
+        VOLUME_FOLLOWER_STRENGTH: 5.0,
         // 공용 이펙트 설정
         EFFECTS_HPF_FREQUENCY: 120,
 
@@ -150,6 +154,7 @@
 
     const stereoWideningManager = (() => {
         const animationFrameMap = new WeakMap();
+        const analyserFrameMap = new WeakMap();
 
         function createAudioGraph(media) {
             const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -160,6 +165,7 @@
                 wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
                 pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
                 lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
+                analyser: context.createAnalyser(), analyserData: null,
             };
 
             nodes.dryGain.gain.value = 1.0;
@@ -179,19 +185,20 @@
             nodes.hpfSpatial.type = 'highpass';
             nodes.hpfSpatial.frequency.value = state.currentHpfHz;
 
+            nodes.analyser.fftSize = 256;
+            nodes.analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
+
             nodes.source.connect(nodes.dryGain).connect(context.destination);
+            nodes.source.connect(nodes.analyser); // Analyser for volume follower
 
             nodes.source.connect(nodes.splitterWiden);
-            nodes.splitterWiden.connect(nodes.delay, 0);
+            nodes.splitterWiden.connect(nodes.delay, 0).connect(nodes.mergerWiden, 0, 0);
             nodes.splitterWiden.connect(nodes.mergerWiden, 1, 1);
-            nodes.delay.connect(nodes.mergerWiden, 0, 0);
             nodes.mergerWiden.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(context.destination);
 
             nodes.source.connect(nodes.splitterSpatial);
-            nodes.splitterSpatial.connect(nodes.pannerL, 0);
-            nodes.splitterSpatial.connect(nodes.pannerR, 1);
-            nodes.pannerL.connect(nodes.mergerSpatial, 0, 0);
-            nodes.pannerR.connect(nodes.mergerSpatial, 0, 1);
+            nodes.splitterSpatial.connect(nodes.pannerL, 0).connect(nodes.mergerSpatial, 0, 0);
+            nodes.splitterSpatial.connect(nodes.pannerR, 1).connect(nodes.mergerSpatial, 0, 1);
             nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(context.destination);
 
             nodes.lfo.connect(nodes.lfoDepth);
@@ -227,23 +234,16 @@
         };
 
         const applyRandomPosition = (panner, range) => {
-            const xOffset = (Math.random() - 0.5) * range;
-            const yOffset = (Math.random() - 0.5) * range;
-            panner.positionX.setValueAtTime(panner.positionX.value + xOffset, panner.context.currentTime);
-            panner.positionY.setValueAtTime(panner.positionY.value + yOffset, panner.context.currentTime);
+            const xO = (Math.random()-0.5)*range, yO = (Math.random()-0.5)*range;
+            panner.positionX.setValueAtTime(panner.positionX.value + xO, panner.context.currentTime);
+            panner.positionY.setValueAtTime(panner.positionY.value + yO, panner.context.currentTime);
         };
 
         function setSpatial(media, enabled) {
             const nodes = getOrCreateNodes(media);
             if (!nodes) return;
-
             setGain(media, 'wetGainSpatial', enabled);
-
-            if (animationFrameMap.has(media)) {
-                cancelAnimationFrame(animationFrameMap.get(media));
-                animationFrameMap.delete(media);
-            }
-
+            if (animationFrameMap.has(media)) { cancelAnimationFrame(animationFrameMap.get(media)); animationFrameMap.delete(media); }
             if (enabled && CONFIG.SPATIAL_RANDOM_RANGE > 0) {
                 const loop = () => {
                     applyRandomPosition(nodes.pannerL, CONFIG.SPATIAL_RANDOM_RANGE);
@@ -254,11 +254,35 @@
             }
         }
 
-        function cleanupForMedia(media) {
-            if (animationFrameMap.has(media)) {
-                cancelAnimationFrame(animationFrameMap.get(media));
-                animationFrameMap.delete(media);
+        function setVolumeFollower(media, enabled) {
+            const nodes = getOrCreateNodes(media);
+            if (!nodes) return;
+            if (analyserFrameMap.has(media)) { cancelAnimationFrame(analyserFrameMap.get(media)); analyserFrameMap.delete(media); }
+
+            if (enabled) {
+                const loop = () => {
+                    nodes.analyser.getByteTimeDomainData(nodes.analyserData);
+                    let sum = 0;
+                    for (let i = 0; i < nodes.analyserData.length; i++) {
+                        const val = (nodes.analyserData[i] - 128) / 128;
+                        sum += val * val;
+                    }
+                    const rms = Math.sqrt(sum / nodes.analyserData.length);
+
+                    if (isFinite(rms)) {
+                        setGainWithFade(nodes.lfoDepth, rms * CONFIG.VOLUME_FOLLOWER_STRENGTH, 0.05);
+                    }
+                    analyserFrameMap.set(media, requestAnimationFrame(loop));
+                };
+                loop();
+            } else {
+                setGainWithFade(nodes.lfoDepth, state.currentSpatialDepth, 0.1);
             }
+        }
+
+        function cleanupForMedia(media) {
+            if (animationFrameMap.has(media)) { cancelAnimationFrame(animationFrameMap.get(media)); animationFrameMap.delete(media); }
+            if (analyserFrameMap.has(media)) { cancelAnimationFrame(analyserFrameMap.get(media)); analyserFrameMap.delete(media); }
             const nodes = state.audioContextMap.get(media);
             if (nodes) {
                 safeExec(() => {
@@ -268,27 +292,30 @@
                 state.audioContextMap.delete(media);
             }
         }
-        return { setWidening: (m, e) => setGain(m, 'wetGainWiden', e), setSpatial, cleanupForMedia };
+        return { setWidening: (m, e) => setGain(m, 'wetGainWiden', e), setSpatial, setVolumeFollower, cleanupForMedia };
     })();
 
     function setWideningEnabled(enabled) {
         state.isWideningEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
-        if (btn) {
-            btn.classList.toggle('active', enabled);
-            btn.textContent = enabled ? '확장 ON' : '확장 OFF';
-        }
+        if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '확장 ON' : '확장 OFF'; }
         state.activeMedia.forEach(media => stereoWideningManager.setWidening(media, enabled));
     }
 
     function setSpatialAudioEnabled(enabled) {
         state.isSpatialEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-spatial-toggle');
-        if (btn) {
-            btn.classList.toggle('active', enabled);
-            btn.textContent = enabled ? '공간음향 ON' : '공간음향 OFF';
-        }
+        if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '공간음향 ON' : '공간음향 OFF'; }
         state.activeMedia.forEach(media => stereoWideningManager.setSpatial(media, enabled));
+    }
+
+    function setVolumeFollowerEnabled(enabled) {
+        state.isVolumeFollowerEnabled = !!enabled;
+        const btn = state.ui.shadowRoot?.getElementById('vsc-follower-toggle');
+        const slider = state.ui.shadowRoot?.getElementById('depthSlider');
+        if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '연동 ON' : '연동 OFF'; }
+        if (slider) slider.disabled = enabled;
+        state.activeMedia.forEach(media => stereoWideningManager.setVolumeFollower(media, enabled));
     }
 
     function setVideoFilterLevel(level) {
@@ -332,6 +359,7 @@
             '.slider-control { display: flex; flex-direction: column; gap: 5px; }',
             '.slider-control label { display: flex; justify-content: space-between; font-size: 13px; color: white; }',
             'input[type=range] { width: 100%; margin: 0; }',
+            'input[type=range]:disabled { opacity: 0.5; }',
             '.vsc-button-group { display: flex; gap: 8px; width: 100%; }',
             '.vsc-button-group > .vsc-btn { flex: 1; }'
         ];
@@ -438,13 +466,19 @@
                 const val = parseFloat(depthSlider.slider.value);
                 state.currentSpatialDepth = val;
                 depthSlider.valueSpan.textContent = val.toFixed(1);
-                for (const nodes of state.audioContextMap.values()) { if (nodes.lfoDepth) nodes.lfoDepth.gain.value = val; }
+                if (!state.isVolumeFollowerEnabled) {
+                    for (const nodes of state.audioContextMap.values()) { if (nodes.lfoDepth) nodes.lfoDepth.gain.value = val; }
+                }
             };
 
+            const btnGroup2 = document.createElement('div'); btnGroup2.className='vsc-button-group';
+            const followerBtn = createButton('vsc-follower-toggle', '볼륨 연동 ON/OFF', '연동 OFF', 'vsc-btn');
+            followerBtn.onclick = () => setVolumeFollowerEnabled(!state.isVolumeFollowerEnabled);
             const resetBtn = createButton('vsc-stereo-reset', '기본값으로 초기화', '기본값', 'vsc-btn');
-            resetBtn.style.width = '100%';
+            btnGroup2.append(followerBtn, resetBtn);
+
             resetBtn.onclick = () => {
-                const defaults = { delay: CONFIG.WIDENING_DELAY_MS, hpf: CONFIG.EFFECTS_HPF_FREQUENCY, depth: CONFIG.SPATIAL_DEFAULT_DEPTH };
+                const defaults = { delay: CONFIG.WIDENING_DELAY_MS, hpf: CONFIG.EFFECTS_HPF_FREQUENCY, depth: CONFIG.SPATIAL_DEFAULT_DEPTH, follower: CONFIG.DEFAULT_VOLUME_FOLLOWER_ENABLED };
                 state.currentDelayMs = defaults.delay; state.currentHpfHz = defaults.hpf; state.currentSpatialDepth = defaults.depth;
 
                 delaySlider.slider.value = defaults.delay; delaySlider.valueSpan.textContent = `${defaults.delay}ms`;
@@ -453,6 +487,7 @@
 
                 setWideningEnabled(CONFIG.DEFAULT_WIDENING_ENABLED);
                 setSpatialAudioEnabled(CONFIG.DEFAULT_SPATIAL_ENABLED);
+                setVolumeFollowerEnabled(defaults.follower);
 
                 for (const nodes of state.audioContextMap.values()) {
                     if (nodes.delay) nodes.delay.delayTime.value = defaults.delay / 1000;
@@ -462,7 +497,7 @@
                 }
             };
 
-            stereoSubMenu.append(btnGroup1, delaySlider.controlDiv, hpfSlider.controlDiv, depthSlider.controlDiv, resetBtn);
+            stereoSubMenu.append(btnGroup1, delaySlider.controlDiv, hpfSlider.controlDiv, depthSlider.controlDiv, btnGroup2);
             container.append(imageGroup, videoGroup, stereoGroup);
 
             const allGroups = [imageGroup, videoGroup, stereoGroup];
@@ -480,6 +515,7 @@
                 shadowRoot.querySelector('#vsc-video-controls select').value = state.currentVideoFilterLevel;
                 setWideningEnabled(state.isWideningEnabled);
                 setSpatialAudioEnabled(state.isSpatialEnabled);
+                setVolumeFollowerEnabled(state.isVolumeFollowerEnabled);
             };
             container.addEventListener('pointerdown', resetFadeTimer);
             updateActiveButtons();
@@ -492,8 +528,8 @@
         };
     })();
 
-    // ... The rest of the script is identical to the previous full version.
-    // ... (mediaSessionManager, autoDelayManager, findAllMedia, etc.) ...
+    // ... 이하 코드는 이전 버전과 동일합니다 ...
+
     const mediaSessionManager = (() => {
         let inited = false;
         const getSeekTime = m => { if (!m || !isFinite(m.duration)) return 10; return Math.min(Math.floor(m.duration * CONFIG.SEEK_TIME_PERCENT), CONFIG.SEEK_TIME_MAX_SEC); };
