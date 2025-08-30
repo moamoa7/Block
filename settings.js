@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Spatial Audio)
 // @namespace    https://com/
-// @version      69.7 (Fix: Refined Mobile Detection)
-// @description  Strengthened the mobile detection logic to prevent misidentifying PCs as mobile, restoring full functionality on desktop.
+// @version      69.8 (Mobile LFO Panning & Final Stability)
+// @description  Implements a lightweight LFO-driven StereoPanner for mobile spatial audio, providing a stable auto-pan effect while retaining full HRTF on desktop. Finalized cleanup logic.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -13,7 +13,6 @@
 
     let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
 
-    // MODIFIED: Strengthened mobile detection to be more specific and avoid false positives on PCs.
     const isMobile = /(iPhone|iPad|iPod|Android)/i.test(navigator.userAgent);
 
     const TARGET_DELAYS = {
@@ -27,12 +26,11 @@
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
         // 오디오 설정
         DEFAULT_WIDENING_ENABLED: false,
-        DEFAULT_WIDENING_FACTOR: 1.0, // M/S 확장 계수 (1: 원본, >1: 확장, <1: 축소)
+        DEFAULT_WIDENING_FACTOR: 1.0,
         // 공간 음향(HRTF) 설정
         DEFAULT_SPATIAL_ENABLED: false,
         DEFAULT_LFO_RATE: 0.2,
         SPATIAL_DEFAULT_DEPTH: 2.0,
-        SPATIAL_RANDOM_RANGE: 0,
         DEFAULT_STEREO_PAN: 0,
         DEFAULT_REVERB_MIX: 0,
         DEFAULT_REVERB_LENGTH: 2.0,
@@ -198,23 +196,37 @@
             let nodes;
 
             if (isMobile) {
-                // For MOBILE: Use a simple, stable graph to avoid errors
-                console.warn("[VSC] 모바일 환경 감지: 오디오 효과를 안정적인 StereoPanner 모드로 전환합니다.");
+                console.warn("[VSC] 모바일 환경 감지: 오디오 효과를 안정적인 LFO Panner 모드로 전환합니다.");
                 nodes = {
                     context, source,
                     stereoPanner: context.createStereoPanner(),
                     analyser: context.createAnalyser(),
-                    analyserData: null,
-                    // Mock complex nodes to prevent errors when trying to access them
-                    wetGainWiden: context.createGain(),
+                    lfo: context.createOscillator(),
+                    lfoDepth: context.createGain(),
                     wetGainSpatial: context.createGain(),
+                    analyserData: null,
+                    // Mock nodes to prevent errors
+                    wetGainWiden: context.createGain(),
                 };
-                nodes.wetGainWiden.gain.value = 0; // Ensure it's off
-                nodes.wetGainSpatial.gain.value = 0; // Ensure it's off
-                nodes.stereoPanner.pan.value = state.currentStereoPan;
+                nodes.wetGainWiden.gain.value = 0;
+                nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1 : 0;
+                
+                // LFO setup for auto-panning
+                nodes.lfo.frequency.value = state.currentLfoRate;
+                nodes.lfoDepth.gain.value = state.isSpatialEnabled ? state.currentSpatialDepth / 10 : 0; // Mobile depth is more sensitive
+                
+                const dryGain = context.createGain();
+                const wetGain = context.createGain();
+                
+                source.connect(dryGain).connect(context.destination);
+                
+                source.connect(nodes.stereoPanner).connect(wetGain).connect(context.destination);
+                
+                nodes.lfo.connect(nodes.lfoDepth).connect(nodes.stereoPanner.pan);
+                nodes.lfo.start();
+
                 nodes.analyser.fftSize = 256;
                 nodes.analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
-                source.connect(nodes.stereoPanner).connect(context.destination);
                 source.connect(nodes.analyser);
             } else {
                 // For DESKTOP: Use the full, high-quality audio graph
@@ -392,7 +404,7 @@
 
         function reconnectGraph(media) {
             const nodes = state.audioContextMap.get(media);
-            if (nodes) {
+            if (nodes && nodes.stereoPanner) {
                 safeExec(() => {
                     nodes.source.disconnect();
                     nodes.source.connect(nodes.stereoPanner);
@@ -431,11 +443,20 @@
         return {
             setWidening: (m, e) => { if(!isMobile) setGain(m, 'wetGainWiden', e ? 1.0 : 0.0) },
             setWideningFactor: (m, v) => { if(!isMobile) { const n = getOrCreateNodes(m); if(n && n.ms_side_gain) setParamWithFade(n.ms_side_gain.gain, v); } },
-            setSpatial: (m, e) => { if(!isMobile) setGain(m, 'wetGainSpatial', e ? 1.0 : 0.0) },
+            setSpatial: (m, e) => {
+                const n = getOrCreateNodes(m);
+                if (n) {
+                    if (isMobile) {
+                        n.lfoDepth.gain.value = e ? state.currentSpatialDepth / 10 : 0;
+                    } else {
+                        setGain(m, 'wetGainSpatial', e ? 1.0 : 0.0);
+                    }
+                }
+            },
             setPan: (m, v) => { const n = getOrCreateNodes(m); if(n && n.stereoPanner) n.stereoPanner.pan.linearRampToValueAtTime(v, n.context.currentTime + 0.05); },
             setReverb: (m, v) => { if(!isMobile) setGain(m, 'wetGainReverb', v) },
             updateReverb: (m, len) => { if(!isMobile) { const n = getOrCreateNodes(m); if(n && n.convolver) n.convolver.buffer = createReverbImpulseResponse(n.context, len); } },
-            setLfoRate: (m, rate) => { if(!isMobile) { const n = getOrCreateNodes(m); if(n && n.lfo) n.lfo.frequency.linearRampToValueAtTime(rate, n.context.currentTime + 0.05); } },
+            setLfoRate: (m, rate) => { const n = getOrCreateNodes(m); if(n && n.lfo) n.lfo.frequency.linearRampToValueAtTime(rate, n.context.currentTime + 0.05); },
             setVolumeFollower,
             setDynamicDepth,
             cleanupForMedia,
@@ -454,7 +475,7 @@
             state.isWideningEnabled = !!enabled;
             const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
             if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '확장 ON' : '확장 OFF'; }
-            showWarningMessage('모바일 환경에서는 스테레오 확장 기능이 지원되지 않습니다.');
+            if (enabled) showWarningMessage('모바일 환경에서는 스테레오 확장 기능이 지원되지 않습니다.');
             return;
         }
         if (enabled) activateAudioContexts();
@@ -465,13 +486,6 @@
     }
 
     function setSpatialAudioEnabled(enabled) {
-        if (isMobile) {
-            state.isSpatialEnabled = !!enabled;
-            const btn = state.ui.shadowRoot?.getElementById('vsc-spatial-toggle');
-            if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '공간음향 ON' : '공간음향 OFF'; }
-            showWarningMessage('모바일 환경에서는 공간 음향 기능이 지원되지 않습니다.');
-            return;
-        }
         if (enabled) activateAudioContexts();
         state.isSpatialEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-spatial-toggle');
@@ -656,9 +670,16 @@
                 const val = parseFloat(depthSlider.slider.value);
                 state.currentSpatialDepth = val;
                 depthSlider.valueSpan.textContent = val.toFixed(1);
-                if (!state.isVolumeFollowerEnabled) {
-                    for (const nodes of state.audioContextMap.values()) { if (nodes.lfoDepth) nodes.lfoDepth.gain.value = val; }
-                }
+                state.activeMedia.forEach(media => {
+                    const nodes = state.audioContextMap.get(media);
+                    if (nodes && nodes.lfoDepth) {
+                        if (isMobile) {
+                            nodes.lfoDepth.gain.value = val / 10; // Mobile depth is more sensitive
+                        } else if (!state.isVolumeFollowerEnabled) {
+                            nodes.lfoDepth.gain.value = val;
+                        }
+                    }
+                });
             };
 
             const panSlider = createSliderControl('Pan (좌우)', 'panSlider', -1, 1, 0.1, state.currentStereoPan, '');
@@ -734,8 +755,12 @@
                     if(nodes.stereoPanner) nodes.stereoPanner.pan.value = defaults.pan;
                     if(nodes.wetGainReverb) nodes.wetGainReverb.gain.value = defaults.reverb;
                     if(nodes.lfo) nodes.lfo.frequency.value = defaults.lfoRate;
-                    if (!state.isVolumeFollowerEnabled && !state.isDynamicDepthEnabled && nodes.lfoDepth) {
-                        nodes.lfoDepth.gain.value = defaults.depth;
+                    if (nodes.lfoDepth) {
+                       if (isMobile) {
+                            nodes.lfoDepth.gain.value = defaults.depth / 10;
+                       } else if (!state.isVolumeFollowerEnabled && !state.isDynamicDepthEnabled) {
+                            nodes.lfoDepth.gain.value = defaults.depth;
+                       }
                     }
                 });
             };
@@ -745,15 +770,16 @@
             // Disable complex audio controls on mobile
             if (isMobile) {
                 [...stereoSubMenu.querySelectorAll('input, button')].forEach(el => {
-                    if (el.id !== 'panSlider' && el.id !== 'vsc-stereo-reset') {
+                    const allowedIds = ['panSlider', 'vsc-stereo-reset', 'vsc-spatial-toggle', 'depthSlider', 'lfoRateSlider'];
+                    if (!allowedIds.includes(el.id)) {
                         el.disabled = true;
-                        if (el.parentElement.className === 'slider-control') {
-                           el.parentElement.style.opacity = '0.5';
+                         if (el.parentElement.className === 'slider-control' || el.className.includes('vsc-btn')) {
+                           el.closest('.vsc-button-group, .slider-control').style.opacity = '0.5';
                         }
                     }
                 });
-                const mobileMessage = document.createElement('p');
-                mobileMessage.textContent = '모바일에서는 Pan과 초기화만 가능합니다.';
+                 const mobileMessage = document.createElement('p');
+                mobileMessage.textContent = '모바일용 공간음향(좌우이동)만 지원됩니다.';
                 mobileMessage.style.cssText = 'color: #ccc; font-size: 12px; text-align: center; margin-top: 10px;';
                 stereoSubMenu.appendChild(mobileMessage);
             }
