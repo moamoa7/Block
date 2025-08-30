@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (with Spatial Audio)
+// @name         Video_Image_Control (with Parallel Spatial Audio)
 // @namespace    https://com/
-// @version      71.0 (Stable Dry/Wet Audio Architecture)
-// @description  Rebuilt the audio graph with a parallel Dry/Wet signal path for maximum stability on both mobile and desktop, eliminating audio dropouts.
+// @version      72.0 (Stable Parallel Audio Architecture)
+// @description  오디오 그래프를 완전한 병렬 Dry/Wet 신호 경로로 재구성하여 각 효과(확장, 공간음향, 리버브)가 독립적으로 처리되도록 안정성을 극대화했습니다.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -220,12 +220,16 @@
                     wetGainDelaySurround: context.createGain(),
                 });
 
-                source.connect(nodes.stereoPanner);
-                nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination); // Dry path
-
+                // --- Mobile Audio Graph ---
                 const wetMixer = context.createGain();
+
+                // Dry Path: Source -> Panner -> Dry Gain -> Destination
+                source.connect(nodes.stereoPanner);
+                nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
+
+                // Wet Path: Source -> Panner -> Wet Mixer -> Effects -> Wet Gain -> Destination
                 nodes.stereoPanner.connect(wetMixer);
-                wetMixer.connect(nodes.wetGain).connect(context.destination); // Wet path
+                wetMixer.connect(nodes.wetGain).connect(context.destination);
 
                 // Reverb Path
                 nodes.wetGainReverb.gain.value = state.currentReverbMix;
@@ -245,67 +249,90 @@
                 nodes.dryGain.gain.value = anyEffectOn ? 0 : 1;
                 nodes.wetGain.gain.value = anyEffectOn ? 1 : 0;
             } else {
-                // For DESKTOP: Use the full, high-quality audio graph
+                // For DESKTOP: Use the full, high-quality parallel audio graph
                 Object.assign(nodes, {
+                    // Widening nodes
                     wetGainWiden: context.createGain(), ms_splitter: context.createChannelSplitter(2), ms_mid_sum: context.createGain(),
                     ms_mid_level: context.createGain(), ms_side_invert_R: context.createGain(), ms_side_sum: context.createGain(),
                     ms_side_level: context.createGain(), ms_side_gain: context.createGain(), ms_decode_L_sum: context.createGain(),
                     ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
                     hpfWiden: context.createBiquadFilter(),
+                    // Spatial nodes
                     wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
                     pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
                     lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
+                    // Reverb nodes
                     convolver: context.createConvolver(), wetGainReverb: context.createGain(),
                 });
 
+                // --- Desktop Parallel Audio Graph ---
+                // [Source] -> [StereoPanner] -+-> [DryGain] -> [Destination]
+                //                             |
+                //                             +-> [Widening Effect Chain] --+
+                //                             +-> [Spatial Effect Chain] ---+-> [WetGain] -> [Destination]
+                //                             +-> [Reverb Effect Chain] ----+
+
                 source.connect(nodes.stereoPanner);
-                nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination); // Dry Path
 
-                const wetMixer = context.createGain();
-                nodes.stereoPanner.connect(wetMixer);
-                wetMixer.connect(nodes.wetGain).connect(context.destination); // Wet Path
+                // 1. Dry Path (원본 신호)
+                // 신호가 효과를 거치지 않고 바로 출력으로 나갑니다.
+                nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
 
-                // Widening Path
+                // 2. Wet Path (효과 적용된 신호)
+                // 모든 병렬 효과 체인의 결과가 이 `wetGain` 노드에서 합쳐진 후 출력됩니다.
+                nodes.wetGain.connect(context.destination);
+
+                // --- Parallel Effect Chains ---
+                // 각 효과 체인은 `stereoPanner`에서 직접 신호를 받아 독립적으로 처리합니다.
+
+                // A. Widening Path (스테레오 확장 효과)
                 nodes.wetGainWiden.gain.value = state.isWideningEnabled ? 1.0 : 0.0;
-                // ... (M/S logic connections) ...
                 nodes.ms_mid_level.gain.value = 0.5; nodes.ms_side_invert_R.gain.value = -1; nodes.ms_side_level.gain.value = 0.5;
-                wetMixer.connect(nodes.ms_splitter);
+                nodes.ms_side_gain.gain.value = state.currentWideningFactor;
+                nodes.ms_decode_invert_Side.gain.value = -1;
+                nodes.hpfWiden.type = 'highpass'; nodes.hpfWiden.frequency.value = state.currentHpfHz;
+
+                nodes.stereoPanner.connect(nodes.ms_splitter); // Panner에서 신호 분기
                 nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
                 nodes.ms_mid_sum.connect(nodes.ms_mid_level);
                 nodes.ms_splitter.connect(nodes.ms_side_sum, 0); nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1);
                 nodes.ms_side_invert_R.connect(nodes.ms_side_sum); nodes.ms_side_sum.connect(nodes.ms_side_level);
-                nodes.ms_side_gain.gain.value = state.currentWideningFactor;
                 nodes.ms_side_level.connect(nodes.ms_side_gain);
-                nodes.ms_decode_invert_Side.gain.value = -1;
                 nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
                 nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side);
                 nodes.ms_decode_invert_Side.connect(nodes.ms_decode_R_sum);
                 nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0); nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
-                nodes.hpfWiden.type = 'highpass'; nodes.hpfWiden.frequency.value = state.currentHpfHz;
+                // 최종적으로 Wet 버스에 신호 전달
                 nodes.ms_merger.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(nodes.wetGain);
 
-                // Spatial Path
+                // B. Spatial Path (공간 음향 효과)
                 nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1.0 : 0.0;
                 [nodes.pannerL, nodes.pannerR].forEach((panner, i) => { panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse'; panner.positionX.value = i === 0 ? -1 : 1; });
                 nodes.lfo.frequency.value = state.currentLfoRate; nodes.lfoDepth.gain.value = state.currentSpatialDepth;
                 nodes.hpfSpatial.type = 'highpass'; nodes.hpfSpatial.frequency.value = state.currentHpfHz;
-                wetMixer.connect(nodes.splitterSpatial);
+
+                nodes.stereoPanner.connect(nodes.splitterSpatial); // Panner에서 신호 분기
                 nodes.splitterSpatial.connect(nodes.pannerL, 0).connect(nodes.mergerSpatial, 0, 0);
                 nodes.splitterSpatial.connect(nodes.pannerR, 1).connect(nodes.mergerSpatial, 0, 1);
-                nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(nodes.wetGain);
                 nodes.lfo.connect(nodes.lfoDepth); nodes.lfoDepth.connect(nodes.pannerL.positionX); nodes.lfoDepth.connect(nodes.pannerR.positionX);
                 nodes.lfo.start();
+                // 최종적으로 Wet 버스에 신호 전달
+                nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(nodes.wetGain);
 
-                // Reverb Path
+                // C. Reverb Path (잔향 효과)
                 nodes.wetGainReverb.gain.value = state.currentReverbMix;
                 try { nodes.convolver.buffer = createReverbImpulseResponse(context, state.currentReverbLength); } catch(e) {}
-                wetMixer.connect(nodes.convolver).connect(nodes.wetGainReverb).connect(nodes.wetGain);
+                nodes.stereoPanner.connect(nodes.convolver); // Panner에서 신호 분기
+                // 최종적으로 Wet 버스에 신호 전달
+                nodes.convolver.connect(nodes.wetGainReverb).connect(nodes.wetGain);
 
+                // 초기 Dry/Wet 믹스 설정
                 const anyEffectOn = state.isWideningEnabled || state.isSpatialEnabled || state.currentReverbMix > 0;
                 nodes.dryGain.gain.value = anyEffectOn ? 0 : 1;
                 nodes.wetGain.gain.value = anyEffectOn ? 1 : 0;
             }
 
+            // Analyser는 원본 소스에 연결하여 볼륨 연동에 사용
             source.connect(nodes.analyser);
             state.audioContextMap.set(media, nodes);
             return nodes;
@@ -976,9 +1003,6 @@
 
     function cleanup() {
         safeExec(() => {
-            // Note: disconnectGraph is not needed with the new Dry/Wet architecture
-            // state.activeMedia.forEach(m => stereoWideningManager.disconnectGraph(m));
-
             if (speedSlider) {
                 speedSlider.hideSubMenus();
             }
@@ -996,7 +1020,6 @@
             const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
             allRoots.forEach(root => root.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(el => el.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active', 'vsc-gpu-accelerated')));
 
-            // Properly remove and reset all UI components
             if (state.ui?.hostElement) {
                 state.ui.hostElement.remove();
             }
@@ -1071,8 +1094,6 @@
     }
 
     function start() {
-        // state.activeMedia.forEach(m => stereoWideningManager.reconnectGraph(m)); // Not needed with Dry/Wet
-
         state.lastUrl = location.href;
         uiManager.init();
         if (uiContainer && state.ui?.hostElement) {
