@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Spatial Audio)
 // @namespace    https://com/
-// @version      69.5 (Fix: Proper UI Teardown on Cleanup)
-// @description  Ensures UI elements are completely removed and reset on deactivation to fix submenu and speed button persistence bugs.
+// @version      69.6 (Mobile Compatibility & Stability)
+// @description  Separates audio processing logic for mobile and desktop. Uses a stable StereoPanner on mobile to prevent audio failures, while retaining full M/S and HRTF effects on desktop.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -194,77 +194,100 @@
                 return null;
             }
 
-            const nodes = { context, source, dryGain: context.createGain(),
-                wetGainWiden: context.createGain(), ms_splitter: context.createChannelSplitter(2), ms_mid_sum: context.createGain(),
-                ms_mid_level: context.createGain(), ms_side_invert_R: context.createGain(), ms_side_sum: context.createGain(),
-                ms_side_level: context.createGain(), ms_side_gain: context.createGain(), ms_decode_L_sum: context.createGain(),
-                ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
-                hpfWiden: context.createBiquadFilter(),
-                wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
-                pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
-                lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
-                stereoPanner: context.createStereoPanner(),
-                convolver: context.createConvolver(), wetGainReverb: context.createGain(),
-                analyser: context.createAnalyser(), analyserData: null,
-            };
+            let nodes;
 
-            nodes.stereoPanner.pan.value = state.currentStereoPan;
+            if (isMobile) {
+                // For MOBILE: Use a simple, stable graph to avoid errors
+                console.warn("[VSC] 모바일 환경 감지: 오디오 효과를 안정적인 StereoPanner 모드로 전환합니다.");
+                nodes = {
+                    context, source,
+                    stereoPanner: context.createStereoPanner(),
+                    analyser: context.createAnalyser(),
+                    analyserData: null,
+                    // Mock complex nodes to prevent errors when trying to access them
+                    wetGainWiden: context.createGain(),
+                    wetGainSpatial: context.createGain(),
+                };
+                nodes.wetGainWiden.gain.value = 0; // Ensure it's off
+                nodes.wetGainSpatial.gain.value = 0; // Ensure it's off
+                nodes.stereoPanner.pan.value = state.currentStereoPan;
+                nodes.analyser.fftSize = 256;
+                nodes.analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
+                source.connect(nodes.stereoPanner).connect(context.destination);
+                source.connect(nodes.analyser);
+            } else {
+                // For DESKTOP: Use the full, high-quality audio graph
+                nodes = { context, source, dryGain: context.createGain(),
+                    wetGainWiden: context.createGain(), ms_splitter: context.createChannelSplitter(2), ms_mid_sum: context.createGain(),
+                    ms_mid_level: context.createGain(), ms_side_invert_R: context.createGain(), ms_side_sum: context.createGain(),
+                    ms_side_level: context.createGain(), ms_side_gain: context.createGain(), ms_decode_L_sum: context.createGain(),
+                    ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
+                    hpfWiden: context.createBiquadFilter(),
+                    wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
+                    pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
+                    lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
+                    stereoPanner: context.createStereoPanner(),
+                    convolver: context.createConvolver(), wetGainReverb: context.createGain(),
+                    analyser: context.createAnalyser(), analyserData: null,
+                };
 
-            nodes.wetGainWiden.gain.value = state.isWideningEnabled ? 1.0 : 0.0;
-            nodes.ms_mid_level.gain.value = 0.5;
-            nodes.ms_side_invert_R.gain.value = -1;
-            nodes.ms_side_level.gain.value = 0.5;
-            nodes.ms_splitter.connect(nodes.ms_mid_sum, 0);
-            nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
-            nodes.ms_mid_sum.connect(nodes.ms_mid_level);
-            nodes.ms_splitter.connect(nodes.ms_side_sum, 0);
-            nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1);
-            nodes.ms_side_invert_R.connect(nodes.ms_side_sum);
-            nodes.ms_side_sum.connect(nodes.ms_side_level);
-            nodes.ms_side_gain.gain.value = state.currentWideningFactor;
-            nodes.ms_side_level.connect(nodes.ms_side_gain);
-            nodes.ms_decode_invert_Side.gain.value = -1;
-            nodes.ms_mid_level.connect(nodes.ms_decode_L_sum);
-            nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
-            nodes.ms_mid_level.connect(nodes.ms_decode_R_sum);
-            nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side);
-            nodes.ms_decode_invert_Side.connect(nodes.ms_decode_R_sum);
-            nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0);
-            nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
-            nodes.hpfWiden.type = 'highpass';
-            nodes.hpfWiden.frequency.value = state.currentHpfHz;
+                nodes.stereoPanner.pan.value = state.currentStereoPan;
+                nodes.wetGainWiden.gain.value = state.isWideningEnabled ? 1.0 : 0.0;
+                nodes.ms_mid_level.gain.value = 0.5;
+                nodes.ms_side_invert_R.gain.value = -1;
+                nodes.ms_side_level.gain.value = 0.5;
+                nodes.ms_splitter.connect(nodes.ms_mid_sum, 0);
+                nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
+                nodes.ms_mid_sum.connect(nodes.ms_mid_level);
+                nodes.ms_splitter.connect(nodes.ms_side_sum, 0);
+                nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1);
+                nodes.ms_side_invert_R.connect(nodes.ms_side_sum);
+                nodes.ms_side_sum.connect(nodes.ms_side_level);
+                nodes.ms_side_gain.gain.value = state.currentWideningFactor;
+                nodes.ms_side_level.connect(nodes.ms_side_gain);
+                nodes.ms_decode_invert_Side.gain.value = -1;
+                nodes.ms_mid_level.connect(nodes.ms_decode_L_sum);
+                nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
+                nodes.ms_mid_level.connect(nodes.ms_decode_R_sum);
+                nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side);
+                nodes.ms_decode_invert_Side.connect(nodes.ms_decode_R_sum);
+                nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0);
+                nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
+                nodes.hpfWiden.type = 'highpass';
+                nodes.hpfWiden.frequency.value = state.currentHpfHz;
 
-            nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1.0 : 0.0;
-            [nodes.pannerL, nodes.pannerR].forEach((panner, i) => {
-                panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse';
-                panner.positionX.value = i === 0 ? -1 : 1;
-            });
-            nodes.lfo.frequency.value = state.currentLfoRate;
-            nodes.lfoDepth.gain.value = state.currentSpatialDepth;
-            nodes.hpfSpatial.type = 'highpass';
-            nodes.hpfSpatial.frequency.value = state.currentHpfHz;
+                nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1.0 : 0.0;
+                [nodes.pannerL, nodes.pannerR].forEach((panner, i) => {
+                    panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse';
+                    panner.positionX.value = i === 0 ? -1 : 1;
+                });
+                nodes.lfo.frequency.value = state.currentLfoRate;
+                nodes.lfoDepth.gain.value = state.currentSpatialDepth;
+                nodes.hpfSpatial.type = 'highpass';
+                nodes.hpfSpatial.frequency.value = state.currentHpfHz;
 
-            try { nodes.convolver.buffer = createReverbImpulseResponse(context, state.currentReverbLength); } catch(e) { console.error("[VSC] Failed to create reverb impulse", e); }
-            nodes.wetGainReverb.gain.value = state.currentReverbMix;
+                try { nodes.convolver.buffer = createReverbImpulseResponse(context, state.currentReverbLength); } catch(e) { console.error("[VSC] Failed to create reverb impulse", e); }
+                nodes.wetGainReverb.gain.value = state.currentReverbMix;
 
-            nodes.analyser.fftSize = 256;
-            nodes.analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
+                nodes.analyser.fftSize = 256;
+                nodes.analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
 
-            source.connect(nodes.stereoPanner);
-            nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
-            nodes.stereoPanner.connect(nodes.analyser);
-            nodes.stereoPanner.connect(nodes.ms_splitter);
-            nodes.ms_merger.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(context.destination);
-            nodes.stereoPanner.connect(nodes.splitterSpatial);
-            nodes.splitterSpatial.connect(nodes.pannerL, 0).connect(nodes.mergerSpatial, 0, 0);
-            nodes.splitterSpatial.connect(nodes.pannerR, 1).connect(nodes.mergerSpatial, 0, 1);
-            nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(context.destination);
-            nodes.stereoPanner.connect(nodes.convolver).connect(nodes.wetGainReverb).connect(context.destination);
+                source.connect(nodes.stereoPanner);
+                nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
+                nodes.stereoPanner.connect(nodes.analyser);
+                nodes.stereoPanner.connect(nodes.ms_splitter);
+                nodes.ms_merger.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(context.destination);
+                nodes.stereoPanner.connect(nodes.splitterSpatial);
+                nodes.splitterSpatial.connect(nodes.pannerL, 0).connect(nodes.mergerSpatial, 0, 0);
+                nodes.splitterSpatial.connect(nodes.pannerR, 1).connect(nodes.mergerSpatial, 0, 1);
+                nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(context.destination);
+                nodes.stereoPanner.connect(nodes.convolver).connect(nodes.wetGainReverb).connect(context.destination);
 
-            nodes.lfo.connect(nodes.lfoDepth);
-            nodes.lfoDepth.connect(nodes.pannerL.positionX);
-            nodes.lfoDepth.connect(nodes.pannerR.positionX);
-            nodes.lfo.start();
+                nodes.lfo.connect(nodes.lfoDepth);
+                nodes.lfoDepth.connect(nodes.pannerL.positionX);
+                nodes.lfoDepth.connect(nodes.pannerR.positionX);
+                nodes.lfo.start();
+            }
 
             state.audioContextMap.set(media, nodes);
             return nodes;
@@ -306,7 +329,7 @@
 
         const runAnalyser = (media, callback) => {
             const nodes = getOrCreateNodes(media);
-            if (!nodes) return;
+            if (!nodes || !nodes.analyser) return;
             if (analyserFrameMap.has(media)) { cancelAnimationFrame(analyserFrameMap.get(media)); }
             const loop = () => {
                 nodes.analyser.getByteTimeDomainData(nodes.analyserData);
@@ -330,6 +353,7 @@
         };
 
         function setVolumeFollower(media, enabled) {
+            if (isMobile) return; // Feature disabled on mobile
             if (enabled) {
                 runAnalyser(media, (nodes, rms) => {
                     setGainWithFade(nodes.lfoDepth, rms * CONFIG.VOLUME_FOLLOWER_STRENGTH, 0.05);
@@ -337,12 +361,13 @@
             } else {
                 stopAnalyser(media);
                 const nodes = getOrCreateNodes(media);
-                if (nodes) setGainWithFade(nodes.lfoDepth, state.currentSpatialDepth, 0.1);
+                if (nodes && nodes.lfoDepth) setGainWithFade(nodes.lfoDepth, state.currentSpatialDepth, 0.1);
             }
         }
 
         function setDynamicDepth(media, enabled) {
-             if (enabled) {
+            if (isMobile) return; // Feature disabled on mobile
+            if (enabled) {
                 runAnalyser(media, (nodes, rms) => {
                     const dynamicDepth = state.currentSpatialDepth + (rms * CONFIG.DYNAMIC_DEPTH_FACTOR);
                     setGainWithFade(nodes.lfoDepth, dynamicDepth, 0.05);
@@ -350,7 +375,7 @@
             } else {
                 stopAnalyser(media);
                 const nodes = getOrCreateNodes(media);
-                if (nodes) setGainWithFade(nodes.lfoDepth, state.currentSpatialDepth, 0.1);
+                if (nodes && nodes.lfoDepth) setGainWithFade(nodes.lfoDepth, state.currentSpatialDepth, 0.1);
             }
         }
 
@@ -379,7 +404,7 @@
             const nodes = state.audioContextMap.get(media);
             if (nodes) {
                 safeExec(() => {
-                    nodes.lfo.stop();
+                    if (nodes.lfo) nodes.lfo.stop();
                     nodes.source.disconnect();
                     if (nodes.context.state !== 'closed') {
                         nodes.context.close();
@@ -403,13 +428,13 @@
         }
 
         return {
-            setWidening: (m, e) => setGain(m, 'wetGainWiden', e ? 1.0 : 0.0),
-            setWideningFactor: (m, v) => { const n = getOrCreateNodes(m); if(n) setParamWithFade(n.ms_side_gain.gain, v); },
-            setSpatial: (m, e) => setGain(m, 'wetGainSpatial', e ? 1.0 : 0.0),
-            setPan: (m, v) => { const n = getOrCreateNodes(m); if(n) n.stereoPanner.pan.linearRampToValueAtTime(v, n.context.currentTime + 0.05); },
-            setReverb: (m, v) => setGain(m, 'wetGainReverb', v),
-            updateReverb: (m, len) => { const n = getOrCreateNodes(m); if(n) n.convolver.buffer = createReverbImpulseResponse(n.context, len); },
-            setLfoRate: (m, rate) => { const n = getOrCreateNodes(m); if(n) n.lfo.frequency.linearRampToValueAtTime(rate, n.context.currentTime + 0.05); },
+            setWidening: (m, e) => { if(!isMobile) setGain(m, 'wetGainWiden', e ? 1.0 : 0.0) },
+            setWideningFactor: (m, v) => { if(!isMobile) { const n = getOrCreateNodes(m); if(n && n.ms_side_gain) setParamWithFade(n.ms_side_gain.gain, v); } },
+            setSpatial: (m, e) => { if(!isMobile) setGain(m, 'wetGainSpatial', e ? 1.0 : 0.0) },
+            setPan: (m, v) => { const n = getOrCreateNodes(m); if(n && n.stereoPanner) n.stereoPanner.pan.linearRampToValueAtTime(v, n.context.currentTime + 0.05); },
+            setReverb: (m, v) => { if(!isMobile) setGain(m, 'wetGainReverb', v) },
+            updateReverb: (m, len) => { if(!isMobile) { const n = getOrCreateNodes(m); if(n && n.convolver) n.convolver.buffer = createReverbImpulseResponse(n.context, len); } },
+            setLfoRate: (m, rate) => { if(!isMobile) { const n = getOrCreateNodes(m); if(n && n.lfo) n.lfo.frequency.linearRampToValueAtTime(rate, n.context.currentTime + 0.05); } },
             setVolumeFollower,
             setDynamicDepth,
             cleanupForMedia,
@@ -424,6 +449,13 @@
     }
 
     function setWideningEnabled(enabled) {
+        if (isMobile) {
+            // On mobile, this button has no effect, so just update UI
+            state.isWideningEnabled = !!enabled;
+            const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
+            if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '확장 ON' : '확장 OFF'; }
+            return;
+        }
         if (enabled) activateAudioContexts();
         state.isWideningEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
@@ -432,6 +464,13 @@
     }
 
     function setSpatialAudioEnabled(enabled) {
+        if (isMobile) {
+            // On mobile, this button has no effect, so just update UI
+            state.isSpatialEnabled = !!enabled;
+            const btn = state.ui.shadowRoot?.getElementById('vsc-spatial-toggle');
+            if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '공간음향 ON' : '공간음향 OFF'; }
+            return;
+        }
         if (enabled) activateAudioContexts();
         state.isSpatialEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-spatial-toggle');
@@ -440,6 +479,7 @@
     }
 
     function setVolumeFollowerEnabled(enabled) {
+        if (isMobile) return;
         if (enabled) activateAudioContexts();
         state.isVolumeFollowerEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-follower-toggle');
@@ -451,6 +491,7 @@
     }
 
     function setDynamicDepthEnabled(enabled) {
+        if (isMobile) return;
         if (enabled) activateAudioContexts();
         state.isDynamicDepthEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-dynamic-depth-toggle');
@@ -699,6 +740,17 @@
             };
 
             stereoSubMenu.append(btnGroup1, wideningSlider.controlDiv, hpfSlider.controlDiv, depthSlider.controlDiv, lfoRateSlider.controlDiv, panSlider.controlDiv, reverbSlider.controlDiv, reverbLengthSlider.controlDiv, btnGroup2, btnGroup3);
+            
+            // Disable complex audio controls on mobile
+            if (isMobile) {
+                [wideningSlider, hpfSlider, depthSlider, reverbSlider, reverbLengthSlider, lfoRateSlider].forEach(c => c.controlDiv.style.opacity = '0.5');
+                [...stereoSubMenu.querySelectorAll('input, button')].forEach(el => el.disabled = true);
+                const mobileMessage = document.createElement('p');
+                mobileMessage.textContent = 'Pan 기능만 사용 가능합니다.';
+                mobileMessage.style.cssText = 'color: #ccc; font-size: 12px; text-align: center; margin-top: 10px;';
+                stereoSubMenu.appendChild(mobileMessage);
+            }
+
             container.append(imageGroup, videoGroup, stereoGroup);
 
             const allGroups = [imageGroup, videoGroup, stereoGroup];
