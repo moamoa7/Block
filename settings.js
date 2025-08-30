@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Spatial Audio)
 // @namespace    https://com/
-// @version      66.4 (Final Variable Fix)
-// @description  Fixed a variable name error causing initialization failure. All features are now stable.
+// @version      66.6 (Dynamic Spatial Audio & Parameter Control)
+// @description  Added Pan, Reverb sliders and a dynamic depth feature that adjusts spatial audio based on volume.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -32,9 +32,13 @@
         SPATIAL_LFO_RATE: 0.2,
         SPATIAL_DEFAULT_DEPTH: 2.0,
         SPATIAL_RANDOM_RANGE: 0,
+        DEFAULT_STEREO_PAN: 0,
+        DEFAULT_REVERB_MIX: 0,
         // 볼륨 연동 설정
         DEFAULT_VOLUME_FOLLOWER_ENABLED: false,
-        VOLUME_FOLLOWER_STRENGTH: 5.0,
+        VOLUME_FOLLOWER_STRENGTH: 20.0,
+        DEFAULT_DYNAMIC_DEPTH_ENABLED: false,
+        DYNAMIC_DEPTH_FACTOR: 10.0,
         // 공용 이펙트 설정
         EFFECTS_HPF_FREQUENCY: 120,
 
@@ -86,10 +90,14 @@
             currentImageFilterLevel: settingsManager.get('imageFilterLevel') || 0,
             isWideningEnabled: CONFIG.DEFAULT_WIDENING_ENABLED,
             isSpatialEnabled: CONFIG.DEFAULT_SPATIAL_ENABLED,
+            isVolumeFollowerEnabled: CONFIG.DEFAULT_VOLUME_FOLLOWER_ENABLED,
+            isDynamicDepthEnabled: CONFIG.DEFAULT_DYNAMIC_DEPTH_ENABLED,
             audioContextMap: new WeakMap(),
             currentDelayMs: CONFIG.WIDENING_DELAY_MS,
             currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
             currentSpatialDepth: CONFIG.SPATIAL_DEFAULT_DEPTH,
+            currentStereoPan: CONFIG.DEFAULT_STEREO_PAN,
+            currentReverbMix: CONFIG.DEFAULT_REVERB_MIX,
             ui: { shadowRoot: null, hostElement: null }, delayCheckInterval: null,
             currentPlaybackRate: 1.0, mediaTypesEverFound: { video: false, image: false }, lastUrl: ''
         });
@@ -115,6 +123,7 @@
         #isInitialized=false; #styleElement=null; #svgNode=null; #options;
         constructor(options) {this.#options = options;}
         isInitialized() {return this.#isInitialized;}
+        getSvgNode() { return this.#svgNode; }
         toggleStyleSheet(enable) {if(this.#styleElement)this.#styleElement.media = enable?'all':'none';}
         init() {
             if(this.#isInitialized) return;
@@ -156,6 +165,19 @@
         const animationFrameMap = new WeakMap();
         const analyserFrameMap = new WeakMap();
 
+        function createReverbImpulseResponse(context) {
+            const rate = context.sampleRate;
+            const length = rate * 2;
+            const impulse = context.createBuffer(2, length, rate);
+            const left = impulse.getChannelData(0);
+            const right = impulse.getChannelData(1);
+            for (let i = 0; i < length; i++) {
+                left[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+                right[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+            }
+            return impulse;
+        }
+
         function createAudioGraph(media) {
             const context = new (window.AudioContext || window.webkitAudioContext)();
             const source = context.createMediaElementSource(media);
@@ -165,41 +187,58 @@
                 wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
                 pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
                 lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
+                stereoPanner: context.createStereoPanner(),
+                convolver: context.createConvolver(), wetGainReverb: context.createGain(),
                 analyser: context.createAnalyser(), analyserData: null,
             };
 
-            nodes.dryGain.gain.value = 1.0;
+            // Common path
+            nodes.stereoPanner.pan.value = state.currentStereoPan;
+
+            // Widening Path
             nodes.wetGainWiden.gain.value = state.isWideningEnabled ? 1.0 : 0.0;
             nodes.delay.delayTime.value = state.currentDelayMs / 1000;
             nodes.hpfWiden.type = 'highpass';
             nodes.hpfWiden.frequency.value = state.currentHpfHz;
 
+            // Spatial Path
             nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1.0 : 0.0;
             [nodes.pannerL, nodes.pannerR].forEach((panner, i) => {
-                panner.panningModel = 'HRTF';
-                panner.distanceModel = 'inverse';
-                panner.positionX.value = i === 0 ? -1 : 1; // L/R 분리
+                panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse';
+                panner.positionX.value = i === 0 ? -1 : 1;
             });
             nodes.lfo.frequency.value = CONFIG.SPATIAL_LFO_RATE;
             nodes.lfoDepth.gain.value = state.currentSpatialDepth;
             nodes.hpfSpatial.type = 'highpass';
             nodes.hpfSpatial.frequency.value = state.currentHpfHz;
 
+            // Reverb Path
+            try { nodes.convolver.buffer = createReverbImpulseResponse(context); } catch(e) { console.error("[VSC] Failed to create reverb impulse", e); }
+            nodes.wetGainReverb.gain.value = state.currentReverbMix;
+
+            // Analyser
             nodes.analyser.fftSize = 256;
             nodes.analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
 
-            nodes.source.connect(nodes.dryGain).connect(context.destination);
-            nodes.source.connect(nodes.analyser); // Analyser for volume follower
+            // Audio Routing
+            source.connect(nodes.stereoPanner);
+            nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
+            nodes.stereoPanner.connect(nodes.analyser);
 
-            nodes.source.connect(nodes.splitterWiden);
+            // Widening Route
+            nodes.stereoPanner.connect(nodes.splitterWiden);
             nodes.splitterWiden.connect(nodes.delay, 0).connect(nodes.mergerWiden, 0, 0);
             nodes.splitterWiden.connect(nodes.mergerWiden, 1, 1);
             nodes.mergerWiden.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(context.destination);
 
-            nodes.source.connect(nodes.splitterSpatial);
+            // Spatial Route
+            nodes.stereoPanner.connect(nodes.splitterSpatial);
             nodes.splitterSpatial.connect(nodes.pannerL, 0).connect(nodes.mergerSpatial, 0, 0);
             nodes.splitterSpatial.connect(nodes.pannerR, 1).connect(nodes.mergerSpatial, 0, 1);
             nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(context.destination);
+
+            // Reverb Route
+            nodes.stereoPanner.connect(nodes.convolver).connect(nodes.wetGainReverb).connect(context.destination);
 
             nodes.lfo.connect(nodes.lfoDepth);
             nodes.lfoDepth.connect(nodes.pannerL.positionX);
@@ -220,69 +259,75 @@
         }
 
         const setGainWithFade = (gainNode, targetValue, duration = 0.05) => {
-            if (!gainNode) return;
+            if (!gainNode || !isFinite(targetValue)) return;
             const ctx = gainNode.context;
             gainNode.gain.cancelScheduledValues(ctx.currentTime);
             gainNode.gain.linearRampToValueAtTime(targetValue, ctx.currentTime + duration);
         };
 
-        const setGain = (media, gainNodeName, enabled) => {
+        const setGain = (media, gainNodeName, value) => {
             const nodes = getOrCreateNodes(media);
             if (!nodes) return;
             if (nodes.context.state === 'suspended') nodes.context.resume();
-            setGainWithFade(nodes[gainNodeName], enabled ? 1.0 : 0.0);
+            setGainWithFade(nodes[gainNodeName], value);
         };
 
-        const applyRandomPosition = (panner, range) => {
-            const xO = (Math.random()-0.5)*range, yO = (Math.random()-0.5)*range;
-            panner.positionX.setValueAtTime(panner.positionX.value + xO, panner.context.currentTime);
-            panner.positionY.setValueAtTime(panner.positionY.value + yO, panner.context.currentTime);
-        };
-
-        function setSpatial(media, enabled) {
+        const runAnalyser = (media, callback) => {
             const nodes = getOrCreateNodes(media);
             if (!nodes) return;
-            setGain(media, 'wetGainSpatial', enabled);
-            if (animationFrameMap.has(media)) { cancelAnimationFrame(animationFrameMap.get(media)); animationFrameMap.delete(media); }
-            if (enabled && CONFIG.SPATIAL_RANDOM_RANGE > 0) {
-                const loop = () => {
-                    applyRandomPosition(nodes.pannerL, CONFIG.SPATIAL_RANDOM_RANGE);
-                    applyRandomPosition(nodes.pannerR, CONFIG.SPATIAL_RANDOM_RANGE);
-                    animationFrameMap.set(media, requestAnimationFrame(loop));
-                };
-                loop();
+            if (analyserFrameMap.has(media)) { cancelAnimationFrame(analyserFrameMap.get(media)); }
+
+            const loop = () => {
+                nodes.analyser.getByteTimeDomainData(nodes.analyserData);
+                let sum = 0;
+                for (let i = 0; i < nodes.analyserData.length; i++) {
+                    const val = (nodes.analyserData[i] - 128) / 128;
+                    sum += val * val;
+                }
+                const rms = Math.sqrt(sum / nodes.analyserData.length);
+                if (isFinite(rms)) {
+                    callback(nodes, rms);
+                }
+                analyserFrameMap.set(media, requestAnimationFrame(loop));
+            };
+            loop();
+        };
+
+        const stopAnalyser = (media) => {
+             if (analyserFrameMap.has(media)) {
+                cancelAnimationFrame(analyserFrameMap.get(media));
+                analyserFrameMap.delete(media);
             }
-        }
+        };
 
         function setVolumeFollower(media, enabled) {
-            const nodes = getOrCreateNodes(media);
-            if (!nodes) return;
-            if (analyserFrameMap.has(media)) { cancelAnimationFrame(analyserFrameMap.get(media)); analyserFrameMap.delete(media); }
-
             if (enabled) {
-                const loop = () => {
-                    nodes.analyser.getByteTimeDomainData(nodes.analyserData);
-                    let sum = 0;
-                    for (let i = 0; i < nodes.analyserData.length; i++) {
-                        const val = (nodes.analyserData[i] - 128) / 128;
-                        sum += val * val;
-                    }
-                    const rms = Math.sqrt(sum / nodes.analyserData.length);
-
-                    if (isFinite(rms)) {
-                        setGainWithFade(nodes.lfoDepth, rms * CONFIG.VOLUME_FOLLOWER_STRENGTH, 0.05);
-                    }
-                    analyserFrameMap.set(media, requestAnimationFrame(loop));
-                };
-                loop();
+                runAnalyser(media, (nodes, rms) => {
+                    setGainWithFade(nodes.lfoDepth, rms * CONFIG.VOLUME_FOLLOWER_STRENGTH, 0.05);
+                });
             } else {
-                setGainWithFade(nodes.lfoDepth, state.currentSpatialDepth, 0.1);
+                stopAnalyser(media);
+                const nodes = getOrCreateNodes(media);
+                if (nodes) setGainWithFade(nodes.lfoDepth, state.currentSpatialDepth, 0.1);
             }
         }
 
+        function setDynamicDepth(media, enabled) {
+             if (enabled) {
+                runAnalyser(media, (nodes, rms) => {
+                    const dynamicDepth = state.currentSpatialDepth + (rms * CONFIG.DYNAMIC_DEPTH_FACTOR);
+                    setGainWithFade(nodes.lfoDepth, dynamicDepth, 0.05);
+                });
+            } else {
+                stopAnalyser(media);
+                const nodes = getOrCreateNodes(media);
+                if (nodes) setGainWithFade(nodes.lfoDepth, state.currentSpatialDepth, 0.1);
+            }
+        }
+
+
         function cleanupForMedia(media) {
-            if (animationFrameMap.has(media)) { cancelAnimationFrame(animationFrameMap.get(media)); animationFrameMap.delete(media); }
-            if (analyserFrameMap.has(media)) { cancelAnimationFrame(analyserFrameMap.get(media)); analyserFrameMap.delete(media); }
+            stopAnalyser(media);
             const nodes = state.audioContextMap.get(media);
             if (nodes) {
                 safeExec(() => {
@@ -292,7 +337,15 @@
                 state.audioContextMap.delete(media);
             }
         }
-        return { setWidening: (m, e) => setGain(m, 'wetGainWiden', e), setSpatial, setVolumeFollower, cleanupForMedia };
+        return {
+            setWidening: (m, e) => setGain(m, 'wetGainWiden', e ? 1.0 : 0.0),
+            setSpatial: (m, e) => setGain(m, 'wetGainSpatial', e ? 1.0 : 0.0),
+            setPan: (m, v) => { const n = getOrCreateNodes(m); if(n) n.stereoPanner.pan.linearRampToValueAtTime(v, n.context.currentTime + 0.05); },
+            setReverb: (m, v) => setGain(m, 'wetGainReverb', v),
+            setVolumeFollower,
+            setDynamicDepth,
+            cleanupForMedia
+        };
     })();
 
     function setWideningEnabled(enabled) {
@@ -312,10 +365,23 @@
     function setVolumeFollowerEnabled(enabled) {
         state.isVolumeFollowerEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-follower-toggle');
-        const slider = state.ui.shadowRoot?.getElementById('depthSlider');
-        if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '연동 ON' : '연동 OFF'; }
-        if (slider) slider.disabled = enabled;
+        if (btn) { btn.classList.toggle('active', !!enabled); btn.textContent = enabled ? '연동 ON' : '연동 OFF'; }
+
+        if(enabled) setDynamicDepthEnabled(false); // Mutually exclusive
+
         state.activeMedia.forEach(media => stereoWideningManager.setVolumeFollower(media, enabled));
+        const slider = state.ui.shadowRoot?.getElementById('depthSlider');
+        if (slider) slider.disabled = enabled || state.isDynamicDepthEnabled;
+    }
+
+    function setDynamicDepthEnabled(enabled) {
+        state.isDynamicDepthEnabled = !!enabled;
+        const btn = state.ui.shadowRoot?.getElementById('vsc-dynamic-depth-toggle');
+        if (btn) { btn.classList.toggle('active', !!enabled); }
+
+        if(enabled) setVolumeFollowerEnabled(false); // Mutually exclusive
+
+        state.activeMedia.forEach(media => stereoWideningManager.setDynamicDepth(media, enabled));
     }
 
     function setVideoFilterLevel(level) {
@@ -471,33 +537,63 @@
                 }
             };
 
+            const panSlider = createSliderControl('Pan (좌우)', 'panSlider', -1, 1, 0.1, state.currentStereoPan, '');
+            panSlider.slider.oninput = () => {
+                const val = parseFloat(panSlider.slider.value);
+                state.currentStereoPan = val;
+                panSlider.valueSpan.textContent = val.toFixed(1);
+                state.activeMedia.forEach(m => stereoWideningManager.setPan(m, val));
+            };
+
+            const reverbSlider = createSliderControl('Reverb (잔향)', 'reverbSlider', 0, 1, 0.05, state.currentReverbMix, '');
+            reverbSlider.slider.oninput = () => {
+                const val = parseFloat(reverbSlider.slider.value);
+                state.currentReverbMix = val;
+                reverbSlider.valueSpan.textContent = val.toFixed(2);
+                state.activeMedia.forEach(m => stereoWideningManager.setReverb(m, val));
+            };
+
             const btnGroup2 = document.createElement('div'); btnGroup2.className='vsc-button-group';
             const followerBtn = createButton('vsc-follower-toggle', '볼륨 연동 ON/OFF', '연동 OFF', 'vsc-btn');
             followerBtn.onclick = () => setVolumeFollowerEnabled(!state.isVolumeFollowerEnabled);
+            const dynamicDepthBtn = createButton('vsc-dynamic-depth-toggle', '동적 깊이 ON/OFF', '동적 깊이', 'vsc-btn');
+            dynamicDepthBtn.onclick = () => setDynamicDepthEnabled(!state.isDynamicDepthEnabled);
+            btnGroup2.append(followerBtn, dynamicDepthBtn);
+
+            const btnGroup3 = document.createElement('div'); btnGroup3.className='vsc-button-group';
             const resetBtn = createButton('vsc-stereo-reset', '기본값으로 초기화', '기본값', 'vsc-btn');
-            btnGroup2.append(followerBtn, resetBtn);
+            btnGroup3.appendChild(resetBtn);
+
 
             resetBtn.onclick = () => {
-                const defaults = { delay: CONFIG.WIDENING_DELAY_MS, hpf: CONFIG.EFFECTS_HPF_FREQUENCY, depth: CONFIG.SPATIAL_DEFAULT_DEPTH, follower: CONFIG.DEFAULT_VOLUME_FOLLOWER_ENABLED };
-                state.currentDelayMs = defaults.delay; state.currentHpfHz = defaults.hpf; state.currentSpatialDepth = defaults.depth;
+                const defaults = {
+                    delay: CONFIG.WIDENING_DELAY_MS, hpf: CONFIG.EFFECTS_HPF_FREQUENCY,
+                    depth: CONFIG.SPATIAL_DEFAULT_DEPTH, pan: CONFIG.DEFAULT_STEREO_PAN,
+                    reverb: CONFIG.DEFAULT_REVERB_MIX
+                };
+                state.currentDelayMs = defaults.delay; state.currentHpfHz = defaults.hpf;
+                state.currentSpatialDepth = defaults.depth; state.currentStereoPan = defaults.pan;
+                state.currentReverbMix = defaults.reverb;
 
                 delaySlider.slider.value = defaults.delay; delaySlider.valueSpan.textContent = `${defaults.delay}ms`;
                 hpfSlider.slider.value = defaults.hpf; hpfSlider.valueSpan.textContent = `${defaults.hpf}Hz`;
                 depthSlider.slider.value = defaults.depth; depthSlider.valueSpan.textContent = defaults.depth.toFixed(1);
-
-                setWideningEnabled(CONFIG.DEFAULT_WIDENING_ENABLED);
-                setSpatialAudioEnabled(CONFIG.DEFAULT_SPATIAL_ENABLED);
-                setVolumeFollowerEnabled(defaults.follower);
+                panSlider.slider.value = defaults.pan; panSlider.valueSpan.textContent = defaults.pan.toFixed(1);
+                reverbSlider.slider.value = defaults.reverb; reverbSlider.valueSpan.textContent = defaults.reverb.toFixed(2);
 
                 for (const nodes of state.audioContextMap.values()) {
                     if (nodes.delay) nodes.delay.delayTime.value = defaults.delay / 1000;
                     if (nodes.hpfWiden) nodes.hpfWiden.frequency.value = defaults.hpf;
                     if (nodes.hpfSpatial) nodes.hpfSpatial.frequency.value = defaults.hpf;
-                    if (nodes.lfoDepth) nodes.lfoDepth.gain.value = state.isSpatialEnabled ? defaults.depth : 0;
+                    if(nodes.stereoPanner) nodes.stereoPanner.pan.value = defaults.pan;
+                    if(nodes.wetGainReverb) nodes.wetGainReverb.gain.value = defaults.reverb;
+                    if (!state.isVolumeFollowerEnabled && !state.isDynamicDepthEnabled && nodes.lfoDepth) {
+                        nodes.lfoDepth.gain.value = defaults.depth;
+                    }
                 }
             };
 
-            stereoSubMenu.append(btnGroup1, delaySlider.controlDiv, hpfSlider.controlDiv, depthSlider.controlDiv, btnGroup2);
+            stereoSubMenu.append(btnGroup1, delaySlider.controlDiv, hpfSlider.controlDiv, depthSlider.controlDiv, panSlider.controlDiv, reverbSlider.controlDiv, btnGroup2, btnGroup3);
             container.append(imageGroup, videoGroup, stereoGroup);
 
             const allGroups = [imageGroup, videoGroup, stereoGroup];
@@ -516,6 +612,7 @@
                 setWideningEnabled(state.isWideningEnabled);
                 setSpatialAudioEnabled(state.isSpatialEnabled);
                 setVolumeFollowerEnabled(state.isVolumeFollowerEnabled);
+                setDynamicDepthEnabled(state.isDynamicDepthEnabled);
             };
             container.addEventListener('pointerdown', resetFadeTimer);
             updateActiveButtons();
@@ -527,8 +624,6 @@
             doFade: startFadeSequence, resetFadeTimer: resetFadeTimer
         };
     })();
-
-    // ... 이하 코드는 이전 버전과 동일합니다 ...
 
     const mediaSessionManager = (() => {
         let inited = false;
