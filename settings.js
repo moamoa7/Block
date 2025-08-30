@@ -1,9 +1,8 @@
-
 // ==UserScript==
 // @name         Video_Image_Control (with Parallel Spatial Audio)
 // @namespace    https://com/
-// @version      72.0 (Stable Parallel Audio Architecture)
-// @description  오디오 그래프를 완전한 병렬 Dry/Wet 신호 경로로 재구성하여 각 효과(확장, 공간음향, 리버브)가 독립적으로 처리되도록 안정성을 극대화했습니다.
+// @version      73.1 (Fixed Mobile Initialization)
+// @description  모바일 환경에서 활성화 시 발생하던 과부하 문제를 해결하여 안정성을 확보했습니다.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -12,7 +11,8 @@
 (function () {
     'use strict';
 
-    let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
+    let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null, mobileAudioTarget = null;
+    let isInitializing = false; // 초기화 중 과도한 작업 방지 플래그
 
     const isMobile = /(iPhone|iPad|iPod|Android)/i.test(navigator.userAgent);
 
@@ -357,7 +357,10 @@
 
             let anyEffectOn = false;
             if (isMobile) {
-                anyEffectOn = state.isDelaySurroundEnabled || state.currentReverbMix > 0;
+                // 모바일에서는 타겟 미디어에 효과가 켜져 있는지 확인
+                if (media === mobileAudioTarget) {
+                    anyEffectOn = state.isDelaySurroundEnabled || state.currentReverbMix > 0;
+                }
             } else {
                 anyEffectOn = state.isWideningEnabled || state.isSpatialEnabled || state.currentReverbMix > 0;
             }
@@ -453,12 +456,12 @@
     }
 
     function setDelaySurroundEnabled(enabled) {
-        if (!isMobile) return;
+        if (!isMobile) return; // This logic is now handled by updateMobileAudioEffects
         if (enabled) activateAudioContexts();
         state.isDelaySurroundEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-delay-surround-toggle');
         if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '딜레이 ON' : '딜레이 OFF'; }
-        state.activeMedia.forEach(media => stereoWideningManager.setDelaySurround(media, enabled));
+        updateMobileAudioEffects(); // Update immediately when toggled
     }
 
     // ================== FIXED PART START ==================
@@ -585,7 +588,11 @@
                 disabledOption.value = ""; disabledOption.textContent = labelText; disabledOption.disabled = true; disabledOption.selected = true;
                 select.appendChild(disabledOption);
                 options.forEach(opt => { const o = document.createElement('option'); o.value=opt.value; o.textContent=opt.text; select.appendChild(o); });
-                select.onchange = e => { changeHandler(e.target.value); startFadeSequence(); };
+                select.onchange = e => {
+                    changeHandler(e.target.value);
+                    if (isMobile) updateMobileAudioEffects();
+                    startFadeSequence();
+                };
                 return select;
             };
             const createSliderControl = (label, id, min, max, step, value, unit) => {
@@ -617,7 +624,7 @@
                     const val = parseFloat(panSlider.slider.value);
                     state.currentStereoPan = val;
                     panSlider.valueSpan.textContent = val.toFixed(1);
-                    state.activeMedia.forEach(m => stereoWideningManager.setPan(m, val));
+                    if (mobileAudioTarget) stereoWideningManager.setPan(mobileAudioTarget, val);
                 };
 
                 const reverbSlider = createSliderControl('Reverb (잔향)', 'reverbSlider', 0, 1, 0.05, state.currentReverbMix, '');
@@ -625,7 +632,7 @@
                     const val = parseFloat(reverbSlider.slider.value);
                     state.currentReverbMix = val;
                     reverbSlider.valueSpan.textContent = val.toFixed(2);
-                    state.activeMedia.forEach(m => stereoWideningManager.setReverb(m, val));
+                    updateMobileAudioEffects();
                 };
 
                 const reverbLengthSlider = createSliderControl('잔향 길이', 'reverbLengthSlider', 0.1, 5, 0.1, state.currentReverbLength, 's');
@@ -641,7 +648,7 @@
                     const val = parseFloat(delaySlider.slider.value);
                     state.currentDelaySurroundMs = val;
                     delaySlider.valueSpan.textContent = `${val}ms`;
-                    state.activeMedia.forEach(m => stereoWideningManager.setDelaySurroundTime(m, val));
+                    if (mobileAudioTarget) stereoWideningManager.setDelaySurroundTime(mobileAudioTarget, val);
                 };
 
                 const mobileMessage = document.createElement('p');
@@ -959,6 +966,23 @@
         if (intersectionObserver) intersectionObserver.unobserve(image);
     }
 
+    function updateMobileAudioEffects() {
+        if (!isMobile || isInitializing) return; // 초기화 중에는 실행 방지
+
+        // 현재 보이는 영상을 타겟으로 설정 (없으면 null)
+        const target = mobileAudioTarget || Array.from(state.activeMedia).find(m => m.dataset.isVisible === 'true');
+        if (!mobileAudioTarget && target) {
+             mobileAudioTarget = target;
+        }
+
+        state.activeMedia.forEach(media => {
+            const isTarget = media === target;
+            stereoWideningManager.setDelaySurround(media, isTarget && state.isDelaySurroundEnabled);
+            stereoWideningManager.setReverb(media, isTarget ? state.currentReverbMix : 0);
+            stereoWideningManager.setPan(media, isTarget ? state.currentStereoPan : 0);
+        });
+    }
+
     const scanAndApply = () => {
         const allMedia = findAllMedia();
         allMedia.forEach(attachMediaListeners);
@@ -966,12 +990,27 @@
         state.activeMedia.clear();
         allMedia.forEach(m => { if (m.isConnected) { state.activeMedia.add(m); oldMedia.delete(m); } });
         oldMedia.forEach(detachMediaListeners);
-        allMedia.forEach(m => {
-            if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); }
-            if (state.isWideningEnabled) { stereoWideningManager.setWidening(m, true); }
-            if (state.isSpatialEnabled) { stereoWideningManager.setSpatial(m, true); }
-            if (isMobile && state.isDelaySurroundEnabled) { stereoWideningManager.setDelaySurround(m, true); }
+
+        // 오디오 효과 적용 로직
+        if (isMobile) {
+            updateMobileAudioEffects();
+        } else {
+            state.activeMedia.forEach(m => {
+                stereoWideningManager.setWidening(m, state.isWideningEnabled);
+                stereoWideningManager.setSpatial(m, state.isSpatialEnabled);
+                stereoWideningManager.setReverb(m, state.currentReverbMix);
+                stereoWideningManager.setPan(m, state.currentStereoPan);
+            });
+        }
+
+        // 비디오 필터 및 기타 상태 업데이트
+        state.activeMedia.forEach(m => {
+            if (m.tagName === 'VIDEO') {
+                m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended);
+                updateVideoFilterState(m);
+            }
         });
+
         const allImages = findAllImages();
         allImages.forEach(attachImageListeners);
         const oldImages = new Set(state.activeImages);
@@ -979,6 +1018,7 @@
         allImages.forEach(img => { if (img.isConnected) { state.activeImages.add(img); oldImages.delete(img); } });
         oldImages.forEach(detachImageListeners);
         allImages.forEach(updateImageFilterState);
+
         const root = state.ui?.shadowRoot;
         if (root) {
             const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
@@ -1044,12 +1084,32 @@
         }
         if (!intersectionObserver) {
             intersectionObserver = new IntersectionObserver(entries => {
+                if (isInitializing) return; // 초기화 중에는 콜백 무시
                 entries.forEach(e => {
                     e.target.dataset.isVisible = String(e.isIntersecting);
-                    if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
+                    if (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') {
+                        if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
+                        if (isMobile) {
+                            if (e.isIntersecting) {
+                                // 현재 타겟이 없거나, 다른 영상이 더 중요하게 보일 때만 타겟 변경
+                                if (mobileAudioTarget !== e.target) {
+                                     mobileAudioTarget = e.target;
+                                     updateMobileAudioEffects();
+                                }
+                            } else if (mobileAudioTarget === e.target) {
+                                mobileAudioTarget = null;
+                                // 사라진 타겟 대신 다른 보이는 영상을 새 타겟으로 지정
+                                const newTarget = Array.from(state.activeMedia).find(m => m !== e.target && m.dataset.isVisible === 'true');
+                                if (newTarget) {
+                                    mobileAudioTarget = newTarget;
+                                }
+                                updateMobileAudioEffects();
+                            }
+                        }
+                    }
                     if (e.target.tagName === 'IMG') updateImageFilterState(e.target);
                 });
-            }, { rootMargin: '200px 0px 200px 0px' });
+            }, { rootMargin: '0px 0px -50% 0px', threshold: 0.1 });
         }
     }
 
@@ -1072,6 +1132,7 @@
             settingsManager.init();
             uiManager.reset();
             speedSlider.reset();
+            mobileAudioTarget = null;
 
             setTimeout(initializeGlobalUI, 500);
         }, 500);
@@ -1095,6 +1156,7 @@
     }
 
     function start() {
+        isInitializing = true; // 초기화 시작
         state.lastUrl = location.href;
         uiManager.init();
         if (uiContainer && state.ui?.hostElement) {
@@ -1133,6 +1195,9 @@
             }
         }
         isInitialized = true;
+        
+        // 초기화가 끝난 후, 잠시 뒤에 isInitializing 플래그를 해제하여 IntersectionObserver가 정상 작동하도록 함
+        setTimeout(() => { isInitializing = false; }, 500);
     }
 
 
