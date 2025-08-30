@@ -1,7 +1,6 @@
 // ==UserScript==
 // @name         Simple Surround
 // @name:ko    서라운드
-// @name:zh-CN    简单YouTube环境
 // @version      0.2
 // @description  Makes the youtube sound more surrounded ( It's better when you listen to music )
 // @description:ko  조금 더 서라운드를 느낄 수 있도록 해줍니다. ( 노래를 들을 때 더 좋음 )
