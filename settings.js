@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Spatial Audio)
 // @namespace    https://com/
-// @version      64.1 (Final Variable Fix)
-// @description  Fixed a variable name error causing initialization failure. All features are now stable.
+// @version      66.2 (Final Stable Version)
+// @description  Fully featured, stable script with image/video filters and parallel-processed, tunable spatial audio.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -39,12 +39,12 @@
         SPEED_PRESETS: [4, 2, 1.5, 1, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'youtube.com', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com', 'challenges.cloudflare.com'],
-        SPECIFIC_EXCLUSIONS: [],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 115 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.2', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 115 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0.3', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] }, },
-        FILTER_EXCLUSION_DOMAINS: [], IMAGE_FILTER_EXCLUSION_DOMAINS: [],
+        FILTER_EXCLUSION_DOMAINS: [],
+        IMAGE_FILTER_EXCLUSION_DOMAINS: [],
     };
 
     const UI_SELECTORS = {
@@ -152,9 +152,10 @@
             const context = new (window.AudioContext || window.webkitAudioContext)();
             const source = context.createMediaElementSource(media);
             const nodes = { context, source, dryGain: context.createGain(),
-                wetGainWiden: context.createGain(), splitter: context.createChannelSplitter(2), merger: context.createChannelMerger(2),
+                wetGainWiden: context.createGain(), splitterWiden: context.createChannelSplitter(2), mergerWiden: context.createChannelMerger(2),
                 delay: context.createDelay(), hpfWiden: context.createBiquadFilter(),
-                wetGainSpatial: context.createGain(), panner: context.createPanner(), lfo: context.createOscillator(),
+                wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
+                pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
                 lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
             };
 
@@ -165,21 +166,34 @@
             nodes.hpfWiden.frequency.value = state.currentHpfHz;
 
             nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1.0 : 0.0;
-            nodes.panner.panningModel = 'HRTF';
-            nodes.panner.distanceModel = 'inverse';
+            [nodes.pannerL, nodes.pannerR].forEach((panner, i) => {
+                panner.panningModel = 'HRTF';
+                panner.distanceModel = 'inverse';
+                panner.positionX.value = i === 0 ? -1 : 1; // L/R 분리
+            });
             nodes.lfo.frequency.value = CONFIG.SPATIAL_LFO_RATE;
             nodes.lfoDepth.gain.value = state.currentSpatialDepth;
             nodes.hpfSpatial.type = 'highpass';
             nodes.hpfSpatial.frequency.value = state.currentHpfHz;
 
             nodes.source.connect(nodes.dryGain).connect(context.destination);
-            nodes.source.connect(nodes.splitter);
-            nodes.splitter.connect(nodes.delay, 0);
-            nodes.splitter.connect(nodes.merger, 1, 1);
-            nodes.delay.connect(nodes.merger, 0, 0);
-            nodes.merger.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(context.destination);
-            nodes.source.connect(nodes.panner).connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(context.destination);
-            nodes.lfo.connect(nodes.lfoDepth).connect(nodes.panner.positionX);
+
+            nodes.source.connect(nodes.splitterWiden);
+            nodes.splitterWiden.connect(nodes.delay, 0);
+            nodes.splitterWiden.connect(nodes.mergerWiden, 1, 1);
+            nodes.delay.connect(nodes.mergerWiden, 0, 0);
+            nodes.mergerWiden.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(context.destination);
+
+            nodes.source.connect(nodes.splitterSpatial);
+            nodes.splitterSpatial.connect(nodes.pannerL, 0);
+            nodes.splitterSpatial.connect(nodes.pannerR, 1);
+            nodes.pannerL.connect(nodes.mergerSpatial, 0, 0);
+            nodes.pannerR.connect(nodes.mergerSpatial, 0, 1);
+            nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(context.destination);
+
+            nodes.lfo.connect(nodes.lfoDepth);
+            nodes.lfoDepth.connect(nodes.pannerL.positionX);
+            nodes.lfoDepth.connect(nodes.pannerR.positionX);
             nodes.lfo.start();
 
             state.audioContextMap.set(media, nodes);
@@ -195,11 +209,18 @@
             return null;
         }
 
+        const setGainWithFade = (gainNode, targetValue, duration = 0.05) => {
+            if (!gainNode) return;
+            const ctx = gainNode.context;
+            gainNode.gain.cancelScheduledValues(ctx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(targetValue, ctx.currentTime + duration);
+        };
+
         const setGain = (media, gainNodeName, enabled) => {
             const nodes = getOrCreateNodes(media);
             if (!nodes) return;
             if (nodes.context.state === 'suspended') nodes.context.resume();
-            nodes[gainNodeName].gain.setValueAtTime(enabled ? 1.0 : 0.0, nodes.context.currentTime);
+            setGainWithFade(nodes[gainNodeName], enabled ? 1.0 : 0.0);
         };
 
         function cleanupForMedia(media) {
@@ -236,7 +257,6 @@
     }
 
     function setVideoFilterLevel(level) {
-        // ★★★ 오류 수정: CONFIG.FILTER_EXCLUSION_DOMAINS를 사용하도록 변경 ★★★
         if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname) && level > 0) return;
         if (!filterManager.isInitialized() && level > 0) filterManager.init();
         const newLevel = parseInt(level, 10);
@@ -249,7 +269,6 @@
     }
 
     function setImageFilterLevel(level) {
-        // ★★★ 오류 수정: CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS를 사용하도록 변경 ★★★
         if (CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS.includes(location.hostname) && level > 0) return;
         if (!imageFilterManager.isInitialized() && level > 0) imageFilterManager.init();
         const newLevel = parseInt(level, 10);
@@ -269,7 +288,7 @@
             '#vsc-container.touched { opacity: 1; }',
             '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
             '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(26px, 5.5vmin, 32px); width: clamp(28px, 6vmin, 34px); position: relative; }',
-            '.vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(8px, 1.5vmin, 12px); gap: clamp(8px, 1.5vmin, 12px); width: 200px; }',
+            '.vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(8px, 1.5vmin, 12px); gap: clamp(8px, 1.5vmin, 12px); width: 220px; }',
             '.vsc-control-group.submenu-visible .vsc-submenu { display: flex; }',
             '.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(12px, 2vmin, 14px); }',
             '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
@@ -437,6 +456,9 @@
             doFade: startFadeSequence, resetFadeTimer: resetFadeTimer
         };
     })();
+
+    // ... The rest of the script is identical to the previous version ...
+    // ... (mediaSessionManager, autoDelayManager, findAllMedia, etc.) ...
 
     const mediaSessionManager = (() => {
         let inited = false;
