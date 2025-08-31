@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
 // @namespace     https://com/
-// @version       76.0 (Dynamic Mobile Audio Target & UI Visibility Fix)
+// @version       77.0 (Robust Mobile Audio Dynamic Target Switching Logic)
 // @description   PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
 // @match         *://*/*
 // @run-at        document-end
@@ -194,52 +194,55 @@
 
         function init(media) {
             if (!media) return false;
-            if (mobileMediaTarget === media && mobileAudioContext) return true; // Already initialized for this target
+            if (mobileMediaTarget === media && mobileAudioContext) return true;
 
-            cleanup(); // Always clean up before initializing a new target
+            cleanup();
 
+            // The 'canplay' event listener is now more robustly handled in scanAndApply's loop
+            // by re-evaluating the media state on each scan.
             if (media.readyState < media.HAVE_CURRENT_DATA) {
-                media.addEventListener('canplay', () => scanAndApply(), { once: true });
-                return false;
+                 return false;
             }
 
             try {
-                mobileAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const source = mobileAudioContext.createMediaElementSource(media);
-                mobileMediaTarget = media; // Set target only after successful source creation
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const source = context.createMediaElementSource(media);
 
                 const nodes = {};
-                nodes.dryGain = mobileAudioContext.createGain();
-                nodes.dryGain.gain.value = 1.0;
+                nodes.dryGain = context.createGain();
+                nodes.dryGain.gain.value = state.isMobileFxOn ? 0.8 : 1.0;
 
-                nodes.wetGain = mobileAudioContext.createGain();
+                nodes.wetGain = context.createGain();
                 nodes.wetGain.gain.value = state.isMobileFxOn ? 1.0 : 0.0;
 
-                const splitter = mobileAudioContext.createChannelSplitter(2);
-                const merger = mobileAudioContext.createChannelMerger(2);
-                nodes.rightDelay = mobileAudioContext.createDelay(0.1);
+                const splitter = context.createChannelSplitter(2);
+                const merger = context.createChannelMerger(2);
+                nodes.rightDelay = context.createDelay(0.1);
                 nodes.rightDelay.delayTime.value = DEFAULT_DELAY;
 
-                const convolver = mobileAudioContext.createConvolver();
-                convolver.buffer = createReverbImpulseResponse(mobileAudioContext, 2.0, 1.5);
-                nodes.reverbGain = mobileAudioContext.createGain();
+                const convolver = context.createConvolver();
+                convolver.buffer = createReverbImpulseResponse(context, 2.0, 1.5);
+                nodes.reverbGain = context.createGain();
                 nodes.reverbGain.gain.value = DEFAULT_REVERB;
 
-                source.connect(nodes.dryGain).connect(mobileAudioContext.destination);
+                source.connect(nodes.dryGain).connect(context.destination);
                 source.connect(splitter);
                 splitter.connect(merger, 0, 0);
                 splitter.connect(nodes.rightDelay, 1).connect(merger, 0, 1);
 
                 merger.connect(nodes.wetGain);
                 merger.connect(convolver).connect(nodes.reverbGain).connect(nodes.wetGain);
-                nodes.wetGain.connect(mobileAudioContext.destination);
+                nodes.wetGain.connect(context.destination);
 
+                mobileAudioContext = context;
                 mobileAudioNodes = nodes;
+                mobileMediaTarget = media;
+
                 console.log('[VSC] Mobile Audio FX initialized for:', media);
                 return true;
             } catch (e) {
-                console.error('[VSC] Mobile MediaElementSource creation failed. The script will try again if another video appears.', e);
-                cleanup(); // Clean up completely on failure to allow for a fresh start
+                console.error(`[VSC] Mobile MediaElementSource creation failed for`, media, `. This can happen if the element is already in use or protected. The script will keep trying with other available media.`, e);
+                cleanup();
                 return false;
             }
         }
@@ -685,7 +688,7 @@
                     toggleBtn.classList.toggle("off", !state.isMobileFxOn);
 
                     const wetTarget = state.isMobileFxOn ? 1.0 : 0.0;
-                    const dryTarget = 1.0;
+                    const dryTarget = state.isMobileFxOn ? 0.8 : 1.0;
 
                     if (mobileAudioNodes && mobileAudioNodes.wetGain && mobileAudioNodes.dryGain) {
                         mobileAudioNodes.wetGain.gain.linearRampToValueAtTime(wetTarget, mobileAudioContext.currentTime + 0.1);
@@ -962,7 +965,7 @@
     function updateActiveSpeedButton(rate) { if (!speedButtonsContainer) return; speedButtonsContainer.querySelectorAll('button').forEach(b => { const br = parseFloat(b.dataset.speed); b.style.boxShadow = Math.abs(br - rate) < 0.01 ? '0 0 5px #3498db, 0 0 10px #3498db inset' : 'none'; }); }
 
     const mediaEventHandlers = {
-        play: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); mediaSessionManager.setSession(m); },
+        play: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); mediaSessionManager.setSession(m); scheduleIdleTask(scanAndApply); },
         pause: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).every(med => med.paused)) mediaSessionManager.clearSession(); },
         ended: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).every(med => med.paused)) mediaSessionManager.clearSession(); },
         ratechange: e => { updateActiveSpeedButton(e.target.playbackRate); },
@@ -1014,18 +1017,12 @@
         const allMedia = findAllMedia();
 
         if (isMobile) {
-            // Find the best media target (e.g., largest, visible, not paused).
-            // A simple but effective heuristic is to prefer playing videos.
-            const playingMedia = allMedia.find(m => !m.paused);
+            const playingMedia = allMedia.find(m => !m.paused && m.currentTime > 0);
             const bestTarget = playingMedia || (allMedia.length > 0 ? allMedia[0] : null);
 
-            if (bestTarget) {
-                // Initialize if the target is new, or if we don't have a working audio context yet.
-                if (bestTarget !== mobileMediaTarget || !mobileAudioContext) {
-                    mobileAudioManager.init(bestTarget);
-                }
-            } else if (mobileMediaTarget) {
-                // If no media is found on the page but we were attached to one, clean up.
+            if (bestTarget && bestTarget !== mobileMediaTarget) {
+                 mobileAudioManager.init(bestTarget);
+            } else if (!bestTarget && mobileMediaTarget) {
                 mobileAudioManager.cleanup();
             }
         }
@@ -1116,7 +1113,6 @@
             isInitialized = false;
         }, 'cleanup');
     }
-
 
     function ensureObservers() {
         if (!mainObserver) {
