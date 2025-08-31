@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
 // @namespace     https://com/
-// @version       78.0 (Visibility-Based Mobile Audio Engine Rework)
-// @description   PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
+// @version       80.0 (Final Mobile Visibility Engine Rebuild)
+// @description   PC에서는 공간 음향, 모바일에서는 '현재 보이는 영상'을 정확히 감지하는 최적화된 심플 UI를 제공합니다.
 // @match         *://*/*
 // @run-at        document-end
 // @grant         none
@@ -200,7 +200,12 @@
             cleanup();
 
             if (media.readyState < media.HAVE_CURRENT_DATA) {
-                 media.addEventListener('canplay', () => init(media), { once: true });
+                 media.addEventListener('canplay', () => {
+                     // Re-check if this media is still the visible one before initializing
+                     if (media.dataset.isVisible === 'true') {
+                         init(media);
+                     }
+                 }, { once: true });
                  return false;
             }
 
@@ -1005,7 +1010,9 @@
         for (const [evt, listener] of Object.entries(listeners)) media.removeEventListener(evt, listener);
         state.mediaListenerMap.delete(media);
         if (intersectionObserver) intersectionObserver.unobserve(media);
-        if(!isMobile) stereoWideningManager.cleanupForMedia(media);
+        if(!isMobile) {
+             stereoWideningManager.cleanupForMedia(media);
+        }
     }
     function detachImageListeners(image) {
         if (!state.processedImages.has(image)) return;
@@ -1114,28 +1121,32 @@
         if (!intersectionObserver) {
             intersectionObserver = new IntersectionObserver(entries => {
                 if (isInitializing) return;
+
+                if (isMobile) {
+                    const visibleVideos = entries
+                        .filter(e => e.isIntersecting && (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO'))
+                        .map(e => e.target);
+
+                    if (visibleVideos.length > 0) {
+                        const newTarget = visibleVideos[0];
+                        if (newTarget !== mobileMediaTarget) {
+                            mobileAudioManager.init(newTarget);
+                        }
+                    } else {
+                        const hiddenEntry = entries.find(e => !e.isIntersecting && e.target === mobileMediaTarget);
+                        if (hiddenEntry) {
+                            mobileAudioManager.cleanup();
+                        }
+                    }
+                }
+
                 entries.forEach(e => {
                     const media = e.target;
                     media.dataset.isVisible = String(e.isIntersecting);
-
-                    // ✨ START: New Mobile Audio Logic
-                    if (isMobile && (media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
-                        if (e.isIntersecting) {
-                            // This media is now visible. Attempt to make it the target.
-                            mobileAudioManager.init(media);
-                        } else {
-                            // This media is no longer visible. If it was our target, disconnect.
-                            if (media === mobileMediaTarget) {
-                                mobileAudioManager.cleanup();
-                            }
-                        }
-                    }
-                    // ✨ END: New Mobile Audio Logic
-
                     if (media.tagName === 'VIDEO') updateVideoFilterState(media);
-                    if (media.tagName === 'IMG') updateImageFilterState(image);
+                    if (media.tagName === 'IMG') updateImageFilterState(media);
                 });
-            }, { rootMargin: '0px', threshold: 0.1 }); // threshold:0.1 means at least 10% of the video must be visible
+            }, { rootMargin: '0px', threshold: 0.5 });
         }
     }
 
