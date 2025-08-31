@@ -182,7 +182,13 @@
         }
 
         function init(media) {
-            if (mobileAudioContext) return;
+            if (mobileAudioContext || !media) return; // 이미 초기화되었거나 미디어 요소가 없으면 중단
+
+            // 미디어가 아직 재생 준비가 안되었으면, 'canplay' 이벤트를 기다립니다.
+            if (media.readyState < media.HAVE_CURRENT_DATA) {
+                media.addEventListener('canplay', () => init(media), { once: true });
+                return;
+            }
 
             mobileMediaTarget = media;
             mobileAudioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -190,7 +196,7 @@
             try {
                 source = mobileAudioContext.createMediaElementSource(media);
             } catch (e) {
-                console.error('[VSC] Mobile MediaElementSource 생성 실패.', e);
+                console.error('[VSC] Mobile MediaElementSource 생성 실패. 페이지 새로고침이 필요할 수 있습니다.', e);
                 mobileAudioContext.close();
                 mobileAudioContext = null;
                 return;
@@ -236,7 +242,7 @@
                 });
             }
         }
-        
+
         function resetToDefaults() {
             if (!mobileAudioNodes) return;
             mobileAudioNodes.rightDelay.delayTime.value = DEFAULT_DELAY;
@@ -641,7 +647,7 @@
                         mobileAudioNodes.reverbGain.gain.value = val;
                     }
                 });
-                
+
                 // ✅ 최종 수정: 기본값 버튼 로직 추가
                 const resetBtn = panel.querySelector("#resetBtn");
                 resetBtn.addEventListener("click", () => {
@@ -1065,15 +1071,22 @@
 
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
-            
+
             setVideoFilterLevel(settingsManager.get('videoFilterLevel'));
             setImageFilterLevel(settingsManager.get('imageFilterLevel'));
 
-            if (isMobile && mobileAudioContext) {
-                mobileAudioContext.close();
-                mobileAudioContext = null;
-                mobileAudioNodes = null;
-                mobileMediaTarget = null;
+            if (isMobile && mobileAudioContext && mobileAudioNodes) {
+                // AudioContext를 닫는 대신, 효과만 비활성화합니다.
+                // 원본 소리(dry)는 100%로, 효과음(wet)은 0%로 즉시 변경합니다.
+                if (mobileAudioNodes.dryGain && mobileAudioNodes.wetGain) {
+                    const currentTime = mobileAudioContext.currentTime;
+                    mobileAudioNodes.wetGain.gain.cancelScheduledValues(currentTime);
+                    mobileAudioNodes.dryGain.gain.cancelScheduledValues(currentTime);
+                    mobileAudioNodes.wetGain.gain.value = 0.0;
+                    mobileAudioNodes.dryGain.gain.value = 1.0;
+                }
+                state.isMobileFxOn = false; // FX 상태 플래그도 초기화합니다.
+                // mobileAudioContext와 노드들을 null로 만들지 않고 유지하여 재사용할 수 있게 합니다.
             }
 
             const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
@@ -1135,7 +1148,7 @@
             settingsManager.init();
             uiManager.reset();
             speedSlider.reset();
-            
+
             setTimeout(initializeGlobalUI, 500);
         }, 500);
         if (!window.vscPatchedHistory) {
