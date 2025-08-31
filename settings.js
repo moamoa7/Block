@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          Video_Image_Control (with Advanced Audio FX)
 // @namespace     https://com/
-// @version       70.3 (Feature: 2-column layout for Audio FX UI)
-// @description   Improves usability by rearranging the long vertical audio effects UI into a 2-column grid layout.
+// @version       70.6
+// @description   닫기 버튼 클릭시 초기화 대신 아이콘 및 버튼 사라짐으로 변경
 // @match         *://*/*
 // @run-at        document-end
 // @grant         none
@@ -438,8 +438,6 @@
 
             safeExec(() => {
                 // --- 1. 연결 해제 단계 ---
-                // 오디오 경로를 깨끗하게 재설정하기 위해 주요 지점의 연결을 모두 끊습니다.
-                // 소스, 신호 분배기(stereoPanner), 최종 신호 수집기(gain 노드, 컴프레서)를 모두 해제합니다.
                 nodes.source.disconnect();
                 nodes.stereoPanner.disconnect();
                 nodes.dryGain.disconnect();
@@ -450,14 +448,11 @@
 
 
                 // --- 2. 재연결 단계 ---
-
-                // 컴프레서 활성화 상태에 따라 최종 출력 지점을 결정합니다.
                 const finalDestination = state.isCompressorEnabled ? nodes.compressor : nodes.context.destination;
                 if (state.isCompressorEnabled) {
                     nodes.compressor.connect(nodes.context.destination);
                 }
 
-                // EQ 활성화 상태에 따라 소스를 EQ 체인을 거치거나, 직접 stereoPanner에 연결합니다.
                 if (state.isEqEnabled) {
                     nodes.source.connect(nodes.eqLow);
                     nodes.eqHigh.connect(nodes.stereoPanner);
@@ -465,19 +460,11 @@
                     nodes.source.connect(nodes.stereoPanner);
                 }
 
-                // stereoPanner에서 분기되는 모든 병렬 경로를 다시 연결합니다.
-                // 원본(Dry) 신호 경로
                 nodes.stereoPanner.connect(nodes.dryGain).connect(finalDestination);
-                // 분석기 경로 (모니터링용, 출력으로 가지 않음)
                 nodes.stereoPanner.connect(nodes.analyser);
-
-                // 각 효과 체인의 시작점을 stereoPanner에 연결합니다.
-                // (체인 내부의 연결은 변경되지 않으므로 그대로 유지됩니다.)
                 nodes.stereoPanner.connect(nodes.ms_splitter);
                 nodes.stereoPanner.connect(nodes.splitterSpatial);
                 nodes.stereoPanner.connect(nodes.convolver);
-
-                // 각 효과 체인의 최종 출력(Wet 신호)을 finalDestination에 연결합니다.
                 nodes.wetGainWiden.connect(finalDestination);
                 nodes.wetGainSpatial.connect(finalDestination);
                 nodes.wetGainReverb.connect(finalDestination);
@@ -672,7 +659,9 @@
             '#vsc-container.touched { opacity: 1; }',
             '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
             '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(26px, 5.5vmin, 32px); width: clamp(28px, 6vmin, 34px); position: relative; }',
-            '.vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(8px, 1.5vmin, 12px); gap: clamp(8px, 1.5vmin, 12px); width: 450px; }',
+            '.vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(8px, 1.5vmin, 12px); gap: clamp(8px, 1.5vmin, 12px); width: auto; }',
+            '#vsc-stereo-controls .vsc-submenu { width: 450px; }',
+            '#vsc-video-controls .vsc-submenu, #vsc-image-controls .vsc-submenu { width: 100px; }',
             '.vsc-control-group.submenu-visible .vsc-submenu { display: flex; }',
             '.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(12px, 2vmin, 14px); }',
             '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
@@ -826,7 +815,7 @@
                 const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
                 mediaToAffect.forEach(m => {
                     const nodes = stereoWideningManager.getOrCreateNodes(m);
-                    if(nodes) stereoWideningManager.setParamWithFade(nodes.lfo.frequency, val);
+                    if (nodes) stereoWideningManager.setParamWithFade(nodes.lfo.frequency, val);
                 });
             };
 
@@ -1037,7 +1026,7 @@
             reset: () => { inited = false; },
             renderControls: () => safeExec(renderControls, 'speedSlider.renderControls'),
             show: () => { const el = state.ui.shadowRoot?.getElementById('vsc-container'); if (el) { el.style.display = 'flex'; resetFadeTimer(); } },
-            hide: () => { const el = state.ui.shadowRoot?.getElementById('vsc-container'); if (el) el.style.display = 'none'; },
+            hide: () => { const el = state.ui.shadowRoot?.getElementById('vsc-container'); if (el) { el.style.display = 'none'; speedSlider.hideSubMenus(); } },
             doFade: startFadeSequence,
             resetFadeTimer: resetFadeTimer,
             hideSubMenus: hideAllSubMenus
@@ -1228,7 +1217,12 @@
             const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO');
             const hasImage = state.activeImages.size > 0;
             const hasAnyMedia = hasVideo || hasAudio;
-            if (speedButtonsContainer) speedButtonsContainer.style.display = hasVideo ? 'flex' : 'none';
+
+            if (speedButtonsContainer && triggerElement) {
+                const areControlsVisible = triggerElement.textContent === '🛑';
+                speedButtonsContainer.style.display = hasVideo && areControlsVisible ? 'flex' : 'none';
+            }
+
             if (hasVideo) state.mediaTypesEverFound.video = true;
             if (hasImage) state.mediaTypesEverFound.image = true;
             filterManager.toggleStyleSheet(state.mediaTypesEverFound.video);
@@ -1460,7 +1454,7 @@
             uiContainer.id = 'vsc-global-container';
             Object.assign(uiContainer.style, {
                 position: 'fixed', top: '50%', right: '1vmin', transform: 'translateY(-50%)',
-                zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'center', gap: '0px',
+                zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'center', gap: '5px',
                 opacity: '1', transition: 'opacity 0.3s', WebkitTapHighlightColor: 'transparent'
             });
 
@@ -1479,7 +1473,7 @@
 
             speedButtonsContainer = document.createElement('div');
             speedButtonsContainer.id = 'vsc-speed-buttons-container';
-            Object.assign(speedButtonsContainer.style, { display: 'none', flexDirection: 'column', gap: '5px', alignItems: 'center', opacity: '0.5' });
+            Object.assign(speedButtonsContainer.style, { display: 'none', flexDirection: 'column', gap: '5px', alignItems: 'center' });
 
             CONFIG.SPEED_PRESETS.forEach(speed => {
                 const btn = document.createElement('button');
@@ -1501,17 +1495,16 @@
             });
 
             mainControlsWrapper.appendChild(triggerElement);
+            // The order is important for correct layout
             uiContainer.append(mainControlsWrapper, speedButtonsContainer);
             document.body.appendChild(uiContainer);
         }
 
         function handleTriggerClick() {
             if (wasDragged) return;
-            if (isInitialized) {
-                cleanup();
-                triggerElement.textContent = '⚡';
-                triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            } else {
+
+            if (!isInitialized) {
+                // First click: Initialize the script and show controls.
                 try {
                     start();
                     triggerElement.textContent = '🛑';
@@ -1521,6 +1514,26 @@
                     triggerElement.textContent = '⚠️';
                     triggerElement.title = '스크립트 초기화 실패! 콘솔을 확인하세요.';
                     triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.5)';
+                }
+            } else {
+                // Subsequent clicks: Toggle UI visibility
+                const areControlsVisible = triggerElement.textContent === '🛑';
+
+                if (areControlsVisible) {
+                    // --- HIDE CONTROLS ---
+                    speedSlider.hide();
+                    if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
+                    triggerElement.textContent = '⚡';
+                    triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                } else {
+                    // --- SHOW CONTROLS ---
+                    speedSlider.show();
+                    const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
+                    if (speedButtonsContainer && hasVideo) {
+                        speedButtonsContainer.style.display = 'flex';
+                    }
+                    triggerElement.textContent = '🛑';
+                    triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
                 }
             }
             if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
