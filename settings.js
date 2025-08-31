@@ -168,6 +168,17 @@
         const DEFAULT_DELAY = 0.015;
         const DEFAULT_REVERB = 0;
 
+        function cleanup() {
+            if (mobileAudioContext) {
+                safeExec(() => {
+                    if (mobileAudioContext.state !== 'closed') mobileAudioContext.close();
+                }, 'mobileAudioContext.close');
+            }
+            mobileAudioContext = null;
+            mobileAudioNodes = null;
+            mobileMediaTarget = null;
+        }
+
         function createReverbImpulseResponse(context, duration, decay = 2.0) {
             const rate = context.sampleRate;
             const length = rate * duration;
@@ -181,76 +192,78 @@
             return impulse;
         }
 
-        function init(media) {
-            if (mobileAudioContext || !media) return; // 이미 초기화되었거나 미디어 요소가 없으면 중단
+        function init(media) {
+            if (!media) return false;
+            if (mobileMediaTarget === media && mobileAudioContext) return true; // Already initialized for this target
 
-            // 미디어가 아직 재생 준비가 안되었으면, 'canplay' 이벤트를 기다립니다.
-            if (media.readyState < media.HAVE_CURRENT_DATA) {
-                media.addEventListener('canplay', () => init(media), { once: true });
-                return;
-            }
+            cleanup(); // Always clean up before initializing a new target
 
-            mobileMediaTarget = media;
-            mobileAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-            let source;
-            try {
-                source = mobileAudioContext.createMediaElementSource(media);
-            } catch (e) {
-                console.error('[VSC] Mobile MediaElementSource 생성 실패. 페이지 새로고침이 필요할 수 있습니다.', e);
-                mobileAudioContext.close();
-                mobileAudioContext = null;
-                return;
-            }
+            if (media.readyState < media.HAVE_CURRENT_DATA) {
+                media.addEventListener('canplay', () => scanAndApply(), { once: true });
+                return false;
+            }
 
-            const nodes = {};
-            nodes.dryGain = mobileAudioContext.createGain();
-            nodes.dryGain.gain.value = 1.0;
+            try {
+                mobileAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = mobileAudioContext.createMediaElementSource(media);
+                mobileMediaTarget = media; // Set target only after successful source creation
 
-            nodes.wetGain = mobileAudioContext.createGain();
-            nodes.wetGain.gain.value = 0.0;
+                const nodes = {};
+                nodes.dryGain = mobileAudioContext.createGain();
+                nodes.dryGain.gain.value = 1.0;
 
-            const splitter = mobileAudioContext.createChannelSplitter(2);
-            const merger = mobileAudioContext.createChannelMerger(2);
-            nodes.rightDelay = mobileAudioContext.createDelay(0.1);
-            nodes.rightDelay.delayTime.value = DEFAULT_DELAY;
+                nodes.wetGain = mobileAudioContext.createGain();
+                nodes.wetGain.gain.value = 0.0;
 
-            const convolver = mobileAudioContext.createConvolver();
-            convolver.buffer = createReverbImpulseResponse(mobileAudioContext, 2.0, 1.5);
-            nodes.reverbGain = mobileAudioContext.createGain();
-            nodes.reverbGain.gain.value = DEFAULT_REVERB;
+                const splitter = mobileAudioContext.createChannelSplitter(2);
+                const merger = mobileAudioContext.createChannelMerger(2);
+                nodes.rightDelay = mobileAudioContext.createDelay(0.1);
+                nodes.rightDelay.delayTime.value = DEFAULT_DELAY;
 
-            source.connect(nodes.dryGain).connect(mobileAudioContext.destination);
-            source.connect(splitter);
-            splitter.connect(merger, 0, 0);
-            splitter.connect(nodes.rightDelay, 1).connect(merger, 0, 1);
+                const convolver = mobileAudioContext.createConvolver();
+                convolver.buffer = createReverbImpulseResponse(mobileAudioContext, 2.0, 1.5);
+                nodes.reverbGain = mobileAudioContext.createGain();
+                nodes.reverbGain.gain.value = DEFAULT_REVERB;
 
-            merger.connect(nodes.wetGain);
-            merger.connect(convolver).connect(nodes.reverbGain).connect(nodes.wetGain);
-            nodes.wetGain.connect(mobileAudioContext.destination);
+                source.connect(nodes.dryGain).connect(mobileAudioContext.destination);
+                source.connect(splitter);
+                splitter.connect(merger, 0, 0);
+                splitter.connect(nodes.rightDelay, 1).connect(merger, 0, 1);
 
-            mobileAudioNodes = nodes;
-        }
+                merger.connect(nodes.wetGain);
+                merger.connect(convolver).connect(nodes.reverbGain).connect(nodes.wetGain);
+                nodes.wetGain.connect(mobileAudioContext.destination);
 
-        function ensureContextResumed() {
-            if (mobileAudioContext && mobileAudioContext.state === 'suspended') {
-                mobileAudioContext.resume().catch(e => {
-                     if (!state.audioContextWarningShown) {
-                        showWarningMessage('오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
-                        state.audioContextWarningShown = true;
-                    }
-                    console.warn('[VSC] Mobile AudioContext resume failed:', e.message);
-                });
-            }
-        }
+                mobileAudioNodes = nodes;
+                console.log('[VSC] Mobile Audio FX initialized for:', media);
+                return true;
+            } catch (e) {
+                console.error('[VSC] Mobile MediaElementSource creation failed. The script will try again if another video appears.', e);
+                cleanup(); // Clean up completely on failure to allow for a fresh start
+                return false;
+            }
+        }
 
-        function resetToDefaults() {
-            if (!mobileAudioNodes) return;
-            mobileAudioNodes.rightDelay.delayTime.value = DEFAULT_DELAY;
-            mobileAudioNodes.reverbGain.gain.value = DEFAULT_REVERB;
-        }
+        function ensureContextResumed() {
+            if (mobileAudioContext && mobileAudioContext.state === 'suspended') {
+                mobileAudioContext.resume().catch(e => {
+                     if (!state.audioContextWarningShown) {
+                        showWarningMessage('오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
+                        state.audioContextWarningShown = true;
+                    }
+                    console.warn('[VSC] Mobile AudioContext resume failed:', e.message);
+                });
+            }
+        }
 
-        return { init, ensureContextResumed, resetToDefaults };
-    })();
+        function resetToDefaults() {
+            if (!mobileAudioNodes) return;
+            mobileAudioNodes.rightDelay.delayTime.value = DEFAULT_DELAY;
+            mobileAudioNodes.reverbGain.gain.value = DEFAULT_REVERB;
+        }
+
+        return { init, cleanup, ensureContextResumed, resetToDefaults };
+    })();
 
     const stereoWideningManager = (() => {
         function createReverbImpulseResponse(context, duration, decay = 2.0) {
@@ -1003,14 +1016,28 @@
 
     const scanAndApply = () => {
         const allMedia = findAllMedia();
-        if (isMobile && !mobileMediaTarget && allMedia.length > 0) {
-            mobileAudioManager.init(allMedia[0]);
-        }
-        allMedia.forEach(m => {
-            if(!state.processedMedia.has(m)){
-                attachMediaListeners(m);
-            }
-        });
+
+        // ✅ MODIFIED: Added dynamic logic to find the best media target and (re)initialize the audio manager.
+        if (isMobile) {
+            const bestTarget = allMedia.length > 0 ? allMedia[0] : null;
+
+            if (bestTarget) {
+                // Initialize if the target is new, or if we don't have a working audio context yet.
+                if (bestTarget !== mobileMediaTarget || !mobileAudioContext) {
+                    mobileAudioManager.init(bestTarget);
+                }
+            } else if (mobileMediaTarget) {
+                // If no media is found on the page but we were attached to one, clean up.
+                mobileAudioManager.cleanup();
+            }
+        }
+        // (The old logic for initializing mobile audio has been removed from here)
+
+        allMedia.forEach(m => {
+            if(!state.processedMedia.has(m)){
+                attachMediaListeners(m);
+            }
+        });
 
         const oldMedia = new Set(state.activeMedia);
         state.activeMedia.clear();
@@ -1075,33 +1102,23 @@
             setVideoFilterLevel(settingsManager.get('videoFilterLevel'));
             setImageFilterLevel(settingsManager.get('imageFilterLevel'));
 
-            if (isMobile && mobileAudioContext && mobileAudioNodes) {
-                // AudioContext를 닫는 대신, 효과만 비활성화합니다.
-                // 원본 소리(dry)는 100%로, 효과음(wet)은 0%로 즉시 변경합니다.
-                if (mobileAudioNodes.dryGain && mobileAudioNodes.wetGain) {
-                    const currentTime = mobileAudioContext.currentTime;
-                    mobileAudioNodes.wetGain.gain.cancelScheduledValues(currentTime);
-                    mobileAudioNodes.dryGain.gain.cancelScheduledValues(currentTime);
-                    mobileAudioNodes.wetGain.gain.value = 0.0;
-                    mobileAudioNodes.dryGain.gain.value = 1.0;
-                }
-                state.isMobileFxOn = false; // FX 상태 플래그도 초기화합니다.
-                // mobileAudioContext와 노드들을 null로 만들지 않고 유지하여 재사용할 수 있게 합니다.
-            }
+            if (isMobile) {
+                mobileAudioManager.cleanup();
+            }
 
-            const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
-            allRoots.forEach(root => root.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(el => el.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active', 'vsc-gpu-accelerated')));
+            const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
+            allRoots.forEach(root => root.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(el => el.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active', 'vsc-gpu-accelerated')));
 
-            if (state.ui?.hostElement) {
-                state.ui.hostElement.remove();
-            }
-            if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
-            uiManager.reset();
-            speedSlider.reset();
+            if (state.ui?.hostElement) {
+                state.ui.hostElement.remove();
+            }
+            if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
+            uiManager.reset();
+            speedSlider.reset();
 
-            isInitialized = false;
-        }, 'cleanup');
-    }
+            isInitialized = false;
+        }, 'cleanup');
+    }
 
 
     function ensureObservers() {
