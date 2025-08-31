@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
 // @namespace    https://com/
-// @version      74.2 (PC UI Fixes)
-// @description  PC에서는 공간 음향, 모바일에서는 심플한 서라운드/리버브 UI를 제공하며, 전체 화면을 완벽 지원합니다.
+// @version      74.3 (Mobile Optimization Restored & Final)
+// @description  PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -11,7 +11,7 @@
 (function () {
     'use strict';
 
-    let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
+    let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null, mobileAudioTarget = null;
     let isInitializing = false;
 
     const isMobile = /(iPhone|iPad|iPod|Android)/i.test(navigator.userAgent);
@@ -193,7 +193,7 @@
                 nodes.dryGain = context.createGain();
                 source.connect(nodes.dryGain).connect(context.destination);
                 nodes.wetGain = context.createGain();
-                nodes.wetGain.gain.value = 1.0;
+                nodes.wetGain.gain.value = 0.0; // 기본값 OFF, 타겟이 되면 1.0으로 변경
                 nodes.wetGain.connect(context.destination);
                 const splitter = context.createChannelSplitter(2);
                 const merger = context.createChannelMerger(2);
@@ -354,7 +354,11 @@
     })();
 
     function activateAudioContexts() {
-        state.activeMedia.forEach(media => stereoWideningManager.ensureContextResumed(media));
+        if(isMobile) {
+            if(mobileAudioTarget) stereoWideningManager.ensureContextResumed(mobileAudioTarget);
+        } else {
+            state.activeMedia.forEach(media => stereoWideningManager.ensureContextResumed(media));
+        }
     }
 
     function setWideningEnabled(enabled) {
@@ -557,10 +561,10 @@
                 delaySlider.addEventListener("input", () => {
                     const val = parseFloat(delaySlider.value);
                     delayVal.textContent = `${(val * 1000).toFixed(0)}ms`;
-                    state.activeMedia.forEach(m => {
-                        const nodes = state.audioContextMap.get(m);
+                    if (mobileAudioTarget) {
+                        const nodes = state.audioContextMap.get(mobileAudioTarget);
                         if (nodes && nodes.rightDelay) nodes.rightDelay.delayTime.value = val;
-                    });
+                    }
                 });
 
                 const reverbSlider = panel.querySelector("#reverbSlider");
@@ -568,10 +572,10 @@
                 reverbSlider.addEventListener("input", () => {
                     const val = parseFloat(reverbSlider.value);
                     reverbVal.textContent = `${(val * 100).toFixed(0)}%`;
-                    state.activeMedia.forEach(m => {
-                        const nodes = state.audioContextMap.get(m);
+                    if (mobileAudioTarget) {
+                        const nodes = state.audioContextMap.get(mobileAudioTarget);
                         if (nodes && nodes.reverbGain) nodes.reverbGain.gain.value = val;
-                    });
+                    }
                 });
 
                 const toggleBtn = panel.querySelector("#toggleBtn");
@@ -580,12 +584,13 @@
                     isFxOn = !isFxOn;
                     toggleBtn.textContent = isFxOn ? "FX ON" : "FX OFF";
                     toggleBtn.classList.toggle("off", !isFxOn);
-                    state.activeMedia.forEach(m => {
-                        const nodes = state.audioContextMap.get(m);
-                        if (nodes && nodes.wetGain) {
+                    activateAudioContexts();
+                    if(mobileAudioTarget) {
+                         const nodes = state.audioContextMap.get(mobileAudioTarget);
+                         if (nodes && nodes.wetGain) {
                             nodes.wetGain.gain.linearRampToValueAtTime(isFxOn ? 1 : 0, nodes.context.currentTime + 0.1);
-                        }
-                    });
+                         }
+                    }
                 });
 
             } else {
@@ -884,7 +889,6 @@
         state.mediaListenerMap.set(media, listeners);
         state.processedMedia.add(media);
         intersectionObserver.observe(media);
-        stereoWideningManager.getOrCreateNodes(media);
     }
     function attachImageListeners(image) {
         if (!image || state.processedImages.has(image) || !intersectionObserver) return;
@@ -908,13 +912,21 @@
 
     const scanAndApply = () => {
         const allMedia = findAllMedia();
-        allMedia.forEach(attachMediaListeners);
+        allMedia.forEach(m => {
+            if(!state.processedMedia.has(m)){
+                attachMediaListeners(m);
+            }
+        });
+
         const oldMedia = new Set(state.activeMedia);
         state.activeMedia.clear();
         allMedia.forEach(m => { if (m.isConnected) { state.activeMedia.add(m); oldMedia.delete(m); } });
         oldMedia.forEach(detachMediaListeners);
 
         state.activeMedia.forEach(m => {
+            if(!isMobile) { // PC에서만 오디오 컨텍스트를 미리 생성
+                stereoWideningManager.getOrCreateNodes(m);
+            }
             if (m.tagName === 'VIDEO') {
                 m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended);
                 updateVideoFilterState(m);
@@ -996,9 +1008,41 @@
             intersectionObserver = new IntersectionObserver(entries => {
                 if (isInitializing) return;
                 entries.forEach(e => {
-                    e.target.dataset.isVisible = String(e.isIntersecting);
-                    if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
-                    if (e.target.tagName === 'IMG') updateImageFilterState(e.target);
+                    const media = e.target;
+                    media.dataset.isVisible = String(e.isIntersecting);
+
+                    if (media.tagName === 'VIDEO') updateVideoFilterState(media);
+                    if (media.tagName === 'IMG') updateImageFilterState(media);
+
+                    if (isMobile && (media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
+                         let targetChanged = false;
+                         if (e.isIntersecting) {
+                            if (mobileAudioTarget !== media) {
+                                mobileAudioTarget = media;
+                                targetChanged = true;
+                            }
+                         } else if (mobileAudioTarget === media) {
+                            mobileAudioTarget = null;
+                            const newTarget = Array.from(state.activeMedia).find(m => m !== media && m.dataset.isVisible === 'true');
+                            if(newTarget) {
+                                mobileAudioTarget = newTarget;
+                            }
+                            targetChanged = true;
+                         }
+
+                         if(targetChanged) {
+                             const fxBtn = state.ui.shadowRoot?.querySelector("#toggleBtn");
+                             const isFxOn = fxBtn ? !fxBtn.classList.contains("off") : true;
+
+                             state.activeMedia.forEach(m => {
+                                 const nodes = stereoWideningManager.getOrCreateNodes(m);
+                                 if(nodes && nodes.wetGain) {
+                                     const targetGain = (m === mobileAudioTarget && isFxOn) ? 1.0 : 0.0;
+                                     nodes.wetGain.gain.linearRampToValueAtTime(targetGain, nodes.context.currentTime + 0.1);
+                                 }
+                             });
+                         }
+                    }
                 });
             }, { rootMargin: '0px 0px -50% 0px', threshold: 0.1 });
         }
@@ -1023,6 +1067,7 @@
             settingsManager.init();
             uiManager.reset();
             speedSlider.reset();
+            mobileAudioTarget = null;
 
             setTimeout(initializeGlobalUI, 500);
         }, 500);
