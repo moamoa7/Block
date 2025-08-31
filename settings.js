@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Parallel Spatial Audio)
 // @namespace    https://com/
-// @version      73.1 (Fixed Mobile Initialization)
-// @description  모바일 환경에서 활성화 시 발생하던 과부하 문제를 해결하여 안정성을 확보했습니다.
+// @version      73.2 (Stable Mobile & Widening Fix)
+// @description  스테레오 확장 기본값을 상향 조정하여 효과를 명확히 체감할 수 있도록 수정하고, 모바일 UI 안정성을 개선했습니다.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -32,7 +32,7 @@
         DEFAULT_REVERB_MIX: 0,
         DEFAULT_REVERB_LENGTH: 2.0,
         DEFAULT_STEREO_PAN: 0,
-        DEFAULT_WIDENING_FACTOR: 1.0,
+        DEFAULT_WIDENING_FACTOR: 2.0, // 기본값을 1.0에서 2.0으로 상향 조정하여 효과 체감 개선
         DEFAULT_LFO_RATE: 0.2,
         SPATIAL_DEFAULT_DEPTH: 2.0,
         DEFAULT_DELAY_SURROUND_MS: 15,
@@ -456,12 +456,12 @@
     }
 
     function setDelaySurroundEnabled(enabled) {
-        if (!isMobile) return; // This logic is now handled by updateMobileAudioEffects
+        if (!isMobile) return;
         if (enabled) activateAudioContexts();
         state.isDelaySurroundEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-delay-surround-toggle');
         if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '딜레이 ON' : '딜레이 OFF'; }
-        updateMobileAudioEffects(); // Update immediately when toggled
+        updateMobileAudioEffects();
     }
 
     // ================== FIXED PART START ==================
@@ -590,7 +590,6 @@
                 options.forEach(opt => { const o = document.createElement('option'); o.value=opt.value; o.textContent=opt.text; select.appendChild(o); });
                 select.onchange = e => {
                     changeHandler(e.target.value);
-                    if (isMobile) updateMobileAudioEffects();
                     startFadeSequence();
                 };
                 return select;
@@ -1090,19 +1089,21 @@
                     if (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') {
                         if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
                         if (isMobile) {
+                            let targetChanged = false;
                             if (e.isIntersecting) {
-                                // 현재 타겟이 없거나, 다른 영상이 더 중요하게 보일 때만 타겟 변경
                                 if (mobileAudioTarget !== e.target) {
                                      mobileAudioTarget = e.target;
-                                     updateMobileAudioEffects();
+                                     targetChanged = true;
                                 }
                             } else if (mobileAudioTarget === e.target) {
                                 mobileAudioTarget = null;
-                                // 사라진 타겟 대신 다른 보이는 영상을 새 타겟으로 지정
                                 const newTarget = Array.from(state.activeMedia).find(m => m !== e.target && m.dataset.isVisible === 'true');
                                 if (newTarget) {
                                     mobileAudioTarget = newTarget;
                                 }
+                                targetChanged = true;
+                            }
+                            if (targetChanged) {
                                 updateMobileAudioEffects();
                             }
                         }
@@ -1195,7 +1196,7 @@
             }
         }
         isInitialized = true;
-        
+
         // 초기화가 끝난 후, 잠시 뒤에 isInitializing 플래그를 해제하여 IntersectionObserver가 정상 작동하도록 함
         setTimeout(() => { isInitializing = false; }, 500);
     }
