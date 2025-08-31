@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Spatial Audio)
 // @namespace    https://com/
-// @version      69.6 (Fix: TypeError on Audio Sliders)
-// @description  Ensures UI elements are completely removed and reset on deactivation to fix submenu and speed button persistence bugs. Fixes TypeError on audio sliders by correctly iterating WeakMap via activeMedia.
+// @version      69.7 (Mobile Optimization: Apply FX to single visible video)
+// @description  On mobile, audio effects are now applied only to the most visible video in the viewport to optimize performance. Includes previous TypeError fix.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -87,6 +87,7 @@
         Object.assign(state, {
             activeMedia: new Set(), processedMedia: new WeakSet(), activeImages: new Set(),
             processedImages: new WeakSet(), mediaListenerMap: new WeakMap(),
+            currentlyVisibleMedia: null, // NEW: Track the single visible media on mobile
             currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || 0,
             currentImageFilterLevel: settingsManager.get('imageFilterLevel') || 0,
             isWideningEnabled: CONFIG.DEFAULT_WIDENING_ENABLED,
@@ -420,7 +421,30 @@
     })();
 
     function activateAudioContexts() {
-        state.activeMedia.forEach(media => stereoWideningManager.ensureContextResumed(media));
+        const mediaToActivate = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+        mediaToActivate.forEach(media => stereoWideningManager.ensureContextResumed(media));
+    }
+
+    // UPDATED: Apply effects to the relevant media (all on desktop, one on mobile)
+    function applyAudioEffectsToMedia(mediaSet) {
+        mediaSet.forEach(media => {
+            stereoWideningManager.setWidening(media, state.isWideningEnabled);
+            stereoWideningManager.setSpatial(media, state.isSpatialEnabled);
+            stereoWideningManager.setVolumeFollower(media, state.isVolumeFollowerEnabled);
+            stereoWideningManager.setDynamicDepth(media, state.isDynamicDepthEnabled);
+            stereoWideningManager.setPan(media, state.currentStereoPan);
+            stereoWideningManager.setReverb(media, state.currentReverbMix);
+        });
+    }
+
+    // UPDATED: Disconnect effects from media
+    function disconnectAudioEffectsFromMedia(mediaSet) {
+        mediaSet.forEach(media => {
+            stereoWideningManager.setWidening(media, false);
+            stereoWideningManager.setSpatial(media, false);
+            stereoWideningManager.setVolumeFollower(media, false);
+            stereoWideningManager.setDynamicDepth(media, false);
+        });
     }
 
     function setWideningEnabled(enabled) {
@@ -428,7 +452,9 @@
         state.isWideningEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
         if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '확장 ON' : '확장 OFF'; }
-        state.activeMedia.forEach(media => stereoWideningManager.setWidening(media, enabled));
+
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+        mediaToAffect.forEach(media => stereoWideningManager.setWidening(media, enabled));
     }
 
     function setSpatialAudioEnabled(enabled) {
@@ -436,7 +462,9 @@
         state.isSpatialEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-spatial-toggle');
         if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '공간음향 ON' : '공간음향 OFF'; }
-        state.activeMedia.forEach(media => stereoWideningManager.setSpatial(media, enabled));
+
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+        mediaToAffect.forEach(media => stereoWideningManager.setSpatial(media, enabled));
     }
 
     function setVolumeFollowerEnabled(enabled) {
@@ -444,8 +472,11 @@
         state.isVolumeFollowerEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-follower-toggle');
         if (btn) { btn.classList.toggle('active', !!enabled); btn.textContent = enabled ? '연동 ON' : '연동 OFF'; }
-        if(enabled) setDynamicDepthEnabled(false);
-        state.activeMedia.forEach(media => stereoWideningManager.setVolumeFollower(media, enabled));
+        if (enabled) setDynamicDepthEnabled(false);
+
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+        mediaToAffect.forEach(media => stereoWideningManager.setVolumeFollower(media, enabled));
+
         const slider = state.ui.shadowRoot?.getElementById('depthSlider');
         if (slider) slider.disabled = enabled || state.isDynamicDepthEnabled;
     }
@@ -455,8 +486,10 @@
         state.isDynamicDepthEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-dynamic-depth-toggle');
         if (btn) { btn.classList.toggle('active', !!enabled); }
-        if(enabled) setVolumeFollowerEnabled(false);
-        state.activeMedia.forEach(media => stereoWideningManager.setDynamicDepth(media, enabled));
+        if (enabled) setVolumeFollowerEnabled(false);
+
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+        mediaToAffect.forEach(media => stereoWideningManager.setDynamicDepth(media, enabled));
     }
 
     function resetEffectStatesToDefault() {
@@ -595,7 +628,8 @@
                 const val = parseFloat(wideningSlider.slider.value);
                 state.currentWideningFactor = val;
                 wideningSlider.valueSpan.textContent = `${val.toFixed(1)}x`;
-                state.activeMedia.forEach(m => stereoWideningManager.setWideningFactor(m, val));
+                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+                mediaToAffect.forEach(m => stereoWideningManager.setWideningFactor(m, val));
             };
 
             const hpfSlider = createSliderControl('HPF', 'hpfSlider', 50, 500, 10, state.currentHpfHz, 'Hz');
@@ -603,8 +637,8 @@
                 const val = parseFloat(hpfSlider.slider.value);
                 state.currentHpfHz = val;
                 hpfSlider.valueSpan.textContent = `${val}Hz`;
-                // MODIFIED: Fix TypeError by iterating state.activeMedia instead of state.audioContextMap.values()
-                state.activeMedia.forEach(media => {
+                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+                mediaToAffect.forEach(media => {
                     const nodes = state.audioContextMap.get(media);
                     if (nodes) {
                         if (nodes.hpfWiden) nodes.hpfWiden.frequency.linearRampToValueAtTime(val, nodes.context.currentTime + 0.05);
@@ -618,9 +652,9 @@
                 const val = parseFloat(depthSlider.slider.value);
                 state.currentSpatialDepth = val;
                 depthSlider.valueSpan.textContent = val.toFixed(1);
-                // MODIFIED: Fix TypeError by iterating state.activeMedia instead of state.audioContextMap.values()
                 if (!state.isVolumeFollowerEnabled) {
-                    state.activeMedia.forEach(media => {
+                    const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+                    mediaToAffect.forEach(media => {
                         const nodes = state.audioContextMap.get(media);
                         if (nodes && nodes.lfoDepth) {
                             nodes.lfoDepth.gain.linearRampToValueAtTime(val, nodes.context.currentTime + 0.05);
@@ -634,7 +668,8 @@
                 const val = parseFloat(panSlider.slider.value);
                 state.currentStereoPan = val;
                 panSlider.valueSpan.textContent = val.toFixed(1);
-                state.activeMedia.forEach(m => stereoWideningManager.setPan(m, val));
+                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+                mediaToAffect.forEach(m => stereoWideningManager.setPan(m, val));
             };
 
             const reverbSlider = createSliderControl('Reverb (잔향)', 'reverbSlider', 0, 1, 0.05, state.currentReverbMix, '');
@@ -642,7 +677,8 @@
                 const val = parseFloat(reverbSlider.slider.value);
                 state.currentReverbMix = val;
                 reverbSlider.valueSpan.textContent = val.toFixed(2);
-                state.activeMedia.forEach(m => stereoWideningManager.setReverb(m, val));
+                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+                mediaToAffect.forEach(m => stereoWideningManager.setReverb(m, val));
             };
 
             const reverbLengthSlider = createSliderControl('잔향 길이', 'reverbLengthSlider', 0.1, 5, 0.1, state.currentReverbLength, 's');
@@ -650,7 +686,8 @@
                 const val = parseFloat(reverbLengthSlider.slider.value);
                 state.currentReverbLength = val;
                 reverbLengthSlider.valueSpan.textContent = `${val.toFixed(1)}s`;
-                state.activeMedia.forEach(m => stereoWideningManager.updateReverb(m, val));
+                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+                mediaToAffect.forEach(m => stereoWideningManager.updateReverb(m, val));
             };
 
             const lfoRateSlider = createSliderControl('공간 속도', 'lfoRateSlider', 0.1, 2, 0.1, state.currentLfoRate, 'Hz');
@@ -658,7 +695,8 @@
                 const val = parseFloat(lfoRateSlider.slider.value);
                 state.currentLfoRate = val;
                 lfoRateSlider.valueSpan.textContent = `${val.toFixed(1)}Hz`;
-                state.activeMedia.forEach(m => stereoWideningManager.setLfoRate(m, val));
+                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+                mediaToAffect.forEach(m => stereoWideningManager.setLfoRate(m, val));
             };
 
             const btnGroup2 = document.createElement('div'); btnGroup2.className='vsc-button-group';
@@ -692,7 +730,8 @@
                 reverbLengthSlider.slider.value = defaults.reverbLen; reverbLengthSlider.valueSpan.textContent = `${defaults.reverbLen.toFixed(1)}s`;
                 lfoRateSlider.slider.value = defaults.lfoRate; lfoRateSlider.valueSpan.textContent = `${defaults.lfoRate.toFixed(1)}Hz`;
 
-                state.activeMedia.forEach(m => {
+                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : state.activeMedia;
+                mediaToAffect.forEach(m => {
                     stereoWideningManager.setWideningFactor(m, defaults.widening);
                     stereoWideningManager.updateReverb(m, defaults.reverbLen);
                     const nodes = state.audioContextMap.get(m);
@@ -907,11 +946,15 @@
         state.activeMedia.clear();
         allMedia.forEach(m => { if (m.isConnected) { state.activeMedia.add(m); oldMedia.delete(m); } });
         oldMedia.forEach(detachMediaListeners);
-        allMedia.forEach(m => {
-            if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); }
-            if (state.isWideningEnabled) { stereoWideningManager.setWidening(m, true); }
-            if (state.isSpatialEnabled) { stereoWideningManager.setSpatial(m, true); }
-        });
+
+        // On desktop, apply to all. On mobile, this will be handled by the IntersectionObserver.
+        if (!isMobile) {
+            allMedia.forEach(m => {
+                if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); }
+            });
+            applyAudioEffectsToMedia(state.activeMedia);
+        }
+
         const allImages = findAllImages();
         allImages.forEach(attachImageListeners);
         const oldImages = new Set(state.activeImages);
@@ -963,7 +1006,6 @@
             const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
             allRoots.forEach(root => root.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(el => el.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active', 'vsc-gpu-accelerated')));
 
-            // MODIFIED: Properly remove and reset all UI components
             if (state.ui?.hostElement) {
                 state.ui.hostElement.remove();
             }
@@ -986,13 +1028,40 @@
             mainObserver.observe(document.documentElement, { childList: true, subtree: true });
         }
         if (!intersectionObserver) {
+            // This observer handles both visibility for filters and, on mobile, which media gets audio FX.
             intersectionObserver = new IntersectionObserver(entries => {
                 entries.forEach(e => {
                     e.target.dataset.isVisible = String(e.isIntersecting);
                     if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
                     if (e.target.tagName === 'IMG') updateImageFilterState(e.target);
                 });
-            }, { rootMargin: '200px 0px 200px 0px' });
+
+                if (isMobile) {
+                    let mostVisibleEntry = null;
+                    let maxRatio = -1;
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+                            maxRatio = entry.intersectionRatio;
+                            mostVisibleEntry = entry;
+                        }
+                    });
+
+                    const newVisibleMedia = mostVisibleEntry ? mostVisibleEntry.target : null;
+                    if (state.currentlyVisibleMedia !== newVisibleMedia) {
+                        if (state.currentlyVisibleMedia) {
+                            disconnectAudioEffectsFromMedia(new Set([state.currentlyVisibleMedia]));
+                        }
+                        state.currentlyVisibleMedia = newVisibleMedia;
+                        if (state.currentlyVisibleMedia) {
+                            applyAudioEffectsToMedia(new Set([state.currentlyVisibleMedia]));
+                        }
+                    }
+                }
+            }, {
+                root: null,
+                rootMargin: '0px',
+                threshold: Array.from({ length: 101 }, (_, i) => i / 100) // For accurate visibility tracking
+            });
         }
     }
 
@@ -1038,7 +1107,9 @@
     }
 
     function start() {
-        state.activeMedia.forEach(m => stereoWideningManager.reconnectGraph(m));
+        if (!isMobile) {
+           state.activeMedia.forEach(m => stereoWideningManager.reconnectGraph(m));
+        }
 
         state.lastUrl = location.href;
         uiManager.init();
