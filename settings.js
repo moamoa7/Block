@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
 // @namespace    https://com/
-// @version      74.8 (Final Mobile Audio & Filter Init Fix)
+// @version      74.9 (PC/Mobile Logic Separation & Final Fix)
 // @description  PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
 // @match        *://*/*
 // @run-at       document-end
@@ -13,7 +13,6 @@
 
     let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
     let isInitializing = false;
-    // ✅ 최종 수정: 모바일 오디오 컨텍스트와 타겟을 전역 변수로 관리
     let mobileAudioContext = null, mobileAudioNodes = null, mobileMediaTarget = null;
 
     const isMobile = /(iPhone|iPad|iPod|Android)/i.test(navigator.userAgent);
@@ -73,7 +72,6 @@
             imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 5 }
         };
         function init() { Object.keys(definitions).forEach(key => {
-            // 로컬 스토리지 등에서 설정을 불러오는 로직을 추가할 수 있음
             settings[key] = definitions[key].default;
         }); }
         return { init, get: (key) => settings[key], set: (key, value) => { settings[key] = value; }, definitions };
@@ -166,7 +164,6 @@
     const filterManager = new SvgFilterManager({ settings: isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', matrixId: 'vsc-dynamic-convolve-matrix', className: 'vsc-video-filter-active' });
     const imageFilterManager = new SvgFilterManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
 
-    // ✅ 최종 수정: 모바일 오디오 FX를 전역 컨텍스트 기반으로 재구성
     const mobileAudioManager = (() => {
         function createReverbImpulseResponse(context, duration, decay = 2.0) {
             const rate = context.sampleRate;
@@ -182,7 +179,7 @@
         }
 
         function init(media) {
-            if (mobileAudioContext) return; // 이미 초기화되었으면 반환
+            if (mobileAudioContext) return;
 
             mobileMediaTarget = media;
             mobileAudioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -213,7 +210,6 @@
             nodes.reverbGain = mobileAudioContext.createGain();
             nodes.reverbGain.gain.value = 0.3;
 
-            // 라우팅
             source.connect(nodes.dryGain).connect(mobileAudioContext.destination);
             source.connect(splitter);
             splitter.connect(merger, 0, 0);
@@ -268,7 +264,6 @@
             }
 
             let nodes = {};
-
             Object.assign(nodes, {
                 context, source,
                 stereoPanner: context.createStereoPanner(),
@@ -324,13 +319,12 @@
             nodes.dryGain.gain.value = anyEffectOn ? 0 : 1;
             nodes.wetGain.gain.value = anyEffectOn ? 1 : 0;
             source.connect(nodes.analyser);
-
             state.audioContextMap.set(media, nodes);
             return nodes;
         }
 
+        // ✅ 최종 수정: PC용 getOrCreateNodes 함수 복원
         function getOrCreateNodes(media) {
-            if (isMobile) return null; // 모바일에선 더 이상 이 함수를 사용하지 않음
             if (state.audioContextMap.has(media)) return state.audioContextMap.get(media);
             try {
                 if (media.HAVE_CURRENT_DATA) return createAudioGraph(media);
@@ -369,7 +363,10 @@
         const setGain = (media, gainNodeName, value) => {
             const nodes = getOrCreateNodes(media);
             if (!nodes) return;
-            ensureContextResumed(media);
+            const ctx = nodes.context;
+            if (ctx && ctx.state === 'suspended') {
+                ctx.resume().catch(e => console.warn('[VSC] AudioContext resume failed:', e.message));
+            }
             setGainWithFade(nodes[gainNodeName], value);
         };
 
@@ -387,20 +384,8 @@
             }
         }
 
-        function ensureContextResumed(media) {
-            const nodes = state.audioContextMap.get(media);
-            if (nodes && nodes.context.state === 'suspended') {
-                nodes.context.resume().catch(e => {
-                    if (!state.audioContextWarningShown) {
-                        showWarningMessage('오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
-                        state.audioContextWarningShown = true;
-                    }
-                    console.warn('[VSC] AudioContext resume failed:', e.message);
-                });
-            }
-        }
-
         return {
+            getOrCreateNodes, // ✅ 최종 수정: 외부에서 호출할 수 있도록 다시 추가
             setWidening: (m, e) => { setGain(m, 'wetGainWiden', e ? 1.0 : 0.0); updateDryWetMix(m); },
             setWideningFactor: (m, v) => { const n = getOrCreateNodes(m); if(n && n.ms_side_gain) setParamWithFade(n.ms_side_gain.gain, v); },
             setSpatial: (m, e) => { setGain(m, 'wetGainSpatial', e ? 1.0 : 0.0); updateDryWetMix(m); },
@@ -666,7 +651,7 @@
                     const wetTarget = state.isMobileFxOn ? 1.0 : 0.0;
                     const dryTarget = state.isMobileFxOn ? 0.8 : 1.0;
 
-                    if (mobileAudioNodes) {
+                    if (mobileAudioNodes && mobileAudioNodes.wetGain && mobileAudioNodes.dryGain) {
                         mobileAudioNodes.wetGain.gain.linearRampToValueAtTime(wetTarget, mobileAudioContext.currentTime + 0.1);
                         mobileAudioNodes.dryGain.gain.linearRampToValueAtTime(dryTarget, mobileAudioContext.currentTime + 0.1);
                     }
@@ -992,7 +977,6 @@
     const scanAndApply = () => {
         const allMedia = findAllMedia();
         if (isMobile && !mobileMediaTarget && allMedia.length > 0) {
-            // ✅ 최종 수정: 페이지의 첫 미디어를 찾아 한 번만 오디오 초기화
             mobileAudioManager.init(allMedia[0]);
         }
         allMedia.forEach(m => {
@@ -1007,6 +991,7 @@
         oldMedia.forEach(detachMediaListeners);
 
         state.activeMedia.forEach(m => {
+            // ✅ 최종 수정: PC에서만 getOrCreateNodes 호출
             if(!isMobile) {
                 stereoWideningManager.getOrCreateNodes(m);
             }
@@ -1061,7 +1046,7 @@
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
 
-            // ✅ 최종 수정: 필터 초기화 시 기본값으로 설정하도록 변경
+            // ✅ 최종 수정: 필터 초기화 시 0으로 설정하는 대신 기본값으로 설정
             setVideoFilterLevel(settingsManager.get('videoFilterLevel'));
             setImageFilterLevel(settingsManager.get('imageFilterLevel'));
 
@@ -1105,8 +1090,6 @@
 
                     if (media.tagName === 'VIDEO') updateVideoFilterState(media);
                     if (media.tagName === 'IMG') updateImageFilterState(media);
-
-                    // ✅ 최종 수정: IntersectionObserver는 더 이상 모바일 오디오를 직접 제어하지 않음
                 });
             }, { rootMargin: '0px 0px -50% 0px', threshold: 0.1 });
         }
@@ -1133,7 +1116,7 @@
             settingsManager.init();
             uiManager.reset();
             speedSlider.reset();
-            
+
             setTimeout(initializeGlobalUI, 500);
         }, 500);
         if (!window.vscPatchedHistory) {
