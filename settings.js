@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
 // @namespace    https://com/
-// @version      74.4 (Mobile Audio FX Logic Fixed)
+// @version      74.5 (Mobile Audio FX Init Logic Fixed)
 // @description  PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
 // @match        *://*/*
 // @run-at       document-end
@@ -88,7 +88,7 @@
             isSpatialEnabled: CONFIG.DEFAULT_SPATIAL_ENABLED,
             isVolumeFollowerEnabled: CONFIG.DEFAULT_VOLUME_FOLLOWER_ENABLED,
             isDynamicDepthEnabled: CONFIG.DEFAULT_DYNAMIC_DEPTH_ENABLED,
-            isMobileFxOn: true, // <<<<<<< [FIX 1] 모바일 FX 상태 전역 관리
+            isMobileFxOn: true,
             audioContextMap: new WeakMap(),
             currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
             currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
@@ -192,10 +192,15 @@
             if (isMobile) {
                 nodes = { context, source };
                 nodes.dryGain = context.createGain();
+                // <<<<<<< [FIX] INITIAL STATE CORRECTION
+                nodes.dryGain.gain.value = state.isMobileFxOn ? 0.8 : 1.0;
                 source.connect(nodes.dryGain).connect(context.destination);
+
                 nodes.wetGain = context.createGain();
-                nodes.wetGain.gain.value = 0.0;
+                // <<<<<<< [FIX] INITIAL STATE CORRECTION
+                nodes.wetGain.gain.value = state.isMobileFxOn ? 1.0 : 0.0;
                 nodes.wetGain.connect(context.destination);
+
                 const splitter = context.createChannelSplitter(2);
                 const merger = context.createChannelMerger(2);
                 nodes.rightDelay = context.createDelay(0.1);
@@ -585,18 +590,16 @@
                 });
 
                 const toggleBtn = panel.querySelector("#toggleBtn");
-                // <<<<<<< [FIX 2] 버튼의 상태를 전역 상태에 따라 초기화
                 if (!state.isMobileFxOn) {
                     toggleBtn.textContent = "FX OFF";
                     toggleBtn.classList.add("off");
                 }
 
                 toggleBtn.addEventListener("click", () => {
-                    // <<<<<<< [FIX 3] 지역 변수 대신 전역 상태를 업데이트
                     state.isMobileFxOn = !state.isMobileFxOn;
                     toggleBtn.textContent = state.isMobileFxOn ? "FX ON" : "FX OFF";
                     toggleBtn.classList.toggle("off", !state.isMobileFxOn);
-                    
+
                     activateAudioContexts();
 
                     if(mobileAudioTarget) {
@@ -609,7 +612,6 @@
                                 nodes.wetGain.gain.linearRampToValueAtTime(wetTarget, nodes.context.currentTime + 0.1);
                                 nodes.dryGain.gain.linearRampToValueAtTime(dryTarget, nodes.context.currentTime + 0.1);
                             } else {
-                                // 컨텍스트가 아직 활성화되지 않았다면, 값을 직접 설정 (활성화 후 적용됨)
                                 nodes.wetGain.gain.value = wetTarget;
                                 nodes.dryGain.gain.value = dryTarget;
                             }
@@ -1038,7 +1040,6 @@
                     if (media.tagName === 'VIDEO') updateVideoFilterState(media);
                     if (media.tagName === 'IMG') updateImageFilterState(media);
 
-                    // <<<<<<< [FIX 4] 모바일 오디오 타겟 및 상태 관리 로직 재설계
                     if (isMobile && (media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
                         if (e.isIntersecting) {
                             if (mobileAudioTarget !== media) {
@@ -1050,11 +1051,11 @@
                                         oldNodes.dryGain.gain.value = 1;
                                     }
                                 }
-                                
+
                                 // 새로운 타겟 설정
                                 mobileAudioTarget = media;
                                 const nodes = stereoWideningManager.getOrCreateNodes(media);
-                                
+
                                 // 현재 FX 상태에 따라 즉시 효과 적용
                                 if (nodes) {
                                     activateAudioContexts(); // 컨텍스트 활성화 시도
