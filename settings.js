@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
 // @namespace    https://com/
-// @version      74.6 (Mobile Audio FX User-Interaction Fix)
+// @version      74.8 (Final Mobile Audio & Filter Init Fix)
 // @description  PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
 // @match        *://*/*
 // @run-at       document-end
@@ -11,8 +11,10 @@
 (function () {
     'use strict';
 
-    let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null, mobileAudioTarget = null;
+    let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
     let isInitializing = false;
+    // ✅ 최종 수정: 모바일 오디오 컨텍스트와 타겟을 전역 변수로 관리
+    let mobileAudioContext = null, mobileAudioNodes = null, mobileMediaTarget = null;
 
     const isMobile = /(iPhone|iPad|iPod|Android)/i.test(navigator.userAgent);
 
@@ -70,7 +72,10 @@
             videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 5 },
             imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 5 }
         };
-        function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
+        function init() { Object.keys(definitions).forEach(key => {
+            // 로컬 스토리지 등에서 설정을 불러오는 로직을 추가할 수 있음
+            settings[key] = definitions[key].default;
+        }); }
         return { init, get: (key) => settings[key], set: (key, value) => { settings[key] = value; }, definitions };
     })();
 
@@ -88,7 +93,6 @@
             isSpatialEnabled: CONFIG.DEFAULT_SPATIAL_ENABLED,
             isVolumeFollowerEnabled: CONFIG.DEFAULT_VOLUME_FOLLOWER_ENABLED,
             isDynamicDepthEnabled: CONFIG.DEFAULT_DYNAMIC_DEPTH_ENABLED,
-            // ✅ FIX 1: 모바일에서는 기본적으로 FX를 끈 상태로 시작합니다.
             isMobileFxOn: false,
             audioContextMap: new WeakMap(),
             currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
@@ -162,6 +166,81 @@
     const filterManager = new SvgFilterManager({ settings: isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', matrixId: 'vsc-dynamic-convolve-matrix', className: 'vsc-video-filter-active' });
     const imageFilterManager = new SvgFilterManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
 
+    // ✅ 최종 수정: 모바일 오디오 FX를 전역 컨텍스트 기반으로 재구성
+    const mobileAudioManager = (() => {
+        function createReverbImpulseResponse(context, duration, decay = 2.0) {
+            const rate = context.sampleRate;
+            const length = rate * duration;
+            const impulse = context.createBuffer(2, length, rate);
+            for (let i = 0; i < 2; i++) {
+                const channelData = impulse.getChannelData(i);
+                for (let j = 0; j < length; j++) {
+                    channelData[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, decay);
+                }
+            }
+            return impulse;
+        }
+
+        function init(media) {
+            if (mobileAudioContext) return; // 이미 초기화되었으면 반환
+
+            mobileMediaTarget = media;
+            mobileAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+            let source;
+            try {
+                source = mobileAudioContext.createMediaElementSource(media);
+            } catch (e) {
+                console.error('[VSC] Mobile MediaElementSource 생성 실패.', e);
+                mobileAudioContext.close();
+                mobileAudioContext = null;
+                return;
+            }
+
+            const nodes = {};
+            nodes.dryGain = mobileAudioContext.createGain();
+            nodes.dryGain.gain.value = 1.0;
+
+            nodes.wetGain = mobileAudioContext.createGain();
+            nodes.wetGain.gain.value = 0.0;
+
+            const splitter = mobileAudioContext.createChannelSplitter(2);
+            const merger = mobileAudioContext.createChannelMerger(2);
+            nodes.rightDelay = mobileAudioContext.createDelay(0.1);
+            nodes.rightDelay.delayTime.value = 0.015;
+
+            const convolver = mobileAudioContext.createConvolver();
+            convolver.buffer = createReverbImpulseResponse(mobileAudioContext, 2.0, 1.5);
+            nodes.reverbGain = mobileAudioContext.createGain();
+            nodes.reverbGain.gain.value = 0.3;
+
+            // 라우팅
+            source.connect(nodes.dryGain).connect(mobileAudioContext.destination);
+            source.connect(splitter);
+            splitter.connect(merger, 0, 0);
+            splitter.connect(nodes.rightDelay, 1).connect(merger, 0, 1);
+
+            merger.connect(nodes.wetGain);
+            merger.connect(convolver).connect(nodes.reverbGain).connect(nodes.wetGain);
+            nodes.wetGain.connect(mobileAudioContext.destination);
+
+            mobileAudioNodes = nodes;
+        }
+
+        function ensureContextResumed() {
+            if (mobileAudioContext && mobileAudioContext.state === 'suspended') {
+                mobileAudioContext.resume().catch(e => {
+                     if (!state.audioContextWarningShown) {
+                        showWarningMessage('오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
+                        state.audioContextWarningShown = true;
+                    }
+                    console.warn('[VSC] Mobile AudioContext resume failed:', e.message);
+                });
+            }
+        }
+
+        return { init, ensureContextResumed };
+    })();
+
     const stereoWideningManager = (() => {
         function createReverbImpulseResponse(context, duration, decay = 2.0) {
             const rate = context.sampleRate;
@@ -190,94 +269,68 @@
 
             let nodes = {};
 
-            if (isMobile) {
-                nodes = { context, source };
-                nodes.dryGain = context.createGain();
-                // ✅ FIX 2: AudioGraph 생성 시에는 항상 원본 소리(dry)만 나가도록 설정합니다.
-                nodes.dryGain.gain.value = 1.0;
-                source.connect(nodes.dryGain).connect(context.destination);
-
-                nodes.wetGain = context.createGain();
-                // ✅ FIX 2: 효과음(wet)은 초기에 끈 상태(0)로 설정합니다.
-                nodes.wetGain.gain.value = 0.0;
-                nodes.wetGain.connect(context.destination);
-
-                const splitter = context.createChannelSplitter(2);
-                const merger = context.createChannelMerger(2);
-                nodes.rightDelay = context.createDelay(0.1);
-                nodes.rightDelay.delayTime.value = 0.015;
-                source.connect(splitter);
-                splitter.connect(merger, 0, 0);
-                splitter.connect(nodes.rightDelay, 1).connect(merger, 0, 1);
-                nodes.convolver = context.createConvolver();
-                nodes.convolver.buffer = createReverbImpulseResponse(context, 2.0, 1.5);
-                nodes.reverbGain = context.createGain();
-                nodes.reverbGain.gain.value = 0.3;
-                merger.connect(nodes.wetGain);
-                merger.connect(nodes.convolver).connect(nodes.reverbGain).connect(nodes.wetGain);
-            } else {
-                Object.assign(nodes, {
-                    context, source,
-                    stereoPanner: context.createStereoPanner(),
-                    analyser: context.createAnalyser(),
-                    analyserData: new Uint8Array(128),
-                    dryGain: context.createGain(),
-                    wetGain: context.createGain(),
-                    wetGainWiden: context.createGain(), ms_splitter: context.createChannelSplitter(2), ms_mid_sum: context.createGain(),
-                    ms_mid_level: context.createGain(), ms_side_invert_R: context.createGain(), ms_side_sum: context.createGain(),
-                    ms_side_level: context.createGain(), ms_side_gain: context.createGain(), ms_decode_L_sum: context.createGain(),
-                    ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
-                    hpfWiden: context.createBiquadFilter(),
-                    wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
-                    pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
-                    lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
-                    convolver: context.createConvolver(), wetGainReverb: context.createGain(),
-                });
-                nodes.analyser.fftSize = 256;
-                source.connect(nodes.stereoPanner);
-                nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
-                nodes.wetGain.connect(context.destination);
-                nodes.wetGainWiden.gain.value = state.isWideningEnabled ? 1.0 : 0.0;
-                nodes.ms_mid_level.gain.value = 0.5; nodes.ms_side_invert_R.gain.value = -1; nodes.ms_side_level.gain.value = 0.5;
-                nodes.ms_side_gain.gain.value = state.currentWideningFactor;
-                nodes.ms_decode_invert_Side.gain.value = -1;
-                nodes.hpfWiden.type = 'highpass'; nodes.hpfWiden.frequency.value = state.currentHpfHz;
-                nodes.stereoPanner.connect(nodes.ms_splitter);
-                nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
-                nodes.ms_mid_sum.connect(nodes.ms_mid_level);
-                nodes.ms_splitter.connect(nodes.ms_side_sum, 0); nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1);
-                nodes.ms_side_invert_R.connect(nodes.ms_side_sum); nodes.ms_side_sum.connect(nodes.ms_side_level);
-                nodes.ms_side_level.connect(nodes.ms_side_gain);
-                nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
-                nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side);
-                nodes.ms_decode_invert_Side.connect(nodes.ms_decode_R_sum);
-                nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0); nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
-                nodes.ms_merger.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(nodes.wetGain);
-                nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1.0 : 0.0;
-                [nodes.pannerL, nodes.pannerR].forEach((panner, i) => { panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse'; panner.positionX.value = i === 0 ? -1 : 1; });
-                nodes.lfo.frequency.value = state.currentLfoRate; nodes.lfoDepth.gain.value = state.currentSpatialDepth;
-                nodes.hpfSpatial.type = 'highpass'; nodes.hpfSpatial.frequency.value = state.currentHpfHz;
-                nodes.stereoPanner.connect(nodes.splitterSpatial);
-                nodes.splitterSpatial.connect(nodes.pannerL, 0).connect(nodes.mergerSpatial, 0, 0);
-                nodes.splitterSpatial.connect(nodes.pannerR, 1).connect(nodes.mergerSpatial, 0, 1);
-                nodes.lfo.connect(nodes.lfoDepth); nodes.lfoDepth.connect(nodes.pannerL.positionX); nodes.lfoDepth.connect(nodes.pannerR.positionX);
-                nodes.lfo.start();
-                nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(nodes.wetGain);
-                nodes.wetGainReverb.gain.value = state.currentReverbMix;
-                try { nodes.convolver.buffer = createReverbImpulseResponse(context, state.currentReverbLength); } catch(e) {}
-                nodes.stereoPanner.connect(nodes.convolver);
-                nodes.convolver.connect(nodes.wetGainReverb).connect(nodes.wetGain);
-                const anyEffectOn = state.isWideningEnabled || state.isSpatialEnabled || state.currentReverbMix > 0;
-                nodes.dryGain.gain.value = anyEffectOn ? 0 : 1;
-                nodes.wetGain.gain.value = anyEffectOn ? 1 : 0;
-                source.connect(nodes.analyser);
-            }
+            Object.assign(nodes, {
+                context, source,
+                stereoPanner: context.createStereoPanner(),
+                analyser: context.createAnalyser(),
+                analyserData: new Uint8Array(128),
+                dryGain: context.createGain(),
+                wetGain: context.createGain(),
+                wetGainWiden: context.createGain(), ms_splitter: context.createChannelSplitter(2), ms_mid_sum: context.createGain(),
+                ms_mid_level: context.createGain(), ms_side_invert_R: context.createGain(), ms_side_sum: context.createGain(),
+                ms_side_level: context.createGain(), ms_side_gain: context.createGain(), ms_decode_L_sum: context.createGain(),
+                ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
+                hpfWiden: context.createBiquadFilter(),
+                wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
+                pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
+                lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
+                convolver: context.createConvolver(), wetGainReverb: context.createGain(),
+            });
+            nodes.analyser.fftSize = 256;
+            source.connect(nodes.stereoPanner);
+            nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
+            nodes.wetGain.connect(context.destination);
+            nodes.wetGainWiden.gain.value = state.isWideningEnabled ? 1.0 : 0.0;
+            nodes.ms_mid_level.gain.value = 0.5; nodes.ms_side_invert_R.gain.value = -1; nodes.ms_side_level.gain.value = 0.5;
+            nodes.ms_side_gain.gain.value = state.currentWideningFactor;
+            nodes.ms_decode_invert_Side.gain.value = -1;
+            nodes.hpfWiden.type = 'highpass'; nodes.hpfWiden.frequency.value = state.currentHpfHz;
+            nodes.stereoPanner.connect(nodes.ms_splitter);
+            nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
+            nodes.ms_mid_sum.connect(nodes.ms_mid_level);
+            nodes.ms_splitter.connect(nodes.ms_side_sum, 0); nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1);
+            nodes.ms_side_invert_R.connect(nodes.ms_side_sum); nodes.ms_side_sum.connect(nodes.ms_side_level);
+            nodes.ms_side_level.connect(nodes.ms_side_gain);
+            nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
+            nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side);
+            nodes.ms_decode_invert_Side.connect(nodes.ms_decode_R_sum);
+            nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0); nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
+            nodes.ms_merger.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(nodes.wetGain);
+            nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1.0 : 0.0;
+            [nodes.pannerL, nodes.pannerR].forEach((panner, i) => { panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse'; panner.positionX.value = i === 0 ? -1 : 1; });
+            nodes.lfo.frequency.value = state.currentLfoRate; nodes.lfoDepth.gain.value = state.currentSpatialDepth;
+            nodes.hpfSpatial.type = 'highpass'; nodes.hpfSpatial.frequency.value = state.currentHpfHz;
+            nodes.stereoPanner.connect(nodes.splitterSpatial);
+            nodes.splitterSpatial.connect(nodes.pannerL, 0).connect(nodes.mergerSpatial, 0, 0);
+            nodes.splitterSpatial.connect(nodes.pannerR, 1).connect(nodes.mergerSpatial, 0, 1);
+            nodes.lfo.connect(nodes.lfoDepth); nodes.lfoDepth.connect(nodes.pannerL.positionX); nodes.lfoDepth.connect(nodes.pannerR.positionX);
+            nodes.lfo.start();
+            nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(nodes.wetGain);
+            nodes.wetGainReverb.gain.value = state.currentReverbMix;
+            try { nodes.convolver.buffer = createReverbImpulseResponse(context, state.currentReverbLength); } catch(e) {}
+            nodes.stereoPanner.connect(nodes.convolver);
+            nodes.convolver.connect(nodes.wetGainReverb).connect(nodes.wetGain);
+            const anyEffectOn = state.isWideningEnabled || state.isSpatialEnabled || state.currentReverbMix > 0;
+            nodes.dryGain.gain.value = anyEffectOn ? 0 : 1;
+            nodes.wetGain.gain.value = anyEffectOn ? 1 : 0;
+            source.connect(nodes.analyser);
 
             state.audioContextMap.set(media, nodes);
             return nodes;
         }
 
         function getOrCreateNodes(media) {
+            if (isMobile) return null; // 모바일에선 더 이상 이 함수를 사용하지 않음
             if (state.audioContextMap.has(media)) return state.audioContextMap.get(media);
             try {
                 if (media.HAVE_CURRENT_DATA) return createAudioGraph(media);
@@ -290,7 +343,6 @@
         }
 
         function updateDryWetMix(media) {
-            if (isMobile) return;
             const nodes = state.audioContextMap.get(media);
             if (!nodes) return;
             const anyEffectOn = state.isWideningEnabled || state.isSpatialEnabled || state.currentReverbMix > 0;
@@ -357,16 +409,25 @@
             updateReverb: (m, len) => { const n = getOrCreateNodes(m); if(n && n.convolver) n.convolver.buffer = createReverbImpulseResponse(n.context, len); },
             setLfoRate: (m, rate) => { const n = getOrCreateNodes(m); if(n && n.lfo) n.lfo.frequency.linearRampToValueAtTime(rate, n.context.currentTime + 0.05); },
             cleanupForMedia,
-            ensureContextResumed,
-            getOrCreateNodes,
         };
     })();
 
     function activateAudioContexts() {
         if(isMobile) {
-            if(mobileAudioTarget) stereoWideningManager.ensureContextResumed(mobileAudioTarget);
+            mobileAudioManager.ensureContextResumed();
         } else {
-            state.activeMedia.forEach(media => stereoWideningManager.ensureContextResumed(media));
+            state.activeMedia.forEach(media => {
+                const nodes = state.audioContextMap.get(media);
+                if (nodes && nodes.context.state === 'suspended') {
+                    nodes.context.resume().catch(e => {
+                        if (!state.audioContextWarningShown) {
+                            showWarningMessage('오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
+                            state.audioContextWarningShown = true;
+                        }
+                        console.warn('[VSC] AudioContext resume failed:', e.message);
+                    });
+                }
+            });
         }
     }
 
@@ -570,9 +631,8 @@
                 delaySlider.addEventListener("input", () => {
                     const val = parseFloat(delaySlider.value);
                     delayVal.textContent = `${(val * 1000).toFixed(0)}ms`;
-                    if (mobileAudioTarget) {
-                        const nodes = state.audioContextMap.get(mobileAudioTarget);
-                        if (nodes && nodes.rightDelay) nodes.rightDelay.delayTime.value = val;
+                    if (mobileAudioNodes && mobileAudioNodes.rightDelay) {
+                        mobileAudioNodes.rightDelay.delayTime.value = val;
                     }
                 });
 
@@ -581,47 +641,38 @@
                 reverbSlider.addEventListener("input", () => {
                     const val = parseFloat(reverbSlider.value);
                     reverbVal.textContent = `${(val * 100).toFixed(0)}%`;
-                    if (mobileAudioTarget) {
-                        const nodes = state.audioContextMap.get(mobileAudioTarget);
-                        if (nodes && nodes.reverbGain) nodes.reverbGain.gain.value = val;
+                    if (mobileAudioNodes && mobileAudioNodes.reverbGain) {
+                        mobileAudioNodes.reverbGain.gain.value = val;
                     }
                 });
 
                 const toggleBtn = panel.querySelector("#toggleBtn");
-                // ✅ FIX 3: 버튼 초기 상태를 isMobileFxOn (기본값 false)에 맞게 설정합니다.
                 if (!state.isMobileFxOn) {
                     toggleBtn.textContent = "FX OFF";
                     toggleBtn.classList.add("off");
                 }
 
                 toggleBtn.addEventListener("click", () => {
-                    // 이 클릭이 AudioContext를 활성화시키는 핵심입니다.
+                    if (!mobileAudioContext) {
+                        showWarningMessage('오디오 요소를 찾을 수 없거나 초기화에 실패했습니다.');
+                        return;
+                    }
                     activateAudioContexts();
 
                     state.isMobileFxOn = !state.isMobileFxOn;
                     toggleBtn.textContent = state.isMobileFxOn ? "FX ON" : "FX OFF";
                     toggleBtn.classList.toggle("off", !state.isMobileFxOn);
 
-                    if(mobileAudioTarget) {
-                        const nodes = state.audioContextMap.get(mobileAudioTarget);
-                        if (nodes && nodes.wetGain && nodes.dryGain) {
-                            const wetTarget = state.isMobileFxOn ? 1.0 : 0.0;
-                            // FX 켤 때 dry 소리 약간 줄여서 효과 부각
-                            const dryTarget = state.isMobileFxOn ? 0.8 : 1.0;
+                    const wetTarget = state.isMobileFxOn ? 1.0 : 0.0;
+                    const dryTarget = state.isMobileFxOn ? 0.8 : 1.0;
 
-                            if (nodes.context.state === 'running') {
-                                nodes.wetGain.gain.linearRampToValueAtTime(wetTarget, nodes.context.currentTime + 0.1);
-                                nodes.dryGain.gain.linearRampToValueAtTime(dryTarget, nodes.context.currentTime + 0.1);
-                            } else {
-                                // 컨텍스트가 아직 활성화되지 않았다면, 값 직접 설정 (활성화 후 적용됨)
-                                nodes.wetGain.gain.value = wetTarget;
-                                nodes.dryGain.gain.value = dryTarget;
-                            }
-                        }
+                    if (mobileAudioNodes) {
+                        mobileAudioNodes.wetGain.gain.linearRampToValueAtTime(wetTarget, mobileAudioContext.currentTime + 0.1);
+                        mobileAudioNodes.dryGain.gain.linearRampToValueAtTime(dryTarget, mobileAudioContext.currentTime + 0.1);
                     }
                 });
 
-            } else {
+            } else { // PC용 UI
                 const btnGroup1 = document.createElement('div'); btnGroup1.className='vsc-button-group';
                 const widenBtn = createButton('vsc-widen-toggle', '스테레오 확장 ON/OFF', '확장 OFF', 'vsc-btn');
                 const spatialBtn = createButton('vsc-spatial-toggle', '3D 공간음향 ON/OFF', '공간음향 OFF', 'vsc-btn');
@@ -930,7 +981,7 @@
         for (const [evt, listener] of Object.entries(listeners)) media.removeEventListener(evt, listener);
         state.mediaListenerMap.delete(media);
         if (intersectionObserver) intersectionObserver.unobserve(media);
-        stereoWideningManager.cleanupForMedia(media);
+        if(!isMobile) stereoWideningManager.cleanupForMedia(media);
     }
     function detachImageListeners(image) {
         if (!state.processedImages.has(image)) return;
@@ -940,6 +991,10 @@
 
     const scanAndApply = () => {
         const allMedia = findAllMedia();
+        if (isMobile && !mobileMediaTarget && allMedia.length > 0) {
+            // ✅ 최종 수정: 페이지의 첫 미디어를 찾아 한 번만 오디오 초기화
+            mobileAudioManager.init(allMedia[0]);
+        }
         allMedia.forEach(m => {
             if(!state.processedMedia.has(m)){
                 attachMediaListeners(m);
@@ -1006,8 +1061,17 @@
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
 
-            setVideoFilterLevel(0);
-            setImageFilterLevel(0);
+            // ✅ 최종 수정: 필터 초기화 시 기본값으로 설정하도록 변경
+            setVideoFilterLevel(settingsManager.get('videoFilterLevel'));
+            setImageFilterLevel(settingsManager.get('imageFilterLevel'));
+
+            if (isMobile && mobileAudioContext) {
+                mobileAudioContext.close();
+                mobileAudioContext = null;
+                mobileAudioNodes = null;
+                mobileMediaTarget = null;
+            }
+
             const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
             allRoots.forEach(root => root.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(el => el.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active', 'vsc-gpu-accelerated')));
 
@@ -1042,16 +1106,7 @@
                     if (media.tagName === 'VIDEO') updateVideoFilterState(media);
                     if (media.tagName === 'IMG') updateImageFilterState(media);
 
-                    if (isMobile && (media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
-                        if (e.isIntersecting) {
-                            if (mobileAudioTarget !== media) {
-                                stereoWideningManager.getOrCreateNodes(media);
-                                mobileAudioTarget = media;
-                            }
-                        } else if (mobileAudioTarget === media) {
-                           mobileAudioTarget = null;
-                        }
-                    }
+                    // ✅ 최종 수정: IntersectionObserver는 더 이상 모바일 오디오를 직접 제어하지 않음
                 });
             }, { rootMargin: '0px 0px -50% 0px', threshold: 0.1 });
         }
@@ -1069,15 +1124,16 @@
                 triggerElement = null;
                 speedButtonsContainer = null;
             }
-            state.activeMedia.forEach(m => stereoWideningManager.cleanupForMedia(m));
+            state.activeMedia.forEach(m => {
+                if(!isMobile) stereoWideningManager.cleanupForMedia(m)
+            });
             cleanup();
             globalUIManager.cleanupGlobalListeners();
             resetState();
             settingsManager.init();
             uiManager.reset();
             speedSlider.reset();
-            mobileAudioTarget = null;
-
+            
             setTimeout(initializeGlobalUI, 500);
         }, 500);
         if (!window.vscPatchedHistory) {
