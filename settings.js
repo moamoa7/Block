@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
-// @namespace    https://com/
-// @version      75.0 (Mobile Audio Default Value & Reset Button Fix)
-// @description  PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
-// @match        *://*/*
-// @run-at       document-end
-// @grant        none
+// @name          Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
+// @namespace     https://com/
+// @version       76.0 (Dynamic Mobile Audio Target & UI Visibility Fix)
+// @description   PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
+// @match         *://*/*
+// @run-at        document-end
+// @grant         none
 // ==/UserScript==
 
 (function () {
@@ -169,15 +169,15 @@
         const DEFAULT_REVERB = 0;
 
         function cleanup() {
-            if (mobileAudioContext) {
-                safeExec(() => {
-                    if (mobileAudioContext.state !== 'closed') mobileAudioContext.close();
-                }, 'mobileAudioContext.close');
-            }
-            mobileAudioContext = null;
-            mobileAudioNodes = null;
-            mobileMediaTarget = null;
-        }
+            if (mobileAudioContext) {
+                safeExec(() => {
+                    if (mobileAudioContext.state !== 'closed') mobileAudioContext.close();
+                }, 'mobileAudioContext.close');
+            }
+            mobileAudioContext = null;
+            mobileAudioNodes = null;
+            mobileMediaTarget = null;
+        }
 
         function createReverbImpulseResponse(context, duration, decay = 2.0) {
             const rate = context.sampleRate;
@@ -192,78 +192,78 @@
             return impulse;
         }
 
-        function init(media) {
-            if (!media) return false;
-            if (mobileMediaTarget === media && mobileAudioContext) return true; // Already initialized for this target
+        function init(media) {
+            if (!media) return false;
+            if (mobileMediaTarget === media && mobileAudioContext) return true; // Already initialized for this target
 
-            cleanup(); // Always clean up before initializing a new target
+            cleanup(); // Always clean up before initializing a new target
 
-            if (media.readyState < media.HAVE_CURRENT_DATA) {
-                media.addEventListener('canplay', () => scanAndApply(), { once: true });
-                return false;
-            }
+            if (media.readyState < media.HAVE_CURRENT_DATA) {
+                media.addEventListener('canplay', () => scanAndApply(), { once: true });
+                return false;
+            }
 
-            try {
-                mobileAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const source = mobileAudioContext.createMediaElementSource(media);
-                mobileMediaTarget = media; // Set target only after successful source creation
+            try {
+                mobileAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = mobileAudioContext.createMediaElementSource(media);
+                mobileMediaTarget = media; // Set target only after successful source creation
 
-                const nodes = {};
-                nodes.dryGain = mobileAudioContext.createGain();
-                nodes.dryGain.gain.value = 1.0;
+                const nodes = {};
+                nodes.dryGain = mobileAudioContext.createGain();
+                nodes.dryGain.gain.value = 1.0;
 
-                nodes.wetGain = mobileAudioContext.createGain();
-                nodes.wetGain.gain.value = 0.0;
+                nodes.wetGain = mobileAudioContext.createGain();
+                nodes.wetGain.gain.value = state.isMobileFxOn ? 1.0 : 0.0;
 
-                const splitter = mobileAudioContext.createChannelSplitter(2);
-                const merger = mobileAudioContext.createChannelMerger(2);
-                nodes.rightDelay = mobileAudioContext.createDelay(0.1);
-                nodes.rightDelay.delayTime.value = DEFAULT_DELAY;
+                const splitter = mobileAudioContext.createChannelSplitter(2);
+                const merger = mobileAudioContext.createChannelMerger(2);
+                nodes.rightDelay = mobileAudioContext.createDelay(0.1);
+                nodes.rightDelay.delayTime.value = DEFAULT_DELAY;
 
-                const convolver = mobileAudioContext.createConvolver();
-                convolver.buffer = createReverbImpulseResponse(mobileAudioContext, 2.0, 1.5);
-                nodes.reverbGain = mobileAudioContext.createGain();
-                nodes.reverbGain.gain.value = DEFAULT_REVERB;
+                const convolver = mobileAudioContext.createConvolver();
+                convolver.buffer = createReverbImpulseResponse(mobileAudioContext, 2.0, 1.5);
+                nodes.reverbGain = mobileAudioContext.createGain();
+                nodes.reverbGain.gain.value = DEFAULT_REVERB;
 
-                source.connect(nodes.dryGain).connect(mobileAudioContext.destination);
-                source.connect(splitter);
-                splitter.connect(merger, 0, 0);
-                splitter.connect(nodes.rightDelay, 1).connect(merger, 0, 1);
+                source.connect(nodes.dryGain).connect(mobileAudioContext.destination);
+                source.connect(splitter);
+                splitter.connect(merger, 0, 0);
+                splitter.connect(nodes.rightDelay, 1).connect(merger, 0, 1);
 
-                merger.connect(nodes.wetGain);
-                merger.connect(convolver).connect(nodes.reverbGain).connect(nodes.wetGain);
-                nodes.wetGain.connect(mobileAudioContext.destination);
+                merger.connect(nodes.wetGain);
+                merger.connect(convolver).connect(nodes.reverbGain).connect(nodes.wetGain);
+                nodes.wetGain.connect(mobileAudioContext.destination);
 
-                mobileAudioNodes = nodes;
-                console.log('[VSC] Mobile Audio FX initialized for:', media);
-                return true;
-            } catch (e) {
-                console.error('[VSC] Mobile MediaElementSource creation failed. The script will try again if another video appears.', e);
-                cleanup(); // Clean up completely on failure to allow for a fresh start
-                return false;
-            }
-        }
+                mobileAudioNodes = nodes;
+                console.log('[VSC] Mobile Audio FX initialized for:', media);
+                return true;
+            } catch (e) {
+                console.error('[VSC] Mobile MediaElementSource creation failed. The script will try again if another video appears.', e);
+                cleanup(); // Clean up completely on failure to allow for a fresh start
+                return false;
+            }
+        }
 
-        function ensureContextResumed() {
-            if (mobileAudioContext && mobileAudioContext.state === 'suspended') {
-                mobileAudioContext.resume().catch(e => {
-                     if (!state.audioContextWarningShown) {
-                        showWarningMessage('오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
-                        state.audioContextWarningShown = true;
-                    }
-                    console.warn('[VSC] Mobile AudioContext resume failed:', e.message);
-                });
-            }
-        }
+        function ensureContextResumed() {
+            if (mobileAudioContext && mobileAudioContext.state === 'suspended') {
+                mobileAudioContext.resume().catch(e => {
+                    if (!state.audioContextWarningShown) {
+                        showWarningMessage('오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
+                        state.audioContextWarningShown = true;
+                    }
+                    console.warn('[VSC] Mobile AudioContext resume failed:', e.message);
+                });
+            }
+        }
 
-        function resetToDefaults() {
-            if (!mobileAudioNodes) return;
-            mobileAudioNodes.rightDelay.delayTime.value = DEFAULT_DELAY;
-            mobileAudioNodes.reverbGain.gain.value = DEFAULT_REVERB;
-        }
+        function resetToDefaults() {
+            if (!mobileAudioNodes) return;
+            mobileAudioNodes.rightDelay.delayTime.value = DEFAULT_DELAY;
+            mobileAudioNodes.reverbGain.gain.value = DEFAULT_REVERB;
+        }
 
-        return { init, cleanup, ensureContextResumed, resetToDefaults };
-    })();
+        return { init, cleanup, ensureContextResumed, resetToDefaults };
+    })();
 
     const stereoWideningManager = (() => {
         function createReverbImpulseResponse(context, duration, decay = 2.0) {
@@ -623,7 +623,6 @@
                 `;
                 shadowRoot.appendChild(mobileUiStyle);
 
-                // ✅ 최종 수정: Reverb 기본값을 state에서 가져오도록 수정
                 const panel = document.createElement("div");
                 panel.className = "mobile-audio-controls";
                 panel.innerHTML = `
@@ -661,7 +660,6 @@
                     }
                 });
 
-                // ✅ 최종 수정: 기본값 버튼 로직 추가
                 const resetBtn = panel.querySelector("#resetBtn");
                 resetBtn.addEventListener("click", () => {
                     mobileAudioManager.resetToDefaults();
@@ -672,10 +670,8 @@
                 });
 
                 const toggleBtn = panel.querySelector("#toggleBtn");
-                if (!state.isMobileFxOn) {
-                    toggleBtn.textContent = "FX OFF";
-                    toggleBtn.classList.add("off");
-                }
+                toggleBtn.textContent = state.isMobileFxOn ? "FX ON" : "FX OFF";
+                toggleBtn.classList.toggle("off", !state.isMobileFxOn);
 
                 toggleBtn.addEventListener("click", () => {
                     if (!mobileAudioContext) {
@@ -689,7 +685,7 @@
                     toggleBtn.classList.toggle("off", !state.isMobileFxOn);
 
                     const wetTarget = state.isMobileFxOn ? 1.0 : 0.0;
-                    const dryTarget = state.isMobileFxOn ? 0.8 : 1.0;
+                    const dryTarget = 1.0;
 
                     if (mobileAudioNodes && mobileAudioNodes.wetGain && mobileAudioNodes.dryGain) {
                         mobileAudioNodes.wetGain.gain.linearRampToValueAtTime(wetTarget, mobileAudioContext.currentTime + 0.1);
@@ -1017,27 +1013,28 @@
     const scanAndApply = () => {
         const allMedia = findAllMedia();
 
-        // ✅ MODIFIED: Added dynamic logic to find the best media target and (re)initialize the audio manager.
-        if (isMobile) {
-            const bestTarget = allMedia.length > 0 ? allMedia[0] : null;
+        if (isMobile) {
+            // Find the best media target (e.g., largest, visible, not paused).
+            // A simple but effective heuristic is to prefer playing videos.
+            const playingMedia = allMedia.find(m => !m.paused);
+            const bestTarget = playingMedia || (allMedia.length > 0 ? allMedia[0] : null);
 
-            if (bestTarget) {
-                // Initialize if the target is new, or if we don't have a working audio context yet.
-                if (bestTarget !== mobileMediaTarget || !mobileAudioContext) {
-                    mobileAudioManager.init(bestTarget);
-                }
-            } else if (mobileMediaTarget) {
-                // If no media is found on the page but we were attached to one, clean up.
-                mobileAudioManager.cleanup();
-            }
-        }
-        // (The old logic for initializing mobile audio has been removed from here)
+            if (bestTarget) {
+                // Initialize if the target is new, or if we don't have a working audio context yet.
+                if (bestTarget !== mobileMediaTarget || !mobileAudioContext) {
+                    mobileAudioManager.init(bestTarget);
+                }
+            } else if (mobileMediaTarget) {
+                // If no media is found on the page but we were attached to one, clean up.
+                mobileAudioManager.cleanup();
+            }
+        }
 
-        allMedia.forEach(m => {
-            if(!state.processedMedia.has(m)){
-                attachMediaListeners(m);
-            }
-        });
+        allMedia.forEach(m => {
+            if(!state.processedMedia.has(m)){
+                attachMediaListeners(m);
+            }
+        });
 
         const oldMedia = new Set(state.activeMedia);
         state.activeMedia.clear();
@@ -1103,22 +1100,22 @@
             setImageFilterLevel(settingsManager.get('imageFilterLevel'));
 
             if (isMobile) {
-                mobileAudioManager.cleanup();
-            }
+                mobileAudioManager.cleanup();
+            }
 
-            const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
-            allRoots.forEach(root => root.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(el => el.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active', 'vsc-gpu-accelerated')));
+            const allRoots = [document, ...(window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean)];
+            allRoots.forEach(root => root.querySelectorAll('.vsc-video-filter-active, .vsc-image-filter-active').forEach(el => el.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active', 'vsc-gpu-accelerated')));
 
-            if (state.ui?.hostElement) {
-                state.ui.hostElement.remove();
-            }
-            if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
-            uiManager.reset();
-            speedSlider.reset();
+            if (state.ui?.hostElement) {
+                state.ui.hostElement.remove();
+            }
+            if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
+            uiManager.reset();
+            speedSlider.reset();
 
-            isInitialized = false;
-        }, 'cleanup');
-    }
+            isInitialized = false;
+        }, 'cleanup');
+    }
 
 
     function ensureObservers() {
