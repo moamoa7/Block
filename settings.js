@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (with Parallel Spatial Audio)
+// @name         Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
 // @namespace    https://com/
-// @version      73.2 (Stable Mobile & Widening Fix)
-// @description  스테레오 확장 기본값을 상향 조정하여 효과를 명확히 체감할 수 있도록 수정하고, 모바일 UI 안정성을 개선했습니다.
+// @version      74.2 (PC UI Fixes)
+// @description  PC에서는 공간 음향, 모바일에서는 심플한 서라운드/리버브 UI를 제공하며, 전체 화면을 완벽 지원합니다.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -11,8 +11,8 @@
 (function () {
     'use strict';
 
-    let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null, mobileAudioTarget = null;
-    let isInitializing = false; // 초기화 중 과도한 작업 방지 플래그
+    let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
+    let isInitializing = false;
 
     const isMobile = /(iPhone|iPad|iPod|Android)/i.test(navigator.userAgent);
 
@@ -25,25 +25,19 @@
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
-        // 오디오 설정
         DEFAULT_WIDENING_ENABLED: false,
         DEFAULT_SPATIAL_ENABLED: false,
-        DEFAULT_DELAY_SURROUND_ENABLED: false,
         DEFAULT_REVERB_MIX: 0,
         DEFAULT_REVERB_LENGTH: 2.0,
         DEFAULT_STEREO_PAN: 0,
-        DEFAULT_WIDENING_FACTOR: 2.0, // 기본값을 1.0에서 2.0으로 상향 조정하여 효과 체감 개선
+        DEFAULT_WIDENING_FACTOR: 2.0,
         DEFAULT_LFO_RATE: 0.2,
         SPATIAL_DEFAULT_DEPTH: 2.0,
-        DEFAULT_DELAY_SURROUND_MS: 15,
-        // 볼륨 연동 설정
         DEFAULT_VOLUME_FOLLOWER_ENABLED: false,
         VOLUME_FOLLOWER_STRENGTH: 20.0,
         DEFAULT_DYNAMIC_DEPTH_ENABLED: false,
         DYNAMIC_DEPTH_FACTOR: 10.0,
-        // 공용 이펙트 설정
         EFFECTS_HPF_FREQUENCY: 120,
-
         DEBUG: false, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
         SPEED_PRESETS: [4, 2, 1.5, 1, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
@@ -94,7 +88,6 @@
             isSpatialEnabled: CONFIG.DEFAULT_SPATIAL_ENABLED,
             isVolumeFollowerEnabled: CONFIG.DEFAULT_VOLUME_FOLLOWER_ENABLED,
             isDynamicDepthEnabled: CONFIG.DEFAULT_DYNAMIC_DEPTH_ENABLED,
-            isDelaySurroundEnabled: CONFIG.DEFAULT_DELAY_SURROUND_ENABLED,
             audioContextMap: new WeakMap(),
             currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
             currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
@@ -103,7 +96,6 @@
             currentReverbMix: CONFIG.DEFAULT_REVERB_MIX,
             currentReverbLength: CONFIG.DEFAULT_REVERB_LENGTH,
             currentLfoRate: CONFIG.DEFAULT_LFO_RATE,
-            currentDelaySurroundMs: CONFIG.DEFAULT_DELAY_SURROUND_MS,
             ui: { shadowRoot: null, hostElement: null }, delayCheckInterval: null,
             currentPlaybackRate: 1.0, mediaTypesEverFound: { video: false, image: false }, lastUrl: '',
             audioContextWarningShown: false
@@ -169,18 +161,15 @@
     const imageFilterManager = new SvgFilterManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
 
     const stereoWideningManager = (() => {
-        const animationFrameMap = new WeakMap();
-        const analyserFrameMap = new WeakMap();
-
-        function createReverbImpulseResponse(context, durationInSeconds) {
+        function createReverbImpulseResponse(context, duration, decay = 2.0) {
             const rate = context.sampleRate;
-            const length = rate * durationInSeconds;
+            const length = rate * duration;
             const impulse = context.createBuffer(2, length, rate);
-            const left = impulse.getChannelData(0);
-            const right = impulse.getChannelData(1);
-            for (let i = 0; i < length; i++) {
-                left[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
-                right[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+            for (let i = 0; i < 2; i++) {
+                const channelData = impulse.getChannelData(i);
+                for (let j = 0; j < length; j++) {
+                    channelData[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, decay);
+                }
             }
             return impulse;
         }
@@ -191,7 +180,7 @@
             try {
                 source = context.createMediaElementSource(media);
             } catch (e) {
-                console.error('[VSC] MediaElementSource 생성 실패.', e);
+                console.error('[VSC] MediaElementSource 생성 실패. 페이지를 새로고침 해보세요.', e);
                 showWarningMessage('오디오 효과를 적용할 수 없습니다. 페이지를 새로고침 해보세요.');
                 context.close();
                 return null;
@@ -199,101 +188,53 @@
 
             let nodes = {};
 
-            // Common nodes for both platforms
-            nodes = {
-                context, source,
-                stereoPanner: context.createStereoPanner(),
-                analyser: context.createAnalyser(),
-                analyserData: new Uint8Array(128),
-                dryGain: context.createGain(),
-                wetGain: context.createGain(),
-            };
-            nodes.analyser.fftSize = 256;
-
             if (isMobile) {
-                console.warn("[VSC] 모바일 환경 감지: 안정화된 오디오 효과 모드를 사용합니다.");
-                Object.assign(nodes, {
-                    convolver: context.createConvolver(),
-                    wetGainReverb: context.createGain(),
-                    delaySurroundSplitter: context.createChannelSplitter(2),
-                    delaySurroundMerger: context.createChannelMerger(2),
-                    delayNode: context.createDelay(),
-                    wetGainDelaySurround: context.createGain(),
-                });
-
-                // --- Mobile Audio Graph ---
-                const wetMixer = context.createGain();
-
-                // Dry Path: Source -> Panner -> Dry Gain -> Destination
-                source.connect(nodes.stereoPanner);
-                nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
-
-                // Wet Path: Source -> Panner -> Wet Mixer -> Effects -> Wet Gain -> Destination
-                nodes.stereoPanner.connect(wetMixer);
-                wetMixer.connect(nodes.wetGain).connect(context.destination);
-
-                // Reverb Path
-                nodes.wetGainReverb.gain.value = state.currentReverbMix;
-                try { nodes.convolver.buffer = createReverbImpulseResponse(context, state.currentReverbLength); } catch(e) {}
-                wetMixer.connect(nodes.convolver).connect(nodes.wetGainReverb).connect(nodes.wetGain);
-
-                // Delay Surround Path
-                nodes.wetGainDelaySurround.gain.value = state.isDelaySurroundEnabled ? 1.0 : 0.0;
-                nodes.delayNode.delayTime.value = state.currentDelaySurroundMs / 1000;
-                wetMixer.connect(nodes.delaySurroundSplitter);
-                nodes.delaySurroundSplitter.connect(nodes.delaySurroundMerger, 0, 0);
-                nodes.delaySurroundSplitter.connect(nodes.delayNode, 1).connect(nodes.delaySurroundMerger, 0, 1);
-                nodes.delaySurroundMerger.connect(nodes.wetGainDelaySurround).connect(nodes.wetGain);
-
-                // Set initial dry/wet mix
-                const anyEffectOn = state.isDelaySurroundEnabled || state.currentReverbMix > 0;
-                nodes.dryGain.gain.value = anyEffectOn ? 0 : 1;
-                nodes.wetGain.gain.value = anyEffectOn ? 1 : 0;
+                nodes = { context, source };
+                nodes.dryGain = context.createGain();
+                source.connect(nodes.dryGain).connect(context.destination);
+                nodes.wetGain = context.createGain();
+                nodes.wetGain.gain.value = 1.0;
+                nodes.wetGain.connect(context.destination);
+                const splitter = context.createChannelSplitter(2);
+                const merger = context.createChannelMerger(2);
+                nodes.rightDelay = context.createDelay(0.1);
+                nodes.rightDelay.delayTime.value = 0.015;
+                source.connect(splitter);
+                splitter.connect(merger, 0, 0);
+                splitter.connect(nodes.rightDelay, 1).connect(merger, 0, 1);
+                nodes.convolver = context.createConvolver();
+                nodes.convolver.buffer = createReverbImpulseResponse(context, 2.0, 1.5);
+                nodes.reverbGain = context.createGain();
+                nodes.reverbGain.gain.value = 0.3;
+                merger.connect(nodes.convolver).connect(nodes.reverbGain).connect(nodes.wetGain);
             } else {
-                // For DESKTOP: Use the full, high-quality parallel audio graph
                 Object.assign(nodes, {
-                    // Widening nodes
+                    context, source,
+                    stereoPanner: context.createStereoPanner(),
+                    analyser: context.createAnalyser(),
+                    analyserData: new Uint8Array(128),
+                    dryGain: context.createGain(),
+                    wetGain: context.createGain(),
                     wetGainWiden: context.createGain(), ms_splitter: context.createChannelSplitter(2), ms_mid_sum: context.createGain(),
                     ms_mid_level: context.createGain(), ms_side_invert_R: context.createGain(), ms_side_sum: context.createGain(),
                     ms_side_level: context.createGain(), ms_side_gain: context.createGain(), ms_decode_L_sum: context.createGain(),
                     ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
                     hpfWiden: context.createBiquadFilter(),
-                    // Spatial nodes
                     wetGainSpatial: context.createGain(), splitterSpatial: context.createChannelSplitter(2), mergerSpatial: context.createChannelMerger(2),
                     pannerL: context.createPanner(), pannerR: context.createPanner(), lfo: context.createOscillator(),
                     lfoDepth: context.createGain(), hpfSpatial: context.createBiquadFilter(),
-                    // Reverb nodes
                     convolver: context.createConvolver(), wetGainReverb: context.createGain(),
                 });
-
-                // --- Desktop Parallel Audio Graph ---
-                // [Source] -> [StereoPanner] -+-> [DryGain] -> [Destination]
-                //                             |
-                //                             +-> [Widening Effect Chain] --+
-                //                             +-> [Spatial Effect Chain] ---+-> [WetGain] -> [Destination]
-                //                             +-> [Reverb Effect Chain] ----+
-
+                nodes.analyser.fftSize = 256;
                 source.connect(nodes.stereoPanner);
-
-                // 1. Dry Path (원본 신호)
-                // 신호가 효과를 거치지 않고 바로 출력으로 나갑니다.
                 nodes.stereoPanner.connect(nodes.dryGain).connect(context.destination);
-
-                // 2. Wet Path (효과 적용된 신호)
-                // 모든 병렬 효과 체인의 결과가 이 `wetGain` 노드에서 합쳐진 후 출력됩니다.
                 nodes.wetGain.connect(context.destination);
-
-                // --- Parallel Effect Chains ---
-                // 각 효과 체인은 `stereoPanner`에서 직접 신호를 받아 독립적으로 처리합니다.
-
-                // A. Widening Path (스테레오 확장 효과)
                 nodes.wetGainWiden.gain.value = state.isWideningEnabled ? 1.0 : 0.0;
                 nodes.ms_mid_level.gain.value = 0.5; nodes.ms_side_invert_R.gain.value = -1; nodes.ms_side_level.gain.value = 0.5;
                 nodes.ms_side_gain.gain.value = state.currentWideningFactor;
                 nodes.ms_decode_invert_Side.gain.value = -1;
                 nodes.hpfWiden.type = 'highpass'; nodes.hpfWiden.frequency.value = state.currentHpfHz;
-
-                nodes.stereoPanner.connect(nodes.ms_splitter); // Panner에서 신호 분기
+                nodes.stereoPanner.connect(nodes.ms_splitter);
                 nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
                 nodes.ms_mid_sum.connect(nodes.ms_mid_level);
                 nodes.ms_splitter.connect(nodes.ms_side_sum, 0); nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1);
@@ -303,38 +244,27 @@
                 nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side);
                 nodes.ms_decode_invert_Side.connect(nodes.ms_decode_R_sum);
                 nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0); nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
-                // 최종적으로 Wet 버스에 신호 전달
                 nodes.ms_merger.connect(nodes.hpfWiden).connect(nodes.wetGainWiden).connect(nodes.wetGain);
-
-                // B. Spatial Path (공간 음향 효과)
                 nodes.wetGainSpatial.gain.value = state.isSpatialEnabled ? 1.0 : 0.0;
                 [nodes.pannerL, nodes.pannerR].forEach((panner, i) => { panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse'; panner.positionX.value = i === 0 ? -1 : 1; });
                 nodes.lfo.frequency.value = state.currentLfoRate; nodes.lfoDepth.gain.value = state.currentSpatialDepth;
                 nodes.hpfSpatial.type = 'highpass'; nodes.hpfSpatial.frequency.value = state.currentHpfHz;
-
-                nodes.stereoPanner.connect(nodes.splitterSpatial); // Panner에서 신호 분기
+                nodes.stereoPanner.connect(nodes.splitterSpatial);
                 nodes.splitterSpatial.connect(nodes.pannerL, 0).connect(nodes.mergerSpatial, 0, 0);
                 nodes.splitterSpatial.connect(nodes.pannerR, 1).connect(nodes.mergerSpatial, 0, 1);
                 nodes.lfo.connect(nodes.lfoDepth); nodes.lfoDepth.connect(nodes.pannerL.positionX); nodes.lfoDepth.connect(nodes.pannerR.positionX);
                 nodes.lfo.start();
-                // 최종적으로 Wet 버스에 신호 전달
                 nodes.mergerSpatial.connect(nodes.hpfSpatial).connect(nodes.wetGainSpatial).connect(nodes.wetGain);
-
-                // C. Reverb Path (잔향 효과)
                 nodes.wetGainReverb.gain.value = state.currentReverbMix;
                 try { nodes.convolver.buffer = createReverbImpulseResponse(context, state.currentReverbLength); } catch(e) {}
-                nodes.stereoPanner.connect(nodes.convolver); // Panner에서 신호 분기
-                // 최종적으로 Wet 버스에 신호 전달
+                nodes.stereoPanner.connect(nodes.convolver);
                 nodes.convolver.connect(nodes.wetGainReverb).connect(nodes.wetGain);
-
-                // 초기 Dry/Wet 믹스 설정
                 const anyEffectOn = state.isWideningEnabled || state.isSpatialEnabled || state.currentReverbMix > 0;
                 nodes.dryGain.gain.value = anyEffectOn ? 0 : 1;
                 nodes.wetGain.gain.value = anyEffectOn ? 1 : 0;
+                source.connect(nodes.analyser);
             }
 
-            // Analyser는 원본 소스에 연결하여 볼륨 연동에 사용
-            source.connect(nodes.analyser);
             state.audioContextMap.set(media, nodes);
             return nodes;
         }
@@ -352,19 +282,10 @@
         }
 
         function updateDryWetMix(media) {
+            if (isMobile) return;
             const nodes = state.audioContextMap.get(media);
             if (!nodes) return;
-
-            let anyEffectOn = false;
-            if (isMobile) {
-                // 모바일에서는 타겟 미디어에 효과가 켜져 있는지 확인
-                if (media === mobileAudioTarget) {
-                    anyEffectOn = state.isDelaySurroundEnabled || state.currentReverbMix > 0;
-                }
-            } else {
-                anyEffectOn = state.isWideningEnabled || state.isSpatialEnabled || state.currentReverbMix > 0;
-            }
-
+            const anyEffectOn = state.isWideningEnabled || state.isSpatialEnabled || state.currentReverbMix > 0;
             nodes.dryGain.gain.linearRampToValueAtTime(anyEffectOn ? 0 : 1, nodes.context.currentTime + 0.05);
             nodes.wetGain.gain.linearRampToValueAtTime(anyEffectOn ? 1 : 0, nodes.context.currentTime + 0.05);
         }
@@ -426,10 +347,9 @@
             setReverb: (m, v) => { setGain(m, 'wetGainReverb', v); updateDryWetMix(m); },
             updateReverb: (m, len) => { const n = getOrCreateNodes(m); if(n && n.convolver) n.convolver.buffer = createReverbImpulseResponse(n.context, len); },
             setLfoRate: (m, rate) => { const n = getOrCreateNodes(m); if(n && n.lfo) n.lfo.frequency.linearRampToValueAtTime(rate, n.context.currentTime + 0.05); },
-            setDelaySurround: (m, e) => { setGain(m, 'wetGainDelaySurround', e ? 1.0 : 0.0); updateDryWetMix(m); },
-            setDelaySurroundTime: (m, v) => { const n = getOrCreateNodes(m); if(n && n.delayNode) n.delayNode.delayTime.value = v / 1000 },
             cleanupForMedia,
-            ensureContextResumed
+            ensureContextResumed,
+            getOrCreateNodes,
         };
     })();
 
@@ -455,16 +375,6 @@
         state.activeMedia.forEach(media => stereoWideningManager.setSpatial(media, enabled));
     }
 
-    function setDelaySurroundEnabled(enabled) {
-        if (!isMobile) return;
-        if (enabled) activateAudioContexts();
-        state.isDelaySurroundEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('vsc-delay-surround-toggle');
-        if (btn) { btn.classList.toggle('active', enabled); btn.textContent = enabled ? '딜레이 ON' : '딜레이 OFF'; }
-        updateMobileAudioEffects();
-    }
-
-    // ================== FIXED PART START ==================
     function setVolumeFollowerEnabled(enabled) {
         if (isMobile) return;
         state.isVolumeFollowerEnabled = !!enabled;
@@ -484,12 +394,10 @@
             btn.textContent = enabled ? '동적 ON' : '동적 OFF';
         }
     }
-    // ================== FIXED PART END ==================
 
     function resetEffectStatesToDefault() {
         setWideningEnabled(CONFIG.DEFAULT_WIDENING_ENABLED);
         setSpatialAudioEnabled(CONFIG.DEFAULT_SPATIAL_ENABLED);
-        if(isMobile) setDelaySurroundEnabled(CONFIG.DEFAULT_DELAY_SURROUND_ENABLED);
     }
 
     function setVideoFilterLevel(level) {
@@ -610,52 +518,77 @@
             imageSubMenu.appendChild(createSelectControl('이미지 선명도', imageOpts, setImageFilterLevel));
             const { group: videoGroup, subMenu: videoSubMenu } = createControlGroup('vsc-video-controls', '✨', '영상 선명도');
             videoSubMenu.appendChild(createSelectControl('영상 선명도', videoOpts, setVideoFilterLevel));
-            const { group: stereoGroup, subMenu: stereoSubMenu } = createControlGroup('vsc-stereo-controls', '🎧', '공간 음향');
+            const { group: stereoGroup, subMenu: stereoSubMenu } = createControlGroup('vsc-stereo-controls', '🎧', '오디오 효과');
 
-            // --- UI Generation Logic based on Platform ---
 
             if (isMobile) {
-                const delayBtn = createButton('vsc-delay-surround-toggle', '딜레이 서라운드 ON/OFF', '딜레이 OFF', 'vsc-btn');
-                delayBtn.onclick = () => setDelaySurroundEnabled(!state.isDelaySurroundEnabled);
+                const mobileUiStyle = document.createElement('style');
+                mobileUiStyle.textContent = `
+                    .mobile-audio-controls { padding: 8px; width: 220px; box-sizing: border-box; }
+                    .mobile-audio-controls h3 { margin: 0 0 12px; font-size: 16px; text-align: center; font-weight: 600; color: #fff; }
+                    .mobile-control { margin-bottom: 10px; }
+                    .mobile-control label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; color: #eee; }
+                    .mobile-control input[type=range] { width: 100%; -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
+                    .mobile-control input[type=range]::-webkit-slider-runnable-track { background: rgba(255,255,255,0.2); height: 4px; border-radius: 4px; }
+                    .mobile-control input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; margin-top: -6px; background-color: #fff; height: 16px; width: 16px; border-radius: 50%; }
+                    .mobile-toggle-btn { width: 100%; padding: 8px 0; border: none; border-radius: 10px; background: #34c759; color: white; font-weight: 600; font-size: 14px; cursor: pointer; margin-top: 5px; }
+                    .mobile-toggle-btn.off { background: #ff3b30; }
+                `;
+                shadowRoot.appendChild(mobileUiStyle);
 
-                const panSlider = createSliderControl('Pan (좌우)', 'panSlider', -1, 1, 0.1, state.currentStereoPan, '');
-                panSlider.slider.oninput = () => {
-                    const val = parseFloat(panSlider.slider.value);
-                    state.currentStereoPan = val;
-                    panSlider.valueSpan.textContent = val.toFixed(1);
-                    if (mobileAudioTarget) stereoWideningManager.setPan(mobileAudioTarget, val);
-                };
+                const panel = document.createElement("div");
+                panel.className = "mobile-audio-controls";
+                panel.innerHTML = `
+                    <h3>Audio FX</h3>
+                    <div class="mobile-control">
+                        <label>Surround: <span id="delayVal">15ms</span></label>
+                        <input id="delaySlider" type="range" min="0" max="0.03" step="0.001" value="0.015">
+                    </div>
+                    <div class="mobile-control">
+                        <label>Reverb: <span id="reverbVal">30%</span></label>
+                        <input id="reverbSlider" type="range" min="0" max="1" step="0.01" value="0.3">
+                    </div>
+                    <button id="toggleBtn" class="mobile-toggle-btn">FX ON</button>
+                `;
+                stereoSubMenu.appendChild(panel);
 
-                const reverbSlider = createSliderControl('Reverb (잔향)', 'reverbSlider', 0, 1, 0.05, state.currentReverbMix, '');
-                reverbSlider.slider.oninput = () => {
-                    const val = parseFloat(reverbSlider.slider.value);
-                    state.currentReverbMix = val;
-                    reverbSlider.valueSpan.textContent = val.toFixed(2);
-                    updateMobileAudioEffects();
-                };
+                const delaySlider = panel.querySelector("#delaySlider");
+                const delayVal = panel.querySelector("#delayVal");
+                delaySlider.addEventListener("input", () => {
+                    const val = parseFloat(delaySlider.value);
+                    delayVal.textContent = `${(val * 1000).toFixed(0)}ms`;
+                    state.activeMedia.forEach(m => {
+                        const nodes = state.audioContextMap.get(m);
+                        if (nodes && nodes.rightDelay) nodes.rightDelay.delayTime.value = val;
+                    });
+                });
 
-                const reverbLengthSlider = createSliderControl('잔향 길이', 'reverbLengthSlider', 0.1, 5, 0.1, state.currentReverbLength, 's');
-                reverbLengthSlider.slider.oninput = () => {
-                    const val = parseFloat(reverbLengthSlider.slider.value);
-                    state.currentReverbLength = val;
-                    reverbLengthSlider.valueSpan.textContent = `${val.toFixed(1)}s`;
-                    state.activeMedia.forEach(m => stereoWideningManager.updateReverb(m, val));
-                };
+                const reverbSlider = panel.querySelector("#reverbSlider");
+                const reverbVal = panel.querySelector("#reverbVal");
+                reverbSlider.addEventListener("input", () => {
+                    const val = parseFloat(reverbSlider.value);
+                    reverbVal.textContent = `${(val * 100).toFixed(0)}%`;
+                    state.activeMedia.forEach(m => {
+                        const nodes = state.audioContextMap.get(m);
+                        if (nodes && nodes.reverbGain) nodes.reverbGain.gain.value = val;
+                    });
+                });
 
-                const delaySlider = createSliderControl('딜레이', 'delaySlider', 0, 30, 1, state.currentDelaySurroundMs, 'ms');
-                delaySlider.slider.oninput = () => {
-                    const val = parseFloat(delaySlider.slider.value);
-                    state.currentDelaySurroundMs = val;
-                    delaySlider.valueSpan.textContent = `${val}ms`;
-                    if (mobileAudioTarget) stereoWideningManager.setDelaySurroundTime(mobileAudioTarget, val);
-                };
+                const toggleBtn = panel.querySelector("#toggleBtn");
+                let isFxOn = true;
+                toggleBtn.addEventListener("click", () => {
+                    isFxOn = !isFxOn;
+                    toggleBtn.textContent = isFxOn ? "FX ON" : "FX OFF";
+                    toggleBtn.classList.toggle("off", !isFxOn);
+                    state.activeMedia.forEach(m => {
+                        const nodes = state.audioContextMap.get(m);
+                        if (nodes && nodes.wetGain) {
+                            nodes.wetGain.gain.linearRampToValueAtTime(isFxOn ? 1 : 0, nodes.context.currentTime + 0.1);
+                        }
+                    });
+                });
 
-                const mobileMessage = document.createElement('p');
-                mobileMessage.textContent = '모바일용 효과만 지원됩니다.';
-                mobileMessage.style.cssText = 'color: #ccc; font-size: 12px; text-align: center; margin-bottom: 8px;';
-                stereoSubMenu.append(mobileMessage, delayBtn, panSlider.controlDiv, reverbSlider.controlDiv, reverbLengthSlider.controlDiv, delaySlider.controlDiv);
             } else {
-                // Desktop UI
                 const btnGroup1 = document.createElement('div'); btnGroup1.className='vsc-button-group';
                 const widenBtn = createButton('vsc-widen-toggle', '스테레오 확장 ON/OFF', '확장 OFF', 'vsc-btn');
                 const spatialBtn = createButton('vsc-spatial-toggle', '3D 공간음향 ON/OFF', '공간음향 OFF', 'vsc-btn');
@@ -676,10 +609,13 @@
                     const val = parseFloat(hpfSlider.slider.value);
                     state.currentHpfHz = val;
                     hpfSlider.valueSpan.textContent = `${val}Hz`;
-                    for (const nodes of state.audioContextMap.values()) {
-                        if (nodes.hpfWiden) nodes.hpfWiden.frequency.value = val;
-                        if (nodes.hpfSpatial) nodes.hpfSpatial.frequency.value = val;
-                    }
+                    state.activeMedia.forEach(media => {
+                        const nodes = state.audioContextMap.get(media);
+                        if (nodes) {
+                            if (nodes.hpfWiden) nodes.hpfWiden.frequency.value = val;
+                            if (nodes.hpfSpatial) nodes.hpfSpatial.frequency.value = val;
+                        }
+                    });
                 };
 
                 const depthSlider = createSliderControl('공간감', 'depthSlider', 0, 10, 0.1, state.currentSpatialDepth, '');
@@ -688,7 +624,12 @@
                     state.currentSpatialDepth = val;
                     depthSlider.valueSpan.textContent = val.toFixed(1);
                     if (!state.isVolumeFollowerEnabled) {
-                        for (const nodes of state.audioContextMap.values()) { if (nodes.lfoDepth) nodes.lfoDepth.gain.value = val; }
+                        state.activeMedia.forEach(media => {
+                            const nodes = state.audioContextMap.get(media);
+                            if (nodes && nodes.lfoDepth) {
+                                nodes.lfoDepth.gain.value = val;
+                            }
+                        });
                     }
                 };
 
@@ -746,7 +687,6 @@
                     state.currentSpatialDepth = defaults.depth; state.currentStereoPan = defaults.pan;
                     state.currentReverbMix = defaults.reverb; state.currentReverbLength = defaults.reverbLen;
                     state.currentLfoRate = defaults.lfoRate;
-
                     wideningSlider.slider.value = defaults.widening; wideningSlider.valueSpan.textContent = `${defaults.widening.toFixed(1)}x`;
                     hpfSlider.slider.value = defaults.hpf; hpfSlider.valueSpan.textContent = `${defaults.hpf}Hz`;
                     depthSlider.slider.value = defaults.depth; depthSlider.valueSpan.textContent = defaults.depth.toFixed(1);
@@ -754,7 +694,6 @@
                     reverbSlider.slider.value = defaults.reverb; reverbSlider.valueSpan.textContent = defaults.reverb.toFixed(2);
                     reverbLengthSlider.slider.value = defaults.reverbLen; reverbLengthSlider.valueSpan.textContent = `${defaults.reverbLen.toFixed(1)}s`;
                     lfoRateSlider.slider.value = defaults.lfoRate; lfoRateSlider.valueSpan.textContent = `${defaults.lfoRate.toFixed(1)}Hz`;
-
                     state.activeMedia.forEach(m => {
                         stereoWideningManager.setWideningFactor(m, defaults.widening);
                         stereoWideningManager.updateReverb(m, defaults.reverbLen);
@@ -788,11 +727,12 @@
             const updateActiveButtons = () => {
                 shadowRoot.querySelector('#vsc-image-controls select').value = state.currentImageFilterLevel;
                 shadowRoot.querySelector('#vsc-video-controls select').value = state.currentVideoFilterLevel;
-                setWideningEnabled(state.isWideningEnabled);
-                setSpatialAudioEnabled(state.isSpatialEnabled);
-                setVolumeFollowerEnabled(state.isVolumeFollowerEnabled);
-                setDynamicDepthEnabled(state.isDynamicDepthEnabled);
-                if (isMobile) setDelaySurroundEnabled(state.isDelaySurroundEnabled);
+                if(!isMobile) {
+                    setWideningEnabled(state.isWideningEnabled);
+                    setSpatialAudioEnabled(state.isSpatialEnabled);
+                    setVolumeFollowerEnabled(state.isVolumeFollowerEnabled);
+                    setDynamicDepthEnabled(state.isDynamicDepthEnabled);
+                }
             };
             container.addEventListener('pointerdown', resetFadeTimer);
             updateActiveButtons();
@@ -944,6 +884,7 @@
         state.mediaListenerMap.set(media, listeners);
         state.processedMedia.add(media);
         intersectionObserver.observe(media);
+        stereoWideningManager.getOrCreateNodes(media);
     }
     function attachImageListeners(image) {
         if (!image || state.processedImages.has(image) || !intersectionObserver) return;
@@ -965,23 +906,6 @@
         if (intersectionObserver) intersectionObserver.unobserve(image);
     }
 
-    function updateMobileAudioEffects() {
-        if (!isMobile || isInitializing) return; // 초기화 중에는 실행 방지
-
-        // 현재 보이는 영상을 타겟으로 설정 (없으면 null)
-        const target = mobileAudioTarget || Array.from(state.activeMedia).find(m => m.dataset.isVisible === 'true');
-        if (!mobileAudioTarget && target) {
-             mobileAudioTarget = target;
-        }
-
-        state.activeMedia.forEach(media => {
-            const isTarget = media === target;
-            stereoWideningManager.setDelaySurround(media, isTarget && state.isDelaySurroundEnabled);
-            stereoWideningManager.setReverb(media, isTarget ? state.currentReverbMix : 0);
-            stereoWideningManager.setPan(media, isTarget ? state.currentStereoPan : 0);
-        });
-    }
-
     const scanAndApply = () => {
         const allMedia = findAllMedia();
         allMedia.forEach(attachMediaListeners);
@@ -990,19 +914,6 @@
         allMedia.forEach(m => { if (m.isConnected) { state.activeMedia.add(m); oldMedia.delete(m); } });
         oldMedia.forEach(detachMediaListeners);
 
-        // 오디오 효과 적용 로직
-        if (isMobile) {
-            updateMobileAudioEffects();
-        } else {
-            state.activeMedia.forEach(m => {
-                stereoWideningManager.setWidening(m, state.isWideningEnabled);
-                stereoWideningManager.setSpatial(m, state.isSpatialEnabled);
-                stereoWideningManager.setReverb(m, state.currentReverbMix);
-                stereoWideningManager.setPan(m, state.currentStereoPan);
-            });
-        }
-
-        // 비디오 필터 및 기타 상태 업데이트
         state.activeMedia.forEach(m => {
             if (m.tagName === 'VIDEO') {
                 m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended);
@@ -1083,31 +994,10 @@
         }
         if (!intersectionObserver) {
             intersectionObserver = new IntersectionObserver(entries => {
-                if (isInitializing) return; // 초기화 중에는 콜백 무시
+                if (isInitializing) return;
                 entries.forEach(e => {
                     e.target.dataset.isVisible = String(e.isIntersecting);
-                    if (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') {
-                        if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
-                        if (isMobile) {
-                            let targetChanged = false;
-                            if (e.isIntersecting) {
-                                if (mobileAudioTarget !== e.target) {
-                                     mobileAudioTarget = e.target;
-                                     targetChanged = true;
-                                }
-                            } else if (mobileAudioTarget === e.target) {
-                                mobileAudioTarget = null;
-                                const newTarget = Array.from(state.activeMedia).find(m => m !== e.target && m.dataset.isVisible === 'true');
-                                if (newTarget) {
-                                    mobileAudioTarget = newTarget;
-                                }
-                                targetChanged = true;
-                            }
-                            if (targetChanged) {
-                                updateMobileAudioEffects();
-                            }
-                        }
-                    }
+                    if (e.target.tagName === 'VIDEO') updateVideoFilterState(e.target);
                     if (e.target.tagName === 'IMG') updateImageFilterState(e.target);
                 });
             }, { rootMargin: '0px 0px -50% 0px', threshold: 0.1 });
@@ -1133,7 +1023,6 @@
             settingsManager.init();
             uiManager.reset();
             speedSlider.reset();
-            mobileAudioTarget = null;
 
             setTimeout(initializeGlobalUI, 500);
         }, 500);
@@ -1157,7 +1046,7 @@
     }
 
     function start() {
-        isInitializing = true; // 초기화 시작
+        isInitializing = true;
         state.lastUrl = location.href;
         uiManager.init();
         if (uiContainer && state.ui?.hostElement) {
@@ -1197,7 +1086,6 @@
         }
         isInitialized = true;
 
-        // 초기화가 끝난 후, 잠시 뒤에 isInitializing 플래그를 해제하여 IntersectionObserver가 정상 작동하도록 함
         setTimeout(() => { isInitializing = false; }, 500);
     }
 
