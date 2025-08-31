@@ -1020,34 +1020,18 @@
                     if (media.tagName === 'IMG') updateImageFilterState(media);
 
                     if (isMobile && (media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
-                         let targetChanged = false;
-                         if (e.isIntersecting) {
+                        if (e.isIntersecting) {
+                            // 영상이 화면에 보이면
                             if (mobileAudioTarget !== media) {
-                                mobileAudioTarget = media;
-                                targetChanged = true;
-                            }
-                         } else if (mobileAudioTarget === media) {
-                            mobileAudioTarget = null;
-                            const newTarget = Array.from(state.activeMedia).find(m => m !== media && m.dataset.isVisible === 'true');
-                            if(newTarget) {
-                                mobileAudioTarget = newTarget;
-                            }
-                            targetChanged = true;
-                         }
-
-                         if(targetChanged) {
-                             const fxBtn = state.ui.shadowRoot?.querySelector("#toggleBtn");
-                             const isFxOn = fxBtn ? !fxBtn.classList.contains("off") : true;
-
-                             state.activeMedia.forEach(m => {
-                                 const nodes = stereoWideningManager.getOrCreateNodes(m);
-                                 if(nodes && nodes.wetGain) {
-                                     const targetGain = (m === mobileAudioTarget && isFxOn) ? 1.0 : 0.0;
-                                     nodes.wetGain.gain.linearRampToValueAtTime(targetGain, nodes.context.currentTime + 0.1);
-                                 }
-                             });
-                         }
-                    }
+                            mobileAudioTarget = media;
+                            // 오디오 효과를 위한 엔진(AudioContext)을 미리 생성만 해둡니다. (아직은 '일시정지' 상태)
+                            stereoWideningManager.getOrCreateNodes(media);
+                        }
+                      } else if (mobileAudioTarget === media) {
+                          // 화면에서 사라지면 타겟에서 해제합니다.
+                          mobileAudioTarget = null;
+                      }
+                  }
                 });
             }, { rootMargin: '0px 0px -50% 0px', threshold: 0.1 });
         }
