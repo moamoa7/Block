@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
 // @namespace    https://com/
-// @version      74.3 (Mobile Optimization Restored & Final)
+// @version      74.4 (Mobile Audio FX Logic Fixed)
 // @description  PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
 // @match        *://*/*
 // @run-at       document-end
@@ -88,6 +88,7 @@
             isSpatialEnabled: CONFIG.DEFAULT_SPATIAL_ENABLED,
             isVolumeFollowerEnabled: CONFIG.DEFAULT_VOLUME_FOLLOWER_ENABLED,
             isDynamicDepthEnabled: CONFIG.DEFAULT_DYNAMIC_DEPTH_ENABLED,
+            isMobileFxOn: true, // <<<<<<< [FIX 1] 모바일 FX 상태 전역 관리
             audioContextMap: new WeakMap(),
             currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
             currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
@@ -193,7 +194,7 @@
                 nodes.dryGain = context.createGain();
                 source.connect(nodes.dryGain).connect(context.destination);
                 nodes.wetGain = context.createGain();
-                nodes.wetGain.gain.value = 0.0; // 기본값 OFF, 타겟이 되면 1.0으로 변경
+                nodes.wetGain.gain.value = 0.0;
                 nodes.wetGain.connect(context.destination);
                 const splitter = context.createChannelSplitter(2);
                 const merger = context.createChannelMerger(2);
@@ -292,7 +293,7 @@
         }
 
         const setGainWithFade = (gainNode, targetValue, duration = 0.05) => {
-            if (!gainNode || !isFinite(targetValue)) return;
+            if (!gainNode || !isFinite(targetValue) || gainNode.context.state === 'suspended') return;
             const ctx = gainNode.context;
             gainNode.gain.cancelScheduledValues(ctx.currentTime);
             gainNode.gain.linearRampToValueAtTime(targetValue, ctx.currentTime + duration);
@@ -300,8 +301,12 @@
 
         const setParamWithFade = (audioParam, targetValue, duration = 0.05) => {
             if (!audioParam || !isFinite(targetValue)) return;
-            const ctx = audioParam.context;
-            if (!ctx) return;
+            // Assuming audioParam.context doesn't exist, need to get it from a node
+            // This part is for desktop-only so we can assume a context exists on some node.
+            // A more robust way would be to pass the context, but for now this will do.
+            const anyNode = state.audioContextMap.get(Array.from(state.activeMedia)[0]);
+            if (!anyNode || anyNode.context.state === 'suspended') return;
+            const ctx = anyNode.context;
             audioParam.cancelScheduledValues(ctx.currentTime);
             audioParam.linearRampToValueAtTime(targetValue, ctx.currentTime + duration);
         };
@@ -580,20 +585,34 @@
                 });
 
                 const toggleBtn = panel.querySelector("#toggleBtn");
-                let isFxOn = true;
-                toggleBtn.addEventListener("click", () => {
-                    isFxOn = !isFxOn;
-                    toggleBtn.textContent = isFxOn ? "FX ON" : "FX OFF";
-                    toggleBtn.classList.toggle("off", !isFxOn);
-                    activateAudioContexts();
-                    if(mobileAudioTarget) {
-                         const nodes = state.audioContextMap.get(mobileAudioTarget);
-                         if (nodes && nodes.wetGain && nodes.dryGain) {
-                            const wetTarget = isFxOn ? 1.0 : 0.0;
-                            const dryTarget = isFxOn ? 0.8 : 1.0; // 효과를 켤 때 원본 소리는 80%로 줄임
+                // <<<<<<< [FIX 2] 버튼의 상태를 전역 상태에 따라 초기화
+                if (!state.isMobileFxOn) {
+                    toggleBtn.textContent = "FX OFF";
+                    toggleBtn.classList.add("off");
+                }
 
-                            nodes.wetGain.gain.linearRampToValueAtTime(wetTarget, nodes.context.currentTime + 0.1);
-                            nodes.dryGain.gain.linearRampToValueAtTime(dryTarget, nodes.context.currentTime + 0.1);
+                toggleBtn.addEventListener("click", () => {
+                    // <<<<<<< [FIX 3] 지역 변수 대신 전역 상태를 업데이트
+                    state.isMobileFxOn = !state.isMobileFxOn;
+                    toggleBtn.textContent = state.isMobileFxOn ? "FX ON" : "FX OFF";
+                    toggleBtn.classList.toggle("off", !state.isMobileFxOn);
+                    
+                    activateAudioContexts();
+
+                    if(mobileAudioTarget) {
+                        const nodes = state.audioContextMap.get(mobileAudioTarget);
+                        if (nodes && nodes.wetGain && nodes.dryGain) {
+                            const wetTarget = state.isMobileFxOn ? 1.0 : 0.0;
+                            const dryTarget = state.isMobileFxOn ? 0.8 : 1.0;
+
+                            if (nodes.context.state === 'running') {
+                                nodes.wetGain.gain.linearRampToValueAtTime(wetTarget, nodes.context.currentTime + 0.1);
+                                nodes.dryGain.gain.linearRampToValueAtTime(dryTarget, nodes.context.currentTime + 0.1);
+                            } else {
+                                // 컨텍스트가 아직 활성화되지 않았다면, 값을 직접 설정 (활성화 후 적용됨)
+                                nodes.wetGain.gain.value = wetTarget;
+                                nodes.dryGain.gain.value = dryTarget;
+                            }
                         }
                     }
                 });
@@ -1019,19 +1038,46 @@
                     if (media.tagName === 'VIDEO') updateVideoFilterState(media);
                     if (media.tagName === 'IMG') updateImageFilterState(media);
 
+                    // <<<<<<< [FIX 4] 모바일 오디오 타겟 및 상태 관리 로직 재설계
                     if (isMobile && (media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
                         if (e.isIntersecting) {
-                            // 영상이 화면에 보이면
                             if (mobileAudioTarget !== media) {
-                            mobileAudioTarget = media;
-                            // 오디오 효과를 위한 엔진(AudioContext)을 미리 생성만 해둡니다. (아직은 '일시정지' 상태)
-                            stereoWideningManager.getOrCreateNodes(media);
+                                // 이전 타겟이 있었다면 효과를 끈다.
+                                if (mobileAudioTarget) {
+                                    const oldNodes = state.audioContextMap.get(mobileAudioTarget);
+                                    if (oldNodes) {
+                                        oldNodes.wetGain.gain.value = 0;
+                                        oldNodes.dryGain.gain.value = 1;
+                                    }
+                                }
+                                
+                                // 새로운 타겟 설정
+                                mobileAudioTarget = media;
+                                const nodes = stereoWideningManager.getOrCreateNodes(media);
+                                
+                                // 현재 FX 상태에 따라 즉시 효과 적용
+                                if (nodes) {
+                                    activateAudioContexts(); // 컨텍스트 활성화 시도
+                                    const wetTarget = state.isMobileFxOn ? 1.0 : 0.0;
+                                    const dryTarget = state.isMobileFxOn ? 0.8 : 1.0;
+                                    if (nodes.context.state === 'running') {
+                                        nodes.wetGain.gain.linearRampToValueAtTime(wetTarget, nodes.context.currentTime + 0.1);
+                                        nodes.dryGain.gain.linearRampToValueAtTime(dryTarget, nodes.context.currentTime + 0.1);
+                                    } else {
+                                        nodes.wetGain.gain.value = wetTarget;
+                                        nodes.dryGain.gain.value = dryTarget;
+                                    }
+                                }
+                            }
+                        } else if (mobileAudioTarget === media) {
+                             const nodes = state.audioContextMap.get(media);
+                             if (nodes) {
+                                 nodes.wetGain.gain.value = 0;
+                                 nodes.dryGain.gain.value = 1;
+                             }
+                            mobileAudioTarget = null;
                         }
-                      } else if (mobileAudioTarget === media) {
-                          // 화면에서 사라지면 타겟에서 해제합니다.
-                          mobileAudioTarget = null;
-                      }
-                  }
+                    }
                 });
             }, { rootMargin: '0px 0px -50% 0px', threshold: 0.1 });
         }
