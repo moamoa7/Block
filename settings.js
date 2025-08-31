@@ -206,6 +206,7 @@
                 nodes.convolver.buffer = createReverbImpulseResponse(context, 2.0, 1.5);
                 nodes.reverbGain = context.createGain();
                 nodes.reverbGain.gain.value = 0.3;
+                merger.connect(nodes.wetGain);
                 merger.connect(nodes.convolver).connect(nodes.reverbGain).connect(nodes.wetGain);
             } else {
                 Object.assign(nodes, {
@@ -587,9 +588,13 @@
                     activateAudioContexts();
                     if(mobileAudioTarget) {
                          const nodes = state.audioContextMap.get(mobileAudioTarget);
-                         if (nodes && nodes.wetGain) {
-                            nodes.wetGain.gain.linearRampToValueAtTime(isFxOn ? 1 : 0, nodes.context.currentTime + 0.1);
-                         }
+                         if (nodes && nodes.wetGain && nodes.dryGain) {
+                            const wetTarget = isFxOn ? 1.0 : 0.0;
+                            const dryTarget = isFxOn ? 0.8 : 1.0; // 효과를 켤 때 원본 소리는 80%로 줄임
+
+                            nodes.wetGain.gain.linearRampToValueAtTime(wetTarget, nodes.context.currentTime + 0.1);
+                            nodes.dryGain.gain.linearRampToValueAtTime(dryTarget, nodes.context.currentTime + 0.1);
+                        }
                     }
                 });
 
