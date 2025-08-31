@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Parallel Spatial Audio & Simple Mobile UI)
 // @namespace    https://com/
-// @version      74.9 (PC/Mobile Logic Separation & Final Fix)
+// @version      75.0 (Mobile Audio Default Value & Reset Button Fix)
 // @description  PC에서는 공간 음향, 모바일에서는 최적화된 심플 UI를 제공하며, 모든 기능이 안정적으로 작동합니다.
 // @match        *://*/*
 // @run-at       document-end
@@ -165,6 +165,9 @@
     const imageFilterManager = new SvgFilterManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
 
     const mobileAudioManager = (() => {
+        const DEFAULT_DELAY = 0.015;
+        const DEFAULT_REVERB = 0;
+
         function createReverbImpulseResponse(context, duration, decay = 2.0) {
             const rate = context.sampleRate;
             const length = rate * duration;
@@ -203,12 +206,12 @@
             const splitter = mobileAudioContext.createChannelSplitter(2);
             const merger = mobileAudioContext.createChannelMerger(2);
             nodes.rightDelay = mobileAudioContext.createDelay(0.1);
-            nodes.rightDelay.delayTime.value = 0.015;
+            nodes.rightDelay.delayTime.value = DEFAULT_DELAY;
 
             const convolver = mobileAudioContext.createConvolver();
             convolver.buffer = createReverbImpulseResponse(mobileAudioContext, 2.0, 1.5);
             nodes.reverbGain = mobileAudioContext.createGain();
-            nodes.reverbGain.gain.value = 0.3;
+            nodes.reverbGain.gain.value = DEFAULT_REVERB;
 
             source.connect(nodes.dryGain).connect(mobileAudioContext.destination);
             source.connect(splitter);
@@ -233,8 +236,14 @@
                 });
             }
         }
+        
+        function resetToDefaults() {
+            if (!mobileAudioNodes) return;
+            mobileAudioNodes.rightDelay.delayTime.value = DEFAULT_DELAY;
+            mobileAudioNodes.reverbGain.gain.value = DEFAULT_REVERB;
+        }
 
-        return { init, ensureContextResumed };
+        return { init, ensureContextResumed, resetToDefaults };
     })();
 
     const stereoWideningManager = (() => {
@@ -323,7 +332,6 @@
             return nodes;
         }
 
-        // ✅ 최종 수정: PC용 getOrCreateNodes 함수 복원
         function getOrCreateNodes(media) {
             if (state.audioContextMap.has(media)) return state.audioContextMap.get(media);
             try {
@@ -385,7 +393,7 @@
         }
 
         return {
-            getOrCreateNodes, // ✅ 최종 수정: 외부에서 호출할 수 있도록 다시 추가
+            getOrCreateNodes,
             setWidening: (m, e) => { setGain(m, 'wetGainWiden', e ? 1.0 : 0.0); updateDryWetMix(m); },
             setWideningFactor: (m, v) => { const n = getOrCreateNodes(m); if(n && n.ms_side_gain) setParamWithFade(n.ms_side_gain.gain, v); },
             setSpatial: (m, e) => { setGain(m, 'wetGainSpatial', e ? 1.0 : 0.0); updateDryWetMix(m); },
@@ -590,11 +598,13 @@
                     .mobile-control input[type=range] { width: 100%; -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
                     .mobile-control input[type=range]::-webkit-slider-runnable-track { background: rgba(255,255,255,0.2); height: 4px; border-radius: 4px; }
                     .mobile-control input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; margin-top: -6px; background-color: #fff; height: 16px; width: 16px; border-radius: 50%; }
-                    .mobile-toggle-btn { width: 100%; padding: 8px 0; border: none; border-radius: 10px; background: #34c759; color: white; font-weight: 600; font-size: 14px; cursor: pointer; margin-top: 5px; }
+                    .mobile-toggle-btn { width: 100%; padding: 8px 0; border: none; border-radius: 10px; background: #34c759; color: white; font-weight: 600; font-size: 14px; cursor: pointer; margin-top: 10px; }
                     .mobile-toggle-btn.off { background: #ff3b30; }
+                    .mobile-reset-btn { background: #555; margin-top: 6px; }
                 `;
                 shadowRoot.appendChild(mobileUiStyle);
 
+                // ✅ 최종 수정: Reverb 기본값을 state에서 가져오도록 수정
                 const panel = document.createElement("div");
                 panel.className = "mobile-audio-controls";
                 panel.innerHTML = `
@@ -604,10 +614,11 @@
                         <input id="delaySlider" type="range" min="0" max="0.03" step="0.001" value="0.015">
                     </div>
                     <div class="mobile-control">
-                        <label>Reverb: <span id="reverbVal">30%</span></label>
-                        <input id="reverbSlider" type="range" min="0" max="1" step="0.01" value="0.3">
+                        <label>Reverb: <span id="reverbVal">${(state.currentReverbMix * 100).toFixed(0)}%</span></label>
+                        <input id="reverbSlider" type="range" min="0" max="1" step="0.01" value="${state.currentReverbMix}">
                     </div>
                     <button id="toggleBtn" class="mobile-toggle-btn">FX ON</button>
+                    <button id="resetBtn" class="mobile-toggle-btn mobile-reset-btn">기본값</button>
                 `;
                 stereoSubMenu.appendChild(panel);
 
@@ -629,6 +640,16 @@
                     if (mobileAudioNodes && mobileAudioNodes.reverbGain) {
                         mobileAudioNodes.reverbGain.gain.value = val;
                     }
+                });
+                
+                // ✅ 최종 수정: 기본값 버튼 로직 추가
+                const resetBtn = panel.querySelector("#resetBtn");
+                resetBtn.addEventListener("click", () => {
+                    mobileAudioManager.resetToDefaults();
+                    delaySlider.value = 0.015;
+                    delayVal.textContent = `15ms`;
+                    reverbSlider.value = 0;
+                    reverbVal.textContent = `0%`;
                 });
 
                 const toggleBtn = panel.querySelector("#toggleBtn");
@@ -991,7 +1012,6 @@
         oldMedia.forEach(detachMediaListeners);
 
         state.activeMedia.forEach(m => {
-            // ✅ 최종 수정: PC에서만 getOrCreateNodes 호출
             if(!isMobile) {
                 stereoWideningManager.getOrCreateNodes(m);
             }
@@ -1045,8 +1065,7 @@
 
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
-
-            // ✅ 최종 수정: 필터 초기화 시 0으로 설정하는 대신 기본값으로 설정
+            
             setVideoFilterLevel(settingsManager.get('videoFilterLevel'));
             setImageFilterLevel(settingsManager.get('imageFilterLevel'));
 
@@ -1116,7 +1135,7 @@
             settingsManager.init();
             uiManager.reset();
             speedSlider.reset();
-
+            
             setTimeout(initializeGlobalUI, 500);
         }, 500);
         if (!window.vscPatchedHistory) {
