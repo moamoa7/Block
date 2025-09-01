@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      73.2
-// @description  모바일 환경 오디오 처리 로직 복원 및 안정성 강화
+// @version      73.3
+// @description  모바일 환경에서 현재 비디오에 오디오 효과가 적용되지 않던 문제 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -294,10 +294,12 @@
                 mainSignalOutput.connect(finalDestination);
 
                 if (state.isReverbEnabled) {
-                    nodes.convolver.buffer = createSyntheticReverb(nodes.context, state.currentReverbLength, 2.5);
-                    mainSignalOutput.connect(nodes.convolver);
-                    nodes.wetGainReverb.gain.value = state.currentReverbMix;
-                    nodes.convolver.connect(nodes.wetGainReverb).connect(finalDestination);
+                    try {
+                        nodes.convolver.buffer = createSyntheticReverb(nodes.context, state.currentReverbLength, 2.5);
+                        mainSignalOutput.connect(nodes.convolver);
+                        nodes.wetGainReverb.gain.value = state.currentReverbMix;
+                        nodes.convolver.connect(nodes.wetGainReverb).connect(finalDestination);
+                    } catch (e) { console.error("Reverb creation failed:", e); }
                 }
 
                 nodes.stereoPanner.connect(nodes.analyser);
@@ -353,6 +355,14 @@
     function activateAudioContexts() {
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(media => stereoWideningManager.ensureContextResumed(media));
+    }
+
+    function applyAudioEffectsToMedia(mediaSet) {
+        mediaSet.forEach(media => stereoWideningManager.reconnectGraph(media));
+    }
+
+    function disconnectAudioEffectsFromMedia(mediaSet) {
+        mediaSet.forEach(media => stereoWideningManager.reconnectGraph(media));
     }
 
     function setWideningEnabled(enabled) {
@@ -1009,12 +1019,13 @@
                     });
                     const newVisibleMedia = mostVisibleEntry ? mostVisibleEntry.target : null;
                     if (state.currentlyVisibleMedia !== newVisibleMedia) {
-                        if(state.currentlyVisibleMedia) {
-                             stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
+                        // [FIX] Restore logic to disconnect old and apply to new visible media on mobile.
+                        if (state.currentlyVisibleMedia) {
+                           stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
                         }
                         state.currentlyVisibleMedia = newVisibleMedia;
-                        if(state.currentlyVisibleMedia) {
-                             stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
+                        if (state.currentlyVisibleMedia) {
+                           stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
                         }
                     }
                 }
