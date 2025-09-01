@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      74.4
-// @description  오디오 UI 세부 레이아웃 수정
+// @version      73.2
+// @description  모바일 환경 오디오 처리 로직 복원 및 안정성 강화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -48,11 +48,6 @@
         DEFAULT_COMPRESSOR_THRESHOLD: -24,
         DEFAULT_ADAPTIVE_WIDTH_ENABLED: false,
         DEFAULT_ADAPTIVE_WIDTH_FREQ: 150,
-        // [NEW] 추가된 기능 설정
-        DEFAULT_LIMITER_ENABLED: false,
-        DEFAULT_AUTOPAN_ENABLED: false,
-        DEFAULT_AUTOPAN_RATE: 0.5, // Hz
-        DEFAULT_AUTOPAN_DEPTH: 0.8, // 0 to 1
 
         DEBUG: false, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
@@ -121,12 +116,6 @@
             compressorThreshold: CONFIG.DEFAULT_COMPRESSOR_THRESHOLD,
             isAdaptiveWidthEnabled: CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED,
             adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
-            // [NEW] 추가된 기능 상태
-            isLimiterEnabled: CONFIG.DEFAULT_LIMITER_ENABLED,
-            isAutopanEnabled: CONFIG.DEFAULT_AUTOPAN_ENABLED,
-            autopanRate: CONFIG.DEFAULT_AUTOPAN_RATE,
-            autopanDepth: CONFIG.DEFAULT_AUTOPAN_DEPTH,
-
             ui: { shadowRoot: null, hostElement: null }, delayCheckInterval: null,
             currentPlaybackRate: 1.0, mediaTypesEverFound: { video: false, image: false }, lastUrl: '',
             audioContextWarningShown: false
@@ -209,10 +198,8 @@
             if (!audioParam || !isFinite(targetValue)) return;
             const ctx = audioParam.context;
             if (!ctx || ctx.state === 'closed') return;
-            try {
-                audioParam.cancelScheduledValues(ctx.currentTime);
-                audioParam.linearRampToValueAtTime(targetValue, ctx.currentTime + duration);
-            } catch(e) { /* ignore errors on closed context */ }
+            audioParam.cancelScheduledValues(ctx.currentTime);
+            audioParam.linearRampToValueAtTime(targetValue, ctx.currentTime + duration);
         };
 
         function createAudioGraph(media) {
@@ -236,10 +223,7 @@
                 ms_decode_L_sum: context.createGain(), ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
                 hpfWiden: context.createBiquadFilter(), panner3d: context.createPanner(),
                 convolver: context.createConvolver(), wetGainReverb: context.createGain(),
-                stereoPanner: context.createStereoPanner(), analyser: context.createAnalyser(), analyserData: null,
-                // [NEW] 오토팬용 노드 추가
-                lfo: context.createOscillator(), lfoGain: context.createGain(),
-            };
+                stereoPanner: context.createStereoPanner(), analyser: context.createAnalyser(), analyserData: null };
 
             state.audioContextMap.set(media, nodes);
             reconnectGraph(media);
@@ -257,40 +241,17 @@
                         try { node.disconnect(); } catch(e) {}
                     }
                 }
-                // [NEW] LFO는 disconnect 후 재시작 필요
-                if (nodes.lfo.state !== 'stopped') {
-                    try { nodes.lfo.stop(); } catch (e) {}
-                    nodes.lfo = nodes.context.createOscillator();
-                }
 
                 nodes.eqLow.type = 'lowshelf'; nodes.eqLow.frequency.value = 150; nodes.eqLow.gain.value = state.eqLowGain;
                 nodes.eqMid.type = 'peaking'; nodes.eqMid.frequency.value = 1000; nodes.eqMid.Q.value = 1; nodes.eqMid.gain.value = state.eqMidGain;
                 nodes.eqHigh.type = 'highshelf'; nodes.eqHigh.frequency.value = 5000; nodes.eqHigh.gain.value = state.eqHighGain;
-
-                // [MODIFIED] 컴프레서/리미터 설정 분기
-                if (state.isCompressorEnabled) {
-                    nodes.compressor.threshold.value = state.compressorThreshold; nodes.compressor.knee.value = 10; nodes.compressor.ratio.value = 4; nodes.compressor.attack.value = 0.01; nodes.compressor.release.value = 0.1;
-                } else if (state.isLimiterEnabled) {
-                    nodes.compressor.threshold.value = -1.0; nodes.compressor.knee.value = 0; nodes.compressor.ratio.value = 20; nodes.compressor.attack.value = 0.005; nodes.compressor.release.value = 0.05;
-                }
-
+                nodes.compressor.threshold.value = state.compressorThreshold; nodes.compressor.knee.value = 10; nodes.compressor.ratio.value = 4; nodes.compressor.attack.value = 0.01; nodes.compressor.release.value = 0.1;
                 Object.assign(nodes.panner3d, { panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 1, maxDistance: 10000, rolloffFactor: 1 });
                 nodes.panner3d.positionX.value = state.current3dPosX; nodes.panner3d.positionY.value = state.current3dPosY; nodes.panner3d.positionZ.value = state.current3dPosZ;
+                nodes.stereoPanner.pan.value = state.currentStereoPan;
 
-                setParamWithFade(nodes.stereoPanner.pan, state.currentStereoPan);
-
-                // [NEW] 오토팬 로직
-                if (state.isAutopanEnabled) {
-                    nodes.lfo.frequency.value = state.autopanRate;
-                    nodes.lfoGain.gain.value = state.autopanDepth;
-                    nodes.lfo.connect(nodes.lfoGain).connect(nodes.stereoPanner.pan);
-                    if (nodes.lfo.state === 'stopped') {
-                       nodes.lfo.start();
-                    }
-                }
-
-                const finalDestination = (state.isCompressorEnabled || state.isLimiterEnabled) ? nodes.compressor : nodes.context.destination;
-                if (state.isCompressorEnabled || state.isLimiterEnabled) nodes.compressor.connect(nodes.context.destination);
+                const finalDestination = state.isCompressorEnabled ? nodes.compressor : nodes.context.destination;
+                if (state.isCompressorEnabled) nodes.compressor.connect(nodes.context.destination);
 
                 let lastNodeInChain = nodes.source;
                 if (state.isEqEnabled) {
@@ -333,12 +294,10 @@
                 mainSignalOutput.connect(finalDestination);
 
                 if (state.isReverbEnabled) {
-                    try {
-                        nodes.convolver.buffer = createSyntheticReverb(nodes.context, state.currentReverbLength, 2.5);
-                        mainSignalOutput.connect(nodes.convolver);
-                        nodes.wetGainReverb.gain.value = state.currentReverbMix;
-                        nodes.convolver.connect(nodes.wetGainReverb).connect(finalDestination);
-                    } catch (e) { console.error("Reverb creation failed:", e); }
+                    nodes.convolver.buffer = createSyntheticReverb(nodes.context, state.currentReverbLength, 2.5);
+                    mainSignalOutput.connect(nodes.convolver);
+                    nodes.wetGainReverb.gain.value = state.currentReverbMix;
+                    nodes.convolver.connect(nodes.wetGainReverb).connect(finalDestination);
                 }
 
                 nodes.stereoPanner.connect(nodes.analyser);
@@ -360,9 +319,6 @@
             const nodes = state.audioContextMap.get(media);
             if (nodes) {
                 safeExec(() => {
-                    if (nodes.lfo && nodes.lfo.state !== 'stopped') {
-                        try { nodes.lfo.stop(); } catch(e) {}
-                    }
                     nodes.source.disconnect();
                     if (nodes.context.state !== 'closed') nodes.context.close();
                 }, 'cleanupForMedia');
@@ -399,11 +355,6 @@
         mediaToAffect.forEach(media => stereoWideningManager.ensureContextResumed(media));
     }
 
-    function applyAudioEffectsToMedia(mediaSet) {
-        mediaSet.forEach(media => stereoWideningManager.reconnectGraph(media));
-    }
-
-    // ... (기존 set...Enabled 함수들) ...
     function setWideningEnabled(enabled) {
         if (enabled) activateAudioContexts();
         state.isWideningEnabled = !!enabled;
@@ -438,7 +389,7 @@
         if (btn) btn.classList.toggle('active', enabled);
         const shadowRoot = state.ui.shadowRoot;
         if (shadowRoot) {
-            ['reverbSlider', 'reverbLengthSlider', 'reverbPresetSelect'].forEach(id => {
+            ['reverbSlider', 'reverbLengthSlider'].forEach(id => {
                 const el = shadowRoot.getElementById(id);
                 if (el) el.disabled = !enabled;
             });
@@ -457,47 +408,13 @@
     }
 
     function setCompressorEnabled(enabled) {
-        if (enabled) {
-            activateAudioContexts();
-            setLimiterEnabled(false); // [NEW] 리미터와 동시 활성화 방지
-        }
+        if (enabled) activateAudioContexts();
         state.isCompressorEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-compressor-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
-
-    // [NEW] 리미터 활성화 함수
-    function setLimiterEnabled(enabled) {
-        if (enabled) {
-            activateAudioContexts();
-            setCompressorEnabled(false); // [NEW] 컴프레서와 동시 활성화 방지
-        }
-        state.isLimiterEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('vsc-limiter-toggle');
-        if (btn) btn.classList.toggle('active', enabled);
-        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
-        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
-    }
-
-    // [NEW] 오토팬 활성화 함수
-    function setAutopanEnabled(enabled) {
-        if (enabled) activateAudioContexts();
-        state.isAutopanEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('vsc-autopan-toggle');
-        if (btn) btn.classList.toggle('active', enabled);
-        const shadowRoot = state.ui.shadowRoot;
-        if (shadowRoot) {
-            ['panSlider', 'autopanRateSlider', 'autopanDepthSlider'].forEach(id => {
-                const el = shadowRoot.getElementById(id);
-                if (el) el.disabled = (id === 'panSlider') ? enabled : !enabled;
-            });
-        }
-        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
-        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
-    }
-
 
     function setAdaptiveWidthEnabled(enabled) {
         if (enabled) activateAudioContexts();
@@ -515,9 +432,6 @@
         setEqEnabled(CONFIG.DEFAULT_EQ_ENABLED);
         setCompressorEnabled(CONFIG.DEFAULT_COMPRESSOR_ENABLED);
         setAdaptiveWidthEnabled(CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED);
-        // [NEW] 추가된 기능 리셋
-        setLimiterEnabled(CONFIG.DEFAULT_LIMITER_ENABLED);
-        setAutopanEnabled(CONFIG.DEFAULT_AUTOPAN_ENABLED);
     }
 
     function setVideoFilterLevel(level) {
@@ -559,7 +473,7 @@
             '.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(12px, 2vmin, 14px); }',
             '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
             '.vsc-btn-main { font-size: clamp(15px, 3vmin, 18px); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
-            '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }',
+            '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); }',
             '.slider-control { display: flex; flex-direction: column; gap: 5px; }',
             '.slider-control label { display: flex; justify-content: space-between; font-size: 13px; color: white; }',
             'input[type=range] { width: 100%; margin: 0; }',
@@ -569,7 +483,7 @@
             '.vsc-grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }',
             '.vsc-grid-left, .vsc-grid-right { display: flex; flex-direction: column; gap: 10px; }',
             '.vsc-bottom-controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }',
-            '.vsc-sound-section { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #555; padding-top: 10px; margin-top: 10px; }',
+            '.vsc-3d-sound-section { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #555; padding-top: 10px; margin-top: 10px; }',
         ];
         function init() {
             if (state.ui.hostElement) return;
@@ -587,7 +501,7 @@
 
     const speedSlider = (() => {
         let inited = false, fadeOutTimer;
-        let pannerXSlider, pannerYSlider, pannerZSlider, reverbSlider, reverbLengthSlider, autopanRateSlider, autopanDepthSlider;
+        let pannerXSlider, pannerYSlider, pannerZSlider, reverbSlider, reverbLengthSlider;
         let hideAllSubMenus = () => { };
         const startFadeSequence = () => {
             const container = state.ui?.shadowRoot?.getElementById('vsc-container');
@@ -657,25 +571,6 @@
             panner3dBtn.onclick = () => set3dEnabled(!state.is3dEnabled);
             btnGroup1.append(widenBtn, panner3dBtn);
 
-            // 3D 사운드 섹션 생성
-            const sound3dSection = document.createElement('div');
-            sound3dSection.className = 'vsc-sound-section';
-            // --- MODIFICATION: X(좌우) 위 가로줄 삭제 및 상단 여백 제거 ---
-            sound3dSection.style.borderTop = 'none';
-            sound3dSection.style.marginTop = '0';
-            sound3dSection.style.paddingTop = '0';
-            pannerXSlider = createSliderControl('X (좌우)', 'pannerXSlider', -10, 10, 0.1, state.current3dPosX, '');
-            pannerYSlider = createSliderControl('Y (상하)', 'pannerYSlider', -10, 10, 0.1, state.current3dPosY, '');
-            pannerZSlider = createSliderControl('Z (앞뒤)', 'pannerZSlider', -10, 10, 0.1, state.current3dPosZ, '');
-
-            const update3dPosition = () => { Array.from(state.activeMedia).forEach(m => stereoWideningManager.updatePannerPosition(m, state.current3dPosX, state.current3dPosY, state.current3dPosZ)); };
-            pannerXSlider.slider.oninput = () => { state.current3dPosX = parseFloat(pannerXSlider.slider.value); pannerXSlider.valueSpan.textContent = state.current3dPosX.toFixed(1); update3dPosition(); };
-            pannerYSlider.slider.oninput = () => { state.current3dPosY = parseFloat(pannerYSlider.slider.value); pannerYSlider.valueSpan.textContent = state.current3dPosY.toFixed(1); update3dPosition(); };
-            pannerZSlider.slider.oninput = () => { state.current3dPosZ = parseFloat(pannerZSlider.slider.value); pannerZSlider.valueSpan.textContent = state.current3dPosZ.toFixed(1); update3dPosition(); };
-
-            sound3dSection.append(pannerXSlider.controlDiv, pannerYSlider.controlDiv, pannerZSlider.controlDiv);
-
-            // 왼쪽 그리드 (스테레오, Pan, 오토팬, HPF)
             const wideningSlider = createSliderControl('스테레오 확장', 'wideningSlider', 0, 3, 0.1, state.currentWideningFactor, 'x');
             wideningSlider.slider.oninput = () => {
                 const val = parseFloat(wideningSlider.slider.value);
@@ -696,59 +591,32 @@
                     if (nodes) stereoWideningManager.setParamWithFade(nodes.stereoPanner.pan, val);
                 });
             };
-
-            // --- MODIFICATION: 오토팬 버튼 위에 가로줄 추가 ---
-            const autopanSection = document.createElement('div');
-            autopanSection.className = 'vsc-sound-section';
-
-            const autopanBtn = createButton('vsc-autopan-toggle', '오토팬 ON/OFF', '오토팬', 'vsc-btn');
-            autopanBtn.onclick = () => setAutopanEnabled(!state.isAutopanEnabled);
-            autopanRateSlider = createSliderControl('속도', 'autopanRateSlider', 0.1, 10, 0.1, state.autopanRate, 'Hz');
-            autopanRateSlider.slider.oninput = () => {
-                const val = parseFloat(autopanRateSlider.slider.value); state.autopanRate = val; autopanRateSlider.valueSpan.textContent = `${val.toFixed(1)}Hz`;
-                Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.lfo.frequency, val); });
-            };
-            autopanDepthSlider = createSliderControl('강도', 'autopanDepthSlider', 0, 1, 0.05, state.autopanDepth, '');
-            autopanDepthSlider.slider.oninput = () => {
-                const val = parseFloat(autopanDepthSlider.slider.value); state.autopanDepth = val; autopanDepthSlider.valueSpan.textContent = val.toFixed(2);
-                Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.lfoGain.gain, val); });
-            };
-            autopanSection.append(autopanBtn, autopanRateSlider.controlDiv, autopanDepthSlider.controlDiv);
-
             const hpfSlider = createSliderControl('HPF', 'hpfSlider', 50, 500, 10, state.currentHpfHz, 'Hz');
             hpfSlider.slider.oninput = () => {
-                const val = parseFloat(hpfSlider.slider.value); state.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val}Hz`;
+                const val = parseFloat(hpfSlider.slider.value);
+                state.currentHpfHz = val;
+                hpfSlider.valueSpan.textContent = `${val}Hz`;
                 Array.from(state.activeMedia).forEach(media => {
                     const nodes = state.audioContextMap.get(media);
                     if (nodes?.hpfWiden) stereoWideningManager.setParamWithFade(nodes.hpfWiden.frequency, val);
                 });
             };
-            gridLeft.append(wideningSlider.controlDiv, panSlider.controlDiv, autopanSection, hpfSlider.controlDiv);
+            gridLeft.append(wideningSlider.controlDiv, panSlider.controlDiv, hpfSlider.controlDiv);
 
-            // 리버브 섹션
-            const reverbSection = document.createElement('div');
-            reverbSection.className = 'vsc-sound-section';
+            const sound3dSection = document.createElement('div'); sound3dSection.className = 'vsc-3d-sound-section';
+            pannerXSlider = createSliderControl('X (좌우)', 'pannerXSlider', -10, 10, 0.1, state.current3dPosX, '');
+            pannerYSlider = createSliderControl('Y (상하)', 'pannerYSlider', -10, 10, 0.1, state.current3dPosY, '');
+            pannerZSlider = createSliderControl('Z (앞뒤)', 'pannerZSlider', -10, 10, 0.1, state.current3dPosZ, '');
+
+            const update3dPosition = () => {
+                Array.from(state.activeMedia).forEach(m => stereoWideningManager.updatePannerPosition(m, state.current3dPosX, state.current3dPosY, state.current3dPosZ));
+            };
+            pannerXSlider.slider.oninput = () => { state.current3dPosX = parseFloat(pannerXSlider.slider.value); pannerXSlider.valueSpan.textContent = state.current3dPosX.toFixed(1); update3dPosition(); };
+            pannerYSlider.slider.oninput = () => { state.current3dPosY = parseFloat(pannerYSlider.slider.value); pannerYSlider.valueSpan.textContent = state.current3dPosY.toFixed(1); update3dPosition(); };
+            pannerZSlider.slider.oninput = () => { state.current3dPosZ = parseFloat(pannerZSlider.slider.value); pannerZSlider.valueSpan.textContent = state.current3dPosZ.toFixed(1); update3dPosition(); };
+
             const reverbBtn = createButton('vsc-reverb-toggle', '리버브 ON/OFF', '리버브', 'vsc-btn');
             reverbBtn.onclick = () => setReverbEnabled(!state.isReverbEnabled);
-
-            const reverbPresets = [
-                { value: 'default', text: '프리셋 선택', mix: 0.2, len: 1.5 },
-                { value: 'small_room', text: '작은 방', mix: 0.15, len: 0.8 },
-                { value: 'concert_hall', text: '콘서트 홀', mix: 0.3, len: 3.0 },
-                { value: 'cave', text: '동굴', mix: 0.5, len: 4.0 },
-            ];
-            const reverbPresetSelect = createSelectControl(null, reverbPresets, (val) => {
-                const preset = reverbPresets.find(p => p.value === val);
-                if (!preset) return;
-
-                reverbSlider.slider.value = state.currentReverbMix = preset.mix;
-                reverbSlider.valueSpan.textContent = preset.mix.toFixed(2);
-                reverbLengthSlider.slider.value = state.currentReverbLength = preset.len;
-                reverbLengthSlider.valueSpan.textContent = `${preset.len.toFixed(1)}s`;
-
-                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
-                mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
-            }, 'reverbPresetSelect');
 
             reverbSlider = createSliderControl('잔향 혼합', 'reverbSlider', 0, 1, 0.05, state.currentReverbMix, '');
             reverbSlider.slider.oninput = () => {
@@ -760,33 +628,27 @@
                     if (nodes?.wetGainReverb) stereoWideningManager.setParamWithFade(nodes.wetGainReverb.gain, val);
                 });
             };
+
             reverbLengthSlider = createSliderControl('잔향 길이', 'reverbLengthSlider', 0.1, 4, 0.1, state.currentReverbLength, 's');
             reverbLengthSlider.slider.oninput = debounce(() => {
                 const val = parseFloat(reverbLengthSlider.slider.value);
                 state.currentReverbLength = val;
                 reverbLengthSlider.valueSpan.textContent = `${val.toFixed(1)}s`;
-                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
-                mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
+                Array.from(state.activeMedia).forEach(stereoWideningManager.reconnectGraph);
             }, 100);
 
-            reverbSection.append(reverbBtn, reverbPresetSelect, reverbSlider.controlDiv, reverbLengthSlider.controlDiv);
-            gridLeft.append(reverbSection);
 
-            // 오른쪽 그리드 (EQ, 컴프레서 등)
-            // --- MODIFICATION: EQ 버튼 위에 가로줄 추가 ---
-            const dynamicsSection = document.createElement('div');
-            dynamicsSection.className = 'vsc-sound-section';
+            sound3dSection.append(pannerXSlider.controlDiv, pannerYSlider.controlDiv, pannerZSlider.controlDiv, reverbBtn, reverbSlider.controlDiv, reverbLengthSlider.controlDiv);
+            gridLeft.append(sound3dSection);
 
             const btnGroup3 = document.createElement('div'); btnGroup3.className = 'vsc-button-group';
             const eqBtn = createButton('vsc-eq-toggle', '3-Band EQ ON/OFF', 'EQ', 'vsc-btn');
             const compBtn = createButton('vsc-compressor-toggle', 'Compressor ON/OFF', 'Comp', 'vsc-btn');
-            const limiterBtn = createButton('vsc-limiter-toggle', 'Limiter ON/OFF', '리미터', 'vsc-btn');
             const adaptiveWidthBtn = createButton('vsc-adaptive-width-toggle', '저역 폭 제어 ON/OFF', 'Bass Mono', 'vsc-btn');
             eqBtn.onclick = () => setEqEnabled(!state.isEqEnabled);
             compBtn.onclick = () => setCompressorEnabled(!state.isCompressorEnabled);
-            limiterBtn.onclick = () => setLimiterEnabled(!state.isLimiterEnabled);
             adaptiveWidthBtn.onclick = () => setAdaptiveWidthEnabled(!state.isAdaptiveWidthEnabled);
-            btnGroup3.append(eqBtn, compBtn, limiterBtn, adaptiveWidthBtn);
+            btnGroup3.append(eqBtn, compBtn, adaptiveWidthBtn);
 
             const eqLowSlider = createSliderControl('EQ 저음', 'eqLowSlider', -12, 12, 1, state.eqLowGain, 'dB');
             eqLowSlider.slider.oninput = () => {
@@ -808,9 +670,7 @@
                 const val = parseFloat(compThresholdSlider.slider.value); state.compressorThreshold = val; compThresholdSlider.valueSpan.textContent = `${val.toFixed(0)}dB`;
                 Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.compressor.threshold, val); });
             };
-
-            dynamicsSection.append(btnGroup3, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, compThresholdSlider.controlDiv);
-            gridRight.append(sound3dSection, dynamicsSection);
+            gridRight.append(btnGroup3, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, compThresholdSlider.controlDiv);
 
             const bottomControls = document.createElement('div'); bottomControls.className = 'vsc-bottom-controls';
             const resetBtn = createButton('vsc-stereo-reset', '기본값으로 초기화', '기본값', 'vsc-btn');
@@ -823,16 +683,13 @@
                     posX: CONFIG.DEFAULT_3D_POS_X, posY: CONFIG.DEFAULT_3D_POS_Y, posZ: CONFIG.DEFAULT_3D_POS_Z,
                     eqLow: CONFIG.DEFAULT_EQ_LOW_GAIN, eqMid: CONFIG.DEFAULT_EQ_MID_GAIN, eqHigh: CONFIG.DEFAULT_EQ_HIGH_GAIN,
                     compThreshold: CONFIG.DEFAULT_COMPRESSOR_THRESHOLD,
-                    autopanRate: CONFIG.DEFAULT_AUTOPAN_RATE, autopanDepth: CONFIG.DEFAULT_AUTOPAN_DEPTH,
                 };
                 Object.assign(state, {
                     currentWideningFactor: defaults.widening, currentHpfHz: defaults.hpf, currentStereoPan: defaults.pan,
                     currentReverbMix: defaults.reverbMix, currentReverbLength: defaults.reverbLen,
                     current3dPosX: defaults.posX, current3dPosY: defaults.posY, current3dPosZ: defaults.posZ,
                     eqLowGain: defaults.eqLow, eqMidGain: defaults.eqMid, eqHighGain: defaults.eqHigh, compressorThreshold: defaults.compThreshold,
-                    autopanRate: defaults.autopanRate, autopanDepth: defaults.autopanDepth,
                 });
-
                 wideningSlider.slider.value = defaults.widening; wideningSlider.valueSpan.textContent = `${defaults.widening.toFixed(1)}x`;
                 hpfSlider.slider.value = defaults.hpf; hpfSlider.valueSpan.textContent = `${defaults.hpf}Hz`;
                 panSlider.slider.value = defaults.pan; panSlider.valueSpan.textContent = defaults.pan.toFixed(1);
@@ -845,9 +702,6 @@
                 eqMidSlider.slider.value = defaults.eqMid; eqMidSlider.valueSpan.textContent = `${defaults.eqMid}dB`;
                 eqHighSlider.slider.value = defaults.eqHigh; eqHighSlider.valueSpan.textContent = `${defaults.eqHigh}dB`;
                 compThresholdSlider.slider.value = defaults.compThreshold; compThresholdSlider.valueSpan.textContent = `${defaults.compThreshold}dB`;
-                autopanRateSlider.slider.value = defaults.autopanRate; autopanRateSlider.valueSpan.textContent = `${defaults.autopanRate.toFixed(1)}Hz`;
-                autopanDepthSlider.slider.value = defaults.autopanDepth; autopanDepthSlider.valueSpan.textContent = defaults.autopanDepth.toFixed(2);
-                reverbPresetSelect.value = "default";
 
                 resetEffectStatesToDefault();
             };
@@ -875,8 +729,6 @@
                 setEqEnabled(state.isEqEnabled);
                 setCompressorEnabled(state.isCompressorEnabled);
                 setAdaptiveWidthEnabled(state.isAdaptiveWidthEnabled);
-                setLimiterEnabled(state.isLimiterEnabled);
-                setAutopanEnabled(state.isAutopanEnabled);
             };
             container.addEventListener('pointerdown', resetFadeTimer);
             updateActiveButtons();
@@ -893,7 +745,6 @@
         };
     })();
 
-    // ... (이하 모든 코드는 이전과 동일) ...
     const mediaSessionManager = (() => {
         let inited = false;
         const getSeekTime = m => { if (!m || !isFinite(m.duration)) return 10; return Math.min(Math.floor(m.duration * CONFIG.SEEK_TIME_PERCENT), CONFIG.SEEK_TIME_MAX_SEC); };
@@ -1129,6 +980,7 @@
         }, 'cleanup');
     }
 
+
     function ensureObservers() {
         if (!mainObserver) {
             mainObserver = new MutationObserver(mutations => {
@@ -1157,12 +1009,12 @@
                     });
                     const newVisibleMedia = mostVisibleEntry ? mostVisibleEntry.target : null;
                     if (state.currentlyVisibleMedia !== newVisibleMedia) {
-                        if (state.currentlyVisibleMedia) {
-                           stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
+                        if(state.currentlyVisibleMedia) {
+                             stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
                         }
                         state.currentlyVisibleMedia = newVisibleMedia;
-                        if (state.currentlyVisibleMedia) {
-                           stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
+                        if(state.currentlyVisibleMedia) {
+                             stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
                         }
                     }
                 }
