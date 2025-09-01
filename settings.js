@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      75.1
-// @description  오디오 UI 개선 및 고급 오디오 필터 추가 (오류 수정)
+// @version      75.2
+// @description  오디오 병렬 처리
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -233,26 +233,47 @@
                 context.close(); return null;
             }
 
-            const nodes = { context, source,
-                eqLow: context.createBiquadFilter(), eqMid: context.createBiquadFilter(), eqHigh: context.createBiquadFilter(),
+            const nodes = {
+                context,
+                source,
+                masterGain: context.createGain(),
+                eqLow: context.createBiquadFilter(),
+                eqMid: context.createBiquadFilter(),
+                eqHigh: context.createBiquadFilter(),
+                eqGain: context.createGain(),
                 compressor: context.createDynamicsCompressor(),
-                ms_splitter: context.createChannelSplitter(2), ms_mid_sum: context.createGain(),
-                ms_mid_level: context.createGain(), ms_side_invert_R: context.createGain(), ms_side_sum: context.createGain(),
-                ms_side_level: context.createGain(), ms_side_gain: context.createGain(), adaptiveWidthFilter: context.createBiquadFilter(),
-                ms_decode_L_sum: context.createGain(), ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
-                hpfWiden: context.createBiquadFilter(), panner3d: context.createPanner(),
-                convolver: context.createConvolver(), wetGainReverb: context.createGain(),
-                stereoPanner: context.createStereoPanner(), analyser: context.createAnalyser(), analyserData: null,
-                lfo: context.createOscillator(), lfoGain: context.createGain(),
-                // [NEW] Crossfeed 노드
-                splitterCrossfeed: context.createChannelSplitter(2),
-                mergerCrossfeed: context.createChannelMerger(2),
-                dryGainL: context.createGain(),
-                dryGainR: context.createGain(),
-                wetGainL: context.createGain(),
-                wetGainR: context.createGain(),
-                crossfeedLPF: context.createBiquadFilter()
+                limiter: context.createDynamicsCompressor(),
+                widener: {
+                    splitter: context.createChannelSplitter(2),
+                    midSum: context.createGain(),
+                    sideSum: context.createGain(),
+                    sideInvertR: context.createGain(),
+                    sideGain: context.createGain(),
+                    adaptiveWidthFilter: context.createBiquadFilter(),
+                    hpfWiden: context.createBiquadFilter(),
+                    merger: context.createChannelMerger(2)
+                },
+                crossfeed: {
+                    splitter: context.createChannelSplitter(2),
+                    merger: context.createChannelMerger(2),
+                    dryGainL: context.createGain(),
+                    dryGainR: context.createGain(),
+                    wetGainL: context.createGain(),
+                    wetGainR: context.createGain(),
+                    lpf: context.createBiquadFilter()
+                },
+                panner3d: context.createPanner(),
+                convolver: context.createConvolver(),
+                reverbGain: context.createGain(),
+                stereoPanner: context.createStereoPanner(),
+                autopanLfo: context.createOscillator(),
+                autopanLfoGain: context.createGain(),
+                sumNode: context.createGain(),
+                analyser: context.createAnalyser(),
+                analyserData: null
             };
+
+            nodes.limiter.threshold.value = -1.0; nodes.limiter.knee.value = 0; nodes.limiter.ratio.value = 20; nodes.limiter.attack.value = 0.005; nodes.limiter.release.value = 0.05;
 
             state.audioContextMap.set(media, nodes);
             reconnectGraph(media);
@@ -264,129 +285,103 @@
             if (!nodes) return;
 
             safeExec(() => {
-                const allNodes = Object.values(nodes);
+                // Disconnect all nodes from each other and the destination
+                const allNodes = Object.values(nodes).filter(n => n && typeof n.disconnect === 'function' && n !== nodes.context);
                 for(const node of allNodes) {
-                    if (node && typeof node.disconnect === 'function' && node !== nodes.context) {
-                        try { node.disconnect(); } catch(e) {}
-                    }
+                    try { node.disconnect(); } catch(e) {}
                 }
-                if (nodes.lfo.state !== 'stopped') {
-                    try { nodes.lfo.stop(); } catch (e) {}
-                    nodes.lfo = nodes.context.createOscillator();
+                // Disconnect nested nodes
+                for(const key in nodes.widener) { try { nodes.widener[key].disconnect(); } catch(e) {} }
+                for(const key in nodes.crossfeed) { try { nodes.crossfeed[key].disconnect(); } catch(e) {} }
+
+
+                // Restart LFO
+                if (nodes.autopanLfo.state !== 'stopped') {
+                    try { nodes.autopanLfo.stop(); } catch (e) {}
+                    nodes.autopanLfo = nodes.context.createOscillator();
                 }
 
+                // Set up common nodes
                 nodes.eqLow.type = 'lowshelf'; nodes.eqLow.frequency.value = 150; nodes.eqLow.gain.value = state.eqLowGain;
                 nodes.eqMid.type = 'peaking'; nodes.eqMid.frequency.value = 1000; nodes.eqMid.Q.value = 1; nodes.eqMid.gain.value = state.eqMidGain;
                 nodes.eqHigh.type = 'highshelf'; nodes.eqHigh.frequency.value = 5000; nodes.eqHigh.gain.value = state.eqHighGain;
+                nodes.eqGain.gain.value = state.isEqEnabled ? 1 : 0;
+                nodes.eqLow.connect(nodes.eqMid).connect(nodes.eqHigh).connect(nodes.eqGain);
 
-                if (state.isCompressorEnabled) {
-                    nodes.compressor.threshold.value = state.compressorThreshold; nodes.compressor.knee.value = 10; nodes.compressor.ratio.value = 4; nodes.compressor.attack.value = 0.01; nodes.compressor.release.value = 0.1;
-                } else if (state.isLimiterEnabled) {
-                    nodes.compressor.threshold.value = -1.0; nodes.compressor.knee.value = 0; nodes.compressor.ratio.value = 20; nodes.compressor.attack.value = 0.005; nodes.compressor.release.value = 0.05;
-                }
+                nodes.compressor.threshold.value = state.compressorThreshold; nodes.compressor.knee.value = 10; nodes.compressor.ratio.value = 4; nodes.compressor.attack.value = 0.01; nodes.compressor.release.value = 0.1;
+                nodes.compressor.connect(nodes.sumNode);
 
                 Object.assign(nodes.panner3d, { panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 1, maxDistance: 10000, rolloffFactor: 1 });
                 nodes.panner3d.positionX.value = state.current3dPosX; nodes.panner3d.positionY.value = state.current3dPosY; nodes.panner3d.positionZ.value = state.current3dPosZ;
+                nodes.panner3d.connect(nodes.sumNode);
 
                 setParamWithFade(nodes.stereoPanner.pan, state.currentStereoPan);
-
                 if (state.isAutopanEnabled) {
-                    nodes.lfo.frequency.value = state.autopanRate;
-                    nodes.lfoGain.gain.value = state.autopanDepth;
-                    nodes.lfo.connect(nodes.lfoGain).connect(nodes.stereoPanner.pan);
-                    if (nodes.lfo.state === 'stopped') {
-                       nodes.lfo.start();
+                    nodes.autopanLfo.frequency.value = state.autopanRate;
+                    nodes.autopanLfoGain.gain.value = state.autopanDepth;
+                    nodes.autopanLfo.connect(nodes.autopanLfoGain).connect(nodes.stereoPanner.pan);
+                    if (nodes.autopanLfo.state === 'stopped') {
+                        nodes.autopanLfo.start();
                     }
                 }
+                nodes.stereoPanner.connect(nodes.sumNode);
 
-                // [NEW] Crossfeed 노드 설정
-                nodes.crossfeedLPF.type = 'lowpass';
-                nodes.crossfeedLPF.frequency.value = 700; // 700Hz LPF는 일반적인 Crossfeed에서 자주 사용됩니다
-                nodes.crossfeedLPF.Q.value = 0.707;
-                nodes.wetGainL.gain.value = state.isCrossfeedEnabled ? state.crossfeedLevel : 0;
-                nodes.wetGainR.gain.value = state.isCrossfeedEnabled ? state.crossfeedLevel : 0;
-                nodes.dryGainL.gain.value = state.isCrossfeedEnabled ? (1 - state.crossfeedLevel) : 1;
-                nodes.dryGainR.gain.value = state.isCrossfeedEnabled ? (1 - state.crossfeedLevel) : 1;
+                // Crossfeed Setup
+                nodes.crossfeed.lpf.type = 'lowpass';
+                nodes.crossfeed.lpf.frequency.value = 700;
+                nodes.crossfeed.lpf.Q.value = 0.707;
+                nodes.crossfeed.dryGainL.gain.value = state.isCrossfeedEnabled ? (1 - state.crossfeedLevel) : 1;
+                nodes.crossfeed.dryGainR.gain.value = state.isCrossfeedEnabled ? (1 - state.crossfeedLevel) : 1;
+                nodes.crossfeed.wetGainL.gain.value = state.isCrossfeedEnabled ? state.crossfeedLevel : 0;
+                nodes.crossfeed.wetGainR.gain.value = state.isCrossfeedEnabled ? state.crossfeedLevel : 0;
+                nodes.crossfeed.splitter.connect(nodes.crossfeed.dryGainL, 0);
+                nodes.crossfeed.splitter.connect(nodes.crossfeed.dryGainR, 1);
+                nodes.crossfeed.dryGainL.connect(nodes.crossfeed.merger, 0, 0);
+                nodes.crossfeed.dryGainR.connect(nodes.crossfeed.merger, 0, 1);
+                nodes.crossfeed.splitter.connect(nodes.crossfeed.lpf, 0, 0);
+                nodes.crossfeed.splitter.connect(nodes.crossfeed.lpf, 1, 0);
+                nodes.crossfeed.lpf.connect(nodes.crossfeed.wetGainL);
+                nodes.crossfeed.lpf.connect(nodes.crossfeed.wetGainR);
+                nodes.crossfeed.wetGainL.connect(nodes.crossfeed.merger, 0, 1);
+                nodes.crossfeed.wetGainR.connect(nodes.crossfeed.merger, 0, 0);
+                nodes.crossfeed.merger.connect(nodes.sumNode);
+
+                // Widener Setup
+                nodes.widener.sideInvertR.gain.value = -1;
+                nodes.widener.sideGain.gain.value = state.currentWideningFactor;
+                nodes.widener.adaptiveWidthFilter.type = 'highpass';
+                nodes.widener.adaptiveWidthFilter.frequency.value = state.isAdaptiveWidthEnabled ? state.adaptiveWidthFreq : 0;
+                nodes.widener.hpfWiden.type = 'highpass';
+                nodes.widener.hpfWiden.frequency.value = state.currentHpfHz;
+                nodes.widener.splitter.connect(nodes.widener.midSum, 0).connect(nodes.widener.merger, 0, 0);
+                nodes.widener.splitter.connect(nodes.widener.midSum, 1).connect(nodes.widener.merger, 0, 1);
+                nodes.widener.splitter.connect(nodes.widener.sideSum, 0).connect(nodes.widener.adaptiveWidthFilter).connect(nodes.widener.sideGain).connect(nodes.widener.merger, 0, 0);
+                nodes.widener.splitter.connect(nodes.widener.sideInvertR, 1).connect(nodes.widener.sideSum).connect(nodes.widener.adaptiveWidthFilter).connect(nodes.widener.sideGain).connect(nodes.widener.merger, 0, 1);
+                nodes.widener.merger.connect(nodes.sumNode);
+
+                // Reverb Setup
+                nodes.convolver.buffer = state.isReverbEnabled ? createSyntheticReverb(nodes.context, state.currentReverbLength, 2.5) : null;
+                nodes.reverbGain.gain.value = state.isReverbEnabled ? state.currentReverbMix : 0;
+                nodes.convolver.connect(nodes.reverbGain).connect(nodes.sumNode);
 
 
-                const finalDestination = (state.isCompressorEnabled || state.isLimiterEnabled) ? nodes.compressor : nodes.context.destination;
-                if (state.isCompressorEnabled || state.isLimiterEnabled) nodes.compressor.connect(nodes.context.destination);
+                // Connect source to all effect chains
+                nodes.source.connect(nodes.eqLow);
+                nodes.source.connect(nodes.compressor);
+                nodes.source.connect(nodes.panner3d);
+                nodes.source.connect(nodes.stereoPanner);
+                nodes.source.connect(nodes.crossfeed.splitter);
+                nodes.source.connect(nodes.widener.splitter);
+                nodes.source.connect(nodes.convolver);
 
-                let lastNodeInChain = nodes.source;
-                if (state.isEqEnabled) {
-                    nodes.eqLow.connect(nodes.eqMid).connect(nodes.eqHigh);
-                    lastNodeInChain.connect(nodes.eqLow);
-                    lastNodeInChain = nodes.eqHigh;
+
+                // Connect sumNode to destination (with optional limiter)
+                if (state.isLimiterEnabled) {
+                    nodes.sumNode.connect(nodes.limiter);
+                    nodes.limiter.connect(nodes.context.destination);
+                } else {
+                    nodes.sumNode.connect(nodes.context.destination);
                 }
-                lastNodeInChain.connect(nodes.stereoPanner);
-                lastNodeInChain = nodes.stereoPanner;
-
-                // [NEW] Crossfeed 로직 연결
-                if (state.isCrossfeedEnabled) {
-                    const inputNode = lastNodeInChain;
-                    inputNode.connect(nodes.splitterCrossfeed);
-
-                    // Dry (원본) 신호 연결
-                    nodes.splitterCrossfeed.connect(nodes.dryGainL, 0);
-                    nodes.splitterCrossfeed.connect(nodes.dryGainR, 1);
-                    nodes.dryGainL.connect(nodes.mergerCrossfeed, 0, 0);
-                    nodes.dryGainR.connect(nodes.mergerCrossfeed, 0, 1);
-
-                    // Wet (교차) 신호 연결 (LPF를 거쳐서)
-                    nodes.splitterCrossfeed.connect(nodes.crossfeedLPF, 0, 0); // L 채널
-                    nodes.splitterCrossfeed.connect(nodes.crossfeedLPF, 1, 0); // R 채널
-
-                    // LPF의 mono 출력 신호를 Crossfeed Gain 노드에 연결
-                    nodes.crossfeedLPF.connect(nodes.wetGainL);
-                    nodes.crossfeedLPF.connect(nodes.wetGainR);
-
-                    // Crossfeed Gain 노드를 Crossfeed Merger 노드에 연결
-                    nodes.wetGainL.connect(nodes.mergerCrossfeed, 0, 1); // L 채널 소리를 R 채널로
-                    nodes.wetGainR.connect(nodes.mergerCrossfeed, 0, 0); // R 채널 소리를 L 채널로
-
-                    lastNodeInChain = nodes.mergerCrossfeed;
-                }
-
-                let positionalPathOutput = lastNodeInChain;
-                if (state.isWideningEnabled) {
-                    nodes.ms_mid_level.gain.value = 0.5;
-                    nodes.ms_side_invert_R.gain.value = -1;
-                    nodes.ms_side_level.gain.value = 0.5;
-                    lastNodeInChain.connect(nodes.ms_splitter);
-                    nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
-                    nodes.ms_mid_sum.connect(nodes.ms_mid_level);
-                    nodes.ms_splitter.connect(nodes.ms_side_sum, 0); nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1);
-                    nodes.ms_side_invert_R.connect(nodes.ms_side_sum);
-                    nodes.ms_side_sum.connect(nodes.ms_side_level);
-                    nodes.adaptiveWidthFilter.type = 'highpass';
-                    nodes.adaptiveWidthFilter.frequency.value = state.isAdaptiveWidthEnabled ? state.adaptiveWidthFreq : 0;
-                    nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
-                    nodes.ms_side_gain.gain.value = state.currentWideningFactor;
-                    nodes.ms_decode_invert_Side.gain.value = -1;
-                    nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
-                    nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side);
-                    nodes.ms_decode_invert_Side.connect(nodes.ms_decode_R_sum);
-                    nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0);
-                    nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
-                    nodes.hpfWiden.type = 'highpass';
-                    nodes.hpfWiden.frequency.value = state.currentHpfHz;
-                    positionalPathOutput = nodes.ms_merger.connect(nodes.hpfWiden);
-                } else if (state.is3dEnabled) {
-                    positionalPathOutput = lastNodeInChain.connect(nodes.panner3d);
-                }
-
-                const mainSignalOutput = positionalPathOutput;
-                mainSignalOutput.connect(finalDestination);
-
-                if (state.isReverbEnabled) {
-                    try {
-                        nodes.convolver.buffer = createSyntheticReverb(nodes.context, state.currentReverbLength, 2.5);
-                        mainSignalOutput.connect(nodes.convolver);
-                        nodes.wetGainReverb.gain.value = state.currentReverbMix;
-                        nodes.convolver.connect(nodes.wetGainReverb).connect(finalDestination);
-                    } catch (e) { console.error("Reverb creation failed:", e); }
-                }
-
                 nodes.stereoPanner.connect(nodes.analyser);
                 nodes.analyser.fftSize = 256;
                 nodes.analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
@@ -406,8 +401,8 @@
             const nodes = state.audioContextMap.get(media);
             if (nodes) {
                 safeExec(() => {
-                    if (nodes.lfo && nodes.lfo.state !== 'stopped') {
-                        try { nodes.lfo.stop(); } catch(e) {}
+                    if (nodes.autopanLfo && nodes.autopanLfo.state !== 'stopped') {
+                        try { nodes.autopanLfo.stop(); } catch(e) {}
                     }
                     nodes.source.disconnect();
                     if (nodes.context.state !== 'closed') nodes.context.close();
@@ -738,7 +733,7 @@
                 wideningSlider.valueSpan.textContent = `${val.toFixed(1)}x`;
                 Array.from(state.activeMedia).forEach(m => {
                     const nodes = stereoWideningManager.getOrCreateNodes(m);
-                    if (nodes?.ms_side_gain) stereoWideningManager.setParamWithFade(nodes.ms_side_gain.gain, val);
+                    if (nodes?.widener?.sideGain) stereoWideningManager.setParamWithFade(nodes.widener.sideGain.gain, val);
                 });
             };
             const panSlider = createSliderControl('Pan (좌우)', 'panSlider', -1, 1, 0.1, state.currentStereoPan, '');
@@ -759,12 +754,12 @@
             autopanRateSlider = createSliderControl('속도', 'autopanRateSlider', 0.1, 10, 0.1, state.autopanRate, 'Hz');
             autopanRateSlider.slider.oninput = () => {
                 const val = parseFloat(autopanRateSlider.slider.value); state.autopanRate = val; autopanRateSlider.valueSpan.textContent = `${val.toFixed(1)}Hz`;
-                Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.lfo.frequency, val); });
+                Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.autopanLfo.frequency, val); });
             };
             autopanDepthSlider = createSliderControl('강도', 'autopanDepthSlider', 0, 1, 0.05, state.autopanDepth, '');
             autopanDepthSlider.slider.oninput = () => {
                 const val = parseFloat(autopanDepthSlider.slider.value); state.autopanDepth = val; autopanDepthSlider.valueSpan.textContent = val.toFixed(2);
-                Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.lfoGain.gain, val); });
+                Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.autopanLfoGain.gain, val); });
             };
             autopanSection.append(autopanBtn, autopanRateSlider.controlDiv, autopanDepthSlider.controlDiv);
 
@@ -773,7 +768,7 @@
                 const val = parseFloat(hpfSlider.slider.value); state.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val}Hz`;
                 Array.from(state.activeMedia).forEach(media => {
                     const nodes = state.audioContextMap.get(media);
-                    if (nodes?.hpfWiden) stereoWideningManager.setParamWithFade(nodes.hpfWiden.frequency, val);
+                    if (nodes?.widener?.hpfWiden) stereoWideningManager.setParamWithFade(nodes.widener.hpfWiden.frequency, val);
                 });
             };
             gridLeft.append(wideningSlider.controlDiv, panSlider.controlDiv, autopanSection, hpfSlider.controlDiv);
@@ -790,10 +785,10 @@
                 Array.from(state.activeMedia).forEach(m => {
                     const nodes = stereoWideningManager.getOrCreateNodes(m);
                     if (nodes) {
-                        nodes.dryGainL.gain.value = 1 - val;
-                        nodes.dryGainR.gain.value = 1 - val;
-                        nodes.wetGainL.gain.value = val;
-                        nodes.wetGainR.gain.value = val;
+                        nodes.crossfeed.dryGainL.gain.value = 1 - val;
+                        nodes.crossfeed.dryGainR.gain.value = 1 - val;
+                        nodes.crossfeed.wetGainL.gain.value = val;
+                        nodes.crossfeed.wetGainR.gain.value = val;
                     }
                 });
             };
@@ -833,7 +828,7 @@
                 reverbSlider.valueSpan.textContent = val.toFixed(2);
                 Array.from(state.activeMedia).forEach(m => {
                     const nodes = stereoWideningManager.getOrCreateNodes(m);
-                    if (nodes?.wetGainReverb) stereoWideningManager.setParamWithFade(nodes.wetGainReverb.gain, val);
+                    if (nodes?.reverbGain) stereoWideningManager.setParamWithFade(nodes.reverbGain.gain, val);
                 });
             };
             reverbLengthSlider = createSliderControl('잔향 길이', 'reverbLengthSlider', 0.1, 4, 0.1, state.currentReverbLength, 's');
@@ -988,9 +983,9 @@
                     autopanDepthSlider.valueSpan.textContent = defaults.autopanDepth.toFixed(2);
                 }
                 if (crossfeedSlider && crossfeedSliderControl.valueSpan) {
-                crossfeedSlider.value = defaults.crossfeed;
-                crossfeedSliderControl.valueSpan.textContent = defaults.crossfeed.toFixed(2);
-                }
+                crossfeedSlider.value = defaults.crossfeed;
+                crossfeedSliderControl.valueSpan.textContent = defaults.crossfeed.toFixed(2);
+                }
                 if (shadowRoot.querySelector('#reverbPresetSelect')) {
                     shadowRoot.querySelector('#reverbPresetSelect').value = "default";
                 }
