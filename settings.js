@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      73.0
-// @description  안정적인 내장 리버브 로직으로 최종 변경, 모든 오디오 오류 해결
+// @version      73.1
+// @description  모바일 환경 오디오 처리 로직 복원 및 안정성 강화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -351,7 +351,8 @@
     })();
 
     function activateAudioContexts() {
-        Array.from(state.activeMedia).forEach(media => stereoWideningManager.ensureContextResumed(media));
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+        mediaToAffect.forEach(media => stereoWideningManager.ensureContextResumed(media));
     }
 
     function setWideningEnabled(enabled) {
@@ -364,7 +365,8 @@
         const slider = state.ui.shadowRoot?.getElementById('wideningSlider');
         if (slider) slider.disabled = !enabled;
 
-        Array.from(state.activeMedia).forEach(stereoWideningManager.reconnectGraph);
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
 
     function set3dEnabled(enabled) {
@@ -382,7 +384,8 @@
             });
         }
 
-        Array.from(state.activeMedia).forEach(stereoWideningManager.reconnectGraph);
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
 
     function setReverbEnabled(enabled) {
@@ -398,7 +401,8 @@
                 if (el) el.disabled = !enabled;
             });
         }
-        Array.from(state.activeMedia).forEach(stereoWideningManager.reconnectGraph);
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
 
     function setEqEnabled(enabled) {
@@ -406,7 +410,8 @@
         state.isEqEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-eq-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-        state.activeMedia.forEach(m => stereoWideningManager.reconnectGraph(m));
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
 
     function setCompressorEnabled(enabled) {
@@ -414,7 +419,8 @@
         state.isCompressorEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-compressor-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-        state.activeMedia.forEach(m => stereoWideningManager.reconnectGraph(m));
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
 
     function setAdaptiveWidthEnabled(enabled) {
@@ -422,7 +428,8 @@
         state.isAdaptiveWidthEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-adaptive-width-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-        Array.from(state.activeMedia).forEach(stereoWideningManager.reconnectGraph);
+        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
 
     function resetEffectStatesToDefault() {
