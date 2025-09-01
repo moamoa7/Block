@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      73.3
-// @description  모바일 환경에서 현재 비디오에 오디오 효과가 적용되지 않던 문제 해결
+// @version      73.4
+// @description  모바일 오디오 효과 적용 대상 오류 수정 및 로직 안정화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -361,10 +361,6 @@
         mediaSet.forEach(media => stereoWideningManager.reconnectGraph(media));
     }
 
-    function disconnectAudioEffectsFromMedia(mediaSet) {
-        mediaSet.forEach(media => stereoWideningManager.reconnectGraph(media));
-    }
-
     function setWideningEnabled(enabled) {
         if (enabled) activateAudioContexts();
         state.isWideningEnabled = !!enabled;
@@ -644,7 +640,8 @@
                 const val = parseFloat(reverbLengthSlider.slider.value);
                 state.currentReverbLength = val;
                 reverbLengthSlider.valueSpan.textContent = `${val.toFixed(1)}s`;
-                Array.from(state.activeMedia).forEach(stereoWideningManager.reconnectGraph);
+                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+                mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
             }, 100);
 
 
@@ -1019,7 +1016,7 @@
                     });
                     const newVisibleMedia = mostVisibleEntry ? mostVisibleEntry.target : null;
                     if (state.currentlyVisibleMedia !== newVisibleMedia) {
-                        // [FIX] Restore logic to disconnect old and apply to new visible media on mobile.
+                        // [FIX] Correctly apply/re-apply audio graph to the single visible media on mobile.
                         if (state.currentlyVisibleMedia) {
                            stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
                         }
