@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      73.1
+// @version      73.2
 // @description  모바일 환경 오디오 처리 로직 복원 및 안정성 강화
 // @match        *://*/*
 // @run-at       document-end
@@ -358,13 +358,10 @@
     function setWideningEnabled(enabled) {
         if (enabled) activateAudioContexts();
         state.isWideningEnabled = !!enabled;
-
         const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-
         const slider = state.ui.shadowRoot?.getElementById('wideningSlider');
         if (slider) slider.disabled = !enabled;
-
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -372,10 +369,8 @@
     function set3dEnabled(enabled) {
         if (enabled) activateAudioContexts();
         state.is3dEnabled = !!enabled;
-
         const btn = state.ui.shadowRoot?.getElementById('vsc-3d-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-
         const shadowRoot = state.ui.shadowRoot;
         if (shadowRoot) {
             ['pannerXSlider', 'pannerYSlider', 'pannerZSlider'].forEach(id => {
@@ -383,7 +378,6 @@
                 if (slider) slider.disabled = !enabled;
             });
         }
-
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -393,7 +387,6 @@
         state.isReverbEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-reverb-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-
         const shadowRoot = state.ui.shadowRoot;
         if (shadowRoot) {
             ['reverbSlider', 'reverbLengthSlider'].forEach(id => {
@@ -1016,7 +1009,13 @@
                     });
                     const newVisibleMedia = mostVisibleEntry ? mostVisibleEntry.target : null;
                     if (state.currentlyVisibleMedia !== newVisibleMedia) {
+                        if(state.currentlyVisibleMedia) {
+                             stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
+                        }
                         state.currentlyVisibleMedia = newVisibleMedia;
+                        if(state.currentlyVisibleMedia) {
+                             stereoWideningManager.reconnectGraph(state.currentlyVisibleMedia);
+                        }
                     }
                 }
             }, {
