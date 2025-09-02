@@ -25,7 +25,7 @@
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_WIDENING_ENABLED: false,
-        DEFAULT_WIDENING_FACTOR: 0.5,
+        DEFAULT_WIDENING_FACTOR: 0.25,
         DEFAULT_STEREO_PAN: 0,
         DEFAULT_3D_ENABLED: false,
         DEFAULT_3D_POS_X: 0,
@@ -53,7 +53,7 @@
         DEFAULT_CROSSFEED_LEVEL: 0.5,
         DEFAULT_VIRTUAL_SPEAKER_ENABLED: false,
         DEFAULT_CLARITY_ENABLED: false,
-        DEFAULT_CLARITY_THRESHOLD: 0, // 명료도 강도 기본값 추가
+        DEFAULT_CLARITY_THRESHOLD: -24, // 명료도 강도 기본값 추가
 
         DEBUG: false, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
@@ -883,7 +883,7 @@
             clarityBtn.onclick = () => setClarityEnabled(!state.isClarityEnabled);
             widenBtnGroup.append(widenBtn, clarityBtn);
 
-            clarityThresholdSlider = createSliderControl('명료도 강도', 'clarityThresholdSlider', -12, 12, 1, state.clarityThreshold, 'dB');
+            clarityThresholdSlider = createSliderControl('명료도 강도', 'clarityThresholdSlider', -48, -12, 1, state.clarityThreshold, 'dB');
             clarityThresholdSlider.slider.oninput = () => {
                 const val = parseFloat(clarityThresholdSlider.slider.value);
                 state.clarityThreshold = val;
