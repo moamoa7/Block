@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video_Image_Control (with Advanced Audio FX)
 // @namespace https://com/
-// @version 84.0 (Master Toggle & UI Consolidation)
-// @description '모든 효과 ON/OFF' 토글 버튼을 추가하여 모든 오디오 필터를 한 번에 켜고 끌 수 있도록 개선. 버튼을 다시 누르면 모든 설정이 초기화되어, 기존 초기화 버튼을 제거하고 UI 공간을 효율적으로 사용.
+// @version 85.0 (Master Toggle & Reset Split)
+// @description 모든 오디오 필터를 켜고 끄는 '모든 효과 ON/OFF' 토글 버튼과 모든 설정을 기본값으로 되돌리는 '초기화' 버튼을 분리하여 기능을 명확히 함.
 // @match *://*/*
 // @run-at document-end
 // @grant none
@@ -618,7 +618,8 @@
             'input[type=range]:disabled, .vsc-select:disabled, .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }',
             '.vsc-button-group { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }',
             '.vsc-button-group > .vsc-btn { flex: 1; min-width: 40%; }',
-            '.vsc-bottom-controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; border-top: 1px solid #555; padding-top: 12px; }',
+            '#vsc-master-toggle { white-space: nowrap; flex-shrink: 0; width: auto; }', // <-- Add this line
+            '.vsc-bottom-controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; border-top: 1px solid #555; padding-top: 12px; }',
             '.vsc-audio-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; }',
             '.vsc-audio-column { display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #444; padding-right: 12px; }',
             '.vsc-audio-column:last-child { border-right: none; padding-right: 0; }',
@@ -749,74 +750,85 @@
                 Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.lfoGainWidth.gain, val); });
             };
 
-            // --- NEW BUTTON AND LOGIC START ---
-            const masterToggleBtn = createButton('vsc-master-toggle', '모든 효과 켜기/끄기 및 초기화', '모든 효과 켜기', 'vsc-btn');
-            const masterToggleContainer = document.createElement('div'); // Wrapper for styling
-            masterToggleContainer.style.marginTop = '10px';
-            masterToggleContainer.style.width = '100%';
-            masterToggleContainer.appendChild(masterToggleBtn);
-
+            // --- MODIFIED/NEW LOGIC START ---
             const areAllEffectsOn = () => {
                 return state.isHpfEnabled && state.isEqEnabled && state.isClarityEnabled && state.isWideningEnabled && state.isAdaptiveWidthEnabled && state.isAutopanEnabled;
             };
 
+            const setAllEffects = (enabled) => {
+                setHpfEnabled(enabled);
+                setEqEnabled(enabled);
+                setClarityEnabled(enabled);
+                setWideningEnabled(enabled);
+                setAdaptiveWidthEnabled(enabled);
+                setAutopanEnabled(enabled);
+            };
+
+            const masterToggleBtn = createButton('vsc-master-toggle', '모든 오디오 효과 켜기/끄기', '모든 효과 ON', 'vsc-btn');
+            const resetBtn = createButton('vsc-reset-all', '모든 오디오 설정 기본값으로 초기화', '초기화', 'vsc-btn');
+
+            const bottomButtonsContainer = document.createElement('div');
+            bottomButtonsContainer.style.cssText = 'display: flex; gap: 8px; width: 100%; margin-top: 10px;';
+            masterToggleBtn.style.flex = '1';
+            resetBtn.style.flex = '1';
+            bottomButtonsContainer.append(masterToggleBtn, resetBtn);
+
             const updateMasterButtonState = () => {
                 if (areAllEffectsOn()) {
-                    masterToggleBtn.textContent = '모든 효과 끄기';
+                    masterToggleBtn.textContent = '모든 효과 OFF';
                     masterToggleBtn.classList.add('active');
                 } else {
-                    masterToggleBtn.textContent = '모든 효과 켜기';
+                    masterToggleBtn.textContent = '모든 효과 ON';
                     masterToggleBtn.classList.remove('active');
                 }
             };
 
-            const resetAllSliderAndState = () => {
-                 const defaults = {
-                    widening: CONFIG.DEFAULT_WIDENING_FACTOR, hpf: CONFIG.EFFECTS_HPF_FREQUENCY, pan: CONFIG.DEFAULT_STEREO_PAN,
-                    eqLow: CONFIG.DEFAULT_EQ_LOW_GAIN, eqMid: CONFIG.DEFAULT_EQ_MID_GAIN, eqHigh: CONFIG.DEFAULT_EQ_HIGH_GAIN,
-                    autopanRate: CONFIG.DEFAULT_AUTOPAN_RATE, autopanDepthPan: CONFIG.DEFAULT_AUTOPAN_DEPTH_PAN, autopanDepthWidth: CONFIG.DEFAULT_AUTOPAN_DEPTH_WIDTH,
-                    clarityThreshold: CONFIG.DEFAULT_CLARITY_THRESHOLD,
-                };
-                Object.assign(state, {
-                    currentWideningFactor: defaults.widening, currentHpfHz: defaults.hpf, currentStereoPan: defaults.pan,
-                    eqLowGain: defaults.eqLow, eqMidGain: defaults.eqMid, eqHighGain: defaults.eqHigh,
-                    autopanRate: defaults.autopanRate, autopanDepthPan: defaults.autopanDepthPan, autopanDepthWidth: defaults.autopanDepthWidth,
-                    clarityThreshold: defaults.clarityThreshold,
-                });
+            const resetAllSliders = () => {
+                  const defaults = {
+                      widening: CONFIG.DEFAULT_WIDENING_FACTOR, hpf: CONFIG.EFFECTS_HPF_FREQUENCY, pan: CONFIG.DEFAULT_STEREO_PAN,
+                      eqLow: CONFIG.DEFAULT_EQ_LOW_GAIN, eqMid: CONFIG.DEFAULT_EQ_MID_GAIN, eqHigh: CONFIG.DEFAULT_EQ_HIGH_GAIN,
+                      autopanRate: CONFIG.DEFAULT_AUTOPAN_RATE, autopanDepthPan: CONFIG.DEFAULT_AUTOPAN_DEPTH_PAN, autopanDepthWidth: CONFIG.DEFAULT_AUTOPAN_DEPTH_WIDTH,
+                      clarityThreshold: CONFIG.DEFAULT_CLARITY_THRESHOLD,
+                  };
+                  Object.assign(state, {
+                      currentWideningFactor: defaults.widening, currentHpfHz: defaults.hpf, currentStereoPan: defaults.pan,
+                      eqLowGain: defaults.eqLow, eqMidGain: defaults.eqMid, eqHighGain: defaults.eqHigh,
+                      autopanRate: defaults.autopanRate, autopanDepthPan: defaults.autopanDepthPan, autopanDepthWidth: defaults.autopanDepthWidth,
+                      clarityThreshold: defaults.clarityThreshold,
+                  });
 
-                if (wideningSlider) { wideningSlider.slider.value = defaults.widening; wideningSlider.valueSpan.textContent = `${defaults.widening.toFixed(1)}x`; }
-                if (hpfSlider) { hpfSlider.slider.value = defaults.hpf; hpfSlider.valueSpan.textContent = `${defaults.hpf}Hz`; }
-                if (panSlider) { panSlider.slider.value = defaults.pan; panSlider.valueSpan.textContent = defaults.pan.toFixed(1); }
-                if (eqLowSlider) { eqLowSlider.slider.value = defaults.eqLow; eqLowSlider.valueSpan.textContent = `${defaults.eqLow}dB`; }
-                if (eqMidSlider) { eqMidSlider.slider.value = defaults.eqMid; eqMidSlider.valueSpan.textContent = `${defaults.eqMid}dB`; }
-                if (eqHighSlider) { eqHighSlider.slider.value = defaults.eqHigh; eqHighSlider.valueSpan.textContent = `${defaults.eqHigh}dB`; }
-                if (autopanRateSlider) { autopanRateSlider.slider.value = defaults.autopanRate; autopanRateSlider.valueSpan.textContent = `${defaults.autopanRate.toFixed(1)}Hz`; }
-                if (panDepthSlider) { panDepthSlider.slider.value = defaults.autopanDepthPan; panDepthSlider.valueSpan.textContent = defaults.autopanDepthPan.toFixed(2); }
-                if (widthDepthSlider) { widthDepthSlider.slider.value = defaults.autopanDepthWidth; widthDepthSlider.valueSpan.textContent = defaults.autopanDepthWidth.toFixed(2); }
-                if (clarityThresholdSlider) { clarityThresholdSlider.slider.value = defaults.clarityThreshold; clarityThresholdSlider.valueSpan.textContent = `${defaults.clarityThreshold}dB`; }
-                if (shadowRoot.querySelector('#eqPresetSelect')) { shadowRoot.querySelector('#eqPresetSelect').value = "flat"; }
+                  if (wideningSlider) { wideningSlider.slider.value = defaults.widening; wideningSlider.valueSpan.textContent = `${defaults.widening.toFixed(1)}x`; }
+                  if (hpfSlider) { hpfSlider.slider.value = defaults.hpf; hpfSlider.valueSpan.textContent = `${defaults.hpf}Hz`; }
+                  if (panSlider) { panSlider.slider.value = defaults.pan; panSlider.valueSpan.textContent = defaults.pan.toFixed(1); }
+                  if (eqLowSlider) { eqLowSlider.slider.value = defaults.eqLow; eqLowSlider.valueSpan.textContent = `${defaults.eqLow}dB`; }
+                  if (eqMidSlider) { eqMidSlider.slider.value = defaults.eqMid; eqMidSlider.valueSpan.textContent = `${defaults.eqMid}dB`; }
+                  if (eqHighSlider) { eqHighSlider.slider.value = defaults.eqHigh; eqHighSlider.valueSpan.textContent = `${defaults.eqHigh}dB`; }
+                  if (autopanRateSlider) { autopanRateSlider.slider.value = defaults.autopanRate; autopanRateSlider.valueSpan.textContent = `${defaults.autopanRate.toFixed(1)}Hz`; }
+                  if (panDepthSlider) { panDepthSlider.slider.value = defaults.autopanDepthPan; panDepthSlider.valueSpan.textContent = defaults.autopanDepthPan.toFixed(2); }
+                  if (widthDepthSlider) { widthDepthSlider.slider.value = defaults.autopanDepthWidth; widthDepthSlider.valueSpan.textContent = defaults.autopanDepthWidth.toFixed(2); }
+                  if (clarityThresholdSlider) { clarityThresholdSlider.slider.value = defaults.clarityThreshold; clarityThresholdSlider.valueSpan.textContent = `${defaults.clarityThreshold}dB`; }
+                  if (shadowRoot.querySelector('#eqPresetSelect')) { shadowRoot.querySelector('#eqPresetSelect').value = "flat"; }
 
-                resetEffectStatesToDefault();
+                  // Reconnect graph to apply new slider values immediately
+                  const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+                  mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
             };
 
             masterToggleBtn.onclick = () => {
                 if (areAllEffectsOn()) {
-                    // Turn OFF and Reset
-                    resetAllSliderAndState();
+                    setAllEffects(false); // Turn OFF
                 } else {
-                    // Turn ON
-                    setHpfEnabled(true);
-                    setEqEnabled(true);
-                    setClarityEnabled(true);
-                    setWideningEnabled(true);
-                    setAdaptiveWidthEnabled(true);
-                    setAutopanEnabled(true);
+                    setAllEffects(true); // Turn ON
                 }
                 updateMasterButtonState();
             };
 
-            column1.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv, masterToggleContainer);
-            // --- NEW BUTTON AND LOGIC END ---
+            resetBtn.onclick = () => {
+                resetAllSliders();
+            };
+
+            column1.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv, bottomButtonsContainer);
+            // --- MODIFIED/NEW LOGIC END ---
 
             const column2 = document.createElement('div');
             column2.className = 'vsc-audio-column';
@@ -868,7 +880,7 @@
 
             audioGridContainer.append(column1, column2);
 
-            stereoSubMenu.append(audioGridContainer); // Removed bottomControls
+            stereoSubMenu.append(audioGridContainer);
 
             container.append(imageGroup, videoGroup, stereoGroup);
 
@@ -890,9 +902,9 @@
 
             // Update master button state whenever an individual button is clicked
             container.addEventListener('click', (e) => {
-                 if (e.target.classList.contains('vsc-btn') && e.target.id !== 'vsc-master-toggle') {
-                    setTimeout(updateMasterButtonState, 50); // Delay to allow state to update
-                }
+                 if (e.target.classList.contains('vsc-btn') && e.target.id !== 'vsc-master-toggle' && e.target.id !== 'vsc-reset-all') {
+                     setTimeout(updateMasterButtonState, 50); // Delay to allow state to update
+                 }
             });
 
             container.addEventListener('pointerdown', resetFadeTimer);
