@@ -735,15 +735,6 @@
                 Array.from(state.activeMedia).forEach(m => { const nodes = stereoWideningManager.getOrCreateNodes(m); if (nodes) stereoWideningManager.setParamWithFade(nodes.stereoPanner.pan, val); });
             };
 
-            const hpfBtn = createButton('vsc-hpf-toggle', 'High-Pass Filter ON/OFF', 'HPF', 'vsc-btn');
-            hpfBtn.onclick = () => setHpfEnabled(!state.isHpfEnabled);
-
-            hpfSlider = createSliderControl('HPF', 'hpfSlider', 0, 500, 5, state.currentHpfHz, 'Hz');
-            hpfSlider.slider.oninput = () => {
-                const val = parseFloat(hpfSlider.slider.value); state.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val}Hz`;
-                Array.from(state.activeMedia).forEach(m => { const nodes = state.audioContextMap.get(m); if (nodes?.hpfWiden) stereoWideningManager.setParamWithFade(nodes.hpfWiden.frequency, val); });
-            };
-
             const autopanBtn = createButton('vsc-autopan-toggle', 'LFO 이펙터 ON/OFF', 'LFO', 'vsc-btn');
             autopanBtn.onclick = () => setAutopanEnabled(!state.isAutopanEnabled);
             autopanRateSlider = createSliderControl('LFO 속도', 'autopanRateSlider', 0.1, 10, 0.1, state.autopanRate, 'Hz');
@@ -761,7 +752,7 @@
                 Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.lfoGainWidth.gain, val); });
             };
 
-            column1.append(widenBtnGroup, clarityThresholdSlider.controlDiv, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv);
+            column1.append(widenBtnGroup, clarityThresholdSlider.controlDiv, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv);
 
             const column2 = document.createElement('div');
             column2.className = 'vsc-audio-column';
@@ -788,7 +779,16 @@
             eqMidSlider = createSliderControl('EQ 중음', 'eqMidSlider', -12, 12, 1, state.eqMidGain, 'dB'); eqMidSlider.slider.oninput = () => { const val = parseFloat(eqMidSlider.slider.value); state.eqMidGain = val; eqMidSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.eqMid.gain, val); }); };
             eqHighSlider = createSliderControl('EQ 고음', 'eqHighSlider', -12, 12, 1, state.eqHighGain, 'dB'); eqHighSlider.slider.oninput = () => { const val = parseFloat(eqHighSlider.slider.value); state.eqHighGain = val; eqHighSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.eqHigh.gain, val); }); };
 
-            column2.append(eqBtn, adaptiveWidthBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv);
+            const hpfBtn = createButton('vsc-hpf-toggle', 'High-Pass Filter ON/OFF', 'HPF', 'vsc-btn');
+            hpfBtn.onclick = () => setHpfEnabled(!state.isHpfEnabled);
+
+            hpfSlider = createSliderControl('HPF', 'hpfSlider', 0, 500, 5, state.currentHpfHz, 'Hz');
+            hpfSlider.slider.oninput = () => {
+                const val = parseFloat(hpfSlider.slider.value); state.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val}Hz`;
+                Array.from(state.activeMedia).forEach(m => { const nodes = state.audioContextMap.get(m); if (nodes?.hpfWiden) stereoWideningManager.setParamWithFade(nodes.hpfWiden.frequency, val); });
+            };
+
+            column2.append(eqBtn, adaptiveWidthBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv);
 
             audioGridContainer.append(column1, column2);
 
