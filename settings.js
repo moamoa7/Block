@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Video_Image_Control (with Advanced Audio FX)
 // @namespace https://com/
-// @version 82.0 (UI/UX Overhaul & Dependency Control)
-// @description UI 구조를 대폭 개선하여 컴프레서와 리미터 섹션을 분리. 각 기능 활성화 시에만 관련 슬라이더(Threshold, 볼륨 보정)가 활성화되도록 수정하여 사용자 경험을 직관적으로 개선.
+// @version 83.0 (UI Dependency & Layout Refinement)
+// @description 'Bass Mono' 버튼이 '스테레오 확장'에 종속되도록 UI 로직을 수정. 스테레오 확장이 활성화될 때만 Bass Mono 버튼이 활성화되며, 관련 버튼들의 위치를 재배치하여 사용자 경험의 직관성을 높임.
 // @match *://*/*
 // @run-at document-end
 // @grant none
@@ -449,6 +449,17 @@
         const slider = state.ui.shadowRoot?.getElementById('wideningSlider');
         if (slider) slider.disabled = !enabled;
 
+        // --- MODIFIED PART START ---
+        const adaptiveWidthBtn = state.ui.shadowRoot?.getElementById('vsc-adaptive-width-toggle');
+        if (adaptiveWidthBtn) {
+            adaptiveWidthBtn.disabled = !enabled;
+            if (!enabled) {
+                // If widening is disabled, also disable adaptive width and reset its button state
+                setAdaptiveWidthEnabled(false);
+            }
+        }
+        // --- MODIFIED PART END ---
+
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -702,26 +713,17 @@
             const column1 = document.createElement('div');
             column1.className = 'vsc-audio-column';
 
+            // --- MODIFIED LAYOUT START ---
             const widenBtnGroup = document.createElement('div');
             widenBtnGroup.className = 'vsc-button-group';
             const widenBtn = createButton('vsc-widen-toggle', '스테레오 확장 ON/OFF', '스테레오 확장', 'vsc-btn');
             widenBtn.onclick = () => setWideningEnabled(!state.isWideningEnabled);
-            const clarityBtn = createButton('clarityBtn', '명료도 향상 ON/OFF', '명료도 향상', 'vsc-btn');
-            clarityBtn.onclick = () => setClarityEnabled(!state.isClarityEnabled);
-            widenBtnGroup.append(widenBtn, clarityBtn);
+            const adaptiveWidthBtn = createButton('vsc-adaptive-width-toggle', '저역 폭 제어 ON/OFF', 'Bass Mono', 'vsc-btn');
+            adaptiveWidthBtn.onclick = () => setAdaptiveWidthEnabled(!state.isAdaptiveWidthEnabled);
+            adaptiveWidthBtn.disabled = !state.isWideningEnabled; // Initially disable if widening is off
 
-            clarityThresholdSlider = createSliderControl('명료도 강도', 'clarityThresholdSlider', -60, 0, 1, state.clarityThreshold, 'dB');
-            clarityThresholdSlider.slider.oninput = () => {
-                const val = parseFloat(clarityThresholdSlider.slider.value);
-                state.clarityThreshold = val;
-                clarityThresholdSlider.valueSpan.textContent = `${val.toFixed(0)}dB`;
-                Array.from(state.activeMedia).forEach(m => {
-                    const nodes = stereoWideningManager.getOrCreateNodes(m);
-                    if (nodes?.clarityCompressor) {
-                        stereoWideningManager.setParamWithFade(nodes.clarityCompressor.threshold, val);
-                    }
-                });
-            };
+            widenBtnGroup.append(widenBtn, adaptiveWidthBtn);
+            // --- MODIFIED LAYOUT END ---
 
             wideningSlider = createSliderControl('강도', 'wideningSlider', 0, 3, 0.1, state.currentWideningFactor, 'x');
             wideningSlider.slider.oninput = () => {
@@ -752,16 +754,13 @@
                 Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.lfoGainWidth.gain, val); });
             };
 
-            column1.append(widenBtnGroup, clarityThresholdSlider.controlDiv, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv);
+            column1.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv);
 
             const column2 = document.createElement('div');
             column2.className = 'vsc-audio-column';
 
-            // --- Column 2: EQ and General Effects ---
             const eqBtn = createButton('vsc-eq-toggle', '3-Band EQ ON/OFF', 'EQ', 'vsc-btn');
             eqBtn.onclick = () => setEqEnabled(!state.isEqEnabled);
-            const adaptiveWidthBtn = createButton('vsc-adaptive-width-toggle', '저역 폭 제어 ON/OFF', 'Bass Mono', 'vsc-btn');
-            adaptiveWidthBtn.onclick = () => setAdaptiveWidthEnabled(!state.isAdaptiveWidthEnabled);
 
             const eqPresets = [ { value: 'flat', text: '기본 프리셋', low: 0, mid: 0, high: 0 }, { value: 'music', text: '음악', low: 4, mid: -2, high: 4 }, { value: 'movie', text: '영화', low: 3, mid: 0, high: 3 }, { value: 'smile_curve', text: '명료도 향상', low: -2, mid: 0, high: 3 }, { value: 'vocal_boost', text: '보컬 강조', low: -3, mid: 6, high: 3 }, { value: 'full_boost', text: '전체 강조', low: 6, mid: 6, high: 6 }, ];
             const eqPresetSelect = createSelectControl(null, eqPresets, (val) => {
@@ -779,6 +778,23 @@
             eqMidSlider = createSliderControl('EQ 중음', 'eqMidSlider', -12, 12, 1, state.eqMidGain, 'dB'); eqMidSlider.slider.oninput = () => { const val = parseFloat(eqMidSlider.slider.value); state.eqMidGain = val; eqMidSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.eqMid.gain, val); }); };
             eqHighSlider = createSliderControl('EQ 고음', 'eqHighSlider', -12, 12, 1, state.eqHighGain, 'dB'); eqHighSlider.slider.oninput = () => { const val = parseFloat(eqHighSlider.slider.value); state.eqHighGain = val; eqHighSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.eqHigh.gain, val); }); };
 
+            // --- MODIFIED LAYOUT START ---
+            const clarityBtn = createButton('clarityBtn', '명료도 향상 ON/OFF', '명료도 향상', 'vsc-btn');
+            clarityBtn.onclick = () => setClarityEnabled(!state.isClarityEnabled);
+            clarityThresholdSlider = createSliderControl('명료도 강도', 'clarityThresholdSlider', -60, 0, 1, state.clarityThreshold, 'dB');
+            clarityThresholdSlider.slider.oninput = () => {
+                const val = parseFloat(clarityThresholdSlider.slider.value);
+                state.clarityThreshold = val;
+                clarityThresholdSlider.valueSpan.textContent = `${val.toFixed(0)}dB`;
+                Array.from(state.activeMedia).forEach(m => {
+                    const nodes = stereoWideningManager.getOrCreateNodes(m);
+                    if (nodes?.clarityCompressor) {
+                        stereoWideningManager.setParamWithFade(nodes.clarityCompressor.threshold, val);
+                    }
+                });
+            };
+            // --- MODIFIED LAYOUT END ---
+
             const hpfBtn = createButton('vsc-hpf-toggle', 'High-Pass Filter ON/OFF', 'HPF', 'vsc-btn');
             hpfBtn.onclick = () => setHpfEnabled(!state.isHpfEnabled);
 
@@ -788,7 +804,9 @@
                 Array.from(state.activeMedia).forEach(m => { const nodes = state.audioContextMap.get(m); if (nodes?.hpfWiden) stereoWideningManager.setParamWithFade(nodes.hpfWiden.frequency, val); });
             };
 
-            column2.append(eqBtn, adaptiveWidthBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv);
+            // --- MODIFIED LAYOUT START ---
+            column2.append(eqBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, createDivider(), clarityBtn, clarityThresholdSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv);
+            // --- MODIFIED LAYOUT END ---
 
             audioGridContainer.append(column1, column2);
 
@@ -841,6 +859,8 @@
                 setEqEnabled(state.isEqEnabled);
                 setAutopanEnabled(state.isAutopanEnabled);
                 setClarityEnabled(state.isClarityEnabled);
+                // Also update adaptive width button state on initial render
+                setAdaptiveWidthEnabled(state.isAdaptiveWidthEnabled);
             };
             container.addEventListener('pointerdown', resetFadeTimer);
             updateActiveButtons();
