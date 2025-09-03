@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      79.6 (Clarity FX Control & UI Interactivity)
-// @description  UI/UX 개선: 기능 종속성에 따라 버튼 활성화/비활성화. 명료도 강도 조절 슬라이더 추가.
+// @version      82.0 (UI/UX Overhaul & Dependency Control)
+// @description  UI 구조를 대폭 개선하여 컴프레서와 리미터 섹션을 분리. 각 기능 활성화 시에만 관련 슬라이더(Threshold, 볼륨 보정)가 활성화되도록 수정하여 사용자 경험을 직관적으로 개선.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -25,17 +25,10 @@
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_WIDENING_ENABLED: false,
-        DEFAULT_WIDENING_FACTOR: 0.25,
+        DEFAULT_WIDENING_FACTOR: 1.5,
         DEFAULT_STEREO_PAN: 0,
-        DEFAULT_3D_ENABLED: false,
-        DEFAULT_3D_POS_X: 0,
-        DEFAULT_3D_POS_Y: 0,
-        DEFAULT_3D_POS_Z: -1,
-        DEFAULT_REVERB_ENABLED: false,
-        DEFAULT_REVERB_MIX: 0.2,
-        DEFAULT_REVERB_LENGTH: 1.5,
-        DEFAULT_ER_MIX: 0.15,
-        EFFECTS_HPF_FREQUENCY: 120,
+        DEFAULT_HPF_ENABLED: false,
+        EFFECTS_HPF_FREQUENCY: 300,
         DEFAULT_EQ_ENABLED: false,
         DEFAULT_EQ_LOW_GAIN: 0,
         DEFAULT_EQ_MID_GAIN: 0,
@@ -45,15 +38,14 @@
         DEFAULT_ADAPTIVE_WIDTH_ENABLED: false,
         DEFAULT_ADAPTIVE_WIDTH_FREQ: 150,
         DEFAULT_LIMITER_ENABLED: false,
+        DEFAULT_LIMITER_THRESHOLD: -12.0,
         DEFAULT_AUTOPAN_ENABLED: false,
-        DEFAULT_AUTOPAN_RATE: 0.5,
-        DEFAULT_AUTOPAN_DEPTH_PAN: 0.8,
-        DEFAULT_AUTOPAN_DEPTH_WIDTH: 0.2,
-        DEFAULT_CROSSFEED_ENABLED: false,
-        DEFAULT_CROSSFEED_LEVEL: 0.5,
-        DEFAULT_VIRTUAL_SPEAKER_ENABLED: false,
+        DEFAULT_AUTOPAN_RATE: 2,
+        DEFAULT_AUTOPAN_DEPTH_PAN: 0.2,
+        DEFAULT_AUTOPAN_DEPTH_WIDTH: 1.0,
         DEFAULT_CLARITY_ENABLED: false,
-        DEFAULT_CLARITY_THRESHOLD: -24, // 명료도 강도 기본값 추가
+        DEFAULT_CLARITY_THRESHOLD: -24,
+        DEFAULT_PRE_GAIN: 3.0, // Pre-Gain for Limiter
 
         DEBUG: false, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
@@ -106,15 +98,8 @@
             audioContextMap: new WeakMap(),
             currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
             currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
+            isHpfEnabled: CONFIG.DEFAULT_HPF_ENABLED,
             currentStereoPan: CONFIG.DEFAULT_STEREO_PAN,
-            is3dEnabled: CONFIG.DEFAULT_3D_ENABLED,
-            current3dPosX: CONFIG.DEFAULT_3D_POS_X,
-            current3dPosY: CONFIG.DEFAULT_3D_POS_Y,
-            current3dPosZ: CONFIG.DEFAULT_3D_POS_Z,
-            isReverbEnabled: CONFIG.DEFAULT_REVERB_ENABLED,
-            currentReverbMix: CONFIG.DEFAULT_REVERB_MIX,
-            currentReverbLength: CONFIG.DEFAULT_REVERB_LENGTH,
-            currentErMix: CONFIG.DEFAULT_ER_MIX,
             isEqEnabled: CONFIG.DEFAULT_EQ_ENABLED,
             eqLowGain: CONFIG.DEFAULT_EQ_LOW_GAIN,
             eqMidGain: CONFIG.DEFAULT_EQ_MID_GAIN,
@@ -124,15 +109,14 @@
             isAdaptiveWidthEnabled: CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED,
             adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
             isLimiterEnabled: CONFIG.DEFAULT_LIMITER_ENABLED,
+            limiterThreshold: CONFIG.DEFAULT_LIMITER_THRESHOLD,
             isAutopanEnabled: CONFIG.DEFAULT_AUTOPAN_ENABLED,
             autopanRate: CONFIG.DEFAULT_AUTOPAN_RATE,
             autopanDepthPan: CONFIG.DEFAULT_AUTOPAN_DEPTH_PAN,
             autopanDepthWidth: CONFIG.DEFAULT_AUTOPAN_DEPTH_WIDTH,
-            isCrossfeedEnabled: CONFIG.DEFAULT_CROSSFEED_ENABLED,
-            crossfeedLevel: CONFIG.DEFAULT_CROSSFEED_LEVEL,
-            isVirtualSpeakerEnabled: CONFIG.DEFAULT_VIRTUAL_SPEAKER_ENABLED,
             isClarityEnabled: CONFIG.DEFAULT_CLARITY_ENABLED,
-            clarityThreshold: CONFIG.DEFAULT_CLARITY_THRESHOLD, // 명료도 강도 상태 추가
+            clarityThreshold: CONFIG.DEFAULT_CLARITY_THRESHOLD,
+            currentPreGain: CONFIG.DEFAULT_PRE_GAIN,
             ui: { shadowRoot: null, hostElement: null }, delayCheckInterval: null,
             currentPlaybackRate: 1.0, mediaTypesEverFound: { video: false, image: false }, lastUrl: '',
             audioContextWarningShown: false
@@ -200,19 +184,6 @@
     const stereoWideningManager = (() => {
         const analysisStatusMap = new WeakMap();
 
-        function createSyntheticReverb(context, duration, decay) {
-            const sampleRate = context.sampleRate;
-            const length = sampleRate * duration;
-            const buffer = context.createBuffer(2, length, sampleRate);
-            for (let channel = 0; channel < 2; channel++) {
-                const channelData = buffer.getChannelData(channel);
-                for (let i = 0; i < length; i++) {
-                    channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
-                }
-            }
-            return buffer;
-        }
-
         const setParamWithFade = (audioParam, targetValue, duration = 0.05) => {
             if (!audioParam || !isFinite(targetValue)) return;
             const ctx = audioParam.context;
@@ -242,23 +213,12 @@
                 ms_mid_level: context.createGain(), ms_side_invert_R: context.createGain(), ms_side_sum: context.createGain(),
                 ms_side_level: context.createGain(), ms_side_gain: context.createGain(), adaptiveWidthFilter: context.createBiquadFilter(),
                 ms_decode_L_sum: context.createGain(), ms_decode_invert_Side: context.createGain(), ms_decode_R_sum: context.createGain(), ms_merger: context.createChannelMerger(2),
-                hpfWiden: context.createBiquadFilter(), panner3d: context.createPanner(),
-                convolver: context.createConvolver(), wetGainReverb: context.createGain(),
+                hpfWiden: context.createBiquadFilter(),
                 stereoPanner: context.createStereoPanner(), analyser: context.createAnalyser(), analyserData: null,
                 lfo: context.createOscillator(),
                 lfoGainPan: context.createGain(),
                 lfoGainWidth: context.createGain(),
-                splitterCrossfeed: context.createChannelSplitter(2),
-                mergerCrossfeed: context.createChannelMerger(2),
-                dryGainL: context.createGain(), dryGainR: context.createGain(),
-                wetGainL: context.createGain(), wetGainR: context.createGain(),
-                crossfeedLPFL: context.createBiquadFilter(), crossfeedLPFR: context.createBiquadFilter(),
-                masterGain: context.createGain(),
-                erMasterGain: context.createGain(),
-                erDelay1: context.createDelay(0.5), erPanner1: context.createStereoPanner(),
-                erDelay2: context.createDelay(0.5), erPanner2: context.createStereoPanner(),
-                erDelay3: context.createDelay(0.5), erPanner3: context.createStereoPanner(),
-                erDelay4: context.createDelay(0.5), erPanner4: context.createStereoPanner(),
+                preGain: context.createGain(), // Changed from masterGain to preGain for clarity
                 clarityCompressor: context.createDynamicsCompressor(),
             };
 
@@ -272,7 +232,7 @@
             if (!nodes) return;
 
             const FADE_DURATION = 0.02;
-            setParamWithFade(nodes.masterGain.gain, 0, FADE_DURATION);
+            setParamWithFade(nodes.preGain.gain, 0, FADE_DURATION);
 
             setTimeout(() => {
                 if (nodes.context.state === 'closed') return;
@@ -293,9 +253,17 @@
                     nodes.eqHigh.type = 'highshelf'; nodes.eqHigh.frequency.value = 5000; nodes.eqHigh.gain.value = state.eqHighGain;
 
                     if (state.isCompressorEnabled) {
-                        nodes.compressor.threshold.value = state.compressorThreshold; nodes.compressor.knee.value = 10; nodes.compressor.ratio.value = 4; nodes.compressor.attack.value = 0.01; nodes.compressor.release.value = 0.1;
+                        nodes.compressor.threshold.value = state.compressorThreshold;
+                        nodes.compressor.knee.value = 10;
+                        nodes.compressor.ratio.value = 4;
+                        nodes.compressor.attack.value = 0.01;
+                        nodes.compressor.release.value = 0.1;
                     } else if (state.isLimiterEnabled) {
-                        nodes.compressor.threshold.value = -1.0; nodes.compressor.knee.value = 0; nodes.compressor.ratio.value = 20; nodes.compressor.attack.value = 0.005; nodes.compressor.release.value = 0.05;
+                        nodes.compressor.threshold.value = state.limiterThreshold;
+                        nodes.compressor.knee.value = 0;
+                        nodes.compressor.ratio.value = 10;
+                        nodes.compressor.attack.value = 0.001;
+                        nodes.compressor.release.value = 0.06;
                     }
 
                     if (state.isClarityEnabled) {
@@ -305,9 +273,6 @@
                         nodes.clarityCompressor.attack.value = 0.01;
                         nodes.clarityCompressor.release.value = 0.25;
                     }
-
-                    Object.assign(nodes.panner3d, { panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 1, maxDistance: 10000, rolloffFactor: 1 });
-                    nodes.panner3d.positionX.value = state.current3dPosX; nodes.panner3d.positionY.value = state.current3dPosY; nodes.panner3d.positionZ.value = state.current3dPosZ;
 
                     setParamWithFade(nodes.stereoPanner.pan, state.currentStereoPan);
 
@@ -324,25 +289,6 @@
                         }
                     }
 
-                    const setupCrossfeedFilter = (filter) => {
-                        filter.type = 'lowpass';
-                        filter.frequency.value = 700;
-                        filter.Q.value = 0.707;
-                    };
-                    setupCrossfeedFilter(nodes.crossfeedLPFL);
-                    setupCrossfeedFilter(nodes.crossfeedLPFR);
-
-                    nodes.wetGainL.gain.value = state.isCrossfeedEnabled || state.isVirtualSpeakerEnabled ? state.crossfeedLevel : 0;
-                    nodes.wetGainR.gain.value = state.isCrossfeedEnabled || state.isVirtualSpeakerEnabled ? state.crossfeedLevel : 0;
-                    nodes.dryGainL.gain.value = state.isCrossfeedEnabled || state.isVirtualSpeakerEnabled ? (1 - state.crossfeedLevel) : 1;
-                    nodes.dryGainR.gain.value = state.isCrossfeedEnabled || state.isVirtualSpeakerEnabled ? (1 - state.crossfeedLevel) : 1;
-
-                    const finalProcessingNode = (state.isCompressorEnabled || state.isLimiterEnabled) ? nodes.compressor : nodes.masterGain;
-                    if (state.isCompressorEnabled || state.isLimiterEnabled) {
-                        nodes.compressor.connect(nodes.masterGain);
-                    }
-                    nodes.masterGain.connect(nodes.context.destination);
-
                     let lastNodeInChain = nodes.source;
                     if (state.isEqEnabled) {
                         nodes.eqLow.connect(nodes.eqMid).connect(nodes.eqHigh);
@@ -352,52 +298,35 @@
                     lastNodeInChain.connect(nodes.stereoPanner);
                     lastNodeInChain = nodes.stereoPanner;
 
-                    let positionalPathOutput = lastNodeInChain;
-                    if (state.is3dEnabled) {
-                        positionalPathOutput = lastNodeInChain.connect(nodes.panner3d);
+                    nodes.hpfWiden.type = 'highpass';
+                    nodes.hpfWiden.frequency.value = state.currentHpfHz;
+                    if (state.isHpfEnabled) {
+                        lastNodeInChain.connect(nodes.hpfWiden);
+                        lastNodeInChain = nodes.hpfWiden;
                     }
 
-                    let crossfeedInput = positionalPathOutput;
-                    if (state.isCrossfeedEnabled || (state.isVirtualSpeakerEnabled && state.is3dEnabled)) {
-                        crossfeedInput.connect(nodes.splitterCrossfeed);
-                        nodes.splitterCrossfeed.connect(nodes.dryGainL, 0).connect(nodes.mergerCrossfeed, 0, 0);
-                        nodes.splitterCrossfeed.connect(nodes.dryGainR, 1).connect(nodes.mergerCrossfeed, 0, 1);
-                        nodes.splitterCrossfeed.connect(nodes.crossfeedLPFL, 0).connect(nodes.wetGainR).connect(nodes.mergerCrossfeed, 0, 1);
-                        nodes.splitterCrossfeed.connect(nodes.crossfeedLPFR, 1).connect(nodes.wetGainL).connect(nodes.mergerCrossfeed, 0, 0);
-                        crossfeedInput = nodes.mergerCrossfeed;
+                    if (state.isClarityEnabled) {
+                        lastNodeInChain.connect(nodes.clarityCompressor);
+                        lastNodeInChain = nodes.clarityCompressor;
                     }
 
                     let wideningOutput;
                     if (state.isWideningEnabled) {
-                        const wideningInput = crossfeedInput;
+                        const wideningInput = lastNodeInChain;
                         wideningInput.connect(nodes.ms_splitter);
 
-                        // == VSC Stereo Widening FIX START ==
-                        // 원본 코드의 게인 보정 누락으로 인한 볼륨 및 밸런스 붕괴 문제를 수정합니다.
-                        // 표준 M/S 처리 행렬에 맞춰 로직을 재구성합니다.
-
-                        // Mid 채널 인코딩: M = (L+R) * 0.5
                         nodes.ms_splitter.connect(nodes.ms_mid_sum, 0);
                         nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
-                        nodes.ms_mid_level.gain.value = 0.5; // 게인 보정
+                        nodes.ms_mid_level.gain.value = 0.5;
                         nodes.ms_mid_sum.connect(nodes.ms_mid_level);
 
-                        // Side 채널 인코딩: S = (L-R) * 0.5
-                        nodes.ms_side_invert_R.gain.value = -1; // R 채널 위상 반전
+                        nodes.ms_side_invert_R.gain.value = -1;
                         nodes.ms_splitter.connect(nodes.ms_side_sum, 0);
                         nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1).connect(nodes.ms_side_sum);
-                        nodes.ms_side_level.gain.value = 0.5; // 게인 보정
+                        nodes.ms_side_level.gain.value = 0.5;
                         nodes.ms_side_sum.connect(nodes.ms_side_level);
 
-                        // == VSC Stereo Widening FIX END ==
-
-                        let sideChain = nodes.ms_side_level;
-                        if (state.isClarityEnabled) {
-                            const midChain = nodes.ms_mid_level.connect(nodes.clarityCompressor);
-                            sideChain = nodes.ms_side_level.connect(nodes.clarityCompressor);
-                        }
-
-                        sideChain.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
+                        nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
 
                         nodes.adaptiveWidthFilter.type = 'highpass';
                         nodes.adaptiveWidthFilter.frequency.value = state.isAdaptiveWidthEnabled ? state.adaptiveWidthFreq : 0;
@@ -405,7 +334,6 @@
                             nodes.ms_side_gain.gain.value = state.currentWideningFactor;
                         }
 
-                        // 디코딩: L' = M + S', R' = M - S'
                         nodes.ms_decode_invert_Side.gain.value = -1;
                         nodes.ms_mid_level.connect(nodes.ms_decode_L_sum);
                         nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
@@ -414,46 +342,35 @@
                         nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0);
                         nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
 
-                        nodes.hpfWiden.type = 'highpass';
-                        nodes.hpfWiden.frequency.value = state.currentHpfHz;
-                        wideningOutput = nodes.ms_merger.connect(nodes.hpfWiden);
+                        wideningOutput = nodes.ms_merger;
                     } else {
-                        wideningOutput = crossfeedInput;
+                        wideningOutput = lastNodeInChain;
                     }
 
-                    const mainSignalOutput = wideningOutput;
-                    mainSignalOutput.connect(finalProcessingNode);
+                    // --- CORRECTED SIGNAL CHAIN LOGIC ---
+                    let lastNode = wideningOutput;
 
-                    if (state.isReverbEnabled) {
-                        try {
-                            nodes.convolver.buffer = createSyntheticReverb(nodes.context, state.currentReverbLength, 2.5);
-                            mainSignalOutput.connect(nodes.convolver);
-                            nodes.wetGainReverb.gain.value = state.currentReverbMix;
-                            nodes.convolver.connect(nodes.wetGainReverb).connect(finalProcessingNode);
-                        } catch (e) { console.error("Reverb creation failed:", e); }
-
-                        try {
-                            mainSignalOutput.connect(nodes.erMasterGain);
-                            const erTaps = [
-                                { delay: nodes.erDelay1, panner: nodes.erPanner1, time: 0.023, pan: -0.8 },
-                                { delay: nodes.erDelay2, panner: nodes.erPanner2, time: 0.047, pan: 0.6 },
-                                { delay: nodes.erDelay3, panner: nodes.erPanner3, time: 0.061, pan: -0.4 },
-                                { delay: nodes.erDelay4, panner: nodes.erPanner4, time: 0.083, pan: 0.9 },
-                            ];
-                            erTaps.forEach(tap => {
-                                tap.delay.delayTime.value = tap.time;
-                                tap.panner.pan.value = tap.pan;
-                                nodes.erMasterGain.connect(tap.delay).connect(tap.panner).connect(finalProcessingNode);
-                            });
-                            setParamWithFade(nodes.erMasterGain.gain, state.currentErMix);
-                        } catch (e) { console.error("Early Reflection creation failed:", e); }
+                    // 1. Apply Pre-Gain (Volume Compensation) if Limiter is active.
+                    if (state.isLimiterEnabled) {
+                        lastNode.connect(nodes.preGain);
+                        lastNode = nodes.preGain;
                     }
+
+                    // 2. Conditionally send the (potentially amplified) signal through the compressor/limiter.
+                    if (state.isCompressorEnabled || state.isLimiterEnabled) {
+                        lastNode.connect(nodes.compressor);
+                        lastNode = nodes.compressor;
+                    }
+
+                    // 3. Connect the final processed signal to the destination (speakers).
+                    lastNode.connect(nodes.context.destination);
+                    // --- END OF LOGIC ---
 
                     nodes.stereoPanner.connect(nodes.analyser);
                     nodes.analyser.fftSize = 256;
                     nodes.analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
 
-                    setParamWithFade(nodes.masterGain.gain, 1, FADE_DURATION);
+                    setParamWithFade(nodes.preGain.gain, state.currentPreGain, FADE_DURATION);
                 }, 'reconnectGraph');
 
             }, FADE_DURATION * 1000);
@@ -543,13 +460,7 @@
         }
 
         return {
-            getOrCreateNodes, setParamWithFade, reconnectGraph, createSyntheticReverb,
-            updatePannerPosition: (m, x, y, z) => {
-                const n = getOrCreateNodes(m);
-                if (n?.panner3d) {
-                    setParamWithFade(n.panner3d.positionX, x); setParamWithFade(n.panner3d.positionY, y); setParamWithFade(n.panner3d.positionZ, z);
-                }
-            },
+            getOrCreateNodes, setParamWithFade, reconnectGraph,
             cleanupForMedia, ensureContextResumed,
         };
     })();
@@ -569,14 +480,6 @@
         const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
         if (btn) btn.classList.toggle('active', enabled);
 
-        const clarityBtn = state.ui.shadowRoot?.getElementById('clarityBtn');
-        if(clarityBtn) clarityBtn.disabled = !enabled;
-
-        // 스테레오 확장이 꺼지면, 명료도 향상도 강제로 끈다.
-        if (!enabled && state.isClarityEnabled) {
-            setClarityEnabled(false);
-        }
-
         const slider = state.ui.shadowRoot?.getElementById('wideningSlider');
         if (slider) slider.disabled = !enabled;
 
@@ -584,43 +487,15 @@
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
 
-    function set3dEnabled(enabled) {
+    function setHpfEnabled(enabled) {
         if (enabled) activateAudioContexts();
-        state.is3dEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('vsc-3d-toggle');
+        state.isHpfEnabled = !!enabled;
+        const btn = state.ui.shadowRoot?.getElementById('vsc-hpf-toggle');
         if (btn) btn.classList.toggle('active', enabled);
 
-        const virtualSpeakerBtn = state.ui.shadowRoot?.getElementById('virtualSpeakerBtn');
-        if(virtualSpeakerBtn) virtualSpeakerBtn.disabled = !enabled;
+        const slider = state.ui.shadowRoot?.getElementById('hpfSlider');
+        if(slider) slider.disabled = !enabled;
 
-        // 3D가 꺼지면, 가상 스피커도 강제로 끈다.
-        if (!enabled && state.isVirtualSpeakerEnabled) {
-            setVirtualSpeakerEnabled(false);
-        }
-
-        const shadowRoot = state.ui.shadowRoot;
-        if (shadowRoot) {
-            ['pannerXSlider', 'pannerYSlider', 'pannerZSlider'].forEach(id => {
-                const el = shadowRoot.getElementById(id);
-                if (el) el.disabled = !enabled;
-            });
-        }
-        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
-        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
-    }
-
-    function setReverbEnabled(enabled) {
-        if (enabled) activateAudioContexts();
-        state.isReverbEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('vsc-reverb-toggle');
-        if (btn) btn.classList.toggle('active', enabled);
-        const shadowRoot = state.ui.shadowRoot;
-        if (shadowRoot) {
-            ['reverbSlider', 'reverbLengthSlider', 'reverbPresetSelect', 'erMixSlider'].forEach(id => {
-                const el = shadowRoot.getElementById(id);
-                if (el) el.disabled = !enabled;
-            });
-        }
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -637,11 +512,15 @@
     function setCompressorEnabled(enabled) {
         if (enabled) {
             activateAudioContexts();
-            setLimiterEnabled(false);
+            setLimiterEnabled(false); // Ensure limiter is off
         }
         state.isCompressorEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-compressor-toggle');
         if (btn) btn.classList.toggle('active', enabled);
+
+        const slider = state.ui.shadowRoot?.getElementById('compThresholdSlider');
+        if (slider) slider.disabled = !enabled;
+
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -649,11 +528,17 @@
     function setLimiterEnabled(enabled) {
         if (enabled) {
             activateAudioContexts();
-            setCompressorEnabled(false);
+            setCompressorEnabled(false); // Ensure compressor is off
         }
         state.isLimiterEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-limiter-toggle');
         if (btn) btn.classList.toggle('active', enabled);
+
+        const preGainSlider = state.ui.shadowRoot?.getElementById('preGainSlider');
+        if (preGainSlider) preGainSlider.disabled = !enabled;
+        const limiterSlider = state.ui.shadowRoot?.getElementById('limiterThresholdSlider');
+        if (limiterSlider) limiterSlider.disabled = !enabled;
+
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -689,26 +574,6 @@
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
 
-    function setCrossfeedEnabled(enabled) {
-        if (enabled) activateAudioContexts();
-        state.isCrossfeedEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('vsc-crossfeed-toggle');
-        if (btn) btn.classList.toggle('active', enabled);
-        const slider = state.ui.shadowRoot?.getElementById('crossfeedSlider');
-        if (slider) slider.disabled = !enabled;
-        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
-        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
-    }
-
-    function setVirtualSpeakerEnabled(enabled) {
-        if (enabled) activateAudioContexts();
-        state.isVirtualSpeakerEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('virtualSpeakerBtn');
-        if (btn) btn.classList.toggle('active', enabled);
-        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
-        mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
-    }
-
     function setClarityEnabled(enabled) {
         if (enabled) activateAudioContexts();
         state.isClarityEnabled = !!enabled;
@@ -724,15 +589,12 @@
 
     function resetEffectStatesToDefault() {
         setWideningEnabled(CONFIG.DEFAULT_WIDENING_ENABLED);
-        set3dEnabled(CONFIG.DEFAULT_3D_ENABLED);
-        setReverbEnabled(CONFIG.DEFAULT_REVERB_ENABLED);
+        setHpfEnabled(CONFIG.DEFAULT_HPF_ENABLED);
         setEqEnabled(CONFIG.DEFAULT_EQ_ENABLED);
         setCompressorEnabled(CONFIG.DEFAULT_COMPRESSOR_ENABLED);
         setAdaptiveWidthEnabled(CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED);
         setLimiterEnabled(CONFIG.DEFAULT_LIMITER_ENABLED);
         setAutopanEnabled(CONFIG.DEFAULT_AUTOPAN_ENABLED);
-        setCrossfeedEnabled(CONFIG.DEFAULT_CROSSFEED_ENABLED);
-        setVirtualSpeakerEnabled(CONFIG.DEFAULT_VIRTUAL_SPEAKER_ENABLED);
         setClarityEnabled(CONFIG.DEFAULT_CLARITY_ENABLED);
     }
 
@@ -804,7 +666,7 @@
 
     const speedSlider = (() => {
         let inited = false, fadeOutTimer;
-        let pannerXSlider, pannerYSlider, pannerZSlider, reverbSlider, reverbLengthSlider, autopanRateSlider, panDepthSlider, widthDepthSlider, wideningSlider, panSlider, hpfSlider, crossfeedSlider, eqLowSlider, eqMidSlider, eqHighSlider, compThresholdSlider, erMixSlider, clarityThresholdSlider;
+        let wideningSlider, panSlider, hpfSlider, eqLowSlider, eqMidSlider, eqHighSlider, compThresholdSlider, limiterThresholdSlider, autopanRateSlider, panDepthSlider, widthDepthSlider, clarityThresholdSlider, preGainSlider;
         let hideAllSubMenus = () => { };
         const startFadeSequence = () => {
             const container = state.ui?.shadowRoot?.getElementById('vsc-container');
@@ -866,8 +728,7 @@
             imageSubMenu.appendChild(createSelectControl('이미지 선명도', imageOpts, setImageFilterLevel, 'imageFilterSelect'));
             const { group: videoGroup, subMenu: videoSubMenu } = createControlGroup('vsc-video-controls', '✨', '영상 선명도');
             videoSubMenu.appendChild(createSelectControl('영상 선명도', videoOpts, setVideoFilterLevel, 'videoFilterSelect'));
-            const { group: stereoGroup, subMenu: stereoSubMenu } = createControlGroup('vsc-stereo-controls', '🎧', '3D 사운드 & 리버브');
-
+            const { group: stereoGroup, subMenu: stereoSubMenu } = createControlGroup('vsc-stereo-controls', '🎧', '사운드 효과');
 
             const audioGridContainer = document.createElement('div');
             audioGridContainer.className = 'vsc-audio-grid';
@@ -883,7 +744,7 @@
             clarityBtn.onclick = () => setClarityEnabled(!state.isClarityEnabled);
             widenBtnGroup.append(widenBtn, clarityBtn);
 
-            clarityThresholdSlider = createSliderControl('명료도 강도', 'clarityThresholdSlider', -48, -12, 1, state.clarityThreshold, 'dB');
+            clarityThresholdSlider = createSliderControl('명료도 강도', 'clarityThresholdSlider', -60, 0, 1, state.clarityThreshold, 'dB');
             clarityThresholdSlider.slider.oninput = () => {
                 const val = parseFloat(clarityThresholdSlider.slider.value);
                 state.clarityThreshold = val;
@@ -907,7 +768,11 @@
                 const val = parseFloat(panSlider.slider.value); state.currentStereoPan = val; panSlider.valueSpan.textContent = val.toFixed(1);
                 Array.from(state.activeMedia).forEach(m => { const nodes = stereoWideningManager.getOrCreateNodes(m); if (nodes) stereoWideningManager.setParamWithFade(nodes.stereoPanner.pan, val); });
             };
-            hpfSlider = createSliderControl('HPF', 'hpfSlider', 50, 500, 10, state.currentHpfHz, 'Hz');
+
+            const hpfBtn = createButton('vsc-hpf-toggle', 'High-Pass Filter ON/OFF', 'HPF', 'vsc-btn');
+            hpfBtn.onclick = () => setHpfEnabled(!state.isHpfEnabled);
+
+            hpfSlider = createSliderControl('HPF', 'hpfSlider', 0, 500, 5, state.currentHpfHz, 'Hz');
             hpfSlider.slider.oninput = () => {
                 const val = parseFloat(hpfSlider.slider.value); state.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val}Hz`;
                 Array.from(state.activeMedia).forEach(m => { const nodes = state.audioContextMap.get(m); if (nodes?.hpfWiden) stereoWideningManager.setParamWithFade(nodes.hpfWiden.frequency, val); });
@@ -930,73 +795,21 @@
                 Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.lfoGainWidth.gain, val); });
             };
 
-            column1.append(widenBtnGroup, clarityThresholdSlider.controlDiv, wideningSlider.controlDiv, panSlider.controlDiv, hpfSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv);
+            column1.append(widenBtnGroup, clarityThresholdSlider.controlDiv, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv);
 
             const column2 = document.createElement('div');
             column2.className = 'vsc-audio-column';
 
-            const panner3dBtnGroup = document.createElement('div');
-            panner3dBtnGroup.className = 'vsc-button-group';
-            const panner3dBtn = createButton('vsc-3d-toggle', '3D 위치 음향 ON/OFF', '3D 위치', 'vsc-btn');
-            panner3dBtn.onclick = () => set3dEnabled(!state.is3dEnabled);
-            const virtualSpeakerBtn = createButton('virtualSpeakerBtn', '가상 스피커 ON/OFF', '가상 스피커', 'vsc-btn');
-            virtualSpeakerBtn.onclick = () => setVirtualSpeakerEnabled(!state.isVirtualSpeakerEnabled);
-            panner3dBtnGroup.append(panner3dBtn, virtualSpeakerBtn);
-
-            pannerXSlider = createSliderControl('X (좌우)', 'pannerXSlider', -10, 10, 0.1, state.current3dPosX, '');
-            pannerYSlider = createSliderControl('Y (상하)', 'pannerYSlider', -10, 10, 0.1, state.current3dPosY, '');
-            pannerZSlider = createSliderControl('Z (앞뒤)', 'pannerZSlider', -10, 10, 0.1, state.current3dPosZ, '');
-            const update3dPosition = () => { Array.from(state.activeMedia).forEach(m => stereoWideningManager.updatePannerPosition(m, state.current3dPosX, state.current3dPosY, state.current3dPosZ)); };
-            pannerXSlider.slider.oninput = () => { state.current3dPosX = parseFloat(pannerXSlider.slider.value); pannerXSlider.valueSpan.textContent = state.current3dPosX.toFixed(1); update3dPosition(); };
-            pannerYSlider.slider.oninput = () => { state.current3dPosY = parseFloat(pannerYSlider.slider.value); pannerYSlider.valueSpan.textContent = state.current3dPosY.toFixed(1); update3dPosition(); };
-            pannerZSlider.slider.oninput = () => { state.current3dPosZ = parseFloat(pannerZSlider.slider.value); pannerZSlider.valueSpan.textContent = state.current3dPosZ.toFixed(1); update3dPosition(); };
-
-            const reverbBtn = createButton('vsc-reverb-toggle', '리버브 ON/OFF', '리버브', 'vsc-btn');
-            reverbBtn.onclick = () => setReverbEnabled(!state.isReverbEnabled);
-            const reverbPresets = [ { value: 'default', text: '프리셋 선택', mix: 0.2, len: 1.5 }, { value: 'small_room', text: '작은 방', mix: 0.15, len: 0.8 }, { value: 'concert_hall', text: '콘서트 홀', mix: 0.3, len: 3.0 }, { value: 'cave', text: '동굴', mix: 0.5, len: 4.0 }, ];
-            const reverbPresetSelect = createSelectControl(null, reverbPresets, (val) => {
-                const preset = reverbPresets.find(p => p.value === val); if (!preset) return;
-                reverbSlider.slider.value = state.currentReverbMix = preset.mix; reverbSlider.valueSpan.textContent = preset.mix.toFixed(2);
-                reverbLengthSlider.slider.value = state.currentReverbLength = preset.len; reverbLengthSlider.valueSpan.textContent = `${preset.len.toFixed(1)}s`;
-                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia); mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
-            }, 'reverbPresetSelect');
-            reverbSlider = createSliderControl('잔향 혼합', 'reverbSlider', 0, 1, 0.05, state.currentReverbMix, '');
-            reverbSlider.slider.oninput = () => {
-                const val = parseFloat(reverbSlider.slider.value); state.currentReverbMix = val; reverbSlider.valueSpan.textContent = val.toFixed(2);
-                Array.from(state.activeMedia).forEach(m => { const nodes = stereoWideningManager.getOrCreateNodes(m); if (nodes?.wetGainReverb) stereoWideningManager.setParamWithFade(nodes.wetGainReverb.gain, val); });
-            };
-            reverbLengthSlider = createSliderControl('잔향 길이', 'reverbLengthSlider', 0.1, 4, 0.1, state.currentReverbLength, 's');
-            reverbLengthSlider.slider.oninput = debounce(() => {
-                const val = parseFloat(reverbLengthSlider.slider.value); state.currentReverbLength = val; reverbLengthSlider.valueSpan.textContent = `${val.toFixed(1)}s`;
-                const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia); mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
-            }, 100);
-
-            erMixSlider = createSliderControl('초기 반사음', 'erMixSlider', 0, 1, 0.05, state.currentErMix, '');
-            erMixSlider.slider.oninput = () => {
-                const val = parseFloat(erMixSlider.slider.value); state.currentErMix = val; erMixSlider.valueSpan.textContent = val.toFixed(2);
-                Array.from(state.activeMedia).forEach(m => { const nodes = stereoWideningManager.getOrCreateNodes(m); if (nodes?.erMasterGain) stereoWideningManager.setParamWithFade(nodes.erMasterGain.gain, val); });
-            };
-
-            column2.append(panner3dBtnGroup, pannerXSlider.controlDiv, pannerYSlider.controlDiv, pannerZSlider.controlDiv, createDivider(), reverbBtn, reverbPresetSelect, reverbSlider.controlDiv, reverbLengthSlider.controlDiv, erMixSlider.controlDiv);
-
             const column3 = document.createElement('div');
             column3.className = 'vsc-audio-column';
 
-            const dynamicsBtnGroup = document.createElement('div');
-            dynamicsBtnGroup.className = 'vsc-button-group';
+            // --- Column 2: EQ and General Effects ---
+            const eqBtn = createButton('vsc-eq-toggle', '3-Band EQ ON/OFF', 'EQ', 'vsc-btn');
+            eqBtn.onclick = () => setEqEnabled(!state.isEqEnabled);
+            const adaptiveWidthBtn = createButton('vsc-adaptive-width-toggle', '저역 폭 제어 ON/OFF', 'Bass Mono', 'vsc-btn');
+            adaptiveWidthBtn.onclick = () => setAdaptiveWidthEnabled(!state.isAdaptiveWidthEnabled);
 
-            const eqBtn = createButton('vsc-eq-toggle', '3-Band EQ ON/OFF', 'EQ', 'vsc-btn'); eqBtn.onclick = () => setEqEnabled(!state.isEqEnabled);
-            const compBtn = createButton('vsc-compressor-toggle', 'Compressor ON/OFF', 'Comp', 'vsc-btn'); compBtn.onclick = () => setCompressorEnabled(!state.isCompressorEnabled);
-            const limiterBtn = createButton('vsc-limiter-toggle', 'Limiter ON/OFF', '리미터', 'vsc-btn'); limiterBtn.onclick = () => setLimiterEnabled(!state.isLimiterEnabled);
-            const adaptiveWidthBtn = createButton('vsc-adaptive-width-toggle', '저역 폭 제어 ON/OFF', 'Bass Mono', 'vsc-btn'); adaptiveWidthBtn.onclick = () => setAdaptiveWidthEnabled(!state.isAdaptiveWidthEnabled);
-
-            dynamicsBtnGroup.append(eqBtn, compBtn, limiterBtn, adaptiveWidthBtn);
-
-            const eqPresets = [
-                { value: 'flat', text: 'EQ 프리셋', low: 0, mid: 0, high: 0 },
-                { value: 'full_boost', text: '전체 강조', low: 6, mid: 6, high: 6 },
-                { value: 'vocal_boost', text: '보컬 강조', low: -3, mid: 6, high: 3 }
-            ];
+            const eqPresets = [ { value: 'flat', text: '기본 프리셋', low: 0, mid: 0, high: 0 }, { value: 'music', text: '음악', low: 4, mid: -2, high: 4 }, { value: 'movie', text: '영화', low: 3, mid: 0, high: 3 }, { value: 'smile_curve', text: '명료도 향상', low: -2, mid: 0, high: 3 }, { value: 'vocal_boost', text: '보컬 강조', low: -3, mid: 6, high: 3 }, { value: 'full_boost', text: '전체 강조', low: 6, mid: 6, high: 6 }, ];
             const eqPresetSelect = createSelectControl(null, eqPresets, (val) => {
                 const preset = eqPresets.find(p => p.value === val); if (!preset) return;
                 state.eqLowGain = preset.low; state.eqMidGain = preset.mid; state.eqHighGain = preset.high;
@@ -1011,22 +824,47 @@
             eqLowSlider = createSliderControl('EQ 저음', 'eqLowSlider', -12, 12, 1, state.eqLowGain, 'dB'); eqLowSlider.slider.oninput = () => { const val = parseFloat(eqLowSlider.slider.value); state.eqLowGain = val; eqLowSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.eqLow.gain, val); }); };
             eqMidSlider = createSliderControl('EQ 중음', 'eqMidSlider', -12, 12, 1, state.eqMidGain, 'dB'); eqMidSlider.slider.oninput = () => { const val = parseFloat(eqMidSlider.slider.value); state.eqMidGain = val; eqMidSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.eqMid.gain, val); }); };
             eqHighSlider = createSliderControl('EQ 고음', 'eqHighSlider', -12, 12, 1, state.eqHighGain, 'dB'); eqHighSlider.slider.oninput = () => { const val = parseFloat(eqHighSlider.slider.value); state.eqHighGain = val; eqHighSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.eqHigh.gain, val); }); };
-            compThresholdSlider = createSliderControl('컴프레서 Threshold', 'compThresholdSlider', -60, 0, 1, state.compressorThreshold, 'dB'); compThresholdSlider.slider.oninput = () => { const val = parseFloat(compThresholdSlider.slider.value); state.compressorThreshold = val; compThresholdSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.compressor.threshold, val); }); };
 
-            const crossfeedBtn = createButton('vsc-crossfeed-toggle', 'Crossfeed ON/OFF', 'Crossfeed', 'vsc-btn');
-            crossfeedBtn.onclick = () => setCrossfeedEnabled(!state.isCrossfeedEnabled);
-            const crossfeedSliderControl = createSliderControl('강도', 'crossfeedSlider', 0, 1, 0.05, state.crossfeedLevel, '');
-            crossfeedSlider = crossfeedSliderControl.slider;
-            crossfeedSlider.oninput = () => {
-                const val = parseFloat(crossfeedSlider.value); state.crossfeedLevel = val; crossfeedSliderControl.valueSpan.textContent = val.toFixed(2);
-                Array.from(state.activeMedia).forEach(m => {
-                    const nodes = stereoWideningManager.getOrCreateNodes(m);
-                    if (nodes) { stereoWideningManager.setParamWithFade(nodes.dryGainL.gain, 1 - val); stereoWideningManager.setParamWithFade(nodes.dryGainR.gain, 1 - val); stereoWideningManager.setParamWithFade(nodes.wetGainL.gain, val); stereoWideningManager.setParamWithFade(nodes.wetGainR.gain, val); }
-                });
+            column2.append(eqBtn, adaptiveWidthBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv);
+
+            // --- Column 3: Dynamics (Compressor / Limiter) ---
+            const compBtn = createButton('vsc-compressor-toggle', 'Compressor ON/OFF', 'Comp', 'vsc-btn');
+            compBtn.onclick = () => setCompressorEnabled(!state.isCompressorEnabled);
+            compThresholdSlider = createSliderControl('컴프레서 Thresh', 'compThresholdSlider', -60, 0, 1, state.compressorThreshold, 'dB');
+            compThresholdSlider.slider.oninput = () => {
+                const val = parseFloat(compThresholdSlider.slider.value);
+                state.compressorThreshold = val;
+                compThresholdSlider.valueSpan.textContent = `${val.toFixed(0)}dB`;
+                if (state.isCompressorEnabled) {
+                    Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.compressor.threshold, val); });
+                }
             };
 
-            column3.append(dynamicsBtnGroup, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, compThresholdSlider.controlDiv, createDivider(), crossfeedBtn, crossfeedSliderControl.controlDiv);
+            const limiterBtn = createButton('vsc-limiter-toggle', 'Limiter ON/OFF', '리미터', 'vsc-btn');
+            limiterBtn.onclick = () => setLimiterEnabled(!state.isLimiterEnabled);
+            preGainSlider = createSliderControl('볼륨 보정 (Pre-Gain)', 'preGainSlider', 0.5, 3.0, 0.05, state.currentPreGain, 'x');
+            preGainSlider.slider.oninput = () => {
+                const val = parseFloat(preGainSlider.slider.value);
+                state.currentPreGain = val;
+                preGainSlider.valueSpan.textContent = `${val.toFixed(2)}x`;
+                Array.from(state.activeMedia).forEach(m => {
+                    const nodes = stereoWideningManager.getOrCreateNodes(m);
+                    if (nodes?.preGain) {
+                        stereoWideningManager.setParamWithFade(nodes.preGain.gain, val);
+                    }
+                });
+            };
+            limiterThresholdSlider = createSliderControl('리미터 Thresh', 'limiterThresholdSlider', -12, 0, 0.5, state.limiterThreshold, 'dB');
+            limiterThresholdSlider.slider.oninput = () => {
+                const val = parseFloat(limiterThresholdSlider.slider.value);
+                state.limiterThreshold = val;
+                limiterThresholdSlider.valueSpan.textContent = `${val.toFixed(1)}dB`;
+                if (state.isLimiterEnabled) {
+                    Array.from(state.activeMedia).forEach(m => { const n = stereoWideningManager.getOrCreateNodes(m); if (n) stereoWideningManager.setParamWithFade(n.compressor.threshold, val); });
+                }
+            };
 
+            column3.append(compBtn, compThresholdSlider.controlDiv, createDivider(), limiterBtn, preGainSlider.controlDiv, limiterThresholdSlider.controlDiv);
             audioGridContainer.append(column1, column2, column3);
 
             const bottomControls = document.createElement('div'); bottomControls.className = 'vsc-bottom-controls';
@@ -1036,43 +874,35 @@
             resetBtn.onclick = () => {
                 const defaults = {
                     widening: CONFIG.DEFAULT_WIDENING_FACTOR, hpf: CONFIG.EFFECTS_HPF_FREQUENCY, pan: CONFIG.DEFAULT_STEREO_PAN,
-                    reverbMix: CONFIG.DEFAULT_REVERB_MIX, reverbLen: CONFIG.DEFAULT_REVERB_LENGTH, erMix: CONFIG.DEFAULT_ER_MIX,
-                    posX: CONFIG.DEFAULT_3D_POS_X, posY: CONFIG.DEFAULT_3D_POS_Y, posZ: CONFIG.DEFAULT_3D_POS_Z,
                     eqLow: CONFIG.DEFAULT_EQ_LOW_GAIN, eqMid: CONFIG.DEFAULT_EQ_MID_GAIN, eqHigh: CONFIG.DEFAULT_EQ_HIGH_GAIN,
                     compThreshold: CONFIG.DEFAULT_COMPRESSOR_THRESHOLD,
+                    limiterThreshold: CONFIG.DEFAULT_LIMITER_THRESHOLD,
                     autopanRate: CONFIG.DEFAULT_AUTOPAN_RATE, autopanDepthPan: CONFIG.DEFAULT_AUTOPAN_DEPTH_PAN, autopanDepthWidth: CONFIG.DEFAULT_AUTOPAN_DEPTH_WIDTH,
-                    crossfeed: CONFIG.DEFAULT_CROSSFEED_LEVEL,
                     clarityThreshold: CONFIG.DEFAULT_CLARITY_THRESHOLD,
+                    preGain: CONFIG.DEFAULT_PRE_GAIN,
                 };
                 Object.assign(state, {
                     currentWideningFactor: defaults.widening, currentHpfHz: defaults.hpf, currentStereoPan: defaults.pan,
-                    currentReverbMix: defaults.reverbMix, currentReverbLength: defaults.reverbLen, currentErMix: defaults.erMix,
-                    current3dPosX: defaults.posX, current3dPosY: defaults.posY, current3dPosZ: defaults.posZ,
                     eqLowGain: defaults.eqLow, eqMidGain: defaults.eqMid, eqHighGain: defaults.eqHigh, compressorThreshold: defaults.compThreshold,
+                    limiterThreshold: defaults.limiterThreshold,
                     autopanRate: defaults.autopanRate, autopanDepthPan: defaults.autopanDepthPan, autopanDepthWidth: defaults.autopanDepthWidth,
-                    crossfeedLevel: defaults.crossfeed,
                     clarityThreshold: defaults.clarityThreshold,
+                    currentPreGain: defaults.preGain,
                 });
 
                 if (wideningSlider) { wideningSlider.slider.value = defaults.widening; wideningSlider.valueSpan.textContent = `${defaults.widening.toFixed(1)}x`; }
                 if (hpfSlider) { hpfSlider.slider.value = defaults.hpf; hpfSlider.valueSpan.textContent = `${defaults.hpf}Hz`; }
                 if (panSlider) { panSlider.slider.value = defaults.pan; panSlider.valueSpan.textContent = defaults.pan.toFixed(1); }
-                if (reverbSlider) { reverbSlider.slider.value = defaults.reverbMix; reverbSlider.valueSpan.textContent = defaults.reverbMix.toFixed(2); }
-                if (reverbLengthSlider) { reverbLengthSlider.slider.value = defaults.reverbLen; reverbLengthSlider.valueSpan.textContent = `${defaults.reverbLen.toFixed(1)}s`; }
-                if (erMixSlider) { erMixSlider.slider.value = defaults.erMix; erMixSlider.valueSpan.textContent = defaults.erMix.toFixed(2); }
-                if (pannerXSlider) { pannerXSlider.slider.value = defaults.posX; pannerXSlider.valueSpan.textContent = defaults.posX.toFixed(1); }
-                if (pannerYSlider) { pannerYSlider.slider.value = defaults.posY; pannerYSlider.valueSpan.textContent = defaults.posY.toFixed(1); }
-                if (pannerZSlider) { pannerZSlider.slider.value = defaults.posZ; pannerZSlider.valueSpan.textContent = defaults.posZ.toFixed(1); }
                 if (eqLowSlider) { eqLowSlider.slider.value = defaults.eqLow; eqLowSlider.valueSpan.textContent = `${defaults.eqLow}dB`; }
                 if (eqMidSlider) { eqMidSlider.slider.value = defaults.eqMid; eqMidSlider.valueSpan.textContent = `${defaults.eqMid}dB`; }
                 if (eqHighSlider) { eqHighSlider.slider.value = defaults.eqHigh; eqHighSlider.valueSpan.textContent = `${defaults.eqHigh}dB`; }
                 if (compThresholdSlider) { compThresholdSlider.slider.value = defaults.compThreshold; compThresholdSlider.valueSpan.textContent = `${defaults.compThreshold}dB`; }
+                if (limiterThresholdSlider) { limiterThresholdSlider.slider.value = defaults.limiterThreshold; limiterThresholdSlider.valueSpan.textContent = `${defaults.limiterThreshold.toFixed(1)}dB`; }
                 if (autopanRateSlider) { autopanRateSlider.slider.value = defaults.autopanRate; autopanRateSlider.valueSpan.textContent = `${defaults.autopanRate.toFixed(1)}Hz`; }
                 if (panDepthSlider) { panDepthSlider.slider.value = defaults.autopanDepthPan; panDepthSlider.valueSpan.textContent = defaults.autopanDepthPan.toFixed(2); }
                 if (widthDepthSlider) { widthDepthSlider.slider.value = defaults.autopanDepthWidth; widthDepthSlider.valueSpan.textContent = defaults.autopanDepthWidth.toFixed(2); }
-                if (crossfeedSlider) { crossfeedSlider.value = defaults.crossfeed; crossfeedSliderControl.valueSpan.textContent = defaults.crossfeed.toFixed(2); }
                 if (clarityThresholdSlider) { clarityThresholdSlider.slider.value = defaults.clarityThreshold; clarityThresholdSlider.valueSpan.textContent = `${defaults.clarityThreshold}dB`; }
-                if (shadowRoot.querySelector('#reverbPresetSelect')) { shadowRoot.querySelector('#reverbPresetSelect').value = "default"; }
+                if (preGainSlider) { preGainSlider.slider.value = defaults.preGain; preGainSlider.valueSpan.textContent = `${defaults.preGain.toFixed(2)}x`; }
                 if (shadowRoot.querySelector('#eqPresetSelect')) { shadowRoot.querySelector('#eqPresetSelect').value = "flat"; }
 
                 resetEffectStatesToDefault();
@@ -1090,15 +920,12 @@
                 shadowRoot.querySelector('#imageFilterSelect').value = state.currentImageFilterLevel;
                 shadowRoot.querySelector('#videoFilterSelect').value = state.currentVideoFilterLevel;
                 setWideningEnabled(state.isWideningEnabled);
-                set3dEnabled(state.is3dEnabled);
-                setReverbEnabled(state.isReverbEnabled);
+                setHpfEnabled(state.isHpfEnabled);
                 setEqEnabled(state.isEqEnabled);
                 setCompressorEnabled(state.isCompressorEnabled);
                 setAdaptiveWidthEnabled(state.isAdaptiveWidthEnabled);
                 setLimiterEnabled(state.isLimiterEnabled);
                 setAutopanEnabled(state.isAutopanEnabled);
-                setCrossfeedEnabled(state.isCrossfeedEnabled);
-                setVirtualSpeakerEnabled(state.isVirtualSpeakerEnabled);
                 setClarityEnabled(state.isClarityEnabled);
             };
             container.addEventListener('pointerdown', resetFadeTimer);
