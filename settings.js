@@ -2,7 +2,7 @@
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
 // @version      87.4
-// @description  번개 아이콘 무조건 표시 - 태그 못 찾으면 클릭시 닫기 버튼만 보임
+// @description  진짜 페이지 이동'과 '초기 로딩 중의 가짜 이동'을 구분
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1319,8 +1319,18 @@
     let spaNavigationHandler = null;
     function hookSpaNavigation() {
         if (spaNavigationHandler) return;
+
+        let isInitialLoad = true; // '초기 로드' 상태를 기억할 깃발
+
         spaNavigationHandler = debounce(() => {
             if (location.href === state.lastUrl) return;
+
+            if (isInitialLoad) {
+                // 첫 번째 '가짜' 이동 이벤트는 무시하고, 깃발만 내립니다.
+                state.lastUrl = location.href;
+                isInitialLoad = false;
+                return;
+            }
 
             if (uiContainer) {
                 uiContainer.remove();
@@ -1662,17 +1672,14 @@
         displayReloadMessage();
 
         const initialMediaCheck = () => {
-    // 조건 없이 UI 매니저를 항상 초기화합니다.
-    if (!document.getElementById('vsc-global-container')) {
-        globalUIManager.init();
-        hookSpaNavigation();
-    }
-
-    // 미디어 유무 확인은 mediaObserver 연결을 끊는 용도로만 사용합니다.
-    if (findAllMedia().length > 0 || findAllImages().length > 0) {
-        if (mediaObserver) mediaObserver.disconnect();
-    }
-};
+            if (findAllMedia().length > 0 || findAllImages().length > 0) {
+                if (!document.getElementById('vsc-global-container')) {
+                    globalUIManager.init();
+                    hookSpaNavigation();
+                }
+                if (mediaObserver) mediaObserver.disconnect();
+            }
+        };
         const mediaObserver = new MutationObserver(debounce(initialMediaCheck, 500));
         mediaObserver.observe(document.body, { childList: true, subtree: true });
         initialMediaCheck();
