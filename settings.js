@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      86.2 (Stable & Responsive)
-// @description  v87+ 버전의 오디오 로직 불안정성 문제를 해결하기 위해, 안정성이 검증된 v86.1의 동적 그래프 재연결(reconnectGraph) 로직으로 회귀. 슬라이더 실시간 반응성만 개선하여 안정성과 편의성을 모두 확보.
+// @version      86.4 (Mobile UI & Preset Layout Optimized)
+// @description  v87+ 버전의 오디오 로직 불안정성 문제를 해결하기 위해, 안정성이 검증된 v86.1의 동적 그래프 재연결(reconnectGraph) 로직으로 회귀. 슬라이더 실시간 반응성만 개선하여 안정성과 편의성을 모두 확보. 프리셋 버튼 위치 조정 및 모바일 UI 최적화.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -25,7 +25,7 @@
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
         DEFAULT_WIDENING_ENABLED: false,
-        DEFAULT_WIDENING_FACTOR: 1.5,
+        DEFAULT_WIDENING_FACTOR: 1.3,
         DEFAULT_STEREO_PAN: 0,
         DEFAULT_HPF_ENABLED: false,
         EFFECTS_HPF_FREQUENCY: 50,
@@ -36,11 +36,11 @@
         DEFAULT_ADAPTIVE_WIDTH_ENABLED: false,
         DEFAULT_ADAPTIVE_WIDTH_FREQ: 150,
         DEFAULT_AUTOPAN_ENABLED: false,
-        DEFAULT_AUTOPAN_RATE: 2,
-        DEFAULT_AUTOPAN_DEPTH_PAN: 0.2,
-        DEFAULT_AUTOPAN_DEPTH_WIDTH: 1.0,
+        DEFAULT_AUTOPAN_RATE: 0.1,
+        DEFAULT_AUTOPAN_DEPTH_PAN: 0.05,
+        DEFAULT_AUTOPAN_DEPTH_WIDTH: 0.3,
         DEFAULT_CLARITY_ENABLED: false,
-        DEFAULT_CLARITY_THRESHOLD: -30,
+        DEFAULT_CLARITY_THRESHOLD: -24,
         DEFAULT_PRE_GAIN_ENABLED: false,
         DEFAULT_PRE_GAIN: 1.0,
 
@@ -580,17 +580,17 @@
         const styleRules = [
             ':host { pointer-events: none; }',
             '* { pointer-events: auto; -webkit-tap-highlight-color: transparent; }',
-            '#vsc-container { background: none; padding: clamp(6px, 1.2vmin, 10px); border-radius: clamp(8px, 1.5vmin, 12px); z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; margin-top: 5px; }',
+            `#vsc-container { background: none; padding: clamp(${isMobile ? '4px, 1vmin, 8px' : '6px, 1.2vmin, 10px'}); border-radius: clamp(8px, 1.5vmin, 12px); z-index: 100; display: none; flex-direction: column; align-items: flex-end; width: auto; opacity: 0.3; transition: opacity 0.3s; margin-top: 5px; }`,
             '#vsc-container.touched { opacity: 1; }',
             '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
-            '.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(26px, 5.5vmin, 32px); width: clamp(28px, 6vmin, 34px); position: relative; }',
+            `.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; }`,
             '.vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(8px, 1.5vmin, 12px); gap: clamp(8px, 1.5vmin, 12px); width: auto; pointer-events: auto !important; }',
-            '#vsc-stereo-controls .vsc-submenu { width: 450px; max-width: 90vw; }',
+            `#vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '340px' : '450px'}; max-width: 90vw; }`,
             '#vsc-video-controls .vsc-submenu, #vsc-image-controls .vsc-submenu { width: 100px; }',
             '.vsc-control-group.submenu-visible .vsc-submenu { display: flex; }',
-            '.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(12px, 2vmin, 14px); }',
+            `.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); }`,
             '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
-            '.vsc-btn-main { font-size: clamp(15px, 3vmin, 18px); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }',
+            `.vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }`,
             '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }',
             '.slider-control { display: flex; flex-direction: column; gap: 5px; }',
             '.slider-control label { display: flex; justify-content: space-between; font-size: 13px; color: white; }',
@@ -735,7 +735,14 @@
                 const val = parseFloat(hpfSlider.slider.value); state.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val}Hz`;
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
-            column1.append(eqBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, createDivider(), clarityBtn, clarityThresholdSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv);
+            const presetButtonsContainer = document.createElement('div');
+            presetButtonsContainer.style.cssText = 'display: flex; gap: 8px; width: 100%; margin-top: 10px;';
+            const bestMovieBtn = createButton('vsc-best-movie', '영화/목소리 최적화 프리셋', '베스트(영화)', 'vsc-btn');
+            const bestMusicBtn = createButton('vsc-best-music', '음악 감상 최적화 프리셋', '베스트(음악)', 'vsc-btn');
+            bestMovieBtn.style.flex = '1';
+            bestMusicBtn.style.flex = '1';
+            presetButtonsContainer.append(bestMovieBtn, bestMusicBtn);
+            column1.append(eqBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, createDivider(), clarityBtn, clarityThresholdSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv, presetButtonsContainer);
 
             // --- Column 2 Controls (Right Side) ---
             const widenBtnGroup = document.createElement('div');
@@ -831,13 +838,101 @@
 
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
+            const applyPreset = (presetType) => {
+                const eqPresetSelect = shadowRoot.getElementById('eqPresetSelect');
+                if (presetType === 'movie') {
+                    setHpfEnabled(true);
+                    state.currentHpfHz = 100;
+                    if (hpfSlider) { hpfSlider.slider.value = 100; hpfSlider.valueSpan.textContent = `100Hz`; }
+
+                    setClarityEnabled(true);
+                    state.clarityThreshold = -24;
+                    if (clarityThresholdSlider) { clarityThresholdSlider.slider.value = -24; clarityThresholdSlider.valueSpan.textContent = `-24dB`; }
+
+                    setEqEnabled(true);
+                    state.eqLowGain = -4; state.eqMidGain = 3; state.eqHighGain = 2;
+                    if (eqLowSlider) { eqLowSlider.slider.value = -4; eqLowSlider.valueSpan.textContent = `-4dB`; }
+                    if (eqMidSlider) { eqMidSlider.slider.value = 3; eqMidSlider.valueSpan.textContent = `3dB`; }
+                    if (eqHighSlider) { eqHighSlider.slider.value = 2; eqHighSlider.valueSpan.textContent = `2dB`; }
+                    if (eqPresetSelect) eqPresetSelect.selectedIndex = 0;
+
+                    setWideningEnabled(false);
+                    setAdaptiveWidthEnabled(false);
+                    setAutopanEnabled(false);
+                    setPreGainEnabled(false);
+
+                } else if (presetType === 'music') {
+                    setHpfEnabled(true);
+                    state.currentHpfHz = 50;
+                    if (hpfSlider) { hpfSlider.slider.value = 50; hpfSlider.valueSpan.textContent = `50Hz`; }
+
+                    setClarityEnabled(true);
+                    state.clarityThreshold = -24;
+                    if (clarityThresholdSlider) { clarityThresholdSlider.slider.value = -24; clarityThresholdSlider.valueSpan.textContent = `-24dB`; }
+
+                    const clarityPreset = eqPresets.find(p => p.value === 'smile_curve');
+                    if (clarityPreset) {
+                        setEqEnabled(true);
+                        state.eqLowGain = clarityPreset.low; state.eqMidGain = clarityPreset.mid; state.eqHighGain = clarityPreset.high;
+                        if (eqLowSlider) { eqLowSlider.slider.value = state.eqLowGain; eqLowSlider.valueSpan.textContent = `${state.eqLowGain}dB`; }
+                        if (eqMidSlider) { eqMidSlider.slider.value = state.eqMidGain; eqMidSlider.valueSpan.textContent = `${state.eqMidGain}dB`; }
+                        if (eqHighSlider) { eqHighSlider.slider.value = state.eqHighGain; eqHighSlider.valueSpan.textContent = `${state.eqHighGain}dB`; }
+                        if (eqPresetSelect) eqPresetSelect.value = 'smile_curve';
+                    }
+
+                    setWideningEnabled(true);
+                    state.currentWideningFactor = 1.3;
+                    if (wideningSlider) { wideningSlider.slider.value = 1.3; wideningSlider.valueSpan.textContent = `1.3x`; }
+
+                    setAdaptiveWidthEnabled(true);
+
+                    setAutopanEnabled(true);
+                    state.autopanRate = CONFIG.DEFAULT_AUTOPAN_RATE;
+                    state.autopanDepthPan = CONFIG.DEFAULT_AUTOPAN_DEPTH_PAN;
+                    state.autopanDepthWidth = CONFIG.DEFAULT_AUTOPAN_DEPTH_WIDTH;
+                    if (autopanRateSlider) { autopanRateSlider.slider.value = state.autopanRate; autopanRateSlider.valueSpan.textContent = `${state.autopanRate.toFixed(1)}Hz`; }
+                    if (panDepthSlider) { panDepthSlider.slider.value = state.autopanDepthPan; panDepthSlider.valueSpan.textContent = state.autopanDepthPan.toFixed(2); }
+                    if (widthDepthSlider) { widthDepthSlider.slider.value = state.autopanDepthWidth; widthDepthSlider.valueSpan.textContent = state.autopanDepthWidth.toFixed(2); }
+
+                    setPreGainEnabled(false);
+                }
+                applyAudioEffectsToMedia(Array.from(state.activeMedia));
+                updateMasterButtonState();
+            };
             masterToggleBtn.onclick = () => {
-                if (areAllEffectsOn()) { setAllEffects(false); } else { setAllEffects(true); }
+                const shouldEnable = !areAllEffectsOn();
+
+                if (shouldEnable) {
+                    state.eqLowGain = -2;
+                    state.eqMidGain = 0;
+                    state.eqHighGain = 3;
+
+                    const shadowRoot = state.ui.shadowRoot;
+                    if (shadowRoot) {
+                        const presetSelect = shadowRoot.getElementById('eqPresetSelect');
+                        if (presetSelect) presetSelect.value = 'smile_curve';
+
+                        const lowSlider = shadowRoot.getElementById('eqLowSlider');
+                        if(lowSlider) { lowSlider.value = -2; shadowRoot.getElementById('eqLowSliderVal').textContent = `-2dB`; }
+
+                        const midSlider = shadowRoot.getElementById('eqMidSlider');
+                        if(midSlider) { midSlider.value = 0; shadowRoot.getElementById('eqMidSliderVal').textContent = `0dB`; }
+
+                        const highSlider = shadowRoot.getElementById('eqHighSlider');
+                        if(highSlider) { highSlider.value = 3; shadowRoot.getElementById('eqHighSliderVal').textContent = `3dB`; }
+                    }
+                }
+
+                setAllEffects(shouldEnable);
                 updateMasterButtonState();
             };
             resetBtn.onclick = () => {
+                resetEffectStatesToDefault();
                 resetAllSliders();
+                updateMasterButtonState();
             };
+            bestMovieBtn.onclick = () => applyPreset('movie');
+            bestMusicBtn.onclick = () => applyPreset('music');
 
             audioGridContainer.append(column1, column2);
             stereoSubMenu.append(audioGridContainer);
@@ -1321,9 +1416,12 @@
             triggerElement.id = UI_SELECTORS.TRIGGER;
             triggerElement.textContent = '⚡';
             Object.assign(triggerElement.style, {
-                width: 'clamp(32px, 7vmin, 44px)', height: 'clamp(32px, 7vmin, 44px)', background: 'rgba(0,0,0,0.5)',
+                width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+                height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+                background: 'rgba(0,0,0,0.5)',
                 color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 'clamp(20px, 4vmin, 26px)', cursor: 'pointer', userSelect: 'none'
+                fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
+                cursor: 'pointer', userSelect: 'none'
             });
 
             speedButtonsContainer = document.createElement('div');
