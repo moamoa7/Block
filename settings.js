@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      87.3 (New Presets Added)
-// @description  12가지 전문 오디오 프리셋을 드롭다운 메뉴로 통합. ASMR, 팟캐스트, 게이밍 모드 추가.
+// @version      87.4
+// @description  비디오 필터 샤프 계산법 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -121,7 +121,7 @@
     const debounce = (fn, wait) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; };
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
-    function calculateSharpenMatrix(level) { const p = parseInt(level, 10); if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0'; const i = 1 + (p - 0.5) * 1.25; const o = (1 - i) / 4; return `0 ${o} 0 ${o} ${i} ${o} 0 ${o} 0`; }
+    function calculateSharpenMatrix(level) { const p = parseInt(level, 10); if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0'; const BASE_STRENGTH = 0.5; const i = 1 + p * BASE_STRENGTH; const o = (1 - i) / 8; return `${o} ${o} ${o} ${o} ${i} ${o} ${o} ${o} ${o}`; }
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     function isExcluded() {
