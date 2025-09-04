@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      87.7
-// @description  MutationObserver를 이용한 지능적 UI 생성
+// @version      87.3 (New Presets Added)
+// @description  12가지 전문 오디오 프리셋을 드롭다운 메뉴로 통합. ASMR, 팟캐스트, 게이밍 모드 추가.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1657,42 +1657,23 @@
     }
 
     function initializeGlobalUI() {
-    // 이미 UI가 있다면 실행하지 않음
-    if (document.getElementById('vsc-global-container')) return;
+        if (document.getElementById('vsc-global-container')) return;
 
-    displayReloadMessage();
+        displayReloadMessage();
 
-    // 미디어가 페이지에 나타나는지 감시하는 '감시자' 함수
-    const checkForMediaAndInit = () => {
-        // 페이지에서 미디어를 찾아보고, 하나라도 있으면 UI 생성 절차를 시작함
-        if (findAllMedia().length > 0 || findAllImages().length > 0) {
-
-            // UI가 아직 생성되지 않았다면 생성
-            if (!document.getElementById('vsc-global-container')) {
-                console.log('[VSC] Media detected, initializing UI.');
-                globalUIManager.init();
-                hookSpaNavigation();
+        const initialMediaCheck = () => {
+            if (findAllMedia().length > 0 || findAllImages().length > 0) {
+                if (!document.getElementById('vsc-global-container')) {
+                    globalUIManager.init();
+                    hookSpaNavigation();
+                }
+                if (mediaObserver) mediaObserver.disconnect();
             }
-
-            // 일단 UI를 생성했으면, 더 이상 페이지를 감시할 필요가 없으므로 감시자를 종료함
-            if (mediaObserver) {
-                mediaObserver.disconnect();
-            }
-        }
-    };
-
-    // DOM(페이지 구조)에 변화가 생길 때마다 '감시자'를 실행시키는 MutationObserver 설정
-    const mediaObserver = new MutationObserver(debounce(checkForMediaAndInit, 300));
-
-    // body 전체를 대상으로 모든 자식 요소의 추가/삭제를 감시 시작
-    mediaObserver.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-
-    // 스크립트 실행 시점에 이미 미디어가 로드되어 있을 수 있으므로, 즉시 한 번 확인
-    checkForMediaAndInit();
-}
+        };
+        const mediaObserver = new MutationObserver(debounce(initialMediaCheck, 500));
+        mediaObserver.observe(document.body, { childList: true, subtree: true });
+        initialMediaCheck();
+    }
 
     if (!isExcluded()) {
         if (document.readyState === 'loading') {
