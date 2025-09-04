@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      86.62 (Mobile UI & Preset Layout Optimized)
-// @description  v87+ 버전의 오디오 로직 불안정성 문제를 해결하기 위해, 안정성이 검증된 v86.1의 동적 그래프 재연결(reconnectGraph) 로직으로 회귀. 슬라이더 실시간 반응성만 개선하여 안정성과 편의성을 모두 확보. 프리셋 버튼 위치 조정 및 모바일 UI 최적화. 모바일 UI의 세로 여백 및 기본 시작 위치 조정.
+// @version      87.2 (Preset Value Tuned)
+// @description  9가지 전문 오디오 프리셋을 드롭다운 메뉴로 통합. 프리셋 값 미세 조정 및 UI 생성 오류 수정.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -735,14 +735,6 @@
                 const val = parseFloat(hpfSlider.slider.value); state.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val}Hz`;
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
-            const presetButtonsContainer = document.createElement('div');
-            presetButtonsContainer.style.cssText = `display: flex; gap: 8px; width: 100%; margin-top: ${isMobile ? '5px' : '10px'};`;
-            const bestMovieBtn = createButton('vsc-best-movie', '영화/목소리 최적화 프리셋', '베스트(영화)', 'vsc-btn');
-            const bestMusicBtn = createButton('vsc-best-music', '음악 감상 최적화 프리셋', '베스트(음악)', 'vsc-btn');
-            bestMovieBtn.style.flex = '1';
-            bestMusicBtn.style.flex = '1';
-            presetButtonsContainer.append(bestMovieBtn, bestMusicBtn);
-            column1.append(eqBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, createDivider(), clarityBtn, clarityThresholdSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv, presetButtonsContainer);
 
             // --- Column 2 Controls (Right Side) ---
             const widenBtnGroup = document.createElement('div');
@@ -788,27 +780,15 @@
                 preGainSlider.valueSpan.textContent = `${val.toFixed(1)}x`;
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
-            const masterToggleBtn = createButton('vsc-master-toggle', '모든 오디오 효과 켜기/끄기', '모든 효과 ON', 'vsc-btn');
             const resetBtn = createButton('vsc-reset-all', '모든 오디오 설정 기본값으로 초기화', '초기화', 'vsc-btn');
-            const bottomButtonsContainer = document.createElement('div');
-            bottomButtonsContainer.style.cssText = `display: flex; gap: 8px; width: 100%; margin-top: ${isMobile ? '5px' : '10px'};`;
-            masterToggleBtn.style.flex = '1'; resetBtn.style.flex = '1';
-            bottomButtonsContainer.append(masterToggleBtn, resetBtn);
-            column2.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv, createDivider(), preGainBtn, preGainSlider.controlDiv, bottomButtonsContainer);
 
-            // --- Final Assembly ---
-            const areAllEffectsOn = () => { return state.isHpfEnabled && state.isEqEnabled && state.isClarityEnabled && state.isWideningEnabled && state.isAdaptiveWidthEnabled && state.isAutopanEnabled && state.isPreGainEnabled; };
-            const setAllEffects = (enabled) => {
-                setHpfEnabled(enabled); setEqEnabled(enabled); setClarityEnabled(enabled); setWideningEnabled(enabled);
-                setAdaptiveWidthEnabled(enabled); setAutopanEnabled(enabled); setPreGainEnabled(enabled);
-            };
-            const updateMasterButtonState = () => {
-                if (areAllEffectsOn()) {
-                    masterToggleBtn.textContent = '모든 효과 OFF'; masterToggleBtn.classList.add('active');
-                } else {
-                    masterToggleBtn.textContent = '모든 효과 ON'; masterToggleBtn.classList.remove('active');
-                }
-            };
+            column1.append(eqBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, createDivider(), clarityBtn, clarityThresholdSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv);
+            column2.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv, createDivider(), preGainBtn, preGainSlider.controlDiv);
+
+            // --- Bottom Controls ---
+            const bottomControlsContainer = document.createElement('div');
+            bottomControlsContainer.style.cssText = `display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; border-top: 1px solid #444; margin-top: ${isMobile ? '5px' : '10px'}; padding-top: ${isMobile ? '5px' : '10px'};`;
+
             const resetAllSliders = () => {
                 const defaults = {
                     widening: CONFIG.DEFAULT_WIDENING_FACTOR, hpf: CONFIG.EFFECTS_HPF_FREQUENCY, pan: CONFIG.DEFAULT_STEREO_PAN,
@@ -838,104 +818,152 @@
 
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
+
             const applyPreset = (presetType) => {
-                const eqPresetSelect = shadowRoot.getElementById('eqPresetSelect');
-                if (presetType === 'movie') {
-                    setHpfEnabled(true);
-                    state.currentHpfHz = 100;
-                    if (hpfSlider) { hpfSlider.slider.value = 100; hpfSlider.valueSpan.textContent = `100Hz`; }
+                const allSliders = { wideningSlider, panSlider, hpfSlider, eqLowSlider, eqMidSlider, eqHighSlider, autopanRateSlider, panDepthSlider, widthDepthSlider, clarityThresholdSlider, preGainSlider };
 
-                    setClarityEnabled(true);
-                    state.clarityThreshold = -24;
-                    if (clarityThresholdSlider) { clarityThresholdSlider.slider.value = -24; clarityThresholdSlider.valueSpan.textContent = `-24dB`; }
+                const updateSlider = (sliderName, stateKey, value, unit = '') => {
+                    state[stateKey] = value;
+                    const sliderControls = allSliders[sliderName];
+                    if (sliderControls) {
+                        sliderControls.slider.value = value;
+                        let displayValue = typeof value === 'number' ? value.toFixed(unit === 'x' || unit === 'Hz' ? 1 : (unit === 'dB' ? 0 : 2)) : value;
+                        sliderControls.valueSpan.textContent = `${displayValue}${unit}`;
+                    }
+                };
 
-                    setEqEnabled(true);
-                    state.eqLowGain = -4; state.eqMidGain = 3; state.eqHighGain = 2;
-                    if (eqLowSlider) { eqLowSlider.slider.value = -4; eqLowSlider.valueSpan.textContent = `-4dB`; }
-                    if (eqMidSlider) { eqMidSlider.slider.value = 3; eqMidSlider.valueSpan.textContent = `3dB`; }
-                    if (eqHighSlider) { eqHighSlider.slider.value = 2; eqHighSlider.valueSpan.textContent = `2dB`; }
-                    if (eqPresetSelect) eqPresetSelect.selectedIndex = 0;
+                resetEffectStatesToDefault();
+                resetAllSliders();
 
-                    setWideningEnabled(false);
-                    setAdaptiveWidthEnabled(false);
-                    setAutopanEnabled(false);
-                    setPreGainEnabled(false);
-
-                } else if (presetType === 'music') {
-                    setHpfEnabled(true);
-                    state.currentHpfHz = 50;
-                    if (hpfSlider) { hpfSlider.slider.value = 50; hpfSlider.valueSpan.textContent = `50Hz`; }
-
-                    setClarityEnabled(true);
-                    state.clarityThreshold = -24;
-                    if (clarityThresholdSlider) { clarityThresholdSlider.slider.value = -24; clarityThresholdSlider.valueSpan.textContent = `-24dB`; }
-
-                    const clarityPreset = eqPresets.find(p => p.value === 'smile_curve');
-                    if (clarityPreset) {
+                switch (presetType) {
+                    case 'movie':
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 100, 'Hz');
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
                         setEqEnabled(true);
-                        state.eqLowGain = clarityPreset.low; state.eqMidGain = clarityPreset.mid; state.eqHighGain = clarityPreset.high;
-                        if (eqLowSlider) { eqLowSlider.slider.value = state.eqLowGain; eqLowSlider.valueSpan.textContent = `${state.eqLowGain}dB`; }
-                        if (eqMidSlider) { eqMidSlider.slider.value = state.eqMidGain; eqMidSlider.valueSpan.textContent = `${state.eqMidGain}dB`; }
-                        if (eqHighSlider) { eqHighSlider.slider.value = state.eqHighGain; eqHighSlider.valueSpan.textContent = `${state.eqHighGain}dB`; }
-                        if (eqPresetSelect) eqPresetSelect.value = 'smile_curve';
-                    }
-
-                    setWideningEnabled(true);
-                    state.currentWideningFactor = 1.3;
-                    if (wideningSlider) { wideningSlider.slider.value = 1.3; wideningSlider.valueSpan.textContent = `1.3x`; }
-
-                    setAdaptiveWidthEnabled(true);
-
-                    setAutopanEnabled(true);
-                    state.autopanRate = CONFIG.DEFAULT_AUTOPAN_RATE;
-                    state.autopanDepthPan = CONFIG.DEFAULT_AUTOPAN_DEPTH_PAN;
-                    state.autopanDepthWidth = CONFIG.DEFAULT_AUTOPAN_DEPTH_WIDTH;
-                    if (autopanRateSlider) { autopanRateSlider.slider.value = state.autopanRate; autopanRateSlider.valueSpan.textContent = `${state.autopanRate.toFixed(1)}Hz`; }
-                    if (panDepthSlider) { panDepthSlider.slider.value = state.autopanDepthPan; panDepthSlider.valueSpan.textContent = state.autopanDepthPan.toFixed(2); }
-                    if (widthDepthSlider) { widthDepthSlider.slider.value = state.autopanDepthWidth; widthDepthSlider.valueSpan.textContent = state.autopanDepthWidth.toFixed(2); }
-
-                    setPreGainEnabled(false);
+                        updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', 3, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', 2, 'dB');
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        break;
+                    case 'music':
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 50, 'Hz');
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', -2, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', 0, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', 3, 'dB');
+                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
+                        setAdaptiveWidthEnabled(true);
+                        setAutopanEnabled(true);
+                        updateSlider('autopanRateSlider', 'autopanRate', 0.1, 'Hz');
+                        updateSlider('panDepthSlider', 'autopanDepthPan', 0.05, '');
+                        updateSlider('widthDepthSlider', 'autopanDepthWidth', 0.3, '');
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        break;
+                    case 'spatial':
+                        applyPreset('music'); // Start with music preset
+                        updateSlider('autopanRateSlider', 'autopanRate', 0.3, 'Hz');
+                        updateSlider('panDepthSlider', 'autopanDepthPan', 0.6, '');
+                        updateSlider('widthDepthSlider', 'autopanDepthWidth', 2.0, '');
+                        updateSlider('wideningSlider', 'currentWideningFactor', 2.5, 'x');
+                        updateSlider('preGainSlider', 'currentPreGain', 1.8, 'x');
+                        break;
+                    case 'vocal':
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', -5, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', 6, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', -2, 'dB');
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 135, 'Hz');
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        break;
+                    case 'night':
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -35, 'dB');
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 80, 'Hz');
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', 2, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', 1, 'dB');
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
+                        break;
+                    case 'action':
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', 6, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', -2, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', 2, 'dB');
+                        setAdaptiveWidthEnabled(true);
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
+                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.5, 'x');
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 2.0, 'x');
+                        break;
+                    case 'analog':
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', 2, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', 1, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', -3, 'dB');
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -22, 'dB');
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.2, 'x');
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
+                        setAutopanEnabled(false);
+                        setAdaptiveWidthEnabled(false);
+                        break;
+                    case 'acoustic':
+                        setClarityEnabled(false);
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', 1, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', -1, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', 1, 'dB');
+                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.4, 'x');
+                        setAdaptiveWidthEnabled(false);
+                        setAutopanEnabled(false);
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
+                        break;
+                    case 'concert':
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', 5, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', -3, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 2.0, 'x');
+                        setAdaptiveWidthEnabled(true);
+                        setAutopanEnabled(false);
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
+                        break;
                 }
+
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
-                updateMasterButtonState();
             };
-            masterToggleBtn.onclick = () => {
-                const shouldEnable = !areAllEffectsOn();
 
-                if (shouldEnable) {
-                    state.eqLowGain = -2;
-                    state.eqMidGain = 0;
-                    state.eqHighGain = 3;
+            const bestPresets = [
+                { value: 'movie', text: '🎬 영화.드라마.방송' },
+                { value: 'music', text: '🎶 음악' },
+                { value: 'spatial', text: '✨ 공간 음향' },
+                { value: 'vocal', text: '🎤 목소리 강조' },
+                { value: 'night', text: '🌙 야간 모드' },
+                { value: 'action', text: '💥 액션 영화' },
+                { value: 'analog', text: '📻 따뜻한 아날로그' },
+                { value: 'acoustic', text: '🎻 어쿠스틱/클래식' },
+                { value: 'concert', text: '🏟️ 라이브 콘서트' }
+            ];
 
-                    const shadowRoot = state.ui.shadowRoot;
-                    if (shadowRoot) {
-                        const presetSelect = shadowRoot.getElementById('eqPresetSelect');
-                        if (presetSelect) presetSelect.value = 'smile_curve';
+            const bestPresetSelect = createSelectControl('프리셋 선택', bestPresets, (val) => {
+                if (val) applyPreset(val);
+            });
 
-                        const lowSlider = shadowRoot.getElementById('eqLowSlider');
-                        if(lowSlider) { lowSlider.value = -2; shadowRoot.getElementById('eqLowSliderVal').textContent = `-2dB`; }
-
-                        const midSlider = shadowRoot.getElementById('eqMidSlider');
-                        if(midSlider) { midSlider.value = 0; shadowRoot.getElementById('eqMidSliderVal').textContent = `0dB`; }
-
-                        const highSlider = shadowRoot.getElementById('eqHighSlider');
-                        if(highSlider) { highSlider.value = 3; shadowRoot.getElementById('eqHighSliderVal').textContent = `3dB`; }
-                    }
-                }
-
-                setAllEffects(shouldEnable);
-                updateMasterButtonState();
-            };
             resetBtn.onclick = () => {
                 resetEffectStatesToDefault();
                 resetAllSliders();
-                updateMasterButtonState();
+                bestPresetSelect.selectedIndex = 0;
             };
-            bestMovieBtn.onclick = () => applyPreset('movie');
-            bestMusicBtn.onclick = () => applyPreset('music');
+
+            bottomControlsContainer.append(bestPresetSelect, resetBtn);
 
             audioGridContainer.append(column1, column2);
-            stereoSubMenu.append(audioGridContainer);
+            stereoSubMenu.append(audioGridContainer, bottomControlsContainer);
             container.append(imageGroup, videoGroup, stereoGroup);
 
             const allGroups = [imageGroup, videoGroup, stereoGroup];
@@ -952,14 +980,7 @@
                 setClarityEnabled(state.isClarityEnabled);
                 setAdaptiveWidthEnabled(state.isAdaptiveWidthEnabled);
                 setPreGainEnabled(state.isPreGainEnabled);
-                updateMasterButtonState();
             };
-
-            container.addEventListener('click', (e) => {
-               if (e.target.classList.contains('vsc-btn') && e.target.id !== 'vsc-master-toggle' && e.target.id !== 'vsc-reset-all') {
-                    setTimeout(updateMasterButtonState, 50);
-               }
-            });
 
             container.addEventListener('pointerdown', resetFadeTimer);
             updateActiveButtons();
@@ -1404,7 +1425,7 @@
             uiContainer.id = 'vsc-global-container';
             Object.assign(uiContainer.style, {
                 position: 'fixed',
-                top: isMobile ? '40%' : '50%', // [MODIFIED] 모바일 기본 위치를 화면 상단으로 조정
+                top: isMobile ? '40%' : '50%',
                 right: '1vmin',
                 transform: 'translateY(-50%)',
                 zIndex: CONFIG.MAX_Z_INDEX,
