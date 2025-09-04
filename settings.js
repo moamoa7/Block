@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      87.4
-// @description  진짜 페이지 이동'과 '초기 로딩 중의 가짜 이동'을 구분
+// @version      87.5 (New Presets Added)
+// @description  12가지 전문 오디오 프리셋을 드롭다운 메뉴로 통합. ASMR, 팟캐스트, 게이밍 모드 추가.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1319,34 +1319,24 @@
     let spaNavigationHandler = null;
     function hookSpaNavigation() {
         if (spaNavigationHandler) return;
-
-        let isInitialLoad = true; // '초기 로드' 상태를 기억할 깃발
-
         spaNavigationHandler = debounce(() => {
             if (location.href === state.lastUrl) return;
 
-            if (isInitialLoad) {
-                // 첫 번째 '가짜' 이동 이벤트는 무시하고, 깃발만 내립니다.
-                state.lastUrl = location.href;
-                isInitialLoad = false;
-                return;
-            }
-
-            if (uiContainer) {
-                uiContainer.remove();
-                uiContainer = null;
-                triggerElement = null;
-                speedButtonsContainer = null;
-            }
-            state.activeMedia.forEach(m => stereoWideningManager.cleanupForMedia(m));
+            //if (uiContainer) {
+                //uiContainer.remove();
+                //uiContainer = null;
+                //triggerElement = null;
+                //speedButtonsContainer = null;
+            //}
+            //state.activeMedia.forEach(m => stereoWideningManager.cleanupForMedia(m));
             cleanup();
-            globalUIManager.cleanupGlobalListeners();
+            //globalUIManager.cleanupGlobalListeners();
             resetState();
-            settingsManager.init();
-            uiManager.reset();
-            speedSlider.reset();
+            //settingsManager.init();
+            //uiManager.reset();
+            //speedSlider.reset();
 
-            setTimeout(initializeGlobalUI, 500);
+            //setTimeout(initializeGlobalUI, 500);
         }, 500);
         if (!window.vscPatchedHistory) {
             ['pushState', 'replaceState'].forEach(method => {
@@ -1671,12 +1661,11 @@
 
         displayReloadMessage();
 
+        globalUIManager.init();
+        hookSpaNavigation();
+
         const initialMediaCheck = () => {
             if (findAllMedia().length > 0 || findAllImages().length > 0) {
-                if (!document.getElementById('vsc-global-container')) {
-                    globalUIManager.init();
-                    hookSpaNavigation();
-                }
                 if (mediaObserver) mediaObserver.disconnect();
             }
         };
