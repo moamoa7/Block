@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      87.2 (Preset Value Tuned)
-// @description  9가지 전문 오디오 프리셋을 드롭다운 메뉴로 통합. 프리셋 값 미세 조정 및 UI 생성 오류 수정.
+// @version      87.3 (New Presets Added)
+// @description  12가지 전문 오디오 프리셋을 드롭다운 메뉴로 통합. ASMR, 팟캐스트, 게이밍 모드 추가.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -774,7 +774,7 @@
             };
             const preGainBtn = createButton('vsc-pregain-toggle', '볼륨 증폭 ON/OFF', '볼륨', 'vsc-btn');
             preGainBtn.onclick = () => setPreGainEnabled(!state.isPreGainEnabled);
-            preGainSlider = createSliderControl('전체 볼륨 증폭', 'preGainSlider', 0, 4, 0.5, state.currentPreGain, 'x');
+            preGainSlider = createSliderControl('전체 볼륨 증폭', 'preGainSlider', 0, 4, 0.1, state.currentPreGain, 'x');
             preGainSlider.slider.oninput = () => {
                 const val = parseFloat(preGainSlider.slider.value); state.currentPreGain = val;
                 preGainSlider.valueSpan.textContent = `${val.toFixed(1)}x`;
@@ -933,6 +933,42 @@
                         setAutopanEnabled(false);
                         setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
                         break;
+                    case 'asmr':
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', 2, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', 5, 'dB');
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 100, 'Hz');
+                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 2.2, 'x');
+                        setAdaptiveWidthEnabled(false);
+                        setAutopanEnabled(false);
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        break;
+                    case 'podcast':
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', -5, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', 4, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', -2, 'dB');
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -26, 'dB');
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 120, 'Hz');
+                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.0, 'x');
+                        setAdaptiveWidthEnabled(true);
+                        setAutopanEnabled(false);
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
+                        break;
+                    case 'gaming':
+                        setEqEnabled(true);
+                        updateSlider('eqLowSlider', 'eqLowGain', 4, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', -3, 'dB');
+                        updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
+                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
+                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
+                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
+                        setAdaptiveWidthEnabled(false);
+                        setAutopanEnabled(false);
+                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        break;
                 }
 
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
@@ -941,13 +977,16 @@
             const bestPresets = [
                 { value: 'movie', text: '🎬 영화.드라마.방송' },
                 { value: 'music', text: '🎶 음악' },
-                { value: 'spatial', text: '✨ 공간 음향' },
+                { value: 'spatial', text: '🎶 공간 음향' },
                 { value: 'vocal', text: '🎤 목소리 강조' },
                 { value: 'night', text: '🌙 야간 모드' },
                 { value: 'action', text: '💥 액션 영화' },
                 { value: 'analog', text: '📻 따뜻한 아날로그' },
                 { value: 'acoustic', text: '🎻 어쿠스틱/클래식' },
-                { value: 'concert', text: '🏟️ 라이브 콘서트' }
+                { value: 'concert', text: '🏟️ 라이브 콘서트' },
+                { value: 'asmr', text: '🎧 ASMR & 팅글' },
+                { value: 'podcast', text: '🗣️ 팟캐스트 & 강의' },
+                { value: 'gaming', text: '🎮 게이밍 & 입체음향' }
             ];
 
             const bestPresetSelect = createSelectControl('프리셋 선택', bestPresets, (val) => {
