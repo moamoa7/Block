@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      86.5 (Mobile UI & Preset Layout Optimized)
-// @description  v87+ 버전의 오디오 로직 불안정성 문제를 해결하기 위해, 안정성이 검증된 v86.1의 동적 그래프 재연결(reconnectGraph) 로직으로 회귀. 슬라이더 실시간 반응성만 개선하여 안정성과 편의성을 모두 확보. 프리셋 버튼 위치 조정 및 모바일 UI 최적화. 모바일 UI의 세로 여백을 줄여 가독성 향상.
+// @version      86.6 (Mobile UI & Preset Layout Optimized)
+// @description  v87+ 버전의 오디오 로직 불안정성 문제를 해결하기 위해, 안정성이 검증된 v86.1의 동적 그래프 재연결(reconnectGraph) 로직으로 회귀. 슬라이더 실시간 반응성만 개선하여 안정성과 편의성을 모두 확보. 프리셋 버튼 위치 조정 및 모바일 UI 최적화. 모바일 UI의 세로 여백 및 기본 시작 위치 조정.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1403,9 +1403,17 @@
             uiContainer = document.createElement('div');
             uiContainer.id = 'vsc-global-container';
             Object.assign(uiContainer.style, {
-                position: 'fixed', top: '50%', right: '1vmin', transform: 'translateY(-50%)',
-                zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'center', gap: '5px',
-                opacity: '1', transition: 'opacity 0.3s', WebkitTapHighlightColor: 'transparent'
+                position: 'fixed',
+                top: isMobile ? '25%' : '50%', // [MODIFIED] 모바일 기본 위치를 화면 상단으로 조정
+                right: '1vmin',
+                transform: 'translateY(-50%)',
+                zIndex: CONFIG.MAX_Z_INDEX,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                opacity: '1',
+                transition: 'opacity 0.3s',
+                WebkitTapHighlightColor: 'transparent'
             });
 
             const mainControlsWrapper = document.createElement('div');
