@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      87.3 (New Presets Added)
-// @description  12가지 전문 오디오 프리셋을 드롭다운 메뉴로 통합. ASMR, 팟캐스트, 게이밍 모드 추가.
+// @version      87.4
+// @description  번개 아이콘 무조건 표시 - 태그 못 찾으면 클릭시 닫기 버튼만 보임
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1662,14 +1662,17 @@
         displayReloadMessage();
 
         const initialMediaCheck = () => {
-            if (findAllMedia().length > 0 || findAllImages().length > 0) {
-                if (!document.getElementById('vsc-global-container')) {
-                    globalUIManager.init();
-                    hookSpaNavigation();
-                }
-                if (mediaObserver) mediaObserver.disconnect();
-            }
-        };
+    // 조건 없이 UI 매니저를 항상 초기화합니다.
+    if (!document.getElementById('vsc-global-container')) {
+        globalUIManager.init();
+        hookSpaNavigation();
+    }
+
+    // 미디어 유무 확인은 mediaObserver 연결을 끊는 용도로만 사용합니다.
+    if (findAllMedia().length > 0 || findAllImages().length > 0) {
+        if (mediaObserver) mediaObserver.disconnect();
+    }
+};
         const mediaObserver = new MutationObserver(debounce(initialMediaCheck, 500));
         mediaObserver.observe(document.body, { childList: true, subtree: true });
         initialMediaCheck();
