@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      86.4 (Mobile UI & Preset Layout Optimized)
-// @description  v87+ 버전의 오디오 로직 불안정성 문제를 해결하기 위해, 안정성이 검증된 v86.1의 동적 그래프 재연결(reconnectGraph) 로직으로 회귀. 슬라이더 실시간 반응성만 개선하여 안정성과 편의성을 모두 확보. 프리셋 버튼 위치 조정 및 모바일 UI 최적화.
+// @version      86.5 (Mobile UI & Preset Layout Optimized)
+// @description  v87+ 버전의 오디오 로직 불안정성 문제를 해결하기 위해, 안정성이 검증된 v86.1의 동적 그래프 재연결(reconnectGraph) 로직으로 회귀. 슬라이더 실시간 반응성만 개선하여 안정성과 편의성을 모두 확보. 프리셋 버튼 위치 조정 및 모바일 UI 최적화. 모바일 UI의 세로 여백을 줄여 가독성 향상.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -584,7 +584,7 @@
             '#vsc-container.touched { opacity: 1; }',
             '@media (hover: hover) { #vsc-container:hover { opacity: 1; } }',
             `.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; }`,
-            '.vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(8px, 1.5vmin, 12px); gap: clamp(8px, 1.5vmin, 12px); width: auto; pointer-events: auto !important; }',
+            `.vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '5px' : 'clamp(8px, 1.5vmin, 12px)'}; width: auto; pointer-events: auto !important; }`,
             `#vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '340px' : '450px'}; max-width: 90vw; }`,
             '#vsc-video-controls .vsc-submenu, #vsc-image-controls .vsc-submenu { width: 100px; }',
             '.vsc-control-group.submenu-visible .vsc-submenu { display: flex; }',
@@ -592,8 +592,8 @@
             '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
             `.vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }`,
             '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }',
-            '.slider-control { display: flex; flex-direction: column; gap: 5px; }',
-            '.slider-control label { display: flex; justify-content: space-between; font-size: 13px; color: white; }',
+            `.slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '5px'}; }`,
+            `.slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; }`,
             'input[type=range] { width: 100%; margin: 0; }',
             'input[type=range]:disabled, .vsc-select:disabled, .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }',
             '.vsc-button-group { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }',
@@ -601,9 +601,9 @@
             '#vsc-master-toggle { white-space: nowrap; flex-shrink: 0; width: auto; }',
             '.vsc-bottom-controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; border-top: 1px solid #555; padding-top: 12px; }',
             '.vsc-audio-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; }',
-            '.vsc-audio-column { display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #444; padding-right: 12px; }',
+            `.vsc-audio-column { display: flex; flex-direction: column; gap: ${isMobile ? '4px' : '10px'}; border-right: 1px solid #444; padding-right: 12px; }`,
             '.vsc-audio-column:last-child { border-right: none; padding-right: 0; }',
-            '.vsc-audio-section-divider { border-top: 1px solid #444; margin-top: 10px; padding-top: 10px; }'
+            `.vsc-audio-section-divider { border-top: 1px solid #444; margin-top: ${isMobile ? '5px' : '10px'}; padding-top: ${isMobile ? '5px' : '10px'}; }`
         ];
         function init() {
             if (state.ui.hostElement) return;
@@ -736,7 +736,7 @@
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
             const presetButtonsContainer = document.createElement('div');
-            presetButtonsContainer.style.cssText = 'display: flex; gap: 8px; width: 100%; margin-top: 10px;';
+            presetButtonsContainer.style.cssText = `display: flex; gap: 8px; width: 100%; margin-top: ${isMobile ? '5px' : '10px'};`;
             const bestMovieBtn = createButton('vsc-best-movie', '영화/목소리 최적화 프리셋', '베스트(영화)', 'vsc-btn');
             const bestMusicBtn = createButton('vsc-best-music', '음악 감상 최적화 프리셋', '베스트(음악)', 'vsc-btn');
             bestMovieBtn.style.flex = '1';
@@ -791,7 +791,7 @@
             const masterToggleBtn = createButton('vsc-master-toggle', '모든 오디오 효과 켜기/끄기', '모든 효과 ON', 'vsc-btn');
             const resetBtn = createButton('vsc-reset-all', '모든 오디오 설정 기본값으로 초기화', '초기화', 'vsc-btn');
             const bottomButtonsContainer = document.createElement('div');
-            bottomButtonsContainer.style.cssText = 'display: flex; gap: 8px; width: 100%; margin-top: 10px;';
+            bottomButtonsContainer.style.cssText = `display: flex; gap: 8px; width: 100%; margin-top: ${isMobile ? '5px' : '10px'};`;
             masterToggleBtn.style.flex = '1'; resetBtn.style.flex = '1';
             bottomButtonsContainer.append(masterToggleBtn, resetBtn);
             column2.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv, createDivider(), preGainBtn, preGainSlider.controlDiv, bottomButtonsContainer);
