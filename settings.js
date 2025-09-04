@@ -22,8 +22,8 @@
     const DEFAULT_TARGET_DELAY = 2000;
 
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 3 : 1,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 3 : 1,
+        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 5 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 5 : 2,
         DEFAULT_WIDENING_ENABLED: false,
         DEFAULT_WIDENING_FACTOR: 1.3,
         DEFAULT_STEREO_PAN: 0,
@@ -121,7 +121,7 @@
     const debounce = (fn, wait) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; };
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
-    function calculateSharpenMatrix(level) { const p = parseInt(level, 10); if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0'; const BASE_STRENGTH = 0.5; const i = 1 + p * BASE_STRENGTH; const o = (1 - i) / 8; return `${o} ${o} ${o} ${o} ${i} ${o} ${o} ${o} ${o}`; }
+    function calculateSharpenMatrix(level) { const p = parseInt(level, 10); if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0'; const BASE_STRENGTH = 0.25; const i = 1 + p * BASE_STRENGTH; const o = (1 - i) / 8; return `${o} ${o} ${o} ${o} ${i} ${o} ${o} ${o} ${o}`; }
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     function isExcluded() {
