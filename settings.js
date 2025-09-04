@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio FX)
 // @namespace    https://com/
-// @version      87.5 (New Presets Added)
+// @version      87.6 (New Presets Added)
 // @description  12가지 전문 오디오 프리셋을 드롭다운 메뉴로 통합. ASMR, 팟캐스트, 게이밍 모드 추가.
 // @match        *://*/*
 // @run-at       document-end
@@ -1663,6 +1663,18 @@
 
         globalUIManager.init();
         hookSpaNavigation();
+
+        setInterval(() => {
+        if (!document.body.contains(uiContainer)) { // uiContainer가 DOM에서 제거되었는지 확인
+            console.log('[VSC] UI container was removed, re-appending.');
+            if (uiContainer) {
+                document.body.appendChild(uiContainer);
+            } else {
+                // uiContainer가 null이 된 경우를 대비해 다시 생성
+                globalUIManager.init();
+            }
+        }
+    }, 1500);
 
         const initialMediaCheck = () => {
             if (findAllMedia().length > 0 || findAllImages().length > 0) {
