@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      88.9
-// @description  비디오 필터 UI 개편 / 처리 로직 변경
+// @version      89.0
+// @description  딜미터기 닫기/새로고침 추가
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -68,8 +68,8 @@
     const settingsManager = (() => {
         const settings = {};
         const definitions = {
-            videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 8 },
-            imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 5 }
+            videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 10 },
+            imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 10 }
         };
         function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
         return { init, get: (key) => settings[key], set: (key, value) => { settings[key] = value; }, definitions };
@@ -720,7 +720,7 @@
             };
 
             const videoFilterDef = settingsManager.definitions.videoFilterLevel;
-            const sharpenSlider = createSliderControl('선명도', 'videoSharpenSlider', videoFilterDef.min, videoFilterDef.max, 1, state.currentVideoFilterLevel, '단계');
+            const sharpenSlider = createSliderControl('샤프 (선명도)', 'videoSharpenSlider', videoFilterDef.min, videoFilterDef.max, 1, state.currentVideoFilterLevel, '단계');
             sharpenSlider.slider.oninput = () => {
                 const val = parseInt(sharpenSlider.slider.value, 10);
                 state.currentVideoFilterLevel = val;
@@ -739,7 +739,7 @@
                 videoSliderUpdate();
             };
 
-            const gammaSlider = createSliderControl('감마', 'videoGammaSlider', 0.1, 2.5, 0.01, state.currentVideoGamma, '');
+            const gammaSlider = createSliderControl('감마 (중간 영역)', 'videoGammaSlider', 0.1, 2.5, 0.01, state.currentVideoGamma, '');
             gammaSlider.slider.oninput = () => {
                 const val = parseFloat(gammaSlider.slider.value);
                 state.currentVideoGamma = val;
@@ -747,7 +747,7 @@
                 videoSliderUpdate();
             };
 
-            const blurSlider = createSliderControl('블러', 'videoBlurSlider', 0, 2, 0.05, state.currentVideoBlur, '');
+            const blurSlider = createSliderControl('블러 (왜곡 줄이기)', 'videoBlurSlider', 0, 2, 0.05, state.currentVideoBlur, '');
             blurSlider.slider.oninput = () => {
                 const val = parseFloat(blurSlider.slider.value);
                 state.currentVideoBlur = val;
@@ -755,7 +755,7 @@
                 videoSliderUpdate();
             };
 
-            const shadowsSlider = createSliderControl('어둡게', 'videoShadowsSlider', -100, 100, 1, state.currentVideoShadows, '');
+            const shadowsSlider = createSliderControl('대비 (어두운 영역)', 'videoShadowsSlider', -100, 100, 1, state.currentVideoShadows, '');
             shadowsSlider.slider.oninput = () => {
                 const val = parseInt(shadowsSlider.slider.value, 10);
                 state.currentVideoShadows = val;
@@ -763,7 +763,7 @@
                 videoSliderUpdate();
             };
 
-            const highlightsSlider = createSliderControl('밝게', 'videoHighlightsSlider', -100, 100, 1, state.currentVideoHighlights, '');
+            const highlightsSlider = createSliderControl('밝기 (밝은 영역)', 'videoHighlightsSlider', -100, 100, 1, state.currentVideoHighlights, '');
             highlightsSlider.slider.oninput = () => {
                 const val = parseInt(highlightsSlider.slider.value, 10);
                 state.currentVideoHighlights = val;
@@ -798,8 +798,8 @@
             };
 
             videoSubMenu.append(
-                sharpenSlider.controlDiv, saturationSlider.controlDiv, gammaSlider.controlDiv,
-                blurSlider.controlDiv, shadowsSlider.controlDiv, highlightsSlider.controlDiv,
+                sharpenSlider.controlDiv, blurSlider.controlDiv, highlightsSlider.controlDiv,
+                gammaSlider.controlDiv, shadowsSlider.controlDiv, saturationSlider.controlDiv,
                 resetVideoBtn
             );
 
@@ -1180,6 +1180,7 @@
         const CHECK_INTERVAL = 500;
         const MIN_RATE = 0.95, MAX_RATE = 1.05, TOLERANCE = 150;
         let localIntersectionObserver;
+        let delayMeterClosed = false;
         function isYouTubeLive() { if (!location.href.includes('youtube.com')) return false; try { const b = document.querySelector('.ytp-live-badge'); return b && b.offsetParent !== null && !/스트림이었음|was live/i.test(b.textContent); } catch { return false; } }
         function findVideo() { return state.activeMedia.size > 0 ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') : null; }
         function calculateDelay(v) { if (!v || !v.buffered || v.buffered.length === 0) return null; try { const e = v.buffered.end(v.buffered.length - 1); return Math.max(0, (e - v.currentTime) * 1000); } catch { return null; } }
@@ -1199,14 +1200,51 @@
             }
             const newRate = getPlaybackRate(avgDelay);
             if (Math.abs(video.playbackRate - newRate) > 0.001) safeExec(() => { video.playbackRate = newRate; state.currentPlaybackRate = newRate; });
+
             let infoEl = document.getElementById('vsc-delay-info');
-            if (delayHistory.length >= 5) {
+            if (delayHistory.length >= 5 && !delayMeterClosed) {
                 if (!infoEl) {
-                    infoEl = document.createElement('div'); infoEl.id = 'vsc-delay-info';
-                    Object.assign(infoEl.style, { position: 'fixed', bottom: '100px', right: '10px', zIndex: CONFIG.MAX_Z_INDEX - 1, background: 'rgba(0,0,0,.7)', color: '#fff', padding: '5px 10px', borderRadius: '5px', fontFamily: 'monospace', fontSize: '10pt', pointerEvents: 'none' });
+                    infoEl = document.createElement('div');
+                    infoEl.id = 'vsc-delay-info';
+                    Object.assign(infoEl.style, {
+                        position: 'fixed', bottom: '100px', right: '10px',
+                        zIndex: CONFIG.MAX_Z_INDEX - 1, background: 'rgba(0,0,0,.7)', color: '#fff',
+                        padding: '5px 10px', borderRadius: '5px', fontFamily: 'monospace',
+                        fontSize: '10pt', pointerEvents: 'auto', display: 'flex',
+                        alignItems: 'center', gap: '10px'
+                    });
+
+                    const textSpan = document.createElement('span');
+                    textSpan.id = 'vsc-delay-text';
+
+                    const refreshBtn = document.createElement('button');
+                    refreshBtn.textContent = '🔄';
+                    refreshBtn.title = '새로고침';
+                    Object.assign(refreshBtn.style, {
+                        background: 'none', border: '1px solid white', color: 'white',
+                        borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
+                    });
+                    refreshBtn.onclick = () => location.reload();
+
+                    const closeBtn = document.createElement('button');
+                    closeBtn.textContent = '✖';
+                    closeBtn.title = '닫기';
+                    Object.assign(closeBtn.style, {
+                        background: 'none', border: '1px solid white', color: 'white',
+                        borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
+                    });
+                    closeBtn.onclick = () => {
+                        infoEl.remove();
+                        delayMeterClosed = true;
+                    };
+
+                    infoEl.append(textSpan, refreshBtn, closeBtn);
                     document.body.appendChild(infoEl);
                 }
-                infoEl.textContent = `딜레이: ${avgDelay.toFixed(0)}ms / 현재: ${rawDelay.toFixed(0)}ms / 배속: ${state.currentPlaybackRate.toFixed(3)}x`;
+                const textSpan = infoEl.querySelector('#vsc-delay-text');
+                if (textSpan) {
+                    textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms / 현재: ${rawDelay.toFixed(0)}ms / 배속: ${state.currentPlaybackRate.toFixed(3)}x`;
+                }
             }
         }
         function start() {
@@ -1223,6 +1261,7 @@
             if (localIntersectionObserver) localIntersectionObserver.disconnect(); localIntersectionObserver = null;
             if (video) safeExec(() => { if (video.playbackRate !== 1.0) video.playbackRate = 1.0; video = null; });
             delayHistory = [];
+            delayMeterClosed = false;
             const infoEl = document.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
         }
         return { start, stop };
