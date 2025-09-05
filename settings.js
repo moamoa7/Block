@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      89.2
-// @description  모든 오디오 프리셋에 기본 명료도 향상 로직 적용
+// @version      89.3
+// @description  모든 오디오 프리셋에 토글 가능한 기본 명료도 향상 로직 적용
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -112,6 +112,7 @@
             clarityThreshold: CONFIG.DEFAULT_CLARITY_THRESHOLD,
             isPreGainEnabled: CONFIG.DEFAULT_PRE_GAIN_ENABLED,
             currentPreGain: CONFIG.DEFAULT_PRE_GAIN,
+            isGlobalClarityEnabled: true, // <-- [변경점 1] 토글 상태 추가
             ui: { shadowRoot: null, hostElement: null }, delayCheckInterval: null,
             currentPlaybackRate: 1.0, mediaTypesEverFound: { video: false, image: false }, lastUrl: '',
             audioContextWarningShown: false
@@ -902,7 +903,7 @@
             column2.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv, createDivider(), preGainBtn, preGainSlider.controlDiv);
 
             const bottomControlsContainer = document.createElement('div');
-            bottomControlsContainer.style.cssText = `display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; border-top: 1px solid #444; margin-top: ${isMobile ? '5px' : '10px'}; padding-top: ${isMobile ? '5px' : '10px'};`;
+            bottomControlsContainer.style.cssText = `display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; border-top: 1px solid #444; margin-top: ${isMobile ? '5px' : '10px'}; padding-top: ${isMobile ? '5px' : '10px'};`;
 
             const resetAllSliders = () => {
                 const defaults = {
@@ -934,6 +935,18 @@
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
 
+            // [변경점 2] '기본 음질 개선' 토글 버튼 로직 추가
+            const setGlobalClarityEnabled = (enabled) => {
+                state.isGlobalClarityEnabled = !!enabled;
+                const btn = shadowRoot.getElementById('vsc-global-clarity-toggle');
+                if (btn) btn.classList.toggle('active', enabled);
+                // 현재 선택된 프리셋을 다시 적용하여 변경사항을 즉시 반영
+                const presetSelect = shadowRoot.getElementById('bestPresetSelect');
+                if (presetSelect && presetSelect.value) {
+                    applyPreset(presetSelect.value);
+                }
+            };
+
             const applyPreset = (presetType) => {
                 const allSliders = { wideningSlider, panSlider, hpfSlider, eqLowSlider, eqMidSlider, eqHighSlider, autopanRateSlider, panDepthSlider, widthDepthSlider, clarityThresholdSlider, preGainSlider };
 
@@ -947,56 +960,50 @@
                     }
                 };
 
-                // --- 1. 먼저 모든 프리셋의 '기본 틀(명료도)'을 설정 ---
+                // --- 1. 모든 설정을 깨끗하게 초기화 ---
                 resetEffectStatesToDefault();
                 resetAllSliders();
 
-                setHpfEnabled(true);
-                state.currentHpfHz = 90;
+                // --- 2. '기본 명료도 향상' 기능이 켜져 있을 경우에만 기본 설정 적용 ---
+                if (state.isGlobalClarityEnabled) {
+                    setHpfEnabled(true);
+                    updateSlider('hpfSlider', 'currentHpfHz', 90, 'Hz');
 
-                setEqEnabled(true);
-                state.eqLowGain = -2;
-                state.eqMidGain = 3;
-                state.eqHighGain = 3;
+                    setEqEnabled(true);
+                    updateSlider('eqLowSlider', 'eqLowGain', -2, 'dB');
+                    updateSlider('eqMidSlider', 'eqMidGain', 3, 'dB');
+                    updateSlider('eqHighSlider', 'eqHighGain', 3, 'dB');
 
-                setWideningEnabled(false);
-                setAdaptiveWidthEnabled(false);
-                setAutopanEnabled(false);
+                    setWideningEnabled(false);
 
-                setPreGainEnabled(true);
-                state.currentPreGain = 1.2;
-                // --------------------------------------------------
+                    setPreGainEnabled(true);
+                    updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
+                }
 
-
-                // --- 2. 이제 그 위에 프리셋별 '개성'을 덧칠 ---
+                // --- 3. 이제 그 위에 프리셋별 '개성'을 덧칠 ---
                 switch (presetType) {
                     case 'movie':
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 100, 'Hz');
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', 3, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', 2, 'dB');
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        setWideningEnabled(true);
                         updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
+                        updateSlider('eqLowSlider', 'eqLowGain', -1, 'dB');
+                        setClarityEnabled(true);
+                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
                         break;
                     case 'music':
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 50, 'Hz');
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
-                        setEqEnabled(true);
+                        setWideningEnabled(true);
+                        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
                         updateSlider('eqLowSlider', 'eqLowGain', 4, 'dB');
                         updateSlider('eqMidSlider', 'eqMidGain', -2, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', 3, 'dB');
-                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
+                        updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
                         setAdaptiveWidthEnabled(true);
-                        setAutopanEnabled(true);
-                        updateSlider('autopanRateSlider', 'autopanRate', 0.1, 'Hz');
-                        updateSlider('panDepthSlider', 'autopanDepthPan', 0.05, '');
-                        updateSlider('widthDepthSlider', 'autopanDepthWidth', 0.3, '');
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
                         break;
                     case 'spatial':
                         applyPreset('music');
+                        setAutopanEnabled(true);
                         updateSlider('autopanRateSlider', 'autopanRate', 0.3, 'Hz');
                         updateSlider('panDepthSlider', 'autopanDepthPan', 0.6, '');
                         updateSlider('widthDepthSlider', 'autopanDepthWidth', 2.0, '');
@@ -1008,18 +1015,24 @@
                         updateSlider('eqLowSlider', 'eqLowGain', -5, 'dB');
                         updateSlider('eqMidSlider', 'eqMidGain', 6, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', -2, 'dB');
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 135, 'Hz');
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        setClarityEnabled(true);
+                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
+                        setHpfEnabled(true);
+                        updateSlider('hpfSlider', 'currentHpfHz', 135, 'Hz');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
                         break;
                     case 'night':
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -35, 'dB');
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 80, 'Hz');
+                        setClarityEnabled(true);
+                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -35, 'dB');
+                        setHpfEnabled(true);
+                        updateSlider('hpfSlider', 'currentHpfHz', 80, 'Hz');
                         setEqEnabled(true);
                         updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
                         updateSlider('eqMidSlider', 'eqMidGain', 2, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', 1, 'dB');
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
                         break;
                     case 'action':
                         setEqEnabled(true);
@@ -1027,86 +1040,113 @@
                         updateSlider('eqMidSlider', 'eqMidGain', -2, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', 2, 'dB');
                         setAdaptiveWidthEnabled(true);
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
-                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.5, 'x');
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 2.0, 'x');
+                        setHpfEnabled(true);
+                        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+                        setClarityEnabled(true);
+                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
+                        setWideningEnabled(true);
+                        updateSlider('wideningSlider', 'currentWideningFactor', 1.5, 'x');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 2.0, 'x');
                         break;
                     case 'analog':
                         setEqEnabled(true);
                         updateSlider('eqLowSlider', 'eqLowGain', 2, 'dB');
                         updateSlider('eqMidSlider', 'eqMidGain', 1, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', -3, 'dB');
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -22, 'dB');
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
-                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.2, 'x');
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
+                        setClarityEnabled(true);
+                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -22, 'dB');
+                        setHpfEnabled(true);
+                        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+                        setWideningEnabled(true);
+                        updateSlider('wideningSlider', 'currentWideningFactor', 1.2, 'x');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
                         setAutopanEnabled(false);
                         setAdaptiveWidthEnabled(false);
                         break;
                     case 'acoustic':
                         setClarityEnabled(false);
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
+                        setHpfEnabled(true);
+                        updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
                         setEqEnabled(true);
                         updateSlider('eqLowSlider', 'eqLowGain', 1, 'dB');
                         updateSlider('eqMidSlider', 'eqMidGain', -1, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', 1, 'dB');
-                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.4, 'x');
+                        setWideningEnabled(true);
+                        updateSlider('wideningSlider', 'currentWideningFactor', 1.4, 'x');
                         setAdaptiveWidthEnabled(false);
                         setAutopanEnabled(false);
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
                         break;
                     case 'concert':
                         setEqEnabled(true);
                         updateSlider('eqLowSlider', 'eqLowGain', 5, 'dB');
                         updateSlider('eqMidSlider', 'eqMidGain', -3, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
-                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 2.0, 'x');
+                        setClarityEnabled(true);
+                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
+                        setHpfEnabled(true);
+                        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+                        setWideningEnabled(true);
+                        updateSlider('wideningSlider', 'currentWideningFactor', 2.0, 'x');
                         setAdaptiveWidthEnabled(true);
                         setAutopanEnabled(false);
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
                         break;
                     case 'asmr':
                         setEqEnabled(true);
                         updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
                         updateSlider('eqMidSlider', 'eqMidGain', 2, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', 5, 'dB');
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 100, 'Hz');
-                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 2.2, 'x');
+                        setClarityEnabled(true);
+                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
+                        setHpfEnabled(true);
+                        updateSlider('hpfSlider', 'currentHpfHz', 100, 'Hz');
+                        setWideningEnabled(true);
+                        updateSlider('wideningSlider', 'currentWideningFactor', 2.2, 'x');
                         setAdaptiveWidthEnabled(false);
                         setAutopanEnabled(false);
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
                         break;
                     case 'podcast':
                         setEqEnabled(true);
                         updateSlider('eqLowSlider', 'eqLowGain', -5, 'dB');
                         updateSlider('eqMidSlider', 'eqMidGain', 4, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', -2, 'dB');
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -26, 'dB');
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 120, 'Hz');
-                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.0, 'x');
+                        setClarityEnabled(true);
+                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -26, 'dB');
+                        setHpfEnabled(true);
+                        updateSlider('hpfSlider', 'currentHpfHz', 120, 'Hz');
+                        setWideningEnabled(true);
+                        updateSlider('wideningSlider', 'currentWideningFactor', 1.0, 'x');
                         setAdaptiveWidthEnabled(true);
                         setAutopanEnabled(false);
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
                         break;
                     case 'gaming':
                         setEqEnabled(true);
                         updateSlider('eqLowSlider', 'eqLowGain', 4, 'dB');
                         updateSlider('eqMidSlider', 'eqMidGain', -3, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
-                        setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
-                        setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
-                        setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
+                        setClarityEnabled(true);
+                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
+                        setHpfEnabled(true);
+                        updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
+                        setWideningEnabled(true);
+                        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
                         setAdaptiveWidthEnabled(false);
                         setAutopanEnabled(false);
-                        setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        setPreGainEnabled(true);
+                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
                         break;
                 }
 
-                // --- 3. 최종 완성된 설정으로 소리를 적용 ---
+                // --- 4. 최종 완성된 설정으로 소리를 적용 ---
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
 
@@ -1127,15 +1167,21 @@
 
             const bestPresetSelect = createSelectControl('프리셋 선택', bestPresets, (val) => {
                 if (val) applyPreset(val);
-            });
+            }, 'bestPresetSelect');
+
+            // [변경점 3] UI에 토글 버튼 추가
+            const globalClarityBtn = createButton('vsc-global-clarity-toggle', '기본 음질 개선 ON/OFF', '기본 개선', 'vsc-btn');
+            globalClarityBtn.classList.toggle('active', state.isGlobalClarityEnabled);
+            globalClarityBtn.onclick = () => setGlobalClarityEnabled(!state.isGlobalClarityEnabled);
 
             resetBtn.onclick = () => {
                 resetEffectStatesToDefault();
                 resetAllSliders();
+                setGlobalClarityEnabled(true); // 초기화 시 기본 개선 기능도 다시 켬
                 bestPresetSelect.selectedIndex = 0;
             };
 
-            bottomControlsContainer.append(bestPresetSelect, resetBtn);
+            bottomControlsContainer.append(globalClarityBtn, bestPresetSelect, resetBtn);
 
             audioGridContainer.append(column1, column2);
             stereoSubMenu.append(audioGridContainer, bottomControlsContainer);
