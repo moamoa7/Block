@@ -17,8 +17,8 @@
     const DEFAULT_TARGET_DELAY = 2000;
 
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 5 : 2,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 5 : 2,
+        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 10 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 10 : 2,
         DEFAULT_WIDENING_ENABLED: false,
         DEFAULT_WIDENING_FACTOR: 1.3,
         DEFAULT_STEREO_PAN: 0,
