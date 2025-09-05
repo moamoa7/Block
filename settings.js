@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      89.1
-// @description  번개 아이콘 주기적 체크 (1초)
+// @version      89.2
+// @description  모든 오디오 프리셋에 기본 명료도 향상 로직 적용
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -947,9 +947,28 @@
                     }
                 };
 
+                // --- 1. 먼저 모든 프리셋의 '기본 틀(명료도)'을 설정 ---
                 resetEffectStatesToDefault();
                 resetAllSliders();
 
+                setHpfEnabled(true);
+                state.currentHpfHz = 90;
+
+                setEqEnabled(true);
+                state.eqLowGain = -2;
+                state.eqMidGain = 3;
+                state.eqHighGain = 3;
+
+                setWideningEnabled(false);
+                setAdaptiveWidthEnabled(false);
+                setAutopanEnabled(false);
+
+                setPreGainEnabled(true);
+                state.currentPreGain = 1.2;
+                // --------------------------------------------------
+
+
+                // --- 2. 이제 그 위에 프리셋별 '개성'을 덧칠 ---
                 switch (presetType) {
                     case 'movie':
                         setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 100, 'Hz');
@@ -959,13 +978,14 @@
                         updateSlider('eqMidSlider', 'eqMidGain', 3, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', 2, 'dB');
                         setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+                        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
                         break;
                     case 'music':
                         setHpfEnabled(true); updateSlider('hpfSlider', 'currentHpfHz', 50, 'Hz');
                         setClarityEnabled(true); updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
                         setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', -2, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', 0, 'dB');
+                        updateSlider('eqLowSlider', 'eqLowGain', 4, 'dB');
+                        updateSlider('eqMidSlider', 'eqMidGain', -2, 'dB');
                         updateSlider('eqHighSlider', 'eqHighGain', 3, 'dB');
                         setWideningEnabled(true); updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
                         setAdaptiveWidthEnabled(true);
@@ -1086,6 +1106,7 @@
                         break;
                 }
 
+                // --- 3. 최종 완성된 설정으로 소리를 적용 ---
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
 
@@ -1301,14 +1322,11 @@
             state.currentVideoShadows !== 0 ||
             state.currentVideoHighlights !== 0;
 
-        // 클래스 토글 대신 style.setProperty를 사용하여 인라인 스타일을 직접 덮어씁니다.
         if (video.dataset.isVisible !== 'false' && shouldApply) {
             const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
             const combinedFilterId = `${videoDefaults.SHARPEN_ID}_combined_filter`;
             video.style.setProperty('filter', `url(#${combinedFilterId})`, 'important');
         } else {
-            // 필터가 필요 없을 때 filter 속성을 제거합니다.
-            // 사이트의 다른 filter 속성과 충돌하지 않도록 ''로 설정하는 것보다 removeProperty가 더 안전합니다.
             video.style.removeProperty('filter');
         }
     }
