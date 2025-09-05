@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (with Advanced Audio FX)
+// @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      87.4
-// @description  비디오 필터 샤프 계산법 변경
+// @version      88.9
+// @description  비디오 필터 UI 개편 / 처리 로직 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -12,13 +12,8 @@
     'use strict';
 
     let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
-
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-
-    const TARGET_DELAYS = {
-        "youtube.com": 2750, "chzzk.naver.com": 2000, "play.sooplive.co.kr": 2000,
-        "twitch.tv": 2000, "kick.com": 2000,
-    };
+    const TARGET_DELAYS = { "youtube.com": 2750, "chzzk.naver.com": 2000, "play.sooplive.co.kr": 2000, "twitch.tv": 2000, "kick.com": 2000 };
     const DEFAULT_TARGET_DELAY = 2000;
 
     const CONFIG = {
@@ -53,7 +48,7 @@
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 115 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0.2', SHADOWS_VALUE: -2, HIGHLIGHTS_VALUE: 5, SATURATION_VALUE: 115 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0.3', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
-        SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'], }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] }, },
+        SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
         FILTER_EXCLUSION_DOMAINS: [],
         IMAGE_FILTER_EXCLUSION_DOMAINS: [],
     };
@@ -85,12 +80,18 @@
     resetState();
     function resetState() {
         Object.keys(state).forEach(key => delete state[key]);
+        const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
         Object.assign(state, {
             activeMedia: new Set(), processedMedia: new WeakSet(), activeImages: new Set(),
             processedImages: new WeakSet(), mediaListenerMap: new WeakMap(),
             currentlyVisibleMedia: null,
-            currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || 0,
-            currentImageFilterLevel: settingsManager.get('imageFilterLevel') || 0,
+            currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || CONFIG.DEFAULT_VIDEO_FILTER_LEVEL,
+            currentImageFilterLevel: settingsManager.get('imageFilterLevel') || CONFIG.DEFAULT_IMAGE_FILTER_LEVEL,
+            currentVideoGamma: parseFloat(videoDefaults.GAMMA_VALUE),
+            currentVideoBlur: parseFloat(videoDefaults.BLUR_STD_DEVIATION),
+            currentVideoShadows: parseInt(videoDefaults.SHADOWS_VALUE, 10),
+            currentVideoHighlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10),
+            currentVideoSaturation: parseInt(videoDefaults.SATURATION_VALUE, 10),
             isWideningEnabled: CONFIG.DEFAULT_WIDENING_ENABLED,
             audioContextMap: new WeakMap(),
             currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
@@ -138,6 +139,7 @@
         constructor(options) { this.#options = options; }
         isInitialized() { return this.#isInitialized; }
         getSvgNode() { return this.#svgNode; }
+        getStyleNode() { return this.#styleElement; }
         toggleStyleSheet(enable) { if (this.#styleElement) this.#styleElement.media = enable ? 'all' : 'none'; }
         init() {
             if (this.#isInitialized) return;
@@ -149,35 +151,76 @@
                 this.#isInitialized = true;
             }, `${this.constructor.name}.init`);
         }
-        setSharpenMatrix(matrix, rootNode = document) {
-            if (!this.isInitialized()) return;
-            const matrixEl = rootNode.getElementById(this.#options.matrixId);
-            if (matrixEl && matrixEl.getAttribute('kernelMatrix') !== matrix) {
-                matrixEl.setAttribute('kernelMatrix', matrix);
-            }
-        }
+
         #createElements() {
             const createSvgElement = (tag, attr, ...children) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); el.append(...children); return el; };
             const { settings, svgId, styleId, matrixId, className } = this.#options;
+            const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`;
+
             const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
-            const filters = [
-                { id: `${settings.SHARPEN_ID}_soft`, children: [createSvgElement('feGaussianBlur', { stdDeviation: settings.BLUR_STD_DEVIATION })] },
-                { id: settings.SHARPEN_ID, children: [createSvgElement('feConvolveMatrix', { id: matrixId, order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0' })] },
-                { id: `${settings.SHARPEN_ID}_gamma`, children: [createSvgElement('feComponentTransfer', {}, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() }))) ] },
-                { id: `${settings.SHARPEN_ID}_linear`, children: [createSvgElement('feComponentTransfer', {}, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: (1 + settings.HIGHLIGHTS_VALUE / 100).toString(), intercept: (settings.SHADOWS_VALUE / 200).toString() }))) ] }
-            ];
-            svg.append(...filters.map(f => createSvgElement('filter', { id: f.id }, ...f.children)));
-            const style = document.createElement('style'); style.id = styleId;
-            style.textContent = `.${className}{filter:saturate(${settings.SATURATION_VALUE}%) url(#${filters[2].id}) url(#${filters[0].id}) url(#${filters[1].id}) url(#${filters[3].id})!important;}.${'vsc-gpu-accelerated'}{transform:translateZ(0);will-change:transform;}`;
+            const combinedFilter = createSvgElement('filter', { id: combinedFilterId });
+
+            const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
+            const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" },
+                ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() }))
+            );
+            const blur = createSvgElement('feGaussianBlur', { "data-vsc-id": "blur", in: "gamma_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "blur_out" });
+            const sharpen = createSvgElement('feConvolveMatrix', { id: matrixId, "data-vsc-id": "sharpen", in: "blur_out", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out" });
+            const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "sharpen_out" },
+                ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: (1 + settings.HIGHLIGHTS_VALUE / 100).toString(), intercept: (settings.SHADOWS_VALUE / 200).toString() }))
+            );
+
+            combinedFilter.append(saturation, gamma, blur, sharpen, linear);
+            svg.append(combinedFilter);
+
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                .${className} { filter: url(#${combinedFilterId}) !important; }
+                .${'vsc-gpu-accelerated'} { transform: translateZ(0); will-change: transform; }
+            `;
+
             return { svgNode: svg, styleElement: style };
         }
+
+        updateFilterValues(values, rootNode = document) {
+            if (!this.isInitialized()) return;
+            const { saturation, gamma, blur, sharpenMatrix, shadows, highlights } = values;
+
+            if (saturation !== undefined) {
+                rootNode.querySelectorAll(`[data-vsc-id="saturate"]`).forEach(el => el.setAttribute('values', (saturation / 100).toString()));
+            }
+            if (gamma !== undefined) {
+                const exponent = (1 / gamma).toString();
+                rootNode.querySelectorAll(`[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB`).forEach(el => el.setAttribute('exponent', exponent));
+            }
+            if (blur !== undefined) {
+                rootNode.querySelectorAll(`[data-vsc-id="blur"]`).forEach(el => el.setAttribute('stdDeviation', blur.toString()));
+            }
+            if (sharpenMatrix !== undefined) {
+                const matrixEl = rootNode.getElementById(this.#options.matrixId);
+                if (matrixEl && matrixEl.getAttribute('kernelMatrix') !== sharpenMatrix) {
+                    matrixEl.setAttribute('kernelMatrix', sharpenMatrix);
+                }
+            }
+            if (shadows !== undefined || highlights !== undefined) {
+                const currentHighlights = highlights ?? state.currentVideoHighlights;
+                const currentShadows = shadows ?? state.currentVideoShadows;
+                const slope = (1 + currentHighlights / 100).toString();
+                const intercept = (currentShadows / 200).toString();
+                rootNode.querySelectorAll(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`).forEach(el => {
+                    el.setAttribute('slope', slope);
+                    el.setAttribute('intercept', intercept);
+                });
+            }
+        }
     }
+
     const filterManager = new SvgFilterManager({ settings: isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', matrixId: 'vsc-dynamic-convolve-matrix', className: 'vsc-video-filter-active' });
     const imageFilterManager = new SvgFilterManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
 
     const stereoWideningManager = (() => {
         const analysisStatusMap = new WeakMap();
-
         const setParamWithFade = (audioParam, targetValue, duration = 0.05) => {
             if (!audioParam || !isFinite(targetValue)) return;
             const ctx = audioParam.context;
@@ -187,7 +230,6 @@
                 audioParam.linearRampToValueAtTime(targetValue, ctx.currentTime + duration);
             } catch(e) { /* ignore errors on closed context */ }
         };
-
         function createAudioGraph(media) {
             const context = new (window.AudioContext || window.webkitAudioContext)();
             let source;
@@ -199,7 +241,6 @@
                 showWarningMessage('오디오 효과를 적용할 수 없습니다. 페이지를 새로고침 해보세요.');
                 context.close(); return null;
             }
-
             const nodes = { context, source,
                 eqLow: context.createBiquadFilter(), eqMid: context.createBiquadFilter(), eqHigh: context.createBiquadFilter(),
                 ms_splitter: context.createChannelSplitter(2), ms_mid_sum: context.createGain(),
@@ -214,19 +255,15 @@
                 preGain: context.createGain(),
                 clarityCompressor: context.createDynamicsCompressor(),
             };
-
             state.audioContextMap.set(media, nodes);
             reconnectGraph(media);
             return nodes;
         }
-
         function reconnectGraph(media) {
             const nodes = state.audioContextMap.get(media);
             if (!nodes) return;
-
             setTimeout(() => {
                 if (nodes.context.state === 'closed') return;
-
                 safeExec(() => {
                     Object.values(nodes).forEach(node => {
                         if (node && typeof node.disconnect === 'function' && node !== nodes.context) {
@@ -237,13 +274,11 @@
                         try { nodes.lfo.stop(); } catch (e) {}
                         nodes.lfo = nodes.context.createOscillator();
                     }
-
                     nodes.eqLow.type = 'lowshelf'; nodes.eqLow.frequency.value = 150; nodes.eqLow.gain.value = state.eqLowGain;
                     nodes.eqMid.type = 'peaking'; nodes.eqMid.frequency.value = 1000; nodes.eqMid.Q.value = 1; nodes.eqMid.gain.value = state.eqMidGain;
                     nodes.eqHigh.type = 'highshelf'; nodes.eqHigh.frequency.value = 5000; nodes.eqHigh.gain.value = state.eqHighGain;
                     nodes.stereoPanner.pan.value = state.currentStereoPan;
                     nodes.hpfWiden.type = 'highpass'; nodes.hpfWiden.frequency.value = state.currentHpfHz;
-
                     if (state.isClarityEnabled) {
                         nodes.clarityCompressor.threshold.value = state.clarityThreshold;
                         nodes.clarityCompressor.knee.value = 30;
@@ -251,7 +286,6 @@
                         nodes.clarityCompressor.attack.value = 0.01;
                         nodes.clarityCompressor.release.value = 0.25;
                     }
-
                     if (state.isAutopanEnabled) {
                         nodes.lfo.frequency.value = state.autopanRate;
                         nodes.lfoGainPan.gain.value = state.autopanDepthPan;
@@ -264,77 +298,61 @@
                            nodes.lfo.start();
                         }
                     }
-
                     let lastNodeInChain = nodes.source;
-
                     if (state.isEqEnabled) {
                         lastNodeInChain.connect(nodes.eqLow);
                         nodes.eqLow.connect(nodes.eqMid);
                         nodes.eqMid.connect(nodes.eqHigh);
                         lastNodeInChain = nodes.eqHigh;
                     }
-
                     lastNodeInChain.connect(nodes.stereoPanner);
                     lastNodeInChain = nodes.stereoPanner;
-
                     if (state.isHpfEnabled) {
                         lastNodeInChain.connect(nodes.hpfWiden);
                         lastNodeInChain = nodes.hpfWiden;
                     }
-
                     if (state.isClarityEnabled) {
                         lastNodeInChain.connect(nodes.clarityCompressor);
                         lastNodeInChain = nodes.clarityCompressor;
                     }
-
                     if (state.isWideningEnabled) {
                         lastNodeInChain.connect(nodes.ms_splitter);
                         nodes.ms_splitter.connect(nodes.ms_mid_sum, 0);
                         nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
                         nodes.ms_mid_sum.connect(nodes.ms_mid_level);
-
                         nodes.ms_splitter.connect(nodes.ms_side_sum, 0);
                         nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1).connect(nodes.ms_side_sum);
                         nodes.ms_side_invert_R.gain.value = -1;
                         nodes.ms_side_sum.connect(nodes.ms_side_level);
-
                         nodes.ms_mid_level.gain.value = 0.5;
                         nodes.ms_side_level.gain.value = 0.5;
-
                         nodes.adaptiveWidthFilter.type = 'highpass';
                         nodes.adaptiveWidthFilter.frequency.value = state.isAdaptiveWidthEnabled ? state.adaptiveWidthFreq : 0;
                         nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
                         if (!state.isAutopanEnabled) {
                             nodes.ms_side_gain.gain.value = state.currentWideningFactor;
                         }
-
                         nodes.ms_decode_invert_Side.gain.value = -1;
                         nodes.ms_mid_level.connect(nodes.ms_decode_L_sum);
                         nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
                         nodes.ms_mid_level.connect(nodes.ms_decode_R_sum);
                         nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side).connect(nodes.ms_decode_R_sum);
-
                         nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0);
                         nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
                         lastNodeInChain = nodes.ms_merger;
                     }
-
                     if (state.isPreGainEnabled) {
                         lastNodeInChain.connect(nodes.preGain);
                         nodes.preGain.gain.value = state.currentPreGain;
                         lastNodeInChain = nodes.preGain;
                     }
-
                     lastNodeInChain.connect(nodes.context.destination);
-
                     nodes.stereoPanner.connect(nodes.analyser);
                     nodes.analyser.fftSize = 256;
                     nodes.analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
-
                 }, 'reconnectGraph');
             }, 10);
         }
-
         function checkAudioActivity(media, nodes) {
             if (!media || !nodes || !nodes.analyser) return;
             const currentStatus = analysisStatusMap.get(media);
@@ -372,7 +390,6 @@
                 }
             }, CHECK_INTERVAL);
         }
-
         function getOrCreateNodes(media) {
             if (state.audioContextMap.has(media)) return state.audioContextMap.get(media);
             try {
@@ -390,7 +407,6 @@
             } catch (e) { console.error('[VSC] 오디오 그래프 생성 실패:', e); showWarningMessage('오디오 그래프 생성에 실패했습니다. 콘솔을 확인하세요.'); }
             return null;
         }
-
         function cleanupForMedia(media) {
             const nodes = state.audioContextMap.get(media);
             if (nodes) {
@@ -405,7 +421,6 @@
                 analysisStatusMap.delete(media);
             }
         }
-
         function ensureContextResumed(media) {
             const nodes = getOrCreateNodes(media);
             if (nodes && nodes.context.state === 'suspended') {
@@ -417,7 +432,6 @@
                 });
             }
         }
-
         return {
             getOrCreateNodes, setParamWithFade, reconnectGraph,
             cleanupForMedia, ensureContextResumed,
@@ -438,10 +452,8 @@
         state.isPreGainEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-pregain-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-
         const slider = state.ui.shadowRoot?.getElementById('preGainSlider');
         if (slider) slider.disabled = !enabled;
-
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -451,10 +463,8 @@
         state.isWideningEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-
         const slider = state.ui.shadowRoot?.getElementById('wideningSlider');
         if (slider) slider.disabled = !enabled;
-
         const adaptiveWidthBtn = state.ui.shadowRoot?.getElementById('vsc-adaptive-width-toggle');
         if (adaptiveWidthBtn) {
             adaptiveWidthBtn.disabled = !enabled;
@@ -462,7 +472,6 @@
                 setAdaptiveWidthEnabled(false);
             }
         }
-
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -472,10 +481,8 @@
         state.isHpfEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-hpf-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-
         const slider = state.ui.shadowRoot?.getElementById('hpfSlider');
         if(slider) slider.disabled = !enabled;
-
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -485,7 +492,6 @@
         state.isEqEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-eq-toggle');
         if (btn) btn.classList.toggle('active', enabled);
-
         const shadowRoot = state.ui.shadowRoot;
         if (shadowRoot) {
             ['eqLowSlider', 'eqMidSlider', 'eqHighSlider'].forEach(id => {
@@ -493,7 +499,6 @@
                 if (slider) slider.disabled = !enabled;
             });
         }
-
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -534,10 +539,8 @@
         state.isClarityEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('clarityBtn');
         if (btn) btn.classList.toggle('active', enabled);
-
         const slider = state.ui.shadowRoot?.getElementById('clarityThresholdSlider');
         if(slider) slider.disabled = !enabled;
-
         const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
         mediaToAffect.forEach(stereoWideningManager.reconnectGraph);
     }
@@ -552,15 +555,31 @@
         setPreGainEnabled(CONFIG.DEFAULT_PRE_GAIN_ENABLED);
     }
 
-    function setVideoFilterLevel(level) {
+    function applyAllVideoFilters() {
+        if (!filterManager.isInitialized()) return;
+        const values = {
+            saturation: state.currentVideoSaturation,
+            gamma: state.currentVideoGamma,
+            blur: state.currentVideoBlur,
+            sharpenMatrix: calculateSharpenMatrix(state.currentVideoFilterLevel),
+            shadows: state.currentVideoShadows,
+            highlights: state.currentVideoHighlights,
+        };
+        filterManager.updateFilterValues(values, document);
+        (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => {
+            filterManager.updateFilterValues(values, root);
+        });
+    }
+
+    function setVideoFilterLevel(level, fromUI = false) {
         if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname) && level > 0) return;
         if (!filterManager.isInitialized() && level > 0) filterManager.init();
         const newLevel = parseInt(level, 10);
         state.currentVideoFilterLevel = isNaN(newLevel) ? 0 : newLevel;
-        settingsManager.set('videoFilterLevel', state.currentVideoFilterLevel);
-        const newMatrix = calculateSharpenMatrix(state.currentVideoFilterLevel);
-        filterManager.setSharpenMatrix(newMatrix);
-        (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => filterManager.setSharpenMatrix(newMatrix, root));
+        if (fromUI) {
+            settingsManager.set('videoFilterLevel', state.currentVideoFilterLevel);
+        }
+        applyAllVideoFilters();
         state.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') updateVideoFilterState(media); });
     }
 
@@ -571,8 +590,9 @@
         state.currentImageFilterLevel = isNaN(newLevel) ? 0 : newLevel;
         settingsManager.set('imageFilterLevel', state.currentImageFilterLevel);
         const newMatrix = calculateSharpenMatrix(state.currentImageFilterLevel);
-        imageFilterManager.setSharpenMatrix(newMatrix);
-        (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => imageFilterManager.setSharpenMatrix(newMatrix, root));
+        const imageValues = { sharpenMatrix: newMatrix };
+        imageFilterManager.updateFilterValues(imageValues, document);
+        (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => imageFilterManager.updateFilterValues(imageValues, root));
         state.activeImages.forEach(image => updateImageFilterState(image));
     }
 
@@ -586,7 +606,8 @@
             `.vsc-control-group { display: flex; align-items: center; justify-content: flex-end; margin-top: clamp(3px, 0.8vmin, 5px); height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; }`,
             `.vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '5px' : 'clamp(8px, 1.5vmin, 12px)'}; width: auto; pointer-events: auto !important; }`,
             `#vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '340px' : '450px'}; max-width: 90vw; }`,
-            '#vsc-video-controls .vsc-submenu, #vsc-image-controls .vsc-submenu { width: 100px; }',
+            `#vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }`,
+            '#vsc-image-controls .vsc-submenu { width: 100px; }',
             '.vsc-control-group.submenu-visible .vsc-submenu { display: flex; }',
             `.vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); }`,
             '.vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }',
@@ -665,7 +686,14 @@
             const createSliderControl = (label, id, min, max, step, value, unit) => {
                 const div = document.createElement('div'); div.className = 'slider-control';
                 const labelEl = document.createElement('label'); const span = document.createElement('span');
-                span.id = `${id}Val`; span.textContent = `${value}${unit}`;
+                span.id = `${id}Val`;
+
+                let displayValue = value;
+                if (typeof value === 'number' && step < 1) {
+                    displayValue = value.toFixed(2);
+                }
+
+                span.textContent = `${displayValue}${unit}`;
                 labelEl.textContent = `${label}: `; labelEl.appendChild(span);
                 const slider = document.createElement('input'); slider.type = 'range'; slider.id = id; slider.min = min; slider.max = max; slider.step = step; slider.value = value;
                 div.append(labelEl, slider);
@@ -677,23 +705,111 @@
                 return div;
             };
 
-            const videoOpts = [{ value: "0", text: "꺼짐" }, ...Array.from({ length: 5 }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))];
             const imageOpts = [{ value: "0", text: "꺼짐" }, ...Array.from({ length: 5 }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))];
             const { group: imageGroup, subMenu: imageSubMenu } = createControlGroup('vsc-image-controls', '🎨', '이미지 선명도');
-            imageSubMenu.appendChild(createSelectControl('이미지 선명도', imageOpts, setImageFilterLevel, 'imageFilterSelect'));
-            const { group: videoGroup, subMenu: videoSubMenu } = createControlGroup('vsc-video-controls', '✨', '영상 선명도');
-            videoSubMenu.appendChild(createSelectControl('영상 선명도', videoOpts, setVideoFilterLevel, 'videoFilterSelect'));
-            const { group: stereoGroup, subMenu: stereoSubMenu } = createControlGroup('vsc-stereo-controls', '🎧', '사운드 효과');
+            imageSubMenu.appendChild(createSelectControl('이미지 선명도', imageOpts, (val) => setImageFilterLevel(val), 'imageFilterSelect'));
 
+            const { group: videoGroup, subMenu: videoSubMenu } = createControlGroup('vsc-video-controls', '✨', '영상 필터');
+            videoSubMenu.style.gap = '10px';
+
+            const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
+
+            const videoSliderUpdate = () => {
+                applyAllVideoFilters();
+                state.activeMedia.forEach(m => { if (m.tagName === 'VIDEO') updateVideoFilterState(m); });
+            };
+
+            const sharpenSlider = createSliderControl('선명도', 'videoSharpenSlider', 0, 5, 1, state.currentVideoFilterLevel, '단계');
+            sharpenSlider.slider.oninput = () => {
+                const val = parseInt(sharpenSlider.slider.value, 10);
+                state.currentVideoFilterLevel = val;
+                sharpenSlider.valueSpan.textContent = `${val}단계`;
+                videoSliderUpdate();
+            };
+            sharpenSlider.slider.onchange = () => {
+                settingsManager.set('videoFilterLevel', state.currentVideoFilterLevel);
+            };
+
+            const saturationSlider = createSliderControl('채도', 'videoSaturationSlider', 0, 300, 1, state.currentVideoSaturation, '%');
+            saturationSlider.slider.oninput = () => {
+                const val = parseInt(saturationSlider.slider.value, 10);
+                state.currentVideoSaturation = val;
+                saturationSlider.valueSpan.textContent = `${val}%`;
+                videoSliderUpdate();
+            };
+
+            const gammaSlider = createSliderControl('감마', 'videoGammaSlider', 0.1, 2.5, 0.01, state.currentVideoGamma, '');
+            gammaSlider.slider.oninput = () => {
+                const val = parseFloat(gammaSlider.slider.value);
+                state.currentVideoGamma = val;
+                gammaSlider.valueSpan.textContent = val.toFixed(2);
+                videoSliderUpdate();
+            };
+
+            const blurSlider = createSliderControl('블러', 'videoBlurSlider', 0, 2, 0.05, state.currentVideoBlur, '');
+            blurSlider.slider.oninput = () => {
+                const val = parseFloat(blurSlider.slider.value);
+                state.currentVideoBlur = val;
+                blurSlider.valueSpan.textContent = val.toFixed(2);
+                videoSliderUpdate();
+            };
+
+            const shadowsSlider = createSliderControl('어둡게', 'videoShadowsSlider', -100, 100, 1, state.currentVideoShadows, '');
+            shadowsSlider.slider.oninput = () => {
+                const val = parseInt(shadowsSlider.slider.value, 10);
+                state.currentVideoShadows = val;
+                shadowsSlider.valueSpan.textContent = val;
+                videoSliderUpdate();
+            };
+
+            const highlightsSlider = createSliderControl('밝게', 'videoHighlightsSlider', -100, 100, 1, state.currentVideoHighlights, '');
+            highlightsSlider.slider.oninput = () => {
+                const val = parseInt(highlightsSlider.slider.value, 10);
+                state.currentVideoHighlights = val;
+                highlightsSlider.valueSpan.textContent = val;
+                videoSliderUpdate();
+            };
+
+            const resetVideoBtn = createButton('vsc-reset-video', '영상 필터 초기화', '초기화', 'vsc-btn');
+            resetVideoBtn.style.marginTop = '8px';
+            resetVideoBtn.onclick = () => {
+                state.currentVideoFilterLevel = CONFIG.DEFAULT_VIDEO_FILTER_LEVEL;
+                state.currentVideoSaturation = parseInt(videoDefaults.SATURATION_VALUE, 10);
+                state.currentVideoGamma = parseFloat(videoDefaults.GAMMA_VALUE);
+                state.currentVideoBlur = parseFloat(videoDefaults.BLUR_STD_DEVIATION);
+                state.currentVideoShadows = parseInt(videoDefaults.SHADOWS_VALUE, 10);
+                state.currentVideoHighlights = parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10);
+
+                sharpenSlider.slider.value = state.currentVideoFilterLevel;
+                sharpenSlider.valueSpan.textContent = `${state.currentVideoFilterLevel}단계`;
+                saturationSlider.slider.value = state.currentVideoSaturation;
+                saturationSlider.valueSpan.textContent = `${state.currentVideoSaturation}%`;
+                gammaSlider.slider.value = state.currentVideoGamma;
+                gammaSlider.valueSpan.textContent = state.currentVideoGamma.toFixed(2);
+                blurSlider.slider.value = state.currentVideoBlur;
+                blurSlider.valueSpan.textContent = state.currentVideoBlur.toFixed(2);
+                shadowsSlider.slider.value = state.currentVideoShadows;
+                shadowsSlider.valueSpan.textContent = state.currentVideoShadows;
+                highlightsSlider.slider.value = state.currentVideoHighlights;
+                highlightsSlider.valueSpan.textContent = state.currentVideoHighlights;
+
+                videoSliderUpdate();
+            };
+
+            videoSubMenu.append(
+                sharpenSlider.controlDiv, saturationSlider.controlDiv, gammaSlider.controlDiv,
+                blurSlider.controlDiv, shadowsSlider.controlDiv, highlightsSlider.controlDiv,
+                resetVideoBtn
+            );
+
+            const { group: stereoGroup, subMenu: stereoSubMenu } = createControlGroup('vsc-stereo-controls', '🎧', '사운드 효과');
             const audioGridContainer = document.createElement('div');
             audioGridContainer.className = 'vsc-audio-grid';
-
             const column1 = document.createElement('div');
             column1.className = 'vsc-audio-column';
             const column2 = document.createElement('div');
             column2.className = 'vsc-audio-column';
 
-            // --- Column 1 Controls (Left Side) ---
             const eqBtn = createButton('vsc-eq-toggle', '3-Band EQ ON/OFF', 'EQ', 'vsc-btn');
             eqBtn.onclick = () => setEqEnabled(!state.isEqEnabled);
             const eqPresets = [ { value: 'flat', text: '기본 프리셋', low: 0, mid: 0, high: 0 }, { value: 'music', text: '음악', low: 4, mid: -2, high: 4 }, { value: 'movie', text: '영화', low: 3, mid: 0, high: 3 }, { value: 'smile_curve', text: '명료도 향상', low: -2, mid: 0, high: 3 }, { value: 'vocal_boost', text: '보컬 강조', low: -3, mid: 6, high: 3 }, { value: 'full_boost', text: '전체 강조', low: 6, mid: 6, high: 6 }, ];
@@ -736,7 +852,6 @@
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
 
-            // --- Column 2 Controls (Right Side) ---
             const widenBtnGroup = document.createElement('div');
             widenBtnGroup.className = 'vsc-button-group';
             const widenBtn = createButton('vsc-widen-toggle', '스테레오 확장 ON/OFF', '스테레오 확장', 'vsc-btn');
@@ -785,7 +900,6 @@
             column1.append(eqBtn, eqPresetSelect, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, createDivider(), clarityBtn, clarityThresholdSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv);
             column2.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv, createDivider(), preGainBtn, preGainSlider.controlDiv);
 
-            // --- Bottom Controls ---
             const bottomControlsContainer = document.createElement('div');
             bottomControlsContainer.style.cssText = `display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; border-top: 1px solid #444; margin-top: ${isMobile ? '5px' : '10px'}; padding-top: ${isMobile ? '5px' : '10px'};`;
 
@@ -861,7 +975,7 @@
                         setPreGainEnabled(true); updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
                         break;
                     case 'spatial':
-                        applyPreset('music'); // Start with music preset
+                        applyPreset('music');
                         updateSlider('autopanRateSlider', 'autopanRate', 0.3, 'Hz');
                         updateSlider('panDepthSlider', 'autopanDepthPan', 0.6, '');
                         updateSlider('widthDepthSlider', 'autopanDepthWidth', 2.0, '');
@@ -1011,7 +1125,6 @@
 
             const updateActiveButtons = () => {
                 shadowRoot.querySelector('#imageFilterSelect').value = state.currentImageFilterLevel;
-                shadowRoot.querySelector('#videoFilterSelect').value = state.currentVideoFilterLevel;
                 setWideningEnabled(state.isWideningEnabled);
                 setHpfEnabled(state.isHpfEnabled);
                 setEqEnabled(state.isEqEnabled);
@@ -1139,8 +1252,37 @@
         });
         return [...elems];
     }
-    function updateVideoFilterState(video) { if (!filterManager.isInitialized()) return; video.classList.toggle('vsc-video-filter-active', video.dataset.isVisible !== 'false' && state.currentVideoFilterLevel > 0); }
-    function updateImageFilterState(image) { if (!imageFilterManager.isInitialized()) return; image.classList.toggle('vsc-image-filter-active', image.dataset.isVisible !== 'false' && state.currentImageFilterLevel > 0); }
+    function updateVideoFilterState(video) {
+        if (!video || !filterManager.isInitialized()) return;
+        const shouldApply = state.currentVideoFilterLevel > 0 ||
+            Math.abs(state.currentVideoSaturation - 100) > 0.1 ||
+            Math.abs(state.currentVideoGamma - 1.0) > 0.001 ||
+            state.currentVideoBlur > 0 ||
+            state.currentVideoShadows !== 0 ||
+            state.currentVideoHighlights !== 0;
+
+        // 클래스 토글 대신 style.setProperty를 사용하여 인라인 스타일을 직접 덮어씁니다.
+        if (video.dataset.isVisible !== 'false' && shouldApply) {
+            const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
+            const combinedFilterId = `${videoDefaults.SHARPEN_ID}_combined_filter`;
+            video.style.setProperty('filter', `url(#${combinedFilterId})`, 'important');
+        } else {
+            // 필터가 필요 없을 때 filter 속성을 제거합니다.
+            // 사이트의 다른 filter 속성과 충돌하지 않도록 ''로 설정하는 것보다 removeProperty가 더 안전합니다.
+            video.style.removeProperty('filter');
+        }
+    }
+    function updateImageFilterState(image) {
+        if (!imageFilterManager.isInitialized()) return;
+        const shouldApply = state.currentImageFilterLevel > 0;
+
+        if (image.dataset.isVisible !== 'false' && shouldApply) {
+            const combinedFilterId = `${CONFIG.IMAGE_FILTER_SETTINGS.SHARPEN_ID}_combined_filter`;
+            image.style.setProperty('filter', `url(#${combinedFilterId})`, 'important');
+        } else {
+            image.style.removeProperty('filter');
+        }
+    }
     function updateActiveSpeedButton(rate) { if (!speedButtonsContainer) return; speedButtonsContainer.querySelectorAll('button').forEach(b => { const br = parseFloat(b.dataset.speed); b.style.boxShadow = Math.abs(br - rate) < 0.01 ? '0 0 5px #3498db, 0 0 10px #3498db inset' : 'none'; }); }
 
     const mediaEventHandlers = {
@@ -1155,10 +1297,21 @@
         const attr = `data-vsc-filters-injected-${manager === filterManager ? 'video' : 'image'}`;
         if (root instanceof ShadowRoot && !root.host.hasAttribute(attr)) {
             const svgNode = manager.getSvgNode();
-            if (svgNode) {
-                root.appendChild(svgNode.cloneNode(true)); root.host.setAttribute(attr, 'true');
-                const level = (element.tagName === 'VIDEO') ? state.currentVideoFilterLevel : state.currentImageFilterLevel;
-                manager.setSharpenMatrix(calculateSharpenMatrix(level), root);
+            const styleNode = manager.getStyleNode();
+            if (svgNode && styleNode) {
+                const newStyle = styleNode.cloneNode(true);
+                root.appendChild(newStyle);
+                root.appendChild(svgNode.cloneNode(true));
+                root.host.setAttribute(attr, 'true');
+
+                setTimeout(() => {
+                    if (element.tagName === 'VIDEO') {
+                        applyAllVideoFilters();
+                    } else {
+                        const level = state.currentImageFilterLevel;
+                        manager.updateFilterValues({ sharpenMatrix: calculateSharpenMatrix(level) }, root);
+                    }
+                }, 100);
             }
         }
     }
@@ -1379,7 +1532,7 @@
 
         scanAndApply();
 
-        setVideoFilterLevel(settingsManager.get('videoFilterLevel'));
+        applyAllVideoFilters();
         setImageFilterLevel(settingsManager.get('imageFilterLevel'));
 
         const initialRate = state.activeMedia.size > 0 ? Array.from(state.activeMedia)[0].playbackRate : 1.0;
