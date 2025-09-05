@@ -1312,17 +1312,7 @@
             video.style.removeProperty('filter');
         }
     }
-    function updateImageFilterState(image) {
-        if (!imageFilterManager.isInitialized()) return;
-        const shouldApply = state.currentImageFilterLevel > 0;
-
-        if (image.dataset.isVisible !== 'false' && shouldApply) {
-            const combinedFilterId = `${CONFIG.IMAGE_FILTER_SETTINGS.SHARPEN_ID}_combined_filter`;
-            image.style.setProperty('filter', `url(#${combinedFilterId})`, 'important');
-        } else {
-            image.style.removeProperty('filter');
-        }
-    }
+    function updateImageFilterState(image) { if (!imageFilterManager.isInitialized()) return; image.classList.toggle('vsc-image-filter-active', image.dataset.isVisible !== 'false' && state.currentImageFilterLevel > 0); }
     function updateActiveSpeedButton(rate) { if (!speedButtonsContainer) return; speedButtonsContainer.querySelectorAll('button').forEach(b => { const br = parseFloat(b.dataset.speed); b.style.boxShadow = Math.abs(br - rate) < 0.01 ? '0 0 5px #3498db, 0 0 10px #3498db inset' : 'none'; }); }
 
     const mediaEventHandlers = {
