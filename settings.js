@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      89.0
-// @description  딜미터기 닫기/새로고침 추가
+// @version      89.1
+// @description  번개 아이콘 주기적 체크 (1초)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1840,23 +1840,56 @@
     }
 
     function initializeGlobalUI() {
-        if (document.getElementById('vsc-global-container')) return;
+    // UI가 이미 생성되었다면 함수를 종료 (중복 실행 방지)
+    if (document.getElementById('vsc-global-container')) return;
 
-        displayReloadMessage();
+    // --- 1. UI 유지 및 상태를 관리하는 변수 ---
+    let mediaFound = false; // 페이지에 미디어가 있는지 여부를 저장
+    let uiMaintenanceInterval = null; // UI 유지 작업을 관리할 setInterval ID
 
-        const initialMediaCheck = () => {
-            if (findAllMedia().length > 0 || findAllImages().length > 0) {
-                if (!document.getElementById('vsc-global-container')) {
-                    globalUIManager.init();
-                    hookSpaNavigation();
-                }
-                if (mediaObserver) mediaObserver.disconnect();
+    // --- 2. 주기적으로 UI 존재를 확인하고, 필요 시 다시 생성하는 함수 ---
+    const ensureUIExists = () => {
+        // 미디어가 발견된 상태이고(mediaFound=true), UI가 없다면 재생성
+        if (mediaFound && !document.getElementById('vsc-global-container')) {
+            console.log('[VSC] UI가 존재하지 않아 재생성합니다.');
+            globalUIManager.init();
+            hookSpaNavigation();
+        }
+    };
+
+    // --- 3. 최초로 미디어를 감지하고 UI 생성 및 유지보수 시작하는 함수 ---
+    const initialMediaCheck = () => {
+        // 페이지에서 비디오나 이미지를 찾음
+        if (findAllMedia().length > 0 || findAllImages().length > 0) {
+            // 미디어를 찾았다고 표시
+            mediaFound = true;
+
+            // UI가 없다면 최초 1회 생성
+            if (!document.getElementById('vsc-global-container')) {
+                globalUIManager.init();
+                hookSpaNavigation();
             }
-        };
-        const mediaObserver = new MutationObserver(debounce(initialMediaCheck, 500));
-        mediaObserver.observe(document.body, { childList: true, subtree: true });
-        initialMediaCheck();
-    }
+
+            // 1초마다 UI 상태를 확인하는 유지보수 작업 시작
+            if (!uiMaintenanceInterval) {
+                uiMaintenanceInterval = setInterval(ensureUIExists, 1000);
+            }
+
+            // 미디어 감지 작업은 완료되었으므로 감시 중단
+            if (mediaObserver) mediaObserver.disconnect();
+        }
+    };
+
+    // --- 4. 스크립트 실행 시작 지점 ---
+    displayReloadMessage();
+
+    // 페이지 변화를 감시하여 initialMediaCheck 함수를 실행
+    const mediaObserver = new MutationObserver(debounce(initialMediaCheck, 500));
+    mediaObserver.observe(document.body, { childList: true, subtree: true });
+
+    // 최초 1회 즉시 검사
+    initialMediaCheck();
+}
 
     if (!isExcluded()) {
         if (document.readyState === 'loading') {
