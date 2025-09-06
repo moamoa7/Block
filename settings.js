@@ -1491,18 +1491,7 @@ const bestPresets = [
         }
     }
     // [수정] 호환성을 위해 필터 적용 방식을 직접 스타일 제어로 되돌림 (일관성 유지)
-    function updateImageFilterState(image) {
-        if (!imageFilterManager.isInitialized()) return;
-        const shouldApply = state.currentImageFilterLevel > 0;
-
-        if (image.dataset.isVisible !== 'false' && shouldApply) {
-            const imageDefaults = CONFIG.IMAGE_FILTER_SETTINGS;
-            const combinedFilterId = `${imageDefaults.SHARPEN_ID}_combined_filter`;
-            image.style.setProperty('filter', `url(#${combinedFilterId})`, 'important');
-        } else {
-            image.style.removeProperty('filter');
-        }
-    }
+    function updateImageFilterState(image) { if (!imageFilterManager.isInitialized()) return; image.classList.toggle('vsc-image-filter-active', image.dataset.isVisible !== 'false' && state.currentImageFilterLevel > 0); }
     function updateActiveSpeedButton(rate) { if (!speedButtonsContainer) return; speedButtonsContainer.querySelectorAll('button').forEach(b => { const br = parseFloat(b.dataset.speed); b.style.boxShadow = Math.abs(br - rate) < 0.01 ? '0 0 5px #3498db, 0 0 10px #3498db inset' : 'none'; }); }
 
     const mediaEventHandlers = {
