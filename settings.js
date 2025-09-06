@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      89.5
-// @description  모든 오디오 프리셋에 토글 가능한 기본 명료도 향상 로직 적용, 비디오 필터 UI 정렬 수정
+// @version      89.7
+// @description  일부 개선 및 최적화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -39,6 +39,7 @@
         DEFAULT_PRE_GAIN_ENABLED: false,
         DEFAULT_PRE_GAIN: 1.0,
         DEFAULT_VIDEO_SHARPEN_DIRECTION: '4-way',
+        AUTODELAY_EMA_ALPHA: 0.15,
 
         DEBUG: false, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
@@ -134,7 +135,7 @@
         if (direction === '8-way') {
             const o = (1 - i) / 8;
             return `${o} ${o} ${o} ${o} ${i} ${o} ${o} ${o} ${o}`;
-        } else { // '4-way'가 기본값
+        } else {
             const o = (1 - i) / 4;
             return `0 ${o} 0 ${o} ${i} ${o} 0 ${o} 0`;
         }
@@ -630,7 +631,7 @@
             `.vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }`,
             '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }',
             `.slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '5px'}; }`,
-            `.slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; }`, // [수정] 모든 라벨에 기본 세로 중앙 정렬 추가
+            `.slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; }`,
             'input[type=range] { width: 100%; margin: 0; }',
             'input[type=range]:disabled, .vsc-select:disabled, .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }',
             '.vsc-button-group { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }',
@@ -728,7 +729,7 @@
                 labelEl.textContent = `${labelText}: `;
                 labelEl.style.justifyContent = 'flex-start';
                 labelEl.style.gap = '8px';
-                labelEl.style.alignItems = 'center'; // [수정] 세로 중앙 정렬 스타일 추가
+                labelEl.style.alignItems = 'center';
 
                 const select = document.createElement('select');
                 select.id = id;
@@ -1292,8 +1293,7 @@
 
     const autoDelayManager = (() => {
         let video = null;
-        const DELAY_HISTORY_SIZE = 30;
-        let delayHistory = [];
+        let avgDelay = null;
         const CHECK_INTERVAL = 500;
         const MIN_RATE = 0.95, MAX_RATE = 1.05, TOLERANCE = 150;
         let localIntersectionObserver;
@@ -1301,15 +1301,19 @@
         function isYouTubeLive() { if (!location.href.includes('youtube.com')) return false; try { const b = document.querySelector('.ytp-live-badge'); return b && b.offsetParent !== null && !/스트림이었음|was live/i.test(b.textContent); } catch { return false; } }
         function findVideo() { return state.activeMedia.size > 0 ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') : null; }
         function calculateDelay(v) { if (!v || !v.buffered || v.buffered.length === 0) return null; try { const e = v.buffered.end(v.buffered.length - 1); return Math.max(0, (e - v.currentTime) * 1000); } catch { return null; } }
-        function getPlaybackRate(avgDelay) { const t = getTargetDelay(), d = avgDelay - t; if (Math.abs(d) <= TOLERANCE) return 1.0; const n = 1.0 + (d / 12000); return Math.max(MIN_RATE, Math.min(n, MAX_RATE)); }
+        function getPlaybackRate(currentAvgDelay) { const t = getTargetDelay(), d = currentAvgDelay - t; if (Math.abs(d) <= TOLERANCE) return 1.0; const n = 1.0 + (d / 12000); return Math.max(MIN_RATE, Math.min(n, MAX_RATE)); }
         function checkAndAdjust() {
             if (!video) video = findVideo();
             if (!video) return;
             const rawDelay = calculateDelay(video);
             if (rawDelay === null) return;
-            delayHistory.push(rawDelay); if (delayHistory.length > DELAY_HISTORY_SIZE) delayHistory.shift();
-            const avgDelay = delayHistory.reduce((a, b) => a + b, 0) / delayHistory.length;
-            if (!avgDelay) return;
+
+            if (avgDelay === null) {
+                avgDelay = rawDelay;
+            } else {
+                avgDelay = CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * avgDelay;
+            }
+
             if (location.href.includes('youtube.com') && !isYouTubeLive()) {
                 if (video.playbackRate !== 1.0) safeExec(() => { video.playbackRate = 1.0; state.currentPlaybackRate = 1.0; });
                 const infoEl = document.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
@@ -1319,7 +1323,7 @@
             if (Math.abs(video.playbackRate - newRate) > 0.001) safeExec(() => { video.playbackRate = newRate; state.currentPlaybackRate = newRate; });
 
             let infoEl = document.getElementById('vsc-delay-info');
-            if (delayHistory.length >= 5 && !delayMeterClosed) {
+            if (avgDelay !== null && !delayMeterClosed) {
                 if (!infoEl) {
                     infoEl = document.createElement('div');
                     infoEl.id = 'vsc-delay-info';
@@ -1366,7 +1370,7 @@
         }
         function start() {
             if (!CONFIG.LIVE_STREAM_URLS.some(d => location.href.includes(d)) || (location.href.includes('youtube.com') && !isYouTubeLive()) || state.delayCheckInterval) return;
-            delayHistory = []; video = findVideo(); if (video) state.currentPlaybackRate = video.playbackRate;
+            avgDelay = null; video = findVideo(); if (video) state.currentPlaybackRate = video.playbackRate;
             if (!localIntersectionObserver) {
                 localIntersectionObserver = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && e.target.tagName === 'VIDEO') video = e.target; }), { threshold: 0.5 });
                 state.activeMedia.forEach(m => { if (m.tagName === 'VIDEO') localIntersectionObserver.observe(m); });
@@ -1377,7 +1381,7 @@
             if (state.delayCheckInterval) clearInterval(state.delayCheckInterval); state.delayCheckInterval = null;
             if (localIntersectionObserver) localIntersectionObserver.disconnect(); localIntersectionObserver = null;
             if (video) safeExec(() => { if (video.playbackRate !== 1.0) video.playbackRate = 1.0; video = null; });
-            delayHistory = [];
+            avgDelay = null;
             delayMeterClosed = false;
             const infoEl = document.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
         }
@@ -1409,6 +1413,8 @@
         });
         return [...elems];
     }
+
+    // [수정] 호환성을 위해 필터 적용 방식을 직접 스타일 제어로 되돌림
     function updateVideoFilterState(video) {
         if (!video || !filterManager.isInitialized()) return;
         const shouldApply = state.currentVideoFilterLevel > 0 ||
@@ -1426,7 +1432,19 @@
             video.style.removeProperty('filter');
         }
     }
-    function updateImageFilterState(image) { if (!imageFilterManager.isInitialized()) return; image.classList.toggle('vsc-image-filter-active', image.dataset.isVisible !== 'false' && state.currentImageFilterLevel > 0); }
+    // [수정] 호환성을 위해 필터 적용 방식을 직접 스타일 제어로 되돌림 (일관성 유지)
+    function updateImageFilterState(image) {
+        if (!imageFilterManager.isInitialized()) return;
+        const shouldApply = state.currentImageFilterLevel > 0;
+
+        if (image.dataset.isVisible !== 'false' && shouldApply) {
+            const imageDefaults = CONFIG.IMAGE_FILTER_SETTINGS;
+            const combinedFilterId = `${imageDefaults.SHARPEN_ID}_combined_filter`;
+            image.style.setProperty('filter', `url(#${combinedFilterId})`, 'important');
+        } else {
+            image.style.removeProperty('filter');
+        }
+    }
     function updateActiveSpeedButton(rate) { if (!speedButtonsContainer) return; speedButtonsContainer.querySelectorAll('button').forEach(b => { const br = parseFloat(b.dataset.speed); b.style.boxShadow = Math.abs(br - rate) < 0.01 ? '0 0 5px #3498db, 0 0 10px #3498db inset' : 'none'; }); }
 
     const mediaEventHandlers = {
@@ -1571,8 +1589,15 @@
     function ensureObservers() {
         if (!mainObserver) {
             mainObserver = new MutationObserver(mutations => {
-                if (mutations.some(m => m.addedNodes.length > 0 || m.removedNodes.length > 0)) {
-                    scheduleIdleTask(() => scanAndApply());
+                for (const mutation of mutations) {
+                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                        for (const node of mutation.addedNodes) {
+                            if (node.nodeType === 1 && (node.matches('video, audio, img') || node.querySelector('video, audio, img'))) {
+                                scheduleIdleTask(scanAndApply);
+                                return;
+                            }
+                        }
+                    }
                 }
             });
             mainObserver.observe(document.documentElement, { childList: true, subtree: true });
@@ -1608,7 +1633,7 @@
             }, {
                 root: null,
                 rootMargin: '0px',
-                threshold: Array.from({ length: 101 }, (_, i) => i / 100)
+                threshold: [0, 0.25, 0.5, 0.75, 1.0]
             });
         }
     }
@@ -1742,6 +1767,7 @@
         let isDragging = false, wasDragged = false;
         let startPos = { x: 0, y: 0 }, translatePos = { x: 0, y: 0 }, startRect = null;
         let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null;
+        let dragAnimationId = null;
 
         const clampTranslate = () => {
             if (!uiContainer) return;
@@ -1852,15 +1878,18 @@
         }
 
         function attachDragAndDrop() {
+            let lastPos = { x: 0, y: 0 };
             const onDragStart = (e) => {
                 const trueTarget = e.composedPath()[0];
                 if (['BUTTON', 'SELECT', 'INPUT'].includes(trueTarget.tagName.toUpperCase())) return;
                 isDragging = true; wasDragged = false;
                 const pos = e.touches ? e.touches[0] : e;
+                lastPos = { x: pos.clientX, y: pos.clientY };
                 startPos = { x: pos.clientX, y: pos.clientY };
                 startRect = uiContainer.getBoundingClientRect();
                 uiContainer.style.transition = 'none'; uiContainer.style.cursor = 'grabbing';
                 document.body.style.userSelect = 'none';
+
                 document.addEventListener('mousemove', onDragMove, { passive: false });
                 document.addEventListener('mouseup', onDragEnd, { passive: true });
                 document.addEventListener('touchmove', onDragMove, { passive: false });
@@ -1870,7 +1899,17 @@
                 if (!isDragging) return;
                 e.preventDefault();
                 const pos = e.touches ? e.touches[0] : e;
-                const dX = pos.clientX - startPos.x, dY = pos.clientY - startPos.y;
+                lastPos = { x: pos.clientX, y: pos.clientY };
+                if (!dragAnimationId) {
+                    dragAnimationId = requestAnimationFrame(updateDragPosition);
+                }
+            };
+            const updateDragPosition = () => {
+                if (!isDragging) {
+                    dragAnimationId = null;
+                    return;
+                }
+                const dX = lastPos.x - startPos.x, dY = lastPos.y - startPos.y;
                 let nL = startRect.left + dX, nT = startRect.top + dY;
                 const pW = window.innerWidth, pH = window.innerHeight;
                 nL = Math.max(0, Math.min(nL, pW - startRect.width));
@@ -1878,9 +1917,15 @@
                 const fX = translatePos.x + (nL - startRect.left), fY = translatePos.y + (nT - startRect.top);
                 uiContainer.style.transform = `translateY(-50%) translate(${fX}px, ${fY}px)`;
                 if (!wasDragged && (Math.abs(dX) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(dY) > CONFIG.UI_DRAG_THRESHOLD)) wasDragged = true;
+
+                dragAnimationId = requestAnimationFrame(updateDragPosition);
             };
             const onDragEnd = () => {
                 if (!isDragging) return;
+                if (dragAnimationId) {
+                    cancelAnimationFrame(dragAnimationId);
+                    dragAnimationId = null;
+                }
                 const transform = uiContainer.style.transform;
                 const matches = transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
                 if (matches) { translatePos.x = parseFloat(matches[1]); translatePos.y = parseFloat(matches[2]); }
