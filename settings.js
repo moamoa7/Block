@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      89.3
-// @description  모든 오디오 프리셋에 토글 가능한 기본 명료도 향상 로직 적용
+// @version      89.5
+// @description  모든 오디오 프리셋에 토글 가능한 기본 명료도 향상 로직 적용, 비디오 필터 UI 정렬 수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -13,7 +13,7 @@
 
     let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    const TARGET_DELAYS = { "youtube.com": 2750, "chzzk.naver.com": 2000, "play.sooplive.co.kr": 2000, "twitch.tv": 2000, "kick.com": 2000 };
+    const TARGET_DELAYS = { "youtube.com": 2750, "chzzk.naver.com": 2000, "play.sooplive.co.kr": 2500, "twitch.tv": 2000, "kick.com": 2000 };
     const DEFAULT_TARGET_DELAY = 2000;
 
     const CONFIG = {
@@ -38,6 +38,7 @@
         DEFAULT_CLARITY_THRESHOLD: -24,
         DEFAULT_PRE_GAIN_ENABLED: false,
         DEFAULT_PRE_GAIN: 1.0,
+        DEFAULT_VIDEO_SHARPEN_DIRECTION: '4-way',
 
         DEBUG: false, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
@@ -92,6 +93,7 @@
             currentVideoShadows: parseInt(videoDefaults.SHADOWS_VALUE, 10),
             currentVideoHighlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10),
             currentVideoSaturation: parseInt(videoDefaults.SATURATION_VALUE, 10),
+            currentVideoSharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
             isWideningEnabled: CONFIG.DEFAULT_WIDENING_ENABLED,
             audioContextMap: new WeakMap(),
             currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
@@ -112,7 +114,7 @@
             clarityThreshold: CONFIG.DEFAULT_CLARITY_THRESHOLD,
             isPreGainEnabled: CONFIG.DEFAULT_PRE_GAIN_ENABLED,
             currentPreGain: CONFIG.DEFAULT_PRE_GAIN,
-            isGlobalClarityEnabled: true, // <-- [변경점 1] 토글 상태 추가
+            isGlobalClarityEnabled: true,
             ui: { shadowRoot: null, hostElement: null }, delayCheckInterval: null,
             currentPlaybackRate: 1.0, mediaTypesEverFound: { video: false, image: false }, lastUrl: '',
             audioContextWarningShown: false
@@ -123,7 +125,20 @@
     const debounce = (fn, wait) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; };
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
-    function calculateSharpenMatrix(level) { const p = parseInt(level, 10); if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0'; const BASE_STRENGTH = 0.25; const i = 1 + p * BASE_STRENGTH; const o = (1 - i) / 8; return `${o} ${o} ${o} ${o} ${i} ${o} ${o} ${o} ${o}`; }
+
+    function calculateSharpenMatrix(level, direction = '4-way') {
+        const p = parseInt(level, 10);
+        if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0';
+        const BASE_STRENGTH = 0.25;
+        const i = 1 + p * BASE_STRENGTH;
+        if (direction === '8-way') {
+            const o = (1 - i) / 8;
+            return `${o} ${o} ${o} ${o} ${i} ${o} ${o} ${o} ${o}`;
+        } else { // '4-way'가 기본값
+            const o = (1 - i) / 4;
+            return `0 ${o} 0 ${o} ${i} ${o} 0 ${o} 0`;
+        }
+    }
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     function isExcluded() {
@@ -562,7 +577,7 @@
             saturation: state.currentVideoSaturation,
             gamma: state.currentVideoGamma,
             blur: state.currentVideoBlur,
-            sharpenMatrix: calculateSharpenMatrix(state.currentVideoFilterLevel),
+            sharpenMatrix: calculateSharpenMatrix(state.currentVideoFilterLevel, state.currentVideoSharpenDirection),
             shadows: state.currentVideoShadows,
             highlights: state.currentVideoHighlights,
         };
@@ -615,7 +630,7 @@
             `.vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }`,
             '.vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }',
             `.slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '5px'}; }`,
-            `.slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; }`,
+            `.slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; }`, // [수정] 모든 라벨에 기본 세로 중앙 정렬 추가
             'input[type=range] { width: 100%; margin: 0; }',
             'input[type=range]:disabled, .vsc-select:disabled, .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }',
             '.vsc-button-group { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }',
@@ -706,6 +721,37 @@
                 return div;
             };
 
+            const createLabeledSelect = (labelText, id, options, changeHandler) => {
+                const container = document.createElement('div');
+                container.className = 'slider-control';
+                const labelEl = document.createElement('label');
+                labelEl.textContent = `${labelText}: `;
+                labelEl.style.justifyContent = 'flex-start';
+                labelEl.style.gap = '8px';
+                labelEl.style.alignItems = 'center'; // [수정] 세로 중앙 정렬 스타일 추가
+
+                const select = document.createElement('select');
+                select.id = id;
+                select.className = 'vsc-select';
+                select.style.width = 'auto';
+                select.style.flexGrow = '1';
+
+                options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.text;
+                    select.appendChild(option);
+                });
+                select.onchange = (e) => {
+                    changeHandler(e.target.value);
+                    startFadeSequence();
+                };
+
+                labelEl.appendChild(select);
+                container.appendChild(labelEl);
+                return { controlDiv: container, select: select };
+            };
+
             const imageOpts = [{ value: "0", text: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))];
             const { group: imageGroup, subMenu: imageSubMenu } = createControlGroup('vsc-image-controls', '🎨', '이미지 선명도');
             imageSubMenu.appendChild(createSelectControl('이미지 선명도', imageOpts, (val) => setImageFilterLevel(val), 'imageFilterSelect'));
@@ -731,6 +777,13 @@
             sharpenSlider.slider.onchange = () => {
                 settingsManager.set('videoFilterLevel', state.currentVideoFilterLevel);
             };
+
+            const sharpenDirOptions = [{ value: "4-way", text: "4방향 (기본)" }, { value: "8-way", text: "8방향 (강함)" }];
+            const sharpenDirControl = createLabeledSelect('샤프 방향', 'videoSharpenDirSelect', sharpenDirOptions, (val) => {
+                state.currentVideoSharpenDirection = val;
+                videoSliderUpdate();
+            });
+            sharpenDirControl.select.value = state.currentVideoSharpenDirection;
 
             const saturationSlider = createSliderControl('채도', 'videoSaturationSlider', 0, 300, 1, state.currentVideoSaturation, '%');
             saturationSlider.slider.oninput = () => {
@@ -776,6 +829,7 @@
             resetVideoBtn.style.marginTop = '8px';
             resetVideoBtn.onclick = () => {
                 state.currentVideoFilterLevel = CONFIG.DEFAULT_VIDEO_FILTER_LEVEL;
+                state.currentVideoSharpenDirection = CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION;
                 state.currentVideoSaturation = parseInt(videoDefaults.SATURATION_VALUE, 10);
                 state.currentVideoGamma = parseFloat(videoDefaults.GAMMA_VALUE);
                 state.currentVideoBlur = parseFloat(videoDefaults.BLUR_STD_DEVIATION);
@@ -784,6 +838,7 @@
 
                 sharpenSlider.slider.value = state.currentVideoFilterLevel;
                 sharpenSlider.valueSpan.textContent = `${state.currentVideoFilterLevel}단계`;
+                sharpenDirControl.select.value = state.currentVideoSharpenDirection;
                 saturationSlider.slider.value = state.currentVideoSaturation;
                 saturationSlider.valueSpan.textContent = `${state.currentVideoSaturation}%`;
                 gammaSlider.slider.value = state.currentVideoGamma;
@@ -799,7 +854,9 @@
             };
 
             videoSubMenu.append(
-                sharpenSlider.controlDiv, blurSlider.controlDiv, highlightsSlider.controlDiv,
+                sharpenSlider.controlDiv,
+                sharpenDirControl.controlDiv,
+                blurSlider.controlDiv, highlightsSlider.controlDiv,
                 gammaSlider.controlDiv, shadowsSlider.controlDiv, saturationSlider.controlDiv,
                 resetVideoBtn
             );
@@ -935,12 +992,10 @@
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
 
-            // [변경점 2] '기본 음질 개선' 토글 버튼 로직 추가
             const setGlobalClarityEnabled = (enabled) => {
                 state.isGlobalClarityEnabled = !!enabled;
                 const btn = shadowRoot.getElementById('vsc-global-clarity-toggle');
                 if (btn) btn.classList.toggle('active', enabled);
-                // 현재 선택된 프리셋을 다시 적용하여 변경사항을 즉시 반영
                 const presetSelect = shadowRoot.getElementById('bestPresetSelect');
                 if (presetSelect && presetSelect.value) {
                     applyPreset(presetSelect.value);
@@ -960,11 +1015,9 @@
                     }
                 };
 
-                // --- 1. 모든 설정을 깨끗하게 초기화 ---
                 resetEffectStatesToDefault();
                 resetAllSliders();
 
-                // --- 2. '기본 명료도 향상' 기능이 켜져 있을 경우에만 기본 설정 적용 ---
                 if (state.isGlobalClarityEnabled) {
                     setHpfEnabled(true);
                     updateSlider('hpfSlider', 'currentHpfHz', 90, 'Hz');
@@ -980,7 +1033,6 @@
                     updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
                 }
 
-                // --- 3. 이제 그 위에 프리셋별 '개성'을 덧칠 ---
                 switch (presetType) {
                     case 'movie':
                         setWideningEnabled(true);
@@ -1146,7 +1198,6 @@
                         break;
                 }
 
-                // --- 4. 최종 완성된 설정으로 소리를 적용 ---
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
 
@@ -1169,7 +1220,6 @@
                 if (val) applyPreset(val);
             }, 'bestPresetSelect');
 
-            // [변경점 3] UI에 토글 버튼 추가
             const globalClarityBtn = createButton('vsc-global-clarity-toggle', '기본 음질 개선 ON/OFF', '기본 개선', 'vsc-btn');
             globalClarityBtn.classList.toggle('active', state.isGlobalClarityEnabled);
             globalClarityBtn.onclick = () => setGlobalClarityEnabled(!state.isGlobalClarityEnabled);
@@ -1177,7 +1227,7 @@
             resetBtn.onclick = () => {
                 resetEffectStatesToDefault();
                 resetAllSliders();
-                setGlobalClarityEnabled(true); // 초기화 시 기본 개선 기능도 다시 켬
+                setGlobalClarityEnabled(true);
                 bestPresetSelect.selectedIndex = 0;
             };
 
@@ -1904,56 +1954,43 @@
     }
 
     function initializeGlobalUI() {
-    // UI가 이미 생성되었다면 함수를 종료 (중복 실행 방지)
-    if (document.getElementById('vsc-global-container')) return;
+        if (document.getElementById('vsc-global-container')) return;
 
-    // --- 1. UI 유지 및 상태를 관리하는 변수 ---
-    let mediaFound = false; // 페이지에 미디어가 있는지 여부를 저장
-    let uiMaintenanceInterval = null; // UI 유지 작업을 관리할 setInterval ID
+        let mediaFound = false;
+        let uiMaintenanceInterval = null;
 
-    // --- 2. 주기적으로 UI 존재를 확인하고, 필요 시 다시 생성하는 함수 ---
-    const ensureUIExists = () => {
-        // 미디어가 발견된 상태이고(mediaFound=true), UI가 없다면 재생성
-        if (mediaFound && !document.getElementById('vsc-global-container')) {
-            console.log('[VSC] UI가 존재하지 않아 재생성합니다.');
-            globalUIManager.init();
-            hookSpaNavigation();
-        }
-    };
-
-    // --- 3. 최초로 미디어를 감지하고 UI 생성 및 유지보수 시작하는 함수 ---
-    const initialMediaCheck = () => {
-        // 페이지에서 비디오나 이미지를 찾음
-        if (findAllMedia().length > 0 || findAllImages().length > 0) {
-            // 미디어를 찾았다고 표시
-            mediaFound = true;
-
-            // UI가 없다면 최초 1회 생성
-            if (!document.getElementById('vsc-global-container')) {
+        const ensureUIExists = () => {
+            if (mediaFound && !document.getElementById('vsc-global-container')) {
+                console.log('[VSC] UI가 존재하지 않아 재생성합니다.');
                 globalUIManager.init();
                 hookSpaNavigation();
             }
+        };
 
-            // 1초마다 UI 상태를 확인하는 유지보수 작업 시작
-            if (!uiMaintenanceInterval) {
-                uiMaintenanceInterval = setInterval(ensureUIExists, 1000);
+        const initialMediaCheck = () => {
+            if (findAllMedia().length > 0 || findAllImages().length > 0) {
+                mediaFound = true;
+
+                if (!document.getElementById('vsc-global-container')) {
+                    globalUIManager.init();
+                    hookSpaNavigation();
+                }
+
+                if (!uiMaintenanceInterval) {
+                    uiMaintenanceInterval = setInterval(ensureUIExists, 1000);
+                }
+
+                if (mediaObserver) mediaObserver.disconnect();
             }
+        };
 
-            // 미디어 감지 작업은 완료되었으므로 감시 중단
-            if (mediaObserver) mediaObserver.disconnect();
-        }
-    };
+        displayReloadMessage();
 
-    // --- 4. 스크립트 실행 시작 지점 ---
-    displayReloadMessage();
+        const mediaObserver = new MutationObserver(debounce(initialMediaCheck, 500));
+        mediaObserver.observe(document.body, { childList: true, subtree: true });
 
-    // 페이지 변화를 감시하여 initialMediaCheck 함수를 실행
-    const mediaObserver = new MutationObserver(debounce(initialMediaCheck, 500));
-    mediaObserver.observe(document.body, { childList: true, subtree: true });
-
-    // 최초 1회 즉시 검사
-    initialMediaCheck();
-}
+        initialMediaCheck();
+    }
 
     if (!isExcluded()) {
         if (document.readyState === 'loading') {
