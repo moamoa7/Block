@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX) - Final
 // @namespace    https://com/
-// @version      90.9
-// @description  일부 최적화 및 오류 수정 - [AUDIO STABILITY FIX] LFO(오토팬) 재시작 로직을 수정하여 프리셋 반복 변경 시 발생하던 오디오 엔진 오류 해결.
+// @version      91.2
+// @description  [FINAL] 사용자가 직접 제어하지 않는 모든 백그라운드 오디오 기능(Limiter, Auto-Gain)을 완전히 제거하여 가장 순수한 오디오 처리 환경을 구현했습니다.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -252,13 +252,10 @@
                 showWarningMessage('오디오 효과를 적용할 수 없습니다. 페이지를 새로고침 해보세요.');
                 context.close(); return null;
             }
-            // Create a base set of nodes that are always present
             const nodes = {
-                context,
-                source,
+                context, source,
                 stereoPanner: context.createStereoPanner(),
                 preGain: context.createGain(),
-                masterLimiter: context.createDynamicsCompressor(),
                 analyser: context.createAnalyser(),
             };
             state.audioContextMap.set(media, nodes);
@@ -271,24 +268,17 @@
             if (!nodes) return;
 
             safeExec(() => {
-                // Disconnect everything after the source to rebuild the dynamic chain
                 nodes.source.disconnect();
 
-                // Clean up optional nodes from the previous run
-                if (nodes.lfo) {
+                if (nodes.lfo && nodes.lfo.state !== 'stopped') {
                     try { nodes.lfo.stop(); } catch (e) {}
                 }
+                nodes.lfo = nodes.context.createOscillator();
+                nodes.lfo.type = 'sine';
 
-                // --- Configure nodes based on the current state ---
                 nodes.stereoPanner.pan.value = state.isAutopanEnabled ? 0 : state.currentStereoPan;
                 nodes.preGain.gain.value = state.currentPreGain;
-                nodes.masterLimiter.threshold.value = -1;
-                nodes.masterLimiter.knee.value = 0;
-                nodes.masterLimiter.ratio.value = 20;
-                nodes.masterLimiter.attack.value = 0.003;
-                nodes.masterLimiter.release.value = 0.05;
 
-                // --- Dynamically build the signal chain ---
                 let lastNode = nodes.source;
 
                 if (state.isHpfEnabled) {
@@ -302,16 +292,9 @@
                     if (!nodes.eqLow) nodes.eqLow = nodes.context.createBiquadFilter();
                     if (!nodes.eqMid) nodes.eqMid = nodes.context.createBiquadFilter();
                     if (!nodes.eqHigh) nodes.eqHigh = nodes.context.createBiquadFilter();
-                    nodes.eqLow.type = 'lowshelf';
-                    nodes.eqLow.frequency.value = 150;
-                    nodes.eqLow.gain.value = state.eqLowGain;
-                    nodes.eqMid.type = 'peaking';
-                    nodes.eqMid.frequency.value = 1000;
-                    nodes.eqMid.Q.value = 1;
-                    nodes.eqMid.gain.value = state.eqMidGain;
-                    nodes.eqHigh.type = 'highshelf';
-                    nodes.eqHigh.frequency.value = 5000;
-                    nodes.eqHigh.gain.value = state.eqHighGain;
+                    nodes.eqLow.type = 'lowshelf'; nodes.eqLow.frequency.value = 150; nodes.eqLow.gain.value = state.eqLowGain;
+                    nodes.eqMid.type = 'peaking'; nodes.eqMid.frequency.value = 1000; nodes.eqMid.Q.value = 1; nodes.eqMid.gain.value = state.eqMidGain;
+                    nodes.eqHigh.type = 'highshelf'; nodes.eqHigh.frequency.value = 5000; nodes.eqHigh.gain.value = state.eqHighGain;
                     lastNode.connect(nodes.eqLow);
                     nodes.eqLow.connect(nodes.eqMid);
                     nodes.eqMid.connect(nodes.eqHigh);
@@ -345,7 +328,6 @@
                     lastNode.connect(nodes.ms_splitter);
                     nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
                     nodes.ms_mid_sum.connect(nodes.ms_mid_level);
-
                     nodes.ms_splitter.connect(nodes.ms_side_sum, 0);
                     nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1).connect(nodes.ms_side_sum);
                     nodes.ms_side_invert_R.gain.value = -1;
@@ -357,10 +339,8 @@
                     nodes.adaptiveWidthFilter.type = 'highpass';
                     nodes.adaptiveWidthFilter.frequency.value = state.isAdaptiveWidthEnabled ? state.adaptiveWidthFreq : 0;
                     nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
-
                     nodes.ms_side_gain.gain.value = state.currentWideningFactor;
                     nodes.ms_decode_invert_Side.gain.value = -1;
-
                     nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
                     nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side).connect(nodes.ms_decode_R_sum);
                     nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0);
@@ -373,21 +353,16 @@
                     lastNode = nodes.preGain;
                 }
 
-                lastNode.connect(nodes.masterLimiter);
-                nodes.masterLimiter.connect(nodes.context.destination);
-                nodes.masterLimiter.connect(nodes.analyser);
+                lastNode.connect(nodes.context.destination);
+                lastNode.connect(nodes.analyser);
 
                 if (state.isAutopanEnabled) {
-                    nodes.lfo = nodes.context.createOscillator(); // Always create a new LFO instance
-                    nodes.lfo.type = 'sine';
                     if (!nodes.lfoGainPan) nodes.lfoGainPan = nodes.context.createGain();
                     if (!nodes.lfoGainWidth) nodes.lfoGainWidth = nodes.context.createGain();
-
                     nodes.lfo.frequency.value = state.autopanRate;
                     nodes.lfoGainPan.gain.value = state.autopanDepthPan;
                     const constrainedWidthDepth = Math.min(state.autopanDepthWidth, state.currentWideningFactor);
                     nodes.lfoGainWidth.gain.value = constrainedWidthDepth;
-
                     nodes.lfo.connect(nodes.lfoGainPan).connect(nodes.stereoPanner.pan);
                     if (state.isWideningEnabled) {
                         nodes.lfo.connect(nodes.lfoGainWidth).connect(nodes.ms_side_gain.gain);
