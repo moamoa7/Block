@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX) - Final
 // @namespace    https://com/
-// @version      91.2
-// @description  [FINAL] 사용자가 직접 제어하지 않는 모든 백그라운드 오디오 기능(Limiter, Auto-Gain)을 완전히 제거하여 가장 순수한 오디오 처리 환경을 구현했습니다.
+// @version      91.7
+// @description  오디오 필터 - 오토팬 대신 HRTF 사용 / 기타 오디오 문제 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -30,10 +30,10 @@
         DEFAULT_EQ_HIGH_GAIN: 0,
         DEFAULT_ADAPTIVE_WIDTH_ENABLED: false,
         DEFAULT_ADAPTIVE_WIDTH_FREQ: 150,
-        DEFAULT_AUTOPAN_ENABLED: false,
-        DEFAULT_AUTOPAN_RATE: 0.1,
-        DEFAULT_AUTOPAN_DEPTH_PAN: 0.05,
-        DEFAULT_AUTOPAN_DEPTH_WIDTH: 0.3,
+        DEFAULT_SPATIAL_AUDIO_ENABLED: false,
+        DEFAULT_SPATIAL_AUDIO_DISTANCE: 1.0,
+        DEFAULT_SPATIAL_AUDIO_REVERB: 0.1,
+        DEFAULT_SPATIAL_AUDIO_SPEED: 0.2,
         DEFAULT_CLARITY_ENABLED: false,
         DEFAULT_CLARITY_THRESHOLD: 0,
         DEFAULT_PRE_GAIN_ENABLED: false,
@@ -110,10 +110,10 @@
             currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
             isAdaptiveWidthEnabled: CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED,
             adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
-            isAutopanEnabled: CONFIG.DEFAULT_AUTOPAN_ENABLED,
-            autopanRate: CONFIG.DEFAULT_AUTOPAN_RATE,
-            autopanDepthPan: CONFIG.DEFAULT_AUTOPAN_DEPTH_PAN,
-            autopanDepthWidth: CONFIG.DEFAULT_AUTOPAN_DEPTH_WIDTH,
+            isSpatialAudioEnabled: CONFIG.DEFAULT_SPATIAL_AUDIO_ENABLED,
+            spatialAudioDistance: CONFIG.DEFAULT_SPATIAL_AUDIO_DISTANCE,
+            spatialAudioReverb: CONFIG.DEFAULT_SPATIAL_AUDIO_REVERB,
+            spatialAudioSpeed: CONFIG.DEFAULT_SPATIAL_AUDIO_SPEED,
             currentStereoPan: CONFIG.DEFAULT_STEREO_PAN,
             isPreGainEnabled: CONFIG.DEFAULT_PRE_GAIN_ENABLED,
             currentPreGain: CONFIG.DEFAULT_PRE_GAIN,
@@ -240,6 +240,7 @@
 
     const audioEffectsManager = (() => {
         const analysisStatusMap = new WeakMap();
+        const animationFrameMap = new WeakMap();
 
         function createAudioGraph(media) {
             const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -252,10 +253,17 @@
                 showWarningMessage('오디오 효과를 적용할 수 없습니다. 페이지를 새로고침 해보세요.');
                 context.close(); return null;
             }
+
+            const masterGain = context.createGain();
+            masterGain.gain.value = 0;
+            masterGain.connect(context.destination);
+            masterGain.gain.linearRampToValueAtTime(1.0, context.currentTime + 0.05);
+
             const nodes = {
                 context, source,
                 stereoPanner: context.createStereoPanner(),
                 preGain: context.createGain(),
+                masterGain: masterGain,
                 analyser: context.createAnalyser(),
             };
             state.audioContextMap.set(media, nodes);
@@ -268,15 +276,18 @@
             if (!nodes) return;
 
             safeExec(() => {
-                nodes.source.disconnect();
+                Object.values(nodes).forEach(node => {
+                    if (node && typeof node.disconnect === 'function' && node !== nodes.context) {
+                        try { node.disconnect(); } catch(e) {}
+                    }
+                });
 
-                if (nodes.lfo && nodes.lfo.state !== 'stopped') {
-                    try { nodes.lfo.stop(); } catch (e) {}
+                if (animationFrameMap.has(media)) {
+                    cancelAnimationFrame(animationFrameMap.get(media));
+                    animationFrameMap.delete(media);
                 }
-                nodes.lfo = nodes.context.createOscillator();
-                nodes.lfo.type = 'sine';
 
-                nodes.stereoPanner.pan.value = state.isAutopanEnabled ? 0 : state.currentStereoPan;
+                nodes.stereoPanner.pan.value = state.isSpatialAudioEnabled ? 0 : state.currentStereoPan;
                 nodes.preGain.gain.value = state.currentPreGain;
 
                 let lastNode = nodes.source;
@@ -303,16 +314,47 @@
                 if (state.isClarityEnabled) {
                     if (!nodes.clarity) nodes.clarity = nodes.context.createDynamicsCompressor();
                     nodes.clarity.threshold.value = state.clarityThreshold;
-                    nodes.clarity.knee.value = 30;
-                    nodes.clarity.ratio.value = 6;
-                    nodes.clarity.attack.value = 0.01;
-                    nodes.clarity.release.value = 0.25;
+                    nodes.clarity.knee.value = 30; nodes.clarity.ratio.value = 6;
+                    nodes.clarity.attack.value = 0.01; nodes.clarity.release.value = 0.25;
                     lastNode.connect(nodes.clarity);
                     lastNode = nodes.clarity;
                 }
 
-                lastNode.connect(nodes.stereoPanner);
-                lastNode = nodes.stereoPanner;
+                if (state.isSpatialAudioEnabled) {
+                    if (!nodes.panner) {
+                        nodes.panner = nodes.context.createPanner();
+                        nodes.panner.panningModel = 'HRTF';
+                        nodes.panner.distanceModel = 'inverse';
+                        nodes.panner.refDistance = 1;
+                        nodes.panner.maxDistance = 10000;
+                        nodes.panner.rolloffFactor = 1;
+                        nodes.panner.coneInnerAngle = 360;
+                        nodes.panner.coneOuterAngle = 0;
+                        nodes.panner.coneOuterGain = 0;
+                    }
+                    nodes.panner.refDistance = state.spatialAudioReverb;
+
+                    let angle = 0;
+                    const animatePanner = () => {
+                        angle += state.spatialAudioSpeed / 100;
+                        const x = Math.sin(angle) * state.spatialAudioDistance;
+                        const z = Math.cos(angle) * state.spatialAudioDistance;
+                        if(nodes.panner.positionX) {
+                            nodes.panner.positionX.setValueAtTime(x, nodes.context.currentTime);
+                            nodes.panner.positionZ.setValueAtTime(z, nodes.context.currentTime);
+                        } else {
+                            nodes.panner.setPosition(x, 0, z);
+                        }
+                        animationFrameMap.set(media, requestAnimationFrame(animatePanner));
+                    };
+                    animatePanner();
+
+                    lastNode.connect(nodes.panner);
+                    lastNode = nodes.panner;
+                } else {
+                    lastNode.connect(nodes.stereoPanner);
+                    lastNode = nodes.stereoPanner;
+                }
 
                 if (state.isWideningEnabled) {
                     if (!nodes.ms_splitter) {
@@ -332,10 +374,8 @@
                     nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1).connect(nodes.ms_side_sum);
                     nodes.ms_side_invert_R.gain.value = -1;
                     nodes.ms_side_sum.connect(nodes.ms_side_level);
-
                     nodes.ms_mid_level.gain.value = 0.5;
                     nodes.ms_side_level.gain.value = 0.5;
-
                     nodes.adaptiveWidthFilter.type = 'highpass';
                     nodes.adaptiveWidthFilter.frequency.value = state.isAdaptiveWidthEnabled ? state.adaptiveWidthFreq : 0;
                     nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
@@ -353,22 +393,9 @@
                     lastNode = nodes.preGain;
                 }
 
-                lastNode.connect(nodes.context.destination);
-                lastNode.connect(nodes.analyser);
-
-                if (state.isAutopanEnabled) {
-                    if (!nodes.lfoGainPan) nodes.lfoGainPan = nodes.context.createGain();
-                    if (!nodes.lfoGainWidth) nodes.lfoGainWidth = nodes.context.createGain();
-                    nodes.lfo.frequency.value = state.autopanRate;
-                    nodes.lfoGainPan.gain.value = state.autopanDepthPan;
-                    const constrainedWidthDepth = Math.min(state.autopanDepthWidth, state.currentWideningFactor);
-                    nodes.lfoGainWidth.gain.value = constrainedWidthDepth;
-                    nodes.lfo.connect(nodes.lfoGainPan).connect(nodes.stereoPanner.pan);
-                    if (state.isWideningEnabled) {
-                        nodes.lfo.connect(nodes.lfoGainWidth).connect(nodes.ms_side_gain.gain);
-                    }
-                    nodes.lfo.start();
-                }
+                lastNode.connect(nodes.masterGain);
+                nodes.masterGain.connect(nodes.analyser);
+                nodes.masterGain.connect(nodes.context.destination); // [FIX] Reconnect master gain to output destination
 
             }, 'reconnectGraph');
         }
@@ -425,10 +452,14 @@
         }
 
         function cleanupForMedia(media) {
+            if (animationFrameMap.has(media)) {
+                cancelAnimationFrame(animationFrameMap.get(media));
+                animationFrameMap.delete(media);
+            }
             const nodes = state.audioContextMap.get(media);
             if (nodes) {
                 safeExec(() => {
-                    if(nodes.lfo) nodes.lfo.stop();
+                    if(nodes.lfo) try { if(nodes.lfo.state !== 'stopped') nodes.lfo.stop(); } catch(e) {}
                     nodes.source.disconnect();
                     if (nodes.context.state !== 'closed') nodes.context.close();
                 }, 'cleanupForMedia');
@@ -505,13 +536,13 @@
         applyAudioEffectsToMedia();
     }
 
-    function setAutopanEnabled(enabled) {
-        state.isAutopanEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('vsc-autopan-toggle');
+    function setSpatialAudioEnabled(enabled) {
+        state.isSpatialAudioEnabled = !!enabled;
+        const btn = state.ui.shadowRoot?.getElementById('vsc-spatial-audio-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         const shadowRoot = state.ui.shadowRoot;
         if (shadowRoot) {
-            ['panSlider', 'autopanRateSlider', 'panDepthSlider', 'widthDepthSlider'].forEach(id => {
+            ['panSlider', 'spatialDistanceSlider', 'spatialReverbSlider', 'spatialSpeedSlider'].forEach(id => {
                 const el = shadowRoot.getElementById(id);
                 if (el) el.disabled = (id === 'panSlider') ? enabled : !enabled;
             });
@@ -540,7 +571,7 @@
         setHpfEnabled(CONFIG.DEFAULT_HPF_ENABLED);
         setEqEnabled(CONFIG.DEFAULT_EQ_ENABLED);
         setAdaptiveWidthEnabled(CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED);
-        setAutopanEnabled(CONFIG.DEFAULT_AUTOPAN_ENABLED);
+        setSpatialAudioEnabled(CONFIG.DEFAULT_SPATIAL_AUDIO_ENABLED);
         setClarityEnabled(CONFIG.DEFAULT_CLARITY_ENABLED);
         setPreGainEnabled(CONFIG.DEFAULT_PRE_GAIN_ENABLED);
     }
@@ -632,7 +663,7 @@
 
     const speedSlider = (() => {
         let inited = false, fadeOutTimer;
-        let wideningSlider, panSlider, hpfSlider, eqLowSlider, eqMidSlider, eqHighSlider, autopanRateSlider, panDepthSlider, widthDepthSlider, clarityThresholdSlider, preGainSlider;
+        let wideningSlider, panSlider, hpfSlider, eqLowSlider, eqMidSlider, eqHighSlider, spatialDistanceSlider, spatialReverbSlider, spatialSpeedSlider, clarityThresholdSlider, preGainSlider;
         let hideAllSubMenus = () => { };
         const startFadeSequence = () => {
             const container = state.ui?.shadowRoot?.getElementById('vsc-container');
@@ -850,21 +881,28 @@
             wideningSlider.slider.oninput = () => { const val = parseFloat(wideningSlider.slider.value); state.currentWideningFactor = val; wideningSlider.valueSpan.textContent = `${val.toFixed(1)}x`; applyAudioEffectsToMedia(); };
             panSlider = createSliderControl('Pan (좌우)', 'panSlider', -1, 1, 0.1, state.currentStereoPan, '');
             panSlider.slider.oninput = () => { const val = parseFloat(panSlider.slider.value); state.currentStereoPan = val; panSlider.valueSpan.textContent = val.toFixed(1); applyAudioEffectsToMedia(); };
-            const autopanBtn = createButton('vsc-autopan-toggle', 'LFO 이펙터 ON/OFF', 'LFO', 'vsc-btn');
-            autopanBtn.onclick = () => { initializeAudioEngine(); setAutopanEnabled(!state.isAutopanEnabled); };
-            autopanRateSlider = createSliderControl('LFO 속도', 'autopanRateSlider', 0.1, 10, 0.1, state.autopanRate, 'Hz');
-            autopanRateSlider.slider.oninput = () => { const val = parseFloat(autopanRateSlider.slider.value); state.autopanRate = val; autopanRateSlider.valueSpan.textContent = `${val.toFixed(1)}Hz`; applyAudioEffectsToMedia(); };
-            panDepthSlider = createSliderControl('Pan 강도', 'panDepthSlider', 0, 1, 0.05, state.autopanDepthPan, '');
-            panDepthSlider.slider.oninput = () => { const val = parseFloat(panDepthSlider.slider.value); state.autopanDepthPan = val; panDepthSlider.valueSpan.textContent = val.toFixed(2); applyAudioEffectsToMedia(); };
-            widthDepthSlider = createSliderControl('Width 강도', 'widthDepthSlider', 0, 3, 0.05, state.autopanDepthWidth, '');
-            widthDepthSlider.slider.oninput = () => { const val = parseFloat(widthDepthSlider.slider.value); state.autopanDepthWidth = val; widthDepthSlider.valueSpan.textContent = val.toFixed(2); applyAudioEffectsToMedia(); };
+
+            const spatialAudioBtn = createButton('vsc-spatial-audio-toggle', '공간 음향 ON/OFF', '공간 음향', 'vsc-btn');
+            spatialAudioBtn.onclick = () => { initializeAudioEngine(); setSpatialAudioEnabled(!state.isSpatialAudioEnabled); };
+            spatialDistanceSlider = createSliderControl('궤도 반경', 'spatialDistanceSlider', 1, 10, 0.5, state.spatialAudioDistance, 'm');
+            spatialDistanceSlider.slider.oninput = () => { const val = parseFloat(spatialDistanceSlider.slider.value); state.spatialAudioDistance = val; spatialDistanceSlider.valueSpan.textContent = `${val.toFixed(1)}m`; applyAudioEffectsToMedia(); };
+            spatialReverbSlider = createSliderControl('공간 크기', 'spatialReverbSlider', 0.1, 5, 0.1, state.spatialAudioReverb, '');
+            spatialReverbSlider.slider.oninput = () => { const val = parseFloat(spatialReverbSlider.slider.value); state.spatialAudioReverb = val; spatialReverbSlider.valueSpan.textContent = val.toFixed(1); applyAudioEffectsToMedia(); };
+            spatialSpeedSlider = createSliderControl('회전 속도', 'spatialSpeedSlider', 0, 2, 0.1, state.spatialAudioSpeed, 'x');
+            spatialSpeedSlider.slider.oninput = () => { const val = parseFloat(spatialSpeedSlider.slider.value); state.spatialAudioSpeed = val; spatialSpeedSlider.valueSpan.textContent = `${val.toFixed(1)}x`; applyAudioEffectsToMedia(); };
+
             const preGainBtn = createButton('vsc-pregain-toggle', '볼륨 증폭 ON/OFF', '볼륨', 'vsc-btn');
             preGainBtn.onclick = () => { initializeAudioEngine(); setPreGainEnabled(!state.isPreGainEnabled); };
             preGainSlider = createSliderControl('전체 볼륨 증폭', 'preGainSlider', 0, 4, 0.1, state.currentPreGain, 'x');
             preGainSlider.slider.oninput = () => { const val = parseFloat(preGainSlider.slider.value); state.currentPreGain = val; preGainSlider.valueSpan.textContent = `${val.toFixed(1)}x`; applyAudioEffectsToMedia(); };
 
+            const spatialGroup = document.createElement('div');
+            spatialGroup.className = 'slider-control';
+            spatialGroup.style.gap = 'inherit';
+            spatialGroup.append(spatialAudioBtn, spatialDistanceSlider.controlDiv, spatialReverbSlider.controlDiv, spatialSpeedSlider.controlDiv);
+
             column1.append(eqBtn, eqLowSlider.controlDiv, eqMidSlider.controlDiv, eqHighSlider.controlDiv, createDivider(), clarityBtn, clarityThresholdSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv);
-            column2.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), autopanBtn, autopanRateSlider.controlDiv, panDepthSlider.controlDiv, widthDepthSlider.controlDiv, createDivider(), preGainBtn, preGainSlider.controlDiv);
+            column2.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), spatialGroup, createDivider(), preGainBtn, preGainSlider.controlDiv);
 
             const bottomControlsContainer = document.createElement('div');
             bottomControlsContainer.style.cssText = `display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; border-top: 1px solid #444; margin-top: ${isMobile ? '5px' : '10px'}; padding-top: ${isMobile ? '5px' : '10px'};`;
@@ -872,24 +910,24 @@
             const resetBtn = createButton('vsc-reset-all', '모든 오디오 설정 기본값으로 초기화', '초기화', 'vsc-btn');
 
             const presetMap = {
-                'default':       { name: '기본값', hpf_enabled: false, hpf_hz: 20, eq_enabled: false, eq_low: 0, eq_mid: 0, eq_high: 0, clarity_enabled: false, clarity_threshold: 0, widen_enabled: false, widen_factor: 1.0, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: false, preGain_value: 1.0 },
-                'basic_improve': { name: '기본 개선', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -2, eq_mid: 3, eq_high: 3, clarity_enabled: false, clarity_threshold: 0, widen_enabled: false, widen_factor: 1.0, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.2 },
-                'movie':         { name: '🎬 영화·드라마', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -1, eq_mid: 3, eq_high: 3, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.5 },
-                'action':        { name: '💥 액션 영화', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 6, eq_mid: -2, eq_high: 2, clarity_enabled: true, clarity_threshold: -20, widen_enabled: true, widen_factor: 1.5, adaptive_enabled: true, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 2.0 },
-                'sciFi':         { name: '🚀 Sci-Fi·SF', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 3, eq_mid: -1, eq_high: 2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.3 },
-                'night':         { name: '🌙 야간 모드', hpf_enabled: true, hpf_hz: 80, eq_enabled: true, eq_low: -4, eq_mid: 2, eq_high: 1, clarity_enabled: true, clarity_threshold: -35, widen_enabled: false, widen_factor: 1.0, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.0 },
-                'music':         { name: '🎶 음악', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: true, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.5 },
-                'acoustic':      { name: '🎻 어쿠스틱', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_low: 1, eq_mid: -1, eq_high: 1, clarity_enabled: false, clarity_threshold: 0, widen_enabled: true, widen_factor: 1.4, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.0 },
-                'concert':       { name: '🏟️ 라이브 콘서트', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 5, eq_mid: -3, eq_high: 4, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.2 },
-                'spatial':       { name: '🌌 공간 음향', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 2.5, adaptive_enabled: true, autopan_enabled: true, autopan_rate: 0.3, autopan_depth_pan: 0.6, autopan_depth_width: 2.0, pan_value: 0, preGain_enabled: true, preGain_value: 1.8 },
-                'bassBoost':     { name: '🔊 베이스 부스트', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: 8, eq_mid: -2, eq_high: 2, clarity_enabled: false, clarity_threshold: 0, widen_enabled: true, widen_factor: 1.5, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 2.0 },
-                'analog':        { name: '📻 아날로그', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 2, eq_mid: 1, eq_high: -3, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.2, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.0 },
-                'dialogue':      { name: '🗨️ 대사 중심', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_low: -2, eq_mid: 4, eq_high: 0, clarity_enabled: true, clarity_threshold: -28, widen_enabled: false, widen_factor: 1.0, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.2 },
-                'vocal':         { name: '🎤 목소리 강조', hpf_enabled: true, hpf_hz: 135, eq_enabled: true, eq_low: -5, eq_mid: 6, eq_high: -2, clarity_enabled: true, clarity_threshold: -30, widen_enabled: false, widen_factor: 1.0, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.5 },
-                'asmr':          { name: '🎧 ASMR', hpf_enabled: true, hpf_hz: 100, eq_enabled: true, eq_low: -4, eq_mid: 2, eq_high: 5, clarity_enabled: true, clarity_threshold: -30, widen_enabled: true, widen_factor: 2.2, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.5 },
-                'podcast':       { name: '🗣️ 팟캐스트/강의', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_low: -5, eq_mid: 4, eq_high: -2, clarity_enabled: true, clarity_threshold: -26, widen_enabled: true, widen_factor: 1.0, adaptive_enabled: true, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.2 },
-                'gaming':        { name: '🎮 게이밍(일반)', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_low: 4, eq_mid: -3, eq_high: 4, clarity_enabled: true, clarity_threshold: -30, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.5 },
-                'gamingPro':     { name: '🎮 게이밍(프로)', hpf_enabled: true, hpf_hz: 35, eq_enabled: true, eq_low: -2, eq_mid: 3, eq_high: 5, clarity_enabled: true, clarity_threshold: -60, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: false, autopan_enabled: false, pan_value: 0, preGain_enabled: true, preGain_value: 1.5 },
+                'default':       { name: '기본값', hpf_enabled: false, eq_enabled: false, clarity_enabled: false, widen_enabled: false, adaptive_enabled: false, spatial_enabled: false, preGain_enabled: false },
+                'basic_improve': { name: '기본 개선', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -2, eq_mid: 3, eq_high: 3, preGain_enabled: true, preGain_value: 1.2 },
+                'movie':         { name: '🎬 영화·드라마', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -1, eq_mid: 3, eq_high: 3, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5 },
+                'action':        { name: '💥 액션 영화', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 6, eq_mid: -2, eq_high: 2, clarity_enabled: true, clarity_threshold: -20, widen_enabled: true, widen_factor: 1.5, adaptive_enabled: true, preGain_enabled: true, preGain_value: 2.0 },
+                'sciFi':         { name: '🚀 Sci-Fi·SF', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 3, eq_mid: -1, eq_high: 2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.3 },
+                'night':         { name: '🌙 야간 모드', hpf_enabled: true, hpf_hz: 80, eq_enabled: true, eq_low: -4, eq_mid: 2, eq_high: 1, clarity_enabled: true, clarity_threshold: -35, widen_enabled: false, preGain_enabled: true, preGain_value: 1.0 },
+                'music':         { name: '🎶 음악', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.5 },
+                'acoustic':      { name: '🎻 어쿠스틱', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_low: 1, eq_mid: -1, eq_high: 1, widen_enabled: true, widen_factor: 1.4, preGain_enabled: true, preGain_value: 1.0 },
+                'concert':       { name: '🏟️ 라이브 콘서트', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 5, eq_mid: -3, eq_high: 4, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2 },
+                'spatial':       { name: '🌌 공간 음향', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 2.5, adaptive_enabled: true, spatial_enabled: true, spatial_speed: 0.3, spatial_dist: 2.0, spatial_reverb: 1.5, preGain_enabled: true, preGain_value: 1.8 },
+                'bassBoost':     { name: '🔊 베이스 부스트', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: 8, eq_mid: -2, eq_high: 2, widen_enabled: true, widen_factor: 1.5, preGain_enabled: true, preGain_value: 2.0 },
+                'analog':        { name: '📻 아날로그', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 2, eq_mid: 1, eq_high: -3, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.2, preGain_enabled: true, preGain_value: 1.0 },
+                'dialogue':      { name: '🗨️ 대사 중심', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_low: -2, eq_mid: 4, eq_high: 0, clarity_enabled: true, clarity_threshold: -28, preGain_enabled: true, preGain_value: 1.2 },
+                'vocal':         { name: '🎤 목소리 강조', hpf_enabled: true, hpf_hz: 135, eq_enabled: true, eq_low: -5, eq_mid: 6, eq_high: -2, clarity_enabled: true, clarity_threshold: -30, preGain_enabled: true, preGain_value: 1.5 },
+                'asmr':          { name: '🎧 ASMR', hpf_enabled: true, hpf_hz: 100, eq_enabled: true, eq_low: -4, eq_mid: 2, eq_high: 5, clarity_enabled: true, clarity_threshold: -30, widen_enabled: true, widen_factor: 2.2, preGain_enabled: true, preGain_value: 1.5 },
+                'podcast':       { name: '🗣️ 팟캐스트/강의', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_low: -5, eq_mid: 4, eq_high: -2, clarity_enabled: true, clarity_threshold: -26, widen_enabled: true, widen_factor: 1.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2 },
+                'gaming':        { name: '🎮 게이밍(일반)', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_low: 4, eq_mid: -3, eq_high: 4, clarity_enabled: true, clarity_threshold: -30, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5 },
+                'gamingPro':     { name: '🎮 게이밍(프로)', hpf_enabled: true, hpf_hz: 35, eq_enabled: true, eq_low: -2, eq_mid: 3, eq_high: 5, clarity_enabled: true, clarity_threshold: -60, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5 },
             };
 
             const presetOptions = Object.entries(presetMap).map(([value, { name }]) => ({ value, text: name }));
@@ -899,22 +937,32 @@
                 const p = presetMap[presetType];
                 if (!p) return;
 
-                // 1. 모든 state 값을 먼저 업데이트
+                const defaults = {
+                    hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
+                    eq_enabled: false, eq_low: 0, eq_mid: 0, eq_high: 0,
+                    clarity_enabled: false, clarity_threshold: 0,
+                    widen_enabled: false, widen_factor: 1.0,
+                    adaptive_enabled: false,
+                    spatial_enabled: false, spatial_dist: CONFIG.DEFAULT_SPATIAL_AUDIO_DISTANCE, spatial_reverb: CONFIG.DEFAULT_SPATIAL_AUDIO_REVERB, spatial_speed: CONFIG.DEFAULT_SPATIAL_AUDIO_SPEED,
+                    pan_value: 0,
+                    preGain_enabled: false, preGain_value: 1.0
+                };
+
+                const final = { ...defaults, ...p };
+
                 Object.assign(state, {
-                    isHpfEnabled: p.hpf_enabled, currentHpfHz: p.hpf_hz,
-                    isEqEnabled: p.eq_enabled, eqLowGain: p.eq_low, eqMidGain: p.eq_mid, eqHighGain: p.eq_high,
-                    isClarityEnabled: p.clarity_enabled, clarityThreshold: p.clarity_threshold,
-                    isWideningEnabled: p.widen_enabled, currentWideningFactor: p.widen_factor,
-                    isAdaptiveWidthEnabled: p.adaptive_enabled,
-                    isAutopanEnabled: p.autopan_enabled, autopanRate: p.autopan_rate || CONFIG.DEFAULT_AUTOPAN_RATE,
-                    autopanDepthPan: p.autopan_depth_pan || CONFIG.DEFAULT_AUTOPAN_DEPTH_PAN,
-                    autopanDepthWidth: p.autopan_depth_width || CONFIG.DEFAULT_AUTOPAN_DEPTH_WIDTH,
-                    currentStereoPan: p.pan_value,
-                    isPreGainEnabled: p.preGain_enabled, currentPreGain: p.preGain_value,
+                    isHpfEnabled: final.hpf_enabled, currentHpfHz: final.hpf_hz,
+                    isEqEnabled: final.eq_enabled, eqLowGain: final.eq_low, eqMidGain: final.eq_mid, eqHighGain: final.eq_high,
+                    isClarityEnabled: final.clarity_enabled, clarityThreshold: final.clarity_threshold,
+                    isWideningEnabled: final.widen_enabled, currentWideningFactor: final.widen_factor,
+                    isAdaptiveWidthEnabled: final.adaptive_enabled,
+                    isSpatialAudioEnabled: final.spatial_enabled,
+                    spatialAudioDistance: final.spatial_dist, spatialAudioReverb: final.spatial_reverb, spatialAudioSpeed: final.spatial_speed,
+                    currentStereoPan: final.pan_value,
+                    isPreGainEnabled: final.preGain_enabled, currentPreGain: final.preGain_value,
                 });
 
-                // 2. UI 업데이트
-                const allSliders = { hpfSlider, eqLowSlider, eqMidSlider, eqHighSlider, clarityThresholdSlider, wideningSlider, panSlider, preGainSlider, autopanRateSlider, panDepthSlider, widthDepthSlider };
+                const allSliders = { hpfSlider, eqLowSlider, eqMidSlider, eqHighSlider, clarityThresholdSlider, wideningSlider, panSlider, preGainSlider, spatialDistanceSlider, spatialReverbSlider, spatialSpeedSlider };
                 const updateSliderUI = (sliderName, value, unit = '') => {
                     const s = allSliders[sliderName];
                     if (s) {
@@ -938,11 +986,13 @@
                 setClarityEnabled(state.isClarityEnabled); updateSliderUI('clarityThresholdSlider', state.clarityThreshold, 'dB');
                 setWideningEnabled(state.isWideningEnabled); updateSliderUI('wideningSlider', state.currentWideningFactor, 'x');
                 setAdaptiveWidthEnabled(state.isAdaptiveWidthEnabled);
-                setAutopanEnabled(state.isAutopanEnabled); updateSliderUI('autopanRateSlider', state.autopanRate, 'Hz'); updateSliderUI('panDepthSlider', state.autopanDepthPan, ''); updateSliderUI('widthDepthSlider', state.autopanDepthWidth, '');
+                setSpatialAudioEnabled(state.isSpatialAudioEnabled);
+                updateSliderUI('spatialDistanceSlider', state.spatialAudioDistance, 'm');
+                updateSliderUI('spatialReverbSlider', state.spatialAudioReverb, '');
+                updateSliderUI('spatialSpeedSlider', state.spatialAudioSpeed, 'x');
                 updateSliderUI('panSlider', state.currentStereoPan, '');
                 setPreGainEnabled(state.isPreGainEnabled); updateSliderUI('preGainSlider', state.currentPreGain, 'x');
 
-                // 3. 오디오 노드에 최종 상태 적용
                 applyAudioEffectsToMedia();
             };
 
@@ -952,7 +1002,7 @@
 
             resetBtn.onclick = () => {
                 applyPreset('default');
-                presetSelect.value = 'default';
+                presetSelect.selectedIndex = 0;
             };
 
             bottomControlsContainer.append(presetSelect, resetBtn);
@@ -979,7 +1029,7 @@
                 setWideningEnabled(state.isWideningEnabled);
                 setHpfEnabled(state.isHpfEnabled);
                 setEqEnabled(state.isEqEnabled);
-                setAutopanEnabled(state.isAutopanEnabled);
+                setSpatialAudioEnabled(state.isSpatialAudioEnabled);
                 setClarityEnabled(state.isClarityEnabled);
                 setAdaptiveWidthEnabled(state.isAdaptiveWidthEnabled);
                 setPreGainEnabled(state.isPreGainEnabled);
@@ -1422,9 +1472,6 @@
         speedSlider.show();
 
         scanAndApply();
-
-        // [CORS FIX] Do not initialize audio engine on start. Wait for user interaction.
-        // state.activeMedia.forEach(media => audioEffectsManager.getOrCreateNodes(media));
 
         applyAllVideoFilters();
         setImageFilterLevel(settingsManager.get('imageFilterLevel'));
