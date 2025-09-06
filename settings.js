@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX) - Final
 // @namespace    https://com/
-// @version      90.7
-// @description  오디어 필터 로직 개선
+// @version      90.9
+// @description  일부 최적화 및 오류 수정 - [AUDIO STABILITY FIX] LFO(오토팬) 재시작 로직을 수정하여 프리셋 반복 변경 시 발생하던 오디오 엔진 오류 해결.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -96,9 +96,8 @@
             currentVideoSaturation: parseInt(videoDefaults.SATURATION_VALUE, 10),
             currentVideoSharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
             audioContextMap: new WeakMap(),
-            audioInitialized: false, // Flag to track if audio engine has been activated
+            audioInitialized: false,
 
-            // Audio States
             isHpfEnabled: CONFIG.DEFAULT_HPF_ENABLED,
             currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
             isEqEnabled: CONFIG.DEFAULT_EQ_ENABLED,
@@ -253,33 +252,11 @@
                 showWarningMessage('오디오 효과를 적용할 수 없습니다. 페이지를 새로고침 해보세요.');
                 context.close(); return null;
             }
+            // Create a base set of nodes that are always present
             const nodes = {
-                context, source,
-                hpf: context.createBiquadFilter(),
-                eqLow: context.createBiquadFilter(), eqMid: context.createBiquadFilter(), eqHigh: context.createBiquadFilter(),
-                clarity: context.createDynamicsCompressor(),
+                context,
+                source,
                 stereoPanner: context.createStereoPanner(),
-
-                // Widening Module
-                ms_splitter: context.createChannelSplitter(2),
-                ms_mid_sum: context.createGain(),
-                ms_mid_level: context.createGain(),
-                ms_side_invert_R: context.createGain(),
-                ms_side_sum: context.createGain(),
-                ms_side_level: context.createGain(),
-                ms_side_gain: context.createGain(),
-                adaptiveWidthFilter: context.createBiquadFilter(),
-                ms_decode_L_sum: context.createGain(),
-                ms_decode_invert_Side: context.createGain(),
-                ms_decode_R_sum: context.createGain(),
-                ms_merger: context.createChannelMerger(2),
-
-                // Autopan Module
-                lfo: context.createOscillator(),
-                lfoGainPan: context.createGain(),
-                lfoGainWidth: context.createGain(),
-
-                // Final Gain Stages
                 preGain: context.createGain(),
                 masterLimiter: context.createDynamicsCompressor(),
                 analyser: context.createAnalyser(),
@@ -294,80 +271,79 @@
             if (!nodes) return;
 
             safeExec(() => {
-                // Disconnect everything to rebuild the graph
-                Object.values(nodes).forEach(node => {
-                    if (node && typeof node.disconnect === 'function' && node !== nodes.context) {
-                        try { node.disconnect(); } catch(e) {}
-                    }
-                });
+                // Disconnect everything after the source to rebuild the dynamic chain
+                nodes.source.disconnect();
 
-                // Reset and reconfigure LFO
-                if (nodes.lfo.state !== 'stopped') {
+                // Clean up optional nodes from the previous run
+                if (nodes.lfo) {
                     try { nodes.lfo.stop(); } catch (e) {}
                 }
-                nodes.lfo = nodes.context.createOscillator();
-                nodes.lfo.type = 'sine';
 
-                // --- Configure all nodes based on the current state ---
-                nodes.hpf.type = 'highpass';
-                nodes.hpf.frequency.value = state.currentHpfHz;
-
-                nodes.eqLow.type = 'lowshelf';
-                nodes.eqLow.frequency.value = 150;
-                nodes.eqLow.gain.value = state.eqLowGain;
-                nodes.eqMid.type = 'peaking';
-                nodes.eqMid.frequency.value = 1000;
-                nodes.eqMid.Q.value = 1;
-                nodes.eqMid.gain.value = state.eqMidGain;
-                nodes.eqHigh.type = 'highshelf';
-                nodes.eqHigh.frequency.value = 5000;
-                nodes.eqHigh.gain.value = state.eqHighGain;
-
-                nodes.clarity.threshold.value = state.clarityThreshold;
-                nodes.clarity.knee.value = 30;
-                nodes.clarity.ratio.value = 6;
-                nodes.clarity.attack.value = 0.01;
-                nodes.clarity.release.value = 0.25;
-
+                // --- Configure nodes based on the current state ---
                 nodes.stereoPanner.pan.value = state.isAutopanEnabled ? 0 : state.currentStereoPan;
-
-                nodes.adaptiveWidthFilter.type = 'highpass';
-                nodes.adaptiveWidthFilter.frequency.value = state.isAdaptiveWidthEnabled ? state.adaptiveWidthFreq : 0;
-
                 nodes.preGain.gain.value = state.currentPreGain;
-
                 nodes.masterLimiter.threshold.value = -1;
                 nodes.masterLimiter.knee.value = 0;
                 nodes.masterLimiter.ratio.value = 20;
                 nodes.masterLimiter.attack.value = 0.003;
                 nodes.masterLimiter.release.value = 0.05;
 
-                // --- Build the signal chain in the correct order ---
+                // --- Dynamically build the signal chain ---
                 let lastNode = nodes.source;
 
                 if (state.isHpfEnabled) {
+                    if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
+                    nodes.hpf.type = 'highpass';
+                    nodes.hpf.frequency.value = state.currentHpfHz;
                     lastNode.connect(nodes.hpf);
                     lastNode = nodes.hpf;
                 }
                 if (state.isEqEnabled) {
+                    if (!nodes.eqLow) nodes.eqLow = nodes.context.createBiquadFilter();
+                    if (!nodes.eqMid) nodes.eqMid = nodes.context.createBiquadFilter();
+                    if (!nodes.eqHigh) nodes.eqHigh = nodes.context.createBiquadFilter();
+                    nodes.eqLow.type = 'lowshelf';
+                    nodes.eqLow.frequency.value = 150;
+                    nodes.eqLow.gain.value = state.eqLowGain;
+                    nodes.eqMid.type = 'peaking';
+                    nodes.eqMid.frequency.value = 1000;
+                    nodes.eqMid.Q.value = 1;
+                    nodes.eqMid.gain.value = state.eqMidGain;
+                    nodes.eqHigh.type = 'highshelf';
+                    nodes.eqHigh.frequency.value = 5000;
+                    nodes.eqHigh.gain.value = state.eqHighGain;
                     lastNode.connect(nodes.eqLow);
                     nodes.eqLow.connect(nodes.eqMid);
                     nodes.eqMid.connect(nodes.eqHigh);
                     lastNode = nodes.eqHigh;
                 }
                 if (state.isClarityEnabled) {
+                    if (!nodes.clarity) nodes.clarity = nodes.context.createDynamicsCompressor();
+                    nodes.clarity.threshold.value = state.clarityThreshold;
+                    nodes.clarity.knee.value = 30;
+                    nodes.clarity.ratio.value = 6;
+                    nodes.clarity.attack.value = 0.01;
+                    nodes.clarity.release.value = 0.25;
                     lastNode.connect(nodes.clarity);
                     lastNode = nodes.clarity;
                 }
 
-                // ** CRITICAL ORDER: Pan before Widening **
                 lastNode.connect(nodes.stereoPanner);
                 lastNode = nodes.stereoPanner;
 
                 if (state.isWideningEnabled) {
+                    if (!nodes.ms_splitter) {
+                        Object.assign(nodes, {
+                            ms_splitter: nodes.context.createChannelSplitter(2), ms_mid_sum: nodes.context.createGain(),
+                            ms_mid_level: nodes.context.createGain(), ms_side_invert_R: nodes.context.createGain(),
+                            ms_side_sum: nodes.context.createGain(), ms_side_level: nodes.context.createGain(),
+                            ms_side_gain: nodes.context.createGain(), adaptiveWidthFilter: nodes.context.createBiquadFilter(),
+                            ms_decode_L_sum: nodes.context.createGain(), ms_decode_invert_Side: nodes.context.createGain(),
+                            ms_decode_R_sum: nodes.context.createGain(), ms_merger: nodes.context.createChannelMerger(2)
+                        });
+                    }
                     lastNode.connect(nodes.ms_splitter);
-                    nodes.ms_splitter.connect(nodes.ms_mid_sum, 0);
-                    nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
+                    nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
                     nodes.ms_mid_sum.connect(nodes.ms_mid_level);
 
                     nodes.ms_splitter.connect(nodes.ms_side_sum, 0);
@@ -375,19 +351,18 @@
                     nodes.ms_side_invert_R.gain.value = -1;
                     nodes.ms_side_sum.connect(nodes.ms_side_level);
 
-                    // ** CRITICAL GAIN COMPENSATION **
                     nodes.ms_mid_level.gain.value = 0.5;
                     nodes.ms_side_level.gain.value = 0.5;
 
+                    nodes.adaptiveWidthFilter.type = 'highpass';
+                    nodes.adaptiveWidthFilter.frequency.value = state.isAdaptiveWidthEnabled ? state.adaptiveWidthFreq : 0;
                     nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
 
                     nodes.ms_side_gain.gain.value = state.currentWideningFactor;
                     nodes.ms_decode_invert_Side.gain.value = -1;
 
-                    nodes.ms_mid_level.connect(nodes.ms_decode_L_sum);
-                    nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
-                    nodes.ms_mid_level.connect(nodes.ms_decode_R_sum);
-                    nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side).connect(nodes.ms_decode_R_sum);
+                    nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
+                    nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side).connect(nodes.ms_decode_R_sum);
                     nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0);
                     nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
                     lastNode = nodes.ms_merger;
@@ -402,13 +377,15 @@
                 nodes.masterLimiter.connect(nodes.context.destination);
                 nodes.masterLimiter.connect(nodes.analyser);
 
-                // Configure and start LFO if autopan is enabled
                 if (state.isAutopanEnabled) {
+                    nodes.lfo = nodes.context.createOscillator(); // Always create a new LFO instance
+                    nodes.lfo.type = 'sine';
+                    if (!nodes.lfoGainPan) nodes.lfoGainPan = nodes.context.createGain();
+                    if (!nodes.lfoGainWidth) nodes.lfoGainWidth = nodes.context.createGain();
+
                     nodes.lfo.frequency.value = state.autopanRate;
                     nodes.lfoGainPan.gain.value = state.autopanDepthPan;
-
-                    const baseWidth = state.currentWideningFactor;
-                    const constrainedWidthDepth = Math.min(state.autopanDepthWidth, baseWidth);
+                    const constrainedWidthDepth = Math.min(state.autopanDepthWidth, state.currentWideningFactor);
                     nodes.lfoGainWidth.gain.value = constrainedWidthDepth;
 
                     nodes.lfo.connect(nodes.lfoGainPan).connect(nodes.stereoPanner.pan);
@@ -463,7 +440,10 @@
         }
 
         function getOrCreateNodes(media) {
-            if (state.audioContextMap.has(media)) return state.audioContextMap.get(media);
+            if (state.audioContextMap.has(media)) {
+                reconnectGraph(media);
+                return state.audioContextMap.get(media);
+            }
             const newNodes = createAudioGraph(media);
             if (newNodes) checkAudioActivity(media, newNodes);
             return newNodes;
@@ -1332,6 +1312,14 @@
             if (intersectionObserver) { intersectionObserver.disconnect(); intersectionObserver = null; }
             if (titleObserver) { titleObserver.disconnect(); titleObserver = null; }
 
+            // Thoroughly cancel any pending async operations
+            if (idleCallbackId) window.cancelIdleCallback(idleCallbackId);
+            const globalUIManagerInstance = globalUIManager.getInstance();
+            if (globalUIManagerInstance && globalUIManagerInstance.cleanupAsync) {
+                globalUIManagerInstance.cleanupAsync();
+            }
+
+
             autoDelayManager.stop();
             mediaSessionManager.clearSession();
 
@@ -1411,7 +1399,7 @@
             }
             state.activeMedia.forEach(m => audioEffectsManager.cleanupForMedia(m));
             cleanup();
-            globalUIManager.cleanupGlobalListeners();
+            globalUIManager.getInstance().cleanupGlobalListeners();
             resetState();
             settingsManager.init();
             uiManager.reset();
@@ -1526,226 +1514,241 @@
     }
 
     const globalUIManager = (() => {
-        let isDragging = false, wasDragged = false;
-        let startPos = { x: 0, y: 0 }, translatePos = { x: 0, y: 0 }, startRect = null;
-        let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null;
-        let dragAnimationId = null;
+        let instance;
 
-        const clampTranslate = () => {
-            if (!uiContainer) return;
-            const rect = uiContainer.getBoundingClientRect();
-            const { innerWidth: pW, innerHeight: pH } = window;
-            let nX = translatePos.x, nY = translatePos.y;
-            if (rect.left < 0) nX -= rect.left;
-            if (rect.top < 0) nY -= rect.top;
-            if (rect.right > pW) nX -= (rect.right - pW);
-            if (rect.bottom > pH) nY -= (rect.bottom - pH);
-            translatePos.x = nX; translatePos.y = nY;
-            uiContainer.style.transform = `translateY(-50%) translate(${nX}px, ${nY}px)`;
-        };
+        function createInstance() {
+            let isDragging = false, wasDragged = false;
+            let startPos = { x: 0, y: 0 }, translatePos = { x: 0, y: 0 }, startRect = null;
+            let visibilityChangeListener = null, fullscreenChangeListener = null, beforeUnloadListener = null;
+            let dragAnimationId = null;
 
-        function createUIElements() {
-            uiContainer = document.createElement('div');
-            uiContainer.id = 'vsc-global-container';
-            Object.assign(uiContainer.style, {
-                position: 'fixed',
-                top: isMobile ? '40%' : '50%',
-                right: '1vmin',
-                transform: 'translateY(-50%)',
-                zIndex: CONFIG.MAX_Z_INDEX,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                opacity: '1',
-                transition: 'opacity 0.3s',
-                WebkitTapHighlightColor: 'transparent'
-            });
+            const clampTranslate = () => {
+                if (!uiContainer) return;
+                const rect = uiContainer.getBoundingClientRect();
+                const { innerWidth: pW, innerHeight: pH } = window;
+                let nX = translatePos.x, nY = translatePos.y;
+                if (rect.left < 0) nX -= rect.left;
+                if (rect.top < 0) nY -= rect.top;
+                if (rect.right > pW) nX -= (rect.right - pW);
+                if (rect.bottom > pH) nY -= (rect.bottom - pH);
+                translatePos.x = nX; translatePos.y = nY;
+                uiContainer.style.transform = `translateY(-50%) translate(${nX}px, ${nY}px)`;
+            };
 
-            const mainControlsWrapper = document.createElement('div');
-            mainControlsWrapper.id = 'vsc-main-controls-wrapper';
-            Object.assign(mainControlsWrapper.style, { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' });
-
-            triggerElement = document.createElement('div');
-            triggerElement.id = UI_SELECTORS.TRIGGER;
-            triggerElement.textContent = '⚡';
-            Object.assign(triggerElement.style, {
-                width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                background: 'rgba(0,0,0,0.5)',
-                color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-                cursor: 'pointer', userSelect: 'none'
-            });
-
-            speedButtonsContainer = document.createElement('div');
-            speedButtonsContainer.id = 'vsc-speed-buttons-container';
-            Object.assign(speedButtonsContainer.style, { display: 'none', flexDirection: 'column', gap: '5px', alignItems: 'center' });
-
-            CONFIG.SPEED_PRESETS.forEach(speed => {
-                const btn = document.createElement('button');
-                btn.textContent = `${speed}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn';
-                Object.assign(btn.style, {
-                    width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)',
-                    background: 'rgba(52, 152, 219, 0.5)', color: 'white', border: 'none', borderRadius: 'clamp(4px, 0.8vmin, 6px)',
-                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
+            function createUIElements() {
+                uiContainer = document.createElement('div');
+                uiContainer.id = 'vsc-global-container';
+                Object.assign(uiContainer.style, {
+                    position: 'fixed',
+                    top: isMobile ? '40%' : '50%',
+                    right: '1vmin',
+                    transform: 'translateY(-50%)',
+                    zIndex: CONFIG.MAX_Z_INDEX,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    opacity: '1',
+                    transition: 'opacity 0.3s',
+                    WebkitTapHighlightColor: 'transparent'
                 });
-                if (speed === 1.0) btn.style.boxShadow = '0 0 5px #3498db, 0 0 10px #3498db inset';
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    const newSpeed = parseFloat(btn.dataset.speed);
-                    state.activeMedia.forEach(media => safeExec(() => { media.playbackRate = newSpeed; }));
-                    updateActiveSpeedButton(newSpeed);
+
+                const mainControlsWrapper = document.createElement('div');
+                mainControlsWrapper.id = 'vsc-main-controls-wrapper';
+                Object.assign(mainControlsWrapper.style, { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' });
+
+                triggerElement = document.createElement('div');
+                triggerElement.id = UI_SELECTORS.TRIGGER;
+                triggerElement.textContent = '⚡';
+                Object.assign(triggerElement.style, {
+                    width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+                    height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+                    background: 'rgba(0,0,0,0.5)',
+                    color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
+                    cursor: 'pointer', userSelect: 'none'
+                });
+
+                speedButtonsContainer = document.createElement('div');
+                speedButtonsContainer.id = 'vsc-speed-buttons-container';
+                Object.assign(speedButtonsContainer.style, { display: 'none', flexDirection: 'column', gap: '5px', alignItems: 'center' });
+
+                CONFIG.SPEED_PRESETS.forEach(speed => {
+                    const btn = document.createElement('button');
+                    btn.textContent = `${speed}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn';
+                    Object.assign(btn.style, {
+                        width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)',
+                        background: 'rgba(52, 152, 219, 0.5)', color: 'white', border: 'none', borderRadius: 'clamp(4px, 0.8vmin, 6px)',
+                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
+                    });
+                    if (speed === 1.0) btn.style.boxShadow = '0 0 5px #3498db, 0 0 10px #3498db inset';
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        const newSpeed = parseFloat(btn.dataset.speed);
+                        state.activeMedia.forEach(media => safeExec(() => { media.playbackRate = newSpeed; }));
+                        updateActiveSpeedButton(newSpeed);
+                        if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
+                    };
+                    speedButtonsContainer.appendChild(btn);
+                });
+
+                mainControlsWrapper.appendChild(triggerElement);
+                uiContainer.append(mainControlsWrapper, speedButtonsContainer);
+                document.body.appendChild(uiContainer);
+            }
+
+            function handleTriggerClick() {
+                if (wasDragged) return;
+
+                if (!isInitialized) {
+                    try {
+                        start();
+                        triggerElement.textContent = '🛑';
+                        triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
+                    } catch (err) {
+                        console.error('[VSC] Failed to initialize.', err);
+                        triggerElement.textContent = '⚠️';
+                        triggerElement.title = '스크립트 초기화 실패! 콘솔을 확인하세요.';
+                        triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.5)';
+                    }
+                } else {
+                    const areControlsVisible = triggerElement.textContent === '🛑';
+                    if (areControlsVisible) {
+                        speedSlider.hide();
+                        if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
+                        triggerElement.textContent = '⚡';
+                        triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                    } else {
+                        speedSlider.show();
+                        const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
+                        if (speedButtonsContainer && hasVideo) {
+                            speedButtonsContainer.style.display = 'flex';
+                        }
+                        triggerElement.textContent = '🛑';
+                        triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
+                    }
+                }
+                if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
+            }
+
+            function attachDragAndDrop() {
+                let lastPos = { x: 0, y: 0 };
+                const onDragStart = (e) => {
+                    const trueTarget = e.composedPath()[0];
+                    if (['BUTTON', 'SELECT', 'INPUT'].includes(trueTarget.tagName.toUpperCase())) return;
+                    isDragging = true; wasDragged = false;
+                    const pos = e.touches ? e.touches[0] : e;
+                    lastPos = { x: pos.clientX, y: pos.clientY };
+                    startPos = { x: pos.clientX, y: pos.clientY };
+                    startRect = uiContainer.getBoundingClientRect();
+                    uiContainer.style.transition = 'none'; uiContainer.style.cursor = 'grabbing';
+                    document.body.style.userSelect = 'none';
+
+                    document.addEventListener('mousemove', onDragMove, { passive: false });
+                    document.addEventListener('mouseup', onDragEnd, { passive: true });
+                    document.addEventListener('touchmove', onDragMove, { passive: false });
+                    document.addEventListener('touchend', onDragEnd, { passive: true });
+                };
+                const onDragMove = (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    const pos = e.touches ? e.touches[0] : e;
+                    lastPos = { x: pos.clientX, y: pos.clientY };
+                    if (!dragAnimationId) {
+                        dragAnimationId = requestAnimationFrame(updateDragPosition);
+                    }
+                };
+                const updateDragPosition = () => {
+                    if (!isDragging) {
+                        dragAnimationId = null;
+                        return;
+                    }
+                    const dX = lastPos.x - startPos.x, dY = lastPos.y - startPos.y;
+                    const fX = translatePos.x + dX, fY = translatePos.y + dY;
+                    uiContainer.style.transform = `translateY(-50%) translate(${fX}px, ${fY}px)`;
+                    if (!wasDragged && (Math.abs(dX) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(dY) > CONFIG.UI_DRAG_THRESHOLD)) wasDragged = true;
+
+                    dragAnimationId = requestAnimationFrame(updateDragPosition);
+                };
+                const onDragEnd = () => {
+                    if (!isDragging) return;
+                    if (dragAnimationId) {
+                        cancelAnimationFrame(dragAnimationId);
+                        dragAnimationId = null;
+                    }
+                    const transform = uiContainer.style.transform;
+                    const matches = transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
+                    if (matches) { translatePos.x = parseFloat(matches[1]); translatePos.y = parseFloat(matches[2]); }
+                    clampTranslate();
+                    isDragging = false;
+                    uiContainer.style.transition = ''; uiContainer.style.cursor = 'pointer';
+                    document.body.style.userSelect = '';
+                    document.removeEventListener('mousemove', onDragMove);
+                    document.removeEventListener('mouseup', onDragEnd);
+                    document.removeEventListener('touchmove', onDragMove);
+                    document.removeEventListener('touchend', onDragEnd);
+                    setTimeout(() => { wasDragged = false; }, 0);
                     if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
                 };
-                speedButtonsContainer.appendChild(btn);
-            });
+                uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
+                uiContainer.addEventListener('touchstart', onDragStart, { passive: false });
+                const debouncedClamp = debounce(clampTranslate, 100);
+                window.addEventListener('resize', debouncedClamp);
+                window.addEventListener('orientationchange', debouncedClamp);
+            }
 
-            mainControlsWrapper.appendChild(triggerElement);
-            uiContainer.append(mainControlsWrapper, speedButtonsContainer);
-            document.body.appendChild(uiContainer);
-        }
-
-        function handleTriggerClick() {
-            if (wasDragged) return;
-
-            if (!isInitialized) {
-                try {
-                    start();
-                    triggerElement.textContent = '🛑';
-                    triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
-                } catch (err) {
-                    console.error('[VSC] Failed to initialize.', err);
-                    triggerElement.textContent = '⚠️';
-                    triggerElement.title = '스크립트 초기화 실패! 콘솔을 확인하세요.';
-                    triggerElement.style.backgroundColor = 'rgba(255, 165, 0, 0.5)';
+            function attachGlobalListeners() {
+                if (!visibilityChangeListener) {
+                    visibilityChangeListener = () => {
+                        if (document.hidden) document.querySelectorAll('.vsc-video-filter-active,.vsc-image-filter-active').forEach(v => v.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active'));
+                        else scheduleIdleTask(scanAndApply);
+                    };
+                    document.addEventListener('visibilitychange', visibilityChangeListener);
                 }
-            } else {
-                const areControlsVisible = triggerElement.textContent === '🛑';
-                if (areControlsVisible) {
-                    speedSlider.hide();
-                    if (speedButtonsContainer) speedButtonsContainer.style.display = 'none';
-                    triggerElement.textContent = '⚡';
-                    triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                } else {
-                    speedSlider.show();
-                    const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
-                    if (speedButtonsContainer && hasVideo) {
-                        speedButtonsContainer.style.display = 'flex';
-                    }
-                    triggerElement.textContent = '🛑';
-                    triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
+                if (!fullscreenChangeListener) {
+                    fullscreenChangeListener = () => {
+                        const targetRoot = document.fullscreenElement || document.body;
+                        if (uiContainer) { targetRoot.appendChild(uiContainer); setTimeout(clampTranslate, 100); }
+                    };
+                    document.addEventListener('fullscreenchange', fullscreenChangeListener);
+                }
+                if (!beforeUnloadListener) {
+                    beforeUnloadListener = () => { if (uiContainer) uiContainer.remove(); cleanup(); };
+                    window.addEventListener('beforeunload', beforeUnloadListener);
                 }
             }
-            if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
-        }
 
-        function attachDragAndDrop() {
-            let lastPos = { x: 0, y: 0 };
-            const onDragStart = (e) => {
-                const trueTarget = e.composedPath()[0];
-                if (['BUTTON', 'SELECT', 'INPUT'].includes(trueTarget.tagName.toUpperCase())) return;
-                isDragging = true; wasDragged = false;
-                const pos = e.touches ? e.touches[0] : e;
-                lastPos = { x: pos.clientX, y: pos.clientY };
-                startPos = { x: pos.clientX, y: pos.clientY };
-                startRect = uiContainer.getBoundingClientRect();
-                uiContainer.style.transition = 'none'; uiContainer.style.cursor = 'grabbing';
-                document.body.style.userSelect = 'none';
+            function cleanupGlobalListeners() {
+                if (visibilityChangeListener) { document.removeEventListener('visibilitychange', visibilityChangeListener); visibilityChangeListener = null; }
+                if (fullscreenChangeListener) { document.removeEventListener('fullscreenchange', fullscreenChangeListener); fullscreenChangeListener = null; }
+                if (beforeUnloadListener) { window.removeEventListener('beforeunload', beforeUnloadListener); beforeUnloadListener = null; }
+            }
 
-                document.addEventListener('mousemove', onDragMove, { passive: false });
-                document.addEventListener('mouseup', onDragEnd, { passive: true });
-                document.addEventListener('touchmove', onDragMove, { passive: false });
-                document.addEventListener('touchend', onDragEnd, { passive: true });
-            };
-            const onDragMove = (e) => {
-                if (!isDragging) return;
-                e.preventDefault();
-                const pos = e.touches ? e.touches[0] : e;
-                lastPos = { x: pos.clientX, y: pos.clientY };
-                if (!dragAnimationId) {
-                    dragAnimationId = requestAnimationFrame(updateDragPosition);
-                }
-            };
-            const updateDragPosition = () => {
-                if (!isDragging) {
-                    dragAnimationId = null;
-                    return;
-                }
-                const dX = lastPos.x - startPos.x, dY = lastPos.y - startPos.y;
-                let nL = startRect.left + dX, nT = startRect.top + dY;
-                const pW = window.innerWidth, pH = window.innerHeight;
-                nL = Math.max(0, Math.min(nL, pW - startRect.width));
-                nT = Math.max(0, Math.min(nT, pH - startRect.height));
-                const fX = translatePos.x + (nL - startRect.left), fY = translatePos.y + (nT - startRect.top);
-                uiContainer.style.transform = `translateY(-50%) translate(${fX}px, ${fY}px)`;
-                if (!wasDragged && (Math.abs(dX) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(dY) > CONFIG.UI_DRAG_THRESHOLD)) wasDragged = true;
-
-                dragAnimationId = requestAnimationFrame(updateDragPosition);
-            };
-            const onDragEnd = () => {
-                if (!isDragging) return;
+            function cleanupAsync() {
                 if (dragAnimationId) {
                     cancelAnimationFrame(dragAnimationId);
                     dragAnimationId = null;
                 }
-                const transform = uiContainer.style.transform;
-                const matches = transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
-                if (matches) { translatePos.x = parseFloat(matches[1]); translatePos.y = parseFloat(matches[2]); }
-                isDragging = false;
-                uiContainer.style.transition = ''; uiContainer.style.cursor = 'pointer';
-                document.body.style.userSelect = '';
-                document.removeEventListener('mousemove', onDragMove);
-                document.removeEventListener('mouseup', onDragEnd);
-                document.removeEventListener('touchmove', onDragMove);
-                document.removeEventListener('touchend', onDragEnd);
-                setTimeout(() => { wasDragged = false; }, 0);
-                if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
-            };
-            uiContainer.addEventListener('mousedown', onDragStart, { passive: true });
-            uiContainer.addEventListener('touchstart', onDragStart, { passive: false });
-            const debouncedClamp = debounce(clampTranslate, 100);
-            window.addEventListener('resize', debouncedClamp);
-            window.addEventListener('orientationchange', debouncedClamp);
-        }
-
-        function attachGlobalListeners() {
-            if (!visibilityChangeListener) {
-                visibilityChangeListener = () => {
-                    if (document.hidden) document.querySelectorAll('.vsc-video-filter-active,.vsc-image-filter-active').forEach(v => v.classList.remove('vsc-video-filter-active', 'vsc-image-filter-active'));
-                    else scheduleIdleTask(scanAndApply);
-                };
-                document.addEventListener('visibilitychange', visibilityChangeListener);
             }
-            if (!fullscreenChangeListener) {
-                fullscreenChangeListener = () => {
-                    const targetRoot = document.fullscreenElement || document.body;
-                    if (uiContainer) { targetRoot.appendChild(uiContainer); setTimeout(clampTranslate, 100); }
-                };
-                document.addEventListener('fullscreenchange', fullscreenChangeListener);
+
+            function init() {
+                createUIElements();
+                uiContainer.addEventListener('click', (e) => {
+                    if (wasDragged) { e.stopPropagation(); return; }
+                    if (e.target.id === UI_SELECTORS.TRIGGER) handleTriggerClick();
+                });
+                attachDragAndDrop();
+                attachGlobalListeners();
             }
-            if (!beforeUnloadListener) {
-                beforeUnloadListener = () => { if (uiContainer) uiContainer.remove(); cleanup(); };
-                window.addEventListener('beforeunload', beforeUnloadListener);
+            return { init, cleanupGlobalListeners, cleanupAsync };
+        }
+        return {
+            getInstance: () => {
+                if (!instance) {
+                    instance = createInstance();
+                }
+                return instance;
             }
-        }
-
-        function cleanupGlobalListeners() {
-            if (visibilityChangeListener) { document.removeEventListener('visibilitychange', visibilityChangeListener); visibilityChangeListener = null; }
-            if (fullscreenChangeListener) { document.removeEventListener('fullscreenchange', fullscreenChangeListener); fullscreenChangeListener = null; }
-            if (beforeUnloadListener) { window.removeEventListener('beforeunload', beforeUnloadListener); beforeUnloadListener = null; }
-        }
-
-        function init() {
-            createUIElements();
-            uiContainer.addEventListener('click', (e) => {
-                if (wasDragged) { e.stopPropagation(); return; }
-                if (e.target.id === UI_SELECTORS.TRIGGER) handleTriggerClick();
-            });
-            attachDragAndDrop();
-            attachGlobalListeners();
-        }
-
-        return { init, cleanupGlobalListeners };
+        };
     })();
 
     function displayReloadMessage() {
@@ -1769,7 +1772,7 @@
         const ensureUIExists = () => {
             if (mediaFound && !document.getElementById('vsc-global-container')) {
                 console.log('[VSC] UI가 존재하지 않아 재생성합니다.');
-                globalUIManager.init();
+                globalUIManager.getInstance().init();
                 hookSpaNavigation();
             }
         };
@@ -1779,7 +1782,7 @@
                 mediaFound = true;
 
                 if (!document.getElementById('vsc-global-container')) {
-                    globalUIManager.init();
+                    globalUIManager.getInstance().init();
                     hookSpaNavigation();
                 }
 
