@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      89.7
-// @description  일부 개선 및 최적화
+// @version      89.8
+// @description  오디오 프리셋 추가 및 개선
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1035,187 +1035,245 @@
                 }
 
                 switch (presetType) {
-                    case 'movie':
-                        setWideningEnabled(true);
-                        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
-                        updateSlider('eqLowSlider', 'eqLowGain', -1, 'dB');
-                        setClarityEnabled(true);
-                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
-                        break;
-                    case 'music':
-                        setWideningEnabled(true);
-                        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
-                        updateSlider('eqLowSlider', 'eqLowGain', 4, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', -2, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
-                        setAdaptiveWidthEnabled(true);
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
-                        break;
-                    case 'spatial':
-                        applyPreset('music');
-                        setAutopanEnabled(true);
-                        updateSlider('autopanRateSlider', 'autopanRate', 0.3, 'Hz');
-                        updateSlider('panDepthSlider', 'autopanDepthPan', 0.6, '');
-                        updateSlider('widthDepthSlider', 'autopanDepthWidth', 2.0, '');
-                        updateSlider('wideningSlider', 'currentWideningFactor', 2.5, 'x');
-                        updateSlider('preGainSlider', 'currentPreGain', 1.8, 'x');
-                        break;
-                    case 'vocal':
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', -5, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', 6, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', -2, 'dB');
-                        setClarityEnabled(true);
-                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
-                        setHpfEnabled(true);
-                        updateSlider('hpfSlider', 'currentHpfHz', 135, 'Hz');
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
-                        break;
-                    case 'night':
-                        setClarityEnabled(true);
-                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -35, 'dB');
-                        setHpfEnabled(true);
-                        updateSlider('hpfSlider', 'currentHpfHz', 80, 'Hz');
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', 2, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', 1, 'dB');
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
-                        break;
-                    case 'action':
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', 6, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', -2, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', 2, 'dB');
-                        setAdaptiveWidthEnabled(true);
-                        setHpfEnabled(true);
-                        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
-                        setClarityEnabled(true);
-                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
-                        setWideningEnabled(true);
-                        updateSlider('wideningSlider', 'currentWideningFactor', 1.5, 'x');
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 2.0, 'x');
-                        break;
-                    case 'analog':
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', 2, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', 1, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', -3, 'dB');
-                        setClarityEnabled(true);
-                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -22, 'dB');
-                        setHpfEnabled(true);
-                        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
-                        setWideningEnabled(true);
-                        updateSlider('wideningSlider', 'currentWideningFactor', 1.2, 'x');
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
-                        setAutopanEnabled(false);
-                        setAdaptiveWidthEnabled(false);
-                        break;
-                    case 'acoustic':
-                        setClarityEnabled(false);
-                        setHpfEnabled(true);
-                        updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', 1, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', -1, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', 1, 'dB');
-                        setWideningEnabled(true);
-                        updateSlider('wideningSlider', 'currentWideningFactor', 1.4, 'x');
-                        setAdaptiveWidthEnabled(false);
-                        setAutopanEnabled(false);
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
-                        break;
-                    case 'concert':
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', 5, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', -3, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
-                        setClarityEnabled(true);
-                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
-                        setHpfEnabled(true);
-                        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
-                        setWideningEnabled(true);
-                        updateSlider('wideningSlider', 'currentWideningFactor', 2.0, 'x');
-                        setAdaptiveWidthEnabled(true);
-                        setAutopanEnabled(false);
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
-                        break;
-                    case 'asmr':
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', 2, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', 5, 'dB');
-                        setClarityEnabled(true);
-                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
-                        setHpfEnabled(true);
-                        updateSlider('hpfSlider', 'currentHpfHz', 100, 'Hz');
-                        setWideningEnabled(true);
-                        updateSlider('wideningSlider', 'currentWideningFactor', 2.2, 'x');
-                        setAdaptiveWidthEnabled(false);
-                        setAutopanEnabled(false);
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
-                        break;
-                    case 'podcast':
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', -5, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', 4, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', -2, 'dB');
-                        setClarityEnabled(true);
-                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -26, 'dB');
-                        setHpfEnabled(true);
-                        updateSlider('hpfSlider', 'currentHpfHz', 120, 'Hz');
-                        setWideningEnabled(true);
-                        updateSlider('wideningSlider', 'currentWideningFactor', 1.0, 'x');
-                        setAdaptiveWidthEnabled(true);
-                        setAutopanEnabled(false);
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
-                        break;
-                    case 'gaming':
-                        setEqEnabled(true);
-                        updateSlider('eqLowSlider', 'eqLowGain', 4, 'dB');
-                        updateSlider('eqMidSlider', 'eqMidGain', -3, 'dB');
-                        updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
-                        setClarityEnabled(true);
-                        updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
-                        setHpfEnabled(true);
-                        updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
-                        setWideningEnabled(true);
-                        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
-                        setAdaptiveWidthEnabled(false);
-                        setAutopanEnabled(false);
-                        setPreGainEnabled(true);
-                        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
-                        break;
-                }
+    case 'movie':
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
+        updateSlider('eqLowSlider', 'eqLowGain', -1, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+        break;
+    case 'music':
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
+        updateSlider('eqLowSlider', 'eqLowGain', 4, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', -2, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
+        setAdaptiveWidthEnabled(true);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+        break;
+    case 'spatial':
+        applyPreset('music');
+        setAutopanEnabled(true);
+        updateSlider('autopanRateSlider', 'autopanRate', 0.3, 'Hz');
+        updateSlider('panDepthSlider', 'autopanDepthPan', 0.6, '');
+        updateSlider('widthDepthSlider', 'autopanDepthWidth', 2.0, '');
+        updateSlider('wideningSlider', 'currentWideningFactor', 2.5, 'x');
+        updateSlider('preGainSlider', 'currentPreGain', 1.8, 'x');
+        break;
+    case 'vocal':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', -5, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', 6, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', -2, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 135, 'Hz');
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+        break;
+    case 'night':
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -35, 'dB');
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 80, 'Hz');
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', 2, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 1, 'dB');
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
+        break;
+    case 'action':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', 6, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', -2, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 2, 'dB');
+        setAdaptiveWidthEnabled(true);
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 1.5, 'x');
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 2.0, 'x');
+        break;
+    case 'analog':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', 2, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', 1, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', -3, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -22, 'dB');
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 1.2, 'x');
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
+        setAutopanEnabled(false);
+        setAdaptiveWidthEnabled(false);
+        break;
+    case 'acoustic':
+        setClarityEnabled(false);
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', 1, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', -1, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 1, 'dB');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 1.4, 'x');
+        setAdaptiveWidthEnabled(false);
+        setAutopanEnabled(false);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.0, 'x');
+        break;
+    case 'concert':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', 5, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', -3, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -24, 'dB');
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 2.0, 'x');
+        setAdaptiveWidthEnabled(true);
+        setAutopanEnabled(false);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
+        break;
+    case 'asmr':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', -4, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', 2, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 5, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB');
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 100, 'Hz');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 2.2, 'x');
+        setAdaptiveWidthEnabled(false);
+        setAutopanEnabled(false);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+        break;
+    case 'podcast':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', -5, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', 4, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', -2, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -26, 'dB');
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 120, 'Hz');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 1.0, 'x');
+        setAdaptiveWidthEnabled(true);
+        setAutopanEnabled(false);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
+        break;
+    case 'gaming':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', 4, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', -3, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
+        setAdaptiveWidthEnabled(false);
+        setAutopanEnabled(false);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+        break;
+
+    // ------------------ 추천 프리셋 ------------------
+    case 'sciFi':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', 3, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', -1, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 2, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -22, 'dB');
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 40, 'Hz');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 2.0, 'x');
+        setAdaptiveWidthEnabled(true);
+        setAutopanEnabled(false);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.3, 'x');
+        break;
+    case 'dialogue':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', -2, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', 4, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 0, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -28, 'dB');
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 120, 'Hz');
+        setWideningEnabled(false);
+        setAdaptiveWidthEnabled(false);
+        setAutopanEnabled(false);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
+        break;
+    case 'bassBoost':
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', 8, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', -2, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 2, 'dB');
+        setClarityEnabled(false);
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 20, 'Hz');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 1.5, 'x');
+        setAdaptiveWidthEnabled(false);
+        setAutopanEnabled(false);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 2.0, 'x');
+        break;
+}
 
                 applyAudioEffectsToMedia(Array.from(state.activeMedia));
             };
 
-            const bestPresets = [
-                { value: 'movie', text: '🎬 영화.드라마.방송' },
-                { value: 'music', text: '🎶 음악' },
-                { value: 'spatial', text: '🎶 공간 음향' },
-                { value: 'vocal', text: '🎤 목소리 강조' },
-                { value: 'night', text: '🌙 야간 모드' },
-                { value: 'action', text: '💥 액션 영화' },
-                { value: 'analog', text: '📻 따뜻한 아날로그' },
-                { value: 'acoustic', text: '🎻 어쿠스틱/클래식' },
-                { value: 'concert', text: '🏟️ 라이브 콘서트' },
-                { value: 'asmr', text: '🎧 ASMR & 팅글' },
-                { value: 'podcast', text: '🗣️ 팟캐스트 & 강의' },
-                { value: 'gaming', text: '🎮 게이밍 & 입체음향' }
-            ];
+const bestPresets = [
+    // 영화/드라마
+    { value: 'movie', text: '🎬 영화·드라마·방송' },
+    { value: 'action', text: '💥 액션 영화' },
+    { value: 'sciFi', text: '🚀 Sci-Fi·SF 영화' },
+    { value: 'night', text: '🌙 야간 모드' },
+
+    // 음악/공연
+    { value: 'music', text: '🎶 음악' },
+    { value: 'acoustic', text: '🎻 어쿠스틱·클래식' },
+    { value: 'concert', text: '🏟️ 라이브 콘서트' },
+    { value: 'spatial', text: '🎶 공간 음향' },
+    { value: 'bassBoost', text: '🔊 베이스 부스트' },
+    { value: 'analog', text: '📻 따뜻한 아날로그' },
+
+    // 목소리/대사
+    { value: 'dialogue', text: '🗨️ 대사 중심' },
+    { value: 'vocal', text: '🎤 목소리 강조' },
+    { value: 'asmr', text: '🎧 ASMR & 팅글' },
+    { value: 'podcast', text: '🗣️ 팟캐스트 & 강의' },
+
+    // 게이밍/입체음향
+    { value: 'gaming', text: '🎮 게이밍 & 입체음향' },
+];
 
             const bestPresetSelect = createSelectControl('프리셋 선택', bestPresets, (val) => {
                 if (val) applyPreset(val);
