@@ -1181,13 +1181,30 @@
         setPreGainEnabled(true);
         updateSlider('preGainSlider', 'currentPreGain', 1.2, 'x');
         break;
-    case 'gaming':
+    case 'gamingPro': // 🎮 게이밍(프로 세팅)
+        setEqEnabled(true);
+        updateSlider('eqLowSlider', 'eqLowGain', -2, 'dB');
+        updateSlider('eqMidSlider', 'eqMidGain', 3, 'dB');
+        updateSlider('eqHighSlider', 'eqHighGain', 5, 'dB');
+        setClarityEnabled(true);
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -60, 'dB'); // 극저 레벨까지 열기
+        setHpfEnabled(true);
+        updateSlider('hpfSlider', 'currentHpfHz', 35, 'Hz');
+        setWideningEnabled(true);
+        updateSlider('wideningSlider', 'currentWideningFactor', 1.8, 'x');
+        setAdaptiveWidthEnabled(false);
+        setAutopanEnabled(false);
+        setPreGainEnabled(true);
+        updateSlider('preGainSlider', 'currentPreGain', 1.5, 'x');
+        break;
+
+    case 'gaming': // 🎮 게이밍(일반)
         setEqEnabled(true);
         updateSlider('eqLowSlider', 'eqLowGain', 4, 'dB');
         updateSlider('eqMidSlider', 'eqMidGain', -3, 'dB');
         updateSlider('eqHighSlider', 'eqHighGain', 4, 'dB');
         setClarityEnabled(true);
-        updateSlider('clarityThresholdSlider', 'clarityThreshold', -20, 'dB');
+        updateSlider('clarityThresholdSlider', 'clarityThreshold', -30, 'dB'); // 기본값
         setHpfEnabled(true);
         updateSlider('hpfSlider', 'currentHpfHz', 30, 'Hz');
         setWideningEnabled(true);
@@ -1251,13 +1268,13 @@
             };
 
 const bestPresets = [
-    // 영화/드라마
+    // 🎬 영화/드라마
     { value: 'movie', text: '🎬 영화·드라마·방송' },
     { value: 'action', text: '💥 액션 영화' },
     { value: 'sciFi', text: '🚀 Sci-Fi·SF 영화' },
     { value: 'night', text: '🌙 야간 모드' },
 
-    // 음악/공연
+    // 🎶 음악/공연
     { value: 'music', text: '🎶 음악' },
     { value: 'acoustic', text: '🎻 어쿠스틱·클래식' },
     { value: 'concert', text: '🏟️ 라이브 콘서트' },
@@ -1265,14 +1282,15 @@ const bestPresets = [
     { value: 'bassBoost', text: '🔊 베이스 부스트' },
     { value: 'analog', text: '📻 따뜻한 아날로그' },
 
-    // 목소리/대사
+    // 🗣️ 목소리/대사
     { value: 'dialogue', text: '🗨️ 대사 중심' },
     { value: 'vocal', text: '🎤 목소리 강조' },
     { value: 'asmr', text: '🎧 ASMR & 팅글' },
     { value: 'podcast', text: '🗣️ 팟캐스트 & 강의' },
 
-    // 게이밍/입체음향
-    { value: 'gaming', text: '🎮 게이밍 & 입체음향' },
+    // 🎮 게이밍/입체음향
+    { value: 'gaming', text: '🎮 게이밍(일반)' },
+    { value: 'gamingPro', text: '🎮 게이밍(프로)' },
 ];
 
             const bestPresetSelect = createSelectControl('프리셋 선택', bestPresets, (val) => {
