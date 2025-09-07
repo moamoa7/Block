@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (with Advanced Audio & Video FX) - Final
+// @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      92.6
-// @description  자동 볼륨 신설 - 누적 LUFS 기반 자동 볼륨 평준화 방식으로 변경하여 편차를 줄이고, Shift-Click으로 데이터 초기화 기능 추가. 모든 관련 버그 수정.
+// @version      92.7
+// @description  CROS 오디오 처리 재추가
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -519,11 +519,61 @@
             }, 'reconnectGraph');
         }
 
+        function checkAudioActivity(media, nodes) {
+            if (!media || !nodes || !nodes.analyser) return;
+
+            // WeakMap을 사용하여 미디어 요소별로 확인 상태를 추적
+            const analysisStatusMap = new WeakMap();
+            const currentStatus = analysisStatusMap.get(media);
+
+            if (currentStatus === 'passed' || currentStatus === 'checking') return;
+            analysisStatusMap.set(media, 'checking');
+
+            let attempts = 0;
+            const MAX_ATTEMPTS = 5; // 300ms * 5 = 1.5초
+            const CHECK_INTERVAL = 300;
+            const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
+            nodes.analyser.fftSize = 256;
+
+            const intervalId = setInterval(() => {
+                if (!media.isConnected || nodes.context.state === 'closed') {
+                    clearInterval(intervalId);
+                    analysisStatusMap.delete(media);
+                    return;
+                }
+                if (media.paused) return;
+
+                attempts++;
+                nodes.analyser.getByteFrequencyData(analyserData);
+                const sum = analyserData.reduce((a, b) => a + b, 0);
+
+                if (sum > 0) {
+                    clearInterval(intervalId);
+                    analysisStatusMap.set(media, 'passed');
+                    return;
+                }
+
+                if (attempts >= MAX_ATTEMPTS) {
+                    clearInterval(intervalId);
+                    analysisStatusMap.set(media, 'failed');
+                    console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 페이지를 새로고침합니다.', media);
+                    sessionStorage.setItem('vsc_message', 'CORS 보안 정책으로 오디오 효과 적용에 실패하여 페이지를 새로고침했습니다.');
+                    showWarningMessage('CORS 오류 감지. 1.5초 후 오디오 복원을 위해 페이지를 새로고침합니다.');
+                    cleanupForMedia(media);
+                    setTimeout(() => { location.reload(); }, 1500);
+                }
+            }, CHECK_INTERVAL);
+        }
+
         function getOrCreateNodes(media) {
             if (state.audioContextMap.has(media)) {
+                reconnectGraph(media); // 기존 노드가 있으면 그래프만 다시 연결
                 return state.audioContextMap.get(media);
             }
-            return createAudioGraph(media);
+            // 새 노드를 생성할 때만 오디오 활성 상태 검사를 시작
+            const newNodes = createAudioGraph(media);
+            if (newNodes) checkAudioActivity(media, newNodes);
+            return newNodes;
         }
 
         function cleanupForMedia(media) {
