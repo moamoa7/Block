@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX) - Final
 // @namespace    https://com/
-// @version      91.7
-// @description  오디오 필터 - 오토팬 대신 HRTF 사용 / 기타 오디오 문제 해결
+// @version      91.9
+// @description  자동 Pre-Gain 로직 + 하이 셀렉티브 클리어니스 EQ
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -312,10 +312,15 @@
                     lastNode = nodes.eqHigh;
                 }
                 if (state.isClarityEnabled) {
-                    if (!nodes.clarity) nodes.clarity = nodes.context.createDynamicsCompressor();
-                    nodes.clarity.threshold.value = state.clarityThreshold;
-                    nodes.clarity.knee.value = 30; nodes.clarity.ratio.value = 6;
-                    nodes.clarity.attack.value = 0.01; nodes.clarity.release.value = 0.25;
+                    if (!nodes.clarity) nodes.clarity = nodes.context.createBiquadFilter();
+                    nodes.clarity.type = "peaking";
+                    nodes.clarity.frequency.value = 3000; // 목소리/멜로디 선명도 핵심 대역
+                    nodes.clarity.Q.value = 1.0;          // 너무 뾰족하지 않게 주변 대역도 살짝 영향
+                    // clarityThreshold 슬라이더 값을 dB 부스트량으로 직접 사용 (0~10dB 추천)
+                    // 슬라이더는 -60~0 이므로, 값을 변환해야 합니다. (예: (sliderValue + 60) / 6)
+                    const gainValue = (state.clarityThreshold + 60) / 6; // -60 -> 0dB, 0 -> 10dB
+                    nodes.clarity.gain.value = Math.max(0, gainValue);
+
                     lastNode.connect(nodes.clarity);
                     lastNode = nodes.clarity;
                 }
@@ -673,6 +678,20 @@
             const container = state.ui?.shadowRoot?.getElementById('vsc-container');
             if (container) { clearTimeout(fadeOutTimer); container.style.opacity = ''; container.classList.add('touched'); fadeOutTimer = setTimeout(startFadeSequence, 10000); }
         };
+
+        // START: NEW FUNCTION HERE
+        function getAutoPreGain(eq_low, eq_mid, eq_high) {
+            const eqBoost =
+                Math.max(eq_low, 0) +
+                Math.max(eq_mid, 0) +
+                Math.max(eq_high, 0);
+
+            let preGain = 1.0 - eqBoost * 0.05; // 부스트 1dB당 -5%
+            preGain = Math.min(1.0, Math.max(preGain, 0.9)); // -1dB ~ 0dB 범위 (0.9x ~ 1.0x)
+            return preGain;
+        }
+        // END: NEW FUNCTION HERE
+
         function init() {
             if (inited) return;
             const shadowRoot = state.ui.shadowRoot;
@@ -913,14 +932,14 @@
                 'default':       { name: '기본값', hpf_enabled: false, eq_enabled: false, clarity_enabled: false, widen_enabled: false, adaptive_enabled: false, spatial_enabled: false, preGain_enabled: false },
                 'basic_improve': { name: '기본 개선', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -2, eq_mid: 3, eq_high: 3, preGain_enabled: true, preGain_value: 1.2 },
                 'movie':         { name: '🎬 영화·드라마', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -1, eq_mid: 3, eq_high: 3, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5 },
-                'action':        { name: '💥 액션 영화', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 6, eq_mid: -2, eq_high: 2, clarity_enabled: true, clarity_threshold: -20, widen_enabled: true, widen_factor: 1.5, adaptive_enabled: true, preGain_enabled: true, preGain_value: 2.0 },
+                'action':        { name: '💥 액션 영화', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 6, eq_mid: -2, eq_high: 2, clarity_enabled: true, clarity_threshold: -20, widen_enabled: true, widen_factor: 1.5, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.7 },
                 'sciFi':         { name: '🚀 Sci-Fi·SF', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 3, eq_mid: -1, eq_high: 2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.3 },
                 'night':         { name: '🌙 야간 모드', hpf_enabled: true, hpf_hz: 80, eq_enabled: true, eq_low: -4, eq_mid: 2, eq_high: 1, clarity_enabled: true, clarity_threshold: -35, widen_enabled: false, preGain_enabled: true, preGain_value: 1.0 },
                 'music':         { name: '🎶 음악', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.5 },
                 'acoustic':      { name: '🎻 어쿠스틱', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_low: 1, eq_mid: -1, eq_high: 1, widen_enabled: true, widen_factor: 1.4, preGain_enabled: true, preGain_value: 1.0 },
                 'concert':       { name: '🏟️ 라이브 콘서트', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 5, eq_mid: -3, eq_high: 4, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2 },
-                'spatial':       { name: '🌌 공간 음향', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 2.5, adaptive_enabled: true, spatial_enabled: true, spatial_speed: 0.3, spatial_dist: 2.0, spatial_reverb: 1.5, preGain_enabled: true, preGain_value: 1.8 },
-                'bassBoost':     { name: '🔊 베이스 부스트', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: 8, eq_mid: -2, eq_high: 2, widen_enabled: true, widen_factor: 1.5, preGain_enabled: true, preGain_value: 2.0 },
+                'spatial':       { name: '🌌 공간 음향', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 2.5, adaptive_enabled: true, spatial_enabled: true, spatial_speed: 0.3, spatial_dist: 2.0, spatial_reverb: 1.5, preGain_enabled: true, preGain_value: 1.6 },
+                'bassBoost':     { name: '🔊 베이스 부스트', hpf_enabled: true, hpf_hz: 25, eq_enabled: true, eq_low: 6, eq_mid: -2, eq_high: 2, widen_enabled: true, widen_factor: 1.3, preGain_enabled: true, preGain_value: 1.5 },
                 'analog':        { name: '📻 아날로그', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 2, eq_mid: 1, eq_high: -3, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.2, preGain_enabled: true, preGain_value: 1.0 },
                 'dialogue':      { name: '🗨️ 대사 중심', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_low: -2, eq_mid: 4, eq_high: 0, clarity_enabled: true, clarity_threshold: -28, preGain_enabled: true, preGain_value: 1.2 },
                 'vocal':         { name: '🎤 목소리 강조', hpf_enabled: true, hpf_hz: 135, eq_enabled: true, eq_low: -5, eq_mid: 6, eq_high: -2, clarity_enabled: true, clarity_threshold: -30, preGain_enabled: true, preGain_value: 1.5 },
@@ -949,6 +968,20 @@
                 };
 
                 const final = { ...defaults, ...p };
+
+                // START: 자동 Pre-Gain 계산 로직 (개선)
+                if (final.preGain_enabled) {
+                    // 자동 계산 (최소 0.9 ~ 최대 1.0 사이로만 보정)
+                    const autoPreGain = getAutoPreGain(
+                        final.eq_low ?? 0,
+                        final.eq_mid ?? 0,
+                        final.eq_high ?? 0
+                    );
+
+                    // 🔹 프리셋 preGain_value가 있으면 그 값과 곱해서 자연스럽게 조절
+                    final.preGain_value = (final.preGain_value ?? 1.0) * autoPreGain;
+                }
+                // END: 자동 Pre-Gain 계산 로직
 
                 Object.assign(state, {
                     isHpfEnabled: final.hpf_enabled, currentHpfHz: final.hpf_hz,
