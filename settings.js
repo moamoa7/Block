@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      92.8
-// @description  Autodelay 보정 강도 보정
+// @version      92.9
+// @description  비디오 UI 표기문제 수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -891,7 +891,7 @@
                     if (typeof value === 'number') {
                         if (unit === 'x' || unit === 'Hz' || sliderName.includes('pan')) {
                             displayValue = value.toFixed(1);
-                        } else if (unit === 'dB') {
+                        } else if (unit === 'dB' || unit === '단계' || unit === '%') {
                             displayValue = value.toFixed(0);
                         } else {
                             displayValue = value.toFixed(2);
@@ -952,7 +952,7 @@
                 if (typeof value === 'number') {
                     if (unit === 'x' || unit === 'Hz' || id.includes('pan')) {
                         displayValue = value.toFixed(1);
-                    } else if (unit === 'dB') {
+                    } else if (unit === 'dB' || unit === '단계' || unit === '%') { 
                         displayValue = value.toFixed(0);
                     } else {
                         displayValue = value.toFixed(2);
