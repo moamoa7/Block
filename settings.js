@@ -294,10 +294,10 @@
 
             const ANALYSIS_DELAY_MS = 500;
             const ANALYSIS_DURATION_MS = 10000;
-            const SAMPLE_INTERVAL_MS = 500;
+            const SAMPLE_INTERVAL_MS = 250
             const LUFS_GATE_THRESHOLD = -25;
             const targetLUFS = -16.0;
-            const MIN_VALID_SAMPLES = 4;
+            const MIN_VALID_SAMPLES = 5
 
             let currentLufsSamples = [];
             let sampleIntervalId = null;
@@ -1083,35 +1083,35 @@
                 videoSliderUpdate();
             });
             sharpenDirControl.select.value = state.currentVideoSharpenDirection;
-            const saturationSlider = createSliderControl('채도', 'videoSaturationSlider', 0, 300, 1, state.currentVideoSaturation, '%');
+            const saturationSlider = createSliderControl('채도', 'videoSaturationSlider', 0, 200, 1, state.currentVideoSaturation, '%');
             saturationSlider.slider.oninput = () => {
                 const val = parseInt(saturationSlider.slider.value, 10);
                 state.currentVideoSaturation = val;
                 saturationSlider.valueSpan.textContent = `${val}%`;
                 videoSliderUpdate();
             };
-            const gammaSlider = createSliderControl('감마 (중간 영역)', 'videoGammaSlider', 0.1, 2.5, 0.01, state.currentVideoGamma, '');
+            const gammaSlider = createSliderControl('감마 (중간 영역)', 'videoGammaSlider', 0.5, 1.5, 0.01, state.currentVideoGamma, '');
             gammaSlider.slider.oninput = () => {
                 const val = parseFloat(gammaSlider.slider.value);
                 state.currentVideoGamma = val;
                 gammaSlider.valueSpan.textContent = val.toFixed(2);
                 videoSliderUpdate();
             };
-            const blurSlider = createSliderControl('블러 (왜곡 줄이기)', 'videoBlurSlider', 0, 2, 0.05, state.currentVideoBlur, '');
+            const blurSlider = createSliderControl('블러 (왜곡 줄이기)', 'videoBlurSlider', 0, 1, 0.05, state.currentVideoBlur, '');
             blurSlider.slider.oninput = () => {
                 const val = parseFloat(blurSlider.slider.value);
                 state.currentVideoBlur = val;
                 blurSlider.valueSpan.textContent = val.toFixed(2);
                 videoSliderUpdate();
             };
-            const shadowsSlider = createSliderControl('대비 (어두운 영역)', 'videoShadowsSlider', -100, 100, 1, state.currentVideoShadows, '');
+            const shadowsSlider = createSliderControl('대비 (어두운 영역)', 'videoShadowsSlider', -50, 50, 1, state.currentVideoShadows, '');
             shadowsSlider.slider.oninput = () => {
                 const val = parseInt(shadowsSlider.slider.value, 10);
                 state.currentVideoShadows = val;
                 shadowsSlider.valueSpan.textContent = val;
                 videoSliderUpdate();
             };
-            const highlightsSlider = createSliderControl('밝기 (밝은 영역)', 'videoHighlightsSlider', -100, 100, 1, state.currentVideoHighlights, '');
+            const highlightsSlider = createSliderControl('밝기 (밝은 영역)', 'videoHighlightsSlider', -50, 50, 1, state.currentVideoHighlights, '');
             highlightsSlider.slider.oninput = () => {
                 const val = parseInt(highlightsSlider.slider.value, 10);
                 state.currentVideoHighlights = val;
