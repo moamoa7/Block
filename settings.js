@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      92.7
-// @description  CROS 오디오 처리 재추가
+// @version      92.8
+// @description  자동 볼륨 계산 로직 보정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -291,7 +291,13 @@
         }
 
         analyser.getFloatTimeDomainData(data);
-        const rms = Math.sqrt(data.reduce((sum, v) => sum + v * v, 0) / data.length);
+        // ✅ 빠른 RMS 계산
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          sum += data[i] * data[i];
+        }
+        const rms = Math.sqrt(sum / data.length);
+
         if (rms > 0.001) {
             const lufs = 20 * Math.log10(rms);
             if (lufs > LUFS_GATE_THRESHOLD) currentLufsSamples.push(lufs);
@@ -299,44 +305,50 @@
     };
 
     const finalizeAnalysis = () => {
-        if (!state.isAnalyzingLoudness) {
-            return;
+    if (!state.isAnalyzingLoudness) {
+        return;
+    }
+
+    cleanupTimers();
+
+    if (currentLufsSamples.length < MIN_VALID_SAMPLES) {
+        console.log('[VSC 음량 평준화] 유효 샘플 부족으로 중단.');
+    } else {
+        nodes.cumulativeLUFS = (nodes.cumulativeLUFS || 0) + currentLufsSamples.reduce((sum, v) => sum + v, 0);
+        nodes.lufsSampleCount = (nodes.lufsSampleCount || 0) + currentLufsSamples.length;
+        const averageLUFS = nodes.cumulativeLUFS / nodes.lufsSampleCount;
+
+        // 🔹 CorrectionFactor 범위 축소 (±25%)
+        let correctionFactor = Math.pow(10, (targetLUFS - averageLUFS) / 20);
+        correctionFactor = Math.min(1.25, Math.max(0.8, correctionFactor)); // 0.8~1.25
+
+        // 🔹 최종 Gain 상한
+        const MAX_FINAL_GAIN = 2.5;
+        const finalGain = Math.min(MAX_FINAL_GAIN, state.lastManualPreGain * correctionFactor);
+
+        // 🔹 Gain 적용
+        gainNode.gain.linearRampToValueAtTime(finalGain, nodes.context.currentTime + 0.5);
+        state.currentPreGain = finalGain;
+
+        // 🔹 UI 업데이트
+        const slider = state.ui.shadowRoot?.getElementById('preGainSlider');
+        const valueSpan = state.ui.shadowRoot?.getElementById('preGainSliderVal');
+        if (slider) slider.value = finalGain;
+        if (valueSpan) valueSpan.textContent = `${finalGain.toFixed(1)}x`;
+
+        console.log(`[VSC 음량 평준화] 샘플 추가 (총 ${nodes.lufsSampleCount}개). 누적 평균: ${averageLUFS.toFixed(1)} LUFS, 최종 볼륨: ${finalGain.toFixed(2)}x`);
+
+        if (nodes.lufsSampleCount > 50) {
+            console.log('[VSC 음량 평준화] 누적 샘플이 50개를 초과하여 기록을 초기화합니다.');
+            nodes.cumulativeLUFS = 0;
+            nodes.lufsSampleCount = 0;
         }
+    }
 
-        cleanupTimers();
-
-        if (currentLufsSamples.length < MIN_VALID_SAMPLES) {
-            console.log('[VSC 음량 평준화] 유효 샘플 부족으로 중단.');
-        } else {
-            nodes.cumulativeLUFS = (nodes.cumulativeLUFS || 0) + currentLufsSamples.reduce((sum, v) => sum + v, 0);
-            nodes.lufsSampleCount = (nodes.lufsSampleCount || 0) + currentLufsSamples.length;
-            const averageLUFS = nodes.cumulativeLUFS / nodes.lufsSampleCount;
-
-            let correctionFactor = Math.pow(10, (targetLUFS - averageLUFS) / 20);
-            correctionFactor = Math.min(2.5, Math.max(0.4, correctionFactor));
-
-            const finalGain = state.lastManualPreGain * correctionFactor;
-            gainNode.gain.linearRampToValueAtTime(finalGain, nodes.context.currentTime + 0.5);
-            state.currentPreGain = finalGain;
-
-            const slider = state.ui.shadowRoot?.getElementById('preGainSlider');
-            const valueSpan = state.ui.shadowRoot?.getElementById('preGainSliderVal');
-            if (slider) slider.value = finalGain;
-            if (valueSpan) valueSpan.textContent = `${finalGain.toFixed(1)}x`;
-
-            console.log(`[VSC 음량 평준화] 샘플 추가 (총 ${nodes.lufsSampleCount}개). 누적 평균: ${averageLUFS.toFixed(1)} LUFS, 최종 볼륨: ${finalGain.toFixed(2)}x`);
-
-            if (nodes.lufsSampleCount > 50) {
-                console.log('[VSC 음량 평준화] 누적 샘플이 50개를 초과하여 기록을 초기화합니다.');
-                nodes.cumulativeLUFS = 0;
-                nodes.lufsSampleCount = 0;
-            }
-        }
-
-        state.isAnalyzingLoudness = false;
-        autoVolBtn.textContent = originalBtnText; // ADDED: Restore button text
-        updateAutoVolumeButtonStyle();
-    };
+    state.isAnalyzingLoudness = false;
+    autoVolBtn.textContent = originalBtnText; // 버튼 텍스트 복구
+    updateAutoVolumeButtonStyle();
+};
 
     // 분석 시작
     setTimeout(() => {
