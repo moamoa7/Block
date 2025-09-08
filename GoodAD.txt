@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250829
+! Version: 20250908
 !
 !
 !
@@ -3509,6 +3509,8 @@ sweettracker.co.kr#@#[class$="verlay"]
 youtube.com#@#[class$="verlay"]
 ! - - - https://javbraze.com/ - 영상 이미지 사라짐
 javbraze.com#@#[class$="verlay"]
+! - - - https://www.melon.com/
+melon.com#@#[class$="verlay"]
 
 
 
