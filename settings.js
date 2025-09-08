@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      95.0
-// @description  오디오 엔진 업그레이드: 다이나믹 EQ, 하모닉 익사이터, 병렬 압축, 마스터링 리미터 추가. 5-Band 멀티밴드 처리. 2-Pass Sharpening.
+// @version      95.1
+// @description  [v95.1] 익사이터(Exciter) 로직 수정: 과도한 증폭 오류 해결 및 제어력 향상. 마스터링 스위트(Transient Shaper, Multi-stage Limiter) 추가.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -37,8 +37,6 @@
         DEFAULT_SPATIAL_AUDIO_DISTANCE: 1.0,
         DEFAULT_SPATIAL_AUDIO_REVERB: 0.1,
         DEFAULT_SPATIAL_AUDIO_SPEED: 0.2,
-        DEFAULT_CLARITY_ENABLED: false,
-        DEFAULT_CLARITY_THRESHOLD: -30,
         DEFAULT_PRE_GAIN_ENABLED: false,
         DEFAULT_PRE_GAIN: 1.0,
         DEFAULT_BASS_BOOST_GAIN: 0,
@@ -53,8 +51,8 @@
         DEFAULT_EXCITER_AMOUNT: 0,
         DEFAULT_PARALLEL_COMP_ENABLED: false,
         DEFAULT_PARALLEL_COMP_MIX: 0,
-        DEFAULT_LIMITER_ENABLED: false, // Old limiter toggle, kept for preset compatibility
-        DEFAULT_MASTERING_SUITE_ENABLED: false, // New Mastering Suite toggle
+        DEFAULT_LIMITER_ENABLED: false,
+        DEFAULT_MASTERING_SUITE_ENABLED: false,
 
         DEBUG: false, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
@@ -76,19 +74,16 @@
         SELECT: 'vsc-select'
     };
 
-    // Helper function for the new Transient Shaper
     function makeTransientCurve(amount) {
         const samples = 44100;
         const curve = new Float32Array(samples);
-        // amount range 0 to 1. 0 is linear, 1 is strong curve.
-        const k = 2 * amount / (1 - amount);
+        const k = 2 * amount / (1 - amount || 1e-6);
         for (let i = 0; i < samples; i++) {
             const x = i * 2 / samples - 1;
             curve[i] = (1 + k) * x / (1 + k * Math.abs(x));
         }
         return curve;
     }
-
 
     function getTargetDelay() {
         const host = location.hostname;
@@ -139,8 +134,6 @@
             bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN,
             bassBoostFreq: 60,
             bassBoostQ: 1.0,
-            isClarityEnabled: CONFIG.DEFAULT_CLARITY_ENABLED,
-            clarityThreshold: CONFIG.DEFAULT_CLARITY_THRESHOLD,
             isWideningEnabled: CONFIG.DEFAULT_WIDENING_ENABLED,
             currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
             isAdaptiveWidthEnabled: CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED,
@@ -467,13 +460,11 @@
                 deesserCompressor: context.createDynamicsCompressor(),
                 exciterHPF: context.createBiquadFilter(),
                 exciter: context.createWaveShaper(),
-                exciterInput: context.createGain(),
-                exciterOutput: context.createGain(),
+                exciterPostGain: context.createGain(), // FIX: Added node to control exciter output
                 parallelCompressor: context.createDynamicsCompressor(),
                 parallelDry: context.createGain(),
                 parallelWet: context.createGain(),
                 limiter: context.createDynamicsCompressor(),
-                // New Mastering Suite Nodes
                 masteringTransientShaper: context.createWaveShaper(),
                 masteringLimiter1: context.createDynamicsCompressor(),
                 masteringLimiter2: context.createDynamicsCompressor(),
@@ -526,8 +517,6 @@
                 let lastNode = nodes.source.connect(nodes.preGain);
 
                 if (state.isDeesserEnabled) {
-                    if (!nodes.deesserBand) nodes.deesserBand = nodes.context.createBiquadFilter();
-                    if (!nodes.deesserCompressor) nodes.deesserCompressor = nodes.context.createDynamicsCompressor();
                     nodes.deesserBand.type = 'bandpass';
                     nodes.deesserBand.frequency.value = state.deesserFreq;
                     nodes.deesserBand.Q.value = 3;
@@ -585,25 +574,29 @@
                     lastNode = lastNode.connect(nodes.hpf);
                 }
 
-                if (state.isClarityEnabled) {
-                    if (!nodes.clarity) nodes.clarity = nodes.context.createBiquadFilter();
-                    nodes.clarity.type = "peaking";
-                    nodes.clarity.frequency.value = 3000;
-                    nodes.clarity.Q.value = 1.0;
-                    nodes.clarity.gain.value = Math.max(0, (state.clarityThreshold + 60) / 6);
-                    lastNode = lastNode.connect(nodes.clarity);
-                }
-
+                // [FIX] Exciter logic is now parallel and includes a post-gain to prevent clipping
                 if (state.isExciterEnabled && state.exciterAmount > 0 && !state.isMasteringSuiteEnabled) {
+                    const exciterSum = nodes.context.createGain();
+                    const exciterDry = nodes.context.createGain();
+                    const exciterWet = nodes.context.createGain();
+                    const exciterPostGain = nodes.exciterPostGain;
+
+                    exciterDry.gain.value = 1.0 - (state.exciterAmount / 200); // Blend more gently
+                    exciterWet.gain.value = state.exciterAmount / 100;
+
                     nodes.exciterHPF.type = 'highpass';
-                    nodes.exciterHPF.frequency.value = 4000;
+                    nodes.exciterHPF.frequency.value = 5000;
                     nodes.exciter.curve = makeDistortionCurve(state.exciterAmount * 20);
                     nodes.exciter.oversample = '4x';
-                    const exciterSum = nodes.context.createGain();
-                    const exciterWet = nodes.context.createGain();
-                    exciterWet.gain.value = state.exciterAmount / 100;
-                    lastNode.connect(exciterSum);
-                    lastNode.connect(nodes.exciterHPF).connect(nodes.exciter).connect(exciterWet).connect(exciterSum);
+                    exciterPostGain.gain.value = 0.5; // Tame the output of the waveshaper
+
+                    lastNode.connect(exciterDry).connect(exciterSum); // Dry path
+                    lastNode.connect(nodes.exciterHPF)
+                           .connect(nodes.exciter)
+                           .connect(exciterPostGain) // Control the gain
+                           .connect(exciterWet)
+                           .connect(exciterSum); // Wet path
+
                     lastNode = exciterSum;
                 }
 
@@ -682,24 +675,36 @@
                     lastNode = lastNode.connect(nodes.stereoPanner);
                 }
 
-                // NEW: Mastering Suite Logic
                 if (state.isMasteringSuiteEnabled) {
-                    // 2-Pass Sharpening part 1: Transient Shaper
                     nodes.masteringTransientShaper.curve = makeTransientCurve(state.masteringTransientAmount);
                     nodes.masteringTransientShaper.oversample = '4x';
                     lastNode = lastNode.connect(nodes.masteringTransientShaper);
 
-                    // 2-Pass Sharpening part 2: Exciter (re-using existing node)
                     if (state.isExciterEnabled && state.exciterAmount > 0) {
-                        nodes.exciter.curve = makeDistortionCurve(state.exciterAmount * 15); // Slightly less intense for mastering
+                        const exciterSum = nodes.context.createGain();
+                        const exciterDry = nodes.context.createGain();
+                        const exciterWet = nodes.context.createGain();
+                        const exciterPostGain = nodes.exciterPostGain;
+
+                        exciterDry.gain.value = 1.0 - (state.exciterAmount / 200);
+                        exciterWet.gain.value = state.exciterAmount / 100;
+
+                        nodes.exciterHPF.type = 'highpass';
+                        nodes.exciterHPF.frequency.value = 5000;
+                        nodes.exciter.curve = makeDistortionCurve(state.exciterAmount * 15);
                         nodes.exciter.oversample = '4x';
-                        lastNode = lastNode.connect(nodes.exciter);
+                        exciterPostGain.gain.value = 0.5;
+
+                        lastNode.connect(exciterDry).connect(exciterSum);
+                        lastNode.connect(nodes.exciterHPF)
+                               .connect(nodes.exciter)
+                               .connect(exciterPostGain)
+                               .connect(exciterWet)
+                               .connect(exciterSum);
+                        lastNode = exciterSum;
                     }
 
-                    // Multi-stage Limiting part
-                    const drive = state.masteringDrive; // 0 to 12 dB
-
-                    // Limiter 1 (Gentle Peak Taming)
+                    const drive = state.masteringDrive;
                     const l1 = nodes.masteringLimiter1;
                     l1.threshold.value = -12 + (drive / 2);
                     l1.knee.value = 5;
@@ -707,7 +712,6 @@
                     l1.attack.value = 0.005;
                     l1.release.value = 0.08;
 
-                    // Limiter 2 (Density)
                     const l2 = nodes.masteringLimiter2;
                     l2.threshold.value = -8 + (drive / 2);
                     l2.knee.value = 3;
@@ -715,9 +719,8 @@
                     l2.attack.value = 0.003;
                     l2.release.value = 0.05;
 
-                    // Limiter 3 (Brickwall)
                     const l3 = nodes.masteringLimiter3;
-                    l3.threshold.value = -2.0; // Hard ceiling
+                    l3.threshold.value = -2.0;
                     l3.knee.value = 0;
                     l3.ratio.value = 20;
                     l3.attack.value = 0.001;
@@ -726,7 +729,6 @@
                     lastNode = lastNode.connect(l1).connect(l2).connect(l3);
 
                 } else {
-                    // Fallback to old single limiter if mastering suite is off
                     if (state.isLimiterEnabled) {
                         nodes.limiter.threshold.value = -1.5;
                         nodes.limiter.knee.value = 0;
@@ -736,7 +738,6 @@
                         lastNode = lastNode.connect(nodes.limiter);
                     }
                 }
-
 
                 lastNode.connect(nodes.masterGain);
                 nodes.masterGain.connect(nodes.analyser);
@@ -780,9 +781,7 @@
                     clearInterval(intervalId);
                     analysisStatusMap.set(media, 'failed');
                     console.warn('[VSC] 오디오 신호가 감지되지 않았습니다 (CORS 오류 가능성).', media);
-
                     showWarningMessage('오디오 효과 적용에 실패했습니다. (CORS 보안 정책 가능성)');
-
                     cleanupForMedia(media);
                 }
             }, CHECK_INTERVAL);
@@ -923,7 +922,6 @@
             const slider = state.ui.shadowRoot?.getElementById(id);
             if (slider) slider.disabled = !enabled;
         });
-        // Also disable old limiter button if this is on
         const oldLimiterBtn = state.ui.shadowRoot?.getElementById('vsc-limiter-toggle');
         if (oldLimiterBtn) oldLimiterBtn.disabled = enabled;
 
@@ -936,7 +934,6 @@
         if (btn) btn.classList.toggle('active', enabled);
         applyAudioEffectsToMedia();
     }
-
 
     function setSpatialAudioEnabled(enabled) {
         state.isSpatialAudioEnabled = !!enabled;
@@ -959,15 +956,6 @@
         applyAudioEffectsToMedia();
     }
 
-    function setClarityEnabled(enabled) {
-        state.isClarityEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('clarityBtn');
-        if (btn) btn.classList.toggle('active', enabled);
-        const slider = state.ui.shadowRoot?.getElementById('clarityThresholdSlider');
-        if (slider) slider.disabled = !enabled;
-        applyAudioEffectsToMedia();
-    }
-
     function setLoudnessEqEnabled(enabled) {
         state.isLoudnessEqEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-loudness-eq-toggle');
@@ -981,7 +969,6 @@
         setEqEnabled(CONFIG.DEFAULT_EQ_ENABLED);
         setAdaptiveWidthEnabled(CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED);
         setSpatialAudioEnabled(CONFIG.DEFAULT_SPATIAL_AUDIO_ENABLED);
-        setClarityEnabled(CONFIG.DEFAULT_CLARITY_ENABLED);
         setPreGainEnabled(CONFIG.DEFAULT_PRE_GAIN_ENABLED);
         setLoudnessEqEnabled(CONFIG.DEFAULT_LOUDNESS_EQ_ENABLED);
         setDeesserEnabled(CONFIG.DEFAULT_DEESSER_ENABLED);
@@ -1126,7 +1113,6 @@
             const defaults = {
                 hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
                 eq_enabled: false, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 0, eq_presence: 0,
-                clarity_enabled: false, clarity_threshold: CONFIG.DEFAULT_CLARITY_THRESHOLD,
                 widen_enabled: false, widen_factor: 1.0,
                 adaptive_enabled: false,
                 spatial_enabled: false, spatial_dist: CONFIG.DEFAULT_SPATIAL_AUDIO_DISTANCE, spatial_reverb: CONFIG.DEFAULT_SPATIAL_AUDIO_REVERB, spatial_speed: CONFIG.DEFAULT_SPATIAL_AUDIO_SPEED,
@@ -1156,7 +1142,6 @@
                 eqSubBassGain: final.eq_subBass, eqBassGain: final.eq_bass,
                 eqMidGain: final.eq_mid, eqTrebleGain: final.eq_treble,
                 eqPresenceGain: final.eq_presence,
-                isClarityEnabled: final.clarity_enabled, clarityThreshold: final.clarity_threshold,
                 isWideningEnabled: final.widen_enabled, currentWideningFactor: final.widen_factor,
                 isAdaptiveWidthEnabled: final.adaptive_enabled,
                 isSpatialAudioEnabled: final.spatial_enabled,
@@ -1177,7 +1162,7 @@
             });
             state.lastManualPreGain = state.currentPreGain;
 
-            const allSliders = { hpfSlider, eqSubBassSlider, eqBassSlider, eqMidSlider, eqTrebleSlider, eqPresenceSlider, clarityThresholdSlider, wideningSlider, panSlider, preGainSlider, bassBoostSlider, spatialDistanceSlider, spatialReverbSlider, spatialSpeedSlider, deesserThresholdSlider, deesserFreqSlider, exciterAmountSlider, parallelCompMixSlider, masteringTransientSlider, masteringDriveSlider };
+            const allSliders = { hpfSlider, eqSubBassSlider, eqBassSlider, eqMidSlider, eqTrebleSlider, eqPresenceSlider, wideningSlider, panSlider, preGainSlider, bassBoostSlider, spatialDistanceSlider, spatialReverbSlider, spatialSpeedSlider, deesserThresholdSlider, deesserFreqSlider, exciterAmountSlider, parallelCompMixSlider, masteringTransientSlider, masteringDriveSlider };
             const updateSliderUI = (sliderName, value, unit = '') => {
                 const s = allSliders[sliderName];
                 if (s) {
@@ -1203,7 +1188,6 @@
             updateSliderUI('eqMidSlider', state.eqMidGain, 'dB');
             updateSliderUI('eqTrebleSlider', state.eqTrebleGain, 'dB');
             updateSliderUI('eqPresenceSlider', state.eqPresenceGain, 'dB');
-            setClarityEnabled(state.isClarityEnabled); updateSliderUI('clarityThresholdSlider', state.clarityThreshold, 'dB');
             setWideningEnabled(state.isWideningEnabled); updateSliderUI('wideningSlider', state.currentWideningFactor, 'x');
             setAdaptiveWidthEnabled(state.isAdaptiveWidthEnabled);
             setSpatialAudioEnabled(state.isSpatialAudioEnabled);
@@ -1312,7 +1296,6 @@
                 return { controlDiv: container, select: select };
             };
 
-            // --- Image & Video Controls ---
             const { group: imageGroup, subMenu: imageSubMenu } = createControlGroup('vsc-image-controls', '🎨', '이미지 선명도');
             const imageOpts = [{ value: "0", text: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))];
             imageSubMenu.appendChild(createSelectControl('이미지 선명도', imageOpts, (val) => setImageFilterLevel(val), 'imageFilterSelect'));
@@ -1361,7 +1344,6 @@
             };
             videoSubMenu.append(sharpenSlider.controlDiv, sharpenSlider2.controlDiv, sharpenDirControl.controlDiv, blurSlider.controlDiv, highlightsSlider.controlDiv, gammaSlider.controlDiv, shadowsSlider.controlDiv, saturationSlider.controlDiv, resetVideoBtn);
 
-            // --- Audio Controls ---
             const { group: stereoGroup, subMenu: stereoSubMenu } = createControlGroup('vsc-stereo-controls', '🎧', '사운드 효과');
             const audioGridContainer = document.createElement('div');
             audioGridContainer.className = 'vsc-audio-grid';
@@ -1369,7 +1351,6 @@
             const column2 = document.createElement('div'); column2.className = 'vsc-audio-column';
             const column3 = document.createElement('div'); column3.className = 'vsc-audio-column';
 
-            // Column 1: EQ and Tone Shaping
             const eqBtn = createButton('vsc-eq-toggle', '5-Band EQ ON/OFF', 'EQ', 'vsc-btn');
             eqBtn.onclick = () => { initializeAudioEngine(); setEqEnabled(!state.isEqEnabled); };
             eqSubBassSlider = createSliderControl('초저음', 'eqSubBassSlider', -12, 12, 1, state.eqSubBassGain, 'dB');
@@ -1390,7 +1371,6 @@
             hpfSlider.slider.oninput = () => { const val = parseFloat(hpfSlider.slider.value); state.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val.toFixed(0)}Hz`; applyAudioEffectsToMedia(); };
             column1.append(eqBtn, eqSubBassSlider.controlDiv, eqBassSlider.controlDiv, eqMidSlider.controlDiv, eqTrebleSlider.controlDiv, eqPresenceSlider.controlDiv, createDivider(), bassBoostSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv);
 
-            // Column 2: Advanced Dynamics & Clarity
             const deesserBtn = createButton('vsc-deesser-toggle', '디에서 (치찰음 제거)', '디에서', 'vsc-btn');
             deesserBtn.onclick = () => { initializeAudioEngine(); setDeesserEnabled(!state.isDeesserEnabled); };
             deesserThresholdSlider = createSliderControl('강도', 'deesserThresholdSlider', -60, 0, 1, state.deesserThreshold, 'dB');
@@ -1407,7 +1387,6 @@
             parallelCompMixSlider.slider.oninput = () => { const val = parseFloat(parallelCompMixSlider.slider.value); state.parallelCompMix = val; parallelCompMixSlider.valueSpan.textContent = `${val.toFixed(0)}%`; applyAudioEffectsToMedia(); };
             column2.append(deesserBtn, deesserThresholdSlider.controlDiv, deesserFreqSlider.controlDiv, createDivider(), exciterBtn, exciterAmountSlider.controlDiv, createDivider(), parallelCompBtn, parallelCompMixSlider.controlDiv);
 
-            // Column 3: Spatial & Utilities
             const widenBtnGroup = document.createElement('div'); widenBtnGroup.className = 'vsc-button-group';
             const widenBtn = createButton('vsc-widen-toggle', 'Virtualizer ON/OFF', 'Virtualizer', 'vsc-btn');
             widenBtn.onclick = () => { initializeAudioEngine(); setWideningEnabled(!state.isWideningEnabled); };
@@ -1452,8 +1431,6 @@
             };
             const loudnessEqBtn = createButton('vsc-loudness-eq-toggle', '라우드니스 EQ (볼륨따라 저/고음 보정)', '라우드니스', 'vsc-btn');
             loudnessEqBtn.onclick = () => { initializeAudioEngine(); setLoudnessEqEnabled(!state.isLoudnessEqEnabled); };
-
-            // New Mastering Suite Controls
             const masteringSuiteBtn = createButton('vsc-mastering-suite-toggle', '마스터링 스위트 (타격감, 음압)', '마스터링', 'vsc-btn');
             masteringSuiteBtn.onclick = () => { initializeAudioEngine(); setMasteringSuiteEnabled(!state.isMasteringSuiteEnabled); };
             masteringTransientSlider = createSliderControl('타격감', 'masteringTransientSlider', 0, 100, 1, state.masteringTransientAmount * 100, '%');
@@ -1470,10 +1447,8 @@
                 masteringDriveSlider.valueSpan.textContent = `${val.toFixed(1)}dB`;
                 applyAudioEffectsToMedia();
             };
-
             column3.append(widenBtnGroup, wideningSlider.controlDiv, panSlider.controlDiv, createDivider(), preGainBtnGroup, preGainSlider.controlDiv, createDivider(), loudnessEqBtn, createDivider(), masteringSuiteBtn, masteringTransientSlider.controlDiv, masteringDriveSlider.controlDiv);
 
-            // Bottom Controls (Preset & Reset)
             const bottomControlsContainer = document.createElement('div');
             bottomControlsContainer.style.cssText = `display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; border-top: 1px solid #444; padding-top: 8px; grid-column: 1 / -1;`;
             const resetBtn = createButton('vsc-reset-all', '모든 오디오 설정 기본값으로 초기화', '초기화', 'vsc-btn');
@@ -1487,7 +1462,8 @@
                     name: '✔ 기본 개선 (명료)',
                     hpf_enabled: true, hpf_hz: 70,
                     eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1,
-                    preGain_enabled: true, preGain_value: 1.0
+                    preGain_enabled: true, preGain_value: 1.0,
+                    mastering_suite_enabled: true, mastering_transient: 0.2, mastering_drive: 2,
                 },
 
                 'movie_immersive': {
@@ -1507,7 +1483,7 @@
                     eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: -1, eq_treble: 1, eq_presence: 2,
                     widen_enabled: true, widen_factor: 1.4,
                     preGain_enabled: true, preGain_value: 1.0,
-                    //exciter_enabled: true, exciter_amount: 15,
+                    exciter_enabled: true, exciter_amount: 15,
                     mastering_suite_enabled: true, mastering_transient: 0.4, mastering_drive: 4,
                 },
 
@@ -1541,12 +1517,12 @@
 
                 'mastering_balanced': {
                     name: '🔥 밸런스 마스터링 (고음질)',
-                    hpf_enabled: true, hpf_hz: 45, // 저음 웅웅거림을 줄이기 위해 HPF 소폭 상승
+                    hpf_enabled: true, hpf_hz: 45,
                     eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1,
                     widen_enabled: true, widen_factor: 1.25,
                     preGain_enabled: true, preGain_value: 1.0,
-                    //exciter_enabled: true, exciter_amount: 12, // 치찰음 줄이기 위해 익사이터 강도 감소
-                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, // 웅웅거림과 찌그러짐을 막기 위해 음압 대폭 감소
+                    exciter_enabled: true, exciter_amount: 12,
+                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5,
                 },
             };
 
@@ -1576,8 +1552,6 @@
                 setHpfEnabled(state.isHpfEnabled);
                 setEqEnabled(state.isEqEnabled);
                 setSpatialAudioEnabled(state.isSpatialAudioEnabled);
-                setClarityEnabled(state.isClarityEnabled);
-                setAdaptiveWidthEnabled(state.isAdaptiveWidthEnabled);
                 setLoudnessEqEnabled(state.isLoudnessEqEnabled);
                 updateAutoVolumeButtonStyle();
                 setPreGainEnabled(state.isPreGainEnabled);
