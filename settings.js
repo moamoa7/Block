@@ -1365,26 +1365,260 @@
 
             presetMap = {
                 'default': { name: '기본값' },
-                'basic_improve': { name: '✔ 기본 개선', hpf_enabled: true, hpf_hz: 80, eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 1, eq_treble: 1, eq_presence: 1, preGain_enabled: true, preGain_value: 1.1, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2, clarity_enabled: true, clarity_threshold: -25, limiter_enabled: true },
-                'movieUnified': { name: '🎬 종합 영상', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 2, eq_treble: 2, eq_presence: 2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.5, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 65, bassBoostQ: 1.2, exciter_enabled: true, exciter_amount: 10, parallel_comp_enabled: true, parallel_comp_mix: 15, limiter_enabled: true },
-                'movie': { name: '🎬 영화·드라마', hpf_enabled: true, hpf_hz: 80, eq_enabled: true, eq_subBass: 0, eq_bass: 1, eq_mid: 2, eq_treble: 1, eq_presence: 1, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 1.5, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 60, bassBoostQ: 1.2, deesser_enabled: true, exciter_enabled: true, exciter_amount: 8, parallel_comp_enabled: true, parallel_comp_mix: 12, limiter_enabled: true },
-                'action': { name: '💥 액션 블록버스터', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 3, eq_bass: 2, eq_mid: -1, eq_treble: 1, eq_presence: 2, clarity_enabled: true, clarity_threshold: -20, widen_enabled: true, widen_factor: 1.4, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.4, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 70, bassBoostQ: 1.2, parallel_comp_enabled: true, parallel_comp_mix: 20, limiter_enabled: true },
-                'sciFi': { name: '🚀 Sci-Fi·SF', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 2, eq_bass: 1, eq_mid: 0, eq_treble: 1, eq_presence: 2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.6, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 70, bassBoostQ: 1.3, limiter_enabled: true },
-                'night': { name: '🌙 야간 모드', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_subBass: -2, eq_bass: 0, eq_mid: 1, eq_treble: 1, eq_presence: 1, clarity_enabled: true, clarity_threshold: -30, widen_enabled: false, preGain_enabled: true, preGain_value: 1.0, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2, limiter_enabled: true },
-                'music': { name: '🎶 음악', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: 0, eq_treble: 2, eq_presence: 2, clarity_enabled: true, clarity_threshold: -25, widen_enabled: true, widen_factor: 1.6, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 75, bassBoostQ: 1.3, exciter_enabled: true, exciter_amount: 15, parallel_comp_enabled: true, parallel_comp_mix: 15, limiter_enabled: true },
-                'Youtubemusic': { name: '🎵 유튜브 뮤직', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1, clarity_enabled: true, clarity_threshold: -25, widen_enabled: true, widen_factor: 1.5, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2, limiter_enabled: true },
-                'acoustic': { name: '🎻 어쿠스틱', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_subBass: 1, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1, widen_enabled: true, widen_factor: 1.4, preGain_enabled: true, preGain_value: 1.1, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 65, bassBoostQ: 1.2, exciter_enabled: true, exciter_amount: 15, limiter_enabled: true },
-                'concert': { name: '🏟️ 라이브 콘서트', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: -1, eq_treble: 2, eq_presence: 2, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 70, bassBoostQ: 1.2, parallel_comp_enabled: true, parallel_comp_mix: 15, limiter_enabled: true },
-                'spatial': { name: '🌌 공간 음향', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: -1, eq_treble: 1, eq_presence: 2, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, spatial_enabled: true, spatial_speed: 0.3, spatial_dist: 1.8, spatial_reverb: 1.2, preGain_enabled: true, preGain_value: 1.4, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2, limiter_enabled: true },
-                'analog': { name: '📻 아날로그', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0, eq_treble: 0, eq_presence: 0, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.2, preGain_enabled: true, preGain_value: 1.1, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 65, bassBoostQ: 1.2 },
-                'dialogue': { name: '🗨️ 대사 중심', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_subBass: -2, eq_bass: 0, eq_mid: 2, eq_treble: 1, eq_presence: 0, clarity_enabled: true, clarity_threshold: -25, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.2, deesser_enabled: true, limiter_enabled: true },
-                'vocal': { name: '🎤 목소리 강조', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_subBass: -3, eq_bass: 0, eq_mid: 4, eq_treble: 2, eq_presence: -1, clarity_enabled: true, clarity_threshold: -28, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2, deesser_enabled: true, limiter_enabled: true },
-                'asmr': { name: '🎧 ASMR', hpf_enabled: true, hpf_hz: 100, eq_enabled: true, eq_subBass: -1, eq_bass: 0, eq_mid: 1, eq_treble: 2, eq_presence: 2, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2, exciter_enabled: true, exciter_amount: 20, limiter_enabled: true },
-                'podcast': { name: '🗣️ 팟캐스트/강의', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_subBass: -2, eq_bass: 0, eq_mid: 2, eq_treble: 1, eq_presence: 0, clarity_enabled: true, clarity_threshold: -26, widen_enabled: true, widen_factor: 1.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.2, deesser_enabled: true, limiter_enabled: true },
-                'gaming': { name: '🎮 게이밍(일반)', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_subBass: 2, eq_bass: 1, eq_mid: 0, eq_treble: 1, eq_presence: 2, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 1.5, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 75, bassBoostQ: 1.2, limiter_enabled: true },
-                'gamingPro': { name: '🎮 게이밍(프로)', hpf_enabled: true, hpf_hz: 35, eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 2, eq_treble: 2, eq_presence: 2, clarity_enabled: true, clarity_threshold: -30, widen_enabled: true, widen_factor: 1.6, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 75, bassBoostQ: 1.2, parallel_comp_enabled: true, parallel_comp_mix: 15, limiter_enabled: true },
-                'vocal_clarity': { name: '🎙️ 목소리 선명도', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 1, deesser_enabled: true, deesser_threshold: -28, deesser_freq: 7500, exciter_enabled: true, exciter_amount: 20, parallel_comp_enabled: true, parallel_comp_mix: 25, limiter_enabled: true, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true },
-                'mastering': { name: '🎚️ 음질 마스터링', hpf_enabled: true, hpf_hz: 35, eq_enabled: true, eq_subBass: 1, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1, deesser_enabled: true, deesser_threshold: -35, deesser_freq: 9000, exciter_enabled: true, exciter_amount: 15, parallel_comp_enabled: true, parallel_comp_mix: 20, widen_enabled: true, widen_factor: 1.2, limiter_enabled: true, preGain_enabled: true, preGain_value: 1.1, loudness_enabled: true }
+
+                'basic_improve': {
+                    name: '✔ 기본 개선',
+                    hpf_enabled: true, hpf_hz: 80,
+                    eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 1, eq_treble: 1, eq_presence: 1,
+                    preGain_enabled: true, preGain_value: 1.1,
+                    loudness_enabled: true,
+                    bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2,
+                    clarity_enabled: true, clarity_threshold: -25,
+                    limiter_enabled: true
+                },
+
+                'movieUnified': {
+                    name: '🎬 종합 영상',
+                    hpf_enabled: true, hpf_hz: 50,
+                    eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 2, eq_treble: 2, eq_presence: 2,
+                    clarity_enabled: true, clarity_threshold: -22,
+                    widen_enabled: true, widen_factor: 1.5,
+                    preGain_enabled: true, preGain_value: 1.3,
+                    loudness_enabled: true,
+                    bassBoostGain: 2, bassBoostFreq: 65, bassBoostQ: 1.2,
+                    exciter_enabled: true, exciter_amount: 14,
+                    parallel_comp_enabled: true, parallel_comp_mix: 18,
+                    limiter_enabled: true
+                },
+
+                'movie': {
+                    name: '🎬 영화·드라마',
+                    hpf_enabled: true, hpf_hz: 80,
+                    eq_enabled: true, eq_subBass: 0, eq_bass: 1, eq_mid: 2, eq_treble: 1, eq_presence: 1,
+                    clarity_enabled: true, clarity_threshold: -24,
+                    widen_enabled: true, widen_factor: 1.5,
+                    preGain_enabled: true, preGain_value: 1.3,
+                    loudness_enabled: true,
+                    bassBoostGain: 2, bassBoostFreq: 60, bassBoostQ: 1.2,
+                    deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000,
+                    exciter_enabled: true, exciter_amount: 12,
+                    parallel_comp_enabled: true, parallel_comp_mix: 18,
+                    limiter_enabled: true
+                },
+
+                'action': {
+                    name: '💥 액션 블록버스터',
+                    hpf_enabled: true, hpf_hz: 50,
+                    eq_enabled: true, eq_subBass: 3, eq_bass: 2, eq_mid: -1, eq_treble: 1, eq_presence: 2,
+                    clarity_enabled: true, clarity_threshold: -20,
+                    widen_enabled: true, widen_factor: 1.5,
+                    preGain_enabled: true, preGain_value: 1.4,
+                    loudness_enabled: true,
+                    bassBoostGain: 2, bassBoostFreq: 70, bassBoostQ: 1.2,
+                    parallel_comp_enabled: true, parallel_comp_mix: 20,
+                    limiter_enabled: true
+                },
+
+                'sciFi': {
+                    name: '🚀 Sci-Fi·SF',
+                    hpf_enabled: true, hpf_hz: 40,
+                    eq_enabled: true, eq_subBass: 2, eq_bass: 1, eq_mid: 0, eq_treble: 1, eq_presence: 2,
+                    clarity_enabled: true, clarity_threshold: -22,
+                    widen_enabled: true, widen_factor: 1.6,
+                    preGain_enabled: true, preGain_value: 1.3,
+                    loudness_enabled: true,
+                    bassBoostGain: 2, bassBoostFreq: 70, bassBoostQ: 1.3,
+                    limiter_enabled: true
+                },
+
+                'night': {
+                    name: '🌙 야간 모드',
+                    hpf_enabled: true, hpf_hz: 90,
+                    eq_enabled: true, eq_subBass: -2, eq_bass: 0, eq_mid: 1, eq_treble: 1, eq_presence: 1,
+                    clarity_enabled: true, clarity_threshold: -30,
+                    widen_enabled: false,
+                    preGain_enabled: true, preGain_value: 1.0,
+                    loudness_enabled: true,
+                    bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2,
+                    limiter_enabled: true
+                },
+
+                'music': {
+                    name: '🎶 음악',
+                    hpf_enabled: true, hpf_hz: 30,
+                    eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: 0, eq_treble: 2, eq_presence: 2,
+                    clarity_enabled: true, clarity_threshold: -25,
+                    widen_enabled: true, widen_factor: 1.6,
+                    preGain_enabled: true, preGain_value: 1.3,
+                    loudness_enabled: true,
+                    bassBoostGain: 2, bassBoostFreq: 75, bassBoostQ: 1.3,
+                    exciter_enabled: true, exciter_amount: 14,
+                    parallel_comp_enabled: true, parallel_comp_mix: 18,
+                    limiter_enabled: true
+                },
+
+                'Youtubemusic': {
+                    name: '🎵 유튜브 뮤직',
+                    hpf_enabled: true, hpf_hz: 30,
+                    eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1,
+                    clarity_enabled: true, clarity_threshold: -25,
+                    widen_enabled: true, widen_factor: 1.5,
+                    preGain_enabled: true, preGain_value: 1.2,
+                    loudness_enabled: true,
+                    bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2,
+                    limiter_enabled: true
+                },
+
+                'acoustic': {
+                    name: '🎻 어쿠스틱',
+                    hpf_enabled: true, hpf_hz: 30,
+                    eq_enabled: true, eq_subBass: 1, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1,
+                    widen_enabled: true, widen_factor: 1.4,
+                    preGain_enabled: true, preGain_value: 1.1,
+                    loudness_enabled: true,
+                    bassBoostGain: 1, bassBoostFreq: 65, bassBoostQ: 1.2,
+                    exciter_enabled: true, exciter_amount: 12,
+                    limiter_enabled: true
+                },
+
+                'concert': {
+                    name: '🏟️ 라이브 콘서트',
+                    hpf_enabled: true, hpf_hz: 40,
+                    eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: -1, eq_treble: 2, eq_presence: 2,
+                    clarity_enabled: true, clarity_threshold: -24,
+                    preGain_enabled: true, preGain_value: 1.2,
+                    loudness_enabled: true,
+                    bassBoostGain: 2, bassBoostFreq: 70, bassBoostQ: 1.2,
+                    parallel_comp_enabled: true, parallel_comp_mix: 20,
+                    spatial_enabled: true, spatial_speed: 0, spatial_dist: 1, spatial_reverb: 0.2,
+                    limiter_enabled: true
+                },
+
+                'spatial': {
+                    name: '🌌 공간 음향',
+                    hpf_enabled: true, hpf_hz: 40,
+                    eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: -1, eq_treble: 1, eq_presence: 2,
+                    clarity_enabled: true, clarity_threshold: -28,
+                    spatial_enabled: true, spatial_speed: 0.3, spatial_dist: 1.8, spatial_reverb: 1.2,
+                    preGain_enabled: true, preGain_value: 1.4,
+                    loudness_enabled: true,
+                    bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2,
+                    limiter_enabled: true
+                },
+
+                'analog': {
+                    name: '📻 아날로그',
+                    hpf_enabled: true, hpf_hz: 40,
+                    eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0, eq_treble: 0, eq_presence: 0,
+                    clarity_enabled: true, clarity_threshold: -22,
+                    widen_enabled: true, widen_factor: 1.2,
+                    preGain_enabled: true, preGain_value: 1.1,
+                    loudness_enabled: true,
+                    bassBoostGain: 1, bassBoostFreq: 65, bassBoostQ: 1.2,
+                    exciter_enabled: true, exciter_amount: 5
+                },
+
+                'dialogue': {
+                    name: '🗨️ 대사 중심',
+                    hpf_enabled: true, hpf_hz: 120,
+                    eq_enabled: true, eq_subBass: -2, eq_bass: 0, eq_mid: 2, eq_treble: 1, eq_presence: 0,
+                    clarity_enabled: true, clarity_threshold: -25,
+                    preGain_enabled: true, preGain_value: 1.2,
+                    loudness_enabled: true,
+                    bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.2,
+                    deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000,
+                    limiter_enabled: true
+                },
+
+                'vocal': {
+                    name: '🎤 목소리 강조',
+                    hpf_enabled: true, hpf_hz: 120,
+                    eq_enabled: true, eq_subBass: -3, eq_bass: 0, eq_mid: 4, eq_treble: 2, eq_presence: -1,
+                    clarity_enabled: true, clarity_threshold: -28,
+                    preGain_enabled: true, preGain_value: 1.3,
+                    loudness_enabled: true,
+                    bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2,
+                    deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000,
+                    limiter_enabled: true
+                },
+
+                'asmr': {
+                    name: '🎧 ASMR',
+                    hpf_enabled: true, hpf_hz: 100,
+                    eq_enabled: true, eq_subBass: -1, eq_bass: 0, eq_mid: 1, eq_treble: 2, eq_presence: 2,
+                    clarity_enabled: true, clarity_threshold: -28,
+                    widen_enabled: true, widen_factor: 1.7,
+                    preGain_enabled: true, preGain_value: 1.3,
+                    loudness_enabled: true,
+                    bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2,
+                    exciter_enabled: true, exciter_amount: 15,
+                    parallel_comp_enabled: true, parallel_comp_mix: 15,
+                    limiter_enabled: true
+                },
+
+                'podcast': {
+                    name: '🗣️ 팟캐스트/강의',
+                    hpf_enabled: true, hpf_hz: 120,
+                    eq_enabled: true, eq_subBass: -2, eq_bass: 0, eq_mid: 2, eq_treble: 1, eq_presence: 0,
+                    clarity_enabled: true, clarity_threshold: -26,
+                    widen_enabled: true, widen_factor: 1.2,
+                    adaptive_enabled: true,
+                    preGain_enabled: true, preGain_value: 1.2,
+                    loudness_enabled: true,
+                    bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.2,
+                    deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000,
+                    limiter_enabled: true
+                },
+
+                'gaming': {
+                    name: '🎮 게이밍(일반)',
+                    hpf_enabled: true, hpf_hz: 30,
+                    eq_enabled: true, eq_subBass: 2, eq_bass: 1, eq_mid: 0, eq_treble: 1, eq_presence: 2,
+                    clarity_enabled: true, clarity_threshold: -28,
+                    widen_enabled: true, widen_factor: 1.5,
+                    preGain_enabled: true, preGain_value: 1.3,
+                    loudness_enabled: true,
+                    bassBoostGain: 2, bassBoostFreq: 75, bassBoostQ: 1.2,
+                    limiter_enabled: true
+                },
+
+                'gamingPro': {
+                    name: '🎮 게이밍(프로)',
+                    hpf_enabled: true, hpf_hz: 35,
+                    eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 2, eq_treble: 2, eq_presence: 2,
+                    clarity_enabled: true, clarity_threshold: -30,
+                    widen_enabled: true, widen_factor: 1.6,
+                    preGain_enabled: true, preGain_value: 1.3,
+                    loudness_enabled: true,
+                    bassBoostGain: 2, bassBoostFreq: 75, bassBoostQ: 1.2,
+                    parallel_comp_enabled: true, parallel_comp_mix: 18,
+                    limiter_enabled: true
+                },
+
+                'vocal_clarity': {
+                    name: '🎙️ 목소리 선명도',
+                    hpf_enabled: true, hpf_hz: 120,
+                    eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 1,
+                    deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000,
+                    exciter_enabled: true, exciter_amount: 15,
+                    parallel_comp_enabled: true, parallel_comp_mix: 18,
+                    limiter_enabled: true,
+                    preGain_enabled: true, preGain_value: 1.3,
+                    loudness_enabled: true
+                },
+
+                'mastering': {
+                    name: '🎚️ 음질 마스터링',
+                    hpf_enabled: true, hpf_hz: 35,
+                    eq_enabled: true, eq_subBass: 1, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1,
+                    deesser_enabled: true, deesser_threshold: -35, deesser_freq: 9000,
+                    exciter_enabled: true, exciter_amount: 14,
+                    parallel_comp_enabled: true, parallel_comp_mix: 18,
+                    widen_enabled: true, widen_factor: 1.2,
+                    limiter_enabled: true,
+                    preGain_enabled: true, preGain_value: 1.1,
+                    loudness_enabled: true
+                }
             };
 
             const presetOptions = Object.entries(presetMap).map(([value, { name }]) => ({ value, text: name }));
