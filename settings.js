@@ -17,9 +17,9 @@
     const DEFAULT_TARGET_DELAY = 2000;
 
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 6 : 2,
-        DEFAULT_VIDEO_FILTER_LEVEL_2: isMobile ? 3 : 1, // ✨ 2차 샤프 기본값 추가
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 6 : 2,
+        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 10 : 2,
+        DEFAULT_VIDEO_FILTER_LEVEL_2: isMobile ? 5 : 1, // ✨ 2차 샤프 기본값 추가
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 10 : 2,
         DEFAULT_WIDENING_ENABLED: false,
         DEFAULT_WIDENING_FACTOR: 1.0,
         DEFAULT_STEREO_PAN: 0,
