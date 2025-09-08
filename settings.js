@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      93.5
-// @description  2-Pass Sharpening 추가. 전체 윤곽과 미세 디테일을 분리하여 더 정교한 선명도 조절. 라우드니스 EQ, Peaking Filter 기반 베이스 부스트.
+// @version      93.7
+// @description  2-Pass Sharpening, Multi-band Audio Processing, Loudness EQ, Bass Boost. (startLoudnessNormalization 참조 오류 수정)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -18,7 +18,7 @@
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 10 : 2,
-        DEFAULT_VIDEO_FILTER_LEVEL_2: isMobile ? 5 : 1, // ✨ 2차 샤프 기본값 추가
+        DEFAULT_VIDEO_FILTER_LEVEL_2: isMobile ? 5 : 1,
         DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 10 : 2,
         DEFAULT_WIDENING_ENABLED: false,
         DEFAULT_WIDENING_FACTOR: 1.0,
@@ -74,7 +74,7 @@
         const settings = {};
         const definitions = {
             videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 20 },
-            videoFilterLevel2: { name: '기본 영상 디테일', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, type: 'number', min: 0, max: 20 }, // ✨ 2차 샤프 설정 추가
+            videoFilterLevel2: { name: '기본 영상 디테일', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, type: 'number', min: 0, max: 20 },
             imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 20 }
         };
         function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
@@ -92,7 +92,7 @@
             processedImages: new WeakSet(), mediaListenerMap: new WeakMap(),
             currentlyVisibleMedia: null,
             currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || CONFIG.DEFAULT_VIDEO_FILTER_LEVEL,
-            currentVideoFilterLevel2: settingsManager.get('videoFilterLevel2') || CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, // ✨ 2차 샤프 상태 추가
+            currentVideoFilterLevel2: settingsManager.get('videoFilterLevel2') || CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2,
             currentImageFilterLevel: settingsManager.get('imageFilterLevel') || CONFIG.DEFAULT_IMAGE_FILTER_LEVEL,
             currentVideoGamma: parseFloat(videoDefaults.GAMMA_VALUE),
             currentVideoBlur: parseFloat(videoDefaults.BLUR_STD_DEVIATION),
@@ -102,7 +102,6 @@
             currentVideoSharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
             audioContextMap: new WeakMap(),
             audioInitialized: false,
-
             isHpfEnabled: CONFIG.DEFAULT_HPF_ENABLED,
             currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
             isEqEnabled: CONFIG.DEFAULT_EQ_ENABLED,
@@ -128,7 +127,6 @@
             lastManualPreGain: CONFIG.DEFAULT_PRE_GAIN,
             isAnalyzingLoudness: false,
             isLoudnessEqEnabled: CONFIG.DEFAULT_LOUDNESS_EQ_ENABLED,
-
             ui: { shadowRoot: null, hostElement: null }, delayCheckInterval: null,
             currentPlaybackRate: 1.0, mediaTypesEverFound: { video: false, image: false }, lastUrl: '',
             audioContextWarningShown: false
@@ -196,31 +194,18 @@
             );
             const blur = createSvgElement('feGaussianBlur', { "data-vsc-id": "blur", in: "gamma_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "blur_out" });
 
-            // ✨ 2-Pass Sharpening 구조로 변경
             const sharpen_pass1 = createSvgElement('feConvolveMatrix', {
-                id: matrixId + '_pass1',
-                "data-vsc-id": "sharpen_pass1",
-                in: "blur_out",
-                order: '3 3',
-                preserveAlpha: 'true',
-                kernelMatrix: '0 0 0 0 1 0 0 0 0',
-                result: "sharpen_out_1"
+                id: matrixId + '_pass1', "data-vsc-id": "sharpen_pass1", in: "blur_out", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_1"
             });
             const sharpen_pass2 = createSvgElement('feConvolveMatrix', {
-                id: matrixId + '_pass2',
-                "data-vsc-id": "sharpen_pass2",
-                in: "sharpen_out_1", // 1차 샤프 결과를 입력으로 받음
-                order: '3 3',
-                preserveAlpha: 'true',
-                kernelMatrix: '0 0 0 0 1 0 0 0 0',
-                result: "sharpen_out_2"
+                id: matrixId + '_pass2', "data-vsc-id": "sharpen_pass2", in: "sharpen_out_1", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_2"
             });
 
-            const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "sharpen_out_2" }, // 2차 샤프 결과를 입력으로 받음
+            const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "sharpen_out_2" },
                 ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: (1 + settings.HIGHLIGHTS_VALUE / 100).toString(), intercept: (settings.SHADOWS_VALUE / 200).toString() }))
             );
 
-            combinedFilter.append(saturation, gamma, blur, sharpen_pass1, sharpen_pass2, linear); // 2개의 샤프 필터를 순서대로 추가
+            combinedFilter.append(saturation, gamma, blur, sharpen_pass1, sharpen_pass2, linear);
             svg.append(combinedFilter);
 
             const style = document.createElement('style');
@@ -236,7 +221,6 @@
 
         updateFilterValues(values, rootNode = document) {
             if (!this.isInitialized()) return;
-            // ✨ sharpenMatrix1, sharpenMatrix2를 받도록 수정
             const { saturation, gamma, blur, sharpenMatrix1, sharpenMatrix2, shadows, highlights } = values;
 
             if (saturation !== undefined) {
@@ -249,8 +233,6 @@
             if (blur !== undefined) {
                 rootNode.querySelectorAll(`[data-vsc-id="blur"]`).forEach(el => el.setAttribute('stdDeviation', blur.toString()));
             }
-
-            // ✨ 2개의 샤프 필터를 각각 업데이트
             if (sharpenMatrix1 !== undefined) {
                 const matrixEl1 = rootNode.querySelector(`[data-vsc-id="sharpen_pass1"]`);
                 if (matrixEl1 && matrixEl1.getAttribute('kernelMatrix') !== sharpenMatrix1) {
@@ -287,17 +269,15 @@
             const loudnessLow = context.createBiquadFilter();
             loudnessLow.type = "lowshelf";
             loudnessLow.frequency.value = 100;
-
             const loudnessHigh = context.createBiquadFilter();
             loudnessHigh.type = "highshelf";
             loudnessHigh.frequency.value = 8000;
-
             return { loudnessLow, loudnessHigh };
         }
 
         function updateLoudnessEQ(nodes, volumeLevel) {
             if (!nodes.loudnessLow || !nodes.loudnessHigh) return;
-            const boost = (1 - volumeLevel) * 6; // 최대 +6dB
+            const boost = (1 - volumeLevel) * 6;
             const context = nodes.context;
             nodes.loudnessLow.gain.linearRampToValueAtTime(boost, context.currentTime + 0.1);
             nodes.loudnessHigh.gain.linearRampToValueAtTime(boost / 2, context.currentTime + 0.1);
@@ -435,22 +415,36 @@
                 showWarningMessage('오디오 효과를 적용할 수 없습니다. 페이지를 새로고침 해보세요.');
                 context.close(); return null;
             }
-            const masterGain = context.createGain();
-            masterGain.connect(context.destination);
 
             const nodes = {
                 context, source,
                 stereoPanner: context.createStereoPanner(),
                 preGain: context.createGain(),
-                masterGain: masterGain,
+                masterGain: context.createGain(),
                 analyser: context.createAnalyser(),
                 cumulativeLUFS: 0,
-                lufsSampleCount: 0
+                lufsSampleCount: 0,
+
+                lowPass: context.createBiquadFilter(),
+                midPass: context.createBiquadFilter(),
+                highPass: context.createBiquadFilter(),
+                lowGain: context.createGain(),
+                midGain: context.createGain(),
+                highGain: context.createGain(),
+                merger: context.createGain()
             };
+
             nodes.analyser.fftSize = 2048;
 
-            Object.assign(nodes, setupLoudnessEQ(context));
+            nodes.lowPass.type = "lowpass";
+            nodes.lowPass.frequency.value = 250;
+            nodes.midPass.type = "bandpass";
+            nodes.midPass.frequency.value = 1250;
+            nodes.midPass.Q.value = 1;
+            nodes.highPass.type = "highpass";
+            nodes.highPass.frequency.value = 2500;
 
+            Object.assign(nodes, setupLoudnessEQ(context));
             state.audioContextMap.set(media, nodes);
             reconnectGraph(media);
             return nodes;
@@ -470,19 +464,21 @@
                 if (animationFrameMap.has(media)) clearTimeout(animationFrameMap.get(media));
                 animationFrameMap.delete(media);
 
-                nodes.preGain.gain.cancelScheduledValues(nodes.context.currentTime);
                 nodes.preGain.gain.value = state.currentPreGain;
                 nodes.stereoPanner.pan.value = state.isSpatialAudioEnabled ? 0 : state.currentStereoPan;
 
-                let lastNode = nodes.source;
+                const source = nodes.source;
+                const merger = nodes.merger;
+                const destination = nodes.context.destination;
 
-                if (state.isHpfEnabled) {
-                    if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
-                    nodes.hpf.type = 'highpass';
-                    nodes.hpf.frequency.value = state.currentHpfHz;
-                    lastNode.connect(nodes.hpf);
-                    lastNode = nodes.hpf;
-                }
+                source.connect(nodes.lowPass);
+                source.connect(nodes.midPass);
+                source.connect(nodes.highPass);
+
+                let lastLowNode = nodes.lowPass;
+                let lastMidNode = nodes.midPass;
+                let lastHighNode = nodes.highPass;
+
                 if (state.bassBoostGain > 0) {
                     if (!nodes.bassBoost) {
                         nodes.bassBoost = nodes.context.createBiquadFilter();
@@ -491,9 +487,26 @@
                     nodes.bassBoost.frequency.value = state.bassBoostFreq;
                     nodes.bassBoost.Q.value = state.bassBoostQ;
                     nodes.bassBoost.gain.value = state.bassBoostGain;
-                    lastNode.connect(nodes.bassBoost);
-                    lastNode = nodes.bassBoost;
+                    lastLowNode = lastLowNode.connect(nodes.bassBoost);
                 }
+
+                lastLowNode.connect(nodes.lowGain);
+                lastMidNode.connect(nodes.midGain);
+                lastHighNode.connect(nodes.highGain);
+
+                nodes.lowGain.connect(merger);
+                nodes.midGain.connect(merger);
+                nodes.highGain.connect(merger);
+
+                let lastNode = merger;
+
+                if (state.isHpfEnabled) {
+                    if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
+                    nodes.hpf.type = 'highpass';
+                    nodes.hpf.frequency.value = state.currentHpfHz;
+                    lastNode = lastNode.connect(nodes.hpf);
+                }
+
                 if (state.isEqEnabled) {
                     if (!nodes.eqLow) nodes.eqLow = nodes.context.createBiquadFilter();
                     if (!nodes.eqMid) nodes.eqMid = nodes.context.createBiquadFilter();
@@ -501,11 +514,9 @@
                     nodes.eqLow.type = 'lowshelf'; nodes.eqLow.frequency.value = 150; nodes.eqLow.gain.value = state.eqLowGain;
                     nodes.eqMid.type = 'peaking'; nodes.eqMid.frequency.value = 1000; nodes.eqMid.Q.value = 1; nodes.eqMid.gain.value = state.eqMidGain;
                     nodes.eqHigh.type = 'highshelf'; nodes.eqHigh.frequency.value = 5000; nodes.eqHigh.gain.value = state.eqHighGain;
-                    lastNode.connect(nodes.eqLow);
-                    nodes.eqLow.connect(nodes.eqMid);
-                    nodes.eqMid.connect(nodes.eqHigh);
-                    lastNode = nodes.eqHigh;
+                    lastNode = lastNode.connect(nodes.eqLow).connect(nodes.eqMid).connect(nodes.eqHigh);
                 }
+
                 if (state.isClarityEnabled) {
                     if (!nodes.clarity) nodes.clarity = nodes.context.createBiquadFilter();
                     nodes.clarity.type = "peaking";
@@ -513,13 +524,14 @@
                     nodes.clarity.Q.value = 1.0;
                     const gainValue = (state.clarityThreshold + 60) / 6;
                     nodes.clarity.gain.value = Math.max(0, gainValue);
-                    lastNode.connect(nodes.clarity);
-                    lastNode = nodes.clarity;
+                    lastNode = lastNode.connect(nodes.clarity);
                 }
+
                 if (state.isLoudnessEqEnabled) {
                     updateLoudnessEQ(nodes, media.volume);
                     lastNode = lastNode.connect(nodes.loudnessLow).connect(nodes.loudnessHigh);
                 }
+
                 if (state.isSpatialAudioEnabled) {
                     if (!nodes.panner) {
                         nodes.panner = nodes.context.createPanner();
@@ -548,12 +560,11 @@
                         animationFrameMap.set(media, requestAnimationFrame(animatePanner));
                     };
                     animatePanner();
-                    lastNode.connect(nodes.panner);
-                    lastNode = nodes.panner;
+                    lastNode = lastNode.connect(nodes.panner);
                 } else {
-                    lastNode.connect(nodes.stereoPanner);
-                    lastNode = nodes.stereoPanner;
+                    lastNode = lastNode.connect(nodes.stereoPanner);
                 }
+
                 if (state.isWideningEnabled) {
                     if (!nodes.ms_splitter) {
                         Object.assign(nodes, {
@@ -585,32 +596,29 @@
                     nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
                     lastNode = nodes.ms_merger;
                 }
+
                 if (state.isPreGainEnabled) {
-                    lastNode.connect(nodes.preGain);
-                    lastNode = nodes.preGain;
+                    lastNode = lastNode.connect(nodes.preGain);
                 }
 
                 lastNode.connect(nodes.masterGain);
                 nodes.masterGain.connect(nodes.analyser);
-                nodes.masterGain.connect(nodes.context.destination);
-            }, 'reconnectGraph');
+                nodes.masterGain.connect(destination);
+
+            }, 'reconnectGraph_MultiBand');
         }
 
         function checkAudioActivity(media, nodes) {
             if (!media || !nodes || !nodes.analyser) return;
-
             const analysisStatusMap = new WeakMap();
             const currentStatus = analysisStatusMap.get(media);
-
             if (currentStatus === 'passed' || currentStatus === 'checking') return;
             analysisStatusMap.set(media, 'checking');
-
             let attempts = 0;
             const MAX_ATTEMPTS = 5;
             const CHECK_INTERVAL = 300;
             const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
             nodes.analyser.fftSize = 256;
-
             const intervalId = setInterval(() => {
                 if (!media.isConnected || nodes.context.state === 'closed') {
                     clearInterval(intervalId);
@@ -618,17 +626,14 @@
                     return;
                 }
                 if (media.paused) return;
-
                 attempts++;
                 nodes.analyser.getByteFrequencyData(analyserData);
                 const sum = analyserData.reduce((a, b) => a + b, 0);
-
                 if (sum > 0) {
                     clearInterval(intervalId);
                     analysisStatusMap.set(media, 'passed');
                     return;
                 }
-
                 if (attempts >= MAX_ATTEMPTS) {
                     clearInterval(intervalId);
                     analysisStatusMap.set(media, 'failed');
@@ -705,10 +710,8 @@
         if (btn) btn.classList.toggle('active', enabled);
         const slider = state.ui.shadowRoot?.getElementById('preGainSlider');
         if (slider) slider.disabled = !enabled;
-
         const autoVolBtn = state.ui.shadowRoot?.getElementById('vsc-auto-volume-toggle');
         if (autoVolBtn) autoVolBtn.disabled = !enabled;
-
         applyAudioEffectsToMedia();
     }
 
@@ -807,7 +810,6 @@
             saturation: state.currentVideoSaturation,
             gamma: state.currentVideoGamma,
             blur: state.currentVideoBlur,
-            // ✨ 2개의 매트릭스 값을 생성하여 전달
             sharpenMatrix1: calculateSharpenMatrix(state.currentVideoFilterLevel, state.currentVideoSharpenDirection),
             sharpenMatrix2: calculateSharpenMatrix(state.currentVideoFilterLevel2, state.currentVideoSharpenDirection),
             shadows: state.currentVideoShadows,
@@ -819,7 +821,7 @@
         });
     }
 
-    function setVideoFilterLevel(level, fromUI = false, pass = 1) { // ✨ pass 구분 인자 추가
+    function setVideoFilterLevel(level, fromUI = false, pass = 1) {
         if (CONFIG.FILTER_EXCLUSION_DOMAINS.includes(location.hostname) && level > 0) return;
         if (!filterManager.isInitialized() && level > 0) filterManager.init();
 
@@ -1098,7 +1100,6 @@
             };
             const videoFilterDef = settingsManager.definitions.videoFilterLevel;
 
-            // ✨ 1차 샤프 슬라이더
             const sharpenSlider = createSliderControl('샤프 (윤곽)', 'videoSharpenSlider', videoFilterDef.min, videoFilterDef.max, 1, state.currentVideoFilterLevel, '단계');
             sharpenSlider.slider.oninput = () => {
                 const val = parseInt(sharpenSlider.slider.value, 10);
@@ -1109,7 +1110,6 @@
                 settingsManager.set('videoFilterLevel', state.currentVideoFilterLevel);
             };
 
-            // ✨ 2차 샤프 슬라이더
             const videoFilterDef2 = settingsManager.definitions.videoFilterLevel2;
             const sharpenSlider2 = createSliderControl('샤프 (디테일)', 'videoSharpenSlider2', videoFilterDef2.min, videoFilterDef2.max, 1, state.currentVideoFilterLevel2, '단계');
             sharpenSlider2.slider.oninput = () => {
@@ -1315,26 +1315,27 @@
             const resetBtn = createButton('vsc-reset-all', '모든 오디오 설정 기본값으로 초기화', '초기화', 'vsc-btn');
 
             presetMap = {
-                'default': { name: '기본값', hpf_enabled: false, eq_enabled: false, clarity_enabled: false, widen_enabled: false, adaptive_enabled: false, spatial_enabled: false, preGain_enabled: false, loudness_enabled: false, bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.5 },
-                'basic_improve': { name: '✔ 기본 개선', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -1, eq_mid: 2, eq_high: 3, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2, clarity_enabled: false },
-                'movieUnified': { name: '🎬 종합 영상', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_low: 0, eq_mid: 2, eq_high: 2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.7, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 65, bassBoostQ: 1.3 },
-                'movie': { name: '🎬 영화·드라마', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -1, eq_mid: 3, eq_high: 3, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 60, bassBoostQ: 1.2 },
-                'action': { name: '💥 액션.블록버스터 영화', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 6, eq_mid: -2, eq_high: 2, clarity_enabled: true, clarity_threshold: -20, widen_enabled: true, widen_factor: 1.5, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.7, loudness_enabled: true, bassBoostGain: 4, bassBoostFreq: 70, bassBoostQ: 1.3 },
-                'sciFi': { name: '🚀 Sci-Fi·SF', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 3, eq_mid: -1, eq_high: 2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 75, bassBoostQ: 1.4 },
-                'night': { name: '🌙 야간 모드', hpf_enabled: true, hpf_hz: 80, eq_enabled: true, eq_low: -4, eq_mid: 2, eq_high: 1, clarity_enabled: true, clarity_threshold: -35, widen_enabled: false, preGain_enabled: true, preGain_value: 1.0, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 80, bassBoostQ: 1.2 },
-                'music': { name: '🎶 음악', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 4, bassBoostFreq: 80, bassBoostQ: 1.5 },
-                'Youtubemusic': { name: '🎵 유튜브 뮤직', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: -4, eq_mid: 0, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 0, bassBoostFreq: 75, bassBoostQ: 1.4 },
-                'acoustic': { name: '🎻 어쿠스틱', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_low: 1, eq_mid: -1, eq_high: 1, widen_enabled: true, widen_factor: 1.4, preGain_enabled: true, preGain_value: 1.0, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 65, bassBoostQ: 1.2 },
-                'concert': { name: '🏟️ 라이브 콘서트', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 5, eq_mid: -3, eq_high: 4, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 70, bassBoostQ: 1.3 },
-                'spatial': { name: '🌌 공간 음향', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 4, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 2.5, adaptive_enabled: true, spatial_enabled: true, spatial_speed: 0.3, spatial_dist: 2.0, spatial_reverb: 1.5, preGain_enabled: true, preGain_value: 1.6, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 75, bassBoostQ: 1.3 },
-                'analog': { name: '📻 아날로그', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 2, eq_mid: 1, eq_high: -3, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.2, preGain_enabled: true, preGain_value: 1.0, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 65, bassBoostQ: 1.2 },
-                'dialogue': { name: '🗨️ 대사 중심', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_low: -2, eq_mid: 4, eq_high: 0, clarity_enabled: true, clarity_threshold: -28, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.5 },
-                'vocal': { name: '🎤 목소리 강조', hpf_enabled: true, hpf_hz: 135, eq_enabled: true, eq_low: -5, eq_mid: 6, eq_high: -2, clarity_enabled: true, clarity_threshold: -30, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 75, bassBoostQ: 1.3 },
-                'asmr': { name: '🎧 ASMR', hpf_enabled: true, hpf_hz: 100, eq_enabled: true, eq_low: -4, eq_mid: 2, eq_high: 5, clarity_enabled: true, clarity_threshold: -30, widen_enabled: true, widen_factor: 2.2, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 70, bassBoostQ: 1.3 },
-                'podcast': { name: '🗣️ 팟캐스트/강의', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_low: -5, eq_mid: 4, eq_high: -2, clarity_enabled: true, clarity_threshold: -26, widen_enabled: true, widen_factor: 1.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.5 },
-                'gaming': { name: '🎮 게이밍(일반)', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_low: 4, eq_mid: -3, eq_high: 4, clarity_enabled: true, clarity_threshold: -30, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 75, bassBoostQ: 1.4 },
-                'gamingPro': { name: '🎮 게이밍(프로)', hpf_enabled: true, hpf_hz: 35, eq_enabled: true, eq_low: -2, eq_mid: 3, eq_high: 5, clarity_enabled: true, clarity_threshold: -60, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 75, bassBoostQ: 1.4 },
-            };
+    'default': { name: '기본값', hpf_enabled: false, eq_enabled: false, clarity_enabled: false, widen_enabled: false, adaptive_enabled: false, spatial_enabled: false, preGain_enabled: false, loudness_enabled: false, bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.5 },
+    'basic_improve': { name: '✔ 기본 개선', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -1, eq_mid: 2, eq_high: 2, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 70, bassBoostQ: 1.2, clarity_enabled: false },
+    'movieUnified': { name: '🎬 종합 영상', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_low: 0, eq_mid: 2, eq_high: 2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.7, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 65, bassBoostQ: 1.3 },
+    'movie': { name: '🎬 영화·드라마', hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_low: -1, eq_mid: 3, eq_high: 2, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 60, bassBoostQ: 1.2 },
+    'action': { name: '💥 액션.블록버스터 영화', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 4, eq_mid: -2, eq_high: 2, clarity_enabled: true, clarity_threshold: -20, widen_enabled: true, widen_factor: 1.5, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.7, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 70, bassBoostQ: 1.3 },
+    'sciFi': { name: '🚀 Sci-Fi·SF', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 3, eq_mid: -1, eq_high: 2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.3, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 75, bassBoostQ: 1.4 },
+    'night': { name: '🌙 야간 모드', hpf_enabled: true, hpf_hz: 80, eq_enabled: true, eq_low: -3, eq_mid: 2, eq_high: 1, clarity_enabled: true, clarity_threshold: -35, widen_enabled: false, preGain_enabled: true, preGain_value: 1.0, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 80, bassBoostQ: 1.2 },
+    'music': { name: '🎶 음악', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: 3, eq_mid: -2, eq_high: 3, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 80, bassBoostQ: 1.5 },
+    'Youtubemusic': { name: '🎵 유튜브 뮤직', hpf_enabled: true, hpf_hz: 20, eq_enabled: true, eq_low: -3, eq_mid: 0, eq_high: 3, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 1.8, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 0, bassBoostFreq: 75, bassBoostQ: 1.4 },
+    'acoustic': { name: '🎻 어쿠스틱', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_low: 1, eq_mid: -1, eq_high: 1, widen_enabled: true, widen_factor: 1.4, preGain_enabled: true, preGain_value: 1.0, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 65, bassBoostQ: 1.2 },
+    'concert': { name: '🏟️ 라이브 콘서트', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 4, eq_mid: -3, eq_high: 3, clarity_enabled: true, clarity_threshold: -24, widen_enabled: true, widen_factor: 2.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 70, bassBoostQ: 1.3 },
+    'spatial': { name: '🌌 공간 음향', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 3, eq_mid: -2, eq_high: 3, clarity_enabled: true, clarity_threshold: -28, widen_enabled: true, widen_factor: 2.5, adaptive_enabled: true, spatial_enabled: true, spatial_speed: 0.3, spatial_dist: 2.0, spatial_reverb: 1.5, preGain_enabled: true, preGain_value: 1.6, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 75, bassBoostQ: 1.3 },
+    'analog': { name: '📻 아날로그', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_low: 2, eq_mid: 1, eq_high: -2, clarity_enabled: true, clarity_threshold: -22, widen_enabled: true, widen_factor: 1.2, preGain_enabled: true, preGain_value: 1.0, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 65, bassBoostQ: 1.2 },
+    'dialogue': { name: '🗨️ 대사 중심', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_low: -2, eq_mid: 3, eq_high: 0, clarity_enabled: true, clarity_threshold: -28, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.5 },
+    'vocal': { name: '🎤 목소리 강조', hpf_enabled: true, hpf_hz: 135, eq_enabled: true, eq_low: -4, eq_mid: 5, eq_high: -2, clarity_enabled: true, clarity_threshold: -30, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 1, bassBoostFreq: 75, bassBoostQ: 1.3 },
+    'asmr': { name: '🎧 ASMR', hpf_enabled: true, hpf_hz: 100, eq_enabled: true, eq_low: -3, eq_mid: 2, eq_high: 4, clarity_enabled: true, clarity_threshold: -30, widen_enabled: true, widen_factor: 2.2, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 2, bassBoostFreq: 70, bassBoostQ: 1.3 },
+    'podcast': { name: '🗣️ 팟캐스트/강의', hpf_enabled: true, hpf_hz: 120, eq_enabled: true, eq_low: -4, eq_mid: 3, eq_high: -1, clarity_enabled: true, clarity_threshold: -26, widen_enabled: true, widen_factor: 1.0, adaptive_enabled: true, preGain_enabled: true, preGain_value: 1.2, loudness_enabled: true, bassBoostGain: 0, bassBoostFreq: 80, bassBoostQ: 1.5 },
+    'gaming': { name: '🎮 게이밍(일반)', hpf_enabled: true, hpf_hz: 30, eq_enabled: true, eq_low: 3, eq_mid: -2, eq_high: 3, clarity_enabled: true, clarity_threshold: -30, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 75, bassBoostQ: 1.4 },
+    'gamingPro': { name: '🎮 게이밍(프로)', hpf_enabled: true, hpf_hz: 35, eq_enabled: true, eq_low: -2, eq_mid: 3, eq_high: 4, clarity_enabled: true, clarity_threshold: -40, widen_enabled: true, widen_factor: 1.8, preGain_enabled: true, preGain_value: 1.5, loudness_enabled: true, bassBoostGain: 3, bassBoostFreq: 75, bassBoostQ: 1.4 },
+};
+
 
             const presetOptions = Object.entries(presetMap).map(([value, { name }]) => ({ value, text: name }));
             const presetSelect = createSelectControl('프리셋 선택', presetOptions, (val) => {
@@ -1551,7 +1552,7 @@
     function updateVideoFilterState(video) {
         if (!video || !filterManager.isInitialized()) return;
         const shouldApply = state.currentVideoFilterLevel > 0 ||
-            state.currentVideoFilterLevel2 > 0 || // ✨ 2차 샤프 조건 추가
+            state.currentVideoFilterLevel2 > 0 ||
             Math.abs(state.currentVideoSaturation - 100) > 0.1 ||
             Math.abs(state.currentVideoGamma - 1.0) > 0.001 ||
             state.currentVideoBlur > 0 ||
