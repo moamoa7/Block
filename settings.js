@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      94.2
+// @version      94.3
 // @description  오디오 엔진 업그레이드: 다이나믹 EQ, 하모닉 익사이터, 병렬 압축, 마스터링 리미터 추가. 5-Band 멀티밴드 처리. 2-Pass Sharpening.
 // @match        *://*/*
 // @run-at       document-end
@@ -475,8 +475,7 @@
             Object.assign(nodes, setupLoudnessEQ(context));
             state.audioContextMap.set(media, nodes);
 
-            // [FIX] Establish a default passthrough connection to ensure audio plays immediately.
-            // This prevents the "no audio signal" issue which was misidentified as a CORS error.
+            // Establish a default passthrough connection to ensure audio plays immediately.
             nodes.source.connect(nodes.preGain);
             nodes.preGain.connect(nodes.masterGain);
             nodes.masterGain.connect(nodes.analyser);
@@ -519,41 +518,44 @@
                     lastNode = lastNode.connect(nodes.deesserCompressor);
                 }
 
-                const merger = nodes.merger;
-                lastNode.connect(nodes.band1_SubBass);
-                lastNode.connect(nodes.band2_Bass);
-                lastNode.connect(nodes.band3_Mid);
-                lastNode.connect(nodes.band4_Treble);
-                lastNode.connect(nodes.band5_Presence);
+                // [FIX] Only split into 5 bands if EQ or Bass Boost is active to prevent phase issues.
+                if (state.isEqEnabled || state.bassBoostGain > 0) {
+                    const merger = nodes.merger;
+                    lastNode.connect(nodes.band1_SubBass);
+                    lastNode.connect(nodes.band2_Bass);
+                    lastNode.connect(nodes.band3_Mid);
+                    lastNode.connect(nodes.band4_Treble);
+                    lastNode.connect(nodes.band5_Presence);
 
-                let lastSubBassNode = nodes.band1_SubBass;
-                if (state.bassBoostGain > 0) {
-                    if (!nodes.bassBoost) {
-                        nodes.bassBoost = nodes.context.createBiquadFilter();
-                        nodes.bassBoost.type = "peaking";
+                    let lastSubBassNode = nodes.band1_SubBass;
+                    if (state.bassBoostGain > 0) {
+                        if (!nodes.bassBoost) {
+                            nodes.bassBoost = nodes.context.createBiquadFilter();
+                            nodes.bassBoost.type = "peaking";
+                        }
+                        nodes.bassBoost.frequency.value = state.bassBoostFreq;
+                        nodes.bassBoost.Q.value = state.bassBoostQ;
+                        nodes.bassBoost.gain.value = state.bassBoostGain;
+                        lastSubBassNode = lastSubBassNode.connect(nodes.bassBoost);
                     }
-                    nodes.bassBoost.frequency.value = state.bassBoostFreq;
-                    nodes.bassBoost.Q.value = state.bassBoostQ;
-                    nodes.bassBoost.gain.value = state.bassBoostGain;
-                    lastSubBassNode = lastSubBassNode.connect(nodes.bassBoost);
-                }
 
-                if (state.isEqEnabled) {
-                    nodes.gain1_SubBass.gain.value = Math.pow(10, state.eqSubBassGain / 20);
-                    nodes.gain2_Bass.gain.value = Math.pow(10, state.eqBassGain / 20);
-                    nodes.gain3_Mid.gain.value = Math.pow(10, state.eqMidGain / 20);
-                    nodes.gain4_Treble.gain.value = Math.pow(10, state.eqTrebleGain / 20);
-                    nodes.gain5_Presence.gain.value = Math.pow(10, state.eqPresenceGain / 20);
-                } else {
-                    [nodes.gain1_SubBass, nodes.gain2_Bass, nodes.gain3_Mid, nodes.gain4_Treble, nodes.gain5_Presence].forEach(g => g.gain.value = 1);
-                }
+                    if (state.isEqEnabled) {
+                        nodes.gain1_SubBass.gain.value = Math.pow(10, state.eqSubBassGain / 20);
+                        nodes.gain2_Bass.gain.value = Math.pow(10, state.eqBassGain / 20);
+                        nodes.gain3_Mid.gain.value = Math.pow(10, state.eqMidGain / 20);
+                        nodes.gain4_Treble.gain.value = Math.pow(10, state.eqTrebleGain / 20);
+                        nodes.gain5_Presence.gain.value = Math.pow(10, state.eqPresenceGain / 20);
+                    } else {
+                        [nodes.gain1_SubBass, nodes.gain2_Bass, nodes.gain3_Mid, nodes.gain4_Treble, nodes.gain5_Presence].forEach(g => g.gain.value = 1);
+                    }
 
-                lastSubBassNode.connect(nodes.gain1_SubBass).connect(merger);
-                nodes.band2_Bass.connect(nodes.gain2_Bass).connect(merger);
-                nodes.band3_Mid.connect(nodes.gain3_Mid).connect(merger);
-                nodes.band4_Treble.connect(nodes.gain4_Treble).connect(merger);
-                nodes.band5_Presence.connect(nodes.gain5_Presence).connect(merger);
-                lastNode = merger;
+                    lastSubBassNode.connect(nodes.gain1_SubBass).connect(merger);
+                    nodes.band2_Bass.connect(nodes.gain2_Bass).connect(merger);
+                    nodes.band3_Mid.connect(nodes.gain3_Mid).connect(merger);
+                    nodes.band4_Treble.connect(nodes.gain4_Treble).connect(merger);
+                    nodes.band5_Presence.connect(nodes.gain5_Presence).connect(merger);
+                    lastNode = merger;
+                }
 
                 if (state.isHpfEnabled) {
                     if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
