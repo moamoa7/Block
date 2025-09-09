@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      95.5
-// @description  [v95.5] 오디오 엔진 로직 및 UI 상호작용 버그 수정, UI 레이아웃 개선.
+// @version      95.6
+// @description  [v95.6] 사용자 피드백 반영: 오해의 소지가 있는 '라우드니스 EQ' 기능 완전 삭제 및 UI 간소화.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -38,7 +38,6 @@
         DEFAULT_PRE_GAIN_ENABLED: false,
         DEFAULT_PRE_GAIN: 1.0,
         DEFAULT_BASS_BOOST_GAIN: 0,
-        DEFAULT_LOUDNESS_EQ_ENABLED: false,
         DEFAULT_VIDEO_SHARPEN_DIRECTION: '4-way',
         AUTODELAY_EMA_ALPHA: 0.15,
 
@@ -143,7 +142,6 @@
             currentPreGain: CONFIG.DEFAULT_PRE_GAIN,
             lastManualPreGain: CONFIG.DEFAULT_PRE_GAIN,
             isAnalyzingLoudness: false,
-            isLoudnessEqEnabled: CONFIG.DEFAULT_LOUDNESS_EQ_ENABLED,
             isDeesserEnabled: CONFIG.DEFAULT_DEESSER_ENABLED,
             deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD,
             deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
@@ -307,24 +305,6 @@
             return impulse;
         }
 
-        function setupLoudnessEQ(context) {
-            const loudnessLow = context.createBiquadFilter();
-            loudnessLow.type = "lowshelf";
-            loudnessLow.frequency.value = 100;
-            const loudnessHigh = context.createBiquadFilter();
-            loudnessHigh.type = "highshelf";
-            loudnessHigh.frequency.value = 8000;
-            return { loudnessLow, loudnessHigh };
-        }
-
-        function updateLoudnessEQ(nodes, volumeLevel) {
-            if (!nodes.loudnessLow || !nodes.loudnessHigh) return;
-            const boost = (1 - volumeLevel) * 6;
-            const context = nodes.context;
-            nodes.loudnessLow.gain.linearRampToValueAtTime(boost, context.currentTime + 0.1);
-            nodes.loudnessHigh.gain.linearRampToValueAtTime(boost / 2, context.currentTime + 0.1);
-        }
-
         function startLoudnessNormalization(media) {
             const nodes = state.audioContextMap.get(media);
             if (!nodes || state.isAnalyzingLoudness) return;
@@ -473,7 +453,7 @@
                 deesserCompressor: context.createDynamicsCompressor(),
                 exciterHPF: context.createBiquadFilter(),
                 exciter: context.createWaveShaper(),
-                exciterPostGain: context.createGain(), // FIX: Added node to control exciter output
+                exciterPostGain: context.createGain(),
                 parallelCompressor: context.createDynamicsCompressor(),
                 parallelDry: context.createGain(),
                 parallelWet: context.createGain(),
@@ -505,7 +485,6 @@
             nodes.band5_Presence.type = "highpass";
             nodes.band5_Presence.frequency.value = 8000;
 
-            Object.assign(nodes, setupLoudnessEQ(context));
             state.audioContextMap.set(media, nodes);
 
             nodes.source.connect(nodes.preGain);
@@ -631,11 +610,6 @@
                     lastNode.connect(nodes.parallelDry).connect(parallelSum);
                     lastNode.connect(nodes.parallelCompressor).connect(nodes.parallelWet).connect(parallelSum);
                     lastNode = parallelSum;
-                }
-
-                if (state.isLoudnessEqEnabled) {
-                    updateLoudnessEQ(nodes, media.volume);
-                    lastNode = lastNode.connect(nodes.loudnessLow).connect(nodes.loudnessHigh);
                 }
 
                 let spatialNode;
@@ -934,13 +908,6 @@
         applyAudioEffectsToMedia();
     }
 
-    function setLoudnessEqEnabled(enabled) {
-        state.isLoudnessEqEnabled = !!enabled;
-        const btn = state.ui.shadowRoot?.getElementById('vsc-loudness-eq-toggle');
-        if (btn) btn.classList.toggle('active', enabled);
-        applyAudioEffectsToMedia();
-    }
-
     function resetEffectStatesToDefault() {
         setWideningEnabled(CONFIG.DEFAULT_WIDENING_ENABLED);
         setHpfEnabled(CONFIG.DEFAULT_HPF_ENABLED);
@@ -948,7 +915,6 @@
         setAdaptiveWidthEnabled(CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED);
         setReverbEnabled(CONFIG.DEFAULT_REVERB_ENABLED);
         setPreGainEnabled(CONFIG.DEFAULT_PRE_GAIN_ENABLED);
-        setLoudnessEqEnabled(CONFIG.DEFAULT_LOUDNESS_EQ_ENABLED);
         setDeesserEnabled(CONFIG.DEFAULT_DEESSER_ENABLED);
         setExciterEnabled(CONFIG.DEFAULT_EXCITER_ENABLED);
         setParallelCompEnabled(CONFIG.DEFAULT_PARALLEL_COMP_ENABLED);
@@ -1096,7 +1062,6 @@
                 reverb_enabled: false, reverb_mix: CONFIG.DEFAULT_REVERB_MIX,
                 pan_value: 0,
                 preGain_enabled: false, preGain_value: 1.0,
-                loudness_enabled: false,
                 deesser_enabled: false, deesser_threshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesser_freq: CONFIG.DEFAULT_DEESSER_FREQ,
                 exciter_enabled: false, exciter_amount: 0,
                 parallel_comp_enabled: false, parallel_comp_mix: 0,
@@ -1126,7 +1091,6 @@
                 reverbMix: final.reverb_mix,
                 currentStereoPan: final.pan_value,
                 isPreGainEnabled: final.preGain_enabled, currentPreGain: final.preGain_value,
-                isLoudnessEqEnabled: final.loudness_enabled,
                 bassBoostGain: final.bassBoostGain ?? state.bassBoostGain,
                 bassBoostFreq: final.bassBoostFreq ?? 60,
                 bassBoostQ: final.bassBoostQ ?? 1.0,
@@ -1173,7 +1137,6 @@
             updateSliderUI('panSlider', state.currentStereoPan, '');
             setPreGainEnabled(state.isPreGainEnabled);
             updateSliderUI('preGainSlider', state.currentPreGain, 'x');
-            setLoudnessEqEnabled(state.isLoudnessEqEnabled);
             updateSliderUI('bassBoostSlider', state.bassBoostGain, 'dB');
             setDeesserEnabled(state.isDeesserEnabled);
             updateSliderUI('deesserThresholdSlider', state.deesserThreshold, 'dB');
@@ -1361,21 +1324,8 @@
             parallelCompBtn.onclick = () => { initializeAudioEngine(); setParallelCompEnabled(!state.isParallelCompEnabled); };
             parallelCompMixSlider = createSliderControl('믹스', 'parallelCompMixSlider', 0, 100, 1, state.parallelCompMix, '%');
             parallelCompMixSlider.slider.oninput = () => { const val = parseFloat(parallelCompMixSlider.slider.value); state.parallelCompMix = val; parallelCompMixSlider.valueSpan.textContent = `${val.toFixed(0)}%`; applyAudioEffectsToMedia(); };
-            // 새 코드 (수정 후)
-            const loudnessContainer = document.createElement('div'); // 컨테이너를 먼저 만듭니다.
-            const loudnessEqBtn = createButton('vsc-loudness-eq-toggle', '라우드니스 EQ (작은 볼륨에서 저음/고음 보정)', '라우드니스 EQ', 'vsc-btn');
-            loudnessEqBtn.onclick = () => { initializeAudioEngine(); setLoudnessEqEnabled(!state.isLoudnessEqEnabled); };
-            loudnessEqBtn.style.width = '100%'; // 버튼 너비를 100%로 설정
-            const loudnessDesc = document.createElement('div'); // span 대신 div 사용
-            loudnessDesc.textContent = '(작은 볼륨에서 저/고음 보정)';
-            Object.assign(loudnessDesc.style, {
-                fontSize: isMobile ? '10px' : '11px',
-                textAlign: 'center', // 텍스트를 가운데 정렬
-                opacity: '0.8',      // 텍스트를 약간 연하게
-                marginTop: '2px'     // 버튼과의 간격
-            });
-            loudnessContainer.append(loudnessEqBtn, loudnessDesc);
-            column2.append(deesserBtn, deesserThresholdSlider.controlDiv, deesserFreqSlider.controlDiv, createDivider(), exciterBtn, exciterAmountSlider.controlDiv, createDivider(), parallelCompBtn, parallelCompMixSlider.controlDiv, createDivider(), loudnessContainer);
+            column2.append(deesserBtn, deesserThresholdSlider.controlDiv, deesserFreqSlider.controlDiv, createDivider(), exciterBtn, exciterAmountSlider.controlDiv, createDivider(), parallelCompBtn, parallelCompMixSlider.controlDiv);
+
             const widenBtn = createButton('vsc-widen-toggle', 'Virtualizer ON/OFF', 'Virtualizer', 'vsc-btn');
             widenBtn.onclick = () => { initializeAudioEngine(); setWideningEnabled(!state.isWideningEnabled); };
             const adaptiveWidthBtn = createButton('vsc-adaptive-width-toggle', '저역 폭 제어 ON/OFF', 'Bass Mono', 'vsc-btn');
@@ -1415,33 +1365,31 @@
             };
             column3.append(widenBtn, wideningSlider.controlDiv, adaptiveWidthBtn, panSlider.controlDiv, createDivider(), reverbBtn, reverbMixSlider.controlDiv, createDivider(), preGainBtnGroup, preGainSlider.controlDiv);
 
-            // Replace the old block with this new, corrected version
-const bottomRow2 = document.createElement('div');
-bottomRow2.className = 'vsc-audio-column';
-bottomRow2.style.cssText = `grid-column: 1 / -1; border-right: none; padding-right: 0; display: flex; flex-direction: row; align-items: center; gap: 12px;`;
-const masteringSuiteBtn = createButton('vsc-mastering-suite-toggle', '마스터링 스위트', '마스터링', 'vsc-btn');
-masteringSuiteBtn.onclick = () => { initializeAudioEngine(); setMasteringSuiteEnabled(!state.isMasteringSuiteEnabled); };
-masteringSuiteBtn.style.flex = '1'; // CORRECTED: Make the button flexible like the sliders.
+            const bottomRow2 = document.createElement('div');
+            bottomRow2.className = 'vsc-audio-column';
+            bottomRow2.style.cssText = `grid-column: 1 / -1; border-right: none; padding-right: 0; display: flex; flex-direction: row; align-items: center; gap: 12px;`;
+            const masteringSuiteBtn = createButton('vsc-mastering-suite-toggle', '마스터링 스위트', '마스터링', 'vsc-btn');
+            masteringSuiteBtn.onclick = () => { initializeAudioEngine(); setMasteringSuiteEnabled(!state.isMasteringSuiteEnabled); };
+            masteringSuiteBtn.style.flex = '1';
 
-masteringTransientSlider = createSliderControl('타격감', 'masteringTransientSlider', 0, 100, 1, state.masteringTransientAmount * 100, '%');
-masteringTransientSlider.slider.oninput = () => {
-    const val = parseFloat(masteringTransientSlider.slider.value);
-    state.masteringTransientAmount = val / 100;
-    masteringTransientSlider.valueSpan.textContent = `${val.toFixed(0)}%`;
-    applyAudioEffectsToMedia();
-};
-masteringTransientSlider.controlDiv.style.flex = '1'; // This remains the same.
+            masteringTransientSlider = createSliderControl('타격감', 'masteringTransientSlider', 0, 100, 1, state.masteringTransientAmount * 100, '%');
+            masteringTransientSlider.slider.oninput = () => {
+                const val = parseFloat(masteringTransientSlider.slider.value);
+                state.masteringTransientAmount = val / 100;
+                masteringTransientSlider.valueSpan.textContent = `${val.toFixed(0)}%`;
+                applyAudioEffectsToMedia();
+            };
+            masteringTransientSlider.controlDiv.style.flex = '1';
+            masteringDriveSlider = createSliderControl('음압', 'masteringDriveSlider', 0, 12, 0.5, state.masteringDrive, 'dB');
+            masteringDriveSlider.slider.oninput = () => {
+                const val = parseFloat(masteringDriveSlider.slider.value);
+                state.masteringDrive = val;
+                masteringDriveSlider.valueSpan.textContent = `${val.toFixed(1)}dB`;
+                applyAudioEffectsToMedia();
+            };
+            masteringDriveSlider.controlDiv.style.flex = '1';
+            bottomRow2.append(masteringSuiteBtn, masteringTransientSlider.controlDiv, masteringDriveSlider.controlDiv);
 
-masteringDriveSlider = createSliderControl('음압', 'masteringDriveSlider', 0, 12, 0.5, state.masteringDrive, 'dB');
-masteringDriveSlider.slider.oninput = () => {
-    const val = parseFloat(masteringDriveSlider.slider.value);
-    state.masteringDrive = val;
-    masteringDriveSlider.valueSpan.textContent = `${val.toFixed(1)}dB`;
-    applyAudioEffectsToMedia();
-};
-masteringDriveSlider.controlDiv.style.flex = '1'; // This also remains the same.
-
-bottomRow2.append(masteringSuiteBtn, masteringTransientSlider.controlDiv, masteringDriveSlider.controlDiv);
             const bottomControlsContainer = document.createElement('div');
             bottomControlsContainer.style.cssText = `display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; border-top: 1px solid #444; padding-top: 8px; grid-column: 1 / -1;`;
             const resetBtn = createButton('vsc-reset-all', '모든 오디오 설정 기본값으로 초기화', '초기화', 'vsc-btn');
@@ -1456,7 +1404,6 @@ bottomRow2.append(masteringSuiteBtn, masteringTransientSlider.controlDiv, master
                 'mastering_balanced': { name: '🔥 밸런스 마스터링 (고음질)', hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1, widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 12, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, },
                 'vocal_clarity_pro': { name: '🎙️ 목소리 명료 (강의/뉴스)', hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 1.5, preGain_enabled: true, preGain_value: 1.2, deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000, parallel_comp_enabled: true, parallel_comp_mix: 12, mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5, },
                 'gaming_pro': { name: '🎮 게이밍 (사운드 플레이)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_bass: 0, eq_mid: 1.5, eq_treble: 2, eq_presence: 3, widen_enabled: true, widen_factor: 1.5, preGain_enabled: true, preGain_value: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5, },
-
             };
             const presetOptions = Object.entries(presetMap).map(([value, { name }]) => ({ value, text: name }));
             const presetSelect = createSelectControl('프리셋 선택', presetOptions, (val) => { if (val) applyPreset(val); }, 'presetSelect');
@@ -1484,7 +1431,6 @@ bottomRow2.append(masteringSuiteBtn, masteringTransientSlider.controlDiv, master
                 setHpfEnabled(state.isHpfEnabled);
                 setEqEnabled(state.isEqEnabled);
                 setReverbEnabled(state.isReverbEnabled);
-                setLoudnessEqEnabled(state.isLoudnessEqEnabled);
                 updateAutoVolumeButtonStyle();
                 setPreGainEnabled(state.isPreGainEnabled);
                 setDeesserEnabled(state.isDeesserEnabled);
@@ -1687,11 +1633,7 @@ bottomRow2.append(masteringSuiteBtn, masteringTransientSlider.controlDiv, master
         pause: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).every(med => med.paused)) mediaSessionManager.clearSession(); },
         ended: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).every(med => med.paused)) mediaSessionManager.clearSession(); },
         ratechange: e => { updateActiveSpeedButton(e.target.playbackRate); },
-        volumechange: e => {
-            if (state.isLoudnessEqEnabled) {
-                audioEffectsManager.reconnectGraph(e.target);
-            }
-        },
+        volumechange: () => { /* No longer needed for loudness, but hook kept for future use */ },
     };
 
     function injectFiltersIntoRoot(element, manager) {
