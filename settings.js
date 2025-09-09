@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      95.6
-// @description  [v95.6] 사용자 피드백 반영: 오해의 소지가 있는 '라우드니스 EQ' 기능 완전 삭제 및 UI 간소화.
+// @version      95.7
+// @description  [v95.7] 오디오 클리핑(찢어짐) 방지를 위한 최종 안전 리미터 추가. 볼륨 및 효과를 과도하게 올려도 음질이 깨지지 않도록 개선.
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -314,7 +314,7 @@
             state.isAnalyzingLoudness = true;
             updateAutoVolumeButtonStyle();
             const analyser = nodes.analyser;
-            const gainNode = nodes.preGain;
+            const gainNode = nodes.masterGain;
             const data = new Float32Array(analyser.fftSize);
             const ANALYSIS_DELAY_MS = 500;
             const ANALYSIS_DURATION_MS = 10000;
@@ -430,9 +430,9 @@
             const nodes = {
                 context, source,
                 stereoPanner: context.createStereoPanner(),
-                preGain: context.createGain(),
                 masterGain: context.createGain(),
                 analyser: context.createAnalyser(),
+                safetyLimiter: context.createDynamicsCompressor(),
                 cumulativeLUFS: 0,
                 lufsSampleCount: 0,
                 band1_SubBass: context.createBiquadFilter(),
@@ -470,6 +470,13 @@
                 console.error("[VSC] Failed to create reverb impulse response.", e);
             }
 
+            // Configure the safety limiter (brickwall settings)
+            nodes.safetyLimiter.threshold.value = -0.5;
+            nodes.safetyLimiter.knee.value = 0;
+            nodes.safetyLimiter.ratio.value = 20;
+            nodes.safetyLimiter.attack.value = 0.001;
+            nodes.safetyLimiter.release.value = 0.05;
+
             nodes.analyser.fftSize = 2048;
             nodes.band1_SubBass.type = "lowpass";
             nodes.band1_SubBass.frequency.value = 80;
@@ -487,10 +494,11 @@
 
             state.audioContextMap.set(media, nodes);
 
-            nodes.source.connect(nodes.preGain);
-            nodes.preGain.connect(nodes.masterGain);
-            nodes.masterGain.connect(nodes.analyser);
-            nodes.masterGain.connect(nodes.context.destination);
+            nodes.source.connect(nodes.masterGain);
+            nodes.masterGain.connect(nodes.safetyLimiter);
+            nodes.safetyLimiter.connect(nodes.analyser);
+            nodes.safetyLimiter.connect(nodes.context.destination);
+
 
             return nodes;
         }
@@ -511,7 +519,7 @@
                 animationFrameMap.delete(media);
 
                 // UI 슬라이더 값들을 오디오 노드에 적용
-                nodes.preGain.gain.value = state.currentPreGain;
+                nodes.masterGain.gain.value = state.currentPreGain;
                 nodes.stereoPanner.pan.value = state.currentStereoPan;
 
                 // 2. 오디오 처리 시작점 설정: 소스(source)에서 시작
@@ -652,7 +660,7 @@
                     lastNode = spatialNode;
                 }
 
-                // 3. 마스터링 효과 연결 (최종 안전장치)
+                // 3. 마스터링 효과 연결
                 if (state.isMasteringSuiteEnabled) {
                     nodes.masteringTransientShaper.curve = makeTransientCurve(state.masteringTransientAmount);
                     nodes.masteringTransientShaper.oversample = '4x';
@@ -678,11 +686,11 @@
                     }
                 }
 
-                // 4. 최종적으로 볼륨(Post-Gain)과 masterGain을 거쳐 출력
-                lastNode.connect(nodes.preGain);
-                nodes.preGain.connect(nodes.masterGain);
-                nodes.masterGain.connect(nodes.analyser);
-                nodes.masterGain.connect(nodes.context.destination);
+                // 4. 최종 볼륨(masterGain)과 안전 리미터를 거쳐 최종 출력
+                lastNode.connect(nodes.masterGain);
+                nodes.masterGain.connect(nodes.safetyLimiter);
+                nodes.safetyLimiter.connect(nodes.analyser);
+                nodes.safetyLimiter.connect(nodes.context.destination);
 
             }, 'reconnectGraph_Final_Fix');
         }
