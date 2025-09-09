@@ -1454,77 +1454,87 @@
             const resetBtn = createButton('vsc-reset-all', '모든 오디오 설정 기본값으로 초기화', '초기화', 'vsc-btn');
 
             presetMap = {
-    'default': {
-        name: '기본값 (모든 효과 꺼짐)'
-    },
+                'default': {
+                    name: '기본값 (모든 효과 꺼짐)'
+                },
 
-    'basic_clear': {
-        name: '✔ 기본 개선 (명료)',
-        hpf_enabled: true, hpf_hz: 70, // 고음 및 불필요한 저음 제거
-        eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 1.5, eq_treble: 1.2, eq_presence: 1.5, // 명료한 고음과 중음 강조
-        preGain_enabled: true, preGain_value: 1.0,
-        mastering_suite_enabled: true, mastering_transient: 0.2, mastering_drive: 2, // 소리의 정밀도 향상
-    },
+                'basic_clear': {
+                    name: '✔ 기본 개선 (명료)',
+                    hpf_enabled: true, hpf_hz: 70,
+                    eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 1.5, eq_treble: 1.2, eq_presence: 1.5,
+                    preGain_enabled: true, preGain_value: 1.0,
+                    mastering_suite_enabled: true, mastering_transient: 0.2, mastering_drive: 2,
+                },
 
-    'movie_immersive': {
-        name: '🎬 영화/드라마 (몰입감)',
-        hpf_enabled: true, hpf_hz: 80, // 불필요한 저음 제거
-        eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 2, eq_treble: 1, eq_presence: 1, // 몰입감 있는 저음과 중음 강조
-        widen_enabled: true, widen_factor: 1.3, // 넓은 음장 효과
-        preGain_enabled: true, preGain_value: 1.1,
-        deesser_enabled: true, deesser_threshold: -30, deesser_freq: 8000, // 고음 'S' 소리 조절
-        parallel_comp_enabled: true, parallel_comp_mix: 12, // 사운드 다채화
-        mastering_suite_enabled: true, mastering_transient: 0.2, mastering_drive: 3, // 몰입감과 타격감 강화
-    },
+                // 🎬 영상 콘텐츠 관련 프리셋
+                'movie_immersive': {
+                    name: '🎬 영화/드라마 (몰입감)',
+                    hpf_enabled: true, hpf_hz: 60,
+                    eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 2, eq_treble: 1.5, eq_presence: 1,
+                    widen_enabled: true, widen_factor: 1.4,
+                    deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000,
+                    mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 4,
+                },
 
-    'music_dynamic': {
-        name: '🎶 음악 (다이나믹 & 펀치감)',
-        hpf_enabled: true, hpf_hz: 40, // 깊은 저음 강조
-        eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: -1, eq_treble: 1, eq_presence: 2, // 강한 저음과 선명한 고음
-        widen_enabled: true, widen_factor: 1.4, // 공간감을 더 크게
-        preGain_enabled: true, preGain_value: 1.0,
-        exciter_enabled: true, exciter_amount: 18, // 고음 강조로 선명한 사운드
-        mastering_suite_enabled: true, mastering_transient: 0.2, mastering_drive: 4, // 타격감과 뚜렷한 사운드
-    },
+                'action_blockbuster': {
+                    name: '💥 액션 블록버스터 (타격감)',
+                    hpf_enabled: true, hpf_hz: 50,
+                    eq_enabled: true, eq_subBass: 2, eq_bass: 1.5, eq_mid: -1, eq_treble: 1, eq_presence: 2,
+                    widen_enabled: true, widen_factor: 1.5,
+                    parallel_comp_enabled: true, parallel_comp_mix: 18,
+                    mastering_suite_enabled: true, mastering_transient: 0.4, mastering_drive: 5,
+                },
 
-    'vocal_clarity_pro': {
-        name: '🎙️ 목소리 명료 (강의/뉴스)',
-        hpf_enabled: true, hpf_hz: 100, // 저음 제거로 명료한 목소리
-        eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 1, // 명확한 목소리 강조
-        preGain_enabled: true, preGain_value: 1.2,
-        deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000, // 'S' 소리 완화
-        parallel_comp_enabled: true, parallel_comp_mix: 10, // 목소리 선명도 향상
-    },
+                'concert_hall': {
+                    name: '🏟️ 라이브 콘서트 (현장감)',
+                    hpf_enabled: true, hpf_hz: 60,
+                    eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0, eq_treble: 1, eq_presence: 1,
+                    widen_enabled: true, widen_factor: 1.4,
+                    //spatial_enabled: true, spatial_speed: 0, spatial_dist: 1.2, spatial_reverb: 0.15,
+                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 5,
+                },
 
-    'gaming_pro': {
-        name: '🎮 게이밍 (사운드 플레이)',
-        hpf_enabled: true, hpf_hz: 50, // 발소리와 발자국 소리 강조
-        eq_enabled: true, eq_subBass: -1, eq_bass: 0, eq_mid: 1.5, eq_treble: 2, eq_presence: 3, // 게임 환경에서 필요한 고음 및 중음 강조
-        widen_enabled: true, widen_factor: 1.5, // 음장 넓혀 위치감 강화
-        preGain_enabled: true, preGain_value: 1.2,
-        mastering_suite_enabled: true, mastering_transient: 0.4, mastering_drive: 2, // 타격감과 몰입감 증가
-    },
+                // 🎶 음악 관련 프리셋
+                'music_dynamic': {
+                    name: '🎶 음악 (다이나믹 & 펀치감)',
+                    hpf_enabled: true, hpf_hz: 80,
+                    eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: -1, eq_treble: 1, eq_presence: 2,
+                    widen_enabled: true, widen_factor: 1.4,
+                    exciter_enabled: true, exciter_amount: 15,
+                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 4,
+                },
 
-    'concert_hall': {
-        name: '🏟️ 라이브 콘서트 (현장감)',
-        hpf_enabled: true, hpf_hz: 60, // 저음 제거로 현장감 강조
-        eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0, eq_treble: 1, eq_presence: 1, // 라이브 느낌을 위한 균형 잡힌 음색
-        widen_enabled: true, widen_factor: 1.4, // 넓은 사운드 공간
-        preGain_enabled: true, preGain_value: 1.1,
-        spatial_enabled: true, spatial_speed: 0, spatial_dist: 1.2, spatial_reverb: 0.1, // 공간감과 잔향 강조
-        mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 5, // 몰입감과 고음질 강화
-    },
+                'mastering_balanced': {
+                    name: '🔥 밸런스 마스터링 (고음질)',
+                    hpf_enabled: true, hpf_hz: 45,
+                    eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1,
+                    widen_enabled: true, widen_factor: 1.25,
+                    exciter_enabled: true, exciter_amount: 12,
+                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5,
+                },
 
-    'mastering_balanced': {
-        name: '🔥 밸런스 마스터링 (고음질)',
-        hpf_enabled: true, hpf_hz: 45, // 깊은 저음 필터링
-        eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1, // 선명한 고음과 적당한 밸런스
-        widen_enabled: true, widen_factor: 1.25, // 넓은 음향 공간
-        preGain_enabled: true, preGain_value: 1.0,
-        exciter_enabled: true, exciter_amount: 12, // 고음 선명도 증가
-        mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, // 고음질 극대화
-    },
-};
+                // 🗣️ 음성 관련 프리셋
+                'vocal_clarity_pro': {
+                    name: '🎙️ 목소리 명료 (강의/뉴스/팟캐스트)',
+                    hpf_enabled: true, hpf_hz: 110,
+                    eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 1.5,
+                    preGain_enabled: true, preGain_value: 1.2,
+                    deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000,
+                    parallel_comp_enabled: true, parallel_comp_mix: 12,
+                    mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5,
+                },
+
+                // 🎮 게임 관련 프리셋
+                'gaming_pro': {
+                    name: '🎮 게이밍 (사운드 플레이)',
+                    hpf_enabled: true, hpf_hz: 50,
+                    eq_enabled: true, eq_subBass: -1, eq_bass: 0, eq_mid: 1.5, eq_treble: 2, eq_presence: 3,
+                    widen_enabled: true, widen_factor: 1.5,
+                    preGain_enabled: true, preGain_value: 1.2,
+                    mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5,
+                },
+            };
+
 
 
             const presetOptions = Object.entries(presetMap).map(([value, { name }]) => ({ value, text: name }));
