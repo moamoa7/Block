@@ -715,6 +715,7 @@
                     analysisStatusMap.delete(media);
                     return;
                 }
+                if (media.paused) return;
 
                 attempts++;
                 nodes.analyser.getByteFrequencyData(analyserData);
@@ -729,9 +730,11 @@
                 if (attempts >= MAX_ATTEMPTS) {
                     clearInterval(intervalId);
                     analysisStatusMap.set(media, 'failed');
-                    console.warn('[VSC] 오디오 신호가 감지되지 않았습니다 (CORS 오류 가능성).', media);
-                    showWarningMessage('오디오 효과 적용에 실패했습니다. (CORS 보안 정책 가능성)');
+                    console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 페이지를 새로고침합니다.', media);
+                    sessionStorage.setItem('vsc_message', 'CORS 보안 정책으로 오디오 효과 적용에 실패하여 페이지를 새로고침했습니다.');
+                    showWarningMessage('CORS 오류 감지. 1.5초 후 오디오 복원을 위해 페이지를 새로고침합니다.');
                     cleanupForMedia(media);
+                    setTimeout(() => { location.reload(); }, 1500);
                 }
             }, CHECK_INTERVAL);
         }
