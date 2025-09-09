@@ -500,6 +500,7 @@
             if (!nodes) return;
 
             safeExec(() => {
+                // 1. 기존의 모든 오디오 연결 해제
                 Object.values(nodes).forEach(node => {
                     if (node && typeof node.disconnect === 'function' && node !== nodes.context) {
                         try { node.disconnect(); } catch (e) { /* Ignore */ }
@@ -509,11 +510,14 @@
                 if (animationFrameMap.has(media)) cancelAnimationFrame(animationFrameMap.get(media));
                 animationFrameMap.delete(media);
 
+                // UI 슬라이더 값들을 오디오 노드에 적용
                 nodes.preGain.gain.value = state.currentPreGain;
                 nodes.stereoPanner.pan.value = state.currentStereoPan;
 
-                let lastNode = nodes.source.connect(nodes.preGain);
+                // 2. 오디오 처리 시작점 설정: 소스(source)에서 시작
+                let lastNode = nodes.source;
 
+                // --- 각종 효과(EQ, 컴프레서 등) 체인 ---
                 if (state.isDeesserEnabled) {
                     nodes.deesserBand.type = 'bandpass';
                     nodes.deesserBand.frequency.value = state.deesserFreq;
@@ -577,24 +581,16 @@
                     const exciterDry = nodes.context.createGain();
                     const exciterWet = nodes.context.createGain();
                     const exciterPostGain = nodes.exciterPostGain;
-
                     const wetAmount = state.isMasteringSuiteEnabled ? state.exciterAmount / 150 : state.exciterAmount / 100;
                     exciterDry.gain.value = 1.0 - wetAmount;
                     exciterWet.gain.value = wetAmount;
-
                     nodes.exciterHPF.type = 'highpass';
                     nodes.exciterHPF.frequency.value = 5000;
                     nodes.exciter.curve = makeDistortionCurve(state.exciterAmount * 15);
                     nodes.exciter.oversample = '4x';
                     exciterPostGain.gain.value = 0.5;
-
                     lastNode.connect(exciterDry).connect(exciterSum);
-                    lastNode.connect(nodes.exciterHPF)
-                        .connect(nodes.exciter)
-                        .connect(exciterPostGain)
-                        .connect(exciterWet)
-                        .connect(exciterSum);
-
+                    lastNode.connect(nodes.exciterHPF).connect(nodes.exciter).connect(exciterPostGain).connect(exciterWet).connect(exciterSum);
                     lastNode = exciterSum;
                 }
 
@@ -649,13 +645,14 @@
 
                 if (state.isReverbEnabled) {
                     nodes.reverbWetGain.gain.value = state.reverbMix;
-                    spatialNode.connect(nodes.reverbSum); // Dry path
-                    spatialNode.connect(nodes.reverbConvolver).connect(nodes.reverbWetGain).connect(nodes.reverbSum); // Wet path
+                    spatialNode.connect(nodes.reverbSum);
+                    spatialNode.connect(nodes.reverbConvolver).connect(nodes.reverbWetGain).connect(nodes.reverbSum);
                     lastNode = nodes.reverbSum;
                 } else {
                     lastNode = spatialNode;
                 }
 
+                // 3. 마스터링 효과 연결 (최종 안전장치)
                 if (state.isMasteringSuiteEnabled) {
                     nodes.masteringTransientShaper.curve = makeTransientCurve(state.masteringTransientAmount);
                     nodes.masteringTransientShaper.oversample = '4x';
@@ -663,26 +660,11 @@
 
                     const drive = state.masteringDrive;
                     const l1 = nodes.masteringLimiter1;
-                    l1.threshold.value = -12 + (drive / 2);
-                    l1.knee.value = 5;
-                    l1.ratio.value = 4;
-                    l1.attack.value = 0.005;
-                    l1.release.value = 0.08;
-
+                    l1.threshold.value = -12 + (drive / 2); l1.knee.value = 5; l1.ratio.value = 4; l1.attack.value = 0.005; l1.release.value = 0.08;
                     const l2 = nodes.masteringLimiter2;
-                    l2.threshold.value = -8 + (drive / 2);
-                    l2.knee.value = 3;
-                    l2.ratio.value = 8;
-                    l2.attack.value = 0.003;
-                    l2.release.value = 0.05;
-
+                    l2.threshold.value = -8 + (drive / 2); l2.knee.value = 3; l2.ratio.value = 8; l2.attack.value = 0.003; l2.release.value = 0.05;
                     const l3 = nodes.masteringLimiter3;
-                    l3.threshold.value = -2.0;
-                    l3.knee.value = 0;
-                    l3.ratio.value = 20;
-                    l3.attack.value = 0.001;
-                    l3.release.value = 0.02;
-
+                    l3.threshold.value = -2.0; l3.knee.value = 0; l3.ratio.value = 20; l3.attack.value = 0.001; l3.release.value = 0.02;
                     lastNode = lastNode.connect(l1).connect(l2).connect(l3);
 
                 } else {
@@ -696,7 +678,9 @@
                     }
                 }
 
-                lastNode.connect(nodes.masterGain);
+                // 4. 최종적으로 볼륨(Post-Gain)과 masterGain을 거쳐 출력
+                lastNode.connect(nodes.preGain);
+                nodes.preGain.connect(nodes.masterGain);
                 nodes.masterGain.connect(nodes.analyser);
                 nodes.masterGain.connect(nodes.context.destination);
 
@@ -1396,13 +1380,21 @@
 
             presetMap = {
                 'default': { name: '기본값 (모든 효과 꺼짐)' },
+
                 'basic_clear': { name: '✔ 기본 개선 (명료)', hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 1.5, eq_treble: 1.2, eq_presence: 1.5, preGain_enabled: true, preGain_value: 1.0, mastering_suite_enabled: true, mastering_transient: 0.2, mastering_drive: 2, },
-                'movie_immersive': { name: '🎬 영화/드라마 (몰입감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 2, eq_treble: 1.5, eq_presence: 1, widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000, parallel_comp_enabled: true, parallel_comp_mix: 15, mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 4, },
-                'action_blockbuster': { name: '💥 액션 블록버스터 (타격감)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 2, eq_bass: 1.5, eq_mid: -1, eq_treble: 1, eq_presence: 2, widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18, mastering_suite_enabled: true, mastering_transient: 0.4, mastering_drive: 5, },
-                'concert_hall': { name: '🏟️ 라이브 콘서트 (현장감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0, eq_treble: 1, eq_presence: 1, widen_enabled: true, widen_factor: 1.4, preGain_enabled: true, preGain_value: 1.3, reverb_enabled: true, reverb_mix: 0.6, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3, },
-                'music_dynamic': { name: '🎶 음악 (다이나믹 & 펀치감)', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: -1, eq_treble: 1, eq_presence: 2, widen_enabled: true, widen_factor: 1.4, exciter_enabled: true, exciter_amount: 15, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 4, },
+
+                'movie_immersive': { name: '🎬 영화/드라마 (몰입감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 2, eq_treble: 1.5, eq_presence: 1, widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000, parallel_comp_enabled: true, parallel_comp_mix: 15, mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 3, }, // 음압(Drive) 4 → 3 으로 조정
+
+                'action_blockbuster': { name: '💥 액션 블록버스터 (타격감)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 2, eq_bass: 1.5, eq_mid: -1, eq_treble: 1, eq_presence: 2, widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18, mastering_suite_enabled: true, mastering_transient: 0.4, mastering_drive: 3.5, }, // 음압(Drive) 5 → 3.5 으로 조정
+
+                'concert_hall': { name: '🏟️ 라이브 콘서트 (현장감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0, eq_treble: 1, eq_presence: 1, widen_enabled: true, widen_factor: 1.4, preGain_enabled: true, preGain_value: 1.3, reverb_enabled: true, reverb_mix: 0.6, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5, }, // 음압(Drive) 3 → 2.5 으로 조정
+
+                'music_dynamic': { name: '🎶 음악 (다이나믹 & 펀치감)', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: -1, eq_treble: 1, eq_presence: 2, widen_enabled: true, widen_factor: 1.4, exciter_enabled: true, exciter_amount: 15, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3, }, // 음압(Drive) 4 → 3 으로 조정
+
                 'mastering_balanced': { name: '🔥 밸런스 마스터링 (고음질)', hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1, eq_presence: 1, widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 12, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, },
+
                 'vocal_clarity_pro': { name: '🎙️ 목소리 명료 (강의/뉴스)', hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 1.5, preGain_enabled: true, preGain_value: 1.2, deesser_enabled: true, deesser_threshold: -32, deesser_freq: 8000, parallel_comp_enabled: true, parallel_comp_mix: 12, mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5, },
+
                 'gaming_pro': { name: '🎮 게이밍 (사운드 플레이)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_bass: 0, eq_mid: 1.5, eq_treble: 2, eq_presence: 3, widen_enabled: true, widen_factor: 1.5, preGain_enabled: true, preGain_value: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5, },
             };
             const presetOptions = Object.entries(presetMap).map(([value, { name }]) => ({ value, text: name }));
