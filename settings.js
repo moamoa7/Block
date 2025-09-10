@@ -13,8 +13,8 @@
 
     let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    const TARGET_DELAYS = {"youtube.com": 10000 };
-    const DEFAULT_TARGET_DELAY = 2500;
+    const TARGET_DELAYS = {"youtube.com": 10000, "play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500 };
+    const DEFAULT_TARGET_DELAY = 2000;
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 10 : 4,
@@ -86,10 +86,14 @@
     }
 
     function getTargetDelay() {
-        const host = location.hostname;
-        for (const site in TARGET_DELAYS) { if (host.includes(site)) return TARGET_DELAYS[site]; }
-        return DEFAULT_TARGET_DELAY;
+    for (const site in TARGET_DELAYS) {
+        if (location.href.includes(site)) {
+            return TARGET_DELAYS[site];
+        }
     }
+    return DEFAULT_TARGET_DELAY;
+}
+
 
     const settingsManager = (() => {
         const settings = {};
