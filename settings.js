@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      95.9
-// @description  라이브 스트리밍 편의 기능 추가: '실시간 점프' 버튼 및 상태 표시 및 기타 버그 수정
+// @version      96.0
+// @description  코드 개선 (유지 보수)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -107,57 +107,75 @@
     function resetState() {
         Object.keys(state).forEach(key => delete state[key]);
         const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
+
         Object.assign(state, {
-            activeMedia: new Set(), processedMedia: new WeakSet(), activeImages: new Set(),
-            processedImages: new WeakSet(), mediaListenerMap: new WeakMap(),
-            currentlyVisibleMedia: null,
-            currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || CONFIG.DEFAULT_VIDEO_FILTER_LEVEL,
-            currentVideoFilterLevel2: settingsManager.get('videoFilterLevel2') || CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2,
-            currentImageFilterLevel: settingsManager.get('imageFilterLevel') || CONFIG.DEFAULT_IMAGE_FILTER_LEVEL,
-            currentVideoGamma: parseFloat(videoDefaults.GAMMA_VALUE),
-            currentVideoBlur: parseFloat(videoDefaults.BLUR_STD_DEVIATION),
-            currentVideoShadows: parseInt(videoDefaults.SHADOWS_VALUE, 10),
-            currentVideoHighlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10),
-            currentVideoSaturation: parseInt(videoDefaults.SATURATION_VALUE, 10),
-            currentVideoSharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
-            audioContextMap: new WeakMap(),
-            audioInitialized: false,
-            isHpfEnabled: CONFIG.DEFAULT_HPF_ENABLED,
-            currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
-            isEqEnabled: CONFIG.DEFAULT_EQ_ENABLED,
-            eqSubBassGain: CONFIG.DEFAULT_EQ_SUBBASS_GAIN,
-            eqBassGain: CONFIG.DEFAULT_EQ_BASS_GAIN,
-            eqMidGain: CONFIG.DEFAULT_EQ_MID_GAIN,
-            eqTrebleGain: CONFIG.DEFAULT_EQ_TREBLE_GAIN,
-            eqPresenceGain: CONFIG.DEFAULT_EQ_PRESENCE_GAIN,
-            bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN,
-            bassBoostFreq: 60,
-            bassBoostQ: 1.0,
-            isWideningEnabled: CONFIG.DEFAULT_WIDENING_ENABLED,
-            currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
-            isAdaptiveWidthEnabled: CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED,
-            adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
-            isReverbEnabled: CONFIG.DEFAULT_REVERB_ENABLED,
-            reverbMix: CONFIG.DEFAULT_REVERB_MIX,
-            currentStereoPan: CONFIG.DEFAULT_STEREO_PAN,
-            isPreGainEnabled: CONFIG.DEFAULT_PRE_GAIN_ENABLED,
-            currentPreGain: CONFIG.DEFAULT_PRE_GAIN,
-            lastManualPreGain: CONFIG.DEFAULT_PRE_GAIN,
-            isAnalyzingLoudness: false,
-            isDeesserEnabled: CONFIG.DEFAULT_DEESSER_ENABLED,
-            deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD,
-            deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
-            isExciterEnabled: CONFIG.DEFAULT_EXCITER_ENABLED,
-            exciterAmount: CONFIG.DEFAULT_EXCITER_AMOUNT,
-            isParallelCompEnabled: CONFIG.DEFAULT_PARALLEL_COMP_ENABLED,
-            parallelCompMix: CONFIG.DEFAULT_PARALLEL_COMP_MIX,
-            isLimiterEnabled: CONFIG.DEFAULT_LIMITER_ENABLED,
-            isMasteringSuiteEnabled: CONFIG.DEFAULT_MASTERING_SUITE_ENABLED,
-            masteringTransientAmount: 0.2,
-            masteringDrive: 0,
-            ui: { shadowRoot: null, hostElement: null }, delayCheckInterval: null,
-            currentPlaybackRate: 1.0, mediaTypesEverFound: { video: false, image: false }, lastUrl: '',
-            audioContextWarningShown: false
+            media: {
+                activeMedia: new Set(),
+                processedMedia: new WeakSet(),
+                activeImages: new Set(),
+                processedImages: new WeakSet(),
+                mediaListenerMap: new WeakMap(),
+                currentlyVisibleMedia: null,
+                mediaTypesEverFound: { video: false, image: false },
+            },
+            videoFilter: {
+                currentVideoFilterLevel: settingsManager.get('videoFilterLevel') || CONFIG.DEFAULT_VIDEO_FILTER_LEVEL,
+                currentVideoFilterLevel2: settingsManager.get('videoFilterLevel2') || CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2,
+                currentVideoGamma: parseFloat(videoDefaults.GAMMA_VALUE),
+                currentVideoBlur: parseFloat(videoDefaults.BLUR_STD_DEVIATION),
+                currentVideoShadows: parseInt(videoDefaults.SHADOWS_VALUE, 10),
+                currentVideoHighlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10),
+                currentVideoSaturation: parseInt(videoDefaults.SATURATION_VALUE, 10),
+                currentVideoSharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
+            },
+            imageFilter: {
+                currentImageFilterLevel: settingsManager.get('imageFilterLevel') || CONFIG.DEFAULT_IMAGE_FILTER_LEVEL,
+            },
+            audio: {
+                audioContextMap: new WeakMap(),
+                audioInitialized: false,
+                isHpfEnabled: CONFIG.DEFAULT_HPF_ENABLED,
+                currentHpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
+                isEqEnabled: CONFIG.DEFAULT_EQ_ENABLED,
+                eqSubBassGain: CONFIG.DEFAULT_EQ_SUBBASS_GAIN,
+                eqBassGain: CONFIG.DEFAULT_EQ_BASS_GAIN,
+                eqMidGain: CONFIG.DEFAULT_EQ_MID_GAIN,
+                eqTrebleGain: CONFIG.DEFAULT_EQ_TREBLE_GAIN,
+                eqPresenceGain: CONFIG.DEFAULT_EQ_PRESENCE_GAIN,
+                bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN,
+                bassBoostFreq: 60,
+                bassBoostQ: 1.0,
+                isWideningEnabled: CONFIG.DEFAULT_WIDENING_ENABLED,
+                currentWideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
+                isAdaptiveWidthEnabled: CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED,
+                adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
+                isReverbEnabled: CONFIG.DEFAULT_REVERB_ENABLED,
+                reverbMix: CONFIG.DEFAULT_REVERB_MIX,
+                currentStereoPan: CONFIG.DEFAULT_STEREO_PAN,
+                isPreGainEnabled: CONFIG.DEFAULT_PRE_GAIN_ENABLED,
+                currentPreGain: CONFIG.DEFAULT_PRE_GAIN,
+                lastManualPreGain: CONFIG.DEFAULT_PRE_GAIN,
+                isAnalyzingLoudness: false,
+                isDeesserEnabled: CONFIG.DEFAULT_DEESSER_ENABLED,
+                deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD,
+                deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
+                isExciterEnabled: CONFIG.DEFAULT_EXCITER_ENABLED,
+                exciterAmount: CONFIG.DEFAULT_EXCITER_AMOUNT,
+                isParallelCompEnabled: CONFIG.DEFAULT_PARALLEL_COMP_ENABLED,
+                parallelCompMix: CONFIG.DEFAULT_PARALLEL_COMP_MIX,
+                isLimiterEnabled: CONFIG.DEFAULT_LIMITER_ENABLED,
+                isMasteringSuiteEnabled: CONFIG.DEFAULT_MASTERING_SUITE_ENABLED,
+                masteringTransientAmount: 0.2,
+                masteringDrive: 0,
+            },
+            ui: {
+                shadowRoot: null,
+                hostElement: null,
+                delayCheckInterval: null,
+                currentPlaybackRate: 1.0,
+                lastUrl: '',
+                audioContextWarningShown: false
+            }
         });
     }
     resetState();
@@ -276,8 +294,8 @@
             }
 
             if (shadows !== undefined || highlights !== undefined) {
-                const currentHighlights = highlights ?? state.currentVideoHighlights;
-                const currentShadows = shadows ?? state.currentVideoShadows;
+                const currentHighlights = highlights ?? state.videoFilter.currentVideoHighlights;
+                const currentShadows = shadows ?? state.videoFilter.currentVideoShadows;
                 const slope = (1 + currentHighlights / 100).toString();
                 const intercept = (currentShadows / 200).toString();
                 rootNode.querySelectorAll(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`).forEach(el => {
@@ -309,12 +327,12 @@
         }
 
         function startLoudnessNormalization(media) {
-            const nodes = state.audioContextMap.get(media);
-            if (!nodes || state.isAnalyzingLoudness) return;
+            const nodes = state.audio.audioContextMap.get(media);
+            if (!nodes || state.audio.isAnalyzingLoudness) return;
             const autoVolBtn = state.ui.shadowRoot?.getElementById('vsc-auto-volume-toggle');
             if (!autoVolBtn) return;
             const originalBtnText = autoVolBtn.textContent;
-            state.isAnalyzingLoudness = true;
+            state.audio.isAnalyzingLoudness = true;
             updateAutoVolumeButtonStyle();
             const analyser = nodes.analyser;
             const gainNode = nodes.masterGain;
@@ -335,10 +353,10 @@
                 clearInterval(countdownIntervalId);
             };
             const collectSample = () => {
-                if (!media.isConnected || media.paused || !state.isAnalyzingLoudness) {
+                if (!media.isConnected || media.paused || !state.audio.isAnalyzingLoudness) {
                     cleanupTimers();
-                    if (state.isAnalyzingLoudness) {
-                        state.isAnalyzingLoudness = false;
+                    if (state.audio.isAnalyzingLoudness) {
+                        state.audio.isAnalyzingLoudness = false;
                         autoVolBtn.textContent = originalBtnText;
                         updateAutoVolumeButtonStyle();
                     }
@@ -356,7 +374,7 @@
                 }
             };
             const finalizeAnalysis = () => {
-                if (!state.isAnalyzingLoudness) {
+                if (!state.audio.isAnalyzingLoudness) {
                     return;
                 }
                 cleanupTimers();
@@ -369,10 +387,10 @@
                     let correctionFactor = Math.pow(10, (targetLUFS - averageLUFS) / 20);
                     correctionFactor = Math.min(1.25, Math.max(0.8, correctionFactor));
                     const MAX_FINAL_GAIN = 2.5;
-                    let finalGain = state.lastManualPreGain * correctionFactor;
+                    let finalGain = state.audio.lastManualPreGain * correctionFactor;
                     finalGain = Math.min(finalGain, MAX_FINAL_GAIN);
                     gainNode.gain.linearRampToValueAtTime(finalGain, nodes.context.currentTime + 0.5);
-                    state.currentPreGain = finalGain;
+                    state.audio.currentPreGain = finalGain;
                     const slider = state.ui.shadowRoot?.getElementById('preGainSlider');
                     const valueSpan = state.ui.shadowRoot?.getElementById('preGainSliderVal');
                     if (slider) slider.value = finalGain;
@@ -384,12 +402,12 @@
                         nodes.lufsSampleCount = 0;
                     }
                 }
-                state.isAnalyzingLoudness = false;
+                state.audio.isAnalyzingLoudness = false;
                 autoVolBtn.textContent = originalBtnText;
                 updateAutoVolumeButtonStyle();
             };
             setTimeout(() => {
-                if (!state.isAnalyzingLoudness) return;
+                if (!state.audio.isAnalyzingLoudness) return;
                 console.log(`[VSC 음량 평준화] ${ANALYSIS_DURATION_MS / 1000}초간 샘플 수집 시작...`);
                 sampleIntervalId = setInterval(collectSample, SAMPLE_INTERVAL_MS);
                 finalizeTimeoutId = setTimeout(finalizeAnalysis, ANALYSIS_DURATION_MS);
@@ -495,7 +513,7 @@
             nodes.band5_Presence.type = "highpass";
             nodes.band5_Presence.frequency.value = 8000;
 
-            state.audioContextMap.set(media, nodes);
+            state.audio.audioContextMap.set(media, nodes);
 
             nodes.source.connect(nodes.masterGain);
             nodes.masterGain.connect(nodes.safetyLimiter);
@@ -507,7 +525,7 @@
         }
 
         function reconnectGraph(media) {
-            const nodes = state.audioContextMap.get(media);
+            const nodes = state.audio.audioContextMap.get(media);
             if (!nodes) return;
 
             safeExec(() => {
@@ -522,18 +540,18 @@
                 animationFrameMap.delete(media);
 
                 // UI 슬라이더 값들을 오디오 노드에 적용
-                nodes.masterGain.gain.value = state.currentPreGain;
-                nodes.stereoPanner.pan.value = state.currentStereoPan;
+                nodes.masterGain.gain.value = state.audio.currentPreGain;
+                nodes.stereoPanner.pan.value = state.audio.currentStereoPan;
 
                 // 2. 오디오 처리 시작점 설정: 소스(source)에서 시작
                 let lastNode = nodes.source;
 
                 // --- 각종 효과(EQ, 컴프레서 등) 체인 ---
-                if (state.isDeesserEnabled) {
+                if (state.audio.isDeesserEnabled) {
                     nodes.deesserBand.type = 'bandpass';
-                    nodes.deesserBand.frequency.value = state.deesserFreq;
+                    nodes.deesserBand.frequency.value = state.audio.deesserFreq;
                     nodes.deesserBand.Q.value = 3;
-                    nodes.deesserCompressor.threshold.value = state.deesserThreshold;
+                    nodes.deesserCompressor.threshold.value = state.audio.deesserThreshold;
                     nodes.deesserCompressor.knee.value = 10;
                     nodes.deesserCompressor.ratio.value = 10;
                     nodes.deesserCompressor.attack.value = 0.005;
@@ -542,7 +560,7 @@
                     lastNode = lastNode.connect(nodes.deesserCompressor);
                 }
 
-                if (state.isEqEnabled || state.bassBoostGain > 0) {
+                if (state.audio.isEqEnabled || state.audio.bassBoostGain > 0) {
                     const merger = nodes.merger;
                     lastNode.connect(nodes.band1_SubBass);
                     lastNode.connect(nodes.band2_Bass);
@@ -551,23 +569,23 @@
                     lastNode.connect(nodes.band5_Presence);
 
                     let lastSubBassNode = nodes.band1_SubBass;
-                    if (state.bassBoostGain > 0) {
+                    if (state.audio.bassBoostGain > 0) {
                         if (!nodes.bassBoost) {
                             nodes.bassBoost = nodes.context.createBiquadFilter();
                             nodes.bassBoost.type = "peaking";
                         }
-                        nodes.bassBoost.frequency.value = state.bassBoostFreq;
-                        nodes.bassBoost.Q.value = state.bassBoostQ;
-                        nodes.bassBoost.gain.value = state.bassBoostGain;
+                        nodes.bassBoost.frequency.value = state.audio.bassBoostFreq;
+                        nodes.bassBoost.Q.value = state.audio.bassBoostQ;
+                        nodes.bassBoost.gain.value = state.audio.bassBoostGain;
                         lastSubBassNode = lastSubBassNode.connect(nodes.bassBoost);
                     }
 
-                    if (state.isEqEnabled) {
-                        nodes.gain1_SubBass.gain.value = Math.pow(10, state.eqSubBassGain / 20);
-                        nodes.gain2_Bass.gain.value = Math.pow(10, state.eqBassGain / 20);
-                        nodes.gain3_Mid.gain.value = Math.pow(10, state.eqMidGain / 20);
-                        nodes.gain4_Treble.gain.value = Math.pow(10, state.eqTrebleGain / 20);
-                        nodes.gain5_Presence.gain.value = Math.pow(10, state.eqPresenceGain / 20);
+                    if (state.audio.isEqEnabled) {
+                        nodes.gain1_SubBass.gain.value = Math.pow(10, state.audio.eqSubBassGain / 20);
+                        nodes.gain2_Bass.gain.value = Math.pow(10, state.audio.eqBassGain / 20);
+                        nodes.gain3_Mid.gain.value = Math.pow(10, state.audio.eqMidGain / 20);
+                        nodes.gain4_Treble.gain.value = Math.pow(10, state.audio.eqTrebleGain / 20);
+                        nodes.gain5_Presence.gain.value = Math.pow(10, state.audio.eqPresenceGain / 20);
                     } else {
                         [nodes.gain1_SubBass, nodes.gain2_Bass, nodes.gain3_Mid, nodes.gain4_Treble, nodes.gain5_Presence].forEach(g => g.gain.value = 1);
                     }
@@ -580,24 +598,24 @@
                     lastNode = merger;
                 }
 
-                if (state.isHpfEnabled) {
+                if (state.audio.isHpfEnabled) {
                     if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
                     nodes.hpf.type = 'highpass';
-                    nodes.hpf.frequency.value = state.currentHpfHz;
+                    nodes.hpf.frequency.value = state.audio.currentHpfHz;
                     lastNode = lastNode.connect(nodes.hpf);
                 }
 
-                if (state.isExciterEnabled && state.exciterAmount > 0) {
+                if (state.audio.isExciterEnabled && state.audio.exciterAmount > 0) {
                     const exciterSum = nodes.context.createGain();
                     const exciterDry = nodes.context.createGain();
                     const exciterWet = nodes.context.createGain();
                     const exciterPostGain = nodes.exciterPostGain;
-                    const wetAmount = state.isMasteringSuiteEnabled ? state.exciterAmount / 150 : state.exciterAmount / 100;
+                    const wetAmount = state.audio.isMasteringSuiteEnabled ? state.audio.exciterAmount / 150 : state.audio.exciterAmount / 100;
                     exciterDry.gain.value = 1.0 - wetAmount;
                     exciterWet.gain.value = wetAmount;
                     nodes.exciterHPF.type = 'highpass';
                     nodes.exciterHPF.frequency.value = 5000;
-                    nodes.exciter.curve = makeDistortionCurve(state.exciterAmount * 15);
+                    nodes.exciter.curve = makeDistortionCurve(state.audio.exciterAmount * 15);
                     nodes.exciter.oversample = '4x';
                     exciterPostGain.gain.value = 0.5;
                     lastNode.connect(exciterDry).connect(exciterSum);
@@ -605,14 +623,14 @@
                     lastNode = exciterSum;
                 }
 
-                if (state.isParallelCompEnabled && state.parallelCompMix > 0) {
+                if (state.audio.isParallelCompEnabled && state.audio.parallelCompMix > 0) {
                     nodes.parallelCompressor.threshold.value = -30;
                     nodes.parallelCompressor.knee.value = 15;
                     nodes.parallelCompressor.ratio.value = 12;
                     nodes.parallelCompressor.attack.value = 0.003;
                     nodes.parallelCompressor.release.value = 0.1;
-                    nodes.parallelDry.gain.value = 1.0 - (state.parallelCompMix / 100);
-                    nodes.parallelWet.gain.value = state.parallelCompMix / 100;
+                    nodes.parallelDry.gain.value = 1.0 - (state.audio.parallelCompMix / 100);
+                    nodes.parallelWet.gain.value = state.audio.parallelCompMix / 100;
                     const parallelSum = nodes.context.createGain();
                     lastNode.connect(nodes.parallelDry).connect(parallelSum);
                     lastNode.connect(nodes.parallelCompressor).connect(nodes.parallelWet).connect(parallelSum);
@@ -620,7 +638,7 @@
                 }
 
                 let spatialNode;
-                if (state.isWideningEnabled) {
+                if (state.audio.isWideningEnabled) {
                     if (!nodes.ms_splitter) {
                         Object.assign(nodes, {
                             ms_splitter: nodes.context.createChannelSplitter(2), ms_mid_sum: nodes.context.createGain(),
@@ -641,9 +659,9 @@
                     nodes.ms_mid_level.gain.value = 0.5;
                     nodes.ms_side_level.gain.value = 0.5;
                     nodes.adaptiveWidthFilter.type = 'highpass';
-                    nodes.adaptiveWidthFilter.frequency.value = state.isAdaptiveWidthEnabled ? state.adaptiveWidthFreq : 0;
+                    nodes.adaptiveWidthFilter.frequency.value = state.audio.isAdaptiveWidthEnabled ? state.audio.adaptiveWidthFreq : 0;
                     nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
-                    nodes.ms_side_gain.gain.value = state.currentWideningFactor;
+                    nodes.ms_side_gain.gain.value = state.audio.currentWideningFactor;
                     nodes.ms_decode_invert_Side.gain.value = -1;
                     nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
                     nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side).connect(nodes.ms_decode_R_sum);
@@ -654,8 +672,8 @@
                     spatialNode = lastNode.connect(nodes.stereoPanner);
                 }
 
-                if (state.isReverbEnabled) {
-                    nodes.reverbWetGain.gain.value = state.reverbMix;
+                if (state.audio.isReverbEnabled) {
+                    nodes.reverbWetGain.gain.value = state.audio.reverbMix;
                     spatialNode.connect(nodes.reverbSum);
                     spatialNode.connect(nodes.reverbConvolver).connect(nodes.reverbWetGain).connect(nodes.reverbSum);
                     lastNode = nodes.reverbSum;
@@ -664,12 +682,12 @@
                 }
 
                 // 3. 마스터링 효과 연결
-                if (state.isMasteringSuiteEnabled) {
-                    nodes.masteringTransientShaper.curve = makeTransientCurve(state.masteringTransientAmount);
+                if (state.audio.isMasteringSuiteEnabled) {
+                    nodes.masteringTransientShaper.curve = makeTransientCurve(state.audio.masteringTransientAmount);
                     nodes.masteringTransientShaper.oversample = '4x';
                     lastNode = lastNode.connect(nodes.masteringTransientShaper);
 
-                    const drive = state.masteringDrive;
+                    const drive = state.audio.masteringDrive;
                     const l1 = nodes.masteringLimiter1;
                     l1.threshold.value = -12 + (drive / 2); l1.knee.value = 5; l1.ratio.value = 4; l1.attack.value = 0.005; l1.release.value = 0.08;
                     const l2 = nodes.masteringLimiter2;
@@ -679,7 +697,7 @@
                     lastNode = lastNode.connect(l1).connect(l2).connect(l3);
 
                 } else {
-                    if (state.isLimiterEnabled) {
+                    if (state.audio.isLimiterEnabled) {
                         nodes.limiter.threshold.value = -1.5;
                         nodes.limiter.knee.value = 0;
                         nodes.limiter.ratio.value = 20;
@@ -751,8 +769,8 @@
         }
 
         function getOrCreateNodes(media) {
-            if (state.audioContextMap.has(media)) {
-                return state.audioContextMap.get(media);
+            if (state.audio.audioContextMap.has(media)) {
+                return state.audio.audioContextMap.get(media);
             }
             const newNodes = createAudioGraph(media);
             if (newNodes) checkAudioActivity(media, newNodes);
@@ -764,12 +782,12 @@
                 cancelAnimationFrame(animationFrameMap.get(media));
                 animationFrameMap.delete(media);
             }
-            const nodes = state.audioContextMap.get(media);
+            const nodes = state.audio.audioContextMap.get(media);
             if (nodes) {
                 safeExec(() => {
                     if (nodes.context.state !== 'closed') nodes.context.close();
                 }, 'cleanupForMedia');
-                state.audioContextMap.delete(media);
+                state.audio.audioContextMap.delete(media);
             }
         }
 
@@ -777,9 +795,9 @@
             const nodes = getOrCreateNodes(media);
             if (nodes && nodes.context.state === 'suspended') {
                 nodes.context.resume().catch(e => {
-                    if (!state.audioContextWarningShown) {
+                    if (!state.ui.audioContextWarningShown) {
                         showWarningMessage('오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
-                        state.audioContextWarningShown = true;
+                        state.ui.audioContextWarningShown = true;
                     } console.warn('[VSC] AudioContext resume failed:', e.message);
                 });
             }
@@ -789,26 +807,26 @@
     })();
 
     function applyAudioEffectsToMedia() {
-        if (!state.audioInitialized) return;
-        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+        if (!state.audio.audioInitialized) return;
+        const mediaToAffect = isMobile && state.media.currentlyVisibleMedia ? [state.media.currentlyVisibleMedia] : Array.from(state.media.activeMedia);
         mediaToAffect.forEach(media => audioEffectsManager.reconnectGraph(media));
     }
 
     function initializeAudioEngine() {
-        if (state.audioInitialized) return;
-        state.audioInitialized = true;
-        const mediaToAffect = isMobile && state.currentlyVisibleMedia ? [state.currentlyVisibleMedia] : Array.from(state.activeMedia);
+        if (state.audio.audioInitialized) return;
+        state.audio.audioInitialized = true;
+        const mediaToAffect = isMobile && state.media.currentlyVisibleMedia ? [state.media.currentlyVisibleMedia] : Array.from(state.media.activeMedia);
         mediaToAffect.forEach(media => audioEffectsManager.ensureContextResumed(media));
     }
 
     function updateAutoVolumeButtonStyle() {
         const btn = state.ui.shadowRoot?.getElementById('vsc-auto-volume-toggle');
         if (!btn) return;
-        btn.classList.toggle('analyzing', state.isAnalyzingLoudness);
+        btn.classList.toggle('analyzing', state.audio.isAnalyzingLoudness);
     }
 
     function setPreGainEnabled(enabled) {
-        state.isPreGainEnabled = !!enabled;
+        state.audio.isPreGainEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-pregain-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         const slider = state.ui.shadowRoot?.getElementById('preGainSlider');
@@ -819,7 +837,7 @@
     }
 
     function setWideningEnabled(enabled) {
-        state.isWideningEnabled = !!enabled;
+        state.audio.isWideningEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-widen-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         const slider = state.ui.shadowRoot?.getElementById('wideningSlider');
@@ -828,7 +846,7 @@
     }
 
     function setHpfEnabled(enabled) {
-        state.isHpfEnabled = !!enabled;
+        state.audio.isHpfEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-hpf-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         const slider = state.ui.shadowRoot?.getElementById('hpfSlider');
@@ -837,7 +855,7 @@
     }
 
     function setEqEnabled(enabled) {
-        state.isEqEnabled = !!enabled;
+        state.audio.isEqEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-eq-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         const shadowRoot = state.ui.shadowRoot;
@@ -851,7 +869,7 @@
     }
 
     function setDeesserEnabled(enabled) {
-        state.isDeesserEnabled = !!enabled;
+        state.audio.isDeesserEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-deesser-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         ['deesserThresholdSlider', 'deesserFreqSlider'].forEach(id => {
@@ -861,7 +879,7 @@
         applyAudioEffectsToMedia();
     }
     function setExciterEnabled(enabled) {
-        state.isExciterEnabled = !!enabled;
+        state.audio.isExciterEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-exciter-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         const slider = state.ui.shadowRoot?.getElementById('exciterAmountSlider');
@@ -869,7 +887,7 @@
         applyAudioEffectsToMedia();
     }
     function setParallelCompEnabled(enabled) {
-        state.isParallelCompEnabled = !!enabled;
+        state.audio.isParallelCompEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-parallel-comp-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         const slider = state.ui.shadowRoot?.getElementById('parallelCompMixSlider');
@@ -878,7 +896,7 @@
     }
 
     function setMasteringSuiteEnabled(enabled) {
-        state.isMasteringSuiteEnabled = !!enabled;
+        state.audio.isMasteringSuiteEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-mastering-suite-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         ['masteringTransientSlider', 'masteringDriveSlider'].forEach(id => {
@@ -892,14 +910,14 @@
     }
 
     function setLimiterEnabled(enabled) {
-        state.isLimiterEnabled = !!enabled;
+        state.audio.isLimiterEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-limiter-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         applyAudioEffectsToMedia();
     }
 
     function setReverbEnabled(enabled) {
-        state.isReverbEnabled = !!enabled;
+        state.audio.isReverbEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-reverb-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         const slider = state.ui.shadowRoot?.getElementById('reverbMixSlider');
@@ -908,7 +926,7 @@
     }
 
     function setAdaptiveWidthEnabled(enabled) {
-        state.isAdaptiveWidthEnabled = !!enabled;
+        state.audio.isAdaptiveWidthEnabled = !!enabled;
         const btn = state.ui.shadowRoot?.getElementById('vsc-adaptive-width-toggle');
         if (btn) btn.classList.toggle('active', enabled);
         applyAudioEffectsToMedia();
@@ -927,12 +945,12 @@
         setLimiterEnabled(CONFIG.DEFAULT_LIMITER_ENABLED);
         setMasteringSuiteEnabled(CONFIG.DEFAULT_MASTERING_SUITE_ENABLED);
 
-        state.bassBoostGain = CONFIG.DEFAULT_BASS_BOOST_GAIN;
+        state.audio.bassBoostGain = CONFIG.DEFAULT_BASS_BOOST_GAIN;
         const bassSlider = state.ui.shadowRoot?.getElementById('bassBoostSlider');
         if (bassSlider) {
-            bassSlider.value = state.bassBoostGain;
+            bassSlider.value = state.audio.bassBoostGain;
             const bassVal = state.ui.shadowRoot?.getElementById('bassBoostSliderVal');
-            if (bassVal) bassVal.textContent = `${state.bassBoostGain.toFixed(1)} dB`;
+            if (bassVal) bassVal.textContent = `${state.audio.bassBoostGain.toFixed(1)} dB`;
         }
         applyAudioEffectsToMedia();
     }
@@ -940,13 +958,13 @@
     function applyAllVideoFilters() {
         if (!filterManager.isInitialized()) return;
         const values = {
-            saturation: state.currentVideoSaturation,
-            gamma: state.currentVideoGamma,
-            blur: state.currentVideoBlur,
-            sharpenMatrix1: calculateSharpenMatrix(state.currentVideoFilterLevel, state.currentVideoSharpenDirection),
-            sharpenMatrix2: calculateSharpenMatrix(state.currentVideoFilterLevel2, state.currentVideoSharpenDirection),
-            shadows: state.currentVideoShadows,
-            highlights: state.currentVideoHighlights,
+            saturation: state.videoFilter.currentVideoSaturation,
+            gamma: state.videoFilter.currentVideoGamma,
+            blur: state.videoFilter.currentVideoBlur,
+            sharpenMatrix1: calculateSharpenMatrix(state.videoFilter.currentVideoFilterLevel, state.videoFilter.currentVideoSharpenDirection),
+            sharpenMatrix2: calculateSharpenMatrix(state.videoFilter.currentVideoFilterLevel2, state.videoFilter.currentVideoSharpenDirection),
+            shadows: state.videoFilter.currentVideoShadows,
+            highlights: state.videoFilter.currentVideoHighlights,
         };
         filterManager.updateFilterValues(values, document);
         (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => {
@@ -960,27 +978,27 @@
         const newLevel = parseInt(level, 10);
         const finalLevel = isNaN(newLevel) ? 0 : newLevel;
         if (pass === 1) {
-            state.currentVideoFilterLevel = finalLevel;
+            state.videoFilter.currentVideoFilterLevel = finalLevel;
             if (fromUI) settingsManager.set('videoFilterLevel', finalLevel);
         } else {
-            state.currentVideoFilterLevel2 = finalLevel;
+            state.videoFilter.currentVideoFilterLevel2 = finalLevel;
             if (fromUI) settingsManager.set('videoFilterLevel2', finalLevel);
         }
         applyAllVideoFilters();
-        state.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') updateVideoFilterState(media); });
+        state.media.activeMedia.forEach(media => { if (media.tagName === 'VIDEO') updateVideoFilterState(media); });
     }
 
     function setImageFilterLevel(level) {
         if (CONFIG.IMAGE_FILTER_EXCLUSION_DOMAINS.includes(location.hostname) && level > 0) return;
         if (!imageFilterManager.isInitialized() && level > 0) imageFilterManager.init();
         const newLevel = parseInt(level, 10);
-        state.currentImageFilterLevel = isNaN(newLevel) ? 0 : newLevel;
-        settingsManager.set('imageFilterLevel', state.currentImageFilterLevel);
-        const newMatrix = calculateSharpenMatrix(state.currentImageFilterLevel);
+        state.imageFilter.currentImageFilterLevel = isNaN(newLevel) ? 0 : newLevel;
+        settingsManager.set('imageFilterLevel', state.imageFilter.currentImageFilterLevel);
+        const newMatrix = calculateSharpenMatrix(state.imageFilter.currentImageFilterLevel);
         const imageValues = { sharpenMatrix: newMatrix };
         imageFilterManager.updateFilterValues(imageValues, document);
         (window._shadowDomList_ || []).map(r => r.deref()).filter(Boolean).forEach(root => imageFilterManager.updateFilterValues(imageValues, root));
-        state.activeImages.forEach(image => updateImageFilterState(image));
+        state.media.activeImages.forEach(image => updateImageFilterState(image));
     }
 
     const uiManager = (() => {
@@ -1085,7 +1103,7 @@
                 final.preGain_value = (p.preGain_value ?? 1.0) * autoPreGain;
             }
 
-            Object.assign(state, {
+            Object.assign(state.audio, {
                 isHpfEnabled: final.hpf_enabled, currentHpfHz: final.hpf_hz,
                 isEqEnabled: final.eq_enabled,
                 eqSubBassGain: final.eq_subBass, eqBassGain: final.eq_bass,
@@ -1097,7 +1115,7 @@
                 reverbMix: final.reverb_mix,
                 currentStereoPan: final.pan_value,
                 isPreGainEnabled: final.preGain_enabled, currentPreGain: final.preGain_value,
-                bassBoostGain: final.bassBoostGain ?? state.bassBoostGain,
+                bassBoostGain: final.bassBoostGain ?? state.audio.bassBoostGain,
                 bassBoostFreq: final.bassBoostFreq ?? 60,
                 bassBoostQ: final.bassBoostQ ?? 1.0,
                 isDeesserEnabled: final.deesser_enabled, deesserThreshold: final.deesser_threshold, deesserFreq: final.deesser_freq,
@@ -1108,7 +1126,7 @@
                 masteringTransientAmount: final.mastering_transient,
                 masteringDrive: final.mastering_drive,
             });
-            state.lastManualPreGain = state.currentPreGain;
+            state.audio.lastManualPreGain = state.audio.currentPreGain;
 
             const allSliders = { hpfSlider, eqSubBassSlider, eqBassSlider, eqMidSlider, eqTrebleSlider, eqPresenceSlider, wideningSlider, panSlider, preGainSlider, bassBoostSlider, reverbMixSlider, deesserThresholdSlider, deesserFreqSlider, exciterAmountSlider, parallelCompMixSlider, masteringTransientSlider, masteringDriveSlider };
             const updateSliderUI = (sliderName, value, unit = '') => {
@@ -1129,33 +1147,33 @@
                 }
             };
 
-            setHpfEnabled(state.isHpfEnabled); updateSliderUI('hpfSlider', state.currentHpfHz, 'Hz');
-            setEqEnabled(state.isEqEnabled);
-            updateSliderUI('eqSubBassSlider', state.eqSubBassGain, 'dB');
-            updateSliderUI('eqBassSlider', state.eqBassGain, 'dB');
-            updateSliderUI('eqMidSlider', state.eqMidGain, 'dB');
-            updateSliderUI('eqTrebleSlider', state.eqTrebleGain, 'dB');
-            updateSliderUI('eqPresenceSlider', state.eqPresenceGain, 'dB');
-            setWideningEnabled(state.isWideningEnabled); updateSliderUI('wideningSlider', state.currentWideningFactor, 'x');
-            setAdaptiveWidthEnabled(state.isAdaptiveWidthEnabled);
-            setReverbEnabled(state.isReverbEnabled);
-            updateSliderUI('reverbMixSlider', state.reverbMix, '');
-            updateSliderUI('panSlider', state.currentStereoPan, '');
-            setPreGainEnabled(state.isPreGainEnabled);
-            updateSliderUI('preGainSlider', state.currentPreGain, 'x');
-            updateSliderUI('bassBoostSlider', state.bassBoostGain, 'dB');
-            setDeesserEnabled(state.isDeesserEnabled);
-            updateSliderUI('deesserThresholdSlider', state.deesserThreshold, 'dB');
-            updateSliderUI('deesserFreqSlider', state.deesserFreq, 'Hz');
-            if (deesserFreqSlider) deesserFreqSlider.valueSpan.textContent = `${(state.deesserFreq / 1000).toFixed(1)}kHz`;
-            setExciterEnabled(state.isExciterEnabled);
-            updateSliderUI('exciterAmountSlider', state.exciterAmount, '%');
-            setParallelCompEnabled(state.isParallelCompEnabled);
-            updateSliderUI('parallelCompMixSlider', state.parallelCompMix, '%');
-            setLimiterEnabled(state.isLimiterEnabled);
-            setMasteringSuiteEnabled(state.isMasteringSuiteEnabled);
-            updateSliderUI('masteringTransientSlider', state.masteringTransientAmount * 100, '%');
-            updateSliderUI('masteringDriveSlider', state.masteringDrive, 'dB');
+            setHpfEnabled(state.audio.isHpfEnabled); updateSliderUI('hpfSlider', state.audio.currentHpfHz, 'Hz');
+            setEqEnabled(state.audio.isEqEnabled);
+            updateSliderUI('eqSubBassSlider', state.audio.eqSubBassGain, 'dB');
+            updateSliderUI('eqBassSlider', state.audio.eqBassGain, 'dB');
+            updateSliderUI('eqMidSlider', state.audio.eqMidGain, 'dB');
+            updateSliderUI('eqTrebleSlider', state.audio.eqTrebleGain, 'dB');
+            updateSliderUI('eqPresenceSlider', state.audio.eqPresenceGain, 'dB');
+            setWideningEnabled(state.audio.isWideningEnabled); updateSliderUI('wideningSlider', state.audio.currentWideningFactor, 'x');
+            setAdaptiveWidthEnabled(state.audio.isAdaptiveWidthEnabled);
+            setReverbEnabled(state.audio.isReverbEnabled);
+            updateSliderUI('reverbMixSlider', state.audio.reverbMix, '');
+            updateSliderUI('panSlider', state.audio.currentStereoPan, '');
+            setPreGainEnabled(state.audio.isPreGainEnabled);
+            updateSliderUI('preGainSlider', state.audio.currentPreGain, 'x');
+            updateSliderUI('bassBoostSlider', state.audio.bassBoostGain, 'dB');
+            setDeesserEnabled(state.audio.isDeesserEnabled);
+            updateSliderUI('deesserThresholdSlider', state.audio.deesserThreshold, 'dB');
+            updateSliderUI('deesserFreqSlider', state.audio.deesserFreq, 'Hz');
+            if (deesserFreqSlider) deesserFreqSlider.valueSpan.textContent = `${(state.audio.deesserFreq / 1000).toFixed(1)}kHz`;
+            setExciterEnabled(state.audio.isExciterEnabled);
+            updateSliderUI('exciterAmountSlider', state.audio.exciterAmount, '%');
+            setParallelCompEnabled(state.audio.isParallelCompEnabled);
+            updateSliderUI('parallelCompMixSlider', state.audio.parallelCompMix, '%');
+            setLimiterEnabled(state.audio.isLimiterEnabled);
+            setMasteringSuiteEnabled(state.audio.isMasteringSuiteEnabled);
+            updateSliderUI('masteringTransientSlider', state.audio.masteringTransientAmount * 100, '%');
+            updateSliderUI('masteringDriveSlider', state.audio.masteringDrive, 'dB');
 
             applyAudioEffectsToMedia();
         };
@@ -1248,42 +1266,42 @@
             const { group: videoGroup, subMenu: videoSubMenu } = createControlGroup('vsc-video-controls', '✨', '영상 필터');
             videoSubMenu.style.gap = '10px';
             const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
-            const videoSliderUpdate = () => { applyAllVideoFilters(); state.activeMedia.forEach(m => { if (m.tagName === 'VIDEO') updateVideoFilterState(m); }); };
+            const videoSliderUpdate = () => { applyAllVideoFilters(); state.media.activeMedia.forEach(m => { if (m.tagName === 'VIDEO') updateVideoFilterState(m); }); };
             const videoFilterDef = settingsManager.definitions.videoFilterLevel;
-            const sharpenSlider = createSliderControl('샤프 (윤곽)', 'videoSharpenSlider', videoFilterDef.min, videoFilterDef.max, 1, state.currentVideoFilterLevel, '단계');
+            const sharpenSlider = createSliderControl('샤프 (윤곽)', 'videoSharpenSlider', videoFilterDef.min, videoFilterDef.max, 1, state.videoFilter.currentVideoFilterLevel, '단계');
             sharpenSlider.slider.oninput = () => { const val = parseInt(sharpenSlider.slider.value, 10); setVideoFilterLevel(val, true, 1); sharpenSlider.valueSpan.textContent = `${val}단계`; };
             const videoFilterDef2 = settingsManager.definitions.videoFilterLevel2;
-            const sharpenSlider2 = createSliderControl('샤프 (디테일)', 'videoSharpenSlider2', videoFilterDef2.min, videoFilterDef2.max, 1, state.currentVideoFilterLevel2, '단계');
+            const sharpenSlider2 = createSliderControl('샤프 (디테일)', 'videoSharpenSlider2', videoFilterDef2.min, videoFilterDef2.max, 1, state.videoFilter.currentVideoFilterLevel2, '단계');
             sharpenSlider2.slider.oninput = () => { const val = parseInt(sharpenSlider2.slider.value, 10); setVideoFilterLevel(val, true, 2); sharpenSlider2.valueSpan.textContent = `${val}단계`; };
             const sharpenDirOptions = [{ value: "4-way", text: "4방향 (기본)" }, { value: "8-way", text: "8방향 (강함)" }];
-            const sharpenDirControl = createLabeledSelect('샤프 방향', 'videoSharpenDirSelect', sharpenDirOptions, (val) => { state.currentVideoSharpenDirection = val; videoSliderUpdate(); });
-            sharpenDirControl.select.value = state.currentVideoSharpenDirection;
-            const saturationSlider = createSliderControl('채도', 'videoSaturationSlider', 0, 200, 1, state.currentVideoSaturation, '%');
-            saturationSlider.slider.oninput = () => { const val = parseInt(saturationSlider.slider.value, 10); state.currentVideoSaturation = val; saturationSlider.valueSpan.textContent = `${val}%`; videoSliderUpdate(); };
-            const gammaSlider = createSliderControl('감마', 'videoGammaSlider', 0.5, 1.5, 0.01, state.currentVideoGamma, '');
-            gammaSlider.slider.oninput = () => { const val = parseFloat(gammaSlider.slider.value); state.currentVideoGamma = val; gammaSlider.valueSpan.textContent = val.toFixed(2); videoSliderUpdate(); };
-            const blurSlider = createSliderControl('블러', 'videoBlurSlider', 0, 1, 0.05, state.currentVideoBlur, '');
-            blurSlider.slider.oninput = () => { const val = parseFloat(blurSlider.slider.value); state.currentVideoBlur = val; blurSlider.valueSpan.textContent = val.toFixed(2); videoSliderUpdate(); };
-            const shadowsSlider = createSliderControl('대비', 'videoShadowsSlider', -50, 50, 1, state.currentVideoShadows, '');
-            shadowsSlider.slider.oninput = () => { const val = parseInt(shadowsSlider.slider.value, 10); state.currentVideoShadows = val; shadowsSlider.valueSpan.textContent = val; videoSliderUpdate(); };
-            const highlightsSlider = createSliderControl('밝기', 'videoHighlightsSlider', -50, 50, 1, state.currentVideoHighlights, '');
-            highlightsSlider.slider.oninput = () => { const val = parseInt(highlightsSlider.slider.value, 10); state.currentVideoHighlights = val; highlightsSlider.valueSpan.textContent = val; videoSliderUpdate(); };
+            const sharpenDirControl = createLabeledSelect('샤프 방향', 'videoSharpenDirSelect', sharpenDirOptions, (val) => { state.videoFilter.currentVideoSharpenDirection = val; videoSliderUpdate(); });
+            sharpenDirControl.select.value = state.videoFilter.currentVideoSharpenDirection;
+            const saturationSlider = createSliderControl('채도', 'videoSaturationSlider', 0, 200, 1, state.videoFilter.currentVideoSaturation, '%');
+            saturationSlider.slider.oninput = () => { const val = parseInt(saturationSlider.slider.value, 10); state.videoFilter.currentVideoSaturation = val; saturationSlider.valueSpan.textContent = `${val}%`; videoSliderUpdate(); };
+            const gammaSlider = createSliderControl('감마', 'videoGammaSlider', 0.5, 1.5, 0.01, state.videoFilter.currentVideoGamma, '');
+            gammaSlider.slider.oninput = () => { const val = parseFloat(gammaSlider.slider.value); state.videoFilter.currentVideoGamma = val; gammaSlider.valueSpan.textContent = val.toFixed(2); videoSliderUpdate(); };
+            const blurSlider = createSliderControl('블러', 'videoBlurSlider', 0, 1, 0.05, state.videoFilter.currentVideoBlur, '');
+            blurSlider.slider.oninput = () => { const val = parseFloat(blurSlider.slider.value); state.videoFilter.currentVideoBlur = val; blurSlider.valueSpan.textContent = val.toFixed(2); videoSliderUpdate(); };
+            const shadowsSlider = createSliderControl('대비', 'videoShadowsSlider', -50, 50, 1, state.videoFilter.currentVideoShadows, '');
+            shadowsSlider.slider.oninput = () => { const val = parseInt(shadowsSlider.slider.value, 10); state.videoFilter.currentVideoShadows = val; shadowsSlider.valueSpan.textContent = val; videoSliderUpdate(); };
+            const highlightsSlider = createSliderControl('밝기', 'videoHighlightsSlider', -50, 50, 1, state.videoFilter.currentVideoHighlights, '');
+            highlightsSlider.slider.oninput = () => { const val = parseInt(highlightsSlider.slider.value, 10); state.videoFilter.currentVideoHighlights = val; highlightsSlider.valueSpan.textContent = val; videoSliderUpdate(); };
             const resetVideoBtn = createButton('vsc-reset-video', '영상 필터 초기화', '초기화', 'vsc-btn');
             resetVideoBtn.style.marginTop = '8px';
             resetVideoBtn.onclick = () => {
                 setVideoFilterLevel(CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, true, 1);
                 setVideoFilterLevel(CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, true, 2);
-                state.currentVideoSharpenDirection = CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION; state.currentVideoSaturation = parseInt(videoDefaults.SATURATION_VALUE, 10);
-                state.currentVideoGamma = parseFloat(videoDefaults.GAMMA_VALUE); state.currentVideoBlur = parseFloat(videoDefaults.BLUR_STD_DEVIATION);
-                state.currentVideoShadows = parseInt(videoDefaults.SHADOWS_VALUE, 10); state.currentVideoHighlights = parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10);
-                sharpenSlider.slider.value = state.currentVideoFilterLevel; sharpenSlider.valueSpan.textContent = `${state.currentVideoFilterLevel}단계`;
-                sharpenSlider2.slider.value = state.currentVideoFilterLevel2; sharpenSlider2.valueSpan.textContent = `${state.currentVideoFilterLevel2}단계`;
-                sharpenDirControl.select.value = state.currentVideoSharpenDirection; saturationSlider.slider.value = state.currentVideoSaturation;
-                saturationSlider.valueSpan.textContent = `${state.currentVideoSaturation}%`; gammaSlider.slider.value = state.currentVideoGamma;
-                gammaSlider.valueSpan.textContent = state.currentVideoGamma.toFixed(2); blurSlider.slider.value = state.currentVideoBlur;
-                blurSlider.valueSpan.textContent = state.currentVideoBlur.toFixed(2); shadowsSlider.slider.value = state.currentVideoShadows;
-                shadowsSlider.valueSpan.textContent = state.currentVideoShadows; highlightsSlider.slider.value = state.currentVideoHighlights;
-                highlightsSlider.valueSpan.textContent = state.currentVideoHighlights;
+                state.videoFilter.currentVideoSharpenDirection = CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION; state.videoFilter.currentVideoSaturation = parseInt(videoDefaults.SATURATION_VALUE, 10);
+                state.videoFilter.currentVideoGamma = parseFloat(videoDefaults.GAMMA_VALUE); state.videoFilter.currentVideoBlur = parseFloat(videoDefaults.BLUR_STD_DEVIATION);
+                state.videoFilter.currentVideoShadows = parseInt(videoDefaults.SHADOWS_VALUE, 10); state.videoFilter.currentVideoHighlights = parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10);
+                sharpenSlider.slider.value = state.videoFilter.currentVideoFilterLevel; sharpenSlider.valueSpan.textContent = `${state.videoFilter.currentVideoFilterLevel}단계`;
+                sharpenSlider2.slider.value = state.videoFilter.currentVideoFilterLevel2; sharpenSlider2.valueSpan.textContent = `${state.videoFilter.currentVideoFilterLevel2}단계`;
+                sharpenDirControl.select.value = state.videoFilter.currentVideoSharpenDirection; saturationSlider.slider.value = state.videoFilter.currentVideoSaturation;
+                saturationSlider.valueSpan.textContent = `${state.videoFilter.currentVideoSaturation}%`; gammaSlider.slider.value = state.videoFilter.currentVideoGamma;
+                gammaSlider.valueSpan.textContent = state.videoFilter.currentVideoGamma.toFixed(2); blurSlider.slider.value = state.videoFilter.currentVideoBlur;
+                blurSlider.valueSpan.textContent = state.videoFilter.currentVideoBlur.toFixed(2); shadowsSlider.slider.value = state.videoFilter.currentVideoShadows;
+                shadowsSlider.valueSpan.textContent = state.videoFilter.currentVideoShadows; highlightsSlider.slider.value = state.videoFilter.currentVideoHighlights;
+                highlightsSlider.valueSpan.textContent = state.videoFilter.currentVideoHighlights;
                 videoSliderUpdate();
             };
             videoSubMenu.append(sharpenSlider.controlDiv, sharpenSlider2.controlDiv, sharpenDirControl.controlDiv, blurSlider.controlDiv, highlightsSlider.controlDiv, gammaSlider.controlDiv, shadowsSlider.controlDiv, saturationSlider.controlDiv, resetVideoBtn);
@@ -1296,75 +1314,75 @@
             const column3 = document.createElement('div'); column3.className = 'vsc-audio-column';
 
             const eqBtn = createButton('vsc-eq-toggle', '5-Band EQ ON/OFF', 'EQ', 'vsc-btn');
-            eqBtn.onclick = () => { initializeAudioEngine(); setEqEnabled(!state.isEqEnabled); };
-            eqSubBassSlider = createSliderControl('초저음', 'eqSubBassSlider', -12, 12, 1, state.eqSubBassGain, 'dB');
-            eqSubBassSlider.slider.oninput = () => { const val = parseFloat(eqSubBassSlider.slider.value); state.eqSubBassGain = val; eqSubBassSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
-            eqBassSlider = createSliderControl('저음', 'eqBassSlider', -12, 12, 1, state.eqBassGain, 'dB');
-            eqBassSlider.slider.oninput = () => { const val = parseFloat(eqBassSlider.slider.value); state.eqBassGain = val; eqBassSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
-            eqMidSlider = createSliderControl('중음', 'eqMidSlider', -12, 12, 1, state.eqMidGain, 'dB');
-            eqMidSlider.slider.oninput = () => { const val = parseFloat(eqMidSlider.slider.value); state.eqMidGain = val; eqMidSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
-            eqTrebleSlider = createSliderControl('고음', 'eqTrebleSlider', -12, 12, 1, state.eqTrebleGain, 'dB');
-            eqTrebleSlider.slider.oninput = () => { const val = parseFloat(eqTrebleSlider.slider.value); state.eqTrebleGain = val; eqTrebleSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
-            eqPresenceSlider = createSliderControl('초고음', 'eqPresenceSlider', -12, 12, 1, state.eqPresenceGain, 'dB');
-            eqPresenceSlider.slider.oninput = () => { const val = parseFloat(eqPresenceSlider.slider.value); state.eqPresenceGain = val; eqPresenceSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
-            bassBoostSlider = createSliderControl('베이스 부스트', 'bassBoostSlider', 0, 9, 0.5, state.bassBoostGain, 'dB');
-            bassBoostSlider.slider.oninput = () => { const val = parseFloat(bassBoostSlider.slider.value); state.bassBoostGain = val; bassBoostSlider.valueSpan.textContent = `${val.toFixed(1)} dB`; applyAudioEffectsToMedia(); };
+            eqBtn.onclick = () => { initializeAudioEngine(); setEqEnabled(!state.audio.isEqEnabled); };
+            eqSubBassSlider = createSliderControl('초저음', 'eqSubBassSlider', -12, 12, 1, state.audio.eqSubBassGain, 'dB');
+            eqSubBassSlider.slider.oninput = () => { const val = parseFloat(eqSubBassSlider.slider.value); state.audio.eqSubBassGain = val; eqSubBassSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
+            eqBassSlider = createSliderControl('저음', 'eqBassSlider', -12, 12, 1, state.audio.eqBassGain, 'dB');
+            eqBassSlider.slider.oninput = () => { const val = parseFloat(eqBassSlider.slider.value); state.audio.eqBassGain = val; eqBassSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
+            eqMidSlider = createSliderControl('중음', 'eqMidSlider', -12, 12, 1, state.audio.eqMidGain, 'dB');
+            eqMidSlider.slider.oninput = () => { const val = parseFloat(eqMidSlider.slider.value); state.audio.eqMidGain = val; eqMidSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
+            eqTrebleSlider = createSliderControl('고음', 'eqTrebleSlider', -12, 12, 1, state.audio.eqTrebleGain, 'dB');
+            eqTrebleSlider.slider.oninput = () => { const val = parseFloat(eqTrebleSlider.slider.value); state.audio.eqTrebleGain = val; eqTrebleSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
+            eqPresenceSlider = createSliderControl('초고음', 'eqPresenceSlider', -12, 12, 1, state.audio.eqPresenceGain, 'dB');
+            eqPresenceSlider.slider.oninput = () => { const val = parseFloat(eqPresenceSlider.slider.value); state.audio.eqPresenceGain = val; eqPresenceSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
+            bassBoostSlider = createSliderControl('베이스 부스트', 'bassBoostSlider', 0, 9, 0.5, state.audio.bassBoostGain, 'dB');
+            bassBoostSlider.slider.oninput = () => { const val = parseFloat(bassBoostSlider.slider.value); state.audio.bassBoostGain = val; bassBoostSlider.valueSpan.textContent = `${val.toFixed(1)} dB`; applyAudioEffectsToMedia(); };
             const hpfBtn = createButton('vsc-hpf-toggle', 'High-Pass Filter (저음 컷)', 'HPF', 'vsc-btn');
-            hpfBtn.onclick = () => { initializeAudioEngine(); setHpfEnabled(!state.isHpfEnabled); };
-            hpfSlider = createSliderControl('HPF 주파수', 'hpfSlider', 20, 500, 5, state.currentHpfHz, 'Hz');
-            hpfSlider.slider.oninput = () => { const val = parseFloat(hpfSlider.slider.value); state.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val.toFixed(0)}Hz`; applyAudioEffectsToMedia(); };
+            hpfBtn.onclick = () => { initializeAudioEngine(); setHpfEnabled(!state.audio.isHpfEnabled); };
+            hpfSlider = createSliderControl('HPF 주파수', 'hpfSlider', 20, 500, 5, state.audio.currentHpfHz, 'Hz');
+            hpfSlider.slider.oninput = () => { const val = parseFloat(hpfSlider.slider.value); state.audio.currentHpfHz = val; hpfSlider.valueSpan.textContent = `${val.toFixed(0)}Hz`; applyAudioEffectsToMedia(); };
             column1.append(eqBtn, eqSubBassSlider.controlDiv, eqBassSlider.controlDiv, eqMidSlider.controlDiv, eqTrebleSlider.controlDiv, eqPresenceSlider.controlDiv, createDivider(), bassBoostSlider.controlDiv, createDivider(), hpfBtn, hpfSlider.controlDiv);
 
             const deesserBtn = createButton('vsc-deesser-toggle', '디에서 (치찰음 제거)', '디에서', 'vsc-btn');
-            deesserBtn.onclick = () => { initializeAudioEngine(); setDeesserEnabled(!state.isDeesserEnabled); };
-            deesserThresholdSlider = createSliderControl('강도', 'deesserThresholdSlider', -60, 0, 1, state.deesserThreshold, 'dB');
-            deesserThresholdSlider.slider.oninput = () => { const val = parseFloat(deesserThresholdSlider.slider.value); state.deesserThreshold = val; deesserThresholdSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
-            deesserFreqSlider = createSliderControl('주파수', 'deesserFreqSlider', 4000, 12000, 100, state.deesserFreq, 'Hz');
-            deesserFreqSlider.slider.oninput = () => { const val = parseFloat(deesserFreqSlider.slider.value); state.deesserFreq = val; deesserFreqSlider.valueSpan.textContent = `${(val / 1000).toFixed(1)}kHz`; applyAudioEffectsToMedia(); };
+            deesserBtn.onclick = () => { initializeAudioEngine(); setDeesserEnabled(!state.audio.isDeesserEnabled); };
+            deesserThresholdSlider = createSliderControl('강도', 'deesserThresholdSlider', -60, 0, 1, state.audio.deesserThreshold, 'dB');
+            deesserThresholdSlider.slider.oninput = () => { const val = parseFloat(deesserThresholdSlider.slider.value); state.audio.deesserThreshold = val; deesserThresholdSlider.valueSpan.textContent = `${val.toFixed(0)}dB`; applyAudioEffectsToMedia(); };
+            deesserFreqSlider = createSliderControl('주파수', 'deesserFreqSlider', 4000, 12000, 100, state.audio.deesserFreq, 'Hz');
+            deesserFreqSlider.slider.oninput = () => { const val = parseFloat(deesserFreqSlider.slider.value); state.audio.deesserFreq = val; deesserFreqSlider.valueSpan.textContent = `${(val / 1000).toFixed(1)}kHz`; applyAudioEffectsToMedia(); };
             const exciterBtn = createButton('vsc-exciter-toggle', '익사이터 (선명도/광택)', '익사이터', 'vsc-btn');
-            exciterBtn.onclick = () => { initializeAudioEngine(); setExciterEnabled(!state.isExciterEnabled); };
-            exciterAmountSlider = createSliderControl('강도', 'exciterAmountSlider', 0, 100, 1, state.exciterAmount, '%');
-            exciterAmountSlider.slider.oninput = () => { const val = parseFloat(exciterAmountSlider.slider.value); state.exciterAmount = val; exciterAmountSlider.valueSpan.textContent = `${val.toFixed(0)}%`; applyAudioEffectsToMedia(); };
+            exciterBtn.onclick = () => { initializeAudioEngine(); setExciterEnabled(!state.audio.isExciterEnabled); };
+            exciterAmountSlider = createSliderControl('강도', 'exciterAmountSlider', 0, 100, 1, state.audio.exciterAmount, '%');
+            exciterAmountSlider.slider.oninput = () => { const val = parseFloat(exciterAmountSlider.slider.value); state.audio.exciterAmount = val; exciterAmountSlider.valueSpan.textContent = `${val.toFixed(0)}%`; applyAudioEffectsToMedia(); };
             const parallelCompBtn = createButton('vsc-parallel-comp-toggle', '병렬 압축 (디테일 향상)', '업컴프', 'vsc-btn');
-            parallelCompBtn.onclick = () => { initializeAudioEngine(); setParallelCompEnabled(!state.isParallelCompEnabled); };
-            parallelCompMixSlider = createSliderControl('믹스', 'parallelCompMixSlider', 0, 100, 1, state.parallelCompMix, '%');
-            parallelCompMixSlider.slider.oninput = () => { const val = parseFloat(parallelCompMixSlider.slider.value); state.parallelCompMix = val; parallelCompMixSlider.valueSpan.textContent = `${val.toFixed(0)}%`; applyAudioEffectsToMedia(); };
+            parallelCompBtn.onclick = () => { initializeAudioEngine(); setParallelCompEnabled(!state.audio.isParallelCompEnabled); };
+            parallelCompMixSlider = createSliderControl('믹스', 'parallelCompMixSlider', 0, 100, 1, state.audio.parallelCompMix, '%');
+            parallelCompMixSlider.slider.oninput = () => { const val = parseFloat(parallelCompMixSlider.slider.value); state.audio.parallelCompMix = val; parallelCompMixSlider.valueSpan.textContent = `${val.toFixed(0)}%`; applyAudioEffectsToMedia(); };
             column2.append(deesserBtn, deesserThresholdSlider.controlDiv, deesserFreqSlider.controlDiv, createDivider(), exciterBtn, exciterAmountSlider.controlDiv, createDivider(), parallelCompBtn, parallelCompMixSlider.controlDiv);
 
             const widenBtn = createButton('vsc-widen-toggle', 'Virtualizer ON/OFF', 'Virtualizer', 'vsc-btn');
-            widenBtn.onclick = () => { initializeAudioEngine(); setWideningEnabled(!state.isWideningEnabled); };
+            widenBtn.onclick = () => { initializeAudioEngine(); setWideningEnabled(!state.audio.isWideningEnabled); };
             const adaptiveWidthBtn = createButton('vsc-adaptive-width-toggle', '저역 폭 제어 ON/OFF', 'Bass Mono', 'vsc-btn');
-            adaptiveWidthBtn.onclick = () => { initializeAudioEngine(); setAdaptiveWidthEnabled(!state.isAdaptiveWidthEnabled); };
-            wideningSlider = createSliderControl('강도', 'wideningSlider', 0, 3, 0.1, state.currentWideningFactor, 'x');
-            wideningSlider.slider.oninput = () => { const val = parseFloat(wideningSlider.slider.value); state.currentWideningFactor = val; wideningSlider.valueSpan.textContent = `${val.toFixed(1)}x`; applyAudioEffectsToMedia(); };
-            panSlider = createSliderControl('Pan (좌우)', 'panSlider', -1, 1, 0.1, state.currentStereoPan, '');
-            panSlider.slider.oninput = () => { const val = parseFloat(panSlider.slider.value); state.currentStereoPan = val; panSlider.valueSpan.textContent = val.toFixed(1); applyAudioEffectsToMedia(); };
+            adaptiveWidthBtn.onclick = () => { initializeAudioEngine(); setAdaptiveWidthEnabled(!state.audio.isAdaptiveWidthEnabled); };
+            wideningSlider = createSliderControl('강도', 'wideningSlider', 0, 3, 0.1, state.audio.currentWideningFactor, 'x');
+            wideningSlider.slider.oninput = () => { const val = parseFloat(wideningSlider.slider.value); state.audio.currentWideningFactor = val; wideningSlider.valueSpan.textContent = `${val.toFixed(1)}x`; applyAudioEffectsToMedia(); };
+            panSlider = createSliderControl('Pan (좌우)', 'panSlider', -1, 1, 0.1, state.audio.currentStereoPan, '');
+            panSlider.slider.oninput = () => { const val = parseFloat(panSlider.slider.value); state.audio.currentStereoPan = val; panSlider.valueSpan.textContent = val.toFixed(1); applyAudioEffectsToMedia(); };
             const reverbBtn = createButton('vsc-reverb-toggle', '리버브 ON/OFF', '리버브', 'vsc-btn');
-            reverbBtn.onclick = () => { initializeAudioEngine(); setReverbEnabled(!state.isReverbEnabled); };
-            reverbMixSlider = createSliderControl('울림 크기', 'reverbMixSlider', 0, 1, 0.05, state.reverbMix, '');
-            reverbMixSlider.slider.oninput = () => { const val = parseFloat(reverbMixSlider.slider.value); state.reverbMix = val; reverbMixSlider.valueSpan.textContent = val.toFixed(2); applyAudioEffectsToMedia(); };
+            reverbBtn.onclick = () => { initializeAudioEngine(); setReverbEnabled(!state.audio.isReverbEnabled); };
+            reverbMixSlider = createSliderControl('울림 크기', 'reverbMixSlider', 0, 1, 0.05, state.audio.reverbMix, '');
+            reverbMixSlider.slider.oninput = () => { const val = parseFloat(reverbMixSlider.slider.value); state.audio.reverbMix = val; reverbMixSlider.valueSpan.textContent = val.toFixed(2); applyAudioEffectsToMedia(); };
             const preGainBtnGroup = document.createElement('div'); preGainBtnGroup.className = 'vsc-button-group';
             const preGainBtn = createButton('vsc-pregain-toggle', '볼륨 ON/OFF', '볼륨', 'vsc-btn');
-            preGainBtn.onclick = () => { initializeAudioEngine(); setPreGainEnabled(!state.isPreGainEnabled); };
+            preGainBtn.onclick = () => { initializeAudioEngine(); setPreGainEnabled(!state.audio.isPreGainEnabled); };
             const autoVolumeBtn = createButton('vsc-auto-volume-toggle', '음량 평준화 (Shift+Click: 초기화)', '자동', 'vsc-btn');
             autoVolumeBtn.onclick = (event) => {
                 initializeAudioEngine();
-                const media = isMobile && state.currentlyVisibleMedia ? state.currentlyVisibleMedia : Array.from(state.activeMedia)[0];
+                const media = isMobile && state.media.currentlyVisibleMedia ? state.media.currentlyVisibleMedia : Array.from(state.media.activeMedia)[0];
                 if (!media) return;
-                const nodes = state.audioContextMap.get(media);
+                const nodes = state.audio.audioContextMap.get(media);
                 if (event.shiftKey && nodes) {
                     nodes.cumulativeLUFS = 0; nodes.lufsSampleCount = 0;
                     showWarningMessage('음량 평준화 기록을 초기화했습니다.');
-                } else if (media && !state.isAnalyzingLoudness) {
+                } else if (media && !state.audio.isAnalyzingLoudness) {
                     audioEffectsManager.startLoudnessNormalization(media);
                 }
             };
             preGainBtnGroup.append(preGainBtn, autoVolumeBtn);
-            preGainSlider = createSliderControl('볼륨 크기', 'preGainSlider', 0, 4, 0.1, state.currentPreGain, 'x');
+            preGainSlider = createSliderControl('볼륨 크기', 'preGainSlider', 0, 4, 0.1, state.audio.currentPreGain, 'x');
             preGainSlider.slider.oninput = () => {
                 const val = parseFloat(preGainSlider.slider.value);
-                state.currentPreGain = val;
-                state.lastManualPreGain = val;
+                state.audio.currentPreGain = val;
+                state.audio.lastManualPreGain = val;
                 preGainSlider.valueSpan.textContent = `${val.toFixed(1)}x`;
                 applyAudioEffectsToMedia();
             };
@@ -1374,21 +1392,21 @@
             bottomRow2.className = 'vsc-audio-column';
             bottomRow2.style.cssText = `grid-column: 1 / -1; border-right: none; padding-right: 0; display: flex; flex-direction: row; align-items: center; gap: 12px;`;
             const masteringSuiteBtn = createButton('vsc-mastering-suite-toggle', '마스터링 스위트', '마스터링', 'vsc-btn');
-            masteringSuiteBtn.onclick = () => { initializeAudioEngine(); setMasteringSuiteEnabled(!state.isMasteringSuiteEnabled); };
+            masteringSuiteBtn.onclick = () => { initializeAudioEngine(); setMasteringSuiteEnabled(!state.audio.isMasteringSuiteEnabled); };
             masteringSuiteBtn.style.flex = '1';
 
-            masteringTransientSlider = createSliderControl('타격감', 'masteringTransientSlider', 0, 100, 1, state.masteringTransientAmount * 100, '%');
+            masteringTransientSlider = createSliderControl('타격감', 'masteringTransientSlider', 0, 100, 1, state.audio.masteringTransientAmount * 100, '%');
             masteringTransientSlider.slider.oninput = () => {
                 const val = parseFloat(masteringTransientSlider.slider.value);
-                state.masteringTransientAmount = val / 100;
+                state.audio.masteringTransientAmount = val / 100;
                 masteringTransientSlider.valueSpan.textContent = `${val.toFixed(0)}%`;
                 applyAudioEffectsToMedia();
             };
             masteringTransientSlider.controlDiv.style.flex = '1';
-            masteringDriveSlider = createSliderControl('음압', 'masteringDriveSlider', 0, 12, 0.5, state.masteringDrive, 'dB');
+            masteringDriveSlider = createSliderControl('음압', 'masteringDriveSlider', 0, 12, 0.5, state.audio.masteringDrive, 'dB');
             masteringDriveSlider.slider.oninput = () => {
                 const val = parseFloat(masteringDriveSlider.slider.value);
-                state.masteringDrive = val;
+                state.audio.masteringDrive = val;
                 masteringDriveSlider.valueSpan.textContent = `${val.toFixed(1)}dB`;
                 applyAudioEffectsToMedia();
             };
@@ -1432,18 +1450,18 @@
             });
 
             const updateActiveButtons = () => {
-                if (shadowRoot.querySelector('#imageFilterSelect')) shadowRoot.querySelector('#imageFilterSelect').value = state.currentImageFilterLevel;
-                setWideningEnabled(state.isWideningEnabled);
-                setHpfEnabled(state.isHpfEnabled);
-                setEqEnabled(state.isEqEnabled);
-                setReverbEnabled(state.isReverbEnabled);
+                if (shadowRoot.querySelector('#imageFilterSelect')) shadowRoot.querySelector('#imageFilterSelect').value = state.imageFilter.currentImageFilterLevel;
+                setWideningEnabled(state.audio.isWideningEnabled);
+                setHpfEnabled(state.audio.isHpfEnabled);
+                setEqEnabled(state.audio.isEqEnabled);
+                setReverbEnabled(state.audio.isReverbEnabled);
                 updateAutoVolumeButtonStyle();
-                setPreGainEnabled(state.isPreGainEnabled);
-                setDeesserEnabled(state.isDeesserEnabled);
-                setExciterEnabled(state.isExciterEnabled);
-                setParallelCompEnabled(state.isParallelCompEnabled);
-                setLimiterEnabled(state.isLimiterEnabled);
-                setMasteringSuiteEnabled(state.isMasteringSuiteEnabled);
+                setPreGainEnabled(state.audio.isPreGainEnabled);
+                setDeesserEnabled(state.audio.isDeesserEnabled);
+                setExciterEnabled(state.audio.isExciterEnabled);
+                setParallelCompEnabled(state.audio.isParallelCompEnabled);
+                setLimiterEnabled(state.audio.isLimiterEnabled);
+                setMasteringSuiteEnabled(state.audio.isMasteringSuiteEnabled);
             };
 
             container.addEventListener('pointerdown', resetFadeTimer);
@@ -1494,7 +1512,7 @@
         let localIntersectionObserver;
         let delayMeterClosed = false;
         function isYouTubeLive() { if (!location.href.includes('youtube.com')) return false; try { const b = document.querySelector('.ytp-live-badge'); return b && b.offsetParent !== null && !/스트림이었음|was live/i.test(b.textContent); } catch { return false; } }
-        function findVideo() { return Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO'); }
+        function findVideo() { return Array.from(state.media.activeMedia).find(m => m.tagName === 'VIDEO'); }
         function calculateDelay(v) { if (!v || !v.buffered || v.buffered.length === 0) return null; try { const e = v.buffered.end(v.buffered.length - 1); return Math.max(0, (e - v.currentTime) * 1000); } catch { return null; } }
         function getPlaybackRate(currentAvgDelay) { const t = getTargetDelay(), d = currentAvgDelay - t; if (Math.abs(d) <= TOLERANCE) return 1.0; const n = 1.0 + (d / 5000); return Math.max(MIN_RATE, Math.min(n, MAX_RATE)); }
         function checkAndAdjust() {
@@ -1513,12 +1531,12 @@
             }
 
             if (location.href.includes('youtube.com') && !isYouTubeLive()) {
-                if (video.playbackRate !== 1.0) safeExec(() => { video.playbackRate = 1.0; state.currentPlaybackRate = 1.0; });
+                if (video.playbackRate !== 1.0) safeExec(() => { video.playbackRate = 1.0; state.ui.currentPlaybackRate = 1.0; });
                 const infoEl = document.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
                 return;
             }
             const newRate = getPlaybackRate(avgDelay);
-            if (Math.abs(video.playbackRate - newRate) > 0.001) safeExec(() => { video.playbackRate = newRate; state.currentPlaybackRate = newRate; });
+            if (Math.abs(video.playbackRate - newRate) > 0.001) safeExec(() => { video.playbackRate = newRate; state.ui.currentPlaybackRate = newRate; });
 
             let infoEl = document.getElementById('vsc-delay-info');
             if (avgDelay !== null && !delayMeterClosed) {
@@ -1544,13 +1562,13 @@
                         borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
                     });
                     refreshBtn.onclick = () => {
-                            avgDelay = null; // 스무딩된 평균 딜레이 값을 초기화
-                            const textSpan = infoEl.querySelector('#vsc-delay-text');
-                            if (textSpan) {
-                                textSpan.textContent = '딜레이 리셋 중...'; // 사용자에게 즉각적인 피드백 제공
-                            }
-                            console.log('[VSC] 딜레이 미터기 평균값이 초기화되었습니다.');
-                        };
+                        avgDelay = null; // 스무딩된 평균 딜레이 값을 초기화
+                        const textSpan = infoEl.querySelector('#vsc-delay-text');
+                        if (textSpan) {
+                            textSpan.textContent = '딜레이 리셋 중...'; // 사용자에게 즉각적인 피드백 제공
+                        }
+                        console.log('[VSC] 딜레이 미터기 평균값이 초기화되었습니다.');
+                    };
 
                     const closeBtn = document.createElement('button');
                     closeBtn.textContent = '✖';
@@ -1569,21 +1587,21 @@
                 }
                 const textSpan = infoEl.querySelector('#vsc-delay-text');
                 if (textSpan) {
-                    textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms / 현재: ${rawDelay.toFixed(0)}ms / 배속: ${state.currentPlaybackRate.toFixed(3)}x`;
+                    textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms / 현재: ${rawDelay.toFixed(0)}ms / 배속: ${state.ui.currentPlaybackRate.toFixed(3)}x`;
                 }
             }
         }
         function start() {
-            if (!CONFIG.LIVE_STREAM_URLS.some(d => location.href.includes(d)) || (location.href.includes('youtube.com') && !isYouTubeLive()) || state.delayCheckInterval) return;
-            avgDelay = null; video = findVideo(); if (video) state.currentPlaybackRate = video.playbackRate;
+            if (!CONFIG.LIVE_STREAM_URLS.some(d => location.href.includes(d)) || (location.href.includes('youtube.com') && !isYouTubeLive()) || state.ui.delayCheckInterval) return;
+            avgDelay = null; video = findVideo(); if (video) state.ui.currentPlaybackRate = video.playbackRate;
             if (!localIntersectionObserver) {
                 localIntersectionObserver = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && e.target.tagName === 'VIDEO') video = e.target; }), { threshold: 0.5 });
-                state.activeMedia.forEach(m => { if (m.tagName === 'VIDEO') localIntersectionObserver.observe(m); });
+                state.media.activeMedia.forEach(m => { if (m.tagName === 'VIDEO') localIntersectionObserver.observe(m); });
             }
-            state.delayCheckInterval = setInterval(checkAndAdjust, CHECK_INTERVAL);
+            state.ui.delayCheckInterval = setInterval(checkAndAdjust, CHECK_INTERVAL);
         }
         function stop() {
-            if (state.delayCheckInterval) clearInterval(state.delayCheckInterval); state.delayCheckInterval = null;
+            if (state.ui.delayCheckInterval) clearInterval(state.ui.delayCheckInterval); state.ui.delayCheckInterval = null;
             if (localIntersectionObserver) localIntersectionObserver.disconnect(); localIntersectionObserver = null;
             if (video) safeExec(() => { if (video.playbackRate !== 1.0) video.playbackRate = 1.0; video = null; });
             avgDelay = null;
@@ -1622,13 +1640,13 @@
 
     function updateVideoFilterState(video) {
         if (!video || !filterManager.isInitialized()) return;
-        const shouldApply = state.currentVideoFilterLevel > 0 ||
-            state.currentVideoFilterLevel2 > 0 ||
-            Math.abs(state.currentVideoSaturation - 100) > 0.1 ||
-            Math.abs(state.currentVideoGamma - 1.0) > 0.001 ||
-            state.currentVideoBlur > 0 ||
-            state.currentVideoShadows !== 0 ||
-            state.currentVideoHighlights !== 0;
+        const shouldApply = state.videoFilter.currentVideoFilterLevel > 0 ||
+            state.videoFilter.currentVideoFilterLevel2 > 0 ||
+            Math.abs(state.videoFilter.currentVideoSaturation - 100) > 0.1 ||
+            Math.abs(state.videoFilter.currentVideoGamma - 1.0) > 0.001 ||
+            state.videoFilter.currentVideoBlur > 0 ||
+            state.videoFilter.currentVideoShadows !== 0 ||
+            state.videoFilter.currentVideoHighlights !== 0;
 
         if (video.dataset.isVisible !== 'false' && shouldApply) {
             const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
@@ -1638,7 +1656,7 @@
             video.style.removeProperty('filter');
         }
     }
-    function updateImageFilterState(image) { if (!imageFilterManager.isInitialized()) return; image.classList.toggle('vsc-image-filter-active', image.dataset.isVisible !== 'false' && state.currentImageFilterLevel > 0); }
+    function updateImageFilterState(image) { if (!imageFilterManager.isInitialized()) return; image.classList.toggle('vsc-image-filter-active', image.dataset.isVisible !== 'false' && state.imageFilter.currentImageFilterLevel > 0); }
     function updateActiveSpeedButton(rate) { if (!speedButtonsContainer) return; speedButtonsContainer.querySelectorAll('button').forEach(b => { const br = parseFloat(b.dataset.speed); b.style.boxShadow = Math.abs(br - rate) < 0.01 ? '0 0 5px #3498db, 0 0 10px #3498db inset' : 'none'; }); }
 
     const mediaEventHandlers = {
@@ -1647,8 +1665,8 @@
             if (m.tagName === 'VIDEO') updateVideoFilterState(m);
             mediaSessionManager.setSession(m);
         },
-        pause: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).every(med => med.paused)) mediaSessionManager.clearSession(); },
-        ended: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.activeMedia).every(med => med.paused)) mediaSessionManager.clearSession(); },
+        pause: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.media.activeMedia).every(med => med.paused)) mediaSessionManager.clearSession(); },
+        ended: e => { const m = e.target; if (m.tagName === 'VIDEO') updateVideoFilterState(m); if (Array.from(state.media.activeMedia).every(med => med.paused)) mediaSessionManager.clearSession(); },
         ratechange: e => { updateActiveSpeedButton(e.target.playbackRate); },
         volumechange: () => { /* No longer needed for loudness, but hook kept for future use */ },
     };
@@ -1669,7 +1687,7 @@
                     if (element.tagName === 'VIDEO') {
                         applyAllVideoFilters();
                     } else {
-                        const level = state.currentImageFilterLevel;
+                        const level = state.imageFilter.currentImageFilterLevel;
                         manager.updateFilterValues({ sharpenMatrix: calculateSharpenMatrix(level) }, root);
                     }
                 }, 100);
@@ -1678,79 +1696,111 @@
     }
 
     function attachMediaListeners(media) {
-        if (!media || state.processedMedia.has(media) || !intersectionObserver) return;
+        if (!media || state.media.processedMedia.has(media) || !intersectionObserver) return;
         if (media.tagName === 'VIDEO') {
             injectFiltersIntoRoot(media, filterManager);
         }
         const listeners = {};
         for (const [evt, handler] of Object.entries(mediaEventHandlers)) { listeners[evt] = handler; media.addEventListener(evt, handler); }
-        state.mediaListenerMap.set(media, listeners);
-        state.processedMedia.add(media);
+        state.media.mediaListenerMap.set(media, listeners);
+        state.media.processedMedia.add(media);
         intersectionObserver.observe(media);
     }
     function attachImageListeners(image) {
-        if (!image || state.processedImages.has(image) || !intersectionObserver) return;
+        if (!image || state.media.processedImages.has(image) || !intersectionObserver) return;
         injectFiltersIntoRoot(image, imageFilterManager);
-        state.processedImages.add(image);
+        state.media.processedImages.add(image);
         intersectionObserver.observe(image);
     }
     function detachMediaListeners(media) {
-        if (!state.mediaListenerMap.has(media)) return;
-        const listeners = state.mediaListenerMap.get(media);
+        if (!state.media.mediaListenerMap.has(media)) return;
+        const listeners = state.media.mediaListenerMap.get(media);
         for (const [evt, listener] of Object.entries(listeners)) media.removeEventListener(evt, listener);
-        state.mediaListenerMap.delete(media);
+        state.media.mediaListenerMap.delete(media);
         if (intersectionObserver) intersectionObserver.unobserve(media);
         audioEffectsManager.cleanupForMedia(media);
     }
     function detachImageListeners(image) {
-        if (!state.processedImages.has(image)) return;
-        state.processedImages.delete(image);
+        if (!state.media.processedImages.has(image)) return;
+        state.media.processedImages.delete(image);
         if (intersectionObserver) intersectionObserver.unobserve(image);
     }
 
-    const scanAndApply = () => {
+    // --- `scanAndApply` Refactoring Start ---
+
+    function processMediaElements() {
         const allMedia = findAllMedia();
         allMedia.forEach(attachMediaListeners);
-        const oldMedia = new Set(state.activeMedia);
-        state.activeMedia.clear();
-        allMedia.forEach(m => { if (m.isConnected) { state.activeMedia.add(m); oldMedia.delete(m); } });
+
+        const oldMedia = new Set(state.media.activeMedia);
+        state.media.activeMedia.clear();
+        allMedia.forEach(m => {
+            if (m.isConnected) {
+                state.media.activeMedia.add(m);
+                oldMedia.delete(m);
+            }
+        });
         oldMedia.forEach(detachMediaListeners);
 
         if (!isMobile) {
             allMedia.forEach(m => {
-                if (m.tagName === 'VIDEO') { m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended); updateVideoFilterState(m); }
+                if (m.tagName === 'VIDEO') {
+                    m.classList.toggle('vsc-gpu-accelerated', !m.paused && !m.ended);
+                    updateVideoFilterState(m);
+                }
             });
         }
+    }
 
+    function processImageElements() {
         const allImages = findAllImages();
         allImages.forEach(attachImageListeners);
-        const oldImages = new Set(state.activeImages);
-        state.activeImages.clear();
-        allImages.forEach(img => { if (img.isConnected) { state.activeImages.add(img); oldImages.delete(img); } });
+
+        const oldImages = new Set(state.media.activeImages);
+        state.media.activeImages.clear();
+        allImages.forEach(img => {
+            if (img.isConnected) {
+                state.media.activeImages.add(img);
+                oldImages.delete(img);
+            }
+        });
         oldImages.forEach(detachImageListeners);
         allImages.forEach(updateImageFilterState);
+    }
+
+    function updateUIVisibility() {
         const root = state.ui?.shadowRoot;
-        if (root) {
-            const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
-            const hasAudio = Array.from(state.activeMedia).some(m => m.tagName === 'AUDIO');
-            const hasImage = state.activeImages.size > 0;
-            const hasAnyMedia = hasVideo || hasAudio;
+        if (!root) return;
 
-            if (speedButtonsContainer && triggerElement) {
-                const areControlsVisible = triggerElement.textContent === '🛑';
-                speedButtonsContainer.style.display = hasVideo && areControlsVisible ? 'flex' : 'none';
-            }
+        const hasVideo = Array.from(state.media.activeMedia).some(m => m.tagName === 'VIDEO');
+        const hasAudio = Array.from(state.media.activeMedia).some(m => m.tagName === 'AUDIO');
+        const hasImage = state.media.activeImages.size > 0;
+        const hasAnyMedia = hasVideo || hasAudio;
 
-            if (hasVideo) state.mediaTypesEverFound.video = true;
-            if (hasImage) state.mediaTypesEverFound.image = true;
-            filterManager.toggleStyleSheet(state.mediaTypesEverFound.video);
-            imageFilterManager.toggleStyleSheet(state.mediaTypesEverFound.image);
-            const setDisplay = (id, visible) => { const el = root.getElementById(id); if (el) el.style.display = visible ? 'flex' : 'none'; };
-            setDisplay('vsc-video-controls', hasVideo);
-            setDisplay('vsc-image-controls', hasImage);
-            setDisplay('vsc-stereo-controls', hasAnyMedia);
+        if (speedButtonsContainer && triggerElement) {
+            const areControlsVisible = triggerElement.textContent === '🛑';
+            speedButtonsContainer.style.display = hasVideo && areControlsVisible ? 'flex' : 'none';
         }
+
+        if (hasVideo) state.media.mediaTypesEverFound.video = true;
+        if (hasImage) state.media.mediaTypesEverFound.image = true;
+
+        filterManager.toggleStyleSheet(state.media.mediaTypesEverFound.video);
+        imageFilterManager.toggleStyleSheet(state.media.mediaTypesEverFound.image);
+
+        const setDisplay = (id, visible) => { const el = root.getElementById(id); if (el) el.style.display = visible ? 'flex' : 'none'; };
+        setDisplay('vsc-video-controls', hasVideo);
+        setDisplay('vsc-image-controls', hasImage);
+        setDisplay('vsc-stereo-controls', hasAnyMedia);
+    }
+
+    const scanAndApply = () => {
+        processMediaElements();
+        processImageElements();
+        updateUIVisibility();
     };
+
+    // --- `scanAndApply` Refactoring End ---
 
     const debouncedScanTask = debounce(scanAndApply, CONFIG.DEBOUNCE_DELAY);
     let mainObserver = null;
@@ -1827,8 +1877,8 @@
                         }
                     });
                     const newVisibleMedia = mostVisibleEntry ? mostVisibleEntry.target : null;
-                    if (state.currentlyVisibleMedia !== newVisibleMedia) {
-                        state.currentlyVisibleMedia = newVisibleMedia;
+                    if (state.media.currentlyVisibleMedia !== newVisibleMedia) {
+                        state.media.currentlyVisibleMedia = newVisibleMedia;
                     }
                 }
             }, {
@@ -1843,7 +1893,7 @@
     function hookSpaNavigation() {
         if (spaNavigationHandler) return;
         spaNavigationHandler = debounce(() => {
-            if (location.href === state.lastUrl) return;
+            if (location.href === state.ui.lastUrl) return;
 
             if (uiContainer) {
                 uiContainer.remove();
@@ -1851,7 +1901,7 @@
                 triggerElement = null;
                 speedButtonsContainer = null;
             }
-            state.activeMedia.forEach(m => audioEffectsManager.cleanupForMedia(m));
+            state.media.activeMedia.forEach(m => audioEffectsManager.cleanupForMedia(m));
             cleanup();
             globalUIManager.getInstance().cleanupGlobalListeners();
             resetState();
@@ -1859,7 +1909,8 @@
             uiManager.reset();
             speedSlider.reset();
 
-            setTimeout(initializeGlobalUI, 500);
+            // Use setTimeout with 0 delay instead of a fixed 500ms
+            setTimeout(initializeGlobalUI, 0);
         }, 500);
         if (!window.vscPatchedHistory) {
             ['pushState', 'replaceState'].forEach(method => {
@@ -1881,7 +1932,7 @@
     }
 
     function start() {
-        state.lastUrl = location.href;
+        state.ui.lastUrl = location.href;
         uiManager.init();
         if (uiContainer && state.ui?.hostElement) {
             const mainControlsWrapper = uiContainer.querySelector('#vsc-main-controls-wrapper');
@@ -1905,14 +1956,14 @@
         applyAllVideoFilters();
         setImageFilterLevel(settingsManager.get('imageFilterLevel'));
 
-        const initialRate = state.activeMedia.size > 0 ? Array.from(state.activeMedia)[0].playbackRate : 1.0;
+        const initialRate = state.media.activeMedia.size > 0 ? Array.from(state.media.activeMedia)[0].playbackRate : 1.0;
         updateActiveSpeedButton(initialRate);
 
         if (!titleObserver) {
             const titleElement = document.querySelector('head > title');
             if (titleElement) {
                 titleObserver = new MutationObserver(() => {
-                    const activeVideo = Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO' && !m.paused);
+                    const activeVideo = Array.from(state.media.activeMedia).find(m => m.tagName === 'VIDEO' && !m.paused);
                     if (activeVideo) mediaSessionManager.setSession(activeVideo);
                 });
                 titleObserver.observe(titleElement, { childList: true });
@@ -2028,45 +2079,43 @@
                     const btn = document.createElement('button');
                     btn.textContent = `${speed.toFixed(1)}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn';
                     Object.assign(btn.style, {
-                        width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)',
-                        background: 'rgba(52, 152, 219, 0.5)', color: 'white', border: 'none', borderRadius: 'clamp(4px, 0.8vmin, 6px)',
-                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                        // --- 아래 4줄 추가 ---
+                        width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)',
+                        background: 'rgba(52, 152, 219, 0.5)', color: 'white', border: 'none', borderRadius: 'clamp(4px, 0.8vmin, 6px)',
+                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         padding: '0'
-                    });
+                    });
                     if (speed === 1.0) btn.style.boxShadow = '0 0 5px #3498db, 0 0 10px #3498db inset';
                     btn.onclick = (e) => {
                         e.stopPropagation();
                         const newSpeed = parseFloat(btn.dataset.speed);
-                        const video = Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO');
+                        const video = Array.from(state.media.activeMedia).find(m => m.tagName === 'VIDEO');
                         if (video) {
-                           video.playbackRate = newSpeed;
-                           updateActiveSpeedButton(newSpeed);
+                            video.playbackRate = newSpeed;
+                            updateActiveSpeedButton(newSpeed);
                         }
                         if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
                     };
                     speedButtonsContainer.appendChild(btn);
                 });
 
-        // 현재 사이트가 실시간 점프 허용 목록에 있는지 확인
-        const isWhitelistedForLiveJump = CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d));
+                const isWhitelistedForLiveJump = CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d));
 
-        if (isWhitelistedForLiveJump) {
-                const liveJumpButton = document.createElement('button');
-                liveJumpButton.id = 'vsc-live-jump-btn';
-                liveJumpButton.textContent = '⚡';
-                liveJumpButton.title = '실시간으로 이동';
-                Object.assign(liveJumpButton.style, {
-                    width: 'clamp(28px, 5.5vmin, 36px)', height: 'clamp(28px, 5.5vmin, 36px)', fontSize: 'clamp(16px, 3vmin, 20px)',
-                    background: 'rgba(255, 82, 82, 0.5)', color: 'white', border: 'none', borderRadius: '50%',
-                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent', marginTop: '5px'
-                });
-                liveJumpButton.onclick = (e) => { e.stopPropagation(); seekToLiveEdge(); };
-                speedButtonsContainer.appendChild(liveJumpButton);
-            }
+                if (isWhitelistedForLiveJump) {
+                    const liveJumpButton = document.createElement('button');
+                    liveJumpButton.id = 'vsc-live-jump-btn';
+                    liveJumpButton.textContent = '⚡';
+                    liveJumpButton.title = '실시간으로 이동';
+                    Object.assign(liveJumpButton.style, {
+                        width: 'clamp(28px, 5.5vmin, 36px)', height: 'clamp(28px, 5.5vmin, 36px)', fontSize: 'clamp(16px, 3vmin, 20px)',
+                        background: 'rgba(255, 82, 82, 0.5)', color: 'white', border: 'none', borderRadius: '50%',
+                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent', marginTop: '5px'
+                    });
+                    liveJumpButton.onclick = (e) => { e.stopPropagation(); seekToLiveEdge(); };
+                    speedButtonsContainer.appendChild(liveJumpButton);
+                }
 
                 mainControlsWrapper.appendChild(triggerElement);
                 uiContainer.append(mainControlsWrapper, speedButtonsContainer);
@@ -2096,7 +2145,7 @@
                         triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                     } else {
                         speedSlider.show();
-                        const hasVideo = Array.from(state.activeMedia).some(m => m.tagName === 'VIDEO');
+                        const hasVideo = Array.from(state.media.activeMedia).some(m => m.tagName === 'VIDEO');
                         if (speedButtonsContainer && hasVideo) {
                             speedButtonsContainer.style.display = 'flex';
                         }
@@ -2280,28 +2329,24 @@
         initialMediaCheck();
     }
 
-    // =======================================================================
-// 아래 두 함수(isLive, seekToLiveEdge)를 찾아서 이 코드로 통째로 교체해주세요.
-// =======================================================================
-
-    const isLive = () => {
-        const v = Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO');
-        if (!v) return false;
+    const isLive = () => {
+        const v = Array.from(state.media.activeMedia).find(m => m.tagName === 'VIDEO');
+        if (!v) return false;
         // 이 기능은 허용된 사이트에서만 호출되므로 표준 API를 신뢰할 수 있습니다.
-        try {
-            if (v.seekable && v.seekable.length > 0) {
-                const end = v.seekable.end(v.seekable.length - 1);
-                const dist = end - v.currentTime;
+        try {
+            if (v.seekable && v.seekable.length > 0) {
+                const end = v.seekable.end(v.seekable.length - 1);
+                const dist = end - v.currentTime;
                 // 버퍼 끝과의 차이가 10초 이내면 실시간으로 간주
-                return isFinite(dist) && dist < 10;
-            }
-            return v.duration === Infinity; // YouTube 같은 스트림을 위한 폴백
-        } catch {
-            return false;
-        }
-    };
+                return isFinite(dist) && dist < 10;
+            }
+            return v.duration === Infinity; // YouTube 같은 스트림을 위한 폴백
+        } catch {
+            return false;
+        }
+    };
 
-    function seekToLiveEdge() {
+    function seekToLiveEdge() {
         // 안전 장치: 만약의 경우를 대비해 한번 더 허용 목록 확인
         const isWhitelisted = CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d));
         if (!isWhitelisted) {
@@ -2309,27 +2354,27 @@
             return;
         }
 
-        const v = Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO');
-        if (!v) return;
+        const v = Array.from(state.media.activeMedia).find(m => m.tagName === 'VIDEO');
+        if (!v) return;
 
-        try {
+        try {
             // 허용된 사이트에서는 seekable 속성이 안정적으로 작동합니다.
-            if (v.seekable && v.seekable.length > 0) {
-                const liveEdge = v.seekable.end(v.seekable.length - 1);
-                if (isFinite(liveEdge)) {
-                    v.currentTime = liveEdge - 0.5; // 버퍼링 방지를 위해 살짝 앞으로 당김
-                    v.play?.();
-                    setTimeout(updateLiveStatusIndicator, 100);
-                    console.log('[VSC] seekable 속성을 사용하여 실시간으로 점프했습니다.');
-                    return;
-                }
-            }
-            // seekable을 사용할 수 없으면 다른 위험한 시도를 하지 않음
-            console.warn('[VSC] 실시간 점프를 위한 seekable 범위를 찾지 못했습니다.');
-        } catch (e) {
-            console.error('[VSC] 실시간 점프 중 오류 발생:', e);
-        }
-    }
+            if (v.seekable && v.seekable.length > 0) {
+                const liveEdge = v.seekable.end(v.seekable.length - 1);
+                if (isFinite(liveEdge)) {
+                    v.currentTime = liveEdge - 0.5; // 버퍼링 방지를 위해 살짝 앞으로 당김
+                    v.play?.();
+                    setTimeout(updateLiveStatusIndicator, 100);
+                    console.log('[VSC] seekable 속성을 사용하여 실시간으로 점프했습니다.');
+                    return;
+                }
+            }
+            // seekable을 사용할 수 없으면 다른 위험한 시도를 하지 않음
+            console.warn('[VSC] 실시간 점프를 위한 seekable 범위를 찾지 못했습니다.');
+        } catch (e) {
+            console.error('[VSC] 실시간 점프 중 오류 발생:', e);
+        }
+    }
 
     function updateLiveStatusIndicator() {
         if (!triggerElement) return;
