@@ -17,9 +17,9 @@
     const DEFAULT_TARGET_DELAY = 2000;
 
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 10 : 2,
-        DEFAULT_VIDEO_FILTER_LEVEL_2: isMobile ? 5 : 1,
-        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 10 : 2,
+        DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 10 : 4,
+        DEFAULT_VIDEO_FILTER_LEVEL_2: isMobile ? 10 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: isMobile ? 10 : 4,
         DEFAULT_WIDENING_ENABLED: false,
         DEFAULT_WIDENING_FACTOR: 1.0,
         DEFAULT_STEREO_PAN: 0,
@@ -188,7 +188,7 @@
     function calculateSharpenMatrix(level, direction = '4-way') {
         const p = parseInt(level, 10);
         if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0';
-        const BASE_STRENGTH = 0.25;
+        const BASE_STRENGTH = 0.125;
         const i = 1 + p * BASE_STRENGTH;
         if (direction === '8-way') {
             const o = (1 - i) / 8;
