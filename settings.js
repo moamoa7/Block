@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      96.2
-// @description  딜미터기 코드 개선 등 최적화
+// @version      96.3
+// @description  딜미터기 개선 (PID 제어 도입 / 동적 EMA (Exponential Moving Average) 적용)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -13,8 +13,8 @@
 
     let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    const TARGET_DELAYS = {"youtube.com": 10000, "chzzk.naver.com": 2000, "play.sooplive.co.kr": 2500, "twitch.tv": 2000, "kick.com": 2000 };
-    const DEFAULT_TARGET_DELAY = 2000;
+    const TARGET_DELAYS = {"youtube.com": 10000 };
+    const DEFAULT_TARGET_DELAY = 2500;
 
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: isMobile ? 10 : 4,
@@ -1507,15 +1507,72 @@
     const autoDelayManager = (() => {
     let video = null;
     let avgDelay = null;
-    const CHECK_INTERVAL = 500;
+    const CHECK_INTERVAL = 1000; // 1초마다 체크
     const MIN_RATE = 1, MAX_RATE = 1.2, TOLERANCE = 150;
     let intervalId = null;
     let delayMeterClosed = false;
+    let lastDisplayDelay = null;
 
-    // UI 생성 / 업데이트
-    function createOrUpdateInfoUI(rawDelay = 0) {
+    // PID 제어 변수
+    let pidIntegral = 0;
+    let lastError = 0;
+    const PID_KP = 0.0002;
+    const PID_KI = 0.00001;
+    const PID_KD = 0.0001;
+
+    function findVideo() {
+        return Array.from(state.media.activeMedia).find(m => m.tagName === 'VIDEO');
+    }
+
+    function isVideoVisible(v) {
+        if (!v) return false;
+        const rect = v.getBoundingClientRect();
+        return rect.bottom > 0 && rect.top < window.innerHeight;
+    }
+
+    function calculateDelay(v) {
+        if (!v) return null;
+
+        // CHZZK 전용 liveLatency 사용
+        if (typeof v.liveLatency === 'number' && v.liveLatency > 0) {
+            return v.liveLatency * 1000;
+        }
+
+        // 표준 HTML5 버퍼 기반 fallback
+        if (v.buffered && v.buffered.length > 0) {
+            try {
+                const end = v.buffered.end(v.buffered.length - 1);
+                if (v.currentTime > end) return 0;
+                return Math.max(0, (end - v.currentTime) * 1000);
+            } catch {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    // EMA α 동적 적용
+    function updateAvgDelay(rawDelay) {
+        // delay 크기에 따라 α 동적으로 변경 (민감도 조절)
+        const alpha = rawDelay > 1000 ? 0.3 : 0.1;
+        avgDelay = avgDelay === null ? rawDelay : alpha * rawDelay + (1 - alpha) * avgDelay;
+    }
+
+    // PID 제어로 배속 부드럽게
+    function getSmoothPlaybackRate(currentDelay, targetDelay) {
+        const error = currentDelay - targetDelay;
+        pidIntegral += error;
+        const derivative = error - lastError;
+        lastError = error;
+
+        let rateChange = PID_KP * error + PID_KI * pidIntegral + PID_KD * derivative;
+        let newRate = 1 + rateChange;
+        return Math.max(MIN_RATE, Math.min(newRate, MAX_RATE));
+    }
+
+    function updateDelayUI(rawDelay) {
         if (delayMeterClosed) return;
-
         let infoEl = document.getElementById('vsc-delay-info');
         if (!infoEl) {
             infoEl = document.createElement('div');
@@ -1543,27 +1600,14 @@
             const refreshBtn = document.createElement('button');
             refreshBtn.textContent = '🔄';
             refreshBtn.title = '새로고침';
-            Object.assign(refreshBtn.style, {
-                background: 'none', border: '1px solid white', color: 'white',
-                borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
-            });
-            refreshBtn.onclick = () => {
-                avgDelay = null;
-                textSpan.textContent = '딜레이 리셋 중...';
-            };
+            Object.assign(refreshBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
+            refreshBtn.onclick = () => { avgDelay = null; textSpan.textContent = '딜레이 리셋 중...'; };
 
             const closeBtn = document.createElement('button');
             closeBtn.textContent = '✖';
             closeBtn.title = '닫기';
-            Object.assign(closeBtn.style, {
-                background: 'none', border: '1px solid white', color: 'white',
-                borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
-            });
-            closeBtn.onclick = () => {
-                infoEl.remove();
-                delayMeterClosed = true;
-                stopInterval();
-            };
+            Object.assign(closeBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
+            closeBtn.onclick = () => { infoEl.remove(); delayMeterClosed = true; };
 
             infoEl.append(textSpan, refreshBtn, closeBtn);
             document.body.appendChild(infoEl);
@@ -1575,97 +1619,43 @@
         }
     }
 
-    function calculateDelay(v) {
-        if (!v || !v.buffered || v.buffered.length === 0) return null;
-        try {
-            const end = v.buffered.end(v.buffered.length - 1);
-            return Math.max(0, (end - v.currentTime) * 1000);
-        } catch {
-            return null;
-        }
-    }
-
-    function getPlaybackRate(currentAvgDelay) {
-        const t = getTargetDelay();
-        const d = currentAvgDelay - t;
-        if (Math.abs(d) <= TOLERANCE) return 1.0;
-        const n = 1.0 + (d / 5000);
-        return Math.max(MIN_RATE, Math.min(n, MAX_RATE));
-    }
-
     function checkAndAdjust() {
-        if (!video) return;
-        const rect = video.getBoundingClientRect();
-        if (rect.bottom < 0 || rect.top > window.innerHeight) return; // 화면 밖이면 스킵
+        if (!video) video = findVideo();
+        if (!video || !isVideoVisible(video)) return;
 
-        const rawDelay = calculateDelay(video) || 0;
+        const rawDelay = calculateDelay(video);
+        if (rawDelay === null) return;
 
-        avgDelay = avgDelay === null
-            ? rawDelay
-            : CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * avgDelay;
+        // EMA α 동적 적용
+        updateAvgDelay(rawDelay);
 
-        const newRate = getPlaybackRate(avgDelay);
-        if (Math.abs(video.playbackRate - newRate) > 0.001) {
-            video.playbackRate = newRate;
+        // PID 기반 배속 계산
+        const targetDelay = getTargetDelay();
+        const newRate = getSmoothPlaybackRate(avgDelay, targetDelay);
+        if (Math.abs(video.playbackRate - newRate) > 0.001) video.playbackRate = newRate;
+
+        if (lastDisplayDelay === null || Math.abs(lastDisplayDelay - rawDelay) > 50) {
+            updateDelayUI(rawDelay);
+            lastDisplayDelay = rawDelay;
         }
-
-        createOrUpdateInfoUI(rawDelay);
     }
 
-    function startInterval() {
+    function start() {
+        if (!CONFIG.LIVE_STREAM_URLS.some(d => location.href.includes(d))) return;
+        video = findVideo();
         if (!intervalId) {
-            checkAndAdjust(); // 즉시 UI 표시
+            checkAndAdjust(); // 즉시 1회 실행
             intervalId = setInterval(checkAndAdjust, CHECK_INTERVAL);
         }
     }
 
-    function stopInterval() {
-        if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-        }
-    }
-
-    // IntersectionObserver: 화면 안 비디오만 체크
-    const observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            const v = entry.target;
-            v.dataset.isVisible = entry.isIntersecting ? 'true' : 'false';
-            if (v.tagName === 'VIDEO') {
-                if (entry.isIntersecting) {
-                    video = v;
-                    startInterval();
-                } else if (video === v) {
-                    stopInterval();
-                }
-            }
-        });
-    }, { threshold: 0.5 });
-
-    function start() {
-        // UI를 미리 생성
-        createOrUpdateInfoUI(0);
-
-        // 모든 video observe
-        state.media.activeMedia.forEach(m => {
-            if (m.tagName === 'VIDEO') {
-                observer.observe(m);
-
-                // 화면에 보이면 즉시 UI 표시
-                const rect = m.getBoundingClientRect();
-                if (rect.bottom >= 0 && rect.top <= window.innerHeight) {
-                    video = m;
-                    startInterval();
-                }
-            }
-        });
-    }
-
     function stop() {
-        stopInterval();
-        observer.disconnect();
+        if (intervalId) { clearInterval(intervalId); intervalId = null; }
         video = null;
         avgDelay = null;
+        lastDisplayDelay = null;
+        pidIntegral = 0;
+        lastError = 0;
         delayMeterClosed = false;
         const infoEl = document.getElementById('vsc-delay-info');
         if (infoEl) infoEl.remove();
