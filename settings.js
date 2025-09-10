@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      95.7
-// @description  [v95.7] 오디오 클리핑(찢어짐) 방지를 위한 최종 안전 리미터 추가. 볼륨 및 효과를 과도하게 올려도 음질이 깨지지 않도록 개선.
+// @version      95.9
+// @description  라이브 스트리밍 편의 기능 추가: '실시간 점프' 버튼 및 상태 표시 및 기타 버그 수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -13,7 +13,7 @@
 
     let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    const TARGET_DELAYS = { "youtube.com": 2750, "chzzk.naver.com": 2000, "play.sooplive.co.kr": 2500, "twitch.tv": 2000, "kick.com": 2000 };
+    const TARGET_DELAYS = {"youtube.com": 10000, "chzzk.naver.com": 2000, "play.sooplive.co.kr": 2500, "twitch.tv": 2000, "kick.com": 2000 };
     const DEFAULT_TARGET_DELAY = 2000;
 
     const CONFIG = {
@@ -53,8 +53,9 @@
 
         DEBUG: false, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
-        SPEED_PRESETS: [4, 2, 1.5, 1, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
-        LIVE_STREAM_URLS: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'youtube.com', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
+        SPEED_PRESETS: [2.0, 1.5, 1.2, 1, 0.5, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
+        LIVE_STREAM_URLS: ['tv.naver.com', 'youtube.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
+        LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'ok.ru', 'bigo.tv', 'chaturbate.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com', 'challenges.cloudflare.com'],
         SPECIFIC_EXCLUSIONS: [],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 104 },
@@ -68,8 +69,10 @@
     const UI_SELECTORS = {
         HOST: 'vsc-ui-host', CONTAINER: 'vsc-container', TRIGGER: 'vsc-trigger-button',
         CONTROL_GROUP: 'vsc-control-group', SUBMENU: 'vsc-submenu', BTN: 'vsc-btn', BTN_MAIN: 'vsc-btn-main',
-        SELECT: 'vsc-select'
+        SELECT: 'vsc-select',
     };
+
+    const state = {};
 
     function makeTransientCurve(amount) {
         const samples = 44100;
@@ -93,15 +96,14 @@
         const definitions = {
             videoFilterLevel: { name: '기본 영상 선명도', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, type: 'number', min: 0, max: 20 },
             videoFilterLevel2: { name: '기본 영상 디테일', default: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, type: 'number', min: 0, max: 20 },
-            imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 20 }
+            imageFilterLevel: { name: '기본 이미지 선명도', default: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, type: 'number', min: 0, max: 20 },
+            autoRefresh: { name: 'CORS 오류 시 자동 새로고침', default: true, type: 'boolean' }
         };
         function init() { Object.keys(definitions).forEach(key => { settings[key] = definitions[key].default; }); }
         return { init, get: (key) => settings[key], set: (key, value) => { settings[key] = value; }, definitions };
     })();
-
     settingsManager.init();
-    const state = {};
-    resetState();
+
     function resetState() {
         Object.keys(state).forEach(key => delete state[key]);
         const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
@@ -158,6 +160,7 @@
             audioContextWarningShown: false
         });
     }
+    resetState();
 
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { console.error(`[VSC] Error in ${label}:`, e); } }
     const debounce = (fn, wait) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; };
@@ -709,13 +712,16 @@
             const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
             nodes.analyser.fftSize = 256;
 
-            const intervalId = setInterval(() => {
-                if (!media.isConnected || nodes.context.state === 'closed' || media.paused) {
+            const intervalId = setInterval(async () => {
+                if (!media.isConnected || nodes.context.state === 'closed') {
                     clearInterval(intervalId);
                     analysisStatusMap.delete(media);
                     return;
                 }
-                if (media.paused) return;
+                if (media.paused) {
+                    attempts = 0; // Don't count attempts if paused
+                    return;
+                }
 
                 attempts++;
                 nodes.analyser.getByteFrequencyData(analyserData);
@@ -730,11 +736,16 @@
                 if (attempts >= MAX_ATTEMPTS) {
                     clearInterval(intervalId);
                     analysisStatusMap.set(media, 'failed');
-                    console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 페이지를 새로고침합니다.', media);
-                    sessionStorage.setItem('vsc_message', 'CORS 보안 정책으로 오디오 효과 적용에 실패하여 페이지를 새로고침했습니다.');
-                    showWarningMessage('CORS 오류 감지. 1.5초 후 오디오 복원을 위해 페이지를 새로고침합니다.');
-                    cleanupForMedia(media);
-                    setTimeout(() => { location.reload(); }, 1500);
+                    if (settingsManager.get('autoRefresh')) {
+                        console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 페이지를 새로고침합니다.', media);
+                        sessionStorage.setItem('vsc_message', 'CORS 보안 정책으로 오디오 효과 적용에 실패하여 페이지를 새로고침했습니다.');
+                        showWarningMessage('CORS 오류 감지. 1.5초 후 오디오 복원을 위해 페이지를 새로고침합니다.');
+                        cleanupForMedia(media);
+                        setTimeout(() => { location.reload(); }, 1500);
+                    } else {
+                        console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 자동 새로고침 비활성화됨.', media);
+                        showWarningMessage('오디오 효과 적용 실패 (CORS 보안 정책 가능성).');
+                    }
                 }
             }, CHECK_INTERVAL);
         }
@@ -1230,7 +1241,7 @@
                 return { controlDiv: container, select: select };
             };
 
-            const { group: imageGroup, subMenu: imageSubMenu } = createControlGroup('vsc-image-controls', '🎨', '이미지 선명도');
+            const { group: imageGroup, subMenu: imageSubMenu } = createControlGroup('vsc-image-controls', '🎨', '이미지 필터');
             const imageOpts = [{ value: "0", text: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ value: (i + 1).toString(), text: `${i + 1}단계` }))];
             imageSubMenu.appendChild(createSelectControl('이미지 선명도', imageOpts, (val) => setImageFilterLevel(val), 'imageFilterSelect'));
 
@@ -1240,12 +1251,10 @@
             const videoSliderUpdate = () => { applyAllVideoFilters(); state.activeMedia.forEach(m => { if (m.tagName === 'VIDEO') updateVideoFilterState(m); }); };
             const videoFilterDef = settingsManager.definitions.videoFilterLevel;
             const sharpenSlider = createSliderControl('샤프 (윤곽)', 'videoSharpenSlider', videoFilterDef.min, videoFilterDef.max, 1, state.currentVideoFilterLevel, '단계');
-            sharpenSlider.slider.oninput = () => { const val = parseInt(sharpenSlider.slider.value, 10); setVideoFilterLevel(val, false, 1); sharpenSlider.valueSpan.textContent = `${val}단계`; };
-            sharpenSlider.slider.onchange = () => { settingsManager.set('videoFilterLevel', state.currentVideoFilterLevel); };
+            sharpenSlider.slider.oninput = () => { const val = parseInt(sharpenSlider.slider.value, 10); setVideoFilterLevel(val, true, 1); sharpenSlider.valueSpan.textContent = `${val}단계`; };
             const videoFilterDef2 = settingsManager.definitions.videoFilterLevel2;
             const sharpenSlider2 = createSliderControl('샤프 (디테일)', 'videoSharpenSlider2', videoFilterDef2.min, videoFilterDef2.max, 1, state.currentVideoFilterLevel2, '단계');
-            sharpenSlider2.slider.oninput = () => { const val = parseInt(sharpenSlider2.slider.value, 10); setVideoFilterLevel(val, false, 2); sharpenSlider2.valueSpan.textContent = `${val}단계`; };
-            sharpenSlider2.slider.onchange = () => { settingsManager.set('videoFilterLevel2', state.currentVideoFilterLevel2); };
+            sharpenSlider2.slider.oninput = () => { const val = parseInt(sharpenSlider2.slider.value, 10); setVideoFilterLevel(val, true, 2); sharpenSlider2.valueSpan.textContent = `${val}단계`; };
             const sharpenDirOptions = [{ value: "4-way", text: "4방향 (기본)" }, { value: "8-way", text: "8방향 (강함)" }];
             const sharpenDirControl = createLabeledSelect('샤프 방향', 'videoSharpenDirSelect', sharpenDirOptions, (val) => { state.currentVideoSharpenDirection = val; videoSliderUpdate(); });
             sharpenDirControl.select.value = state.currentVideoSharpenDirection;
@@ -1262,7 +1271,8 @@
             const resetVideoBtn = createButton('vsc-reset-video', '영상 필터 초기화', '초기화', 'vsc-btn');
             resetVideoBtn.style.marginTop = '8px';
             resetVideoBtn.onclick = () => {
-                state.currentVideoFilterLevel = CONFIG.DEFAULT_VIDEO_FILTER_LEVEL; state.currentVideoFilterLevel2 = CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2;
+                setVideoFilterLevel(CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, true, 1);
+                setVideoFilterLevel(CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, true, 2);
                 state.currentVideoSharpenDirection = CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION; state.currentVideoSaturation = parseInt(videoDefaults.SATURATION_VALUE, 10);
                 state.currentVideoGamma = parseFloat(videoDefaults.GAMMA_VALUE); state.currentVideoBlur = parseFloat(videoDefaults.BLUR_STD_DEVIATION);
                 state.currentVideoShadows = parseInt(videoDefaults.SHADOWS_VALUE, 10); state.currentVideoHighlights = parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10);
@@ -1390,173 +1400,24 @@
             const resetBtn = createButton('vsc-reset-all', '모든 오디오 설정 기본값으로 초기화', '초기화', 'vsc-btn');
 
             presetMap = {
-    'default': { name: '기본값 (모든 효과 꺼짐)' },
-
-    'basic_clear': {
-        name: '✔ 기본 개선 (명료)',
-        hpf_enabled: true,
-        hpf_hz: 70,
-        eq_enabled: true,
-        eq_subBass: 0,
-        eq_bass: 0,
-        eq_mid: 2,
-        eq_treble: 1.5,
-        eq_presence: 2,
-        preGain_enabled: true,
-        preGain_value: 1.0,
-        mastering_suite_enabled: true,
-        mastering_transient: 0.3,
-        mastering_drive: 2,
-    },
-
-    'movie_immersive': {
-        name: '🎬 영화/드라마 (몰입감)',
-        hpf_enabled: true,
-        hpf_hz: 60,
-        eq_enabled: true,
-        eq_subBass: 1,
-        eq_bass: 0.8,
-        eq_mid: 2,
-        eq_treble: 1.3,
-        eq_presence: 1.2,
-        widen_enabled: true,
-        widen_factor: 1.4,
-        deesser_enabled: true,
-        deesser_threshold: -35,
-        deesser_freq: 8000,
-        parallel_comp_enabled: true,
-        parallel_comp_mix: 15,
-        mastering_suite_enabled: true,
-        mastering_transient: 0.25,
-        mastering_drive: 2.5,
-    },
-
-    'action_blockbuster': {
-        name: '💥 액션 블록버스터 (타격감)',
-        hpf_enabled: true,
-        hpf_hz: 50,
-        eq_enabled: true,
-        eq_subBass: 1.5,
-        eq_bass: 1.2,
-        eq_mid: -2,              // << 변경: -1 -> -2 (더 과감한 V자 EQ로 저음/고음 극대화)
-        eq_treble: 1.2,
-        eq_presence: 1.8,
-        widen_enabled: true,
-        widen_factor: 1.5,
-        parallel_comp_enabled: true,
-        parallel_comp_mix: 18,
-        mastering_suite_enabled: true,
-        mastering_transient: 0.5, // << 변경: 0.4 -> 0.5 (폭발음 등 순간적인 타격감 극대화)
-        mastering_drive: 3,
-    },
-
-    'concert_hall': {
-        name: '🏟️ 라이브 콘서트 (현장감)',
-        hpf_enabled: true,
-        hpf_hz: 60,
-        eq_enabled: true,
-        eq_subBass: 1,
-        eq_bass: 1,
-        eq_mid: 0.5,
-        eq_treble: 1,
-        eq_presence: 1.2,
-        widen_enabled: true,
-        widen_factor: 1.3,
-        preGain_enabled: true,
-        preGain_value: 1.2,
-        reverb_enabled: true,
-        reverb_mix: 0.5,
-        mastering_suite_enabled: true,
-        mastering_transient: 0.3,
-        mastering_drive: 2.5,
-    },
-
-    'music_dynamic': {
-        name: '🎶 음악 (다이나믹 & 펀치감)',
-        hpf_enabled: true,
-        hpf_hz: 40,
-        eq_enabled: true,
-        eq_subBass: 1.2,
-        eq_bass: 1.2,
-        eq_mid: 1,
-        eq_treble: 1,
-        eq_presence: 2,
-        widen_enabled: true,
-        widen_factor: 1.3,
-        exciter_enabled: true,
-        exciter_amount: 12,
-        mastering_suite_enabled: true,
-        mastering_transient: 0.3,
-        mastering_drive: 3,
-    },
-
-    'mastering_balanced': {
-        name: '🔥 밸런스 마스터링 (고음질)',
-        hpf_enabled: true,
-        hpf_hz: 45,
-        eq_enabled: true,
-        eq_subBass: 0,
-        eq_bass: 0,
-        eq_mid: 0,
-        eq_treble: 1.2,
-        eq_presence: 1,
-        widen_enabled: true,
-        widen_factor: 1.25,
-        exciter_enabled: true,
-        exciter_amount: 10,
-        mastering_suite_enabled: true,
-        mastering_transient: 0.3,
-        mastering_drive: 3.5,
-    },
-
-    'vocal_clarity_pro': {
-        name: '🎙️ 목소리 명료 (강의/뉴스)',
-        hpf_enabled: true,
-        hpf_hz: 110,             // << 변경: 주석 수정
-        eq_enabled: true,
-        eq_subBass: -2,
-        eq_bass: -1,
-        eq_mid: 3,
-        eq_treble: 2,
-        eq_presence: 2.5,        // << 변경: 1.5 -> 2.5 (목소리에 '공기감'을 더해 시원한 느낌 추가)
-        preGain_enabled: true,
-        preGain_value: 1.2,
-        deesser_enabled: true,
-        deesser_threshold: -35,
-        deesser_freq: 8000,
-        parallel_comp_enabled: true,
-        parallel_comp_mix: 12,
-        mastering_suite_enabled: true,
-        mastering_transient: 0.1,
-        mastering_drive: 1.5,
-    },
-
-    'gaming_pro': {
-        name: '🎮 게이밍 (사운드 플레이)',
-        hpf_enabled: true,
-        hpf_hz: 50,
-        eq_enabled: true,
-        eq_subBass: -1,
-        eq_bass: 0,
-        eq_mid: 2,
-        eq_treble: 2,
-        eq_presence: 2.5,
-        widen_enabled: true,
-        widen_factor: 1.2,       // << 변경: 1.5 -> 1.2 (방향감을 더 명확하게 인지하도록 스테레오 폭을 살짝 좁힘)
-        preGain_enabled: true,
-        preGain_value: 1.2,
-        mastering_suite_enabled: true,
-        mastering_transient: 0.5,
-        mastering_drive: 2.5,
-    },
-};
+                'default': { name: '기본값 (모든 효과 꺼짐)' },
+                'basic_clear': { name: '✔ 기본 개선 (명료)', hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_mid: 2, eq_treble: 1.5, eq_presence: 2, preGain_enabled: true, preGain_value: 1, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2, },
+                'movie_immersive': { name: '🎬 영화/드라마 (몰입감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2, widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 15, mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 2.5, },
+                'action_blockbuster': { name: '💥 액션 블록버스터 (타격감)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8, widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3, },
+                'concert_hall': { name: '🏟️ 라이브 콘서트 (현장감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2, widen_enabled: true, widen_factor: 1.3, preGain_enabled: true, preGain_value: 1.2, reverb_enabled: true, reverb_mix: 0.5, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5, },
+                'music_dynamic': { name: '🎶 음악 (다이나믹 & 펀치감)', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2, widen_enabled: true, widen_factor: 1.3, exciter_enabled: true, exciter_amount: 12, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3, },
+                'mastering_balanced': { name: '🔥 밸런스 마스터링 (고음질)', hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_treble: 1.2, eq_presence: 1, widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 10, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, },
+                'vocal_clarity_pro': { name: '🎙️ 목소리 명료 (강의/뉴스)', hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5, preGain_enabled: true, preGain_value: 1.2, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12, mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5, },
+                'gaming_pro': { name: '🎮 게이밍 (사운드 플레이)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_mid: 2, eq_treble: 2, eq_presence: 2.5, widen_enabled: true, widen_factor: 1.2, preGain_enabled: true, preGain_value: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5, },
+            };
             const presetOptions = Object.entries(presetMap).map(([value, { name }]) => ({ value, text: name }));
             const presetSelect = createSelectControl('프리셋 선택', presetOptions, (val) => { if (val) applyPreset(val); }, 'presetSelect');
-            resetBtn.onclick = () => { applyPreset('default'); if(presetSelect) presetSelect.selectedIndex = 0; };
+            resetBtn.onclick = () => { applyPreset('default'); if (presetSelect) presetSelect.selectedIndex = 0; };
             bottomControlsContainer.append(presetSelect, resetBtn);
 
             audioGridContainer.append(column1, column2, column3, createDivider(), bottomRow2, bottomControlsContainer);
             stereoSubMenu.append(audioGridContainer);
+
             container.append(imageGroup, videoGroup, stereoGroup);
 
             const allGroups = [imageGroup, videoGroup, stereoGroup];
@@ -1629,16 +1490,19 @@
         let video = null;
         let avgDelay = null;
         const CHECK_INTERVAL = 500;
-        const MIN_RATE = 0.95, MAX_RATE = 1.05, TOLERANCE = 150;
+        const MIN_RATE = 1, MAX_RATE = 1.2, TOLERANCE = 150;
         let localIntersectionObserver;
         let delayMeterClosed = false;
         function isYouTubeLive() { if (!location.href.includes('youtube.com')) return false; try { const b = document.querySelector('.ytp-live-badge'); return b && b.offsetParent !== null && !/스트림이었음|was live/i.test(b.textContent); } catch { return false; } }
-        function findVideo() { return state.activeMedia.size > 0 ? Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO') : null; }
+        function findVideo() { return Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO'); }
         function calculateDelay(v) { if (!v || !v.buffered || v.buffered.length === 0) return null; try { const e = v.buffered.end(v.buffered.length - 1); return Math.max(0, (e - v.currentTime) * 1000); } catch { return null; } }
-        function getPlaybackRate(currentAvgDelay) { const t = getTargetDelay(), d = currentAvgDelay - t; if (Math.abs(d) <= TOLERANCE) return 1.0; const n = 1.0 + (d / 6000); return Math.max(MIN_RATE, Math.min(n, MAX_RATE)); }
+        function getPlaybackRate(currentAvgDelay) { const t = getTargetDelay(), d = currentAvgDelay - t; if (Math.abs(d) <= TOLERANCE) return 1.0; const n = 1.0 + (d / 5000); return Math.max(MIN_RATE, Math.min(n, MAX_RATE)); }
         function checkAndAdjust() {
             if (!video) video = findVideo();
             if (!video) return;
+
+            updateLiveStatusIndicator();
+
             const rawDelay = calculateDelay(video);
             if (rawDelay === null) return;
 
@@ -1679,7 +1543,14 @@
                         background: 'none', border: '1px solid white', color: 'white',
                         borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
                     });
-                    refreshBtn.onclick = () => location.reload();
+                    refreshBtn.onclick = () => {
+                            avgDelay = null; // 스무딩된 평균 딜레이 값을 초기화
+                            const textSpan = infoEl.querySelector('#vsc-delay-text');
+                            if (textSpan) {
+                                textSpan.textContent = '딜레이 리셋 중...'; // 사용자에게 즉각적인 피드백 제공
+                            }
+                            console.log('[VSC] 딜레이 미터기 평균값이 초기화되었습니다.');
+                        };
 
                     const closeBtn = document.createElement('button');
                     closeBtn.textContent = '✖';
@@ -1718,6 +1589,7 @@
             avgDelay = null;
             delayMeterClosed = false;
             const infoEl = document.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
+            if (triggerElement) triggerElement.style.boxShadow = 'none';
         }
         return { start, stop };
     })();
@@ -1807,7 +1679,9 @@
 
     function attachMediaListeners(media) {
         if (!media || state.processedMedia.has(media) || !intersectionObserver) return;
-        if (media.tagName === 'VIDEO') injectFiltersIntoRoot(media, filterManager);
+        if (media.tagName === 'VIDEO') {
+            injectFiltersIntoRoot(media, filterManager);
+        }
         const listeners = {};
         for (const [evt, handler] of Object.entries(mediaEventHandlers)) { listeners[evt] = handler; media.addEventListener(evt, handler); }
         state.mediaListenerMap.set(media, listeners);
@@ -2142,7 +2016,8 @@
                     background: 'rgba(0,0,0,0.5)',
                     color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-                    cursor: 'pointer', userSelect: 'none'
+                    cursor: 'pointer', userSelect: 'none',
+                    transition: 'box-shadow 0.3s ease-in-out'
                 });
 
                 speedButtonsContainer = document.createElement('div');
@@ -2151,22 +2026,47 @@
 
                 CONFIG.SPEED_PRESETS.forEach(speed => {
                     const btn = document.createElement('button');
-                    btn.textContent = `${speed}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn';
+                    btn.textContent = `${speed.toFixed(1)}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn';
                     Object.assign(btn.style, {
-                        width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)',
-                        background: 'rgba(52, 152, 219, 0.5)', color: 'white', border: 'none', borderRadius: 'clamp(4px, 0.8vmin, 6px)',
-                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
-                    });
+                        width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)',
+                        background: 'rgba(52, 152, 219, 0.5)', color: 'white', border: 'none', borderRadius: 'clamp(4px, 0.8vmin, 6px)',
+                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                        // --- 아래 4줄 추가 ---
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '0'
+                    });
                     if (speed === 1.0) btn.style.boxShadow = '0 0 5px #3498db, 0 0 10px #3498db inset';
                     btn.onclick = (e) => {
                         e.stopPropagation();
                         const newSpeed = parseFloat(btn.dataset.speed);
-                        state.activeMedia.forEach(media => safeExec(() => { media.playbackRate = newSpeed; }));
-                        updateActiveSpeedButton(newSpeed);
+                        const video = Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO');
+                        if (video) {
+                           video.playbackRate = newSpeed;
+                           updateActiveSpeedButton(newSpeed);
+                        }
                         if (speedSlider.resetFadeTimer) speedSlider.resetFadeTimer();
                     };
                     speedButtonsContainer.appendChild(btn);
                 });
+
+        // 현재 사이트가 실시간 점프 허용 목록에 있는지 확인
+        const isWhitelistedForLiveJump = CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d));
+
+        if (isWhitelistedForLiveJump) {
+                const liveJumpButton = document.createElement('button');
+                liveJumpButton.id = 'vsc-live-jump-btn';
+                liveJumpButton.textContent = '⚡';
+                liveJumpButton.title = '실시간으로 이동';
+                Object.assign(liveJumpButton.style, {
+                    width: 'clamp(28px, 5.5vmin, 36px)', height: 'clamp(28px, 5.5vmin, 36px)', fontSize: 'clamp(16px, 3vmin, 20px)',
+                    background: 'rgba(255, 82, 82, 0.5)', color: 'white', border: 'none', borderRadius: '50%',
+                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent', marginTop: '5px'
+                });
+                liveJumpButton.onclick = (e) => { e.stopPropagation(); seekToLiveEdge(); };
+                speedButtonsContainer.appendChild(liveJumpButton);
+            }
 
                 mainControlsWrapper.appendChild(triggerElement);
                 uiContainer.append(mainControlsWrapper, speedButtonsContainer);
@@ -2354,7 +2254,8 @@
             }
         };
 
-        const initialMediaCheck = () => {
+        const initialMediaCheck = async () => {
+            await settingsManager.init();
             if (findAllMedia().length > 0 || findAllImages().length > 0) {
                 mediaFound = true;
 
@@ -2379,11 +2280,73 @@
         initialMediaCheck();
     }
 
+    // =======================================================================
+// 아래 두 함수(isLive, seekToLiveEdge)를 찾아서 이 코드로 통째로 교체해주세요.
+// =======================================================================
+
+    const isLive = () => {
+        const v = Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO');
+        if (!v) return false;
+        // 이 기능은 허용된 사이트에서만 호출되므로 표준 API를 신뢰할 수 있습니다.
+        try {
+            if (v.seekable && v.seekable.length > 0) {
+                const end = v.seekable.end(v.seekable.length - 1);
+                const dist = end - v.currentTime;
+                // 버퍼 끝과의 차이가 10초 이내면 실시간으로 간주
+                return isFinite(dist) && dist < 10;
+            }
+            return v.duration === Infinity; // YouTube 같은 스트림을 위한 폴백
+        } catch {
+            return false;
+        }
+    };
+
+    function seekToLiveEdge() {
+        // 안전 장치: 만약의 경우를 대비해 한번 더 허용 목록 확인
+        const isWhitelisted = CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d));
+        if (!isWhitelisted) {
+            console.warn('[VSC] 이 사이트에서는 실시간 점프가 지원되지 않습니다.');
+            return;
+        }
+
+        const v = Array.from(state.activeMedia).find(m => m.tagName === 'VIDEO');
+        if (!v) return;
+
+        try {
+            // 허용된 사이트에서는 seekable 속성이 안정적으로 작동합니다.
+            if (v.seekable && v.seekable.length > 0) {
+                const liveEdge = v.seekable.end(v.seekable.length - 1);
+                if (isFinite(liveEdge)) {
+                    v.currentTime = liveEdge - 0.5; // 버퍼링 방지를 위해 살짝 앞으로 당김
+                    v.play?.();
+                    setTimeout(updateLiveStatusIndicator, 100);
+                    console.log('[VSC] seekable 속성을 사용하여 실시간으로 점프했습니다.');
+                    return;
+                }
+            }
+            // seekable을 사용할 수 없으면 다른 위험한 시도를 하지 않음
+            console.warn('[VSC] 실시간 점프를 위한 seekable 범위를 찾지 못했습니다.');
+        } catch (e) {
+            console.error('[VSC] 실시간 점프 중 오류 발생:', e);
+        }
+    }
+
+    function updateLiveStatusIndicator() {
+        if (!triggerElement) return;
+        const live = isLive();
+        triggerElement.style.boxShadow = live ? '0 0 8px 2px #ff0000' : 'none';
+    }
+
+
     if (!isExcluded()) {
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => setTimeout(initializeGlobalUI, 0));
-        } else {
+        const onDomReady = () => {
             setTimeout(initializeGlobalUI, 0);
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', onDomReady);
+        } else {
+            onDomReady();
         }
     }
 })();
