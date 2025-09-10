@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      96.0
-// @description  코드 개선 (유지 보수)
+// @version      96.2
+// @description  딜미터기 코드 개선 등 최적화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1505,112 +1505,175 @@
     })();
 
     const autoDelayManager = (() => {
-        let video = null;
-        let avgDelay = null;
-        const CHECK_INTERVAL = 500;
-        const MIN_RATE = 1, MAX_RATE = 1.2, TOLERANCE = 150;
-        let localIntersectionObserver;
-        let delayMeterClosed = false;
-        function isYouTubeLive() { if (!location.href.includes('youtube.com')) return false; try { const b = document.querySelector('.ytp-live-badge'); return b && b.offsetParent !== null && !/스트림이었음|was live/i.test(b.textContent); } catch { return false; } }
-        function findVideo() { return Array.from(state.media.activeMedia).find(m => m.tagName === 'VIDEO'); }
-        function calculateDelay(v) { if (!v || !v.buffered || v.buffered.length === 0) return null; try { const e = v.buffered.end(v.buffered.length - 1); return Math.max(0, (e - v.currentTime) * 1000); } catch { return null; } }
-        function getPlaybackRate(currentAvgDelay) { const t = getTargetDelay(), d = currentAvgDelay - t; if (Math.abs(d) <= TOLERANCE) return 1.0; const n = 1.0 + (d / 5000); return Math.max(MIN_RATE, Math.min(n, MAX_RATE)); }
-        function checkAndAdjust() {
-            if (!video) video = findVideo();
-            if (!video) return;
+    let video = null;
+    let avgDelay = null;
+    const CHECK_INTERVAL = 500;
+    const MIN_RATE = 1, MAX_RATE = 1.2, TOLERANCE = 150;
+    let intervalId = null;
+    let delayMeterClosed = false;
 
-            updateLiveStatusIndicator();
+    // UI 생성 / 업데이트
+    function createOrUpdateInfoUI(rawDelay = 0) {
+        if (delayMeterClosed) return;
 
-            const rawDelay = calculateDelay(video);
-            if (rawDelay === null) return;
+        let infoEl = document.getElementById('vsc-delay-info');
+        if (!infoEl) {
+            infoEl = document.createElement('div');
+            infoEl.id = 'vsc-delay-info';
+            Object.assign(infoEl.style, {
+                position: 'fixed',
+                bottom: '100px',
+                right: '10px',
+                zIndex: CONFIG.MAX_Z_INDEX - 1,
+                background: 'rgba(0,0,0,.7)',
+                color: '#fff',
+                padding: '5px 10px',
+                borderRadius: '5px',
+                fontFamily: 'monospace',
+                fontSize: '10pt',
+                pointerEvents: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+            });
 
-            if (avgDelay === null) {
-                avgDelay = rawDelay;
-            } else {
-                avgDelay = CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * avgDelay;
-            }
+            const textSpan = document.createElement('span');
+            textSpan.id = 'vsc-delay-text';
 
-            if (location.href.includes('youtube.com') && !isYouTubeLive()) {
-                if (video.playbackRate !== 1.0) safeExec(() => { video.playbackRate = 1.0; state.ui.currentPlaybackRate = 1.0; });
-                const infoEl = document.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
-                return;
-            }
-            const newRate = getPlaybackRate(avgDelay);
-            if (Math.abs(video.playbackRate - newRate) > 0.001) safeExec(() => { video.playbackRate = newRate; state.ui.currentPlaybackRate = newRate; });
+            const refreshBtn = document.createElement('button');
+            refreshBtn.textContent = '🔄';
+            refreshBtn.title = '새로고침';
+            Object.assign(refreshBtn.style, {
+                background: 'none', border: '1px solid white', color: 'white',
+                borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
+            });
+            refreshBtn.onclick = () => {
+                avgDelay = null;
+                textSpan.textContent = '딜레이 리셋 중...';
+            };
 
-            let infoEl = document.getElementById('vsc-delay-info');
-            if (avgDelay !== null && !delayMeterClosed) {
-                if (!infoEl) {
-                    infoEl = document.createElement('div');
-                    infoEl.id = 'vsc-delay-info';
-                    Object.assign(infoEl.style, {
-                        position: 'fixed', bottom: '100px', right: '10px',
-                        zIndex: CONFIG.MAX_Z_INDEX - 1, background: 'rgba(0,0,0,.7)', color: '#fff',
-                        padding: '5px 10px', borderRadius: '5px', fontFamily: 'monospace',
-                        fontSize: '10pt', pointerEvents: 'auto', display: 'flex',
-                        alignItems: 'center', gap: '10px'
-                    });
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✖';
+            closeBtn.title = '닫기';
+            Object.assign(closeBtn.style, {
+                background: 'none', border: '1px solid white', color: 'white',
+                borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
+            });
+            closeBtn.onclick = () => {
+                infoEl.remove();
+                delayMeterClosed = true;
+                stopInterval();
+            };
 
-                    const textSpan = document.createElement('span');
-                    textSpan.id = 'vsc-delay-text';
+            infoEl.append(textSpan, refreshBtn, closeBtn);
+            document.body.appendChild(infoEl);
+        }
 
-                    const refreshBtn = document.createElement('button');
-                    refreshBtn.textContent = '🔄';
-                    refreshBtn.title = '새로고침';
-                    Object.assign(refreshBtn.style, {
-                        background: 'none', border: '1px solid white', color: 'white',
-                        borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
-                    });
-                    refreshBtn.onclick = () => {
-                        avgDelay = null; // 스무딩된 평균 딜레이 값을 초기화
-                        const textSpan = infoEl.querySelector('#vsc-delay-text');
-                        if (textSpan) {
-                            textSpan.textContent = '딜레이 리셋 중...'; // 사용자에게 즉각적인 피드백 제공
-                        }
-                        console.log('[VSC] 딜레이 미터기 평균값이 초기화되었습니다.');
-                    };
+        const textSpan = infoEl.querySelector('#vsc-delay-text');
+        if (textSpan) {
+            textSpan.textContent = `딜레이: ${avgDelay?.toFixed(0) || 0}ms / 현재: ${rawDelay?.toFixed(0) || 0}ms / 배속: ${video?.playbackRate?.toFixed(3) || 1.0}x`;
+        }
+    }
 
-                    const closeBtn = document.createElement('button');
-                    closeBtn.textContent = '✖';
-                    closeBtn.title = '닫기';
-                    Object.assign(closeBtn.style, {
-                        background: 'none', border: '1px solid white', color: 'white',
-                        borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px'
-                    });
-                    closeBtn.onclick = () => {
-                        infoEl.remove();
-                        delayMeterClosed = true;
-                    };
+    function calculateDelay(v) {
+        if (!v || !v.buffered || v.buffered.length === 0) return null;
+        try {
+            const end = v.buffered.end(v.buffered.length - 1);
+            return Math.max(0, (end - v.currentTime) * 1000);
+        } catch {
+            return null;
+        }
+    }
 
-                    infoEl.append(textSpan, refreshBtn, closeBtn);
-                    document.body.appendChild(infoEl);
+    function getPlaybackRate(currentAvgDelay) {
+        const t = getTargetDelay();
+        const d = currentAvgDelay - t;
+        if (Math.abs(d) <= TOLERANCE) return 1.0;
+        const n = 1.0 + (d / 5000);
+        return Math.max(MIN_RATE, Math.min(n, MAX_RATE));
+    }
+
+    function checkAndAdjust() {
+        if (!video) return;
+        const rect = video.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > window.innerHeight) return; // 화면 밖이면 스킵
+
+        const rawDelay = calculateDelay(video) || 0;
+
+        avgDelay = avgDelay === null
+            ? rawDelay
+            : CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * avgDelay;
+
+        const newRate = getPlaybackRate(avgDelay);
+        if (Math.abs(video.playbackRate - newRate) > 0.001) {
+            video.playbackRate = newRate;
+        }
+
+        createOrUpdateInfoUI(rawDelay);
+    }
+
+    function startInterval() {
+        if (!intervalId) {
+            checkAndAdjust(); // 즉시 UI 표시
+            intervalId = setInterval(checkAndAdjust, CHECK_INTERVAL);
+        }
+    }
+
+    function stopInterval() {
+        if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+        }
+    }
+
+    // IntersectionObserver: 화면 안 비디오만 체크
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            const v = entry.target;
+            v.dataset.isVisible = entry.isIntersecting ? 'true' : 'false';
+            if (v.tagName === 'VIDEO') {
+                if (entry.isIntersecting) {
+                    video = v;
+                    startInterval();
+                } else if (video === v) {
+                    stopInterval();
                 }
-                const textSpan = infoEl.querySelector('#vsc-delay-text');
-                if (textSpan) {
-                    textSpan.textContent = `딜레이: ${avgDelay.toFixed(0)}ms / 현재: ${rawDelay.toFixed(0)}ms / 배속: ${state.ui.currentPlaybackRate.toFixed(3)}x`;
+            }
+        });
+    }, { threshold: 0.5 });
+
+    function start() {
+        // UI를 미리 생성
+        createOrUpdateInfoUI(0);
+
+        // 모든 video observe
+        state.media.activeMedia.forEach(m => {
+            if (m.tagName === 'VIDEO') {
+                observer.observe(m);
+
+                // 화면에 보이면 즉시 UI 표시
+                const rect = m.getBoundingClientRect();
+                if (rect.bottom >= 0 && rect.top <= window.innerHeight) {
+                    video = m;
+                    startInterval();
                 }
             }
-        }
-        function start() {
-            if (!CONFIG.LIVE_STREAM_URLS.some(d => location.href.includes(d)) || (location.href.includes('youtube.com') && !isYouTubeLive()) || state.ui.delayCheckInterval) return;
-            avgDelay = null; video = findVideo(); if (video) state.ui.currentPlaybackRate = video.playbackRate;
-            if (!localIntersectionObserver) {
-                localIntersectionObserver = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && e.target.tagName === 'VIDEO') video = e.target; }), { threshold: 0.5 });
-                state.media.activeMedia.forEach(m => { if (m.tagName === 'VIDEO') localIntersectionObserver.observe(m); });
-            }
-            state.ui.delayCheckInterval = setInterval(checkAndAdjust, CHECK_INTERVAL);
-        }
-        function stop() {
-            if (state.ui.delayCheckInterval) clearInterval(state.ui.delayCheckInterval); state.ui.delayCheckInterval = null;
-            if (localIntersectionObserver) localIntersectionObserver.disconnect(); localIntersectionObserver = null;
-            if (video) safeExec(() => { if (video.playbackRate !== 1.0) video.playbackRate = 1.0; video = null; });
-            avgDelay = null;
-            delayMeterClosed = false;
-            const infoEl = document.getElementById('vsc-delay-info'); if (infoEl) infoEl.remove();
-            if (triggerElement) triggerElement.style.boxShadow = 'none';
-        }
-        return { start, stop };
-    })();
+        });
+    }
+
+    function stop() {
+        stopInterval();
+        observer.disconnect();
+        video = null;
+        avgDelay = null;
+        delayMeterClosed = false;
+        const infoEl = document.getElementById('vsc-delay-info');
+        if (infoEl) infoEl.remove();
+    }
+
+    return { start, stop };
+})();
+
 
     function findAllMedia(doc = document) {
         const elems = new Set();
@@ -1884,7 +1947,7 @@
             }, {
                 root: null,
                 rootMargin: '0px',
-                threshold: [0, 0.25, 0.5, 0.75, 1.0]
+                threshold: [0, 0.5, 1.0]
             });
         }
     }
