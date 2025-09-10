@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (with Advanced Audio & Video FX)
 // @namespace    https://com/
-// @version      96.3
-// @description  딜미터기 개선 (PID 제어 도입 / 동적 EMA (Exponential Moving Average) 적용)
+// @version      96.4
+// @description  라이브 실시간 끝 이동 코드 개선
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -13,7 +13,7 @@
 
     let uiContainer = null, triggerElement = null, speedButtonsContainer = null, titleObserver = null;
     const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    const TARGET_DELAYS = {"youtube.com": 10000, "play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500 };
+    const TARGET_DELAYS = {"play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500 };
     const DEFAULT_TARGET_DELAY = 2000;
 
     const CONFIG = {
@@ -55,7 +55,7 @@
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
         SPEED_PRESETS: [2.0, 1.5, 1.2, 1, 0.5, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['tv.naver.com', 'youtube.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
-        LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'ok.ru', 'bigo.tv', 'chaturbate.com'],
+        LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com', 'challenges.cloudflare.com'],
         SPECIFIC_EXCLUSIONS: [],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 104 },
@@ -2378,35 +2378,62 @@
         }
     };
 
-    function seekToLiveEdge() {
-        // 안전 장치: 만약의 경우를 대비해 한번 더 허용 목록 확인
-        const isWhitelisted = CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d));
-        if (!isWhitelisted) {
-            console.warn('[VSC] 이 사이트에서는 실시간 점프가 지원되지 않습니다.');
-            return;
-        }
+function seekToLiveEdge() {
+    const LIVE_JUMP_INTERVAL = 5000; // 5초마다 점프 제한
+    const END_THRESHOLD = 1.0;       // 끝 근처 1초 이내면 점프 생략
 
-        const v = Array.from(state.media.activeMedia).find(m => m.tagName === 'VIDEO');
-        if (!v) return;
+    const videos = Array.from(state.media.activeMedia)
+                        .filter(m => m.tagName === 'VIDEO');
 
+    if (videos.length === 0) return;
+
+    videos.forEach(v => {
         try {
-            // 허용된 사이트에서는 seekable 속성이 안정적으로 작동합니다.
-            if (v.seekable && v.seekable.length > 0) {
-                const liveEdge = v.seekable.end(v.seekable.length - 1);
-                if (isFinite(liveEdge)) {
-                    v.currentTime = liveEdge - 0.5; // 버퍼링 방지를 위해 살짝 앞으로 당김
-                    v.play?.();
-                    setTimeout(updateLiveStatusIndicator, 100);
-                    console.log('[VSC] seekable 속성을 사용하여 실시간으로 점프했습니다.');
-                    return;
+            // 1. 실제 재생 가능한 끝 계산 (seekable과 buffered 고려)
+            const seekableEnd = (v.seekable && v.seekable.length > 0)
+                ? v.seekable.end(v.seekable.length - 1)
+                : Infinity;
+            const bufferedEnd = (v.buffered && v.buffered.length > 0)
+                ? v.buffered.end(v.buffered.length - 1)
+                : 0;
+            const liveEdge = Math.min(seekableEnd, bufferedEnd);
+
+            // 2. 이미 끝 근처면 점프 생략
+            if (!isFinite(liveEdge) || liveEdge - v.currentTime < END_THRESHOLD) return;
+
+            // 3. 점프 간격 제한
+            if (!v._lastLiveJump) v._lastLiveJump = 0;
+            const now = Date.now();
+            if (now - v._lastLiveJump < LIVE_JUMP_INTERVAL) return;
+            v._lastLiveJump = now;
+
+            // 4. 끝으로 이동 (버퍼링 방지)
+            v.currentTime = liveEdge - 0.5;
+
+            // 5. 재생 보장: readyState 확인 + canplay 이벤트
+            const attemptPlay = () => {
+                if (v.paused) {
+                    v.play().catch(() => console.warn('[VSC] 자동 재생 실패, 사용자 개입 필요'));
                 }
+            };
+
+            if (v.readyState >= 3) {
+                attemptPlay();
+            } else {
+                const canplayHandler = () => {
+                    attemptPlay();
+                    v.removeEventListener('canplay', canplayHandler);
+                };
+                v.addEventListener('canplay', canplayHandler);
             }
-            // seekable을 사용할 수 없으면 다른 위험한 시도를 하지 않음
-            console.warn('[VSC] 실시간 점프를 위한 seekable 범위를 찾지 못했습니다.');
+
+            console.log('[VSC] 안전한 실시간 끝 점프 완료:', liveEdge);
+
         } catch (e) {
-            console.error('[VSC] 실시간 점프 중 오류 발생:', e);
+            console.error('[VSC] seekToLiveEdge 오류:', e);
         }
-    }
+    });
+}
 
     function updateLiveStatusIndicator() {
         if (!triggerElement) return;
