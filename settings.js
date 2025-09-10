@@ -1527,7 +1527,6 @@
         const visibleVideos = Array.from(state.media.activeMedia)
             .filter(m => m.tagName === 'VIDEO' && m.dataset.isVisible === 'true');
         if (visibleVideos.length === 0) return null;
-        // 화면에서 가장 큰 비디오 선택
         return visibleVideos.sort((a,b) => (b.clientWidth*b.clientHeight) - (a.clientWidth*a.clientHeight))[0];
     }
 
@@ -1646,6 +1645,7 @@
 
     return {start, stop};
 })();
+
 
     function findAllMedia(doc = document) {
         const elems = new Set();
