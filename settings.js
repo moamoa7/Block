@@ -85,14 +85,7 @@
         return curve;
     }
 
-    function getTargetDelay() {
-    for (const site in TARGET_DELAYS) {
-        if (location.href.includes(site)) {
-            return TARGET_DELAYS[site];
-        }
-    }
-    return DEFAULT_TARGET_DELAY;
-}
+    function getTargetDelay() { const host = location.hostname; for (const site in TARGET_DELAYS) { if (host.includes(site)) return TARGET_DELAYS[site]; } return DEFAULT_TARGET_DELAY; }
 
 
     const settingsManager = (() => {
