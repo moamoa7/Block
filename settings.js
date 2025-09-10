@@ -1513,59 +1513,47 @@
     let delayMeterClosed = false;
     let lastDisplayDelay = null;
 
-    // PID 제어 변수
+    // PID 변수
     let pidIntegral = 0;
     let lastError = 0;
     const PID_KP = 0.0002;
     const PID_KI = 0.00001;
     const PID_KD = 0.0001;
 
-    function findVideo() {
-        return Array.from(state.media.activeMedia).find(m => m.tagName === 'VIDEO');
-    }
+    // IntersectionObserver: 화면에 들어오는 비디오 감지
+    let observer = null;
 
-    function isVideoVisible(v) {
-        if (!v) return false;
-        const rect = v.getBoundingClientRect();
-        return rect.bottom > 0 && rect.top < window.innerHeight;
+    function findVideo() {
+        const visibleVideos = Array.from(state.media.activeMedia)
+            .filter(m => m.tagName === 'VIDEO' && m.dataset.isVisible === 'true');
+        if (visibleVideos.length === 0) return null;
+        // 화면에서 가장 큰 비디오 선택
+        return visibleVideos.sort((a,b) => (b.clientWidth*b.clientHeight) - (a.clientWidth*a.clientHeight))[0];
     }
 
     function calculateDelay(v) {
         if (!v) return null;
-
-        // CHZZK 전용 liveLatency 사용
-        if (typeof v.liveLatency === 'number' && v.liveLatency > 0) {
-            return v.liveLatency * 1000;
-        }
-
-        // 표준 HTML5 버퍼 기반 fallback
+        if (typeof v.liveLatency === 'number' && v.liveLatency > 0) return v.liveLatency * 1000;
         if (v.buffered && v.buffered.length > 0) {
             try {
-                const end = v.buffered.end(v.buffered.length - 1);
+                const end = v.buffered.end(v.buffered.length-1);
                 if (v.currentTime > end) return 0;
                 return Math.max(0, (end - v.currentTime) * 1000);
-            } catch {
-                return null;
-            }
+            } catch { return null; }
         }
-
         return null;
     }
 
-    // EMA α 동적 적용
     function updateAvgDelay(rawDelay) {
-        // delay 크기에 따라 α 동적으로 변경 (민감도 조절)
         const alpha = rawDelay > 1000 ? 0.3 : 0.1;
         avgDelay = avgDelay === null ? rawDelay : alpha * rawDelay + (1 - alpha) * avgDelay;
     }
 
-    // PID 제어로 배속 부드럽게
     function getSmoothPlaybackRate(currentDelay, targetDelay) {
         const error = currentDelay - targetDelay;
         pidIntegral += error;
         const derivative = error - lastError;
         lastError = error;
-
         let rateChange = PID_KP * error + PID_KI * pidIntegral + PID_KD * derivative;
         let newRate = 1 + rateChange;
         return Math.max(MIN_RATE, Math.min(newRate, MAX_RATE));
@@ -1578,36 +1566,25 @@
             infoEl = document.createElement('div');
             infoEl.id = 'vsc-delay-info';
             Object.assign(infoEl.style, {
-                position: 'fixed',
-                bottom: '100px',
-                right: '10px',
-                zIndex: CONFIG.MAX_Z_INDEX - 1,
-                background: 'rgba(0,0,0,.7)',
-                color: '#fff',
-                padding: '5px 10px',
-                borderRadius: '5px',
-                fontFamily: 'monospace',
-                fontSize: '10pt',
-                pointerEvents: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px'
+                position: 'fixed', bottom: '100px', right: '10px',
+                zIndex: CONFIG.MAX_Z_INDEX-1, background: 'rgba(0,0,0,.7)',
+                color:'#fff', padding:'5px 10px', borderRadius:'5px',
+                fontFamily:'monospace', fontSize:'10pt',
+                pointerEvents:'auto', display:'flex', alignItems:'center', gap:'10px'
             });
-
             const textSpan = document.createElement('span');
             textSpan.id = 'vsc-delay-text';
 
             const refreshBtn = document.createElement('button');
             refreshBtn.textContent = '🔄';
             refreshBtn.title = '새로고침';
-            Object.assign(refreshBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
-            refreshBtn.onclick = () => { avgDelay = null; textSpan.textContent = '딜레이 리셋 중...'; };
+            Object.assign(refreshBtn.style,{ background:'none', border:'1px solid white', color:'white', borderRadius:'3px', cursor:'pointer', padding:'2px 4px', fontSize:'12px' });
+            refreshBtn.onclick = () => { avgDelay=null; pidIntegral=0; lastError=0; textSpan.textContent='딜레이 리셋 중...'; };
 
             const closeBtn = document.createElement('button');
-            closeBtn.textContent = '✖';
-            closeBtn.title = '닫기';
-            Object.assign(closeBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
-            closeBtn.onclick = () => { infoEl.remove(); delayMeterClosed = true; };
+            closeBtn.textContent='✖'; closeBtn.title='닫기';
+            Object.assign(closeBtn.style,{ background:'none', border:'1px solid white', color:'white', borderRadius:'3px', cursor:'pointer', padding:'2px 4px', fontSize:'12px' });
+            closeBtn.onclick = () => { infoEl.remove(); delayMeterClosed=true; stop(); };
 
             infoEl.append(textSpan, refreshBtn, closeBtn);
             document.body.appendChild(infoEl);
@@ -1615,55 +1592,60 @@
 
         const textSpan = infoEl.querySelector('#vsc-delay-text');
         if (textSpan) {
-            textSpan.textContent = `딜레이: ${avgDelay?.toFixed(0) || 0}ms / 현재: ${rawDelay?.toFixed(0) || 0}ms / 배속: ${video?.playbackRate?.toFixed(3) || 1.0}x`;
+            if (rawDelay===null) {
+                textSpan.textContent='딜레이 측정 중...';
+            } else {
+                textSpan.textContent=`딜레이: ${avgDelay?.toFixed(0)||0}ms / 현재: ${rawDelay?.toFixed(0)||0}ms / 배속: ${video?.playbackRate?.toFixed(3)||1.0}x`;
+            }
         }
     }
 
     function checkAndAdjust() {
-        if (!video) video = findVideo();
-        if (!video || !isVideoVisible(video)) return;
+        video = findVideo();
+        if (!video) return;
 
         const rawDelay = calculateDelay(video);
-        if (rawDelay === null) return;
+        updateDelayUI(rawDelay);
+        if (rawDelay===null) return;
 
-        // EMA α 동적 적용
         updateAvgDelay(rawDelay);
 
-        // PID 기반 배속 계산
         const targetDelay = getTargetDelay();
         const newRate = getSmoothPlaybackRate(avgDelay, targetDelay);
-        if (Math.abs(video.playbackRate - newRate) > 0.001) video.playbackRate = newRate;
-
-        if (lastDisplayDelay === null || Math.abs(lastDisplayDelay - rawDelay) > 50) {
-            updateDelayUI(rawDelay);
-            lastDisplayDelay = rawDelay;
-        }
+        if (Math.abs(video.playbackRate-newRate)>0.001) video.playbackRate=newRate;
     }
 
     function start() {
-        if (!CONFIG.LIVE_STREAM_URLS.some(d => location.href.includes(d))) return;
-        video = findVideo();
-        if (!intervalId) {
-            checkAndAdjust(); // 즉시 1회 실행
-            intervalId = setInterval(checkAndAdjust, CHECK_INTERVAL);
-        }
+        if (!CONFIG.LIVE_STREAM_URLS.some(d=>location.href.includes(d))) return;
+        if (intervalId) return;
+
+        // UI 즉시 생성
+        updateDelayUI(0);
+
+        // IntersectionObserver: 화면 가시성 태그 달기
+        observer = new IntersectionObserver(entries=>{
+            entries.forEach(e=>{
+                e.target.dataset.isVisible = e.isIntersecting?'true':'false';
+            });
+        }, {threshold:0.5});
+        state.media.activeMedia.forEach(m=>{ if(m.tagName==='VIDEO') observer.observe(m); });
+
+        // Interval 항상 돌리기
+        intervalId = setInterval(checkAndAdjust, CHECK_INTERVAL);
     }
 
     function stop() {
-        if (intervalId) { clearInterval(intervalId); intervalId = null; }
-        video = null;
-        avgDelay = null;
-        lastDisplayDelay = null;
-        pidIntegral = 0;
-        lastError = 0;
-        delayMeterClosed = false;
-        const infoEl = document.getElementById('vsc-delay-info');
-        if (infoEl) infoEl.remove();
+        if (intervalId) { clearInterval(intervalId); intervalId=null; }
+        if(observer){observer.disconnect(); observer=null;}
+        video=null;
+        avgDelay=null;
+        pidIntegral=0; lastError=0;
+        lastDisplayDelay=null;
+        const infoEl=document.getElementById('vsc-delay-info'); if(infoEl) infoEl.remove();
     }
 
-    return { start, stop };
+    return {start, stop};
 })();
-
 
     function findAllMedia(doc = document) {
         const elems = new Set();
