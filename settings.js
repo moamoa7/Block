@@ -1326,8 +1326,18 @@
             if (!this.speedButtonsContainer) return;
             this.speedButtonsContainer.querySelectorAll('button').forEach(b => {
                 const speed = parseFloat(b.dataset.speed);
-                if(speed) b.style.boxShadow = Math.abs(speed - rate) < 0.01 ? '0 0 5px #3498db, 0 0 10px #3498db inset' : '';
-            });
+                if (speed) {
+            // is-active 클래스로 활성 상태를 관리
+            const isActive = Math.abs(speed - rate) < 0.01;
+            b.classList.toggle('is-active', isActive);
+
+            // 기본 그림자와 활성 그림자를 분리하여 관리
+            const baseShadow = '0 1px 3px rgba(0,0,0,0.2)'; // 기본 입체감 그림자
+            const activeShadow = '0 0 5px #3498db, 0 0 10px #3498db inset'; // 활성 효과
+
+            b.style.boxShadow = isActive ? `${baseShadow}, ${activeShadow}` : baseShadow;
+        }
+    });
         }
 
             renderAllControls() {
