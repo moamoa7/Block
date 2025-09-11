@@ -723,14 +723,6 @@
             const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
 
             const intervalId = setInterval(() => {
-                // ▼▼▼ [수정] 이 부분을 추가! ▼▼▼
-                if (nodes.context.state === 'suspended') {
-                    // 오디오 엔진이 '일시 정지' 상태이면 오류가 아니므로,
-                    // 시도 횟수를 초기화하고 검사를 건너뜁니다.
-                    attempts = 0;
-                    return;
-                }
-                // ▲▲▲ [수정] 여기까지 추가! ▲▲▲
 
                 if (!media.isConnected || nodes.context.state === 'closed') {
                     clearInterval(intervalId);
