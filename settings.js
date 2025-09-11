@@ -902,6 +902,14 @@
 
             const newRate = this.getSmoothPlaybackRate(this.avgDelay, targetDelay);
             if (Math.abs(this.video.playbackRate-newRate)>0.001) this.video.playbackRate=newRate;
+
+            // ▼▼▼ [수정] 실시간 상태에 따라 버튼 스타일을 변경하는 코드 추가 ▼▼▼
+    const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child');
+    if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) {
+        const isLiveNow = this.avgDelay < (CONFIG.DEFAULT_TARGET_DELAY + 500); // 목표 딜레이 + 0.5초 이내면 라이브로 간주
+        liveJumpBtn.style.boxShadow = isLiveNow ? '0 0 8px 2px #ff0000' : '0 0 8px 2px #808080'; // 라이브면 빨간색, 아니면 회색
+    }
+    // ▲▲▲ 여기까지 추가 ▲▲▲
         }
 
         start() {
@@ -914,6 +922,14 @@
 
         stop() {
             if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+
+          // ▼▼▼ [수정] 딜레이 체크 중지 시 버튼 테두리 스타일 제거 코드 추가 ▼▼▼
+    const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child');
+    if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) {
+        liveJumpBtn.style.boxShadow = '';
+    }
+    // ▲▲▲ 여기까지 추가 ▲▲▲
+
             this.stateManager.set('liveStream.delayInfo', null);
             this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0;
             this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL;
@@ -1206,11 +1222,8 @@
         position: 'fixed',
         // isMobile을 사용하여 위치 분기
         top: isMobile ? '40%' : '40%',
-        bottom: isMobile ? '20px' : 'unset',
-        right: isMobile ? 'unset' : '1vmin',
-        left: isMobile ? '50%' : 'unset',
-        transform: isMobile ? 'translateX(-50%)' : 'translatex(-50%)',
-
+        right: '1vmin',
+        transform: 'translateY(-50%)',
         zIndex: CONFIG.MAX_Z_INDEX,
         display: 'flex',
         alignItems: 'flex-start',
@@ -1350,10 +1363,14 @@
         .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
         .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
         /* --- [UI 개선] 96.5버전 스타일 추가 --- */
-        .vsc-button-group > .vsc-btn { flex: 1; }
-        .vsc-mastering-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; border-top: 1px solid #444; padding-top: 8px; }
-        .vsc-mastering-row > .vsc-btn { flex: 0 0 auto; }
-        .vsc-mastering-row > .slider-control { flex: 1 1 0; }
+        /* --- [UI 개선] 96.5버전 스타일 추가 --- */
+    .vsc-button-group > .vsc-btn { flex: 1; }
+    .vsc-mastering-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; border-top: 1px solid #444; padding-top: 8px; }
+
+    /* ▼▼▼ [수정] 아래 2줄을 수정 및 추가합니다. ▼▼▼ */
+    .vsc-mastering-row > .vsc-btn { flex: 1; }
+    .vsc-mastering-row > .slider-control { flex: 1; }
+    /* ▲▲▲ 여기까지 ▲▲▲ */
     `;
     this.shadowRoot.appendChild(style);
 
@@ -1421,6 +1438,39 @@
     const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
     const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '초기화';
     videoResetBtn.style.marginTop = '8px';
+
+    // ▼▼▼ [수정] 샤프 방향 선택 메뉴를 생성하는 코드입니다. ▼▼▼
+const createSelectControl = (labelText, options, changeHandler) => {
+    const div = document.createElement('div');
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.justifyContent = 'space-between';
+    div.style.color = 'white';
+    div.style.fontSize = isMobile ? '12px' : '13px';
+    const label = document.createElement('label');
+    label.textContent = labelText + ':';
+    const select = document.createElement('select');
+    select.className = 'vsc-select';
+    options.forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt.value; o.textContent = opt.text;
+        select.appendChild(o);
+    });
+    select.onchange = e => changeHandler(e.target.value);
+    div.append(label, select);
+    return div;
+};
+const sharpenDirOptions = [
+    { value: '4-way', text: '4방향 (기본)' },
+    { value: '8-way', text: '8방향 (강함)' }
+];
+const sharpenDirSelect = createSelectControl(
+    '샤프 방향',
+    sharpenDirOptions,
+    (value) => this.stateManager.set('videoFilter.sharpenDirection', value)
+);
+// ▲▲▲ 여기까지 ▲▲▲
+
     videoResetBtn.onclick = () => {
         this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
         this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2);
@@ -1433,6 +1483,10 @@
     videoSubMenu.append(
         createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
         createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
+
+      // ▼▼▼ [수정] 생성된 샤프 방향 선택 메뉴를 여기에 추가합니다. ▼▼▼
+    sharpenDirSelect,
+
         createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
         createSlider('감마', 'v-gamma', 0.5, 1.5, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
         createSlider('블러', 'v-blur', 0, 1, 0.05, 'videoFilter.blur', '', v => v.toFixed(2)).control,
