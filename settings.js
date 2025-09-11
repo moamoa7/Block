@@ -27,7 +27,7 @@
         DEFAULT_EXCITER_AMOUNT: 0, DEFAULT_PARALLEL_COMP_ENABLED: false, DEFAULT_PARALLEL_COMP_MIX: 0, DEFAULT_LIMITER_ENABLED: false,
         DEFAULT_MASTERING_SUITE_ENABLED: false, DEBUG: false, AUTODELAY_INTERVAL_NORMAL: 1000, AUTODELAY_INTERVAL_STABLE: 3000,
         AUTODELAY_STABLE_THRESHOLD: 100, AUTODELAY_STABLE_COUNT: 5, AUTODELAY_PID_KP: 0.0002, AUTODELAY_PID_KI: 0.00001,
-        AUTODELAY_PID_KD: 0.0001, AUTODELAY_MIN_RATE: 1.0, AUTODELAY_MAX_RATE: 1.2, LIVE_JUMP_INTERVAL: 6000,
+        AUTODELAY_PID_KD: 0.0001, AUTODELAY_MIN_RATE: 1.0, AUTODELAY_MAX_RATE: 1.05, LIVE_JUMP_INTERVAL: 6000,
         LIVE_JUMP_END_THRESHOLD: 1.0, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 335, VIDEO_MIN_SIZE: 0,
         SPEED_PRESETS: [2.0, 1.5, 1.2, 1, 0.5, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
@@ -39,7 +39,7 @@
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
         FILTER_EXCLUSION_DOMAINS: [], IMAGE_FILTER_EXCLUSION_DOMAINS: [],
-        TARGET_DELAYS: {"play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 2000,
+        TARGET_DELAYS: {"play.sooplive.co.kr": 2000, "chzzk.naver.com": 2000, "ok.ru": 2000 }, DEFAULT_TARGET_DELAY: 2500,
     };
 
     // --- [ARCHITECTURE] UTILITY FUNCTIONS ---
@@ -936,22 +936,50 @@
         }
 
         seekToLiveEdge() {
-            const videos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO');
-            if (videos.length === 0) return;
-            videos.forEach(v => {
-                try {
-                    const seekableEnd = (v.seekable && v.seekable.length > 0) ? v.seekable.end(v.seekable.length - 1) : Infinity;
-                    const bufferedEnd = (v.buffered && v.buffered.length > 0) ? v.buffered.end(v.buffered.length - 1) : 0;
-                    const liveEdge = Math.min(seekableEnd, bufferedEnd);
-                    if (!isFinite(liveEdge) || liveEdge - v.currentTime < CONFIG.LIVE_JUMP_END_THRESHOLD) return;
-                    if (!v._lastLiveJump) v._lastLiveJump = 0;
-                    if (Date.now() - v._lastLiveJump < CONFIG.LIVE_JUMP_INTERVAL) return;
-                    v._lastLiveJump = Date.now();
-                    v.currentTime = liveEdge - 0.5;
-                    if (v.paused) v.play().catch(console.warn);
-                } catch (e) { console.error('[VSC] seekToLiveEdge error:', e); }
-            });
+    const videos = Array.from(this.stateManager.get('media.activeMedia'))
+        .filter(m => m.tagName === 'VIDEO');
+    if (videos.length === 0) return;
+
+    // 현재 사이트의 목표 딜레이 값을 가져옵니다. 없으면 기본값을 사용합니다.
+    const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY;
+
+    videos.forEach(v => {
+        try {
+            const seekableEnd = (v.seekable && v.seekable.length > 0)
+                ? v.seekable.end(v.seekable.length - 1)
+                : Infinity;
+            const bufferedEnd = (v.buffered && v.buffered.length > 0)
+                ? v.buffered.end(v.buffered.length - 1)
+                : 0;
+
+            const liveEdge = Math.min(seekableEnd, bufferedEnd);
+
+            // 1) liveEdge가 유효한 숫자가 아니면 중단
+            if (!isFinite(liveEdge)) return;
+
+            // 현재 지연 시간 (ms)
+            const delayMs = (liveEdge - v.currentTime) * 1000;
+
+            // 2) 딜레이가 목표치 이하라면 "충분히 실시간이므로" 이동 안 함
+            if (delayMs <= targetDelay) return;
+
+            // 3) 너무 자주 클릭하는 것을 방지
+            if (!v._lastLiveJump) v._lastLiveJump = 0;
+            if (Date.now() - v._lastLiveJump < CONFIG.LIVE_JUMP_INTERVAL) return;
+
+            // 4) 기술적으로 이동할 수 없는 아주 작은 차이라면 스킵 (안전을 위한 최종 방어선)
+            if (liveEdge - v.currentTime < CONFIG.LIVE_JUMP_END_THRESHOLD) return;
+
+            // 모든 조건을 통과했으면 실행
+            v._lastLiveJump = Date.now();
+            v.currentTime = liveEdge - 0.5; // 버퍼 바로 끝으로 가면 불안정할 수 있으니 0.5초 여유
+            if (v.paused) v.play().catch(console.warn);
+
+        } catch (e) {
+            console.error('[VSC] seekToLiveEdge error:', e);
         }
+    });
+}
     }
 
     // --- [PLUGIN] PlaybackControlPlugin: Manages speed and basic playback ---
