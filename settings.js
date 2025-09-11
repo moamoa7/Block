@@ -1323,22 +1323,24 @@
         }
 
         updateActiveSpeedButton(rate) {
-            if (!this.speedButtonsContainer) return;
-            this.speedButtonsContainer.querySelectorAll('button').forEach(b => {
-                const speed = parseFloat(b.dataset.speed);
-                if (speed) {
-            // is-active 클래스로 활성 상태를 관리
+    if (!this.speedButtonsContainer) return;
+    this.speedButtonsContainer.querySelectorAll('button').forEach(b => {
+        const speed = parseFloat(b.dataset.speed);
+        if (speed) {
             const isActive = Math.abs(speed - rate) < 0.01;
-            b.classList.toggle('is-active', isActive);
 
-            // 기본 그림자와 활성 그림자를 분리하여 관리
-            const baseShadow = '0 1px 3px rgba(0,0,0,0.2)'; // 기본 입체감 그림자
-            const activeShadow = '0 0 5px #3498db, 0 0 10px #3498db inset'; // 활성 효과
-
-            b.style.boxShadow = isActive ? `${baseShadow}, ${activeShadow}` : baseShadow;
+            if (isActive) {
+                // ▼▼▼ [수정] 활성화된 버튼을 빨간색 계열로 변경 ▼▼▼
+                b.style.background = 'rgba(231, 76, 60, 0.9)'; // 진한 빨간색 배경
+                b.style.boxShadow = '0 0 5px #e74c3c, 0 0 10px #e74c3c inset'; // 빨간색 그림자
+            } else {
+                // 비활성화된 버튼 스타일 (원래 파란색)
+                b.style.background = 'rgba(52, 152, 219, 0.7)';
+                b.style.boxShadow = '';
+            }
         }
     });
-        }
+}
 
             renderAllControls() {
     // --- [UI 개선] --- 기존 96.5 버전의 UI 레이아웃과 스타일을 적용합니다.
