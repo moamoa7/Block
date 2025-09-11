@@ -1312,298 +1312,285 @@
         }
 
             renderAllControls() {
-        // --- [UI 개선] --- 기존 96.5 버전의 UI 레이아웃과 스타일을 적용합니다.
-        const isMobile = this.stateManager.get('app.isMobile');
-        const style = document.createElement('style');
-        style.textContent = `
-            :host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; }
-            #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; }
-            #vsc-main-container:hover { opacity: 1; }
-            #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;}
-            .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.5); border-radius: 8px; }
-            .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
-            #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '380px' : '520px'}; max-width: 90vw; }
-            #vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }
-            #vsc-image-controls .vsc-submenu { width: 100px; }
-            .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
-            .vsc-btn { background: rgba(52, 152, 219, 0.7); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(8px, 1.5vmin, 12px) clamp(10px, 2vmin, 14px); cursor:pointer; font-size: clamp(${isMobile ? '13px, 2.2vmin, 16px' : '14px, 2.5vmin, 18px'}); }
-            .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
-            .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-            .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; }
-            .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; }
-            .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; }
-            input[type=range] { width: 100%; margin: 0; }
-            input[type=range]:disabled { opacity: 0.5; }
-            .vsc-audio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
-            .vsc-audio-column { display: flex; flex-direction: column; gap: ${isMobile ? '3px' : '8px'}; border-right: 1px solid #444; padding-right: 12px; }
-            .vsc-audio-column:last-child { border-right: none; padding-right: 0; }
-            .vsc-button-group { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }
-            .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
-            .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
-            /* --- [UI 개선] 96.5버전 스타일 추가 --- */
-            .vsc-button-group > .vsc-btn { flex: 1; }
-            .vsc-mastering-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; border-top: 1px solid #444; padding-top: 8px; }
-            .vsc-mastering-row > .vsc-btn { flex: 0 0 auto; }
-            .vsc-mastering-row > .slider-control { flex: 1 1 0; }
-        `;
-        this.shadowRoot.appendChild(style);
+    // --- [UI 개선] --- 기존 96.5 버전의 UI 레이아웃과 스타일을 적용합니다.
+    const isMobile = this.stateManager.get('app.isMobile');
+    const style = document.createElement('style');
+    style.textContent = `
+        :host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; }
+        #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; }
+        #vsc-main-container:hover { opacity: 1; }
+        #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;}
+        .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.5); border-radius: 8px; }
+        .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
+        #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '380px' : '520px'}; max-width: 90vw; }
+        #vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }
+        #vsc-image-controls .vsc-submenu { width: 100px; }
+        .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
 
-        const mainContainer = document.createElement('div');
-        mainContainer.id = 'vsc-main-container';
+        /* ▼▼▼ [수정] .vsc-btn 스타일을 원래대로 되돌립니다 ▼▼▼ */
+        .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); }
 
-        const controlsContainer = document.createElement('div');
-        controlsContainer.id = 'vsc-controls-container';
+        .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
+        .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; }
+        .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; }
+        .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; }
+        input[type=range] { width: 100%; margin: 0; }
+        input[type=range]:disabled { opacity: 0.5; }
+        .vsc-audio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+        .vsc-audio-column { display: flex; flex-direction: column; gap: ${isMobile ? '3px' : '8px'}; border-right: 1px solid #444; padding-right: 12px; }
+        .vsc-audio-column:last-child { border-right: none; padding-right: 0; }
+        .vsc-button-group { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }
+        .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
+        .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
+        /* --- [UI 개선] 96.5버전 스타일 추가 --- */
+        .vsc-button-group > .vsc-btn { flex: 1; }
+        .vsc-mastering-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; border-top: 1px solid #444; padding-top: 8px; }
+        .vsc-mastering-row > .vsc-btn { flex: 0 0 auto; }
+        .vsc-mastering-row > .slider-control { flex: 1 1 0; }
+    `;
+    this.shadowRoot.appendChild(style);
 
-        const createControlGroup = (id, icon, title, parent) => {
-            const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group';
-            const mainBtn = document.createElement('button'); mainBtn.className = 'vsc-btn vsc-btn-main'; mainBtn.textContent = icon; mainBtn.title = title;
-            const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu';
-            group.append(mainBtn, subMenu);
-            mainBtn.onclick = (e) => {
-                e.stopPropagation();
-                const isOpening = !group.classList.contains('submenu-visible');
-                this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible'));
-                if(isOpening) group.classList.add('submenu-visible');
-                this.resetFadeTimer();
-                if (id === 'vsc-stereo-controls' && isOpening && !this.stateManager.get('audio.audioInitialized')) {
-                    this.stateManager.set('audio.audioInitialized', true);
-                    this.stateManager.set('audio.activityCheckRequested', Date.now());
-                }
-            };
-            parent.appendChild(group);
-            return subMenu;
+    const mainContainer = document.createElement('div');
+    mainContainer.id = 'vsc-main-container';
+
+    const controlsContainer = document.createElement('div');
+    controlsContainer.id = 'vsc-controls-container';
+
+    const createControlGroup = (id, icon, title, parent) => {
+        const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group';
+        const mainBtn = document.createElement('button'); mainBtn.className = 'vsc-btn vsc-btn-main'; mainBtn.textContent = icon; mainBtn.title = title;
+        const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu';
+        group.append(mainBtn, subMenu);
+        mainBtn.onclick = (e) => {
+            e.stopPropagation();
+            const isOpening = !group.classList.contains('submenu-visible');
+            this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible'));
+            if(isOpening) group.classList.add('submenu-visible');
+            this.resetFadeTimer();
+            if (id === 'vsc-stereo-controls' && isOpening && !this.stateManager.get('audio.audioInitialized')) {
+                this.stateManager.set('audio.audioInitialized', true);
+                this.stateManager.set('audio.activityCheckRequested', Date.now());
+            }
         };
+        parent.appendChild(group);
+        return subMenu;
+    };
 
-        const createSlider = (label, id, min, max, step, stateKey, unit, formatFn) => {
-            const div = document.createElement('div'); div.className = 'slider-control';
-            const labelEl = document.createElement('label'); const span = document.createElement('span');
-            const updateText = (v) => { const val = parseFloat(v); if(isNaN(val)) return; span.textContent = formatFn ? formatFn(val) : `${val.toFixed(1)}${unit}`; };
-            labelEl.textContent = `${label}: `; labelEl.appendChild(span);
-            const slider = document.createElement('input'); slider.type = 'range'; slider.id = id; slider.min = min; slider.max = max; slider.step = step;
-            slider.value = this.stateManager.get(stateKey);
-            slider.oninput = () => { const val = parseFloat(slider.value); this.stateManager.set(stateKey, val); };
-            this.stateManager.subscribe(stateKey, (val) => { updateText(val); if(slider.value != val) slider.value = val; });
-            updateText(slider.value);
-            div.append(labelEl, slider);
-            return { control: div, slider: slider };
-        };
+    const createSlider = (label, id, min, max, step, stateKey, unit, formatFn) => {
+        const div = document.createElement('div'); div.className = 'slider-control';
+        const labelEl = document.createElement('label'); const span = document.createElement('span');
+        const updateText = (v) => { const val = parseFloat(v); if(isNaN(val)) return; span.textContent = formatFn ? formatFn(val) : `${val.toFixed(1)}${unit}`; };
+        labelEl.textContent = `${label}: `; labelEl.appendChild(span);
+        const slider = document.createElement('input'); slider.type = 'range'; slider.id = id; slider.min = min; slider.max = max; slider.step = step;
+        slider.value = this.stateManager.get(stateKey);
+        slider.oninput = () => { const val = parseFloat(slider.value); this.stateManager.set(stateKey, val); };
+        this.stateManager.subscribe(stateKey, (val) => { updateText(val); if(slider.value != val) slider.value = val; });
+        updateText(slider.value);
+        div.append(labelEl, slider);
+        return { control: div, slider: slider };
+    };
 
-        const createToggleBtn = (id, text, stateKey) => {
-            const btn = document.createElement('button'); btn.id = id; btn.textContent = text; btn.className = 'vsc-btn';
-            btn.onclick = () => { this.stateManager.set(stateKey, !this.stateManager.get(stateKey)); };
-            this.stateManager.subscribe(stateKey, (val) => btn.classList.toggle('active', val));
-            btn.classList.toggle('active', this.stateManager.get(stateKey));
-            return btn;
-        };
+    const createToggleBtn = (id, text, stateKey) => {
+        const btn = document.createElement('button'); btn.id = id; btn.textContent = text; btn.className = 'vsc-btn';
+        btn.onclick = () => { this.stateManager.set(stateKey, !this.stateManager.get(stateKey)); };
+        this.stateManager.subscribe(stateKey, (val) => btn.classList.toggle('active', val));
+        btn.classList.toggle('active', this.stateManager.get(stateKey));
+        return btn;
+    };
 
-        // --- [UI 개선] 96.5버전 구조를 따르기 위해 divider 함수 생성 ---
-        const createDivider = () => { const d = document.createElement('div'); d.className = 'vsc-divider'; return d; };
+    const createDivider = () => { const d = document.createElement('div'); d.className = 'vsc-divider'; return d; };
 
-        // --- 이미지 컨트롤 (변경 없음) ---
-        const imageSubMenu = createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controlsContainer);
-        // ... (기존 이미지 컨트롤 코드와 동일) ...
-        const imageSelect = document.createElement('select'); imageSelect.className = 'vsc-select';
-        [{ v: "0", t: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ v: (i + 1).toString(), t: `${i + 1}단계` }))].forEach(opt => {
-            const o = document.createElement('option'); o.value = opt.v; o.textContent = opt.t; imageSelect.appendChild(o);
-        });
-        imageSelect.onchange = () => this.stateManager.set('imageFilter.level', parseInt(imageSelect.value, 10));
-        this.stateManager.subscribe('imageFilter.level', (val) => imageSelect.value = val);
-        imageSelect.value = this.stateManager.get('imageFilter.level');
-        imageSubMenu.appendChild(imageSelect);
-
-        // --- 영상 컨트롤 (변경 없음) ---
-        const videoSubMenu = createControlGroup('vsc-video-controls', '✨', '영상 필터', controlsContainer);
-        // ... (기존 영상 컨트롤 코드와 동일) ...
-        const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
-        const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '초기화';
-        videoResetBtn.style.marginTop = '8px';
-        videoResetBtn.onclick = () => {
-            this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
-            this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2);
-            this.stateManager.set('videoFilter.saturation', parseInt(videoDefaults.SATURATION_VALUE, 10));
-            this.stateManager.set('videoFilter.gamma', parseFloat(videoDefaults.GAMMA_VALUE));
-            this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
-            this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE, 10));
-            this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10));
-        };
-        videoSubMenu.append(
-            createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
-            createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
-            createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
-            createSlider('감마', 'v-gamma', 0.5, 1.5, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
-            createSlider('블러', 'v-blur', 0, 1, 0.05, 'videoFilter.blur', '', v => v.toFixed(2)).control,
-            createSlider('대비', 'v-shadows', -50, 50, 1, 'videoFilter.shadows', '', v => v.toFixed(0)).control,
-            createSlider('밝기', 'v-highlights', -50, 50, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
-            videoResetBtn
-        );
-
-        // --- [UI 개선] 오디오 컨트롤 전체 재구성 ---
-        const audioSubMenu = createControlGroup('vsc-stereo-controls', '🎧', '사운드 필터', controlsContainer);
-        const audioGrid = document.createElement('div'); audioGrid.className = 'vsc-audio-grid';
-        const col1 = document.createElement('div'); col1.className = 'vsc-audio-column';
-        const col2 = document.createElement('div'); col2.className = 'vsc-audio-column';
-        const col3 = document.createElement('div'); col3.className = 'vsc-audio-column';
-
-        const eqSliders = [
-            createSlider('초저음', 'eq-sub', -12, 12, 1, 'audio.eqSubBassGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
-            createSlider('저음', 'eq-bass', -12, 12, 1, 'audio.eqBassGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
-            createSlider('중음', 'eq-mid', -12, 12, 1, 'audio.eqMidGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
-            createSlider('고음', 'eq-treble', -12, 12, 1, 'audio.eqTrebleGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
-            createSlider('초고음', 'eq-pres', -12, 12, 1, 'audio.eqPresenceGain', 'dB', v => `${v.toFixed(0)}dB`).slider
-        ];
-
-        const hpfSlider = createSlider('주파수', 'hpf-freq', 20, 500, 5, 'audio.hpfHz', 'Hz', v => `${v.toFixed(0)}Hz`).slider;
-
-        col1.append(
-            createToggleBtn('eq-toggle', 'EQ', 'audio.isEqEnabled'),
-            ...eqSliders.map(s => s.parentElement),
-            createDivider(),
-            createSlider('베이스 부스트', 'bass-boost', 0, 9, 0.5, 'audio.bassBoostGain', 'dB', v => `${v.toFixed(1)}dB`).control,
-            createDivider(),
-            createToggleBtn('hpf-toggle', 'HPF', 'audio.isHpfEnabled'),
-            hpfSlider.parentElement
-        );
-
-        const deesserSliders = [
-            createSlider('강도', 'deesser-thresh', -60, 0, 1, 'audio.deesserThreshold', 'dB', v => `${v.toFixed(0)}dB`).slider,
-            createSlider('주파수', 'deesser-freq', 4000, 12000, 100, 'audio.deesserFreq', 'kHz', v => `${(v/1000).toFixed(1)}kHz`).slider
-        ];
-        const exciterSlider = createSlider('강도', 'exciter-amount', 0, 100, 1, 'audio.exciterAmount', '%', v => `${v.toFixed(0)}%`).slider;
-        const pcompSlider = createSlider('믹스', 'pcomp-mix', 0, 100, 1, 'audio.parallelCompMix', '%', v => `${v.toFixed(0)}%`).slider;
-
-        col2.append(
-            createToggleBtn('deesser-toggle', '디에서', 'audio.isDeesserEnabled'), ...deesserSliders.map(s=>s.parentElement),
-            createDivider(),
-            createToggleBtn('exciter-toggle', '익사이터', 'audio.isExciterEnabled'), exciterSlider.parentElement,
-            createDivider(),
-            createToggleBtn('pcomp-toggle', '업컴프', 'audio.isParallelCompEnabled'), pcompSlider.parentElement
-        );
-
-        const preGainGroup = document.createElement('div');
-        preGainGroup.className = 'vsc-button-group';
-        preGainGroup.append(createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled'));
-        const autoVolBtn = document.createElement('button'); autoVolBtn.className = 'vsc-btn'; autoVolBtn.textContent = '자동';
-        preGainGroup.appendChild(autoVolBtn);
-
-        const widenSlider = createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
-        const reverbSlider = createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
-        const preGainSlider = createSlider('볼륨 크기', 'pre-gain-slider', 0, 4, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
-
-        col3.append(
-            createToggleBtn('widen-toggle', 'Virtualizer', 'audio.isWideningEnabled'), widenSlider.parentElement,
-            createToggleBtn('adaptive-width-toggle', 'Bass Mono', 'audio.isAdaptiveWidthEnabled'),
-            createDivider(),
-            createToggleBtn('reverb-toggle', '리버브', 'audio.isReverbEnabled'), reverbSlider.parentElement,
-            createDivider(),
-            createSlider('Pan', 'pan', -1, 1, 0.1, 'audio.stereoPan', '', v => v.toFixed(1)).control,
-            createDivider(),
-            preGainGroup, preGainSlider.parentElement
-        );
-
-        const masteringContainer = document.createElement('div');
-        masteringContainer.className = 'vsc-mastering-row';
-
-        const masteringToggleBtn = createToggleBtn('mastering-toggle', '마스터링', 'audio.isMasteringSuiteEnabled');
-        masteringToggleBtn.addEventListener('click', () => { this.stateManager.set('audio.isLimiterEnabled', false); });
-        const transientSliderObj = createSlider('타격감', 'master-transient', 0, 100, 1, 'audio.masteringTransientAmount', '%', v => `${(v * 100).toFixed(0)}%`);
-        const driveSliderObj = createSlider('음압', 'master-drive', 0, 12, 0.5, 'audio.masteringDrive', 'dB', v => `${v.toFixed(1)}dB`);
-        masteringContainer.append(masteringToggleBtn, transientSliderObj.control, driveSliderObj.control);
-
-        this.stateManager.subscribe('audio.masteringTransientAmount', val => {
-            const slider = this.shadowRoot.getElementById('master-transient');
-            const newSliderVal = val * 100;
-            if (slider && slider.value != newSliderVal) slider.value = newSliderVal;
-        });
-        transientSliderObj.slider.oninput = (e) => this.stateManager.set('audio.masteringTransientAmount', parseFloat(e.target.value) / 100);
-
-        const bottomControls = document.createElement('div');
-        bottomControls.style.cssText = 'grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid #444; padding-top: 8px;';
-
-        const presetSelect = document.createElement('select'); presetSelect.className = 'vsc-select';
-        Object.entries(this.presetMap).forEach(([key, val]) => {
-            const opt = document.createElement('option');
-            opt.value = key; opt.textContent = val.name;
-            presetSelect.appendChild(opt);
-        });
-        presetSelect.onchange = (e) => {
-            this.applyPreset(e.target.value);
-            // 프리셋 변경 후 CORS 체크를 위해 신호 전송
-            this.stateManager.set('audio.activityCheckRequested', Date.now());
-        };
-
-        const resetBtn = document.createElement('button'); resetBtn.className = 'vsc-btn'; resetBtn.textContent = '초기화';
-        resetBtn.onclick = () => {
-            this.applyPreset('default');
-            presetSelect.value = 'default';
-            // 초기화 후에도 CORS 체크를 위해 신호 전송
-            this.stateManager.set('audio.activityCheckRequested', Date.now());
-        };
-
-        bottomControls.append(presetSelect, resetBtn);
-        audioGrid.append(col1, col2, col3, masteringContainer, bottomControls);
-        audioSubMenu.appendChild(audioGrid);
-
-        const setupSliderToggle = (stateKey, sliders) => {
-            const update = (isEnabled) => sliders.forEach(s => { if(s) s.disabled = !isEnabled; });
-            this.stateManager.subscribe(stateKey, update);
-            update(this.stateManager.get(stateKey));
-        };
-        setupSliderToggle('audio.isEqEnabled', eqSliders);
-        setupSliderToggle('audio.isDeesserEnabled', deesserSliders);
-        setupSliderToggle('audio.isExciterEnabled', [exciterSlider]);
-        setupSliderToggle('audio.isParallelCompEnabled', [pcompSlider]);
-        setupSliderToggle('audio.isWideningEnabled', [widenSlider]);
-        setupSliderToggle('audio.isReverbEnabled', [reverbSlider]);
-        setupSliderToggle('audio.isPreGainEnabled', [preGainSlider]);
-        setupSliderToggle('audio.isHpfEnabled', [hpfSlider]);
-        setupSliderToggle('audio.isMasteringSuiteEnabled', [transientSliderObj.slider, driveSliderObj.slider]);
-
-        // --- 스피드 버튼 (변경 없음) ---
-        // ... (기존 스피드 버튼 코드와 동일) ...
-        while (this.speedButtonsContainer.firstChild) {
-            this.speedButtonsContainer.removeChild(this.speedButtonsContainer.lastChild);
-        }
-        CONFIG.SPEED_PRESETS.forEach(speed => {
-            const btn = document.createElement('button');
-            btn.textContent = `${speed.toFixed(1)}x`; btn.dataset.speed = speed;
-            btn.className = 'vsc-btn';
-
-            // ▼▼▼ [수정] 이 부분을 96.5 버전 스타일로 덮어씁니다 ▼▼▼
-    Object.assign(btn.style, {
-        background: 'rgba(52, 152, 219, 0.7)',
-        color: 'white',
-        width: 'clamp(30px, 6vmin, 40px)',
-        height: 'clamp(20px, 4vmin, 30px)',
-        fontSize: 'clamp(12px, 2vmin, 14px)',
-        padding: '0' // 새 스크립트의 기본 여백을 무시하고 크기를 고정
+    const imageSubMenu = createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controlsContainer);
+    const imageSelect = document.createElement('select'); imageSelect.className = 'vsc-select';
+    [{ v: "0", t: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ v: (i + 1).toString(), t: `${i + 1}단계` }))].forEach(opt => {
+        const o = document.createElement('option'); o.value = opt.v; o.textContent = opt.t; imageSelect.appendChild(o);
     });
-    // ▲▲▲ 여기까지 ▲▲▲
+    imageSelect.onchange = () => this.stateManager.set('imageFilter.level', parseInt(imageSelect.value, 10));
+    this.stateManager.subscribe('imageFilter.level', (val) => imageSelect.value = val);
+    imageSelect.value = this.stateManager.get('imageFilter.level');
+    imageSubMenu.appendChild(imageSelect);
 
-            btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
-            this.speedButtonsContainer.appendChild(btn);
-        });
-        if (CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d))) {
-            const liveJumpBtn = document.createElement('button');
-            liveJumpBtn.textContent = '⚡'; liveJumpBtn.title = '실시간으로 이동'; liveJumpBtn.className = 'vsc-btn';
+    const videoSubMenu = createControlGroup('vsc-video-controls', '✨', '영상 필터', controlsContainer);
+    const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
+    const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '초기화';
+    videoResetBtn.style.marginTop = '8px';
+    videoResetBtn.onclick = () => {
+        this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
+        this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2);
+        this.stateManager.set('videoFilter.saturation', parseInt(videoDefaults.SATURATION_VALUE, 10));
+        this.stateManager.set('videoFilter.gamma', parseFloat(videoDefaults.GAMMA_VALUE));
+        this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
+        this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE, 10));
+        this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10));
+    };
+    videoSubMenu.append(
+        createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
+        createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
+        createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
+        createSlider('감마', 'v-gamma', 0.5, 1.5, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
+        createSlider('블러', 'v-blur', 0, 1, 0.05, 'videoFilter.blur', '', v => v.toFixed(2)).control,
+        createSlider('대비', 'v-shadows', -50, 50, 1, 'videoFilter.shadows', '', v => v.toFixed(0)).control,
+        createSlider('밝기', 'v-highlights', -50, 50, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
+        videoResetBtn
+    );
 
-            // ▼▼▼ [수정] 이 부분을 덮어씁니다 ▼▼▼
-    Object.assign(liveJumpBtn.style, {
-        width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-        height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-        fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-        borderRadius: '50%',
-        padding: '0'
+    const audioSubMenu = createControlGroup('vsc-stereo-controls', '🎧', '사운드 필터', controlsContainer);
+    const audioGrid = document.createElement('div'); audioGrid.className = 'vsc-audio-grid';
+    const col1 = document.createElement('div'); col1.className = 'vsc-audio-column';
+    const col2 = document.createElement('div'); col2.className = 'vsc-audio-column';
+    const col3 = document.createElement('div'); col3.className = 'vsc-audio-column';
+
+    const eqSliders = [
+        createSlider('초저음', 'eq-sub', -12, 12, 1, 'audio.eqSubBassGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
+        createSlider('저음', 'eq-bass', -12, 12, 1, 'audio.eqBassGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
+        createSlider('중음', 'eq-mid', -12, 12, 1, 'audio.eqMidGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
+        createSlider('고음', 'eq-treble', -12, 12, 1, 'audio.eqTrebleGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
+        createSlider('초고음', 'eq-pres', -12, 12, 1, 'audio.eqPresenceGain', 'dB', v => `${v.toFixed(0)}dB`).slider
+    ];
+
+    const hpfSlider = createSlider('주파수', 'hpf-freq', 20, 500, 5, 'audio.hpfHz', 'Hz', v => `${v.toFixed(0)}Hz`).slider;
+    col1.append(
+        createToggleBtn('eq-toggle', 'EQ', 'audio.isEqEnabled'),
+        ...eqSliders.map(s => s.parentElement),
+        createDivider(),
+        createSlider('베이스 부스트', 'bass-boost', 0, 9, 0.5, 'audio.bassBoostGain', 'dB', v => `${v.toFixed(1)}dB`).control,
+        createDivider(),
+        createToggleBtn('hpf-toggle', 'HPF', 'audio.isHpfEnabled'),
+        hpfSlider.parentElement
+    );
+
+    const deesserSliders = [
+        createSlider('강도', 'deesser-thresh', -60, 0, 1, 'audio.deesserThreshold', 'dB', v => `${v.toFixed(0)}dB`).slider,
+        createSlider('주파수', 'deesser-freq', 4000, 12000, 100, 'audio.deesserFreq', 'kHz', v => `${(v/1000).toFixed(1)}kHz`).slider
+    ];
+    const exciterSlider = createSlider('강도', 'exciter-amount', 0, 100, 1, 'audio.exciterAmount', '%', v => `${v.toFixed(0)}%`).slider;
+    const pcompSlider = createSlider('믹스', 'pcomp-mix', 0, 100, 1, 'audio.parallelCompMix', '%', v => `${v.toFixed(0)}%`).slider;
+    col2.append(
+        createToggleBtn('deesser-toggle', '디에서', 'audio.isDeesserEnabled'), ...deesserSliders.map(s=>s.parentElement),
+        createDivider(),
+        createToggleBtn('exciter-toggle', '익사이터', 'audio.isExciterEnabled'), exciterSlider.parentElement,
+        createDivider(),
+        createToggleBtn('pcomp-toggle', '업컴프', 'audio.isParallelCompEnabled'), pcompSlider.parentElement
+    );
+
+    const preGainGroup = document.createElement('div');
+    preGainGroup.className = 'vsc-button-group';
+    preGainGroup.append(createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled'));
+    const autoVolBtn = document.createElement('button'); autoVolBtn.className = 'vsc-btn'; autoVolBtn.textContent = '자동';
+    preGainGroup.appendChild(autoVolBtn);
+
+    const widenSlider = createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
+    const reverbSlider = createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
+    const preGainSlider = createSlider('볼륨 크기', 'pre-gain-slider', 0, 4, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
+    col3.append(
+        createToggleBtn('widen-toggle', 'Virtualizer', 'audio.isWideningEnabled'), widenSlider.parentElement,
+        createToggleBtn('adaptive-width-toggle', 'Bass Mono', 'audio.isAdaptiveWidthEnabled'),
+        createDivider(),
+        createToggleBtn('reverb-toggle', '리버브', 'audio.isReverbEnabled'), reverbSlider.parentElement,
+        createDivider(),
+        createSlider('Pan', 'pan', -1, 1, 0.1, 'audio.stereoPan', '', v => v.toFixed(1)).control,
+        createDivider(),
+        preGainGroup, preGainSlider.parentElement
+    );
+
+    const masteringContainer = document.createElement('div');
+    masteringContainer.className = 'vsc-mastering-row';
+    const masteringToggleBtn = createToggleBtn('mastering-toggle', '마스터링', 'audio.isMasteringSuiteEnabled');
+    masteringToggleBtn.addEventListener('click', () => { this.stateManager.set('audio.isLimiterEnabled', false); });
+    const transientSliderObj = createSlider('타격감', 'master-transient', 0, 100, 1, 'audio.masteringTransientAmount', '%', v => `${(v * 100).toFixed(0)}%`);
+    const driveSliderObj = createSlider('음압', 'master-drive', 0, 12, 0.5, 'audio.masteringDrive', 'dB', v => `${v.toFixed(1)}dB`);
+    masteringContainer.append(masteringToggleBtn, transientSliderObj.control, driveSliderObj.control);
+
+    this.stateManager.subscribe('audio.masteringTransientAmount', val => {
+        const slider = this.shadowRoot.getElementById('master-transient');
+        const newSliderVal = val * 100;
+        if (slider && slider.value != newSliderVal) slider.value = newSliderVal;
     });
-    // ▲▲▲ 여기까지 ▲▲▲
+    transientSliderObj.slider.oninput = (e) => this.stateManager.set('audio.masteringTransientAmount', parseFloat(e.target.value) / 100);
 
-            liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now());
-            this.speedButtonsContainer.appendChild(liveJumpBtn);
-        }
+    const bottomControls = document.createElement('div');
+    bottomControls.style.cssText = 'grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid #444; padding-top: 8px;';
+    const presetSelect = document.createElement('select'); presetSelect.className = 'vsc-select';
+    Object.entries(this.presetMap).forEach(([key, val]) => {
+        const opt = document.createElement('option');
+        opt.value = key; opt.textContent = val.name;
+        presetSelect.appendChild(opt);
+    });
+    presetSelect.onchange = (e) => {
+        this.applyPreset(e.target.value);
+        this.stateManager.set('audio.activityCheckRequested', Date.now());
+    };
+    const resetBtn = document.createElement('button'); resetBtn.className = 'vsc-btn'; resetBtn.textContent = '초기화';
+    resetBtn.onclick = () => {
+        this.applyPreset('default');
+        presetSelect.value = 'default';
+        this.stateManager.set('audio.activityCheckRequested', Date.now());
+    };
+    bottomControls.append(presetSelect, resetBtn);
+    audioGrid.append(col1, col2, col3, masteringContainer, bottomControls);
+    audioSubMenu.appendChild(audioGrid);
 
-        mainContainer.appendChild(controlsContainer);
-        this.shadowRoot.appendChild(mainContainer);
-        this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
+    const setupSliderToggle = (stateKey, sliders) => {
+        const update = (isEnabled) => sliders.forEach(s => { if(s) s.disabled = !isEnabled; });
+        this.stateManager.subscribe(stateKey, update);
+        update(this.stateManager.get(stateKey));
+    };
+    setupSliderToggle('audio.isEqEnabled', eqSliders);
+    setupSliderToggle('audio.isDeesserEnabled', deesserSliders);
+    setupSliderToggle('audio.isExciterEnabled', [exciterSlider]);
+    setupSliderToggle('audio.isParallelCompEnabled', [pcompSlider]);
+    setupSliderToggle('audio.isWideningEnabled', [widenSlider]);
+    setupSliderToggle('audio.isReverbEnabled', [reverbSlider]);
+    setupSliderToggle('audio.isPreGainEnabled', [preGainSlider]);
+    setupSliderToggle('audio.isHpfEnabled', [hpfSlider]);
+    setupSliderToggle('audio.isMasteringSuiteEnabled', [transientSliderObj.slider, driveSliderObj.slider]);
+
+    while (this.speedButtonsContainer.firstChild) {
+        this.speedButtonsContainer.removeChild(this.speedButtonsContainer.lastChild);
     }
+    CONFIG.SPEED_PRESETS.forEach(speed => {
+        const btn = document.createElement('button');
+        btn.textContent = `${speed.toFixed(1)}x`;
+        btn.dataset.speed = speed;
+        btn.className = 'vsc-btn';
+
+        // ▼▼▼ [수정] 배속 버튼에만 개별적으로 큰 크기와 파란 배경을 적용합니다 ▼▼▼
+        Object.assign(btn.style, {
+            background: 'rgba(52, 152, 219, 0.7)',
+            color: 'white',
+            width: 'clamp(30px, 6vmin, 40px)',
+            height: 'clamp(20px, 4vmin, 30px)',
+            fontSize: 'clamp(12px, 2vmin, 14px)',
+            padding: '0'
+        });
+
+        btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
+        this.speedButtonsContainer.appendChild(btn);
+    });
+    if (CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d))) {
+        const liveJumpBtn = document.createElement('button');
+        liveJumpBtn.textContent = '⚡';
+        liveJumpBtn.title = '실시간으로 이동';
+        liveJumpBtn.className = 'vsc-btn';
+
+        // ▼▼▼ [수정] 실시간 이동 버튼에도 개별적으로 큰 크기를 적용합니다 ▼▼▼
+        Object.assign(liveJumpBtn.style, {
+            width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+            height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+            fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
+            borderRadius: '50%',
+            padding: '0'
+        });
+
+        liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now());
+        this.speedButtonsContainer.appendChild(liveJumpBtn);
+    }
+
+    mainContainer.appendChild(controlsContainer);
+    this.shadowRoot.appendChild(mainContainer);
+    this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
+}
 
         applyPreset(presetKey) {
             const p = this.presetMap[presetKey];
