@@ -1197,12 +1197,23 @@
         }
 
         createGlobalUI() {
+    // ▼▼▼ [수정] isMobile 변수를 함수 맨 위에서 한 번만 선언합니다. ▼▼▼
+    const isMobile = this.stateManager.get('app.isMobile');
+
     // 1. 가장 바깥 컨테이너: 이제 가로 정렬(row) 역할을 합니다.
     this.globalContainer = document.createElement('div');
     Object.assign(this.globalContainer.style, {
-        position: 'fixed', top: '40%', right: '1vmin', transform: 'translateY(-50%)',
-        zIndex: CONFIG.MAX_Z_INDEX, display: 'flex',
-        alignItems: 'flex-start', // 그룹들을 위쪽 기준으로 정렬
+        position: 'fixed',
+        // isMobile을 사용하여 위치 분기
+        top: isMobile ? 'unset' : '40%',
+        bottom: isMobile ? '20px' : 'unset',
+        right: isMobile ? 'unset' : '1vmin',
+        left: isMobile ? '50%' : 'unset',
+        transform: isMobile ? 'translateX(-50%)' : 'translateY(-50%)',
+
+        zIndex: CONFIG.MAX_Z_INDEX,
+        display: 'flex',
+        alignItems: 'flex-start',
         gap: '5px',
         WebkitTapHighlightColor: 'transparent'
     });
@@ -1211,15 +1222,15 @@
     this.mainControlsContainer = document.createElement('div');
     Object.assign(this.mainControlsContainer.style, {
         display: 'flex',
-        flexDirection: 'column', // 아이콘을 세로로 정렬
-        alignItems: 'center',   // 아이콘을 오른쪽으로 정렬
+        flexDirection: 'column',
+        alignItems: 'center',
         gap: '5px'
     });
 
-    // 3. 닫기/번개 아이콘 생성 (이전과 동일)
+    // 3. 닫기/번개 아이콘 생성
     this.triggerElement = document.createElement('div');
     this.triggerElement.textContent = '⚡';
-    const isMobile = this.stateManager.get('app.isMobile');
+    // isMobile 변수는 위에서 이미 선언했으므로 여기서는 사용만 합니다.
     Object.assign(this.triggerElement.style, {
         width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
         height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
@@ -1227,7 +1238,7 @@
         alignItems: 'center', justifyContent: 'center', cursor: 'pointer', userSelect: 'none',
         fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
         transition: 'box-shadow 0.3s ease-in-out',
-        order: '1' // 닫기 아이콘이 필터 아이콘보다 위에 오도록 순서 지정
+        order: '1'
     });
     this.triggerElement.addEventListener('click', (e) => {
         if (this.wasDragged) { e.stopPropagation(); return; }
@@ -1235,25 +1246,20 @@
         this.stateManager.set('ui.areControlsVisible', !isVisible);
     });
 
-    // 4. 배속 버튼 컨테이너 생성 (order 속성 제거)
+    // 4. 배속 버튼 컨테이너 생성
     this.speedButtonsContainer = document.createElement('div');
     this.speedButtonsContainer.id = 'vsc-speed-buttons-container';
     this.speedButtonsContainer.style.cssText = `
         display:none; flex-direction:column; gap:5px; align-items:center;
-        background: transparent; /* <--- 이렇게 변경합니다. */
+        background: transparent;
         border-radius: 0px; padding: 0px;
     `;
 
     // 5. 최종 조립
     this.attachDragAndDrop();
-
-    // 닫기 아이콘을 '메인 컨트롤' 컨테이너에 추가
     this.mainControlsContainer.appendChild(this.triggerElement);
-
-    // '메인 컨트롤'과 '배속 버튼'을 가장 바깥 컨테이너에 추가
     this.globalContainer.appendChild(this.mainControlsContainer);
     this.globalContainer.appendChild(this.speedButtonsContainer);
-
     document.body.appendChild(this.globalContainer);
 }
 
