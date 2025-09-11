@@ -1205,11 +1205,11 @@
     Object.assign(this.globalContainer.style, {
         position: 'fixed',
         // isMobile을 사용하여 위치 분기
-        top: isMobile ? 'unset' : '40%',
+        top: isMobile ? '40%' : '40%',
         bottom: isMobile ? '20px' : 'unset',
         right: isMobile ? 'unset' : '1vmin',
         left: isMobile ? '50%' : 'unset',
-        transform: isMobile ? 'translateX(-50%)' : 'translateY(-50%)',
+        transform: isMobile ? 'translateX(-50%)' : 'translatex(-50%)',
 
         zIndex: CONFIG.MAX_Z_INDEX,
         display: 'flex',
