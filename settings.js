@@ -1440,15 +1440,20 @@
     videoResetBtn.style.marginTop = '8px';
 
     // ▼▼▼ [수정] 샤프 방향 선택 메뉴를 생성하는 코드입니다. ▼▼▼
+// ... renderAllControls() 함수 내부 ...
 const createSelectControl = (labelText, options, changeHandler) => {
     const div = document.createElement('div');
     div.style.display = 'flex';
-    div.style.alignItems = 'center';
+    div.style.alignItems = 'center';       // 세로 가운데 정렬
     div.style.justifyContent = 'space-between';
-    div.style.color = 'white';
-    div.style.fontSize = isMobile ? '12px' : '13px';
+    div.style.gap = '8px';                 // 글자와 선택상자 사이 간격
+
     const label = document.createElement('label');
     label.textContent = labelText + ':';
+    label.style.color = 'white';
+    label.style.fontSize = isMobile ? '12px' : '13px';
+    label.style.whiteSpace = 'nowrap';     // 줄바꿈 방지
+
     const select = document.createElement('select');
     select.className = 'vsc-select';
     options.forEach(opt => {
@@ -1457,9 +1462,11 @@ const createSelectControl = (labelText, options, changeHandler) => {
         select.appendChild(o);
     });
     select.onchange = e => changeHandler(e.target.value);
+
     div.append(label, select);
     return div;
 };
+
 const sharpenDirOptions = [
     { value: '4-way', text: '4방향 (기본)' },
     { value: '8-way', text: '8방향 (강함)' }
