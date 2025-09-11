@@ -723,6 +723,15 @@
             const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
 
             const intervalId = setInterval(() => {
+                // ▼▼▼ [수정] 이 부분을 추가! ▼▼▼
+                if (nodes.context.state === 'suspended') {
+                    // 오디오 엔진이 '일시 정지' 상태이면 오류가 아니므로,
+                    // 시도 횟수를 초기화하고 검사를 건너뜁니다.
+                    attempts = 0;
+                    return;
+                }
+                // ▲▲▲ [수정] 여기까지 추가! ▲▲▲
+
                 if (!media.isConnected || nodes.context.state === 'closed') {
                     clearInterval(intervalId);
                     this.audioActivityStatus.delete(media);
@@ -1196,45 +1205,65 @@
         }
 
         createGlobalUI() {
-            this.globalContainer = document.createElement('div');
-            Object.assign(this.globalContainer.style, {
-                position: 'fixed', top: '40%', right: '1vmin', transform: 'translateY(-50%)',
-                zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-start', gap: '5px',
-                WebkitTapHighlightColor: 'transparent'
-            });
+    // 1. 가장 바깥 컨테이너: 이제 가로 정렬(row) 역할을 합니다.
+    this.globalContainer = document.createElement('div');
+    Object.assign(this.globalContainer.style, {
+        position: 'fixed', top: '40%', right: '1vmin', transform: 'translateY(-50%)',
+        zIndex: CONFIG.MAX_Z_INDEX, display: 'flex',
+        alignItems: 'flex-start', // 그룹들을 위쪽 기준으로 정렬
+        gap: '5px',
+        WebkitTapHighlightColor: 'transparent'
+    });
 
-            this.triggerElement = document.createElement('div');
-            this.triggerElement.textContent = '⚡';
-            const isMobile = this.stateManager.get('app.isMobile');
-            Object.assign(this.triggerElement.style, {
-                width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', cursor: 'pointer', userSelect: 'none',
-                fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-                transition: 'box-shadow 0.3s ease-in-out',
-                order: '2'
-            });
+    // 2. 새로운 '메인 컨트롤' 컨테이너: 이 안에서 아이콘들이 세로로 정렬됩니다.
+    this.mainControlsContainer = document.createElement('div');
+    Object.assign(this.mainControlsContainer.style, {
+        display: 'flex',
+        flexDirection: 'column', // 아이콘을 세로로 정렬
+        alignItems: 'center',   // 아이콘을 오른쪽으로 정렬
+        gap: '5px'
+    });
 
-            this.triggerElement.addEventListener('click', (e) => {
-                if (this.wasDragged) { e.stopPropagation(); return; }
-                const isVisible = this.stateManager.get('ui.areControlsVisible');
-                this.stateManager.set('ui.areControlsVisible', !isVisible);
-            });
+    // 3. 닫기/번개 아이콘 생성 (이전과 동일)
+    this.triggerElement = document.createElement('div');
+    this.triggerElement.textContent = '⚡';
+    const isMobile = this.stateManager.get('app.isMobile');
+    Object.assign(this.triggerElement.style, {
+        width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+        height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+        background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', cursor: 'pointer', userSelect: 'none',
+        fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
+        transition: 'box-shadow 0.3s ease-in-out',
+        order: '1' // 닫기 아이콘이 필터 아이콘보다 위에 오도록 순서 지정
+    });
+    this.triggerElement.addEventListener('click', (e) => {
+        if (this.wasDragged) { e.stopPropagation(); return; }
+        const isVisible = this.stateManager.get('ui.areControlsVisible');
+        this.stateManager.set('ui.areControlsVisible', !isVisible);
+    });
 
-            this.speedButtonsContainer = document.createElement('div');
-            this.speedButtonsContainer.id = 'vsc-speed-buttons-container';
-            this.speedButtonsContainer.style.cssText = `
-                display:none; flex-direction:column; gap:5px; align-items:center;
-                background: rgba(0,0,0,0.5); border-radius: 8px; padding: 5px;
-                order: 3;
-            `;
+    // 4. 배속 버튼 컨테이너 생성 (order 속성 제거)
+    this.speedButtonsContainer = document.createElement('div');
+    this.speedButtonsContainer.id = 'vsc-speed-buttons-container';
+    this.speedButtonsContainer.style.cssText = `
+        display:none; flex-direction:column; gap:5px; align-items:center;
+        background: transparent; /* <--- 이렇게 변경합니다. */
+        border-radius: 0px; padding: 0px;
+    `;
 
-            this.attachDragAndDrop();
-            this.globalContainer.appendChild(this.triggerElement);
-            this.globalContainer.appendChild(this.speedButtonsContainer);
-            document.body.appendChild(this.globalContainer);
-        }
+    // 5. 최종 조립
+    this.attachDragAndDrop();
+
+    // 닫기 아이콘을 '메인 컨트롤' 컨테이너에 추가
+    this.mainControlsContainer.appendChild(this.triggerElement);
+
+    // '메인 컨트롤'과 '배속 버튼'을 가장 바깥 컨테이너에 추가
+    this.globalContainer.appendChild(this.mainControlsContainer);
+    this.globalContainer.appendChild(this.speedButtonsContainer);
+
+    document.body.appendChild(this.globalContainer);
+}
 
         onControlsVisibilityChange(isVisible) {
             if (!this.triggerElement) return;
@@ -1255,12 +1284,12 @@
 
         createControlsHost() {
             this.hostElement = document.createElement('div');
-            this.hostElement.style.order = '1';
+            this.hostElement.style.order = '2';
             this.stateManager.set('ui.hostElement', this.hostElement);
             this.shadowRoot = this.hostElement.attachShadow({ mode: 'open' });
             this.stateManager.set('ui.shadowRoot', this.shadowRoot);
             this.renderAllControls();
-            this.globalContainer.prepend(this.hostElement);
+            this.mainControlsContainer.prepend(this.hostElement); // globalContainer -> mainControlsContainer
         }
 
         updateUIVisibility() {
@@ -1305,7 +1334,7 @@
             #vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }
             #vsc-image-controls .vsc-submenu { width: 100px; }
             .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
-            .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); }
+            .vsc-btn { background: rgba(52, 152, 219, 0.7); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(8px, 1.5vmin, 12px) clamp(10px, 2vmin, 14px); cursor:pointer; font-size: clamp(${isMobile ? '13px, 2.2vmin, 16px' : '14px, 2.5vmin, 18px'}); }
             .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
             .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
             .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; }
@@ -1546,13 +1575,35 @@
             const btn = document.createElement('button');
             btn.textContent = `${speed.toFixed(1)}x`; btn.dataset.speed = speed;
             btn.className = 'vsc-btn';
+
+            // ▼▼▼ [수정] 이 부분을 96.5 버전 스타일로 덮어씁니다 ▼▼▼
+    Object.assign(btn.style, {
+        background: 'rgba(52, 152, 219, 0.7)',
+        color: 'white',
+        width: 'clamp(30px, 6vmin, 40px)',
+        height: 'clamp(20px, 4vmin, 30px)',
+        fontSize: 'clamp(12px, 2vmin, 14px)',
+        padding: '0' // 새 스크립트의 기본 여백을 무시하고 크기를 고정
+    });
+    // ▲▲▲ 여기까지 ▲▲▲
+
             btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
             this.speedButtonsContainer.appendChild(btn);
         });
         if (CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d))) {
             const liveJumpBtn = document.createElement('button');
             liveJumpBtn.textContent = '⚡'; liveJumpBtn.title = '실시간으로 이동'; liveJumpBtn.className = 'vsc-btn';
-            liveJumpBtn.style.borderRadius = '50%';
+
+            // ▼▼▼ [수정] 이 부분을 덮어씁니다 ▼▼▼
+    Object.assign(liveJumpBtn.style, {
+        width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+        height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+        fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
+        borderRadius: '50%',
+        padding: '0'
+    });
+    // ▲▲▲ 여기까지 ▲▲▲
+
             liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now());
             this.speedButtonsContainer.appendChild(liveJumpBtn);
         }
