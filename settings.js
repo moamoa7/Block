@@ -1695,41 +1695,65 @@ const sharpenDirSelect = createSelectControl(
         }
 
         attachDragAndDrop() {
-            const onDragStart = (e) => {
-                const trueTarget = e.composedPath()[0];
-                if (trueTarget.closest('button, select, input')) return;
+    // ▼▼▼ [수정] 롱 프레스 감지를 위한 변수를 추가합니다. ▼▼▼
+    let pressTimer = null;
 
-                this.isDragging = true; this.wasDragged = false;
-                const pos = e.touches ? e.touches[0] : e;
-                this.startPos = { x: pos.clientX, y: pos.clientY };
-                this.globalContainer.style.transition = 'none';
-                document.addEventListener('mousemove', onDragMove, { passive: false });
-                document.addEventListener('mouseup', onDragEnd, { passive: true });
-                document.addEventListener('touchmove', onDragMove, { passive: false });
-                document.addEventListener('touchend', onDragEnd, { passive: true });
-            };
-            const onDragMove = (e) => {
-                if (!this.isDragging) return;
-                e.preventDefault();
-                const pos = e.touches ? e.touches[0] : e;
-                const dX = pos.clientX - this.startPos.x, dY = pos.clientY - this.startPos.y;
-                if (!this.wasDragged && (Math.abs(dX) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(dY) > CONFIG.UI_DRAG_THRESHOLD)) this.wasDragged = true;
-                this.globalContainer.style.transform = `translateY(-50%) translate(${this.translatePos.x + dX}px, ${this.translatePos.y + dY}px)`;
-            };
-            const onDragEnd = () => {
-                if (!this.isDragging) return;
-                this.isDragging = false;
-                const transform = this.globalContainer.style.transform;
-                const matches = transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
-                if (matches) { this.translatePos.x = parseFloat(matches[1]); this.translatePos.y = parseFloat(matches[2]); }
-                this.globalContainer.style.transition = '';
-                document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd);
-                document.removeEventListener('touchmove', onDragMove); document.removeEventListener('touchend', onDragEnd);
-                setTimeout(() => { this.wasDragged = false; }, 50);
-            };
-            this.triggerElement.addEventListener('mousedown', onDragStart);
-            this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
+    const onDragStart = (e) => {
+        const trueTarget = e.composedPath()[0];
+        if (trueTarget.closest('button, select, input')) return;
+
+        // ▼▼▼ [수정] 롱 프레스 타이머를 시작합니다. ▼▼▼
+        // 800ms (0.8초) 동안 누르고 있으면 UI가 사라집니다.
+        pressTimer = setTimeout(() => {
+            if (this.globalContainer) {
+                this.globalContainer.style.display = 'none'; // UI 숨기기
+            }
+            // 롱 프레스가 발동되면 드래그 로직을 중단합니다.
+            onDragEnd();
+        }, 800);
+        // ▲▲▲ 여기까지 ▲▲▲
+
+        this.isDragging = true; this.wasDragged = false;
+        const pos = e.touches ? e.touches[0] : e;
+        this.startPos = { x: pos.clientX, y: pos.clientY };
+        this.globalContainer.style.transition = 'none';
+        document.addEventListener('mousemove', onDragMove, { passive: false });
+        document.addEventListener('mouseup', onDragEnd, { passive: true });
+        document.addEventListener('touchmove', onDragMove, { passive: false });
+        document.addEventListener('touchend', onDragEnd, { passive: true });
+    };
+
+    const onDragMove = (e) => {
+        if (!this.isDragging) return;
+        e.preventDefault();
+        const pos = e.touches ? e.touches[0] : e;
+        const dX = pos.clientX - this.startPos.x, dY = pos.clientY - this.startPos.y;
+        if (!this.wasDragged && (Math.abs(dX) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(dY) > CONFIG.UI_DRAG_THRESHOLD)) {
+             this.wasDragged = true;
+             // ▼▼▼ [수정] 드래그가 시작되면 롱 프레스 타이머를 취소합니다. ▼▼▼
+             clearTimeout(pressTimer);
         }
+        this.globalContainer.style.transform = `translateY(-50%) translate(${this.translatePos.x + dX}px, ${this.translatePos.y + dY}px)`;
+    };
+
+    const onDragEnd = () => {
+        // ▼▼▼ [수정] 마우스/터치를 떼면 무조건 롱 프레스 타이머를 취소합니다. ▼▼▼
+        clearTimeout(pressTimer);
+
+        if (!this.isDragging) return;
+        this.isDragging = false;
+        const transform = this.globalContainer.style.transform;
+        const matches = transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
+        if (matches) { this.translatePos.x = parseFloat(matches[1]); this.translatePos.y = parseFloat(matches[2]); }
+        this.globalContainer.style.transition = '';
+        document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd);
+        document.removeEventListener('touchmove', onDragMove); document.removeEventListener('touchend', onDragEnd);
+        setTimeout(() => { this.wasDragged = false; }, 50);
+    };
+
+    this.triggerElement.addEventListener('mousedown', onDragStart);
+    this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
+}
     }
 
     // --- [ARCHITECTURE] SCRIPT INITIALIZATION ---
