@@ -40,7 +40,7 @@
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
         FILTER_EXCLUSION_DOMAINS: [], IMAGE_FILTER_EXCLUSION_DOMAINS: [],
         TARGET_DELAYS: {"play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 3000,
-        LOUDNESS_TARGET: -16,
+        LOUDNESS_TARGET: -16, // 프리셋에 targetLUFS가 없을 경우 사용될 기본값
         LOUDNESS_ANALYSIS_INTERVAL: 250,
         LOUDNESS_ADJUSTMENT_SPEED: 0.1,
     };
@@ -1533,7 +1533,7 @@
                 .vsc-audio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
                 .vsc-audio-column { display: flex; flex-direction: column; gap: ${isMobile ? '3px' : '8px'}; border-right: 1px solid #444; padding-right: 12px; }
                 .vsc-audio-column:last-child { border-right: none; padding-right: 0; }
-                .vsc-button-group { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }
+                .vsc-button-group { display: flex; gap: 8px; width: 100%; }
                 .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
                 .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
                 .vsc-button-group > .vsc-btn { flex-basis: 0; flex-grow: 1; }
@@ -1707,7 +1707,8 @@
             preGainGroup.className = 'vsc-button-group';
             const manualVolBtn = createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
             const agcBtn = createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
-            const autoVolBtn = createToggleBtn('loudness-norm-toggle', '자동보정', 'audio.isLoudnessNormalizationEnabled');
+            const autoVolBtn = createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
+            autoVolBtn.innerHTML = '자동<br>보정'; // [수정] 텍스트를 HTML로 직접 삽입
             preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
 
             const widenSlider = createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
