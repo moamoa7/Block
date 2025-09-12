@@ -1518,7 +1518,7 @@
                 #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;}
                 .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; }
                 .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
-                #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '380px' : '520px'}; max-width: 90vw; }
+                #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '420px' : '520px'}; max-width: 90vw; }
                 #vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }
                 #vsc-image-controls .vsc-submenu { width: 100px; }
                 .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
