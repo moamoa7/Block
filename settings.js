@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed)
 // @namespace    https://com/
-// @version      98.1
-// @description  실시간 딜레이 미터기 로직 변경
+// @version      98.2
+// @description  오디오 초기화 문제 개선
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1089,13 +1089,13 @@
             this.presetMap = {
                 'default': { name: '기본값 (모든 효과 꺼짐)' },
                 'basic_clear': { name: '✔ 기본 개선 (명료)', hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_mid: 2, eq_treble: 1.5, eq_presence: 2, preGain_enabled: true, preGain_value: 1, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2, },
-                'movie_immersive': { name: '🎬 영화/드라마 (몰입감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2, widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 15, mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 2.5, },
+                'movie_immersive': { name: '🎬 영화/드라마 (몰입감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2, widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 15, mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0, preGain_enabled: true, preGain_value: 0.8},
                 'action_blockbuster': { name: '💥 액션 블록버스터 (타격감)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8, widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3, },
                 'concert_hall': { name: '🏟️ 라이브 콘서트 (현장감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2, widen_enabled: true, widen_factor: 1.3, preGain_enabled: true, preGain_value: 1.2, reverb_enabled: true, reverb_mix: 0.5, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5, },
                 'music_dynamic': { name: '🎶 음악 (다이나믹 & 펀치감)', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2, widen_enabled: true, widen_factor: 1.3, exciter_enabled: true, exciter_amount: 12, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3, },
-                'mastering_balanced': { name: '🔥 밸런스 마스터링 (고음질)', hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_treble: 1.2, eq_presence: 1, widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 10, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, },
-                'vocal_clarity_pro': { name: '🎙️ 목소리 명료 (강의/뉴스)', hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5, preGain_enabled: true, preGain_value: 1.2, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12, mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5, },
-                'gaming_pro': { name: '🎮 게이밍 (사운드 플레이)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_mid: 2, eq_treble: 2, eq_presence: 2.5, widen_enabled: true, widen_factor: 1.2, preGain_enabled: true, preGain_value: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5, },
+                'mastering_balanced': { name: '🔥 밸런스 마스터링 (고음질)', hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_treble: 1.2, eq_presence: 1, widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 10, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, preGain_enabled: true, preGain_value: 1.5},
+                'vocal_clarity_pro': { name: '🎙️ 목소리 명료 (강의/뉴스)', hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5, preGain_enabled: true, preGain_value: 0.8, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12, mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5, },
+                'gaming_pro': { name: '🎮 게이밍 (사운드 플레이)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_mid: 2, eq_treble: 2, eq_presence: 2.5, widen_enabled: true, widen_factor: 1.2, preGain_enabled: true, preGain_value: 0.8, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5, },
             };
         }
 
@@ -1705,39 +1705,44 @@ const sharpenDirSelect = createSelectControl(
 }
 
         applyPreset(presetKey) {
-            const p = this.presetMap[presetKey];
-            if (!p) return;
+    const p = this.presetMap[presetKey];
+    if (!p) return;
 
-            this.stateManager.set('audio.audioInitialized', true);
+    this.stateManager.set('audio.audioInitialized', true);
 
-            const defaults = {
-                isHpfEnabled: false, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
-                isEqEnabled: false, eqSubBassGain: 0, eqBassGain: 0, eqMidGain: 0, eqTrebleGain: 0, eqPresenceGain: 0,
-                isWideningEnabled: false, wideningFactor: 1.0, isAdaptiveWidthEnabled: false,
-                isReverbEnabled: false, reverbMix: CONFIG.DEFAULT_REVERB_MIX, stereoPan: 0,
-                isPreGainEnabled: false, preGain: 1.0, isDeesserEnabled: false, deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
-                isExciterEnabled: false, exciterAmount: 0, isParallelCompEnabled: false, parallelCompMix: 0,
-                isLimiterEnabled: false, isMasteringSuiteEnabled: false, masteringTransientAmount: 0.2, masteringDrive: 0,
-            };
+    const defaults = {
+        isHpfEnabled: false, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
+        isEqEnabled: false, eqSubBassGain: 0, eqBassGain: 0, eqMidGain: 0, eqTrebleGain: 0, eqPresenceGain: 0,
+        bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN, bassBoostFreq: 60, bassBoostQ: 1.0,
+        isWideningEnabled: false, wideningFactor: 1.0, isAdaptiveWidthEnabled: false, adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
+        isReverbEnabled: false, reverbMix: CONFIG.DEFAULT_REVERB_MIX, stereoPan: 0,
+        isPreGainEnabled: false, preGain: 1.0, isDeesserEnabled: false, deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
+        isExciterEnabled: false, exciterAmount: 0, isParallelCompEnabled: false, parallelCompMix: 0,
+        isLimiterEnabled: false, isMasteringSuiteEnabled: false, masteringTransientAmount: 0.2, masteringDrive: 0,
+    };
 
-            const presetValues = {
-                isHpfEnabled: p.hpf_enabled ?? defaults.isHpfEnabled, hpfHz: p.hpf_hz ?? defaults.hpfHz,
-                isEqEnabled: p.eq_enabled ?? defaults.isEqEnabled, eqSubBassGain: p.eq_subBass ?? defaults.eqSubBassGain, eqBassGain: p.eq_bass ?? defaults.eqBassGain, eqMidGain: p.eq_mid ?? defaults.eqMidGain, eqTrebleGain: p.eq_treble ?? defaults.eqTrebleGain, eqPresenceGain: p.eq_presence ?? defaults.eqPresenceGain,
-                isWideningEnabled: p.widen_enabled ?? defaults.isWideningEnabled, wideningFactor: p.widen_factor ?? defaults.wideningFactor, isAdaptiveWidthEnabled: p.adaptive_enabled ?? defaults.isAdaptiveWidthEnabled,
-                isReverbEnabled: p.reverb_enabled ?? defaults.isReverbEnabled, reverbMix: p.reverb_mix ?? defaults.reverbMix, stereoPan: p.pan_value ?? defaults.stereoPan,
-                isPreGainEnabled: p.preGain_enabled ?? defaults.isPreGainEnabled, preGain: p.preGain_value ?? defaults.preGain,
-                isDeesserEnabled: p.deesser_enabled ?? defaults.isDeesserEnabled, deesserThreshold: p.deesser_threshold ?? defaults.deesserThreshold, deesserFreq: p.deesser_freq ?? defaults.deesserFreq,
-                isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount,
-                isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
-                isLimiterEnabled: p.limiter_enabled ?? defaults.isLimiterEnabled,
-                isMasteringSuiteEnabled: p.mastering_suite_enabled ?? defaults.isMasteringSuiteEnabled, masteringTransientAmount: p.mastering_transient ?? defaults.masteringTransientAmount, masteringDrive: p.mastering_drive ?? defaults.masteringDrive
-            };
+    const presetValues = {
+        isHpfEnabled: p.hpf_enabled ?? defaults.isHpfEnabled, hpfHz: p.hpf_hz ?? defaults.hpfHz,
+        isEqEnabled: p.eq_enabled ?? defaults.isEqEnabled, eqSubBassGain: p.eq_subBass ?? defaults.eqSubBassGain,
+        eqBassGain: p.eq_bass ?? defaults.eqBassGain, eqMidGain: p.eq_mid ?? defaults.eqMidGain,
+        eqTrebleGain: p.eq_treble ?? defaults.eqTrebleGain, eqPresenceGain: p.eq_presence ?? defaults.eqPresenceGain,
+        bassBoostGain: p.bass_boost_gain ?? defaults.bassBoostGain,
+        isWideningEnabled: p.widen_enabled ?? defaults.isWideningEnabled, wideningFactor: p.widen_factor ?? defaults.wideningFactor,
+        isAdaptiveWidthEnabled: p.adaptive_enabled ?? defaults.isAdaptiveWidthEnabled, adaptiveWidthFreq: p.adaptive_width_freq ?? defaults.adaptiveWidthFreq,
+        isReverbEnabled: p.reverb_enabled ?? defaults.isReverbEnabled, reverbMix: p.reverb_mix ?? defaults.reverbMix, stereoPan: p.pan_value ?? defaults.stereoPan,
+        isPreGainEnabled: p.preGain_enabled ?? defaults.isPreGainEnabled, preGain: p.preGain_value ?? defaults.preGain,
+        isDeesserEnabled: p.deesser_enabled ?? defaults.isDeesserEnabled, deesserThreshold: p.deesser_threshold ?? defaults.deesserThreshold, deesserFreq: p.deesser_freq ?? defaults.deesserFreq,
+        isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount,
+        isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
+        isLimiterEnabled: p.limiter_enabled ?? defaults.isLimiterEnabled,
+        isMasteringSuiteEnabled: p.mastering_suite_enabled ?? defaults.isMasteringSuiteEnabled, masteringTransientAmount: p.mastering_transient ?? defaults.masteringTransientAmount, masteringDrive: p.mastering_drive ?? defaults.masteringDrive
+    };
 
-            for (const key in presetValues) {
-                this.stateManager.set(`audio.${key}`, presetValues[key]);
-            }
-            this.stateManager.set('audio.lastManualPreGain', presetValues.preGain);
-        }
+    for (const key in presetValues) {
+        this.stateManager.set(`audio.${key}`, presetValues[key]);
+    }
+    this.stateManager.set('audio.lastManualPreGain', presetValues.preGain);
+}
 
         attachDragAndDrop() {
     // ▼▼▼ [수정] 롱 프레스 감지를 위한 변수를 추가합니다. ▼▼▼
