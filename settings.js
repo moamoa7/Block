@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name          Video_Image_Control (Final & Fixed)
 // @namespace     https://com/
-// @version       98.6
-// @description   자동 볼륨 보정 추가 / 오디오 프리셋 조정 및 프리셋별 자동 볼륨 보정 목표치(targetLUFS) 적용
+// @version       98.8
+// @description   AGC(자동 게인 보정) 기능 추가로 프리셋 전환 안정성 향상 / 자동보정 ON/OFF 시 볼륨 상태 복원 및 초기화 로직 강화
 // @match         *://*/*
 // @run-at        document-end
 // @grant         none
@@ -40,8 +40,7 @@
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
         FILTER_EXCLUSION_DOMAINS: [], IMAGE_FILTER_EXCLUSION_DOMAINS: [],
         TARGET_DELAYS: {"play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 3000,
-        // ▼▼▼ [수정] 기본/폴백 라우드니스 목표치로 유지 ▼▼▼
-        LOUDNESS_TARGET: -16, // 프리셋에 targetLUFS가 없을 경우 사용될 기본값
+        LOUDNESS_TARGET: -16,
         LOUDNESS_ANALYSIS_INTERVAL: 250,
         LOUDNESS_ADJUSTMENT_SPEED: 0.1,
     };
@@ -112,8 +111,10 @@
                     isLimiterEnabled: CONFIG.DEFAULT_LIMITER_ENABLED, isMasteringSuiteEnabled: CONFIG.DEFAULT_MASTERING_SUITE_ENABLED,
                     masteringTransientAmount: 0.2, masteringDrive: 0,
                     isLoudnessNormalizationEnabled: false,
-                    // ▼▼▼ [추가] 현재 라우드니스 목표치를 저장할 상태 추가 ▼▼▼
                     loudnessTarget: CONFIG.LOUDNESS_TARGET,
+                    isAgcEnabled: true,
+                    // ▼▼▼ [추가] 자동보정 이전의 볼륨 활성화 상태 저장용 ▼▼▼
+                    preGainEnabledBeforeAuto: false,
                 },
                 ui: {
                     shadowRoot: null, hostElement: null, areControlsVisible: false,
@@ -820,6 +821,25 @@
             }
         }
 
+        _getInstantRMS(callback) {
+            const media = this.stateManager.get('media.currentlyVisibleMedia') || [...this.stateManager.get('media.activeMedia')][0];
+            if (!media) return callback(0);
+
+            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+            if (!nodes || !nodes.loudnessAnalyzer) return callback(0);
+
+            const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
+
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i] * dataArray[i];
+            }
+            const rms = Math.sqrt(sum / bufferLength);
+            callback(rms);
+        }
+
         startLoudnessAnalysis(media) {
             if (this.loudnessIntervalMap.has(media)) return;
 
@@ -845,7 +865,6 @@
 
                 const measuredLoudness = 20 * Math.log10(rms);
 
-                // ▼▼▼ [수정] CONFIG 대신 StateManager에서 현재 목표치를 읽어옴 ▼▼▼
                 const targetLoudness = this.stateManager.get('audio.loudnessTarget');
                 const error = targetLoudness - measuredLoudness;
 
@@ -1154,12 +1173,12 @@
             this.isDragging = false; this.wasDragged = false;
             this.startPos = { x: 0, y: 0 }; this.translatePos = { x: 0, y: 0 };
             this.delayMeterEl = null;
+            this.audioFXPlugin = null;
 
-            // ▼▼▼ [수정] 제안하신 대로 presetMap에 targetLUFS 추가 ▼▼▼
             this.presetMap = {
                 'default': {
                     name: '기본값 (모든 효과 꺼짐)',
-                    targetLUFS: CONFIG.LOUDNESS_TARGET // 기본값 프리셋은 CONFIG의 기본값을 따름
+                    targetLUFS: CONFIG.LOUDNESS_TARGET
                 },
                 'basic_clear': {
                     name: '✔ 기본 개선 (명료)',
@@ -1220,6 +1239,12 @@
 
         init(stateManager) {
             super.init(stateManager);
+
+            setTimeout(() => {
+                if(window.vscPluginManager) {
+                    this.audioFXPlugin = window.vscPluginManager.plugins.find(p => p.name === 'AudioFX');
+                }
+            }, 0);
 
             this.stateManager.subscribe('ui.createRequested', () => {
                 if (!this.globalContainer) {
@@ -1511,7 +1536,7 @@
                 .vsc-button-group { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }
                 .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
                 .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
-                .vsc-button-group > .vsc-btn { flex: 1; }
+                .vsc-button-group > .vsc-btn { flex-basis: 0; flex-grow: 1; }
                 .vsc-mastering-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; border-top: 1px solid #444; padding-top: 8px; }
                 .vsc-mastering-row > .vsc-btn { flex: 1; }
                 .vsc-mastering-row > .slider-control { flex: 1; }
@@ -1681,8 +1706,9 @@
             const preGainGroup = document.createElement('div');
             preGainGroup.className = 'vsc-button-group';
             const manualVolBtn = createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
+            const agcBtn = createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
             const autoVolBtn = createToggleBtn('loudness-norm-toggle', '자동보정', 'audio.isLoudnessNormalizationEnabled');
-            preGainGroup.append(manualVolBtn, autoVolBtn);
+            preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
 
             const widenSlider = createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
             const reverbSlider = createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
@@ -1723,14 +1749,16 @@
             });
             presetSelect.onchange = (e) => {
                 this.applyPreset(e.target.value);
-                this.stateManager.set('audio.activityCheckRequested', Date.now());
             };
             const resetBtn = document.createElement('button'); resetBtn.className = 'vsc-btn'; resetBtn.textContent = '초기화';
 
+            // ▼▼▼ [수정] 초기화 버튼 로직 강화 ▼▼▼
             resetBtn.onclick = () => {
                 this.applyPreset('default');
                 presetSelect.value = 'default';
-                this.stateManager.set('audio.isLoudnessNormalizationEnabled', false);
+                // isLoudnessNormalizationEnabled는 applyPreset('default') 내부에서 false로 설정됨
+                // isPreGainEnabled를 명시적으로 false로 설정하여 AGC의 영향으로부터 벗어남
+                this.stateManager.set('audio.isPreGainEnabled', false);
                 this.stateManager.set('audio.activityCheckRequested', Date.now());
             };
 
@@ -1752,12 +1780,17 @@
             setupSliderToggle('audio.isHpfEnabled', [hpfSlider]);
             setupSliderToggle('audio.isMasteringSuiteEnabled', [transientSliderObj.slider, driveSliderObj.slider]);
 
+            // ▼▼▼ [수정] 자동보정 ON/OFF 시 이전 볼륨 상태 복원 로직 추가 ▼▼▼
             this.stateManager.subscribe('audio.isLoudnessNormalizationEnabled', (isAuto) => {
                 manualVolBtn.disabled = isAuto;
                 preGainSlider.disabled = isAuto || !this.stateManager.get('audio.isPreGainEnabled');
                 if (isAuto) {
-                    manualVolBtn.classList.remove('active');
+                    // 켜질 때: 현재 볼륨 활성화 상태를 저장하고, 볼륨을 강제로 켬
+                    this.stateManager.set('audio.preGainEnabledBeforeAuto', this.stateManager.get('audio.isPreGainEnabled'));
                     this.stateManager.set('audio.isPreGainEnabled', true);
+                } else {
+                    // 꺼질 때: 저장했던 이전 상태로 복원
+                    this.stateManager.set('audio.isPreGainEnabled', this.stateManager.get('audio.preGainEnabledBeforeAuto'));
                 }
             });
 
@@ -1765,6 +1798,8 @@
                 const isAuto = this.stateManager.get('audio.isLoudnessNormalizationEnabled');
                 preGainSlider.disabled = isAuto || !isManual;
             });
+
+            // 초기 상태 설정
             const isAutoInitial = this.stateManager.get('audio.isLoudnessNormalizationEnabled');
             const isManualInitial = this.stateManager.get('audio.isPreGainEnabled');
             manualVolBtn.disabled = isAutoInitial;
@@ -1809,20 +1844,54 @@
             this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
         }
 
-        // ▼▼▼ [수정] applyPreset 함수 수정 ▼▼▼
         applyPreset(presetKey) {
+            if (!this.audioFXPlugin) {
+                console.warn("[VSC] AudioFXPlugin not ready for AGC.");
+                this._applyPresetSettings(presetKey);
+                return;
+            }
+
+            const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
+
+            if (!isAgcEnabled) {
+                this._applyPresetSettings(presetKey);
+                this.stateManager.set('audio.activityCheckRequested', Date.now());
+                return;
+            }
+
+            this.audioFXPlugin._getInstantRMS(rmsBefore => {
+                this._applyPresetSettings(presetKey);
+
+                setTimeout(() => {
+                    this.audioFXPlugin._getInstantRMS(rmsAfter => {
+                        if (rmsBefore > 0.001 && rmsAfter > 0.001) {
+                            const ratio = rmsBefore / rmsAfter;
+                            const currentPreGain = this.stateManager.get('audio.preGain');
+                            let compensatedGain = currentPreGain * ratio;
+
+                            compensatedGain = Math.max(0.1, Math.min(compensatedGain, 4.0));
+
+                            this.stateManager.set('audio.preGain', compensatedGain);
+                            this.stateManager.set('audio.lastManualPreGain', compensatedGain);
+                        }
+                        this.stateManager.set('audio.activityCheckRequested', Date.now());
+                    });
+                }, 100);
+            });
+        }
+
+        _applyPresetSettings(presetKey) {
             const p = this.presetMap[presetKey];
             if (!p) return;
 
             this.stateManager.set('audio.audioInitialized', true);
 
-            // 프리셋에 정의된 targetLUFS를 읽어오고, 없으면 CONFIG의 기본값을 사용
             const newTargetLUFS = p.targetLUFS ?? CONFIG.LOUDNESS_TARGET;
             this.stateManager.set('audio.loudnessTarget', newTargetLUFS);
 
-            // '기본값' 프리셋일 경우, 자동보정도 함께 끈다.
             if (presetKey === 'default') {
                 this.stateManager.set('audio.isLoudnessNormalizationEnabled', false);
+                this.stateManager.set('audio.isAgcEnabled', true);
             }
 
             const defaults = {
@@ -1854,13 +1923,17 @@
             };
 
             const isLoudnessNormalizationEnabled = this.stateManager.get('audio.isLoudnessNormalizationEnabled');
+            const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
+
             for (const key in presetValues) {
-                if (isLoudnessNormalizationEnabled && (key === 'isPreGainEnabled' || key === 'preGain')) {
+                if ((isLoudnessNormalizationEnabled || isAgcEnabled) && (key === 'isPreGainEnabled' || key === 'preGain')) {
                     continue;
                 }
                 this.stateManager.set(`audio.${key}`, presetValues[key]);
             }
-            this.stateManager.set('audio.lastManualPreGain', presetValues.preGain);
+            if (!isAgcEnabled) {
+                this.stateManager.set('audio.lastManualPreGain', presetValues.preGain);
+            }
         }
 
         attachDragAndDrop() {
@@ -1922,6 +1995,8 @@
     function main() {
         const stateManager = new StateManager();
         const pluginManager = new PluginManager(stateManager);
+
+        window.vscPluginManager = pluginManager;
 
         pluginManager.register(new UIPlugin());
         pluginManager.register(new CoreMediaPlugin());
