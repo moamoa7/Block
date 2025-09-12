@@ -1086,17 +1086,86 @@
             this.isDragging = false; this.wasDragged = false;
             this.startPos = { x: 0, y: 0 }; this.translatePos = { x: 0, y: 0 };
             this.delayMeterEl = null;
-            this.presetMap = {
-                'default': { name: '기본값 (모든 효과 꺼짐)' },
-                'basic_clear': { name: '✔ 기본 개선 (명료)', hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_mid: 2, eq_treble: 1.5, eq_presence: 2, preGain_enabled: true, preGain_value: 1, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2, },
-                'movie_immersive': { name: '🎬 영화/드라마 (몰입감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 6, eq_treble: 1.3, eq_presence: 1.2, widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -25, parallel_comp_enabled: true, parallel_comp_mix: 15, mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0, preGain_enabled: true, preGain_value: 0.8},
-                'action_blockbuster': { name: '💥 액션 블록버스터 (타격감)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8, widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3, },
-                'concert_hall': { name: '🏟️ 라이브 콘서트 (현장감)', hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2, widen_enabled: true, widen_factor: 1.3, preGain_enabled: true, preGain_value: 1.2, reverb_enabled: true, reverb_mix: 0.5, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5, },
-                'music_dynamic': { name: '🎶 음악 (다이나믹 & 펀치감)', hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2, widen_enabled: true, widen_factor: 1.3, exciter_enabled: true, exciter_amount: 12, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3, },
-                'mastering_balanced': { name: '🔥 밸런스 마스터링 (고음질)', hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_treble: 1.2, eq_presence: 1, widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 10, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, preGain_enabled: true, preGain_value: 1.5},
-                'vocal_clarity_pro': { name: '🎙️ 목소리 명료 (강의/뉴스)', hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5, preGain_enabled: true, preGain_value: 0.8, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12, mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5, },
-                'gaming_pro': { name: '🎮 게이밍 (사운드 플레이)', hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_mid: 6, eq_treble: 2, eq_presence: 2.5, widen_enabled: true, widen_factor: 1.2, preGain_enabled: true, preGain_value: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5, },
-            };
+this.presetMap = {
+  'default': { name: '기본값 (모든 효과 꺼짐)' },
+
+  'basic_clear': {
+    name: '✔ 기본 개선 (명료)',
+    hpf_enabled: true, hpf_hz: 70,
+    eq_enabled: true, eq_mid: 1.5, eq_treble: 1.2, eq_presence: 1.8,
+    preGain_enabled: true, preGain_value: 1,
+    mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 1.5,
+  },
+
+  'movie_immersive': {
+    name: '🎬 영화/드라마 (몰입감)',
+    hpf_enabled: true, hpf_hz: 60,
+    eq_enabled: true, eq_subBass: 0.8, eq_bass: 0.6, eq_mid: 1.5, eq_treble: 1.2, eq_presence: 1.1,
+    widen_enabled: true, widen_factor: 1.4,
+    deesser_enabled: true, deesser_threshold: -28,
+    parallel_comp_enabled: true, parallel_comp_mix: 10,
+    mastering_suite_enabled: true, mastering_transient: 0.2, mastering_drive: 1,
+    preGain_enabled: true, preGain_value: 0.9,
+  },
+
+  'action_blockbuster': {
+    name: '💥 액션 블록버스터 (타격감)',
+    hpf_enabled: true, hpf_hz: 55,
+    eq_enabled: true, eq_subBass: 1.3, eq_bass: 1.0, eq_mid: -1, eq_treble: 1.1, eq_presence: 1.5,
+    widen_enabled: true, widen_factor: 1.4,
+    parallel_comp_enabled: true, parallel_comp_mix: 15,
+    mastering_suite_enabled: true, mastering_transient: 0.4, mastering_drive: 2,
+  },
+
+  'concert_hall': {
+    name: '🏟️ 라이브 콘서트 (현장감)',
+    hpf_enabled: true, hpf_hz: 70,
+    eq_enabled: true, eq_subBass: 0.8, eq_bass: 0.9, eq_mid: 0.8, eq_treble: 1, eq_presence: 1.1,
+    widen_enabled: true, widen_factor: 1.35,
+    preGain_enabled: true, preGain_value: 1.1,
+    reverb_enabled: true, reverb_mix: 0.4,
+    mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 2,
+  },
+
+  'music_dynamic': {
+    name: '🎶 음악 (다이나믹 & 펀치감)',
+    hpf_enabled: true, hpf_hz: 45,
+    eq_enabled: true, eq_subBass: 1.1, eq_bass: 1.1, eq_mid: 1, eq_treble: 1, eq_presence: 1.8,
+    widen_enabled: true, widen_factor: 1.25,
+    exciter_enabled: true, exciter_amount: 8,
+    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5,
+  },
+
+  'mastering_balanced': {
+    name: '🔥 밸런스 마스터링 (고음질)',
+    hpf_enabled: true, hpf_hz: 50,
+    eq_enabled: true, eq_treble: 1.1, eq_presence: 1,
+    widen_enabled: true, widen_factor: 1.2,
+    exciter_enabled: true, exciter_amount: 8,
+    mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 3,
+    preGain_enabled: true, preGain_value: 1.1,
+  },
+
+  'vocal_clarity_pro': {
+    name: '🎙️ 목소리 명료 (강의/뉴스)',
+    hpf_enabled: true, hpf_hz: 120,
+    eq_enabled: true, eq_subBass: -1.5, eq_bass: -0.8, eq_mid: 2.5, eq_treble: 1.8, eq_presence: 2.3,
+    preGain_enabled: true, preGain_value: 1.0,
+    deesser_enabled: true, deesser_threshold: -32,
+    parallel_comp_enabled: true, parallel_comp_mix: 10,
+    mastering_suite_enabled: true, mastering_transient: 0.15, mastering_drive: 1.2,
+  },
+
+  'gaming_pro': {
+    name: '🎮 게이밍 (사운드 플레이)',
+    hpf_enabled: true, hpf_hz: 55,
+    eq_enabled: true, eq_subBass: -0.5, eq_mid: 2, eq_treble: 1.8, eq_presence: 2.2,
+    widen_enabled: true, widen_factor: 1.15,
+    preGain_enabled: true, preGain_value: 1.1,
+    mastering_suite_enabled: true, mastering_transient: 0.4, mastering_drive: 2,
+  },
+};
+
         }
 
         init(stateManager) {
