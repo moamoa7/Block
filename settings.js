@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed)
 // @namespace    https://com/
-// @version      98.0
-// @description  전역 state 객체 리팩토링: 옵저버 패턴 도입 / 플러그인 구조 도입: 각 매니저를 플러그인 형태로 분리
+// @version      98.1
+// @description  실시간 딜레이 미터기 로직 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -799,188 +799,193 @@
     }
 
     // --- [PLUGIN] LiveStreamPlugin: Manages live stream delay and seeking ---
-    class LiveStreamPlugin extends Plugin {
-        constructor() {
-            super('LiveStream');
-            this.video = null; this.avgDelay = null; this.intervalId = null; this.pidIntegral = 0;
-            this.lastError = 0; this.consecutiveStableChecks = 0;
-            this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL;
-        }
+    class LiveStreamPlugin extends Plugin {
+        constructor() {
+            super('LiveStream');
+            this.video = null; this.avgDelay = null; this.intervalId = null; this.pidIntegral = 0;
+            this.lastError = 0; this.consecutiveStableChecks = 0;
+            this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL;
+        }
 
-        init(stateManager) {
-            super.init(stateManager);
-            this.stateManager.subscribe('liveStream.isRunning', (isRunning) => {
-                if(isRunning) {
-                    this.start();
-                } else {
-                    this.stop();
-                }
-            });
-            this.stateManager.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge());
-            this.stateManager.subscribe('liveStream.resetRequested', () => {
-                if (this.stateManager.get('liveStream.isRunning')) {
-                    this.avgDelay = null;
-                    this.pidIntegral = 0;
-                    this.lastError = 0;
-                    console.log('[VSC] Live stream delay meter reset.');
-                }
-            });
+        init(stateManager) {
+            super.init(stateManager);
+            this.stateManager.subscribe('liveStream.isRunning', (isRunning) => {
+                if(isRunning) {
+                    this.start();
+                } else {
+                    this.stop();
+                }
+            });
+            this.stateManager.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge());
+            this.stateManager.subscribe('liveStream.resetRequested', () => {
+                if (this.stateManager.get('liveStream.isRunning')) {
+                    this.avgDelay = null;
+                    this.pidIntegral = 0;
+                    this.lastError = 0;
+                    console.log('[VSC] Live stream delay meter reset.');
+                }
+            });
 
-            const isLiveUrl = CONFIG.LIVE_STREAM_URLS.some(d => location.href.includes(d));
-            if (isLiveUrl) {
-                this.stateManager.set('liveStream.isRunning', true);
-            }
-        }
+            const isLiveUrl = CONFIG.LIVE_STREAM_URLS.some(d => location.href.includes(d));
+            if (isLiveUrl) {
+                this.stateManager.set('liveStream.isRunning', true);
+            }
+        }
 
-        destroy() { this.stop(); }
+        destroy() { this.stop(); }
 
-        switchInterval(newInterval) {
-            if (this.currentInterval === newInterval) return;
-            clearInterval(this.intervalId);
-            this.currentInterval = newInterval;
-            this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval);
-        }
+        switchInterval(newInterval) {
+            if (this.currentInterval === newInterval) return;
+            clearInterval(this.intervalId);
+            this.currentInterval = newInterval;
+            this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval);
+        }
 
-        findVideo() {
-            const visibleVideos = Array.from(this.stateManager.get('media.activeMedia'))
-                .filter(m => m.tagName === 'VIDEO' && m.dataset.isVisible === 'true');
-            if (visibleVideos.length === 0) return null;
-            return visibleVideos.sort((a,b) => (b.clientWidth*b.clientHeight) - (a.clientWidth*a.clientHeight))[0];
-        }
+        findVideo() {
+            const visibleVideos = Array.from(this.stateManager.get('media.activeMedia'))
+                .filter(m => m.tagName === 'VIDEO' && m.dataset.isVisible === 'true');
+            if (visibleVideos.length === 0) return null;
+            return visibleVideos.sort((a,b) => (b.clientWidth*b.clientHeight) - (a.clientWidth*a.clientHeight))[0];
+        }
 
-        calculateDelay(v) {
-            if (!v) return null;
-            if (typeof v.liveLatency === 'number' && v.liveLatency > 0) return v.liveLatency * 1000;
-            if (v.buffered && v.buffered.length > 0) {
-                try {
-                    const end = v.buffered.end(v.buffered.length-1);
-                    if (v.currentTime > end) return 0;
-                    return Math.max(0, (end - v.currentTime) * 1000);
-                } catch { return null; }
-            }
-            return null;
-        }
+        calculateDelay(v) {
+            if (!v) return null;
+            if (typeof v.liveLatency === 'number' && v.liveLatency > 0) return v.liveLatency * 1000;
+            if (v.buffered && v.buffered.length > 0) {
+                try {
+                    const end = v.buffered.end(v.buffered.length-1);
+                    if (v.currentTime > end) return 0;
+                    return Math.max(0, (end - v.currentTime) * 1000);
+                } catch { return null; }
+            }
+            return null;
+        }
 
-        getSmoothPlaybackRate(currentDelay, targetDelay) {
-            const error = currentDelay - targetDelay;
-            this.pidIntegral += error;
-            const derivative = error - this.lastError;
-            this.lastError = error;
-            let rateChange = CONFIG.AUTODELAY_PID_KP * error + CONFIG.AUTODELAY_PID_KI * this.pidIntegral + CONFIG.AUTODELAY_PID_KD * derivative;
-            return Math.max(CONFIG.AUTODELAY_MIN_RATE, Math.min(1 + rateChange, CONFIG.AUTODELAY_MAX_RATE));
-        }
+        getSmoothPlaybackRate(currentDelay, targetDelay) {
+            const error = currentDelay - targetDelay;
+            this.pidIntegral += error;
+            const derivative = error - this.lastError;
+            this.lastError = error;
+            let rateChange = CONFIG.AUTODELAY_PID_KP * error + CONFIG.AUTODELAY_PID_KI * this.pidIntegral + CONFIG.AUTODELAY_PID_KD * derivative;
+            return Math.max(CONFIG.AUTODELAY_MIN_RATE, Math.min(1 + rateChange, CONFIG.AUTODELAY_MAX_RATE));
+        }
 
-        checkAndAdjust() {
-            this.video = this.findVideo();
-            if (!this.video) {
-                const currentInfo = this.stateManager.get('liveStream.delayInfo');
-                if (currentInfo) {
-                    this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: null, rate: currentInfo.rate });
-                }
-                return;
-            };
-            const rawDelay = this.calculateDelay(this.video);
+        checkAndAdjust() {
+            this.video = this.findVideo();
+            if (!this.video) {
+                const currentInfo = this.stateManager.get('liveStream.delayInfo');
+                if (currentInfo) {
+                    this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: null, rate: currentInfo.rate });
+                }
+                return;
+            };
+            const rawDelay = this.calculateDelay(this.video);
 
-            if (rawDelay === null) {
-                this.stateManager.set('liveStream.delayInfo', {
-                    avg: this.avgDelay, raw: null, rate: this.video.playbackRate
-                });
-                return;
-            }
+            if (rawDelay === null) {
+                this.stateManager.set('liveStream.delayInfo', {
+                    avg: this.avgDelay, raw: null, rate: this.video.playbackRate
+                });
+                return;
+            }
 
-            this.avgDelay = this.avgDelay === null ? rawDelay : CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * this.avgDelay;
+            this.avgDelay = this.avgDelay === null ? rawDelay : CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * this.avgDelay;
 
-            this.stateManager.set('liveStream.delayInfo', {
-                avg: this.avgDelay, raw: rawDelay, rate: this.video.playbackRate
-            });
+            this.stateManager.set('liveStream.delayInfo', {
+                avg: this.avgDelay, raw: rawDelay, rate: this.video.playbackRate
+            });
 
-            const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY;
-            const error = this.avgDelay - targetDelay;
+            const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY;
+            const error = this.avgDelay - targetDelay;
 
-            if (Math.abs(error) < CONFIG.AUTODELAY_STABLE_THRESHOLD) this.consecutiveStableChecks++; else { this.consecutiveStableChecks = 0; if (this.isStable) { this.isStable = false; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_NORMAL); } }
-            if (this.consecutiveStableChecks >= CONFIG.AUTODELAY_STABLE_COUNT && !this.isStable) { this.isStable = true; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_STABLE); }
+            if (Math.abs(error) < CONFIG.AUTODELAY_STABLE_THRESHOLD) this.consecutiveStableChecks++; else { this.consecutiveStableChecks = 0; if (this.isStable) { this.isStable = false; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_NORMAL); } }
+            if (this.consecutiveStableChecks >= CONFIG.AUTODELAY_STABLE_COUNT && !this.isStable) { this.isStable = true; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_STABLE); }
 
-            const newRate = this.getSmoothPlaybackRate(this.avgDelay, targetDelay);
-            if (Math.abs(this.video.playbackRate-newRate)>0.001) this.video.playbackRate=newRate;
+            // ▼▼▼ [수정] 딜레이가 목표치 이하면 1배속으로 고정, 초과하면 PID 제어로 따라가는 로직 ▼▼▼
+            let newRate;
+            if (this.avgDelay !== null && this.avgDelay <= targetDelay) {
+                newRate = 1.0;
+                // 1배속으로 고정될 때 PID 제어기의 누적 오차(Integral)와 직전 오차(Error)를 초기화하여
+                // 나중에 딜레이가 발생했을 때 급격하게 배속이 변하는 것을 방지합니다.
+                this.pidIntegral = 0;
+                this.lastError = 0;
+            } else {
+                // 딜레이가 목표치를 초과한 경우에만 속도를 조절합니다.
+                newRate = this.getSmoothPlaybackRate(this.avgDelay, targetDelay);
+            }
 
-            // ▼▼▼ [수정] 실시간 상태에 따라 버튼 스타일을 변경하는 코드 추가 ▼▼▼
-    const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child');
-    if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) {
-        const isLiveNow = this.avgDelay < (CONFIG.DEFAULT_TARGET_DELAY + 500); // 목표 딜레이 + 0.5초 이내면 라이브로 간주
-        liveJumpBtn.style.boxShadow = isLiveNow ? '0 0 8px 2px #ff0000' : '0 0 8px 2px #808080'; // 라이브면 빨간색, 아니면 회색
-    }
-    // ▲▲▲ 여기까지 추가 ▲▲▲
-        }
+            // 계산된 newRate를 비디오에 적용합니다.
+            if (Math.abs(this.video.playbackRate - newRate) > 0.001) {
+                this.video.playbackRate = newRate;
+            }
+            // ▲▲▲ 여기까지 수정 ▲▲▲
 
-        start() {
-            if (this.intervalId) return;
-            setTimeout(() => {
-                this.stateManager.set('liveStream.delayInfo', { raw: null, avg: null, rate: 1.0 });
-            }, 0);
-            this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval);
-        }
+            const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child');
+            if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) {
+                const isLiveNow = this.avgDelay < (CONFIG.DEFAULT_TARGET_DELAY + 500); // 목표 딜레이 + 0.5초 이내면 라이브로 간주
+                liveJumpBtn.style.boxShadow = isLiveNow ? '0 0 8px 2px #ff0000' : '0 0 8px 2px #808080'; // 라이브면 빨간색, 아니면 회색
+            }
+        }
 
-        stop() {
-            if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+        start() {
+            if (this.intervalId) return;
+            setTimeout(() => {
+                this.stateManager.set('liveStream.delayInfo', { raw: null, avg: null, rate: 1.0 });
+            }, 0);
+            this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval);
+        }
 
-          // ▼▼▼ [수정] 딜레이 체크 중지 시 버튼 테두리 스타일 제거 코드 추가 ▼▼▼
-    const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child');
-    if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) {
-        liveJumpBtn.style.boxShadow = '';
-    }
-    // ▲▲▲ 여기까지 추가 ▲▲▲
+        stop() {
+            if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
 
-            this.stateManager.set('liveStream.delayInfo', null);
-            this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0;
-            this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL;
-        }
+            const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child');
+            if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) {
+                liveJumpBtn.style.boxShadow = '';
+            }
 
-        seekToLiveEdge() {
-    const videos = Array.from(this.stateManager.get('media.activeMedia'))
-        .filter(m => m.tagName === 'VIDEO');
-    if (videos.length === 0) return;
+            this.stateManager.set('liveStream.delayInfo', null);
+            this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0;
+            this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL;
+        }
 
-    // 현재 사이트의 목표 딜레이 값을 가져옵니다. 없으면 기본값을 사용합니다.
-    const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY;
+        seekToLiveEdge() {
+            const videos = Array.from(this.stateManager.get('media.activeMedia'))
+                .filter(m => m.tagName === 'VIDEO');
+            if (videos.length === 0) return;
 
-    videos.forEach(v => {
-        try {
-            const seekableEnd = (v.seekable && v.seekable.length > 0)
-                ? v.seekable.end(v.seekable.length - 1)
-                : Infinity;
-            const bufferedEnd = (v.buffered && v.buffered.length > 0)
-                ? v.buffered.end(v.buffered.length - 1)
-                : 0;
+            const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY;
 
-            const liveEdge = Math.min(seekableEnd, bufferedEnd);
+            videos.forEach(v => {
+                try {
+                    const seekableEnd = (v.seekable && v.seekable.length > 0)
+                        ? v.seekable.end(v.seekable.length - 1)
+                        : Infinity;
+                    const bufferedEnd = (v.buffered && v.buffered.length > 0)
+                        ? v.buffered.end(v.buffered.length - 1)
+                        : 0;
 
-            // 1) liveEdge가 유효한 숫자가 아니면 중단
-            if (!isFinite(liveEdge)) return;
+                    const liveEdge = Math.min(seekableEnd, bufferedEnd);
 
-            // 현재 지연 시간 (ms)
-            const delayMs = (liveEdge - v.currentTime) * 1000;
+                    if (!isFinite(liveEdge)) return;
 
-            // 2) 딜레이가 목표치 이하라면 "충분히 실시간이므로" 이동 안 함
-            if (delayMs <= targetDelay) return;
+                    const delayMs = (liveEdge - v.currentTime) * 1000;
 
-            // 3) 너무 자주 클릭하는 것을 방지
-            if (!v._lastLiveJump) v._lastLiveJump = 0;
-            if (Date.now() - v._lastLiveJump < CONFIG.LIVE_JUMP_INTERVAL) return;
+                    if (delayMs <= targetDelay) return;
 
-            // 4) 기술적으로 이동할 수 없는 아주 작은 차이라면 스킵 (안전을 위한 최종 방어선)
-            if (liveEdge - v.currentTime < CONFIG.LIVE_JUMP_END_THRESHOLD) return;
+                    if (!v._lastLiveJump) v._lastLiveJump = 0;
+                    if (Date.now() - v._lastLiveJump < CONFIG.LIVE_JUMP_INTERVAL) return;
 
-            // 모든 조건을 통과했으면 실행
-            v._lastLiveJump = Date.now();
-            v.currentTime = liveEdge - 0.5; // 버퍼 바로 끝으로 가면 불안정할 수 있으니 0.5초 여유
-            if (v.paused) v.play().catch(console.warn);
+                    if (liveEdge - v.currentTime < CONFIG.LIVE_JUMP_END_THRESHOLD) return;
 
-        } catch (e) {
-            console.error('[VSC] seekToLiveEdge error:', e);
-        }
-    });
-}
-    }
+                    v._lastLiveJump = Date.now();
+                    v.currentTime = liveEdge - 0.5;
+                    if (v.paused) v.play().catch(console.warn);
+
+                } catch (e) {
+                    console.error('[VSC] seekToLiveEdge error:', e);
+                }
+            });
+        }
+    }
 
     // --- [PLUGIN] PlaybackControlPlugin: Manages speed and basic playback ---
     class PlaybackControlPlugin extends Plugin {
