@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband)
 // @namespace    https://com/
-// @version      99.6
-// @description  멀티밴드 추가 + 프리셋 자동 적용 기능 추가 (모바일 전체화면 UI 오류 수정 및 UI 크기 최적화)
+// @version      99.7
+// @description  멀티밴드 추가 + 프리셋 자동 적용 기능 추가 (멀티밴드 효과 적용 버그 수정)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -699,18 +699,21 @@
                     lastNode = lastNode.connect(nodes.hpf);
                 }
 
+                // **[BUG FIX START]**
                 if (audioState.isMultibandCompEnabled) {
-                    const mbcState = audioState.multibandComp;
                     const mbcNodes = nodes.mbc;
                     const merger = mbcNodes.merger;
 
-                    mbcNodes.splitter1.frequency.value = mbcState.low.crossover;
-                    mbcNodes.splitter2.frequency.value = mbcState.lowMid.crossover;
-                    mbcNodes.splitter3.frequency.value = mbcState.highMid.crossover;
+                    mbcNodes.splitter1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
+                    mbcNodes.splitter2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
+                    mbcNodes.splitter3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
 
-                    const highPass1 = nodes.context.createBiquadFilter(); highPass1.type = 'highpass'; highPass1.frequency.value = mbcState.low.crossover;
-                    const highPass2 = nodes.context.createBiquadFilter(); highPass2.type = 'highpass'; highPass2.frequency.value = mbcState.lowMid.crossover;
-                    const highPass3 = nodes.context.createBiquadFilter(); highPass3.type = 'highpass'; highPass3.frequency.value = mbcState.highMid.crossover;
+                    const highPass1 = nodes.context.createBiquadFilter(); highPass1.type = 'highpass';
+                    highPass1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
+                    const highPass2 = nodes.context.createBiquadFilter(); highPass2.type = 'highpass';
+                    highPass2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
+                    const highPass3 = nodes.context.createBiquadFilter(); highPass3.type = 'highpass';
+                    highPass3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
 
                     lastNode.connect(mbcNodes.splitter1).connect(mbcNodes.compLow).connect(mbcNodes.gainLow).connect(merger);
                     lastNode.connect(highPass1).connect(mbcNodes.splitter2).connect(mbcNodes.compLowMid).connect(mbcNodes.gainLowMid).connect(merger);
@@ -724,17 +727,17 @@
                     bands.forEach(band => {
                         const comp = compMap[band];
                         const gain = gainMap[band];
-                        const settings = mbcState[band];
 
-                        comp.threshold.value = settings.threshold;
-                        comp.ratio.value = settings.ratio;
-                        comp.attack.value = settings.attack;
-                        comp.release.value = settings.release;
-                        gain.gain.value = Math.pow(10, settings.makeupGain / 20);
+                        comp.threshold.value = this.stateManager.get(`audio.multibandComp.${band}.threshold`);
+                        comp.ratio.value = this.stateManager.get(`audio.multibandComp.${band}.ratio`);
+                        comp.attack.value = this.stateManager.get(`audio.multibandComp.${band}.attack`);
+                        comp.release.value = this.stateManager.get(`audio.multibandComp.${band}.release`);
+                        gain.gain.value = Math.pow(10, this.stateManager.get(`audio.multibandComp.${band}.makeupGain`) / 20);
                     });
 
                     lastNode = merger;
                 }
+                // **[BUG FIX END]**
 
                 if (audioState.isExciterEnabled && audioState.exciterAmount > 0) {
                     const exciterSum = nodes.context.createGain(); const exciterDry = nodes.context.createGain(); const exciterWet = nodes.context.createGain();
@@ -1805,40 +1808,34 @@
                     background: rgba(0,0,0,0.5); z-index: ${CONFIG.MAX_Z_INDEX + 1};
                     justify-content: center; align-items: center;
                     border-radius: 10px;
-                    padding: 20px;
+                    padding: 10px;
                 }
                 #vsc-mbc-container {
-    background: rgba(30,30,30,0.95); border: 1px solid #555; border-radius: 8px;
-    padding: clamp(8px, 2vw, 12px); /* 여백 축소 */
-    color: white; display: flex; flex-direction: column;
-    gap: clamp(8px, 1.5vw, 10px); /* 간격 축소 */
-    min-width: clamp(250px, 80vw, 550px); /* 전체적인 최소/최대 너비 축소 */
-}
+                    background: rgba(30,30,30,0.95); border: 1px solid #555; border-radius: 8px;
+                    padding: clamp(8px, 2vw, 12px);
+                    color: white; display: flex; flex-direction: column;
+                    gap: clamp(8px, 1.5vw, 10px);
+                    min-width: clamp(250px, 80vw, 550px);
+                }
                 #vsc-mbc-header { display: flex; justify-content: space-between; align-items: center; }
-                #vsc-mbc-header h3 { margin: 0; font-size: clamp(13px, 2.2vw, 15px); /* 폰트 크기 미세 조정 */ }
+                #vsc-mbc-header h3 { margin: 0; font-size: clamp(13px, 2.2vw, 15px); }
                 #vsc-mbc-bands {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); /* PC에서는 2열 */
-    gap: 10px;
-}
-                .vsc-mbc-band {
-    padding: clamp(6px, 1.5vw, 8px); /* 밴드 내부 여백 축소 */
-}
-.vsc-mbc-band h4 {
-    margin: 0 0 8px 0;
-    font-size: clamp(13px, 2.2vw, 14px); /* 폰트 크기 미세 조정 */
-}
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 10px;
+                }
+                .vsc-mbc-band { display: flex; flex-direction: column; gap: 8px; padding: clamp(6px, 1.5vw, 8px); border: 1px solid #444; border-radius: 5px; }
+                .vsc-mbc-band h4 { margin: 0 0 8px 0; text-align: center; font-size: clamp(13px, 2.2vw, 14px); color: #3498db; }
 
-/* [핵심 수정] 모바일 화면 대응을 위한 미디어 쿼리 추가 */
-@media (max-width: 600px) {
-    #vsc-mbc-bands {
-        grid-template-columns: 1fr; /* 화면이 좁으면 1열로 변경 */
-        gap: 8px;
-    }
-    #vsc-mbc-container {
-        min-width: clamp(250px, 75vw, 300px); /* 모바일용 너비 재조정 */
-    }
-}
+                @media (max-width: 600px) {
+                    #vsc-mbc-bands {
+                        grid-template-columns: 1fr;
+                        gap: 8px;
+                    }
+                    #vsc-mbc-container {
+                        min-width: clamp(250px, 75vw, 300px);
+                    }
+                }
             `;
             this.shadowRoot.appendChild(style);
             this.modalShadowRoot.appendChild(style.cloneNode(true));
@@ -2266,10 +2263,19 @@
                         release: bandData.release / 1000,
                         makeupGain: bandData.makeup,
                     };
-                    this.stateManager.set(`audio.multibandComp.${key}`, newSettings);
+                    // **[FIXED in v100.5]** Iterate and set each parameter individually to trigger UI updates.
+                    for (const [param, value] of Object.entries(newSettings)) {
+                         this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
+                    }
                 });
             } else if (presetKey === 'default') {
-                this.stateManager.set('audio.multibandComp', JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS)));
+                 // **[FIXED in v100.5]** Also apply default settings individually for UI consistency.
+                const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
+                for (const [key, settings] of Object.entries(defaultSettings)) {
+                    for (const [param, value] of Object.entries(settings)) {
+                        this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
+                    }
+                }
             }
 
             if (!isAgcActive) {
