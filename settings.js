@@ -1808,22 +1808,37 @@
                     padding: 20px;
                 }
                 #vsc-mbc-container {
-                    background: rgba(30,30,30,0.95); border: 1px solid #555; border-radius: 10px;
-                    padding: clamp(10px, 2vw, 15px);
-                    color: white; display: flex; flex-direction: column;
-                    gap: clamp(8px, 1.5vw, 12px);
-                    min-width: clamp(280px, 85vw, 600px);
-                }
+    background: rgba(30,30,30,0.95); border: 1px solid #555; border-radius: 8px;
+    padding: clamp(8px, 2vw, 12px); /* 여백 축소 */
+    color: white; display: flex; flex-direction: column;
+    gap: clamp(8px, 1.5vw, 10px); /* 간격 축소 */
+    min-width: clamp(250px, 80vw, 550px); /* 전체적인 최소/최대 너비 축소 */
+}
                 #vsc-mbc-header { display: flex; justify-content: space-between; align-items: center; }
-                #vsc-mbc-header h3 { margin: 0; font-size: clamp(14px, 2.5vw, 16px); }
+                #vsc-mbc-header h3 { margin: 0; font-size: clamp(13px, 2.2vw, 15px); /* 폰트 크기 미세 조정 */ }
                 #vsc-mbc-bands {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    grid-template-rows: repeat(2, auto);
-                    gap: 10px;
-                }
-                .vsc-mbc-band { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid #444; border-radius: 5px; }
-                .vsc-mbc-band h4 { margin: 0 0 10px 0; text-align: center; font-size: clamp(13px, 2.2vw, 14px); color: #3498db; }
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* PC에서는 2열 */
+    gap: 10px;
+}
+                .vsc-mbc-band {
+    padding: clamp(6px, 1.5vw, 8px); /* 밴드 내부 여백 축소 */
+}
+.vsc-mbc-band h4 {
+    margin: 0 0 8px 0;
+    font-size: clamp(13px, 2.2vw, 14px); /* 폰트 크기 미세 조정 */
+}
+
+/* [핵심 수정] 모바일 화면 대응을 위한 미디어 쿼리 추가 */
+@media (max-width: 600px) {
+    #vsc-mbc-bands {
+        grid-template-columns: 1fr; /* 화면이 좁으면 1열로 변경 */
+        gap: 8px;
+    }
+    #vsc-mbc-container {
+        min-width: clamp(250px, 75vw, 300px); /* 모바일용 너비 재조정 */
+    }
+}
             `;
             this.shadowRoot.appendChild(style);
             this.modalShadowRoot.appendChild(style.cloneNode(true));
