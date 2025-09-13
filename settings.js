@@ -2152,7 +2152,7 @@
             masteringContainer.className = 'vsc-mastering-group';
             const masteringToggleBtn = this._createToggleBtn('mastering-toggle', '마스터링', 'audio.isMasteringSuiteEnabled');
             masteringToggleBtn.addEventListener('click', () => { this.stateManager.set('audio.isLimiterEnabled', false); });
-            const transientSliderObj = this._createSlider('타격감', 'master-transient', 0, 100, 1, 'audio.masteringTransientAmount', '%', v => `${(v * 100).toFixed(0)}%`);
+            const transientSliderObj = this._createSlider('타격감', 'master-transient', 0, 1, 0.01, 'audio.masteringTransientAmount', '%', v => `${(v * 100).toFixed(0)}%`);
             const driveSliderObj = this._createSlider('음압', 'master-drive', 0, 12, 0.5, 'audio.masteringDrive', 'dB', v => `${v.toFixed(1)}dB`);
             masteringContainer.append(masteringToggleBtn, transientSliderObj.control, driveSliderObj.control);
 
