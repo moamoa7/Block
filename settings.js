@@ -1921,9 +1921,7 @@
                 .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
                 .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
                 .vsc-button-group > .vsc-btn { flex-basis: 0; flex-grow: 1; }
-                .vsc-mastering-row { display: flex; align-items: center; gap: 12px; }
-                .vsc-mastering-row > .vsc-btn { flex: 1; }
-                .vsc-mastering-row > .slider-control { flex: 1; }
+                .vsc-mastering-group { display: flex; flex-direction: column; gap: 8px; }
                 .vsc-tabs { display: flex; gap: 5px; border-bottom: 1px solid #444; margin-bottom: 10px; width: 100%; }
                 .vsc-tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: #aaa; padding: 4px 8px; cursor: pointer; font-size: clamp(13px, 2.2vmin, 14px); }
                 .vsc-tab-btn.active { color: white; border-bottom-color: #3498db; }
@@ -2151,7 +2149,7 @@
             mbcGroup.append(mbcToggleBtn, mbcSettingsBtn);
 
             const masteringContainer = document.createElement('div');
-            masteringContainer.className = 'vsc-mastering-row';
+            masteringContainer.className = 'vsc-mastering-group';
             const masteringToggleBtn = this._createToggleBtn('mastering-toggle', '마스터링', 'audio.isMasteringSuiteEnabled');
             masteringToggleBtn.addEventListener('click', () => { this.stateManager.set('audio.isLimiterEnabled', false); });
             const transientSliderObj = this._createSlider('타격감', 'master-transient', 0, 100, 1, 'audio.masteringTransientAmount', '%', v => `${(v * 100).toFixed(0)}%`);
