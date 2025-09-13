@@ -27,7 +27,7 @@
         DEFAULT_EXCITER_AMOUNT: 0, DEFAULT_PARALLEL_COMP_ENABLED: false, DEFAULT_PARALLEL_COMP_MIX: 0, DEFAULT_LIMITER_ENABLED: false,
         DEFAULT_MASTERING_SUITE_ENABLED: false, DEBUG: false, AUTODELAY_INTERVAL_NORMAL: 1000, AUTODELAY_INTERVAL_STABLE: 3000,
         AUTODELAY_STABLE_THRESHOLD: 100, AUTODELAY_STABLE_COUNT: 5, AUTODELAY_PID_KP: 0.0002, AUTODELAY_PID_KI: 0.00001,
-        AUTODELAY_PID_KD: 0.0001, AUTODELAY_MIN_RATE: 1.0, AUTODELAY_MAX_RATE: 1.05, LIVE_JUMP_INTERVAL: 6000,
+        AUTODELAY_PID_KD: 0.0001, AUTODELAY_MIN_RATE: 1.0, AUTODELAY_MAX_RATE: 1.025, LIVE_JUMP_INTERVAL: 6000,
         LIVE_JUMP_END_THRESHOLD: 1.0, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 335, VIDEO_MIN_SIZE: 0,
         SPEED_PRESETS: [2.0, 1.5, 1.2, 1, 0.5, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
@@ -183,10 +183,16 @@
             if (this.listeners[key]) {
                 this.listeners[key].forEach(callback => callback(newValue, oldValue));
             }
-            const prefix = key.substring(0, key.lastIndexOf('.'));
-            if (prefix && this.listeners[`${prefix}.*`]) {
-                this.listeners[`${prefix}.*`].forEach(callback => callback(key, newValue, oldValue));
+            // [수정된 부분] 와일드카드 리스너를 재귀적으로 확인
+        let currentKey = key;
+        while (currentKey.includes('.')) {
+            const prefix = currentKey.substring(0, currentKey.lastIndexOf('.'));
+            const wildcardKey = `${prefix}.*`;
+            if (this.listeners[wildcardKey]) {
+                this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue));
             }
+            currentKey = prefix;
+        }
         }
     }
 
@@ -1264,122 +1270,115 @@
             this.modalShadowRoot = null;
 
             this.presetMap = {
-                'default': {
-                    name: '기본값 (모든 효과 꺼짐)',
-                    targetLUFS: CONFIG.LOUDNESS_TARGET,
-                    multiband_enabled: false
-                },
-                'basic_clear': {
-                    name: '✔ 기본 개선 (명료)',
-                    hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
-                    preGain_enabled: true, preGain_value: 1, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2,
-                    targetLUFS: -16,
-                    multiband_enabled: true,
-                    multiband_bands: [
-                        { freqHigh: 120, threshold: -24, ratio: 3,   attack: 10, release: 300, makeup: 0 },
-                        { freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 8,  release: 250, makeup: 0 },
-                        { freqHigh: 6000, threshold: -28, ratio: 4,   attack: 5,  release: 200, makeup: 0 },
-                        { freqHigh: 20000, threshold: -30, ratio: 4.5, attack: 2,  release: 150, makeup: 0 }
-                    ]
-                },
-                'movie_immersive': {
-                    name: '🎬 영화/드라마 (몰입감)',
-                    hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
-                    widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -25, parallel_comp_enabled: true, parallel_comp_mix: 15,
-                    mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0, preGain_enabled: true, preGain_value: 0.8,
-                    targetLUFS: -15,
-                    multiband_enabled: true,
-                    multiband_bands: [
-                        { freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 0 },
-                        { freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8,  release: 250, makeup: 0 },
-                        { freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 5,  release: 200, makeup: 0 },
-                        { freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 2,  release: 150, makeup: 0 }
-                    ]
-                },
-                'action_blockbuster': {
-                    name: '💥 액션 블록버스터 (타격감)',
-                    hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8,
-                    widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18,
-                    mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3,
-                    targetLUFS: -14,
-                    multiband_enabled: true,
-                    multiband_bands: [
-                        { freqHigh: 120, threshold: -26, ratio: 3.5, attack: 12, release: 320, makeup: 0 },
-                        { freqHigh: 1000, threshold: -27, ratio: 4,   attack: 8,  release: 260, makeup: 0 },
-                        { freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 6,  release: 200, makeup: 0 },
-                        { freqHigh: 20000, threshold: -30, ratio: 5,   attack: 3,  release: 150, makeup: 0 }
-                    ]
-                },
-                'concert_hall': {
-                    name: '🏟️ 라이브 콘서트 (현장감)',
-                    hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2,
-                    widen_enabled: true, widen_factor: 1.3, preGain_enabled: true, preGain_value: 1.2, reverb_enabled: true, reverb_mix: 0.5,
-                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5,
-                    targetLUFS: -14.5,
-                    multiband_enabled: true,
-                    multiband_bands: [
-                        { freqHigh: 120, threshold: -24, ratio: 3,   attack: 12, release: 280, makeup: 0 },
-                        { freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 9,  release: 250, makeup: 0 },
-                        { freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 6,  release: 210, makeup: 0 },
-                        { freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 3,  release: 160, makeup: 0 }
-                    ]
-                },
-                'music_dynamic': {
-                    name: '🎶 음악 (다이나믹 & 펀치감)',
-                    hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
-                    widen_enabled: true, widen_factor: 1.3, exciter_enabled: true, exciter_amount: 12,
-                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3,
-                    targetLUFS: -13,
-                    multiband_enabled: true,
-                    multiband_bands: [
-                        { freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 0 },
-                        { freqHigh: 1000, threshold: -27, ratio: 4,   attack: 8,  release: 250, makeup: 0 },
-                        { freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 5,  release: 200, makeup: 0 },
-                        { freqHigh: 20000, threshold: -30, ratio: 5,   attack: 2,  release: 150, makeup: 0 }
-                    ]
-                },
-                'mastering_balanced': {
-                    name: '🔥 밸런스 마스터링 (고음질)',
-                    hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_treble: 1.2, eq_presence: 1,
-                    widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 10,
-                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, preGain_enabled: true, preGain_value: 1.5,
-                    targetLUFS: -13.5,
-                    multiband_enabled: true,
-                    multiband_bands: [
-                        { freqHigh: 120, threshold: -24, ratio: 3.2, attack: 10, release: 300, makeup: 0 },
-                        { freqHigh: 1000, threshold: -26, ratio: 3.8, attack: 8,  release: 250, makeup: 0 },
-                        { freqHigh: 6000, threshold: -27, ratio: 4.2, attack: 5,  release: 200, makeup: 0 },
-                        { freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 2,  release: 150, makeup: 0 }
-                    ]
-                },
-                'vocal_clarity_pro': {
-                    name: '🎙️ 목소리 명료 (강의/뉴스)',
-                    hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
-                    preGain_enabled: true, preGain_value: 1.0, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12,
-                    mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5,
-                    targetLUFS: -18,
-                    multiband_enabled: true,
-                    multiband_bands: [
-                        { freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 0 },
-                        { freqHigh: 1000, threshold: -23, ratio: 3,   attack: 10, release: 260, makeup: 0 },
-                        { freqHigh: 6000, threshold: -25, ratio: 3.5, attack: 7,  release: 210, makeup: 0 },
-                        { freqHigh: 20000, threshold: -27, ratio: 4,   attack: 4,  release: 160, makeup: 0 }
-                    ]
-                },
-                'gaming_pro': {
-                    name: '🎮 게이밍 (사운드 플레이)',
-                    hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_mid: 2, eq_treble: 2, eq_presence: 2.5,
-                    widen_enabled: true, widen_factor: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5,
-                    targetLUFS: -15,
-                    multiband_enabled: true,
-                    multiband_bands: [
-                        { freqHigh: 120, threshold: -23, ratio: 3,   attack: 12, release: 300, makeup: 0 },
-                        { freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 9,  release: 250, makeup: 0 },
-                        { freqHigh: 6000, threshold: -27, ratio: 4,   attack: 6,  release: 200, makeup: 0 },
-                        { freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 3,  release: 150, makeup: 0 }
-                    ]
-                }
-            };
+    'default': {
+        name: '기본값 (모든 효과 꺼짐)',
+        targetLUFS: CONFIG.LOUDNESS_TARGET,
+        multiband_enabled: false
+    },
+    'basic_clear': {
+        name: '✔ 기본 개선 (명료)',
+        hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
+        preGain_enabled: true, preGain_value: 1, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2,
+        targetLUFS: -16, multiband_enabled: true,
+        multiband_bands: [
+            { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 10, release: 300, makeup: 2 },
+            { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 8, release: 250, makeup: 1.5 },
+            { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4, attack: 5, release: 200, makeup: 1 },
+            { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
+        ]
+    },
+    'movie_immersive': {
+        name: '🎬 영화/드라마 (몰입감)',
+        hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
+        widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -25, parallel_comp_enabled: true, parallel_comp_mix: 15,
+        mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0, preGain_enabled: true, preGain_value: 0.8,
+        targetLUFS: -15, multiband_enabled: true,
+        multiband_bands: [
+            { freqLow: 20, freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
+            { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8, release: 250, makeup: 1.5 },
+            { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 5, release: 200, makeup: 1 },
+            { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 2, release: 150, makeup: 1 }
+        ]
+    },
+    'action_blockbuster': {
+        name: '💥 액션 블록버스터 (타격감)',
+        hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8,
+        widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18,
+        mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3,
+        targetLUFS: -14, multiband_enabled: true,
+        multiband_bands: [
+            { freqLow: 20, freqHigh: 120, threshold: -26, ratio: 3.5, attack: 12, release: 320, makeup: 2.5 },
+            { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 260, makeup: 2 },
+            { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 6, release: 200, makeup: 1.5 },
+            { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 3, release: 150, makeup: 1 }
+        ]
+    },
+    'concert_hall': {
+        name: '🏟️ 라이브 콘서트 (현장감)',
+        hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2,
+        widen_enabled: true, widen_factor: 1.3, preGain_enabled: true, preGain_value: 1.2, reverb_enabled: true, reverb_mix: 0.5,
+        mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5,
+        targetLUFS: -14.5, multiband_enabled: true,
+        multiband_bands: [
+            { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 12, release: 280, makeup: 2 },
+            { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 9, release: 250, makeup: 1.5 },
+            { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 6, release: 210, makeup: 1 },
+            { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 3, release: 160, makeup: 1 }
+        ]
+    },
+    'music_dynamic': {
+        name: '🎶 음악 (다이나믹 & 펀치감)',
+        hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
+        widen_enabled: true, widen_factor: 1.3, exciter_enabled: true, exciter_amount: 12,
+        mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3,
+        targetLUFS: -13, multiband_enabled: true,
+        multiband_bands: [
+            { freqLow: 20, freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 2 },
+            { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 250, makeup: 1.5 },
+            { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 5, release: 200, makeup: 1 },
+            { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 2, release: 150, makeup: 1 }
+        ]
+    },
+    'mastering_balanced': {
+        name: '🔥 밸런스 마스터링 (고음질)',
+        hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_treble: 1.2, eq_presence: 1,
+        widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 10,
+        mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, preGain_enabled: true, preGain_value: 1.5,
+        targetLUFS: -13.5, multiband_enabled: true,
+        multiband_bands: [
+            { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3.2, attack: 10, release: 300, makeup: 2 },
+            { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.8, attack: 8, release: 250, makeup: 1.5 },
+            { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4.2, attack: 5, release: 200, makeup: 1 },
+            { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
+        ]
+    },
+    'vocal_clarity_pro': {
+        name: '🎙️ 목소리 명료 (강의/뉴스)',
+        hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
+        preGain_enabled: true, preGain_value: 1.0, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12,
+        mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5,
+        targetLUFS: -18, multiband_enabled: true,
+        multiband_bands: [
+            { freqLow: 20, freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 2 },
+            { freqLow: 120, freqHigh: 1000, threshold: -23, ratio: 3, attack: 10, release: 260, makeup: 1.5 },
+            { freqLow: 1000, freqHigh: 6000, threshold: -25, ratio: 3.5, attack: 7, release: 210, makeup: 1 },
+            { freqLow: 6000, freqHigh: 20000, threshold: -27, ratio: 4, attack: 4, release: 160, makeup: 1 }
+        ]
+    },
+    'gaming_pro': {
+        name: '🎮 게이밍 (사운드 플레이)',
+        hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_mid: 2, eq_treble: 2, eq_presence: 2.5,
+        widen_enabled: true, widen_factor: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5,
+        targetLUFS: -15, multiband_enabled: true,
+        multiband_bands: [
+            { freqLow: 20, freqHigh: 120, threshold: -23, ratio: 3, attack: 12, release: 300, makeup: 2 },
+            { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 9, release: 250, makeup: 1.5 },
+            { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4, attack: 6, release: 200, makeup: 1 },
+            { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 3, release: 150, makeup: 1 }
+        ]
+    }
+};
+
         }
 
         init(stateManager) {
@@ -2135,10 +2134,13 @@
             modalResetBtn.textContent = '모든 밴드 초기화';
             modalResetBtn.style.alignSelf = 'center';
             modalResetBtn.onclick = () => {
-                const defaultSettings = CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS;
-                for (const key of Object.keys(bandInfo)) {
-                    this.stateManager.set(`audio.multibandComp.${key}`, { ...defaultSettings[key] });
+            const defaultSettings = CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS;
+            // [수정된 로직] 이중 반복문으로 각 밴드의 모든 파라미터를 개별적으로 설정
+            for (const bandKey of Object.keys(bandInfo)) {
+                for (const [paramKey, paramValue] of Object.entries(defaultSettings[bandKey])) {
+                    this.stateManager.set(`audio.multibandComp.${bandKey}.${paramKey}`, paramValue);
                 }
+            }
             };
 
             container.append(header, bandsContainer, modalResetBtn);
