@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name          Video_Image_Control (Final & Fixed)
-// @namespace     https://com/
-// @version       98.8
-// @description   AGC(자동 게인 보정) 기능 추가로 프리셋 전환 안정성 향상 / 자동보정 ON/OFF 시 볼륨 상태 복원 및 초기화 로직 강화
-// @match         *://*/*
-// @run-at        document-end
-// @grant         none
+// @name         Video_Image_Control (Final & Fixed)
+// @namespace    https://com/
+// @version      99.1
+// @description  버그 및 최적화 (개선안 반영)
+// @match        *://*/*
+// @run-at       document-end
+// @grant        none
 // ==/UserScript==
 
 (function () {
@@ -43,6 +43,9 @@
         LOUDNESS_TARGET: -16, // 프리셋에 targetLUFS가 없을 경우 사용될 기본값
         LOUDNESS_ANALYSIS_INTERVAL: 250,
         LOUDNESS_ADJUSTMENT_SPEED: 0.1,
+        // --- [개선] Magic Number 상수화 ---
+        UI_AGC_APPLY_DELAY: 150,
+        UI_HIDDEN_CLASS_NAME: 'vsc-hidden',
     };
 
     // --- [ARCHITECTURE] UTILITY FUNCTIONS ---
@@ -163,6 +166,11 @@
                 this.listeners[key] = [];
             }
             this.listeners[key].push(callback);
+
+            // Return an unsubscribe function
+            return () => {
+                this.listeners[key] = this.listeners[key].filter(cb => cb !== callback);
+            };
         }
 
         notify(key, newValue, oldValue) {
@@ -181,9 +189,21 @@
         constructor(name) {
             this.name = name;
             this.stateManager = null;
+            this.subscriptions = [];
         }
-        init(stateManager) { this.stateManager = stateManager; }
-        destroy() {}
+        init(stateManager) {
+            this.stateManager = stateManager;
+        }
+        destroy() {
+            // Unsubscribe all listeners when plugin is destroyed
+            this.subscriptions.forEach(unsubscribe => unsubscribe());
+            this.subscriptions = [];
+        }
+        // Helper to automatically manage subscriptions
+        subscribe(key, callback) {
+            const unsubscribe = this.stateManager.subscribe(key, callback);
+            this.subscriptions.push(unsubscribe);
+        }
     }
 
     // --- [ARCHITECTURE] PLUGIN MANAGER ---
@@ -216,12 +236,13 @@
             this.mainObserver = null;
             this.intersectionObserver = null;
             this.maintenanceInterval = null;
-            this.debouncedScanTask = debounce(this.scanAndApply.bind(this), CONFIG.DEBOUNCE_DELAY);
+            // --- [개선] CONFIG 안전 처리 ---
+            this.debouncedScanTask = debounce(this.scanAndApply.bind(this), CONFIG.DEBOUNCE_DELAY || 300);
         }
 
         init(stateManager) {
             super.init(stateManager);
-            this.stateManager.subscribe('app.pluginsInitialized', () => {
+            this.subscribe('app.pluginsInitialized', () => {
                 this.ensureObservers();
                 this.scanAndApply();
                 document.addEventListener('addShadowRoot', this.debouncedScanTask);
@@ -231,6 +252,7 @@
         }
 
         destroy() {
+            super.destroy();
             if (this.mainObserver) { this.mainObserver.disconnect(); this.mainObserver = null; }
             if (this.intersectionObserver) { this.intersectionObserver.disconnect(); this.intersectionObserver = null; }
             if (this.maintenanceInterval) { clearInterval(this.maintenanceInterval); this.maintenanceInterval = null; }
@@ -399,10 +421,10 @@
             this.filterManager.init();
             this.imageFilterManager.init();
 
-            this.stateManager.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
-            this.stateManager.subscribe('imageFilter.level', this.applyAllImageFilters.bind(this));
-            this.stateManager.subscribe('media.visibilityChange', () => this.updateMediaFilterStates());
-            this.stateManager.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates());
+            this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
+            this.subscribe('imageFilter.level', this.applyAllImageFilters.bind(this));
+            this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates());
+            this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates());
 
             this.applyAllVideoFilters();
             this.applyAllImageFilters();
@@ -502,8 +524,8 @@
 
         init(stateManager) {
             super.init(stateManager);
-            this.stateManager.subscribe('audio.*', debounce(() => this.applyAudioEffectsToAllMedia(), 50));
-            this.stateManager.subscribe('media.activeMedia', (newMediaSet, oldMediaSet) => {
+            this.subscribe('audio.*', debounce(() => this.applyAudioEffectsToAllMedia(), 50));
+            this.subscribe('media.activeMedia', (newMediaSet, oldMediaSet) => {
                 const added = [...newMediaSet].filter(x => !oldMediaSet.has(x));
                 const removed = [...oldMediaSet].filter(x => !newMediaSet.has(x));
                 if (this.stateManager.get('audio.audioInitialized')) {
@@ -511,14 +533,14 @@
                 }
                 removed.forEach(media => this.cleanupForMedia(media));
             });
-            this.stateManager.subscribe('audio.audioInitialized', (isInitialized) => {
+            this.subscribe('audio.audioInitialized', (isInitialized) => {
                 if (isInitialized) {
                     const currentMedia = this.stateManager.get('media.activeMedia');
                     currentMedia.forEach(media => this.ensureContextResumed(media));
                 }
             });
 
-            this.stateManager.subscribe('audio.activityCheckRequested', () => {
+            this.subscribe('audio.activityCheckRequested', () => {
                 this.stateManager.get('media.activeMedia').forEach(media => {
                     const nodes = this.stateManager.get('audio.audioContextMap').get(media);
                     if (nodes) {
@@ -529,7 +551,7 @@
                 });
             });
 
-            this.stateManager.subscribe('audio.isLoudnessNormalizationEnabled', (isEnabled) => {
+            this.subscribe('audio.isLoudnessNormalizationEnabled', (isEnabled) => {
                 this.stateManager.get('media.activeMedia').forEach(media => {
                     if (isEnabled) {
                         this.startLoudnessAnalysis(media);
@@ -541,6 +563,7 @@
         }
 
         destroy() {
+            super.destroy();
             this.stateManager.get('media.activeMedia').forEach(media => this.cleanupForMedia(media));
         }
 
@@ -821,23 +844,25 @@
             }
         }
 
-        _getInstantRMS(callback) {
-            const media = this.stateManager.get('media.currentlyVisibleMedia') || [...this.stateManager.get('media.activeMedia')][0];
-            if (!media) return callback(0);
+        _getInstantRMS() {
+            return new Promise(resolve => {
+                const media = this.stateManager.get('media.currentlyVisibleMedia') || [...this.stateManager.get('media.activeMedia')][0];
+                if (!media) return resolve(0);
 
-            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-            if (!nodes || !nodes.loudnessAnalyzer) return callback(0);
+                const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+                if (!nodes || !nodes.loudnessAnalyzer) return resolve(0);
 
-            const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
-            const dataArray = new Float32Array(bufferLength);
-            nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
+                const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
+                const dataArray = new Float32Array(bufferLength);
+                nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
 
-            let sum = 0;
-            for (let i = 0; i < bufferLength; i++) {
-                sum += dataArray[i] * dataArray[i];
-            }
-            const rms = Math.sqrt(sum / bufferLength);
-            callback(rms);
+                let sum = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    sum += dataArray[i] * dataArray[i];
+                }
+                const rms = Math.sqrt(sum / bufferLength);
+                resolve(rms);
+            });
         }
 
         startLoudnessAnalysis(media) {
@@ -902,15 +927,15 @@
 
         init(stateManager) {
             super.init(stateManager);
-            this.stateManager.subscribe('liveStream.isRunning', (isRunning) => {
+            this.subscribe('liveStream.isRunning', (isRunning) => {
                 if(isRunning) {
                     this.start();
                 } else {
                     this.stop();
                 }
             });
-            this.stateManager.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge());
-            this.stateManager.subscribe('liveStream.resetRequested', () => {
+            this.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge());
+            this.subscribe('liveStream.resetRequested', () => {
                 if (this.stateManager.get('liveStream.isRunning')) {
                     this.avgDelay = null;
                     this.pidIntegral = 0;
@@ -925,7 +950,10 @@
             }
         }
 
-        destroy() { this.stop(); }
+        destroy() {
+            super.destroy();
+            this.stop();
+        }
 
         switchInterval(newInterval) {
             if (this.currentInterval === newInterval) return;
@@ -1078,7 +1106,7 @@
     class PlaybackControlPlugin extends Plugin {
         init(stateManager) {
             super.init(stateManager);
-            this.stateManager.subscribe('playback.targetRate', (rate) => this.setPlaybackRate(rate));
+            this.subscribe('playback.targetRate', (rate) => this.setPlaybackRate(rate));
         }
         setPlaybackRate(rate) {
             this.stateManager.get('media.activeMedia').forEach(media => {
@@ -1093,7 +1121,7 @@
 
         init(stateManager) {
             super.init(stateManager);
-            this.stateManager.subscribe('media.activeMedia', () => this.updateSession());
+            this.subscribe('media.activeMedia', () => this.updateSession());
         }
 
         updateSession() {
@@ -1171,9 +1199,12 @@
             this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null;
             this.hostElement = null; this.shadowRoot = null; this.fadeOutTimer = null;
             this.isDragging = false; this.wasDragged = false;
-            this.startPos = { x: 0, y: 0 }; this.translatePos = { x: 0, y: 0 };
+            this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 };
+            this.animationFrameId = null;
             this.delayMeterEl = null;
             this.audioFXPlugin = null;
+            this.speedButtons = [];
+            this.uiElements = {}; // Cache for shadow DOM elements
 
             this.presetMap = {
                 'default': {
@@ -1246,20 +1277,20 @@
                 }
             }, 0);
 
-            this.stateManager.subscribe('ui.createRequested', () => {
+            this.subscribe('ui.createRequested', () => {
                 if (!this.globalContainer) {
                     this.createGlobalUI();
                     this.stateManager.set('ui.globalContainer', this.globalContainer);
                 }
             });
 
-            this.stateManager.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
-            this.stateManager.subscribe('media.activeMedia', () => this.updateUIVisibility());
-            this.stateManager.subscribe('media.activeImages', () => this.updateUIVisibility());
-            this.stateManager.subscribe('playback.currentRate', rate => this.updateActiveSpeedButton(rate));
-            this.stateManager.subscribe('liveStream.delayInfo', info => this.updateDelayMeter(info));
-            this.stateManager.subscribe('ui.warningMessage', msg => this.showWarningMessage(msg));
-            this.stateManager.subscribe('ui.areControlsVisible', () => this.updateDelayMeterVisibility());
+            this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
+            this.subscribe('media.activeMedia', () => this.updateUIVisibility());
+            this.subscribe('media.activeImages', () => this.updateUIVisibility());
+            this.subscribe('playback.currentRate', rate => this.updateActiveSpeedButton(rate));
+            this.subscribe('liveStream.delayInfo', info => this.updateDelayMeter(info));
+            this.subscribe('ui.warningMessage', msg => this.showWarningMessage(msg));
+            this.subscribe('ui.areControlsVisible', () => this.updateDelayMeterVisibility());
 
             this.updateDelayMeter(this.stateManager.get('liveStream.delayInfo'));
 
@@ -1278,6 +1309,7 @@
         }
 
         destroy() {
+            super.destroy();
             if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; }
             if (this.delayMeterEl) { this.delayMeterEl.remove(); this.delayMeterEl = null; }
         }
@@ -1372,7 +1404,7 @@
         }
 
         resetFadeTimer() {
-            const container = this.shadowRoot?.getElementById('vsc-main-container');
+            const container = this.uiElements.mainContainer;
             if (container) {
                 clearTimeout(this.fadeOutTimer);
                 container.style.opacity = '1';
@@ -1381,7 +1413,7 @@
         }
 
         startFadeSequence() {
-            const container = this.shadowRoot?.getElementById('vsc-main-container');
+            const container = this.uiElements.mainContainer;
             if (container) {
                 container.querySelectorAll('.vsc-control-group.submenu-visible').forEach(g => g.classList.remove('submenu-visible'));
                 container.style.opacity = '0.3';
@@ -1392,11 +1424,14 @@
             const isMobile = this.stateManager.get('app.isMobile');
 
             this.globalContainer = document.createElement('div');
+            this.globalContainer.style.setProperty('--vsc-translate-x', '0px');
+            this.globalContainer.style.setProperty('--vsc-translate-y', '0px');
+
             Object.assign(this.globalContainer.style, {
                 position: 'fixed',
-                top: isMobile ? '50%' : '50%',
+                top: '50%',
                 right: '1vmin',
-                transform: 'translateY(-50%)',
+                transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))',
                 zIndex: CONFIG.MAX_Z_INDEX,
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -1420,11 +1455,15 @@
                 background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', display: 'flex',
                 alignItems: 'center', justifyContent: 'center', cursor: 'pointer', userSelect: 'none',
                 fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-                transition: 'box-shadow 0.3s ease-in-out',
-                order: '1'
+                transition: 'box-shadow 0.3s ease-in-out, background-color 0.3s',
+                order: '1',
+                touchAction: 'none', // 개선: 모바일에서 드래그 시 스크롤 방지
             });
             this.triggerElement.addEventListener('click', (e) => {
-                if (this.wasDragged) { e.stopPropagation(); return; }
+                if (this.wasDragged) {
+                    e.stopPropagation();
+                    return;
+                }
                 const isVisible = this.stateManager.get('ui.areControlsVisible');
                 this.stateManager.set('ui.areControlsVisible', !isVisible);
             });
@@ -1473,30 +1512,37 @@
 
         updateUIVisibility() {
             if (!this.shadowRoot) return;
+
+            // 성능 개선: 상태 값을 한 번만 읽어와서 지역 변수에 저장
             const controlsVisible = this.stateManager.get('ui.areControlsVisible');
+            const activeMedia = this.stateManager.get('media.activeMedia');
+            const activeImages = this.stateManager.get('media.activeImages');
+
+            const hasVideo = [...activeMedia].some(m => m.tagName === 'VIDEO');
+            const hasAudio = [...activeMedia].some(m => m.tagName === 'AUDIO');
+            const hasImage = activeImages.size > 0;
+            const hasAnyMedia = hasVideo || hasAudio;
+
             if(this.speedButtonsContainer) {
-                const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO');
                 this.speedButtonsContainer.style.display = hasVideo && controlsVisible ? 'flex' : 'none';
             }
 
-            const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO');
-            const hasAudio = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'AUDIO');
-            const hasImage = this.stateManager.get('media.activeImages').size > 0;
-            const hasAnyMedia = hasVideo || hasAudio;
-
-            const setDisplay = (id, visible) => { const el = this.shadowRoot.getElementById(id); if (el) el.style.display = visible ? 'flex' : 'none'; };
-            setDisplay('vsc-video-controls', hasVideo);
-            setDisplay('vsc-image-controls', hasImage);
-            setDisplay('vsc-stereo-controls', hasAnyMedia);
+            // --- [개선] 렌더링 최적화: style.display 대신 classList.toggle 사용 ---
+            const setVisible = (element, visible) => {
+                if (element) element.classList.toggle(CONFIG.UI_HIDDEN_CLASS_NAME, !visible);
+            };
+            setVisible(this.uiElements.videoControls, hasVideo);
+            setVisible(this.uiElements.imageControls, hasImage);
+            setVisible(this.uiElements.audioControls, hasAnyMedia);
         }
 
         updateActiveSpeedButton(rate) {
-            if (!this.speedButtonsContainer) return;
-            this.speedButtonsContainer.querySelectorAll('button').forEach(b => {
+            if (this.speedButtons.length === 0) return;
+            // 성능 개선: 캐시된 버튼 배열 순회
+            this.speedButtons.forEach(b => {
                 const speed = parseFloat(b.dataset.speed);
                 if (speed) {
                     const isActive = Math.abs(speed - rate) < 0.01;
-
                     if (isActive) {
                         b.style.background = 'rgba(231, 76, 60, 0.9)';
                         b.style.boxShadow = '0 0 5px #e74c3c, 0 0 10px #e74c3c inset';
@@ -1509,14 +1555,19 @@
         }
 
         renderAllControls() {
-            const isMobile = this.stateManager.get('app.isMobile');
+            if (this.shadowRoot.getElementById('vsc-main-container')) {
+                return;
+            }
+
             const style = document.createElement('style');
+            const isMobile = this.stateManager.get('app.isMobile');
             style.textContent = `
                 :host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; }
                 #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; }
                 #vsc-main-container:hover { opacity: 1; }
                 #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;}
                 .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; }
+                .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; }
                 .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
                 #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '420px' : '520px'}; max-width: 90vw; }
                 #vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }
@@ -1545,6 +1596,7 @@
 
             const mainContainer = document.createElement('div');
             mainContainer.id = 'vsc-main-container';
+            this.uiElements.mainContainer = mainContainer;
 
             const controlsContainer = document.createElement('div');
             controlsContainer.id = 'vsc-controls-container';
@@ -1566,6 +1618,9 @@
                     }
                 };
                 parent.appendChild(group);
+                if (id === 'vsc-image-controls') this.uiElements.imageControls = group;
+                if (id === 'vsc-video-controls') this.uiElements.videoControls = group;
+                if (id === 'vsc-stereo-controls') this.uiElements.audioControls = group;
                 return subMenu;
             };
 
@@ -1576,14 +1631,26 @@
                 labelEl.textContent = `${label}: `; labelEl.appendChild(span);
                 const slider = document.createElement('input'); slider.type = 'range'; slider.id = id; slider.min = min; slider.max = max; slider.step = step;
                 slider.value = this.stateManager.get(stateKey);
-                slider.oninput = () => {
-                    const val = parseFloat(slider.value);
+
+                const debouncedSetState = debounce((val) => {
                     this.stateManager.set(stateKey, val);
                     if (stateKey === 'audio.preGain') {
                         this.stateManager.set('audio.lastManualPreGain', val);
                     }
+                }, 50);
+
+                slider.oninput = () => {
+                    const val = parseFloat(slider.value);
+                    updateText(val); // Update text immediately for responsiveness
+                    debouncedSetState(val);
                 };
-                this.stateManager.subscribe(stateKey, (val) => { updateText(val); if(slider.value != val) slider.value = val; });
+
+                this.subscribe(stateKey, (val) => {
+                    updateText(val);
+                    if (Math.abs(parseFloat(slider.value) - val) > (step / 2 || 0.001)) {
+                        slider.value = val;
+                    }
+                });
                 updateText(slider.value);
                 div.append(labelEl, slider);
                 return { control: div, slider: slider };
@@ -1592,7 +1659,7 @@
             const createToggleBtn = (id, text, stateKey) => {
                 const btn = document.createElement('button'); btn.id = id; btn.textContent = text; btn.className = 'vsc-btn';
                 btn.onclick = () => { this.stateManager.set(stateKey, !this.stateManager.get(stateKey)); };
-                this.stateManager.subscribe(stateKey, (val) => btn.classList.toggle('active', val));
+                this.subscribe(stateKey, (val) => btn.classList.toggle('active', val));
                 btn.classList.toggle('active', this.stateManager.get(stateKey));
                 return btn;
             };
@@ -1605,33 +1672,27 @@
                 const o = document.createElement('option'); o.value = opt.v; o.textContent = opt.t; imageSelect.appendChild(o);
             });
             imageSelect.onchange = () => this.stateManager.set('imageFilter.level', parseInt(imageSelect.value, 10));
-            this.stateManager.subscribe('imageFilter.level', (val) => imageSelect.value = val);
+            this.subscribe('imageFilter.level', (val) => imageSelect.value = val);
             imageSelect.value = this.stateManager.get('imageFilter.level');
             imageSubMenu.appendChild(imageSelect);
 
             const videoSubMenu = createControlGroup('vsc-video-controls', '✨', '영상 필터', controlsContainer);
-            const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
+            const videoDefaults = this.stateManager.get('app.isMobile') ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
             const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '초기화';
             videoResetBtn.style.marginTop = '8px';
 
             const createSelectControl = (labelText, options, changeHandler) => {
                 const div = document.createElement('div');
-                div.style.display = 'flex';
-                div.style.alignItems = 'center';
-                div.style.justifyContent = 'space-between';
-                div.style.gap = '8px';
+                div.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 8px;';
 
                 const label = document.createElement('label');
                 label.textContent = labelText + ':';
-                label.style.color = 'white';
-                label.style.fontSize = isMobile ? '12px' : '13px';
-                label.style.whiteSpace = 'nowrap';
+                label.style.cssText = `color: white; font-size: ${this.stateManager.get('app.isMobile') ? '12px' : '13px'}; white-space: nowrap;`;
 
                 const select = document.createElement('select');
                 select.className = 'vsc-select';
                 options.forEach(opt => {
-                    const o = document.createElement('option');
-                    o.value = opt.value; o.textContent = opt.text;
+                    const o = document.createElement('option'); o.value = opt.value; o.textContent = opt.text;
                     select.appendChild(o);
                 });
                 select.onchange = e => changeHandler(e.target.value);
@@ -1642,6 +1703,9 @@
 
             const sharpenDirOptions = [ { value: '4-way', text: '4방향 (기본)' }, { value: '8-way', text: '8방향 (강함)' } ];
             const sharpenDirSelect = createSelectControl( '샤프 방향', sharpenDirOptions, (value) => this.stateManager.set('videoFilter.sharpenDirection', value) );
+            this.subscribe('videoFilter.sharpenDirection', val => sharpenDirSelect.querySelector('select').value = val);
+            sharpenDirSelect.querySelector('select').value = this.stateManager.get('videoFilter.sharpenDirection');
+
 
             videoResetBtn.onclick = () => {
                 this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
@@ -1651,6 +1715,7 @@
                 this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
                 this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE, 10));
                 this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10));
+                this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
             };
             videoSubMenu.append(
                 createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
@@ -1708,7 +1773,7 @@
             const manualVolBtn = createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
             const agcBtn = createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
             const autoVolBtn = createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
-            autoVolBtn.innerHTML = '자동<br>보정'; // [수정] 텍스트를 HTML로 직접 삽입
+            autoVolBtn.innerHTML = '자동<br>보정';
             preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
 
             const widenSlider = createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
@@ -1724,6 +1789,10 @@
                 createDivider(),
                 preGainGroup, preGainSlider.parentElement
             );
+            // Cache elements for later access
+            this.uiElements.manualVolBtn = manualVolBtn;
+            this.uiElements.preGainSlider = preGainSlider;
+
 
             const masteringContainer = document.createElement('div');
             masteringContainer.className = 'vsc-mastering-row';
@@ -1733,12 +1802,12 @@
             const driveSliderObj = createSlider('음압', 'master-drive', 0, 12, 0.5, 'audio.masteringDrive', 'dB', v => `${v.toFixed(1)}dB`);
             masteringContainer.append(masteringToggleBtn, transientSliderObj.control, driveSliderObj.control);
 
-            this.stateManager.subscribe('audio.masteringTransientAmount', val => {
+            this.subscribe('audio.masteringTransientAmount', val => {
                 const slider = this.shadowRoot.getElementById('master-transient');
                 const newSliderVal = val * 100;
-                if (slider && slider.value != newSliderVal) slider.value = newSliderVal;
+                if (slider && Math.abs(slider.value - newSliderVal) > 0.5) slider.value = newSliderVal;
             });
-            transientSliderObj.slider.oninput = (e) => this.stateManager.set('audio.masteringTransientAmount', parseFloat(e.target.value) / 100);
+            transientSliderObj.slider.oninput = debounce((e) => this.stateManager.set('audio.masteringTransientAmount', parseFloat(e.target.value) / 100), 50);
 
             const bottomControls = document.createElement('div');
             bottomControls.style.cssText = 'grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid #444; padding-top: 8px;';
@@ -1752,14 +1821,9 @@
                 this.applyPreset(e.target.value);
             };
             const resetBtn = document.createElement('button'); resetBtn.className = 'vsc-btn'; resetBtn.textContent = '초기화';
-
-            // ▼▼▼ [수정] 초기화 버튼 로직 강화 ▼▼▼
             resetBtn.onclick = () => {
                 this.applyPreset('default');
                 presetSelect.value = 'default';
-                // isLoudnessNormalizationEnabled는 applyPreset('default') 내부에서 false로 설정됨
-                // isPreGainEnabled를 명시적으로 false로 설정하여 AGC의 영향으로부터 벗어남
-                this.stateManager.set('audio.isPreGainEnabled', false);
                 this.stateManager.set('audio.activityCheckRequested', Date.now());
             };
 
@@ -1769,7 +1833,7 @@
 
             const setupSliderToggle = (stateKey, sliders) => {
                 const update = (isEnabled) => sliders.forEach(s => { if(s) s.disabled = !isEnabled; });
-                this.stateManager.subscribe(stateKey, update);
+                this.subscribe(stateKey, update);
                 update(this.stateManager.get(stateKey));
             };
             setupSliderToggle('audio.isEqEnabled', eqSliders);
@@ -1781,105 +1845,122 @@
             setupSliderToggle('audio.isHpfEnabled', [hpfSlider]);
             setupSliderToggle('audio.isMasteringSuiteEnabled', [transientSliderObj.slider, driveSliderObj.slider]);
 
-            // ▼▼▼ [수정] 자동보정 ON/OFF 시 이전 볼륨 상태 복원 로직 추가 ▼▼▼
-            this.stateManager.subscribe('audio.isLoudnessNormalizationEnabled', (isAuto) => {
-                manualVolBtn.disabled = isAuto;
-                preGainSlider.disabled = isAuto || !this.stateManager.get('audio.isPreGainEnabled');
+            // --- [개선] AGC/자동 볼륨 로직 통합 ---
+            this.subscribe('audio.isLoudnessNormalizationEnabled', (isAuto) => {
                 if (isAuto) {
-                    // 켜질 때: 현재 볼륨 활성화 상태를 저장하고, 볼륨을 강제로 켬
                     this.stateManager.set('audio.preGainEnabledBeforeAuto', this.stateManager.get('audio.isPreGainEnabled'));
                     this.stateManager.set('audio.isPreGainEnabled', true);
                 } else {
-                    // 꺼질 때: 저장했던 이전 상태로 복원
                     this.stateManager.set('audio.isPreGainEnabled', this.stateManager.get('audio.preGainEnabledBeforeAuto'));
                 }
+                this._updateVolumeControlsState();
             });
 
-            this.stateManager.subscribe('audio.isPreGainEnabled', (isManual) => {
-                const isAuto = this.stateManager.get('audio.isLoudnessNormalizationEnabled');
-                preGainSlider.disabled = isAuto || !isManual;
+            this.subscribe('audio.isPreGainEnabled', () => {
+                this._updateVolumeControlsState();
             });
 
-            // 초기 상태 설정
-            const isAutoInitial = this.stateManager.get('audio.isLoudnessNormalizationEnabled');
-            const isManualInitial = this.stateManager.get('audio.isPreGainEnabled');
-            manualVolBtn.disabled = isAutoInitial;
-            preGainSlider.disabled = isAutoInitial || !isManualInitial;
+            // Initial state setup
+            this._updateVolumeControlsState();
 
-            while (this.speedButtonsContainer.firstChild) {
-                this.speedButtonsContainer.removeChild(this.speedButtonsContainer.lastChild);
-            }
-            CONFIG.SPEED_PRESETS.forEach(speed => {
-                const btn = document.createElement('button');
-                btn.textContent = `${speed.toFixed(1)}x`;
-                btn.dataset.speed = speed;
-                btn.className = 'vsc-btn';
-                Object.assign(btn.style, {
-                    background: 'rgba(52, 152, 219, 0.7)', color: 'white',
-                    width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)',
-                    fontSize: 'clamp(12px, 2vmin, 14px)', padding: '0'
+            if (this.speedButtons.length === 0) {
+                CONFIG.SPEED_PRESETS.forEach(speed => {
+                    const btn = document.createElement('button');
+                    btn.textContent = `${speed.toFixed(1)}x`;
+                    btn.dataset.speed = speed;
+                    btn.className = 'vsc-btn';
+                    Object.assign(btn.style, {
+                        background: 'rgba(52, 152, 219, 0.7)', color: 'white',
+                        width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)',
+                        fontSize: 'clamp(12px, 2vmin, 14px)', padding: '0',
+                        transition: 'background-color 0.2s, box-shadow 0.2s'
+                    });
+
+                    btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
+                    this.speedButtonsContainer.appendChild(btn);
+                    this.speedButtons.push(btn);
                 });
-
-                btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
-                this.speedButtonsContainer.appendChild(btn);
-            });
-            if (CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname.includes(d))) {
-                const liveJumpBtn = document.createElement('button');
-                liveJumpBtn.textContent = '⚡';
-                liveJumpBtn.title = '실시간으로 이동';
-                liveJumpBtn.className = 'vsc-btn';
-
-                Object.assign(liveJumpBtn.style, {
-                    width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                    height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                    fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-                    borderRadius: '50%', padding: '0'
-                });
-
-                liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now());
-                this.speedButtonsContainer.appendChild(liveJumpBtn);
+                // 개선: 호스트네임 검사를 더 정확하게 변경
+                const isLiveJumpSite = CONFIG.LIVE_JUMP_WHITELIST.some(d =>
+                    location.hostname === d || location.hostname.endsWith('.' + d)
+                );
+                if (isLiveJumpSite) {
+                    const liveJumpBtn = document.createElement('button');
+                    liveJumpBtn.textContent = '⚡';
+                    liveJumpBtn.title = '실시간으로 이동';
+                    liveJumpBtn.className = 'vsc-btn';
+                    Object.assign(liveJumpBtn.style, {
+                        width: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+                        height: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+                        fontSize: this.stateManager.get('app.isMobile') ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
+                        borderRadius: '50%', padding: '0',
+                        transition: 'box-shadow 0.3s'
+                    });
+                    liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now());
+                    this.speedButtonsContainer.appendChild(liveJumpBtn);
+                }
             }
+
 
             mainContainer.appendChild(controlsContainer);
             this.shadowRoot.appendChild(mainContainer);
             this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
         }
 
-        applyPreset(presetKey) {
-            if (!this.audioFXPlugin) {
-                console.warn("[VSC] AudioFXPlugin not ready for AGC.");
-                this._applyPresetSettings(presetKey);
-                return;
-            }
+        // --- [개선] AGC/자동 볼륨 UI 상태를 관리하는 헬퍼 함수 ---
+        _updateVolumeControlsState() {
+            if (!this.shadowRoot) return;
 
+            const isAuto = this.stateManager.get('audio.isLoudnessNormalizationEnabled');
+            const isManual = this.stateManager.get('audio.isPreGainEnabled');
+
+            const manualVolBtn = this.uiElements.manualVolBtn;
+            const preGainSlider = this.uiElements.preGainSlider;
+
+            if (manualVolBtn) manualVolBtn.disabled = isAuto;
+            if (preGainSlider) preGainSlider.disabled = isAuto || !isManual;
+        }
+
+
+        async applyPreset(presetKey) {
             const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
 
-            if (!isAgcEnabled) {
+            if (!isAgcEnabled || !this.audioFXPlugin) {
                 this._applyPresetSettings(presetKey);
-                this.stateManager.set('audio.activityCheckRequested', Date.now());
+                if (this.audioFXPlugin) {
+                    // 프리셋 적용 후 오디오 활동을 다시 확인하여 CORS 등의 문제를 감지
+                    this.stateManager.set('audio.activityCheckRequested', Date.now());
+                }
                 return;
             }
 
-            this.audioFXPlugin._getInstantRMS(rmsBefore => {
+            try {
+                const rmsBefore = await this.audioFXPlugin._getInstantRMS();
                 this._applyPresetSettings(presetKey);
 
-                setTimeout(() => {
-                    this.audioFXPlugin._getInstantRMS(rmsAfter => {
-                        if (rmsBefore > 0.001 && rmsAfter > 0.001) {
-                            const ratio = rmsBefore / rmsAfter;
-                            const currentPreGain = this.stateManager.get('audio.preGain');
-                            let compensatedGain = currentPreGain * ratio;
+                // 오디오 그래프가 업데이트될 시간을 기다립니다.
+                // audio.* 구독이 50ms로 디바운스되어 있으므로, 이보다 긴 시간을 기다려야 합니다.
+                // --- [개선] Magic Number 상수화 ---
+                await new Promise(resolve => setTimeout(resolve, CONFIG.UI_AGC_APPLY_DELAY));
 
-                            compensatedGain = Math.max(0.1, Math.min(compensatedGain, 4.0));
+                const rmsAfter = await this.audioFXPlugin._getInstantRMS();
 
-                            this.stateManager.set('audio.preGain', compensatedGain);
-                            this.stateManager.set('audio.lastManualPreGain', compensatedGain);
-                        }
-                        this.stateManager.set('audio.activityCheckRequested', Date.now());
-                    });
-                }, 100);
-            });
+                if (rmsBefore > 0.001 && rmsAfter > 0.001) {
+                    const ratio = rmsBefore / rmsAfter;
+                    const currentPreGain = this.stateManager.get('audio.preGain');
+                    let compensatedGain = currentPreGain * ratio;
+                    compensatedGain = Math.max(0.1, Math.min(compensatedGain, 4.0)); // Gain 값을 안전한 범위로 제한
+
+                    this.stateManager.set('audio.preGain', compensatedGain);
+                    this.stateManager.set('audio.lastManualPreGain', compensatedGain);
+                }
+            } catch (error) {
+                console.error("[VSC] Error applying preset with AGC:", error);
+            } finally {
+                this.stateManager.set('audio.activityCheckRequested', Date.now());
+            }
         }
+
 
         _applyPresetSettings(presetKey) {
             const p = this.presetMap[presetKey];
@@ -1890,11 +1971,6 @@
             const newTargetLUFS = p.targetLUFS ?? CONFIG.LOUDNESS_TARGET;
             this.stateManager.set('audio.loudnessTarget', newTargetLUFS);
 
-            if (presetKey === 'default') {
-                this.stateManager.set('audio.isLoudnessNormalizationEnabled', false);
-                this.stateManager.set('audio.isAgcEnabled', true);
-            }
-
             const defaults = {
                 isHpfEnabled: false, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
                 isEqEnabled: false, eqSubBassGain: 0, eqBassGain: 0, eqMidGain: 0, eqTrebleGain: 0, eqPresenceGain: 0,
@@ -1904,6 +1980,7 @@
                 isPreGainEnabled: false, preGain: 1.0, isDeesserEnabled: false, deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
                 isExciterEnabled: false, exciterAmount: 0, isParallelCompEnabled: false, parallelCompMix: 0,
                 isLimiterEnabled: false, isMasteringSuiteEnabled: false, masteringTransientAmount: 0.2, masteringDrive: 0,
+                isLoudnessNormalizationEnabled: false,
             };
 
             const presetValues = {
@@ -1920,19 +1997,25 @@
                 isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount,
                 isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
                 isLimiterEnabled: p.limiter_enabled ?? defaults.isLimiterEnabled,
-                isMasteringSuiteEnabled: p.mastering_suite_enabled ?? defaults.isMasteringSuiteEnabled, masteringTransientAmount: p.mastering_transient ?? defaults.masteringTransientAmount, masteringDrive: p.mastering_drive ?? defaults.masteringDrive
+                isMasteringSuiteEnabled: p.mastering_suite_enabled ?? defaults.isMasteringSuiteEnabled, masteringTransientAmount: p.mastering_transient ?? defaults.masteringTransientAmount, masteringDrive: p.mastering_drive ?? defaults.masteringDrive,
+                isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled ?? (presetKey === 'default' ? false : this.stateManager.get('audio.isLoudnessNormalizationEnabled')),
             };
 
-            const isLoudnessNormalizationEnabled = this.stateManager.get('audio.isLoudnessNormalizationEnabled');
-            const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
+            if (presetKey === 'default') {
+                presetValues.isAgcEnabled = true;
+                presetValues.isPreGainEnabled = false;
+            }
+
+            const isAgcActive = this.stateManager.get('audio.isAgcEnabled') || this.stateManager.get('audio.isLoudnessNormalizationEnabled');
 
             for (const key in presetValues) {
-                if ((isLoudnessNormalizationEnabled || isAgcEnabled) && (key === 'isPreGainEnabled' || key === 'preGain')) {
-                    continue;
+                if (isAgcActive && (key === 'isPreGainEnabled' || key === 'preGain')) {
+                    continue; // Skip manual gain controls if AGC/Auto-Loudness is on
                 }
                 this.stateManager.set(`audio.${key}`, presetValues[key]);
             }
-            if (!isAgcEnabled) {
+
+            if (!isAgcActive) {
                 this.stateManager.set('audio.lastManualPreGain', presetValues.preGain);
             }
         }
@@ -1940,50 +2023,90 @@
         attachDragAndDrop() {
             let pressTimer = null;
 
+            const isInteractiveTarget = (e) => {
+                for (const element of e.composedPath()) {
+                    if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(element.tagName)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
             const onDragStart = (e) => {
-                const trueTarget = e.composedPath()[0];
-                if (trueTarget.closest('button, select, input')) return;
+                if (isInteractiveTarget(e)) return;
 
                 pressTimer = setTimeout(() => {
-                    if (this.globalContainer) {
-                        this.globalContainer.style.display = 'none';
-                    }
+                    if (this.globalContainer) this.globalContainer.style.display = 'none';
                     onDragEnd();
                 }, 800);
 
-                this.isDragging = true; this.wasDragged = false;
                 const pos = e.touches ? e.touches[0] : e;
                 this.startPos = { x: pos.clientX, y: pos.clientY };
+                // 개선: CSS 변수 값이 없을 경우 NaN이 되지 않도록 || 0 추가
+                const initialX = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-x')) || 0;
+                const initialY = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-y')) || 0;
+                this.currentPos = { x: initialX, y: initialY };
+
+                this.isDragging = true;
+                this.wasDragged = false;
                 this.globalContainer.style.transition = 'none';
+
                 document.addEventListener('mousemove', onDragMove, { passive: false });
                 document.addEventListener('mouseup', onDragEnd, { passive: true });
                 document.addEventListener('touchmove', onDragMove, { passive: false });
                 document.addEventListener('touchend', onDragEnd, { passive: true });
             };
 
+            const updatePosition = () => {
+                if (!this.isDragging || !this.globalContainer) return;
+                const newX = this.currentPos.x + this.delta.x;
+                const newY = this.currentPos.y + this.delta.y;
+                this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`);
+                this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`);
+                this.animationFrameId = null;
+            };
+
             const onDragMove = (e) => {
                 if (!this.isDragging) return;
-                e.preventDefault();
+
                 const pos = e.touches ? e.touches[0] : e;
-                const dX = pos.clientX - this.startPos.x, dY = pos.clientY - this.startPos.y;
-                if (!this.wasDragged && (Math.abs(dX) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(dY) > CONFIG.UI_DRAG_THRESHOLD)) {
+                this.delta = { x: pos.clientX - this.startPos.x, y: pos.clientY - this.startPos.y };
+
+                if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI_DRAG_THRESHOLD)) {
                     this.wasDragged = true;
                     clearTimeout(pressTimer);
+                    // 드래그가 시작된 것이 확실할 때만 preventDefault 호출
+                    if (e.cancelable) e.preventDefault();
                 }
-                this.globalContainer.style.transform = `translateY(-50%) translate(${this.translatePos.x + dX}px, ${this.translatePos.y + dY}px)`;
+
+                if (this.wasDragged && this.animationFrameId === null) {
+                    this.animationFrameId = requestAnimationFrame(updatePosition);
+                }
             };
 
             const onDragEnd = () => {
                 clearTimeout(pressTimer);
-
                 if (!this.isDragging) return;
+
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
+                    this.animationFrameId = null;
+                }
+
+                // 드래그가 끝났을 때 최종 위치로 업데이트
+                if (this.wasDragged) {
+                   this.currentPos.x += this.delta.x;
+                   this.currentPos.y += this.delta.y;
+                }
+
                 this.isDragging = false;
-                const transform = this.globalContainer.style.transform;
-                const matches = transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
-                if (matches) { this.translatePos.x = parseFloat(matches[1]); this.translatePos.y = parseFloat(matches[2]); }
                 this.globalContainer.style.transition = '';
-                document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd);
-                document.removeEventListener('touchmove', onDragMove); document.removeEventListener('touchend', onDragEnd);
+
+                document.removeEventListener('mousemove', onDragMove);
+                document.removeEventListener('mouseup', onDragEnd);
+                document.removeEventListener('touchmove', onDragMove);
+                document.removeEventListener('touchend', onDragEnd);
+
                 setTimeout(() => { this.wasDragged = false; }, 50);
             };
 
