@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband)
 // @namespace    https://com/
-// @version      99.5
-// @description  멀티밴드 추가 + 프리셋 자동 적용 기능 추가
+// @version      99.6
+// @description  멀티밴드 추가 + 프리셋 자동 적용 기능 추가 (모바일 전체화면 UI 오류 수정 및 UI 크기 최적화)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1411,6 +1411,7 @@
                 sessionStorage.removeItem('vsc_message');
             }
 
+            // **[FIXED]** Add event listener for fullscreen changes.
             document.addEventListener('fullscreenchange', () => {
                 const fullscreenRoot = document.fullscreenElement || document.body;
                 if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) {
@@ -1624,7 +1625,10 @@
 
             this.modalHost = document.createElement('div');
             this.modalShadowRoot = this.modalHost.attachShadow({ mode: 'open' });
-            document.body.appendChild(this.modalHost);
+            // **[FIXED]** Append to the correct root initially.
+            const currentRoot = document.fullscreenElement || document.body;
+            currentRoot.appendChild(this.modalHost);
+
 
             this.renderAllControls();
             this.mainControlsContainer.prepend(this.hostElement);
@@ -1805,19 +1809,21 @@
                 }
                 #vsc-mbc-container {
                     background: rgba(30,30,30,0.95); border: 1px solid #555; border-radius: 10px;
-                    padding: 20px; color: white; display: flex; flex-direction: column; gap: 15px;
-                    min-width: clamp(300px, 90vw, 700px);
+                    padding: clamp(10px, 2vw, 15px);
+                    color: white; display: flex; flex-direction: column;
+                    gap: clamp(8px, 1.5vw, 12px);
+                    min-width: clamp(280px, 85vw, 600px);
                 }
                 #vsc-mbc-header { display: flex; justify-content: space-between; align-items: center; }
-                #vsc-mbc-header h3 { margin: 0; font-size: 16px; }
+                #vsc-mbc-header h3 { margin: 0; font-size: clamp(14px, 2.5vw, 16px); }
                 #vsc-mbc-bands {
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
                     grid-template-rows: repeat(2, auto);
-                    gap: 15px;
+                    gap: 10px;
                 }
-                .vsc-mbc-band { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid #444; border-radius: 5px; }
-                .vsc-mbc-band h4 { margin: 0 0 10px 0; text-align: center; font-size: 14px; color: #3498db; }
+                .vsc-mbc-band { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid #444; border-radius: 5px; }
+                .vsc-mbc-band h4 { margin: 0 0 10px 0; text-align: center; font-size: clamp(13px, 2.2vw, 14px); color: #3498db; }
             `;
             this.shadowRoot.appendChild(style);
             this.modalShadowRoot.appendChild(style.cloneNode(true));
@@ -2234,21 +2240,18 @@
             }
 
             if (p.multiband_bands && Array.isArray(p.multiband_bands) && p.multiband_bands.length === 4) {
-    const bandKeys = ['low', 'lowMid', 'highMid', 'high'];
-    p.multiband_bands.forEach((bandData, index) => {
-        const key = bandKeys[index];
-        const newSettings = {
-            crossover: bandData.freqHigh,
-            threshold: bandData.threshold,
-            ratio: bandData.ratio,
-            attack: bandData.attack / 1000,
-            release: bandData.release / 1000,
-            makeupGain: bandData.makeup,
-        };
-        // 각 설정을 개별적으로 set하여 모든 UI 요소가 상태 변경을 감지하도록 합니다.
-        for (const [param, value] of Object.entries(newSettings)) {
-            this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
-        }
+                const bandKeys = ['low', 'lowMid', 'highMid', 'high'];
+                p.multiband_bands.forEach((bandData, index) => {
+                    const key = bandKeys[index];
+                    const newSettings = {
+                        crossover: bandData.freqHigh,
+                        threshold: bandData.threshold,
+                        ratio: bandData.ratio,
+                        attack: bandData.attack / 1000,
+                        release: bandData.release / 1000,
+                        makeupGain: bandData.makeup,
+                    };
+                    this.stateManager.set(`audio.multibandComp.${key}`, newSettings);
                 });
             } else if (presetKey === 'default') {
                 this.stateManager.set('audio.multibandComp', JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS)));
