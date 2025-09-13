@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Final & Fixed & Multiband)
+// @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      99.7
-// @description  멀티밴드 추가 + 프리셋 자동 적용 기능 추가 (멀티밴드 효과 적용 버그 수정)
+// @version      100.2
+// @description  다이나믹 EQ 프리셋 적용 버그 수정 및 UI 동기화
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -125,6 +125,17 @@
                     preGainEnabledBeforeAuto: false,
                     isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
                     multibandComp: JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS)),
+                    isDynamicEqEnabled: false,
+                    dynamicEq: {
+                        activeBand: 1,
+                        bands: [
+                            { freq: 150,  q: 1.4, threshold: -30, gain: 4 },
+                            { freq: 1200, q: 2.0, threshold: -24, gain: -4},
+                            { freq: 4500, q: 3.0, threshold: -20, gain: 5 },
+                            { freq: 8000, q: 4.0, threshold: -18, gain: 4 },
+                        ]
+                    },
+                    activePresetKey: 'default',
                 },
                 ui: {
                     shadowRoot: null, hostElement: null, areControlsVisible: false,
@@ -183,16 +194,15 @@
             if (this.listeners[key]) {
                 this.listeners[key].forEach(callback => callback(newValue, oldValue));
             }
-            // [수정된 부분] 와일드카드 리스너를 재귀적으로 확인
-        let currentKey = key;
-        while (currentKey.includes('.')) {
-            const prefix = currentKey.substring(0, currentKey.lastIndexOf('.'));
-            const wildcardKey = `${prefix}.*`;
-            if (this.listeners[wildcardKey]) {
-                this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue));
+            let currentKey = key;
+            while (currentKey.includes('.')) {
+                const prefix = currentKey.substring(0, currentKey.lastIndexOf('.'));
+                const wildcardKey = `${prefix}.*`;
+                if (this.listeners[wildcardKey]) {
+                    this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue));
+                }
+                currentKey = prefix;
             }
-            currentKey = prefix;
-        }
         }
     }
 
@@ -638,6 +648,20 @@
             mbc.splitter3.type = 'lowpass';
             Object.assign(nodes, { mbc });
 
+            nodes.dynamicEq = [];
+            for (let i = 0; i < 4; i++) {
+                const deq_band = {
+                    peaking: context.createBiquadFilter(),
+                    sidechain: context.createBiquadFilter(),
+                    compressor: context.createDynamicsCompressor(),
+                    gain: context.createGain()
+                };
+                deq_band.peaking.type = 'peaking';
+                deq_band.sidechain.type = 'bandpass';
+                nodes.dynamicEq.push(deq_band);
+            }
+
+
             try { nodes.reverbConvolver.buffer = this.createImpulseResponse(context); } catch (e) { console.error("[VSC] Failed to create reverb impulse response.", e); }
             nodes.safetyLimiter.threshold.value = -0.5; nodes.safetyLimiter.knee.value = 0; nodes.safetyLimiter.ratio.value = 20; nodes.safetyLimiter.attack.value = 0.001; nodes.safetyLimiter.release.value = 0.05;
             nodes.analyser.fftSize = 256;
@@ -699,13 +723,41 @@
                     lastNode = merger;
                 }
 
+                if (audioState.isDynamicEqEnabled) {
+                    const deqSettings = audioState.dynamicEq.bands;
+                    for(let i = 0; i < nodes.dynamicEq.length; i++) {
+                        const band = nodes.dynamicEq[i];
+                        const settings = deqSettings[i];
+
+                        band.peaking.frequency.value = settings.freq;
+                        band.peaking.Q.value = settings.q;
+
+                        band.sidechain.frequency.value = settings.freq;
+                        band.sidechain.Q.value = settings.q * 1.5;
+
+                        band.compressor.threshold.value = settings.threshold;
+                        band.compressor.knee.value = 5;
+                        band.compressor.ratio.value = 2;
+                        band.compressor.attack.value = 0.005;
+                        band.compressor.release.value = 0.15;
+
+                        band.gain.gain.value = settings.gain;
+
+                        lastNode.connect(band.peaking);
+                        lastNode.connect(band.sidechain).connect(band.compressor).connect(band.gain);
+                        band.gain.connect(band.peaking.gain);
+
+                        lastNode = band.peaking;
+                    }
+                }
+
+
                 if (audioState.isHpfEnabled) {
                     if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
                     nodes.hpf.type = 'highpass'; nodes.hpf.frequency.value = audioState.hpfHz;
                     lastNode = lastNode.connect(nodes.hpf);
                 }
 
-                // **[BUG FIX START]**
                 if (audioState.isMultibandCompEnabled) {
                     const mbcNodes = nodes.mbc;
                     const merger = mbcNodes.merger;
@@ -743,7 +795,6 @@
 
                     lastNode = merger;
                 }
-                // **[BUG FIX END]**
 
                 if (audioState.isExciterEnabled && audioState.exciterAmount > 0) {
                     const exciterSum = nodes.context.createGain(); const exciterDry = nodes.context.createGain(); const exciterWet = nodes.context.createGain();
@@ -1270,114 +1321,171 @@
             this.modalShadowRoot = null;
 
             this.presetMap = {
-    'default': {
-        name: '기본값 (모든 효과 꺼짐)',
-        targetLUFS: CONFIG.LOUDNESS_TARGET,
-        multiband_enabled: false
-    },
-    'basic_clear': {
-        name: '✔ 기본 개선 (명료)',
-        hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
-        preGain_enabled: true, preGain_value: 1, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2,
-        targetLUFS: -16, multiband_enabled: true,
-        multiband_bands: [
-            { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 10, release: 300, makeup: 2 },
-            { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 8, release: 250, makeup: 1.5 },
-            { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4, attack: 5, release: 200, makeup: 1 },
-            { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
-        ]
-    },
-    'movie_immersive': {
-        name: '🎬 영화/드라마 (몰입감)',
-        hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
-        widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -25, parallel_comp_enabled: true, parallel_comp_mix: 15,
-        mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0, preGain_enabled: true, preGain_value: 0.8,
-        targetLUFS: -15, multiband_enabled: true,
-        multiband_bands: [
-            { freqLow: 20, freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
-            { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8, release: 250, makeup: 1.5 },
-            { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 5, release: 200, makeup: 1 },
-            { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 2, release: 150, makeup: 1 }
-        ]
-    },
-    'action_blockbuster': {
-        name: '💥 액션 블록버스터 (타격감)',
-        hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8,
-        widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18,
-        mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3,
-        targetLUFS: -14, multiband_enabled: true,
-        multiband_bands: [
-            { freqLow: 20, freqHigh: 120, threshold: -26, ratio: 3.5, attack: 12, release: 320, makeup: 2.5 },
-            { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 260, makeup: 2 },
-            { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 6, release: 200, makeup: 1.5 },
-            { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 3, release: 150, makeup: 1 }
-        ]
-    },
-    'concert_hall': {
-        name: '🏟️ 라이브 콘서트 (현장감)',
-        hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2,
-        widen_enabled: true, widen_factor: 1.3, preGain_enabled: true, preGain_value: 1.2, reverb_enabled: true, reverb_mix: 0.5,
-        mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5,
-        targetLUFS: -14.5, multiband_enabled: true,
-        multiband_bands: [
-            { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 12, release: 280, makeup: 2 },
-            { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 9, release: 250, makeup: 1.5 },
-            { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 6, release: 210, makeup: 1 },
-            { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 3, release: 160, makeup: 1 }
-        ]
-    },
-    'music_dynamic': {
-        name: '🎶 음악 (다이나믹 & 펀치감)',
-        hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
-        widen_enabled: true, widen_factor: 1.3, exciter_enabled: true, exciter_amount: 12,
-        mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3,
-        targetLUFS: -13, multiband_enabled: true,
-        multiband_bands: [
-            { freqLow: 20, freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 2 },
-            { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 250, makeup: 1.5 },
-            { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 5, release: 200, makeup: 1 },
-            { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 2, release: 150, makeup: 1 }
-        ]
-    },
-    'mastering_balanced': {
-        name: '🔥 밸런스 마스터링 (고음질)',
-        hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_treble: 1.2, eq_presence: 1,
-        widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 10,
-        mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, preGain_enabled: true, preGain_value: 1.5,
-        targetLUFS: -13.5, multiband_enabled: true,
-        multiband_bands: [
-            { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3.2, attack: 10, release: 300, makeup: 2 },
-            { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.8, attack: 8, release: 250, makeup: 1.5 },
-            { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4.2, attack: 5, release: 200, makeup: 1 },
-            { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
-        ]
-    },
-    'vocal_clarity_pro': {
-        name: '🎙️ 목소리 명료 (강의/뉴스)',
-        hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
-        preGain_enabled: true, preGain_value: 1.0, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12,
-        mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5,
-        targetLUFS: -18, multiband_enabled: true,
-        multiband_bands: [
-            { freqLow: 20, freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 2 },
-            { freqLow: 120, freqHigh: 1000, threshold: -23, ratio: 3, attack: 10, release: 260, makeup: 1.5 },
-            { freqLow: 1000, freqHigh: 6000, threshold: -25, ratio: 3.5, attack: 7, release: 210, makeup: 1 },
-            { freqLow: 6000, freqHigh: 20000, threshold: -27, ratio: 4, attack: 4, release: 160, makeup: 1 }
-        ]
-    },
-    'gaming_pro': {
-        name: '🎮 게이밍 (사운드 플레이)',
-        hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_mid: 2, eq_treble: 2, eq_presence: 2.5,
-        widen_enabled: true, widen_factor: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5,
-        targetLUFS: -15, multiband_enabled: true,
-        multiband_bands: [
-            { freqLow: 20, freqHigh: 120, threshold: -23, ratio: 3, attack: 12, release: 300, makeup: 2 },
-            { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 9, release: 250, makeup: 1.5 },
-            { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4, attack: 6, release: 200, makeup: 1 },
-            { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 3, release: 150, makeup: 1 }
-        ]
-    }
-};
+                'default': {
+                    name: '기본값 (모든 효과 꺼짐)',
+                    targetLUFS: CONFIG.LOUDNESS_TARGET,
+                    multiband_enabled: false,
+                    smartEQ_enabled: false
+                },
+                'basic_clear': {
+                    name: '✔ 기본 개선 (명료)',
+                    hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
+                    preGain_enabled: true, preGain_value: 1, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2,
+                    targetLUFS: -16, multiband_enabled: true,
+                    multiband_bands: [
+                        { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 10, release: 300, makeup: 2 },
+                        { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 8, release: 250, makeup: 1.5 },
+                        { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4, attack: 5, release: 200, makeup: 1 },
+                        { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
+                    ],
+                    smartEQ_enabled: true,
+                    smartEQ_bands: [
+                        { frequency: 120, Q: 1.2, threshold: -21, gain: -2 },
+                        { frequency: 1000, Q: 1.0, threshold: -22, gain: 2 },
+                        { frequency: 4000, Q: 0.8, threshold: -24, gain: 2 },
+                        { frequency: 8000, Q: 1.5, threshold: -25, gain: 1 }
+                    ]
+                },
+                'movie_immersive': {
+                    name: '🎬 영화/드라마 (몰입감)',
+                    hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
+                    widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -25, parallel_comp_enabled: true, parallel_comp_mix: 15,
+                    mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0, preGain_enabled: true, preGain_value: 0.8,
+                    targetLUFS: -15, multiband_enabled: true,
+                    multiband_bands: [
+                        { freqLow: 20, freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
+                        { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8, release: 250, makeup: 1.5 },
+                        { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 5, release: 200, makeup: 1 },
+                        { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 2, release: 150, makeup: 1 }
+                    ],
+                    smartEQ_enabled: true,
+                    smartEQ_bands: [
+                        { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
+                        { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
+                        { frequency: 3000, Q: 0.9, threshold: -24, gain: 2 },
+                        { frequency: 10000, Q: 1.2, threshold: -25, gain: 1 }
+                    ]
+                },
+                'action_blockbuster': {
+                    name: '💥 액션 블록버스터 (타격감)',
+                    hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8,
+                    widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18,
+                    mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3,
+                    targetLUFS: -14, multiband_enabled: true,
+                    multiband_bands: [
+                        { freqLow: 20, freqHigh: 120, threshold: -26, ratio: 3.5, attack: 12, release: 320, makeup: 2.5 },
+                        { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 260, makeup: 2 },
+                        { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 6, release: 200, makeup: 1.5 },
+                        { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 3, release: 150, makeup: 1 }
+                    ],
+                    smartEQ_enabled: true,
+                    smartEQ_bands: [
+                        { frequency: 60, Q: 1.0, threshold: -19, gain: 2 },
+                        { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
+                        { frequency: 2000, Q: 0.8, threshold: -23, gain: 2 },
+                        { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
+                    ]
+                },
+                'concert_hall': {
+                    name: '🏟️ 라이브 콘서트 (현장감)',
+                    hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2,
+                    widen_enabled: true, widen_factor: 1.3, preGain_enabled: true, preGain_value: 1.2, reverb_enabled: true, reverb_mix: 0.5,
+                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5,
+                    targetLUFS: -14.5, multiband_enabled: true,
+                    multiband_bands: [
+                        { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 12, release: 280, makeup: 2 },
+                        { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 9, release: 250, makeup: 1.5 },
+                        { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 6, release: 210, makeup: 1 },
+                        { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 3, release: 160, makeup: 1 }
+                    ],
+                    smartEQ_enabled: true,
+                    smartEQ_bands: [
+                        { frequency: 100, Q: 1.0, threshold: -20, gain: -1 },
+                        { frequency: 500, Q: 1.1, threshold: -21, gain: 2 },
+                        { frequency: 3000, Q: 0.9, threshold: -23, gain: 2 },
+                        { frequency: 9000, Q: 1.3, threshold: -25, gain: 2 }
+                    ]
+                },
+                'music_dynamic': {
+                    name: '🎶 음악 (다이나믹 & 펀치감)',
+                    hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
+                    widen_enabled: true, widen_factor: 1.3, exciter_enabled: true, exciter_amount: 12,
+                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3,
+                    targetLUFS: -13, multiband_enabled: true,
+                    multiband_bands: [
+                        { freqLow: 20, freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 2 },
+                        { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 250, makeup: 1.5 },
+                        { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 5, release: 200, makeup: 1 },
+                        { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 2, release: 150, makeup: 1 }
+                    ],
+                    smartEQ_enabled: true,
+                    smartEQ_bands: [
+                        { frequency: 70, Q: 1.0, threshold: -20, gain: 2 },
+                        { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
+                        { frequency: 1500, Q: 1.0, threshold: -23, gain: 2 },
+                        { frequency: 7000, Q: 1.2, threshold: -24, gain: 2 }
+                    ]
+                },
+                'mastering_balanced': {
+                    name: '🔥 밸런스 마스터링 (고음질)',
+                    hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_treble: 1.2, eq_presence: 1,
+                    widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 10,
+                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, preGain_enabled: true, preGain_value: 1.5,
+                    targetLUFS: -13.5, multiband_enabled: true,
+                    multiband_bands: [
+                        { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3.2, attack: 10, release: 300, makeup: 2 },
+                        { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.8, attack: 8, release: 250, makeup: 1.5 },
+                        { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4.2, attack: 5, release: 200, makeup: 1 },
+                        { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
+                    ],
+                    smartEQ_enabled: true,
+                    smartEQ_bands: [
+                        { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
+                        { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
+                        { frequency: 2500, Q: 0.9, threshold: -23, gain: 2 },
+                        { frequency: 10000, Q: 1.3, threshold: -25, gain: 2 }
+                    ]
+                },
+                'vocal_clarity_pro': {
+                    name: '🎙️ 목소리 명료 (강의/뉴스)',
+                    hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
+                    preGain_enabled: true, preGain_value: 1.0, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12,
+                    mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5,
+                    targetLUFS: -18, multiband_enabled: true,
+                    multiband_bands: [
+                        { freqLow: 20, freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 2 },
+                        { freqLow: 120, freqHigh: 1000, threshold: -23, ratio: 3, attack: 10, release: 260, makeup: 1.5 },
+                        { freqLow: 1000, freqHigh: 6000, threshold: -25, ratio: 3.5, attack: 7, release: 210, makeup: 1 },
+                        { freqLow: 6000, freqHigh: 20000, threshold: -27, ratio: 4, attack: 4, release: 160, makeup: 1 }
+                    ],
+                    smartEQ_enabled: true,
+                    smartEQ_bands: [
+                        { frequency: 120, Q: 1.2, threshold: -20, gain: -2 },
+                        { frequency: 1000, Q: 1.0, threshold: -22, gain: 3 },
+                        { frequency: 4000, Q: 0.8, threshold: -24, gain: 3 },
+                        { frequency: 9000, Q: 1.5, threshold: -25, gain: 1 }
+                    ]
+                },
+                'gaming_pro': {
+                    name: '🎮 게이밍 (사운드 플레이)',
+                    hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_mid: 2, eq_treble: 2, eq_presence: 2.5,
+                    widen_enabled: true, widen_factor: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5,
+                    targetLUFS: -15, multiband_enabled: true,
+                    multiband_bands: [
+                        { freqLow: 20, freqHigh: 120, threshold: -23, ratio: 3, attack: 12, release: 300, makeup: 2 },
+                        { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 9, release: 250, makeup: 1.5 },
+                        { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4, attack: 6, release: 200, makeup: 1 },
+                        { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 3, release: 150, makeup: 1 }
+                    ],
+                    smartEQ_enabled: true,
+                    smartEQ_bands: [
+                        { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
+                        { frequency: 500, Q: 1.0, threshold: -22, gain: 2 },
+                        { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
+                        { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
+                    ]
+                }
+            };
 
         }
 
@@ -1405,6 +1513,16 @@
             this.subscribe('ui.warningMessage', msg => this.showWarningMessage(msg));
             this.subscribe('ui.areControlsVisible', () => this.updateDelayMeterVisibility());
 
+            this.subscribe('audio.activePresetKey', (presetKey) => {
+                if (!this.shadowRoot) return;
+                this.shadowRoot.querySelectorAll('.vsc-preset-select').forEach(select => {
+                    if (select.value !== presetKey) {
+                        select.value = presetKey;
+                    }
+                });
+            });
+
+
             this.updateDelayMeter(this.stateManager.get('liveStream.delayInfo'));
 
             const vscMessage = sessionStorage.getItem('vsc_message');
@@ -1413,7 +1531,6 @@
                 sessionStorage.removeItem('vsc_message');
             }
 
-            // **[FIXED]** Add event listener for fullscreen changes.
             document.addEventListener('fullscreenchange', () => {
                 const fullscreenRoot = document.fullscreenElement || document.body;
                 if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) {
@@ -1627,7 +1744,6 @@
 
             this.modalHost = document.createElement('div');
             this.modalShadowRoot = this.modalHost.attachShadow({ mode: 'open' });
-            // **[FIXED]** Append to the correct root initially.
             const currentRoot = document.fullscreenElement || document.body;
             currentRoot.appendChild(this.modalHost);
 
@@ -1777,7 +1893,7 @@
                 .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; }
                 .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; }
                 .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
-                #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '420px' : '520px'}; max-width: 90vw; }
+                #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? 'auto' : '520px'}; max-width: 90vw; }
                 #vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }
                 #vsc-image-controls .vsc-submenu { width: 100px; }
                 .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
@@ -1796,10 +1912,17 @@
                 .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
                 .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
                 .vsc-button-group > .vsc-btn { flex-basis: 0; flex-grow: 1; }
-                .vsc-mastering-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; border-top: 1px solid #444; padding-top: 8px; }
+                .vsc-mastering-row { display: flex; align-items: center; gap: 12px; }
                 .vsc-mastering-row > .vsc-btn { flex: 1; }
                 .vsc-mastering-row > .slider-control { flex: 1; }
-
+                .vsc-tabs { display: flex; gap: 5px; border-bottom: 1px solid #444; margin-bottom: 10px; width: 100%; }
+                .vsc-tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: #aaa; padding: 4px 8px; cursor: pointer; font-size: clamp(13px, 2.2vmin, 14px); }
+                .vsc-tab-btn.active { color: white; border-bottom-color: #3498db; }
+                .vsc-tab-pane { display: none; flex-direction: column; gap: 8px; }
+                .vsc-tab-pane.active { display: flex; }
+                .vsc-deq-band-selectors { display: flex; gap: 6px; justify-content: center; margin-bottom: 8px; }
+                .vsc-deq-band-btn { width: 30px; height: 30px; border: 1px solid #555; background: #222; color: #ccc; font-weight: bold; }
+                .vsc-deq-band-btn.active { border-color: #3498db; background: #3498db; color: white; }
                 #vsc-mbc-modal {
                     display: none; position: fixed; top: 50%; left: 50%;
                     transform: translate(-50%, -50%);
@@ -1890,10 +2013,47 @@
             );
 
             const audioSubMenu = this._createControlGroup('vsc-stereo-controls', '🎧', '사운드 필터', controlsContainer);
-            const audioGrid = document.createElement('div'); audioGrid.className = 'vsc-audio-grid';
-            const col1 = document.createElement('div'); col1.className = 'vsc-audio-column';
-            const col2 = document.createElement('div'); col2.className = 'vsc-audio-column';
-            const col3 = document.createElement('div'); col3.className = 'vsc-audio-column';
+
+            const tabsContainer = document.createElement('div');
+            tabsContainer.className = 'vsc-tabs';
+
+            const panesContainer = document.createElement('div');
+
+            const createTab = (id, text, isActive = false) => {
+                const btn = document.createElement('button');
+                btn.className = 'vsc-tab-btn';
+                btn.dataset.tabId = id;
+                btn.textContent = text;
+                if (isActive) btn.classList.add('active');
+
+                const pane = document.createElement('div');
+                pane.id = id;
+                pane.className = 'vsc-tab-pane';
+                if (isActive) pane.classList.add('active');
+
+                tabsContainer.appendChild(btn);
+                panesContainer.appendChild(pane);
+
+                btn.onclick = () => {
+                    tabsContainer.querySelectorAll('.vsc-tab-btn').forEach(b => b.classList.remove('active'));
+                    panesContainer.querySelectorAll('.vsc-tab-pane').forEach(p => p.classList.remove('active'));
+                    btn.classList.add('active');
+                    pane.classList.add('active');
+                };
+                return pane;
+            };
+
+            const basicPane = createTab('vsc-audio-basic-pane', '기본', true);
+            const dynamicsPane = createTab('vsc-audio-dynamics-pane', '다이나믹스');
+            const clarityPane = createTab('vsc-audio-clarity-pane', '명료도');
+
+            audioSubMenu.append(tabsContainer, panesContainer);
+
+            const basicGrid = document.createElement('div');
+            basicGrid.className = 'vsc-audio-grid';
+            basicGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+            const basicCol1 = document.createElement('div'); basicCol1.className = 'vsc-audio-column';
+            const basicCol2 = document.createElement('div'); basicCol2.className = 'vsc-audio-column';
 
             const eqSliders = [
                 this._createSlider('초저음', 'eq-sub', -12, 12, 1, 'audio.eqSubBassGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
@@ -1902,17 +2062,47 @@
                 this._createSlider('고음', 'eq-treble', -12, 12, 1, 'audio.eqTrebleGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
                 this._createSlider('초고음', 'eq-pres', -12, 12, 1, 'audio.eqPresenceGain', 'dB', v => `${v.toFixed(0)}dB`).slider
             ];
-
             const hpfSlider = this._createSlider('주파수', 'hpf-freq', 20, 500, 5, 'audio.hpfHz', 'Hz', v => `${v.toFixed(0)}Hz`).slider;
-            col1.append(
+            basicCol1.append(
                 this._createToggleBtn('eq-toggle', 'EQ', 'audio.isEqEnabled'),
                 ...eqSliders.map(s => s.parentElement),
                 this._createDivider(),
-                this._createSlider('베이스 부스트', 'bass-boost', 0, 9, 0.5, 'audio.bassBoostGain', 'dB', v => `${v.toFixed(1)}dB`).control,
+                this._createSlider('베이스 부스트', 'bass-boost', 0, 9, 0.5, 'audio.bassBoostGain', 'dB', v => `${v.toFixed(1)}dB`).control
+            );
+            const preGainGroup = document.createElement('div');
+            preGainGroup.className = 'vsc-button-group';
+            const manualVolBtn = this._createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
+            const agcBtn = this._createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
+            const autoVolBtn = this._createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
+            autoVolBtn.innerHTML = '자동<br>보정';
+            preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
+
+            const widenSlider = this._createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
+            const reverbSlider = this._createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
+            const preGainSlider = this._createSlider('볼륨 크기', 'pre-gain-slider', 0, 4, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
+            basicCol2.append(
+                this._createToggleBtn('widen-toggle', 'Virtualizer', 'audio.isWideningEnabled'), widenSlider.parentElement,
+                this._createToggleBtn('adaptive-width-toggle', 'Bass Mono', 'audio.isAdaptiveWidthEnabled'),
+                this._createDivider(),
+                this._createToggleBtn('reverb-toggle', '리버브', 'audio.isReverbEnabled'), reverbSlider.parentElement,
+                this._createDivider(),
+                this._createSlider('Pan', 'pan', -1, 1, 0.1, 'audio.stereoPan', '', v => v.toFixed(1)).control,
+                this._createDivider(),
+                preGainGroup, preGainSlider.parentElement,
                 this._createDivider(),
                 this._createToggleBtn('hpf-toggle', 'HPF', 'audio.isHpfEnabled'),
                 hpfSlider.parentElement
             );
+            this.uiElements.manualVolBtn = manualVolBtn;
+            this.uiElements.preGainSlider = preGainSlider;
+            basicGrid.append(basicCol1, basicCol2);
+            basicPane.appendChild(basicGrid);
+
+            const dynamicsGrid = document.createElement('div');
+            dynamicsGrid.className = 'vsc-audio-grid';
+            dynamicsGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+            const dynamicsCol1 = document.createElement('div'); dynamicsCol1.className = 'vsc-audio-column';
+            const dynamicsCol2 = document.createElement('div'); dynamicsCol2.className = 'vsc-audio-column';
 
             const deesserSliders = [
                 this._createSlider('강도', 'deesser-thresh', -60, 0, 1, 'audio.deesserThreshold', 'dB', v => `${v.toFixed(0)}dB`).slider,
@@ -1920,6 +2110,14 @@
             ];
             const exciterSlider = this._createSlider('강도', 'exciter-amount', 0, 100, 1, 'audio.exciterAmount', '%', v => `${v.toFixed(0)}%`).slider;
             const pcompSlider = this._createSlider('믹스', 'pcomp-mix', 0, 100, 1, 'audio.parallelCompMix', '%', v => `${v.toFixed(0)}%`).slider;
+
+            dynamicsCol1.append(
+                this._createToggleBtn('deesser-toggle', '디에서', 'audio.isDeesserEnabled'), ...deesserSliders.map(s=>s.parentElement),
+                this._createDivider(),
+                this._createToggleBtn('exciter-toggle', '익사이터', 'audio.isExciterEnabled'), exciterSlider.parentElement,
+                this._createDivider(),
+                this._createToggleBtn('pcomp-toggle', '업컴프', 'audio.isParallelCompEnabled'), pcompSlider.parentElement
+            );
 
             const mbcGroup = document.createElement('div');
             mbcGroup.className = 'vsc-button-group';
@@ -1935,41 +2133,6 @@
             mbcSettingsBtn.disabled = !this.stateManager.get('audio.isMultibandCompEnabled');
             mbcGroup.append(mbcToggleBtn, mbcSettingsBtn);
 
-            col2.append(
-                this._createToggleBtn('deesser-toggle', '디에서', 'audio.isDeesserEnabled'), ...deesserSliders.map(s=>s.parentElement),
-                this._createDivider(),
-                this._createToggleBtn('exciter-toggle', '익사이터', 'audio.isExciterEnabled'), exciterSlider.parentElement,
-                this._createDivider(),
-                this._createToggleBtn('pcomp-toggle', '업컴프', 'audio.isParallelCompEnabled'), pcompSlider.parentElement,
-                this._createDivider(),
-                mbcGroup
-            );
-
-            const preGainGroup = document.createElement('div');
-            preGainGroup.className = 'vsc-button-group';
-            const manualVolBtn = this._createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
-            const agcBtn = this._createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
-            const autoVolBtn = this._createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
-            autoVolBtn.innerHTML = '자동<br>보정';
-            preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
-
-            const widenSlider = this._createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
-            const reverbSlider = this._createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
-            const preGainSlider = this._createSlider('볼륨 크기', 'pre-gain-slider', 0, 4, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
-            col3.append(
-                this._createToggleBtn('widen-toggle', 'Virtualizer', 'audio.isWideningEnabled'), widenSlider.parentElement,
-                this._createToggleBtn('adaptive-width-toggle', 'Bass Mono', 'audio.isAdaptiveWidthEnabled'),
-                this._createDivider(),
-                this._createToggleBtn('reverb-toggle', '리버브', 'audio.isReverbEnabled'), reverbSlider.parentElement,
-                this._createDivider(),
-                this._createSlider('Pan', 'pan', -1, 1, 0.1, 'audio.stereoPan', '', v => v.toFixed(1)).control,
-                this._createDivider(),
-                preGainGroup, preGainSlider.parentElement
-            );
-            this.uiElements.manualVolBtn = manualVolBtn;
-            this.uiElements.preGainSlider = preGainSlider;
-
-
             const masteringContainer = document.createElement('div');
             masteringContainer.className = 'vsc-mastering-row';
             const masteringToggleBtn = this._createToggleBtn('mastering-toggle', '마스터링', 'audio.isMasteringSuiteEnabled');
@@ -1978,34 +2141,113 @@
             const driveSliderObj = this._createSlider('음압', 'master-drive', 0, 12, 0.5, 'audio.masteringDrive', 'dB', v => `${v.toFixed(1)}dB`);
             masteringContainer.append(masteringToggleBtn, transientSliderObj.control, driveSliderObj.control);
 
-            this.subscribe('audio.masteringTransientAmount', val => {
-                const slider = this.shadowRoot.getElementById('master-transient');
-                const newSliderVal = val * 100;
-                if (slider && Math.abs(slider.value - newSliderVal) > 0.5) slider.value = newSliderVal;
+            dynamicsCol2.append(
+                 mbcGroup,
+                 this._createDivider(),
+                 masteringContainer
+            );
+            dynamicsGrid.append(dynamicsCol1, dynamicsCol2);
+            dynamicsPane.appendChild(dynamicsGrid);
+
+            const deqToggleBtn = this._createToggleBtn('deq-toggle', '스마트 명료도 활성화', 'audio.isDynamicEqEnabled');
+            deqToggleBtn.style.width = '100%';
+
+            const bandSelectors = document.createElement('div');
+            bandSelectors.className = 'vsc-deq-band-selectors';
+
+            const deqControlsContainer = document.createElement('div');
+            deqControlsContainer.style.display = 'flex';
+            deqControlsContainer.style.flexDirection = 'column';
+            deqControlsContainer.style.gap = '8px';
+            deqControlsContainer.style.width = '250px';
+
+            const deqFreqSlider = this._createSlider('Frequency', 'deq-freq', 20, 20000, 1, `audio.dynamicEq.bands.0.freq`, 'Hz', v => `${v < 1000 ? v.toFixed(0) : (v/1000).toFixed(1)} ${v < 1000 ? 'Hz' : 'kHz'}`).control;
+            const deqQSlider = this._createSlider('Q', 'deq-q', 0.1, 10, 0.1, `audio.dynamicEq.bands.0.q`, '', v => v.toFixed(1)).control;
+            const deqThresholdSlider = this._createSlider('Threshold', 'deq-thresh', -60, 0, 1, `audio.dynamicEq.bands.0.threshold`, 'dB', v => `${v.toFixed(0)}dB`).control;
+            const deqGainSlider = this._createSlider('Gain', 'deq-gain', -12, 12, 1, `audio.dynamicEq.bands.0.gain`, 'dB', v => `${v.toFixed(0)}dB`).control;
+
+            deqControlsContainer.append(deqFreqSlider, deqQSlider, deqThresholdSlider, deqGainSlider);
+
+            const updateDeqUI = () => {
+                const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
+                const bands = this.stateManager.get('audio.dynamicEq.bands');
+                if (!bands || !bands[activeBandIndex]) return;
+                const bandSettings = bands[activeBandIndex];
+
+                bandSelectors.querySelectorAll('.vsc-deq-band-btn').forEach((btn, index) => {
+                    btn.classList.toggle('active', index === activeBandIndex);
+                });
+
+                const updateSlider = (sliderEl, value) => {
+                    if (sliderEl && Math.abs(sliderEl.value - value) > 0.001) {
+                         sliderEl.value = value;
+                         sliderEl.dispatchEvent(new Event('input', { bubbles:true }));
+                    }
+                };
+                updateSlider(deqControlsContainer.querySelector('#deq-freq'), bandSettings.freq);
+                updateSlider(deqControlsContainer.querySelector('#deq-q'), bandSettings.q);
+                updateSlider(deqControlsContainer.querySelector('#deq-thresh'), bandSettings.threshold);
+                updateSlider(deqControlsContainer.querySelector('#deq-gain'), bandSettings.gain);
+            };
+
+            for (let i = 1; i <= 4; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'vsc-btn vsc-deq-band-btn';
+                btn.textContent = i;
+                btn.dataset.bandIndex = i;
+                btn.onclick = () => {
+                    this.stateManager.set('audio.dynamicEq.activeBand', i);
+                };
+                bandSelectors.appendChild(btn);
+            }
+            this.subscribe('audio.dynamicEq.activeBand', updateDeqUI);
+
+            const createDeqSliderUpdater = (param) => (e) => {
+                const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
+                let bands = JSON.parse(JSON.stringify(this.stateManager.get('audio.dynamicEq.bands')));
+                bands[activeBandIndex][param] = parseFloat(e.target.value);
+                this.stateManager.set('audio.dynamicEq.bands', bands);
+            };
+
+            deqControlsContainer.querySelector('#deq-freq').oninput = debounce(createDeqSliderUpdater('freq'), 50);
+            deqControlsContainer.querySelector('#deq-q').oninput = debounce(createDeqSliderUpdater('q'), 50);
+            deqControlsContainer.querySelector('#deq-thresh').oninput = debounce(createDeqSliderUpdater('threshold'), 50);
+            deqControlsContainer.querySelector('#deq-gain').oninput = debounce(createDeqSliderUpdater('gain'), 50);
+            this.subscribe('audio.dynamicEq.bands', updateDeqUI);
+
+            this.subscribe('audio.isDynamicEqEnabled', (isEnabled) => {
+                deqControlsContainer.style.opacity = isEnabled ? '1' : '0.5';
+                deqControlsContainer.querySelectorAll('input').forEach(input => input.disabled = !isEnabled);
             });
-            transientSliderObj.slider.oninput = debounce((e) => this.stateManager.set('audio.masteringTransientAmount', parseFloat(e.target.value) / 100), 50);
+            deqControlsContainer.style.opacity = this.stateManager.get('audio.isDynamicEqEnabled') ? '1' : '0.5';
+            deqControlsContainer.querySelectorAll('input').forEach(input => input.disabled = !this.stateManager.get('audio.isDynamicEqEnabled'));
+
+            clarityPane.append(deqToggleBtn, bandSelectors, deqControlsContainer);
+            updateDeqUI();
 
             const bottomControls = document.createElement('div');
-            bottomControls.style.cssText = 'grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid #444; padding-top: 8px;';
-            const presetSelect = document.createElement('select'); presetSelect.className = 'vsc-select';
+            bottomControls.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid #444; padding-top: 8px; margin-top: 8px;';
+            const presetSelect = document.createElement('select');
+            presetSelect.className = 'vsc-select vsc-preset-select';
             Object.entries(this.presetMap).forEach(([key, val]) => {
                 const opt = document.createElement('option');
                 opt.value = key; opt.textContent = val.name;
                 presetSelect.appendChild(opt);
             });
-            presetSelect.onchange = (e) => {
-                this.applyPreset(e.target.value);
-            };
             const resetBtn = document.createElement('button'); resetBtn.className = 'vsc-btn'; resetBtn.textContent = '초기화';
-            resetBtn.onclick = () => {
-                this.applyPreset('default');
-                presetSelect.value = 'default';
-                this.stateManager.set('audio.activityCheckRequested', Date.now());
-            };
 
             bottomControls.append(presetSelect, resetBtn);
-            audioGrid.append(col1, col2, col3, masteringContainer, bottomControls);
-            audioSubMenu.appendChild(audioGrid);
+            [basicPane, dynamicsPane, clarityPane].forEach(pane => pane.appendChild(bottomControls.cloneNode(true)));
+
+            panesContainer.querySelectorAll('.vsc-preset-select').forEach(sel => {
+                sel.onchange = (e) => this.applyPreset(e.target.value);
+            });
+            panesContainer.querySelectorAll('button').forEach(btn => {
+                if(btn.textContent === '초기화') {
+                    btn.onclick = () => this.applyPreset('default');
+                }
+            });
+
 
             this.createMultibandCompModal();
 
@@ -2135,7 +2377,6 @@
             modalResetBtn.style.alignSelf = 'center';
             modalResetBtn.onclick = () => {
             const defaultSettings = CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS;
-            // [수정된 로직] 이중 반복문으로 각 밴드의 모든 파라미터를 개별적으로 설정
             for (const bandKey of Object.keys(bandInfo)) {
                 for (const [paramKey, paramValue] of Object.entries(defaultSettings[bandKey])) {
                     this.stateManager.set(`audio.multibandComp.${bandKey}.${paramKey}`, paramValue);
@@ -2218,6 +2459,7 @@
                 isLimiterEnabled: false, isMasteringSuiteEnabled: false, masteringTransientAmount: 0.2, masteringDrive: 0,
                 isLoudnessNormalizationEnabled: false,
                 isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
+                isDynamicEqEnabled: false,
             };
 
             const presetValues = {
@@ -2237,6 +2479,7 @@
                 isMasteringSuiteEnabled: p.mastering_suite_enabled ?? defaults.isMasteringSuiteEnabled, masteringTransientAmount: p.mastering_transient ?? defaults.masteringTransientAmount, masteringDrive: p.mastering_drive ?? defaults.masteringDrive,
                 isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled ?? (presetKey === 'default' ? false : this.stateManager.get('audio.isLoudnessNormalizationEnabled')),
                 isMultibandCompEnabled: p.multiband_enabled ?? defaults.isMultibandCompEnabled,
+                isDynamicEqEnabled: p.smartEQ_enabled ?? defaults.isDynamicEqEnabled,
             };
 
             if (presetKey === 'default') {
@@ -2265,13 +2508,11 @@
                         release: bandData.release / 1000,
                         makeupGain: bandData.makeup,
                     };
-                    // **[FIXED in v100.5]** Iterate and set each parameter individually to trigger UI updates.
                     for (const [param, value] of Object.entries(newSettings)) {
                          this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
                     }
                 });
             } else if (presetKey === 'default') {
-                 // **[FIXED in v100.5]** Also apply default settings individually for UI consistency.
                 const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
                 for (const [key, settings] of Object.entries(defaultSettings)) {
                     for (const [param, value] of Object.entries(settings)) {
@@ -2280,9 +2521,23 @@
                 }
             }
 
+            // [BUG FIX] Apply smartEQ_bands from preset to the state
+            if (p.smartEQ_bands && Array.isArray(p.smartEQ_bands) && p.smartEQ_bands.length === 4) {
+                const newBands = p.smartEQ_bands.map(band => ({
+                    freq: band.frequency, // Map preset key 'frequency' to state key 'freq'
+                    q: band.Q,            // Map preset key 'Q' to state key 'q'
+                    threshold: band.threshold,
+                    gain: band.gain
+                }));
+                this.stateManager.set('audio.dynamicEq.bands', newBands);
+            }
+
+
             if (!isAgcActive) {
                 this.stateManager.set('audio.lastManualPreGain', presetValues.preGain);
             }
+
+            this.stateManager.set('audio.activePresetKey', presetKey);
         }
 
         attachDragAndDrop() {
