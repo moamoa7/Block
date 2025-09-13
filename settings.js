@@ -1893,7 +1893,11 @@
                 .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; }
                 .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; }
                 .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
-                #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? 'auto' : '520px'}; max-width: 90vw; }
+
+                /* --- [UI FIX START] --- */
+                #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '320px' : '520px'}; max-width: 90vw; }
+                /* --- [UI FIX END] --- */
+
                 #vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }
                 #vsc-image-controls .vsc-submenu { width: 100px; }
                 .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
@@ -1906,7 +1910,12 @@
                 input[type=range] { width: 100%; margin: 0; }
                 input[type=range]:disabled { opacity: 0.5; }
                 .vsc-audio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+
+                /* --- [UI FIX START] --- */
                 .vsc-audio-column { display: flex; flex-direction: column; gap: ${isMobile ? '3px' : '8px'}; border-right: 1px solid #444; padding-right: 12px; }
+                }
+                /* --- [UI FIX END] --- */
+
                 .vsc-audio-column:last-child { border-right: none; padding-right: 0; }
                 .vsc-button-group { display: flex; gap: 8px; width: 100%; }
                 .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
@@ -1950,15 +1959,23 @@
                 .vsc-mbc-band h4 { margin: 0 0 8px 0; text-align: center; font-size: clamp(13px, 2.2vw, 14px); color: #3498db; }
 
                 @media (max-width: 600px) {
-                    #vsc-mbc-bands {
-                        grid-template-columns: 1fr;
-                        gap: 8px;
-                    }
-                    #vsc-mbc-container {
-                        min-width: clamp(250px, 75vw, 300px);
-                    }
-                }
-            `;
+                // [추가] 모바일에서 오디오 탭 내부 그리드를 1열로 변경
+                  	.vsc-audio-grid {
+                      	grid-template-columns: 1fr;
+                    }
+                  	.vsc-audio-column {
+                      	border-right: none;
+                      	padding-right: 0;
+                    }
+                  	#vsc-mbc-bands {
+                      	grid-template-columns: 1fr;
+                      	gap: 8px;
+                    }
+                  	#vsc-mbc-container {
+                      	min-width: clamp(250px, 75vw, 300px);
+                    }
+                }
+            `;
             this.shadowRoot.appendChild(style);
             this.modalShadowRoot.appendChild(style.cloneNode(true));
 
