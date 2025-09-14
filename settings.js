@@ -2003,7 +2003,7 @@
             imageSelect.value = this.stateManager.get('imageFilter.level');
             imageSubMenu.appendChild(imageSelect);
 
-            const videoSubMenu = this._createControlGroup('vsc-video-controls', '✨', '영상 필터', controlsContainer);
+            const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer);
             const videoDefaults = this.stateManager.get('app.isMobile') ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
 
             // "초기화" 버튼 생성
@@ -2041,8 +2041,8 @@
             videoBrightenBtn.textContent = '밝기 2';
             videoBrightenBtn.dataset.presetKey = 'brighten2'; // 고유 키 추가
             videoBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.10);
-                this.stateManager.set('videoFilter.saturation', 110);
+                this.stateManager.set('videoFilter.gamma', 1.25);
+                this.stateManager.set('videoFilter.saturation', 125);
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', 5);
                 this.stateManager.set('videoFilter.highlights', 0);
@@ -2055,8 +2055,8 @@
             videoNewBrightenBtn.textContent = '밝기 3';
             videoNewBrightenBtn.dataset.presetKey = 'brighten3'; // 고유 키 추가
             videoNewBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.25);
-                this.stateManager.set('videoFilter.saturation', 125);
+                this.stateManager.set('videoFilter.gamma', 1.40);
+                this.stateManager.set('videoFilter.saturation', 140);
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', 5);
                 this.stateManager.set('videoFilter.highlights', 0);
