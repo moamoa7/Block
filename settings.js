@@ -1353,7 +1353,7 @@
                     hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
                     widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -25, parallel_comp_enabled: true, parallel_comp_mix: 15,
                     mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0, preGain_enabled: true, preGain_value: 0.8,
-                    targetLUFS: -15, multiband_enabled: true,
+                    targetLUFS: -16, multiband_enabled: true,
                     multiband_bands: [
                         { freqLow: 20, freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
                         { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8, release: 250, makeup: 1.5 },
@@ -1413,7 +1413,7 @@
                     hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
                     widen_enabled: true, widen_factor: 1.3, exciter_enabled: true, exciter_amount: 12,
                     mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3,
-                    targetLUFS: -13, multiband_enabled: true,
+                    targetLUFS: -14, multiband_enabled: true,
                     multiband_bands: [
                         { freqLow: 20, freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 2 },
                         { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 250, makeup: 1.5 },
@@ -2465,7 +2465,7 @@
             const ratio = rmsBefore / rmsAfter;
             const currentPreGain = this.stateManager.get('audio.preGain');
             let compensatedGain = currentPreGain * ratio;
-            compensatedGain = Math.max(0.1, Math.min(compensatedGain, 4.0));
+            compensatedGain = Math.max(0.1, Math.min(compensatedGain, CONFIG.MAX_PRE_GAIN));
 
             this.stateManager.set('audio.preGain', compensatedGain);
             this.stateManager.set('audio.lastManualPreGain', compensatedGain);
