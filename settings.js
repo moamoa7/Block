@@ -2030,8 +2030,8 @@
                 this.stateManager.set('videoFilter.gamma', 1);
                 this.stateManager.set('videoFilter.saturation', 100);
                 this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', 5);
-                this.stateManager.set('videoFilter.highlights', 0);
+                this.stateManager.set('videoFilter.shadows', 2);
+                this.stateManager.set('videoFilter.highlights', 2);
                 this.stateManager.set('videoFilter.activePreset', 'brighten1'); // 상태 변경
             };
 
@@ -2041,11 +2041,11 @@
             videoBrightenBtn.textContent = '밝기 2';
             videoBrightenBtn.dataset.presetKey = 'brighten2'; // 고유 키 추가
             videoBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.15);
-                this.stateManager.set('videoFilter.saturation', 110);
+                this.stateManager.set('videoFilter.gamma', 1.10);
+                this.stateManager.set('videoFilter.saturation', 105);
                 this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', -2);
-                this.stateManager.set('videoFilter.highlights', 5);
+                this.stateManager.set('videoFilter.shadows', -1);
+                this.stateManager.set('videoFilter.highlights', 3);
                 this.stateManager.set('videoFilter.activePreset', 'brighten2'); // 상태 변경
             };
 
@@ -2055,21 +2055,35 @@
             videoNewBrightenBtn.textContent = '밝기 3';
             videoNewBrightenBtn.dataset.presetKey = 'brighten3'; // 고유 키 추가
             videoNewBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.25);
+                this.stateManager.set('videoFilter.gamma', 1.20);
+                this.stateManager.set('videoFilter.saturation', 110);
+                this.stateManager.set('videoFilter.blur', 0);
+                this.stateManager.set('videoFilter.shadows', -2);
+                this.stateManager.set('videoFilter.highlights', 4);
+                this.stateManager.set('videoFilter.activePreset', 'brighten3'); // 상태 변경
+            };
+
+            // [추가] "영상 4" 버튼 생성
+            const videohighBrightenBtn = document.createElement('button');
+            videohighBrightenBtn.className = 'vsc-btn';
+            videohighBrightenBtn.textContent = '밝기 4';
+            videohighBrightenBtn.dataset.presetKey = 'brighten4'; // 고유 키 추가
+            videohighBrightenBtn.onclick = () => {
+                this.stateManager.set('videoFilter.gamma', 1.30);
                 this.stateManager.set('videoFilter.saturation', 115);
                 this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', -4);
-                this.stateManager.set('videoFilter.highlights', 7);
-                this.stateManager.set('videoFilter.activePreset', 'brighten3'); // 상태 변경
+                this.stateManager.set('videoFilter.shadows', -3);
+                this.stateManager.set('videoFilter.highlights', 5);
+                this.stateManager.set('videoFilter.activePreset', 'brighten4'); // 상태 변경
             };
 
             // [추가] 두 버튼을 그룹으로 묶기
             const videoBtnGroup = document.createElement('div');
             videoBtnGroup.style.cssText = 'display: flex; gap: 8px; margin-top: 8px;';
-            videoBtnGroup.append(videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videoResetBtn); // "영상 밝게" 버튼을 왼쪽에 배치
+            videoBtnGroup.append(videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videohighBrightenBtn, videoResetBtn); // "영상 밝게" 버튼을 왼쪽에 배치
 
             // [추가] 상태 변경을 감지하여 버튼의 .active 클래스를 관리
-            const videoButtons = [videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videoResetBtn];
+            const videoButtons = [videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videohighBrightenBtn, videoResetBtn];
             this.subscribe('videoFilter.activePreset', (activeKey) => {
                 videoButtons.forEach(btn => {
                     btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
