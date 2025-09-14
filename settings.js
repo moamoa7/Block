@@ -2044,8 +2044,8 @@
                 this.stateManager.set('videoFilter.gamma', 1.15);
                 this.stateManager.set('videoFilter.saturation', 115);
                 this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', 5);
-                this.stateManager.set('videoFilter.highlights', 0);
+                this.stateManager.set('videoFilter.shadows', -2);
+                this.stateManager.set('videoFilter.highlights', 5);
                 this.stateManager.set('videoFilter.activePreset', 'brighten2'); // 상태 변경
             };
 
@@ -2056,7 +2056,7 @@
             videoNewBrightenBtn.dataset.presetKey = 'brighten3'; // 고유 키 추가
             videoNewBrightenBtn.onclick = () => {
                 this.stateManager.set('videoFilter.gamma', 1.25);
-                this.stateManager.set('videoFilter.saturation', 125);
+                this.stateManager.set('videoFilter.saturation', 120);
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', 5);
                 this.stateManager.set('videoFilter.highlights', 5);
