@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      100.3
-// @description  AGC 및 자동보정 기능 분리
+// @version      100.4
+// @description  영상 필터 UI 버튼 추가
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -35,9 +35,9 @@
         LIVE_STREAM_URLS: ['tv.naver.com', 'youtube.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
         LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com', 'challenges.cloudflare.com', 'noti.sooplive.co.kr'],
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 104 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.04, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: -1, HIGHLIGHTS_VALUE: 3, SATURATION_VALUE: 104 },
-        IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 1, SATURATION_VALUE: 100 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
+        IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
         FILTER_EXCLUSION_DOMAINS: [], IMAGE_FILTER_EXCLUSION_DOMAINS: [],
         TARGET_DELAYS: {"play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 3000,
@@ -100,6 +100,7 @@
                     highlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10),
                     saturation: parseInt(videoDefaults.SATURATION_VALUE, 10),
                     sharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
+                    activePreset: 'none'
                 },
                 imageFilter: { level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL },
                 audio: {
@@ -1836,6 +1837,12 @@
             slider.oninput = () => {
                 const val = parseFloat(slider.value);
                 updateText(val);
+
+                // [추가 시작] 비디오 필터 슬라이더를 조작하면, 프리셋 선택 상태를 해제합니다.
+                if (stateKey.startsWith('videoFilter.')) {
+                    this.stateManager.set('videoFilter.activePreset', 'custom');
+                }
+
                 debouncedSetState(val);
             };
 
@@ -1894,7 +1901,7 @@
                 #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;}
                 .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; }
                 .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; }
-                .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.7); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
+                .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
 
                 /* --- [UI FIX START] --- */
                 #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '320px' : '520px'}; max-width: 90vw; }
@@ -1998,36 +2005,94 @@
 
             const videoSubMenu = this._createControlGroup('vsc-video-controls', '✨', '영상 필터', controlsContainer);
             const videoDefaults = this.stateManager.get('app.isMobile') ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
-            const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '초기화';
-            videoResetBtn.style.marginTop = '8px';
 
-            const sharpenDirOptions = [ { value: '4-way', text: '4방향 (기본)' }, { value: '8-way', text: '8방향 (강함)' } ];
-            const sharpenDirSelect = this._createSelectControl( '샤프 방향', sharpenDirOptions, (value) => this.stateManager.set('videoFilter.sharpenDirection', value) );
-            this.subscribe('videoFilter.sharpenDirection', val => sharpenDirSelect.querySelector('select').value = val);
-            sharpenDirSelect.querySelector('select').value = this.stateManager.get('videoFilter.sharpenDirection');
+            // "초기화" 버튼 생성
+            const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '초기화';
+            videoResetBtn.dataset.presetKey = 'reset'; // 고유 키 추가
+            videoResetBtn.onclick = () => {
+                this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
+                this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2);
+                this.stateManager.set('videoFilter.saturation', parseInt(videoDefaults.SATURATION_VALUE));
+                this.stateManager.set('videoFilter.gamma', parseFloat(videoDefaults.GAMMA_VALUE));
+                this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
+                this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE));
+                this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE));
+                this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
+                this.stateManager.set('videoFilter.activePreset', 'reset'); // 상태 변경
+            };
 
-
-            videoResetBtn.onclick = () => {
-                this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
-                this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2);
-                this.stateManager.set('videoFilter.saturation', parseInt(videoDefaults.SATURATION_VALUE, 10));
-                this.stateManager.set('videoFilter.gamma', parseFloat(videoDefaults.GAMMA_VALUE));
-                this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
-                this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE, 10));
-                this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10));
-                this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
+            // [추가] "밝기 1" 버튼 생성
+            const videoshadowsBrightenBtn = document.createElement('button');
+            videoshadowsBrightenBtn.className = 'vsc-btn';
+            videoshadowsBrightenBtn.textContent = '밝기 1';
+            videoshadowsBrightenBtn.dataset.presetKey = 'brighten1'; // 고유 키 추가
+            videoshadowsBrightenBtn.onclick = () => {
+                this.stateManager.set('videoFilter.gamma', 1);
+                this.stateManager.set('videoFilter.saturation', 100);
+                this.stateManager.set('videoFilter.blur', 0);
+                this.stateManager.set('videoFilter.shadows', 5);
+                this.stateManager.set('videoFilter.highlights', 0);
+                this.stateManager.set('videoFilter.activePreset', 'brighten1'); // 상태 변경
             };
-            videoSubMenu.append(
-                this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
-                this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
-                sharpenDirSelect,
-                this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
-                this._createSlider('감마', 'v-gamma', 0.5, 1.5, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
-                this._createSlider('블러', 'v-blur', 0, 1, 0.05, 'videoFilter.blur', '', v => v.toFixed(2)).control,
-                this._createSlider('대비', 'v-shadows', -50, 50, 1, 'videoFilter.shadows', '', v => v.toFixed(0)).control,
-                this._createSlider('밝기', 'v-highlights', -50, 50, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
-                videoResetBtn
-            );
+
+            // [추가] "영상 2" 버튼 생성
+            const videoBrightenBtn = document.createElement('button');
+            videoBrightenBtn.className = 'vsc-btn';
+            videoBrightenBtn.textContent = '밝기 2';
+            videoBrightenBtn.dataset.presetKey = 'brighten2'; // 고유 키 추가
+            videoBrightenBtn.onclick = () => {
+                this.stateManager.set('videoFilter.gamma', 1.15);
+                this.stateManager.set('videoFilter.saturation', 115);
+                this.stateManager.set('videoFilter.blur', 0);
+                this.stateManager.set('videoFilter.shadows', 5);
+                this.stateManager.set('videoFilter.highlights', 0);
+                this.stateManager.set('videoFilter.activePreset', 'brighten2'); // 상태 변경
+            };
+
+            // [추가] "영상 3" 버튼 생성
+            const videoNewBrightenBtn = document.createElement('button');
+            videoNewBrightenBtn.className = 'vsc-btn';
+            videoNewBrightenBtn.textContent = '밝기 3';
+            videoNewBrightenBtn.dataset.presetKey = 'brighten3'; // 고유 키 추가
+            videoNewBrightenBtn.onclick = () => {
+                this.stateManager.set('videoFilter.gamma', 1.30);
+                this.stateManager.set('videoFilter.saturation', 130);
+                this.stateManager.set('videoFilter.blur', 0);
+                this.stateManager.set('videoFilter.shadows', 5);
+                this.stateManager.set('videoFilter.highlights', 0);
+                this.stateManager.set('videoFilter.activePreset', 'brighten3'); // 상태 변경
+            };
+
+            // [추가] 두 버튼을 그룹으로 묶기
+            const videoBtnGroup = document.createElement('div');
+            videoBtnGroup.style.cssText = 'display: flex; gap: 8px; margin-top: 8px;';
+            videoBtnGroup.append(videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videoResetBtn); // "영상 밝게" 버튼을 왼쪽에 배치
+
+            // [추가] 상태 변경을 감지하여 버튼의 .active 클래스를 관리
+            const videoButtons = [videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videoResetBtn];
+            this.subscribe('videoFilter.activePreset', (activeKey) => {
+                videoButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
+                });
+            });
+
+            const sharpenDirOptions = [ { value: '4-way', text: '4방향 (기본)' }, { value: '8-way', text: '8방향 (강함)' } ];
+            const sharpenDirSelect = this._createSelectControl( '샤프 방향', sharpenDirOptions, (value) => this.stateManager.set('videoFilter.sharpenDirection', value) );
+            this.subscribe('videoFilter.sharpenDirection', val => sharpenDirSelect.querySelector('select').value = val);
+            sharpenDirSelect.querySelector('select').value = this.stateManager.get('videoFilter.sharpenDirection');
+
+            // [수정] videoSubMenu에 버튼 그룹을 추가하도록 변경
+            videoSubMenu.append(
+                this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
+                this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
+                sharpenDirSelect,
+                this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control,
+                this._createSlider('밝기', 'v-highlights', -50, 50, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
+                this._createSlider('대비', 'v-shadows', -50, 50, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control,
+                this._createSlider('감마(*)', 'v-gamma', 1, 2, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
+                this._createSlider('채도(*)', 'v-saturation', 0, 400, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
+                videoBtnGroup // videoResetBtn 대신 videoBtnGroup을 사용
+            );
 
             const audioSubMenu = this._createControlGroup('vsc-stereo-controls', '🎧', '사운드 필터', controlsContainer);
 
