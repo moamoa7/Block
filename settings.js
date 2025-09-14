@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      100.2
-// @description  다이나믹 EQ 프리셋 적용 버그 수정 및 UI 동기화
+// @version      100.3
+// @description  AGC 및 자동보정 기능 분리
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -15,6 +15,7 @@
 
     // --- [ARCHITECTURE] CONFIGURATION & CONSTANTS ---
     const CONFIG = {
+        MAX_PRE_GAIN: 4.0, // [추가] 볼륨 슬라이더의 최대 한계값
         DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 4,
         DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
@@ -47,11 +48,11 @@
         UI_HIDDEN_CLASS_NAME: 'vsc-hidden',
         DEFAULT_MULTIBAND_COMP_ENABLED: false,
         DEFAULT_MULTIBAND_COMP_SETTINGS: {
-            low:     { crossover: 120, threshold: -24, ratio: 4, attack: 0.003, release: 0.25, makeupGain: 0 },
-            lowMid:  { crossover: 800, threshold: -24, ratio: 4, attack: 0.003, release: 0.25, makeupGain: 0 },
-            highMid: { crossover: 5000, threshold: -24, ratio: 4, attack: 0.003, release: 0.25, makeupGain: 0 },
-            high:    { threshold: -24, ratio: 4, attack: 0.003, release: 0.25, makeupGain: 0 },
-        },
+    low:     { crossover: 120, threshold: -24, ratio: 4, attack: 0.010, release: 0.30, makeupGain: 0 }, // 느린 반응
+    lowMid:  { crossover: 800, threshold: -24, ratio: 4, attack: 0.008, release: 0.25, makeupGain: 0 },
+    highMid: { crossover: 5000, threshold: -24, ratio: 4, attack: 0.005, release: 0.20, makeupGain: 0 },
+    high:    { threshold: -24, ratio: 4, attack: 0.003, release: 0.15, makeupGain: 0 }, // 빠른 반응
+},
     };
 
     // --- [ARCHITECTURE] UTILITY FUNCTIONS ---
@@ -1010,7 +1011,7 @@
                 const targetPreGain = currentPreGain * Math.pow(10, error / 20);
 
                 const newGain = currentGain * (1 - CONFIG.LOUDNESS_ADJUSTMENT_SPEED) + targetPreGain * CONFIG.LOUDNESS_ADJUSTMENT_SPEED;
-                currentGain = Math.max(0.1, Math.min(newGain, 4.0));
+                currentGain = Math.max(0.1, Math.min(newGain, CONFIG.MAX_PRE_GAIN));
 
                 this.stateManager.set('audio.preGain', currentGain);
 
@@ -1328,26 +1329,6 @@
                     multiband_enabled: false,
                     smartEQ_enabled: false
                 },
-'fallback_basic': {
-    name: '🔹 기본 Fallback (중립)',
-    hpf_enabled: true,
-    hpf_hz: 60,                          // 저역은 살짝 컷, 극단적이지 않게
-    eq_enabled: true,
-    eq_subBass: 0, eq_bass: 0,           // 모든 EQ 중립
-    eq_mid: 0, eq_treble: 0, eq_presence: 0,
-    preGain_enabled: true,
-    preGain_value: 1.0,                  // 기본 볼륨
-    targetLUFS: -16,                      // 무난한 레벨
-    multiband_enabled: true,
-    multiband_bands: [
-        { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 2.5, attack: 10, release: 300, makeup: 0 },
-        { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 2.5, attack: 10, release: 250, makeup: 0 },
-        { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 2.5, attack: 10, release: 200, makeup: 0 },
-        { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 2.5, attack: 10, release: 150, makeup: 0 }
-    ],
-    smartEQ_enabled: false,               // 특화 SmartEQ는 끄고 중립 유지
-    mastering_suite_enabled: false        // 마스터링 없이 자연스러운 볼륨
-},
                 'basic_clear': {
                     name: '💠 기본 개선 (명료)',
                     hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
@@ -1367,52 +1348,6 @@
                         { frequency: 8000, Q: 1.5, threshold: -25, gain: 1 }
                     ]
                 },
-'vocal_clarity_max': {
-    name: '🎤 보컬/대사 초명료',
-    hpf_enabled: true, hpf_hz: 90,
-    eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
-    preGain_enabled: true, preGain_value: 2.0,   // 🔊 전체 볼륨 보정 (1.0 → 2.0)
-    targetLUFS: -16,                             // 🎚 -18 → -16 으로 조정해 방송용보다 살짝 크게
-    multiband_enabled: true,
-    multiband_bands: [
-        { freqLow: 20, freqHigh: 120, threshold: -22, ratio: 3, attack: 12, release: 280, makeup: 1 },
-        { freqLow: 120, freqHigh: 1000, threshold: -24, ratio: 3.2, attack: 9, release: 240, makeup: 1 },
-        { freqLow: 1000, freqHigh: 6000, threshold: -26, ratio: 3.8, attack: 7, release: 210, makeup: 1.5 },
-        { freqLow: 6000, freqHigh: 20000, threshold: -28, ratio: 4.2, attack: 4, release: 180, makeup: 1 }
-    ],
-    smartEQ_enabled: true,
-    smartEQ_bands: [
-        { frequency: 150, Q: 1.2, threshold: -21, gain: -3 },
-        { frequency: 1000, Q: 1.0, threshold: -22, gain: +2.5 },
-        { frequency: 3500, Q: 0.9, threshold: -23, gain: +3 },
-        { frequency: 8000, Q: 1.5, threshold: -24, gain: +1.5 }
-    ]
-},
-
-
-'music_clarity_balanced': {
-    name: '🎶 음악/영화 명료 & 밸런스',
-    hpf_enabled: true, hpf_hz: 60,
-    eq_enabled: true, eq_subBass: 0.5, eq_bass: 0.8, eq_mid: 1.5, eq_treble: 1.2, eq_presence: 1.5,
-    preGain_enabled: true, preGain_value: 1.2,
-    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5,
-    targetLUFS: -15, multiband_enabled: true,
-    multiband_bands: [
-        { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
-        { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.0, attack: 9, release: 250, makeup: 1.5 },
-        { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.5, attack: 6, release: 220, makeup: 1 },
-        { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.0, attack: 3, release: 160, makeup: 1 }
-    ],
-    smartEQ_enabled: true,
-    smartEQ_bands: [
-        { frequency: 100, Q: 1.1, threshold: -21, gain: -1 },
-        { frequency: 900, Q: 1.0, threshold: -22, gain: +1.5 },
-        { frequency: 3000, Q: 0.9, threshold: -23, gain: +2 },
-        { frequency: 7500, Q: 1.3, threshold: -24, gain: +1 }
-    ]
-},
-
-
                 'movie_immersive': {
                     name: '🎬 영화/드라마 (몰입감)',
                     hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
@@ -1515,7 +1450,7 @@
                 },
                 'vocal_clarity_pro': {
                     name: '🎙️ 목소리 명료 (강의/뉴스)',
-                    hpf_enabled: true, hpf_hz: 110, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
+                    hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
                     preGain_enabled: true, preGain_value: 1.0, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12,
                     mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5,
                     targetLUFS: -18, multiband_enabled: true,
@@ -2161,7 +2096,7 @@
 
             const widenSlider = this._createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
             const reverbSlider = this._createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
-            const preGainSlider = this._createSlider('볼륨 크기', 'pre-gain-slider', 0, 4, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
+            const preGainSlider = this._createSlider('볼륨 크기', 'pre-gain-slider', 0, CONFIG.MAX_PRE_GAIN, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
             basicCol2.append(
                 this._createToggleBtn('widen-toggle', 'Virtualizer', 'audio.isWideningEnabled'), widenSlider.parentElement,
                 this._createToggleBtn('adaptive-width-toggle', 'Bass Mono', 'audio.isAdaptiveWidthEnabled'),
@@ -2349,6 +2284,8 @@
 
             this.subscribe('audio.isLoudnessNormalizationEnabled', (isAuto) => {
                 if (isAuto) {
+                    // [추가] '자동 보정'이 켜지면, 충돌 방지를 위해 'AGC'를 자동으로 끕니다.
+                    this.stateManager.set('audio.isAgcEnabled', false);
                     this.stateManager.set('audio.preGainEnabledBeforeAuto', this.stateManager.get('audio.isPreGainEnabled'));
                     this.stateManager.set('audio.isPreGainEnabled', true);
                 } else {
@@ -2361,20 +2298,25 @@
                 this._updateVolumeControlsState();
             });
 
-            // [추가 시작] AGC 상태 변경 감지 로직
-            this.subscribe('audio.isAgcEnabled', (isNowEnabled) => {
-                // AGC가 비활성화되는 순간에만 실행
-                if (!isNowEnabled) {
-                    const rememberedGain = this.stateManager.get('audio.presetGainMemory');
-                    // 메모리에 유효한 값이 있을 경우
-                    if (rememberedGain !== null && rememberedGain !== undefined) {
-                        this.stateManager.set('audio.isPreGainEnabled', true); // 볼륨 조절 활성화
-                        this.stateManager.set('audio.preGain', rememberedGain); // 기억된 값으로 볼륨 설정
-                        this.stateManager.set('audio.lastManualPreGain', rememberedGain); // 수동 값도 업데이트
-                    }
-                }
-            });
-            // [추가 끝]
+            // [수정 시작] AGC 상태 변경 감지 로직
+            this.subscribe('audio.isAgcEnabled', (isNowEnabled) => {
+                if (isNowEnabled) {
+                    // AGC가 활성화되면, '자동 보정'을 비활성화합니다.
+                    this.stateManager.set('audio.isLoudnessNormalizationEnabled', false);
+
+                    // [추가] '볼륨' 수동 조절도 함께 비활성화합니다.
+                    this.stateManager.set('audio.isPreGainEnabled', false);
+                } else {
+                    // AGC가 비활성화되면, 기억해 둔 프리셋 볼륨을 복원합니다.
+                    const rememberedGain = this.stateManager.get('audio.presetGainMemory');
+                    if (rememberedGain !== null && rememberedGain !== undefined) {
+                        this.stateManager.set('audio.isPreGainEnabled', true);
+                        this.stateManager.set('audio.preGain', rememberedGain);
+                        this.stateManager.set('audio.lastManualPreGain', rememberedGain);
+                    }
+                }
+            });
+            // [수정 끝]
 
             this._updateVolumeControlsState();
 
@@ -2501,39 +2443,39 @@
 
 
         async applyPreset(presetKey) {
-            const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
+    const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
 
-            if (!isAgcEnabled || !this.audioFXPlugin) {
-                this._applyPresetSettings(presetKey);
-                if (this.audioFXPlugin) {
-                    this.stateManager.set('audio.activityCheckRequested', Date.now());
-                }
-                return;
-            }
-
-            try {
-                const rmsBefore = await this.audioFXPlugin._getInstantRMS();
-                this._applyPresetSettings(presetKey);
-
-                await new Promise(resolve => setTimeout(resolve, CONFIG.UI_AGC_APPLY_DELAY));
-
-                const rmsAfter = await this.audioFXPlugin._getInstantRMS();
-
-                if (rmsBefore > 0.001 && rmsAfter > 0.001) {
-                    const ratio = rmsBefore / rmsAfter;
-                    const currentPreGain = this.stateManager.get('audio.preGain');
-                    let compensatedGain = currentPreGain * ratio;
-                    compensatedGain = Math.max(0.1, Math.min(compensatedGain, 4.0));
-
-                    this.stateManager.set('audio.preGain', compensatedGain);
-                    this.stateManager.set('audio.lastManualPreGain', compensatedGain);
-                }
-            } catch (error) {
-                console.error("[VSC] Error applying preset with AGC:", error);
-            } finally {
-                this.stateManager.set('audio.activityCheckRequested', Date.now());
-            }
+    if (!isAgcEnabled || !this.audioFXPlugin) {
+        this._applyPresetSettings(presetKey);
+        if (this.audioFXPlugin) {
+            this.stateManager.set('audio.activityCheckRequested', Date.now());
         }
+        return;
+    }
+
+    try {
+        const rmsBefore = await this.audioFXPlugin._getInstantRMS();
+        this._applyPresetSettings(presetKey);
+
+        await new Promise(resolve => setTimeout(resolve, CONFIG.UI_AGC_APPLY_DELAY));
+
+        const rmsAfter = await this.audioFXPlugin._getInstantRMS();
+
+        if (rmsBefore > 0.001 && rmsAfter > 0.001) {
+            const ratio = rmsBefore / rmsAfter;
+            const currentPreGain = this.stateManager.get('audio.preGain');
+            let compensatedGain = currentPreGain * ratio;
+            compensatedGain = Math.max(0.1, Math.min(compensatedGain, 4.0));
+
+            this.stateManager.set('audio.preGain', compensatedGain);
+            this.stateManager.set('audio.lastManualPreGain', compensatedGain);
+        }
+    } catch (error) {
+        console.error("[VSC] Error applying preset with AGC:", error);
+    } finally {
+        this.stateManager.set('audio.activityCheckRequested', Date.now());
+    }
+}
 
 
         _applyPresetSettings(presetKey) {
