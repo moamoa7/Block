@@ -2055,11 +2055,11 @@
             videoNewBrightenBtn.textContent = '밝기 3';
             videoNewBrightenBtn.dataset.presetKey = 'brighten3'; // 고유 키 추가
             videoNewBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.30);
-                this.stateManager.set('videoFilter.saturation', 120);
+                this.stateManager.set('videoFilter.gamma', 1.25);
+                this.stateManager.set('videoFilter.saturation', 115);
                 this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', -5);
-                this.stateManager.set('videoFilter.highlights', 10);
+                this.stateManager.set('videoFilter.shadows', -4);
+                this.stateManager.set('videoFilter.highlights', 7);
                 this.stateManager.set('videoFilter.activePreset', 'brighten3'); // 상태 변경
             };
 
