@@ -1455,22 +1455,22 @@
                 },
                 'vocal_clarity_pro': {
                     name: '🎙️ 목소리 명료 (강의/뉴스)',
-                    hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
-                    preGain_enabled: true, preGain_value: 1.0, deesser_enabled: true, deesser_threshold: -35, parallel_comp_enabled: true, parallel_comp_mix: 12,
-                    mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.5,
+                    hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3.5, eq_treble: 1.5, eq_presence: 3,
+                    preGain_enabled: true, preGain_value: 0.8, deesser_enabled: true, deesser_threshold: -32, parallel_comp_enabled: true, parallel_comp_mix: 10,
+                    mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.2,
                     targetLUFS: -18, multiband_enabled: true,
                     multiband_bands: [
-                        { freqLow: 20, freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 2 },
+                        { freqLow: 20, freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 1.5 },
                         { freqLow: 120, freqHigh: 1000, threshold: -23, ratio: 3, attack: 10, release: 260, makeup: 1.5 },
-                        { freqLow: 1000, freqHigh: 6000, threshold: -25, ratio: 3.5, attack: 7, release: 210, makeup: 1 },
-                        { freqLow: 6000, freqHigh: 20000, threshold: -27, ratio: 4, attack: 4, release: 160, makeup: 1 }
+                        { freqLow: 1000, freqHigh: 6000, threshold: -25, ratio: 3.2, attack: 8, release: 220, makeup: 2 },
+                        { freqLow: 6000, freqHigh: 20000, threshold: -27, ratio: 3.8, attack: 5, release: 160, makeup: 1 }
                     ],
                     smartEQ_enabled: true,
                     smartEQ_bands: [
-                        { frequency: 120, Q: 1.2, threshold: -20, gain: -2 },
-                        { frequency: 1000, Q: 1.0, threshold: -22, gain: 3 },
-                        { frequency: 4000, Q: 0.8, threshold: -24, gain: 3 },
-                        { frequency: 9000, Q: 1.5, threshold: -25, gain: 1 }
+                        { frequency: 150, Q: 1.2, threshold: -21, gain: -2 },
+                        { frequency: 1000, Q: 1.0, threshold: -22, gain: 2.5 },
+                        { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
+                        { frequency: 7000, Q: 1.5, threshold: -24, gain: 1 }
                     ]
                 },
                 'gaming_pro': {
