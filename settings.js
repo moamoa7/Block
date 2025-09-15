@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      101.0
-// @description  오디오 각종 버그 해결
+// @version      101.2
+// @description  AGC / PreGain 상호작용 - 경쟁 조건 방지 / Multiband Compressor (MBC) - 프리셋 오류 피드백 / Dynamic EQ (스마트 명료도) - 밴드 인덱스 검증
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -2471,18 +2471,26 @@ class UIPlugin extends Plugin {
         ];
         deqControlsContainer.append(...this.uiElements.deqSliders.map(s => s.control));
 
-        const updateDeqUI = () => {
-            if (!bandSelectors || !bandSelectors.isConnected || !deqControlsContainer || !deqControlsContainer.isConnected) {
-                return;
-            }
+        // [교체 제안]
+// 더 명확하고 안전한 코드로 개선합니다.
+const updateDeqUI = () => {
+    if (!bandSelectors || !bandSelectors.isConnected || !deqControlsContainer || !deqControlsContainer.isConnected) {
+        return;
+    }
+    const sliders = this.uiElements.deqSliders;
+    if (!sliders) return;
 
-            const sliders = this.uiElements.deqSliders;
-            if (!sliders) return;
+    const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
+    const bands = this.stateManager.get('audio.dynamicEq.bands');
 
-            const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
-            const bands = this.stateManager.get('audio.dynamicEq.bands');
-            if (!bands || !bands[activeBandIndex]) return;
-            const bandSettings = bands[activeBandIndex];
+    // ✅ [개선] activeBandIndex와 bands 배열의 유효성을 명확하게 검증
+    if (!bands || activeBandIndex < 0 || activeBandIndex >= bands.length) {
+        // 유효하지 않은 경우, UI를 비활성화하거나 기본값으로 표시할 수 있습니다.
+        // 여기서는 간단히 함수 실행을 중단하여 오류를 방지합니다.
+        console.warn(`[VSC] Invalid Dynamic EQ band index: ${activeBandIndex}`);
+        return;
+    }
+    const bandSettings = bands[activeBandIndex];
 
             bandSelectors.querySelectorAll('.vsc-deq-band-btn').forEach((btn, index) => {
                 btn.classList.toggle('active', index === activeBandIndex);
@@ -2758,40 +2766,50 @@ class UIPlugin extends Plugin {
     }
 
 
-    async applyPreset(presetKey) {
+    // [교체 제안]
+async applyPreset(presetKey) {
+    // ✅ [개선] Lock 메커니즘 추가
+    if (this.isApplyingPreset) {
+        console.log('[VSC] Preset application in progress. Ignoring new request.');
+        return;
+    }
+    this.isApplyingPreset = true;
+
+    try {
         const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
 
         if (!isAgcEnabled || !this.audioFXPlugin) {
             this._applyPresetSettings(presetKey);
-            if (this.audioFXPlugin) {
+             if (this.audioFXPlugin) { // audioFXPlugin이 로드된 후라면
                 this.stateManager.set('audio.activityCheckRequested', Date.now());
             }
-            return;
+            return; // finally 블록에서 lock이 해제됨
         }
 
-        try {
-            const rmsBefore = await this.audioFXPlugin._getInstantRMS();
-            this._applyPresetSettings(presetKey);
+        const rmsBefore = await this.audioFXPlugin._getInstantRMS();
+        this._applyPresetSettings(presetKey);
 
-            await new Promise(resolve => setTimeout(resolve, CONFIG.UI_AGC_APPLY_DELAY));
+        await new Promise(resolve => setTimeout(resolve, CONFIG.UI_AGC_APPLY_DELAY));
 
-            const rmsAfter = await this.audioFXPlugin._getInstantRMS();
+        const rmsAfter = await this.audioFXPlugin._getInstantRMS();
 
-            if (rmsBefore > 0.001 && rmsAfter > 0.001) {
-                const ratio = rmsBefore / rmsAfter;
-                const currentPreGain = this.stateManager.get('audio.preGain');
-                let compensatedGain = currentPreGain * ratio;
-                compensatedGain = Math.max(0.1, Math.min(compensatedGain, CONFIG.MAX_PRE_GAIN));
+        if (rmsBefore > 0.001 && rmsAfter > 0.001) {
+            const ratio = rmsBefore / rmsAfter;
+            const currentPreGain = this.stateManager.get('audio.preGain');
+            let compensatedGain = currentPreGain * ratio;
+            compensatedGain = Math.max(0.1, Math.min(compensatedGain, CONFIG.MAX_PRE_GAIN));
 
-                this.stateManager.set('audio.preGain', compensatedGain);
-                this.stateManager.set('audio.lastManualPreGain', compensatedGain);
-            }
-        } catch (error) {
-            console.error("[VSC] Error applying preset with AGC:", error);
-        } finally {
-            this.stateManager.set('audio.activityCheckRequested', Date.now());
+            this.stateManager.set('audio.preGain', compensatedGain);
+            this.stateManager.set('audio.lastManualPreGain', compensatedGain);
         }
+    } catch (error) {
+        console.error("[VSC] Error applying preset with AGC:", error);
+    } finally {
+        // ✅ [개선] 작업 완료 후 반드시 lock 해제 및 오디오 재확인
+        this.stateManager.set('audio.activityCheckRequested', Date.now());
+        this.isApplyingPreset = false;
     }
+}
 
 
     _applyPresetSettings(presetKey) {
@@ -2874,6 +2892,8 @@ class UIPlugin extends Plugin {
                     this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
                 }
             });
+        } else if (p.multiband_bands) { // 밴드 배열은 있지만 길이가 4가 아닌 경우
+          console.warn(`[VSC] Preset '${presetKey}' has incorrect multiband band data (must be an array of 4). Ignoring MBC settings for this preset.`);
         } else if (presetKey === 'default') {
             const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
             for (const [key, settings] of Object.entries(defaultSettings)) {
