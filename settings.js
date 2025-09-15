@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      100.8
+// @version      101.0
 // @description  오디오 각종 버그 해결
 // @match        *://*/*
 // @run-at       document-end
@@ -1332,1587 +1332,1690 @@
         }
     }
 
-    // --- [PLUGIN] UIPlugin: Manages all DOM elements and user interactions ---
-    class UIPlugin extends Plugin {
-        constructor() {
-            super('UI');
-            this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null;
-            this.hostElement = null; this.shadowRoot = null; this.fadeOutTimer = null;
-            this.isDragging = false; this.wasDragged = false;
-            this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 };
-            this.animationFrameId = null;
-            this.delayMeterEl = null;
-            this.audioFXPlugin = null;
-            this.speedButtons = [];
-            this.uiElements = {};
-            this.modalHost = null;
-            this.modalShadowRoot = null;
+    // [이 클래스 전체를 찾아서 통째로 교체하세요]
+class UIPlugin extends Plugin {
+    constructor() {
+        super('UI');
+        this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null;
+        this.hostElement = null; this.shadowRoot = null; this.fadeOutTimer = null;
+        this.isDragging = false; this.wasDragged = false;
+        this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 };
+        this.animationFrameId = null;
+        this.delayMeterEl = null;
+        this.audioFXPlugin = null;
+        this.speedButtons = [];
+        this.uiElements = {};
+        this.modalHost = null;
+        this.modalShadowRoot = null;
 
-            this.presetMap = {
-                'default': {
-                    name: '기본값 (모든 효과 꺼짐)',
-                    targetLUFS: CONFIG.LOUDNESS_TARGET,
-                    multiband_enabled: false,
-                    smartEQ_enabled: false
-                },
-                'basic_clear': {
-                    name: '💠 기본 개선 (명료)',
-                    hpf_enabled: true, hpf_hz: 70, eq_enabled: true, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
-                    preGain_enabled: true, preGain_value: 1, mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2,
-                    targetLUFS: -16, multiband_enabled: true,
-                    multiband_bands: [
-                        { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 10, release: 300, makeup: 2 },
-                        { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 8, release: 250, makeup: 1.5 },
-                        { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4, attack: 5, release: 200, makeup: 1 },
-                        { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
-                    ],
-                    smartEQ_enabled: true,
-                    smartEQ_bands: [
-                        { frequency: 120, Q: 1.2, threshold: -21, gain: -2 },
-                        { frequency: 1000, Q: 1.0, threshold: -22, gain: 2 },
-                        { frequency: 4000, Q: 0.8, threshold: -24, gain: 2 },
-                        { frequency: 8000, Q: 1.5, threshold: -25, gain: 1 }
-                    ]
-                },
-                'movie_immersive': {
-                    name: '🎬 영화/드라마 (몰입감)',
-                    hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
-                    widen_enabled: true, widen_factor: 1.4, deesser_enabled: true, deesser_threshold: -25, parallel_comp_enabled: true, parallel_comp_mix: 15,
-                    mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0, preGain_enabled: true, preGain_value: 0.8,
-                    targetLUFS: -16, multiband_enabled: true,
-                    multiband_bands: [
-                        { freqLow: 20, freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
-                        { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8, release: 250, makeup: 1.5 },
-                        { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 5, release: 200, makeup: 1 },
-                        { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 2, release: 150, makeup: 1 }
-                    ],
-                    smartEQ_enabled: true,
-                    smartEQ_bands: [
-                        { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
-                        { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
-                        { frequency: 3000, Q: 0.9, threshold: -24, gain: 2 },
-                        { frequency: 10000, Q: 1.2, threshold: -25, gain: 1 }
-                    ]
-                },
-                'action_blockbuster': {
-                    name: '💥 액션 블록버스터 (타격감)',
-                    hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8,
-                    widen_enabled: true, widen_factor: 1.5, parallel_comp_enabled: true, parallel_comp_mix: 18,
-                    mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3,
-                    targetLUFS: -14, multiband_enabled: true,
-                    multiband_bands: [
-                        { freqLow: 20, freqHigh: 120, threshold: -26, ratio: 3.5, attack: 12, release: 320, makeup: 2.5 },
-                        { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 260, makeup: 2 },
-                        { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 6, release: 200, makeup: 1.5 },
-                        { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 3, release: 150, makeup: 1 }
-                    ],
-                    smartEQ_enabled: true,
-                    smartEQ_bands: [
-                        { frequency: 60, Q: 1.0, threshold: -19, gain: 2 },
-                        { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
-                        { frequency: 2000, Q: 0.8, threshold: -23, gain: 2 },
-                        { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
-                    ]
-                },
-                'concert_hall': {
-                    name: '🏟️ 라이브 콘서트 (현장감)',
-                    hpf_enabled: true, hpf_hz: 60, eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2,
-                    widen_enabled: true, widen_factor: 1.3, preGain_enabled: true, preGain_value: 1.2, reverb_enabled: true, reverb_mix: 0.5,
-                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5,
-                    targetLUFS: -14.5, multiband_enabled: true,
-                    multiband_bands: [
-                        { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 12, release: 280, makeup: 2 },
-                        { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 9, release: 250, makeup: 1.5 },
-                        { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 6, release: 210, makeup: 1 },
-                        { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 3, release: 160, makeup: 1 }
-                    ],
-                    smartEQ_enabled: true,
-                    smartEQ_bands: [
-                        { frequency: 100, Q: 1.0, threshold: -20, gain: -1 },
-                        { frequency: 500, Q: 1.1, threshold: -21, gain: 2 },
-                        { frequency: 3000, Q: 0.9, threshold: -23, gain: 2 },
-                        { frequency: 9000, Q: 1.3, threshold: -25, gain: 2 }
-                    ]
-                },
-                'music_dynamic': {
-                    name: '🎶 음악 (다이나믹 & 펀치감)',
-                    hpf_enabled: true, hpf_hz: 40, eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
-                    widen_enabled: true, widen_factor: 1.3, exciter_enabled: true, exciter_amount: 12,
-                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3,
-                    targetLUFS: -14, multiband_enabled: true,
-                    multiband_bands: [
-                        { freqLow: 20, freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 2 },
-                        { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 250, makeup: 1.5 },
-                        { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 5, release: 200, makeup: 1 },
-                        { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 2, release: 150, makeup: 1 }
-                    ],
-                    smartEQ_enabled: true,
-                    smartEQ_bands: [
-                        { frequency: 70, Q: 1.0, threshold: -20, gain: 2 },
-                        { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
-                        { frequency: 1500, Q: 1.0, threshold: -23, gain: 2 },
-                        { frequency: 7000, Q: 1.2, threshold: -24, gain: 2 }
-                    ]
-                },
-                'mastering_balanced': {
-                    name: '🔥 밸런스 마스터링 (고음질)',
-                    hpf_enabled: true, hpf_hz: 45, eq_enabled: true, eq_treble: 1.2, eq_presence: 1,
-                    widen_enabled: true, widen_factor: 1.25, exciter_enabled: true, exciter_amount: 10,
-                    mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5, preGain_enabled: true, preGain_value: 1.5,
-                    targetLUFS: -13.5, multiband_enabled: true,
-                    multiband_bands: [
-                        { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3.2, attack: 10, release: 300, makeup: 2 },
-                        { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.8, attack: 8, release: 250, makeup: 1.5 },
-                        { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4.2, attack: 5, release: 200, makeup: 1 },
-                        { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
-                    ],
-                    smartEQ_enabled: true,
-                    smartEQ_bands: [
-                        { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
-                        { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
-                        { frequency: 2500, Q: 0.9, threshold: -23, gain: 2 },
-                        { frequency: 10000, Q: 1.3, threshold: -25, gain: 2 }
-                    ]
-                },
-                'vocal_clarity_pro': {
-                    name: '🎙️ 목소리 명료 (강의/뉴스)',
-                    hpf_enabled: true, hpf_hz: 90, eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3.5, eq_treble: 1.5, eq_presence: 3,
-                    preGain_enabled: true, preGain_value: 0.8, deesser_enabled: true, deesser_threshold: -32, parallel_comp_enabled: true, parallel_comp_mix: 10,
-                    mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.2,
-                    targetLUFS: -18, multiband_enabled: true,
-                    multiband_bands: [
-                        { freqLow: 20, freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 1.5 },
-                        { freqLow: 120, freqHigh: 1000, threshold: -23, ratio: 3, attack: 10, release: 260, makeup: 1.5 },
-                        { freqLow: 1000, freqHigh: 6000, threshold: -25, ratio: 3.2, attack: 8, release: 220, makeup: 2 },
-                        { freqLow: 6000, freqHigh: 20000, threshold: -27, ratio: 3.8, attack: 5, release: 160, makeup: 1 }
-                    ],
-                    smartEQ_enabled: true,
-                    smartEQ_bands: [
-                        { frequency: 150, Q: 1.2, threshold: -21, gain: -2 },
-                        { frequency: 1000, Q: 1.0, threshold: -22, gain: 2.5 },
-                        { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
-                        { frequency: 7000, Q: 1.5, threshold: -24, gain: 1 }
-                    ]
-                },
-                'gaming_pro': {
-                    name: '🎮 게이밍 (사운드 플레이)',
-                    hpf_enabled: true, hpf_hz: 50, eq_enabled: true, eq_subBass: -1, eq_mid: 2, eq_treble: 2, eq_presence: 2.5,
-                    widen_enabled: true, widen_factor: 1.2, mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5,
-                    targetLUFS: -15, multiband_enabled: true,
-                    multiband_bands: [
-                        { freqLow: 20, freqHigh: 120, threshold: -23, ratio: 3, attack: 12, release: 300, makeup: 2 },
-                        { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 9, release: 250, makeup: 1.5 },
-                        { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4, attack: 6, release: 200, makeup: 1 },
-                        { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 3, release: 150, makeup: 1 }
-                    ],
-                    smartEQ_enabled: true,
-                    smartEQ_bands: [
-                        { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
-                        { frequency: 500, Q: 1.0, threshold: -22, gain: 2 },
-                        { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
-                        { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
-                    ]
+        this.presetMap = {
+            'default': {
+                name: '기본값 (모든 효과 꺼짐)',
+                targetLUFS: CONFIG.LOUDNESS_TARGET,
+                hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
+                eq_enabled: false, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 0, eq_presence: 0,
+                bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
+                widen_enabled: false, widen_factor: 1.0,
+                adaptive_enabled: false, adaptive_width_freq: 150,
+                preGain_enabled: false, preGain_value: 1.0,
+                reverb_enabled: false, reverb_mix: CONFIG.DEFAULT_REVERB_MIX,
+                deesser_enabled: false, deesser_threshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesser_freq: CONFIG.DEFAULT_DEESSER_FREQ,
+                exciter_enabled: false, exciter_amount: 0,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                limiter_enabled: false,
+                mastering_suite_enabled: false, mastering_transient: 0.2, mastering_drive: 0,
+                multiband_enabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
+                multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS,
+                smartEQ_enabled: false,
+                smartEQ_bands: []
+            },
+            'basic_clear': {
+                name: '💠 기본 개선 (명료)',
+                targetLUFS: -16,
+                hpf_enabled: true, hpf_hz: 70,
+                eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
+                bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.0,
+                widen_enabled: true, widen_factor: 1.2,
+                adaptive_enabled: true, adaptive_width_freq: 180,
+                preGain_enabled: true, preGain_value: 1.0,
+                reverb_enabled: false, reverb_mix: 0,
+                deesser_enabled: false,
+                exciter_enabled: false,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                limiter_enabled: false,
+                mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 10, release: 300, makeup: 2 },
+                    { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 8, release: 250, makeup: 1.5 },
+                    { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4, attack: 5, release: 200, makeup: 1 },
+                    { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 120, Q: 1.2, threshold: -21, gain: -2 },
+                    { frequency: 1000, Q: 1.0, threshold: -22, gain: 2 },
+                    { frequency: 4000, Q: 0.8, threshold: -24, gain: 2 },
+                    { frequency: 8000, Q: 1.5, threshold: -25, gain: 1 }
+                ]
+            },
+            'movie_immersive': {
+                name: '🎬 영화/드라마 (몰입감)',
+                targetLUFS: -16,
+                hpf_enabled: true, hpf_hz: 60,
+                eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
+                bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
+                widen_enabled: true, widen_factor: 1.4,
+                adaptive_enabled: true, adaptive_width_freq: 200,
+                preGain_enabled: true, preGain_value: 0.8,
+                reverb_enabled: false, reverb_mix: 0,
+                deesser_enabled: true, deesser_threshold: -25,
+                exciter_enabled: false,
+                parallel_comp_enabled: true, parallel_comp_mix: 15,
+                limiter_enabled: false,
+                mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqLow: 20, freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
+                    { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8, release: 250, makeup: 1.5 },
+                    { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 5, release: 200, makeup: 1 },
+                    { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 2, release: 150, makeup: 1 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
+                    { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
+                    { frequency: 3000, Q: 0.9, threshold: -24, gain: 2 },
+                    { frequency: 10000, Q: 1.2, threshold: -25, gain: 1 }
+                ]
+            },
+            'action_blockbuster': {
+                name: '💥 액션 블록버스터 (타격감)',
+                targetLUFS: -14,
+                hpf_enabled: true, hpf_hz: 50,
+                eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8,
+                bass_boost_gain: 4, bass_boost_freq: 55, bass_boost_q: 1.2,
+                widen_enabled: true, widen_factor: 1.5,
+                adaptive_enabled: true, adaptive_width_freq: 220,
+                preGain_enabled: false,
+                reverb_enabled: false, reverb_mix: 0,
+                deesser_enabled: false,
+                exciter_enabled: false,
+                parallel_comp_enabled: true, parallel_comp_mix: 18,
+                limiter_enabled: false,
+                mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqLow: 20, freqHigh: 120, threshold: -26, ratio: 3.5, attack: 12, release: 320, makeup: 2.5 },
+                    { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 260, makeup: 2 },
+                    { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 6, release: 200, makeup: 1.5 },
+                    { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 3, release: 150, makeup: 1 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 60, Q: 1.0, threshold: -19, gain: 2 },
+                    { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
+                    { frequency: 2000, Q: 0.8, threshold: -23, gain: 2 },
+                    { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
+                ]
+            },
+            'concert_hall': {
+                name: '🏟️ 라이브 콘서트 (현장감)',
+                targetLUFS: -14.5,
+                hpf_enabled: true, hpf_hz: 60,
+                eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2,
+                bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
+                widen_enabled: true, widen_factor: 1.3,
+                adaptive_enabled: true, adaptive_width_freq: 180,
+                preGain_enabled: true, preGain_value: 1.2,
+                reverb_enabled: true, reverb_mix: 0.5,
+                deesser_enabled: false,
+                exciter_enabled: false,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                limiter_enabled: false,
+                mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 12, release: 280, makeup: 2 },
+                    { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 9, release: 250, makeup: 1.5 },
+                    { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 6, release: 210, makeup: 1 },
+                    { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 3, release: 160, makeup: 1 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 100, Q: 1.0, threshold: -20, gain: -1 },
+                    { frequency: 500, Q: 1.1, threshold: -21, gain: 2 },
+                    { frequency: 3000, Q: 0.9, threshold: -23, gain: 2 },
+                    { frequency: 9000, Q: 1.3, threshold: -25, gain: 2 }
+                ]
+            },
+            'music_dynamic': {
+                name: '🎶 음악 (다이나믹 & 펀치감)',
+                targetLUFS: -14,
+                hpf_enabled: true, hpf_hz: 40,
+                eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
+                bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.1,
+                widen_enabled: true, widen_factor: 1.3,
+                adaptive_enabled: true, adaptive_width_freq: 170,
+                preGain_enabled: false,
+                reverb_enabled: false,
+                deesser_enabled: false,
+                exciter_enabled: true, exciter_amount: 12,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                limiter_enabled: false,
+                mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqLow: 20, freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 2 },
+                    { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 250, makeup: 1.5 },
+                    { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 5, release: 200, makeup: 1 },
+                    { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 2, release: 150, makeup: 1 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 70, Q: 1.0, threshold: -20, gain: 2 },
+                    { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
+                    { frequency: 1500, Q: 1.0, threshold: -23, gain: 2 },
+                    { frequency: 7000, Q: 1.2, threshold: -24, gain: 2 }
+                ]
+            },
+            'mastering_balanced': {
+                name: '🔥 밸런스 마스터링 (고음질)',
+                targetLUFS: -13.5,
+                hpf_enabled: true, hpf_hz: 45,
+                eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1.2, eq_presence: 1,
+                bass_boost_gain: 3.8, bass_boost_freq: 60, bass_boost_q: 1.0,
+                widen_enabled: true, widen_factor: 1.25,
+                adaptive_enabled: true, adaptive_width_freq: 160,
+                preGain_enabled: true, preGain_value: 1.5,
+                reverb_enabled: false, reverb_mix: 0,
+                deesser_enabled: false,
+                exciter_enabled: true, exciter_amount: 10,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                limiter_enabled: false,
+                mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3.2, attack: 10, release: 300, makeup: 2 },
+                    { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.8, attack: 8, release: 250, makeup: 1.5 },
+                    { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4.2, attack: 5, release: 200, makeup: 1 },
+                    { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
+                    { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
+                    { frequency: 2500, Q: 0.9, threshold: -23, gain: 2 },
+                    { frequency: 10000, Q: 1.3, threshold: -25, gain: 2 }
+                ]
+            },
+            'vocal_clarity_pro': {
+                name: '🎙️ 목소리 명료 (강의/뉴스)',
+                targetLUFS: -18,
+                hpf_enabled: true, hpf_hz: 90,
+                eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3.5, eq_treble: 1.5, eq_presence: 3,
+                bass_boost_gain: 2, bass_boost_freq: 55, bass_boost_q: 1.0,
+                widen_enabled: false, widen_factor: 1.0,
+                adaptive_enabled: true, adaptive_width_freq: 180,
+                preGain_enabled: true, preGain_value: 0.8,
+                reverb_enabled: false, reverb_mix: 0,
+                deesser_enabled: true, deesser_threshold: -32,
+                exciter_enabled: false,
+                parallel_comp_enabled: true, parallel_comp_mix: 10,
+                limiter_enabled: false,
+                mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.2,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqLow: 20, freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 1.5 },
+                    { freqLow: 120, freqHigh: 1000, threshold: -23, ratio: 3, attack: 10, release: 260, makeup: 1.5 },
+                    { freqLow: 1000, freqHigh: 6000, threshold: -25, ratio: 3.2, attack: 8, release: 220, makeup: 2 },
+                    { freqLow: 6000, freqHigh: 20000, threshold: -27, ratio: 3.8, attack: 5, release: 160, makeup: 1 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 150, Q: 1.2, threshold: -21, gain: -2 },
+                    { frequency: 1000, Q: 1.0, threshold: -22, gain: 2.5 },
+                    { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
+                    { frequency: 7000, Q: 1.5, threshold: -24, gain: 1 }
+                ]
+            },
+            'gaming_pro': {
+                name: '🎮 게이밍 (사운드 플레이)',
+                targetLUFS: -15,
+                hpf_enabled: true, hpf_hz: 50,
+                eq_enabled: true, eq_subBass: -1, eq_bass: 2, eq_mid: 2, eq_treble: 2, eq_presence: 2.5,
+                bass_boost_gain: 3.5, bass_boost_freq: 60, bass_boost_q: 1.0,
+                widen_enabled: true, widen_factor: 1.2,
+                adaptive_enabled: true, adaptive_width_freq: 160,
+                preGain_enabled: false,
+                reverb_enabled: false,
+                deesser_enabled: false,
+                exciter_enabled: false,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                limiter_enabled: false,
+                mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqLow: 20, freqHigh: 120, threshold: -23, ratio: 3, attack: 12, release: 300, makeup: 2 },
+                    { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 9, release: 250, makeup: 1.5 },
+                    { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4, attack: 6, release: 200, makeup: 1 },
+                    { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 3, release: 150, makeup: 1 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
+                    { frequency: 500, Q: 1.0, threshold: -22, gain: 2 },
+                    { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
+                    { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
+                ]
+            }
+        };
+    }
+
+    init(stateManager) {
+        super.init(stateManager);
+
+        setTimeout(() => {
+            if(window.vscPluginManager) {
+                this.audioFXPlugin = window.vscPluginManager.plugins.find(p => p.name === 'AudioFX');
+            }
+        }, 0);
+
+        this.subscribe('ui.createRequested', () => {
+            if (!this.globalContainer) {
+                this.createGlobalUI();
+                this.stateManager.set('ui.globalContainer', this.globalContainer);
+            }
+        });
+
+        this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
+        this.subscribe('media.activeMedia', () => this.updateUIVisibility());
+        this.subscribe('media.activeImages', () => this.updateUIVisibility());
+        this.subscribe('playback.currentRate', rate => this.updateActiveSpeedButton(rate));
+        this.subscribe('liveStream.delayInfo', info => this.updateDelayMeter(info));
+        this.subscribe('ui.warningMessage', msg => this.showWarningMessage(msg));
+        this.subscribe('ui.areControlsVisible', () => this.updateDelayMeterVisibility());
+
+        this.subscribe('audio.activePresetKey', (presetKey) => {
+            if (!this.shadowRoot) return;
+            this.shadowRoot.querySelectorAll('.vsc-preset-select').forEach(select => {
+                if (select.value !== presetKey) {
+                    select.value = presetKey;
+                }
+            });
+        });
+
+
+        this.updateDelayMeter(this.stateManager.get('liveStream.delayInfo'));
+
+        const vscMessage = sessionStorage.getItem('vsc_message');
+        if (vscMessage) {
+            this.showWarningMessage(vscMessage);
+            sessionStorage.removeItem('vsc_message');
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const fullscreenRoot = document.fullscreenElement || document.body;
+            if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) {
+                fullscreenRoot.appendChild(this.globalContainer);
+            }
+            if (this.modalHost && this.modalHost.parentElement !== fullscreenRoot) {
+                fullscreenRoot.appendChild(this.modalHost);
+            }
+        });
+    }
+
+    destroy() {
+        super.destroy();
+        if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; }
+        if (this.modalHost) { this.modalHost.remove(); this.modalHost = null; }
+        if (this.delayMeterEl) { this.delayMeterEl.remove(); this.delayMeterEl = null; }
+    }
+
+    showWarningMessage(message) {
+        if (!message) return;
+        let warningEl = document.getElementById('vsc-warning-bar');
+        if (warningEl) {
+            warningEl.querySelector('span').textContent = message;
+            warningEl.style.opacity = '1';
+            if (warningEl.hideTimeout) clearTimeout(warningEl.hideTimeout);
+        } else {
+            warningEl = document.createElement('div');
+            warningEl.id = 'vsc-warning-bar';
+            Object.assign(warningEl.style, {
+                position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+                background: 'rgba(30, 30, 30, 0.9)', color: 'white', padding: '12px 20px',
+                borderRadius: '8px', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex',
+                alignItems: 'center', gap: '15px', fontSize: '14px',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.3)', opacity: '0',
+                transition: 'opacity 0.5s ease-in-out', maxWidth: '90%',
+            });
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+            const closeBtn = document.createElement('button');
+            Object.assign(closeBtn.style, { background: 'none', border: 'none', color: '#aaa', fontSize: '20px', cursor: 'pointer', lineHeight: '1', padding: '0' });
+            closeBtn.textContent = '×';
+            closeBtn.onclick = () => warningEl.style.opacity = '0';
+            warningEl.append(messageSpan, closeBtn);
+            document.body.appendChild(warningEl);
+            setTimeout(() => (warningEl.style.opacity = '1'), 100);
+        }
+        warningEl.hideTimeout = setTimeout(() => {
+            warningEl.style.opacity = '0';
+        }, CONFIG.UI_WARN_TIMEOUT);
+    }
+
+    updateDelayMeterVisibility() {
+        if (this.delayMeterEl) {
+            const controlsVisible = this.stateManager.get('ui.areControlsVisible');
+            this.delayMeterEl.style.display = controlsVisible ? 'flex' : 'none';
+        }
+    }
+
+    updateDelayMeter(info) {
+        if (!info && this.delayMeterEl) {
+            this.delayMeterEl.remove();
+            this.delayMeterEl = null;
+            return;
+        }
+        if (info && !this.delayMeterEl && document.body) {
+            this.delayMeterEl = document.createElement('div');
+            Object.assign(this.delayMeterEl.style, {
+                position: 'fixed', bottom: '100px', right: '10px', zIndex: CONFIG.MAX_Z_INDEX - 1,
+                background: 'rgba(0,0,0,.7)', color: '#fff', padding: '5px 10px', borderRadius: '5px',
+                fontFamily: 'monospace', fontSize: '10pt', pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: '10px'
+            });
+
+            const textSpan = document.createElement('span');
+            const refreshBtn = document.createElement('button');
+            refreshBtn.textContent = '🔄';
+            refreshBtn.title = '딜레이 측정 초기화';
+            Object.assign(refreshBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
+            refreshBtn.onclick = () => {
+                this.stateManager.set('liveStream.resetRequested', Date.now());
+                if (textSpan) {
+                    textSpan.textContent = '딜레이 리셋 중...';
                 }
             };
 
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✖';
+            closeBtn.title = '닫기';
+            Object.assign(closeBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
+            closeBtn.onclick = () => {
+                this.stateManager.set('liveStream.isRunning', false);
+            };
+            this.delayMeterEl.append(textSpan, refreshBtn, closeBtn);
+            document.body.appendChild(this.delayMeterEl);
+            this.updateDelayMeterVisibility();
         }
-
-        init(stateManager) {
-            super.init(stateManager);
-
-            setTimeout(() => {
-                if(window.vscPluginManager) {
-                    this.audioFXPlugin = window.vscPluginManager.plugins.find(p => p.name === 'AudioFX');
+        if (this.delayMeterEl) {
+            const textSpan = this.delayMeterEl.querySelector('span');
+            if (textSpan) {
+                if (info.raw === null && info.avg === null) {
+                    textSpan.textContent = '딜레이 측정 중...';
+                } else {
+                    textSpan.textContent = `딜레이: ${info.avg?.toFixed(0) || 'N/A'}ms / 현재: ${info.raw?.toFixed(0) || 'N/A'}ms / 배속: ${info.rate?.toFixed(3) || 'N/A'}x`;
                 }
-            }, 0);
-
-            this.subscribe('ui.createRequested', () => {
-                if (!this.globalContainer) {
-                    this.createGlobalUI();
-                    this.stateManager.set('ui.globalContainer', this.globalContainer);
-                }
-            });
-
-            this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
-            this.subscribe('media.activeMedia', () => this.updateUIVisibility());
-            this.subscribe('media.activeImages', () => this.updateUIVisibility());
-            this.subscribe('playback.currentRate', rate => this.updateActiveSpeedButton(rate));
-            this.subscribe('liveStream.delayInfo', info => this.updateDelayMeter(info));
-            this.subscribe('ui.warningMessage', msg => this.showWarningMessage(msg));
-            this.subscribe('ui.areControlsVisible', () => this.updateDelayMeterVisibility());
-
-            this.subscribe('audio.activePresetKey', (presetKey) => {
-                if (!this.shadowRoot) return;
-                this.shadowRoot.querySelectorAll('.vsc-preset-select').forEach(select => {
-                    if (select.value !== presetKey) {
-                        select.value = presetKey;
-                    }
-                });
-            });
-
-
-            this.updateDelayMeter(this.stateManager.get('liveStream.delayInfo'));
-
-            const vscMessage = sessionStorage.getItem('vsc_message');
-            if (vscMessage) {
-                this.showWarningMessage(vscMessage);
-                sessionStorage.removeItem('vsc_message');
-            }
-
-            document.addEventListener('fullscreenchange', () => {
-                const fullscreenRoot = document.fullscreenElement || document.body;
-                if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) {
-                    fullscreenRoot.appendChild(this.globalContainer);
-                }
-                if (this.modalHost && this.modalHost.parentElement !== fullscreenRoot) {
-                    fullscreenRoot.appendChild(this.modalHost);
-                }
-            });
-        }
-
-        destroy() {
-            super.destroy();
-            if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; }
-            if (this.modalHost) { this.modalHost.remove(); this.modalHost = null; }
-            if (this.delayMeterEl) { this.delayMeterEl.remove(); this.delayMeterEl = null; }
-        }
-
-        showWarningMessage(message) {
-            if (!message) return;
-            let warningEl = document.getElementById('vsc-warning-bar');
-            if (warningEl) {
-                warningEl.querySelector('span').textContent = message;
-                warningEl.style.opacity = '1';
-                if (warningEl.hideTimeout) clearTimeout(warningEl.hideTimeout);
-            } else {
-                warningEl = document.createElement('div');
-                warningEl.id = 'vsc-warning-bar';
-                Object.assign(warningEl.style, {
-                    position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
-                    background: 'rgba(30, 30, 30, 0.9)', color: 'white', padding: '12px 20px',
-                    borderRadius: '8px', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex',
-                    alignItems: 'center', gap: '15px', fontSize: '14px',
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.3)', opacity: '0',
-                    transition: 'opacity 0.5s ease-in-out', maxWidth: '90%',
-                });
-                const messageSpan = document.createElement('span');
-                messageSpan.textContent = message;
-                const closeBtn = document.createElement('button');
-                Object.assign(closeBtn.style, { background: 'none', border: 'none', color: '#aaa', fontSize: '20px', cursor: 'pointer', lineHeight: '1', padding: '0' });
-                closeBtn.textContent = '×';
-                closeBtn.onclick = () => warningEl.style.opacity = '0';
-                warningEl.append(messageSpan, closeBtn);
-                document.body.appendChild(warningEl);
-                setTimeout(() => (warningEl.style.opacity = '1'), 100);
-            }
-            warningEl.hideTimeout = setTimeout(() => {
-                warningEl.style.opacity = '0';
-            }, CONFIG.UI_WARN_TIMEOUT);
-        }
-
-        updateDelayMeterVisibility() {
-            if (this.delayMeterEl) {
-                const controlsVisible = this.stateManager.get('ui.areControlsVisible');
-                this.delayMeterEl.style.display = controlsVisible ? 'flex' : 'none';
             }
         }
+    }
 
-        updateDelayMeter(info) {
-            if (!info && this.delayMeterEl) {
-                this.delayMeterEl.remove();
-                this.delayMeterEl = null;
+    resetFadeTimer() {
+        const container = this.uiElements.mainContainer;
+        if (container) {
+            clearTimeout(this.fadeOutTimer);
+            container.style.opacity = '1';
+            this.fadeOutTimer = setTimeout(() => this.startFadeSequence(), 10000);
+        }
+    }
+
+    startFadeSequence() {
+        const container = this.uiElements.mainContainer;
+        if (container) {
+            container.querySelectorAll('.vsc-control-group.submenu-visible').forEach(g => g.classList.remove('submenu-visible'));
+            container.style.opacity = '0.3';
+        }
+    }
+
+    createGlobalUI() {
+        const isMobile = this.stateManager.get('app.isMobile');
+
+        this.globalContainer = document.createElement('div');
+        this.globalContainer.style.setProperty('--vsc-translate-x', '0px');
+        this.globalContainer.style.setProperty('--vsc-translate-y', '0px');
+
+        Object.assign(this.globalContainer.style, {
+            position: 'fixed',
+            top: '50%',
+            right: '1vmin',
+            transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))',
+            zIndex: CONFIG.MAX_Z_INDEX,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '5px',
+            WebkitTapHighlightColor: 'transparent'
+        });
+
+        this.mainControlsContainer = document.createElement('div');
+        Object.assign(this.mainControlsContainer.style, {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '5px'
+        });
+
+        this.triggerElement = document.createElement('div');
+        this.triggerElement.textContent = '⚡';
+        Object.assign(this.triggerElement.style, {
+            width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+            height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+            background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', cursor: 'pointer', userSelect: 'none',
+            fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
+            transition: 'box-shadow 0.3s ease-in-out, background-color 0.3s',
+            order: '1',
+            touchAction: 'none',
+        });
+        this.triggerElement.addEventListener('click', (e) => {
+            if (this.wasDragged) {
+                e.stopPropagation();
                 return;
             }
-            if (info && !this.delayMeterEl && document.body) {
-                this.delayMeterEl = document.createElement('div');
-                Object.assign(this.delayMeterEl.style, {
-                    position: 'fixed', bottom: '100px', right: '10px', zIndex: CONFIG.MAX_Z_INDEX - 1,
-                    background: 'rgba(0,0,0,.7)', color: '#fff', padding: '5px 10px', borderRadius: '5px',
-                    fontFamily: 'monospace', fontSize: '10pt', pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: '10px'
-                });
+            const isVisible = this.stateManager.get('ui.areControlsVisible');
+            this.stateManager.set('ui.areControlsVisible', !isVisible);
+        });
 
-                const textSpan = document.createElement('span');
-                const refreshBtn = document.createElement('button');
-                refreshBtn.textContent = '🔄';
-                refreshBtn.title = '딜레이 측정 초기화';
-                Object.assign(refreshBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
-                refreshBtn.onclick = () => {
-                    this.stateManager.set('liveStream.resetRequested', Date.now());
-                    if (textSpan) {
-                        textSpan.textContent = '딜레이 리셋 중...';
-                    }
-                };
+        this.speedButtonsContainer = document.createElement('div');
+        this.speedButtonsContainer.id = 'vsc-speed-buttons-container';
+        this.speedButtonsContainer.style.cssText = `
+            display:none; flex-direction:column; gap:5px; align-items:center;
+            background: transparent;
+            border-radius: 0px; padding: 0px;
+        `;
 
-                const closeBtn = document.createElement('button');
-                closeBtn.textContent = '✖';
-                closeBtn.title = '닫기';
-                Object.assign(closeBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
-                closeBtn.onclick = () => {
-                    this.stateManager.set('liveStream.isRunning', false);
-                };
-                this.delayMeterEl.append(textSpan, refreshBtn, closeBtn);
-                document.body.appendChild(this.delayMeterEl);
-                this.updateDelayMeterVisibility();
-            }
-            if (this.delayMeterEl) {
-                const textSpan = this.delayMeterEl.querySelector('span');
-                if (textSpan) {
-                    if (info.raw === null && info.avg === null) {
-                        textSpan.textContent = '딜레이 측정 중...';
+        this.attachDragAndDrop();
+        this.mainControlsContainer.appendChild(this.triggerElement);
+        this.globalContainer.appendChild(this.mainControlsContainer);
+        this.globalContainer.appendChild(this.speedButtonsContainer);
+        document.body.appendChild(this.globalContainer);
+    }
+
+    onControlsVisibilityChange(isVisible) {
+        if (!this.triggerElement) return;
+
+        if (isVisible) {
+            // UI가 다시 나타날 때 (번개 -> 정지)
+            this.triggerElement.textContent = '🛑';
+            this.triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
+
+            // [오디오 복원]
+            const savedAudioSettings = this.stateManager.get('audio.lastActiveSettings');
+            if (savedAudioSettings) {
+                for (const key in savedAudioSettings) {
+                    // Ensure complex objects are restored correctly
+                    if (typeof savedAudioSettings[key] === 'object' && savedAudioSettings[key] !== null) {
+                        this.stateManager.set(`audio.${key}`, JSON.parse(JSON.stringify(savedAudioSettings[key])));
                     } else {
-                        textSpan.textContent = `딜레이: ${info.avg?.toFixed(0) || 'N/A'}ms / 현재: ${info.raw?.toFixed(0) || 'N/A'}ms / 배속: ${info.rate?.toFixed(3) || 'N/A'}x`;
+                        this.stateManager.set(`audio.${key}`, savedAudioSettings[key]);
                     }
                 }
+                this.stateManager.set('audio.lastActiveSettings', null);
             }
+
+            // [비디오 복원]
+            const savedVideoSettings = this.stateManager.get('videoFilter.lastActiveSettings');
+            if (savedVideoSettings) {
+                for (const key in savedVideoSettings) {
+                    this.stateManager.set(`videoFilter.${key}`, savedVideoSettings[key]);
+                }
+                this.stateManager.set('videoFilter.lastActiveSettings', null);
+            }
+
+            // [이미지 복원]
+            const savedImageSettings = this.stateManager.get('imageFilter.lastActiveSettings');
+            if (savedImageSettings) {
+                this.stateManager.set('imageFilter.level', savedImageSettings.level);
+                this.stateManager.set('imageFilter.lastActiveSettings', null);
+            }
+
+        } else {
+            // UI가 숨겨질 때 (정지 -> 번개)
+            this.triggerElement.textContent = '⚡️';
+            this.triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+
+            // [오디오 저장]
+            const audioState = this.stateManager.get('audio');
+            const audioSettingsToSave = {
+                isHpfEnabled: audioState.isHpfEnabled, hpfHz: audioState.hpfHz,
+                isEqEnabled: audioState.isEqEnabled, eqSubBassGain: audioState.eqSubBassGain,
+                eqBassGain: audioState.eqBassGain, eqMidGain: audioState.eqMidGain,
+                eqTrebleGain: audioState.eqTrebleGain, eqPresenceGain: audioState.eqPresenceGain,
+                bassBoostGain: audioState.bassBoostGain,
+                isWideningEnabled: audioState.isWideningEnabled, wideningFactor: audioState.wideningFactor,
+                isAdaptiveWidthEnabled: audioState.isAdaptiveWidthEnabled, adaptiveWidthFreq: audioState.adaptiveWidthFreq,
+                isReverbEnabled: audioState.isReverbEnabled, reverbMix: audioState.reverbMix,
+                stereoPan: audioState.stereoPan,
+                isPreGainEnabled: audioState.isPreGainEnabled, preGain: audioState.preGain,
+                lastManualPreGain: audioState.lastManualPreGain,
+                isDeesserEnabled: audioState.isDeesserEnabled, deesserThreshold: audioState.deesserThreshold, deesserFreq: audioState.deesserFreq,
+                isExciterEnabled: audioState.isExciterEnabled, exciterAmount: audioState.exciterAmount,
+                isParallelCompEnabled: audioState.isParallelCompEnabled, parallelCompMix: audioState.parallelCompMix,
+                isLimiterEnabled: audioState.isLimiterEnabled,
+                isMasteringSuiteEnabled: audioState.isMasteringSuiteEnabled, masteringTransientAmount: audioState.masteringTransientAmount, masteringDrive: audioState.masteringDrive,
+                isLoudnessNormalizationEnabled: audioState.isLoudnessNormalizationEnabled,
+                isAgcEnabled: audioState.isAgcEnabled,
+                isMultibandCompEnabled: audioState.isMultibandCompEnabled,
+                multibandComp: JSON.parse(JSON.stringify(audioState.multibandComp)),
+                isDynamicEqEnabled: audioState.isDynamicEqEnabled,
+                dynamicEq: JSON.parse(JSON.stringify(audioState.dynamicEq)),
+                activePresetKey: audioState.activePresetKey
+            };
+            this.stateManager.set('audio.lastActiveSettings', audioSettingsToSave);
+
+            // [비디오 저장]
+            const videoState = this.stateManager.get('videoFilter');
+            const videoSettingsToSave = {
+                level: videoState.level, level2: videoState.level2,
+                gamma: videoState.gamma, blur: videoState.blur,
+                shadows: videoState.shadows, highlights: videoState.highlights,
+                saturation: videoState.saturation, sharpenDirection: videoState.sharpenDirection,
+                activePreset: videoState.activePreset
+            };
+            this.stateManager.set('videoFilter.lastActiveSettings', videoSettingsToSave);
+
+            // [이미지 저장]
+            const imageState = this.stateManager.get('imageFilter');
+            this.stateManager.set('imageFilter.lastActiveSettings', { level: imageState.level });
+
+            // [초기화]
+            Object.keys(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS).forEach(band => {
+                Object.keys(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS[band]).forEach(param => {
+                    this.stateManager.set(`audio.multibandComp.${band}.${param}`, CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS[band][param]);
+                });
+            });
+            this.stateManager.set('audio.isMultibandCompEnabled', false);
+            this.stateManager.set('audio.isDynamicEqEnabled', false);
+            this.stateManager.set('audio.isHpfEnabled', false);
+            this.stateManager.set('audio.isEqEnabled', false);
+            this.stateManager.set('audio.bassBoostGain', 0);
+            this.stateManager.set('audio.isWideningEnabled', false);
+            this.stateManager.set('audio.isReverbEnabled', false);
+            this.stateManager.set('audio.isDeesserEnabled', false);
+            this.stateManager.set('audio.isExciterEnabled', false);
+            this.stateManager.set('audio.isParallelCompEnabled', false);
+            this.stateManager.set('audio.isLimiterEnabled', false);
+            this.stateManager.set('audio.isMasteringSuiteEnabled', false);
+            this.stateManager.set('audio.isPreGainEnabled', false);
+            this.stateManager.set('audio.preGain', 1.0);
         }
 
-        resetFadeTimer() {
-            const container = this.uiElements.mainContainer;
-            if (container) {
-                clearTimeout(this.fadeOutTimer);
-                container.style.opacity = '1';
-                this.fadeOutTimer = setTimeout(() => this.startFadeSequence(), 10000);
-            }
+        if (isVisible && !this.hostElement) {
+            this.createControlsHost();
+        }
+        if (this.hostElement) {
+            this.hostElement.style.display = isVisible ? 'flex' : 'none';
+        }
+        if (this.speedButtonsContainer) {
+            const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO');
+            this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none';
+        }
+        this.updateUIVisibility();
+    }
+
+    createControlsHost() {
+        this.hostElement = document.createElement('div');
+        this.hostElement.style.order = '2';
+        this.stateManager.set('ui.hostElement', this.hostElement);
+        this.shadowRoot = this.hostElement.attachShadow({ mode: 'open' });
+        this.stateManager.set('ui.shadowRoot', this.shadowRoot);
+
+        this.modalHost = document.createElement('div');
+        this.modalShadowRoot = this.modalHost.attachShadow({ mode: 'open' });
+        const currentRoot = document.fullscreenElement || document.body;
+        currentRoot.appendChild(this.modalHost);
+
+
+        this.renderAllControls();
+        this.mainControlsContainer.prepend(this.hostElement);
+    }
+
+    updateUIVisibility() {
+        if (!this.shadowRoot) return;
+
+        const controlsVisible = this.stateManager.get('ui.areControlsVisible');
+        const activeMedia = this.stateManager.get('media.activeMedia');
+        const activeImages = this.stateManager.get('media.activeImages');
+
+        const hasVideo = [...activeMedia].some(m => m.tagName === 'VIDEO');
+        const hasAudio = [...activeMedia].some(m => m.tagName === 'AUDIO');
+        const hasImage = activeImages.size > 0;
+        const hasAnyMedia = hasVideo || hasAudio;
+
+        if(this.speedButtonsContainer) {
+            this.speedButtonsContainer.style.display = hasVideo && controlsVisible ? 'flex' : 'none';
         }
 
-        startFadeSequence() {
-            const container = this.uiElements.mainContainer;
-            if (container) {
-                container.querySelectorAll('.vsc-control-group.submenu-visible').forEach(g => g.classList.remove('submenu-visible'));
-                container.style.opacity = '0.3';
+        const setVisible = (element, visible) => {
+            if (element) element.classList.toggle(CONFIG.UI_HIDDEN_CLASS_NAME, !visible);
+        };
+        setVisible(this.uiElements.videoControls, hasVideo);
+        setVisible(this.uiElements.imageControls, hasImage);
+        setVisible(this.uiElements.audioControls, hasAnyMedia);
+    }
+
+    updateActiveSpeedButton(rate) {
+        if (this.speedButtons.length === 0) return;
+        this.speedButtons.forEach(b => {
+            const speed = parseFloat(b.dataset.speed);
+            if (speed) {
+                const isActive = Math.abs(speed - rate) < 0.01;
+                if (isActive) {
+                    b.style.background = 'rgba(231, 76, 60, 0.9)';
+                    b.style.boxShadow = '0 0 5px #e74c3c, 0 0 10px #e74c3c inset';
+                } else {
+                    b.style.background = 'rgba(52, 152, 219, 0.7)';
+                    b.style.boxShadow = '';
+                }
             }
+        });
+    }
+
+    _createControlGroup(id, icon, title, parent) {
+        const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group';
+        const mainBtn = document.createElement('button'); mainBtn.className = 'vsc-btn vsc-btn-main'; mainBtn.textContent = icon; mainBtn.title = title;
+        const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu';
+        group.append(mainBtn, subMenu);
+        mainBtn.onclick = (e) => {
+            e.stopPropagation();
+            const isOpening = !group.classList.contains('submenu-visible');
+            this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible'));
+            if(isOpening) group.classList.add('submenu-visible');
+            this.resetFadeTimer();
+            if (id === 'vsc-stereo-controls' && isOpening && !this.stateManager.get('audio.audioInitialized')) {
+                this.stateManager.set('audio.audioInitialized', true);
+                this.stateManager.set('audio.activityCheckRequested', Date.now());
+            }
+        };
+        parent.appendChild(group);
+        if (id === 'vsc-image-controls') this.uiElements.imageControls = group;
+        if (id === 'vsc-video-controls') this.uiElements.videoControls = group;
+        if (id === 'vsc-stereo-controls') this.uiElements.audioControls = group;
+        return subMenu;
+    }
+
+    _createSlider(label, id, min, max, step, stateKey, unit, formatFn) {
+        const div = document.createElement('div'); div.className = 'slider-control';
+        const labelEl = document.createElement('label'); const span = document.createElement('span');
+        const updateText = (v) => { const val = parseFloat(v); if(isNaN(val)) return; span.textContent = formatFn ? formatFn(val) : `${val.toFixed(1)}${unit}`; };
+        labelEl.textContent = `${label}: `; labelEl.appendChild(span);
+        const slider = document.createElement('input'); slider.type = 'range'; slider.id = id; slider.min = min; slider.max = max; slider.step = step;
+        slider.value = this.stateManager.get(stateKey);
+
+        const debouncedSetState = debounce((val) => {
+            this.stateManager.set(stateKey, val);
+            if (stateKey === 'audio.preGain') {
+                this.stateManager.set('audio.lastManualPreGain', val);
+            }
+        }, 50);
+
+        slider.oninput = () => {
+            const val = parseFloat(slider.value);
+            updateText(val);
+
+            if (stateKey.startsWith('videoFilter.')) {
+                this.stateManager.set('videoFilter.activePreset', 'custom');
+            }
+
+            debouncedSetState(val);
+        };
+
+        this.subscribe(stateKey, (val) => {
+            updateText(val);
+            if (Math.abs(parseFloat(slider.value) - val) > (step / 2 || 0.001)) {
+                slider.value = val;
+            }
+        });
+        updateText(slider.value);
+        div.append(labelEl, slider);
+        // Store formatFn on the returned object for external use
+        return { control: div, slider: slider, formatFn: formatFn, unit: unit };
+    }
+
+    _createToggleBtn(id, text, stateKey) {
+        const btn = document.createElement('button'); btn.id = id; btn.textContent = text; btn.className = 'vsc-btn';
+        btn.onclick = () => { this.stateManager.set(stateKey, !this.stateManager.get(stateKey)); };
+        this.subscribe(stateKey, (val) => btn.classList.toggle('active', val));
+        btn.classList.toggle('active', this.stateManager.get(stateKey));
+        return btn;
+    }
+
+    _createSelectControl(labelText, options, stateKey) {
+        const div = document.createElement('div');
+        div.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 8px;';
+
+        const label = document.createElement('label');
+        label.textContent = labelText + ':';
+        label.style.cssText = `color: white; font-size: ${this.stateManager.get('app.isMobile') ? '12px' : '13px'}; white-space: nowrap;`;
+
+        const select = document.createElement('select');
+        select.className = 'vsc-select';
+        options.forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt.value;
+            o.textContent = opt.text;
+            select.appendChild(o);
+        });
+
+        select.onchange = (e) => this.stateManager.set(stateKey, e.target.value);
+
+        this.subscribe(stateKey, (val) => {
+            if (select.value !== val) {
+                select.value = val;
+            }
+        });
+
+        select.value = this.stateManager.get(stateKey);
+
+        div.append(label, select);
+        return div;
+    }
+
+    _createDivider() { const d = document.createElement('div'); d.className = 'vsc-divider'; return d; }
+
+    renderAllControls() {
+        if (this.shadowRoot.getElementById('vsc-main-container')) {
+            return;
         }
 
-        createGlobalUI() {
-            const isMobile = this.stateManager.get('app.isMobile');
+        const style = document.createElement('style');
+        const isMobile = this.stateManager.get('app.isMobile');
+        style.textContent = `
+            :host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; }
+            #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; }
+            #vsc-main-container:hover { opacity: 1; }
+            #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;}
+            .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; }
+            .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; }
+            .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
+            #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '320px' : '520px'}; max-width: 90vw; }
+            #vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }
+            #vsc-image-controls .vsc-submenu { width: 100px; }
+            .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
+            .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); }
+            .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
+            .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+            .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; }
+            .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; }
+            .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; }
+            input[type=range] { width: 100%; margin: 0; }
+            input[type=range]:disabled { opacity: 0.5; }
+            .vsc-audio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+            .vsc-audio-column { display: flex; flex-direction: column; gap: ${isMobile ? '3px' : '8px'}; border-right: 1px solid #444; padding-right: 12px; }
+            .vsc-audio-column:last-child { border-right: none; padding-right: 0; }
+            .vsc-button-group { display: flex; gap: 8px; width: 100%; }
+            .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
+            .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
+            .vsc-button-group > .vsc-btn { flex-basis: 0; flex-grow: 1; }
+            .vsc-mastering-group { display: flex; flex-direction: column; gap: 8px; }
+            .vsc-tabs { display: flex; gap: 5px; border-bottom: 1px solid #444; margin-bottom: 10px; width: 100%; }
+            .vsc-tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: #aaa; padding: 4px 8px; cursor: pointer; font-size: clamp(13px, 2.2vmin, 14px); }
+            .vsc-tab-btn.active { color: white; border-bottom-color: #3498db; }
+            .vsc-tab-pane { display: none; flex-direction: column; gap: 8px; }
+            .vsc-tab-pane.active { display: flex; }
+            .vsc-deq-band-selectors { display: flex; gap: 6px; justify-content: center; margin-bottom: 8px; }
+            .vsc-deq-band-btn { width: 30px; height: 30px; border: 1px solid #555; background: #222; color: #ccc; font-weight: bold; }
+            .vsc-deq-band-btn.active { border-color: #3498db; background: #3498db; color: white; }
+            #vsc-mbc-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: auto; height: auto; background: rgba(0,0,0,0.5); z-index: ${CONFIG.MAX_Z_INDEX + 1}; justify-content: center; align-items: center; border-radius: 10px; padding: 10px; }
+            #vsc-mbc-container { background: rgba(30,30,30,0.95); border: 1px solid #555; border-radius: 8px; padding: clamp(8px, 2vw, 12px); color: white; display: flex; flex-direction: column; gap: clamp(8px, 1.5vw, 10px); min-width: clamp(250px, 80vw, 550px); }
+            #vsc-mbc-header { display: flex; justify-content: space-between; align-items: center; }
+            #vsc-mbc-header h3 { margin: 0; font-size: clamp(13px, 2.2vw, 15px); }
+            #vsc-mbc-bands { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .vsc-mbc-band { display: flex; flex-direction: column; gap: 8px; padding: clamp(6px, 1.5vw, 8px); border: 1px solid #444; border-radius: 5px; }
+            .vsc-mbc-band h4 { margin: 0 0 8px 0; text-align: center; font-size: clamp(13px, 2.2vw, 14px); color: #3498db; }
+            @media (max-width: 600px) {
+                .vsc-audio-grid { grid-template-columns: 1fr; }
+                .vsc-audio-column { border-right: none; padding-right: 0; }
+                #vsc-mbc-bands { grid-template-columns: 1fr; gap: 8px; }
+                #vsc-mbc-container { min-width: clamp(250px, 75vw, 300px); }
+            }
+        `;
+        this.shadowRoot.appendChild(style);
+        this.modalShadowRoot.appendChild(style.cloneNode(true));
 
-            this.globalContainer = document.createElement('div');
-            this.globalContainer.style.setProperty('--vsc-translate-x', '0px');
-            this.globalContainer.style.setProperty('--vsc-translate-y', '0px');
+        const mainContainer = document.createElement('div');
+        mainContainer.id = 'vsc-main-container';
+        this.uiElements.mainContainer = mainContainer;
 
-            Object.assign(this.globalContainer.style, {
-                position: 'fixed',
-                top: '50%',
-                right: '1vmin',
-                transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))',
-                zIndex: CONFIG.MAX_Z_INDEX,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '5px',
-                WebkitTapHighlightColor: 'transparent'
+        const controlsContainer = document.createElement('div');
+        controlsContainer.id = 'vsc-controls-container';
+
+        const imageSubMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controlsContainer);
+        const imageSelect = document.createElement('select');
+        imageSelect.className = 'vsc-select';
+        [{ v: "0", t: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ v: (i + 1).toString(), t: `${i + 1}단계` }))].forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt.v;
+            o.textContent = opt.t;
+            imageSelect.appendChild(o);
+        });
+        imageSelect.onchange = () => this.stateManager.set('imageFilter.level', parseInt(imageSelect.value, 10));
+        this.subscribe('imageFilter.level', (val) => imageSelect.value = val);
+        imageSelect.value = this.stateManager.get('imageFilter.level');
+        imageSubMenu.appendChild(imageSelect);
+
+        const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer);
+        const videoDefaults = this.stateManager.get('app.isMobile') ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
+
+        const videoResetBtn = document.createElement('button');
+        videoResetBtn.className = 'vsc-btn';
+        videoResetBtn.textContent = '초기화';
+        videoResetBtn.dataset.presetKey = 'reset';
+        videoResetBtn.onclick = () => {
+            this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
+            this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2);
+            this.stateManager.set('videoFilter.saturation', parseInt(videoDefaults.SATURATION_VALUE));
+            this.stateManager.set('videoFilter.gamma', parseFloat(videoDefaults.GAMMA_VALUE));
+            this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
+            this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE));
+            this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE));
+            this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
+            this.stateManager.set('videoFilter.activePreset', 'reset');
+        };
+
+        const videoshadowsBrightenBtn = document.createElement('button');
+        videoshadowsBrightenBtn.className = 'vsc-btn';
+        videoshadowsBrightenBtn.textContent = '밝기 1';
+        videoshadowsBrightenBtn.dataset.presetKey = 'brighten1';
+        videoshadowsBrightenBtn.onclick = () => {
+            this.stateManager.set('videoFilter.gamma', 1);
+            this.stateManager.set('videoFilter.saturation', 100);
+            this.stateManager.set('videoFilter.blur', 0);
+            this.stateManager.set('videoFilter.shadows', 3);
+            this.stateManager.set('videoFilter.highlights', 1);
+            this.stateManager.set('videoFilter.activePreset', 'brighten1');
+        };
+
+        const videoBrightenBtn = document.createElement('button');
+        videoBrightenBtn.className = 'vsc-btn';
+        videoBrightenBtn.textContent = '밝기 2';
+        videoBrightenBtn.dataset.presetKey = 'brighten2';
+        videoBrightenBtn.onclick = () => {
+            this.stateManager.set('videoFilter.gamma', 1.15);
+            this.stateManager.set('videoFilter.saturation', 103);
+            this.stateManager.set('videoFilter.blur', 0);
+            this.stateManager.set('videoFilter.shadows', -1);
+            this.stateManager.set('videoFilter.highlights', 1);
+            this.stateManager.set('videoFilter.activePreset', 'brighten2');
+        };
+
+        const videoNewBrightenBtn = document.createElement('button');
+        videoNewBrightenBtn.className = 'vsc-btn';
+        videoNewBrightenBtn.textContent = '밝기 3';
+        videoNewBrightenBtn.dataset.presetKey = 'brighten3';
+        videoNewBrightenBtn.onclick = () => {
+            this.stateManager.set('videoFilter.gamma', 1.25);
+            this.stateManager.set('videoFilter.saturation', 105);
+            this.stateManager.set('videoFilter.blur', 0);
+            this.stateManager.set('videoFilter.shadows', -2);
+            this.stateManager.set('videoFilter.highlights', 2);
+            this.stateManager.set('videoFilter.activePreset', 'brighten3');
+        };
+
+        const videohighBrightenBtn = document.createElement('button');
+        videohighBrightenBtn.className = 'vsc-btn';
+        videohighBrightenBtn.textContent = '밝기 4';
+        videohighBrightenBtn.dataset.presetKey = 'brighten4';
+        videohighBrightenBtn.onclick = () => {
+            this.stateManager.set('videoFilter.gamma', 1.35);
+            this.stateManager.set('videoFilter.saturation', 107);
+            this.stateManager.set('videoFilter.blur', 0);
+            this.stateManager.set('videoFilter.shadows', -3);
+            this.stateManager.set('videoFilter.highlights', 3);
+            this.stateManager.set('videoFilter.activePreset', 'brighten4');
+        };
+
+        const videoBtnGroup = document.createElement('div');
+        videoBtnGroup.style.cssText = 'display: flex; gap: 8px; margin-top: 8px;';
+        videoBtnGroup.append(videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videohighBrightenBtn, videoResetBtn);
+
+        const videoButtons = [videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videohighBrightenBtn, videoResetBtn];
+        this.subscribe('videoFilter.activePreset', (activeKey) => {
+            videoButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
+            });
+        });
+
+        const sharpenDirOptions = [{ value: '4-way', text: '4방향 (기본)' }, { value: '8-way', text: '8방향 (강함)' }];
+        const sharpenDirSelect = this._createSelectControl(
+            '샤프 방향',
+            sharpenDirOptions,
+            'videoFilter.sharpenDirection'
+        );
+
+        videoSubMenu.append(
+            this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
+            this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
+            sharpenDirSelect,
+            this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control,
+            this._createSlider('밝기', 'v-highlights', -50, 50, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
+            this._createSlider('대비', 'v-shadows', -50, 50, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control,
+            this._createSlider('감마(*)', 'v-gamma', 1, 2, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
+            this._createSlider('채도(*)', 'v-saturation', 0, 400, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
+            videoBtnGroup
+        );
+
+        const audioSubMenu = this._createControlGroup('vsc-stereo-controls', '🎧', '사운드 필터', controlsContainer);
+
+        const tabsContainer = document.createElement('div');
+        tabsContainer.className = 'vsc-tabs';
+
+        const panesContainer = document.createElement('div');
+
+        const createTab = (id, text, isActive = false) => {
+            const btn = document.createElement('button');
+            btn.className = 'vsc-tab-btn';
+            btn.dataset.tabId = id;
+            btn.textContent = text;
+            if (isActive) btn.classList.add('active');
+
+            const pane = document.createElement('div');
+            pane.id = id;
+            pane.className = 'vsc-tab-pane';
+            if (isActive) pane.classList.add('active');
+
+            tabsContainer.appendChild(btn);
+            panesContainer.appendChild(pane);
+
+            btn.onclick = () => {
+                tabsContainer.querySelectorAll('.vsc-tab-btn').forEach(b => b.classList.remove('active'));
+                panesContainer.querySelectorAll('.vsc-tab-pane').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                pane.classList.add('active');
+            };
+            return pane;
+        };
+
+        const basicPane = createTab('vsc-audio-basic-pane', '기본', true);
+        const dynamicsPane = createTab('vsc-audio-dynamics-pane', '다이나믹스');
+        const clarityPane = createTab('vsc-audio-clarity-pane', '명료도');
+
+        audioSubMenu.append(tabsContainer, panesContainer);
+
+        const basicGrid = document.createElement('div');
+        basicGrid.className = 'vsc-audio-grid';
+        basicGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+        const basicCol1 = document.createElement('div');
+        basicCol1.className = 'vsc-audio-column';
+        const basicCol2 = document.createElement('div');
+        basicCol2.className = 'vsc-audio-column';
+
+        const eqSliders = [
+            this._createSlider('초저음', 'eq-sub', -12, 12, 1, 'audio.eqSubBassGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
+            this._createSlider('저음', 'eq-bass', -12, 12, 1, 'audio.eqBassGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
+            this._createSlider('중음', 'eq-mid', -12, 12, 1, 'audio.eqMidGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
+            this._createSlider('고음', 'eq-treble', -12, 12, 1, 'audio.eqTrebleGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
+            this._createSlider('초고음', 'eq-pres', -12, 12, 1, 'audio.eqPresenceGain', 'dB', v => `${v.toFixed(0)}dB`).slider
+        ];
+        const hpfSlider = this._createSlider('주파수', 'hpf-freq', 20, 500, 5, 'audio.hpfHz', 'Hz', v => `${v.toFixed(0)}Hz`).slider;
+        basicCol1.append(
+            this._createToggleBtn('eq-toggle', 'EQ', 'audio.isEqEnabled'),
+            ...eqSliders.map(s => s.parentElement),
+            this._createDivider(),
+            this._createSlider('베이스 부스트', 'bass-boost', 0, 9, 0.5, 'audio.bassBoostGain', 'dB', v => `${v.toFixed(1)}dB`).control
+        );
+        const preGainGroup = document.createElement('div');
+        preGainGroup.className = 'vsc-button-group';
+        const manualVolBtn = this._createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
+        const agcBtn = this._createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
+        const autoVolBtn = this._createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
+        autoVolBtn.textContent = '자동';
+        autoVolBtn.appendChild(document.createElement('br'));
+        autoVolBtn.appendChild(document.createTextNode('보정'));
+
+        preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
+
+        const widenSlider = this._createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
+        const reverbSlider = this._createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
+        const preGainSlider = this._createSlider('볼륨 크기', 'pre-gain-slider', 0, CONFIG.MAX_PRE_GAIN, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
+        basicCol2.append(
+            this._createToggleBtn('widen-toggle', 'Virtualizer', 'audio.isWideningEnabled'), widenSlider.parentElement,
+            this._createToggleBtn('adaptive-width-toggle', 'Bass Mono', 'audio.isAdaptiveWidthEnabled'),
+            this._createDivider(),
+            this._createToggleBtn('reverb-toggle', '리버브', 'audio.isReverbEnabled'), reverbSlider.parentElement,
+            this._createDivider(),
+            this._createSlider('Pan', 'pan', -1, 1, 0.1, 'audio.stereoPan', '', v => v.toFixed(1)).control,
+            this._createDivider(),
+            preGainGroup, preGainSlider.parentElement,
+            this._createDivider(),
+            this._createToggleBtn('hpf-toggle', 'HPF', 'audio.isHpfEnabled'),
+            hpfSlider.parentElement
+        );
+        this.uiElements.manualVolBtn = manualVolBtn;
+        this.uiElements.preGainSlider = preGainSlider;
+        basicGrid.append(basicCol1, basicCol2);
+        basicPane.appendChild(basicGrid);
+
+        const dynamicsGrid = document.createElement('div');
+        dynamicsGrid.className = 'vsc-audio-grid';
+        dynamicsGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+        const dynamicsCol1 = document.createElement('div');
+        dynamicsCol1.className = 'vsc-audio-column';
+        const dynamicsCol2 = document.createElement('div');
+        dynamicsCol2.className = 'vsc-audio-column';
+
+        const deesserSliders = [
+            this._createSlider('강도', 'deesser-thresh', -60, 0, 1, 'audio.deesserThreshold', 'dB', v => `${v.toFixed(0)}dB`).slider,
+            this._createSlider('주파수', 'deesser-freq', 4000, 12000, 100, 'audio.deesserFreq', 'kHz', v => `${(v/1000).toFixed(1)}kHz`).slider
+        ];
+        const exciterSlider = this._createSlider('강도', 'exciter-amount', 0, 100, 1, 'audio.exciterAmount', '%', v => `${v.toFixed(0)}%`).slider;
+        const pcompSlider = this._createSlider('믹스', 'pcomp-mix', 0, 100, 1, 'audio.parallelCompMix', '%', v => `${v.toFixed(0)}%`).slider;
+
+        dynamicsCol1.append(
+            this._createToggleBtn('deesser-toggle', '디에서', 'audio.isDeesserEnabled'), ...deesserSliders.map(s => s.parentElement),
+            this._createDivider(),
+            this._createToggleBtn('exciter-toggle', '익사이터', 'audio.isExciterEnabled'), exciterSlider.parentElement,
+            this._createDivider(),
+            this._createToggleBtn('pcomp-toggle', '업컴프', 'audio.isParallelCompEnabled'), pcompSlider.parentElement
+        );
+
+        const mbcGroup = document.createElement('div');
+        mbcGroup.className = 'vsc-button-group';
+        const mbcToggleBtn = this._createToggleBtn('mbc-toggle', '멀티밴드', 'audio.isMultibandCompEnabled');
+        const mbcSettingsBtn = document.createElement('button');
+        mbcSettingsBtn.className = 'vsc-btn';
+        mbcSettingsBtn.textContent = '설정';
+        mbcSettingsBtn.onclick = () => {
+            const modal = this.modalShadowRoot.getElementById('vsc-mbc-modal');
+            if (modal) modal.style.display = 'flex';
+        };
+        this.subscribe('audio.isMultibandCompEnabled', (isEnabled) => mbcSettingsBtn.disabled = !isEnabled);
+        mbcSettingsBtn.disabled = !this.stateManager.get('audio.isMultibandCompEnabled');
+        mbcGroup.append(mbcToggleBtn, mbcSettingsBtn);
+
+        const masteringContainer = document.createElement('div');
+        masteringContainer.className = 'vsc-mastering-group';
+        const masteringToggleBtn = this._createToggleBtn('mastering-toggle', '마스터링', 'audio.isMasteringSuiteEnabled');
+        masteringToggleBtn.addEventListener('click', () => {
+            this.stateManager.set('audio.isLimiterEnabled', false);
+        });
+        const transientSliderObj = this._createSlider('타격감', 'master-transient', 0, 1, 0.01, 'audio.masteringTransientAmount', '%', v => `${(v * 100).toFixed(0)}%`);
+        const driveSliderObj = this._createSlider('음압', 'master-drive', 0, 12, 0.5, 'audio.masteringDrive', 'dB', v => `${v.toFixed(1)}dB`);
+        masteringContainer.append(masteringToggleBtn, transientSliderObj.control, driveSliderObj.control);
+
+        dynamicsCol2.append(
+            mbcGroup,
+            this._createDivider(),
+            masteringContainer
+        );
+        dynamicsGrid.append(dynamicsCol1, dynamicsCol2);
+        dynamicsPane.appendChild(dynamicsGrid);
+
+        const deqToggleBtn = this._createToggleBtn('deq-toggle', '스마트 명료도 활성화', 'audio.isDynamicEqEnabled');
+        deqToggleBtn.style.width = '100%';
+
+        const bandSelectors = document.createElement('div');
+        bandSelectors.className = 'vsc-deq-band-selectors';
+
+        const deqControlsContainer = document.createElement('div');
+        deqControlsContainer.style.display = 'flex';
+        deqControlsContainer.style.flexDirection = 'column';
+        deqControlsContainer.style.gap = '8px';
+        deqControlsContainer.style.width = '250px';
+
+        this.uiElements.deqSliders = [
+            this._createSlider('Frequency', 'deq-freq', 20, 20000, 1, `audio.dynamicEq.bands.0.freq`, 'Hz', v => `${v < 1000 ? v.toFixed(0) : (v/1000).toFixed(1)} ${v < 1000 ? 'Hz' : 'kHz'}`),
+            this._createSlider('Q', 'deq-q', 0.1, 10, 0.1, `audio.dynamicEq.bands.0.q`, '', v => v.toFixed(1)),
+            this._createSlider('Threshold', 'deq-thresh', -60, 0, 1, `audio.dynamicEq.bands.0.threshold`, 'dB', v => `${v.toFixed(0)}dB`),
+            this._createSlider('Gain', 'deq-gain', -12, 12, 1, `audio.dynamicEq.bands.0.gain`, 'dB', v => `${v.toFixed(0)}dB`)
+        ];
+        deqControlsContainer.append(...this.uiElements.deqSliders.map(s => s.control));
+
+        const updateDeqUI = () => {
+            if (!bandSelectors || !bandSelectors.isConnected || !deqControlsContainer || !deqControlsContainer.isConnected) {
+                return;
+            }
+
+            const sliders = this.uiElements.deqSliders;
+            if (!sliders) return;
+
+            const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
+            const bands = this.stateManager.get('audio.dynamicEq.bands');
+            if (!bands || !bands[activeBandIndex]) return;
+            const bandSettings = bands[activeBandIndex];
+
+            bandSelectors.querySelectorAll('.vsc-deq-band-btn').forEach((btn, index) => {
+                btn.classList.toggle('active', index === activeBandIndex);
             });
 
-            this.mainControlsContainer = document.createElement('div');
-            Object.assign(this.mainControlsContainer.style, {
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '5px'
-            });
-
-            this.triggerElement = document.createElement('div');
-            this.triggerElement.textContent = '⚡';
-            Object.assign(this.triggerElement.style, {
-                width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', cursor: 'pointer', userSelect: 'none',
-                fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-                transition: 'box-shadow 0.3s ease-in-out, background-color 0.3s',
-                order: '1',
-                touchAction: 'none',
-            });
-            this.triggerElement.addEventListener('click', (e) => {
-                if (this.wasDragged) {
-                    e.stopPropagation();
+            // This helper function is the core of the fix.
+            const updateSlider = (sliderObj, value) => {
+                if (!sliderObj || !sliderObj.slider || typeof value !== 'number' || isNaN(value)) {
                     return;
                 }
-                const isVisible = this.stateManager.get('ui.areControlsVisible');
-                this.stateManager.set('ui.areControlsVisible', !isVisible);
-            });
+                const input = sliderObj.slider;
+                // Only update if the value has changed significantly, to prevent loops.
+                if (Math.abs(parseFloat(input.value) - value) > 0.001) {
+                    input.value = value;
+                    // Manually update the text label next to the slider.
+                    const span = input.parentElement.querySelector('label > span');
+                    if (span && sliderObj.formatFn) {
+                         span.textContent = sliderObj.formatFn(value);
+                    }
+                }
+            };
 
-            this.speedButtonsContainer = document.createElement('div');
-            this.speedButtonsContainer.id = 'vsc-speed-buttons-container';
-            this.speedButtonsContainer.style.cssText = `
-                display:none; flex-direction:column; gap:5px; align-items:center;
-                background: transparent;
-                border-radius: 0px; padding: 0px;
-            `;
-
-            this.attachDragAndDrop();
-            this.mainControlsContainer.appendChild(this.triggerElement);
-            this.globalContainer.appendChild(this.mainControlsContainer);
-            this.globalContainer.appendChild(this.speedButtonsContainer);
-            document.body.appendChild(this.globalContainer);
-        }
-
-        // UIPlugin 내 onControlsVisibilityChange 함수 (수정된 전체 코드)
-onControlsVisibilityChange(isVisible) {
-    if (!this.triggerElement) return;
-
-    const videoDefaults = this.stateManager.get('app.isMobile')
-        ? CONFIG.MOBILE_FILTER_SETTINGS
-        : CONFIG.DESKTOP_FILTER_SETTINGS;
-
-    if (isVisible) {
-        // UI가 다시 나타날 때 (번개 -> 정지)
-        this.triggerElement.textContent = '🛑';
-        this.triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
-
-        // [오디오 복원]
-        const savedAudioSettings = this.stateManager.get('audio.lastActiveSettings');
-        if (savedAudioSettings) {
-            for (const key in savedAudioSettings) {
-                this.stateManager.set(`audio.${key}`, savedAudioSettings[key]);
-            }
-            this.stateManager.set('audio.lastActiveSettings', null);
-        }
-
-        // [비디오 복원]
-        const savedVideoSettings = this.stateManager.get('videoFilter.lastActiveSettings');
-        if (savedVideoSettings) {
-            for (const key in savedVideoSettings) {
-                this.stateManager.set(`videoFilter.${key}`, savedVideoSettings[key]);
-            }
-            this.stateManager.set('videoFilter.lastActiveSettings', null);
-        }
-
-        // [이미지 복원]
-        const savedImageSettings = this.stateManager.get('imageFilter.lastActiveSettings');
-        if (savedImageSettings) {
-            this.stateManager.set('imageFilter.level', savedImageSettings.level);
-            this.stateManager.set('imageFilter.lastActiveSettings', null);
-        }
-
-    } else {
-        // UI가 숨겨질 때 (정지 -> 번개)
-        this.triggerElement.textContent = '⚡️';
-        this.triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-
-        // [오디오 저장 및 초기화]
-        const audioState = this.stateManager.get('audio');
-        // ✨✨✨ 문제 해결 부분 시작 ✨✨✨
-        const audioSettingsToSave = {
-            isHpfEnabled: audioState.isHpfEnabled, hpfHz: audioState.hpfHz,
-            isEqEnabled: audioState.isEqEnabled, eqSubBassGain: audioState.eqSubBassGain,
-            eqBassGain: audioState.eqBassGain, eqMidGain: audioState.eqMidGain,
-            eqTrebleGain: audioState.eqTrebleGain, eqPresenceGain: audioState.eqPresenceGain,
-            bassBoostGain: audioState.bassBoostGain,
-            isWideningEnabled: audioState.isWideningEnabled, wideningFactor: audioState.wideningFactor,
-            isAdaptiveWidthEnabled: audioState.isAdaptiveWidthEnabled, adaptiveWidthFreq: audioState.adaptiveWidthFreq,
-            isReverbEnabled: audioState.isReverbEnabled, reverbMix: audioState.reverbMix,
-            stereoPan: audioState.stereoPan,
-            isPreGainEnabled: audioState.isPreGainEnabled, preGain: audioState.preGain,
-            lastManualPreGain: audioState.lastManualPreGain,
-            isDeesserEnabled: audioState.isDeesserEnabled, deesserThreshold: audioState.deesserThreshold, deesserFreq: audioState.deesserFreq,
-            isExciterEnabled: audioState.isExciterEnabled, exciterAmount: audioState.exciterAmount,
-            isParallelCompEnabled: audioState.isParallelCompEnabled, parallelCompMix: audioState.parallelCompMix,
-            isLimiterEnabled: audioState.isLimiterEnabled,
-            isMasteringSuiteEnabled: audioState.isMasteringSuiteEnabled, masteringTransientAmount: audioState.masteringTransientAmount, masteringDrive: audioState.masteringDrive,
-            isLoudnessNormalizationEnabled: audioState.isLoudnessNormalizationEnabled,
-            isAgcEnabled: audioState.isAgcEnabled,
-            isMultibandCompEnabled: audioState.isMultibandCompEnabled,
-            multibandComp: JSON.parse(JSON.stringify(audioState.multibandComp)),
-            isDynamicEqEnabled: audioState.isDynamicEqEnabled,
-            dynamicEq: JSON.parse(JSON.stringify(audioState.dynamicEq)),
-            activePresetKey: audioState.activePresetKey
+            updateSlider(sliders[0], bandSettings.freq);
+            updateSlider(sliders[1], bandSettings.q);
+            updateSlider(sliders[2], bandSettings.threshold);
+            updateSlider(sliders[3], bandSettings.gain);
         };
-        // ✨✨✨ 문제 해결 부분 끝 ✨✨✨
-        this.stateManager.set('audio.lastActiveSettings', audioSettingsToSave);
-        this.applyPreset('default');
 
-        // [비디오 저장 및 초기화]
-        const videoState = this.stateManager.get('videoFilter');
-        const videoSettingsToSave = {
-            level: videoState.level,
-            level2: videoState.level2,
-            gamma: videoState.gamma,
-            blur: videoState.blur,
-            shadows: videoState.shadows,
-            highlights: videoState.highlights,
-            saturation: videoState.saturation,
-            sharpenDirection: videoState.sharpenDirection,
-            activePreset: videoState.activePreset
+        for (let i = 1; i <= 4; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'vsc-btn vsc-deq-band-btn';
+            btn.textContent = i;
+            btn.dataset.bandIndex = i;
+            btn.onclick = () => {
+                this.stateManager.set('audio.dynamicEq.activeBand', i);
+            };
+            bandSelectors.appendChild(btn);
+        }
+        this.subscribe('audio.dynamicEq.activeBand', updateDeqUI);
+
+        const createDeqSliderUpdater = (param) => (e) => {
+            const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
+            let bands = JSON.parse(JSON.stringify(this.stateManager.get('audio.dynamicEq.bands')));
+            bands[activeBandIndex][param] = parseFloat(e.target.value);
+            this.stateManager.set('audio.dynamicEq.bands', bands);
         };
-        this.stateManager.set('videoFilter.lastActiveSettings', videoSettingsToSave);
 
-        // 비디오 설정 기본값으로 초기화
-        this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
-        this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2);
-        this.stateManager.set('videoFilter.gamma', parseFloat(videoDefaults.GAMMA_VALUE));
-        this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
-        this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE, 10));
-        this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10));
-        this.stateManager.set('videoFilter.saturation', parseInt(videoDefaults.SATURATION_VALUE, 10));
-        this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
-        this.stateManager.set('videoFilter.activePreset', 'none');
+        // This logic replaces the original slider 'oninput' with one that updates the correct band.
+        this.uiElements.deqSliders.forEach(sliderObj => {
+            const param = sliderObj.slider.id.split('-')[1]; // 'deq-freq' -> 'freq'
+            // The original oninput handler created by _createSlider is overwritten here.
+            // We need to ensure the text also updates on user input.
+            const originalOnInput = sliderObj.slider.oninput;
+            sliderObj.slider.oninput = (e) => {
+                // Call the original handler to update the text label
+                if(originalOnInput) {
+                   originalOnInput();
+                }
+                // Then call our custom, debounced state updater for the active band.
+                debounce(createDeqSliderUpdater(param), 50)(e);
+            };
+        });
 
-        // [이미지 저장 및 초기화]
-        const imageState = this.stateManager.get('imageFilter');
-        const imageSettingsToSave = { level: imageState.level };
-        this.stateManager.set('imageFilter.lastActiveSettings', imageSettingsToSave);
-        this.stateManager.set('imageFilter.level', CONFIG.DEFAULT_IMAGE_FILTER_LEVEL);
-    }
+        this.subscribe('audio.dynamicEq.bands', updateDeqUI);
 
-    if (isVisible && !this.hostElement) {
-        this.createControlsHost();
-    }
-    if (this.hostElement) {
-        this.hostElement.style.display = isVisible ? 'flex' : 'none';
-    }
-    if (this.speedButtonsContainer) {
-        const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO');
-        this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none';
-    }
-    this.updateUIVisibility();
-}
+        this.subscribe('audio.isDynamicEqEnabled', (isEnabled) => {
+            deqControlsContainer.style.opacity = isEnabled ? '1' : '0.5';
+            deqControlsContainer.querySelectorAll('input').forEach(input => input.disabled = !isEnabled);
+        });
+        deqControlsContainer.style.opacity = this.stateManager.get('audio.isDynamicEqEnabled') ? '1' : '0.5';
+        deqControlsContainer.querySelectorAll('input').forEach(input => input.disabled = !this.stateManager.get('audio.isDynamicEqEnabled'));
 
-        createControlsHost() {
-            this.hostElement = document.createElement('div');
-            this.hostElement.style.order = '2';
-            this.stateManager.set('ui.hostElement', this.hostElement);
-            this.shadowRoot = this.hostElement.attachShadow({ mode: 'open' });
-            this.stateManager.set('ui.shadowRoot', this.shadowRoot);
+        clarityPane.append(deqToggleBtn, bandSelectors, deqControlsContainer);
+        updateDeqUI();
 
-            this.modalHost = document.createElement('div');
-            this.modalShadowRoot = this.modalHost.attachShadow({ mode: 'open' });
-            const currentRoot = document.fullscreenElement || document.body;
-            currentRoot.appendChild(this.modalHost);
+        const bottomControls = document.createElement('div');
+        bottomControls.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid #444; padding-top: 8px; margin-top: 8px;';
+        const presetSelect = document.createElement('select');
+        presetSelect.className = 'vsc-select vsc-preset-select';
+        Object.entries(this.presetMap).forEach(([key, val]) => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = val.name;
+            presetSelect.appendChild(opt);
+        });
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'vsc-btn';
+        resetBtn.textContent = '초기화';
 
+        bottomControls.append(presetSelect, resetBtn);
+        [basicPane, dynamicsPane, clarityPane].forEach(pane => pane.appendChild(bottomControls.cloneNode(true)));
 
-            this.renderAllControls();
-            this.mainControlsContainer.prepend(this.hostElement);
-        }
-
-        updateUIVisibility() {
-            if (!this.shadowRoot) return;
-
-            const controlsVisible = this.stateManager.get('ui.areControlsVisible');
-            const activeMedia = this.stateManager.get('media.activeMedia');
-            const activeImages = this.stateManager.get('media.activeImages');
-
-            const hasVideo = [...activeMedia].some(m => m.tagName === 'VIDEO');
-            const hasAudio = [...activeMedia].some(m => m.tagName === 'AUDIO');
-            const hasImage = activeImages.size > 0;
-            const hasAnyMedia = hasVideo || hasAudio;
-
-            if(this.speedButtonsContainer) {
-                this.speedButtonsContainer.style.display = hasVideo && controlsVisible ? 'flex' : 'none';
+        panesContainer.querySelectorAll('.vsc-preset-select').forEach(sel => {
+            sel.onchange = (e) => this.applyPreset(e.target.value);
+        });
+        panesContainer.querySelectorAll('button').forEach(btn => {
+            if (btn.textContent === '초기화') {
+                btn.onclick = () => this.applyPreset('default');
             }
+        });
 
-            const setVisible = (element, visible) => {
-                if (element) element.classList.toggle(CONFIG.UI_HIDDEN_CLASS_NAME, !visible);
-            };
-            setVisible(this.uiElements.videoControls, hasVideo);
-            setVisible(this.uiElements.imageControls, hasImage);
-            setVisible(this.uiElements.audioControls, hasAnyMedia);
-        }
+        this.createMultibandCompModal();
 
-        updateActiveSpeedButton(rate) {
-            if (this.speedButtons.length === 0) return;
-            this.speedButtons.forEach(b => {
-                const speed = parseFloat(b.dataset.speed);
-                if (speed) {
-                    const isActive = Math.abs(speed - rate) < 0.01;
-                    if (isActive) {
-                        b.style.background = 'rgba(231, 76, 60, 0.9)';
-                        b.style.boxShadow = '0 0 5px #e74c3c, 0 0 10px #e74c3c inset';
-                    } else {
-                        b.style.background = 'rgba(52, 152, 219, 0.7)';
-                        b.style.boxShadow = '';
-                    }
-                }
+        const setupSliderToggle = (stateKey, sliders) => {
+            const update = (isEnabled) => sliders.forEach(s => {
+                if (s) s.disabled = !isEnabled;
             });
-        }
+            this.subscribe(stateKey, update);
+            update(this.stateManager.get(stateKey));
+        };
+        setupSliderToggle('audio.isEqEnabled', eqSliders);
+        setupSliderToggle('audio.isDeesserEnabled', deesserSliders);
+        setupSliderToggle('audio.isExciterEnabled', [exciterSlider]);
+        setupSliderToggle('audio.isParallelCompEnabled', [pcompSlider]);
+        setupSliderToggle('audio.isWideningEnabled', [widenSlider]);
+        setupSliderToggle('audio.isReverbEnabled', [reverbSlider]);
+        setupSliderToggle('audio.isHpfEnabled', [hpfSlider]);
+        setupSliderToggle('audio.isMasteringSuiteEnabled', [transientSliderObj.slider, driveSliderObj.slider]);
 
-        _createControlGroup(id, icon, title, parent) {
-            const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group';
-            const mainBtn = document.createElement('button'); mainBtn.className = 'vsc-btn vsc-btn-main'; mainBtn.textContent = icon; mainBtn.title = title;
-            const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu';
-            group.append(mainBtn, subMenu);
-            mainBtn.onclick = (e) => {
-                e.stopPropagation();
-                const isOpening = !group.classList.contains('submenu-visible');
-                this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible'));
-                if(isOpening) group.classList.add('submenu-visible');
-                this.resetFadeTimer();
-                if (id === 'vsc-stereo-controls' && isOpening && !this.stateManager.get('audio.audioInitialized')) {
-                    this.stateManager.set('audio.audioInitialized', true);
-                    this.stateManager.set('audio.activityCheckRequested', Date.now());
-                }
-            };
-            parent.appendChild(group);
-            if (id === 'vsc-image-controls') this.uiElements.imageControls = group;
-            if (id === 'vsc-video-controls') this.uiElements.videoControls = group;
-            if (id === 'vsc-stereo-controls') this.uiElements.audioControls = group;
-            return subMenu;
-        }
-
-        _createSlider(label, id, min, max, step, stateKey, unit, formatFn) {
-            const div = document.createElement('div'); div.className = 'slider-control';
-            const labelEl = document.createElement('label'); const span = document.createElement('span');
-            const updateText = (v) => { const val = parseFloat(v); if(isNaN(val)) return; span.textContent = formatFn ? formatFn(val) : `${val.toFixed(1)}${unit}`; };
-            labelEl.textContent = `${label}: `; labelEl.appendChild(span);
-            const slider = document.createElement('input'); slider.type = 'range'; slider.id = id; slider.min = min; slider.max = max; slider.step = step;
-            slider.value = this.stateManager.get(stateKey);
-
-            const debouncedSetState = debounce((val) => {
-                this.stateManager.set(stateKey, val);
-                if (stateKey === 'audio.preGain') {
-                    this.stateManager.set('audio.lastManualPreGain', val);
-                }
-            }, 50);
-
-            slider.oninput = () => {
-                const val = parseFloat(slider.value);
-                updateText(val);
-
-                // [추가 시작] 비디오 필터 슬라이더를 조작하면, 프리셋 선택 상태를 해제합니다.
-                if (stateKey.startsWith('videoFilter.')) {
-                    this.stateManager.set('videoFilter.activePreset', 'custom');
-                }
-
-                debouncedSetState(val);
-            };
-
-            this.subscribe(stateKey, (val) => {
-                updateText(val);
-                if (Math.abs(parseFloat(slider.value) - val) > (step / 2 || 0.001)) {
-                    slider.value = val;
-                }
-            });
-            updateText(slider.value);
-            div.append(labelEl, slider);
-            return { control: div, slider: slider };
-        }
-
-        _createToggleBtn(id, text, stateKey) {
-            const btn = document.createElement('button'); btn.id = id; btn.textContent = text; btn.className = 'vsc-btn';
-            btn.onclick = () => { this.stateManager.set(stateKey, !this.stateManager.get(stateKey)); };
-            this.subscribe(stateKey, (val) => btn.classList.toggle('active', val));
-            btn.classList.toggle('active', this.stateManager.get(stateKey));
-            return btn;
-        }
-
-        _createSelectControl(labelText, options, changeHandler) {
-            const div = document.createElement('div');
-            div.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 8px;';
-
-            const label = document.createElement('label');
-            label.textContent = labelText + ':';
-            label.style.cssText = `color: white; font-size: ${this.stateManager.get('app.isMobile') ? '12px' : '13px'}; white-space: nowrap;`;
-
-            const select = document.createElement('select');
-            select.className = 'vsc-select';
-            options.forEach(opt => {
-                const o = document.createElement('option'); o.value = opt.value; o.textContent = opt.text;
-                select.appendChild(o);
-            });
-            select.onchange = e => changeHandler(e.target.value);
-
-            div.append(label, select);
-            return div;
-        }
-
-        _createDivider() { const d = document.createElement('div'); d.className = 'vsc-divider'; return d; }
-
-        renderAllControls() {
-            if (this.shadowRoot.getElementById('vsc-main-container')) {
-                return;
+        this.subscribe('audio.isLoudnessNormalizationEnabled', (isAuto) => {
+            if (isAuto) {
+                this.stateManager.set('audio.isAgcEnabled', false);
+                this.stateManager.set('audio.preGainEnabledBeforeAuto', this.stateManager.get('audio.isPreGainEnabled'));
+                this.stateManager.set('audio.isPreGainEnabled', true);
+            } else {
+                this.stateManager.set('audio.isPreGainEnabled', this.stateManager.get('audio.preGainEnabledBeforeAuto'));
             }
-
-            const style = document.createElement('style');
-            const isMobile = this.stateManager.get('app.isMobile');
-            style.textContent = `
-                :host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; }
-                #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; }
-                #vsc-main-container:hover { opacity: 1; }
-                #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;}
-                .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; }
-                .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; }
-                .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
-
-                /* --- [UI FIX START] --- */
-                #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '320px' : '520px'}; max-width: 90vw; }
-                /* --- [UI FIX END] --- */
-
-                #vsc-video-controls .vsc-submenu { width: ${isMobile ? '280px' : '320px'}; max-width: 80vw; }
-                #vsc-image-controls .vsc-submenu { width: 100px; }
-                .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
-                .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); }
-                .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
-                .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; }
-                .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; }
-                .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; }
-                input[type=range] { width: 100%; margin: 0; }
-                input[type=range]:disabled { opacity: 0.5; }
-                .vsc-audio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
-
-                /* --- [UI FIX START] --- */
-                .vsc-audio-column { display: flex; flex-direction: column; gap: ${isMobile ? '3px' : '8px'}; border-right: 1px solid #444; padding-right: 12px; }
-                }
-                /* --- [UI FIX END] --- */
-
-                .vsc-audio-column:last-child { border-right: none; padding-right: 0; }
-                .vsc-button-group { display: flex; gap: 8px; width: 100%; }
-                .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
-                .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
-                .vsc-button-group > .vsc-btn { flex-basis: 0; flex-grow: 1; }
-                .vsc-mastering-group { display: flex; flex-direction: column; gap: 8px; }
-                .vsc-tabs { display: flex; gap: 5px; border-bottom: 1px solid #444; margin-bottom: 10px; width: 100%; }
-                .vsc-tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: #aaa; padding: 4px 8px; cursor: pointer; font-size: clamp(13px, 2.2vmin, 14px); }
-                .vsc-tab-btn.active { color: white; border-bottom-color: #3498db; }
-                .vsc-tab-pane { display: none; flex-direction: column; gap: 8px; }
-                .vsc-tab-pane.active { display: flex; }
-                .vsc-deq-band-selectors { display: flex; gap: 6px; justify-content: center; margin-bottom: 8px; }
-                .vsc-deq-band-btn { width: 30px; height: 30px; border: 1px solid #555; background: #222; color: #ccc; font-weight: bold; }
-                .vsc-deq-band-btn.active { border-color: #3498db; background: #3498db; color: white; }
-                #vsc-mbc-modal {
-                    display: none; position: fixed; top: 50%; left: 50%;
-                    transform: translate(-50%, -50%);
-                    width: auto; height: auto;
-                    background: rgba(0,0,0,0.5); z-index: ${CONFIG.MAX_Z_INDEX + 1};
-                    justify-content: center; align-items: center;
-                    border-radius: 10px;
-                    padding: 10px;
-                }
-                #vsc-mbc-container {
-                    background: rgba(30,30,30,0.95); border: 1px solid #555; border-radius: 8px;
-                    padding: clamp(8px, 2vw, 12px);
-                    color: white; display: flex; flex-direction: column;
-                    gap: clamp(8px, 1.5vw, 10px);
-                    min-width: clamp(250px, 80vw, 550px);
-                }
-                #vsc-mbc-header { display: flex; justify-content: space-between; align-items: center; }
-                #vsc-mbc-header h3 { margin: 0; font-size: clamp(13px, 2.2vw, 15px); }
-                #vsc-mbc-bands {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 10px;
-                }
-                .vsc-mbc-band { display: flex; flex-direction: column; gap: 8px; padding: clamp(6px, 1.5vw, 8px); border: 1px solid #444; border-radius: 5px; }
-                .vsc-mbc-band h4 { margin: 0 0 8px 0; text-align: center; font-size: clamp(13px, 2.2vw, 14px); color: #3498db; }
-
-                @media (max-width: 600px) {
-                // [추가] 모바일에서 오디오 탭 내부 그리드를 1열로 변경
-                  	.vsc-audio-grid {
-                      	grid-template-columns: 1fr;
-                    }
-                  	.vsc-audio-column {
-                      	border-right: none;
-                      	padding-right: 0;
-                    }
-                  	#vsc-mbc-bands {
-                      	grid-template-columns: 1fr;
-                      	gap: 8px;
-                    }
-                  	#vsc-mbc-container {
-                      	min-width: clamp(250px, 75vw, 300px);
-                    }
-                }
-            `;
-            this.shadowRoot.appendChild(style);
-            this.modalShadowRoot.appendChild(style.cloneNode(true));
-
-            const mainContainer = document.createElement('div');
-            mainContainer.id = 'vsc-main-container';
-            this.uiElements.mainContainer = mainContainer;
-
-            const controlsContainer = document.createElement('div');
-            controlsContainer.id = 'vsc-controls-container';
-
-            const imageSubMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controlsContainer);
-            const imageSelect = document.createElement('select'); imageSelect.className = 'vsc-select';
-            [{ v: "0", t: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ v: (i + 1).toString(), t: `${i + 1}단계` }))].forEach(opt => {
-                const o = document.createElement('option'); o.value = opt.v; o.textContent = opt.t; imageSelect.appendChild(o);
-            });
-            imageSelect.onchange = () => this.stateManager.set('imageFilter.level', parseInt(imageSelect.value, 10));
-            this.subscribe('imageFilter.level', (val) => imageSelect.value = val);
-            imageSelect.value = this.stateManager.get('imageFilter.level');
-            imageSubMenu.appendChild(imageSelect);
-
-            const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer);
-            const videoDefaults = this.stateManager.get('app.isMobile') ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
-
-            // "초기화" 버튼 생성
-            const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '초기화';
-            videoResetBtn.dataset.presetKey = 'reset'; // 고유 키 추가
-            videoResetBtn.onclick = () => {
-                this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
-                this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2);
-                this.stateManager.set('videoFilter.saturation', parseInt(videoDefaults.SATURATION_VALUE));
-                this.stateManager.set('videoFilter.gamma', parseFloat(videoDefaults.GAMMA_VALUE));
-                this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
-                this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE));
-                this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE));
-                this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
-                this.stateManager.set('videoFilter.activePreset', 'reset'); // 상태 변경
-            };
-
-            // [추가] "밝기 1" 버튼 생성
-            const videoshadowsBrightenBtn = document.createElement('button');
-            videoshadowsBrightenBtn.className = 'vsc-btn';
-            videoshadowsBrightenBtn.textContent = '밝기 1';
-            videoshadowsBrightenBtn.dataset.presetKey = 'brighten1'; // 고유 키 추가
-            videoshadowsBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1);
-                this.stateManager.set('videoFilter.saturation', 100);
-                this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', 3);
-                this.stateManager.set('videoFilter.highlights', 1);
-                this.stateManager.set('videoFilter.activePreset', 'brighten1'); // 상태 변경
-            };
-
-            // [추가] "영상 2" 버튼 생성
-            const videoBrightenBtn = document.createElement('button');
-            videoBrightenBtn.className = 'vsc-btn';
-            videoBrightenBtn.textContent = '밝기 2';
-            videoBrightenBtn.dataset.presetKey = 'brighten2'; // 고유 키 추가
-            videoBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.15);
-                this.stateManager.set('videoFilter.saturation', 103);
-                this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', -1);
-                this.stateManager.set('videoFilter.highlights', 1);
-                this.stateManager.set('videoFilter.activePreset', 'brighten2'); // 상태 변경
-            };
-
-            // [추가] "영상 3" 버튼 생성
-            const videoNewBrightenBtn = document.createElement('button');
-            videoNewBrightenBtn.className = 'vsc-btn';
-            videoNewBrightenBtn.textContent = '밝기 3';
-            videoNewBrightenBtn.dataset.presetKey = 'brighten3'; // 고유 키 추가
-            videoNewBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.25);
-                this.stateManager.set('videoFilter.saturation', 105);
-                this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', -2);
-                this.stateManager.set('videoFilter.highlights', 2);
-                this.stateManager.set('videoFilter.activePreset', 'brighten3'); // 상태 변경
-            };
-
-            // [추가] "영상 4" 버튼 생성
-            const videohighBrightenBtn = document.createElement('button');
-            videohighBrightenBtn.className = 'vsc-btn';
-            videohighBrightenBtn.textContent = '밝기 4';
-            videohighBrightenBtn.dataset.presetKey = 'brighten4'; // 고유 키 추가
-            videohighBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.35);
-                this.stateManager.set('videoFilter.saturation', 107);
-                this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', -3);
-                this.stateManager.set('videoFilter.highlights', 3);
-                this.stateManager.set('videoFilter.activePreset', 'brighten4'); // 상태 변경
-            };
-
-            // [추가] 두 버튼을 그룹으로 묶기
-            const videoBtnGroup = document.createElement('div');
-            videoBtnGroup.style.cssText = 'display: flex; gap: 8px; margin-top: 8px;';
-            videoBtnGroup.append(videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videohighBrightenBtn, videoResetBtn); // "영상 밝게" 버튼을 왼쪽에 배치
-
-            // [추가] 상태 변경을 감지하여 버튼의 .active 클래스를 관리
-            const videoButtons = [videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videohighBrightenBtn, videoResetBtn];
-            this.subscribe('videoFilter.activePreset', (activeKey) => {
-                videoButtons.forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
-                });
-            });
-
-            const sharpenDirOptions = [ { value: '4-way', text: '4방향 (기본)' }, { value: '8-way', text: '8방향 (강함)' } ];
-            const sharpenDirSelect = this._createSelectControl( '샤프 방향', sharpenDirOptions, (value) => this.stateManager.set('videoFilter.sharpenDirection', value) );
-            this.subscribe('videoFilter.sharpenDirection', val => sharpenDirSelect.querySelector('select').value = val);
-            sharpenDirSelect.querySelector('select').value = this.stateManager.get('videoFilter.sharpenDirection');
-
-            // [수정] videoSubMenu에 버튼 그룹을 추가하도록 변경
-            videoSubMenu.append(
-                this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
-                this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
-                sharpenDirSelect,
-                this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control,
-                this._createSlider('밝기', 'v-highlights', -50, 50, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
-                this._createSlider('대비', 'v-shadows', -50, 50, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control,
-                this._createSlider('감마(*)', 'v-gamma', 1, 2, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
-                this._createSlider('채도(*)', 'v-saturation', 0, 400, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
-                videoBtnGroup // videoResetBtn 대신 videoBtnGroup을 사용
-            );
-
-            const audioSubMenu = this._createControlGroup('vsc-stereo-controls', '🎧', '사운드 필터', controlsContainer);
-
-            const tabsContainer = document.createElement('div');
-            tabsContainer.className = 'vsc-tabs';
-
-            const panesContainer = document.createElement('div');
-
-            const createTab = (id, text, isActive = false) => {
-                const btn = document.createElement('button');
-                btn.className = 'vsc-tab-btn';
-                btn.dataset.tabId = id;
-                btn.textContent = text;
-                if (isActive) btn.classList.add('active');
-
-                const pane = document.createElement('div');
-                pane.id = id;
-                pane.className = 'vsc-tab-pane';
-                if (isActive) pane.classList.add('active');
-
-                tabsContainer.appendChild(btn);
-                panesContainer.appendChild(pane);
-
-                btn.onclick = () => {
-                    tabsContainer.querySelectorAll('.vsc-tab-btn').forEach(b => b.classList.remove('active'));
-                    panesContainer.querySelectorAll('.vsc-tab-pane').forEach(p => p.classList.remove('active'));
-                    btn.classList.add('active');
-                    pane.classList.add('active');
-                };
-                return pane;
-            };
-
-            const basicPane = createTab('vsc-audio-basic-pane', '기본', true);
-            const dynamicsPane = createTab('vsc-audio-dynamics-pane', '다이나믹스');
-            const clarityPane = createTab('vsc-audio-clarity-pane', '명료도');
-
-            audioSubMenu.append(tabsContainer, panesContainer);
-
-            const basicGrid = document.createElement('div');
-            basicGrid.className = 'vsc-audio-grid';
-            basicGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-            const basicCol1 = document.createElement('div'); basicCol1.className = 'vsc-audio-column';
-            const basicCol2 = document.createElement('div'); basicCol2.className = 'vsc-audio-column';
-
-            const eqSliders = [
-                this._createSlider('초저음', 'eq-sub', -12, 12, 1, 'audio.eqSubBassGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
-                this._createSlider('저음', 'eq-bass', -12, 12, 1, 'audio.eqBassGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
-                this._createSlider('중음', 'eq-mid', -12, 12, 1, 'audio.eqMidGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
-                this._createSlider('고음', 'eq-treble', -12, 12, 1, 'audio.eqTrebleGain', 'dB', v => `${v.toFixed(0)}dB`).slider,
-                this._createSlider('초고음', 'eq-pres', -12, 12, 1, 'audio.eqPresenceGain', 'dB', v => `${v.toFixed(0)}dB`).slider
-            ];
-            const hpfSlider = this._createSlider('주파수', 'hpf-freq', 20, 500, 5, 'audio.hpfHz', 'Hz', v => `${v.toFixed(0)}Hz`).slider;
-            basicCol1.append(
-                this._createToggleBtn('eq-toggle', 'EQ', 'audio.isEqEnabled'),
-                ...eqSliders.map(s => s.parentElement),
-                this._createDivider(),
-                this._createSlider('베이스 부스트', 'bass-boost', 0, 9, 0.5, 'audio.bassBoostGain', 'dB', v => `${v.toFixed(1)}dB`).control
-            );
-            const preGainGroup = document.createElement('div');
-            preGainGroup.className = 'vsc-button-group';
-            const manualVolBtn = this._createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
-            const agcBtn = this._createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
-            const autoVolBtn = this._createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
-            autoVolBtn.textContent = '자동';
-            autoVolBtn.appendChild(document.createElement('br'));
-            autoVolBtn.appendChild(document.createTextNode('보정'));
-
-            preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
-
-            const widenSlider = this._createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
-            const reverbSlider = this._createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
-            const preGainSlider = this._createSlider('볼륨 크기', 'pre-gain-slider', 0, CONFIG.MAX_PRE_GAIN, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
-            basicCol2.append(
-                this._createToggleBtn('widen-toggle', 'Virtualizer', 'audio.isWideningEnabled'), widenSlider.parentElement,
-                this._createToggleBtn('adaptive-width-toggle', 'Bass Mono', 'audio.isAdaptiveWidthEnabled'),
-                this._createDivider(),
-                this._createToggleBtn('reverb-toggle', '리버브', 'audio.isReverbEnabled'), reverbSlider.parentElement,
-                this._createDivider(),
-                this._createSlider('Pan', 'pan', -1, 1, 0.1, 'audio.stereoPan', '', v => v.toFixed(1)).control,
-                this._createDivider(),
-                preGainGroup, preGainSlider.parentElement,
-                this._createDivider(),
-                this._createToggleBtn('hpf-toggle', 'HPF', 'audio.isHpfEnabled'),
-                hpfSlider.parentElement
-            );
-            this.uiElements.manualVolBtn = manualVolBtn;
-            this.uiElements.preGainSlider = preGainSlider;
-            basicGrid.append(basicCol1, basicCol2);
-            basicPane.appendChild(basicGrid);
-
-            const dynamicsGrid = document.createElement('div');
-            dynamicsGrid.className = 'vsc-audio-grid';
-            dynamicsGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-            const dynamicsCol1 = document.createElement('div'); dynamicsCol1.className = 'vsc-audio-column';
-            const dynamicsCol2 = document.createElement('div'); dynamicsCol2.className = 'vsc-audio-column';
-
-            const deesserSliders = [
-                this._createSlider('강도', 'deesser-thresh', -60, 0, 1, 'audio.deesserThreshold', 'dB', v => `${v.toFixed(0)}dB`).slider,
-                this._createSlider('주파수', 'deesser-freq', 4000, 12000, 100, 'audio.deesserFreq', 'kHz', v => `${(v/1000).toFixed(1)}kHz`).slider
-            ];
-            const exciterSlider = this._createSlider('강도', 'exciter-amount', 0, 100, 1, 'audio.exciterAmount', '%', v => `${v.toFixed(0)}%`).slider;
-            const pcompSlider = this._createSlider('믹스', 'pcomp-mix', 0, 100, 1, 'audio.parallelCompMix', '%', v => `${v.toFixed(0)}%`).slider;
-
-            dynamicsCol1.append(
-                this._createToggleBtn('deesser-toggle', '디에서', 'audio.isDeesserEnabled'), ...deesserSliders.map(s=>s.parentElement),
-                this._createDivider(),
-                this._createToggleBtn('exciter-toggle', '익사이터', 'audio.isExciterEnabled'), exciterSlider.parentElement,
-                this._createDivider(),
-                this._createToggleBtn('pcomp-toggle', '업컴프', 'audio.isParallelCompEnabled'), pcompSlider.parentElement
-            );
-
-            const mbcGroup = document.createElement('div');
-            mbcGroup.className = 'vsc-button-group';
-            const mbcToggleBtn = this._createToggleBtn('mbc-toggle', '멀티밴드', 'audio.isMultibandCompEnabled');
-            const mbcSettingsBtn = document.createElement('button');
-            mbcSettingsBtn.className = 'vsc-btn';
-            mbcSettingsBtn.textContent = '설정';
-            mbcSettingsBtn.onclick = () => {
-                const modal = this.modalShadowRoot.getElementById('vsc-mbc-modal');
-                if (modal) modal.style.display = 'flex';
-            };
-            this.subscribe('audio.isMultibandCompEnabled', (isEnabled) => mbcSettingsBtn.disabled = !isEnabled);
-            mbcSettingsBtn.disabled = !this.stateManager.get('audio.isMultibandCompEnabled');
-            mbcGroup.append(mbcToggleBtn, mbcSettingsBtn);
-
-            const masteringContainer = document.createElement('div');
-            masteringContainer.className = 'vsc-mastering-group';
-            const masteringToggleBtn = this._createToggleBtn('mastering-toggle', '마스터링', 'audio.isMasteringSuiteEnabled');
-            masteringToggleBtn.addEventListener('click', () => { this.stateManager.set('audio.isLimiterEnabled', false); });
-            const transientSliderObj = this._createSlider('타격감', 'master-transient', 0, 1, 0.01, 'audio.masteringTransientAmount', '%', v => `${(v * 100).toFixed(0)}%`);
-            const driveSliderObj = this._createSlider('음압', 'master-drive', 0, 12, 0.5, 'audio.masteringDrive', 'dB', v => `${v.toFixed(1)}dB`);
-            masteringContainer.append(masteringToggleBtn, transientSliderObj.control, driveSliderObj.control);
-
-            dynamicsCol2.append(
-                 mbcGroup,
-                 this._createDivider(),
-                 masteringContainer
-            );
-            dynamicsGrid.append(dynamicsCol1, dynamicsCol2);
-            dynamicsPane.appendChild(dynamicsGrid);
-
-            const deqToggleBtn = this._createToggleBtn('deq-toggle', '스마트 명료도 활성화', 'audio.isDynamicEqEnabled');
-            deqToggleBtn.style.width = '100%';
-
-            const bandSelectors = document.createElement('div');
-            bandSelectors.className = 'vsc-deq-band-selectors';
-
-            const deqControlsContainer = document.createElement('div');
-            deqControlsContainer.style.display = 'flex';
-            deqControlsContainer.style.flexDirection = 'column';
-            deqControlsContainer.style.gap = '8px';
-            deqControlsContainer.style.width = '250px';
-
-            const deqFreqSlider = this._createSlider('Frequency', 'deq-freq', 20, 20000, 1, `audio.dynamicEq.bands.0.freq`, 'Hz', v => `${v < 1000 ? v.toFixed(0) : (v/1000).toFixed(1)} ${v < 1000 ? 'Hz' : 'kHz'}`).control;
-            const deqQSlider = this._createSlider('Q', 'deq-q', 0.1, 10, 0.1, `audio.dynamicEq.bands.0.q`, '', v => v.toFixed(1)).control;
-            const deqThresholdSlider = this._createSlider('Threshold', 'deq-thresh', -60, 0, 1, `audio.dynamicEq.bands.0.threshold`, 'dB', v => `${v.toFixed(0)}dB`).control;
-            const deqGainSlider = this._createSlider('Gain', 'deq-gain', -12, 12, 1, `audio.dynamicEq.bands.0.gain`, 'dB', v => `${v.toFixed(0)}dB`).control;
-
-            deqControlsContainer.append(deqFreqSlider, deqQSlider, deqThresholdSlider, deqGainSlider);
-
-            const updateDeqUI = () => {
-                const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
-                const bands = this.stateManager.get('audio.dynamicEq.bands');
-                if (!bands || !bands[activeBandIndex]) return;
-                const bandSettings = bands[activeBandIndex];
-
-                bandSelectors.querySelectorAll('.vsc-deq-band-btn').forEach((btn, index) => {
-                    btn.classList.toggle('active', index === activeBandIndex);
-                });
-
-                const updateSlider = (sliderEl, value) => {
-                    if (sliderEl && Math.abs(sliderEl.value - value) > 0.001) {
-                         sliderEl.value = value;
-                         sliderEl.dispatchEvent(new Event('input', { bubbles:true }));
-                    }
-                };
-                updateSlider(deqControlsContainer.querySelector('#deq-freq'), bandSettings.freq);
-                updateSlider(deqControlsContainer.querySelector('#deq-q'), bandSettings.q);
-                updateSlider(deqControlsContainer.querySelector('#deq-thresh'), bandSettings.threshold);
-                updateSlider(deqControlsContainer.querySelector('#deq-gain'), bandSettings.gain);
-            };
-
-            for (let i = 1; i <= 4; i++) {
-                const btn = document.createElement('button');
-                btn.className = 'vsc-btn vsc-deq-band-btn';
-                btn.textContent = i;
-                btn.dataset.bandIndex = i;
-                btn.onclick = () => {
-                    this.stateManager.set('audio.dynamicEq.activeBand', i);
-                };
-                bandSelectors.appendChild(btn);
-            }
-            this.subscribe('audio.dynamicEq.activeBand', updateDeqUI);
-
-            const createDeqSliderUpdater = (param) => (e) => {
-                const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
-                let bands = JSON.parse(JSON.stringify(this.stateManager.get('audio.dynamicEq.bands')));
-                bands[activeBandIndex][param] = parseFloat(e.target.value);
-                this.stateManager.set('audio.dynamicEq.bands', bands);
-            };
-
-            deqControlsContainer.querySelector('#deq-freq').oninput = debounce(createDeqSliderUpdater('freq'), 50);
-            deqControlsContainer.querySelector('#deq-q').oninput = debounce(createDeqSliderUpdater('q'), 50);
-            deqControlsContainer.querySelector('#deq-thresh').oninput = debounce(createDeqSliderUpdater('threshold'), 50);
-            deqControlsContainer.querySelector('#deq-gain').oninput = debounce(createDeqSliderUpdater('gain'), 50);
-            this.subscribe('audio.dynamicEq.bands', updateDeqUI);
-
-            this.subscribe('audio.isDynamicEqEnabled', (isEnabled) => {
-                deqControlsContainer.style.opacity = isEnabled ? '1' : '0.5';
-                deqControlsContainer.querySelectorAll('input').forEach(input => input.disabled = !isEnabled);
-            });
-            deqControlsContainer.style.opacity = this.stateManager.get('audio.isDynamicEqEnabled') ? '1' : '0.5';
-            deqControlsContainer.querySelectorAll('input').forEach(input => input.disabled = !this.stateManager.get('audio.isDynamicEqEnabled'));
-
-            clarityPane.append(deqToggleBtn, bandSelectors, deqControlsContainer);
-            updateDeqUI();
-
-            const bottomControls = document.createElement('div');
-            bottomControls.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid #444; padding-top: 8px; margin-top: 8px;';
-            const presetSelect = document.createElement('select');
-            presetSelect.className = 'vsc-select vsc-preset-select';
-            Object.entries(this.presetMap).forEach(([key, val]) => {
-                const opt = document.createElement('option');
-                opt.value = key; opt.textContent = val.name;
-                presetSelect.appendChild(opt);
-            });
-            const resetBtn = document.createElement('button'); resetBtn.className = 'vsc-btn'; resetBtn.textContent = '초기화';
-
-            bottomControls.append(presetSelect, resetBtn);
-            [basicPane, dynamicsPane, clarityPane].forEach(pane => pane.appendChild(bottomControls.cloneNode(true)));
-
-            panesContainer.querySelectorAll('.vsc-preset-select').forEach(sel => {
-                sel.onchange = (e) => this.applyPreset(e.target.value);
-            });
-            panesContainer.querySelectorAll('button').forEach(btn => {
-                if(btn.textContent === '초기화') {
-                    btn.onclick = () => this.applyPreset('default');
-                }
-            });
-
-
-            this.createMultibandCompModal();
-
-            const setupSliderToggle = (stateKey, sliders) => {
-                const update = (isEnabled) => sliders.forEach(s => { if(s) s.disabled = !isEnabled; });
-                this.subscribe(stateKey, update);
-                update(this.stateManager.get(stateKey));
-            };
-            setupSliderToggle('audio.isEqEnabled', eqSliders);
-            setupSliderToggle('audio.isDeesserEnabled', deesserSliders);
-            setupSliderToggle('audio.isExciterEnabled', [exciterSlider]);
-            setupSliderToggle('audio.isParallelCompEnabled', [pcompSlider]);
-            setupSliderToggle('audio.isWideningEnabled', [widenSlider]);
-            setupSliderToggle('audio.isReverbEnabled', [reverbSlider]);
-            setupSliderToggle('audio.isHpfEnabled', [hpfSlider]);
-            setupSliderToggle('audio.isMasteringSuiteEnabled', [transientSliderObj.slider, driveSliderObj.slider]);
-
-            this.subscribe('audio.isLoudnessNormalizationEnabled', (isAuto) => {
-                if (isAuto) {
-                    // [추가] '자동 보정'이 켜지면, 충돌 방지를 위해 'AGC'를 자동으로 끕니다.
-                    this.stateManager.set('audio.isAgcEnabled', false);
-                    this.stateManager.set('audio.preGainEnabledBeforeAuto', this.stateManager.get('audio.isPreGainEnabled'));
-                    this.stateManager.set('audio.isPreGainEnabled', true);
-                } else {
-                    this.stateManager.set('audio.isPreGainEnabled', this.stateManager.get('audio.preGainEnabledBeforeAuto'));
-                }
-                this._updateVolumeControlsState();
-            });
-
-            this.subscribe('audio.isPreGainEnabled', () => {
-                this._updateVolumeControlsState();
-            });
-
-            // [수정 시작] AGC 상태 변경 감지 로직
-            this.subscribe('audio.isAgcEnabled', (isNowEnabled) => {
-                if (isNowEnabled) {
-                    // AGC가 활성화되면, '자동 보정'을 비활성화합니다.
-                    this.stateManager.set('audio.isLoudnessNormalizationEnabled', false);
-
-                    // [추가] '볼륨' 수동 조절도 함께 비활성화합니다.
-                    this.stateManager.set('audio.isPreGainEnabled', false);
-                } else {
-                    // AGC가 비활성화되면, 기억해 둔 프리셋 볼륨을 복원합니다.
-                    const rememberedGain = this.stateManager.get('audio.presetGainMemory');
-                    if (rememberedGain !== null && rememberedGain !== undefined) {
-                        this.stateManager.set('audio.isPreGainEnabled', true);
-                        this.stateManager.set('audio.preGain', rememberedGain);
-                        this.stateManager.set('audio.lastManualPreGain', rememberedGain);
-                    }
-                }
-            });
-            // [수정 끝]
-
             this._updateVolumeControlsState();
+        });
 
-            if (this.speedButtons.length === 0) {
-                CONFIG.SPEED_PRESETS.forEach(speed => {
-                    const btn = document.createElement('button');
-                    btn.textContent = `${speed.toFixed(1)}x`;
-                    btn.dataset.speed = speed;
-                    btn.className = 'vsc-btn';
-                    Object.assign(btn.style, {
-                        background: 'rgba(52, 152, 219, 0.7)', color: 'white',
-                        width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)',
-                        fontSize: 'clamp(12px, 2vmin, 14px)', padding: '0',
-                        transition: 'background-color 0.2s, box-shadow 0.2s'
-                    });
+        this.subscribe('audio.isPreGainEnabled', () => {
+            this._updateVolumeControlsState();
+        });
 
-                    btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
-                    this.speedButtonsContainer.appendChild(btn);
-                    this.speedButtons.push(btn);
+        this.subscribe('audio.isAgcEnabled', (isNowEnabled) => {
+            if (isNowEnabled) {
+                this.stateManager.set('audio.isLoudnessNormalizationEnabled', false);
+                this.stateManager.set('audio.isPreGainEnabled', false);
+            } else {
+                const rememberedGain = this.stateManager.get('audio.presetGainMemory');
+                if (rememberedGain !== null && rememberedGain !== undefined) {
+                    this.stateManager.set('audio.isPreGainEnabled', true);
+                    this.stateManager.set('audio.preGain', rememberedGain);
+                    this.stateManager.set('audio.lastManualPreGain', rememberedGain);
+                }
+            }
+        });
+
+        this._updateVolumeControlsState();
+
+        if (this.speedButtons.length === 0) {
+            CONFIG.SPEED_PRESETS.forEach(speed => {
+                const btn = document.createElement('button');
+                btn.textContent = `${speed.toFixed(1)}x`;
+                btn.dataset.speed = speed;
+                btn.className = 'vsc-btn';
+                Object.assign(btn.style, {
+                    background: 'rgba(52, 152, 219, 0.7)',
+                    color: 'white',
+                    width: 'clamp(30px, 6vmin, 40px)',
+                    height: 'clamp(20px, 4vmin, 30px)',
+                    fontSize: 'clamp(12px, 2vmin, 14px)',
+                    padding: '0',
+                    transition: 'background-color 0.2s, box-shadow 0.2s'
                 });
-                const isLiveJumpSite = CONFIG.LIVE_JUMP_WHITELIST.some(d =>
-                    location.hostname === d || location.hostname.endsWith('.' + d)
-                );
-                if (isLiveJumpSite) {
-                    const liveJumpBtn = document.createElement('button');
-                    liveJumpBtn.textContent = '⚡';
-                    liveJumpBtn.title = '실시간으로 이동';
-                    liveJumpBtn.className = 'vsc-btn';
-                    Object.assign(liveJumpBtn.style, {
-                        width: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                        height: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
-                        fontSize: this.stateManager.get('app.isMobile') ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-                        borderRadius: '50%', padding: '0',
-                        transition: 'box-shadow 0.3s'
-                    });
-                    liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now());
-                    this.speedButtonsContainer.appendChild(liveJumpBtn);
-                }
+
+                btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
+                this.speedButtonsContainer.appendChild(btn);
+                this.speedButtons.push(btn);
+            });
+            const isLiveJumpSite = CONFIG.LIVE_JUMP_WHITELIST.some(d =>
+                location.hostname === d || location.hostname.endsWith('.' + d)
+            );
+            if (isLiveJumpSite) {
+                const liveJumpBtn = document.createElement('button');
+                liveJumpBtn.textContent = '⚡';
+                liveJumpBtn.title = '실시간으로 이동';
+                liveJumpBtn.className = 'vsc-btn';
+                Object.assign(liveJumpBtn.style, {
+                    width: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+                    height: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
+                    fontSize: this.stateManager.get('app.isMobile') ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
+                    borderRadius: '50%',
+                    padding: '0',
+                    transition: 'box-shadow 0.3s'
+                });
+                liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now());
+                this.speedButtonsContainer.appendChild(liveJumpBtn);
             }
-
-
-            mainContainer.appendChild(controlsContainer);
-            this.shadowRoot.appendChild(mainContainer);
-            this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
         }
 
-        createMultibandCompModal() {
-            const modal = document.createElement('div');
-            modal.id = 'vsc-mbc-modal';
-            modal.onclick = () => modal.style.display = 'none';
+        mainContainer.appendChild(controlsContainer);
+        this.shadowRoot.appendChild(mainContainer);
+        this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
+    }
 
-            const container = document.createElement('div');
-            container.id = 'vsc-mbc-container';
-            container.onclick = e => e.stopPropagation();
+    createMultibandCompModal() {
+        const modal = document.createElement('div');
+        modal.id = 'vsc-mbc-modal';
+        modal.onclick = () => modal.style.display = 'none';
 
-            const header = document.createElement('div');
-            header.id = 'vsc-mbc-header';
-            const title = document.createElement('h3');
-            title.textContent = '멀티밴드 컴프레서 설정';
-            const closeBtn = document.createElement('button');
-            closeBtn.className = 'vsc-btn';
-            closeBtn.textContent = '✖';
-            closeBtn.onclick = () => modal.style.display = 'none';
-            header.append(title, closeBtn);
+        const container = document.createElement('div');
+        container.id = 'vsc-mbc-container';
+        container.onclick = e => e.stopPropagation();
 
-            const bandsContainer = document.createElement('div');
-            bandsContainer.id = 'vsc-mbc-bands';
+        const header = document.createElement('div');
+        header.id = 'vsc-mbc-header';
+        const title = document.createElement('h3');
+        title.textContent = '멀티밴드 컴프레서 설정';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'vsc-btn';
+        closeBtn.textContent = '✖';
+        closeBtn.onclick = () => modal.style.display = 'none';
+        header.append(title, closeBtn);
 
-            const bandInfo = {
-                low: { name: 'Low', color: '#e74c3c'},
-                lowMid: { name: 'Low Mid', color: '#f39c12'},
-                highMid: { name: 'High Mid', color: '#2ecc71'},
-                high: { name: 'High', color: '#3498db'},
-            };
+        const bandsContainer = document.createElement('div');
+        bandsContainer.id = 'vsc-mbc-bands';
 
-            for (const [key, info] of Object.entries(bandInfo)) {
-                const bandDiv = document.createElement('div');
-                bandDiv.className = 'vsc-mbc-band';
+        const bandInfo = {
+            low: { name: 'Low', color: '#e74c3c'},
+            lowMid: { name: 'Low Mid', color: '#f39c12'},
+            highMid: { name: 'High Mid', color: '#2ecc71'},
+            high: { name: 'High', color: '#3498db'},
+        };
 
-                const bandTitle = document.createElement('h4');
-                bandTitle.textContent = info.name;
-                bandTitle.style.color = info.color;
-                bandDiv.appendChild(bandTitle);
+        for (const [key, info] of Object.entries(bandInfo)) {
+            const bandDiv = document.createElement('div');
+            bandDiv.className = 'vsc-mbc-band';
 
-                bandDiv.appendChild(this._createSlider('Threshold', `mbc-${key}-thresh`, -100, 0, 1, `audio.multibandComp.${key}.threshold`, 'dB', v => `${v.toFixed(0)} dB`).control);
-                bandDiv.appendChild(this._createSlider('Ratio', `mbc-${key}-ratio`, 1, 20, 1, `audio.multibandComp.${key}.ratio`, ':1', v => `${v.toFixed(0)}:1`).control);
-                bandDiv.appendChild(this._createSlider('Attack', `mbc-${key}-attack`, 0, 1, 0.001, `audio.multibandComp.${key}.attack`, 's', v => `${(v*1000).toFixed(0)} ms`).control);
-                bandDiv.appendChild(this._createSlider('Release', `mbc-${key}-release`, 0.01, 1, 0.01, `audio.multibandComp.${key}.release`, 's', v => `${(v*1000).toFixed(0)} ms`).control);
-                bandDiv.appendChild(this._createSlider('Makeup', `mbc-${key}-makeup`, 0, 24, 1, `audio.multibandComp.${key}.makeupGain`, 'dB', v => `${v.toFixed(0)} dB`).control);
+            const bandTitle = document.createElement('h4');
+            bandTitle.textContent = info.name;
+            bandTitle.style.color = info.color;
+            bandDiv.appendChild(bandTitle);
 
-                bandsContainer.appendChild(bandDiv);
-            }
+            bandDiv.appendChild(this._createSlider('Threshold', `mbc-${key}-thresh`, -100, 0, 1, `audio.multibandComp.${key}.threshold`, 'dB', v => `${v.toFixed(0)} dB`).control);
+            bandDiv.appendChild(this._createSlider('Ratio', `mbc-${key}-ratio`, 1, 20, 1, `audio.multibandComp.${key}.ratio`, ':1', v => `${v.toFixed(0)}:1`).control);
+            bandDiv.appendChild(this._createSlider('Attack', `mbc-${key}-attack`, 0, 1, 0.001, `audio.multibandComp.${key}.attack`, 's', v => `${(v*1000).toFixed(0)} ms`).control);
+            bandDiv.appendChild(this._createSlider('Release', `mbc-${key}-release`, 0.01, 1, 0.01, `audio.multibandComp.${key}.release`, 's', v => `${(v*1000).toFixed(0)} ms`).control);
+            bandDiv.appendChild(this._createSlider('Makeup', `mbc-${key}-makeup`, 0, 24, 1, `audio.multibandComp.${key}.makeupGain`, 'dB', v => `${v.toFixed(0)} dB`).control);
 
-            const modalResetBtn = document.createElement('button');
-            modalResetBtn.className = 'vsc-btn';
-            modalResetBtn.textContent = '모든 밴드 초기화';
-            modalResetBtn.style.alignSelf = 'center';
-            modalResetBtn.onclick = () => {
-            const defaultSettings = CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS;
-            for (const bandKey of Object.keys(bandInfo)) {
-                for (const [paramKey, paramValue] of Object.entries(defaultSettings[bandKey])) {
-                    this.stateManager.set(`audio.multibandComp.${bandKey}.${paramKey}`, paramValue);
-                }
-            }
-            };
-
-            container.append(header, bandsContainer, modalResetBtn);
-            modal.appendChild(container);
-            this.modalShadowRoot.appendChild(modal);
+            bandsContainer.appendChild(bandDiv);
         }
 
-        _updateVolumeControlsState() {
-            if (!this.shadowRoot) return;
+        const modalResetBtn = document.createElement('button');
+        modalResetBtn.className = 'vsc-btn';
+        modalResetBtn.textContent = '모든 밴드 초기화';
+        modalResetBtn.style.alignSelf = 'center';
+        modalResetBtn.onclick = () => {
+        const defaultSettings = CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS;
+        for (const bandKey of Object.keys(bandInfo)) {
+            for (const [paramKey, paramValue] of Object.entries(defaultSettings[bandKey])) {
+                this.stateManager.set(`audio.multibandComp.${bandKey}.${paramKey}`, paramValue);
+            }
+        }
+        };
 
-            const isAuto = this.stateManager.get('audio.isLoudnessNormalizationEnabled');
-            const isManual = this.stateManager.get('audio.isPreGainEnabled');
+        container.append(header, bandsContainer, modalResetBtn);
+        modal.appendChild(container);
+        this.modalShadowRoot.appendChild(modal);
+    }
 
-            const manualVolBtn = this.uiElements.manualVolBtn;
-            const preGainSlider = this.uiElements.preGainSlider;
+    _updateVolumeControlsState() {
+        if (!this.shadowRoot) return;
 
-            if (manualVolBtn) manualVolBtn.disabled = isAuto;
-            if (preGainSlider) preGainSlider.disabled = isAuto || !isManual;
+        const isAuto = this.stateManager.get('audio.isLoudnessNormalizationEnabled');
+        const isManual = this.stateManager.get('audio.isPreGainEnabled');
+
+        const manualVolBtn = this.uiElements.manualVolBtn;
+        const preGainSlider = this.uiElements.preGainSlider;
+
+        if (manualVolBtn) manualVolBtn.disabled = isAuto;
+        if (preGainSlider) preGainSlider.disabled = isAuto || !isManual;
+    }
+
+
+    async applyPreset(presetKey) {
+        const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
+
+        if (!isAgcEnabled || !this.audioFXPlugin) {
+            this._applyPresetSettings(presetKey);
+            if (this.audioFXPlugin) {
+                this.stateManager.set('audio.activityCheckRequested', Date.now());
+            }
+            return;
         }
 
+        try {
+            const rmsBefore = await this.audioFXPlugin._getInstantRMS();
+            this._applyPresetSettings(presetKey);
 
-        async applyPreset(presetKey) {
-    const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
+            await new Promise(resolve => setTimeout(resolve, CONFIG.UI_AGC_APPLY_DELAY));
 
-    if (!isAgcEnabled || !this.audioFXPlugin) {
-        this._applyPresetSettings(presetKey);
-        if (this.audioFXPlugin) {
+            const rmsAfter = await this.audioFXPlugin._getInstantRMS();
+
+            if (rmsBefore > 0.001 && rmsAfter > 0.001) {
+                const ratio = rmsBefore / rmsAfter;
+                const currentPreGain = this.stateManager.get('audio.preGain');
+                let compensatedGain = currentPreGain * ratio;
+                compensatedGain = Math.max(0.1, Math.min(compensatedGain, CONFIG.MAX_PRE_GAIN));
+
+                this.stateManager.set('audio.preGain', compensatedGain);
+                this.stateManager.set('audio.lastManualPreGain', compensatedGain);
+            }
+        } catch (error) {
+            console.error("[VSC] Error applying preset with AGC:", error);
+        } finally {
             this.stateManager.set('audio.activityCheckRequested', Date.now());
         }
-        return;
     }
 
-    try {
-        const rmsBefore = await this.audioFXPlugin._getInstantRMS();
-        this._applyPresetSettings(presetKey);
 
-        await new Promise(resolve => setTimeout(resolve, CONFIG.UI_AGC_APPLY_DELAY));
+    _applyPresetSettings(presetKey) {
+        const p = this.presetMap[presetKey];
+        if (!p) return;
 
-        const rmsAfter = await this.audioFXPlugin._getInstantRMS();
+        this.stateManager.set('audio.audioInitialized', true);
 
-        if (rmsBefore > 0.001 && rmsAfter > 0.001) {
-            const ratio = rmsBefore / rmsAfter;
-            const currentPreGain = this.stateManager.get('audio.preGain');
-            let compensatedGain = currentPreGain * ratio;
-            compensatedGain = Math.max(0.1, Math.min(compensatedGain, CONFIG.MAX_PRE_GAIN));
+        const newTargetLUFS = p.targetLUFS ?? CONFIG.LOUDNESS_TARGET;
+        this.stateManager.set('audio.loudnessTarget', newTargetLUFS);
 
-            this.stateManager.set('audio.preGain', compensatedGain);
-            this.stateManager.set('audio.lastManualPreGain', compensatedGain);
+        const defaults = {
+            isHpfEnabled: false, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
+            isEqEnabled: false, eqSubBassGain: 0, eqBassGain: 0, eqMidGain: 0, eqTrebleGain: 0, eqPresenceGain: 0,
+            bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN, bassBoostFreq: 60, bassBoostQ: 1.0,
+            isWideningEnabled: false, wideningFactor: 1.0, isAdaptiveWidthEnabled: false, adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
+            isReverbEnabled: false, reverbMix: CONFIG.DEFAULT_REVERB_MIX, stereoPan: 0,
+            isPreGainEnabled: false, preGain: 1.0, isDeesserEnabled: false, deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
+            isExciterEnabled: false, exciterAmount: 0, isParallelCompEnabled: false, parallelCompMix: 0,
+            isLimiterEnabled: false, isMasteringSuiteEnabled: false, masteringTransientAmount: 0.2, masteringDrive: 0,
+            isLoudnessNormalizationEnabled: false,
+            isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
+            isDynamicEqEnabled: false,
+        };
+
+        const presetValues = {
+            isHpfEnabled: p.hpf_enabled ?? defaults.isHpfEnabled, hpfHz: p.hpf_hz ?? defaults.hpfHz,
+            isEqEnabled: p.eq_enabled ?? defaults.isEqEnabled, eqSubBassGain: p.eq_subBass ?? defaults.eqSubBassGain,
+            eqBassGain: p.eq_bass ?? defaults.eqBassGain, eqMidGain: p.eq_mid ?? defaults.eqMidGain,
+            eqTrebleGain: p.eq_treble ?? defaults.eqTrebleGain, eqPresenceGain: p.eq_presence ?? defaults.eqPresenceGain,
+            bassBoostGain: p.bass_boost_gain ?? defaults.bassBoostGain,
+            bassBoostFreq: p.bass_boost_freq ?? defaults.bassBoostFreq,
+            bassBoostQ: p.bass_boost_q ?? defaults.bassBoostQ,
+            isWideningEnabled: p.widen_enabled ?? defaults.isWideningEnabled, wideningFactor: p.widen_factor ?? defaults.wideningFactor,
+            isAdaptiveWidthEnabled: p.adaptive_enabled ?? defaults.isAdaptiveWidthEnabled,
+            adaptiveWidthFreq: p.adaptive_width_freq ?? defaults.adaptiveWidthFreq,
+            isReverbEnabled: p.reverb_enabled ?? defaults.isReverbEnabled, reverbMix: p.reverb_mix ?? defaults.reverbMix, stereoPan: p.pan_value ?? defaults.stereoPan,
+            isPreGainEnabled: p.preGain_enabled ?? defaults.isPreGainEnabled, preGain: p.preGain_value ?? defaults.preGain,
+            isDeesserEnabled: p.deesser_enabled ?? defaults.isDeesserEnabled, deesserThreshold: p.deesser_threshold ?? defaults.deesserThreshold, deesserFreq: p.deesser_freq ?? defaults.deesserFreq,
+            isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount,
+            isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
+            isLimiterEnabled: p.limiter_enabled ?? defaults.isLimiterEnabled,
+            isMasteringSuiteEnabled: p.mastering_suite_enabled ?? defaults.isMasteringSuiteEnabled, masteringTransientAmount: p.mastering_transient ?? defaults.masteringTransientAmount, masteringDrive: p.mastering_drive ?? defaults.masteringDrive,
+            isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled ?? (presetKey === 'default' ? false : this.stateManager.get('audio.isLoudnessNormalizationEnabled')),
+            isMultibandCompEnabled: p.multiband_enabled ?? defaults.isMultibandCompEnabled,
+            isDynamicEqEnabled: p.smartEQ_enabled ?? defaults.isDynamicEqEnabled,
+        };
+
+        if (presetKey === 'default') {
+            presetValues.isAgcEnabled = true;
+            presetValues.isPreGainEnabled = false;
         }
-    } catch (error) {
-        console.error("[VSC] Error applying preset with AGC:", error);
-    } finally {
-        this.stateManager.set('audio.activityCheckRequested', Date.now());
+
+        const isAgcActive = this.stateManager.get('audio.isAgcEnabled') || this.stateManager.get('audio.isLoudnessNormalizationEnabled');
+
+        if (isAgcActive && p.hasOwnProperty('preGain_value')) {
+            this.stateManager.set('audio.presetGainMemory', p.preGain_value);
+        }
+
+        for (const key in presetValues) {
+            if (isAgcActive && (key === 'isPreGainEnabled' || key === 'preGain')) {
+                continue;
+            }
+            this.stateManager.set(`audio.${key}`, presetValues[key]);
+        }
+
+        if (p.multiband_bands && Array.isArray(p.multiband_bands) && p.multiband_bands.length === 4) {
+            const bandKeys = ['low', 'lowMid', 'highMid', 'high'];
+            p.multiband_bands.forEach((bandData, index) => {
+                const key = bandKeys[index];
+                const newSettings = {
+                    crossover: bandData.freqHigh,
+                    threshold: bandData.threshold,
+                    ratio: bandData.ratio,
+                    attack: bandData.attack / 1000,
+                    release: bandData.release / 1000,
+                    makeupGain: bandData.makeup,
+                };
+                for (const [param, value] of Object.entries(newSettings)) {
+                    this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
+                }
+            });
+        } else if (presetKey === 'default') {
+            const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
+            for (const [key, settings] of Object.entries(defaultSettings)) {
+                for (const [param, value] of Object.entries(settings)) {
+                    this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
+                }
+            }
+        }
+
+        if (p.smartEQ_bands && Array.isArray(p.smartEQ_bands) && p.smartEQ_bands.length === 4) {
+            const newBands = p.smartEQ_bands.map(band => ({
+                freq: band.frequency,
+                q: band.Q,
+                threshold: band.threshold,
+                gain: band.gain
+            }));
+            this.stateManager.set('audio.dynamicEq.bands', newBands);
+        }
+
+        if (!isAgcActive) {
+            this.stateManager.set('audio.lastManualPreGain', presetValues.preGain);
+        }
+
+        this.stateManager.set('audio.activePresetKey', presetKey);
+    }
+
+    attachDragAndDrop() {
+        let pressTimer = null;
+
+        const isInteractiveTarget = (e) => {
+            for (const element of e.composedPath()) {
+                if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(element.tagName)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        const onDragStart = (e) => {
+            if (isInteractiveTarget(e)) return;
+
+            pressTimer = setTimeout(() => {
+                if (this.globalContainer) this.globalContainer.style.display = 'none';
+                onDragEnd();
+            }, 800);
+
+            const pos = e.touches ? e.touches[0] : e;
+            this.startPos = { x: pos.clientX, y: pos.clientY };
+            const initialX = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-x')) || 0;
+            const initialY = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-y')) || 0;
+            this.currentPos = { x: initialX, y: initialY };
+
+            this.isDragging = true;
+            this.wasDragged = false;
+            this.globalContainer.style.transition = 'none';
+
+            document.addEventListener('mousemove', onDragMove, { passive: false });
+            document.addEventListener('mouseup', onDragEnd, { passive: true });
+            document.addEventListener('touchmove', onDragMove, { passive: false });
+            document.addEventListener('touchend', onDragEnd, { passive: true });
+        };
+
+        const updatePosition = () => {
+            if (!this.isDragging || !this.globalContainer) return;
+            const newX = this.currentPos.x + this.delta.x;
+            const newY = this.currentPos.y + this.delta.y;
+            this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`);
+            this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`);
+            this.animationFrameId = null;
+        };
+
+        const onDragMove = (e) => {
+            if (!this.isDragging) return;
+
+            const pos = e.touches ? e.touches[0] : e;
+            this.delta = { x: pos.clientX - this.startPos.x, y: pos.clientY - this.startPos.y };
+
+            if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI_DRAG_THRESHOLD)) {
+                this.wasDragged = true;
+                clearTimeout(pressTimer);
+                if (e.cancelable) e.preventDefault();
+            }
+
+            if (this.wasDragged && this.animationFrameId === null) {
+                this.animationFrameId = requestAnimationFrame(updatePosition);
+            }
+        };
+
+        const onDragEnd = () => {
+            clearTimeout(pressTimer);
+            if (!this.isDragging) return;
+
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+
+            if (this.wasDragged) {
+                this.currentPos.x += this.delta.x;
+                this.currentPos.y += this.delta.y;
+            }
+
+            this.isDragging = false;
+            this.globalContainer.style.transition = '';
+
+            document.removeEventListener('mousemove', onDragMove);
+            document.removeEventListener('mouseup', onDragEnd);
+            document.removeEventListener('touchmove', onDragMove);
+            document.removeEventListener('touchend', onDragEnd);
+
+            setTimeout(() => { this.wasDragged = false; }, 50);
+        };
+
+        this.triggerElement.addEventListener('mousedown', onDragStart);
+        this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
     }
 }
 
+    // --- [ARCHITECTURE] SCRIPT INITIALIZATION ---
+    function main() {
+        const stateManager = new StateManager();
+        const pluginManager = new PluginManager(stateManager);
 
-        _applyPresetSettings(presetKey) {
-            const p = this.presetMap[presetKey];
-            if (!p) return;
+        window.vscPluginManager = pluginManager;
 
-            this.stateManager.set('audio.audioInitialized', true);
+        pluginManager.register(new UIPlugin());
+        pluginManager.register(new CoreMediaPlugin());
+        pluginManager.register(new SvgFilterPlugin());
+        pluginManager.register(new AudioFXPlugin());
+        pluginManager.register(new PlaybackControlPlugin());
+        pluginManager.register(new LiveStreamPlugin());
+        pluginManager.register(new MediaSessionPlugin());
+        pluginManager.register(new NavigationPlugin(pluginManager));
 
-            const newTargetLUFS = p.targetLUFS ?? CONFIG.LOUDNESS_TARGET;
-            this.stateManager.set('audio.loudnessTarget', newTargetLUFS);
+        pluginManager.initAll();
+    }
 
-            const defaults = {
-                isHpfEnabled: false, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
-                isEqEnabled: false, eqSubBassGain: 0, eqBassGain: 0, eqMidGain: 0, eqTrebleGain: 0, eqPresenceGain: 0,
-                bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN, bassBoostFreq: 60, bassBoostQ: 1.0,
-                isWideningEnabled: false, wideningFactor: 1.0, isAdaptiveWidthEnabled: false, adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
-                isReverbEnabled: false, reverbMix: CONFIG.DEFAULT_REVERB_MIX, stereoPan: 0,
-                isPreGainEnabled: false, preGain: 1.0, isDeesserEnabled: false, deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
-                isExciterEnabled: false, exciterAmount: 0, isParallelCompEnabled: false, parallelCompMix: 0,
-                isLimiterEnabled: false, isMasteringSuiteEnabled: false, masteringTransientAmount: 0.2, masteringDrive: 0,
-                isLoudnessNormalizationEnabled: false,
-                isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
-                isDynamicEqEnabled: false,
-            };
-
-            const presetValues = {
-                isHpfEnabled: p.hpf_enabled ?? defaults.isHpfEnabled, hpfHz: p.hpf_hz ?? defaults.hpfHz,
-                isEqEnabled: p.eq_enabled ?? defaults.isEqEnabled, eqSubBassGain: p.eq_subBass ?? defaults.eqSubBassGain,
-                eqBassGain: p.eq_bass ?? defaults.eqBassGain, eqMidGain: p.eq_mid ?? defaults.eqMidGain,
-                eqTrebleGain: p.eq_treble ?? defaults.eqTrebleGain, eqPresenceGain: p.eq_presence ?? defaults.eqPresenceGain,
-                bassBoostGain: p.bass_boost_gain ?? defaults.bassBoostGain,
-                isWideningEnabled: p.widen_enabled ?? defaults.isWideningEnabled, wideningFactor: p.widen_factor ?? defaults.wideningFactor,
-                isAdaptiveWidthEnabled: p.adaptive_enabled ?? defaults.isAdaptiveWidthEnabled, adaptiveWidthFreq: p.adaptive_width_freq ?? defaults.adaptiveWidthFreq,
-                isReverbEnabled: p.reverb_enabled ?? defaults.isReverbEnabled, reverbMix: p.reverb_mix ?? defaults.reverbMix, stereoPan: p.pan_value ?? defaults.stereoPan,
-                isPreGainEnabled: p.preGain_enabled ?? defaults.isPreGainEnabled, preGain: p.preGain_value ?? defaults.preGain,
-                isDeesserEnabled: p.deesser_enabled ?? defaults.isDeesserEnabled, deesserThreshold: p.deesser_threshold ?? defaults.deesserThreshold, deesserFreq: p.deesser_freq ?? defaults.deesserFreq,
-                isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount,
-                isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
-                isLimiterEnabled: p.limiter_enabled ?? defaults.isLimiterEnabled,
-                isMasteringSuiteEnabled: p.mastering_suite_enabled ?? defaults.isMasteringSuiteEnabled, masteringTransientAmount: p.mastering_transient ?? defaults.masteringTransientAmount, masteringDrive: p.mastering_drive ?? defaults.masteringDrive,
-                isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled ?? (presetKey === 'default' ? false : this.stateManager.get('audio.isLoudnessNormalizationEnabled')),
-                isMultibandCompEnabled: p.multiband_enabled ?? defaults.isMultibandCompEnabled,
-                isDynamicEqEnabled: p.smartEQ_enabled ?? defaults.isDynamicEqEnabled,
-            };
-
-            if (presetKey === 'default') {
-                presetValues.isAgcEnabled = true;
-                presetValues.isPreGainEnabled = false;
-            }
-
-            const isAgcActive = this.stateManager.get('audio.isAgcEnabled') || this.stateManager.get('audio.isLoudnessNormalizationEnabled');
-
-            // [추가 시작] AGC 활성화 시 프리셋의 preGain 값을 메모리에 저장
-            if (isAgcActive && p.hasOwnProperty('preGain_value')) {
-                this.stateManager.set('audio.presetGainMemory', p.preGain_value);
-            }
-            // [추가 끝]
-
-
-            for (const key in presetValues) {
-                if (isAgcActive && (key === 'isPreGainEnabled' || key === 'preGain')) {
-                    continue;
-                }
-                this.stateManager.set(`audio.${key}`, presetValues[key]);
-            }
-
-            if (p.multiband_bands && Array.isArray(p.multiband_bands) && p.multiband_bands.length === 4) {
-                const bandKeys = ['low', 'lowMid', 'highMid', 'high'];
-                p.multiband_bands.forEach((bandData, index) => {
-                    const key = bandKeys[index];
-                    const newSettings = {
-                        crossover: bandData.freqHigh,
-                        threshold: bandData.threshold,
-                        ratio: bandData.ratio,
-                        attack: bandData.attack / 1000,
-                        release: bandData.release / 1000,
-                        makeupGain: bandData.makeup,
-                    };
-                    for (const [param, value] of Object.entries(newSettings)) {
-                         this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
-                    }
-                });
-            } else if (presetKey === 'default') {
-                const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
-                for (const [key, settings] of Object.entries(defaultSettings)) {
-                    for (const [param, value] of Object.entries(settings)) {
-                        this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
-                    }
-                }
-            }
-
-            // [BUG FIX] Apply smartEQ_bands from preset to the state
-            if (p.smartEQ_bands && Array.isArray(p.smartEQ_bands) && p.smartEQ_bands.length === 4) {
-                const newBands = p.smartEQ_bands.map(band => ({
-                    freq: band.frequency, // Map preset key 'frequency' to state key 'freq'
-                    q: band.Q,            // Map preset key 'Q' to state key 'q'
-                    threshold: band.threshold,
-                    gain: band.gain
-                }));
-                this.stateManager.set('audio.dynamicEq.bands', newBands);
-            }
-
-
-            if (!isAgcActive) {
-                this.stateManager.set('audio.lastManualPreGain', presetValues.preGain);
-            }
-
-            this.stateManager.set('audio.activePresetKey', presetKey);
-        }
-
-        attachDragAndDrop() {
-            let pressTimer = null;
-
-            const isInteractiveTarget = (e) => {
-                for (const element of e.composedPath()) {
-                    if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(element.tagName)) {
-                        return true;
-                    }
-                }
-                return false;
-            };
-
-            const onDragStart = (e) => {
-                if (isInteractiveTarget(e)) return;
-
-                pressTimer = setTimeout(() => {
-                    if (this.globalContainer) this.globalContainer.style.display = 'none';
-                    onDragEnd();
-                }, 800);
-
-                const pos = e.touches ? e.touches[0] : e;
-                this.startPos = { x: pos.clientX, y: pos.clientY };
-                const initialX = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-x')) || 0;
-                const initialY = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-y')) || 0;
-                this.currentPos = { x: initialX, y: initialY };
-
-                this.isDragging = true;
-                this.wasDragged = false;
-                this.globalContainer.style.transition = 'none';
-
-                document.addEventListener('mousemove', onDragMove, { passive: false });
-                document.addEventListener('mouseup', onDragEnd, { passive: true });
-                document.addEventListener('touchmove', onDragMove, { passive: false });
-                document.addEventListener('touchend', onDragEnd, { passive: true });
-            };
-
-            const updatePosition = () => {
-                if (!this.isDragging || !this.globalContainer) return;
-                const newX = this.currentPos.x + this.delta.x;
-                const newY = this.currentPos.y + this.delta.y;
-                this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`);
-                this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`);
-                this.animationFrameId = null;
-            };
-
-            const onDragMove = (e) => {
-                if (!this.isDragging) return;
-
-                const pos = e.touches ? e.touches[0] : e;
-                this.delta = { x: pos.clientX - this.startPos.x, y: pos.clientY - this.startPos.y };
-
-                if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI_DRAG_THRESHOLD)) {
-                    this.wasDragged = true;
-                    clearTimeout(pressTimer);
-                    if (e.cancelable) e.preventDefault();
-                }
-
-                if (this.wasDragged && this.animationFrameId === null) {
-                    this.animationFrameId = requestAnimationFrame(updatePosition);
-                }
-            };
-
-            const onDragEnd = () => {
-                clearTimeout(pressTimer);
-                if (!this.isDragging) return;
-
-                if (this.animationFrameId) {
-                    cancelAnimationFrame(this.animationFrameId);
-                    this.animationFrameId = null;
-                }
-
-                if (this.wasDragged) {
-                   this.currentPos.x += this.delta.x;
-                   this.currentPos.y += this.delta.y;
-                }
-
-                this.isDragging = false;
-                this.globalContainer.style.transition = '';
-
-                document.removeEventListener('mousemove', onDragMove);
-                document.removeEventListener('mouseup', onDragEnd);
-                document.removeEventListener('touchmove', onDragMove);
-                document.removeEventListener('touchend', onDragEnd);
-
-                setTimeout(() => { this.wasDragged = false; }, 50);
-            };
-
-            this.triggerElement.addEventListener('mousedown', onDragStart);
-            this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
-        }
-    }
-
-    // --- [ARCHITECTURE] SCRIPT INITIALIZATION ---
-    function main() {
-        const stateManager = new StateManager();
-        const pluginManager = new PluginManager(stateManager);
-
-        window.vscPluginManager = pluginManager;
-
-        pluginManager.register(new UIPlugin());
-        pluginManager.register(new CoreMediaPlugin());
-        pluginManager.register(new SvgFilterPlugin());
-        pluginManager.register(new AudioFXPlugin());
-        pluginManager.register(new PlaybackControlPlugin());
-        pluginManager.register(new LiveStreamPlugin());
-        pluginManager.register(new MediaSessionPlugin());
-        pluginManager.register(new NavigationPlugin(pluginManager));
-
-        pluginManager.initAll();
-    }
-
-    // --- SCRIPT ENTRY POINT ---
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', main);
-    } else {
-        main();
-    }
+    // --- SCRIPT ENTRY POINT ---
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', main);
+    } else {
+        main();
+    }
 
 })();
