@@ -127,7 +127,7 @@ class StateManager {
                 isParallelCompEnabled: CONFIG.DEFAULT_PARALLEL_COMP_ENABLED, parallelCompMix: CONFIG.DEFAULT_PARALLEL_COMP_MIX,
                 isLoudnessNormalizationEnabled: false,
                 loudnessTarget: CONFIG.LOUDNESS_TARGET,
-                isAgcEnabled: true,
+                isAgcEnabled: false,
                 preGainEnabledBeforeAuto: false,
                 isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
                 multibandComp: JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS)),
@@ -1428,7 +1428,7 @@ class UIPlugin extends Plugin {
         this.modalShadowRoot = null;
 
         // ✅ [수정] 모든 프리셋에서 마스터링 및 리미터 관련 옵션을 완전히 제거했습니다.
-        this.presetMap = {
+this.presetMap = {
 
     'default': {
         name: '기본값 (모든 효과 꺼짐)',
@@ -1438,13 +1438,13 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
         widen_enabled: false, widen_factor: 1.0,
         adaptive_enabled: false, adaptive_width_freq: 150,
-        preGain_enabled: false, preGain_value: 1.0,
+        preGain_enabled: true, preGain_value: 1.2,
         reverb_enabled: false, reverb_mix: CONFIG.DEFAULT_REVERB_MIX,
         deesser_enabled: false, deesser_threshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesser_freq: CONFIG.DEFAULT_DEESSER_FREQ,
         exciter_enabled: false, exciter_amount: 0,
         parallel_comp_enabled: false, parallel_comp_mix: 0,
         multiband_enabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
-        multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS, // 이 부분은 CONFIG의 기본값을 따릅니다.
+        multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS,
         smartEQ_enabled: false,
         smartEQ_bands: []
     },
@@ -1457,7 +1457,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.0,
         widen_enabled: true, widen_factor: 1.2,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.0,
+        preGain_enabled: true, preGain_value: 1.3,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -1467,7 +1467,7 @@ class UIPlugin extends Plugin {
             { freqHigh: 120, threshold: -24, ratio: 3, attack: 10, release: 300, makeup: 2 },
             { freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 8, release: 250, makeup: 1.5 },
             { freqHigh: 6000, threshold: -28, ratio: 4, attack: 5, release: 200, makeup: 1 },
-            { threshold: -30, ratio: 4.5, attack: 2, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+            { threshold: -30, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
         ],
         smartEQ_enabled: true,
         smartEQ_bands: [
@@ -1486,7 +1486,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.4,
         adaptive_enabled: true, adaptive_width_freq: 200,
-        preGain_enabled: true, preGain_value: 0.8,
+        preGain_enabled: true, preGain_value: 1.2,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: true, deesser_threshold: -25,
         exciter_enabled: false,
@@ -1496,7 +1496,7 @@ class UIPlugin extends Plugin {
             { freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
             { freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8, release: 250, makeup: 1.5 },
             { freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 5, release: 200, makeup: 1 },
-            { threshold: -29, ratio: 4.2, attack: 2, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+            { threshold: -29, ratio: 4.2, attack: 2, release: 150, makeup: 1 }
         ],
         smartEQ_enabled: true,
         smartEQ_bands: [
@@ -1515,7 +1515,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 4, bass_boost_freq: 55, bass_boost_q: 1.2,
         widen_enabled: true, widen_factor: 1.5,
         adaptive_enabled: true, adaptive_width_freq: 220,
-        preGain_enabled: false,
+        preGain_enabled: true, preGain_value: 1.4,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -1525,7 +1525,7 @@ class UIPlugin extends Plugin {
             { freqHigh: 120, threshold: -26, ratio: 3.5, attack: 12, release: 320, makeup: 2.5 },
             { freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 260, makeup: 2 },
             { freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 6, release: 200, makeup: 1.5 },
-            { threshold: -30, ratio: 5, attack: 3, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+            { threshold: -30, ratio: 5, attack: 3, release: 150, makeup: 1 }
         ],
         smartEQ_enabled: true,
         smartEQ_bands: [
@@ -1544,7 +1544,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.3,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.2,
+        preGain_enabled: true, preGain_value: 1.3,
         reverb_enabled: true, reverb_mix: 0.5,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -1554,7 +1554,7 @@ class UIPlugin extends Plugin {
             { freqHigh: 120, threshold: -24, ratio: 3, attack: 12, release: 280, makeup: 2 },
             { freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 9, release: 250, makeup: 1.5 },
             { freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 6, release: 210, makeup: 1 },
-            { threshold: -29, ratio: 4.2, attack: 3, release: 160, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+            { threshold: -29, ratio: 4.2, attack: 3, release: 160, makeup: 1 }
         ],
         smartEQ_enabled: true,
         smartEQ_bands: [
@@ -1573,7 +1573,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.3,
         adaptive_enabled: true, adaptive_width_freq: 170,
-        preGain_enabled: false,
+        preGain_enabled: true, preGain_value: 1.35,
         reverb_enabled: false,
         deesser_enabled: false,
         exciter_enabled: true, exciter_amount: 12,
@@ -1583,7 +1583,7 @@ class UIPlugin extends Plugin {
             { freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 2 },
             { freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 250, makeup: 1.5 },
             { freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 5, release: 200, makeup: 1 },
-            { threshold: -30, ratio: 5, attack: 2, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+            { threshold: -30, ratio: 5, attack: 2, release: 150, makeup: 1 }
         ],
         smartEQ_enabled: true,
         smartEQ_bands: [
@@ -1591,35 +1591,6 @@ class UIPlugin extends Plugin {
             { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
             { frequency: 1500, Q: 1.0, threshold: -23, gain: 2 },
             { frequency: 7000, Q: 1.2, threshold: -24, gain: 2 }
-        ]
-    },
-
-    'mastering_balanced': {
-        name: '🔥 밸런스 마스터링 (고음질)',
-        targetLUFS: -13.5,
-        hpf_enabled: true, hpf_hz: 45,
-        eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1.2, eq_presence: 1,
-        bass_boost_gain: 3.8, bass_boost_freq: 60, bass_boost_q: 1.0,
-        widen_enabled: true, widen_factor: 1.25,
-        adaptive_enabled: true, adaptive_width_freq: 160,
-        preGain_enabled: true, preGain_value: 1.5,
-        reverb_enabled: false, reverb_mix: 0,
-        deesser_enabled: false,
-        exciter_enabled: true, exciter_amount: 10,
-        parallel_comp_enabled: false, parallel_comp_mix: 0,
-        multiband_enabled: true,
-        multiband_bands: [
-            { freqHigh: 120, threshold: -24, ratio: 3.2, attack: 10, release: 300, makeup: 2 },
-            { freqHigh: 1000, threshold: -26, ratio: 3.8, attack: 8, release: 250, makeup: 1.5 },
-            { freqHigh: 6000, threshold: -27, ratio: 4.2, attack: 5, release: 200, makeup: 1 },
-            { threshold: -29, ratio: 4.5, attack: 2, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
-        ],
-        smartEQ_enabled: true,
-        smartEQ_bands: [
-            { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
-            { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
-            { frequency: 2500, Q: 0.9, threshold: -23, gain: 2 },
-            { frequency: 10000, Q: 1.3, threshold: -25, gain: 2 }
         ]
     },
 
@@ -1631,7 +1602,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 2, bass_boost_freq: 55, bass_boost_q: 1.0,
         widen_enabled: false, widen_factor: 1.0,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 0.8,
+        preGain_enabled: true, preGain_value: 1.2,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: true, deesser_threshold: -32,
         exciter_enabled: false,
@@ -1641,7 +1612,7 @@ class UIPlugin extends Plugin {
             { freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 1.5 },
             { freqHigh: 1000, threshold: -23, ratio: 3, attack: 10, release: 260, makeup: 1.5 },
             { freqHigh: 6000, threshold: -25, ratio: 3.2, attack: 8, release: 220, makeup: 2 },
-            { threshold: -27, ratio: 3.8, attack: 5, release: 160, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+            { threshold: -27, ratio: 3.8, attack: 5, release: 160, makeup: 1 }
         ],
         smartEQ_enabled: true,
         smartEQ_bands: [
@@ -1660,7 +1631,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 3.5, bass_boost_freq: 60, bass_boost_q: 1.0,
         widen_enabled: true, widen_factor: 1.2,
         adaptive_enabled: true, adaptive_width_freq: 160,
-        preGain_enabled: false,
+        preGain_enabled: true, preGain_value: 1.3,
         reverb_enabled: false,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -1670,7 +1641,7 @@ class UIPlugin extends Plugin {
             { freqHigh: 120, threshold: -23, ratio: 3, attack: 12, release: 300, makeup: 2 },
             { freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 9, release: 250, makeup: 1.5 },
             { freqHigh: 6000, threshold: -27, ratio: 4, attack: 6, release: 200, makeup: 1 },
-            { threshold: -29, ratio: 4.5, attack: 3, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+            { threshold: -29, ratio: 4.5, attack: 3, release: 150, makeup: 1 }
         ],
         smartEQ_enabled: true,
         smartEQ_bands: [
@@ -1680,6 +1651,7 @@ class UIPlugin extends Plugin {
             { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
         ]
     }
+
 };
 
     }
@@ -1983,6 +1955,7 @@ class UIPlugin extends Plugin {
             this.stateManager.set('audio.isParallelCompEnabled', false);
             this.stateManager.set('audio.isPreGainEnabled', false);
             this.stateManager.set('audio.preGain', 1.0);
+            this.stateManager.set('audio.isAgcEnabled', false);
         }
 
         if (isVisible && !this.hostElement) {
@@ -2850,7 +2823,7 @@ class UIPlugin extends Plugin {
         };
 
         if (presetKey === 'default') {
-            presetValues.isAgcEnabled = true;
+            presetValues.isAgcEnabled = false;
             presetValues.isPreGainEnabled = false;
         }
 
