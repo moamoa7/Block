@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      101.5
-// @description  마스터링 / 리미터 로직 삭제
+// @version      101.6
+// @description  멀티밴드 초기화 오류 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -15,7 +15,7 @@
 
     // --- [ARCHITECTURE] CONFIGURATION & CONSTANTS ---
     const CONFIG = {
-        MAX_PRE_GAIN: 4.0, // [추가] 볼륨 슬라이더의 최대 한계값
+        MAX_PRE_GAIN: 10.0, // [추가] 볼륨 슬라이더의 최대 한계값
         DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 4,
         DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
@@ -1457,7 +1457,7 @@ this.presetMap = {
         bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.0,
         widen_enabled: true, widen_factor: 1.2,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.3,
+        preGain_enabled: true, preGain_value: 4.0,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -1486,7 +1486,7 @@ this.presetMap = {
         bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.4,
         adaptive_enabled: true, adaptive_width_freq: 200,
-        preGain_enabled: true, preGain_value: 1.2,
+        preGain_enabled: true, preGain_value: 1.0,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: true, deesser_threshold: -25,
         exciter_enabled: false,
@@ -1544,7 +1544,7 @@ this.presetMap = {
         bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.3,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.3,
+        preGain_enabled: true, preGain_value: 4.0,
         reverb_enabled: true, reverb_mix: 0.5,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -1573,7 +1573,7 @@ this.presetMap = {
         bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.3,
         adaptive_enabled: true, adaptive_width_freq: 170,
-        preGain_enabled: true, preGain_value: 1.35,
+        preGain_enabled: true, preGain_value: 2.5,
         reverb_enabled: false,
         deesser_enabled: false,
         exciter_enabled: true, exciter_amount: 12,
@@ -1602,7 +1602,7 @@ this.presetMap = {
         bass_boost_gain: 2, bass_boost_freq: 55, bass_boost_q: 1.0,
         widen_enabled: false, widen_factor: 1.0,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.2,
+        preGain_enabled: true, preGain_value: 2.0,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: true, deesser_threshold: -32,
         exciter_enabled: false,
@@ -1631,7 +1631,7 @@ this.presetMap = {
         bass_boost_gain: 3.5, bass_boost_freq: 60, bass_boost_q: 1.0,
         widen_enabled: true, widen_factor: 1.2,
         adaptive_enabled: true, adaptive_width_freq: 160,
-        preGain_enabled: true, preGain_value: 1.3,
+        preGain_enabled: true, preGain_value: 4.5,
         reverb_enabled: false,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -2859,7 +2859,7 @@ this.presetMap = {
                     this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
                 }
             }
-        } else if (presetKey === 'default') {
+        } else {
             const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
             for (const [key, settings] of Object.entries(defaultSettings)) {
                 for (const [param, value] of Object.entries(settings)) {
@@ -2873,6 +2873,14 @@ this.presetMap = {
                 freq: band.frequency, q: band.Q, threshold: band.threshold, gain: band.gain
             }));
             this.stateManager.set('audio.dynamicEq.bands', newBands);
+          } else { // [추가] 이 else 블록이 스마트EQ 설정 초기화의 핵심입니다.
+            const defaultBands = [
+                { freq: 150,  q: 1.4, threshold: -30, gain: 4 },
+                { freq: 1200, q: 2.0, threshold: -24, gain: -4},
+                { freq: 4500, q: 3.0, threshold: -20, gain: 5 },
+                { freq: 8000, q: 4.0, threshold: -18, gain: 4 },
+            ];
+            this.stateManager.set('audio.dynamicEq.bands', defaultBands);
         }
 
         if (!isAgcActive) {
