@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      100.5
-// @description  정지 버튼 클릭시 이미디.비디오.오디오 초기화 / 번개 아이콘 클릭새 이전 설정 복원
+// @version      100.6
+// @description  TrustedHTML 오류 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -2253,8 +2253,11 @@ onControlsVisibilityChange(isVisible) {
             const manualVolBtn = this._createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
             const agcBtn = this._createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
             const autoVolBtn = this._createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
-            autoVolBtn.innerHTML = '자동<br>보정';
-            preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
+            autoVolBtn.textContent = '자동';
+            autoVolBtn.appendChild(document.createElement('br'));
+            autoVolBtn.appendChild(document.createTextNode('보정'));
+
+            preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
 
             const widenSlider = this._createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
             const reverbSlider = this._createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
