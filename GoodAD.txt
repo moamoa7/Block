@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250908
+! Version: 20250916
 !
 !
 !
@@ -87,7 +87,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - www.amateur.tv 연결해야 실시간 방송이 재생됨
 ! - - - 예외
 @@||gateway.discord.gg$websocket
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|play.sooplive.co.kr
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv
 ! - https://wonforecast.com/ 환율 가져오기
 @@||tradingview.com/socket.io/websocket
 !
@@ -260,6 +260,11 @@ sooplive.co.kr###FeedLayerToolTip
 !||adballoon.sooplive.co.kr^
 !||reqde.sooplive.co.kr^
 !||ads-twitter.com^
+!
+!
+! 팬더티비 (https://www.pandalive.co.kr/)
+! - 딩 동그라미 삭제
+##.-translate-y-1\/2.-translate-x-1\/2.w-\[50px\].h-\[50px\].z-\[1\].top-1\/2.left-1\/2.absolute
 !
 !
 ! https://javleak.com/
@@ -2641,6 +2646,7 @@ topjav.tv##.koukoku_11
 ! - - - 일부 텍스트 지워지는데 예외처리 일단 안해놓음
 ##.textwidget
 
+
 ! - 팝업 방지
 ||pemsrv.com^$popup
 ||62ad.com^$popup
@@ -3511,6 +3517,8 @@ youtube.com#@#[class$="verlay"]
 javbraze.com#@#[class$="verlay"]
 ! - - - https://www.melon.com/
 melon.com#@#[class$="verlay"]
+! - - - https://www.tokyomotion.net/ - 이미지 안보임
+tokyomotion.net#@#[class$="verlay"]
 
 
 
@@ -4316,6 +4324,10 @@ mib19.co.kr#@#[class^="ad"]
 !  - 팝업 해제
 xfree.com#@#[class^="ad"]
 
+
+
+
+
 !
 !
 !
@@ -4707,6 +4719,14 @@ abjav.com#@#[class] img[src*="/static/images/"][src*=".png"][style]
 dramaday.me#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - https://www.tid-hee.com/ - 이미지 사라짐
 tid-hee.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+! - https://momoiroadult.com/ - 영상 이미지 링크 안보여서 클릭 못함
+! - https://emuokunmaster.com - 영상 이미지 링크 안보여서 클릭 못함
+! - https://alive-video.com - 영상 이미지 링크 안보여서 클릭 못함
+! - https://adult-live.com/ - 영상 이미지 링크 안보여서 클릭 못함
+momoiroadult.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 
@@ -4792,7 +4812,7 @@ onlygirl.asia#@#[class*="widget-image"]:has(a[href] img[src*="/wp-content/upload
 !##[style] a[href] img[src*="/wp-content/uploads/"] - 로고가 사라져서 재변경
 ! 규칙1에 광역으로 적용하면 영상 이미지가 사라져서 추가 규칙 붙여서 광역으로 처리
 !##[style] a[href] img[src*="/wp-content/uploads/"][class] - 1규칙 이미지 사라짐
-!www.yadongmarket.com##[style] a[href]:has(img[src*="/wp-content/uploads/"][alt=""])
+!1www.yadongmarket.com##[style] a[href]:has(img[src*="/wp-content/uploads/"][alt=""])
 !#[style] a[href] img[src*="/wp-content/uploads/"][alt=""]
 ! - - - 예외
 ! - - -https://dramaday.me/ - 이미지 사라짐
