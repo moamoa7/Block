@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      100.4
-// @description  영상 필터 UI 버튼 추가
+// @version      100.5
+// @description  정지 버튼 클릭시 이미디.비디오.오디오 초기화 / 번개 아이콘 클릭새 이전 설정 복원
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -105,6 +105,7 @@
                 imageFilter: { level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL },
                 audio: {
                     presetGainMemory: 1.0, // [추가] 프리셋의 preGain 값을 기억하기 위한 변수
+                    lastActiveSettings: null,
                     audioContextMap: new WeakMap(), audioInitialized: false,
                     isHpfEnabled: CONFIG.DEFAULT_HPF_ENABLED, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
                     isEqEnabled: CONFIG.DEFAULT_EQ_ENABLED, eqSubBassGain: CONFIG.DEFAULT_EQ_SUBBASS_GAIN,
@@ -1722,9 +1723,61 @@
         }
 
         onControlsVisibilityChange(isVisible) {
-            if (!this.triggerElement) return;
-            this.triggerElement.textContent = isVisible ? '🛑' : '⚡';
-            this.triggerElement.style.backgroundColor = isVisible ? 'rgba(200, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.5)';
+    if (!this.triggerElement) return;
+
+    if (isVisible) {
+        // UI가 다시 나타날 때 (번개 -> 정지)
+        this.triggerElement.textContent = '🛑';
+        this.triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
+
+        // ▼▼▼ [복원 로직 추가] ▼▼▼
+        const savedSettings = this.stateManager.get('audio.lastActiveSettings');
+        if (savedSettings) {
+            // 저장된 설정이 있다면, 하나씩 다시 적용합니다.
+            for (const key in savedSettings) {
+                this.stateManager.set(`audio.${key}`, savedSettings[key]);
+            }
+            // 복원 후 임시 저장 공간을 비웁니다.
+            this.stateManager.set('audio.lastActiveSettings', null);
+        }
+        // ▲▲▲ [복원 로직 추가] ▲▲▲
+
+    } else {
+        // UI가 숨겨질 때 (정지 -> 번개)
+        this.triggerElement.textContent = '⚡️';
+        this.triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+
+        // ▼▼▼ [저장 및 초기화 로직 추가] ▼▼▼
+        // 1. 현재 오디오 설정을 객체로 만듭니다.
+        const audioState = this.stateManager.get('audio');
+        const settingsToSave = {
+            activePresetKey: audioState.activePresetKey,
+            isHpfEnabled: audioState.isHpfEnabled, hpfHz: audioState.hpfHz,
+            isEqEnabled: audioState.isEqEnabled, eqSubBassGain: audioState.eqSubBassGain,
+            eqBassGain: audioState.eqBassGain, eqMidGain: audioState.eqMidGain,
+            eqTrebleGain: audioState.eqTrebleGain, eqPresenceGain: audioState.eqPresenceGain,
+            bassBoostGain: audioState.bassBoostGain,
+            isWideningEnabled: audioState.isWideningEnabled, wideningFactor: audioState.wideningFactor,
+            isAdaptiveWidthEnabled: audioState.isAdaptiveWidthEnabled,
+            isReverbEnabled: audioState.isReverbEnabled, reverbMix: audioState.reverbMix,
+            stereoPan: audioState.stereoPan,
+            isPreGainEnabled: audioState.isPreGainEnabled, preGain: audioState.preGain,
+            isDeesserEnabled: audioState.isDeesserEnabled, deesserThreshold: audioState.deesserThreshold,
+            isExciterEnabled: audioState.isExciterEnabled, exciterAmount: audioState.exciterAmount,
+            isParallelCompEnabled: audioState.isParallelCompEnabled, parallelCompMix: audioState.parallelCompMix,
+            isMasteringSuiteEnabled: audioState.isMasteringSuiteEnabled, masteringTransientAmount: audioState.masteringTransientAmount,
+            isMultibandCompEnabled: audioState.isMultibandCompEnabled,
+            isDynamicEqEnabled: audioState.isDynamicEqEnabled
+            // 필요한 다른 설정들도 여기에 추가할 수 있습니다.
+        };
+
+        // 2. StateManager에 임시 저장합니다.
+        this.stateManager.set('audio.lastActiveSettings', settingsToSave);
+
+        // 3. 'default' 프리셋을 적용하여 초기화합니다.
+        this.applyPreset('default');
+        // ▲▲▲ [저장 및 초기화 로직 추가] ▲▲▲
+    }
             if (isVisible && !this.hostElement) {
                 this.createControlsHost();
             }
