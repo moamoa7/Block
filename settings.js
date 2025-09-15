@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      101.2
-// @description  AGC / PreGain 상호작용 - 경쟁 조건 방지 / Multiband Compressor (MBC) - 프리셋 오류 피드백 / Dynamic EQ (스마트 명료도) - 밴드 인덱스 검증
+// @version      101.5
+// @description  마스터링 / 리미터 로직 삭제
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -72,146 +72,145 @@
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
     (function openAllShadowRoots() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const o = Element.prototype.attachShadow; Element.prototype.attachShadow = function (opt) { const m = { ...opt, mode: 'open' }; const s = o.apply(this, [m]); window._shadowDomList_.push(new WeakRef(s)); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: s } })); return s; }; window._hasHackAttachShadow_ = true; }); })();
 
-    // --- [ARCHITECTURE] STATE MANAGER (Observer Pattern) ---
-    class StateManager {
-        constructor() {
-            this.state = {};
-            this.listeners = {};
-        }
+    // [이 클래스 전체를 찾아서 통째로 교체하세요]
+class StateManager {
+    constructor() {
+        this.state = {};
+        this.listeners = {};
+    }
 
-        init() {
-            const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-            const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
+    init() {
+        const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+        const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
 
-            this.state = {
-                app: { isInitialized: false, isMobile },
-                media: {
-                    activeMedia: new Set(), processedMedia: new WeakSet(),
-                    activeImages: new Set(), processedImages: new WeakSet(),
-                    mediaListenerMap: new WeakMap(), currentlyVisibleMedia: null,
-                    mediaTypesEverFound: { video: false, image: false },
+        this.state = {
+            app: { isInitialized: false, isMobile },
+            media: {
+                activeMedia: new Set(), processedMedia: new WeakSet(),
+                activeImages: new Set(), processedImages: new WeakSet(),
+                mediaListenerMap: new WeakMap(), currentlyVisibleMedia: null,
+                mediaTypesEverFound: { video: false, image: false },
+            },
+            videoFilter: {
+                lastActiveSettings: null,
+                level: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL,
+                level2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2,
+                gamma: parseFloat(videoDefaults.GAMMA_VALUE),
+                blur: parseFloat(videoDefaults.BLUR_STD_DEVIATION),
+                shadows: parseInt(videoDefaults.SHADOWS_VALUE, 10),
+                highlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10),
+                saturation: parseInt(videoDefaults.SATURATION_VALUE, 10),
+                sharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
+                activePreset: 'none'
+            },
+            imageFilter: {
+                lastActiveSettings: null,
+                level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL
+            },
+            audio: {
+                presetGainMemory: 1.0,
+                lastActiveSettings: null,
+                audioContextMap: new WeakMap(), audioInitialized: false,
+                isHpfEnabled: CONFIG.DEFAULT_HPF_ENABLED, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
+                isEqEnabled: CONFIG.DEFAULT_EQ_ENABLED, eqSubBassGain: CONFIG.DEFAULT_EQ_SUBBASS_GAIN,
+                eqBassGain: CONFIG.DEFAULT_EQ_BASS_GAIN, eqMidGain: CONFIG.DEFAULT_EQ_MID_GAIN,
+                eqTrebleGain: CONFIG.DEFAULT_EQ_TREBLE_GAIN, eqPresenceGain: CONFIG.DEFAULT_EQ_PRESENCE_GAIN,
+                bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN, bassBoostFreq: 60, bassBoostQ: 1.0,
+                isWideningEnabled: CONFIG.DEFAULT_WIDENING_ENABLED, wideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
+                isAdaptiveWidthEnabled: CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED, adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
+                isReverbEnabled: CONFIG.DEFAULT_REVERB_ENABLED, reverbMix: CONFIG.DEFAULT_REVERB_MIX,
+                stereoPan: CONFIG.DEFAULT_STEREO_PAN, isPreGainEnabled: CONFIG.DEFAULT_PRE_GAIN_ENABLED,
+                preGain: CONFIG.DEFAULT_PRE_GAIN, lastManualPreGain: CONFIG.DEFAULT_PRE_GAIN,
+                isDeesserEnabled: CONFIG.DEFAULT_DEESSER_ENABLED,
+                deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
+                isExciterEnabled: CONFIG.DEFAULT_EXCITER_ENABLED, exciterAmount: CONFIG.DEFAULT_EXCITER_AMOUNT,
+                isParallelCompEnabled: CONFIG.DEFAULT_PARALLEL_COMP_ENABLED, parallelCompMix: CONFIG.DEFAULT_PARALLEL_COMP_MIX,
+                isLoudnessNormalizationEnabled: false,
+                loudnessTarget: CONFIG.LOUDNESS_TARGET,
+                isAgcEnabled: true,
+                preGainEnabledBeforeAuto: false,
+                isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
+                multibandComp: JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS)),
+                isDynamicEqEnabled: false,
+                dynamicEq: {
+                    activeBand: 1,
+                    bands: [
+                        { freq: 150,  q: 1.4, threshold: -30, gain: 4 },
+                        { freq: 1200, q: 2.0, threshold: -24, gain: -4},
+                        { freq: 4500, q: 3.0, threshold: -20, gain: 5 },
+                        { freq: 8000, q: 4.0, threshold: -18, gain: 4 },
+                    ]
                 },
-                videoFilter: {
-                    lastActiveSettings: null, // << 비디오 설정 임시 저장 공간
-                    level: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL,
-                    level2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2,
-                    gamma: parseFloat(videoDefaults.GAMMA_VALUE),
-                    blur: parseFloat(videoDefaults.BLUR_STD_DEVIATION),
-                    shadows: parseInt(videoDefaults.SHADOWS_VALUE, 10),
-                    highlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10),
-                    saturation: parseInt(videoDefaults.SATURATION_VALUE, 10),
-                    sharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
-                    activePreset: 'none'
-                },
-                imageFilter: {
-                    lastActiveSettings: null, // << 이미지 설정 임시 저장 공간
-                    level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL },
-                audio: {
-                    presetGainMemory: 1.0, // [추가] 프리셋의 preGain 값을 기억하기 위한 변수
-                    lastActiveSettings: null,
-                    audioContextMap: new WeakMap(), audioInitialized: false,
-                    isHpfEnabled: CONFIG.DEFAULT_HPF_ENABLED, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
-                    isEqEnabled: CONFIG.DEFAULT_EQ_ENABLED, eqSubBassGain: CONFIG.DEFAULT_EQ_SUBBASS_GAIN,
-                    eqBassGain: CONFIG.DEFAULT_EQ_BASS_GAIN, eqMidGain: CONFIG.DEFAULT_EQ_MID_GAIN,
-                    eqTrebleGain: CONFIG.DEFAULT_EQ_TREBLE_GAIN, eqPresenceGain: CONFIG.DEFAULT_EQ_PRESENCE_GAIN,
-                    bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN, bassBoostFreq: 60, bassBoostQ: 1.0,
-                    isWideningEnabled: CONFIG.DEFAULT_WIDENING_ENABLED, wideningFactor: CONFIG.DEFAULT_WIDENING_FACTOR,
-                    isAdaptiveWidthEnabled: CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED, adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
-                    isReverbEnabled: CONFIG.DEFAULT_REVERB_ENABLED, reverbMix: CONFIG.DEFAULT_REVERB_MIX,
-                    stereoPan: CONFIG.DEFAULT_STEREO_PAN, isPreGainEnabled: CONFIG.DEFAULT_PRE_GAIN_ENABLED,
-                    preGain: CONFIG.DEFAULT_PRE_GAIN, lastManualPreGain: CONFIG.DEFAULT_PRE_GAIN,
-                    isDeesserEnabled: CONFIG.DEFAULT_DEESSER_ENABLED,
-                    deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
-                    isExciterEnabled: CONFIG.DEFAULT_EXCITER_ENABLED, exciterAmount: CONFIG.DEFAULT_EXCITER_AMOUNT,
-                    isParallelCompEnabled: CONFIG.DEFAULT_PARALLEL_COMP_ENABLED, parallelCompMix: CONFIG.DEFAULT_PARALLEL_COMP_MIX,
-                    isLimiterEnabled: CONFIG.DEFAULT_LIMITER_ENABLED, isMasteringSuiteEnabled: CONFIG.DEFAULT_MASTERING_SUITE_ENABLED,
-                    masteringTransientAmount: 0.2, masteringDrive: 0,
-                    isLoudnessNormalizationEnabled: false,
-                    loudnessTarget: CONFIG.LOUDNESS_TARGET,
-                    isAgcEnabled: true,
-                    preGainEnabledBeforeAuto: false,
-                    isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
-                    multibandComp: JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS)),
-                    isDynamicEqEnabled: false,
-                    dynamicEq: {
-                        activeBand: 1,
-                        bands: [
-                            { freq: 150,  q: 1.4, threshold: -30, gain: 4 },
-                            { freq: 1200, q: 2.0, threshold: -24, gain: -4},
-                            { freq: 4500, q: 3.0, threshold: -20, gain: 5 },
-                            { freq: 8000, q: 4.0, threshold: -18, gain: 4 },
-                        ]
-                    },
-                    activePresetKey: 'default',
-                },
-                ui: {
-                    shadowRoot: null, hostElement: null, areControlsVisible: false,
-                    globalContainer: null,
-                    lastUrl: location.href, audioContextWarningShown: false,
-                    warningMessage: null,
-                },
-                playback: {
-                    currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0,
-                },
-                liveStream: {
-                    delayInfo: null, isRunning: false, resetRequested: null,
-                },
-                settings: {
-                    videoFilterLevel: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL,
-                    videoFilterLevel2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2,
-                    imageFilterLevel: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL,
-                    autoRefresh: true,
-                }
-            };
-        }
-
-        get(key) {
-            return key.split('.').reduce((o, i) => (o ? o[i] : undefined), this.state);
-        }
-
-        set(key, value) {
-            const keys = key.split('.');
-            let obj = this.state;
-            for (let i = 0; i < keys.length - 1; i++) {
-                if (obj === undefined) return;
-                obj = obj[keys[i]];
+                activePresetKey: 'default',
+            },
+            ui: {
+                shadowRoot: null, hostElement: null, areControlsVisible: false,
+                globalContainer: null,
+                lastUrl: location.href, audioContextWarningShown: false,
+                warningMessage: null,
+            },
+            playback: {
+                currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0,
+            },
+            liveStream: {
+                delayInfo: null, isRunning: false, resetRequested: null,
+            },
+            settings: {
+                videoFilterLevel: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL,
+                videoFilterLevel2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2,
+                imageFilterLevel: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL,
+                autoRefresh: true,
             }
-            const finalKey = keys[keys.length - 1];
-            if(obj === undefined) return;
-            const oldValue = obj[finalKey];
+        };
+    }
 
-            if (oldValue !== value) {
-                obj[finalKey] = value;
-                this.notify(key, value, oldValue);
-            }
+    get(key) {
+        return key.split('.').reduce((o, i) => (o ? o[i] : undefined), this.state);
+    }
+
+    set(key, value) {
+        const keys = key.split('.');
+        let obj = this.state;
+        for (let i = 0; i < keys.length - 1; i++) {
+            if (obj === undefined) return;
+            obj = obj[keys[i]];
         }
+        const finalKey = keys[keys.length - 1];
+        if(obj === undefined) return;
+        const oldValue = obj[finalKey];
 
-        subscribe(key, callback) {
-            if (!this.listeners[key]) {
-                this.listeners[key] = [];
-            }
-            this.listeners[key].push(callback);
-
-            return () => {
-                this.listeners[key] = this.listeners[key].filter(cb => cb !== callback);
-            };
-        }
-
-        notify(key, newValue, oldValue) {
-            if (this.listeners[key]) {
-                this.listeners[key].forEach(callback => callback(newValue, oldValue));
-            }
-            let currentKey = key;
-            while (currentKey.includes('.')) {
-                const prefix = currentKey.substring(0, currentKey.lastIndexOf('.'));
-                const wildcardKey = `${prefix}.*`;
-                if (this.listeners[wildcardKey]) {
-                    this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue));
-                }
-                currentKey = prefix;
-            }
+        if (oldValue !== value) {
+            obj[finalKey] = value;
+            this.notify(key, value, oldValue);
         }
     }
+
+    subscribe(key, callback) {
+        if (!this.listeners[key]) {
+            this.listeners[key] = [];
+        }
+        this.listeners[key].push(callback);
+
+        return () => {
+            this.listeners[key] = this.listeners[key].filter(cb => cb !== callback);
+        };
+    }
+
+    notify(key, newValue, oldValue) {
+        if (this.listeners[key]) {
+            this.listeners[key].forEach(callback => callback(newValue, oldValue));
+        }
+        let currentKey = key;
+        while (currentKey.includes('.')) {
+            const prefix = currentKey.substring(0, currentKey.lastIndexOf('.'));
+            const wildcardKey = `${prefix}.*`;
+            if (this.listeners[wildcardKey]) {
+                this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue));
+            }
+            currentKey = prefix;
+        }
+    }
+}
 
     // --- [ARCHITECTURE] BASE PLUGIN CLASS ---
     class Plugin {
@@ -538,523 +537,603 @@
         }
     }
 
-    // --- [PLUGIN] AudioFXPlugin: Manages all Web Audio API effects ---
-    class AudioFXPlugin extends Plugin {
-        constructor() {
-            super('AudioFX');
-            this.animationFrameMap = new WeakMap();
-            this.audioActivityStatus = new WeakMap();
-            this.loudnessAnalyzerMap = new WeakMap();
-            this.loudnessIntervalMap = new WeakMap();
-        }
-
-        init(stateManager) {
-            super.init(stateManager);
-            this.subscribe('audio.*', debounce(() => this.applyAudioEffectsToAllMedia(), 50));
-            this.subscribe('media.activeMedia', (newMediaSet, oldMediaSet) => {
-                const added = [...newMediaSet].filter(x => !oldMediaSet.has(x));
-                const removed = [...oldMediaSet].filter(x => !newMediaSet.has(x));
-                if (this.stateManager.get('audio.audioInitialized')) {
-                    added.forEach(media => this.ensureContextResumed(media));
-                }
-                removed.forEach(media => this.cleanupForMedia(media));
-            });
-            this.subscribe('audio.audioInitialized', (isInitialized) => {
-                if (isInitialized) {
-                    const currentMedia = this.stateManager.get('media.activeMedia');
-                    currentMedia.forEach(media => this.ensureContextResumed(media));
-                }
-            });
-
-            this.subscribe('audio.activityCheckRequested', () => {
-                this.stateManager.get('media.activeMedia').forEach(media => {
-                    const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-                    if (nodes) {
-                        this.audioActivityStatus.delete(media);
-                        this.checkAudioActivity(media, nodes);
-                        console.log('[VSC] Audio activity re-check requested.', media);
-                    }
-                });
-            });
-
-            this.subscribe('audio.isLoudnessNormalizationEnabled', (isEnabled) => {
-                this.stateManager.get('media.activeMedia').forEach(media => {
-                    if (isEnabled) {
-                        this.startLoudnessAnalysis(media);
-                    } else {
-                        this.stopLoudnessAnalysis(media);
-                    }
-                });
-            });
-        }
-
-        destroy() {
-            super.destroy();
-            this.stateManager.get('media.activeMedia').forEach(media => this.cleanupForMedia(media));
-        }
-
-        applyAudioEffectsToAllMedia() {
-            if (!this.stateManager.get('audio.audioInitialized')) return;
-            const sm = this.stateManager;
-            const mediaToAffect = sm.get('app.isMobile') && sm.get('media.currentlyVisibleMedia') ?
-                [sm.get('media.currentlyVisibleMedia')] : Array.from(sm.get('media.activeMedia'));
-            mediaToAffect.forEach(media => {
-                if (media) this.reconnectGraph(media)
-            });
-        }
-
-        createImpulseResponse(context, duration = 2, decay = 2) {
-            const sampleRate = context.sampleRate; const length = sampleRate * duration;
-            const impulse = context.createBuffer(2, length, sampleRate);
-            const impulseL = impulse.getChannelData(0); const impulseR = impulse.getChannelData(1);
-            for (let i = 0; i < length; i++) {
-                impulseL[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
-                impulseR[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
-            }
-            return impulse;
-        }
-
-        makeTransientCurve(amount) {
-            const samples = 44100; const curve = new Float32Array(samples);
-            const k = 2 * amount / (1 - amount || 1e-6);
-            for (let i = 0; i < samples; i++) {
-                const x = i * 2 / samples - 1;
-                curve[i] = (1 + k) * x / (1 + k * Math.abs(x));
-            }
-            return curve;
-        }
-
-        makeDistortionCurve(amount) {
-            const k = typeof amount === 'number' ? amount : 50; const n_samples = 44100;
-            const curve = new Float32Array(n_samples); const deg = Math.PI / 180;
-            for (let i = 0; i < n_samples; ++i) {
-                const x = i * 2 / n_samples - 1;
-                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
-            }
-            return curve;
-        }
-
-        createAudioGraph(media) {
-            const context = new (window.AudioContext || window.webkitAudioContext)();
-            let source;
-            try { media.crossOrigin = "anonymous"; source = context.createMediaElementSource(media);
-            } catch (e) {
-                this.stateManager.set('ui.warningMessage', '오디오 효과 적용 실패 (CORS). 페이지 새로고침이 필요할 수 있습니다.');
-                console.error('[VSC] MediaElementSource creation failed.', e); context.close(); return null;
-            }
-            const nodes = { context, source, stereoPanner: context.createStereoPanner(), masterGain: context.createGain(), analyser: context.createAnalyser(), loudnessAnalyzer: context.createAnalyser(), safetyLimiter: context.createDynamicsCompressor(), cumulativeLUFS: 0, lufsSampleCount: 0, band1_SubBass: context.createBiquadFilter(), band2_Bass: context.createBiquadFilter(), band3_Mid: context.createBiquadFilter(), band4_Treble: context.createBiquadFilter(), band5_Presence: context.createBiquadFilter(), gain1_SubBass: context.createGain(), gain2_Bass: context.createGain(), gain3_Mid: context.createGain(), gain4_Treble: context.createGain(), gain5_Presence: context.createGain(), merger: context.createGain(), reverbConvolver: context.createConvolver(), reverbWetGain: context.createGain(), reverbSum: context.createGain(), deesserBand: context.createBiquadFilter(), deesserCompressor: context.createDynamicsCompressor(), exciterHPF: context.createBiquadFilter(), exciter: context.createWaveShaper(), exciterPostGain: context.createGain(), parallelCompressor: context.createDynamicsCompressor(), parallelDry: context.createGain(), parallelWet: context.createGain(), limiter: context.createDynamicsCompressor(), masteringTransientShaper: context.createWaveShaper(), masteringLimiter1: context.createDynamicsCompressor(), masteringLimiter2: context.createDynamicsCompressor(), masteringLimiter3: context.createDynamicsCompressor(), masteringDriveGain: context.createGain(), masteringTamingComp: context.createDynamicsCompressor() };
-
-            const mbc = {
-                splitter1: context.createBiquadFilter(), splitter2: context.createBiquadFilter(), splitter3: context.createBiquadFilter(),
-                compLow: context.createDynamicsCompressor(), compLowMid: context.createDynamicsCompressor(), compHighMid: context.createDynamicsCompressor(), compHigh: context.createDynamicsCompressor(),
-                gainLow: context.createGain(), gainLowMid: context.createGain(), gainHighMid: context.createGain(), gainHigh: context.createGain(),
-                merger: context.createGain()
-            };
-            mbc.splitter1.type = 'lowpass';
-            mbc.splitter2.type = 'lowpass';
-            mbc.splitter3.type = 'lowpass';
-            Object.assign(nodes, { mbc });
-
-            nodes.dynamicEq = [];
-            for (let i = 0; i < 4; i++) {
-                const deq_band = {
-                    peaking: context.createBiquadFilter(),
-                    sidechain: context.createBiquadFilter(),
-                    compressor: context.createDynamicsCompressor(),
-                    gain: context.createGain()
-                };
-                deq_band.peaking.type = 'peaking';
-                deq_band.sidechain.type = 'bandpass';
-                nodes.dynamicEq.push(deq_band);
-            }
-
-            try { nodes.reverbConvolver.buffer = this.createImpulseResponse(context); } catch (e) { console.error("[VSC] Failed to create reverb impulse response.", e); }
-            nodes.safetyLimiter.threshold.value = -0.5; nodes.safetyLimiter.knee.value = 0; nodes.safetyLimiter.ratio.value = 20; nodes.safetyLimiter.attack.value = 0.001; nodes.safetyLimiter.release.value = 0.05;
-            nodes.analyser.fftSize = 256;
-            nodes.loudnessAnalyzer.fftSize = 2048;
-            nodes.band1_SubBass.type = "lowpass"; nodes.band1_SubBass.frequency.value = 80; nodes.band2_Bass.type = "bandpass"; nodes.band2_Bass.frequency.value = 150; nodes.band2_Bass.Q.value = 1; nodes.band3_Mid.type = "bandpass"; nodes.band3_Mid.frequency.value = 1000; nodes.band3_Mid.Q.value = 1; nodes.band4_Treble.type = "bandpass"; nodes.band4_Treble.frequency.value = 4000; nodes.band4_Treble.Q.value = 1; nodes.band5_Presence.type = "highpass"; nodes.band5_Presence.frequency.value = 8000;
-            this.stateManager.get('audio.audioContextMap').set(media, nodes);
-
-            nodes.source.connect(nodes.masterGain);
-            nodes.masterGain.connect(nodes.safetyLimiter);
-            nodes.safetyLimiter.connect(nodes.analyser);
-            nodes.safetyLimiter.connect(nodes.loudnessAnalyzer);
-            nodes.safetyLimiter.connect(nodes.context.destination);
-            return nodes;
-        }
-
-        reconnectGraph(media) {
-            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-            if (!nodes) return;
-            const audioState = this.stateManager.get('audio');
-
-            safeExec(() => {
-                Object.values(nodes).forEach(node => { if (node && typeof node.disconnect === 'function' && node !== nodes.context && node !== nodes.loudnessAnalyzer) { try { node.disconnect(); } catch (e) { /* Ignore */ } } });
-
-                if (this.animationFrameMap.has(media)) cancelAnimationFrame(this.animationFrameMap.get(media));
-                this.animationFrameMap.delete(media);
-
-                let lastNode = nodes.source;
-
-                nodes.stereoPanner.pan.value = audioState.stereoPan;
-
-                if (audioState.isDeesserEnabled) {
-                    nodes.deesserBand.type = 'bandpass'; nodes.deesserBand.frequency.value = audioState.deesserFreq; nodes.deesserBand.Q.value = 3;
-                    nodes.deesserCompressor.threshold.value = audioState.deesserThreshold; nodes.deesserCompressor.knee.value = 10; nodes.deesserCompressor.ratio.value = 10; nodes.deesserCompressor.attack.value = 0.005; nodes.deesserCompressor.release.value = 0.1;
-                    lastNode.connect(nodes.deesserBand).connect(nodes.deesserCompressor);
-                    lastNode = lastNode.connect(nodes.deesserCompressor);
-                }
-
-                if (audioState.isEqEnabled || audioState.bassBoostGain > 0) {
-                    const merger = nodes.merger;
-                    lastNode.connect(nodes.band1_SubBass); lastNode.connect(nodes.band2_Bass); lastNode.connect(nodes.band3_Mid); lastNode.connect(nodes.band4_Treble); lastNode.connect(nodes.band5_Presence);
-                    let lastSubBassNode = nodes.band1_SubBass;
-                    if (audioState.bassBoostGain > 0) {
-                        if (!nodes.bassBoost) { nodes.bassBoost = nodes.context.createBiquadFilter(); nodes.bassBoost.type = "peaking"; }
-                        nodes.bassBoost.frequency.value = audioState.bassBoostFreq; nodes.bassBoost.Q.value = audioState.bassBoostQ; nodes.bassBoost.gain.value = audioState.bassBoostGain;
-                        lastSubBassNode = lastSubBassNode.connect(nodes.bassBoost);
-                    }
-                    if (audioState.isEqEnabled) {
-                        nodes.gain1_SubBass.gain.value = Math.pow(10, audioState.eqSubBassGain / 20); nodes.gain2_Bass.gain.value = Math.pow(10, audioState.eqBassGain / 20);
-                        nodes.gain3_Mid.gain.value = Math.pow(10, audioState.eqMidGain / 20); nodes.gain4_Treble.gain.value = Math.pow(10, audioState.eqTrebleGain / 20);
-                        nodes.gain5_Presence.gain.value = Math.pow(10, audioState.eqPresenceGain / 20);
-                    } else {
-                        [nodes.gain1_SubBass, nodes.gain2_Bass, nodes.gain3_Mid, nodes.gain4_Treble, nodes.gain5_Presence].forEach(g => g.gain.value = 1);
-                    }
-                    lastSubBassNode.connect(nodes.gain1_SubBass).connect(merger);
-                    nodes.band2_Bass.connect(nodes.gain2_Bass).connect(merger);
-                    nodes.band3_Mid.connect(nodes.gain3_Mid).connect(merger);
-                    nodes.band4_Treble.connect(nodes.gain4_Treble).connect(merger);
-                    nodes.band5_Presence.connect(nodes.gain5_Presence).connect(merger);
-                    lastNode = merger;
-                }
-
-                if (audioState.isDynamicEqEnabled) {
-                    const deqSettings = audioState.dynamicEq.bands;
-                    for (let i = 0; i < nodes.dynamicEq.length; i++) {
-                        const band = nodes.dynamicEq[i];
-                        const settings = deqSettings[i];
-
-                        band.peaking.frequency.value = settings.freq;
-                        band.peaking.Q.value = settings.q;
-
-                        band.sidechain.frequency.value = settings.freq;
-                        band.sidechain.Q.value = settings.q * 1.5;
-
-                        band.compressor.threshold.value = settings.threshold;
-                        band.compressor.knee.value = 5;
-                        band.compressor.ratio.value = 2;
-                        band.compressor.attack.value = 0.005;
-                        band.compressor.release.value = 0.15;
-
-                        band.gain.gain.value = settings.gain;
-
-                        lastNode.connect(band.peaking);
-                        lastNode.connect(band.sidechain).connect(band.compressor).connect(band.gain);
-                        band.gain.connect(band.peaking.gain);
-
-                        lastNode = band.peaking;
-                    }
-                }
-
-                if (audioState.isHpfEnabled) {
-                    if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
-                    nodes.hpf.type = 'highpass'; nodes.hpf.frequency.value = audioState.hpfHz;
-                    lastNode = lastNode.connect(nodes.hpf);
-                }
-
-                if (audioState.isMultibandCompEnabled) {
-                    const mbcNodes = nodes.mbc;
-                    const merger = mbcNodes.merger;
-
-                    mbcNodes.splitter1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
-                    mbcNodes.splitter2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
-                    mbcNodes.splitter3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
-
-                    const highPass1 = nodes.context.createBiquadFilter(); highPass1.type = 'highpass';
-                    highPass1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
-                    const highPass2 = nodes.context.createBiquadFilter(); highPass2.type = 'highpass';
-                    highPass2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
-                    const highPass3 = nodes.context.createBiquadFilter(); highPass3.type = 'highpass';
-                    highPass3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
-
-                    lastNode.connect(mbcNodes.splitter1).connect(mbcNodes.compLow).connect(mbcNodes.gainLow).connect(merger);
-                    lastNode.connect(highPass1).connect(mbcNodes.splitter2).connect(mbcNodes.compLowMid).connect(mbcNodes.gainLowMid).connect(merger);
-                    lastNode.connect(highPass2).connect(mbcNodes.splitter3).connect(mbcNodes.compHighMid).connect(mbcNodes.gainHighMid).connect(merger);
-                    lastNode.connect(highPass3).connect(mbcNodes.compHigh).connect(mbcNodes.gainHigh).connect(merger);
-
-                    const bands = ['low', 'lowMid', 'highMid', 'high'];
-                    const compMap = { low: mbcNodes.compLow, lowMid: mbcNodes.compLowMid, highMid: mbcNodes.compHighMid, high: mbcNodes.compHigh };
-                    const gainMap = { low: mbcNodes.gainLow, lowMid: mbcNodes.gainLowMid, highMid: mbcNodes.gainHighMid, high: mbcNodes.gainHigh };
-
-                    bands.forEach(band => {
-                        const comp = compMap[band];
-                        const gain = gainMap[band];
-
-                        comp.threshold.value = this.stateManager.get(`audio.multibandComp.${band}.threshold`);
-                        comp.ratio.value = this.stateManager.get(`audio.multibandComp.${band}.ratio`);
-                        comp.attack.value = this.stateManager.get(`audio.multibandComp.${band}.attack`);
-                        comp.release.value = this.stateManager.get(`audio.multibandComp.${band}.release`);
-                        gain.gain.value = Math.pow(10, this.stateManager.get(`audio.multibandComp.${band}.makeupGain`) / 20);
-                    });
-
-                    lastNode = merger;
-                }
-
-                if (audioState.isExciterEnabled && audioState.exciterAmount > 0) {
-                    const exciterSum = nodes.context.createGain(); const exciterDry = nodes.context.createGain(); const exciterWet = nodes.context.createGain();
-                    const wetAmount = audioState.isMasteringSuiteEnabled ? audioState.exciterAmount / 150 : audioState.exciterAmount / 100;
-                    exciterDry.gain.value = 1.0 - wetAmount; exciterWet.gain.value = wetAmount;
-                    nodes.exciterHPF.type = 'highpass'; nodes.exciterHPF.frequency.value = 5000;
-                    nodes.exciter.curve = this.makeDistortionCurve(audioState.exciterAmount * 15); nodes.exciter.oversample = '4x';
-                    nodes.exciterPostGain.gain.value = 0.5;
-                    lastNode.connect(exciterDry).connect(exciterSum);
-                    lastNode.connect(nodes.exciterHPF).connect(nodes.exciter).connect(nodes.exciterPostGain).connect(exciterWet).connect(exciterSum);
-                    lastNode = exciterSum;
-                }
-
-                if (audioState.isParallelCompEnabled && audioState.parallelCompMix > 0) {
-                    nodes.parallelCompressor.threshold.value = -30; nodes.parallelCompressor.knee.value = 15; nodes.parallelCompressor.ratio.value = 12;
-                    nodes.parallelCompressor.attack.value = 0.003; nodes.parallelCompressor.release.value = 0.1;
-                    nodes.parallelDry.gain.value = 1.0 - (audioState.parallelCompMix / 100); nodes.parallelWet.gain.value = audioState.parallelCompMix / 100;
-                    const parallelSum = nodes.context.createGain();
-                    lastNode.connect(nodes.parallelDry).connect(parallelSum);
-                    lastNode.connect(nodes.parallelCompressor).connect(nodes.parallelWet).connect(parallelSum);
-                    lastNode = parallelSum;
-                }
-
-                let spatialNode;
-                if (audioState.isWideningEnabled) {
-                    if (!nodes.ms_splitter) { Object.assign(nodes, { ms_splitter: nodes.context.createChannelSplitter(2), ms_mid_sum: nodes.context.createGain(), ms_mid_level: nodes.context.createGain(), ms_side_invert_R: nodes.context.createGain(), ms_side_sum: nodes.context.createGain(), ms_side_level: nodes.context.createGain(), ms_side_gain: nodes.context.createGain(), adaptiveWidthFilter: nodes.context.createBiquadFilter(), ms_decode_L_sum: nodes.context.createGain(), ms_decode_invert_Side: nodes.context.createGain(), ms_decode_R_sum: nodes.context.createGain(), ms_merger: nodes.context.createChannelMerger(2) }); }
-                    lastNode.connect(nodes.ms_splitter); nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
-                    nodes.ms_mid_sum.connect(nodes.ms_mid_level); nodes.ms_splitter.connect(nodes.ms_side_sum, 0); nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1).connect(nodes.ms_side_sum);
-                    nodes.ms_side_invert_R.gain.value = -1; nodes.ms_side_sum.connect(nodes.ms_side_level);
-                    nodes.ms_mid_level.gain.value = 0.5; nodes.ms_side_level.gain.value = 0.5;
-                    nodes.adaptiveWidthFilter.type = 'highpass'; nodes.adaptiveWidthFilter.frequency.value = audioState.isAdaptiveWidthEnabled ? audioState.adaptiveWidthFreq : 0;
-                    nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
-                    nodes.ms_side_gain.gain.value = audioState.wideningFactor; nodes.ms_decode_invert_Side.gain.value = -1;
-                    nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
-                    nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side).connect(nodes.ms_decode_R_sum);
-                    nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0); nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
-                    spatialNode = nodes.ms_merger;
-                } else {
-                    spatialNode = lastNode.connect(nodes.stereoPanner);
-                }
-
-                if (audioState.isReverbEnabled) {
-                    nodes.reverbWetGain.gain.value = audioState.reverbMix;
-                    spatialNode.connect(nodes.reverbSum);
-                    spatialNode.connect(nodes.reverbConvolver).connect(nodes.reverbWetGain).connect(nodes.reverbSum);
-                    lastNode = nodes.reverbSum;
-                } else {
-                    lastNode = spatialNode;
-                }
-
-                if (audioState.isMasteringSuiteEnabled) {
-                    // 1. 과도한 신호를 제어하기 위한 안전 장치(Taming Compressor)를 먼저 연결
-                    const tamingComp = nodes.masteringTamingComp;
-                    tamingComp.threshold.value = -18.0;
-                    tamingComp.knee.value = 5;
-                    tamingComp.ratio.value = 4;
-                    tamingComp.attack.value = 0.003;
-                    tamingComp.release.value = 0.1;
-                    lastNode = lastNode.connect(tamingComp);
-
-                    // 2. Drive 값을 Gain 노드로 변환하여 실제 볼륨을 증폭
-                    nodes.masteringDriveGain.gain.value = Math.pow(10, audioState.masteringDrive / 20);
-                    lastNode = lastNode.connect(nodes.masteringDriveGain);
-
-                    // 3. Transient Shaper 연결
-                    nodes.masteringTransientShaper.curve = this.makeTransientCurve(audioState.masteringTransientAmount);
-                    nodes.masteringTransientShaper.oversample = '4x';
-                    lastNode = lastNode.connect(nodes.masteringTransientShaper);
-
-                    // 4. 리미터 Threshold는 고정값으로 유지
-                    const l1 = nodes.masteringLimiter1;
-                    l1.threshold.value = -12.0; l1.knee.value = 5; l1.ratio.value = 4; l1.attack.value = 0.005; l1.release.value = 0.08;
-
-                    const l2 = nodes.masteringLimiter2;
-                    l2.threshold.value = -8.0; l2.knee.value = 3; l2.ratio.value = 8; l2.attack.value = 0.003; l2.release.value = 0.05;
-
-                    const l3 = nodes.masteringLimiter3;
-                    l3.threshold.value = -2.0; l3.knee.value = 0; l3.ratio.value = 20; l3.attack.value = 0.001; l3.release.value = 0.02;
-
-                    lastNode = lastNode.connect(l1).connect(l2).connect(l3);
-
-                } else if (audioState.isLimiterEnabled) {
-                    nodes.limiter.threshold.value = -1.5; nodes.limiter.knee.value = 0; nodes.limiter.ratio.value = 20;
-                    nodes.limiter.attack.value = 0.001; nodes.limiter.release.value = 0.05;
-                    lastNode = lastNode.connect(nodes.limiter);
-                }
-
-                nodes.masterGain.gain.value = audioState.isPreGainEnabled ? audioState.preGain : 1.0;
-                lastNode.connect(nodes.masterGain);
-                nodes.masterGain.connect(nodes.safetyLimiter);
-                nodes.safetyLimiter.connect(nodes.analyser);
-                nodes.safetyLimiter.connect(nodes.loudnessAnalyzer);
-                nodes.safetyLimiter.connect(nodes.context.destination);
-            }, 'reconnectGraph');
-        }
-
-        checkAudioActivity(media, nodes) {
-            if (this.audioActivityStatus.get(media) === 'passed' || this.audioActivityStatus.get(media) === 'checking') return;
-            this.audioActivityStatus.set(media, 'checking');
-
-            let attempts = 0;
-            const MAX_ATTEMPTS = 8;
-            const CHECK_INTERVAL = 350;
-            const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
-
-            const intervalId = setInterval(() => {
-
-                if (!media.isConnected || nodes.context.state === 'closed') {
-                    clearInterval(intervalId);
-                    this.audioActivityStatus.delete(media);
-                    return;
-                }
-                if (media.paused) {
-                    attempts = 0;
-                    return;
-                }
-
-                attempts++;
-                nodes.analyser.getByteFrequencyData(analyserData);
-                const sum = analyserData.reduce((a, b) => a + b, 0);
-
-                if (sum > 0) {
-                    clearInterval(intervalId);
-                    this.audioActivityStatus.set(media, 'passed');
-                    return;
-                }
-
-                if (attempts >= MAX_ATTEMPTS) {
-                    clearInterval(intervalId);
-                    this.audioActivityStatus.set(media, 'failed');
-
-                    if (this.stateManager.get('settings.autoRefresh')) {
-                        console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 페이지를 새로고침합니다.', media);
-                        try {
-                            sessionStorage.setItem('vsc_message', 'CORS 보안 정책으로 오디오 효과 적용에 실패하여 페이지를 자동 새로고침했습니다.');
-                        } catch(e) { console.error('[VSC] sessionStorage 접근 실패:', e); }
-
-                        this.stateManager.set('ui.warningMessage', 'CORS 오류 감지. 1.5초 후 오디오 복원을 위해 페이지를 새로고침합니다.');
-                        this.cleanupForMedia(media);
-                        setTimeout(() => { location.reload(); }, 1500);
-                    } else {
-                        console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 자동 새로고침 비활성화됨.', media);
-                        this.stateManager.set('ui.warningMessage', '오디오 효과 적용 실패 (CORS 보안 정책 가능성).');
-                    }
-                }
-            }, CHECK_INTERVAL);
-        }
-
-        getOrCreateNodes(media) {
-            const audioContextMap = this.stateManager.get('audio.audioContextMap');
-            if (audioContextMap.has(media)) return audioContextMap.get(media);
-            const newNodes = this.createAudioGraph(media);
-            if (newNodes) {
-                this.checkAudioActivity(media, newNodes);
-                if (this.stateManager.get('audio.isLoudnessNormalizationEnabled')) {
-                    this.startLoudnessAnalysis(media);
-                }
-            }
-            return newNodes;
-        }
-
-        cleanupForMedia(media) {
-            this.stopLoudnessAnalysis(media);
-            if (this.animationFrameMap.has(media)) { cancelAnimationFrame(this.animationFrameMap.get(media)); this.animationFrameMap.delete(media); }
-            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-            if (nodes) {
-                safeExec(() => { if (nodes.context.state !== 'closed') nodes.context.close(); }, 'cleanupForMedia');
-                this.stateManager.get('audio.audioContextMap').delete(media);
-            }
-        }
-
-        ensureContextResumed(media) {
-            const nodes = this.getOrCreateNodes(media);
-            if (nodes && nodes.context.state === 'suspended') {
-                nodes.context.resume().catch(e => {
-                    if (!this.stateManager.get('ui.audioContextWarningShown')) {
-                        console.warn('[VSC] AudioContext resume failed. Click UI to enable.', e.message);
-                        this.stateManager.set('ui.warningMessage', '오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
-                        this.stateManager.set('ui.audioContextWarningShown', true);
-                    }
-                });
-            }
-        }
-
-        _getInstantRMS() {
-            return new Promise(resolve => {
-                const media = this.stateManager.get('media.currentlyVisibleMedia') || [...this.stateManager.get('media.activeMedia')][0];
-                if (!media) return resolve(0);
-
-                const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-                if (!nodes || !nodes.loudnessAnalyzer) return resolve(0);
-
-                const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
-                const dataArray = new Float32Array(bufferLength);
-                nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
-
-                let sum = 0;
-                for (let i = 0; i < bufferLength; i++) {
-                    sum += dataArray[i] * dataArray[i];
-                }
-                const rms = Math.sqrt(sum / bufferLength);
-                resolve(rms);
-            });
-        }
-
-        startLoudnessAnalysis(media) {
-            if (this.loudnessIntervalMap.has(media)) return;
-
-            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-            if (!nodes || !nodes.loudnessAnalyzer) return;
-
-            const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
-            const dataArray = new Float32Array(bufferLength);
-            let currentGain = this.stateManager.get('audio.preGain');
-
-            const intervalId = setInterval(() => {
-                if (!media.isConnected || media.paused) return;
-
-                nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
-
-                let sum = 0;
-                for (let i = 0; i < bufferLength; i++) {
-                    sum += dataArray[i] * dataArray[i];
-                }
-                const rms = Math.sqrt(sum / bufferLength);
-
-                if (rms === 0) return;
-
-                const measuredLoudness = 20 * Math.log10(rms);
-
-                const targetLoudness = this.stateManager.get('audio.loudnessTarget');
-                const error = targetLoudness - measuredLoudness;
-
-                const currentPreGain = this.stateManager.get('audio.preGain');
-                const targetPreGain = currentPreGain * Math.pow(10, error / 20);
-
-                const newGain = currentGain * (1 - CONFIG.LOUDNESS_ADJUSTMENT_SPEED) + targetPreGain * CONFIG.LOUDNESS_ADJUSTMENT_SPEED;
-                currentGain = Math.max(0.1, Math.min(newGain, CONFIG.MAX_PRE_GAIN));
-
-                this.stateManager.set('audio.preGain', currentGain);
-
-            }, CONFIG.LOUDNESS_ANALYSIS_INTERVAL);
-
-            this.loudnessIntervalMap.set(media, intervalId);
-        }
-
-        stopLoudnessAnalysis(media) {
-            if (this.loudnessIntervalMap.has(media)) {
-                clearInterval(this.loudnessIntervalMap.get(media));
-                this.loudnessIntervalMap.delete(media);
-            }
-            const lastManualGain = this.stateManager.get('audio.lastManualPreGain');
-            this.stateManager.set('audio.preGain', lastManualGain);
-        }
-    }
+    // [이 클래스 전체를 찾아서 통째로 교체하세요]
+class AudioFXPlugin extends Plugin {
+    constructor() {
+        super('AudioFX');
+        this.animationFrameMap = new WeakMap();
+        this.audioActivityStatus = new WeakMap();
+        this.loudnessAnalyzerMap = new WeakMap();
+        this.loudnessIntervalMap = new WeakMap();
+    }
+
+    init(stateManager) {
+        super.init(stateManager);
+        this.subscribe('audio.*', debounce(() => this.applyAudioEffectsToAllMedia(), 50));
+        this.subscribe('media.activeMedia', (newMediaSet, oldMediaSet) => {
+            const added = [...newMediaSet].filter(x => !oldMediaSet.has(x));
+            const removed = [...oldMediaSet].filter(x => !newMediaSet.has(x));
+            if (this.stateManager.get('audio.audioInitialized')) {
+                added.forEach(media => this.ensureContextResumed(media));
+            }
+            removed.forEach(media => this.cleanupForMedia(media));
+        });
+        this.subscribe('audio.audioInitialized', (isInitialized) => {
+            if (isInitialized) {
+                const currentMedia = this.stateManager.get('media.activeMedia');
+                currentMedia.forEach(media => this.ensureContextResumed(media));
+            }
+        });
+
+        this.subscribe('audio.activityCheckRequested', () => {
+            this.stateManager.get('media.activeMedia').forEach(media => {
+                const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+                if (nodes) {
+                    this.audioActivityStatus.delete(media);
+                    this.checkAudioActivity(media, nodes);
+                    console.log('[VSC] Audio activity re-check requested.', media);
+                }
+            });
+        });
+
+        this.subscribe('audio.isLoudnessNormalizationEnabled', (isEnabled) => {
+            this.stateManager.get('media.activeMedia').forEach(media => {
+                if (isEnabled) {
+                    this.startLoudnessAnalysis(media);
+                } else {
+                    this.stopLoudnessAnalysis(media);
+                }
+            });
+        });
+    }
+
+    destroy() {
+        super.destroy();
+        this.stateManager.get('media.activeMedia').forEach(media => this.cleanupForMedia(media));
+    }
+
+    applyAudioEffectsToAllMedia() {
+        if (!this.stateManager.get('audio.audioInitialized')) return;
+        const sm = this.stateManager;
+        const mediaToAffect = sm.get('app.isMobile') && sm.get('media.currentlyVisibleMedia') ?
+            [sm.get('media.currentlyVisibleMedia')] : Array.from(sm.get('media.activeMedia'));
+        mediaToAffect.forEach(media => {
+            if (media) this.reconnectGraph(media)
+        });
+    }
+
+    createImpulseResponse(context, duration = 2, decay = 2) {
+        const sampleRate = context.sampleRate;
+        const length = sampleRate * duration;
+        const impulse = context.createBuffer(2, length, sampleRate);
+        const impulseL = impulse.getChannelData(0);
+        const impulseR = impulse.getChannelData(1);
+        for (let i = 0; i < length; i++) {
+            impulseL[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+            impulseR[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+        }
+        return impulse;
+    }
+
+    makeDistortionCurve(amount) {
+        const k = typeof amount === 'number' ? amount : 50;
+        const n_samples = 44100;
+        const curve = new Float32Array(n_samples);
+        const deg = Math.PI / 180;
+        for (let i = 0; i < n_samples; ++i) {
+            const x = i * 2 / n_samples - 1;
+            curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+        }
+        return curve;
+    }
+
+    createAudioGraph(media) {
+        const context = new(window.AudioContext || window.webkitAudioContext)();
+        let source;
+        try {
+            media.crossOrigin = "anonymous";
+            source = context.createMediaElementSource(media);
+        } catch (e) {
+            this.stateManager.set('ui.warningMessage', '오디오 효과 적용 실패 (CORS). 페이지 새로고침이 필요할 수 있습니다.');
+            console.error('[VSC] MediaElementSource creation failed.', e);
+            context.close();
+            return null;
+        }
+
+        const nodes = {
+            context,
+            source,
+            stereoPanner: context.createStereoPanner(),
+            masterGain: context.createGain(),
+            analyser: context.createAnalyser(),
+            loudnessAnalyzer: context.createAnalyser(),
+            safetyLimiter: context.createDynamicsCompressor(),
+            band1_SubBass: context.createBiquadFilter(),
+            band2_Bass: context.createBiquadFilter(),
+            band3_Mid: context.createBiquadFilter(),
+            band4_Treble: context.createBiquadFilter(),
+            band5_Presence: context.createBiquadFilter(),
+            gain1_SubBass: context.createGain(),
+            gain2_Bass: context.createGain(),
+            gain3_Mid: context.createGain(),
+            gain4_Treble: context.createGain(),
+            gain5_Presence: context.createGain(),
+            merger: context.createGain(),
+            reverbConvolver: context.createConvolver(),
+            reverbWetGain: context.createGain(),
+            reverbSum: context.createGain(),
+            deesserBand: context.createBiquadFilter(),
+            deesserCompressor: context.createDynamicsCompressor(),
+            exciterHPF: context.createBiquadFilter(),
+            exciter: context.createWaveShaper(),
+            exciterPostGain: context.createGain(),
+            parallelCompressor: context.createDynamicsCompressor(),
+            parallelDry: context.createGain(),
+            parallelWet: context.createGain(),
+        };
+
+        const mbc = {
+            splitter1: context.createBiquadFilter(),
+            splitter2: context.createBiquadFilter(),
+            splitter3: context.createBiquadFilter(),
+            compLow: context.createDynamicsCompressor(),
+            compLowMid: context.createDynamicsCompressor(),
+            compHighMid: context.createDynamicsCompressor(),
+            compHigh: context.createDynamicsCompressor(),
+            gainLow: context.createGain(),
+            gainLowMid: context.createGain(),
+            gainHighMid: context.createGain(),
+            gainHigh: context.createGain(),
+            merger: context.createGain()
+        };
+        mbc.splitter1.type = 'lowpass';
+        mbc.splitter2.type = 'lowpass';
+        mbc.splitter3.type = 'lowpass';
+        Object.assign(nodes, { mbc });
+
+        nodes.dynamicEq = [];
+        for (let i = 0; i < 4; i++) {
+            const deq_band = {
+                peaking: context.createBiquadFilter(),
+                sidechain: context.createBiquadFilter(),
+                compressor: context.createDynamicsCompressor(),
+                gain: context.createGain()
+            };
+            deq_band.peaking.type = 'peaking';
+            deq_band.sidechain.type = 'bandpass';
+            nodes.dynamicEq.push(deq_band);
+        }
+
+        try {
+            nodes.reverbConvolver.buffer = this.createImpulseResponse(context);
+        } catch (e) {
+            console.error("[VSC] Failed to create reverb impulse response.", e);
+        }
+
+        nodes.safetyLimiter.threshold.value = -0.5;
+        nodes.safetyLimiter.knee.value = 0;
+        nodes.safetyLimiter.ratio.value = 20;
+        nodes.safetyLimiter.attack.value = 0.001;
+        nodes.safetyLimiter.release.value = 0.15;
+
+        nodes.analyser.fftSize = 256;
+        nodes.loudnessAnalyzer.fftSize = 2048;
+        nodes.band1_SubBass.type = "lowpass";
+        nodes.band1_SubBass.frequency.value = 80;
+        nodes.band2_Bass.type = "bandpass";
+        nodes.band2_Bass.frequency.value = 150;
+        nodes.band2_Bass.Q.value = 1;
+        nodes.band3_Mid.type = "bandpass";
+        nodes.band3_Mid.frequency.value = 1000;
+        nodes.band3_Mid.Q.value = 1;
+        nodes.band4_Treble.type = "bandpass";
+        nodes.band4_Treble.frequency.value = 4000;
+        nodes.band4_Treble.Q.value = 1;
+        nodes.band5_Presence.type = "highpass";
+        nodes.band5_Presence.frequency.value = 8000;
+        this.stateManager.get('audio.audioContextMap').set(media, nodes);
+
+        nodes.source.connect(nodes.masterGain);
+        nodes.masterGain.connect(nodes.safetyLimiter);
+        nodes.safetyLimiter.connect(nodes.analyser);
+        nodes.safetyLimiter.connect(nodes.loudnessAnalyzer);
+        nodes.safetyLimiter.connect(nodes.context.destination);
+        return nodes;
+    }
+
+    reconnectGraph(media) {
+        const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+        if (!nodes) return;
+        const audioState = this.stateManager.get('audio');
+
+        safeExec(() => {
+            Object.values(nodes).forEach(node => {
+                if (node && typeof node.disconnect === 'function' && node !== nodes.context && node !== nodes.loudnessAnalyzer) {
+                    try {
+                        node.disconnect();
+                    } catch (e) { /* Ignore */ }
+                }
+            });
+
+            if (this.animationFrameMap.has(media)) cancelAnimationFrame(this.animationFrameMap.get(media));
+            this.animationFrameMap.delete(media);
+
+            let lastNode = nodes.source;
+
+            nodes.stereoPanner.pan.value = audioState.stereoPan;
+
+            if (audioState.isDeesserEnabled) {
+                nodes.deesserBand.type = 'bandpass';
+                nodes.deesserBand.frequency.value = audioState.deesserFreq;
+                nodes.deesserBand.Q.value = 3;
+                nodes.deesserCompressor.threshold.value = audioState.deesserThreshold;
+                nodes.deesserCompressor.knee.value = 10;
+                nodes.deesserCompressor.ratio.value = 10;
+                nodes.deesserCompressor.attack.value = 0.005;
+                nodes.deesserCompressor.release.value = 0.1;
+                lastNode.connect(nodes.deesserBand).connect(nodes.deesserCompressor);
+                lastNode = lastNode.connect(nodes.deesserCompressor);
+            }
+
+            if (audioState.isEqEnabled || audioState.bassBoostGain > 0) {
+                const merger = nodes.merger;
+                lastNode.connect(nodes.band1_SubBass);
+                lastNode.connect(nodes.band2_Bass);
+                lastNode.connect(nodes.band3_Mid);
+                lastNode.connect(nodes.band4_Treble);
+                lastNode.connect(nodes.band5_Presence);
+                let lastSubBassNode = nodes.band1_SubBass;
+                if (audioState.bassBoostGain > 0) {
+                    if (!nodes.bassBoost) {
+                        nodes.bassBoost = nodes.context.createBiquadFilter();
+                        nodes.bassBoost.type = "peaking";
+                    }
+                    nodes.bassBoost.frequency.value = audioState.bassBoostFreq;
+                    nodes.bassBoost.Q.value = audioState.bassBoostQ;
+                    nodes.bassBoost.gain.value = audioState.bassBoostGain;
+                    lastSubBassNode = lastSubBassNode.connect(nodes.bassBoost);
+                }
+                if (audioState.isEqEnabled) {
+                    nodes.gain1_SubBass.gain.value = Math.pow(10, audioState.eqSubBassGain / 20);
+                    nodes.gain2_Bass.gain.value = Math.pow(10, audioState.eqBassGain / 20);
+                    nodes.gain3_Mid.gain.value = Math.pow(10, audioState.eqMidGain / 20);
+                    nodes.gain4_Treble.gain.value = Math.pow(10, audioState.eqTrebleGain / 20);
+                    nodes.gain5_Presence.gain.value = Math.pow(10, audioState.eqPresenceGain / 20);
+                } else {
+                    [nodes.gain1_SubBass, nodes.gain2_Bass, nodes.gain3_Mid, nodes.gain4_Treble, nodes.gain5_Presence].forEach(g => g.gain.value = 1);
+                }
+                lastSubBassNode.connect(nodes.gain1_SubBass).connect(merger);
+                nodes.band2_Bass.connect(nodes.gain2_Bass).connect(merger);
+                nodes.band3_Mid.connect(nodes.gain3_Mid).connect(merger);
+                nodes.band4_Treble.connect(nodes.gain4_Treble).connect(merger);
+                nodes.band5_Presence.connect(nodes.gain5_Presence).connect(merger);
+                lastNode = merger;
+            }
+
+            if (audioState.isDynamicEqEnabled) {
+                const deqSettings = audioState.dynamicEq.bands;
+                for (let i = 0; i < nodes.dynamicEq.length; i++) {
+                    const band = nodes.dynamicEq[i];
+                    const settings = deqSettings[i];
+                    band.peaking.frequency.value = settings.freq;
+                    band.peaking.Q.value = settings.q;
+                    band.sidechain.frequency.value = settings.freq;
+                    band.sidechain.Q.value = settings.q * 1.5;
+                    band.compressor.threshold.value = settings.threshold;
+                    band.compressor.knee.value = 5;
+                    band.compressor.ratio.value = 2;
+                    band.compressor.attack.value = 0.005;
+                    band.compressor.release.value = 0.15;
+                    band.gain.gain.value = settings.gain;
+                    lastNode.connect(band.peaking);
+                    lastNode.connect(band.sidechain).connect(band.compressor).connect(band.gain);
+                    band.gain.connect(band.peaking.gain);
+                    lastNode = band.peaking;
+                }
+            }
+
+            if (audioState.isHpfEnabled) {
+                if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
+                nodes.hpf.type = 'highpass';
+                nodes.hpf.frequency.value = audioState.hpfHz;
+                lastNode = lastNode.connect(nodes.hpf);
+            }
+
+            if (audioState.isMultibandCompEnabled) {
+                const mbcNodes = nodes.mbc;
+                const merger = mbcNodes.merger;
+                mbcNodes.splitter1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
+                mbcNodes.splitter2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
+                mbcNodes.splitter3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
+                const highPass1 = nodes.context.createBiquadFilter();
+                highPass1.type = 'highpass';
+                highPass1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
+                const highPass2 = nodes.context.createBiquadFilter();
+                highPass2.type = 'highpass';
+                highPass2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
+                const highPass3 = nodes.context.createBiquadFilter();
+                highPass3.type = 'highpass';
+                highPass3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
+                lastNode.connect(mbcNodes.splitter1).connect(mbcNodes.compLow).connect(mbcNodes.gainLow).connect(merger);
+                lastNode.connect(highPass1).connect(mbcNodes.splitter2).connect(mbcNodes.compLowMid).connect(mbcNodes.gainLowMid).connect(merger);
+                lastNode.connect(highPass2).connect(mbcNodes.splitter3).connect(mbcNodes.compHighMid).connect(mbcNodes.gainHighMid).connect(merger);
+                lastNode.connect(highPass3).connect(mbcNodes.compHigh).connect(mbcNodes.gainHigh).connect(merger);
+                const bands = ['low', 'lowMid', 'highMid', 'high'];
+                const compMap = { low: mbcNodes.compLow, lowMid: mbcNodes.compLowMid, highMid: mbcNodes.compHighMid, high: mbcNodes.compHigh };
+                const gainMap = { low: mbcNodes.gainLow, lowMid: mbcNodes.gainLowMid, highMid: mbcNodes.gainHighMid, high: mbcNodes.gainHigh };
+                bands.forEach(band => {
+                    const comp = compMap[band];
+                    const gain = gainMap[band];
+                    comp.threshold.value = this.stateManager.get(`audio.multibandComp.${band}.threshold`);
+                    comp.ratio.value = this.stateManager.get(`audio.multibandComp.${band}.ratio`);
+                    comp.attack.value = this.stateManager.get(`audio.multibandComp.${band}.attack`);
+                    comp.release.value = this.stateManager.get(`audio.multibandComp.${band}.release`);
+                    gain.gain.value = Math.pow(10, this.stateManager.get(`audio.multibandComp.${band}.makeupGain`) / 20);
+                });
+                lastNode = merger;
+            }
+
+            if (audioState.isExciterEnabled && audioState.exciterAmount > 0) {
+                const exciterSum = nodes.context.createGain();
+                const exciterDry = nodes.context.createGain();
+                const exciterWet = nodes.context.createGain();
+                const wetAmount = audioState.exciterAmount / 100;
+                exciterDry.gain.value = 1.0 - wetAmount;
+                exciterWet.gain.value = wetAmount;
+                nodes.exciterHPF.type = 'highpass';
+                nodes.exciterHPF.frequency.value = 5000;
+                nodes.exciter.curve = this.makeDistortionCurve(audioState.exciterAmount * 15);
+                nodes.exciter.oversample = '4x';
+                nodes.exciterPostGain.gain.value = 0.5;
+                lastNode.connect(exciterDry).connect(exciterSum);
+                lastNode.connect(nodes.exciterHPF).connect(nodes.exciter).connect(nodes.exciterPostGain).connect(exciterWet).connect(exciterSum);
+                lastNode = exciterSum;
+            }
+
+            if (audioState.isParallelCompEnabled && audioState.parallelCompMix > 0) {
+                nodes.parallelCompressor.threshold.value = -40;
+                nodes.parallelCompressor.knee.value = 15;
+                nodes.parallelCompressor.ratio.value = 12;
+                nodes.parallelCompressor.attack.value = 0.003;
+                nodes.parallelCompressor.release.value = 0.1;
+                nodes.parallelDry.gain.value = 1.0 - (audioState.parallelCompMix / 100);
+                nodes.parallelWet.gain.value = audioState.parallelCompMix / 100;
+                const parallelSum = nodes.context.createGain();
+                lastNode.connect(nodes.parallelDry).connect(parallelSum);
+                lastNode.connect(nodes.parallelCompressor).connect(nodes.parallelWet).connect(parallelSum);
+                lastNode = parallelSum;
+            }
+
+            let spatialNode;
+            if (audioState.isWideningEnabled) {
+                if (!nodes.ms_splitter) {
+                    Object.assign(nodes, {
+                        ms_splitter: nodes.context.createChannelSplitter(2),
+                        ms_mid_sum: nodes.context.createGain(),
+                        ms_mid_level: nodes.context.createGain(),
+                        ms_side_invert_R: nodes.context.createGain(),
+                        ms_side_sum: nodes.context.createGain(),
+                        ms_side_level: nodes.context.createGain(),
+                        ms_side_gain: nodes.context.createGain(),
+                        adaptiveWidthFilter: nodes.context.createBiquadFilter(),
+                        ms_decode_L_sum: nodes.context.createGain(),
+                        ms_decode_invert_Side: nodes.context.createGain(),
+                        ms_decode_R_sum: nodes.context.createGain(),
+                        ms_merger: nodes.context.createChannelMerger(2)
+                    });
+                }
+                lastNode.connect(nodes.ms_splitter);
+                nodes.ms_splitter.connect(nodes.ms_mid_sum, 0);
+                nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
+                nodes.ms_mid_sum.connect(nodes.ms_mid_level);
+                nodes.ms_splitter.connect(nodes.ms_side_sum, 0);
+                nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1).connect(nodes.ms_side_sum);
+                nodes.ms_side_invert_R.gain.value = -1;
+                nodes.ms_side_sum.connect(nodes.ms_side_level);
+                nodes.ms_mid_level.gain.value = 0.5;
+                nodes.ms_side_level.gain.value = 0.5;
+                nodes.adaptiveWidthFilter.type = 'highpass';
+                nodes.adaptiveWidthFilter.frequency.value = audioState.isAdaptiveWidthEnabled ? audioState.adaptiveWidthFreq : 0;
+                nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
+                nodes.ms_side_gain.gain.value = audioState.wideningFactor;
+                nodes.ms_decode_invert_Side.gain.value = -1;
+                nodes.ms_mid_level.connect(nodes.ms_decode_L_sum);
+                nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
+                nodes.ms_mid_level.connect(nodes.ms_decode_R_sum);
+                nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side).connect(nodes.ms_decode_R_sum);
+                nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0);
+                nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
+                spatialNode = nodes.ms_merger;
+            } else {
+                spatialNode = lastNode.connect(nodes.stereoPanner);
+            }
+
+            if (audioState.isReverbEnabled) {
+                nodes.reverbWetGain.gain.value = audioState.reverbMix;
+                spatialNode.connect(nodes.reverbSum);
+                spatialNode.connect(nodes.reverbConvolver).connect(nodes.reverbWetGain).connect(nodes.reverbSum);
+                lastNode = nodes.reverbSum;
+            } else {
+                lastNode = spatialNode;
+            }
+
+            nodes.masterGain.gain.value = audioState.isPreGainEnabled ? audioState.preGain : 1.0;
+            lastNode.connect(nodes.masterGain);
+            nodes.masterGain.connect(nodes.safetyLimiter);
+            nodes.safetyLimiter.connect(nodes.analyser);
+            nodes.safetyLimiter.connect(nodes.loudnessAnalyzer);
+            nodes.safetyLimiter.connect(nodes.context.destination);
+        }, 'reconnectGraph');
+    }
+
+    checkAudioActivity(media, nodes) {
+        if (this.audioActivityStatus.get(media) === 'passed' || this.audioActivityStatus.get(media) === 'checking') return;
+        this.audioActivityStatus.set(media, 'checking');
+
+        let attempts = 0;
+        const MAX_ATTEMPTS = 8;
+        const CHECK_INTERVAL = 350;
+        const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
+
+        const intervalId = setInterval(() => {
+
+            if (!media.isConnected || nodes.context.state === 'closed') {
+                clearInterval(intervalId);
+                this.audioActivityStatus.delete(media);
+                return;
+            }
+            if (media.paused) {
+                attempts = 0;
+                return;
+            }
+
+            attempts++;
+            nodes.analyser.getByteFrequencyData(analyserData);
+            const sum = analyserData.reduce((a, b) => a + b, 0);
+
+            if (sum > 0) {
+                clearInterval(intervalId);
+                this.audioActivityStatus.set(media, 'passed');
+                return;
+            }
+
+            if (attempts >= MAX_ATTEMPTS) {
+                clearInterval(intervalId);
+                this.audioActivityStatus.set(media, 'failed');
+
+                if (this.stateManager.get('settings.autoRefresh')) {
+                    console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 페이지를 새로고침합니다.', media);
+                    try {
+                        sessionStorage.setItem('vsc_message', 'CORS 보안 정책으로 오디오 효과 적용에 실패하여 페이지를 자동 새로고침했습니다.');
+                    } catch (e) {
+                        console.error('[VSC] sessionStorage 접근 실패:', e);
+                    }
+
+                    this.stateManager.set('ui.warningMessage', 'CORS 오류 감지. 1.5초 후 오디오 복원을 위해 페이지를 새로고침합니다.');
+                    this.cleanupForMedia(media);
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 자동 새로고침 비활성화됨.', media);
+                    this.stateManager.set('ui.warningMessage', '오디오 효과 적용 실패 (CORS 보안 정책 가능성).');
+                }
+            }
+        }, CHECK_INTERVAL);
+    }
+
+    getOrCreateNodes(media) {
+        const audioContextMap = this.stateManager.get('audio.audioContextMap');
+        if (audioContextMap.has(media)) return audioContextMap.get(media);
+        const newNodes = this.createAudioGraph(media);
+        if (newNodes) {
+            this.checkAudioActivity(media, newNodes);
+            if (this.stateManager.get('audio.isLoudnessNormalizationEnabled')) {
+                this.startLoudnessAnalysis(media);
+            }
+        }
+        return newNodes;
+    }
+
+    cleanupForMedia(media) {
+        this.stopLoudnessAnalysis(media);
+        if (this.animationFrameMap.has(media)) {
+            cancelAnimationFrame(this.animationFrameMap.get(media));
+            this.animationFrameMap.delete(media);
+        }
+        const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+        if (nodes) {
+            safeExec(() => {
+                if (nodes.context.state !== 'closed') nodes.context.close();
+            }, 'cleanupForMedia');
+            this.stateManager.get('audio.audioContextMap').delete(media);
+        }
+    }
+
+    ensureContextResumed(media) {
+        const nodes = this.getOrCreateNodes(media);
+        if (nodes && nodes.context.state === 'suspended') {
+            nodes.context.resume().catch(e => {
+                if (!this.stateManager.get('ui.audioContextWarningShown')) {
+                    console.warn('[VSC] AudioContext resume failed. Click UI to enable.', e.message);
+                    this.stateManager.set('ui.warningMessage', '오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
+                    this.stateManager.set('ui.audioContextWarningShown', true);
+                }
+            });
+        }
+    }
+
+    _getInstantRMS() {
+        return new Promise(resolve => {
+            const media = this.stateManager.get('media.currentlyVisibleMedia') || [...this.stateManager.get('media.activeMedia')][0];
+            if (!media) return resolve(0);
+
+            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+            if (!nodes || !nodes.loudnessAnalyzer) return resolve(0);
+
+            const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
+
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i] * dataArray[i];
+            }
+            const rms = Math.sqrt(sum / bufferLength);
+            resolve(rms);
+        });
+    }
+
+    startLoudnessAnalysis(media) {
+        if (this.loudnessIntervalMap.has(media)) return;
+
+        const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+        if (!nodes || !nodes.loudnessAnalyzer) return;
+
+        const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
+        const dataArray = new Float32Array(bufferLength);
+        let currentGain = this.stateManager.get('audio.preGain');
+
+        const intervalId = setInterval(() => {
+            if (!media.isConnected || media.paused) return;
+
+            nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
+
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i] * dataArray[i];
+            }
+            const rms = Math.sqrt(sum / bufferLength);
+
+            if (rms === 0) return;
+
+            const measuredLoudness = 20 * Math.log10(rms);
+
+            const targetLoudness = this.stateManager.get('audio.loudnessTarget');
+            const error = targetLoudness - measuredLoudness;
+
+            const currentPreGain = this.stateManager.get('audio.preGain');
+            const targetPreGain = currentPreGain * Math.pow(10, error / 20);
+
+            const newGain = currentGain * (1 - CONFIG.LOUDNESS_ADJUSTMENT_SPEED) + targetPreGain * CONFIG.LOUDNESS_ADJUSTMENT_SPEED;
+            currentGain = Math.max(0.1, Math.min(newGain, CONFIG.MAX_PRE_GAIN));
+
+            this.stateManager.set('audio.preGain', currentGain);
+
+        }, CONFIG.LOUDNESS_ANALYSIS_INTERVAL);
+
+        this.loudnessIntervalMap.set(media, intervalId);
+    }
+
+    stopLoudnessAnalysis(media) {
+        if (this.loudnessIntervalMap.has(media)) {
+            clearInterval(this.loudnessIntervalMap.get(media));
+            this.loudnessIntervalMap.delete(media);
+        }
+        const lastManualGain = this.stateManager.get('audio.lastManualPreGain');
+        this.stateManager.set('audio.preGain', lastManualGain);
+    }
+}
 
     // --- [PLUGIN] LiveStreamPlugin: Manages live stream delay and seeking ---
     class LiveStreamPlugin extends Plugin {
@@ -1348,275 +1427,268 @@ class UIPlugin extends Plugin {
         this.modalHost = null;
         this.modalShadowRoot = null;
 
+        // ✅ [수정] 모든 프리셋에서 마스터링 및 리미터 관련 옵션을 완전히 제거했습니다.
         this.presetMap = {
-            'default': {
-                name: '기본값 (모든 효과 꺼짐)',
-                targetLUFS: CONFIG.LOUDNESS_TARGET,
-                hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
-                eq_enabled: false, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 0, eq_presence: 0,
-                bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
-                widen_enabled: false, widen_factor: 1.0,
-                adaptive_enabled: false, adaptive_width_freq: 150,
-                preGain_enabled: false, preGain_value: 1.0,
-                reverb_enabled: false, reverb_mix: CONFIG.DEFAULT_REVERB_MIX,
-                deesser_enabled: false, deesser_threshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesser_freq: CONFIG.DEFAULT_DEESSER_FREQ,
-                exciter_enabled: false, exciter_amount: 0,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                limiter_enabled: false,
-                mastering_suite_enabled: false, mastering_transient: 0.2, mastering_drive: 0,
-                multiband_enabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
-                multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS,
-                smartEQ_enabled: false,
-                smartEQ_bands: []
-            },
-            'basic_clear': {
-                name: '💠 기본 개선 (명료)',
-                targetLUFS: -16,
-                hpf_enabled: true, hpf_hz: 70,
-                eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
-                bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.0,
-                widen_enabled: true, widen_factor: 1.2,
-                adaptive_enabled: true, adaptive_width_freq: 180,
-                preGain_enabled: true, preGain_value: 1.0,
-                reverb_enabled: false, reverb_mix: 0,
-                deesser_enabled: false,
-                exciter_enabled: false,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                limiter_enabled: false,
-                mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 10, release: 300, makeup: 2 },
-                    { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 8, release: 250, makeup: 1.5 },
-                    { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4, attack: 5, release: 200, makeup: 1 },
-                    { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 120, Q: 1.2, threshold: -21, gain: -2 },
-                    { frequency: 1000, Q: 1.0, threshold: -22, gain: 2 },
-                    { frequency: 4000, Q: 0.8, threshold: -24, gain: 2 },
-                    { frequency: 8000, Q: 1.5, threshold: -25, gain: 1 }
-                ]
-            },
-            'movie_immersive': {
-                name: '🎬 영화/드라마 (몰입감)',
-                targetLUFS: -16,
-                hpf_enabled: true, hpf_hz: 60,
-                eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
-                bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
-                widen_enabled: true, widen_factor: 1.4,
-                adaptive_enabled: true, adaptive_width_freq: 200,
-                preGain_enabled: true, preGain_value: 0.8,
-                reverb_enabled: false, reverb_mix: 0,
-                deesser_enabled: true, deesser_threshold: -25,
-                exciter_enabled: false,
-                parallel_comp_enabled: true, parallel_comp_mix: 15,
-                limiter_enabled: false,
-                mastering_suite_enabled: true, mastering_transient: 0.25, mastering_drive: 0,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqLow: 20, freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
-                    { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8, release: 250, makeup: 1.5 },
-                    { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 5, release: 200, makeup: 1 },
-                    { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 2, release: 150, makeup: 1 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
-                    { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
-                    { frequency: 3000, Q: 0.9, threshold: -24, gain: 2 },
-                    { frequency: 10000, Q: 1.2, threshold: -25, gain: 1 }
-                ]
-            },
-            'action_blockbuster': {
-                name: '💥 액션 블록버스터 (타격감)',
-                targetLUFS: -14,
-                hpf_enabled: true, hpf_hz: 50,
-                eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8,
-                bass_boost_gain: 4, bass_boost_freq: 55, bass_boost_q: 1.2,
-                widen_enabled: true, widen_factor: 1.5,
-                adaptive_enabled: true, adaptive_width_freq: 220,
-                preGain_enabled: false,
-                reverb_enabled: false, reverb_mix: 0,
-                deesser_enabled: false,
-                exciter_enabled: false,
-                parallel_comp_enabled: true, parallel_comp_mix: 18,
-                limiter_enabled: false,
-                mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 3,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqLow: 20, freqHigh: 120, threshold: -26, ratio: 3.5, attack: 12, release: 320, makeup: 2.5 },
-                    { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 260, makeup: 2 },
-                    { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 6, release: 200, makeup: 1.5 },
-                    { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 3, release: 150, makeup: 1 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 60, Q: 1.0, threshold: -19, gain: 2 },
-                    { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
-                    { frequency: 2000, Q: 0.8, threshold: -23, gain: 2 },
-                    { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
-                ]
-            },
-            'concert_hall': {
-                name: '🏟️ 라이브 콘서트 (현장감)',
-                targetLUFS: -14.5,
-                hpf_enabled: true, hpf_hz: 60,
-                eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2,
-                bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
-                widen_enabled: true, widen_factor: 1.3,
-                adaptive_enabled: true, adaptive_width_freq: 180,
-                preGain_enabled: true, preGain_value: 1.2,
-                reverb_enabled: true, reverb_mix: 0.5,
-                deesser_enabled: false,
-                exciter_enabled: false,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                limiter_enabled: false,
-                mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 2.5,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3, attack: 12, release: 280, makeup: 2 },
-                    { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 9, release: 250, makeup: 1.5 },
-                    { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 6, release: 210, makeup: 1 },
-                    { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.2, attack: 3, release: 160, makeup: 1 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 100, Q: 1.0, threshold: -20, gain: -1 },
-                    { frequency: 500, Q: 1.1, threshold: -21, gain: 2 },
-                    { frequency: 3000, Q: 0.9, threshold: -23, gain: 2 },
-                    { frequency: 9000, Q: 1.3, threshold: -25, gain: 2 }
-                ]
-            },
-            'music_dynamic': {
-                name: '🎶 음악 (다이나믹 & 펀치감)',
-                targetLUFS: -14,
-                hpf_enabled: true, hpf_hz: 40,
-                eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
-                bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.1,
-                widen_enabled: true, widen_factor: 1.3,
-                adaptive_enabled: true, adaptive_width_freq: 170,
-                preGain_enabled: false,
-                reverb_enabled: false,
-                deesser_enabled: false,
-                exciter_enabled: true, exciter_amount: 12,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                limiter_enabled: false,
-                mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqLow: 20, freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 2 },
-                    { freqLow: 120, freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 250, makeup: 1.5 },
-                    { freqLow: 1000, freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 5, release: 200, makeup: 1 },
-                    { freqLow: 6000, freqHigh: 20000, threshold: -30, ratio: 5, attack: 2, release: 150, makeup: 1 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 70, Q: 1.0, threshold: -20, gain: 2 },
-                    { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
-                    { frequency: 1500, Q: 1.0, threshold: -23, gain: 2 },
-                    { frequency: 7000, Q: 1.2, threshold: -24, gain: 2 }
-                ]
-            },
-            'mastering_balanced': {
-                name: '🔥 밸런스 마스터링 (고음질)',
-                targetLUFS: -13.5,
-                hpf_enabled: true, hpf_hz: 45,
-                eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1.2, eq_presence: 1,
-                bass_boost_gain: 3.8, bass_boost_freq: 60, bass_boost_q: 1.0,
-                widen_enabled: true, widen_factor: 1.25,
-                adaptive_enabled: true, adaptive_width_freq: 160,
-                preGain_enabled: true, preGain_value: 1.5,
-                reverb_enabled: false, reverb_mix: 0,
-                deesser_enabled: false,
-                exciter_enabled: true, exciter_amount: 10,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                limiter_enabled: false,
-                mastering_suite_enabled: true, mastering_transient: 0.3, mastering_drive: 3.5,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqLow: 20, freqHigh: 120, threshold: -24, ratio: 3.2, attack: 10, release: 300, makeup: 2 },
-                    { freqLow: 120, freqHigh: 1000, threshold: -26, ratio: 3.8, attack: 8, release: 250, makeup: 1.5 },
-                    { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4.2, attack: 5, release: 200, makeup: 1 },
-                    { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 2, release: 150, makeup: 1 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
-                    { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
-                    { frequency: 2500, Q: 0.9, threshold: -23, gain: 2 },
-                    { frequency: 10000, Q: 1.3, threshold: -25, gain: 2 }
-                ]
-            },
-            'vocal_clarity_pro': {
-                name: '🎙️ 목소리 명료 (강의/뉴스)',
-                targetLUFS: -18,
-                hpf_enabled: true, hpf_hz: 90,
-                eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3.5, eq_treble: 1.5, eq_presence: 3,
-                bass_boost_gain: 2, bass_boost_freq: 55, bass_boost_q: 1.0,
-                widen_enabled: false, widen_factor: 1.0,
-                adaptive_enabled: true, adaptive_width_freq: 180,
-                preGain_enabled: true, preGain_value: 0.8,
-                reverb_enabled: false, reverb_mix: 0,
-                deesser_enabled: true, deesser_threshold: -32,
-                exciter_enabled: false,
-                parallel_comp_enabled: true, parallel_comp_mix: 10,
-                limiter_enabled: false,
-                mastering_suite_enabled: true, mastering_transient: 0.1, mastering_drive: 1.2,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqLow: 20, freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 1.5 },
-                    { freqLow: 120, freqHigh: 1000, threshold: -23, ratio: 3, attack: 10, release: 260, makeup: 1.5 },
-                    { freqLow: 1000, freqHigh: 6000, threshold: -25, ratio: 3.2, attack: 8, release: 220, makeup: 2 },
-                    { freqLow: 6000, freqHigh: 20000, threshold: -27, ratio: 3.8, attack: 5, release: 160, makeup: 1 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 150, Q: 1.2, threshold: -21, gain: -2 },
-                    { frequency: 1000, Q: 1.0, threshold: -22, gain: 2.5 },
-                    { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
-                    { frequency: 7000, Q: 1.5, threshold: -24, gain: 1 }
-                ]
-            },
-            'gaming_pro': {
-                name: '🎮 게이밍 (사운드 플레이)',
-                targetLUFS: -15,
-                hpf_enabled: true, hpf_hz: 50,
-                eq_enabled: true, eq_subBass: -1, eq_bass: 2, eq_mid: 2, eq_treble: 2, eq_presence: 2.5,
-                bass_boost_gain: 3.5, bass_boost_freq: 60, bass_boost_q: 1.0,
-                widen_enabled: true, widen_factor: 1.2,
-                adaptive_enabled: true, adaptive_width_freq: 160,
-                preGain_enabled: false,
-                reverb_enabled: false,
-                deesser_enabled: false,
-                exciter_enabled: false,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                limiter_enabled: false,
-                mastering_suite_enabled: true, mastering_transient: 0.5, mastering_drive: 2.5,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqLow: 20, freqHigh: 120, threshold: -23, ratio: 3, attack: 12, release: 300, makeup: 2 },
-                    { freqLow: 120, freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 9, release: 250, makeup: 1.5 },
-                    { freqLow: 1000, freqHigh: 6000, threshold: -27, ratio: 4, attack: 6, release: 200, makeup: 1 },
-                    { freqLow: 6000, freqHigh: 20000, threshold: -29, ratio: 4.5, attack: 3, release: 150, makeup: 1 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
-                    { frequency: 500, Q: 1.0, threshold: -22, gain: 2 },
-                    { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
-                    { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
-                ]
-            }
-        };
+
+    'default': {
+        name: '기본값 (모든 효과 꺼짐)',
+        targetLUFS: CONFIG.LOUDNESS_TARGET,
+        hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
+        eq_enabled: false, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 0, eq_presence: 0,
+        bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
+        widen_enabled: false, widen_factor: 1.0,
+        adaptive_enabled: false, adaptive_width_freq: 150,
+        preGain_enabled: false, preGain_value: 1.0,
+        reverb_enabled: false, reverb_mix: CONFIG.DEFAULT_REVERB_MIX,
+        deesser_enabled: false, deesser_threshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesser_freq: CONFIG.DEFAULT_DEESSER_FREQ,
+        exciter_enabled: false, exciter_amount: 0,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
+        multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS, // 이 부분은 CONFIG의 기본값을 따릅니다.
+        smartEQ_enabled: false,
+        smartEQ_bands: []
+    },
+
+    'basic_clear': {
+        name: '💠 기본 개선 (명료)',
+        targetLUFS: -16,
+        hpf_enabled: true, hpf_hz: 70,
+        eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
+        bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.0,
+        widen_enabled: true, widen_factor: 1.2,
+        adaptive_enabled: true, adaptive_width_freq: 180,
+        preGain_enabled: true, preGain_value: 1.0,
+        reverb_enabled: false, reverb_mix: 0,
+        deesser_enabled: false,
+        exciter_enabled: false,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -24, ratio: 3, attack: 10, release: 300, makeup: 2 },
+            { freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 8, release: 250, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -28, ratio: 4, attack: 5, release: 200, makeup: 1 },
+            { threshold: -30, ratio: 4.5, attack: 2, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 120, Q: 1.2, threshold: -21, gain: -2 },
+            { frequency: 1000, Q: 1.0, threshold: -22, gain: 2 },
+            { frequency: 4000, Q: 0.8, threshold: -24, gain: 2 },
+            { frequency: 8000, Q: 1.5, threshold: -25, gain: 1 }
+        ]
+    },
+
+    'movie_immersive': {
+        name: '🎬 영화/드라마 (몰입감)',
+        targetLUFS: -16,
+        hpf_enabled: true, hpf_hz: 60,
+        eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
+        bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
+        widen_enabled: true, widen_factor: 1.4,
+        adaptive_enabled: true, adaptive_width_freq: 200,
+        preGain_enabled: true, preGain_value: 0.8,
+        reverb_enabled: false, reverb_mix: 0,
+        deesser_enabled: true, deesser_threshold: -25,
+        exciter_enabled: false,
+        parallel_comp_enabled: true, parallel_comp_mix: 15,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -22, ratio: 2.8, attack: 12, release: 300, makeup: 2 },
+            { freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 8, release: 250, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 5, release: 200, makeup: 1 },
+            { threshold: -29, ratio: 4.2, attack: 2, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
+            { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
+            { frequency: 3000, Q: 0.9, threshold: -24, gain: 2 },
+            { frequency: 10000, Q: 1.2, threshold: -25, gain: 1 }
+        ]
+    },
+
+    'action_blockbuster': {
+        name: '💥 액션 블록버스터 (타격감)',
+        targetLUFS: -14,
+        hpf_enabled: true, hpf_hz: 50,
+        eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8,
+        bass_boost_gain: 4, bass_boost_freq: 55, bass_boost_q: 1.2,
+        widen_enabled: true, widen_factor: 1.5,
+        adaptive_enabled: true, adaptive_width_freq: 220,
+        preGain_enabled: false,
+        reverb_enabled: false, reverb_mix: 0,
+        deesser_enabled: false,
+        exciter_enabled: false,
+        parallel_comp_enabled: true, parallel_comp_mix: 18,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -26, ratio: 3.5, attack: 12, release: 320, makeup: 2.5 },
+            { freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 260, makeup: 2 },
+            { freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 6, release: 200, makeup: 1.5 },
+            { threshold: -30, ratio: 5, attack: 3, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 60, Q: 1.0, threshold: -19, gain: 2 },
+            { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
+            { frequency: 2000, Q: 0.8, threshold: -23, gain: 2 },
+            { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
+        ]
+    },
+
+    'concert_hall': {
+        name: '🏟️ 라이브 콘서트 (현장감)',
+        targetLUFS: -14.5,
+        hpf_enabled: true, hpf_hz: 60,
+        eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2,
+        bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
+        widen_enabled: true, widen_factor: 1.3,
+        adaptive_enabled: true, adaptive_width_freq: 180,
+        preGain_enabled: true, preGain_value: 1.2,
+        reverb_enabled: true, reverb_mix: 0.5,
+        deesser_enabled: false,
+        exciter_enabled: false,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -24, ratio: 3, attack: 12, release: 280, makeup: 2 },
+            { freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 9, release: 250, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 6, release: 210, makeup: 1 },
+            { threshold: -29, ratio: 4.2, attack: 3, release: 160, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 100, Q: 1.0, threshold: -20, gain: -1 },
+            { frequency: 500, Q: 1.1, threshold: -21, gain: 2 },
+            { frequency: 3000, Q: 0.9, threshold: -23, gain: 2 },
+            { frequency: 9000, Q: 1.3, threshold: -25, gain: 2 }
+        ]
+    },
+
+    'music_dynamic': {
+        name: '🎶 음악 (다이나믹 & 펀치감)',
+        targetLUFS: -14,
+        hpf_enabled: true, hpf_hz: 40,
+        eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
+        bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.1,
+        widen_enabled: true, widen_factor: 1.3,
+        adaptive_enabled: true, adaptive_width_freq: 170,
+        preGain_enabled: false,
+        reverb_enabled: false,
+        deesser_enabled: false,
+        exciter_enabled: true, exciter_amount: 12,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -25, ratio: 3.5, attack: 10, release: 300, makeup: 2 },
+            { freqHigh: 1000, threshold: -27, ratio: 4, attack: 8, release: 250, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 5, release: 200, makeup: 1 },
+            { threshold: -30, ratio: 5, attack: 2, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 70, Q: 1.0, threshold: -20, gain: 2 },
+            { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
+            { frequency: 1500, Q: 1.0, threshold: -23, gain: 2 },
+            { frequency: 7000, Q: 1.2, threshold: -24, gain: 2 }
+        ]
+    },
+
+    'mastering_balanced': {
+        name: '🔥 밸런스 마스터링 (고음질)',
+        targetLUFS: -13.5,
+        hpf_enabled: true, hpf_hz: 45,
+        eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 1.2, eq_presence: 1,
+        bass_boost_gain: 3.8, bass_boost_freq: 60, bass_boost_q: 1.0,
+        widen_enabled: true, widen_factor: 1.25,
+        adaptive_enabled: true, adaptive_width_freq: 160,
+        preGain_enabled: true, preGain_value: 1.5,
+        reverb_enabled: false, reverb_mix: 0,
+        deesser_enabled: false,
+        exciter_enabled: true, exciter_amount: 10,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -24, ratio: 3.2, attack: 10, release: 300, makeup: 2 },
+            { freqHigh: 1000, threshold: -26, ratio: 3.8, attack: 8, release: 250, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -27, ratio: 4.2, attack: 5, release: 200, makeup: 1 },
+            { threshold: -29, ratio: 4.5, attack: 2, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
+            { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
+            { frequency: 2500, Q: 0.9, threshold: -23, gain: 2 },
+            { frequency: 10000, Q: 1.3, threshold: -25, gain: 2 }
+        ]
+    },
+
+    'vocal_clarity_pro': {
+        name: '🎙️ 목소리 명료 (강의/뉴스)',
+        targetLUFS: -18,
+        hpf_enabled: true, hpf_hz: 90,
+        eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3.5, eq_treble: 1.5, eq_presence: 3,
+        bass_boost_gain: 2, bass_boost_freq: 55, bass_boost_q: 1.0,
+        widen_enabled: false, widen_factor: 1.0,
+        adaptive_enabled: true, adaptive_width_freq: 180,
+        preGain_enabled: true, preGain_value: 0.8,
+        reverb_enabled: false, reverb_mix: 0,
+        deesser_enabled: true, deesser_threshold: -32,
+        exciter_enabled: false,
+        parallel_comp_enabled: true, parallel_comp_mix: 10,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -20, ratio: 2.5, attack: 15, release: 320, makeup: 1.5 },
+            { freqHigh: 1000, threshold: -23, ratio: 3, attack: 10, release: 260, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -25, ratio: 3.2, attack: 8, release: 220, makeup: 2 },
+            { threshold: -27, ratio: 3.8, attack: 5, release: 160, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 150, Q: 1.2, threshold: -21, gain: -2 },
+            { frequency: 1000, Q: 1.0, threshold: -22, gain: 2.5 },
+            { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
+            { frequency: 7000, Q: 1.5, threshold: -24, gain: 1 }
+        ]
+    },
+
+    'gaming_pro': {
+        name: '🎮 게이밍 (사운드 플레이)',
+        targetLUFS: -15,
+        hpf_enabled: true, hpf_hz: 50,
+        eq_enabled: true, eq_subBass: -1, eq_bass: 2, eq_mid: 2, eq_treble: 2, eq_presence: 2.5,
+        bass_boost_gain: 3.5, bass_boost_freq: 60, bass_boost_q: 1.0,
+        widen_enabled: true, widen_factor: 1.2,
+        adaptive_enabled: true, adaptive_width_freq: 160,
+        preGain_enabled: false,
+        reverb_enabled: false,
+        deesser_enabled: false,
+        exciter_enabled: false,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -23, ratio: 3, attack: 12, release: 300, makeup: 2 },
+            { freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 9, release: 250, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -27, ratio: 4, attack: 6, release: 200, makeup: 1 },
+            { threshold: -29, ratio: 4.5, attack: 3, release: 150, makeup: 1 } // 마지막 밴드는 freqHigh 생략
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
+            { frequency: 500, Q: 1.0, threshold: -22, gain: 2 },
+            { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
+            { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
+        ]
+    }
+};
+
     }
 
     init(stateManager) {
         super.init(stateManager);
 
         setTimeout(() => {
-            if(window.vscPluginManager) {
+            if (window.vscPluginManager) {
                 this.audioFXPlugin = window.vscPluginManager.plugins.find(p => p.name === 'AudioFX');
             }
         }, 0);
@@ -1845,15 +1917,12 @@ class UIPlugin extends Plugin {
         if (!this.triggerElement) return;
 
         if (isVisible) {
-            // UI가 다시 나타날 때 (번개 -> 정지)
             this.triggerElement.textContent = '🛑';
             this.triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
 
-            // [오디오 복원]
             const savedAudioSettings = this.stateManager.get('audio.lastActiveSettings');
             if (savedAudioSettings) {
                 for (const key in savedAudioSettings) {
-                    // Ensure complex objects are restored correctly
                     if (typeof savedAudioSettings[key] === 'object' && savedAudioSettings[key] !== null) {
                         this.stateManager.set(`audio.${key}`, JSON.parse(JSON.stringify(savedAudioSettings[key])));
                     } else {
@@ -1863,7 +1932,6 @@ class UIPlugin extends Plugin {
                 this.stateManager.set('audio.lastActiveSettings', null);
             }
 
-            // [비디오 복원]
             const savedVideoSettings = this.stateManager.get('videoFilter.lastActiveSettings');
             if (savedVideoSettings) {
                 for (const key in savedVideoSettings) {
@@ -1872,7 +1940,6 @@ class UIPlugin extends Plugin {
                 this.stateManager.set('videoFilter.lastActiveSettings', null);
             }
 
-            // [이미지 복원]
             const savedImageSettings = this.stateManager.get('imageFilter.lastActiveSettings');
             if (savedImageSettings) {
                 this.stateManager.set('imageFilter.level', savedImageSettings.level);
@@ -1880,55 +1947,25 @@ class UIPlugin extends Plugin {
             }
 
         } else {
-            // UI가 숨겨질 때 (정지 -> 번개)
             this.triggerElement.textContent = '⚡️';
             this.triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
 
-            // [오디오 저장]
             const audioState = this.stateManager.get('audio');
             const audioSettingsToSave = {
-                isHpfEnabled: audioState.isHpfEnabled, hpfHz: audioState.hpfHz,
-                isEqEnabled: audioState.isEqEnabled, eqSubBassGain: audioState.eqSubBassGain,
-                eqBassGain: audioState.eqBassGain, eqMidGain: audioState.eqMidGain,
-                eqTrebleGain: audioState.eqTrebleGain, eqPresenceGain: audioState.eqPresenceGain,
-                bassBoostGain: audioState.bassBoostGain,
-                isWideningEnabled: audioState.isWideningEnabled, wideningFactor: audioState.wideningFactor,
-                isAdaptiveWidthEnabled: audioState.isAdaptiveWidthEnabled, adaptiveWidthFreq: audioState.adaptiveWidthFreq,
-                isReverbEnabled: audioState.isReverbEnabled, reverbMix: audioState.reverbMix,
-                stereoPan: audioState.stereoPan,
-                isPreGainEnabled: audioState.isPreGainEnabled, preGain: audioState.preGain,
-                lastManualPreGain: audioState.lastManualPreGain,
-                isDeesserEnabled: audioState.isDeesserEnabled, deesserThreshold: audioState.deesserThreshold, deesserFreq: audioState.deesserFreq,
-                isExciterEnabled: audioState.isExciterEnabled, exciterAmount: audioState.exciterAmount,
-                isParallelCompEnabled: audioState.isParallelCompEnabled, parallelCompMix: audioState.parallelCompMix,
-                isLimiterEnabled: audioState.isLimiterEnabled,
-                isMasteringSuiteEnabled: audioState.isMasteringSuiteEnabled, masteringTransientAmount: audioState.masteringTransientAmount, masteringDrive: audioState.masteringDrive,
-                isLoudnessNormalizationEnabled: audioState.isLoudnessNormalizationEnabled,
-                isAgcEnabled: audioState.isAgcEnabled,
-                isMultibandCompEnabled: audioState.isMultibandCompEnabled,
-                multibandComp: JSON.parse(JSON.stringify(audioState.multibandComp)),
-                isDynamicEqEnabled: audioState.isDynamicEqEnabled,
-                dynamicEq: JSON.parse(JSON.stringify(audioState.dynamicEq)),
-                activePresetKey: audioState.activePresetKey
+                isHpfEnabled: audioState.isHpfEnabled, hpfHz: audioState.hpfHz, isEqEnabled: audioState.isEqEnabled, eqSubBassGain: audioState.eqSubBassGain, eqBassGain: audioState.eqBassGain, eqMidGain: audioState.eqMidGain, eqTrebleGain: audioState.eqTrebleGain, eqPresenceGain: audioState.eqPresenceGain, bassBoostGain: audioState.bassBoostGain, isWideningEnabled: audioState.isWideningEnabled, wideningFactor: audioState.wideningFactor, isAdaptiveWidthEnabled: audioState.isAdaptiveWidthEnabled, adaptiveWidthFreq: audioState.adaptiveWidthFreq, isReverbEnabled: audioState.isReverbEnabled, reverbMix: audioState.reverbMix, stereoPan: audioState.stereoPan, isPreGainEnabled: audioState.isPreGainEnabled, preGain: audioState.preGain, lastManualPreGain: audioState.lastManualPreGain, isDeesserEnabled: audioState.isDeesserEnabled, deesserThreshold: audioState.deesserThreshold, deesserFreq: audioState.deesserFreq, isExciterEnabled: audioState.isExciterEnabled, exciterAmount: audioState.exciterAmount, isParallelCompEnabled: audioState.isParallelCompEnabled, parallelCompMix: audioState.parallelCompMix,
+                isLoudnessNormalizationEnabled: audioState.isLoudnessNormalizationEnabled, isAgcEnabled: audioState.isAgcEnabled, isMultibandCompEnabled: audioState.isMultibandCompEnabled, multibandComp: JSON.parse(JSON.stringify(audioState.multibandComp)), isDynamicEqEnabled: audioState.isDynamicEqEnabled, dynamicEq: JSON.parse(JSON.stringify(audioState.dynamicEq)), activePresetKey: audioState.activePresetKey
             };
             this.stateManager.set('audio.lastActiveSettings', audioSettingsToSave);
 
-            // [비디오 저장]
             const videoState = this.stateManager.get('videoFilter');
             const videoSettingsToSave = {
-                level: videoState.level, level2: videoState.level2,
-                gamma: videoState.gamma, blur: videoState.blur,
-                shadows: videoState.shadows, highlights: videoState.highlights,
-                saturation: videoState.saturation, sharpenDirection: videoState.sharpenDirection,
-                activePreset: videoState.activePreset
+                level: videoState.level, level2: videoState.level2, gamma: videoState.gamma, blur: videoState.blur, shadows: videoState.shadows, highlights: videoState.highlights, saturation: videoState.saturation, sharpenDirection: videoState.sharpenDirection, activePreset: videoState.activePreset
             };
             this.stateManager.set('videoFilter.lastActiveSettings', videoSettingsToSave);
 
-            // [이미지 저장]
             const imageState = this.stateManager.get('imageFilter');
             this.stateManager.set('imageFilter.lastActiveSettings', { level: imageState.level });
 
-            // [초기화]
             Object.keys(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS).forEach(band => {
                 Object.keys(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS[band]).forEach(param => {
                     this.stateManager.set(`audio.multibandComp.${band}.${param}`, CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS[band][param]);
@@ -1944,8 +1981,6 @@ class UIPlugin extends Plugin {
             this.stateManager.set('audio.isDeesserEnabled', false);
             this.stateManager.set('audio.isExciterEnabled', false);
             this.stateManager.set('audio.isParallelCompEnabled', false);
-            this.stateManager.set('audio.isLimiterEnabled', false);
-            this.stateManager.set('audio.isMasteringSuiteEnabled', false);
             this.stateManager.set('audio.isPreGainEnabled', false);
             this.stateManager.set('audio.preGain', 1.0);
         }
@@ -1992,7 +2027,7 @@ class UIPlugin extends Plugin {
         const hasImage = activeImages.size > 0;
         const hasAnyMedia = hasVideo || hasAudio;
 
-        if(this.speedButtonsContainer) {
+        if (this.speedButtonsContainer) {
             this.speedButtonsContainer.style.display = hasVideo && controlsVisible ? 'flex' : 'none';
         }
 
@@ -2022,15 +2057,21 @@ class UIPlugin extends Plugin {
     }
 
     _createControlGroup(id, icon, title, parent) {
-        const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group';
-        const mainBtn = document.createElement('button'); mainBtn.className = 'vsc-btn vsc-btn-main'; mainBtn.textContent = icon; mainBtn.title = title;
-        const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu';
+        const group = document.createElement('div');
+        group.id = id;
+        group.className = 'vsc-control-group';
+        const mainBtn = document.createElement('button');
+        mainBtn.className = 'vsc-btn vsc-btn-main';
+        mainBtn.textContent = icon;
+        mainBtn.title = title;
+        const subMenu = document.createElement('div');
+        subMenu.className = 'vsc-submenu';
         group.append(mainBtn, subMenu);
         mainBtn.onclick = (e) => {
             e.stopPropagation();
             const isOpening = !group.classList.contains('submenu-visible');
             this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible'));
-            if(isOpening) group.classList.add('submenu-visible');
+            if (isOpening) group.classList.add('submenu-visible');
             this.resetFadeTimer();
             if (id === 'vsc-stereo-controls' && isOpening && !this.stateManager.get('audio.audioInitialized')) {
                 this.stateManager.set('audio.audioInitialized', true);
@@ -2045,11 +2086,23 @@ class UIPlugin extends Plugin {
     }
 
     _createSlider(label, id, min, max, step, stateKey, unit, formatFn) {
-        const div = document.createElement('div'); div.className = 'slider-control';
-        const labelEl = document.createElement('label'); const span = document.createElement('span');
-        const updateText = (v) => { const val = parseFloat(v); if(isNaN(val)) return; span.textContent = formatFn ? formatFn(val) : `${val.toFixed(1)}${unit}`; };
-        labelEl.textContent = `${label}: `; labelEl.appendChild(span);
-        const slider = document.createElement('input'); slider.type = 'range'; slider.id = id; slider.min = min; slider.max = max; slider.step = step;
+        const div = document.createElement('div');
+        div.className = 'slider-control';
+        const labelEl = document.createElement('label');
+        const span = document.createElement('span');
+        const updateText = (v) => {
+            const val = parseFloat(v);
+            if (isNaN(val)) return;
+            span.textContent = formatFn ? formatFn(val) : `${val.toFixed(1)}${unit}`;
+        };
+        labelEl.textContent = `${label}: `;
+        labelEl.appendChild(span);
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.id = id;
+        slider.min = min;
+        slider.max = max;
+        slider.step = step;
         slider.value = this.stateManager.get(stateKey);
 
         const debouncedSetState = debounce((val) => {
@@ -2078,12 +2131,14 @@ class UIPlugin extends Plugin {
         });
         updateText(slider.value);
         div.append(labelEl, slider);
-        // Store formatFn on the returned object for external use
         return { control: div, slider: slider, formatFn: formatFn, unit: unit };
     }
 
     _createToggleBtn(id, text, stateKey) {
-        const btn = document.createElement('button'); btn.id = id; btn.textContent = text; btn.className = 'vsc-btn';
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.textContent = text;
+        btn.className = 'vsc-btn';
         btn.onclick = () => { this.stateManager.set(stateKey, !this.stateManager.get(stateKey)); };
         this.subscribe(stateKey, (val) => btn.classList.toggle('active', val));
         btn.classList.toggle('active', this.stateManager.get(stateKey));
@@ -2121,7 +2176,8 @@ class UIPlugin extends Plugin {
         return div;
     }
 
-    _createDivider() { const d = document.createElement('div'); d.className = 'vsc-divider'; return d; }
+    _createDivider() { const d = document.createElement('div');
+        d.className = 'vsc-divider'; return d; }
 
     renderAllControls() {
         if (this.shadowRoot.getElementById('vsc-main-container')) {
@@ -2157,7 +2213,6 @@ class UIPlugin extends Plugin {
             .vsc-divider { border-top: 1px solid #444; margin: 8px 0; }
             .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }
             .vsc-button-group > .vsc-btn { flex-basis: 0; flex-grow: 1; }
-            .vsc-mastering-group { display: flex; flex-direction: column; gap: 8px; }
             .vsc-tabs { display: flex; gap: 5px; border-bottom: 1px solid #444; margin-bottom: 10px; width: 100%; }
             .vsc-tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: #aaa; padding: 4px 8px; cursor: pointer; font-size: clamp(13px, 2.2vmin, 14px); }
             .vsc-tab-btn.active { color: white; border-bottom-color: #3498db; }
@@ -2433,20 +2488,8 @@ class UIPlugin extends Plugin {
         mbcSettingsBtn.disabled = !this.stateManager.get('audio.isMultibandCompEnabled');
         mbcGroup.append(mbcToggleBtn, mbcSettingsBtn);
 
-        const masteringContainer = document.createElement('div');
-        masteringContainer.className = 'vsc-mastering-group';
-        const masteringToggleBtn = this._createToggleBtn('mastering-toggle', '마스터링', 'audio.isMasteringSuiteEnabled');
-        masteringToggleBtn.addEventListener('click', () => {
-            this.stateManager.set('audio.isLimiterEnabled', false);
-        });
-        const transientSliderObj = this._createSlider('타격감', 'master-transient', 0, 1, 0.01, 'audio.masteringTransientAmount', '%', v => `${(v * 100).toFixed(0)}%`);
-        const driveSliderObj = this._createSlider('음압', 'master-drive', 0, 12, 0.5, 'audio.masteringDrive', 'dB', v => `${v.toFixed(1)}dB`);
-        masteringContainer.append(masteringToggleBtn, transientSliderObj.control, driveSliderObj.control);
-
         dynamicsCol2.append(
-            mbcGroup,
-            this._createDivider(),
-            masteringContainer
+            mbcGroup
         );
         dynamicsGrid.append(dynamicsCol1, dynamicsCol2);
         dynamicsPane.appendChild(dynamicsGrid);
@@ -2471,44 +2514,36 @@ class UIPlugin extends Plugin {
         ];
         deqControlsContainer.append(...this.uiElements.deqSliders.map(s => s.control));
 
-        // [교체 제안]
-// 더 명확하고 안전한 코드로 개선합니다.
-const updateDeqUI = () => {
-    if (!bandSelectors || !bandSelectors.isConnected || !deqControlsContainer || !deqControlsContainer.isConnected) {
-        return;
-    }
-    const sliders = this.uiElements.deqSliders;
-    if (!sliders) return;
+        const updateDeqUI = () => {
+            if (!bandSelectors || !bandSelectors.isConnected || !deqControlsContainer || !deqControlsContainer.isConnected) {
+                return;
+            }
+            const sliders = this.uiElements.deqSliders;
+            if (!sliders) return;
 
-    const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
-    const bands = this.stateManager.get('audio.dynamicEq.bands');
+            const activeBandIndex = this.stateManager.get('audio.dynamicEq.activeBand') - 1;
+            const bands = this.stateManager.get('audio.dynamicEq.bands');
 
-    // ✅ [개선] activeBandIndex와 bands 배열의 유효성을 명확하게 검증
-    if (!bands || activeBandIndex < 0 || activeBandIndex >= bands.length) {
-        // 유효하지 않은 경우, UI를 비활성화하거나 기본값으로 표시할 수 있습니다.
-        // 여기서는 간단히 함수 실행을 중단하여 오류를 방지합니다.
-        console.warn(`[VSC] Invalid Dynamic EQ band index: ${activeBandIndex}`);
-        return;
-    }
-    const bandSettings = bands[activeBandIndex];
+            if (!bands || activeBandIndex < 0 || activeBandIndex >= bands.length) {
+                console.warn(`[VSC] Invalid Dynamic EQ band index: ${activeBandIndex}`);
+                return;
+            }
+            const bandSettings = bands[activeBandIndex];
 
             bandSelectors.querySelectorAll('.vsc-deq-band-btn').forEach((btn, index) => {
                 btn.classList.toggle('active', index === activeBandIndex);
             });
 
-            // This helper function is the core of the fix.
             const updateSlider = (sliderObj, value) => {
                 if (!sliderObj || !sliderObj.slider || typeof value !== 'number' || isNaN(value)) {
                     return;
                 }
                 const input = sliderObj.slider;
-                // Only update if the value has changed significantly, to prevent loops.
                 if (Math.abs(parseFloat(input.value) - value) > 0.001) {
                     input.value = value;
-                    // Manually update the text label next to the slider.
                     const span = input.parentElement.querySelector('label > span');
                     if (span && sliderObj.formatFn) {
-                         span.textContent = sliderObj.formatFn(value);
+                        span.textContent = sliderObj.formatFn(value);
                     }
                 }
             };
@@ -2538,18 +2573,13 @@ const updateDeqUI = () => {
             this.stateManager.set('audio.dynamicEq.bands', bands);
         };
 
-        // This logic replaces the original slider 'oninput' with one that updates the correct band.
         this.uiElements.deqSliders.forEach(sliderObj => {
-            const param = sliderObj.slider.id.split('-')[1]; // 'deq-freq' -> 'freq'
-            // The original oninput handler created by _createSlider is overwritten here.
-            // We need to ensure the text also updates on user input.
+            const param = sliderObj.slider.id.split('-')[1];
             const originalOnInput = sliderObj.slider.oninput;
             sliderObj.slider.oninput = (e) => {
-                // Call the original handler to update the text label
-                if(originalOnInput) {
-                   originalOnInput();
+                if (originalOnInput) {
+                    originalOnInput();
                 }
-                // Then call our custom, debounced state updater for the active band.
                 debounce(createDeqSliderUpdater(param), 50)(e);
             };
         });
@@ -2608,7 +2638,6 @@ const updateDeqUI = () => {
         setupSliderToggle('audio.isWideningEnabled', [widenSlider]);
         setupSliderToggle('audio.isReverbEnabled', [reverbSlider]);
         setupSliderToggle('audio.isHpfEnabled', [hpfSlider]);
-        setupSliderToggle('audio.isMasteringSuiteEnabled', [transientSliderObj.slider, driveSliderObj.slider]);
 
         this.subscribe('audio.isLoudnessNormalizationEnabled', (isAuto) => {
             if (isAuto) {
@@ -2648,13 +2677,7 @@ const updateDeqUI = () => {
                 btn.dataset.speed = speed;
                 btn.className = 'vsc-btn';
                 Object.assign(btn.style, {
-                    background: 'rgba(52, 152, 219, 0.7)',
-                    color: 'white',
-                    width: 'clamp(30px, 6vmin, 40px)',
-                    height: 'clamp(20px, 4vmin, 30px)',
-                    fontSize: 'clamp(12px, 2vmin, 14px)',
-                    padding: '0',
-                    transition: 'background-color 0.2s, box-shadow 0.2s'
+                    background: 'rgba(52, 152, 219, 0.7)', color: 'white', width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)', padding: '0', transition: 'background-color 0.2s, box-shadow 0.2s'
                 });
 
                 btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
@@ -2710,10 +2733,10 @@ const updateDeqUI = () => {
         bandsContainer.id = 'vsc-mbc-bands';
 
         const bandInfo = {
-            low: { name: 'Low', color: '#e74c3c'},
-            lowMid: { name: 'Low Mid', color: '#f39c12'},
-            highMid: { name: 'High Mid', color: '#2ecc71'},
-            high: { name: 'High', color: '#3498db'},
+            low: { name: 'Low', color: '#e74c3c' },
+            lowMid: { name: 'Low Mid', color: '#f39c12' },
+            highMid: { name: 'High Mid', color: '#2ecc71' },
+            high: { name: 'High', color: '#3498db' },
         };
 
         for (const [key, info] of Object.entries(bandInfo)) {
@@ -2739,12 +2762,12 @@ const updateDeqUI = () => {
         modalResetBtn.textContent = '모든 밴드 초기화';
         modalResetBtn.style.alignSelf = 'center';
         modalResetBtn.onclick = () => {
-        const defaultSettings = CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS;
-        for (const bandKey of Object.keys(bandInfo)) {
-            for (const [paramKey, paramValue] of Object.entries(defaultSettings[bandKey])) {
-                this.stateManager.set(`audio.multibandComp.${bandKey}.${paramKey}`, paramValue);
+            const defaultSettings = CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS;
+            for (const bandKey of Object.keys(bandInfo)) {
+                for (const [paramKey, paramValue] of Object.entries(defaultSettings[bandKey])) {
+                    this.stateManager.set(`audio.multibandComp.${bandKey}.${paramKey}`, paramValue);
+                }
             }
-        }
         };
 
         container.append(header, bandsContainer, modalResetBtn);
@@ -2765,52 +2788,47 @@ const updateDeqUI = () => {
         if (preGainSlider) preGainSlider.disabled = isAuto || !isManual;
     }
 
+    async applyPreset(presetKey) {
+        if (this.isApplyingPreset) {
+            console.log('[VSC] Preset application in progress. Ignoring new request.');
+            return;
+        }
+        this.isApplyingPreset = true;
 
-    // [교체 제안]
-async applyPreset(presetKey) {
-    // ✅ [개선] Lock 메커니즘 추가
-    if (this.isApplyingPreset) {
-        console.log('[VSC] Preset application in progress. Ignoring new request.');
-        return;
-    }
-    this.isApplyingPreset = true;
+        try {
+            const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
 
-    try {
-        const isAgcEnabled = this.stateManager.get('audio.isAgcEnabled');
-
-        if (!isAgcEnabled || !this.audioFXPlugin) {
-            this._applyPresetSettings(presetKey);
-             if (this.audioFXPlugin) { // audioFXPlugin이 로드된 후라면
-                this.stateManager.set('audio.activityCheckRequested', Date.now());
+            if (!isAgcEnabled || !this.audioFXPlugin) {
+                this._applyPresetSettings(presetKey);
+                if (this.audioFXPlugin) {
+                    this.stateManager.set('audio.activityCheckRequested', Date.now());
+                }
+                return;
             }
-            return; // finally 블록에서 lock이 해제됨
+
+            const rmsBefore = await this.audioFXPlugin._getInstantRMS();
+            this._applyPresetSettings(presetKey);
+
+            await new Promise(resolve => setTimeout(resolve, CONFIG.UI_AGC_APPLY_DELAY));
+
+            const rmsAfter = await this.audioFXPlugin._getInstantRMS();
+
+            if (rmsBefore > 0.001 && rmsAfter > 0.001) {
+                const ratio = rmsBefore / rmsAfter;
+                const currentPreGain = this.stateManager.get('audio.preGain');
+                let compensatedGain = currentPreGain * ratio;
+                compensatedGain = Math.max(0.1, Math.min(compensatedGain, CONFIG.MAX_PRE_GAIN));
+
+                this.stateManager.set('audio.preGain', compensatedGain);
+                this.stateManager.set('audio.lastManualPreGain', compensatedGain);
+            }
+        } catch (error) {
+            console.error("[VSC] Error applying preset with AGC:", error);
+        } finally {
+            this.stateManager.set('audio.activityCheckRequested', Date.now());
+            this.isApplyingPreset = false;
         }
-
-        const rmsBefore = await this.audioFXPlugin._getInstantRMS();
-        this._applyPresetSettings(presetKey);
-
-        await new Promise(resolve => setTimeout(resolve, CONFIG.UI_AGC_APPLY_DELAY));
-
-        const rmsAfter = await this.audioFXPlugin._getInstantRMS();
-
-        if (rmsBefore > 0.001 && rmsAfter > 0.001) {
-            const ratio = rmsBefore / rmsAfter;
-            const currentPreGain = this.stateManager.get('audio.preGain');
-            let compensatedGain = currentPreGain * ratio;
-            compensatedGain = Math.max(0.1, Math.min(compensatedGain, CONFIG.MAX_PRE_GAIN));
-
-            this.stateManager.set('audio.preGain', compensatedGain);
-            this.stateManager.set('audio.lastManualPreGain', compensatedGain);
-        }
-    } catch (error) {
-        console.error("[VSC] Error applying preset with AGC:", error);
-    } finally {
-        // ✅ [개선] 작업 완료 후 반드시 lock 해제 및 오디오 재확인
-        this.stateManager.set('audio.activityCheckRequested', Date.now());
-        this.isApplyingPreset = false;
     }
-}
-
 
     _applyPresetSettings(presetKey) {
         const p = this.presetMap[presetKey];
@@ -2822,40 +2840,13 @@ async applyPreset(presetKey) {
         this.stateManager.set('audio.loudnessTarget', newTargetLUFS);
 
         const defaults = {
-            isHpfEnabled: false, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY,
-            isEqEnabled: false, eqSubBassGain: 0, eqBassGain: 0, eqMidGain: 0, eqTrebleGain: 0, eqPresenceGain: 0,
-            bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN, bassBoostFreq: 60, bassBoostQ: 1.0,
-            isWideningEnabled: false, wideningFactor: 1.0, isAdaptiveWidthEnabled: false, adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ,
-            isReverbEnabled: false, reverbMix: CONFIG.DEFAULT_REVERB_MIX, stereoPan: 0,
-            isPreGainEnabled: false, preGain: 1.0, isDeesserEnabled: false, deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
-            isExciterEnabled: false, exciterAmount: 0, isParallelCompEnabled: false, parallelCompMix: 0,
-            isLimiterEnabled: false, isMasteringSuiteEnabled: false, masteringTransientAmount: 0.2, masteringDrive: 0,
-            isLoudnessNormalizationEnabled: false,
-            isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
-            isDynamicEqEnabled: false,
+            isHpfEnabled: false, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY, isEqEnabled: false, eqSubBassGain: 0, eqBassGain: 0, eqMidGain: 0, eqTrebleGain: 0, eqPresenceGain: 0, bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN, isWideningEnabled: false, wideningFactor: 1.0, isAdaptiveWidthEnabled: false, adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ, isReverbEnabled: false, reverbMix: CONFIG.DEFAULT_REVERB_MIX, stereoPan: 0, isPreGainEnabled: false, preGain: 1.0, isDeesserEnabled: false, deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ, isExciterEnabled: false, exciterAmount: 0, isParallelCompEnabled: false, parallelCompMix: 0, isLoudnessNormalizationEnabled: false, isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED, isDynamicEqEnabled: false,
         };
 
         const presetValues = {
-            isHpfEnabled: p.hpf_enabled ?? defaults.isHpfEnabled, hpfHz: p.hpf_hz ?? defaults.hpfHz,
-            isEqEnabled: p.eq_enabled ?? defaults.isEqEnabled, eqSubBassGain: p.eq_subBass ?? defaults.eqSubBassGain,
-            eqBassGain: p.eq_bass ?? defaults.eqBassGain, eqMidGain: p.eq_mid ?? defaults.eqMidGain,
-            eqTrebleGain: p.eq_treble ?? defaults.eqTrebleGain, eqPresenceGain: p.eq_presence ?? defaults.eqPresenceGain,
-            bassBoostGain: p.bass_boost_gain ?? defaults.bassBoostGain,
-            bassBoostFreq: p.bass_boost_freq ?? defaults.bassBoostFreq,
-            bassBoostQ: p.bass_boost_q ?? defaults.bassBoostQ,
-            isWideningEnabled: p.widen_enabled ?? defaults.isWideningEnabled, wideningFactor: p.widen_factor ?? defaults.wideningFactor,
-            isAdaptiveWidthEnabled: p.adaptive_enabled ?? defaults.isAdaptiveWidthEnabled,
-            adaptiveWidthFreq: p.adaptive_width_freq ?? defaults.adaptiveWidthFreq,
-            isReverbEnabled: p.reverb_enabled ?? defaults.isReverbEnabled, reverbMix: p.reverb_mix ?? defaults.reverbMix, stereoPan: p.pan_value ?? defaults.stereoPan,
-            isPreGainEnabled: p.preGain_enabled ?? defaults.isPreGainEnabled, preGain: p.preGain_value ?? defaults.preGain,
-            isDeesserEnabled: p.deesser_enabled ?? defaults.isDeesserEnabled, deesserThreshold: p.deesser_threshold ?? defaults.deesserThreshold, deesserFreq: p.deesser_freq ?? defaults.deesserFreq,
-            isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount,
-            isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
-            isLimiterEnabled: p.limiter_enabled ?? defaults.isLimiterEnabled,
-            isMasteringSuiteEnabled: p.mastering_suite_enabled ?? defaults.isMasteringSuiteEnabled, masteringTransientAmount: p.mastering_transient ?? defaults.masteringTransientAmount, masteringDrive: p.mastering_drive ?? defaults.masteringDrive,
+            isHpfEnabled: p.hpf_enabled ?? defaults.isHpfEnabled, hpfHz: p.hpf_hz ?? defaults.hpfHz, isEqEnabled: p.eq_enabled ?? defaults.isEqEnabled, eqSubBassGain: p.eq_subBass ?? defaults.eqSubBassGain, eqBassGain: p.eq_bass ?? defaults.eqBassGain, eqMidGain: p.eq_mid ?? defaults.eqMidGain, eqTrebleGain: p.eq_treble ?? defaults.eqTrebleGain, eqPresenceGain: p.eq_presence ?? defaults.eqPresenceGain, bassBoostGain: p.bass_boost_gain ?? defaults.bassBoostGain, isWideningEnabled: p.widen_enabled ?? defaults.isWideningEnabled, wideningFactor: p.widen_factor ?? defaults.wideningFactor, isAdaptiveWidthEnabled: p.adaptive_enabled ?? defaults.isAdaptiveWidthEnabled, adaptiveWidthFreq: p.adaptive_width_freq ?? defaults.adaptiveWidthFreq, isReverbEnabled: p.reverb_enabled ?? defaults.isReverbEnabled, reverbMix: p.reverb_mix ?? defaults.reverbMix, stereoPan: p.pan_value ?? defaults.stereoPan, isPreGainEnabled: p.preGain_enabled ?? defaults.isPreGainEnabled, preGain: p.preGain_value ?? defaults.preGain, isDeesserEnabled: p.deesser_enabled ?? defaults.isDeesserEnabled, deesserThreshold: p.deesser_threshold ?? defaults.deesserThreshold, deesserFreq: p.deesser_freq ?? defaults.deesserFreq, isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount, isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
             isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled ?? (presetKey === 'default' ? false : this.stateManager.get('audio.isLoudnessNormalizationEnabled')),
-            isMultibandCompEnabled: p.multiband_enabled ?? defaults.isMultibandCompEnabled,
-            isDynamicEqEnabled: p.smartEQ_enabled ?? defaults.isDynamicEqEnabled,
+            isMultibandCompEnabled: p.multiband_enabled ?? defaults.isMultibandCompEnabled, isDynamicEqEnabled: p.smartEQ_enabled ?? defaults.isDynamicEqEnabled,
         };
 
         if (presetKey === 'default') {
@@ -2881,19 +2872,20 @@ async applyPreset(presetKey) {
             p.multiband_bands.forEach((bandData, index) => {
                 const key = bandKeys[index];
                 const newSettings = {
-                    crossover: bandData.freqHigh,
-                    threshold: bandData.threshold,
-                    ratio: bandData.ratio,
-                    attack: bandData.attack / 1000,
-                    release: bandData.release / 1000,
-                    makeupGain: bandData.makeup,
+                    crossover: bandData.freqHigh, threshold: bandData.threshold, ratio: bandData.ratio, attack: bandData.attack / 1000, release: bandData.release / 1000, makeupGain: bandData.makeup,
                 };
                 for (const [param, value] of Object.entries(newSettings)) {
+                    if (param === 'crossover' && key === 'high') continue;
                     this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
                 }
             });
-        } else if (p.multiband_bands) { // 밴드 배열은 있지만 길이가 4가 아닌 경우
-          console.warn(`[VSC] Preset '${presetKey}' has incorrect multiband band data (must be an array of 4). Ignoring MBC settings for this preset.`);
+        } else if (p.multiband_bands && typeof p.multiband_bands === 'object' && !Array.isArray(p.multiband_bands)) {
+            const defaultSettings = JSON.parse(JSON.stringify(p.multiband_bands));
+            for (const [key, settings] of Object.entries(defaultSettings)) {
+                for (const [param, value] of Object.entries(settings)) {
+                    this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
+                }
+            }
         } else if (presetKey === 'default') {
             const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
             for (const [key, settings] of Object.entries(defaultSettings)) {
@@ -2903,12 +2895,9 @@ async applyPreset(presetKey) {
             }
         }
 
-        if (p.smartEQ_bands && Array.isArray(p.smartEQ_bands) && p.smartEQ_bands.length === 4) {
+        if (p.smartEQ_bands && Array.isArray(p.smartEQ_bands) && p.smartEQ_bands.length > 0) {
             const newBands = p.smartEQ_bands.map(band => ({
-                freq: band.frequency,
-                q: band.Q,
-                threshold: band.threshold,
-                gain: band.gain
+                freq: band.frequency, q: band.Q, threshold: band.threshold, gain: band.gain
             }));
             this.stateManager.set('audio.dynamicEq.bands', newBands);
         }
@@ -3019,7 +3008,7 @@ async applyPreset(presetKey) {
 
         window.vscPluginManager = pluginManager;
 
-        pluginManager.register(new UIPlugin());
+pluginManager.register(new UIPlugin());
         pluginManager.register(new CoreMediaPlugin());
         pluginManager.register(new SvgFilterPlugin());
         pluginManager.register(new AudioFXPlugin());
