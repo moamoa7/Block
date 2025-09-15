@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      100.6
-// @description  TrustedHTML 오류 해결
+// @version      100.7
+// @description  정지 아이콘 클릭시 설정값 저장 및 번개 아이콘 클릭시 복원 재수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1751,7 +1751,7 @@ onControlsVisibilityChange(isVisible) {
         const savedVideoSettings = this.stateManager.get('videoFilter.lastActiveSettings');
         if (savedVideoSettings) {
             for (const key in savedVideoSettings) {
-                 this.stateManager.set(`videoFilter.${key}`, savedVideoSettings[key]);
+                this.stateManager.set(`videoFilter.${key}`, savedVideoSettings[key]);
             }
             this.stateManager.set('videoFilter.lastActiveSettings', null);
         }
@@ -1770,7 +1770,33 @@ onControlsVisibilityChange(isVisible) {
 
         // [오디오 저장 및 초기화]
         const audioState = this.stateManager.get('audio');
-        const audioSettingsToSave = { /* ... 기존과 동일 ... */ };
+        // ✨✨✨ 문제 해결 부분 시작 ✨✨✨
+        const audioSettingsToSave = {
+            isHpfEnabled: audioState.isHpfEnabled, hpfHz: audioState.hpfHz,
+            isEqEnabled: audioState.isEqEnabled, eqSubBassGain: audioState.eqSubBassGain,
+            eqBassGain: audioState.eqBassGain, eqMidGain: audioState.eqMidGain,
+            eqTrebleGain: audioState.eqTrebleGain, eqPresenceGain: audioState.eqPresenceGain,
+            bassBoostGain: audioState.bassBoostGain,
+            isWideningEnabled: audioState.isWideningEnabled, wideningFactor: audioState.wideningFactor,
+            isAdaptiveWidthEnabled: audioState.isAdaptiveWidthEnabled, adaptiveWidthFreq: audioState.adaptiveWidthFreq,
+            isReverbEnabled: audioState.isReverbEnabled, reverbMix: audioState.reverbMix,
+            stereoPan: audioState.stereoPan,
+            isPreGainEnabled: audioState.isPreGainEnabled, preGain: audioState.preGain,
+            lastManualPreGain: audioState.lastManualPreGain,
+            isDeesserEnabled: audioState.isDeesserEnabled, deesserThreshold: audioState.deesserThreshold, deesserFreq: audioState.deesserFreq,
+            isExciterEnabled: audioState.isExciterEnabled, exciterAmount: audioState.exciterAmount,
+            isParallelCompEnabled: audioState.isParallelCompEnabled, parallelCompMix: audioState.parallelCompMix,
+            isLimiterEnabled: audioState.isLimiterEnabled,
+            isMasteringSuiteEnabled: audioState.isMasteringSuiteEnabled, masteringTransientAmount: audioState.masteringTransientAmount, masteringDrive: audioState.masteringDrive,
+            isLoudnessNormalizationEnabled: audioState.isLoudnessNormalizationEnabled,
+            isAgcEnabled: audioState.isAgcEnabled,
+            isMultibandCompEnabled: audioState.isMultibandCompEnabled,
+            multibandComp: JSON.parse(JSON.stringify(audioState.multibandComp)),
+            isDynamicEqEnabled: audioState.isDynamicEqEnabled,
+            dynamicEq: JSON.parse(JSON.stringify(audioState.dynamicEq)),
+            activePresetKey: audioState.activePresetKey
+        };
+        // ✨✨✨ 문제 해결 부분 끝 ✨✨✨
         this.stateManager.set('audio.lastActiveSettings', audioSettingsToSave);
         this.applyPreset('default');
 
@@ -1800,7 +1826,6 @@ onControlsVisibilityChange(isVisible) {
         this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
         this.stateManager.set('videoFilter.activePreset', 'none');
 
-
         // [이미지 저장 및 초기화]
         const imageState = this.stateManager.get('imageFilter');
         const imageSettingsToSave = { level: imageState.level };
@@ -1811,10 +1836,10 @@ onControlsVisibilityChange(isVisible) {
     if (isVisible && !this.hostElement) {
         this.createControlsHost();
     }
-    if(this.hostElement) {
+    if (this.hostElement) {
         this.hostElement.style.display = isVisible ? 'flex' : 'none';
     }
-    if(this.speedButtonsContainer) {
+    if (this.speedButtonsContainer) {
         const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO');
         this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none';
     }
