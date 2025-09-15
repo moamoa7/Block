@@ -2041,11 +2041,11 @@
             videoBrightenBtn.textContent = '밝기 2';
             videoBrightenBtn.dataset.presetKey = 'brighten2'; // 고유 키 추가
             videoBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.10);
+                this.stateManager.set('videoFilter.gamma', 1.15);
                 this.stateManager.set('videoFilter.saturation', 105);
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', -1);
-                this.stateManager.set('videoFilter.highlights', 3);
+                this.stateManager.set('videoFilter.highlights', 1);
                 this.stateManager.set('videoFilter.activePreset', 'brighten2'); // 상태 변경
             };
 
@@ -2055,11 +2055,11 @@
             videoNewBrightenBtn.textContent = '밝기 3';
             videoNewBrightenBtn.dataset.presetKey = 'brighten3'; // 고유 키 추가
             videoNewBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.20);
+                this.stateManager.set('videoFilter.gamma', 1.30);
                 this.stateManager.set('videoFilter.saturation', 110);
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', -2);
-                this.stateManager.set('videoFilter.highlights', 4);
+                this.stateManager.set('videoFilter.highlights', 2);
                 this.stateManager.set('videoFilter.activePreset', 'brighten3'); // 상태 변경
             };
 
@@ -2069,11 +2069,11 @@
             videohighBrightenBtn.textContent = '밝기 4';
             videohighBrightenBtn.dataset.presetKey = 'brighten4'; // 고유 키 추가
             videohighBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.30);
+                this.stateManager.set('videoFilter.gamma', 1.45);
                 this.stateManager.set('videoFilter.saturation', 115);
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', -3);
-                this.stateManager.set('videoFilter.highlights', 5);
+                this.stateManager.set('videoFilter.highlights', 3);
                 this.stateManager.set('videoFilter.activePreset', 'brighten4'); // 상태 변경
             };
 
