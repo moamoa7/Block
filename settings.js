@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      100.7
-// @description  정지 아이콘 클릭시 설정값 저장 및 번개 아이콘 클릭시 복원 재수정
+// @version      100.8
+// @description  오디오 각종 버그 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -539,501 +539,522 @@
     }
 
     // --- [PLUGIN] AudioFXPlugin: Manages all Web Audio API effects ---
-    class AudioFXPlugin extends Plugin {
-        constructor() {
-            super('AudioFX');
-            this.animationFrameMap = new WeakMap();
-            this.audioActivityStatus = new WeakMap();
-            this.loudnessAnalyzerMap = new WeakMap();
-            this.loudnessIntervalMap = new WeakMap();
-        }
-
-        init(stateManager) {
-            super.init(stateManager);
-            this.subscribe('audio.*', debounce(() => this.applyAudioEffectsToAllMedia(), 50));
-            this.subscribe('media.activeMedia', (newMediaSet, oldMediaSet) => {
-                const added = [...newMediaSet].filter(x => !oldMediaSet.has(x));
-                const removed = [...oldMediaSet].filter(x => !newMediaSet.has(x));
-                if (this.stateManager.get('audio.audioInitialized')) {
-                    added.forEach(media => this.ensureContextResumed(media));
-                }
-                removed.forEach(media => this.cleanupForMedia(media));
-            });
-            this.subscribe('audio.audioInitialized', (isInitialized) => {
-                if (isInitialized) {
-                    const currentMedia = this.stateManager.get('media.activeMedia');
-                    currentMedia.forEach(media => this.ensureContextResumed(media));
-                }
-            });
-
-            this.subscribe('audio.activityCheckRequested', () => {
-                this.stateManager.get('media.activeMedia').forEach(media => {
-                    const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-                    if (nodes) {
-                        this.audioActivityStatus.delete(media);
-                        this.checkAudioActivity(media, nodes);
-                        console.log('[VSC] Audio activity re-check requested.', media);
-                    }
-                });
-            });
-
-            this.subscribe('audio.isLoudnessNormalizationEnabled', (isEnabled) => {
-                this.stateManager.get('media.activeMedia').forEach(media => {
-                    if (isEnabled) {
-                        this.startLoudnessAnalysis(media);
-                    } else {
-                        this.stopLoudnessAnalysis(media);
-                    }
-                });
-            });
-        }
-
-        destroy() {
-            super.destroy();
-            this.stateManager.get('media.activeMedia').forEach(media => this.cleanupForMedia(media));
-        }
-
-        applyAudioEffectsToAllMedia() {
-            if (!this.stateManager.get('audio.audioInitialized')) return;
-            const sm = this.stateManager;
-            const mediaToAffect = sm.get('app.isMobile') && sm.get('media.currentlyVisibleMedia') ?
-                [sm.get('media.currentlyVisibleMedia')] : Array.from(sm.get('media.activeMedia'));
-            mediaToAffect.forEach(media => {
-                if (media) this.reconnectGraph(media)
-            });
-        }
-
-        createImpulseResponse(context, duration = 2, decay = 2) {
-            const sampleRate = context.sampleRate; const length = sampleRate * duration;
-            const impulse = context.createBuffer(2, length, sampleRate);
-            const impulseL = impulse.getChannelData(0); const impulseR = impulse.getChannelData(1);
-            for (let i = 0; i < length; i++) {
-                impulseL[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
-                impulseR[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
-            }
-            return impulse;
-        }
-
-        makeTransientCurve(amount) {
-            const samples = 44100; const curve = new Float32Array(samples);
-            const k = 2 * amount / (1 - amount || 1e-6);
-            for (let i = 0; i < samples; i++) {
-                const x = i * 2 / samples - 1;
-                curve[i] = (1 + k) * x / (1 + k * Math.abs(x));
-            }
-            return curve;
-        }
-
-        makeDistortionCurve(amount) {
-            const k = typeof amount === 'number' ? amount : 50; const n_samples = 44100;
-            const curve = new Float32Array(n_samples); const deg = Math.PI / 180;
-            for (let i = 0; i < n_samples; ++i) {
-                const x = i * 2 / n_samples - 1;
-                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
-            }
-            return curve;
-        }
-
-        createAudioGraph(media) {
-            const context = new (window.AudioContext || window.webkitAudioContext)();
-            let source;
-            try { media.crossOrigin = "anonymous"; source = context.createMediaElementSource(media);
-            } catch (e) {
-                this.stateManager.set('ui.warningMessage', '오디오 효과 적용 실패 (CORS). 페이지 새로고침이 필요할 수 있습니다.');
-                console.error('[VSC] MediaElementSource creation failed.', e); context.close(); return null;
-            }
-            const nodes = { context, source, stereoPanner: context.createStereoPanner(), masterGain: context.createGain(), analyser: context.createAnalyser(), loudnessAnalyzer: context.createAnalyser(), safetyLimiter: context.createDynamicsCompressor(), cumulativeLUFS: 0, lufsSampleCount: 0, band1_SubBass: context.createBiquadFilter(), band2_Bass: context.createBiquadFilter(), band3_Mid: context.createBiquadFilter(), band4_Treble: context.createBiquadFilter(), band5_Presence: context.createBiquadFilter(), gain1_SubBass: context.createGain(), gain2_Bass: context.createGain(), gain3_Mid: context.createGain(), gain4_Treble: context.createGain(), gain5_Presence: context.createGain(), merger: context.createGain(), reverbConvolver: context.createConvolver(), reverbWetGain: context.createGain(), reverbSum: context.createGain(), deesserBand: context.createBiquadFilter(), deesserCompressor: context.createDynamicsCompressor(), exciterHPF: context.createBiquadFilter(), exciter: context.createWaveShaper(), exciterPostGain: context.createGain(), parallelCompressor: context.createDynamicsCompressor(), parallelDry: context.createGain(), parallelWet: context.createGain(), limiter: context.createDynamicsCompressor(), masteringTransientShaper: context.createWaveShaper(), masteringLimiter1: context.createDynamicsCompressor(), masteringLimiter2: context.createDynamicsCompressor(), masteringLimiter3: context.createDynamicsCompressor() };
-
-            const mbc = {
-                splitter1: context.createBiquadFilter(), splitter2: context.createBiquadFilter(), splitter3: context.createBiquadFilter(),
-                compLow: context.createDynamicsCompressor(), compLowMid: context.createDynamicsCompressor(), compHighMid: context.createDynamicsCompressor(), compHigh: context.createDynamicsCompressor(),
-                gainLow: context.createGain(), gainLowMid: context.createGain(), gainHighMid: context.createGain(), gainHigh: context.createGain(),
-                merger: context.createGain()
-            };
-            mbc.splitter1.type = 'lowpass';
-            mbc.splitter2.type = 'lowpass';
-            mbc.splitter3.type = 'lowpass';
-            Object.assign(nodes, { mbc });
-
-            nodes.dynamicEq = [];
-            for (let i = 0; i < 4; i++) {
-                const deq_band = {
-                    peaking: context.createBiquadFilter(),
-                    sidechain: context.createBiquadFilter(),
-                    compressor: context.createDynamicsCompressor(),
-                    gain: context.createGain()
-                };
-                deq_band.peaking.type = 'peaking';
-                deq_band.sidechain.type = 'bandpass';
-                nodes.dynamicEq.push(deq_band);
-            }
-
-
-            try { nodes.reverbConvolver.buffer = this.createImpulseResponse(context); } catch (e) { console.error("[VSC] Failed to create reverb impulse response.", e); }
-            nodes.safetyLimiter.threshold.value = -0.5; nodes.safetyLimiter.knee.value = 0; nodes.safetyLimiter.ratio.value = 20; nodes.safetyLimiter.attack.value = 0.001; nodes.safetyLimiter.release.value = 0.05;
-            nodes.analyser.fftSize = 256;
-            nodes.loudnessAnalyzer.fftSize = 2048;
-            nodes.band1_SubBass.type = "lowpass"; nodes.band1_SubBass.frequency.value = 80; nodes.band2_Bass.type = "bandpass"; nodes.band2_Bass.frequency.value = 150; nodes.band2_Bass.Q.value = 1; nodes.band3_Mid.type = "bandpass"; nodes.band3_Mid.frequency.value = 1000; nodes.band3_Mid.Q.value = 1; nodes.band4_Treble.type = "bandpass"; nodes.band4_Treble.frequency.value = 4000; nodes.band4_Treble.Q.value = 1; nodes.band5_Presence.type = "highpass"; nodes.band5_Presence.frequency.value = 8000;
-            this.stateManager.get('audio.audioContextMap').set(media, nodes);
-
-            nodes.source.connect(nodes.masterGain);
-            nodes.masterGain.connect(nodes.safetyLimiter);
-            nodes.safetyLimiter.connect(nodes.analyser);
-            nodes.safetyLimiter.connect(nodes.loudnessAnalyzer);
-            nodes.safetyLimiter.connect(nodes.context.destination);
-            return nodes;
-        }
-
-        reconnectGraph(media) {
-            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-            if (!nodes) return;
-            const audioState = this.stateManager.get('audio');
-
-            safeExec(() => {
-                Object.values(nodes).forEach(node => { if (node && typeof node.disconnect === 'function' && node !== nodes.context && node !== nodes.loudnessAnalyzer) { try { node.disconnect(); } catch (e) { /* Ignore */ } } });
-
-                if (this.animationFrameMap.has(media)) cancelAnimationFrame(this.animationFrameMap.get(media));
-                this.animationFrameMap.delete(media);
-
-                let lastNode = nodes.source;
-
-                nodes.stereoPanner.pan.value = audioState.stereoPan;
-
-                if (audioState.isDeesserEnabled) {
-                    nodes.deesserBand.type = 'bandpass'; nodes.deesserBand.frequency.value = audioState.deesserFreq; nodes.deesserBand.Q.value = 3;
-                    nodes.deesserCompressor.threshold.value = audioState.deesserThreshold; nodes.deesserCompressor.knee.value = 10; nodes.deesserCompressor.ratio.value = 10; nodes.deesserCompressor.attack.value = 0.005; nodes.deesserCompressor.release.value = 0.1;
-                    lastNode.connect(nodes.deesserBand).connect(nodes.deesserCompressor);
-                    lastNode = lastNode.connect(nodes.deesserCompressor);
-                }
-
-                if (audioState.isEqEnabled || audioState.bassBoostGain > 0) {
-                    const merger = nodes.merger;
-                    lastNode.connect(nodes.band1_SubBass); lastNode.connect(nodes.band2_Bass); lastNode.connect(nodes.band3_Mid); lastNode.connect(nodes.band4_Treble); lastNode.connect(nodes.band5_Presence);
-                    let lastSubBassNode = nodes.band1_SubBass;
-                    if (audioState.bassBoostGain > 0) {
-                        if (!nodes.bassBoost) { nodes.bassBoost = nodes.context.createBiquadFilter(); nodes.bassBoost.type = "peaking"; }
-                        nodes.bassBoost.frequency.value = audioState.bassBoostFreq; nodes.bassBoost.Q.value = audioState.bassBoostQ; nodes.bassBoost.gain.value = audioState.bassBoostGain;
-                        lastSubBassNode = lastSubBassNode.connect(nodes.bassBoost);
-                    }
-                    if (audioState.isEqEnabled) {
-                        nodes.gain1_SubBass.gain.value = Math.pow(10, audioState.eqSubBassGain / 20); nodes.gain2_Bass.gain.value = Math.pow(10, audioState.eqBassGain / 20);
-                        nodes.gain3_Mid.gain.value = Math.pow(10, audioState.eqMidGain / 20); nodes.gain4_Treble.gain.value = Math.pow(10, audioState.eqTrebleGain / 20);
-                        nodes.gain5_Presence.gain.value = Math.pow(10, audioState.eqPresenceGain / 20);
-                    } else {
-                        [nodes.gain1_SubBass, nodes.gain2_Bass, nodes.gain3_Mid, nodes.gain4_Treble, nodes.gain5_Presence].forEach(g => g.gain.value = 1);
-                    }
-                    lastSubBassNode.connect(nodes.gain1_SubBass).connect(merger);
-                    nodes.band2_Bass.connect(nodes.gain2_Bass).connect(merger);
-                    nodes.band3_Mid.connect(nodes.gain3_Mid).connect(merger);
-                    nodes.band4_Treble.connect(nodes.gain4_Treble).connect(merger);
-                    nodes.band5_Presence.connect(nodes.gain5_Presence).connect(merger);
-                    lastNode = merger;
-                }
-
-                if (audioState.isDynamicEqEnabled) {
-                    const deqSettings = audioState.dynamicEq.bands;
-                    for(let i = 0; i < nodes.dynamicEq.length; i++) {
-                        const band = nodes.dynamicEq[i];
-                        const settings = deqSettings[i];
-
-                        band.peaking.frequency.value = settings.freq;
-                        band.peaking.Q.value = settings.q;
-
-                        band.sidechain.frequency.value = settings.freq;
-                        band.sidechain.Q.value = settings.q * 1.5;
-
-                        band.compressor.threshold.value = settings.threshold;
-                        band.compressor.knee.value = 5;
-                        band.compressor.ratio.value = 2;
-                        band.compressor.attack.value = 0.005;
-                        band.compressor.release.value = 0.15;
-
-                        band.gain.gain.value = settings.gain;
-
-                        lastNode.connect(band.peaking);
-                        lastNode.connect(band.sidechain).connect(band.compressor).connect(band.gain);
-                        band.gain.connect(band.peaking.gain);
-
-                        lastNode = band.peaking;
-                    }
-                }
-
-
-                if (audioState.isHpfEnabled) {
-                    if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
-                    nodes.hpf.type = 'highpass'; nodes.hpf.frequency.value = audioState.hpfHz;
-                    lastNode = lastNode.connect(nodes.hpf);
-                }
-
-                if (audioState.isMultibandCompEnabled) {
-                    const mbcNodes = nodes.mbc;
-                    const merger = mbcNodes.merger;
-
-                    mbcNodes.splitter1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
-                    mbcNodes.splitter2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
-                    mbcNodes.splitter3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
-
-                    const highPass1 = nodes.context.createBiquadFilter(); highPass1.type = 'highpass';
-                    highPass1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
-                    const highPass2 = nodes.context.createBiquadFilter(); highPass2.type = 'highpass';
-                    highPass2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
-                    const highPass3 = nodes.context.createBiquadFilter(); highPass3.type = 'highpass';
-                    highPass3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
-
-                    lastNode.connect(mbcNodes.splitter1).connect(mbcNodes.compLow).connect(mbcNodes.gainLow).connect(merger);
-                    lastNode.connect(highPass1).connect(mbcNodes.splitter2).connect(mbcNodes.compLowMid).connect(mbcNodes.gainLowMid).connect(merger);
-                    lastNode.connect(highPass2).connect(mbcNodes.splitter3).connect(mbcNodes.compHighMid).connect(mbcNodes.gainHighMid).connect(merger);
-                    lastNode.connect(highPass3).connect(mbcNodes.compHigh).connect(mbcNodes.gainHigh).connect(merger);
-
-                    const bands = ['low', 'lowMid', 'highMid', 'high'];
-                    const compMap = { low: mbcNodes.compLow, lowMid: mbcNodes.compLowMid, highMid: mbcNodes.compHighMid, high: mbcNodes.compHigh };
-                    const gainMap = { low: mbcNodes.gainLow, lowMid: mbcNodes.gainLowMid, highMid: mbcNodes.gainHighMid, high: mbcNodes.gainHigh };
-
-                    bands.forEach(band => {
-                        const comp = compMap[band];
-                        const gain = gainMap[band];
-
-                        comp.threshold.value = this.stateManager.get(`audio.multibandComp.${band}.threshold`);
-                        comp.ratio.value = this.stateManager.get(`audio.multibandComp.${band}.ratio`);
-                        comp.attack.value = this.stateManager.get(`audio.multibandComp.${band}.attack`);
-                        comp.release.value = this.stateManager.get(`audio.multibandComp.${band}.release`);
-                        gain.gain.value = Math.pow(10, this.stateManager.get(`audio.multibandComp.${band}.makeupGain`) / 20);
-                    });
-
-                    lastNode = merger;
-                }
-
-                if (audioState.isExciterEnabled && audioState.exciterAmount > 0) {
-                    const exciterSum = nodes.context.createGain(); const exciterDry = nodes.context.createGain(); const exciterWet = nodes.context.createGain();
-                    const wetAmount = audioState.isMasteringSuiteEnabled ? audioState.exciterAmount / 150 : audioState.exciterAmount / 100;
-                    exciterDry.gain.value = 1.0 - wetAmount; exciterWet.gain.value = wetAmount;
-                    nodes.exciterHPF.type = 'highpass'; nodes.exciterHPF.frequency.value = 5000;
-                    nodes.exciter.curve = this.makeDistortionCurve(audioState.exciterAmount * 15); nodes.exciter.oversample = '4x';
-                    nodes.exciterPostGain.gain.value = 0.5;
-                    lastNode.connect(exciterDry).connect(exciterSum);
-                    lastNode.connect(nodes.exciterHPF).connect(nodes.exciter).connect(nodes.exciterPostGain).connect(exciterWet).connect(exciterSum);
-                    lastNode = exciterSum;
-                }
-
-                if (audioState.isParallelCompEnabled && audioState.parallelCompMix > 0) {
-                    nodes.parallelCompressor.threshold.value = -30; nodes.parallelCompressor.knee.value = 15; nodes.parallelCompressor.ratio.value = 12;
-                    nodes.parallelCompressor.attack.value = 0.003; nodes.parallelCompressor.release.value = 0.1;
-                    nodes.parallelDry.gain.value = 1.0 - (audioState.parallelCompMix / 100); nodes.parallelWet.gain.value = audioState.parallelCompMix / 100;
-                    const parallelSum = nodes.context.createGain();
-                    lastNode.connect(nodes.parallelDry).connect(parallelSum);
-                    lastNode.connect(nodes.parallelCompressor).connect(nodes.parallelWet).connect(parallelSum);
-                    lastNode = parallelSum;
-                }
-
-                let spatialNode;
-                if (audioState.isWideningEnabled) {
-                    if (!nodes.ms_splitter) { Object.assign(nodes, { ms_splitter: nodes.context.createChannelSplitter(2), ms_mid_sum: nodes.context.createGain(), ms_mid_level: nodes.context.createGain(), ms_side_invert_R: nodes.context.createGain(), ms_side_sum: nodes.context.createGain(), ms_side_level: nodes.context.createGain(), ms_side_gain: nodes.context.createGain(), adaptiveWidthFilter: nodes.context.createBiquadFilter(), ms_decode_L_sum: nodes.context.createGain(), ms_decode_invert_Side: nodes.context.createGain(), ms_decode_R_sum: nodes.context.createGain(), ms_merger: nodes.context.createChannelMerger(2) }); }
-                    lastNode.connect(nodes.ms_splitter); nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
-                    nodes.ms_mid_sum.connect(nodes.ms_mid_level); nodes.ms_splitter.connect(nodes.ms_side_sum, 0); nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1).connect(nodes.ms_side_sum);
-                    nodes.ms_side_invert_R.gain.value = -1; nodes.ms_side_sum.connect(nodes.ms_side_level);
-                    nodes.ms_mid_level.gain.value = 0.5; nodes.ms_side_level.gain.value = 0.5;
-                    nodes.adaptiveWidthFilter.type = 'highpass'; nodes.adaptiveWidthFilter.frequency.value = audioState.isAdaptiveWidthEnabled ? audioState.adaptiveWidthFreq : 0;
-                    nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
-                    nodes.ms_side_gain.gain.value = audioState.wideningFactor; nodes.ms_decode_invert_Side.gain.value = -1;
-                    nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
-                    nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side).connect(nodes.ms_decode_R_sum);
-                    nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0); nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
-                    spatialNode = nodes.ms_merger;
-                } else {
-                    spatialNode = lastNode.connect(nodes.stereoPanner);
-                }
-
-                if (audioState.isReverbEnabled) {
-                    nodes.reverbWetGain.gain.value = audioState.reverbMix;
-                    spatialNode.connect(nodes.reverbSum);
-                    spatialNode.connect(nodes.reverbConvolver).connect(nodes.reverbWetGain).connect(nodes.reverbSum);
-                    lastNode = nodes.reverbSum;
-                } else {
-                    lastNode = spatialNode;
-                }
-
-                if (audioState.isMasteringSuiteEnabled) {
-                    nodes.masteringTransientShaper.curve = this.makeTransientCurve(audioState.masteringTransientAmount); nodes.masteringTransientShaper.oversample = '4x';
-                    lastNode = lastNode.connect(nodes.masteringTransientShaper);
-                    const drive = audioState.masteringDrive; const l1 = nodes.masteringLimiter1;
-                    l1.threshold.value = -12 + (drive / 2); l1.knee.value = 5; l1.ratio.value = 4; l1.attack.value = 0.005; l1.release.value = 0.08;
-                    const l2 = nodes.masteringLimiter2; l2.threshold.value = -8 + (drive / 2); l2.knee.value = 3; l2.ratio.value = 8; l2.attack.value = 0.003; l2.release.value = 0.05;
-                    const l3 = nodes.masteringLimiter3; l3.threshold.value = -2.0; l3.knee.value = 0; l3.ratio.value = 20; l3.attack.value = 0.001; l3.release.value = 0.02;
-                    lastNode = lastNode.connect(l1).connect(l2).connect(l3);
-                } else if (audioState.isLimiterEnabled) {
-                    nodes.limiter.threshold.value = -1.5; nodes.limiter.knee.value = 0; nodes.limiter.ratio.value = 20;
-                    nodes.limiter.attack.value = 0.001; nodes.limiter.release.value = 0.05;
-                    lastNode = lastNode.connect(nodes.limiter);
-                }
-
-                nodes.masterGain.gain.value = audioState.isPreGainEnabled ? audioState.preGain : 1.0;
-                lastNode.connect(nodes.masterGain);
-                nodes.masterGain.connect(nodes.safetyLimiter);
-                nodes.safetyLimiter.connect(nodes.analyser);
-                nodes.safetyLimiter.connect(nodes.loudnessAnalyzer);
-                nodes.safetyLimiter.connect(nodes.context.destination);
-            }, 'reconnectGraph');
-        }
-
-        checkAudioActivity(media, nodes) {
-            if (this.audioActivityStatus.get(media) === 'passed' || this.audioActivityStatus.get(media) === 'checking') return;
-            this.audioActivityStatus.set(media, 'checking');
-
-            let attempts = 0;
-            const MAX_ATTEMPTS = 8;
-            const CHECK_INTERVAL = 350;
-            const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
-
-            const intervalId = setInterval(() => {
-
-                if (!media.isConnected || nodes.context.state === 'closed') {
-                    clearInterval(intervalId);
-                    this.audioActivityStatus.delete(media);
-                    return;
-                }
-                if (media.paused) {
-                    attempts = 0;
-                    return;
-                }
-
-                attempts++;
-                nodes.analyser.getByteFrequencyData(analyserData);
-                const sum = analyserData.reduce((a, b) => a + b, 0);
-
-                if (sum > 0) {
-                    clearInterval(intervalId);
-                    this.audioActivityStatus.set(media, 'passed');
-                    return;
-                }
-
-                if (attempts >= MAX_ATTEMPTS) {
-                    clearInterval(intervalId);
-                    this.audioActivityStatus.set(media, 'failed');
-
-                    if (this.stateManager.get('settings.autoRefresh')) {
-                        console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 페이지를 새로고침합니다.', media);
-                        try {
-                            sessionStorage.setItem('vsc_message', 'CORS 보안 정책으로 오디오 효과 적용에 실패하여 페이지를 자동 새로고침했습니다.');
-                        } catch(e) { console.error('[VSC] sessionStorage 접근 실패:', e); }
-
-                        this.stateManager.set('ui.warningMessage', 'CORS 오류 감지. 1.5초 후 오디오 복원을 위해 페이지를 새로고침합니다.');
-                        this.cleanupForMedia(media);
-                        setTimeout(() => { location.reload(); }, 1500);
-                    } else {
-                        console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 자동 새로고침 비활성화됨.', media);
-                        this.stateManager.set('ui.warningMessage', '오디오 효과 적용 실패 (CORS 보안 정책 가능성).');
-                    }
-                }
-            }, CHECK_INTERVAL);
-        }
-
-        getOrCreateNodes(media) {
-            const audioContextMap = this.stateManager.get('audio.audioContextMap');
-            if (audioContextMap.has(media)) return audioContextMap.get(media);
-            const newNodes = this.createAudioGraph(media);
-            if (newNodes) {
-                this.checkAudioActivity(media, newNodes);
-                if (this.stateManager.get('audio.isLoudnessNormalizationEnabled')) {
-                    this.startLoudnessAnalysis(media);
-                }
-            }
-            return newNodes;
-        }
-
-        cleanupForMedia(media) {
-            this.stopLoudnessAnalysis(media);
-            if (this.animationFrameMap.has(media)) { cancelAnimationFrame(this.animationFrameMap.get(media)); this.animationFrameMap.delete(media); }
-            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-            if (nodes) {
-                safeExec(() => { if (nodes.context.state !== 'closed') nodes.context.close(); }, 'cleanupForMedia');
-                this.stateManager.get('audio.audioContextMap').delete(media);
-            }
-        }
-
-        ensureContextResumed(media) {
-            const nodes = this.getOrCreateNodes(media);
-            if (nodes && nodes.context.state === 'suspended') {
-                nodes.context.resume().catch(e => {
-                    if (!this.stateManager.get('ui.audioContextWarningShown')) {
-                        console.warn('[VSC] AudioContext resume failed. Click UI to enable.', e.message);
-                        this.stateManager.set('ui.warningMessage', '오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
-                        this.stateManager.set('ui.audioContextWarningShown', true);
-                    }
-                });
-            }
-        }
-
-        _getInstantRMS() {
-            return new Promise(resolve => {
-                const media = this.stateManager.get('media.currentlyVisibleMedia') || [...this.stateManager.get('media.activeMedia')][0];
-                if (!media) return resolve(0);
-
-                const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-                if (!nodes || !nodes.loudnessAnalyzer) return resolve(0);
-
-                const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
-                const dataArray = new Float32Array(bufferLength);
-                nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
-
-                let sum = 0;
-                for (let i = 0; i < bufferLength; i++) {
-                    sum += dataArray[i] * dataArray[i];
-                }
-                const rms = Math.sqrt(sum / bufferLength);
-                resolve(rms);
-            });
-        }
-
-        startLoudnessAnalysis(media) {
-            if (this.loudnessIntervalMap.has(media)) return;
-
-            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-            if (!nodes || !nodes.loudnessAnalyzer) return;
-
-            const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
-            const dataArray = new Float32Array(bufferLength);
-            let currentGain = this.stateManager.get('audio.preGain');
-
-            const intervalId = setInterval(() => {
-                if (!media.isConnected || media.paused) return;
-
-                nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
-
-                let sum = 0;
-                for (let i = 0; i < bufferLength; i++) {
-                    sum += dataArray[i] * dataArray[i];
-                }
-                const rms = Math.sqrt(sum / bufferLength);
-
-                if (rms === 0) return;
-
-                const measuredLoudness = 20 * Math.log10(rms);
-
-                const targetLoudness = this.stateManager.get('audio.loudnessTarget');
-                const error = targetLoudness - measuredLoudness;
-
-                const currentPreGain = this.stateManager.get('audio.preGain');
-                const targetPreGain = currentPreGain * Math.pow(10, error / 20);
-
-                const newGain = currentGain * (1 - CONFIG.LOUDNESS_ADJUSTMENT_SPEED) + targetPreGain * CONFIG.LOUDNESS_ADJUSTMENT_SPEED;
-                currentGain = Math.max(0.1, Math.min(newGain, CONFIG.MAX_PRE_GAIN));
-
-                this.stateManager.set('audio.preGain', currentGain);
-
-            }, CONFIG.LOUDNESS_ANALYSIS_INTERVAL);
-
-            this.loudnessIntervalMap.set(media, intervalId);
-        }
-
-        stopLoudnessAnalysis(media) {
-            if (this.loudnessIntervalMap.has(media)) {
-                clearInterval(this.loudnessIntervalMap.get(media));
-                this.loudnessIntervalMap.delete(media);
-            }
-            const lastManualGain = this.stateManager.get('audio.lastManualPreGain');
-            this.stateManager.set('audio.preGain', lastManualGain);
-        }
-    }
+    class AudioFXPlugin extends Plugin {
+        constructor() {
+            super('AudioFX');
+            this.animationFrameMap = new WeakMap();
+            this.audioActivityStatus = new WeakMap();
+            this.loudnessAnalyzerMap = new WeakMap();
+            this.loudnessIntervalMap = new WeakMap();
+        }
+
+        init(stateManager) {
+            super.init(stateManager);
+            this.subscribe('audio.*', debounce(() => this.applyAudioEffectsToAllMedia(), 50));
+            this.subscribe('media.activeMedia', (newMediaSet, oldMediaSet) => {
+                const added = [...newMediaSet].filter(x => !oldMediaSet.has(x));
+                const removed = [...oldMediaSet].filter(x => !newMediaSet.has(x));
+                if (this.stateManager.get('audio.audioInitialized')) {
+                    added.forEach(media => this.ensureContextResumed(media));
+                }
+                removed.forEach(media => this.cleanupForMedia(media));
+            });
+            this.subscribe('audio.audioInitialized', (isInitialized) => {
+                if (isInitialized) {
+                    const currentMedia = this.stateManager.get('media.activeMedia');
+                    currentMedia.forEach(media => this.ensureContextResumed(media));
+                }
+            });
+
+            this.subscribe('audio.activityCheckRequested', () => {
+                this.stateManager.get('media.activeMedia').forEach(media => {
+                    const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+                    if (nodes) {
+                        this.audioActivityStatus.delete(media);
+                        this.checkAudioActivity(media, nodes);
+                        console.log('[VSC] Audio activity re-check requested.', media);
+                    }
+                });
+            });
+
+            this.subscribe('audio.isLoudnessNormalizationEnabled', (isEnabled) => {
+                this.stateManager.get('media.activeMedia').forEach(media => {
+                    if (isEnabled) {
+                        this.startLoudnessAnalysis(media);
+                    } else {
+                        this.stopLoudnessAnalysis(media);
+                    }
+                });
+            });
+        }
+
+        destroy() {
+            super.destroy();
+            this.stateManager.get('media.activeMedia').forEach(media => this.cleanupForMedia(media));
+        }
+
+        applyAudioEffectsToAllMedia() {
+            if (!this.stateManager.get('audio.audioInitialized')) return;
+            const sm = this.stateManager;
+            const mediaToAffect = sm.get('app.isMobile') && sm.get('media.currentlyVisibleMedia') ?
+                [sm.get('media.currentlyVisibleMedia')] : Array.from(sm.get('media.activeMedia'));
+            mediaToAffect.forEach(media => {
+                if (media) this.reconnectGraph(media)
+            });
+        }
+
+        createImpulseResponse(context, duration = 2, decay = 2) {
+            const sampleRate = context.sampleRate; const length = sampleRate * duration;
+            const impulse = context.createBuffer(2, length, sampleRate);
+            const impulseL = impulse.getChannelData(0); const impulseR = impulse.getChannelData(1);
+            for (let i = 0; i < length; i++) {
+                impulseL[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+                impulseR[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+            }
+            return impulse;
+        }
+
+        makeTransientCurve(amount) {
+            const samples = 44100; const curve = new Float32Array(samples);
+            const k = 2 * amount / (1 - amount || 1e-6);
+            for (let i = 0; i < samples; i++) {
+                const x = i * 2 / samples - 1;
+                curve[i] = (1 + k) * x / (1 + k * Math.abs(x));
+            }
+            return curve;
+        }
+
+        makeDistortionCurve(amount) {
+            const k = typeof amount === 'number' ? amount : 50; const n_samples = 44100;
+            const curve = new Float32Array(n_samples); const deg = Math.PI / 180;
+            for (let i = 0; i < n_samples; ++i) {
+                const x = i * 2 / n_samples - 1;
+                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+            }
+            return curve;
+        }
+
+        createAudioGraph(media) {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            let source;
+            try { media.crossOrigin = "anonymous"; source = context.createMediaElementSource(media);
+            } catch (e) {
+                this.stateManager.set('ui.warningMessage', '오디오 효과 적용 실패 (CORS). 페이지 새로고침이 필요할 수 있습니다.');
+                console.error('[VSC] MediaElementSource creation failed.', e); context.close(); return null;
+            }
+            const nodes = { context, source, stereoPanner: context.createStereoPanner(), masterGain: context.createGain(), analyser: context.createAnalyser(), loudnessAnalyzer: context.createAnalyser(), safetyLimiter: context.createDynamicsCompressor(), cumulativeLUFS: 0, lufsSampleCount: 0, band1_SubBass: context.createBiquadFilter(), band2_Bass: context.createBiquadFilter(), band3_Mid: context.createBiquadFilter(), band4_Treble: context.createBiquadFilter(), band5_Presence: context.createBiquadFilter(), gain1_SubBass: context.createGain(), gain2_Bass: context.createGain(), gain3_Mid: context.createGain(), gain4_Treble: context.createGain(), gain5_Presence: context.createGain(), merger: context.createGain(), reverbConvolver: context.createConvolver(), reverbWetGain: context.createGain(), reverbSum: context.createGain(), deesserBand: context.createBiquadFilter(), deesserCompressor: context.createDynamicsCompressor(), exciterHPF: context.createBiquadFilter(), exciter: context.createWaveShaper(), exciterPostGain: context.createGain(), parallelCompressor: context.createDynamicsCompressor(), parallelDry: context.createGain(), parallelWet: context.createGain(), limiter: context.createDynamicsCompressor(), masteringTransientShaper: context.createWaveShaper(), masteringLimiter1: context.createDynamicsCompressor(), masteringLimiter2: context.createDynamicsCompressor(), masteringLimiter3: context.createDynamicsCompressor(), masteringDriveGain: context.createGain(), masteringTamingComp: context.createDynamicsCompressor() };
+
+            const mbc = {
+                splitter1: context.createBiquadFilter(), splitter2: context.createBiquadFilter(), splitter3: context.createBiquadFilter(),
+                compLow: context.createDynamicsCompressor(), compLowMid: context.createDynamicsCompressor(), compHighMid: context.createDynamicsCompressor(), compHigh: context.createDynamicsCompressor(),
+                gainLow: context.createGain(), gainLowMid: context.createGain(), gainHighMid: context.createGain(), gainHigh: context.createGain(),
+                merger: context.createGain()
+            };
+            mbc.splitter1.type = 'lowpass';
+            mbc.splitter2.type = 'lowpass';
+            mbc.splitter3.type = 'lowpass';
+            Object.assign(nodes, { mbc });
+
+            nodes.dynamicEq = [];
+            for (let i = 0; i < 4; i++) {
+                const deq_band = {
+                    peaking: context.createBiquadFilter(),
+                    sidechain: context.createBiquadFilter(),
+                    compressor: context.createDynamicsCompressor(),
+                    gain: context.createGain()
+                };
+                deq_band.peaking.type = 'peaking';
+                deq_band.sidechain.type = 'bandpass';
+                nodes.dynamicEq.push(deq_band);
+            }
+
+            try { nodes.reverbConvolver.buffer = this.createImpulseResponse(context); } catch (e) { console.error("[VSC] Failed to create reverb impulse response.", e); }
+            nodes.safetyLimiter.threshold.value = -0.5; nodes.safetyLimiter.knee.value = 0; nodes.safetyLimiter.ratio.value = 20; nodes.safetyLimiter.attack.value = 0.001; nodes.safetyLimiter.release.value = 0.05;
+            nodes.analyser.fftSize = 256;
+            nodes.loudnessAnalyzer.fftSize = 2048;
+            nodes.band1_SubBass.type = "lowpass"; nodes.band1_SubBass.frequency.value = 80; nodes.band2_Bass.type = "bandpass"; nodes.band2_Bass.frequency.value = 150; nodes.band2_Bass.Q.value = 1; nodes.band3_Mid.type = "bandpass"; nodes.band3_Mid.frequency.value = 1000; nodes.band3_Mid.Q.value = 1; nodes.band4_Treble.type = "bandpass"; nodes.band4_Treble.frequency.value = 4000; nodes.band4_Treble.Q.value = 1; nodes.band5_Presence.type = "highpass"; nodes.band5_Presence.frequency.value = 8000;
+            this.stateManager.get('audio.audioContextMap').set(media, nodes);
+
+            nodes.source.connect(nodes.masterGain);
+            nodes.masterGain.connect(nodes.safetyLimiter);
+            nodes.safetyLimiter.connect(nodes.analyser);
+            nodes.safetyLimiter.connect(nodes.loudnessAnalyzer);
+            nodes.safetyLimiter.connect(nodes.context.destination);
+            return nodes;
+        }
+
+        reconnectGraph(media) {
+            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+            if (!nodes) return;
+            const audioState = this.stateManager.get('audio');
+
+            safeExec(() => {
+                Object.values(nodes).forEach(node => { if (node && typeof node.disconnect === 'function' && node !== nodes.context && node !== nodes.loudnessAnalyzer) { try { node.disconnect(); } catch (e) { /* Ignore */ } } });
+
+                if (this.animationFrameMap.has(media)) cancelAnimationFrame(this.animationFrameMap.get(media));
+                this.animationFrameMap.delete(media);
+
+                let lastNode = nodes.source;
+
+                nodes.stereoPanner.pan.value = audioState.stereoPan;
+
+                if (audioState.isDeesserEnabled) {
+                    nodes.deesserBand.type = 'bandpass'; nodes.deesserBand.frequency.value = audioState.deesserFreq; nodes.deesserBand.Q.value = 3;
+                    nodes.deesserCompressor.threshold.value = audioState.deesserThreshold; nodes.deesserCompressor.knee.value = 10; nodes.deesserCompressor.ratio.value = 10; nodes.deesserCompressor.attack.value = 0.005; nodes.deesserCompressor.release.value = 0.1;
+                    lastNode.connect(nodes.deesserBand).connect(nodes.deesserCompressor);
+                    lastNode = lastNode.connect(nodes.deesserCompressor);
+                }
+
+                if (audioState.isEqEnabled || audioState.bassBoostGain > 0) {
+                    const merger = nodes.merger;
+                    lastNode.connect(nodes.band1_SubBass); lastNode.connect(nodes.band2_Bass); lastNode.connect(nodes.band3_Mid); lastNode.connect(nodes.band4_Treble); lastNode.connect(nodes.band5_Presence);
+                    let lastSubBassNode = nodes.band1_SubBass;
+                    if (audioState.bassBoostGain > 0) {
+                        if (!nodes.bassBoost) { nodes.bassBoost = nodes.context.createBiquadFilter(); nodes.bassBoost.type = "peaking"; }
+                        nodes.bassBoost.frequency.value = audioState.bassBoostFreq; nodes.bassBoost.Q.value = audioState.bassBoostQ; nodes.bassBoost.gain.value = audioState.bassBoostGain;
+                        lastSubBassNode = lastSubBassNode.connect(nodes.bassBoost);
+                    }
+                    if (audioState.isEqEnabled) {
+                        nodes.gain1_SubBass.gain.value = Math.pow(10, audioState.eqSubBassGain / 20); nodes.gain2_Bass.gain.value = Math.pow(10, audioState.eqBassGain / 20);
+                        nodes.gain3_Mid.gain.value = Math.pow(10, audioState.eqMidGain / 20); nodes.gain4_Treble.gain.value = Math.pow(10, audioState.eqTrebleGain / 20);
+                        nodes.gain5_Presence.gain.value = Math.pow(10, audioState.eqPresenceGain / 20);
+                    } else {
+                        [nodes.gain1_SubBass, nodes.gain2_Bass, nodes.gain3_Mid, nodes.gain4_Treble, nodes.gain5_Presence].forEach(g => g.gain.value = 1);
+                    }
+                    lastSubBassNode.connect(nodes.gain1_SubBass).connect(merger);
+                    nodes.band2_Bass.connect(nodes.gain2_Bass).connect(merger);
+                    nodes.band3_Mid.connect(nodes.gain3_Mid).connect(merger);
+                    nodes.band4_Treble.connect(nodes.gain4_Treble).connect(merger);
+                    nodes.band5_Presence.connect(nodes.gain5_Presence).connect(merger);
+                    lastNode = merger;
+                }
+
+                if (audioState.isDynamicEqEnabled) {
+                    const deqSettings = audioState.dynamicEq.bands;
+                    for (let i = 0; i < nodes.dynamicEq.length; i++) {
+                        const band = nodes.dynamicEq[i];
+                        const settings = deqSettings[i];
+
+                        band.peaking.frequency.value = settings.freq;
+                        band.peaking.Q.value = settings.q;
+
+                        band.sidechain.frequency.value = settings.freq;
+                        band.sidechain.Q.value = settings.q * 1.5;
+
+                        band.compressor.threshold.value = settings.threshold;
+                        band.compressor.knee.value = 5;
+                        band.compressor.ratio.value = 2;
+                        band.compressor.attack.value = 0.005;
+                        band.compressor.release.value = 0.15;
+
+                        band.gain.gain.value = settings.gain;
+
+                        lastNode.connect(band.peaking);
+                        lastNode.connect(band.sidechain).connect(band.compressor).connect(band.gain);
+                        band.gain.connect(band.peaking.gain);
+
+                        lastNode = band.peaking;
+                    }
+                }
+
+                if (audioState.isHpfEnabled) {
+                    if (!nodes.hpf) nodes.hpf = nodes.context.createBiquadFilter();
+                    nodes.hpf.type = 'highpass'; nodes.hpf.frequency.value = audioState.hpfHz;
+                    lastNode = lastNode.connect(nodes.hpf);
+                }
+
+                if (audioState.isMultibandCompEnabled) {
+                    const mbcNodes = nodes.mbc;
+                    const merger = mbcNodes.merger;
+
+                    mbcNodes.splitter1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
+                    mbcNodes.splitter2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
+                    mbcNodes.splitter3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
+
+                    const highPass1 = nodes.context.createBiquadFilter(); highPass1.type = 'highpass';
+                    highPass1.frequency.value = this.stateManager.get('audio.multibandComp.low.crossover');
+                    const highPass2 = nodes.context.createBiquadFilter(); highPass2.type = 'highpass';
+                    highPass2.frequency.value = this.stateManager.get('audio.multibandComp.lowMid.crossover');
+                    const highPass3 = nodes.context.createBiquadFilter(); highPass3.type = 'highpass';
+                    highPass3.frequency.value = this.stateManager.get('audio.multibandComp.highMid.crossover');
+
+                    lastNode.connect(mbcNodes.splitter1).connect(mbcNodes.compLow).connect(mbcNodes.gainLow).connect(merger);
+                    lastNode.connect(highPass1).connect(mbcNodes.splitter2).connect(mbcNodes.compLowMid).connect(mbcNodes.gainLowMid).connect(merger);
+                    lastNode.connect(highPass2).connect(mbcNodes.splitter3).connect(mbcNodes.compHighMid).connect(mbcNodes.gainHighMid).connect(merger);
+                    lastNode.connect(highPass3).connect(mbcNodes.compHigh).connect(mbcNodes.gainHigh).connect(merger);
+
+                    const bands = ['low', 'lowMid', 'highMid', 'high'];
+                    const compMap = { low: mbcNodes.compLow, lowMid: mbcNodes.compLowMid, highMid: mbcNodes.compHighMid, high: mbcNodes.compHigh };
+                    const gainMap = { low: mbcNodes.gainLow, lowMid: mbcNodes.gainLowMid, highMid: mbcNodes.gainHighMid, high: mbcNodes.gainHigh };
+
+                    bands.forEach(band => {
+                        const comp = compMap[band];
+                        const gain = gainMap[band];
+
+                        comp.threshold.value = this.stateManager.get(`audio.multibandComp.${band}.threshold`);
+                        comp.ratio.value = this.stateManager.get(`audio.multibandComp.${band}.ratio`);
+                        comp.attack.value = this.stateManager.get(`audio.multibandComp.${band}.attack`);
+                        comp.release.value = this.stateManager.get(`audio.multibandComp.${band}.release`);
+                        gain.gain.value = Math.pow(10, this.stateManager.get(`audio.multibandComp.${band}.makeupGain`) / 20);
+                    });
+
+                    lastNode = merger;
+                }
+
+                if (audioState.isExciterEnabled && audioState.exciterAmount > 0) {
+                    const exciterSum = nodes.context.createGain(); const exciterDry = nodes.context.createGain(); const exciterWet = nodes.context.createGain();
+                    const wetAmount = audioState.isMasteringSuiteEnabled ? audioState.exciterAmount / 150 : audioState.exciterAmount / 100;
+                    exciterDry.gain.value = 1.0 - wetAmount; exciterWet.gain.value = wetAmount;
+                    nodes.exciterHPF.type = 'highpass'; nodes.exciterHPF.frequency.value = 5000;
+                    nodes.exciter.curve = this.makeDistortionCurve(audioState.exciterAmount * 15); nodes.exciter.oversample = '4x';
+                    nodes.exciterPostGain.gain.value = 0.5;
+                    lastNode.connect(exciterDry).connect(exciterSum);
+                    lastNode.connect(nodes.exciterHPF).connect(nodes.exciter).connect(nodes.exciterPostGain).connect(exciterWet).connect(exciterSum);
+                    lastNode = exciterSum;
+                }
+
+                if (audioState.isParallelCompEnabled && audioState.parallelCompMix > 0) {
+                    nodes.parallelCompressor.threshold.value = -30; nodes.parallelCompressor.knee.value = 15; nodes.parallelCompressor.ratio.value = 12;
+                    nodes.parallelCompressor.attack.value = 0.003; nodes.parallelCompressor.release.value = 0.1;
+                    nodes.parallelDry.gain.value = 1.0 - (audioState.parallelCompMix / 100); nodes.parallelWet.gain.value = audioState.parallelCompMix / 100;
+                    const parallelSum = nodes.context.createGain();
+                    lastNode.connect(nodes.parallelDry).connect(parallelSum);
+                    lastNode.connect(nodes.parallelCompressor).connect(nodes.parallelWet).connect(parallelSum);
+                    lastNode = parallelSum;
+                }
+
+                let spatialNode;
+                if (audioState.isWideningEnabled) {
+                    if (!nodes.ms_splitter) { Object.assign(nodes, { ms_splitter: nodes.context.createChannelSplitter(2), ms_mid_sum: nodes.context.createGain(), ms_mid_level: nodes.context.createGain(), ms_side_invert_R: nodes.context.createGain(), ms_side_sum: nodes.context.createGain(), ms_side_level: nodes.context.createGain(), ms_side_gain: nodes.context.createGain(), adaptiveWidthFilter: nodes.context.createBiquadFilter(), ms_decode_L_sum: nodes.context.createGain(), ms_decode_invert_Side: nodes.context.createGain(), ms_decode_R_sum: nodes.context.createGain(), ms_merger: nodes.context.createChannelMerger(2) }); }
+                    lastNode.connect(nodes.ms_splitter); nodes.ms_splitter.connect(nodes.ms_mid_sum, 0); nodes.ms_splitter.connect(nodes.ms_mid_sum, 1);
+                    nodes.ms_mid_sum.connect(nodes.ms_mid_level); nodes.ms_splitter.connect(nodes.ms_side_sum, 0); nodes.ms_splitter.connect(nodes.ms_side_invert_R, 1).connect(nodes.ms_side_sum);
+                    nodes.ms_side_invert_R.gain.value = -1; nodes.ms_side_sum.connect(nodes.ms_side_level);
+                    nodes.ms_mid_level.gain.value = 0.5; nodes.ms_side_level.gain.value = 0.5;
+                    nodes.adaptiveWidthFilter.type = 'highpass'; nodes.adaptiveWidthFilter.frequency.value = audioState.isAdaptiveWidthEnabled ? audioState.adaptiveWidthFreq : 0;
+                    nodes.ms_side_level.connect(nodes.adaptiveWidthFilter).connect(nodes.ms_side_gain);
+                    nodes.ms_side_gain.gain.value = audioState.wideningFactor; nodes.ms_decode_invert_Side.gain.value = -1;
+                    nodes.ms_mid_level.connect(nodes.ms_decode_L_sum); nodes.ms_side_gain.connect(nodes.ms_decode_L_sum);
+                    nodes.ms_mid_level.connect(nodes.ms_decode_R_sum); nodes.ms_side_gain.connect(nodes.ms_decode_invert_Side).connect(nodes.ms_decode_R_sum);
+                    nodes.ms_decode_L_sum.connect(nodes.ms_merger, 0, 0); nodes.ms_decode_R_sum.connect(nodes.ms_merger, 0, 1);
+                    spatialNode = nodes.ms_merger;
+                } else {
+                    spatialNode = lastNode.connect(nodes.stereoPanner);
+                }
+
+                if (audioState.isReverbEnabled) {
+                    nodes.reverbWetGain.gain.value = audioState.reverbMix;
+                    spatialNode.connect(nodes.reverbSum);
+                    spatialNode.connect(nodes.reverbConvolver).connect(nodes.reverbWetGain).connect(nodes.reverbSum);
+                    lastNode = nodes.reverbSum;
+                } else {
+                    lastNode = spatialNode;
+                }
+
+                if (audioState.isMasteringSuiteEnabled) {
+                    // 1. 과도한 신호를 제어하기 위한 안전 장치(Taming Compressor)를 먼저 연결
+                    const tamingComp = nodes.masteringTamingComp;
+                    tamingComp.threshold.value = -18.0;
+                    tamingComp.knee.value = 5;
+                    tamingComp.ratio.value = 4;
+                    tamingComp.attack.value = 0.003;
+                    tamingComp.release.value = 0.1;
+                    lastNode = lastNode.connect(tamingComp);
+
+                    // 2. Drive 값을 Gain 노드로 변환하여 실제 볼륨을 증폭
+                    nodes.masteringDriveGain.gain.value = Math.pow(10, audioState.masteringDrive / 20);
+                    lastNode = lastNode.connect(nodes.masteringDriveGain);
+
+                    // 3. Transient Shaper 연결
+                    nodes.masteringTransientShaper.curve = this.makeTransientCurve(audioState.masteringTransientAmount);
+                    nodes.masteringTransientShaper.oversample = '4x';
+                    lastNode = lastNode.connect(nodes.masteringTransientShaper);
+
+                    // 4. 리미터 Threshold는 고정값으로 유지
+                    const l1 = nodes.masteringLimiter1;
+                    l1.threshold.value = -12.0; l1.knee.value = 5; l1.ratio.value = 4; l1.attack.value = 0.005; l1.release.value = 0.08;
+
+                    const l2 = nodes.masteringLimiter2;
+                    l2.threshold.value = -8.0; l2.knee.value = 3; l2.ratio.value = 8; l2.attack.value = 0.003; l2.release.value = 0.05;
+
+                    const l3 = nodes.masteringLimiter3;
+                    l3.threshold.value = -2.0; l3.knee.value = 0; l3.ratio.value = 20; l3.attack.value = 0.001; l3.release.value = 0.02;
+
+                    lastNode = lastNode.connect(l1).connect(l2).connect(l3);
+
+                } else if (audioState.isLimiterEnabled) {
+                    nodes.limiter.threshold.value = -1.5; nodes.limiter.knee.value = 0; nodes.limiter.ratio.value = 20;
+                    nodes.limiter.attack.value = 0.001; nodes.limiter.release.value = 0.05;
+                    lastNode = lastNode.connect(nodes.limiter);
+                }
+
+                nodes.masterGain.gain.value = audioState.isPreGainEnabled ? audioState.preGain : 1.0;
+                lastNode.connect(nodes.masterGain);
+                nodes.masterGain.connect(nodes.safetyLimiter);
+                nodes.safetyLimiter.connect(nodes.analyser);
+                nodes.safetyLimiter.connect(nodes.loudnessAnalyzer);
+                nodes.safetyLimiter.connect(nodes.context.destination);
+            }, 'reconnectGraph');
+        }
+
+        checkAudioActivity(media, nodes) {
+            if (this.audioActivityStatus.get(media) === 'passed' || this.audioActivityStatus.get(media) === 'checking') return;
+            this.audioActivityStatus.set(media, 'checking');
+
+            let attempts = 0;
+            const MAX_ATTEMPTS = 8;
+            const CHECK_INTERVAL = 350;
+            const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
+
+            const intervalId = setInterval(() => {
+
+                if (!media.isConnected || nodes.context.state === 'closed') {
+                    clearInterval(intervalId);
+                    this.audioActivityStatus.delete(media);
+                    return;
+                }
+                if (media.paused) {
+                    attempts = 0;
+                    return;
+                }
+
+                attempts++;
+                nodes.analyser.getByteFrequencyData(analyserData);
+                const sum = analyserData.reduce((a, b) => a + b, 0);
+
+                if (sum > 0) {
+                    clearInterval(intervalId);
+                    this.audioActivityStatus.set(media, 'passed');
+                    return;
+                }
+
+                if (attempts >= MAX_ATTEMPTS) {
+                    clearInterval(intervalId);
+                    this.audioActivityStatus.set(media, 'failed');
+
+                    if (this.stateManager.get('settings.autoRefresh')) {
+                        console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 페이지를 새로고침합니다.', media);
+                        try {
+                            sessionStorage.setItem('vsc_message', 'CORS 보안 정책으로 오디오 효과 적용에 실패하여 페이지를 자동 새로고침했습니다.');
+                        } catch(e) { console.error('[VSC] sessionStorage 접근 실패:', e); }
+
+                        this.stateManager.set('ui.warningMessage', 'CORS 오류 감지. 1.5초 후 오디오 복원을 위해 페이지를 새로고침합니다.');
+                        this.cleanupForMedia(media);
+                        setTimeout(() => { location.reload(); }, 1500);
+                    } else {
+                        console.warn('[VSC] 오디오 신호 없음 (CORS 의심). 자동 새로고침 비활성화됨.', media);
+                        this.stateManager.set('ui.warningMessage', '오디오 효과 적용 실패 (CORS 보안 정책 가능성).');
+                    }
+                }
+            }, CHECK_INTERVAL);
+        }
+
+        getOrCreateNodes(media) {
+            const audioContextMap = this.stateManager.get('audio.audioContextMap');
+            if (audioContextMap.has(media)) return audioContextMap.get(media);
+            const newNodes = this.createAudioGraph(media);
+            if (newNodes) {
+                this.checkAudioActivity(media, newNodes);
+                if (this.stateManager.get('audio.isLoudnessNormalizationEnabled')) {
+                    this.startLoudnessAnalysis(media);
+                }
+            }
+            return newNodes;
+        }
+
+        cleanupForMedia(media) {
+            this.stopLoudnessAnalysis(media);
+            if (this.animationFrameMap.has(media)) { cancelAnimationFrame(this.animationFrameMap.get(media)); this.animationFrameMap.delete(media); }
+            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+            if (nodes) {
+                safeExec(() => { if (nodes.context.state !== 'closed') nodes.context.close(); }, 'cleanupForMedia');
+                this.stateManager.get('audio.audioContextMap').delete(media);
+            }
+        }
+
+        ensureContextResumed(media) {
+            const nodes = this.getOrCreateNodes(media);
+            if (nodes && nodes.context.state === 'suspended') {
+                nodes.context.resume().catch(e => {
+                    if (!this.stateManager.get('ui.audioContextWarningShown')) {
+                        console.warn('[VSC] AudioContext resume failed. Click UI to enable.', e.message);
+                        this.stateManager.set('ui.warningMessage', '오디오 효과를 위해 UI 버튼을 한 번 클릭해주세요.');
+                        this.stateManager.set('ui.audioContextWarningShown', true);
+                    }
+                });
+            }
+        }
+
+        _getInstantRMS() {
+            return new Promise(resolve => {
+                const media = this.stateManager.get('media.currentlyVisibleMedia') || [...this.stateManager.get('media.activeMedia')][0];
+                if (!media) return resolve(0);
+
+                const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+                if (!nodes || !nodes.loudnessAnalyzer) return resolve(0);
+
+                const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
+                const dataArray = new Float32Array(bufferLength);
+                nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
+
+                let sum = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    sum += dataArray[i] * dataArray[i];
+                }
+                const rms = Math.sqrt(sum / bufferLength);
+                resolve(rms);
+            });
+        }
+
+        startLoudnessAnalysis(media) {
+            if (this.loudnessIntervalMap.has(media)) return;
+
+            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+            if (!nodes || !nodes.loudnessAnalyzer) return;
+
+            const bufferLength = nodes.loudnessAnalyzer.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            let currentGain = this.stateManager.get('audio.preGain');
+
+            const intervalId = setInterval(() => {
+                if (!media.isConnected || media.paused) return;
+
+                nodes.loudnessAnalyzer.getFloatTimeDomainData(dataArray);
+
+                let sum = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    sum += dataArray[i] * dataArray[i];
+                }
+                const rms = Math.sqrt(sum / bufferLength);
+
+                if (rms === 0) return;
+
+                const measuredLoudness = 20 * Math.log10(rms);
+
+                const targetLoudness = this.stateManager.get('audio.loudnessTarget');
+                const error = targetLoudness - measuredLoudness;
+
+                const currentPreGain = this.stateManager.get('audio.preGain');
+                const targetPreGain = currentPreGain * Math.pow(10, error / 20);
+
+                const newGain = currentGain * (1 - CONFIG.LOUDNESS_ADJUSTMENT_SPEED) + targetPreGain * CONFIG.LOUDNESS_ADJUSTMENT_SPEED;
+                currentGain = Math.max(0.1, Math.min(newGain, CONFIG.MAX_PRE_GAIN));
+
+                this.stateManager.set('audio.preGain', currentGain);
+
+            }, CONFIG.LOUDNESS_ANALYSIS_INTERVAL);
+
+            this.loudnessIntervalMap.set(media, intervalId);
+        }
+
+        stopLoudnessAnalysis(media) {
+            if (this.loudnessIntervalMap.has(media)) {
+                clearInterval(this.loudnessIntervalMap.get(media));
+                this.loudnessIntervalMap.delete(media);
+            }
+            const lastManualGain = this.stateManager.get('audio.lastManualPreGain');
+            this.stateManager.set('audio.preGain', lastManualGain);
+        }
+    }
 
     // --- [PLUGIN] LiveStreamPlugin: Manages live stream delay and seeking ---
     class LiveStreamPlugin extends Plugin {
