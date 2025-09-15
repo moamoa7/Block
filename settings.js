@@ -2030,8 +2030,8 @@
                 this.stateManager.set('videoFilter.gamma', 1);
                 this.stateManager.set('videoFilter.saturation', 100);
                 this.stateManager.set('videoFilter.blur', 0);
-                this.stateManager.set('videoFilter.shadows', 2);
-                this.stateManager.set('videoFilter.highlights', 2);
+                this.stateManager.set('videoFilter.shadows', 3);
+                this.stateManager.set('videoFilter.highlights', 1);
                 this.stateManager.set('videoFilter.activePreset', 'brighten1'); // 상태 변경
             };
 
@@ -2042,7 +2042,7 @@
             videoBrightenBtn.dataset.presetKey = 'brighten2'; // 고유 키 추가
             videoBrightenBtn.onclick = () => {
                 this.stateManager.set('videoFilter.gamma', 1.15);
-                this.stateManager.set('videoFilter.saturation', 105);
+                this.stateManager.set('videoFilter.saturation', 103);
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', -1);
                 this.stateManager.set('videoFilter.highlights', 1);
@@ -2055,8 +2055,8 @@
             videoNewBrightenBtn.textContent = '밝기 3';
             videoNewBrightenBtn.dataset.presetKey = 'brighten3'; // 고유 키 추가
             videoNewBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.30);
-                this.stateManager.set('videoFilter.saturation', 110);
+                this.stateManager.set('videoFilter.gamma', 1.25);
+                this.stateManager.set('videoFilter.saturation', 105);
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', -2);
                 this.stateManager.set('videoFilter.highlights', 2);
@@ -2069,8 +2069,8 @@
             videohighBrightenBtn.textContent = '밝기 4';
             videohighBrightenBtn.dataset.presetKey = 'brighten4'; // 고유 키 추가
             videohighBrightenBtn.onclick = () => {
-                this.stateManager.set('videoFilter.gamma', 1.45);
-                this.stateManager.set('videoFilter.saturation', 115);
+                this.stateManager.set('videoFilter.gamma', 1.35);
+                this.stateManager.set('videoFilter.saturation', 107);
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', -3);
                 this.stateManager.set('videoFilter.highlights', 3);
