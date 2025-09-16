@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      101.7
-// @description  볼륨커브 도입
+// @version      101.8
+// @description  오디오 초기화 문제 버그 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1465,6 +1465,26 @@ this.presetMap = {
         smartEQ_bands: []
     },
 
+      'general': {
+        name: '기본값 (모든 효과 기본값)',
+        targetLUFS: CONFIG.LOUDNESS_TARGET,
+        hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
+        eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 0, eq_presence: 0,
+        bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
+        widen_enabled: false, widen_factor: 1.0,
+        adaptive_enabled: false, adaptive_width_freq: 150,
+        preGain_enabled: true, preGain_value: 4.0,
+        preGainExponent: CONFIG.DEFAULT_PRE_GAIN_EXPONENT, // ✅ [수정] CONFIG 변수를 참조하도록 변경
+        reverb_enabled: false, reverb_mix: CONFIG.DEFAULT_REVERB_MIX,
+        deesser_enabled: false, deesser_threshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesser_freq: CONFIG.DEFAULT_DEESSER_FREQ,
+        exciter_enabled: false, exciter_amount: 0,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
+        multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS,
+        multiband_enabled: true,
+        smartEQ_enabled: true,
+    },
+
     'basic_clear': {
         name: '💠 기본 개선 (명료)',
         targetLUFS: -16,
@@ -1560,7 +1580,7 @@ this.presetMap = {
         bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.3,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 4.0,
+        preGain_enabled: true, preGain_value: 1.5,
         reverb_enabled: true, reverb_mix: 0.5,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -1589,7 +1609,7 @@ this.presetMap = {
         bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.3,
         adaptive_enabled: true, adaptive_width_freq: 170,
-        preGain_enabled: true, preGain_value: 2.5,
+        preGain_enabled: true, preGain_value: 1.5,
         reverb_enabled: false,
         deesser_enabled: false,
         exciter_enabled: true, exciter_amount: 12,
@@ -1618,7 +1638,7 @@ this.presetMap = {
         bass_boost_gain: 2, bass_boost_freq: 55, bass_boost_q: 1.0,
         widen_enabled: false, widen_factor: 1.0,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.0,
+        preGain_enabled: true, preGain_value: 1.5,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: true, deesser_threshold: -32,
         exciter_enabled: false,
@@ -1647,7 +1667,7 @@ this.presetMap = {
         bass_boost_gain: 3.5, bass_boost_freq: 60, bass_boost_q: 1.0,
         widen_enabled: true, widen_factor: 1.0,
         adaptive_enabled: true, adaptive_width_freq: 160,
-        preGain_enabled: true, preGain_value: 4.5,
+        preGain_enabled: true, preGain_value: 2.5,
         reverb_enabled: false,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -2824,69 +2844,92 @@ this.presetMap = {
         }
     }
 
+    // 약 2320번째 줄 근처의 _applyPresetSettings 함수 전체를 아래 코드로 교체하세요.
+
     _applyPresetSettings(presetKey) {
         const p = this.presetMap[presetKey];
         if (!p) return;
 
         this.stateManager.set('audio.audioInitialized', true);
 
-        const newTargetLUFS = p.targetLUFS ?? CONFIG.LOUDNESS_TARGET;
-        this.stateManager.set('audio.loudnessTarget', newTargetLUFS);
+        // ✅ --- [핵심 수정 1] 모든 설정을 먼저 기본값으로 완벽히 초기화합니다. ---
+        this.stateManager.set('audio.isHpfEnabled', CONFIG.DEFAULT_HPF_ENABLED);
+        this.stateManager.set('audio.hpfHz', CONFIG.EFFECTS_HPF_FREQUENCY);
+        this.stateManager.set('audio.isEqEnabled', CONFIG.DEFAULT_EQ_ENABLED);
+        this.stateManager.set('audio.eqSubBassGain', CONFIG.DEFAULT_EQ_SUBBASS_GAIN);
+        this.stateManager.set('audio.eqBassGain', CONFIG.DEFAULT_EQ_BASS_GAIN);
+        this.stateManager.set('audio.eqMidGain', CONFIG.DEFAULT_EQ_MID_GAIN);
+        this.stateManager.set('audio.eqTrebleGain', CONFIG.DEFAULT_EQ_TREBLE_GAIN);
+        this.stateManager.set('audio.eqPresenceGain', CONFIG.DEFAULT_EQ_PRESENCE_GAIN);
+        this.stateManager.set('audio.bassBoostGain', CONFIG.DEFAULT_BASS_BOOST_GAIN);
+        this.stateManager.set('audio.isWideningEnabled', CONFIG.DEFAULT_WIDENING_ENABLED);
+        this.stateManager.set('audio.wideningFactor', CONFIG.DEFAULT_WIDENING_FACTOR);
+        this.stateManager.set('audio.isAdaptiveWidthEnabled', CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED);
+        this.stateManager.set('audio.adaptiveWidthFreq', CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ);
+        this.stateManager.set('audio.isReverbEnabled', CONFIG.DEFAULT_REVERB_ENABLED);
+        this.stateManager.set('audio.reverbMix', CONFIG.DEFAULT_REVERB_MIX);
+        this.stateManager.set('audio.stereoPan', CONFIG.DEFAULT_STEREO_PAN);
+        this.stateManager.set('audio.isPreGainEnabled', CONFIG.DEFAULT_PRE_GAIN_ENABLED);
+        this.stateManager.set('audio.preGain', CONFIG.DEFAULT_PRE_GAIN);
+        this.stateManager.set('audio.preGainExponent', CONFIG.DEFAULT_PRE_GAIN_EXPONENT);
+        this.stateManager.set('audio.isDeesserEnabled', CONFIG.DEFAULT_DEESSER_ENABLED);
+        this.stateManager.set('audio.deesserThreshold', CONFIG.DEFAULT_DEESSER_THRESHOLD);
+        this.stateManager.set('audio.deesserFreq', CONFIG.DEFAULT_DEESSER_FREQ);
+        this.stateManager.set('audio.isExciterEnabled', CONFIG.DEFAULT_EXCITER_ENABLED);
+        this.stateManager.set('audio.exciterAmount', CONFIG.DEFAULT_EXCITER_AMOUNT);
+        this.stateManager.set('audio.isParallelCompEnabled', CONFIG.DEFAULT_PARALLEL_COMP_ENABLED);
+        this.stateManager.set('audio.parallelCompMix', CONFIG.DEFAULT_PARALLEL_COMP_MIX);
+        this.stateManager.set('audio.isMultibandCompEnabled', CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED);
+        this.stateManager.set('audio.isDynamicEqEnabled', false); // 스마트EQ는 기본적으로 비활성화
 
-        const defaults = {
-            isHpfEnabled: false, hpfHz: CONFIG.EFFECTS_HPF_FREQUENCY, isEqEnabled: false, eqSubBassGain: 0, eqBassGain: 0, eqMidGain: 0, eqTrebleGain: 0, eqPresenceGain: 0, bassBoostGain: CONFIG.DEFAULT_BASS_BOOST_GAIN, isWideningEnabled: false, wideningFactor: 1.0, isAdaptiveWidthEnabled: false, adaptiveWidthFreq: CONFIG.DEFAULT_ADAPTIVE_WIDTH_FREQ, isReverbEnabled: false, reverbMix: CONFIG.DEFAULT_REVERB_MIX, stereoPan: 0, isPreGainEnabled: false, preGain: 1.0, isDeesserEnabled: false, deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ, isExciterEnabled: false, exciterAmount: 0, isParallelCompEnabled: false, parallelCompMix: 0, isLoudnessNormalizationEnabled: false, isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED, isDynamicEqEnabled: false,
+        // 멀티밴드 및 스마트EQ 세부 설정 초기화
+        const defaultMBC = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
+        for (const [key, settings] of Object.entries(defaultMBC)) {
+            for (const [param, value] of Object.entries(settings)) {
+                this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
+            }
+        }
+        const defaultDEQ = [
+            { freq: 150,  q: 1.4, threshold: -30, gain: 4 },
+            { freq: 1200, q: 2.0, threshold: -24, gain: -4},
+            { freq: 4500, q: 3.0, threshold: -20, gain: 5 },
+            { freq: 8000, q: 4.0, threshold: -18, gain: 4 },
+        ];
+        this.stateManager.set('audio.dynamicEq.bands', defaultDEQ);
+        // --- 초기화 끝 ---
+
+
+        // ✅ --- [핵심 수정 2] 이제 프리셋에 정의된 값만 골라서 덮어씁니다. ---
+        const presetValues = {
+            isHpfEnabled: p.hpf_enabled, hpfHz: p.hpf_hz, isEqEnabled: p.eq_enabled, eqSubBassGain: p.eq_subBass, eqBassGain: p.eq_bass, eqMidGain: p.eq_mid, eqTrebleGain: p.eq_treble, eqPresenceGain: p.eq_presence, bassBoostGain: p.bass_boost_gain, isWideningEnabled: p.widen_enabled, wideningFactor: p.widen_factor, isAdaptiveWidthEnabled: p.adaptive_enabled, adaptiveWidthFreq: p.adaptive_width_freq, isReverbEnabled: p.reverb_enabled, reverbMix: p.reverb_mix, stereoPan: p.pan_value, isPreGainEnabled: p.preGain_enabled, preGain: p.preGain_value, preGainExponent: p.preGainExponent, isDeesserEnabled: p.deesser_enabled, deesserThreshold: p.deesser_threshold, deesserFreq: p.deesser_freq, isExciterEnabled: p.exciter_enabled, exciterAmount: p.exciter_amount, isParallelCompEnabled: p.parallel_comp_enabled, parallelCompMix: p.parallel_comp_mix,
+            isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled,
+            isMultibandCompEnabled: p.multiband_enabled, isDynamicEqEnabled: p.smartEQ_enabled,
         };
 
-        const presetValues = {
-          isHpfEnabled: p.hpf_enabled ?? defaults.isHpfEnabled, hpfHz: p.hpf_hz ?? defaults.hpfHz, isEqEnabled: p.eq_enabled ?? defaults.isEqEnabled, eqSubBassGain: p.eq_subBass ?? defaults.eqSubBassGain, eqBassGain: p.eq_bass ?? defaults.eqBassGain, eqMidGain: p.eq_mid ?? defaults.eqMidGain, eqTrebleGain: p.eq_treble ?? defaults.eqTrebleGain, eqPresenceGain: p.eq_presence ?? defaults.eqPresenceGain, bassBoostGain: p.bass_boost_gain ?? defaults.bassBoostGain, isWideningEnabled: p.widen_enabled ?? defaults.isWideningEnabled, wideningFactor: p.widen_factor ?? defaults.wideningFactor, isAdaptiveWidthEnabled: p.adaptive_enabled ?? defaults.isAdaptiveWidthEnabled, adaptiveWidthFreq: p.adaptive_width_freq ?? defaults.adaptiveWidthFreq, isReverbEnabled: p.reverb_enabled ?? defaults.isReverbEnabled, reverbMix: p.reverb_mix ?? defaults.reverbMix, stereoPan: p.pan_value ?? defaults.stereoPan, isPreGainEnabled: p.preGain_enabled ?? defaults.isPreGainEnabled, preGain: p.preGain_value ?? defaults.preGain,
-          preGainExponent: p.preGainExponent ?? CONFIG.DEFAULT_PRE_GAIN_EXPONENT, // ✅ [추가] 이 한 줄이 핵심입니다.
-          isDeesserEnabled: p.deesser_enabled ?? defaults.isDeesserEnabled, deesserThreshold: p.deesser_threshold ?? defaults.deesserThreshold, deesserFreq: p.deesser_freq ?? defaults.deesserFreq, isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount, isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
-          isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled ?? (presetKey === 'default' ? false : this.stateManager.get('audio.isLoudnessNormalizationEnabled')),
-          isMultibandCompEnabled: p.multiband_enabled ?? defaults.isMultibandCompEnabled, isDynamicEqEnabled: p.smartEQ_enabled ?? defaults.isDynamicEqEnabled,
-      };
-
-        if (presetKey === 'default') {
-            presetValues.isAgcEnabled = false;
-            presetValues.isPreGainEnabled = false;
-        }
-
-        const isAgcActive = this.stateManager.get('audio.isAgcEnabled') || this.stateManager.get('audio.isLoudnessNormalizationEnabled');
-
-        if (isAgcActive && p.hasOwnProperty('preGain_value')) {
-            this.stateManager.set('audio.presetGainMemory', p.preGain_value);
-        }
-
         for (const key in presetValues) {
-            if (isAgcActive && (key === 'isPreGainEnabled' || key === 'preGain')) {
-                continue;
+            if (presetValues[key] !== undefined) { // 프리셋에 정의된 값만 적용
+                this.stateManager.set(`audio.${key}`, presetValues[key]);
             }
-            this.stateManager.set(`audio.${key}`, presetValues[key]);
         }
 
-        if (p.multiband_bands && Array.isArray(p.multiband_bands) && p.multiband_bands.length === 4) {
-            const bandKeys = ['low', 'lowMid', 'highMid', 'high'];
-            p.multiband_bands.forEach((bandData, index) => {
-                const key = bandKeys[index];
-                const newSettings = {
-                    crossover: bandData.freqHigh, threshold: bandData.threshold, ratio: bandData.ratio, attack: bandData.attack / 1000, release: bandData.release / 1000, makeupGain: bandData.makeup,
-                };
-                for (const [param, value] of Object.entries(newSettings)) {
-                    if (param === 'crossover' && key === 'high') continue;
-                    this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
-                }
-            });
-        } else if (p.multiband_bands && typeof p.multiband_bands === 'object' && !Array.isArray(p.multiband_bands)) {
-            const defaultSettings = JSON.parse(JSON.stringify(p.multiband_bands));
-            for (const [key, settings] of Object.entries(defaultSettings)) {
-                for (const [param, value] of Object.entries(settings)) {
-                    this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
-                }
-            }
-        } else {
-            const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
-            for (const [key, settings] of Object.entries(defaultSettings)) {
-                for (const [param, value] of Object.entries(settings)) {
-                    this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
+        // 멀티밴드 및 스마트EQ 세부 설정 적용
+        if (p.multiband_bands) {
+             if (Array.isArray(p.multiband_bands) && p.multiband_bands.length === 4) {
+                const bandKeys = ['low', 'lowMid', 'highMid', 'high'];
+                p.multiband_bands.forEach((bandData, index) => {
+                    const key = bandKeys[index];
+                    const newSettings = { crossover: bandData.freqHigh, threshold: bandData.threshold, ratio: bandData.ratio, attack: bandData.attack / 1000, release: bandData.release / 1000, makeupGain: bandData.makeup };
+                    for (const [param, value] of Object.entries(newSettings)) {
+                        if (param === 'crossover' && key === 'high') continue;
+                        if (value !== undefined) this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
+                    }
+                });
+            } else if (typeof p.multiband_bands === 'object') {
+                const newSettings = JSON.parse(JSON.stringify(p.multiband_bands));
+                for (const [key, settings] of Object.entries(newSettings)) {
+                    for (const [param, value] of Object.entries(settings)) {
+                        if (value !== undefined) this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
+                    }
                 }
             }
         }
@@ -2896,20 +2939,11 @@ this.presetMap = {
                 freq: band.frequency, q: band.Q, threshold: band.threshold, gain: band.gain
             }));
             this.stateManager.set('audio.dynamicEq.bands', newBands);
-          } else { // [추가] 이 else 블록이 스마트EQ 설정 초기화의 핵심입니다.
-            const defaultBands = [
-                { freq: 150,  q: 1.4, threshold: -30, gain: 4 },
-                { freq: 1200, q: 2.0, threshold: -24, gain: -4},
-                { freq: 4500, q: 3.0, threshold: -20, gain: 5 },
-                { freq: 8000, q: 4.0, threshold: -18, gain: 4 },
-            ];
-            this.stateManager.set('audio.dynamicEq.bands', defaultBands);
         }
 
-        if (!isAgcActive) {
-            this.stateManager.set('audio.lastManualPreGain', presetValues.preGain);
-        }
+        // --- 덮어쓰기 끝 ---
 
+        this.stateManager.set('audio.lastManualPreGain', this.stateManager.get('audio.preGain'));
         this.stateManager.set('audio.activePresetKey', presetKey);
     }
 
