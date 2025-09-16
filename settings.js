@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      101.8
-// @description  오디오 초기화 문제 버그 해결
+// @version      102.1
+// @description  오디오 초기화 및 프리셋 첫 적용 시 효과 미반영 버그 최종 수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -15,8 +15,8 @@
 
     // --- [ARCHITECTURE] CONFIGURATION & CONSTANTS ---
     const CONFIG = {
-        MAX_PRE_GAIN: 10.0, // [추가] 볼륨 슬라이더의 최대 한계값
-        DEFAULT_PRE_GAIN_EXPONENT: 1.0, // ✅ [추가] 볼륨 커브 기본값을 CONFIG로 통합
+        MAX_PRE_GAIN: 10.0,
+        DEFAULT_PRE_GAIN_EXPONENT: 1.0,
         DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 4,
         DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
@@ -49,11 +49,11 @@
         UI_HIDDEN_CLASS_NAME: 'vsc-hidden',
         DEFAULT_MULTIBAND_COMP_ENABLED: false,
         DEFAULT_MULTIBAND_COMP_SETTINGS: {
-    low:     { crossover: 120, threshold: -24, ratio: 4, attack: 0.010, release: 0.30, makeupGain: 0 }, // 느린 반응
-    lowMid:  { crossover: 800, threshold: -24, ratio: 4, attack: 0.008, release: 0.25, makeupGain: 0 },
-    highMid: { crossover: 5000, threshold: -24, ratio: 4, attack: 0.005, release: 0.20, makeupGain: 0 },
-    high:    { threshold: -24, ratio: 4, attack: 0.003, release: 0.15, makeupGain: 0 }, // 빠른 반응
-},
+            low:     { crossover: 120, threshold: -24, ratio: 4, attack: 0.010, release: 0.30, makeupGain: 0 },
+            lowMid:  { crossover: 800, threshold: -24, ratio: 4, attack: 0.008, release: 0.25, makeupGain: 0 },
+            highMid: { crossover: 5000, threshold: -24, ratio: 4, attack: 0.005, release: 0.20, makeupGain: 0 },
+            high:    { threshold: -24, ratio: 4, attack: 0.003, release: 0.15, makeupGain: 0 },
+        },
     };
 
     // --- [ARCHITECTURE] UTILITY FUNCTIONS ---
@@ -73,7 +73,6 @@
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
     (function openAllShadowRoots() { if (window._hasHackAttachShadow_) return; safeExec(() => { window._shadowDomList_ = window._shadowDomList_ || []; const o = Element.prototype.attachShadow; Element.prototype.attachShadow = function (opt) { const m = { ...opt, mode: 'open' }; const s = o.apply(this, [m]); window._shadowDomList_.push(new WeakRef(s)); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: s } })); return s; }; window._hasHackAttachShadow_ = true; }); })();
 
-    // [이 클래스 전체를 찾아서 통째로 교체하세요]
 class StateManager {
     constructor() {
         this.state = {};
@@ -538,7 +537,6 @@ class StateManager {
         }
     }
 
-    // [이 클래스 전체를 찾아서 통째로 교체하세요]
 class AudioFXPlugin extends Plugin {
     constructor() {
         super('AudioFX');
@@ -588,7 +586,6 @@ class AudioFXPlugin extends Plugin {
         });
     }
 
-    // ✅ [추가] 오디오 컨텍스트가 준비되었는지 확인하고 보장하는 함수
     async ensureAudioReady() {
         this.stateManager.set('audio.audioInitialized', true);
         const media = this.stateManager.get('media.currentlyVisibleMedia') || [...this.stateManager.get('media.activeMedia')][0];
@@ -623,14 +620,43 @@ class AudioFXPlugin extends Plugin {
     }
 
     applyAudioEffectsToAllMedia() {
-        if (!this.stateManager.get('audio.audioInitialized')) return;
-        const sm = this.stateManager;
-        const mediaToAffect = sm.get('app.isMobile') && sm.get('media.currentlyVisibleMedia') ?
-            [sm.get('media.currentlyVisibleMedia')] : Array.from(sm.get('media.activeMedia'));
-        mediaToAffect.forEach(media => {
-            if (media) this.reconnectGraph(media)
-        });
-    }
+    if (!this.stateManager.get('audio.audioInitialized')) return;
+    const sm = this.stateManager;
+    const mediaToAffect = sm.get('app.isMobile') && sm.get('media.currentlyVisibleMedia')
+        ? [sm.get('media.currentlyVisibleMedia')]
+        : Array.from(sm.get('media.activeMedia'));
+
+    mediaToAffect.forEach(media => {
+        if (!media) return;
+        const nodes = this.getOrCreateNodes(media);
+        if (!nodes) return;
+
+        // 1. First attempt: Connect the graph immediately. This may prime the nodes but might not fully succeed.
+        this.reconnectGraph(media);
+
+        // 2. Second, definitive attempt: This function will be scheduled to run reliably.
+        const scheduleFinalReconnect = () => {
+            // [FIX] Use requestAnimationFrame instead of setTimeout for a more reliable execution on the next frame.
+            // This ensures the AudioContext is stable and 'running' before we build the complex effects chain.
+            requestAnimationFrame(() => {
+                if (media.isConnected && nodes.context.state === 'running') {
+                    this.reconnectGraph(media);
+                }
+            });
+        };
+
+        // If the context is suspended, we must try to resume it.
+        // The final reconnection is scheduled only after the resume promise succeeds.
+        if (nodes.context.state === 'suspended') {
+            nodes.context.resume()
+                .then(scheduleFinalReconnect)
+                .catch(e => console.error('[VSC] AudioContext resume failed', e));
+        } else if (nodes.context.state === 'running') {
+            // If it's already running, just schedule the second, definitive reconnection.
+            scheduleFinalReconnect();
+        }
+    });
+}
 
     createImpulseResponse(context, duration = 2, decay = 2) {
         const sampleRate = context.sampleRate;
@@ -991,15 +1017,15 @@ class AudioFXPlugin extends Plugin {
             }
 
             if (audioState.isPreGainEnabled) {
-                const gain = audioState.preGain;
-                const exponent = audioState.preGainExponent;
-                const maxGain = CONFIG.MAX_PRE_GAIN;
-                const normalizedGain = gain / maxGain;
-                const curvedGain = Math.pow(normalizedGain, exponent) * maxGain;
-                nodes.masterGain.gain.value = curvedGain;
-            } else {
-                nodes.masterGain.gain.value = 1.0;
-            }
+            const gain = audioState.preGain;
+            const exponent = audioState.preGainExponent;
+            const curvedGain = this._calculateCurvedGain(gain, exponent);
+            // [수정] .value 직접 할당 대신 setValueAtTime 사용하여 안정성 확보
+            nodes.masterGain.gain.setValueAtTime(curvedGain, nodes.context.currentTime);
+        } else {
+            // [수정] .value 직접 할당 대신 setValueAtTime 사용하여 안정성 확보
+            nodes.masterGain.gain.setValueAtTime(1.0, nodes.context.currentTime);
+        }
 
             lastNode.connect(nodes.masterGain);
             nodes.masterGain.connect(nodes.safetyLimiter);
@@ -1069,7 +1095,6 @@ class AudioFXPlugin extends Plugin {
         if (audioContextMap.has(media)) {
             const existingNodes = audioContextMap.get(media);
             if (existingNodes.context.state === 'closed') {
-                // 컨텍스트가 닫혔으면 재생성합니다.
                 audioContextMap.delete(media);
             } else {
                 return existingNodes;
@@ -1112,6 +1137,63 @@ class AudioFXPlugin extends Plugin {
                 }
             });
         }
+    }
+
+    _calculateCurvedGain(preGainValue, exponent) {
+        const maxGain = CONFIG.MAX_PRE_GAIN || 10.0;
+        const normalizedGain = (typeof preGainValue === 'number' ? preGainValue : 1) / maxGain;
+        const exp = (typeof exponent === 'number' && exponent > 0) ? exponent : 1.0;
+        return Math.pow(normalizedGain, exp) * maxGain;
+    }
+
+    refreshGainNodeForMedia(media) {
+        try {
+            const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+            if (!nodes || !nodes.masterGain) return false;
+            const audioState = this.stateManager.get('audio');
+            if (audioState.isPreGainEnabled) {
+                const curved = this._calculateCurvedGain(audioState.preGain, audioState.preGainExponent);
+                nodes.masterGain.gain.setValueAtTime(curved, nodes.context.currentTime);
+            } else {
+                nodes.masterGain.gain.setValueAtTime(1.0, nodes.context.currentTime);
+            }
+            return true;
+        } catch (e) {
+            console.error('[VSC] refreshGainNodeForMedia error', e);
+            return false;
+        }
+    }
+
+    refreshAllGainNodes() {
+        try {
+            const activeMedia = this.stateManager.get('media.activeMedia');
+            if (!activeMedia) return;
+
+            for (const media of activeMedia) {
+                const nodes = this.stateManager.get('audio.audioContextMap').get(media);
+
+                if (nodes && nodes.context && nodes.context.state === 'suspended') {
+                    nodes.context.resume().catch(() => {});
+                }
+                this.refreshGainNodeForMedia(media);
+            }
+        } catch (e) {
+            console.error('[VSC] refreshAllGainNodes error', e);
+        }
+    }
+
+    async ensureNodesAndRefreshAll() {
+        const activeMedia = Array.from(this.stateManager.get('media.activeMedia') || []);
+        for (const m of activeMedia) {
+            this.getOrCreateNodes(m);
+        }
+        for (const m of activeMedia) {
+            const nodes = this.stateManager.get('audio.audioContextMap').get(m);
+            if (nodes && nodes.context && nodes.context.state === 'suspended') {
+                try { await nodes.context.resume(); } catch(e){ /* ignore */ }
+            }
+        }
+        this.refreshAllGainNodes();
     }
 
     _getInstantRMS() {
@@ -1462,7 +1544,6 @@ class AudioFXPlugin extends Plugin {
         }
     }
 
-    // [이 클래스 전체를 찾아서 통째로 교체하세요]
 class UIPlugin extends Plugin {
     constructor() {
         super('UI');
@@ -1987,7 +2068,6 @@ class UIPlugin extends Plugin {
             const imageState = this.stateManager.get('imageFilter');
             this.stateManager.set('imageFilter.lastActiveSettings', { level: imageState.level });
 
-            // UI를 숨길 때 모든 오디오 설정을 기본값으로 초기화합니다.
             this.resetAudioToDefaults();
         }
 
@@ -2063,35 +2143,58 @@ class UIPlugin extends Plugin {
     }
 
     _createControlGroup(id, icon, title, parent) {
-        const group = document.createElement('div');
-        group.id = id;
-        group.className = 'vsc-control-group';
-        const mainBtn = document.createElement('button');
-        mainBtn.className = 'vsc-btn vsc-btn-main';
-        mainBtn.textContent = icon;
-        mainBtn.title = title;
-        const subMenu = document.createElement('div');
-        subMenu.className = 'vsc-submenu';
-        group.append(mainBtn, subMenu);
-        mainBtn.onclick = (e) => {
-            e.stopPropagation();
-            const isOpening = !group.classList.contains('submenu-visible');
-            if(this.shadowRoot) {
-                this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible'));
+    const group = document.createElement('div');
+    group.id = id;
+    group.className = 'vsc-control-group';
+    const mainBtn = document.createElement('button');
+    mainBtn.className = 'vsc-btn vsc-btn-main';
+    mainBtn.textContent = icon;
+    mainBtn.title = title;
+    const subMenu = document.createElement('div');
+    subMenu.className = 'vsc-submenu';
+    group.append(mainBtn, subMenu);
+
+    mainBtn.onclick = async (e) => { // async 키워드 추가
+        e.stopPropagation();
+        const isOpening = !group.classList.contains('submenu-visible');
+
+        if (this.shadowRoot) {
+            this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible'));
+        }
+
+        if (isOpening) {
+            group.classList.add('submenu-visible');
+
+            // --- [핵심 수정] ---
+            // 오디오 컨트롤 메뉴를 처음 열 때 실행됩니다.
+            if (id === 'vsc-stereo-controls' && !this.stateManager.get('audio.audioInitialized')) {
+                console.log('[VSC] 오디오 메뉴 첫 클릭: 오디오 컨텍스트 활성화를 시도합니다.');
+
+                // 1. AudioFX 플러그인을 통해 오디오 컨텍스트를 강제로 활성화하고 준비시킵니다.
+                if (this.audioFXPlugin) {
+                    const isReady = await this.audioFXPlugin.ensureAudioReady();
+                    if (isReady) {
+                        // 2. 오디오가 준비되면 볼륨(preGain)을 활성화합니다.
+                        this.stateManager.set('audio.isPreGainEnabled', true);
+
+                        // 3. 마지막으로 그래프를 다시 연결하여 모든 설정이 즉시 반영되도록 합니다.
+                        this.audioFXPlugin.applyAudioEffectsToAllMedia();
+                        console.log('[VSC] 오디오 준비 완료. 볼륨 활성화 및 그래프 재연결 실행.');
+                    }
+                }
             }
-            if (isOpening) group.classList.add('submenu-visible');
-            this.resetFadeTimer();
-            if (id === 'vsc-stereo-controls' && isOpening && !this.stateManager.get('audio.audioInitialized')) {
-                this.stateManager.set('audio.audioInitialized', true);
-                this.stateManager.set('audio.activityCheckRequested', Date.now());
-            }
-        };
-        parent.appendChild(group);
-        if (id === 'vsc-image-controls') this.uiElements.imageControls = group;
-        if (id === 'vsc-video-controls') this.uiElements.videoControls = group;
-        if (id === 'vsc-stereo-controls') this.uiElements.audioControls = group;
-        return subMenu;
-    }
+            // --- [수정 끝] ---
+        }
+
+        this.resetFadeTimer();
+    };
+
+    parent.appendChild(group);
+    if (id === 'vsc-image-controls') this.uiElements.imageControls = group;
+    if (id === 'vsc-video-controls') this.uiElements.videoControls = group;
+    if (id === 'vsc-stereo-controls') this.uiElements.audioControls = group;
+    return subMenu;
+}
 
     _createSlider(label, id, min, max, step, stateKey, unit, formatFn) {
         const div = document.createElement('div');
@@ -2869,8 +2972,6 @@ class UIPlugin extends Plugin {
         const p = this.presetMap[presetKey];
         if (!p) return;
 
-        // This is the correct logic based on the user's latest feedback.
-        // It applies all settings, and then toggles the main gain to force an update.
         this.resetAudioToDefaults();
 
         const presetValues = {
@@ -2912,16 +3013,17 @@ class UIPlugin extends Plugin {
         this.stateManager.set('audio.lastManualPreGain', this.stateManager.get('audio.preGain'));
         this.stateManager.set('audio.activePresetKey', presetKey);
 
-        // ✅ [핵심 수정] 프리셋 적용 후 볼륨(preGain)을 강제로 껐다 켜서 적용을 보장합니다.
-        const wasPreGainEnabled = this.stateManager.get('audio.isPreGainEnabled');
-        if (wasPreGainEnabled) {
-            this.stateManager.set('audio.isPreGainEnabled', false);
-            // setTimeout을 사용해 다음 이벤트 루프에서 켜서 상태 변경이 확실히 반영되도록 합니다.
-            setTimeout(() => {
-                this.stateManager.set('audio.isPreGainEnabled', true);
-            }, 0);
-        }
-    }
+        try {
+          if (this.audioFXPlugin) {
+              // [수정] setTimeout으로 실행 시점을 분리하여 상태 변경과 오디오 그래프 적용 간의 충돌 방지
+              setTimeout(() => {
+                  this.audioFXPlugin.applyAudioEffectsToAllMedia();
+              }, 0);
+          }
+      } catch (e) {
+          console.error('[VSC] 프리셋 적용 후 AudioFX 강제 갱신 중 오류:', e);
+      }
+  }
 
     attachDragAndDrop() {
         let pressTimer = null;
@@ -3015,30 +3117,30 @@ class UIPlugin extends Plugin {
     }
 }
 
-    // --- [ARCHITECTURE] SCRIPT INITIALIZATION ---
-    function main() {
-        const stateManager = new StateManager();
-        const pluginManager = new PluginManager(stateManager);
+    // --- [ARCHITECTURE] SCRIPT INITIALIZATION ---
+    function main() {
+        const stateManager = new StateManager();
+        const pluginManager = new PluginManager(stateManager);
 
-        window.vscPluginManager = pluginManager;
+        window.vscPluginManager = pluginManager;
 
-pluginManager.register(new UIPlugin());
-        pluginManager.register(new CoreMediaPlugin());
-        pluginManager.register(new SvgFilterPlugin());
-        pluginManager.register(new AudioFXPlugin());
-        pluginManager.register(new PlaybackControlPlugin());
-        pluginManager.register(new LiveStreamPlugin());
-        pluginManager.register(new MediaSessionPlugin());
-        pluginManager.register(new NavigationPlugin(pluginManager));
+        pluginManager.register(new UIPlugin());
+        pluginManager.register(new CoreMediaPlugin());
+        pluginManager.register(new SvgFilterPlugin());
+        pluginManager.register(new AudioFXPlugin());
+        pluginManager.register(new PlaybackControlPlugin());
+        pluginManager.register(new LiveStreamPlugin());
+        pluginManager.register(new MediaSessionPlugin());
+        pluginManager.register(new NavigationPlugin(pluginManager));
 
-        pluginManager.initAll();
-    }
+        pluginManager.initAll();
+    }
 
-    // --- SCRIPT ENTRY POINT ---
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', main);
-    } else {
-        main();
-    }
+    // --- SCRIPT ENTRY POINT ---
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', main);
+    } else {
+        main();
+    }
 
 })();
