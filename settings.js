@@ -122,14 +122,13 @@ class StateManager {
                 isReverbEnabled: CONFIG.DEFAULT_REVERB_ENABLED, reverbMix: CONFIG.DEFAULT_REVERB_MIX,
                 stereoPan: CONFIG.DEFAULT_STEREO_PAN, isPreGainEnabled: CONFIG.DEFAULT_PRE_GAIN_ENABLED,
                 preGain: CONFIG.DEFAULT_PRE_GAIN, lastManualPreGain: CONFIG.DEFAULT_PRE_GAIN,
-                preGainExponent: CONFIG.DEFAULT_PRE_GAIN_EXPONENT, // ✅ [수정] CONFIG의 기본값을 사용하도록 변경
+                preGainExponent: CONFIG.DEFAULT_PRE_GAIN_EXPONENT,
                 isDeesserEnabled: CONFIG.DEFAULT_DEESSER_ENABLED,
                 deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
                 isExciterEnabled: CONFIG.DEFAULT_EXCITER_ENABLED, exciterAmount: CONFIG.DEFAULT_EXCITER_AMOUNT,
                 isParallelCompEnabled: CONFIG.DEFAULT_PARALLEL_COMP_ENABLED, parallelCompMix: CONFIG.DEFAULT_PARALLEL_COMP_MIX,
                 isLoudnessNormalizationEnabled: false,
                 loudnessTarget: CONFIG.LOUDNESS_TARGET,
-                //isAgcEnabled: false,
                 preGainEnabledBeforeAuto: false,
                 isMultibandCompEnabled: CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED,
                 multibandComp: JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS)),
@@ -589,6 +588,35 @@ class AudioFXPlugin extends Plugin {
         });
     }
 
+    // ✅ [추가] 오디오 컨텍스트가 준비되었는지 확인하고 보장하는 함수
+    async ensureAudioReady() {
+        this.stateManager.set('audio.audioInitialized', true);
+        const media = this.stateManager.get('media.currentlyVisibleMedia') || [...this.stateManager.get('media.activeMedia')][0];
+        if (!media) {
+            console.warn('[VSC] 활성 미디어가 없어 오디오를 준비할 수 없습니다.');
+            return false;
+        }
+
+        const nodes = this.getOrCreateNodes(media);
+        if (!nodes) {
+             console.error('[VSC] 오디오 노드 생성에 실패했습니다.');
+            return false;
+        }
+
+        if (nodes.context.state === 'suspended') {
+            try {
+                await nodes.context.resume();
+                console.log('[VSC] AudioContext가 재개되었습니다.');
+            } catch (e) {
+                console.error('[VSC] AudioContext 재개 실패:', e);
+                this.stateManager.set('ui.warningMessage', '오디오 효과를 위해 UI 버튼을 다시 클릭해주세요.');
+                return false;
+            }
+        }
+        return nodes.context.state === 'running';
+    }
+
+
     destroy() {
         super.destroy();
         this.stateManager.get('media.activeMedia').forEach(media => this.cleanupForMedia(media));
@@ -745,7 +773,10 @@ class AudioFXPlugin extends Plugin {
 
     reconnectGraph(media) {
         const nodes = this.stateManager.get('audio.audioContextMap').get(media);
-        if (!nodes) return;
+        if (!nodes || nodes.context.state !== 'running') {
+            if (nodes && nodes.context.state !== 'running') console.warn('[VSC] reconnectGraph 호출되었으나, AudioContext가 실행 중이 아닙니다.');
+            return;
+        };
         const audioState = this.stateManager.get('audio');
 
         safeExec(() => {
@@ -960,18 +991,15 @@ class AudioFXPlugin extends Plugin {
             }
 
             if (audioState.isPreGainEnabled) {
-          const gain = audioState.preGain;
-          const exponent = audioState.preGainExponent || 2.0; // 새로 추가한 상태값
-          const maxGain = CONFIG.MAX_PRE_GAIN;
-
-          // 슬라이더 값을 0~1 사이로 정규화한 뒤, exponent를 적용하여 커브를 만들고, 다시 원래 범위로 확장
-          const normalizedGain = gain / maxGain;
-          const curvedGain = Math.pow(normalizedGain, exponent) * maxGain;
-
-          nodes.masterGain.gain.value = curvedGain;
-      } else {
-          nodes.masterGain.gain.value = 1.0;
-      }
+                const gain = audioState.preGain;
+                const exponent = audioState.preGainExponent;
+                const maxGain = CONFIG.MAX_PRE_GAIN;
+                const normalizedGain = gain / maxGain;
+                const curvedGain = Math.pow(normalizedGain, exponent) * maxGain;
+                nodes.masterGain.gain.value = curvedGain;
+            } else {
+                nodes.masterGain.gain.value = 1.0;
+            }
 
             lastNode.connect(nodes.masterGain);
             nodes.masterGain.connect(nodes.safetyLimiter);
@@ -991,7 +1019,6 @@ class AudioFXPlugin extends Plugin {
         const analyserData = new Uint8Array(nodes.analyser.frequencyBinCount);
 
         const intervalId = setInterval(() => {
-
             if (!media.isConnected || nodes.context.state === 'closed') {
                 clearInterval(intervalId);
                 this.audioActivityStatus.delete(media);
@@ -1039,7 +1066,16 @@ class AudioFXPlugin extends Plugin {
 
     getOrCreateNodes(media) {
         const audioContextMap = this.stateManager.get('audio.audioContextMap');
-        if (audioContextMap.has(media)) return audioContextMap.get(media);
+        if (audioContextMap.has(media)) {
+            const existingNodes = audioContextMap.get(media);
+            if (existingNodes.context.state === 'closed') {
+                // 컨텍스트가 닫혔으면 재생성합니다.
+                audioContextMap.delete(media);
+            } else {
+                return existingNodes;
+            }
+        }
+
         const newNodes = this.createAudioGraph(media);
         if (newNodes) {
             this.checkAudioActivity(media, newNodes);
@@ -1441,242 +1477,232 @@ class UIPlugin extends Plugin {
         this.uiElements = {};
         this.modalHost = null;
         this.modalShadowRoot = null;
+        this.isApplyingPreset = false;
 
-        // ✅ [수정] 모든 프리셋에서 마스터링 및 리미터 관련 옵션을 완전히 제거했습니다.
-this.presetMap = {
-
-    'default': {
-        name: '기본값 (모든 효과 꺼짐)',
-        targetLUFS: CONFIG.LOUDNESS_TARGET,
-        hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
-        eq_enabled: false, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 0, eq_presence: 0,
-        bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
-        widen_enabled: false, widen_factor: 1.0,
-        adaptive_enabled: false, adaptive_width_freq: 150,
-        preGain_enabled: true, preGain_value: 1.0,
-        preGainExponent: CONFIG.DEFAULT_PRE_GAIN_EXPONENT,
-        reverb_enabled: false, reverb_mix: 0,
-        deesser_enabled: false, deesser_threshold: -40, deesser_freq: 5000,
-        exciter_enabled: false, exciter_amount: 0,
-        parallel_comp_enabled: false, parallel_comp_mix: 0,
-        multiband_enabled: false,
-        multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS,
-        smartEQ_enabled: false,
-        smartEQ_bands: []
-    },
-
-    'basic_clear': {
-        name: '💠 기본 개선 (명료)',
-        targetLUFS: -16,
-        hpf_enabled: true, hpf_hz: 70,
-        eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 2, eq_treble: 1.5, eq_presence: 2,
-        bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.0,
-        widen_enabled: true, widen_factor: 1.2,
-        adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 2.5,
-        preGainExponent: 1.0,
-        reverb_enabled: false, reverb_mix: 0,
-        deesser_enabled: false, deesser_threshold: -40, deesser_freq: 5000,
-        exciter_enabled: false, exciter_amount: 0,
-        parallel_comp_enabled: false, parallel_comp_mix: 0,
-        multiband_enabled: true,
-        multiband_bands: [
-            { freqHigh: 120, threshold: -24, ratio: 3, attack: 0.010, release: 0.300, makeup: 2 },
-            { freqHigh: 1000, threshold: -26, ratio: 3.5, attack: 0.008, release: 0.250, makeup: 1.5 },
-            { freqHigh: 6000, threshold: -28, ratio: 4, attack: 0.005, release: 0.200, makeup: 1 },
-            { threshold: -30, ratio: 4.5, attack: 0.002, release: 0.150, makeup: 1 }
-        ],
-        smartEQ_enabled: true,
-        smartEQ_bands: [
-            { frequency: 120, Q: 1.2, threshold: -21, gain: -2 },
-            { frequency: 1000, Q: 1.0, threshold: -22, gain: 2 },
-            { frequency: 4000, Q: 0.8, threshold: -24, gain: 2 },
-            { frequency: 8000, Q: 1.5, threshold: -25, gain: 1 }
-        ]
-    },
-
-    'movie_immersive': {
-        name: '🎬 영화/드라마 (표준 몰입감)',
-        targetLUFS: -16,
-        hpf_enabled: true, hpf_hz: 60,
-        eq_enabled: true, eq_subBass: 1, eq_bass: 0.8, eq_mid: 2, eq_treble: 1.3, eq_presence: 1.2,
-        bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
-        widen_enabled: true, widen_factor: 1.4,
-        adaptive_enabled: true, adaptive_width_freq: 200,
-        preGain_enabled: true, preGain_value: 0.7,
-        preGainExponent: 1.0,
-        reverb_enabled: false, reverb_mix: 0,
-        deesser_enabled: true, deesser_threshold: -25, deesser_freq: 6000,
-        exciter_enabled: false, exciter_amount: 0,
-        parallel_comp_enabled: true, parallel_comp_mix: 15,
-        multiband_enabled: true,
-        multiband_bands: [
-            { freqHigh: 120, threshold: -22, ratio: 2.8, attack: 0.012, release: 0.300, makeup: 2 },
-            { freqHigh: 1000, threshold: -25, ratio: 3.2, attack: 0.008, release: 0.250, makeup: 1.5 },
-            { freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 0.005, release: 0.200, makeup: 1 },
-            { threshold: -29, ratio: 4.2, attack: 0.002, release: 0.150, makeup: 1 }
-        ],
-        smartEQ_enabled: true,
-        smartEQ_bands: [
-            { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
-            { frequency: 500, Q: 1.0, threshold: -22, gain: 1 },
-            { frequency: 3000, Q: 0.9, threshold: -24, gain: 2 },
-            { frequency: 10000, Q: 1.2, threshold: -25, gain: 1 }
-        ]
-    },
-
-    'action_blockbuster': {
-        name: '💥 액션 블록버스터 (표준 타격감)',
-        targetLUFS: -14,
-        hpf_enabled: true, hpf_hz: 50,
-        eq_enabled: true, eq_subBass: 1.5, eq_bass: 1.2, eq_mid: -2, eq_treble: 1.2, eq_presence: 1.8,
-        bass_boost_gain: 4, bass_boost_freq: 55, bass_boost_q: 1.2,
-        widen_enabled: true, widen_factor: 1.5,
-        adaptive_enabled: true, adaptive_width_freq: 220,
-        preGain_enabled: true, preGain_value: 1.4,
-        preGainExponent: 1.0,
-        reverb_enabled: false, reverb_mix: 0,
-        deesser_enabled: false,
-        exciter_enabled: false,
-        parallel_comp_enabled: true, parallel_comp_mix: 18,
-        multiband_enabled: true,
-        multiband_bands: [
-            { freqHigh: 120, threshold: -26, ratio: 3.5, attack: 0.012, release: 0.320, makeup: 2.5 },
-            { freqHigh: 1000, threshold: -27, ratio: 4, attack: 0.008, release: 0.260, makeup: 2 },
-            { freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 0.006, release: 0.200, makeup: 1.5 },
-            { threshold: -30, ratio: 5, attack: 0.003, release: 0.150, makeup: 1 }
-        ],
-        smartEQ_enabled: true,
-        smartEQ_bands: [
-            { frequency: 60, Q: 1.0, threshold: -19, gain: 2 },
-            { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
-            { frequency: 2000, Q: 0.8, threshold: -23, gain: 2 },
-            { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
-        ]
-    },
-
-    'concert_hall': {
-        name: '🏟️ 라이브 콘서트 (표준 현장감)',
-        targetLUFS: -14.5,
-        hpf_enabled: true, hpf_hz: 60,
-        eq_enabled: true, eq_subBass: 1, eq_bass: 1, eq_mid: 0.5, eq_treble: 1, eq_presence: 1.2,
-        bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
-        widen_enabled: true, widen_factor: 1.3,
-        adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.5,
-        preGainExponent: 1.0,
-        reverb_enabled: true, reverb_mix: 0.5,
-        deesser_enabled: false,
-        exciter_enabled: false,
-        parallel_comp_enabled: false, parallel_comp_mix: 0,
-        multiband_enabled: true,
-        multiband_bands: [
-            { freqHigh: 120, threshold: -24, ratio: 3, attack: 0.012, release: 0.280, makeup: 2 },
-            { freqHigh: 1000, threshold: -26, ratio: 3.2, attack: 0.009, release: 0.250, makeup: 1.5 },
-            { freqHigh: 6000, threshold: -27, ratio: 3.8, attack: 0.006, release: 0.210, makeup: 1 },
-            { threshold: -29, ratio: 4.2, attack: 0.003, release: 0.160, makeup: 1 }
-        ],
-        smartEQ_enabled: true,
-        smartEQ_bands: [
-            { frequency: 100, Q: 1.0, threshold: -20, gain: -1 },
-            { frequency: 500, Q: 1.1, threshold: -21, gain: 2 },
-            { frequency: 3000, Q: 0.9, threshold: -23, gain: 2 },
-            { frequency: 9000, Q: 1.3, threshold: -25, gain: 2 }
-        ]
-    },
-
-    'music_dynamic': {
-        name: '🎶 음악 (표준 다이나믹)',
-        targetLUFS: -14,
-        hpf_enabled: true, hpf_hz: 40,
-        eq_enabled: true, eq_subBass: 1.2, eq_bass: 1.2, eq_mid: 1, eq_treble: 1, eq_presence: 2,
-        bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.1,
-        widen_enabled: true, widen_factor: 1.3,
-        adaptive_enabled: true, adaptive_width_freq: 170,
-        preGain_enabled: true, preGain_value: 1.5,
-        preGainExponent: 1.0,
-        reverb_enabled: false,
-        deesser_enabled: false,
-        exciter_enabled: true, exciter_amount: 12,
-        parallel_comp_enabled: false, parallel_comp_mix: 0,
-        multiband_enabled: true,
-        multiband_bands: [
-            { freqHigh: 120, threshold: -25, ratio: 3.5, attack: 0.010, release: 0.300, makeup: 2 },
-            { freqHigh: 1000, threshold: -27, ratio: 4, attack: 0.008, release: 0.250, makeup: 1.5 },
-            { freqHigh: 6000, threshold: -28, ratio: 4.5, attack: 0.005, release: 0.200, makeup: 1 },
-            { threshold: -30, ratio: 5, attack: 0.002, release: 0.150, makeup: 1 }
-        ],
-        smartEQ_enabled: true,
-        smartEQ_bands: [
-            { frequency: 70, Q: 1.0, threshold: -20, gain: 2 },
-            { frequency: 250, Q: 1.2, threshold: -21, gain: -1 },
-            { frequency: 1500, Q: 1.0, threshold: -23, gain: 2 },
-            { frequency: 7000, Q: 1.2, threshold: -24, gain: 2 }
-        ]
-    },
-
-    'vocal_clarity_pro': {
-        name: '🎙️ 목소리 명료 (표준)',
-        targetLUFS: -18,
-        hpf_enabled: true, hpf_hz: 90,
-        eq_enabled: true, eq_subBass: -2, eq_bass: -1, eq_mid: 3.5, eq_treble: 1.5, eq_presence: 3,
-        bass_boost_gain: 2, bass_boost_freq: 55, bass_boost_q: 1.0,
-        widen_enabled: false, widen_factor: 1.0,
-        adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.5,
-        preGainExponent: 1.0,
-        reverb_enabled: false, reverb_mix: 0,
-        deesser_enabled: true, deesser_threshold: -32,
-        exciter_enabled: false,
-        parallel_comp_enabled: true, parallel_comp_mix: 10,
-        multiband_enabled: true,
-        multiband_bands: [
-            { freqHigh: 120, threshold: -20, ratio: 2.5, attack: 0.015, release: 0.320, makeup: 1.5 },
-            { freqHigh: 1000, threshold: -23, ratio: 3, attack: 0.010, release: 0.260, makeup: 1.5 },
-            { freqHigh: 6000, threshold: -25, ratio: 3.2, attack: 0.008, release: 0.220, makeup: 2 },
-            { threshold: -27, ratio: 3.8, attack: 0.005, release: 0.160, makeup: 1 }
-        ],
-        smartEQ_enabled: true,
-        smartEQ_bands: [
-            { frequency: 150, Q: 1.2, threshold: -21, gain: -2 },
-            { frequency: 1000, Q: 1.0, threshold: -22, gain: 2.5 },
-            { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
-            { frequency: 7000, Q: 1.5, threshold: -24, gain: 1 }
-        ]
-    },
-
-    'gaming_pro': {
-        name: '🎮 게이밍 (표준 사운드 플레이)',
-        targetLUFS: -15,
-        hpf_enabled: true, hpf_hz: 50,
-        eq_enabled: true, eq_subBass: -1, eq_bass: 2, eq_mid: 2, eq_treble: 2, eq_presence: 2.5,
-        bass_boost_gain: 3.5, bass_boost_freq: 60, bass_boost_q: 1.0,
-        widen_enabled: true, widen_factor: 1.2,
-        adaptive_enabled: true, adaptive_width_freq: 160,
-        preGain_enabled: true, preGain_value: 2.5,
-        preGainExponent: 1.0,
-        reverb_enabled: false,
-        deesser_enabled: false,
-        exciter_enabled: false,
-        parallel_comp_enabled: false, parallel_comp_mix: 0,
-        multiband_enabled: true,
-        multiband_bands: [
-            { freqHigh: 120, threshold: -23, ratio: 3, attack: 0.012, release: 0.300, makeup: 2 },
-            { freqHigh: 1000, threshold: -25, ratio: 3.5, attack: 0.009, release: 0.250, makeup: 1.5 },
-            { freqHigh: 6000, threshold: -27, ratio: 4, attack: 0.006, release: 0.200, makeup: 1 },
-            { threshold: -29, ratio: 4.5, attack: 0.003, release: 0.150, makeup: 1 }
-        ],
-        smartEQ_enabled: true,
-        smartEQ_bands: [
-            { frequency: 80, Q: 1.0, threshold: -20, gain: -1 },
-            { frequency: 500, Q: 1.0, threshold: -22, gain: 2 },
-            { frequency: 3000, Q: 0.9, threshold: -23, gain: 3 },
-            { frequency: 8000, Q: 1.3, threshold: -24, gain: 2 }
-        ]
-    }
-
-};
-
+        this.presetMap = {
+            'default': {
+                name: '기본값 (모든 효과 꺼짐)',
+                targetLUFS: CONFIG.LOUDNESS_TARGET,
+                hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
+                eq_enabled: false, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 0, eq_presence: 0,
+                bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
+                widen_enabled: false, widen_factor: 1.0,
+                adaptive_enabled: false, adaptive_width_freq: 150,
+                preGain_enabled: false, preGain_value: 1.0,
+                preGainExponent: CONFIG.DEFAULT_PRE_GAIN_EXPONENT,
+                reverb_enabled: false, reverb_mix: 0,
+                deesser_enabled: false, deesser_threshold: -40, deesser_freq: 5000,
+                exciter_enabled: false, exciter_amount: 0,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                multiband_enabled: false,
+                multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS,
+                smartEQ_enabled: false,
+                smartEQ_bands: []
+            },
+            'basic_clear': {
+                name: '💠 기본 개선 (명료 강화)',
+                targetLUFS: -16,
+                hpf_enabled: true, hpf_hz: 70,
+                eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 2.5, eq_treble: 1.8, eq_presence: 2.5,
+                bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
+                widen_enabled: true, widen_factor: 1.1,
+                adaptive_enabled: true, adaptive_width_freq: 180,
+                preGain_enabled: true, preGain_value: 2.2,
+                preGainExponent: 1.0,
+                reverb_enabled: false, reverb_mix: 0,
+                deesser_enabled: false, deesser_threshold: -35, deesser_freq: 6000,
+                exciter_enabled: false, exciter_amount: 10,
+                parallel_comp_enabled: false, parallel_comp_mix: 12,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqHigh: 120, threshold: -26, ratio: 3, attack: 0.012, release: 0.250, makeup: 1.5 },
+                    { freqHigh: 1000, threshold: -24, ratio: 3.2, attack: 0.010, release: 0.220, makeup: 1.5 },
+                    { freqHigh: 6000, threshold: -22, ratio: 3.5, attack: 0.008, release: 0.200, makeup: 1 },
+                    { threshold: -20, ratio: 4, attack: 0.005, release: 0.150, makeup: 0.8 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 120, Q: 1.0, threshold: -20, gain: 2 },
+                    { frequency: 1000, Q: 1.2, threshold: -22, gain: 2 },
+                    { frequency: 4000, Q: 1.0, threshold: -23, gain: 1.5 },
+                    { frequency: 8000, Q: 1.3, threshold: -25, gain: 1 }
+                ]
+            },
+            'movie_immersive': {
+                name: '🎬 영화/드라마 (강화 몰입감)',
+                targetLUFS: -14,
+                hpf_enabled: true, hpf_hz: 80,
+                eq_enabled: true, eq_subBass: 2, eq_bass: 1.5, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
+                bass_boost_gain: 5, bass_boost_freq: 70, bass_boost_q: 1.2,
+                widen_enabled: true, widen_factor: 1.7,
+                adaptive_enabled: true, adaptive_width_freq: 220,
+                preGain_enabled: true, preGain_value: 1.2,
+                preGainExponent: 1.2,
+                reverb_enabled: true, reverb_mix: 0.2,
+                deesser_enabled: true, deesser_threshold: -22, deesser_freq: 6500,
+                exciter_enabled: true, exciter_amount: 10,
+                parallel_comp_enabled: true, parallel_comp_mix: 25,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqHigh: 120, threshold: -20, ratio: 3, attack: 0.012, release: 0.300, makeup: 3 },
+                    { freqHigh: 1000, threshold: -22, ratio: 3.5, attack: 0.008, release: 0.250, makeup: 2 },
+                    { freqHigh: 6000, threshold: -24, ratio: 4, attack: 0.005, release: 0.200, makeup: 1.5 },
+                    { threshold: -26, ratio: 4.5, attack: 0.002, release: 0.150, makeup: 1.5 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 80, Q: 1.0, threshold: -18, gain: 2 },
+                    { frequency: 500, Q: 1.0, threshold: -20, gain: 2 },
+                    { frequency: 3000, Q: 0.9, threshold: -22, gain: 3 },
+                    { frequency: 10000, Q: 1.2, threshold: -23, gain: 2 }
+                ]
+            },
+            'action_blockbuster': {
+                name: '💥 액션 블록버스터 (강화 타격감)',
+                targetLUFS: -12,
+                hpf_enabled: true, hpf_hz: 70,
+                eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: -1, eq_treble: 2, eq_presence: 2.5,
+                bass_boost_gain: 6, bass_boost_freq: 55, bass_boost_q: 1.3,
+                widen_enabled: true, widen_factor: 1.7,
+                adaptive_enabled: true, adaptive_width_freq: 240,
+                preGain_enabled: true, preGain_value: 1.8,
+                preGainExponent: 1.2,
+                reverb_enabled: false, reverb_mix: 0,
+                deesser_enabled: false,
+                exciter_enabled: true, exciter_amount: 15,
+                parallel_comp_enabled: true, parallel_comp_mix: 25,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqHigh: 120, threshold: -24, ratio: 4, attack: 0.010, release: 0.320, makeup: 3 },
+                    { freqHigh: 1000, threshold: -25, ratio: 4.5, attack: 0.008, release: 0.260, makeup: 2.5 },
+                    { freqHigh: 6000, threshold: -26, ratio: 5, attack: 0.006, release: 0.200, makeup: 2 },
+                    { threshold: -28, ratio: 5.5, attack: 0.003, release: 0.150, makeup: 1.5 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 60, Q: 1.0, threshold: -18, gain: 3 },
+                    { frequency: 250, Q: 1.2, threshold: -20, gain: 0 },
+                    { frequency: 2000, Q: 0.8, threshold: -22, gain: 3 },
+                    { frequency: 8000, Q: 1.3, threshold: -23, gain: 3 }
+                ]
+            },
+            'concert_hall': {
+                name: '🏟️ 라이브 콘서트 (강화 현장감)',
+                targetLUFS: -13,
+                hpf_enabled: true, hpf_hz: 70,
+                eq_enabled: true, eq_subBass: 2, eq_bass: 1.5, eq_mid: 1, eq_treble: 2, eq_presence: 2.5,
+                bass_boost_gain: 5, bass_boost_freq: 65, bass_boost_q: 1.2,
+                widen_enabled: true, widen_factor: 1.5,
+                adaptive_enabled: true, adaptive_width_freq: 200,
+                preGain_enabled: true, preGain_value: 1.8,
+                preGainExponent: 1.2,
+                reverb_enabled: true, reverb_mix: 0.6,
+                deesser_enabled: false,
+                exciter_enabled: true, exciter_amount: 12,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqHigh: 120, threshold: -22, ratio: 3.5, attack: 0.012, release: 0.280, makeup: 3 },
+                    { freqHigh: 1000, threshold: -24, ratio: 3.5, attack: 0.009, release: 0.250, makeup: 2 },
+                    { freqHigh: 6000, threshold: -25, ratio: 4, attack: 0.006, release: 0.210, makeup: 1.5 },
+                    { threshold: -27, ratio: 4.5, attack: 0.003, release: 0.160, makeup: 1.2 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 100, Q: 1.0, threshold: -18, gain: -2 },
+                    { frequency: 500, Q: 1.1, threshold: -19, gain: 3 },
+                    { frequency: 3000, Q: 0.9, threshold: -21, gain: 3 },
+                    { frequency: 9000, Q: 1.3, threshold: -23, gain: 3 }
+                ]
+            },
+            'music_dynamic': {
+                name: '🎶 음악 (강화 다이나믹)',
+                targetLUFS: -12,
+                hpf_enabled: true, hpf_hz: 50,
+                eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: 1.5, eq_treble: 1.5, eq_presence: 2.5,
+                bass_boost_gain: 5, bass_boost_freq: 60, bass_boost_q: 1.2,
+                widen_enabled: true, widen_factor: 1.5,
+                adaptive_enabled: true, adaptive_width_freq: 180,
+                preGain_enabled: true, preGain_value: 1.8,
+                preGainExponent: 1.2,
+                reverb_enabled: false,
+                deesser_enabled: false,
+                exciter_enabled: true, exciter_amount: 18,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqHigh: 120, threshold: -23, ratio: 4, attack: 0.001, release: 0.300, makeup: 2.5 },
+                    { freqHigh: 1000, threshold: -25, ratio: 4.5, attack: 0.008, release: 0.250, makeup: 2 },
+                    { freqHigh: 6000, threshold: -26, ratio: 5, attack: 0.005, release: 0.200, makeup: 1.5 },
+                    { threshold: -28, ratio: 5.5, attack: 0.002, release: 0.150, makeup: 1.2 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 70, Q: 1.0, threshold: -18, gain: 3 },
+                    { frequency: 250, Q: 1.2, threshold: -19, gain: 0 },
+                    { frequency: 1500, Q: 1.0, threshold: -21, gain: 3 },
+                    { frequency: 7000, Q: 1.2, threshold: -22, gain: 3 }
+                ]
+            },
+            'vocal_clarity_pro': {
+                name: '🎙️ 목소리 명료 (강화)',
+                targetLUFS: -16,
+                hpf_enabled: true, hpf_hz: 100,
+                eq_enabled: true, eq_subBass: -1, eq_bass: 0, eq_mid: 4, eq_treble: 2, eq_presence: 4,
+                bass_boost_gain: 3, bass_boost_freq: 55, bass_boost_q: 1.0,
+                widen_enabled: false, widen_factor: 1.0,
+                adaptive_enabled: true, adaptive_width_freq: 180,
+                preGain_enabled: true, preGain_value: 1.8,
+                preGainExponent: 1.2,
+                reverb_enabled: false, reverb_mix: 0,
+                deesser_enabled: true, deesser_threshold: -28,
+                exciter_enabled: true, exciter_amount: 10,
+                parallel_comp_enabled: true, parallel_comp_mix: 15,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqHigh: 120, threshold: -18, ratio: 3, attack: 0.012, release: 0.320, makeup: 2 },
+                    { freqHigh: 1000, threshold: -20, ratio: 3.5, attack: 0.008, release: 0.260, makeup: 2 },
+                    { freqHigh: 6000, threshold: -22, ratio: 3.8, attack: 0.006, release: 0.220, makeup: 2.5 },
+                    { threshold: -24, ratio: 4, attack: 0.004, release: 0.160, makeup: 1.2 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 150, Q: 1.2, threshold: -18, gain: -1 },
+                    { frequency: 1000, Q: 1.0, threshold: -20, gain: 3 },
+                    { frequency: 3000, Q: 0.9, threshold: -21, gain: 3.5 },
+                    { frequency: 7000, Q: 1.5, threshold: -22, gain: 2 }
+                ]
+            },
+            'gaming_pro': {
+                name: '🎮 게이밍 (강화 사운드 플레이)',
+                targetLUFS: -13,
+                hpf_enabled: true, hpf_hz: 60,
+                eq_enabled: true, eq_subBass: 0, eq_bass: 3, eq_mid: 3, eq_treble: 3, eq_presence: 3,
+                bass_boost_gain: 5, bass_boost_freq: 60, bass_boost_q: 1.1,
+                widen_enabled: true, widen_factor: 1.2,
+                adaptive_enabled: true, adaptive_width_freq: 170,
+                preGain_enabled: true, preGain_value: 3,
+                preGainExponent: 1.2,
+                reverb_enabled: false,
+                deesser_enabled: false,
+                exciter_enabled: true, exciter_amount: 10,
+                parallel_comp_enabled: false, parallel_comp_mix: 0,
+                multiband_enabled: true,
+                multiband_bands: [
+                    { freqHigh: 120, threshold: -21, ratio: 3.5, attack: 0.01, release: 0.300, makeup: 2.5 },
+                    { freqHigh: 1000, threshold: -23, ratio: 4, attack: 0.008, release: 0.250, makeup: 2 },
+                    { freqHigh: 6000, threshold: -25, ratio: 4.5, attack: 0.006, release: 0.200, makeup: 1.5 },
+                    { threshold: -27, ratio: 5, attack: 0.003, release: 0.150, makeup: 1.2 }
+                ],
+                smartEQ_enabled: true,
+                smartEQ_bands: [
+                    { frequency: 80, Q: 1.0, threshold: -18, gain: 0 },
+                    { frequency: 500, Q: 1.0, threshold: -20, gain: 3 },
+                    { frequency: 3000, Q: 0.9, threshold: -21, gain: 4 },
+                    { frequency: 8000, Q: 1.3, threshold: -22, gain: 3 }
+                ]
+            }
+        };
     }
 
     init(stateManager) {
@@ -1947,8 +1973,8 @@ this.presetMap = {
 
             const audioState = this.stateManager.get('audio');
             const audioSettingsToSave = {
-                isHpfEnabled: audioState.isHpfEnabled, hpfHz: audioState.hpfHz, isEqEnabled: audioState.isEqEnabled, eqSubBassGain: audioState.eqSubBassGain, eqBassGain: audioState.eqBassGain, eqMidGain: audioState.eqMidGain, eqTrebleGain: audioState.eqTrebleGain, eqPresenceGain: audioState.eqPresenceGain, bassBoostGain: audioState.bassBoostGain, isWideningEnabled: audioState.isWideningEnabled, wideningFactor: audioState.wideningFactor, isAdaptiveWidthEnabled: audioState.isAdaptiveWidthEnabled, adaptiveWidthFreq: audioState.adaptiveWidthFreq, isReverbEnabled: audioState.isReverbEnabled, reverbMix: audioState.reverbMix, stereoPan: audioState.stereoPan, isPreGainEnabled: audioState.isPreGainEnabled, preGain: audioState.preGain, lastManualPreGain: audioState.lastManualPreGain, isDeesserEnabled: audioState.isDeesserEnabled, deesserThreshold: audioState.deesserThreshold, deesserFreq: audioState.deesserFreq, isExciterEnabled: audioState.isExciterEnabled, exciterAmount: audioState.exciterAmount, isParallelCompEnabled: audioState.isParallelCompEnabled, parallelCompMix: audioState.parallelCompMix,
-                isLoudnessNormalizationEnabled: audioState.isLoudnessNormalizationEnabled, isAgcEnabled: audioState.isAgcEnabled, isMultibandCompEnabled: audioState.isMultibandCompEnabled, multibandComp: JSON.parse(JSON.stringify(audioState.multibandComp)), isDynamicEqEnabled: audioState.isDynamicEqEnabled, dynamicEq: JSON.parse(JSON.stringify(audioState.dynamicEq)), activePresetKey: audioState.activePresetKey
+                isHpfEnabled: audioState.isHpfEnabled, hpfHz: audioState.hpfHz, isEqEnabled: audioState.isEqEnabled, eqSubBassGain: audioState.eqSubBassGain, eqBassGain: audioState.eqBassGain, eqMidGain: audioState.eqMidGain, eqTrebleGain: audioState.eqTrebleGain, eqPresenceGain: audioState.eqPresenceGain, bassBoostGain: audioState.bassBoostGain, isWideningEnabled: audioState.isWideningEnabled, wideningFactor: audioState.wideningFactor, isAdaptiveWidthEnabled: audioState.isAdaptiveWidthEnabled, adaptiveWidthFreq: audioState.adaptiveWidthFreq, isReverbEnabled: audioState.isReverbEnabled, reverbMix: audioState.reverbMix, stereoPan: audioState.stereoPan, isPreGainEnabled: audioState.isPreGainEnabled, preGain: audioState.preGain, lastManualPreGain: audioState.lastManualPreGain, preGainExponent: audioState.preGainExponent, isDeesserEnabled: audioState.isDeesserEnabled, deesserThreshold: audioState.deesserThreshold, deesserFreq: audioState.deesserFreq, isExciterEnabled: audioState.isExciterEnabled, exciterAmount: audioState.exciterAmount, isParallelCompEnabled: audioState.isParallelCompEnabled, parallelCompMix: audioState.parallelCompMix,
+                isLoudnessNormalizationEnabled: audioState.isLoudnessNormalizationEnabled, isMultibandCompEnabled: audioState.isMultibandCompEnabled, multibandComp: JSON.parse(JSON.stringify(audioState.multibandComp)), isDynamicEqEnabled: audioState.isDynamicEqEnabled, dynamicEq: JSON.parse(JSON.stringify(audioState.dynamicEq)), activePresetKey: audioState.activePresetKey
             };
             this.stateManager.set('audio.lastActiveSettings', audioSettingsToSave);
 
@@ -1961,24 +1987,8 @@ this.presetMap = {
             const imageState = this.stateManager.get('imageFilter');
             this.stateManager.set('imageFilter.lastActiveSettings', { level: imageState.level });
 
-            Object.keys(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS).forEach(band => {
-                Object.keys(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS[band]).forEach(param => {
-                    this.stateManager.set(`audio.multibandComp.${band}.${param}`, CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS[band][param]);
-                });
-            });
-            this.stateManager.set('audio.isMultibandCompEnabled', false);
-            this.stateManager.set('audio.isDynamicEqEnabled', false);
-            this.stateManager.set('audio.isHpfEnabled', false);
-            this.stateManager.set('audio.isEqEnabled', false);
-            this.stateManager.set('audio.bassBoostGain', 0);
-            this.stateManager.set('audio.isWideningEnabled', false);
-            this.stateManager.set('audio.isReverbEnabled', false);
-            this.stateManager.set('audio.isDeesserEnabled', false);
-            this.stateManager.set('audio.isExciterEnabled', false);
-            this.stateManager.set('audio.isParallelCompEnabled', false);
-            this.stateManager.set('audio.isPreGainEnabled', false);
-            this.stateManager.set('audio.preGain', 1.0);
-            this.stateManager.set('audio.isAgcEnabled', false);
+            // UI를 숨길 때 모든 오디오 설정을 기본값으로 초기화합니다.
+            this.resetAudioToDefaults();
         }
 
         if (isVisible && !this.hostElement) {
@@ -2066,7 +2076,9 @@ this.presetMap = {
         mainBtn.onclick = (e) => {
             e.stopPropagation();
             const isOpening = !group.classList.contains('submenu-visible');
-            this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible'));
+            if(this.shadowRoot) {
+                this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible'));
+            }
             if (isOpening) group.classList.add('submenu-visible');
             this.resetFadeTimer();
             if (id === 'vsc-stereo-controls' && isOpening && !this.stateManager.get('audio.audioInitialized')) {
@@ -2416,21 +2428,19 @@ this.presetMap = {
             this._createSlider('베이스 부스트', 'bass-boost', 0, 9, 0.5, 'audio.bassBoostGain', 'dB', v => `${v.toFixed(1)}dB`).control
         );
         const preGainGroup = document.createElement('div');
-        preGainGroup.className = 'vsc-button-group';
-        const manualVolBtn = this._createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
-        // const agcBtn = this._createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled'); // ✅ [삭제]
-        const autoVolBtn = this._createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
-        autoVolBtn.textContent = '자동';
-        autoVolBtn.appendChild(document.createElement('br'));
-        autoVolBtn.appendChild(document.createTextNode('보정'));
+        preGainGroup.className = 'vsc-button-group';
+        const manualVolBtn = this._createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
+        const autoVolBtn = this._createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
+        autoVolBtn.textContent = '자동';
+        autoVolBtn.appendChild(document.createElement('br'));
+        autoVolBtn.appendChild(document.createTextNode('보정'));
 
-        preGainGroup.append(manualVolBtn, autoVolBtn); // ✅ [수정] agcBtn 제거
+        preGainGroup.append(manualVolBtn, autoVolBtn);
 
         const widenSlider = this._createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
         const reverbSlider = this._createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
         const preGainSlider = this._createSlider('볼륨 크기', 'pre-gain-slider', 0, CONFIG.MAX_PRE_GAIN, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
 
-        // ✅ [추가] '볼륨 커브' 슬라이더를 새로 만듭니다.
         const exponentSlider = this._createSlider('볼륨 커브', 'pre-gain-exponent-slider', 0.5, 4, 0.1, 'audio.preGainExponent', 'e', v => v.toFixed(1)).slider;
 
         basicCol2.append(
@@ -2442,7 +2452,7 @@ this.presetMap = {
             this._createSlider('Pan', 'pan', -1, 1, 0.1, 'audio.stereoPan', '', v => v.toFixed(1)).control,
             this._createDivider(),
             preGainGroup, preGainSlider.parentElement,
-            exponentSlider.parentElement, // ✅ [추가] UI에 볼륨 커브 슬라이더 추가
+            exponentSlider.parentElement,
             this._createDivider(),
             this._createToggleBtn('hpf-toggle', 'HPF', 'audio.isHpfEnabled'),
             hpfSlider.parentElement
@@ -2612,12 +2622,12 @@ this.presetMap = {
         resetBtn.textContent = '초기화';
 
         bottomControls.append(presetSelect, resetBtn);
-        [basicPane, dynamicsPane, clarityPane].forEach(pane => pane.appendChild(bottomControls.cloneNode(true)));
+        audioSubMenu.appendChild(bottomControls);
 
-        panesContainer.querySelectorAll('.vsc-preset-select').forEach(sel => {
+        audioSubMenu.querySelectorAll('.vsc-preset-select').forEach(sel => {
             sel.onchange = (e) => this.applyPreset(e.target.value);
         });
-        panesContainer.querySelectorAll('button').forEach(btn => {
+        audioSubMenu.querySelectorAll('button').forEach(btn => {
             if (btn.textContent === '초기화') {
                 btn.onclick = () => this.applyPreset('default');
             }
@@ -2642,7 +2652,6 @@ this.presetMap = {
 
         this.subscribe('audio.isLoudnessNormalizationEnabled', (isAuto) => {
             if (isAuto) {
-                this.stateManager.set('audio.isAgcEnabled', false);
                 this.stateManager.set('audio.preGainEnabledBeforeAuto', this.stateManager.get('audio.isPreGainEnabled'));
                 this.stateManager.set('audio.isPreGainEnabled', true);
             } else {
@@ -2775,34 +2784,7 @@ this.presetMap = {
         if (preGainSlider) preGainSlider.disabled = isAuto || !isManual;
     }
 
-        async applyPreset(presetKey) {
-        if (this.isApplyingPreset) {
-            console.log('[VSC] Preset application in progress. Ignoring new request.');
-            return;
-        }
-        this.isApplyingPreset = true;
-
-        try {
-            this._applyPresetSettings(presetKey);
-            if (this.audioFXPlugin) {
-                this.stateManager.set('audio.activityCheckRequested', Date.now());
-            }
-        } catch (error) {
-            console.error("[VSC] Error applying preset:", error);
-        } finally {
-            this.isApplyingPreset = false;
-        }
-    }
-
-    // ❗️이 함수 전체를 복사하여 기존 함수와 완전히 교체해야 합니다.
-
-    _applyPresetSettings(presetKey) {
-        const p = this.presetMap[presetKey];
-        if (!p) return;
-
-        this.stateManager.set('audio.audioInitialized', true);
-
-        // ✅ --- [1단계] 모든 오디오 설정을 CONFIG의 기본값으로 완벽히 초기화합니다. ---
+    resetAudioToDefaults() {
         this.stateManager.set('audio.isHpfEnabled', CONFIG.DEFAULT_HPF_ENABLED);
         this.stateManager.set('audio.hpfHz', CONFIG.EFFECTS_HPF_FREQUENCY);
         this.stateManager.set('audio.isEqEnabled', CONFIG.DEFAULT_EQ_ENABLED);
@@ -2812,6 +2794,8 @@ this.presetMap = {
         this.stateManager.set('audio.eqTrebleGain', CONFIG.DEFAULT_EQ_TREBLE_GAIN);
         this.stateManager.set('audio.eqPresenceGain', CONFIG.DEFAULT_EQ_PRESENCE_GAIN);
         this.stateManager.set('audio.bassBoostGain', CONFIG.DEFAULT_BASS_BOOST_GAIN);
+        this.stateManager.set('audio.bassBoostFreq', 60);
+        this.stateManager.set('audio.bassBoostQ', 1.0);
         this.stateManager.set('audio.isWideningEnabled', CONFIG.DEFAULT_WIDENING_ENABLED);
         this.stateManager.set('audio.wideningFactor', CONFIG.DEFAULT_WIDENING_FACTOR);
         this.stateManager.set('audio.isAdaptiveWidthEnabled', CONFIG.DEFAULT_ADAPTIVE_WIDTH_ENABLED);
@@ -2821,6 +2805,7 @@ this.presetMap = {
         this.stateManager.set('audio.stereoPan', CONFIG.DEFAULT_STEREO_PAN);
         this.stateManager.set('audio.isPreGainEnabled', CONFIG.DEFAULT_PRE_GAIN_ENABLED);
         this.stateManager.set('audio.preGain', CONFIG.DEFAULT_PRE_GAIN);
+        this.stateManager.set('audio.lastManualPreGain', CONFIG.DEFAULT_PRE_GAIN);
         this.stateManager.set('audio.preGainExponent', CONFIG.DEFAULT_PRE_GAIN_EXPONENT);
         this.stateManager.set('audio.isDeesserEnabled', CONFIG.DEFAULT_DEESSER_ENABLED);
         this.stateManager.set('audio.deesserThreshold', CONFIG.DEFAULT_DEESSER_THRESHOLD);
@@ -2829,27 +2814,67 @@ this.presetMap = {
         this.stateManager.set('audio.exciterAmount', CONFIG.DEFAULT_EXCITER_AMOUNT);
         this.stateManager.set('audio.isParallelCompEnabled', CONFIG.DEFAULT_PARALLEL_COMP_ENABLED);
         this.stateManager.set('audio.parallelCompMix', CONFIG.DEFAULT_PARALLEL_COMP_MIX);
+        this.stateManager.set('audio.isLoudnessNormalizationEnabled', false);
+        this.stateManager.set('audio.loudnessTarget', CONFIG.LOUDNESS_TARGET);
         this.stateManager.set('audio.isMultibandCompEnabled', CONFIG.DEFAULT_MULTIBAND_COMP_ENABLED);
         this.stateManager.set('audio.isDynamicEqEnabled', false);
-
-        const defaultMBC = JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS));
-        for (const [key, settings] of Object.entries(defaultMBC)) {
-            for (const [param, value] of Object.entries(settings)) {
-                this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
-            }
-        }
-        const defaultDEQ = [
-            { freq: 150,  q: 1.4, threshold: -30, gain: 4 },
-            { freq: 1200, q: 2.0, threshold: -24, gain: -4},
+        this.stateManager.set('audio.multibandComp', JSON.parse(JSON.stringify(CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS)));
+        this.stateManager.set('audio.dynamicEq.activeBand', 1);
+        this.stateManager.set('audio.dynamicEq.bands', [
+            { freq: 150, q: 1.4, threshold: -30, gain: 4 },
+            { freq: 1200, q: 2.0, threshold: -24, gain: -4 },
             { freq: 4500, q: 3.0, threshold: -20, gain: 5 },
             { freq: 8000, q: 4.0, threshold: -18, gain: 4 },
-        ];
-        this.stateManager.set('audio.dynamicEq.bands', defaultDEQ);
-        // --- 초기화 끝 ---
+        ]);
+        this.stateManager.set('audio.activePresetKey', 'default');
+    }
 
-        // ✅ --- [2단계] 이제 프리셋에 정의된 값만 골라서 덮어씁니다. ---
+    async applyPreset(presetKey) {
+        if (this.isApplyingPreset) return;
+        this.isApplyingPreset = true;
+
+        try {
+            let attempts = 0;
+            while (!this.audioFXPlugin && attempts < 10) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (this.audioFXPlugin && typeof this.audioFXPlugin.ensureAudioReady === 'function') {
+                const isReady = await this.audioFXPlugin.ensureAudioReady();
+                if (!isReady) {
+                    console.warn('[VSC] 오디오 컨텍스트 시작 실패. 프리셋 적용을 중단합니다.');
+                    this.isApplyingPreset = false;
+                    return;
+                }
+            } else {
+                console.error('[VSC] AudioFXPlugin을 찾을 수 없어 프리셋을 적용할 수 없습니다.');
+                this.isApplyingPreset = false;
+                return;
+            }
+
+            if (presetKey === 'default') {
+                this.resetAudioToDefaults();
+            } else {
+                this._applyPresetSettings(presetKey);
+            }
+        } catch (error) {
+            console.error("[VSC] 프리셋 적용 중 오류 발생:", error);
+        } finally {
+            this.isApplyingPreset = false;
+        }
+    }
+
+    _applyPresetSettings(presetKey) {
+        const p = this.presetMap[presetKey];
+        if (!p) return;
+
+        // This is the correct logic based on the user's latest feedback.
+        // It applies all settings, and then toggles the main gain to force an update.
+        this.resetAudioToDefaults();
+
         const presetValues = {
-            isHpfEnabled: p.hpf_enabled, hpfHz: p.hpf_hz, isEqEnabled: p.eq_enabled, eqSubBassGain: p.eq_subBass, eqBassGain: p.eq_bass, eqMidGain: p.eq_mid, eqTrebleGain: p.eq_treble, eqPresenceGain: p.eq_presence, bassBoostGain: p.bass_boost_gain, isWideningEnabled: p.widen_enabled, wideningFactor: p.widen_factor, isAdaptiveWidthEnabled: p.adaptive_enabled, adaptiveWidthFreq: p.adaptive_width_freq, isReverbEnabled: p.reverb_enabled, reverbMix: p.reverb_mix, stereoPan: p.pan_value, isPreGainEnabled: p.preGain_enabled, preGain: p.preGain_value, preGainExponent: p.preGainExponent, isDeesserEnabled: p.deesser_enabled, deesserThreshold: p.deesser_threshold, deesserFreq: p.deesser_freq, isExciterEnabled: p.exciter_enabled, exciterAmount: p.exciter_amount, isParallelCompEnabled: p.parallel_comp_enabled, parallelCompMix: p.parallel_comp_mix,
+            isHpfEnabled: p.hpf_enabled, hpfHz: p.hpf_hz, isEqEnabled: p.eq_enabled, eqSubBassGain: p.eq_subBass, eqBassGain: p.eq_bass, eqMidGain: p.eq_mid, eqTrebleGain: p.eq_treble, eqPresenceGain: p.eq_presence, bassBoostGain: p.bass_boost_gain, bassBoostFreq: p.bass_boost_freq, bassBoostQ: p.bass_boost_q, isWideningEnabled: p.widen_enabled, wideningFactor: p.widen_factor, isAdaptiveWidthEnabled: p.adaptive_enabled, adaptiveWidthFreq: p.adaptive_width_freq, isReverbEnabled: p.reverb_enabled, reverbMix: p.reverb_mix, isPreGainEnabled: p.preGain_enabled, preGain: p.preGain_value, preGainExponent: p.preGainExponent, isDeesserEnabled: p.deesser_enabled, deesserThreshold: p.deesser_threshold, deesserFreq: p.deesser_freq, isExciterEnabled: p.exciter_enabled, exciterAmount: p.exciter_amount, isParallelCompEnabled: p.parallel_comp_enabled, parallelCompMix: p.parallel_comp_mix,
             isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled,
             isMultibandCompEnabled: p.multiband_enabled, isDynamicEqEnabled: p.smartEQ_enabled,
         };
@@ -2861,7 +2886,7 @@ this.presetMap = {
         }
 
         if (p.multiband_bands) {
-             if (Array.isArray(p.multiband_bands) && p.multiband_bands.length === 4) {
+            if (Array.isArray(p.multiband_bands) && p.multiband_bands.length === 4) {
                 const bandKeys = ['low', 'lowMid', 'highMid', 'high'];
                 p.multiband_bands.forEach((bandData, index) => {
                     const key = bandKeys[index];
@@ -2871,13 +2896,8 @@ this.presetMap = {
                         if (value !== undefined) this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
                     }
                 });
-            } else if (typeof p.multiband_bands === 'object') {
-                const newSettings = JSON.parse(JSON.stringify(p.multiband_bands));
-                for (const [key, settings] of Object.entries(newSettings)) {
-                    for (const [param, value] of Object.entries(settings)) {
-                        if (value !== undefined) this.stateManager.set(`audio.multibandComp.${key}.${param}`, value);
-                    }
-                }
+            } else if (typeof p.multiband_bands === 'object' && !Array.isArray(p.multiband_bands)) {
+                 this.stateManager.set('audio.multibandComp', JSON.parse(JSON.stringify(p.multiband_bands)));
             }
         }
 
@@ -2885,11 +2905,22 @@ this.presetMap = {
             const newBands = p.smartEQ_bands.map(band => ({
                 freq: band.frequency, q: band.Q, threshold: band.threshold, gain: band.gain
             }));
-            this.stateManager.set('audio.dynamicEq.bands', newBands);
+            while(newBands.length < 4) { newBands.push({ freq: 1000, q: 1, threshold: -24, gain: 0 }); }
+            this.stateManager.set('audio.dynamicEq.bands', newBands.slice(0, 4));
         }
 
         this.stateManager.set('audio.lastManualPreGain', this.stateManager.get('audio.preGain'));
         this.stateManager.set('audio.activePresetKey', presetKey);
+
+        // ✅ [핵심 수정] 프리셋 적용 후 볼륨(preGain)을 강제로 껐다 켜서 적용을 보장합니다.
+        const wasPreGainEnabled = this.stateManager.get('audio.isPreGainEnabled');
+        if (wasPreGainEnabled) {
+            this.stateManager.set('audio.isPreGainEnabled', false);
+            // setTimeout을 사용해 다음 이벤트 루프에서 켜서 상태 변경이 확실히 반영되도록 합니다.
+            setTimeout(() => {
+                this.stateManager.set('audio.isPreGainEnabled', true);
+            }, 0);
+        }
     }
 
     attachDragAndDrop() {
