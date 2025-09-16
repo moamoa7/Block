@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      101.6
-// @description  멀티밴드 초기화 오류 해결
+// @version      101.7
+// @description  볼륨커브 도입
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -16,6 +16,7 @@
     // --- [ARCHITECTURE] CONFIGURATION & CONSTANTS ---
     const CONFIG = {
         MAX_PRE_GAIN: 10.0, // [추가] 볼륨 슬라이더의 최대 한계값
+        DEFAULT_PRE_GAIN_EXPONENT: 1.0, // ✅ [추가] 볼륨 커브 기본값을 CONFIG로 통합
         DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 4,
         DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
@@ -121,6 +122,7 @@ class StateManager {
                 isReverbEnabled: CONFIG.DEFAULT_REVERB_ENABLED, reverbMix: CONFIG.DEFAULT_REVERB_MIX,
                 stereoPan: CONFIG.DEFAULT_STEREO_PAN, isPreGainEnabled: CONFIG.DEFAULT_PRE_GAIN_ENABLED,
                 preGain: CONFIG.DEFAULT_PRE_GAIN, lastManualPreGain: CONFIG.DEFAULT_PRE_GAIN,
+                preGainExponent: CONFIG.DEFAULT_PRE_GAIN_EXPONENT, // ✅ [수정] CONFIG의 기본값을 사용하도록 변경
                 isDeesserEnabled: CONFIG.DEFAULT_DEESSER_ENABLED,
                 deesserThreshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesserFreq: CONFIG.DEFAULT_DEESSER_FREQ,
                 isExciterEnabled: CONFIG.DEFAULT_EXCITER_ENABLED, exciterAmount: CONFIG.DEFAULT_EXCITER_AMOUNT,
@@ -957,7 +959,20 @@ class AudioFXPlugin extends Plugin {
                 lastNode = spatialNode;
             }
 
-            nodes.masterGain.gain.value = audioState.isPreGainEnabled ? audioState.preGain : 1.0;
+            if (audioState.isPreGainEnabled) {
+          const gain = audioState.preGain;
+          const exponent = audioState.preGainExponent || 2.0; // 새로 추가한 상태값
+          const maxGain = CONFIG.MAX_PRE_GAIN;
+
+          // 슬라이더 값을 0~1 사이로 정규화한 뒤, exponent를 적용하여 커브를 만들고, 다시 원래 범위로 확장
+          const normalizedGain = gain / maxGain;
+          const curvedGain = Math.pow(normalizedGain, exponent) * maxGain;
+
+          nodes.masterGain.gain.value = curvedGain;
+      } else {
+          nodes.masterGain.gain.value = 1.0;
+      }
+
             lastNode.connect(nodes.masterGain);
             nodes.masterGain.connect(nodes.safetyLimiter);
             nodes.safetyLimiter.connect(nodes.analyser);
@@ -1438,7 +1453,8 @@ this.presetMap = {
         bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
         widen_enabled: false, widen_factor: 1.0,
         adaptive_enabled: false, adaptive_width_freq: 150,
-        preGain_enabled: true, preGain_value: 1.2,
+        preGain_enabled: true, preGain_value: 1.0,
+        preGainExponent: CONFIG.DEFAULT_PRE_GAIN_EXPONENT, // ✅ [수정] CONFIG 변수를 참조하도록 변경
         reverb_enabled: false, reverb_mix: CONFIG.DEFAULT_REVERB_MIX,
         deesser_enabled: false, deesser_threshold: CONFIG.DEFAULT_DEESSER_THRESHOLD, deesser_freq: CONFIG.DEFAULT_DEESSER_FREQ,
         exciter_enabled: false, exciter_amount: 0,
@@ -1457,7 +1473,7 @@ this.presetMap = {
         bass_boost_gain: 4, bass_boost_freq: 60, bass_boost_q: 1.0,
         widen_enabled: true, widen_factor: 1.2,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 4.0,
+        preGain_enabled: true, preGain_value: 2.0,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: false,
         exciter_enabled: false,
@@ -1486,7 +1502,7 @@ this.presetMap = {
         bass_boost_gain: 3.5, bass_boost_freq: 65, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.4,
         adaptive_enabled: true, adaptive_width_freq: 200,
-        preGain_enabled: true, preGain_value: 1.0,
+        preGain_enabled: true, preGain_value: 1.2,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: true, deesser_threshold: -25,
         exciter_enabled: false,
@@ -1602,7 +1618,7 @@ this.presetMap = {
         bass_boost_gain: 2, bass_boost_freq: 55, bass_boost_q: 1.0,
         widen_enabled: false, widen_factor: 1.0,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 2.0,
+        preGain_enabled: true, preGain_value: 1.5,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: true, deesser_threshold: -32,
         exciter_enabled: false,
@@ -2395,17 +2411,21 @@ this.presetMap = {
         const preGainGroup = document.createElement('div');
         preGainGroup.className = 'vsc-button-group';
         const manualVolBtn = this._createToggleBtn('pre-gain-toggle', '볼륨', 'audio.isPreGainEnabled');
-        const agcBtn = this._createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
+        //const agcBtn = this._createToggleBtn('agc-toggle', 'AGC', 'audio.isAgcEnabled');
         const autoVolBtn = this._createToggleBtn('loudness-norm-toggle', '', 'audio.isLoudnessNormalizationEnabled');
         autoVolBtn.textContent = '자동';
         autoVolBtn.appendChild(document.createElement('br'));
         autoVolBtn.appendChild(document.createTextNode('보정'));
 
-        preGainGroup.append(manualVolBtn, agcBtn, autoVolBtn);
+        preGainGroup.append(manualVolBtn, autoVolBtn);
 
         const widenSlider = this._createSlider('강도', 'widen-factor', 0, 3, 0.1, 'audio.wideningFactor', 'x').slider;
         const reverbSlider = this._createSlider('울림', 'reverb-mix', 0, 1, 0.05, 'audio.reverbMix', '', v => v.toFixed(2)).slider;
         const preGainSlider = this._createSlider('볼륨 크기', 'pre-gain-slider', 0, CONFIG.MAX_PRE_GAIN, 0.1, 'audio.preGain', 'x', v => v.toFixed(1)).slider;
+
+        // ✅ [추가] '볼륨 커브' 슬라이더를 새로 만듭니다.
+        const exponentSlider = this._createSlider('볼륨 커브', 'pre-gain-exponent-slider', 0.5, 4, 0.1, 'audio.preGainExponent', 'e', v => v.toFixed(1)).slider;
+
         basicCol2.append(
             this._createToggleBtn('widen-toggle', 'Virtualizer', 'audio.isWideningEnabled'), widenSlider.parentElement,
             this._createToggleBtn('adaptive-width-toggle', 'Bass Mono', 'audio.isAdaptiveWidthEnabled'),
@@ -2415,6 +2435,7 @@ this.presetMap = {
             this._createSlider('Pan', 'pan', -1, 1, 0.1, 'audio.stereoPan', '', v => v.toFixed(1)).control,
             this._createDivider(),
             preGainGroup, preGainSlider.parentElement,
+            exponentSlider.parentElement, // ✅ [추가] UI에 볼륨 커브 슬라이더 추가
             this._createDivider(),
             this._createToggleBtn('hpf-toggle', 'HPF', 'audio.isHpfEnabled'),
             hpfSlider.parentElement
@@ -2817,10 +2838,12 @@ this.presetMap = {
         };
 
         const presetValues = {
-            isHpfEnabled: p.hpf_enabled ?? defaults.isHpfEnabled, hpfHz: p.hpf_hz ?? defaults.hpfHz, isEqEnabled: p.eq_enabled ?? defaults.isEqEnabled, eqSubBassGain: p.eq_subBass ?? defaults.eqSubBassGain, eqBassGain: p.eq_bass ?? defaults.eqBassGain, eqMidGain: p.eq_mid ?? defaults.eqMidGain, eqTrebleGain: p.eq_treble ?? defaults.eqTrebleGain, eqPresenceGain: p.eq_presence ?? defaults.eqPresenceGain, bassBoostGain: p.bass_boost_gain ?? defaults.bassBoostGain, isWideningEnabled: p.widen_enabled ?? defaults.isWideningEnabled, wideningFactor: p.widen_factor ?? defaults.wideningFactor, isAdaptiveWidthEnabled: p.adaptive_enabled ?? defaults.isAdaptiveWidthEnabled, adaptiveWidthFreq: p.adaptive_width_freq ?? defaults.adaptiveWidthFreq, isReverbEnabled: p.reverb_enabled ?? defaults.isReverbEnabled, reverbMix: p.reverb_mix ?? defaults.reverbMix, stereoPan: p.pan_value ?? defaults.stereoPan, isPreGainEnabled: p.preGain_enabled ?? defaults.isPreGainEnabled, preGain: p.preGain_value ?? defaults.preGain, isDeesserEnabled: p.deesser_enabled ?? defaults.isDeesserEnabled, deesserThreshold: p.deesser_threshold ?? defaults.deesserThreshold, deesserFreq: p.deesser_freq ?? defaults.deesserFreq, isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount, isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
-            isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled ?? (presetKey === 'default' ? false : this.stateManager.get('audio.isLoudnessNormalizationEnabled')),
-            isMultibandCompEnabled: p.multiband_enabled ?? defaults.isMultibandCompEnabled, isDynamicEqEnabled: p.smartEQ_enabled ?? defaults.isDynamicEqEnabled,
-        };
+          isHpfEnabled: p.hpf_enabled ?? defaults.isHpfEnabled, hpfHz: p.hpf_hz ?? defaults.hpfHz, isEqEnabled: p.eq_enabled ?? defaults.isEqEnabled, eqSubBassGain: p.eq_subBass ?? defaults.eqSubBassGain, eqBassGain: p.eq_bass ?? defaults.eqBassGain, eqMidGain: p.eq_mid ?? defaults.eqMidGain, eqTrebleGain: p.eq_treble ?? defaults.eqTrebleGain, eqPresenceGain: p.eq_presence ?? defaults.eqPresenceGain, bassBoostGain: p.bass_boost_gain ?? defaults.bassBoostGain, isWideningEnabled: p.widen_enabled ?? defaults.isWideningEnabled, wideningFactor: p.widen_factor ?? defaults.wideningFactor, isAdaptiveWidthEnabled: p.adaptive_enabled ?? defaults.isAdaptiveWidthEnabled, adaptiveWidthFreq: p.adaptive_width_freq ?? defaults.adaptiveWidthFreq, isReverbEnabled: p.reverb_enabled ?? defaults.isReverbEnabled, reverbMix: p.reverb_mix ?? defaults.reverbMix, stereoPan: p.pan_value ?? defaults.stereoPan, isPreGainEnabled: p.preGain_enabled ?? defaults.isPreGainEnabled, preGain: p.preGain_value ?? defaults.preGain,
+          preGainExponent: p.preGainExponent ?? CONFIG.DEFAULT_PRE_GAIN_EXPONENT, // ✅ [추가] 이 한 줄이 핵심입니다.
+          isDeesserEnabled: p.deesser_enabled ?? defaults.isDeesserEnabled, deesserThreshold: p.deesser_threshold ?? defaults.deesserThreshold, deesserFreq: p.deesser_freq ?? defaults.deesserFreq, isExciterEnabled: p.exciter_enabled ?? defaults.isExciterEnabled, exciterAmount: p.exciter_amount ?? defaults.exciterAmount, isParallelCompEnabled: p.parallel_comp_enabled ?? defaults.isParallelCompEnabled, parallelCompMix: p.parallel_comp_mix ?? defaults.parallelCompMix,
+          isLoudnessNormalizationEnabled: p.isLoudnessNormalizationEnabled ?? (presetKey === 'default' ? false : this.stateManager.get('audio.isLoudnessNormalizationEnabled')),
+          isMultibandCompEnabled: p.multiband_enabled ?? defaults.isMultibandCompEnabled, isDynamicEqEnabled: p.smartEQ_enabled ?? defaults.isDynamicEqEnabled,
+      };
 
         if (presetKey === 'default') {
             presetValues.isAgcEnabled = false;
