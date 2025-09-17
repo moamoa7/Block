@@ -2,7 +2,7 @@
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
 // @version      102.2
-// @description  모든 오디오 프리셋 총 Gain 12~15dB 수준으로 조정
+// @description  모든 오디오 프리셋 총 Gain 6~9dB 수준으로 조정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1588,7 +1588,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
         widen_enabled: true, widen_factor: 1.1,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.8,
+        preGain_enabled: true, preGain_value: 1.15,
         preGainExponent: 1.0,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: false, deesser_threshold: -35, deesser_freq: 6000,
@@ -1646,7 +1646,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 6, bass_boost_freq: 55, bass_boost_q: 1.3,
         widen_enabled: true, widen_factor: 1.7,
         adaptive_enabled: true, adaptive_width_freq: 240,
-        preGain_enabled: true, preGain_value: 1.2,
+        preGain_enabled: true, preGain_value: 1.05,
         preGainExponent: 1.2,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: false,
@@ -1675,7 +1675,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 5, bass_boost_freq: 65, bass_boost_q: 1.2,
         widen_enabled: true, widen_factor: 1.5,
         adaptive_enabled: true, adaptive_width_freq: 200,
-        preGain_enabled: true, preGain_value: 1.2,
+        preGain_enabled: true, preGain_value: 1.05,
         preGainExponent: 1.2,
         reverb_enabled: true, reverb_mix: 0.6,
         deesser_enabled: false,
@@ -1704,7 +1704,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 5, bass_boost_freq: 60, bass_boost_q: 1.2,
         widen_enabled: true, widen_factor: 1.5,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.2,
+        preGain_enabled: true, preGain_value: 1.05,
         preGainExponent: 1.2,
         reverb_enabled: false,
         deesser_enabled: false,
@@ -1733,7 +1733,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 3, bass_boost_freq: 55, bass_boost_q: 1.0,
         widen_enabled: false, widen_factor: 1.0,
         adaptive_enabled: true, adaptive_width_freq: 180,
-        preGain_enabled: true, preGain_value: 1.2,
+        preGain_enabled: true, preGain_value: 1.05,
         preGainExponent: 1.2,
         reverb_enabled: false, reverb_mix: 0,
         deesser_enabled: true, deesser_threshold: -28,
@@ -1762,7 +1762,7 @@ class UIPlugin extends Plugin {
         bass_boost_gain: 5, bass_boost_freq: 60, bass_boost_q: 1.1,
         widen_enabled: true, widen_factor: 1.2,
         adaptive_enabled: true, adaptive_width_freq: 170,
-        preGain_enabled: true, preGain_value: 1.2,
+        preGain_enabled: true, preGain_value: 1.05,
         preGainExponent: 1.2,
         reverb_enabled: false,
         deesser_enabled: false,
@@ -1784,6 +1784,7 @@ class UIPlugin extends Plugin {
         ]
     }
 };
+
 
     }
 
