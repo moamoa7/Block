@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      102.3
+// @version      102.4
 // @description  오디오 필터 ui 수정
 // @match        *://*/*
 // @run-at       document-end
