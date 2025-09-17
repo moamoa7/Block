@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250916
+! Version: 20250917
 !
 !
 !
@@ -256,6 +256,8 @@ sooplive.co.kr###FeedLayerToolTip
 ! - shopfreeca banner (적용이 안되고 있는지 딱히 나오는건 없음)
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
+! - 구독버튼 내 버플 안내문구
+##.event_tooltip
 ! - 차단 사이트
 !||adballoon.sooplive.co.kr^
 !||reqde.sooplive.co.kr^
