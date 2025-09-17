@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      102.6
+// @version      102.7
 // @description  정지 아이콘 클릭시 모든 설정 유지한채 번개 아이콘만 보이는걸로 변경
 // @match        *://*/*
 // @run-at       document-end
@@ -19,7 +19,7 @@
         DEFAULT_PRE_GAIN_EXPONENT: 1.0,
         DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 4,
         DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
-        DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
+        DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 4,
         DEFAULT_WIDENING_ENABLED: false, DEFAULT_WIDENING_FACTOR: 1.0, DEFAULT_STEREO_PAN: 0, DEFAULT_HPF_ENABLED: false,
         EFFECTS_HPF_FREQUENCY: 20, DEFAULT_EQ_ENABLED: false, DEFAULT_EQ_SUBBASS_GAIN: 0, DEFAULT_EQ_BASS_GAIN: 0,
         DEFAULT_EQ_MID_GAIN: 0, DEFAULT_EQ_TREBLE_GAIN: 0, DEFAULT_EQ_PRESENCE_GAIN: 0, DEFAULT_ADAPTIVE_WIDTH_ENABLED: false,
@@ -31,11 +31,11 @@
         AUTODELAY_STABLE_THRESHOLD: 100, AUTODELAY_STABLE_COUNT: 5, AUTODELAY_PID_KP: 0.0002, AUTODELAY_PID_KI: 0.00001,
         AUTODELAY_PID_KD: 0.0001, AUTODELAY_MIN_RATE: 1.0, AUTODELAY_MAX_RATE: 1.025, LIVE_JUMP_INTERVAL: 6000,
         LIVE_JUMP_END_THRESHOLD: 1.0, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
-        SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 335, VIDEO_MIN_SIZE: 0,
+        SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 0, VIDEO_MIN_SIZE: 0,
         SPEED_PRESETS: [2.0, 1.5, 1.2, 1, 0.5, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['tv.naver.com', 'youtube.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
         LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
-        EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'frdl.my', 'up4load.com', 'challenges.cloudflare.com', 'noti.sooplive.co.kr'],
+        EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'register', 'forgot', 'frdl.my', 'up4load.com', 'liteapks.com'],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
@@ -84,7 +84,7 @@ class StateManager {
         const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
 
         this.state = {
-            app: { isInitialized: false, isMobile },
+            app: { isInitialized: false, isMobile, scriptActive: false },
             media: {
                 activeMedia: new Set(), processedMedia: new WeakSet(),
                 activeImages: new Set(), processedImages: new WeakSet(),
@@ -450,6 +450,7 @@ class StateManager {
             this.subscribe('imageFilter.level', this.applyAllImageFilters.bind(this));
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates());
             this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates());
+            this.subscribe('app.scriptActive', () => this.updateMediaFilterStates()); // 스크립트 활성 상태 변경 시 필터 상태 업데이트
 
             this.applyAllVideoFilters();
             this.applyAllImageFilters();
@@ -506,18 +507,23 @@ class StateManager {
         }
 
         _updateVideoFilterState(video) {
-            const vf = this.stateManager.get('videoFilter');
-            const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 ||
-                Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0;
-            // const controlsVisible = this.stateManager.get('ui.areControlsVisible');  // 영상 및 이미지 필터 유지 (지우지 말것)
-            //video.classList.toggle('vsc-video-filter-active', controlsVisible && video.dataset.isVisible !== 'false' && shouldApply);
-        }
+    const scriptActive = this.stateManager.get('app.scriptActive');
+    const vf = this.stateManager.get('videoFilter');
+    const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 ||
+                        Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0;
+
+    // 스크립트가 활성화되었을 때만 필터를 적용합니다.
+    video.classList.toggle('vsc-video-filter-active', scriptActive && video.dataset.isVisible !== 'false' && shouldApply);
+}
 
         _updateImageFilterState(image) {
-            const level = this.stateManager.get('imageFilter.level');
-            // const controlsVisible = this.stateManager.get('ui.areControlsVisible');  // 영상 및 이미지 필터 유지 (지우지 말것)
-            //image.classList.toggle('vsc-image-filter-active', controlsVisible && image.dataset.isVisible !== 'false' && level > 0);
-        }
+    const scriptActive = this.stateManager.get('app.scriptActive');
+    const level = this.stateManager.get('imageFilter.level');
+    const shouldApply = level > 0; // 필터 적용 여부를 명확한 변수로 만듭니다.
+
+    // 스크립트가 활성화되었을 때만 필터를 적용합니다.
+    image.classList.toggle('vsc-image-filter-active', scriptActive && image.dataset.isVisible !== 'false' && shouldApply);
+}
     }
 
     function injectFiltersIntoRoot(element, manager, stateManager) {
@@ -1998,9 +2004,15 @@ class UIPlugin extends Plugin {
                 e.stopPropagation();
                 return;
             }
-            const isVisible = this.stateManager.get('ui.areControlsVisible');
-            this.stateManager.set('ui.areControlsVisible', !isVisible);
-        });
+            // 스크립트가 처음 활성화되는지 확인합니다.
+            if (!this.stateManager.get('app.scriptActive')) {
+                this.stateManager.set('app.scriptActive', true);
+            }
+
+            // UI 컨트롤의 표시 여부를 토글합니다.
+            const isVisible = this.stateManager.get('ui.areControlsVisible');
+            this.stateManager.set('ui.areControlsVisible', !isVisible);
+        });
 
         this.speedButtonsContainer = document.createElement('div');
         this.speedButtonsContainer.id = 'vsc-speed-buttons-container';
