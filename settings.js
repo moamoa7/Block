@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      102.2
-// @description  모든 오디오 프리셋 총 Gain 6~9dB 수준으로 조정
+// @version      102.3
+// @description  오디오 필터 ui 수정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -2530,7 +2530,10 @@ class UIPlugin extends Plugin {
             this._createToggleBtn('eq-toggle', 'EQ', 'audio.isEqEnabled'),
             ...eqSliders.map(s => s.parentElement),
             this._createDivider(),
-            this._createSlider('베이스 부스트', 'bass-boost', 0, 9, 0.5, 'audio.bassBoostGain', 'dB', v => `${v.toFixed(1)}dB`).control
+            this._createSlider('베이스 부스트', 'bass-boost', 0, 9, 0.5, 'audio.bassBoostGain', 'dB', v => `${v.toFixed(1)}dB`).control,
+            this._createDivider(),
+            this._createToggleBtn('hpf-toggle', 'HPF', 'audio.isHpfEnabled'),
+            hpfSlider.parentElement
         );
         const preGainGroup = document.createElement('div');
         preGainGroup.className = 'vsc-button-group';
@@ -2558,9 +2561,6 @@ class UIPlugin extends Plugin {
             this._createDivider(),
             preGainGroup, preGainSlider.parentElement,
             exponentSlider.parentElement,
-            this._createDivider(),
-            this._createToggleBtn('hpf-toggle', 'HPF', 'audio.isHpfEnabled'),
-            hpfSlider.parentElement
         );
         this.uiElements.manualVolBtn = manualVolBtn;
         this.uiElements.preGainSlider = preGainSlider;
