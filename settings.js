@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      102.1
-// @description  오디오 초기화 및 프리셋 첫 적용 시 효과 미반영 버그 최종 수정
+// @version      102.2
+// @description  모든 오디오 프리셋 총 Gain 12~15dB 수준으로 조정
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -1561,229 +1561,230 @@ class UIPlugin extends Plugin {
         this.isApplyingPreset = false;
 
         this.presetMap = {
-            'default': {
-                name: '기본값 (모든 효과 꺼짐)',
-                targetLUFS: CONFIG.LOUDNESS_TARGET,
-                hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
-                eq_enabled: false, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 0, eq_presence: 0,
-                bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
-                widen_enabled: false, widen_factor: 1.0,
-                adaptive_enabled: false, adaptive_width_freq: 150,
-                preGain_enabled: false, preGain_value: 1.0,
-                preGainExponent: CONFIG.DEFAULT_PRE_GAIN_EXPONENT,
-                reverb_enabled: false, reverb_mix: 0,
-                deesser_enabled: false, deesser_threshold: -40, deesser_freq: 5000,
-                exciter_enabled: false, exciter_amount: 0,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                multiband_enabled: false,
-                multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS,
-                smartEQ_enabled: false,
-                smartEQ_bands: []
-            },
-            'basic_clear': {
-                name: '💠 기본 개선 (명료 강화)',
-                targetLUFS: -16,
-                hpf_enabled: true, hpf_hz: 70,
-                eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 2.5, eq_treble: 1.8, eq_presence: 2.5,
-                bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
-                widen_enabled: true, widen_factor: 1.1,
-                adaptive_enabled: true, adaptive_width_freq: 180,
-                preGain_enabled: true, preGain_value: 2.2,
-                preGainExponent: 1.0,
-                reverb_enabled: false, reverb_mix: 0,
-                deesser_enabled: false, deesser_threshold: -35, deesser_freq: 6000,
-                exciter_enabled: false, exciter_amount: 10,
-                parallel_comp_enabled: false, parallel_comp_mix: 12,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqHigh: 120, threshold: -26, ratio: 3, attack: 0.012, release: 0.250, makeup: 1.5 },
-                    { freqHigh: 1000, threshold: -24, ratio: 3.2, attack: 0.010, release: 0.220, makeup: 1.5 },
-                    { freqHigh: 6000, threshold: -22, ratio: 3.5, attack: 0.008, release: 0.200, makeup: 1 },
-                    { threshold: -20, ratio: 4, attack: 0.005, release: 0.150, makeup: 0.8 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 120, Q: 1.0, threshold: -20, gain: 2 },
-                    { frequency: 1000, Q: 1.2, threshold: -22, gain: 2 },
-                    { frequency: 4000, Q: 1.0, threshold: -23, gain: 1.5 },
-                    { frequency: 8000, Q: 1.3, threshold: -25, gain: 1 }
-                ]
-            },
-            'movie_immersive': {
-                name: '🎬 영화/드라마 (강화 몰입감)',
-                targetLUFS: -14,
-                hpf_enabled: true, hpf_hz: 80,
-                eq_enabled: true, eq_subBass: 2, eq_bass: 1.5, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
-                bass_boost_gain: 5, bass_boost_freq: 70, bass_boost_q: 1.2,
-                widen_enabled: true, widen_factor: 1.7,
-                adaptive_enabled: true, adaptive_width_freq: 220,
-                preGain_enabled: true, preGain_value: 1.2,
-                preGainExponent: 1.2,
-                reverb_enabled: true, reverb_mix: 0.2,
-                deesser_enabled: true, deesser_threshold: -22, deesser_freq: 6500,
-                exciter_enabled: true, exciter_amount: 10,
-                parallel_comp_enabled: true, parallel_comp_mix: 25,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqHigh: 120, threshold: -20, ratio: 3, attack: 0.012, release: 0.300, makeup: 3 },
-                    { freqHigh: 1000, threshold: -22, ratio: 3.5, attack: 0.008, release: 0.250, makeup: 2 },
-                    { freqHigh: 6000, threshold: -24, ratio: 4, attack: 0.005, release: 0.200, makeup: 1.5 },
-                    { threshold: -26, ratio: 4.5, attack: 0.002, release: 0.150, makeup: 1.5 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 80, Q: 1.0, threshold: -18, gain: 2 },
-                    { frequency: 500, Q: 1.0, threshold: -20, gain: 2 },
-                    { frequency: 3000, Q: 0.9, threshold: -22, gain: 3 },
-                    { frequency: 10000, Q: 1.2, threshold: -23, gain: 2 }
-                ]
-            },
-            'action_blockbuster': {
-                name: '💥 액션 블록버스터 (강화 타격감)',
-                targetLUFS: -12,
-                hpf_enabled: true, hpf_hz: 70,
-                eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: -1, eq_treble: 2, eq_presence: 2.5,
-                bass_boost_gain: 6, bass_boost_freq: 55, bass_boost_q: 1.3,
-                widen_enabled: true, widen_factor: 1.7,
-                adaptive_enabled: true, adaptive_width_freq: 240,
-                preGain_enabled: true, preGain_value: 1.8,
-                preGainExponent: 1.2,
-                reverb_enabled: false, reverb_mix: 0,
-                deesser_enabled: false,
-                exciter_enabled: true, exciter_amount: 15,
-                parallel_comp_enabled: true, parallel_comp_mix: 25,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqHigh: 120, threshold: -24, ratio: 4, attack: 0.010, release: 0.320, makeup: 3 },
-                    { freqHigh: 1000, threshold: -25, ratio: 4.5, attack: 0.008, release: 0.260, makeup: 2.5 },
-                    { freqHigh: 6000, threshold: -26, ratio: 5, attack: 0.006, release: 0.200, makeup: 2 },
-                    { threshold: -28, ratio: 5.5, attack: 0.003, release: 0.150, makeup: 1.5 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 60, Q: 1.0, threshold: -18, gain: 3 },
-                    { frequency: 250, Q: 1.2, threshold: -20, gain: 0 },
-                    { frequency: 2000, Q: 0.8, threshold: -22, gain: 3 },
-                    { frequency: 8000, Q: 1.3, threshold: -23, gain: 3 }
-                ]
-            },
-            'concert_hall': {
-                name: '🏟️ 라이브 콘서트 (강화 현장감)',
-                targetLUFS: -13,
-                hpf_enabled: true, hpf_hz: 70,
-                eq_enabled: true, eq_subBass: 2, eq_bass: 1.5, eq_mid: 1, eq_treble: 2, eq_presence: 2.5,
-                bass_boost_gain: 5, bass_boost_freq: 65, bass_boost_q: 1.2,
-                widen_enabled: true, widen_factor: 1.5,
-                adaptive_enabled: true, adaptive_width_freq: 200,
-                preGain_enabled: true, preGain_value: 1.8,
-                preGainExponent: 1.2,
-                reverb_enabled: true, reverb_mix: 0.6,
-                deesser_enabled: false,
-                exciter_enabled: true, exciter_amount: 12,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqHigh: 120, threshold: -22, ratio: 3.5, attack: 0.012, release: 0.280, makeup: 3 },
-                    { freqHigh: 1000, threshold: -24, ratio: 3.5, attack: 0.009, release: 0.250, makeup: 2 },
-                    { freqHigh: 6000, threshold: -25, ratio: 4, attack: 0.006, release: 0.210, makeup: 1.5 },
-                    { threshold: -27, ratio: 4.5, attack: 0.003, release: 0.160, makeup: 1.2 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 100, Q: 1.0, threshold: -18, gain: -2 },
-                    { frequency: 500, Q: 1.1, threshold: -19, gain: 3 },
-                    { frequency: 3000, Q: 0.9, threshold: -21, gain: 3 },
-                    { frequency: 9000, Q: 1.3, threshold: -23, gain: 3 }
-                ]
-            },
-            'music_dynamic': {
-                name: '🎶 음악 (강화 다이나믹)',
-                targetLUFS: -12,
-                hpf_enabled: true, hpf_hz: 50,
-                eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: 1.5, eq_treble: 1.5, eq_presence: 2.5,
-                bass_boost_gain: 5, bass_boost_freq: 60, bass_boost_q: 1.2,
-                widen_enabled: true, widen_factor: 1.5,
-                adaptive_enabled: true, adaptive_width_freq: 180,
-                preGain_enabled: true, preGain_value: 1.8,
-                preGainExponent: 1.2,
-                reverb_enabled: false,
-                deesser_enabled: false,
-                exciter_enabled: true, exciter_amount: 18,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqHigh: 120, threshold: -23, ratio: 4, attack: 0.001, release: 0.300, makeup: 2.5 },
-                    { freqHigh: 1000, threshold: -25, ratio: 4.5, attack: 0.008, release: 0.250, makeup: 2 },
-                    { freqHigh: 6000, threshold: -26, ratio: 5, attack: 0.005, release: 0.200, makeup: 1.5 },
-                    { threshold: -28, ratio: 5.5, attack: 0.002, release: 0.150, makeup: 1.2 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 70, Q: 1.0, threshold: -18, gain: 3 },
-                    { frequency: 250, Q: 1.2, threshold: -19, gain: 0 },
-                    { frequency: 1500, Q: 1.0, threshold: -21, gain: 3 },
-                    { frequency: 7000, Q: 1.2, threshold: -22, gain: 3 }
-                ]
-            },
-            'vocal_clarity_pro': {
-                name: '🎙️ 목소리 명료 (강화)',
-                targetLUFS: -16,
-                hpf_enabled: true, hpf_hz: 100,
-                eq_enabled: true, eq_subBass: -1, eq_bass: 0, eq_mid: 4, eq_treble: 2, eq_presence: 4,
-                bass_boost_gain: 3, bass_boost_freq: 55, bass_boost_q: 1.0,
-                widen_enabled: false, widen_factor: 1.0,
-                adaptive_enabled: true, adaptive_width_freq: 180,
-                preGain_enabled: true, preGain_value: 1.8,
-                preGainExponent: 1.2,
-                reverb_enabled: false, reverb_mix: 0,
-                deesser_enabled: true, deesser_threshold: -28,
-                exciter_enabled: true, exciter_amount: 10,
-                parallel_comp_enabled: true, parallel_comp_mix: 15,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqHigh: 120, threshold: -18, ratio: 3, attack: 0.012, release: 0.320, makeup: 2 },
-                    { freqHigh: 1000, threshold: -20, ratio: 3.5, attack: 0.008, release: 0.260, makeup: 2 },
-                    { freqHigh: 6000, threshold: -22, ratio: 3.8, attack: 0.006, release: 0.220, makeup: 2.5 },
-                    { threshold: -24, ratio: 4, attack: 0.004, release: 0.160, makeup: 1.2 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 150, Q: 1.2, threshold: -18, gain: -1 },
-                    { frequency: 1000, Q: 1.0, threshold: -20, gain: 3 },
-                    { frequency: 3000, Q: 0.9, threshold: -21, gain: 3.5 },
-                    { frequency: 7000, Q: 1.5, threshold: -22, gain: 2 }
-                ]
-            },
-            'gaming_pro': {
-                name: '🎮 게이밍 (강화 사운드 플레이)',
-                targetLUFS: -13,
-                hpf_enabled: true, hpf_hz: 60,
-                eq_enabled: true, eq_subBass: 0, eq_bass: 3, eq_mid: 3, eq_treble: 3, eq_presence: 3,
-                bass_boost_gain: 5, bass_boost_freq: 60, bass_boost_q: 1.1,
-                widen_enabled: true, widen_factor: 1.2,
-                adaptive_enabled: true, adaptive_width_freq: 170,
-                preGain_enabled: true, preGain_value: 3,
-                preGainExponent: 1.2,
-                reverb_enabled: false,
-                deesser_enabled: false,
-                exciter_enabled: true, exciter_amount: 10,
-                parallel_comp_enabled: false, parallel_comp_mix: 0,
-                multiband_enabled: true,
-                multiband_bands: [
-                    { freqHigh: 120, threshold: -21, ratio: 3.5, attack: 0.01, release: 0.300, makeup: 2.5 },
-                    { freqHigh: 1000, threshold: -23, ratio: 4, attack: 0.008, release: 0.250, makeup: 2 },
-                    { freqHigh: 6000, threshold: -25, ratio: 4.5, attack: 0.006, release: 0.200, makeup: 1.5 },
-                    { threshold: -27, ratio: 5, attack: 0.003, release: 0.150, makeup: 1.2 }
-                ],
-                smartEQ_enabled: true,
-                smartEQ_bands: [
-                    { frequency: 80, Q: 1.0, threshold: -18, gain: 0 },
-                    { frequency: 500, Q: 1.0, threshold: -20, gain: 3 },
-                    { frequency: 3000, Q: 0.9, threshold: -21, gain: 4 },
-                    { frequency: 8000, Q: 1.3, threshold: -22, gain: 3 }
-                ]
-            }
-        };
+    'default': {
+        name: '기본값 (모든 효과 꺼짐)',
+        targetLUFS: CONFIG.LOUDNESS_TARGET,
+        hpf_enabled: false, hpf_hz: CONFIG.EFFECTS_HPF_FREQUENCY,
+        eq_enabled: false, eq_subBass: 0, eq_bass: 0, eq_mid: 0, eq_treble: 0, eq_presence: 0,
+        bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
+        widen_enabled: false, widen_factor: 1.0,
+        adaptive_enabled: false, adaptive_width_freq: 150,
+        preGain_enabled: false, preGain_value: 1.0,
+        preGainExponent: CONFIG.DEFAULT_PRE_GAIN_EXPONENT,
+        reverb_enabled: false, reverb_mix: 0,
+        deesser_enabled: false, deesser_threshold: -40, deesser_freq: 5000,
+        exciter_enabled: false, exciter_amount: 0,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: false,
+        multiband_bands: CONFIG.DEFAULT_MULTIBAND_COMP_SETTINGS,
+        smartEQ_enabled: false,
+        smartEQ_bands: []
+    },
+    'basic_clear': {
+        name: '💠 기본 개선 (명료 강화)',
+        targetLUFS: -16,
+        hpf_enabled: true, hpf_hz: 70,
+        eq_enabled: true, eq_subBass: 0, eq_bass: 0, eq_mid: 2.5, eq_treble: 1.8, eq_presence: 2.5,
+        bass_boost_gain: 0, bass_boost_freq: 60, bass_boost_q: 1.0,
+        widen_enabled: true, widen_factor: 1.1,
+        adaptive_enabled: true, adaptive_width_freq: 180,
+        preGain_enabled: true, preGain_value: 1.8,
+        preGainExponent: 1.0,
+        reverb_enabled: false, reverb_mix: 0,
+        deesser_enabled: false, deesser_threshold: -35, deesser_freq: 6000,
+        exciter_enabled: false, exciter_amount: 10,
+        parallel_comp_enabled: false, parallel_comp_mix: 12,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -26, ratio: 3, attack: 0.012, release: 0.250, makeup: 1 },
+            { freqHigh: 1000, threshold: -24, ratio: 3.2, attack: 0.010, release: 0.220, makeup: 1 },
+            { freqHigh: 6000, threshold: -22, ratio: 3.5, attack: 0.008, release: 0.200, makeup: 0.8 },
+            { threshold: -20, ratio: 4, attack: 0.005, release: 0.150, makeup: 0.8 }
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 120, Q: 1.0, threshold: -20, gain: 2 },
+            { frequency: 1000, Q: 1.2, threshold: -22, gain: 2 },
+            { frequency: 4000, Q: 1.0, threshold: -23, gain: 1.5 },
+            { frequency: 8000, Q: 1.3, threshold: -25, gain: 1 }
+        ]
+    },
+    'movie_immersive': {
+        name: '🎬 영화/드라마 (강화 몰입감)',
+        targetLUFS: -14,
+        hpf_enabled: true, hpf_hz: 80,
+        eq_enabled: true, eq_subBass: 2, eq_bass: 1.5, eq_mid: 3, eq_treble: 2, eq_presence: 2.5,
+        bass_boost_gain: 5, bass_boost_freq: 70, bass_boost_q: 1.2,
+        widen_enabled: true, widen_factor: 1.7,
+        adaptive_enabled: true, adaptive_width_freq: 220,
+        preGain_enabled: true, preGain_value: 1.0,
+        preGainExponent: 1.2,
+        reverb_enabled: true, reverb_mix: 0.2,
+        deesser_enabled: true, deesser_threshold: -22, deesser_freq: 6500,
+        exciter_enabled: true, exciter_amount: 10,
+        parallel_comp_enabled: true, parallel_comp_mix: 25,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -20, ratio: 3, attack: 0.012, release: 0.300, makeup: 1.5 },
+            { freqHigh: 1000, threshold: -22, ratio: 3.5, attack: 0.008, release: 0.250, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -24, ratio: 4, attack: 0.005, release: 0.200, makeup: 1.2 },
+            { threshold: -26, ratio: 4.5, attack: 0.002, release: 0.150, makeup: 1.2 }
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 80, Q: 1.0, threshold: -18, gain: 2 },
+            { frequency: 500, Q: 1.0, threshold: -20, gain: 2 },
+            { frequency: 3000, Q: 0.9, threshold: -22, gain: 3 },
+            { frequency: 10000, Q: 1.2, threshold: -23, gain: 2 }
+        ]
+    },
+    'action_blockbuster': {
+        name: '💥 액션 블록버스터 (강화 타격감)',
+        targetLUFS: -12,
+        hpf_enabled: true, hpf_hz: 70,
+        eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: -1, eq_treble: 2, eq_presence: 2.5,
+        bass_boost_gain: 6, bass_boost_freq: 55, bass_boost_q: 1.3,
+        widen_enabled: true, widen_factor: 1.7,
+        adaptive_enabled: true, adaptive_width_freq: 240,
+        preGain_enabled: true, preGain_value: 1.2,
+        preGainExponent: 1.2,
+        reverb_enabled: false, reverb_mix: 0,
+        deesser_enabled: false,
+        exciter_enabled: true, exciter_amount: 15,
+        parallel_comp_enabled: true, parallel_comp_mix: 25,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -24, ratio: 4, attack: 0.010, release: 0.320, makeup: 1.5 },
+            { freqHigh: 1000, threshold: -25, ratio: 4.5, attack: 0.008, release: 0.260, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -26, ratio: 5, attack: 0.006, release: 0.200, makeup: 1.2 },
+            { threshold: -28, ratio: 5.5, attack: 0.003, release: 0.150, makeup: 1.0 }
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 60, Q: 1.0, threshold: -18, gain: 3 },
+            { frequency: 250, Q: 1.2, threshold: -20, gain: 0 },
+            { frequency: 2000, Q: 0.8, threshold: -22, gain: 3 },
+            { frequency: 8000, Q: 1.3, threshold: -23, gain: 3 }
+        ]
+    },
+    'concert_hall': {
+        name: '🏟️ 라이브 콘서트 (강화 현장감)',
+        targetLUFS: -13,
+        hpf_enabled: true, hpf_hz: 70,
+        eq_enabled: true, eq_subBass: 2, eq_bass: 1.5, eq_mid: 1, eq_treble: 2, eq_presence: 2.5,
+        bass_boost_gain: 5, bass_boost_freq: 65, bass_boost_q: 1.2,
+        widen_enabled: true, widen_factor: 1.5,
+        adaptive_enabled: true, adaptive_width_freq: 200,
+        preGain_enabled: true, preGain_value: 1.2,
+        preGainExponent: 1.2,
+        reverb_enabled: true, reverb_mix: 0.6,
+        deesser_enabled: false,
+        exciter_enabled: true, exciter_amount: 12,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -22, ratio: 3.5, attack: 0.012, release: 0.280, makeup: 1.5 },
+            { freqHigh: 1000, threshold: -24, ratio: 3.5, attack: 0.009, release: 0.250, makeup: 1.2 },
+            { freqHigh: 6000, threshold: -25, ratio: 4, attack: 0.006, release: 0.210, makeup: 1.0 },
+            { threshold: -27, ratio: 4.5, attack: 0.003, release: 0.160, makeup: 0.8 }
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 100, Q: 1.0, threshold: -18, gain: -2 },
+            { frequency: 500, Q: 1.1, threshold: -19, gain: 3 },
+            { frequency: 3000, Q: 0.9, threshold: -21, gain: 3 },
+            { frequency: 9000, Q: 1.3, threshold: -23, gain: 3 }
+        ]
+    },
+    'music_dynamic': {
+        name: '🎶 음악 (강화 다이나믹)',
+        targetLUFS: -12,
+        hpf_enabled: true, hpf_hz: 50,
+        eq_enabled: true, eq_subBass: 2, eq_bass: 2, eq_mid: 1.5, eq_treble: 1.5, eq_presence: 2.5,
+        bass_boost_gain: 5, bass_boost_freq: 60, bass_boost_q: 1.2,
+        widen_enabled: true, widen_factor: 1.5,
+        adaptive_enabled: true, adaptive_width_freq: 180,
+        preGain_enabled: true, preGain_value: 1.2,
+        preGainExponent: 1.2,
+        reverb_enabled: false,
+        deesser_enabled: false,
+        exciter_enabled: true, exciter_amount: 18,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -23, ratio: 4, attack: 0.001, release: 0.300, makeup: 1.5 },
+            { freqHigh: 1000, threshold: -25, ratio: 4.5, attack: 0.008, release: 0.250, makeup: 1.2 },
+            { freqHigh: 6000, threshold: -26, ratio: 5, attack: 0.005, release: 0.200, makeup: 1.0 },
+            { threshold: -28, ratio: 5.5, attack: 0.002, release: 0.150, makeup: 0.8 }
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 70, Q: 1.0, threshold: -18, gain: 3 },
+            { frequency: 250, Q: 1.2, threshold: -19, gain: 0 },
+            { frequency: 1500, Q: 1.0, threshold: -21, gain: 3 },
+            { frequency: 7000, Q: 1.2, threshold: -22, gain: 3 }
+        ]
+    },
+    'vocal_clarity_pro': {
+        name: '🎙️ 목소리 명료 (강화)',
+        targetLUFS: -16,
+        hpf_enabled: true, hpf_hz: 100,
+        eq_enabled: true, eq_subBass: -1, eq_bass: 0, eq_mid: 4, eq_treble: 2, eq_presence: 4,
+        bass_boost_gain: 3, bass_boost_freq: 55, bass_boost_q: 1.0,
+        widen_enabled: false, widen_factor: 1.0,
+        adaptive_enabled: true, adaptive_width_freq: 180,
+        preGain_enabled: true, preGain_value: 1.2,
+        preGainExponent: 1.2,
+        reverb_enabled: false, reverb_mix: 0,
+        deesser_enabled: true, deesser_threshold: -28,
+        exciter_enabled: true, exciter_amount: 10,
+        parallel_comp_enabled: true, parallel_comp_mix: 15,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -18, ratio: 3, attack: 0.012, release: 0.320, makeup: 1.5 },
+            { freqHigh: 1000, threshold: -20, ratio: 3.5, attack: 0.008, release: 0.260, makeup: 1.5 },
+            { freqHigh: 6000, threshold: -22, ratio: 3.8, attack: 0.006, release: 0.220, makeup: 1.5 },
+            { threshold: -24, ratio: 4, attack: 0.004, release: 0.160, makeup: 1.0 }
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 150, Q: 1.2, threshold: -18, gain: -1 },
+            { frequency: 1000, Q: 1.0, threshold: -20, gain: 3 },
+            { frequency: 3000, Q: 0.9, threshold: -21, gain: 3.5 },
+            { frequency: 7000, Q: 1.5, threshold: -22, gain: 2 }
+        ]
+    },
+    'gaming_pro': {
+        name: '🎮 게이밍 (강화 사운드 플레이)',
+        targetLUFS: -13,
+        hpf_enabled: true, hpf_hz: 60,
+        eq_enabled: true, eq_subBass: 0, eq_bass: 3, eq_mid: 3, eq_treble: 3, eq_presence: 3,
+        bass_boost_gain: 5, bass_boost_freq: 60, bass_boost_q: 1.1,
+        widen_enabled: true, widen_factor: 1.2,
+        adaptive_enabled: true, adaptive_width_freq: 170,
+        preGain_enabled: true, preGain_value: 1.2,
+        preGainExponent: 1.2,
+        reverb_enabled: false,
+        deesser_enabled: false,
+        exciter_enabled: true, exciter_amount: 10,
+        parallel_comp_enabled: false, parallel_comp_mix: 0,
+        multiband_enabled: true,
+        multiband_bands: [
+            { freqHigh: 120, threshold: -21, ratio: 3.5, attack: 0.01, release: 0.300, makeup: 1.5 },
+            { freqHigh: 1000, threshold: -23, ratio: 4, attack: 0.008, release: 0.250, makeup: 1.2 },
+            { freqHigh: 6000, threshold: -25, ratio: 4.5, attack: 0.006, release: 0.200, makeup: 1.0 },
+            { threshold: -27, ratio: 5, attack: 0.003, release: 0.150, makeup: 0.8 }
+        ],
+        smartEQ_enabled: true,
+        smartEQ_bands: [
+            { frequency: 80, Q: 1.0, threshold: -18, gain: 0 },
+            { frequency: 500, Q: 1.0, threshold: -20, gain: 3 },
+            { frequency: 3000, Q: 0.9, threshold: -21, gain: 4 },
+            { frequency: 8000, Q: 1.3, threshold: -22, gain: 3 }
+        ]
+    }
+};
+
     }
 
     init(stateManager) {
