@@ -1619,7 +1619,7 @@ class UIPlugin extends Plugin {
         adaptive_enabled: true, adaptive_width_freq: 220,
         preGain_enabled: true, preGain_value: 1.0,
         preGainExponent: 1.2,
-        reverb_enabled: false, reverb_mix: 0,
+        reverb_enabled: true, reverb_mix: 0.2,
         deesser_enabled: true, deesser_threshold: -22, deesser_freq: 6500,
         exciter_enabled: true, exciter_amount: 10,
         parallel_comp_enabled: true, parallel_comp_mix: 25,
