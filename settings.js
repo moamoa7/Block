@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      102.7
-// @description  정지 아이콘 클릭시 모든 설정 유지한채 번개 아이콘만 보이는걸로 변경
+// @version      102.8
+// @description  페이지 첫 로딩시 아무런 작업없이 번개 아이콘만 띄우고 이후 번개 아이콘 클릭시 스크립트 작동
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -267,14 +267,19 @@ class StateManager {
 
         init(stateManager) {
             super.init(stateManager);
-            this.subscribe('app.pluginsInitialized', () => {
-                this.ensureObservers();
-                this.scanAndApply();
-                document.addEventListener('addShadowRoot', this.debouncedScanTask);
-                if (this.maintenanceInterval) clearInterval(this.maintenanceInterval);
-                this.maintenanceInterval = setInterval(() => this.scanAndApply(), 2500);
-            });
+            // 이제 'app.scriptActive' 상태를 구독합니다.
+    // 이 상태는 사용자가 번개 아이콘을 처음 클릭할 때 UIPlugin에서 true로 설정됩니다.
+    this.subscribe('app.scriptActive', (isActive) => {
+        if (isActive) {
+            // 사용자가 활성화했을 때 최초 스캔 및 옵저버 설정을 시작합니다.
+            this.ensureObservers();
+            this.scanAndApply();
+            document.addEventListener('addShadowRoot', this.debouncedScanTask);
+            if (this.maintenanceInterval) clearInterval(this.maintenanceInterval);
+            this.maintenanceInterval = setInterval(() => this.scanAndApply(), 2500);
         }
+    });
+}
 
         destroy() {
             super.destroy();
@@ -320,9 +325,6 @@ class StateManager {
 
         _processElements(findAllFn, attachFn, detachFn, stateKey) {
             const allElements = findAllFn();
-            if (allElements.length > 0 && !this.stateManager.get('ui.globalContainer')) {
-                this.stateManager.set('ui.createRequested', true);
-            }
 
             const activeSet = this.stateManager.get(stateKey);
             const oldElements = new Set(activeSet);
@@ -1803,12 +1805,10 @@ class UIPlugin extends Plugin {
             }
         }, 0);
 
-        this.subscribe('ui.createRequested', () => {
             if (!this.globalContainer) {
-                this.createGlobalUI();
-                this.stateManager.set('ui.globalContainer', this.globalContainer);
-            }
-        });
+    this.createGlobalUI();
+    this.stateManager.set('ui.globalContainer', this.globalContainer);
+}
 
         this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
         this.subscribe('media.activeMedia', () => this.updateUIVisibility());
