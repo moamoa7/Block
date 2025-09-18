@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250917
+! Version: 20250919
 !
 !
 !
@@ -364,6 +364,7 @@ kakaotv.daum.net#@#[class^="ad"]
 ! - - - 예외
 pornhub.com#@#[class*="Modal"]
 play.sooplive.co.kr#@#[class*="Modal"]
+tiktok.com#@#[class*="Modal"]
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
 !
