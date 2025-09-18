@@ -1181,6 +1181,11 @@ tvhot.store##.object-cover
 ![$domain=/^www.ntnt\d+.tv/]##.wixui-column-strip.CohWsy.comp-lhh974lu
 !
 !
+! 누누티비 (https://www.nnootv1.tv/)
+! - 배너
+[$domain=/^www.nnootv\d+.tv/]##.wixui-column-strip.CohWsy.comp-mcu94uy5
+!
+!
 ! 티비위키 (https://tv61.wiki/)
 ! 콕콕티비 (https://cokcoktv4.com/)
 ! - 배너
