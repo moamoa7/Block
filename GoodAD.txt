@@ -1184,6 +1184,9 @@ tvhot.store##.object-cover
 ! 누누티비 (https://www.nnootv1.tv/)
 ! - 배너
 [$domain=/^www.nnootv\d+.tv/]##.wixui-column-strip.CohWsy.comp-mcu94uy5
+! - 기타글
+[$domain=/^www.nnootv\d+.tv/]##.wixui-section.comp-lhh7gmml2.Oqnisf
+[$domain=/^www.nnootv\d+.tv/]##.mfxFLH.NZHLsZ.comp-lhhamk3o
 !
 !
 ! 티비위키 (https://tv61.wiki/)
