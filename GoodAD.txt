@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250919
+! Version: 20250920
 !
 !
 !
@@ -592,6 +592,8 @@ etoland.co.kr##section.box:nth-of-type(7)
 ! - 각 게시판 배너
 !||www.etoland.co.kr/data/daumeditor10/*$image
 etoland.co.kr###mw_basic > div > [href^="https://etoland.co.kr/pages/short.php"]
+! - 게시물 상단 배너 공간 (모바일)
+etoland.co.kr##div:nth-of-type(5) > div:nth-of-type(3)
 ! - 이토랜드 광고 게시물 배너
 ||*/img/market/ajd/ajd_banner*$image
 ! - 게시물 내 하단 배너
