@@ -2464,9 +2464,9 @@ class UIPlugin extends Plugin {
 
         const videoBtnGroup = document.createElement('div');
         videoBtnGroup.style.cssText = 'display: flex; gap: 8px; margin-top: 8px;';
-        videoBtnGroup.append(videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videoResetBtn);
+        videoBtnGroup.append(videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn);
 
-        const videoButtons = [videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videoResetBtn];
+        const videoButtons = [videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn];
         this.subscribe('videoFilter.activePreset', (activeKey) => {
             videoButtons.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
