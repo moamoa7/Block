@@ -35,7 +35,7 @@
         SPEED_PRESETS: [2.0, 1.5, 1.2, 1, 0.5, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['tv.naver.com', 'youtube.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
         LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com'],
-        EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'register', 'forgot', 'frdl.my', 'up4load.com', 'liteapks.com', 'poooo.ml'],
+        EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'register', 'forgot', 'frdl.my', 'up4load.com', 'liteapks.com', 'poooo.ml', 'github.com', 'chatgpt.com', 'gemini.google.com', 'drive.google.com', 'photos.google.com', 'keep.google.com', 'discord.com'],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
@@ -2403,16 +2403,36 @@ class UIPlugin extends Plugin {
             this.stateManager.set('videoFilter.activePreset', 'reset');
         };
 
+        const videoSsharpBtn = document.createElement('button');
+        videoSsharpBtn.className = 'vsc-btn';
+        videoSsharpBtn.textContent = 'S샤프';
+        videoSsharpBtn.dataset.presetKey = 'sharpS';
+        videoSsharpBtn.onclick = () => {
+            this.stateManager.set('videoFilter.level', 6);
+            this.stateManager.set('videoFilter.level2', 3);
+            this.stateManager.set('videoFilter.activePreset', 'sharpS');
+        };
+
+        const videoMsharpBtn = document.createElement('button');
+        videoMsharpBtn.className = 'vsc-btn';
+        videoMsharpBtn.textContent = 'M샤프';
+        videoMsharpBtn.dataset.presetKey = 'sharpM';
+        videoMsharpBtn.onclick = () => {
+            this.stateManager.set('videoFilter.level', 8);
+            this.stateManager.set('videoFilter.level2', 4);
+            this.stateManager.set('videoFilter.activePreset', 'sharpM');
+        };
+
         const videoshadowsBrightenBtn = document.createElement('button');
         videoshadowsBrightenBtn.className = 'vsc-btn';
         videoshadowsBrightenBtn.textContent = '밝기1';
         videoshadowsBrightenBtn.dataset.presetKey = 'brighten1';
         videoshadowsBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1);
-            this.stateManager.set('videoFilter.saturation', 100);
+            this.stateManager.set('videoFilter.gamma', 1.15);
+            this.stateManager.set('videoFilter.saturation', 103);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', 2);
-            this.stateManager.set('videoFilter.highlights', 1);
+            this.stateManager.set('videoFilter.shadows', -6);
+            this.stateManager.set('videoFilter.highlights', 3);
             this.stateManager.set('videoFilter.activePreset', 'brighten1');
         };
 
@@ -2421,11 +2441,11 @@ class UIPlugin extends Plugin {
         videoBrightenBtn.textContent = '밝기2';
         videoBrightenBtn.dataset.presetKey = 'brighten2';
         videoBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.15);
-            this.stateManager.set('videoFilter.saturation', 103);
+            this.stateManager.set('videoFilter.gamma', 1.30);
+            this.stateManager.set('videoFilter.saturation', 106);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -3);
-            this.stateManager.set('videoFilter.highlights', 3);
+            this.stateManager.set('videoFilter.shadows', -12);
+            this.stateManager.set('videoFilter.highlights', 6);
             this.stateManager.set('videoFilter.activePreset', 'brighten2');
         };
 
@@ -2434,45 +2454,19 @@ class UIPlugin extends Plugin {
         videoNewBrightenBtn.textContent = '밝기3';
         videoNewBrightenBtn.dataset.presetKey = 'brighten3';
         videoNewBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.30);
-            this.stateManager.set('videoFilter.saturation', 106);
-            this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -6);
-            this.stateManager.set('videoFilter.highlights', 6);
-            this.stateManager.set('videoFilter.activePreset', 'brighten3');
-        };
-
-        const videohighBrightenBtn = document.createElement('button');
-        videohighBrightenBtn.className = 'vsc-btn';
-        videohighBrightenBtn.textContent = '밝기4';
-        videohighBrightenBtn.dataset.presetKey = 'brighten4';
-        videohighBrightenBtn.onclick = () => {
             this.stateManager.set('videoFilter.gamma', 1.45);
             this.stateManager.set('videoFilter.saturation', 109);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -9);
+            this.stateManager.set('videoFilter.shadows', -18);
             this.stateManager.set('videoFilter.highlights', 9);
-            this.stateManager.set('videoFilter.activePreset', 'brighten4');
-        };
-
-        const videohigherBrightenBtn = document.createElement('button');
-        videohigherBrightenBtn.className = 'vsc-btn';
-        videohigherBrightenBtn.textContent = '밝기5';
-        videohigherBrightenBtn.dataset.presetKey = 'brighten5';
-        videohigherBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.60);
-            this.stateManager.set('videoFilter.saturation', 112);
-            this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -12);
-            this.stateManager.set('videoFilter.highlights', 12);
-            this.stateManager.set('videoFilter.activePreset', 'brighten5');
+            this.stateManager.set('videoFilter.activePreset', 'brighten3');
         };
 
         const videoBtnGroup = document.createElement('div');
         videoBtnGroup.style.cssText = 'display: flex; gap: 8px; margin-top: 8px;';
-        videoBtnGroup.append(videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videohighBrightenBtn, videohigherBrightenBtn, videoResetBtn);
+        videoBtnGroup.append(videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videoResetBtn);
 
-        const videoButtons = [videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videohighBrightenBtn, videohigherBrightenBtn, videoResetBtn];
+        const videoButtons = [videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoNewBrightenBtn, videoResetBtn];
         this.subscribe('videoFilter.activePreset', (activeKey) => {
             videoButtons.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
