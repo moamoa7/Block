@@ -2431,7 +2431,7 @@ class UIPlugin extends Plugin {
             this.stateManager.set('videoFilter.gamma', 1.15);
             this.stateManager.set('videoFilter.saturation', 103);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -6.25);
+            this.stateManager.set('videoFilter.shadows', -5);
             this.stateManager.set('videoFilter.highlights', 5);
             this.stateManager.set('videoFilter.activePreset', 'brighten1');
         };
@@ -2444,7 +2444,7 @@ class UIPlugin extends Plugin {
             this.stateManager.set('videoFilter.gamma', 1.30);
             this.stateManager.set('videoFilter.saturation', 106);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -12.5);
+            this.stateManager.set('videoFilter.shadows', -10);
             this.stateManager.set('videoFilter.highlights', 10);
             this.stateManager.set('videoFilter.activePreset', 'brighten2');
         };
