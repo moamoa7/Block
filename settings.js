@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      102.7
-// @description  정지 아이콘 클릭시 모든 설정 유지한채 번개 아이콘만 보이는걸로 변경
+// @version      102.8
+// @description  비디오 UI 일부 버튼이 두줄로 나오는 문제 해결
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -2323,7 +2323,7 @@ class UIPlugin extends Plugin {
             #vsc-video-controls .vsc-submenu { width: ${isMobile ? '320px' : '380px'}; max-width: 80vw; }
             #vsc-image-controls .vsc-submenu { width: 100px; }
             .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
-            .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); }
+            .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; }
             .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
             .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
             .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; }
@@ -2465,8 +2465,9 @@ class UIPlugin extends Plugin {
         };
 
         const videoBtnGroup = document.createElement('div');
-        videoBtnGroup.style.cssText = 'display: flex; gap: 8px; margin-top: 8px;';
-        videoBtnGroup.append(videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn);
+        // flex-wrap: wrap; 과 justify-content: flex-end; 를 추가합니다.
+videoBtnGroup.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px;';
+videoBtnGroup.append(videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn);
 
         const videoButtons = [videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn];
         this.subscribe('videoFilter.activePreset', (activeKey) => {
