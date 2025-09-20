@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
-// @version      102.8
-// @description  비디오 UI 일부 버튼이 두줄로 나오는 문제 해결
+// @version      102.9
+// @description  비디오 UI 일부 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -2320,7 +2320,7 @@ class UIPlugin extends Plugin {
             .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; }
             .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
             #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '320px' : '520px'}; max-width: 90vw; }
-            #vsc-video-controls .vsc-submenu { width: ${isMobile ? '400px' : '460px'}; max-width: 80vw; }
+            #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; }
             #vsc-image-controls .vsc-submenu { width: 100px; }
             .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
             .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; }
@@ -2477,10 +2477,27 @@ class UIPlugin extends Plugin {
             this.stateManager.set('videoFilter.activePreset', 'videoOFF');
         };
 
-        const videoBtnGroup = document.createElement('div');
-        // flex-wrap: wrap; 과 justify-content: flex-end; 를 추가합니다.
-videoBtnGroup.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px;';
-videoBtnGroup.append(videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoSSBrightenBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn);
+        // --- 버튼 그룹 레이아웃 수정 시작 ---
+
+        // 1. 모든 버튼 행을 감싸는 메인 컨테이너를 생성합니다. (세로 정렬)
+        const videoButtonsContainer = document.createElement('div');
+        videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 5px; margin-top: 5px;';
+
+        // 2. 첫 번째 줄 버튼 그룹을 생성하고 버튼을 추가합니다.
+        const videoBtnGroup1 = document.createElement('div');
+        videoBtnGroup1.style.cssText = 'display: flex; justify-content: center; gap: 5px;';
+        videoBtnGroup1.append(videoResetBtn, videoSsharpBtn, videoMsharpBtn);
+
+        // 3. 두 번째 줄 버튼 그룹을 생성하고 버튼을 추가합니다.
+        const videoBtnGroup2 = document.createElement('div');
+        videoBtnGroup2.style.cssText = 'display: flex; justify-content: center; gap: 5px;';
+        // 변수명이 이전 버전과 다를 수 있으나, 버튼 텍스트 기준으로 '밝기S', '밝기M', '밝기L', 'OFF' 버튼입니다.
+        videoBtnGroup2.append(videoSSBrightenBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn);
+
+        // 4. 두 개의 버튼 그룹을 메인 컨테이너에 추가합니다.
+        videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup2);
+
+        // --- 버튼 그룹 레이아웃 수정 끝 ---
 
         const videoButtons = [videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoSSBrightenBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn];
         this.subscribe('videoFilter.activePreset', (activeKey) => {
@@ -2505,7 +2522,7 @@ videoBtnGroup.append(videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoSSBrigh
             this._createSlider('대비', 'v-shadows', -50, 50, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control,
             this._createSlider('감마(*)', 'v-gamma', 1, 2, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
             this._createSlider('채도(*)', 'v-saturation', 0, 400, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
-            videoBtnGroup
+            videoButtonsContainer
         );
 
         const audioSubMenu = this._createControlGroup('vsc-stereo-controls', '🎧', '사운드 필터', controlsContainer);
