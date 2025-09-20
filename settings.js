@@ -2320,7 +2320,7 @@ class UIPlugin extends Plugin {
             .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; }
             .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '4px' : 'clamp(6px, 1vmin, 9px)'}; }
             #vsc-stereo-controls .vsc-submenu { width: ${isMobile ? '320px' : '520px'}; max-width: 90vw; }
-            #vsc-video-controls .vsc-submenu { width: ${isMobile ? '360px' : '420px'}; max-width: 80vw; }
+            #vsc-video-controls .vsc-submenu { width: ${isMobile ? '400px' : '460px'}; max-width: 80vw; }
             #vsc-image-controls .vsc-submenu { width: 100px; }
             .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
             .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; }
@@ -2423,30 +2423,43 @@ class UIPlugin extends Plugin {
             this.stateManager.set('videoFilter.activePreset', 'sharpM');
         };
 
+        const videoSSBrightenBtn = document.createElement('button');
+        videoSSBrightenBtn.className = 'vsc-btn';
+        videoSSBrightenBtn.textContent = '밝기S';
+        videoSSBrightenBtn.dataset.presetKey = 'brighten1';
+        videoSSBrightenBtn.onclick = () => {
+            this.stateManager.set('videoFilter.gamma', 1.15);
+            this.stateManager.set('videoFilter.saturation', 103);
+            this.stateManager.set('videoFilter.blur', 0);
+            this.stateManager.set('videoFilter.shadows', -6);
+            this.stateManager.set('videoFilter.highlights', 3);
+            this.stateManager.set('videoFilter.activePreset', 'brighten1');
+        };
+
         const videoshadowsBrightenBtn = document.createElement('button');
         videoshadowsBrightenBtn.className = 'vsc-btn';
-        videoshadowsBrightenBtn.textContent = '밝기S';
-        videoshadowsBrightenBtn.dataset.presetKey = 'brighten1';
+        videoshadowsBrightenBtn.textContent = '밝기M';
+        videoshadowsBrightenBtn.dataset.presetKey = 'brighten2';
         videoshadowsBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.35);
+            this.stateManager.set('videoFilter.gamma', 1.30);
             this.stateManager.set('videoFilter.saturation', 107);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -7);
-            this.stateManager.set('videoFilter.highlights', 5);
-            this.stateManager.set('videoFilter.activePreset', 'brighten1');
+            this.stateManager.set('videoFilter.shadows', -12);
+            this.stateManager.set('videoFilter.highlights', 6);
+            this.stateManager.set('videoFilter.activePreset', 'brighten3');
         };
 
         const videoBrightenBtn = document.createElement('button');
         videoBrightenBtn.className = 'vsc-btn';
-        videoBrightenBtn.textContent = '밝기M';
+        videoBrightenBtn.textContent = '밝기L';
         videoBrightenBtn.dataset.presetKey = 'brighten2';
         videoBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.70);
-            this.stateManager.set('videoFilter.saturation', 114);
+            this.stateManager.set('videoFilter.gamma', 1.60);
+            this.stateManager.set('videoFilter.saturation', 112);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -14);
-            this.stateManager.set('videoFilter.highlights', 10);
-            this.stateManager.set('videoFilter.activePreset', 'brighten2');
+            this.stateManager.set('videoFilter.shadows', -24);
+            this.stateManager.set('videoFilter.highlights', 12);
+            this.stateManager.set('videoFilter.activePreset', 'brighten3');
         };
 
         const videoOffBtn = document.createElement('button');
@@ -2467,9 +2480,9 @@ class UIPlugin extends Plugin {
         const videoBtnGroup = document.createElement('div');
         // flex-wrap: wrap; 과 justify-content: flex-end; 를 추가합니다.
 videoBtnGroup.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px;';
-videoBtnGroup.append(videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn);
+videoBtnGroup.append(videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoSSBrightenBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn);
 
-        const videoButtons = [videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn];
+        const videoButtons = [videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoSSBrightenBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn];
         this.subscribe('videoFilter.activePreset', (activeKey) => {
             videoButtons.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
