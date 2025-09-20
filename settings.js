@@ -17,9 +17,9 @@
     const CONFIG = {
         MAX_PRE_GAIN: 10.0,
         DEFAULT_PRE_GAIN_EXPONENT: 1.0,
-        DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 4,
-        DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 2,
-        DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 4,
+        DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 9 : 3,
+        DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 9 : 3,
+        DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 9 : 3,
         DEFAULT_WIDENING_ENABLED: false, DEFAULT_WIDENING_FACTOR: 1.0, DEFAULT_STEREO_PAN: 0, DEFAULT_HPF_ENABLED: false,
         EFFECTS_HPF_FREQUENCY: 20, DEFAULT_EQ_ENABLED: false, DEFAULT_EQ_SUBBASS_GAIN: 0, DEFAULT_EQ_BASS_GAIN: 0,
         DEFAULT_EQ_MID_GAIN: 0, DEFAULT_EQ_TREBLE_GAIN: 0, DEFAULT_EQ_PRESENCE_GAIN: 0, DEFAULT_ADAPTIVE_WIDTH_ENABLED: false,
@@ -2405,46 +2405,46 @@ class UIPlugin extends Plugin {
 
         const videoSsharpBtn = document.createElement('button');
         videoSsharpBtn.className = 'vsc-btn';
-        videoSsharpBtn.textContent = 'S샤프';
+        videoSsharpBtn.textContent = '샤프S';
         videoSsharpBtn.dataset.presetKey = 'sharpS';
         videoSsharpBtn.onclick = () => {
             this.stateManager.set('videoFilter.level', 6);
-            this.stateManager.set('videoFilter.level2', 3);
+            this.stateManager.set('videoFilter.level2', 6);
             this.stateManager.set('videoFilter.activePreset', 'sharpS');
         };
 
         const videoMsharpBtn = document.createElement('button');
         videoMsharpBtn.className = 'vsc-btn';
-        videoMsharpBtn.textContent = 'M샤프';
+        videoMsharpBtn.textContent = '샤프M';
         videoMsharpBtn.dataset.presetKey = 'sharpM';
         videoMsharpBtn.onclick = () => {
-            this.stateManager.set('videoFilter.level', 8);
-            this.stateManager.set('videoFilter.level2', 4);
+            this.stateManager.set('videoFilter.level', 9);
+            this.stateManager.set('videoFilter.level2', 9);
             this.stateManager.set('videoFilter.activePreset', 'sharpM');
         };
 
         const videoshadowsBrightenBtn = document.createElement('button');
         videoshadowsBrightenBtn.className = 'vsc-btn';
-        videoshadowsBrightenBtn.textContent = '밝기1';
+        videoshadowsBrightenBtn.textContent = '밝기S';
         videoshadowsBrightenBtn.dataset.presetKey = 'brighten1';
         videoshadowsBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.20);
-            this.stateManager.set('videoFilter.saturation', 104);
+            this.stateManager.set('videoFilter.gamma', 1.35);
+            this.stateManager.set('videoFilter.saturation', 107);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -10);
+            this.stateManager.set('videoFilter.shadows', -7);
             this.stateManager.set('videoFilter.highlights', 5);
             this.stateManager.set('videoFilter.activePreset', 'brighten1');
         };
 
         const videoBrightenBtn = document.createElement('button');
         videoBrightenBtn.className = 'vsc-btn';
-        videoBrightenBtn.textContent = '밝기2';
+        videoBrightenBtn.textContent = '밝기M';
         videoBrightenBtn.dataset.presetKey = 'brighten2';
         videoBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.40);
-            this.stateManager.set('videoFilter.saturation', 108);
+            this.stateManager.set('videoFilter.gamma', 1.70);
+            this.stateManager.set('videoFilter.saturation', 114);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -20);
+            this.stateManager.set('videoFilter.shadows', -14);
             this.stateManager.set('videoFilter.highlights', 10);
             this.stateManager.set('videoFilter.activePreset', 'brighten2');
         };
