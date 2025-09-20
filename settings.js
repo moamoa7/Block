@@ -2446,13 +2446,13 @@ class UIPlugin extends Plugin {
             this.stateManager.set('videoFilter.blur', 0);
             this.stateManager.set('videoFilter.shadows', -12);
             this.stateManager.set('videoFilter.highlights', 6);
-            this.stateManager.set('videoFilter.activePreset', 'brighten3');
+            this.stateManager.set('videoFilter.activePreset', 'brighten2');
         };
 
         const videoBrightenBtn = document.createElement('button');
         videoBrightenBtn.className = 'vsc-btn';
         videoBrightenBtn.textContent = '밝기L';
-        videoBrightenBtn.dataset.presetKey = 'brighten2';
+        videoBrightenBtn.dataset.presetKey = 'brighten3';
         videoBrightenBtn.onclick = () => {
             this.stateManager.set('videoFilter.gamma', 1.60);
             this.stateManager.set('videoFilter.saturation', 112);
