@@ -2403,6 +2403,16 @@ class UIPlugin extends Plugin {
             this.stateManager.set('videoFilter.activePreset', 'reset');
         };
 
+        const videoSSsharpBtn = document.createElement('button');
+        videoSSsharpBtn.className = 'vsc-btn';
+        videoSSsharpBtn.textContent = '샤프SS';
+        videoSSsharpBtn.dataset.presetKey = 'sharpSS';
+        videoSSsharpBtn.onclick = () => {
+            this.stateManager.set('videoFilter.level', 3);
+            this.stateManager.set('videoFilter.level2', 6);
+            this.stateManager.set('videoFilter.activePreset', 'sharpSS');
+        };
+
         const videoSsharpBtn = document.createElement('button');
         videoSsharpBtn.className = 'vsc-btn';
         videoSsharpBtn.textContent = '샤프S';
@@ -2486,7 +2496,7 @@ class UIPlugin extends Plugin {
         // 2. 첫 번째 줄 버튼 그룹을 생성하고 버튼을 추가합니다.
         const videoBtnGroup1 = document.createElement('div');
         videoBtnGroup1.style.cssText = 'display: flex; justify-content: center; gap: 5px;';
-        videoBtnGroup1.append(videoResetBtn, videoSsharpBtn, videoMsharpBtn);
+        videoBtnGroup1.append(videoResetBtn, videoSSsharpBtn, videoSsharpBtn, videoMsharpBtn);
 
         // 3. 두 번째 줄 버튼 그룹을 생성하고 버튼을 추가합니다.
         const videoBtnGroup2 = document.createElement('div');
@@ -2499,7 +2509,7 @@ class UIPlugin extends Plugin {
 
         // --- 버튼 그룹 레이아웃 수정 끝 ---
 
-        const videoButtons = [videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoSSBrightenBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn];
+        const videoButtons = [videoResetBtn, videoSSsharpBtn, videoSsharpBtn, videoMsharpBtn, videoSSBrightenBtn, videoshadowsBrightenBtn, videoBrightenBtn, videoOffBtn];
         this.subscribe('videoFilter.activePreset', (activeKey) => {
             videoButtons.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
