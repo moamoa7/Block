@@ -33,7 +33,7 @@
         LIVE_JUMP_END_THRESHOLD: 1.0, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
         SPEED_PRESETS: [2.0, 1.5, 1.2, 1, 0.5, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
-        LIVE_STREAM_URLS: ['tv.naver.com', 'youtube.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
+        LIVE_STREAM_URLS: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'register', 'forgot', 'frdl.my', 'up4load.com', 'liteapks.com', 'drive.google.com', 'discord.com', 'github.com', 'chatgpt.com'],
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
@@ -2438,11 +2438,11 @@ class UIPlugin extends Plugin {
         videoSBrightenBtn.textContent = '밝기S';
         videoSBrightenBtn.dataset.presetKey = 'brighten1';
         videoSBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.15);
-            this.stateManager.set('videoFilter.saturation', 103);
+            this.stateManager.set('videoFilter.gamma', 1.25);
+            this.stateManager.set('videoFilter.saturation', 112);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -10);
-            this.stateManager.set('videoFilter.highlights', 5);
+            this.stateManager.set('videoFilter.shadows', -8);
+            this.stateManager.set('videoFilter.highlights', 7);
             this.stateManager.set('videoFilter.activePreset', 'brighten1');
         };
 
@@ -2451,11 +2451,11 @@ class UIPlugin extends Plugin {
         videoMBrightenBtn.textContent = '밝기M';
         videoMBrightenBtn.dataset.presetKey = 'brighten2';
         videoMBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.30);
-            this.stateManager.set('videoFilter.saturation', 106);
+            this.stateManager.set('videoFilter.gamma', 1.50);
+            this.stateManager.set('videoFilter.saturation', 110);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -18);
-            this.stateManager.set('videoFilter.highlights', 9);
+            this.stateManager.set('videoFilter.shadows', -30);
+            this.stateManager.set('videoFilter.highlights', 15);
             this.stateManager.set('videoFilter.activePreset', 'brighten2');
         };
 
@@ -2464,11 +2464,11 @@ class UIPlugin extends Plugin {
         videoLBrightenBtn.textContent = '밝기L';
         videoLBrightenBtn.dataset.presetKey = 'brighten3';
         videoLBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.70);
-            this.stateManager.set('videoFilter.saturation', 114);
+            this.stateManager.set('videoFilter.gamma', 2.00);
+            this.stateManager.set('videoFilter.saturation', 120);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -42);
-            this.stateManager.set('videoFilter.highlights', 21);
+            this.stateManager.set('videoFilter.shadows', -60);
+            this.stateManager.set('videoFilter.highlights', 30);
             this.stateManager.set('videoFilter.activePreset', 'brighten3');
         };
 
@@ -2528,10 +2528,10 @@ class UIPlugin extends Plugin {
             this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
             sharpenDirSelect,
             this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control,
-            this._createSlider('밝기', 'v-highlights', -50, 50, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
-            this._createSlider('대비', 'v-shadows', -50, 50, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control,
-            this._createSlider('감마(*)', 'v-gamma', 1, 2, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
-            this._createSlider('채도(*)', 'v-saturation', 0, 400, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
+            this._createSlider('밝기', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
+            this._createSlider('대비', 'v-shadows', -100, 100, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control,
+            this._createSlider('감마', 'v-gamma', 1, 4.00, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
+            this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
             videoButtonsContainer
         );
 
