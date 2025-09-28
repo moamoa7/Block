@@ -2464,11 +2464,11 @@ class UIPlugin extends Plugin {
         videoLBrightenBtn.textContent = '밝기L';
         videoLBrightenBtn.dataset.presetKey = 'brighten3';
         videoLBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 2.00);
-            this.stateManager.set('videoFilter.saturation', 120);
+            this.stateManager.set('videoFilter.gamma', 1.80);
+            this.stateManager.set('videoFilter.saturation', 115);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -20);
-            this.stateManager.set('videoFilter.highlights', 24);
+            this.stateManager.set('videoFilter.shadows', -15);
+            this.stateManager.set('videoFilter.highlights', 18);
             this.stateManager.set('videoFilter.activePreset', 'brighten3');
         };
 
