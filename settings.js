@@ -2389,18 +2389,18 @@ class UIPlugin extends Plugin {
 
         const videoResetBtn = document.createElement('button');
         videoResetBtn.className = 'vsc-btn';
-        videoResetBtn.textContent = '기본값';
+        videoResetBtn.textContent = '샤프SS';
         videoResetBtn.dataset.presetKey = 'reset';
         videoResetBtn.onclick = () => {
             this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL);
             this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2);
-            this.stateManager.set('videoFilter.saturation', parseInt(videoDefaults.SATURATION_VALUE));
-            this.stateManager.set('videoFilter.gamma', parseFloat(videoDefaults.GAMMA_VALUE));
-            this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
-            this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE));
-            this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE));
-            this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
-            this.stateManager.set('videoFilter.activePreset', 'reset');
+            //this.stateManager.set('videoFilter.saturation', parseInt(videoDefaults.SATURATION_VALUE));
+            //this.stateManager.set('videoFilter.gamma', parseFloat(videoDefaults.GAMMA_VALUE));
+            //this.stateManager.set('videoFilter.blur', parseFloat(videoDefaults.BLUR_STD_DEVIATION));
+            //this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE));
+            //this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE));
+            //this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
+            //this.stateManager.set('videoFilter.activePreset', 'reset');
         };
 
         const videoSsharpBtn = document.createElement('button');
@@ -2439,53 +2439,53 @@ class UIPlugin extends Plugin {
 
         const videoXSBrightenBtn = document.createElement('button');
         videoXSBrightenBtn.className = 'vsc-btn';
-        videoXSBrightenBtn.textContent = '밝기XS';
+        videoXSBrightenBtn.textContent = '밝기GS';
         videoXSBrightenBtn.dataset.presetKey = 'brightenX1';
         videoXSBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.25);
+            this.stateManager.set('videoFilter.gamma', 1.20);
             this.stateManager.set('videoFilter.saturation', 103);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -12);
-            this.stateManager.set('videoFilter.highlights', 6);
+            this.stateManager.set('videoFilter.shadows', -14);
+            this.stateManager.set('videoFilter.highlights', 7);
             this.stateManager.set('videoFilter.activePreset', 'brightenX1');
         };
 
         const videoXMBrightenBtn = document.createElement('button');
         videoXMBrightenBtn.className = 'vsc-btn';
-        videoXMBrightenBtn.textContent = '밝기XM';
+        videoXMBrightenBtn.textContent = '밝기GM';
         videoXMBrightenBtn.dataset.presetKey = 'brightenX2';
         videoXMBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.50);
+            this.stateManager.set('videoFilter.gamma', 1.40);
             this.stateManager.set('videoFilter.saturation', 106);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -24);
-            this.stateManager.set('videoFilter.highlights', 12);
+            this.stateManager.set('videoFilter.shadows', -28);
+            this.stateManager.set('videoFilter.highlights', 14);
             this.stateManager.set('videoFilter.activePreset', 'brightenX2');
         };
 
         const videoXLBrightenBtn = document.createElement('button');
         videoXLBrightenBtn.className = 'vsc-btn';
-        videoXLBrightenBtn.textContent = '밝기XM';
+        videoXLBrightenBtn.textContent = '밝기GL';
         videoXLBrightenBtn.dataset.presetKey = 'brightenX3';
         videoXLBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.75);
+            this.stateManager.set('videoFilter.gamma', 1.60);
             this.stateManager.set('videoFilter.saturation', 109);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -36);
-            this.stateManager.set('videoFilter.highlights', 18);
+            this.stateManager.set('videoFilter.shadows', -42);
+            this.stateManager.set('videoFilter.highlights', 21);
             this.stateManager.set('videoFilter.activePreset', 'brightenX3');
         };
 
         const videoXXBrightenBtn = document.createElement('button');
         videoXXBrightenBtn.className = 'vsc-btn';
-        videoXXBrightenBtn.textContent = '밝기XL';
+        videoXXBrightenBtn.textContent = '밝기GX';
         videoXXBrightenBtn.dataset.presetKey = 'brightenX4';
         videoXXBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 2.00);
+            this.stateManager.set('videoFilter.gamma', 1.80);
             this.stateManager.set('videoFilter.saturation', 112);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -48);
-            this.stateManager.set('videoFilter.highlights', 24);
+            this.stateManager.set('videoFilter.shadows', -56);
+            this.stateManager.set('videoFilter.highlights', 28);
             this.stateManager.set('videoFilter.activePreset', 'brightenX4');
         };
 
@@ -2496,10 +2496,10 @@ class UIPlugin extends Plugin {
         videoSBrightenBtn.textContent = '밝기S';
         videoSBrightenBtn.dataset.presetKey = 'brighten1';
         videoSBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.25);
+            this.stateManager.set('videoFilter.gamma', 1.15);
             this.stateManager.set('videoFilter.saturation', 105);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -6);
+            this.stateManager.set('videoFilter.shadows', -7);
             this.stateManager.set('videoFilter.highlights', 6);
             this.stateManager.set('videoFilter.activePreset', 'brighten1');
         };
@@ -2509,10 +2509,10 @@ class UIPlugin extends Plugin {
         videoMBrightenBtn.textContent = '밝기M';
         videoMBrightenBtn.dataset.presetKey = 'brighten2';
         videoMBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.50);
+            this.stateManager.set('videoFilter.gamma', 1.30);
             this.stateManager.set('videoFilter.saturation', 110);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -12);
+            this.stateManager.set('videoFilter.shadows', -15);
             this.stateManager.set('videoFilter.highlights', 12);
             this.stateManager.set('videoFilter.activePreset', 'brighten2');
         };
@@ -2522,11 +2522,11 @@ class UIPlugin extends Plugin {
         videoLBrightenBtn.textContent = '밝기L';
         videoLBrightenBtn.dataset.presetKey = 'brighten3';
         videoLBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.75);
+            this.stateManager.set('videoFilter.gamma', 1.45);
             this.stateManager.set('videoFilter.saturation', 115);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -24);
-            this.stateManager.set('videoFilter.highlights', 24);
+            this.stateManager.set('videoFilter.shadows', -22);
+            this.stateManager.set('videoFilter.highlights', 18);
             this.stateManager.set('videoFilter.activePreset', 'brighten3');
         };
 
