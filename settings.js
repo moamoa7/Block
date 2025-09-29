@@ -2571,7 +2571,7 @@ class UIPlugin extends Plugin {
 
         // --- 버튼 그룹 레이아웃 수정 끝 ---
 
-        const videoButtons = [videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoLsharpBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoOffBtn];
+        const videoButtons = [videoResetBtn, videoSsharpBtn, videoMsharpBtn, videoLsharpBtn, videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXBrightenBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoOffBtn];
         this.subscribe('videoFilter.activePreset', (activeKey) => {
             videoButtons.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
