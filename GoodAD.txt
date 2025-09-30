@@ -196,6 +196,7 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ! 숲 (https://www.sooplive.co.kr/)
 ! - 팝업
 sooplive.co.kr##.bnrimg_area
+sooplive.co.kr##[class*="__popup___"]
 ! - 메인 모르겠는데 떠 있는거
 sooplive.co.kr###soopi_wrap
 ! - 채팅 위 연관상품
