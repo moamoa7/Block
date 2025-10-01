@@ -82,6 +82,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 3자 ping / websocket 차단
+! - - - 아프리카 TV 등 그리드 차단
 ||*$ping,websocket,third-party
 ! - 3자 websocket 차단 해제
 ! - - - 디스코드 (https://discord.com/) 연결시 필요
