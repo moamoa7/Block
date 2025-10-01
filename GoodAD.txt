@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20250930
+! Version: 20251001
 !
 !
 !
@@ -80,19 +80,9 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 !
-! 3자 ping / websocket 차단
-||*$ping,websocket,third-party
-! - 3자 websocket 차단 해제
-! - - - 디스코드 (https://discord.com/) 연결시 필요
-! - - - www.amateur.tv 연결해야 실시간 방송이 재생됨
-! - - - 예외
-@@||gateway.discord.gg$websocket
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv
-! - https://wonforecast.com/ 환율 가져오기
-@@||tradingview.com/socket.io/websocket
-!
-!
 ! 유튜브 (https://www.youtube.com/)
+! - 하단 왼쪽 팝업
+##ytd-popup-container.ytd-app.style-scope
 !
 !
 ! wikipedia.org
@@ -5207,6 +5197,8 @@ av19.live#@#[class*="ads"]
 camcam.cc#@#[class*="ads"]
 ! - - - https://sports.daum.net/ - 영상 안나옴
 kakaotv.daum.net#@#[class*="ads"]
+! - - - https://rethinkdns.com/ - 다운로드 리스트 안나옴
+rethinkdns.com#@#[class*="ads"]
 
 
 
