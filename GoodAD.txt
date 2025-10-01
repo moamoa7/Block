@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251001
+! Version: 20251002
 !
 !
 !
@@ -77,7 +77,21 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 !  / / / / /  차단 / / / / / 
+
 !
+!
+!
+! 3자 ping / websocket 차단
+||*$ping,websocket,third-party
+! - 3자 websocket 차단 해제
+! - - - 디스코드 (https://discord.com/) 연결시 필요
+! - - - www.amateur.tv 연결해야 실시간 방송이 재생됨
+! - - - 예외
+@@||gateway.discord.gg$websocket
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online
+
+! - https://wonforecast.com/ 환율 가져오기
+@@||tradingview.com/socket.io/websocket
 !
 !
 ! 유튜브 (https://www.youtube.com/)
