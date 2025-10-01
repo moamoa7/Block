@@ -4482,6 +4482,8 @@ xfree.com#@#[class^="ad"]
 ! - 예외 (틱톡 .js)
 @@/ad-violation-*
 ||*/*/ad-*/*
+! - 예외
+@@||*/ad-site-i18n-sg/*
 ! - 예외 (텍스트 안보임 해결)
 @@github.com*$xhr
 !||*/*/AD-*/*
