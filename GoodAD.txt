@@ -226,6 +226,13 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 @@*$stealth=dpi,app=com.nhn.android.navercafe
 !
 !
+! 네이버TV
+! 차단목록 (Adblock-Rule-Collection-Lite)
+||ntm.pstatic.net/scripts/ntm_*.js
+||apis.naver.com/mcollector/
+naver.com##.naver-splugin
+!
+!
 ! 네이트 (https://www.nate.com/)
 ! - 차단 사이트
 !||cyad1.nate.com^
@@ -309,6 +316,7 @@ sooplive.co.kr###FeedLayerToolTip
 ||stbbs.sooplive.co.kr/api/*_log.php
 ||sooplive.co.kr/js/google.analytics.js
 ##p:empty:not([class], [id])
+/ss/ss
 !
 !
 ! 팬더티비 (https://www.pandalive.co.kr/)
@@ -580,10 +588,6 @@ www.baidu.com#@#[class*="ad_"] [style]
 [$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 platinmods.com#@#[class*="ad_"] [style]
-
-
-
-
 ##.adpost
 ! 게시물 하단 배너
 !fmkorea.com##ins.adsbygoogle
@@ -594,8 +598,10 @@ platinmods.com#@#[class*="ad_"] [style]
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
-! - 차단 사이트
-!||external-api.impression-neo.naver.com^
+! 차단 목록 (Adblock-Rule-Collection-Lite)
+.cur|$image,domain=~pixiv.net|~deviantart.com
+fmkorea.com###bd_capture:style(background: none!important;)
+fmkorea.com##.doc_sns
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
@@ -791,6 +797,9 @@ ruliweb.com##.fixed_layer1
 ! 게시물 댓글 파워링크 제거
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 ruliweb.com##tr:has(.nick[style^='display: inline-block'])
+! 차단 목록 (Adblock-Rule-Collection-Lite)
+bbs.ruliweb.com##.share_wrapper > ul > li.txt_bar ~ li.txt_bar
+
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
@@ -927,6 +936,8 @@ instiz.net##[id*="sense"]
 ! 나무위키 (https://namu.wiki/)
 ! - 상단 및 오른쪽 공간(배너?) - EasyLis
 namu.wiki##div[id][class]:empty
+! 차단 목록 (Adblock-Rule-Collection-Lite)
+namu.wiki##div[class*=" "] > div[class*=" "]:has(> a[target="_blank"][rel="noopener"]):contains(더 보기)
 !
 !
 ! 일베 (https://www.ilbe.com/)
@@ -1140,13 +1151,22 @@ music.bugs.co.kr##.topBanner
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com
-! - 기타
-/otsdkstub.js^$script
+! - 차단목록 (Adblock-Rule-Collection-Lite)
+netflix.com##body:style(pointer-events: auto !important;)
+netflix.com##.head-opaque.akira-header, .main-header:style(background-color: transparent !important;)
+netflix.com##.nysmHeader, .pinning-header-container:style(position: relative !important; top: 0 !important;)
+netflix.com##.pinning-header-container:style(background: transparent none repeat scroll 0% 0% !important;)
+netflix.com##div[class^=watch-video--][class*="-container "]:style(background-image: none !important)
+netflix.com##div[data-uia="pause-ad"]
+/push.
 !
 !
 ! 티빙 (https://www.tving.com/)
 ! - 시청기록 남기기 (DNS에서 차단하면 해제 필요)
 @@||log.tving.com
+! 차단 목록 (Adblock-Rule-Collection-Lite)
+||tagmanager.toast.com^
+*,~barter.vg##p:has-text(/^\xA0$/):not(:has-text(/\S/)):not(:has(img))
 !
 !
 ! POOOO (https://poooo.ml/)
@@ -1207,6 +1227,11 @@ tvhot.store##.object-cover
 @@/videojs-chromecast.min.js^$script
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 /fonts/*.ttf$font,third-party
+!
+!
+! Linkkf 애니 TV
+! 차단 목록 (Adblock-Rule-Collection-Lite)
+/mobile.js$3p
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
@@ -2361,15 +2386,10 @@ avsee.ru##.tabs
 ||profitableratecpm.com^$popup
 ||fractionfridgejudiciary.com^$popup
 ||depreciatorybollocksupkitchen.com^$popup
-! - 차단 사이트
-!||mnaspm.com^
-!||fanza.cc^
-!||adxadserv.com^
-!||daly2024.com^
-!||imasdk.googleapis.com^
-!||adforcast.com^
-!||zimpolo.com^
-!||campfirecroutondecorator.com^
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+/^https:\/\/(?:[a-z]{2}\.)?[a-z]{7,14}\.[a-z]{3,7}\/[a-z][0-9A-Za-z]{10,16}\/\d{4,6}$/$script,third-party,match-case
+##div.preloader
+*##.ad
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -2795,6 +2815,9 @@ avdbs.com#@#[class^="ad"]
 ! MISSAV (https://missvod4.com/)
 ! - 배너
 ![$domain=/^missvod\d+.com/]###banner-list.banner-list
+!  BadBlock+ (ABP) 해제 - 영상 이미지 안보임
+@@||recombee.com^
+
 !
 !
 ! https://tojav.net/
