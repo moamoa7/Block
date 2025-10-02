@@ -160,6 +160,11 @@ baidu.com###s-hotsearch-wrapper
 ! - 차단 사이트
 !||shopsquare.naver.com^
 !||recoshopping.naver.com^
+! - 차단 사이트
+||veta.naver.com^
+! - 네이버앱 깨지는거 해결 (참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
+@@||ad-creative.pstatic.net^$app=com.nhn.android.search
+@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 !
 !
 ! 네이버 뉴스 (https://news.naver.com/)
@@ -186,6 +191,14 @@ news.naver.com##._horizontal_scroll_type._horizontal_card_wrapper.main_brick_ite
 ! - 오른쪽 배너
 entertain.naver.com##._comp_shortents_rcuul_1.comp_home_group
 entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
+!
+!
+! 네이버 스토어 오류 해결
+@@||smartstore.naver.com^$stealth
+!
+!
+! 네이버 카페 사진 첨부 오류 해결
+@@*$stealth=dpi,app=com.nhn.android.navercafe
 !
 !
 ! 네이트 (https://www.nate.com/)
@@ -316,8 +329,6 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 @@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
-! - 차단 사이트
-!||veta.naver.com^
 !
 !
 ! 트위치 (https://www.twitch.tv/)
