@@ -308,6 +308,7 @@ sooplive.co.kr###FeedLayerToolTip
 ||exlogcollector.sooplive.co.kr^
 ||stbbs.sooplive.co.kr/api/*_log.php
 ||sooplive.co.kr/js/google.analytics.js
+##p:empty:not([class], [id])
 !
 !
 ! 팬더티비 (https://www.pandalive.co.kr/)
