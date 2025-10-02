@@ -98,6 +98,31 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! 유튜브 (https://www.youtube.com/)
 ! - 하단 왼쪽 팝업
 ##ytd-popup-container.ytd-app.style-scope
+! 차단목록 (Adblock-Rule-Collection-Lit)
+||youtube.com/api/stats^
+youtube.com##.video-annotations
+youtube.com##.annotation.iv-branding
+youtube.com##.ytp-cards-teaser
+youtube.com##.share-panel-services, .ytp-button.ytp-share-button
+youtube.com##ytd-guide-entry-renderer:style(display: block !important;)
+youtube.com##ytd-settings-sidebar-renderer.ytd-browse:style(position: absolute !important; left: 0 !important; height: 100% !important;)
+youtube.com##ytd-playlist-sidebar-renderer.ytd-browse:style(position: absolute !important; left: unset !important; height: 100% !important;)
+youtube.com##ytd-feed-filter-chip-bar-renderer:style(position: static !important; margin-bottom: 0 !important;)
+youtube.com##iframe[width="640"][height="360"], iframe[width="300"][height="250"], .img_ad, #video-masthead, .ad-div, #masthead-ad, #ad-iframe
+www.youtube.com##div#masthead-ad
+www.youtube.com##.ytd-watch-flexy #dismissible:has(.badge-style-type-simple)
+www.youtube.com##head:has(meta[property$=":video:url"]) + body div[class$="-gradient-bottom"]
+www.youtube.com##.ytp-time-display > span:style(font-weight: 800 !important; text-shadow: black 0 0 3px !important)
+youtube.com###masthead-positioner-height-offset, #right-arrow, .iv-branding.annotation-type-custom.annotation, .ytp-promotooltip-wrapper
+youtube.com###chips-wrapper:style(position: static !important;)
+youtube.com##.ytp-miniplayer-button
+youtube.com##.appbar-guide-menu-layout, .gstl_50.sbdd_a, .js-yt-header.yt-header, ytd-mini-guide-renderer.ytd-app, app-drawer[opened=""][persistent=""], ytd-two-column-browse-results-renderer[page-subtype="history"] #secondary.ytd-two-column-browse-results-renderer:style(position: absolute !important;)
+youtube.com###ticker.ytd-masthead
+youtube.com###header:style(transform: none !important; margin-top: 0 !important;)
+youtube.com###masthead-container:style(position: absolute !important; transition: none !important; transform: none !important;)
+youtube.com###contentContainer.tp-yt-app-drawer[swipe-open].tp-yt-app-drawer::after, tp-yt-app-drawer:style(position: absolute !important;)
+youtube.com###backgroundFrontLayer, #backgroundRearLayer:style(transform: translate3d(0px, 0px, 0px) !important;)
+||googlevideo.com/videoplayback*ctier=l&*%2cxpc%2cctier%2c
 !
 !
 ! wikipedia.org
@@ -277,10 +302,12 @@ sooplive.co.kr###FeedLayerToolTip
 ##.shopProduct_banner
 ! - 구독버튼 내 버플 안내문구
 ##.event_tooltip
-! - 차단 사이트
-!||adballoon.sooplive.co.kr^
-!||reqde.sooplive.co.kr^
-!||ads-twitter.com^
+! - 차단 사이트 (Adblock-Rule-Collection-Lite)
+||eventapi.sooplive.co.kr^
+||st.sooplive.co.kr/api/da_block_api.php
+||exlogcollector.sooplive.co.kr^
+||stbbs.sooplive.co.kr/api/*_log.php
+||sooplive.co.kr/js/google.analytics.js
 !
 !
 ! 팬더티비 (https://www.pandalive.co.kr/)
@@ -324,11 +351,15 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! - 광고?
 ||.com/ad-*
 ! 허용목록 (Adblock-Rule-Collection-Lite)
-@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
 @@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
+@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
+! 차단 목록 ((Adblock-Rule-Collection-Lite))
+||api.chzzk.naver.com/ad-polling/*/lives/*/ad
+||api.chzzk.naver.com/service/*/ad/display-status
+
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -339,18 +370,17 @@ twitch.tv###twilight-sticky-footer-root
 ! - 콤보 안내 문구
 twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 기타
-! - 광고?
-!||*.ads.*
-! - 차단 사이트
-!||edge.ads.twitch.tv^
-!||scorecardresearch.com^
-!||amazon-adsystem.com^
-!||d2v02itv0y9u9t.cloudfront.net^
+! - 해제 (Adblock-Rule-Collection-Lite)
+@@-ads.
+
 !
 !
 ! 킥 (https://kick.com/)
 ! - 로고 복원
 !@@||kick.com/img/*$image
+! 차단목록 (Adblock-Rule-Collection-Lit)
+||kick.com/*&loaderversion=
+||stripe.network^
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -1123,7 +1153,10 @@ music.bugs.co.kr##.topBanner
 poooo.ml##.h30
 ! - ##.ad 복원 - 채팅창 아이콘 사라짐
 poooo.ml#@#.ad
-! - 기타
+! - 복원 (🔒 Privacy Essentials) - 영상 안나옴
+@@||ok.ru/videoembed^$3p,frame
+! - 차단목록 (Adblock-Rule-Collection-Lite)
+/log/*_time
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
@@ -1171,6 +1204,8 @@ tvhot.store##.object-cover
 !@@tvwiki*.com/img/*$image
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
+! 차단목록 (Adblock-Rule-Collection-Lite)
+/fonts/*.ttf$font,third-party
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
