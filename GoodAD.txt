@@ -95,6 +95,16 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 @@||tradingview.com/socket.io/websocket
 !
 !
+! 구글 (https://www.google.com/)
+!차단 목록 (Adblock-Rule-Collection-Lit)
+www.google.com###tads, .ads-ad
+www.google.com###taw, #bottomads
+google.com##body #tads
+google.com###js-header, #searchform, .O-j-k, .header:not(#menu.header--primary):not(.column-section):not(.viewed):not(.ng-star-inserted):not([class*="_ngcontent"]):not([role="heading"]), .js-header.chr-header, .mobile-action-bar, body > .ng-scope, #flt-nav, .gws-flights__scrollbar-padding.gws-flights__selection-bar, .gws-flights__selection-bar-shadow-mask:style(position: absolute !important;)
+google.com###bottomads > div[id^="tads"]
+
+!
+!
 ! 유튜브 (https://www.youtube.com/)
 ! - 하단 왼쪽 팝업
 ##ytd-popup-container.ytd-app.style-scope
@@ -2098,6 +2108,10 @@ sports.donga.com##.view_center
 ! - 검색시 나오는 광고 배너
 coupang.com###srpKeywordProductTopBanner
 ###BottomAppBanner
+! 차단 목록 (Adblock-Rule-Collection-Lit)
+||coupangcdn.com/customjs/criteo/
+||coupangcdn.com/customjs/seo-js-sdk/
+
 !
 !
 ! 옥션 (https://escrow.auction.co.kr/)
@@ -2106,6 +2120,9 @@ coupang.com###srpKeywordProductTopBanner
 ! 검색시 나오는 하단 스폰서링크 삭제
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 auction.co.kr##.component--sponsor_link.component
+! 차단 목록 (Adblock-Rule-Collection-Lit)
+||script.auction.co.kr/common/montelena.js
+
 !
 !
 ! 11번가 (https://11st.co.kr/)
@@ -4298,11 +4315,9 @@ mypikpak.com##.coupon-top-banner
 mypikpak.com##.operation-container
 ! - 확장프로그램 설치 안내 팝업
 mypikpak.com##div.el-overlay:nth-of-type(23)
-! - 기타
-##[class*="-cookie-banner"]
-||adjust.com^
-/track.js^$script
-/stat^
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+##.cookie-wrapper:not(body):not(html)
+
 !
 !
 ! SPEEDTEST (https://www.speedtest.net/
@@ -4414,6 +4429,33 @@ mib19.co.kr#@#[class^="ad"]
 ! https://www.xfree.com/
 !  - 팝업 해제
 xfree.com#@#[class^="ad"]
+!
+!
+! https://liteapks.com/
+! 차단 목록 (Adblock-Rule-Collection-Lit)
+liteapks.com##.list-shares
+##.pinterest[href*="/pin/create/"]
+##.facebook[href*="/sharer/"]:not(html, body, :empty)
+##a[href*="facebook.com/sharer/sharer.php"]
+##a[href*="linkedin.com/shareArticle?"]
+##a[href*="pinterest"][href*="/pin/create/b"]
+##a[href^="https://twitter.com/home?"]
+##a[href^="https://www.linkedin.com/shareArticle"]
+##a[href*="pinterest.com/pin/create/button"]
+!
+!
+! https://play.google.com/
+! 차단 목록 (Adblock-Rule-Collection-Lit)
+play.google.com##div[data-is-touch-wrapper] > button:has(> span > svg > path[d^="M18 16.08c-"])
+!
+!
+! https://github.com/
+! 차단 목록 (Adblock-Rule-Collection-Lit)
+github.com##html:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
+github.com##.repository-content:style(width: 100% !important)
+github.com##.container-xl:style(max-width: none !important)
+||api.github.com/_private/browser/stats$important
+
 
 
 
