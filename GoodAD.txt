@@ -2228,7 +2228,8 @@ daangn.com##footer
 !
 !!! 네이버 페이 (https://new-m.pay.naver.com/) 이미지 깨짐 해결 및 포인트 적립 가능
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
-!@@cdn-ao.adison.co
+@@cdn-ao.adison.co
+
 !
 !
 ! CGV (https://cgv.co.kr/)
@@ -4458,9 +4459,6 @@ github.com##.container-xl:style(max-width: none !important)
 
 
 
-
-
-
 !
 !
 !
@@ -4596,6 +4594,7 @@ github.com##.container-xl:style(max-width: none !important)
 ||*/*/ad-*/*
 ! - 예외
 @@||*/ad-site-i18n-sg/*
+@@point.pay.naver.com/api/ad-reward/*
 ! - 예외 (텍스트 안보임 해결)
 @@github.com*$xhr
 !||*/*/AD-*/*
@@ -4995,6 +4994,8 @@ cineaste.co.kr#@#a[href]:has(img[src*="/background/"])
 ! - - - 예외
 ! - - - 다모앙 (https://damoang.net/) - 일부 이모티콘 사라짐
 damoang.net#@#a[href]:has(img[src*="/ad/"])
+! - - - N포인트 (https://point.pay.naver.com/) - 이미지 안보임
+point.pay.naver.com#@#a[href]:has(img[src*="/ad/"])
 
 
 !!! - 광역 7
