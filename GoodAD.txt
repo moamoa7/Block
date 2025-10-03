@@ -328,13 +328,14 @@ sooplive.co.kr###FeedLayerToolTip
 ##.shopProduct_banner
 ! - 구독버튼 내 버플 안내문구
 play.sooplive.co.kr##.event_tooltip
-
-! - 차단 사이트 (Adblock-Rule-Collection-Lite)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
 ||eventapi.sooplive.co.kr^
 ||st.sooplive.co.kr/api/da_block_api.php
 ||exlogcollector.sooplive.co.kr^
 ||stbbs.sooplive.co.kr/api/*_log.php
 ||sooplive.co.kr/js/google.analytics.js
+||sooplive.co.kr/asset/service/common/common_analysis.js
+##.btn_share
 ##p:empty:not([class], [id])
 /ss/ss
 !
