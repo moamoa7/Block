@@ -151,6 +151,7 @@ chatgpt.com##div.text-base:style(--thread-content-max-width:unset!important;max-
 ! 제미나이 (https://gemini.google.com/)
 !  차단 목록 (Adblock-Rule-Collection-Lite)
 gemini.google.com##.input-area-container:style(max-width:1600px!important)
+gemini.google.com##announcement-banner
 !
 !
 ! https://account.live.com/
@@ -373,13 +374,14 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! - 광고?
 ||.com/ad-*
-! 허용목록 (Adblock-Rule-Collection-Lite)
+! - 허용목록 (Adblock-Rule-Collection-Lite)
 @@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
 @@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
-! 차단 목록 ((Adblock-Rule-Collection-Lite))
+@@|wss://$removeparam
+! - 차단 목록 ((Adblock-Rule-Collection-Lite))
 ||api.chzzk.naver.com/ad-polling/*/lives/*/ad
 ||api.chzzk.naver.com/service/*/ad/display-status
 
@@ -557,10 +559,9 @@ gall.dcinside.com#@#[class^="ad"]
 ##[id^="ad_"]
 gall.dcinside.com##div[class*="banner"]
 ##[data-ad]
-! - 차단 사이트
-!||addc.dcinside.com^
-!||taboola.com^
-!||netinsight.co.kr^
+!  차단 목록 (Adblock-Rule-Collection-Lite)
+dcinside.com##.btn_snsmore
+gall.dcinside.com##.r_dcmedia
 !
 !
 ! 아카라이브 (https://arca.live/)
@@ -4343,8 +4344,8 @@ dhlottery.co.kr##.band_banner
 trand.co.kr##[class*="widget"]>table
 ##[class="list-ad"]
 !##.list-ad
-! - 차단 사이트
-!||ads-partners.coupang.com^
+! 차단 목록 (Adblock-Rule-Collection-Lit)
+||jwpcdn.com^
 !
 !
 ! 스마트택배 (https://st.sweettracker.co.kr/)
@@ -4474,6 +4475,19 @@ github.com##.container-xl:style(max-width: none !important)
 ! 오나미몰 (https://oname.kr/)
 ! 차단 목록 (Adblock-Rule-Collection-Lite)
 /exec/front/eclog/*
+!
+!
+! 레딧 (https://www.reddit.com/)
+! - 차단 목록 (Adblock-Rule-Collection-Lit)
+reddit.com##body:not([style^="overflow:"]):not([class="rpl-scroll-lock"]):style(pointer-events: auto !important; overflow: auto !important;)
+reddit.com##span.hidden[class$="m:block"]
+reddit.com##shreddit-comment-tree-ad
+!
+!
+! https://greasyfork.org/
+! - 차단 목록 (Adblock-Rule-Collection-Lit)
+greasyfork.org##div.ad
+greasyfork.org##.ad-entry
 !
 !
 !
