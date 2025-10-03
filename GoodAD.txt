@@ -370,7 +370,8 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 ! - 광고 차단  팝업
 ! - - - ##[class*="popup"] 가 대신 차단 중
 !chzzk.naver.com##[class*='_popup_dimmed__']
-!##[class*="_dimmed_"]
+##[class*="popup_modal__"]
+!##.popup_modal__hRwfq.popup_container__Aqx-3
 ! - 첫 구매 이벤트 중 알림
 chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! - 광고?
