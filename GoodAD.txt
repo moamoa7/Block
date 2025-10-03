@@ -694,6 +694,8 @@ etoland.co.kr###info_recent_list_wrap
 !@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
 etoland.co.kr#@#[class^="ad"]
+! ||ad.$all,domain=~ad.jp 예외 - 이토랜드 광고 클릭 (BadBlock+ (ABP))
+@@||ad.$all,domain=www.etoland.co.kr
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -6340,4 +6342,3 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
