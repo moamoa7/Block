@@ -2400,7 +2400,7 @@ class UIPlugin extends Plugin {
             //this.stateManager.set('videoFilter.shadows', parseInt(videoDefaults.SHADOWS_VALUE));
             //this.stateManager.set('videoFilter.highlights', parseInt(videoDefaults.HIGHLIGHTS_VALUE));
             //this.stateManager.set('videoFilter.sharpenDirection', CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION);
-            //this.stateManager.set('videoFilter.activePreset', 'reset');
+            this.stateManager.set('videoFilter.activePreset', 'reset');
         };
 
         const videoSsharpBtn = document.createElement('button');
@@ -2442,11 +2442,11 @@ class UIPlugin extends Plugin {
         videoXSBrightenBtn.textContent = '암부S';
         videoXSBrightenBtn.dataset.presetKey = 'brightenX1';
         videoXSBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.25);
+            this.stateManager.set('videoFilter.gamma', 1.10);
             this.stateManager.set('videoFilter.saturation', 103);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -12);
-            this.stateManager.set('videoFilter.highlights', 8);
+            this.stateManager.set('videoFilter.shadows', -4);
+            this.stateManager.set('videoFilter.highlights', 3);
             this.stateManager.set('videoFilter.activePreset', 'brightenX1');
         };
 
@@ -2455,11 +2455,11 @@ class UIPlugin extends Plugin {
         videoXMBrightenBtn.textContent = '암부M';
         videoXMBrightenBtn.dataset.presetKey = 'brightenX2';
         videoXMBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.50);
+            this.stateManager.set('videoFilter.gamma', 1.20);
             this.stateManager.set('videoFilter.saturation', 106);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -24);
-            this.stateManager.set('videoFilter.highlights', 16);
+            this.stateManager.set('videoFilter.shadows', -9);
+            this.stateManager.set('videoFilter.highlights', 6);
             this.stateManager.set('videoFilter.activePreset', 'brightenX2');
         };
 
@@ -2468,11 +2468,11 @@ class UIPlugin extends Plugin {
         videoXLBrightenBtn.textContent = '암부L';
         videoXLBrightenBtn.dataset.presetKey = 'brightenX3';
         videoXLBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.75);
+            this.stateManager.set('videoFilter.gamma', 1.30);
             this.stateManager.set('videoFilter.saturation', 109);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -38);
-            this.stateManager.set('videoFilter.highlights', 24);
+            this.stateManager.set('videoFilter.shadows', -14);
+            this.stateManager.set('videoFilter.highlights', 9);
             this.stateManager.set('videoFilter.activePreset', 'brightenX3');
         };
 
@@ -2481,11 +2481,11 @@ class UIPlugin extends Plugin {
         videoXXBrightenBtn.textContent = '암부X';
         videoXXBrightenBtn.dataset.presetKey = 'brightenX4';
         videoXXBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 2.00);
+            this.stateManager.set('videoFilter.gamma', 1.50);
             this.stateManager.set('videoFilter.saturation', 112);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -54);
-            this.stateManager.set('videoFilter.highlights', 32);
+            this.stateManager.set('videoFilter.shadows', -24);
+            this.stateManager.set('videoFilter.highlights', 15);
             this.stateManager.set('videoFilter.activePreset', 'brightenX4');
         };
 
@@ -2497,10 +2497,10 @@ class UIPlugin extends Plugin {
         videoSBrightenBtn.dataset.presetKey = 'brighten1';
         videoSBrightenBtn.onclick = () => {
             this.stateManager.set('videoFilter.gamma', 1.30);
-            this.stateManager.set('videoFilter.saturation', 103);
+            this.stateManager.set('videoFilter.saturation', 110);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -10);
-            this.stateManager.set('videoFilter.highlights', 8);
+            this.stateManager.set('videoFilter.shadows', -4);
+            this.stateManager.set('videoFilter.highlights', 3);
             this.stateManager.set('videoFilter.activePreset', 'brighten1');
         };
 
@@ -2510,10 +2510,10 @@ class UIPlugin extends Plugin {
         videoMBrightenBtn.dataset.presetKey = 'brighten2';
         videoMBrightenBtn.onclick = () => {
             this.stateManager.set('videoFilter.gamma', 1.60);
-            this.stateManager.set('videoFilter.saturation', 106);
+            this.stateManager.set('videoFilter.saturation', 120);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -22);
-            this.stateManager.set('videoFilter.highlights', 16);
+            this.stateManager.set('videoFilter.shadows', -8);
+            this.stateManager.set('videoFilter.highlights', 6);
             this.stateManager.set('videoFilter.activePreset', 'brighten2');
         };
 
@@ -2523,10 +2523,10 @@ class UIPlugin extends Plugin {
         videoLBrightenBtn.dataset.presetKey = 'brighten3';
         videoLBrightenBtn.onclick = () => {
             this.stateManager.set('videoFilter.gamma', 1.90);
-            this.stateManager.set('videoFilter.saturation', 109);
+            this.stateManager.set('videoFilter.saturation', 130);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -36);
-            this.stateManager.set('videoFilter.highlights', 24);
+            this.stateManager.set('videoFilter.shadows', -12);
+            this.stateManager.set('videoFilter.highlights', 9);
             this.stateManager.set('videoFilter.activePreset', 'brighten3');
         };
 
