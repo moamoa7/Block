@@ -2497,10 +2497,10 @@ class UIPlugin extends Plugin {
         videoSBrightenBtn.dataset.presetKey = 'brighten1';
         videoSBrightenBtn.onclick = () => {
             this.stateManager.set('videoFilter.gamma', 1.20);
-            this.stateManager.set('videoFilter.saturation', 106);
+            this.stateManager.set('videoFilter.saturation', 108);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -8);
-            this.stateManager.set('videoFilter.highlights', 6);
+            this.stateManager.set('videoFilter.shadows', -11);
+            this.stateManager.set('videoFilter.highlights', 8);
             this.stateManager.set('videoFilter.activePreset', 'brighten1');
         };
 
@@ -2510,10 +2510,10 @@ class UIPlugin extends Plugin {
         videoMBrightenBtn.dataset.presetKey = 'brighten2';
         videoMBrightenBtn.onclick = () => {
             this.stateManager.set('videoFilter.gamma', 1.40);
-            this.stateManager.set('videoFilter.saturation', 112);
+            this.stateManager.set('videoFilter.saturation', 116);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -16);
-            this.stateManager.set('videoFilter.highlights', 12);
+            this.stateManager.set('videoFilter.shadows', -22);
+            this.stateManager.set('videoFilter.highlights', 16);
             this.stateManager.set('videoFilter.activePreset', 'brighten2');
         };
 
@@ -2523,10 +2523,10 @@ class UIPlugin extends Plugin {
         videoLBrightenBtn.dataset.presetKey = 'brighten3';
         videoLBrightenBtn.onclick = () => {
             this.stateManager.set('videoFilter.gamma', 1.60);
-            this.stateManager.set('videoFilter.saturation', 118);
+            this.stateManager.set('videoFilter.saturation', 124);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', -25);
-            this.stateManager.set('videoFilter.highlights', 18);
+            this.stateManager.set('videoFilter.shadows', -33);
+            this.stateManager.set('videoFilter.highlights', 24);
             this.stateManager.set('videoFilter.activePreset', 'brighten3');
         };
 
