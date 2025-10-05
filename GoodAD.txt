@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251006
+! Version: 20251007
 !
 !
 !
@@ -96,12 +96,14 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 구글 (https://www.google.com/)
-!차단 목록 (Adblock-Rule-Collection-Lit)
+!- 차단 목록 (Adblock-Rule-Collection-Lite)
 www.google.com###tads, .ads-ad
 www.google.com###taw, #bottomads
 google.com##body #tads
 google.com###js-header, #searchform, .O-j-k, .header:not(#menu.header--primary):not(.column-section):not(.viewed):not(.ng-star-inserted):not([class*="_ngcontent"]):not([role="heading"]), .js-header.chr-header, .mobile-action-bar, body > .ng-scope, #flt-nav, .gws-flights__scrollbar-padding.gws-flights__selection-bar, .gws-flights__selection-bar-shadow-mask:style(position: absolute !important;)
 google.com###bottomads > div[id^="tads"]
+! - 해제 목록 (Adblock-Rule-Collection-Lite)
+google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 
 !
 !
@@ -2162,15 +2164,6 @@ web.joongna.com##li:has(span:has-text(광고))
 web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
 ! - - - 게시물내 새상품 광고
 web.joongna.com##.pb-12
-!
-!
-! 테무 (https://www.temu.com/)
-! -  기타
-temu.com##body:style(overflow: auto !important; position: initial !important;)
-temu.com##+js(set-local-storage-item, last_prompt_time, 1)
-temu.com##+js(set-local-storage-item, cookie_prompt_times, 1)
-||pftk.temu.com^
-||thtk.temu.com^
 !
 !
 ! 바나나몰 (bananamall.co.kr)
@@ -4492,6 +4485,7 @@ github.com##div[tabindex] + div > div[class^=Box-sc-][class*=" "]:style(max-widt
 !
 ! 레딧 (https://www.reddit.com/)
 ! - 차단 목록 (Adblock-Rule-Collection-Lit)
+/ads-
 reddit.com##body:not([style^="overflow:"]):not([class="rpl-scroll-lock"]):style(pointer-events: auto !important; overflow: auto !important;)
 reddit.com##span.hidden[class$="m:block"]
 reddit.com##shreddit-comment-tree-ad
@@ -4506,6 +4500,8 @@ greasyfork.org##.ad-entry
 ! 차단 목록 해제 (BadBlock+ (ABP)) - 트위터 게시물 안보임
 ||platform.twitter.com^$important,badfilter
 @@||syndication.twimg.com^
+!
+!
 !
 !
 !
@@ -4642,6 +4638,7 @@ greasyfork.org##.ad-entry
 @@/ad-violation-*
 ||*/*/ad-*/*
 ! - 예외
+@@||ad-img.gmarket.com
 @@||*/ad-site-i18n-sg/*
 @@point.pay.naver.com/api/ad-reward/*
 ! - 예외 (텍스트 안보임 해결)
