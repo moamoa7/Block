@@ -2442,7 +2442,7 @@ class UIPlugin extends Plugin {
         videoXSBrightenBtn.textContent = '암부S';
         videoXSBrightenBtn.dataset.presetKey = 'brightenX1';
         videoXSBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.36);
+            this.stateManager.set('videoFilter.gamma', 1.32);
             this.stateManager.set('videoFilter.saturation', 108);
             this.stateManager.set('videoFilter.blur', 0);
             this.stateManager.set('videoFilter.shadows', -16);
@@ -2455,7 +2455,7 @@ class UIPlugin extends Plugin {
         videoXMBrightenBtn.textContent = '암부M';
         videoXMBrightenBtn.dataset.presetKey = 'brightenX2';
         videoXMBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.72);
+            this.stateManager.set('videoFilter.gamma', 1.64);
             this.stateManager.set('videoFilter.saturation', 116);
             this.stateManager.set('videoFilter.blur', 0);
             this.stateManager.set('videoFilter.shadows', -32);
@@ -2468,7 +2468,7 @@ class UIPlugin extends Plugin {
         videoXLBrightenBtn.textContent = '암부L';
         videoXLBrightenBtn.dataset.presetKey = 'brightenX3';
         videoXLBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 2.08);
+            this.stateManager.set('videoFilter.gamma', 1.96);
             this.stateManager.set('videoFilter.saturation', 124);
             this.stateManager.set('videoFilter.blur', 0);
             this.stateManager.set('videoFilter.shadows', -48);
