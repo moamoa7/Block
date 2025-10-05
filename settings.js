@@ -2425,7 +2425,7 @@ class UIPlugin extends Plugin {
 
         const videoSsharpOFFBtn = document.createElement('button');
         videoSsharpOFFBtn.className = 'vsc-btn';
-        videoSsharpOFFBtn.textContent = '샤프 끔';
+        videoSsharpOFFBtn.textContent = '((샤프 끔))';
         videoSsharpOFFBtn.dataset.presetKey = 'sharpOFF';
         videoSsharpOFFBtn.onclick = () => {
             this.stateManager.set('videoFilter.level', 0);
@@ -2478,7 +2478,7 @@ class UIPlugin extends Plugin {
 
         const videoBrightenoffBtn = document.createElement('button');
         videoBrightenoffBtn.className = 'vsc-btn';
-        videoBrightenoffBtn.textContent = '밝기 끔';
+        videoBrightenoffBtn.textContent = '((밝기 끔))';
         videoBrightenoffBtn.dataset.presetKey = 'brightOFF';
         videoBrightenoffBtn.onclick = () => {
             this.stateManager.set('videoFilter.gamma', 1.00);
@@ -2494,7 +2494,7 @@ class UIPlugin extends Plugin {
         videoSBrightenBtn.textContent = '밝기S';
         videoSBrightenBtn.dataset.presetKey = 'brighten1';
         videoSBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.20);
+            this.stateManager.set('videoFilter.gamma', 1.25);
             this.stateManager.set('videoFilter.saturation', 106);
             this.stateManager.set('videoFilter.blur', 0);
             this.stateManager.set('videoFilter.shadows', -9);
@@ -2507,7 +2507,7 @@ class UIPlugin extends Plugin {
         videoMBrightenBtn.textContent = '밝기M';
         videoMBrightenBtn.dataset.presetKey = 'brighten2';
         videoMBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.40);
+            this.stateManager.set('videoFilter.gamma', 1.50);
             this.stateManager.set('videoFilter.saturation', 112);
             this.stateManager.set('videoFilter.blur', 0);
             this.stateManager.set('videoFilter.shadows', -19);
@@ -2520,7 +2520,7 @@ class UIPlugin extends Plugin {
         videoLBrightenBtn.textContent = '밝기L';
         videoLBrightenBtn.dataset.presetKey = 'brighten3';
         videoLBrightenBtn.onclick = () => {
-            this.stateManager.set('videoFilter.gamma', 1.60);
+            this.stateManager.set('videoFilter.gamma', 1.75);
             this.stateManager.set('videoFilter.saturation', 118);
             this.stateManager.set('videoFilter.blur', 0);
             this.stateManager.set('videoFilter.shadows', -28);
@@ -2528,19 +2528,17 @@ class UIPlugin extends Plugin {
             this.stateManager.set('videoFilter.activePreset', 'brighten3');
         };
 
-        const videoOffBtn = document.createElement('button');
-        videoOffBtn.className = 'vsc-btn';
-        videoOffBtn.textContent = '모두 끔';
-        videoOffBtn.dataset.presetKey = 'videoOFF';
-        videoOffBtn.onclick = () => {
-            this.stateManager.set('videoFilter.level', 0);
-            this.stateManager.set('videoFilter.level2', 0);
-            this.stateManager.set('videoFilter.gamma', 1);
-            this.stateManager.set('videoFilter.saturation', 100);
+        const videoXBrightenBtn = document.createElement('button');
+        videoXBrightenBtn.className = 'vsc-btn';
+        videoXBrightenBtn.textContent = '밝기XL';
+        videoXBrightenBtn.dataset.presetKey = 'brighten4';
+        videoXBrightenBtn.onclick = () => {
+            this.stateManager.set('videoFilter.gamma', 2.00);
+            this.stateManager.set('videoFilter.saturation', 124);
             this.stateManager.set('videoFilter.blur', 0);
-            this.stateManager.set('videoFilter.shadows', 0);
-            this.stateManager.set('videoFilter.highlights', 0);
-            this.stateManager.set('videoFilter.activePreset', 'videoOFF');
+            this.stateManager.set('videoFilter.shadows', -38);
+            this.stateManager.set('videoFilter.highlights', 24);
+            this.stateManager.set('videoFilter.activePreset', 'brighten4');
         };
 
         // --- 버튼 그룹 레이아웃 수정 시작 ---
@@ -2562,14 +2560,14 @@ class UIPlugin extends Plugin {
         // 4. 세 번째 줄 버튼 그룹을 새로 생성하고 나머지 버튼 2개를 추가합니다.
         const videoBtnGroup3 = document.createElement('div');
         videoBtnGroup3.style.cssText = 'display: flex; justify-content: center; gap: 5px;';
-        videoBtnGroup3.append(videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoOffBtn);
+        videoBtnGroup3.append(videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoXBrightenBtn);
 
         // 5. 3개의 버튼 그룹을 메인 컨테이너에 추가합니다.
         videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup2, videoBtnGroup3);
 
         // --- 버튼 그룹 레이아웃 수정 끝 ---
 
-        const videoButtons = [videoResetBtn, videoSsharpOFFBtn, videoMsharpBtn, videoLsharpBtn, videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoBrightenoffBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoOffBtn];
+        const videoButtons = [videoResetBtn, videoSsharpOFFBtn, videoMsharpBtn, videoLsharpBtn, videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoBrightenoffBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoXBrightenBtn];
         this.subscribe('videoFilter.activePreset', (activeKey) => {
             videoButtons.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.presetKey === activeKey);
