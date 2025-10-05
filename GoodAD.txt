@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251004
+! Version: 20251006
 !
 !
 !
@@ -4503,6 +4503,11 @@ greasyfork.org##div.ad
 greasyfork.org##.ad-entry
 !
 !
+! 차단 목록 해제 (BadBlock+ (ABP)) - 트위터 게시물 안보임
+||platform.twitter.com^$important,badfilter
+@@||syndication.twimg.com^
+!
+!
 !
 !
 !
@@ -6342,3 +6347,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
