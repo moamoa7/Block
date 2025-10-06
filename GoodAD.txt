@@ -383,6 +383,7 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! - 차단 목록 ((Adblock-Rule-Collection-Lite))
 ||api.chzzk.naver.com/ad-polling/*/lives/*/ad
 ||api.chzzk.naver.com/service/*/ad/display-status
+||nelo2-col.navercorp.com^$from=~map.naver.com
 
 !
 !
