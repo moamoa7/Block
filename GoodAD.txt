@@ -89,7 +89,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - www.amateur.tv 연결해야 실시간 방송이 재생됨
 ! - - - 예외
 @@||gateway.discord.gg$websocket
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv
 
 ! - https://wonforecast.com/ 환율 가져오기
 @@||tradingview.com/socket.io/websocket
@@ -1237,7 +1237,7 @@ tvhot.store##.object-cover
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
 ! 차단목록 (Adblock-Rule-Collection-Lite)
-/fonts/*.ttf$font,third-party
+||tracker.$websocket
 !
 !
 ! Linkkf 애니 TV
