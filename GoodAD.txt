@@ -2670,7 +2670,7 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !###imgDiv11
 !###imgDiv12
 !###imgDiv13
-!###imgDiv21
+###imgDiv21
 !###imgDiv22
 ! - - - AV핑유걸 (https://avpingyou19.com/)
 ! - 상단 배너 공간
@@ -2918,6 +2918,7 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 ! JAV Lemon (https://javlemon.com/)
 ! - 영상 아래 배너
 !javlemon.com##[style] [src]
+javlemon.com##style\=\"text-align\:center\;\"
 ! - 이미지가 아닌 동영상이 올때가 있어서 제대로 차단이 안됨/. js를 차단해야 함
 ||a.magsrv.com/ad-provider.js
 ! - - - PC
@@ -4529,6 +4530,16 @@ twidouga.net##.share-buttons
 ||new-adtest.pages.dev^
 !
 !
+! 인생도박 (https://dobaklife21.com/) - 주소 수시로 바뀜
+! - 안생도박 보증업체 테이블 (이미지)
+[$domain=/^dobaklife\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
+!
+!
+! https://fikper.com/
+! -차단 목록 (Adblock-Rule-Collection-Lite)
+fikper.com##body:style(overflow: auto !important;)
+!
+!
 !
 !
 !
@@ -5402,6 +5413,9 @@ camcam.cc#@#[class*="ads"]
 kakaotv.daum.net#@#[class*="ads"]
 ! - - - https://rethinkdns.com/ - 다운로드 리스트 안나옴
 rethinkdns.com#@#[class*="ads"]
+! - - - https://javlemon.com/ - 영상 안나옴
+javlemon.com#@#[class*="ads"]
+
 
 
 
@@ -5974,7 +5988,7 @@ kilho.net,[$domain=/^jusoyo\d+.com/],[$domain=/^redcattv\d+.org/]##a[href][targe
 ! - - - https://xn--av1-qv9mx21c.com/
 ! - - - TV995 (https://tv995.com/) - - -  많이 본 영화 이미지 삭제됨
 ! - - - - - 소스를 봐도 먼지 모르갰음
-javlemon.com,xn--av1-qv9mx21c.com,tv995.com##[style][class]:has(img[src])
+!javlemon.com,xn--av1-qv9mx21c.com,tv995.com##[style][class]:has(img[src])
 
 
 !!! - 변형 5
