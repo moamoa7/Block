@@ -331,7 +331,8 @@ play.sooplive.co.kr##.event_tooltip
 ||sooplive.co.kr/asset/service/common/common_analysis.js
 ##.btn_share
 ##p:empty:not([class], [id])
-/ss/ss
+! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
+@@||stimg.sooplive.co.kr/LOGO/ss/ss*
 !
 !
 ! https://javleak.com/
@@ -2197,9 +2198,6 @@ c.appstory.co.kr##.modal_add_home.renew_modal
 ! 와디즈 (https://www.wadiz.kr/)
 ! - 상단 배너 나오게 하기 (List-KR 무력화)
 @@||service.wadiz.kr/api/*/wadizad/host/keyvisual
-! - 기타
-||appboycdn.com^
-||zdassets.com/ekr/snippet.js^$script
 !
 !
 !!! 다나와 (https://danawa.com/)
@@ -4274,6 +4272,8 @@ linknnn.com##.wst-post-gl
 www.wavve.com#@#.popup
 ! - - - 예외 (https://kr80.sogirl.so) (https://kr29.4kjav.co/) - 예전 도메인이면 안보임
 [$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#.popup
+! - - - 예외 (nid.naver.com) - 네이버로 타사 회원가입시 필요
+nid.naver.com#@#.popup
 ! 사이 사이 마다 있는 배너
 !##.plus_banner
 !
