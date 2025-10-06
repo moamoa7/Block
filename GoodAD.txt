@@ -349,7 +349,7 @@ cinety.sooplive.co.kr#@#[id*="banner"]
 cinety.sooplive.co.kr#@#[id^="banner_"]
 cinety.sooplive.co.kr#@#.banner
 cinety.sooplive.co.kr#@#.banner_list
-! - 차단해제 (Adblock-Rule-Collection-Lite) - 시네티 영상 새창 해제
+! - 차단해제 (Adblock-Rule-Collection-Lite) - 시네티 영상 새창 차단 해제
 @@||sooplive.co.kr/asset/service/common/common_analysis.js
 !
 !
