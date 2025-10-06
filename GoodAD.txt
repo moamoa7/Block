@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251007
+! Version: 20251006
 !
 !
 !
@@ -376,6 +376,8 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 !##.popup_modal__hRwfq.popup_container__Aqx-3
 ! - 첫 구매 이벤트 중 알림
 chzzk.naver.com##.toolbar_tooltip__\+upC-
+! 치트키 구매하기 툴팁
+##.tooltip
 ! - 광고?
 ||.com/ad-*
 ! - 허용목록 (Adblock-Rule-Collection-Lite)
@@ -564,8 +566,9 @@ gall.dcinside.com#@#[class^="ad"]
 gall.dcinside.com##div[class*="banner"]
 ##[data-ad]
 !  차단 목록 (Adblock-Rule-Collection-Lite)
-dcinside.com##.btn_snsmore
 gall.dcinside.com##.r_dcmedia
+! Adblock-Rule-Collection-Lite 에서 차단된거 해제 (공유 버튼)
+dcinside.com#@#.btn_snsmore
 !
 !
 ! 아카라이브 (https://arca.live/)
