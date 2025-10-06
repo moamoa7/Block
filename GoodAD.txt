@@ -4518,6 +4518,17 @@ greasyfork.org##.ad-entry
 @@||syndication.twimg.com^
 !
 !
+! 해제 (🔥 BadBlock+ (ABP))
+@@||semrush.com^
+!
+!
+! https://www.twidouga.net/
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+twidouga.net##.share-buttons
+||adtest.pages.dev^
+||new-adtest.pages.dev^
+!
+!
 !
 !
 !
@@ -5383,8 +5394,8 @@ bestjavporn.com#@#[class*="ads"]
 javdock.com#@#[class*="ads"]
 ! - - - https://4.jamakyadong.me/ - 영상 안보임
 [$domain=/^\d+.jamakyadong.me/]#@#[class*="ads"]
-! - --  https://av19.live/ - 영상 안보임
-av19.live#@#[class*="ads"]
+! - --  https://av19.me/ - 영상 안보임 (주소 수시로 바뀜)
+av19.*#@#[class*="ads"]
 ! - - - https://camcam.cc/ - 영상 프레임 사라짐
 camcam.cc#@#[class*="ads"]
 ! - - - https://sports.daum.net/ - 영상 안나옴
