@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251006
+! Version: 20251007
 !
 !
 !
@@ -102,6 +102,8 @@ www.google.com###taw, #bottomads
 google.com##body #tads
 google.com###js-header, #searchform, .O-j-k, .header:not(#menu.header--primary):not(.column-section):not(.viewed):not(.ng-star-inserted):not([class*="_ngcontent"]):not([role="heading"]), .js-header.chr-header, .mobile-action-bar, body > .ng-scope, #flt-nav, .gws-flights__scrollbar-padding.gws-flights__selection-bar, .gws-flights__selection-bar-shadow-mask:style(position: absolute !important;)
 google.com###bottomads > div[id^="tads"]
+google.*##div[aria-label="Share"]
+google.*##div[data-q][data-al]
 ! - 해제 목록 (Adblock-Rule-Collection-Lite)
 google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 
@@ -4538,6 +4540,13 @@ twidouga.net##.share-buttons
 ! https://fikper.com/
 ! -차단 목록 (Adblock-Rule-Collection-Lite)
 fikper.com##body:style(overflow: auto !important;)
+!
+!
+! 트위터 (https://x.com/) (https://twitter.com)
+! 차단 목록 (Adblock-Rule-Collection-Lite)
+x.com##html[style]:style(overflow: auto !important; position: static !important;)
+x.com##div[role="group"] > div[data-testid="mask"]
+twitter.com##.ProfileCanopy-header.u-bgUserColor, .ProfileCanopy-header, div.css-1dbjc4n[style^="margin-top:"], html:style(margin-top: 0 !important;)
 !
 !
 !
