@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251007
+! Version: 20251008
 !
 !
 !
@@ -4465,12 +4465,14 @@ liteapks.com##.list-shares
 !
 !
 ! https://play.google.com/
-! 차단 목록 (Adblock-Rule-Collection-Lit)
+! - 차단 목록 (Adblock-Rule-Collection-Lit)
 play.google.com##div[data-is-touch-wrapper] > button:has(> span > svg > path[d^="M18 16.08c-"])
 !
 !
 ! https://github.com/
-! 차단 목록 (Adblock-Rule-Collection-Lite)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+||api.github.com/_private/browser/stats$important
+! - 해제 목록 (Adblock-Rule-Collection-Lite) - 깨짐 방지
 github.com#@#html:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
 github.com#@#.repository-content:style(width: 100% !important)
 github.com#@#.container-xl:style(max-width: none !important)
@@ -4482,23 +4484,21 @@ github.com#@#.container-lg:style(max-width: none !important)
 github.com#@#.container-lg:style(width: 100% !important; padding-left: 30px !important; padding-right: 30px !important)
 github.com#@#div[data-selector*=repos-split-pane-content i]:style(max-width: unset !important)
 github.com#@#div[tabindex] + div > div[class^=Box-sc-][class*=" "]:style(max-width: unset !important)
-||api.github.com/_private/browser/stats$important
-
 !
 !
 ! 에로 라이브 (https://momoiroadult.com/)
-! 차단 목록 (Adblock-Rule-Collection-Lite)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
 /blogparts_iframe.php?sc=$subdocument,third-party
 ||translate.googleapis.com/element/log?
 !
 !
 ! https://alive-video.com/
-! 차단 목록 (Adblock-Rule-Collection-Lite)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
 /cocoon-master/lib/analytics/access.php?
 !
 !
 ! 오나미몰 (https://oname.kr/)
-! 차단 목록 (Adblock-Rule-Collection-Lite)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
 /exec/front/eclog/*
 !
 !
@@ -4543,7 +4543,7 @@ fikper.com##body:style(overflow: auto !important;)
 !
 !
 ! 트위터 (https://x.com/) (https://twitter.com)
-! 차단 목록 (Adblock-Rule-Collection-Lite)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
 x.com##html[style]:style(overflow: auto !important; position: static !important;)
 x.com##div[role="group"] > div[data-testid="mask"]
 twitter.com##.ProfileCanopy-header.u-bgUserColor, .ProfileCanopy-header, div.css-1dbjc4n[style^="margin-top:"], html:style(margin-top: 0 !important;)
