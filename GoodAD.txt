@@ -4471,17 +4471,17 @@ play.google.com##div[data-is-touch-wrapper] > button:has(> span > svg > path[d^=
 !
 ! https://github.com/
 ! 차단 목록 (Adblock-Rule-Collection-Lite)
-github.com##html:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
-github.com##.repository-content:style(width: 100% !important)
-github.com##.container-xl:style(max-width: none !important)
-github.com##.container:style(width: 100% !important; padding-left: 30px !important; padding-right: 30px !important)
-github.com##.Layout--sidebarPosition-flowRow-end:style(width: 96vw !important; --Layout-sidebar-width: 220px !important; --Layout-gutter: -5px !important)
-github.com##.Layout-sidebar:style(max-width:220px!important;padding-left:10px!important)
-github.com##div.Layout--sidebarPosition-end:style(grid-template-columns: calc(100vw - 275px) 210px !important)
-github.com##.container-lg:style(max-width: none !important)
-github.com##.container-lg:style(width: 100% !important; padding-left: 30px !important; padding-right: 30px !important)
-github.com##div[data-selector*=repos-split-pane-content i]:style(max-width: unset !important)
-github.com##div[tabindex] + div > div[class^=Box-sc-][class*=" "]:style(max-width: unset !important)
+github.com#@#html:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
+github.com#@#.repository-content:style(width: 100% !important)
+github.com#@#.container-xl:style(max-width: none !important)
+github.com#@#.container:style(width: 100% !important; padding-left: 30px !important; padding-right: 30px !important)
+github.com#@#.Layout--sidebarPosition-flowRow-end:style(width: 96vw !important; --Layout-sidebar-width: 220px !important; --Layout-gutter: -5px !important)
+github.com#@#.Layout-sidebar:style(max-width:220px!important;padding-left:10px!important)
+github.com#@#div.Layout--sidebarPosition-end:style(grid-template-columns: calc(100vw - 275px) 210px !important)
+github.com#@#.container-lg:style(max-width: none !important)
+github.com#@#.container-lg:style(width: 100% !important; padding-left: 30px !important; padding-right: 30px !important)
+github.com#@#div[data-selector*=repos-split-pane-content i]:style(max-width: unset !important)
+github.com#@#div[tabindex] + div > div[class^=Box-sc-][class*=" "]:style(max-width: unset !important)
 ||api.github.com/_private/browser/stats$important
 
 !
