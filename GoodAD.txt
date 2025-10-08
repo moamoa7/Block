@@ -1261,8 +1261,6 @@ tvhot.store##.object-cover
 @@/videojs-chromecast.min.js^$script
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 ||tracker.$websocket
-! - 영상 끊김 방지 (HaGeZi's Threat Intelligence Feeds 에 의한 차단 해제)
-@@||*.shop^
 !
 !
 ! Linkkf 애니 TV
@@ -2495,6 +2493,7 @@ javgg.net##.home_iframead
 ||disprovefacilityjolt.com^$popup
 ||barometercorrodingunease.com^$popup
 ||correctdilutetrophy.com^$popup
+||pure-group.pro^$popup
 ! - 차단 사이트
 ||c.adsco.re^
 ||pjzshwrsq.com^
