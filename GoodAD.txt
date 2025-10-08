@@ -2424,9 +2424,9 @@ avsee.ru##.tabs
 /^https:\/\/(?:[a-z]{2}\.)?[a-z]{7,14}\.[a-z]{3,7}\/[a-z][0-9A-Za-z]{10,16}\/\d{4,6}$/$script,third-party,match-case
 ##div.preloader
 *##.ad
-! 해제 목록 (Adblock-Rule-Collection-Lite) - TV 영상 안나옴
-@@||jwpcdn.com^
-
+||jwpcdn.com^
+! 해제 목록 (Adblock-Rule-Collection-Lite) - 차단하면 TV 영상 안나옴
+@@||p.jwpcdn.com^$script
 !
 !
 ! JavNeon (https://javneon.tv/)
