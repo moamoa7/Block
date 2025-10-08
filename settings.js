@@ -9,7 +9,7 @@
 // ==/UserScript==
 
 (function () {
-    'use strict'; 
+    'use strict';
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
 
