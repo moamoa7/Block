@@ -623,10 +623,6 @@ www.baidu.com#@#[class*="ad_"] [style]
 [$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 platinmods.com#@#[class*="ad_"] [style]
-! - https://supjav.com/ - 영상 안보임
-supjav.com#@#[class*="ad_"] [style]
-
-
 ##.adpost
 ! 게시물 하단 배너
 !fmkorea.com##ins.adsbygoogle
@@ -2428,6 +2424,9 @@ avsee.ru##.tabs
 /^https:\/\/(?:[a-z]{2}\.)?[a-z]{7,14}\.[a-z]{3,7}\/[a-z][0-9A-Za-z]{10,16}\/\d{4,6}$/$script,third-party,match-case
 ##div.preloader
 *##.ad
+! 해제 목록 (Adblock-Rule-Collection-Lite) - TV 영상 안나옴
+@@||jwpcdn.com^
+
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -2628,6 +2627,7 @@ clien.net#@#.ad_banner
 !##img[src*="static.wixstatic.com/media"]
 ! - 배너 공간
 xn--av-t21i858e.net##.wixui-section.comp-m7wvsc3o.Oqnisf
+
 
 
 !
@@ -3073,6 +3073,7 @@ javmov.com##.spot
 ! - 상단 텍스트 배너
 ! - - -  사이트 주소 안넣으면 다른 사이트에서 텍스트가 사라짐 (예 : https://dramaday.me/ 오른쪽 하단 텍스트가 사라짐)
 loopholes.site##.widget_text
+
 !
 !
 ! 야동망고 (https://www.xn--299a65k99e3yi55ey7f.com/) (https://www.xn--299a89v.net/) (https://www.mango54.net/) (https://www.mango20.xyz/) (https://www.mango57.icu/)
@@ -3297,6 +3298,7 @@ xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 !##.vjs-bottom-banner.vjs-bottom-banner-container
 !
 !
+
 ! 야동공장 (https://yagong84.com/)
 ! - 업소정보 글자
 ![$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(2)
@@ -3652,6 +3654,8 @@ tokyomotion.net#@#[class$="verlay"]
 
 
 
+
+
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
 ! - 하단 텍스트 배너
@@ -3747,6 +3751,7 @@ mingky.net##.clearfix.nt-links
 ###buffer
 ! - 동맹 글자
 !vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
+
 !
 !
 ! 야밤 (https://yabam22.me/)
@@ -3828,6 +3833,7 @@ mingky.net##.clearfix.nt-links
 ##.playerads
 !
 !
+
 ! 야한TV (https://www.yatv16.me/)
 ! - 영상 광고 이미지
 ||www.yatv*.me/ad.jpg
@@ -3995,6 +4001,7 @@ hitomi.la###immersive-translate-popup
 wasp.pandalive.co.kr#@#[class^="ad"]
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 /advert^
+
 !
 !
 ! 주소월드 (https://wdwd7.com/)
@@ -4303,6 +4310,7 @@ www.wavve.com#@#.popup
 nid.naver.com#@#.popup
 ! 사이 사이 마다 있는 배너
 !##.plus_banner
+
 !
 !
 !
@@ -4365,8 +4373,6 @@ dhlottery.co.kr##.band_banner
 trand.co.kr##[class*="widget"]>table
 ##[class="list-ad"]
 !##.list-ad
-! 차단 목록 (Adblock-Rule-Collection-Lit)
-||jwpcdn.com^
 !
 !
 ! 스마트택배 (https://st.sweettracker.co.kr/)
@@ -4565,6 +4571,7 @@ twitter.com##.ProfileCanopy-header.u-bgUserColor, .ProfileCanopy-header, div.css
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
+
 !
 !
 !
