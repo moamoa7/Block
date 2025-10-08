@@ -335,11 +335,10 @@ play.sooplive.co.kr##.event_tooltip
 ||exlogcollector.sooplive.co.kr^
 ||stbbs.sooplive.co.kr/api/*_log.php
 ||sooplive.co.kr/js/google.analytics.js
-
 ##.btn_share
 ##p:empty:not([class], [id])
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
-@@||stimg.sooplive.co.kr/LOGO/ss/ss*
+@@||*stimg.sooplive.co.kr/LOGO/ss/ss*
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
@@ -624,6 +623,10 @@ www.baidu.com#@#[class*="ad_"] [style]
 [$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 platinmods.com#@#[class*="ad_"] [style]
+! - https://supjav.com/ - 영상 안보임
+supjav.com#@#[class*="ad_"] [style]
+
+
 ##.adpost
 ! 게시물 하단 배너
 !fmkorea.com##ins.adsbygoogle
@@ -1211,6 +1214,8 @@ poooo.ml#@#.ad
 @@||ok.ru/videoembed^$3p,frame
 ! - 차단목록 (Adblock-Rule-Collection-Lite)
 /log/*_time
+! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
+@@||*poooo.ml/data/apms/photo/ss/ss*
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
