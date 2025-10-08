@@ -4549,6 +4549,11 @@ x.com##div[role="group"] > div[data-testid="mask"]
 twitter.com##.ProfileCanopy-header.u-bgUserColor, .ProfileCanopy-header, div.css-1dbjc4n[style^="margin-top:"], html:style(margin-top: 0 !important;)
 !
 !
+! https://platinmods.com/
+! - 해제 목록 (Adblock-Rule-Collection-Lite) - 사이트 틀 깨짐 방지
+@@_ads_$domain=platinmods.com
+!
+!
 !
 !
 !
