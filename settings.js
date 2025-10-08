@@ -1,4 +1,4 @@
-2// ==UserScript==
+// ==UserScript==
 // @name         Video_Image_Control (Final & Fixed & Multiband & DynamicEQ)
 // @namespace    https://com/
 // @version      102.9
@@ -9,7 +9,7 @@
 // ==/UserScript==
 
 (function () {
-    'use strict';
+    'use strict'; 
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
 
