@@ -2437,11 +2437,12 @@ avsee.ru##.tabs
 ! - - - - - uBlock filters – Ads
 !/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
 ! - 기타
-##.afs_ads
 ##.jw-nextup-container
 ##.jw-reset-text:not(button)
 ##.jw-wrapper > div[style="opacity: 0; visibility: hidden; overflow: hidden; display: block; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;"]
 /provider.cast.js^$script
+! - 해제 목록 (AdRules AdBlock List Plus )
+#@#.afs_ads
 !
 !
 ! supjav (https://supjav.com/)
@@ -5222,6 +5223,8 @@ ppomppu.co.kr#@#a[href][onclick]:has(img[style])
 ! - - - 예외
 ! - - - 옥션 (https://www.auction.co.kr/) - 검색시 이미지 사라짐 (generichide 활성화로 규칙 미적용)
 !auction.co.kr#@#a[href*="click"]:has(img)
+! - - - https://liteapks.com/ - 일부 이미지 사라짐
+liteapks.com#@#a[href*="click"]:has(img)
 
 
 !!! - 광역 11
