@@ -1258,6 +1258,9 @@ poooo.ml#@#.ad
 /log/*_time
 ! - 차단목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||apptracer.ru^
+||statwup.nimo.tv^
+||metric.nimo.tv^
+||ylog.nimo.tv^
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*poooo.ml/data/apms/photo/ss/ss*
 !
