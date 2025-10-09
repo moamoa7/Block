@@ -608,6 +608,8 @@ gall.dcinside.com##div[class*="banner"]
 gall.dcinside.com##.r_dcmedia
 ! Adblock-Rule-Collection-Lite 에서 차단된거 해제 (공유 버튼)
 dcinside.com#@#.btn_snsmore
+! - 개죽이 차단
+dcinside.com##+js(nostif, adblock_detected7)
 !
 !
 ! 아카라이브 (https://arca.live/)
