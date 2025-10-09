@@ -136,6 +136,8 @@ youtube.com###masthead-container:style(position: absolute !important; transition
 youtube.com###contentContainer.tp-yt-app-drawer[swipe-open].tp-yt-app-drawer::after, tp-yt-app-drawer:style(position: absolute !important;)
 youtube.com###backgroundFrontLayer, #backgroundRearLayer:style(transform: translate3d(0px, 0px, 0px) !important;)
 ||googlevideo.com/videoplayback*ctier=l&*%2cxpc%2cctier%2c
+youtube.com##ytd-engagement-panel-section-list-renderer[target-id^="engagement-panel-ads"]
+youtube.com##div #player-ads.style-scope.ytd-watch-flexy
 !
 !
 ! wikipedia.org
@@ -1256,11 +1258,17 @@ poooo.ml#@#.ad
 @@||ok.ru/videoembed^$3p,frame
 ! - 차단목록 (Adblock-Rule-Collection-Lite)
 /log/*_time
+||tns-counter.ru^
+||www.statcounter.com^
+||smartmediarep.com^
+! - 차단목록(AdRules AdBlock List Plus)
+##A > IMG[alt][src*="resources/images/"]
 ! - 차단목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||apptracer.ru^
 ||statwup.nimo.tv^
 ||metric.nimo.tv^
 ||ylog.nimo.tv^
+||static.kbs.co.kr/recommend/rcmd_track.js
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*poooo.ml/data/apms/photo/ss/ss*
 !
