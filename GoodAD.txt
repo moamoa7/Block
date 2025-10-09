@@ -281,7 +281,7 @@ pann.nate.com##.social_send
 ! 숲 (https://www.sooplive.co.kr/)
 ! - 팝업
 sooplive.co.kr##.bnrimg_area
-sooplive.co.kr##[class*="__popup___"]
+!sooplive.co.kr##[class*="__popup___"]
 ! - 메인 모르겠는데 떠 있는거
 sooplive.co.kr###soopi_wrap
 ! - 채팅 위 연관상품
@@ -356,6 +356,8 @@ play.sooplive.co.kr##.event_tooltip
 ##p:empty:not([class], [id])
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*stimg.sooplive.co.kr/LOGO/ss/ss*
+! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
+sooplive.co.kr#@#[class*="AD"]
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
@@ -4618,6 +4620,16 @@ thepinkstuff.co.kr,cafe24.com#@#.ad
 thepinkstuff.co.kr,cafe24.com#@#[class^="ad"]
 thepinkstuff.co.kr,cafe24.com#@#[id*="banner"]
 thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
+!
+!
+! 잡코리아 (https://www.jobkorea.co.kr/)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+/adbanner
+!
+!
+! 사람인 (https://www.saramin.co.kr/)
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||static.airbridge.io/sdk/
 !
 !
 !
