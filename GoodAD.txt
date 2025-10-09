@@ -104,8 +104,13 @@ google.com###js-header, #searchform, .O-j-k, .header:not(#menu.header--primary):
 google.com###bottomads > div[id^="tads"]
 google.*##div[aria-label="Share"]
 google.*##div[data-q][data-al]
+!- 차단 목록 (AdRules AdBlock List Plus)
+www.google.*###main a[href][ping^="/url?"]:remove-attr(ping)
 ! - 해제 목록 (Adblock-Rule-Collection-Lite)
 google.*#@#+js(ubo-acs, addEventListener, mouseleave)
+@@||google.com^$xhr,removeparam=ei
+! - 해제 목록 (AdRules AdBlock List Plus)
+@@/^https?:\/\/(docs|accounts)\.google(\.[a-z]{2,}){1,}/$removeparam
 !
 !
 ! 유튜브 (https://www.youtube.com/)
