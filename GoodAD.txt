@@ -106,7 +106,6 @@ google.*##div[aria-label="Share"]
 google.*##div[data-q][data-al]
 ! - 해제 목록 (Adblock-Rule-Collection-Lite)
 google.*#@#+js(ubo-acs, addEventListener, mouseleave)
-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
@@ -142,6 +141,11 @@ youtube.com###backgroundFrontLayer, #backgroundRearLayer:style(transform: transl
 ! wikipedia.org
 wikipedia.org###siteNotice
 wikipedia.org###centralNotice
+!
+!
+! 캡챠
+! - 해제 목록 (AdRules AdBlock List Plus)
+@@/^https?:\/\/([a-z0-9-]+\.)*?(cloudflare\.com|prismic\.io|tangerine\.ca|gitlab\.com)/$removeparam
 !
 !
 ! ChatGPT (https://chatgpt.com/)
@@ -254,6 +258,19 @@ naver.com##.naver-splugin
 ! 네이트 (https://www.nate.com/)
 ! - 차단 사이트
 !||cyad1.nate.com^
+!
+!
+! 네이트 메일 (https://mail3.nate.com/)
+! - 차단 목록 (AdRules AdBlock List Plus)
+##.advertise
+!
+!
+! 네이트판 (https://pann.nate.com/)
+! - 차단 목록 (AdRules AdBlock List Plus)
+_ad.htm
+pann.nate.com##.social_send
+! - 차단 목록 (AdRules AdBlock List Plus) (AdRules AdBlock List Plu)
+||stat.nate.com^
 !
 !
 ! 다음 (https://v.daum.net/)
@@ -416,7 +433,6 @@ twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__
 ! - 기타
 ! - 해제 (Adblock-Rule-Collection-Lite)
 @@-ads.
-
 !
 !
 ! 킥 (https://kick.com/)
@@ -431,6 +447,8 @@ twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__
 ! - 팝업 차단후 뿌옇게 된 화면 처리하면 스크롤이 안되서 팝업 차단 해제
 ! - 영화감상사이트 미용비활성 전환으로 인한 규칙 해제
 !www.wavve.com#@#.popup
+! - 본인 인증시 필요
+member.wavve.com#@#.popup
 !
 !
 ! 카카오TV (https://tv.kakao.com/)
@@ -458,6 +476,12 @@ play.sooplive.co.kr#@#[class*="Modal"]
 tiktok.com#@#[class*="Modal"]
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+tiktok.com##html:style(overflow-x: hidden !important;)
+tiktok.com##div[data-e2e="browse-share-group"]
+##a[href*="//lineit.line.me/share/"]
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||tiktok.com/api/*/web-cookie-privacy
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -637,6 +661,7 @@ fmkorea.com###fm_alert
 .cur|$image,domain=~pixiv.net|~deviantart.com
 fmkorea.com###bd_capture:style(background: none!important;)
 fmkorea.com##.doc_sns
+/x.js*
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
@@ -900,6 +925,11 @@ todayhumor.co.kr##.under_ad_div
 ##.call_banner
 ! - 차단 사이트
 !||mediacategory.com^
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+##.fb-like
+||media.$frame,3p,from=~ted.com
+! - 차단 목록 (AdRules AdBlock List Plus)
+##INS.adsbygoogle
 !
 !
 ! 와이고수 (https://ygosu.com/)
@@ -1026,6 +1056,9 @@ ppomppu.co.kr##.hot-imgBoard
 ppomppu.co.kr###ask_app_usage_popup
 ! - ##[class^="ad"] 복원 - 첨부파일 / 댓글주소복사 기능 등 몇가지 사라짐
 ppomppu.co.kr#@#[class^="ad"]
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+ppomppu.co.kr###buttonBox-sharing
+ppomppu.co.kr###view-top-three-rung-menu .submenu-share
 
 !
 !
@@ -1114,6 +1147,10 @@ damoang.net#@#[class*="div-gpt-ad"]
 !humoruniv.com##.adsbygoogle
 ! - 차단 사이트
 !||compass.adop.cc^
+! - 차단 목록 (Adblock-Rule-Collection-)
+||adop.cc^
+! - 차단 목록  (AdRules AdBlock List Plus)
+##ul > li > A[href$="_list.html"]
 !
 !
 ! 루리웹 (https://bbs.ruliweb.com/)
@@ -1172,6 +1209,10 @@ zum.com##.wide.favorite_site
 zum.com##.subcont_wrap
 ! - - - TV
 zum.com##.tv_wrap
+! - 차단 목록(Adblock-Rule-Collection-Lite) 
+/ad_
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||estat.zum.com^
 !
 !
 ! 벅스 (https://music.bugs.co.kr/)
@@ -1210,6 +1251,8 @@ poooo.ml#@#.ad
 @@||ok.ru/videoembed^$3p,frame
 ! - 차단목록 (Adblock-Rule-Collection-Lite)
 /log/*_time
+! - 차단목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||apptracer.ru^
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*poooo.ml/data/apms/photo/ss/ss*
 !
@@ -4518,6 +4561,7 @@ github.com#@#div[tabindex] + div > div[class^=Box-sc-][class*=" "]:style(max-wid
 reddit.com##body:not([style^="overflow:"]):not([class="rpl-scroll-lock"]):style(pointer-events: auto !important; overflow: auto !important;)
 reddit.com##span.hidden[class$="m:block"]
 reddit.com##shreddit-comment-tree-ad
+reddit.com##body:style(overflow: auto !important;)
 !
 !
 ! https://greasyfork.org/
