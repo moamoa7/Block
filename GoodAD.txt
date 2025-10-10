@@ -1251,7 +1251,12 @@ netflix.com##div[data-uia="pause-ad"]
 @@||log.tving.com
 ! 차단 목록 (Adblock-Rule-Collection-Lite)
 ||tagmanager.toast.com^
+||appboycdn.com^
+||sentry.io^
 *##p:has-text(/^\xA0$/):not(:has-text(/\S/)):not(:has(img))
+! 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||wcs.naver.net/wcslog.js^
+||onelinksmartscript.appsflyer.com^
 !
 !
 ! POOOO (https://poooo.ml/)
