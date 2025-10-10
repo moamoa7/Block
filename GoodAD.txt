@@ -4565,10 +4565,20 @@ github.com#@#div[tabindex] + div > div[class^=Box-sc-][class*=" "]:style(max-wid
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 /blogparts_iframe.php?sc=$subdocument,third-party
 ||translate.googleapis.com/element/log?
+||hananokai.tv^
+||adm.shinobi.jp^
+||link-medias.com^
+! - 차단 목록 (AdRules AdBlock List Plus)
+##.elogch_blogparts_iframe
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||ad-spire.net^
+||counter1.fc2.com^
 !
 !
 ! https://alive-video.com/
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
+||ad-nex.com^
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 /cocoon-master/lib/analytics/access.php?
 !
 !
@@ -4650,6 +4660,18 @@ thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 ! 사람인 (https://www.saramin.co.kr/)
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||static.airbridge.io/sdk/
+!
+!
+
+
+! https://emuokunmaster.com/
+! - 차단 목록 (AdRules AdBlock List Plus)
+##a[href*="/?aff="][target="_blank"]
+!
+!
+! https://www.elog-ch.net/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||bance.jp^
 !
 !
 !
