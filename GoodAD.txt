@@ -4561,7 +4561,7 @@ play.google.com##div[data-is-touch-wrapper] > button:has(> span > svg > path[d^=
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||api.github.com/_private/browser/stats$important
 ! - 해제 목록 (Adblock-Rule-Collection-Lite)
-github.com##html:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
+github.com#@#html:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
 github.com##.repository-content:style(width: 100% !important)
 github.com##.container-xl:style(max-width: none !important)
 github.com##.container:style(width: 100% !important; padding-left: 30px !important; padding-right: 30px !important)
