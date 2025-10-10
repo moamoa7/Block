@@ -4681,6 +4681,20 @@ thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 ||bance.jp^
 !
 !
+! 핀터레스트 (https://kr.pinterest.com/)
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+pinterest.com##body:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
+pinterest.com##body:style(position: unset !important;)
+pinterest.com###HeaderContent, .active.noButtonStyles > div, body div[style^="position: fixed;"]:style(position: absolute !important;)
+pinterest.*##div[id$="unauth-container"] div[data-test-id="pin-closeup-image"] > div[style^="cursor: pointer;"]
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+pinterest.*##body:style(overflow: visible!important; touch-action: auto!important;)
+||pinterest.com/*/userregistertrackactionresource/
+||pinterest.com/_/_/trace/trace/
+||pinterest.com/_/_/report/
+||pinterest.com/_/_/logclienterror/
+!
+!
 !
 !
 !
