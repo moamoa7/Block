@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251010
+! Version: 20251011
 !
 !
 !
@@ -247,18 +247,24 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !
 !
 ! 네이버 스토어 (https://smartstore.naver.com/)
-! - 차단 목록 (Adblock-Rule-Collection-Lit)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
 *##p:has-text(/^ $/):not(:has-text(/\S/)):not(:has(img, input, iframe))
 ! 네이버 스토어 오류 해결
 @@||smartstore.naver.com^$stealth
 !
 !
-! 네이버 카페 사진 첨부 오류 해결
+! 네이버 카페 (https://cafe.naver.com/)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||cafe.naver.com/static/js/mycafe/javascript/autosourcing*.js
+||ssl.pstatic.net/static.gn/js/clickcrd.js$from=~search.naver.com
+||ipada.cafe.naver.com^$xhr
+||scv-cafe.io.naver.com/jackpotlog/*/logs$xhr
+! - 카페 사진 첨부 오류 해결
 @@*$stealth=dpi,app=com.nhn.android.navercafe
 !
 !
-! 네이버TV
-! 차단목록 (Adblock-Rule-Collection-Lite)
+! 네이버TV (https://tv.naver.com/)
+! - 차단목록 (Adblock-Rule-Collection-Lite)
 ||ntm.pstatic.net/scripts/ntm_*.js
 ||apis.naver.com/mcollector/
 naver.com##.naver-splugin
@@ -278,7 +284,7 @@ naver.com##.naver-splugin
 ! - 차단 목록 (AdRules AdBlock List Plus)
 _ad.htm
 pann.nate.com##.social_send
-! - 차단 목록 (AdRules AdBlock List Plus) (AdRules AdBlock List Plu)
+! - 차단 목록 (AdRules AdBlock List Plus) (AdRules AdBlock List Plus)
 ||stat.nate.com^
 !
 !
