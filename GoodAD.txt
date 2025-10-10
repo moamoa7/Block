@@ -116,7 +116,7 @@ google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 ! 유튜브 (https://www.youtube.com/)
 ! - 하단 왼쪽 팝업
 ##ytd-popup-container.ytd-app.style-scope
-! 차단목록 (Adblock-Rule-Collection-Lit)
+! 차단목록 (Adblock-Rule-Collection-Lite)
 ||youtube.com/api/stats^
 youtube.com##.video-annotations
 youtube.com##.annotation.iv-branding
@@ -143,6 +143,8 @@ youtube.com###backgroundFrontLayer, #backgroundRearLayer:style(transform: transl
 ||googlevideo.com/videoplayback*ctier=l&*%2cxpc%2cctier%2c
 youtube.com##ytd-engagement-panel-section-list-renderer[target-id^="engagement-panel-ads"]
 youtube.com##div #player-ads.style-scope.ytd-watch-flexy
+youtube.com##.opened:not(.ytcp-bulk-actions):remove()
+||gstatic.com/shopping?
 !
 !
 ! wikipedia.org
@@ -200,7 +202,7 @@ baidu.com###s-hotsearch-wrapper
 !
 !
 ! 인스타 (https://www.instagram.com/)
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plu)
 instagram.com##._aagw:empty
 instagram.com##body:style(overflow: visible!important;)
 !
