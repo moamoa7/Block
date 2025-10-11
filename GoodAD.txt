@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251011
+! Version: 20251012
 !
 !
 !
@@ -623,6 +623,10 @@ gall.dcinside.com#@#[class^="ad"]
 ##[id^="ad_"]
 gall.dcinside.com##div[class*="banner"]
 ##[data-ad]
+! - 모바일 디시에서 공지가 지워지는 현상 해결 (출처 : https://gall.dcinside.com/adguard/2348)
+m.dcinside.com#@##notice_list > li
+m.dcinside.com###notice_list > li:not(:has(.ntc-line-orange))
+m.dcinside.com###notice_list > li:nth-of-type(-n+3)
 !  차단 목록 (Adblock-Rule-Collection-Lite)
 gall.dcinside.com##.r_dcmedia
 ! Adblock-Rule-Collection-Lite 에서 차단된거 해제 (공유 버튼)
@@ -4780,6 +4784,11 @@ apkcombo.com##.column > div.widget:has(> a.installer)
 ! https://www.nexon.com/
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 ||com/banners/
+!
+!
+! https://www.buzzvil.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+/advertise^
 
 !
 !
