@@ -761,6 +761,10 @@ etoland.co.kr###info_recent_list_wrap
 etoland.co.kr#@#[class^="ad"]
 ! ||ad.$all,domain=~ad.jp 예외 - 이토랜드 광고 클릭 (BadBlock+ (ABP))
 @@||ad.$all,domain=www.etoland.co.kr
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+||nhnace.com^
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||amung.us^
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -4603,6 +4607,8 @@ github.com#@#div.Layout--sidebarPosition-end:style(grid-template-columns: calc(1
 !
 ! 오나미몰 (https://oname.kr/)
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||assets.poxo.com/jet/jet.js
+||cfa-js.cafe24.com^
 /exec/front/eclog/*
 !
 !
@@ -4626,7 +4632,8 @@ greasyfork.org##.ad-entry
 @@||syndication.twimg.com^
 !
 !
-! 해제 (🔥 BadBlock+ (ABP))
+! https://www.semrush.com/
+! - 사이트 차단 해제 (🔥 BadBlock+ (ABP))
 @@||semrush.com^
 !
 !
