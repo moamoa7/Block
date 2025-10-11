@@ -249,6 +249,8 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ! 네이버 스토어 (https://smartstore.naver.com/)
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 *##p:has-text(/^ $/):not(:has-text(/\S/)):not(:has(img, input, iframe))
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||slc.commerce.naver.com^
 ! 네이버 스토어 오류 해결
 @@||smartstore.naver.com^$stealth
 !
