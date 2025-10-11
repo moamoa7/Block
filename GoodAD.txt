@@ -2948,6 +2948,10 @@ avdbs.com#@#[class^="ad"]
 ![$domain=/^missvod\d+.com/]###banner-list.banner-list
 !  BadBlock+ (ABP) 해제 - 영상 이미지 안보임
 @@||recombee.com^
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+##a[href*="://wa.me/?text="]
+! - 차단 목록 (AdRules AdBlock List Plus)
+##div.flex-1.order-first > DIV.under_player
 
 !
 !
