@@ -267,9 +267,10 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !
 ! 네이버TV (https://tv.naver.com/)
 ! - 차단목록 (Adblock-Rule-Collection-Lite)
+naver.com##.naver-splugin
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||ntm.pstatic.net/scripts/ntm_*.js
 ||apis.naver.com/mcollector/
-naver.com##.naver-splugin
 !
 !
 ! 네이트 (https://www.nate.com/)
@@ -430,17 +431,17 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! - 광고?
 ||.com/ad-*
 ! - 허용목록 (Adblock-Rule-Collection-Lite)
+@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
+@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
+@@|wss://$removeparam
+! - 허용목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 @@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
 @@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
-@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
-@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
-@@|wss://$removeparam
-! - 차단 목록 ((Adblock-Rule-Collection-Lite))
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||api.chzzk.naver.com/ad-polling/*/lives/*/ad
-||api.chzzk.naver.com/service/*/ad/display-status
 ||nelo2-col.navercorp.com^$from=~map.naver.com
-
+||api.chzzk.naver.com/service/*/ad/display-status
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -771,6 +772,7 @@ etoland.co.kr#@#[class^="ad"]
 ! - 상단 공백
 !theqoo.net##.adsbygoogle
 ! - 로딩중 글자
+! - - - (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 theqoo.net##.theqoo-counter
 ! - 이미지 복원
 !@@||blogger.googleusercontent.com/img/*$image,domain=theqoo.net
@@ -4720,6 +4722,35 @@ pinterest.*##body:style(overflow: visible!important; touch-action: auto!importan
 ||pinterest.com/_/_/trace/trace/
 ||pinterest.com/_/_/report/
 ||pinterest.com/_/_/logclienterror/
+!
+!
+! https://apkpure.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+apkpure.*##body:style(overflow: auto !important;)
+||a.cdnpure.com/report/group_user?
+apkpure.*##.aegon-down-item
+apkpure.com##.float-request-notification-permission-button
+||t3.cdnpure.com^
+! - 차단 목록(Adblock-Rule-Collection-Lite) 
+apkpure.com##DIV.js-ad-slot
+!
+!
+! https://www.apkmirror.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+apkmirror.com###bottom-slider
+apkmirror.com##body:style(overflow: auto !important;)
+! - 차단 목록(Adblock-Rule-Collection-Lite) 
+apkmirror.com###sidebar > div.listWidget:has(> h5:contains(Follow APK Mirror))
+apkmirror.com##.pushbullet-subscribe-widget
+! - 차단 목록 (AdRules AdBlock List Plus)
+www.apkmirror.com##.ains.ains-has-label
+!
+!
+! https://apkcombo.com/
+! - 사이트 차단 해제 (🔥 BadBlock+ (ABP))
+||apkcombo.com^$badfilter
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+apkcombo.com##.column > div.widget:has(> a.installer)
 !
 !
 !
