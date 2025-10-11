@@ -1529,6 +1529,8 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !##.baner
 ! - 왼쪽 상단 배너
 !$domain=/^messitv\d+.com/]##.d-xl-block.d-none
+! - 왼쪽 배너
+!##a[href]:has(img[src*="sidebanner"])
 ! - 스포츠 토토 배너
 !$domain=/^messitv\d+.com/]##div.d-md-block
 ##a[href]:has([alt*="보증업체"])
@@ -1544,6 +1546,8 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ! - - - 배트맨티비 (https://bmtv24.com/)
 ! - - - 놀고가닷컴 (https://nolgoga365.com/)
 ##u-chat
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+||ip-api.com^
 !
 !
 ! VIP TV (https://viptv24.com/)
@@ -5087,9 +5091,6 @@ ok.ru#@#[class*="banner"]:has(img)
 ! - - - 야동그라운드 (https://yagro48.com/)
 ! - - - 자브걸 (https://kr24.javgirl.co/)
 !##img[src*="/banners/"]
-
-! 메시티비 (https://messitv8.com/) - 왼쪽 배너
-!##a[href]:has(img[src*="sidebanner"])
 
 ! https://today-sports7.com/ - 한칸짜리 게시물 배너
 !##img[src*="event_banner"]
