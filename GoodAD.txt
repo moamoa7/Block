@@ -2263,7 +2263,7 @@ web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
 web.joongna.com##.pb-12
 !
 !
-! 바나나몰 (bananamall.co.kr)
+! 바나나몰 (www.bananamall.co.kr)
 ! - 유니콘Pro 차단 해제
 @@||bananamall.co.kr
 ! - 팝업 왼쪽
@@ -2272,6 +2272,9 @@ web.joongna.com##.pb-12
 !bananamall.co.kr###pop_gevent
 ! - 배너
 ##[id^="banner_"]
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plu)
+||static.groobee.io^
+||onetag.co.kr^
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
