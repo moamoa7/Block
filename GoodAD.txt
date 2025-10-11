@@ -64,9 +64,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !!! 애드가드 문제 해결?
 @@||challenges.cloudflare.com^$stealth
 @@||youtube.googleapis.com/embed^$stealth=referrer
-
-
-
 !
 !
 !
@@ -77,7 +74,8 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 !  / / / / /  차단 / / / / / 
-
+!
+!
 !
 !
 !
@@ -89,7 +87,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - www.amateur.tv 연결해야 실시간 방송이 재생됨
 ! - - - 예외
 @@||gateway.discord.gg$websocket
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online
 
 ! - https://wonforecast.com/ 환율 가져오기
 @@||tradingview.com/socket.io/websocket
@@ -451,8 +449,9 @@ twitch.tv##.kfZRQZ.Layout-sc-1xcs6mc-0
 twitch.tv###twilight-sticky-footer-root
 ! - 콤보 안내 문구
 twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
-! - 기타
-! - 해제 (Adblock-Rule-Collection-Lite)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+twitch.tv##.side-info-container
+! - 해제 목록 (Adblock-Rule-Collection-Lite)
 @@-ads.
 !
 !
