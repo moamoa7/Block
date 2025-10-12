@@ -649,7 +649,6 @@ dcinside.com#@#.btn_snsmore
 dcinside.com##+js(nostif, adblock_detected7)
 ! - 차단 목록 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 gall.dcinside.com##.clear.gnb_list > li:nth-of-type(6)
-gall.dcinside.com##.clear.gnb_list > li:nth-of-type(7)
 dcinside.com##.dc_all
 gall.dcinside.com##.gall_list tr[class="ub-content "]
 !
@@ -789,6 +788,9 @@ etoland.co.kr#@#[class^="ad"]
 ||nhnace.com^
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||amung.us^
+||doubleclick.net^
+||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt,from=~eksisozluk.com|~gizmodo.jp|~golf.com|~heycar.co.uk|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~today.line.me
+||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$xhr,redirect-rule=googlesyndication-adsbygoogle
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -2592,8 +2594,18 @@ avsee.ru##.tabs
 ##.jw-reset-text:not(button)
 ##.jw-wrapper > div[style="opacity: 0; visibility: hidden; overflow: hidden; display: block; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;"]
 /provider.cast.js^$script
+! - 차단 목록 (AdRules AdBlock List Plus )
+##a[href][target="_blank"] > img[width="100%"][src$=".gif"]
+##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
 ! - 해제 목록 (AdRules AdBlock List Plus )
 #@#.afs_ads
+! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+||avsee.ru/imgs/*.gif
+avsee.ru##.widget-side-box div.main-box:first-child
+avsee.ru##.at-main > div.main-box > .miso-post-mix .post-wrap
+avsee.ru##.at-side div.main-box:first-child
+avsee.ru##.title div[style^="width:100%"]
+avsee.ru##[alt$="gif"]
 !
 !
 ! supjav (https://supjav.com/)
@@ -4706,7 +4718,7 @@ play.google.com##div[data-is-touch-wrapper] > button:has(> span > svg > path[d^=
 ! https://github.com/
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||api.github.com/_private/browser/stats$important
-! - 해제 목록 (Adblock-Rule-Collection-Lite)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
 github.com##html:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
 github.com##.repository-content:style(width: 100% !important)
 github.com##.container-xl:style(max-width: none !important)
@@ -4717,6 +4729,7 @@ github.com##.container-lg:style(max-width: none !important)
 github.com##.container-lg:style(width: 100% !important; padding-left: 30px !important; padding-right: 30px !important)
 github.com##div[data-selector*=repos-split-pane-content i]:style(max-width: unset !important)
 github.com##div[tabindex] + div > div[class^=Box-sc-][class*=" "]:style(max-width: unset !important)
+@@||github.com/*/$1p
 ! - 해제 목록 (Adblock-Rule-Collection-Lite) - 모바일에서 너비 줄어들어 가독성이 깨져 해제
 github.com#@#div.Layout--sidebarPosition-end:style(grid-template-columns: calc(100vw - 275px) 210px !important)
 !
@@ -5007,8 +5020,11 @@ paypal.com###header:style(position: relative !important; top: 0 !important;)
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 ||sharethis.com^
 @@||uploady.io^$generichide
-
-
+!
+!
+! xxxwebdlxxx.top
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||top^$document,from=~1stream.top|~adrules.top|~ambr.top|~asiaon.top|~audioforyou.top|~awavenue.top|~caitlin.top|~callmebymygender.top|~castlevania.top|~changlam10.top|~changlam11.top|~chillx.top|~corriente.top|~gdtot.top|~hostingowy.top|~iboxs.top|~magocoro.top|~nicenature.top|~passt.top|~pdcdn1.top|~polar.top|~pressplay.top|~reminder.top|~reyhub.top|~rifton.top|~shucks.top|~strims.top|~suiten.top|~thedesk.top|~to|~voxel.top|~yggtorrent.top
 !
 !
 !
