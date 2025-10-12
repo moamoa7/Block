@@ -1276,6 +1276,9 @@ netflix.com##.pinning-header-container:style(background: transparent none repeat
 netflix.com##div[class^=watch-video--][class*="-container "]:style(background-image: none !important)
 netflix.com##div[data-uia="pause-ad"]
 /push.
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||ichnaea-web.netflix.com^
+
 !
 !
 ! 티빙 (https://www.tving.com/)
@@ -4925,6 +4928,9 @@ theporndude.com##.drawer-opener
 ||googletagmanager.com/gtm.js$script,3p,redirect-rule=google-analytics,from=~bethesda.net|~corsair.com|~paddle.com|~simon.com|~olx.*
 ||google-analytics.com^
 ||google-analytics.com/analytics.js$script,redirect-rule=google-analytics,from=~banki.ru|~bigc.co.th|~hepsiburada.com|~sonos.com|~olx.*
+
+! 기타 - 게임 광고 차단
+||fbcdn.net
 
 
 !
