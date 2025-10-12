@@ -495,14 +495,19 @@ kakaotv.daum.net#@#[class^="ad"]
 pornhub.com#@#[class*="Modal"]
 play.sooplive.co.kr#@#[class*="Modal"]
 tiktok.com#@#[class*="Modal"]
+urahame.com#@#[class*="Modal"]
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 tiktok.com##html:style(overflow-x: hidden !important;)
 tiktok.com##div[data-e2e="browse-share-group"]
+||mon-va.byteoversea.com^
 ##a[href*="//lineit.line.me/share/"]
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||tiktok.com/api/*/web-cookie-privacy
+||mon.tiktokv.com^
+||tiktok.com/aweme/*/report
+||tiktok.com/web/report^
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -1573,8 +1578,13 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ! 굿라이브티비 (https://gltv88.com/)
 ! 블랙티비 (https://blacktv88.com/)
 ! 놀고가닷컴 (https://nolgoga365.com/)
+! 주소월드 (https://wdwd10.com/)
 ! - 팝업
 ###hd_pop
+! - - - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+##[id^="hd_pop"]
+
+
 !
 !
 ! 굿라이브티비 (https://gltv88.com/)
@@ -3450,6 +3460,9 @@ notion.so@@||/*/ads/*
 ! 오늘의 중계 (https://today-sports7.com/)
 ! - 왼쪽 배너 공간
 ##.info-banner
+! - 오른쪽 배너 공간
+!##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner > .draggable.slick-list
+##[class^="live-stream-banner"]
 !
 !
 ! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/)
@@ -4365,12 +4378,14 @@ jusopick.com##.bg-black.flex-col
 ![$domain=/^linkbot\d+.com/]##.mb-1.row-cols-xl-4.row-cols-sm-2.row-cols-2.row
 !
 !
-! 놀쟈 (https://www.nzyumi.com/)
+! 놀쟈 (https://www.nzyumi.com/) (https://www.nz94.com/)
 ! - 18세 이상 물어보는 팝업
 !##.modal18
 ! - 영상 뿌옇거 해결 및 영상 위 가로로 긴 네모창
 !##.video-overlay
 !##[id^="tab-ad-player"]:not(html):not(body):not(article)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+/fingerprint.js
 !
 !
 ! 채터베이스 (https://chaturbate.com/)
@@ -4738,6 +4753,10 @@ semrush.com##div[data-test="SummaryBanner"]
 twidouga.net##.share-buttons
 ||adtest.pages.dev^
 ||new-adtest.pages.dev^
+! - 차단목록 ( jp: AdGuard Japanese)
+! - - - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+twidouga.net##iframe[width="300"][height="250"]
+
 !
 !
 ! 인생도박 (https://dobaklife21.com/) - 주소 수시로 바뀜
@@ -4866,6 +4885,46 @@ apkcombo.com##.column > div.widget:has(> a.installer)
 ##img[src*="counter.yadro.ru"]
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||yadro.ru^
+!
+!
+! https://theporndude.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+theporndude.com##.chat-widget
+theporndude.com##.drawer-opener
+!
+!
+! https://urahame.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||yicha.jp^
+!
+!
+! https://monsnode.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+/^https:\/\/[a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-]+\.com\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\/invoke\.js/$script,3p
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+/\/[0-9a-f]{32}\/invoke\.js/$script,3p,redirect-rule=noopjs
+||juicyads.com^
+!
+!
+! https://uraakalist.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||parklogic.com^
+!
+!
+! https://twihub.net/
+! - 차단 목록 (AdRules AdBlock List Plus)
+*$removeparam=/^utm(_[a-z_]*)?=/
+!
+!
+! https://twiigle.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+/aas/r45d/vki/*$script,redirect-rule=noopjs
+
+! 기타
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||googletagmanager.com/gtm.js$script,3p,redirect-rule=google-analytics,from=~bethesda.net|~corsair.com|~paddle.com|~simon.com|~olx.*
+||google-analytics.com^
+||google-analytics.com/analytics.js$script,redirect-rule=google-analytics,from=~banki.ru|~bigc.co.th|~hepsiburada.com|~sonos.com|~olx.*
 
 
 !
@@ -5913,6 +5972,12 @@ poooo.ml#@#[class*="layer"]
 ! - - - https://missav.ws/ - 영상 재생 하단 비디오 광고
 !##[id*="_ad_"] 해제 - 이미지 다 날라감
 !##[id*="ad_video"]
+! - 차단 목록 (Adblock-Rule-Collection-Lite) 
+||quantserve.com^
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus) 
+/^https?:\/\/(?:www\.|[a-z0-9]{7,10}\.)?[a-z0-9-]{5,}\.com\/\/?(?:[a-z0-9]{2}\/){2,3}[a-f0-9]{32}\.js/$script,3p,redirect-rule=noopjs
+||outbrain.com^
+
 
 
 
