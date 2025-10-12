@@ -459,8 +459,6 @@ twitch.tv###twilight-sticky-footer-root
 twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 twitch.tv##.side-info-container
-! - 해제 목록 (Adblock-Rule-Collection-Lite)
-@@-ads.
 !
 !
 ! 킥 (https://kick.com/)
@@ -4975,6 +4973,7 @@ theporndude.com##.drawer-opener
 ||google-analytics.com^
 ||google-analytics.com/analytics.js$script,redirect-rule=google-analytics,from=~banki.ru|~bigc.co.th|~hepsiburada.com|~sonos.com|~olx.*
 ||google-analytics.com/ga.js$script,redirect-rule=google-analytics-ga,from=~daj.jp
+||googletagservices.com/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt
 
 ! 기타 - 게임 광고 차단
 ||fbcdn.net
