@@ -912,7 +912,8 @@ ruliweb.com##.fixed_layer1
 ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 ! 차단 목록 (Adblock-Rule-Collection-Lite)
 bbs.ruliweb.com##.share_wrapper > ul > li.txt_bar ~ li.txt_bar
-
+! https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+bbs.ruliweb.com##tr:has(.nick[style^="display: inline-block"])
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
