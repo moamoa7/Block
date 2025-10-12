@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251012
+! Version: 20251013
 !
 !
 !
@@ -4664,6 +4664,8 @@ teamblind.com/#@#[class^="ad"]
 ! https://forum.mobilism.org/
 ! - 메인 상단 안내
 ##.welcome-bar
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus) 
+||matomo.mobilism.org^
 !
 !
 ! https://www.daejeonsarangcard.kr/
@@ -4684,7 +4686,7 @@ xfree.com#@#[class^="ad"]
 !
 !
 ! https://liteapks.com/
-! 차단 목록 (Adblock-Rule-Collection-Lit)
+! 차단 목록 (Adblock-Rule-Collection-Lite)
 liteapks.com##.list-shares
 ##.pinterest[href*="/pin/create/"]
 ##.facebook[href*="/sharer/"]:not(html, body, :empty)
@@ -4697,7 +4699,7 @@ liteapks.com##.list-shares
 !
 !
 ! https://play.google.com/
-! - 차단 목록 (Adblock-Rule-Collection-Lit)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
 play.google.com##div[data-is-touch-wrapper] > button:has(> span > svg > path[d^="M18 16.08c-"])
 !
 !
@@ -4910,10 +4912,12 @@ apkcombo.com##.column > div.widget:has(> a.installer)
 ! https://modsfire.com/
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 ||kumo.network-n.com^
+||html-load.com^
 ! - 차단 목록 (AdRules AdBlock List Plus)
 ##img[src*="counter.yadro.ru"]
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||yadro.ru^
+||html-load.com^$script,redirect-rule=noopjs,from=24sata.hr|2chblog.jp|2monkeys.jp|300cforums.com|46matome.net|a5oc.com|acuraworld.com|aerotrader.com|airsoftsociety.com|akb48glabo.com|akb48matomemory.com|alc.co.jp|alfa.lt|alfalfalfa.com|all-nationz.com|allpar.com|anihatsu.com|aniroleplay.com|apkmirror.com|aqua2ch.net|aquaticplantcentral.com|as-web.jp|astraownersnetwork.co.uk|atvtrader.com|aucfree.com|autoby.jp|autoc-one.jp|avsforum.com|avsforum.com|bab.la|babybmw.net|baseballchannel.jp|bbs.animanch.com|beesource.com|bien.hu|bilis.lt|bimmerwerkz.com|blog.esuteru.com|blog.jp|blog.livedoor.jp|blogo.jp|boredpanda.com|bunshun.jp|buzzfeed.com|buzzfeednews.com|can-amforum.com|canadianmoneyforum.com|carscoops.com|catfish1.com|cesoirtv.com|chanto.jp.net|chaos2ch.com|chevymalibuforum.com|chihuahua-people.com|chinacarforums.com|choco0202.work|cinetrafic.fr|cocokara-next.com|collinsdictionary.com|coloradofans.com|commercialtrucktrader.com|cool-style.com.tw|crosswordsolver.com|cruciverba.it|crx7601.com|cults3d.com|cycletrader.com|daily.co.jp|dairygoatinfo.com|danseisama.com|dareda.net|dictionary.cambridge.org|dictionnaire.lerobert.com|digital-thread.com|digitalhome.ca|diychatroom.com|dnevno.hr|doanhnghiepvn.vn|doorblog.jp|dramabeans.com|dreamchance.net|dropgame.jp|drweil.com|dziennik.pl|ecranlarge.com|eigachannel.jp|equipmenttrader.com|etaplius.lt|eurointegration.com.ua|ev-times.com|exawarosu.net|fesoku.net|fgochaldeas.com|fiveslot777.com|flatpanelshd.com|football-2ch.com|footballchannel.jp|fordescape.org|forsal.pl|fourfourtwo.co.kr|freemcserver.net|fullsizebronco.com|game8.jp|gamejksokuhou.com|games.arkadium.com|gamewith.jp|gardeningsoul.com|gazetaprawna.pl|gbatemp.net|gekiyaku.com|gentosha-go.com|gifu-np.co.jp|gigafile.nu|girlsreport.net|girlsvip-matome.com|golog.jp|grapee.jp|grasoku.com|gundamlog.com|gutefrage.net|hacchaka.net|hang.hu|happymoments.lol|hb-nippon.com|heartlife-matome.com|heureka.cz|hometheatershack.com|honyaku-channel.net|hotcopper.co.nz|hotcopper.com.au|hoyme.jp|hvac-talk.com|idokep.hu|ikarishintou.com|imihu.net|infor.pl|inutomo11.com|issuya.com|itainews.com|itaishinja.com|iusm.co.kr|iza.ne.jp|j-cast.com|j-town.net|j7p.jp|jiji.com|jikayosha.jp|jisaka.com|jnews1.com|jumpsokuhou.com|jyoseisama.com|keyakizaka46matomemory.net|kidan-m.com|kijoden.com|kijolariat.net|kijolifehack.com|kijomatomelog.com|kijyokatu.com|kijyomatome-ch.com|kijyomatome.com|kijyomita.com|kinmaweb.jp|kirarafan.com|kitimama-matome.net|kitizawa.com|km77.com|kobe-journal.com|konoyubitomare.jp|kotaro269.com|kurashinista.jp|kurashiru.com|kyoteibiyori.com|kyousoku.net|lacuarta.com|laleggepertutti.it|langenscheidt.com|lawyersgunsmoneyblog.com|ldblog.jp|ldoceonline.com|leckerschmecker.me|liblo.jp|livedoor.biz|livedoor.blog|logicieleducatif.fr|luremaga.jp|mafab.hu|mahjongchest.com|mainichi.jp|majikichi.com|matacoco.com|matomeblade.com|matomelotte.com|matometemitatta.com|mazda3revolution.com|mdxers.org|meteo60.fr|minesweeperquest.com|minkou.jp|missyusa.com|modsfire.com|moin.de|mojomojo-licarca.com|morikinoko.com|motscroises.fr|movie-locations.com|muragon.com|mydaily.co.kr|mynet.com|mytractorforum.com|nana-press.com|nandemo-uketori.com|natalie.mu|nationaltoday.com|netatama.net|new.mmm.lt|newatlas.com|newatlas.com|news-buzz1.com|news.zerkalo.io|news30over.com|newsinlevels.com|newsweekjapan.jp|niketalk.com|nikkan-gendai.com|nishinippon.co.jp|nlab.itmedia.co.jp|nmb48-mtm.com|norisoku.com|nosv.org|notebookcheck-cn.com|notebookcheck-hu.com|notebookcheck-ru.com|notebookcheck-tr.com|notebookcheck.biz|notebookcheck.com|notebookcheck.info|notebookcheck.it|notebookcheck.net|notebookcheck.nl|notebookcheck.org|notebookcheck.pl|notebookcheck.se|nouvelobs.com|npb-news.com|nyitvatartas24.hu|ocsoku.com|odyclub.com|oeffnungszeitenbuch.de|okusama-kijyo.com|onecall2ch.com|onihimechan.com|onlinegdb.com|onlineradiobox.com|operawire.com|optionsprofitcalculator.com|oraridiapertura24.it|oricon.co.jp|orusoku.com|otakomu.jp|otoko-honne.com|oumaga-times.com|outdoormatome.com|oxfordlearnersdictionaries.com|pachinkopachisro.com|palabr.as|paranormal-ch.com|pashplus.jp|persoenlich.com|phinphanatic.com|play-games.com|pons.com|pravda.com.ua|profitline.hu|programme-tv.net|programme-tv.net|puzzlegarage.com|pwctrader.com|quefaire.be|raetsel-hilfe.de|raider.io|ranking.net|raskakcija.lt|razzball.com|recosoku.com|relevantmagazine.com|reportera.co.kr|reptilesmagazine.com|roleplay.me|rootzwiki.com|s2-log.com|saikyo-jump.com|sankei.com|sanspo.com|scribens.com|scribens.fr|select.mamastar.jp|shuraba-matome.com|ske48matome.net|skyscrapercity.com|snowmobiletrader.com|soccerdigestweb.com|solitairehut.com|southhemitv.com|speypages.com|sportalkorea.com|sportanalytic.com|sportsrec.com|squallchannel.com|steamidfinder.com|sudokutable.com|sukattojapan.com|sumaburayasan.com|superhonda.com|sutekinakijo.com|taxguru.in|tbs.co.jp|tbsradio.jp|techdico.com|techguy.org|techsupportforum.com|text-compare.com|theakforum.net|thecelticblog.com|thedigestweb.com|thefirearmblog.com|thesaurus.net|thesaurus.net|thestar.co.uk|tportal.hr|traicy.com|trailvoy.com|transparentcalifornia.com|transparentnevada.com|trilltrill.jp|tunebat.com|tvtv.us|tweaksforgeeks.com|tweaktown.com|twn.hu|ufret.jp|universalis.fr|uptodown.com|uscreditcardguide.com|usi32.com|uwakich.com|uwakitaiken.com|vault76.info|verkaufsoffener-sonntag.com|videogamemods.com|vimm.net|vipnews.jp|vippers.jp|vipsister23.com|vtubernews.jp|vwvortex.com|wamgame.jp|watarukiti.com|watchdocumentaries.com|webdesignledger.com|weldingweb.com|wetter.com|wetteronline.de|wfmz.com|wieistmeineip.at|wieistmeineip.ch|wieistmeineip.de|wisevoter.com|word-grabber.com|world-fusigi.net|worldhistory.org|worldjournal.com|worldle.teuteuf.fr|wort-suchen.de|wouldurather.io|woxikon.de|yakkun.com|yorkshirepost.co.uk|young-machine.com|yugioh-starlight.com|yutura.net|zakuzaku911.com|zakzak.co.jp|zch-vip.com|fxstreet.*
 !
 !
 ! https://theporndude.com/
@@ -4983,6 +4987,28 @@ paypal.com###header:style(position: relative !important; top: 0 !important;)
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 /cookie-banner$from=~antritt-hilden.de|~github.com|~praxismarketing-institut.com
 ||stats.paypal.com^
+!
+!
+! https://frdl.my/
+! https://mega4upload.net/
+! - 차단 목록(AdRules AdBlock List Plus)
+###adblock_detected
+!
+!
+! https://upfion.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||live.demand.supply^
+##footer ~ div[id*="cookie-bar"]
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+###cookie-bar
+!
+!
+! https://uploady.io/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||sharethis.com^
+@@||uploady.io^$generichide
+
+
 !
 !
 !
