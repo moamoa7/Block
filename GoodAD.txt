@@ -1817,9 +1817,12 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !
 !
 ! 뉴토끼 (https://newtoki468.com/)
-! - 모바일 상단 공백 줄이기
-! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-[$domain=/^newtoki\d+.com/]##[style="margin-bottom: 20px;"].row.row-15
+! - 모바일 상단 공백 줄이기 등
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+/^[a-z]*toki[0-9]*\.[a-z]{3}/##[style="margin-bottom: 20px;"].row.row-15
+/^[a-z]*toki[0-9]*\.[a-z]{3}/##li:has([target]:not([href*="bbs"]))
+##[class*="basic-banner"][id]
+
 !
 !
 ! 호두코믹스 시즌2 (https://hdhd425.net/)
@@ -1951,6 +1954,13 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! - 로고 복원
 !@@||newtoki*.com/img/logo-full_newtoki.png
 !@@||booktoki*.com/img/logo-full_book.png
+!
+!
+! https://www.blacktoon1.info/
+! - 차단 목록 (AdRules AdBlock List Plu)
+||browser.sentry-cdn.com^$3p
+
+
 !
 !
 ! 무료툰 (https://foc94.com/)
@@ -4753,6 +4763,13 @@ x.com##div[data-testid="super-upsell-UpsellCardRenderProperties"]
 ! https://platinmods.com/
 ! - 해제 목록 (Adblock-Rule-Collection-Lite) - 사이트 틀 깨짐 방지
 @@_ads_$domain=platinmods.com
+! - 차단 목록 (AdRules AdBlock List Plus)
+##.notice--cookie:not(body):not(html)
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+platinmods.com##.notice--enablePush
+
+
+!
 !
 ! 다이소몰 (https://www.daisomall.co.kr/)
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
@@ -4840,6 +4857,16 @@ apkcombo.com##.column > div.widget:has(> a.installer)
 ! https://www.buzzvil.com/
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 /advertise^
+!
+!
+! https://modsfire.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||kumo.network-n.com^
+! - 차단 목록 (AdRules AdBlock List Plus)
+##img[src*="counter.yadro.ru"]
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||yadro.ru^
+
 
 !
 !
