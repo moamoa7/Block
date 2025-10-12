@@ -201,9 +201,16 @@ baidu.com###s-hotsearch-wrapper
 !
 !
 ! 인스타 (https://www.instagram.com/)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+||cdninstagram.com^$removeparam=ccb
+||cdninstagram.com^$removeparam=efg
+||cdninstagram.com^$removeparam=_nc_sid
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plu)
 instagram.com##._aagw:empty
 instagram.com##body:style(overflow: visible!important;)
+||graph.instagram.com/logging_client_events
+! - 차단 목록 (AdRules AdBlock List Plus)
+*$removeparam=__s
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -632,12 +639,19 @@ gall.dcinside.com##div[class*="banner"]
 m.dcinside.com#@##notice_list > li
 m.dcinside.com###notice_list > li:not(:has(.ntc-line-orange))
 m.dcinside.com###notice_list > li:nth-of-type(-n+3)
-!  차단 목록 (Adblock-Rule-Collection-Lite)
+!  - 차단 목록 (Adblock-Rule-Collection-Lite)
 gall.dcinside.com##.r_dcmedia
-! Adblock-Rule-Collection-Lite 에서 차단된거 해제 (공유 버튼)
+! - Adblock-Rule-Collection-Lite 에서 차단된거 해제 (공유 버튼)
 dcinside.com#@#.btn_snsmore
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||dcinside.com/_js/click_log.js
 ! - 개죽이 차단
 dcinside.com##+js(nostif, adblock_detected7)
+! - 차단 목록 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
+gall.dcinside.com##.clear.gnb_list > li:nth-of-type(6)
+gall.dcinside.com##.clear.gnb_list > li:nth-of-type(7)
+dcinside.com##.dc_all
+gall.dcinside.com##.gall_list tr[class="ub-content "]
 !
 !
 ! 아카라이브 (https://arca.live/)
@@ -4803,8 +4817,6 @@ x.com##div[data-testid="super-upsell-UpsellCardRenderProperties"]
 ##.notice--cookie:not(body):not(html)
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 platinmods.com##.notice--enablePush
-
-
 !
 !
 ! 다이소몰 (https://www.daisomall.co.kr/)
@@ -4942,10 +4954,16 @@ theporndude.com##.drawer-opener
 ||googletagmanager.com/gtm.js$script,3p,redirect-rule=google-analytics,from=~bethesda.net|~corsair.com|~paddle.com|~simon.com|~olx.*
 ||google-analytics.com^
 ||google-analytics.com/analytics.js$script,redirect-rule=google-analytics,from=~banki.ru|~bigc.co.th|~hepsiburada.com|~sonos.com|~olx.*
+||google-analytics.com/ga.js$script,redirect-rule=google-analytics-ga,from=~daj.jp
 
 ! 기타 - 게임 광고 차단
 ||fbcdn.net
-
+!
+!
+! 노션 (https://www.notion.so/)
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||exp.notion.so^$redirect-rule=nooptext,from=notion.so
+||notion.so/api/*/etclient|$method=post
 
 !
 !
