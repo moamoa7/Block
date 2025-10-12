@@ -4964,9 +4964,25 @@ theporndude.com##.drawer-opener
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||exp.notion.so^$redirect-rule=nooptext,from=notion.so
 ||notion.so/api/*/etclient|$method=post
-
 !
 !
+! https://www.stacksocial.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||optimizely.com^$3p
+stacksocial.com##body:style(overflow: auto !important;)
+stacksocial.com##html > body:not(#style_important):style(overflow: visible !important;)
+stacksocial.com##html:style(overflow: auto !important;)
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||signifyd.com^
+||newrelic.com^
+!
+!
+! www.paypal.com
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+paypal.com###header:style(position: relative !important; top: 0 !important;)
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+/cookie-banner$from=~antritt-hilden.de|~github.com|~praxismarketing-institut.com
+||stats.paypal.com^
 !
 !
 !
