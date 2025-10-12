@@ -846,6 +846,9 @@ duckduckgo.com#@#[class*="Ad"]
 addons.mozilla.org#@#[class*="Ad"]
 ! - https://one.google.com/  - 화면 안보임
 one.google.com#@#[class*="Ad"]
+! https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+inven.co.kr##.inven-games.menuGroup
+
 
 
 ! - - - PC
