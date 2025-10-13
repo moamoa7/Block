@@ -5030,6 +5030,21 @@ paypal.com###header:style(position: relative !important; top: 0 !important;)
 ||top^$document,from=~1stream.top|~adrules.top|~ambr.top|~asiaon.top|~audioforyou.top|~awavenue.top|~caitlin.top|~callmebymygender.top|~castlevania.top|~changlam10.top|~changlam11.top|~chillx.top|~corriente.top|~gdtot.top|~hostingowy.top|~iboxs.top|~magocoro.top|~nicenature.top|~passt.top|~pdcdn1.top|~polar.top|~pressplay.top|~reminder.top|~reyhub.top|~rifton.top|~shucks.top|~strims.top|~suiten.top|~thedesk.top|~to|~voxel.top|~yggtorrent.top
 !
 !
+! 피클플러스 (https://pickle.plus/)
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||amplitude.com^
+!
+!
+! https://xn--9t4b31dr7o.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##.wp-block-spacer:not(html, body)
+!
+!
+! https://github.io/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+github.io##body:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
+!
+!
 !
 !
 !
@@ -6318,6 +6333,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 
 
 
+
 !!! - 기본 2
 ! - - - href*='http'가 아닌 경우에도 사용
 ! - - - target*=_blank가 아닐 경우에도 사용 (예: target="_self" / target="_target 등)
@@ -6339,7 +6355,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 !##a[href][target*='_blank'] img
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
 !##[target][href] img
-[$domain=/^dozi\d+.com/],[$domain=/^\d+.avpop.tv/],[$domain=/^\d+.19hot.net/],[$domain=/^ditto-torrent\d+.top/],[$domain=/^redzone\d+.xyz/],[$domain=/^coolgirl\d+.xyz/]##a[href][target]:has(img)
+[$domain=/^dozi\d+.com/],[$domain=/^\d+.avpop.tv/],[$domain=/^\d+.19hot.net/],[$domain=/^ditto-torrent\d+.top/],[$domain=/^redzone\d+.xyz/],[$domain=/^coolgirl\d+.xyz/],[$domain=/^t1.xtoon\d+.com/]##a[href][target]:has(img)
 
 
 !!! - 기본 3
