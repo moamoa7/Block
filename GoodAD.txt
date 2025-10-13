@@ -45,7 +45,7 @@
 !
 !
 !!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
-! -출처 : Adblock-Rule-Collection-Lite
+! -출처 : (Adblock-Rule-Collection-Lite) (EasyList – Other Annoyances)
 ||jsdelivr.net/npm/disable-devtool
 !
 !
@@ -269,8 +269,20 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 *##p:has-text(/^ $/):not(:has-text(/\S/)):not(:has(img, input, iframe))
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||slc.commerce.naver.com^
+||volts.shopping.naver.com^
+||ssl.pstatic.net/static.gn/js/clickcrd.js$from=~search.naver.com
 ! 네이버 스토어 오류 해결
 @@||smartstore.naver.com^$stealth
+! - 차단 목록 해제 (Adblock-Rule-Collection-Lite) - 네어버 상품 검색 후 클릭시 정보 안나옴 해결
+@@||*$removeparam=NaPm,from=msearch.shopping.naver.com|search.shopping.naver.com
+!
+!
+! 네이버 검색 (https://search.naver.com/)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||er.search.naver.com^
+||l.search.naver.com/n/scrolllog/*?u=*&slogs=
+
+
 !
 !
 ! 네이버 카페 (https://cafe.naver.com/)
@@ -1408,6 +1420,9 @@ tvhot.store##.object-cover
 @@/videojs-chromecast.min.js^$script
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 ||tracker.$websocket
+! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+/^tvwiki[0-9]*\.com/##[src*="/banner/"]
+/^tvmon[0-9]*\.org/##.banner_wrap2
 !
 !
 ! Linkkf 애니 TV
@@ -4597,8 +4612,9 @@ mypikpak.com##.operation-container
 mypikpak.com##div.el-overlay:nth-of-type(23)
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 ##.cookie-wrapper:not(body):not(html)
-*$document,removeparam=/^(sp|ut|fro?)m(_|\b)/
 ||adjust.com^
+! - 차단 목록 해제 (Adblock-Rule-Collection-Lite) - 네이버 검색에서 상품 클릭시 정보 안나옴
+@@||*$document,removeparam=/^(sp|ut|fro?)m(_|\b)/
 !
 !
 ! SPEEDTEST (https://www.speedtest.net/
@@ -5084,6 +5100,11 @@ github.io##body:style(overflow-x: hidden !important; overflow-y: scroll !importa
 ||mercedes-benz.com/datadog-
 /akam/13/*
 @@||assets.oneweb.mercedes-benz.com/plugin/cmm-cookie-banner/
+!
+!
+! AV19 (https://av19.me/)
+! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+##div.banner_m
 !
 !
 !
@@ -5800,7 +5821,9 @@ liteapks.com#@#a[href*="click"]:has(img)
 !##[class*="_ad_"]
 
 
-##[class*="AD"]
+
+
+
 ! - - - 예외
 ! - - - 네이버 (https://www.naver.com/) - 일부 이미지 사라짐
 www.naver.com#@#[class*="AD"]
