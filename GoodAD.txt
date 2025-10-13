@@ -2297,6 +2297,7 @@ coupang.com###srpKeywordProductTopBanner
 /api/ad/*
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||ljc.coupang.com^
+||ljc.coupang.com^$redirect-rule=nooptext
 
 !
 !
