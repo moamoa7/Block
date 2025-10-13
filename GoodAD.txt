@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251013
+! Version: 20251014
 !
 !
 !
@@ -2693,26 +2693,26 @@ avsee.ru##[alt$="gif"]
 ! - 상단 공백 (EasyList)
 ##.pt-45.container
 ! - 팝업 방지
-||go.reebr.com^$popup
+!||go.reebr.com^$popup
 !
 !
 ! EVOJAV (https://evojav.pro/) 포함
 ! - 팝업 방지
 ! - 팝업이 본창에 나오므로 백스페이스로 가서 영상 재생 필요
-||javneon.tv^$popup
-||javeve.tv^$popup
-||javsaga.ninja^$popup
-||javbull.tv^$popup
-||javsaga.ninja^$popup
-||evojav.pro^$popup
+!||javneon.tv^$popup
+!||javeve.tv^$popup
+!||javsaga.ninja^$popup
+!||javbull.tv^$popup
+!||javsaga.ninja^$popup
+!||evojav.pro^$popup
 !
 !
 ! SEXTB.NET (https://sextb.date/)
 ! -영상 오른쪽 배너 공간
 sextb.date##.hidden-md.right.col-3
 ! - 팝업 방지
-||ak.stikroltiltoowi.net^$popup
-||lionessgrandchild.com^$popup
+!||ak.stikroltiltoowi.net^$popup
+!||lionessgrandchild.com^$popup
 ! - 차단 사이트
 !||mlb8ys4v.xyz^
 !||realsrv.com^
@@ -2725,8 +2725,8 @@ sextb.date##.hidden-md.right.col-3
 ! - 기타
 /matomo.js^$script
 ! - 팝업 방지
-||lwirirvpo.com^$popup
-||illustriousreserve.pro^$popup
+!||lwirirvpo.com^$popup
+!||illustriousreserve.pro^$popup
 ! - 차단 사이트
 !||acscdn.com^
 !||chaseherbalpasty.com^
@@ -2747,17 +2747,17 @@ javfc2.xyz##.row > div.text-center:has(> h5#messageAds)
 ! - 상단 배너
 javgg.net##.home_iframead
 ! - 팝업 방지
-||about:blank^$popup
-||obqj2.com^$popup
-||madurird.com^$popup
-||streamhg05032026.shop^$popup
-||disprovefacilityjolt.com^$popup
-||barometercorrodingunease.com^$popup
-||correctdilutetrophy.com^$popup
-||pure-group.pro^$popup
+!||about:blank^$popup
+!||obqj2.com^$popup
+!||madurird.com^$popup
+!||streamhg05032026.shop^$popup
+!||disprovefacilityjolt.com^$popup
+!||barometercorrodingunease.com^$popup
+!||correctdilutetrophy.com^$popup
+!||pure-group.pro^$popup
 ! - 차단 사이트
-||c.adsco.re^
-||pjzshwrsq.com^
+!||c.adsco.re^
+!||pjzshwrsq.com^
 !||islandjav182.fun^
 !||graveljav128.fun^
 !||normal05032026.shop^
@@ -2765,11 +2765,15 @@ javgg.net##.home_iframead
 !||earnvids.com^
 !||streamhg05032026.shop^
 !||heardaccumulatebeans.com^
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+/plugins/wp-rocket/assets/js/wpr-beacon.
+! - 차단 목록 (AdRules AdBlock List Plus)
+##ASIDE[id^="custom_html-"]
 !
 !
 ! Javsubs91 (https://j91.asia/)
 !  - 팝업 방지
-||adxadserv.com^$popup
+!||adxadserv.com^$popup
 ! - 차단 사이트
 !||profitabledisplaynetwork.com^
 !||6v41p4bsq.com^
@@ -2785,9 +2789,9 @@ javgg.net##.home_iframead
 ! - 기타
 ##.doubleclick
 ! - 팝업 방지
-||stikroltiltoowi.net^$popup
-||persecutionpunishlegally.com^$popup
-||doingthinningwizard.com^$popup
+!||stikroltiltoowi.net^$popup
+!||persecutionpunishlegally.com^$popup
+!||doingthinningwizard.com^$popup
 ! - 차단 사이트
 !||labadena.com^
 !||tapioni.com^
@@ -2796,7 +2800,7 @@ javgg.net##.home_iframead
 !
 ! https://javbraze.com/
 ! - 팝업 방지
-||shotgunchancecruel.com^$popup
+!||shotgunchancecruel.com^$popup
 !
 !
 ! https://www.pornhub.com/
@@ -2815,7 +2819,7 @@ javgg.net##.home_iframead
 ! https://123av.com/
 ! - 팝업 방지
 ||www.koreagirl1999.vip^$popup
-||alarmenvious.com^$popup
+!||alarmenvious.com^$popup
 ! - 지저분한거
 ! - - - https://today-sports7.com/ - 상단 검색 부분 사라짐
 123av.com##.d-lg-block
@@ -3031,18 +3035,16 @@ topjav.tv##.koukoku_11
 !##[class*="-widget"]
 ! - - - 일부 텍스트 지워지는데 예외처리 일단 안해놓음
 ##.textwidget
-
-
 ! - 팝업 방지
-||pemsrv.com^$popup
-||62ad.com^$popup
+!||pemsrv.com^$popup
+!||62ad.com^$popup
 ! - 차단 사이트
 !||exdynsrv.com^
 !
 !
 ! https://thebjav.com/
 ! - 팝업 방지
-||godkc.com^$popup
+!||godkc.com^$popup
 !
 !
 ! https://www.javbangers.com/
@@ -3124,12 +3126,12 @@ avdbs.com#@#[class^="ad"]
 !
 ! https://tojav.net/
 ! - 팝업 방지
-||exodusjailhousetarantula.com^$popup
+!||exodusjailhousetarantula.com^$popup
 !
 !
 ! AV01 (https://www.av01.media/)
 ! - 팝업 방지
-||apologiesoccursdepressed.com^$popup
+!||apologiesoccursdepressed.com^$popup
 !
 !
 ! 123AV (https://www1.123av.com/)
@@ -3139,15 +3141,14 @@ avdbs.com#@#[class^="ad"]
 ! -오른쪽 따라다니는 배너 (EasyList)
 ##.ad-floating
 ! - 팝업 방지
-||prefecturesuggestions.com^$popup
+!||prefecturesuggestions.com^$popup
 !
 !
 ! https://herexxx.com/
 ! - 팝업 방지
 ||antirustdynamicsulfite.com^$popup
-||chubbyexemplaryhardiness.com^$popup
-||omg.adult^$popup
-||herexxx.com^$popup
+!||chubbyexemplaryhardiness.com^$popup
+!||omg.adult^$popup
 ! - 차단 사이트
 !||chubbyexemplaryhardiness.com^
 !||footbathmockerpurse.com^
@@ -3273,9 +3274,9 @@ missav.ws,missav.live##.lg\:block
 ##a[href^="https://wa.me/?text="]
 ! - 팝업 방지
 ||missav.*/pop^$popup
-||tsyndicate.com^$popup
-||ad.twinrdengine.com^$popup
-||go.myavlive.com^$popup
+!||tsyndicate.com^$popup
+!||ad.twinrdengine.com^$popup
+!||go.myavlive.com^$popup
 ! - 차단 사이트
 !||tsyndicate.com^
 !||rmhfrtnd.com^
@@ -3328,7 +3329,7 @@ javmov.com##.spot
 !
 ! https://camcam.cc/
 ! - 팝업 방지
-||mnaspm.com^$popup
+!||mnaspm.com^$popup
 ! - 차단 사이트
 !||landsideresendtrousers.com^
 !
@@ -5114,6 +5115,15 @@ github.io##body:style(overflow-x: hidden !important; overflow-y: scroll !importa
 ! AV19 (https://av19.me/)
 ! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 ##div.banner_m
+!
+!
+! https://www.mrds66.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||static.addtoany.com^
+! - 차단 목록(AdRules AdBlock List Plus)
+##.horizontal-banner
+##A[href*="com:"] > IMG[src], A[href*="cc:"] > IMG[src]
+##a[href^="/archives/"] > .post-card > .blog-background[style*="gif;base64"]
 !
 !
 !
