@@ -221,9 +221,21 @@ instagram.com##body:style(overflow: visible!important;)
 !||recoshopping.naver.com^
 ! - 차단 사이트
 ||veta.naver.com^
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+||appier.net^
+||tnkfactory.com^
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||ntm.pstatic.net/scripts/ntm_$from=naver.com
+/?sentry_version=
+||googletagmanager.com^
+||naver.net/wcslog.js
+||s.pinimg.com/ct/core.js
+||wcs.naver.com^
 ! - 네이버앱 깨지는거 해결 (참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
+!  - point.pay.naver.com 팝업 차단 - 차단하면 스크롤 안되서 해제
+!##[class*="Layer-module"]
 !
 !
 ! 네이버 뉴스 (https://news.naver.com/)
@@ -295,11 +307,6 @@ _ad.htm
 pann.nate.com##.social_send
 ! - 차단 목록 (AdRules AdBlock List Plus) (AdRules AdBlock List Plus)
 ||stat.nate.com^
-!
-!
-! 다음 (https://v.daum.net/)
-! - 영상 재생 차단 해결 (타 필터에 의한 차단 해제)
-#@#.ads
 !
 !
 ! 숲 (https://www.sooplive.co.kr/)
@@ -484,11 +491,18 @@ member.wavve.com#@#.popup
 @@||videostats.kakao.com^
 ! - 차단 사이트
 !||ad.daum.net^
+! -  차단 목록 해제 ((AdRules AdBlock List Plus) - 영상 재생 차단 해결
+#@#.ads
 !
 !
 ! 다음 스포츠 (https://sports.daum.net/)
 ! - ##[class^="ad"] 해제 - 영상 안나옴
 kakaotv.daum.net#@#[class^="ad"]
+! 차단 목록 (Adblock-Rule-Collection-Lite)
+*##.adbox
+! 차단 목록 해제(Adblock-Rule-Collection-Lite) - 영상 안나옴
+@@||smartmediarep.com^
+
 !
 !
 ! 틱톡 (https://www.tiktok.com/)
@@ -501,6 +515,9 @@ pornhub.com#@#[class*="Modal"]
 play.sooplive.co.kr#@#[class*="Modal"]
 tiktok.com#@#[class*="Modal"]
 urahame.com#@#[class*="Modal"]
+! - - point.pay.naver.com - 팝업 차단으로 인한 뿌연 화면 발생
+point.pay.naver.com#@#[class*="Modal"]
+
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
@@ -513,6 +530,7 @@ tiktok.com##div[data-e2e="browse-share-group"]
 ||mon.tiktokv.com^
 ||tiktok.com/aweme/*/report
 ||tiktok.com/web/report^
+||analytics.tiktok.com^
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -837,6 +855,8 @@ wowtv.co.kr#@#[class*="Ad"]
 pornhub.com#@#[class*="Ad"]
 ! -https://namu.wiki/ - SNS 아이콘 사라짐
 namu.wiki#@#[class*="Ad"]
+! - - point.pay.naver.com - 팝업 차단으로 인한 뿌연 화면 발생
+point.pay.naver.com#@#[class*="Ad"]
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - https://duckduckgo.com/ - 일부 이미지 및 텍스트 사라짐
 duckduckgo.com#@#[class*="Ad"]
@@ -1325,7 +1345,6 @@ poooo.ml#@#.ad
 /log/*_time
 ||tns-counter.ru^
 ||www.statcounter.com^
-||smartmediarep.com^
 ! - 차단목록(AdRules AdBlock List Plus)
 ##A > IMG[alt][src*="resources/images/"]
 ! - 차단목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
@@ -5046,6 +5065,22 @@ paypal.com###header:style(position: relative !important; top: 0 !important;)
 github.io##body:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
 !
 !
+! https://kr.iherb.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+###consent_blackbar:not(.idcac)
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||logx-experimentation.iherb.com^
+/smartpixel.
+/gtm.js
+!
+!
+! https://www.mercedes-benz.co.kr/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||mercedes-benz.com/datadog-
+/akam/13/*
+@@||assets.oneweb.mercedes-benz.com/plugin/cmm-cookie-banner/
+!
+!
 !
 !
 !
@@ -5184,6 +5219,7 @@ github.io##body:style(overflow-x: hidden !important; overflow-y: scroll !importa
 @@||ad-img.gmarket.com
 @@||*/ad-site-i18n-sg/*
 @@point.pay.naver.com/api/ad-reward/*
+@@point.pay.naver.com/public-api/ad-reward/*
 ! - 예외 (텍스트 안보임 해결)
 @@github.com*$xhr
 !||*/*/AD-*/*
