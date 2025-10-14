@@ -130,6 +130,13 @@ google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 @@/^https?:\/\/(docs|accounts)\.google(\.[a-z]{2,}){1,}/$removeparam
 !
 !
+! https://translate.google.co.kr/
+!- 차단 목록 (Adblock-Rule-Collection-Lite)
+translate.google.*##.mZD5Ae
+! - 차단 목록 (AdVoid.Full)
+/browserinfo?f.sid=$xhr
+!
+!
 ! 유튜브 (https://www.youtube.com/)
 ! - 하단 왼쪽 팝업
 ##ytd-popup-container.ytd-app.style-scope
@@ -4816,6 +4823,8 @@ liteapks.com##.list-shares
 ##a[href^="https://twitter.com/home?"]
 ##a[href^="https://www.linkedin.com/shareArticle"]
 ##a[href*="pinterest.com/pin/create/button"]
+! - 차단 목록 (AdVoid.Full)
+##.socials
 !
 !
 ! https://play.google.com/
@@ -4938,10 +4947,14 @@ x.com##div[data-testid="super-upsell-UpsellCardRenderProperties"]
 ! https://platinmods.com/
 ! - 해제 목록 (Adblock-Rule-Collection-Lite) - 사이트 틀 깨짐 방지
 @@_ads_$domain=platinmods.com
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##[class*="ShareButton" i]:not(button, body, html, article, [class*="body" i], [id*="body" i])
 ! - 차단 목록 (AdRules AdBlock List Plus)
 ##.notice--cookie:not(body):not(html)
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 platinmods.com##.notice--enablePush
+! - 차단 목록 (AdVoid.Full)
+##div[data-widget-definition="share_page"]
 !
 !
 ! 다이소몰 (https://www.daisomall.co.kr/)
