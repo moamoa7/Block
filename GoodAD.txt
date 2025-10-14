@@ -162,7 +162,15 @@ youtube.com##ytd-engagement-panel-section-list-renderer[target-id^="engagement-p
 youtube.com##div #player-ads.style-scope.ytd-watch-flexy
 youtube.com##.opened:not(.ytcp-bulk-actions):remove()
 ||gstatic.com/shopping?
-!
+www.youtube.com##ytd-video-renderer ~ ytd-shelf-renderer[thumbnail-style]
+@@||fonts.gstatic.com^$from=android.com|bloble.io|brave.com|dartpad.dev|floatplane.com|flutter.dev|google.com|material.io|regexpal.com|tensorflow.org|translate.google.cn|translate.google.co.id|translate.google.co.jp|translate.google.co.kr|translate.google.com.br|translate.google.com.hk|translate.google.com.ua|translate.google.com.ua|translate.google.de|translate.google.es|translate.google.fr|translate.google.it|translate.google.it|translate.google.pl|translate.google.ru|wunderground.com|youtube.com
+! - 차단 목록 (AdVoid.Full)
+youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
+youtube.com##.ytp-featured-product
+/youtubei/*/att/*
+! - 해제 목록 (AdVoid.Full) 해제
+@@||youtube.com^$generichide,badfilter
+
 !
 ! wikipedia.org
 wikipedia.org###siteNotice
@@ -1471,6 +1479,8 @@ tvhot.store##.object-cover
 ![$domain=/^tvroom\d+.org/]##.iziModal-overlay
 ! - 배너 이미지
 !##.banner_
+! - 영상 상단 흐르는 글자 광고
+[$domain=/^tvroom\d+.org/]##.mq-notice
 !
 !
 ! 누누티비 (https://www.ntnt4.tv/)
