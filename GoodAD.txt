@@ -2428,6 +2428,7 @@ m.11st.co.kr##.fadeIn.animated.dim
 aliexpress.com##._3KrBP
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 aliexpress.com##.site-footer:style(margin-top: 30px !important;)
+aliexpress.com###j-aliexpress-notice, ._3KrBP, .coupon-poplayer-modal, .drogue-poplayer-modal, .ms-lego-dialog, .ui-mask
 ||tdum.alibaba.com/dss.js
 aliexpress.com##body:not(iframe):not(#alibaba-log-box):not(#mini-login-body):not([data-spm="home"]):style(overflow-x: auto !important; overflow-y: scroll !important;)
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
@@ -2436,10 +2437,10 @@ aliexpress.com##body:not(iframe):not(#alibaba-log-box):not(#mini-login-body):not
 ||aplus.aliexpress.*/ae.pc_click.statweb_ae_click
 ||aplus.aliexpress.*/ae.pc_ctr.statweb_ae_ctr
 ||acs.aliexpress.*/h5/mtop.aliexpress.traffic.web.cross.trace.report/
+aliexpress.com##body > div[style="display: block; z-index: 1000000;"]
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) 해제 - 이미지 등 안보임
 @@||aliexpress-media.com^
 @@||alicdn.com^
-
 !
 !
 ! 중고나라 (https://web.joongna.com/)
@@ -4711,17 +4712,27 @@ hotword.site##div.col-md-6:nth-of-type(2)
 ! - - - 출처 : https://gall.dcinside.com/adguard/3464
 ! - - - https://checkwhoiam.tistory.com/685
 tistory.com##+js(set, adblockChecker, noopFunc)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+##.btn_share
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||t*.daumcdn.net/midas/rt/dk_bt/roosevelt_dk_bt.js
 ||aem-kakao-collector.onkakao.net^
 tistory.com##html *:style(-webkit-touch-callout: default!important; -moz-user-select: text!important; -webkit-user-select: auto!important; -ms-user-select: text!important; -o-user-select: auto!important; user-select: auto!important; -khtml-user-select: auto!important;)
 tistory.com##html > body * :not(input):not(textarea):style(-webkit-touch-callout: default!important; -moz-user-select: text!important; -webkit-user-select: text!important; -ms-user-select: text!important; -o-user-select: text!important; user-select: text!important; -khtml-user-select: text!important;)
 tistory.com##img:style(pointer-events: auto!important;)
+tistory.com##+js(set-constant, window.disableselect, noopFunc)
+! - 차단 목록 (AdVoid.Full)
+##.social-link
 !
 !
 ! 길호넷 (https://kilho.net/)
 ! - 팝업 방지
 ||s.click.aliexpress.com$popup
+||wisdomgrove.tistory.com/189$popup
+! - 차단 목록 (AdVoid.Full)
+##[id^="aswift"]
+/analytics.js^$script
+/jquery.cookie.min.js^$script
 !
 !
 ! 조드 (https://zod.kr/)
@@ -5174,6 +5185,11 @@ github.io##body:style(overflow-x: hidden !important; overflow-y: scroll !importa
 ##.horizontal-banner
 ##A[href*="com:"] > IMG[src], A[href*="cc:"] > IMG[src]
 ##a[href^="/archives/"] > .post-card > .blog-background[style*="gif;base64"]
+!
+!
+! 다비치 안경 (https://davich.com/)
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+/adcontent
 !
 !
 !
