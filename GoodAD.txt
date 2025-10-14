@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251014
+! Version: 20251015
 !
 !
 !
@@ -137,6 +137,22 @@ translate.google.*##.mZD5Ae
 /browserinfo?f.sid=$xhr
 !
 !
+! 구글 포토 (https://photos.google.com/)
+! - 차단 목록 (RU AdList)
+@@||fonts.gstatic.com^
+!
+!
+! 구글 드라이브 (https://drive.google.com/)
+!- 차단 목록 (AdRules AdBlock List Plus)
+@@/^https?:\/\/([a-z0-9-]+\.)*?google(\.[a-z]{2,}){1,}(\/upload)?\/drive\//$removeparam
+@@/^https?:\/\/([a-z0-9-\.])*(chat|drive)\.google\.com\/videoplayback/$removeparam
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+drive.google.com##.a-da-ub-ce
+! - 차단 목록 (AdVoid.Ful)
+||google.com/images/cleardot.gif^$image
+||drive.google.com/drive/logimpressions^
+!
+!
 ! 유튜브 (https://www.youtube.com/)
 ! - 하단 왼쪽 팝업
 ##ytd-popup-container.ytd-app.style-scope
@@ -200,7 +216,7 @@ chatgpt.com##div.text-base:style(--thread-content-max-width:unset!important;max-
 !
 !
 ! 제미나이 (https://gemini.google.com/)
-!  차단 목록 (Adblock-Rule-Collection-Lite)
+!  - 차단 목록 (Adblock-Rule-Collection-Lite)
 gemini.google.com##.input-area-container:style(max-width:1600px!important)
 gemini.google.com##announcement-banner
 !
@@ -3949,11 +3965,8 @@ javbraze.com#@#[class$="verlay"]
 melon.com#@#[class$="verlay"]
 ! - - - https://www.tokyomotion.net/ - 이미지 안보임
 tokyomotion.net#@#[class$="verlay"]
-
-
-
-
-
+! - - - https://chaturbate.com/ - 이미지 안보임
+chaturbate.com#@#[class$="verlay"]
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
 ! - 하단 텍스트 배너
@@ -4512,6 +4525,12 @@ jusopick.com##.bg-black.flex-col
 ! 채터베이스 (https://chaturbate.com/)
 ! - 입장 팝업 - 감추면 이미지가 흐리개 나옴 (스크롤도 안됨)
 !chaturbate.com###entrance_terms_overlay
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+chaturbate.com##.ad, .banner, [href^="/external_link/?"]
+! - 차단 목록 (AdVoid.Full)
+chaturbate.com##img[src*="//static-pub.highwebmedia.com/featureshow/"]
+###social-media-icons
+||static-pub.highwebmedia.com/featureshow/
 !
 !
 ! Recurbate (https://recu.me/)
@@ -4666,6 +4685,7 @@ speedtest.net##.result-item-share
 ##a[href*="facebook.com/dialog/feed"]
 speedtest.net##a[title="More share options"]
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus) 
+speedtest.net##div[data-view-name="privacy-updated-notice"]
 speedtest.net##.privacy-update
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 /ads/*.js^
@@ -4846,6 +4866,7 @@ github.com##.container-lg:style(max-width: none !important)
 github.com##.container-lg:style(width: 100% !important; padding-left: 30px !important; padding-right: 30px !important)
 github.com##div[data-selector*=repos-split-pane-content i]:style(max-width: unset !important)
 github.com##div[tabindex] + div > div[class^=Box-sc-][class*=" "]:style(max-width: unset !important)
+github.com##div[class^=IssueMetadata-] ~ div[class^=Box-]:style(max-width:2000px!important)
 @@||github.com/*/$1p
 ! - 해제 목록 (Adblock-Rule-Collection-Lite) - 모바일에서 너비 줄어들어 가독성이 깨져 해제
 github.com#@#div.Layout--sidebarPosition-end:style(grid-template-columns: calc(100vw - 275px) 210px !important)
@@ -4942,6 +4963,8 @@ twitter.com##html[style*="overflow: hidden;"]:style(overflow-y: scroll !importan
 ||ads-
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 x.com##div[data-testid="super-upsell-UpsellCardRenderProperties"]
+! - 차단 목록 (AdVoid.Full)
+twitter.com##html:style(overflow:auto!important)
 !
 !
 ! https://platinmods.com/
@@ -5206,6 +5229,31 @@ github.io##body:style(overflow-x: hidden !important; overflow-y: scroll !importa
 ! 다비치 안경 (https://davich.com/)
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 /adcontent
+!
+!
+! https://filemong.com/
+! - 차단 목록 (AdVoid.Full)
+/stat^
+!
+!
+! https://91porna.com/
+! - 차단 목록 (AdVoid.Full)
+##.share-container
+!
+!
+! https://www.scamadviser.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##.fa-linkedin-square
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+scamadviser.com##body:style(overflow: auto !important;)
+scamadviser.com##.section div > div > div.newsletter__row
+! - 차단 목록(AdRules AdBlock List Plus)
+##a[href^="https://twitter.com/intent/follow?"]
+##.ads-wrapper
+! - 차단 목록 (AdVoid.Full)
+##[id^="ezoic-pub-ad-placeholder-"]
+##[class*="banner-placeholder"]:not(body):not(html)
+/ad.js^$script
 !
 !
 !
