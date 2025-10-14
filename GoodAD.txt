@@ -400,6 +400,7 @@ sooplive.co.kr##.da_area
 sooplive.co.kr###da_video
 ! - 방송요약 팝업
 sooplive.co.kr###sarsa_btn
+||connect.facebook.net^$3p,from=~facebook.com|~fb.com
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
 sooplive.co.kr##.tuneout
 ! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
@@ -437,6 +438,8 @@ play.sooplive.co.kr##.event_tooltip
 ||sooplive.co.kr/js/google.analytics.js
 ||stbbs.sooplive.co.kr/api/*_log.php
 ||eventapi.sooplive.co.kr^
+! - 차단 목록 (AdVoid.Full)
+##.share
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*stimg.sooplive.co.kr/LOGO/gg/*.webp
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
