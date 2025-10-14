@@ -153,6 +153,12 @@ drive.google.com##.a-da-ub-ce
 ||drive.google.com/drive/logimpressions^
 !
 !
+! 구글 킵 (https://keep.google.com/)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+google.com##.UiI33b, .glue-sticky-active.glue-sticky, .gmail-nav, .goog-scrollfloater, .nIQDsf.qconn, .gb_Zd:style(position: relative !important;)
+keep.google.com###gb:style(position: absolute !important; box-shadow: none !important; border-bottom: 1px solid #dadce0 !important;)
+!
+!
 ! 유튜브 (https://www.youtube.com/)
 ! - 하단 왼쪽 팝업
 ##ytd-popup-container.ytd-app.style-scope
