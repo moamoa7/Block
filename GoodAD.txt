@@ -108,6 +108,14 @@ www.google.*###main a[href][ping^="/url?"]:remove-attr(ping)
 ||google.$removeparam=/^gs_[a-z]*=/
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||google.com/log?$redirect-rule=nooptext
+! - 차단 목록 (AdVoid.Full)
+||google.com/async/bgasy^
+google.*##[data-text-ad="1"]
+google.*###tvcap
+google.com###taw > div > [data-ved]
+google.*###atvcap
+www.google.com##html:style(overflow: visible !important)
+/gen_204^
 ! - 해제 목록 (Adblock-Rule-Collection-Lite)
 google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 @@||google.com^$xhr,removeparam=ei
@@ -212,9 +220,13 @@ baidu.com###s-hotsearch-wrapper
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plu)
 instagram.com##._aagw:empty
 instagram.com##body:style(overflow: visible!important;)
+instagram.com##div[class]:has(> div[class]:first-child > a[href="/explore/people/"]):style(position: absolute !important; left: -3000px !important;)
 ||graph.instagram.com/logging_client_events
 ! - 차단 목록 (AdRules AdBlock List Plus)
 *$removeparam=__s
+! - 차단 목록 (AdVoid.Full)
+instagram.com##body:style(overflow: auto !important;)
+||graph.instagram.com/logging_client_events^
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -540,7 +552,6 @@ tiktok.com#@#[class*="Modal"]
 urahame.com#@#[class*="Modal"]
 ! - - point.pay.naver.com - 팝업 차단으로 인한 뿌연 화면 발생
 point.pay.naver.com#@#[class*="Modal"]
-
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
@@ -554,6 +565,9 @@ tiktok.com##div[data-e2e="browse-share-group"]
 ||tiktok.com/aweme/*/report
 ||tiktok.com/web/report^
 ||analytics.tiktok.com^
+! - 차단 목록 (AdVoid.Full)
+||ibytedtos.com^
+/share.*.js^$script
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -761,9 +775,9 @@ etoland.co.kr#@#div[class$="_ad"]
 etoland.co.kr##.main_right_ad
 ! - 왼쪽 따라다니는 메뉴
 etoland.co.kr##.main_left_ad
-! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너
-! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-etoland.co.kr##[src*="/data/daumeditor"]
+! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너 - 일부 게시판에서 이미지 안보임 발생 (해제 해야함)
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+etoland.co.kr#@#[src*="/data/daumeditor"]
 ! - 왼쪽 통합검색 바로 아래 배너
 ! - - - 티비착 (https://tvchak148.com/) 영상란 배너
 etoland.co.kr##.banner-box
@@ -2334,7 +2348,8 @@ coupang.com###srpKeywordProductTopBanner
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||ljc.coupang.com^
 ||ljc.coupang.com^$redirect-rule=nooptext
-
+! - 차단 목록 (AdVoid.Full)
+/akam^
 !
 !
 ! 옥션 (https://escrow.auction.co.kr/)
@@ -3110,7 +3125,6 @@ avdbs.com#@#[class^="ad"]
 ##a[href*="://wa.me/?text="]
 ! - 차단 목록 (AdRules AdBlock List Plus)
 ##div.flex-1.order-first > DIV.under_player
-
 !
 !
 ! https://tojav.net/
@@ -3255,12 +3269,9 @@ missav.ws,missav.live##.lg\:block
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
-! - 기타
+! - 차단 목록 (AdVoid.Full)
 ##[rel*="sponsored"]
 ##[src*="tsyndicate.com"]
-##a[href*="//bit.ly/"]
-##a[href^="https://twitter.com/intent/tweet?"]
-##a[href^="https://wa.me/?text="]
 ! - 팝업 방지
 ||missav.*/pop^$popup
 !||tsyndicate.com^$popup
@@ -4619,6 +4630,22 @@ mypikpak.com##div.el-overlay:nth-of-type(23)
 ! SPEEDTEST (https://www.speedtest.net/
 ! - 쿠키 동의 (AdGuard Annoyances filter)
 ###onetrust-consent-sdk
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+speedtest.net##.privacy-update, .notification-container
+speedtest.net##.result-item-share
+##a[href*="facebook.com/dialog/feed"]
+speedtest.net##a[title="More share options"]
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus) 
+speedtest.net##.privacy-update
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+/ads/*.js^
+! - 차단 목록 (AdVoid.Ful)
+||ziffstatic.com^
+##[class$="-social-wrapper"]
+##[class*="-item-share"]
+##[data-view-name="privacy-updated-notice"]
+##[class*="social-share-links"]
+##.social-icon
 !
 !
 ! 제타 (https://zeta-ai.io)
@@ -4701,6 +4728,13 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 ! Adguard DNS (https://adguard-dns.io/)
 ! - 일부 필터로 인한 대시보드 진입 오류 해결
 @@/stats^$xmlhttprequest,domain=~githubunwrapped.com|~jsdelivr.com|~youtube.com|~marketplace.visualstudio.com
+! - 차단 목록 (AdVoid.Full)
+##.social:not(body)
+##.social__icon
+##.social__link
+
+
+
 !
 !
 ! 샤나 (https://shana.pe.kr/)
@@ -4810,6 +4844,8 @@ reddit.com##body:not([style^="overflow:"]):not([class="rpl-scroll-lock"]):style(
 reddit.com##span.hidden[class$="m:block"]
 reddit.com##shreddit-comment-tree-ad
 reddit.com##body:style(overflow: auto !important;)
+! - 차단 목록 (AdVoid.Full)
+##.icon-share
 !
 !
 ! https://greasyfork.org/
@@ -5015,11 +5051,17 @@ theporndude.com##.drawer-opener
 ||google-analytics.com/analytics.js$script,redirect-rule=google-analytics,from=~banki.ru|~bigc.co.th|~hepsiburada.com|~sonos.com|~olx.*
 ||google-analytics.com/ga.js$script,redirect-rule=google-analytics-ga,from=~daj.jp
 ||googletagservices.com/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt
+! - 차단 목록 (AdVoid.Full)
+||googletagmanager.com/gtm.js^$script,redirect-rule=googletagmanager_gtm.js:5
+||googletagmanager.com/gtag/$script,3p,redirect-rule=noop.js
+||gstatic.com/glue/cookienotificationbar/cookienotificationbar.
+
+
 
 ! 기타 - 게임 광고 차단
 ||fbcdn.net
-!
-!
+
+
 ! 노션 (https://www.notion.so/)
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||exp.notion.so^$redirect-rule=nooptext,from=notion.so
@@ -5254,6 +5296,8 @@ github.io##body:style(overflow-x: hidden !important; overflow-y: scroll !importa
 @@||*/ad-site-i18n-sg/*
 @@point.pay.naver.com/api/ad-reward/*
 @@point.pay.naver.com/public-api/ad-reward/*
+@@raw.githubusercontent.com/the-advoid/ad-void/*$image
+@@b.cdnst.net/images/*$image
 ! - 예외 (텍스트 안보임 해결)
 @@github.com*$xhr
 !||*/*/AD-*/*
