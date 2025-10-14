@@ -103,19 +103,25 @@ google.com###js-header, #searchform, .O-j-k, .header:not(#menu.header--primary):
 google.com###bottomads > div[id^="tads"]
 google.*##div[aria-label="Share"]
 google.*##div[data-q][data-al]
+||google.$removeparam=vet
 !- 차단 목록 (AdRules AdBlock List Plus)
 www.google.*###main a[href][ping^="/url?"]:remove-attr(ping)
+||google.$removeparam=atyp
+||google.$removeparam=dpr
 ||google.$removeparam=/^gs_[a-z]*=/
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||google.com/log?$redirect-rule=nooptext
+://www.google.*/async/folsrch?*&async=_basejs:*,_basecomb:*&q=$xhr
 ! - 차단 목록 (AdVoid.Full)
 ||google.com/async/bgasy^
+||google.com/log?$xhr,redirect-rule=noop.txt
 google.*##[data-text-ad="1"]
 google.*###tvcap
 google.com###taw > div > [data-ved]
 google.*###atvcap
 www.google.com##html:style(overflow: visible !important)
 /gen_204^
+/pagead^
 ! - 해제 목록 (Adblock-Rule-Collection-Lite)
 google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 @@||google.com^$xhr,removeparam=ei
@@ -777,6 +783,7 @@ etoland.co.kr##.main_right_ad
 etoland.co.kr##.main_left_ad
 ! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너 - 일부 게시판에서 이미지 안보임 발생 (해제 해야함)
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
+! - - -- 이미지 안나오는 예시 : https://etoland.co.kr/link.php?n=11063617
 etoland.co.kr#@#[src*="/data/daumeditor"]
 ! - 왼쪽 통합검색 바로 아래 배너
 ! - - - 티비착 (https://tvchak148.com/) 영상란 배너
