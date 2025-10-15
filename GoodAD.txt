@@ -523,7 +523,8 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 ! - 광고 차단  팝업
 ! - - - ##[class*="popup"] 가 대신 차단 중
 !chzzk.naver.com##[class*='_popup_dimmed__']
-##[class*="popup_modal__"]
+!chzzk.naver.com##div[class*="popup_dimmed"]
+!##[class*="popup_modal__"]
 !##.popup_modal__hRwfq.popup_container__Aqx-3
 ! - 첫 구매 이벤트 중 알림
 chzzk.naver.com##.toolbar_tooltip__\+upC-
@@ -5279,6 +5280,16 @@ dailymotion.com###continuous-player
 dailymotion.com##div[class^="HomeRightColumn__promoContainer"] > div[class^="AppPromotion_"]
 ! - Block third party fonts 해제 - 폰트 차단으로 틀 깨짐
 @@||fonts.googleapis.com^$domain=www.dailymotion.com
+!
+!
+! https://civitai.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||snigelweb.com^
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||public.profitwell.com^
+civitai.com##a[href="/pricing"] > img[alt*="disabling adblock"]
+! - 차단 목록 (AdVoid.Full)
+##[id^="ad-"]
 !
 !
 !
