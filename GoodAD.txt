@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251015
+! Version: 20251016
 !
 !
 !
@@ -948,7 +948,7 @@ inven.co.kr#@#.ad
 ! -오른쪽 배너
 ##[class*="ad-left"]
 ! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
-##[class*="Ad"]
+!##[class*="Ad"]
 ! - - - 예외 (https://play.google.com/) - 제목 날라감
 play.google.com#@#[class*="Ad"]
 ! - -  한국경제TV (https://www.wowtv.co.kr/) 기사 내용 사라짐
@@ -968,9 +968,8 @@ addons.mozilla.org#@#[class*="Ad"]
 one.google.com#@#[class*="Ad"]
 ! https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 inven.co.kr##.inven-games.menuGroup
-
-
-
+! - - - map.naver.com - 검색란에 내용 안보임
+map.naver.com#@#[class*="Ad"]
 ! - - - PC
 !inven.co.kr##.new-board
 ! - - - 모바일
