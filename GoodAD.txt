@@ -5268,6 +5268,16 @@ scamadviser.com##.section div > div > div.newsletter__row
 /ad.js^$script
 !
 !
+! https://www.dailymotion.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+dailymotion.com###continuous-player
+||hubvisor.io^
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+dailymotion.com##div[class^="HomeRightColumn__promoContainer"] > div[class^="AppPromotion_"]
+! - Block third party fonts 해제 - 폰트 차단으로 틀 깨짐
+@@||fonts.googleapis.com^$domain=www.dailymotion.com
+!
+!
 !
 !
 !
