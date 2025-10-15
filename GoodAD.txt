@@ -334,6 +334,9 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ||slc.commerce.naver.com^
 ||volts.shopping.naver.com^
 ||ssl.pstatic.net/static.gn/js/clickcrd.js$from=~search.naver.com
+@@||connect.facebook.net/*/fbevents.js$from=smartstore.naver.com
+! - 차단 목록 (AdVoid.Full)
+/log^$xhr,from=~meet.google.com|~sigstore.dev
 ! 네이버 스토어 오류 해결
 @@||smartstore.naver.com^$stealth
 ! - 차단 목록 해제 (Adblock-Rule-Collection-Lite) - 네어버 상품 검색 후 클릭시 정보 안나옴 해결
