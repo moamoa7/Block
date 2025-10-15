@@ -1434,6 +1434,8 @@ poooo.ml#@#.ad
 ||static.kbs.co.kr/recommend/rcmd_track.js
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*ss/ss*$image
+! - 차단 목록 (RU AdList)
+||ok.ru/videoembed/*autoplay=1$frame,removeparam=|
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
@@ -1464,19 +1466,19 @@ tvhot.store##.object-cover
 !##[class="full mobile-only"]
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 !##[class^="full pc-only"]:not(html):not(body):not(article)
-[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.pc-only.full
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.pc-only.full
 !##[class^="full mobile-only2"]:not(html):not(body):not(article)
-[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
-[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]###viewCover
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]###viewCover
 ! - 이전화/다음화 버튼 없애기 (모바일 - 티비위키)
-[$domain=/^tvwiki\d+.com/]##.bo_v_nb
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.bo_v_nb
 ! - 위로 바로 가는 버튼
 ! - - - 태블릿(모바일)에서 세로 감상시 전체화면 클릭시 그 위치에 있어서 없앰
 ! - - - - - 티비위키
-[$domain=/^tvwiki\d+.com/]###top_btn.sticky_top_btn.top_btn
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]###top_btn.sticky_top_btn.top_btn
 ! - - - - - 티비몬
-[$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
+[$domain=/^tvmon\d+.site/],[$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
 ! 아바타 아이콘 복구
 !@@tvwiki*.com/img/*$image
 ! - 기타 (일부 필터 차단 해제)
@@ -1485,7 +1487,9 @@ tvhot.store##.object-cover
 ||tracker.$websocket
 ! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 /^tvwiki[0-9]*\.com/##[src*="/banner/"]
+/^tvwiki[0-9]*\.net/##[src*="/banner/"]
 /^tvmon[0-9]*\.org/##.banner_wrap2
+/^tvmon[0-9]*\.site/##.banner_wrap2
 !
 !
 ! Linkkf 애니 TV
