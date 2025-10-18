@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251016
+! Version: 20251018
 !
 !
 !
@@ -157,6 +157,11 @@ drive.google.com##.a-da-ub-ce
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 google.com##.UiI33b, .glue-sticky-active.glue-sticky, .gmail-nav, .goog-scrollfloater, .nIQDsf.qconn, .gb_Zd:style(position: relative !important;)
 keep.google.com###gb:style(position: absolute !important; box-shadow: none !important; border-bottom: 1px solid #dadce0 !important;)
+!
+!
+! chromewebstore.google.com
+! - 차단 목록 (AdVoid.Ful)
+||google.com/v1/survey/trigger/trigger_anonymous^
 !
 !
 ! 유튜브 (https://www.youtube.com/)
@@ -1496,10 +1501,10 @@ tvhot.store##.object-cover
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 ||tracker.$websocket
 ! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-/^tvwiki[0-9]*\.com/##[src*="/banner/"]
-/^tvwiki[0-9]*\.net/##[src*="/banner/"]
-/^tvmon[0-9]*\.org/##.banner_wrap2
-/^tvmon[0-9]*\.site/##.banner_wrap2
+[$domain=/^tvmon[0-9]*\.[a-z]{2,}/]##.banner_wrap2
+[$domain=/^tvmon[0-9]*\.[a-z]{2,}/]##[src*='/AD/']
+[$domain=/^tvwiki[0-9]*\.net/]###bannerList
+[$domain=/^tvwiki[0-9]*\.net/]###viewCover
 !
 !
 ! Linkkf 애니 TV
@@ -5296,6 +5301,33 @@ dailymotion.com##div[class^="HomeRightColumn__promoContainer"] > div[class^="App
 civitai.com##a[href="/pricing"] > img[alt*="disabling adblock"]
 ! - 차단 목록 (AdVoid.Full)
 ##[id^="ad-"]
+!
+!
+! https://greasyfork.org/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||perfops.net^
+! - 차단 목록(AdRules AdBlock List Plus)
+##DIV.ad-content
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||ethicalads.io^
+!
+!
+! https://www.jobplanet.co.kr/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||nr-data.net^
+! - 차단 목록 (AdVoid.Full)
+##[id*="gpt-ad-"]
+!
+!
+! 블라인드 (https://www.teamblind.com/)
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+teamblind.com##header:style(position: relative !important;)
+##.btn_fb
+! - 차단 목록 (AdVoid.Full)
+##span[data-link="#share-twitter"]
+##span[data-link="#share-facebook"]
+! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+teamblind.com##.coupang_gnb
 !
 !
 !
