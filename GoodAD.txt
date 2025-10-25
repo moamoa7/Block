@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251018
+! Version: 20251026
 !
 !
 !
@@ -907,6 +907,7 @@ etoland.co.kr#@#[class^="ad"]
 @@||ad.$all,domain=www.etoland.co.kr
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 ||nhnace.com^
+||js.rev.iq^
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||amung.us^
 ||doubleclick.net^
@@ -914,6 +915,11 @@ etoland.co.kr#@#[class^="ad"]
 ||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$xhr,redirect-rule=googlesyndication-adsbygoogle
 ! -차단 목록 (AdVoid.Full)
 /jquery.cookie.min.js^$script
+! - 차단 목록 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
+etoland.co.kr##[class^="banner"]
+etoland.co.kr##li:has([href^="https://etoland.co.kr/pages/short.php"])
+etoland.co.kr##[href^="https://www.etoland.co.kr/pages/short.php"]
+etoland.co.kr##li:has-text(/비밀상점|이토보험상담실|이토상담실/)
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -4699,6 +4705,8 @@ mypikpak.com##div.el-overlay:nth-of-type(23)
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 ##.cookie-wrapper:not(body):not(html)
 ||adjust.com^
+! - 차단 목록 (AdVoid.Full)
+/track.js^$script
 ! - 차단 목록 해제 (Adblock-Rule-Collection-Lite) - 네이버 검색에서 상품 클릭시 정보 안나옴
 @@||*$document,removeparam=/^(sp|ut|fro?)m(_|\b)/
 !
