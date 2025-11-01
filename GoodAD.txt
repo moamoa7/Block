@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251026
+! Version: 20251102
 !
 !
 !
@@ -295,7 +295,6 @@ instagram.com##body:style(overflow: auto !important;)
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||ntm.pstatic.net/scripts/ntm_$from=naver.com
 /?sentry_version=
-||googletagmanager.com^
 ||naver.net/wcslog.js
 ||s.pinimg.com/ct/core.js
 ||wcs.naver.com^
@@ -874,8 +873,8 @@ etoland.co.kr##section.box:nth-of-type(7)
 ! - 게시물 상단 비밀상점 배너
 ##[href^="https://etoland.co.kr/pages/short.php"]
 ##[href^="https://www.etoland.co.kr/pages/short.php"]
-! - 게시물 상단 배너 공간 (모바일)
-etoland.co.kr##div:nth-of-type(5) > div:nth-of-type(3)
+! - 게시물 상단 배너 공간 (모바일) - 게시물내 이미지를 지울수 있어 해제
+!etoland.co.kr##div:nth-of-type(5) > div:nth-of-type(3)
 ! - 이토랜드 광고 게시물 배너
 ||*/img/market/ajd/ajd_banner*$image
 ! - 게시물 내 하단 배너
@@ -3283,7 +3282,7 @@ javlemon.com##style\=\"text-align\:center\;\"
 !
 ! JavBangers (https://www.javbangers.com/)
 ! - 안내 팝업
-###overlay
+##overlay
 !
 !
 ! https://www.minnano-av.com/
@@ -5336,6 +5335,15 @@ teamblind.com##header:style(position: relative !important;)
 ##span[data-link="#share-facebook"]
 ! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 teamblind.com##.coupang_gnb
+!
+!
+! https://51cg1.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##a[href="https://www.addtoany.com/share"]
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+51cg1.com##.horizontal-banner
+
+
 !
 !
 !
