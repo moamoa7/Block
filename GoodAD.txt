@@ -478,6 +478,7 @@ play.sooplive.co.kr##.event_tooltip
 ||eventapi.sooplive.co.kr^
 ! - 차단 목록 (AdVoid.Full)
 ##.share
+@@||localhost^
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*stimg.sooplive.co.kr/LOGO/gg/*.webp
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
@@ -548,6 +549,8 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 ||api.chzzk.naver.com/ad-polling/*/lives/*/ad
 ||nelo2-col.navercorp.com^$from=~map.naver.com
 ||api.chzzk.naver.com/service/*/ad/display-status
+! - 차단 목록 (AdVoid.Full)
+/banners^$xhr
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -5342,6 +5345,24 @@ teamblind.com##.coupang_gnb
 ##a[href="https://www.addtoany.com/share"]
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 51cg1.com##.horizontal-banner
+!
+!
+! https://fs2.joycity.com/
+! - 차단 목록 (AdVoid.Full)
+/ga.js^$script
+||connect.facebook.net^$3p,from=~facebook.com|~fb.com
+!
+!
+! https://www.investing.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||hotjar.com^
+@@||investing.com^$generichide
+investing.com##.switchHeader, header:not(.js-section-header):style(position: relative !important;)
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+investing.com###promo-strip
+investing.com##body:style(overflow: auto !important; touch-action: auto !important;)
+! - 차단 목록 (AdVoid.Full)
+||amazon-adsystem.com^$script,redirect-rule=amazon_apstag.js:5
 
 
 !
