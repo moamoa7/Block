@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251103
+! Version: 20251104
 !
 !
 !
@@ -2523,7 +2523,7 @@ web.joongna.com##.pb-12
 !bananamall.co.kr###pop_gevent
 ! - 배너
 ##[id^="banner_"]
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plu)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||static.groobee.io^
 ||onetag.co.kr^
 !
@@ -2536,10 +2536,12 @@ showdang.co.kr##.box
 ! 앱스토리몰 (https://c.appstory.co.kr/)
 ! - 오른쪽 사이드 팝업
 c.appstory.co.kr###modalPreventExit
-! - 홈화면 추가 팝업
-c.appstory.co.kr##.modal_add_home.renew_modal
+! - 홈화면 추가 팝업 - 화면내 스크롤이 안되는 문제로 해제
+!c.appstory.co.kr##.modal_add_home.renew_modal
 ! - 오른쪽 배너
 !##.right_banner
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
+@@||cdn.taboola.com/libtrc/*/tfa.js
 !
 !
 !!! 옥션 (https://www.auction.co.kr) / 지마켓 (https://www.gmarket.co.kr/)
