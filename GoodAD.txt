@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251102
+! Version: 20251103
 !
 !
 !
@@ -5500,6 +5500,7 @@ investing.com##body:style(overflow: auto !important; touch-action: auto !importa
 @@||redditstatic.com/*/ad-*$script
 ! - 예외 (틱톡 .js)
 @@/ad-violation-*
+@@*/js/async/ad-*
 ||*/*/ad-*/*
 ! - 예외
 @@||ad-img.gmarket.com
