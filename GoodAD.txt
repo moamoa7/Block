@@ -5365,8 +5365,61 @@ investing.com###promo-strip
 investing.com##body:style(overflow: auto !important; touch-action: auto !important;)
 ! - 차단 목록 (AdVoid.Full)
 ||amazon-adsystem.com^$script,redirect-rule=amazon_apstag.js:5
-
-
+!
+!
+! https://www.rockmods.net/
+! - 차단 목록 (AdVoid.Full) 해제 - 이미지 해제
+@@/pixel.png^$image
+!
+!
+! https://apkdone.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+apkdone.com###landing-notification-bar
+! - 차단 목록 (AdVoid.Full)
+/^https?:\/\/(?:[a-z]{2}\.)?[0-9a-z]{5,16}\.[a-z]{3,7}\/[a-z](?=[a-z]{0,25}[0-9A-Z])[0-9a-zA-Z]{3,26}\/\d{4,5}(?:\?[_v]=\d+)?$/$script,3p,redirect-rule=noop.js,match-case
+!
+!
+! https://an1.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||cdn.jsdelivr.net/npm/yandex-metrica-watch/tag.js
+! - 차단 목록 (AdVoid.Full)
+##.social-links
+!
+!
+! https://5play.org/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##.share-fb:not(html, body, :empty)
+##.share-fb:not(html, body, article)
+##.share-list:not(html, body, [class*="body" i], [id*="body" i], [class*="content" i], [id*="content" i])
+##.share-vk:not(html, body, :empty)
+##a[href*="/vk.com/share.php"]
+##a[href*="whatsapp.com/send?"]
+##a[href^="https://api.whatsapp.com/send?text="]
+##a[href^="https://vk.com/share.php"]
+!
+!
+! https://a2zapk.io/
+! - 차단 목록 (AdVoid.Full)
+##[src*="ad.a-ads.com"]
+##[class*="bottom-ad"]:not(body)
+##.ad-container
+!
+!
+! https://modder.me/
+! - 차단 목록 (AdVoid.Full)
+/^https?:\/\/(?:[a-z]{2}\.)?[0-9a-z]{5,16}\.[a-z]{3,7}\/[a-z](?=[a-z]{0,25}[0-9A-Z])[0-9a-zA-Z]{3,26}\/\d{4,6}(?:\?[_a-z]=[-0-9a-z]+)?$/$script,3p,redirect-rule=noop.js,match-case
+!
+!
+! https://androeed.ru/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##.social_buttons
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+androeed.ru##.our_app
+!
+!
+! https://gamedva.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+@@|https://analytics.google.com/
 !
 !
 !
