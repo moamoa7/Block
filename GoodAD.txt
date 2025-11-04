@@ -226,6 +226,9 @@ wikipedia.org###centralNotice
 !  차단 목록 (Adblock-Rule-Collection-Lite)
 chatgpt.com##div.text-base:style(--thread-content-max-width:unset!important;max-width:2000px)
 ||chatgpt.com/ces/*/b|$xhr
+/bwp*js
+!  차단 목록 (AdRules AdBlock List Plus)
+||chatgpt.com/ces/statsc/
 !
 !
 ! 제미나이 (https://gemini.google.com/)
