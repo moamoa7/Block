@@ -224,8 +224,8 @@ wikipedia.org###centralNotice
 !  - 일부 필터 로그인 차단 해제
 @@/noop*.js$script
 !  차단 목록 (Adblock-Rule-Collection-Lite)
-chatgpt.com##div.text-base:style(--thread-content-max-width:unset!important;max-width:2000px)
 ||chatgpt.com/ces/*/b|$xhr
+chatgpt.com#$#div.text-base { --thread-content-max-width:unset!important;max-width:2000px }
 /bwp*js
 !  차단 목록 (AdRules AdBlock List Plus)
 ||chatgpt.com/ces/statsc/
