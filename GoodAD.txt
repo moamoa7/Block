@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251104
+! Version: 20251108
 !
 !
 !
@@ -5423,6 +5423,21 @@ androeed.ru##.our_app
 ! https://gamedva.com/
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 @@|https://analytics.google.com/
+!
+!
+! https://www.hornyleak.tv/
+! - 차단 목록 (AdVoid.Full)
+action=js_stats
+/vast.js^$script
+!
+!
+! https://vimeo.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||arclight.vimeo.com/add/player-stats
+||f.vimeocdn.com/js_opt/modules/utils/vuid.min.js
+@@||transcend-cdn.com/*/airgap.js
+! - 차단 목록 (AdVoid.Full)
+||elfsight.com^$3p
 !
 !
 !
