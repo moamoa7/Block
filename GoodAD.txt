@@ -4795,6 +4795,12 @@ tistory.com##img:style(pointer-events: auto!important;)
 tistory.com##+js(set-constant, window.disableselect, noopFunc)
 ! - 차단 목록 (AdVoid.Full)
 ##.social-link
+##[data-ad-type]
+##[data-ad-slot]
+##[data-ad-client]
+||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js^$script,redirect-rule=googlesyndication_adsbygoogle.js:5,from=~zipextractor.app
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+*##[class*='adsense']:not([style*='1px']):not(:has(p))
 !
 !
 ! 길호넷 (https://kilho.net/)
@@ -5438,6 +5444,20 @@ action=js_stats
 @@||transcend-cdn.com/*/airgap.js
 ! - 차단 목록 (AdVoid.Full)
 ||elfsight.com^$3p
+!
+!
+! https://extmovie.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+/fontawesome-$font,3p
+! - 차단 목록 (AdVoid.Full)
+##.bt_share
+!
+!
+! https://nkcontents.co.kr/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||behavior-tracking-event-gateway.imweb.me^
+
+
 !
 !
 !
