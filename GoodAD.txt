@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251108
+! Version: 20251109
 !
 !
 !
@@ -22,6 +22,13 @@
 ! - 출처 : https://gall.dcinside.com/adguard/2727
 ! - - - 설정 - 맨 하단 해당 firefox 정보 - 상단 로고 7번 클릭하여 디버그 메뉴 활성화
 ! - - - 설정으로 복귀 후 해당 firefox 정보 아래 생성된 secret settings - Use third party CA certificates 체크 활성화
+!
+!
+! - start.klauncher.kr 우측 여백 해결
+! - 출처 : https://gall.dcinside.com/adguard/6656
+klauncher.kr##.main-content,[style*="/images/background/main.jpg"]:style(background-image:none!important)
+klauncher.kr##.auxiliary-section,.language-settings-container,.browser-exit-notice-container:style(display:none!important)
+klauncher.kr##.layout-container>.main-content:style(width:88.5%!important;padding:0!important)
 !
 !
 !
@@ -5456,8 +5463,8 @@ action=js_stats
 ! https://nkcontents.co.kr/
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||behavior-tracking-event-gateway.imweb.me^
-
-
+!
+!
 !
 !
 !
