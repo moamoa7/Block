@@ -3196,6 +3196,8 @@ openload.mov##div:nth-of-type(9)
 !@@||avdbs.com/img/*$image
 ! - - - ##[class^="ad"] 복원 - 일부 이미지 사라짐
 avdbs.com#@#[class^="ad"]
+! - 배우찜 제거 안내 팝업?
+###bnotice-wrap
 !
 !
 ! AV조아 (https://avjoa71.com/)
@@ -6042,6 +6044,8 @@ ppomppu.co.kr#@#a[href][onclick]:has(img[style])
 ![$domain=/^ditto-torrent\d+.top/]#@#[onclick]:has(img[style])
 ! - - - 링크짱 (https://www.zzang11.com/) - 안해도 되나 해제
 [$domain=/^www.zzang\d+.com/]#@#a[href][onclick]:has(img[style])
+
+
 
 
 !!! - 광역 9
