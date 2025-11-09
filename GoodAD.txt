@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251109
+! Version: 20251110
 !
 !
 !
@@ -5465,6 +5465,14 @@ action=js_stats
 ! https://nkcontents.co.kr/
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||behavior-tracking-event-gateway.imweb.me^
+!
+!
+! https://controld.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||hs-scripts.com^
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||p.controld.com^
+controld.com##.css-9hjcxa
 !
 !
 !
