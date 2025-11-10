@@ -635,6 +635,7 @@ kakaotv.daum.net#@#[class^="ad"]
 ##[class*="Modal"]
 ! - - - 예외
 pornhub.com#@#[class*="Modal"]
+www.sooplive.co.kr#@#[class*="Modal"]
 play.sooplive.co.kr#@#[class*="Modal"]
 tiktok.com#@#[class*="Modal"]
 urahame.com#@#[class*="Modal"]
