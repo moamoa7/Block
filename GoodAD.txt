@@ -5499,6 +5499,16 @@ controld.com##.css-9hjcxa
 /ad0*
 !
 !
+! https://www.newsinlevels.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+###fb-root:not(body):not(html)
+! - 차단 목록 (AdVoid.Full)
+/pum-site-scripts.$script
+/wp-content/plugins/q2w3-fixed-widget/*
+##.pum-container
+##.popmake
+!
+!
 !
 !
 !
