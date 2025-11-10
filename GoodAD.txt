@@ -87,7 +87,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 3자 ping / websocket 차단
-! - - - 아프리카 TV 등 그리드 차단
 ||*$ping,websocket,third-party
 ! - 3자 websocket 차단 해제
 ! - - - 디스코드 (https://discord.com/) 연결시 필요
@@ -96,6 +95,17 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - 예외
 @@||gateway.discord.gg$websocket
 @@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online
+! - - - 아프리카 TV 등 그리드 차단 (AdVoid.Full 필터 목록 해제)
+@@||localhost^$badfilter
+
+
+! https://discord.com/
+! - 해제 목록 (Adblock-Rule-Collection-Lite)
+@@||discord.com^
+! - 차단 목록 (AdVoid.Full)
+! - - - https://tv.kakao.com/ 포함 등
+@@||127.0.0.1^
+
 
 ! - https://wonforecast.com/ 환율 가져오기
 @@||tradingview.com/socket.io/websocket
@@ -488,7 +498,7 @@ play.sooplive.co.kr##.event_tooltip
 ||eventapi.sooplive.co.kr^
 ! - 차단 목록 (AdVoid.Full)
 ##.share
-@@||localhost^
+||facebook.com/tr^
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*stimg.sooplive.co.kr/LOGO/gg/*.webp
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
@@ -779,9 +789,10 @@ dcinside.com#@#.btn_snsmore
 ! - 개죽이 차단
 dcinside.com##+js(nostif, adblock_detected7)
 ! - 차단 목록 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-gall.dcinside.com##.clear.gnb_list > li:nth-of-type(6)
 dcinside.com##.dc_all
 gall.dcinside.com##.gall_list tr[class="ub-content "]
+gall.dcinside.com##.btn_imgcmtopen:style(opacity: 0.4 !important;)
+gall.dcinside.com##div.img_area button.btn:style(opacity: 0.6 !important;)
 !
 !
 ! 아카라이브 (https://arca.live/)
