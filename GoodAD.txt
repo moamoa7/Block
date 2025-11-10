@@ -5487,6 +5487,14 @@ action=js_stats
 controld.com##.css-9hjcxa
 !
 !
+! https://lmarena.ai/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+/ingest/*ip=*&ver=
+! - 차단 목록 (AdVoid.Full)
+/web-vitals.$script
+
+!
+!
 !
 !
 !
