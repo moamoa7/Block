@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251110
+! Version: 20251111
 !
 !
 !
@@ -5492,7 +5492,11 @@ controld.com##.css-9hjcxa
 /ingest/*ip=*&ver=
 ! - 차단 목록 (AdVoid.Full)
 /web-vitals.$script
-
+!
+!
+! https://game8.jp/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+/ad0*
 !
 !
 !
