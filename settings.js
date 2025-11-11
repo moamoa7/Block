@@ -32,7 +32,7 @@
         AUTODELAY_PID_KD: 0.0001, AUTODELAY_MIN_RATE: 1.0, AUTODELAY_MAX_RATE: 1.025, LIVE_JUMP_INTERVAL: 6000,
         LIVE_JUMP_END_THRESHOLD: 1.0, DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15, IMAGE_MIN_SIZE: 355, VIDEO_MIN_SIZE: 0,
-        SPEED_PRESETS: [10, 5.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
+        SPEED_PRESETS: [4.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2], UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         EXCLUSION_KEYWORDS: ['login', 'signin', 'auth', 'captcha', 'signup', 'sign_in', 'register', 'download', 'forgot', 'fredl.ru', 'frdl.my', 'financemonk', 'up4load.com', 'liteapks.com', 'platinmods.com', 'drive.google.com', 'discord.com', 'github.com', 'chatgpt.com', 'yako.gg', 'yasyadong.cc', 'jpupskirts.club', 'avpingyou', 'newtoki', 'manatoki', 'booktoki', 'sextb.date', 'jogemovie.net', 'fabulouslink.xyz', 'lmarena.ai'],
