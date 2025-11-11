@@ -192,7 +192,8 @@ keep.google.com###gb:style(position: absolute !important; box-shadow: none !impo
 ! - 하단 왼쪽 팝업
 ##ytd-popup-container.ytd-app.style-scope
 ! 차단목록 (Adblock-Rule-Collection-Lite)
-||youtube.com/api/stats^
+! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
+@@||youtube.com/api/stats^
 youtube.com##.video-annotations
 youtube.com##.annotation.iv-branding
 youtube.com##.ytp-cards-teaser
