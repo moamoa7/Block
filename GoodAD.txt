@@ -97,16 +97,23 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 @@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online
 ! - - - 아프리카 TV 등 그리드 차단 (AdVoid.Full 필터 목록 해제)
 @@||localhost^$badfilter
-
-
+!
+!
+! 192.168.0.1
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+@@||192.168.*.1/$generichide
+! - 차단 목록 (AdVoid.Full)
+@@||192.168.$document
+!
+!
 ! https://discord.com/
 ! - 해제 목록 (Adblock-Rule-Collection-Lite)
 @@||discord.com^
 ! - 차단 목록 (AdVoid.Full)
 ! - - - https://tv.kakao.com/ 포함 등
 @@||127.0.0.1^
-
-
+!
+!
 ! - https://wonforecast.com/ 환율 가져오기
 @@||tradingview.com/socket.io/websocket
 !
@@ -5507,6 +5514,13 @@ controld.com##.css-9hjcxa
 /wp-content/plugins/q2w3-fixed-widget/*
 ##.pum-container
 ##.popmake
+!
+!
+! https://www.camsfinder.com/
+! - 차단 목록 (AdVoid.Full)
+||naiadsystems.com^
+##.social-container
+
 !
 !
 !
