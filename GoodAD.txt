@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251111
+! Version: 20251112
 !
 !
 !
@@ -955,8 +955,12 @@ etoland.co.kr#@#[class^="ad"]
 ||doubleclick.net^
 ||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt,from=~eksisozluk.com|~gizmodo.jp|~golf.com|~heycar.co.uk|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~today.line.me
 ||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$xhr,redirect-rule=googlesyndication-adsbygoogle
+||googletagservices.com/tag/js/gpt.js$xhr,redirect-rule=googletagservices-gpt
 ! -차단 목록 (AdVoid.Full)
 /jquery.cookie.min.js^$script
+||googletagservices.com/tag/js/gpt.js^$xhr,redirect-rule=googletagservices_gpt.js
+*$xhr,3p,redirect-rule=noop.txt,method=head,to=~adblockanalytics.com|~doubleclick.net|~pagead2.googlesyndication.com
+##.adsbox
 ! - 차단 목록 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 etoland.co.kr##[class^="banner"]
 etoland.co.kr##li:has([href^="https://etoland.co.kr/pages/short.php"])
