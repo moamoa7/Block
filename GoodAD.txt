@@ -5075,6 +5075,8 @@ twitter.com##html:style(overflow:auto!important)
 platinmods.com##.notice--enablePush
 ! - 차단 목록 (AdVoid.Full)
 ##div[data-widget-definition="share_page"]
+/siropu/am/core.min.js^$script,important,from=~audi-sport.net|~hifiwigwam.com
+##.notice--cookie
 !
 !
 ! 다이소몰 (https://www.daisomall.co.kr/)
