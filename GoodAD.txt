@@ -2599,6 +2599,9 @@ danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-midd
 @@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//$domain=danawa.com
 ! - - - - - YousList
 danawa.com#@#iframe[src*="/RealMedia/ads/"]
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plu)
+||static.danawa.com/globaljs/static/bdl/dsac.min.js
+||static.danawa.com/globaljs/static/targetpush/targetpushtracking.js
 !
 !
 ! 당근 (https://www.daangn.com/)
