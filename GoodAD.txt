@@ -588,8 +588,18 @@ twitch.tv##.kfZRQZ.Layout-sc-1xcs6mc-0
 twitch.tv###twilight-sticky-footer-root
 ! - 콤보 안내 문구
 twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
+! - 차단 목록 (Adblock-Rule-Collection-Lite) 
+twitch.tv##button[data-a-target="share-button"]
+! - - - 모듈이 로드되지 않앗다는 메시지 해제 (Adblock-Rule-Collection-Lite 배드필터로 지정 후 개별 차단 및 해제)
+-ads.$badfilter
+@@-ads.*.css
+-ads.stream*.js
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 twitch.tv##.side-info-container
+||scorecardresearch.com^
+! - 차단 목록 (AdVoid.Full)
+||ads.twitch.tv^
+
 !
 !
 ! 킥 (https://kick.com/)
@@ -4936,6 +4946,7 @@ play.google.com##div[data-is-touch-wrapper] > button:has(> span > svg > path[d^=
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||api.github.com/_private/browser/stats$important
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
+@@||raw.githubusercontent.com/*/master/$1p
 github.com##html:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
 github.com##.repository-content:style(width: 100% !important)
 github.com##.container-xl:style(max-width: none !important)
@@ -4948,6 +4959,8 @@ github.com##div[data-selector*=repos-split-pane-content i]:style(max-width: unse
 github.com##div[tabindex] + div > div[class^=Box-sc-][class*=" "]:style(max-width: unset !important)
 github.com##div[class^=IssueMetadata-] ~ div[class^=Box-]:style(max-width:2000px!important)
 @@||github.com/*/$1p
+! - 차단 목록 (AdRules AdBlock List Plus)
+@@||github.com^$removeparam
 ! - 해제 목록 (Adblock-Rule-Collection-Lite) - 모바일에서 너비 줄어들어 가독성이 깨져 해제
 github.com#@#div.Layout--sidebarPosition-end:style(grid-template-columns: calc(100vw - 275px) 210px !important)
 !
