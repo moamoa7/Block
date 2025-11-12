@@ -513,6 +513,9 @@ play.sooplive.co.kr##.event_tooltip
 @@||*stimg.sooplive.co.kr/LOGO/gg/*.webp
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
 sooplive.co.kr#@#[class*="AD"]
+! ##[class^="ad"] 해제
+point.sooplive.co.kr#@#[class^="ad"]
+
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
@@ -590,6 +593,8 @@ twitch.tv##.kfZRQZ.Layout-sc-1xcs6mc-0
 twitch.tv###twilight-sticky-footer-root
 ! - 콤보 안내 문구
 twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
+! - 광고 차단 문구 (터보 사용 권장 문구)
+twitch.tv##.video-player__inactive
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) 
 twitch.tv##button[data-a-target="share-button"]
 ! - - - 모듈이 로드되지 않앗다는 메시지 해제 (Adblock-Rule-Collection-Lite 배드필터로 지정 후 개별 차단 및 해제)
@@ -601,7 +606,6 @@ twitch.tv##.side-info-container
 ||scorecardresearch.com^
 ! - 차단 목록 (AdVoid.Full)
 ||ads.twitch.tv^
-
 !
 !
 ! 킥 (https://kick.com/)
@@ -803,6 +807,7 @@ m.dcinside.com###notice_list > li:not(:has(.ntc-line-orange))
 m.dcinside.com###notice_list > li:nth-of-type(-n+3)
 !  - 차단 목록 (Adblock-Rule-Collection-Lite)
 gall.dcinside.com##.r_dcmedia
+||adnmore.co.kr^
 ! - Adblock-Rule-Collection-Lite 에서 차단된거 해제 (공유 버튼)
 dcinside.com#@#.btn_snsmore
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
@@ -2619,9 +2624,12 @@ danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-midd
 @@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//$domain=danawa.com
 ! - - - - - YousList
 danawa.com#@#iframe[src*="/RealMedia/ads/"]
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plu)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||static.danawa.com/globaljs/static/bdl/dsac.min.js
 ||static.danawa.com/globaljs/static/targetpush/targetpushtracking.js
+! - 차단 목록 (AdRules AdBlock List Plus) 차단 해제
+! - - - 다나와 왼쪽 메뉴 안나옴 해결
+||static.danawa.com/globaljs/com/danawa/common/uxlog/$badfilter
 !
 !
 ! 당근 (https://www.daangn.com/)
@@ -3241,6 +3249,8 @@ openload.mov##div:nth-of-type(9)
 avdbs.com#@#[class^="ad"]
 ! - 배우찜 제거 안내 팝업?
 ###bnotice-wrap
+! - - - 뿌연 화면 해결
+avdbs.com##.__b-popup1__.b-modal
 !
 !
 ! AV조아 (https://avjoa71.com/)
@@ -5549,6 +5559,34 @@ controld.com##.css-9hjcxa
 ! - 차단 목록 (AdVoid.Full)
 ||naiadsystems.com^
 ##.social-container
+!
+!
+! https://tv.apple.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||apple.com/assets/mt-metricskit-
+!
+!
+! https://www.baragi.net/
+! - 차단 목록 (AdVoid.Full)
+||translate.googleapis.com/element/log^
+!
+!
+! https://www.pixiv.net/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+pixiv.net##header > div:style(width: 80vw !important)
+pixiv.net##section > div[class^="sc-"]:has(> button > svg > path[d^="M17,9.91842728"][d$="25,17 Z"])
+pixiv.net##li[size="1"][offset="0"]:style(margin-right: 4px !important)
+pixiv.net##figcaption > div > div:style(width: 90% !important)
+pixiv.net##div[class*=" "]:empty:has(+ aside + aside)
+pixiv.net##div > section:upward(1):style(width: unset !important; padding-left: 8px !important; padding-right: 0px !important)
+pixiv.net##.gtm-illust-recommend-zone > div:not([class]) > div[class*=" "]:style(width: 97vw !important)
+pixiv.net##section > div + div:not(:first-of-type) > div:first-of-type:style(width: 99vw !important; padding-left: 2px !important)
+pixiv.net##main[class]:style(min-width: 1060px !important; width: 75px !important)
+pixiv.net##div:style(max-width: none !important)
+pixiv.net##div:not([class]) > div[class^=sc-] > div[class]:not([class^=sc-]) > div[class^=sc-]:only-of-type:style(width: unset !important; padding: 0 3px !important)
+||onesignal.com^
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||ads-pixiv.net^
 
 !
 !
