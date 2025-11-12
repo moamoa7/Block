@@ -2466,6 +2466,8 @@ sports.donga.com##.view_center
 ! - 검색시 나오는 광고 배너
 coupang.com###srpKeywordProductTopBanner
 ###BottomAppBanner
+! - 제품내 추천 제품 배너
+coupang.com###sdp-ad-banner-position-c
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 ||coupangcdn.com/customjs/criteo/
 ||coupangcdn.com/customjs/seo-js-sdk/
