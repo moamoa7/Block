@@ -5587,6 +5587,13 @@ pixiv.net##div:not([class]) > div[class^=sc-] > div[class]:not([class^=sc-]) > d
 ||onesignal.com^
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||ads-pixiv.net^
+!
+!
+! https://www.comodo.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||techtarget.com^
+! - 차단 목록 (AdVoid.Full)
+||klaviyo.com^$3p,from=~kmail-lists.com|~myklpages.com
 
 !
 !
