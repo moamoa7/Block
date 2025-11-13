@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251113
+! Version: 20251114
 !
 !
 !
@@ -5609,6 +5609,17 @@ pixiv.net##div:not([class]) > div[class^=sc-] > div[class]:not([class^=sc-]) > d
 ! https://apkmody.com/
 ! - 차단 목록 (AdVoid.Full)
 /cdn-cgi/trace^$xhr
+!
+!
+! https://misskon.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+###fb-root:not(body):not(html)
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||cdn.ouo.io/js/full-page-script.js$script,3p
+! - 차단 목록 (AdVoid.Full)
+##.social-icons
+
+
 !
 !
 !
