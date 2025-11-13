@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251112
+! Version: 20251113
 !
 !
 !
@@ -94,7 +94,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - player.bunny-frame.online - 해제해야 영상 재생 가능
 ! - - - 예외
 @@||gateway.discord.gg$websocket
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online|play.sooplive.co.kr
 ! - - - 아프리카 TV 등 그리드 차단 (AdVoid.Full 필터 목록 해제)
 @@||localhost^$badfilter
 !
@@ -391,6 +391,14 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ||scv-cafe.io.naver.com/jackpotlog/*/logs$xhr
 ! - 카페 사진 첨부 오류 해결
 @@*$stealth=dpi,app=com.nhn.android.navercafe
+!
+!
+! 네이버 블로그 (https://blog.naver.com)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||ssl.pstatic.net/t.static.blog/nmobile/versioning/ntmbalog-*.js
+||camp-api.naver.com/*/bulk
+m.blog.naver.com,filmzone.com,habuteru.com,allaboutshaving.kr,pcprogramasymas.net,legionscans.com#$#html { -webkit-touch-callout: default !important; -moz-user-select: text !important; -webkit-user-select: text !important; -ms-user-select: text !important; -o-user-select: text !important; user-select: text !important; -khtml-user-select: text !important; }
+
 !
 !
 ! 네이버TV (https://tv.naver.com/)
@@ -2828,7 +2836,7 @@ avsee.ru##[alt$="gif"]
 !||fractionfridgejudiciary.com^$popup
 !||depreciatorybollocksupkitchen.com^$popup
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
-/^https:\/\/(?:[a-z]{2}\.)?[a-z]{7,14}\.[a-z]{3,7}\/[a-z][0-9A-Za-z]{10,16}\/\d{4,6}$/$script,third-party,match-case
+/^https:\/\/(?:[a-z]{2}\.)?[a-z]{7,14}\.[a-z]{3,7}\/[fgprst][0-9A-Za-z]{10,16}\/\d{4,6}$/$script,third-party,match-case
 ##div.preloader
 *##.ad
 ||jwpcdn.com^
@@ -5594,7 +5602,11 @@ pixiv.net##div:not([class]) > div[class^=sc-] > div[class]:not([class^=sc-]) > d
 ||techtarget.com^
 ! - 차단 목록 (AdVoid.Full)
 ||klaviyo.com^$3p,from=~kmail-lists.com|~myklpages.com
-
+!
+!
+! https://apkmody.com/
+! - 차단 목록 (AdVoid.Full)
+/cdn-cgi/trace^$xhr
 !
 !
 !
