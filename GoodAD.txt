@@ -5618,8 +5618,19 @@ pixiv.net##div:not([class]) > div[class^=sc-] > div[class]:not([class^=sc-]) > d
 ||cdn.ouo.io/js/full-page-script.js$script,3p
 ! - 차단 목록 (AdVoid.Full)
 ##.social-icons
-
-
+!
+!
+! https://fc2cm.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##a[href^="https://feedly.com/i/subscription/"]
+||polyfill.io^
+!
+!
+! https://www.eporner.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+eporner.com##.vjs-docker
+! - 차단 목록 (AdVoid.Full) 해제
+@@/adinhead.png^$image
 !
 !
 !
