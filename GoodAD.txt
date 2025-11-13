@@ -5633,6 +5633,27 @@ eporner.com##.vjs-docker
 @@/adinhead.png^$image
 !
 !
+! https://glamoroustube.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||blogparts.gcolle.net^
+glamoroustube.com###sns-bottoms
+!
+!
+! https://av-help.memo.wiki/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||seesaa.jp^
+!
+!
+! https://adult.contents.fc2.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||media.fc2.com/counter_img
+!
+!
+! https://anime.eroterest.net/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+||eroterest.net^
+!
+!
 !
 !
 !
