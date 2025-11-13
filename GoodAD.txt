@@ -94,7 +94,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - player.bunny-frame.online - 해제해야 영상 재생 가능
 ! - - - 예외
 @@||gateway.discord.gg$websocket
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online|play.sooplive.co.kr
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online
 ! - - - 아프리카 TV 등 그리드 차단 (AdVoid.Full 필터 목록 해제)
 @@||localhost^$badfilter
 !
@@ -578,6 +578,8 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 ##.tooltip
 ! - 광고?
 ||.com/ad-*
+! 무료 치즈받기 (https://chzzk.naver.com/cheezefarm) 오류 해결 (Adblock-Rule-Collection-Lite 해제)
+@@||?adid=$domain=chzzk.naver.com
 ! - 허용목록 (Adblock-Rule-Collection-Lite)
 @@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
