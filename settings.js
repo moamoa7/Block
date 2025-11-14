@@ -17,9 +17,9 @@
     const CONFIG = {
         MAX_PRE_GAIN: 10.0,
         DEFAULT_PRE_GAIN_EXPONENT: 1.0,
-        DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 9 : 3,
+        DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 7 : 3,
         DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 4 : 2,
-        DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 9 : 3,
+        DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 7 : 3,
         DEFAULT_WIDENING_ENABLED: false, DEFAULT_WIDENING_FACTOR: 1.0, DEFAULT_STEREO_PAN: 0, DEFAULT_HPF_ENABLED: false,
         EFFECTS_HPF_FREQUENCY: 20, DEFAULT_EQ_ENABLED: false, DEFAULT_EQ_SUBBASS_GAIN: 0, DEFAULT_EQ_BASS_GAIN: 0,
         DEFAULT_EQ_MID_GAIN: 0, DEFAULT_EQ_TREBLE_GAIN: 0, DEFAULT_EQ_PRESENCE_GAIN: 0, DEFAULT_ADAPTIVE_WIDTH_ENABLED: false,
@@ -2408,8 +2408,8 @@ class UIPlugin extends Plugin {
         videoMsharpBtn.textContent = '샤프M';
         videoMsharpBtn.dataset.presetKey = 'sharpM';
         videoMsharpBtn.onclick = () => {
-            this.stateManager.set('videoFilter.level', 6);
-            this.stateManager.set('videoFilter.level2', 3);
+            this.stateManager.set('videoFilter.level', 7);
+            this.stateManager.set('videoFilter.level2', 4);
             this.stateManager.set('videoFilter.activePreset', 'sharpM');
         };
 
@@ -2418,8 +2418,8 @@ class UIPlugin extends Plugin {
         videoLsharpBtn.textContent = '샤프L';
         videoLsharpBtn.dataset.presetKey = 'sharpL';
         videoLsharpBtn.onclick = () => {
-            this.stateManager.set('videoFilter.level', 9);
-            this.stateManager.set('videoFilter.level2', 4);
+            this.stateManager.set('videoFilter.level', 11);
+            this.stateManager.set('videoFilter.level2', 6);
             this.stateManager.set('videoFilter.activePreset', 'sharpL');
         };
 
