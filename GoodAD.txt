@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251114
+! Version: 20251115
 !
 !
 !
@@ -4878,7 +4878,10 @@ tistory.com##+js(set-constant, window.disableselect, noopFunc)
 ! 길호넷 (https://kilho.net/)
 ! - 팝업 방지
 ||s.click.aliexpress.com$popup
-||wisdomgrove.tistory.com/189$popup
+!||wisdomgrove.tistory.com/189$popup
+||wisdomgrove.tistory.com/$popup
+! - 차단 목록 (AdRules AdBlock List Plus)
+@@||fundingchoicesmessages.google.com^$script
 ! - 차단 목록 (AdVoid.Full)
 ##[id^="aswift"]
 /analytics.js^$script
@@ -5652,6 +5655,16 @@ glamoroustube.com###sns-bottoms
 ! https://anime.eroterest.net/
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 ||eroterest.net^
+!
+!
+! https://fc-info.com/
+! - 빈공간
+!##.Venatus_videoContainer__eVrta
+##[class*="videoContainer"]
+
+! - 차단 목록 (AdVoid.Full)
+##[class*="AdContainer"]
+
 !
 !
 !
