@@ -5661,10 +5661,13 @@ glamoroustube.com###sns-bottoms
 ! - 빈공간
 !##.Venatus_videoContainer__eVrta
 ##[class*="videoContainer"]
-
 ! - 차단 목록 (AdVoid.Full)
 ##[class*="AdContainer"]
-
+!
+!
+! https://www.lgtwins.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+/[0-9]{1,2}\/[0-9]{5,6}\.js/$script,3p
 !
 !
 !
