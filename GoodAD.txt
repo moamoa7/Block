@@ -5814,6 +5814,9 @@ glamoroustube.com###sns-bottoms
 @@point.pay.naver.com/public-api/ad-reward/*
 @@raw.githubusercontent.com/the-advoid/ad-void/*$image
 @@b.cdnst.net/images/*$image
+@@maps-service.pstatic.net/*/ad-*$image
+@@map.pstatic.net/*/ad-*$image
+
 ! - 예외 (텍스트 안보임 해결)
 @@github.com*$xhr
 !||*/*/AD-*/*
