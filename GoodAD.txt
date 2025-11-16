@@ -94,7 +94,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - player.bunny-frame.online - 해제해야 영상 재생 가능
 ! - - - 예외
 @@||gateway.discord.gg$websocket
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online
+@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|player.bunny-frame.online|www.tving.com
 ! - - - 아프리카 TV 등 그리드 차단 (AdVoid.Full 필터 목록 해제)
 @@||localhost^$badfilter
 !
@@ -1497,6 +1497,11 @@ netflix.com##div[data-uia="pause-ad"]
 ! 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||wcs.naver.net/wcslog.js^
 ||onelinksmartscript.appsflyer.com^
+||monitoring.hackle.io^
+! 차단 목록 () ru  ua  uz  kz: RU AdList)
+||connect.facebook.net/*/fbevents.js|$3p
+! 차단 목록 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
+@@||t1.daumcdn.net/*/static/kp.js
 !
 !
 ! POOOO (https://poooo.ml/)
