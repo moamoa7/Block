@@ -983,6 +983,8 @@ etoland.co.kr##[class^="banner"]
 etoland.co.kr##li:has([href^="https://etoland.co.kr/pages/short.php"])
 etoland.co.kr##[href^="https://www.etoland.co.kr/pages/short.php"]
 etoland.co.kr##li:has-text(/비밀상점|이토보험상담실|이토상담실/)
+!  - 차단 목록 () ru  ua  uz  kz: RU AdList)
+@@||2mdn.net/instream/$third-party,script
 !
 !
 ! 더쿠 (https://theqoo.net/)
