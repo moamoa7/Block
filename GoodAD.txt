@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251116
+! Version: 20251117
 !
 !
 !
@@ -2430,8 +2430,11 @@ jtbc.co.kr##.set_contents_video_ad
 ! - 차단 사이트
 !||aedi.ai^$3p
 !||piclick.kr^
-!||optad360.io^
+!||optad360.io^1
 !||quantserve.com^$3p
+! - 차단 목록 (Adblock-Rule-Collection-Lit)
+||digitalcamp.co.kr^
+||quantserve.com^
 !
 !
 ! 텐아시아 (https://www.tenasia.co.kr/)
