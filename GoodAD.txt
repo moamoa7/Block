@@ -572,6 +572,7 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 !chzzk.naver.com##div[class*="popup_dimmed"]
 !##[class*="popup_modal__"]
 !##.popup_modal__hRwfq.popup_container__Aqx-3
+##.popup_modal__hRwfq.popup_container__Aqx-3
 ! - 첫 구매 이벤트 중 알림
 chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! 치트키 구매하기 툴팁
