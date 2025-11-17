@@ -1255,7 +1255,9 @@ namu.*##li:has(time):not(:has([href*='/raw/'])):upward(2)
 ! 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 namu.wiki##div[class*=" "] > div[class*=" "]:has(> a[target="_blank"][rel="noopener"]):contains(더 보기)
 ! - - - 애드가드 갤러리 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-namu.*##div[class]:matches-attr(class=/^[a-zA-Z0-9_-]{7,9}$/):has(span:has-text(/^더 보기$/)):not(:has(a[href='/RecentChanges'])):not(:has(.equal))
+namu.wiki##div[class][id]:empty
+namu.wiki##li:has(time):not(:has([href*='/raw/'])):upward(2)
+namu.wiki##div[class]:matches-attr(class=/^[a-zA-Z0-9+_-]{7,9}$/):has(span:has-text(/^더 보기$/)):not(:has([href='/RecentChanges'])):not(:has(.equal))
 !
 !
 ! 일베 (https://www.ilbe.com/)
@@ -5682,6 +5684,30 @@ glamoroustube.com###sns-bottoms
 ! https://www.lgtwins.com/
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 /[0-9]{1,2}\/[0-9]{5,6}\.js/$script,3p
+!
+!
+! https://www.gukjenews.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+gukjenews.com##.article-sns
+||popin.cc^
+||mci1.co.kr^
+!
+!
+! https://www.bntnews.co.kr/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##a[onclick*="//www.facebook.com/"][onclick*="sharer.php"]
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+||analytics.kode.co.kr^
+! - 차단 목록 (AdVoid.Full)
+##a[onclick*="window.open"][onclick*="'https://twitter.com/intent/tweet?"]
+!
+!
+! https://news.nate.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##.sns_list
+
+
+
 !
 !
 !
