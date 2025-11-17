@@ -5705,9 +5705,6 @@ gukjenews.com##.article-sns
 ! https://news.nate.com/
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 ##.sns_list
-
-
-
 !
 !
 !
