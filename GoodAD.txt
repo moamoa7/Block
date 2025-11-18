@@ -1082,6 +1082,11 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 !||contentsfeed.com^
 !||searchad-phinf.pstatic.net^
 !||dable.io^
+! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+mlbpark.donga.com##li:has-text(/엠팍제휴팀|폰판기/)
+mlbpark.donga.com##.the_hottest
+!
+
 !
 !
 ! 루리 (https://www.ruliweb.com/)
@@ -5265,7 +5270,7 @@ theporndude.com##.drawer-opener
 ||google-analytics.com/ga.js$script,redirect-rule=google-analytics-ga,from=~daj.jp
 ||googletagservices.com/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt
 ! - 차단 목록 (AdVoid.Full)
-||googletagmanager.com/gtm.js^$script,redirect-rule=googletagmanager_gtm.js:5
+||googletagmanager.com/gtm.js^$script,redirect=googletagmanager_gtm.js:5
 ||googletagmanager.com/gtag/$script,3p,redirect-rule=noop.js
 ||gstatic.com/glue/cookienotificationbar/cookienotificationbar.
 
@@ -5705,6 +5710,11 @@ gukjenews.com##.article-sns
 ! https://news.nate.com/
 ! - 차단 목록(Adblock-Rule-Collection-Lite)
 ##.sns_list
+!
+!
+! https://www.cnine.kr/
+! - 차단 목록 (AdVoid.Full) 해제 - 화면 안보임 해결
+/smartad.$script,from=~smartad.ai,badfilter
 !
 !
 !
