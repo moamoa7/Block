@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251119
+! Version: 20251122
 !
 !
 !
@@ -1077,6 +1077,8 @@ mlbpark.donga.com##.bt_menu_wrap
 ! - 맨 밑 하단 TODAY BEST BULLPEN 5번과 6번 사이 공간 없애기
 ! - - - 출처 : https://gall.dcinside.com/adguard/399
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
+! - 본문 한줄 광고?(투표?)
+mlbpark.donga.com##.inner_article
 ! - 차단 사이트
 !||ad.aceplanet.co.kr^
 !||contentsfeed.com^
@@ -4807,8 +4809,10 @@ mypikpak.com##div.el-overlay:nth-of-type(23)
 ||adjust.com^
 ! - 차단 목록 (AdVoid.Full)
 /track.js^$script
+||jnn-pa.googleapis.com^
 ! - 차단 목록 해제 (Adblock-Rule-Collection-Lite) - 네이버 검색에서 상품 클릭시 정보 안나옴
 @@||*$document,removeparam=/^(sp|ut|fro?)m(_|\b)/
+
 !
 !
 ! SPEEDTEST (https://www.speedtest.net/
@@ -5722,6 +5726,23 @@ gukjenews.com##.article-sns
 /^https?:\/\/([0-9a-z\.-_]+)\.(accountant|bid|cf|club|cricket|date|download|faith|fun|ga|gdn|gq|loan|men|ml|ovh|party|pro|pw|racing|review|rocks|ru|science|site|space|stream|tk|top|trade|webcam|win|xyz|zone)\.\/(.*)/$script,third-party
 /^https?:\/\/([0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.)?[0-9a-z-][0-9a-z-][0-9a-z-][0-9a-z-][0-9a-z-]+\.com\/\/?([0-9a-z][0-9a-z]\/)([0-9a-z][0-9a-z]\/)([0-9a-z][0-9a-z]\/)?[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\.js/$script,xmlhttprequest,third-party
 /^https:\/\/[a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-]+\.com\/[0-9a-f][0-9a-f]\/[0-9a-f][0-9a-f]\/[0-9a-f][0-9a-f]\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\.js/$script,xmlhttprequest,third-party
+!
+!
+! https://www.cocomai.jp/
+! - 차단 목록(Adblock-Rule-Collection-Lite)
+##a[href^="https://www.facebook.com/sharer.php"]
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+/web-pixel-*/pixel.modern.js
+||cdn.shopify.com/s/files/*/ba_tracking.js
+! - 차단 목록 (AdVoid.Full)
+/collect^
+##a[href^="https://twitter.com/share"]
+trekkie*.js^$script
+!
+!
+! https://fiber.google.com/
+! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
+speedtestcustom.com##.stc-wrapper > div[style]
 !
 !
 !
