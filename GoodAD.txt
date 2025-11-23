@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251122
+! Version: 20251123
 !
 !
 !
@@ -1565,6 +1565,7 @@ tvhot.store##.object-cover
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
 !##[class="full pc-only"]
 !##[class="full mobile-only"]
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.layer-footer
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 !##[class^="full pc-only"]:not(html):not(body):not(article)
 [$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.pc-only.full
@@ -6551,6 +6552,7 @@ clien.net#@#[class*="_banner"]
 ! - - - 예외
 ! https://tv.kakao.com/
 sports.daum.net,kakaotv.daum.net#@#[class*="banner_"]
+
 
 
 
