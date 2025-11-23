@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251123
+! Version: 20251124
 !
 !
 !
@@ -1185,9 +1185,10 @@ todayhumor.co.kr##.under_ad_div
 !||mediacategory.com^
 ! - 차단 목록 (Adblock-Rule-Collection-Lite)
 ##.fb-like
-||media.$frame,3p,from=~ted.com
 ! - 차단 목록 (AdRules AdBlock List Plus)
 ##INS.adsbygoogle
+! - 차단 목록 (Adblock-Rule-Collection-Lite) 해제 - 영상 안보임 해결
+@@||media.$frame,3p,from=~ted.com$domain=fomos.co.kr
 !
 !
 ! 와이고수 (https://ygosu.com/)
