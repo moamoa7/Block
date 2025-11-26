@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251124
+! Version: 20251127
 !
 !
 !
@@ -515,10 +515,11 @@ play.sooplive.co.kr##.event_tooltip
 ||stbbs.sooplive.co.kr/api/*_log.php
 ||eventapi.sooplive.co.kr^
 ! - 차단 목록 (AdVoid.Full)
-##.share
 ||facebook.com/tr^
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*stimg.sooplive.co.kr/LOGO/gg/*.webp
+! - 차단 목록 (AdVoid.Full) 해제 - 픽팍 등에서 공유 안보임
+#@#.share
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
 sooplive.co.kr#@#[class*="AD"]
 ! ##[class^="ad"] 해제
@@ -5392,8 +5393,8 @@ github.io##body:style(overflow-x: hidden !important; overflow-y: scroll !importa
 !
 !
 ! https://91porna.com/
-! - 차단 목록 (AdVoid.Full)
-##.share-container
+! - 차단 목록 (AdVoid.Full) 해제 - 픽팍 등에서 공유 안보임
+#@#.share-container
 !
 !
 ! https://www.scamadviser.com/
@@ -7611,4 +7612,5 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
 
