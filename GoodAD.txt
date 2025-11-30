@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251127
+! Version: 20251130
 !
 !
 !
@@ -5748,6 +5748,13 @@ trekkie*.js^$script
 speedtestcustom.com##.stc-wrapper > div[style]
 !
 !
+! 도박랜드 (https://dobakland2.org/)
+! - 배너 차단
+[$domain=/^dobakland\d+.org/]##.object-cover
+! - 배너 공간
+[$domain=/^dobakland\d+.org/]##.gap-1.lg\:grid-cols-4.md\:grid-cols-3.grid-cols-2.grid
+!
+!
 !
 !
 !
@@ -7612,5 +7619,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
 
