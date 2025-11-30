@@ -5150,8 +5150,9 @@ thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 !
 !
 ! 잡코리아 (https://www.jobkorea.co.kr/)
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-/adbanner
+! - 차단 목록(Adblock-Rule-Collection-Lite) 해제 - 스크롤이 안됨
+@@jobkorea.co.kr/*/adbanner.js
+||widerplanet.com^
 ! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 ||sas.nsm-corp.com^
 ||googleoptimize.com^
