@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251130
+! Version: 20251207
 !
 !
 !
@@ -3618,8 +3618,8 @@ jamakyadong.me##[class*="g-col"]
 ###main-banner
 ! - ||*/*/ads/* 예외 (영상 안나옴) - 광고 와 같은 디렉토리에 있음
 @@||zxcasdqwezxcasdqwe.com/ads/*$media
-! - https://www.notion.so/ - 로그인시 에러남
-notion.so@@||/*/ads/*
+! - https://ofw.adison.co/
+@@||ofw.adison.co/*/ads/*
 !
 !
 ! 야동허브 (https://ydhub11.net/)
