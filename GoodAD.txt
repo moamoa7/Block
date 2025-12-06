@@ -5055,12 +5055,14 @@ github.com#@#div.Layout--sidebarPosition-end:style(grid-template-columns: calc(1
 !
 !
 ! 레딧 (https://www.reddit.com/)
-! - 차단 목록 (Adblock-Rule-Collection-Lit)
+! - 차단 목록 (Adblock-Rule-Collection-Lite)
 /ads-
 reddit.com##body:not([style^="overflow:"]):not([class="rpl-scroll-lock"]):style(pointer-events: auto !important; overflow: auto !important;)
 reddit.com##span.hidden[class$="m:block"]
 reddit.com##shreddit-comment-tree-ad
 reddit.com##body:style(overflow: auto !important;)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) 차단 해제 - 상단에 메세지창 나오는거 해결
+@@||www.reddit.com/svc/shreddit/partial/J7VVLM/*_ads_*
 ! - 차단 목록 (AdVoid.Full)
 ##.icon-share
 !
