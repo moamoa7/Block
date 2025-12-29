@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251207
+! Version: 20251230
 !
 !
 !
@@ -941,6 +941,7 @@ etoland.co.kr##section.box:nth-of-type(7)
 ||*/img/market/ajd/ajd_banner*$image
 ! - 게시물 내 하단 배너
 www.etoland.co.kr##.etoad_under_goods
+www.etoland.co.kr###under_goodbtn_ad
 ! - 포인트 충전소 이미지 복원 (List-KR 무력화)
 @@||etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
