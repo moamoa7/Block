@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20251230
+! Version: 20260122
 !
 !
 !
@@ -1022,7 +1022,7 @@ trand.co.kr#@#[class*="modal"]
 ! - ##.ad 예외
 inven.co.kr#@#.ad
 ! - 게시물 전체 배너
-##[src*=".ads/"]
+!##[src*=".ads/"]
 ! -오른쪽 배너
 ##[class*="ad-right"]
 ! -오른쪽 배너
