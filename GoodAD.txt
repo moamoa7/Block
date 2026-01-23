@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260122
+! Version: 20260124
 !
 !
 !
@@ -2856,9 +2856,10 @@ avsee.ru##[alt$="gif"]
 ! - 로고 이미지 복원
 !@@||supjav.com/img/*$image
 ! - 차단 목록 (AdVoid.Full)
-/cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
 /cast_sender.js^$script
 ##.jw-submenu-sharing
+! - - -  브레이브에서 쏘걸 접속시 화면 안보여서 해제
+!/cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
 ! 팝업 방지
 !||profitableratecpm.com^$popup
 !||fractionfridgejudiciary.com^$popup
