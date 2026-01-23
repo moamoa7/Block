@@ -4761,13 +4761,13 @@ linknnn.com##.wst-post-gl
 !
 ! - GOODTV 기독교 복음방송 (https://goodtv.co.kr/)
 ! - 팝업
-##.popup
+!##.popup
 ! - - - 예외 (WAVVE - 스크롤이 안됨)
-www.wavve.com#@#.popup
+!www.wavve.com#@#.popup
 ! - - - 예외 (https://kr80.sogirl.so) (https://kr29.4kjav.co/) - 예전 도메인이면 안보임
-[$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#.popup
+![$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#.popup
 ! - - - 예외 (nid.naver.com) - 네이버로 타사 회원가입시 필요
-nid.naver.com#@#.popup
+!nid.naver.com#@#.popup
 ! 사이 사이 마다 있는 배너
 !##.plus_banner
 
