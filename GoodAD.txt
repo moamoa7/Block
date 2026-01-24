@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260124
+! Version: 20260125
 !
 !
 !
@@ -123,7 +123,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - 해제 목록 (Adblock-Rule-Collection-Lite)
 google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 @@||google.com^$xhr,removeparam=ei
-||play.google.com/log?
 ! - 해제 목록 (AdRules AdBlock List Plus)
 @@/^https?:\/\/(docs|accounts)\.google(\.[a-z]{2,}){1,}/$removeparam
 !
