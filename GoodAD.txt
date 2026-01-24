@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260122
+! Version: 20260124
 !
 !
 !
@@ -119,46 +119,12 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 구글 (https://www.google.com/)
-!- 차단 목록 (Adblock-Rule-Collection-Lite)
-www.google.com###tads, .ads-ad
-www.google.com###taw, #bottomads
-google.com##body #tads
-google.com###js-header, #searchform, .O-j-k, .header:not(#menu.header--primary):not(.column-section):not(.viewed):not(.ng-star-inserted):not([class*="_ngcontent"]):not([role="heading"]), .js-header.chr-header, .mobile-action-bar, body > .ng-scope, #flt-nav, .gws-flights__scrollbar-padding.gws-flights__selection-bar, .gws-flights__selection-bar-shadow-mask:style(position: absolute !important;)
-google.com###bottomads > div[id^="tads"]
-google.*##div[aria-label="Share"]
-google.*##div[data-q][data-al]
-||google.$removeparam=vet
-!- 차단 목록 (AdRules AdBlock List Plus)
-www.google.*###main a[href][ping^="/url?"]:remove-attr(ping)
-||google.$removeparam=atyp
-||google.$removeparam=dpr
-||google.$removeparam=/^gs_[a-z]*=/
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||google.com/log?$redirect-rule=nooptext
-://www.google.*/async/folsrch?*&async=_basejs:*,_basecomb:*&q=$xhr
-! - 차단 목록 (AdVoid.Full)
-||google.com/async/bgasy^
-||google.com/log?$xhr,redirect-rule=noop.txt
-google.*##[data-text-ad="1"]
-google.*###tvcap
-google.com###taw > div > [data-ved]
-google.*###atvcap
-www.google.com##html:style(overflow: visible !important)
-/gen_204^
-/pagead^
 ! - 해제 목록 (Adblock-Rule-Collection-Lite)
 google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 @@||google.com^$xhr,removeparam=ei
 ||play.google.com/log?
 ! - 해제 목록 (AdRules AdBlock List Plus)
 @@/^https?:\/\/(docs|accounts)\.google(\.[a-z]{2,}){1,}/$removeparam
-!
-!
-! https://translate.google.co.kr/
-!- 차단 목록 (Adblock-Rule-Collection-Lite)
-translate.google.*##.mZD5Ae
-! - 차단 목록 (AdVoid.Full)
-/browserinfo?f.sid=$xhr
 !
 !
 ! 구글 포토 (https://photos.google.com/)
@@ -170,22 +136,6 @@ translate.google.*##.mZD5Ae
 !- 차단 목록 (AdRules AdBlock List Plus)
 @@/^https?:\/\/([a-z0-9-]+\.)*?google(\.[a-z]{2,}){1,}(\/upload)?\/drive\//$removeparam
 @@/^https?:\/\/([a-z0-9-\.])*(chat|drive)\.google\.com\/videoplayback/$removeparam
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-drive.google.com##.a-da-ub-ce
-! - 차단 목록 (AdVoid.Ful)
-||google.com/images/cleardot.gif^$image
-||drive.google.com/drive/logimpressions^
-!
-!
-! 구글 킵 (https://keep.google.com/)
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-google.com##.UiI33b, .glue-sticky-active.glue-sticky, .gmail-nav, .goog-scrollfloater, .nIQDsf.qconn, .gb_Zd:style(position: relative !important;)
-keep.google.com###gb:style(position: absolute !important; box-shadow: none !important; border-bottom: 1px solid #dadce0 !important;)
-!
-!
-! chromewebstore.google.com
-! - 차단 목록 (AdVoid.Ful)
-||google.com/v1/survey/trigger/trigger_anonymous^
 !
 !
 ! 유튜브 (https://www.youtube.com/)
@@ -194,48 +144,10 @@ keep.google.com###gb:style(position: absolute !important; box-shadow: none !impo
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 ! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
 @@||youtube.com/api/stats^
-youtube.com##.video-annotations
-youtube.com##.annotation.iv-branding
-youtube.com##.ytp-cards-teaser
-youtube.com##.share-panel-services, .ytp-button.ytp-share-button
-youtube.com##ytd-guide-entry-renderer:style(display: block !important;)
-youtube.com##ytd-settings-sidebar-renderer.ytd-browse:style(position: absolute !important; left: 0 !important; height: 100% !important;)
-youtube.com##ytd-playlist-sidebar-renderer.ytd-browse:style(position: absolute !important; left: unset !important; height: 100% !important;)
-youtube.com##ytd-feed-filter-chip-bar-renderer:style(position: static !important; margin-bottom: 0 !important;)
-youtube.com##iframe[width="640"][height="360"], iframe[width="300"][height="250"], .img_ad, #video-masthead, .ad-div, #masthead-ad, #ad-iframe
-www.youtube.com##div#masthead-ad
-www.youtube.com##.ytd-watch-flexy #dismissible:has(.badge-style-type-simple)
-www.youtube.com##head:has(meta[property$=":video:url"]) + body div[class$="-gradient-bottom"]
-www.youtube.com##.ytp-time-display > span:style(font-weight: 800 !important; text-shadow: black 0 0 3px !important)
-youtube.com###masthead-positioner-height-offset, #right-arrow, .iv-branding.annotation-type-custom.annotation, .ytp-promotooltip-wrapper
-youtube.com###chips-wrapper:style(position: static !important;)
-youtube.com##.ytp-miniplayer-button
-youtube.com##.appbar-guide-menu-layout, .gstl_50.sbdd_a, .js-yt-header.yt-header, ytd-mini-guide-renderer.ytd-app, app-drawer[opened=""][persistent=""], ytd-two-column-browse-results-renderer[page-subtype="history"] #secondary.ytd-two-column-browse-results-renderer:style(position: absolute !important;)
-youtube.com###ticker.ytd-masthead
-youtube.com###header:style(transform: none !important; margin-top: 0 !important;)
-youtube.com###masthead-container:style(position: absolute !important; transition: none !important; transform: none !important;)
-youtube.com###contentContainer.tp-yt-app-drawer[swipe-open].tp-yt-app-drawer::after, tp-yt-app-drawer:style(position: absolute !important;)
-youtube.com###backgroundFrontLayer, #backgroundRearLayer:style(transform: translate3d(0px, 0px, 0px) !important;)
-||googlevideo.com/videoplayback*ctier=l&*%2cxpc%2cctier%2c
-youtube.com##ytd-engagement-panel-section-list-renderer[target-id^="engagement-panel-ads"]
-youtube.com##div #player-ads.style-scope.ytd-watch-flexy
-youtube.com##.opened:not(.ytcp-bulk-actions):remove()
-||gstatic.com/shopping?
-www.youtube.com##ytd-video-renderer ~ ytd-shelf-renderer[thumbnail-style]
 @@||fonts.gstatic.com^$from=android.com|bloble.io|brave.com|dartpad.dev|floatplane.com|flutter.dev|google.com|material.io|regexpal.com|tensorflow.org|translate.google.cn|translate.google.co.id|translate.google.co.jp|translate.google.co.kr|translate.google.com.br|translate.google.com.hk|translate.google.com.ua|translate.google.com.ua|translate.google.de|translate.google.es|translate.google.fr|translate.google.it|translate.google.it|translate.google.pl|translate.google.ru|wunderground.com|youtube.com
-||www.youtube.com/ptracking?
-/endscreen.js$script,from=35.190.94.206|youtu.be|youtube-nocookie.com|youtube.com
-! 차단목록 (AdRules AdBlock List Plus)
-*$removeparam=feature,from=youtu.be|youtube.com
-! - 차단 목록 (AdVoid.Full)
-youtube.com##.ytp-suggested-action > button.ytp-suggested-action-badge
-youtube.com##.ytp-featured-product
-/youtubei/*/att/*
-/generate_204^$image
 ! - 해제 목록 (AdVoid.Full) 해제
 @@||youtube.com^$generichide,badfilter
-! - 차단 목록 (RU AdList)
-youtube.com###offer-module
+!
 !
 ! wikipedia.org
 wikipedia.org###siteNotice
@@ -250,18 +162,6 @@ wikipedia.org###centralNotice
 ! ChatGPT (https://chatgpt.com/)
 !  - 일부 필터 로그인 차단 해제
 @@/noop*.js$script
-!  차단 목록 (Adblock-Rule-Collection-Lite)
-||chatgpt.com/ces/*/b|$xhr
-chatgpt.com#$#div.text-base { --thread-content-max-width:unset!important;max-width:2000px }
-/bwp*js
-!  차단 목록 (AdRules AdBlock List Plus)
-||chatgpt.com/ces/statsc/
-!
-!
-! 제미나이 (https://gemini.google.com/)
-!  - 차단 목록 (Adblock-Rule-Collection-Lite)
-gemini.google.com##.input-area-container:style(max-width:1600px!important)
-gemini.google.com##announcement-banner
 !
 !
 ! https://account.live.com/
@@ -294,23 +194,6 @@ baidu.com###s-hotsearch-wrapper
 !||rlcdn.com^
 !
 !
-! 인스타 (https://www.instagram.com/)
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||cdninstagram.com^$removeparam=ccb
-||cdninstagram.com^$removeparam=efg
-||cdninstagram.com^$removeparam=_nc_sid
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plu)
-instagram.com##._aagw:empty
-instagram.com##body:style(overflow: visible!important;)
-instagram.com##div[class]:has(> div[class]:first-child > a[href="/explore/people/"]):style(position: absolute !important; left: -3000px !important;)
-||graph.instagram.com/logging_client_events
-! - 차단 목록 (AdRules AdBlock List Plus)
-*$removeparam=__s
-! - 차단 목록 (AdVoid.Full)
-instagram.com##body:style(overflow: auto !important;)
-||graph.instagram.com/logging_client_events^
-!
-!
 ! 네이버 (https://www.naver.com/)
 ! - 배너
 ##[class*="_banner_"]
@@ -319,15 +202,6 @@ instagram.com##body:style(overflow: auto !important;)
 !||recoshopping.naver.com^
 ! - 차단 사이트
 ||veta.naver.com^
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||appier.net^
-||tnkfactory.com^
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||ntm.pstatic.net/scripts/ntm_$from=naver.com
-/?sentry_version=
-||naver.net/wcslog.js
-||s.pinimg.com/ct/core.js
-||wcs.naver.com^
 ! - 네이버앱 깨지는거 해결 (참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
@@ -362,51 +236,17 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !
 !
 ! 네이버 스토어 (https://smartstore.naver.com/)
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-*##p:has-text(/^ $/):not(:has-text(/\S/)):not(:has(img, input, iframe))
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||slc.commerce.naver.com^
-||volts.shopping.naver.com^
-||ssl.pstatic.net/static.gn/js/clickcrd.js$from=~search.naver.com
 @@||connect.facebook.net/*/fbevents.js$from=smartstore.naver.com
-! - 차단 목록 (AdVoid.Full)
-/log^$xhr,from=~meet.google.com|~sigstore.dev
 ! 네이버 스토어 오류 해결
 @@||smartstore.naver.com^$stealth
 ! - 차단 목록 해제 (Adblock-Rule-Collection-Lite) - 네어버 상품 검색 후 클릭시 정보 안나옴 해결
 @@||*$removeparam=NaPm,from=msearch.shopping.naver.com|search.shopping.naver.com
 !
 !
-! 네이버 검색 (https://search.naver.com/)
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||er.search.naver.com^
-||l.search.naver.com/n/scrolllog/*?u=*&slogs=
-!
-!
 ! 네이버 카페 (https://cafe.naver.com/)
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||cafe.naver.com/static/js/mycafe/javascript/autosourcing*.js
-||ssl.pstatic.net/static.gn/js/clickcrd.js$from=~search.naver.com
-||ipada.cafe.naver.com^$xhr
-||scv-cafe.io.naver.com/jackpotlog/*/logs$xhr
 ! - 카페 사진 첨부 오류 해결
 @@*$stealth=dpi,app=com.nhn.android.navercafe
-!
-!
-! 네이버 블로그 (https://blog.naver.com)
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||ssl.pstatic.net/t.static.blog/nmobile/versioning/ntmbalog-*.js
-||camp-api.naver.com/*/bulk
-m.blog.naver.com,filmzone.com,habuteru.com,allaboutshaving.kr,pcprogramasymas.net,legionscans.com#$#html { -webkit-touch-callout: default !important; -moz-user-select: text !important; -webkit-user-select: text !important; -ms-user-select: text !important; -o-user-select: text !important; user-select: text !important; -khtml-user-select: text !important; }
-
-!
-!
-! 네이버TV (https://tv.naver.com/)
-! - 차단목록 (Adblock-Rule-Collection-Lite)
-naver.com##.naver-splugin
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||ntm.pstatic.net/scripts/ntm_*.js
-||apis.naver.com/mcollector/
 !
 !
 ! 네이버 지도 (https://map.naver.com/)
@@ -417,19 +257,6 @@ naver.com##.naver-splugin
 ! 네이트 (https://www.nate.com/)
 ! - 차단 사이트
 !||cyad1.nate.com^
-!
-!
-! 네이트 메일 (https://mail3.nate.com/)
-! - 차단 목록 (AdRules AdBlock List Plus)
-##.advertise
-!
-!
-! 네이트판 (https://pann.nate.com/)
-! - 차단 목록 (AdRules AdBlock List Plus)
-_ad.htm
-pann.nate.com##.social_send
-! - 차단 목록 (AdRules AdBlock List Plus) (AdRules AdBlock List Plus)
-||stat.nate.com^
 !
 !
 ! 숲 (https://www.sooplive.co.kr/)
@@ -502,20 +329,6 @@ sooplive.co.kr###FeedLayerToolTip
 ##.shopProduct_banner
 ! - 구독버튼 내 버플 안내문구
 play.sooplive.co.kr##.event_tooltip
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-##p:empty:not([class], [id])
-! - 차단목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||analysis.sooplive.co.kr^
-||res.sooplive.co.kr/script/player/service-maintenance.js
-||facebook.com/tr?
-||collector1.sooplive.co.kr^
-||st.sooplive.co.kr/api/da_block_api.php
-||exlogcollector.sooplive.co.kr^
-||sooplive.co.kr/js/google.analytics.js
-||stbbs.sooplive.co.kr/api/*_log.php
-||eventapi.sooplive.co.kr^
-! - 차단 목록 (AdVoid.Full)
-||facebook.com/tr^
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*stimg.sooplive.co.kr/LOGO/gg/*.webp
 ! - 차단 목록 (AdVoid.Full) 해제 - 픽팍 등에서 공유 안보임
@@ -590,12 +403,6 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 @@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
 @@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||api.chzzk.naver.com/ad-polling/*/lives/*/ad
-||nelo2-col.navercorp.com^$from=~map.naver.com
-||api.chzzk.naver.com/service/*/ad/display-status
-! - 차단 목록 (AdVoid.Full)
-/banners^$xhr
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -613,19 +420,11 @@ twitch.tv##button[data-a-target="share-button"]
 -ads.$badfilter
 @@-ads.*.css
 -ads.stream*.js
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-twitch.tv##.side-info-container
-||scorecardresearch.com^
-! - 차단 목록 (AdVoid.Full)
-||ads.twitch.tv^
 !
 !
 ! 킥 (https://kick.com/)
 ! - 로고 복원
 !@@||kick.com/img/*$image
-! 차단목록 (Adblock-Rule-Collection-Lit)
-||kick.com/*&loaderversion=
-||stripe.network^
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -657,8 +456,6 @@ daum.net##.wrap_trend
 ! 다음 스포츠 (https://sports.daum.net/)
 ! - ##[class^="ad"] 해제 - 영상 안나옴
 kakaotv.daum.net#@#[class^="ad"]
-! 차단 목록 (Adblock-Rule-Collection-Lite)
-*##.adbox
 ! 차단 목록 해제(Adblock-Rule-Collection-Lite) - 영상 안나옴
 @@||smartmediarep.com^
 
@@ -679,20 +476,6 @@ urahame.com#@#[class*="Modal"]
 point.pay.naver.com#@#[class*="Modal"]
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-tiktok.com##html:style(overflow-x: hidden !important;)
-tiktok.com##div[data-e2e="browse-share-group"]
-||mon-va.byteoversea.com^
-##a[href*="//lineit.line.me/share/"]
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||tiktok.com/api/*/web-cookie-privacy
-||mon.tiktokv.com^
-||tiktok.com/aweme/*/report
-||tiktok.com/web/report^
-||analytics.tiktok.com^
-! - 차단 목록 (AdVoid.Full)
-||ibytedtos.com^
-/share.*.js^$script
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -721,7 +504,7 @@ aagag.com##.msg
 aagag.com##.bottom.center.sAlert
 ! - 게시물 50개마다 있는 공백 없애기
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-aagag.com#$#.la {position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
+aagag.com#$#.la { position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 ! - 이미지 복원
 !@@||a.aagag.com/img/*$image
 ! - 차단 사이트
@@ -817,20 +600,10 @@ gall.dcinside.com##div[class*="banner"]
 m.dcinside.com#@##notice_list > li
 m.dcinside.com###notice_list > li:not(:has(.ntc-line-orange))
 m.dcinside.com###notice_list > li:nth-of-type(-n+3)
-!  - 차단 목록 (Adblock-Rule-Collection-Lite)
-gall.dcinside.com##.r_dcmedia
-||adnmore.co.kr^
 ! - Adblock-Rule-Collection-Lite 에서 차단된거 해제 (공유 버튼)
 dcinside.com#@#.btn_snsmore
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||dcinside.com/_js/click_log.js
 ! - 개죽이 차단
 dcinside.com##+js(nostif, adblock_detected7)
-! - 차단 목록 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-dcinside.com##.dc_all
-gall.dcinside.com##.gall_list tr[class="ub-content "]
-gall.dcinside.com##.btn_imgcmtopen:style(opacity: 0.4 !important;)
-gall.dcinside.com##div.img_area button.btn:style(opacity: 0.6 !important;)
 !
 !
 ! 아카라이브 (https://arca.live/)
@@ -882,11 +655,6 @@ platinmods.com#@#[class*="ad_"] [style]
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
-! 차단 목록 (Adblock-Rule-Collection-Lite)
-.cur|$image,domain=~pixiv.net|~deviantart.com
-fmkorea.com###bd_capture:style(background: none!important;)
-fmkorea.com##.doc_sns
-/x.js*
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
@@ -968,27 +736,6 @@ etoland.co.kr###info_recent_list_wrap
 etoland.co.kr#@#[class^="ad"]
 ! ||ad.$all,domain=~ad.jp 예외 - 이토랜드 광고 클릭 (BadBlock+ (ABP))
 @@||ad.$all,domain=www.etoland.co.kr
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||nhnace.com^
-||js.rev.iq^
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||amung.us^
-||doubleclick.net^
-||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt,from=~eksisozluk.com|~gizmodo.jp|~golf.com|~heycar.co.uk|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~today.line.me
-||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$xhr,redirect-rule=googlesyndication-adsbygoogle
-||googletagservices.com/tag/js/gpt.js$xhr,redirect-rule=googletagservices-gpt
-! -차단 목록 (AdVoid.Full)
-/jquery.cookie.min.js^$script
-||googletagservices.com/tag/js/gpt.js^$xhr,redirect-rule=googletagservices_gpt.js
-*$xhr,3p,redirect-rule=noop.txt,method=head,to=~adblockanalytics.com|~doubleclick.net|~pagead2.googlesyndication.com
-##.adsbox
-! - 차단 목록 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-etoland.co.kr##[class^="banner"]
-etoland.co.kr##li:has([href^="https://etoland.co.kr/pages/short.php"])
-etoland.co.kr##[href^="https://www.etoland.co.kr/pages/short.php"]
-etoland.co.kr##li:has-text(/비밀상점|이토보험상담실|이토상담실/)
-!  - 차단 목록 () ru  ua  uz  kz: RU AdList)
-@@||2mdn.net/instream/$third-party,script
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -999,8 +746,6 @@ etoland.co.kr##li:has-text(/비밀상점|이토보험상담실|이토상담실/)
 theqoo.net##.theqoo-counter
 ! - 이미지 복원
 !@@||blogger.googleusercontent.com/img/*$image,domain=theqoo.net
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||googlesyndication.com^
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
@@ -1087,11 +832,6 @@ mlbpark.donga.com##.inner_article
 !||contentsfeed.com^
 !||searchad-phinf.pstatic.net^
 !||dable.io^
-! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-mlbpark.donga.com##li:has-text(/엠팍제휴팀|폰판기/)
-mlbpark.donga.com##.the_hottest
-!
-
 !
 !
 ! 루리 (https://www.ruliweb.com/)
@@ -1118,10 +858,6 @@ ruliweb.com##.fixed_layer1
 ! 게시물 댓글 파워링크 제거
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 ruliweb.com##tr:has(.nick[style^='display: inline-block'])
-! 차단 목록 (Adblock-Rule-Collection-Lite)
-bbs.ruliweb.com##.share_wrapper > ul > li.txt_bar ~ li.txt_bar
-! https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-bbs.ruliweb.com##tr:has(.nick[style^="display: inline-block"])
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
@@ -1186,10 +922,6 @@ todayhumor.co.kr##.under_ad_div
 ##.call_banner
 ! - 차단 사이트
 !||mediacategory.com^
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-##.fb-like
-! - 차단 목록 (AdRules AdBlock List Plus)
-##INS.adsbygoogle
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) 해제 - 영상 안보임 해결
 @@||media.$frame,3p,from=~ted.com$domain=fomos.co.kr
 !
@@ -1260,15 +992,6 @@ instiz.net##[id*="sense"]
 ! 나무위키 (https://namu.wiki/)
 ! - 상단 및 오른쪽 공간(배너?) - EasyList (없어진듯)
 !namu.wiki##div[id][class]:empty
-! - - - 애드가드 갤러리 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-namu.*##div[class][id]:empty
-namu.*##li:has(time):not(:has([href*='/raw/'])):upward(2)
-! 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-namu.wiki##div[class*=" "] > div[class*=" "]:has(> a[target="_blank"][rel="noopener"]):contains(더 보기)
-! - - - 애드가드 갤러리 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-namu.wiki##div[class][id]:empty
-namu.wiki##li:has(time):not(:has([href*='/raw/'])):upward(2)
-namu.wiki##div[class]:matches-attr(class=/^[a-zA-Z0-9+_-]{7,9}$/):has(span:has-text(/^더 보기$/)):not(:has([href='/RecentChanges'])):not(:has(.equal))
 !
 !
 ! 일베 (https://www.ilbe.com/)
@@ -1411,10 +1134,6 @@ damoang.net#@#[class*="div-gpt-ad"]
 !humoruniv.com##.adsbygoogle
 ! - 차단 사이트
 !||compass.adop.cc^
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||adop.cc^
-! - 차단 목록  (AdRules AdBlock List Plus)
-##ul > li > A[href$="_list.html"]
 !
 !
 ! 루리웹 (https://bbs.ruliweb.com/)
@@ -1473,10 +1192,6 @@ zum.com##.wide.favorite_site
 zum.com##.subcont_wrap
 ! - - - TV
 zum.com##.tv_wrap
-! - 차단 목록(Adblock-Rule-Collection-Lite) 
-/ad_
-! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||estat.zum.com^
 !
 !
 ! 벅스 (https://music.bugs.co.kr/)
@@ -1488,34 +1203,11 @@ music.bugs.co.kr##.topBanner
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com
-! - 차단목록 (Adblock-Rule-Collection-Lite)
-netflix.com##body:style(pointer-events: auto !important;)
-netflix.com##.head-opaque.akira-header, .main-header:style(background-color: transparent !important;)
-netflix.com##.nysmHeader, .pinning-header-container:style(position: relative !important; top: 0 !important;)
-netflix.com##.pinning-header-container:style(background: transparent none repeat scroll 0% 0% !important;)
-netflix.com##div[class^=watch-video--][class*="-container "]:style(background-image: none !important)
-netflix.com##div[data-uia="pause-ad"]
-/push.
-! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||ichnaea-web.netflix.com^
 !
 !
 ! 티빙 (https://www.tving.com/)
 ! - 시청기록 남기기 (DNS에서 차단하면 해제 필요)
 @@||log.tving.com
-! 차단 목록 (Adblock-Rule-Collection-Lite)
-||tagmanager.toast.com^
-||appboycdn.com^
-||sentry.io^
-*##p:has-text(/^\xA0$/):not(:has-text(/\S/)):not(:has(img))
-! 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||wcs.naver.net/wcslog.js^
-||onelinksmartscript.appsflyer.com^
-||monitoring.hackle.io^
-! 차단 목록 () ru  ua  uz  kz: RU AdList)
-||connect.facebook.net/*/fbevents.js|$3p
-! 차단 목록 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-@@||t1.daumcdn.net/*/static/kp.js
 !
 !
 ! POOOO (https://poooo.ml/)
@@ -1525,22 +1217,8 @@ poooo.ml##.h30
 poooo.ml#@#.ad
 ! - 복원 (🔒 Privacy Essentials) - 영상 안나옴
 @@||ok.ru/videoembed^$3p,frame
-! - 차단목록 (Adblock-Rule-Collection-Lite)
-/log/*_time
-||tns-counter.ru^
-||www.statcounter.com^
-! - 차단목록(AdRules AdBlock List Plus)
-##A > IMG[alt][src*="resources/images/"]
-! - 차단목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||apptracer.ru^
-||statwup.nimo.tv^
-||metric.nimo.tv^
-||ylog.nimo.tv^
-||static.kbs.co.kr/recommend/rcmd_track.js
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*ss/ss*$image
-! - 차단 목록 (RU AdList)
-||ok.ru/videoembed/*autoplay=1$frame,removeparam=|
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
@@ -1589,18 +1267,6 @@ tvhot.store##.object-cover
 !@@tvwiki*.com/img/*$image
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
-! 차단목록 (Adblock-Rule-Collection-Lite)
-||tracker.$websocket
-! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-[$domain=/^tvmon[0-9]*\.[a-z]{2,}/]##.banner_wrap2
-[$domain=/^tvmon[0-9]*\.[a-z]{2,}/]##[src*='/AD/']
-[$domain=/^tvwiki[0-9]*\.net/]###bannerList
-[$domain=/^tvwiki[0-9]*\.net/]###viewCover
-!
-!
-! Linkkf 애니 TV
-! 차단 목록 (Adblock-Rule-Collection-Lite)
-/mobile.js$3p
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
@@ -1757,13 +1423,6 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ! 조개무비 (https://v15.jogemovie.net/)
 ! - 배너 공간
 [$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-##a[href*="reddit.com/submit?"]
-##a[href*="vkontakte.ru/share.php?"]
-##a[href^="http://vkontakte.ru/share.php"]
-##a[href^="https://plus.google.com/share"]
-
-
 !
 !
 ! 도라마코리아 (https://www.dorama.kr/)
@@ -1805,8 +1464,6 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ! - - - 배트맨티비 (https://bmtv24.com/)
 ! - - - 놀고가닷컴 (https://nolgoga365.com/)
 ##u-chat
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||ip-api.com^
 !
 !
 ! VIP TV (https://viptv24.com/)
@@ -2069,15 +1726,6 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ![$domain=/^nocatv\d+.com/]##a[href^="https://nocatv3.com/bbs/link.php"]:nth-of-type(2)
 !
 !
-! 뉴토끼 (https://newtoki468.com/)
-! - 모바일 상단 공백 줄이기 등
-! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-/^[a-z]*toki[0-9]*\.[a-z]{3}/##[style="margin-bottom: 20px;"].row.row-15
-/^[a-z]*toki[0-9]*\.[a-z]{3}/##li:has([target]:not([href*="bbs"]))
-##[class*="basic-banner"][id]
-
-!
-!
 ! 호두코믹스 시즌2 (https://hdhd425.net/)
 ! 툰코 (https://tkr416.com/)
 ! - 팝업
@@ -2209,13 +1857,6 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !@@||booktoki*.com/img/logo-full_book.png
 !
 !
-! https://www.blacktoon1.info/
-! - 차단 목록 (AdRules AdBlock List Plu)
-||browser.sentry-cdn.com^$3p
-
-
-!
-!
 ! 무료툰 (https://foc94.com/)
 ! - 배너 이미지
 !||foc*.com/banner/*
@@ -2252,8 +1893,6 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! - 왼쪽 배너
 !##[class*="list-banner"] - ##[class*="banner"]:has(img) 로 대체
 !##.list-banner
-! 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||weblog.kma.go.kr^
 
 !
 !
@@ -2460,11 +2099,6 @@ jtbc.co.kr##.set_contents_video_ad
 ! 일간스포츠 (https://isplus.com/)
 ! - 이미지 복원
 !@@||isplus.com/img/*$image
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus) 
-||analytics.edaily.co.kr^
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||aedi.ai^
-||admaru.com^
 !
 !
 ! 어패럴뉴스 (https://apparelnews.co.kr/)
@@ -2508,16 +2142,6 @@ coupang.com###srpKeywordProductTopBanner
 ###BottomAppBanner
 ! - 제품내 추천 제품 배너
 coupang.com###sdp-ad-banner-position-c
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||coupangcdn.com/customjs/criteo/
-||coupangcdn.com/customjs/seo-js-sdk/
-! - 차단 목록 (AdRules AdBlock List Plus)
-/api/ad/*
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||ljc.coupang.com^
-||ljc.coupang.com^$redirect-rule=nooptext
-! - 차단 목록 (AdVoid.Full)
-/akam^
 !
 !
 ! 옥션 (https://escrow.auction.co.kr/)
@@ -2526,15 +2150,6 @@ coupang.com###sdp-ad-banner-position-c
 ! - 검색시 나오는 하단 스폰서링크 삭제
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 auction.co.kr##.component--sponsor_link.component
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||script.auction.co.kr/common/montelena.js
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||ats.auction.co.kr^
-||auction.co.kr/*/gethashedcguid|$xhr
-! - 광고 차단? (출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-##[alt$="광고"]
-auction.co.kr##.plcc_banner
-*##[target="_blank"]:has([src*="/banner/"])
 !
 !
 ! G마켓 (https://www.gmarket.co.kr/)
@@ -2561,32 +2176,11 @@ search.11st.co.kr#@#[data-log-actionid-area^="focus"]
 m.11st.co.kr##.c-bottom-drawer.modal-wrap
 ! - 모바일 하단 안내 차단 후 뿌연거 해걸
 m.11st.co.kr##.fadeIn.animated.dim
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-/third*cookie/*
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||idm.skplanet.com/pixel
-||011st.com/js/rake/*/log11stclientsentinelshuttle-*.js$from=~buy.11st.co.kr
-||11st.co.kr/js/*/reviewlog.js
-! - 광고차단? (출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-11st.co.kr##iframe[src*="ads.adoffice.11st.co.kr"]
-
 !
 !
 ! 알리 (https://ko.aliexpress.com/)
 ! - 알림
 aliexpress.com##._3KrBP
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-aliexpress.com##.site-footer:style(margin-top: 30px !important;)
-aliexpress.com###j-aliexpress-notice, ._3KrBP, .coupon-poplayer-modal, .drogue-poplayer-modal, .ms-lego-dialog, .ui-mask
-||tdum.alibaba.com/dss.js
-aliexpress.com##body:not(iframe):not(#alibaba-log-box):not(#mini-login-body):not([data-spm="home"]):style(overflow-x: auto !important; overflow-y: scroll !important;)
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||aplus.aliexpress.*/product.*.event
-||aplus.aliexpress.*/aes.1.1
-||aplus.aliexpress.*/ae.pc_click.statweb_ae_click
-||aplus.aliexpress.*/ae.pc_ctr.statweb_ae_ctr
-||acs.aliexpress.*/h5/mtop.aliexpress.traffic.web.cross.trace.report/
-aliexpress.com##body > div[style="display: block; z-index: 1000000;"]
 ! - 차단 목록 (Adblock-Rule-Collection-Lite) 해제 - 이미지 등 안보임
 @@||aliexpress-media.com^
 @@||alicdn.com^
@@ -2611,9 +2205,6 @@ web.joongna.com##.pb-12
 !bananamall.co.kr###pop_gevent
 ! - 배너
 ##[id^="banner_"]
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||static.groobee.io^
-||onetag.co.kr^
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
@@ -2641,8 +2232,6 @@ c.appstory.co.kr###modalPreventExit
 ! 와디즈 (https://www.wadiz.kr/)
 ! - 상단 배너 나오게 하기 (List-KR 무력화)
 @@||service.wadiz.kr/api/*/wadizad/host/keyvisual
-! - 차단 목록 (AdVoid.Full)
-||zdassets.com/ekr/snippet.js^$script
 !
 !
 !!! 다나와 (https://danawa.com/)
@@ -2659,9 +2248,6 @@ danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-midd
 @@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//$domain=danawa.com
 ! - - - - - YousList
 danawa.com#@#iframe[src*="/RealMedia/ads/"]
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-||static.danawa.com/globaljs/static/bdl/dsac.min.js
-||static.danawa.com/globaljs/static/targetpush/targetpushtracking.js
 ! - 차단 목록 (AdRules AdBlock List Plus) 차단 해제
 ! - - - 다나와 왼쪽 메뉴 안나옴 해결
 ||static.danawa.com/globaljs/com/danawa/common/uxlog/$badfilter
@@ -2822,25 +2408,8 @@ avsee.ru##.tabs
 !avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - - - uBlock filters – Ads
 !/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
-! - 차단 목록 (AdVoid.Full)
-##.jw-nextup-container
-##.jw-reset-text:not(button)
-##.jw-wrapper > div[style="opacity: 0; visibility: hidden; overflow: hidden; display: block; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;"]
-/provider.cast.js^$script
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-||onkjicaw.com^
-! - 차단 목록 (AdRules AdBlock List Plus )
-##a[href][target="_blank"] > img[width="100%"][src$=".gif"]
-##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
 ! - 해제 목록 (AdRules AdBlock List Plus )
 #@#.afs_ads
-! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-||avsee.ru/imgs/*.gif
-avsee.ru##.widget-side-box div.main-box:first-child
-avsee.ru##.at-main > div.main-box > .miso-post-mix .post-wrap
-avsee.ru##.at-side div.main-box:first-child
-avsee.ru##.title div[style^="width:100%"]
-avsee.ru##[alt$="gif"]
 !
 !
 ! supjav (https://supjav.com/)
@@ -2855,19 +2424,10 @@ avsee.ru##[alt$="gif"]
 !jilliandescribecompany.com##iframe
 ! - 로고 이미지 복원
 !@@||supjav.com/img/*$image
-! - 차단 목록 (AdVoid.Full)
-/cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-/cast_sender.js^$script
-##.jw-submenu-sharing
 ! 팝업 방지
 !||profitableratecpm.com^$popup
 !||fractionfridgejudiciary.com^$popup
 !||depreciatorybollocksupkitchen.com^$popup
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-/\.[a-z][a-z][a-z]?[a-z]?[a-z]?[a-z]?\/[0-9A-Za-z][0-9A-Za-z][0-9A-Za-z][0-9A-Za-z][0-9A-Za-z][0-9A-Za-z]?[0-9A-Za-z]?\.js$/$script,third-party,domain=bestjavporn.com|ero-anime.website|javdock.com|javtiful.com|onscreens.me|hdpornflix.com|supjav.com|analdin.com
-##div.preloader
-*##.ad
-||jwpcdn.com^
 ! 해제 목록 (Adblock-Rule-Collection-Lite) - 차단하면 TV 영상 안나옴
 @@||p.jwpcdn.com^$script
 !
@@ -2918,10 +2478,6 @@ sextb.date##.hidden-md.right.col-3
 !||popcash.net^
 !/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
 !||diagramjawlineunhappy.com^
-! - 차단 목록(Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-javfc2.xyz##.row > div.text-center:has(> h5#messageAds)
-! - 차단 목록 (AdVoid.Full)
-###ad
 !
 !
 ! FUNLOVE (https://funlove.info/)
@@ -2951,10 +2507,6 @@ javgg.net##.home_iframead
 !||earnvids.com^
 !||streamhg05032026.shop^
 !||heardaccumulatebeans.com^
-! - 차단 목록 (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-/plugins/wp-rocket/assets/js/wpr-beacon.
-! - 차단 목록 (AdRules AdBlock List Plus)
-##ASIDE[id^="custom_html-"]
 !
 !
 ! Javsubs91 (https://j91.asia/)
@@ -3307,10 +2859,6 @@ avdbs.com##.__b-popup1__.b-modal
 ![$domain=/^missvod\d+.com/]###banner-list.banner-list
 !  BadBlock+ (ABP) 해제 - 영상 이미지 안보임
 @@||recombee.com^
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-##a[href*="://wa.me/?text="]
-! - 차단 목록 (AdRules AdBlock List Plus)
-##div.flex-1.order-first > DIV.under_player
 !
 !
 ! https://tojav.net/
@@ -3455,9 +3003,6 @@ missav.ws,missav.live##.lg\:block
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
-! - 차단 목록 (AdVoid.Full)
-##[rel*="sponsored"]
-##[src*="tsyndicate.com"]
 ! - 팝업 방지
 ||missav.*/pop^$popup
 !||tsyndicate.com^$popup
