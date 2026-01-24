@@ -507,8 +507,6 @@ aagag.com##.bottom.center.sAlert
 aagag.com#$#.la { position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 ! - 이미지 복원
 !@@||a.aagag.com/img/*$image
-! - 차단 사이트
-||cloudflareinsights.com^
 !
 !
 ! 디시인사이드 (https://gall.dcinside.com)
