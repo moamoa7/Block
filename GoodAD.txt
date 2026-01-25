@@ -2774,6 +2774,10 @@ topjav.tv##.koukoku_11
 !##[class*="-widget"]
 ! - - - 일부 텍스트 지워지는데 예외처리 일단 안해놓음
 ##.textwidget
+! - - - 일부 텍스트 링크 지워지는거 해제
+jav.guru#@#.textwidget
+dramaday.me#@#.textwidget
+
 ! - 팝업 방지
 !||pemsrv.com^$popup
 !||62ad.com^$popup
