@@ -207,6 +207,11 @@ baidu.com###s-hotsearch-wrapper
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 !  - point.pay.naver.com 팝업 차단 - 차단하면 스크롤 안되서 해제
 !##[class*="Layer-module"]
+
+! 네이버 본인 인증 페이지 일부 안보임 해결
+nid.naver.com#@#[class^="ad"]
+
+
 !
 !
 ! 네이버 뉴스 (https://news.naver.com/)
@@ -4879,6 +4884,8 @@ linkloveko.com#@#div>[class*="button"]>[style][target]
 ! - - - https://javgg.net/ - 플레이어 버튼 사라짐
 !javggvideo.xyz#@#div>[class*="button"]>[style]
 !jav-vids.xyz#@#div>[class*="button"]>[style]
+! - - - 치지직 본인 인증 버튼 안보임 해결
+chzzk.naver.com#@#div>[class*="button"]>[style][target]
 
 
 
