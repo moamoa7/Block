@@ -419,8 +419,6 @@ twitch.tv###twilight-sticky-footer-root
 twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 광고 차단 문구 (터보 사용 권장 문구)
 twitch.tv##.video-player__inactive
-! - 차단 목록 (Adblock-Rule-Collection-Lite) 
-twitch.tv##button[data-a-target="share-button"]
 ! - - - 모듈이 로드되지 않앗다는 메시지 해제 (Adblock-Rule-Collection-Lite 배드필터로 지정 후 개별 차단 및 해제)
 -ads.$badfilter
 @@-ads.*.css
