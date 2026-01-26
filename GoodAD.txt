@@ -4319,6 +4319,8 @@ www.wavve.com#@#.popup
 [$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#.popup
 ! - - - 예외 (nid.naver.com) - 네이버로 타사 회원가입시 필요
 nid.naver.com#@#.popup
+! - - - https://www.melon.com/ - 해지 등 팝업 뜰때 내용 안보임
+melon.com#@#.popup
 ! 사이 사이 마다 있는 배너
 !##.plus_banner
 
