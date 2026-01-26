@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260125
+! Version: 20260126
 !
 !
 !
@@ -833,6 +833,8 @@ mlbpark.donga.com##.inner_article
 !||contentsfeed.com^
 !||searchad-phinf.pstatic.net^
 !||dable.io^
+! - ||content-loader.com^ 해제 (사이트 깨짐) ( RK’s ZeroHosts — Network Filters 필터 차단 해제 )
+@@||content-loader.com^
 !
 !
 ! 루리 (https://www.ruliweb.com/)
