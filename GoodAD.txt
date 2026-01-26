@@ -423,6 +423,8 @@ twitch.tv##.video-player__inactive
 -ads.$badfilter
 @@-ads.*.css
 -ads.stream*.js
+
+
 !
 !
 ! 킥 (https://kick.com/)
@@ -479,6 +481,8 @@ urahame.com#@#[class*="Modal"]
 point.pay.naver.com#@#[class*="Modal"]
 ! - 뿌연거 해결
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
+! - - - https://www.twitch.tv/ - 영상내 마우스 오버시 번쩍번쩍하면 화면에 아무것도 안보임
+twitch.tv#@#[class*="Modal"]
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -3659,6 +3663,9 @@ melon.com#@#[class$="verlay"]
 tokyomotion.net#@#[class$="verlay"]
 ! - - - https://chaturbate.com/ - 이미지 안보임
 chaturbate.com#@#[class$="verlay"]
+! - - - https://www.twitch.tv/ - 영상플레이어 설정 버튼 안보임
+twitch.tv#@#[class$="verlay"]
+
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
 ! - 하단 텍스트 배너
