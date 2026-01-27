@@ -659,7 +659,7 @@
 
             // [UPDATE] Add Color Temp Slider to Image Menu
             imageSubMenu.appendChild(
-                this._createSlider('색온도', 'i-colortemp', -7, 4 1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control
+                this._createSlider('색온도', 'i-colortemp', -7, 4, 1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control
             );
 
             const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer);
