@@ -21,8 +21,7 @@
     const SiteLists = {
         // [1] 백그라운드 절전 제외 (영상/AI 답변 끊김 방지)
         noThrottling: [
-            'youtube.com', 'twitch.tv', 'sooplive.co.kr', 'afreecatv.com',
-            'poooo.ml', 'ok.ru', 'tv.kakao.com',
+            'youtube.com', 'twitch.tv', 'sooplive.co.kr', 'ok.ru', 'tv.kakao.com',
             'netflix.com', 'tving.com', 'wavve.com', 'coupangplay.com',
             'disneyplus.com', 'watcha.com',
             'gemini.google.com', 'chatgpt.com', 'claude.ai',
