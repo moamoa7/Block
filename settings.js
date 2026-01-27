@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Visual Fix - Chzzk Perfect)
+// @name         Video_Image_Control (Visual Fix - Image Color Temp)
 // @namespace    https://com/
-// @version      108.6-ChzzkFinal
-// @description  비디오/이미지 제어 (치지직 이동 완벽 해결 + 고운 입자 디더링 + 성능 최적화)
+// @version      109.0-ImageColorTemp
+// @description  비디오/이미지 제어 (이미지 색온도 추가 + 치지직 이동 해결 + 최적화)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -39,8 +39,10 @@
         // Filters
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: 0, DITHER_VALUE: 0 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: 0, DITHER_VALUE: 0 },
-        IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
+        // [UPDATE] Added COLORTEMP_VALUE to Image Settings
+        IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: 0 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
+        FILTER_EXCLUSION_DOMAINS: [], IMAGE_FILTER_EXCLUSION_DOMAINS: [],
         TARGET_DELAYS: { "play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 3000,
         UI_HIDDEN_CLASS_NAME: 'vsc-hidden',
     };
@@ -102,7 +104,12 @@
                     sharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
                     activePreset: 'none'
                 },
-                imageFilter: { lastActiveSettings: null, level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL },
+                // [UPDATE] Added colorTemp to imageFilter state
+                imageFilter: {
+                    lastActiveSettings: null,
+                    level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL,
+                    colorTemp: 0
+                },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null },
                 playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0 },
                 liveStream: { delayInfo: null, isRunning: false, resetRequested: null },
@@ -143,7 +150,7 @@
                 this.ensureObservers(); this.scanAndApply();
                 document.addEventListener('addShadowRoot', (e) => { this.scanAndApply(); });
                 if (this.maintenanceInterval) clearInterval(this.maintenanceInterval);
-                this.maintenanceInterval = setInterval(() => this.scanAndApply(), 1000); // More aggressive: 1s
+                this.maintenanceInterval = setInterval(() => this.scanAndApply(), 1000);
             });
         }
         destroy() {
@@ -222,7 +229,8 @@
         init(stateManager) {
             super.init(stateManager);
             this.filterManager = this._createManager({ settings: this.stateManager.get('app.isMobile') ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', matrixId: 'vsc-dynamic-convolve-matrix', className: 'vsc-video-filter-active' });
-            this.imageFilterManager = this._createManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active' });
+            // [UPDATE] Separate Manager for Image (re-using createManager but logic handles options)
+            this.imageFilterManager = this._createManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active', isImage: true });
             this.filterManager.init(); this.imageFilterManager.init();
             this.stateManager.filterManagers.video = this.filterManager; this.stateManager.filterManagers.image = this.imageFilterManager;
 
@@ -230,6 +238,7 @@
             this.stateManager.get('media.activeImages').forEach(image => { injectFiltersIntoContext(image, this.imageFilterManager, this.stateManager); });
             this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
             this.subscribe('imageFilter.level', this.applyAllImageFilters.bind(this));
+            this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this)); // Subscribe to image color temp
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates());
             this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates());
             this.subscribe('app.scriptActive', () => this.updateMediaFilterStates());
@@ -254,78 +263,81 @@
                 }
                 #createElements() {
                     const createSvgElement = (tag, attr, ...children) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); el.append(...children); return el; };
-                    const { settings, svgId, styleId, matrixId, className } = this.#options;
+                    const { settings, svgId, styleId, matrixId, className, isImage } = this.#options;
                     const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`;
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
                     const combinedFilter = createSvgElement('filter', { id: combinedFilterId });
 
-                    // 1. Saturation (Start)
-                    const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
+                    if (isImage) {
+                        // --- [IMAGE PIPELINE] ---
+                        // 1. Sharpen
+                        const sharpen_pass1 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass1', "data-vsc-id": "sharpen_pass1", in: "SourceGraphic", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_1" });
 
-                    // 2. Gamma
-                    const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })));
+                        // 2. Color Temp (Post-Processing)
+                        const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "sharpen_out_1", result: "final_out" });
+                        colorTemp.append(createSvgElement('feFuncR', { type: "identity" }));
+                        colorTemp.append(createSvgElement('feFuncG', { type: "identity" }));
+                        colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
 
-                    // --- [DITHERING CORE] ---
-                    // 3-A. Generate Noise (High Frequency / Fine Grain)
-                    const noise = createSvgElement('feTurbulence', {
-                        type: "turbulence",
-                        baseFrequency: "0.65", // [CUSTOM] High Frequency (Fine Grain)
-                        numOctaves: "2",
-                        stitchTiles: "stitch",
-                        result: "raw_noise"
-                    });
-                    // 3-B. Extract Luminance from Gamma Out
-                    const luma = createSvgElement('feColorMatrix', {
-                        type: "matrix",
-                        in: "gamma_out",
-                        values: "0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0",
-                        result: "luma_out"
-                    });
-                    // 3-C. Invert Luminance -> Shadow Mask
-                    const shadowMask = createSvgElement('feComponentTransfer', { in: "luma_out", result: "shadow_mask" });
-                    shadowMask.append(createSvgElement('feFuncR', { type: "table", tableValues: "1 0" }));
-                    shadowMask.append(createSvgElement('feFuncG', { type: "table", tableValues: "1 0" }));
-                    shadowMask.append(createSvgElement('feFuncB', { type: "table", tableValues: "1 0" }));
+                        combinedFilter.append(sharpen_pass1, colorTemp);
+                    } else {
+                        // --- [VIDEO PIPELINE] ---
+                        // 1. Saturation (Start)
+                        const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
 
-                    // 3-D. Mask the Noise
-                    const maskedNoise = createSvgElement('feComposite', {
-                        operator: "arithmetic",
-                        in: "raw_noise",
-                        in2: "shadow_mask",
-                        k1: "1", k2: "0", k3: "0", k4: "0",
-                        result: "masked_noise"
-                    });
+                        // 2. Gamma
+                        const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })));
 
-                    // 3-E. Blend Noise into Gamma Source
-                    const ditherBlend = createSvgElement('feComposite', {
-                        "data-vsc-id": "dither_blend",
-                        operator: "arithmetic",
-                        in: "gamma_out",
-                        in2: "masked_noise",
-                        k1: "0", k2: "1", k3: "0", k4: "0", // k3 controlled by slider
-                        result: "dither_out"
-                    });
-                    // --- [END DITHERING] ---
+                        // --- [DITHERING CORE] ---
+                        const noise = createSvgElement('feTurbulence', {
+                            type: "turbulence",
+                            baseFrequency: "0.65", // Fine Grain
+                            numOctaves: "2",
+                            stitchTiles: "stitch",
+                            result: "raw_noise"
+                        });
+                        const luma = createSvgElement('feColorMatrix', {
+                            type: "matrix",
+                            in: "gamma_out",
+                            values: "0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0",
+                            result: "luma_out"
+                        });
+                        const shadowMask = createSvgElement('feComponentTransfer', { in: "luma_out", result: "shadow_mask" });
+                        shadowMask.append(createSvgElement('feFuncR', { type: "table", tableValues: "1 0" }));
+                        shadowMask.append(createSvgElement('feFuncG', { type: "table", tableValues: "1 0" }));
+                        shadowMask.append(createSvgElement('feFuncB', { type: "table", tableValues: "1 0" }));
 
-                    // 4. Blur
-                    const blur = createSvgElement('feGaussianBlur', { "data-vsc-id": "blur", in: "dither_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "blur_out" });
+                        const maskedNoise = createSvgElement('feComposite', {
+                            operator: "arithmetic",
+                            in: "raw_noise",
+                            in2: "shadow_mask",
+                            k1: "1", k2: "0", k3: "0", k4: "0",
+                            result: "masked_noise"
+                        });
 
-                    // 5. Sharpen (Pass 1)
-                    const sharpen_pass1 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass1', "data-vsc-id": "sharpen_pass1", in: "blur_out", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_1" });
+                        const ditherBlend = createSvgElement('feComposite', {
+                            "data-vsc-id": "dither_blend",
+                            operator: "arithmetic",
+                            in: "gamma_out",
+                            in2: "masked_noise",
+                            k1: "0", k2: "1", k3: "0", k4: "0",
+                            result: "dither_out"
+                        });
+                        // --- [END DITHERING] ---
 
-                    // 6. Sharpen (Pass 2)
-                    const sharpen_pass2 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass2', "data-vsc-id": "sharpen_pass2", in: "sharpen_out_1", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_2" });
+                        const blur = createSvgElement('feGaussianBlur', { "data-vsc-id": "blur", in: "dither_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "blur_out" });
+                        const sharpen_pass1 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass1', "data-vsc-id": "sharpen_pass1", in: "blur_out", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_1" });
+                        const sharpen_pass2 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass2', "data-vsc-id": "sharpen_pass2", in: "sharpen_out_1", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_2" });
+                        const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "sharpen_out_2", result: "linear_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: (1 + settings.HIGHLIGHTS_VALUE / 100).toString(), intercept: (settings.SHADOWS_VALUE / 200).toString() })));
 
-                    // 7. Contrast/Brightness (Linear)
-                    const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "sharpen_out_2", result: "linear_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: (1 + settings.HIGHLIGHTS_VALUE / 100).toString(), intercept: (settings.SHADOWS_VALUE / 200).toString() })));
+                        // Color Temp (Post-Processing)
+                        const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "linear_out", result: "final_out" });
+                        colorTemp.append(createSvgElement('feFuncR', { type: "identity" }));
+                        colorTemp.append(createSvgElement('feFuncG', { type: "identity" }));
+                        colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
 
-                    // 8. Color Temp (Post-Processing)
-                    const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "linear_out", result: "final_out" });
-                    colorTemp.append(createSvgElement('feFuncR', { type: "identity" }));
-                    colorTemp.append(createSvgElement('feFuncG', { type: "identity" }));
-                    colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
-
-                    combinedFilter.append(saturation, gamma, noise, luma, shadowMask, maskedNoise, ditherBlend, blur, sharpen_pass1, sharpen_pass2, linear, colorTemp);
+                        combinedFilter.append(saturation, gamma, noise, luma, shadowMask, maskedNoise, ditherBlend, blur, sharpen_pass1, sharpen_pass2, linear, colorTemp);
+                    }
                     svg.append(combinedFilter);
 
                     const style = document.createElement('style');
@@ -342,6 +354,7 @@
                     rootNodes.forEach(rootNode => {
                         if (!rootNode) return;
                         const setAttr = (sel, attr, val) => rootNode.querySelectorAll(sel).forEach(el => el.setAttribute(attr, val));
+
                         if (saturation !== undefined) setAttr(`[data-vsc-id="saturate"]`, 'values', (saturation / 100).toString());
                         if (gamma !== undefined) { const exp = (1 / gamma).toString(); setAttr(`[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB`, 'exponent', exp); }
                         if (blur !== undefined) setAttr(`[data-vsc-id="blur"]`, 'stdDeviation', blur.toString());
@@ -349,6 +362,7 @@
                         if (sharpenMatrix2 !== undefined) setAttr(`[data-vsc-id="sharpen_pass2"]`, 'kernelMatrix', sharpenMatrix2);
                         if (shadows !== undefined || highlights !== undefined) { const slope = (1 + (highlights ?? 0) / 100).toString(); const intercept = ((shadows ?? 0) / 200).toString(); setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'slope', slope); setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'intercept', intercept); }
 
+                        // [UPDATE] Color Temp (For both Video and Image)
                         if (colorTemp !== undefined) {
                             const slope = 1 - (colorTemp / 200);
                             setAttr(`[data-vsc-id="ct_blue"]`, 'slope', slope.toString());
@@ -365,12 +379,23 @@
         }
         calculateSharpenMatrix(level, direction = '4-way') { const p = parseInt(level, 10); if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0'; const BASE_STRENGTH = 0.125; const i = 1 + p * BASE_STRENGTH; if (direction === '8-way') { const o = (1 - i) / 8; return `${o} ${o} ${o} ${o} ${i} ${o} ${o} ${o} ${o}`; } else { const o = (1 - i) / 4; return `0 ${o} 0 ${o} ${i} ${o} 0 ${o} 0`; } }
         applyAllVideoFilters() { if (!this.filterManager.isInitialized()) return; const vf = this.stateManager.get('videoFilter'); const values = { saturation: vf.saturation, gamma: vf.gamma, blur: vf.blur, sharpenMatrix1: this.calculateSharpenMatrix(vf.level, vf.sharpenDirection), sharpenMatrix2: this.calculateSharpenMatrix(vf.level2, vf.sharpenDirection), shadows: vf.shadows, highlights: vf.highlights, colorTemp: vf.colorTemp, dither: vf.dither }; this.filterManager.updateFilterValues(values); this.updateMediaFilterStates(); }
-        applyAllImageFilters() { if (!this.imageFilterManager.isInitialized()) return; const level = this.stateManager.get('imageFilter.level'); const values = { sharpenMatrix1: this.calculateSharpenMatrix(level) }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }
+        // [UPDATE] Apply Image Filters with Color Temp
+        applyAllImageFilters() {
+            if (!this.imageFilterManager.isInitialized()) return;
+            const level = this.stateManager.get('imageFilter.level');
+            const colorTemp = this.stateManager.get('imageFilter.colorTemp');
+            const values = {
+                sharpenMatrix1: this.calculateSharpenMatrix(level),
+                colorTemp: colorTemp
+            };
+            this.imageFilterManager.updateFilterValues(values);
+            this.updateMediaFilterStates();
+        }
         updateMediaFilterStates() { this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); }
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive');
             const vf = this.stateManager.get('videoFilter');
-            const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0 || vf.colorTemp > 0 || vf.dither > 0;
+            const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0 || vf.colorTemp !== 0 || vf.dither > 0;
             const isActive = scriptActive && video.dataset.isVisible !== 'false' && shouldApply;
 
             if (isActive) {
@@ -380,7 +405,13 @@
             }
             video.classList.toggle('vsc-video-filter-active', isActive);
         }
-        _updateImageFilterState(image) { const scriptActive = this.stateManager.get('app.scriptActive'); const level = this.stateManager.get('imageFilter.level'); const shouldApply = level > 0; image.classList.toggle('vsc-image-filter-active', scriptActive && image.dataset.isVisible !== 'false' && shouldApply); }
+        _updateImageFilterState(image) {
+            const scriptActive = this.stateManager.get('app.scriptActive');
+            const level = this.stateManager.get('imageFilter.level');
+            const colorTemp = this.stateManager.get('imageFilter.colorTemp');
+            const shouldApply = level > 0 || colorTemp !== 0; // Active if sharpen OR color temp is used
+            image.classList.toggle('vsc-image-filter-active', scriptActive && image.dataset.isVisible !== 'false' && shouldApply);
+        }
     }
 
     function injectFiltersIntoContext(element, manager, stateManager) {
@@ -462,7 +493,6 @@
         constructor(pluginManager) { super('Navigation'); this.pluginManager = pluginManager; this.spaNavigationHandler = debounce(this.handleNavigation.bind(this), 500); this.urlCheckInterval = null; }
         init(stateManager) {
             super.init(stateManager);
-            // [FIX] URL Polling: The most reliable way for SPA like Chzzk
             if(this.urlCheckInterval) clearInterval(this.urlCheckInterval);
             this.urlCheckInterval = setInterval(() => {
                 const currentUrl = location.href;
@@ -478,17 +508,11 @@
         }
         handleNavigation() {
             this.stateManager.set('ui.lastUrl', location.href);
-            // [FIX] Soft Reset: Don't destroy observers, just force re-scan
             console.log('[VSC] SPA Navigation Detected. Soft Resetting...');
-
-            // 1. Clear media tracking
             this.stateManager.get('media.activeMedia').clear();
-
-            // 2. Force Scan immediately and repeatedly
             const corePlugin = this.pluginManager.plugins.find(p => p.name === 'CoreMediaPlugin');
             if (corePlugin) {
                 corePlugin.scanAndApply();
-                // Retry sequence for slow loading video (React/Vue)
                 [500, 1000, 2000, 3000, 5000].forEach(delay => {
                     setTimeout(() => corePlugin.scanAndApply(), delay);
                 });
@@ -630,6 +654,12 @@
             this.subscribe('imageFilter.level', (val) => imageSelect.value = val);
             imageSelect.value = this.stateManager.get('imageFilter.level');
             imageSubMenu.appendChild(imageSelect);
+
+            // [UPDATE] Add Color Temp Slider to Image Menu
+            imageSubMenu.appendChild(
+                this._createSlider('색온도', 'i-colortemp', -7, 5, 0.1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control
+            );
+
             const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer);
             const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '샤프S'; videoResetBtn.dataset.presetKey = 'reset'; videoResetBtn.onclick = () => { this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL); this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2); this.stateManager.set('videoFilter.activePreset', 'reset'); };
             const videoMsharpBtn = document.createElement('button'); videoMsharpBtn.className = 'vsc-btn'; videoMsharpBtn.textContent = '샤프M'; videoMsharpBtn.dataset.presetKey = 'sharpM'; videoMsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 9); this.stateManager.set('videoFilter.level2', 6); this.stateManager.set('videoFilter.activePreset', 'sharpM'); };
