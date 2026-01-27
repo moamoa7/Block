@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Web 성능 종합 최적화 도구상자 (Ultimate Hybrid)
+// @name         Web 성능 종합 최적화 도구상자 (Ultimate Hybrid v4)
 // @namespace    http://tampermonkey.net/
-// @version      3.9.0-KR-Hybrid
-// @description  웹 브라우징 가속; 스마트 프리패치, 미디어 자동 정지, BFCache, 백그라운드 탭 절전 모드; 트위치/유튜브 최적화
+// @version      4.0.0-KR-Hybrid
+// @description  웹 브라우징 가속; 애니메이션 제거, 스마트 프리패치, 미디어 자동 정지, BFCache; 트위치/유튜브 최적화
 // @author       KiwiFruit (Hybridized by AI)
 // @match        *://*/*
 // @exclude      *://weibo.com/*
@@ -56,6 +56,11 @@
             selector: 'img[data-src], img[data-original], img.lazy, iframe[data-src], .js-lazy-load',
             preloadDistance: 150
         },
+        // [NEW] 동작 줄이기 (애니메이션 제거) - 저사양 PC 필수
+        reduceMotion: {
+            enabled: true, 
+            forceDisableCSS: true
+        },
         hardwareAcceleration: {
             enabled: true,
             selector: 'header, nav, aside, .sticky, .fixed, .js-animate, .js-transform',
@@ -81,10 +86,9 @@
             enabled: true,
             suspendDistance: 200
         },
-        // [NEW] 백그라운드 탭 절전 모드
         backgroundThrottle: {
             enabled: true,
-            throttleDelay: 1000 // 1초에 1번만 실행하도록 제한
+            throttleDelay: 1000
         },
         preconnect: {
             enabled: true,
@@ -156,14 +160,51 @@
     }
 
     // ========================
-    // 3. 모듈: 이미지 지연 로딩
+    // 3. [NEW] 모듈: 동작 줄이기 (애니메이션 제거)
+    // ========================
+    class MotionReducer extends BaseModule {
+        constructor() { super('MotionReducer'); }
+
+        init() {
+            super.init();
+            if (!Config.reduceMotion.enabled) return;
+            this.injectStyle();
+        }
+
+        injectStyle() {
+            const styleId = 'perfopt-no-motion';
+            if (document.getElementById(styleId)) return;
+
+            const style = document.createElement('style');
+            style.id = styleId;
+            // CPU 부하를 줄이는 핵심 CSS
+            style.textContent = `
+                *, *::before, *::after {
+                    animation: none !important;
+                    transition: none !important;
+                    scroll-behavior: auto !important;
+                }
+            `;
+            document.head.appendChild(style);
+            Logger.info('MotionReducer', '애니메이션 및 트랜지션 제거됨');
+        }
+
+        destroy() {
+            super.destroy();
+            const style = document.getElementById('perfopt-no-motion');
+            if (style) style.remove();
+        }
+    }
+
+    // ========================
+    // 4. 모듈: 이미지 지연 로딩
     // ========================
     class ImageOptimizer extends BaseModule {
         constructor() { super('ImageOptimizer'); this.observer = null; }
 
         init() {
             super.init();
-            if (Env.isTwitch) return; // Twitch 보호
+            if (Env.isTwitch) return; 
             if (!Config.lazyLoad.enabled) return;
 
             if (Env.features.intersectionObserver) {
@@ -216,14 +257,14 @@
     }
 
     // ========================
-    // 4. 모듈: GPU 가속
+    // 5. 모듈: GPU 가속
     // ========================
     class GPUAccelerator extends BaseModule {
         constructor() { super('GPUAccelerator'); }
 
         init() {
             super.init();
-            if (Env.isTwitch) return; // Twitch 보호
+            if (Env.isTwitch) return;
             if (!Config.hardwareAcceleration.enabled) return;
             this.processElements(document.querySelectorAll(Config.hardwareAcceleration.selector));
         }
@@ -253,7 +294,7 @@
     }
 
     // ========================
-    // 5. 모듈: 콘텐츠 가시성 (렌더링 최적화)
+    // 6. 모듈: 콘텐츠 가시성 (렌더링 최적화)
     // ========================
     class ContentVisibility extends BaseModule {
         constructor() {
@@ -264,7 +305,7 @@
 
         init() {
             super.init();
-            if (Env.isTwitch) return; // Twitch 보호
+            if (Env.isTwitch) return;
             if (!Config.contentVisibility.enabled || !Env.features.contentVisibility) return;
 
             this.updateVisibility(document.querySelectorAll(Config.contentVisibility.selector));
@@ -313,7 +354,7 @@
     }
 
     // ========================
-    // 6. 모듈: 스마트 링크 프리패치
+    // 7. 모듈: 스마트 링크 프리패치
     // ========================
     class LinkPrefetcher extends BaseModule {
         constructor() { super('LinkPrefetcher'); this.observer = null; this.prefetchedUrls = new Set(); }
@@ -376,14 +417,14 @@
     }
 
     // ========================
-    // 7. 모듈: 미디어 자동 정지
+    // 8. 모듈: 미디어 자동 정지
     // ========================
     class MediaSuspender extends BaseModule {
         constructor() { super('MediaSuspender'); this.observer = null; }
 
         init() {
             super.init();
-            if (Env.isTwitch) return; // Twitch 보호
+            if (Env.isTwitch) return;
             if (!Config.mediaSuspend.enabled) return;
 
             this.observer = new IntersectionObserver((entries) => {
@@ -425,7 +466,7 @@
     }
 
     // ========================
-    // 8. [NEW] 모듈: 백그라운드 탭 절전 모드 (Background Throttling)
+    // 9. 모듈: 백그라운드 탭 절전 모드
     // ========================
     class BackgroundThrottler extends BaseModule {
         constructor() {
@@ -438,14 +479,10 @@
         init() {
             super.init();
             if (!Config.backgroundThrottle.enabled) return;
-            // 트위치/유튜브는 백그라운드 재생 끊김 방지를 위해 스킵하거나 약하게 적용
-            if (Env.isTwitch || Env.isYoutube) {
-                Logger.info('BackgroundThrottler', '미디어 사이트 감지: 절전 모드 제외');
-                return;
-            }
+            if (Env.isTwitch || Env.isYoutube) return;
 
             document.addEventListener('visibilitychange', () => this.handleVisibilityChange());
-            this.handleVisibilityChange(); // 초기 체크
+            this.handleVisibilityChange();
         }
 
         handleVisibilityChange() {
@@ -459,13 +496,11 @@
         }
 
         enableThrottling() {
-            // RAF를 1초에 1번으로 제한
             window.requestAnimationFrame = (callback) => {
                 return this.originalSetTimeout(() => {
                     this.originalRAF(callback);
                 }, 1000);
             };
-            // setInterval 최소 간격을 1초로 강제
             window.setInterval = (callback, delay, ...args) => {
                 const newDelay = Math.max(delay, Config.backgroundThrottle.throttleDelay);
                 return this.originalSetInterval(callback, newDelay, ...args);
@@ -479,7 +514,7 @@
     }
 
     // ========================
-    // 9. 성능 모니터링
+    // 10. 성능 모니터링
     // ========================
     class PerformanceMonitor extends BaseModule {
         constructor() {
@@ -511,7 +546,7 @@
     }
 
     // ========================
-    // 10. UI 컨트롤러
+    // 11. UI 컨트롤러
     // ========================
     class UIController extends BaseModule {
         constructor() { super('UIController'); this.visible = false; this.button = null; this.panel = null; this.monitor = null; }
@@ -551,7 +586,7 @@
 
             this.panel = document.createElement('div');
             this.panel.className = 'perf-panel';
-
+            
             const isSafeMode = Env.isTwitch || Env.isYoutube;
             const isImgEnabled = Config.lazyLoad.enabled && !Env.isTwitch;
             const isGpuEnabled = Config.hardwareAcceleration.enabled && !Env.isTwitch;
@@ -569,17 +604,18 @@
                 </div>
                 <div style="margin-bottom:15px">
                     <div class="perf-row"><b>활성 모듈 ${isSafeMode ? '(안전 모드)' : ''}</b></div>
+                    <div class="perf-row"><span>🚀 동작 줄이기 (No Ani)</span><div class="perf-mod-status ${Config.reduceMotion.enabled?'on':'off'}"></div></div>
                     <div class="perf-row"><span>🖼️ 이미지 지연 로딩</span><div class="perf-mod-status ${isImgEnabled?'on':'off'}"></div></div>
                     <div class="perf-row"><span>🎮 GPU 가속</span><div class="perf-mod-status ${isGpuEnabled?'on':'off'}"></div></div>
                     <div class="perf-row"><span>👁️ 렌더링 최적화</span><div class="perf-mod-status ${isVisEnabled?'on':'off'}"></div></div>
-                    <div class="perf-row"><span>🔗 스마트 프리패치</span><div class="perf-mod-status ${Config.linkPrefetch.enabled?'on':'off'}"></div></div>
+                    <div class="perf-row"><span>🔗 스마트 프리패치</span><div class="perf-mod-status ${Config.linkPrefetch.enabled?'on':''}"></div></div>
                     <div class="perf-row"><span>💤 백그라운드 절전</span><div class="perf-mod-status ${isThrottleEnabled?'on':'off'}"></div></div>
                 </div>
                 <div class="perf-row"><b>통계</b></div>
                 <div class="perf-row"><span>지연 로딩</span><b id="ui-lazy">0</b></div>
                 <div class="perf-row"><span>프리패치</span><b id="ui-prefetch">0</b></div>
                 <div class="perf-row"><span>GPU 가속</span><b id="ui-gpu">0</b></div>
-                <div class="perf-row" style="margin-top:10px; font-size:11px; color:#999;">Ver 3.9.0-Hybrid</div>
+                <div class="perf-row" style="margin-top:10px; font-size:11px; color:#999;">Ver 4.0.0-Hybrid</div>
             `;
             document.body.appendChild(this.panel);
         }
@@ -605,7 +641,7 @@
     }
 
     // ========================
-    // 11. 앱 컨트롤러 (메인)
+    // 12. 앱 컨트롤러 (메인)
     // ========================
     class AppController extends BaseModule {
         constructor() { super('AppController'); this.modules = {}; }
@@ -614,27 +650,28 @@
             super.init();
             Logger.info('App', '최적화 도구 가동 시작');
 
-            // [NEW] 전역 CSS 폰트 최적화 주입 (FOIT 방지)
             this.injectGlobalStyles();
 
             this.modules.monitor = new PerformanceMonitor();
             this.modules.ui = new UIController();
+            this.modules.motion = new MotionReducer(); // 신규 추가
             this.modules.img = new ImageOptimizer();
             this.modules.gpu = new GPUAccelerator();
             this.modules.vis = new ContentVisibility();
             this.modules.link = new LinkPrefetcher();
             this.modules.media = new MediaSuspender();
-            this.modules.throttle = new BackgroundThrottler(); // 신규 추가
+            this.modules.throttle = new BackgroundThrottler();
 
             this.modules.monitor.init();
             this.modules.ui.setMonitor(this.modules.monitor);
             this.modules.ui.init();
+            this.modules.motion.init();
             this.modules.img.init();
             this.modules.gpu.init();
             this.modules.vis.init();
             this.modules.link.init();
             this.modules.media.init();
-            this.modules.throttle.init(); // 신규 실행
+            this.modules.throttle.init();
 
             window.addEventListener('pagehide', (event) => {
                 if (!event.persisted) {
@@ -645,7 +682,6 @@
             });
         }
 
-        // [NEW] 폰트 로딩 최적화 스타일 주입
         injectGlobalStyles() {
             const style = document.createElement('style');
             style.textContent = `
