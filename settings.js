@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Visual & Force Fix)
+// @name         Video_Image_Control (Visual Fix - Chzzk Perfect)
 // @namespace    https://com/
-// @version      107.3-VisualFix
-// @description  비디오/이미지 제어 (Closed Shadow DOM 강제 침투 + 라이브 시각 효과 복구)
+// @version      108.6-ChzzkFinal
+// @description  비디오/이미지 제어 (치지직 이동 완벽 해결 + 고운 입자 디더링 + 성능 최적화)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -20,11 +20,13 @@
         DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 7 : 3,
         DEFAULT_VIDEO_SHARPEN_DIRECTION: '4-way',
         DEBUG: false,
-        // Auto Delay
+        // Auto Delay & Buffer
         AUTODELAY_INTERVAL_NORMAL: 1000, AUTODELAY_INTERVAL_STABLE: 3000,
         AUTODELAY_STABLE_THRESHOLD: 100, AUTODELAY_STABLE_COUNT: 5,
         AUTODELAY_PID_KP: 0.0002, AUTODELAY_PID_KI: 0.00001, AUTODELAY_PID_KD: 0.0001,
         AUTODELAY_MIN_RATE: 1.0, AUTODELAY_MAX_RATE: 1.025,
+        AUTODELAY_EMA_ALPHA: 0.2,
+        MIN_BUFFER_HEALTH_SEC: 1.0,
         LIVE_JUMP_INTERVAL: 6000, LIVE_JUMP_END_THRESHOLD: 1.0,
         // General
         DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
@@ -35,17 +37,16 @@
         LIVE_STREAM_URLS: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         // Filters
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: 0, DITHER_VALUE: 0 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: 0, DITHER_VALUE: 0 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
-        FILTER_EXCLUSION_DOMAINS: [], IMAGE_FILTER_EXCLUSION_DOMAINS: [],
-        TARGET_DELAYS: {"play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 3000,
+        TARGET_DELAYS: { "play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 3000,
         UI_HIDDEN_CLASS_NAME: 'vsc-hidden',
     };
 
     // --- UTILITY ---
-    const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if(CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); }};
+    const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; };
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
@@ -64,22 +65,16 @@
                 try {
                     const cls = (this.className || '').toString();
                     const id = (this.id || '').toString();
-
-                    if (cls.includes('turnstile') || id.includes('turnstile')) {
-                        return shadowRoot;
-                    }
+                    if (cls.includes('turnstile') || id.includes('turnstile')) { return shadowRoot; }
                     shadowRoot._vsc_pending_injection = true;
                     window._shadowDomList_.push(shadowRoot);
                     document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } }));
-                } catch (e) {}
+                } catch (e) { }
                 return shadowRoot;
             };
             window._hasAggressiveHook_ = true;
-        } catch (e) {
-            console.warn("[VSC] Hooking Failed:", e);
-        }
+        } catch (e) { console.warn("[VSC] Hooking Failed:", e); }
     })();
-    // ---------------------------------------------------------
 
     class StateManager {
         constructor() {
@@ -93,7 +88,20 @@
             this.state = {
                 app: { isInitialized: false, isMobile, scriptActive: false },
                 media: { activeMedia: new Set(), processedMedia: new WeakSet(), activeImages: new Set(), processedImages: new WeakSet(), mediaListenerMap: new WeakMap(), currentlyVisibleMedia: null },
-                videoFilter: { lastActiveSettings: null, level: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, level2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, gamma: parseFloat(videoDefaults.GAMMA_VALUE), blur: parseFloat(videoDefaults.BLUR_STD_DEVIATION), shadows: parseInt(videoDefaults.SHADOWS_VALUE, 10), highlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10), saturation: parseInt(videoDefaults.SATURATION_VALUE, 10), sharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION, activePreset: 'none' },
+                videoFilter: {
+                    lastActiveSettings: null,
+                    level: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL,
+                    level2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2,
+                    gamma: parseFloat(videoDefaults.GAMMA_VALUE),
+                    blur: parseFloat(videoDefaults.BLUR_STD_DEVIATION),
+                    shadows: parseInt(videoDefaults.SHADOWS_VALUE, 10),
+                    highlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10),
+                    saturation: parseInt(videoDefaults.SATURATION_VALUE, 10),
+                    colorTemp: parseInt(videoDefaults.COLORTEMP_VALUE || 0, 10),
+                    dither: parseInt(videoDefaults.DITHER_VALUE || 0, 10),
+                    sharpenDirection: CONFIG.DEFAULT_VIDEO_SHARPEN_DIRECTION,
+                    activePreset: 'none'
+                },
                 imageFilter: { lastActiveSettings: null, level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null },
                 playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0 },
@@ -105,7 +113,7 @@
         set(key, value) {
             const keys = key.split('.'); let obj = this.state;
             for (let i = 0; i < keys.length - 1; i++) { if (obj === undefined) return; obj = obj[keys[i]]; }
-            const finalKey = keys[keys.length - 1]; if(obj === undefined) return;
+            const finalKey = keys[keys.length - 1]; if (obj === undefined) return;
             if (obj[finalKey] !== value) { const oldValue = obj[finalKey]; obj[finalKey] = value; this.notify(key, value, oldValue); }
         }
         subscribe(key, callback) {
@@ -132,11 +140,10 @@
         init(stateManager) {
             super.init(stateManager);
             this.subscribe('app.pluginsInitialized', () => {
-                this.ensureObservers();
-                this.scanAndApply();
+                this.ensureObservers(); this.scanAndApply();
                 document.addEventListener('addShadowRoot', (e) => { this.scanAndApply(); });
                 if (this.maintenanceInterval) clearInterval(this.maintenanceInterval);
-                this.maintenanceInterval = setInterval(() => this.scanAndApply(), 2000);
+                this.maintenanceInterval = setInterval(() => this.scanAndApply(), 1000); // More aggressive: 1s
             });
         }
         destroy() {
@@ -173,29 +180,19 @@
         findAllMedia(root = document) {
             let media = new Set(); const minSize = CONFIG.VIDEO_MIN_SIZE; const isValid = m => m.tagName === 'AUDIO' || (m.offsetWidth >= minSize || m.offsetHeight >= minSize);
             root.querySelectorAll('video, audio').forEach(m => isValid(m) && media.add(m));
-            root.querySelectorAll('iframe').forEach(f => { try { if (f.src && f.src.includes('challenges.cloudflare.com')) return; if (f.contentDocument) { const frameMedia = this.findAllMedia(f.contentDocument); frameMedia.forEach(m => media.add(m)); } } catch (e) {} });
-
-            const shadowRoots = window._shadowDomList_ || [];
-            shadowRoots.forEach(shadowRoot => {
-                try { shadowRoot.querySelectorAll('video, audio').forEach(m => isValid(m) && media.add(m)); } catch (e) {}
-            });
-
+            root.querySelectorAll('iframe').forEach(f => { try { if (f.src && f.src.includes('challenges.cloudflare.com')) return; if (f.contentDocument) { const frameMedia = this.findAllMedia(f.contentDocument); frameMedia.forEach(m => media.add(m)); } } catch (e) { } });
+            (window._shadowDomList_ || []).forEach(shadowRoot => { try { shadowRoot.querySelectorAll('video, audio').forEach(m => isValid(m) && media.add(m)); } catch (e) { } });
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null, false); let node;
-            while(node = walker.nextNode()) { if(node.shadowRoot) { const shadowMedia = this.findAllMedia(node.shadowRoot); shadowMedia.forEach(m => media.add(m)); } }
+            while (node = walker.nextNode()) { if (node.shadowRoot) { const shadowMedia = this.findAllMedia(node.shadowRoot); shadowMedia.forEach(m => media.add(m)); } }
             return [...media];
         }
         findAllImages(root = document) {
             let images = new Set(); const minSize = CONFIG.IMAGE_MIN_SIZE; const isValid = i => (i.naturalWidth > minSize && i.naturalHeight > minSize) || (i.offsetWidth > minSize && i.offsetHeight > minSize);
             root.querySelectorAll('img').forEach(i => isValid(i) && images.add(i));
-            root.querySelectorAll('iframe').forEach(f => { try { if (f.src && f.src.includes('challenges.cloudflare.com')) return; if (f.contentDocument) { const frameImages = this.findAllImages(f.contentDocument); frameImages.forEach(i => images.add(i)); } } catch (e) {} });
-
-            const shadowRoots = window._shadowDomList_ || [];
-            shadowRoots.forEach(shadowRoot => {
-                try { shadowRoot.querySelectorAll('img').forEach(i => isValid(i) && images.add(i)); } catch (e) {}
-            });
-
+            root.querySelectorAll('iframe').forEach(f => { try { if (f.src && f.src.includes('challenges.cloudflare.com')) return; if (f.contentDocument) { const frameImages = this.findAllImages(f.contentDocument); frameImages.forEach(i => images.add(i)); } } catch (e) { } });
+            (window._shadowDomList_ || []).forEach(shadowRoot => { try { shadowRoot.querySelectorAll('img').forEach(i => isValid(i) && images.add(i)); } catch (e) { } });
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null, false); let node;
-            while(node = walker.nextNode()) { if(node.shadowRoot) { const shadowImages = this.findAllImages(node.shadowRoot); shadowImages.forEach(i => images.add(i)); } }
+            while (node = walker.nextNode()) { if (node.shadowRoot) { const shadowImages = this.findAllImages(node.shadowRoot); shadowImages.forEach(i => images.add(i)); } }
             return [...images];
         }
         attachMediaListeners(media) {
@@ -245,150 +242,204 @@
                 isInitialized() { return this.#isInitialized; }
                 getSvgNode() { return this.#svgNode; }
                 getStyleNode() { return this.#styleElement; }
-                init() { if (this.#isInitialized) return; safeExec(() => { const { svgNode, styleElement } = this.#createElements(); this.#svgNode = svgNode; this.#styleElement = styleElement; (document.head || document.documentElement).appendChild(styleElement); (document.body || document.documentElement).appendChild(svgNode); this.#isInitialized = true; }, `${this.constructor.name}.init`); }
-                #createElements() { const createSvgElement = (tag, attr, ...children) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); el.append(...children); return el; }; const { settings, svgId, styleId, matrixId, className } = this.#options; const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`; const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' }); const combinedFilter = createSvgElement('filter', { id: combinedFilterId }); const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" }); const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() }))); const blur = createSvgElement('feGaussianBlur', { "data-vsc-id": "blur", in: "gamma_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "blur_out" }); const sharpen_pass1 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass1', "data-vsc-id": "sharpen_pass1", in: "blur_out", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_1" }); const sharpen_pass2 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass2', "data-vsc-id": "sharpen_pass2", in: "sharpen_out_1", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_2" }); const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "sharpen_out_2" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: (1 + settings.HIGHLIGHTS_VALUE / 100).toString(), intercept: (settings.SHADOWS_VALUE / 200).toString() }))); combinedFilter.append(saturation, gamma, blur, sharpen_pass1, sharpen_pass2, linear); svg.append(combinedFilter); const style = document.createElement('style'); style.id = styleId; style.textContent = `.${className} { filter: url(#${combinedFilterId}) !important; } .${'vsc-gpu-accelerated'} { transform: translateZ(0); will-change: transform; } .vsc-btn.analyzing { box-shadow: 0 0 5px #f39c12, 0 0 10px #f39c12 inset !important; }`; return { svgNode: svg, styleElement: style }; }
+                init() {
+                    if (this.#isInitialized) return;
+                    safeExec(() => {
+                        const { svgNode, styleElement } = this.#createElements();
+                        this.#svgNode = svgNode; this.#styleElement = styleElement;
+                        (document.head || document.documentElement).appendChild(styleElement);
+                        (document.body || document.documentElement).appendChild(svgNode);
+                        this.#isInitialized = true;
+                    }, `${this.constructor.name}.init`);
+                }
+                #createElements() {
+                    const createSvgElement = (tag, attr, ...children) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); el.append(...children); return el; };
+                    const { settings, svgId, styleId, matrixId, className } = this.#options;
+                    const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`;
+                    const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
+                    const combinedFilter = createSvgElement('filter', { id: combinedFilterId });
+
+                    // 1. Saturation (Start)
+                    const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
+
+                    // 2. Gamma
+                    const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })));
+
+                    // --- [DITHERING CORE] ---
+                    // 3-A. Generate Noise (High Frequency / Fine Grain)
+                    const noise = createSvgElement('feTurbulence', {
+                        type: "turbulence",
+                        baseFrequency: "0.65", // [CUSTOM] High Frequency (Fine Grain)
+                        numOctaves: "2",
+                        stitchTiles: "stitch",
+                        result: "raw_noise"
+                    });
+                    // 3-B. Extract Luminance from Gamma Out
+                    const luma = createSvgElement('feColorMatrix', {
+                        type: "matrix",
+                        in: "gamma_out",
+                        values: "0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0",
+                        result: "luma_out"
+                    });
+                    // 3-C. Invert Luminance -> Shadow Mask
+                    const shadowMask = createSvgElement('feComponentTransfer', { in: "luma_out", result: "shadow_mask" });
+                    shadowMask.append(createSvgElement('feFuncR', { type: "table", tableValues: "1 0" }));
+                    shadowMask.append(createSvgElement('feFuncG', { type: "table", tableValues: "1 0" }));
+                    shadowMask.append(createSvgElement('feFuncB', { type: "table", tableValues: "1 0" }));
+
+                    // 3-D. Mask the Noise
+                    const maskedNoise = createSvgElement('feComposite', {
+                        operator: "arithmetic",
+                        in: "raw_noise",
+                        in2: "shadow_mask",
+                        k1: "1", k2: "0", k3: "0", k4: "0",
+                        result: "masked_noise"
+                    });
+
+                    // 3-E. Blend Noise into Gamma Source
+                    const ditherBlend = createSvgElement('feComposite', {
+                        "data-vsc-id": "dither_blend",
+                        operator: "arithmetic",
+                        in: "gamma_out",
+                        in2: "masked_noise",
+                        k1: "0", k2: "1", k3: "0", k4: "0", // k3 controlled by slider
+                        result: "dither_out"
+                    });
+                    // --- [END DITHERING] ---
+
+                    // 4. Blur
+                    const blur = createSvgElement('feGaussianBlur', { "data-vsc-id": "blur", in: "dither_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "blur_out" });
+
+                    // 5. Sharpen (Pass 1)
+                    const sharpen_pass1 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass1', "data-vsc-id": "sharpen_pass1", in: "blur_out", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_1" });
+
+                    // 6. Sharpen (Pass 2)
+                    const sharpen_pass2 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass2', "data-vsc-id": "sharpen_pass2", in: "sharpen_out_1", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_2" });
+
+                    // 7. Contrast/Brightness (Linear)
+                    const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "sharpen_out_2", result: "linear_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: (1 + settings.HIGHLIGHTS_VALUE / 100).toString(), intercept: (settings.SHADOWS_VALUE / 200).toString() })));
+
+                    // 8. Color Temp (Post-Processing)
+                    const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "linear_out", result: "final_out" });
+                    colorTemp.append(createSvgElement('feFuncR', { type: "identity" }));
+                    colorTemp.append(createSvgElement('feFuncG', { type: "identity" }));
+                    colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
+
+                    combinedFilter.append(saturation, gamma, noise, luma, shadowMask, maskedNoise, ditherBlend, blur, sharpen_pass1, sharpen_pass2, linear, colorTemp);
+                    svg.append(combinedFilter);
+
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `.${className} { filter: url(#${combinedFilterId}) !important; } .vsc-gpu-accelerated { transform: translateZ(0); } .vsc-btn.analyzing { box-shadow: 0 0 5px #f39c12, 0 0 10px #f39c12 inset !important; }`;
+                    return { svgNode: svg, styleElement: style };
+                }
                 updateFilterValues(values) {
                     if (!this.isInitialized()) return;
-                    const { saturation, gamma, blur, sharpenMatrix1, sharpenMatrix2, shadows, highlights } = values;
-                    const rootNode = this.#svgNode;
-                    if (rootNode) {
-                        if (saturation !== undefined) { rootNode.querySelectorAll(`[data-vsc-id="saturate"]`).forEach(el => el.setAttribute('values', (saturation / 100).toString())); }
-                        if (gamma !== undefined) { const exponent = (1 / gamma).toString(); rootNode.querySelectorAll(`[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB`).forEach(el => el.setAttribute('exponent', exponent)); }
-                        if (blur !== undefined) { rootNode.querySelectorAll(`[data-vsc-id="blur"]`).forEach(el => el.setAttribute('stdDeviation', blur.toString())); }
-                        if (sharpenMatrix1 !== undefined) { rootNode.querySelectorAll(`[data-vsc-id="sharpen_pass1"]`).forEach(el => el.setAttribute('kernelMatrix', sharpenMatrix1)); }
-                        if (sharpenMatrix2 !== undefined) { rootNode.querySelectorAll(`[data-vsc-id="sharpen_pass2"]`).forEach(el => el.setAttribute('kernelMatrix', sharpenMatrix2)); }
-                        if (shadows !== undefined || highlights !== undefined) { const slope = (1 + (highlights ?? 0) / 100).toString(); const intercept = ((shadows ?? 0) / 200).toString(); rootNode.querySelectorAll(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`).forEach(el => { el.setAttribute('slope', slope); el.setAttribute('intercept', intercept); }); }
+                    const { saturation, gamma, blur, sharpenMatrix1, sharpenMatrix2, shadows, highlights, colorTemp, dither } = values;
+                    const rootNodes = [this.#svgNode, ...document.querySelectorAll(`iframe`)].map(n => n.tagName === 'IFRAME' ? (n.contentDocument ? n.contentDocument.querySelector(`#${this.#options.svgId}`) : null) : n).filter(n => n);
+                    (window._shadowDomList_ || []).forEach(r => { try { const s = r.querySelector(`#${this.#options.svgId}`); if (s) rootNodes.push(s); } catch (e) { } });
 
-                         const shadowRoots = window._shadowDomList_ || [];
-                         shadowRoots.forEach(root => {
-                             try {
-                                 const shadowSvg = root.querySelector(`#${this.#options.svgId}`);
-                                 if (shadowSvg) {
-                                     if (saturation !== undefined) shadowSvg.querySelectorAll(`[data-vsc-id="saturate"]`).forEach(el => el.setAttribute('values', (saturation / 100).toString()));
-                                     if (gamma !== undefined) { const exp = (1 / gamma).toString(); shadowSvg.querySelectorAll(`[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB`).forEach(el => el.setAttribute('exponent', exp)); }
-                                     if (sharpenMatrix1 !== undefined) shadowSvg.querySelectorAll(`[data-vsc-id="sharpen_pass1"]`).forEach(el => el.setAttribute('kernelMatrix', sharpenMatrix1));
-                                     if (sharpenMatrix2 !== undefined) shadowSvg.querySelectorAll(`[data-vsc-id="sharpen_pass2"]`).forEach(el => el.setAttribute('kernelMatrix', sharpenMatrix2));
-                                 }
-                             } catch(e) {}
-                         });
+                    rootNodes.forEach(rootNode => {
+                        if (!rootNode) return;
+                        const setAttr = (sel, attr, val) => rootNode.querySelectorAll(sel).forEach(el => el.setAttribute(attr, val));
+                        if (saturation !== undefined) setAttr(`[data-vsc-id="saturate"]`, 'values', (saturation / 100).toString());
+                        if (gamma !== undefined) { const exp = (1 / gamma).toString(); setAttr(`[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB`, 'exponent', exp); }
+                        if (blur !== undefined) setAttr(`[data-vsc-id="blur"]`, 'stdDeviation', blur.toString());
+                        if (sharpenMatrix1 !== undefined) setAttr(`[data-vsc-id="sharpen_pass1"]`, 'kernelMatrix', sharpenMatrix1);
+                        if (sharpenMatrix2 !== undefined) setAttr(`[data-vsc-id="sharpen_pass2"]`, 'kernelMatrix', sharpenMatrix2);
+                        if (shadows !== undefined || highlights !== undefined) { const slope = (1 + (highlights ?? 0) / 100).toString(); const intercept = ((shadows ?? 0) / 200).toString(); setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'slope', slope); setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'intercept', intercept); }
 
-                        document.querySelectorAll('iframe').forEach(f => {
-                            try {
-                                if (f.contentDocument && f.contentDocument.body) {
-                                    const iframeSvg = f.contentDocument.body.querySelector(`#${this.#options.svgId}`);
-                                    if(iframeSvg) {
-                                        if (saturation !== undefined) iframeSvg.querySelectorAll(`[data-vsc-id="saturate"]`).forEach(el => el.setAttribute('values', (saturation / 100).toString()));
-                                        if (gamma !== undefined) { const exp = (1 / gamma).toString(); iframeSvg.querySelectorAll(`[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB`).forEach(el => el.setAttribute('exponent', exp)); }
-                                        if (sharpenMatrix1 !== undefined) iframeSvg.querySelectorAll(`[data-vsc-id="sharpen_pass1"]`).forEach(el => el.setAttribute('kernelMatrix', sharpenMatrix1));
-                                        if (sharpenMatrix2 !== undefined) iframeSvg.querySelectorAll(`[data-vsc-id="sharpen_pass2"]`).forEach(el => el.setAttribute('kernelMatrix', sharpenMatrix2));
-                                    }
-                                }
-                            } catch(e){}
-                        });
-                    }
+                        if (colorTemp !== undefined) {
+                            const slope = 1 - (colorTemp / 200);
+                            setAttr(`[data-vsc-id="ct_blue"]`, 'slope', slope.toString());
+                        }
+
+                        if (dither !== undefined) {
+                            const k3 = (dither / 500).toString();
+                            setAttr(`[data-vsc-id="dither_blend"]`, 'k3', k3);
+                        }
+                    });
                 }
             }
             return new SvgFilterManager(options);
         }
         calculateSharpenMatrix(level, direction = '4-way') { const p = parseInt(level, 10); if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0'; const BASE_STRENGTH = 0.125; const i = 1 + p * BASE_STRENGTH; if (direction === '8-way') { const o = (1 - i) / 8; return `${o} ${o} ${o} ${o} ${i} ${o} ${o} ${o} ${o}`; } else { const o = (1 - i) / 4; return `0 ${o} 0 ${o} ${i} ${o} 0 ${o} 0`; } }
-        applyAllVideoFilters() { if (!this.filterManager.isInitialized()) return; const vf = this.stateManager.get('videoFilter'); const values = { saturation: vf.saturation, gamma: vf.gamma, blur: vf.blur, sharpenMatrix1: this.calculateSharpenMatrix(vf.level, vf.sharpenDirection), sharpenMatrix2: this.calculateSharpenMatrix(vf.level2, vf.sharpenDirection), shadows: vf.shadows, highlights: vf.highlights, }; this.filterManager.updateFilterValues(values); this.updateMediaFilterStates(); }
+        applyAllVideoFilters() { if (!this.filterManager.isInitialized()) return; const vf = this.stateManager.get('videoFilter'); const values = { saturation: vf.saturation, gamma: vf.gamma, blur: vf.blur, sharpenMatrix1: this.calculateSharpenMatrix(vf.level, vf.sharpenDirection), sharpenMatrix2: this.calculateSharpenMatrix(vf.level2, vf.sharpenDirection), shadows: vf.shadows, highlights: vf.highlights, colorTemp: vf.colorTemp, dither: vf.dither }; this.filterManager.updateFilterValues(values); this.updateMediaFilterStates(); }
         applyAllImageFilters() { if (!this.imageFilterManager.isInitialized()) return; const level = this.stateManager.get('imageFilter.level'); const values = { sharpenMatrix1: this.calculateSharpenMatrix(level) }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }
         updateMediaFilterStates() { this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); }
-        _updateVideoFilterState(video) { const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter'); const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0; video.classList.toggle('vsc-video-filter-active', scriptActive && video.dataset.isVisible !== 'false' && shouldApply); }
+        _updateVideoFilterState(video) {
+            const scriptActive = this.stateManager.get('app.scriptActive');
+            const vf = this.stateManager.get('videoFilter');
+            const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0 || vf.colorTemp > 0 || vf.dither > 0;
+            const isActive = scriptActive && video.dataset.isVisible !== 'false' && shouldApply;
+
+            if (isActive) {
+                if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform';
+            } else {
+                if (video.style.willChange) video.style.willChange = '';
+            }
+            video.classList.toggle('vsc-video-filter-active', isActive);
+        }
         _updateImageFilterState(image) { const scriptActive = this.stateManager.get('app.scriptActive'); const level = this.stateManager.get('imageFilter.level'); const shouldApply = level > 0; image.classList.toggle('vsc-image-filter-active', scriptActive && image.dataset.isVisible !== 'false' && shouldApply); }
     }
 
     function injectFiltersIntoContext(element, manager, stateManager) {
         if (!manager || !manager.isInitialized() || !stateManager) return;
-        let root = element.getRootNode();
-        const ownerDoc = element.ownerDocument;
-        if (root === document && element.parentElement) {
-             const shadowRoots = window._shadowDomList_ || [];
-             for (const sRoot of shadowRoots) { if (sRoot.contains(element)) { root = sRoot; break; } }
-        }
+        let root = element.getRootNode(); const ownerDoc = element.ownerDocument;
+        if (root === document && element.parentElement) { const shadowRoots = window._shadowDomList_ || []; for (const sRoot of shadowRoots) { if (sRoot.contains(element)) { root = sRoot; break; } } }
         const attr = `data-vsc-filters-injected-${manager === (element.tagName.toUpperCase() === 'VIDEO' ? stateManager.filterManagers.video : stateManager.filterManagers.image) ? 'video' : 'image'}`;
-        const svgNode = manager.getSvgNode();
-        const styleNode = manager.getStyleNode();
+        const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode();
         if (!svgNode || !styleNode) return;
-        if (ownerDoc !== document && ownerDoc.body && !ownerDoc.documentElement.hasAttribute(attr)) {
-            ownerDoc.body.appendChild(svgNode.cloneNode(true));
-            ownerDoc.head.appendChild(styleNode.cloneNode(true));
-            ownerDoc.documentElement.setAttribute(attr, 'true');
-        }
-        else if ((root instanceof ShadowRoot) && !root._vsc_filters_injected) {
-            try {
-                root.appendChild(styleNode.cloneNode(true));
-                root.appendChild(svgNode.cloneNode(true));
-                root._vsc_filters_injected = true;
-                if(root.host) root.host.setAttribute(attr, 'true');
-            } catch(e) {}
-        }
+        if (ownerDoc !== document && ownerDoc.body && !ownerDoc.documentElement.hasAttribute(attr)) { ownerDoc.body.appendChild(svgNode.cloneNode(true)); ownerDoc.head.appendChild(styleNode.cloneNode(true)); ownerDoc.documentElement.setAttribute(attr, 'true'); }
+        else if ((root instanceof ShadowRoot) && !root._vsc_filters_injected) { try { root.appendChild(styleNode.cloneNode(true)); root.appendChild(svgNode.cloneNode(true)); root._vsc_filters_injected = true; if (root.host) root.host.setAttribute(attr, 'true'); } catch (e) { } }
     }
 
     class LiveStreamPlugin extends Plugin {
         constructor() { super('LiveStream'); this.video = null; this.avgDelay = null; this.intervalId = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL; }
         init(stateManager) {
             super.init(stateManager);
-            this.subscribe('liveStream.isRunning', (isRunning) => { if(isRunning) this.start(); else this.stop(); });
+            this.subscribe('liveStream.isRunning', (isRunning) => { if (isRunning) this.start(); else this.stop(); });
             this.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge());
             this.subscribe('liveStream.resetRequested', () => { if (this.stateManager.get('liveStream.isRunning')) { this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; console.log('[VSC] Live stream delay meter reset.'); } });
             if (CONFIG.LIVE_STREAM_URLS.some(d => location.href.includes(d))) this.stateManager.set('liveStream.isRunning', true);
         }
         destroy() { super.destroy(); this.stop(); }
         switchInterval(newInterval) { if (this.currentInterval === newInterval) return; clearInterval(this.intervalId); this.currentInterval = newInterval; this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval); }
-        findVideo() { const visibleVideos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO' && m.dataset.isVisible === 'true'); if (visibleVideos.length === 0) return null; return visibleVideos.sort((a,b) => (b.clientWidth*b.clientHeight) - (a.clientWidth*a.clientHeight))[0]; }
-        calculateDelay(v) { if (!v) return null; if (typeof v.liveLatency === 'number' && v.liveLatency > 0) return v.liveLatency * 1000; if (v.buffered && v.buffered.length > 0) { try { const end = v.buffered.end(v.buffered.length-1); if (v.currentTime > end) return 0; return Math.max(0, (end - v.currentTime) * 1000); } catch { return null; } } return null; }
+        findVideo() { const visibleVideos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO' && m.dataset.isVisible === 'true'); if (visibleVideos.length === 0) return null; return visibleVideos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0]; }
+        calculateDelay(v) { if (!v) return null; if (typeof v.liveLatency === 'number' && v.liveLatency > 0) return v.liveLatency * 1000; if (v.buffered && v.buffered.length > 0) { try { const end = v.buffered.end(v.buffered.length - 1); if (v.currentTime > end) return 0; return Math.max(0, (end - v.currentTime) * 1000); } catch { return null; } } return null; }
         getSmoothPlaybackRate(currentDelay, targetDelay) { const error = currentDelay - targetDelay; this.pidIntegral += error; const derivative = error - this.lastError; this.lastError = error; let rateChange = CONFIG.AUTODELAY_PID_KP * error + CONFIG.AUTODELAY_PID_KI * this.pidIntegral + CONFIG.AUTODELAY_PID_KD * derivative; return Math.max(CONFIG.AUTODELAY_MIN_RATE, Math.min(1 + rateChange, CONFIG.AUTODELAY_MAX_RATE)); }
         checkAndAdjust() {
             this.video = this.findVideo();
             if (!this.video) return;
             const rawDelay = this.calculateDelay(this.video);
-            if (rawDelay === null) {
-                this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: null, rate: this.video.playbackRate });
-                return;
-            }
+            if (rawDelay === null) { this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: null, rate: this.video.playbackRate }); return; }
             this.avgDelay = this.avgDelay === null ? rawDelay : CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * this.avgDelay;
             this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: rawDelay, rate: this.video.playbackRate });
             const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY;
             const error = this.avgDelay - targetDelay;
             if (Math.abs(error) < CONFIG.AUTODELAY_STABLE_THRESHOLD) this.consecutiveStableChecks++;
-            else {
-                this.consecutiveStableChecks = 0;
-                if (this.isStable) { this.isStable = false; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_NORMAL); }
-            }
-            if (this.consecutiveStableChecks >= CONFIG.AUTODELAY_STABLE_COUNT && !this.isStable) {
-                this.isStable = true; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_STABLE);
-            }
+            else { this.consecutiveStableChecks = 0; if (this.isStable) { this.isStable = false; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_NORMAL); } }
+            if (this.consecutiveStableChecks >= CONFIG.AUTODELAY_STABLE_COUNT && !this.isStable) { this.isStable = true; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_STABLE); }
+
             let newRate;
-            if (this.avgDelay !== null && this.avgDelay <= targetDelay) {
+            const bufferHealth = (this.video.buffered && this.video.buffered.length) ? (this.video.buffered.end(this.video.buffered.length - 1) - this.video.currentTime) : 10;
+            if ((this.avgDelay !== null && this.avgDelay <= targetDelay) || bufferHealth < CONFIG.MIN_BUFFER_HEALTH_SEC) {
                 newRate = 1.0; this.pidIntegral = 0; this.lastError = 0;
             } else {
                 newRate = this.getSmoothPlaybackRate(this.avgDelay, targetDelay);
             }
-            if (Math.abs(this.video.playbackRate - newRate) > 0.001) {
-                this.video.playbackRate = newRate;
-            }
+            if (Math.abs(this.video.playbackRate - newRate) > 0.001) { this.video.playbackRate = newRate; }
 
-            // [Visual Fix] 실시간 상태 표시 (번개 버튼 불빛)
             const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child');
-            if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) {
-                const isLiveNow = this.avgDelay !== null && this.avgDelay < (CONFIG.DEFAULT_TARGET_DELAY + 500);
-                liveJumpBtn.style.boxShadow = isLiveNow ? '0 0 8px 2px #ff0000' : '0 0 8px 2px #808080';
-            }
+            if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { const isLiveNow = this.avgDelay !== null && this.avgDelay < (CONFIG.DEFAULT_TARGET_DELAY + 500); liveJumpBtn.style.boxShadow = isLiveNow ? '0 0 8px 2px #ff0000' : '0 0 8px 2px #808080'; }
         }
         start() { if (this.intervalId) return; setTimeout(() => { this.stateManager.set('liveStream.delayInfo', { raw: null, avg: null, rate: 1.0 }); }, 0); this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval); }
         stop() {
             if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
-
-            // [Visual Fix] 불빛 끄기
             const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child');
-            if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) {
-                liveJumpBtn.style.boxShadow = '';
-            }
-
+            if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { liveJumpBtn.style.boxShadow = ''; }
             this.stateManager.set('liveStream.delayInfo', null);
-            this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0;
-            this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL;
+            this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL;
         }
         seekToLiveEdge() { const videos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO'); if (videos.length === 0) return; const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY; videos.forEach(v => { try { const seekableEnd = (v.seekable && v.seekable.length > 0) ? v.seekable.end(v.seekable.length - 1) : Infinity; const bufferedEnd = (v.buffered && v.buffered.length > 0) ? v.buffered.end(v.buffered.length - 1) : 0; const liveEdge = Math.min(seekableEnd, bufferedEnd); if (!isFinite(liveEdge)) return; const delayMs = (liveEdge - v.currentTime) * 1000; if (delayMs <= targetDelay) return; if (!v._lastLiveJump) v._lastLiveJump = 0; if (Date.now() - v._lastLiveJump < CONFIG.LIVE_JUMP_INTERVAL) return; if (liveEdge - v.currentTime < CONFIG.LIVE_JUMP_END_THRESHOLD) return; v._lastLiveJump = Date.now(); v.currentTime = liveEdge - 0.5; if (v.paused) v.play().catch(console.warn); } catch (e) { console.error('[VSC] seekToLiveEdge error:', e); } }); }
     }
@@ -402,62 +453,113 @@
         constructor() { super('MediaSession'); }
         init(stateManager) { super.init(stateManager); this.subscribe('media.activeMedia', () => this.updateSession()); }
         updateSession() { if (!('mediaSession' in navigator)) return; const activeMedia = Array.from(this.stateManager.get('media.activeMedia')).find(m => !m.paused); if (activeMedia) this.setSession(activeMedia); else this.clearSession(); }
-        getMeta() { const rule = CONFIG.SITE_METADATA_RULES[location.hostname]; const getText = sels => { if(!Array.isArray(sels)) return null; for (const sel of sels) { const el = document.querySelector(sel); if (el) return el.textContent.trim(); } return null; }; if (rule) return { title: getText(rule.title) || document.title, artist: getText(rule.artist) || location.hostname }; return { title: document.title, artist: location.hostname }; }
+        getMeta() { const rule = CONFIG.SITE_METADATA_RULES[location.hostname]; const getText = sels => { if (!Array.isArray(sels)) return null; for (const sel of sels) { const el = document.querySelector(sel); if (el) return el.textContent.trim(); } return null; }; if (rule) return { title: getText(rule.title) || document.title, artist: getText(rule.artist) || location.hostname }; return { title: document.title, artist: location.hostname }; }
         setSession(m) { safeExec(() => { const { title, artist } = this.getMeta(); navigator.mediaSession.metadata = new window.MediaMetadata({ title, artist, album: 'Video_Image_Control' }); const setAction = (act, h) => { try { navigator.mediaSession.setActionHandler(act, h); } catch (e) { } }; const seekTime = (!m || !isFinite(m.duration)) ? 10 : Math.min(Math.floor(m.duration * CONFIG.SEEK_TIME_PERCENT), CONFIG.SEEK_TIME_MAX_SEC); setAction('play', () => m.play()); setAction('pause', () => m.pause()); setAction('seekbackward', () => { m.currentTime -= seekTime; }); setAction('seekforward', () => { m.currentTime += seekTime; }); }, 'MediaSession.set'); }
-        clearSession() { safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward'].forEach(a => { try { navigator.mediaSession.setActionHandler(a, null); } catch(e){} }); }, 'MediaSession.clear'); }
+        clearSession() { safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward'].forEach(a => { try { navigator.mediaSession.setActionHandler(a, null); } catch (e) { } }); }, 'MediaSession.clear'); }
     }
 
     class NavigationPlugin extends Plugin {
-        constructor(pluginManager) { super('Navigation'); this.pluginManager = pluginManager; this.spaNavigationHandler = debounce(this.handleNavigation.bind(this), 500); }
-        init(stateManager) { super.init(stateManager); this.hookSpaNavigation(); }
-        handleNavigation() { if (location.href === this.stateManager.get('ui.lastUrl')) return; this.pluginManager.destroyAll(); setTimeout(() => { this.pluginManager.initAll(); }, 100); }
-        hookSpaNavigation() { if (!window.vscPatchedHistory) { ['pushState', 'replaceState'].forEach(method => { const original = history[method]; if (original) { history[method] = function (...args) { const result = original.apply(this, args); window.dispatchEvent(new Event(`vsc:${method}`)); return result; }; } }); window.vscPatchedHistory = true; } window.addEventListener('popstate', this.spaNavigationHandler); window.addEventListener('vsc:pushState', this.spaNavigationHandler); window.addEventListener('vsc:replaceState', this.spaNavigationHandler); }
+        constructor(pluginManager) { super('Navigation'); this.pluginManager = pluginManager; this.spaNavigationHandler = debounce(this.handleNavigation.bind(this), 500); this.urlCheckInterval = null; }
+        init(stateManager) {
+            super.init(stateManager);
+            // [FIX] URL Polling: The most reliable way for SPA like Chzzk
+            if(this.urlCheckInterval) clearInterval(this.urlCheckInterval);
+            this.urlCheckInterval = setInterval(() => {
+                const currentUrl = location.href;
+                const lastUrl = this.stateManager.get('ui.lastUrl');
+                if (currentUrl !== lastUrl) {
+                    this.handleNavigation();
+                }
+            }, 500);
+        }
+        destroy() {
+            super.destroy();
+            if(this.urlCheckInterval) clearInterval(this.urlCheckInterval);
+        }
+        handleNavigation() {
+            this.stateManager.set('ui.lastUrl', location.href);
+            // [FIX] Soft Reset: Don't destroy observers, just force re-scan
+            console.log('[VSC] SPA Navigation Detected. Soft Resetting...');
+
+            // 1. Clear media tracking
+            this.stateManager.get('media.activeMedia').clear();
+
+            // 2. Force Scan immediately and repeatedly
+            const corePlugin = this.pluginManager.plugins.find(p => p.name === 'CoreMediaPlugin');
+            if (corePlugin) {
+                corePlugin.scanAndApply();
+                // Retry sequence for slow loading video (React/Vue)
+                [500, 1000, 2000, 3000, 5000].forEach(delay => {
+                    setTimeout(() => corePlugin.scanAndApply(), delay);
+                });
+            }
+        }
     }
 
     class UIPlugin extends Plugin {
         constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.fadeOutTimer = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.delayMeterEl = null; this.speedButtons = []; this.uiElements = {}; this.modalHost = null; this.modalShadowRoot = null; }
-        init(stateManager) { super.init(stateManager); this.subscribe('ui.createRequested', () => { if (!this.globalContainer) { this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); } }); this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible)); this.subscribe('media.activeMedia', () => this.updateUIVisibility()); this.subscribe('media.activeImages', () => this.updateUIVisibility()); this.subscribe('playback.currentRate', rate => this.updateActiveSpeedButton(rate)); this.subscribe('liveStream.delayInfo', info => this.updateDelayMeter(info)); this.subscribe('ui.warningMessage', msg => this.showWarningMessage(msg)); this.subscribe('ui.areControlsVisible', () => this.updateDelayMeterVisibility()); this.updateDelayMeter(this.stateManager.get('liveStream.delayInfo')); const vscMessage = sessionStorage.getItem('vsc_message'); if (vscMessage) { this.showWarningMessage(vscMessage); sessionStorage.removeItem('vsc_message'); } document.addEventListener('fullscreenchange', () => { const fullscreenRoot = document.fullscreenElement || document.body; if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) { fullscreenRoot.appendChild(this.globalContainer); } }); }
+        init(stateManager) {
+            super.init(stateManager);
+            this.subscribe('ui.createRequested', () => { if (!this.globalContainer) { this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); } });
+            this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
+            this.subscribe('media.activeMedia', () => this.updateUIVisibility());
+            this.subscribe('media.activeImages', () => this.updateUIVisibility());
+            this.subscribe('playback.currentRate', rate => this.updateActiveSpeedButton(rate));
+            this.subscribe('liveStream.delayInfo', info => this.updateDelayMeter(info));
+            this.subscribe('ui.warningMessage', msg => this.showWarningMessage(msg));
+            this.subscribe('ui.areControlsVisible', () => this.updateDelayMeterVisibility());
+            this.updateDelayMeter(this.stateManager.get('liveStream.delayInfo'));
+            const vscMessage = sessionStorage.getItem('vsc_message'); if (vscMessage) { this.showWarningMessage(vscMessage); sessionStorage.removeItem('vsc_message'); }
+            document.addEventListener('fullscreenchange', () => { const fullscreenRoot = document.fullscreenElement || document.body; if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) { fullscreenRoot.appendChild(this.globalContainer); } });
+        }
         destroy() { super.destroy(); if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; } if (this.modalHost) { this.modalHost.remove(); this.modalHost = null; } if (this.delayMeterEl) { this.delayMeterEl.remove(); this.delayMeterEl = null; } }
-        showWarningMessage(message) { if (!message) return; let warningEl = document.getElementById('vsc-warning-bar'); if (warningEl) { warningEl.querySelector('span').textContent = message; warningEl.style.opacity = '1'; if (warningEl.hideTimeout) clearTimeout(warningEl.hideTimeout); } else { warningEl = document.createElement('div'); warningEl.id = 'vsc-warning-bar'; Object.assign(warningEl.style, { position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(30, 30, 30, 0.9)', color: 'white', padding: '12px 20px', borderRadius: '8px', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'center', gap: '15px', fontSize: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', opacity: '0', transition: 'opacity 0.5s ease-in-out', maxWidth: '90%', }); const messageSpan = document.createElement('span'); messageSpan.textContent = message; const closeBtn = document.createElement('button'); Object.assign(closeBtn.style, { background: 'none', border: 'none', color: '#aaa', fontSize: '20px', cursor: 'pointer', lineHeight: '1', padding: '0' }); closeBtn.textContent = '×'; closeBtn.onclick = () => warningEl.style.opacity = '0'; warningEl.append(messageSpan, closeBtn); document.body.appendChild(warningEl); setTimeout(() => (warningEl.style.opacity = '1'), 100); } warningEl.hideTimeout = setTimeout(() => { warningEl.style.opacity = '0'; }, CONFIG.UI_WARN_TIMEOUT); }
+        showWarningMessage(message) {
+            if (!message) return; let warningEl = document.getElementById('vsc-warning-bar');
+            if (warningEl) { warningEl.querySelector('span').textContent = message; warningEl.style.opacity = '1'; if (warningEl.hideTimeout) clearTimeout(warningEl.hideTimeout); }
+            else {
+                warningEl = document.createElement('div'); warningEl.id = 'vsc-warning-bar';
+                Object.assign(warningEl.style, { position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(30, 30, 30, 0.9)', color: 'white', padding: '12px 20px', borderRadius: '8px', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'center', gap: '15px', fontSize: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', opacity: '0', transition: 'opacity 0.5s ease-in-out', maxWidth: '90%', });
+                const messageSpan = document.createElement('span'); messageSpan.textContent = message; const closeBtn = document.createElement('button'); Object.assign(closeBtn.style, { background: 'none', border: 'none', color: '#aaa', fontSize: '20px', cursor: 'pointer', lineHeight: '1', padding: '0' }); closeBtn.textContent = '×'; closeBtn.onclick = () => warningEl.style.opacity = '0'; warningEl.append(messageSpan, closeBtn); document.body.appendChild(warningEl); setTimeout(() => (warningEl.style.opacity = '1'), 100);
+            }
+            warningEl.hideTimeout = setTimeout(() => { warningEl.style.opacity = '0'; }, CONFIG.UI_WARN_TIMEOUT);
+        }
         updateDelayMeterVisibility() { if (this.delayMeterEl) { const controlsVisible = this.stateManager.get('ui.areControlsVisible'); this.delayMeterEl.style.display = controlsVisible ? 'flex' : 'none'; } }
-        updateDelayMeter(info) { if (!info && this.delayMeterEl) { this.delayMeterEl.remove(); this.delayMeterEl = null; return; } if (info && !this.delayMeterEl && document.body) { this.delayMeterEl = document.createElement('div'); Object.assign(this.delayMeterEl.style, { position: 'fixed', bottom: '100px', right: '10px', zIndex: CONFIG.MAX_Z_INDEX - 1, background: 'rgba(0,0,0,.7)', color: '#fff', padding: '5px 10px', borderRadius: '5px', fontFamily: 'monospace', fontSize: '10pt', pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }); const textSpan = document.createElement('span'); const refreshBtn = document.createElement('button'); refreshBtn.textContent = '🔄'; refreshBtn.title = '딜레이 측정 초기화'; Object.assign(refreshBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' }); refreshBtn.onclick = () => { this.stateManager.set('liveStream.resetRequested', Date.now()); if (textSpan) { textSpan.textContent = '딜레이 리셋 중...'; } }; const closeBtn = document.createElement('button'); closeBtn.textContent = '✖'; closeBtn.title = '닫기'; Object.assign(closeBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' }); closeBtn.onclick = () => { this.stateManager.set('liveStream.isRunning', false); }; this.delayMeterEl.append(textSpan, refreshBtn, closeBtn); document.body.appendChild(this.delayMeterEl); this.updateDelayMeterVisibility(); } if (this.delayMeterEl) { const textSpan = this.delayMeterEl.querySelector('span'); if (textSpan) { if (info.raw === null && info.avg === null) { textSpan.textContent = '딜레이 측정 중...'; } else { textSpan.textContent = `딜레이: ${info.avg?.toFixed(0) || 'N/A'}ms / 현재: ${info.raw?.toFixed(0) || 'N/A'}ms / 배속: ${info.rate?.toFixed(3) || 'N/A'}x`; } } } }
+        updateDelayMeter(info) {
+            if (!info && this.delayMeterEl) { this.delayMeterEl.remove(); this.delayMeterEl = null; return; }
+            if (info && !this.delayMeterEl && document.body) {
+                this.delayMeterEl = document.createElement('div');
+                Object.assign(this.delayMeterEl.style, { position: 'fixed', bottom: '100px', right: '10px', zIndex: CONFIG.MAX_Z_INDEX - 1, background: 'rgba(0,0,0,.7)', color: '#fff', padding: '5px 10px', borderRadius: '5px', fontFamily: 'monospace', fontSize: '10pt', pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: '10px' });
+                const textSpan = document.createElement('span'); const refreshBtn = document.createElement('button'); refreshBtn.textContent = '🔄'; refreshBtn.title = '딜레이 측정 초기화'; Object.assign(refreshBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' }); refreshBtn.onclick = () => { this.stateManager.set('liveStream.resetRequested', Date.now()); if (textSpan) { textSpan.textContent = '딜레이 리셋 중...'; } }; const closeBtn = document.createElement('button'); closeBtn.textContent = '✖'; closeBtn.title = '닫기'; Object.assign(closeBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' }); closeBtn.onclick = () => { this.stateManager.set('liveStream.isRunning', false); }; this.delayMeterEl.append(textSpan, refreshBtn, closeBtn); document.body.appendChild(this.delayMeterEl); this.updateDelayMeterVisibility();
+            }
+            if (this.delayMeterEl) { const textSpan = this.delayMeterEl.querySelector('span'); if (textSpan) { if (info.raw === null && info.avg === null) { textSpan.textContent = '딜레이 측정 중...'; } else { textSpan.textContent = `딜레이: ${info.avg?.toFixed(0) || 'N/A'}ms / 현재: ${info.raw?.toFixed(0) || 'N/A'}ms / 배속: ${info.rate?.toFixed(3) || 'N/A'}x`; } } }
+        }
         resetFadeTimer() { const container = this.uiElements.mainContainer; if (container) { clearTimeout(this.fadeOutTimer); container.style.opacity = '1'; } }
         startFadeSequence() { const container = this.uiElements.mainContainer; if (container) { container.querySelectorAll('.vsc-control-group.submenu-visible').forEach(g => g.classList.remove('submenu-visible')); container.style.opacity = '0.3'; } }
         createGlobalUI() {
             const isMobile = this.stateManager.get('app.isMobile');
             this.globalContainer = document.createElement('div');
-            this.globalContainer.style.setProperty('--vsc-translate-x', '0px');
-            this.globalContainer.style.setProperty('--vsc-translate-y', '0px');
+            this.globalContainer.style.setProperty('--vsc-translate-x', '0px'); this.globalContainer.style.setProperty('--vsc-translate-y', '0px');
             Object.assign(this.globalContainer.style, { position: 'fixed', top: '50%', right: '1vmin', transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-start', gap: '5px', WebkitTapHighlightColor: 'transparent' });
             this.mainControlsContainer = document.createElement('div');
             Object.assign(this.mainControlsContainer.style, { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' });
-            this.triggerElement = document.createElement('div');
-            this.triggerElement.textContent = '⚡';
+            this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡';
             Object.assign(this.triggerElement.style, { width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', userSelect: 'none', fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)', transition: 'box-shadow 0.3s ease-in-out, background-color 0.3s', order: '1', touchAction: 'none', });
             this.triggerElement.addEventListener('click', (e) => { if (this.wasDragged) { e.stopPropagation(); return; } if (!this.stateManager.get('app.scriptActive')) { this.stateManager.set('app.scriptActive', true); } const isVisible = this.stateManager.get('ui.areControlsVisible'); this.stateManager.set('ui.areControlsVisible', !isVisible); });
-            this.speedButtonsContainer = document.createElement('div');
-            this.speedButtonsContainer.id = 'vsc-speed-buttons-container';
-            this.speedButtonsContainer.style.cssText = `display:none; flex-direction:column; gap:5px; align-items:center; background: transparent; border-radius: 0px; padding: 0px;`;
-            this.attachDragAndDrop();
-            this.mainControlsContainer.appendChild(this.triggerElement);
-            this.globalContainer.appendChild(this.mainControlsContainer);
-            this.globalContainer.appendChild(this.speedButtonsContainer);
-            document.body.appendChild(this.globalContainer);
+            this.speedButtonsContainer = document.createElement('div'); this.speedButtonsContainer.id = 'vsc-speed-buttons-container'; this.speedButtonsContainer.style.cssText = `display:none; flex-direction:column; gap:5px; align-items:center; background: transparent; border-radius: 0px; padding: 0px;`;
+            this.attachDragAndDrop(); this.mainControlsContainer.appendChild(this.triggerElement); this.globalContainer.appendChild(this.mainControlsContainer); this.globalContainer.appendChild(this.speedButtonsContainer); document.body.appendChild(this.globalContainer);
         }
         onControlsVisibilityChange(isVisible) {
             if (!this.triggerElement) return;
             if (isVisible) {
-                this.triggerElement.textContent = '🛑';
-                this.triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
+                this.triggerElement.textContent = '🛑'; this.triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
                 const savedVideoSettings = this.stateManager.get('videoFilter.lastActiveSettings');
                 if (savedVideoSettings) { for (const key in savedVideoSettings) { this.stateManager.set(`videoFilter.${key}`, savedVideoSettings[key]); } this.stateManager.set('videoFilter.lastActiveSettings', null); }
                 const savedImageSettings = this.stateManager.get('imageFilter.lastActiveSettings');
                 if (savedImageSettings) { this.stateManager.set('imageFilter.level', savedImageSettings.level); this.stateManager.set('imageFilter.lastActiveSettings', null); }
             } else {
-                this.triggerElement.textContent = '⚡️';
-                this.triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                this.triggerElement.textContent = '⚡️'; this.triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                 const videoState = this.stateManager.get('videoFilter');
-                const videoSettingsToSave = { level: videoState.level, level2: videoState.level2, gamma: videoState.gamma, blur: videoState.blur, shadows: videoState.shadows, highlights: videoState.highlights, saturation: videoState.saturation, sharpenDirection: videoState.sharpenDirection, activePreset: videoState.activePreset };
+                const videoSettingsToSave = { level: videoState.level, level2: videoState.level2, gamma: videoState.gamma, blur: videoState.blur, shadows: videoState.shadows, highlights: videoState.highlights, saturation: videoState.saturation, colorTemp: videoState.colorTemp, dither: videoState.dither, sharpenDirection: videoState.sharpenDirection, activePreset: videoState.activePreset };
                 this.stateManager.set('videoFilter.lastActiveSettings', videoSettingsToSave);
                 const imageState = this.stateManager.get('imageFilter');
                 this.stateManager.set('imageFilter.lastActiveSettings', { level: imageState.level });
@@ -550,7 +652,19 @@
             this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); });
             const sharpenDirOptions = [{ value: '4-way', text: '4방향 (기본)' }, { value: '8-way', text: '8방향 (강함)' }];
             const sharpenDirSelect = this._createSelectControl('샤프 방향', sharpenDirOptions, 'videoFilter.sharpenDirection');
-            videoSubMenu.append(this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control, this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control, sharpenDirSelect, this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control, this._createSlider('밝기', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control, this._createSlider('대비', 'v-shadows', -100, 100, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control, this._createSlider('감마', 'v-gamma', 1, 4.00, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control, this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control, videoButtonsContainer);
+            videoSubMenu.append(
+                this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
+                this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
+                sharpenDirSelect,
+                this._createSlider('색온도', 'v-colortemp', -7, 5, 0.5, 'videoFilter.colorTemp', '', v => `${v.toFixed(1)}%`).control,
+                this._createSlider('디더링', 'v-dither', 0, 50, 5, 'videoFilter.dither', '', v => `${v.toFixed(0)}%`).control, // [Restored UI]
+                this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control,
+                this._createSlider('밝기', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
+                this._createSlider('대비', 'v-shadows', -100, 100, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control,
+                this._createSlider('감마', 'v-gamma', 1, 4.00, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
+                this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
+                videoButtonsContainer
+            );
             if (this.speedButtons.length === 0) { CONFIG.SPEED_PRESETS.forEach(speed => { const btn = document.createElement('button'); btn.textContent = `${speed.toFixed(1)}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn'; Object.assign(btn.style, { background: 'rgba(52, 152, 219, 0.7)', color: 'white', width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)', padding: '0', transition: 'background-color 0.2s, box-shadow 0.2s' }); btn.onclick = () => this.stateManager.set('playback.targetRate', speed); this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn); }); const isLiveJumpSite = CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname === d || location.hostname.endsWith('.' + d)); if (isLiveJumpSite) { const liveJumpBtn = document.createElement('button'); liveJumpBtn.textContent = '⚡'; liveJumpBtn.title = '실시간으로 이동'; liveJumpBtn.className = 'vsc-btn'; Object.assign(liveJumpBtn.style, { width: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', height: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', fontSize: this.stateManager.get('app.isMobile') ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)', borderRadius: '50%', padding: '0', transition: 'box-shadow 0.3s' }); liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now()); this.speedButtonsContainer.appendChild(liveJumpBtn); } }
             mainContainer.appendChild(controlsContainer); this.shadowRoot.appendChild(mainContainer); this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
         }
