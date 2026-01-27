@@ -688,7 +688,7 @@
                 this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 20, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
                 this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 20, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
                 sharpenDirSelect,
-                this._createSlider('색온도', 'v-colortemp', -7, 5, 0.5, 'videoFilter.colorTemp', '', v => `${v.toFixed(1)}%`).control,
+                this._createSlider('색온도', 'v-colortemp', -10, 10, 0.5, 'videoFilter.colorTemp', '', v => `${v.toFixed(1)}%`).control,
                 this._createSlider('디더링', 'v-dither', 0, 50, 5, 'videoFilter.dither', '', v => `${v.toFixed(0)}%`).control, // [Restored UI]
                 this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control,
                 this._createSlider('밝기', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
