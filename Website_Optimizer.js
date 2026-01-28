@@ -50,8 +50,8 @@
         noRender: [
             // 채팅창 레이어 깨짐 방지
             'twitch.tv',
-            // 게시판 레이아웃 보호
-            'dcinside.com', 'tv.naver.com',
+            // 사이트 레이아웃 보호
+            'dcinside.com', 'tv.naver.com', 'tvwiki5.net',
         ]
     };
 
