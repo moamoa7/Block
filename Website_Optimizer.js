@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Web 성능 종합 최적화 도구상자 (v11.1.0 Full Dashboard)
+// @name         Web 성능 종합 최적화 도구상자 (v12.1.0 Reliability First)
 // @namespace    http://tampermonkey.net/
-// @version      11.1.0-KR-FullDashboard
-// @description  모든 기능(이미지/프리패치 등) 상태 인디케이터 복구; 화이트리스트 절전; 메모리 청소
+// @version      12.1.0-KR-ReliabilityFirst
+// @description  트위치/치지직 등 채팅창 호환성 강화(noRender 고정); CDN 프리커넥트; 화이트리스트 절전
 // @author       KiwiFruit (Architected by AI)
 // @match        *://*/*
 // @exclude      *://weibo.com/*
@@ -16,7 +16,7 @@
     'use strict';
 
     // ========================
-    // 1. 도메인 리스트 (화이트리스트)
+    // 1. 도메인 리스트 (화이트리스트 - 사용자 정의)
     // ========================
     const SiteLists = {
         // [1] 백그라운드 절전 제외 (영상/AI 답변 끊김 방지) (미디어 정지 안 함 & 절전 안 함)
@@ -50,8 +50,8 @@
         noRender: [
             // 채팅창 레이어 깨짐 방지
             'twitch.tv',
-            // 사이트 레이아웃 보호
-            'dcinside.com', 'tv.naver.com', 'tvwiki5.net',
+            // 게시판 레이아웃 보호
+            'dcinside.com', 'tv.naver.com',
         ]
     };
 
@@ -77,7 +77,6 @@
             cleanedCount: 0,
             disabledModules: new Set(),
             history: [],
-            // [UI 표시용 상태 플래그]
             isThrottleActive: false
         },
 
@@ -122,10 +121,13 @@
         memory: {
             enabled: true,
             interval: 30000,
-            maxChildren: 1000,
-            keepCount: 500,
+            maxChildren: 1000, keepCount: 500,
             targetSelector: 'ul, ol, div[class*="chat"], div[class*="list"], div[class*="log"], div[class*="comment"]',
             activeTimeout: 60000
+        },
+        preconnect: {
+            enabled: true,
+            domains: ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'ajax.googleapis.com']
         },
         scheduler: { deadline: 10, maxTasksPerTick: 15 },
         lazyLoad: { enabled: true, selector: 'img[data-src], img.lazy', preloadDistance: 150 },
@@ -151,6 +153,25 @@
             }
         }
         init() {}
+    }
+
+    class PreconnectOptimizer extends BaseModule {
+        constructor() { super('PreconnectOptimizer'); }
+        init() {
+            if (!Config.preconnect.enabled) return;
+            Config.preconnect.domains.forEach(domain => {
+                const link = document.createElement('link');
+                link.rel = 'preconnect';
+                link.href = `https://${domain}`;
+                link.crossOrigin = 'anonymous';
+                document.head.appendChild(link);
+
+                const dns = document.createElement('link');
+                dns.rel = 'dns-prefetch';
+                dns.href = `https://${domain}`;
+                document.head.appendChild(dns);
+            });
+        }
     }
 
     class MemoryGuardian extends BaseModule {
@@ -259,12 +280,26 @@
     class GPUAccelerator extends BaseModule {
         init() {
             if (Env.isNoRender || !Config.hardwareAcceleration.enabled || Env.state.isLowEnd) return;
+
             const apply = (el) => {
-                if (!el.classList.contains('gpu-acc') && !el.closest('.streaming')) {
-                    el.classList.add('gpu-acc');
-                    el.style.transform = 'translateZ(0)';
+                if (el.classList.contains('gpu-acc') || el.closest('.streaming')) return;
+
+                // [v12.0] 초기 로딩 덜컹거림 방지 (3초 지연)
+                if (Config.hardwareAcceleration.skipViewportElements) {
+                    const rect = el.getBoundingClientRect();
+                    if (rect.top < window.innerHeight && rect.bottom > 0) {
+                        setTimeout(() => {
+                            el.classList.add('gpu-acc');
+                            el.style.transform = 'translateZ(0)';
+                        }, 3000);
+                        return;
+                    }
                 }
+
+                el.classList.add('gpu-acc');
+                el.style.transform = 'translateZ(0)';
             };
+
             const scan = (nodes) => {
                 nodes.forEach(n => {
                     if (n.nodeType === 1) {
@@ -287,13 +322,20 @@
             if (Env.isNoRender || !Config.contentVisibility.enabled) return;
             const buffer = Config.contentVisibility.hiddenDistance;
             const vh = window.innerHeight;
+
             const update = (nodes) => {
                 const candidates = [...nodes].filter(el => {
                     if (el.dataset.poCv) return false;
                     if (el.closest(Config.contentVisibility.excludeSelectors)) return false;
-                    if (el.querySelector('canvas, video, iframe, [role="img"]')) return false;
+
+                    // [v12.0] Canvas/WebGPU 자동 보호
+                    if (el.tagName === 'CANVAS' || el.querySelector('canvas')) return false;
+                    if (el.getAttribute('data-webgpu') || el.querySelector('[data-webgpu]')) return false;
+
+                    if (el.querySelector('video, iframe, [role="img"]')) return false;
                     return true;
                 });
+
                 candidates.forEach(el => {
                     const rect = el.getBoundingClientRect();
                     if (rect.bottom < -buffer || rect.top > vh + buffer) {
@@ -303,17 +345,20 @@
                     }
                 });
             };
+
             const scan = (nodes) => {
                 nodes.forEach(n => {
                     if (n.nodeType === 1) update(n.querySelectorAll(Config.contentVisibility.selector));
                 });
             };
             scan([document.body]);
+
             new MutationObserver((mutations) => {
                 if (window.requestIdleCallback) window.requestIdleCallback(() => {
                     for (const m of mutations) if (m.addedNodes.length) scan(m.addedNodes);
                 });
             }).observe(document.body, { childList: true, subtree: true });
+
             let ticking = false;
             window.addEventListener('scroll', () => {
                 if(!ticking) {
@@ -421,7 +466,7 @@
     }
 
     // ========================
-    // 4. UI 컨트롤러 (인디케이터 복구됨)
+    // 4. UI 컨트롤러
     // ========================
     class UIController extends BaseModule {
         constructor() { super('UIController'); this.visible = false; this.button = null; this.panel = null; this.monitor = null; this.animFrameId = null; }
@@ -469,7 +514,7 @@
 
             this.panel = this.el('div', 'perf-panel');
             this.panel.style.display = 'none';
-            this.panel.appendChild(this.el('div', 'perf-title', '🚀 Full Dashboard (v11.1)'));
+            this.panel.appendChild(this.el('div', 'perf-title', '🚀 Ultimate Core (v12.1)'));
 
             const sec1 = this.el('div', 'perf-section', '');
             sec1.style.background = '#f8f9fa'; sec1.style.padding = '10px'; sec1.style.borderRadius = '8px'; sec1.style.marginBottom = '15px';
@@ -498,7 +543,6 @@
             addMetric('LCP (최대 로딩)', 'ui-lcp');
             addMetric('CLS (화면 밀림)', 'ui-cls');
 
-            // [UI 복구] 모듈 상태 인디케이터 부활
             const r4 = this.el('div', 'perf-row');
             r4.style.marginTop = '15px';
             r4.appendChild(this.el('b', '', '모듈 상태'));
@@ -513,7 +557,7 @@
                 else if (isOn) dotClass = 'on';
 
                 const d = this.el('div', `perf-status-dot ${dotClass}`);
-                if (dynamicId) d.id = dynamicId; // 동적 상태 변경용
+                if (dynamicId) d.id = dynamicId;
                 r.appendChild(d);
                 this.panel.appendChild(r);
             };
@@ -522,6 +566,7 @@
             addMod('🖼️ 이미지 지연', !Env.isNoRender, 'ImageOptimizer');
             addMod('👁️ 렌더링/GPU', !Env.isNoRender, 'GPUAccelerator');
             addMod('🔗 스마트 프리패치', true, 'LinkPrefetcher', 'ui-dot-link');
+            addMod('🔌 CDN 프리커넥트', Config.preconnect.enabled, 'PreconnectOptimizer');
             addMod('💤 백그라운드 절전', !Env.isNoThrottle, 'BackgroundThrottler', 'ui-dot-throttle');
 
             const rMem = this.el('div', 'perf-row');
@@ -549,7 +594,7 @@
             this.logContainer = this.el('div', 'perf-log-box', '');
             this.panel.appendChild(this.logContainer);
 
-            const footer = this.el('div', 'perf-row', 'Ver 11.1.0-KR-FullDashboard');
+            const footer = this.el('div', 'perf-row', 'Ver 12.1.0-KR-ReliabilityFirst');
             footer.style.marginTop = '10px'; footer.style.fontSize = '10px'; footer.style.color = '#999';
             this.panel.appendChild(footer);
             document.body.appendChild(this.panel);
@@ -592,7 +637,6 @@
             else if (Env.state.isSlowNetwork) this.uiDecision.style.color = '#ffc107';
             else this.uiDecision.style.color = '#28a745';
 
-            // 동적 상태 인디케이터 업데이트
             const linkDot = document.getElementById('ui-dot-link');
             if (linkDot) {
                 if (Env.state.isOverloaded || Env.state.isSlowNetwork) linkDot.className = 'perf-status-dot off';
@@ -600,7 +644,6 @@
             }
             const throttleDot = document.getElementById('ui-dot-throttle');
             if (throttleDot) {
-                // 절전이 실제로 '활성화(Throttle Active)' 상태면 초록색(on)으로 표시
                 throttleDot.className = Env.state.isThrottleActive ? 'perf-status-dot on' : 'perf-status-dot off';
             }
 
@@ -632,6 +675,7 @@
                 gpu: new GPUAccelerator('GPUAccelerator'),
                 vis: new ContentVisibility('ContentVisibility'),
                 link: new LinkPrefetcher('LinkPrefetcher'),
+                precon: new PreconnectOptimizer('PreconnectOptimizer'),
                 throttle: new BackgroundThrottler('BackgroundThrottler'),
                 monitor: new PerformanceMonitor('PerformanceMonitor'),
                 ui: new UIController('UIController')
