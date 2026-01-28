@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260126
+! Version: 20260128
 !
 !
 !
@@ -154,6 +154,7 @@ www.youtube.com#@#ytd-item-section-renderer.ytd-watch-next-secondary-results-ren
 ! - - - 실시간 영상 오른쪽 채팅창 안보이는거 해제 (Cosmetic Combined Filterlist )
 youtube.com#@##chat
 www.youtube.com#@##chat:remove()
+
 !
 !
 ! wikipedia.org
@@ -254,6 +255,8 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 @@||smartstore.naver.com^$stealth
 ! - 차단 목록 해제 (Adblock-Rule-Collection-Lite) - 네어버 상품 검색 후 클릭시 정보 안나옴 해결
 @@||*$removeparam=NaPm,from=msearch.shopping.naver.com|search.shopping.naver.com
+! - -  광고 배너 안보이는거 해결 (kr: List-KR)
+||ssl.pstatic.net/tveta/libs/$badfilter
 !
 !
 ! 네이버 카페 (https://cafe.naver.com/)
@@ -5216,6 +5219,9 @@ point.pay.naver.com#@#a[href]:has(img[src*="/ad/"])
 ![$domain=/^redgirl\d+.org/]##img[src*="/data/editor/"]
 ![$domain=/^redgirl\d+.org/]##[onclick] img[src*="/data/editor/"]
 ##[onclick]:has(img[src*="/data/editor/"])
+! - - - 예외 (web.humoruniv.com- 이미지 클릭시 안나옴
+web.humoruniv.com#@#[onclick]:has(img[src*="/data/editor/"])
+
 
 
 
