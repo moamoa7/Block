@@ -22,7 +22,7 @@
         // [1] 백그라운드 절전 제외 (영상/AI 답변 끊김 방지) (미디어 정지 안 함 & 절전 안 함)
         noThrottling: [
             // 📡 실시간 방송 / 라이브 스트리밍
-            'youtube.com', 'twitch.tv', 'sooplive.co.kr', 'chzzk.naver.com', 'tv.kakao.com',
+            'youtube.com', 'twitch.tv', 'sooplive.co.kr', 'chzzk.naver.com', 'tv.naver.com', 'tv.kakao.com', 'pandalive.co.kr',
 
             // 🎬 OTT / 동영상 플랫폼
             'netflix.com', 'tving.com', 'wavve.com', 'coupangplay.com', 'disneyplus.com', 'watcha.com',
@@ -51,7 +51,7 @@
             // 채팅창 레이어 깨짐 방지
             'twitch.tv',
             // 게시판 레이아웃 보호
-            'dcinside.com',
+            'dcinside.com', 'tv.naver.com',
         ]
     };
 
