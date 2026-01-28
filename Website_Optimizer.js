@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Web 성능 종합 최적화 도구상자 (v12.1.0 Reliability First)
+// @name         Web 성능 종합 최적화 도구상자 (v13.0.0 PerformanceX)
 // @namespace    http://tampermonkey.net/
-// @version      12.1.0-KR-ReliabilityFirst
-// @description  트위치/치지직 등 채팅창 호환성 강화(noRender 고정); CDN 프리커넥트; 화이트리스트 절전
+// @version      13.0.0-KR-PerformanceX
+// @description  H.264 코덱 강제(저사양 가속); 트위치/치지직 채팅창 보호; 메모리 누수 방지
 // @author       KiwiFruit (Architected by AI)
 // @match        *://*/*
 // @exclude      *://weibo.com/*
@@ -16,7 +16,7 @@
     'use strict';
 
     // ========================
-    // 1. 도메인 리스트 (화이트리스트 - 사용자 정의)
+    // 1. 도메인 리스트
     // ========================
     const SiteLists = {
         // [1] 백그라운드 절전 제외 (영상/AI 답변 끊김 방지) (미디어 정지 안 함 & 절전 안 함)
@@ -50,13 +50,13 @@
         noRender: [
             // 채팅창 레이어 깨짐 방지
             'twitch.tv',
-            // 게시판 레이아웃 보호
-            'dcinside.com', 'tv.naver.com',
+            // 사이트 레이아웃 깨짐 방지
+            'youtube.com', 'dcinside.com', 'tv.naver.com',
         ]
     };
 
     // ========================
-    // 2. 환경 및 상태 엔진
+    // 2. 환경 엔진
     // ========================
     const Env = {
         features: {
@@ -66,12 +66,14 @@
             performanceObserver: 'PerformanceObserver' in window,
             requestIdleCallback: 'requestIdleCallback' in window,
             contentVisibility: CSS.supports('content-visibility', 'hidden'),
-            webgpu: typeof GPU !== 'undefined' && !!navigator.gpu
+            webgpu: typeof GPU !== 'undefined' && !!navigator.gpu,
+            mediaSource: 'MediaSource' in window
         },
         state: {
             isOverloaded: false,
             longTaskCount: 0,
-            isLowEnd: navigator.hardwareConcurrency <= 4,
+            // [판단 기준] 코어가 4개 이하거나, 기기 메모리(RAM)가 4GB 이하면 저사양으로 간주
+            isLowEnd: navigator.hardwareConcurrency <= 4 || (navigator.deviceMemory && navigator.deviceMemory <= 4),
             isSlowNetwork: false,
             activeReason: '초기화 중',
             cleanedCount: 0,
@@ -129,6 +131,11 @@
             enabled: true,
             domains: ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'ajax.googleapis.com']
         },
+        // [New] 코덱 최적화 설정
+        codec: {
+            enabled: true,
+            forceH264: Env.state.isLowEnd // 저사양일 때만 기본 활성화 (원하면 true로 강제 가능)
+        },
         scheduler: { deadline: 10, maxTasksPerTick: 15 },
         lazyLoad: { enabled: true, selector: 'img[data-src], img.lazy', preloadDistance: 150 },
         reduceMotion: { enabled: true },
@@ -153,6 +160,35 @@
             }
         }
         init() {}
+    }
+
+    // [New] 코덱 최적화 모듈 (참고한 스크립트의 핵심 기능 이식)
+    class CodecOptimizer extends BaseModule {
+        constructor() { super('CodecOptimizer'); }
+
+        init() {
+            // 저사양 기기가 아니거나 설정이 꺼져있으면 작동 안 함
+            if (!Config.codec.enabled || !Config.codec.forceH264) return;
+            if (!Env.features.mediaSource) return;
+
+            const mse = window.MediaSource;
+            const originalIsTypeSupported = mse.isTypeSupported.bind(mse);
+
+            // MSE의 코덱 지원 여부 확인 함수를 후킹(Hijack)
+            mse.isTypeSupported = (type) => {
+                if (type === undefined) return '';
+                const lowerType = type.toLowerCase();
+
+                // VP9, AV1 코덱을 "지원하지 않음"으로 거짓말을 함
+                // 그러면 유튜브/트위치는 어쩔 수 없이 가벼운 H.264(avc1)를 보내줌
+                if (lowerType.includes('vp9') || lowerType.includes('vp09') || lowerType.includes('av01')) {
+                    return false;
+                }
+                return originalIsTypeSupported(type);
+            };
+
+            Env.log('🎥 H.264 코덱 강제 적용 (가속 최적화)');
+        }
     }
 
     class PreconnectOptimizer extends BaseModule {
@@ -283,8 +319,6 @@
 
             const apply = (el) => {
                 if (el.classList.contains('gpu-acc') || el.closest('.streaming')) return;
-
-                // [v12.0] 초기 로딩 덜컹거림 방지 (3초 지연)
                 if (Config.hardwareAcceleration.skipViewportElements) {
                     const rect = el.getBoundingClientRect();
                     if (rect.top < window.innerHeight && rect.bottom > 0) {
@@ -295,7 +329,6 @@
                         return;
                     }
                 }
-
                 el.classList.add('gpu-acc');
                 el.style.transform = 'translateZ(0)';
             };
@@ -327,11 +360,8 @@
                 const candidates = [...nodes].filter(el => {
                     if (el.dataset.poCv) return false;
                     if (el.closest(Config.contentVisibility.excludeSelectors)) return false;
-
-                    // [v12.0] Canvas/WebGPU 자동 보호
                     if (el.tagName === 'CANVAS' || el.querySelector('canvas')) return false;
                     if (el.getAttribute('data-webgpu') || el.querySelector('[data-webgpu]')) return false;
-
                     if (el.querySelector('video, iframe, [role="img"]')) return false;
                     return true;
                 });
@@ -514,7 +544,7 @@
 
             this.panel = this.el('div', 'perf-panel');
             this.panel.style.display = 'none';
-            this.panel.appendChild(this.el('div', 'perf-title', '🚀 Ultimate Core (v12.1)'));
+            this.panel.appendChild(this.el('div', 'perf-title', '🚀 PerformanceX (v13.0)'));
 
             const sec1 = this.el('div', 'perf-section', '');
             sec1.style.background = '#f8f9fa'; sec1.style.padding = '10px'; sec1.style.borderRadius = '8px'; sec1.style.marginBottom = '15px';
@@ -567,6 +597,7 @@
             addMod('👁️ 렌더링/GPU', !Env.isNoRender, 'GPUAccelerator');
             addMod('🔗 스마트 프리패치', true, 'LinkPrefetcher', 'ui-dot-link');
             addMod('🔌 CDN 프리커넥트', Config.preconnect.enabled, 'PreconnectOptimizer');
+            addMod('🎥 H.264 코덱강제', Config.codec.forceH264, 'CodecOptimizer'); // [New UI]
             addMod('💤 백그라운드 절전', !Env.isNoThrottle, 'BackgroundThrottler', 'ui-dot-throttle');
 
             const rMem = this.el('div', 'perf-row');
@@ -594,7 +625,7 @@
             this.logContainer = this.el('div', 'perf-log-box', '');
             this.panel.appendChild(this.logContainer);
 
-            const footer = this.el('div', 'perf-row', 'Ver 12.1.0-KR-ReliabilityFirst');
+            const footer = this.el('div', 'perf-row', 'Ver 13.0.0-KR-PerformanceX');
             footer.style.marginTop = '10px'; footer.style.fontSize = '10px'; footer.style.color = '#999';
             this.panel.appendChild(footer);
             document.body.appendChild(this.panel);
@@ -676,6 +707,7 @@
                 vis: new ContentVisibility('ContentVisibility'),
                 link: new LinkPrefetcher('LinkPrefetcher'),
                 precon: new PreconnectOptimizer('PreconnectOptimizer'),
+                codec: new CodecOptimizer('CodecOptimizer'), // [New]
                 throttle: new BackgroundThrottler('BackgroundThrottler'),
                 monitor: new PerformanceMonitor('PerformanceMonitor'),
                 ui: new UIController('UIController')
