@@ -5220,7 +5220,7 @@ point.pay.naver.com#@#a[href]:has(img[src*="/ad/"])
 ![$domain=/^redgirl\d+.org/]##[onclick] img[src*="/data/editor/"]
 ##[onclick]:has(img[src*="/data/editor/"])
 ! - - - 예외 (web.humoruniv.com- 이미지 클릭시 안나옴
-web.humoruniv.com#@#[onclick]:has(img[src*="/data/editor/"])
+humoruniv.com#@#[onclick]:has(img[src*="/data/editor/"])
 
 
 
