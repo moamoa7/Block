@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Web 성능 종합 최적화 도구상자 (v9.0.0 Control & Insight)
+// @name         Web 성능 종합 최적화 도구상자 (v11.1.0 Full Dashboard)
 // @namespace    http://tampermonkey.net/
-// @version      9.0.0-KR-ControlInsight
-// @description  백그라운드 미디어 자동 제어(광고 차단); 작동 로그(History) 시각화; 화이트리스트 기반
+// @version      11.1.0-KR-FullDashboard
+// @description  모든 기능(이미지/프리패치 등) 상태 인디케이터 복구; 화이트리스트 절전; 메모리 청소
 // @author       KiwiFruit (Architected by AI)
 // @match        *://*/*
 // @exclude      *://weibo.com/*
@@ -16,28 +16,45 @@
     'use strict';
 
     // ========================
-    // 1. 설정 및 도메인 리스트 (화이트리스트)
+    // 1. 도메인 리스트 (화이트리스트)
     // ========================
     const SiteLists = {
         // [1] 백그라운드 절전 제외 (영상/AI 답변 끊김 방지) (미디어 정지 안 함 & 절전 안 함)
         noThrottling: [
-            'youtube.com', 'twitch.tv', 'sooplive.co.kr', 'chzzk.naver.com',
-            'ok.ru', 'tv.kakao.com',
-            'netflix.com', 'tving.com', 'wavve.com', 'coupangplay.com',
-            'disneyplus.com', 'watcha.com',
+            // 📡 실시간 방송 / 라이브 스트리밍
+            'youtube.com', 'twitch.tv', 'sooplive.co.kr', 'chzzk.naver.com', 'tv.kakao.com',
+
+            // 🎬 OTT / 동영상 플랫폼
+            'netflix.com', 'tving.com', 'wavve.com', 'coupangplay.com', 'disneyplus.com', 'watcha.com',
+            'ok.ru',
+
+            // 🤖 AI 채팅 (실시간 답변 생성 중 끊김 방지)
             'gemini.google.com', 'chatgpt.com', 'claude.ai',
-            'music.youtube.com', 'spotify.com'
+
+            // 🎵 음악 스트리밍
+            'music.youtube.com', 'spotify.com',
         ],
-        // [2] 동작 줄이기 제외 (UI/프로필 화면 안 보임 방지) (애니메이션 유지)
+
+        // [2] 동작 줄이기 제외 (강제 애니메이션 제거 시 UI가 깨지는 곳)
         noMotion: [
-            'coupangplay.com', 'apple.com', 'gemini.google.com'
+            // OTT 프로필 선택 화면 등
+            'coupangplay.com',
+            // 화려한 웹사이트 / AI 효과
+            'apple.com', 'gemini.google.com'
         ],
-        // [3] GPU/렌더링 간섭 제외 (채팅창/레이어 깨짐 방지)
+
+        // [3] 렌더링/GPU 간섭 제외 (레이아웃 틀어짐 방지)
         noRender: [
-            'twitch.tv', 'dcinside.com'
+            // 채팅창 레이어 깨짐 방지
+            'twitch.tv',
+            // 게시판 레이아웃 보호
+            'dcinside.com',
         ]
     };
 
+    // ========================
+    // 2. 환경 및 상태 엔진
+    // ========================
     const Env = {
         features: {
             nativeLazyLoad: 'loading' in HTMLImageElement.prototype,
@@ -53,41 +70,43 @@
             longTaskCount: 0,
             isLowEnd: navigator.hardwareConcurrency <= 4,
             isSlowNetwork: false,
-            decisionText: '대기 중...',
             activeReason: '초기화 중',
-            // [v9.0] 로그 히스토리
-            history: []
+            cleanedCount: 0,
+            disabledModules: new Set(),
+            history: [],
+            // [UI 표시용 상태 플래그]
+            isThrottleActive: false
         },
 
-        // [v9.0] 로그 기록 함수
         log(msg) {
             const time = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
             this.state.history.unshift({ t: time, msg: msg });
-            if (this.state.history.length > 5) this.state.history.pop(); // 최대 5개 유지
+            if (this.state.history.length > 5) this.state.history.pop();
+        },
+
+        isMatch(list) {
+            const host = window.location.hostname;
+            return list.some(domain => host.includes(domain));
         },
 
         checkDomain() {
-            const host = window.location.hostname;
-            this.isNoThrottle = SiteLists.noThrottling.some(d => host.includes(d));
-            this.isNoMotion = SiteLists.noMotion.some(d => host.includes(d));
-            this.isNoRender = SiteLists.noRender.some(d => host.includes(d));
+            this.isNoThrottle = this.isMatch(SiteLists.noThrottling);
+            this.isNoMotion = this.isMatch(SiteLists.noMotion);
+            this.isNoRender = this.isMatch(SiteLists.noRender);
 
             if (this.isNoThrottle) {
                 this.state.activeReason = '스트리밍/AI 보호';
-                this.log('화이트리스트 감지: 보호 모드 가동');
+                this.log('화이트리스트: 보호 모드 가동');
             } else {
                 this.state.activeReason = '일반 모드 (절전 대기)';
                 this.log('일반 사이트: 최적화 준비 완료');
             }
         },
+
         checkNetwork() {
             const conn = navigator.connection;
             if (conn) {
                 this.state.isSlowNetwork = conn.saveData || (conn.effectiveType && conn.effectiveType.includes('2g'));
-                if (this.state.isSlowNetwork) {
-                    this.state.activeReason = '네트워크 절약';
-                    this.log('네트워크 느림: 데이터 절약 모드');
-                }
             }
         }
     };
@@ -97,59 +116,84 @@
     const Config = {
         debug: false,
         ui: { enabled: true },
+        memory: {
+            enabled: true,
+            interval: 30000,
+            maxChildren: 1000,
+            keepCount: 500,
+            targetSelector: 'ul, ol, div[class*="chat"], div[class*="list"], div[class*="log"], div[class*="comment"]',
+            activeTimeout: 60000
+        },
         scheduler: { deadline: 10, maxTasksPerTick: 15 },
-        lazyLoad: { enabled: true, selector: 'img[data-src], img[data-original], img.lazy, iframe[data-src]', preloadDistance: 150 },
+        lazyLoad: { enabled: true, selector: 'img[data-src], img.lazy', preloadDistance: 150 },
         reduceMotion: { enabled: true },
-        hardwareAcceleration: { enabled: true, selector: 'header, nav, aside, .sticky, .fixed', skipViewportElements: true },
-        contentVisibility: { enabled: true, selector: 'section, article, .post, .js-section, .comment-list', hiddenDistance: 800, excludeSelectors: '[contenteditable], .editor, .player, [data-no-cv], .textarea' },
+        hardwareAcceleration: { enabled: true, selector: 'header, nav, aside, .sticky', skipViewportElements: true },
+        contentVisibility: { enabled: true, selector: 'section, article, .post, .comment-list', hiddenDistance: 800, excludeSelectors: '[contenteditable], .player' },
         linkPrefetch: { enabled: true, hoverDelay: 65, sameOriginOnly: true },
-        mediaSuspend: { enabled: true }, // [v9.0] 설정 활성화
         backgroundThrottle: { enabled: true, throttleDelay: 1000 }
     };
 
     // ========================
-    // 2. 지능형 스케줄러
-    // ========================
-    class Scheduler {
-        constructor() { this.tasks = []; this.isRunning = false; }
-        enqueue(task) { this.tasks.push(task); this.schedule(); }
-        schedule() {
-            if (this.isRunning || this.tasks.length === 0) return;
-            this.isRunning = true;
-            if (Env.features.requestIdleCallback) {
-                requestIdleCallback((deadline) => this.process(deadline), { timeout: 2000 });
-            } else {
-                setTimeout(() => this.process({ timeRemaining: () => 50 }), 10);
-            }
-        }
-        process(deadline) {
-            let processedCount = 0;
-            while (this.tasks.length > 0 && deadline.timeRemaining() > 0 && !Env.state.isOverloaded && processedCount < Config.scheduler.maxTasksPerTick) {
-                const task = this.tasks.shift();
-                if (task) try { task(); processedCount++; } catch (e) {}
-            }
-            this.isRunning = false;
-            if (this.tasks.length > 0) this.schedule();
-        }
-    }
-    const GlobalScheduler = new Scheduler();
-
-    // ========================
-    // 3. 모듈 클래스 정의
+    // 3. 모듈 정의
     // ========================
     class BaseModule {
         constructor(name) { this.moduleName = name; this.observer = null; }
-        safeInit() { try { this.init(); } catch (e) { console.warn(`[PerfOpt] ${this.moduleName} crashed:`, e); } }
+        safeInit() {
+            try {
+                this.init();
+            } catch (e) {
+                console.warn(`[PerfOpt] ❌ ${this.moduleName} Crashed!`, e);
+                Env.state.disabledModules.add(this.moduleName);
+                Env.log(`❌ ${this.moduleName} 오류로 중단됨`);
+            }
+        }
         init() {}
-        destroy() { if (this.observer) { this.observer.disconnect(); this.observer = null; } }
-        setupMutationObserver(callback) {
-            if (!Env.features.mutationObserver) return;
-            this.observer = new MutationObserver((mutations) => {
-                GlobalScheduler.enqueue(() => {
-                    for (const m of mutations) if (m.addedNodes.length) callback(m.addedNodes);
-                });
+    }
+
+    class MemoryGuardian extends BaseModule {
+        constructor() { super('MemoryGuardian'); }
+        init() {
+            if (!Config.memory.enabled) return;
+            const mark = (e) => this.markActive(e);
+            document.addEventListener('mousedown', mark, { passive: true });
+            document.addEventListener('touchstart', mark, { passive: true });
+            document.addEventListener('keydown', mark, { passive: true });
+            setInterval(() => {
+                if (window.requestIdleCallback) window.requestIdleCallback(() => this.cleanUp());
+                else setTimeout(() => this.cleanUp(), 100);
+            }, Config.memory.interval);
+        }
+        markActive(e) {
+            const target = e.target.closest(Config.memory.targetSelector);
+            if (target) target.dataset.poLastActive = Date.now();
+        }
+        cleanUp() {
+            const candidates = document.querySelectorAll(Config.memory.targetSelector);
+            let removedTotal = 0;
+            const now = Date.now();
+            candidates.forEach(container => {
+                if (container.dataset.poProtected) return;
+                if (container.matches(':hover')) return;
+                if (container.contains(document.activeElement)) return;
+                const lastActive = parseInt(container.dataset.poLastActive || '0');
+                if (now - lastActive < Config.memory.activeTimeout) return;
+                if (container.scrollHeight > container.clientHeight && container.scrollHeight - container.scrollTop - container.clientHeight > 50) return;
+                if (container.isContentEditable) return;
+                const count = container.childElementCount;
+                if (count > Config.memory.maxChildren) {
+                    const toRemove = count - Config.memory.keepCount;
+                    for (let i = 0; i < toRemove; i++) {
+                        if (container.firstElementChild) {
+                            container.removeChild(container.firstElementChild);
+                            removedTotal++;
+                        }
+                    }
+                }
             });
-            this.observer.observe(document.body, { childList: true, subtree: true });
+            if (removedTotal > 0) {
+                Env.state.cleanedCount += removedTotal;
+                Env.log(`🧹 메모리 정리: ${removedTotal}개 삭제`);
+            }
         }
     }
 
@@ -172,54 +216,11 @@
             if (Env.state.isOverloaded) return;
             Env.state.isOverloaded = true;
             Env.state.activeReason = 'CPU 과부하 감지';
-            Env.state.decisionText = '⚠️ 과부하 감지 → 절전 모드';
-            Env.log('⚠️ CPU 과부하 발생 (자동 절전)'); // 로그 기록
+            Env.log('⚠️ CPU 과부하: 임시 절전 가동');
             setTimeout(() => {
                 Env.state.isOverloaded = false;
                 Env.state.activeReason = '시스템 정상화';
-                Env.state.decisionText = '✅ 시스템 정상화';
-                Env.log('✅ 시스템 부하 해소'); // 로그 기록
             }, 5000);
-        }
-    }
-
-    // [v9.0] 미디어 자동 제어기 (광고/뉴스 영상 차단)
-    class MediaSuspender extends BaseModule {
-        constructor() { super('MediaSuspender'); }
-
-        init() {
-            if (!Config.mediaSuspend.enabled) return;
-            if (Env.isNoThrottle) return; // 화이트리스트 사이트는 절대 건드리지 않음
-
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    this.suspend();
-                } else {
-                    this.resume();
-                }
-            });
-        }
-
-        suspend() {
-            let count = 0;
-            document.querySelectorAll('video, audio').forEach(v => {
-                if (!v.paused && !v.ended) {
-                    v.pause();
-                    v.dataset.autoPaused = '1';
-                    count++;
-                }
-            });
-            if (count > 0) Env.log(`⏸️ 미디어 ${count}개 자동 정지`);
-        }
-
-        resume() {
-            let count = 0;
-            document.querySelectorAll('[data-auto-paused]').forEach(v => {
-                v.play().catch(() => {}); // 자동 재생 정책 등으로 실패할 수 있음 (무시)
-                delete v.dataset.autoPaused;
-                count++;
-            });
-            if (count > 0) Env.log(`▶️ 미디어 ${count}개 자동 재개`);
         }
     }
 
@@ -245,10 +246,10 @@
                     });
                 };
                 applyNative([document.body]);
-                this.setupMutationObserver(applyNative);
-                return;
+                new MutationObserver((mutations) => {
+                    for (const m of mutations) if (m.addedNodes.length) applyNative(m.addedNodes);
+                }).observe(document.body, { childList: true, subtree: true });
             }
-            // (구형 브라우저 Fallback 생략)
         }
     }
 
@@ -270,7 +271,11 @@
                 });
             };
             scan([document.body]);
-            this.setupMutationObserver(scan);
+            new MutationObserver((mutations) => {
+                if (window.requestIdleCallback) window.requestIdleCallback(() => {
+                    for (const m of mutations) if (m.addedNodes.length) scan(m.addedNodes);
+                });
+            }).observe(document.body, { childList: true, subtree: true });
         }
     }
 
@@ -279,7 +284,6 @@
             if (Env.isNoRender || !Config.contentVisibility.enabled) return;
             const buffer = Config.contentVisibility.hiddenDistance;
             const vh = window.innerHeight;
-
             const update = (nodes) => {
                 const candidates = [...nodes].filter(el => {
                     if (el.dataset.poCv) return false;
@@ -287,7 +291,6 @@
                     if (el.querySelector('canvas, video, iframe, [role="img"]')) return false;
                     return true;
                 });
-
                 candidates.forEach(el => {
                     const rect = el.getBoundingClientRect();
                     if (rect.bottom < -buffer || rect.top > vh + buffer) {
@@ -297,15 +300,17 @@
                     }
                 });
             };
-
             const scan = (nodes) => {
                 nodes.forEach(n => {
                     if (n.nodeType === 1) update(n.querySelectorAll(Config.contentVisibility.selector));
                 });
             };
             scan([document.body]);
-            this.setupMutationObserver(scan);
-
+            new MutationObserver((mutations) => {
+                if (window.requestIdleCallback) window.requestIdleCallback(() => {
+                    for (const m of mutations) if (m.addedNodes.length) scan(m.addedNodes);
+                });
+            }).observe(document.body, { childList: true, subtree: true });
             let ticking = false;
             window.addEventListener('scroll', () => {
                 if(!ticking) {
@@ -343,7 +348,9 @@
                 });
             };
             scan([document.body]);
-            this.setupMutationObserver(scan);
+            new MutationObserver((mutations) => {
+                for (const m of mutations) if (m.addedNodes.length) scan(m.addedNodes);
+            }).observe(document.body, { childList: true, subtree: true });
         }
         isValidLink(el) {
             try {
@@ -372,7 +379,6 @@
         }
         init() {
             if (Env.isNoThrottle) return;
-
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) this.throttle();
                 else this.restore();
@@ -380,14 +386,16 @@
         }
         throttle() {
             document.title = '💤 ' + document.title.replace(/^💤 /, '');
-            Env.log('💤 탭 비활성: 절전 모드 진입'); // 로그
+            Env.log('💤 탭 비활성: 절전 모드 진입');
+            Env.state.isThrottleActive = true;
             window.requestAnimationFrame = (cb) => this.origTimeout(() => this.origRAF((t) => cb(t)), 1000);
             window.setInterval = (cb, t) => this.origInterval(cb, Math.max(t, 1000));
             window.setTimeout = (cb, t) => this.origTimeout(cb, Math.max(t, 1000));
         }
         restore() {
             document.title = document.title.replace(/^💤 /, '');
-            Env.log('⚡ 탭 활성: 절전 해제'); // 로그
+            Env.log('⚡ 탭 활성: 절전 해제');
+            Env.state.isThrottleActive = false;
             setTimeout(() => {
                 window.requestAnimationFrame = this.origRAF;
                 window.setInterval = this.origInterval;
@@ -400,51 +408,23 @@
         constructor() { super('PerformanceMonitor'); this.metrics = { fcp: null, lcp: null, cls: 0 }; }
         init() {
             if (!Env.features.performanceObserver) return;
-
             const fcpEntries = performance.getEntriesByName('first-contentful-paint');
             if (fcpEntries.length > 0) this.metrics.fcp = Math.round(fcpEntries[0].startTime);
-
-            new PerformanceObserver((l) => l.getEntries().forEach(e => {
-                if (e.name === 'first-contentful-paint') this.metrics.fcp = Math.round(e.startTime);
-            })).observe({ type: 'paint', buffered: true });
-
-            new PerformanceObserver((l) => l.getEntries().forEach(e => {
-                if (!e.hadRecentInput) this.metrics.cls += e.value;
-            })).observe({ type: 'layout-shift', buffered: true });
-
-            new PerformanceObserver((l) => {
-                const e = l.getEntries();
-                if (e.length) this.metrics.lcp = Math.round(e[e.length-1].startTime);
-            }).observe({ type: 'largest-contentful-paint', buffered: true });
+            new PerformanceObserver((l) => l.getEntries().forEach(e => { if (e.name === 'first-contentful-paint') this.metrics.fcp = Math.round(e.startTime); })).observe({ type: 'paint', buffered: true });
+            new PerformanceObserver((l) => l.getEntries().forEach(e => { if (!e.hadRecentInput) this.metrics.cls += e.value; })).observe({ type: 'layout-shift', buffered: true });
+            new PerformanceObserver((l) => { const e = l.getEntries(); if(e.length) this.metrics.lcp = Math.round(e[e.length-1].startTime); }).observe({ type: 'largest-contentful-paint', buffered: true });
         }
         getMetrics() { return this.metrics; }
     }
 
     // ========================
-    // 4. UI 컨트롤러
+    // 4. UI 컨트롤러 (인디케이터 복구됨)
     // ========================
     class UIController extends BaseModule {
-        constructor() {
-            super('UIController');
-            this.visible = false;
-            this.button = null;
-            this.panel = null;
-            this.monitor = null;
-            this.animFrameId = null;
-        }
+        constructor() { super('UIController'); this.visible = false; this.button = null; this.panel = null; this.monitor = null; this.animFrameId = null; }
         setMonitor(monitor) { this.monitor = monitor; }
-
-        init() {
-            if (!Config.ui.enabled) return;
-            this.createUI();
-        }
-
-        el(tag, className, text) {
-            const e = document.createElement(tag);
-            if (className) e.className = className;
-            if (text) e.textContent = text;
-            return e;
-        }
+        init() { if (!Config.ui.enabled) return; this.createUI(); }
+        el(tag, cls, txt) { const e = document.createElement(tag); if(cls) e.className=cls; if(txt) e.textContent=txt; return e; }
 
         createUI() {
             const style = document.createElement('style');
@@ -461,8 +441,9 @@
                 .perf-status-dot { width:8px; height:8px; border-radius:50%; background:#ccc; display:inline-block; margin-left:5px; }
                 .perf-status-dot.on { background:#28a745; }
                 .perf-status-dot.off { background:#dc3545; }
-                .perf-log-box { margin-top:15px; max-height:80px; overflow-y:auto; background:#f1f3f5; padding:8px; border-radius:5px; font-size:11px; color:#555; }
-                .perf-log-item { margin-bottom:4px; border-bottom:1px solid #e9ecef; padding-bottom:2px; }
+                .perf-status-dot.err { background:#fd7e14; }
+                .perf-log-box { margin-top:10px; max-height:60px; overflow-y:auto; background:#f1f3f5; padding:8px; border-radius:5px; font-size:10px; color:#555; }
+                .perf-log-item { margin-bottom:3px; border-bottom:1px solid #e9ecef; padding-bottom:2px; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
             `;
             document.head.appendChild(style);
@@ -470,8 +451,7 @@
             this.button = this.el('div', 'perf-btn', '⚡');
             this.button.onclick = (e) => {
                 e.stopPropagation();
-                const isHidden = this.panel.style.display === 'none';
-                if (isHidden) {
+                if (this.panel.style.display === 'none') {
                     this.panel.style.display = 'block';
                     this.panel.classList.add('show');
                     this.update();
@@ -486,94 +466,89 @@
 
             this.panel = this.el('div', 'perf-panel');
             this.panel.style.display = 'none';
-            this.panel.appendChild(this.el('div', 'perf-title', '🚀 성능 최적화 센터 (Insight)'));
+            this.panel.appendChild(this.el('div', 'perf-title', '🚀 Full Dashboard (v11.1)'));
 
-            const sec1 = this.el('div', 'perf-section');
-            const row1 = this.el('div', 'perf-row');
-            row1.appendChild(this.el('b', '', '엔진 자동 판단'));
-            sec1.appendChild(row1);
-            const rowDec = this.el('div', 'perf-row');
-            this.uiDecision = this.el('span', '', '정상 가동 중');
+            const sec1 = this.el('div', 'perf-section', '');
+            sec1.style.background = '#f8f9fa'; sec1.style.padding = '10px'; sec1.style.borderRadius = '8px'; sec1.style.marginBottom = '15px';
+            const r1 = this.el('div', 'perf-row');
+            r1.appendChild(this.el('b', '', '엔진 상태'));
+            sec1.appendChild(r1);
+            const r2 = this.el('div', 'perf-row');
+            this.uiDecision = this.el('span', '', '대기 중...');
             this.uiDecision.style.fontWeight = 'bold';
-            rowDec.appendChild(this.uiDecision);
-            sec1.appendChild(rowDec);
+            r2.appendChild(this.uiDecision);
+            sec1.appendChild(r2);
             this.panel.appendChild(sec1);
 
-            const sec2 = this.el('div', 'perf-section');
-            sec2.style.background = 'transparent'; sec2.style.padding = '0';
-            const rowVitals = this.el('div', 'perf-row');
-            rowVitals.appendChild(this.el('b', '', 'Core Web Vitals'));
-            sec2.appendChild(rowVitals);
-
-            const createMetricRow = (label, id) => {
+            const r3 = this.el('div', 'perf-row');
+            r3.appendChild(this.el('b', '', 'Web Vitals'));
+            this.panel.appendChild(r3);
+            const addMetric = (label, id) => {
                 const r = this.el('div', 'perf-row');
                 r.appendChild(this.el('span', '', label));
-                const val = this.el('span', 'perf-badge', '--');
-                val.id = id;
-                r.appendChild(val);
-                return r;
+                const v = this.el('span', 'perf-badge', '--');
+                v.id = id;
+                r.appendChild(v);
+                this.panel.appendChild(r);
             };
-            sec2.appendChild(createMetricRow('FCP (첫 화면)', 'ui-fcp'));
-            sec2.appendChild(createMetricRow('LCP (최대 로딩)', 'ui-lcp'));
-            sec2.appendChild(createMetricRow('CLS (화면 밀림)', 'ui-cls'));
-            this.panel.appendChild(sec2);
+            addMetric('FCP (첫 화면)', 'ui-fcp');
+            addMetric('LCP (최대 로딩)', 'ui-lcp');
+            addMetric('CLS (화면 밀림)', 'ui-cls');
 
-            const sec3 = this.el('div', 'perf-section');
-            sec3.style.background = 'transparent'; sec3.style.padding = '0';
-            const rowMods = this.el('div', 'perf-row');
-            rowMods.appendChild(this.el('b', '', '모듈 상태'));
-            sec3.appendChild(rowMods);
+            // [UI 복구] 모듈 상태 인디케이터 부활
+            const r4 = this.el('div', 'perf-row');
+            r4.style.marginTop = '15px';
+            r4.appendChild(this.el('b', '', '모듈 상태'));
+            this.panel.appendChild(r4);
 
-            const isMotionActive = !Env.isNoMotion;
-            const isRenderActive = !Env.isNoRender;
-            const isThrottleActive = !Env.isNoThrottle;
-
-            const createModRow = (label, isOn, id) => {
+            const addMod = (label, isOn, moduleName, dynamicId) => {
                 const r = this.el('div', 'perf-row');
                 r.appendChild(this.el('span', '', label));
-                const dot = this.el('div', `perf-status-dot ${isOn ? 'on' : 'off'}`);
-                if(id) dot.id = id;
-                r.appendChild(dot);
-                return r;
+
+                let dotClass = 'off';
+                if (Env.state.disabledModules.has(moduleName)) dotClass = 'err';
+                else if (isOn) dotClass = 'on';
+
+                const d = this.el('div', `perf-status-dot ${dotClass}`);
+                if (dynamicId) d.id = dynamicId; // 동적 상태 변경용
+                r.appendChild(d);
+                this.panel.appendChild(r);
             };
 
-            sec3.appendChild(createModRow('🚀 동작 줄이기', isMotionActive));
-            sec3.appendChild(createModRow('🖼️ 이미지 지연 로딩', isRenderActive));
-            sec3.appendChild(createModRow('👁️ 렌더링 최적화', isRenderActive));
-            sec3.appendChild(createModRow('🔗 스마트 프리패치', true, 'ui-dot-link'));
-            sec3.appendChild(createModRow('💤 백그라운드 절전', isThrottleActive));
-            this.panel.appendChild(sec3);
+            addMod('🚀 동작 줄이기', !Env.isNoMotion, 'MotionReducer');
+            addMod('🖼️ 이미지 지연', !Env.isNoRender, 'ImageOptimizer');
+            addMod('👁️ 렌더링/GPU', !Env.isNoRender, 'GPUAccelerator');
+            addMod('🔗 스마트 프리패치', true, 'LinkPrefetcher', 'ui-dot-link');
+            addMod('💤 백그라운드 절전', !Env.isNoThrottle, 'BackgroundThrottler', 'ui-dot-throttle');
 
-            // [v9.0] 로그 히스토리 영역
+            const rMem = this.el('div', 'perf-row');
+            rMem.appendChild(this.el('span', '', '🧹 메모리 청소됨'));
+            this.memCount = this.el('b', '', '0');
+            rMem.appendChild(this.memCount);
+            this.panel.appendChild(rMem);
+
+            const rStat = this.el('div', 'perf-row');
+            rStat.style.marginTop = '10px'; rStat.style.borderTop = '1px solid #eee'; rStat.style.paddingTop = '10px';
+            rStat.appendChild(this.el('b', '', '상세 통계'));
+            this.panel.appendChild(rStat);
+            const addStat = (label, id) => {
+                const r = this.el('div', 'perf-row');
+                r.appendChild(this.el('span', '', label));
+                const v = this.el('b', '', '0');
+                v.id = id;
+                r.appendChild(v);
+                this.panel.appendChild(r);
+            }
+            addStat('지연 로딩된 수', 'ui-lazy');
+            addStat('프리패치된 링크', 'ui-prefetch');
+            addStat('GPU 가속 요소', 'ui-gpu');
+
             this.logContainer = this.el('div', 'perf-log-box', '');
             this.panel.appendChild(this.logContainer);
 
-            // [v9.0] 하단 통계 복구 (UI 공간 확보 위해 폰트 작게)
-            const rowStats = this.el('div', 'perf-row');
-            rowStats.style.borderTop = '1px solid #eee';
-            rowStats.style.paddingTop = '8px';
-            rowStats.style.marginTop = '8px';
-            rowStats.appendChild(this.el('b', '', '실시간 통계'));
-            this.panel.appendChild(rowStats);
-
-            const createStatRow = (label, id) => {
-                const r = this.el('div', 'perf-row');
-                r.appendChild(this.el('span', '', label));
-                const val = this.el('b', '', '0');
-                val.id = id;
-                r.appendChild(val);
-                return r;
-            };
-            this.panel.appendChild(createStatRow('지연 로딩된 수', 'ui-lazy'));
-            this.panel.appendChild(createStatRow('프리패치된 링크', 'ui-prefetch'));
-            this.panel.appendChild(createStatRow('GPU 가속 요소', 'ui-gpu'));
-
-            const footer = this.el('div', 'perf-row', 'Ver 9.0.0-KR-ControlInsight');
-            footer.style.marginTop = '10px';
-            footer.style.fontSize = '10px';
-            footer.style.color = '#999';
+            const footer = this.el('div', 'perf-row', 'Ver 11.1.0-KR-FullDashboard');
+            footer.style.marginTop = '10px'; footer.style.fontSize = '10px'; footer.style.color = '#999';
             this.panel.appendChild(footer);
-
             document.body.appendChild(this.panel);
         }
 
@@ -582,51 +557,49 @@
             const loop = () => {
                 if (!this.panel.classList.contains('show')) return;
                 this.update();
-                this.animFrameId = setTimeout(() => {
-                    requestAnimationFrame(loop);
-                }, 100);
+                this.animFrameId = setTimeout(() => requestAnimationFrame(loop), 200);
             };
             loop();
         }
 
         stopLiveUpdate() {
-            if (this.animFrameId) {
-                clearTimeout(this.animFrameId);
-                this.animFrameId = null;
-            }
+            if (this.animFrameId) { clearTimeout(this.animFrameId); this.animFrameId = null; }
         }
 
         update() {
             if (!this.monitor) return;
             const m = this.monitor.getMetrics();
 
-            const updateBadge = (id, val, goodLimit, suffix='') => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                if (val === null || val === undefined) { el.className = 'perf-badge'; el.textContent = '--'; return; }
-                el.textContent = (typeof val === 'number' ? val.toFixed(suffix?0:3) : val) + suffix;
-                el.className = `perf-badge ${val <= goodLimit ? 'good' : 'bad'}`;
+            const setBadge = (id, v, lim) => {
+                const e = document.getElementById(id);
+                if (!e) return;
+                if (v === null) { e.className = 'perf-badge'; e.textContent = '--'; return; }
+                e.textContent = typeof v === 'number' ? v.toFixed(0) : v;
+                e.className = `perf-badge ${v <= lim ? 'good' : 'bad'}`;
             };
 
-            if (this.uiDecision) {
-                const decisionText = Env.state.isOverloaded ? Env.state.decisionText : '✅ 최적 상태 유지 중';
-                const reason = `(${Env.state.activeReason})`;
-                this.uiDecision.textContent = `${decisionText} ${reason}`;
+            setBadge('ui-fcp', m.fcp, 1800);
+            setBadge('ui-lcp', m.lcp, 2500);
+            setBadge('ui-cls', m.cls, 0.1);
 
-                if (Env.state.isOverloaded) this.uiDecision.style.color = '#dc3545';
-                else if (Env.state.isSlowNetwork) this.uiDecision.style.color = '#ffc107';
-                else this.uiDecision.style.color = '#28a745';
-            }
+            const decisionText = Env.state.isOverloaded ? Env.state.decisionText : '✅ 최적 상태 유지 중';
+            const reason = `(${Env.state.activeReason})`;
+            this.uiDecision.textContent = `${decisionText} ${reason}`;
+            if (Env.state.isOverloaded) this.uiDecision.style.color = '#dc3545';
+            else if (Env.state.isSlowNetwork) this.uiDecision.style.color = '#ffc107';
+            else this.uiDecision.style.color = '#28a745';
 
+            // 동적 상태 인디케이터 업데이트
             const linkDot = document.getElementById('ui-dot-link');
             if (linkDot) {
                 if (Env.state.isOverloaded || Env.state.isSlowNetwork) linkDot.className = 'perf-status-dot off';
                 else linkDot.className = 'perf-status-dot on';
             }
-
-            updateBadge('ui-fcp', m.fcp, 1800, 'ms');
-            updateBadge('ui-lcp', m.lcp, 2500, 'ms');
-            updateBadge('ui-cls', m.cls, 0.1);
+            const throttleDot = document.getElementById('ui-dot-throttle');
+            if (throttleDot) {
+                // 절전이 실제로 '활성화(Throttle Active)' 상태면 초록색(on)으로 표시
+                throttleDot.className = Env.state.isThrottleActive ? 'perf-status-dot on' : 'perf-status-dot off';
+            }
 
             const lazyCount = document.querySelectorAll('img[loading="lazy"]').length;
             const prefetchCount = document.querySelectorAll('link[rel="prefetch"]').length;
@@ -635,12 +608,10 @@
             if (document.getElementById('ui-lazy')) document.getElementById('ui-lazy').textContent = lazyCount;
             if (document.getElementById('ui-prefetch')) document.getElementById('ui-prefetch').textContent = prefetchCount;
             if (document.getElementById('ui-gpu')) document.getElementById('ui-gpu').textContent = gpuCount;
+            if (this.memCount) this.memCount.textContent = Env.state.cleanedCount + ' 개';
 
-            // [v9.0] 로그 업데이트
             if (this.logContainer) {
-                this.logContainer.innerHTML = Env.state.history.map(item =>
-                    `<div class="perf-log-item"><b>[${item.t}]</b> ${item.msg}</div>`
-                ).join('');
+                this.logContainer.innerHTML = Env.state.history.map(item => `<div class="perf-log-item"><b>[${item.t}]</b> ${item.msg}</div>`).join('');
             }
         }
     }
@@ -650,21 +621,17 @@
     // ========================
     class AppController {
         init() {
-            const style = document.createElement('style');
-            style.textContent = '@font-face { font-display: swap; }';
-            document.head.appendChild(style);
-
             const modules = {
-                sys: new SystemMonitor(),
-                suspend: new MediaSuspender(), // [v9.0] 추가
-                motion: new MotionReducer(),
-                img: new ImageOptimizer(),
-                gpu: new GPUAccelerator(),
-                vis: new ContentVisibility(),
-                link: new LinkPrefetcher(),
-                throttle: new BackgroundThrottler(),
-                monitor: new PerformanceMonitor(),
-                ui: new UIController()
+                sys: new SystemMonitor('SystemMonitor'),
+                mem: new MemoryGuardian('MemoryGuardian'),
+                motion: new MotionReducer('MotionReducer'),
+                img: new ImageOptimizer('ImageOptimizer'),
+                gpu: new GPUAccelerator('GPUAccelerator'),
+                vis: new ContentVisibility('ContentVisibility'),
+                link: new LinkPrefetcher('LinkPrefetcher'),
+                throttle: new BackgroundThrottler('BackgroundThrottler'),
+                monitor: new PerformanceMonitor('PerformanceMonitor'),
+                ui: new UIController('UIController')
             };
 
             Object.values(modules).forEach(m => m.safeInit());
