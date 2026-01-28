@@ -33,6 +33,9 @@
 
             // 🎵 음악 스트리밍
             'music.youtube.com', 'spotify.com',
+
+            // 기타
+           'github.com',
         ],
 
         // [2] 동작 줄이기 제외 (강제 애니메이션 제거 시 UI가 깨지는 곳)
@@ -40,7 +43,7 @@
             // OTT 프로필 선택 화면 등
             'coupangplay.com',
             // 화려한 웹사이트 / AI 효과
-            'apple.com', 'gemini.google.com'
+            'apple.com', 'gemini.google.com',
         ],
 
         // [3] 렌더링/GPU 간섭 제외 (레이아웃 틀어짐 방지)
