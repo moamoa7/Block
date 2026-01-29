@@ -22,8 +22,8 @@
 
     // --- [ARCHITECTURE] CONFIGURATION & CONSTANTS ---
     const CONFIG = {
-        DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 15 : 5,
-        DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 7 : 3,
+        DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 10 : 5,
+        DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 5 : 3,
         DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 15 : 5,
         DEFAULT_SMART_LIMIT_LEVEL: 0, // 기본값 0 (꺼짐). 게임 20% /영화.드라마 시청시 10% 추천.
         DEBUG: false,
