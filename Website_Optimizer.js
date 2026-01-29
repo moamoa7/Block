@@ -51,7 +51,7 @@
             // 채팅창 레이어 깨짐 방지
             'twitch.tv',
             // 사이트 레이아웃 깨짐 방지
-            'youtube.com', 'dcinside.com', 'tv.naver.com',
+            'youtube.com', 'dcinside.com', 'tv.naver.com', 'tvwiki5.net'
         ]
     };
 
