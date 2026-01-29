@@ -44,6 +44,8 @@
             'coupangplay.com', 'wavve.com',
             // 화려한 웹사이트 / AI 효과
             'apple.com', 'gemini.google.com',
+            // 일부 애니메이션 효과 안보임
+            'etoland.co.kr',
         ],
 
         // [3] 렌더링/GPU 간섭 제외 (레이아웃 틀어짐 방지)
@@ -51,7 +53,7 @@
             // 채팅창 레이어 깨짐 방지
             'twitch.tv',
             // 사이트 레이아웃 깨짐 방지
-            'youtube.com', 'dcinside.com', 'tv.naver.com', 'tvwiki5.net', 'avsee.ru',
+            'youtube.com', 'dcinside.com', 'tv.naver.com', 'tvwiki5.net', 'avsee.ru', 'cineaste.co.kr',
         ]
     };
 
