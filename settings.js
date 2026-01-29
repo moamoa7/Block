@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Visual Fix - Config Sync)
 // @namespace    https://com/
-// @version      109.1-ConfigFix
-// @description  비디오/이미지 제어 (기본값 설정 연동 수정 + 치지직 이동 해결 + 최적화)
+// @version      109.2-Unsharp Mask
+// @description  샤프 엔진 교체 (ConvolveMatrix → Unsharp Mask) 및 강도 조절 로직 변경
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -230,22 +230,42 @@
         constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; }
         init(stateManager) {
             super.init(stateManager);
-            this.filterManager = this._createManager({ settings: this.stateManager.get('app.isMobile') ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', matrixId: 'vsc-dynamic-convolve-matrix', className: 'vsc-video-filter-active' });
-            // [UPDATE] Separate Manager for Image (re-using createManager but logic handles options)
-            this.imageFilterManager = this._createManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', matrixId: 'vsc-image-convolve-matrix', className: 'vsc-image-filter-active', isImage: true });
+            // 모바일/데스크탑 설정 분기
+            const isMobile = this.stateManager.get('app.isMobile');
+            this.filterManager = this._createManager({
+                settings: isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS,
+                svgId: 'vsc-video-svg-filters',
+                styleId: 'vsc-video-styles',
+                className: 'vsc-video-filter-active',
+                isImage: false // 비디오용
+            });
+
+            // 이미지용 매니저
+            this.imageFilterManager = this._createManager({
+                settings: CONFIG.IMAGE_FILTER_SETTINGS,
+                svgId: 'vsc-image-svg-filters',
+                styleId: 'vsc-image-styles',
+                className: 'vsc-image-filter-active',
+                isImage: true // 이미지용
+            });
+
             this.filterManager.init(); this.imageFilterManager.init();
             this.stateManager.filterManagers.video = this.filterManager; this.stateManager.filterManagers.image = this.imageFilterManager;
 
             this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') injectFiltersIntoContext(media, this.filterManager, this.stateManager); });
             this.stateManager.get('media.activeImages').forEach(image => { injectFiltersIntoContext(image, this.imageFilterManager, this.stateManager); });
+
+            // 구독 설정
             this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
             this.subscribe('imageFilter.level', this.applyAllImageFilters.bind(this));
-            this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this)); // Subscribe to image color temp
+            this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this));
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates());
             this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates());
             this.subscribe('app.scriptActive', () => this.updateMediaFilterStates());
+
             this.applyAllVideoFilters(); this.applyAllImageFilters();
         }
+
         _createManager(options) {
             class SvgFilterManager {
                 #isInitialized = false; #styleElement = null; #svgNode = null; #options;
@@ -253,6 +273,7 @@
                 isInitialized() { return this.#isInitialized; }
                 getSvgNode() { return this.#svgNode; }
                 getStyleNode() { return this.#styleElement; }
+
                 init() {
                     if (this.#isInitialized) return;
                     safeExec(() => {
@@ -263,83 +284,60 @@
                         this.#isInitialized = true;
                     }, `${this.constructor.name}.init`);
                 }
+
+                // --- [KEY UPGRADE]: 1번 스크립트의 'Unsharp Mask' 구조로 변경 ---
                 #createElements() {
                     const createSvgElement = (tag, attr, ...children) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); el.append(...children); return el; };
-                    const { settings, svgId, styleId, matrixId, className, isImage } = this.#options;
+                    const { settings, svgId, styleId, className, isImage } = this.#options;
                     const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`;
+
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
-                    const combinedFilter = createSvgElement('filter', { id: combinedFilterId });
+                    const combinedFilter = createSvgElement('filter', { id: combinedFilterId, "color-interpolation-filters": "sRGB" });
+
+                    // 1. 공통: 샤픈 (Unsharp Mask 방식 - 1번 스크립트 로직 이식)
+                    // 흐림 효과를 먼저 만듭니다 (원본과 비교하기 위해)
+                    const blurNode = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur", in: "SourceGraphic", stdDeviation: "0", result: "blur_for_sharpen" });
+
+                    // 원본에서 흐림을 빼고 다시 원본에 더합니다 (Arithmetic Composite)
+                    // k2(원본 강조) + k3(흐림 빼기) = 선명함
+                    const compositeNode = createSvgElement('feComposite', { "data-vsc-id": "sharpen_composite", operator: "arithmetic", in: "SourceGraphic", in2: "blur_for_sharpen", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_out" });
 
                     if (isImage) {
-                        // --- [IMAGE PIPELINE] ---
-                        // 1. Sharpen
-                        const sharpen_pass1 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass1', "data-vsc-id": "sharpen_pass1", in: "SourceGraphic", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_1" });
-
-                        // 2. Color Temp (Post-Processing)
-                        const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "sharpen_out_1", result: "final_out" });
+                        // [IMAGE PIPELINE]
+                        // 색온도 (Color Temp)
+                        const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "sharpened_out", result: "final_out" });
                         colorTemp.append(createSvgElement('feFuncR', { type: "identity" }));
                         colorTemp.append(createSvgElement('feFuncG', { type: "identity" }));
                         colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
 
-                        combinedFilter.append(sharpen_pass1, colorTemp);
+                        combinedFilter.append(blurNode, compositeNode, colorTemp);
                     } else {
-                        // --- [VIDEO PIPELINE] ---
-                        // 1. Saturation (Start)
-                        const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
+                        // [VIDEO PIPELINE]
+                        // 1. Saturation
+                        const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "sharpened_out", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
 
                         // 2. Gamma
                         const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })));
 
-                        // --- [DITHERING CORE] ---
-                        const noise = createSvgElement('feTurbulence', {
-                            type: "turbulence",
-                            baseFrequency: "0.65", // Fine Grain
-                            numOctaves: "2",
-                            stitchTiles: "stitch",
-                            result: "raw_noise"
-                        });
-                        const luma = createSvgElement('feColorMatrix', {
-                            type: "matrix",
-                            in: "gamma_out",
-                            values: "0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0",
-                            result: "luma_out"
-                        });
-                        const shadowMask = createSvgElement('feComponentTransfer', { in: "luma_out", result: "shadow_mask" });
-                        shadowMask.append(createSvgElement('feFuncR', { type: "table", tableValues: "1 0" }));
-                        shadowMask.append(createSvgElement('feFuncG', { type: "table", tableValues: "1 0" }));
-                        shadowMask.append(createSvgElement('feFuncB', { type: "table", tableValues: "1 0" }));
+                        // 3. Highlights & Shadows (Brightness/Contrast)
+                        const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "gamma_out", result: "linear_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: "1", intercept: "0" })));
 
-                        const maskedNoise = createSvgElement('feComposite', {
-                            operator: "arithmetic",
-                            in: "raw_noise",
-                            in2: "shadow_mask",
-                            k1: "1", k2: "0", k3: "0", k4: "0",
-                            result: "masked_noise"
-                        });
+                        // 4. Dithering (Banding 방지) - 2번 스크립트의 장점 유지
+                        const noise = createSvgElement('feTurbulence', { type: "turbulence", baseFrequency: "0.65", numOctaves: "2", stitchTiles: "stitch", result: "raw_noise" });
+                        const ditherComposite = createSvgElement('feComposite', { "data-vsc-id": "dither_blend", operator: "arithmetic", in: "linear_out", in2: "raw_noise", k1: "0", k2: "1", k3: "0", k4: "0", result: "dither_out" });
 
-                        const ditherBlend = createSvgElement('feComposite', {
-                            "data-vsc-id": "dither_blend",
-                            operator: "arithmetic",
-                            in: "gamma_out",
-                            in2: "masked_noise",
-                            k1: "0", k2: "1", k3: "0", k4: "0",
-                            result: "dither_out"
-                        });
-                        // --- [END DITHERING] ---
+                        // 5. Final Blur (노이즈 억제용 미세 블러)
+                        const finalBlur = createSvgElement('feGaussianBlur', { "data-vsc-id": "final_blur", in: "dither_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "final_blur_out" });
 
-                        const blur = createSvgElement('feGaussianBlur', { "data-vsc-id": "blur", in: "dither_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "blur_out" });
-                        const sharpen_pass1 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass1', "data-vsc-id": "sharpen_pass1", in: "blur_out", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_1" });
-                        const sharpen_pass2 = createSvgElement('feConvolveMatrix', { id: matrixId + '_pass2', "data-vsc-id": "sharpen_pass2", in: "sharpen_out_1", order: '3 3', preserveAlpha: 'true', kernelMatrix: '0 0 0 0 1 0 0 0 0', result: "sharpen_out_2" });
-                        const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "sharpen_out_2", result: "linear_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: (1 + settings.HIGHLIGHTS_VALUE / 100).toString(), intercept: (settings.SHADOWS_VALUE / 200).toString() })));
-
-                        // Color Temp (Post-Processing)
-                        const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "linear_out", result: "final_out" });
+                        // 6. Color Temp
+                        const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "final_blur_out", result: "final_out" });
                         colorTemp.append(createSvgElement('feFuncR', { type: "identity" }));
                         colorTemp.append(createSvgElement('feFuncG', { type: "identity" }));
                         colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
 
-                        combinedFilter.append(saturation, gamma, noise, luma, shadowMask, maskedNoise, ditherBlend, blur, sharpen_pass1, sharpen_pass2, linear, colorTemp);
+                        combinedFilter.append(blurNode, compositeNode, saturation, gamma, linear, noise, ditherComposite, finalBlur, colorTemp);
                     }
+
                     svg.append(combinedFilter);
 
                     const style = document.createElement('style');
@@ -347,9 +345,11 @@
                     style.textContent = `.${className} { filter: url(#${combinedFilterId}) !important; } .vsc-gpu-accelerated { transform: translateZ(0); } .vsc-btn.analyzing { box-shadow: 0 0 5px #f39c12, 0 0 10px #f39c12 inset !important; }`;
                     return { svgNode: svg, styleElement: style };
                 }
+
                 updateFilterValues(values) {
                     if (!this.isInitialized()) return;
-                    const { saturation, gamma, blur, sharpenMatrix1, sharpenMatrix2, shadows, highlights, colorTemp, dither } = values;
+                    const { saturation, gamma, blur, sharpenLevel, shadows, highlights, colorTemp, dither } = values;
+
                     const rootNodes = [this.#svgNode, ...document.querySelectorAll(`iframe`)].map(n => n.tagName === 'IFRAME' ? (n.contentDocument ? n.contentDocument.querySelector(`#${this.#options.svgId}`) : null) : n).filter(n => n);
                     (window._shadowDomList_ || []).forEach(r => { try { const s = r.querySelector(`#${this.#options.svgId}`); if (s) rootNodes.push(s); } catch (e) { } });
 
@@ -357,14 +357,39 @@
                         if (!rootNode) return;
                         const setAttr = (sel, attr, val) => rootNode.querySelectorAll(sel).forEach(el => el.setAttribute(attr, val));
 
+                        // [UPGRADE]: 샤픈 로직을 Unsharp Mask 파라미터로 변환
+                        if (sharpenLevel !== undefined) {
+                            // 1번 스크립트와 유사한 강도 계산
+                            // stdDeviation: 흐림 반경 (0.5 ~ 1.5 정도가 적당)
+                            // k2: 원본 강도, k3: 흐림 빼기 강도
+                            const strength = sharpenLevel * 0.2; // 레벨 1당 강도 0.2
+                            if (strength <= 0) {
+                                setAttr(`[data-vsc-id="sharpen_blur"]`, 'stdDeviation', "0");
+                                setAttr(`[data-vsc-id="sharpen_composite"]`, 'k2', "1");
+                                setAttr(`[data-vsc-id="sharpen_composite"]`, 'k3', "0");
+                            } else {
+                                // 1번 스크립트 스타일: stdDeviation을 고정하거나 미세 조정
+                                setAttr(`[data-vsc-id="sharpen_blur"]`, 'stdDeviation', "0.5");
+                                // Unsharp Mask Formula: Original + (Original - Blurred) * Strength
+                                // = Original * (1 + Strength) - Blurred * Strength
+                                const k2 = 1 + strength;
+                                const k3 = -strength;
+                                setAttr(`[data-vsc-id="sharpen_composite"]`, 'k2', k2.toFixed(3));
+                                setAttr(`[data-vsc-id="sharpen_composite"]`, 'k3', k3.toFixed(3));
+                            }
+                        }
+
                         if (saturation !== undefined) setAttr(`[data-vsc-id="saturate"]`, 'values', (saturation / 100).toString());
                         if (gamma !== undefined) { const exp = (1 / gamma).toString(); setAttr(`[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB`, 'exponent', exp); }
-                        if (blur !== undefined) setAttr(`[data-vsc-id="blur"]`, 'stdDeviation', blur.toString());
-                        if (sharpenMatrix1 !== undefined) setAttr(`[data-vsc-id="sharpen_pass1"]`, 'kernelMatrix', sharpenMatrix1);
-                        if (sharpenMatrix2 !== undefined) setAttr(`[data-vsc-id="sharpen_pass2"]`, 'kernelMatrix', sharpenMatrix2);
-                        if (shadows !== undefined || highlights !== undefined) { const slope = (1 + (highlights ?? 0) / 100).toString(); const intercept = ((shadows ?? 0) / 200).toString(); setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'slope', slope); setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'intercept', intercept); }
+                        if (blur !== undefined) setAttr(`[data-vsc-id="final_blur"]`, 'stdDeviation', blur.toString());
 
-                        // [UPDATE] Color Temp (For both Video and Image)
+                        if (shadows !== undefined || highlights !== undefined) {
+                            const slope = (1 + (highlights ?? 0) / 100).toString();
+                            const intercept = ((shadows ?? 0) / 200).toString();
+                            setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'slope', slope);
+                            setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'intercept', intercept);
+                        }
+
                         if (colorTemp !== undefined) {
                             const slope = 1 - (colorTemp / 200);
                             setAttr(`[data-vsc-id="ct_blue"]`, 'slope', slope.toString());
@@ -379,39 +404,55 @@
             }
             return new SvgFilterManager(options);
         }
-        calculateSharpenMatrix(level, direction = '4-way') { const p = parseInt(level, 10); if (isNaN(p) || p === 0) return '0 0 0 0 1 0 0 0 0'; const BASE_STRENGTH = 0.125; const i = 1 + p * BASE_STRENGTH; if (direction === '8-way') { const o = (1 - i) / 8; return `${o} ${o} ${o} ${o} ${i} ${o} ${o} ${o} ${o}`; } else { const o = (1 - i) / 4; return `0 ${o} 0 ${o} ${i} ${o} 0 ${o} 0`; } }
-        applyAllVideoFilters() { if (!this.filterManager.isInitialized()) return; const vf = this.stateManager.get('videoFilter'); const values = { saturation: vf.saturation, gamma: vf.gamma, blur: vf.blur, sharpenMatrix1: this.calculateSharpenMatrix(vf.level, vf.sharpenDirection), sharpenMatrix2: this.calculateSharpenMatrix(vf.level2, vf.sharpenDirection), shadows: vf.shadows, highlights: vf.highlights, colorTemp: vf.colorTemp, dither: vf.dither }; this.filterManager.updateFilterValues(values); this.updateMediaFilterStates(); }
-        // [UPDATE] Apply Image Filters with Color Temp
+
+        applyAllVideoFilters() {
+            if (!this.filterManager.isInitialized()) return;
+            const vf = this.stateManager.get('videoFilter');
+            // 레벨1과 레벨2를 합쳐서 전체 샤픈 강도로 사용
+            const totalSharpen = (vf.level || 0) + (vf.level2 || 0) * 0.5;
+            const values = {
+                saturation: vf.saturation,
+                gamma: vf.gamma,
+                blur: vf.blur,
+                sharpenLevel: totalSharpen, // Matrix 대신 Level을 직접 전달
+                shadows: vf.shadows,
+                highlights: vf.highlights,
+                colorTemp: vf.colorTemp,
+                dither: vf.dither
+            };
+            this.filterManager.updateFilterValues(values);
+            this.updateMediaFilterStates();
+        }
+
         applyAllImageFilters() {
             if (!this.imageFilterManager.isInitialized()) return;
             const level = this.stateManager.get('imageFilter.level');
             const colorTemp = this.stateManager.get('imageFilter.colorTemp');
             const values = {
-                sharpenMatrix1: this.calculateSharpenMatrix(level),
+                sharpenLevel: level, // Matrix 대신 Level을 직접 전달
                 colorTemp: colorTemp
             };
             this.imageFilterManager.updateFilterValues(values);
             this.updateMediaFilterStates();
         }
+
         updateMediaFilterStates() { this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); }
+
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive');
             const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0 || vf.colorTemp !== 0 || vf.dither > 0;
             const isActive = scriptActive && video.dataset.isVisible !== 'false' && shouldApply;
-
-            if (isActive) {
-                if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform';
-            } else {
-                if (video.style.willChange) video.style.willChange = '';
-            }
+            if (isActive) { if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform'; }
+            else { if (video.style.willChange) video.style.willChange = ''; }
             video.classList.toggle('vsc-video-filter-active', isActive);
         }
+
         _updateImageFilterState(image) {
             const scriptActive = this.stateManager.get('app.scriptActive');
             const level = this.stateManager.get('imageFilter.level');
             const colorTemp = this.stateManager.get('imageFilter.colorTemp');
-            const shouldApply = level > 0 || colorTemp !== 0; // Active if sharpen OR color temp is used
+            const shouldApply = level > 0 || colorTemp !== 0;
             image.classList.toggle('vsc-image-filter-active', scriptActive && image.dataset.isVisible !== 'false' && shouldApply);
         }
     }
@@ -663,23 +704,120 @@
             );
 
             const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer);
-            const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '샤프S'; videoResetBtn.dataset.presetKey = 'reset'; videoResetBtn.onclick = () => { this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL); this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2); this.stateManager.set('videoFilter.activePreset', 'reset'); };
-            const videoMsharpBtn = document.createElement('button'); videoMsharpBtn.className = 'vsc-btn'; videoMsharpBtn.textContent = '샤프M'; videoMsharpBtn.dataset.presetKey = 'sharpM'; videoMsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 9); this.stateManager.set('videoFilter.level2', 6); this.stateManager.set('videoFilter.activePreset', 'sharpM'); };
-            const videoLsharpBtn = document.createElement('button'); videoLsharpBtn.className = 'vsc-btn'; videoLsharpBtn.textContent = '샤프L'; videoLsharpBtn.dataset.presetKey = 'sharpL'; videoLsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 15); this.stateManager.set('videoFilter.level2', 10); this.stateManager.set('videoFilter.activePreset', 'sharpL'); };
-            const videoSsharpOFFBtn = document.createElement('button'); videoSsharpOFFBtn.className = 'vsc-btn'; videoSsharpOFFBtn.textContent = '((샤프 끔))'; videoSsharpOFFBtn.dataset.presetKey = 'sharpOFF'; videoSsharpOFFBtn.onclick = () => { this.stateManager.set('videoFilter.level', 0); this.stateManager.set('videoFilter.level2', 0); this.stateManager.set('videoFilter.activePreset', 'sharpOFF'); };
-            const videoSBrightenBtn = document.createElement('button'); videoSBrightenBtn.className = 'vsc-btn'; videoSBrightenBtn.textContent = '밝기S'; videoSBrightenBtn.dataset.presetKey = 'brighten1'; videoSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.25); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -9); this.stateManager.set('videoFilter.highlights', 6); this.stateManager.set('videoFilter.activePreset', 'brighten1'); };
-            const videoMBrightenBtn = document.createElement('button'); videoMBrightenBtn.className = 'vsc-btn'; videoMBrightenBtn.textContent = '밝기M'; videoMBrightenBtn.dataset.presetKey = 'brighten2'; videoMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.50); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -19); this.stateManager.set('videoFilter.highlights', 12); this.stateManager.set('videoFilter.activePreset', 'brighten2'); };
-            const videoLBrightenBtn = document.createElement('button'); videoLBrightenBtn.className = 'vsc-btn'; videoLBrightenBtn.textContent = '밝기L'; videoLBrightenBtn.dataset.presetKey = 'brighten3'; videoLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.75); this.stateManager.set('videoFilter.saturation', 104); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -28); this.stateManager.set('videoFilter.highlights', 18); this.stateManager.set('videoFilter.activePreset', 'brighten3'); };
-            const videoBrightenoffBtn = document.createElement('button'); videoBrightenoffBtn.className = 'vsc-btn'; videoBrightenoffBtn.textContent = '((밝기 끔))'; videoBrightenoffBtn.dataset.presetKey = 'brightOFF'; videoBrightenoffBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.activePreset', 'brightOFF'); };
-            const videoXSBrightenBtn = document.createElement('button'); videoXSBrightenBtn.className = 'vsc-btn'; videoXSBrightenBtn.textContent = '암부S'; videoXSBrightenBtn.dataset.presetKey = 'brightenX1'; videoXSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.35); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -16); this.stateManager.set('videoFilter.highlights', 8); this.stateManager.set('videoFilter.activePreset', 'brightenX1'); };
-            const videoXMBrightenBtn = document.createElement('button'); videoXMBrightenBtn.className = 'vsc-btn'; videoXMBrightenBtn.textContent = '암부M'; videoXMBrightenBtn.dataset.presetKey = 'brightenX2'; videoXMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.70); this.stateManager.set('videoFilter.saturation', 104); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -32); this.stateManager.set('videoFilter.highlights', 16); this.stateManager.set('videoFilter.activePreset', 'brightenX2'); };
-            const videoXLBrightenBtn = document.createElement('button'); videoXLBrightenBtn.className = 'vsc-btn'; videoXLBrightenBtn.textContent = '암부L'; videoXLBrightenBtn.dataset.presetKey = 'brightenX3'; videoXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.05); this.stateManager.set('videoFilter.saturation', 106); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -48); this.stateManager.set('videoFilter.highlights', 24); this.stateManager.set('videoFilter.activePreset', 'brightenX3'); };
-            const videoXXBrightenBtn = document.createElement('button'); videoXXBrightenBtn.className = 'vsc-btn'; videoXXBrightenBtn.textContent = '암부XL'; videoXXBrightenBtn.dataset.presetKey = 'brightenX4'; videoXXBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.40); this.stateManager.set('videoFilter.saturation', 108); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -64); this.stateManager.set('videoFilter.highlights', 32); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
-            const videoButtonsContainer = document.createElement('div'); videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 5px; margin-top: 5px;';
-            const videoBtnGroup1 = document.createElement('div'); videoBtnGroup1.style.cssText = 'display: flex; justify-content: center; gap: 5px;'; videoBtnGroup1.append(videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn);
-            const videoBtnGroup2 = document.createElement('div'); videoBtnGroup2.style.cssText = 'display: flex; justify-content: center; gap: 5px;'; videoBtnGroup2.append(videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn);
-            const videoBtnGroup3 = document.createElement('div'); videoBtnGroup3.style.cssText = 'display: flex; justify-content: center; gap: 5px;'; videoBtnGroup3.append(videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXBrightenBtn);
+            // -----------------------------------------------------------
+            // [수정 시작] 버튼 텍스트를 S, M, L로 줄이고 라벨을 별도로 추가
+            // -----------------------------------------------------------
+
+            // 1. 샤프(Sharp) 버튼들 (글자수 최소화)
+            const videoResetBtn = document.createElement('button');
+            videoResetBtn.className = 'vsc-btn';
+            videoResetBtn.textContent = 'S'; // '샤프S' -> 'S'
+            videoResetBtn.dataset.presetKey = 'reset';
+            videoResetBtn.onclick = () => { this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL); this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2); this.stateManager.set('videoFilter.activePreset', 'reset'); };
+
+            const videoMsharpBtn = document.createElement('button');
+            videoMsharpBtn.className = 'vsc-btn';
+            videoMsharpBtn.textContent = 'M'; // '샤프M' -> 'M'
+            videoMsharpBtn.dataset.presetKey = 'sharpM';
+            videoMsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 9); this.stateManager.set('videoFilter.level2', 6); this.stateManager.set('videoFilter.activePreset', 'sharpM'); };
+
+            const videoLsharpBtn = document.createElement('button');
+            videoLsharpBtn.className = 'vsc-btn';
+            videoLsharpBtn.textContent = 'L'; // '샤프L' -> 'L'
+            videoLsharpBtn.dataset.presetKey = 'sharpL';
+            videoLsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 15); this.stateManager.set('videoFilter.level2', 10); this.stateManager.set('videoFilter.activePreset', 'sharpL'); };
+
+            const videoSsharpOFFBtn = document.createElement('button');
+            videoSsharpOFFBtn.className = 'vsc-btn';
+            videoSsharpOFFBtn.textContent = '끔'; // '((샤프 끔))' -> '끔'
+            videoSsharpOFFBtn.dataset.presetKey = 'sharpOFF';
+            videoSsharpOFFBtn.onclick = () => { this.stateManager.set('videoFilter.level', 0); this.stateManager.set('videoFilter.level2', 0); this.stateManager.set('videoFilter.activePreset', 'sharpOFF'); };
+
+            // 2. 밝기(Bright) 버튼들
+            const videoSBrightenBtn = document.createElement('button');
+            videoSBrightenBtn.className = 'vsc-btn';
+            videoSBrightenBtn.textContent = 'S';
+            videoSBrightenBtn.dataset.presetKey = 'brighten1';
+            videoSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.25); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -8); this.stateManager.set('videoFilter.highlights', 5); this.stateManager.set('videoFilter.activePreset', 'brighten1'); };
+
+            const videoMBrightenBtn = document.createElement('button');
+            videoMBrightenBtn.className = 'vsc-btn';
+            videoMBrightenBtn.textContent = 'M';
+            videoMBrightenBtn.dataset.presetKey = 'brighten2';
+            videoMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.50); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -19); this.stateManager.set('videoFilter.highlights', 12); this.stateManager.set('videoFilter.activePreset', 'brighten2'); };
+
+            const videoLBrightenBtn = document.createElement('button');
+            videoLBrightenBtn.className = 'vsc-btn';
+            videoLBrightenBtn.textContent = 'L';
+            videoLBrightenBtn.dataset.presetKey = 'brighten3';
+            videoLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.75); this.stateManager.set('videoFilter.saturation', 104); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -30); this.stateManager.set('videoFilter.highlights', 19); this.stateManager.set('videoFilter.activePreset', 'brighten3'); };
+
+            const videoBrightenoffBtn = document.createElement('button');
+            videoBrightenoffBtn.className = 'vsc-btn';
+            videoBrightenoffBtn.textContent = '끔';
+            videoBrightenoffBtn.dataset.presetKey = 'brightOFF';
+            videoBrightenoffBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.activePreset', 'brightOFF'); };
+
+            // 3. 암부(Dark) 버튼들
+            const videoXSBrightenBtn = document.createElement('button');
+            videoXSBrightenBtn.className = 'vsc-btn';
+            videoXSBrightenBtn.textContent = 'S';
+            videoXSBrightenBtn.dataset.presetKey = 'brightenX1';
+            videoXSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.35); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -16); this.stateManager.set('videoFilter.highlights', 8); this.stateManager.set('videoFilter.activePreset', 'brightenX1'); };
+
+            const videoXMBrightenBtn = document.createElement('button');
+            videoXMBrightenBtn.className = 'vsc-btn';
+            videoXMBrightenBtn.textContent = 'M';
+            videoXMBrightenBtn.dataset.presetKey = 'brightenX2';
+            videoXMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.70); this.stateManager.set('videoFilter.saturation', 104); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -32); this.stateManager.set('videoFilter.highlights', 16); this.stateManager.set('videoFilter.activePreset', 'brightenX2'); };
+
+            const videoXLBrightenBtn = document.createElement('button');
+            videoXLBrightenBtn.className = 'vsc-btn';
+            videoXLBrightenBtn.textContent = 'L';
+            videoXLBrightenBtn.dataset.presetKey = 'brightenX3';
+            videoXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.05); this.stateManager.set('videoFilter.saturation', 106); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -48); this.stateManager.set('videoFilter.highlights', 24); this.stateManager.set('videoFilter.activePreset', 'brightenX3'); };
+
+            const videoXXBrightenBtn = document.createElement('button');
+            videoXXBrightenBtn.className = 'vsc-btn';
+            videoXXBrightenBtn.textContent = 'XL';
+            videoXXBrightenBtn.dataset.presetKey = 'brightenX4';
+            videoXXBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.40); this.stateManager.set('videoFilter.saturation', 108); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -64); this.stateManager.set('videoFilter.highlights', 32); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
+
+            // 컨테이너 생성 및 배치 (라벨 추가)
+            const videoButtonsContainer = document.createElement('div');
+            videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 5px; margin-top: 5px; width: 100%;';
+
+            // 헬퍼 함수: 라벨 만들기 (수정됨: 선명하게 보이기 위해 스타일 강화)
+            const createLabel = (text) => {
+                const span = document.createElement('span');
+                span.textContent = text;
+                // color: #ddd -> white 로 변경
+                // font-weight: bold 추가
+                // text-shadow 추가
+                span.style.cssText = 'color: white; font-weight: bold; font-size: 12px; margin-right: 4px; white-space: nowrap; min-width: 30px; text-align: right; text-shadow: 1px 1px 1px rgba(0,0,0,0.8);';
+                return span;
+            };
+
+            // 그룹 1: 샤프
+            const videoBtnGroup1 = document.createElement('div');
+            videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 4px;';
+            videoBtnGroup1.append(createLabel('샤프'), videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn);
+
+            // 그룹 2: 밝기
+            const videoBtnGroup2 = document.createElement('div');
+            videoBtnGroup2.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 4px;';
+            videoBtnGroup2.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn);
+
+            // 그룹 3: 암부
+            const videoBtnGroup3 = document.createElement('div');
+            videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 4px;';
+            videoBtnGroup3.append(createLabel('암부'), videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXBrightenBtn);
+
             videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup2, videoBtnGroup3);
+
+            // -----------------------------------------------------------
+            // [수정 끝]
+            // -----------------------------------------------------------
             const videoButtons = [videoResetBtn, videoSsharpOFFBtn, videoMsharpBtn, videoLsharpBtn, videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoBrightenoffBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoXXBrightenBtn];
             this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); });
             const sharpenDirOptions = [{ value: '4-way', text: '4방향 (기본)' }, { value: '8-way', text: '8방향 (강함)' }];
