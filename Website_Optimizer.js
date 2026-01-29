@@ -40,8 +40,8 @@
 
         // [2] 동작 줄이기 제외 (강제 애니메이션 제거 시 UI가 깨지는 곳)
         noMotion: [
-            // OTT 프로필 선택 화면 등
-            'coupangplay.com',
+            // OTT 프로필 선택 화면 / 영상 안보임 등
+            'coupangplay.com', 'wavve.com'
             // 화려한 웹사이트 / AI 효과
             'apple.com', 'gemini.google.com',
         ],
