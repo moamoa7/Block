@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260128
+! Version: 20260129
 !
 !
 !
@@ -448,6 +448,11 @@ twitch.tv##.video-player__inactive
 !www.wavve.com#@#.popup
 ! - 본인 인증시 필요
 member.wavve.com#@#.popup
+! - - - ##[class^="ad"] 해제 (성인 인증시 내용 안보임)
+member.wavve.com#@#[class^="ad"]
+pcc.siren24.com#@#[class^="ad"]
+
+
 !
 !
 ! 다음 (https://www.daum.net/)
