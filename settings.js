@@ -861,7 +861,7 @@
             videoXXBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.10); this.stateManager.set('videoFilter.saturation', 108); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -72); this.stateManager.set('videoFilter.highlights', 40); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
 
             const videoButtonsContainer = document.createElement('div');
-            videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 2px; margin-top: 3px; width: 100%;';
+            videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 0px; margin-top: 0px; width: 100%;';
 
             const createLabel = (text) => {
                 const span = document.createElement('span');
@@ -871,15 +871,15 @@
             };
 
             const videoBtnGroup1 = document.createElement('div');
-            videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 4px;';
+            videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
             videoBtnGroup1.append(createLabel('샤프'), videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn);
 
             const videoBtnGroup2 = document.createElement('div');
-            videoBtnGroup2.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 4px;';
+            videoBtnGroup2.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
             videoBtnGroup2.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn);
 
             const videoBtnGroup3 = document.createElement('div');
-            videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 4px;';
+            videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
             videoBtnGroup3.append(createLabel('암부'), videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXBrightenBtn);
 
             videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup2, videoBtnGroup3);
