@@ -1,15 +1,15 @@
 // ==UserScript==
-// @name         Web 성능 종합 최적화 도구상자 (v23.4 Architect Resilience)
-// @namespace    http://tampermonkey.net/
-// @version      23.4.0-KR-Architect-Resilience
-// @description  Drift-Proof Heartbeat + Context Threshold + Shadow Guard + Zero-Jank
-// @author       KiwiFruit (Architected by AI & User)
-// @match        *://*/*
-// @exclude      *://weibo.com/*
-// @exclude      *://*.weibo.com/*
-// @grant        none
-// @license      MIT
-// @run-at       document-start
+// @name        Web 성능 종합 최적화 도구상자 (v23.4 Architect Resilience)
+// @namespace   http://tampermonkey.net/
+// @version     23.4.0-KR-Architect-Resilience
+// @description Drift-Proof Heartbeat + Context Threshold + Shadow Guard + Zero-Jank + Governor Hysteresis + LRU Cache
+// @author      KiwiFruit (Architected by AI & User)
+// @match       *://*/*
+// @exclude     *://weibo.com/*
+// @exclude     *://*.weibo.com/*
+// @grant       none
+// @license     MIT
+// @run-at      document-start
 // ==/UserScript==
 
 (function () {
@@ -81,7 +81,6 @@
                 if (elapsed >= task.interval) {
                     task.fn();
                     // [v23.4] Drift Correction: Align next run to the theoretical grid
-                    // Instead of lastRun = now, we subtract the overshoot
                     task.lastRun = now - (elapsed % task.interval);
                 }
             });
@@ -132,6 +131,7 @@
         audioActive: false
     };
 
+    // [v23.4] SmartCache with LRU (Least Recently Used)
     const SmartCache = {
         key: 'perfx_session_cache',
         history: new Set(),
@@ -141,13 +141,30 @@
                 if (Array.isArray(saved)) this.history = new Set(saved);
             } catch (e) {}
         },
-        has(url) { return this.history.has(url); },
+        has(url) {
+            // LRU: Refresh position on access
+            if (this.history.has(url)) {
+                this.history.delete(url);
+                this.history.add(url);
+                return true;
+            }
+            return false;
+        },
         add(url) {
-            if (this.history.size > 200) this.history.clear();
+            if (this.history.has(url)) this.history.delete(url);
             this.history.add(url);
+
+            // LRU: Evict oldest if overflow
+            if (this.history.size > 200) {
+                const oldest = this.history.values().next().value;
+                this.history.delete(oldest);
+            }
+
             if (!this.saveTimer) {
                 this.saveTimer = setTimeout(() => {
-                    sessionStorage.setItem(this.key, JSON.stringify(Array.from(this.history)));
+                    try {
+                        sessionStorage.setItem(this.key, JSON.stringify(Array.from(this.history)));
+                    } catch (e) {}
                     this.saveTimer = null;
                 }, 1000);
             }
@@ -224,7 +241,7 @@
     // [v23.4] Shadow Piercer with Visibility
     class ShadowPiercer extends BaseModule {
         static targets = new Set();
-        static isPassive = false; // Status flag
+        static isPassive = false;
         static onPierce(cb) { this.targets.add(cb); }
 
         init() {
@@ -242,11 +259,14 @@
         }
     }
 
+    // [v23.4] Adaptive Governor with Hysteresis
     class AdaptiveGovernor extends BaseModule {
         init() {
             if (!window.PerformanceObserver) return;
             try {
                 let strain = 0;
+                let stabilityStreak = 0; // Hysteresis counter
+
                 MasterHeartbeat.addTask('governor', 2000, () => {
                     strain = Math.max(0, strain * 0.6);
 
@@ -255,10 +275,22 @@
                     State.lastDropSample = currentDrops;
                     State.currentDropRate = deltaDrops;
 
+                    // 1. High Load Trigger (Instant)
                     if (strain > 2 || deltaDrops > 5) {
+                        stabilityStreak = 0;
                         if (!State.isHighLoad) State.isHighLoad = true;
-                    } else if (strain < 0.5 && deltaDrops === 0) {
-                        if (State.isHighLoad) State.isHighLoad = false;
+                    }
+                    // 2. Recovery (Hysteresis: requires 2 consecutive stable ticks)
+                    else if (strain < 0.5 && deltaDrops === 0) {
+                        stabilityStreak++;
+                        if (State.isHighLoad && stabilityStreak >= 2) {
+                            State.isHighLoad = false;
+                            stabilityStreak = 0;
+                        }
+                    }
+                    // 3. Unstable Zone (Reset streak)
+                    else {
+                        stabilityStreak = 0;
                     }
                 }, false);
 
