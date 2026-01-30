@@ -507,9 +507,35 @@
         el(tag, cls, txt) { const e = document.createElement(tag); if(cls) e.className=cls; if(txt) e.textContent=txt; return e; }
 
         createUI() {
+            // [수정됨] 1. 모바일 여부 확인 및 크기 변수 설정 (Video_Image_Control 로직 적용)
+            const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
+            // 첫 번째 스크립트와 동일한 clamp 값 적용
+            const btnSize = isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)';
+            const fontSize = isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)';
+
             const style = document.createElement('style');
+
+            // [수정됨] 2. CSS 템플릿 리터럴에 변수(${btnSize}, ${fontSize}) 적용
             style.textContent = `
-                .perf-btn { position:fixed; bottom:60px; right:10px; width:30x; height:30px; border-radius:50%; background:#4a90e2; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2147483647; box-shadow:0 4px 10px rgba(0,0,0,0.2); font-size:24px; transition:transform 0.2s; }
+                .perf-btn {
+                    position:fixed;
+                    bottom:60px;
+                    right:10px;
+                    width:${btnSize};
+                    height:${btnSize};
+                    border-radius:50%;
+                    background:#4a90e2;
+                    color:#fff;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    cursor:pointer;
+                    z-index:2147483647;
+                    box-shadow:0 4px 10px rgba(0,0,0,0.2);
+                    font-size:${fontSize};
+                    transition:transform 0.2s;
+                }
                 .perf-btn:hover { transform:scale(1.1); }
                 .perf-panel { position:fixed; bottom:80px; right:20px; width:300px; background:rgba(255,255,255,0.95); backdrop-filter:blur(10px); border-radius:12px; padding:20px; z-index:2147483647; box-shadow:0 10px 30px rgba(0,0,0,0.15); display:none; font-family:sans-serif; font-size:13px; color:#333; border:1px solid #eee; }
                 .perf-panel.show { display:block !important; animation: fadeIn 0.1s ease-out; }
