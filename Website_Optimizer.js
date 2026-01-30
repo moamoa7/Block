@@ -243,8 +243,9 @@
                 height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
                 fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
 
-                background: '#ff4757', // 빨강 배경
-                color: '#ffffff',      // 흰색 번개
+                background: '#4a90e2', // 파랑 배경
+                color: '#FFD700',      /* 금색 번개 */
+                border: '1px solid #ccc', // (선택사항) 테두리 추가 시 이 줄도 넣으세요
                 borderRadius: '50%',
                 zIndex: '999999',
                 display: 'flex',
