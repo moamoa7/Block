@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260129
+! Version: 20260130
 !
 !
 !
@@ -154,6 +154,17 @@ www.youtube.com#@#ytd-item-section-renderer.ytd-watch-next-secondary-results-ren
 ! - - - 실시간 영상 오른쪽 채팅창 안보이는거 해제 (Cosmetic Combined Filterlist )
 youtube.com#@##chat
 www.youtube.com#@##chat:remove()
+! - - - 로고 사리지는거 해제 (Cosmetic Combined Filterlist )
+www.youtube.com#@#.ytd-yoodle-renderer
+! - - - 왼쪽 메뉴 중 short(쇼츠) 사리지는거 해제 (Cosmetic Combined Filterlist )
+!www.youtube.com#@##guide [title="Shorts"], .ytd-mini-guide-entry-renderer[title="Shorts"]
+!youtube.com#@#.yt-simple-endpoint[title="Shorts"]
+!www.youtube.com#@#ytd-guide-entry-renderer.ytd-guide-section-renderer.style-scope > .ytd-guide-entry-renderer.style-scope.yt-simple-endpoint:has-text(/Shorts/i)
+!www.youtube.com#@#ytd-guide-entry-renderer:has(yt-formatted-string:has-text(/^Shorts$/i))
+! - - - 오른쪽 쇼츠 영상 안보이는거 해결 (Cosmetic Combined Filterlist )
+!www.youtube.com#@##shorts-container
+
+
 
 !
 !
