@@ -812,13 +812,13 @@
             videoMBrightenBtn.className = 'vsc-btn';
             videoMBrightenBtn.textContent = 'M';
             videoMBrightenBtn.dataset.presetKey = 'brighten2';
-            videoMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.5); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -25.5); this.stateManager.set('videoFilter.highlights', 15); this.stateManager.set('videoFilter.activePreset', 'brighten2'); };
+            videoMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.5); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -21); this.stateManager.set('videoFilter.highlights', 15); this.stateManager.set('videoFilter.activePreset', 'brighten2'); };
 
             const videoLBrightenBtn = document.createElement('button');
             videoLBrightenBtn.className = 'vsc-btn';
             videoLBrightenBtn.textContent = 'L';
             videoLBrightenBtn.dataset.presetKey = 'brighten3';
-            videoLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.75); this.stateManager.set('videoFilter.saturation', 104); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -54); this.stateManager.set('videoFilter.highlights', 30); this.stateManager.set('videoFilter.activePreset', 'brighten3'); };
+            videoLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.75); this.stateManager.set('videoFilter.saturation', 104); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -39); this.stateManager.set('videoFilter.highlights', 30); this.stateManager.set('videoFilter.activePreset', 'brighten3'); };
 
             const videoBrightenoffBtn = document.createElement('button');
             videoBrightenoffBtn.className = 'vsc-btn';
