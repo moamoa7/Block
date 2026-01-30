@@ -243,8 +243,8 @@
                 height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
                 fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
 
-                background: '#222',
-                color: '#fff',
+                background: '#ff4757', // 빨강 배경
+                color: '#ffffff',      // 흰색 번개
                 borderRadius: '50%',
                 zIndex: '999999',
                 display: 'flex',
