@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Web 성능 종합 최적화 도구상자 (v15.3 Ultimate)
+// @name         Web 성능 종합 최적화 도구상자 (v17.9 Architect Platinum)
 // @namespace    http://tampermonkey.net/
-// @version      15.3.0-KR-Ultimate
-// @description  H.264/VP9 제어 + CPU/RAM 절약 + CSP Friendly + Smart Prefetch
-// @author       KiwiFruit (Architected by AI)
+// @version      17.9.0-KR-Architect-Platinum
+// @description  Async Decoding + React-Safe Guardian + Robust RAF + Safety Switches
+// @author       KiwiFruit (Architected by AI & User)
 // @match        *://*/*
 // @exclude      *://weibo.com/*
 // @exclude      *://*.weibo.com/*
@@ -16,12 +16,21 @@
     'use strict';
 
     // ========================
-    // 0. 환경 감지 및 유틸
+    // 0. Safety Check & Emergency Kill Switch
+    // ========================
+    if (new URLSearchParams(window.location.search).get('perfx_safe') === '1') {
+        console.warn('[PerfX] Safe Mode Activated. Script Disabled.');
+        return;
+    }
+
+    // ========================
+    // 1. Core Utils & Env
     // ========================
     const Env = {
         isMobile: /Mobi|Android|iPhone/i.test(navigator.userAgent),
-        isDataSaver: navigator.connection?.saveData === true, // [New] 데이터 절약 모드 감지
-        storageKey: `PerfX_v15_${window.location.hostname}`,
+        isSlowNetwork: (navigator.connection?.saveData === true) ||
+                       ['slow-2g', '2g', '3g'].includes(navigator.connection?.effectiveType),
+        storageKey: `PerfX_v17_${window.location.hostname}`,
         getOverrides() { try { return JSON.parse(localStorage.getItem(this.storageKey)) || {}; } catch { return {}; } },
         setOverride(key, val) {
             const data = this.getOverrides(); data[key] = val;
@@ -35,73 +44,104 @@
     };
 
     // ========================
-    // 1. 도메인 리스트
+    // 2. Configuration & Lists
     // ========================
     const SiteLists = {
-        // [1] 백그라운드 절전 제외 (영상/AI 답변 끊김 방지) (미디어 정지 안 함 & 절전 안 함)
         noThrottling: [
-            // 📡 실시간 방송 / 라이브 스트리밍
             'youtube.com', 'twitch.tv', 'sooplive.co.kr', 'chzzk.naver.com', 'tv.naver.com', 'tv.kakao.com', 'pandalive.co.kr',
-
-            // 🎬 OTT / 동영상 플랫폼
-            'netflix.com', 'tving.com', 'wavve.com', 'coupangplay.com', 'disneyplus.com', 'watcha.com',
-            'ok.ru',
-
-            // 🤖 AI 채팅 (실시간 답변 생성 중 끊김 방지)
+            'netflix.com', 'tving.com', 'wavve.com', 'coupangplay.com', 'disneyplus.com', 'watcha.com', 'ok.ru',
             'gemini.google.com', 'chatgpt.com', 'claude.ai',
-
-            // 🎵 음악 스트리밍
-            'music.youtube.com', 'spotify.com',
-
-            // 기타
-           'github.com',
+            'music.youtube.com', 'spotify.com', 'github.com',
         ],
-
-        // [2] 동작 줄이기 제외 (강제 애니메이션 제거 시 UI가 깨지는 곳)
-        noMotion: [
-            // OTT 프로필 선택 화면 / 영상 안보임 등
-            'coupangplay.com', 'wavve.com',
-            // 화려한 웹사이트 / AI 효과
-            'apple.com', 'gemini.google.com',
-            // 일부 애니메이션 효과 안보임
-            'etoland.co.kr',
-        ],
-
-        // [3] 렌더링/GPU 간섭 제외 (레이아웃 틀어짐 방지)
         noRender: [
-            // 채팅창 레이어 깨짐 방지
-            'twitch.tv',
-            // 사이트 레이아웃 깨짐 방지
             'youtube.com', 'dcinside.com', 'tv.naver.com', 'tvwiki5.net', 'avsee.ru', 'cineaste.co.kr', 'inven.co.kr',
         ],
-
         disallowCodec: [
             'netflix.com', 'disneyplus.com', 'tving.com', 'wavve.com', 'coupangplay.com', 'watcha.com',
             'meet.google.com', 'discord.com', 'zoom.us'
         ]
     };
 
-    // ========================
-    // 2. 설정 (Config)
-    // ========================
     const overrides = Env.getOverrides();
-    const Config = {
+    const rawConfig = {
         codecMode: overrides.codecMode || 'soft',
         throttle: { enabled: !Env.isMatch(SiteLists.noThrottling) && overrides.throttle !== false },
-        motion: { enabled: !Env.isMatch(SiteLists.noMotion) && overrides.motion !== false },
+        motion: { enabled: !Env.isMatch(SiteLists.noRender) && overrides.motion !== false },
         gpu: { enabled: !Env.isMatch(SiteLists.noRender) && overrides.gpu !== false },
         image: { enabled: !Env.isMatch(SiteLists.noRender) && overrides.image !== false },
-        // [Refine] 데이터 세이버거나 제외 리스트면 끔
-        prefetch: { enabled: !Env.isDataSaver && !Env.isMatch(SiteLists.noThrottling) && overrides.prefetch !== false },
+        prefetch: { enabled: !Env.isSlowNetwork && !Env.isMatch(SiteLists.noThrottling) && overrides.prefetch !== false },
+        prefetchStrategy: overrides.prefetchStrategy || 'prefetch',
         connect: { enabled: overrides.connect !== false },
         memory: { enabled: overrides.memory !== false },
         debug: { enabled: overrides.debug === true }
     };
 
-    if (Env.isMatch(SiteLists.disallowCodec)) Config.codecMode = 'off';
+    if (Env.isMatch(SiteLists.disallowCodec)) rawConfig.codecMode = 'off';
+    const Config = Object.freeze(rawConfig);
 
     // ========================
-    // 3. 모듈 시스템
+    // 3. Systems (Toast & Inspector)
+    // ========================
+    class ToastManager {
+        static show(message, type = 'info') {
+            const container = document.getElementById('perfx-toast-container') || this.createContainer();
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            Object.assign(toast.style, {
+                background: 'rgba(30,30,30,0.95)', color: type === 'warn' ? '#FF5252' : '#fff',
+                padding: '12px 20px', marginBottom: '10px', borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)', fontSize: '13px', fontFamily: 'sans-serif',
+                opacity: '0', transform: 'translateY(20px)', transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                borderLeft: `4px solid ${type === 'warn' ? '#FF5252' : '#4CAF50'}`, backdropFilter: 'blur(4px)'
+            });
+            container.appendChild(toast);
+            requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; });
+            setTimeout(() => {
+                toast.style.opacity = '0'; toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+        static createContainer() {
+            const div = document.createElement('div');
+            div.id = 'perfx-toast-container';
+            Object.assign(div.style, {
+                position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+                zIndex: '1000000', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none'
+            });
+            document.body.appendChild(div);
+            return div;
+        }
+    }
+
+    class VideoInspector {
+        static getStatus() {
+            const v = document.querySelector('video');
+            if (!v) return { active: false, msg: 'No Active Video' };
+
+            const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : {};
+            const drop = q.droppedVideoFrames || 0;
+            const w = v.videoWidth;
+            const h = v.videoHeight;
+
+            if (w === 0) return { active: true, loading: true, msg: 'Loading Media...' };
+
+            let policyMsg = 'Unknown';
+            if (Config.codecMode === 'hard') policyMsg = 'H.264 Forced';
+            else if (Config.codecMode === 'soft') policyMsg = 'VP9 Allowed';
+            else policyMsg = 'Native';
+
+            return {
+                active: true, loading: false,
+                res: `${w}x${h}`,
+                drop: drop,
+                policy: policyMsg,
+                isBad: drop > 10
+            };
+        }
+    }
+
+    // ========================
+    // 4. Logic Modules
     // ========================
     class BaseModule {
         safeInit() { try { this.init(); } catch (e) { console.error(`[PerfX] ${this.constructor.name}`, e); } }
@@ -111,38 +151,24 @@
     class CodecOptimizer extends BaseModule {
         init() {
             if (Config.codecMode === 'off') return;
-
             const enableHook = () => {
-                if (!window.MediaSource) return;
-                // [New] 중복 후킹 방지 + 소유권 명시
-                if (window.MediaSource._perfXHooked) return;
-
+                if (!window.MediaSource || window.MediaSource._perfXHooked) return;
                 const orig = window.MediaSource.isTypeSupported.bind(window.MediaSource);
-                const cache = new Map(); // [New] 결과 캐싱 (성능 최적화)
-
+                const cache = new Map();
                 window.MediaSource.isTypeSupported = (t) => {
                     if (!t) return false;
-                    if (cache.has(t)) return cache.get(t); // 캐시 히트
-
+                    if (cache.has(t)) return cache.get(t);
                     const type = t.toLowerCase();
                     let result = true;
-
-                    if (Config.codecMode === 'soft') {
-                        if (type.includes('av01')) result = false; // Soft: AV1 차단
-                    } else if (Config.codecMode === 'hard') {
-                        if (type.match(/vp9|vp09|av01/)) result = false; // Hard: H.264 강제
-                    }
-
-                    if (result) result = orig(t); // 브라우저 지원 여부 최종 확인
-
-                    cache.set(t, result); // 결과 저장
+                    if (Config.codecMode === 'soft') { if (type.includes('av01')) result = false; }
+                    else if (Config.codecMode === 'hard') { if (type.match(/vp9|vp09|av01/)) result = false; }
+                    if (result) result = orig(t);
+                    cache.set(t, result);
                     return result;
                 };
-
                 window.MediaSource._perfXHooked = true;
-                console.log(`[PerfX] Codec Hooked (${Config.codecMode}) - Cache Enabled`);
+                console.log(`[PerfX] Codec Hooked (${Config.codecMode})`);
             };
-
             enableHook();
             window.addEventListener('DOMContentLoaded', enableHook);
         }
@@ -151,27 +177,26 @@
     class BackgroundThrottler extends BaseModule {
         init() {
             if (!Config.throttle.enabled) return;
-            let isThrottled = false;
-            const origSetTimeout = window.setTimeout;
-            const origRAF = window.requestAnimationFrame;
 
-            // [Refine] Soft-Gate Logic
-            const throttledRAF = (cb) => origSetTimeout(() => {
-                try { cb(performance.now()); } catch(e) {}
-            }, 1000);
+            const origRAF = window.requestAnimationFrame;
+            let isHidden = false;
+
+            // [v18 Plan] RAF Timer Stack protection (interval mode)
+            Object.defineProperty(window, 'requestAnimationFrame', {
+                configurable: true,
+                writable: true,
+                value: (callback) => {
+                    if (isHidden) {
+                        return setTimeout(() => { try { callback(performance.now()); } catch(e){} }, 500);
+                    }
+                    return origRAF(callback);
+                }
+            });
 
             document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    if (isThrottled) return;
-                    isThrottled = true;
-                    document.title = '💤 ' + document.title.replace(/^💤 /, '');
-                    window.requestAnimationFrame = throttledRAF;
-                } else {
-                    if (!isThrottled) return;
-                    isThrottled = false;
-                    document.title = document.title.replace(/^💤 /, '');
-                    window.requestAnimationFrame = origRAF;
-                }
+                isHidden = document.hidden;
+                if (isHidden) document.title = '💤 ' + document.title.replace(/^💤 /, '');
+                else document.title = document.title.replace(/^💤 /, '');
             });
         }
     }
@@ -179,75 +204,44 @@
     class LinkPrefetcher extends BaseModule {
         init() {
             if (!Config.prefetch.enabled) return;
+            const usePrerender = Config.prefetchStrategy === 'prerender' &&
+                                 (navigator.connection ? navigator.connection.effectiveType === '4g' : true);
+            const relType = usePrerender ? 'prerender' : 'prefetch';
+            
+            const MAX_PREFETCH = 15;
+            let currentPrefetchCount = 0;
+
+            setInterval(() => {
+                if (currentPrefetchCount > 0) currentPrefetchCount--;
+            }, 60000);
+
             Env.runOnLoad(() => {
                 const obs = new IntersectionObserver(entries => {
                     entries.forEach(e => {
                         if (e.isIntersecting) {
                             const el = e.target;
                             el.addEventListener('mouseenter', () => {
+                                if (currentPrefetchCount >= MAX_PREFETCH) return;
                                 if (!el.dataset.perfPre) {
-                                    // [New] 외부 도메인 차단 & 프로토콜 확인
                                     try {
-                                        const url = new URL(el.href);
-                                        if (url.origin !== window.location.origin) return; // Same-Origin Only
-                                    } catch (e) { return; }
+                                        if (new URL(el.href).origin !== window.location.origin) return;
+                                    } catch { return; }
 
-                                    const l = document.createElement('link'); l.rel = 'prefetch'; l.href = el.href;
+                                    const l = document.createElement('link');
+                                    l.rel = relType;
+                                    l.href = el.href;
                                     document.head.appendChild(l);
                                     el.dataset.perfPre = '1';
+                                    currentPrefetchCount++;
                                 }
                             }, {once:true, passive:true});
                             obs.unobserve(el);
                         }
                     });
                 });
-
-                // [New] http/https 링크만 탐색
                 const scan = (n) => n.querySelectorAll && n.querySelectorAll('a[href^="http"]').forEach(a => obs.observe(a));
                 scan(document.body);
                 new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => scan(n)))).observe(document.body, {childList:true, subtree:true});
-            });
-        }
-    }
-
-    // (나머지 모듈은 v15.2와 동일하되 Stability 유지)
-    class StyleInjector extends BaseModule {
-        init() {
-            Env.runOnLoad(() => {
-                let css = '';
-                if (Config.motion.enabled) css += `*, *::before, *::after { animation-duration: 0.001s !important; transition-duration: 0.001s !important; scroll-behavior: auto !important; } `;
-                if (Config.gpu.enabled) css += `.gpu-acc { transform: translateZ(0); } header, nav, .sticky { transform: translateZ(0); } `;
-                if (css) {
-                    const style = document.createElement('style');
-                    style.textContent = css;
-                    document.head.appendChild(style);
-                }
-            });
-        }
-    }
-
-    class ImageOptimizer extends BaseModule {
-        init() {
-            if (!Config.image.enabled) return;
-            Env.runOnLoad(() => {
-                const apply = (node) => {
-                    if (node.tagName === 'IMG' && !node.hasAttribute('loading')) node.loading = 'lazy';
-                    if (node.querySelectorAll) node.querySelectorAll('img:not([loading])').forEach(img => img.loading = 'lazy');
-                };
-                apply(document.body);
-                new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => apply(n)))).observe(document.body, {childList:true, subtree:true});
-            });
-        }
-    }
-
-    class PreconnectOptimizer extends BaseModule {
-        init() {
-            if (!Config.connect.enabled) return;
-            Env.runOnLoad(() => {
-                ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'].forEach(d => {
-                    const l = document.createElement('link'); l.rel = 'preconnect'; l.href = 'https://' + d; l.crossOrigin = 'anonymous';
-                    document.head.appendChild(l);
-                });
             });
         }
     }
@@ -260,46 +254,34 @@
 
             setInterval(() => {
                 if (!document.body) return;
-                const targets = document.querySelectorAll('ul, ol, div[class*="chat"], div[class*="list"], div[class*="scroller"]');
+
+                const targets = document.querySelectorAll(
+                    '[role="feed"], [role="log"], [data-testid*="chat"], .chat-scrollable, ul, ol'
+                );
+
                 targets.forEach(el => {
                     if (el.matches(':hover, :focus-within')) return;
-                    if (el.matches('[role="log"], .virtualized, .react-window')) return;
+                    if (el.matches('.virtualized, .react-window, [data-virtualized]')) return;
+                    
+                    if (el.id === 'root' || el.id.startsWith('__next') || el.hasAttribute('data-reactroot')) return;
+                    if (el.closest('[data-reactroot], [id^="__next"], #root') === el) return;
+                    
+                    const isReactManaged = Object.keys(el).some(key => key.startsWith('__react') || key.startsWith('_react'));
+                    if (isReactManaged) return; 
+
+                    if (el.scrollHeight <= el.clientHeight * 1.5) return;
+                    if (el.scrollTop < el.clientHeight) return;
+
                     if (el.childElementCount > LIMIT) {
-                        for(let i=0; i < el.childElementCount - PURGE; i++) el.firstElementChild?.remove();
+                        try {
+                            const range = document.createRange();
+                            range.setStart(el, 0);
+                            range.setEnd(el, el.childElementCount - PURGE);
+                            range.deleteContents();
+                        } catch(e) {}
                     }
                 });
             }, 30000);
-        }
-    }
-
-    class DebugOverlay extends BaseModule {
-        init() {
-            if (!Config.debug.enabled) return;
-            Env.runOnLoad(() => {
-                const hud = document.createElement('div');
-                Object.assign(hud.style, {
-                    position: 'fixed', top: '10px', left: '10px',
-                    background: 'rgba(0,0,0,0.7)', color: '#0f0',
-                    padding: '5px 10px', fontSize: '12px', zIndex: '999999',
-                    pointerEvents: 'none', borderRadius: '4px', fontFamily: 'monospace',
-                    whiteSpace: 'pre-line'
-                });
-                document.body.appendChild(hud);
-
-                setInterval(() => {
-                    const v = document.querySelector('video');
-                    if (v) {
-                        const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : {};
-                        const w = v.videoWidth;
-                        const h = v.videoHeight;
-                        // [Update] 정보 표시 포맷 개선
-                        hud.textContent = `📺 ${w}x${h}\n🛡️ Mode: ${Config.codecMode.toUpperCase()}\n📉 Drop: ${q.droppedVideoFrames||0}`;
-                        hud.style.display = 'block';
-                    } else {
-                        hud.style.display = 'none';
-                    }
-                }, 2000);
-            });
         }
     }
 
@@ -313,56 +295,67 @@
                     width: Env.isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
                     height: Env.isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
                     fontSize: Env.isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-                    background: '#4a90e2', color: '#FFD700',
-                    borderRadius: '50%', zIndex: '999999',
-                    display: 'flex', justifyContent: 'center', alignItems: 'center',
-                    cursor: 'pointer', boxShadow: '0 3px 8px rgba(0,0,0,0.4)',
-                    opacity: '0.8', userSelect: 'none', touchAction: 'none'
+                    background: '#4a90e2', color: '#FFD700', borderRadius: '50%', zIndex: '999999',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
+                    boxShadow: '0 3px 8px rgba(0,0,0,0.4)', opacity: '0.8', userSelect: 'none', touchAction: 'none'
                 });
 
                 const panel = document.createElement('div');
                 Object.assign(panel.style, {
-                    position: 'fixed', bottom: '70px', right: '20px',
-                    width: '240px', background: 'rgba(25,25,25,0.96)',
-                    backdropFilter: 'blur(5px)', borderRadius: '8px', padding: '15px',
-                    zIndex: '999999', display: 'none', color: '#eee',
+                    position: 'fixed', bottom: '70px', right: '20px', width: '240px',
+                    background: 'rgba(25,25,25,0.96)', backdropFilter: 'blur(5px)', borderRadius: '8px',
+                    padding: '15px', zIndex: '999999', display: 'none', color: '#eee',
                     fontFamily: 'sans-serif', fontSize: '12px', border: '1px solid #444'
                 });
 
+                const monitorBox = document.createElement('div');
+                monitorBox.style.cssText = 'background:#111; border-radius:6px; padding:8px; margin-bottom:12px; border:1px solid #333; text-align:center; font-family:monospace; color:#4CAF50; white-space:pre-line';
+                monitorBox.textContent = 'Ready';
+                panel.appendChild(monitorBox);
+
+                let monitorInterval = null;
+                const updateMonitor = () => {
+                    const status = VideoInspector.getStatus();
+                    if (status.active) {
+                        if (status.loading) {
+                            monitorBox.textContent = status.msg;
+                            monitorBox.style.color = '#FF9800';
+                        } else {
+                            monitorBox.textContent = `📺 ${status.res}\n⚙️ ${status.policy}\n📉 Drop: ${status.drop}`;
+                            monitorBox.style.color = status.isBad ? '#FF5252' : '#4CAF50';
+                        }
+                    } else {
+                        monitorBox.textContent = status.msg;
+                        monitorBox.style.color = '#777';
+                    }
+                };
+
                 const titleRow = document.createElement('div');
-                titleRow.style.cssText = 'margin-bottom:10px; border-bottom:1px solid #444; padding-bottom:5px; display:flex; justify-content:space-between';
-                const titleText = document.createElement('span');
-                const titleBold = document.createElement('b');
-                titleBold.textContent = 'PerfX ';
-                const titleVer = document.createElement('span');
-                titleVer.textContent = 'v15.3'; // Version Up
-                titleVer.style.cssText = 'font-size:10px;color:#aaa';
-                titleText.append(titleBold, titleVer);
-                const closeBtn = document.createElement('span');
-                closeBtn.textContent = '✖';
-                closeBtn.style.cursor = 'pointer';
-                closeBtn.onclick = () => panel.style.display = 'none';
-                titleRow.append(titleText, closeBtn);
+                titleRow.style.cssText = 'margin-bottom:10px; border-bottom:1px solid #444; padding-bottom:5px; display:flex; justify-content:space-between; align-items:center';
+                const titleContainer = document.createElement('div');
+                const titleMain = document.createElement('b'); titleMain.textContent = 'PerfX ';
+                const titleVer = document.createElement('span'); titleVer.textContent = 'v17.9'; titleVer.style.cssText = 'font-size:10px;color:#aaa';
+                titleContainer.append(titleMain, titleVer);
+                const closeBtn = document.createElement('span'); closeBtn.textContent = '✖'; closeBtn.style.cursor = 'pointer';
+                closeBtn.onclick = () => { panel.style.display = 'none'; if(monitorInterval) clearInterval(monitorInterval); };
+                titleRow.append(titleContainer, closeBtn);
                 panel.appendChild(titleRow);
 
                 const addRow = (label, key, val, displayVal, color) => {
                     const row = document.createElement('div');
                     row.style.cssText = 'display:flex; justify-content:space-between; margin-bottom:6px; align-items:center';
-                    const labelSpan = document.createElement('span');
-                    labelSpan.textContent = label;
-                    const valSpan = document.createElement('span');
-                    valSpan.textContent = displayVal;
-                    valSpan.style.fontWeight = 'bold';
-                    valSpan.style.cursor = 'pointer';
-                    valSpan.style.color = color || '#888';
+                    const labelSpan = document.createElement('span'); labelSpan.textContent = label;
+                    const valSpan = document.createElement('span'); valSpan.textContent = displayVal;
+                    valSpan.style.fontWeight = 'bold'; valSpan.style.cursor = 'pointer'; valSpan.style.color = color || '#888';
                     valSpan.onclick = () => {
-                       if (key === 'codecMode') {
-                           const next = val === 'soft' ? 'hard' : (val === 'hard' ? 'off' : 'soft');
-                           Env.setOverride(key, next);
-                       } else {
-                           Env.setOverride(key, !val);
-                       }
-                       alert('설정 변경됨. 새로고침 후 적용됩니다.');
+                        if (key === 'codecMode') {
+                            const next = val === 'soft' ? 'hard' : (val === 'hard' ? 'off' : 'soft');
+                            Env.setOverride(key, next);
+                            ToastManager.show(`Codec: ${next.toUpperCase()} (Reload)`, 'info');
+                        } else {
+                            Env.setOverride(key, !val);
+                            ToastManager.show(`${label}: ${!val ? 'ON' : 'OFF'} (Reload)`, !val ? 'info' : 'warn');
+                        }
                     };
                     row.append(labelSpan, valSpan);
                     panel.appendChild(row);
@@ -372,11 +365,8 @@
                 if (Config.codecMode === 'soft') codecColor = '#4CAF50';
                 else if (Config.codecMode === 'hard') codecColor = '#FF9800';
 
-                if (Env.isMatch(SiteLists.disallowCodec)) {
-                    addRow('🎥 코덱 모드', 'codecMode', Config.codecMode, 'FORCE OFF', '#E91E63');
-                } else {
-                    addRow('🎥 코덱 모드', 'codecMode', Config.codecMode, Config.codecMode.toUpperCase(), codecColor);
-                }
+                if (Env.isMatch(SiteLists.disallowCodec)) addRow('🎥 코덱 모드', 'codecMode', Config.codecMode, 'FORCE OFF', '#E91E63');
+                else addRow('🎥 코덱 모드', 'codecMode', Config.codecMode, Config.codecMode.toUpperCase(), codecColor);
 
                 addRow('💤 절전 모드', 'throttle', Config.throttle.enabled, Config.throttle.enabled?'ON':'OFF', Config.throttle.enabled?'#4CAF50':'');
                 addRow('🚀 모션 제거', 'motion', Config.motion.enabled, Config.motion.enabled?'ON':'OFF', Config.motion.enabled?'#4CAF50':'');
@@ -384,13 +374,83 @@
                 addRow('🧹 메모리 청소', 'memory', Config.memory.enabled, Config.memory.enabled?'ON':'OFF', Config.memory.enabled?'#4CAF50':'');
                 addRow('📟 디버그 HUD', 'debug', Config.debug.enabled, Config.debug.enabled?'ON':'OFF', Config.debug.enabled?'#2196F3':'');
 
-                const infoDiv = document.createElement('div');
-                infoDiv.style.cssText = 'font-size:9px; color:#666; margin-top:8px; text-align:right';
-                infoDiv.textContent = 'Soft: AV1차단 / Hard: H.264강제';
-                panel.appendChild(infoDiv);
-
-                btn.onclick = () => panel.style.display = panel.style.display==='none'?'block':'none';
+                btn.onclick = () => {
+                    if (panel.style.display === 'none') {
+                        panel.style.display = 'block';
+                        updateMonitor();
+                        monitorInterval = setInterval(updateMonitor, 1000);
+                    } else {
+                        panel.style.display = 'none';
+                        clearInterval(monitorInterval);
+                    }
+                };
                 document.body.append(btn, panel);
+            });
+        }
+    }
+
+    class StyleInjector extends BaseModule {
+        init() {
+            Env.runOnLoad(() => {
+                let css = '';
+                if (Config.motion.enabled) {
+                    css += `*:not(input):not(textarea):not(select) { animation-duration: 0.001s !important; transition-duration: 0.001s !important; scroll-behavior: auto !important; } `;
+                }
+                if (Config.gpu.enabled) css += `.gpu-acc { transform: translateZ(0); } header, nav, .sticky { transform: translateZ(0); } `;
+                if (css) { const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style); }
+            });
+        }
+    }
+    
+    // [Platinum Feature] Async Image Decoding
+    class ImageOptimizer extends BaseModule {
+        init() {
+            if (!Config.image.enabled) return;
+            Env.runOnLoad(() => {
+                const apply = (node) => {
+                    if (node.tagName === 'IMG') {
+                        if (!node.hasAttribute('loading')) node.loading = 'lazy';
+                        if (!node.hasAttribute('decoding')) node.decoding = 'async';
+                    }
+                    if (node.querySelectorAll) {
+                        node.querySelectorAll('img').forEach(img => {
+                            if (!img.hasAttribute('loading')) img.loading = 'lazy';
+                            if (!img.hasAttribute('decoding')) img.decoding = 'async';
+                        });
+                    }
+                };
+                apply(document.body);
+                new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => apply(n)))).observe(document.body, {childList:true, subtree:true});
+            });
+        }
+    }
+    class PreconnectOptimizer extends BaseModule {
+        init() {
+            if (!Config.connect.enabled) return;
+            Env.runOnLoad(() => {
+                ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'].forEach(d => {
+                    const l = document.createElement('link'); l.rel = 'preconnect'; l.href = 'https://' + d; l.crossOrigin = 'anonymous'; document.head.appendChild(l);
+                });
+            });
+        }
+    }
+    class DebugOverlay extends BaseModule {
+        init() {
+            if (!Config.debug.enabled) return;
+            Env.runOnLoad(() => {
+                const hud = document.createElement('div');
+                Object.assign(hud.style, {
+                    position: 'fixed', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', color: '#0f0',
+                    padding: '5px 10px', fontSize: '12px', zIndex: '999999', pointerEvents: 'none', borderRadius: '4px', fontFamily: 'monospace', whiteSpace: 'pre-line'
+                });
+                document.body.appendChild(hud);
+                setInterval(() => {
+                    const status = VideoInspector.getStatus();
+                    if(status.active) {
+                        hud.textContent = `📺 ${status.res}\n⚙️ ${status.policy}\n📉 Drop: ${status.drop}`;
+                        hud.style.display = 'block';
+                    } else hud.style.display = 'none';
+                }, 2000);
             });
         }
     }
