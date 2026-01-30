@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Web 성능 종합 최적화 도구상자 (v18.3 Architect Platinum)
+// @name         Web 성능 종합 최적화 도구상자 (v23.4 Architect Resilience)
 // @namespace    http://tampermonkey.net/
-// @version      18.3.0-KR-Architect-Platinum
-// @description  Adaptive Memory + Smart Positioning + Codec Reality + Draggable UI
+// @version      23.4.0-KR-Architect-Resilience
+// @description  Drift-Proof Heartbeat + Context Threshold + Shadow Guard + Zero-Jank
 // @author       KiwiFruit (Architected by AI & User)
 // @match        *://*/*
 // @exclude      *://weibo.com/*
@@ -28,9 +28,13 @@
     // ========================
     const Env = {
         isMobile: /Mobi|Android|iPhone/i.test(navigator.userAgent),
-        isSlowNetwork: (navigator.connection?.saveData === true) ||
-                       ['slow-2g', '2g', '3g'].includes(navigator.connection?.effectiveType),
-        storageKey: `PerfX_v18_${window.location.hostname}`,
+        getNetworkInfo() {
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            const isSlow = conn ? (conn.saveData || ['slow-2g', '2g', '3g'].includes(conn.effectiveType)) : false;
+            const type = conn ? (conn.effectiveType || '4g') : 'unknown';
+            return { isSlow, type, saveData: conn?.saveData };
+        },
+        storageKey: `PerfX_v23_${window.location.hostname}`,
         getOverrides() { try { return JSON.parse(localStorage.getItem(this.storageKey)) || {}; } catch { return {}; } },
         setOverride(key, val) {
             const data = this.getOverrides(); data[key] = val;
@@ -43,62 +47,231 @@
         }
     };
 
+    // [v23.4] Drift-Proof Heartbeat
+    const MasterHeartbeat = {
+        tasks: new Map(),
+        timer: null,
+
+        addTask(name, interval, fn, skipIfHighLoad = false) {
+            this.tasks.set(name, { fn, interval, lastRun: Date.now(), skipIfHighLoad });
+            if (!this.timer) this.start();
+        },
+
+        removeTask(name) {
+            this.tasks.delete(name);
+            if (this.tasks.size === 0) this.stop();
+        },
+
+        start() {
+            // 1s base tick is fine, precision handled in tick()
+            this.timer = setInterval(() => this.tick(), 1000);
+        },
+
+        stop() {
+            clearInterval(this.timer);
+            this.timer = null;
+        },
+
+        tick() {
+            const now = Date.now();
+            this.tasks.forEach(task => {
+                if (State.isHighLoad && task.skipIfHighLoad) return;
+
+                const elapsed = now - task.lastRun;
+                if (elapsed >= task.interval) {
+                    task.fn();
+                    // [v23.4] Drift Correction: Align next run to the theoretical grid
+                    // Instead of lastRun = now, we subtract the overshoot
+                    task.lastRun = now - (elapsed % task.interval);
+                }
+            });
+        }
+    };
+
+    const Scheduler = {
+        run: (task, timeout = 1000) => {
+            if (window.requestIdleCallback) {
+                window.requestIdleCallback(task, { timeout });
+            } else {
+                setTimeout(task, 50);
+            }
+        }
+    };
+
+    class BatchProcessor {
+        constructor(processorFn) {
+            this.queue = new Set();
+            this.processor = processorFn;
+            this.isScheduled = false;
+        }
+        add(item) {
+            this.queue.add(item);
+            if (!this.isScheduled) {
+                this.isScheduled = true;
+                Scheduler.run(() => {
+                    this.flush();
+                    this.isScheduled = false;
+                });
+            }
+        }
+        flush() {
+            const items = Array.from(this.queue);
+            this.queue.clear();
+            this.processor(items);
+        }
+    }
+
+    const State = {
+        processedNodes: new WeakSet(),
+        blockedCount: 0,
+        isHighLoad: false,
+        longTaskCount: 0,
+        totalDrops: 0,
+        lastDropSample: 0,
+        currentDropRate: 0,
+        audioActive: false
+    };
+
+    const SmartCache = {
+        key: 'perfx_session_cache',
+        history: new Set(),
+        init() {
+            try {
+                const saved = JSON.parse(sessionStorage.getItem(this.key));
+                if (Array.isArray(saved)) this.history = new Set(saved);
+            } catch (e) {}
+        },
+        has(url) { return this.history.has(url); },
+        add(url) {
+            if (this.history.size > 200) this.history.clear();
+            this.history.add(url);
+            if (!this.saveTimer) {
+                this.saveTimer = setTimeout(() => {
+                    sessionStorage.setItem(this.key, JSON.stringify(Array.from(this.history)));
+                    this.saveTimer = null;
+                }, 1000);
+            }
+        }
+    };
+    SmartCache.init();
+
+    const NetworkStatus = Env.getNetworkInfo();
+
     // ========================
     // 2. Configuration
     // ========================
     const SiteLists = {
-        // [1] 백그라운드 절전 제외 (영상/AI 답변 끊김 방지) (미디어 정지 안 함 & 절전 안 함)
         noThrottling: [
-            // 📡 실시간 방송 / 라이브 스트리밍
             'youtube.com', 'twitch.tv', 'sooplive.co.kr', 'chzzk.naver.com', 'tv.naver.com', 'tv.kakao.com', 'pandalive.co.kr',
-
-            // 🎬 OTT / 동영상 플랫폼
-            'netflix.com', 'tving.com', 'wavve.com', 'coupangplay.com', 'disneyplus.com', 'watcha.com',
-            'ok.ru',
-
-            // 🤖 AI 채팅 (실시간 답변 생성 중 끊김 방지)
+            'netflix.com', 'tving.com', 'wavve.com', 'coupangplay.com', 'disneyplus.com', 'watcha.com', 'ok.ru',
             'gemini.google.com', 'chatgpt.com', 'claude.ai',
-
-            // 🎵 음악 스트리밍
-            'music.youtube.com', 'spotify.com',
-
-            // 기타
-           'github.com',
+            'music.youtube.com', 'spotify.com', 'github.com',
         ],
-
-        // [2] 렌더링/GPU 간섭 제외 (레이아웃 틀어짐 방지)
         noRender: [
-            // 사이트 레이아웃 깨짐 방지
             'youtube.com', 'dcinside.com', 'tv.naver.com', 'tvwiki5.net', 'avsee.ru', 'cineaste.co.kr', 'inven.co.kr',
         ],
-
-        // [3] H264코덱 제외 제외
-        disallowCodec: [
+        drmCritical: [
             'netflix.com', 'disneyplus.com', 'tving.com', 'wavve.com', 'coupangplay.com', 'watcha.com',
+            'primevideo.com', 'hbo', 'hulu'
+        ],
+        disallowCodec: [
             'meet.google.com', 'discord.com', 'zoom.us'
+        ],
+        critical: [
+            'bank', 'pay', 'checkout', 'billing', 'console.aws', 'azure.com', 'cloud.google',
+            'paypal.com', 'stripe.com', 'toss.im', 'kakao.com/pay', 'naver.com/pay',
+            'upbit.com', 'bithumb.com', 'binance.com'
         ]
     };
 
+    const isCritical = Env.isMatch(SiteLists.critical);
+    const isDRM = Env.isMatch(SiteLists.drmCritical);
     const overrides = Env.getOverrides();
+    const autoEco = NetworkStatus.isSlow && !Env.isMatch(SiteLists.noThrottling) && !isCritical;
+
     const rawConfig = {
         codecMode: overrides.codecMode || 'soft',
-        throttle: { enabled: !Env.isMatch(SiteLists.noThrottling) && overrides.throttle !== false },
-        motion: { enabled: !Env.isMatch(SiteLists.noRender) && overrides.motion !== false },
-        gpu: { enabled: !Env.isMatch(SiteLists.noRender) && overrides.gpu !== false },
-        image: { enabled: !Env.isMatch(SiteLists.noRender) && overrides.image !== false },
-        prefetch: { enabled: !Env.isSlowNetwork && !Env.isMatch(SiteLists.noThrottling) && overrides.prefetch !== false },
+        throttle: { enabled: !Env.isMatch(SiteLists.noThrottling) && !isCritical && (autoEco || overrides.throttle !== false) },
+        motion: { enabled: !Env.isMatch(SiteLists.noRender) && (autoEco || overrides.motion !== false) },
+        gpu: { enabled: !Env.isMatch(SiteLists.noRender) && (autoEco || overrides.gpu !== false) },
+        image: { enabled: !Env.isMatch(SiteLists.noRender) && (autoEco || overrides.image !== false) },
+        prefetch: { enabled: !NetworkStatus.isSlow && !Env.isMatch(SiteLists.noThrottling) && overrides.prefetch !== false },
         prefetchStrategy: overrides.prefetchStrategy || 'prefetch',
         connect: { enabled: overrides.connect !== false },
         memory: { enabled: overrides.memory !== false },
+        privacy: { enabled: !isCritical && overrides.privacy !== false },
+        stealth: overrides.stealth !== false,
         debug: { enabled: overrides.debug === true }
     };
 
     if (Env.isMatch(SiteLists.disallowCodec)) rawConfig.codecMode = 'off';
+    if (isDRM) rawConfig.codecMode = 'off';
+
     const Config = Object.freeze(rawConfig);
 
     // ========================
-    // 3. Systems
+    // 3. Base Module
     // ========================
+    class BaseModule {
+        safeInit() { try { this.init(); } catch (e) { console.error(`[PerfX] ${this.constructor.name}`, e); } }
+        init() {}
+    }
+
+    // ========================
+    // 4. Systems (Core)
+    // ========================
+
+    // [v23.4] Shadow Piercer with Visibility
+    class ShadowPiercer extends BaseModule {
+        static targets = new Set();
+        static isPassive = false; // Status flag
+        static onPierce(cb) { this.targets.add(cb); }
+
+        init() {
+            try {
+                const origAttach = Element.prototype.attachShadow;
+                Element.prototype.attachShadow = function(init) {
+                    const root = origAttach.call(this, init);
+                    ShadowPiercer.targets.forEach(cb => cb(root));
+                    return root;
+                };
+            } catch(e) {
+                // CSP Blocked
+                ShadowPiercer.isPassive = true;
+            }
+        }
+    }
+
+    class AdaptiveGovernor extends BaseModule {
+        init() {
+            if (!window.PerformanceObserver) return;
+            try {
+                let strain = 0;
+                MasterHeartbeat.addTask('governor', 2000, () => {
+                    strain = Math.max(0, strain * 0.6);
+
+                    const currentDrops = State.totalDrops;
+                    const deltaDrops = currentDrops - State.lastDropSample;
+                    State.lastDropSample = currentDrops;
+                    State.currentDropRate = deltaDrops;
+
+                    if (strain > 2 || deltaDrops > 5) {
+                        if (!State.isHighLoad) State.isHighLoad = true;
+                    } else if (strain < 0.5 && deltaDrops === 0) {
+                        if (State.isHighLoad) State.isHighLoad = false;
+                    }
+                }, false);
+
+                const observer = new PerformanceObserver((list) => {
+                    const entries = list.getEntries();
+                    State.longTaskCount += entries.length;
+                    strain += entries.length;
+                });
+                observer.observe({ entryTypes: ['longtask'] });
+            } catch(e) {}
+        }
+    }
+
     class NavigationHandler {
         static listeners = [];
         static onNavigate(cb) { this.listeners.push(cb); }
@@ -121,7 +294,10 @@
             history.pushState = wrap('pushState');
             history.replaceState = wrap('replaceState');
             window.addEventListener('popstate', check);
-            setInterval(check, 1000);
+            Env.runOnLoad(() => {
+                const title = document.querySelector('title');
+                if (title) new MutationObserver(check).observe(title, { childList: true });
+            });
         }
     }
 
@@ -158,49 +334,98 @@
 
     class VideoInspector {
         static getStatus() {
-            const v = document.querySelector('video');
-            if (!v) return { active: false, msg: 'No Active Video' };
+            const videos = Array.from(document.querySelectorAll('video'));
+
+            if (videos.length === 0) {
+                State.audioActive = false;
+                if (window.location.href.match(/(live|play|watch)/)) return { active: true, loading: true, msg: 'Waiting for stream...' };
+                return { active: false, msg: 'No Active Video' };
+            }
+
+            videos.sort((a, b) => {
+                const sizeA = a.offsetWidth * a.offsetHeight;
+                const sizeB = b.offsetWidth * b.offsetHeight;
+                if (sizeA !== sizeB) return sizeB - sizeA;
+
+                const aPlaying = !a.paused;
+                const bPlaying = !b.paused;
+                return bPlaying - aPlaying;
+            });
+
+            const v = videos[0];
+            const isPlaying = !v.paused;
+            State.audioActive = isPlaying;
 
             const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : {};
             const drop = q.droppedVideoFrames || 0;
+            State.totalDrops = drop;
+
             const w = v.videoWidth;
             const h = v.videoHeight;
 
-            if (w === 0) return { active: true, loading: true, msg: 'Loading Media...' };
+            if (w === 0) return { active: true, loading: true, msg: isPlaying ? 'Stream Loading...' : 'Ready (Buffering)' };
 
             let policyMsg = 'Unknown';
             if (Config.codecMode === 'hard') policyMsg = 'H.264 Forced';
             else if (Config.codecMode === 'soft') policyMsg = 'VP9 Allowed';
             else policyMsg = 'Native';
 
+            // [v23.4] Context-Aware Thresholds
+            const isLive = v.duration === Infinity;
+            const dropThreshold = isLive ? 15 : 5; // Live is more tolerant
+            const isBad = drop > dropThreshold;
+
             return {
                 active: true, loading: false,
                 res: `${w}x${h}`,
                 drop: drop,
                 policy: policyMsg,
-                isBad: drop > 10
+                isBad: isBad
             };
         }
     }
 
     // ========================
-    // 4. Logic Modules
+    // 5. Logic Modules
     // ========================
-    class BaseModule {
-        safeInit() { try { this.init(); } catch (e) { console.error(`[PerfX] ${this.constructor.name}`, e); } }
-        init() {}
+
+    class PrivacySaver extends BaseModule {
+        init() {
+            if (!Config.privacy.enabled || isCritical) return;
+            const TRACKERS = ['google-analytics', 'googletagmanager', 'doubleclick', 'facebook.com/tr', 'connect.facebook', 'clarity.ms', 'hotjar', 'mixpanel', 'segment.com'];
+            const isTracker = (url) => {
+                if(!url) return false;
+                return TRACKERS.some(t => url.includes(t));
+            };
+            try {
+                const origBeacon = navigator.sendBeacon;
+                if (origBeacon) {
+                    navigator.sendBeacon = function (url, data) {
+                        if (isTracker(url)) {
+                            State.blockedCount++;
+                            return true;
+                        }
+                        return origBeacon.call(this, url, data);
+                    };
+                }
+            } catch (e) {}
+        }
     }
 
     class CodecOptimizer extends BaseModule {
         init() {
             if (Config.codecMode === 'off') return;
-            const enableHook = () => {
+            if (isDRM) return;
+
+            const hook = () => {
                 if (!window.MediaSource || window.MediaSource._perfXHooked) return;
                 const orig = window.MediaSource.isTypeSupported.bind(window.MediaSource);
                 const cache = new Map();
                 window.MediaSource.isTypeSupported = (t) => {
                     if (!t) return false;
                     if (cache.has(t)) return cache.get(t);
+                    if (cache.size > 50) cache.clear();
+
                     const type = t.toLowerCase();
                     let result = true;
                     if (Config.codecMode === 'soft') { if (type.includes('av01')) result = false; }
@@ -212,31 +437,53 @@
                 window.MediaSource._perfXHooked = true;
                 console.log(`[PerfX] Codec Hooked (${Config.codecMode})`);
             };
-            enableHook();
-            window.addEventListener('DOMContentLoaded', enableHook);
+
+            hook();
+            if (!window.MediaSource) {
+                Object.defineProperty(window, 'MediaSource', {
+                    configurable: true,
+                    set: (v) => { delete window.MediaSource; window.MediaSource = v; hook(); }
+                });
+            }
         }
     }
 
     class BackgroundThrottler extends BaseModule {
         init() {
-            if (!Config.throttle.enabled) return;
+            if (!Config.throttle.enabled || isCritical) return;
+            if (window.__perfXRafWrapped) return;
+            window.__perfXRafWrapped = true;
+
             const origRAF = window.requestAnimationFrame;
             let isHidden = false;
-            Object.defineProperty(window, 'requestAnimationFrame', {
-                configurable: true,
-                writable: true,
-                value: (callback) => {
-                    if (isHidden) {
-                        return setTimeout(() => { try { callback(performance.now()); } catch(e){} }, 500);
-                    }
-                    return origRAF(callback);
+
+            const checkState = () => {
+                isHidden = document.hidden || !document.hasFocus();
+                if (!Config.stealth) {
+                    if (isHidden) document.title = '💤 ' + document.title.replace(/^💤 /, '');
+                    else document.title = document.title.replace(/^💤 /, '');
                 }
-            });
-            document.addEventListener('visibilitychange', () => {
-                isHidden = document.hidden;
-                if (isHidden) document.title = '💤 ' + document.title.replace(/^💤 /, '');
-                else document.title = document.title.replace(/^💤 /, '');
-            });
+            };
+
+            try {
+                Object.defineProperty(window, 'requestAnimationFrame', {
+                    configurable: true,
+                    writable: true,
+                    value: (callback) => {
+                        if (isHidden) {
+                            if (State.audioActive) return origRAF(callback);
+                            const delay = State.isHighLoad ? 500 : 350;
+                            return setTimeout(() => { try { callback(performance.now()); } catch(e){} }, delay);
+                        }
+                        return origRAF(callback);
+                    }
+                });
+            } catch (e) {}
+
+            document.addEventListener('visibilitychange', checkState);
+            window.addEventListener('blur', checkState);
+            window.addEventListener('focus', checkState);
+            checkState();
         }
     }
 
@@ -248,77 +495,109 @@
             const relType = usePrerender ? 'prerender' : 'prefetch';
             const MAX_PREFETCH = 15;
             let currentPrefetchCount = 0;
+
+            let lastDecayTime = Date.now();
+            const checkDecay = () => {
+                const now = Date.now();
+                if (now - lastDecayTime > 60000) {
+                    if (currentPrefetchCount > 0) currentPrefetchCount--;
+                    lastDecayTime = now;
+                }
+            };
+
             NavigationHandler.onNavigate(() => { currentPrefetchCount = 0; });
-            setInterval(() => { if (currentPrefetchCount > 0) currentPrefetchCount--; }, 60000);
+
+            const obs = new IntersectionObserver(entries => {
+                entries.forEach(e => {
+                    if (e.isIntersecting) {
+                        const el = e.target;
+                        if (State.processedNodes.has(el)) return;
+
+                        el.addEventListener('mouseenter', () => {
+                            checkDecay();
+                            if (State.isHighLoad) return;
+
+                            if (currentPrefetchCount >= MAX_PREFETCH) return;
+                            if (SmartCache.has(el.href)) return;
+                            try { if (new URL(el.href).origin !== window.location.origin) return; } catch { return; }
+
+                            Scheduler.run(() => {
+                                State.processedNodes.add(el);
+                                SmartCache.add(el.href);
+                                const l = document.createElement('link');
+                                l.rel = relType;
+                                l.href = el.href;
+                                document.head.appendChild(l);
+                                currentPrefetchCount++;
+                            });
+                        }, {once:true, passive:true});
+                        obs.unobserve(el);
+                    }
+                });
+            }, { rootMargin: '200px' });
+
+            const batcher = new BatchProcessor((nodes) => {
+                nodes.forEach(n => obs.observe(n));
+            });
 
             Env.runOnLoad(() => {
-                const obs = new IntersectionObserver(entries => {
-                    entries.forEach(e => {
-                        if (e.isIntersecting) {
-                            const el = e.target;
-                            el.addEventListener('mouseenter', () => {
-                                if (currentPrefetchCount >= MAX_PREFETCH) return;
-                                if (!el.dataset.perfPre) {
-                                    try { if (new URL(el.href).origin !== window.location.origin) return; } catch { return; }
-                                    const l = document.createElement('link');
-                                    l.rel = relType;
-                                    l.href = el.href;
-                                    document.head.appendChild(l);
-                                    el.dataset.perfPre = '1';
-                                    currentPrefetchCount++;
-                                }
-                            }, {once:true, passive:true});
-                            obs.unobserve(el);
-                        }
-                    });
-                });
-                const scan = (n) => n.querySelectorAll && n.querySelectorAll('a[href^="http"]').forEach(a => obs.observe(a));
+                const scan = (n) => {
+                    if (n.querySelectorAll) {
+                        const links = n.querySelectorAll('a[href^="http"]');
+                        if (links.length > 0) links.forEach(a => batcher.add(a));
+                    }
+                };
                 scan(document.body);
+                ShadowPiercer.onPierce((root) => {
+                    scan(root);
+                    new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => scan(n)))).observe(root, {childList:true, subtree:true});
+                });
                 new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => scan(n)))).observe(document.body, {childList:true, subtree:true});
             });
         }
     }
 
-    // [Platinum] Adaptive Memory Guardian
     class MemoryGuardian extends BaseModule {
         init() {
             if (!Config.memory.enabled) return;
             const LIMIT = Env.isMobile ? 600 : 1200;
             const PURGE = Env.isMobile ? 300 : 600;
+            const MIN_RETAIN = 50;
 
-            let intervalId = null;
-            const run = () => {
-                if (!document.body) return;
-                const targets = document.querySelectorAll('[role="feed"], [role="log"], [data-testid*="chat"], .chat-scrollable, ul, ol');
-                targets.forEach(el => {
-                    if (el.matches(':hover, :focus-within')) return;
-                    if (el.matches('.virtualized, .react-window, [data-virtualized]')) return;
-                    if (el.id === 'root' || el.id.startsWith('__next') || el.hasAttribute('data-reactroot')) return;
-                    if (el.closest('[data-reactroot], [id^="__next"], #root') === el) return;
-                    const isReactManaged = Object.keys(el).some(key => key.startsWith('__react') || key.startsWith('_react'));
-                    if (isReactManaged) return;
-                    if (el.scrollHeight <= el.clientHeight * 1.5) return;
-                    if (el.scrollTop < el.clientHeight) return;
-                    if (el.childElementCount > LIMIT) {
-                        try {
-                            const range = document.createRange();
-                            range.setStart(el, 0);
-                            range.setEnd(el, el.childElementCount - PURGE);
-                            range.deleteContents();
-                        } catch(e) {}
-                    }
+            const run = (root) => {
+                if (!root) return;
+                Scheduler.run(() => {
+                    const targets = root.querySelectorAll('[role="feed"], [role="log"], [data-testid*="chat"], .chat-scrollable, ul, ol');
+                    targets.forEach(el => {
+                        if (el.matches(':hover, :focus-within')) return;
+                        if (el.matches('.virtualized, .react-window, [data-virtualized]')) return;
+                        if (el.dataset.key || el.getAttribute('aria-posinset') || el.getAttribute('role') === 'listitem') return;
+                        if (el.id === 'root' || el.id.startsWith('__next') || el.hasAttribute('data-reactroot')) return;
+                        if (el.closest('[data-reactroot], [id^="__next"], #root') === el) return;
+                        const isReactManaged = Object.keys(el).some(key => key.startsWith('__react') || key.startsWith('_react'));
+                        if (isReactManaged) return;
+
+                        if (el.scrollHeight <= el.clientHeight * 1.5) return;
+                        if (el.scrollTop < el.clientHeight) return;
+
+                        if (el.childElementCount > LIMIT) {
+                            try {
+                                const removeCount = Math.max(0, Math.min(PURGE, el.childElementCount - MIN_RETAIN));
+                                if (removeCount > 0) {
+                                    const range = document.createRange();
+                                    range.setStart(el, 0);
+                                    range.setEnd(el, removeCount);
+                                    range.deleteContents();
+                                }
+                            } catch(e) {}
+                        }
+                    });
                 });
             };
 
-            const start = (delay) => {
-                if (intervalId) clearInterval(intervalId);
-                intervalId = setInterval(run, delay);
-            };
-
-            // Active: 20s, Hidden: 60s (Battery Saver)
-            start(20000);
-            document.addEventListener('visibilitychange', () => {
-                start(document.hidden ? 60000 : 20000);
+            MasterHeartbeat.addTask('memory', 20000, () => run(document.body), true);
+            ShadowPiercer.onPierce((root) => {
+                MasterHeartbeat.addTask('memory_shadow', 30000, () => run(root), true);
             });
         }
     }
@@ -326,6 +605,10 @@
     class UIController extends BaseModule {
         init() {
             Env.runOnLoad(() => {
+                if (autoEco) {
+                    ToastManager.show(`🐢 ${NetworkStatus.type.toUpperCase()} 감지: Auto-Eco 모드 가동`, 'warn');
+                }
+
                 const btn = document.createElement('div');
                 btn.textContent = '⚡';
                 const savedPos = JSON.parse(localStorage.getItem('perfx_btn_pos') || '{"bottom":"60px","right":"10px"}');
@@ -337,7 +620,8 @@
                     width: Env.isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
                     height: Env.isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)',
                     fontSize: Env.isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)',
-                    background: '#4a90e2', color: '#FFD700', borderRadius: '50%', zIndex: '999999',
+                    background: autoEco ? '#FF9800' : (isCritical ? '#607D8B' : '#4a90e2'),
+                    color: '#FFD700', borderRadius: '50%', zIndex: '999999',
                     display: 'flex', justifyContent: 'center', alignItems: 'center',
                     boxShadow: '0 3px 8px rgba(0,0,0,0.4)', opacity: '0.8', userSelect: 'none',
                     cursor: 'pointer', touchAction: 'none'
@@ -395,14 +679,11 @@
                 btn.addEventListener('touchstart', onMouseDown);
 
                 const repositionPanel = () => {
-                    // [Platinum] Precise Height Calculation
-                    // Temporarily render to get dimensions
                     const wasVisible = panel.style.display !== 'none';
                     if (!wasVisible) {
                         panel.style.visibility = 'hidden';
                         panel.style.display = 'block';
                     }
-
                     const btnRect = btn.getBoundingClientRect();
                     const panelWidth = panel.offsetWidth || 270;
                     const panelHeight = panel.offsetHeight || 300;
@@ -411,7 +692,6 @@
                         panel.style.display = 'none';
                         panel.style.visibility = '';
                     }
-
                     let newLeft = btnRect.left - panelWidth - 12;
                     let newTop = btnRect.top;
                     if (newLeft < 10) newLeft = btnRect.right + 12;
@@ -427,33 +707,57 @@
                 monitorBox.textContent = 'Ready';
                 panel.appendChild(monitorBox);
 
-                let monitorInterval = null;
+                const infoRow = document.createElement('div');
+                infoRow.style.cssText = 'font-size:10px; color:#aaa; margin-bottom:10px; display:flex; justify-content:space-between; padding:0 4px;';
+
+                const netSpan = document.createElement('span');
+                const privacySpan = document.createElement('span');
+                infoRow.appendChild(netSpan);
+                infoRow.appendChild(privacySpan);
+                panel.appendChild(infoRow);
+
+                let localInterval = null;
                 const updateMonitor = () => {
-                    const status = VideoInspector.getStatus();
-                    if (status.active) {
-                        if (status.loading) {
-                            monitorBox.textContent = status.msg;
-                            monitorBox.style.color = '#FF9800';
+                    try {
+                        const status = VideoInspector.getStatus();
+                        const privacyIcon = isCritical ? '🔒 Safe Site' : `🛡️ ${State.blockedCount}`;
+                        const loadIcon = State.isHighLoad ? '🔥 High Load' : '🟢 Stable';
+
+                        netSpan.textContent = `📶 ${NetworkStatus.type.toUpperCase()}`;
+
+                        // [v23.4] Shadow Visibility
+                        let pText = `${loadIcon} | ${privacyIcon}`;
+                        if (ShadowPiercer.isPassive) pText += ' 🧱'; // Brick icon for passive shadow
+                        privacySpan.textContent = pText;
+
+                        if (status.active) {
+                            if (status.loading) {
+                                monitorBox.textContent = status.msg;
+                                monitorBox.style.color = '#FF9800';
+                            } else {
+                                monitorBox.textContent = `📺 ${status.res} | 📉 ${State.currentDropRate}/s\n⚙️ Policy: ${status.policy}`;
+                                monitorBox.style.color = status.isBad ? '#FF5252' : '#4CAF50';
+                            }
                         } else {
-                            // [Platinum] Trustworthy HUD
-                            monitorBox.textContent = `📺 ${status.res} | 📉 ${status.drop}\n⚙️ Policy: ${status.policy}`;
-                            monitorBox.style.color = status.isBad ? '#FF5252' : '#4CAF50';
+                            monitorBox.textContent = status.msg;
+                            monitorBox.style.color = '#777';
                         }
-                    } else {
-                        monitorBox.textContent = status.msg;
-                        monitorBox.style.color = '#777';
+                    } catch (e) {
+                        monitorBox.textContent = 'Error: ' + e.message;
+                        monitorBox.style.color = '#FF5252';
                     }
                 };
 
                 const togglePanel = () => {
                     if (panel.style.display === 'none') {
-                        repositionPanel(); // Smart Pos
+                        repositionPanel();
                         panel.style.display = 'block';
                         updateMonitor();
-                        monitorInterval = setInterval(updateMonitor, 1000);
+                        localInterval = setInterval(updateMonitor, 500);
                     } else {
                         panel.style.display = 'none';
-                        clearInterval(monitorInterval);
+                        clearInterval(localInterval);
+                        localInterval = null;
                     }
                 };
 
@@ -461,10 +765,10 @@
                 titleRow.style.cssText = 'margin-bottom:10px; border-bottom:1px solid #444; padding-bottom:5px; display:flex; justify-content:space-between; align-items:center';
                 const titleContainer = document.createElement('div');
                 const titleMain = document.createElement('b'); titleMain.textContent = 'PerfX ';
-                const titleVer = document.createElement('span'); titleVer.textContent = 'v18.3'; titleVer.style.cssText = 'font-size:10px;color:#aaa';
+                const titleVer = document.createElement('span'); titleVer.textContent = 'v23.4'; titleVer.style.cssText = 'font-size:10px;color:#aaa';
                 titleContainer.append(titleMain, titleVer);
                 const closeBtn = document.createElement('span'); closeBtn.textContent = '✖'; closeBtn.style.cursor = 'pointer';
-                closeBtn.onclick = () => { panel.style.display = 'none'; if(monitorInterval) clearInterval(monitorInterval); };
+                closeBtn.onclick = () => { panel.style.display = 'none'; clearInterval(localInterval); };
                 titleRow.append(titleContainer, closeBtn);
                 panel.appendChild(titleRow);
 
@@ -475,6 +779,10 @@
                     const valSpan = document.createElement('span'); valSpan.textContent = displayVal;
                     valSpan.style.fontWeight = 'bold'; valSpan.style.cursor = 'pointer'; valSpan.style.color = color || '#888';
                     valSpan.onclick = () => {
+                        if (isCritical && (key === 'privacy' || key === 'throttle')) {
+                            ToastManager.show('🔒 Critical Site: Option Locked', 'warn');
+                            return;
+                        }
                         if (key === 'codecMode') {
                             const next = val === 'soft' ? 'hard' : (val === 'hard' ? 'off' : 'soft');
                             Env.setOverride(key, next);
@@ -495,6 +803,7 @@
                 if (Env.isMatch(SiteLists.disallowCodec)) addRow('🎥 코덱 모드', 'codecMode', Config.codecMode, 'FORCE OFF', '#E91E63');
                 else addRow('🎥 코덱 모드', 'codecMode', Config.codecMode, Config.codecMode.toUpperCase(), codecColor);
 
+                addRow('🛡️ 트래커 차단', 'privacy', Config.privacy.enabled, Config.privacy.enabled?'ON':'OFF', Config.privacy.enabled?'#4CAF50':'');
                 addRow('💤 절전 모드', 'throttle', Config.throttle.enabled, Config.throttle.enabled?'ON':'OFF', Config.throttle.enabled?'#4CAF50':'');
                 addRow('🚀 모션 제거', 'motion', Config.motion.enabled, Config.motion.enabled?'ON':'OFF', Config.motion.enabled?'#4CAF50':'');
                 addRow('👁️ 렌더링/GPU', 'gpu', Config.gpu.enabled, Config.gpu.enabled?'ON':'OFF', Config.gpu.enabled?'#4CAF50':'');
@@ -511,7 +820,8 @@
             Env.runOnLoad(() => {
                 let css = '';
                 if (Config.motion.enabled) {
-                    css += `*:not(input):not(textarea):not(select) { animation-duration: 0.001s !important; transition-duration: 0.001s !important; scroll-behavior: auto !important; } `;
+                    css += `html[data-perfx-motion="off"] *:not(input):not(textarea):not(select):not([role="progressbar"]):not([class*="loading"]):not([class*="spinner"]):not([class*="progress"]):not([class*="loader"]) { animation-duration: 0.001s !important; transition-duration: 0.001s !important; scroll-behavior: auto !important; } `;
+                    document.documentElement.setAttribute('data-perfx-motion', 'off');
                 }
                 if (Config.gpu.enabled) css += `.gpu-acc { transform: translateZ(0); } header, nav, .sticky { transform: translateZ(0); } `;
                 if (css) { const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style); }
@@ -522,21 +832,40 @@
     class ImageOptimizer extends BaseModule {
         init() {
             if (!Config.image.enabled) return;
-            Env.runOnLoad(() => {
-                const apply = (node) => {
-                    if (node.tagName === 'IMG') {
-                        if (!node.hasAttribute('loading')) node.loading = 'lazy';
-                        if (!node.hasAttribute('decoding')) node.decoding = 'async';
-                    }
-                    if (node.querySelectorAll) {
-                        node.querySelectorAll('img').forEach(img => {
-                            if (!img.hasAttribute('loading')) img.loading = 'lazy';
-                            if (!img.hasAttribute('decoding')) img.decoding = 'async';
+            const obs = new IntersectionObserver((entries) => {
+                entries.forEach(e => {
+                    if (e.isIntersecting) {
+                        const node = e.target;
+                        Scheduler.run(() => {
+                            if (State.processedNodes.has(node)) return;
+                            if (node.tagName === 'IMG') {
+                                if (!node.hasAttribute('loading')) node.loading = 'lazy';
+                                if (!node.hasAttribute('decoding')) node.decoding = 'async';
+                                State.processedNodes.add(node);
+                            }
                         });
+                        obs.unobserve(node);
+                    }
+                });
+            }, { rootMargin: '200px' });
+
+            const batcher = new BatchProcessor((nodes) => {
+                nodes.forEach(n => obs.observe(n));
+            });
+
+            Env.runOnLoad(() => {
+                const scan = (n) => {
+                    if (n.tagName === 'IMG') batcher.add(n);
+                    if (n.querySelectorAll) {
+                        n.querySelectorAll('img').forEach(img => batcher.add(img));
                     }
                 };
-                apply(document.body);
-                new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => apply(n)))).observe(document.body, {childList:true, subtree:true});
+                scan(document.body);
+                ShadowPiercer.onPierce((root) => {
+                    scan(root);
+                    new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => scan(n)))).observe(root, {childList:true, subtree:true});
+                });
+                new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => scan(n)))).observe(document.body, {childList:true, subtree:true});
             });
         }
     }
@@ -560,18 +889,24 @@
                     padding: '5px 10px', fontSize: '12px', zIndex: '999999', pointerEvents: 'none', borderRadius: '4px', fontFamily: 'monospace', whiteSpace: 'pre-line'
                 });
                 document.body.appendChild(hud);
-                setInterval(() => {
+                // Low Priority
+                MasterHeartbeat.addTask('debug_hud', 2000, () => {
                     const status = VideoInspector.getStatus();
+                    const loadStatus = State.isHighLoad ? '[High Load]' : '[Stable]';
+
                     if(status.active) {
-                        hud.textContent = `📺 ${status.res}\n⚙️ ${status.policy}\n📉 Drop: ${status.drop}`;
+                        hud.textContent = `📺 ${status.res} ${loadStatus}\n⚙️ ${status.policy}\n📉 Drop: ${status.drop}`;
                         hud.style.display = 'block';
                     } else hud.style.display = 'none';
-                }, 2000);
+                }, true);
             });
         }
     }
 
     NavigationHandler.init();
+    new ShadowPiercer().safeInit();
+    new AdaptiveGovernor().safeInit();
+    new PrivacySaver().safeInit();
     new CodecOptimizer().safeInit();
     new BackgroundThrottler().safeInit();
     [new StyleInjector(), new ImageOptimizer(), new LinkPrefetcher(),
