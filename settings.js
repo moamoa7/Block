@@ -843,17 +843,23 @@
             videoXLBrightenBtn.dataset.presetKey = 'brightenX3';
             videoXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.60); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -18); this.stateManager.set('videoFilter.highlights', 10); this.stateManager.set('videoFilter.activePreset', 'brightenX3'); };
 
-            const videoXXBrightenBtn = document.createElement('button');
-            videoXXBrightenBtn.className = 'vsc-btn';
-            videoXXBrightenBtn.textContent = 'XL';
-            videoXXBrightenBtn.dataset.presetKey = 'brightenX4';
-            videoXXBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.80); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -27); this.stateManager.set('videoFilter.highlights', 15); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
-
             const videoXXLBrightenBtn = document.createElement('button');
             videoXXLBrightenBtn.className = 'vsc-btn';
-            videoXXLBrightenBtn.textContent = 'XLL';
-            videoXXLBrightenBtn.dataset.presetKey = 'brightenX5';
-            videoXXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.80); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -27); this.stateManager.set('videoFilter.highlights', 30); this.stateManager.set('videoFilter.activePreset', 'brightenX5'); };
+            videoXXLBrightenBtn.textContent = 'XL';
+            videoXXLBrightenBtn.dataset.presetKey = 'brightenX4';
+            videoXXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.80); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -27); this.stateManager.set('videoFilter.highlights', 15); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
+
+            const videoXXLLBrightenBtn = document.createElement('button');
+            videoXXLLBrightenBtn.className = 'vsc-btn';
+            videoXXLLBrightenBtn.textContent = 'XLL';
+            videoXXLLBrightenBtn.dataset.presetKey = 'brightenX5';
+            videoXXLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.20); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -54); this.stateManager.set('videoFilter.highlights', 30); this.stateManager.set('videoFilter.activePreset', 'brightenX5'); };
+
+            const videoXXLLLBrightenBtn = document.createElement('button');
+            videoXXLLLBrightenBtn.className = 'vsc-btn';
+            videoXXLLLBrightenBtn.textContent = 'XLLL';
+            videoXXLLLBrightenBtn.dataset.presetKey = 'brightenX6';
+            videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.60); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -90); this.stateManager.set('videoFilter.highlights', 50); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
 
             const videoButtonsContainer = document.createElement('div');
             videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 0px; margin-top: 0px; width: 100%;';
@@ -875,11 +881,11 @@
 
             const videoBtnGroup3 = document.createElement('div');
             videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
-            videoBtnGroup3.append(createLabel('암부'), videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXBrightenBtn, videoXXLBrightenBtn);
+            videoBtnGroup3.append(createLabel('암부'), videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXLBrightenBtn, videoXXLLBrightenBtn, videoXXLLLBrightenBtn);
 
             videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup2, videoBtnGroup3);
 
-            const videoButtons = [videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn, videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXBrightenBtn, videoXXLBrightenBtn];
+            const videoButtons = [videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn, videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXLBrightenBtn, videoXXLLBrightenBtn, videoXXLLLBrightenBtn];
             this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); });
 
             videoSubMenu.append(
