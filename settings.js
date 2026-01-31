@@ -806,7 +806,7 @@
             videoSBrightenBtn.className = 'vsc-btn';
             videoSBrightenBtn.textContent = 'S';
             videoSBrightenBtn.dataset.presetKey = 'brighten1';
-            videoSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.30); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -8.0); this.stateManager.set('videoFilter.highlights', 8); this.stateManager.set('videoFilter.activePreset', 'brighten1'); };
+            videoSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.30); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -5.0); this.stateManager.set('videoFilter.highlights', 5); this.stateManager.set('videoFilter.activePreset', 'brighten1'); };
 
             const videoMBrightenBtn = document.createElement('button');
             videoMBrightenBtn.className = 'vsc-btn';
@@ -818,7 +818,7 @@
             videoLBrightenBtn.className = 'vsc-btn';
             videoLBrightenBtn.textContent = 'L';
             videoLBrightenBtn.dataset.presetKey = 'brighten3';
-            videoLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.60); this.stateManager.set('videoFilter.saturation', 104); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -12.0); this.stateManager.set('videoFilter.highlights', 12); this.stateManager.set('videoFilter.activePreset', 'brighten3'); };
+            videoLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.60); this.stateManager.set('videoFilter.saturation', 104); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -15.0); this.stateManager.set('videoFilter.highlights', 15); this.stateManager.set('videoFilter.activePreset', 'brighten3'); };
 
             const videoBrightenoffBtn = document.createElement('button');
             videoBrightenoffBtn.className = 'vsc-btn';
