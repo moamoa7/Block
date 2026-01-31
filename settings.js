@@ -859,7 +859,7 @@
             videoXXLLLBrightenBtn.className = 'vsc-btn';
             videoXXLLLBrightenBtn.textContent = 'XLLL';
             videoXXLLLBrightenBtn.dataset.presetKey = 'brightenX6';
-            videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.40); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -90); this.stateManager.set('videoFilter.highlights', 50); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
+            videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.50); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -90); this.stateManager.set('videoFilter.highlights', 50); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
 
             const videoButtonsContainer = document.createElement('div');
             videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 0px; margin-top: 0px; width: 100%;';
