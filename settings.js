@@ -847,7 +847,7 @@
             videoXXLBrightenBtn.className = 'vsc-btn';
             videoXXLBrightenBtn.textContent = 'XL';
             videoXXLBrightenBtn.dataset.presetKey = 'brightenX4';
-            videoXXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.60); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -27); this.stateManager.set('videoFilter.highlights', 15); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
+            videoXXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.75); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -36); this.stateManager.set('videoFilter.highlights', 20); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
 
             const videoXXLLBrightenBtn = document.createElement('button');
             videoXXLLBrightenBtn.className = 'vsc-btn';
