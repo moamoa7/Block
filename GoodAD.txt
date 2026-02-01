@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260130
+! Version: 20260201
 !
 !
 !
@@ -139,8 +139,6 @@ google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 !
 !
 ! 유튜브 (https://www.youtube.com/)
-! - 하단 왼쪽 팝업
-##ytd-popup-container.ytd-app.style-scope
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 ! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
 @@||youtube.com/api/stats^
