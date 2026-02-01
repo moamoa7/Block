@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Final Ultimate)
+// @name         Video_Image_Control (Final Ultimate + AutoTone Fixed)
 // @namespace    https://com/
-// @version      111.0-Final_Optimized
-// @description  비디오/이미지 제어 (Unsharp Mask + Smart Limit + rVFC Optimization + AdBlock + Live Sync)
+// @version      112.1-Final_AutoTone_Fixed
+// @description  비디오/이미지 제어 (Unsharp Mask + Smart Limit + Auto Tone + rVFC Optimization + AdBlock + Live Sync)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -16,7 +16,6 @@
     // --- [OPTIMIZATION 1] Ad-Frame Blocker (광고 프레임 조기 차단) ---
     if (window.self !== window.top) {
         const blacklist = /google_ads|doubleclick|adsystem|adnxs|criteo|moatads|rubicon|pubmatic|2mdn\.net|googlesyndication/i;
-        // URL이나 프레임 이름에 광고 관련 단어가 있으면 스크립트 실행 중지
         if (blacklist.test(location.href) || (window.name && blacklist.test(window.name))) return;
     }
 
@@ -25,7 +24,8 @@
         DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 7 : 5,
         DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 3 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 15 : 5,
-        DEFAULT_SMART_LIMIT_LEVEL: 0, // 기본값 0 (꺼짐). 게임 20% /영화.드라마 시청시 10% 추천.
+        DEFAULT_SMART_LIMIT_LEVEL: 0,
+        DEFAULT_AUTO_TONE_LEVEL: 0, // [NEW] 자동 톤 매핑 기본값 (0=꺼짐)
         DEBUG: false,
         // Auto Delay & Buffer
         AUTODELAY_INTERVAL_NORMAL: 1000, AUTODELAY_INTERVAL_STABLE: 3000,
@@ -44,8 +44,8 @@
         LIVE_STREAM_URLS: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         // Filters
-        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0 },
-        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0 },
+        MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
+        DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
         FILTER_EXCLUSION_DOMAINS: [], IMAGE_FILTER_EXCLUSION_DOMAINS: [],
@@ -84,11 +84,12 @@
         } catch (e) { console.warn("[VSC] Hooking Failed:", e); }
     })();
 
-    // --- [OPTIMIZATION 2] Video Analyzer (rVFC + Pixel Skip) ---
+    // --- [OPTIMIZATION 2] Video Analyzer (Smart Limit + Auto Tone) ---
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null,
-        currentSettings: { smartLimit: 0 },
+        currentSettings: { smartLimit: 0, autoTone: 0 },
         currentSlope: 1.0, targetSlope: 1.0,
+        currentAdaptiveGamma: 1.0,
         frameSkipCounter: 0,
 
         init() {
@@ -113,11 +114,11 @@
         },
         updateSettings(settings) {
             this.currentSettings = { ...this.currentSettings, ...settings };
-            // 기능이 꺼지면(0) 즉시 원상복구 및 분석 중지
-            if (this.currentSettings.smartLimit <= 0) {
+            if (this.currentSettings.smartLimit <= 0 && this.currentSettings.autoTone <= 0) {
                 this.targetSlope = 1.0;
                 this.currentSlope = 1.0;
-                this.notifyUpdate(1.0);
+                this.currentAdaptiveGamma = 1.0;
+                this.notifyUpdate(1.0, 1.0);
                 this.stop();
             } else if (!this.isRunning && this.targetVideo) {
                 this.isRunning = true;
@@ -127,23 +128,20 @@
         loop() {
             if (!this.isRunning || !this.targetVideo) return;
 
-            // rVFC 지원 시 사용 (화면 갱신될 때만 호출 -> 성능 최적화)
             if ('requestVideoFrameCallback' in this.targetVideo) {
                 this.handle = this.targetVideo.requestVideoFrameCallback(() => {
                     this.processFrame();
                     this.loop();
                 });
             } else {
-                // 미지원 브라우저 폴백
                 this.processFrame();
                 setTimeout(() => this.loop(), 200);
             }
         },
         processFrame() {
             if (!this.targetVideo || this.targetVideo.paused || this.targetVideo.ended) return;
-            if (this.currentSettings.smartLimit <= 0) return;
+            if (this.currentSettings.smartLimit <= 0 && this.currentSettings.autoTone <= 0) return;
 
-            // [최적화] 5프레임마다 1번 분석 (과부하 방지)
             this.frameSkipCounter++;
             if (this.frameSkipCounter < 5) return;
             this.frameSkipCounter = 0;
@@ -152,33 +150,57 @@
                 this.ctx.drawImage(this.targetVideo, 0, 0, 32, 32);
                 const data = this.ctx.getImageData(0, 0, 32, 32).data;
                 let total = 0;
-                // [최적화] 픽셀 샘플링 (16픽셀마다 1개만 읽음 - 속도 16배 향상)
-                for (let i = 0; i < data.length; i += 64) { // 4 bytes * 16 skip = 64
+                for (let i = 0; i < data.length; i += 64) {
                     total += data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722;
                 }
                 const sampleCount = data.length / 64;
                 const avgLuma = total / sampleCount / 255;
 
-                // Smart Limit Logic
+                // 1. Smart Limit Logic
                 const ceiling = (100 - this.currentSettings.smartLimit) / 100;
                 let calcSlope = 1.0;
-
                 if (avgLuma > ceiling && avgLuma > 0.01) {
                     calcSlope = ceiling / avgLuma;
                 }
-
                 this.targetSlope = Math.max(0, Math.min(1.0, calcSlope));
 
-                // 부드러운 전환 (깜빡임 방지)
+                // 2. Auto Tone Mapping Logic [CORRECTED for Script's Gamma Behavior]
+                // Script behavior: Higher Gamma Value = Brighter Image (Lower Exponent)
+                let targetAdaptiveGamma = 1.0;
+                const toneStrength = (this.currentSettings.autoTone || 0) / 100; // 0.0 ~ 1.0
+
+                if (toneStrength > 0) {
+                    // 🌑 어두운 장면 (Luma < 0.25) -> 밝게 해야 함 -> Gamma Value 증가 (+)
+                    if (avgLuma < 0.25) {
+                        const factor = (0.25 - avgLuma) * 4; // 0.0 ~ 1.0
+                        targetAdaptiveGamma = 1.0 + (0.50 * factor * toneStrength);
+                    }
+                    // ☀️ 밝은 장면 (Luma > 0.65) -> 어둡게 해야 함 -> Gamma Value 감소 (-)
+                    else if (avgLuma > 0.65) {
+                        const factor = (avgLuma - 0.65) * 2.8; // 0.0 ~ 1.0
+                        targetAdaptiveGamma = 1.0 - (0.15 * factor * toneStrength);
+                    }
+                }
+
+                // Smooth Transitions
+                // Slope
                 const diff = this.targetSlope - this.currentSlope;
                 if (Math.abs(diff) > 0.005) {
-                    this.currentSlope += diff * 0.15; // 반응속도 조절
-                    this.notifyUpdate(this.currentSlope);
+                    this.currentSlope += diff * 0.15;
                 }
+
+                // Gamma Smoothing
+                if (!this.currentAdaptiveGamma) this.currentAdaptiveGamma = 1.0;
+                const gammaDiff = targetAdaptiveGamma - this.currentAdaptiveGamma;
+                if (Math.abs(gammaDiff) > 0.001) {
+                    this.currentAdaptiveGamma += gammaDiff * 0.05; // 부드럽게
+                }
+
+                this.notifyUpdate(this.currentSlope, this.currentAdaptiveGamma);
             } catch (e) {}
         },
-        notifyUpdate(slope) {
-            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { slope } }));
+        notifyUpdate(slope, adaptiveGamma) {
+            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { slope, adaptiveGamma: adaptiveGamma || 1.0 } }));
         }
     };
 
@@ -206,6 +228,7 @@
                     colorTemp: parseInt(videoDefaults.COLORTEMP_VALUE || 0, 10),
                     dither: parseInt(videoDefaults.DITHER_VALUE || 0, 10),
                     smartLimit: CONFIG.DEFAULT_SMART_LIMIT_LEVEL,
+                    autoTone: CONFIG.DEFAULT_AUTO_TONE_LEVEL,
                     activePreset: 'none'
                 },
                 imageFilter: {
@@ -274,7 +297,6 @@
                         if (e.target.tagName === 'VIDEO' || e.target.tagName === 'IMG') { this.stateManager.set('media.visibilityChange', { target: e.target, isVisible }); }
                         if (isVisible && e.intersectionRatio > maxRatio && (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO')) { maxRatio = e.intersectionRatio; mostVisibleMedia = e.target; }
                     });
-                    // 화면에 가장 잘 보이는 비디오를 분석 대상으로 지정
                     if (mostVisibleMedia && mostVisibleMedia.tagName === 'VIDEO') {
                         VideoAnalyzer.start(mostVisibleMedia);
                     }
@@ -332,7 +354,7 @@
     }
 
     class SvgFilterPlugin extends Plugin {
-        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; }
+        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoGamma = 1.0; }
         init(stateManager) {
             super.init(stateManager);
             const isMobile = this.stateManager.get('app.isMobile');
@@ -364,10 +386,16 @@
             this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates());
             this.subscribe('app.scriptActive', () => this.updateMediaFilterStates());
 
-            // Smart Limit 업데이트 감지
             document.addEventListener('vsc-smart-limit-update', (e) => {
-                const slope = e.detail.slope;
+                const { slope, adaptiveGamma } = e.detail;
                 this.filterManager.updateSmartLimit(slope);
+
+                if (Math.abs(this.lastAutoGamma - adaptiveGamma) > 0.002) {
+                    this.lastAutoGamma = adaptiveGamma;
+                    const userGamma = this.stateManager.get('videoFilter.gamma');
+                    const finalGamma = userGamma * this.lastAutoGamma;
+                    this.filterManager.updateFilterValues({ gamma: finalGamma });
+                }
             });
 
             this.applyAllVideoFilters(); this.applyAllImageFilters();
@@ -407,12 +435,10 @@
 
                     // 2. [Unsharp Mask Logic] (Advanced Sharpening)
                     const blurNode = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur", in: "dimmed_in", stdDeviation: "0", result: "blur_for_sharpen" });
-                    // 원본 - 블러 = 디테일. 원본 + 디테일 = 샤픈.
                     const compositeNode = createSvgElement('feComposite', { "data-vsc-id": "sharpen_composite", operator: "arithmetic", in: "dimmed_in", in2: "blur_for_sharpen", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_base" });
 
-                    // [Halo Removal Support] (테두리 띠 제거용 마스크)
+                    // [Halo Removal Support]
                     const erosion = createSvgElement('feMorphology', { "data-vsc-id": "halo_erode", operator: "erode", radius: "1", in: "dimmed_in", result: "eroded_source" });
-                    // *참고: Unsharp Mask 자체가 Halo가 적으므로, 여기서는 기본 흐름에 compositeNode를 사용.
 
                     let nextStageIn = "sharpened_base";
 
@@ -506,9 +532,13 @@
             if (!this.filterManager.isInitialized()) return;
             const vf = this.stateManager.get('videoFilter');
             const totalSharpen = (vf.level || 0) + (vf.level2 || 0) * 0.5;
-            const values = { saturation: vf.saturation, gamma: vf.gamma, blur: vf.blur, sharpenLevel: totalSharpen, shadows: vf.shadows, highlights: vf.highlights, colorTemp: vf.colorTemp, dither: vf.dither };
+
+            const autoGamma = this.lastAutoGamma || 1.0;
+            const finalGamma = vf.gamma * autoGamma;
+
+            const values = { saturation: vf.saturation, gamma: finalGamma, blur: vf.blur, sharpenLevel: totalSharpen, shadows: vf.shadows, highlights: vf.highlights, colorTemp: vf.colorTemp, dither: vf.dither };
             this.filterManager.updateFilterValues(values);
-            VideoAnalyzer.updateSettings({ smartLimit: vf.smartLimit });
+            VideoAnalyzer.updateSettings({ smartLimit: vf.smartLimit, autoTone: vf.autoTone });
             this.updateMediaFilterStates();
         }
 
@@ -526,7 +556,7 @@
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive');
             const vf = this.stateManager.get('videoFilter');
-            const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0 || vf.colorTemp !== 0 || vf.dither > 0 || vf.smartLimit > 0;
+            const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0 || vf.colorTemp !== 0 || vf.dither > 0 || vf.smartLimit > 0 || vf.autoTone > 0;
             const isActive = scriptActive && video.dataset.isVisible !== 'false' && shouldApply;
             if (isActive) { if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform'; }
             else { if (video.style.willChange) video.style.willChange = ''; }
@@ -711,7 +741,7 @@
             } else {
                 this.triggerElement.textContent = '⚡️'; this.triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                 const videoState = this.stateManager.get('videoFilter');
-                const videoSettingsToSave = { level: videoState.level, level2: videoState.level2, gamma: videoState.gamma, blur: videoState.blur, shadows: videoState.shadows, highlights: videoState.highlights, saturation: videoState.saturation, colorTemp: videoState.colorTemp, dither: videoState.dither, smartLimit: videoState.smartLimit, sharpenDirection: videoState.sharpenDirection, activePreset: videoState.activePreset };
+                const videoSettingsToSave = { level: videoState.level, level2: videoState.level2, gamma: videoState.gamma, blur: videoState.blur, shadows: videoState.shadows, highlights: videoState.highlights, saturation: videoState.saturation, colorTemp: videoState.colorTemp, dither: videoState.dither, smartLimit: videoState.smartLimit, autoTone: videoState.autoTone, sharpenDirection: videoState.sharpenDirection, activePreset: videoState.activePreset };
                 this.stateManager.set('videoFilter.lastActiveSettings', videoSettingsToSave);
                 const imageState = this.stateManager.get('imageFilter');
                 this.stateManager.set('imageFilter.lastActiveSettings', { level: imageState.level });
@@ -890,6 +920,7 @@
 
             videoSubMenu.append(
                 this._createSlider('자동밝기제한', 'v-smartlimit', 0, 50, 1, 'videoFilter.smartLimit', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control,
+                this._createSlider('자동톤매핑', 'v-autotone', 0, 100, 5, 'videoFilter.autoTone', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control,
                 this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 50, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
                 this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 50, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
                 this._createSlider('색온도', 'v-colortemp', -7, 4, 1, 'videoFilter.colorTemp', '', v => `${v.toFixed(0)}%`).control,
@@ -904,7 +935,7 @@
 
             const imageSubMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controlsContainer);
             const imageSelect = document.createElement('select'); imageSelect.className = 'vsc-select';
-            [{ v: "0", t: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ v: (i + 1).toString(), t: `${i + 1}단계` }))].forEach(opt => { const o = document.createElement('option'); o.value = opt.v; o.textContent = opt.t; imageSelect.appendChild(o); });
+            [{ v: "0", t: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ v: (i + 1).toString(), t: `${i + 1}단계` }))].forEach(opt => { const o = document.createElement('option'); o.value = opt.value; o.textContent = opt.t; imageSelect.appendChild(o); });
             imageSelect.onchange = () => this.stateManager.set('imageFilter.level', parseInt(imageSelect.value, 10));
             this.subscribe('imageFilter.level', (val) => imageSelect.value = val);
             imageSelect.value = this.stateManager.get('imageFilter.level');
