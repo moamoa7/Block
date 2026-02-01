@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 종합 최적화 도구상자 (v23.5 Titanium Stable)
+// @name        Web 성능 종합 최적화 도구상자 (v23.7 Diamond Stable)
 // @namespace   http://tampermonkey.net/
-// @version     23.5.0-KR-Titanium-Stable
-// @description [Final] Drift-Proof Heartbeat + Native RAF Spoofing + React Safety + Pointer Events
+// @version     23.7.0-KR-Diamond-Stable
+// @description [Final] +Map/Form Safety +Idle Purge +Hook Guard +Passive Event Control
 // @author      KiwiFruit (Architected by AI & User)
 // @match       *://*/*
 // @exclude     *://weibo.com/*
@@ -47,7 +47,6 @@
         }
     };
 
-    // [v23.4] Drift-Proof Heartbeat
     const MasterHeartbeat = {
         tasks: new Map(),
         timer: null,
@@ -113,7 +112,6 @@
         audioActive: false
     };
 
-    // [v23.5] SmartCache (Mobile Optimized)
     const SmartCache = {
         key: 'perfx_session_cache',
         history: new Set(),
@@ -174,6 +172,10 @@
         disallowCodec: [
             'meet.google.com', 'discord.com', 'zoom.us'
         ],
+        // [New] No Passive Events (Maps, Canvas, Games)
+        noPassive: [
+            'map.naver.com', 'map.kakao.com', 'google.com/maps', 'figma.com', 'miro.com', 'canva.com', 'webtoon', 'agar.io'
+        ],
         critical: [
             'bank', 'pay', 'checkout', 'billing', 'console.aws', 'azure.com', 'cloud.google',
             'paypal.com', 'stripe.com', 'toss.im', 'kakao.com/pay', 'naver.com/pay',
@@ -184,6 +186,9 @@
     const isCritical = Env.isMatch(SiteLists.critical);
     const isDRM = Env.isMatch(SiteLists.drmCritical);
     const isHeavySPA = Env.isMatch(SiteLists.heavySPA);
+    // [New] Passive Exclusion Check
+    const isNoPassive = Env.isMatch(SiteLists.noPassive);
+
     const overrides = Env.getOverrides();
     const autoEco = NetworkStatus.isSlow && !Env.isMatch(SiteLists.noThrottling) && !isCritical;
 
@@ -207,9 +212,6 @@
 
     const Config = Object.freeze(rawConfig);
 
-    // ========================
-    // 3. Base Module
-    // ========================
     class BaseModule {
         safeInit() { try { this.init(); } catch (e) { console.error(`[PerfX] ${this.constructor.name}`, e); } }
         init() {}
@@ -219,14 +221,14 @@
     // 4. Systems (Core)
     // ========================
 
-    // [v23.5] Shadow Piercer with Critical Safety
+    // [v23.7] Shadow Piercer with Hook Guard
     class ShadowPiercer extends BaseModule {
         static targets = new Set();
         static isPassive = false;
         static onPierce(cb) { this.targets.add(cb); }
         init() {
-            // [Safety] Disable on Critical Sites
             if (isCritical) { ShadowPiercer.isPassive = true; return; }
+            if (Element.prototype.attachShadow.__perfX_hooked) return; // Hook Guard
             try {
                 const origAttach = Element.prototype.attachShadow;
                 Element.prototype.attachShadow = function(init) {
@@ -234,6 +236,7 @@
                     ShadowPiercer.targets.forEach(cb => cb(root));
                     return root;
                 };
+                Element.prototype.attachShadow.__perfX_hooked = true;
             } catch(e) { ShadowPiercer.isPassive = true; }
         }
     }
@@ -414,7 +417,6 @@
         }
     }
 
-    // [v23.5] Stealth Mode RAF Wrapper
     class BackgroundThrottler extends BaseModule {
         init() {
             if (!Config.throttle.enabled || isCritical) return;
@@ -427,7 +429,6 @@
                 if (!Config.stealth) document.title = (isHidden ? '💤 ' : '') + document.title.replace(/^💤 /, '');
             };
             try {
-                // [Security] Native Spoofing
                 const wrapper = function requestAnimationFrame(callback) {
                     if (isHidden) {
                         if (State.audioActive) return origRAF(callback);
@@ -446,6 +447,132 @@
             window.addEventListener('blur', checkState);
             window.addEventListener('focus', checkState);
             checkState();
+        }
+    }
+
+    class StyleInjector extends BaseModule {
+        init() {
+            Env.runOnLoad(() => {
+                let css = '';
+                if (Config.motion.enabled) {
+                    css += `html[data-perfx-motion="off"] *:not(input):not(textarea):not(select):not([role="progressbar"]):not([class*="loading"]):not([class*="spinner"]):not([class*="progress"]):not([class*="loader"]) { animation-duration: 0.001s !important; transition-duration: 0.001s !important; scroll-behavior: auto !important; } `;
+                    document.documentElement.setAttribute('data-perfx-motion', 'off');
+                }
+                if (Config.gpu.enabled) css += `.gpu-acc { transform: translateZ(0); } header, nav, .sticky { transform: translateZ(0); } `;
+                if (css) { const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style); }
+            });
+        }
+    }
+
+    class ImageOptimizer extends BaseModule {
+        init() {
+            if (!Config.image.enabled) return;
+            const obs = new IntersectionObserver((entries) => {
+                entries.forEach(e => {
+                    if (e.isIntersecting) {
+                        const node = e.target;
+                        Scheduler.run(() => {
+                            if (State.processedNodes.has(node)) return;
+                            if (node.tagName === 'IMG') {
+                                if (!node.hasAttribute('loading')) node.loading = 'lazy';
+                                if (!node.hasAttribute('decoding')) node.decoding = 'async';
+                                State.processedNodes.add(node);
+                            }
+                        });
+                        obs.unobserve(node);
+                    }
+                });
+            }, { rootMargin: '200px' });
+            const batcher = new BatchProcessor((nodes) => { nodes.forEach(n => obs.observe(n)); });
+            Env.runOnLoad(() => {
+                const scan = (n) => {
+                    if (n.tagName === 'IMG') batcher.add(n);
+                    if (n.querySelectorAll) n.querySelectorAll('img').forEach(img => batcher.add(img));
+                };
+                scan(document.body);
+                ShadowPiercer.onPierce((root) => {
+                    scan(root);
+                    new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => scan(n)))).observe(root, {childList:true, subtree:true});
+                });
+                new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => scan(n)))).observe(document.body, {childList:true, subtree:true});
+            });
+        }
+    }
+
+    // [v23.7] Smart Layout Containment + Safe Guard
+    class LayoutOptimizer extends BaseModule {
+        init() {
+            if (!Config.gpu.enabled) return;
+            Env.runOnLoad(() => {
+                const css = `
+                    .perfx-cv-auto { content-visibility: auto; contain-intrinsic-size: 1px 1000px; }
+                `;
+                const style = document.createElement('style');
+                style.textContent = css;
+                document.head.appendChild(style);
+
+                const applyCV = (root) => {
+                    Scheduler.run(() => {
+                        root.querySelectorAll('section, article, .feed, .comments, [role="feed"], [id*="comment"]').forEach(el => {
+                            if (State.processedNodes.has(el)) return;
+                            // [Safety] Risk B: Table/Form exclusion
+                            if (el.closest('form, table, [contenteditable]')) return;
+                            if (el.offsetHeight < 300) return;
+                            el.classList.add('perfx-cv-auto');
+                            State.processedNodes.add(el);
+                        });
+                    });
+                };
+                applyCV(document.body);
+                ShadowPiercer.onPierce(applyCV);
+                new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => n.querySelectorAll && applyCV(n)))).observe(document.body, {childList:true, subtree:true});
+            });
+        }
+    }
+
+    // [v23.7] Force Font Display + DRM Safety
+    class FontTurbo extends BaseModule {
+        init() {
+            // [Safety] Risk C: DRM exclusion
+            if (isCritical || isDRM) return;
+            Env.runOnLoad(() => {
+                if (document.fonts) {
+                    document.fonts.ready.then(() => {
+                        document.fonts.forEach(face => {
+                            if (face.family.match(/icon|symbol|awesome/i)) return;
+                            if (face.display !== 'swap') face.display = 'swap';
+                        });
+                    });
+                }
+                const style = document.createElement('style');
+                style.textContent = `@font-face { font-display: swap; }`;
+                document.head.appendChild(style);
+            });
+        }
+    }
+
+    // [v23.7] Force Passive + Map/Game Exclusion
+    class EventPassivator extends BaseModule {
+        init() {
+            // [Safety] Risk A: Map/Canvas exclusion
+            if (isCritical || isNoPassive) return;
+            try {
+                const events = ['touchstart', 'touchmove', 'wheel', 'mousewheel'];
+                const originalAdd = EventTarget.prototype.addEventListener;
+                EventTarget.prototype.addEventListener = function(type, listener, options) {
+                    let useCapture = options;
+                    if (events.includes(type)) {
+                        if (typeof options === 'object' && options !== null) {
+                            if (options.passive === undefined) options.passive = true;
+                        } else {
+                            useCapture = options;
+                            options = { passive: true, capture: typeof useCapture === 'boolean' ? useCapture : false };
+                        }
+                    }
+                    return originalAdd.call(this, type, listener, options);
+                };
+                console.log('[PerfX] Passive Events Enforced');
+            } catch(e) { }
         }
     }
 
@@ -499,7 +626,7 @@
         }
     }
 
-    // [v23.5] React-Safe Memory Guardian
+    // [v23.7] Memory Guardian + Idle-Only Purge
     class MemoryGuardian extends BaseModule {
         init() {
             if (!Config.memory.enabled) return;
@@ -507,10 +634,12 @@
             const PURGE = Env.isMobile ? 300 : 600;
             const run = (root) => {
                 if (!root) return;
+                // [Improvement 3] Only purge when user is not looking (Safety)
+                if (!document.hidden) return;
+
                 Scheduler.run(() => {
                     root.querySelectorAll('[role="feed"], [role="log"], .chat-scrollable, ul, ol').forEach(el => {
                         if (el.matches(':hover, :focus-within, .virtualized')) return;
-                        // [Safety] React Fiber / Hydration Check
                         if (el.dataset.reactroot || Object.keys(el).some(k => k.startsWith('__react'))) return;
 
                         if (el.scrollHeight <= el.clientHeight * 1.5 || el.scrollTop < el.clientHeight) return;
@@ -527,12 +656,45 @@
                     });
                 });
             };
-            MasterHeartbeat.addTask('memory', 20000, () => run(document.body), true);
+            // Run interval changed to 30s to reduce overhead
+            MasterHeartbeat.addTask('memory', 30000, () => run(document.body), true);
             ShadowPiercer.onPierce((root) => MasterHeartbeat.addTask('memory_shadow', 30000, () => run(root), true));
         }
     }
 
-    // [v23.5] UI Controller with Pointer Events
+    class PreconnectOptimizer extends BaseModule {
+        init() {
+            if (!Config.connect.enabled) return;
+            Env.runOnLoad(() => {
+                ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'].forEach(d => {
+                    const l = document.createElement('link'); l.rel = 'preconnect'; l.href = 'https://' + d; l.crossOrigin = 'anonymous'; document.head.appendChild(l);
+                });
+            });
+        }
+    }
+
+    class DebugOverlay extends BaseModule {
+        init() {
+            if (!Config.debug.enabled) return;
+            Env.runOnLoad(() => {
+                const hud = document.createElement('div');
+                Object.assign(hud.style, {
+                    position: 'fixed', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', color: '#0f0',
+                    padding: '5px 10px', fontSize: '12px', zIndex: '999999', pointerEvents: 'none', borderRadius: '4px', fontFamily: 'monospace', whiteSpace: 'pre-line'
+                });
+                document.body.appendChild(hud);
+                MasterHeartbeat.addTask('debug_hud', 2000, () => {
+                    const status = VideoInspector.getStatus();
+                    const loadStatus = State.isHighLoad ? '[High Load]' : '[Stable]';
+                    if(status.active) {
+                        hud.textContent = `📺 ${status.res} ${loadStatus}\n⚙️ ${status.policy}\n📉 Drop: ${status.drop}`;
+                        hud.style.display = 'block';
+                    } else hud.style.display = 'none';
+                }, true);
+            });
+        }
+    }
+
     class UIController extends BaseModule {
         init() {
             Env.runOnLoad(() => {
@@ -563,7 +725,6 @@
                 let startX, startY, initialLeft, initialTop;
                 let hasMoved = false;
 
-                // [v23.5] Unified Pointer Events
                 const onPointerDown = (e) => {
                     e.stopImmediatePropagation();
                     if (!e.isPrimary) return;
@@ -604,7 +765,6 @@
 
                 btn.addEventListener('pointerdown', onPointerDown);
                 btn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); }, { capture: true });
-
 
                 const repositionPanel = () => {
                     const wasVisible = panel.style.display !== 'none';
@@ -662,7 +822,7 @@
                 titleRow.style.cssText = 'margin-bottom:10px; border-bottom:1px solid #444; padding-bottom:5px; display:flex; justify-content:space-between; align-items:center';
                 const titleContainer = document.createElement('div');
                 const titleMain = document.createElement('b'); titleMain.textContent = 'PerfX ';
-                const titleVer = document.createElement('span'); titleVer.textContent = 'v23.5 Titanium'; titleVer.style.cssText = 'font-size:10px;color:#aaa';
+                const titleVer = document.createElement('span'); titleVer.textContent = 'v23.7 Dia.'; titleVer.style.cssText = 'font-size:10px;color:#aaa';
                 titleContainer.append(titleMain, titleVer);
                 const closeBtn = document.createElement('span'); closeBtn.textContent = '✖'; closeBtn.style.cursor = 'pointer';
                 closeBtn.onclick = () => { panel.style.display = 'none'; clearInterval(localInterval); };
@@ -704,94 +864,14 @@
         }
     }
 
-    class StyleInjector extends BaseModule {
-        init() {
-            Env.runOnLoad(() => {
-                let css = '';
-                if (Config.motion.enabled) {
-                    css += `html[data-perfx-motion="off"] *:not(input):not(textarea):not(select):not([role="progressbar"]):not([class*="loading"]):not([class*="spinner"]):not([class*="progress"]):not([class*="loader"]) { animation-duration: 0.001s !important; transition-duration: 0.001s !important; scroll-behavior: auto !important; } `;
-                    document.documentElement.setAttribute('data-perfx-motion', 'off');
-                }
-                if (Config.gpu.enabled) css += `.gpu-acc { transform: translateZ(0); } header, nav, .sticky { transform: translateZ(0); } `;
-                if (css) { const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style); }
-            });
-        }
-    }
-
-    class ImageOptimizer extends BaseModule {
-        init() {
-            if (!Config.image.enabled) return;
-            const obs = new IntersectionObserver((entries) => {
-                entries.forEach(e => {
-                    if (e.isIntersecting) {
-                        const node = e.target;
-                        Scheduler.run(() => {
-                            if (State.processedNodes.has(node)) return;
-                            if (node.tagName === 'IMG') {
-                                if (!node.hasAttribute('loading')) node.loading = 'lazy';
-                                if (!node.hasAttribute('decoding')) node.decoding = 'async';
-                                State.processedNodes.add(node);
-                            }
-                        });
-                        obs.unobserve(node);
-                    }
-                });
-            }, { rootMargin: '200px' });
-            const batcher = new BatchProcessor((nodes) => { nodes.forEach(n => obs.observe(n)); });
-            Env.runOnLoad(() => {
-                const scan = (n) => {
-                    if (n.tagName === 'IMG') batcher.add(n);
-                    if (n.querySelectorAll) n.querySelectorAll('img').forEach(img => batcher.add(img));
-                };
-                scan(document.body);
-                ShadowPiercer.onPierce((root) => {
-                    scan(root);
-                    new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => scan(n)))).observe(root, {childList:true, subtree:true});
-                });
-                new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => scan(n)))).observe(document.body, {childList:true, subtree:true});
-            });
-        }
-    }
-    class PreconnectOptimizer extends BaseModule {
-        init() {
-            if (!Config.connect.enabled) return;
-            Env.runOnLoad(() => {
-                ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'].forEach(d => {
-                    const l = document.createElement('link'); l.rel = 'preconnect'; l.href = 'https://' + d; l.crossOrigin = 'anonymous'; document.head.appendChild(l);
-                });
-            });
-        }
-    }
-    class DebugOverlay extends BaseModule {
-        init() {
-            if (!Config.debug.enabled) return;
-            Env.runOnLoad(() => {
-                const hud = document.createElement('div');
-                Object.assign(hud.style, {
-                    position: 'fixed', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', color: '#0f0',
-                    padding: '5px 10px', fontSize: '12px', zIndex: '999999', pointerEvents: 'none', borderRadius: '4px', fontFamily: 'monospace', whiteSpace: 'pre-line'
-                });
-                document.body.appendChild(hud);
-                MasterHeartbeat.addTask('debug_hud', 2000, () => {
-                    const status = VideoInspector.getStatus();
-                    const loadStatus = State.isHighLoad ? '[High Load]' : '[Stable]';
-                    if(status.active) {
-                        hud.textContent = `📺 ${status.res} ${loadStatus}\n⚙️ ${status.policy}\n📉 Drop: ${status.drop}`;
-                        hud.style.display = 'block';
-                    } else hud.style.display = 'none';
-                }, true);
-            });
-        }
-    }
-
     NavigationHandler.init();
     new ShadowPiercer().safeInit();
     new AdaptiveGovernor().safeInit();
     new PrivacySaver().safeInit();
     new CodecOptimizer().safeInit();
     new BackgroundThrottler().safeInit();
-    [new StyleInjector(), new ImageOptimizer(), new LinkPrefetcher(),
-     new PreconnectOptimizer(), new MemoryGuardian(), new DebugOverlay(), new UIController()
+    [new StyleInjector(), new ImageOptimizer(), new LayoutOptimizer(), new FontTurbo(), new EventPassivator(),
+     new LinkPrefetcher(), new PreconnectOptimizer(), new MemoryGuardian(), new DebugOverlay(), new UIController()
     ].forEach(m => m.safeInit());
 
 })();
