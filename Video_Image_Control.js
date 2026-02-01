@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Final Ultimate + AutoTone Fixed)
+// @name         Video_Image_Control (Final Ultimate + AutoTone Plus)
 // @namespace    https://com/
-// @version      112.1-Final_AutoTone_Fixed
-// @description  비디오/이미지 제어 (Unsharp Mask + Smart Limit + Auto Tone + rVFC Optimization + AdBlock + Live Sync)
+// @version      113.0-Final_AutoTone_Plus
+// @description  비디오/이미지 제어 (Unsharp Mask + Smart Limit + 3-Way Auto Tone + rVFC Optimization + AdBlock + Live Sync)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -25,7 +25,7 @@
         DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 3 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 15 : 5,
         DEFAULT_SMART_LIMIT_LEVEL: 0,
-        DEFAULT_AUTO_TONE_LEVEL: 0, // [NEW] 자동 톤 매핑 기본값 (0=꺼짐)
+        DEFAULT_AUTO_TONE_LEVEL: 0, // [NEW] 자동 톤 매핑 기본값
         DEBUG: false,
         // Auto Delay & Buffer
         AUTODELAY_INTERVAL_NORMAL: 1000, AUTODELAY_INTERVAL_STABLE: 3000,
@@ -84,12 +84,15 @@
         } catch (e) { console.warn("[VSC] Hooking Failed:", e); }
     })();
 
-    // --- [OPTIMIZATION 2] Video Analyzer (Smart Limit + Auto Tone) ---
+    // --- [OPTIMIZATION 2] Video Analyzer (Smart Limit + 3-Way Auto Tone) ---
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null,
         currentSettings: { smartLimit: 0, autoTone: 0 },
         currentSlope: 1.0, targetSlope: 1.0,
+        // [NEW] 3가지 변수 추적
         currentAdaptiveGamma: 1.0,
+        currentAdaptiveBright: 0,
+        currentAdaptiveContrast: 0,
         frameSkipCounter: 0,
 
         init() {
@@ -118,7 +121,9 @@
                 this.targetSlope = 1.0;
                 this.currentSlope = 1.0;
                 this.currentAdaptiveGamma = 1.0;
-                this.notifyUpdate(1.0, 1.0);
+                this.currentAdaptiveBright = 0;
+                this.currentAdaptiveContrast = 0;
+                this.notifyUpdate(1.0, { gamma: 1.0, bright: 0, contrast: 0 });
                 this.stop();
             } else if (!this.isRunning && this.targetVideo) {
                 this.isRunning = true;
@@ -164,43 +169,66 @@
                 }
                 this.targetSlope = Math.max(0, Math.min(1.0, calcSlope));
 
-                // 2. Auto Tone Mapping Logic [CORRECTED for Script's Gamma Behavior]
-                // Script behavior: Higher Gamma Value = Brighter Image (Lower Exponent)
+                // 2. 3-Way Auto Tone Logic (Gamma, Bright, Contrast)
                 let targetAdaptiveGamma = 1.0;
-                const toneStrength = (this.currentSettings.autoTone || 0) / 100; // 0.0 ~ 1.0
+                let targetAdaptiveBright = 0;
+                let targetAdaptiveContrast = 0;
+
+                const toneStrength = (this.currentSettings.autoTone || 0) / 100;
 
                 if (toneStrength > 0) {
-                    // 🌑 어두운 장면 (Luma < 0.25) -> 밝게 해야 함 -> Gamma Value 증가 (+)
+                    // 🌑 어두운 장면 (Luma < 0.25)
                     if (avgLuma < 0.25) {
-                        const factor = (0.25 - avgLuma) * 4; // 0.0 ~ 1.0
-                        targetAdaptiveGamma = 1.0 + (0.50 * factor * toneStrength);
+                        const factor = (0.25 - avgLuma) * 4;
+                        // Gamma: Increase (+0.5 max) -> Brighten
+                        targetAdaptiveGamma = 1.0 + (0.5 * factor * toneStrength);
+                        // Brightness: Increase (+15 max) -> Lift
+                        targetAdaptiveBright = 30 * factor * toneStrength;
+                        // Contrast: Decrease (-10 max) -> Soften shadows
+                        targetAdaptiveContrast = -10 * factor * toneStrength;
                     }
-                    // ☀️ 밝은 장면 (Luma > 0.65) -> 어둡게 해야 함 -> Gamma Value 감소 (-)
+                    // ☀️ 밝은 장면 (Luma > 0.65)
                     else if (avgLuma > 0.65) {
-                        const factor = (avgLuma - 0.65) * 2.8; // 0.0 ~ 1.0
+                        const factor = (avgLuma - 0.65) * 2.8;
+                        // Gamma: Decrease (-0.15 max) -> Darken
                         targetAdaptiveGamma = 1.0 - (0.15 * factor * toneStrength);
+                        // Brightness: Decrease (-15 max) -> Reduce Glare
+                        //targetAdaptiveBright = -30 * factor * toneStrength;
+                        // Contrast: Increase (+10 max) -> Maintain Pop
+                        //targetAdaptiveContrast = 15 * factor * toneStrength;
                     }
                 }
 
-                // Smooth Transitions
-                // Slope
-                const diff = this.targetSlope - this.currentSlope;
-                if (Math.abs(diff) > 0.005) {
-                    this.currentSlope += diff * 0.15;
-                }
+                // 3. Smooth Transitions
+                const smooth = (curr, target) => {
+                    const diff = target - curr;
+                    return Math.abs(diff) > 0.01 ? curr + diff * 0.05 : curr;
+                };
 
-                // Gamma Smoothing
+                // Slope Smoothing
+                this.currentSlope = smooth(this.currentSlope, this.targetSlope);
+
+                // AutoTone Params Smoothing
                 if (!this.currentAdaptiveGamma) this.currentAdaptiveGamma = 1.0;
-                const gammaDiff = targetAdaptiveGamma - this.currentAdaptiveGamma;
-                if (Math.abs(gammaDiff) > 0.001) {
-                    this.currentAdaptiveGamma += gammaDiff * 0.05; // 부드럽게
-                }
+                if (this.currentAdaptiveBright === undefined) this.currentAdaptiveBright = 0;
+                if (this.currentAdaptiveContrast === undefined) this.currentAdaptiveContrast = 0;
 
-                this.notifyUpdate(this.currentSlope, this.currentAdaptiveGamma);
+                this.currentAdaptiveGamma = smooth(this.currentAdaptiveGamma, targetAdaptiveGamma);
+                this.currentAdaptiveBright = smooth(this.currentAdaptiveBright, targetAdaptiveBright);
+                this.currentAdaptiveContrast = smooth(this.currentAdaptiveContrast, targetAdaptiveContrast);
+
+                this.notifyUpdate(this.currentSlope, {
+                    gamma: this.currentAdaptiveGamma,
+                    bright: this.currentAdaptiveBright,
+                    contrast: this.currentAdaptiveContrast
+                });
+
             } catch (e) {}
         },
-        notifyUpdate(slope, adaptiveGamma) {
-            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { slope, adaptiveGamma: adaptiveGamma || 1.0 } }));
+        notifyUpdate(slope, autoParams) {
+            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', {
+                detail: { slope, autoParams: autoParams || { gamma: 1.0, bright: 0, contrast: 0 } }
+            }));
         }
     };
 
@@ -354,7 +382,7 @@
     }
 
     class SvgFilterPlugin extends Plugin {
-        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoGamma = 1.0; }
+        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, contrast: 0 }; } // [NEW] lastAutoParams
         init(stateManager) {
             super.init(stateManager);
             const isMobile = this.stateManager.get('app.isMobile');
@@ -387,14 +415,18 @@
             this.subscribe('app.scriptActive', () => this.updateMediaFilterStates());
 
             document.addEventListener('vsc-smart-limit-update', (e) => {
-                const { slope, adaptiveGamma } = e.detail;
+                const { slope, autoParams } = e.detail;
                 this.filterManager.updateSmartLimit(slope);
 
-                if (Math.abs(this.lastAutoGamma - adaptiveGamma) > 0.002) {
-                    this.lastAutoGamma = adaptiveGamma;
-                    const userGamma = this.stateManager.get('videoFilter.gamma');
-                    const finalGamma = userGamma * this.lastAutoGamma;
-                    this.filterManager.updateFilterValues({ gamma: finalGamma });
+                // [MODIFIED] Check 3 params change
+                const isChanged =
+                    Math.abs(this.lastAutoParams.gamma - autoParams.gamma) > 0.002 ||
+                    Math.abs(this.lastAutoParams.bright - autoParams.bright) > 0.1 ||
+                    Math.abs(this.lastAutoParams.contrast - autoParams.contrast) > 0.1;
+
+                if (isChanged) {
+                    this.lastAutoParams = autoParams;
+                    this.applyAllVideoFilters(); // Recalculate all with new auto params
                 }
             });
 
@@ -533,10 +565,14 @@
             const vf = this.stateManager.get('videoFilter');
             const totalSharpen = (vf.level || 0) + (vf.level2 || 0) * 0.5;
 
-            const autoGamma = this.lastAutoGamma || 1.0;
+            // [MODIFIED] Calculate Final Values (Gamma, Bright, Contrast)
+            const autoGamma = this.lastAutoParams.gamma || 1.0;
             const finalGamma = vf.gamma * autoGamma;
 
-            const values = { saturation: vf.saturation, gamma: finalGamma, blur: vf.blur, sharpenLevel: totalSharpen, shadows: vf.shadows, highlights: vf.highlights, colorTemp: vf.colorTemp, dither: vf.dither };
+            const finalHighlights = vf.highlights + (this.lastAutoParams.bright || 0);
+            const finalShadows = vf.shadows + (this.lastAutoParams.contrast || 0);
+
+            const values = { saturation: vf.saturation, gamma: finalGamma, blur: vf.blur, sharpenLevel: totalSharpen, shadows: finalShadows, highlights: finalHighlights, colorTemp: vf.colorTemp, dither: vf.dither };
             this.filterManager.updateFilterValues(values);
             VideoAnalyzer.updateSettings({ smartLimit: vf.smartLimit, autoTone: vf.autoTone });
             this.updateMediaFilterStates();
