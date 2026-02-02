@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260201
+! Version: 20260202
 !
 !
 !
@@ -2807,6 +2807,9 @@ topjav.tv##.koukoku_11
 ! - - - 일부 텍스트 링크 지워지는거 해제
 jav.guru#@#.textwidget
 dramaday.me#@#.textwidget
+! - - - https://kissjav.com/ 영상 차단하는거 해제 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
+kissjav.com#@##guard-overlay:remove()
+
 
 ! - 팝업 방지
 !||pemsrv.com^$popup
