@@ -183,12 +183,12 @@
                         const factor = (0.25 - avgLuma) * 4;
                         targetAdaptiveGamma = 1.0 + (0.5 * factor * toneStrength);
                         targetAdaptiveBright = 15 * factor * toneStrength;
-                        targetAdaptiveContrast = -10 * factor * toneStrength;
+                        targetAdaptiveContrast = -15 * factor * toneStrength;
                     } else if (avgLuma > 0.65) {
                         const factor = (avgLuma - 0.65) * 2.8;
                         targetAdaptiveGamma = 1.0 - (0.15 * factor * toneStrength);
                         targetAdaptiveBright = -5 * factor * toneStrength;
-                        targetAdaptiveContrast = 10 * factor * toneStrength;
+                        targetAdaptiveContrast = 15 * factor * toneStrength;
                     }
                 }
 
@@ -874,25 +874,25 @@
             videoXSBrightenBtn.className = 'vsc-btn';
             videoXSBrightenBtn.textContent = 'S';
             videoXSBrightenBtn.dataset.presetKey = 'brightenX1';
-            videoXSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.10); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -9); this.stateManager.set('videoFilter.highlights', 5); this.stateManager.set('videoFilter.activePreset', 'brightenX1'); };
+            videoXSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.40); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -14.4); this.stateManager.set('videoFilter.highlights', 8); this.stateManager.set('videoFilter.activePreset', 'brightenX1'); };
 
             const videoXMBrightenBtn = document.createElement('button');
             videoXMBrightenBtn.className = 'vsc-btn';
             videoXMBrightenBtn.textContent = 'M';
             videoXMBrightenBtn.dataset.presetKey = 'brightenX2';
-            videoXMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.20); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -12.6); this.stateManager.set('videoFilter.highlights', 7); this.stateManager.set('videoFilter.activePreset', 'brightenX2'); };
+            videoXMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.50); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -18); this.stateManager.set('videoFilter.highlights', 10); this.stateManager.set('videoFilter.activePreset', 'brightenX2'); };
 
             const videoXLBrightenBtn = document.createElement('button');
             videoXLBrightenBtn.className = 'vsc-btn';
             videoXLBrightenBtn.textContent = 'L';
             videoXLBrightenBtn.dataset.presetKey = 'brightenX3';
-            videoXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.30); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -18); this.stateManager.set('videoFilter.highlights', 10); this.stateManager.set('videoFilter.activePreset', 'brightenX3'); };
+            videoXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.60); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -21.6); this.stateManager.set('videoFilter.highlights', 12); this.stateManager.set('videoFilter.activePreset', 'brightenX3'); };
 
             const videoXXLBrightenBtn = document.createElement('button');
             videoXXLBrightenBtn.className = 'vsc-btn';
             videoXXLBrightenBtn.textContent = 'XL';
             videoXXLBrightenBtn.dataset.presetKey = 'brightenX4';
-            videoXXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.75); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -36); this.stateManager.set('videoFilter.highlights', 20); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
+            videoXXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.80); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -28.8); this.stateManager.set('videoFilter.highlights', 16); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
 
             const videoXXLLBrightenBtn = document.createElement('button');
             videoXXLLBrightenBtn.className = 'vsc-btn';
@@ -904,7 +904,7 @@
             videoXXLLLBrightenBtn.className = 'vsc-btn';
             videoXXLLLBrightenBtn.textContent = 'XLLL';
             videoXXLLLBrightenBtn.dataset.presetKey = 'brightenX6';
-            videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.50); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -90); this.stateManager.set('videoFilter.highlights', 50); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
+            videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.20); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -90); this.stateManager.set('videoFilter.highlights', 50); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
 
             const videoButtonsContainer = document.createElement('div');
             videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 0px; margin-top: 0px; width: 100%;';
@@ -920,15 +920,16 @@
             videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
             videoBtnGroup1.append(createLabel('샤프'), videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn);
 
-            const videoBtnGroup2 = document.createElement('div');
-            videoBtnGroup2.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
-            videoBtnGroup2.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn);
+            //const videoBtnGroup2 = document.createElement('div');
+            //videoBtnGroup2.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
+            //videoBtnGroup2.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn);
 
             const videoBtnGroup3 = document.createElement('div');
             videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
-            videoBtnGroup3.append(createLabel('암부'), videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXLBrightenBtn, videoXXLLBrightenBtn, videoXXLLLBrightenBtn);
+            videoBtnGroup3.append(createLabel('밝기'), videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXLBrightenBtn, videoXXLLBrightenBtn, videoXXLLLBrightenBtn, videoBrightenoffBtn);
 
-            videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup2, videoBtnGroup3);
+            //videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup2, videoBtnGroup3);
+            videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup3);
 
             const videoButtons = [videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn, videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXLBrightenBtn, videoXXLLBrightenBtn, videoXXLLLBrightenBtn];
             this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); });
