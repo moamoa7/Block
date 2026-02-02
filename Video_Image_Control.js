@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Final Ultimate + AutoTone Plus)
+// @name         Video_Image_Control (Ultimate + Temp Speed Fix)
 // @namespace    https://com/
-// @version      113.0-Final_AutoTone_Plus
-// @description  비디오/이미지 제어 (Unsharp Mask + Smart Limit + 3-Way Auto Tone + rVFC Optimization + AdBlock + Live Sync)
+// @version      113.2-Final_MissAV_Fix
+// @description  비디오/이미지 제어 (Unsharp Mask + Smart Limit + 3-Way Auto Tone + rVFC Optimization + AdBlock + Live Sync + Hold Speed Fix)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -25,8 +25,15 @@
         DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 3 : 2,
         DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 15 : 5,
         DEFAULT_SMART_LIMIT_LEVEL: 0,
-        DEFAULT_AUTO_TONE_LEVEL: 0, // [NEW] 자동 톤 매핑 기본값
+        DEFAULT_AUTO_TONE_LEVEL: 0,
         DEBUG: false,
+
+        // [NEW] Temporary Speed Config (일시 배속 설정)
+        TEMP_SPEED_KEY: 'c',       // 키보드 단축키
+        TEMP_SPEED_RATE: 3.0,      // 목표 배속 (3배속)
+        TEMP_SPEED_PRESERVE_PITCH: true, // 음정 유지
+        TEMP_SPEED_CLICK_THRESHOLD: 200, // 이 시간(ms)보다 오래 누르면 '배속'으로 간주하여 클릭(일시정지) 방지
+
         // Auto Delay & Buffer
         AUTODELAY_INTERVAL_NORMAL: 1000, AUTODELAY_INTERVAL_STABLE: 3000,
         AUTODELAY_STABLE_THRESHOLD: 100, AUTODELAY_STABLE_COUNT: 5,
@@ -89,10 +96,7 @@
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null,
         currentSettings: { smartLimit: 0, autoTone: 0 },
         currentSlope: 1.0, targetSlope: 1.0,
-        // [NEW] 3가지 변수 추적
-        currentAdaptiveGamma: 1.0,
-        currentAdaptiveBright: 0,
-        currentAdaptiveContrast: 0,
+        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentAdaptiveContrast: 0,
         frameSkipCounter: 0,
 
         init() {
@@ -132,7 +136,6 @@
         },
         loop() {
             if (!this.isRunning || !this.targetVideo) return;
-
             if ('requestVideoFrameCallback' in this.targetVideo) {
                 this.handle = this.targetVideo.requestVideoFrameCallback(() => {
                     this.processFrame();
@@ -161,7 +164,7 @@
                 const sampleCount = data.length / 64;
                 const avgLuma = total / sampleCount / 255;
 
-                // 1. Smart Limit Logic
+                // 1. Smart Limit
                 const ceiling = (100 - this.currentSettings.smartLimit) / 100;
                 let calcSlope = 1.0;
                 if (avgLuma > ceiling && avgLuma > 0.01) {
@@ -169,46 +172,33 @@
                 }
                 this.targetSlope = Math.max(0, Math.min(1.0, calcSlope));
 
-                // 2. 3-Way Auto Tone Logic (Gamma, Bright, Contrast)
+                // 2. 3-Way Auto Tone
                 let targetAdaptiveGamma = 1.0;
                 let targetAdaptiveBright = 0;
                 let targetAdaptiveContrast = 0;
-
                 const toneStrength = (this.currentSettings.autoTone || 0) / 100;
 
                 if (toneStrength > 0) {
-                    // 🌑 어두운 장면 (Luma < 0.25)
                     if (avgLuma < 0.25) {
                         const factor = (0.25 - avgLuma) * 4;
-                        // Gamma: Increase (+0.5 max) -> Brighten
                         targetAdaptiveGamma = 1.0 + (0.5 * factor * toneStrength);
-                        // Brightness: Increase (+15 max) -> Lift
                         targetAdaptiveBright = 15 * factor * toneStrength;
-                        // Contrast: Decrease (-10 max) -> Soften shadows
                         targetAdaptiveContrast = -10 * factor * toneStrength;
-                    }
-                    // ☀️ 밝은 장면 (Luma > 0.65)
-                    else if (avgLuma > 0.65) {
+                    } else if (avgLuma > 0.65) {
                         const factor = (avgLuma - 0.65) * 2.8;
-                        // Gamma: Decrease (-0.15 max) -> Darken
                         targetAdaptiveGamma = 1.0 - (0.15 * factor * toneStrength);
-                        // Brightness: Decrease (-15 max) -> Reduce Glare
                         targetAdaptiveBright = -5 * factor * toneStrength;
-                        // Contrast: Increase (+10 max) -> Maintain Pop
                         targetAdaptiveContrast = 10 * factor * toneStrength;
                     }
                 }
 
-                // 3. Smooth Transitions
+                // 3. Smoothing
                 const smooth = (curr, target) => {
                     const diff = target - curr;
                     return Math.abs(diff) > 0.01 ? curr + diff * 0.05 : curr;
                 };
 
-                // Slope Smoothing
                 this.currentSlope = smooth(this.currentSlope, this.targetSlope);
-
-                // AutoTone Params Smoothing
                 if (!this.currentAdaptiveGamma) this.currentAdaptiveGamma = 1.0;
                 if (this.currentAdaptiveBright === undefined) this.currentAdaptiveBright = 0;
                 if (this.currentAdaptiveContrast === undefined) this.currentAdaptiveContrast = 0;
@@ -265,7 +255,7 @@
                     colorTemp: parseInt(CONFIG.IMAGE_FILTER_SETTINGS.COLORTEMP_VALUE || 0, 10)
                 },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null },
-                playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0 },
+                playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0, isTemporarySpeedActive: false },
                 liveStream: { delayInfo: null, isRunning: false, resetRequested: null },
                 settings: { videoFilterLevel: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, videoFilterLevel2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, imageFilterLevel: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, autoRefresh: true }
             };
@@ -382,7 +372,7 @@
     }
 
     class SvgFilterPlugin extends Plugin {
-        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, contrast: 0 }; } // [NEW] lastAutoParams
+        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, contrast: 0 }; }
         init(stateManager) {
             super.init(stateManager);
             const isMobile = this.stateManager.get('app.isMobile');
@@ -417,8 +407,6 @@
             document.addEventListener('vsc-smart-limit-update', (e) => {
                 const { slope, autoParams } = e.detail;
                 this.filterManager.updateSmartLimit(slope);
-
-                // [MODIFIED] Check 3 params change
                 const isChanged =
                     Math.abs(this.lastAutoParams.gamma - autoParams.gamma) > 0.002 ||
                     Math.abs(this.lastAutoParams.bright - autoParams.bright) > 0.1 ||
@@ -426,7 +414,7 @@
 
                 if (isChanged) {
                     this.lastAutoParams = autoParams;
-                    this.applyAllVideoFilters(); // Recalculate all with new auto params
+                    this.applyAllVideoFilters();
                 }
             });
 
@@ -452,7 +440,6 @@
                     }, `${this.constructor.name}.init`);
                 }
 
-                // --- [CORE ENGINE] Unsharp Mask + Halo Removal ---
                 #createElements() {
                     const createSvgElement = (tag, attr, ...children) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); el.append(...children); return el; };
                     const { settings, svgId, styleId, className, isImage } = this.#options;
@@ -461,15 +448,11 @@
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
                     const combinedFilter = createSvgElement('filter', { id: combinedFilterId, "color-interpolation-filters": "sRGB" });
 
-                    // 1. [Smart Limit / Dimming]
                     const smartDim = createSvgElement('feComponentTransfer', { "data-vsc-id": "smart_dimming", in: "SourceGraphic", result: "dimmed_in" });
                     ['R', 'G', 'B'].forEach(c => smartDim.append(createSvgElement('feFunc' + c, { "data-vsc-id": "smart_dim_func", type: "linear", slope: "1", intercept: "0" })));
 
-                    // 2. [Unsharp Mask Logic] (Advanced Sharpening)
                     const blurNode = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur", in: "dimmed_in", stdDeviation: "0", result: "blur_for_sharpen" });
                     const compositeNode = createSvgElement('feComposite', { "data-vsc-id": "sharpen_composite", operator: "arithmetic", in: "dimmed_in", in2: "blur_for_sharpen", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_base" });
-
-                    // [Halo Removal Support]
                     const erosion = createSvgElement('feMorphology', { "data-vsc-id": "halo_erode", operator: "erode", radius: "1", in: "dimmed_in", result: "eroded_source" });
 
                     let nextStageIn = "sharpened_base";
@@ -481,12 +464,10 @@
                         colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
                         combinedFilter.append(smartDim, blurNode, compositeNode, erosion, colorTemp);
                     } else {
-                        // Video Pipeline: Sharpen -> Color -> Dither -> Final Blur -> ColorTemp
                         const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: nextStageIn, type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
                         const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })));
                         const linear = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear", in: "gamma_out", result: "linear_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'linear', slope: "1", intercept: "0" })));
 
-                        // Dithering (Banding 방지)
                         const noise = createSvgElement('feTurbulence', { type: "turbulence", baseFrequency: "0.65", numOctaves: "2", stitchTiles: "stitch", result: "raw_noise" });
                         const ditherComposite = createSvgElement('feComposite', { "data-vsc-id": "dither_blend", operator: "arithmetic", in: "linear_out", in2: "raw_noise", k1: "0", k2: "1", k3: "0", k4: "0", result: "dither_out" });
 
@@ -565,10 +546,8 @@
             const vf = this.stateManager.get('videoFilter');
             const totalSharpen = (vf.level || 0) + (vf.level2 || 0) * 0.5;
 
-            // [MODIFIED] Calculate Final Values (Gamma, Bright, Contrast)
             const autoGamma = this.lastAutoParams.gamma || 1.0;
             const finalGamma = vf.gamma * autoGamma;
-
             const finalHighlights = vf.highlights + (this.lastAutoParams.bright || 0);
             const finalShadows = vf.shadows + (this.lastAutoParams.contrast || 0);
 
@@ -988,6 +967,226 @@
         attachDragAndDrop() { let pressTimer = null; const isInteractiveTarget = (e) => { for (const element of e.composedPath()) { if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(element.tagName)) { return true; } } return false; }; const onDragStart = (e) => { if (isInteractiveTarget(e)) return; pressTimer = setTimeout(() => { if (this.globalContainer) this.globalContainer.style.display = 'none'; onDragEnd(); }, 800); const pos = e.touches ? e.touches[0] : e; this.startPos = { x: pos.clientX, y: pos.clientY }; const initialX = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-x')) || 0; const initialY = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-y')) || 0; this.currentPos = { x: initialX, y: initialY }; this.isDragging = true; this.wasDragged = false; this.globalContainer.style.transition = 'none'; document.addEventListener('mousemove', onDragMove, { passive: false }); document.addEventListener('mouseup', onDragEnd, { passive: true }); document.addEventListener('touchmove', onDragMove, { passive: false }); document.addEventListener('touchend', onDragEnd, { passive: true }); }; const updatePosition = () => { if (!this.isDragging || !this.globalContainer) return; const newX = this.currentPos.x + this.delta.x; const newY = this.currentPos.y + this.delta.y; this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`); this.animationFrameId = null; }; const onDragMove = (e) => { if (!this.isDragging) return; const pos = e.touches ? e.touches[0] : e; this.delta = { x: pos.clientX - this.startPos.x, y: pos.clientY - this.startPos.y }; if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI_DRAG_THRESHOLD)) { this.wasDragged = true; clearTimeout(pressTimer); if (e.cancelable) e.preventDefault(); } if (this.wasDragged && this.animationFrameId === null) { this.animationFrameId = requestAnimationFrame(updatePosition); } }; const onDragEnd = () => { clearTimeout(pressTimer); if (!this.isDragging) return; if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; } if (this.wasDragged) { this.currentPos.x += this.delta.x; this.currentPos.y += this.delta.y; } this.isDragging = false; this.globalContainer.style.transition = ''; document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd); document.removeEventListener('touchmove', onDragMove); document.removeEventListener('touchend', onDragEnd); setTimeout(() => { this.wasDragged = false; }, 50); }; this.triggerElement.addEventListener('mousedown', onDragStart); this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false }); }
     }
 
+    class TemporarySpeedPlugin extends Plugin {
+        constructor() {
+            super('TemporarySpeed');
+            this.isAccelerating = false;
+            this.originalStateMap = new Map();
+            this.toastNode = null;
+            this.triggerKey = CONFIG.TEMP_SPEED_KEY ? CONFIG.TEMP_SPEED_KEY.toLowerCase() : 'c';
+            this.clickStartTime = 0;
+            this.didSpeedUp = false;
+
+            // Global Binding to capture events even if blocked by overlays
+            this.boundHandleKeyDown = this.handleKeyDown.bind(this);
+            this.boundHandleKeyUp = this.handleKeyUp.bind(this);
+            this.boundOnInputStart = this.onInputStart.bind(this);
+            this.boundOnInputEnd = this.onInputEnd.bind(this);
+            this.boundOnClick = this.onClick.bind(this);
+            this.boundRestore = this.restoreSpeed.bind(this);
+        }
+
+        init(stateManager) {
+            super.init(stateManager);
+            
+            // 1. Keyboard Events
+            document.addEventListener('keydown', this.boundHandleKeyDown);
+            document.addEventListener('keyup', this.boundHandleKeyUp);
+            window.addEventListener('blur', this.boundRestore);
+
+            // 2. Global Mouse/Touch Events (Capture phase for maximum priority)
+            // Using global listener to bypass overlays on sites like missav
+            document.addEventListener('mousedown', this.boundOnInputStart, true);
+            document.addEventListener('touchstart', this.boundOnInputStart, { passive: false, capture: true });
+            
+            document.addEventListener('mouseup', this.boundOnInputEnd, true);
+            document.addEventListener('touchend', this.boundOnInputEnd, true);
+            document.addEventListener('touchcancel', this.boundOnInputEnd, true);
+
+            // 3. Click Interception (to prevent pause after hold)
+            document.addEventListener('click', this.boundOnClick, true);
+        }
+
+        destroy() {
+            super.destroy();
+            document.removeEventListener('keydown', this.boundHandleKeyDown);
+            document.removeEventListener('keyup', this.boundHandleKeyUp);
+            window.removeEventListener('blur', this.boundRestore);
+            
+            document.removeEventListener('mousedown', this.boundOnInputStart, true);
+            document.removeEventListener('touchstart', this.boundOnInputStart, true);
+            document.removeEventListener('mouseup', this.boundOnInputEnd, true);
+            document.removeEventListener('touchend', this.boundOnInputEnd, true);
+            document.removeEventListener('touchcancel', this.boundOnInputEnd, true);
+            document.removeEventListener('click', this.boundOnClick, true);
+
+            if (this.toastNode) this.toastNode.remove();
+        }
+
+        // --- Event Handlers ---
+
+        handleKeyDown(e) {
+            if (this._shouldIgnoreInput(e.target)) return;
+            if (e.repeat || e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+            if (e.key.toLowerCase() === this.triggerKey) this.activateSpeed();
+        }
+
+        handleKeyUp(e) {
+            if (e.key.toLowerCase() === this.triggerKey) this.restoreSpeed();
+        }
+
+        onInputStart(e) {
+            // Right click ignore
+            if (e.type === 'mousedown' && e.button !== 0) return;
+            if (this._shouldIgnoreInput(e.target)) return;
+
+            // Check if the input is over a video (Visual Check)
+            const videoUnderCursor = this._findVideoUnderCursor(e);
+            
+            if (videoUnderCursor) {
+                this.clickStartTime = Date.now();
+                this.didSpeedUp = false;
+                this.activateSpeed([videoUnderCursor]);
+                // We don't preventDefault here to allow focus/seeking, 
+                // but we might need to if site logic conflicts heavily.
+            }
+        }
+
+        onInputEnd(e) {
+            if (this.isAccelerating) {
+                this.restoreSpeed();
+                // If we held it long enough, mark it so we can block the subsequent click
+                const duration = Date.now() - this.clickStartTime;
+                if (duration > (CONFIG.TEMP_SPEED_CLICK_THRESHOLD || 200)) {
+                    this.didSpeedUp = true;
+                } else {
+                    this.didSpeedUp = false;
+                }
+            }
+        }
+
+        onClick(e) {
+            // If we just finished a long speed-up hold, kill the click event
+            // so the video doesn't pause.
+            if (this.didSpeedUp) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                this.didSpeedUp = false; // Reset
+            }
+        }
+
+        // --- Core Logic ---
+
+        _findVideoUnderCursor(e) {
+            const activeMedia = this.stateManager.get('media.activeMedia');
+            if (!activeMedia) return null;
+
+            let clientX, clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            // Find visible video that contains the cursor coordinates
+            for (const media of activeMedia) {
+                if (media.tagName !== 'VIDEO') continue;
+                if (media.paused && !this.isAccelerating) continue; // Usually we only speed up playing videos
+
+                const rect = media.getBoundingClientRect();
+                if (clientX >= rect.left && clientX <= rect.right &&
+                    clientY >= rect.top && clientY <= rect.bottom) {
+                    return media;
+                }
+            }
+            return null;
+        }
+
+        _shouldIgnoreInput(target) {
+            return (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.closest('button, a, [role="button"]'));
+        }
+
+        activateSpeed(specificTargets = null) {
+            if (this.isAccelerating) return;
+
+            let targets = specificTargets;
+            if (!targets) {
+                const activeMedia = this.stateManager.get('media.activeMedia');
+                if (activeMedia) targets = Array.from(activeMedia);
+            }
+
+            if (!targets || targets.length === 0) return;
+
+            let activated = false;
+            const targetSpeed = CONFIG.TEMP_SPEED_RATE || 3.0;
+            const preservePitch = CONFIG.TEMP_SPEED_PRESERVE_PITCH !== undefined ? CONFIG.TEMP_SPEED_PRESERVE_PITCH : true;
+
+            targets.forEach(media => {
+                if (media.tagName !== 'VIDEO' || media.paused) return;
+
+                if (!this.originalStateMap.has(media)) {
+                    this.originalStateMap.set(media, {
+                        speed: media.playbackRate,
+                        pitch: media.preservesPitch !== undefined ? media.preservesPitch : true
+                    });
+                }
+
+                if ('preservesPitch' in media) media.preservesPitch = preservePitch;
+                else if ('mozPreservesPitch' in media) media.mozPreservesPitch = preservePitch;
+                else if ('webkitPreservesPitch' in media) media.webkitPreservesPitch = preservePitch;
+
+                media.playbackRate = targetSpeed;
+                activated = true;
+            });
+
+            if (activated) {
+                this.isAccelerating = true;
+                this.showToast(`⚡ Fast Forward (x${targetSpeed})`);
+            }
+        }
+
+        restoreSpeed() {
+            if (!this.isAccelerating) return;
+
+            this.originalStateMap.forEach((state, media) => {
+                if (media.isConnected) {
+                    media.playbackRate = state.speed;
+                    if ('preservesPitch' in media) media.preservesPitch = state.pitch;
+                    else if ('mozPreservesPitch' in media) media.mozPreservesPitch = state.pitch;
+                    else if ('webkitPreservesPitch' in media) media.webkitPreservesPitch = state.pitch;
+                }
+            });
+
+            this.originalStateMap.clear();
+            this.isAccelerating = false;
+            this.hideToast();
+        }
+
+        showToast(text) {
+            if (!this.toastNode) {
+                this.toastNode = document.createElement('div');
+                Object.assign(this.toastNode.style, {
+                    position: 'fixed', top: '15%', left: '50%', transform: 'translateX(-50%)',
+                    background: 'rgba(0, 0, 0, 0.5)', color: '#fff', padding: '6px 14px',
+                    borderRadius: '20px', fontSize: '13px', fontWeight: 'bold',
+                    zIndex: (CONFIG.MAX_Z_INDEX || 2147483647) + 10, pointerEvents: 'none',
+                    transition: 'opacity 0.2s', opacity: '0', backdropFilter: 'blur(2px)',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                });
+                document.body.appendChild(this.toastNode);
+            }
+            this.toastNode.textContent = text;
+            this.toastNode.style.opacity = '1';
+        }
+
+        hideToast() {
+            if (this.toastNode) this.toastNode.style.opacity = '0';
+        }
+    }
+
     function main() {
         const stateManager = new StateManager();
         const pluginManager = new PluginManager(stateManager);
@@ -999,6 +1198,7 @@
         pluginManager.register(new LiveStreamPlugin());
         pluginManager.register(new MediaSessionPlugin());
         pluginManager.register(new NavigationPlugin(pluginManager));
+        pluginManager.register(new TemporarySpeedPlugin());
         pluginManager.initAll();
     }
 
