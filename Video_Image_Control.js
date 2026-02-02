@@ -183,7 +183,7 @@
                         // Gamma: Increase (+0.5 max) -> Brighten
                         targetAdaptiveGamma = 1.0 + (0.5 * factor * toneStrength);
                         // Brightness: Increase (+15 max) -> Lift
-                        targetAdaptiveBright = 30 * factor * toneStrength;
+                        targetAdaptiveBright = 15 * factor * toneStrength;
                         // Contrast: Decrease (-10 max) -> Soften shadows
                         targetAdaptiveContrast = -10 * factor * toneStrength;
                     }
@@ -193,9 +193,9 @@
                         // Gamma: Decrease (-0.15 max) -> Darken
                         targetAdaptiveGamma = 1.0 - (0.15 * factor * toneStrength);
                         // Brightness: Decrease (-15 max) -> Reduce Glare
-                        //targetAdaptiveBright = -30 * factor * toneStrength;
+                        targetAdaptiveBright = -5 * factor * toneStrength;
                         // Contrast: Increase (+10 max) -> Maintain Pop
-                        //targetAdaptiveContrast = 15 * factor * toneStrength;
+                        targetAdaptiveContrast = 10 * factor * toneStrength;
                     }
                 }
 
