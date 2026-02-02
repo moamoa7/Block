@@ -60,36 +60,25 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 ※ uBlock filters
 https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 
-※ uBlock filters – Quick fixes
-https://ublockorigin.pages.dev/filters/quick-fixes.min.txt
-
-※ EasyList
-https://easylist.to/easylist/easylist.txt
-
-※ AdGuard Base filter (EasyList 제외)
-https://filters.adtidy.org/extension/chromium/filters/2_without_easylist.txt
-
-※ AdGuard Mobile Ads filter
-https://filters.adtidy.org/extension/chromium/filters/11.txt
-
-※ AdGuard Annoyances filter
-https://filters.adtidy.org/extension/chromium/filters/14.txt
-
 ※ Block third party font
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
 
-※ Block Outsider Intrusion into LAN
-https://ublockorigin.github.io/uAssetsCDN/filters/lan-block.txt
+※  Cosmetic Combined Filterlist
+https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/cosmetic_combined_filterlist.txt
+
+※  HaGeZi's Pop-Up Ads DNS Blocklist
+https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/popupads.txt
+
 
 (언어) 필터
 
 ※ List-KR
 
 * (AdGuard)
-https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
+https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
 
 * (uBlock Origin)
-https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
+https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
 
 ※ AdGuard Japanese filter
 https://filters.adtidy.org/extension/chromium/filters/7.txt
@@ -98,7 +87,12 @@ https://filters.adtidy.org/extension/chromium/filters/7.txt
 https://filters.adtidy.org/extension/chromium/filters/224.txt
 
 ※ AdGuard Russian filter
+
+* (AdGuard)
 https://filters.adtidy.org/extension/chromium/filters/1.txt
+
+* (uBlock Origin)
+https://raw.githubusercontent.com/dimisa-RUAdList/RUAdListCDN/main/lists/ruadlist.ubo.min.txt
 
 <br/>
 
@@ -106,14 +100,11 @@ https://filters.adtidy.org/extension/chromium/filters/1.txt
 
 ```
 https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
-https://ublockorigin.pages.dev/filters/quick-fixes.min.txt
-https://easylist.to/easylist/easylist.txt
-https://filters.adtidy.org/extension/chromium/filters/2_without_easylist.txt
-https://filters.adtidy.org/extension/chromium/filters/11.txt
-https://filters.adtidy.org/extension/chromium/filters/14.txt
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
-https://ublockorigin.github.io/uAssetsCDN/filters/lan-block.txt
-https://filters.adtidy.org/extension/chromium/filters/227.txt
+https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/cosmetic_combined_filterlist.txt
+https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/popupads.txt
+https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
+https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
 https://filters.adtidy.org/extension/chromium/filters/7.txt
 https://filters.adtidy.org/extension/chromium/filters/224.txt
 https://filters.adtidy.org/extension/chromium/filters/1.txt
