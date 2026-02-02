@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Image_Control (Ultimate + Temp Speed Fix)
+// @name         Video_Image_Control (Ultimate + UI Fix)
 // @namespace    https://com/
-// @version      113.2-Final_MissAV_Fix
+// @version      113.3-Final_UI_Drag_Fix
 // @description  비디오/이미지 제어 (Unsharp Mask + Smart Limit + 3-Way Auto Tone + rVFC Optimization + AdBlock + Live Sync + Hold Speed Fix)
 // @match        *://*/*
 // @run-at       document-end
@@ -977,7 +977,6 @@
             this.clickStartTime = 0;
             this.didSpeedUp = false;
 
-            // Global Binding to capture events even if blocked by overlays
             this.boundHandleKeyDown = this.handleKeyDown.bind(this);
             this.boundHandleKeyUp = this.handleKeyUp.bind(this);
             this.boundOnInputStart = this.onInputStart.bind(this);
@@ -988,22 +987,18 @@
 
         init(stateManager) {
             super.init(stateManager);
-            
-            // 1. Keyboard Events
+
             document.addEventListener('keydown', this.boundHandleKeyDown);
             document.addEventListener('keyup', this.boundHandleKeyUp);
             window.addEventListener('blur', this.boundRestore);
 
-            // 2. Global Mouse/Touch Events (Capture phase for maximum priority)
-            // Using global listener to bypass overlays on sites like missav
             document.addEventListener('mousedown', this.boundOnInputStart, true);
             document.addEventListener('touchstart', this.boundOnInputStart, { passive: false, capture: true });
-            
+
             document.addEventListener('mouseup', this.boundOnInputEnd, true);
             document.addEventListener('touchend', this.boundOnInputEnd, true);
             document.addEventListener('touchcancel', this.boundOnInputEnd, true);
 
-            // 3. Click Interception (to prevent pause after hold)
             document.addEventListener('click', this.boundOnClick, true);
         }
 
@@ -1012,7 +1007,7 @@
             document.removeEventListener('keydown', this.boundHandleKeyDown);
             document.removeEventListener('keyup', this.boundHandleKeyUp);
             window.removeEventListener('blur', this.boundRestore);
-            
+
             document.removeEventListener('mousedown', this.boundOnInputStart, true);
             document.removeEventListener('touchstart', this.boundOnInputStart, true);
             document.removeEventListener('mouseup', this.boundOnInputEnd, true);
@@ -1036,26 +1031,21 @@
         }
 
         onInputStart(e) {
-            // Right click ignore
             if (e.type === 'mousedown' && e.button !== 0) return;
             if (this._shouldIgnoreInput(e.target)) return;
 
-            // Check if the input is over a video (Visual Check)
             const videoUnderCursor = this._findVideoUnderCursor(e);
-            
+
             if (videoUnderCursor) {
                 this.clickStartTime = Date.now();
                 this.didSpeedUp = false;
                 this.activateSpeed([videoUnderCursor]);
-                // We don't preventDefault here to allow focus/seeking, 
-                // but we might need to if site logic conflicts heavily.
             }
         }
 
         onInputEnd(e) {
             if (this.isAccelerating) {
                 this.restoreSpeed();
-                // If we held it long enough, mark it so we can block the subsequent click
                 const duration = Date.now() - this.clickStartTime;
                 if (duration > (CONFIG.TEMP_SPEED_CLICK_THRESHOLD || 200)) {
                     this.didSpeedUp = true;
@@ -1066,13 +1056,11 @@
         }
 
         onClick(e) {
-            // If we just finished a long speed-up hold, kill the click event
-            // so the video doesn't pause.
             if (this.didSpeedUp) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-                this.didSpeedUp = false; // Reset
+                this.didSpeedUp = false;
             }
         }
 
@@ -1091,10 +1079,9 @@
                 clientY = e.clientY;
             }
 
-            // Find visible video that contains the cursor coordinates
             for (const media of activeMedia) {
                 if (media.tagName !== 'VIDEO') continue;
-                if (media.paused && !this.isAccelerating) continue; // Usually we only speed up playing videos
+                if (media.paused && !this.isAccelerating) continue;
 
                 const rect = media.getBoundingClientRect();
                 if (clientX >= rect.left && clientX <= rect.right &&
@@ -1106,7 +1093,15 @@
         }
 
         _shouldIgnoreInput(target) {
-            return (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.closest('button, a, [role="button"]'));
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.closest('button, a, [role="button"]')) return true;
+
+            // [FIX] 비디오 컨트롤러 UI(글로벌 컨테이너) 내부 클릭 시 무시
+            const uiContainer = this.stateManager.get('ui.globalContainer');
+            if (uiContainer && (target === uiContainer || uiContainer.contains(target))) {
+                return true;
+            }
+
+            return false;
         }
 
         activateSpeed(specificTargets = null) {
