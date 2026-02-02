@@ -898,13 +898,13 @@
             videoXXLLBrightenBtn.className = 'vsc-btn';
             videoXXLLBrightenBtn.textContent = 'XLL';
             videoXXLLBrightenBtn.dataset.presetKey = 'brightenX5';
-            videoXXLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.00); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -54); this.stateManager.set('videoFilter.highlights', 30); this.stateManager.set('videoFilter.activePreset', 'brightenX5'); };
+            videoXXLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.15); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -54); this.stateManager.set('videoFilter.highlights', 30); this.stateManager.set('videoFilter.activePreset', 'brightenX5'); };
 
             const videoXXLLLBrightenBtn = document.createElement('button');
             videoXXLLLBrightenBtn.className = 'vsc-btn';
             videoXXLLLBrightenBtn.textContent = 'XLLL';
             videoXXLLLBrightenBtn.dataset.presetKey = 'brightenX6';
-            videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.20); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -80); this.stateManager.set('videoFilter.highlights', 50); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
+            videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.50); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -90); this.stateManager.set('videoFilter.highlights', 50); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
 
             const videoButtonsContainer = document.createElement('div');
             videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 0px; margin-top: 0px; width: 100%;';
