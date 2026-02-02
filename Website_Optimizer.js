@@ -160,7 +160,7 @@
             'reddit.com'
         ],
         noRender: [
-            'youtube.com', 'dcinside.com', 'tv.naver.com', 'tvwiki5.net', 'avsee.ru', 'cineaste.co.kr', 'inven.co.kr',
+            'youtube.com', 'dcinside.com', 'tv.naver.com', 'tvwiki5.net', 'avsee.ru', 'cineaste.co.kr', 'inven.co.kr', 'liteapks.com',
         ],
         heavySPA: [
             'reddit.com', 'twitter.com', 'x.com', 'instagram.com', 'facebook.com', 'linkedin.com'
