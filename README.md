@@ -7,11 +7,19 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br>
 
-※ Iframe_AD_Blocker.js
-- iframe 차단 및 비활성화 / 로그 아이콘에서 클릭시 로그내역 확인 가능
-- 로그내역 복사 가능 / 로그 아이콘 이동 가능
+※ Video_Image_Control.js
+- 이미지 및 비디오 선명하게 보기 / 영상 배속 등
+
 ```
-https://raw.githubusercontent.com/moamoa7/adblock/main/Iframe_AD_Blocker.js
+https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Image_Control.js
+```
+<br>
+
+※ Website_Optimizer.js
+- 웹페이지 최적화
+
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/Website_Optimizer.js
 ```
 
 <br/>
