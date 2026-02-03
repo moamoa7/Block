@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Ultimate + UI Fix)
+// @name         Video_Image_Control (Image Slider UI)
 // @namespace    https://com/
-// @version      113.3-Final_UI_Drag_Fix
-// @description  비디오/이미지 제어 (Unsharp Mask + Smart Limit + 3-Way Auto Tone + rVFC Optimization + AdBlock + Live Sync + Hold Speed Fix)
+// @version      113.8-Image_Slider
+// @description  v113.8 이미지 필터 UI를 드롭다운에서 슬라이더로 변경 (글자 안보임 해결)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -13,12 +13,6 @@
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
 
-    // --- [OPTIMIZATION 1] Ad-Frame Blocker (광고 프레임 조기 차단) ---
-    if (window.self !== window.top) {
-        const blacklist = /google_ads|doubleclick|adsystem|adnxs|criteo|moatads|rubicon|pubmatic|2mdn\.net|googlesyndication/i;
-        if (blacklist.test(location.href) || (window.name && blacklist.test(window.name))) return;
-    }
-
     // --- [ARCHITECTURE] CONFIGURATION & CONSTANTS ---
     const CONFIG = {
         DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 7 : 5,
@@ -28,13 +22,7 @@
         DEFAULT_AUTO_TONE_LEVEL: 0,
         DEBUG: false,
 
-        // [NEW] Temporary Speed Config (일시 배속 설정)
-        TEMP_SPEED_KEY: 'c',       // 키보드 단축키
-        TEMP_SPEED_RATE: 3.0,      // 목표 배속 (3배속)
-        TEMP_SPEED_PRESERVE_PITCH: true, // 음정 유지
-        TEMP_SPEED_CLICK_THRESHOLD: 200, // 이 시간(ms)보다 오래 누르면 '배속'으로 간주하여 클릭(일시정지) 방지
-
-        // Auto Delay & Buffer
+        // Auto Delay
         AUTODELAY_INTERVAL_NORMAL: 1000, AUTODELAY_INTERVAL_STABLE: 3000,
         AUTODELAY_STABLE_THRESHOLD: 100, AUTODELAY_STABLE_COUNT: 5,
         AUTODELAY_PID_KP: 0.0002, AUTODELAY_PID_KI: 0.00001, AUTODELAY_PID_KD: 0.0001,
@@ -42,6 +30,7 @@
         AUTODELAY_EMA_ALPHA: 0.2,
         MIN_BUFFER_HEALTH_SEC: 1.0,
         LIVE_JUMP_INTERVAL: 6000, LIVE_JUMP_END_THRESHOLD: 1.0,
+
         // General
         DEBOUNCE_DELAY: 300, THROTTLE_DELAY: 100, MAX_Z_INDEX: 2147483647,
         SEEK_TIME_PERCENT: 0.05, SEEK_TIME_MAX_SEC: 15,
@@ -50,12 +39,12 @@
         UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_URLS: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         LIVE_JUMP_WHITELIST: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
+
         // Filters
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7 },
         SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
-        FILTER_EXCLUSION_DOMAINS: [], IMAGE_FILTER_EXCLUSION_DOMAINS: [],
         TARGET_DELAYS: { "play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 3000,
         UI_HIDDEN_CLASS_NAME: 'vsc-hidden',
     };
@@ -68,13 +57,12 @@
 
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
 
-    // --- [CORE FORCE FIX] Aggressive Shadow DOM Hooking ---
+    // --- Shadow DOM Hook ---
     (function aggressiveShadowHook() {
         if (window._hasAggressiveHook_) return;
         try {
             const originalAttachShadow = Element.prototype.attachShadow;
             window._shadowDomList_ = window._shadowDomList_ || [];
-
             Element.prototype.attachShadow = function (init) {
                 const shadowRoot = originalAttachShadow.call(this, init);
                 try {
@@ -91,7 +79,7 @@
         } catch (e) { console.warn("[VSC] Hooking Failed:", e); }
     })();
 
-    // --- [OPTIMIZATION 2] Video Analyzer (Smart Limit + 3-Way Auto Tone) ---
+    // --- Video Analyzer (1x1 Pixel Optimized) ---
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null,
         currentSettings: { smartLimit: 0, autoTone: 0 },
@@ -102,7 +90,7 @@
         init() {
             if (this.canvas) return;
             this.canvas = document.createElement('canvas');
-            this.canvas.width = 32; this.canvas.height = 32;
+            this.canvas.width = 1; this.canvas.height = 1; // 1x1 Optimized
             this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
         },
         start(video, settings) {
@@ -122,12 +110,6 @@
         updateSettings(settings) {
             this.currentSettings = { ...this.currentSettings, ...settings };
             if (this.currentSettings.smartLimit <= 0 && this.currentSettings.autoTone <= 0) {
-                this.targetSlope = 1.0;
-                this.currentSlope = 1.0;
-                this.currentAdaptiveGamma = 1.0;
-                this.currentAdaptiveBright = 0;
-                this.currentAdaptiveContrast = 0;
-                this.notifyUpdate(1.0, { gamma: 1.0, bright: 0, contrast: 0 });
                 this.stop();
             } else if (!this.isRunning && this.targetVideo) {
                 this.isRunning = true;
@@ -137,13 +119,9 @@
         loop() {
             if (!this.isRunning || !this.targetVideo) return;
             if ('requestVideoFrameCallback' in this.targetVideo) {
-                this.handle = this.targetVideo.requestVideoFrameCallback(() => {
-                    this.processFrame();
-                    this.loop();
-                });
+                this.handle = this.targetVideo.requestVideoFrameCallback(() => { this.processFrame(); this.loop(); });
             } else {
-                this.processFrame();
-                setTimeout(() => this.loop(), 200);
+                this.processFrame(); setTimeout(() => this.loop(), 200);
             }
         },
         processFrame() {
@@ -151,28 +129,20 @@
             if (this.currentSettings.smartLimit <= 0 && this.currentSettings.autoTone <= 0) return;
 
             this.frameSkipCounter++;
-            if (this.frameSkipCounter < 5) return;
+            if (this.frameSkipCounter < 10) return; // Skip frames for performance
             this.frameSkipCounter = 0;
 
             try {
-                this.ctx.drawImage(this.targetVideo, 0, 0, 32, 32);
-                const data = this.ctx.getImageData(0, 0, 32, 32).data;
-                let total = 0;
-                for (let i = 0; i < data.length; i += 64) {
-                    total += data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722;
-                }
-                const sampleCount = data.length / 64;
-                const avgLuma = total / sampleCount / 255;
+                this.ctx.drawImage(this.targetVideo, 0, 0, 1, 1);
+                const data = this.ctx.getImageData(0, 0, 1, 1).data;
+                const avgLuma = (data[0] * 0.2126 + data[1] * 0.7152 + data[2] * 0.0722) / 255;
 
-                // 1. Smart Limit
+                // Smart Limit
                 const ceiling = (100 - this.currentSettings.smartLimit) / 100;
-                let calcSlope = 1.0;
-                if (avgLuma > ceiling && avgLuma > 0.01) {
-                    calcSlope = ceiling / avgLuma;
-                }
+                let calcSlope = (avgLuma > ceiling && avgLuma > 0.01) ? (ceiling / avgLuma) : 1.0;
                 this.targetSlope = Math.max(0, Math.min(1.0, calcSlope));
 
-                // 2. 3-Way Auto Tone
+                // Auto Tone
                 let targetAdaptiveGamma = 1.0;
                 let targetAdaptiveBright = 0;
                 let targetAdaptiveContrast = 0;
@@ -192,27 +162,22 @@
                     }
                 }
 
-                // 3. Smoothing
+                // Smoothing
                 const smooth = (curr, target) => {
                     const diff = target - curr;
                     return Math.abs(diff) > 0.01 ? curr + diff * 0.05 : curr;
                 };
 
                 this.currentSlope = smooth(this.currentSlope, this.targetSlope);
-                if (!this.currentAdaptiveGamma) this.currentAdaptiveGamma = 1.0;
-                if (this.currentAdaptiveBright === undefined) this.currentAdaptiveBright = 0;
-                if (this.currentAdaptiveContrast === undefined) this.currentAdaptiveContrast = 0;
-
-                this.currentAdaptiveGamma = smooth(this.currentAdaptiveGamma, targetAdaptiveGamma);
-                this.currentAdaptiveBright = smooth(this.currentAdaptiveBright, targetAdaptiveBright);
-                this.currentAdaptiveContrast = smooth(this.currentAdaptiveContrast, targetAdaptiveContrast);
+                this.currentAdaptiveGamma = smooth(this.currentAdaptiveGamma || 1.0, targetAdaptiveGamma);
+                this.currentAdaptiveBright = smooth(this.currentAdaptiveBright || 0, targetAdaptiveBright);
+                this.currentAdaptiveContrast = smooth(this.currentAdaptiveContrast || 0, targetAdaptiveContrast);
 
                 this.notifyUpdate(this.currentSlope, {
                     gamma: this.currentAdaptiveGamma,
                     bright: this.currentAdaptiveBright,
                     contrast: this.currentAdaptiveContrast
                 });
-
             } catch (e) {}
         },
         notifyUpdate(slope, autoParams) {
@@ -255,7 +220,7 @@
                     colorTemp: parseInt(CONFIG.IMAGE_FILTER_SETTINGS.COLORTEMP_VALUE || 0, 10)
                 },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null },
-                playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0, isTemporarySpeedActive: false },
+                playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0 },
                 liveStream: { delayInfo: null, isRunning: false, resetRequested: null },
                 settings: { videoFilterLevel: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, videoFilterLevel2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, imageFilterLevel: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, autoRefresh: true }
             };
@@ -407,11 +372,7 @@
             document.addEventListener('vsc-smart-limit-update', (e) => {
                 const { slope, autoParams } = e.detail;
                 this.filterManager.updateSmartLimit(slope);
-                const isChanged =
-                    Math.abs(this.lastAutoParams.gamma - autoParams.gamma) > 0.002 ||
-                    Math.abs(this.lastAutoParams.bright - autoParams.bright) > 0.1 ||
-                    Math.abs(this.lastAutoParams.contrast - autoParams.contrast) > 0.1;
-
+                const isChanged = Math.abs(this.lastAutoParams.gamma - autoParams.gamma) > 0.002 || Math.abs(this.lastAutoParams.bright - autoParams.bright) > 0.1 || Math.abs(this.lastAutoParams.contrast - autoParams.contrast) > 0.1;
                 if (isChanged) {
                     this.lastAutoParams = autoParams;
                     this.applyAllVideoFilters();
@@ -694,7 +655,7 @@
     }
 
     class UIPlugin extends Plugin {
-        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.fadeOutTimer = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.delayMeterEl = null; this.speedButtons = []; this.uiElements = {}; this.modalHost = null; this.modalShadowRoot = null; }
+        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.fadeOutTimer = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.delayMeterEl = null; this.speedButtons = []; this.uiElements = {}; this.modalHost = null; this.modalShadowRoot = null; this.uiState = { x: 0, y: 0 }; }
         init(stateManager) {
             super.init(stateManager);
             this.subscribe('ui.createRequested', () => { if (!this.globalContainer) { this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); } });
@@ -736,6 +697,7 @@
             const isMobile = this.stateManager.get('app.isMobile');
             this.globalContainer = document.createElement('div');
             this.globalContainer.style.setProperty('--vsc-translate-x', '0px'); this.globalContainer.style.setProperty('--vsc-translate-y', '0px');
+            // [Fix] Centering and Layout
             Object.assign(this.globalContainer.style, { position: 'fixed', top: '50%', right: '1vmin', transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-start', gap: '5px', WebkitTapHighlightColor: 'transparent' });
             this.mainControlsContainer = document.createElement('div');
             Object.assign(this.mainControlsContainer.style, { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' });
@@ -816,7 +778,7 @@
         renderAllControls() {
             if (this.shadowRoot.getElementById('vsc-main-container')) return;
             const style = document.createElement('style'); const isMobile = this.stateManager.get('app.isMobile');
-            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; } #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; } #vsc-main-container:hover { opacity: 1; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;} .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; } .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; } .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '2px' : '3px'}; } #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; } #vsc-image-controls .vsc-submenu { width: 100px; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; } .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; } input[type=range] { width: 100%; margin: 0; } input[type=range]:disabled { opacity: 0.5; } .vsc-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); font-size: clamp(12px, 2.2vmin, 14px); width: 100%; box-sizing: border-box; }`;
+            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; } #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; } #vsc-main-container:hover { opacity: 1; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;} .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; } .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; } .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '2px' : '3px'}; } #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; } #vsc-image-controls .vsc-submenu { width: 100px; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; } .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; } input[type=range] { width: 100%; margin: 0; } input[type=range]:disabled { opacity: 0.5; } .vsc-select { background: rgba(0,0,0,0.8); color: white !important; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: 0 5px !important; font-size: 14px !important; height: 30px !important; line-height: 30px !important; width: 100%; box-sizing: border-box; } .vsc-select option { background: #000; color: white; }`;
             this.shadowRoot.appendChild(style);
             const mainContainer = document.createElement('div'); mainContainer.id = 'vsc-main-container'; this.uiElements.mainContainer = mainContainer;
             const controlsContainer = document.createElement('div'); controlsContainer.id = 'vsc-controls-container';
@@ -907,7 +869,7 @@
             videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 2.15); this.stateManager.set('videoFilter.saturation', 103); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -64.8); this.stateManager.set('videoFilter.highlights', 36); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
 
             const videoButtonsContainer = document.createElement('div');
-            videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 0px; margin-top: 0px; width: 100%;';
+            videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; width: 100%; padding-bottom: 4px; border-bottom: 1px solid #555;';
 
             const createLabel = (text) => {
                 const span = document.createElement('span');
@@ -920,19 +882,17 @@
             videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
             videoBtnGroup1.append(createLabel('샤프'), videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn);
 
-            //const videoBtnGroup2 = document.createElement('div');
-            //videoBtnGroup2.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
-            //videoBtnGroup2.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn);
-
             const videoBtnGroup3 = document.createElement('div');
             videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
             videoBtnGroup3.append(createLabel('밝기'), videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXLBrightenBtn, videoXXLLBrightenBtn, videoXXLLLBrightenBtn, videoBrightenoffBtn);
 
-            //videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup2, videoBtnGroup3);
             videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup3);
 
             const videoButtons = [videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn, videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXLBrightenBtn, videoXXLLBrightenBtn, videoXXLLLBrightenBtn];
             this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); });
+
+            // [FIXED] Append Buttons Container FIRST (at the top of the menu)
+            videoSubMenu.appendChild(videoButtonsContainer);
 
             videoSubMenu.append(
                 this._createSlider('자동밝기제한', 'v-smartlimit', 0, 50, 1, 'videoFilter.smartLimit', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control,
@@ -945,17 +905,15 @@
                 this._createSlider('밝기', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
                 this._createSlider('대비', 'v-shadows', -100, 100, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control,
                 this._createSlider('감마', 'v-gamma', 1, 4.00, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
-                this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
-                videoButtonsContainer
+                this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control
             );
 
             const imageSubMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controlsContainer);
-            const imageSelect = document.createElement('select'); imageSelect.className = 'vsc-select';
-            [{ v: "0", t: "꺼짐" }, ...Array.from({ length: 20 }, (_, i) => ({ v: (i + 1).toString(), t: `${i + 1}단계` }))].forEach(opt => { const o = document.createElement('option'); o.value = opt.value; o.textContent = opt.t; imageSelect.appendChild(o); });
-            imageSelect.onchange = () => this.stateManager.set('imageFilter.level', parseInt(imageSelect.value, 10));
-            this.subscribe('imageFilter.level', (val) => imageSelect.value = val);
-            imageSelect.value = this.stateManager.get('imageFilter.level');
-            imageSubMenu.appendChild(imageSelect);
+
+            // [MODIFIED] Changed Select Dropdown to Slider (Range)
+            imageSubMenu.appendChild(
+                this._createSlider('샤프닝', 'i-sharpen', 0, 20, 1, 'imageFilter.level', '단계', v => v === 0 ? '꺼짐' : `${v.toFixed(0)}단계`).control
+            );
 
             imageSubMenu.appendChild(
                 this._createSlider('색온도', 'i-colortemp', -7, 4, 1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control
@@ -965,221 +923,71 @@
             if (this.speedButtons.length === 0) { CONFIG.SPEED_PRESETS.forEach(speed => { const btn = document.createElement('button'); btn.textContent = `${speed.toFixed(1)}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn'; Object.assign(btn.style, { background: 'rgba(52, 152, 219, 0.7)', color: 'white', width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)', padding: '0', transition: 'background-color 0.2s, box-shadow 0.2s' }); btn.onclick = () => this.stateManager.set('playback.targetRate', speed); this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn); }); const isLiveJumpSite = CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname === d || location.hostname.endsWith('.' + d)); if (isLiveJumpSite) { const liveJumpBtn = document.createElement('button'); liveJumpBtn.textContent = '⚡'; liveJumpBtn.title = '실시간으로 이동'; liveJumpBtn.className = 'vsc-btn'; Object.assign(liveJumpBtn.style, { width: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', height: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', fontSize: this.stateManager.get('app.isMobile') ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)', borderRadius: '50%', padding: '0', transition: 'box-shadow 0.3s' }); liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now()); this.speedButtonsContainer.appendChild(liveJumpBtn); } }
             mainContainer.appendChild(controlsContainer); this.shadowRoot.appendChild(mainContainer); this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
         }
-        attachDragAndDrop() { let pressTimer = null; const isInteractiveTarget = (e) => { for (const element of e.composedPath()) { if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(element.tagName)) { return true; } } return false; }; const onDragStart = (e) => { if (isInteractiveTarget(e)) return; pressTimer = setTimeout(() => { if (this.globalContainer) this.globalContainer.style.display = 'none'; onDragEnd(); }, 800); const pos = e.touches ? e.touches[0] : e; this.startPos = { x: pos.clientX, y: pos.clientY }; const initialX = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-x')) || 0; const initialY = parseFloat(this.globalContainer.style.getPropertyValue('--vsc-translate-y')) || 0; this.currentPos = { x: initialX, y: initialY }; this.isDragging = true; this.wasDragged = false; this.globalContainer.style.transition = 'none'; document.addEventListener('mousemove', onDragMove, { passive: false }); document.addEventListener('mouseup', onDragEnd, { passive: true }); document.addEventListener('touchmove', onDragMove, { passive: false }); document.addEventListener('touchend', onDragEnd, { passive: true }); }; const updatePosition = () => { if (!this.isDragging || !this.globalContainer) return; const newX = this.currentPos.x + this.delta.x; const newY = this.currentPos.y + this.delta.y; this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`); this.animationFrameId = null; }; const onDragMove = (e) => { if (!this.isDragging) return; const pos = e.touches ? e.touches[0] : e; this.delta = { x: pos.clientX - this.startPos.x, y: pos.clientY - this.startPos.y }; if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI_DRAG_THRESHOLD)) { this.wasDragged = true; clearTimeout(pressTimer); if (e.cancelable) e.preventDefault(); } if (this.wasDragged && this.animationFrameId === null) { this.animationFrameId = requestAnimationFrame(updatePosition); } }; const onDragEnd = () => { clearTimeout(pressTimer); if (!this.isDragging) return; if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; } if (this.wasDragged) { this.currentPos.x += this.delta.x; this.currentPos.y += this.delta.y; } this.isDragging = false; this.globalContainer.style.transition = ''; document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd); document.removeEventListener('touchmove', onDragMove); document.removeEventListener('touchend', onDragEnd); setTimeout(() => { this.wasDragged = false; }, 50); }; this.triggerElement.addEventListener('mousedown', onDragStart); this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false }); }
-    }
+        attachDragAndDrop() {
+            let pressTimer = null;
+            const isInteractiveTarget = (e) => { for (const element of e.composedPath()) { if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(element.tagName)) { return true; } } return false; };
+            const onDragStart = (e) => {
+                if (isInteractiveTarget(e)) return;
+                pressTimer = setTimeout(() => { if (this.globalContainer) this.globalContainer.style.display = 'none'; onDragEnd(); }, 800);
+                const pos = e.touches ? e.touches[0] : e;
+                this.startPos = { x: pos.clientX, y: pos.clientY };
 
-    class TemporarySpeedPlugin extends Plugin {
-        constructor() {
-            super('TemporarySpeed');
-            this.isAccelerating = false;
-            this.originalStateMap = new Map();
-            this.toastNode = null;
-            this.triggerKey = CONFIG.TEMP_SPEED_KEY ? CONFIG.TEMP_SPEED_KEY.toLowerCase() : 'c';
-            this.clickStartTime = 0;
-            this.didSpeedUp = false;
+                // [OPTIMIZATION] DOM에서 읽지 않고 메모리 변수에서 현재 위치 가져옴
+                this.currentPos = { x: this.uiState.x, y: this.uiState.y };
 
-            this.boundHandleKeyDown = this.handleKeyDown.bind(this);
-            this.boundHandleKeyUp = this.handleKeyUp.bind(this);
-            this.boundOnInputStart = this.onInputStart.bind(this);
-            this.boundOnInputEnd = this.onInputEnd.bind(this);
-            this.boundOnClick = this.onClick.bind(this);
-            this.boundRestore = this.restoreSpeed.bind(this);
-        }
+                this.isDragging = true;
+                this.wasDragged = false;
+                this.globalContainer.style.transition = 'none';
+                document.addEventListener('mousemove', onDragMove, { passive: false });
+                document.addEventListener('mouseup', onDragEnd, { passive: true });
+                document.addEventListener('touchmove', onDragMove, { passive: false });
+                document.addEventListener('touchend', onDragEnd, { passive: true });
+            };
+            const updatePosition = () => {
+                if (!this.isDragging || !this.globalContainer) return;
+                const newX = this.currentPos.x + this.delta.x;
+                const newY = this.currentPos.y + this.delta.y;
 
-        init(stateManager) {
-            super.init(stateManager);
-
-            document.addEventListener('keydown', this.boundHandleKeyDown);
-            document.addEventListener('keyup', this.boundHandleKeyUp);
-            window.addEventListener('blur', this.boundRestore);
-
-            document.addEventListener('mousedown', this.boundOnInputStart, true);
-            document.addEventListener('touchstart', this.boundOnInputStart, { passive: false, capture: true });
-
-            document.addEventListener('mouseup', this.boundOnInputEnd, true);
-            document.addEventListener('touchend', this.boundOnInputEnd, true);
-            document.addEventListener('touchcancel', this.boundOnInputEnd, true);
-
-            document.addEventListener('click', this.boundOnClick, true);
-        }
-
-        destroy() {
-            super.destroy();
-            document.removeEventListener('keydown', this.boundHandleKeyDown);
-            document.removeEventListener('keyup', this.boundHandleKeyUp);
-            window.removeEventListener('blur', this.boundRestore);
-
-            document.removeEventListener('mousedown', this.boundOnInputStart, true);
-            document.removeEventListener('touchstart', this.boundOnInputStart, true);
-            document.removeEventListener('mouseup', this.boundOnInputEnd, true);
-            document.removeEventListener('touchend', this.boundOnInputEnd, true);
-            document.removeEventListener('touchcancel', this.boundOnInputEnd, true);
-            document.removeEventListener('click', this.boundOnClick, true);
-
-            if (this.toastNode) this.toastNode.remove();
-        }
-
-        // --- Event Handlers ---
-
-        handleKeyDown(e) {
-            if (this._shouldIgnoreInput(e.target)) return;
-            if (e.repeat || e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
-            if (e.key.toLowerCase() === this.triggerKey) this.activateSpeed();
-        }
-
-        handleKeyUp(e) {
-            if (e.key.toLowerCase() === this.triggerKey) this.restoreSpeed();
-        }
-
-        onInputStart(e) {
-            if (e.type === 'mousedown' && e.button !== 0) return;
-            if (this._shouldIgnoreInput(e.target)) return;
-
-            const videoUnderCursor = this._findVideoUnderCursor(e);
-
-            if (videoUnderCursor) {
-                this.clickStartTime = Date.now();
-                this.didSpeedUp = false;
-                this.activateSpeed([videoUnderCursor]);
-            }
-        }
-
-        onInputEnd(e) {
-            if (this.isAccelerating) {
-                this.restoreSpeed();
-                const duration = Date.now() - this.clickStartTime;
-                if (duration > (CONFIG.TEMP_SPEED_CLICK_THRESHOLD || 200)) {
-                    this.didSpeedUp = true;
-                } else {
-                    this.didSpeedUp = false;
+                // CSS Variable 업데이트
+                this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`);
+                this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`);
+                this.animationFrameId = null;
+            };
+            const onDragMove = (e) => {
+                if (!this.isDragging) return;
+                const pos = e.touches ? e.touches[0] : e;
+                this.delta = { x: pos.clientX - this.startPos.x, y: pos.clientY - this.startPos.y };
+                if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI_DRAG_THRESHOLD)) {
+                    this.wasDragged = true;
+                    clearTimeout(pressTimer);
+                    if (e.cancelable) e.preventDefault();
                 }
-            }
-        }
-
-        onClick(e) {
-            if (this.didSpeedUp) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                this.didSpeedUp = false;
-            }
-        }
-
-        // --- Core Logic ---
-
-        _findVideoUnderCursor(e) {
-            const activeMedia = this.stateManager.get('media.activeMedia');
-            if (!activeMedia) return null;
-
-            let clientX, clientY;
-            if (e.touches && e.touches.length > 0) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-
-            for (const media of activeMedia) {
-                if (media.tagName !== 'VIDEO') continue;
-                if (media.paused && !this.isAccelerating) continue;
-
-                const rect = media.getBoundingClientRect();
-                if (clientX >= rect.left && clientX <= rect.right &&
-                    clientY >= rect.top && clientY <= rect.bottom) {
-                    return media;
+                if (this.wasDragged && this.animationFrameId === null) {
+                    this.animationFrameId = requestAnimationFrame(updatePosition);
                 }
-            }
-            return null;
-        }
-
-        _shouldIgnoreInput(target) {
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.closest('button, a, [role="button"]')) return true;
-
-            // [FIX] 비디오 컨트롤러 UI(글로벌 컨테이너) 내부 클릭 시 무시
-            const uiContainer = this.stateManager.get('ui.globalContainer');
-            if (uiContainer && (target === uiContainer || uiContainer.contains(target))) {
-                return true;
-            }
-
-            return false;
-        }
-
-        activateSpeed(specificTargets = null) {
-            if (this.isAccelerating) return;
-
-            let targets = specificTargets;
-            if (!targets) {
-                const activeMedia = this.stateManager.get('media.activeMedia');
-                if (activeMedia) targets = Array.from(activeMedia);
-            }
-
-            if (!targets || targets.length === 0) return;
-
-            let activated = false;
-            const targetSpeed = CONFIG.TEMP_SPEED_RATE || 3.0;
-            const preservePitch = CONFIG.TEMP_SPEED_PRESERVE_PITCH !== undefined ? CONFIG.TEMP_SPEED_PRESERVE_PITCH : true;
-
-            targets.forEach(media => {
-                if (media.tagName !== 'VIDEO' || media.paused) return;
-
-                if (!this.originalStateMap.has(media)) {
-                    this.originalStateMap.set(media, {
-                        speed: media.playbackRate,
-                        pitch: media.preservesPitch !== undefined ? media.preservesPitch : true
-                    });
+            };
+            const onDragEnd = () => {
+                clearTimeout(pressTimer);
+                if (!this.isDragging) return;
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
+                    this.animationFrameId = null;
                 }
-
-                if ('preservesPitch' in media) media.preservesPitch = preservePitch;
-                else if ('mozPreservesPitch' in media) media.mozPreservesPitch = preservePitch;
-                else if ('webkitPreservesPitch' in media) media.webkitPreservesPitch = preservePitch;
-
-                media.playbackRate = targetSpeed;
-                activated = true;
-            });
-
-            if (activated) {
-                this.isAccelerating = true;
-                this.showToast(`⚡ Fast Forward (x${targetSpeed})`);
-            }
-        }
-
-        restoreSpeed() {
-            if (!this.isAccelerating) return;
-
-            this.originalStateMap.forEach((state, media) => {
-                if (media.isConnected) {
-                    media.playbackRate = state.speed;
-                    if ('preservesPitch' in media) media.preservesPitch = state.pitch;
-                    else if ('mozPreservesPitch' in media) media.mozPreservesPitch = state.pitch;
-                    else if ('webkitPreservesPitch' in media) media.webkitPreservesPitch = state.pitch;
+                if (this.wasDragged) {
+                    // [OPTIMIZATION] 드래그가 끝날 때 메모리 상태 업데이트
+                    this.uiState.x += this.delta.x;
+                    this.uiState.y += this.delta.y;
                 }
-            });
-
-            this.originalStateMap.clear();
-            this.isAccelerating = false;
-            this.hideToast();
-        }
-
-        showToast(text) {
-            if (!this.toastNode) {
-                this.toastNode = document.createElement('div');
-                Object.assign(this.toastNode.style, {
-                    position: 'fixed', top: '15%', left: '50%', transform: 'translateX(-50%)',
-                    background: 'rgba(0, 0, 0, 0.5)', color: '#fff', padding: '6px 14px',
-                    borderRadius: '20px', fontSize: '13px', fontWeight: 'bold',
-                    zIndex: (CONFIG.MAX_Z_INDEX || 2147483647) + 10, pointerEvents: 'none',
-                    transition: 'opacity 0.2s', opacity: '0', backdropFilter: 'blur(2px)',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                });
-                document.body.appendChild(this.toastNode);
-            }
-            this.toastNode.textContent = text;
-            this.toastNode.style.opacity = '1';
-        }
-
-        hideToast() {
-            if (this.toastNode) this.toastNode.style.opacity = '0';
+                this.isDragging = false;
+                this.globalContainer.style.transition = '';
+                document.removeEventListener('mousemove', onDragMove);
+                document.removeEventListener('mouseup', onDragEnd);
+                document.removeEventListener('touchmove', onDragMove);
+                document.removeEventListener('touchend', onDragEnd);
+                setTimeout(() => { this.wasDragged = false; }, 50);
+            };
+            this.triggerElement.addEventListener('mousedown', onDragStart);
+            this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
         }
     }
 
@@ -1194,7 +1002,6 @@
         pluginManager.register(new LiveStreamPlugin());
         pluginManager.register(new MediaSessionPlugin());
         pluginManager.register(new NavigationPlugin(pluginManager));
-        pluginManager.register(new TemporarySpeedPlugin());
         pluginManager.initAll();
     }
 
