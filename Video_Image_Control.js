@@ -490,7 +490,7 @@
                             setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'slope', slope);
                             setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'intercept', intercept);
                         }
-                        if (colorTemp !== undefined) { const slope = 1 - (colorTemp / 200); setAttr(`[data-vsc-id="ct_blue"]`, 'slope', slope.toString()); }
+                        if (colorTemp !== undefined) { const slope = 1 - (colorTemp / 100); setAttr(`[data-vsc-id="ct_blue"]`, 'slope', slope.toString()); }
                         if (dither !== undefined) { const k3 = (dither / 500).toString(); setAttr(`[data-vsc-id="dither_blend"]`, 'k3', k3); }
                     });
                 }
