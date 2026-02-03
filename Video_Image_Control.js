@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Grid Layout + Wide Slider)
+// @name         Video_Image_Control (Smart Monitor / Optimized)
 // @namespace    https://com/
-// @version      113.9-Grid_Layout
-// @description  v113.9 비디오 필터 2열 배치(Grid) + 이미지 슬라이더 너비 확장(조작 편의성)
+// @version      113.13-Optimized
+// @description  v113.13 감마값의 출처(Auto/Manual)를 모니터에 명시하여 혼동 방지 (불필요 로직 제거판)
 // @match        *://*/*
 // @run-at       document-end
 // @grant        none
@@ -44,7 +44,8 @@
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7 },
-        SITE_METADATA_RULES: { 'www.youtube.com': { title: ['h1.ytd-watch-metadata #video-primary-info-renderer #title', 'h1.title.ytd-video-primary-info-renderer'], artist: ['#owner-name a', '#upload-info.ytd-video-owner-renderer a'] }, 'www.netflix.com': { title: ['.title-title', '.video-title'], artist: ['Netflix'] }, 'www.tving.com': { title: ['h2.program__title__main', '.title-main'], artist: ['TVING'] } },
+        
+        // [Optimized] SITE_METADATA_RULES Removed
         TARGET_DELAYS: { "play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 3000,
         UI_HIDDEN_CLASS_NAME: 'vsc-hidden',
     };
@@ -109,9 +110,7 @@
         },
         updateSettings(settings) {
             this.currentSettings = { ...this.currentSettings, ...settings };
-            if (this.currentSettings.smartLimit <= 0 && this.currentSettings.autoTone <= 0) {
-                this.stop();
-            } else if (!this.isRunning && this.targetVideo) {
+            if (!this.isRunning && this.targetVideo) {
                 this.isRunning = true;
                 this.loop();
             }
@@ -126,7 +125,6 @@
         },
         processFrame() {
             if (!this.targetVideo || this.targetVideo.paused || this.targetVideo.ended) return;
-            if (this.currentSettings.smartLimit <= 0 && this.currentSettings.autoTone <= 0) return;
 
             this.frameSkipCounter++;
             if (this.frameSkipCounter < 10) return; // Skip frames for performance
@@ -137,12 +135,19 @@
                 const data = this.ctx.getImageData(0, 0, 1, 1).data;
                 const avgLuma = (data[0] * 0.2126 + data[1] * 0.7152 + data[2] * 0.0722) / 255;
 
-                // Smart Limit
+                if (this.currentSettings.smartLimit <= 0 && this.currentSettings.autoTone <= 0) {
+                     this.currentSlope = 1.0;
+                     this.currentAdaptiveGamma = 1.0;
+                     this.currentAdaptiveBright = 0;
+                     this.currentAdaptiveContrast = 0;
+                     this.notifyUpdate(1.0, { gamma: 1.0, bright: 0, contrast: 0 }, avgLuma);
+                     return;
+                }
+
                 const ceiling = (100 - this.currentSettings.smartLimit) / 100;
                 let calcSlope = (avgLuma > ceiling && avgLuma > 0.01) ? (ceiling / avgLuma) : 1.0;
                 this.targetSlope = Math.max(0, Math.min(1.0, calcSlope));
 
-                // Auto Tone
                 let targetAdaptiveGamma = 1.0;
                 let targetAdaptiveBright = 0;
                 let targetAdaptiveContrast = 0;
@@ -162,7 +167,6 @@
                     }
                 }
 
-                // Smoothing
                 const smooth = (curr, target) => {
                     const diff = target - curr;
                     return Math.abs(diff) > 0.01 ? curr + diff * 0.05 : curr;
@@ -177,12 +181,12 @@
                     gamma: this.currentAdaptiveGamma,
                     bright: this.currentAdaptiveBright,
                     contrast: this.currentAdaptiveContrast
-                });
+                }, avgLuma);
             } catch (e) {}
         },
-        notifyUpdate(slope, autoParams) {
+        notifyUpdate(slope, autoParams, luma) {
             document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', {
-                detail: { slope, autoParams: autoParams || { gamma: 1.0, bright: 0, contrast: 0 } }
+                detail: { slope, autoParams: autoParams || { gamma: 1.0, bright: 0, contrast: 0 }, luma: luma }
             }));
         }
     };
@@ -278,7 +282,8 @@
                         const isVisible = e.isIntersecting && e.intersectionRatio > 0;
                         e.target.dataset.isVisible = String(isVisible);
                         if (e.target.tagName === 'VIDEO' || e.target.tagName === 'IMG') { this.stateManager.set('media.visibilityChange', { target: e.target, isVisible }); }
-                        if (isVisible && e.intersectionRatio > maxRatio && (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO')) { maxRatio = e.intersectionRatio; mostVisibleMedia = e.target; }
+                        // [Optimized] Removed AUDIO check
+                        if (isVisible && e.intersectionRatio > maxRatio && e.target.tagName === 'VIDEO') { maxRatio = e.intersectionRatio; mostVisibleMedia = e.target; }
                     });
                     if (mostVisibleMedia && mostVisibleMedia.tagName === 'VIDEO') {
                         VideoAnalyzer.start(mostVisibleMedia);
@@ -297,10 +302,12 @@
             if (newActiveSet.size !== activeSet.size || ![...newActiveSet].every(el => activeSet.has(el))) { this.stateManager.set(stateKey, newActiveSet); }
         }
         findAllMedia(root = document) {
-            let media = new Set(); const minSize = CONFIG.VIDEO_MIN_SIZE; const isValid = m => m.tagName === 'AUDIO' || (m.offsetWidth >= minSize || m.offsetHeight >= minSize);
-            root.querySelectorAll('video, audio').forEach(m => isValid(m) && media.add(m));
+            let media = new Set(); const minSize = CONFIG.VIDEO_MIN_SIZE; 
+            // [Optimized] Removed AUDIO support
+            const isValid = m => (m.offsetWidth >= minSize || m.offsetHeight >= minSize);
+            root.querySelectorAll('video').forEach(m => isValid(m) && media.add(m));
             root.querySelectorAll('iframe').forEach(f => { try { if (f.src && f.src.includes('challenges.cloudflare.com')) return; if (f.contentDocument) { const frameMedia = this.findAllMedia(f.contentDocument); frameMedia.forEach(m => media.add(m)); } } catch (e) { } });
-            (window._shadowDomList_ || []).forEach(shadowRoot => { try { shadowRoot.querySelectorAll('video, audio').forEach(m => isValid(m) && media.add(m)); } catch (e) { } });
+            (window._shadowDomList_ || []).forEach(shadowRoot => { try { shadowRoot.querySelectorAll('video').forEach(m => isValid(m) && media.add(m)); } catch (e) { } });
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null, false); let node;
             while (node = walker.nextNode()) { if (node.shadowRoot) { const shadowMedia = this.findAllMedia(node.shadowRoot); shadowMedia.forEach(m => media.add(m)); } }
             return [...media];
@@ -614,14 +621,7 @@
         setPlaybackRate(rate) { this.stateManager.get('media.activeMedia').forEach(media => { if (media.playbackRate !== rate) media.playbackRate = rate; }); }
     }
 
-    class MediaSessionPlugin extends Plugin {
-        constructor() { super('MediaSession'); }
-        init(stateManager) { super.init(stateManager); this.subscribe('media.activeMedia', () => this.updateSession()); }
-        updateSession() { if (!('mediaSession' in navigator)) return; const activeMedia = Array.from(this.stateManager.get('media.activeMedia')).find(m => !m.paused); if (activeMedia) this.setSession(activeMedia); else this.clearSession(); }
-        getMeta() { const rule = CONFIG.SITE_METADATA_RULES[location.hostname]; const getText = sels => { if (!Array.isArray(sels)) return null; for (const sel of sels) { const el = document.querySelector(sel); if (el) return el.textContent.trim(); } return null; }; if (rule) return { title: getText(rule.title) || document.title, artist: getText(rule.artist) || location.hostname }; return { title: document.title, artist: location.hostname }; }
-        setSession(m) { safeExec(() => { const { title, artist } = this.getMeta(); navigator.mediaSession.metadata = new window.MediaMetadata({ title, artist, album: 'Video_Image_Control' }); const setAction = (act, h) => { try { navigator.mediaSession.setActionHandler(act, h); } catch (e) { } }; const seekTime = (!m || !isFinite(m.duration)) ? 10 : Math.min(Math.floor(m.duration * CONFIG.SEEK_TIME_PERCENT), CONFIG.SEEK_TIME_MAX_SEC); setAction('play', () => m.play()); setAction('pause', () => m.pause()); setAction('seekbackward', () => { m.currentTime -= seekTime; }); setAction('seekforward', () => { m.currentTime += seekTime; }); }, 'MediaSession.set'); }
-        clearSession() { safeExec(() => { navigator.mediaSession.metadata = null; ['play', 'pause', 'seekbackward', 'seekforward'].forEach(a => { try { navigator.mediaSession.setActionHandler(a, null); } catch (e) { } }); }, 'MediaSession.clear'); }
-    }
+    // [Optimized] MediaSessionPlugin Removed
 
     class NavigationPlugin extends Plugin {
         constructor(pluginManager) { super('Navigation'); this.pluginManager = pluginManager; this.spaNavigationHandler = debounce(this.handleNavigation.bind(this), 500); this.urlCheckInterval = null; }
@@ -778,7 +778,7 @@
         renderAllControls() {
             if (this.shadowRoot.getElementById('vsc-main-container')) return;
             const style = document.createElement('style'); const isMobile = this.stateManager.get('app.isMobile');
-            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; } #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; } #vsc-main-container:hover { opacity: 1; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;} .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; } .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; } .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '2px' : '3px'}; } #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; } #vsc-image-controls .vsc-submenu { width: 260px; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; } .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; } input[type=range] { width: 100%; margin: 0; } input[type=range]:disabled { opacity: 0.5; } .vsc-select { background: rgba(0,0,0,0.8); color: white !important; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: 0 5px !important; font-size: 14px !important; height: 30px !important; line-height: 30px !important; width: 100%; box-sizing: border-box; } .vsc-select option { background: #000; color: white; }`;
+            style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; } #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; } #vsc-main-container:hover { opacity: 1; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;} .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; } .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; } .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '2px' : '3px'}; } #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; } #vsc-image-controls .vsc-submenu { width: 260px; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; } .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; } input[type=range] { width: 100%; margin: 0; } input[type=range]:disabled { opacity: 0.5; } .vsc-select { background: rgba(0,0,0,0.8); color: white !important; border: 1px solid #666; border-radius: clamp(4px, 0.8vmin, 6px); padding: 0 5px !important; font-size: 14px !important; height: 30px !important; line-height: 30px !important; width: 100%; box-sizing: border-box; } .vsc-select option { background: #000; color: white; } .vsc-monitor { font-size: 10px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; }`;
             this.shadowRoot.appendChild(style);
             const mainContainer = document.createElement('div'); mainContainer.id = 'vsc-main-container'; this.uiElements.mainContainer = mainContainer;
             const controlsContainer = document.createElement('div'); controlsContainer.id = 'vsc-controls-container';
@@ -831,7 +831,15 @@
             videoBrightenoffBtn.className = 'vsc-btn';
             videoBrightenoffBtn.textContent = '끔';
             videoBrightenoffBtn.dataset.presetKey = 'brightOFF';
-            videoBrightenoffBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.activePreset', 'brightOFF'); };
+            videoBrightenoffBtn.onclick = () => {
+                this.stateManager.set('videoFilter.gamma', 1.00);
+                this.stateManager.set('videoFilter.saturation', 100);
+                this.stateManager.set('videoFilter.blur', 0);
+                this.stateManager.set('videoFilter.shadows', 0);
+                this.stateManager.set('videoFilter.highlights', 0);
+                this.stateManager.set('videoFilter.activePreset', 'brightOFF');
+            };
+
             const videoXSBrightenBtn = document.createElement('button');
             videoXSBrightenBtn.className = 'vsc-btn';
             videoXSBrightenBtn.textContent = 'S';
@@ -891,10 +899,8 @@
             const videoButtons = [videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoBrightenoffBtn, videoXSBrightenBtn, videoXMBrightenBtn, videoXLBrightenBtn, videoXXLBrightenBtn, videoXXLLBrightenBtn, videoXXLLLBrightenBtn];
             this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); });
 
-            // [FIXED] Append Buttons Container FIRST (at the top of the menu)
             videoSubMenu.appendChild(videoButtonsContainer);
 
-            // [FIXED] Grid Layout for Sliders
             const gridContainer = document.createElement('div');
             gridContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;';
 
@@ -913,18 +919,38 @@
             );
             videoSubMenu.appendChild(gridContainer);
 
+            const statusDisplay = document.createElement('div');
+            statusDisplay.className = 'vsc-monitor';
+            statusDisplay.textContent = 'Waiting for video...';
+            videoSubMenu.appendChild(statusDisplay);
+
+            document.addEventListener('vsc-smart-limit-update', (e) => {
+                if (!videoSubMenu.parentElement.classList.contains('submenu-visible')) return;
+                const { slope, autoParams, luma } = e.detail;
+                const isLimitOff = this.stateManager.get('videoFilter.smartLimit') <= 0;
+                const limitDisplay = isLimitOff ? '(Off)' : (slope < 1.0 ? ((1.0 - slope) * 100).toFixed(0) + '%' : '0%');
+
+                const isAutoToneOn = this.stateManager.get('videoFilter.autoTone') > 0;
+                let gammaState = '';
+                if (isAutoToneOn) {
+                    gammaState = '(Auto)';
+                } else if (this.stateManager.get('videoFilter.gamma') !== 1.00) {
+                    gammaState = '(Manual)';
+                } else {
+                    gammaState = '(Off)';
+                }
+
+                statusDisplay.textContent = `Luma: ${luma ? luma.toFixed(2) : 'N/A'} | Gamma: ${autoParams.gamma.toFixed(2)} ${gammaState} | Limit: ${limitDisplay}`;
+            });
+
 
             const imageSubMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controlsContainer);
-
-            // [MODIFIED] Changed Select Dropdown to Slider (Range)
             imageSubMenu.appendChild(
                 this._createSlider('샤프닝', 'i-sharpen', 0, 20, 1, 'imageFilter.level', '단계', v => v === 0 ? '꺼짐' : `${v.toFixed(0)}단계`).control
             );
-
             imageSubMenu.appendChild(
                 this._createSlider('색온도', 'i-colortemp', -7, 4, 1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control
             );
-
 
             if (this.speedButtons.length === 0) { CONFIG.SPEED_PRESETS.forEach(speed => { const btn = document.createElement('button'); btn.textContent = `${speed.toFixed(1)}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn'; Object.assign(btn.style, { background: 'rgba(52, 152, 219, 0.7)', color: 'white', width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)', padding: '0', transition: 'background-color 0.2s, box-shadow 0.2s' }); btn.onclick = () => this.stateManager.set('playback.targetRate', speed); this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn); }); const isLiveJumpSite = CONFIG.LIVE_JUMP_WHITELIST.some(d => location.hostname === d || location.hostname.endsWith('.' + d)); if (isLiveJumpSite) { const liveJumpBtn = document.createElement('button'); liveJumpBtn.textContent = '⚡'; liveJumpBtn.title = '실시간으로 이동'; liveJumpBtn.className = 'vsc-btn'; Object.assign(liveJumpBtn.style, { width: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', height: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', fontSize: this.stateManager.get('app.isMobile') ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)', borderRadius: '50%', padding: '0', transition: 'box-shadow 0.3s' }); liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now()); this.speedButtonsContainer.appendChild(liveJumpBtn); } }
             mainContainer.appendChild(controlsContainer); this.shadowRoot.appendChild(mainContainer); this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
@@ -937,10 +963,7 @@
                 pressTimer = setTimeout(() => { if (this.globalContainer) this.globalContainer.style.display = 'none'; onDragEnd(); }, 800);
                 const pos = e.touches ? e.touches[0] : e;
                 this.startPos = { x: pos.clientX, y: pos.clientY };
-
-                // [OPTIMIZATION] DOM에서 읽지 않고 메모리 변수에서 현재 위치 가져옴
                 this.currentPos = { x: this.uiState.x, y: this.uiState.y };
-
                 this.isDragging = true;
                 this.wasDragged = false;
                 this.globalContainer.style.transition = 'none';
@@ -953,8 +976,6 @@
                 if (!this.isDragging || !this.globalContainer) return;
                 const newX = this.currentPos.x + this.delta.x;
                 const newY = this.currentPos.y + this.delta.y;
-
-                // CSS Variable 업데이트
                 this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`);
                 this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`);
                 this.animationFrameId = null;
@@ -980,7 +1001,6 @@
                     this.animationFrameId = null;
                 }
                 if (this.wasDragged) {
-                    // [OPTIMIZATION] 드래그가 끝날 때 메모리 상태 업데이트
                     this.uiState.x += this.delta.x;
                     this.uiState.y += this.delta.y;
                 }
@@ -1006,7 +1026,7 @@
         pluginManager.register(new SvgFilterPlugin());
         pluginManager.register(new PlaybackControlPlugin());
         pluginManager.register(new LiveStreamPlugin());
-        pluginManager.register(new MediaSessionPlugin());
+        // [Optimized] MediaSessionPlugin registration Removed
         pluginManager.register(new NavigationPlugin(pluginManager));
         pluginManager.initAll();
     }
