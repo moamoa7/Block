@@ -157,7 +157,7 @@
                     if (avgLuma < 0.25) {
                         const factor = (0.25 - avgLuma) * 4;
                         targetAdaptiveGamma = 1.0 + (0.5 * factor * toneStrength);
-                        targetAdaptiveBright = 10 * factor * toneStrength;
+                        targetAdaptiveBright = 15 * factor * toneStrength;
                         targetAdaptiveContrast = -15 * factor * toneStrength;
                     } else if (avgLuma > 0.65) {
                         const factor = (avgLuma - 0.65) * 2.8;
