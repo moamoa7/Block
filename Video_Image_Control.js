@@ -44,7 +44,7 @@
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: -7 },
-        
+
         // [Optimized] SITE_METADATA_RULES Removed
         TARGET_DELAYS: { "play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 }, DEFAULT_TARGET_DELAY: 3000,
         UI_HIDDEN_CLASS_NAME: 'vsc-hidden',
@@ -157,7 +157,7 @@
                     if (avgLuma < 0.25) {
                         const factor = (0.25 - avgLuma) * 4;
                         targetAdaptiveGamma = 1.0 + (0.5 * factor * toneStrength);
-                        targetAdaptiveBright = 15 * factor * toneStrength;
+                        targetAdaptiveBright = 10 * factor * toneStrength;
                         targetAdaptiveContrast = -15 * factor * toneStrength;
                     } else if (avgLuma > 0.65) {
                         const factor = (avgLuma - 0.65) * 2.8;
@@ -302,7 +302,7 @@
             if (newActiveSet.size !== activeSet.size || ![...newActiveSet].every(el => activeSet.has(el))) { this.stateManager.set(stateKey, newActiveSet); }
         }
         findAllMedia(root = document) {
-            let media = new Set(); const minSize = CONFIG.VIDEO_MIN_SIZE; 
+            let media = new Set(); const minSize = CONFIG.VIDEO_MIN_SIZE;
             // [Optimized] Removed AUDIO support
             const isValid = m => (m.offsetWidth >= minSize || m.offsetHeight >= minSize);
             root.querySelectorAll('video').forEach(m => isValid(m) && media.add(m));
