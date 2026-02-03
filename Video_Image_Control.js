@@ -490,7 +490,7 @@
                             setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'slope', slope);
                             setAttr(`[data-vsc-id="linear"] feFuncR, [data-vsc-id="linear"] feFuncG, [data-vsc-id="linear"] feFuncB`, 'intercept', intercept);
                         }
-                        if (colorTemp !== undefined) { const slope = 1 - (colorTemp / 100); setAttr(`[data-vsc-id="ct_blue"]`, 'slope', slope.toString()); }
+                        if (colorTemp !== undefined) { const slope = 1 - (colorTemp / 200); setAttr(`[data-vsc-id="ct_blue"]`, 'slope', slope.toString()); }
                         if (dither !== undefined) { const k3 = (dither / 500).toString(); setAttr(`[data-vsc-id="dither_blend"]`, 'k3', k3); }
                     });
                 }
@@ -837,6 +837,7 @@
                 this.stateManager.set('videoFilter.blur', 0);
                 this.stateManager.set('videoFilter.shadows', 0);
                 this.stateManager.set('videoFilter.highlights', 0);
+                this.stateManager.set('videoFilter.colorTemp', -7);
                 this.stateManager.set('videoFilter.activePreset', 'brightOFF');
             };
 
@@ -909,7 +910,7 @@
                 this._createSlider('자동톤매핑', 'v-autotone', 0, 100, 5, 'videoFilter.autoTone', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control,
                 this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 50, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
                 this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 50, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
-                this._createSlider('색온도', 'v-colortemp', -7, 4, 1, 'videoFilter.colorTemp', '', v => `${v.toFixed(0)}%`).control,
+                this._createSlider('색온도', 'v-colortemp', -15, 4, 1, 'videoFilter.colorTemp', '', v => `${v.toFixed(0)}%`).control,
                 this._createSlider('디더링', 'v-dither', 0, 50, 5, 'videoFilter.dither', '', v => `${v.toFixed(0)}%`).control,
                 this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control,
                 this._createSlider('밝기', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
