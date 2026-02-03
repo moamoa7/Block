@@ -133,7 +133,16 @@
     };
 
     const SiteLists = {
-        streaming: ['youtube.com', 'twitch.tv', 'chzzk.naver.com', 'sooplive.co.kr', 'afreecatv.com', 'netflix.com'],
+      streaming: [
+            // 글로벌 대장
+            'youtube.com', 'twitch.tv', 'netflix.com', 'disneyplus.com', 'tv.apple.com', 'primevideo.com',
+            // 국내 대장
+            'chzzk.naver.com', 'sooplive.co.kr', 'afreecatv.com', 'tving.com', 'wavve.com', 'coupangplay.com',
+            // 매니아 (애니/영화)
+            'watcha.com', 'laftel.net',
+            // 국내 기타
+            'tv.naver.com', 'tv.kakao.com', 'pandalive.co.kr',
+        ],
         heavySPA: ['fmkorea.com', 'reddit.com', 'twitter.com', 'instagram.com', 'facebook.com'],
         risky: {
             'sooplive.co.kr': ['CanvasGovernor', 'EventPassivator', 'ShadowPiercer'],
@@ -199,13 +208,21 @@
     class CodecOptimizer extends BaseModule {
         init() {
             if (Config.codecMode === 'off') return;
+
+            // [Safety] 화상 회의 / WebRTC 필수 사이트는 건드리지 않음
+            const SAFE_ZONES = ['meet.google.com', 'zoom.us', 'discord.com', 'teams.microsoft.com'];
+            if (Env.isMatch(SAFE_ZONES)) return;
+
             const hook = () => {
                 if (!uWin.MediaSource || uWin.MediaSource._perfXHooked) return;
                 const orig = uWin.MediaSource.isTypeSupported?.bind(uWin.MediaSource);
                 if (!orig) return;
+
                 uWin.MediaSource.isTypeSupported = (t) => {
+                    // [Opt] 점수가 낮거나(5점 미만) 하드웨어 가속이 꺼져있을 때만 개입
                     const isStressed = Context.score < 5;
                     if (isStressed || Config.codecMode === 'hard') {
+                        // AV1, VP9 등 무거운 코덱을 "지원 안 함"으로 속여서 가벼운 H.264를 유도
                         if (t.toLowerCase().includes('av01')) return false;
                         if (t.toLowerCase().match(/vp9|vp09/)) return false;
                     }
