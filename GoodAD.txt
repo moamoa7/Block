@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260202
+! Version: 20260204
 !
 !
 !
@@ -5756,6 +5756,12 @@ poooo.ml#@#[class*="layer"]
 !namu.wiki##[class*="g"][style*="margin"]
 
 
+! - https://www.mediafire.com/ 다운로드 막은거 해제
+mediafire.com#@#[class^="ad"]
+mediafire.com#@#[class^="ads"]
+mediafire.com#@#[class*="ads"]
+
+
 
 
 
@@ -6549,4 +6555,5 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
 
