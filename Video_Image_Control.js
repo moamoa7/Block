@@ -845,37 +845,37 @@
             videoXSBrightenBtn.className = 'vsc-btn';
             videoXSBrightenBtn.textContent = 'S';
             videoXSBrightenBtn.dataset.presetKey = 'brightenX1';
-            videoXSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.10); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', 4); this.stateManager.set('videoFilter.activePreset', 'brightenX1'); };
+            videoXSBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.05); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -1); this.stateManager.set('videoFilter.highlights', 2); this.stateManager.set('videoFilter.activePreset', 'brightenX1'); };
 
             const videoXMBrightenBtn = document.createElement('button');
             videoXMBrightenBtn.className = 'vsc-btn';
             videoXMBrightenBtn.textContent = 'M';
             videoXMBrightenBtn.dataset.presetKey = 'brightenX2';
-            videoXMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.20); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -4); this.stateManager.set('videoFilter.highlights', 8); this.stateManager.set('videoFilter.activePreset', 'brightenX2'); };
+            videoXMBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.07); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', 4); this.stateManager.set('videoFilter.activePreset', 'brightenX2'); };
 
             const videoXLBrightenBtn = document.createElement('button');
             videoXLBrightenBtn.className = 'vsc-btn';
             videoXLBrightenBtn.textContent = 'L';
             videoXLBrightenBtn.dataset.presetKey = 'brightenX3';
-            videoXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.30); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -6); this.stateManager.set('videoFilter.highlights', 12); this.stateManager.set('videoFilter.activePreset', 'brightenX3'); };
+            videoXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.09); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -4); this.stateManager.set('videoFilter.highlights', 8); this.stateManager.set('videoFilter.activePreset', 'brightenX3'); };
 
             const videoXXLBrightenBtn = document.createElement('button');
             videoXXLBrightenBtn.className = 'vsc-btn';
             videoXXLBrightenBtn.textContent = 'DS';
             videoXXLBrightenBtn.dataset.presetKey = 'brightenX4';
-            videoXXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.15); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -6.4); this.stateManager.set('videoFilter.highlights', 4); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
+            videoXXLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.10); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -6.4); this.stateManager.set('videoFilter.highlights', 4); this.stateManager.set('videoFilter.activePreset', 'brightenX4'); };
 
             const videoXXLLBrightenBtn = document.createElement('button');
             videoXXLLBrightenBtn.className = 'vsc-btn';
             videoXXLLBrightenBtn.textContent = 'DM';
             videoXXLLBrightenBtn.dataset.presetKey = 'brightenX5';
-            videoXXLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.30); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -12.8); this.stateManager.set('videoFilter.highlights', 8); this.stateManager.set('videoFilter.activePreset', 'brightenX5'); };
+            videoXXLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.20); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -12.8); this.stateManager.set('videoFilter.highlights', 8); this.stateManager.set('videoFilter.activePreset', 'brightenX5'); };
 
             const videoXXLLLBrightenBtn = document.createElement('button');
             videoXXLLLBrightenBtn.className = 'vsc-btn';
             videoXXLLLBrightenBtn.textContent = 'DL';
             videoXXLLLBrightenBtn.dataset.presetKey = 'brightenX6';
-            videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.45); this.stateManager.set('videoFilter.saturation', 104); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -19.2); this.stateManager.set('videoFilter.highlights', 12); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
+            videoXXLLLBrightenBtn.onclick = () => { this.stateManager.set('videoFilter.gamma', 1.30); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -19.2); this.stateManager.set('videoFilter.highlights', 12); this.stateManager.set('videoFilter.activePreset', 'brightenX6'); };
 
             const videoButtonsContainer = document.createElement('div');
             videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; width: 100%; padding-bottom: 4px; border-bottom: 1px solid #555;';
