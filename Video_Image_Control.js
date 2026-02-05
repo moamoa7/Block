@@ -700,7 +700,7 @@
             const videoDLBrightenBtn = mkBtn('DL', 'brighten6', () => { this.stateManager.set('videoFilter.gamma', 1.06); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -8); this.stateManager.set('videoFilter.highlights', 15); });
 
             const videoBrightenoffBtn = mkBtn('끔', 'brightOFF', () => {
-                this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.colorTemp', -7); this.stateManager.set('videoFilter.activeProfile', 'none');
+                this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.colorTemp', -7);
             });
 
             const videoButtonsContainer = document.createElement('div');
