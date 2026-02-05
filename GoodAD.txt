@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260204
+! Version: 20260205
 !
 !
 !
@@ -427,6 +427,11 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 @@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
 @@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
 @@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
+! - 메인 상단 올림픽 배너 (26.02.05)
+chzzk.naver.com##div[class*="skin_container__"]:remove()
+chzzk.naver.com##header#header:style(transform: translateY(0px) !important;)
+chzzk.naver.com##aside#sidebar:style(transform: translateY(60px) !important; height: calc(100vh - 60px) !important;)
+chzzk.naver.com##div#layout-body:style(padding-top: 60px !important;)
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -6555,5 +6560,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
 
