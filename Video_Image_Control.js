@@ -412,8 +412,25 @@
                         if (dither !== undefined) { const k3 = (dither / 500).toString(); setAttr(`[data-vsc-id="dither_blend"]`, 'k3', k3); }
                         if (profile !== undefined) {
                             let m = "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0";
-                            if (profile === 'film') m = "1.06 0.02 0.00 0 -0.03  0.01 1.03 0.01 0 -0.02  0.00 0.03 1.05 0 -0.03  0 0 0 1 0";
-                            if (profile === 'anime') m = "1.08 0.00 0.00 0 -0.02  0.00 1.10 0.00 0 -0.02  0.00 0.00 1.10 0 -0.02  0 0 0 1 0";
+                            //if (profile === 'film') m = "1.06 0.02 0.00 0 -0.03  0.01 1.03 0.01 0 -0.02  0.00 0.03 1.05 0 -0.03  0 0 0 1 0";
+                            // * [Film 표준 버전]\
+                            if (profile === 'film') m = "1.08 0.02 0.00 0 -0.03  0.01 1.03 0.01 0 -0.02  0.00 0.03 1.05 0 -0.03  0 0 0 1 0";
+                            // * [Film 강화 버전]\
+                            //if (profile === 'film') m = "1.15 0.00 0.00 0 -0.04  0.00 1.08 0.00 0 -0.03  0.00 0.00 1.25 0 -0.06  0 0 0 1 0";
+                            //if (profile === 'film') m = "1.30 0.00 0.00 0 -0.10  0.00 1.10 0.00 0 -0.10  0.00 0.00 1.40 0 -0.15  0 0 0 1 0";
+                            // * [Film 튜닝 강화 버전]\
+                            //if (profile === 'film') m = "1.45 0.05 0.00 0 -0.12  0.02 1.25 0.00 0 -0.10  0.00 0.05 1.70 0 -0.15  0 0 0 1 0";
+                            // * [Film 울트라 버전]
+                            //if (profile === 'film') m = "1.60 0.20 0.00 0 -0.20  0.10 1.30 0.00 0 -0.15  0.00 0.20 1.90 0 -0.25  0 0 0 1 0";
+                            //if (profile === 'anime') m = "1.08 0.00 0.00 0 -0.02  0.00 1.10 0.00 0 -0.02  0.00 0.00 1.10 0 -0.02  0 0 0 1 0";
+                            // * [Anime 표준 버전]
+                            if (profile === 'anime') m = "1.10 0.00 0.00 0 0.01  0.00 1.10 0.00 0 0.01  0.00 0.00 1.10 0 0.01  0 0 0 1 0";
+                            // * [Anime 강화 버전]
+                            //if (profile === 'anime') m = "1.25 0.00 0.00 0 0.02  0.00 1.25 0.00 0 0.02  0.00 0.00 1.25 0 0.02  0 0 0 1 0";
+                            // * [Anime 튜닝 강화 버전]
+                            //if (profile === 'anime') m = "1.55 0.02 0.02 0 0.04  0.02 1.55 0.02 0 0.04  0.02 0.02 1.55 0 0.04  0 0 0 1 0";
+                            // * [Anime 울트라 버전]
+                            //if (profile === 'anime') m = "1.80 0.05 0.05 0 0.08  0.05 1.80 0.05 0 0.08  0.05 0.05 1.80 0 0.08  0 0 0 1 0";
                             setAttr(`[data-vsc-id="profile_matrix"]`, 'values', m);
                         }
                     });
@@ -678,12 +695,12 @@
             const videoMBrightenBtn = mkBtn('M', 'brighten2', () => { this.stateManager.set('videoFilter.gamma', 1.08); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', 10); });
             const videoLBrightenBtn = mkBtn('L', 'brighten3', () => { this.stateManager.set('videoFilter.gamma', 1.12); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -3); this.stateManager.set('videoFilter.highlights', 15); });
 
-            const videoDSBrightenBtn = mkBtn('DS', 'brighten4', () => { this.stateManager.set('videoFilter.gamma', 1.02); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', -5); });
+            const videoDSBrightenBtn = mkBtn('DS', 'brighten4', () => { this.stateManager.set('videoFilter.gamma', 1.02); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', -2); });
             const videoDMBrightenBtn = mkBtn('DM', 'brighten5', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -4); this.stateManager.set('videoFilter.highlights', 5); });
             const videoDLBrightenBtn = mkBtn('DL', 'brighten6', () => { this.stateManager.set('videoFilter.gamma', 1.06); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -8); this.stateManager.set('videoFilter.highlights', 15); });
 
             const videoBrightenoffBtn = mkBtn('끔', 'brightOFF', () => {
-                this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.colorTemp', -7);
+                this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.colorTemp', -7); this.stateManager.set('videoFilter.activeProfile', 'none');
             });
 
             const videoButtonsContainer = document.createElement('div');
