@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Ultra Hybrid - Classic Buttons)
+// @name         Video_Image_Control (Ultra Hybrid - Audio & Color Enhanced)
 // @namespace    https://com/
-// @version      113.20-Hybrid
-// @description  v113.20 함수 위치 오류 수정 + HDR엔진에 기존 밝기 버튼(S~L, DS~DL) 적용
+// @version      114.0-Hybrid-Max
+// @description  v114.0: 오디오 효과(베이스, 리버브, 피치) + 시네마틱 필터(Teal&Orange, 필름그레인) 통합 버전
 // @match        *://*/*
 // @run-at       document-start
 // @grant        none
@@ -27,6 +27,11 @@
         DEFAULT_SMART_LIMIT_LEVEL: 0,
         DEFAULT_AUTO_TONE_LEVEL: 0,
         DEBUG: false,
+
+        // Audio Config (New)
+        DEFAULT_AUDIO_BASS: 0,
+        DEFAULT_AUDIO_REVERB: 0,
+        DEFAULT_AUDIO_PITCH: true, // true: 음정 유지, false: 변조(Nightcore 등)
 
         // Auto Delay
         AUTODELAY_INTERVAL_NORMAL: 1000, AUTODELAY_INTERVAL_STABLE: 3000,
@@ -61,7 +66,6 @@
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) window.cancelIdleCallback(idleCallbackId); idleCallbackId = window.requestIdleCallback(task, { timeout: 1000 }); };
 
-    // [FIX] 함수 위치 이동: ReferenceError 방지
     function injectFiltersIntoContext(element, manager, stateManager) {
         if (!manager || !manager.isInitialized() || !stateManager) return;
         let root = element.getRootNode(); const ownerDoc = element.ownerDocument;
@@ -206,6 +210,7 @@
                     autoTone: CONFIG.DEFAULT_AUTO_TONE_LEVEL, activePreset: 'none', activeProfile: 'none'
                 },
                 imageFilter: { lastActiveSettings: null, level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, colorTemp: parseInt(CONFIG.IMAGE_FILTER_SETTINGS.COLORTEMP_VALUE || 0, 10) },
+                audio: { bass: CONFIG.DEFAULT_AUDIO_BASS, reverb: CONFIG.DEFAULT_AUDIO_REVERB, pitch: CONFIG.DEFAULT_AUDIO_PITCH },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null },
                 playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0 },
                 liveStream: { delayInfo: null, isRunning: false, resetRequested: null },
@@ -369,7 +374,7 @@
                         colorTemp.append(createSvgElement('feFuncR', { type: "identity" })); colorTemp.append(createSvgElement('feFuncG', { type: "identity" })); colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
                         combinedFilter.append(smartDim, blurNode, compositeNode, erosion, colorTemp);
                     } else {
-                        const profileMatrix = createSvgElement('feColorMatrix', { "data-vsc-id": "profile_matrix", in: nextStageIn, type: "matrix", values: "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0", result: "profile_out" });
+                        const profileMatrix = createSvgElement('feColorMatrix', { "data-vsc-id": "profile_matrix", in: nextStageIn, type: "matrix", values: "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0", result: "profile_out" });
                         const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "profile_out", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
                         const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })));
                         const toneCurve = createSvgElement('feComponentTransfer', { "data-vsc-id": "tone_curve", in: "gamma_out", result: "tone_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'table', tableValues: "0 1" })));
@@ -409,40 +414,21 @@
                             setAttr(`[data-vsc-id="tone_curve"] feFuncR, [data-vsc-id="tone_curve"] feFuncG, [data-vsc-id="tone_curve"] feFuncB`, 'tableValues', genTable(shadows, highlights));
                         }
                         if (colorTemp !== undefined) { const slope = 1 - (colorTemp / 200); setAttr(`[data-vsc-id="ct_blue"]`, 'slope', slope.toString()); }
-                        if (dither !== undefined) { const k3 = (dither / 500).toString(); setAttr(`[data-vsc-id="dither_blend"]`, 'k3', k3); }
+
+                        // [NEW] Film Grain Logic (High Dither = Grain)
+                        if (dither !== undefined) {
+                            let intensity = dither / 500;
+                            if (dither > 50) intensity = dither / 150; // Boost for visible grain
+                            setAttr(`[data-vsc-id="dither_blend"]`, 'k3', intensity.toString());
+                        }
+
                         if (profile !== undefined) {
-                            let m = "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0";
-                            //if (profile === 'film') m = "1.06 0.02 0.00 0 -0.03  0.01 1.03 0.01 0 -0.02  0.00 0.03 1.05 0 -0.03  0 0 0 1 0";
-                            // * [Film 표준 버전]\
-                            //if (profile === 'film') m = "1.08 0.02 0.00 0 -0.03  0.01 1.03 0.01 0 -0.02  0.00 0.03 1.05 0 -0.03  0 0 0 1 0";
-                            // * [필름 느낌을 내는 '황금 비율']\
-                            //if (profile === 'film') m = "1.05 0.00 0.00 0 -0.04  0.00 1.00 0.00 0 -0.02  0.00 0.00 1.10 0 -0.05  0 0 0 1 0";
-                            // Film: 빨간색 채널 증폭을 줄이고(1.05 -> 1.02), 블랙 눌림을 최소화(-0.04 -> -0.02)
-                            //if (profile === 'film') m = "1.02 0.00 0.00 0 -0.02  0.00 1.00 0.00 0 -0.01  0.00 0.00 1.05 0 -0.03  0 0 0 1 0";
-                            // 밝은 영상을 '분위기 있게' 누르는 필름 (Black Push)
+                            let m = "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0";
                             if (profile === 'film') m = "1.03 0.00 0.00 0 -0.03  0.00 1.01 0.00 0 -0.02  0.00 0.00 1.06 0 -0.04  0 0 0 1 0";
-                            // * [Film 강화 버전]\
-                            //if (profile === 'film') m = "1.15 0.00 0.00 0 -0.04  0.00 1.08 0.00 0 -0.03  0.00 0.00 1.25 0 -0.06  0 0 0 1 0";
-                            //if (profile === 'film') m = "1.30 0.00 0.00 0 -0.10  0.00 1.10 0.00 0 -0.10  0.00 0.00 1.40 0 -0.15  0 0 0 1 0";
-                            // * [Film 튜닝 강화 버전]\
-                            //if (profile === 'film') m = "1.45 0.05 0.00 0 -0.12  0.02 1.25 0.00 0 -0.10  0.00 0.05 1.70 0 -0.15  0 0 0 1 0";
-                            // * [Film 울트라 버전]
-                            //if (profile === 'film') m = "1.60 0.20 0.00 0 -0.20  0.10 1.30 0.00 0 -0.15  0.00 0.20 1.90 0 -0.25  0 0 0 1 0";
-                            //if (profile === 'anime') m = "1.08 0.00 0.00 0 -0.02  0.00 1.10 0.00 0 -0.02  0.00 0.00 1.10 0 -0.02  0 0 0 1 0";
-                            // * [Anime 표준 버전]
-                            //if (profile === 'anime') m = "1.10 0.00 0.00 0 0.01  0.00 1.10 0.00 0 0.01  0.00 0.00 1.10 0 0.01  0 0 0 1 0";
-                            // * [Anime 느낌을 내는 '황금 비율']\
-                            //if (profile === 'anime') m = "1.12 0.00 0.00 0 0.02  0.00 1.12 0.00 0 0.02  0.00 0.00 1.15 0 0.03  0 0 0 1 0";
-                            // Anime: 밝기 증폭을 억제하고(1.12 -> 1.05), 들뜬 느낌을 제거(+0.02 -> +0.01)
-                            //if (profile === 'anime') m = "1.05 0.00 0.00 0 0.01  0.00 1.05 0.00 0 0.01  0.00 0.00 1.05 0 0.01  0 0 0 1 0";
-                            // 어두운 영상을 '맑게' 틔워주는 애니 (Shadow Lift)
                             if (profile === 'anime') m = "1.04 0.00 0.00 0 0.015  0.00 1.04 0.00 0 0.015  0.00 0.00 1.06 0 0.02  0 0 0 1 0";
-                            // * [Anime 강화 버전]
-                            //if (profile === 'anime') m = "1.25 0.00 0.00 0 0.02  0.00 1.25 0.00 0 0.02  0.00 0.00 1.25 0 0.02  0 0 0 1 0";
-                            // * [Anime 튜닝 강화 버전]
-                            //if (profile === 'anime') m = "1.55 0.02 0.02 0 0.04  0.02 1.55 0.02 0 0.04  0.02 0.02 1.55 0 0.04  0 0 0 1 0";
-                            // * [Anime 울트라 버전]
-                            //if (profile === 'anime') m = "1.80 0.05 0.05 0 0.08  0.05 1.80 0.05 0 0.08  0.05 0.05 1.80 0 0.08  0 0 0 1 0";
+
+                            // [NEW] Teal & Orange (GVF Based)
+                            if (profile === 'teal') m = "1.02 0.02 0.00 0 -0.02 0.00 1.00 0.00 0 0.00 0.00 0.02 1.04 0 -0.02 0 0 0 1 0";
                             setAttr(`[data-vsc-id="profile_matrix"]`, 'values', m);
                         }
                     });
@@ -534,6 +520,116 @@
     class PlaybackControlPlugin extends Plugin {
         init(stateManager) { super.init(stateManager); this.subscribe('playback.targetRate', (rate) => this.setPlaybackRate(rate)); }
         setPlaybackRate(rate) { this.stateManager.get('media.activeMedia').forEach(media => { if (media.playbackRate !== rate) media.playbackRate = rate; }); }
+    }
+
+    // --- [NEW] Audio Effect Plugin (Bass, Reverb, Pitch) ---
+    class AudioEffectPlugin extends Plugin {
+        constructor() {
+            super('AudioEffect');
+            this.ctx = null;
+            this.source = null;
+            this.nodes = { convolver: null, dryGain: null, wetGain: null, masterGain: null, bassFilter: null };
+            this.targetVideo = null;
+            this.isEnabled = false;
+        }
+
+        init(stateManager) {
+            super.init(stateManager);
+            this.subscribe('audio.bass', v => this.updateAudioParams());
+            this.subscribe('audio.reverb', v => this.updateAudioParams());
+            this.subscribe('audio.pitch', v => this.updatePitchState());
+            this.subscribe('media.activeMedia', () => this.checkTarget());
+        }
+
+        checkTarget() {
+            const videos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO');
+            if (videos.length === 0) return;
+            const mainVideo = videos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0];
+            if (this.targetVideo !== mainVideo) {
+                this.targetVideo = mainVideo;
+                this.disconnect();
+                this.updatePitchState();
+            }
+        }
+
+        async ensureContext() {
+            if (this.ctx && this.ctx.state === 'suspended') await this.ctx.resume();
+            if (this.isEnabled) return true;
+            if (!this.targetVideo) return false;
+
+            try {
+                if (!this.targetVideo.crossOrigin && this.targetVideo.src && !this.targetVideo.src.startsWith('blob:')) {
+                    this.targetVideo.crossOrigin = "anonymous";
+                }
+
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+                if (!this.source) {
+                    try { this.source = this.ctx.createMediaElementSource(this.targetVideo); }
+                    catch (e) { console.warn('[VSC] Audio API CORS Error:', e); return false; }
+                }
+
+                this.nodes.convolver = this.ctx.createConvolver();
+                this.nodes.convolver.buffer = this.makeImpulseResponse(2.2, 3.0);
+
+                this.nodes.dryGain = this.ctx.createGain();
+                this.nodes.wetGain = this.ctx.createGain();
+                this.nodes.masterGain = this.ctx.createGain();
+
+                this.nodes.bassFilter = this.ctx.createBiquadFilter();
+                this.nodes.bassFilter.type = 'lowshelf';
+                this.nodes.bassFilter.frequency.value = 120;
+                this.nodes.bassFilter.Q.value = 0.7;
+
+                this.source.connect(this.nodes.dryGain).connect(this.nodes.masterGain);
+                this.source.connect(this.nodes.convolver).connect(this.nodes.wetGain).connect(this.nodes.masterGain);
+                this.nodes.masterGain.connect(this.nodes.bassFilter).connect(this.ctx.destination);
+
+                this.isEnabled = true;
+                return true;
+            } catch (e) {
+                console.error('[VSC] Audio setup failed:', e);
+                return false;
+            }
+        }
+
+        disconnect() { this.isEnabled = false; }
+
+        updatePitchState() {
+            if (!this.targetVideo) return;
+            const preserve = this.stateManager.get('audio.pitch');
+            if ('preservesPitch' in this.targetVideo) this.targetVideo.preservesPitch = preserve;
+            else if ('mozPreservesPitch' in this.targetVideo) this.targetVideo.mozPreservesPitch = preserve;
+            else if ('webkitPreservesPitch' in this.targetVideo) this.targetVideo.webkitPreservesPitch = preserve;
+        }
+
+        async updateAudioParams() {
+            const bass = this.stateManager.get('audio.bass') || 0;
+            const reverb = this.stateManager.get('audio.reverb') || 0;
+            if (bass === 0 && reverb === 0 && !this.isEnabled) return;
+
+            const ready = await this.ensureContext();
+            if (!ready) return;
+
+            if (this.nodes.wetGain) this.nodes.wetGain.gain.value = Math.max(0, Math.min(1, reverb));
+            if (this.nodes.dryGain) this.nodes.dryGain.gain.value = 1.0;
+            if (this.nodes.bassFilter) this.nodes.bassFilter.gain.value = Math.round(Math.max(0, Math.min(1, bass)) * 20);
+        }
+
+        makeImpulseResponse(durationSec, decay) {
+            const rate = this.ctx.sampleRate;
+            const length = rate * durationSec;
+            const impulse = this.ctx.createBuffer(2, length, rate);
+            const left = impulse.getChannelData(0);
+            const right = impulse.getChannelData(1);
+            for (let i = 0; i < length; i++) {
+                const t = i / length;
+                const amp = Math.pow(1 - t, decay);
+                left[i] = (Math.random() * 2 - 1) * amp;
+                right[i] = (Math.random() * 2 - 1) * amp;
+            }
+            return impulse;
+        }
     }
 
     class NavigationPlugin extends Plugin {
@@ -664,7 +760,7 @@
 
             const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer);
 
-            // [UI] Profile Buttons (New Feature Kept)
+            // [UI] Profile Buttons (With Teal)
             const videoProfileContainer = document.createElement('div');
             videoProfileContainer.style.cssText = 'display: flex; gap: 4px; margin-bottom: 8px; width: 100%; border-bottom: 1px solid #555; padding-bottom: 4px;';
             const createProfileBtn = (text, profileKey) => {
@@ -673,7 +769,11 @@
                 this.subscribe('videoFilter.activeProfile', (val) => { btn.classList.toggle('active', val === profileKey); });
                 return btn;
             };
-            videoProfileContainer.append(createProfileBtn('Film', 'film'), createProfileBtn('Anime', 'anime'));
+            videoProfileContainer.append(
+                createProfileBtn('Film', 'film'),
+                createProfileBtn('Teal', 'teal'), // [NEW] Teal & Orange
+                createProfileBtn('Anime', 'anime'),
+            );
             videoSubMenu.appendChild(videoProfileContainer);
 
             const videoResetBtn = document.createElement('button');
@@ -700,7 +800,7 @@
             videoSsharpOFFBtn.dataset.presetKey = 'sharpOFF';
             videoSsharpOFFBtn.onclick = () => { this.stateManager.set('videoFilter.level', 0); this.stateManager.set('videoFilter.level2', 0); this.stateManager.set('videoFilter.activePreset', 'sharpOFF'); };
 
-            // [BUTTONS RESTORED] Classic S, M, L, DS, DM, DL logic with existing Engine
+            // [BUTTONS] Classic S, M, L, DS, DM, DL logic
             const mkBtn = (txt, key, onClick) => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = txt; b.dataset.presetKey = key; b.onclick = () => { onClick(); this.stateManager.set('videoFilter.activePreset', key); }; return b; };
 
             const videoSBrightenBtn = mkBtn('S', 'brighten1', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -1); this.stateManager.set('videoFilter.highlights', 5); });
@@ -729,9 +829,15 @@
             videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
             videoBtnGroup1.append(createLabel('샤프'), videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn);
 
+            // [NEW] Pitch Toggle Button
+            const pitchBtn = document.createElement('button');
+            pitchBtn.className = 'vsc-btn'; pitchBtn.textContent = '🎵'; pitchBtn.title = '음정 유지 (켜짐/꺼짐)';
+            pitchBtn.onclick = () => { const current = this.stateManager.get('audio.pitch'); this.stateManager.set('audio.pitch', !current); };
+            this.subscribe('audio.pitch', (v) => { pitchBtn.style.color = v ? '#fff' : '#e74c3c'; pitchBtn.style.textShadow = v ? '' : '0 0 5px red'; });
+            videoBtnGroup1.appendChild(pitchBtn);
+
             const videoBtnGroup3 = document.createElement('div');
-            videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px; flex-wrap: nowrap; overflow-x: auto;'; // nowrap ensures classic behavior
-            // [RESTORED] Buttons replaced: X series -> Classic series (S, M, L, DS, DM, DL)
+            videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px; flex-wrap: nowrap; overflow-x: auto;';
             videoBtnGroup3.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoDSBrightenBtn, videoDMBrightenBtn, videoDLBrightenBtn, videoBrightenoffBtn);
 
             videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup3);
@@ -748,13 +854,15 @@
                 this._createSlider('자동톤매핑', 'v-autotone', 0, 100, 5, 'videoFilter.autoTone', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control,
                 this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 50, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control,
                 this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 50, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control,
-                this._createSlider('색온도', 'v-colortemp', -15, 4, 1, 'videoFilter.colorTemp', '', v => `${v.toFixed(0)}%`).control,
-                this._createSlider('디더링', 'v-dither', 0, 50, 5, 'videoFilter.dither', '', v => `${v.toFixed(0)}%`).control,
+                this._createSlider('색온도', 'v-colortemp', -25, 4, 1, 'videoFilter.colorTemp', '', v => `${v.toFixed(0)}%`).control,
+                this._createSlider('필름그레인', 'v-dither', 0, 100, 5, 'videoFilter.dither', '', v => v === 0 ? '꺼짐' : (v <= 50 ? `디더 ${v}` : `그레인 ${v}`)).control, // [NEW] Grain Slider
                 this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control,
                 this._createSlider('밝기(HDR)', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control,
                 this._createSlider('대비(HDR)', 'v-shadows', -100, 100, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control,
                 this._createSlider('감마', 'v-gamma', 1, 4.00, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control,
-                this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control
+                this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control,
+                this._createSlider('베이스', 'a-bass', 0, 1, 0.05, 'audio.bass', '', v => v > 0 ? `+${(v*20).toFixed(0)}dB` : 'OFF').control, // [NEW] Bass
+                this._createSlider('리버브', 'a-reverb', 0, 1, 0.05, 'audio.reverb', '', v => v > 0 ? `${(v*100).toFixed(0)}%` : 'OFF').control // [NEW] Reverb
             );
             videoSubMenu.appendChild(gridContainer);
 
@@ -819,6 +927,7 @@
         pluginManager.register(new PlaybackControlPlugin());
         pluginManager.register(new LiveStreamPlugin());
         pluginManager.register(new NavigationPlugin(pluginManager));
+        pluginManager.register(new AudioEffectPlugin()); // [NEW] Register Audio Plugin
         pluginManager.initAll();
     }
 
