@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Image_Control (Ultra Hybrid - Fixed & Optimized)
 // @namespace    https://com/
-// @version      115.2-Stability-Patch
-// @description  v115.2: Supjav 등 Iframe 완벽 대응, IO Map 로직 적용, Audio Node 생명주기 최적화, CORS 방어 강화
+// @version      115.8-Profile-Logic-Fix
+// @description  v115.8: 프로파일 밝기/채도 로직 정반대 수정(Film=어둡게, Anime=밝게), 상태 메시지 직관성 개선
 // @match        *://*/*
 // @run-at       document-start
 // @grant        none
@@ -36,7 +36,7 @@
         MIN_BUFFER_HEALTH_SEC: 1.0,
         LIVE_JUMP_INTERVAL: 6000, LIVE_JUMP_END_THRESHOLD: 1.0,
         DEBOUNCE_DELAY: 300,
-        SCAN_INTERVAL: 3000, // [Important] Keep fallback scan for iframes
+        SCAN_INTERVAL: 3000,
         MAX_RECURSION_DEPTH: 3,
         MAX_Z_INDEX: 2147483647,
         UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
@@ -114,9 +114,7 @@
         if (window._hasAggressiveHook_) return;
         try {
             const originalAttachShadow = Element.prototype.attachShadow; window._shadowDomList_ = window._shadowDomList_ || [];
-            // [Security] Make list non-enumerable to reduce pollution visibility
             Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true });
-
             Element.prototype.attachShadow = function (init) {
                 const shadowRoot = originalAttachShadow.call(this, init);
                 try { const cls = (this.className || '').toString(); const id = (this.id || '').toString(); if (cls.includes('turnstile') || id.includes('turnstile')) { return shadowRoot; } shadowRoot._vsc_pending_injection = true; window._shadowDomList_.push(shadowRoot); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } })); } catch (e) { }
@@ -126,22 +124,18 @@
         } catch (e) { console.warn("[VSC] Hooking Failed:", e); }
     })();
 
-    // --- Video Analyzer (Robust for CORS/Iframe) ---
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null,
-        taintedCache: new WeakMap(), // [Optimized] Cache for tainted (CORS) videos
+        taintedCache: new WeakMap(),
         currentSettings: { smartLimit: 0, autoTone: 0 }, currentSlope: 1.0, targetSlope: 1.0,
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentAdaptiveContrast: 0, frameSkipCounter: 0,
         init() { if (this.canvas) return; this.canvas = document.createElement('canvas'); this.canvas.width = 1; this.canvas.height = 1; this.ctx = this.canvas.getContext('2d', { willReadFrequently: true }); },
         start(video, settings) {
             if (settings) this.currentSettings = { ...this.currentSettings, ...settings };
-
-            // [Optimized] Check if video is permanently tainted (src didn't change)
             const cachedSrc = this.taintedCache.get(video);
             const currentSrc = video.currentSrc || video.src;
-            if (cachedSrc && cachedSrc === currentSrc) return; // Skip if same src caused SecurityError before
-            if (cachedSrc) this.taintedCache.delete(video); // Retry if src changed (supjav logic)
-
+            if (cachedSrc && cachedSrc === currentSrc) return;
+            if (cachedSrc) this.taintedCache.delete(video);
             if (this.isRunning && this.targetVideo === video) return;
             this.targetVideo = video; this.init(); this.isRunning = true; this.loop();
         },
@@ -170,7 +164,6 @@
                 this.notifyUpdate(this.currentSlope, { gamma: this.currentAdaptiveGamma, bright: this.currentAdaptiveBright, contrast: this.currentAdaptiveContrast }, avgLuma);
             } catch (e) {
                 if (e.name === 'SecurityError') {
-                    // [Optimized] Stop loop on CORS error to save CPU, record tainted src
                     this.taintedCache.set(this.targetVideo, this.targetVideo.currentSrc || this.targetVideo.src);
                     this.notifyUpdate(1.0, { gamma: 1.0, bright: 0, contrast: 0 }, 0);
                     this.stop();
@@ -180,7 +173,37 @@
         notifyUpdate(slope, autoParams, luma) { document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { slope, autoParams: autoParams || { gamma: 1.0, bright: 0, contrast: 0 }, luma: luma } })); }
     };
 
-    class StateManager { constructor() { this.state = {}; this.listeners = {}; this.filterManagers = { video: null, image: null }; } init() { const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent); const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS; this.state = { app: { isInitialized: false, isMobile, scriptActive: false }, media: { activeMedia: new Set(), processedMedia: new WeakSet(), activeImages: new Set(), processedImages: new WeakSet(), mediaListenerMap: new WeakMap(), currentlyVisibleMedia: null, visibilityChange: null }, videoFilter: { lastActiveSettings: null, level: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, level2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, gamma: parseFloat(videoDefaults.GAMMA_VALUE), blur: parseFloat(videoDefaults.BLUR_STD_DEVIATION), shadows: parseInt(videoDefaults.SHADOWS_VALUE, 10), highlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10), saturation: parseInt(videoDefaults.SATURATION_VALUE, 10), colorTemp: parseInt(videoDefaults.COLORTEMP_VALUE || 0, 10), dither: parseInt(videoDefaults.DITHER_VALUE || 0, 10), smartLimit: CONFIG.DEFAULT_SMART_LIMIT_LEVEL, autoTone: CONFIG.DEFAULT_AUTO_TONE_LEVEL, activePreset: 'none', activeProfile: 'none' }, imageFilter: { lastActiveSettings: null, level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, colorTemp: parseInt(CONFIG.IMAGE_FILTER_SETTINGS.COLORTEMP_VALUE || 0, 10) }, audio: { bass: CONFIG.DEFAULT_AUDIO_BASS, reverb: CONFIG.DEFAULT_AUDIO_REVERB, pitch: CONFIG.DEFAULT_AUDIO_PITCH }, ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null }, playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0 }, liveStream: { delayInfo: null, isRunning: false, resetRequested: null }, settings: { videoFilterLevel: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, videoFilterLevel2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, imageFilterLevel: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, autoRefresh: true } }; } get(key) { return key.split('.').reduce((o, i) => (o ? o[i] : undefined), this.state); } set(key, value) { const keys = key.split('.'); let obj = this.state; for (let i = 0; i < keys.length - 1; i++) { if (obj === undefined) return; obj = obj[keys[i]]; } const finalKey = keys[keys.length - 1]; if (obj === undefined) return; if (obj[finalKey] !== value) { const oldValue = obj[finalKey]; obj[finalKey] = value; this.notify(key, value, oldValue); } } subscribe(key, callback) { if (!this.listeners[key]) this.listeners[key] = []; this.listeners[key].push(callback); return () => { this.listeners[key] = this.listeners[key].filter(cb => cb !== callback); }; } notify(key, newValue, oldValue) { if (this.listeners[key]) this.listeners[key].forEach(callback => callback(newValue, oldValue)); let currentKey = key; while (currentKey.includes('.')) { const prefix = currentKey.substring(0, currentKey.lastIndexOf('.')); const wildcardKey = `${prefix}.*`; if (this.listeners[wildcardKey]) this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue)); currentKey = prefix; } } }
+    class StateManager {
+        constructor() { this.state = {}; this.listeners = {}; this.filterManagers = { video: null, image: null }; }
+        init() {
+            const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+            const videoDefaults = isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS;
+            this.state = {
+                app: { isInitialized: false, isMobile, scriptActive: false },
+                media: { activeMedia: new Set(), processedMedia: new WeakSet(), activeImages: new Set(), processedImages: new WeakSet(), mediaListenerMap: new WeakMap(), currentlyVisibleMedia: null, visibilityChange: null },
+                videoFilter: {
+                    lastActiveSettings: null,
+                    level: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, level2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2,
+                    gamma: parseFloat(videoDefaults.GAMMA_VALUE), blur: parseFloat(videoDefaults.BLUR_STD_DEVIATION),
+                    shadows: parseInt(videoDefaults.SHADOWS_VALUE, 10), highlights: parseInt(videoDefaults.HIGHLIGHTS_VALUE, 10),
+                    saturation: parseInt(videoDefaults.SATURATION_VALUE, 10), colorTemp: parseInt(videoDefaults.COLORTEMP_VALUE || 0, 10),
+                    dither: parseInt(videoDefaults.DITHER_VALUE || 0, 10), smartLimit: CONFIG.DEFAULT_SMART_LIMIT_LEVEL,
+                    autoTone: CONFIG.DEFAULT_AUTO_TONE_LEVEL, activePreset: 'none',
+                    activeProfile: 'none', profileStrength: 0.6
+                },
+                imageFilter: { lastActiveSettings: null, level: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, colorTemp: parseInt(CONFIG.IMAGE_FILTER_SETTINGS.COLORTEMP_VALUE || 0, 10) },
+                audio: { bass: CONFIG.DEFAULT_AUDIO_BASS, reverb: CONFIG.DEFAULT_AUDIO_REVERB, pitch: CONFIG.DEFAULT_AUDIO_PITCH },
+                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null },
+                playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0 },
+                liveStream: { delayInfo: null, isRunning: false, resetRequested: null },
+                settings: { videoFilterLevel: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL, videoFilterLevel2: CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2, imageFilterLevel: CONFIG.DEFAULT_IMAGE_FILTER_LEVEL, autoRefresh: true }
+            };
+        }
+        get(key) { return key.split('.').reduce((o, i) => (o ? o[i] : undefined), this.state); }
+        set(key, value) { const keys = key.split('.'); let obj = this.state; for (let i = 0; i < keys.length - 1; i++) { if (obj === undefined) return; obj = obj[keys[i]]; } const finalKey = keys[keys.length - 1]; if (obj === undefined) return; if (obj[finalKey] !== value) { const oldValue = obj[finalKey]; obj[finalKey] = value; this.notify(key, value, oldValue); } }
+        subscribe(key, callback) { if (!this.listeners[key]) this.listeners[key] = []; this.listeners[key].push(callback); return () => { this.listeners[key] = this.listeners[key].filter(cb => cb !== callback); }; }
+        notify(key, newValue, oldValue) { if (this.listeners[key]) this.listeners[key].forEach(callback => callback(newValue, oldValue)); let currentKey = key; while (currentKey.includes('.')) { const prefix = currentKey.substring(0, currentKey.lastIndexOf('.')); const wildcardKey = `${prefix}.*`; if (this.listeners[wildcardKey]) this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue)); currentKey = prefix; } }
+    }
     class Plugin { constructor(name) { this.name = name; this.stateManager = null; this.subscriptions = []; } init(stateManager) { this.stateManager = stateManager; } destroy() { this.subscriptions.forEach(unsubscribe => unsubscribe()); this.subscriptions = []; } subscribe(key, callback) { this.subscriptions.push(this.stateManager.subscribe(key, callback)); } }
     class PluginManager { constructor(stateManager) { this.plugins = []; this.stateManager = stateManager; } register(plugin) { this.plugins.push(plugin); } initAll() { this.stateManager.init(); this.plugins.forEach(plugin => safeExec(() => plugin.init(this.stateManager), `Plugin ${plugin.name} init`)); this.stateManager.set('app.isInitialized', true); this.stateManager.set('app.pluginsInitialized', true); } destroyAll() { this.plugins.forEach(plugin => safeExec(() => plugin.destroy(), `Plugin ${plugin.name} destroy`)); this.stateManager.set('app.isInitialized', false); } }
 
@@ -192,7 +215,7 @@
             this.maintenanceInterval = null;
             this.debouncedScanTask = debounce(this.scanAndApply.bind(this), CONFIG.DEBOUNCE_DELAY || 300);
             this.onAddShadowRoot = null;
-            this._ioRatio = new Map(); // [Optimized] Map based tracking for IO
+            this._ioRatio = new Map();
         }
         init(stateManager) {
             super.init(stateManager);
@@ -209,21 +232,17 @@
             if (!this.mainObserver) { this.mainObserver = new MutationObserver(() => scheduleIdleTask(this.scanAndApply.bind(this))); const target = document.body || document.documentElement; this.mainObserver.observe(target, { childList: true, subtree: true }); }
             if (!this.intersectionObserver) {
                 this.intersectionObserver = new IntersectionObserver(entries => {
-                    // [Optimized] Update map with current entries
                     entries.forEach(e => {
                         const isVisible = e.isIntersecting && e.intersectionRatio > 0;
                         e.target.dataset.isVisible = String(isVisible);
                         if (e.target.tagName === 'VIDEO' || e.target.tagName === 'IMG') { this.stateManager.set('media.visibilityChange', { target: e.target, isVisible }); }
                         if (e.target.tagName === 'VIDEO') { this._ioRatio.set(e.target, { isVisible, ratio: e.intersectionRatio }); }
                     });
-
-                    // [Optimized] Cleanup disconnected nodes and find global best video
                     let best = null, maxR = -1;
                     for(const [v, data] of this._ioRatio) {
                         if (!v.isConnected) { this._ioRatio.delete(v); continue; }
                         if (data.isVisible && data.ratio > maxR) { maxR = data.ratio; best = v; }
                     }
-
                     if (best) VideoAnalyzer.start(best); else VideoAnalyzer.stop();
                     if (this.stateManager.get('app.isMobile')) { this.stateManager.set('media.currentlyVisibleMedia', best); }
                 }, { root: null, rootMargin: '0px', threshold: [0, 0.01, 0.5, 1.0] });
@@ -235,7 +254,6 @@
         findAllMedia(root = document, depth = 0, skipShadowScan = false) {
             if (depth > CONFIG.MAX_RECURSION_DEPTH) return [];
             let media = new Set();
-            // [Optimized] Added videoWidth/Height check for better iframe detection
             const isValid = m => (m.offsetWidth >= CONFIG.VIDEO_MIN_SIZE || m.offsetHeight >= CONFIG.VIDEO_MIN_SIZE || m.videoWidth >= CONFIG.VIDEO_MIN_SIZE || m.videoHeight >= CONFIG.VIDEO_MIN_SIZE);
             root.querySelectorAll('video').forEach(m => isValid(m) && media.add(m));
             root.querySelectorAll('iframe').forEach(f => { try { if (f.src && f.src.includes('challenges.cloudflare.com')) return; if (f.contentDocument) { const frameMedia = this.findAllMedia(f.contentDocument, depth + 1, skipShadowScan); frameMedia.forEach(m => media.add(m)); } } catch (e) { } });
@@ -313,7 +331,7 @@
                 }
                 updateFilterValues(values) {
                     if (!this.isInitialized()) return;
-                    const { saturation, gamma, blur, sharpenLevel, shadows, highlights, colorTemp, dither, profile } = values;
+                    const { saturation, gamma, blur, sharpenLevel, shadows, highlights, colorTemp, dither, profile, profileStrength } = values;
                     const rootNodes = [this._svgNode];
                     document.querySelectorAll('iframe').forEach(f => { try { if (f.contentDocument) { const el = f.contentDocument.querySelector(`#${this._options.svgId}`); if (el) rootNodes.push(el); } } catch (e) { } });
                     (window._shadowDomList_ || []).forEach(r => { try { const s = r.querySelector(`#${this._options.svgId}`); if (s) rootNodes.push(s); } catch (e) { } });
@@ -336,7 +354,25 @@
                         if ((shadows !== undefined || highlights !== undefined) && cache.toneCurveFuncs) { const genTable = (sh, hi) => { const steps = 33; const vals = []; const shAdj = (sh || 0) / 100; const hiAdj = (hi || 0) / 100; for (let i = 0; i < steps; i++) { const x = i / (steps - 1); let y = x; if (x < 0.3) { const t = x / 0.3; y = x + shAdj * (1 - t) * 0.9; } if (x > 0.7) { const t = (x - 0.7) / 0.3; y = x + hiAdj * t * 0.9; } y = Math.min(1, Math.max(0, y)); vals.push(y.toFixed(4)); } return vals.join(' '); }; const table = genTable(shadows, highlights); cache.toneCurveFuncs.forEach(el => el.setAttribute('tableValues', table)); }
                         if (colorTemp !== undefined && cache.ctBlue) { const slope = 1 - (colorTemp / 200); cache.ctBlue.setAttribute('slope', slope.toString()); }
                         if (dither !== undefined && cache.ditherBlend) { let intensity = dither / 500; if (dither > 50) intensity = dither / 150; cache.ditherBlend.setAttribute('k3', intensity.toString()); }
-                        if (profile !== undefined && cache.profileMatrix) { let m = "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"; if (profile === 'film') m = "1.03 0.00 0.00 0 -0.03  0.00 1.01 0.00 0 -0.02  0.00 0.00 1.06 0 -0.04  0 0 0 1 0"; if (profile === 'anime') m = "1.04 0.00 0.00 0 0.015  0.00 1.04 0.00 0 0.015  0.00 0.00 1.06 0 0.02  0 0 0 1 0"; if (profile === 'teal') m = "1.02 0.02 0.00 0 -0.02 0.00 1.00 0.00 0 0.00 0.00 0.02 1.04 0 -0.02 0 0 0 1 0"; cache.profileMatrix.setAttribute('values', m); }
+
+                        // [Patch] Interpolated Profile Matrix Logic
+                        if ((profile !== undefined || profileStrength !== undefined) && cache.profileMatrix) {
+                            const I = [1,0,0,0,0, 0,1,0,0,0, 0,0,1,0,0, 0,0,0,1,0];
+                            const PRESET = {
+                                none: I,
+                                film: [0.99, 0.01, 0.00, 0, 0, 0.00, 1.00, 0.00, 0, 0, 0.00, 0.02, 0.98, 0, 0, 0.00, 0.00, 0.00, 1, 0],
+                                teal: [0.995, 0.005, 0.00, 0, 0, 0.000, 1.000, 0.00, 0, 0, 0.000, 0.040, 0.96, 0, 0, 0.000, 0.000, 0.00, 1, 0],
+                                anime: [1.015, -0.0075, -0.0075, 0, 0, -0.0075, 1.015, -0.0075, 0, 0, -0.0075, -0.0075, 1.015, 0, 0, 0.0000, 0.0000, 0.0000, 1, 0],
+                            };
+                            const clamp01 = (v) => Math.max(0, Math.min(1, v));
+                            const lerp = (a, b, t) => a + (b - a) * t;
+                            const key = (profile && PRESET[profile]) ? profile : 'none';
+                            const target = PRESET[key];
+                            const sRaw = (key === 'none') ? 0 : (profileStrength ?? 1);
+                            const s = clamp01(Number(sRaw));
+                            const out = I.map((v, i) => lerp(v, target[i], s));
+                            cache.profileMatrix.setAttribute('values', out.map(n => n.toFixed(4)).join(' '));
+                        }
                     });
                 }
                 updateSmartLimit(slope) {
@@ -349,7 +385,47 @@
             }
             return new SvgFilterManager(options);
         }
-        applyAllVideoFilters() { if (!this.filterManager.isInitialized()) return; const vf = this.stateManager.get('videoFilter'); const totalSharpen = (vf.level || 0) + (vf.level2 || 0) * 0.5; const autoGamma = this.lastAutoParams.gamma || 1.0; const finalGamma = vf.gamma * autoGamma; const finalHighlights = vf.highlights + (this.lastAutoParams.bright || 0); const finalShadows = vf.shadows + (this.lastAutoParams.contrast || 0); const values = { saturation: vf.saturation, gamma: finalGamma, blur: vf.blur, sharpenLevel: totalSharpen, shadows: finalShadows, highlights: finalHighlights, colorTemp: vf.colorTemp, dither: vf.dither, profile: vf.activeProfile }; this.filterManager.updateFilterValues(values); VideoAnalyzer.updateSettings({ smartLimit: vf.smartLimit, autoTone: vf.autoTone }); this.updateMediaFilterStates(); }
+        applyAllVideoFilters() {
+            if (!this.filterManager.isInitialized()) return;
+            const vf = this.stateManager.get('videoFilter');
+
+            // [Patch] Auto Saturation & Gamma adjustment per profile (Logic Fixed: Lower Gamma = Darker via SVG Exponent)
+            const profile = vf.activeProfile;
+            const PROFILE_PARAMS = {
+                none:  { sat: 1.0, gamma: 1.0 },
+                // Film: 채도 0.85배(차분), 감마 0.88배 (1/0.88=1.13 Exponent -> Darker)
+                film:  { sat: 0.85, gamma: 0.88 },
+                // Teal: 채도 1.05배(약간 생기), 감마 1.0 (표준)
+                teal:  { sat: 1.05, gamma: 1.00 },
+                // Anime: 채도 1.35배(매우 쨍함), 감마 1.12배 (1/1.12=0.89 Exponent -> Brighter)
+                anime: { sat: 1.35, gamma: 1.12 }
+            };
+
+            const params = PROFILE_PARAMS[profile] || PROFILE_PARAMS.none;
+            const saturationFinal = Math.max(0, Math.min(200, vf.saturation * params.sat));
+
+            const totalSharpen = (vf.level || 0) + (vf.level2 || 0) * 0.5;
+            const autoGamma = this.lastAutoParams.gamma || 1.0;
+            const finalGamma = vf.gamma * params.gamma * autoGamma;
+            const finalHighlights = vf.highlights + (this.lastAutoParams.bright || 0);
+            const finalShadows = vf.shadows + (this.lastAutoParams.contrast || 0);
+
+            const values = {
+                saturation: saturationFinal,
+                gamma: finalGamma,
+                blur: vf.blur,
+                sharpenLevel: totalSharpen,
+                shadows: finalShadows,
+                highlights: finalHighlights,
+                colorTemp: vf.colorTemp,
+                dither: vf.dither,
+                profile: vf.activeProfile,
+                profileStrength: vf.profileStrength
+            };
+            this.filterManager.updateFilterValues(values);
+            VideoAnalyzer.updateSettings({ smartLimit: vf.smartLimit, autoTone: vf.autoTone });
+            this.updateMediaFilterStates();
+        }
         applyAllImageFilters() { if (!this.imageFilterManager.isInitialized()) return; const level = this.stateManager.get('imageFilter.level'); const colorTemp = this.stateManager.get('imageFilter.colorTemp'); const values = { sharpenLevel: level, colorTemp: colorTemp }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }
         updateMediaFilterStates() { this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); }
         _updateVideoFilterState(video) { const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter'); const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0 || vf.colorTemp !== 0 || vf.dither > 0 || vf.smartLimit > 0 || vf.autoTone > 0 || vf.activeProfile !== 'none'; const isActive = scriptActive && video.dataset.isVisible !== 'false' && shouldApply; if (isActive) { if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform'; } else { if (video.style.willChange) video.style.willChange = ''; } video.classList.toggle('vsc-video-filter-active', isActive); }
@@ -375,7 +451,6 @@
         setPlaybackRate(rate) { this.stateManager.get('media.activeMedia').forEach(media => { if (media.playbackRate !== rate) media.playbackRate = rate; }); }
     }
 
-    // --- [IMPORTANT] Audio Effect Plugin with Memory Leak Fix & Iframe Stability ---
     class AudioEffectPlugin extends Plugin {
         constructor() {
             super('AudioEffect');
@@ -385,7 +460,6 @@
             this.nodeMap = new Map();
             this.nodes = { bypassGain: null, convolver: null, wetGain: null, masterGain: null, bassFilter: null, compressor: null, makeupGain: null };
         }
-
         init(stateManager) {
             super.init(stateManager);
             const unlock = async () => { try { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (this.ctx.state === 'suspended') await this.ctx.resume(); } catch {} };
@@ -396,43 +470,35 @@
             this.subscribe('audio.pitch', () => this.updatePitchState());
             this.subscribe('media.activeMedia', (newSet) => this.handleMediaChanges(newSet));
         }
-
         destroy() {
             super.destroy();
             if (this.ctx && this.ctx.state !== 'closed') { this.ctx.close().catch(() => {}); this.ctx = null; }
             this.nodes = { bypassGain: null, convolver: null, wetGain: null, masterGain: null, bassFilter: null, compressor: null, makeupGain: null };
             this.nodeMap.clear();
         }
-
         async handleMediaChanges(activeMedia) {
              if (!this.ctx || this.ctx.state !== 'running') { try { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (this.ctx.state === 'suspended') await this.ctx.resume(); } catch(e) {} }
              if (!this.ctx || this.ctx.state !== 'running') return;
 
              this.ensureGlobalNodes();
              const currentVideos = Array.from(activeMedia).filter(m => m.tagName === 'VIDEO');
-
-             // [Optimized] Only cleanup disconnected videos to prevent re-creation issues on iframes
              for (const [video, nodes] of this.nodeMap.entries()) {
                  if (!video.isConnected) {
-                     // Truly removed from DOM -> Clean up
                      try {
                          nodes.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
                          setTimeout(() => { try { nodes.source.disconnect(); nodes.gain.disconnect(); } catch(e) {} }, 200);
                      } catch(e) {}
                      this.nodeMap.delete(video);
                  } else if (!activeMedia.has(video)) {
-                     // Just not in active list (e.g. hidden), mute but keep node
                      try { nodes.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1); } catch(e) {}
                  }
              }
 
              let mainVideo = null; let maxArea = 0;
              currentVideos.forEach(v => { const area = v.clientWidth * v.clientHeight; if(area > maxArea) { maxArea = area; mainVideo = v; } });
-
              currentVideos.forEach(video => {
                  if (!this.nodeMap.has(video)) {
                      try {
-                         // Only create if not exists
                          const source = this.ctx.createMediaElementSource(video);
                          const individualGain = this.ctx.createGain();
                          individualGain.gain.value = 0;
@@ -442,7 +508,6 @@
                      } catch(e) {}
                  }
              });
-
              const now = this.ctx.currentTime;
              currentVideos.forEach(video => {
                  const nodeData = this.nodeMap.get(video);
@@ -450,10 +515,8 @@
                  const targetGain = (video === mainVideo) ? 1.0 : 0.0;
                  try { nodeData.gain.gain.cancelScheduledValues(now); nodeData.gain.gain.setTargetAtTime(targetGain, now, 0.1); } catch(e) {}
              });
-
              if (this.targetVideo !== mainVideo) { this.targetVideo = mainVideo; if(this.targetVideo) { this.updatePitchState(); this.updateAudioParams(); } }
         }
-
         ensureGlobalNodes() {
             if (this.nodes.masterGain) return;
             this.nodes.masterGain = this.ctx.createGain(); this.nodes.bypassGain = this.ctx.createGain(); this.nodes.effectInputGain = this.ctx.createGain();
@@ -466,7 +529,6 @@
             this.nodes.effectInputGain.connect(this.nodes.convolver); this.nodes.convolver.connect(this.nodes.wetGain); this.nodes.wetGain.connect(this.ctx.destination);
             this.nodes.bypassGain.gain.value = 1.0; this.nodes.effectInputGain.gain.value = 0.0;
         }
-
         smoothSet(param, value, timeConstant = 0.02) { if (!this.ctx || !param) return; const now = this.ctx.currentTime; try { param.cancelScheduledValues(now); param.setTargetAtTime(value, now, timeConstant); } catch (e) {} }
         updatePitchState() { if (!this.targetVideo) return; const preserve = this.stateManager.get('audio.pitch'); if ('preservesPitch' in this.targetVideo) this.targetVideo.preservesPitch = preserve; else if ('mozPreservesPitch' in this.targetVideo) this.targetVideo.mozPreservesPitch = preserve; else if ('webkitPreservesPitch' in this.targetVideo) this.targetVideo.webkitPreservesPitch = preserve; }
         async updateAudioParams() {
@@ -506,7 +568,6 @@
             this.subscribe('ui.areControlsVisible', () => this.updateDelayMeterVisibility());
             this.updateDelayMeter(this.stateManager.get('liveStream.delayInfo'));
             const vscMessage = sessionStorage.getItem('vsc_message'); if (vscMessage) { this.showWarningMessage(vscMessage); sessionStorage.removeItem('vsc_message'); }
-
             this.boundFullscreenChange = () => { const fullscreenRoot = document.fullscreenElement || document.body; if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) { fullscreenRoot.appendChild(this.globalContainer); } };
             document.addEventListener('fullscreenchange', this.boundFullscreenChange);
         }
@@ -537,7 +598,23 @@
         updateActiveSpeedButton(rate) { if (this.speedButtons.length === 0) return; this.speedButtons.forEach(b => { const speed = parseFloat(b.dataset.speed); if (speed) { const isActive = Math.abs(speed - rate) < 0.01; if (isActive) { b.style.background = 'rgba(231, 76, 60, 0.9)'; b.style.boxShadow = '0 0 5px #e74c3c, 0 0 10px #e74c3c inset'; } else { b.style.background = 'rgba(52, 152, 219, 0.7)'; b.style.boxShadow = ''; } } }); }
         _createControlGroup(id, icon, title, parent) { const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group'; const mainBtn = document.createElement('button'); mainBtn.className = 'vsc-btn vsc-btn-main'; mainBtn.textContent = icon; mainBtn.title = title; const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu'; group.append(mainBtn, subMenu); mainBtn.onclick = async (e) => { e.stopPropagation(); const isOpening = !group.classList.contains('submenu-visible'); if (this.shadowRoot) { this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible')); } if (isOpening) { group.classList.add('submenu-visible'); } this.resetFadeTimer(); }; parent.appendChild(group); if (id === 'vsc-image-controls') this.uiElements.imageControls = group; if (id === 'vsc-video-controls') this.uiElements.videoControls = group; return subMenu; }
         _createSlider(label, id, min, max, step, stateKey, unit, formatFn) { const div = document.createElement('div'); div.className = 'slider-control'; const labelEl = document.createElement('label'); const span = document.createElement('span'); const updateText = (v) => { const val = parseFloat(v); if (isNaN(val)) return; span.textContent = formatFn ? formatFn(val) : `${val.toFixed(1)}${unit}`; }; labelEl.textContent = `${label}: `; labelEl.appendChild(span); const slider = document.createElement('input'); slider.type = 'range'; slider.id = id; slider.min = min; slider.max = max; slider.step = step; slider.value = this.stateManager.get(stateKey); const debouncedSetState = debounce((val) => { this.stateManager.set(stateKey, val); }, 50); slider.oninput = () => { const val = parseFloat(slider.value); updateText(val); if (stateKey.startsWith('videoFilter.')) { this.stateManager.set('videoFilter.activePreset', 'custom'); } debouncedSetState(val); }; this.subscribe(stateKey, (val) => { updateText(val); if (Math.abs(parseFloat(slider.value) - val) > (step / 2 || 0.001)) { slider.value = val; } }); updateText(slider.value); div.append(labelEl, slider); return { control: div, slider: slider, formatFn: formatFn, unit: unit }; }
-        renderAllControls() { if (this.shadowRoot.getElementById('vsc-main-container')) return; const style = document.createElement('style'); const isMobile = this.stateManager.get('app.isMobile'); style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; } #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; } #vsc-main-container:hover { opacity: 1; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;} .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; } .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; } .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '2px' : '3px'}; } #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; } #vsc-image-controls .vsc-submenu { width: 260px; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; } .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; } input[type=range] { width: 100%; margin: 0; } input[type=range]:disabled { opacity: 0.5; } .vsc-monitor { font-size: 10px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; }`; this.shadowRoot.appendChild(style); const mainContainer = document.createElement('div'); mainContainer.id = 'vsc-main-container'; this.uiElements.mainContainer = mainContainer; const controlsContainer = document.createElement('div'); controlsContainer.id = 'vsc-controls-container'; const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer); const videoProfileContainer = document.createElement('div'); videoProfileContainer.style.cssText = 'display: flex; gap: 4px; margin-bottom: 8px; width: 100%; border-bottom: 1px solid #555; padding-bottom: 4px;'; const createProfileBtn = (text, profileKey) => { const btn = document.createElement('button'); btn.className = 'vsc-btn'; btn.textContent = text; btn.onclick = () => { const current = this.stateManager.get('videoFilter.activeProfile'); this.stateManager.set('videoFilter.activeProfile', current === profileKey ? 'none' : profileKey); }; this.subscribe('videoFilter.activeProfile', (val) => { btn.classList.toggle('active', val === profileKey); }); return btn; }; videoProfileContainer.append(createProfileBtn('Film', 'film'), createProfileBtn('Teal', 'teal'), createProfileBtn('Anime', 'anime')); videoSubMenu.appendChild(videoProfileContainer); const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = 'S'; videoResetBtn.dataset.presetKey = 'reset'; videoResetBtn.onclick = () => { this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL); this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2); this.stateManager.set('videoFilter.activePreset', 'reset'); }; const videoMsharpBtn = document.createElement('button'); videoMsharpBtn.className = 'vsc-btn'; videoMsharpBtn.textContent = 'M'; videoMsharpBtn.dataset.presetKey = 'sharpM'; videoMsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 15); this.stateManager.set('videoFilter.level2', 7); this.stateManager.set('videoFilter.activePreset', 'sharpM'); }; const videoLsharpBtn = document.createElement('button'); videoLsharpBtn.className = 'vsc-btn'; videoLsharpBtn.textContent = 'L'; videoLsharpBtn.dataset.presetKey = 'sharpL'; videoLsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 30); this.stateManager.set('videoFilter.level2', 15); this.stateManager.set('videoFilter.activePreset', 'sharpL'); }; const videoSsharpOFFBtn = document.createElement('button'); videoSsharpOFFBtn.className = 'vsc-btn'; videoSsharpOFFBtn.textContent = '끔'; videoSsharpOFFBtn.dataset.presetKey = 'sharpOFF'; videoSsharpOFFBtn.onclick = () => { this.stateManager.set('videoFilter.level', 0); this.stateManager.set('videoFilter.level2', 0); this.stateManager.set('videoFilter.activePreset', 'sharpOFF'); }; const mkBtn = (txt, key, onClick) => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = txt; b.dataset.presetKey = key; b.onclick = () => { onClick(); this.stateManager.set('videoFilter.activePreset', key); }; return b; }; const videoSBrightenBtn = mkBtn('S', 'brighten1', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -1); this.stateManager.set('videoFilter.highlights', 5); }); const videoMBrightenBtn = mkBtn('M', 'brighten2', () => { this.stateManager.set('videoFilter.gamma', 1.08); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', 10); }); const videoLBrightenBtn = mkBtn('L', 'brighten3', () => { this.stateManager.set('videoFilter.gamma', 1.12); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -3); this.stateManager.set('videoFilter.highlights', 15); }); const videoDSBrightenBtn = mkBtn('DS', 'brighten4', () => { this.stateManager.set('videoFilter.gamma', 1.02); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', -2); }); const videoDMBrightenBtn = mkBtn('DM', 'brighten5', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -4); this.stateManager.set('videoFilter.highlights', 5); }); const videoDLBrightenBtn = mkBtn('DL', 'brighten6', () => { this.stateManager.set('videoFilter.gamma', 1.06); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -8); this.stateManager.set('videoFilter.highlights', 15); }); const videoBrightenoffBtn = mkBtn('끔', 'brightOFF', () => { this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.colorTemp', -7); }); const videoButtonsContainer = document.createElement('div'); videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; width: 100%; padding-bottom: 4px; border-bottom: 1px solid #555;'; const createLabel = (text) => { const span = document.createElement('span'); span.textContent = text; span.style.cssText = 'color: white; font-weight: bold; font-size: 12px; margin-right: 4px; white-space: nowrap; min-width: 30px; text-align: right; text-shadow: 1px 1px 1px rgba(0,0,0,0.8);'; return span; }; const videoBtnGroup1 = document.createElement('div'); videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;'; videoBtnGroup1.append(createLabel('샤프'), videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn); const pitchBtn = document.createElement('button'); pitchBtn.className = 'vsc-btn'; pitchBtn.textContent = '🎵'; pitchBtn.title = '음정 유지 (켜짐/꺼짐)'; pitchBtn.onclick = () => { const current = this.stateManager.get('audio.pitch'); this.stateManager.set('audio.pitch', !current); }; this.subscribe('audio.pitch', (v) => { pitchBtn.style.color = v ? '#fff' : '#e74c3c'; pitchBtn.style.textShadow = v ? '' : '0 0 5px red'; }); videoBtnGroup1.appendChild(pitchBtn); const videoBtnGroup3 = document.createElement('div'); videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px; flex-wrap: nowrap; overflow-x: auto;'; videoBtnGroup3.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoDSBrightenBtn, videoDMBrightenBtn, videoDLBrightenBtn, videoBrightenoffBtn); videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup3); const videoButtons = [videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoDSBrightenBtn, videoDMBrightenBtn, videoDLBrightenBtn, videoBrightenoffBtn]; this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); }); videoSubMenu.appendChild(videoButtonsContainer); const gridContainer = document.createElement('div'); gridContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;'; gridContainer.append(this._createSlider('자동밝기제한', 'v-smartlimit', 0, 50, 1, 'videoFilter.smartLimit', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control, this._createSlider('자동톤매핑', 'v-autotone', 0, 100, 5, 'videoFilter.autoTone', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control, this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 50, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control, this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 50, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control, this._createSlider('색온도', 'v-colortemp', -25, 4, 1, 'videoFilter.colorTemp', '', v => `${v.toFixed(0)}%`).control, this._createSlider('필름그레인', 'v-dither', 0, 100, 5, 'videoFilter.dither', '', v => v === 0 ? '꺼짐' : (v <= 50 ? `디더 ${v}` : `그레인 ${v}`)).control, this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control, this._createSlider('밝기(HDR)', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control, this._createSlider('대비(HDR)', 'v-shadows', -100, 100, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control, this._createSlider('감마', 'v-gamma', 1, 4.00, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control, this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control, this._createSlider('베이스', 'a-bass', 0, 1, 0.05, 'audio.bass', '', v => v > 0 ? `+${(v*CONFIG.AUDIO_BASS_MAX_DB).toFixed(1)}dB` : 'OFF').control, this._createSlider('리버브', 'a-reverb', 0, 1, 0.05, 'audio.reverb', '', v => v > 0 ? `${(v*100).toFixed(0)}%` : 'OFF').control); videoSubMenu.appendChild(gridContainer); const statusDisplay = document.createElement('div'); statusDisplay.className = 'vsc-monitor'; statusDisplay.textContent = 'Waiting for video...'; videoSubMenu.appendChild(statusDisplay);
+        renderAllControls() { if (this.shadowRoot.getElementById('vsc-main-container')) return; const style = document.createElement('style'); const isMobile = this.stateManager.get('app.isMobile'); style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; } #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; } #vsc-main-container:hover { opacity: 1; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;} .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; } .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; } .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '2px' : '3px'}; } #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; } #vsc-image-controls .vsc-submenu { width: 260px; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; } .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; } input[type=range] { width: 100%; margin: 0; } input[type=range]:disabled { opacity: 0.5; } .vsc-monitor { font-size: 10px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; }`; this.shadowRoot.appendChild(style); const mainContainer = document.createElement('div'); mainContainer.id = 'vsc-main-container'; this.uiElements.mainContainer = mainContainer; const controlsContainer = document.createElement('div'); controlsContainer.id = 'vsc-controls-container'; const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer); const videoProfileContainer = document.createElement('div'); videoProfileContainer.style.cssText = 'display: flex; gap: 4px; margin-bottom: 8px; width: 100%; border-bottom: 1px solid #555; padding-bottom: 4px;'; const createProfileBtn = (text, profileKey) => { const btn = document.createElement('button'); btn.className = 'vsc-btn'; btn.textContent = text; btn.onclick = () => { const current = this.stateManager.get('videoFilter.activeProfile'); this.stateManager.set('videoFilter.activeProfile', current === profileKey ? 'none' : profileKey); }; this.subscribe('videoFilter.activeProfile', (val) => { btn.classList.toggle('active', val === profileKey); }); return btn; }; videoProfileContainer.append(createProfileBtn('Film', 'film'), createProfileBtn('Teal', 'teal'), createProfileBtn('Anime', 'anime')); videoSubMenu.appendChild(videoProfileContainer); const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = 'S'; videoResetBtn.dataset.presetKey = 'reset'; videoResetBtn.onclick = () => { this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL); this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2); this.stateManager.set('videoFilter.activePreset', 'reset'); }; const videoMsharpBtn = document.createElement('button'); videoMsharpBtn.className = 'vsc-btn'; videoMsharpBtn.textContent = 'M'; videoMsharpBtn.dataset.presetKey = 'sharpM'; videoMsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 15); this.stateManager.set('videoFilter.level2', 7); this.stateManager.set('videoFilter.activePreset', 'sharpM'); }; const videoLsharpBtn = document.createElement('button'); videoLsharpBtn.className = 'vsc-btn'; videoLsharpBtn.textContent = 'L'; videoLsharpBtn.dataset.presetKey = 'sharpL'; videoLsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 30); this.stateManager.set('videoFilter.level2', 15); this.stateManager.set('videoFilter.activePreset', 'sharpL'); }; const videoSsharpOFFBtn = document.createElement('button'); videoSsharpOFFBtn.className = 'vsc-btn'; videoSsharpOFFBtn.textContent = '끔'; videoSsharpOFFBtn.dataset.presetKey = 'sharpOFF'; videoSsharpOFFBtn.onclick = () => { this.stateManager.set('videoFilter.level', 0); this.stateManager.set('videoFilter.level2', 0); this.stateManager.set('videoFilter.activePreset', 'sharpOFF'); }; const mkBtn = (txt, key, onClick) => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = txt; b.dataset.presetKey = key; b.onclick = () => { onClick(); this.stateManager.set('videoFilter.activePreset', key); }; return b; }; const videoSBrightenBtn = mkBtn('S', 'brighten1', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -1); this.stateManager.set('videoFilter.highlights', 5); }); const videoMBrightenBtn = mkBtn('M', 'brighten2', () => { this.stateManager.set('videoFilter.gamma', 1.08); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', 10); }); const videoLBrightenBtn = mkBtn('L', 'brighten3', () => { this.stateManager.set('videoFilter.gamma', 1.12); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -3); this.stateManager.set('videoFilter.highlights', 15); }); const videoDSBrightenBtn = mkBtn('DS', 'brighten4', () => { this.stateManager.set('videoFilter.gamma', 1.02); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', -2); }); const videoDMBrightenBtn = mkBtn('DM', 'brighten5', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -4); this.stateManager.set('videoFilter.highlights', 5); }); const videoDLBrightenBtn = mkBtn('DL', 'brighten6', () => { this.stateManager.set('videoFilter.gamma', 1.06); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -8); this.stateManager.set('videoFilter.highlights', 15); }); const videoBrightenoffBtn = mkBtn('끔', 'brightOFF', () => { this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.colorTemp', -7); }); const videoButtonsContainer = document.createElement('div'); videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; width: 100%; padding-bottom: 4px; border-bottom: 1px solid #555;'; const createLabel = (text) => { const span = document.createElement('span'); span.textContent = text; span.style.cssText = 'color: white; font-weight: bold; font-size: 12px; margin-right: 4px; white-space: nowrap; min-width: 30px; text-align: right; text-shadow: 1px 1px 1px rgba(0,0,0,0.8);'; return span; }; const videoBtnGroup1 = document.createElement('div'); videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;'; videoBtnGroup1.append(createLabel('샤프'), videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn); const pitchBtn = document.createElement('button'); pitchBtn.className = 'vsc-btn'; pitchBtn.textContent = '🎵'; pitchBtn.title = '음정 유지 (켜짐/꺼짐)'; pitchBtn.onclick = () => { const current = this.stateManager.get('audio.pitch'); this.stateManager.set('audio.pitch', !current); }; this.subscribe('audio.pitch', (v) => { pitchBtn.style.color = v ? '#fff' : '#e74c3c'; pitchBtn.style.textShadow = v ? '' : '0 0 5px red'; }); videoBtnGroup1.appendChild(pitchBtn); const videoBtnGroup3 = document.createElement('div'); videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px; flex-wrap: nowrap; overflow-x: auto;'; videoBtnGroup3.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoDSBrightenBtn, videoDMBrightenBtn, videoDLBrightenBtn, videoBrightenoffBtn); videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup3); const videoButtons = [videoResetBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoDSBrightenBtn, videoDMBrightenBtn, videoDLBrightenBtn, videoBrightenoffBtn]; this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); }); videoSubMenu.appendChild(videoButtonsContainer); const gridContainer = document.createElement('div'); gridContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;';
+
+            // [Patch] Added 'Profile Strength' Slider
+            gridContainer.append(this._createSlider('프로파일 강도', 'v-prof-strength', 0, 1, 0.05, 'videoFilter.profileStrength', '', v => `${Math.round(v*100)}%`).control, this._createSlider('자동밝기제한', 'v-smartlimit', 0, 50, 1, 'videoFilter.smartLimit', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control, this._createSlider('자동톤매핑', 'v-autotone', 0, 100, 5, 'videoFilter.autoTone', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control, this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 50, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control, this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 50, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control, this._createSlider('색온도', 'v-colortemp', -25, 4, 1, 'videoFilter.colorTemp', '', v => `${v.toFixed(0)}%`).control, this._createSlider('필름그레인', 'v-dither', 0, 100, 5, 'videoFilter.dither', '', v => v === 0 ? '꺼짐' : (v <= 50 ? `디더 ${v}` : `그레인 ${v}`)).control, this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control, this._createSlider('밝기(HDR)', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control, this._createSlider('대비(HDR)', 'v-shadows', -100, 100, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control, this._createSlider('감마', 'v-gamma', 1, 4.00, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control, this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control, this._createSlider('베이스', 'a-bass', 0, 1, 0.05, 'audio.bass', '', v => v > 0 ? `+${(v*CONFIG.AUDIO_BASS_MAX_DB).toFixed(1)}dB` : 'OFF').control, this._createSlider('리버브', 'a-reverb', 0, 1, 0.05, 'audio.reverb', '', v => v > 0 ? `${(v*100).toFixed(0)}%` : 'OFF').control); videoSubMenu.appendChild(gridContainer);
+
+            // [Patch] Improved Status Display Text logic
+            const statusDisplay = document.createElement('div'); statusDisplay.className = 'vsc-monitor';
+            statusDisplay.textContent = 'Monitoring Off (Enable Auto-Limit/Tone)';
+            videoSubMenu.appendChild(statusDisplay);
+
+            const initialSmart = this.stateManager.get('videoFilter.smartLimit');
+            const initialTone = this.stateManager.get('videoFilter.autoTone');
+            if (initialSmart <= 0 && initialTone <= 0) {
+                statusDisplay.textContent = 'Monitoring Off (Enable Auto-Limit/Tone)';
+            } else {
+                statusDisplay.textContent = 'Active... (Play video to see values)';
+            }
 
             this.boundSmartLimitUpdate = (e) => {
                 if (!videoSubMenu.parentElement.classList.contains('submenu-visible')) return;
@@ -545,6 +622,21 @@
                 statusDisplay.textContent = `Luma: ${luma ? luma.toFixed(2) : 'N/A'} | Gamma: ${autoParams.gamma.toFixed(2)}`;
             };
             document.addEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
+
+            // [Patch] Fixed Update Logic
+            const updateMonitorText = () => {
+                const s = this.stateManager.get('videoFilter.smartLimit');
+                const t = this.stateManager.get('videoFilter.autoTone');
+                if (s <= 0 && t <= 0) {
+                    statusDisplay.textContent = 'Monitoring Off (Enable Auto-Limit/Tone)';
+                } else {
+                    if (statusDisplay.textContent.includes('Monitoring Off')) {
+                        statusDisplay.textContent = 'Active... (Play video to see values)';
+                    }
+                }
+            };
+            this.subscribe('videoFilter.smartLimit', updateMonitorText);
+            this.subscribe('videoFilter.autoTone', updateMonitorText);
 
             const imageSubMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controlsContainer); imageSubMenu.appendChild(this._createSlider('샤프닝', 'i-sharpen', 0, 20, 1, 'imageFilter.level', '단계', v => v === 0 ? '꺼짐' : `${v.toFixed(0)}단계`).control); imageSubMenu.appendChild(this._createSlider('색온도', 'i-colortemp', -7, 4, 1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control); if (this.speedButtons.length === 0) { CONFIG.SPEED_PRESETS.forEach(speed => { const btn = document.createElement('button'); btn.textContent = `${speed.toFixed(1)}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn'; Object.assign(btn.style, { background: 'rgba(52, 152, 219, 0.7)', color: 'white', width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)', padding: '0', transition: 'background-color 0.2s, box-shadow 0.2s' }); btn.onclick = () => this.stateManager.set('playback.targetRate', speed); this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn); }); const isLiveJumpSite = CONFIG.LIVE_STREAM_SITES.some(d => location.hostname === d || location.hostname.endsWith('.' + d)); if (isLiveJumpSite) { const liveJumpBtn = document.createElement('button'); liveJumpBtn.textContent = '⚡'; liveJumpBtn.title = '실시간으로 이동'; liveJumpBtn.className = 'vsc-btn'; Object.assign(liveJumpBtn.style, { width: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', height: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', fontSize: this.stateManager.get('app.isMobile') ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)', borderRadius: '50%', padding: '0', transition: 'box-shadow 0.3s' }); liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now()); this.speedButtonsContainer.appendChild(liveJumpBtn); } } mainContainer.appendChild(controlsContainer); this.shadowRoot.appendChild(mainContainer); this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
         }
