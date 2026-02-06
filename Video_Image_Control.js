@@ -401,11 +401,11 @@
             const PROFILE_PARAMS = {
                 none:  { sat: 1.0, gamma: 1.0 },
                 // Film: 채도 0.85배, 감마 0.88배 (어둡게)
-                film:  { sat: 0.85, gamma: 0.88 },
+                film:  { sat: 0.90, gamma: 0.90 },
                 // Teal: 채도 1.05배, 감마 1.0 (표준)
-                teal:  { sat: 1.05, gamma: 1.00 },
+                teal:  { sat: 1.05, gamma: 1.05 },
                 // Anime: 채도 1.35배, 감마 1.12배 (밝게)
-                anime: { sat: 1.35, gamma: 1.12 }
+                anime: { sat: 1.20, gamma: 1.15 }
             };
 
             const params = PROFILE_PARAMS[profile] || PROFILE_PARAMS.none;
