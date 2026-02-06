@@ -399,16 +399,21 @@
             // [Patch] Auto Saturation & Gamma adjustment per profile
             const profile = vf.activeProfile;
             const PROFILE_PARAMS = {
-                none:  { sat: 1.0, gamma: 1.0 },
-                // Film: 채도 0.85배, 감마 0.88배 (어둡게)
-                film:  { sat: 0.90, gamma: 0.90 },
-                // Teal: 채도 1.05배, 감마 1.0 (표준)
-                teal:  { sat: 1.05, gamma: 1.05 },
-                // Anime: 채도 1.35배, 감마 1.12배 (밝게)
-                anime: { sat: 1.20, gamma: 1.15 }
-            };
+              none:  { sat: 1.0, gamma: 1.0, contrast: 1.0 },
+              // Film: 대비를 높여(1.1) 화면을 더 묵직하고 진하게 (Deep Black)
+              film:  { sat: 0.98, gamma: 1.00, contrast: 1.08 },
+              // Teal: 대비를 살짝 높여(1.05) 피사체를 뚜렷하게
+              teal:  { sat: 1.05, gamma: 1.06, contrast: 1.04 },
+              // Anime: 대비를 약간 낮추거나 유지하여 부드럽고 화사하게
+              anime: { sat: 1.12, gamma: 1.12, contrast: 1.0 }
+          };
 
             const params = PROFILE_PARAMS[profile] || PROFILE_PARAMS.none;
+
+            // [추가됨] Contrast 보간 계산
+            // params.contrast가 없으면 기본값 1.0 사용
+            const targetContrast = params.contrast !== undefined ? params.contrast : 1.0;
+            const effectiveContrastScale = lerp(1.0, targetContrast, strength);
 
             // [Fix] 강도(Strength)를 반영하여 Saturation과 Gamma 비율 계산
             // 강도가 0이면 1.0(변화 없음)이 되고, 1이면 params 설정값 그대로 적용됨
@@ -417,15 +422,21 @@
 
             // 최종 값 계산에 보간된 비율 적용
             const saturationFinal = Math.max(0, Math.min(200, vf.saturation * effectiveSatScale));
-
             const totalSharpen = (vf.level || 0) + (vf.level2 || 0) * 0.5;
             const autoGamma = this.lastAutoParams.gamma || 1.0;
 
             // Gamma에도 강도 반영
             const finalGamma = vf.gamma * effectiveGammaScale * autoGamma;
 
-            const finalHighlights = vf.highlights + (this.lastAutoParams.bright || 0);
-            const finalShadows = vf.shadows + (this.lastAutoParams.contrast || 0);
+            // [수정됨] 대비(Contrast)를 Shadows/Highlights에 반영하는 로직
+            // 대비가 1.1(10% 증가)이면 -> 밝은건 더 밝게(+), 어두운건 더 어둡게(-)
+            // 50은 임의의 가중치입니다. 1.1일 때 약 +5/-5 정도 변합니다.
+            const contrastOffset = (effectiveContrastScale - 1.0) * 50;
+
+            // 기존 Highlights/Shadows 값에 프로파일 대비값(contrastOffset)을 더하고 뺌
+            // Highlights는 높여주고(+), Shadows는 낮춰줘야(-) 대비가 쎄집니다.
+            const finalHighlights = vf.highlights + contrastOffset + (this.lastAutoParams.bright || 0);
+            const finalShadows = vf.shadows - contrastOffset + (this.lastAutoParams.contrast || 0);
 
             const values = {
                 saturation: saturationFinal,
