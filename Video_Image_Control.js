@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Anti-Interference)
+// @name         Video_Image_Control (Safe Radius)
 // @namespace    https://com/
-// @version      117.19-AntiWaveFix
-// @description  v117.19: [Visual] 샤프닝(디테일) 반경을 0.3px에서 0.5px로 조정하여 픽셀 그리드 간섭으로 인한 '물결(Moiré)' 현상 제거. 윤곽/디테일 분리도 최적화.
+// @version      117.20-SafeRadius
+// @description  v117.20: [Visual] 물결 노이즈(Moiré) 완전 제거를 위해 샤프닝 반경을 안전 구간(1.0px/2.0px)으로 상향. 픽셀 노이즈는 무시하고 실제 디테일과 입체감만 강조하도록 튜닝.
 // @match        *://*/*
 // @run-at       document-start
 // @grant        none
@@ -556,8 +556,8 @@
                                 if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "0");
                                 if (cache.compFine) { cache.compFine.setAttribute('k2', "1"); cache.compFine.setAttribute('k3', "0"); } 
                             } else { 
-                                // [Visual Fix] Radius 0.3 -> 0.5 to avoid Moiré/Pixel-Grid interference
-                                if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "0.5");
+                                // [Visual Fix] Radius 0.5 -> 1.0 (Safe Mode) to fully avoid grid interference
+                                if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "1.0");
                                 if (cache.compFine) { cache.compFine.setAttribute('k2', (1 + strFine).toFixed(3)); cache.compFine.setAttribute('k3', (-strFine).toFixed(3)); } 
                             }
 
@@ -565,8 +565,8 @@
                                 if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "0");
                                 if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', "1"); cache.compCoarse.setAttribute('k3', "0"); } 
                             } else { 
-                                // [Visual Fix] Radius 0.75 -> 0.85 for better separation from Detail layer
-                                if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "0.85");
+                                // [Visual Fix] Radius 0.85 -> 2.0 to act as "Clarity/Structure"
+                                if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "2.0");
                                 if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', (1 + strCoarse).toFixed(3)); cache.compCoarse.setAttribute('k3', (-strCoarse).toFixed(3)); } 
                             }
                         }
