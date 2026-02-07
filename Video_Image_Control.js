@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Safe Radius)
+// @name         Video_Image_Control (Clean Layout + RingingFix)
 // @namespace    https://com/
-// @version      117.20-SafeRadius
-// @description  v117.20: [Visual] 물결 노이즈(Moiré) 완전 제거를 위해 샤프닝 반경을 안전 구간(1.0px/2.0px)으로 상향. 픽셀 노이즈는 무시하고 실제 디테일과 입체감만 강조하도록 튜닝.
+// @version      117.19-RingingSuppression
+// @description  v117.19: [화질] 링잉(Halo) 억제 패치 적용. Level 2(디테일) 샤픈의 반경을 0.3->0.45로 늘리고, 강도 계산을 이차곡선(Quadratic)으로 변경하여 과도한 흰색 테두리 현상 완화.
 // @match        *://*/*
 // @run-at       document-start
 // @grant        none
@@ -513,8 +513,6 @@
                     }
 
                     const isImage = this._options.isImage;
-
-                    // [Optimization] Safe Set Iteration (Collect -> Delete)
                     const toRemove = [];
 
                     for (const rootNode of this._activeFilterRoots) {
@@ -541,32 +539,35 @@
                             let strCoarse = 0;
                             let strFine = 0;
 
-                            // [Visual] Image Mode -> Use FINE detail (Level 2 logic) to avoid halos
                             if (isImage) {
                                 strFine = Math.min(4.0, sharpenLevel * 0.12);
-                                strCoarse = 0; // Disable contour sharpening for images
+                                strCoarse = 0; 
                             } else {
-                                // Video Mode -> Level 1 is Coarse (Contour), Level 2 is Fine (Detail)
-                                // [Tweak] Coarse: 0.05 strength, Fine: 0.04 strength (Slightly reduced to avoid artifacts with larger radius)
-                                strCoarse = Math.min(4.0, sharpenLevel * 0.05); 
-                                strFine = (values.level2 !== undefined) ? Math.min(4.0, values.level2 * 0.04) : 0; 
+                                const lv2 = Math.max(0, Number(values.level2 || 0));
+                                const t2 = Math.min(1, lv2 / 50);
+                                strFine = 1.2 * (t2 * t2); 
+
+                                strCoarse = Math.min(4.0, sharpenLevel * 0.05);
+                                strCoarse *= (1 - 0.35 * t2);
                             }
 
                             if (strFine <= 0.01) { 
                                 if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "0");
                                 if (cache.compFine) { cache.compFine.setAttribute('k2', "1"); cache.compFine.setAttribute('k3', "0"); } 
                             } else { 
-                                // [Visual Fix] Radius 0.5 -> 1.0 (Safe Mode) to fully avoid grid interference
-                                if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "1.0");
-                                if (cache.compFine) { cache.compFine.setAttribute('k2', (1 + strFine).toFixed(3)); cache.compFine.setAttribute('k3', (-strFine).toFixed(3)); } 
+                                const fineAmount = strFine * 0.75;
+                                if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "0.45");
+                                if (cache.compFine) { 
+                                    cache.compFine.setAttribute('k2', (1 + fineAmount).toFixed(3)); 
+                                    cache.compFine.setAttribute('k3', (-fineAmount).toFixed(3)); 
+                                } 
                             }
 
                             if (strCoarse <= 0.01) { 
                                 if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "0");
                                 if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', "1"); cache.compCoarse.setAttribute('k3', "0"); } 
                             } else { 
-                                // [Visual Fix] Radius 0.85 -> 2.0 to act as "Clarity/Structure"
-                                if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "2.0");
+                                if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "0.75");
                                 if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', (1 + strCoarse).toFixed(3)); cache.compCoarse.setAttribute('k3', (-strCoarse).toFixed(3)); } 
                             }
                         }
@@ -582,14 +583,11 @@
                             }
                         }
 
-                        // [Visual] RGB 3-Channel White Balance (High Precision Tuned)
                         if (colorTemp !== undefined && cache.ctBlue && cache.ctRed && cache.ctGreen) {
                             const t = colorTemp; 
                             const warm = Math.max(0, t);
                             const cool = Math.max(0, -t);
                             
-                            // Coefficients lowered by ~50% for granular control over -25 to 25 range
-                            // Cool: Delicate Red/Green Reduction
                             const rSlope = 1 + warm * 0.003 - cool * 0.005; 
                             const gSlope = 1 + warm * 0.002 - cool * 0.004;
                             const bSlope = 1 - warm * 0.006 + cool * 0.000; 
@@ -602,13 +600,13 @@
                         }
 
                         if (dither !== undefined && cache.ditherBlend) {
-                             const n = dither / 100;
-                             const intensity = n * n * 0.35;
-                             const freq = (0.65 + n * 0.3).toFixed(3);
+                                const n = dither / 100;
+                                const intensity = n * n * 0.35;
+                                const freq = (0.65 + n * 0.3).toFixed(3);
 
-                             if (cache.noiseGen) cache.noiseGen.setAttribute('baseFrequency', freq);
-                             cache.ditherBlend.setAttribute('k3', intensity.toFixed(3));
-                             cache.ditherBlend.setAttribute('k4', (-0.5 * intensity).toFixed(3));
+                                if (cache.noiseGen) cache.noiseGen.setAttribute('baseFrequency', freq);
+                                cache.ditherBlend.setAttribute('k3', intensity.toFixed(3));
+                                cache.ditherBlend.setAttribute('k4', (-0.5 * intensity).toFixed(3));
                         }
 
                         if ((profile !== undefined || profileStrength !== undefined) && cache.profileMatrix) {
@@ -660,7 +658,6 @@
                 }
                 updateSmartLimit(slope) {
                     if (!this.isInitialized()) return;
-                    // [Optimization] Collect then delete to avoid Set iterator issues during modification
                     const toRemove = [];
                     for (const rootNode of this._activeFilterRoots) {
                          if(!rootNode.isConnected) {
@@ -717,7 +714,7 @@
                 saturation: saturationFinal,
                 gamma: finalGamma,
                 blur: vf.blur,
-                sharpenLevel: vf.level,     
+                sharpenLevel: vf.level,      
                 level2: vf.level2,          
                 shadows: finalShadows,
                 highlights: finalHighlights,
