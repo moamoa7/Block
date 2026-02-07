@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (Clean Layout + RingingFix)
+// @name         Video_Image_Control (Clean Layout)
 // @namespace    https://com/
-// @version      117.19-RingingSuppression
-// @description  v117.19: [화질] 링잉(Halo) 억제 패치 적용. Level 2(디테일) 샤픈의 반경을 0.3->0.45로 늘리고, 강도 계산을 이차곡선(Quadratic)으로 변경하여 과도한 흰색 테두리 현상 완화.
+// @version      117.18-SharpLayoutFix
+// @description  v117.18: [UI] 샤프닝 그룹의 혼동되는 리셋 버튼 제거. S(15)-M(30)-L(50)-끔(0)의 직관적인 구성으로 변경. 전체 초기화는 상단 프로파일 영역으로 이동.
 // @match        *://*/*
 // @run-at       document-start
 // @grant        none
@@ -59,19 +59,19 @@
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) cancelIdle(idleCallbackId); idleCallbackId = requestIdle(task, { timeout: 1000 }); };
 
-    const _realmSheetCache = new WeakMap(); 
-    const _injectedContexts = new WeakMap(); 
+    const _realmSheetCache = new WeakMap();
+    const _injectedContexts = new WeakMap();
 
     function getSharedStyleSheetForView(view, cssText) {
         if (!view || !view.CSSStyleSheet) return null;
         let map = _realmSheetCache.get(view);
         if (!map) { map = new Map(); _realmSheetCache.set(view, map); }
         let sheet = map.get(cssText);
-        if (!sheet) { 
+        if (!sheet) {
             try {
-                sheet = new view.CSSStyleSheet(); 
-                sheet.replaceSync(cssText); 
-                map.set(cssText, sheet); 
+                sheet = new view.CSSStyleSheet();
+                sheet.replaceSync(cssText);
+                map.set(cssText, sheet);
             } catch(e) { return null; }
         }
         return sheet;
@@ -92,16 +92,16 @@
         if (!manager || !manager.isInitialized() || !stateManager) return;
         let root = element.getRootNode();
         const ownerDoc = element.ownerDocument;
-        
-        if (root === document && element.parentElement) { 
-            const shadowRoots = window._shadowDomList_ || []; 
-            for (const sRoot of shadowRoots) { if (sRoot.contains(element)) { root = sRoot; break; } } 
+
+        if (root === document && element.parentElement) {
+            const shadowRoots = window._shadowDomList_ || [];
+            for (const sRoot of shadowRoots) { if (sRoot.contains(element)) { root = sRoot; break; } }
         }
 
         if (ownerDoc === document && root === document) return;
 
         const type = (manager === stateManager.filterManagers.video) ? 'video' : 'image';
-        
+
         if (root instanceof ShadowRoot) {
             if (isInjected(root, type)) return;
         } else if (ownerDoc !== document) {
@@ -116,29 +116,29 @@
         if (ownerDoc !== document && ownerDoc.body && ownerDoc.head && !ownerDoc.documentElement.hasAttribute(attr)) {
             const clonedSvg = svgNode.cloneNode(true);
             const clonedStyle = styleNode.cloneNode(true);
-            
+
             ownerDoc.body.appendChild(clonedSvg);
-            
+
             const view = ownerDoc.defaultView;
             const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
-            
+
             if (sharedSheet && ('adoptedStyleSheets' in ownerDoc)) {
                  try {
                      const prev = ownerDoc.adoptedStyleSheets || [];
                      ownerDoc.adoptedStyleSheets = [...prev, sharedSheet];
                  } catch(e) {
-                     ownerDoc.head.appendChild(clonedStyle); 
+                     ownerDoc.head.appendChild(clonedStyle);
                  }
             } else {
                  ownerDoc.head.appendChild(clonedStyle);
             }
-            
+
             manager.registerContext(clonedSvg);
             ownerDoc.documentElement.setAttribute(attr, 'true');
-            markInjected(ownerDoc, type); 
+            markInjected(ownerDoc, type);
             return;
-        } 
-        
+        }
+
         // ShadowRoot Injection
         if (root instanceof ShadowRoot) {
             const flag = type === 'video' ? '_vsc_video_filters_injected' : '_vsc_image_filters_injected';
@@ -146,26 +146,26 @@
                 try {
                     const clonedSvg = svgNode.cloneNode(true);
                     const clonedStyle = styleNode.cloneNode(true);
-                    
+
                     const view = root.ownerDocument ? root.ownerDocument.defaultView : null;
                     const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
-                    
-                    if (sharedSheet && ('adoptedStyleSheets' in root)) { 
+
+                    if (sharedSheet && ('adoptedStyleSheets' in root)) {
                         try {
                             const prev = root.adoptedStyleSheets || [];
-                            root.adoptedStyleSheets = [...prev, sharedSheet]; 
+                            root.adoptedStyleSheets = [...prev, sharedSheet];
                         } catch(e) {
                             root.appendChild(clonedStyle);
                         }
-                    } else { 
-                        root.appendChild(clonedStyle); 
+                    } else {
+                        root.appendChild(clonedStyle);
                     }
                     root.appendChild(clonedSvg);
-                    
+
                     manager.registerContext(clonedSvg);
-                    root[flag] = true; 
+                    root[flag] = true;
                     if (root.host) root.host.setAttribute(attr, 'true');
-                    markInjected(root, type); 
+                    markInjected(root, type);
                 } catch (e) { }
             }
         }
@@ -236,8 +236,8 @@
             if (!this.targetVideo || this.targetVideo.paused || this.targetVideo.ended) return;
             if (this.currentSettings.smartLimit <= 0 && this.currentSettings.autoTone <= 0) { this.stop(); return; }
             const skipThreshold = this.hasRVFC ? 10 : 0;
-            this.frameSkipCounter++; 
-            if (this.frameSkipCounter < skipThreshold) return; 
+            this.frameSkipCounter++;
+            if (this.frameSkipCounter < skipThreshold) return;
             this.frameSkipCounter = 0;
 
             try {
@@ -395,11 +395,11 @@
         destroy() { super.destroy(); if (this.throttledUpdate) document.removeEventListener('vsc-smart-limit-update', this.throttledUpdate); if(this._rafId) cancelAnimationFrame(this._rafId); if(this._imageRafId) cancelAnimationFrame(this._imageRafId); if(this._mediaStateRafId) cancelAnimationFrame(this._mediaStateRafId); }
         _createManager(options) {
             class SvgFilterManager {
-                constructor(options) { 
-                    this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; 
-                    this._elementCache = new WeakMap(); 
-                    this._activeFilterRoots = new Set(); 
-                    this._globalToneCache = { key: null, table: null }; 
+                constructor(options) {
+                    this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options;
+                    this._elementCache = new WeakMap();
+                    this._activeFilterRoots = new Set();
+                    this._globalToneCache = { key: null, table: null };
                 }
                 isInitialized() { return this._isInitialized; } getSvgNode() { return this._svgNode; } getStyleNode() { return this._styleElement; }
                 init() { if (this._isInitialized) return; safeExec(() => { const { svgNode, styleElement } = this._createElements(); this._svgNode = svgNode; this._styleElement = styleElement; (document.head || document.documentElement).appendChild(styleElement); (document.body || document.documentElement).appendChild(svgNode); this._activeFilterRoots.add(this._svgNode); this._isInitialized = true; }, `${this.constructor.name}.init`); }
@@ -414,15 +414,15 @@
                     const combinedFilter = createSvgElement('filter', { id: combinedFilterId, "color-interpolation-filters": "sRGB" });
                     const smartDim = createSvgElement('feComponentTransfer', { "data-vsc-id": "smart_dimming", in: "SourceGraphic", result: "dimmed_in" });
                     ['R', 'G', 'B'].forEach(c => smartDim.append(createSvgElement('feFunc' + c, { "data-vsc-id": "smart_dim_func", type: "linear", slope: "1", intercept: "0" })));
-                    
+
                     const blurFine = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur_fine", in: "dimmed_in", stdDeviation: "0", result: "blur_fine_out" });
                     const compFine = createSvgElement('feComposite', { "data-vsc-id": "sharpen_comp_fine", operator: "arithmetic", in: "dimmed_in", in2: "blur_fine_out", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_fine" });
-                    
+
                     const blurCoarse = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur_coarse", in: "sharpened_fine", stdDeviation: "0", result: "blur_coarse_out" });
                     const compCoarse = createSvgElement('feComposite', { "data-vsc-id": "sharpen_comp_coarse", operator: "arithmetic", in: "sharpened_fine", in2: "blur_coarse_out", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_final" });
 
                     let nextStageIn = "sharpened_final";
-                    
+
                     if (isImage) {
                         const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: nextStageIn, result: "final_out" });
                         colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
@@ -461,17 +461,17 @@
 
                         const noise = createSvgElement('feTurbulence', { "data-vsc-id": "noise_gen", type: "fractalNoise", baseFrequency: "0.85", numOctaves: "3", stitchTiles: "stitch", result: "raw_noise" });
                         const grayNoise = createSvgElement('feColorMatrix', { "data-vsc-id": "noise_desat", in: "raw_noise", type: "matrix", values: "0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 1 0", result: "mono_noise" });
-                        
+
                         const ditherBlend = createSvgElement('feComposite', { "data-vsc-id": "dither_blend", operator: "arithmetic",
                             in: "final_blur_out",
                             in2: "mono_noise", k1: "0", k2: "1", k3: "0", k4: "0", result: "dither_out"
                         });
-                        
+
                         const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "dither_out", result: "final_out" });
                         colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
                         colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" })); // Green Control Added
                         colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
-                        
+
                         combinedFilter.append(smartDim, blurFine, compFine, blurCoarse, compCoarse, profileMatrix, saturation, gamma, toneCurve, stLumaToAlpha, stShadowMaskInv, stShadowMaskRefined, stHighlightMaskRefined, stShadowFlood, stHighlightFlood, stShadowComp, stHighlightComp, stShadowBlend, stHighlightBlend, finalBlur, noise, grayNoise, ditherBlend, colorTemp);
                     }
                     svg.append(combinedFilter);
@@ -481,7 +481,7 @@
                 updateFilterValues(values) {
                     if (!this.isInitialized()) return;
                     const { saturation, gamma, blur, sharpenLevel, shadows, highlights, colorTemp, dither, profile, profileStrength, contrast } = values;
-                    
+
                     let currentToneTable = null;
                     const toneKey = (shadows !== undefined) ? `${(+shadows).toFixed(2)}_${(+highlights).toFixed(2)}_${(+contrast).toFixed(3)}` : null;
                     if (toneKey) {
@@ -513,6 +513,8 @@
                     }
 
                     const isImage = this._options.isImage;
+
+                    // [Optimization] Safe Set Iteration (Collect -> Delete)
                     const toRemove = [];
 
                     for (const rootNode of this._activeFilterRoots) {
@@ -523,7 +525,7 @@
                         let cache = this._elementCache.get(rootNode);
                         if (!cache) {
                             cache = {
-                                blurFine: rootNode.querySelector('[data-vsc-id="sharpen_blur_fine"]'), compFine: rootNode.querySelector('[data-vsc-id="sharpen_comp_fine"]'), 
+                                blurFine: rootNode.querySelector('[data-vsc-id="sharpen_blur_fine"]'), compFine: rootNode.querySelector('[data-vsc-id="sharpen_comp_fine"]'),
                                 blurCoarse: rootNode.querySelector('[data-vsc-id="sharpen_blur_coarse"]'), compCoarse: rootNode.querySelector('[data-vsc-id="sharpen_comp_coarse"]'),
                                 saturate: rootNode.querySelector('[data-vsc-id="saturate"]'), gammaFuncs: rootNode.querySelectorAll('[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB'), finalBlur: rootNode.querySelector('[data-vsc-id="final_blur"]'), toneCurveFuncs: rootNode.querySelectorAll('[data-vsc-id="tone_curve"] feFuncR, [data-vsc-id="tone_curve"] feFuncG, [data-vsc-id="tone_curve"] feFuncB'),
                                 ctRed: rootNode.querySelector('[data-vsc-id="ct_red"]'), ctGreen: rootNode.querySelector('[data-vsc-id="ct_green"]'), ctBlue: rootNode.querySelector('[data-vsc-id="ct_blue"]'),
@@ -531,7 +533,7 @@
                                 profileMatrix: rootNode.querySelector('[data-vsc-id="profile_matrix"]'), smartDimFuncs: rootNode.querySelectorAll('[data-vsc-id="smart_dim_func"]'),
                                 shadowFlood: rootNode.querySelector('[data-vsc-id="st_shadow_flood"]'), highlightFlood: rootNode.querySelector('[data-vsc-id="st_highlight_flood"]'),
                                 maskShadowFunc: rootNode.querySelector('[data-vsc-id="st_shadow_exp"]'), maskHighlightFunc: rootNode.querySelector('[data-vsc-id="st_highlight_exp"]'),
-                                appliedToneKey: null 
+                                appliedToneKey: null
                             }; this._elementCache.set(rootNode, cache);
                         }
 
@@ -539,36 +541,33 @@
                             let strCoarse = 0;
                             let strFine = 0;
 
+                            // [Visual] Image Mode -> Use FINE detail (Level 2 logic) to avoid halos
                             if (isImage) {
                                 strFine = Math.min(4.0, sharpenLevel * 0.12);
-                                strCoarse = 0; 
+                                strCoarse = 0; // Disable contour sharpening for images
                             } else {
-                                const lv2 = Math.max(0, Number(values.level2 || 0));
-                                const t2 = Math.min(1, lv2 / 50);
-                                strFine = 1.2 * (t2 * t2); 
-
+                                // Video Mode -> Level 1 is Coarse, Level 2 is Fine
+                                // [Tweak] Lower coefficient (0.05) for finer control, Lower radius for cleaner edges
                                 strCoarse = Math.min(4.0, sharpenLevel * 0.05);
-                                strCoarse *= (1 - 0.35 * t2);
+                                strFine = (values.level2 !== undefined) ? Math.min(4.0, values.level2 * 0.05) : 0;
                             }
 
-                            if (strFine <= 0.01) { 
+                            if (strFine <= 0.01) {
                                 if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "0");
-                                if (cache.compFine) { cache.compFine.setAttribute('k2', "1"); cache.compFine.setAttribute('k3', "0"); } 
-                            } else { 
-                                const fineAmount = strFine * 0.75;
-                                if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "0.45");
-                                if (cache.compFine) { 
-                                    cache.compFine.setAttribute('k2', (1 + fineAmount).toFixed(3)); 
-                                    cache.compFine.setAttribute('k3', (-fineAmount).toFixed(3)); 
-                                } 
+                                if (cache.compFine) { cache.compFine.setAttribute('k2', "1"); cache.compFine.setAttribute('k3', "0"); }
+                            } else {
+                                // [Tweak] Fine Radius 0.4 -> 0.3 for very fine details
+                                if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "0.3");
+                                if (cache.compFine) { cache.compFine.setAttribute('k2', (1 + strFine).toFixed(3)); cache.compFine.setAttribute('k3', (-strFine).toFixed(3)); }
                             }
 
-                            if (strCoarse <= 0.01) { 
+                            if (strCoarse <= 0.01) {
                                 if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "0");
-                                if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', "1"); cache.compCoarse.setAttribute('k3', "0"); } 
-                            } else { 
+                                if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', "1"); cache.compCoarse.setAttribute('k3', "0"); }
+                            } else {
+                                // [Tweak] Coarse Radius 1.2 -> 0.75 for cleaner, less blocky sharpening
                                 if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "0.75");
-                                if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', (1 + strCoarse).toFixed(3)); cache.compCoarse.setAttribute('k3', (-strCoarse).toFixed(3)); } 
+                                if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', (1 + strCoarse).toFixed(3)); cache.compCoarse.setAttribute('k3', (-strCoarse).toFixed(3)); }
                             }
                         }
 
@@ -583,30 +582,33 @@
                             }
                         }
 
+                        // [Visual] RGB 3-Channel White Balance (High Precision Tuned)
                         if (colorTemp !== undefined && cache.ctBlue && cache.ctRed && cache.ctGreen) {
-                            const t = colorTemp; 
+                            const t = colorTemp;
                             const warm = Math.max(0, t);
                             const cool = Math.max(0, -t);
-                            
-                            const rSlope = 1 + warm * 0.003 - cool * 0.005; 
+
+                            // Coefficients lowered by ~50% for granular control over -25 to 25 range
+                            // Cool: Delicate Red/Green Reduction
+                            const rSlope = 1 + warm * 0.003 - cool * 0.005;
                             const gSlope = 1 + warm * 0.002 - cool * 0.004;
-                            const bSlope = 1 - warm * 0.006 + cool * 0.000; 
-                            
+                            const bSlope = 1 - warm * 0.006 + cool * 0.000;
+
                             const clamp = (v) => Math.max(0.7, Math.min(1.3, v));
-                            
+
                             cache.ctRed.setAttribute('slope', clamp(rSlope).toFixed(3));
                             cache.ctGreen.setAttribute('slope', clamp(gSlope).toFixed(3));
                             cache.ctBlue.setAttribute('slope', clamp(bSlope).toFixed(3));
                         }
 
                         if (dither !== undefined && cache.ditherBlend) {
-                                const n = dither / 100;
-                                const intensity = n * n * 0.35;
-                                const freq = (0.65 + n * 0.3).toFixed(3);
+                             const n = dither / 100;
+                             const intensity = n * n * 0.35;
+                             const freq = (0.65 + n * 0.3).toFixed(3);
 
-                                if (cache.noiseGen) cache.noiseGen.setAttribute('baseFrequency', freq);
-                                cache.ditherBlend.setAttribute('k3', intensity.toFixed(3));
-                                cache.ditherBlend.setAttribute('k4', (-0.5 * intensity).toFixed(3));
+                             if (cache.noiseGen) cache.noiseGen.setAttribute('baseFrequency', freq);
+                             cache.ditherBlend.setAttribute('k3', intensity.toFixed(3));
+                             cache.ditherBlend.setAttribute('k4', (-0.5 * intensity).toFixed(3));
                         }
 
                         if ((profile !== undefined || profileStrength !== undefined) && cache.profileMatrix) {
@@ -634,7 +636,7 @@
                             };
                             const toneParams = PROFILE_TONING[key] || PROFILE_TONING.none;
                             const isSplitToningActive = (key !== 'none' && s > 0);
-                            
+
                             if (cache.finalBlur) {
                                 const inputSource = isSplitToningActive ? "split_tone_out" : "tone_out";
                                 if (cache.finalBlur.getAttribute('in') !== inputSource) {
@@ -658,6 +660,7 @@
                 }
                 updateSmartLimit(slope) {
                     if (!this.isInitialized()) return;
+                    // [Optimization] Collect then delete to avoid Set iterator issues during modification
                     const toRemove = [];
                     for (const rootNode of this._activeFilterRoots) {
                          if(!rootNode.isConnected) {
@@ -665,7 +668,7 @@
                              continue;
                          }
                          let cache = this._elementCache.get(rootNode);
-                         if (cache && cache.smartDimFuncs) { cache.smartDimFuncs.forEach(el => el.setAttribute('slope', slope.toFixed(3))); } 
+                         if (cache && cache.smartDimFuncs) { cache.smartDimFuncs.forEach(el => el.setAttribute('slope', slope.toFixed(3))); }
                          else { rootNode.querySelectorAll(`[data-vsc-id="smart_dim_func"]`).forEach(el => el.setAttribute('slope', slope.toFixed(3))); }
                     }
                     toRemove.forEach(r => this._activeFilterRoots.delete(r));
@@ -714,8 +717,8 @@
                 saturation: saturationFinal,
                 gamma: finalGamma,
                 blur: vf.blur,
-                sharpenLevel: vf.level,      
-                level2: vf.level2,          
+                sharpenLevel: vf.level,
+                level2: vf.level2,
                 shadows: finalShadows,
                 highlights: finalHighlights,
                 colorTemp: vf.colorTemp,
@@ -728,23 +731,23 @@
             VideoAnalyzer.updateSettings({ smartLimit: vf.smartLimit, autoTone: vf.autoTone });
             this.updateMediaFilterStates();
         }
-        applyAllImageFilters() { 
+        applyAllImageFilters() {
             if (this._imageRafId) return;
             this._imageRafId = requestAnimationFrame(() => {
                 this._imageRafId = null;
-                if (!this.imageFilterManager.isInitialized()) return; 
-                const level = this.stateManager.get('imageFilter.level'); 
-                const colorTemp = this.stateManager.get('imageFilter.colorTemp'); 
-                const values = { sharpenLevel: level, colorTemp: colorTemp }; 
-                this.imageFilterManager.updateFilterValues(values); 
+                if (!this.imageFilterManager.isInitialized()) return;
+                const level = this.stateManager.get('imageFilter.level');
+                const colorTemp = this.stateManager.get('imageFilter.colorTemp');
+                const values = { sharpenLevel: level, colorTemp: colorTemp };
+                this.imageFilterManager.updateFilterValues(values);
                 this.updateMediaFilterStates();
             });
         }
-        updateMediaFilterStates() { 
+        updateMediaFilterStates() {
             if (this._mediaStateRafId) return;
             this._mediaStateRafId = requestAnimationFrame(() => {
                 this._mediaStateRafId = null;
-                this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); 
+                this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); });
                 this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); });
             });
         }
