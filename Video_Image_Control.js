@@ -897,9 +897,9 @@
             const profile = vf.activeProfile;
             const PROFILE_PARAMS = {
               none:  { sat: 1.00, gamma: 1.00, contrast: 1.00 },
-              film:  { sat: 0.95, gamma: 1.05, contrast: 1.35 },
-              teal:  { sat: 1.00, gamma: 1.10, contrast: 1.25 },
-              anime: { sat: 1.30, gamma: 1.25, contrast: 1.15 },
+              film:  { sat: 0.80, gamma: 1.05, contrast: 1.30 },
+              teal:  { sat: 1.00, gamma: 1.15, contrast: 1.20 },
+              anime: { sat: 1.20, gamma: 1.25, contrast: 1.15 },
             };
 
             const params = PROFILE_PARAMS[profile] || PROFILE_PARAMS.none;
