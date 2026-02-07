@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name        Video_Image_Control (Clean & Optimized & Fixed)
 // @namespace   https://com/
-// @version     119.5
-// @description v119.5: [Hotfix] Supjav 등 Iframe 사이트 미디어 감지 불가 문제 해결 (UI 제한 해제 및 스캔 주기 단축).
+// @version     119.6
+// @description v119.6: [Hotfix] Iframe 중첩 감지 강화, MutationObserver 수정, 스캔 주기 적응형 최적화(CPU 절약), 라이브 스트림 종료 버그 수정.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -41,8 +41,10 @@
         MIN_BUFFER_HEALTH_SEC: 1.0,
         LIVE_JUMP_INTERVAL: 6000, LIVE_JUMP_END_THRESHOLD: 1.0,
         DEBOUNCE_DELAY: 300,
-        SCAN_INTERVAL: 15000,
-        SCAN_INTERVAL_IFRAME: 3000, // [Fix for 119.5] Iframe 스캔 주기 대폭 단축 (60s -> 3s)
+        // 스캔 설정 (적응형으로 변경됨에 따라 기본값 설정)
+        SCAN_INTERVAL_BASE_TOP: 15000,
+        SCAN_INTERVAL_BASE_IFRAME: 3000,
+        SCAN_INTERVAL_MAX: 30000,
         MAX_Z_INDEX: 2147483647,
         UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_SITES: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
@@ -335,10 +337,14 @@
             super('CoreMedia');
             this.mainObserver = null;
             this.intersectionObserver = null;
-            this.maintenanceInterval = null;
+            this.scanTimerId = null;
             this.onAddShadowRoot = null;
             this._ioRatio = new Map();
             this._scanBound = this.scanAndApply.bind(this);
+            // [Adaptive Scan]
+            this.emptyScanCount = 0;
+            this.baseScanInterval = IS_TOP ? CONFIG.SCAN_INTERVAL_BASE_TOP : CONFIG.SCAN_INTERVAL_BASE_IFRAME;
+            this.currentScanInterval = this.baseScanInterval;
         }
         init(stateManager) {
             super.init(stateManager);
@@ -346,17 +352,16 @@
                 this.ensureObservers(); this.scanAndApply();
                 this.onAddShadowRoot = (e) => { if (e.detail && e.detail.shadowRoot) { this.scanSpecificRoot(e.detail.shadowRoot); } };
                 document.addEventListener('addShadowRoot', this.onAddShadowRoot);
-                if (this.maintenanceInterval) clearInterval(this.maintenanceInterval);
-
-                // [Fix for 119.5] Iframe 스캔 주기 3초로 단축하여 동적 로딩 대응
-                const interval = IS_TOP ? CONFIG.SCAN_INTERVAL : CONFIG.SCAN_INTERVAL_IFRAME;
-                this.maintenanceInterval = setInterval(() => {
-                    this.scanAndApply();
-                    if (window._shadowDomList_) { window._shadowDomList_ = window._shadowDomList_.filter(r => r && r.host && r.host.isConnected); }
-                }, interval);
+                this.scheduleNextScan(); // [Opt] Start adaptive loop
             });
         }
-        destroy() { super.destroy(); if (this.mainObserver) { this.mainObserver.disconnect(); this.mainObserver = null; } if (this.intersectionObserver) { this.intersectionObserver.disconnect(); this.intersectionObserver = null; } if (this.maintenanceInterval) { clearInterval(this.maintenanceInterval); this.maintenanceInterval = null; } if (this.onAddShadowRoot) { document.removeEventListener('addShadowRoot', this.onAddShadowRoot); this.onAddShadowRoot = null; } }
+        destroy() {
+            super.destroy();
+            if (this.mainObserver) { this.mainObserver.disconnect(); this.mainObserver = null; }
+            if (this.intersectionObserver) { this.intersectionObserver.disconnect(); this.intersectionObserver = null; }
+            if (this.scanTimerId) { clearTimeout(this.scanTimerId); this.scanTimerId = null; }
+            if (this.onAddShadowRoot) { document.removeEventListener('addShadowRoot', this.onAddShadowRoot); this.onAddShadowRoot = null; }
+        }
         ensureObservers() {
             if (!this.mainObserver) {
                 this.mainObserver = new MutationObserver((mutations) => {
@@ -365,12 +370,16 @@
                         if (m.addedNodes.length > 0) {
                             for(const n of m.addedNodes) {
                                 if (n.nodeType !== 1) continue;
-                                if (n.matches?.('video,img,iframe') || n.querySelector?.('video,img')) { needsScan = true; break; }
+                                // [Fix for 119.6] Iframe detection logic improved
+                                if (n.matches?.('video,img,iframe') || n.querySelector?.('video,img,iframe')) { needsScan = true; break; }
                             }
                         }
                         if (needsScan) break;
                     }
-                    if (needsScan) scheduleIdleTask(this._scanBound);
+                    if (needsScan) {
+                        this.resetScanInterval(); // Reset interval on mutation
+                        scheduleIdleTask(this._scanBound);
+                    }
                 });
                 const target = document.body || document.documentElement;
                 this.mainObserver.observe(target, { childList: true, subtree: true });
@@ -395,6 +404,36 @@
                     if (this.stateManager.get('app.isMobile')) { this.stateManager.set('media.currentlyVisibleMedia', best); }
                 }, { root: null, rootMargin: '0px', threshold: [0, 0.01, 0.5, 1.0] });
             }
+        }
+        scheduleNextScan() {
+            if (this.scanTimerId) clearTimeout(this.scanTimerId);
+            this.scanTimerId = setTimeout(() => {
+                 scheduleIdleTask(() => {
+                     this.scanAndApply();
+                     if (window._shadowDomList_) { window._shadowDomList_ = window._shadowDomList_.filter(r => r && r.host && r.host.isConnected); }
+                     // Adaptive Logic
+                     const activeMedia = this.stateManager.get('media.activeMedia');
+                     const activeImages = this.stateManager.get('media.activeImages');
+                     const hasMedia = activeMedia.size > 0 || activeImages.size > 0;
+
+                     if (hasMedia) {
+                         this.emptyScanCount = 0;
+                         this.currentScanInterval = this.baseScanInterval;
+                     } else {
+                         this.emptyScanCount++;
+                         if (this.emptyScanCount > 3) {
+                             this.currentScanInterval = Math.min(CONFIG.SCAN_INTERVAL_MAX, this.currentScanInterval * 1.5);
+                         }
+                     }
+                     this.scheduleNextScan();
+                 });
+            }, this.currentScanInterval);
+        }
+        resetScanInterval() {
+             this.emptyScanCount = 0;
+             this.currentScanInterval = this.baseScanInterval;
+             // Immediate scan if waiting too long
+             if (this.scanTimerId) { clearTimeout(this.scanTimerId); this.scheduleNextScan(); }
         }
         scanAndApply() {
             this._processElements(this.findAllMedia.bind(this), this.attachMediaListeners.bind(this), this.detachMediaListeners.bind(this), 'media.activeMedia');
@@ -450,18 +489,19 @@
             let media = new Set();
             const isValid = m => (m.offsetWidth >= CONFIG.VIDEO_MIN_SIZE || m.offsetHeight >= CONFIG.VIDEO_MIN_SIZE || m.videoWidth >= CONFIG.VIDEO_MIN_SIZE || m.videoHeight >= CONFIG.VIDEO_MIN_SIZE);
             root.querySelectorAll('video').forEach(m => isValid(m) && media.add(m));
-            if (window.top === window) {
-                root.querySelectorAll('iframe').forEach(f => {
-                    try {
-                        if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
-                        if (f.src && f.src.includes('challenges.cloudflare.com')) return;
-                        if (f.contentDocument) {
-                            const frameMedia = this.findAllMedia(f.contentDocument, depth + 1, skipShadowScan);
-                            frameMedia.forEach(m => media.add(m));
-                        }
-                    } catch (e) { }
-                });
-            }
+
+            // [Fix for 119.6] Removed top-window check for recursive iframe scanning
+            root.querySelectorAll('iframe').forEach(f => {
+                try {
+                    if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
+                    if (f.src && f.src.includes('challenges.cloudflare.com')) return;
+                    if (f.contentDocument) {
+                        const frameMedia = this.findAllMedia(f.contentDocument, depth + 1, skipShadowScan);
+                        frameMedia.forEach(m => media.add(m));
+                    }
+                } catch (e) { }
+            });
+
             if (!skipShadowScan) { (window._shadowDomList_ || []).forEach(shadowRoot => { try { shadowRoot.querySelectorAll('video').forEach(m => isValid(m) && media.add(m)); } catch (e) { } }); }
             return [...media];
         }
@@ -471,17 +511,18 @@
             let images = new Set();
             const isValid = i => (i.naturalWidth > CONFIG.IMAGE_MIN_SIZE && i.naturalHeight > CONFIG.IMAGE_MIN_SIZE) || (i.offsetWidth > CONFIG.IMAGE_MIN_SIZE && i.offsetHeight > CONFIG.IMAGE_MIN_SIZE);
             root.querySelectorAll('img').forEach(i => isValid(i) && images.add(i));
-            if (window.top === window) {
-                root.querySelectorAll('iframe').forEach(f => {
-                    try {
-                        if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
-                        if (f.contentDocument) {
-                            const frameImages = this.findAllImages(f.contentDocument, depth + 1, skipShadowScan);
-                            frameImages.forEach(i => images.add(i));
-                        }
-                    } catch (e) { }
-                });
-            }
+
+            // [Fix for 119.6] Removed top-window check for recursive iframe scanning
+            root.querySelectorAll('iframe').forEach(f => {
+                try {
+                    if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
+                    if (f.contentDocument) {
+                        const frameImages = this.findAllImages(f.contentDocument, depth + 1, skipShadowScan);
+                        frameImages.forEach(i => images.add(i));
+                    }
+                } catch (e) { }
+            });
+
             if (!skipShadowScan) { (window._shadowDomList_ || []).forEach(shadowRoot => { try { shadowRoot.querySelectorAll('img').forEach(i => isValid(i) && images.add(i)); } catch (e) { } }); }
             return [...images];
         }
@@ -939,15 +980,23 @@
         constructor() { super('LiveStream'); this.video = null; this.avgDelay = null; this.intervalId = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL; }
         init(stateManager) {
             super.init(stateManager);
+            // [Fix for 119.6] Listen to isRunning for proper stop/start control
+            this.subscribe('liveStream.isRunning', (running) => {
+                if (running) this.start();
+                else this.stop();
+            });
+
             this.subscribe('app.scriptActive', (active) => {
                 const isLiveSite = CONFIG.LIVE_STREAM_SITES.some(d => location.href.includes(d));
-                if (active && isLiveSite) this.start();
-                else this.stop();
+                // Just toggle the state, let the listener handle the logic
+                if (active && isLiveSite) this.stateManager.set('liveStream.isRunning', true);
+                else this.stateManager.set('liveStream.isRunning', false);
             });
             this.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge());
             this.subscribe('liveStream.resetRequested', () => { if (this.stateManager.get('liveStream.isRunning')) { this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; log('Live stream delay meter reset.'); } });
+
             if (this.stateManager.get('app.scriptActive') && CONFIG.LIVE_STREAM_SITES.some(d => location.href.includes(d))) {
-                this.start();
+                this.stateManager.set('liveStream.isRunning', true);
             }
         }
         destroy() { super.destroy(); this.stop(); }
@@ -958,8 +1007,8 @@
         checkAndAdjust() {
             if (!this.stateManager.get('app.scriptActive')) return;
             if (Math.abs(this.stateManager.get('playback.targetRate') - 1.0) > 0.01) return; this.video = this.findVideo(); if (!this.video) return; const rawDelay = this.calculateDelay(this.video); if (rawDelay === null) { this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: null, rate: this.video.playbackRate }); return; } this.avgDelay = this.avgDelay === null ? rawDelay : CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * this.avgDelay; this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: rawDelay, rate: this.video.playbackRate }); const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY; const error = this.avgDelay - targetDelay; if (Math.abs(error) < CONFIG.AUTODELAY_STABLE_THRESHOLD) this.consecutiveStableChecks++; else { this.consecutiveStableChecks = 0; if (this.isStable) { this.isStable = false; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_NORMAL); } } if (this.consecutiveStableChecks >= CONFIG.AUTODELAY_STABLE_COUNT && !this.isStable) { this.isStable = true; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_STABLE); } let newRate; const bufferHealth = (this.video.buffered && this.video.buffered.length) ? (this.video.buffered.end(this.video.buffered.length - 1) - this.video.currentTime) : 10; if ((this.avgDelay !== null && this.avgDelay <= targetDelay) || bufferHealth < CONFIG.MIN_BUFFER_HEALTH_SEC) { newRate = 1.0; this.pidIntegral = 0; this.lastError = 0; } else { newRate = this.getSmoothPlaybackRate(this.avgDelay, targetDelay); } if (Math.abs(this.video.playbackRate - newRate) > 0.001) { this.video.playbackRate = newRate; } const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child'); if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { const isLiveNow = this.avgDelay !== null && this.avgDelay < (CONFIG.DEFAULT_TARGET_DELAY + 500); liveJumpBtn.style.boxShadow = isLiveNow ? '0 0 8px 2px #ff0000' : '0 0 8px 2px #808080'; } }
-        start() { if (this.intervalId) return; this.stateManager.set('liveStream.isRunning', true); setTimeout(() => { this.stateManager.set('liveStream.delayInfo', { raw: null, avg: null, rate: 1.0 }); }, 0); this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval); }
-        stop() { if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; } const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child'); if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { liveJumpBtn.style.boxShadow = ''; } this.stateManager.set('liveStream.isRunning', false); this.stateManager.set('liveStream.delayInfo', null); this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL; }
+        start() { if (this.intervalId) return; setTimeout(() => { this.stateManager.set('liveStream.delayInfo', { raw: null, avg: null, rate: 1.0 }); }, 0); this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval); }
+        stop() { if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; } const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child'); if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { liveJumpBtn.style.boxShadow = ''; } this.stateManager.set('liveStream.delayInfo', null); this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL; }
         seekToLiveEdge() { const videos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO'); if (videos.length === 0) return; const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY; videos.forEach(v => { try { const seekableEnd = (v.seekable && v.seekable.length > 0) ? v.seekable.end(v.seekable.length - 1) : Infinity; const bufferedEnd = (v.buffered && v.buffered.length > 0) ? v.buffered.end(v.buffered.length - 1) : 0; const liveEdge = Math.min(seekableEnd, bufferedEnd); if (!isFinite(liveEdge)) return; const delayMs = (liveEdge - v.currentTime) * 1000; if (delayMs <= targetDelay) return; if (!v._lastLiveJump) v._lastLiveJump = 0; if (Date.now() - v._lastLiveJump < CONFIG.LIVE_JUMP_INTERVAL) return; if (liveEdge - v.currentTime < CONFIG.LIVE_JUMP_END_THRESHOLD) return; v._lastLiveJump = Date.now(); v.currentTime = liveEdge - 0.5; if (v.paused) v.play().catch(console.warn); } catch (e) { log('seekToLiveEdge error:', e); } }); }
     }
 
@@ -986,12 +1035,18 @@
             this.subscribe('audio.reverb', () => this.updateAudioParams());
             this.subscribe('audio.pitch', () => this.updatePitchState());
             this.subscribe('media.activeMedia', (newSet) => this.handleMediaChanges(newSet));
+            this.subscribe('app.scriptActive', (active) => { if (!active) this.disableEffects(); });
         }
         destroy() {
             super.destroy();
             if (this.ctx && this.ctx.state !== 'closed') { this.ctx.close().catch(() => {}); this.ctx = null; }
             this.nodes = { bypassGain: null, convolver: null, wetGain: null, masterGain: null, bassFilter: null, compressor: null, makeupGain: null };
             this.nodeMap.clear();
+        }
+        disableEffects() {
+            if (!this.ctx || this.ctx.state !== 'running') return;
+            if (this.nodes.bypassGain) this.smoothSet(this.nodes.bypassGain.gain, 1.0);
+            if (this.nodes.effectInputGain) this.smoothSet(this.nodes.effectInputGain.gain, 0.0);
         }
         async handleMediaChanges(activeMedia) {
              if (!this.stateManager.get('app.scriptActive')) return;
@@ -1073,7 +1128,7 @@
     }
 
     class UIPlugin extends Plugin {
-        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.fadeOutTimer = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.delayMeterEl = null; this.speedButtons = []; this.uiElements = {}; this.modalHost = null; this.modalShadowRoot = null; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; }
+        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.fadeOutTimer = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.delayMeterEl = null; this.speedButtons = []; this.uiElements = {}; this.modalHost = null; this.modalShadowRoot = null; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = {x:0, y:0}; }
         init(stateManager) {
             super.init(stateManager);
             this.subscribe('ui.createRequested', () => { if (!this.globalContainer) { this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); } });
@@ -1189,7 +1244,7 @@
 
             const imageSubMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controlsContainer); imageSubMenu.appendChild(this._createSlider('샤프닝', 'i-sharpen', 0, 20, 1, 'imageFilter.level', '단계', v => v === 0 ? '꺼짐' : `${v.toFixed(0)}단계`).control); imageSubMenu.appendChild(this._createSlider('색온도', 'i-colortemp', -7, 4, 1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control); if (this.speedButtons.length === 0) { CONFIG.SPEED_PRESETS.forEach(speed => { const btn = document.createElement('button'); btn.textContent = `${speed.toFixed(1)}x`; btn.dataset.speed = speed; btn.className = 'vsc-btn'; Object.assign(btn.style, { background: 'rgba(52, 152, 219, 0.7)', color: 'white', width: 'clamp(30px, 6vmin, 40px)', height: 'clamp(20px, 4vmin, 30px)', fontSize: 'clamp(12px, 2vmin, 14px)', padding: '0', transition: 'background-color 0.2s, box-shadow 0.2s' }); btn.onclick = () => this.stateManager.set('playback.targetRate', speed); this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn); }); const isLiveJumpSite = CONFIG.LIVE_STREAM_SITES.some(d => location.hostname === d || location.hostname.endsWith('.' + d)); if (isLiveJumpSite) { const liveJumpBtn = document.createElement('button'); liveJumpBtn.textContent = '⚡'; liveJumpBtn.title = '실시간으로 이동'; liveJumpBtn.className = 'vsc-btn'; Object.assign(liveJumpBtn.style, { width: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', height: this.stateManager.get('app.isMobile') ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', fontSize: this.stateManager.get('app.isMobile') ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)', borderRadius: '50%', padding: '0', transition: 'box-shadow 0.3s' }); liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now()); this.speedButtonsContainer.appendChild(liveJumpBtn); } } mainContainer.appendChild(controlsContainer); this.shadowRoot.appendChild(mainContainer); this.updateActiveSpeedButton(this.stateManager.get('playback.currentRate'));
         }
-        attachDragAndDrop() { let pressTimer = null; const isInteractiveTarget = (e) => { for (const element of e.composedPath()) { if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(element.tagName)) { return true; } } return false; }; const onDragStart = (e) => { if (isInteractiveTarget(e)) return; pressTimer = setTimeout(() => { if (this.globalContainer) { this.globalContainer.style.display = 'none'; setTimeout(() => { if (this.globalContainer) this.globalContainer.style.display = 'flex'; }, 5000); } onDragEnd(); }, 800); const pos = e.touches ? e.touches[0] : e; this.startPos = { x: pos.clientX, y: pos.clientY }; this.currentPos = { x: this.uiState.x, y: this.uiState.y }; this.isDragging = true; this.wasDragged = false; this.globalContainer.style.transition = 'none'; document.addEventListener('mousemove', onDragMove, { passive: false }); document.addEventListener('mouseup', onDragEnd, { passive: true }); document.addEventListener('touchmove', onDragMove, { passive: false }); document.addEventListener('touchend', onDragEnd, { passive: true }); }; const updatePosition = () => { if (!this.isDragging || !this.globalContainer) return; const newX = this.currentPos.x + this.delta.x; const newY = this.currentPos.y + this.delta.y; this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`); this.animationFrameId = null; }; const onDragMove = (e) => { if (!this.isDragging) return; const pos = e.touches ? e.touches[0] : e; this.delta = { x: pos.clientX - this.startPos.x, y: pos.clientY - this.startPos.y }; if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI_DRAG_THRESHOLD)) { this.wasDragged = true; clearTimeout(pressTimer); if (e.cancelable) e.preventDefault(); } if (this.wasDragged && this.animationFrameId === null) { this.animationFrameId = requestAnimationFrame(updatePosition); } }; const onDragEnd = () => { clearTimeout(pressTimer); if (!this.isDragging) return; if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; } if (this.wasDragged) { this.uiState.x += this.delta.x; this.uiState.y += this.delta.y; } this.isDragging = false; this.globalContainer.style.transition = ''; document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd); document.removeEventListener('touchmove', onDragMove); document.removeEventListener('touchend', onDragEnd); setTimeout(() => { this.wasDragged = false; }, 50); }; this.triggerElement.addEventListener('mousedown', onDragStart); this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false }); }
+        attachDragAndDrop() { let pressTimer = null; const isInteractiveTarget = (e) => { for (const element of e.composedPath()) { if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(element.tagName)) { return true; } } return false; }; const onDragStart = (e) => { if (isInteractiveTarget(e)) return; pressTimer = setTimeout(() => { if (this.globalContainer) { this.globalContainer.style.display = 'none'; setTimeout(() => { if (this.globalContainer) this.globalContainer.style.display = 'flex'; }, 5000); } onDragEnd(); }, 800); const pos = e.touches ? e.touches[0] : e; this.startPos = { x: pos.clientX, y: pos.clientY }; this.currentPos = { x: this.uiState.x, y: this.uiState.y }; this.isDragging = true; this.wasDragged = false; this.delta = {x: 0, y: 0}; this.globalContainer.style.transition = 'none'; document.addEventListener('mousemove', onDragMove, { passive: false }); document.addEventListener('mouseup', onDragEnd, { passive: true }); document.addEventListener('touchmove', onDragMove, { passive: false }); document.addEventListener('touchend', onDragEnd, { passive: true }); }; const updatePosition = () => { if (!this.isDragging || !this.globalContainer) return; const newX = this.currentPos.x + this.delta.x; const newY = this.currentPos.y + this.delta.y; this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`); this.animationFrameId = null; }; const onDragMove = (e) => { if (!this.isDragging) return; const pos = e.touches ? e.touches[0] : e; this.delta = { x: pos.clientX - this.startPos.x, y: pos.clientY - this.startPos.y }; if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI_DRAG_THRESHOLD)) { this.wasDragged = true; clearTimeout(pressTimer); if (e.cancelable) e.preventDefault(); } if (this.wasDragged && this.animationFrameId === null) { this.animationFrameId = requestAnimationFrame(updatePosition); } }; const onDragEnd = () => { clearTimeout(pressTimer); if (!this.isDragging) return; if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; } const dx = this.delta?.x || 0; const dy = this.delta?.y || 0; if (this.wasDragged) { this.uiState.x += dx; this.uiState.y += dy; } this.isDragging = false; this.globalContainer.style.transition = ''; document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd); document.removeEventListener('touchmove', onDragMove); document.removeEventListener('touchend', onDragEnd); setTimeout(() => { this.wasDragged = false; }, 50); }; this.triggerElement.addEventListener('mousedown', onDragStart); this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false }); }
     }
 
     function main() {
@@ -1197,7 +1252,6 @@
         const pluginManager = new PluginManager(stateManager);
         window.vscPluginManager = pluginManager;
 
-        // [Fix for 119.5] UIPlugin 제한 해제 (Iframe 내부에서도 미디어가 발견되면 UI 생성)
         pluginManager.register(new UIPlugin());
 
         if (IS_TOP) {
