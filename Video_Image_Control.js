@@ -1,28 +1,33 @@
 // ==UserScript==
-// @name         Video_Image_Control (Clean Layout)
-// @namespace    https://com/
-// @version      117.18-SharpLayoutFix
-// @description  v117.18: [UI] 샤프닝 그룹의 혼동되는 리셋 버튼 제거. S(15)-M(30)-L(50)-끔(0)의 직관적인 구성으로 변경. 전체 초기화는 상단 프로파일 영역으로 이동.
-// @match        *://*/*
-// @run-at       document-start
-// @grant        none
+// @name        Video_Image_Control (Clean & Optimized & Fixed)
+// @namespace   https://com/
+// @version     119.5
+// @description v119.5: [Hotfix] Supjav 등 Iframe 사이트 미디어 감지 불가 문제 해결 (UI 제한 해제 및 스캔 주기 단축).
+// @match       *://*/*
+// @run-at      document-start
+// @grant       none
 // ==/UserScript==
 
 (function () {
     'use strict';
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
+    Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
+
+    const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
+    const IS_TOP = window === window.top;
 
     const CONFIG = {
+        DEBUG: false,
         ENABLE_HLS_BOOST: true,
+        ENABLE_SHADOW_HOOK: true,
         HLS_MAX_BUFFER: 120,
         HLS_BACK_BUFFER: 60,
-        DEFAULT_VIDEO_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 15 : 15,
-        DEFAULT_VIDEO_FILTER_LEVEL_2: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 15 : 15,
-        DEFAULT_IMAGE_FILTER_LEVEL: (/Mobi|Android|iPhone/i.test(navigator.userAgent)) ? 15 : 15,
+        DEFAULT_VIDEO_FILTER_LEVEL: 15,
+        DEFAULT_VIDEO_FILTER_LEVEL_2: 15,
+        DEFAULT_IMAGE_FILTER_LEVEL: 15,
         DEFAULT_SMART_LIMIT_LEVEL: 0,
         DEFAULT_AUTO_TONE_LEVEL: 0,
-        DEBUG: false,
         DEFAULT_AUDIO_BASS: 0,
         AUDIO_BASS_MAX_DB: 6.5,
         AUDIO_BASS_FREQ: 90,
@@ -36,14 +41,15 @@
         MIN_BUFFER_HEALTH_SEC: 1.0,
         LIVE_JUMP_INTERVAL: 6000, LIVE_JUMP_END_THRESHOLD: 1.0,
         DEBOUNCE_DELAY: 300,
-        SCAN_INTERVAL: 3000,
-        MAX_RECURSION_DEPTH: 3,
+        SCAN_INTERVAL: 15000,
+        SCAN_INTERVAL_IFRAME: 3000, // [Fix for 119.5] Iframe 스캔 주기 대폭 단축 (60s -> 3s)
         MAX_Z_INDEX: 2147483647,
         UI_DRAG_THRESHOLD: 5, UI_WARN_TIMEOUT: 10000,
         LIVE_STREAM_SITES: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
         SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2],
         VIDEO_MIN_SIZE: 50,
         IMAGE_MIN_SIZE: 355,
+        MAX_RECURSION_DEPTH: 4,
         MOBILE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: 0, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
         DESKTOP_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'SharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: 0, DITHER_VALUE: 0, SMART_LIMIT: 0, AUTO_TONE: 0 },
         IMAGE_FILTER_SETTINGS: { GAMMA_VALUE: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', BLUR_STD_DEVIATION: '0', SHADOWS_VALUE: 0, HIGHLIGHTS_VALUE: 0, SATURATION_VALUE: 100, COLORTEMP_VALUE: 0 },
@@ -51,13 +57,27 @@
         UI_HIDDEN_CLASS_NAME: 'vsc-hidden',
     };
 
+    const log = (...args) => { if (CONFIG.DEBUG) console.log('[VSC]', ...args); };
     const safeExec = (fn, label = '') => { try { fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
-    const debounce = (fn, wait) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; };
+
+    const debounce = (fn, wait) => {
+        let t;
+        return function(...args) {
+            clearTimeout(t);
+            t = setTimeout(() => fn.apply(this, args), wait);
+        };
+    };
     const throttle = (fn, limit) => { let inThrottle; return function(...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
     const requestIdle = window.requestIdleCallback ? window.requestIdleCallback.bind(window) : (cb) => { const start = Date.now(); return setTimeout(() => { cb({ didTimeout: false, timeRemaining: () => Math.max(0, 50 - (Date.now() - start)) }); }, 1); };
     const cancelIdle = window.cancelIdleCallback ? window.cancelIdleCallback.bind(window) : (id) => clearTimeout(id);
     let idleCallbackId;
     const scheduleIdleTask = (task) => { if (idleCallbackId) cancelIdle(idleCallbackId); idleCallbackId = requestIdle(task, { timeout: 1000 }); };
+
+    const setAttr = (el, name, val) => {
+        if (!el) return;
+        const strVal = String(val);
+        if (el.getAttribute(name) !== strVal) el.setAttribute(name, strVal);
+    };
 
     const _realmSheetCache = new WeakMap();
     const _injectedContexts = new WeakMap();
@@ -77,17 +97,6 @@
         return sheet;
     }
 
-    function isInjected(context, type) {
-        const set = _injectedContexts.get(context);
-        return !!(set && set.has(type));
-    }
-
-    function markInjected(context, type) {
-        let set = _injectedContexts.get(context);
-        if (!set) { set = new Set(); _injectedContexts.set(context, set); }
-        set.add(type);
-    }
-
     function injectFiltersIntoContext(element, manager, stateManager) {
         if (!manager || !manager.isInitialized() || !stateManager) return;
         let root = element.getRootNode();
@@ -101,82 +110,79 @@
         if (ownerDoc === document && root === document) return;
 
         const type = (manager === stateManager.filterManagers.video) ? 'video' : 'image';
+        const contextKey = root instanceof ShadowRoot ? root : ownerDoc;
 
-        if (root instanceof ShadowRoot) {
-            if (isInjected(root, type)) return;
-        } else if (ownerDoc !== document) {
-            if (isInjected(ownerDoc, type)) return;
-        }
+        let injectedSet = _injectedContexts.get(contextKey);
+        if (injectedSet && injectedSet.has(type)) return;
 
         const attr = `data-vsc-filters-injected-${type}`;
+
+        if (root instanceof ShadowRoot) {
+            if (root.host && root.host.hasAttribute(attr)) return;
+        } else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) {
+            return;
+        }
+
         const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode();
         if (!svgNode || !styleNode) return;
 
-        // Iframe Injection
         if (ownerDoc !== document && ownerDoc.body && ownerDoc.head && !ownerDoc.documentElement.hasAttribute(attr)) {
             const clonedSvg = svgNode.cloneNode(true);
             const clonedStyle = styleNode.cloneNode(true);
-
             ownerDoc.body.appendChild(clonedSvg);
 
             const view = ownerDoc.defaultView;
             const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
-
             if (sharedSheet && ('adoptedStyleSheets' in ownerDoc)) {
-                 try {
-                     const prev = ownerDoc.adoptedStyleSheets || [];
-                     ownerDoc.adoptedStyleSheets = [...prev, sharedSheet];
-                 } catch(e) {
-                     ownerDoc.head.appendChild(clonedStyle);
-                 }
+                 try { ownerDoc.adoptedStyleSheets = [...(ownerDoc.adoptedStyleSheets || []), sharedSheet]; }
+                 catch(e) { ownerDoc.head.appendChild(clonedStyle); }
             } else {
                  ownerDoc.head.appendChild(clonedStyle);
             }
-
             manager.registerContext(clonedSvg);
             ownerDoc.documentElement.setAttribute(attr, 'true');
-            markInjected(ownerDoc, type);
+            if(!injectedSet) { injectedSet = new Set(); _injectedContexts.set(contextKey, injectedSet); }
+            injectedSet.add(type);
             return;
         }
 
-        // ShadowRoot Injection
         if (root instanceof ShadowRoot) {
             const flag = type === 'video' ? '_vsc_video_filters_injected' : '_vsc_image_filters_injected';
             if (!root[flag]) {
                 try {
                     const clonedSvg = svgNode.cloneNode(true);
                     const clonedStyle = styleNode.cloneNode(true);
-
                     const view = root.ownerDocument ? root.ownerDocument.defaultView : null;
                     const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
 
                     if (sharedSheet && ('adoptedStyleSheets' in root)) {
-                        try {
-                            const prev = root.adoptedStyleSheets || [];
-                            root.adoptedStyleSheets = [...prev, sharedSheet];
-                        } catch(e) {
-                            root.appendChild(clonedStyle);
-                        }
+                        try { root.adoptedStyleSheets = [...(root.adoptedStyleSheets || []), sharedSheet]; }
+                        catch(e) { root.appendChild(clonedStyle); }
                     } else {
                         root.appendChild(clonedStyle);
                     }
                     root.appendChild(clonedSvg);
-
                     manager.registerContext(clonedSvg);
                     root[flag] = true;
                     if (root.host) root.host.setAttribute(attr, 'true');
-                    markInjected(root, type);
+                    if(!injectedSet) { injectedSet = new Set(); _injectedContexts.set(contextKey, injectedSet); }
+                    injectedSet.add(type);
                 } catch (e) { }
             }
         }
     }
 
-    Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
-
     if (CONFIG.ENABLE_HLS_BOOST) {
         (function patchHlsClass() {
             function isCtor(v) { return typeof v === 'function'; }
-            function protectGlobal(name, value) { try { delete window[name]; } catch {} Object.defineProperty(window, name, { value, writable: false, configurable: true, enumerable: false }); }
+            function protectGlobal(name, value) {
+                try {
+                    const descriptor = Object.getOwnPropertyDescriptor(window, name);
+                    if (descriptor && !descriptor.configurable) return;
+                    delete window[name];
+                    Object.defineProperty(window, name, { value, writable: false, configurable: true, enumerable: false });
+                } catch (e) {}
+            }
             function makePatchedHls(OriginalHls) {
                 if (!OriginalHls || OriginalHls.__VSC_PATCHED__ || !isCtor(OriginalHls)) return OriginalHls;
                 const overrides = { maxBufferLength: CONFIG.HLS_MAX_BUFFER, backBufferLength: CONFIG.HLS_BACK_BUFFER, maxMaxBufferLength: CONFIG.HLS_MAX_BUFFER * 2, startFragPrefetch: true };
@@ -191,19 +197,28 @@
         })();
     }
 
-    (function aggressiveShadowHook() {
-        if (window._hasAggressiveHook_) return;
-        try {
-            const originalAttachShadow = Element.prototype.attachShadow; window._shadowDomList_ = window._shadowDomList_ || [];
-            Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true });
-            Element.prototype.attachShadow = function (init) {
-                const shadowRoot = originalAttachShadow.call(this, init);
-                try { const cls = (this.className || '').toString(); const id = (this.id || '').toString(); if (cls.includes('turnstile') || id.includes('turnstile')) { return shadowRoot; } shadowRoot._vsc_pending_injection = true; window._shadowDomList_.push(shadowRoot); document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } })); } catch (e) { }
-                return shadowRoot;
-            };
-            window._hasAggressiveHook_ = true;
-        } catch (e) { console.warn("[VSC] Hooking Failed:", e); }
-    })();
+    if (CONFIG.ENABLE_SHADOW_HOOK) {
+        (function aggressiveShadowHook() {
+            if (window._hasAggressiveHook_) return;
+            try {
+                const originalAttachShadow = Element.prototype.attachShadow;
+                window._shadowDomList_ = window._shadowDomList_ || [];
+                Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true });
+                Element.prototype.attachShadow = function (init) {
+                    const shadowRoot = originalAttachShadow.call(this, init);
+                    try {
+                        const cls = (this.className || '').toString(); const id = (this.id || '').toString();
+                        if (cls.includes('turnstile') || id.includes('turnstile')) { return shadowRoot; }
+                        shadowRoot._vsc_pending_injection = true;
+                        window._shadowDomList_.push(shadowRoot);
+                        document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } }));
+                    } catch (e) { }
+                    return shadowRoot;
+                };
+                window._hasAggressiveHook_ = true;
+            } catch (e) { log("Hooking Failed", e); }
+        })();
+    }
 
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null,
@@ -220,6 +235,10 @@
         },
         start(video, settings) {
             if (settings) this.currentSettings = { ...this.currentSettings, ...settings };
+            if (this.currentSettings.smartLimit <= 0 && this.currentSettings.autoTone <= 0) {
+                if (this.isRunning) this.stop();
+                return;
+            }
             const cachedSrc = this.taintedCache.get(video);
             const currentSrc = video.currentSrc || video.src;
             if (cachedSrc && cachedSrc === currentSrc) return;
@@ -230,7 +249,12 @@
             this.init(); this.isRunning = true; this.loop();
         },
         stop() { this.isRunning = false; if (this.handle && this.targetVideo && this.hasRVFC) { this.targetVideo.cancelVideoFrameCallback(this.handle); } this.targetVideo = null; },
-        updateSettings(settings) { this.currentSettings = { ...this.currentSettings, ...settings }; const isActive = this.currentSettings.smartLimit > 0 || this.currentSettings.autoTone > 0; if (isActive && !this.isRunning && this.targetVideo) { this.isRunning = true; this.loop(); } else if (!isActive && this.isRunning) { this.stop(); this.notifyUpdate(1.0, { gamma: 1.0, bright: 0, contrast: 0 }, 0); } },
+        updateSettings(settings) {
+            this.currentSettings = { ...this.currentSettings, ...settings };
+            const isActive = this.currentSettings.smartLimit > 0 || this.currentSettings.autoTone > 0;
+            if (isActive && !this.isRunning && this.targetVideo) { this.isRunning = true; this.loop(); }
+            else if (!isActive && this.isRunning) { this.stop(); this.notifyUpdate(1.0, { gamma: 1.0, bright: 0, contrast: 0 }, 0); }
+        },
         loop() { if (!this.isRunning || !this.targetVideo) return; if (this.hasRVFC) { this.handle = this.targetVideo.requestVideoFrameCallback(() => { this.processFrame(); this.loop(); }); } else { this.processFrame(); setTimeout(() => this.loop(), 200); } },
         processFrame() {
             if (!this.targetVideo || this.targetVideo.paused || this.targetVideo.ended) return;
@@ -243,14 +267,12 @@
             try {
                 this.ctx.drawImage(this.targetVideo, 0, 0, 32, 32);
                 const data = this.ctx.getImageData(0, 0, 32, 32).data;
-
                 let totalLuma = 0;
                 const len = data.length;
                 for (let i = 0; i < len; i += 4) {
                     totalLuma += (data[i] * 0.2126 + data[i+1] * 0.7152 + data[i+2] * 0.0722);
                 }
                 const avgLuma = (totalLuma / (len / 4)) / 255;
-
                 const ceiling = (100 - this.currentSettings.smartLimit) / 100;
                 let calcSlope = (avgLuma > ceiling && avgLuma > 0.01) ? (ceiling / avgLuma) : 1.0;
                 this.targetSlope = Math.max(0, Math.min(1.0, calcSlope));
@@ -314,9 +336,9 @@
             this.mainObserver = null;
             this.intersectionObserver = null;
             this.maintenanceInterval = null;
-            this.debouncedScanTask = debounce(this.scanAndApply.bind(this), CONFIG.DEBOUNCE_DELAY || 300);
             this.onAddShadowRoot = null;
             this._ioRatio = new Map();
+            this._scanBound = this.scanAndApply.bind(this);
         }
         init(stateManager) {
             super.init(stateManager);
@@ -325,12 +347,34 @@
                 this.onAddShadowRoot = (e) => { if (e.detail && e.detail.shadowRoot) { this.scanSpecificRoot(e.detail.shadowRoot); } };
                 document.addEventListener('addShadowRoot', this.onAddShadowRoot);
                 if (this.maintenanceInterval) clearInterval(this.maintenanceInterval);
-                this.maintenanceInterval = setInterval(() => { this.scanAndApply(); if (window._shadowDomList_) { window._shadowDomList_ = window._shadowDomList_.filter(r => r && r.host && r.host.isConnected); } }, CONFIG.SCAN_INTERVAL);
+
+                // [Fix for 119.5] Iframe 스캔 주기 3초로 단축하여 동적 로딩 대응
+                const interval = IS_TOP ? CONFIG.SCAN_INTERVAL : CONFIG.SCAN_INTERVAL_IFRAME;
+                this.maintenanceInterval = setInterval(() => {
+                    this.scanAndApply();
+                    if (window._shadowDomList_) { window._shadowDomList_ = window._shadowDomList_.filter(r => r && r.host && r.host.isConnected); }
+                }, interval);
             });
         }
         destroy() { super.destroy(); if (this.mainObserver) { this.mainObserver.disconnect(); this.mainObserver = null; } if (this.intersectionObserver) { this.intersectionObserver.disconnect(); this.intersectionObserver = null; } if (this.maintenanceInterval) { clearInterval(this.maintenanceInterval); this.maintenanceInterval = null; } if (this.onAddShadowRoot) { document.removeEventListener('addShadowRoot', this.onAddShadowRoot); this.onAddShadowRoot = null; } }
         ensureObservers() {
-            if (!this.mainObserver) { this.mainObserver = new MutationObserver(() => scheduleIdleTask(this.scanAndApply.bind(this))); const target = document.body || document.documentElement; this.mainObserver.observe(target, { childList: true, subtree: true }); }
+            if (!this.mainObserver) {
+                this.mainObserver = new MutationObserver((mutations) => {
+                    let needsScan = false;
+                    for(const m of mutations) {
+                        if (m.addedNodes.length > 0) {
+                            for(const n of m.addedNodes) {
+                                if (n.nodeType !== 1) continue;
+                                if (n.matches?.('video,img,iframe') || n.querySelector?.('video,img')) { needsScan = true; break; }
+                            }
+                        }
+                        if (needsScan) break;
+                    }
+                    if (needsScan) scheduleIdleTask(this._scanBound);
+                });
+                const target = document.body || document.documentElement;
+                this.mainObserver.observe(target, { childList: true, subtree: true });
+            }
             if (!this.intersectionObserver) {
                 this.intersectionObserver = new IntersectionObserver(entries => {
                     entries.forEach(e => {
@@ -344,27 +388,152 @@
                         if (!v.isConnected) { this._ioRatio.delete(v); continue; }
                         if (data.isVisible && data.ratio > maxR) { maxR = data.ratio; best = v; }
                     }
-                    if (best) VideoAnalyzer.start(best); else VideoAnalyzer.stop();
+                    const vf = this.stateManager.get('videoFilter');
+                    const active = this.stateManager.get('app.scriptActive');
+                    const needAnalyze = active && (vf.smartLimit > 0 || vf.autoTone > 0);
+                    if (best && needAnalyze) VideoAnalyzer.start(best); else VideoAnalyzer.stop();
                     if (this.stateManager.get('app.isMobile')) { this.stateManager.set('media.currentlyVisibleMedia', best); }
                 }, { root: null, rootMargin: '0px', threshold: [0, 0.01, 0.5, 1.0] });
             }
         }
-        scanAndApply() { this._processElements(this.findAllMedia.bind(this), this.attachMediaListeners.bind(this), this.detachMediaListeners.bind(this), 'media.activeMedia'); this._processElements(this.findAllImages.bind(this), this.attachImageListeners.bind(this), this.detachImageListeners.bind(this), 'media.activeImages'); }
-        scanSpecificRoot(root) { if (!root) return; const mediaInRoot = this.findAllMedia(root, 0, true); const imagesInRoot = this.findAllImages(root, 0, true); mediaInRoot.forEach(el => { if(el.isConnected) { this.attachMediaListeners(el); } }); imagesInRoot.forEach(el => { if(el.isConnected) { this.attachImageListeners(el); } }); const currentMedia = this.stateManager.get('media.activeMedia'); const currentImages = this.stateManager.get('media.activeImages'); let mediaChanged = false; let imagesChanged = false; mediaInRoot.forEach(m => { if (!currentMedia.has(m)) { currentMedia.add(m); mediaChanged = true; }}); imagesInRoot.forEach(i => { if (!currentImages.has(i)) { currentImages.add(i); imagesChanged = true; }}); if (mediaChanged) this.stateManager.set('media.activeMedia', new Set(currentMedia)); if (imagesChanged) this.stateManager.set('media.activeImages', new Set(currentImages)); }
-        _processElements(findAllFn, attachFn, detachFn, stateKey) { const allElements = findAllFn(); if (allElements.length > 0 && !this.stateManager.get('ui.globalContainer')) { this.stateManager.set('ui.createRequested', true); } const activeSet = this.stateManager.get(stateKey); const oldElements = new Set(activeSet); const newActiveSet = new Set(); allElements.forEach(el => { if (el.isConnected) { newActiveSet.add(el); attachFn(el); oldElements.delete(el); } }); oldElements.forEach(detachFn); if (newActiveSet.size !== activeSet.size || ![...newActiveSet].every(el => activeSet.has(el))) { this.stateManager.set(stateKey, newActiveSet); } }
+        scanAndApply() {
+            this._processElements(this.findAllMedia.bind(this), this.attachMediaListeners.bind(this), this.detachMediaListeners.bind(this), 'media.activeMedia');
+            this._processElements(this.findAllImages.bind(this), this.attachImageListeners.bind(this), this.detachImageListeners.bind(this), 'media.activeImages');
+        }
+
+        scanSpecificRoot(root) {
+            if (!root) return;
+            const mediaInRoot = this.findAllMedia(root, 0, true);
+            const imagesInRoot = this.findAllImages(root, 0, true);
+            const currentMedia = this.stateManager.get('media.activeMedia');
+            const currentImages = this.stateManager.get('media.activeImages');
+            let mediaChanged = false, imagesChanged = false;
+
+            mediaInRoot.forEach(el => {
+                if(el.isConnected && this.attachMediaListeners(el)) {
+                    if (!currentMedia.has(el)) { currentMedia.add(el); mediaChanged = true; }
+                }
+            });
+            imagesInRoot.forEach(el => {
+                if(el.isConnected && this.attachImageListeners(el)) {
+                    if (!currentImages.has(el)) { currentImages.add(el); imagesChanged = true; }
+                }
+            });
+
+            if (mediaChanged) this.stateManager.set('media.activeMedia', new Set(currentMedia));
+            if (imagesChanged) this.stateManager.set('media.activeImages', new Set(currentImages));
+        }
+
+        _processElements(findAllFn, attachFn, detachFn, stateKey) {
+            const allElements = findAllFn();
+            if (allElements.length > 0 && !this.stateManager.get('ui.globalContainer')) { this.stateManager.set('ui.createRequested', true); }
+            const activeSet = this.stateManager.get(stateKey);
+            const oldElements = new Set(activeSet);
+            const newActiveSet = new Set();
+
+            allElements.forEach(el => {
+                if (el.isConnected) {
+                    const isAttached = attachFn(el);
+                    if (isAttached) {
+                        newActiveSet.add(el);
+                        oldElements.delete(el);
+                    }
+                }
+            });
+
+            oldElements.forEach(detachFn);
+            if (newActiveSet.size !== activeSet.size || ![...newActiveSet].every(el => activeSet.has(el))) { this.stateManager.set(stateKey, newActiveSet); }
+        }
+
         findAllMedia(root = document, depth = 0, skipShadowScan = false) {
             if (depth > CONFIG.MAX_RECURSION_DEPTH) return [];
             let media = new Set();
             const isValid = m => (m.offsetWidth >= CONFIG.VIDEO_MIN_SIZE || m.offsetHeight >= CONFIG.VIDEO_MIN_SIZE || m.videoWidth >= CONFIG.VIDEO_MIN_SIZE || m.videoHeight >= CONFIG.VIDEO_MIN_SIZE);
             root.querySelectorAll('video').forEach(m => isValid(m) && media.add(m));
-            root.querySelectorAll('iframe').forEach(f => { try { if (f.src && f.src.includes('challenges.cloudflare.com')) return; if (f.contentDocument) { const frameMedia = this.findAllMedia(f.contentDocument, depth + 1, skipShadowScan); frameMedia.forEach(m => media.add(m)); } } catch (e) { } });
+            if (window.top === window) {
+                root.querySelectorAll('iframe').forEach(f => {
+                    try {
+                        if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
+                        if (f.src && f.src.includes('challenges.cloudflare.com')) return;
+                        if (f.contentDocument) {
+                            const frameMedia = this.findAllMedia(f.contentDocument, depth + 1, skipShadowScan);
+                            frameMedia.forEach(m => media.add(m));
+                        }
+                    } catch (e) { }
+                });
+            }
             if (!skipShadowScan) { (window._shadowDomList_ || []).forEach(shadowRoot => { try { shadowRoot.querySelectorAll('video').forEach(m => isValid(m) && media.add(m)); } catch (e) { } }); }
             return [...media];
         }
-        findAllImages(root = document, depth = 0, skipShadowScan = false) { if (depth > CONFIG.MAX_RECURSION_DEPTH) return []; let images = new Set(); const isValid = i => (i.naturalWidth > CONFIG.IMAGE_MIN_SIZE && i.naturalHeight > CONFIG.IMAGE_MIN_SIZE) || (i.offsetWidth > CONFIG.IMAGE_MIN_SIZE && i.offsetHeight > CONFIG.IMAGE_MIN_SIZE); root.querySelectorAll('img').forEach(i => isValid(i) && images.add(i)); root.querySelectorAll('iframe').forEach(f => { try { if (f.src && f.src.includes('challenges.cloudflare.com')) return; if (f.contentDocument) { const frameImages = this.findAllImages(f.contentDocument, depth + 1, skipShadowScan); frameImages.forEach(i => images.add(i)); } } catch (e) { } }); if (!skipShadowScan) { (window._shadowDomList_ || []).forEach(shadowRoot => { try { shadowRoot.querySelectorAll('img').forEach(i => isValid(i) && images.add(i)); } catch (e) { } }); } return [...images]; }
-        attachMediaListeners(media) { if (!media || this.stateManager.get('media.mediaListenerMap').has(media) || !this.intersectionObserver) return; media.dataset.isVisible = 'false'; if (this.stateManager.filterManagers.video) { injectFiltersIntoContext(media, this.stateManager.filterManagers.video, this.stateManager); } const listeners = { play: () => this.stateManager.set('playback.currentRate', media.playbackRate), ratechange: () => this.stateManager.set('playback.currentRate', media.playbackRate), }; for (const [evt, handler] of Object.entries(listeners)) { media.addEventListener(evt, handler); } this.stateManager.get('media.mediaListenerMap').set(media, listeners); this.stateManager.get('media.processedMedia').add(media); this.intersectionObserver.observe(media); }
-        detachMediaListeners(media) { const listenerMap = this.stateManager.get('media.mediaListenerMap'); if (!listenerMap.has(media)) return; const listeners = listenerMap.get(media); for (const [evt, listener] of Object.entries(listeners)) { media.removeEventListener(evt, listener); } listenerMap.delete(media); if (this.intersectionObserver) { this.intersectionObserver.unobserve(media); this._ioRatio.delete(media); } this.stateManager.get('media.processedMedia').delete(media); }
-        attachImageListeners(image) { if (!image || this.stateManager.get('media.processedImages').has(image) || !this.intersectionObserver) return; if (this.stateManager.filterManagers.image) { injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager); } this.stateManager.get('media.processedImages').add(image); this.intersectionObserver.observe(image); }
+
+        findAllImages(root = document, depth = 0, skipShadowScan = false) {
+            if (depth > CONFIG.MAX_RECURSION_DEPTH) return [];
+            let images = new Set();
+            const isValid = i => (i.naturalWidth > CONFIG.IMAGE_MIN_SIZE && i.naturalHeight > CONFIG.IMAGE_MIN_SIZE) || (i.offsetWidth > CONFIG.IMAGE_MIN_SIZE && i.offsetHeight > CONFIG.IMAGE_MIN_SIZE);
+            root.querySelectorAll('img').forEach(i => isValid(i) && images.add(i));
+            if (window.top === window) {
+                root.querySelectorAll('iframe').forEach(f => {
+                    try {
+                        if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
+                        if (f.contentDocument) {
+                            const frameImages = this.findAllImages(f.contentDocument, depth + 1, skipShadowScan);
+                            frameImages.forEach(i => images.add(i));
+                        }
+                    } catch (e) { }
+                });
+            }
+            if (!skipShadowScan) { (window._shadowDomList_ || []).forEach(shadowRoot => { try { shadowRoot.querySelectorAll('img').forEach(i => isValid(i) && images.add(i)); } catch (e) { } }); }
+            return [...images];
+        }
+
+        attachMediaListeners(media) {
+            const owner = media.getAttribute('data-vsc-controlled-by');
+            if (owner && owner !== VSC_INSTANCE_ID) return false;
+            if (this.stateManager.get('media.mediaListenerMap').has(media)) return true;
+            if (!this.intersectionObserver) return false;
+
+            media.setAttribute('data-vsc-controlled-by', VSC_INSTANCE_ID);
+            media.dataset.isVisible = 'false';
+            if (this.stateManager.filterManagers.video) { injectFiltersIntoContext(media, this.stateManager.filterManagers.video, this.stateManager); }
+            const listeners = { play: () => this.stateManager.set('playback.currentRate', media.playbackRate), ratechange: () => this.stateManager.set('playback.currentRate', media.playbackRate), };
+            for (const [evt, handler] of Object.entries(listeners)) { media.addEventListener(evt, handler); }
+            this.stateManager.get('media.mediaListenerMap').set(media, listeners);
+            this.stateManager.get('media.processedMedia').add(media);
+            this.intersectionObserver.observe(media);
+            return true;
+        }
+
+        detachMediaListeners(media) {
+            const listenerMap = this.stateManager.get('media.mediaListenerMap');
+            if (!listenerMap.has(media)) return;
+            if (media.getAttribute('data-vsc-controlled-by') === VSC_INSTANCE_ID) {
+                media.removeAttribute('data-vsc-controlled-by');
+            }
+            const listeners = listenerMap.get(media); for (const [evt, listener] of Object.entries(listeners)) { media.removeEventListener(evt, listener); } listenerMap.delete(media); if (this.intersectionObserver) { this.intersectionObserver.unobserve(media); this._ioRatio.delete(media); } this.stateManager.get('media.processedMedia').delete(media);
+        }
+
+        attachImageListeners(image) {
+            if (!image || !this.intersectionObserver) return false;
+            const processed = this.stateManager.get('media.processedImages');
+
+            if (!processed.has(image)) {
+                processed.add(image);
+                if (this.stateManager.filterManagers.image) {
+                    injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager);
+                }
+            }
+
+            const active = this.stateManager.get('app.scriptActive');
+            const level = this.stateManager.get('imageFilter.level');
+            const ct = this.stateManager.get('imageFilter.colorTemp');
+            const needObserve = active && (level > 0 || ct !== 0);
+
+            if (needObserve) this.intersectionObserver.observe(image);
+            else this.intersectionObserver.unobserve(image);
+
+            return true;
+        }
+
         detachImageListeners(image) { if (!this.stateManager.get('media.processedImages').has(image)) return; if (this.intersectionObserver) this.intersectionObserver.unobserve(image); this.stateManager.get('media.processedImages').delete(image); }
     }
 
@@ -375,14 +544,46 @@
             const isMobile = this.stateManager.get('app.isMobile');
             this.filterManager = this._createManager({ settings: isMobile ? CONFIG.MOBILE_FILTER_SETTINGS : CONFIG.DESKTOP_FILTER_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', className: 'vsc-video-filter-active', isImage: false });
             this.imageFilterManager = this._createManager({ settings: CONFIG.IMAGE_FILTER_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', className: 'vsc-image-filter-active', isImage: true });
-            this.filterManager.init(); this.imageFilterManager.init();
+
+            this.subscribe('app.scriptActive', (active) => {
+                if(active) {
+                    this.filterManager.init();
+                    this.imageFilterManager.init();
+
+                    const sm = this.stateManager;
+                    const activeMedia = sm.get('media.activeMedia');
+                    const activeImages = sm.get('media.activeImages');
+
+                    if (activeMedia.size > 0) {
+                        activeMedia.forEach(m => {
+                            if (!m.isConnected) return;
+                            injectFiltersIntoContext(m, this.filterManager, sm);
+                            this._updateVideoFilterState(m);
+                        });
+                    }
+                    if (activeImages.size > 0) {
+                        activeImages.forEach(i => {
+                             if (!i.isConnected) return;
+                             injectFiltersIntoContext(i, this.imageFilterManager, sm);
+                             this._updateImageFilterState(i);
+                        });
+                    }
+
+                    this.applyAllVideoFilters();
+                    this.applyAllImageFilters();
+                } else {
+                    this.applyAllVideoFilters();
+                    this.applyAllImageFilters();
+                }
+            });
+
             this.stateManager.filterManagers.video = this.filterManager; this.stateManager.filterManagers.image = this.imageFilterManager;
             this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
             this.subscribe('imageFilter.level', this.applyAllImageFilters.bind(this));
             this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this));
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates());
             this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates());
-            this.subscribe('app.scriptActive', () => this.updateMediaFilterStates());
+            this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
             this.throttledUpdate = throttle((e) => {
                 const { slope, autoParams } = e.detail;
                 this.filterManager.updateSmartLimit(slope);
@@ -390,7 +591,6 @@
                 if (isChanged) { this.lastAutoParams = autoParams; this.applyAllVideoFilters(); }
             }, 200);
             document.addEventListener('vsc-smart-limit-update', this.throttledUpdate);
-            this.applyAllVideoFilters(); this.applyAllImageFilters();
         }
         destroy() { super.destroy(); if (this.throttledUpdate) document.removeEventListener('vsc-smart-limit-update', this.throttledUpdate); if(this._rafId) cancelAnimationFrame(this._rafId); if(this._imageRafId) cancelAnimationFrame(this._imageRafId); if(this._mediaStateRafId) cancelAnimationFrame(this._mediaStateRafId); }
         _createManager(options) {
@@ -412,64 +612,45 @@
                     const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`;
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
                     const combinedFilter = createSvgElement('filter', { id: combinedFilterId, "color-interpolation-filters": "sRGB" });
+
                     const smartDim = createSvgElement('feComponentTransfer', { "data-vsc-id": "smart_dimming", in: "SourceGraphic", result: "dimmed_in" });
                     ['R', 'G', 'B'].forEach(c => smartDim.append(createSvgElement('feFunc' + c, { "data-vsc-id": "smart_dim_func", type: "linear", slope: "1", intercept: "0" })));
 
                     const blurFine = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur_fine", in: "dimmed_in", stdDeviation: "0", result: "blur_fine_out" });
                     const compFine = createSvgElement('feComposite', { "data-vsc-id": "sharpen_comp_fine", operator: "arithmetic", in: "dimmed_in", in2: "blur_fine_out", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_fine" });
-
                     const blurCoarse = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur_coarse", in: "sharpened_fine", stdDeviation: "0", result: "blur_coarse_out" });
                     const compCoarse = createSvgElement('feComposite', { "data-vsc-id": "sharpen_comp_coarse", operator: "arithmetic", in: "sharpened_fine", in2: "blur_coarse_out", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_final" });
 
                     let nextStageIn = "sharpened_final";
 
                     if (isImage) {
-                        const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: nextStageIn, result: "final_out" });
-                        colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
-                        // [Visual] Green Channel Control for True White Balance
-                        colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" }));
-                        colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
-                        combinedFilter.append(smartDim, blurFine, compFine, blurCoarse, compCoarse, colorTemp);
+                         const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: nextStageIn, result: "final_out" });
+                         colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
+                         colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" }));
+                         colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
+                         combinedFilter.append(smartDim, blurFine, compFine, blurCoarse, compCoarse, colorTemp);
                     } else {
                         const profileMatrix = createSvgElement('feColorMatrix', { "data-vsc-id": "profile_matrix", in: nextStageIn, type: "matrix", values: "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0", result: "profile_out" });
                         const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "profile_out", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
                         const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })));
                         const toneCurve = createSvgElement('feComponentTransfer', { "data-vsc-id": "tone_curve", in: "gamma_out", result: "tone_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'table', tableValues: "0 1" })));
-
-                        const stLumaToAlpha = createSvgElement('feColorMatrix', {
-                            "data-vsc-id": "st_luma_to_alpha", in: "gamma_out", type: "matrix",
-                            values: "0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.2126 0.7152 0.0722 0 0",
-                            result: "st_luma_a"
-                        });
-                        const stShadowMaskInv = createSvgElement('feComponentTransfer', { "data-vsc-id": "st_shadow_mask_inv", in: "st_luma_a", result: "st_shadow_mask_raw" },
-                            createSvgElement('feFuncA', { type: "linear", slope: "-1", intercept: "1" })
-                        );
-                        const stShadowMaskRefined = createSvgElement('feComponentTransfer', { "data-vsc-id": "st_shadow_mask_refined", in: "st_shadow_mask_raw", result: "st_shadow_mask_final" },
-                             createSvgElement('feFuncA', { "data-vsc-id": "st_shadow_exp", type: "gamma", exponent: "2.5" })
-                        );
-                        const stHighlightMaskRefined = createSvgElement('feComponentTransfer', { "data-vsc-id": "st_highlight_mask_refined", in: "st_luma_a", result: "st_highlight_mask_final" },
-                             createSvgElement('feFuncA', { "data-vsc-id": "st_highlight_exp", type: "gamma", exponent: "2.5" })
-                        );
+                        const stLumaToAlpha = createSvgElement('feColorMatrix', { "data-vsc-id": "st_luma_to_alpha", in: "gamma_out", type: "matrix", values: "0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.2126 0.7152 0.0722 0 0", result: "st_luma_a" });
+                        const stShadowMaskInv = createSvgElement('feComponentTransfer', { "data-vsc-id": "st_shadow_mask_inv", in: "st_luma_a", result: "st_shadow_mask_raw" }, createSvgElement('feFuncA', { type: "linear", slope: "-1", intercept: "1" }));
+                        const stShadowMaskRefined = createSvgElement('feComponentTransfer', { "data-vsc-id": "st_shadow_mask_refined", in: "st_shadow_mask_raw", result: "st_shadow_mask_final" }, createSvgElement('feFuncA', { "data-vsc-id": "st_shadow_exp", type: "gamma", exponent: "2.5" }));
+                        const stHighlightMaskRefined = createSvgElement('feComponentTransfer', { "data-vsc-id": "st_highlight_mask_refined", in: "st_luma_a", result: "st_highlight_mask_final" }, createSvgElement('feFuncA', { "data-vsc-id": "st_highlight_exp", type: "gamma", exponent: "2.5" }));
                         const stShadowFlood = createSvgElement('feFlood', { "data-vsc-id": "st_shadow_flood", "flood-color": "#000000", "flood-opacity": "0", result: "st_shadow_color" });
                         const stHighlightFlood = createSvgElement('feFlood', { "data-vsc-id": "st_highlight_flood", "flood-color": "#000000", "flood-opacity": "0", result: "st_highlight_color" });
                         const stShadowComp = createSvgElement('feComposite', { "data-vsc-id": "st_shadow_layer", in: "st_shadow_color", in2: "st_shadow_mask_final", operator: "in", result: "st_shadow_layer_out" });
                         const stHighlightComp = createSvgElement('feComposite', { "data-vsc-id": "st_highlight_layer", in: "st_highlight_color", in2: "st_highlight_mask_final", operator: "in", result: "st_highlight_layer_out" });
                         const stShadowBlend = createSvgElement('feBlend', { "data-vsc-id": "st_blend_shadows", in: "st_shadow_layer_out", in2: "tone_out", mode: "soft-light", result: "st_blended_shadows" });
                         const stHighlightBlend = createSvgElement('feBlend', { "data-vsc-id": "st_blend_highlights", in: "st_highlight_layer_out", in2: "st_blended_shadows", mode: "soft-light", result: "split_tone_out" });
-
                         const finalBlur = createSvgElement('feGaussianBlur', { "data-vsc-id": "final_blur", in: "split_tone_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "final_blur_out" });
-
                         const noise = createSvgElement('feTurbulence', { "data-vsc-id": "noise_gen", type: "fractalNoise", baseFrequency: "0.85", numOctaves: "3", stitchTiles: "stitch", result: "raw_noise" });
                         const grayNoise = createSvgElement('feColorMatrix', { "data-vsc-id": "noise_desat", in: "raw_noise", type: "matrix", values: "0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 1 0", result: "mono_noise" });
-
-                        const ditherBlend = createSvgElement('feComposite', { "data-vsc-id": "dither_blend", operator: "arithmetic",
-                            in: "final_blur_out",
-                            in2: "mono_noise", k1: "0", k2: "1", k3: "0", k4: "0", result: "dither_out"
-                        });
-
+                        const ditherBlend = createSvgElement('feComposite', { "data-vsc-id": "dither_blend", operator: "arithmetic", in: "final_blur_out", in2: "mono_noise", k1: "0", k2: "1", k3: "0", k4: "0", result: "dither_out" });
                         const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "dither_out", result: "final_out" });
                         colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
-                        colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" })); // Green Control Added
+                        colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" }));
                         colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
 
                         combinedFilter.append(smartDim, blurFine, compFine, blurCoarse, compCoarse, profileMatrix, saturation, gamma, toneCurve, stLumaToAlpha, stShadowMaskInv, stShadowMaskRefined, stHighlightMaskRefined, stShadowFlood, stHighlightFlood, stShadowComp, stHighlightComp, stShadowBlend, stHighlightBlend, finalBlur, noise, grayNoise, ditherBlend, colorTemp);
@@ -513,15 +694,10 @@
                     }
 
                     const isImage = this._options.isImage;
-
-                    // [Optimization] Safe Set Iteration (Collect -> Delete)
                     const toRemove = [];
 
                     for (const rootNode of this._activeFilterRoots) {
-                        if (!rootNode.isConnected) {
-                            toRemove.push(rootNode);
-                            continue;
-                        }
+                        if (!rootNode.isConnected) { toRemove.push(rootNode); continue; }
                         let cache = this._elementCache.get(rootNode);
                         if (!cache) {
                             cache = {
@@ -540,75 +716,62 @@
                         if (sharpenLevel !== undefined) {
                             let strCoarse = 0;
                             let strFine = 0;
-
-                            // [Visual] Image Mode -> Use FINE detail (Level 2 logic) to avoid halos
                             if (isImage) {
                                 strFine = Math.min(4.0, sharpenLevel * 0.12);
-                                strCoarse = 0; // Disable contour sharpening for images
+                                strCoarse = 0;
                             } else {
-                                // Video Mode -> Level 1 is Coarse, Level 2 is Fine
-                                // [Tweak] Lower coefficient (0.05) for finer control, Lower radius for cleaner edges
                                 strCoarse = Math.min(4.0, sharpenLevel * 0.05);
                                 strFine = (values.level2 !== undefined) ? Math.min(4.0, values.level2 * 0.05) : 0;
                             }
 
                             if (strFine <= 0.01) {
-                                if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "0");
-                                if (cache.compFine) { cache.compFine.setAttribute('k2', "1"); cache.compFine.setAttribute('k3', "0"); }
+                                setAttr(cache.blurFine, 'stdDeviation', "0");
+                                if (cache.compFine) { setAttr(cache.compFine, 'k2', "1"); setAttr(cache.compFine, 'k3', "0"); }
                             } else {
-                                // [Tweak] Fine Radius 0.4 -> 0.3 for very fine details
-                                if (cache.blurFine) cache.blurFine.setAttribute('stdDeviation', "0.3");
-                                if (cache.compFine) { cache.compFine.setAttribute('k2', (1 + strFine).toFixed(3)); cache.compFine.setAttribute('k3', (-strFine).toFixed(3)); }
+                                setAttr(cache.blurFine, 'stdDeviation', "0.3");
+                                if (cache.compFine) { setAttr(cache.compFine, 'k2', (1 + strFine).toFixed(3)); setAttr(cache.compFine, 'k3', (-strFine).toFixed(3)); }
                             }
 
                             if (strCoarse <= 0.01) {
-                                if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "0");
-                                if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', "1"); cache.compCoarse.setAttribute('k3', "0"); }
+                                setAttr(cache.blurCoarse, 'stdDeviation', "0");
+                                if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', "1"); setAttr(cache.compCoarse, 'k3', "0"); }
                             } else {
-                                // [Tweak] Coarse Radius 1.2 -> 0.75 for cleaner, less blocky sharpening
-                                if (cache.blurCoarse) cache.blurCoarse.setAttribute('stdDeviation', "0.75");
-                                if (cache.compCoarse) { cache.compCoarse.setAttribute('k2', (1 + strCoarse).toFixed(3)); cache.compCoarse.setAttribute('k3', (-strCoarse).toFixed(3)); }
+                                setAttr(cache.blurCoarse, 'stdDeviation', "0.75");
+                                if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', (1 + strCoarse).toFixed(3)); setAttr(cache.compCoarse, 'k3', (-strCoarse).toFixed(3)); }
                             }
                         }
 
-                        if (saturation !== undefined && cache.saturate) cache.saturate.setAttribute('values', (saturation / 100).toString());
-                        if (gamma !== undefined && cache.gammaFuncs) { const exp = (1 / gamma).toString(); cache.gammaFuncs.forEach(el => el.setAttribute('exponent', exp)); }
-                        if (blur !== undefined && cache.finalBlur) cache.finalBlur.setAttribute('stdDeviation', blur.toString());
+                        if (saturation !== undefined && cache.saturate) setAttr(cache.saturate, 'values', (saturation / 100).toString());
+                        if (gamma !== undefined && cache.gammaFuncs) { const exp = (1 / gamma).toString(); cache.gammaFuncs.forEach(el => setAttr(el, 'exponent', exp)); }
+                        if (blur !== undefined && cache.finalBlur) setAttr(cache.finalBlur, 'stdDeviation', blur.toString());
 
                         if (currentToneTable && cache.toneCurveFuncs) {
                             if (cache.appliedToneKey !== toneKey) {
                                 cache.appliedToneKey = toneKey;
-                                cache.toneCurveFuncs.forEach(el => el.setAttribute('tableValues', currentToneTable));
+                                cache.toneCurveFuncs.forEach(el => setAttr(el, 'tableValues', currentToneTable));
                             }
                         }
 
-                        // [Visual] RGB 3-Channel White Balance (High Precision Tuned)
                         if (colorTemp !== undefined && cache.ctBlue && cache.ctRed && cache.ctGreen) {
                             const t = colorTemp;
                             const warm = Math.max(0, t);
                             const cool = Math.max(0, -t);
-
-                            // Coefficients lowered by ~50% for granular control over -25 to 25 range
-                            // Cool: Delicate Red/Green Reduction
                             const rSlope = 1 + warm * 0.003 - cool * 0.005;
                             const gSlope = 1 + warm * 0.002 - cool * 0.004;
                             const bSlope = 1 - warm * 0.006 + cool * 0.000;
-
                             const clamp = (v) => Math.max(0.7, Math.min(1.3, v));
-
-                            cache.ctRed.setAttribute('slope', clamp(rSlope).toFixed(3));
-                            cache.ctGreen.setAttribute('slope', clamp(gSlope).toFixed(3));
-                            cache.ctBlue.setAttribute('slope', clamp(bSlope).toFixed(3));
+                            setAttr(cache.ctRed, 'slope', clamp(rSlope).toFixed(3));
+                            setAttr(cache.ctGreen, 'slope', clamp(gSlope).toFixed(3));
+                            setAttr(cache.ctBlue, 'slope', clamp(bSlope).toFixed(3));
                         }
 
                         if (dither !== undefined && cache.ditherBlend) {
                              const n = dither / 100;
                              const intensity = n * n * 0.35;
                              const freq = (0.65 + n * 0.3).toFixed(3);
-
-                             if (cache.noiseGen) cache.noiseGen.setAttribute('baseFrequency', freq);
-                             cache.ditherBlend.setAttribute('k3', intensity.toFixed(3));
-                             cache.ditherBlend.setAttribute('k4', (-0.5 * intensity).toFixed(3));
+                             if (cache.noiseGen) setAttr(cache.noiseGen, 'baseFrequency', freq);
+                             setAttr(cache.ditherBlend, 'k3', intensity.toFixed(3));
+                             setAttr(cache.ditherBlend, 'k4', (-0.5 * intensity).toFixed(3));
                         }
 
                         if ((profile !== undefined || profileStrength !== undefined) && cache.profileMatrix) {
@@ -626,7 +789,7 @@
                             const sRaw = (key === 'none') ? 0 : (profileStrength ?? 1);
                             const s = clamp01(Number(sRaw));
                             const out = I.map((v, i) => lerp(v, target[i], s));
-                            cache.profileMatrix.setAttribute('values', out.map(n => n.toFixed(4)).join(' '));
+                            setAttr(cache.profileMatrix, 'values', out.map(n => n.toFixed(4)).join(' '));
 
                             const PROFILE_TONING = {
                                 none:  { sColor: "#000000", sOp: 0, hColor: "#000000", hOp: 0, shExp: 2.5, hiExp: 2.5 },
@@ -639,37 +802,31 @@
 
                             if (cache.finalBlur) {
                                 const inputSource = isSplitToningActive ? "split_tone_out" : "tone_out";
-                                if (cache.finalBlur.getAttribute('in') !== inputSource) {
-                                    cache.finalBlur.setAttribute('in', inputSource);
-                                }
+                                setAttr(cache.finalBlur, 'in', inputSource);
                             }
 
                             if (cache.shadowFlood) {
-                                cache.shadowFlood.setAttribute("flood-color", toneParams.sColor);
-                                cache.shadowFlood.setAttribute("flood-opacity", (toneParams.sOp * s).toString());
+                                setAttr(cache.shadowFlood, "flood-color", toneParams.sColor);
+                                setAttr(cache.shadowFlood, "flood-opacity", (toneParams.sOp * s).toString());
                             }
                             if (cache.highlightFlood) {
-                                cache.highlightFlood.setAttribute("flood-color", toneParams.hColor);
-                                cache.highlightFlood.setAttribute("flood-opacity", (toneParams.hOp * s).toString());
+                                setAttr(cache.highlightFlood, "flood-color", toneParams.hColor);
+                                setAttr(cache.highlightFlood, "flood-opacity", (toneParams.hOp * s).toString());
                             }
-                            if (cache.maskShadowFunc) cache.maskShadowFunc.setAttribute('exponent', toneParams.shExp.toString());
-                            if (cache.maskHighlightFunc) cache.maskHighlightFunc.setAttribute('exponent', toneParams.hiExp.toString());
+                            if (cache.maskShadowFunc) setAttr(cache.maskShadowFunc, 'exponent', toneParams.shExp.toString());
+                            if (cache.maskHighlightFunc) setAttr(cache.maskHighlightFunc, 'exponent', toneParams.hiExp.toString());
                         }
                     }
                     toRemove.forEach(r => this._activeFilterRoots.delete(r));
                 }
                 updateSmartLimit(slope) {
                     if (!this.isInitialized()) return;
-                    // [Optimization] Collect then delete to avoid Set iterator issues during modification
                     const toRemove = [];
                     for (const rootNode of this._activeFilterRoots) {
-                         if(!rootNode.isConnected) {
-                             toRemove.push(rootNode);
-                             continue;
-                         }
+                         if(!rootNode.isConnected) { toRemove.push(rootNode); continue; }
                          let cache = this._elementCache.get(rootNode);
-                         if (cache && cache.smartDimFuncs) { cache.smartDimFuncs.forEach(el => el.setAttribute('slope', slope.toFixed(3))); }
-                         else { rootNode.querySelectorAll(`[data-vsc-id="smart_dim_func"]`).forEach(el => el.setAttribute('slope', slope.toFixed(3))); }
+                         if (cache && cache.smartDimFuncs) { cache.smartDimFuncs.forEach(el => setAttr(el, 'slope', slope.toFixed(3))); }
+                         else { rootNode.querySelectorAll(`[data-vsc-id="smart_dim_func"]`).forEach(el => setAttr(el, 'slope', slope.toFixed(3))); }
                     }
                     toRemove.forEach(r => this._activeFilterRoots.delete(r));
                 }
@@ -685,6 +842,12 @@
         }
         _applyAllVideoFiltersActual() {
             if (!this.filterManager.isInitialized()) return;
+            if (!this.stateManager.get('app.scriptActive')) {
+                 this.filterManager.updateFilterValues({ saturation: 100, gamma: 1.0, blur: 0, sharpenLevel: 0, level2: 0, shadows: 0, highlights: 0, colorTemp: 0, dither: 0, profile: 'none', profileStrength: 0, contrast: 1.0 });
+                 VideoAnalyzer.stop();
+                 this.updateMediaFilterStates();
+                 return;
+            }
             const vf = this.stateManager.get('videoFilter');
 
             const strength = (vf.profileStrength !== undefined) ? vf.profileStrength : 1.0;
@@ -699,10 +862,8 @@
             };
 
             const params = PROFILE_PARAMS[profile] || PROFILE_PARAMS.none;
-
             const targetContrast = params.contrast !== undefined ? params.contrast : 1.0;
             const effectiveContrastScale = lerp(1.0, targetContrast, strength);
-
             const effectiveSatScale = lerp(1.0, params.sat, strength);
             const effectiveGammaScale = lerp(1.0, params.gamma, strength);
 
@@ -736,8 +897,9 @@
             this._imageRafId = requestAnimationFrame(() => {
                 this._imageRafId = null;
                 if (!this.imageFilterManager.isInitialized()) return;
-                const level = this.stateManager.get('imageFilter.level');
-                const colorTemp = this.stateManager.get('imageFilter.colorTemp');
+                const active = this.stateManager.get('app.scriptActive');
+                const level = active ? this.stateManager.get('imageFilter.level') : 0;
+                const colorTemp = active ? this.stateManager.get('imageFilter.colorTemp') : 0;
                 const values = { sharpenLevel: level, colorTemp: colorTemp };
                 this.imageFilterManager.updateFilterValues(values);
                 this.updateMediaFilterStates();
@@ -751,27 +913,59 @@
                 this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); });
             });
         }
-        _updateVideoFilterState(video) { const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter'); const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0 || vf.colorTemp !== 0 || vf.dither > 0 || vf.smartLimit > 0 || vf.autoTone > 0 || vf.activeProfile !== 'none'; const isActive = scriptActive && video.dataset.isVisible !== 'false' && shouldApply; if (isActive) { if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform'; } else { if (video.style.willChange) video.style.willChange = ''; } video.classList.toggle('vsc-video-filter-active', isActive); }
-        _updateImageFilterState(image) { const scriptActive = this.stateManager.get('app.scriptActive'); const level = this.stateManager.get('imageFilter.level'); const colorTemp = this.stateManager.get('imageFilter.colorTemp'); const shouldApply = level > 0 || colorTemp !== 0; image.classList.toggle('vsc-image-filter-active', scriptActive && image.dataset.isVisible !== 'false' && shouldApply); }
+        _updateVideoFilterState(video) {
+            const scriptActive = this.stateManager.get('app.scriptActive');
+            const vf = this.stateManager.get('videoFilter');
+            const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.blur > 0 || vf.shadows !== 0 || vf.highlights !== 0 || vf.colorTemp !== 0 || vf.dither > 0 || vf.smartLimit > 0 || vf.autoTone > 0 || vf.activeProfile !== 'none';
+            const isActive = scriptActive && video.dataset.isVisible !== 'false' && shouldApply;
+            if (isActive) { if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform'; }
+            else { if (video.style.willChange) video.style.willChange = ''; }
+            video.classList.toggle('vsc-video-filter-active', isActive);
+        }
+        _updateImageFilterState(image) {
+            const scriptActive = this.stateManager.get('app.scriptActive');
+            if (!scriptActive) {
+                 image.classList.remove('vsc-image-filter-active');
+                 return;
+            }
+            const level = this.stateManager.get('imageFilter.level');
+            const colorTemp = this.stateManager.get('imageFilter.colorTemp');
+            const shouldApply = level > 0 || colorTemp !== 0;
+            image.classList.toggle('vsc-image-filter-active', image.dataset.isVisible !== 'false' && shouldApply);
+        }
     }
 
     class LiveStreamPlugin extends Plugin {
         constructor() { super('LiveStream'); this.video = null; this.avgDelay = null; this.intervalId = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL; }
-        init(stateManager) { super.init(stateManager); this.subscribe('liveStream.isRunning', (isRunning) => { if (isRunning) this.start(); else this.stop(); }); this.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge()); this.subscribe('liveStream.resetRequested', () => { if (this.stateManager.get('liveStream.isRunning')) { this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; console.log('[VSC] Live stream delay meter reset.'); } }); if (CONFIG.LIVE_STREAM_SITES.some(d => location.href.includes(d))) this.stateManager.set('liveStream.isRunning', true); }
+        init(stateManager) {
+            super.init(stateManager);
+            this.subscribe('app.scriptActive', (active) => {
+                const isLiveSite = CONFIG.LIVE_STREAM_SITES.some(d => location.href.includes(d));
+                if (active && isLiveSite) this.start();
+                else this.stop();
+            });
+            this.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge());
+            this.subscribe('liveStream.resetRequested', () => { if (this.stateManager.get('liveStream.isRunning')) { this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; log('Live stream delay meter reset.'); } });
+            if (this.stateManager.get('app.scriptActive') && CONFIG.LIVE_STREAM_SITES.some(d => location.href.includes(d))) {
+                this.start();
+            }
+        }
         destroy() { super.destroy(); this.stop(); }
         switchInterval(newInterval) { if (this.currentInterval === newInterval) return; clearInterval(this.intervalId); this.currentInterval = newInterval; this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval); }
         findVideo() { const visibleVideos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO' && m.dataset.isVisible === 'true'); if (visibleVideos.length === 0) return null; return visibleVideos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0]; }
         calculateDelay(v) { if (!v) return null; if (typeof v.liveLatency === 'number' && v.liveLatency > 0) return v.liveLatency * 1000; if (v.buffered && v.buffered.length > 0) { try { const end = v.buffered.end(v.buffered.length - 1); if (v.currentTime > end) return 0; return Math.max(0, (end - v.currentTime) * 1000); } catch { return null; } } return null; }
         getSmoothPlaybackRate(currentDelay, targetDelay) { const error = currentDelay - targetDelay; this.pidIntegral += error; const derivative = error - this.lastError; this.lastError = error; let rateChange = CONFIG.AUTODELAY_PID_KP * error + CONFIG.AUTODELAY_PID_KI * this.pidIntegral + CONFIG.AUTODELAY_PID_KD * derivative; return Math.max(CONFIG.AUTODELAY_MIN_RATE, Math.min(1 + rateChange, CONFIG.AUTODELAY_MAX_RATE)); }
-        checkAndAdjust() { if (Math.abs(this.stateManager.get('playback.targetRate') - 1.0) > 0.01) return; this.video = this.findVideo(); if (!this.video) return; const rawDelay = this.calculateDelay(this.video); if (rawDelay === null) { this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: null, rate: this.video.playbackRate }); return; } this.avgDelay = this.avgDelay === null ? rawDelay : CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * this.avgDelay; this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: rawDelay, rate: this.video.playbackRate }); const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY; const error = this.avgDelay - targetDelay; if (Math.abs(error) < CONFIG.AUTODELAY_STABLE_THRESHOLD) this.consecutiveStableChecks++; else { this.consecutiveStableChecks = 0; if (this.isStable) { this.isStable = false; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_NORMAL); } } if (this.consecutiveStableChecks >= CONFIG.AUTODELAY_STABLE_COUNT && !this.isStable) { this.isStable = true; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_STABLE); } let newRate; const bufferHealth = (this.video.buffered && this.video.buffered.length) ? (this.video.buffered.end(this.video.buffered.length - 1) - this.video.currentTime) : 10; if ((this.avgDelay !== null && this.avgDelay <= targetDelay) || bufferHealth < CONFIG.MIN_BUFFER_HEALTH_SEC) { newRate = 1.0; this.pidIntegral = 0; this.lastError = 0; } else { newRate = this.getSmoothPlaybackRate(this.avgDelay, targetDelay); } if (Math.abs(this.video.playbackRate - newRate) > 0.001) { this.video.playbackRate = newRate; } const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child'); if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { const isLiveNow = this.avgDelay !== null && this.avgDelay < (CONFIG.DEFAULT_TARGET_DELAY + 500); liveJumpBtn.style.boxShadow = isLiveNow ? '0 0 8px 2px #ff0000' : '0 0 8px 2px #808080'; } }
-        start() { if (this.intervalId) return; setTimeout(() => { this.stateManager.set('liveStream.delayInfo', { raw: null, avg: null, rate: 1.0 }); }, 0); this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval); }
-        stop() { if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; } const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child'); if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { liveJumpBtn.style.boxShadow = ''; } this.stateManager.set('liveStream.delayInfo', null); this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL; }
-        seekToLiveEdge() { const videos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO'); if (videos.length === 0) return; const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY; videos.forEach(v => { try { const seekableEnd = (v.seekable && v.seekable.length > 0) ? v.seekable.end(v.seekable.length - 1) : Infinity; const bufferedEnd = (v.buffered && v.buffered.length > 0) ? v.buffered.end(v.buffered.length - 1) : 0; const liveEdge = Math.min(seekableEnd, bufferedEnd); if (!isFinite(liveEdge)) return; const delayMs = (liveEdge - v.currentTime) * 1000; if (delayMs <= targetDelay) return; if (!v._lastLiveJump) v._lastLiveJump = 0; if (Date.now() - v._lastLiveJump < CONFIG.LIVE_JUMP_INTERVAL) return; if (liveEdge - v.currentTime < CONFIG.LIVE_JUMP_END_THRESHOLD) return; v._lastLiveJump = Date.now(); v.currentTime = liveEdge - 0.5; if (v.paused) v.play().catch(console.warn); } catch (e) { console.error('[VSC] seekToLiveEdge error:', e); } }); }
+        checkAndAdjust() {
+            if (!this.stateManager.get('app.scriptActive')) return;
+            if (Math.abs(this.stateManager.get('playback.targetRate') - 1.0) > 0.01) return; this.video = this.findVideo(); if (!this.video) return; const rawDelay = this.calculateDelay(this.video); if (rawDelay === null) { this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: null, rate: this.video.playbackRate }); return; } this.avgDelay = this.avgDelay === null ? rawDelay : CONFIG.AUTODELAY_EMA_ALPHA * rawDelay + (1 - CONFIG.AUTODELAY_EMA_ALPHA) * this.avgDelay; this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: rawDelay, rate: this.video.playbackRate }); const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY; const error = this.avgDelay - targetDelay; if (Math.abs(error) < CONFIG.AUTODELAY_STABLE_THRESHOLD) this.consecutiveStableChecks++; else { this.consecutiveStableChecks = 0; if (this.isStable) { this.isStable = false; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_NORMAL); } } if (this.consecutiveStableChecks >= CONFIG.AUTODELAY_STABLE_COUNT && !this.isStable) { this.isStable = true; this.switchInterval(CONFIG.AUTODELAY_INTERVAL_STABLE); } let newRate; const bufferHealth = (this.video.buffered && this.video.buffered.length) ? (this.video.buffered.end(this.video.buffered.length - 1) - this.video.currentTime) : 10; if ((this.avgDelay !== null && this.avgDelay <= targetDelay) || bufferHealth < CONFIG.MIN_BUFFER_HEALTH_SEC) { newRate = 1.0; this.pidIntegral = 0; this.lastError = 0; } else { newRate = this.getSmoothPlaybackRate(this.avgDelay, targetDelay); } if (Math.abs(this.video.playbackRate - newRate) > 0.001) { this.video.playbackRate = newRate; } const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child'); if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { const isLiveNow = this.avgDelay !== null && this.avgDelay < (CONFIG.DEFAULT_TARGET_DELAY + 500); liveJumpBtn.style.boxShadow = isLiveNow ? '0 0 8px 2px #ff0000' : '0 0 8px 2px #808080'; } }
+        start() { if (this.intervalId) return; this.stateManager.set('liveStream.isRunning', true); setTimeout(() => { this.stateManager.set('liveStream.delayInfo', { raw: null, avg: null, rate: 1.0 }); }, 0); this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval); }
+        stop() { if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; } const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child'); if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { liveJumpBtn.style.boxShadow = ''; } this.stateManager.set('liveStream.isRunning', false); this.stateManager.set('liveStream.delayInfo', null); this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL; }
+        seekToLiveEdge() { const videos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO'); if (videos.length === 0) return; const targetDelay = CONFIG.TARGET_DELAYS[location.hostname] || CONFIG.DEFAULT_TARGET_DELAY; videos.forEach(v => { try { const seekableEnd = (v.seekable && v.seekable.length > 0) ? v.seekable.end(v.seekable.length - 1) : Infinity; const bufferedEnd = (v.buffered && v.buffered.length > 0) ? v.buffered.end(v.buffered.length - 1) : 0; const liveEdge = Math.min(seekableEnd, bufferedEnd); if (!isFinite(liveEdge)) return; const delayMs = (liveEdge - v.currentTime) * 1000; if (delayMs <= targetDelay) return; if (!v._lastLiveJump) v._lastLiveJump = 0; if (Date.now() - v._lastLiveJump < CONFIG.LIVE_JUMP_INTERVAL) return; if (liveEdge - v.currentTime < CONFIG.LIVE_JUMP_END_THRESHOLD) return; v._lastLiveJump = Date.now(); v.currentTime = liveEdge - 0.5; if (v.paused) v.play().catch(console.warn); } catch (e) { log('seekToLiveEdge error:', e); } }); }
     }
 
     class PlaybackControlPlugin extends Plugin {
         init(stateManager) { super.init(stateManager); this.subscribe('playback.targetRate', (rate) => this.setPlaybackRate(rate)); }
-        setPlaybackRate(rate) { this.stateManager.get('media.activeMedia').forEach(media => { if (media.playbackRate !== rate) media.playbackRate = rate; }); }
+        setPlaybackRate(rate) { this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO' && media.playbackRate !== rate) media.playbackRate = rate; }); }
     }
 
     class AudioEffectPlugin extends Plugin {
@@ -800,6 +994,7 @@
             this.nodeMap.clear();
         }
         async handleMediaChanges(activeMedia) {
+             if (!this.stateManager.get('app.scriptActive')) return;
              if (!this.ctx || this.ctx.state !== 'running') { try { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (this.ctx.state === 'suspended') await this.ctx.resume(); } catch(e) {} }
              if (!this.ctx || this.ctx.state !== 'running') return;
 
@@ -874,7 +1069,7 @@
         constructor(pluginManager) { super('Navigation'); this.pluginManager = pluginManager; this.spaNavigationHandler = debounce(this.handleNavigation.bind(this), 100); }
         init(stateManager) { super.init(stateManager); if (history._vscWrapped) return; history._vscWrapped = true; const wrapHistory = (type) => { const orig = history[type]; return (...args) => { const rv = orig.apply(history, args); this.spaNavigationHandler(); return rv; }; }; history.pushState = wrapHistory('pushState'); history.replaceState = wrapHistory('replaceState'); window.addEventListener('popstate', this.spaNavigationHandler); }
         destroy() { super.destroy(); window.removeEventListener('popstate', this.spaNavigationHandler); }
-        handleNavigation() { const currentUrl = location.href; if (currentUrl === this.stateManager.get('ui.lastUrl')) return; this.stateManager.set('ui.lastUrl', currentUrl); console.log('[VSC] SPA Navigation Detected.'); const corePlugin = this.pluginManager.plugins.find(p => p.name === 'CoreMedia'); if (corePlugin) { corePlugin.scanAndApply(); [500, 1000, 2000].forEach(delay => { setTimeout(() => corePlugin.scanAndApply(), delay); }); } }
+        handleNavigation() { const currentUrl = location.href; if (currentUrl === this.stateManager.get('ui.lastUrl')) return; this.stateManager.set('ui.lastUrl', currentUrl); log('SPA Navigation Detected.'); const corePlugin = this.pluginManager.plugins.find(p => p.name === 'CoreMedia'); if (corePlugin) { corePlugin.scanAndApply(); [500, 1000, 2000].forEach(delay => { setTimeout(() => corePlugin.scanAndApply(), delay); }); } }
     }
 
     class UIPlugin extends Plugin {
@@ -915,12 +1110,39 @@
         resetFadeTimer() { const container = this.uiElements.mainContainer; if (container) { clearTimeout(this.fadeOutTimer); container.style.opacity = '1'; } }
         startFadeSequence() { const container = this.uiElements.mainContainer; if (container) { container.querySelectorAll('.vsc-control-group.submenu-visible').forEach(g => g.classList.remove('submenu-visible')); container.style.opacity = '0.3'; } }
         createGlobalUI() {
-            const isMobile = this.stateManager.get('app.isMobile'); this.globalContainer = document.createElement('div'); this.globalContainer.style.setProperty('--vsc-translate-x', '0px'); this.globalContainer.style.setProperty('--vsc-translate-y', '0px'); Object.assign(this.globalContainer.style, { position: 'fixed', top: '50%', right: '1vmin', transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-start', gap: '5px', WebkitTapHighlightColor: 'transparent' }); this.mainControlsContainer = document.createElement('div'); Object.assign(this.mainControlsContainer.style, { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }); this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡'; Object.assign(this.triggerElement.style, { width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', userSelect: 'none', fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)', transition: 'box-shadow 0.3s ease-in-out, background-color 0.3s', order: '1', touchAction: 'none', }); this.triggerElement.addEventListener('click', (e) => { if (this.wasDragged) { e.stopPropagation(); return; } if (!this.stateManager.get('app.scriptActive')) { this.stateManager.set('app.scriptActive', true); } const isVisible = this.stateManager.get('ui.areControlsVisible'); this.stateManager.set('ui.areControlsVisible', !isVisible); }); this.speedButtonsContainer = document.createElement('div'); this.speedButtonsContainer.id = 'vsc-speed-buttons-container'; this.speedButtonsContainer.style.cssText = `display:none; flex-direction:column; gap:5px; align-items:center; background: transparent; border-radius: 0px; padding: 0px;`; this.attachDragAndDrop(); this.mainControlsContainer.appendChild(this.triggerElement); this.globalContainer.appendChild(this.mainControlsContainer); this.globalContainer.appendChild(this.speedButtonsContainer); document.body.appendChild(this.globalContainer);
+            const isMobile = this.stateManager.get('app.isMobile'); this.globalContainer = document.createElement('div'); this.globalContainer.style.setProperty('--vsc-translate-x', '0px'); this.globalContainer.style.setProperty('--vsc-translate-y', '0px'); Object.assign(this.globalContainer.style, { position: 'fixed', top: '50%', right: '1vmin', transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'flex-start', gap: '5px', WebkitTapHighlightColor: 'transparent' }); this.mainControlsContainer = document.createElement('div'); Object.assign(this.mainControlsContainer.style, { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }); this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡'; Object.assign(this.triggerElement.style, { width: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', height: isMobile ? 'clamp(30px, 6vmin, 38px)' : 'clamp(32px, 7vmin, 44px)', background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', userSelect: 'none', fontSize: isMobile ? 'clamp(18px, 3.5vmin, 22px)' : 'clamp(20px, 4vmin, 26px)', transition: 'box-shadow 0.3s ease-in-out, background-color 0.3s', order: '1', touchAction: 'none', });
+            this.triggerElement.addEventListener('click', (e) => {
+                if (this.wasDragged) { e.stopPropagation(); return; }
+                const isVisible = this.stateManager.get('ui.areControlsVisible');
+                if (!isVisible) {
+                    this.stateManager.set('app.scriptActive', true);
+                    this.stateManager.set('ui.areControlsVisible', true);
+                } else {
+                    this.stateManager.set('app.scriptActive', false);
+                    this.stateManager.set('ui.areControlsVisible', false);
+                }
+            });
+            this.speedButtonsContainer = document.createElement('div'); this.speedButtonsContainer.id = 'vsc-speed-buttons-container'; this.speedButtonsContainer.style.cssText = `display:none; flex-direction:column; gap:5px; align-items:center; background: transparent; border-radius: 0px; padding: 0px;`; this.attachDragAndDrop(); this.mainControlsContainer.appendChild(this.triggerElement); this.globalContainer.appendChild(this.mainControlsContainer); this.globalContainer.appendChild(this.speedButtonsContainer); document.body.appendChild(this.globalContainer);
         }
         onControlsVisibilityChange(isVisible) {
             if (!this.triggerElement) return;
-            if (isVisible) { this.triggerElement.textContent = '🛑'; this.triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)'; const savedVideoSettings = this.stateManager.get('videoFilter.lastActiveSettings'); if (savedVideoSettings) { for (const key in savedVideoSettings) { this.stateManager.set(`videoFilter.${key}`, savedVideoSettings[key]); } this.stateManager.set('videoFilter.lastActiveSettings', null); } const savedImageSettings = this.stateManager.get('imageFilter.lastActiveSettings'); if (savedImageSettings) { this.stateManager.set('imageFilter.level', savedImageSettings.level); this.stateManager.set('imageFilter.lastActiveSettings', null); } }
-            else { this.triggerElement.textContent = '⚡️'; this.triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'; const videoState = this.stateManager.get('videoFilter'); const videoSettingsToSave = { level: videoState.level, level2: videoState.level2, gamma: videoState.gamma, blur: videoState.blur, shadows: videoState.shadows, highlights: videoState.highlights, saturation: videoState.saturation, colorTemp: videoState.colorTemp, dither: videoState.dither, smartLimit: videoState.smartLimit, autoTone: videoState.autoTone, activePreset: videoState.activePreset, activeProfile: videoState.activeProfile }; this.stateManager.set('videoFilter.lastActiveSettings', videoSettingsToSave); const imageState = this.stateManager.get('imageFilter'); this.stateManager.set('imageFilter.lastActiveSettings', { level: imageState.level }); }
+            if (isVisible) {
+                this.triggerElement.textContent = '🛑';
+                this.triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)';
+                const savedVideoSettings = this.stateManager.get('videoFilter.lastActiveSettings');
+                if (savedVideoSettings) { for (const key in savedVideoSettings) { this.stateManager.set(`videoFilter.${key}`, savedVideoSettings[key]); } this.stateManager.set('videoFilter.lastActiveSettings', null); }
+                const savedImageSettings = this.stateManager.get('imageFilter.lastActiveSettings');
+                if (savedImageSettings) { this.stateManager.set('imageFilter.level', savedImageSettings.level); this.stateManager.set('imageFilter.lastActiveSettings', null); }
+            }
+            else {
+                this.triggerElement.textContent = '⚡️';
+                this.triggerElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                const videoState = this.stateManager.get('videoFilter');
+                const videoSettingsToSave = { level: videoState.level, level2: videoState.level2, gamma: videoState.gamma, blur: videoState.blur, shadows: videoState.shadows, highlights: videoState.highlights, saturation: videoState.saturation, colorTemp: videoState.colorTemp, dither: videoState.dither, smartLimit: videoState.smartLimit, autoTone: videoState.autoTone, activePreset: videoState.activePreset, activeProfile: videoState.activeProfile };
+                this.stateManager.set('videoFilter.lastActiveSettings', videoSettingsToSave);
+                const imageState = this.stateManager.get('imageFilter');
+                this.stateManager.set('imageFilter.lastActiveSettings', { level: imageState.level });
+            }
             if (isVisible && !this.hostElement) { this.createControlsHost(); } if (this.hostElement) { this.hostElement.style.display = isVisible ? 'flex' : 'none'; } if (this.speedButtonsContainer) { const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO'); this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none'; } this.updateUIVisibility();
         }
         createControlsHost() { this.hostElement = document.createElement('div'); this.hostElement.style.order = '2'; this.stateManager.set('ui.hostElement', this.hostElement); this.shadowRoot = this.hostElement.attachShadow({ mode: 'open' }); this.stateManager.set('ui.shadowRoot', this.shadowRoot); this.modalHost = document.createElement('div'); this.modalShadowRoot = this.modalHost.attachShadow({ mode: 'open' }); const currentRoot = document.fullscreenElement || document.body; currentRoot.appendChild(this.modalHost); this.renderAllControls(); this.mainControlsContainer.prepend(this.hostElement); }
@@ -970,6 +1192,25 @@
         attachDragAndDrop() { let pressTimer = null; const isInteractiveTarget = (e) => { for (const element of e.composedPath()) { if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(element.tagName)) { return true; } } return false; }; const onDragStart = (e) => { if (isInteractiveTarget(e)) return; pressTimer = setTimeout(() => { if (this.globalContainer) { this.globalContainer.style.display = 'none'; setTimeout(() => { if (this.globalContainer) this.globalContainer.style.display = 'flex'; }, 5000); } onDragEnd(); }, 800); const pos = e.touches ? e.touches[0] : e; this.startPos = { x: pos.clientX, y: pos.clientY }; this.currentPos = { x: this.uiState.x, y: this.uiState.y }; this.isDragging = true; this.wasDragged = false; this.globalContainer.style.transition = 'none'; document.addEventListener('mousemove', onDragMove, { passive: false }); document.addEventListener('mouseup', onDragEnd, { passive: true }); document.addEventListener('touchmove', onDragMove, { passive: false }); document.addEventListener('touchend', onDragEnd, { passive: true }); }; const updatePosition = () => { if (!this.isDragging || !this.globalContainer) return; const newX = this.currentPos.x + this.delta.x; const newY = this.currentPos.y + this.delta.y; this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`); this.animationFrameId = null; }; const onDragMove = (e) => { if (!this.isDragging) return; const pos = e.touches ? e.touches[0] : e; this.delta = { x: pos.clientX - this.startPos.x, y: pos.clientY - this.startPos.y }; if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI_DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI_DRAG_THRESHOLD)) { this.wasDragged = true; clearTimeout(pressTimer); if (e.cancelable) e.preventDefault(); } if (this.wasDragged && this.animationFrameId === null) { this.animationFrameId = requestAnimationFrame(updatePosition); } }; const onDragEnd = () => { clearTimeout(pressTimer); if (!this.isDragging) return; if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; } if (this.wasDragged) { this.uiState.x += this.delta.x; this.uiState.y += this.delta.y; } this.isDragging = false; this.globalContainer.style.transition = ''; document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd); document.removeEventListener('touchmove', onDragMove); document.removeEventListener('touchend', onDragEnd); setTimeout(() => { this.wasDragged = false; }, 50); }; this.triggerElement.addEventListener('mousedown', onDragStart); this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false }); }
     }
 
-    function main() { const stateManager = new StateManager(); const pluginManager = new PluginManager(stateManager); window.vscPluginManager = pluginManager; pluginManager.register(new UIPlugin()); pluginManager.register(new CoreMediaPlugin()); pluginManager.register(new SvgFilterPlugin()); pluginManager.register(new PlaybackControlPlugin()); pluginManager.register(new LiveStreamPlugin()); pluginManager.register(new NavigationPlugin(pluginManager)); pluginManager.register(new AudioEffectPlugin()); pluginManager.initAll(); }
+    function main() {
+        const stateManager = new StateManager();
+        const pluginManager = new PluginManager(stateManager);
+        window.vscPluginManager = pluginManager;
+
+        // [Fix for 119.5] UIPlugin 제한 해제 (Iframe 내부에서도 미디어가 발견되면 UI 생성)
+        pluginManager.register(new UIPlugin());
+
+        if (IS_TOP) {
+            pluginManager.register(new NavigationPlugin(pluginManager));
+        }
+
+        pluginManager.register(new CoreMediaPlugin());
+        pluginManager.register(new SvgFilterPlugin());
+        pluginManager.register(new PlaybackControlPlugin());
+        pluginManager.register(new LiveStreamPlugin());
+        pluginManager.register(new AudioEffectPlugin());
+
+        pluginManager.initAll();
+    }
     if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', main); } else { main(); }
 })();
