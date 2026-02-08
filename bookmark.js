@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v5.7)
-// @version      5.7
-// @description  탭 관리 모달 통합, 복구 버튼 복구, 버튼 배치 최적화
+// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v5.8)
+// @version      5.8
+// @description  모바일 터치 이벤트 중복 실행(Ghost Click) 방지 및 탭 관리/정렬 모드 통합
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -21,7 +21,15 @@
 
     // 1. 스타일 설정
     GM_addStyle(`
-        #bookmark-fab { position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px; background: #333 !important; color: white !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; cursor: pointer; z-index: 2147483647; box-shadow: 0 4px 15px rgba(0,0,0,0.4); font-size: 26px !important; user-select: none !important; touch-action: none !important; -webkit-tap-highlight-color: transparent; border: none !important; }
+        #bookmark-fab { 
+            position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px; 
+            background: #333 !important; color: white !important; border-radius: 50% !important; 
+            display: flex !important; align-items: center !important; justify-content: center !important; 
+            cursor: pointer; z-index: 2147483647; box-shadow: 0 4px 15px rgba(0,0,0,0.4); 
+            font-size: 26px !important; user-select: none !important; 
+            touch-action: none !important; /* 스크롤/줌 차단 */
+            -webkit-tap-highlight-color: transparent; border: none !important; 
+        }
         #bookmark-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.98) !important; z-index: 2147483646; display: none; overflow-y: auto; padding: 15px; backdrop-filter: blur(5px); box-sizing: border-box; color: #333 !important; font-family: sans-serif; }
         
         .bm-top-row { max-width: 1200px; margin: 0 auto 10px auto; display: flex; flex-direction: column; gap: 8px; }
@@ -52,10 +60,7 @@
         .bm-modal-bg { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6) !important; z-index:2147483647; display:none; align-items:center; justify-content:center; padding: 20px; box-sizing: border-box; }
         .bm-modal-content { background: white !important; padding: 25px; border-radius: 15px; width: 100%; max-width: 420px; max-height: 85vh; overflow-y: auto; color: #333 !important; }
         .bm-modal-content input { width: 100% !important; padding: 10px !important; margin: 5px 0 10px 0 !important; border: 1px solid #ddd !important; border-radius: 6px !important; box-sizing: border-box !important; }
-        
-        /* 탭 관리 행 스타일 */
         .tab-manage-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; gap: 10px; }
-        .tab-manage-row span { font-size: 14px; font-weight: bold; flex: 1; }
     `);
 
     // 2. 대시보드 렌더링
@@ -125,7 +130,6 @@
             }});
         }
 
-        // 버튼 이벤트 바인딩
         document.getElementById('btn-sort').onclick = () => { isSortMode = !isSortMode; renderDashboard(); };
         document.getElementById('btn-tab-mgr').onclick = () => showTabManager();
         document.getElementById('btn-add-g').onclick = () => { const n = prompt("새 그룹 이름:"); if(n){ db.pages[db.currentPage][n]=[]; saveData(); renderDashboard(); }};
@@ -140,13 +144,12 @@
         };
     }
 
-    // 3. 탭 관리자 모달 (신규 추가)
+    // 3. 탭 관리자 모달
     function showTabManager() {
         const modalBg = document.createElement('div'); modalBg.className = 'bm-modal-bg'; modalBg.style.display = 'flex';
         let tabsHTML = `<div class="bm-modal-content">
             <h3 style="margin-top:0;">📂 탭 관리</h3>
             <div style="max-height:50vh; overflow-y:auto; border:1px solid #eee; border-radius:8px;">`;
-        
         Object.keys(db.pages).forEach(tabName => {
             tabsHTML += `
                 <div class="tab-manage-row">
@@ -154,12 +157,10 @@
                     <button class="bm-util-btn bm-btn-red" style="padding:4px 8px;" onclick="window._delTab('${tabName}')">삭제</button>
                 </div>`;
         });
-
         tabsHTML += `</div>
             <button id="add-new-tab" class="bm-util-btn bm-btn-blue" style="width:100%; margin-top:15px; padding:12px;">+ 새 탭 추가</button>
             <button id="close-tab-mgr" class="bm-util-btn" style="width:100%; margin-top:10px; background:#999 !important; padding:10px;">닫기</button>
         </div>`;
-        
         modalBg.innerHTML = tabsHTML;
         document.body.appendChild(modalBg);
 
@@ -171,19 +172,15 @@
                 saveData(); renderDashboard(); modalBg.remove();
             }
         };
-
         document.getElementById('add-new-tab').onclick = () => {
             const n = prompt("새 탭 이름:");
-            if (n && !db.pages[n]) {
-                db.pages[n] = {};
-                db.currentPage = n;
-                saveData(); renderDashboard(); modalBg.remove();
-            } else if (db.pages[n]) { alert("이미 존재하는 이름입니다."); }
+            if (n && !db.pages[n]) { db.pages[n] = {}; db.currentPage = n; saveData(); renderDashboard(); modalBg.remove(); } 
+            else if (db.pages[n]) { alert("이미 존재하는 이름입니다."); }
         };
         document.getElementById('close-tab-mgr').onclick = () => modalBg.remove();
     }
 
-    // 4. 그룹 편집 및 퀵 저장 (이전 로직 동일)
+    // 4. 그룹 편집 및 퀵 저장
     function showGroupManager(gTitle) {
         const modalBg = document.createElement('div'); modalBg.className='bm-modal-bg'; modalBg.style.display='flex';
         let items = db.pages[db.currentPage][gTitle];
@@ -268,7 +265,7 @@
         });
     }
 
-    // 5. FAB 초기화 및 터치 이벤트
+    // 5. FAB 초기화 및 터치 이벤트 (핵심 수정 적용)
     function init() {
         const overlay = document.createElement('div'); overlay.id = 'bookmark-overlay'; document.body.appendChild(overlay);
         const fab = document.createElement('div'); fab.id = 'bookmark-fab'; fab.innerText = '🔖';
@@ -277,11 +274,15 @@
         let pressTimer;
         let isLongPress = false;
         let startX, startY;
+        
+        // 하이브리드 기기(노트북+터치스크린) 대응을 위해 maxTouchPoints 체크
+        let isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
         const handleStart = (e) => {
             const touch = e.touches ? e.touches[0] : e;
             startX = touch.clientX; startY = touch.clientY;
             isLongPress = false;
+
             pressTimer = setTimeout(() => {
                 isLongPress = true;
                 if (e.type === 'touchstart') window.navigator.vibrate?.(40);
@@ -293,7 +294,8 @@
             clearTimeout(pressTimer);
             if (!isLongPress) {
                 const touch = e.changedTouches ? e.changedTouches[0] : e;
-                const dist = Math.sqrt(Math.pow(touch.clientX - startX, 2) + Math.pow(touch.clientY - startY, 2));
+                const dist = Math.hypot(touch.clientX - startX, touch.clientY - startY);
+
                 if (dist < 10) {
                     const isVisible = overlay.style.display === 'block';
                     if (!isVisible) renderDashboard();
@@ -304,10 +306,15 @@
             }
         };
 
-        fab.addEventListener('touchstart', handleStart, { passive: true });
-        fab.addEventListener('touchend', handleEnd, { passive: true });
-        fab.addEventListener('mousedown', handleStart);
-        fab.addEventListener('mouseup', handleEnd);
+        // Ghost Click 방지를 위한 이벤트 분기
+        if (isTouchDevice) {
+            fab.addEventListener('touchstart', handleStart, { passive: true });
+            fab.addEventListener('touchend', handleEnd, { passive: true });
+        } else {
+            fab.addEventListener('mousedown', handleStart);
+            fab.addEventListener('mouseup', handleEnd);
+        }
+
         fab.addEventListener('contextmenu', e => e.preventDefault());
     }
 
