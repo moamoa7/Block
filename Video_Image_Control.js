@@ -769,7 +769,7 @@
                                 setAttr(cache.blurFine, 'stdDeviation', "0");
                                 if (cache.compFine) { setAttr(cache.compFine, 'k2', "1"); setAttr(cache.compFine, 'k3', "0"); }
                             } else {
-                                setAttr(cache.blurFine, 'stdDeviation', "0.3");
+                                setAttr(cache.blurFine, 'stdDeviation', "0.2");
                                 if (cache.compFine) { setAttr(cache.compFine, 'k2', (1 + strFine).toFixed(3)); setAttr(cache.compFine, 'k3', (-strFine).toFixed(3)); }
                             }
 
@@ -777,7 +777,7 @@
                                 setAttr(cache.blurCoarse, 'stdDeviation', "0");
                                 if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', "1"); setAttr(cache.compCoarse, 'k3', "0"); }
                             } else {
-                                setAttr(cache.blurCoarse, 'stdDeviation', "0.75");
+                                setAttr(cache.blurCoarse, 'stdDeviation', "0.5");
                                 if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', (1 + strCoarse).toFixed(3)); setAttr(cache.compCoarse, 'k3', (-strCoarse).toFixed(3)); }
                             }
                         }
