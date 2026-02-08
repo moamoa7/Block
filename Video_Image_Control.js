@@ -700,7 +700,7 @@
                     const style = document.createElement('style'); style.id = styleId; style.textContent = `.${className} { filter: url(#${combinedFilterId}) !important; } .vsc-gpu-accelerated { transform: translateZ(0); } .vsc-btn.analyzing { box-shadow: 0 0 5px #f39c12, 0 0 10px #f39c12 inset !important; }`;
                     return { svgNode: svg, styleElement: style };
                 }
-                updateFilterValues(values) {
+updateFilterValues(values) {
                     if (!this.isInitialized()) return;
                     const { saturation, gamma, blur, sharpenLevel, shadows, highlights, colorTemp, dither, profile, profileStrength, contrast } = values;
 
@@ -737,6 +737,11 @@
                     const isImage = this._options.isImage;
                     const toRemove = [];
 
+                    // [추가됨] 모바일/데스크톱 구분하여 입자 반경 결정
+                    const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+                    const radiusFine = isMobile ? "0.15" : "0.3";
+                    const radiusCoarse = isMobile ? "0.4" : "0.75";
+
                     for (const rootNode of this._activeFilterRoots) {
                         if (!rootNode.isConnected) { toRemove.push(rootNode); continue; }
                         let cache = this._elementCache.get(rootNode);
@@ -769,7 +774,8 @@
                                 setAttr(cache.blurFine, 'stdDeviation', "0");
                                 if (cache.compFine) { setAttr(cache.compFine, 'k2', "1"); setAttr(cache.compFine, 'k3', "0"); }
                             } else {
-                                setAttr(cache.blurFine, 'stdDeviation', "0.2");
+                                // [수정됨] 고정값 "0.3" -> 변수 radiusFine
+                                setAttr(cache.blurFine, 'stdDeviation', radiusFine);
                                 if (cache.compFine) { setAttr(cache.compFine, 'k2', (1 + strFine).toFixed(3)); setAttr(cache.compFine, 'k3', (-strFine).toFixed(3)); }
                             }
 
@@ -777,7 +783,8 @@
                                 setAttr(cache.blurCoarse, 'stdDeviation', "0");
                                 if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', "1"); setAttr(cache.compCoarse, 'k3', "0"); }
                             } else {
-                                setAttr(cache.blurCoarse, 'stdDeviation', "0.5");
+                                // [수정됨] 고정값 "0.75" -> 변수 radiusCoarse
+                                setAttr(cache.blurCoarse, 'stdDeviation', radiusCoarse);
                                 if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', (1 + strCoarse).toFixed(3)); setAttr(cache.compCoarse, 'k3', (-strCoarse).toFixed(3)); }
                             }
                         }
