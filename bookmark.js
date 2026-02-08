@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v6.8)
-// @version      6.8
-// @description  가시성 높은 '파란색 채워진 지구본' 아이콘 적용, 모든 버튼 글자 깨짐 방지
+// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v6.9)
+// @version      6.9
+// @description  구글 플레이(Trusted Types) 보안 우회 및 그룹 관리 내 '추가' 기능 탑재
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -20,10 +20,26 @@
     const saveData = () => GM_setValue('bm_db_v2', db);
     let isSortMode = false;
 
-    // [변경] 아주 선명한 파란색 채워진 지구본 (Solid Blue with White Lines)
+    // [구글 플레이 대응] Trusted Types 정책 생성 (innerHTML 보안 우회)
+    let ttPolicy = null;
+    if (window.trustedTypes && window.trustedTypes.createPolicy) {
+        try {
+            ttPolicy = window.trustedTypes.createPolicy('bm-safe-html', {
+                createHTML: (string) => string
+            });
+        } catch (e) {
+            console.warn('TrustedTypes policy creation failed', e);
+        }
+    }
+    // 안전하게 HTML을 주입하는 헬퍼 함수
+    const setHtml = (element, htmlString) => {
+        element.innerHTML = ttPolicy ? ttPolicy.createHTML(htmlString) : htmlString;
+    };
+
+    // 선명한 파란색 채워진 지구본 아이콘
     const fallbackIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiMwMDdiZmYiLz48cGF0aCBkPSJNMiAxMmgyME0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48L3N2Zz4=";
 
-    // 1. 파비콘 다운로드 함수 (ArrayBuffer)
+    // 1. 파비콘 다운로드 함수
     function fetchFaviconBase64(url) {
         return new Promise((resolve) => {
             try {
@@ -47,12 +63,12 @@
         });
     }
 
-    // 2. 아이콘 강제 복구 (덮어쓰기)
+    // 2. 아이콘 강제 복구
     async function fixAllIcons() {
-        if (!confirm("모든 아이콘을 다시 다운로드합니다.\n기존 아이콘들도 선명한 '파란 지구본'이나 실제 아이콘으로 변경됩니다.\n진행하시겠습니까?")) return;
+        if (!confirm("모든 아이콘을 다시 다운로드합니다.\n진행하시겠습니까?")) return;
         const noti = document.createElement('div');
         noti.style.cssText = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.8); color:white; padding:20px; z-index:999999; border-radius:10px; font-weight:bold; text-align:center;";
-        noti.innerHTML = "아이콘 업데이트 중...";
+        setHtml(noti, "아이콘 업데이트 중...");
         document.body.appendChild(noti);
 
         let count = 0;
@@ -64,38 +80,32 @@
                 for (const item of items) {
                     item.icon = await fetchFaviconBase64(item.url);
                     count++;
-                    noti.innerHTML = `아이콘 업데이트 중...<br>${count}개 완료`;
+                    setHtml(noti, `아이콘 업데이트 중...<br>${count}개 완료`);
                 }
             }
         }
         saveData(); noti.remove(); alert("복구 완료!"); renderDashboard();
     }
 
-    // 3. 스타일 설정 (네이트/다음 버튼 글자 깨짐 방지 포함)
+    // 3. 스타일 설정
     GM_addStyle(`
-        #bookmark-fab { 
-            position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px; 
-            background: #333 !important; color: white !important; border-radius: 50% !important; 
-            display: flex !important; align-items: center !important; justify-content: center !important; 
-            cursor: pointer; z-index: 2147483647; box-shadow: 0 4px 15px rgba(0,0,0,0.4); 
-            font-size: 26px !important; user-select: none !important; 
-            touch-action: none !important; -webkit-tap-highlight-color: transparent; border: none !important; 
+        #bookmark-fab {
+            position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px;
+            background: #333 !important; color: white !important; border-radius: 50% !important;
+            display: flex !important; align-items: center !important; justify-content: center !important;
+            cursor: pointer; z-index: 2147483647; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            font-size: 26px !important; user-select: none !important;
+            touch-action: none !important; -webkit-tap-highlight-color: transparent; border: none !important;
         }
         #bookmark-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.98) !important; z-index: 2147483646; display: none; overflow-y: auto; padding: 15px; backdrop-filter: blur(5px); box-sizing: border-box; color: #333 !important; font-family: sans-serif; text-align: left !important; }
-        
+
         .bm-modal-content, .bm-dashboard-container { color: #333 !important; text-align: left !important; font-family: sans-serif !important; }
-        
-        /* 버튼 텍스트 강제 표시 (네이트 등 방어) */
+
+        /* 버튼 텍스트 강제 표시 */
         .bm-util-btn, .bm-manage-btn, #bookmark-overlay button, .bm-modal-content button {
-            text-indent: 0 !important;
-            font-size: 11px !important;
-            line-height: normal !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            font-family: sans-serif !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
+            text-indent: 0 !important; font-size: 11px !important; line-height: normal !important;
+            visibility: visible !important; opacity: 1 !important; font-family: sans-serif !important;
+            display: inline-flex !important; align-items: center !important; justify-content: center !important;
             box-sizing: border-box !important;
         }
 
@@ -117,16 +127,14 @@
         .bm-dashboard-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; }
         .bm-bookmark-section { background: white !important; border: 1px solid #ddd !important; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .bm-section-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f1f3f5 !important; border-bottom: 1px solid #ddd !important; }
-        
         .bm-manage-btn { border: 1px solid #ccc !important; background: #fff !important; color: #333 !important; padding: 5px 10px !important; border-radius: 6px !important; font-weight: bold !important; }
 
         .bm-item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 12px; padding: 15px; min-height: 60px; justify-items: center; }
         .bm-item-wrapper { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; text-decoration: none !important; color: inherit !important; width: 100% !important; max-width: 80px; }
         .bm-bookmark-item { display: flex !important; flex-direction: column !important; align-items: center !important; text-align: center !important; width: 100% !important; }
-        
-        .bm-bookmark-item img { 
+        .bm-bookmark-item img {
             width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important;
-            margin-bottom: 6px !important; border-radius: 8px !important; background: #fff !important; 
+            margin-bottom: 6px !important; border-radius: 8px !important; background: #fff !important;
             object-fit: contain !important; pointer-events: none; display: block !important;
             opacity: 1 !important; visibility: visible !important; filter: none !important;
         }
@@ -135,7 +143,6 @@
         .sort-mode-active .bm-item-grid { display: none !important; }
         .sort-mode-active .bm-bookmark-section { border: 2px dashed #007bff !important; cursor: move; margin-bottom: 5px; }
         .sort-mode-active .bm-dashboard-container { grid-template-columns: 1fr !important; }
-
         .bm-modal-bg { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6) !important; z-index:2147483647; display:none; align-items:center; justify-content:center; padding: 20px; box-sizing: border-box; }
         .bm-modal-content { background: white !important; padding: 25px; border-radius: 15px; width: 100%; max-width: 420px; max-height: 85vh; overflow-y: auto; color: #333 !important; }
         .tab-manage-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; gap: 10px; }
@@ -147,11 +154,11 @@
         const overlay = document.getElementById('bookmark-overlay');
         if (!overlay) return;
         overlay.className = isSortMode ? 'sort-mode-active' : '';
-        overlay.innerHTML = '';
-        
+        setHtml(overlay, '');
+
         const topRow = document.createElement('div'); topRow.className = 'bm-top-row';
         const nav = document.createElement('div'); nav.className = 'bm-nav';
-        
+
         const tabBar = document.createElement('div'); tabBar.className = 'bm-tab-bar';
         Object.keys(db.pages).forEach(p => {
             const tab = document.createElement('div'); tab.className = `bm-tab ${db.currentPage === p ? 'active' : ''}`;
@@ -160,35 +167,34 @@
         });
 
         const adminBar = document.createElement('div'); adminBar.className = 'bm-admin-bar';
-        adminBar.innerHTML = `
+        setHtml(adminBar, `
             <button class="bm-util-btn bm-btn-blue" id="btn-sort">${isSortMode ? '완료' : '정렬'}</button>
             <button class="bm-util-btn bm-btn-orange" id="btn-fix-icon">아이콘 복구</button>
             <button class="bm-util-btn" id="btn-tab-mgr">탭관리</button>
             <button class="bm-util-btn" id="btn-add-g">그룹+</button>
             <button class="bm-util-btn" id="btn-exp">백업</button>
             <button class="bm-util-btn bm-btn-green" id="btn-imp">복구</button>
-        `;
+        `);
         nav.appendChild(tabBar); nav.appendChild(adminBar); topRow.appendChild(nav); overlay.appendChild(topRow);
 
         const container = document.createElement('div'); container.className = 'bm-dashboard-container';
         Object.entries(db.pages[db.currentPage]).forEach(([gTitle, items]) => {
             const section = document.createElement('div'); section.className = 'bm-bookmark-section'; section.setAttribute('data-id', gTitle);
-            section.innerHTML = `
+            setHtml(section, `
                 <div class="bm-section-header">
                     <span style="font-weight:bold; font-size:14px;">${isSortMode ? '≡ ' : '📁 '} ${gTitle}</span>
                     ${!isSortMode ? '<button class="bm-manage-btn">관리</button>' : ''}
                 </div>
                 <div class="bm-item-grid" data-group="${gTitle}"></div>
-            `;
+            `);
             if(!isSortMode) section.querySelector('.bm-manage-btn').onclick = () => showGroupManager(gTitle);
-            
+
             const grid = section.querySelector('.bm-item-grid');
             items.forEach((item) => {
                 const wrapper = document.createElement('a');
                 wrapper.className = 'bm-item-wrapper'; wrapper.href = item.url; wrapper.target = '_blank';
-                // 데이터가 있으면(Base64) 사용, 없으면 지구본(fallbackIcon) 사용
                 const iconSrc = (item.icon && item.icon.startsWith('data:')) ? item.icon : fallbackIcon;
-                wrapper.innerHTML = `<div class="bm-bookmark-item"><img src="${iconSrc}"><span>${item.name}</span></div>`;
+                setHtml(wrapper, `<div class="bm-bookmark-item"><img src="${iconSrc}"><span>${item.name}</span></div>`);
                 grid.appendChild(wrapper);
             });
             container.appendChild(section);
@@ -208,17 +214,103 @@
         document.getElementById('btn-tab-mgr').onclick = () => showTabManager();
         document.getElementById('btn-add-g').onclick = () => { const n = prompt("새 그룹 이름:"); if(n){ db.pages[db.currentPage][n]=[]; saveData(); renderDashboard(); }};
         document.getElementById('btn-exp').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(db)], {type:"application/json"})); a.download="bookmark_backup.json"; a.click(); };
-        document.getElementById('btn-imp').onclick = () => { 
-            const i = document.createElement('input'); i.type = 'file'; 
-            i.onchange = e => { 
-                const r = new FileReader(); 
-                r.onload = re => { try { db = JSON.parse(re.target.result); saveData(); renderDashboard(); alert('복구 완료!'); } catch(e){ alert('잘못된 파일입니다.'); } }; 
-                r.readAsText(e.target.files[0]); 
-            }; i.click(); 
+        document.getElementById('btn-imp').onclick = () => {
+            const i = document.createElement('input'); i.type = 'file';
+            i.onchange = e => {
+                const r = new FileReader();
+                r.onload = re => { try { db = JSON.parse(re.target.result); saveData(); renderDashboard(); alert('복구 완료!'); } catch(e){ alert('잘못된 파일입니다.'); } };
+                r.readAsText(e.target.files[0]);
+            }; i.click();
         };
     }
 
-    // 5. 탭/그룹 관리자 및 퀵저장
+    // 5. [수정] 그룹 관리자 (추가 버튼 생성)
+    function showGroupManager(gTitle) {
+        const modalBg = document.createElement('div'); modalBg.className='bm-modal-bg'; modalBg.style.display='flex';
+        let items = db.pages[db.currentPage][gTitle];
+
+        // Trusted Types 대응: setHtml 사용
+        setHtml(modalBg, `
+            <div class="bm-modal-content">
+                <h3 style="margin-top:0;">🛠 그룹 관리</h3>
+                <label>그룹 이름</label>
+                <input type="text" id="e-g-n" value="${gTitle}">
+                <div style="font-size:12px; margin-top:10px; color:#666;">☰ 핸들을 잡고 드래그하여 순서를 변경하세요.</div>
+
+                <div id="i-l" style="max-height:40vh; overflow-y:auto; border:1px solid #eee; border-radius:8px; padding:10px; margin-top:5px;">
+                    ${items.map((it, idx)=>`
+                    <div class="e-r" style="border-bottom:1px solid #eee; padding:10px 0; display:flex; gap:10px; align-items:center;">
+                        <span class="bm-drag-handle">☰</span>
+                        <div style="flex:1;">
+                            <div style="display:flex; justify-content:flex-end;">
+                                <span style="color:red; cursor:pointer; font-size:11px;" class="bm-del-btn">삭제</span>
+                            </div>
+                            <input type="text" class="r-n" value="${it.name}" placeholder="이름" style="margin-bottom:5px !important;">
+                            <input type="text" class="r-u" value="${it.url}" placeholder="URL">
+                        </div>
+                    </div>`).join('')}
+                </div>
+
+                <button id="g-add-new" class="bm-util-btn bm-btn-blue" style="width:100%; margin-top:10px; padding:10px;">+ 북마크 추가</button>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button id="s-v" class="bm-util-btn bm-btn-green" style="flex:2; padding:12px;">저장</button>
+                    <button id="c-l" class="bm-util-btn" style="flex:1; background:#999 !important;">닫기</button>
+                </div>
+            </div>
+        `);
+        document.body.appendChild(modalBg);
+
+        // 동적 이벤트 바인딩 (innerHTML로 넣었으므로 다시 찾아야 함)
+        modalBg.querySelectorAll('.bm-del-btn').forEach(btn => btn.onclick = function() { this.closest('.e-r').remove(); });
+
+        // [핵심] '추가' 버튼 로직
+        document.getElementById('g-add-new').onclick = () => {
+            const row = document.createElement('div');
+            row.className = 'e-r';
+            row.style.cssText = "border-bottom:1px solid #eee; padding:10px 0; display:flex; gap:10px; align-items:center;";
+            setHtml(row, `
+                <span class="bm-drag-handle">☰</span>
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:flex-end;">
+                        <span style="color:red; cursor:pointer; font-size:11px;" class="bm-del-btn">삭제</span>
+                    </div>
+                    <input type="text" class="r-n" placeholder="새 북마크 이름" style="margin-bottom:5px !important;">
+                    <input type="text" class="r-u" placeholder="https://" value="https://">
+                </div>
+            `);
+            row.querySelector('.bm-del-btn').onclick = function() { this.closest('.e-r').remove(); };
+            document.getElementById('i-l').appendChild(row);
+            // 새 항목이 추가되면 스크롤을 맨 아래로
+            const list = document.getElementById('i-l');
+            list.scrollTop = list.scrollHeight;
+        };
+
+        new Sortable(document.getElementById('i-l'), { handle: '.bm-drag-handle', animation: 150 });
+        document.getElementById('c-l').onclick = () => modalBg.remove();
+
+        document.getElementById('s-v').onclick = () => {
+            const newN = document.getElementById('e-g-n').value.trim();
+            const newL = [];
+            modalBg.querySelectorAll('.e-r').forEach(r=>{
+                const n = r.querySelector('.r-n').value.trim();
+                const u = r.querySelector('.r-u').value.trim();
+                if(n && u) newL.push({name:n, url:u});
+            });
+            // 아이콘 보존 로직 (URL 같으면 기존 아이콘 사용, 없으면 나중에 렌더링 시 자동 fallback)
+            newL.forEach(newItem => {
+                const oldItem = items.find(o => o.url === newItem.url);
+                if(oldItem && oldItem.icon) newItem.icon = oldItem.icon;
+            });
+
+            if(newN !== gTitle){ db.pages[db.currentPage][newN]=newL; delete db.pages[db.currentPage][gTitle]; }
+            else db.pages[db.currentPage][gTitle]=newL;
+
+            saveData(); renderDashboard(); modalBg.remove();
+        };
+    }
+
+    // 6. 탭 관리자 및 퀵저장
     function showTabManager() {
         const modalBg = document.createElement('div'); modalBg.className = 'bm-modal-bg'; modalBg.style.display = 'flex';
         let tabsHTML = `<div class="bm-modal-content"><h3 style="margin-top:0;">📂 탭 관리</h3><div style="max-height:50vh; overflow-y:auto; border:1px solid #eee; border-radius:8px;">`;
@@ -226,47 +318,30 @@
             tabsHTML += `<div class="tab-manage-row"><span>${tabName}</span><button class="bm-util-btn bm-btn-red" style="padding:4px 8px;" onclick="window._delTab('${tabName}')">삭제</button></div>`;
         });
         tabsHTML += `</div><button id="add-new-tab" class="bm-util-btn bm-btn-blue" style="width:100%; margin-top:15px; padding:12px;">+ 새 탭 추가</button><button id="close-tab-mgr" class="bm-util-btn" style="width:100%; margin-top:10px; background:#999 !important; padding:10px;">닫기</button></div>`;
-        modalBg.innerHTML = tabsHTML; document.body.appendChild(modalBg);
+        setHtml(modalBg, tabsHTML); document.body.appendChild(modalBg);
         window._delTab = (name) => { if (Object.keys(db.pages).length <= 1) { alert("최소 1개 탭 필수"); return; } if (confirm('삭제?')) { delete db.pages[name]; if (db.currentPage === name) db.currentPage = Object.keys(db.pages)[0]; saveData(); renderDashboard(); modalBg.remove(); } };
         document.getElementById('add-new-tab').onclick = () => { const n = prompt("새 탭 이름:"); if (n && !db.pages[n]) { db.pages[n] = {}; db.currentPage = n; saveData(); renderDashboard(); modalBg.remove(); } else if (db.pages[n]) { alert("중복 이름"); } };
         document.getElementById('close-tab-mgr').onclick = () => modalBg.remove();
     }
 
-    function showGroupManager(gTitle) {
-        const modalBg = document.createElement('div'); modalBg.className='bm-modal-bg'; modalBg.style.display='flex';
-        let items = db.pages[db.currentPage][gTitle];
-        modalBg.innerHTML = `<div class="bm-modal-content"><h3 style="margin-top:0;">🛠 그룹 관리</h3><label>그룹 이름</label><input type="text" id="e-g-n" value="${gTitle}"><div style="font-size:12px; margin-top:10px; color:#666;">☰ 핸들을 잡고 드래그하여 순서를 변경하세요.</div><div id="i-l" style="max-height:40vh; overflow-y:auto; border:1px solid #eee; border-radius:8px; padding:10px; margin-top:5px;">${items.map((it, idx)=>`<div class="e-r" style="border-bottom:1px solid #eee; padding:10px 0; display:flex; gap:10px; align-items:center;"><span class="bm-drag-handle">☰</span><div style="flex:1;"><div style="display:flex; justify-content:flex-end;"><span style="color:red; cursor:pointer; font-size:11px;" onclick="this.closest('.e-r').remove()">삭제</span></div><input type="text" class="r-n" value="${it.name}" placeholder="이름" style="margin-bottom:5px !important;"><input type="text" class="r-u" value="${it.url}" placeholder="URL"></div></div>`).join('')}</div><div style="display:flex; gap:10px; margin-top:20px;"><button id="s-v" class="bm-util-btn bm-btn-green" style="flex:2; padding:12px;">저장</button><button id="c-l" class="bm-util-btn" style="flex:1; background:#999 !important;">닫기</button></div></div>`;
-        document.body.appendChild(modalBg);
-        new Sortable(document.getElementById('i-l'), { handle: '.bm-drag-handle', animation: 150 });
-        document.getElementById('c-l').onclick = () => modalBg.remove();
-        document.getElementById('s-v').onclick = () => {
-            const newN = document.getElementById('e-g-n').value.trim();
-            const newL = [];
-            modalBg.querySelectorAll('.e-r').forEach(r=>{ const n = r.querySelector('.r-n').value.trim(); const u = r.querySelector('.r-u').value.trim(); if(n && u) newL.push({name:n, url:u}); });
-            newL.forEach(newItem => { const oldItem = items.find(o => o.url === newItem.url); if(oldItem && oldItem.icon) newItem.icon = oldItem.icon; });
-            if(newN !== gTitle){ db.pages[db.currentPage][newN]=newL; delete db.pages[db.currentPage][gTitle]; } else db.pages[db.currentPage][gTitle]=newL;
-            saveData(); renderDashboard(); modalBg.remove();
-        };
-    }
-
     function showQuickAddModal() {
         if (document.getElementById('bm-quick-modal')) return;
         const modalBg = document.createElement('div'); modalBg.id = 'bm-quick-modal'; modalBg.className = 'bm-modal-bg'; modalBg.style.display = 'flex';
-        modalBg.innerHTML = `<div class="bm-modal-content"><h3 style="margin-top:0;">🔖 북마크 저장</h3><label>이름</label><input type="text" id="bm-q-n" value="${document.title.substring(0,30)}"><label>주소 (URL)</label><input type="text" id="bm-q-u" value="${window.location.href}"><div id="q-area"><p style="font-size:12px; font-weight:bold; margin-top:15px;">탭 선택:</p><div style="display:flex; flex-wrap:wrap; gap:5px;">${Object.keys(db.pages).map(p => `<button class="q-p bm-util-btn" style="background:#eee !important; color:#333 !important;">${p}</button>`).join('')}</div></div><button id="q-close" style="width:100%; border:0; background:none; margin-top:20px; color:#999; cursor:pointer;">취소</button></div>`;
+        setHtml(modalBg, `<div class="bm-modal-content"><h3 style="margin-top:0;">🔖 북마크 저장</h3><label>이름</label><input type="text" id="bm-q-n" value="${document.title.substring(0,30)}"><label>주소 (URL)</label><input type="text" id="bm-q-u" value="${window.location.href}"><div id="q-area"><p style="font-size:12px; font-weight:bold; margin-top:15px;">탭 선택:</p><div style="display:flex; flex-wrap:wrap; gap:5px;">${Object.keys(db.pages).map(p => `<button class="q-p bm-util-btn" style="background:#eee !important; color:#333 !important;">${p}</button>`).join('')}</div></div><button id="q-close" style="width:100%; border:0; background:none; margin-top:20px; color:#999; cursor:pointer;">취소</button></div>`);
         document.body.appendChild(modalBg);
         document.getElementById('q-close').onclick = () => modalBg.remove();
         modalBg.querySelectorAll('.q-p').forEach(btn => {
             btn.onclick = () => {
                 const selP = btn.innerText;
                 const groups = Object.keys(db.pages[selP]);
-                modalBg.querySelector('#q-area').innerHTML = `<p style="font-size:12px; font-weight:bold;">그룹 선택 (${selP}):</p><div style="display:flex; flex-direction:column; gap:5px;">${groups.map(g => `<button class="q-g bm-util-btn" style="background:#f8f9fa !important; color:#333 !important; justify-content:flex-start; padding:12px;">📁 ${g}</button>`).join('')}<button id="q-new-g" class="bm-util-btn" style="background:#333 !important; color:#fff !important; padding:12px;">+ 새 그룹 생성</button></div>`;
+                setHtml(modalBg.querySelector('#q-area'), `<p style="font-size:12px; font-weight:bold;">그룹 선택 (${selP}):</p><div style="display:flex; flex-direction:column; gap:5px;">${groups.map(g => `<button class="q-g bm-util-btn" style="background:#f8f9fa !important; color:#333 !important; justify-content:flex-start; padding:12px;">📁 ${g}</button>`).join('')}<button id="q-new-g" class="bm-util-btn" style="background:#333 !important; color:#fff !important; padding:12px;">+ 새 그룹 생성</button></div>`);
                 modalBg.querySelectorAll('.q-g').forEach(gBtn => { gBtn.onclick = async () => { const fName = document.getElementById('bm-q-n').value; const fUrl = document.getElementById('bm-q-u').value; const icon = await fetchFaviconBase64(fUrl); db.pages[selP][gBtn.innerText.replace('📁 ', '')].push({ name: fName, url: fUrl, icon: icon }); saveData(); modalBg.remove(); alert('저장됨'); }; });
                 document.getElementById('q-new-g').onclick = async () => { const n = prompt("새 그룹 이름:"); if(n){ const fName = document.getElementById('bm-q-n').value; const fUrl = document.getElementById('bm-q-u').value; const icon = await fetchFaviconBase64(fUrl); if(!db.pages[selP][n]) db.pages[selP][n] = []; db.pages[selP][n].push({ name: fName, url: fUrl, icon: icon }); saveData(); modalBg.remove(); alert('저장됨'); } };
             };
         });
     }
 
-    // 6. 초기화
+    // 7. 초기화
     function init() {
         const overlay = document.createElement('div'); overlay.id = 'bookmark-overlay'; document.body.appendChild(overlay);
         const fab = document.createElement('div'); fab.id = 'bookmark-fab'; fab.innerText = '🔖';
