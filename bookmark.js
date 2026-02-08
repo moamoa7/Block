@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v6.9)
-// @version      6.9
-// @description  구글 플레이(Trusted Types) 보안 우회 및 그룹 관리 내 '추가' 기능 탑재
+// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v7.0)
+// @version      7.0
+// @description  상단 레이아웃 2단 분리(버튼 위, 탭 아래)로 모바일 가림 현상 해결
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -20,7 +20,7 @@
     const saveData = () => GM_setValue('bm_db_v2', db);
     let isSortMode = false;
 
-    // [구글 플레이 대응] Trusted Types 정책 생성 (innerHTML 보안 우회)
+    // [구글 플레이 대응] Trusted Types 정책
     let ttPolicy = null;
     if (window.trustedTypes && window.trustedTypes.createPolicy) {
         try {
@@ -31,7 +31,6 @@
             console.warn('TrustedTypes policy creation failed', e);
         }
     }
-    // 안전하게 HTML을 주입하는 헬퍼 함수
     const setHtml = (element, htmlString) => {
         element.innerHTML = ttPolicy ? ttPolicy.createHTML(htmlString) : htmlString;
     };
@@ -87,7 +86,7 @@
         saveData(); noti.remove(); alert("복구 완료!"); renderDashboard();
     }
 
-    // 3. 스타일 설정
+    // 3. 스타일 설정 (레이아웃 2단 분리 적용)
     GM_addStyle(`
         #bookmark-fab {
             position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px;
@@ -112,13 +111,18 @@
         .bm-modal-content input, #bookmark-overlay input { width: 100% !important; padding: 10px !important; margin: 5px 0 !important; border: 1px solid #ccc !important; background-color: #fff !important; color: #000 !important; border-radius: 6px !important; box-sizing: border-box !important; font-size: 14px !important; display: block !important; opacity: 1 !important; visibility: visible !important; height: auto !important; -webkit-appearance: none !important; }
         .bm-modal-content label { display: block !important; font-size: 12px !important; font-weight: bold !important; color: #666 !important; margin-top: 10px !important; }
 
+        /* [핵심] 상단 레이아웃 분리 */
         .bm-top-row { max-width: 1200px; margin: 0 auto 10px auto; display: flex; flex-direction: column; gap: 8px; }
-        .bm-nav { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
-        .bm-tab-bar { display: flex; gap: 5px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 5px; flex: 1; }
-        .bm-tab { padding: 8px 14px; background: #eee !important; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; color: #666 !important; white-space: nowrap; border: 0 !important; }
+
+        /* 1단: 관리 버튼 (오른쪽 정렬) */
+        .bm-admin-bar { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; width: 100%; }
+
+        /* 2단: 탭 바 (전체 너비) */
+        .bm-tab-bar { display: flex; gap: 5px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 5px; width: 100%; }
+
+        .bm-tab { padding: 8px 14px; background: #eee !important; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; color: #666 !important; white-space: nowrap; border: 0 !important; flex-shrink: 0; }
         .bm-tab.active { background: #333 !important; color: #fff !important; }
 
-        .bm-admin-bar { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
         .bm-util-btn { padding: 7px 10px; color: #fff !important; background: #333 !important; border: 0 !important; border-radius: 6px; cursor: pointer; text-decoration: none !important; }
         .bm-btn-blue { background: #007bff !important; }
         .bm-btn-green { background: #28a745 !important; }
@@ -157,7 +161,7 @@
         setHtml(overlay, '');
 
         const topRow = document.createElement('div'); topRow.className = 'bm-top-row';
-        const nav = document.createElement('div'); nav.className = 'bm-nav';
+        // bm-nav 제거하고 topRow에 직접 순서대로 배치
 
         const tabBar = document.createElement('div'); tabBar.className = 'bm-tab-bar';
         Object.keys(db.pages).forEach(p => {
@@ -175,7 +179,11 @@
             <button class="bm-util-btn" id="btn-exp">백업</button>
             <button class="bm-util-btn bm-btn-green" id="btn-imp">복구</button>
         `);
-        nav.appendChild(tabBar); nav.appendChild(adminBar); topRow.appendChild(nav); overlay.appendChild(topRow);
+
+        // [순서 중요] 버튼바 먼저(위), 탭바 나중(아래)
+        topRow.appendChild(adminBar);
+        topRow.appendChild(tabBar);
+        overlay.appendChild(topRow);
 
         const container = document.createElement('div'); container.className = 'bm-dashboard-container';
         Object.entries(db.pages[db.currentPage]).forEach(([gTitle, items]) => {
@@ -224,12 +232,11 @@
         };
     }
 
-    // 5. [수정] 그룹 관리자 (추가 버튼 생성)
+    // 5. 그룹 관리자 (추가 버튼 생성)
     function showGroupManager(gTitle) {
         const modalBg = document.createElement('div'); modalBg.className='bm-modal-bg'; modalBg.style.display='flex';
         let items = db.pages[db.currentPage][gTitle];
 
-        // Trusted Types 대응: setHtml 사용
         setHtml(modalBg, `
             <div class="bm-modal-content">
                 <h3 style="margin-top:0;">🛠 그룹 관리</h3>
@@ -261,10 +268,8 @@
         `);
         document.body.appendChild(modalBg);
 
-        // 동적 이벤트 바인딩 (innerHTML로 넣었으므로 다시 찾아야 함)
         modalBg.querySelectorAll('.bm-del-btn').forEach(btn => btn.onclick = function() { this.closest('.e-r').remove(); });
 
-        // [핵심] '추가' 버튼 로직
         document.getElementById('g-add-new').onclick = () => {
             const row = document.createElement('div');
             row.className = 'e-r';
@@ -281,7 +286,6 @@
             `);
             row.querySelector('.bm-del-btn').onclick = function() { this.closest('.e-r').remove(); };
             document.getElementById('i-l').appendChild(row);
-            // 새 항목이 추가되면 스크롤을 맨 아래로
             const list = document.getElementById('i-l');
             list.scrollTop = list.scrollHeight;
         };
@@ -297,15 +301,12 @@
                 const u = r.querySelector('.r-u').value.trim();
                 if(n && u) newL.push({name:n, url:u});
             });
-            // 아이콘 보존 로직 (URL 같으면 기존 아이콘 사용, 없으면 나중에 렌더링 시 자동 fallback)
             newL.forEach(newItem => {
                 const oldItem = items.find(o => o.url === newItem.url);
                 if(oldItem && oldItem.icon) newItem.icon = oldItem.icon;
             });
-
             if(newN !== gTitle){ db.pages[db.currentPage][newN]=newL; delete db.pages[db.currentPage][gTitle]; }
             else db.pages[db.currentPage][gTitle]=newL;
-
             saveData(); renderDashboard(); modalBg.remove();
         };
     }
