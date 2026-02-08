@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v6.6)
-// @version      6.6
-// @description  기본 아이콘을 '파란색 지구본'으로 변경, 네이트 등 버튼 글자 깨짐 방지 포함
+// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v6.8)
+// @version      6.8
+// @description  가시성 높은 '파란색 채워진 지구본' 아이콘 적용, 모든 버튼 글자 깨짐 방지
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -20,9 +20,8 @@
     const saveData = () => GM_setValue('bm_db_v2', db);
     let isSortMode = false;
 
-    // [변경] 파란색 지구본 아이콘 (Blue Globe SVG -> Base64)
-    // 이모티콘이 아니라 실제 이미지 데이터입니다.
-    const fallbackIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PHBhdGggZmlsbD0iIzIxOTZmMyIgZD0iTTI0IDRDMTIuOTUgNCA0IDEyLjk1IDQgMjRzOC45NSAyMCAyMCAyMCAyMC04Ljk1IDIwLTIwUzM1LjA1IDQgMjQgNHptMTAgNC45YzEuOTIgMS40NyAzLjQ5IDMuMzIgNC41NCA1LjQ4LTEuNTUuMzMtMy4yMy41NS00Ljk5LjYzLS43My0yLjI4LTEuNzQtNC40MS0yLjk2LTYuMzguNzQuMDcgMS40OC4xNiAyLjIyLjI3SDM0em0tNi4yMy0xLjA0QzI5LjI4IDkuOTQgMzAuNiAxMi4zOCAzMS40MyAxNUgyNHYtOGgxLjEyYy45NC4xMiAxLjgzLjMzIDIuNjUuODZ6bS03LjU0IDBjLjgyLS41MyAxLjcxLS43NCAyLjY1LS44NlYxNWgtNy40M2MuODMtMi42MiAyLjE1LTUuMDYgMy42Ni03LjE0ek0xNi4xIDcuMjdjMS4xMS0uMTYgMi4yNS0uMjcgMy40MS0uMjcuODcgMCAxLjczLjA3IDIuNTguMTgtMS4yMSAxLjk3LTIuMjIgNC4xLTIuOTUgNi4zOC0xLjgxLS4wOC0zLjUzLS4yOS01LjEyLS42MiAxLjA1LTIuMTcgMi42Mi00LjAyIDQuNTQtNS40OS0uMTUtLjA2LS4zMS0uMTItLjQ2LS4xOHptLTYuNjIgOC4xNmMxLjY5LjM0IDMuNTEuNTYgNS40Mi42NC0uMTcgMi41Mi0uMjcgNS4xNS0uMjcgNy45M3MuMSA1LjQxLjI3IDcuOTNjLTEuOTEuMDgtMy43My4zLTUuNDIuNjRDOC41NSAzMC4xNyA4IDI3LjE2IDggMjRzLjU1LTYuMTcgMS40OC04LjU3em0xLjg4IDE4LjJjLTEuOTItMS40Ny0zLjQ5LTMuMzItNC41NC01LjQ4IDEuNTUtLjMzIDMuMjMtLjU1IDQuOTktLjYzLjczIDIuMjggMS43NCA0LjQxIDIuOTYgNi4zOC0uNzQtLjA3LTEuNDgtLjE2LTIuMjItLjI3aC0xLjE5em02LjIzIDEuMDRjLTEuNTEtMi4wOC0yLjgzLTQuNTItMy42Ni03LjE0aDcuNDN2OGgtMS4xMmMtLjk0LS4xMi0xLjgzLS4zMy0yLjY1LS44NnptNy41NCAwYy0uODIuNTMtMS43MS43NC0yLjY1Ljg2di04aDcuNDNjLS44MyAyLjYyLTIuMTUgNS4wNi0zLjY2IDcuMTR6bTQuNDQgMS41OWMtMS4xMS4xNi0yLjI1LjI3LTMuNDEuMjctLjg3IDAtMS43My0uMDctMi41OC0uMTggMS4yMS0xLjk3IDIuMjItNC4xIDIuOTUtNi4zOCAxLjgxLjA4IDMuNTMuMjkgNS4xMi42Mi0xLjA1IDIuMTctMi42MiA0LjAyLTQuNTQgNS40OS4xNS4wNi4zMS4xMi40Ni4xOHptNi42Mi04LjE2Yy0xLjY5LS4zNC0zLjUxLS41Ni01LjQyLS42NC4xNy0yLjUyLjI3LTUuMTUuMjctNy45M3MtLjEtNS40MS0uMjctNy45M2MxLjkxLS4wOCAzLjczLS4zIDUuNDItLjY0LjkzIDIuNCAxLjQ4IDUuNDEgMS40OCA4LjU3cy0uNTUgNi4xNy0xLjQ4IDguNTd6Ii8+PC9zdmc+";
+    // [변경] 아주 선명한 파란색 채워진 지구본 (Solid Blue with White Lines)
+    const fallbackIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiMwMDdiZmYiLz48cGF0aCBkPSJNMiAxMmgyME0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48L3N2Zz4=";
 
     // 1. 파비콘 다운로드 함수 (ArrayBuffer)
     function fetchFaviconBase64(url) {
@@ -50,7 +49,7 @@
 
     // 2. 아이콘 강제 복구 (덮어쓰기)
     async function fixAllIcons() {
-        if (!confirm("모든 아이콘을 다시 다운로드합니다.\n기존 회색 아이콘도 '파란색 지구본'이나 실제 아이콘으로 변경됩니다.\n진행하시겠습니까?")) return;
+        if (!confirm("모든 아이콘을 다시 다운로드합니다.\n기존 아이콘들도 선명한 '파란 지구본'이나 실제 아이콘으로 변경됩니다.\n진행하시겠습니까?")) return;
         const noti = document.createElement('div');
         noti.style.cssText = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.8); color:white; padding:20px; z-index:999999; border-radius:10px; font-weight:bold; text-align:center;";
         noti.innerHTML = "아이콘 업데이트 중...";
@@ -72,7 +71,7 @@
         saveData(); noti.remove(); alert("복구 완료!"); renderDashboard();
     }
 
-    // 3. 스타일 설정
+    // 3. 스타일 설정 (네이트/다음 버튼 글자 깨짐 방지 포함)
     GM_addStyle(`
         #bookmark-fab { 
             position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px; 
@@ -86,7 +85,7 @@
         
         .bm-modal-content, .bm-dashboard-container { color: #333 !important; text-align: left !important; font-family: sans-serif !important; }
         
-        /* [네이트/다음 대응] 버튼 텍스트 강제 표시 스타일 */
+        /* 버튼 텍스트 강제 표시 (네이트 등 방어) */
         .bm-util-btn, .bm-manage-btn, #bookmark-overlay button, .bm-modal-content button {
             text-indent: 0 !important;
             font-size: 11px !important;
