@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name        Video_Image_Control (Clean & Optimized & Fixed)
 // @namespace   https://com/
-// @version     119.8
-// @description v119.8: [Optimization] 샤프닝 강도 반응형 처리 (모바일 0.03 / 데스크톱 0.05 분기 적용), 물결 현상 제거 및 디테일 최적화.
+// @version     119.6
+// @description v119.6: [Hotfix] Iframe 중첩 감지 강화, MutationObserver 수정, 스캔 주기 적응형 최적화(CPU 절약), 라이브 스트림 종료 버그 수정.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -41,6 +41,7 @@
         MIN_BUFFER_HEALTH_SEC: 1.0,
         LIVE_JUMP_INTERVAL: 6000, LIVE_JUMP_END_THRESHOLD: 1.0,
         DEBOUNCE_DELAY: 300,
+        // 스캔 설정 (적응형으로 변경됨에 따라 기본값 설정)
         SCAN_INTERVAL_BASE_TOP: 15000,
         SCAN_INTERVAL_BASE_IFRAME: 3000,
         SCAN_INTERVAL_MAX: 30000,
@@ -340,6 +341,7 @@
             this.onAddShadowRoot = null;
             this._ioRatio = new Map();
             this._scanBound = this.scanAndApply.bind(this);
+            // [Adaptive Scan]
             this.emptyScanCount = 0;
             this.baseScanInterval = IS_TOP ? CONFIG.SCAN_INTERVAL_BASE_TOP : CONFIG.SCAN_INTERVAL_BASE_IFRAME;
             this.currentScanInterval = this.baseScanInterval;
@@ -350,7 +352,7 @@
                 this.ensureObservers(); this.scanAndApply();
                 this.onAddShadowRoot = (e) => { if (e.detail && e.detail.shadowRoot) { this.scanSpecificRoot(e.detail.shadowRoot); } };
                 document.addEventListener('addShadowRoot', this.onAddShadowRoot);
-                this.scheduleNextScan();
+                this.scheduleNextScan(); // [Opt] Start adaptive loop
             });
         }
         destroy() {
@@ -368,13 +370,14 @@
                         if (m.addedNodes.length > 0) {
                             for(const n of m.addedNodes) {
                                 if (n.nodeType !== 1) continue;
+                                // [Fix for 119.6] Iframe detection logic improved
                                 if (n.matches?.('video,img,iframe') || n.querySelector?.('video,img,iframe')) { needsScan = true; break; }
                             }
                         }
                         if (needsScan) break;
                     }
                     if (needsScan) {
-                        this.resetScanInterval();
+                        this.resetScanInterval(); // Reset interval on mutation
                         scheduleIdleTask(this._scanBound);
                     }
                 });
@@ -406,28 +409,30 @@
             if (this.scanTimerId) clearTimeout(this.scanTimerId);
             this.scanTimerId = setTimeout(() => {
                  scheduleIdleTask(() => {
-                      this.scanAndApply();
-                      if (window._shadowDomList_) { window._shadowDomList_ = window._shadowDomList_.filter(r => r && r.host && r.host.isConnected); }
-                      const activeMedia = this.stateManager.get('media.activeMedia');
-                      const activeImages = this.stateManager.get('media.activeImages');
-                      const hasMedia = activeMedia.size > 0 || activeImages.size > 0;
+                     this.scanAndApply();
+                     if (window._shadowDomList_) { window._shadowDomList_ = window._shadowDomList_.filter(r => r && r.host && r.host.isConnected); }
+                     // Adaptive Logic
+                     const activeMedia = this.stateManager.get('media.activeMedia');
+                     const activeImages = this.stateManager.get('media.activeImages');
+                     const hasMedia = activeMedia.size > 0 || activeImages.size > 0;
 
-                      if (hasMedia) {
-                          this.emptyScanCount = 0;
-                          this.currentScanInterval = this.baseScanInterval;
-                      } else {
-                          this.emptyScanCount++;
-                          if (this.emptyScanCount > 3) {
-                              this.currentScanInterval = Math.min(CONFIG.SCAN_INTERVAL_MAX, this.currentScanInterval * 1.5);
-                          }
-                      }
-                      this.scheduleNextScan();
+                     if (hasMedia) {
+                         this.emptyScanCount = 0;
+                         this.currentScanInterval = this.baseScanInterval;
+                     } else {
+                         this.emptyScanCount++;
+                         if (this.emptyScanCount > 3) {
+                             this.currentScanInterval = Math.min(CONFIG.SCAN_INTERVAL_MAX, this.currentScanInterval * 1.5);
+                         }
+                     }
+                     this.scheduleNextScan();
                  });
             }, this.currentScanInterval);
         }
         resetScanInterval() {
              this.emptyScanCount = 0;
              this.currentScanInterval = this.baseScanInterval;
+             // Immediate scan if waiting too long
              if (this.scanTimerId) { clearTimeout(this.scanTimerId); this.scheduleNextScan(); }
         }
         scanAndApply() {
@@ -485,6 +490,7 @@
             const isValid = m => (m.offsetWidth >= CONFIG.VIDEO_MIN_SIZE || m.offsetHeight >= CONFIG.VIDEO_MIN_SIZE || m.videoWidth >= CONFIG.VIDEO_MIN_SIZE || m.videoHeight >= CONFIG.VIDEO_MIN_SIZE);
             root.querySelectorAll('video').forEach(m => isValid(m) && media.add(m));
 
+            // [Fix for 119.6] Removed top-window check for recursive iframe scanning
             root.querySelectorAll('iframe').forEach(f => {
                 try {
                     if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
@@ -506,6 +512,7 @@
             const isValid = i => (i.naturalWidth > CONFIG.IMAGE_MIN_SIZE && i.naturalHeight > CONFIG.IMAGE_MIN_SIZE) || (i.offsetWidth > CONFIG.IMAGE_MIN_SIZE && i.offsetHeight > CONFIG.IMAGE_MIN_SIZE);
             root.querySelectorAll('img').forEach(i => isValid(i) && images.add(i));
 
+            // [Fix for 119.6] Removed top-window check for recursive iframe scanning
             root.querySelectorAll('iframe').forEach(f => {
                 try {
                     if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
@@ -730,10 +737,6 @@
                     const isImage = this._options.isImage;
                     const toRemove = [];
 
-                    const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-                    const radiusFine = isMobile ? "0.15" : "0.3";
-                    const radiusCoarse = isMobile ? "0.4" : "0.75";
-
                     for (const rootNode of this._activeFilterRoots) {
                         if (!rootNode.isConnected) { toRemove.push(rootNode); continue; }
                         let cache = this._elementCache.get(rootNode);
@@ -758,19 +761,15 @@
                                 strFine = Math.min(4.0, sharpenLevel * 0.12);
                                 strCoarse = 0;
                             } else {
-                                // [수정됨 v119.8] 모바일(0.03) vs 데스크톱(0.05) 분기 처리로 최적화
-                                const coarseWeight = isMobile ? 0.03 : 0.05;
-                                const fineWeight = isMobile ? 0.04 : 0.05;
-
-                                strCoarse = Math.min(4.0, sharpenLevel * coarseWeight);
-                                strFine = (values.level2 !== undefined) ? Math.min(4.0, values.level2 * fineWeight) : 0;
+                                strCoarse = Math.min(4.0, sharpenLevel * 0.05);
+                                strFine = (values.level2 !== undefined) ? Math.min(4.0, values.level2 * 0.03) : 0;
                             }
 
                             if (strFine <= 0.01) {
                                 setAttr(cache.blurFine, 'stdDeviation', "0");
                                 if (cache.compFine) { setAttr(cache.compFine, 'k2', "1"); setAttr(cache.compFine, 'k3', "0"); }
                             } else {
-                                setAttr(cache.blurFine, 'stdDeviation', radiusFine);
+                                setAttr(cache.blurFine, 'stdDeviation', "0.3");
                                 if (cache.compFine) { setAttr(cache.compFine, 'k2', (1 + strFine).toFixed(3)); setAttr(cache.compFine, 'k3', (-strFine).toFixed(3)); }
                             }
 
@@ -778,7 +777,7 @@
                                 setAttr(cache.blurCoarse, 'stdDeviation', "0");
                                 if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', "1"); setAttr(cache.compCoarse, 'k3', "0"); }
                             } else {
-                                setAttr(cache.blurCoarse, 'stdDeviation', radiusCoarse);
+                                setAttr(cache.blurCoarse, 'stdDeviation', "0.75");
                                 if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', (1 + strCoarse).toFixed(3)); setAttr(cache.compCoarse, 'k3', (-strCoarse).toFixed(3)); }
                             }
                         }
@@ -981,6 +980,7 @@
         constructor() { super('LiveStream'); this.video = null; this.avgDelay = null; this.intervalId = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL; }
         init(stateManager) {
             super.init(stateManager);
+            // [Fix for 119.6] Listen to isRunning for proper stop/start control
             this.subscribe('liveStream.isRunning', (running) => {
                 if (running) this.start();
                 else this.stop();
@@ -988,6 +988,7 @@
 
             this.subscribe('app.scriptActive', (active) => {
                 const isLiveSite = CONFIG.LIVE_STREAM_SITES.some(d => location.href.includes(d));
+                // Just toggle the state, let the listener handle the logic
                 if (active && isLiveSite) this.stateManager.set('liveStream.isRunning', true);
                 else this.stateManager.set('liveStream.isRunning', false);
             });
