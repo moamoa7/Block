@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v5.8)
-// @version      5.8
-// @description  모바일 터치 이벤트 중복 실행(Ghost Click) 방지 및 탭 관리/정렬 모드 통합
+// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v5.9)
+// @version      5.9
+// @description  입력창 가시성 확보, 관리 버튼 개선, 관리창 내 드래그 정렬 기능 추가
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -19,7 +19,7 @@
     const saveData = () => GM_setValue('bm_db_v2', db);
     let isSortMode = false;
 
-    // 1. 스타일 설정
+    // 1. 스타일 설정 (입력창 강제 스타일 및 가시성 확보)
     GM_addStyle(`
         #bookmark-fab { 
             position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px; 
@@ -27,11 +27,28 @@
             display: flex !important; align-items: center !important; justify-content: center !important; 
             cursor: pointer; z-index: 2147483647; box-shadow: 0 4px 15px rgba(0,0,0,0.4); 
             font-size: 26px !important; user-select: none !important; 
-            touch-action: none !important; /* 스크롤/줌 차단 */
-            -webkit-tap-highlight-color: transparent; border: none !important; 
+            touch-action: none !important; -webkit-tap-highlight-color: transparent; border: none !important; 
         }
-        #bookmark-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.98) !important; z-index: 2147483646; display: none; overflow-y: auto; padding: 15px; backdrop-filter: blur(5px); box-sizing: border-box; color: #333 !important; font-family: sans-serif; }
+        #bookmark-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.98) !important; z-index: 2147483646; display: none; overflow-y: auto; padding: 15px; backdrop-filter: blur(5px); box-sizing: border-box; color: #333 !important; font-family: sans-serif; text-align: left !important; }
         
+        /* 텍스트/입력창 가시성 강제 설정 (사이트 CSS 덮어쓰기) */
+        .bm-modal-content, .bm-dashboard-container { color: #333 !important; text-align: left !important; }
+        .bm-modal-content input, #bookmark-overlay input { 
+            width: 100% !important; 
+            padding: 10px !important; 
+            margin: 5px 0 !important; 
+            border: 1px solid #ccc !important; 
+            background-color: #fff !important; 
+            color: #000 !important; 
+            border-radius: 6px !important; 
+            box-sizing: border-box !important; 
+            font-size: 14px !important;
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            height: auto !important;
+        }
+
         .bm-top-row { max-width: 1200px; margin: 0 auto 10px auto; display: flex; flex-direction: column; gap: 8px; }
         .bm-nav { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
         .bm-tab-bar { display: flex; gap: 5px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 5px; flex: 1; }
@@ -39,7 +56,7 @@
         .bm-tab.active { background: #333 !important; color: #fff !important; }
 
         .bm-admin-bar { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-        .bm-util-btn { padding: 7px 10px; font-size: 11px; color: #fff !important; background: #333 !important; border: 0 !important; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+        .bm-util-btn { padding: 7px 10px; font-size: 11px; color: #fff !important; background: #333 !important; border: 0 !important; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none !important; }
         .bm-btn-blue { background: #007bff !important; }
         .bm-btn-green { background: #28a745 !important; }
 
@@ -47,6 +64,9 @@
         .bm-bookmark-section { background: white !important; border: 1px solid #ddd !important; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .bm-section-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f1f3f5 !important; border-bottom: 1px solid #ddd !important; }
         
+        /* 관리 버튼 가시성 개선 */
+        .bm-manage-btn { border: 1px solid #ccc !important; background: #fff !important; color: #333 !important; padding: 5px 10px !important; border-radius: 6px !important; font-size: 11px !important; cursor: pointer !important; font-weight: bold !important; }
+
         .bm-item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 12px; padding: 15px; min-height: 60px; justify-items: center; }
         .bm-item-wrapper { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; text-decoration: none !important; color: inherit !important; width: 100% !important; max-width: 80px; }
         .bm-bookmark-item { display: flex !important; flex-direction: column !important; align-items: center !important; text-align: center !important; width: 100% !important; }
@@ -59,8 +79,10 @@
 
         .bm-modal-bg { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6) !important; z-index:2147483647; display:none; align-items:center; justify-content:center; padding: 20px; box-sizing: border-box; }
         .bm-modal-content { background: white !important; padding: 25px; border-radius: 15px; width: 100%; max-width: 420px; max-height: 85vh; overflow-y: auto; color: #333 !important; }
-        .bm-modal-content input { width: 100% !important; padding: 10px !important; margin: 5px 0 10px 0 !important; border: 1px solid #ddd !important; border-radius: 6px !important; box-sizing: border-box !important; }
         .tab-manage-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; gap: 10px; }
+        
+        /* 관리창 내부 드래그 핸들 */
+        .bm-drag-handle { cursor: grab; font-size: 18px; margin-right: 10px; color: #888; touch-action: none; }
     `);
 
     // 2. 대시보드 렌더링
@@ -97,7 +119,7 @@
             section.innerHTML = `
                 <div class="bm-section-header">
                     <span style="font-weight:bold; font-size:14px;">${isSortMode ? '≡ ' : '📁 '} ${gTitle}</span>
-                    ${!isSortMode ? '<button class="bm-manage-btn" style="border:0; background:#eee; padding:5px 10px; border-radius:6px; font-size:11px; cursor:pointer;">관리</button>' : ''}
+                    ${!isSortMode ? '<button class="bm-manage-btn">관리</button>' : ''}
                 </div>
                 <div class="bm-item-grid" data-group="${gTitle}"></div>
             `;
@@ -111,13 +133,7 @@
                 wrapper.innerHTML = `<div class="bm-bookmark-item"><img src="https://www.google.com/s2/favicons?domain=${host}&sz=64" onerror="this.src='https://www.google.com/s2/favicons?domain=example.com';"><span>${item.name}</span></div>`;
                 grid.appendChild(wrapper);
             });
-
-            new Sortable(grid, { group: 'items', animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: (evt) => {
-                const fG = evt.from.getAttribute('data-group'); const tG = evt.to.getAttribute('data-group');
-                const moveItem = db.pages[db.currentPage][fG].splice(evt.oldIndex, 1)[0];
-                db.pages[db.currentPage][tG].splice(evt.newIndex, 0, moveItem);
-                saveData();
-            }});
+            // 메인 화면에서는 더 이상 아이템 드래그를 허용하지 않음 (오직 '관리' 창에서만 이동)
             container.appendChild(section);
         });
         overlay.appendChild(container);
@@ -180,23 +196,30 @@
         document.getElementById('close-tab-mgr').onclick = () => modalBg.remove();
     }
 
-    // 4. 그룹 편집 및 퀵 저장
+    // 4. 그룹 편집 (주소창 표시 및 드래그 기능 추가)
     function showGroupManager(gTitle) {
         const modalBg = document.createElement('div'); modalBg.className='bm-modal-bg'; modalBg.style.display='flex';
         let items = db.pages[db.currentPage][gTitle];
+        
+        // 아이템 목록 생성 시 주소(input)와 드래그 핸들 추가
         modalBg.innerHTML = `
             <div class="bm-modal-content">
                 <h3 style="margin-top:0;">🛠 그룹 관리</h3>
+                <label style="font-size:12px; font-weight:bold;">그룹 이름:</label>
                 <input type="text" id="e-g-n" value="${gTitle}">
-                <div id="i-l" style="max-height:40vh; overflow-y:auto; border:1px solid #eee; border-radius:8px; padding:10px;">
+                
+                <div style="font-size:12px; margin-top:10px; color:#666;">☰ 핸들을 잡고 드래그하여 순서를 변경하세요.</div>
+                <div id="i-l" style="max-height:40vh; overflow-y:auto; border:1px solid #eee; border-radius:8px; padding:10px; margin-top:5px;">
                     ${items.map((it, idx)=>`
-                    <div class="e-r" style="border-bottom:1px solid #eee; padding:10px 0; display:flex; flex-direction:column; gap:5px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:11px; font-weight:bold;">북마크 #${idx+1}</span>
-                            <span style="color:red; cursor:pointer; font-size:11px;" onclick="this.parentElement.parentElement.remove()">삭제</span>
+                    <div class="e-r" style="border-bottom:1px solid #eee; padding:10px 0; display:flex; gap:10px; align-items:center;">
+                        <span class="bm-drag-handle">☰</span>
+                        <div style="flex:1;">
+                            <div style="display:flex; justify-content:flex-end;">
+                                <span style="color:red; cursor:pointer; font-size:11px;" onclick="this.closest('.e-r').remove()">삭제</span>
+                            </div>
+                            <input type="text" class="r-n" value="${it.name}" placeholder="이름" style="margin-bottom:5px !important;">
+                            <input type="text" class="r-u" value="${it.url}" placeholder="URL">
                         </div>
-                        <input type="text" class="r-n" value="${it.name}" placeholder="이름" style="margin:0 !important; font-size:12px;">
-                        <input type="text" class="r-u" value="${it.url}" placeholder="URL" style="margin:0 !important; font-size:11px; color:#666;">
                     </div>`).join('')}
                 </div>
                 <div style="display:flex; gap:10px; margin-top:20px;">
@@ -205,6 +228,13 @@
                 </div>
             </div>`;
         document.body.appendChild(modalBg);
+        
+        // 관리창 내부 드래그 정렬 활성화 (모바일에서도 작동)
+        new Sortable(document.getElementById('i-l'), {
+            handle: '.bm-drag-handle',
+            animation: 150
+        });
+
         document.getElementById('c-l').onclick = () => modalBg.remove();
         document.getElementById('s-v').onclick = () => {
             const newN = document.getElementById('e-g-n').value.trim();
@@ -226,6 +256,7 @@
         modalBg.innerHTML = `
             <div class="bm-modal-content">
                 <h3 style="margin-top:0;">🔖 북마크 저장</h3>
+                <label>이름:</label>
                 <input type="text" id="bm-q-n" value="${document.title.substring(0,30)}">
                 <div id="q-area">
                     <p style="font-size:12px; font-weight:bold;">탭 선택:</p>
@@ -265,7 +296,7 @@
         });
     }
 
-    // 5. FAB 초기화 및 터치 이벤트 (핵심 수정 적용)
+    // 5. FAB 초기화 및 터치 이벤트
     function init() {
         const overlay = document.createElement('div'); overlay.id = 'bookmark-overlay'; document.body.appendChild(overlay);
         const fab = document.createElement('div'); fab.id = 'bookmark-fab'; fab.innerText = '🔖';
@@ -274,8 +305,6 @@
         let pressTimer;
         let isLongPress = false;
         let startX, startY;
-        
-        // 하이브리드 기기(노트북+터치스크린) 대응을 위해 maxTouchPoints 체크
         let isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
         const handleStart = (e) => {
@@ -306,7 +335,6 @@
             }
         };
 
-        // Ghost Click 방지를 위한 이벤트 분기
         if (isTouchDevice) {
             fab.addEventListener('touchstart', handleStart, { passive: true });
             fab.addEventListener('touchend', handleEnd, { passive: true });
@@ -314,7 +342,6 @@
             fab.addEventListener('mousedown', handleStart);
             fab.addEventListener('mouseup', handleEnd);
         }
-
         fab.addEventListener('contextmenu', e => e.preventDefault());
     }
 
