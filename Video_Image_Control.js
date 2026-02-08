@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Clean & Optimized & Fixed)
+// @name        Video_Image_Control (Generalized Optimized)
 // @namespace   https://com/
-// @version     119.6
-// @description v119.6: [Hotfix] Iframe 중첩 감지 강화, MutationObserver 수정, 스캔 주기 적응형 최적화(CPU 절약), 라이브 스트림 종료 버그 수정.
+// @version     120.1
+// @description v120.1: [Optimized] 일반 영상(브이로그, 예능 등)에서 피부 번들거림 억제 및 자연스러운 명암비 구현. 하이라이트 롤오프 개선 및 Luma Contrast 밸런싱.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -41,7 +41,6 @@
         MIN_BUFFER_HEALTH_SEC: 1.0,
         LIVE_JUMP_INTERVAL: 6000, LIVE_JUMP_END_THRESHOLD: 1.0,
         DEBOUNCE_DELAY: 300,
-        // 스캔 설정 (적응형으로 변경됨에 따라 기본값 설정)
         SCAN_INTERVAL_BASE_TOP: 15000,
         SCAN_INTERVAL_BASE_IFRAME: 3000,
         SCAN_INTERVAL_MAX: 30000,
@@ -341,7 +340,6 @@
             this.onAddShadowRoot = null;
             this._ioRatio = new Map();
             this._scanBound = this.scanAndApply.bind(this);
-            // [Adaptive Scan]
             this.emptyScanCount = 0;
             this.baseScanInterval = IS_TOP ? CONFIG.SCAN_INTERVAL_BASE_TOP : CONFIG.SCAN_INTERVAL_BASE_IFRAME;
             this.currentScanInterval = this.baseScanInterval;
@@ -352,7 +350,7 @@
                 this.ensureObservers(); this.scanAndApply();
                 this.onAddShadowRoot = (e) => { if (e.detail && e.detail.shadowRoot) { this.scanSpecificRoot(e.detail.shadowRoot); } };
                 document.addEventListener('addShadowRoot', this.onAddShadowRoot);
-                this.scheduleNextScan(); // [Opt] Start adaptive loop
+                this.scheduleNextScan();
             });
         }
         destroy() {
@@ -370,14 +368,13 @@
                         if (m.addedNodes.length > 0) {
                             for(const n of m.addedNodes) {
                                 if (n.nodeType !== 1) continue;
-                                // [Fix for 119.6] Iframe detection logic improved
                                 if (n.matches?.('video,img,iframe') || n.querySelector?.('video,img,iframe')) { needsScan = true; break; }
                             }
                         }
                         if (needsScan) break;
                     }
                     if (needsScan) {
-                        this.resetScanInterval(); // Reset interval on mutation
+                        this.resetScanInterval();
                         scheduleIdleTask(this._scanBound);
                     }
                 });
@@ -411,7 +408,6 @@
                  scheduleIdleTask(() => {
                      this.scanAndApply();
                      if (window._shadowDomList_) { window._shadowDomList_ = window._shadowDomList_.filter(r => r && r.host && r.host.isConnected); }
-                     // Adaptive Logic
                      const activeMedia = this.stateManager.get('media.activeMedia');
                      const activeImages = this.stateManager.get('media.activeImages');
                      const hasMedia = activeMedia.size > 0 || activeImages.size > 0;
@@ -432,7 +428,6 @@
         resetScanInterval() {
              this.emptyScanCount = 0;
              this.currentScanInterval = this.baseScanInterval;
-             // Immediate scan if waiting too long
              if (this.scanTimerId) { clearTimeout(this.scanTimerId); this.scheduleNextScan(); }
         }
         scanAndApply() {
@@ -490,7 +485,6 @@
             const isValid = m => (m.offsetWidth >= CONFIG.VIDEO_MIN_SIZE || m.offsetHeight >= CONFIG.VIDEO_MIN_SIZE || m.videoWidth >= CONFIG.VIDEO_MIN_SIZE || m.videoHeight >= CONFIG.VIDEO_MIN_SIZE);
             root.querySelectorAll('video').forEach(m => isValid(m) && media.add(m));
 
-            // [Fix for 119.6] Removed top-window check for recursive iframe scanning
             root.querySelectorAll('iframe').forEach(f => {
                 try {
                     if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
@@ -512,7 +506,6 @@
             const isValid = i => (i.naturalWidth > CONFIG.IMAGE_MIN_SIZE && i.naturalHeight > CONFIG.IMAGE_MIN_SIZE) || (i.offsetWidth > CONFIG.IMAGE_MIN_SIZE && i.offsetHeight > CONFIG.IMAGE_MIN_SIZE);
             root.querySelectorAll('img').forEach(i => isValid(i) && images.add(i));
 
-            // [Fix for 119.6] Removed top-window check for recursive iframe scanning
             root.querySelectorAll('iframe').forEach(f => {
                 try {
                     if (f.contentWindow && f.contentWindow.__VideoSpeedControlInitialized) return;
@@ -659,6 +652,7 @@
 
                     const blurFine = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur_fine", in: "dimmed_in", stdDeviation: "0", result: "blur_fine_out" });
                     const compFine = createSvgElement('feComposite', { "data-vsc-id": "sharpen_comp_fine", operator: "arithmetic", in: "dimmed_in", in2: "blur_fine_out", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_fine" });
+
                     const blurCoarse = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur_coarse", in: "sharpened_fine", stdDeviation: "0", result: "blur_coarse_out" });
                     const compCoarse = createSvgElement('feComposite', { "data-vsc-id": "sharpen_comp_coarse", operator: "arithmetic", in: "sharpened_fine", in2: "blur_coarse_out", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_final" });
 
@@ -672,9 +666,15 @@
                          combinedFilter.append(smartDim, blurFine, compFine, blurCoarse, compCoarse, colorTemp);
                     } else {
                         const profileMatrix = createSvgElement('feColorMatrix', { "data-vsc-id": "profile_matrix", in: nextStageIn, type: "matrix", values: "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0", result: "profile_out" });
-                        const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "profile_out", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
+
+                        // [Optimized] Luma Contrast: Reduced color shift in highlights
+                        const lumaContrast = createSvgElement('feColorMatrix', { "data-vsc-id": "luma_contrast_matrix", in: "profile_out", type: "matrix", values: "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0", result: "luma_contrast_out" });
+
+                        const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "luma_contrast_out", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
                         const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA_VALUE).toString() })));
+
                         const toneCurve = createSvgElement('feComponentTransfer', { "data-vsc-id": "tone_curve", in: "gamma_out", result: "tone_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'table', tableValues: "0 1" })));
+
                         const stLumaToAlpha = createSvgElement('feColorMatrix', { "data-vsc-id": "st_luma_to_alpha", in: "gamma_out", type: "matrix", values: "0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.2126 0.7152 0.0722 0 0", result: "st_luma_a" });
                         const stShadowMaskInv = createSvgElement('feComponentTransfer', { "data-vsc-id": "st_shadow_mask_inv", in: "st_luma_a", result: "st_shadow_mask_raw" }, createSvgElement('feFuncA', { type: "linear", slope: "-1", intercept: "1" }));
                         const stShadowMaskRefined = createSvgElement('feComponentTransfer', { "data-vsc-id": "st_shadow_mask_refined", in: "st_shadow_mask_raw", result: "st_shadow_mask_final" }, createSvgElement('feFuncA', { "data-vsc-id": "st_shadow_exp", type: "gamma", exponent: "2.5" }));
@@ -685,16 +685,18 @@
                         const stHighlightComp = createSvgElement('feComposite', { "data-vsc-id": "st_highlight_layer", in: "st_highlight_color", in2: "st_highlight_mask_final", operator: "in", result: "st_highlight_layer_out" });
                         const stShadowBlend = createSvgElement('feBlend', { "data-vsc-id": "st_blend_shadows", in: "st_shadow_layer_out", in2: "tone_out", mode: "soft-light", result: "st_blended_shadows" });
                         const stHighlightBlend = createSvgElement('feBlend', { "data-vsc-id": "st_blend_highlights", in: "st_highlight_layer_out", in2: "st_blended_shadows", mode: "soft-light", result: "split_tone_out" });
+
                         const finalBlur = createSvgElement('feGaussianBlur', { "data-vsc-id": "final_blur", in: "split_tone_out", stdDeviation: settings.BLUR_STD_DEVIATION, result: "final_blur_out" });
                         const noise = createSvgElement('feTurbulence', { "data-vsc-id": "noise_gen", type: "fractalNoise", baseFrequency: "0.85", numOctaves: "3", stitchTiles: "stitch", result: "raw_noise" });
                         const grayNoise = createSvgElement('feColorMatrix', { "data-vsc-id": "noise_desat", in: "raw_noise", type: "matrix", values: "0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 1 0", result: "mono_noise" });
                         const ditherBlend = createSvgElement('feComposite', { "data-vsc-id": "dither_blend", operator: "arithmetic", in: "final_blur_out", in2: "mono_noise", k1: "0", k2: "1", k3: "0", k4: "0", result: "dither_out" });
+
                         const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "dither_out", result: "final_out" });
                         colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
                         colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" }));
                         colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
 
-                        combinedFilter.append(smartDim, blurFine, compFine, blurCoarse, compCoarse, profileMatrix, saturation, gamma, toneCurve, stLumaToAlpha, stShadowMaskInv, stShadowMaskRefined, stHighlightMaskRefined, stShadowFlood, stHighlightFlood, stShadowComp, stHighlightComp, stShadowBlend, stHighlightBlend, finalBlur, noise, grayNoise, ditherBlend, colorTemp);
+                        combinedFilter.append(smartDim, blurFine, compFine, blurCoarse, compCoarse, profileMatrix, lumaContrast, saturation, gamma, toneCurve, stLumaToAlpha, stShadowMaskInv, stShadowMaskRefined, stHighlightMaskRefined, stShadowFlood, stHighlightFlood, stShadowComp, stHighlightComp, stShadowBlend, stHighlightBlend, finalBlur, noise, grayNoise, ditherBlend, colorTemp);
                     }
                     svg.append(combinedFilter);
                     const style = document.createElement('style'); style.id = styleId; style.textContent = `.${className} { filter: url(#${combinedFilterId}) !important; } .vsc-gpu-accelerated { transform: translateZ(0); } .vsc-btn.analyzing { box-shadow: 0 0 5px #f39c12, 0 0 10px #f39c12 inset !important; }`;
@@ -708,28 +710,51 @@
                     const toneKey = (shadows !== undefined) ? `${(+shadows).toFixed(2)}_${(+highlights).toFixed(2)}_${(+contrast).toFixed(3)}` : null;
                     if (toneKey) {
                         if (this._globalToneCache.key !== toneKey) {
-                            const genSigmoidTable = (sh, hi, contrast = 1.0) => {
+                            // [Optimized] S-Curve for General Video Content
+                            const genSCurveTable = (sh, hi, contrast = 1.0) => {
                                 const steps = 256; const vals = [];
-                                const shOffset = (sh || 0) / 200; const hiOffset = (hi || 0) / 200;
-                                const c = Number.isFinite(contrast) ? contrast : 1.0;
-                                const cClamped = Math.max(0.5, Math.min(2.0, c));
-                                const kMin = 1.2; const kScale = 16.0;
-                                const k = Math.max(0.05, kMin + (cClamped - 1.0) * kScale);
-                                const sigmoid = (x, k) => 1 / (1 + Math.exp(-k * (x - 0.5)));
-                                const minVal = sigmoid(0, k); const maxVal = sigmoid(1, k);
+                                const s = contrast;
+
+                                // Normalize shadows/highlights (-100..100 -> relative)
+                                const shadowInput = (sh || 0) / 100;
+                                const highlightInput = (hi || 0) / 100;
+
+                                // Base curve params - Optimized for less shiny skin
+                                const toe = 0.20 + (shadowInput * 0.1); // Dynamic Toe
+                                const shoulder = 0.70 - (highlightInput * 0.1); // Reduced from 0.78 to 0.70 for softer rolloff
+                                const shoulderGain = 0.08; // Reduced from 0.16 to 0.08 to prevent shiny face
+
+                                const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+
                                 for (let i = 0; i < steps; i++) {
-                                    let x = i / (steps - 1);
-                                    let y = (sigmoid(x, k) - minVal) / (maxVal - minVal);
-                                    if (Math.abs(cClamped - 1.0) < 0.01) y = x;
-                                    if (x < 0.5) { const w = Math.cos(Math.PI * x); y += shOffset * w; }
-                                    else { const w = Math.cos(Math.PI * (1 - x)); y += hiOffset * w; }
-                                    y = Math.max(0, Math.min(1, y));
+                                    const x = i / (steps - 1);
+                                    let y = x;
+
+                                    if (s > 1.0) {
+                                        // Strong S-Curve
+                                        const str = (s - 1.0) * 0.5;
+                                        if (x < toe) {
+                                            const t = x / toe;
+                                            const ss = t * t * (3 - 2 * t);
+                                            y = x + (toe - x) * (0.10 + str) * (1 - ss);
+                                        }
+                                        if (x > shoulder) {
+                                            const t = (x - shoulder) / (1 - shoulder);
+                                            const ss = t * t * (3 - 2 * t);
+                                            // More gentle highlight compression
+                                            y = x - (shoulderGain + str * 0.05) * ss * t;
+                                        }
+                                    } else if (s < 1.0) {
+                                        y = x;
+                                    }
+
+                                    y = clamp(y, 0, 1);
                                     vals.push(y.toFixed(4));
                                 }
                                 return vals.join(' ');
                             };
                             this._globalToneCache.key = toneKey;
-                            this._globalToneCache.table = genSigmoidTable(shadows, highlights, contrast);
+                            this._globalToneCache.table = genSCurveTable(shadows, highlights, contrast);
                         }
                         currentToneTable = this._globalToneCache.table;
                     }
@@ -747,7 +772,7 @@
                                 saturate: rootNode.querySelector('[data-vsc-id="saturate"]'), gammaFuncs: rootNode.querySelectorAll('[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB'), finalBlur: rootNode.querySelector('[data-vsc-id="final_blur"]'), toneCurveFuncs: rootNode.querySelectorAll('[data-vsc-id="tone_curve"] feFuncR, [data-vsc-id="tone_curve"] feFuncG, [data-vsc-id="tone_curve"] feFuncB'),
                                 ctRed: rootNode.querySelector('[data-vsc-id="ct_red"]'), ctGreen: rootNode.querySelector('[data-vsc-id="ct_green"]'), ctBlue: rootNode.querySelector('[data-vsc-id="ct_blue"]'),
                                 ditherBlend: rootNode.querySelector('[data-vsc-id="dither_blend"]'), noiseGen: rootNode.querySelector('[data-vsc-id="noise_gen"]'),
-                                profileMatrix: rootNode.querySelector('[data-vsc-id="profile_matrix"]'), smartDimFuncs: rootNode.querySelectorAll('[data-vsc-id="smart_dim_func"]'),
+                                profileMatrix: rootNode.querySelector('[data-vsc-id="profile_matrix"]'), lumaContrastMatrix: rootNode.querySelector('[data-vsc-id="luma_contrast_matrix"]'), smartDimFuncs: rootNode.querySelectorAll('[data-vsc-id="smart_dim_func"]'),
                                 shadowFlood: rootNode.querySelector('[data-vsc-id="st_shadow_flood"]'), highlightFlood: rootNode.querySelector('[data-vsc-id="st_highlight_flood"]'),
                                 maskShadowFunc: rootNode.querySelector('[data-vsc-id="st_shadow_exp"]'), maskHighlightFunc: rootNode.querySelector('[data-vsc-id="st_highlight_exp"]'),
                                 appliedToneKey: null
@@ -777,7 +802,7 @@
                                 setAttr(cache.blurCoarse, 'stdDeviation', "0");
                                 if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', "1"); setAttr(cache.compCoarse, 'k3', "0"); }
                             } else {
-                                setAttr(cache.blurCoarse, 'stdDeviation', "0.75");
+                                setAttr(cache.blurCoarse, 'stdDeviation', "1.3");
                                 if (cache.compCoarse) { setAttr(cache.compCoarse, 'k2', (1 + strCoarse).toFixed(3)); setAttr(cache.compCoarse, 'k3', (-strCoarse).toFixed(3)); }
                             }
                         }
@@ -791,6 +816,20 @@
                                 cache.appliedToneKey = toneKey;
                                 cache.toneCurveFuncs.forEach(el => setAttr(el, 'tableValues', currentToneTable));
                             }
+                        }
+
+                        if (contrast !== undefined && cache.lumaContrastMatrix) {
+                            const cAmount = (contrast - 1.0) * 1.5;
+                            const r = 0.2126 * cAmount;
+                            const g = 0.7152 * cAmount;
+                            const b = 0.0722 * cAmount;
+                            const mVals = [
+                                1+r, g, b, 0, 0,
+                                r, 1+g, b, 0, 0,
+                                r, g, 1+b, 0, 0,
+                                0, 0, 0, 1, 0
+                            ].join(' ');
+                            setAttr(cache.lumaContrastMatrix, 'values', mVals);
                         }
 
                         if (colorTemp !== undefined && cache.ctBlue && cache.ctRed && cache.ctGreen) {
@@ -819,9 +858,11 @@
                             const I = [1,0,0,0,0, 0,1,0,0,0, 0,0,1,0,0, 0,0,0,1,0];
                             const PRESET = {
                                 none: I,
-                                film: [0.99, 0.01, 0.00, 0, 0, 0.00, 1.00, 0.00, 0, 0, 0.00, 0.02, 0.98, 0, 0, 0.00, 0.00, 0.00, 1, 0],
-                                teal: [0.995, 0.005, 0.00, 0, 0, 0.000, 1.000, 0.00, 0, 0, 0.000, 0.040, 0.96, 0, 0, 0.000, 0.000, 0.00, 1, 0],
-                                anime: [1.015, -0.0075, -0.0075, 0, 0, -0.0075, 1.015, -0.0075, 0, 0, -0.0075, -0.0075, 1.015, 0, 0, 0.0000, 0.0000, 0.0000, 1, 0],
+                                // [Optimized] Adjusted matrices for better skin tones
+                                film: [1.02, 0.02, 0.00, 0, -0.015,  0.01, 1.01, 0.01, 0, -0.01,  0.00, 0.02, 1.03, 0, -0.015,  0, 0, 0, 1, 0],
+                                teal: [0.96, 0.02, 0.00, 0, 0,  0.02, 1.02, 0.02, 0, 0,  0.00, 0.04, 1.06, 0, 0,  0, 0, 0, 1, 0],
+                                anime: [1.03, 0.00, 0.00, 0, -0.005,  0.00, 1.03, 0.00, 0, -0.005,  0.00, 0.00, 1.05, 0, -0.008,  0, 0, 0, 1, 0],
+                                gaming: [1.04, 0.00, 0.00, 0, -0.010,  0.00, 1.04, 0.00, 0, -0.010,  0.00, 0.00, 1.04, 0, -0.010,  0, 0, 0, 1, 0]
                             };
                             const clamp01 = (v) => Math.max(0, Math.min(1, v));
                             const lerp = (a, b, t) => a + (b - a) * t;
@@ -834,9 +875,9 @@
 
                             const PROFILE_TONING = {
                                 none:  { sColor: "#000000", sOp: 0, hColor: "#000000", hOp: 0, shExp: 2.5, hiExp: 2.5 },
-                                film:  { sColor: "#002a3a", sOp: 0.60, hColor: "#ffaa55", hOp: 0.40, shExp: 3.5, hiExp: 3.5 },
-                                teal:  { sColor: "#004455", sOp: 0.80, hColor: "#ff9900", hOp: 0.50, shExp: 2.5, hiExp: 2.5 },
-                                anime: { sColor: "#1a0033", sOp: 0.20, hColor: "#ffffff", hOp: 0.10, shExp: 1.5, hiExp: 1.5 }
+                                film:  { sColor: "#002a3a", sOp: 0.50, hColor: "#ffaa55", hOp: 0.30, shExp: 3.5, hiExp: 3.5 },
+                                teal:  { sColor: "#004455", sOp: 0.70, hColor: "#ff9900", hOp: 0.40, shExp: 2.5, hiExp: 2.5 },
+                                anime: { sColor: "#1a0033", sOp: 0.15, hColor: "#ffffff", hOp: 0.05, shExp: 1.5, hiExp: 1.5 }
                             };
                             const toneParams = PROFILE_TONING[key] || PROFILE_TONING.none;
                             const isSplitToningActive = (key !== 'none' && s > 0);
@@ -897,9 +938,9 @@
             const profile = vf.activeProfile;
             const PROFILE_PARAMS = {
               none:  { sat: 1.00, gamma: 1.00, contrast: 1.00 },
-              film:  { sat: 0.80, gamma: 1.10, contrast: 1.30 },
-              teal:  { sat: 1.00, gamma: 1.20, contrast: 1.20 },
-              anime: { sat: 1.20, gamma: 1.30, contrast: 1.10 },
+              film:  { sat: 0.90, gamma: 1.02, contrast: 1.05 },
+              teal:  { sat: 1.00, gamma: 1.02, contrast: 1.05 },
+              anime: { sat: 1.10, gamma: 1.01, contrast: 1.02 },
             };
 
             const params = PROFILE_PARAMS[profile] || PROFILE_PARAMS.none;
@@ -980,7 +1021,6 @@
         constructor() { super('LiveStream'); this.video = null; this.avgDelay = null; this.intervalId = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.AUTODELAY_INTERVAL_NORMAL; }
         init(stateManager) {
             super.init(stateManager);
-            // [Fix for 119.6] Listen to isRunning for proper stop/start control
             this.subscribe('liveStream.isRunning', (running) => {
                 if (running) this.start();
                 else this.stop();
@@ -988,7 +1028,6 @@
 
             this.subscribe('app.scriptActive', (active) => {
                 const isLiveSite = CONFIG.LIVE_STREAM_SITES.some(d => location.href.includes(d));
-                // Just toggle the state, let the listener handle the logic
                 if (active && isLiveSite) this.stateManager.set('liveStream.isRunning', true);
                 else this.stateManager.set('liveStream.isRunning', false);
             });
@@ -1205,7 +1244,7 @@
         updateActiveSpeedButton(rate) { if (this.speedButtons.length === 0) return; this.speedButtons.forEach(b => { const speed = parseFloat(b.dataset.speed); if (speed) { const isActive = Math.abs(speed - rate) < 0.01; if (isActive) { b.style.background = 'rgba(231, 76, 60, 0.9)'; b.style.boxShadow = '0 0 5px #e74c3c, 0 0 10px #e74c3c inset'; } else { b.style.background = 'rgba(52, 152, 219, 0.7)'; b.style.boxShadow = ''; } } }); }
         _createControlGroup(id, icon, title, parent) { const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group'; const mainBtn = document.createElement('button'); mainBtn.className = 'vsc-btn vsc-btn-main'; mainBtn.textContent = icon; mainBtn.title = title; const subMenu = document.createElement('div'); subMenu.className = 'vsc-submenu'; group.append(mainBtn, subMenu); mainBtn.onclick = async (e) => { e.stopPropagation(); const isOpening = !group.classList.contains('submenu-visible'); if (this.shadowRoot) { this.shadowRoot.querySelectorAll('.vsc-control-group').forEach(g => g.classList.remove('submenu-visible')); } if (isOpening) { group.classList.add('submenu-visible'); } this.resetFadeTimer(); }; parent.appendChild(group); if (id === 'vsc-image-controls') this.uiElements.imageControls = group; if (id === 'vsc-video-controls') this.uiElements.videoControls = group; return subMenu; }
         _createSlider(label, id, min, max, step, stateKey, unit, formatFn) { const div = document.createElement('div'); div.className = 'slider-control'; const labelEl = document.createElement('label'); const span = document.createElement('span'); const updateText = (v) => { const val = parseFloat(v); if (isNaN(val)) return; span.textContent = formatFn ? formatFn(val) : `${val.toFixed(1)}${unit}`; }; labelEl.textContent = `${label}: `; labelEl.appendChild(span); const slider = document.createElement('input'); slider.type = 'range'; slider.id = id; slider.min = min; slider.max = max; slider.step = step; slider.value = this.stateManager.get(stateKey); const debouncedSetState = debounce((val) => { this.stateManager.set(stateKey, val); }, 50); slider.oninput = () => { const val = parseFloat(slider.value); updateText(val); if (stateKey.startsWith('videoFilter.')) { this.stateManager.set('videoFilter.activePreset', 'custom'); } debouncedSetState(val); }; this.subscribe(stateKey, (val) => { updateText(val); if (Math.abs(parseFloat(slider.value) - val) > (step / 2 || 0.001)) { slider.value = val; } }); updateText(slider.value); div.append(labelEl, slider); return { control: div, slider: slider, formatFn: formatFn, unit: unit }; }
-        renderAllControls() { if (this.shadowRoot.getElementById('vsc-main-container')) return; const style = document.createElement('style'); const isMobile = this.stateManager.get('app.isMobile'); style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; } #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; } #vsc-main-container:hover { opacity: 1; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;} .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; } .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; } .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '2px' : '3px'}; } #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; } #vsc-image-controls .vsc-submenu { width: 260px; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; } .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; } input[type=range] { width: 100%; margin: 0; } input[type=range]:disabled { opacity: 0.5; } .vsc-monitor { font-size: 10px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; }`; this.shadowRoot.appendChild(style); const mainContainer = document.createElement('div'); mainContainer.id = 'vsc-main-container'; this.uiElements.mainContainer = mainContainer; const controlsContainer = document.createElement('div'); controlsContainer.id = 'vsc-controls-container'; const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer); const videoProfileContainer = document.createElement('div'); videoProfileContainer.style.cssText = 'display: flex; gap: 4px; margin-bottom: 8px; width: 100%; border-bottom: 1px solid #555; padding-bottom: 4px;'; const createProfileBtn = (text, profileKey) => { const btn = document.createElement('button'); btn.className = 'vsc-btn'; btn.textContent = text; btn.onclick = () => { const current = this.stateManager.get('videoFilter.activeProfile'); this.stateManager.set('videoFilter.activeProfile', current === profileKey ? 'none' : profileKey); }; this.subscribe('videoFilter.activeProfile', (val) => { btn.classList.toggle('active', val === profileKey); }); return btn; }; const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '↺'; videoResetBtn.title = '전체 초기화'; videoResetBtn.onclick = () => { this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL); this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2); this.stateManager.set('videoFilter.activePreset', 'reset'); }; videoProfileContainer.append(createProfileBtn('Film', 'film'), createProfileBtn('Teal', 'teal'), createProfileBtn('Anime', 'anime'), videoResetBtn); videoSubMenu.appendChild(videoProfileContainer); const videoSsharpBtn = document.createElement('button'); videoSsharpBtn.className = 'vsc-btn'; videoSsharpBtn.textContent = 'S'; videoSsharpBtn.dataset.presetKey = 'sharpS'; videoSsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 15); this.stateManager.set('videoFilter.level2', 15); this.stateManager.set('videoFilter.activePreset', 'sharpS'); }; const videoMsharpBtn = document.createElement('button'); videoMsharpBtn.className = 'vsc-btn'; videoMsharpBtn.textContent = 'M'; videoMsharpBtn.dataset.presetKey = 'sharpM'; videoMsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 30); this.stateManager.set('videoFilter.level2', 30); this.stateManager.set('videoFilter.activePreset', 'sharpM'); }; const videoLsharpBtn = document.createElement('button'); videoLsharpBtn.className = 'vsc-btn'; videoLsharpBtn.textContent = 'L'; videoLsharpBtn.dataset.presetKey = 'sharpL'; videoLsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 50); this.stateManager.set('videoFilter.level2', 50); this.stateManager.set('videoFilter.activePreset', 'sharpL'); }; const videoSsharpOFFBtn = document.createElement('button'); videoSsharpOFFBtn.className = 'vsc-btn'; videoSsharpOFFBtn.textContent = '끔'; videoSsharpOFFBtn.dataset.presetKey = 'sharpOFF'; videoSsharpOFFBtn.onclick = () => { this.stateManager.set('videoFilter.level', 0); this.stateManager.set('videoFilter.level2', 0); this.stateManager.set('videoFilter.activePreset', 'sharpOFF'); }; const mkBtn = (txt, key, onClick) => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = txt; b.dataset.presetKey = key; b.onclick = () => { onClick(); this.stateManager.set('videoFilter.activePreset', key); }; return b; }; const videoSBrightenBtn = mkBtn('S', 'brighten1', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -1); this.stateManager.set('videoFilter.highlights', 5); }); const videoMBrightenBtn = mkBtn('M', 'brighten2', () => { this.stateManager.set('videoFilter.gamma', 1.08); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', 10); }); const videoLBrightenBtn = mkBtn('L', 'brighten3', () => { this.stateManager.set('videoFilter.gamma', 1.12); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -3); this.stateManager.set('videoFilter.highlights', 15); }); const videoDSBrightenBtn = mkBtn('DS', 'brighten4', () => { this.stateManager.set('videoFilter.gamma', 1.02); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', -2); }); const videoDMBrightenBtn = mkBtn('DM', 'brighten5', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -4); this.stateManager.set('videoFilter.highlights', 5); }); const videoDLBrightenBtn = mkBtn('DL', 'brighten6', () => { this.stateManager.set('videoFilter.gamma', 1.06); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -8); this.stateManager.set('videoFilter.highlights', 15); }); const videoBrightenoffBtn = mkBtn('끔', 'brightOFF', () => { this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.colorTemp', 0); this.stateManager.set('videoFilter.profileStrength', 0.5); }); const videoButtonsContainer = document.createElement('div'); videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; width: 100%; padding-bottom: 4px; border-bottom: 1px solid #555;'; const createLabel = (text) => { const span = document.createElement('span'); span.textContent = text; span.style.cssText = 'color: white; font-weight: bold; font-size: 12px; margin-right: 4px; white-space: nowrap; min-width: 30px; text-align: right; text-shadow: 1px 1px 1px rgba(0,0,0,0.8);'; return span; }; const videoBtnGroup1 = document.createElement('div'); videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;'; videoBtnGroup1.append(createLabel('샤프'), videoSsharpBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn); const pitchBtn = document.createElement('button'); pitchBtn.className = 'vsc-btn'; pitchBtn.textContent = '🎵'; pitchBtn.title = '음정 유지 (켜짐/꺼짐)'; pitchBtn.onclick = () => { const current = this.stateManager.get('audio.pitch'); this.stateManager.set('audio.pitch', !current); }; this.subscribe('audio.pitch', (v) => { pitchBtn.style.color = v ? '#fff' : '#e74c3c'; pitchBtn.style.textShadow = v ? '' : '0 0 5px red'; }); videoBtnGroup1.appendChild(pitchBtn); const videoBtnGroup3 = document.createElement('div'); videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px; flex-wrap: nowrap; overflow-x: auto;'; videoBtnGroup3.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoDSBrightenBtn, videoDMBrightenBtn, videoDLBrightenBtn, videoBrightenoffBtn); videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup3); const videoButtons = [videoSsharpBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoDSBrightenBtn, videoDMBrightenBtn, videoDLBrightenBtn, videoBrightenoffBtn]; this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); }); videoSubMenu.appendChild(videoButtonsContainer); const gridContainer = document.createElement('div'); gridContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;';
+        renderAllControls() { if (this.shadowRoot.getElementById('vsc-main-container')) return; const style = document.createElement('style'); const isMobile = this.stateManager.get('app.isMobile'); style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; } #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; } #vsc-main-container:hover { opacity: 1; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;} .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; } .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; } .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '2px' : '3px'}; } #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; } #vsc-image-controls .vsc-submenu { width: 260px; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; } .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; } input[type=range] { width: 100%; margin: 0; } input[type=range]:disabled { opacity: 0.5; } .vsc-monitor { font-size: 10px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; }`; this.shadowRoot.appendChild(style); const mainContainer = document.createElement('div'); mainContainer.id = 'vsc-main-container'; this.uiElements.mainContainer = mainContainer; const controlsContainer = document.createElement('div'); controlsContainer.id = 'vsc-controls-container'; const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer); const videoProfileContainer = document.createElement('div'); videoProfileContainer.style.cssText = 'display: flex; gap: 4px; margin-bottom: 8px; width: 100%; border-bottom: 1px solid #555; padding-bottom: 4px;'; const createProfileBtn = (text, profileKey) => { const btn = document.createElement('button'); btn.className = 'vsc-btn'; btn.textContent = text; btn.onclick = () => { const current = this.stateManager.get('videoFilter.activeProfile'); this.stateManager.set('videoFilter.activeProfile', current === profileKey ? 'none' : profileKey); }; this.subscribe('videoFilter.activeProfile', (val) => { btn.classList.toggle('active', val === profileKey); }); return btn; }; const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '↺'; videoResetBtn.title = '전체 초기화'; videoResetBtn.onclick = () => { this.stateManager.set('videoFilter.level', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL); this.stateManager.set('videoFilter.level2', CONFIG.DEFAULT_VIDEO_FILTER_LEVEL_2); this.stateManager.set('videoFilter.activePreset', 'reset'); }; videoProfileContainer.append(createProfileBtn('Film', 'film'), createProfileBtn('Teal', 'teal'), createProfileBtn('Anime', 'anime'), videoResetBtn); videoSubMenu.appendChild(videoProfileContainer); const videoSsharpBtn = document.createElement('button'); videoSsharpBtn.className = 'vsc-btn'; videoSsharpBtn.textContent = 'S'; videoSsharpBtn.dataset.presetKey = 'sharpS'; videoSsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 5); this.stateManager.set('videoFilter.level2', 5); this.stateManager.set('videoFilter.activePreset', 'sharpS'); }; const videoMsharpBtn = document.createElement('button'); videoMsharpBtn.className = 'vsc-btn'; videoMsharpBtn.textContent = 'M'; videoMsharpBtn.dataset.presetKey = 'sharpM'; videoMsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 10); this.stateManager.set('videoFilter.level2', 10); this.stateManager.set('videoFilter.activePreset', 'sharpM'); }; const videoLsharpBtn = document.createElement('button'); videoLsharpBtn.className = 'vsc-btn'; videoLsharpBtn.textContent = 'L'; videoLsharpBtn.dataset.presetKey = 'sharpL'; videoLsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 15); this.stateManager.set('videoFilter.level2', 15); this.stateManager.set('videoFilter.activePreset', 'sharpL'); }; const videoSsharpOFFBtn = document.createElement('button'); videoSsharpOFFBtn.className = 'vsc-btn'; videoSsharpOFFBtn.textContent = '끔'; videoSsharpOFFBtn.dataset.presetKey = 'sharpOFF'; videoSsharpOFFBtn.onclick = () => { this.stateManager.set('videoFilter.level', 0); this.stateManager.set('videoFilter.level2', 0); this.stateManager.set('videoFilter.activePreset', 'sharpOFF'); }; const mkBtn = (txt, key, onClick) => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = txt; b.dataset.presetKey = key; b.onclick = () => { onClick(); this.stateManager.set('videoFilter.activePreset', key); }; return b; }; const videoSBrightenBtn = mkBtn('S', 'brighten1', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -1); this.stateManager.set('videoFilter.highlights', 5); }); const videoMBrightenBtn = mkBtn('M', 'brighten2', () => { this.stateManager.set('videoFilter.gamma', 1.08); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', 10); }); const videoLBrightenBtn = mkBtn('L', 'brighten3', () => { this.stateManager.set('videoFilter.gamma', 1.12); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -3); this.stateManager.set('videoFilter.highlights', 15); }); const videoDSBrightenBtn = mkBtn('DS', 'brighten4', () => { this.stateManager.set('videoFilter.gamma', 1.02); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -2); this.stateManager.set('videoFilter.highlights', -2); }); const videoDMBrightenBtn = mkBtn('DM', 'brighten5', () => { this.stateManager.set('videoFilter.gamma', 1.04); this.stateManager.set('videoFilter.saturation', 101); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -4); this.stateManager.set('videoFilter.highlights', 5); }); const videoDLBrightenBtn = mkBtn('DL', 'brighten6', () => { this.stateManager.set('videoFilter.gamma', 1.06); this.stateManager.set('videoFilter.saturation', 102); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', -8); this.stateManager.set('videoFilter.highlights', 15); }); const videoBrightenoffBtn = mkBtn('끔', 'brightOFF', () => { this.stateManager.set('videoFilter.gamma', 1.00); this.stateManager.set('videoFilter.saturation', 100); this.stateManager.set('videoFilter.blur', 0); this.stateManager.set('videoFilter.shadows', 0); this.stateManager.set('videoFilter.highlights', 0); this.stateManager.set('videoFilter.colorTemp', 0); this.stateManager.set('videoFilter.profileStrength', 0.5); }); const videoButtonsContainer = document.createElement('div'); videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; width: 100%; padding-bottom: 4px; border-bottom: 1px solid #555;'; const createLabel = (text) => { const span = document.createElement('span'); span.textContent = text; span.style.cssText = 'color: white; font-weight: bold; font-size: 12px; margin-right: 4px; white-space: nowrap; min-width: 30px; text-align: right; text-shadow: 1px 1px 1px rgba(0,0,0,0.8);'; return span; }; const videoBtnGroup1 = document.createElement('div'); videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;'; videoBtnGroup1.append(createLabel('샤프'), videoSsharpBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn); const pitchBtn = document.createElement('button'); pitchBtn.className = 'vsc-btn'; pitchBtn.textContent = '🎵'; pitchBtn.title = '음정 유지 (켜짐/꺼짐)'; pitchBtn.onclick = () => { const current = this.stateManager.get('audio.pitch'); this.stateManager.set('audio.pitch', !current); }; this.subscribe('audio.pitch', (v) => { pitchBtn.style.color = v ? '#fff' : '#e74c3c'; pitchBtn.style.textShadow = v ? '' : '0 0 5px red'; }); videoBtnGroup1.appendChild(pitchBtn); const videoBtnGroup3 = document.createElement('div'); videoBtnGroup3.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px; flex-wrap: nowrap; overflow-x: auto;'; videoBtnGroup3.append(createLabel('밝기'), videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoDSBrightenBtn, videoDMBrightenBtn, videoDLBrightenBtn, videoBrightenoffBtn); videoButtonsContainer.append(videoBtnGroup1, videoBtnGroup3); const videoButtons = [videoSsharpBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn, videoSBrightenBtn, videoMBrightenBtn, videoLBrightenBtn, videoDSBrightenBtn, videoDMBrightenBtn, videoDLBrightenBtn, videoBrightenoffBtn]; this.subscribe('videoFilter.activePreset', (activeKey) => { videoButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); }); videoSubMenu.appendChild(videoButtonsContainer); const gridContainer = document.createElement('div'); gridContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;';
 
             gridContainer.append(this._createSlider('프로파일 강도', 'v-prof-strength', 0, 1, 0.05, 'videoFilter.profileStrength', '', v => `${Math.round(v*100)}%`).control, this._createSlider('자동밝기제한', 'v-smartlimit', 0, 50, 1, 'videoFilter.smartLimit', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control, this._createSlider('자동톤매핑', 'v-autotone', 0, 100, 5, 'videoFilter.autoTone', '%', v => v > 0 ? `${v.toFixed(0)}%` : '꺼짐').control, this._createSlider('샤프(윤곽)', 'v-sharpen1', 0, 50, 1, 'videoFilter.level', '단계', v => `${v.toFixed(0)}단계`).control, this._createSlider('샤프(디테일)', 'v-sharpen2', 0, 50, 1, 'videoFilter.level2', '단계', v => `${v.toFixed(0)}단계`).control, this._createSlider('색온도', 'v-colortemp', -25, 25, 1, 'videoFilter.colorTemp', '', v => `${v.toFixed(0)}`).control, this._createSlider('필름그레인', 'v-dither', 0, 100, 5, 'videoFilter.dither', '', v => v === 0 ? '꺼짐' : (v <= 50 ? `디더 ${v}` : `그레인 ${v}`)).control, this._createSlider('블러', 'v-blur', 0, 2, 0.01, 'videoFilter.blur', '', v => v.toFixed(2)).control, this._createSlider('밝기(HDR)', 'v-highlights', -100, 100, 1, 'videoFilter.highlights', '', v => v.toFixed(0)).control, this._createSlider('대비(HDR)', 'v-shadows', -100, 100, 0.1, 'videoFilter.shadows', '', v => v.toFixed(1)).control, this._createSlider('감마', 'v-gamma', 1, 4.00, 0.01, 'videoFilter.gamma', '', v => v.toFixed(2)).control, this._createSlider('채도', 'v-saturation', 0, 200, 1, 'videoFilter.saturation', '%', v => `${v.toFixed(0)}%`).control, this._createSlider('베이스', 'a-bass', 0, 1, 0.05, 'audio.bass', '', v => v > 0 ? `+${(v*CONFIG.AUDIO_BASS_MAX_DB).toFixed(1)}dB` : 'OFF').control, this._createSlider('리버브', 'a-reverb', 0, 1, 0.05, 'audio.reverb', '', v => v > 0 ? `${(v*100).toFixed(0)}%` : 'OFF').control); videoSubMenu.appendChild(gridContainer);
 
