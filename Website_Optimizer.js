@@ -305,7 +305,7 @@
             if (Config.gpu) this.injectWebGL();
             this.startIO();
             this.startMO();
-            win.addEventListener('beforeunload', () => {
+            win.addEventListener('pagehide', () => {
                 if (this.visObs) this.visObs.disconnect();
                 if (this.mutObs) this.mutObs.disconnect();
             });
