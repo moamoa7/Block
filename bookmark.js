@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v6.4)
-// @version      6.4
-// @description  기본 아이콘 지구본으로 변경, 네이트 등에서 버튼 글자 안 보이는 문제 해결
+// @name         북마크 (아이콘 롱 프레스 저장 기능 통합 v6.6)
+// @version      6.6
+// @description  기본 아이콘을 '파란색 지구본'으로 변경, 네이트 등 버튼 글자 깨짐 방지 포함
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -20,8 +20,9 @@
     const saveData = () => GM_setValue('bm_db_v2', db);
     let isSortMode = false;
 
-    // [변경] 지구본 모양 기본 아이콘 (SVG -> Base64)
-    const fallbackIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjODg4IiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjxsaW5lIHgxPSIyIiB5MT0iMTIiIHgyPSIyMiIgeTI9IjEyIi8+PHBhdGggZD0iTTEyIDJhMTUuMyAxNS4zIDAgMCAxIDQgMTAgMTUuMyAxNS4zIDAgMCAxLTQgMTAgMTUuMyAxNS4zIDAgMCAxLTQtMTAgMTUuMyAxNS4zIDAgMCAxIDQtMTB6Ii8+PC9zdmc+";
+    // [변경] 파란색 지구본 아이콘 (Blue Globe SVG -> Base64)
+    // 이모티콘이 아니라 실제 이미지 데이터입니다.
+    const fallbackIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PHBhdGggZmlsbD0iIzIxOTZmMyIgZD0iTTI0IDRDMTIuOTUgNCA0IDEyLjk1IDQgMjRzOC45NSAyMCAyMCAyMCAyMC04Ljk1IDIwLTIwUzM1LjA1IDQgMjQgNHptMTAgNC45YzEuOTIgMS40NyAzLjQ5IDMuMzIgNC41NCA1LjQ4LTEuNTUuMzMtMy4yMy41NS00Ljk5LjYzLS43My0yLjI4LTEuNzQtNC40MS0yLjk2LTYuMzguNzQuMDcgMS40OC4xNiAyLjIyLjI3SDM0em0tNi4yMy0xLjA0QzI5LjI4IDkuOTQgMzAuNiAxMi4zOCAzMS40MyAxNUgyNHYtOGgxLjEyYy45NC4xMiAxLjgzLjMzIDIuNjUuODZ6bS03LjU0IDBjLjgyLS41MyAxLjcxLS43NCAyLjY1LS44NlYxNWgtNy40M2MuODMtMi42MiAyLjE1LTUuMDYgMy42Ni03LjE0ek0xNi4xIDcuMjdjMS4xMS0uMTYgMi4yNS0uMjcgMy40MS0uMjcuODcgMCAxLjczLjA3IDIuNTguMTgtMS4yMSAxLjk3LTIuMjIgNC4xLTIuOTUgNi4zOC0xLjgxLS4wOC0zLjUzLS4yOS01LjEyLS42MiAxLjA1LTIuMTcgMi42Mi00LjAyIDQuNTQtNS40OS0uMTUtLjA2LS4zMS0uMTItLjQ2LS4xOHptLTYuNjIgOC4xNmMxLjY5LjM0IDMuNTEuNTYgNS40Mi42NC0uMTcgMi41Mi0uMjcgNS4xNS0uMjcgNy45M3MuMSA1LjQxLjI3IDcuOTNjLTEuOTEuMDgtMy43My4zLTUuNDIuNjRDOC41NSAzMC4xNyA4IDI3LjE2IDggMjRzLjU1LTYuMTcgMS40OC04LjU3em0xLjg4IDE4LjJjLTEuOTItMS40Ny0zLjQ5LTMuMzItNC41NC01LjQ4IDEuNTUtLjMzIDMuMjMtLjU1IDQuOTktLjYzLjczIDIuMjggMS43NCA0LjQxIDIuOTYgNi4zOC0uNzQtLjA3LTEuNDgtLjE2LTIuMjItLjI3aC0xLjE5em02LjIzIDEuMDRjLTEuNTEtMi4wOC0yLjgzLTQuNTItMy42Ni03LjE0aDcuNDN2OGgtMS4xMmMtLjk0LS4xMi0xLjgzLS4zMy0yLjY1LS44NnptNy41NCAwYy0uODIuNTMtMS43MS43NC0yLjY1Ljg2di04aDcuNDNjLS44MyAyLjYyLTIuMTUgNS4wNi0zLjY2IDcuMTR6bTQuNDQgMS41OWMtMS4xMS4xNi0yLjI1LjI3LTMuNDEuMjctLjg3IDAtMS43My0uMDctMi41OC0uMTggMS4yMS0xLjk3IDIuMjItNC4xIDIuOTUtNi4zOCAxLjgxLjA4IDMuNTMuMjkgNS4xMi42Mi0xLjA1IDIuMTctMi42MiA0LjAyLTQuNTQgNS40OS4xNS4wNi4zMS4xMi40Ni4xOHptNi42Mi04LjE2Yy0xLjY5LS4zNC0zLjUxLS41Ni01LjQyLS42NC4xNy0yLjUyLjI3LTUuMTUuMjctNy45M3MtLjEtNS40MS0uMjctNy45M2MxLjkxLS4wOCAzLjczLS4zIDUuNDItLjY0LjkzIDIuNCAxLjQ4IDUuNDEgMS40OCA4LjU3cy0uNTUgNi4xNy0xLjQ4IDguNTd6Ii8+PC9zdmc+";
 
     // 1. 파비콘 다운로드 함수 (ArrayBuffer)
     function fetchFaviconBase64(url) {
@@ -49,7 +50,7 @@
 
     // 2. 아이콘 강제 복구 (덮어쓰기)
     async function fixAllIcons() {
-        if (!confirm("모든 아이콘을 다시 다운로드합니다.\n기존 회색 아이콘도 지구본이나 실제 아이콘으로 변경됩니다.\n진행하시겠습니까?")) return;
+        if (!confirm("모든 아이콘을 다시 다운로드합니다.\n기존 회색 아이콘도 '파란색 지구본'이나 실제 아이콘으로 변경됩니다.\n진행하시겠습니까?")) return;
         const noti = document.createElement('div');
         noti.style.cssText = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.8); color:white; padding:20px; z-index:999999; border-radius:10px; font-weight:bold; text-align:center;";
         noti.innerHTML = "아이콘 업데이트 중...";
@@ -71,20 +72,20 @@
         saveData(); noti.remove(); alert("복구 완료!"); renderDashboard();
     }
 
-    // 3. 스타일 설정 ([중요] 네이트 등 CSS 간섭 방어 코드 추가)
+    // 3. 스타일 설정
     GM_addStyle(`
-        #bookmark-fab {
-            position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px;
-            background: #333 !important; color: white !important; border-radius: 50% !important;
-            display: flex !important; align-items: center !important; justify-content: center !important;
-            cursor: pointer; z-index: 2147483647; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            font-size: 26px !important; user-select: none !important;
-            touch-action: none !important; -webkit-tap-highlight-color: transparent; border: none !important;
+        #bookmark-fab { 
+            position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px; 
+            background: #333 !important; color: white !important; border-radius: 50% !important; 
+            display: flex !important; align-items: center !important; justify-content: center !important; 
+            cursor: pointer; z-index: 2147483647; box-shadow: 0 4px 15px rgba(0,0,0,0.4); 
+            font-size: 26px !important; user-select: none !important; 
+            touch-action: none !important; -webkit-tap-highlight-color: transparent; border: none !important; 
         }
         #bookmark-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.98) !important; z-index: 2147483646; display: none; overflow-y: auto; padding: 15px; backdrop-filter: blur(5px); box-sizing: border-box; color: #333 !important; font-family: sans-serif; text-align: left !important; }
-
+        
         .bm-modal-content, .bm-dashboard-container { color: #333 !important; text-align: left !important; font-family: sans-serif !important; }
-
+        
         /* [네이트/다음 대응] 버튼 텍스트 강제 표시 스타일 */
         .bm-util-btn, .bm-manage-btn, #bookmark-overlay button, .bm-modal-content button {
             text-indent: 0 !important;
@@ -117,16 +118,16 @@
         .bm-dashboard-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; }
         .bm-bookmark-section { background: white !important; border: 1px solid #ddd !important; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .bm-section-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f1f3f5 !important; border-bottom: 1px solid #ddd !important; }
-
+        
         .bm-manage-btn { border: 1px solid #ccc !important; background: #fff !important; color: #333 !important; padding: 5px 10px !important; border-radius: 6px !important; font-weight: bold !important; }
 
         .bm-item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 12px; padding: 15px; min-height: 60px; justify-items: center; }
         .bm-item-wrapper { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; text-decoration: none !important; color: inherit !important; width: 100% !important; max-width: 80px; }
         .bm-bookmark-item { display: flex !important; flex-direction: column !important; align-items: center !important; text-align: center !important; width: 100% !important; }
-
-        .bm-bookmark-item img {
+        
+        .bm-bookmark-item img { 
             width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important;
-            margin-bottom: 6px !important; border-radius: 8px !important; background: #fff !important;
+            margin-bottom: 6px !important; border-radius: 8px !important; background: #fff !important; 
             object-fit: contain !important; pointer-events: none; display: block !important;
             opacity: 1 !important; visibility: visible !important; filter: none !important;
         }
@@ -148,10 +149,10 @@
         if (!overlay) return;
         overlay.className = isSortMode ? 'sort-mode-active' : '';
         overlay.innerHTML = '';
-
+        
         const topRow = document.createElement('div'); topRow.className = 'bm-top-row';
         const nav = document.createElement('div'); nav.className = 'bm-nav';
-
+        
         const tabBar = document.createElement('div'); tabBar.className = 'bm-tab-bar';
         Object.keys(db.pages).forEach(p => {
             const tab = document.createElement('div'); tab.className = `bm-tab ${db.currentPage === p ? 'active' : ''}`;
@@ -181,7 +182,7 @@
                 <div class="bm-item-grid" data-group="${gTitle}"></div>
             `;
             if(!isSortMode) section.querySelector('.bm-manage-btn').onclick = () => showGroupManager(gTitle);
-
+            
             const grid = section.querySelector('.bm-item-grid');
             items.forEach((item) => {
                 const wrapper = document.createElement('a');
@@ -208,13 +209,13 @@
         document.getElementById('btn-tab-mgr').onclick = () => showTabManager();
         document.getElementById('btn-add-g').onclick = () => { const n = prompt("새 그룹 이름:"); if(n){ db.pages[db.currentPage][n]=[]; saveData(); renderDashboard(); }};
         document.getElementById('btn-exp').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(db)], {type:"application/json"})); a.download="bookmark_backup.json"; a.click(); };
-        document.getElementById('btn-imp').onclick = () => {
-            const i = document.createElement('input'); i.type = 'file';
-            i.onchange = e => {
-                const r = new FileReader();
-                r.onload = re => { try { db = JSON.parse(re.target.result); saveData(); renderDashboard(); alert('복구 완료!'); } catch(e){ alert('잘못된 파일입니다.'); } };
-                r.readAsText(e.target.files[0]);
-            }; i.click();
+        document.getElementById('btn-imp').onclick = () => { 
+            const i = document.createElement('input'); i.type = 'file'; 
+            i.onchange = e => { 
+                const r = new FileReader(); 
+                r.onload = re => { try { db = JSON.parse(re.target.result); saveData(); renderDashboard(); alert('복구 완료!'); } catch(e){ alert('잘못된 파일입니다.'); } }; 
+                r.readAsText(e.target.files[0]); 
+            }; i.click(); 
         };
     }
 
