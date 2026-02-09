@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v128.30 Perfected Core)
+// @name        Video_Image_Control (v128.35 Natural Symmetric)
 // @namespace   https://com/
-// @version     128.30
-// @description v128.30: 미사용 State 제거, MutationObserver 최적화(UI 내부 무시), DOM 쓰기 최소화(WeakMap), HLS/UI 안전성 강화.
+// @version     128.35
+// @description v128.35: EV 플러스(+) 감도 하향 조정. 감마 최대치를 1.6으로 제한하여 과도한 밝기 방지. +/- 양방향 대칭 감도 적용.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -20,7 +20,6 @@
     const CAPTURE_PASSIVE = { capture: true, passive: true };
     const originalAttachShadow = Element.prototype.attachShadow;
 
-    // [v128.30] Optimization: Device based Buffer Tuning
     const DEVICE_RAM = navigator.deviceMemory || 4;
     const IS_HIGH_END = DEVICE_RAM >= 8;
     const IS_LOW_END = DEVICE_RAM < 4;
@@ -30,7 +29,6 @@
         ENABLE_HLS_BOOST: true,
         ENABLE_SHADOW_HOOK: true,
 
-        // [v128.30] Optimization: Tighter buffers for low-end
         HLS_MAX_BUFFER: IS_HIGH_END ? 600 : (IS_LOW_END ? 30 : 120),
         HLS_BACK_BUFFER: IS_HIGH_END ? 300 : (IS_LOW_END ? 15 : 60),
 
@@ -147,7 +145,6 @@
         };
     };
 
-    // [v128.30] Improved requestIdleCallback fallback
     const requestIdle = window.requestIdleCallback
         ? window.requestIdleCallback.bind(window)
         : (cb) => { const start = Date.now(); return setTimeout(() => cb({ didTimeout: false, timeRemaining: () => Math.max(0, 50 - (Date.now() - start)) }), 50); };
@@ -171,7 +168,6 @@
             pendingScan = false;
             if (!_corePluginRef) return;
 
-            // [v128.30] Optimization: Burst handling (if too many dirty roots, scan all once)
             if (dirtyRoots.size > 40) {
                 dirtyRoots.clear();
                 safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
@@ -214,7 +210,6 @@
         return sheet;
     }
 
-    // [v128.30] Safety: Strict body check
     function whenDocReady(doc, cb) {
         if (!doc) return;
         if (doc.body && (doc.readyState === 'complete' || doc.readyState === 'interactive')) {
@@ -222,7 +217,7 @@
         } else {
              doc.addEventListener('DOMContentLoaded', () => {
                  if (doc.body) cb();
-                 else setTimeout(cb, 100); // Fallback if body still missing
+                 else setTimeout(cb, 100);
              }, { once: true });
         }
     }
@@ -320,7 +315,6 @@
         (function patchHlsClass() {
             function isCtor(v) { return typeof v === 'function'; }
             function looksLikeHlsJs(H) { return !!(H && H.DefaultConfig && H.prototype && typeof H.prototype.loadSource === 'function'); }
-            // [v128.30] Compatibility: Relaxed writable (Prevent crashes on some sites)
             function protectGlobal(name, value) { try { const d = Object.getOwnPropertyDescriptor(window, name); if (d && !d.configurable) return; Object.defineProperty(window, name, { value, writable: true, configurable: true, enumerable: false }); } catch (e) {} }
             function makePatchedHls(OriginalHls) {
                 if (!OriginalHls || OriginalHls.__VSC_PATCHED__ || !isCtor(OriginalHls)) return OriginalHls;
@@ -390,7 +384,6 @@
         taintedCache: new WeakMap(),
         taintedRetryCache: new WeakMap(),
         stateManager: null,
-        // [v128.30] Removed unused smartLimit from settings (default 0)
         currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0 },
         currentSlope: 1.0, targetSlope: 1.0,
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentAdaptiveContrast: 0,
@@ -481,7 +474,7 @@
             }
             else if (!isClarityActive && !isAutoExposure && this.isRunning) {
                 this.stop();
-                this.notifyUpdate(1.0, { gamma: 1.0, bright: 0, contrast: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0);
+                this.notifyUpdate({ gamma: 1.0, bright: 0, contrast: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0);
             }
         },
 
@@ -510,6 +503,16 @@
             if (!isClarityActive && !isAutoExp) { this.stop(); return; }
 
             const startTime = performance.now();
+
+            const evValue = this.currentSettings.targetLuma || 0;
+            // [v128.33] Zero-Point Bypass
+            if (isAutoExp && evValue === 0) {
+                 this.currentAdaptiveGamma = 1.0;
+                 this.currentAdaptiveBright = 0;
+                 this.currentAdaptiveContrast = 0;
+                 this.currentShadowsAdj = 0;
+                 this.currentHighlightsAdj = 0;
+            }
 
             let baseThreshold = this.hasRVFC ? 15 : 0;
             if (this._highMotion) baseThreshold = this.hasRVFC ? 8 : 4;
@@ -578,10 +581,6 @@
                 }
                 this.lastAvgLuma = avgLuma;
 
-                // Default slope logic without smartLimit (using default ceiling)
-                let calcSlope = (avgLuma > 1.0 && avgLuma > 0.01) ? (1.0 / avgLuma) : 1.0;
-                this.targetSlope = Math.max(0, Math.min(1.0, calcSlope));
-
                 let targetAdaptiveGamma = 1.0;
                 let targetAdaptiveBright = 0;
                 let targetAdaptiveContrast = 0;
@@ -589,50 +588,64 @@
                 let targetHighlightsAdj = 0;
 
                 if (isAutoExp) {
-                    const evValue = this.currentSettings.targetLuma || 0; 
-                    const boostFactor = evValue / 100; 
+                    if (evValue === 0) {
+                        targetAdaptiveGamma = 1.0;
+                        targetAdaptiveBright = 0;
+                        targetShadowsAdj = 0;
+                        targetAdaptiveContrast = 0;
+                        targetHighlightsAdj = 0;
+                        this.currentAdaptiveGamma = 1.0;
+                        this.currentAdaptiveBright = 0;
+                    } 
+                    else {
+                        const boostFactor = evValue / 40; 
+                        let dynamicTarget;
+                        
+                        if (boostFactor >= 0) {
+                            const protection = Math.max(0, 1.0 - avgLuma); 
+                            dynamicTarget = avgLuma * (1.0 + (boostFactor * protection));
+                            dynamicTarget = Math.min(0.95, dynamicTarget);
+                        } else {
+                            const protection = Math.min(1.0, 0.3 + avgLuma * 2.0); 
+                            dynamicTarget = avgLuma * (1.0 + (boostFactor * protection));
+                            dynamicTarget = Math.max(0.01, dynamicTarget);
+                        }
 
-                    let dynamicTarget;
-                    
-                    if (boostFactor >= 0) {
-                        const protection = Math.max(0, 1.0 - avgLuma); 
-                        dynamicTarget = avgLuma * (1.0 + (boostFactor * protection));
-                        dynamicTarget = Math.min(0.95, dynamicTarget);
-                    } else {
-                        const protection = Math.min(1.0, avgLuma * 2.5);
-                        dynamicTarget = avgLuma * (1.0 + (boostFactor * protection));
-                        dynamicTarget = Math.max(0.01, dynamicTarget);
-                    }
+                        if (avgLuma < 0.02) {
+                            dynamicTarget = avgLuma;
+                        }
 
-                    if (avgLuma < 0.02) {
-                        dynamicTarget = avgLuma;
-                    }
+                        let error = dynamicTarget - avgLuma;
+                        if (Math.abs(error) < 0.001) error = 0;
 
-                    let error = dynamicTarget - avgLuma;
-                    if (Math.abs(error) < 0.003) error = 0;
+                        const correction = error * 5.0;
+                        const drFactor = (dynamicRange > 0.7) ? 0.4 : 0.8;
 
-                    const correction = error * 5.0;
-                    const drFactor = (dynamicRange > 0.7) ? 0.4 : 0.8;
-
-                    if (correction > 0) {
-                        targetAdaptiveGamma += correction * 1.5; 
-                        targetAdaptiveBright += correction * 8; 
-                        targetShadowsAdj += correction * 3; 
-                        targetAdaptiveContrast += (correction * 3 * drFactor);
-                    } else {
-                        const absCorr = Math.abs(correction);
-                        targetAdaptiveGamma -= absCorr * 0.8;
-                        targetAdaptiveBright -= absCorr * 10;
-                        targetHighlightsAdj -= absCorr * 30;
+                        if (correction > 0) {
+                            // [v128.35] Nerfed Positive Boost (1.5 -> 0.8)
+                            targetAdaptiveGamma += correction * 0.8; 
+                            targetAdaptiveBright += correction * 4; 
+                            targetShadowsAdj += correction * 3; 
+                            targetAdaptiveContrast += (correction * 3 * drFactor);
+                        } else {
+                            const absCorr = Math.abs(correction);
+                            // Symmetric Sensitivity: 0.8 for negative as well
+                            targetAdaptiveGamma -= absCorr * 0.8; 
+                            targetAdaptiveBright -= absCorr * 4; 
+                            targetHighlightsAdj -= absCorr * 30;
+                        }
                     }
                 }
 
-                const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-                targetAdaptiveGamma = clamp(targetAdaptiveGamma, 0.5, 2.5);
-                targetAdaptiveBright = clamp(targetAdaptiveBright, -40, 40);
-                targetAdaptiveContrast = clamp(targetAdaptiveContrast, -15, 15);
-                targetShadowsAdj = clamp(targetShadowsAdj, -40, 40);
-                targetHighlightsAdj = clamp(targetHighlightsAdj, -80, 60);
+                if (evValue !== 0) {
+                    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+                    // [v128.35] Tighter Clamp (Max Gamma 1.6)
+                    targetAdaptiveGamma = clamp(targetAdaptiveGamma, 0.6, 1.6);
+                    targetAdaptiveBright = clamp(targetAdaptiveBright, -40, 40);
+                    targetAdaptiveContrast = clamp(targetAdaptiveContrast, -15, 15);
+                    targetShadowsAdj = clamp(targetShadowsAdj, -40, 40);
+                    targetHighlightsAdj = clamp(targetHighlightsAdj, -80, 60);
+                }
 
                 let targetClarityComp = 0;
                 if (isClarityActive) {
@@ -643,6 +656,8 @@
                 }
 
                 const smooth = (curr, target) => {
+                    if (evValue === 0 && isAutoExp) return target;
+                    
                     const diff = target - curr;
                     const now = performance.now();
                     const userBoost = (this._userBoostUntil && now < this._userBoostUntil);
@@ -651,7 +666,6 @@
                     return Math.abs(diff) > 0.01 ? curr + diff * speed : curr;
                 };
 
-                this.currentSlope = smooth(this.currentSlope, this.targetSlope);
                 this.currentAdaptiveGamma = smooth(this.currentAdaptiveGamma || 1.0, targetAdaptiveGamma);
                 this.currentAdaptiveBright = smooth(this.currentAdaptiveBright || 0, targetAdaptiveBright);
                 this.currentAdaptiveContrast = smooth(this.currentAdaptiveContrast || 0, targetAdaptiveContrast);
@@ -663,7 +677,7 @@
                 this._lastShadowsAdj = this.currentShadowsAdj;
                 this._lastHighlightsAdj = this.currentHighlightsAdj;
 
-                this.notifyUpdate(this.currentSlope, {
+                this.notifyUpdate({
                     gamma: this.currentAdaptiveGamma,
                     bright: this.currentAdaptiveBright,
                     contrast: this.currentAdaptiveContrast,
@@ -682,7 +696,7 @@
                     }
 
                     document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', {
-                        detail: { slope: 1.0, autoParams: { gamma: 1.0, bright: 0, contrast: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, luma: 0, tainted: true, videoInfo: this.targetVideo }
+                        detail: { autoParams: { gamma: 1.0, bright: 0, contrast: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, luma: 0, tainted: true, videoInfo: this.targetVideo }
                     }));
                     this.stop();
                 }
@@ -696,9 +710,9 @@
             }
         },
 
-        notifyUpdate(slope, autoParams, luma, videoInfo) {
+        notifyUpdate(autoParams, luma, videoInfo) {
             document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', {
-                detail: { slope, autoParams, luma, tainted: false, videoInfo }
+                detail: { autoParams, luma, tainted: false, videoInfo }
             }));
         }
     };
@@ -719,7 +733,6 @@
                     activeMedia: new Set(),
                     activeImages: new Set(),
                     mediaListenerMap: new WeakMap(),
-                    // [v128.30] Optimization: Use WeakMap for visibility
                     visibilityMap: new WeakMap(),
                     currentlyVisibleMedia: null,
                     visibilityChange: null
@@ -740,7 +753,6 @@
                     targetLuma: CONFIG.DEFAULT_TARGET_LUMA,
                     clarity: CONFIG.DEFAULT_CLARITY,
                     activeSharpPreset: 'none',
-                    // Cleaned unused properties
                 },
                 imageFilter: {
                     lastActiveSettings: null,
@@ -841,14 +853,20 @@
             this._observedImages = new WeakSet();
             this._iframeBurstCooldown = new WeakMap();
             this._iframeObservers = new Map();
-            this._iframeInternalObservers = new Map(); // frame -> {doc, mo}
+            this._iframeInternalObservers = new Map(); 
             this._bestCandidate = null;
             this._bestSince = 0;
+            this._lastImmediateScan = new WeakMap();
 
             this._onMediaEvent = (e) => {
                 const t = e.target;
                 if (t && t.tagName === 'VIDEO') {
-                    scheduleScan(t, true);
+                    const now = performance.now();
+                    const last = this._lastImmediateScan.get(t) || 0;
+                    if (now - last > 120) {
+                        this._lastImmediateScan.set(t, now);
+                        scheduleScan(t, true);
+                    }
                 }
             };
         }
@@ -909,14 +927,17 @@
 
                 this.mainObserver = new MutationObserver((mutations) => {
                     if (mutations.length > 50) {
-                         scheduleScan(null);
-                         return; 
+                         let totalAdded = 0;
+                         for(const m of mutations) totalAdded += m.addedNodes.length;
+                         if (totalAdded > 50) {
+                             scheduleScan(null);
+                             return; 
+                         }
                     }
 
                     for(const m of mutations) {
                         if (m.type === 'attributes') {
                             const t = m.target;
-                            // [v128.30] Optimization: Ignore internal UI mutations
                             if (t.closest && t.closest('[data-vsc-internal]')) continue;
                             
                             const tag = t.nodeName;
@@ -1141,14 +1162,12 @@
                     const doc = frame.contentDocument;
                     if (!doc || !doc.body) return;
 
-                    // [v128.30] Fix (B): Iframe navigation handling
                     const prev = this._iframeInternalObservers.get(frame);
                     if (prev && prev.doc === doc) return; 
 
                     if (prev && prev.mo) { try { prev.mo.disconnect(); } catch {} }
 
                     const internalMo = new MutationObserver((mutations) => {
-                         // internal mutations
                          burstRescan();
                     });
                     internalMo.observe(doc.body, { childList: true, subtree: true });
@@ -1246,7 +1265,6 @@
             try { this.intersectionObserver.observe(media); } catch(e) { return false; }
             media.setAttribute('data-vsc-controlled-by', VSC_INSTANCE_ID);
             
-            // [v128.30] Use WeakMap instead of dataset
             const visMap = this.stateManager.get('media.visibilityMap');
             if(visMap) visMap.set(media, false);
 
@@ -1344,9 +1362,7 @@
             this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates());
             this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
             this.throttledUpdate = throttle((e) => {
-                // [v128.30] Cleaned up unused slope/smartLimit logic
                 const { autoParams } = e.detail;
-                // this.filterManager.updateSmartLimit(slope); // Removed
                 const vf = this.stateManager.get('videoFilter');
                 const needAutoApply = vf.autoExposure || (vf.clarity > 0);
 
@@ -1376,10 +1392,8 @@
                     const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`;
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
                     const combinedFilter = createSvgElement('filter', { id: combinedFilterId, "color-interpolation-filters": "sRGB" });
-                    const smartDim = createSvgElement('feComponentTransfer', { "data-vsc-id": "smart_dimming", in: "SourceGraphic", result: "dimmed_in" });
-                    ['R', 'G', 'B'].forEach(c => smartDim.append(createSvgElement('feFunc' + c, { "data-vsc-id": "smart_dim_func", type: "linear", slope: "1", intercept: "0" })));
-
-                    const clarityTransfer = createSvgElement('feComponentTransfer', { "data-vsc-id": "clarity_transfer", in: "dimmed_in", result: "clarity_out" });
+                    
+                    const clarityTransfer = createSvgElement('feComponentTransfer', { "data-vsc-id": "clarity_transfer", in: "SourceGraphic", result: "clarity_out" });
                     ['R', 'G', 'B'].forEach(c => clarityTransfer.append(createSvgElement('feFunc' + c, { "data-vsc-id": "clarity_func", type: "table", tableValues: "0 1" })));
 
                     const blurFine = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur_fine", in: "clarity_out", stdDeviation: "0", result: "blur_fine_out" });
@@ -1395,7 +1409,7 @@
                          colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
                          colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" }));
                          colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
-                         combinedFilter.append(smartDim, clarityTransfer, blurFine, compFine, blurCoarse, compCoarse, grainNode, grainComp, colorTemp);
+                         combinedFilter.append(clarityTransfer, blurFine, compFine, blurCoarse, compCoarse, grainNode, grainComp, colorTemp);
                     } else {
                         const lumaContrast = createSvgElement('feColorMatrix', { "data-vsc-id": "luma_contrast_matrix", in: "grained_out", type: "matrix", values: "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0", result: "luma_contrast_out" });
                         const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "luma_contrast_out", type: "saturate", values: (settings.SATURATION_VALUE / 100).toString(), result: "saturate_out" });
@@ -1405,15 +1419,14 @@
                         colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
                         colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" }));
                         colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
-                        combinedFilter.append(smartDim, clarityTransfer, blurFine, compFine, blurCoarse, compCoarse, grainNode, grainComp, lumaContrast, saturation, gamma, toneCurve, colorTemp);
+                        combinedFilter.append(clarityTransfer, blurFine, compFine, blurCoarse, compCoarse, grainNode, grainComp, lumaContrast, saturation, gamma, toneCurve, colorTemp);
                     }
                     svg.append(combinedFilter);
-                    const style = document.createElement('style'); style.id = styleId; style.textContent = `.${className} { filter: url(#${combinedFilterId}) !important; }`; // removed unused gpu hack
+                    const style = document.createElement('style'); style.id = styleId; style.textContent = `.${className} { filter: url(#${combinedFilterId}) !important; }`;
                     return { svgNode: svg, styleElement: style };
                 }
                 updateFilterValues(values) {
                     if (!this.isInitialized()) return;
-                    // [v128.30] Cleanup: Minimized signature (removed blur/profile)
                     const sig = `${values.gamma}|${values.sharpenLevel}|${values.level2}|${values.shadows}|${values.highlights}|${values.brightness}|${values.contrastAdj}|${values.colorTemp}|${values.dither}|${values.clarity}|${values.autoExposure}|${values.targetLuma}`;
                     if (this._lastValues === sig) return;
                     this._lastValues = sig;
@@ -1629,7 +1642,6 @@
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive');
             const vf = this.stateManager.get('videoFilter');
-            // [v128.30] Optimization: Removed blur/dataset
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
             const isVis = this.stateManager.get('media.visibilityMap').get(video);
             const isActive = scriptActive && isVis && shouldApply;
@@ -1835,22 +1847,13 @@
         constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.fadeOutTimer = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.delayMeterEl = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = {x:0, y:0}; }
         init(stateManager) {
             super.init(stateManager);
-            
-            // [v128.30] Improved UI Creation flow (Wait for body)
-            const createUI = () => {
-                if (this.globalContainer) return;
-                this.createGlobalUI();
-                this.stateManager.set('ui.globalContainer', this.globalContainer);
-            };
-
-            const onCreateRequested = () => {
-                if (document.body) createUI();
-                else document.addEventListener('DOMContentLoaded', createUI, { once: true });
-            };
-
-            this.subscribe('ui.createRequested', onCreateRequested);
-            if (this.stateManager.get('ui.createRequested')) onCreateRequested();
-
+            if (!document.body) {
+                document.addEventListener('DOMContentLoaded', () => {
+                    this.subscribe('ui.createRequested', () => { if (!this.globalContainer) { this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); } });
+                }, { once: true });
+            } else {
+                this.subscribe('ui.createRequested', () => { if (!this.globalContainer) { this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); } });
+            }
             this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
             this.subscribe('media.activeMedia', () => this.updateUIVisibility());
             this.subscribe('media.activeImages', () => this.updateUIVisibility());
@@ -1873,21 +1876,7 @@
             if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange);
             if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
         }
-        showWarningMessage(message) { 
-            if (!message || !document.body) return; // [v128.30] Safety check 
-            let warningEl = document.getElementById('vsc-warning-bar'); 
-            if (warningEl) { warningEl.querySelector('span').textContent = message; warningEl.style.opacity = '1'; if (warningEl.hideTimeout) clearTimeout(warningEl.hideTimeout); } 
-            else { 
-                warningEl = document.createElement('div'); warningEl.id = 'vsc-warning-bar'; 
-                Object.assign(warningEl.style, { position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(30, 30, 30, 0.9)', color: 'white', padding: '12px 20px', borderRadius: '8px', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'center', gap: '15px', fontSize: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', opacity: '0', transition: 'opacity 0.5s ease-in-out', maxWidth: '90%', }); 
-                const messageSpan = document.createElement('span'); messageSpan.textContent = message; 
-                const closeBtn = document.createElement('button'); Object.assign(closeBtn.style, { background: 'none', border: 'none', color: '#aaa', fontSize: '20px', cursor: 'pointer', lineHeight: '1', padding: '0' }); closeBtn.textContent = '×'; closeBtn.onclick = () => warningEl.style.opacity = '0'; 
-                warningEl.append(messageSpan, closeBtn); 
-                document.body.appendChild(warningEl); 
-                setTimeout(() => (warningEl.style.opacity = '1'), 100); 
-            } 
-            warningEl.hideTimeout = setTimeout(() => { warningEl.style.opacity = '0'; }, CONFIG.UI_WARN_TIMEOUT); 
-        }
+        showWarningMessage(message) { if (!message) return; let warningEl = document.getElementById('vsc-warning-bar'); if (warningEl) { warningEl.querySelector('span').textContent = message; warningEl.style.opacity = '1'; if (warningEl.hideTimeout) clearTimeout(warningEl.hideTimeout); } else { warningEl = document.createElement('div'); warningEl.id = 'vsc-warning-bar'; Object.assign(warningEl.style, { position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(30, 30, 30, 0.9)', color: 'white', padding: '12px 20px', borderRadius: '8px', zIndex: CONFIG.MAX_Z_INDEX, display: 'flex', alignItems: 'center', gap: '15px', fontSize: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', opacity: '0', transition: 'opacity 0.5s ease-in-out', maxWidth: '90%', }); const messageSpan = document.createElement('span'); messageSpan.textContent = message; const closeBtn = document.createElement('button'); Object.assign(closeBtn.style, { background: 'none', border: 'none', color: '#aaa', fontSize: '20px', cursor: 'pointer', lineHeight: '1', padding: '0' }); closeBtn.textContent = '×'; closeBtn.onclick = () => warningEl.style.opacity = '0'; warningEl.append(messageSpan, closeBtn); document.body.appendChild(warningEl); setTimeout(() => (warningEl.style.opacity = '1'), 100); } warningEl.hideTimeout = setTimeout(() => { warningEl.style.opacity = '0'; }, CONFIG.UI_WARN_TIMEOUT); }
         updateDelayMeterVisibility() {
             if (this.delayMeterEl) {
                 const controlsVisible = this.stateManager.get('ui.areControlsVisible');
@@ -1900,9 +1889,6 @@
         startFadeSequence() { const container = this.uiElements.mainContainer; if (container) { container.querySelectorAll('.vsc-control-group.submenu-visible').forEach(g => g.classList.remove('submenu-visible')); container.style.opacity = '0.3'; } }
         createGlobalUI() {
             const isMobile = this.stateManager.get('app.isMobile'); this.globalContainer = document.createElement('div');
-            // [v128.30] Mark container for MutationObserver to ignore
-            this.globalContainer.setAttribute('data-vsc-internal', '1');
-            
             const tx = this.uiState.x || 0; const ty = this.uiState.y || 0;
             this.globalContainer.style.setProperty('--vsc-translate-x', `${tx}px`);
             this.globalContainer.style.setProperty('--vsc-translate-y', `${ty}px`);
@@ -2022,10 +2008,12 @@
             if (this.shadowRoot.querySelector('#vsc-main-container')) return;
             const style = document.createElement('style'); const isMobile = this.stateManager.get('app.isMobile'); style.textContent = `:host { pointer-events: none; } * { pointer-events: auto; -webkit-tap-highlight-color: transparent; } #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; opacity: 0.3; transition: opacity 0.3s; } #vsc-main-container:hover { opacity: 1; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap:5px;} .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; height: clamp(${isMobile ? '24px, 4.8vmin, 30px' : '26px, 5.5vmin, 32px'}); width: clamp(${isMobile ? '26px, 5.2vmin, 32px' : '28px, 6vmin, 34px'}); position: relative; background: rgba(0,0,0,0.7); border-radius: 8px; } .${CONFIG.UI_HIDDEN_CLASS_NAME} { display: none !important; } .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: clamp(5px, 1vmin, 8px); background: rgba(0,0,0,0.9); border-radius: clamp(4px, 0.8vmin, 6px); padding: ${isMobile ? '6px' : 'clamp(8px, 1.5vmin, 12px)'}; gap: ${isMobile ? '2px' : '3px'}; } #vsc-video-controls .vsc-submenu { width: ${isMobile ? '240px' : '300px'}; max-width: 80vw; } #vsc-image-controls .vsc-submenu { width: 260px; } .vsc-control-group.submenu-visible .vsc-submenu { display: flex; } .vsc-btn { background: rgba(0,0,0,0.5); color: white; border-radius: clamp(4px, 0.8vmin, 6px); border:none; padding: clamp(4px, 0.8vmin, 6px) clamp(6px, 1.2vmin, 8px); cursor:pointer; font-size: clamp(${isMobile ? '11px, 1.8vmin, 13px' : '12px, 2vmin, 14px'}); white-space: nowrap; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn-main { font-size: clamp(${isMobile ? '14px, 2.5vmin, 16px' : '15px, 3vmin, 18px'}); padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: none; } .slider-control { display: flex; flex-direction: column; gap: ${isMobile ? '2px' : '4px'}; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '12px' : '13px'}; color: white; align-items: center; } input[type=range] { width: 100%; margin: 0; } input[type=range]:disabled { opacity: 0.5; } .vsc-monitor { font-size: 10px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; }`; this.shadowRoot.appendChild(style); const mainContainer = document.createElement('div'); mainContainer.id = 'vsc-main-container'; this.uiElements.mainContainer = mainContainer; const controlsContainer = document.createElement('div'); controlsContainer.id = 'vsc-controls-container'; const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', controlsContainer);
 
+            // [v128.33] UI Layout
             const videoButtonsContainer = document.createElement('div'); 
             videoButtonsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; width: 100%; padding-bottom: 4px; border-bottom: 1px solid #555;';
             const createLabel = (text) => { const span = document.createElement('span'); span.textContent = text; span.style.cssText = 'color: white; font-weight: bold; font-size: 12px; margin-right: 4px; white-space: nowrap; min-width: 30px; text-align: right; text-shadow: 1px 1px 1px rgba(0,0,0,0.8);'; return span; };
 
+            // 1. Top Row
             const topRow = document.createElement('div'); 
             topRow.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px; margin-bottom: 2px;';
             
@@ -2061,8 +2049,10 @@
             
             topRow.append(createToggle('자동노출 (Auto)', 'videoFilter.autoExposure'), videoResetBtn);
 
+            // 1.5 Divider
             const hr1 = document.createElement('div'); hr1.style.cssText = 'height: 1px; background: #555; width: 100%; margin: 2px 0;';
 
+            // 2. Sharpness
             const videoSsharpBtn = document.createElement('button'); videoSsharpBtn.className = 'vsc-btn'; videoSsharpBtn.textContent = 'S'; videoSsharpBtn.dataset.presetKey = 'sharpS';
             videoSsharpBtn.onclick = () => { this.stateManager.set('videoFilter.level', 5); this.stateManager.set('videoFilter.level2', 5); this.stateManager.set('videoFilter.activeSharpPreset', 'sharpS'); };
             const videoMsharpBtn = document.createElement('button'); videoMsharpBtn.className = 'vsc-btn'; videoMsharpBtn.textContent = 'M'; videoMsharpBtn.dataset.presetKey = 'sharpM';
@@ -2075,6 +2065,7 @@
             const videoBtnGroup1 = document.createElement('div'); videoBtnGroup1.style.cssText = 'display: flex; align-items: center; justify-content: flex-start; gap: 6px;';
             videoBtnGroup1.append(createLabel('샤프'), videoSsharpBtn, videoMsharpBtn, videoLsharpBtn, videoSsharpOFFBtn);
 
+            // 3. EV Buttons
             const mkEVBtn = (txt, val) => {
                 const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = txt;
                 b.onclick = () => {
@@ -2089,11 +2080,13 @@
                 mkEVBtn('+5', 5), mkEVBtn('+10', 10), mkEVBtn('+15', 15)
             );
 
+            // 3.5 Divider
             const hr2 = document.createElement('div'); hr2.style.cssText = 'height: 1px; background: #555; width: 100%; margin: 2px 0;';
 
+            // 4. EV Slider
             const evSliderWrapper = document.createElement('div');
             evSliderWrapper.style.cssText = 'margin-bottom: 8px;';
-            evSliderWrapper.appendChild(this._createSlider('노출 보정 (EV)', 'v-target', -30, 30, 1, 'videoFilter.targetLuma', '%', v => `${v > 0 ? '+' : ''}${v}%`).control);
+            evSliderWrapper.appendChild(this._createSlider('노출 보정 (EV)', 'v-target', -30, 30, 1, 'videoFilter.targetLuma', '', v => `${v > 0 ? '+' : ''}${v}`).control);
 
             videoButtonsContainer.append(topRow, hr1, videoBtnGroup1, evGroup, hr2, evSliderWrapper);
             
@@ -2101,6 +2094,7 @@
             this.subscribe('videoFilter.activeSharpPreset', (activeKey) => { sharpButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.presetKey === activeKey); }); });
             videoSubMenu.appendChild(videoButtonsContainer);
 
+            // 5. Grid
             const gridContainer = document.createElement('div'); 
             gridContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;';
             gridContainer.append(
