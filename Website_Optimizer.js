@@ -20,7 +20,8 @@
 
     // [Util] Helpers
     const hostEndsWithAny = (h, list) => list.some(d => h === d || h.endsWith('.' + d));
-    const safeJsonParse = (str) => { try { return JSON.parse(str); } catch { return {}; } };
+    // 🔥 [Fix 1] JSON.parse(null) 방지
+    const safeJsonParse = (str) => { try { return JSON.parse(str) || {}; } catch { return {}; } };
 
     // [Config] Storage & Env
     const Env = {
@@ -38,7 +39,7 @@
             localStorage.setItem(Env.storageKey, JSON.stringify(c));
             win.location.reload();
         };
-        
+
         if (initialOverrides.disabled) {
             GM_registerMenuCommand(`✅ 이 사이트 최적화 켜기 (현재 꺼짐)`, toggleDisable);
             console.log('[PerfX] Script is disabled on this site by user request.');
@@ -46,11 +47,22 @@
         }
 
         GM_registerMenuCommand(`🚫 이 사이트에서 끄기 (영구)`, toggleDisable);
-        GM_registerMenuCommand(`⚡ 모드: ${initialOverrides.codecMode || 'Auto'} (Ultra)`, () => win.perfx.profile('ultra'));
-        GM_registerMenuCommand(`⚖️ 모드: 균형 (Balanced)`, () => win.perfx.profile('balanced'));
-        GM_registerMenuCommand(`🛡️ 모드: 안전 (Safe)`, () => win.perfx.profile('safe'));
-        GM_registerMenuCommand(`🖼️ Iframe 허용: ${initialOverrides.allowIframe ? 'ON' : 'OFF'}`, win.perfx.toggleIframe);
-        GM_registerMenuCommand(`🐞 디버그: ${initialOverrides.debug ? 'ON' : 'OFF'}`, win.perfx.toggleDebug);
+
+        // 🔥 [Fix 2] win.perfx가 아직 없으므로 화살표 함수로 감싸서 나중에 실행되도록 변경
+        GM_registerMenuCommand(`⚡ 모드: ${initialOverrides.codecMode || 'Auto'} (Ultra)`, () => win.perfx?.profile('ultra'));
+        GM_registerMenuCommand(`⚖️ 모드: 균형 (Balanced)`, () => win.perfx?.profile('balanced'));
+        GM_registerMenuCommand(`🛡️ 모드: 안전 (Safe)`, () => win.perfx?.profile('safe'));
+
+        GM_registerMenuCommand(
+            `🖼️ Iframe 허용: ${initialOverrides.allowIframe ? 'ON' : 'OFF'}`,
+            () => win.perfx?.toggleIframe?.()
+        );
+
+        GM_registerMenuCommand(
+            `🐞 디버그: ${initialOverrides.debug ? 'ON' : 'OFF'}`,
+            () => win.perfx?.toggleDebug?.()
+        );
+
     } else if (initialOverrides.disabled) {
         return;
     }
@@ -77,7 +89,7 @@
             }
         }
         sessionStorage.setItem(CRASH_KEY, lastCrash + 1);
-        
+
         // 정상 로드 후 2초 생존 시 카운트 리셋 (오탐 방지)
         win.addEventListener('load', () => {
             setTimeout(() => sessionStorage.removeItem(CRASH_KEY), 2000);
@@ -101,7 +113,7 @@
                     // 이미 Balanced/Safe가 아니면 다운그레이드 예약
                     if (c.codecMode !== 'soft' && c.codecMode !== 'off') {
                         c.codecMode = 'soft'; // Force Balanced next time
-                        c.gpu = false; 
+                        c.gpu = false;
                         c.memory = false;
                         c.autoDowngraded = true;
                         localStorage.setItem(Env.storageKey, JSON.stringify(c));
@@ -124,10 +136,10 @@
     // 1. Critical Domain & Detection
     // ==========================================
     const hostname = win.location.hostname.toLowerCase();
-    
+
     // [Fix] Narrowed Critical Subdomains
     const CRITICAL_DOMAINS = [
-        'gov.kr', 'hometax.go.kr', 'nts.go.kr', 
+        'gov.kr', 'hometax.go.kr', 'nts.go.kr',
         'kbstar.com', 'shinhan.com', 'wooribank.com', 'ibk.co.kr', 'nhbank.com', 'kakaobank.com',
         'naver.com', 'kakao.com', 'google.com', 'appleid.apple.com'
     ];
@@ -135,7 +147,7 @@
     const isCritical = hostEndsWithAny(hostname, CRITICAL_DOMAINS) || CRITICAL_SUB.test(hostname);
 
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    
+
     // [Fix] Includes for keywords
     const LAYOUT_KEYWORDS = ['tvwiki', 'noonoo', 'linkkf', 'ani24', 'newtoki', 'mana'];
     const IS_LAYOUT_SENSITIVE = LAYOUT_KEYWORDS.some(k => hostname.includes(k));
@@ -238,14 +250,14 @@
             targets.forEach(proto => {
                 const origAdd = proto.addEventListener;
                 const origRemove = proto.removeEventListener;
-                
+
                 const needsPDCache = new WeakMap();
                 const checkNeedsPD = (listener) => {
                     if (!listener) return false;
                     if (needsPDCache.has(listener)) return needsPDCache.get(listener);
                     let res = false;
                     try {
-                        const fn = typeof listener === 'function' ? listener : 
+                        const fn = typeof listener === 'function' ? listener :
                             (typeof listener?.handleEvent === 'function' ? listener.handleEvent : null);
                         if (fn) {
                             const str = Function.prototype.toString.call(fn);
@@ -258,17 +270,17 @@
 
                 proto.addEventListener = function(type, listener, options) {
                     if (type === 'unload' || !listener) return origAdd.call(this, type, listener, options);
-                    
+
                     let finalOptions = options;
                     if (evts.has(type)) {
                         const isObj = typeof options === 'object' && options !== null;
                         const capture = isObj ? !!options.capture : (options === true);
-                        
+
                         setStoredCapture(listener, type, capture);
-                        
+
                         if (!isObj || options.passive === undefined) {
                             const forcePassive = !checkNeedsPD(listener);
-                            
+
                             // [Fix] Safe Object Creation
                             try {
                                 if (isObj) {
@@ -286,10 +298,10 @@
 
                 proto.removeEventListener = function(type, listener, options) {
                     if (!listener) return origRemove.call(this, type, listener, options);
-                    
+
                     const storedCapture = getStoredCapture(listener, type);
                     let finalOptions = options;
-                    
+
                     if (storedCapture !== undefined) {
                          if (typeof options === 'object' && options !== null) {
                              if (options.capture === undefined) {
@@ -349,11 +361,11 @@
         init() {
             if (IS_LAYOUT_SENSITIVE) return;
             if (!Config.gpu && !Config.memory) return;
-            
+
             this.observed = new WeakSet();
             this.styleBackup = new WeakMap();
             this.supportsCV = 'contentVisibility' in document.documentElement.style;
-            
+
             if (!('IntersectionObserver' in win)) return;
 
             const startAll = () => { this.startIO(); this.startMO(); };
@@ -406,7 +418,7 @@
         startIO() {
             if (this.visObs) this.visObs.disconnect();
             const margin = (isLowPowerMode || isMobile) ? '200px 0px' : '500px 0px';
-            
+
             this.visObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
                     if (!e.target.isConnected) { this.visObs.unobserve(e.target); return; }
@@ -428,7 +440,7 @@
             };
 
             if (Config.gpu) document.querySelectorAll('canvas').forEach(observeSafe);
-            
+
             // [Fix] Expanded Selectors
             if (Config.memory) {
                 const sel = '[role="feed"] > *, .feed > *, .list > *, .timeline > *, .infinite-scroll > *';
@@ -488,18 +500,18 @@
                 if (document.head) {
                     const origins = new Set();
                     const existing = new Set();
-                    
+
                     document.head.querySelectorAll('link[rel="preconnect"], link[rel="dns-prefetch"]').forEach(l => {
                         try { existing.add(new URL(l.href).origin); } catch(e){}
                     });
 
-                    const add = (u) => { 
-                        try { 
+                    const add = (u) => {
+                        try {
                             const url = new URL(u);
                             if (url.origin !== win.location.origin && !/doubleclick|googlesyndication|facebook|twitter|criteo|adservice|analytics/i.test(url.hostname)) {
-                                origins.add(url.origin); 
+                                origins.add(url.origin);
                             }
-                        } catch(e){} 
+                        } catch(e){}
                     };
                     document.querySelectorAll('script[src^="http"], link[href^="http"]').forEach(el => add(el.src || el.href));
 
