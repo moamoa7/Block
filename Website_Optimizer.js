@@ -1,11 +1,14 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v73.0 ULTRA Infinity Final Complete)
+// @name        Web 성능 최적화 (v75.0 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     73.0.0-KR-ULTRA-Infinity-Final-Complete
-// @description [Infinity] 끝없는 최적화 + Final Complete (Symbol Integrity, Anti-Flicker, Robust Debug)
+// @version     75.0.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Self-Tuning, LCP/CLS Guard, Deadlock Free Menu)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
+// @grant       GM_registerMenuCommand
+// @grant       GM_setValue
+// @grant       GM_getValue
 // @license     MIT
 // @run-at      document-start
 // ==/UserScript==
@@ -13,525 +16,516 @@
 (function () {
     'use strict';
 
-    if (performance && performance.mark) performance.mark('perfx-start');
-
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-    
-    // [Debug System]
-    const log = (...args) => win.perfx?.debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // rIC Polyfill
+    // [Util] Helpers
+    const hostEndsWithAny = (h, list) => list.some(d => h === d || h.endsWith('.' + d));
+    const safeJsonParse = (str) => { try { return JSON.parse(str); } catch { return {}; } };
+
+    // [Config] Storage & Env
+    const Env = {
+        storageKey: `PerfX_ULTRA_${win.location.hostname.toLowerCase()}`,
+        getOverrides() { return safeJsonParse(localStorage.getItem(this.storageKey)); }
+    };
+    const initialOverrides = Env.getOverrides();
+
+    // [Menu System - Deadlock Free]
+    // 비활성화 상태여도 메뉴는 등록해야 함 (복구 수단)
+    if (typeof GM_registerMenuCommand !== 'undefined') {
+        const toggleDisable = () => {
+            const c = Env.getOverrides();
+            c.disabled = !c.disabled;
+            localStorage.setItem(Env.storageKey, JSON.stringify(c));
+            win.location.reload();
+        };
+        
+        if (initialOverrides.disabled) {
+            GM_registerMenuCommand(`✅ 이 사이트 최적화 켜기 (현재 꺼짐)`, toggleDisable);
+            console.log('[PerfX] Script is disabled on this site by user request.');
+            return; // ⛔ Core Logic Stop
+        }
+
+        GM_registerMenuCommand(`🚫 이 사이트에서 끄기 (영구)`, toggleDisable);
+        GM_registerMenuCommand(`⚡ 모드: ${initialOverrides.codecMode || 'Auto'} (Ultra)`, () => win.perfx.profile('ultra'));
+        GM_registerMenuCommand(`⚖️ 모드: 균형 (Balanced)`, () => win.perfx.profile('balanced'));
+        GM_registerMenuCommand(`🛡️ 모드: 안전 (Safe)`, () => win.perfx.profile('safe'));
+        GM_registerMenuCommand(`🖼️ Iframe 허용: ${initialOverrides.allowIframe ? 'ON' : 'OFF'}`, win.perfx.toggleIframe);
+        GM_registerMenuCommand(`🐞 디버그: ${initialOverrides.debug ? 'ON' : 'OFF'}`, win.perfx.toggleDebug);
+    } else if (initialOverrides.disabled) {
+        return;
+    }
+
+    // [Safety 0] Crash Guard v2 (Load-based Reset)
+    const CRASH_KEY = 'perfx-crash-count';
+    try {
+        if (new URLSearchParams(win.location.search).has('perfx-off')) return;
+        if (sessionStorage.getItem('perfx-off')) return;
+
+        const lastCrash = parseInt(sessionStorage.getItem(CRASH_KEY) || '0');
+        if (lastCrash >= 3) {
+            console.warn('[PerfX] 🚨 반복적인 크래시 감지. 안전 모드로 전환하거나 비활성화합니다.');
+            // 자동 비활성화 대신 Safe 모드로 1회 기회 부여, 그래도 안되면 비활성화
+            if (!initialOverrides.codecMode || initialOverrides.codecMode !== 'off') {
+                localStorage.setItem(Env.storageKey, JSON.stringify({ ...initialOverrides, codecMode: 'off', passive: false, gpu: false, memory: false }));
+                sessionStorage.setItem(CRASH_KEY, '0'); // Safe모드 기회 제공
+                win.location.reload();
+                return;
+            } else {
+                // 이미 Safe인데도 터지면 Disable
+                localStorage.setItem(Env.storageKey, JSON.stringify({ ...initialOverrides, disabled: true }));
+                return;
+            }
+        }
+        sessionStorage.setItem(CRASH_KEY, lastCrash + 1);
+        
+        // 정상 로드 후 2초 생존 시 카운트 리셋 (오탐 방지)
+        win.addEventListener('load', () => {
+            setTimeout(() => sessionStorage.removeItem(CRASH_KEY), 2000);
+        });
+    } catch(e) {}
+
+    // [Autonomous] Performance Observer (Auto-Tuning)
+    // LCP/CLS 악화 시 다음 방문 때 자동 다운그레이드
+    if (typeof PerformanceObserver !== 'undefined') {
+        try {
+            let cls = 0;
+            new PerformanceObserver((entryList) => {
+                for (const entry of entryList.getEntries()) {
+                    if (!entry.hadRecentInput) cls += entry.value;
+                }
+            }).observe({type: 'layout-shift', buffered: true});
+
+            win.addEventListener('visibilitychange', () => {
+                if (document.hidden && cls > 0.25) { // CLS 임계점
+                    const c = Env.getOverrides();
+                    // 이미 Balanced/Safe가 아니면 다운그레이드 예약
+                    if (c.codecMode !== 'soft' && c.codecMode !== 'off') {
+                        c.codecMode = 'soft'; // Force Balanced next time
+                        c.gpu = false; 
+                        c.memory = false;
+                        c.autoDowngraded = true;
+                        localStorage.setItem(Env.storageKey, JSON.stringify(c));
+                        console.warn('[PerfX] High CLS detected. Auto-downgrading profile for next visit.');
+                    }
+                }
+            });
+        } catch(e) {}
+    }
+
+    // [Debug System]
+    if (initialOverrides.debug && win.performance?.mark) win.performance.mark('perfx-start');
+    const log = (...args) => initialOverrides.debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
+
     const rIC = win.requestIdleCallback
         ? (cb) => win.requestIdleCallback(cb, { timeout: 2000 })
-        : (cb) => {
-            const start = Date.now();
-            return setTimeout(() => cb({
-                didTimeout: false,
-                timeRemaining: () => Math.max(0, 50 - (Date.now() - start))
-            }), 50);
-        };
+        : (cb) => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 1 }), 50);
 
     // ==========================================
-    // 1. Critical Domain & Device Detection
+    // 1. Critical Domain & Detection
     // ==========================================
     const hostname = win.location.hostname.toLowerCase();
-
+    
+    // [Fix] Narrowed Critical Subdomains
     const CRITICAL_DOMAINS = [
-        'gov.kr', 'hometax.go.kr', 'nts.go.kr',
-        'kbstar.com', 'shinhan.com', 'wooribank.com', 'ibk.co.kr',
-        'nhbank.com', 'hanabank.com', 'kakaobank.com', 'tossbank.com',
-        'kiwoom.com', 'miraeasset.com', 'samsungpop.com', 'daishin.com',
-        'auth.kakao.com', 'service.kakao.com', 'cert.signkorea.com', 'kftc.or.kr',
-        'inicis.com', 'nicepay.co.kr', 'payco.com', 'smartstore.naver.com', 'order.pay.naver.com',
-        'pay.naver.com', 'kakaopay.com', 'tosspayments.com',
-        'nid.naver.com', 'accounts.google.com', 'appleid.apple.com',
-        'upbit.com', 'binance.com', 'bithumb.com', 'coinone.co.kr',
-        'paypal.com', 'stripe.com',
-        'kakao.com', 'naver.com', 'google.com'
+        'gov.kr', 'hometax.go.kr', 'nts.go.kr', 
+        'kbstar.com', 'shinhan.com', 'wooribank.com', 'ibk.co.kr', 'nhbank.com', 'kakaobank.com',
+        'naver.com', 'kakao.com', 'google.com', 'appleid.apple.com'
     ];
-
-    const isCritical = (() => {
-        const criticalSet = new Set(CRITICAL_DOMAINS);
-        if (criticalSet.has(hostname)) return true;
-        for (const d of CRITICAL_DOMAINS) {
-            if (hostname.endsWith('.' + d)) return true;
-        }
-        return false;
-    })();
+    const CRITICAL_SUB = /^(auth|login|signin|cert|secure)\./; // Reduced scope
+    const isCritical = hostEndsWithAny(hostname, CRITICAL_DOMAINS) || CRITICAL_SUB.test(hostname);
 
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    const IS_LAYOUT_SENSITIVE = hostname.includes('tvwiki') ||
-                                ['noonoo', 'linkkf', 'ani24', 'newtoki', 'mana'].some(k => hostname.includes(k));
+    
+    // [Fix] Includes for keywords
+    const LAYOUT_KEYWORDS = ['tvwiki', 'noonoo', 'linkkf', 'ani24', 'newtoki', 'mana'];
+    const IS_LAYOUT_SENSITIVE = LAYOUT_KEYWORDS.some(k => hostname.includes(k));
 
     const HEAVY_FEEDS = ['twitter.com', 'x.com', 'instagram.com', 'threads.net', 'facebook.com', 'youtube.com'];
-    const isHeavyFeed = HEAVY_FEEDS.some(d => hostname === d || hostname.endsWith('.' + d));
+    const isHeavyFeed = hostEndsWithAny(hostname, HEAVY_FEEDS);
 
     // ==========================================
-    // 2. Global State & Battery Logic
+    // 2. State & Config
     // ==========================================
-    let isLowPowerMode = (navigator.hardwareConcurrency ?? 2) < 4;
+    // [Fix] Simplified Battery Check
+    let isLowPowerMode = (navigator.hardwareConcurrency ?? 2) < 4 ||
+                         (navigator.connection?.saveData === true) ||
+                         (win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-    if ('getBattery' in navigator && typeof navigator.getBattery === 'function') {
-        navigator.getBattery().then(battery => {
-            const updatePowerState = () => {
-                const isSaveMode = 'savePower' in battery ? battery.savePower === true : false;
-                if (isSaveMode) isLowPowerMode = true;
-                else if (battery.charging) isLowPowerMode = false;
-                else isLowPowerMode = battery.level < 0.2;
+    const triggerStateChange = () => win.dispatchEvent(new Event('perfx-power-change'));
+
+    if ('getBattery' in navigator) {
+        navigator.getBattery().then(b => {
+            const update = () => {
+                isLowPowerMode = (!b.charging && b.level < 0.2); // Removed savePower
+                triggerStateChange();
             };
-            updatePowerState();
-            battery.addEventListener('levelchange', updatePowerState);
-            battery.addEventListener('chargingchange', updatePowerState);
+            update(); b.addEventListener('levelchange', update); b.addEventListener('chargingchange', update);
         }).catch(() => {});
     }
 
-    // SPA Router Hook (Idempotent)
-    const hookHistory = () => {
-        if (history.__perfx_hooked) return;
-        history.__perfx_hooked = true;
-
-        const wrap = (type) => {
-            const orig = history[type];
-            return function() {
-                const rv = orig.apply(this, arguments);
-                win.dispatchEvent(new Event('perfx-route-change'));
-                return rv;
-            };
-        };
-        history.pushState = wrap('pushState');
-        history.replaceState = wrap('replaceState');
-        win.addEventListener('popstate', () => win.dispatchEvent(new Event('perfx-route-change')));
-        log('History API hooked');
-    };
-    hookHistory();
-
-    // ==========================================
-    // 3. Configuration & Overrides
-    // ==========================================
-    const Env = {
-        storageKey: `PerfX_ULTRA_${hostname}`,
-        getOverrides() { try { return JSON.parse(localStorage.getItem(this.storageKey)) || {}; } catch { return {}; } }
-    };
-
-    const initialOverrides = Env.getOverrides();
+    let isFramed = false;
+    try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
+    if (isFramed && !initialOverrides.allowIframe) return;
 
     let Config;
     if (isCritical) {
         Config = { codecMode: 'off', passive: false, gpu: false, memory: false };
     } else {
-        if (IS_LAYOUT_SENSITIVE) {
-            Config = {
-                codecMode: initialOverrides.codecMode ?? 'hard',
-                passive: false,
-                gpu: false,
-                memory: false
-            };
-        } else {
-            Config = {
-                codecMode: initialOverrides.codecMode ?? 'hard',
-                passive: initialOverrides.passive ?? true,
-                gpu: isMobile ? (initialOverrides.gpu ?? false) : (initialOverrides.gpu ?? true),
-                memory: isHeavyFeed ? false : (initialOverrides.memory ?? true)
-            };
-        }
+        Config = {
+            codecMode: initialOverrides.codecMode ?? 'hard',
+            passive: IS_LAYOUT_SENSITIVE ? false : (initialOverrides.passive ?? true),
+            gpu: IS_LAYOUT_SENSITIVE ? false : (isMobile ? (initialOverrides.gpu ?? false) : (initialOverrides.gpu ?? true)),
+            memory: (isHeavyFeed || IS_LAYOUT_SENSITIVE) ? false : (initialOverrides.memory ?? true)
+        };
     }
 
     win.perfx = {
-        version: '73.0.0-KR-ULTRA-Infinity-Final-Complete',
-        status: isCritical ? '🔒 Safe Mode' : (IS_LAYOUT_SENSITIVE ? '👻 Ghost Mode' : (isMobile ? '📱 Mobile' : '💻 Desktop')),
+        version: '75.0.0-KR-ULTRA-Infinity-Autonomous',
+        status: isCritical ? '🔒 Safe' : (IS_LAYOUT_SENSITIVE ? '👻 Ghost' : '⚡ Active'),
         config: Config,
-        debug: false,
-        isLowPowerMode: () => isLowPowerMode,
-        profile: (mode, autoReload = true) => {
+        debug: initialOverrides.debug || false,
+        profile: (mode) => {
             const presets = {
-                ultra: { codecMode: 'hard', passive: true, gpu: true, memory: !isHeavyFeed && !IS_LAYOUT_SENSITIVE },
-                balanced: { codecMode: 'soft', passive: true, gpu: false, memory: !isHeavyFeed && !IS_LAYOUT_SENSITIVE },
-                mobile: { codecMode: 'hard', passive: true, gpu: false, memory: !isHeavyFeed && !IS_LAYOUT_SENSITIVE },
+                ultra: { codecMode: 'hard', passive: true, gpu: true, memory: !isHeavyFeed },
+                balanced: { codecMode: 'soft', passive: true, gpu: false, memory: !isHeavyFeed },
                 safe: { codecMode: 'off', passive: false, gpu: false, memory: false }
             };
-            const p = presets[String(mode).toLowerCase()];
-            if (p) {
-                localStorage.setItem(`PerfX_ULTRA_${hostname}`, JSON.stringify(p));
-                if (autoReload) win.location.reload();
-                return true;
-            }
-            return false;
-        },
-        off: () => {
-            localStorage.setItem(`PerfX_ULTRA_${hostname}`, JSON.stringify({ codecMode: 'off', passive: false, gpu: false, memory: false }));
+            const p = presets[mode] || presets.balanced;
+            const current = Env.getOverrides();
+            localStorage.setItem(Env.storageKey, JSON.stringify({ ...current, ...p, disabled: false }));
             win.location.reload();
+        },
+        toggleDebug: () => {
+            const c = Env.getOverrides();
+            c.debug = !c.debug;
+            localStorage.setItem(Env.storageKey, JSON.stringify(c));
+            win.location.reload();
+        },
+        toggleIframe: () => {
+             const c = Env.getOverrides();
+             c.allowIframe = !c.allowIframe;
+             localStorage.setItem(Env.storageKey, JSON.stringify(c));
+             win.location.reload();
         }
     };
 
     // ==========================================
-    // 4. Module System
+    // 3. Core Modules
     // ==========================================
-    class BaseModule {
-        safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } }
-        init() {}
-    }
+    class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // ==========================================
-    // 5. Core Modules
-    // ==========================================
-
-    // [Core 1] 입력 반응속도 부스팅 (Smart Event Detection)
+    // [Core 1] EventPassivator v2.1 (Safe Option Handling)
     class EventPassivator extends BaseModule {
         init() {
             if (!Config.passive || win.__perfx_evt_patched) return;
-            if (IS_LAYOUT_SENSITIVE) return;
-
-            const EXCEPT = ['figma.com', 'miro.com', 'photopea.com', 'excalidraw.com'];
-            if (EXCEPT.some(d => hostname === d || hostname.endsWith('.' + d))) return;
-
             win.__perfx_evt_patched = true;
-            const evts = new Set(['touchstart', 'touchmove', 'touchcancel', 'wheel', 'mousewheel']);
-            
-            // [Final Complete] Symbol Key for Ultimate Integrity
-            const OPT_KEY = Symbol.for('__perfx_lastOpts');
-            log('EventPassivator enabled with Symbol integrity');
 
-            const targets = [
-                win.EventTarget && win.EventTarget.prototype,
-                win.Window && win.Window.prototype,
-                win.Document && win.Document.prototype,
-                win.HTMLElement && win.HTMLElement.prototype
-            ].filter(Boolean);
+            const evts = new Set(['touchstart', 'touchmove', 'touchcancel', 'wheel', 'mousewheel']);
+            const optStore = new WeakMap();
+
+            const setStoredCapture = (listener, type, capture) => {
+                let m = optStore.get(listener);
+                if (!m) { m = new Map(); optStore.set(listener, m); }
+                m.set(type, capture);
+            };
+            const getStoredCapture = (listener, type) => {
+                const m = optStore.get(listener);
+                return m ? m.get(type) : undefined;
+            };
+
+            const targets = [win.EventTarget && win.EventTarget.prototype].filter(Boolean);
 
             targets.forEach(proto => {
                 const origAdd = proto.addEventListener;
                 const origRemove = proto.removeEventListener;
+                
+                const needsPDCache = new WeakMap();
+                const checkNeedsPD = (listener) => {
+                    if (!listener) return false;
+                    if (needsPDCache.has(listener)) return needsPDCache.get(listener);
+                    let res = false;
+                    try {
+                        const fn = typeof listener === 'function' ? listener : 
+                            (typeof listener?.handleEvent === 'function' ? listener.handleEvent : null);
+                        if (fn) {
+                            const str = Function.prototype.toString.call(fn);
+                            res = str.includes('preventDefault') || str.includes('returnValue');
+                        }
+                    } catch {}
+                    needsPDCache.set(listener, res);
+                    return res;
+                };
 
-                if (!origAdd || origAdd.__perfx_wrapped) return;
-
-                const perfxAddWrapper = function(type, listener, options) {
-                    if (type === 'unload') return; // Bfcache Protection
-
+                proto.addEventListener = function(type, listener, options) {
+                    if (type === 'unload' || !listener) return origAdd.call(this, type, listener, options);
+                    
                     let finalOptions = options;
-
                     if (evts.has(type)) {
                         const isObj = typeof options === 'object' && options !== null;
                         const capture = isObj ? !!options.capture : (options === true);
-                        const once = isObj ? !!options.once : false;
                         
-                        let needsPreventDefault = false;
-                        if (listener) {
+                        setStoredCapture(listener, type, capture);
+                        
+                        if (!isObj || options.passive === undefined) {
+                            const forcePassive = !checkNeedsPD(listener);
+                            
+                            // [Fix] Safe Object Creation
                             try {
-                                const fn = typeof listener === 'function'
-                                    ? listener
-                                    : (listener.handleEvent && typeof listener.handleEvent === 'function' ? listener.handleEvent : null);
-
-                                if (fn) {
-                                    const str = fn.toString();
-                                    if (str.includes('preventDefault') || str.includes('returnValue')) {
-                                        needsPreventDefault = true;
-                                    }
+                                if (isObj) {
+                                    finalOptions = { ...options, passive: forcePassive }; // Spread is safer than assign for getters
+                                } else {
+                                    finalOptions = { capture, passive: forcePassive };
                                 }
-                            } catch (e) {}
-                        }
-
-                        let forcePassive = true;
-                        if (isObj && 'passive' in options) {
-                            forcePassive = options.passive;
-                        } else if (needsPreventDefault) {
-                            forcePassive = false;
-                        }
-
-                        if (isObj && options.passive === undefined) {
-                            finalOptions = Object.assign({}, options, { passive: forcePassive });
-                        } else if (!isObj) {
-                            finalOptions = { capture, once, passive: forcePassive };
+                            } catch (e) {
+                                finalOptions = options; // Fallback on error
+                            }
                         }
                     }
-                    
-                    // [Final Complete] Symbol Key 저장 (충돌 확률 0%)
-                    if (listener && (typeof listener === 'object' || typeof listener === 'function')) {
-                        try { listener[OPT_KEY] = finalOptions; } catch(e) {}
-                    }
-                    
                     return origAdd.call(this, type, listener, finalOptions);
                 };
 
-                perfxAddWrapper.__perfx_wrapped = true;
-                proto.addEventListener = perfxAddWrapper;
-
-                const perfxRemoveWrapper = function(type, listener, options) {
-                    // [Final Complete] Symbol Key 조회
-                    const opt = (listener && listener[OPT_KEY]) || options;
-                    return origRemove.call(this, type, listener, opt);
+                proto.removeEventListener = function(type, listener, options) {
+                    if (!listener) return origRemove.call(this, type, listener, options);
+                    
+                    const storedCapture = getStoredCapture(listener, type);
+                    let finalOptions = options;
+                    
+                    if (storedCapture !== undefined) {
+                         if (typeof options === 'object' && options !== null) {
+                             if (options.capture === undefined) {
+                                 try { finalOptions = { ...options, capture: storedCapture }; } catch(e){}
+                             }
+                         } else if (options === undefined || options === false || options === true) {
+                             finalOptions = storedCapture;
+                         }
+                    }
+                    return origRemove.call(this, type, listener, finalOptions);
                 };
-                perfxRemoveWrapper.__perfx_wrapped = true;
-                proto.removeEventListener = perfxRemoveWrapper;
             });
+            log('EventPassivator v2.1: Active');
         }
     }
 
-    // [Core 2] 미디어 코덱 강제
+    // [Core 2] CodecOptimizer (Unique Symbols)
     class CodecOptimizer extends BaseModule {
         init() {
-            if (Config.codecMode === 'off' || this.hooked) return;
-            const SAFES = ['youtube.com', 'twitch.tv', 'netflix.com', 'tving.com', 'wavve.com'];
-            if (SAFES.some(d => hostname === d || hostname.endsWith('.' + d))) return;
+            if (Config.codecMode === 'off') return;
+            const SAFES = ['youtube.com', 'twitch.tv', 'netflix.com', 'disneyplus.com'];
+            if (hostEndsWithAny(hostname, SAFES)) return;
 
-            let disabled = false;
-
-            const shouldOptimize = (t) => {
+            const shouldBlock = (t) => {
                 if (typeof t !== 'string') return false;
                 const v = t.toLowerCase();
-                if (Config.codecMode === 'hard') return v.includes('av01') || /vp9|vp09/.test(v);
-                if (Config.codecMode === 'soft') return v.includes('av01');
+                if (Config.codecMode === 'hard' && isLowPowerMode) return v.includes('av01') || /vp9|vp09/.test(v);
+                if (Config.codecMode === 'soft' || !isLowPowerMode) return v.includes('av01');
                 return false;
             };
 
-            const hookMS = () => {
-                if (disabled || !win.MediaSource || win.MediaSource._perfXHooked) return;
+            // [Fix] Unique Hook Markers
+            const hook = (target, prop, isProto, marker) => {
+                if (!target) return;
+                const root = isProto ? target.prototype : target;
+                if (root[marker]) return;
                 try {
-                    if (typeof win.MediaSource.isTypeSupported !== 'function') throw 0;
-                    
-                    const orig = win.MediaSource.isTypeSupported.bind(win.MediaSource);
-                    win.MediaSource.isTypeSupported = (t) => {
-                        if (shouldOptimize(t)) return false;
-                        return orig(t);
+                    const orig = root[prop];
+                    root[prop] = function(t) {
+                        if (shouldBlock(t)) return isProto ? '' : false;
+                        return orig.apply(this, arguments);
                     };
-                    Object.defineProperty(win.MediaSource, '_perfXHooked', { value: true, configurable: false });
-                    log('CodecOptimizer: MediaSource hooked');
-                } catch (e) { 
-                    disabled = true;
-                    // [Final Complete] 디버그 모드에서는 재시도 허용
-                    if (win.perfx?.debug) { disabled = false; log('CodecOptimizer error (Debug Mode: Retry active)', e); }
-                }
+                    root[marker] = true;
+                } catch(e) {}
             };
 
-            const hookCPT = () => {
-                if (disabled || !win.HTMLMediaElement) return;
-                if (win.HTMLMediaElement.prototype._perfXHooked) return;
-                try {
-                    const orig = win.HTMLMediaElement.prototype.canPlayType;
-                    win.HTMLMediaElement.prototype.canPlayType = function(t) {
-                        if (shouldOptimize(t)) return '';
-                        return orig.call(this, t);
-                    };
-                    Object.defineProperty(win.HTMLMediaElement.prototype, '_perfXHooked', { value: true, configurable: false });
-                    log('CodecOptimizer: HTMLMediaElement hooked');
-                } catch (e) { disabled = true; }
-            };
+            const HOOK_MS = Symbol('perfx.hook.ms');
+            const HOOK_ME = Symbol('perfx.hook.me');
 
-            if (!win.MediaSource) {
-                Object.defineProperty(win, 'MediaSource', {
-                    configurable: true,
-                    set(v) {
-                        try {
-                            Object.defineProperty(win, 'MediaSource', { value: v, writable: true, configurable: false });
-                            hookMS();
-                        } catch (e) {}
-                    }
-                });
-            } else hookMS();
-            hookCPT();
-            this.hooked = true;
+            if (win.MediaSource) hook(win.MediaSource, 'isTypeSupported', false, HOOK_MS);
+            if (win.HTMLMediaElement) hook(win.HTMLMediaElement, 'canPlayType', true, HOOK_ME);
         }
     }
 
-    // [Core 3] GPU & 메모리 통합 관리자
+    // [Core 3] DomWatcher (Expanded Selectors & Size Guard)
     class DomWatcher extends BaseModule {
         init() {
             if (IS_LAYOUT_SENSITIVE) return;
-
-            this.observed = new WeakSet();
-            this.supportsCV = 'contentVisibility' in document.documentElement.style;
-
-            if (!('IntersectionObserver' in win)) {
-                Config.memory = false;
-                Config.gpu = false;
-                return;
-            }
-
             if (!Config.gpu && !Config.memory) return;
-            if (Config.gpu) this.injectWebGL();
+            
+            this.observed = new WeakSet();
+            this.styleBackup = new WeakMap();
+            this.supportsCV = 'contentVisibility' in document.documentElement.style;
+            
+            if (!('IntersectionObserver' in win)) return;
 
-            const startAll = () => {
-                this.startIO();
-                this.startMO();
-            };
-
+            const startAll = () => { this.startIO(); this.startMO(); };
             if (!document.body) win.addEventListener('DOMContentLoaded', startAll, { once: true });
             else startAll();
+
+            win.addEventListener('perfx-power-change', () => {
+                if (this.ioTimeout) clearTimeout(this.ioTimeout);
+                this.ioTimeout = setTimeout(() => this.startIO(), 1000);
+            });
 
             win.addEventListener('pagehide', () => {
                 if (this.visObs) this.visObs.disconnect();
                 if (this.mutObs) this.mutObs.disconnect();
             });
-
-            win.addEventListener('perfx-route-change', () => {
-                if (this.visObs && Config.gpu) {
-                    log('Route change detected, rescanning canvases');
-                    rIC(() => {
-                         document.querySelectorAll('canvas').forEach(c => {
-                             if (!this.observed.has(c)) { this.visObs.observe(c); this.observed.add(c); }
-                         });
-                    });
-                }
-            });
-
-            win.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    if (this.visObs) this.visObs.disconnect();
-                    if (win.gc) { try { win.gc(); } catch {} }
-                } else {
-                    if (this.visObs) this.startIO();
-                }
-            });
         }
 
-        injectWebGL() {
-            try {
-                const hook = (proto) => {
-                    const desc = Object.getOwnPropertyDescriptor(proto, 'getContext');
-                    if (desc && !desc.writable) return;
-                    const orig = proto.getContext;
-                    proto.getContext = function(type, options) {
-                        if (type && type.includes('webgl')) {
-                            const pref = (isLowPowerMode || isMobile) ? 'low-power' : 'high-performance';
-                            let hasPowerPref = false;
-                            try { hasPowerPref = 'powerPreference' in (win.WebGLContextAttributes?.prototype || {}); } catch(e) {}
-                            options = { ...(options || {}) };
-                            if (hasPowerPref) options.powerPreference = pref;
-                            if (isMobile) Object.assign(options, { desynchronized: false, antialias: false });
-                            else Object.assign(options, { desynchronized: true, antialias: false });
-                        }
-                        return orig.call(this, type, options);
-                    };
-                };
-                hook(HTMLCanvasElement.prototype);
-                if (win.OffscreenCanvas) hook(OffscreenCanvas.prototype);
-                log('WebGL injected');
-            } catch (e) { Config.gpu = false; }
+        restoreStyle(el) {
+            const b = this.styleBackup.get(el);
+            if (!b) {
+                el.style.removeProperty('content-visibility');
+                el.style.removeProperty('contain');
+                el.style.removeProperty('contain-intrinsic-size');
+            } else {
+                el.style.contentVisibility = b.cv;
+                el.style.contain = b.contain;
+                el.style.containIntrinsicSize = b.cis;
+                this.styleBackup.delete(el);
+            }
+        }
+
+        applyOptimization(el, rect) {
+            // [Fix] Size Guard (Skip small elements)
+            if (rect.height < 80 || rect.width < 80) return;
+
+            if (!this.styleBackup.has(el)) {
+                this.styleBackup.set(el, {
+                    cv: el.style.contentVisibility,
+                    contain: el.style.contain,
+                    cis: el.style.containIntrinsicSize
+                });
+            }
+            const w = Math.max(1, rect.width || el.offsetWidth || 1);
+            const h = Math.max(1, rect.height || el.offsetHeight || 1);
+            el.style.containIntrinsicSize = `${Math.ceil(w)}px ${Math.ceil(h)}px`;
+            el.style.contain = 'layout paint';
+            el.style.contentVisibility = 'auto';
         }
 
         startIO() {
             if (this.visObs) this.visObs.disconnect();
-
-            const margin = (isLowPowerMode || isMobile) ? '150px 0px' : '400px 0px';
-            const queue = new Map();
-            let scheduled = false;
+            const margin = (isLowPowerMode || isMobile) ? '200px 0px' : '500px 0px';
             
-            log('IntersectionObserver started', { margin });
+            this.visObs = new IntersectionObserver((entries) => {
+                entries.forEach(e => {
+                    if (!e.target.isConnected) { this.visObs.unobserve(e.target); return; }
 
-            this.visObs = new IntersectionObserver(entries => {
-                if (entries.length > 300) { queue.clear(); scheduled = false; return; }
-
-                entries.forEach(e => queue.set(e.target, e));
-                if (scheduled) return;
-                scheduled = true;
-                
-                rIC(() => {
-                    if (document.hidden) { queue.clear(); scheduled = false; return; }
-                    if (queue.size > 200) { queue.clear(); scheduled = false; return; }
-                    
-                    queue.forEach(e => {
-                        if (!e.target.isConnected) return;
-                        if (e.target.tagName === 'CANVAS' && Config.gpu) e.target.style.visibility = e.isIntersecting ? 'visible' : 'hidden';
-                        else if (Config.memory && this.supportsCV) {
-                            if (e.isIntersecting) { 
-                                e.target.style.removeProperty('content-visibility');
-                                e.target.style.removeProperty('contain'); 
-                            } else { 
-                                const rect = e.target.getBoundingClientRect();
-                                const h = rect.height || e.target.offsetHeight || 1;
-                                e.target.style.containIntrinsicSize = `1px ${Math.ceil(h)}px`; 
-                                e.target.style.contain = 'layout paint'; 
-                                e.target.style.contentVisibility = 'auto'; 
-                            }
-                        }
-                    });
-                    queue.clear(); scheduled = false;
-                });
-            }, { 
-                rootMargin: margin, 
-                threshold: 0.01 // [Final Complete] Anti-Flicker (GPU 떨림 방지)
-            });
-
-            if (Config.gpu) document.querySelectorAll('canvas').forEach(c => { this.visObs.observe(c); this.observed.add(c); });
-
-            if (Config.memory) {
-                rIC(() => {
-                    const targets = document.querySelectorAll('[role="feed"] > *, .infinite-scroll > *');
-                    for (let i = 0; i < targets.length; i++) {
-                        if (i > 300) break;
-                        this.visObs.observe(targets[i]);
+                    if (Config.gpu && e.target.tagName === 'CANVAS') {
+                        e.target.style.visibility = e.isIntersecting ? 'visible' : 'hidden';
+                    } else if (Config.memory && this.supportsCV) {
+                        if (e.isIntersecting) this.restoreStyle(e.target);
+                        else this.applyOptimization(e.target, e.boundingClientRect);
                     }
                 });
+            }, { rootMargin: margin, threshold: 0.01 });
+
+            const observeSafe = (el) => {
+                if (el && !this.observed.has(el)) {
+                    this.visObs.observe(el);
+                    this.observed.add(el);
+                }
+            };
+
+            if (Config.gpu) document.querySelectorAll('canvas').forEach(observeSafe);
+            
+            // [Fix] Expanded Selectors
+            if (Config.memory) {
+                const sel = '[role="feed"] > *, .feed > *, .list > *, .timeline > *, .infinite-scroll > *';
+                document.querySelectorAll(sel).forEach(observeSafe);
             }
         }
 
         startMO() {
-            if (this._moConnected) return;
-            this._moConnected = true;
+            if (isHeavyFeed || !Config.memory) return;
+            let obsCount = 0;
+            const sel = '[role="feed"] > *, .feed > *, .list > *, .timeline > *, .infinite-scroll > *';
 
-            const selector = '[role="feed"] > *, .infinite-scroll > *';
-            const handle = (mutations) => {
-                if (isHeavyFeed) return;
-                mutations.forEach(m => m.addedNodes.forEach(n => {
-                    if (n.nodeType === 1 && this.visObs) {
-                        if ((Config.gpu && n.tagName === 'CANVAS') || (Config.memory && n.matches && n.matches(selector))) {
+            const mo = new MutationObserver(ms => {
+                if (obsCount > 1000) return;
+                ms.forEach(m => m.addedNodes.forEach(n => {
+                    if (n.nodeType === 1 && n.matches && n.matches(sel)) {
+                        if (!this.observed.has(n)) {
                             this.visObs.observe(n);
+                            this.observed.add(n);
+                            obsCount++;
                         }
                     }
                 }));
-            };
-            this.mutObs = new MutationObserver(handle);
-            
-            const moConfig = { childList: true, subtree: isHeavyFeed ? false : true };
-            if (document.body) this.mutObs.observe(document.body, moConfig);
-            log('MutationObserver connected', moConfig);
+            });
+            mo.observe(document.body, { childList: true, subtree: true });
+            this.mutObs = mo;
         }
     }
 
-    // [Core 4] 네트워크 보조 (Dual Prefetch)
+    // [Core 4] NetworkAssistant (Prioritized Preconnect)
     class NetworkAssistant extends BaseModule {
         init() {
-            if (isCritical || win.__perfx_net_done) return;
-            if (IS_LAYOUT_SENSITIVE) return;
-
+            if (isCritical || win.__perfx_net_done || IS_LAYOUT_SENSITIVE) return;
             win.__perfx_net_done = true;
+
             rIC(() => {
-                document.querySelectorAll('img:not([loading])').forEach(img => {
-                    if (!img.hasAttribute('loading')) img.setAttribute('loading', 'lazy');
-                    img.setAttribute('decoding', 'async');
+                const imgs = [...document.querySelectorAll('img:not([loading])')];
+                if (imgs.length === 0) return;
+
+                const candidates = imgs.map((img, idx) => {
+                    const w = parseInt(img.getAttribute('width') || '0');
+                    const h = parseInt(img.getAttribute('height') || '0');
+                    return { img, idx, score: (w * h) || 0 };
+                });
+
+                const scoreSorted = [...candidates].sort((a,b) => b.score - a.score).slice(0, 2);
+                const idxSorted = candidates.slice(0, 2);
+                const eagerSet = new Set([...scoreSorted, ...idxSorted].map(c => c.img));
+
+                imgs.forEach(img => {
+                    if (!eagerSet.has(img)) {
+                        img.setAttribute('loading', 'lazy');
+                        img.setAttribute('decoding', 'async');
+                    }
                 });
 
                 if (document.head) {
-                    const existing = new Set();
-                    document.head.querySelectorAll('link[rel="preconnect"], link[rel="dns-prefetch"]').forEach(l => existing.add(l.href));
-
                     const origins = new Set();
-                    document.querySelectorAll('script[src^="http"], link[rel="stylesheet"][href^="http"]').forEach(el => {
-                        try { 
-                            const url = new URL(el.src || el.href); 
-                            if (url.origin !== win.location.origin && !/doubleclick|googlesyndication|facebook|twitter|criteo|adservice/i.test(url.hostname)) {
-                                origins.add(url.origin); 
-                            }
-                        } catch(e) {}
+                    const existing = new Set();
+                    
+                    document.head.querySelectorAll('link[rel="preconnect"], link[rel="dns-prefetch"]').forEach(l => {
+                        try { existing.add(new URL(l.href).origin); } catch(e){}
                     });
 
-                    const MAX_PRECONNECT = isMobile ? 2 : 4;
+                    const add = (u) => { 
+                        try { 
+                            const url = new URL(u);
+                            if (url.origin !== win.location.origin && !/doubleclick|googlesyndication|facebook|twitter|criteo|adservice|analytics/i.test(url.hostname)) {
+                                origins.add(url.origin); 
+                            }
+                        } catch(e){} 
+                    };
+                    document.querySelectorAll('script[src^="http"], link[href^="http"]').forEach(el => add(el.src || el.href));
+
+                    // [Fix] Priority Logic
+                    const sortedOrigins = [...origins].sort((a, b) => {
+                        const score = (o) => {
+                            if (o.includes('font')) return 3;
+                            if (o.includes('cdn') || o.includes('static')) return 2;
+                            if (o.includes('img') || o.includes('image')) return 1;
+                            return 0;
+                        };
+                        return score(b) - score(a);
+                    });
+
                     let count = 0;
-                    
-                    origins.forEach(origin => {
-                        if (count >= MAX_PRECONNECT) return;
+                    const MAX = isMobile ? 2 : 4;
+                    for (const origin of sortedOrigins) {
+                        if (count >= MAX) break;
                         if (!existing.has(origin)) {
-                            const link = document.createElement('link');
-                            link.rel = 'preconnect'; link.href = origin; link.crossOrigin = 'anonymous';
-                            document.head.appendChild(link);
-                            const dns = document.createElement('link');
-                            dns.rel = 'dns-prefetch'; dns.href = origin;
-                            document.head.appendChild(dns);
+                            const l = document.createElement('link');
+                            l.rel = 'preconnect'; l.href = origin; l.crossOrigin = 'anonymous';
+                            document.head.appendChild(l);
                             existing.add(origin);
                             count++;
                         }
-                    });
-                    log(`NetworkAssistant: ${count} origins preconnected`);
+                    }
                 }
             });
         }
@@ -539,12 +533,6 @@
 
     [new EventPassivator(), new CodecOptimizer(), new DomWatcher(), new NetworkAssistant()].forEach(m => m.safeInit());
 
-    rIC(() => { 
-        if (performance.mark) { 
-            performance.mark('perfx-ready'); 
-            performance.measure('perfx-init', 'perfx-start', 'perfx-ready'); 
-            log('PerfX Ready');
-        } 
-    });
+    if (initialOverrides.debug) log(`PerfX v${win.perfx.version} Ready`);
 
 })();
