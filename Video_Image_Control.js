@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v128.76 Layout Fix: Pop-Left)
+// @name        Video_Image_Control (v128.80 Top-Buttons Grid Fix)
 // @namespace   https://com/
-// @version     128.76
-// @description v128.76: 메뉴가 버튼 왼쪽으로 펼쳐짐(기존 버튼 가림 방지), 수직 중앙 정렬, 가로폭 유지.
+// @version     128.80
+// @description v128.80: 상단 [자동노출][초기화] 5:5 칼분할(Grid), 폰트/버튼 크기 확대, 화면 중앙 정렬 유지.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -1249,6 +1249,7 @@
                 * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; } :host { font-family: sans-serif; } .vsc-hidden { display: none !important; }
                 #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; }
                 #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+                
                 .vsc-control-group { 
                     display: flex; align-items: center; justify-content: flex-end; position: relative; 
                     background: rgba(0,0,0,0.7); border-radius: 8px; 
@@ -1265,27 +1266,53 @@
                     width: 100%; height: 100%; padding: 0; background: none; 
                     font-size: ${isMobile ? '18px' : '20px'}; display: flex; align-items: center; justify-content: center; 
                 }
-                /* [v128.76] Pop-Left & Vertical Center */
+                
+                /* [v128.80] Top Buttons: Large & Bold */
+                .vsc-top-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr; /* 50:50 Split */
+                    gap: 8px;
+                    width: 100%;
+                    margin-bottom: 8px;
+                }
+                .vsc-btn-lg {
+                    font-size: ${isMobile ? '15px' : '16px'} !important; 
+                    font-weight: bold; 
+                    height: 42px; /* Taller touch area */
+                }
+
+                /* [v128.79] Pop-Left & Vertical Center & Right Offset Fix */
                 .vsc-submenu { 
                     display: none; flex-direction: column; 
-                    position: absolute; /* Relative to button group */
-                    right: 100%; /* Push to LEFT of button */
-                    top: 50%; /* Vertical center align */
-                    transform: translateY(-50%); /* Adjust height center */
-                    margin-right: 15px; /* Spacing */
+                    position: fixed; /* Fixed to viewport */
+                    top: 50%; transform: translateY(-50%); /* Vertical Center */
+                    right: 100px; /* Offset from right edge */
+                    
                     background: rgba(0,0,0,0.95); border-radius: 8px; padding: 10px; gap: 6px; 
                     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
                 }
                 .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
-                #vsc-video-controls .vsc-submenu { width: ${isMobile ? 'min(420px, 94vw)' : '320px'}; } 
+                #vsc-video-controls .vsc-submenu { width: ${isMobile ? 'min(420px, 94vw)' : '340px'}; } 
                 #vsc-image-controls .vsc-submenu { width: 280px; }
                 
-                .vsc-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; width: 100%; } 
+                /* The Alignment Grid */
+                .vsc-align-grid {
+                    display: grid;
+                    grid-template-columns: 40px repeat(6, 1fr); /* Label + 6 slots */
+                    gap: 4px;
+                    align-items: center;
+                    width: 100%;
+                    margin-bottom: 8px;
+                    border-bottom: 1px solid #555;
+                    padding-bottom: 8px;
+                }
+                .vsc-align-grid .vsc-label {
+                    grid-column: 1; text-align: right; margin-right: 5px; color: white; font-weight: bold; font-size: 13px;
+                }
+                
                 .vsc-col { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #555; padding-bottom: 6px; }
-                .vsc-scroll-row { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; justify-content: space-between; } 
                 .vsc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; } 
                 .vsc-hr { height: 1px; background: #555; width: 100%; margin: 4px 0; }
-                .vsc-label { color: white; font-weight: bold; font-size: ${isMobile ? '13px' : '14px'}; min-width: 35px; text-align: right; margin-right: 6px; }
                 .slider-control { display: flex; flex-direction: column; gap: 4px; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '13px' : '14px'}; color: white; } input[type=range] { width: 100%; margin: 0; cursor: pointer; }
                 .vsc-monitor { font-size: 11px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; } .vsc-monitor.warn { color: #e74c3c; }
             `;
@@ -1404,33 +1431,67 @@
         }
         _buildVideoMenu(container) {
             const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', container);
-            const col = document.createElement('div'); col.className = 'vsc-col';
-            const row = document.createElement('div'); row.className = 'vsc-row';
-            const createToggle = (label, key) => { const btn = document.createElement('button'); btn.className = 'vsc-btn'; btn.textContent = label; btn.style.flex = '1'; const render = (v) => { btn.style.color = v ? '#4cd137' : 'white'; btn.style.borderColor = v ? '#4cd137' : ''; }; btn.onclick = () => this.stateManager.set(key, !this.stateManager.get(key)); this.subscribe(key, render); render(this.stateManager.get(key)); return btn; };
-            const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn'; videoResetBtn.textContent = '↺ 초기화'; videoResetBtn.style.flex = '1';
-            videoResetBtn.onclick = () => { this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, clarity: 0, autoExposure: false, targetLuma: 0, highlights: 0, shadows: 0, gamma: 1.0, saturation: 100, contrastAdj: 1.0, dither: 0, colorTemp: 0 }); };
-            row.append(createToggle('자동노출', 'videoFilter.autoExposure'), videoResetBtn);
             
-            const sharpRow = document.createElement('div'); sharpRow.className = 'vsc-row';
-            const sharpLabel = document.createElement('span'); sharpLabel.className = 'vsc-label'; sharpLabel.textContent = '샤프';
-            const mkSharp = (txt, key, l1, l2) => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = txt; b.dataset.presetKey = key; b.onclick = () => { this.stateManager.batchSet('videoFilter', { level: l1, level2: l2, activeSharpPreset: key }); }; return b; };
-            const sharpBtns = [mkSharp('S', 'sharpS', 5, 5), mkSharp('M', 'sharpM', 10, 10), mkSharp('L', 'sharpL', 15, 15), mkSharp('끔', 'sharpOFF', 0, 0)];
-            sharpRow.append(sharpLabel, ...sharpBtns);
-            this.subscribe('videoFilter.activeSharpPreset', (k) => { sharpBtns.forEach(b => b.classList.toggle('active', b.dataset.presetKey === k)); });
+            // [v128.80] Top Row - Perfect 50:50 Split Grid
+            const topRow = document.createElement('div'); 
+            topRow.className = 'vsc-top-row';
+            
+            const createToggle = (label, key) => { 
+                const btn = document.createElement('button'); 
+                btn.className = 'vsc-btn vsc-btn-lg'; // Using Large Class
+                btn.textContent = label; 
+                const render = (v) => { 
+                    btn.style.color = v ? '#4cd137' : 'white'; 
+                    btn.style.borderColor = v ? '#4cd137' : ''; 
+                    btn.style.boxShadow = v ? '0 0 8px rgba(76, 209, 55, 0.4) inset' : '';
+                }; 
+                btn.onclick = () => this.stateManager.set(key, !this.stateManager.get(key)); 
+                this.subscribe(key, render); render(this.stateManager.get(key)); 
+                return btn; 
+            };
+            const videoResetBtn = document.createElement('button'); 
+            videoResetBtn.className = 'vsc-btn vsc-btn-lg'; 
+            videoResetBtn.textContent = '↺ 초기화'; 
+            videoResetBtn.onclick = () => { this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, clarity: 0, autoExposure: false, targetLuma: 0, highlights: 0, shadows: 0, gamma: 1.0, saturation: 100, contrastAdj: 1.0, dither: 0, colorTemp: 0 }); };
+            
+            topRow.append(createToggle('자동노출', 'videoFilter.autoExposure'), videoResetBtn);
 
-            const evRow = document.createElement('div'); evRow.className = 'vsc-scroll-row';
-            const evLabel = document.createElement('span'); evLabel.className = 'vsc-label'; evLabel.textContent = '노출';
+            // [v128.77] The Aligned Grid Table
+            const gridTable = document.createElement('div'); gridTable.className = 'vsc-align-grid';
+            
+            // Row 1: Sharpen
+            const shLabel = document.createElement('div'); shLabel.className = 'vsc-label'; shLabel.textContent = '샤프';
+            const mkSharp = (txt, key, l1, l2) => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = txt; b.dataset.presetKey = key; b.onclick = () => { this.stateManager.batchSet('videoFilter', { level: l1, level2: l2, activeSharpPreset: key }); }; return b; };
+            const sBtns = [mkSharp('S', 'sharpS', 5, 5), mkSharp('M', 'sharpM', 10, 10), mkSharp('L', 'sharpL', 15, 15), mkSharp('끔', 'sharpOFF', 0, 0)];
+            this.subscribe('videoFilter.activeSharpPreset', (k) => { sBtns.forEach(b => b.classList.toggle('active', b.dataset.presetKey === k)); });
+            
+            // Row 2: Exposure
+            const evLabel = document.createElement('div'); evLabel.className = 'vsc-label'; evLabel.textContent = '노출';
             const evBtns = [-15, -10, -5, 5, 10, 15].map(val => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = (val>0?'+':'')+val; b.dataset.evVal = val; b.onclick = () => { this.stateManager.batchSet('videoFilter', { targetLuma: val, autoExposure: true }); }; return b; });
-            evRow.append(evLabel, ...evBtns);
             const updateEvUI = () => { const ae = this.stateManager.get('videoFilter.autoExposure'); const val = this.stateManager.get('videoFilter.targetLuma'); evBtns.forEach(b => { const m = ae && (parseInt(b.dataset.evVal) === val); b.style.color = m ? '#f39c12' : 'white'; b.style.boxShadow = m ? '0 0 5px #f39c12 inset' : ''; }); };
             this.subscribe('videoFilter.targetLuma', updateEvUI); this.subscribe('videoFilter.autoExposure', updateEvUI);
 
-            const hr1 = document.createElement('div'); hr1.className = 'vsc-hr'; const hr2 = document.createElement('div'); hr2.className = 'vsc-hr';
-            col.append(row, hr1, sharpRow, evRow, hr2, this._createSlider('노출 보정 (EV)', 'v-target', -30, 30, 1, 'videoFilter.targetLuma', '', v => `${v > 0 ? '+' : ''}${v}`).control);
-            videoSubMenu.appendChild(col);
+            // Assemble Grid: Label, S, M, L, Off, (empty), (empty) | Label, -15, -10, -5, +5, +10, +15
+            gridTable.append(shLabel, ...sBtns, document.createElement('div'), document.createElement('div')); 
+            gridTable.append(evLabel, ...evBtns);
+
+            const hr1 = document.createElement('div'); hr1.className = 'vsc-hr'; 
+            videoSubMenu.append(topRow, hr1, gridTable);
+
+            videoSubMenu.appendChild(this._createSlider('노출 보정 (EV)', 'v-target', -30, 30, 1, 'videoFilter.targetLuma', '', v => `${v > 0 ? '+' : ''}${v}`).control);
+            
+            const hr2 = document.createElement('div'); hr2.className = 'vsc-hr';
+            videoSubMenu.appendChild(hr2);
 
             const grid = document.createElement('div'); grid.className = 'vsc-grid';
-            grid.append(this._createSlider('샤프(윤곽)', 'v-sh1', 0, 50, 1, 'videoFilter.level', '단계', v => v.toFixed(0)).control, this._createSlider('샤프(디테일)', 'v-sh2', 0, 50, 1, 'videoFilter.level2', '단계', v => v.toFixed(0)).control, this._createSlider('명료도', 'v-cl', 0, 50, 1, 'videoFilter.clarity', '', v => v.toFixed(0)).control, this._createSlider('색온도', 'v-ct', -25, 25, 1, 'videoFilter.colorTemp', '', v => v.toFixed(0)).control, this._createSlider('그레인', 'v-dt', 0, 100, 5, 'videoFilter.dither', '', v => v.toFixed(0)).control, this._createSlider('베이스', 'a-bs', 0, 1, 0.05, 'audio.bass', '', v => v>0 ? 'ON' : 'OFF').control);
+            grid.append(
+                this._createSlider('샤프(윤곽)', 'v-sh1', 0, 50, 1, 'videoFilter.level', '단계', v => v.toFixed(0)).control, 
+                this._createSlider('샤프(디테일)', 'v-sh2', 0, 50, 1, 'videoFilter.level2', '단계', v => v.toFixed(0)).control, 
+                this._createSlider('명료도', 'v-cl', 0, 50, 1, 'videoFilter.clarity', '', v => v.toFixed(0)).control, 
+                this._createSlider('색온도', 'v-ct', -25, 25, 1, 'videoFilter.colorTemp', '', v => v.toFixed(0)).control, 
+                this._createSlider('그레인', 'v-dt', 0, 100, 5, 'videoFilter.dither', '', v => v.toFixed(0)).control, 
+                this._createSlider('베이스', 'a-bs', 0, 1, 0.05, 'audio.bass', '', v => v>0 ? 'ON' : 'OFF').control
+            );
             videoSubMenu.appendChild(grid);
             return videoSubMenu;
         }
