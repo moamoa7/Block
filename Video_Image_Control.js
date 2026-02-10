@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v128.80 Top-Buttons Grid Fix)
+// @name        Video_Image_Control (v128.81 State Restore Fix)
 // @namespace   https://com/
-// @version     128.80
-// @description v128.80: 상단 [자동노출][초기화] 5:5 칼분할(Grid), 폰트/버튼 크기 확대, 화면 중앙 정렬 유지.
+// @version     128.81
+// @description v128.81: 샤프/노출 버튼 초기 상태(저장된 값) UI 반영 로직 복구, 상단 큰 버튼/그리드 정렬 유지.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -1267,7 +1267,7 @@
                     font-size: ${isMobile ? '18px' : '20px'}; display: flex; align-items: center; justify-content: center; 
                 }
                 
-                /* [v128.80] Top Buttons: Large & Bold */
+                /* [v128.81] Top Buttons: Large & Bold & 50:50 Grid */
                 .vsc-top-row {
                     display: grid;
                     grid-template-columns: 1fr 1fr; /* 50:50 Split */
@@ -1432,7 +1432,7 @@
         _buildVideoMenu(container) {
             const videoSubMenu = this._createControlGroup('vsc-video-controls', '🎬', '영상 필터', container);
             
-            // [v128.80] Top Row - Perfect 50:50 Split Grid
+            // [v128.81 Fix] Top Row - Perfect 50:50 Split Grid
             const topRow = document.createElement('div'); 
             topRow.className = 'vsc-top-row';
             
@@ -1456,20 +1456,23 @@
             
             topRow.append(createToggle('자동노출', 'videoFilter.autoExposure'), videoResetBtn);
 
-            // [v128.77] The Aligned Grid Table
+            // [v128.81 Fix] The Aligned Grid Table with Immediate State Update
             const gridTable = document.createElement('div'); gridTable.className = 'vsc-align-grid';
             
             // Row 1: Sharpen
             const shLabel = document.createElement('div'); shLabel.className = 'vsc-label'; shLabel.textContent = '샤프';
             const mkSharp = (txt, key, l1, l2) => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = txt; b.dataset.presetKey = key; b.onclick = () => { this.stateManager.batchSet('videoFilter', { level: l1, level2: l2, activeSharpPreset: key }); }; return b; };
             const sBtns = [mkSharp('S', 'sharpS', 5, 5), mkSharp('M', 'sharpM', 10, 10), mkSharp('L', 'sharpL', 15, 15), mkSharp('끔', 'sharpOFF', 0, 0)];
-            this.subscribe('videoFilter.activeSharpPreset', (k) => { sBtns.forEach(b => b.classList.toggle('active', b.dataset.presetKey === k)); });
+            const updateSharpState = (k) => { sBtns.forEach(b => b.classList.toggle('active', b.dataset.presetKey === k)); };
+            this.subscribe('videoFilter.activeSharpPreset', updateSharpState);
+            updateSharpState(this.stateManager.get('videoFilter.activeSharpPreset')); // Immediate Call
             
             // Row 2: Exposure
             const evLabel = document.createElement('div'); evLabel.className = 'vsc-label'; evLabel.textContent = '노출';
             const evBtns = [-15, -10, -5, 5, 10, 15].map(val => { const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = (val>0?'+':'')+val; b.dataset.evVal = val; b.onclick = () => { this.stateManager.batchSet('videoFilter', { targetLuma: val, autoExposure: true }); }; return b; });
             const updateEvUI = () => { const ae = this.stateManager.get('videoFilter.autoExposure'); const val = this.stateManager.get('videoFilter.targetLuma'); evBtns.forEach(b => { const m = ae && (parseInt(b.dataset.evVal) === val); b.style.color = m ? '#f39c12' : 'white'; b.style.boxShadow = m ? '0 0 5px #f39c12 inset' : ''; }); };
             this.subscribe('videoFilter.targetLuma', updateEvUI); this.subscribe('videoFilter.autoExposure', updateEvUI);
+            updateEvUI(); // Immediate Call
 
             // Assemble Grid: Label, S, M, L, Off, (empty), (empty) | Label, -15, -10, -5, +5, +10, +15
             gridTable.append(shLabel, ...sBtns, document.createElement('div'), document.createElement('div')); 
