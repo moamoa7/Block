@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v128.73 High Visibility)
+// @name        Video_Image_Control (v128.76 Layout Fix: Pop-Left)
 // @namespace   https://com/
-// @version     128.73
-// @description v128.73: UI 시인성 대폭 개선(폰트/아이콘 크기 확대), ReferenceError 수정, 안정성 패치 포함.
+// @version     128.76
+// @description v128.76: 메뉴가 버튼 왼쪽으로 펼쳐짐(기존 버튼 가림 방지), 수직 중앙 정렬, 가로폭 유지.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -121,7 +121,6 @@
     const debounce = (fn, wait) => { let t; return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
     const throttle = (fn, limit) => { let inThrottle; return function(...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
     
-    // Scheduler
     const scheduleWork = (cb) => {
         const wrapped = () => safeGuard(cb, 'scheduleWork');
         if (window.scheduler && window.scheduler.postTask) return window.scheduler.postTask(wrapped, { priority: 'background' }).catch(e => { if(CONFIG.DEBUG) console.warn(e); });
@@ -1244,14 +1243,12 @@
         }
         destroy() { super.destroy(); if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; } if (this.delayMeterEl) { this.delayMeterEl.remove(); this.delayMeterEl = null; } if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange); if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate); }
         
-        // [v128.73] UI Visibility Boost
         getStyles() {
             const isMobile = this.stateManager.get('app.isMobile');
             return `
                 * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; } :host { font-family: sans-serif; } .vsc-hidden { display: none !important; }
                 #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; }
                 #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
-                /* Increased Dimensions for Visibility */
                 .vsc-control-group { 
                     display: flex; align-items: center; justify-content: flex-end; position: relative; 
                     background: rgba(0,0,0,0.7); border-radius: 8px; 
@@ -1268,11 +1265,26 @@
                     width: 100%; height: 100%; padding: 0; background: none; 
                     font-size: ${isMobile ? '18px' : '20px'}; display: flex; align-items: center; justify-content: center; 
                 }
-                .vsc-submenu { display: none; flex-direction: column; position: absolute; right: 100%; top: 40%; transform: translateY(-40%); margin-right: 8px; background: rgba(0,0,0,0.9); border-radius: 6px; padding: 10px; gap: 6px; width: max-content; }
+                /* [v128.76] Pop-Left & Vertical Center */
+                .vsc-submenu { 
+                    display: none; flex-direction: column; 
+                    position: absolute; /* Relative to button group */
+                    right: 100%; /* Push to LEFT of button */
+                    top: 50%; /* Vertical center align */
+                    transform: translateY(-50%); /* Adjust height center */
+                    margin-right: 15px; /* Spacing */
+                    background: rgba(0,0,0,0.95); border-radius: 8px; padding: 10px; gap: 6px; 
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                }
                 .vsc-control-group.submenu-visible .vsc-submenu { display: flex; }
-                #vsc-video-controls .vsc-submenu { width: ${isMobile ? '260px' : '320px'}; max-width: 85vw; } #vsc-image-controls .vsc-submenu { width: 280px; }
-                .vsc-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; width: 100%; } .vsc-col { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #555; padding-bottom: 6px; }
-                .vsc-scroll-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; } .vsc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; } .vsc-hr { height: 1px; background: #555; width: 100%; margin: 4px 0; }
+                #vsc-video-controls .vsc-submenu { width: ${isMobile ? 'min(420px, 94vw)' : '320px'}; } 
+                #vsc-image-controls .vsc-submenu { width: 280px; }
+                
+                .vsc-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; width: 100%; } 
+                .vsc-col { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #555; padding-bottom: 6px; }
+                .vsc-scroll-row { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; justify-content: space-between; } 
+                .vsc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; } 
+                .vsc-hr { height: 1px; background: #555; width: 100%; margin: 4px 0; }
                 .vsc-label { color: white; font-weight: bold; font-size: ${isMobile ? '13px' : '14px'}; min-width: 35px; text-align: right; margin-right: 6px; }
                 .slider-control { display: flex; flex-direction: column; gap: 4px; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '13px' : '14px'}; color: white; } input[type=range] { width: 100%; margin: 0; cursor: pointer; }
                 .vsc-monitor { font-size: 11px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; } .vsc-monitor.warn { color: #e74c3c; }
