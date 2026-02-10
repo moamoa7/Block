@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260207
+! Version: 20260210
 !
 !
 !
@@ -1030,7 +1030,7 @@ instiz.net##[id*="sense"]
 !
 ! 나무위키 (https://namu.wiki/)
 ! - 상단 및 오른쪽 공간(배너?) - EasyList (없어진듯)
-!namu.wiki##div[id][class]:empty
+namu.wiki##div[id][class]:empty
 !
 !
 ! 일베 (https://www.ilbe.com/)
@@ -4356,6 +4356,10 @@ www.wavve.com#@#.popup
 nid.naver.com#@#.popup
 ! - - - https://www.melon.com/ - 해지 등 팝업 뜰때 내용 안보임
 melon.com#@#.popup
+!  - -- https://oo.ai/
+oo.ai#@#.popup
+
+
 ! 사이 사이 마다 있는 배너
 !##.plus_banner
 
