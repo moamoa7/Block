@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.1 Hotfix)
+// @name        Video_Image_Control (v130.2 Optimized)
 // @namespace   https://com/
-// @version     130.1
-// @description v130.1: LiveStreamPlugin 정의 복구 (ReferenceError 수정), 오디오 제거 유지.
+// @version     130.2
+// @description v130.2: CORS 감지 수정, 설정 저장 완벽화, 히스토그램 메모리 최적화, 마이크로태스크 스캔 적용.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -38,11 +38,6 @@
             return false;
         }
     };
-
-    const IS_LE = (() => {
-        const u32 = new Uint32Array([0x0a0b0c0d]);
-        return new Uint8Array(u32.buffer)[0] === 0x0d;
-    })();
 
     // --- Constants ---
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
@@ -145,6 +140,8 @@
     };
 
     const log = (...args) => { if (CONFIG.DEBUG) console.log('[VSC]', ...args); };
+    const hostMatches = (host, d) => host === d || host.endsWith('.' + d);
+    const IS_LIVE_SITE = CONFIG.LIVE.SITES.some(d => hostMatches(location.hostname, d));
 
     // --- Base Helpers ---
     let _errCount = 0, _errWindowStart = Date.now();
@@ -233,6 +230,10 @@
     let _corePluginRef = null;
     let _lastFullScan = 0;
 
+    // [Optimized] Microtask queue for immediate scans
+    let _scanMicrotaskQueued = false;
+    const _scanMicrotaskRoots = new Set();
+
     const isGoodScanRoot = (n) => {
         if (!n || n.nodeType !== 1 || !n.isConnected) return false;
         const tag = n.nodeName;
@@ -261,9 +262,26 @@
             else _immCooldown.set(rootOrNull, now);
         }
 
+        // [Optimized] Use microtask for immediate scans
         if (immediate && _corePluginRef) {
-            if (rootOrNull) safeGuard(() => _corePluginRef.scanSpecificRoot(rootOrNull), 'scanSpecificRoot');
-            else safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
+            if (rootOrNull) _scanMicrotaskRoots.add(rootOrNull);
+            if (!_scanMicrotaskQueued) {
+                _scanMicrotaskQueued = true;
+                queueMicrotask(() => {
+                    _scanMicrotaskQueued = false;
+                    if (!_corePluginRef) return;
+                    const roots = [..._scanMicrotaskRoots];
+                    _scanMicrotaskRoots.clear();
+
+                    if (roots.length > 0) {
+                        for (const r of roots) safeGuard(() => _corePluginRef.scanSpecificRoot(r), 'scanSpecificRoot');
+                    } else {
+                        // If immediate scan requested with null, do full scan
+                        safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
+                    }
+                    safeGuard(() => _corePluginRef.tick(), 'tick');
+                });
+            }
             return;
         }
 
@@ -330,7 +348,7 @@
     (function hookSetAttribute() {
         if (Element.prototype.setAttribute[VSC_ATTR_HOOKED]) return;
         const origSetAttr = Element.prototype.setAttribute;
-        Element.prototype.setAttribute = function(name, value) {
+        const patchedSetAttr = function(name, value) {
             const res = origSetAttr.call(this, name, value);
             try {
                 const tag = this.tagName;
@@ -344,6 +362,9 @@
             } catch {}
             return res;
         };
+        // [Fixed] Try to hide the hook
+        try { patchedSetAttr.toString = () => origSetAttr.toString(); } catch {}
+        Element.prototype.setAttribute = patchedSetAttr;
         Object.defineProperty(Element.prototype.setAttribute, VSC_ATTR_HOOKED, { value: true });
     })();
 
@@ -521,6 +542,8 @@
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0,
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0,
         hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null,
+        _hist: null, // [Optimized] Reusable histogram buffer
+
         init(stateManager) {
             this.stateManager = stateManager;
             if (this.canvas) return;
@@ -529,6 +552,8 @@
             this.canvas.width = size; this.canvas.height = size;
             this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
             if(this.ctx) this.ctx.imageSmoothingEnabled = false;
+            // [Optimized] Pre-allocate histogram buffer
+            this._hist = new Uint16Array(256);
         },
         start(video, settings) {
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
@@ -557,7 +582,16 @@
         updateSettings(settings) {
             this.currentSettings = { ...this.currentSettings, ...settings };
             if (settings && (Object.prototype.hasOwnProperty.call(settings, 'targetLuma') || Object.prototype.hasOwnProperty.call(settings, 'autoExposure') || Object.prototype.hasOwnProperty.call(settings, 'clarity'))) {
-                this.frameSkipCounter = 999; this._userBoostUntil = performance.now() + 800;
+                this.frameSkipCounter = 999;
+                this._userBoostUntil = performance.now() + 800;
+                this.currentAdaptiveGamma = 1.0;
+                this.currentAdaptiveBright = 0;
+                this.currentClarityComp = 0;
+                this.currentShadowsAdj = 0;
+                this.currentHighlightsAdj = 0;
+                this._lastClarityComp = 0;
+                this._lastShadowsAdj = 0;
+                this._lastHighlightsAdj = 0;
             }
             const isClarityActive = this.currentSettings.clarity > 0;
             const isAutoExposure = this.currentSettings.autoExposure;
@@ -589,12 +623,13 @@
 
             if (this.targetVideo.readyState < 2) return;
             if (!this.ctx) return;
+
             const startTime = performance.now();
             const evValue = this.currentSettings.targetLuma || 0;
             const isAutoExp = this.currentSettings.autoExposure;
 
-            let baseThreshold = this.hasRVFC ? 15 : 0;
-            if (this._highMotion) baseThreshold = this.hasRVFC ? 8 : 4;
+            let baseThreshold = this.hasRVFC ? 10 : 0;
+            if (this._highMotion) baseThreshold = this.hasRVFC ? 6 : 3;
             const effectiveThreshold = baseThreshold + (this.dynamicSkipThreshold || 0);
             this.frameSkipCounter++;
             if (this.frameSkipCounter < effectiveThreshold) return;
@@ -604,84 +639,114 @@
                 const size = this.canvas.width;
                 this.ctx.drawImage(this.targetVideo, 0, 0, size, size);
                 const data = this.ctx.getImageData(0, 0, size, size).data;
-                let sum = 0;
-                if (IS_LE) {
-                    const data32 = new Uint32Array(data.buffer);
-                    for (let i = 0; i < data32.length; i++) {
-                        const p = data32[i];
-                        const r = p & 0xFF, g = (p >> 8) & 0xFF, b = (p >> 16) & 0xFF;
-                        sum += (r * 54 + g * 183 + b * 19) >> 8;
-                    }
-                } else {
-                    for (let i = 0; i < data.length; i += 4) {
-                        const r = data[i], g = data[i + 1], b = data[i + 2];
-                        sum += (r * 54 + g * 183 + b * 19) >> 8;
-                    }
+
+                // [Optimized] Use pre-allocated buffer
+                if (!this._hist) this._hist = new Uint16Array(256);
+                const hist = this._hist;
+                hist.fill(0);
+
+                let totalValidPixels = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i], g = data[i + 1], b = data[i + 2];
+                    const y = (r * 54 + g * 183 + b * 19) >> 8;
+                    hist[y]++;
+                    totalValidPixels++;
                 }
-                const avgLuma = (data.length/4) > 0 ? (sum / (data.length/4)) / 255 : 0.5;
+
+                const getPercentile = (p) => {
+                    const target = totalValidPixels * p;
+                    let sum = 0;
+                    for (let i = 0; i < 256; i++) {
+                        sum += hist[i];
+                        if (sum >= target) return i / 255;
+                    }
+                    return 1.0;
+                };
+
+                const p10 = getPercentile(0.10);
+                const p50 = getPercentile(0.50);
+                const p90 = getPercentile(0.90);
+
+                const currentLuma = p50;
                 if (this.lastAvgLuma >= 0) {
-                    const delta = Math.abs(avgLuma - this.lastAvgLuma);
-                    this._highMotion = (delta > 0.05);
+                    const delta = Math.abs(currentLuma - this.lastAvgLuma);
+                    this._highMotion = (delta > 0.08);
                 }
-                this.lastAvgLuma = avgLuma;
+                this.lastAvgLuma = currentLuma;
 
                 let targetAdaptiveGamma = 1.0, targetAdaptiveBright = 0, targetShadowsAdj = 0, targetHighlightsAdj = 0;
-                if (isAutoExp) {
-                    if (evValue !== 0) {
-                        const u = evValue / 20;
-                        const boostFactor = Math.tanh(u);
-                        const headroom = 1.0 - Math.min(1.0, avgLuma + 0.3);
-                        const floor = Math.max(0.0, avgLuma - 0.3);
-                        let error = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.15 * 4.0;
-                        if (Math.abs(error) < 0.001) error = 0;
-                        const correction = error * 6.0;
-                        if (correction > 0) {
-                            targetAdaptiveGamma += correction * 0.8; targetAdaptiveBright += correction * 4; targetShadowsAdj += correction * 5;
-                        } else {
-                            const absCorr = Math.abs(correction);
-                            targetAdaptiveGamma -= absCorr * 0.8; targetAdaptiveBright -= absCorr * 5; targetHighlightsAdj += absCorr * 30;
-                        }
+
+                if (isAutoExp && evValue !== 0) {
+                    const u = evValue / 20;
+                    const boostFactor = Math.tanh(u);
+                    const headroom = Math.max(0.0, 1.0 - p90);
+                    const floor = Math.max(0.1, p10);
+                    let error = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
+                    if (Math.abs(error) < 0.001) error = 0;
+                    const correction = error * 5.0;
+
+                    if (correction > 0) {
+                        const safeGammaBoost = (p90 > 0.9) ? 0.4 : 0.8;
+                        targetAdaptiveGamma += correction * safeGammaBoost;
+                        targetAdaptiveBright += correction * 4;
+                        targetShadowsAdj += correction * 5;
+                    } else {
+                        const absCorr = Math.abs(correction);
+                        const safeGammaCut = (p10 < 0.1) ? 0.3 : 0.6;
+                        targetAdaptiveGamma -= absCorr * safeGammaCut;
+                        targetAdaptiveBright -= absCorr * 3;
+                        targetHighlightsAdj += absCorr * 10;
                     }
-                }
-                if (evValue !== 0) {
                     const clamp = Utils.clamp;
                     targetAdaptiveGamma = clamp(targetAdaptiveGamma, 0.6, 2.0);
                     targetAdaptiveBright = clamp(targetAdaptiveBright, -40, 40);
                     targetShadowsAdj = clamp(targetShadowsAdj, -40, 40);
                     targetHighlightsAdj = clamp(targetHighlightsAdj, -20, 80);
                 }
+
                 let targetClarityComp = 0;
                 if (this.currentSettings.clarity > 0) {
                     const intensity = this.currentSettings.clarity / 50;
-                    const lumaFactor = Math.max(0.2, 1.0 - avgLuma);
-                    let dampener = isAutoExp ? 0.6 : 1.0;
-                    targetClarityComp = Math.min(10, (intensity * 12) * lumaFactor * dampener);
+                    const maxLumaFactor = (isAutoExp && evValue < 0) ? 0.5 : 0.7;
+                    const lumaFactor = Math.max(0.2, maxLumaFactor - p50);
+                    let dampener = isAutoExp ? (evValue < 0 ? 0.4 : 0.6) : 1.0;
+                    targetClarityComp = Math.min(10, (intensity * 10) * lumaFactor * dampener);
                 }
+
                 const smooth = (curr, target) => {
                     const diff = target - curr;
                     const userBoost = (this._userBoostUntil && startTime < this._userBoostUntil);
                     let speed = userBoost ? 0.25 : (this._highMotion ? 0.05 : 0.1);
                     return Math.abs(diff) > 0.01 ? curr + diff * speed : curr;
                 };
+
                 this.currentAdaptiveGamma = smooth(this.currentAdaptiveGamma || 1.0, targetAdaptiveGamma);
                 this.currentAdaptiveBright = smooth(this.currentAdaptiveBright || 0, targetAdaptiveBright);
                 this.currentClarityComp = smooth(this._lastClarityComp || 0, targetClarityComp);
                 this.currentShadowsAdj = smooth(this._lastShadowsAdj || 0, targetShadowsAdj);
                 this.currentHighlightsAdj = smooth(this._lastHighlightsAdj || 0, targetHighlightsAdj);
+
                 this._lastClarityComp = this.currentClarityComp;
                 this._lastShadowsAdj = this.currentShadowsAdj;
                 this._lastHighlightsAdj = this.currentHighlightsAdj;
-                this.notifyUpdate({ gamma: this.currentAdaptiveGamma, bright: this.currentAdaptiveBright, clarityComp: this.currentClarityComp, shadowsAdj: this.currentShadowsAdj, highlightsAdj: this.currentHighlightsAdj }, avgLuma, this.targetVideo);
+
+                this.notifyUpdate({ gamma: this.currentAdaptiveGamma, bright: this.currentAdaptiveBright, clarityComp: this.currentClarityComp, shadowsAdj: this.currentShadowsAdj, highlightsAdj: this.currentHighlightsAdj }, p50, this.targetVideo, false);
+
             } catch (e) {
                 if (e.name === 'SecurityError') {
                     const key = (this.targetVideo.currentSrc || this.targetVideo.src) + '|' + this.targetVideo.videoWidth + 'x' + this.targetVideo.videoHeight;
                     this.taintedCache.set(this.targetVideo, key);
                     this.taintedRetryCache.set(this.targetVideo, Date.now());
+
+                    // [Fixed] Notify with tainted=true so UI shows "CORS Blocked"
+                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, this.targetVideo, true);
+
                     if (this.stateManager && this.stateManager.set) {
-                        this.stateManager.set('ui.warningMessage', '보안(CORS) 제한으로 자동노출이 비활성화됩니다.');
+                        this.stateManager.set('ui.warningMessage', '보안(CORS) 제한으로 자동노출/명료도 분석이 비활성화됩니다.');
                         this.stateManager.set('videoFilter.autoExposure', false);
+                        // [Fixed] Also disable clarity to prevent loop
+                        this.stateManager.set('videoFilter.clarity', 0);
                     }
-                    document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { autoParams: { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, luma: 0, tainted: true, videoInfo: this.targetVideo } }));
                     this.stop();
                 }
             }
@@ -689,8 +754,8 @@
             if (duration > 4.0) this.dynamicSkipThreshold = Math.min(30, (this.dynamicSkipThreshold || 0) + 2);
             else if (duration < 1.0 && this.dynamicSkipThreshold > 0) this.dynamicSkipThreshold = Math.max(0, this.dynamicSkipThreshold - 1);
         },
-        notifyUpdate(autoParams, luma, videoInfo) {
-            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { autoParams, luma, tainted: false, videoInfo } }));
+        notifyUpdate(autoParams, luma, videoInfo, tainted = false) {
+            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { autoParams, luma, tainted, videoInfo } }));
         }
     };
 
@@ -711,7 +776,7 @@
 
             this.state = {
                 app: { isInitialized: false, isMobile, scriptActive: false },
-                site: { isLiveSite: CONFIG.LIVE.SITES.some(d => location.hostname === d || location.hostname.endsWith('.' + d)) },
+                site: { isLiveSite: IS_LIVE_SITE },
                 media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null, remoteVideoCount: 0, remoteImageCount: 0, remoteRate: null },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
@@ -740,6 +805,9 @@
                             t.brightness = clamp(safeInt(vf.brightness, t.brightness), -40, 40);
                             t.shadows = clamp(safeInt(vf.shadows, t.shadows), -40, 40);
                             t.highlights = clamp(safeInt(vf.highlights, t.highlights), -80, 60);
+                            // [Fixed] Restore missing properties
+                            t.saturation = clamp(safeInt(vf.saturation, t.saturation), 0, 300);
+                            t.contrastAdj = clamp(safeFloat(vf.contrastAdj, t.contrastAdj), 0.5, 2.0);
                         }
                         if (parsed.playback) this.state.playback.targetRate = parsed.playback.targetRate || 1.0;
                         if (parsed.app) { if (parsed.app.scriptActive) this.state.app.scriptActive = true; }
@@ -779,8 +847,17 @@
             if (this._saveTimer) clearTimeout(this._saveTimer);
             this._saveTimer = setTimeout(() => {
                 try {
+                    // [Fixed] Explicit whitelist saving to prevent data loss
+                    const vf = this.state.videoFilter;
                     const toSave = {
-                        videoFilter: this.state.videoFilter,
+                        videoFilter: {
+                            level: vf.level, level2: vf.level2, clarity: vf.clarity,
+                            autoExposure: vf.autoExposure, targetLuma: vf.targetLuma,
+                            gamma: vf.gamma, saturation: vf.saturation, contrastAdj: vf.contrastAdj,
+                            brightness: vf.brightness, shadows: vf.shadows, highlights: vf.highlights,
+                            colorTemp: vf.colorTemp, dither: vf.dither,
+                            activeSharpPreset: vf.activeSharpPreset
+                        },
                         playback: { targetRate: this.state.playback.targetRate },
                         app: { scriptActive: this.state.app.scriptActive },
                         ui: { areControlsVisible: this.state.ui.areControlsVisible, gestureMode: this.state.ui.gestureMode }
@@ -966,6 +1043,9 @@
                         const fsEl = document.fullscreenElement;
                         const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && fsEl.contains(e.target));
                         if (visMap) visMap.set(e.target, isVisible);
+                        // [Optimized] Store intersection ratio for scoring
+                        e.target._vscIntersectionRatio = e.intersectionRatio;
+
                         if (e.target.tagName === 'VIDEO') {
                             if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target);
                             sm.set('media.visibilityChange', { target: e.target, isVisible });
@@ -985,6 +1065,8 @@
                                  if (m.readyState >= 2) score *= 1.2;
                                  if (!m.muted && m.volume > 0) score *= 1.2;
                                  if (document.pictureInPictureElement === m) score *= 3.0;
+                                 // [Optimized] Use intersection ratio
+                                 if (m._vscIntersectionRatio) score *= (0.5 + m._vscIntersectionRatio * 0.5);
                                  if (score > maxScore) { maxScore = score; bestCandidate = m; }
                              }
                         }
@@ -994,7 +1076,7 @@
                             if (active && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(bestCandidate, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
                         }
                     }
-                }, { root: null, rootMargin: '0px', threshold: [0] });
+                }, { root: null, rootMargin: '0px', threshold: [0, 0.25, 0.5, 0.75, 1.0] });
             }
         }
         scheduleNextScan() {
@@ -1103,6 +1185,9 @@
             const attachInternalObserver = () => {
                 try {
                     const doc = frame.contentDocument; if (!doc || !doc.body) return;
+                    // [Optimized] If same-origin, perform a deep scan immediately to catch elements that might have been missed
+                    this.scanSpecificRoot(doc.body);
+
                     const prev = this._iframeInternalObservers.get(frame); if (prev && prev.doc === doc) return;
                     if (prev && prev.mo) { try { prev.mo.disconnect(); } catch {} }
                     const internalMo = new MutationObserver((mutations) => { burstRescan(); this._domDirty = true; });
@@ -1666,15 +1751,14 @@
             super.init(stateManager); if (!CONFIG.FLAGS.LIVE_DELAY) return;
             this.subscribe('liveStream.isRunning', (running) => { if (running) this.start(); else this.stop(); });
             this.subscribe('app.scriptActive', (active) => {
-                 const isLiveSite = CONFIG.LIVE.SITES.some(d => location.hostname === d || location.hostname.endsWith('.' + d));
-                 if (active && isLiveSite) this.stateManager.set('liveStream.isRunning', true);
+                 // [Optimized] Reused cached IS_LIVE_SITE check
+                 if (active && IS_LIVE_SITE) this.stateManager.set('liveStream.isRunning', true);
                  else this.stateManager.set('liveStream.isRunning', false);
             });
             this.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge());
             this.subscribe('liveStream.resetRequested', () => { if (this.stateManager.get('liveStream.isRunning')) { this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; log('Live stream delay meter reset.'); } });
             if (this.stateManager.get('app.scriptActive')) {
-                 const isLiveSite = CONFIG.LIVE.SITES.some(d => location.hostname === d || location.hostname.endsWith('.' + d));
-                 if (isLiveSite) this.stateManager.set('liveStream.isRunning', true);
+                 if (IS_LIVE_SITE) this.stateManager.set('liveStream.isRunning', true);
             }
         }
         destroy() { super.destroy(); this.stop(); }
@@ -1887,8 +1971,7 @@
                 btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
                 this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn);
             });
-            const isLiveSite = CONFIG.LIVE.SITES.some(d => location.hostname === d || location.hostname.endsWith('.' + d));
-            if (isLiveSite) {
+            if (IS_LIVE_SITE) {
                 const liveJumpBtn = document.createElement('button'); liveJumpBtn.textContent = '⚡'; liveJumpBtn.title = '실시간'; liveJumpBtn.className = 'vsc-btn';
                 Object.assign(liveJumpBtn.style, { width: isMobile?'42px':'46px', height: isMobile?'42px':'46px', borderRadius: '50%', fontSize: '18px' });
                 liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now());
@@ -2050,7 +2133,7 @@
                              const m = ae && (parseInt(b.dataset.evVal) === tv);
                              b.style.color = m ? 'var(--vsc-text-accent)' : 'white';
                              b.style.boxShadow = m ? '0 0 5px var(--vsc-text-accent) inset' : '';
-                         });
+                          });
                     };
                     this.subscribe('videoFilter.targetLuma', updateEv); this.subscribe('videoFilter.autoExposure', updateEv);
                     updateEv();
@@ -2083,7 +2166,17 @@
             const controls = document.createElement('div'); controls.id = 'vsc-controls-container';
             const videoMenu = this._buildVideoMenu(controls);
             const monitor = document.createElement('div'); monitor.className = 'vsc-monitor'; monitor.textContent = 'Monitoring Off'; videoMenu.appendChild(monitor);
-            this.boundSmartLimitUpdate = (e) => { if (!videoMenu.parentElement.classList.contains('submenu-visible')) return; const { autoParams, tainted } = e.detail; if (tainted) { monitor.textContent = 'CORS Blocked'; monitor.classList.add('warn'); } else { monitor.classList.remove('warn'); monitor.textContent = `Gamma: ${autoParams.gamma.toFixed(2)} | Bright: ${autoParams.bright.toFixed(0)}`; } };
+            this.boundSmartLimitUpdate = (e) => {
+                if (!videoMenu.parentElement.classList.contains('submenu-visible')) return;
+                const { autoParams, tainted } = e.detail;
+                if (tainted) {
+                    monitor.textContent = 'CORS Blocked';
+                    monitor.classList.add('warn');
+                } else {
+                    monitor.classList.remove('warn');
+                    monitor.textContent = `Gamma: ${autoParams.gamma.toFixed(2)} | Bright: ${autoParams.bright.toFixed(0)}`;
+                }
+            };
             document.addEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
             const imgMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controls);
             imgMenu.append(this._createSlider('샤프닝', 'i-sh', 0, 20, 1, 'imageFilter.level', '단계', v => v.toFixed(0)).control, this._createSlider('색온도', 'i-ct', -7, 4, 1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control);
