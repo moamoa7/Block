@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.15 InstantActive Fix)
+// @name        Video_Image_Control (v130.16 InstantActive + FastTarget)
 // @namespace   https://com/
-// @version     130.15
-// @description v130.15: Instant EV response (0.5s aggressive window), Anti-flicker reset, Fast UI update (100ms). Fixed startup race condition.
+// @version     130.16
+// @description v130.16: Fixed 5s delay on EV change (Immediate Video Targeting).
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -652,7 +652,7 @@
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0,
         hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null,
         _hist: null,
-        _evAggressiveUntil: 0, // NEW: Aggressive window for EV changes
+        _evAggressiveUntil: 0,
 
         init(stateManager) {
             this.stateManager = stateManager;
@@ -663,6 +663,40 @@
             this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
             if (this.ctx) this.ctx.imageSmoothingEnabled = false;
             this._hist = new Uint16Array(256);
+        },
+        // NEW: Immediately pick best candidate
+        _pickBestVideoNow() {
+            const sm = this.stateManager;
+            let v = sm ? sm.get('media.currentlyVisibleMedia') : null;
+            if (v && v.isConnected && v.tagName === 'VIDEO') return v;
+
+            const li = sm ? sm.get('media.lastInteractedVideo') : null;
+            if (li && li.el && li.el.isConnected && li.el.tagName === 'VIDEO') return li.el;
+
+            const active = sm ? sm.get('media.activeMedia') : null;
+            const visMap = sm ? sm.get('media.visibilityMap') : null;
+
+            if (active && active.size) {
+                let best = null, bestScore = -1;
+                for (const el of active) {
+                    if (!el || !el.isConnected || el.tagName !== 'VIDEO') continue;
+                    let isVis = visMap ? !!visMap.get(el) : false;
+                    if (!visMap) {
+                        try {
+                            const r = el.getBoundingClientRect();
+                            isVis = r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+                        } catch { }
+                    }
+                    if (!isVis) continue;
+                    const area = (el.clientWidth || 0) * (el.clientHeight || 0);
+                    const playingBoost = el.paused ? 1.0 : 2.5;
+                    const readyBoost = (el.readyState >= 3) ? 1.3 : 1.0;
+                    const score = area * playingBoost * readyBoost;
+                    if (score > bestScore) { bestScore = score; best = el; }
+                }
+                if (best) return best;
+            }
+            return document.querySelector('video');
         },
         start(video, settings) {
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
@@ -692,7 +726,6 @@
             const prev = this.currentSettings;
             this.currentSettings = { ...this.currentSettings, ...settings };
 
-            // Detect EV change or Auto toggle for immediate response
             const now = performance.now();
             const evChanged = settings && Object.prototype.hasOwnProperty.call(settings, 'targetLuma') && settings.targetLuma !== prev.targetLuma;
             const aeTurnedOn = settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && settings.autoExposure && !prev.autoExposure;
@@ -705,7 +738,7 @@
                     this._evAggressiveUntil = now + 500; // 0.5s aggressive window
                     this.dynamicSkipThreshold = 0;
                 }
-
+                
                 this.currentAdaptiveGamma = 1.0;
                 this.currentAdaptiveBright = 0;
                 this.currentClarityComp = 0;
@@ -716,16 +749,22 @@
                 this._lastHighlightsAdj = 0;
             }
 
-            // Disable aggressive if AE turned off
             if (settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && !settings.autoExposure) {
                 this._evAggressiveUntil = 0;
             }
 
             const isClarityActive = this.currentSettings.clarity > 0;
             const isAutoExposure = this.currentSettings.autoExposure;
-            if ((isClarityActive || isAutoExposure) && !this.isRunning) {
-                const best = this.stateManager ? this.stateManager.get('media.currentlyVisibleMedia') : null;
-                if (best) this.start(best);
+            // NEW: Use _pickBestVideoNow to force start immediately without waiting for scan
+            if (isClarityActive || isAutoExposure) {
+                const best = this._pickBestVideoNow();
+                if (best) {
+                    this.start(best, {
+                        autoExposure: this.currentSettings.autoExposure,
+                        clarity: this.currentSettings.clarity,
+                        targetLuma: this.currentSettings.targetLuma
+                    });
+                }
             } else if (!isClarityActive && !isAutoExposure && this.isRunning) {
                 this.stop();
                 this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0);
@@ -1725,7 +1764,7 @@
             });
             this.stateManager.filterManagers.video = this.filterManager; this.stateManager.filterManagers.image = this.imageFilterManager;
             this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
-
+            
             // NEW: Reset lastAutoParams when AE toggled or Target Luma changed to prevent flicker/gray screen
             this.subscribe('videoFilter.autoExposure', (on, old) => {
                 if (on && !old) {
@@ -1749,7 +1788,7 @@
             });
             this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this));
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates()); this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates()); this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
-
+            
             // Reduced throttle from 200ms to 100ms for faster UI response
             this.throttledUpdate = throttle((e) => {
                 const { autoParams } = e.detail; const vf = this.stateManager.get('videoFilter'); const needAutoApply = vf.autoExposure || (vf.clarity > 0);
@@ -2309,15 +2348,15 @@
                     }
                 }
                 // Only create the shadow host if the main container is ready
-                if (!this.hostElement && this.mainControlsContainer) {
-                    this.createControlsHost();
+                if (!this.hostElement && this.mainControlsContainer) { 
+                    this.createControlsHost(); 
                 }
             }
-            if (this.hostElement) { this.hostElement.style.display = isVisible ? 'flex' : 'none'; }
-            if (this.speedButtonsContainer) {
-                const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO');
-                this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none';
-            }
+            if (this.hostElement) { this.hostElement.style.display = isVisible ? 'flex' : 'none'; } 
+            if (this.speedButtonsContainer) { 
+                const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO'); 
+                this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none'; 
+            } 
             this.updateUIVisibility();
         }
         updateUIVisibility() {
@@ -2432,7 +2471,10 @@
                 } else if (cfg.type === 'ev') {
                     cfg.items.forEach(it => {
                         const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = it.txt; b.dataset.evVal = it.val;
-                        b.onclick = () => this.stateManager.batchSet('videoFilter', { targetLuma: it.val, autoExposure: true });
+                        b.onclick = () => {
+                            this.stateManager.batchSet('videoFilter', { targetLuma: it.val, autoExposure: true });
+                            if (_corePluginRef) { _corePluginRef.resetScanInterval(); scheduleScan(null, true); }
+                        };
                         gridTable.appendChild(b);
                     });
                     const updateEv = () => {
