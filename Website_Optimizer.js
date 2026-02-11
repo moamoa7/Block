@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v77.8 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v77.9 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     77.8.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Slot Reclaiming, Timer Fix, Smart Media Context)
+// @version     77.9.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Precise Routing, Media Slot Isolation, Smart Load Cutoff)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -62,7 +62,7 @@
         try {
             if (!u || u.startsWith('data:')) return u;
             const url = new URL(u, win.location.href);
-            return url.origin + url.pathname; // Strict Mode
+            return url.origin + url.pathname; 
         } catch { return u; }
     };
 
@@ -156,7 +156,7 @@
     let MAX_IMG_OBS_VAL = 800; 
     let DEEP_SCAN_LIMIT = 200;
     let DOM_MARGIN = '600px 0px';
-    let NETWORK_MARGIN = '50% 0px'; // NetworkAssistant margin
+    let NETWORK_MARGIN = '50% 0px'; 
     let INIT_SCAN_CAP = 300;
     let PROTECT_MS = 3000; 
 
@@ -189,7 +189,7 @@
         MAX_IMG_OBS_VAL = Math.floor(800 * perfMultiplier);
         INIT_SCAN_CAP = Math.floor(300 * perfMultiplier);
         
-        // Adaptive Protection Phase
+        // Adaptive Protection
         PROTECT_MS = isMobile ? 3500 : Math.floor(3000 / perfMultiplier);
         
         if (isMobile) {
@@ -197,12 +197,12 @@
             MAX_IMG_OBS_VAL = Math.min(MAX_IMG_OBS_VAL, 250); 
             DEEP_SCAN_LIMIT = 80;
             DOM_MARGIN = '300px 0px';
-            NETWORK_MARGIN = '200px 0px'; // ✅ Tighter for Mobile
+            NETWORK_MARGIN = '200px 0px'; // Mobile Margin
             INIT_SCAN_CAP = 120;
         } else {
             DEEP_SCAN_LIMIT = 200;
             DOM_MARGIN = isLowPowerMode ? '400px 0px' : '600px 0px';
-            NETWORK_MARGIN = '50% 0px'; // ✅ Default
+            NETWORK_MARGIN = '50% 0px'; 
         }
         
         MAX_OBSERVERS_VAL = Math.max(MAX_OBSERVERS_VAL, 250);
@@ -292,26 +292,35 @@
         }
     });
 
-    // SPA Route Listener (Route Shield)
+    // SPA Route Listener (Precise Routing)
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
     
-    const onRoute = () => {
-        const nextKey = getLcpKey();
+    const emitRoute = (force) => {
         const now = Date.now();
-        
-        if (now - lastRouteSignal > 1500) {
+        // Throttle spam
+        if (force || now - lastRouteSignal > 5000) {
             lastRouteSignal = now;
             win.dispatchEvent(new Event('perfx-route'));
         }
+    };
 
-        if (nextKey === lastKey) return; 
-
-        if (RuntimeConfig._lcp) S.set(lastKey, RuntimeConfig._lcp);
+    const onRoute = () => {
+        const nextKey = getLcpKey();
         
-        lastKey = nextKey;
-        LCP_KEY = nextKey;
-        RuntimeConfig._lcp = S.get(LCP_KEY) || null;
+        if (nextKey !== lastKey) {
+            // ✅ Key Changed: Commit OLD -> Switch -> Load NEW
+            if (RuntimeConfig._lcp) S.set(lastKey, RuntimeConfig._lcp);
+            
+            lastKey = nextKey;
+            LCP_KEY = nextKey;
+            RuntimeConfig._lcp = S.get(LCP_KEY) || null;
+            
+            emitRoute(true); // Force signal
+        } else {
+            // ✅ Same Key: Throttle signal
+            emitRoute(false); 
+        }
     };
     
     if (!win.__perfx_history_patched) {
@@ -343,10 +352,10 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '77.8.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '77.9.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V20 (LoAF & Quarantine)
+    // 2. Autonomous V20 (LoAF & Sliding Quarantine)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !isSafeMode) {
         try {
@@ -752,6 +761,7 @@
             if (Config.gpu) document.querySelectorAll('canvas').forEach(this.observeSafe);
             
             if (Config.memory) {
+                // ✅ Capped Initial Scan
                 const list = document.querySelectorAll(FEED_SEL);
                 const limit = Math.min(list.length, MAX_OBSERVERS_VAL, INIT_SCAN_CAP);
                 for (let i = 0; i < limit; i++) this.observeSafe(list[i]);
@@ -794,7 +804,7 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.5 (Slot Reclaiming & Smart Media)
+    // [Core 4] NetworkAssistant v3.5 (Media Slot Isolation)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -804,7 +814,7 @@
             let batchTimer = null;
             let isProtectionPhase = true;
             
-            // Single Protect Timer
+            // ✅ Load Cutoff (Smart Protection End)
             let protectTimer = null;
             const startProtection = () => {
                 isProtectionPhase = true;
@@ -817,18 +827,36 @@
 
             win.addEventListener('perfx-route', startProtection);
             if (document.readyState === 'complete') isProtectionPhase = false;
-            else win.addEventListener('load', () => startProtection());
+            else {
+                startProtection(); // Init protection
+                // ✅ Cutoff on load (max 1s more)
+                win.addEventListener('load', () => {
+                    if (protectTimer) {
+                        clearTimeout(protectTimer);
+                        protectTimer = setTimeout(() => { isProtectionPhase = false; }, 1000);
+                    }
+                });
+            }
 
             const nearSet = new WeakSet();
             const farSet = new WeakSet();
-            const observing = new WeakSet();
-            let imgObsCount = 0;
+            const observingImg = new WeakSet();
+            const observingVid = new WeakSet();
             
-            // ✅ Slot Reclaiming
+            // ✅ Slot Isolation
+            let imgSlots = 0, vidSlots = 0;
+            const MAX_IMG = Math.floor(MAX_IMG_OBS_VAL * 0.85); // 85% for images
+            const MAX_VID = Math.max(10, MAX_IMG_OBS_VAL - MAX_IMG); // 15% for videos
+
             const decSlot = (el) => {
-                if (observing.has(el)) {
-                    observing.delete(el);
-                    imgObsCount = Math.max(0, imgObsCount - 1);
+                const isVid = el.tagName === 'VIDEO';
+                if (isVid && observingVid.has(el)) {
+                    observingVid.delete(el);
+                    vidSlots = Math.max(0, vidSlots - 1);
+                }
+                if (!isVid && observingImg.has(el)) {
+                    observingImg.delete(el);
+                    imgSlots = Math.max(0, imgSlots - 1);
                 }
             };
 
@@ -836,7 +864,7 @@
                 if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
                 img.setAttribute('loading', 'lazy');
                 img.setAttribute('decoding', 'async');
-                img.setAttribute('fetchpriority', 'low'); // ✅ Priority Low for far
+                img.setAttribute('fetchpriority', 'low'); 
             };
 
             const vpObs = new IntersectionObserver((entries) => {
@@ -847,10 +875,9 @@
                         if (e.isIntersecting) {
                             el.setAttribute('preload', 'metadata');
                             vpObs.unobserve(el);
-                            decSlot(el);
+                            decSlot(el); // ✅ Reclaim slot
                         } else {
                             if (!el.hasAttribute('preload')) el.setAttribute('preload', 'none');
-                            // Keep observing video until near
                         }
                         return;
                     }
@@ -862,15 +889,19 @@
                         applyLazy(el);
                     }
                     vpObs.unobserve(el);
-                    decSlot(el);
+                    decSlot(el); // ✅ Reclaim slot
                 });
             }, { rootMargin: NETWORK_MARGIN });
 
             const safeObserve = (el) => {
-                if (observing.has(el) || imgObsCount >= MAX_IMG_OBS_VAL) return;
-                observing.add(el);
-                imgObsCount++;
-                vpObs.observe(el);
+                const isVid = el.tagName === 'VIDEO';
+                if (isVid) {
+                    if (observingVid.has(el) || vidSlots >= MAX_VID) return;
+                    observingVid.add(el); vidSlots++; vpObs.observe(el);
+                } else {
+                    if (observingImg.has(el) || imgSlots >= MAX_IMG) return;
+                    observingImg.add(el); imgSlots++; vpObs.observe(el);
+                }
             };
 
             const shouldAggressiveVideo = isLowPowerMode || isMobile || !!navigator.connection?.saveData;
@@ -878,10 +909,9 @@
             const processVideo = (vid) => {
                 if (vid.hasAttribute('preload') || isVideoSite) return;
                 if (!shouldAggressiveVideo && !vid.autoplay) {
-                    safeObserve(vid); // PC: Wait for IO
+                    safeObserve(vid); 
                     return;
                 }
-                // Mobile/LowPower: Aggressive
                 vid.setAttribute('preload', 'none');
                 safeObserve(vid);
             };
@@ -928,9 +958,14 @@
                 if (!batchTimer) batchTimer = scheduler.request(flushQueue, 200);
             };
 
+            // ✅ Capped Initial Scan
+            const INIT_MEDIA_CAP = isMobile ? 200 : 600;
             const run = () => { 
-                document.querySelectorAll('img').forEach(n => scheduleNode(n, false)); 
-                document.querySelectorAll('video').forEach(n => scheduleNode(n, false));
+                const imgs = document.querySelectorAll('img');
+                const vids = document.querySelectorAll('video');
+                
+                for (let i = 0; i < imgs.length && i < INIT_MEDIA_CAP; i++) scheduleNode(imgs[i], false);
+                for (let i = 0; i < vids.length && i < INIT_MEDIA_CAP; i++) scheduleNode(vids[i], false);
             };
             
             if (document.readyState === 'loading') win.addEventListener('DOMContentLoaded', run);
