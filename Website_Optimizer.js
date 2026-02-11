@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v75.0 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v75.1 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     75.0.0-KR-ULTRA-Infinity-Autonomous
+// @version     75.1.0-KR-ULTRA-Infinity-Autonomous
 // @description [Infinity] 끝없는 최적화 + Autonomous (Self-Tuning, LCP/CLS Guard, Deadlock Free Menu)
 // @author      KiwiFruit
 // @match       *://*/*
@@ -31,7 +31,6 @@
     const initialOverrides = Env.getOverrides();
 
     // [Menu System - Deadlock Free]
-    // 비활성화 상태여도 메뉴는 등록해야 함 (복구 수단)
     if (typeof GM_registerMenuCommand !== 'undefined') {
         const toggleDisable = () => {
             const c = Env.getOverrides();
@@ -47,8 +46,6 @@
         }
 
         GM_registerMenuCommand(`🚫 이 사이트에서 끄기 (영구)`, toggleDisable);
-
-        // 🔥 [Fix 2] win.perfx가 아직 없으므로 화살표 함수로 감싸서 나중에 실행되도록 변경
         GM_registerMenuCommand(`⚡ 모드: ${initialOverrides.codecMode || 'Auto'} (Ultra)`, () => win.perfx?.profile('ultra'));
         GM_registerMenuCommand(`⚖️ 모드: 균형 (Balanced)`, () => win.perfx?.profile('balanced'));
         GM_registerMenuCommand(`🛡️ 모드: 안전 (Safe)`, () => win.perfx?.profile('safe'));
@@ -76,28 +73,24 @@
         const lastCrash = parseInt(sessionStorage.getItem(CRASH_KEY) || '0');
         if (lastCrash >= 3) {
             console.warn('[PerfX] 🚨 반복적인 크래시 감지. 안전 모드로 전환하거나 비활성화합니다.');
-            // 자동 비활성화 대신 Safe 모드로 1회 기회 부여, 그래도 안되면 비활성화
             if (!initialOverrides.codecMode || initialOverrides.codecMode !== 'off') {
                 localStorage.setItem(Env.storageKey, JSON.stringify({ ...initialOverrides, codecMode: 'off', passive: false, gpu: false, memory: false }));
-                sessionStorage.setItem(CRASH_KEY, '0'); // Safe모드 기회 제공
+                sessionStorage.setItem(CRASH_KEY, '0');
                 win.location.reload();
                 return;
             } else {
-                // 이미 Safe인데도 터지면 Disable
                 localStorage.setItem(Env.storageKey, JSON.stringify({ ...initialOverrides, disabled: true }));
                 return;
             }
         }
         sessionStorage.setItem(CRASH_KEY, lastCrash + 1);
 
-        // 정상 로드 후 2초 생존 시 카운트 리셋 (오탐 방지)
         win.addEventListener('load', () => {
             setTimeout(() => sessionStorage.removeItem(CRASH_KEY), 2000);
         });
     } catch(e) {}
 
     // [Autonomous] Performance Observer (Auto-Tuning)
-    // LCP/CLS 악화 시 다음 방문 때 자동 다운그레이드
     if (typeof PerformanceObserver !== 'undefined') {
         try {
             let cls = 0;
@@ -108,11 +101,10 @@
             }).observe({type: 'layout-shift', buffered: true});
 
             win.addEventListener('visibilitychange', () => {
-                if (document.hidden && cls > 0.25) { // CLS 임계점
+                if (document.hidden && cls > 0.25) {
                     const c = Env.getOverrides();
-                    // 이미 Balanced/Safe가 아니면 다운그레이드 예약
                     if (c.codecMode !== 'soft' && c.codecMode !== 'off') {
-                        c.codecMode = 'soft'; // Force Balanced next time
+                        c.codecMode = 'soft';
                         c.gpu = false;
                         c.memory = false;
                         c.autoDowngraded = true;
@@ -136,29 +128,22 @@
     // 1. Critical Domain & Detection
     // ==========================================
     const hostname = win.location.hostname.toLowerCase();
-
-    // [Fix] Narrowed Critical Subdomains
     const CRITICAL_DOMAINS = [
         'gov.kr', 'hometax.go.kr', 'nts.go.kr',
         'kbstar.com', 'shinhan.com', 'wooribank.com', 'ibk.co.kr', 'nhbank.com', 'kakaobank.com',
         'naver.com', 'kakao.com', 'google.com', 'appleid.apple.com'
     ];
-    const CRITICAL_SUB = /^(auth|login|signin|cert|secure)\./; // Reduced scope
+    const CRITICAL_SUB = /^(auth|login|signin|cert|secure)\./;
     const isCritical = hostEndsWithAny(hostname, CRITICAL_DOMAINS) || CRITICAL_SUB.test(hostname);
-
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    // [Fix] Includes for keywords
     const LAYOUT_KEYWORDS = ['tvwiki', 'noonoo', 'linkkf', 'ani24', 'newtoki', 'mana'];
     const IS_LAYOUT_SENSITIVE = LAYOUT_KEYWORDS.some(k => hostname.includes(k));
-
     const HEAVY_FEEDS = ['twitter.com', 'x.com', 'instagram.com', 'threads.net', 'facebook.com', 'youtube.com'];
     const isHeavyFeed = hostEndsWithAny(hostname, HEAVY_FEEDS);
 
     // ==========================================
     // 2. State & Config
     // ==========================================
-    // [Fix] Simplified Battery Check
     let isLowPowerMode = (navigator.hardwareConcurrency ?? 2) < 4 ||
                          (navigator.connection?.saveData === true) ||
                          (win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -168,7 +153,7 @@
     if ('getBattery' in navigator) {
         navigator.getBattery().then(b => {
             const update = () => {
-                isLowPowerMode = (!b.charging && b.level < 0.2); // Removed savePower
+                isLowPowerMode = (!b.charging && b.level < 0.2);
                 triggerStateChange();
             };
             update(); b.addEventListener('levelchange', update); b.addEventListener('chargingchange', update);
@@ -192,7 +177,7 @@
     }
 
     win.perfx = {
-        version: '75.0.0-KR-ULTRA-Infinity-Autonomous',
+        version: '75.1.0-KR-ULTRA-Infinity-Autonomous',
         status: isCritical ? '🔒 Safe' : (IS_LAYOUT_SENSITIVE ? '👻 Ghost' : '⚡ Active'),
         config: Config,
         debug: initialOverrides.debug || false,
@@ -226,7 +211,7 @@
     // ==========================================
     class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // [Core 1] EventPassivator v2.1 (Safe Option Handling)
+    // [Core 1] EventPassivator v2.2 (Fix: Block Unload)
     class EventPassivator extends BaseModule {
         init() {
             if (!Config.passive || win.__perfx_evt_patched) return;
@@ -269,7 +254,9 @@
                 };
 
                 proto.addEventListener = function(type, listener, options) {
-                    if (type === 'unload' || !listener) return origAdd.call(this, type, listener, options);
+                    // 🔥 [Fix] unload 이벤트 완전 차단 (Violation 방지 + Bfcache 최적화)
+                    if (type === 'unload') return; 
+                    if (!listener) return origAdd.call(this, type, listener, options);
 
                     let finalOptions = options;
                     if (evts.has(type)) {
@@ -280,16 +267,14 @@
 
                         if (!isObj || options.passive === undefined) {
                             const forcePassive = !checkNeedsPD(listener);
-
-                            // [Fix] Safe Object Creation
                             try {
                                 if (isObj) {
-                                    finalOptions = { ...options, passive: forcePassive }; // Spread is safer than assign for getters
+                                    finalOptions = { ...options, passive: forcePassive };
                                 } else {
                                     finalOptions = { capture, passive: forcePassive };
                                 }
                             } catch (e) {
-                                finalOptions = options; // Fallback on error
+                                finalOptions = options;
                             }
                         }
                     }
@@ -298,10 +283,8 @@
 
                 proto.removeEventListener = function(type, listener, options) {
                     if (!listener) return origRemove.call(this, type, listener, options);
-
                     const storedCapture = getStoredCapture(listener, type);
                     let finalOptions = options;
-
                     if (storedCapture !== undefined) {
                          if (typeof options === 'object' && options !== null) {
                              if (options.capture === undefined) {
@@ -314,7 +297,7 @@
                     return origRemove.call(this, type, listener, finalOptions);
                 };
             });
-            log('EventPassivator v2.1: Active');
+            log('EventPassivator v2.2: Active');
         }
     }
 
@@ -333,7 +316,6 @@
                 return false;
             };
 
-            // [Fix] Unique Hook Markers
             const hook = (target, prop, isProto, marker) => {
                 if (!target) return;
                 const root = isProto ? target.prototype : target;
@@ -356,7 +338,7 @@
         }
     }
 
-    // [Core 3] DomWatcher (Expanded Selectors & Size Guard)
+    // [Core 3] DomWatcher
     class DomWatcher extends BaseModule {
         init() {
             if (IS_LAYOUT_SENSITIVE) return;
@@ -398,9 +380,7 @@
         }
 
         applyOptimization(el, rect) {
-            // [Fix] Size Guard (Skip small elements)
             if (rect.height < 80 || rect.width < 80) return;
-
             if (!this.styleBackup.has(el)) {
                 this.styleBackup.set(el, {
                     cv: el.style.contentVisibility,
@@ -440,8 +420,6 @@
             };
 
             if (Config.gpu) document.querySelectorAll('canvas').forEach(observeSafe);
-
-            // [Fix] Expanded Selectors
             if (Config.memory) {
                 const sel = '[role="feed"] > *, .feed > *, .list > *, .timeline > *, .infinite-scroll > *';
                 document.querySelectorAll(sel).forEach(observeSafe);
@@ -470,7 +448,7 @@
         }
     }
 
-    // [Core 4] NetworkAssistant (Prioritized Preconnect)
+    // [Core 4] NetworkAssistant
     class NetworkAssistant extends BaseModule {
         init() {
             if (isCritical || win.__perfx_net_done || IS_LAYOUT_SENSITIVE) return;
@@ -515,7 +493,6 @@
                     };
                     document.querySelectorAll('script[src^="http"], link[href^="http"]').forEach(el => add(el.src || el.href));
 
-                    // [Fix] Priority Logic
                     const sortedOrigins = [...origins].sort((a, b) => {
                         const score = (o) => {
                             if (o.includes('font')) return 3;
