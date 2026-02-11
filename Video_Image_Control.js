@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.5 Center-Focus)
+// @name        Video_Image_Control (v130.6 Ultimate)
 // @namespace   https://com/
-// @version     130.5
-// @description v130.5: 화면 중앙 요소 감지(Center Focus) 로직 추가로 제어 대상 선정 정확도 향상.
+// @version     130.6
+// @description v130.6: Center-Focus 관통(Overlay 무시), 거리 기반 스코어링, 유저 인터랙션 가중치, 안전한 성능 최적화.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -153,6 +153,9 @@
     const debounce = (fn, wait) => { let t; return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
     const throttle = (fn, limit) => { let inThrottle; return function(...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
     const scheduleWork = (cb) => {
+        // [Safety] Don't accumulate dirtyRoots if core isn't ready
+        if (!_corePluginRef && dirtyRoots.size > 0) dirtyRoots.clear(); 
+
         const wrapped = () => safeGuard(cb, 'scheduleWork');
         if (window.scheduler && window.scheduler.postTask) return window.scheduler.postTask(wrapped, { priority: 'user-visible' });
         if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 });
@@ -229,9 +232,10 @@
     let _corePluginRef = null;
     let _lastFullScan = 0;
     
-    // [Optimized] Microtask queue for immediate scans
+    // [Optimized] Microtask queue with Tick Throttling
     let _scanMicrotaskQueued = false;
     const _scanMicrotaskRoots = new Set();
+    let _lastMicroTick = 0;
 
     const isGoodScanRoot = (n) => {
         if (!n || n.nodeType !== 1 || !n.isConnected) return false;
@@ -243,7 +247,6 @@
     };
 
     const scheduleScan = (rootOrNull, immediate = false) => {
-        // [Optimized] Removed costly shadowDomList reordering
         if (Utils.isShadowRoot(rootOrNull) && window._shadowDomList_) {
              if (!window._shadowDomList_.includes(rootOrNull)) window._shadowDomList_.push(rootOrNull);
         }
@@ -261,7 +264,6 @@
             else _immCooldown.set(rootOrNull, now);
         }
 
-        // [Optimized] Use microtask for immediate scans
         if (immediate && _corePluginRef) {
             if (rootOrNull) _scanMicrotaskRoots.add(rootOrNull);
             if (!_scanMicrotaskQueued) {
@@ -277,7 +279,13 @@
                     } else {
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
                     }
-                    safeGuard(() => _corePluginRef.tick(), 'tick');
+                    
+                    // [Optimized] Throttle tick calls in microtask
+                    const now = performance.now();
+                    if (now - _lastMicroTick > 120) {
+                        _lastMicroTick = now;
+                        safeGuard(() => _corePluginRef.tick(), 'tick');
+                    }
                 });
             }
             return;
@@ -351,14 +359,15 @@
             try {
                 const tag = this.tagName;
                 if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE') {
-                    // [Optimized] Quick length check first
                     const len = name.length;
                     if (len < 3 || len > 20) return res;
 
                     const n = name.toLowerCase();
                     const isSrc = n === 'src' || n === 'srcset' || n === 'poster';
-                    const isDataSrc = n === 'data-src' || n === 'data-original' || n === 'data-url' || n === 'data-video-src';
-                    const isType = n === 'type';
+                    // [Enhanced] Add support for more lazy loading attributes
+                    const isDataSrc = n === 'data-src' || n === 'data-original' || n === 'data-url' || 
+                                      n === 'data-video-src' || n === 'data-srcset' || n === 'data-poster';
+                    const isType = n === 'type' || n === 'loading';
                     
                     if (isSrc || isDataSrc || isType) {
                         if (tag === 'SOURCE' && this.parentNode) scheduleScan(this.parentNode, true);
@@ -649,12 +658,9 @@
                 const hist = this._hist;
                 hist.fill(0);
                 
-                // [Fixed] Dynamic pixel count
-                const totalValidPixels = size * size;
-
-                // [Enhanced] Crop Letterbox (Top/Bottom 15% skip)
-                const startRow = Math.floor(size * 0.15);
-                const endRow = Math.ceil(size * 0.85);
+                // [Enhanced] Crop Letterbox (Top/Bottom 10% skip)
+                const startRow = Math.floor(size * 0.1);
+                const endRow = Math.ceil(size * 0.9);
                 const startIndex = startRow * size * 4;
                 const endIndex = endRow * size * 4;
 
@@ -665,6 +671,9 @@
                     hist[y]++;
                     validCount++;
                 }
+
+                // [Fixed] Safety check for zero pixels
+                if (validCount <= 0) return;
 
                 const getPercentile = (p) => {
                     const target = validCount * p;
@@ -792,7 +801,7 @@
             this.state = {
                 app: { isInitialized: false, isMobile, scriptActive: false },
                 site: { isLiveSite: IS_LIVE_SITE },
-                media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null, remoteVideoCount: 0, remoteImageCount: 0 },
+                media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null, remoteVideoCount: 0, remoteImageCount: 0, lastInteractedVideo: null },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null, createRequested: false, gestureMode: false },
@@ -920,6 +929,15 @@
                         if (now - last > 120) { this._lastImmediateScan.set(t, now); scheduleScan(t, true); }
                     }
                 }, CP(this._ac.signal)));
+                // [Added] Global capture for user interaction
+                document.addEventListener('pointerdown', (e) => {
+                    if(e.target) {
+                        const vid = e.target.closest('video');
+                        if (vid) {
+                            this.stateManager.set('media.lastInteractedVideo', { el: vid, ts: Date.now() });
+                        }
+                    }
+                }, { capture: true, passive: true });
                 this.scheduleNextScan();
             }, 'CoreMedia pluginsInitialized'));
             this.subscribe('app.scriptActive', (active, old) => {
@@ -930,7 +948,12 @@
             if ('ResizeObserver' in window) {
                 this._resizeObs = new ResizeObserver(throttle(entries => {
                     let needed = false;
-                    for (const e of entries) { const t = e.target; if (t.tagName === 'VIDEO' || (t.tagName === 'IMG' && t.offsetHeight > 100)) needed = true; }
+                    for (const e of entries) { 
+                        const t = e.target;
+                        // [Optimized] Use contentRect instead of offsetHeight
+                        if (t.tagName === 'VIDEO') needed = true;
+                        else if (t.tagName === 'IMG' && e.contentRect.height > 100) needed = true; 
+                    }
                     if (needed) scheduleScan(null);
                 }, 200));
             }
@@ -1067,30 +1090,53 @@
                     });
                     if (needsUpdate && !document.hidden) {
                         const currentBest = sm.get('media.currentlyVisibleMedia');
+                        const lastInteracted = sm.get('media.lastInteractedVideo');
                         let bestCandidate = null; let maxScore = -1;
 
-                        // [New] Tie-breaker: Center Focus Check
+                        // [Fix] elementsFromPoint to ignore VSC layers
                         const cx = window.innerWidth / 2;
                         const cy = window.innerHeight / 2;
-                        const centerEl = document.elementFromPoint(cx, cy);
+                        let centerEl = null;
+                        const stack = document.elementsFromPoint(cx, cy);
+                        for (const el of stack) {
+                            if (el && !el.closest('[data-vsc-internal]')) {
+                                centerEl = el;
+                                break;
+                            }
+                        }
 
                         for (const m of this._visibleVideos) {
                              if (m.tagName === 'VIDEO') {
-                                 // [Enhanced] Scoring with buffering and playing state
                                  const area = (m.clientWidth||0) * (m.clientHeight||0);
                                  let score = area;
-                                 if (!m.paused) score *= 2.5; // Playing is key
-                                 if (m.readyState >= 3) score *= 1.5; // Have enough data
+                                 
+                                 if (!m.paused) score *= 2.5; 
+                                 if (m.readyState >= 3) score *= 1.5; 
                                  if (!m.muted && m.volume > 0) score *= 1.2;
-                                 if (m.ended) score *= 0.5; // Ended video is less important
+                                 if (m.ended) score *= 0.5; 
                                  if (document.pictureInPictureElement === m) score *= 3.0;
                                  
+                                 // [New] Ad/Background Penalty
+                                 if (m.loop && m.muted && m.autoplay && !m.controls) score *= 0.6;
+
+                                 // [New] Recent Interaction Boost (5s window)
+                                 if (lastInteracted && lastInteracted.el === m && (Date.now() - lastInteracted.ts < 5000)) {
+                                     score *= 2.0;
+                                 }
+
                                  const ratio = this._intersectionRatios.get(m) || 0;
                                  score *= (0.5 + ratio * 0.5);
 
-                                 // [New] Boost score if under center point
+                                 // [Enhanced] Center Focus + Distance Fallback
                                  if (centerEl && (m === centerEl || m.contains(centerEl) || centerEl.contains(m))) {
                                      score *= 2.0;
+                                 } else {
+                                     const rect = m.getBoundingClientRect();
+                                     const mx = rect.left + rect.width / 2;
+                                     const my = rect.top + rect.height / 2;
+                                     const dist = Math.hypot(mx - cx, my - cy);
+                                     const maxDist = Math.hypot(cx, cy) || 1;
+                                     score *= (1.2 - Math.min(1.0, dist / maxDist));
                                  }
                                  
                                  if (score > maxScore) { maxScore = score; bestCandidate = m; }
@@ -1124,19 +1170,16 @@
         }
         _checkAndAdd(node, media, images) {
              if (node.tagName === 'VIDEO') {
-                // [Optimized] Check cached properties first to avoid layout thrashing
                 const vw = node.videoWidth || 0;
                 const vh = node.videoHeight || 0;
                 let sizeOk = (vw >= CONFIG.FILTER.MIN_VIDEO_SIZE || vh >= CONFIG.FILTER.MIN_VIDEO_SIZE);
                 
                 if (!sizeOk) {
-                    // Fallback to offset dimensions only if video dims are missing
                     const ow = node.offsetWidth || 0;
                     const oh = node.offsetHeight || 0;
                     sizeOk = (ow >= CONFIG.FILTER.MIN_VIDEO_SIZE || oh >= CONFIG.FILTER.MIN_VIDEO_SIZE);
                 }
 
-                // [Enhanced] Check data attributes for potential sources
                 const isPotential = (node.src || node.currentSrc || node.srcObject || node.querySelector('source') ||
                                      node.getAttribute('data-src') || node.getAttribute('data-video-src') || node.getAttribute('data-url'));
                 
@@ -1248,7 +1291,6 @@
 
             if (root === document) {
                 const docVideos = document.getElementsByTagName('video');
-                // [Optimized] Use _checkAndAdd filtering instead of blind addition
                 for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images);
 
                 if (wantImages) {
@@ -1394,7 +1436,7 @@
     class FrameBridgePlugin extends Plugin {
         constructor() {
             super('FrameBridge');
-            this._children = new Map(); // window -> {id, ts, video, img, rate}
+            this._children = new Map();
             this._pruneTimer = null;
         }
         init(stateManager) {
@@ -1413,7 +1455,6 @@
                 try { window.top.postMessage({ type: 'VSC_HELLO', id: VSC_INSTANCE_ID }, '*'); } catch {}
                 this.subscribe('media.activeMedia', (set) => this.reportStatus());
                 this.subscribe('media.activeImages', (set) => this.reportStatus());
-                // this.subscribe('playback.currentRate', (rate) => this.reportStatus()); // Rate removed
                 setTimeout(() => this.reportStatus(), 500);
             }
             this.subscribe('playback.targetRate', (rate) => { if(IS_TOP) this.broadcast({ type: 'VSC_CMD', key: 'playback.targetRate', value: rate }); });
@@ -1463,10 +1504,9 @@
             if (IS_TOP) {
                 if (d.type === 'VSC_HELLO' && d.id) {
                     const frameEl = this.findIframeByWindow(e.source);
-                    // [Optimized] Stricter frame check
                     if (!frameEl || !frameEl.isConnected) return;
 
-                    this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0, rate: 1.0 });
+                    this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0 });
                     const snapshot = {
                         playback: { targetRate: this.stateManager.get('playback.targetRate') },
                         videoFilter: this.stateManager.get('videoFilter'),
@@ -2029,6 +2069,8 @@
             if (enable) {
                 if (!this.gestureLayer) {
                     this.gestureLayer = document.createElement('div');
+                    // [Fixed] Add data-vsc-internal attribute so elementsFromPoint can ignore it
+                    this.gestureLayer.setAttribute('data-vsc-internal', '1');
                     Object.assign(this.gestureLayer.style, { position: 'fixed', inset: '0', zIndex: CONFIG.UI.MAX_Z - 10, background: 'transparent', touchAction: 'manipulation' });
                     document.body.appendChild(this.gestureLayer);
                     this.gestureManager = new GestureManager(this.gestureLayer, {
