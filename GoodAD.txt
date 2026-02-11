@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260210
+! Version: 20260211
 !
 !
 !
@@ -2905,6 +2905,8 @@ avdbs.com##.__b-popup1__.b-modal
 ![$domain=/^missvod\d+.com/]###banner-list.banner-list
 !  BadBlock+ (ABP) 해제 - 영상 이미지 안보임
 @@||recombee.com^
+! - 영상 하단 배너
+##.under_player
 !
 !
 ! https://tojav.net/
