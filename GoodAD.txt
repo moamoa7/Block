@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260211
+! Version: 20260212
 !
 !
 !
@@ -4692,6 +4692,8 @@ thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 [$domain=/^dobakland\d+.org/]##.object-cover
 ! - 배너 공간
 [$domain=/^dobakland\d+.org/]##.gap-1.lg\:grid-cols-4.md\:grid-cols-3.grid-cols-2.grid
+
+
 !
 !
 !
@@ -5899,6 +5901,9 @@ jobkorea.co.kr#@#a[href][target*="blank"]:has(img[src*=".gif"])
 jusocon.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
 !- - - https://www.slrclub.com/ - 이미지 안보임
 slrclub.com#@#a[href][target*="blank"]:has(img[src*=".gif"])
+! - - - https://6989.imweb.me/  (zzinpink.kr)- 이미지 안보임 
+6989.imweb.me#@#a[href][target*="blank"]:has(img[src*=".gif"])
+
 
 
 ! - - -
