@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v79.2 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v79.4 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     79.2.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Full Code, SPA Hero Inference, Dynamic Interactive, Smart Guard)
+// @version     79.4.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (No Stubs, Full Logic, Interactive Persistence, Smart Shield)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -23,9 +23,12 @@
         remove(k) { try { localStorage.removeItem(k); } catch {} },
         clearPrefix(prefix) {
             try {
-                Object.keys(localStorage).forEach(k => {
-                    if (k.startsWith(prefix)) localStorage.removeItem(k);
-                });
+                const toRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.startsWith(prefix)) toRemove.push(k);
+                }
+                toRemove.forEach(k => localStorage.removeItem(k));
             } catch {}
         }
     };
@@ -47,11 +50,17 @@
         else win.addEventListener('DOMContentLoaded', cb, { once: true });
     };
     
-    // ✅ Unified Bucket Logic
-    const getPathBucket = () => win.location.pathname.split('/').filter(Boolean).slice(0, 2).join('/');
+    // Bucket & Freshness
+    const normSeg = (s) => {
+        if (/^\d+$/.test(s)) return ':id';
+        if (/^[0-9a-f-]{36}$/i.test(s)) return ':uuid';
+        if (s.length > 24 || /^[0-9a-z_-]{20,}$/i.test(s)) return ':token';
+        return s;
+    };
+    const getPathBucket = () => win.location.pathname.split('/').filter(Boolean).slice(0, 2).map(normSeg).join('/');
     const fresh = (obj, ms) => obj && obj.ts && (Date.now() - obj.ts) < ms;
 
-    // ✅ Safe Event Bus (Document Support)
+    // ✅ Safe Event Bus
     const Bus = {
         _evts: {},
         on(name, fn, target = win) {
@@ -65,6 +74,7 @@
         emit(name, detail) { win.dispatchEvent(new CustomEvent(name, { detail })); }
     };
 
+    // ✅ True Distance Helper
     const viewH = () => win.visualViewport?.height || win.innerHeight;
     const distToViewport = (r) => {
         if (!r) return -1; 
@@ -82,7 +92,7 @@
     
     const API = { 
         profile: () => {}, toggleConfig: () => {}, toggleSessionSafe: () => {},
-        shutdownMemory: () => {}, restartMemory: () => {}, resetAll: () => {}
+        shutdownMemory: () => {}, restartMemory: () => {}, resetAll: () => {} 
     };
 
     const scheduler = {
@@ -91,7 +101,7 @@
         raf: (cb) => win.requestAnimationFrame(cb)
     };
 
-    // ✅ Safe Chunk Scan Utility
+    // ✅ Chunk Scan Utility
     const scanInChunks = (list, limit, step, fn) => {
         if (!list || typeof list.length !== 'number' || list.length === 0) return;
         let i = 0;
@@ -158,10 +168,22 @@
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
+    // ✅ Global Helper for Interactive Logic
+    const applyInteractiveMemory = () => {
+        const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY));
+        if (fresh(isInteractiveStored, 86400000)) {
+            log('Interactive Site Known: Starting Safe');
+            RuntimeConfig = { ...RuntimeConfig, passive: false, memory: false, gpu: false };
+            Object.assign(Config, { passive: false, memory: false, gpu: false });
+            Bus.emit('perfx-config');
+        }
+    };
+
     // [Safety 0] Crash Guard
     const CRASH_KEY = `perfx-crash:${hostname}`;
     const SESSION_OFF_KEY = `perfx-safe:${hostname}`;
     const INTENT_RELOAD = `perfx-intent-reload:${hostname}`;
+    const INTENT_INTERACTIVE = `perfx-intent-interactive:${hostname}`;
     
     try {
         if (new URLSearchParams(win.location.search).has('perfx-off')) sessionStorage.setItem(SESSION_OFF_KEY, '1');
@@ -175,22 +197,12 @@
             
             if (!sessionStorage.getItem(SESSION_OFF_KEY)) {
                 S.set(CRASH_KEY, lastCrash + 1);
-                // Safe clear on idle or load
                 if (win.requestIdleCallback) win.requestIdleCallback(() => S.remove(CRASH_KEY), { timeout: 10000 });
                 else win.addEventListener('load', () => setTimeout(() => S.remove(CRASH_KEY), 5000));
             }
         }
         
-        // Interactive Memory Check (Dynamic)
-        const applyInteractiveMemory = () => {
-            const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY));
-            if (fresh(isInteractiveStored, 86400000)) {
-                log('Interactive Site Known: Starting Safe');
-                RuntimeConfig = { ...RuntimeConfig, passive: false, memory: false, gpu: false };
-                Object.assign(Config, { passive: false, memory: false, gpu: false });
-            }
-        };
-        applyInteractiveMemory(); // Init check
+        applyInteractiveMemory();
 
         onReady(() => {
             let isFramed = false; try { isFramed = win.top !== win.self; } catch { isFramed = true; }
@@ -198,6 +210,7 @@
 
             const sensitive = document.querySelector('input[type="password"], input[autocomplete="one-time-code"], form[action*="login"], form[action*="pay"]');
             if (sensitive && !sessionStorage.getItem(SESSION_OFF_KEY)) {
+                log('Sensitive Page Detected: Entering Safe Mode');
                 sessionStorage.setItem(SESSION_OFF_KEY, '1');
                 sessionStorage.setItem(INTENT_RELOAD, '1'); 
                 location.reload();
@@ -213,18 +226,31 @@
                 }
                 
                 if (mapOrEditor || hugeCanvas) {
-                    log('Interactive App Detected: Disabling Aggressive Mods');
+                    log('Interactive App Detected: Reloading Safe');
                     S.set(INTERACTIVE_KEY, JSON.stringify({ ts: Date.now() }));
+                    
+                    if (!sessionStorage.getItem(INTENT_INTERACTIVE)) {
+                        sessionStorage.setItem(INTENT_INTERACTIVE, '1');
+                        sessionStorage.setItem(INTENT_RELOAD, '1');
+                        location.reload();
+                        return true;
+                    }
+                    
                     Config.passive = false; Config.gpu = false;
                     if (Config.memory) { Config.memory = false; API.shutdownMemory(); }
                     return true;
                 }
                 return false;
             };
-            if (!checkInteractive()) {
-                const mo = new MutationObserver(() => { if (checkInteractive()) mo.disconnect(); });
-                mo.observe(document.body, { childList: true, subtree: true });
-                setTimeout(() => mo.disconnect(), 3000);
+            
+            if (!sessionStorage.getItem(INTENT_INTERACTIVE)) {
+                if (!checkInteractive()) {
+                    const mo = new MutationObserver(() => { if (checkInteractive()) mo.disconnect(); });
+                    mo.observe(document.body, { childList: true, subtree: true });
+                    setTimeout(() => mo.disconnect(), 3000);
+                }
+            } else {
+                sessionStorage.removeItem(INTENT_INTERACTIVE);
             }
         });
 
@@ -233,7 +259,7 @@
         }
     } catch(e) {}
 
-    // Global Detection & Flags
+    // Global Detection
     const isMobile = win.matchMedia ? win.matchMedia('(pointer:coarse)').matches : /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isCritical = hostEndsWithAny(hostname, [...LISTS.BANKS_KR, ...LISTS.GOV_KR]) || LISTS.CRITICAL_SUB.test(hostname);
     const isLayoutSensitive = LISTS.LAYOUT_KEYWORDS.some(k => hostname.includes(k));
@@ -294,7 +320,7 @@
             perfState.DOM_MARGIN = '300px 0px';
             perfState.NET_MARGIN = `${Math.round(viewH() * 0.6)}px 0px`;
             perfState.INIT_DOM_SCAN = 120;
-            perfState.INIT_MEDIA_SCAN = 200;
+            perfState.INIT_MEDIA_SCAN = 150; 
             perfState.SCAN_STEP = 50; 
         } else {
             perfState.DOM_MARGIN = perfState.isLowPowerMode ? '400px 0px' : '600px 0px';
@@ -355,10 +381,12 @@
     const qState = checkQuarantine();
     if (qState) {
         RuntimeConfig = { ...RuntimeConfig, ...qState.modules };
+        log('Quarantine Active:', qState.modules);
     }
 
     const calculatedConfig = {
         codecMode: RuntimeConfig.codecMode ?? 'hard',
+        // ✅ Safe Default: !isLayoutSensitive
         passive: RuntimeConfig.passive ?? (!isLayoutSensitive),
         gpu: RuntimeConfig.gpu ?? (!isLayoutSensitive && !perfState.isLowPowerMode),
         memory: RuntimeConfig.memory ?? (!isLayoutSensitive && !isHeavyFeed),
@@ -397,7 +425,6 @@
              else sessionStorage.setItem(SESSION_OFF_KEY, '1');
              location.reload();
         },
-        // ✅ Robust Reset
         resetAll: () => {
             ['PerfX_', 'perfx-'].forEach(prefix => S.clearPrefix(prefix));
             location.reload();
@@ -408,31 +435,38 @@
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
     
-    // ✅ SPA Hero Inference
+    // ✅ Hero Inference
     const detectHeroImage = () => {
-        setTimeout(() => {
-            // Find biggest visible image
-            let maxArea = 0, heroUrl = null;
-            const imgs = document.querySelectorAll('img');
-            for(let i=0; i<Math.min(imgs.length, 20); i++) {
-                const r = imgs[i].getBoundingClientRect();
+        const imgs = document.images;
+        if (!imgs.length) return;
+        
+        let i = 0, maxArea = 0, heroUrl = null;
+        const limit = isMobile ? 60 : 120;
+        
+        const step = () => {
+            const end = Math.min(i + 20, imgs.length, limit);
+            for (; i < end; i++) {
+                const img = imgs[i];
+                const r = img.getBoundingClientRect();
+                if (r.bottom <= 0 || r.top >= win.innerHeight) continue;
                 const area = r.width * r.height;
-                if (area > maxArea && r.top < win.innerHeight && r.bottom > 0) {
+                if (area > maxArea) {
                     maxArea = area;
-                    heroUrl = imgs[i].currentSrc || imgs[i].src;
+                    heroUrl = img.currentSrc || img.src;
                 }
             }
-            if (heroUrl) {
+            if (i < Math.min(imgs.length, limit)) scheduler.request(step);
+            else if (heroUrl) {
                 const nUrl = normUrl(heroUrl);
                 if (RuntimeConfig._lcp !== nUrl) {
                     RuntimeConfig._lcp = nUrl;
-                    persistLCP(); // Save it
+                    persistLCP();
                 }
             }
-        }, 1000); // 1s after route
+        };
+        setTimeout(() => scheduler.request(step), 800);
     };
 
-    // ✅ LCP Persistence
     let lcpWriteT = null;
     const persistLCP = () => { if (RuntimeConfig._lcp) S.set(LCP_KEY, RuntimeConfig._lcp); };
     const schedulePersistLCP = () => {
@@ -452,17 +486,17 @@
     const onRoute = () => {
         const nextKey = getLcpKey();
         if (nextKey !== lastKey) {
-            persistLCP(); // Save old
+            persistLCP();
             lastKey = nextKey;
             LCP_KEY = nextKey;
             
-            // ✅ Dynamic Interactive Key Update
+            // ✅ Re-check Interactive Key
             INTERACTIVE_KEY = `perfx-interactive:${hostname}:${getPathBucket()}`;
-            applyInteractiveMemory(); // Re-check config
+            applyInteractiveMemory(); 
             
             RuntimeConfig._lcp = S.get(LCP_KEY) || null;
             emitRoute(true); 
-            detectHeroImage(); // Infer new hero
+            detectHeroImage(); 
         } else {
             emitRoute(false); 
         }
@@ -475,7 +509,6 @@
         const origRep = history.replaceState;
         history.replaceState = function() { origRep.apply(this, arguments); onRoute(); };
         win.addEventListener('popstate', onRoute);
-        // ✅ BFCache
         win.addEventListener('pageshow', (e) => { if(e.persisted) Bus.emit('perfx-route', { force: true }); });
     }
 
@@ -499,7 +532,7 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '79.2.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '79.4.0', config: Config, ...API };
 
     // ==========================================
     // 2. Autonomous V27 (LCP Recorder & Smart Quarantine)
@@ -523,14 +556,13 @@
                             const currentLCP = normUrl(url);
                             if (currentLCP !== RuntimeConfig._lcp) {
                                 RuntimeConfig._lcp = currentLCP;
-                                schedulePersistLCP(); // ✅ Debounce Save
+                                schedulePersistLCP();
                             }
                         }
                     }
                 }).observe({type: 'largest-contentful-paint', buffered: true});
             }
 
-            // ... (hasVideo cache same) ...
             let healthTimer = null;
             let hasVideoCache = null, hasVideoTs = 0;
             const hasVideo = () => {
@@ -575,7 +607,7 @@
                     return; 
                 }
                 
-                // ... (L1/L2 logic same - updates unstableTs) ...
+                // L2
                 if ((clsDelta > TH.L2_CLS || loadDelta > TH.L2_LOAD) && currentLevel < 2) {
                     if (!c._restore) c._restore = { ...Config };
                     c.downgradeLevel = 2;
@@ -589,7 +621,7 @@
                     log(`Downgrade L2`);
                     recoveryStreak = 0;
                 }
-                // Recovery (same)
+                // Recovery
                 else if (currentLevel > 0 && clsDelta < 0.01 && loadDelta < 1) {
                     recoveryStreak++;
                     if (recoveryStreak >= 4) {
@@ -599,7 +631,9 @@
                                 if (Q_CACHE?.modules?.memory === false) c._restore.memory = false;
                                 if (Q_CACHE?.modules?.gpu === false) c._restore.gpu = false;
                             }
-                            Object.assign(Config, c._restore);
+                            Config.memory = !!c._restore.memory && !c._powerThrottled;
+                            Config.gpu = !!c._restore.gpu;
+                            Config.passive = !!c._restore.passive;
                             Object.assign(c, c._restore);
                             delete c._restore;
                         }
@@ -618,7 +652,7 @@
             const startLoop = () => { if (!healthTimer) checkHealth(); };
             const stopLoop = () => { if (healthTimer) clearTimeout(healthTimer); healthTimer = null; };
             Bus.on('visibilitychange', () => { 
-                if (document.hidden) { stopLoop(); persistLCP(); } // ✅ Persist on hide
+                if (document.hidden) { stopLoop(); persistLCP(); }
                 else startLoop(); 
             }, document);
             win.addEventListener('pagehide', persistLCP);
@@ -631,7 +665,7 @@
     // ==========================================
     class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // [Core 1] EventPassivator v4.4 (Full Check)
+    // [Core 1] EventPassivator v4.5 (Full Impl)
     class EventPassivator extends BaseModule {
         init() {
             if (win.__perfx_evt_patched) return;
@@ -641,7 +675,6 @@
             setTimeout(() => { passiveArmed = true; }, 1500);
 
             const needsPDCache = new WeakMap();
-            // ✅ Full Logic
             const checkNeedsPD = (listener) => {
                 if (!listener) return false;
                 if (needsPDCache.has(listener)) return needsPDCache.get(listener);
@@ -656,6 +689,8 @@
                 needsPDCache.set(listener, res);
                 return res;
             };
+            
+            const isTopLevelTarget = (t) => t === win || t === document || t === document.body || t === document.documentElement;
 
             const targets = [win.EventTarget && win.EventTarget.prototype].filter(Boolean);
             targets.forEach(proto => {
@@ -664,8 +699,13 @@
                     if (!Config.passive || !passiveArmed) return origAdd.call(this, type, listener, options);
                     
                     if (type === 'wheel' || type === 'mousewheel' || type === 'touchmove') {
-                        if (this instanceof Element && this.closest && this.closest('.mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas')) {
+                        if (!isTopLevelTarget(this) && this instanceof Element && this.closest && this.closest('.mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas')) {
                             return origAdd.call(this, type, listener, options);
+                        }
+                        
+                        // Mobile Conservative
+                        if (isMobile && type === 'touchmove' && options && options.capture) {
+                             return origAdd.call(this, type, listener, options);
                         }
 
                         const isObj = typeof options === 'object' && options !== null;
@@ -690,7 +730,6 @@
             if (Config.codecMode === 'off') return; 
             if (isVideoSite) return;
             
-            // ✅ Late Recheck
             setTimeout(() => {
                 if (document.querySelector('video, source[type*="video"]') && Config.codecMode === 'hard') {
                     Config.codecMode = 'soft';
@@ -727,7 +766,7 @@
         }
     }
 
-    // [Core 3] DomWatcher v3.20 (Subtree Guard & Full Logic)
+    // [Core 3] DomWatcher v3.22 (Full Logic)
     class DomWatcher extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -740,6 +779,7 @@
             this.removedQueue = new Set();
             this.gcTimer = null;
 
+            // ✅ Full Implementation
             API.shutdownMemory = () => {
                 if (this.mutObs) { this.mutObs.disconnect(); this.mutObs = null; }
                 if (this.visObs) { this.visObs.disconnect(); this.visObs = null; }
@@ -779,10 +819,7 @@
             
             if (!rect || rect.height < 50 || rect.width < 50) return;
             
-            // ✅ Smart Subtree Guard (Only check big elements)
             if (rect.width * rect.height > (win.innerWidth * win.innerHeight * 0.15)) {
-                // Also check child count to avoid scanning massive trees? 
-                // Let's stick to querySelector for now as it's optimized in browsers.
                 if (el.childElementCount > 6 && el.querySelector('video,canvas,iframe,form,[aria-live],[contenteditable]')) return;
             }
             
@@ -826,7 +863,6 @@
             if (!root || root.nodeType !== 1) return;
             if (this.optimized.has(root)) this.restoreStyle(root);
             
-            // ✅ TreeWalker
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
             while (walker.nextNode()) {
                 const el = walker.currentNode;
@@ -866,7 +902,6 @@
             if (Config.gpu) document.querySelectorAll('canvas').forEach(this.observeSafe);
             
             if (Config.memory) {
-                // ✅ Hybrid Scan (Children + Top Items)
                 const root = document.querySelector(FEED_SEL) || document.body;
                 scanInChunks(root.children, perfState.INIT_DOM_SCAN, perfState.SCAN_STEP, this.observeSafe);
                 
@@ -887,7 +922,7 @@
                         m.addedNodes.forEach(n => {
                             if (n.nodeType === 1) this.observeSafe(n); 
                             if (n.querySelectorAll) {
-                                const list = n.querySelectorAll(ITEM_SEL); // ✅ Targeted
+                                const list = n.querySelectorAll(ITEM_SEL);
                                 scanInChunks(list, 50, perfState.SCAN_STEP, this.observeSafe);
                             }
                         });
@@ -904,7 +939,7 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.17 (Guaranteed Boot & Robust Sort)
+    // [Core 4] NetworkAssistant v3.19 (Full Logic)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -921,6 +956,35 @@
             let vpObs = null;
             let currentGen = 0;
 
+            const nearSet = new WeakMap();
+            const farSet = new WeakMap();
+
+            const decSlot = (el) => {
+                if (observing.has(el)) {
+                    observing.delete(el);
+                    distMap.delete(el);
+                    if (el.tagName === 'VIDEO') vidSlots = Math.max(0, vidSlots - 1);
+                    else imgSlots = Math.max(0, imgSlots - 1);
+                }
+            };
+
+            const setImgLazy = (img, setPriority = true) => {
+                if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
+                img.setAttribute('loading', 'lazy');
+                img.setAttribute('decoding', 'async');
+                if (setPriority) img.setAttribute('fetchpriority', 'low');
+            };
+
+            const applyLazy = (img, rect) => {
+                if (!rect) {
+                    // Zero-Layout Fallback
+                    setImgLazy(img);
+                    return;
+                }
+                if (rect.top < win.innerHeight + 200 && rect.bottom > -200) return;
+                setImgLazy(img);
+            };
+
             const updateCaps = () => {
                 const cap = perfState.MEDIA_CAP;
                 MAX_IMG = Math.floor(cap * 0.85);
@@ -931,9 +995,9 @@
                     const sorted = [...observing].sort((a, b) => {
                         const dA = distMap.get(a) ?? -1; 
                         const dB = distMap.get(b) ?? -1;
-                        const vA = dA === -1 ? 0 : dA; // Keep unknown
+                        const vA = dA === -1 ? 0 : dA; 
                         const vB = dB === -1 ? 0 : dB;
-                        return vB - vA; // Far first
+                        return vB - vA; 
                     });
                     const excess = observing.size - cap;
                     for (let i = 0; i < excess; i++) {
@@ -968,7 +1032,7 @@
                             nearSet.set(el, currentGen);
                         } else { 
                             farSet.set(el, currentGen); 
-                            setImgLazy(el); 
+                            applyLazy(el, e.boundingClientRect);
                         }
                         vpObs.unobserve(el);
                         decSlot(el);
@@ -977,6 +1041,7 @@
                 
                 observing.forEach(el => vpObs.observe(el));
                 
+                // Recalc
                 imgSlots = 0; vidSlots = 0;
                 observing.forEach(el => {
                     if (el.tagName === 'VIDEO') vidSlots++; else imgSlots++;
@@ -1002,13 +1067,13 @@
             Bus.on('perfx-route', (e) => {
                 if (e.detail?.force) {
                     currentGen++;
-                    observing.clear(); // Safe reset
+                    observing.clear(); 
                     imgSlots = 0; vidSlots = 0;
                     rebuildObserver(); 
                 }
                 startProtection(e.detail?.force);
             });
-            // ✅ Guaranteed Boot (No delay)
+            // ✅ Guaranteed Boot
             onReady(() => { startProtection(true); rebuildObserver(); });
             
             Bus.on('visibilitychange', () => {
@@ -1021,27 +1086,8 @@
                 }
             }, document);
 
-            const nearSet = new WeakMap();
-            const farSet = new WeakMap();
-            
-            const decSlot = (el) => {
-                if (observing.has(el)) {
-                    observing.delete(el);
-                    distMap.delete(el);
-                    if (el.tagName === 'VIDEO') vidSlots = Math.max(0, vidSlots - 1);
-                    else imgSlots = Math.max(0, imgSlots - 1);
-                }
-            };
-            
-            const setImgLazy = (img, setPriority = true) => {
-                if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
-                img.setAttribute('loading', 'lazy');
-                img.setAttribute('decoding', 'async');
-                if (setPriority) img.setAttribute('fetchpriority', 'low');
-            };
-
             const safeObserve = (el) => {
-                if (!vpObs) return; // Should be ready by run()
+                if (!vpObs) return; 
                 const isVid = el.tagName === 'VIDEO';
                 if (observing.has(el)) return;
                 if (isVid) { if (vidSlots >= MAX_VID) return; vidSlots++; }
@@ -1050,7 +1096,6 @@
                 observing.add(el);
                 vpObs.observe(el);
             };
-            // ✅ Ensure Observer Exists
             const ensureObs = () => { if (!vpObs) rebuildObserver(); };
 
             const processVideo = (vid) => {
@@ -1091,7 +1136,7 @@
             };
 
             const scheduleNode = (node, fromMutation = false) => {
-                ensureObs(); // ✅ Safety
+                ensureObs(); 
                 const current = batchQueue.get(node);
                 batchQueue.set(node, current || fromMutation);
                 if (!batchTimer) batchTimer = scheduler.request(flushQueue, 200);
@@ -1099,7 +1144,6 @@
 
             const run = () => { 
                 rebuildObserver();
-                // ✅ Live Collection Scan
                 const imgs = document.getElementsByTagName('img');
                 const vids = document.getElementsByTagName('video');
                 scanInChunks(imgs, perfState.INIT_MEDIA_SCAN, perfState.SCAN_STEP, (n) => scheduleNode(n, false));
