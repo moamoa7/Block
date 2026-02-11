@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v77.10 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v77.11 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     77.10.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Dynamic Caps, Chunked Scan, BFCache Resurrection)
+// @version     77.11.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Correct Caps, Hybrid Video, Unified Sanitizer)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -46,14 +46,11 @@
     };
 
     // [Config Helpers]
-    const cleanAutoFlags = (o) => {
-        delete o.autoDowngraded; delete o.downgradeLevel;
-        delete o._restore; delete o.downgradeReason;
-        return o;
-    };
-
-    const stripTransient = (o) => {
+    // ✅ Unified Sanitizer
+    const SAN_KEYS = ['autoDowngraded', 'downgradeLevel', '_restore', 'downgradeReason'];
+    const sanitizeConfig = (o) => {
         const out = { ...o };
+        for (const k of SAN_KEYS) delete out[k];
         for (const k in out) if (k.startsWith('_')) delete out[k];
         return out;
     };
@@ -62,7 +59,7 @@
         try {
             if (!u || u.startsWith('data:')) return u;
             const url = new URL(u, win.location.href);
-            // Relaxed Norm: Keep some sizing params to avoid false positives
+            // Relaxed Norm
             const params = new URLSearchParams(url.search);
             const keep = ['w', 'width', 'h', 'height', 'q', 'quality', 'fmt', 'format'];
             const newParams = new URLSearchParams();
@@ -108,7 +105,7 @@
         storageKey: `PerfX_ULTRA_${hostname}`,
         getOverrides() { return safeJsonParse(S.get(this.storageKey)); },
         saveOverrides(data) { 
-            const safeData = stripTransient(data);
+            const safeData = sanitizeConfig(data);
             S.set(this.storageKey, JSON.stringify(safeData));
             RuntimeConfig = { ...RuntimeConfig, ...data };
         }
@@ -119,7 +116,7 @@
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // [Safety 0] Crash Guard V4.6
+    // [Safety 0] Crash Guard
     const CRASH_KEY = `perfx-crash:${hostname}`;
     const SESSION_OFF_KEY = `perfx-safe:${hostname}`;
     
@@ -276,7 +273,7 @@
             };
             const p = presets[mode] || presets.balanced;
             const current = Env.getOverrides();
-            cleanAutoFlags(current);
+            
             S.remove(Q_KEY); Q_CACHE = null;
             Env.saveOverrides({ ...current, ...p, disabled: false });
             win.location.reload();
@@ -294,13 +291,12 @@
         }
     });
 
-    // SPA Route Listener (Precise Routing)
+    // SPA Route Listener (2-Stage Protection)
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
     
     const emitRoute = (force) => {
         const now = Date.now();
-        // Force or Throttle 5s
         if (force || now - lastRouteSignal > 5000) {
             lastRouteSignal = now;
             // ✅ Send Force Detail
@@ -353,7 +349,7 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '77.10.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '77.11.0', config: Config, ...API };
 
     // ==========================================
     // 2. Autonomous V21 (LoAF & Sliding Quarantine)
@@ -625,13 +621,15 @@
         }
     }
 
-    // [Core 3] DomWatcher v3.12 (Chunked Init)
+    // [Core 3] DomWatcher v3.12 (Correct Scan Limit & CV Guard)
     class DomWatcher extends BaseModule {
         init() {
             if (!Config.gpu && !Config.memory) return;
             if (isSafeMode) return;
 
             this.supportsCV = 'contentVisibility' in document.documentElement.style;
+            if (Config.memory && !this.supportsCV) Config.memory = false; // ✅ CV Guard
+
             if (!('IntersectionObserver' in win)) return;
 
             this.styleMap = new WeakMap();
@@ -762,9 +760,9 @@
             if (Config.gpu) document.querySelectorAll('canvas').forEach(this.observeSafe);
             
             if (Config.memory) {
-                // ✅ Chunked Initial Scan
+                // ✅ Correct Limit
                 const list = document.querySelectorAll(FEED_SEL);
-                const limit = Math.min(list.length, MAX_OBSERVERS_VAL, 300); // 300 for queue
+                const limit = Math.min(list.length, MAX_OBSERVERS_VAL, INIT_SCAN_CAP);
                 
                 let i = 0;
                 const processChunk = () => {
@@ -812,7 +810,7 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.6 (Dynamic Caps & One-Shot Video)
+    // [Core 4] NetworkAssistant v3.7 (Correct Caps & Hybrid Video)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -822,11 +820,12 @@
             let batchTimer = null;
             let isProtectionPhase = true;
             
-            // Internal Caps (Dynamic)
+            // ✅ Correct Caps Calculation
             let MAX_IMG = 0, MAX_VID = 0;
             const updateCaps = () => {
-                MAX_IMG = Math.floor(MAX_OBSERVERS_VAL * 0.85);
-                MAX_VID = Math.max(10, MAX_OBSERVERS_VAL - MAX_IMG);
+                const cap = MAX_IMG_OBS_VAL; // Use Media Cap
+                MAX_IMG = Math.floor(cap * 0.85);
+                MAX_VID = Math.max(10, cap - MAX_IMG);
             };
             updateCaps();
             win.addEventListener('perfx-power-change', updateCaps);
@@ -835,12 +834,14 @@
             let protectTimer = null;
             const startProtection = (force = false) => {
                 if (!force && isProtectionPhase) return;
+                // ✅ 2-Stage Protection (Force=Long, Soft=Short)
+                const ms = force ? PROTECT_MS : 500;
                 isProtectionPhase = true;
                 if (protectTimer) clearTimeout(protectTimer);
                 protectTimer = setTimeout(() => {
                     isProtectionPhase = false;
                     protectTimer = null;
-                }, PROTECT_MS);
+                }, ms);
             };
 
             win.addEventListener('perfx-route', (e) => startProtection(e.detail?.force));
@@ -855,13 +856,12 @@
                 });
             }
             
-            // Visibility Management
             win.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
                     if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
                     if (this.mo) this.mo.disconnect();
                 } else {
-                    startProtection(true); // Short protect on resume
+                    startProtection(false); 
                     if (this.mo) this.mo.observe(document.documentElement, { childList: true, subtree: true });
                 }
             });
@@ -887,18 +887,21 @@
                 img.setAttribute('fetchpriority', 'low'); 
             };
 
+            const shouldAggressiveVideo = isLowPowerMode || isMobile || !!navigator.connection?.saveData;
+
             const vpObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
                     const el = e.target;
                     
                     if (el.tagName === 'VIDEO') {
                         if (e.isIntersecting) el.setAttribute('preload', 'metadata');
-                        else {
-                            if (!el.hasAttribute('preload')) el.setAttribute('preload', 'none');
+                        else if (!el.hasAttribute('preload')) el.setAttribute('preload', 'none');
+                        
+                        // ✅ Hybrid Policy: Unobserve only if aggressive OR visible
+                        if (shouldAggressiveVideo || e.isIntersecting) {
+                            vpObs.unobserve(el);
+                            decSlot(el);
                         }
-                        // ✅ One-Shot: Always unobserve after first judgement to free slot
-                        vpObs.unobserve(el);
-                        decSlot(el);
                         return;
                     }
                     
@@ -928,18 +931,13 @@
                 vpObs.observe(el);
             };
 
-            const shouldAggressiveVideo = isLowPowerMode || isMobile || !!navigator.connection?.saveData;
-
             const processVideo = (vid) => {
                 if (vid.hasAttribute('preload') || isVideoSite) return;
-                if (!shouldAggressiveVideo && !vid.autoplay) {
+                if (!shouldAggressiveVideo) {
                     safeObserve(vid); 
                     return;
                 }
-                // Aggressive / Mobile
                 vid.setAttribute('preload', 'none');
-                
-                // ✅ Fail-over: If slot full, we already set none, so we are safe.
                 safeObserve(vid);
             };
 
@@ -1017,7 +1015,7 @@
             this.mo.observe(document.documentElement, { childList: true, subtree: true });
             
             win.addEventListener('pagehide', (e) => {
-                if (!e.persisted) vpObs.disconnect(); // Only kill on real unload
+                if (!e.persisted) vpObs.disconnect(); 
             });
         }
     }
