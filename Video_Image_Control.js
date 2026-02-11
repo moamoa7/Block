@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.6 Ultimate)
+// @name        Video_Image_Control (v130.7 Jailbreak)
 // @namespace   https://com/
-// @version     130.6
-// @description v130.6: Center-Focus 관통(Overlay 무시), 거리 기반 스코어링, 유저 인터랙션 가중치, 안전한 성능 최적화.
+// @version     130.7
+// @description v130.7: ShadowDOM 강제 개방, 속성 잠금(defineProperty) 무력화, ratechange 방어, Center-Focus 유지.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -142,6 +142,59 @@
     const hostMatches = (host, d) => host === d || host.endsWith('.' + d);
     const IS_LIVE_SITE = CONFIG.LIVE.SITES.some(d => hostMatches(location.hostname, d));
 
+    // --- [New] Hack: Unlock Restricted Properties (h5player logic) ---
+    // 일부 사이트(넷플릭스 등)가 defineProperty로 배속 변경을 막는 것을 방어
+    (function unlockRestrictedProperties() {
+        const origDefineProperty = Object.defineProperty;
+        const origDefineProperties = Object.defineProperties;
+        const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted'];
+
+        Object.defineProperty = function (obj, key, descriptor) {
+            if (obj && (obj instanceof HTMLMediaElement || obj.HTMLMediaElement)) {
+                if (protectKeys.includes(key) && descriptor) {
+                    if (descriptor.configurable === false) descriptor.configurable = true;
+                    if (descriptor.enumerable === false) descriptor.enumerable = true;
+                    if (descriptor.writable === false) descriptor.writable = true;
+                    // descriptor.set = undefined; // Force default setter if needed
+                }
+            }
+            return origDefineProperty.call(this, obj, key, descriptor);
+        };
+
+        Object.defineProperties = function (obj, props) {
+            if (obj && (obj instanceof HTMLMediaElement || obj.HTMLMediaElement)) {
+                for (const key in props) {
+                    if (protectKeys.includes(key) && props[key]) {
+                        if (props[key].configurable === false) props[key].configurable = true;
+                        if (props[key].writable === false) props[key].writable = true;
+                    }
+                }
+            }
+            return origDefineProperties.call(this, obj, props);
+        };
+    })();
+
+    // --- [New] Hack: Intercept Event Listeners (h5player logic) ---
+    // 사이트가 ratechange 이벤트를 통해 배속을 강제 원복하는 것을 방어
+    (function interceptRateChange() {
+        const origAddEventListener = HTMLMediaElement.prototype.addEventListener;
+        HTMLMediaElement.prototype.addEventListener = function (type, listener, options) {
+            if (type === 'ratechange' && typeof listener === 'function') {
+                const wrappedListener = function (e) {
+                    // VIC가 제어 중일 때(즉, 스크립트가 활성화된 상태) 사이트의 리스너가 배속을 건드리면 무시하거나 경고
+                    // 여기서는 안전하게 원본을 실행하되, 오류가 나면 무시하도록 래핑
+                    try {
+                        return listener.apply(this, arguments);
+                    } catch (err) {
+                        // ignore error
+                    }
+                };
+                return origAddEventListener.call(this, type, wrappedListener, options);
+            }
+            return origAddEventListener.call(this, type, listener, options);
+        };
+    })();
+
     // --- Base Helpers ---
     let _errCount = 0, _errWindowStart = Date.now();
     const safeGuard = (fn, label = '') => {
@@ -153,9 +206,7 @@
     const debounce = (fn, wait) => { let t; return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
     const throttle = (fn, limit) => { let inThrottle; return function(...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
     const scheduleWork = (cb) => {
-        // [Safety] Don't accumulate dirtyRoots if core isn't ready
         if (!_corePluginRef && dirtyRoots.size > 0) dirtyRoots.clear(); 
-
         const wrapped = () => safeGuard(cb, 'scheduleWork');
         if (window.scheduler && window.scheduler.postTask) return window.scheduler.postTask(wrapped, { priority: 'user-visible' });
         if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 });
@@ -232,7 +283,6 @@
     let _corePluginRef = null;
     let _lastFullScan = 0;
     
-    // [Optimized] Microtask queue with Tick Throttling
     let _scanMicrotaskQueued = false;
     const _scanMicrotaskRoots = new Set();
     let _lastMicroTick = 0;
@@ -280,7 +330,6 @@
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
                     }
                     
-                    // [Optimized] Throttle tick calls in microtask
                     const now = performance.now();
                     if (now - _lastMicroTick > 120) {
                         _lastMicroTick = now;
@@ -364,7 +413,6 @@
 
                     const n = name.toLowerCase();
                     const isSrc = n === 'src' || n === 'srcset' || n === 'poster';
-                    // [Enhanced] Add support for more lazy loading attributes
                     const isDataSrc = n === 'data-src' || n === 'data-original' || n === 'data-url' || 
                                       n === 'data-video-src' || n === 'data-srcset' || n === 'data-poster';
                     const isType = n === 'type' || n === 'loading';
@@ -515,7 +563,7 @@
         })();
     }
 
-    // --- Shadow Hook ---
+    // --- Shadow Hook (Aggressive + Force Open) ---
     if (CONFIG.FLAGS.SHADOW_HOOK) {
         (function aggressiveShadowHook() {
             if (window._hasAggressiveHook_) return;
@@ -524,6 +572,10 @@
                 window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
                 Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true, configurable: true });
                 Element.prototype.attachShadow = function (init) {
+                    // [H5Player Logic] Force open mode
+                    if (init && init.mode === 'closed') {
+                        init.mode = 'open';
+                    }
                     const shadowRoot = originalAttachShadow.call(this, init);
                     try {
                         const cls = (this.className || '').toString().toLowerCase();
@@ -658,6 +710,8 @@
                 const hist = this._hist;
                 hist.fill(0);
                 
+                const totalValidPixels = size * size;
+
                 // [Enhanced] Crop Letterbox (Top/Bottom 10% skip)
                 const startRow = Math.floor(size * 0.1);
                 const endRow = Math.ceil(size * 0.9);
@@ -672,7 +726,6 @@
                     validCount++;
                 }
 
-                // [Fixed] Safety check for zero pixels
                 if (validCount <= 0) return;
 
                 const getPercentile = (p) => {
@@ -801,7 +854,7 @@
             this.state = {
                 app: { isInitialized: false, isMobile, scriptActive: false },
                 site: { isLiveSite: IS_LIVE_SITE },
-                media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null, remoteVideoCount: 0, remoteImageCount: 0, lastInteractedVideo: null },
+                media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null, remoteVideoCount: 0, remoteImageCount: 0 },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null, createRequested: false, gestureMode: false },
@@ -929,7 +982,6 @@
                         if (now - last > 120) { this._lastImmediateScan.set(t, now); scheduleScan(t, true); }
                     }
                 }, CP(this._ac.signal)));
-                // [Added] Global capture for user interaction
                 document.addEventListener('pointerdown', (e) => {
                     if(e.target) {
                         const vid = e.target.closest('video');
@@ -950,7 +1002,6 @@
                     let needed = false;
                     for (const e of entries) { 
                         const t = e.target;
-                        // [Optimized] Use contentRect instead of offsetHeight
                         if (t.tagName === 'VIDEO') needed = true;
                         else if (t.tagName === 'IMG' && e.contentRect.height > 100) needed = true; 
                     }
@@ -1093,7 +1144,6 @@
                         const lastInteracted = sm.get('media.lastInteractedVideo');
                         let bestCandidate = null; let maxScore = -1;
 
-                        // [Fix] elementsFromPoint to ignore VSC layers
                         const cx = window.innerWidth / 2;
                         const cy = window.innerHeight / 2;
                         let centerEl = null;
@@ -1116,10 +1166,8 @@
                                  if (m.ended) score *= 0.5; 
                                  if (document.pictureInPictureElement === m) score *= 3.0;
                                  
-                                 // [New] Ad/Background Penalty
                                  if (m.loop && m.muted && m.autoplay && !m.controls) score *= 0.6;
 
-                                 // [New] Recent Interaction Boost (5s window)
                                  if (lastInteracted && lastInteracted.el === m && (Date.now() - lastInteracted.ts < 5000)) {
                                      score *= 2.0;
                                  }
@@ -1127,7 +1175,6 @@
                                  const ratio = this._intersectionRatios.get(m) || 0;
                                  score *= (0.5 + ratio * 0.5);
 
-                                 // [Enhanced] Center Focus + Distance Fallback
                                  if (centerEl && (m === centerEl || m.contains(centerEl) || centerEl.contains(m))) {
                                      score *= 2.0;
                                  } else {
@@ -1436,7 +1483,7 @@
     class FrameBridgePlugin extends Plugin {
         constructor() {
             super('FrameBridge');
-            this._children = new Map();
+            this._children = new Map(); // window -> {id, ts, video, img, rate}
             this._pruneTimer = null;
         }
         init(stateManager) {
@@ -1455,6 +1502,7 @@
                 try { window.top.postMessage({ type: 'VSC_HELLO', id: VSC_INSTANCE_ID }, '*'); } catch {}
                 this.subscribe('media.activeMedia', (set) => this.reportStatus());
                 this.subscribe('media.activeImages', (set) => this.reportStatus());
+                // this.subscribe('playback.currentRate', (rate) => this.reportStatus()); // Rate removed
                 setTimeout(() => this.reportStatus(), 500);
             }
             this.subscribe('playback.targetRate', (rate) => { if(IS_TOP) this.broadcast({ type: 'VSC_CMD', key: 'playback.targetRate', value: rate }); });
