@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v77.0 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v77.2 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     77.0.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (SPA Aware, Safe Storage, Self-Quarantine, RAF Restore)
+// @version     77.2.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (LoAF Support, IO-Viewport, Atomic Power, SPA Throttle)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -26,16 +26,16 @@
     // [Util] Helpers
     const hostEndsWithAny = (h, list) => list.some(d => h === d || h.endsWith('.' + d));
     const safeJsonParse = (str) => { try { return JSON.parse(str) || {}; } catch { return {}; } };
-    
+
     // [Safe Init] Hoist Config/API
-    let Config = { 
-        codecMode: 'off', passive: false, gpu: false, memory: false, 
-        allowIframe: false, downgradeLevel: 0 
+    let Config = {
+        codecMode: 'off', passive: false, gpu: false, memory: false,
+        allowIframe: false, downgradeLevel: 0
     };
-    
-    const API = { 
+
+    const API = {
         profile: () => {}, toggleConfig: () => {}, toggleSessionSafe: () => {},
-        shutdownMemory: () => {}, restartMemory: () => {} 
+        shutdownMemory: () => {}, restartMemory: () => {}
     };
 
     // Safe Scheduler
@@ -62,7 +62,7 @@
         try {
             if (!u || u.startsWith('data:')) return u;
             const url = new URL(u, win.location.href);
-            return url.origin + url.pathname; 
+            return url.origin + url.pathname;
         } catch { return u; }
     };
 
@@ -76,13 +76,14 @@
         CRITICAL_SUB: /^(auth|login|signin|pay|cert|secure|account)\./
     });
 
+    const MAX_OBSERVERS = 2000;
     const DEEP_SCAN_LIMIT = 200;
     const FEED_SEL = '[role="feed"] > *, .feed > *, .list > *, .timeline > *';
     const SUPPORTED_TYPES = new Set(typeof PerformanceObserver !== 'undefined' ? (PerformanceObserver.supportedEntryTypes || []) : []);
 
     // [Config & State]
     const hostname = win.location.hostname.toLowerCase();
-    
+
     // SPA Key Generator
     const getLcpKey = () => {
         const lcpKeyBase = `PerfX_LCP_${hostname}`;
@@ -92,7 +93,7 @@
             if (s.length > 24 || /^[0-9a-z_-]{20,}$/i.test(s)) return ':token';
             return s;
         });
-        const pathBucket = pathSegs.slice(0, 2).join('/'); 
+        const pathBucket = pathSegs.slice(0, 2).join('/');
         return `${lcpKeyBase}:${pathBucket}`;
     };
     let LCP_KEY = getLcpKey();
@@ -103,7 +104,7 @@
     const Env = {
         storageKey: `PerfX_ULTRA_${hostname}`,
         getOverrides() { return safeJsonParse(S.get(this.storageKey)); },
-        saveOverrides(data) { 
+        saveOverrides(data) {
             const safeData = stripTransient(data);
             S.set(this.storageKey, JSON.stringify(safeData));
             RuntimeConfig = { ...RuntimeConfig, ...data };
@@ -115,17 +116,17 @@
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // [Safety 0] Crash Guard V4.4 (Safe Storage)
+    // [Safety 0] Crash Guard V4.5
     const CRASH_KEY = `perfx-crash:${hostname}`;
     const SESSION_OFF_KEY = `perfx-safe:${hostname}`;
-    
+
     try {
         if (new URLSearchParams(win.location.search).has('perfx-off')) sessionStorage.setItem(SESSION_OFF_KEY, '1');
         const lastCrash = parseInt(S.get(CRASH_KEY) || '0');
-        
+
         if (lastCrash >= 3) {
             sessionStorage.setItem(SESSION_OFF_KEY, '1');
-            S.set(CRASH_KEY, '0'); 
+            S.set(CRASH_KEY, '0');
         }
 
         if (sessionStorage.getItem(SESSION_OFF_KEY)) {
@@ -146,34 +147,14 @@
     const isSafeMode = isCritical || RuntimeConfig._sessionSafe;
 
     // [Power State & Unified State Manager]
-    const baseLowPower = (navigator.hardwareConcurrency ?? 4) < 4 || (navigator.connection?.saveData === true);
-    let isLowPowerMode = baseLowPower;
-    let perfMultiplier = 1.0;
-    let MAX_OBSERVERS = 2000;
+    const baseLowPower = (navigator.hardwareConcurrency ?? 4) < 4;
 
-    const refreshPerfState = () => {
-        const hc = navigator.hardwareConcurrency || 4;
-        const dm = navigator.deviceMemory || 4;
-        const saveData = !!navigator.connection?.saveData;
-        const net = navigator.connection?.effectiveType || '4g';
-        
-        // Recalculate Low Power
-        isLowPowerMode = baseLowPower || saveData; // saveData implies low power preference
-        
-        // Recalculate Multiplier
-        let m = (hc <= 4 || dm <= 4 || isMobile) ? 0.8 : 1.0;
-        if (saveData) m *= 0.85;
-        if (/2g|3g/.test(net)) m *= 0.85;
-        if (isLowPowerMode && !saveData) m *= 0.85;
-        
-        perfMultiplier = Math.max(0.6, Math.min(1.2, m));
-        
-        // Recalculate Caps
-        MAX_OBSERVERS = Math.floor(2000 * perfMultiplier);
-        if (isMobile) MAX_OBSERVERS = Math.min(MAX_OBSERVERS, 700); // Strict cap for mobile
-        MAX_OBSERVERS = Math.max(MAX_OBSERVERS, 250);
-        
-        // Trigger Logic
+    let isLowPowerMode = baseLowPower;
+    let batteryLow = false;
+    let perfMultiplier = 1.0;
+    let MAX_OBSERVERS_VAL = 2000;
+
+    const applyPowerPolicy = () => {
         if (isLowPowerMode) {
             RuntimeConfig._powerThrottled = true;
             if (Config.memory) { Config.memory = false; API.shutdownMemory(); }
@@ -182,26 +163,49 @@
         }
     };
 
+    const computeState = () => {
+        const hc = navigator.hardwareConcurrency || 4;
+        const dm = navigator.deviceMemory || 4;
+        const saveData = !!navigator.connection?.saveData;
+        const net = navigator.connection?.effectiveType || '4g';
+
+        isLowPowerMode = baseLowPower || saveData || batteryLow;
+
+        let m = (hc <= 4 || dm <= 4 || isMobile) ? 0.8 : 1.0;
+        if (saveData) m *= 0.85;
+        if (/2g|3g/.test(net)) m *= 0.85;
+        if (isLowPowerMode && !saveData) m *= 0.85;
+
+        perfMultiplier = Math.max(0.6, Math.min(1.2, m));
+
+        MAX_OBSERVERS_VAL = Math.floor(2000 * perfMultiplier);
+        if (isMobile) MAX_OBSERVERS_VAL = Math.min(MAX_OBSERVERS_VAL, 700);
+        MAX_OBSERVERS_VAL = Math.max(MAX_OBSERVERS_VAL, 250);
+    };
+
+    const refreshPerfState = () => {
+        computeState();
+        applyPowerPolicy();
+    };
+
     if ('getBattery' in navigator) {
         navigator.getBattery().then(b => {
             const update = () => {
-                const batteryLow = (!b.charging && b.level < 0.2);
-                isLowPowerMode = baseLowPower || batteryLow;
+                batteryLow = (!b.charging && b.level < 0.2);
                 win.dispatchEvent(new Event('perfx-power-change'));
             };
             update(); b.addEventListener('levelchange', update); b.addEventListener('chargingchange', update);
         }).catch(() => {});
     }
-    
-    // Unified Listeners
+
     win.addEventListener('perfx-power-change', refreshPerfState);
     navigator.connection?.addEventListener?.('change', refreshPerfState);
-    refreshPerfState(); // Initial run
+    refreshPerfState();
 
     // ==========================================
     // 1. Populate Config & API (Safe Init)
     // ==========================================
-    // Check Quarantine (24h)
+    // Check Quarantine (24h Window)
     const Q_KEY = `perfx-quarantine:${hostname}`;
     const qData = safeJsonParse(S.get(Q_KEY));
     if (qData && Date.now() - qData.ts < 86400000) {
@@ -223,7 +227,10 @@
     }
 
     Object.assign(Config, calculatedConfig);
-    
+
+    // ✅ Fix: Apply power policy AGAIN after config population to prevent init leak
+    applyPowerPolicy();
+
     Object.assign(API, {
         profile: (mode) => {
             const presets = {
@@ -234,7 +241,6 @@
             const p = presets[mode] || presets.balanced;
             const current = Env.getOverrides();
             cleanAutoFlags(current);
-            // Clear Quarantine on manual profile set
             S.remove(Q_KEY);
             Env.saveOverrides({ ...current, ...p, disabled: false });
             win.location.reload();
@@ -252,14 +258,21 @@
         }
     });
 
-    // SPA Route Listener
+    // SPA Route Listener (Atomic & Throttled)
+    let lastKey = LCP_KEY;
     const onRoute = () => {
-        LCP_KEY = getLcpKey();
-        const newLcp = S.get(LCP_KEY);
-        if (newLcp) RuntimeConfig._lcp = newLcp;
-        // Optionally restart modules if needed
+        const nextKey = getLcpKey();
+        if (nextKey === lastKey) return; // ✅ Throttle: Skip if bucket same
+
+        // Commit OLD
+        if (RuntimeConfig._lcp) S.set(lastKey, RuntimeConfig._lcp);
+
+        // Load NEW
+        lastKey = nextKey;
+        LCP_KEY = nextKey;
+        RuntimeConfig._lcp = S.get(LCP_KEY) || null;
     };
-    // Hook History
+
     const origPush = history.pushState;
     history.pushState = function() { origPush.apply(this, arguments); onRoute(); };
     const origRep = history.replaceState;
@@ -286,28 +299,31 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '77.0.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '77.2.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V15 (Self-Quarantine & SPA)
+    // 2. Autonomous V17 (LoAF & Sliding Quarantine)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !isSafeMode) {
         try {
-            let clsTotal = 0, ltTotal = 0;
-            let lastCls = 0, lastLt = 0;
-            let recoveryStreak = 0; 
-            
+            let clsTotal = 0, loadTotal = 0; // load = LT count OR LoAF duration
+            let lastCls = 0, lastLoad = 0;
+            let recoveryStreak = 0;
+
             let lcpMissCount = 0;
-            let savedLCP = S.get(LCP_KEY);
-            if (savedLCP) RuntimeConfig._lcp = savedLCP;
-            
+            // Initial LCP Load
+            if (S.get(LCP_KEY)) RuntimeConfig._lcp = S.get(LCP_KEY);
+
+            // LoAF Detection
+            const useLoAF = SUPPORTED_TYPES.has('long-animation-frame');
+
             const getThresholds = () => ({
                 L1_CLS: 0.05 * perfMultiplier,
-                L1_LT: 5 * perfMultiplier,
+                L1_LOAD: (useLoAF ? 150 : 5) * perfMultiplier, // 150ms total delay or 5 entries
                 L2_CLS: 0.2 * perfMultiplier,
-                L2_LT: 15 * perfMultiplier,
+                L2_LOAD: (useLoAF ? 500 : 15) * perfMultiplier,
                 REC_CLS: 0.01 * perfMultiplier,
-                REC_LT: 1 * perfMultiplier
+                REC_LOAD: (useLoAF ? 50 : 1) * perfMultiplier
             });
 
             if (SUPPORTED_TYPES.has('largest-contentful-paint')) {
@@ -318,19 +334,15 @@
                         const url = lcp.url || lcp.element?.src || lcp.element?.currentSrc;
                         if (url) {
                             const currentLCP = normUrl(url);
-                            if (savedLCP && currentLCP !== savedLCP) {
+                            if (RuntimeConfig._lcp && currentLCP !== RuntimeConfig._lcp) {
                                 lcpMissCount++;
                                 if (lcpMissCount >= 3) {
-                                    savedLCP = currentLCP;
                                     RuntimeConfig._lcp = currentLCP;
                                     lcpMissCount = 0;
                                 }
                             } else {
-                                if (currentLCP === savedLCP) lcpMissCount = 0; 
-                                if (!savedLCP) {
-                                    savedLCP = currentLCP;
-                                    RuntimeConfig._lcp = currentLCP;
-                                }
+                                if (currentLCP === RuntimeConfig._lcp) lcpMissCount = 0;
+                                if (!RuntimeConfig._lcp) RuntimeConfig._lcp = currentLCP;
                             }
                         }
                     }
@@ -343,68 +355,98 @@
                 }).observe({type: 'layout-shift', buffered: true});
             }
 
-            if (SUPPORTED_TYPES.has('longtask')) {
+            // ✅ Modern Metric: LoAF vs LongTask
+            if (useLoAF) {
                 new PerformanceObserver((list) => {
-                    ltTotal += list.getEntries().length;
+                    for (const e of list.getEntries()) {
+                        // Count blocking duration > 50ms
+                        const blocking = e.duration - 50;
+                        if (blocking > 0) loadTotal += blocking;
+                    }
+                }).observe({type: 'long-animation-frame', buffered: true});
+            } else if (SUPPORTED_TYPES.has('longtask')) {
+                new PerformanceObserver((list) => {
+                    loadTotal += list.getEntries().length;
                 }).observe({type: 'longtask', buffered: true});
             }
 
-            const commitLCP = () => { if (savedLCP) S.set(LCP_KEY, savedLCP); };
-            const resetDeltas = () => { lastCls = clsTotal; lastLt = ltTotal; recoveryStreak = 0; };
+            const commitLCP = () => { if (RuntimeConfig._lcp) S.set(LCP_KEY, RuntimeConfig._lcp); };
+            const resetDeltas = () => { lastCls = clsTotal; lastLoad = loadTotal; recoveryStreak = 0; };
 
             let healthTimer = null;
             const checkHealth = () => {
                 if (document.hidden) return;
 
                 const clsDelta = clsTotal - lastCls;
-                const ltDelta = ltTotal - lastLt;
+                const loadDelta = loadTotal - lastLoad;
                 lastCls = clsTotal;
-                lastLt = ltTotal;
+                lastLoad = loadTotal;
 
                 const c = RuntimeConfig;
                 const currentLevel = c.downgradeLevel || 0;
                 const TH = getThresholds();
 
-                // Quarantine Logic: If downgraded repeatedly, disable module for 24h
-                if (c.downgradeCount && c.downgradeCount > 5) {
-                    S.set(Q_KEY, JSON.stringify({ ts: Date.now(), modules: { memory: false } }));
-                    log('Self-Quarantine: Memory Guard Disabled for 24h');
+                // Quarantine Check
+                const now = Date.now();
+                const isQuarantined = () => {
+                    const q = safeJsonParse(S.get(Q_KEY));
+                    return q && (now - q.ts) < 86400000;
+                };
+
+                if (c.downgradeCount > 5 && !isQuarantined()) {
+                    const modules = { memory: false };
+                    S.set(Q_KEY, JSON.stringify({ ts: now, modules }));
+
+                    c.downgradeCount = 0;
+                    c.downgradeWindowTs = now;
+                    Config.memory = false;
+                    c.memory = false;
+                    Env.saveOverrides(c);
+                    API.shutdownMemory();
+                    log('Self-Quarantine Activated');
+                    return;
+                }
+
+                // Sliding Window Reset
+                if (!c.downgradeWindowTs || (now - c.downgradeWindowTs) > 86400000) {
+                    c.downgradeWindowTs = now;
+                    c.downgradeCount = 0;
                 }
 
                 // L2
-                if ((clsDelta > TH.L2_CLS || ltDelta > TH.L2_LT) && currentLevel < 2) {
+                if ((clsDelta > TH.L2_CLS || loadDelta > TH.L2_LOAD) && currentLevel < 2) {
                     if (!c._restore) c._restore = { codecMode: c.codecMode, gpu: c.gpu, memory: c.memory, passive: c.passive };
                     c.downgradeLevel = 2;
-                    c.downgradeReason = { cls: clsDelta, lt: ltDelta, t: Date.now(), level: 2 };
+                    c.downgradeReason = { cls: clsDelta, load: loadDelta, t: Date.now(), level: 2 };
                     c.gpu = false; c.memory = false; c.codecMode = 'soft';
                     c.autoDowngraded = true;
                     c.downgradeCount = (c.downgradeCount || 0) + 1;
                     Env.saveOverrides(c);
-                    
+
                     Config.gpu = false; Config.memory = false;
                     API.shutdownMemory();
                     log(`Downgrade L2`);
                     recoveryStreak = 0;
                 }
                 // L1
-                else if ((clsDelta > TH.L1_CLS || ltDelta > TH.L1_LT) && currentLevel < 1) {
+                else if ((clsDelta > TH.L1_CLS || loadDelta > TH.L1_LOAD) && currentLevel < 1) {
                     if (!c._restore) c._restore = { codecMode: c.codecMode, gpu: c.gpu, memory: c.memory, passive: c.passive };
                     c.downgradeLevel = 1;
-                    c.downgradeReason = { cls: clsDelta, lt: ltDelta, t: Date.now(), level: 1 };
+                    c.downgradeReason = { cls: clsDelta, load: loadDelta, t: Date.now(), level: 1 };
                     c.memory = false;
                     c.downgradeCount = (c.downgradeCount || 0) + 1;
                     Env.saveOverrides(c);
-                    
-                    Config.memory = false; 
-                    API.shutdownMemory(); 
+
+                    Config.memory = false;
+                    API.shutdownMemory();
                     log(`Downgrade L1`);
                     recoveryStreak = 0;
                 }
                 // Recovery
-                else if (currentLevel > 0 && clsDelta < TH.REC_CLS && ltDelta < TH.REC_LT) {
+                else if (currentLevel > 0 && clsDelta < TH.REC_CLS && loadDelta < TH.REC_LOAD) {
                     recoveryStreak++;
                     const requiredStreak = currentLevel === 1 ? 2 : 4;
-                    
+
                     if (recoveryStreak >= requiredStreak) {
                         if (c._restore) {
                             Config.memory = !!c._restore.memory && !c._powerThrottled;
@@ -417,28 +459,28 @@
                         delete c.autoDowngraded;
                         delete c.downgradeReason;
                         Env.saveOverrides(c);
-                        
+
                         if (Config.memory) API.restartMemory();
                         log('Restored');
                         recoveryStreak = 0;
                     }
                 } else {
-                    recoveryStreak = 0; 
+                    recoveryStreak = 0;
                 }
-                
+
                 healthTimer = setTimeout(checkHealth, 5000);
             };
-            
+
             const startLoop = () => { if (!healthTimer) checkHealth(); };
             const stopLoop = () => { if (healthTimer) { clearTimeout(healthTimer); healthTimer = null; } };
 
             win.addEventListener('visibilitychange', () => {
-                if (document.hidden) { stopLoop(); commitLCP(); } 
+                if (document.hidden) { stopLoop(); commitLCP(); }
                 else { resetDeltas(); startLoop(); }
             });
             win.addEventListener('pagehide', (e) => {
                 stopLoop(); commitLCP();
-                if (!e.persisted) API.shutdownMemory(); 
+                if (!e.persisted) API.shutdownMemory();
             });
             win.addEventListener('pageshow', (e) => {
                 if (e.persisted) { resetDeltas(); startLoop(); API.restartMemory(); }
@@ -458,7 +500,7 @@
             if (!Config.passive || win.__perfx_evt_patched) return;
             win.__perfx_evt_patched = true;
 
-            const evts = new Set(['touchstart', 'wheel', 'mousewheel']); 
+            const evts = new Set(['touchstart', 'wheel', 'mousewheel']);
             const needsPDCache = new WeakMap();
 
             const checkNeedsPD = (listener) => {
@@ -490,8 +532,8 @@
                         if (!isObj || options.passive === undefined) {
                             if (type === 'touchstart' || !checkNeedsPD(listener)) {
                                 try {
-                                    finalOptions = isObj 
-                                        ? { ...options, passive: true } 
+                                    finalOptions = isObj
+                                        ? { ...options, passive: true }
                                         : { capture: options === true, passive: true };
                                 } catch (e) { finalOptions = options; }
                             }
@@ -539,7 +581,7 @@
         }
     }
 
-    // [Core 3] DomWatcher v3.5 (RAF Restore)
+    // [Core 3] DomWatcher v3.7 (Deferred Scan)
     class DomWatcher extends BaseModule {
         init() {
             if (!Config.gpu && !Config.memory) return;
@@ -554,11 +596,10 @@
             this.removedQueue = new Set();
             this.gcTimer = null;
 
-            // ✅ Chunked Restore with RAF
             API.shutdownMemory = () => {
                 if (this.mutObs) { this.mutObs.disconnect(); this.mutObs = null; }
                 if (this.visObs) { this.visObs.disconnect(); this.visObs = null; }
-                
+
                 const restoreQueue = [...this.optimized];
                 this.optimized.clear();
                 this.removedQueue.clear();
@@ -566,7 +607,7 @@
                 this.gcTimer = null;
 
                 const processRestore = () => {
-                    const chunk = restoreQueue.splice(0, 100); // 100 per frame
+                    const chunk = restoreQueue.splice(0, 100);
                     for (const el of chunk) this.restoreStyle(el);
                     if (restoreQueue.length > 0) scheduler.raf(processRestore);
                 };
@@ -577,14 +618,20 @@
 
             API.restartMemory = () => {
                 if (Config.memory) {
-                    this.startIO(); 
-                    this.startMO(); 
+                    this.startIO();
+                    this.startMO();
                 } else if (Config.gpu) {
                     this.startIO();
                 }
             };
 
-            this.startAll = () => { this.startIO(); this.startMO(); };
+            // ✅ Deferred Start
+            this.startAll = () => {
+                scheduler.request(() => {
+                    this.startIO();
+                    this.startMO();
+                });
+            };
             if (document.readyState === 'loading') win.addEventListener('DOMContentLoaded', this.startAll);
             else this.startAll();
 
@@ -622,7 +669,7 @@
             }
             this.optimized.delete(el);
         }
-        
+
         flushRemoved() {
             if (this.removedQueue.size === 0 || this.optimized.size === 0) return;
             for (const root of this.removedQueue) this.sweepRemovedSubtree(root);
@@ -644,16 +691,16 @@
             if (this.visObs) this.visObs.disconnect();
             if (!Config.memory && !Config.gpu) return;
 
-            this.obsCount = 0; 
-            this.observed = new WeakSet(); 
+            this.obsCount = 0;
+            this.observed = new WeakSet();
             const margin = (isLowPowerMode || isMobile) ? '200px 0px' : '600px 0px';
-            
+
             this.visObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
                     if (!e.target.isConnected) return;
                     if (Config.gpu && e.target.tagName === 'CANVAS') {
                         e.target.style.visibility = e.isIntersecting ? 'visible' : 'hidden';
-                    } 
+                    }
                     else if (Config.memory && this.supportsCV) {
                         if (e.isIntersecting) this.restoreStyle(e.target);
                         else this.applyOptimization(e.target, e.boundingClientRect);
@@ -661,8 +708,8 @@
                 });
             }, { rootMargin: margin, threshold: 0.01 });
 
-            this.observeSafe = (el) => { 
-                if (el && this.obsCount < MAX_OBSERVERS && !this.observed.has(el)) {
+            this.observeSafe = (el) => {
+                if (el && this.obsCount < MAX_OBSERVERS_VAL && !this.observed.has(el)) {
                     this.visObs.observe(el);
                     this.observed.add(el);
                     this.obsCount++;
@@ -675,18 +722,21 @@
 
         startMO() {
             if (!Config.memory) return;
-            // ✅ Guard Duplicate MO
+            if (!document.body) {
+                win.addEventListener('DOMContentLoaded', () => this.startMO(), { once: true });
+                return;
+            }
             if (this.mutObs) this.mutObs.disconnect();
-            
+
             this.mutObs = new MutationObserver(ms => {
                 ms.forEach(m => {
-                    if (this.obsCount < MAX_OBSERVERS) {
+                    if (this.obsCount < MAX_OBSERVERS_VAL) {
                         m.addedNodes.forEach(n => {
                             if (n.nodeType === 1) {
                                 if (n.matches && n.matches(FEED_SEL)) this.observeSafe(n);
-                                if (n.querySelectorAll && this.obsCount < MAX_OBSERVERS) {
+                                if (n.querySelectorAll && this.obsCount < MAX_OBSERVERS_VAL) {
                                     const list = n.querySelectorAll(FEED_SEL);
-                                    for (let i = 0; i < list.length && this.obsCount < MAX_OBSERVERS && i < DEEP_SCAN_LIMIT; i++) {
+                                    for (let i = 0; i < list.length && this.obsCount < MAX_OBSERVERS_VAL && i < DEEP_SCAN_LIMIT; i++) {
                                         this.observeSafe(list[i]);
                                     }
                                 }
@@ -697,7 +747,7 @@
                         if (n.nodeType === 1) this.removedQueue.add(n);
                     });
                 });
-                
+
                 if (this.removedQueue.size > 0 && !this.gcTimer) {
                     this.gcTimer = scheduler.request(() => this.flushRemoved(), 200);
                 }
@@ -706,7 +756,7 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v2.14 (Viewport Guard)
+    // [Core 4] NetworkAssistant v2.15 (IO-Based Viewport)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -714,39 +764,24 @@
             const getLCP = () => RuntimeConfig._lcp || S.get(LCP_KEY);
             const batchQueue = new Set();
             let batchTimer = null;
-            
             let isProtectionPhase = true;
+
             if (document.readyState === 'complete') isProtectionPhase = false;
-            else win.addEventListener('load', () => { 
-                setTimeout(() => isProtectionPhase = false, 3000);
-            });
+            else win.addEventListener('load', () => { setTimeout(() => isProtectionPhase = false, 3000); });
 
-            // ✅ Viewport Guard
-            let viewportCheckCount = 0;
-            const nearViewport = (img) => {
-                if (viewportCheckCount > 50) return true; // Stop checking
-                try {
-                    viewportCheckCount++;
-                    const rect = img.getBoundingClientRect();
-                    return rect.top < win.innerHeight * 1.5; 
-                } catch { return false; }
-            };
-
-            const isCandidate = (img) => {
-                const src = (img.currentSrc || img.src || '').toLowerCase();
-                if (src.startsWith('data:') || src.startsWith('blob:')) return false;
-                if (src.includes('logo') || src.includes('icon') || src.includes('pixel') || src.includes('track')) return false;
-                if (src.endsWith('.svg')) return false;
-
-                const w = parseInt(img.getAttribute('width') || '0');
-                const h = parseInt(img.getAttribute('height') || '0');
-                return (w * h > 22500) || (w === 0 && h === 0);
-            };
-
-            let candidateCount = 0;
+            // ✅ Zero-Reflow Viewport Check
+            const viewportMap = new WeakMap();
+            const vpObs = new IntersectionObserver((entries) => {
+                entries.forEach(e => {
+                    // Mark intersecting as "Near Viewport"
+                    viewportMap.set(e.target, e.isIntersecting);
+                    // Stop observing once status is known (one-shot check)
+                    vpObs.unobserve(e.target);
+                });
+            }, { rootMargin: "50% 0px" }); // Generous margin
 
             const processImg = (img) => {
-                if (img.hasAttribute('loading')) return;
+                if (img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
 
                 const lcpUrl = getLCP();
                 if (lcpUrl) {
@@ -759,27 +794,32 @@
                 }
 
                 if (!lcpUrl && isProtectionPhase) {
-                    if (isCandidate(img)) {
-                        candidateCount++;
-                        if (candidateCount <= 3) return; 
-                    }
+                    // Simple heuristic fallback
+                    const w = parseInt(img.getAttribute('width') || '0');
+                    if (w > 200) return;
                 }
-                
-                // ✅ Safe Guard: Don't touch viewport images
-                if (nearViewport(img)) return;
+
+                // If IO already said it's near, skip
+                if (viewportMap.get(img)) return;
+
+                // Otherwise, assume it might be near, observe it, and apply lazy if not
+                // But IO is async. To be safe, we default to lazy ONLY if we are sure it's far.
+                // Since we can't sync check, we rely on the Protection Phase for top images.
+                // For images appearing later, we apply lazy.
 
                 img.setAttribute('loading', 'lazy');
                 img.setAttribute('decoding', 'async');
             };
 
             const flushQueue = () => {
-                viewportCheckCount = 0; // Reset counter per flush
                 batchQueue.forEach(processImg);
                 batchQueue.clear();
                 batchTimer = null;
             };
 
             const scheduleImg = (img) => {
+                // Register for IO check immediately
+                vpObs.observe(img);
                 batchQueue.add(img);
                 if (!batchTimer) batchTimer = scheduler.request(flushQueue, 200);
             };
@@ -805,7 +845,7 @@
             if (!isLowPowerMode) return;
             const MAP_DOMAINS = ['map.naver.com', 'map.kakao.com', 'dmap.daum.net'];
             if (hostEndsWithAny(hostname, MAP_DOMAINS) || (hostname.includes('google') && hostname.includes('map'))) return;
-            if (!isHeavyFeed) return; 
+            if (!isHeavyFeed) return;
 
             if (navigator.geolocation) {
                 const makeError = () => ({ code: 1, message: "Blocked by PerfX" });
@@ -821,9 +861,9 @@
 
     // Module Init
     [
-        new EventPassivator(), 
-        new CodecOptimizer(), 
-        new DomWatcher(), 
+        new EventPassivator(),
+        new CodecOptimizer(),
+        new DomWatcher(),
         new NetworkAssistant(),
         new HardwareGovernor()
     ].forEach(m => m.safeInit());
