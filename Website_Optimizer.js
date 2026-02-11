@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v77.11 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v77.12 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     77.11.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Correct Caps, Hybrid Video, Unified Sanitizer)
+// @version     77.12.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Live Policy, Active Trimming, Safe Geo, State Persistence)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -26,11 +26,15 @@
     // [Util] Helpers
     const hostEndsWithAny = (h, list) => list.some(d => h === d || h.endsWith('.' + d));
     const safeJsonParse = (str) => { try { return JSON.parse(str) || {}; } catch { return {}; } };
+    const onReady = (cb) => {
+        if (document.readyState !== 'loading') cb();
+        else win.addEventListener('DOMContentLoaded', cb, { once: true });
+    };
     
     // [Safe Init] Hoist Config/API
     let Config = { 
         codecMode: 'off', passive: false, gpu: false, memory: false, 
-        allowIframe: false 
+        allowIframe: false, downgradeLevel: 0 
     };
     
     const API = { 
@@ -46,11 +50,17 @@
     };
 
     // [Config Helpers]
-    // ✅ Unified Sanitizer
-    const SAN_KEYS = ['autoDowngraded', 'downgradeLevel', '_restore', 'downgradeReason'];
+    // ✅ Keep downgradeLevel for persistence
+    const SAN_KEYS = ['autoDowngraded', '_restore', 'downgradeReason']; 
     const sanitizeConfig = (o) => {
         const out = { ...o };
         for (const k of SAN_KEYS) delete out[k];
+        for (const k in out) if (k.startsWith('_')) delete out[k];
+        return out;
+    };
+
+    const stripTransient = (o) => {
+        const out = { ...o };
         for (const k in out) if (k.startsWith('_')) delete out[k];
         return out;
     };
@@ -116,7 +126,7 @@
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // [Safety 0] Crash Guard
+    // [Safety 0] Crash Guard V4.6
     const CRASH_KEY = `perfx-crash:${hostname}`;
     const SESSION_OFF_KEY = `perfx-safe:${hostname}`;
     
@@ -134,6 +144,8 @@
             RuntimeConfig = { ...RuntimeConfig, codecMode: 'off', passive: false, gpu: false, memory: false, _sessionSafe: true };
         } else {
             S.set(CRASH_KEY, lastCrash + 1);
+            // ✅ Clean up on DOMContentLoaded as well (Backup)
+            onReady(() => setTimeout(() => S.remove(CRASH_KEY), 10000));
             win.addEventListener('load', () => setTimeout(() => S.remove(CRASH_KEY), 10000));
         }
     } catch(e) {}
@@ -149,21 +161,19 @@
     // [Power State & Unified State Manager]
     const baseLowPower = (navigator.hardwareConcurrency ?? 4) < 4; 
     
-    let isLowPowerMode = baseLowPower;
-    let batteryLow = false; 
-    let perfMultiplier = 1.0;
-    
-    // Dynamic Caps
-    let MAX_OBSERVERS_VAL = 2000;
-    let MAX_IMG_OBS_VAL = 800; 
-    let DEEP_SCAN_LIMIT = 200;
-    let DOM_MARGIN = '600px 0px';
-    let NETWORK_MARGIN = '50% 0px'; 
-    let INIT_SCAN_CAP = 300;
-    let PROTECT_MS = 3000; 
+    // Global State Object
+    const perfState = {
+        isLowPowerMode: baseLowPower,
+        batteryLow: false,
+        perfMultiplier: 1.0,
+        MAX_IMG_OBS_VAL: 800,
+        INIT_SCAN_CAP: 300,
+        DOM_MARGIN: '600px 0px',
+        shouldAggressiveVideo: false
+    };
 
     const applyPowerPolicy = () => {
-        if (isLowPowerMode) {
+        if (perfState.isLowPowerMode) {
             RuntimeConfig._powerThrottled = true;
             if (Config.memory) { Config.memory = false; API.shutdownMemory(); }
         } else {
@@ -177,35 +187,27 @@
         const saveData = !!navigator.connection?.saveData;
         const net = navigator.connection?.effectiveType || '4g';
         
-        isLowPowerMode = baseLowPower || saveData || batteryLow; 
+        perfState.isLowPowerMode = baseLowPower || saveData || perfState.batteryLow; 
         
         let m = (hc <= 4 || dm <= 4 || isMobile) ? 0.8 : 1.0;
         if (saveData) m *= 0.85;
         if (/2g|3g/.test(net)) m *= 0.85;
-        if (isLowPowerMode && !saveData) m *= 0.85;
+        if (perfState.isLowPowerMode && !saveData) m *= 0.85;
         
-        perfMultiplier = Math.max(0.6, Math.min(1.2, m));
-        
-        // Caps Scaling
-        MAX_OBSERVERS_VAL = Math.floor(2000 * perfMultiplier);
-        MAX_IMG_OBS_VAL = Math.floor(800 * perfMultiplier);
-        INIT_SCAN_CAP = Math.floor(300 * perfMultiplier);
-        PROTECT_MS = isMobile ? 3500 : Math.floor(3000 / perfMultiplier);
+        perfState.perfMultiplier = Math.max(0.6, Math.min(1.2, m));
+        perfState.shouldAggressiveVideo = perfState.isLowPowerMode || isMobile || !!saveData;
         
         if (isMobile) {
-            MAX_OBSERVERS_VAL = Math.min(MAX_OBSERVERS_VAL, 700);
-            MAX_IMG_OBS_VAL = Math.min(MAX_IMG_OBS_VAL, 250); 
-            DEEP_SCAN_LIMIT = 80;
-            DOM_MARGIN = '300px 0px';
-            NETWORK_MARGIN = '200px 0px'; 
-            INIT_SCAN_CAP = 120;
+            perfState.MAX_IMG_OBS_VAL = Math.floor(250 * perfState.perfMultiplier); 
+            perfState.DOM_MARGIN = '300px 0px';
+            perfState.INIT_SCAN_CAP = 120;
         } else {
-            DEEP_SCAN_LIMIT = 200;
-            DOM_MARGIN = isLowPowerMode ? '400px 0px' : '600px 0px';
-            NETWORK_MARGIN = '50% 0px'; 
+            perfState.MAX_IMG_OBS_VAL = Math.floor(800 * perfState.perfMultiplier);
+            perfState.DOM_MARGIN = perfState.isLowPowerMode ? '400px 0px' : '600px 0px';
+            perfState.INIT_SCAN_CAP = 600;
         }
         
-        MAX_OBSERVERS_VAL = Math.max(MAX_OBSERVERS_VAL, 250);
+        perfState.MAX_IMG_OBS_VAL = Math.max(perfState.MAX_IMG_OBS_VAL, 100);
     };
 
     const refreshPerfState = () => {
@@ -216,7 +218,7 @@
     if ('getBattery' in navigator) {
         navigator.getBattery().then(b => {
             const update = () => {
-                batteryLow = (!b.charging && b.level < 0.2);
+                perfState.batteryLow = (!b.charging && b.level < 0.2);
                 win.dispatchEvent(new Event('perfx-power-change'));
             };
             update(); b.addEventListener('levelchange', update); b.addEventListener('chargingchange', update);
@@ -254,7 +256,8 @@
         passive: RuntimeConfig.passive ?? (!isLayoutSensitive),
         gpu: RuntimeConfig.gpu ?? (!isLayoutSensitive && !isLowPowerMode),
         memory: RuntimeConfig.memory ?? (!isLayoutSensitive && !isHeavyFeed),
-        allowIframe: RuntimeConfig.allowIframe ?? false
+        allowIframe: RuntimeConfig.allowIframe ?? false,
+        downgradeLevel: RuntimeConfig.downgradeLevel || 0
     };
 
     if (isSafeMode) {
@@ -273,7 +276,7 @@
             };
             const p = presets[mode] || presets.balanced;
             const current = Env.getOverrides();
-            
+            cleanAutoFlags(current);
             S.remove(Q_KEY); Q_CACHE = null;
             Env.saveOverrides({ ...current, ...p, disabled: false });
             win.location.reload();
@@ -291,15 +294,16 @@
         }
     });
 
-    // SPA Route Listener (2-Stage Protection)
+    // SPA Route Listener
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
     
     const emitRoute = (force) => {
         const now = Date.now();
-        if (force || now - lastRouteSignal > 5000) {
+        // ✅ Smart Throttle: Force=5s, Soft=1s
+        const throttle = force ? 5000 : 1000;
+        if (force || now - lastRouteSignal > throttle) {
             lastRouteSignal = now;
-            // ✅ Send Force Detail
             win.dispatchEvent(new CustomEvent('perfx-route', { detail: { force } }));
         }
     };
@@ -349,10 +353,10 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '77.11.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '77.12.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V21 (LoAF & Sliding Quarantine)
+    // 2. Autonomous V22 (LoAF & Sliding Quarantine)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !isSafeMode) {
         try {
@@ -366,12 +370,12 @@
             const useLoAF = SUPPORTED_TYPES.has('long-animation-frame');
             
             const getThresholds = () => ({
-                L1_CLS: 0.05 * perfMultiplier,
-                L1_LOAD: (useLoAF ? 150 : 5) * perfMultiplier, 
-                L2_CLS: 0.2 * perfMultiplier,
-                L2_LOAD: (useLoAF ? 500 : 15) * perfMultiplier,
-                REC_CLS: 0.01 * perfMultiplier,
-                REC_LOAD: (useLoAF ? 50 : 1) * perfMultiplier
+                L1_CLS: 0.05 * perfState.perfMultiplier,
+                L1_LOAD: (useLoAF ? 150 : 5) * perfState.perfMultiplier, 
+                L2_CLS: 0.2 * perfState.perfMultiplier,
+                L2_LOAD: (useLoAF ? 500 : 15) * perfState.perfMultiplier,
+                REC_CLS: 0.01 * perfState.perfMultiplier,
+                REC_LOAD: (useLoAF ? 50 : 1) * perfState.perfMultiplier
             });
 
             if (SUPPORTED_TYPES.has('largest-contentful-paint')) {
@@ -595,7 +599,7 @@
                 if (typeof t !== 'string') return false;
                 const v = t.toLowerCase();
                 if (Config.codecMode === 'hard') {
-                    if (isLowPowerMode) return v.includes('av01') || /vp9|vp09/.test(v);
+                    if (perfState.isLowPowerMode) return v.includes('av01') || /vp9|vp09/.test(v);
                     return false;
                 }
                 if (Config.codecMode === 'soft') return v.includes('av01');
@@ -621,14 +625,14 @@
         }
     }
 
-    // [Core 3] DomWatcher v3.12 (Correct Scan Limit & CV Guard)
+    // [Core 3] DomWatcher v3.13 (Chunked Init Scan)
     class DomWatcher extends BaseModule {
         init() {
             if (!Config.gpu && !Config.memory) return;
             if (isSafeMode) return;
 
             this.supportsCV = 'contentVisibility' in document.documentElement.style;
-            if (Config.memory && !this.supportsCV) Config.memory = false; // ✅ CV Guard
+            if (Config.memory && !this.supportsCV) Config.memory = false;
 
             if (!('IntersectionObserver' in win)) return;
 
@@ -673,8 +677,7 @@
                     this.startMO();
                 });
             };
-            if (document.readyState === 'loading') win.addEventListener('DOMContentLoaded', this.startAll);
-            else this.startAll();
+            onReady(this.startAll);
 
             win.addEventListener('perfx-power-change', () => {
                 if (this.ioTimeout) clearTimeout(this.ioTimeout);
@@ -734,7 +737,7 @@
 
             this.obsCount = 0; 
             this.observed = new WeakSet(); 
-            const margin = DOM_MARGIN; 
+            const margin = perfState.DOM_MARGIN; // ✅ Live State
             
             this.visObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
@@ -749,8 +752,9 @@
                 });
             }, { rootMargin: margin, threshold: 0.01 });
 
+            // ✅ Dynamic Cap
             this.observeSafe = (el) => { 
-                if (el && this.obsCount < MAX_OBSERVERS_VAL && !this.observed.has(el)) {
+                if (el && this.obsCount < perfState.MAX_IMG_OBS_VAL && !this.observed.has(el)) {
                     this.visObs.observe(el);
                     this.observed.add(el);
                     this.obsCount++;
@@ -760,9 +764,9 @@
             if (Config.gpu) document.querySelectorAll('canvas').forEach(this.observeSafe);
             
             if (Config.memory) {
-                // ✅ Correct Limit
+                // ✅ Chunked Scan with helper
                 const list = document.querySelectorAll(FEED_SEL);
-                const limit = Math.min(list.length, MAX_OBSERVERS_VAL, INIT_SCAN_CAP);
+                const limit = Math.min(list.length, 2000, perfState.INIT_SCAN_CAP);
                 
                 let i = 0;
                 const processChunk = () => {
@@ -784,13 +788,14 @@
             
             this.mutObs = new MutationObserver(ms => {
                 ms.forEach(m => {
-                    if (this.obsCount < MAX_OBSERVERS_VAL) {
+                    // Cap per batch
+                    if (this.obsCount < 2000) {
                         m.addedNodes.forEach(n => {
                             if (n.nodeType === 1) {
                                 if (n.matches && n.matches(FEED_SEL)) this.observeSafe(n);
-                                if (n.querySelectorAll && this.obsCount < MAX_OBSERVERS_VAL) {
+                                if (n.querySelectorAll) {
                                     const list = n.querySelectorAll(FEED_SEL);
-                                    for (let i = 0; i < list.length && this.obsCount < MAX_OBSERVERS_VAL && i < DEEP_SCAN_LIMIT; i++) {
+                                    for (let i = 0; i < list.length && i < 200; i++) { // Deep limit
                                         this.observeSafe(list[i]);
                                     }
                                 }
@@ -810,7 +815,7 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.7 (Correct Caps & Hybrid Video)
+    // [Core 4] NetworkAssistant v3.7 (Live Caps & Active Trimming)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -820,12 +825,29 @@
             let batchTimer = null;
             let isProtectionPhase = true;
             
-            // ✅ Correct Caps Calculation
+            // ✅ Live Caps with Active Trimming
             let MAX_IMG = 0, MAX_VID = 0;
+            // Use Set for active trimming (WeakSet can't iterate)
+            const observing = new Set(); 
+            let imgSlots = 0, vidSlots = 0;
+
             const updateCaps = () => {
-                const cap = MAX_IMG_OBS_VAL; // Use Media Cap
+                const cap = perfState.MAX_IMG_OBS_VAL;
                 MAX_IMG = Math.floor(cap * 0.85);
                 MAX_VID = Math.max(10, cap - MAX_IMG);
+                
+                // Active Trimming
+                if (observing.size > cap) {
+                    const excess = observing.size - cap;
+                    let removed = 0;
+                    for (const el of observing) {
+                        if (removed >= excess) break;
+                        vpObs.unobserve(el);
+                        observing.delete(el);
+                        if (el.tagName === 'VIDEO') vidSlots--; else imgSlots--;
+                        removed++;
+                    }
+                }
             };
             updateCaps();
             win.addEventListener('perfx-power-change', updateCaps);
@@ -834,8 +856,7 @@
             let protectTimer = null;
             const startProtection = (force = false) => {
                 if (!force && isProtectionPhase) return;
-                // ✅ 2-Stage Protection (Force=Long, Soft=Short)
-                const ms = force ? PROTECT_MS : 500;
+                const ms = force ? 3000 : 1000;
                 isProtectionPhase = true;
                 if (protectTimer) clearTimeout(protectTimer);
                 protectTimer = setTimeout(() => {
@@ -845,16 +866,11 @@
             };
 
             win.addEventListener('perfx-route', (e) => startProtection(e.detail?.force));
-            if (document.readyState === 'complete') isProtectionPhase = false;
-            else {
+            onReady(() => {
+                // Short protect on initial load
                 startProtection(true);
-                win.addEventListener('load', () => {
-                    if (protectTimer) {
-                        clearTimeout(protectTimer);
-                        protectTimer = setTimeout(() => { isProtectionPhase = false; }, 1000);
-                    }
-                });
-            }
+                setTimeout(() => { if (protectTimer) isProtectionPhase = false; }, 1000);
+            });
             
             win.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
@@ -869,8 +885,6 @@
             // State
             const nearSet = new WeakSet();
             const farSet = new WeakSet();
-            const observing = new WeakSet();
-            let imgSlots = 0, vidSlots = 0;
             
             const decSlot = (el) => {
                 if (observing.has(el)) {
@@ -887,8 +901,6 @@
                 img.setAttribute('fetchpriority', 'low'); 
             };
 
-            const shouldAggressiveVideo = isLowPowerMode || isMobile || !!navigator.connection?.saveData;
-
             const vpObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
                     const el = e.target;
@@ -897,8 +909,8 @@
                         if (e.isIntersecting) el.setAttribute('preload', 'metadata');
                         else if (!el.hasAttribute('preload')) el.setAttribute('preload', 'none');
                         
-                        // ✅ Hybrid Policy: Unobserve only if aggressive OR visible
-                        if (shouldAggressiveVideo || e.isIntersecting) {
+                        // Hybrid: Unobserve if aggressive or visible
+                        if (perfState.shouldAggressiveVideo || e.isIntersecting) {
                             vpObs.unobserve(el);
                             decSlot(el);
                         }
@@ -913,7 +925,7 @@
                     vpObs.unobserve(el);
                     decSlot(el);
                 });
-            }, { rootMargin: NETWORK_MARGIN });
+            }, { rootMargin: perfState.DOM_MARGIN }); // Use Live Margin
 
             const safeObserve = (el) => {
                 const isVid = el.tagName === 'VIDEO';
@@ -933,7 +945,7 @@
 
             const processVideo = (vid) => {
                 if (vid.hasAttribute('preload') || isVideoSite) return;
-                if (!shouldAggressiveVideo) {
+                if (!perfState.shouldAggressiveVideo && !vid.autoplay) {
                     safeObserve(vid); 
                     return;
                 }
@@ -954,7 +966,14 @@
                     }
                 }
 
+                // ✅ Smart Mutation Handling
                 if (fromMutation && !isProtectionPhase) {
+                    // Try observe first
+                    if (imgSlots < MAX_IMG) {
+                        safeObserve(img);
+                        return;
+                    }
+                    // Fallback to lazy if full
                     applyLazy(img);
                     return;
                 }
@@ -983,34 +1002,43 @@
                 if (!batchTimer) batchTimer = scheduler.request(flushQueue, 200);
             };
 
-            // ✅ Chunked Init Scan
-            const INIT_MEDIA_CAP = isMobile ? 200 : 600;
             const run = () => { 
                 const imgs = document.querySelectorAll('img');
                 const vids = document.querySelectorAll('video');
                 
                 let i = 0;
+                // ✅ Chunked Init
                 const process = () => {
-                    const end = Math.min(i + 100, INIT_MEDIA_CAP);
+                    const end = Math.min(i + 100, imgs.length + vids.length);
+                    // Simplified interleaved processing
                     for (; i < end; i++) {
-                        if (imgs[i]) scheduleNode(imgs[i], false);
-                        if (vids[i]) scheduleNode(vids[i], false);
+                        if (i < imgs.length) scheduleNode(imgs[i], false);
+                        else scheduleNode(vids[i - imgs.length], false);
                     }
-                    if (i < INIT_MEDIA_CAP && (imgs[i] || vids[i])) scheduler.request(process);
+                    if (i < imgs.length + vids.length) scheduler.request(process);
                 };
                 process();
             };
-            
-            if (document.readyState === 'loading') win.addEventListener('DOMContentLoaded', run);
-            else run();
+            onReady(run);
 
             this.mo = new MutationObserver(ms => {
-                ms.forEach(m => m.addedNodes.forEach(n => {
-                    if (n.tagName === 'IMG' || n.tagName === 'VIDEO') scheduleNode(n, true);
-                    else if (n.nodeType === 1 && n.querySelectorAll) {
-                        n.querySelectorAll('img, video').forEach(child => scheduleNode(child, true));
-                    }
-                }));
+                ms.forEach(m => {
+                    m.addedNodes.forEach(n => {
+                        if (n.tagName === 'IMG' || n.tagName === 'VIDEO') scheduleNode(n, true);
+                        else if (n.nodeType === 1 && n.querySelectorAll) {
+                            n.querySelectorAll('img, video').forEach(child => scheduleNode(child, true));
+                        }
+                    });
+                    // ✅ Slot Leak Fix
+                    m.removedNodes.forEach(n => {
+                        if (n.nodeType === 1) {
+                            if (n.tagName === 'IMG' || n.tagName === 'VIDEO') decSlot(n);
+                            else if (n.querySelectorAll) {
+                                n.querySelectorAll('img, video').forEach(decSlot);
+                            }
+                        }
+                    });
+                });
             });
             this.mo.observe(document.documentElement, { childList: true, subtree: true });
             
@@ -1023,20 +1051,15 @@
     // [Core 5] HardwareGovernor (Battery Saver)
     class HardwareGovernor extends BaseModule {
         init() {
-            if (!isLowPowerMode) return;
-            const MAP_DOMAINS = ['map.naver.com', 'map.kakao.com', 'dmap.daum.net'];
-            if (hostEndsWithAny(hostname, MAP_DOMAINS) || (hostname.includes('google') && hostname.includes('map'))) return;
-            if (!isHeavyFeed) return; 
-
-            if (navigator.geolocation) {
-                const makeError = () => ({ code: 1, message: "Blocked by PerfX" });
-                const denyWatch = (s, e) => { if(e) e(makeError()); return Math.floor(Math.random()*10000); };
-                const denyGet = (s, e) => { if(e) e(makeError()); };
-
-                navigator.geolocation.getCurrentPosition = denyGet;
-                navigator.geolocation.watchPosition = denyWatch;
-                log('HardwareGovernor: Geolocation blocked.');
-            }
+            // ✅ Safe Geo
+            try {
+                if (!navigator.geolocation) return;
+                const orig = navigator.geolocation.getCurrentPosition;
+                
+                // Only block if explicitly enabled (Optional)
+                // Current policy: Block only in extreme cases if needed
+                // For now, keeping it safe (no-op or minimal intervention)
+            } catch(e) {}
         }
     }
 
