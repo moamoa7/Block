@@ -84,6 +84,7 @@
 
     // ✅ Safe Chunk Scan Utility
     const scanInChunks = (list, limit, step, fn) => {
+        // ✅ Null Guard
         if (!list || typeof list.length !== 'number' || list.length === 0) return;
         let i = 0;
         const run = () => {
@@ -180,7 +181,7 @@
             }
         }
         
-        // Interactive Memory Check
+        // ✅ Check Interactive Memory First
         const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY));
         const now = Date.now();
         if (isInteractiveStored && (now - isInteractiveStored.ts) < 86400000) {
@@ -917,8 +918,8 @@
             Bus.on('perfx-route', (e) => {
                 if (e.detail?.force) {
                     currentGen++;
-                    observing.forEach(el => { try{vpObs.unobserve(el);}catch{} });
-                    observing.clear();
+                    observing.clear(); 
+                    imgSlots = 0; vidSlots = 0;
                     rebuildObserver(); 
                 }
                 startProtection(e.detail?.force);
