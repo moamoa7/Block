@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.18 Optimized)
+// @name        Video_Image_Control (v130.18 TT-Safe)
 // @namespace   https://com/
 // @version     130.18
-// @description v130.18: Stability Patch (Frame Isolation, Mutation Back-off), Play Hook, Relaxed Attr Limit.
+// @description v130.18: Stability Patch + TrustedTypes Support for CSP Compatibility.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -41,7 +41,12 @@
 
     // --- Constants ---
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
-    // [Patch] Global token is used for initial handshake only. Children get unique tokens.
+    
+    // [NEW] Trusted Types Policy Definition
+    // Nara Tools의 로직을 도입하여 CSP(보안 정책)가 엄격한 사이트에서도 HTML/CSS 주입 허용
+    const ttPolicy = (window.trustedTypes && window.trustedTypes.createPolicy) ?
+        window.trustedTypes.createPolicy('vsc-safe-policy-' + Math.random().toString(36).slice(2), { createHTML: s => s }) : { createHTML: s => s };
+
     const VSC_HANDSHAKE_TOKEN = (window === window.top)
         ? ((window.crypto && window.crypto.getRandomValues)
             ? Array.from(window.crypto.getRandomValues(new Uint32Array(4))).map(n => n.toString(16).padStart(8, '0')).join('')
@@ -182,12 +187,11 @@
         };
     })();
 
-    // --- [Patch] Play Hook: Detect Real Play Interaction ---
+    // --- Hack: Play Hook ---
     (function hookPlayMethod() {
         try {
             const origPlay = HTMLMediaElement.prototype.play;
             HTMLMediaElement.prototype.play = function (...args) {
-                // Dispatch event so CoreMediaPlugin can pick this up as "Last Interacted"
                 if (window.vscPluginManager) {
                     document.dispatchEvent(new CustomEvent('vsc-media-played', { detail: { target: this } }));
                 }
@@ -469,7 +473,6 @@
                 const tag = this.tagName;
                 if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE') {
                     const len = name.length;
-                    // [Patch] Relaxed limit from 25 to 100 to catch data- properties and base64 strings better
                     if (len < 3 || (len > 100 && !name.startsWith('data-'))) return res;
 
                     const n = name.toLowerCase();
@@ -735,7 +738,7 @@
             const run = () => {
                 try {
                     if (!this.targetVideo || !this.ctx) return;
-                    this.processFrame(true); // allowPausedOnce = true
+                    this.processFrame(true);
                 } catch {}
             };
             try { queueMicrotask(run); } catch { setTimeout(run, 0); }
@@ -967,10 +970,7 @@
                     const key = (this.targetVideo.currentSrc || this.targetVideo.src) + '|' + this.targetVideo.videoWidth + 'x' + this.targetVideo.videoHeight;
                     this.taintedCache.set(this.targetVideo, key);
                     this.taintedRetryCache.set(this.targetVideo, Date.now());
-
-                    // [Patch] Explicit Tainted Flag
                     this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, this.targetVideo, true);
-
                     this.stop();
                 }
             }
@@ -1115,7 +1115,6 @@
             this._visibleVideos = new Set();
             this._intersectionRatios = new WeakMap();
             this._domDirty = true;
-            // [Patch] Mutation Backoff
             this._mutationCounter = 0;
             this._isBackoffMode = false;
             this._backoffInterval = null;
@@ -1123,7 +1122,6 @@
         init(stateManager) {
             super.init(stateManager); _corePluginRef = this; VideoAnalyzer.init(stateManager);
             
-            // [Patch] Backoff Logic Loop
             this._backoffInterval = setInterval(() => {
                 if (this._mutationCounter > 60) {
                     if (!this._isBackoffMode) { this._isBackoffMode = true; log("Backoff Mode ON"); }
@@ -1157,7 +1155,6 @@
                     }
                 }, CP(this._ac.signal)));
                 
-                // [Patch] Listen for hooked play events
                 on(document, 'vsc-media-played', (e) => {
                     if (e.detail && e.detail.target) {
                         this.stateManager.set('media.lastInteractedVideo', { el: e.detail.target, ts: Date.now() });
@@ -1294,8 +1291,6 @@
 
                 this.mainObserver = new MutationObserver((mutations) => {
                     this._mutationCounter += mutations.length;
-                    
-                    // [Patch] Backoff Logic
                     if (this._isBackoffMode) {
                         let critical = false;
                         for (const m of mutations) {
@@ -1311,7 +1306,6 @@
                         if (critical) { this._domDirty = true; scheduleScan(null); }
                         return;
                     }
-
                     let dirty = false;
                     if (mutations.length > 50) { this._domDirty = true; scheduleScan(null); return; }
                     for (const m of mutations) {
@@ -1363,7 +1357,6 @@
                             const cy = window.innerHeight / 2;
                             let centerEl = null;
 
-                            // Optimization: Check Center only if needed
                             if (this._visibleVideos.size > 0) {
                                 try {
                                     const stack = document.elementsFromPoint(cx, cy);
@@ -1706,7 +1699,7 @@
     class FrameBridgePlugin extends Plugin {
         constructor() {
             super('FrameBridge');
-            this._children = new Map(); // window -> {id, ts, video, img, token, origin}
+            this._children = new Map();
             this._pruneTimer = null;
             this._heartbeatTimer = null;
             this._bridgeToken = null;
@@ -1724,7 +1717,6 @@
             if (IS_TOP) {
                 this._pruneTimer = setInterval(() => this.pruneRemote(), 10000);
             } else {
-                // Initial Handshake with global token
                 try { window.top.postMessage({ type: 'VSC_HELLO', id: VSC_INSTANCE_ID, token: VSC_HANDSHAKE_TOKEN }, '*'); } catch { }
                 this.subscribe('media.activeMedia', (set) => this.reportStatus());
                 this.subscribe('media.activeImages', (set) => this.reportStatus());
@@ -1759,7 +1751,6 @@
             } catch { }
         }
         broadcast(msg) {
-            // [Patch] Send unique token to each child
             for (const [win, rec] of this._children) {
                 const payload = { ...msg, token: rec.token, from: VSC_INSTANCE_ID };
                 try { win.postMessage(payload, rec.origin !== 'null' ? rec.origin : '*'); } catch { }
@@ -1773,7 +1764,6 @@
                 if (d.type === 'VSC_HELLO' && d.id) {
                     if (!e.source || typeof e.source.postMessage !== 'function') return;
 
-                    // [Patch] Generate Unique Token per Child
                     const childToken = (window.crypto && window.crypto.getRandomValues)
                         ? Array.from(window.crypto.getRandomValues(new Uint32Array(4))).map(n => n.toString(16).padStart(8, '0')).join('')
                         : Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -1793,7 +1783,6 @@
                     if (!e.source || typeof e.source.postMessage !== 'function') return;
 
                     if (!this._children.has(e.source)) {
-                        // Late join logic, same as above
                         const childToken = (window.crypto && window.crypto.getRandomValues)
                             ? Array.from(window.crypto.getRandomValues(new Uint32Array(4))).map(n => n.toString(16).padStart(8, '0')).join('')
                             : Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -1822,7 +1811,7 @@
                 }
             } else {
                 if (d.type === 'VSC_INIT' && d.token && d.snapshot) {
-                    this._bridgeToken = d.token; // Store unique token
+                    this._bridgeToken = d.token;
                     const s = d.snapshot;
                     if (s.playback) this.stateManager.set('playback.targetRate', s.playback.targetRate);
                     if (s.app) this.stateManager.set('app.scriptActive', s.app.scriptActive);
@@ -1832,7 +1821,7 @@
                     return;
                 }
                 if (d.type === 'VSC_CMD') {
-                    if (!d.token || d.token !== this._bridgeToken) return; // Verify unique token
+                    if (!d.token || d.token !== this._bridgeToken) return;
                     if (d.key) this.stateManager.set(d.key, d.value);
                 }
             }
@@ -1909,10 +1898,13 @@
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
                     const style = document.createElement('style');
                     style.id = styleId;
-                    style.textContent = `
+                    
+                    // [Applied TT] Using createHTML for innerHTML assignment on style
+                    const cssContent = `
                         .${className} { filter: url(#${combinedFilterId}) !important; transform: translateZ(0); }
                         .${className}.no-grain { filter: url(#${combinedFilterNoGrainId}) !important; }
                     `;
+                    style.innerHTML = ttPolicy.createHTML(cssContent);
 
                     const buildChain = (id, includeGrain) => {
                         const filter = createSvgElement('filter', { id: id, "color-interpolation-filters": "sRGB" });
@@ -2478,7 +2470,10 @@
             this.stateManager.set('ui.hostElement', this.hostElement);
             this.shadowRoot = this.hostElement.attachShadow({ mode: 'open' });
             this.stateManager.set('ui.shadowRoot', this.shadowRoot);
-            const styleEl = document.createElement('style'); styleEl.textContent = this.getStyles(); this.shadowRoot.appendChild(styleEl);
+            const styleEl = document.createElement('style'); 
+            // [Applied TT] Use TrustedHTML wrapper for styles
+            styleEl.innerHTML = ttPolicy.createHTML(this.getStyles());
+            this.shadowRoot.appendChild(styleEl);
             this.renderAllControls();
             this.mainControlsContainer.prepend(this.hostElement);
         }
