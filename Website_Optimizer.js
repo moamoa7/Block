@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v78.4 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v78.5 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     78.4.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Slot Recovery, Mobile Super-Saver, Smart Generation)
+// @version     78.5.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Type Integrity, Full Lifecycle, Smart Routing)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -33,7 +33,7 @@
 
     // ✅ True Distance Helper
     const distToViewport = (r) => {
-        if (!r) return Infinity; // Treat unknown as far
+        if (!r) return Infinity; 
         if (r.bottom < 0) return -r.bottom; 
         if (r.top > win.innerHeight) return r.top - win.innerHeight; 
         return 0; 
@@ -145,18 +145,35 @@
     // [Safety 0] Crash Guard & Sensitive Detect
     const CRASH_KEY = `perfx-crash:${hostname}`;
     const SESSION_OFF_KEY = `perfx-safe:${hostname}`;
+    const INTENT_RELOAD = `perfx-intent-reload:${hostname}`;
     
     try {
         if (new URLSearchParams(win.location.search).has('perfx-off')) sessionStorage.setItem(SESSION_OFF_KEY, '1');
-        const lastCrash = parseInt(S.get(CRASH_KEY) || '0');
-        if (lastCrash >= 3) { sessionStorage.setItem(SESSION_OFF_KEY, '1'); S.set(CRASH_KEY, '0'); }
         
-        // ✅ Auto-Detect Sensitive Pages
+        // ✅ Intent Reload Check
+        const isIntent = sessionStorage.getItem(INTENT_RELOAD);
+        if (isIntent) {
+            sessionStorage.removeItem(INTENT_RELOAD);
+        } else {
+            const lastCrash = parseInt(S.get(CRASH_KEY) || '0');
+            if (lastCrash >= 3) { sessionStorage.setItem(SESSION_OFF_KEY, '1'); S.set(CRASH_KEY, '0'); }
+            
+            if (!sessionStorage.getItem(SESSION_OFF_KEY)) {
+                S.set(CRASH_KEY, lastCrash + 1);
+                onReady(() => setTimeout(() => S.remove(CRASH_KEY), 15000));
+            }
+        }
+        
+        // Sensitive Detect (Top Only)
         onReady(() => {
+            let isFramed = false; try { isFramed = win.top !== win.self; } catch { isFramed = true; }
+            if (isFramed) return;
+
             const sensitive = document.querySelector('input[type="password"], input[autocomplete="one-time-code"], form[action*="login"], form[action*="pay"]');
             if (sensitive && !sessionStorage.getItem(SESSION_OFF_KEY)) {
                 log('Sensitive Page Detected: Entering Safe Mode');
                 sessionStorage.setItem(SESSION_OFF_KEY, '1');
+                sessionStorage.setItem(INTENT_RELOAD, '1'); // ✅ Prevent crash count inc
                 location.reload();
             }
         });
@@ -164,9 +181,6 @@
         if (sessionStorage.getItem(SESSION_OFF_KEY)) {
             console.warn(`[PerfX] 🚨 Safe Mode Active for ${hostname}`);
             RuntimeConfig = { ...RuntimeConfig, codecMode: 'off', passive: false, gpu: false, memory: false, _sessionSafe: true };
-        } else {
-            S.set(CRASH_KEY, lastCrash + 1);
-            onReady(() => setTimeout(() => S.remove(CRASH_KEY), 10000));
         }
     } catch(e) {}
 
@@ -230,11 +244,10 @@
             perfState.DOM_CAP = Math.min(perfState.DOM_CAP, 1000);
             perfState.MEDIA_CAP = Math.min(perfState.MEDIA_CAP, 250); 
             perfState.DOM_MARGIN = '300px 0px';
-            // ✅ Mobile Viewport Margin
             perfState.NET_MARGIN = `${Math.round(win.innerHeight * 0.6)}px 0px`;
             perfState.INIT_DOM_SCAN = 120;
             perfState.INIT_MEDIA_SCAN = 200;
-            perfState.SCAN_STEP = 50; // ✅ Smoother scan
+            perfState.SCAN_STEP = 50; 
         } else {
             perfState.DOM_MARGIN = perfState.isLowPowerMode ? '400px 0px' : '600px 0px';
             perfState.NET_MARGIN = '50% 0px'; 
@@ -264,6 +277,14 @@
     
     win.addEventListener('perfx-power-change', refreshPerfState);
     navigator.connection?.addEventListener?.('change', refreshPerfState);
+    
+    // ✅ Throttle Resize/Orientation for Mobile
+    let rzT = null;
+    win.addEventListener('resize', () => {
+        clearTimeout(rzT);
+        rzT = setTimeout(() => win.dispatchEvent(new Event('perfx-power-change')), 200);
+    });
+    
     refreshPerfState(); 
 
     // ==========================================
@@ -393,10 +414,10 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '78.4.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '78.5.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V24 (Cause-Based & Adaptive)
+    // 2. Autonomous V23 (Cause-Based & Adaptive)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !isSafeMode) {
         try {
@@ -418,7 +439,7 @@
                 REC_LOAD: (useLoAF ? 50 : 1) * perfState.perfMultiplier
             });
 
-            // ... (Observers for Metrics) ...
+            // ... (Observers same) ...
             if (SUPPORTED_TYPES.has('largest-contentful-paint')) {
                 new PerformanceObserver((list) => {
                     const entries = list.getEntries();
@@ -506,7 +527,6 @@
                     c.downgradeCount = 0;
                 }
 
-                // ... (Downgrade/Restore logic) ...
                 if ((clsDelta > TH.L2_CLS || loadDelta > TH.L2_LOAD) && currentLevel < 2) {
                     if (!c._restore) c._restore = { codecMode: c.codecMode, gpu: c.gpu, memory: c.memory, passive: c.passive };
                     c.downgradeLevel = 2;
@@ -638,7 +658,6 @@
     // [Core 2] CodecOptimizer v2.3
     class CodecOptimizer extends BaseModule {
         init() {
-            // ✅ Safety Check
             if (Config.codecMode === 'off') return;
             if (isVideoSite) return;
 
@@ -652,14 +671,27 @@
                 if (Config.codecMode === 'soft') return v.includes('av01');
                 return false;
             };
-            // ... (Hooks same) ...
-            const hook = (target, prop, isProto, marker) => { /* ... */ };
+
+            const hook = (target, prop, isProto, marker) => {
+                if (!target) return;
+                const root = isProto ? target.prototype : target;
+                if (root[marker]) return;
+                try {
+                    const orig = root[prop];
+                    root[prop] = function(t) {
+                        if (shouldBlock(t)) return isProto ? '' : false;
+                        return orig.apply(this, arguments);
+                    };
+                    root[marker] = true;
+                } catch(e) {}
+            };
+
             if (win.MediaSource) hook(win.MediaSource, 'isTypeSupported', false, Symbol.for('perfx.ms'));
             if (win.HTMLMediaElement) hook(win.HTMLMediaElement, 'canPlayType', true, Symbol.for('perfx.me'));
         }
     }
 
-    // [Core 3] DomWatcher v3.15 (Chunked)
+    // [Core 3] DomWatcher v3.16 (Full Impl)
     class DomWatcher extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -742,9 +774,34 @@
             el.style.contain = 'layout paint'; 
         }
 
-        restoreStyle(el) { /* ... */ const b = this.styleMap.get(el); if(b) { el.style.contentVisibility=b.cv; el.style.contain=b.contain; el.style.containIntrinsicSize=b.cis; this.styleMap.delete(el); } this.optimized.delete(el); }
-        flushRemoved() { /* ... */ }
-        sweepRemovedSubtree(root) { /* ... */ }
+        restoreStyle(el) {
+            const b = this.styleMap.get(el);
+            if (b) {
+                el.style.contentVisibility = b.cv;
+                el.style.contain = b.contain;
+                el.style.containIntrinsicSize = b.cis;
+                this.styleMap.delete(el);
+            }
+            this.optimized.delete(el);
+        }
+        
+        // ✅ Full Impl
+        flushRemoved() {
+            if (this.removedQueue.size === 0 || this.optimized.size === 0) return;
+            for (const root of this.removedQueue) this.sweepRemovedSubtree(root);
+            this.removedQueue.clear();
+            this.gcTimer = null;
+        }
+
+        sweepRemovedSubtree(root) {
+            if (!root || root.nodeType !== 1) return;
+            if (this.optimized.has(root)) this.restoreStyle(root);
+
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+            while(walker.nextNode()) {
+                if (this.optimized.has(walker.currentNode)) this.restoreStyle(walker.currentNode);
+            }
+        }
 
         startIO() {
             if (this.visObs) this.visObs.disconnect();
@@ -779,7 +836,7 @@
             
             if (Config.memory) {
                 const list = document.querySelectorAll(FEED_SEL);
-                scanInChunks(list, perfState.DOM_CAP, perfState.SCAN_STEP, this.observeSafe);
+                scanInChunks(list, perfState.INIT_DOM_SCAN, perfState.SCAN_STEP, this.observeSafe);
             }
         }
 
@@ -815,7 +872,7 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.10 (Live Sync & Smart Generation)
+    // [Core 4] NetworkAssistant v3.10 (Full Lifecycle)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -827,30 +884,33 @@
             
             // ✅ Live Caps with Active Trimming
             let MAX_IMG = 0, MAX_VID = 0;
+            // Use Set for iteration (WeakSet can't)
             const observing = new Set(); 
-            const distMap = new Map();
+            // ✅ WeakMap for Distance (Auto GC)
+            const distMap = new WeakMap(); 
             let imgSlots = 0, vidSlots = 0;
             let vpObs = null;
-            let currentGen = 0; // Generation ID for Route
+            let currentGen = 0;
 
-            // ✅ True Distance Sort
             const updateCaps = () => {
                 const cap = perfState.MEDIA_CAP;
                 MAX_IMG = Math.floor(cap * 0.85);
                 MAX_VID = Math.max(10, cap - MAX_IMG);
-                if (isMobile) MAX_VID = Math.min(MAX_VID, 6); // Strict Mobile Cap
+                if (isMobile) MAX_VID = Math.min(MAX_VID, 6);
                 
+                // Active Trimming
                 if (observing.size > cap) {
+                    // Sort by distance (descending)
                     const sorted = [...observing].sort((a, b) => {
-                        const dA = distToViewport(distMap.get(a)); // Reuse stored rect? No, store dist
-                        const dB = distToViewport(distMap.get(b));
-                        return dB - dA; // Sort descending (farthest first)
+                        const dA = distMap.get(a) ?? Infinity; // ✅ undefined = far
+                        const dB = distMap.get(b) ?? Infinity;
+                        return dB - dA; 
                     });
                     const excess = observing.size - cap;
                     for (let i = 0; i < excess; i++) {
                         const el = sorted[i];
-                        vpObs.unobserve(el);
-                        decSlot(el);
+                        if (vpObs) vpObs.unobserve(el);
+                        decSlot(el); // ✅ Correctly decrements
                     }
                 }
             };
@@ -862,7 +922,8 @@
                 vpObs = new IntersectionObserver((entries) => {
                     entries.forEach(e => {
                         const el = e.target;
-                        distMap.set(el, e.boundingClientRect); // Store Rect for distance calc
+                        // ✅ Store Number
+                        distMap.set(el, distToViewport(e.boundingClientRect));
 
                         if (el.tagName === 'VIDEO') {
                             if (e.isIntersecting) {
@@ -875,9 +936,9 @@
                             return;
                         }
                         
-                        if (e.isIntersecting) nearSet.add(el);
+                        if (e.isIntersecting) nearSet.set(el, currentGen);
                         else { 
-                            farSet.add(el); 
+                            farSet.set(el, currentGen); 
                             applyLazy(el, e.boundingClientRect);
                         }
                         vpObs.unobserve(el);
@@ -886,7 +947,21 @@
                 }, { rootMargin: perfState.NET_MARGIN });
                 
                 observing.forEach(el => vpObs.observe(el));
+                
+                // ✅ Recalculate Slots Integrity
+                imgSlots = 0; vidSlots = 0;
+                observing.forEach(el => {
+                    if (el.tagName === 'VIDEO') vidSlots++; else imgSlots++;
+                });
             };
+
+            // Events
+            win.addEventListener('perfx-power-change', rebuildObserver);
+            win.addEventListener('perfx-config', () => {
+                if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
+                batchQueue.clear();
+                rebuildObserver();
+            });
 
             // Lifecycle
             let protectTimer = null;
@@ -901,19 +976,20 @@
                 }, ms);
             };
 
-            // ✅ Smart Generation & Reset
             win.addEventListener('perfx-route', (e) => {
+                if (e.detail?.force) {
+                    currentGen++;
+                    // Optional: observing.clear() if full reset needed, 
+                    // but keeping observing allows smooth transition.
+                    // Instead, we just protect and let new IO callbacks update generation.
+                    rebuildObserver(); 
+                }
                 startProtection(e.detail?.force);
-                if (e.detail?.force) currentGen++; // New generation
-            });
-            onReady(() => startProtection(true)); // No 1s limit
-            
-            win.addEventListener('perfx-config', () => {
-                if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
-                batchQueue.clear();
-                rebuildObserver();
             });
             
+            onReady(() => startProtection(true)); 
+            
+            // ✅ Full Visibility Impl
             win.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
                     if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
@@ -924,45 +1000,28 @@
                 }
             });
 
-            // ✅ Generation-Aware State
-            // Map<Element, GenerationID>
-            const nearSet = new WeakMap(); 
+            const nearSet = new WeakMap(); // ✅ Correct Type
             const farSet = new WeakMap();
             
             const decSlot = (el) => {
                 if (observing.has(el)) {
                     observing.delete(el);
-                    distMap.delete(el);
                     if (el.tagName === 'VIDEO') vidSlots = Math.max(0, vidSlots - 1);
                     else imgSlots = Math.max(0, imgSlots - 1);
                 }
-                // ✅ Fix: Re-calculate counts just in case
-                // (Optional: Full recalc could be expensive, this delta update is fast enough)
             };
-            
-            // Full Recalc for Safety on Rebuild
-            const recalcSlots = () => {
-                imgSlots = 0; vidSlots = 0;
-                observing.forEach(el => {
-                    if (el.tagName === 'VIDEO') vidSlots++; else imgSlots++;
-                });
-            };
-            // Hook recalc into rebuild
-            const originalRebuild = rebuildObserver;
-            // redefine rebuildObserver to include recalcSlots at end? 
-            // Better to just call recalcSlots inside updateCaps/rebuild flow.
-            
-            const applyLazyNoLayout = (img) => {
+
+            const applyLazy = (img, rect) => {
+                if (!rect) {
+                    try { rect = img.getBoundingClientRect(); } catch { return; }
+                }
+                // Safe View Check
+                if (rect.top < win.innerHeight + 200 && rect.bottom > -200) return;
+
                 if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
                 img.setAttribute('loading', 'lazy');
                 img.setAttribute('decoding', 'async');
                 img.setAttribute('fetchpriority', 'low'); 
-            };
-
-            const applyLazy = (img, rect) => {
-                if (!rect) { applyLazyNoLayout(img); return; }
-                if (rect.top < win.innerHeight + 200 && rect.bottom > -200) return;
-                applyLazyNoLayout(img);
             };
 
             const safeObserve = (el) => {
@@ -993,15 +1052,25 @@
 
                 if (fromMutation && !isProtectionPhase) {
                     if (imgSlots < MAX_IMG) { safeObserve(img); return; }
-                    applyLazyNoLayout(img); return;
+                    // Fallback to lazy (with view check inside applyLazy if we wanted, 
+                    // but without rect we skip view check to avoid reflow.
+                    // Just force lazy for safety if slot full)
+                    img.setAttribute('loading', 'lazy'); 
+                    img.setAttribute('decoding', 'async');
+                    return;
                 }
 
                 if (nearSet.get(img) === currentGen) return; 
-                if (farSet.get(img) === currentGen) { applyLazyNoLayout(img); return; }
+                if (farSet.get(img) === currentGen) { 
+                    img.setAttribute('loading', 'lazy');
+                    img.setAttribute('decoding', 'async');
+                    return; 
+                }
                 
                 safeObserve(img);
             };
 
+            // ✅ Full Flush
             const flushQueue = () => {
                 batchQueue.forEach((fromMutation, node) => {
                     if (!node.isConnected) return;
@@ -1022,7 +1091,6 @@
                 const imgs = document.querySelectorAll('img');
                 const vids = document.querySelectorAll('video');
                 rebuildObserver();
-                recalcSlots(); // Init sync
                 scanInChunks(imgs, perfState.INIT_MEDIA_SCAN, perfState.SCAN_STEP, (n) => scheduleNode(n, false));
                 scanInChunks(vids, perfState.INIT_MEDIA_SCAN, perfState.SCAN_STEP, (n) => scheduleNode(n, false));
             };
@@ -1033,15 +1101,18 @@
                     m.addedNodes.forEach(n => {
                         if (n.tagName === 'IMG' || n.tagName === 'VIDEO') scheduleNode(n, true);
                         else if (n.nodeType === 1 && n.querySelectorAll) {
+                            // ✅ Chunked Deep Scan
                             const list = n.querySelectorAll('img, video');
-                            scanInChunks(list, 200, perfState.SCAN_STEP, (child) => scheduleNode(child, true));
+                            scanInChunks(list, 300, perfState.SCAN_STEP, (child) => scheduleNode(child, true));
                         }
                     });
+                    // ✅ Slot Leak Fix with Chunking
                     m.removedNodes.forEach(n => {
                         if (n.nodeType === 1) {
                             if (n.tagName === 'IMG' || n.tagName === 'VIDEO') decSlot(n);
                             else if (n.querySelectorAll) {
-                                n.querySelectorAll('img, video').forEach(decSlot);
+                                const list = n.querySelectorAll('img, video');
+                                scanInChunks(list, 300, perfState.SCAN_STEP, decSlot);
                             }
                         }
                     });
