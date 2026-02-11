@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.10 Fix)
+// @name        Video_Image_Control (v130.14 BackgroundActive)
 // @namespace   https://com/
-// @version     130.10
-// @description v130.10: Fix "Illegal invocation" in property hooks.
+// @version     130.14
+// @description v130.14: Trigger toggles UI only (Script stays active). Blue indicator added.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -149,7 +149,6 @@
         const origDefineProperties = Object.defineProperties;
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
 
-        // [Fixed] Strict try-catch check to avoid Illegal invocation on window/location objects
         const isMediaEl = (o) => {
             try {
                 return o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
@@ -182,7 +181,7 @@
         };
     })();
 
-    // --- Hack: Intercept Event Listeners (Safe Remove + HandleEvent Support) ---
+    // --- Hack: Intercept Event Listeners ---
     (function interceptRateChange() {
         const origAdd = HTMLMediaElement.prototype.addEventListener;
         const origRemove = HTMLMediaElement.prototype.removeEventListener;
@@ -926,7 +925,8 @@
                         if (parsed.playback) this.state.playback.targetRate = parsed.playback.targetRate || 1.0;
                         if (parsed.app) { if (parsed.app.scriptActive) this.state.app.scriptActive = true; }
                         if (parsed.ui) {
-                            if (parsed.ui.areControlsVisible) { this.state.ui.areControlsVisible = true; this.state.ui.createRequested = true; }
+                            // [Updated] Force UI Closed on Startup (Ignore saved state)
+                            // if (parsed.ui.areControlsVisible) { this.state.ui.areControlsVisible = true; this.state.ui.createRequested = true; }
                             if (parsed.ui.gestureMode) this.state.ui.gestureMode = true;
                         }
                     }
@@ -1551,6 +1551,7 @@
             super('FrameBridge');
             this._children = new Map(); // window -> {id, ts, video, img}
             this._pruneTimer = null;
+            this._heartbeatTimer = null;
         }
         init(stateManager) {
             super.init(stateManager);
@@ -1569,6 +1570,7 @@
                 this.subscribe('media.activeMedia', (set) => this.reportStatus());
                 this.subscribe('media.activeImages', (set) => this.reportStatus());
                 setTimeout(() => this.reportStatus(), 500);
+                this._heartbeatTimer = setInterval(() => { this.reportStatus(); }, 10000);
             }
             this.subscribe('playback.targetRate', (rate) => { if (IS_TOP) this.broadcast({ type: 'VSC_CMD', key: 'playback.targetRate', value: rate }); });
             this.subscribe('videoFilter.*', (key, val) => { if (IS_TOP) this.broadcast({ type: 'VSC_CMD', key, value: val }); });
@@ -1577,7 +1579,8 @@
         pruneRemote() {
             const now = Date.now();
             for (const [win, rec] of this._children) {
-                if (!rec || (now - rec.ts) > 30000) this._children.delete(win);
+                // [Modified] 30s -> 120s timeout
+                if (!rec || (now - rec.ts) > 120000) this._children.delete(win);
             }
             this.recalcRemoteCounts();
         }
@@ -1616,8 +1619,7 @@
 
             if (IS_TOP) {
                 if (d.type === 'VSC_HELLO' && d.id) {
-                    const frameEl = this.findIframeByWindow(e.source);
-                    if (!frameEl || !frameEl.isConnected) return;
+                    if (!e.source || typeof e.source.postMessage !== 'function') return;
 
                     this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0 });
                     const snapshot = {
@@ -1631,7 +1633,19 @@
                     return;
                 }
                 if (d.type === 'VSC_REPORT' && d.id) {
-                    if (!this._children.has(e.source)) return;
+                    if (!e.source || typeof e.source.postMessage !== 'function') return;
+
+                    if (!this._children.has(e.source)) {
+                        this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0 });
+                        const snapshot = {
+                            playback: { targetRate: this.stateManager.get('playback.targetRate') },
+                            videoFilter: this.stateManager.get('videoFilter'),
+                            imageFilter: this.stateManager.get('imageFilter'),
+                            app: { scriptActive: this.stateManager.get('app.scriptActive') },
+                            ui: { areControlsVisible: this.stateManager.get('ui.areControlsVisible') },
+                        };
+                        try { e.source.postMessage({ type: 'VSC_INIT', token: VSC_BRIDGE_TOKEN, snapshot }, '*'); } catch { }
+                    }
                     const rec = this._children.get(e.source);
                     rec.ts = Date.now();
                     rec.video = (d.count | 0);
@@ -1664,6 +1678,7 @@
         destroy() {
             super.destroy();
             if (this._pruneTimer) clearInterval(this._pruneTimer);
+            if (this._heartbeatTimer) clearInterval(this._heartbeatTimer);
         }
     }
 
@@ -2020,7 +2035,8 @@
             this.subscribe('ui.gestureMode', enabled => this.toggleGestureLayer(enabled));
             if (CONFIG.FLAGS.LIVE_DELAY) { this.subscribe('liveStream.delayInfo', info => this.updateDelayMeter(info)); this.subscribe('liveStream.isPinned', () => this.updateDelayMeterVisibility()); }
             this.subscribe('ui.warningMessage', msg => this.showToast(msg));
-            this.subscribe('ui.areControlsVisible', () => this.updateDelayMeterVisibility());
+            this.subscribe('ui.areControlsVisible', () => { this.updateDelayMeterVisibility(); this.updateTriggerStyle(); });
+            this.subscribe('app.scriptActive', () => this.updateTriggerStyle());
             this.updateDelayMeter(this.stateManager.get('liveStream.delayInfo'));
             const vscMessage = sessionStorage.getItem('vsc_message'); if (vscMessage) { this.showToast(vscMessage); sessionStorage.removeItem('vsc_message'); }
             this.boundFullscreenChange = () => { const fullscreenRoot = document.fullscreenElement || document.body; if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) { fullscreenRoot.appendChild(this.globalContainer); } };
@@ -2145,8 +2161,14 @@
                 if (this.wasDragged) { e.stopPropagation(); return; }
                 const isVisible = this.stateManager.get('ui.areControlsVisible');
                 if (_corePluginRef) { _corePluginRef.resetScanInterval(); scheduleScan(null, true); }
-                this.stateManager.set('app.scriptActive', !isVisible);
-                this.stateManager.set('ui.areControlsVisible', !isVisible);
+                if (isVisible) {
+                    // Close UI only, keep script active
+                    this.stateManager.set('ui.areControlsVisible', false);
+                } else {
+                    // Open UI, ensure script is active
+                    this.stateManager.set('app.scriptActive', true);
+                    this.stateManager.set('ui.areControlsVisible', true);
+                }
             });
 
             const rescanTrigger = document.createElement('div'); rescanTrigger.textContent = '↻';
@@ -2173,6 +2195,7 @@
             }
 
             this.updateUIVisibility();
+            this.updateTriggerStyle();
             if (this.stateManager.get('ui.gestureMode')) this.toggleGestureLayer(true);
         }
 
@@ -2193,11 +2216,14 @@
                         },
                         onSingleTap: () => {
                             const cur = this.stateManager.get('ui.areControlsVisible');
-                            this.stateManager.set('app.scriptActive', !cur);
-                            this.stateManager.set('ui.areControlsVisible', !cur);
+                            if (!cur) {
+                                this.stateManager.set('app.scriptActive', true);
+                                this.stateManager.set('ui.areControlsVisible', true);
+                            } else {
+                                this.stateManager.set('ui.areControlsVisible', false);
+                            }
                         },
                         onSwipeDown: () => {
-                            this.stateManager.set('app.scriptActive', false);
                             this.stateManager.set('ui.areControlsVisible', false);
                         }
                     });
@@ -2210,10 +2236,25 @@
             }
         }
 
-        onControlsVisibilityChange(isVisible) {
+        updateTriggerStyle() {
             if (!this.triggerElement) return;
-            this.triggerElement.textContent = isVisible ? '🛑' : '⚡️';
-            this.triggerElement.style.backgroundColor = isVisible ? 'rgba(200, 0, 0, 0.5)' : 'var(--vsc-bg-btn)';
+            const isVisible = this.stateManager.get('ui.areControlsVisible');
+            const isActive = this.stateManager.get('app.scriptActive');
+
+            if (isVisible) {
+                this.triggerElement.textContent = '🛑';
+                this.triggerElement.style.backgroundColor = 'rgba(200, 0, 0, 0.5)'; // Red for Stop/Close
+            } else {
+                this.triggerElement.textContent = '⚡';
+                if (isActive) {
+                    this.triggerElement.style.backgroundColor = 'rgba(52, 152, 219, 0.9)'; // Blue for Active but Hidden
+                } else {
+                    this.triggerElement.style.backgroundColor = 'var(--vsc-bg-btn)'; // Dark for Inactive
+                }
+            }
+        }
+
+        onControlsVisibilityChange(isVisible) {
             if (isVisible && !this.hostElement) { this.createControlsHost(); } if (this.hostElement) { this.hostElement.style.display = isVisible ? 'flex' : 'none'; } if (this.speedButtonsContainer) { const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO'); this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none'; } this.updateUIVisibility();
         }
         updateUIVisibility() {
@@ -2228,10 +2269,6 @@
             const hasAnyImage = hasLocalImage || remoteImage > 0;
             if (this.globalContainer) {
                 this.globalContainer.style.display = (hasAnyVideo || hasAnyImage) ? 'flex' : 'none';
-                if (!hasAnyVideo && !hasAnyImage && controlsVisible) {
-                    this.stateManager.set('app.scriptActive', false);
-                    this.stateManager.set('ui.areControlsVisible', false);
-                }
             }
             if (this.speedButtonsContainer) {
                 this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none';
@@ -2288,9 +2325,20 @@
                 this.subscribe(key, render); render(this.stateManager.get(key)); return btn;
             };
 
-            topRow.append(createToggle('📸 자동노출', 'videoFilter.autoExposure'));
+            const powerBtn = document.createElement('button'); powerBtn.className = 'vsc-btn vsc-btn-lg'; powerBtn.textContent = '⏸︎'; powerBtn.title = '전체 기능 끄기';
+            Object.assign(powerBtn.style, { width: '40px', flex: '0 0 40px', color: '#e74c3c' });
+            powerBtn.onclick = () => {
+                this.stateManager.set('app.scriptActive', false);
+                this.stateManager.set('ui.areControlsVisible', false);
+                this.showToast('Script OFF');
+            };
+
+            topRow.append(powerBtn);
+            topRow.append(createToggle('📸 자동', 'videoFilter.autoExposure'));
             topRow.append(createToggle('🖐 제스처', 'ui.gestureMode'));
-            const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn vsc-btn-lg'; videoResetBtn.textContent = '↺ 초기화';
+
+            const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn vsc-btn-lg'; videoResetBtn.textContent = '↺'; videoResetBtn.title = '필터 초기화';
+            Object.assign(videoResetBtn.style, { width: '40px', flex: '0 0 40px' });
             videoResetBtn.onclick = () => { this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, clarity: 0, autoExposure: false, targetLuma: 0, highlights: 0, shadows: 0, gamma: 1.0, saturation: 100, contrastAdj: 1.0, dither: 0, colorTemp: 0 }); };
             topRow.append(videoResetBtn);
 
