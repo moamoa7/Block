@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.16 InstantActive + FastTarget)
+// @name        Video_Image_Control (v130.17 Instant Force-Kick)
 // @namespace   https://com/
-// @version     130.16
-// @description v130.16: Fixed 5s delay on EV change (Immediate Video Targeting).
+// @version     130.17
+// @description v130.17: Instant EV (Paused Force-Kick), Smart Video Targeting (PiP/FS/Center), Fast Slider Response.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -666,6 +666,27 @@
         },
         // NEW: Immediately pick best candidate
         _pickBestVideoNow() {
+            // 1) PiP
+            const pip = document.pictureInPictureElement;
+            if (pip && pip.isConnected && pip.tagName === 'VIDEO') return pip;
+
+            // 2) Fullscreen
+            const fs = document.fullscreenElement;
+            if (fs) {
+                const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video');
+                if (v && v.isConnected) return v;
+            }
+
+            // 3) Center Point
+            try {
+                const cx = innerWidth / 2, cy = innerHeight / 2;
+                const stack = document.elementsFromPoint(cx, cy);
+                for (const el of stack) {
+                    const v = (el && el.tagName === 'VIDEO') ? el : el.querySelector?.('video');
+                    if (v && v.isConnected) return v;
+                }
+            } catch {}
+
             const sm = this.stateManager;
             let v = sm ? sm.get('media.currentlyVisibleMedia') : null;
             if (v && v.isConnected && v.tagName === 'VIDEO') return v;
@@ -697,6 +718,16 @@
                 if (best) return best;
             }
             return document.querySelector('video');
+        },
+        _kickImmediateAnalyze() {
+            const run = () => {
+                try {
+                    if (!this.targetVideo || !this.ctx) return;
+                    this.processFrame(true); // allowPausedOnce = true
+                } catch {}
+            };
+            try { queueMicrotask(run); } catch { setTimeout(run, 0); }
+            requestAnimationFrame(run);
         },
         start(video, settings) {
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
@@ -735,7 +766,7 @@
                 this._userBoostUntil = now + 1500;
 
                 if (evChanged || aeTurnedOn) {
-                    this._evAggressiveUntil = now + 500; // 0.5s aggressive window
+                    this._evAggressiveUntil = now + 800; // Increased to 800ms
                     this.dynamicSkipThreshold = 0;
                 }
                 
@@ -755,7 +786,7 @@
 
             const isClarityActive = this.currentSettings.clarity > 0;
             const isAutoExposure = this.currentSettings.autoExposure;
-            // NEW: Use _pickBestVideoNow to force start immediately without waiting for scan
+            
             if (isClarityActive || isAutoExposure) {
                 const best = this._pickBestVideoNow();
                 if (best) {
@@ -764,6 +795,10 @@
                         clarity: this.currentSettings.clarity,
                         targetLuma: this.currentSettings.targetLuma
                     });
+                }
+                // Force immediate analysis
+                if (evChanged || aeTurnedOn) {
+                    this._kickImmediateAnalyze();
                 }
             } else if (!isClarityActive && !isAutoExposure && this.isRunning) {
                 this.stop();
@@ -780,9 +815,12 @@
                 setTimeout(() => this.loop(), delay);
             }
         },
-        processFrame() {
+        processFrame(allowPausedOnce = false) {
             if (!this.targetVideo || this.targetVideo.ended) { this.stop(); return; }
-            if (this.targetVideo.paused || document.hidden) {
+            
+            if (document.hidden) return; // Skip background analysis
+
+            if (this.targetVideo.paused && !allowPausedOnce) {
                 if (!this._stopTimeout) this._stopTimeout = setTimeout(() => this.stop(), 2000);
                 return;
             }
@@ -2411,6 +2449,9 @@
             slider.oninput = () => {
                 const val = parseFloat(slider.value); updateText(val);
                 if (stateKey.startsWith('videoFilter.')) { VideoAnalyzer._userBoostUntil = performance.now() + 500; if (stateKey.includes('level') || stateKey.includes('level2')) this.stateManager.set('videoFilter.activeSharpPreset', 'custom'); }
+                if (stateKey === 'videoFilter.targetLuma') {
+                    if (_corePluginRef) { _corePluginRef.resetScanInterval(); scheduleScan(null, true); }
+                }
                 this.showToast(`${label}: ${formatFn ? formatFn(val) : val + unit}`);
                 debouncedSetState(val);
             };
