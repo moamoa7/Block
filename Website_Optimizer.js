@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v79.1 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v79.2 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     79.1.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Live Collection, Smart Shield, LCP Learning, Reset Menu)
+// @version     79.2.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Full Code, SPA Hero Inference, Dynamic Interactive, Smart Guard)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -20,7 +20,14 @@
     const S = {
         get(k) { try { return localStorage.getItem(k); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, v); } catch {} },
-        remove(k) { try { localStorage.removeItem(k); } catch {} }
+        remove(k) { try { localStorage.removeItem(k); } catch {} },
+        clearPrefix(prefix) {
+            try {
+                Object.keys(localStorage).forEach(k => {
+                    if (k.startsWith(prefix)) localStorage.removeItem(k);
+                });
+            } catch {}
+        }
     };
 
     // [Util] Helpers
@@ -39,7 +46,9 @@
         if (document.readyState !== 'loading') cb();
         else win.addEventListener('DOMContentLoaded', cb, { once: true });
     };
-    const getRouteBucket = () => win.location.pathname.split('/').filter(Boolean).slice(0, 2).join('/');
+    
+    // ✅ Unified Bucket Logic
+    const getPathBucket = () => win.location.pathname.split('/').filter(Boolean).slice(0, 2).join('/');
     const fresh = (obj, ms) => obj && obj.ts && (Date.now() - obj.ts) < ms;
 
     // ✅ Safe Event Bus (Document Support)
@@ -73,7 +82,7 @@
     
     const API = { 
         profile: () => {}, toggleConfig: () => {}, toggleSessionSafe: () => {},
-        shutdownMemory: () => {}, restartMemory: () => {}, resetAll: () => {} 
+        shutdownMemory: () => {}, restartMemory: () => {}, resetAll: () => {}
     };
 
     const scheduler = {
@@ -124,18 +133,12 @@
     // [Config & State]
     const hostname = win.location.hostname.toLowerCase();
     
-    const getLcpKey = () => {
-        const lcpKeyBase = `PerfX_LCP_${hostname}`;
-        const pathSegs = win.location.pathname.split('/').filter(Boolean).map(s => {
-            if (/^\d+$/.test(s)) return ':id';
-            if (/^[0-9a-f-]{36}$/i.test(s)) return ':uuid';
-            if (s.length > 24 || /^[0-9a-z_-]{20,}$/i.test(s)) return ':token';
-            return s;
-        });
-        const pathBucket = pathSegs.slice(0, 2).join('/'); 
-        return `${lcpKeyBase}:${pathBucket}`;
-    };
+    // ✅ Dynamic Keys
+    const getLcpKey = () => `PerfX_LCP_${hostname}:${getPathBucket()}`;
+    const getInteractiveKey = () => `perfx-interactive:${hostname}:${getPathBucket()}`;
+    
     let LCP_KEY = getLcpKey();
+    let INTERACTIVE_KEY = getInteractiveKey();
 
     // Runtime Configuration
     let RuntimeConfig = {};
@@ -155,11 +158,10 @@
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // [Safety 0] Crash Guard & Sensitive Detect
+    // [Safety 0] Crash Guard
     const CRASH_KEY = `perfx-crash:${hostname}`;
     const SESSION_OFF_KEY = `perfx-safe:${hostname}`;
     const INTENT_RELOAD = `perfx-intent-reload:${hostname}`;
-    const INTERACTIVE_KEY = `perfx-interactive:${hostname}:${getRouteBucket()}`; // ✅ Path Bucket
     
     try {
         if (new URLSearchParams(win.location.search).has('perfx-off')) sessionStorage.setItem(SESSION_OFF_KEY, '1');
@@ -173,17 +175,22 @@
             
             if (!sessionStorage.getItem(SESSION_OFF_KEY)) {
                 S.set(CRASH_KEY, lastCrash + 1);
-                win.addEventListener('load', () => setTimeout(() => S.remove(CRASH_KEY), 5000));
-                setTimeout(() => S.remove(CRASH_KEY), 15000); 
+                // Safe clear on idle or load
+                if (win.requestIdleCallback) win.requestIdleCallback(() => S.remove(CRASH_KEY), { timeout: 10000 });
+                else win.addEventListener('load', () => setTimeout(() => S.remove(CRASH_KEY), 5000));
             }
         }
         
-        // Interactive Memory Check
-        const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY));
-        if (fresh(isInteractiveStored, 86400000)) {
-            log('Interactive Site Known: Starting Safe');
-            RuntimeConfig = { ...RuntimeConfig, passive: false, memory: false, gpu: false };
-        }
+        // Interactive Memory Check (Dynamic)
+        const applyInteractiveMemory = () => {
+            const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY));
+            if (fresh(isInteractiveStored, 86400000)) {
+                log('Interactive Site Known: Starting Safe');
+                RuntimeConfig = { ...RuntimeConfig, passive: false, memory: false, gpu: false };
+                Object.assign(Config, { passive: false, memory: false, gpu: false });
+            }
+        };
+        applyInteractiveMemory(); // Init check
 
         onReady(() => {
             let isFramed = false; try { isFramed = win.top !== win.self; } catch { isFramed = true; }
@@ -191,7 +198,6 @@
 
             const sensitive = document.querySelector('input[type="password"], input[autocomplete="one-time-code"], form[action*="login"], form[action*="pay"]');
             if (sensitive && !sessionStorage.getItem(SESSION_OFF_KEY)) {
-                log('Sensitive Page Detected: Entering Safe Mode');
                 sessionStorage.setItem(SESSION_OFF_KEY, '1');
                 sessionStorage.setItem(INTENT_RELOAD, '1'); 
                 location.reload();
@@ -209,8 +215,7 @@
                 if (mapOrEditor || hugeCanvas) {
                     log('Interactive App Detected: Disabling Aggressive Mods');
                     S.set(INTERACTIVE_KEY, JSON.stringify({ ts: Date.now() }));
-                    Config.passive = false; 
-                    Config.gpu = false;
+                    Config.passive = false; Config.gpu = false;
                     if (Config.memory) { Config.memory = false; API.shutdownMemory(); }
                     return true;
                 }
@@ -236,7 +241,7 @@
     const isVideoSite = hostEndsWithAny(hostname, LISTS.OTT_KR);
     const isSafeMode = isCritical || RuntimeConfig._sessionSafe;
 
-    // [Power State & Unified State Manager]
+    // [Power State]
     const baseLowPower = (navigator.hardwareConcurrency ?? 4) < 4; 
     
     const perfState = {
@@ -350,12 +355,10 @@
     const qState = checkQuarantine();
     if (qState) {
         RuntimeConfig = { ...RuntimeConfig, ...qState.modules };
-        log('Quarantine Active:', qState.modules);
     }
 
     const calculatedConfig = {
         codecMode: RuntimeConfig.codecMode ?? 'hard',
-        // ✅ Safe Default: !isLayoutSensitive
         passive: RuntimeConfig.passive ?? (!isLayoutSensitive),
         gpu: RuntimeConfig.gpu ?? (!isLayoutSensitive && !perfState.isLowPowerMode),
         memory: RuntimeConfig.memory ?? (!isLayoutSensitive && !isHeavyFeed),
@@ -394,10 +397,9 @@
              else sessionStorage.setItem(SESSION_OFF_KEY, '1');
              location.reload();
         },
-        // ✅ Reset Menu
+        // ✅ Robust Reset
         resetAll: () => {
-            S.remove(Q_KEY); S.remove(INTERACTIVE_KEY);
-            S.remove(Env.storageKey);
+            ['PerfX_', 'perfx-'].forEach(prefix => S.clearPrefix(prefix));
             location.reload();
         }
     });
@@ -406,6 +408,38 @@
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
     
+    // ✅ SPA Hero Inference
+    const detectHeroImage = () => {
+        setTimeout(() => {
+            // Find biggest visible image
+            let maxArea = 0, heroUrl = null;
+            const imgs = document.querySelectorAll('img');
+            for(let i=0; i<Math.min(imgs.length, 20); i++) {
+                const r = imgs[i].getBoundingClientRect();
+                const area = r.width * r.height;
+                if (area > maxArea && r.top < win.innerHeight && r.bottom > 0) {
+                    maxArea = area;
+                    heroUrl = imgs[i].currentSrc || imgs[i].src;
+                }
+            }
+            if (heroUrl) {
+                const nUrl = normUrl(heroUrl);
+                if (RuntimeConfig._lcp !== nUrl) {
+                    RuntimeConfig._lcp = nUrl;
+                    persistLCP(); // Save it
+                }
+            }
+        }, 1000); // 1s after route
+    };
+
+    // ✅ LCP Persistence
+    let lcpWriteT = null;
+    const persistLCP = () => { if (RuntimeConfig._lcp) S.set(LCP_KEY, RuntimeConfig._lcp); };
+    const schedulePersistLCP = () => {
+        clearTimeout(lcpWriteT);
+        lcpWriteT = setTimeout(persistLCP, 1200);
+    };
+
     const emitRoute = (force) => {
         const now = Date.now();
         const throttle = force ? 5000 : 1000;
@@ -418,11 +452,17 @@
     const onRoute = () => {
         const nextKey = getLcpKey();
         if (nextKey !== lastKey) {
-            if (RuntimeConfig._lcp) S.set(lastKey, RuntimeConfig._lcp);
+            persistLCP(); // Save old
             lastKey = nextKey;
             LCP_KEY = nextKey;
+            
+            // ✅ Dynamic Interactive Key Update
+            INTERACTIVE_KEY = `perfx-interactive:${hostname}:${getPathBucket()}`;
+            applyInteractiveMemory(); // Re-check config
+            
             RuntimeConfig._lcp = S.get(LCP_KEY) || null;
             emitRoute(true); 
+            detectHeroImage(); // Infer new hero
         } else {
             emitRoute(false); 
         }
@@ -435,6 +475,8 @@
         const origRep = history.replaceState;
         history.replaceState = function() { origRep.apply(this, arguments); onRoute(); };
         win.addEventListener('popstate', onRoute);
+        // ✅ BFCache
+        win.addEventListener('pageshow', (e) => { if(e.persisted) Bus.emit('perfx-route', { force: true }); });
     }
 
     if (typeof GM_registerMenuCommand !== 'undefined') {
@@ -443,7 +485,7 @@
         } else {
             GM_registerMenuCommand(`🚫 끄기 (영구)`, () => API.toggleConfig('disabled'));
             GM_registerMenuCommand(`⏸ 이번 세션만 끄기`, API.toggleSessionSafe);
-            GM_registerMenuCommand(`🧹 설정 초기화`, API.resetAll);
+            GM_registerMenuCommand(`🧹 설정/학습 초기화`, API.resetAll);
             GM_registerMenuCommand(`⚡ 모드: 울트라`, () => API.profile('ultra'));
             GM_registerMenuCommand(`⚖️ 모드: 균형`, () => API.profile('balanced'));
             GM_registerMenuCommand(`🛡️ 모드: 안전`, () => API.profile('safe'));
@@ -457,10 +499,10 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '79.1.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '79.2.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V27 (LCP Recorder)
+    // 2. Autonomous V27 (LCP Recorder & Smart Quarantine)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !RuntimeConfig._sessionSafe) {
         try {
@@ -471,7 +513,6 @@
             if (SUPPORTED_TYPES.has('layout-shift')) { new PerformanceObserver((l)=> { for(const e of l.getEntries()) if(!e.hadRecentInput) clsTotal+=e.value; }).observe({type:'layout-shift',buffered:true}); }
             if (SUPPORTED_TYPES.has('longtask')) { new PerformanceObserver((l)=> { loadTotal+=l.getEntries().length; }).observe({type:'longtask',buffered:true}); }
 
-            // ✅ Full LCP Recorder
             if (SUPPORTED_TYPES.has('largest-contentful-paint')) {
                 new PerformanceObserver((list) => {
                     const entries = list.getEntries();
@@ -481,13 +522,15 @@
                         if (url) {
                             const currentLCP = normUrl(url);
                             if (currentLCP !== RuntimeConfig._lcp) {
-                                RuntimeConfig._lcp = currentLCP; // Update live
+                                RuntimeConfig._lcp = currentLCP;
+                                schedulePersistLCP(); // ✅ Debounce Save
                             }
                         }
                     }
                 }).observe({type: 'largest-contentful-paint', buffered: true});
             }
 
+            // ... (hasVideo cache same) ...
             let healthTimer = null;
             let hasVideoCache = null, hasVideoTs = 0;
             const hasVideo = () => {
@@ -532,7 +575,7 @@
                     return; 
                 }
                 
-                // L2
+                // ... (L1/L2 logic same - updates unstableTs) ...
                 if ((clsDelta > TH.L2_CLS || loadDelta > TH.L2_LOAD) && currentLevel < 2) {
                     if (!c._restore) c._restore = { ...Config };
                     c.downgradeLevel = 2;
@@ -543,10 +586,10 @@
                     Env.saveOverrides(c);
                     Object.assign(Config, {gpu:false, memory:false});
                     API.shutdownMemory();
-                    log('Downgrade L2');
+                    log(`Downgrade L2`);
                     recoveryStreak = 0;
                 }
-                // Recovery
+                // Recovery (same)
                 else if (currentLevel > 0 && clsDelta < 0.01 && loadDelta < 1) {
                     recoveryStreak++;
                     if (recoveryStreak >= 4) {
@@ -574,7 +617,11 @@
             
             const startLoop = () => { if (!healthTimer) checkHealth(); };
             const stopLoop = () => { if (healthTimer) clearTimeout(healthTimer); healthTimer = null; };
-            Bus.on('visibilitychange', () => { if (document.hidden) stopLoop(); else startLoop(); }, document);
+            Bus.on('visibilitychange', () => { 
+                if (document.hidden) { stopLoop(); persistLCP(); } // ✅ Persist on hide
+                else startLoop(); 
+            }, document);
+            win.addEventListener('pagehide', persistLCP);
             startLoop();
         } catch(e) {}
     }
@@ -584,7 +631,7 @@
     // ==========================================
     class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // [Core 1] EventPassivator v4.3
+    // [Core 1] EventPassivator v4.4 (Full Check)
     class EventPassivator extends BaseModule {
         init() {
             if (win.__perfx_evt_patched) return;
@@ -594,7 +641,21 @@
             setTimeout(() => { passiveArmed = true; }, 1500);
 
             const needsPDCache = new WeakMap();
-            const checkNeedsPD = (listener) => { /* ... */ return false; }; // Logic restored in prev msg
+            // ✅ Full Logic
+            const checkNeedsPD = (listener) => {
+                if (!listener) return false;
+                if (needsPDCache.has(listener)) return needsPDCache.get(listener);
+                let res = false;
+                try {
+                    const fn = typeof listener === 'function' ? listener : listener.handleEvent;
+                    if (fn) {
+                        const str = Function.prototype.toString.call(fn);
+                        res = str.includes('preventDefault') || str.includes('returnValue');
+                    }
+                } catch {}
+                needsPDCache.set(listener, res);
+                return res;
+            };
 
             const targets = [win.EventTarget && win.EventTarget.prototype].filter(Boolean);
             targets.forEach(proto => {
@@ -606,7 +667,16 @@
                         if (this instanceof Element && this.closest && this.closest('.mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas')) {
                             return origAdd.call(this, type, listener, options);
                         }
-                        // ...
+
+                        const isObj = typeof options === 'object' && options !== null;
+                        if (!isObj || options.passive === undefined) {
+                            if (!checkNeedsPD(listener)) {
+                                try { 
+                                    let finalOptions = isObj ? { ...options, passive: true } : { capture: options === true, passive: true };
+                                    return origAdd.call(this, type, listener, finalOptions);
+                                } catch (e) {}
+                            }
+                        }
                     }
                     return origAdd.call(this, type, listener, options);
                 };
@@ -621,66 +691,182 @@
             if (isVideoSite) return;
             
             // ✅ Late Recheck
-            const hasVideo = !!document.querySelector('video, source[type*="video"]');
-            if (hasVideo && Config.codecMode === 'hard') Config.codecMode = 'soft';
             setTimeout(() => {
                 if (document.querySelector('video, source[type*="video"]') && Config.codecMode === 'hard') {
                     Config.codecMode = 'soft';
                 }
             }, 800);
 
-            const shouldBlock = (t) => { /* ... */ return false; };
-            const hook = (target, prop, isProto, marker) => { /* ... */ };
+            const shouldBlock = (t) => {
+                if (typeof t !== 'string') return false;
+                const v = t.toLowerCase();
+                if (Config.codecMode === 'hard') {
+                    if (perfState.isLowPowerMode) return v.includes('av01') || /vp9|vp09/.test(v);
+                    return false;
+                }
+                if (Config.codecMode === 'soft') return v.includes('av01');
+                return false;
+            };
+
+            const hook = (target, prop, isProto, marker) => {
+                if (!target) return;
+                const root = isProto ? target.prototype : target;
+                if (root[marker]) return;
+                try {
+                    const orig = root[prop];
+                    root[prop] = function(t) {
+                        if (shouldBlock(t)) return isProto ? '' : false;
+                        return orig.apply(this, arguments);
+                    };
+                    root[marker] = true;
+                } catch(e) {}
+            };
+
             if (win.MediaSource) hook(win.MediaSource, 'isTypeSupported', false, Symbol.for('perfx.ms'));
             if (win.HTMLMediaElement) hook(win.HTMLMediaElement, 'canPlayType', true, Symbol.for('perfx.me'));
         }
     }
 
-    // [Core 3] DomWatcher v3.20 (Subtree Guard)
+    // [Core 3] DomWatcher v3.20 (Subtree Guard & Full Logic)
     class DomWatcher extends BaseModule {
         init() {
             if (isSafeMode) return;
-            // ... (setup) ...
-            
-            API.shutdownMemory = () => { /* ... */ };
-            API.restartMemory = () => { /* ... */ };
-            
+            this.supportsCV = 'contentVisibility' in document.documentElement.style;
+            if (Config.memory && !this.supportsCV) Config.memory = false;
+            if (!('IntersectionObserver' in win)) return;
+
+            this.styleMap = new WeakMap();
+            this.optimized = new Set();
+            this.removedQueue = new Set();
+            this.gcTimer = null;
+
+            API.shutdownMemory = () => {
+                if (this.mutObs) { this.mutObs.disconnect(); this.mutObs = null; }
+                if (this.visObs) { this.visObs.disconnect(); this.visObs = null; }
+                if (this.optimized.size > 0) {
+                    const arr = [...this.optimized];
+                    const processRestore = () => {
+                        const chunk = arr.splice(0, 100);
+                        for (const el of chunk) this.restoreStyle(el);
+                        if (arr.length > 0) scheduler.request(processRestore);
+                        else this.optimized.clear();
+                    };
+                    processRestore();
+                }
+                if (Config.gpu) this.startIO(); 
+            };
+
+            API.restartMemory = () => {
+                if (Config.memory) { this.startIO(); this.startMO(); } 
+                else if (Config.gpu) { this.startIO(); }
+            };
+
             onReady(() => { if(Config.memory || Config.gpu) { this.startIO(); this.startMO(); } });
             
-            Bus.on('perfx-power-change', () => { /* ... */ });
+            Bus.on('perfx-power-change', () => {
+                if (this.ioTimeout) clearTimeout(this.ioTimeout);
+                this.ioTimeout = setTimeout(() => this.startIO(), 1000);
+            });
             Bus.on('perfx-config', () => { API.shutdownMemory(); API.restartMemory(); });
             Bus.on('perfx-route', () => { API.shutdownMemory(); API.restartMemory(); });
         }
 
         applyOptimization(el, rect) {
             if (this.styleMap.has(el)) return;
-            // Fast Filters
             const tn = el.tagName;
             if (tn === 'SCRIPT' || tn === 'STYLE' || tn === 'META' || tn === 'VIDEO' || tn === 'CANVAS' || tn === 'IFRAME' || tn === 'FORM') return;
-            if (el.hasAttribute('aria-live')) return;
-            if (el.isContentEditable) return;
+            if (el.hasAttribute('aria-live') || el.isContentEditable) return;
             
             if (!rect || rect.height < 50 || rect.width < 50) return;
             
-            // ✅ Subtree Guard (Only for large containers)
+            // ✅ Smart Subtree Guard (Only check big elements)
             if (rect.width * rect.height > (win.innerWidth * win.innerHeight * 0.15)) {
-                if (el.querySelector('video,canvas,iframe,form,[aria-live],[contenteditable]')) return;
+                // Also check child count to avoid scanning massive trees? 
+                // Let's stick to querySelector for now as it's optimized in browsers.
+                if (el.childElementCount > 6 && el.querySelector('video,canvas,iframe,form,[aria-live],[contenteditable]')) return;
             }
             
             const style = getComputedStyle(el);
-            // ... (rest same) ...
-            this.styleMap.set(el, { /*...*/ });
+            if (style.position === 'sticky' || style.position === 'fixed') return;
+            if (/(auto|scroll)/.test(style.overflow + style.overflowY + style.overflowX)) return;
+
+            this.styleMap.set(el, {
+                cv: el.style.contentVisibility,
+                contain: el.style.contain,
+                cis: el.style.containIntrinsicSize
+            });
             this.optimized.add(el);
-            // ...
+
+            const w = Math.min(2000, Math.ceil(rect.width));
+            const h = Math.min(2000, Math.ceil(rect.height));
+            el.style.containIntrinsicSize = `${w}px ${h}px`;
+            el.style.contentVisibility = 'auto';
+            el.style.contain = 'layout paint'; 
         }
 
-        // ... (restoreStyle, flushRemoved, sweepRemovedSubtree same) ...
-        restoreStyle(el) { /*...*/ } flushRemoved() { /*...*/ } sweepRemovedSubtree(root) { /*...*/ }
+        restoreStyle(el) {
+            const b = this.styleMap.get(el);
+            if (b) {
+                el.style.contentVisibility = b.cv;
+                el.style.contain = b.contain;
+                el.style.containIntrinsicSize = b.cis;
+                this.styleMap.delete(el);
+            }
+            this.optimized.delete(el);
+        }
+        
+        flushRemoved() {
+            if (this.removedQueue.size === 0) return;
+            for (const root of this.removedQueue) this.sweepRemovedSubtree(root);
+            this.removedQueue.clear();
+            this.gcTimer = null;
+        }
+
+        sweepRemovedSubtree(root) {
+            if (!root || root.nodeType !== 1) return;
+            if (this.optimized.has(root)) this.restoreStyle(root);
+            
+            // ✅ TreeWalker
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+            while (walker.nextNode()) {
+                const el = walker.currentNode;
+                if (this.optimized.has(el)) this.restoreStyle(el);
+            }
+        }
 
         startIO() {
-            // ...
+            if (this.visObs) this.visObs.disconnect();
+            if (!Config.memory && !Config.gpu) return;
+
+            this.obsCount = 0; 
+            this.observed = new WeakSet(); 
+            const margin = perfState.DOM_MARGIN; 
+            
+            this.visObs = new IntersectionObserver((entries) => {
+                entries.forEach(e => {
+                    if (!e.target.isConnected) return;
+                    if (Config.gpu && e.target.tagName === 'CANVAS') {
+                        e.target.style.visibility = e.isIntersecting ? 'visible' : 'hidden';
+                    } 
+                    else if (Config.memory && this.supportsCV) {
+                        if (e.isIntersecting) this.restoreStyle(e.target);
+                        else this.applyOptimization(e.target, e.boundingClientRect);
+                    }
+                });
+            }, { rootMargin: margin, threshold: 0.01 });
+
+            this.observeSafe = (el) => { 
+                if (el && this.obsCount < perfState.DOM_CAP && !this.observed.has(el)) {
+                    this.visObs.observe(el);
+                    this.observed.add(el);
+                    this.obsCount++;
+                }
+            };
+
+            if (Config.gpu) document.querySelectorAll('canvas').forEach(this.observeSafe);
+            
             if (Config.memory) {
-                // ✅ Hybrid Scan
+                // ✅ Hybrid Scan (Children + Top Items)
                 const root = document.querySelector(FEED_SEL) || document.body;
                 scanInChunks(root.children, perfState.INIT_DOM_SCAN, perfState.SCAN_STEP, this.observeSafe);
                 
@@ -693,11 +879,22 @@
             if (!Config.memory) return;
             if (this.mutObs) this.mutObs.disconnect();
             
-            // ✅ Targeted MO
             const target = document.querySelector(FEED_SEL) || document.body;
+            
             this.mutObs = new MutationObserver(ms => {
                 ms.forEach(m => {
-                    // ...
+                    if (this.obsCount < perfState.DOM_CAP) {
+                        m.addedNodes.forEach(n => {
+                            if (n.nodeType === 1) this.observeSafe(n); 
+                            if (n.querySelectorAll) {
+                                const list = n.querySelectorAll(ITEM_SEL); // ✅ Targeted
+                                scanInChunks(list, 50, perfState.SCAN_STEP, this.observeSafe);
+                            }
+                        });
+                    }
+                    m.removedNodes.forEach(n => {
+                        if (n.nodeType === 1) this.removedQueue.add(n);
+                    });
                 });
                 if (this.removedQueue.size > 0 && !this.gcTimer) {
                     this.gcTimer = scheduler.request(() => this.flushRemoved(), 200);
@@ -707,39 +904,230 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.16 (Light Collection & Guaranteed Boot)
+    // [Core 4] NetworkAssistant v3.17 (Guaranteed Boot & Robust Sort)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
 
             const getLCP = () => RuntimeConfig._lcp || S.get(LCP_KEY);
-            // ...
+            const batchQueue = new Map();
+            let batchTimer = null;
+            let isProtectionPhase = true;
             
-            const rebuildObserver = () => { /* ... */ };
+            const distMap = new WeakMap(); 
+            const observing = new Set(); 
+            let imgSlots = 0, vidSlots = 0;
+            let MAX_IMG = 0, MAX_VID = 0;
+            let vpObs = null;
+            let currentGen = 0;
 
-            // ... (Events/Lifecycle) ...
-
-            // ... (process/apply functions) ...
-
-            // ✅ Live Collection Scan
-            const run = () => { 
-                rebuildObserver(); // ✅ Guaranteed Boot
+            const updateCaps = () => {
+                const cap = perfState.MEDIA_CAP;
+                MAX_IMG = Math.floor(cap * 0.85);
+                MAX_VID = Math.max(10, cap - MAX_IMG);
+                if (isMobile) MAX_VID = Math.min(MAX_VID, 6);
                 
-                // ✅ Live Collection (Faster)
+                if (observing.size > cap) {
+                    const sorted = [...observing].sort((a, b) => {
+                        const dA = distMap.get(a) ?? -1; 
+                        const dB = distMap.get(b) ?? -1;
+                        const vA = dA === -1 ? 0 : dA; // Keep unknown
+                        const vB = dB === -1 ? 0 : dB;
+                        return vB - vA; // Far first
+                    });
+                    const excess = observing.size - cap;
+                    for (let i = 0; i < excess; i++) {
+                        const el = sorted[i];
+                        if (vpObs) vpObs.unobserve(el);
+                        decSlot(el);
+                    }
+                }
+            };
+
+            const rebuildObserver = () => {
+                if (vpObs) vpObs.disconnect();
+                updateCaps();
+                
+                vpObs = new IntersectionObserver((entries) => {
+                    entries.forEach(e => {
+                        const el = e.target;
+                        distMap.set(el, distToViewport(e.boundingClientRect));
+
+                        if (el.tagName === 'VIDEO') {
+                            if (e.isIntersecting) {
+                                el.setAttribute('preload', 'metadata');
+                                vpObs.unobserve(el);
+                                decSlot(el);
+                            } else {
+                                if (!el.hasAttribute('preload')) el.setAttribute('preload', 'none');
+                            }
+                            return;
+                        }
+                        
+                        if (e.isIntersecting) {
+                            nearSet.set(el, currentGen);
+                        } else { 
+                            farSet.set(el, currentGen); 
+                            setImgLazy(el); 
+                        }
+                        vpObs.unobserve(el);
+                        decSlot(el);
+                    });
+                }, { rootMargin: perfState.NET_MARGIN });
+                
+                observing.forEach(el => vpObs.observe(el));
+                
+                imgSlots = 0; vidSlots = 0;
+                observing.forEach(el => {
+                    if (el.tagName === 'VIDEO') vidSlots++; else imgSlots++;
+                });
+            };
+
+            Bus.on('perfx-power-change', rebuildObserver);
+            Bus.on('perfx-config', () => {
+                if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
+                batchQueue.clear();
+                rebuildObserver();
+            });
+
+            let protectTimer = null;
+            const startProtection = (force = false) => {
+                if (!force && isProtectionPhase) return;
+                const ms = force ? perfState.PROTECT_MS : Math.min(1000, perfState.PROTECT_MS / 3);
+                isProtectionPhase = true;
+                if (protectTimer) clearTimeout(protectTimer);
+                protectTimer = setTimeout(() => { isProtectionPhase = false; protectTimer = null; }, ms);
+            };
+
+            Bus.on('perfx-route', (e) => {
+                if (e.detail?.force) {
+                    currentGen++;
+                    observing.clear(); // Safe reset
+                    imgSlots = 0; vidSlots = 0;
+                    rebuildObserver(); 
+                }
+                startProtection(e.detail?.force);
+            });
+            // ✅ Guaranteed Boot (No delay)
+            onReady(() => { startProtection(true); rebuildObserver(); });
+            
+            Bus.on('visibilitychange', () => {
+                if (document.hidden) {
+                    if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
+                    if (this.mo) this.mo.disconnect();
+                } else {
+                    startProtection(false);
+                    if (this.mo) this.mo.observe(document.documentElement, { childList: true, subtree: true });
+                }
+            }, document);
+
+            const nearSet = new WeakMap();
+            const farSet = new WeakMap();
+            
+            const decSlot = (el) => {
+                if (observing.has(el)) {
+                    observing.delete(el);
+                    distMap.delete(el);
+                    if (el.tagName === 'VIDEO') vidSlots = Math.max(0, vidSlots - 1);
+                    else imgSlots = Math.max(0, imgSlots - 1);
+                }
+            };
+            
+            const setImgLazy = (img, setPriority = true) => {
+                if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
+                img.setAttribute('loading', 'lazy');
+                img.setAttribute('decoding', 'async');
+                if (setPriority) img.setAttribute('fetchpriority', 'low');
+            };
+
+            const safeObserve = (el) => {
+                if (!vpObs) return; // Should be ready by run()
+                const isVid = el.tagName === 'VIDEO';
+                if (observing.has(el)) return;
+                if (isVid) { if (vidSlots >= MAX_VID) return; vidSlots++; }
+                else { if (imgSlots >= MAX_IMG) return; imgSlots++; }
+                
+                observing.add(el);
+                vpObs.observe(el);
+            };
+            // ✅ Ensure Observer Exists
+            const ensureObs = () => { if (!vpObs) rebuildObserver(); };
+
+            const processVideo = (vid) => {
+                if (vid.hasAttribute('preload') || isVideoSite) return;
+                if (!perfState.shouldAggressiveVideo && !vid.autoplay) { safeObserve(vid); return; }
+                vid.setAttribute('preload', 'none');
+                safeObserve(vid);
+            };
+
+            const processImg = (img, fromMutation) => {
+                if (img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
+                const lcpUrl = getLCP();
+                if (lcpUrl) {
+                    const cur = normUrl(img.currentSrc || img.src);
+                    if (cur === lcpUrl) { img.setAttribute('loading', 'eager'); img.setAttribute('fetchpriority', 'high'); return; }
+                }
+
+                if (fromMutation && !isProtectionPhase) {
+                    if (imgSlots < MAX_IMG) { safeObserve(img); return; }
+                    setImgLazy(img); 
+                    return;
+                }
+
+                if (nearSet.get(img) === currentGen) return; 
+                if (farSet.get(img) === currentGen) { setImgLazy(img); return; }
+                
+                safeObserve(img);
+            };
+
+            const flushQueue = () => {
+                batchQueue.forEach((fromMutation, node) => {
+                    if (!node.isConnected) return;
+                    if (node.tagName === 'VIDEO') processVideo(node);
+                    else processImg(node, fromMutation);
+                });
+                batchQueue.clear();
+                batchTimer = null;
+            };
+
+            const scheduleNode = (node, fromMutation = false) => {
+                ensureObs(); // ✅ Safety
+                const current = batchQueue.get(node);
+                batchQueue.set(node, current || fromMutation);
+                if (!batchTimer) batchTimer = scheduler.request(flushQueue, 200);
+            };
+
+            const run = () => { 
+                rebuildObserver();
+                // ✅ Live Collection Scan
                 const imgs = document.getElementsByTagName('img');
                 const vids = document.getElementsByTagName('video');
-                
                 scanInChunks(imgs, perfState.INIT_MEDIA_SCAN, perfState.SCAN_STEP, (n) => scheduleNode(n, false));
                 scanInChunks(vids, perfState.INIT_MEDIA_SCAN, perfState.SCAN_STEP, (n) => scheduleNode(n, false));
             };
             onReady(run);
 
-            // ✅ Targeted MO
-            const target = document.querySelector(FEED_SEL) || document.documentElement;
             this.mo = new MutationObserver(ms => {
-                // ...
+                ms.forEach(m => {
+                    m.addedNodes.forEach(n => {
+                        if (n.tagName === 'IMG' || n.tagName === 'VIDEO') scheduleNode(n, true);
+                        else if (n.nodeType === 1 && n.querySelectorAll) {
+                            const list = n.querySelectorAll('img, video');
+                            scanInChunks(list, 300, perfState.SCAN_STEP, (child) => scheduleNode(child, true));
+                        }
+                    });
+                    m.removedNodes.forEach(n => {
+                        if (n.nodeType === 1) {
+                            if (n.tagName === 'IMG' || n.tagName === 'VIDEO') decSlot(n);
+                            else if (n.querySelectorAll) {
+                                const list = n.querySelectorAll('img, video');
+                                scanInChunks(list, 300, perfState.SCAN_STEP, decSlot);
+                            }
+                        }
+                    });
+                });
             });
-            this.mo.observe(target, { childList: true, subtree: true });
+            this.mo.observe(document.documentElement, { childList: true, subtree: true });
             
             win.addEventListener('pagehide', (e) => { 
                 if (!e.persisted && vpObs) vpObs.disconnect(); 
