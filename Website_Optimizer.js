@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v77.7 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v77.8 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     77.7.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Map-Queue Dedupe, Smart Video, Adaptive Protection)
+// @version     77.8.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Slot Reclaiming, Timer Fix, Smart Media Context)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -58,12 +58,11 @@
         return out;
     };
 
-    // Strict Normalization for Stability
     const normUrl = (u) => {
         try {
             if (!u || u.startsWith('data:')) return u;
             const url = new URL(u, win.location.href);
-            return url.origin + url.pathname; // Strip all queries for better hit rate
+            return url.origin + url.pathname; // Strict Mode
         } catch { return u; }
     };
 
@@ -157,8 +156,9 @@
     let MAX_IMG_OBS_VAL = 800; 
     let DEEP_SCAN_LIMIT = 200;
     let DOM_MARGIN = '600px 0px';
+    let NETWORK_MARGIN = '50% 0px'; // NetworkAssistant margin
     let INIT_SCAN_CAP = 300;
-    let PROTECT_MS = 3000; // Adaptive Protection Time
+    let PROTECT_MS = 3000; 
 
     const applyPowerPolicy = () => {
         if (isLowPowerMode) {
@@ -197,10 +197,12 @@
             MAX_IMG_OBS_VAL = Math.min(MAX_IMG_OBS_VAL, 250); 
             DEEP_SCAN_LIMIT = 80;
             DOM_MARGIN = '300px 0px';
+            NETWORK_MARGIN = '200px 0px'; // ✅ Tighter for Mobile
             INIT_SCAN_CAP = 120;
         } else {
             DEEP_SCAN_LIMIT = 200;
             DOM_MARGIN = isLowPowerMode ? '400px 0px' : '600px 0px';
+            NETWORK_MARGIN = '50% 0px'; // ✅ Default
         }
         
         MAX_OBSERVERS_VAL = Math.max(MAX_OBSERVERS_VAL, 250);
@@ -290,7 +292,7 @@
         }
     });
 
-    // SPA Route Listener (Throttled & Key-Based)
+    // SPA Route Listener (Route Shield)
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
     
@@ -298,22 +300,18 @@
         const nextKey = getLcpKey();
         const now = Date.now();
         
-        // Key changed? Trigger immediately
-        if (nextKey !== lastKey) {
-            if (RuntimeConfig._lcp) S.set(lastKey, RuntimeConfig._lcp); // Commit old
-            
-            lastKey = nextKey;
-            LCP_KEY = nextKey;
-            RuntimeConfig._lcp = S.get(LCP_KEY) || null; // Load new
-            
+        if (now - lastRouteSignal > 1500) {
+            lastRouteSignal = now;
             win.dispatchEvent(new Event('perfx-route'));
-            lastRouteSignal = now;
-        } 
-        // Same key (replaceState spam)? Throttle
-        else if (now - lastRouteSignal > 5000) {
-            win.dispatchEvent(new Event('perfx-route')); // Refresh protection occasionally
-            lastRouteSignal = now;
         }
+
+        if (nextKey === lastKey) return; 
+
+        if (RuntimeConfig._lcp) S.set(lastKey, RuntimeConfig._lcp);
+        
+        lastKey = nextKey;
+        LCP_KEY = nextKey;
+        RuntimeConfig._lcp = S.get(LCP_KEY) || null;
     };
     
     if (!win.__perfx_history_patched) {
@@ -345,10 +343,10 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '77.7.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '77.8.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V19 (LoAF & Sliding Quarantine)
+    // 2. Autonomous V20 (LoAF & Quarantine)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !isSafeMode) {
         try {
@@ -531,7 +529,7 @@
     // ==========================================
     class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // [Core 1] EventPassivator v3.7
+    // [Core 1] EventPassivator v3.8
     class EventPassivator extends BaseModule {
         init() {
             if (!Config.passive || win.__perfx_evt_patched) return;
@@ -617,7 +615,7 @@
         }
     }
 
-    // [Core 3] DomWatcher v3.10
+    // [Core 3] DomWatcher v3.11
     class DomWatcher extends BaseModule {
         init() {
             if (!Config.gpu && !Config.memory) return;
@@ -796,54 +794,67 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.4 (Queue Dedupe & Smart Video)
+    // [Core 4] NetworkAssistant v3.5 (Slot Reclaiming & Smart Media)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
 
             const getLCP = () => RuntimeConfig._lcp || S.get(LCP_KEY);
-            // ✅ Map-Based Queue for Dedupe
             const batchQueue = new Map();
             let batchTimer = null;
             let isProtectionPhase = true;
             
-            win.addEventListener('perfx-route', () => {
-                isProtectionPhase = true; 
-                setTimeout(() => isProtectionPhase = false, PROTECT_MS); // Adaptive
-            });
-            
+            // Single Protect Timer
+            let protectTimer = null;
+            const startProtection = () => {
+                isProtectionPhase = true;
+                if (protectTimer) clearTimeout(protectTimer);
+                protectTimer = setTimeout(() => {
+                    isProtectionPhase = false;
+                    protectTimer = null;
+                }, PROTECT_MS);
+            };
+
+            win.addEventListener('perfx-route', startProtection);
             if (document.readyState === 'complete') isProtectionPhase = false;
-            else win.addEventListener('load', () => { setTimeout(() => isProtectionPhase = false, PROTECT_MS); });
+            else win.addEventListener('load', () => startProtection());
 
             const nearSet = new WeakSet();
             const farSet = new WeakSet();
             const observing = new WeakSet();
             let imgObsCount = 0;
             
+            // ✅ Slot Reclaiming
+            const decSlot = (el) => {
+                if (observing.has(el)) {
+                    observing.delete(el);
+                    imgObsCount = Math.max(0, imgObsCount - 1);
+                }
+            };
+
             const applyLazy = (img) => {
                 if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
                 img.setAttribute('loading', 'lazy');
                 img.setAttribute('decoding', 'async');
+                img.setAttribute('fetchpriority', 'low'); // ✅ Priority Low for far
             };
 
             const vpObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
                     const el = e.target;
                     
-                    // Video Logic
                     if (el.tagName === 'VIDEO') {
                         if (e.isIntersecting) {
                             el.setAttribute('preload', 'metadata');
                             vpObs.unobserve(el);
-                            observing.delete(el); // Allow re-observe if needed
+                            decSlot(el);
                         } else {
-                            // ✅ Aggressive offscreen block
                             if (!el.hasAttribute('preload')) el.setAttribute('preload', 'none');
+                            // Keep observing video until near
                         }
                         return;
                     }
                     
-                    // Image Logic
                     if (e.isIntersecting) {
                         nearSet.add(el);
                     } else {
@@ -851,21 +862,26 @@
                         applyLazy(el);
                     }
                     vpObs.unobserve(el);
-                    observing.delete(el);
+                    decSlot(el);
                 });
-            }, { rootMargin: "50% 0px" });
+            }, { rootMargin: NETWORK_MARGIN });
 
             const safeObserve = (el) => {
-                if (observing.has(el) || imgObsCount >= MAX_IMG_OBS_VAL) return; // ✅ Use Global Cap
+                if (observing.has(el) || imgObsCount >= MAX_IMG_OBS_VAL) return;
                 observing.add(el);
                 imgObsCount++;
                 vpObs.observe(el);
             };
 
-            const processVideo = (vid, fromMutation) => {
+            const shouldAggressiveVideo = isLowPowerMode || isMobile || !!navigator.connection?.saveData;
+
+            const processVideo = (vid) => {
                 if (vid.hasAttribute('preload') || isVideoSite) return;
-                
-                // If far or unknown, force none initially
+                if (!shouldAggressiveVideo && !vid.autoplay) {
+                    safeObserve(vid); // PC: Wait for IO
+                    return;
+                }
+                // Mobile/LowPower: Aggressive
                 vid.setAttribute('preload', 'none');
                 safeObserve(vid);
             };
@@ -884,11 +900,10 @@
                 }
 
                 if (fromMutation && !isProtectionPhase) {
-                    applyLazy(img); // Instant Lazy for late images
+                    applyLazy(img);
                     return;
                 }
 
-                // Initial load or protected phase -> Check Viewport
                 if (nearSet.has(img)) return; 
                 if (farSet.has(img)) {
                     applyLazy(img);
@@ -900,7 +915,7 @@
 
             const flushQueue = () => {
                 batchQueue.forEach((fromMutation, node) => {
-                    if (node.tagName === 'VIDEO') processVideo(node, fromMutation);
+                    if (node.tagName === 'VIDEO') processVideo(node);
                     else processImg(node, fromMutation);
                 });
                 batchQueue.clear();
@@ -908,10 +923,8 @@
             };
 
             const scheduleNode = (node, fromMutation = false) => {
-                // ✅ Dedupe: Prefer true (mutation) if mixed
                 const current = batchQueue.get(node);
                 batchQueue.set(node, current || fromMutation);
-                
                 if (!batchTimer) batchTimer = scheduler.request(flushQueue, 200);
             };
 
