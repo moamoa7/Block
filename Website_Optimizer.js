@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v80.0 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v81.1 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     80.0.0-KR-ULTRA-Infinity-Autonomous
-// @description [Milestone] 끝없는 최적화 + Autonomous (UI Safe Zone, Storage LRU, Live Collections, Status Dash)
+// @version     81.1.0-KR-ULTRA-Infinity-Autonomous
+// @description [Ultimate] 끝없는 최적화 + Autonomous (WebRTC Guard, Full LCP Inference, Smart Shield, True LRU)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -21,40 +21,51 @@
     const DAY = 86400000;
     const WEEK = 7 * DAY;
     
-    // [Safe Storage Wrapper with LRU]
+    // [Safe Storage Wrapper with True LRU]
     const S = {
-        get(k) { try { return localStorage.getItem(k); } catch { return null; } },
-        remove(k) { try { localStorage.removeItem(k); } catch {} },
-        
-        // ✅ LRU Logic
+        get(k) { 
+            try { 
+                const v = localStorage.getItem(k);
+                if (v !== null) this._trackKey(k); // ✅ Read Tracking
+                return v; 
+            } catch { return null; } 
+        },
         set(k, v) { 
             try { 
                 localStorage.setItem(k, v); 
                 this._trackKey(k);
             } catch {} 
         },
+        remove(k) { try { localStorage.removeItem(k); } catch {} },
+        
         _trackKey(k) {
-            if (!k.startsWith('PerfX_LCP') && !k.startsWith('perfx-interactive')) return;
-            const idxKey = `PerfX_IDX_${win.location.hostname}`;
+            if (!k.startsWith('PerfX_') && !k.startsWith('perfx-')) return;
+            if (k === 'PerfX_IDX') return; 
+
+            const idxKey = 'PerfX_IDX';
             try {
                 let idx = JSON.parse(localStorage.getItem(idxKey) || '[]');
-                // Move to end (most recent)
+                const limit = win.matchMedia('(pointer:coarse)').matches ? 50 : 100;
+                
+                // Move to end (Most Recently Used)
                 idx = idx.filter(x => x !== k);
                 idx.push(k);
-                // Prune if > 50
-                while (idx.length > 50) {
+                
+                // Prune
+                while (idx.length > limit) {
                     const old = idx.shift();
                     localStorage.removeItem(old);
                 }
                 localStorage.setItem(idxKey, JSON.stringify(idx));
             } catch {}
         },
-        clearPrefix(prefix) {
+        
+        clearPrefix(prefixes) {
             try {
                 const toRemove = [];
                 for (let i = 0; i < localStorage.length; i++) {
                     const k = localStorage.key(i);
-                    if (k && k.startsWith(prefix)) toRemove.push(k);
+                    if (k && prefixes.some(p => k.startsWith(p))) toRemove.push(k);
                 }
                 toRemove.forEach(k => localStorage.removeItem(k));
             } catch {}
@@ -68,16 +79,19 @@
         OTT_KR: ['youtube.com', 'twitch.tv', 'netflix.com', 'wavve.com', 'tving.com', 'coupangplay.com', 'watcha.com'],
         HEAVY_FEEDS: ['twitter.com', 'x.com', 'instagram.com', 'threads.net', 'facebook.com', 'tiktok.com'],
         LAYOUT_KEYWORDS: ['tvwiki', 'noonoo', 'linkkf', 'ani24', 'newtoki', 'mana'],
+        RTC_ALLOW: ['meet.google.com', 'zoom.us', 'webex.com', 'discord.com', 'teams.microsoft.com', 'slack.com', 'geforcenow.com'],
         CRITICAL_SUB: /^(auth|login|signin|pay|cert|secure|account)\./
     });
 
     const hostEndsWithAny = (h, list) => list.some(d => h === d || h.endsWith('.' + d));
     const safeJsonParse = (str) => { try { return JSON.parse(str) || {}; } catch { return {}; } };
+    
     const onReady = (cb) => {
         if (document.readyState !== 'loading') cb();
         else win.addEventListener('DOMContentLoaded', cb, { once: true });
     };
     
+    // Bucket & Freshness
     const normSeg = (s) => {
         if (/^\d+$/.test(s)) return ':id';
         if (/^[0-9a-f-]{36}$/i.test(s)) return ':uuid';
@@ -101,9 +115,10 @@
         emit(name, detail) { win.dispatchEvent(new CustomEvent(name, { detail })); }
     };
 
+    // ✅ True Distance Helper
     const viewH = () => win.visualViewport?.height || win.innerHeight;
     const distToViewport = (r) => {
-        if (!r) return -1; 
+        if (!r) return -1; // -1 means Unknown (Keep it safe)
         const h = viewH();
         if (r.bottom < 0) return -r.bottom; 
         if (r.top > h) return r.top - h; 
@@ -113,7 +128,7 @@
     // [Safe Init] Hoist Config/API
     let Config = { 
         codecMode: 'off', passive: false, gpu: false, memory: false, 
-        allowIframe: false, downgradeLevel: 0 
+        allowIframe: false, rtcGuard: true, downgradeLevel: 0 
     };
     
     const API = { 
@@ -127,11 +142,12 @@
         raf: (cb) => win.requestAnimationFrame(cb)
     };
 
+    // ✅ Robust Chunk Scan Utility
     const scanInChunks = (list, limit, step, fn) => {
         if (!list || typeof list.length !== 'number' || list.length === 0) return;
         let i = 0;
         const run = () => {
-            const len = list.length;
+            const len = list.length; // Live collection check
             const end = Math.min(i + step, limit, len);
             for (; i < end; i++) fn(list[i]);
             if (i < Math.min(limit, len)) scheduler.request(run);
@@ -171,6 +187,7 @@
     // Dynamic Keys
     const getLcpKey = () => `PerfX_LCP_${hostname}:${getPathBucket()}`;
     const getInteractiveKey = () => `perfx-interactive:${hostname}:${getPathBucket()}`;
+    const getProfileKey = () => `PerfX_PROFILE_${hostname}`;
     
     let LCP_KEY = getLcpKey();
     let INTERACTIVE_KEY = getInteractiveKey();
@@ -193,13 +210,13 @@
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // Hoisted Helper
+    // ✅ Hoisted Interactive Check (TDZ Safe)
     const applyInteractiveMemory = () => {
         const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY));
         if (fresh(isInteractiveStored, DAY)) {
             log('Interactive Site Known: Starting Safe');
-            RuntimeConfig = { ...RuntimeConfig, passive: false, memory: false, gpu: false };
-            Object.assign(Config, { passive: false, memory: false, gpu: false });
+            RuntimeConfig = { ...RuntimeConfig, passive: false, memory: false, gpu: false, rtcGuard: false };
+            Object.assign(Config, { passive: false, memory: false, gpu: false, rtcGuard: false });
             Bus.emit('perfx-config');
         }
     };
@@ -227,6 +244,13 @@
             }
         }
         
+        // Auto-Downgrade Profile Check
+        const forcedProfile = safeJsonParse(S.get(getProfileKey()));
+        if (fresh(forcedProfile, WEEK)) {
+            log('Adaptive Profile: Balanced Mode Enforced');
+            RuntimeConfig = { ...RuntimeConfig, memory: false }; 
+        }
+
         applyInteractiveMemory();
 
         onReady(() => {
@@ -235,6 +259,7 @@
 
             const sensitive = document.querySelector('input[type="password"], input[autocomplete="one-time-code"], form[action*="login"], form[action*="pay"]');
             if (sensitive && !sessionStorage.getItem(SESSION_OFF_KEY)) {
+                log('Sensitive Page Detected: Entering Safe Mode');
                 sessionStorage.setItem(SESSION_OFF_KEY, '1');
                 sessionStorage.setItem(INTENT_RELOAD, '1'); 
                 location.reload();
@@ -242,7 +267,6 @@
 
             const checkInteractive = () => {
                 const mapOrEditor = document.querySelector('.mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror');
-                // ✅ Check up to 4 canvases
                 const canvases = document.getElementsByTagName('canvas');
                 let hugeCanvas = false;
                 for (let i = 0; i < Math.min(canvases.length, 4); i++) {
@@ -263,7 +287,7 @@
                         return true;
                     }
                     
-                    Config.passive = false; Config.gpu = false;
+                    Config.passive = false; Config.gpu = false; Config.rtcGuard = false;
                     if (Config.memory) { Config.memory = false; API.shutdownMemory(); }
                     return true;
                 }
@@ -282,7 +306,7 @@
         });
 
         if (sessionStorage.getItem(SESSION_OFF_KEY)) {
-            RuntimeConfig = { ...RuntimeConfig, codecMode: 'off', passive: false, gpu: false, memory: false, _sessionSafe: true };
+            RuntimeConfig = { ...RuntimeConfig, codecMode: 'off', passive: false, gpu: false, memory: false, rtcGuard: false, _sessionSafe: true };
         }
     } catch(e) {}
 
@@ -389,24 +413,15 @@
     let Q_CACHE = null;
     
     const checkQuarantine = (now = Date.now()) => {
-        if (Q_CACHE && (now - Q_CACHE.ts) < 86400000) return Q_CACHE;
+        if (Q_CACHE && (now - Q_CACHE.ts) < DAY) return Q_CACHE;
         const q = safeJsonParse(S.get(Q_KEY));
-        if (q && (now - q.ts) < 86400000) { Q_CACHE = q; return q; }
+        if (q && (now - q.ts) < DAY) { Q_CACHE = q; return q; }
         return null;
     };
 
-    const now = Date.now();
-    if (!RuntimeConfig._sessionSafe) {
-        if ((RuntimeConfig.unstableTs || 0) < now - WEEK) {
-            RuntimeConfig.downgradeCount = 0;
-        } else if ((RuntimeConfig.downgradeCount || 0) > 3) {
-            log('Adaptive Learning: Starting Safe');
-            RuntimeConfig = { ...RuntimeConfig, memory: false, gpu: false };
-        }
-    }
-
     const qState = checkQuarantine();
     if (qState) {
+        Q_CACHE = qState;
         RuntimeConfig = { ...RuntimeConfig, ...qState.modules };
         log('Quarantine Active:', qState.modules);
     }
@@ -417,11 +432,12 @@
         gpu: RuntimeConfig.gpu ?? (!isLayoutSensitive && !perfState.isLowPowerMode),
         memory: RuntimeConfig.memory ?? (!isLayoutSensitive && !isHeavyFeed),
         allowIframe: RuntimeConfig.allowIframe ?? false,
+        rtcGuard: RuntimeConfig.rtcGuard ?? true,
         downgradeLevel: RuntimeConfig.downgradeLevel || 0
     };
 
     if (isSafeMode) {
-        Object.assign(calculatedConfig, { codecMode: 'off', passive: false, gpu: false, memory: false, allowIframe: true });
+        Object.assign(calculatedConfig, { codecMode: 'off', passive: false, gpu: false, memory: false, rtcGuard: false, allowIframe: true });
     }
 
     Object.assign(Config, calculatedConfig);
@@ -430,9 +446,9 @@
     Object.assign(API, {
         profile: (mode) => {
             const presets = {
-                ultra: { codecMode: 'hard', passive: true, gpu: true, memory: !isHeavyFeed },
-                balanced: { codecMode: 'soft', passive: true, gpu: false, memory: !isHeavyFeed },
-                safe: { codecMode: 'off', passive: false, gpu: false, memory: false }
+                ultra: { codecMode: 'hard', passive: true, gpu: true, memory: !isHeavyFeed, rtcGuard: true },
+                balanced: { codecMode: 'soft', passive: true, gpu: false, memory: !isHeavyFeed, rtcGuard: true },
+                safe: { codecMode: 'off', passive: false, gpu: false, memory: false, rtcGuard: false }
             };
             const p = presets[mode] || presets.balanced;
             const current = Env.getOverrides();
@@ -451,24 +467,14 @@
              else sessionStorage.setItem(SESSION_OFF_KEY, '1');
              location.reload();
         },
-        // ✅ Safer Reset
         resetAll: () => {
-            ['PerfX_', 'perfx-', 'PerfX_IDX'].forEach(prefix => S.clearPrefix(prefix));
+            S.clearPrefix(['PerfX_', 'perfx-', 'PerfX_IDX']);
             location.reload();
         },
-        // ✅ Status Dashboard
         showStatus: () => {
-            const info = `
-            [PerfX v80.0] Status
-            ---------------------
-            URL: ${getPathBucket()}
-            Mode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}
-            Power: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'} (x${perfState.perfMultiplier.toFixed(2)})
-            Caps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}
-            Quarantine: ${Q_CACHE ? 'YES' : 'NO'}
-            Modules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}
-            `;
-            alert(info);
+            const info = `[PerfX v81.1]\nURL: ${getPathBucket()}\nMode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}\nPower: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'}\nCaps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}\nQuarantine: ${Q_CACHE ? 'YES' : 'NO'}\nRTC: ${Config.rtcGuard ? 'ON' : 'OFF'}\nModules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}`;
+            if (typeof GM_notification !== 'undefined') GM_notification({ title: 'PerfX Status', text: info, timeout: 5000 });
+            else console.log(info);
         }
     });
 
@@ -476,7 +482,7 @@
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
     
-    // ✅ Hero Inference (Chunked & Images Only)
+    // ✅ SPA Hero Inference (Chunked)
     const detectHeroImage = () => {
         const imgs = document.images;
         if (!imgs.length) return;
@@ -549,7 +555,6 @@
         const origRep = history.replaceState;
         history.replaceState = function() { origRep.apply(this, arguments); onRoute(); };
         win.addEventListener('popstate', onRoute);
-        // ✅ Hash Support
         win.addEventListener('hashchange', onRoute);
         win.addEventListener('pageshow', (e) => { if(e.persisted) Bus.emit('perfx-route', { force: true }); });
     }
@@ -574,10 +579,10 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '80.0.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '81.1.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V28 (LCP Recorder & Smart Quarantine)
+    // 2. Autonomous V28
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !RuntimeConfig._sessionSafe) {
         try {
@@ -642,6 +647,7 @@
                     Q_CACHE = qVal; 
                     
                     c.downgradeCount = 0; c.unstableTs = now; 
+                    S.set(getProfileKey(), JSON.stringify({ ts: now })); // Auto-Downgrade Profile
                     Object.assign(c, modules); Object.assign(Config, modules);
                     Env.saveOverrides(c);
                     Bus.emit('perfx-config');
@@ -705,7 +711,31 @@
     // ==========================================
     class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // [Core 1] EventPassivator v5.0 (UI Safe Zone)
+    // [Core 0] WebRTC Guard (Grid Defense)
+    class WebRTCGuard extends BaseModule {
+        init() {
+            if (!Config.rtcGuard || isSafeMode) return;
+            if (hostEndsWithAny(hostname, LISTS.RTC_ALLOW)) return;
+
+            const origPeer = win.RTCPeerConnection || win.webkitRTCPeerConnection || win.mozRTCPeerConnection;
+            if (!origPeer) return;
+
+            const proxiedPeer = function(config, constraints) {
+                const pc = new origPeer(config, constraints);
+                const origCreateChannel = pc.createDataChannel;
+                pc.createDataChannel = function() {
+                    return { close: () => {}, send: () => {}, readyState: 'closed' }; // Block DataChannel (Grid)
+                };
+                return pc;
+            };
+            proxiedPeer.prototype = origPeer.prototype;
+            if (win.RTCPeerConnection) win.RTCPeerConnection = proxiedPeer;
+            if (win.webkitRTCPeerConnection) win.webkitRTCPeerConnection = proxiedPeer;
+            if (win.mozRTCPeerConnection) win.mozRTCPeerConnection = proxiedPeer;
+        }
+    }
+
+    // [Core 1] EventPassivator v5.2
     class EventPassivator extends BaseModule {
         init() {
             if (win.__perfx_evt_patched) return;
@@ -730,7 +760,6 @@
                 return res;
             };
             
-            // ✅ Strict Top-Level Check
             const isTopLevelTarget = (t) => t === win || t === document || t === document.body || t === document.documentElement;
 
             const targets = [win.EventTarget && win.EventTarget.prototype].filter(Boolean);
@@ -740,10 +769,10 @@
                     if (!Config.passive || !passiveArmed) return origAdd.call(this, type, listener, options);
                     
                     if (type === 'wheel' || type === 'mousewheel' || type === 'touchmove') {
-                        // ✅ UI Safe Zone: Only patch top-level
-                        if (!isTopLevelTarget(this)) return origAdd.call(this, type, listener, options);
+                        if (!isTopLevelTarget(this) && this instanceof Element && this.closest && this.closest('.mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas')) {
+                            return origAdd.call(this, type, listener, options);
+                        }
                         
-                        // ✅ Mobile Touch Guard: Default to safe (skip touchmove)
                         if (isMobile && type === 'touchmove') return origAdd.call(this, type, listener, options);
 
                         const isObj = typeof options === 'object' && options !== null;
@@ -762,13 +791,12 @@
         }
     }
 
-    // [Core 2] CodecOptimizer v2.5 (Low Power Only)
+    // [Core 2] CodecOptimizer v2.6
     class CodecOptimizer extends BaseModule {
         init() {
             if (Config.codecMode === 'off') return; 
             if (isVideoSite) return;
             
-            // ✅ Only Hard Block on Low Power
             if (!perfState.isLowPowerMode && Config.codecMode === 'hard') Config.codecMode = 'soft';
 
             setTimeout(() => {
@@ -781,7 +809,6 @@
                 if (typeof t !== 'string') return false;
                 const v = t.toLowerCase();
                 if (Config.codecMode === 'hard') {
-                    // Only active if low power (checked in init)
                     return v.includes('av01') || /vp9|vp09/.test(v);
                 }
                 if (Config.codecMode === 'soft') return v.includes('av01');
@@ -807,7 +834,7 @@
         }
     }
 
-    // [Core 3] DomWatcher v4.0 (Area Gate & Live Collection)
+    // [Core 3] DomWatcher v4.2
     class DomWatcher extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -853,16 +880,16 @@
 
         applyOptimization(el, rect) {
             if (this.styleMap.has(el)) return;
-            
-            // ✅ Area Gate: Skip small items
-            const area = rect.width * rect.height;
-            if (area < 3000) return; 
-
-            // Fast Tags
             const tn = el.tagName;
             if (tn === 'SCRIPT' || tn === 'STYLE' || tn === 'META' || tn === 'VIDEO' || tn === 'CANVAS' || tn === 'IFRAME' || tn === 'FORM') return;
             if (el.hasAttribute('aria-live') || el.isContentEditable) return;
             
+            if (!rect || rect.height < 50 || rect.width < 50) return;
+            
+            const area = rect.width * rect.height;
+            if (isMobile && area < 2000) return;
+            if (!isMobile && area < 3000) return;
+
             if (area > (win.innerWidth * win.innerHeight * 0.15)) {
                 if (el.childElementCount > 6 && el.querySelector('video,canvas,iframe,form,[aria-live],[contenteditable]')) return;
             }
@@ -949,8 +976,10 @@
                 const root = document.querySelector(FEED_SEL) || document.body;
                 scanInChunks(root.children, perfState.INIT_DOM_SCAN, perfState.SCAN_STEP, this.observeSafe);
                 
-                const items = root.querySelectorAll(ITEM_SEL);
-                scanInChunks(items, 50, perfState.SCAN_STEP, this.observeSafe);
+                if (root.tagName !== 'BODY') {
+                    const items = root.querySelectorAll(ITEM_SEL);
+                    scanInChunks(items, 50, perfState.SCAN_STEP, this.observeSafe);
+                }
             }
         }
 
@@ -964,10 +993,14 @@
                 ms.forEach(m => {
                     if (this.obsCount < perfState.DOM_CAP) {
                         m.addedNodes.forEach(n => {
-                            if (n.nodeType === 1) this.observeSafe(n); 
-                            if (n.querySelectorAll) {
-                                const list = n.querySelectorAll(ITEM_SEL);
-                                scanInChunks(list, 50, perfState.SCAN_STEP, this.observeSafe);
+                            if (n.nodeType === 1) {
+                                if (['DIV','SECTION','ARTICLE','LI'].includes(n.tagName)) {
+                                    this.observeSafe(n); 
+                                    if (n.childElementCount > 0) {
+                                        const list = n.querySelectorAll(ITEM_SEL);
+                                        scanInChunks(list, 50, perfState.SCAN_STEP, this.observeSafe);
+                                    }
+                                }
                             }
                         });
                     }
@@ -983,22 +1016,42 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v4.0 (Live Collection & Tag Check)
+    // [Core 4] NetworkAssistant v4.2 (TDZ Fix & Full Logic)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
 
-            const getLCP = () => RuntimeConfig._lcp || S.get(LCP_KEY);
-            const batchQueue = new Map();
-            let batchTimer = null;
-            let isProtectionPhase = true;
-            
+            // ✅ No TDZ: Declare first
+            const nearSet = new WeakMap();
+            const farSet = new WeakMap();
             const distMap = new WeakMap(); 
             const observing = new Set(); 
             let imgSlots = 0, vidSlots = 0;
             let MAX_IMG = 0, MAX_VID = 0;
             let vpObs = null;
             let currentGen = 0;
+
+            const decSlot = (el) => {
+                if (observing.has(el)) {
+                    observing.delete(el);
+                    distMap.delete(el);
+                    if (el.tagName === 'VIDEO') vidSlots = Math.max(0, vidSlots - 1);
+                    else imgSlots = Math.max(0, imgSlots - 1);
+                }
+            };
+
+            const setImgLazy = (img, setPriority = true) => {
+                if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
+                img.setAttribute('loading', 'lazy');
+                img.setAttribute('decoding', 'async');
+                if (setPriority) img.setAttribute('fetchpriority', 'low');
+            };
+
+            const applyLazy = (img, rect) => {
+                if (!rect) { setImgLazy(img); return; }
+                if (rect.top < win.innerHeight + 200 && rect.bottom > -200) return;
+                setImgLazy(img);
+            };
 
             const updateCaps = () => {
                 const cap = perfState.MEDIA_CAP;
@@ -1047,7 +1100,7 @@
                             nearSet.set(el, currentGen);
                         } else { 
                             farSet.set(el, currentGen); 
-                            setImgLazy(el); 
+                            applyLazy(el, e.boundingClientRect);
                         }
                         vpObs.unobserve(el);
                         decSlot(el);
@@ -1056,6 +1109,7 @@
                 
                 observing.forEach(el => vpObs.observe(el));
                 
+                // Recalc
                 imgSlots = 0; vidSlots = 0;
                 observing.forEach(el => {
                     if (el.tagName === 'VIDEO') vidSlots++; else imgSlots++;
@@ -1071,52 +1125,34 @@
 
             let protectTimer = null;
             const startProtection = (force = false) => {
-                if (!force && isProtectionPhase) return;
+                let isProtectionPhase = true;
                 const ms = force ? perfState.PROTECT_MS : Math.min(1000, perfState.PROTECT_MS / 3);
-                isProtectionPhase = true;
                 if (protectTimer) clearTimeout(protectTimer);
                 protectTimer = setTimeout(() => { isProtectionPhase = false; protectTimer = null; }, ms);
+                return isProtectionPhase;
             };
+            let isProtectionPhase = startProtection(true); // init
 
             Bus.on('perfx-route', (e) => {
                 if (e.detail?.force) {
                     currentGen++;
+                    observing.forEach(el => { try{vpObs.unobserve(el);}catch{} });
                     observing.clear(); 
-                    imgSlots = 0; vidSlots = 0;
                     rebuildObserver(); 
                 }
-                startProtection(e.detail?.force);
+                isProtectionPhase = startProtection(e.detail?.force);
             });
-            onReady(() => { startProtection(true); rebuildObserver(); });
+            onReady(() => { isProtectionPhase = startProtection(true); rebuildObserver(); });
             
             Bus.on('visibilitychange', () => {
                 if (document.hidden) {
                     if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
                     if (this.mo) this.mo.disconnect();
                 } else {
-                    startProtection(false);
+                    isProtectionPhase = startProtection(false);
                     if (this.mo) this.mo.observe(document.documentElement, { childList: true, subtree: true });
                 }
             }, document);
-
-            const nearSet = new WeakMap();
-            const farSet = new WeakMap();
-            
-            const decSlot = (el) => {
-                if (observing.has(el)) {
-                    observing.delete(el);
-                    distMap.delete(el);
-                    if (el.tagName === 'VIDEO') vidSlots = Math.max(0, vidSlots - 1);
-                    else imgSlots = Math.max(0, imgSlots - 1);
-                }
-            };
-            
-            const setImgLazy = (img, setPriority = true) => {
-                if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
-                img.setAttribute('loading', 'lazy');
-                img.setAttribute('decoding', 'async');
-                if (setPriority) img.setAttribute('fetchpriority', 'low');
-            };
 
             const safeObserve = (el) => {
                 if (!vpObs) return; 
@@ -1139,7 +1175,7 @@
 
             const processImg = (img, fromMutation) => {
                 if (img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
-                const lcpUrl = getLCP();
+                const lcpUrl = RuntimeConfig._lcp || S.get(LCP_KEY);
                 if (lcpUrl) {
                     const cur = normUrl(img.currentSrc || img.src);
                     if (cur === lcpUrl) { img.setAttribute('loading', 'eager'); img.setAttribute('fetchpriority', 'high'); return; }
@@ -1160,6 +1196,11 @@
             const flushQueue = () => {
                 batchQueue.forEach((fromMutation, node) => {
                     if (!node.isConnected) return;
+                    // ✅ Iframe Support
+                    if (node.tagName === 'IFRAME') {
+                        if (!node.hasAttribute('loading') && !isCritical) node.loading = 'lazy';
+                        return;
+                    }
                     if (node.tagName === 'VIDEO') processVideo(node);
                     else processImg(node, fromMutation);
                 });
@@ -1176,7 +1217,6 @@
 
             const run = () => { 
                 rebuildObserver();
-                // ✅ Live Collection Scan
                 const imgs = document.getElementsByTagName('img');
                 const vids = document.getElementsByTagName('video');
                 scanInChunks(imgs, perfState.INIT_MEDIA_SCAN, perfState.SCAN_STEP, (n) => scheduleNode(n, false));
@@ -1186,11 +1226,10 @@
 
             this.mo = new MutationObserver(ms => {
                 ms.forEach(m => {
-                    if (m.addedNodes.length === 0) return; // Skip
+                    if (m.addedNodes.length === 0) return;
                     m.addedNodes.forEach(n => {
-                        if (n.tagName === 'IMG' || n.tagName === 'VIDEO') scheduleNode(n, true);
+                        if (n.tagName === 'IMG' || n.tagName === 'VIDEO' || n.tagName === 'IFRAME') scheduleNode(n, true);
                         else if (n.nodeType === 1) {
-                            // ✅ Tag Check First
                             if (n.getElementsByTagName) {
                                 const i = n.getElementsByTagName('img');
                                 if (i.length) scanInChunks(i, 300, perfState.SCAN_STEP, (child) => scheduleNode(child, true));
@@ -1222,12 +1261,13 @@
 
     // Module Init
     [
+        new WebRTCGuard(),
         new EventPassivator(), 
         new CodecOptimizer(), 
         new DomWatcher(), 
         new NetworkAssistant()
-    ].forEach(m => m.safeInit());
+    ].forEach(m => m.safeInit ? m.safeInit() : (m.init && m.init()));
 
-    if (debug) log(`PerfX v${win.perfx.version} Ready`);
+    if (debug) log(`PerfX v81.1 Ready`);
 
 })();
