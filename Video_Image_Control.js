@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.4 Polished)
+// @name        Video_Image_Control (v130.5 Center-Focus)
 // @namespace   https://com/
-// @version     130.4
-// @description v130.4: 필터 체인 버그 수정, 레터박스 크롭, 데이터 속성 탐지 강화, 레이아웃 스래싱 최소화.
+// @version     130.5
+// @description v130.5: 화면 중앙 요소 감지(Center Focus) 로직 추가로 제어 대상 선정 정확도 향상.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -653,7 +653,6 @@
                 const totalValidPixels = size * size;
 
                 // [Enhanced] Crop Letterbox (Top/Bottom 15% skip)
-                // data is RGBA (4 bytes).
                 const startRow = Math.floor(size * 0.15);
                 const endRow = Math.ceil(size * 0.85);
                 const startIndex = startRow * size * 4;
@@ -1069,6 +1068,12 @@
                     if (needsUpdate && !document.hidden) {
                         const currentBest = sm.get('media.currentlyVisibleMedia');
                         let bestCandidate = null; let maxScore = -1;
+
+                        // [New] Tie-breaker: Center Focus Check
+                        const cx = window.innerWidth / 2;
+                        const cy = window.innerHeight / 2;
+                        const centerEl = document.elementFromPoint(cx, cy);
+
                         for (const m of this._visibleVideos) {
                              if (m.tagName === 'VIDEO') {
                                  // [Enhanced] Scoring with buffering and playing state
@@ -1082,6 +1087,11 @@
                                  
                                  const ratio = this._intersectionRatios.get(m) || 0;
                                  score *= (0.5 + ratio * 0.5);
+
+                                 // [New] Boost score if under center point
+                                 if (centerEl && (m === centerEl || m.contains(centerEl) || centerEl.contains(m))) {
+                                     score *= 2.0;
+                                 }
                                  
                                  if (score > maxScore) { maxScore = score; bestCandidate = m; }
                              }
@@ -1238,6 +1248,7 @@
 
             if (root === document) {
                 const docVideos = document.getElementsByTagName('video');
+                // [Optimized] Use _checkAndAdd filtering instead of blind addition
                 for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images);
 
                 if (wantImages) {
@@ -1383,7 +1394,7 @@
     class FrameBridgePlugin extends Plugin {
         constructor() {
             super('FrameBridge');
-            this._children = new Map();
+            this._children = new Map(); // window -> {id, ts, video, img, rate}
             this._pruneTimer = null;
         }
         init(stateManager) {
@@ -1452,9 +1463,10 @@
             if (IS_TOP) {
                 if (d.type === 'VSC_HELLO' && d.id) {
                     const frameEl = this.findIframeByWindow(e.source);
+                    // [Optimized] Stricter frame check
                     if (!frameEl || !frameEl.isConnected) return;
 
-                    this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0 });
+                    this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0, rate: 1.0 });
                     const snapshot = {
                         playback: { targetRate: this.stateManager.get('playback.targetRate') },
                         videoFilter: this.stateManager.get('videoFilter'),
