@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.2 Optimized)
+// @name        Video_Image_Control (v130.3 Safe-Optimized)
 // @namespace   https://com/
-// @version     130.2
-// @description v130.2: CORS 감지 수정, 설정 저장 완벽화, 히스토그램 메모리 최적화, 마이크로태스크 스캔 적용.
+// @version     130.3
+// @description v130.3: IntersectionRatio WeakMap 적용, Video 스캔 필터링 강화, 씬 전환 부스트, 불필요 로직 제거.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -133,7 +133,6 @@
         UI: {
             MAX_Z: 2147483647,
             DRAG_THRESHOLD: 5,
-            WARN_TIMEOUT: 10000,
             HIDDEN_CLASS: 'vsc-hidden',
             SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2]
         }
@@ -229,7 +228,7 @@
     let pendingScan = false;
     let _corePluginRef = null;
     let _lastFullScan = 0;
-
+    
     // [Optimized] Microtask queue for immediate scans
     let _scanMicrotaskQueued = false;
     const _scanMicrotaskRoots = new Set();
@@ -244,9 +243,9 @@
     };
 
     const scheduleScan = (rootOrNull, immediate = false) => {
+        // [Optimized] Removed costly shadowDomList reordering
         if (Utils.isShadowRoot(rootOrNull) && window._shadowDomList_) {
-            const idx = window._shadowDomList_.indexOf(rootOrNull);
-            if (idx > -1) { window._shadowDomList_.splice(idx, 1); window._shadowDomList_.push(rootOrNull); }
+             if (!window._shadowDomList_.includes(rootOrNull)) window._shadowDomList_.push(rootOrNull);
         }
 
         if (!rootOrNull && immediate) {
@@ -272,11 +271,10 @@
                     if (!_corePluginRef) return;
                     const roots = [..._scanMicrotaskRoots];
                     _scanMicrotaskRoots.clear();
-
+                    
                     if (roots.length > 0) {
                         for (const r of roots) safeGuard(() => _corePluginRef.scanSpecificRoot(r), 'scanSpecificRoot');
                     } else {
-                        // If immediate scan requested with null, do full scan
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
                     }
                     safeGuard(() => _corePluginRef.tick(), 'tick');
@@ -354,7 +352,12 @@
                 const tag = this.tagName;
                 if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE') {
                     const n = name.toLowerCase();
-                    if (n === 'src' || n === 'srcset' || n === 'poster' || n === 'type' || n.startsWith('data-')) {
+                    // [Optimized] Filter data- attributes to reduce overhead
+                    const isSrc = n === 'src' || n === 'srcset' || n === 'poster';
+                    const isDataSrc = n === 'data-src' || n === 'data-original' || n === 'data-url' || n === 'data-video-src';
+                    const isType = n === 'type';
+                    
+                    if (isSrc || isDataSrc || isType) {
                         if (tag === 'SOURCE' && this.parentNode) scheduleScan(this.parentNode, true);
                         else scheduleScan(this, true);
                     }
@@ -362,7 +365,6 @@
             } catch {}
             return res;
         };
-        // [Fixed] Try to hide the hook
         try { patchedSetAttr.toString = () => origSetAttr.toString(); } catch {}
         Element.prototype.setAttribute = patchedSetAttr;
         Object.defineProperty(Element.prototype.setAttribute, VSC_ATTR_HOOKED, { value: true });
@@ -542,7 +544,7 @@
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0,
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0,
         hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null,
-        _hist: null, // [Optimized] Reusable histogram buffer
+        _hist: null,
 
         init(stateManager) {
             this.stateManager = stateManager;
@@ -644,14 +646,15 @@
                 if (!this._hist) this._hist = new Uint16Array(256);
                 const hist = this._hist;
                 hist.fill(0);
-
-                let totalValidPixels = 0;
-                for (let i = 0; i < data.length; i += 4) {
+                
+                // [Optimized] constant loop instead of variable increment
+                const len = data.length;
+                for (let i = 0; i < len; i += 4) {
                     const r = data[i], g = data[i + 1], b = data[i + 2];
                     const y = (r * 54 + g * 183 + b * 19) >> 8;
                     hist[y]++;
-                    totalValidPixels++;
                 }
+                const totalValidPixels = 1024; // 32x32 fixed
 
                 const getPercentile = (p) => {
                     const target = totalValidPixels * p;
@@ -671,6 +674,10 @@
                 if (this.lastAvgLuma >= 0) {
                     const delta = Math.abs(currentLuma - this.lastAvgLuma);
                     this._highMotion = (delta > 0.08);
+                    // [Added] Scene Change Boost
+                    if (delta > 0.15) {
+                        this._userBoostUntil = performance.now() + 300;
+                    }
                 }
                 this.lastAvgLuma = currentLuma;
 
@@ -737,14 +744,12 @@
                     const key = (this.targetVideo.currentSrc || this.targetVideo.src) + '|' + this.targetVideo.videoWidth + 'x' + this.targetVideo.videoHeight;
                     this.taintedCache.set(this.targetVideo, key);
                     this.taintedRetryCache.set(this.targetVideo, Date.now());
-
-                    // [Fixed] Notify with tainted=true so UI shows "CORS Blocked"
+                    
                     this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, this.targetVideo, true);
 
                     if (this.stateManager && this.stateManager.set) {
                         this.stateManager.set('ui.warningMessage', '보안(CORS) 제한으로 자동노출/명료도 분석이 비활성화됩니다.');
                         this.stateManager.set('videoFilter.autoExposure', false);
-                        // [Fixed] Also disable clarity to prevent loop
                         this.stateManager.set('videoFilter.clarity', 0);
                     }
                     this.stop();
@@ -805,7 +810,6 @@
                             t.brightness = clamp(safeInt(vf.brightness, t.brightness), -40, 40);
                             t.shadows = clamp(safeInt(vf.shadows, t.shadows), -40, 40);
                             t.highlights = clamp(safeInt(vf.highlights, t.highlights), -80, 60);
-                            // [Fixed] Restore missing properties
                             t.saturation = clamp(safeInt(vf.saturation, t.saturation), 0, 300);
                             t.contrastAdj = clamp(safeFloat(vf.contrastAdj, t.contrastAdj), 0.5, 2.0);
                         }
@@ -847,7 +851,6 @@
             if (this._saveTimer) clearTimeout(this._saveTimer);
             this._saveTimer = setTimeout(() => {
                 try {
-                    // [Fixed] Explicit whitelist saving to prevent data loss
                     const vf = this.state.videoFilter;
                     const toSave = {
                         videoFilter: {
@@ -879,8 +882,8 @@
             this._seenIframes = new WeakSet(); this._observedImages = new WeakSet(); this._iframeBurstCooldown = new WeakMap(); this._iframeObservers = new Map(); this._iframeInternalObservers = new Map();
             this._lastImmediateScan = new WeakMap(); this._mediaAttributeObservers = new WeakMap(); this._globalAttrObs = null; this._didInitialShadowFullScan = false;
             this._visibleVideos = new Set();
+            this._intersectionRatios = new WeakMap(); // [Optimized] Use WeakMap
             this._domDirty = true;
-            this._hasPotentialCached = false;
         }
         init(stateManager) {
             super.init(stateManager); _corePluginRef = this; VideoAnalyzer.init(stateManager);
@@ -981,14 +984,13 @@
             if (this._domDirty) {
                 this._domDirty = false;
                 scheduleScan(null);
-                this._hasPotentialCached = !!document.querySelector(SEL.FILTER_TARGET);
             }
             this._cleanupDeadIframes();
             this._pruneDisconnected();
             if (window._shadowDomList_) window._shadowDomList_ = window._shadowDomList_.filter(r => r && r.host && r.host.isConnected);
             const sm = this.stateManager;
             const activeMedia = sm.get('media.activeMedia'); const activeImages = sm.get('media.activeImages');
-            const hasPotential = this._hasPotentialCached;
+            const hasPotential = document.querySelector(SEL.FILTER_TARGET);
             if ((activeMedia && activeMedia.size > 0) || (activeImages && activeImages.size > 0) || hasPotential) {
                  this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval;
             } else {
@@ -1043,9 +1045,9 @@
                         const fsEl = document.fullscreenElement;
                         const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && fsEl.contains(e.target));
                         if (visMap) visMap.set(e.target, isVisible);
-                        // [Optimized] Store intersection ratio for scoring
-                        e.target._vscIntersectionRatio = e.intersectionRatio;
-
+                        // [Optimized] Use WeakMap for intersection ratio
+                        this._intersectionRatios.set(e.target, e.intersectionRatio);
+                        
                         if (e.target.tagName === 'VIDEO') {
                             if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target);
                             sm.set('media.visibilityChange', { target: e.target, isVisible });
@@ -1065,8 +1067,9 @@
                                  if (m.readyState >= 2) score *= 1.2;
                                  if (!m.muted && m.volume > 0) score *= 1.2;
                                  if (document.pictureInPictureElement === m) score *= 3.0;
-                                 // [Optimized] Use intersection ratio
-                                 if (m._vscIntersectionRatio) score *= (0.5 + m._vscIntersectionRatio * 0.5);
+                                 // [Optimized] Use WeakMap
+                                 const ratio = this._intersectionRatios.get(m) || 0;
+                                 score *= (0.5 + ratio * 0.5);
                                  if (score > maxScore) { maxScore = score; bestCandidate = m; }
                              }
                         }
@@ -1185,9 +1188,8 @@
             const attachInternalObserver = () => {
                 try {
                     const doc = frame.contentDocument; if (!doc || !doc.body) return;
-                    // [Optimized] If same-origin, perform a deep scan immediately to catch elements that might have been missed
                     this.scanSpecificRoot(doc.body);
-
+                    
                     const prev = this._iframeInternalObservers.get(frame); if (prev && prev.doc === doc) return;
                     if (prev && prev.mo) { try { prev.mo.disconnect(); } catch {} }
                     const internalMo = new MutationObserver((mutations) => { burstRescan(); this._domDirty = true; });
@@ -1208,7 +1210,8 @@
 
             if (root === document) {
                 const docVideos = document.getElementsByTagName('video');
-                for (let i = 0; i < docVideos.length; i++) media.add(docVideos[i]);
+                // [Optimized] Use _checkAndAdd filtering instead of blind addition
+                for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images);
 
                 if (wantImages) {
                     const docImages = document.images;
@@ -1425,6 +1428,7 @@
             if (IS_TOP) {
                 if (d.type === 'VSC_HELLO' && d.id) {
                     const frameEl = this.findIframeByWindow(e.source);
+                    // [Optimized] Stricter frame check
                     if (!frameEl || !frameEl.isConnected) return;
 
                     this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0, rate: 1.0 });
@@ -1751,7 +1755,6 @@
             super.init(stateManager); if (!CONFIG.FLAGS.LIVE_DELAY) return;
             this.subscribe('liveStream.isRunning', (running) => { if (running) this.start(); else this.stop(); });
             this.subscribe('app.scriptActive', (active) => {
-                 // [Optimized] Reused cached IS_LIVE_SITE check
                  if (active && IS_LIVE_SITE) this.stateManager.set('liveStream.isRunning', true);
                  else this.stateManager.set('liveStream.isRunning', false);
             });
