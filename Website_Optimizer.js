@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v78.1 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v78.2 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     78.1.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Live Passive, Adaptive Learning, Distance Trimming)
+// @version     78.2.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Full Impl, Zero-Layout, Live Config, Smart Learning)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -26,9 +26,18 @@
     // [Util] Helpers
     const hostEndsWithAny = (h, list) => list.some(d => h === d || h.endsWith('.' + d));
     const safeJsonParse = (str) => { try { return JSON.parse(str) || {}; } catch { return {}; } };
+    
     const onReady = (cb) => {
         if (document.readyState !== 'loading') cb();
         else win.addEventListener('DOMContentLoaded', cb, { once: true });
+    };
+
+    // ✅ True Distance Helper
+    const distToViewport = (r) => {
+        if (!r) return 99999;
+        if (r.bottom < 0) return -r.bottom; // Above
+        if (r.top > win.innerHeight) return r.top - win.innerHeight; // Below
+        return 0; // Inside
     };
     
     // [Safe Init] Hoist Config/API
@@ -145,7 +154,7 @@
             RuntimeConfig = { ...RuntimeConfig, codecMode: 'off', passive: false, gpu: false, memory: false, _sessionSafe: true };
         } else {
             S.set(CRASH_KEY, lastCrash + 1);
-            onReady(() => setTimeout(() => S.remove(CRASH_KEY), 15000)); // Relaxed cleanup
+            onReady(() => setTimeout(() => S.remove(CRASH_KEY), 15000));
         }
     } catch(e) {}
 
@@ -237,6 +246,7 @@
         }).catch(() => {});
     }
     
+    // ✅ Live Config Event
     win.addEventListener('perfx-power-change', refreshPerfState);
     navigator.connection?.addEventListener?.('change', refreshPerfState);
     refreshPerfState(); 
@@ -257,16 +267,13 @@
     // ✅ Adaptive Learning (Windowed)
     const now = Date.now();
     if (!RuntimeConfig._sessionSafe) {
-        // Forget old instability (7 days)
         if ((RuntimeConfig.unstableTs || 0) < now - 7 * 86400000) {
             RuntimeConfig.downgradeCount = 0;
         }
-        // Start safe if recently unstable
         else if ((RuntimeConfig.downgradeCount || 0) > 3) {
             log('Adaptive Learning: Starting Safe');
             RuntimeConfig = { ...RuntimeConfig, memory: false, gpu: false };
         }
-        // Promotion (Optional): Could check stableStreak here
     }
 
     const qState = checkQuarantine();
@@ -373,7 +380,7 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '78.1.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '78.2.0', config: Config, ...API };
 
     // ==========================================
     // 2. Autonomous V23 (Cause-Based & Adaptive)
@@ -398,7 +405,7 @@
                 REC_LOAD: (useLoAF ? 50 : 1) * perfState.perfMultiplier
             });
 
-            // ... (Observers same as v78.0) ...
+            // ... (Observers same as v78.1) ...
             if (SUPPORTED_TYPES.has('largest-contentful-paint')) {
                 new PerformanceObserver((list) => {
                     const entries = list.getEntries();
@@ -445,10 +452,15 @@
                 const now = Date.now();
                 
                 const decideQuarantine = (reason) => {
-                    if (reason.load > reason.cls) return { gpu: false, codecMode: 'soft', memory: false }; 
+                    // ✅ Context-Aware Codec: Only soft if video exists
+                    const hasVideo = !!document.querySelector('video, source[type*="video"]');
+                    if (reason.load > reason.cls) {
+                        return { gpu: false, codecMode: hasVideo ? 'soft' : c.codecMode, memory: false }; 
+                    }
                     return { memory: false, passive: false }; 
                 };
 
+                // Quarantine Check
                 if (c.downgradeCount > 5 && !checkQuarantine(now)) {
                     const lastReason = c.downgradeReason || { cls: 1, load: 0 };
                     const modules = decideQuarantine(lastReason);
@@ -459,13 +471,14 @@
                     
                     c.downgradeCount = 0;
                     c.downgradeWindowTs = now;
-                    c.unstableTs = now; // Mark unstable
+                    c.unstableTs = now; 
                     
                     Object.assign(c, modules);
-                    Object.assign(Config, modules); // Live apply
-                    
+                    Object.assign(Config, modules);
                     Env.saveOverrides(c);
-                    API.shutdownMemory(); // Universal shutdown trigger
+                    
+                    // ✅ Live Config Event
+                    win.dispatchEvent(new Event('perfx-config'));
                     
                     log('Smart Quarantine Activated:', modules);
                     return; 
@@ -476,7 +489,7 @@
                     c.downgradeCount = 0;
                 }
 
-                // ... (L1/L2 logic same as v78.0) ...
+                // L2
                 if ((clsDelta > TH.L2_CLS || loadDelta > TH.L2_LOAD) && currentLevel < 2) {
                     if (!c._restore) c._restore = { codecMode: c.codecMode, gpu: c.gpu, memory: c.memory, passive: c.passive };
                     c.downgradeLevel = 2;
@@ -484,6 +497,7 @@
                     c.gpu = false; c.memory = false; c.codecMode = 'soft';
                     c.autoDowngraded = true;
                     c.downgradeCount = (c.downgradeCount || 0) + 1; 
+                    c.unstableTs = now; // ✅ Sensitive Learning
                     Env.saveOverrides(c);
                     
                     Config.gpu = false; Config.memory = false;
@@ -491,12 +505,14 @@
                     log(`Downgrade L2`);
                     recoveryStreak = 0;
                 }
+                // L1
                 else if ((clsDelta > TH.L1_CLS || loadDelta > TH.L1_LOAD) && currentLevel < 1) {
                     if (!c._restore) c._restore = { codecMode: c.codecMode, gpu: c.gpu, memory: c.memory, passive: c.passive };
                     c.downgradeLevel = 1;
                     c.downgradeReason = { cls: clsDelta, load: loadDelta, t: Date.now(), level: 1 };
                     c.memory = false;
                     c.downgradeCount = (c.downgradeCount || 0) + 1; 
+                    c.unstableTs = now; // ✅ Sensitive Learning
                     Env.saveOverrides(c);
                     
                     Config.memory = false; 
@@ -504,6 +520,7 @@
                     log(`Downgrade L1`);
                     recoveryStreak = 0;
                 }
+                // Recovery
                 else if (currentLevel > 0 && clsDelta < TH.REC_CLS && loadDelta < TH.REC_LOAD) {
                     recoveryStreak++;
                     const requiredStreak = currentLevel === 1 ? 2 : 4;
@@ -514,7 +531,6 @@
                             if (isQ) {
                                 if (Q_CACHE?.modules?.memory === false) c._restore.memory = false;
                                 if (Q_CACHE?.modules?.gpu === false) c._restore.gpu = false;
-                                // Passive is checked at runtime
                             }
                             Config.memory = !!c._restore.memory && !c._powerThrottled;
                             Config.gpu = !!c._restore.gpu;
@@ -527,7 +543,8 @@
                         delete c.downgradeReason;
                         Env.saveOverrides(c);
                         
-                        if (Config.memory) API.restartMemory();
+                        // ✅ Live Config Event
+                        win.dispatchEvent(new Event('perfx-config'));
                         log('Restored');
                         recoveryStreak = 0;
                     }
@@ -561,7 +578,7 @@
     // ==========================================
     class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // [Core 1] EventPassivator v3.9 (Runtime Guard)
+    // [Core 1] EventPassivator v3.9
     class EventPassivator extends BaseModule {
         init() {
             if (win.__perfx_evt_patched) return;
@@ -590,7 +607,6 @@
             targets.forEach(proto => {
                 const origAdd = proto.addEventListener;
                 proto.addEventListener = function(type, listener, options) {
-                    // ✅ Runtime Guard: Check Config.passive on every call
                     if (!Config.passive) return origAdd.call(this, type, listener, options);
                     
                     if (!listener) return origAdd.call(this, type, listener, options);
@@ -599,11 +615,7 @@
                         const isObj = typeof options === 'object' && options !== null;
                         if (!isObj || options.passive === undefined) {
                             if (!checkNeedsPD(listener)) {
-                                try {
-                                    finalOptions = isObj 
-                                        ? { ...options, passive: true } 
-                                        : { capture: options === true, passive: true };
-                                } catch (e) { finalOptions = options; }
+                                try { finalOptions = isObj ? { ...options, passive: true } : { capture: options === true, passive: true }; } catch (e) { finalOptions = options; }
                             }
                         }
                     }
@@ -616,12 +628,12 @@
     // [Core 2] CodecOptimizer v2.3
     class CodecOptimizer extends BaseModule {
         init() {
+            if (Config.codecMode === 'off') return;
             if (isVideoSite) return;
-            // Config.codecMode is checked at runtime inside shouldBlock implicitly via hook
+
             const shouldBlock = (t) => {
                 if (typeof t !== 'string') return false;
                 const v = t.toLowerCase();
-                // ✅ Check Config directly
                 if (Config.codecMode === 'hard') {
                     if (perfState.isLowPowerMode) return v.includes('av01') || /vp9|vp09/.test(v);
                     return false;
@@ -629,7 +641,7 @@
                 if (Config.codecMode === 'soft') return v.includes('av01');
                 return false;
             };
-            // ... (Hook logic same) ...
+
             const hook = (target, prop, isProto, marker) => {
                 if (!target) return;
                 const root = isProto ? target.prototype : target;
@@ -643,12 +655,13 @@
                     root[marker] = true;
                 } catch(e) {}
             };
+
             if (win.MediaSource) hook(win.MediaSource, 'isTypeSupported', false, Symbol.for('perfx.ms'));
             if (win.HTMLMediaElement) hook(win.HTMLMediaElement, 'canPlayType', true, Symbol.for('perfx.me'));
         }
     }
 
-    // [Core 3] DomWatcher v3.14 (Safe Contain)
+    // [Core 3] DomWatcher v3.15 (Safe Contain & Live Config)
     class DomWatcher extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -662,23 +675,60 @@
             this.removedQueue = new Set();
             this.gcTimer = null;
 
-            API.shutdownMemory = () => { /* ... */ if (Config.gpu) this.startIO(); };
-            API.restartMemory = () => { if (Config.memory) { this.startIO(); this.startMO(); } else if (Config.gpu) { this.startIO(); } };
+            API.shutdownMemory = () => {
+                if (this.mutObs) { this.mutObs.disconnect(); this.mutObs = null; }
+                if (this.visObs) { this.visObs.disconnect(); this.visObs = null; }
+                
+                const restoreQueue = [...this.optimized];
+                this.optimized.clear();
+                this.removedQueue.clear();
+                scheduler.cancel(this.gcTimer);
+                this.gcTimer = null;
+
+                const processRestore = () => {
+                    const chunk = restoreQueue.splice(0, 100);
+                    for (const el of chunk) this.restoreStyle(el);
+                    if (restoreQueue.length > 0) scheduler.raf(processRestore);
+                };
+                processRestore();
+
+                if (Config.gpu) this.startIO();
+            };
+
+            API.restartMemory = () => {
+                if (Config.memory) {
+                    this.startIO(); 
+                    this.startMO(); 
+                } else if (Config.gpu) {
+                    this.startIO();
+                }
+            };
 
             this.startAll = () => { 
                 scheduler.request(() => { this.startIO(); this.startMO(); });
             };
             onReady(this.startAll);
 
+            // ✅ Live Config & Power Listener
             win.addEventListener('perfx-power-change', () => {
                 if (this.ioTimeout) clearTimeout(this.ioTimeout);
                 this.ioTimeout = setTimeout(() => this.startIO(), 1000);
+            });
+            
+            win.addEventListener('perfx-config', () => {
+                API.shutdownMemory();
+                API.restartMemory();
             });
         }
 
         applyOptimization(el, rect) {
             if (this.styleMap.has(el)) return;
             if (!rect || rect.height < 50 || rect.width < 50) return;
+            
+            // ✅ Safe Contain: Skip sticky/fixed/etc
+            const style = getComputedStyle(el);
+            if (style.position === 'sticky' || style.position === 'fixed') return;
+            if (/(auto|scroll)/.test(style.overflow + style.overflowY + style.overflowX)) return;
 
             this.styleMap.set(el, {
                 cv: el.style.contentVisibility,
@@ -691,11 +741,36 @@
             const h = Math.min(2000, Math.ceil(rect.height));
             el.style.containIntrinsicSize = `${w}px ${h}px`;
             el.style.contentVisibility = 'auto';
-            // ✅ Safe Contain: avoid strict 'content'
-            el.style.contain = 'layout paint'; 
+            el.style.contain = 'layout paint'; // Safe
         }
-        // ... (Restore/Flush/Sweep same) ...
-        restoreStyle(el) { /*...*/ } flushRemoved() { /*...*/ } sweepRemovedSubtree(root) { /*...*/ }
+
+        restoreStyle(el) {
+            const b = this.styleMap.get(el);
+            if (b) {
+                el.style.contentVisibility = b.cv;
+                el.style.contain = b.contain;
+                el.style.containIntrinsicSize = b.cis;
+                this.styleMap.delete(el);
+            }
+            this.optimized.delete(el);
+        }
+        
+        flushRemoved() {
+            if (this.removedQueue.size === 0 || this.optimized.size === 0) return;
+            for (const root of this.removedQueue) this.sweepRemovedSubtree(root);
+            this.removedQueue.clear();
+            this.gcTimer = null;
+        }
+
+        sweepRemovedSubtree(root) {
+            if (!root || root.nodeType !== 1) return;
+            if (this.optimized.has(root)) this.restoreStyle(root);
+
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+            while(walker.nextNode()) {
+                if (this.optimized.has(walker.currentNode)) this.restoreStyle(walker.currentNode);
+            }
+        }
 
         startIO() {
             if (this.visObs) this.visObs.disconnect();
@@ -705,7 +780,18 @@
             this.observed = new WeakSet(); 
             const margin = perfState.DOM_MARGIN; 
             
-            this.visObs = new IntersectionObserver((entries) => { /* ... */ }, { rootMargin: margin, threshold: 0.01 });
+            this.visObs = new IntersectionObserver((entries) => {
+                entries.forEach(e => {
+                    if (!e.target.isConnected) return;
+                    if (Config.gpu && e.target.tagName === 'CANVAS') {
+                        e.target.style.visibility = e.isIntersecting ? 'visible' : 'hidden';
+                    } 
+                    else if (Config.memory && this.supportsCV) {
+                        if (e.isIntersecting) this.restoreStyle(e.target);
+                        else this.applyOptimization(e.target, e.boundingClientRect);
+                    }
+                });
+            }, { rootMargin: margin, threshold: 0.01 });
 
             this.observeSafe = (el) => { 
                 if (el && this.obsCount < perfState.DOM_CAP && !this.observed.has(el)) {
@@ -729,13 +815,34 @@
             if (this.mutObs) this.mutObs.disconnect();
             
             this.mutObs = new MutationObserver(ms => {
-                // ... (Deep Scan capped logic) ...
+                ms.forEach(m => {
+                    if (this.obsCount < perfState.DOM_CAP) {
+                        m.addedNodes.forEach(n => {
+                            if (n.nodeType === 1) {
+                                if (n.matches && n.matches(FEED_SEL)) this.observeSafe(n);
+                                if (n.querySelectorAll) {
+                                    const list = n.querySelectorAll(FEED_SEL);
+                                    for (let i = 0; i < list.length && i < 200; i++) { 
+                                        this.observeSafe(list[i]);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    m.removedNodes.forEach(n => {
+                        if (n.nodeType === 1) this.removedQueue.add(n);
+                    });
+                });
+                
+                if (this.removedQueue.size > 0 && !this.gcTimer) {
+                    this.gcTimer = scheduler.request(() => this.flushRemoved(), 200);
+                }
             });
-            this.mutObs.observe(document.documentElement, { childList: true, subtree: true });
+            this.mutObs.observe(document.body, { childList: true, subtree: true });
         }
     }
 
-    // [Core 4] NetworkAssistant v3.8 (Distance Trimming & Viewport Aware)
+    // [Core 4] NetworkAssistant v3.9 (Distance Trimming & Zero-Layout)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -746,7 +853,7 @@
             let isProtectionPhase = true;
             
             // State for Distance Trimming
-            const distMap = new Map(); // el -> distance
+            const distMap = new Map(); 
             const observing = new Set(); 
             let imgSlots = 0, vidSlots = 0;
             let MAX_IMG = 0, MAX_VID = 0;
@@ -756,8 +863,8 @@
                 MAX_IMG = Math.floor(cap * 0.85);
                 MAX_VID = Math.max(10, cap - MAX_IMG);
                 
-                // ✅ Distance-Based Trimming
                 if (observing.size > cap) {
+                    // ✅ Distance-Based Trimming
                     const sorted = [...observing].sort((a, b) => (distMap.get(b) || 0) - (distMap.get(a) || 0));
                     const excess = observing.size - cap;
                     
@@ -773,9 +880,19 @@
             updateCaps();
             win.addEventListener('perfx-power-change', updateCaps);
 
-            // ... (Lifecycle: startProtection, onRoute, visibilitychange same) ...
+            // Lifecycle
             let protectTimer = null;
-            const startProtection = (force) => { /*...*/ };
+            const startProtection = (force) => {
+                if (!force && isProtectionPhase) return;
+                const ms = force ? 3000 : 1000;
+                isProtectionPhase = true;
+                if (protectTimer) clearTimeout(protectTimer);
+                protectTimer = setTimeout(() => {
+                    isProtectionPhase = false;
+                    protectTimer = null;
+                }, ms);
+            };
+            
             win.addEventListener('perfx-route', (e) => startProtection(e.detail?.force));
             onReady(() => { startProtection(true); setTimeout(() => { if (protectTimer) isProtectionPhase = false; }, 1000); });
             win.addEventListener('visibilitychange', () => { /*...*/ });
@@ -792,10 +909,14 @@
                 }
             };
 
-            const applyLazy = (img) => {
-                // ✅ View Check: Don't lazy if in view
-                const r = img.getBoundingClientRect();
-                if (r.top < win.innerHeight + 200 && r.bottom > -200) return;
+            const applyLazy = (img, rect) => {
+                // ✅ Zero-Layout: Use rect from IO or fallback
+                if (!rect) {
+                    try { rect = img.getBoundingClientRect(); } catch { return; }
+                }
+                
+                // Safe View Check
+                if (rect.top < win.innerHeight + 200 && rect.bottom > -200) return;
 
                 if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
                 img.setAttribute('loading', 'lazy');
@@ -806,8 +927,8 @@
             const vpObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
                     const el = e.target;
-                    // Update distance for trimming
-                    if (e.boundingClientRect) distMap.set(el, Math.abs(e.boundingClientRect.top));
+                    // ✅ True Distance Update
+                    distMap.set(el, distToViewport(e.boundingClientRect));
 
                     if (el.tagName === 'VIDEO') {
                         if (e.isIntersecting) {
@@ -821,7 +942,10 @@
                     }
                     
                     if (e.isIntersecting) nearSet.add(el);
-                    else { farSet.add(el); applyLazy(el); }
+                    else { 
+                        farSet.add(el); 
+                        applyLazy(el, e.boundingClientRect); // ✅ Pass Rect
+                    }
                     vpObs.unobserve(el);
                     decSlot(el);
                 });
@@ -838,12 +962,41 @@
             };
 
             // ... (processVideo, processImg, flushQueue, scheduleNode same) ...
-            const processVideo = (vid) => { /*...*/ };
-            const processImg = (img, fromMutation) => { /*...*/ };
-            const flushQueue = () => { /*...*/ };
-            const scheduleNode = (node, fromMutation) => { /*...*/ };
+            const processVideo = (vid) => {
+                if (vid.hasAttribute('preload') || isVideoSite) return;
+                if (!perfState.shouldAggressiveVideo && !vid.autoplay) { safeObserve(vid); return; }
+                vid.setAttribute('preload', 'none');
+                safeObserve(vid);
+            };
 
-            // ✅ Chunked Init Scan using Utility
+            const processImg = (img, fromMutation) => {
+                // ... (LCP check) ...
+                if (img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
+                const lcpUrl = getLCP();
+                if (lcpUrl) {
+                    const cur = normUrl(img.currentSrc || img.src);
+                    if (cur === lcpUrl) { img.setAttribute('loading', 'eager'); img.setAttribute('fetchpriority', 'high'); return; }
+                }
+
+                if (fromMutation && !isProtectionPhase) {
+                    if (imgSlots < MAX_IMG) { safeObserve(img); return; }
+                    applyLazy(img); return;
+                }
+
+                if (nearSet.has(img)) return; 
+                if (farSet.has(img)) { applyLazy(img); return; }
+                
+                safeObserve(img);
+            };
+
+            // ...
+            const flushQueue = () => { /*...*/ };
+            const scheduleNode = (node, fromMutation) => { 
+                const current = batchQueue.get(node);
+                batchQueue.set(node, current || fromMutation);
+                if (!batchTimer) batchTimer = scheduler.request(flushQueue, 200);
+            };
+
             const run = () => { 
                 const imgs = document.querySelectorAll('img');
                 const vids = document.querySelectorAll('video');
@@ -852,6 +1005,7 @@
             };
             onReady(run);
 
+            // ... (MO same) ...
             this.mo = new MutationObserver(ms => {
                 ms.forEach(m => {
                     m.addedNodes.forEach(n => {
@@ -860,7 +1014,6 @@
                             n.querySelectorAll('img, video').forEach(child => scheduleNode(child, true));
                         }
                     });
-                    // Slot Leak Fix
                     m.removedNodes.forEach(n => {
                         if (n.nodeType === 1) {
                             if (n.tagName === 'IMG' || n.tagName === 'VIDEO') decSlot(n);
@@ -872,6 +1025,7 @@
                 });
             });
             this.mo.observe(document.documentElement, { childList: true, subtree: true });
+            
             win.addEventListener('pagehide', (e) => { if (!e.persisted) vpObs.disconnect(); });
         }
     }
