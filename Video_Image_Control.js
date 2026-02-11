@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.3 Safe-Optimized)
+// @name        Video_Image_Control (v130.4 Polished)
 // @namespace   https://com/
-// @version     130.3
-// @description v130.3: IntersectionRatio WeakMap 적용, Video 스캔 필터링 강화, 씬 전환 부스트, 불필요 로직 제거.
+// @version     130.4
+// @description v130.4: 필터 체인 버그 수정, 레터박스 크롭, 데이터 속성 탐지 강화, 레이아웃 스래싱 최소화.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -351,8 +351,11 @@
             try {
                 const tag = this.tagName;
                 if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE') {
+                    // [Optimized] Quick length check first
+                    const len = name.length;
+                    if (len < 3 || len > 20) return res;
+
                     const n = name.toLowerCase();
-                    // [Optimized] Filter data- attributes to reduce overhead
                     const isSrc = n === 'src' || n === 'srcset' || n === 'poster';
                     const isDataSrc = n === 'data-src' || n === 'data-original' || n === 'data-url' || n === 'data-video-src';
                     const isType = n === 'type';
@@ -642,22 +645,30 @@
                 this.ctx.drawImage(this.targetVideo, 0, 0, size, size);
                 const data = this.ctx.getImageData(0, 0, size, size).data;
 
-                // [Optimized] Use pre-allocated buffer
                 if (!this._hist) this._hist = new Uint16Array(256);
                 const hist = this._hist;
                 hist.fill(0);
                 
-                // [Optimized] constant loop instead of variable increment
-                const len = data.length;
-                for (let i = 0; i < len; i += 4) {
+                // [Fixed] Dynamic pixel count
+                const totalValidPixels = size * size;
+
+                // [Enhanced] Crop Letterbox (Top/Bottom 15% skip)
+                // data is RGBA (4 bytes).
+                const startRow = Math.floor(size * 0.15);
+                const endRow = Math.ceil(size * 0.85);
+                const startIndex = startRow * size * 4;
+                const endIndex = endRow * size * 4;
+
+                let validCount = 0;
+                for (let i = startIndex; i < endIndex; i += 4) {
                     const r = data[i], g = data[i + 1], b = data[i + 2];
                     const y = (r * 54 + g * 183 + b * 19) >> 8;
                     hist[y]++;
+                    validCount++;
                 }
-                const totalValidPixels = 1024; // 32x32 fixed
 
                 const getPercentile = (p) => {
-                    const target = totalValidPixels * p;
+                    const target = validCount * p;
                     let sum = 0;
                     for (let i = 0; i < 256; i++) {
                         sum += hist[i];
@@ -782,7 +793,7 @@
             this.state = {
                 app: { isInitialized: false, isMobile, scriptActive: false },
                 site: { isLiveSite: IS_LIVE_SITE },
-                media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null, remoteVideoCount: 0, remoteImageCount: 0, remoteRate: null },
+                media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null, remoteVideoCount: 0, remoteImageCount: 0 },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null, createRequested: false, gestureMode: false },
@@ -882,7 +893,7 @@
             this._seenIframes = new WeakSet(); this._observedImages = new WeakSet(); this._iframeBurstCooldown = new WeakMap(); this._iframeObservers = new Map(); this._iframeInternalObservers = new Map();
             this._lastImmediateScan = new WeakMap(); this._mediaAttributeObservers = new WeakMap(); this._globalAttrObs = null; this._didInitialShadowFullScan = false;
             this._visibleVideos = new Set();
-            this._intersectionRatios = new WeakMap(); // [Optimized] Use WeakMap
+            this._intersectionRatios = new WeakMap();
             this._domDirty = true;
         }
         init(stateManager) {
@@ -1045,7 +1056,6 @@
                         const fsEl = document.fullscreenElement;
                         const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && fsEl.contains(e.target));
                         if (visMap) visMap.set(e.target, isVisible);
-                        // [Optimized] Use WeakMap for intersection ratio
                         this._intersectionRatios.set(e.target, e.intersectionRatio);
                         
                         if (e.target.tagName === 'VIDEO') {
@@ -1061,15 +1071,18 @@
                         let bestCandidate = null; let maxScore = -1;
                         for (const m of this._visibleVideos) {
                              if (m.tagName === 'VIDEO') {
+                                 // [Enhanced] Scoring with buffering and playing state
                                  const area = (m.clientWidth||0) * (m.clientHeight||0);
                                  let score = area;
-                                 if (!m.paused) score *= 2.0;
-                                 if (m.readyState >= 2) score *= 1.2;
+                                 if (!m.paused) score *= 2.5; // Playing is key
+                                 if (m.readyState >= 3) score *= 1.5; // Have enough data
                                  if (!m.muted && m.volume > 0) score *= 1.2;
+                                 if (m.ended) score *= 0.5; // Ended video is less important
                                  if (document.pictureInPictureElement === m) score *= 3.0;
-                                 // [Optimized] Use WeakMap
+                                 
                                  const ratio = this._intersectionRatios.get(m) || 0;
                                  score *= (0.5 + ratio * 0.5);
+                                 
                                  if (score > maxScore) { maxScore = score; bestCandidate = m; }
                              }
                         }
@@ -1101,9 +1114,24 @@
         }
         _checkAndAdd(node, media, images) {
              if (node.tagName === 'VIDEO') {
-                const isPotential = (node.src || node.currentSrc || node.srcObject || node.querySelector('source'));
-                const sizeOk = (node.offsetWidth >= CONFIG.FILTER.MIN_VIDEO_SIZE || node.offsetHeight >= CONFIG.FILTER.MIN_VIDEO_SIZE || node.videoWidth >= CONFIG.FILTER.MIN_VIDEO_SIZE || node.videoHeight >= CONFIG.FILTER.MIN_VIDEO_SIZE);
+                // [Optimized] Check cached properties first to avoid layout thrashing
+                const vw = node.videoWidth || 0;
+                const vh = node.videoHeight || 0;
+                let sizeOk = (vw >= CONFIG.FILTER.MIN_VIDEO_SIZE || vh >= CONFIG.FILTER.MIN_VIDEO_SIZE);
+                
+                if (!sizeOk) {
+                    // Fallback to offset dimensions only if video dims are missing
+                    const ow = node.offsetWidth || 0;
+                    const oh = node.offsetHeight || 0;
+                    sizeOk = (ow >= CONFIG.FILTER.MIN_VIDEO_SIZE || oh >= CONFIG.FILTER.MIN_VIDEO_SIZE);
+                }
+
+                // [Enhanced] Check data attributes for potential sources
+                const isPotential = (node.src || node.currentSrc || node.srcObject || node.querySelector('source') ||
+                                     node.getAttribute('data-src') || node.getAttribute('data-video-src') || node.getAttribute('data-url'));
+                
                 const isPlayableHidden = !sizeOk && (node.duration > 0 || node.readyState >= 1);
+                
                 if (sizeOk || isPotential || isPlayableHidden) media.add(node);
              } else if (node.tagName === 'IMG') {
                 const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
@@ -1210,7 +1238,6 @@
 
             if (root === document) {
                 const docVideos = document.getElementsByTagName('video');
-                // [Optimized] Use _checkAndAdd filtering instead of blind addition
                 for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images);
 
                 if (wantImages) {
@@ -1356,7 +1383,7 @@
     class FrameBridgePlugin extends Plugin {
         constructor() {
             super('FrameBridge');
-            this._children = new Map(); // window -> {id, ts, video, img, rate}
+            this._children = new Map();
             this._pruneTimer = null;
         }
         init(stateManager) {
@@ -1375,7 +1402,7 @@
                 try { window.top.postMessage({ type: 'VSC_HELLO', id: VSC_INSTANCE_ID }, '*'); } catch {}
                 this.subscribe('media.activeMedia', (set) => this.reportStatus());
                 this.subscribe('media.activeImages', (set) => this.reportStatus());
-                this.subscribe('playback.currentRate', (rate) => this.reportStatus());
+                // this.subscribe('playback.currentRate', (rate) => this.reportStatus()); // Rate removed
                 setTimeout(() => this.reportStatus(), 500);
             }
             this.subscribe('playback.targetRate', (rate) => { if(IS_TOP) this.broadcast({ type: 'VSC_CMD', key: 'playback.targetRate', value: rate }); });
@@ -1390,22 +1417,19 @@
             this.recalcRemoteCounts();
         }
         recalcRemoteCounts() {
-            let v = 0, i = 0, r = null;
+            let v = 0, i = 0;
             for (const [, rec] of this._children) {
                 v += (rec.video | 0);
                 i += (rec.img | 0);
-                if (rec.rate && r === null) r = rec.rate;
             }
             this.stateManager.set('media.remoteVideoCount', v);
             this.stateManager.set('media.remoteImageCount', i);
-            this.stateManager.set('media.remoteRate', r);
         }
         reportStatus() {
             const mSet = this.stateManager.get('media.activeMedia');
             const iSet = this.stateManager.get('media.activeImages');
-            const rate = this.stateManager.get('playback.currentRate');
             try {
-                window.top.postMessage({ type: 'VSC_REPORT', count: (mSet ? mSet.size : 0), imgCount: (iSet ? iSet.size : 0), rate: rate, id: VSC_INSTANCE_ID }, '*');
+                window.top.postMessage({ type: 'VSC_REPORT', count: (mSet ? mSet.size : 0), imgCount: (iSet ? iSet.size : 0), id: VSC_INSTANCE_ID }, '*');
             } catch {}
         }
         broadcast(msg) {
@@ -1428,10 +1452,9 @@
             if (IS_TOP) {
                 if (d.type === 'VSC_HELLO' && d.id) {
                     const frameEl = this.findIframeByWindow(e.source);
-                    // [Optimized] Stricter frame check
                     if (!frameEl || !frameEl.isConnected) return;
 
-                    this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0, rate: 1.0 });
+                    this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0 });
                     const snapshot = {
                         playback: { targetRate: this.stateManager.get('playback.targetRate') },
                         videoFilter: this.stateManager.get('videoFilter'),
@@ -1448,7 +1471,6 @@
                     rec.ts = Date.now();
                     rec.video = (d.count | 0);
                     rec.img = (d.imgCount | 0);
-                    rec.rate = d.rate;
                     this.recalcRemoteCounts();
                     return;
                 }
@@ -1481,7 +1503,7 @@
     }
 
     class SvgFilterPlugin extends Plugin {
-        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, contrast: 0, clarityComp: 0 }; this.throttledUpdate = null; this._rafId = null; this._imageRafId = null; this._mediaStateRafId = null; }
+        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0 }; this.throttledUpdate = null; this._rafId = null; this._imageRafId = null; this._mediaStateRafId = null; }
         init(stateManager) {
             super.init(stateManager);
             const isMobile = this.stateManager.get('app.isMobile');
@@ -1544,6 +1566,9 @@
                         const blurCoarse = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur_coarse", in: "sharpened_fine", stdDeviation: "0", result: "blur_coarse_out" });
                         const compCoarse = createSvgElement('feComposite', { "data-vsc-id": "sharpen_comp_coarse", operator: "arithmetic", in: "sharpened_fine", in2: "blur_coarse_out", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_final" });
 
+                        // [Fixed] Re-ordered filter chain: Grain comes *after* sharpening is done
+                        filter.append(clarityTransfer, blurFine, compFine, blurCoarse, compCoarse);
+
                         let lastOut = "sharpened_final";
                         if (includeGrain) {
                             const grainNode = createSvgElement('feTurbulence', { "data-vsc-id": "grain_gen", type: "fractalNoise", baseFrequency: "0.80", numOctaves: "1", stitchTiles: "noStitch", result: "grain_noise" });
@@ -1557,7 +1582,7 @@
                              colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
                              colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" }));
                              colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
-                             filter.append(clarityTransfer, blurFine, compFine, blurCoarse, compCoarse, colorTemp);
+                             filter.append(colorTemp);
                         } else {
                             const lumaContrast = createSvgElement('feColorMatrix', { "data-vsc-id": "luma_contrast_matrix", in: lastOut, type: "matrix", values: "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0", result: "luma_contrast_out" });
                             const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "luma_contrast_out", type: "saturate", values: (settings.SAT / 100).toString(), result: "saturate_out" });
@@ -1567,7 +1592,7 @@
                             colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
                             colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" }));
                             colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
-                            filter.append(clarityTransfer, blurFine, compFine, blurCoarse, compCoarse, lumaContrast, saturation, gamma, toneCurve, colorTemp);
+                            filter.append(lumaContrast, saturation, gamma, toneCurve, colorTemp);
                         }
                         return filter;
                     };
@@ -1704,8 +1729,8 @@
                  VideoAnalyzer.stop(); this.updateMediaFilterStates(); return;
             }
             const vf = this.stateManager.get('videoFilter');
-            let auto = this.lastAutoParams || { gamma: 1.0, bright: 0, contrast: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 };
-            if (!vf.autoExposure) { auto = { ...auto, gamma: 1.0, bright: 0, contrast: 0, shadowsAdj: 0, highlightsAdj: 0 }; }
+            let auto = this.lastAutoParams || { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 };
+            if (!vf.autoExposure) { auto = { ...auto, gamma: 1.0, bright: 0, shadowsAdj: 0, highlightsAdj: 0 }; }
             const finalGamma = vf.gamma * (auto.gamma || 1.0); const finalBrightness = vf.brightness + (auto.bright || 0) + (auto.clarityComp || 0); const finalContrastAdj = vf.contrastAdj; const finalHighlights = vf.highlights + (auto.highlightsAdj || 0); const finalShadows = vf.shadows + (auto.shadowsAdj || 0);
             let autoSharpLevel2 = vf.level2; if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
             const values = { saturation: vf.saturation, gamma: finalGamma, blur: 0, sharpenLevel: vf.level, level2: autoSharpLevel2, shadows: finalShadows, highlights: finalHighlights, brightness: finalBrightness, contrastAdj: finalContrastAdj, colorTemp: vf.colorTemp, dither: vf.dither, clarity: vf.clarity, autoExposure: vf.autoExposure, targetLuma: vf.targetLuma };
@@ -1823,7 +1848,10 @@
             this.subscribe('media.remoteImageCount', () => this.updateUIVisibility());
             this.subscribe('playback.currentRate', rate => {
                 this.updateActiveSpeedButton(rate);
-                this.showToast(`${rate.toFixed(2)}x`);
+                // [Optimized] Suppress toast spam when live stream (PID) is running
+                if (!this.stateManager.get('liveStream.isRunning')) {
+                    this.showToast(`${rate.toFixed(2)}x`);
+                }
             });
             this.subscribe('ui.gestureMode', enabled => this.toggleGestureLayer(enabled));
             if (CONFIG.FLAGS.LIVE_DELAY) { this.subscribe('liveStream.delayInfo', info => this.updateDelayMeter(info)); this.subscribe('liveStream.isPinned', () => this.updateDelayMeterVisibility()); }
