@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v77.6 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v77.7 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     77.6.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Syntax Fix, Media-Friendly, Route Throttle)
+// @version     77.7.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Map-Queue Dedupe, Smart Video, Adaptive Protection)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -26,16 +26,16 @@
     // [Util] Helpers
     const hostEndsWithAny = (h, list) => list.some(d => h === d || h.endsWith('.' + d));
     const safeJsonParse = (str) => { try { return JSON.parse(str) || {}; } catch { return {}; } };
-
+    
     // [Safe Init] Hoist Config/API
-    let Config = {
-        codecMode: 'off', passive: false, gpu: false, memory: false,
-        allowIframe: false, downgradeLevel: 0
+    let Config = { 
+        codecMode: 'off', passive: false, gpu: false, memory: false, 
+        allowIframe: false, downgradeLevel: 0 
     };
-
-    const API = {
+    
+    const API = { 
         profile: () => {}, toggleConfig: () => {}, toggleSessionSafe: () => {},
-        shutdownMemory: () => {}, restartMemory: () => {}
+        shutdownMemory: () => {}, restartMemory: () => {} 
     };
 
     // Safe Scheduler
@@ -58,16 +58,12 @@
         return out;
     };
 
+    // Strict Normalization for Stability
     const normUrl = (u) => {
         try {
             if (!u || u.startsWith('data:')) return u;
             const url = new URL(u, win.location.href);
-            const params = new URLSearchParams(url.search);
-            const keep = ['w', 'width', 'h', 'height', 'q', 'quality'];
-            const newParams = new URLSearchParams();
-            keep.forEach(k => { if(params.has(k)) newParams.set(k, params.get(k)); });
-
-            return url.origin + url.pathname + (newParams.toString() ? '?' + newParams.toString() : '');
+            return url.origin + url.pathname; // Strip all queries for better hit rate
         } catch { return u; }
     };
 
@@ -86,7 +82,8 @@
 
     // [Config & State]
     const hostname = win.location.hostname.toLowerCase();
-
+    
+    // SPA Key Generator
     const getLcpKey = () => {
         const lcpKeyBase = `PerfX_LCP_${hostname}`;
         const pathSegs = win.location.pathname.split('/').filter(Boolean).map(s => {
@@ -95,7 +92,7 @@
             if (s.length > 24 || /^[0-9a-z_-]{20,}$/i.test(s)) return ':token';
             return s;
         });
-        const pathBucket = pathSegs.slice(0, 2).join('/');
+        const pathBucket = pathSegs.slice(0, 2).join('/'); 
         return `${lcpKeyBase}:${pathBucket}`;
     };
     let LCP_KEY = getLcpKey();
@@ -106,7 +103,7 @@
     const Env = {
         storageKey: `PerfX_ULTRA_${hostname}`,
         getOverrides() { return safeJsonParse(S.get(this.storageKey)); },
-        saveOverrides(data) {
+        saveOverrides(data) { 
             const safeData = stripTransient(data);
             S.set(this.storageKey, JSON.stringify(safeData));
             RuntimeConfig = { ...RuntimeConfig, ...data };
@@ -118,17 +115,17 @@
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // [Safety 0] Crash Guard
+    // [Safety 0] Crash Guard V4.5
     const CRASH_KEY = `perfx-crash:${hostname}`;
     const SESSION_OFF_KEY = `perfx-safe:${hostname}`;
-
+    
     try {
         if (new URLSearchParams(win.location.search).has('perfx-off')) sessionStorage.setItem(SESSION_OFF_KEY, '1');
         const lastCrash = parseInt(S.get(CRASH_KEY) || '0');
-
+        
         if (lastCrash >= 3) {
             sessionStorage.setItem(SESSION_OFF_KEY, '1');
-            S.set(CRASH_KEY, '0');
+            S.set(CRASH_KEY, '0'); 
         }
 
         if (sessionStorage.getItem(SESSION_OFF_KEY)) {
@@ -149,18 +146,19 @@
     const isSafeMode = isCritical || RuntimeConfig._sessionSafe;
 
     // [Power State & Unified State Manager]
-    const baseLowPower = (navigator.hardwareConcurrency ?? 4) < 4;
-
+    const baseLowPower = (navigator.hardwareConcurrency ?? 4) < 4; 
+    
     let isLowPowerMode = baseLowPower;
-    let batteryLow = false;
+    let batteryLow = false; 
     let perfMultiplier = 1.0;
-
-    // ✅ Consolidated Caps (No more duplicates)
+    
+    // Dynamic Caps
     let MAX_OBSERVERS_VAL = 2000;
-    let MAX_IMG_OBS_VAL = 800;
+    let MAX_IMG_OBS_VAL = 800; 
     let DEEP_SCAN_LIMIT = 200;
     let DOM_MARGIN = '600px 0px';
     let INIT_SCAN_CAP = 300;
+    let PROTECT_MS = 3000; // Adaptive Protection Time
 
     const applyPowerPolicy = () => {
         if (isLowPowerMode) {
@@ -176,24 +174,27 @@
         const dm = navigator.deviceMemory || 4;
         const saveData = !!navigator.connection?.saveData;
         const net = navigator.connection?.effectiveType || '4g';
-
-        isLowPowerMode = baseLowPower || saveData || batteryLow;
-
+        
+        isLowPowerMode = baseLowPower || saveData || batteryLow; 
+        
         let m = (hc <= 4 || dm <= 4 || isMobile) ? 0.8 : 1.0;
         if (saveData) m *= 0.85;
         if (/2g|3g/.test(net)) m *= 0.85;
         if (isLowPowerMode && !saveData) m *= 0.85;
-
+        
         perfMultiplier = Math.max(0.6, Math.min(1.2, m));
-
+        
         // Caps Scaling
         MAX_OBSERVERS_VAL = Math.floor(2000 * perfMultiplier);
         MAX_IMG_OBS_VAL = Math.floor(800 * perfMultiplier);
         INIT_SCAN_CAP = Math.floor(300 * perfMultiplier);
-
+        
+        // Adaptive Protection Phase
+        PROTECT_MS = isMobile ? 3500 : Math.floor(3000 / perfMultiplier);
+        
         if (isMobile) {
             MAX_OBSERVERS_VAL = Math.min(MAX_OBSERVERS_VAL, 700);
-            MAX_IMG_OBS_VAL = Math.min(MAX_IMG_OBS_VAL, 250);
+            MAX_IMG_OBS_VAL = Math.min(MAX_IMG_OBS_VAL, 250); 
             DEEP_SCAN_LIMIT = 80;
             DOM_MARGIN = '300px 0px';
             INIT_SCAN_CAP = 120;
@@ -201,7 +202,7 @@
             DEEP_SCAN_LIMIT = 200;
             DOM_MARGIN = isLowPowerMode ? '400px 0px' : '600px 0px';
         }
-
+        
         MAX_OBSERVERS_VAL = Math.max(MAX_OBSERVERS_VAL, 250);
     };
 
@@ -219,17 +220,17 @@
             update(); b.addEventListener('levelchange', update); b.addEventListener('chargingchange', update);
         }).catch(() => {});
     }
-
+    
     win.addEventListener('perfx-power-change', refreshPerfState);
     navigator.connection?.addEventListener?.('change', refreshPerfState);
-    refreshPerfState();
+    refreshPerfState(); 
 
     // ==========================================
     // 1. Populate Config & API (Safe Init)
     // ==========================================
     const Q_KEY = `perfx-quarantine:${hostname}`;
     let Q_CACHE = null;
-
+    
     const checkQuarantine = (now = Date.now()) => {
         if (Q_CACHE && (now - Q_CACHE.ts) < 86400000) return Q_CACHE;
         const q = safeJsonParse(S.get(Q_KEY));
@@ -260,8 +261,8 @@
     }
 
     Object.assign(Config, calculatedConfig);
-    applyPowerPolicy();
-
+    applyPowerPolicy(); 
+    
     Object.assign(API, {
         profile: (mode) => {
             const presets = {
@@ -289,29 +290,32 @@
         }
     });
 
-    // SPA Route Listener (Route Shield & Throttle)
+    // SPA Route Listener (Throttled & Key-Based)
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
-
+    
     const onRoute = () => {
         const nextKey = getLcpKey();
         const now = Date.now();
-
-        // ✅ Throttle Route Signal
-        if (now - lastRouteSignal > 1500) {
-            lastRouteSignal = now;
+        
+        // Key changed? Trigger immediately
+        if (nextKey !== lastKey) {
+            if (RuntimeConfig._lcp) S.set(lastKey, RuntimeConfig._lcp); // Commit old
+            
+            lastKey = nextKey;
+            LCP_KEY = nextKey;
+            RuntimeConfig._lcp = S.get(LCP_KEY) || null; // Load new
+            
             win.dispatchEvent(new Event('perfx-route'));
+            lastRouteSignal = now;
+        } 
+        // Same key (replaceState spam)? Throttle
+        else if (now - lastRouteSignal > 5000) {
+            win.dispatchEvent(new Event('perfx-route')); // Refresh protection occasionally
+            lastRouteSignal = now;
         }
-
-        if (nextKey === lastKey) return;
-
-        if (RuntimeConfig._lcp) S.set(lastKey, RuntimeConfig._lcp);
-
-        lastKey = nextKey;
-        LCP_KEY = nextKey;
-        RuntimeConfig._lcp = S.get(LCP_KEY) || null;
     };
-
+    
     if (!win.__perfx_history_patched) {
         win.__perfx_history_patched = true;
         const origPush = history.pushState;
@@ -341,25 +345,25 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '77.6.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '77.7.0', config: Config, ...API };
 
     // ==========================================
     // 2. Autonomous V19 (LoAF & Sliding Quarantine)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !isSafeMode) {
         try {
-            let clsTotal = 0, loadTotal = 0;
+            let clsTotal = 0, loadTotal = 0; 
             let lastCls = 0, lastLoad = 0;
-            let recoveryStreak = 0;
-
+            let recoveryStreak = 0; 
+            
             let lcpMissCount = 0;
             if (S.get(LCP_KEY)) RuntimeConfig._lcp = S.get(LCP_KEY);
-
+            
             const useLoAF = SUPPORTED_TYPES.has('long-animation-frame');
-
+            
             const getThresholds = () => ({
                 L1_CLS: 0.05 * perfMultiplier,
-                L1_LOAD: (useLoAF ? 150 : 5) * perfMultiplier,
+                L1_LOAD: (useLoAF ? 150 : 5) * perfMultiplier, 
                 L2_CLS: 0.2 * perfMultiplier,
                 L2_LOAD: (useLoAF ? 500 : 15) * perfMultiplier,
                 REC_CLS: 0.01 * perfMultiplier,
@@ -377,11 +381,11 @@
                             if (RuntimeConfig._lcp && currentLCP !== RuntimeConfig._lcp) {
                                 lcpMissCount++;
                                 if (lcpMissCount >= 3) {
-                                    RuntimeConfig._lcp = currentLCP;
+                                    RuntimeConfig._lcp = currentLCP; 
                                     lcpMissCount = 0;
                                 }
                             } else {
-                                if (currentLCP === RuntimeConfig._lcp) lcpMissCount = 0;
+                                if (currentLCP === RuntimeConfig._lcp) lcpMissCount = 0; 
                                 if (!RuntimeConfig._lcp) RuntimeConfig._lcp = currentLCP;
                             }
                         }
@@ -398,7 +402,7 @@
             if (useLoAF) {
                 new PerformanceObserver((list) => {
                     for (const e of list.getEntries()) {
-                        const blocking = Math.min(200, e.duration - 50);
+                        const blocking = Math.min(200, e.duration - 50); 
                         if (blocking > 0) loadTotal += blocking;
                     }
                 }).observe({type: 'long-animation-frame', buffered: true});
@@ -425,23 +429,23 @@
                 const TH = getThresholds();
 
                 const now = Date.now();
-
+                
                 if (c.downgradeCount > 5 && !checkQuarantine(now)) {
-                    const modules = { memory: false };
+                    const modules = { memory: false }; 
                     const qVal = { ts: now, modules };
                     S.set(Q_KEY, JSON.stringify(qVal));
-                    Q_CACHE = qVal;
-
+                    Q_CACHE = qVal; 
+                    
                     c.downgradeCount = 0;
                     c.downgradeWindowTs = now;
-                    Config.memory = false;
+                    Config.memory = false; 
                     c.memory = false;
                     Env.saveOverrides(c);
                     API.shutdownMemory();
                     log('Self-Quarantine Activated');
-                    return;
+                    return; 
                 }
-
+                
                 if (!c.downgradeWindowTs || (now - c.downgradeWindowTs) > 86400000) {
                     c.downgradeWindowTs = now;
                     c.downgradeCount = 0;
@@ -453,9 +457,9 @@
                     c.downgradeReason = { cls: clsDelta, load: loadDelta, t: Date.now(), level: 2 };
                     c.gpu = false; c.memory = false; c.codecMode = 'soft';
                     c.autoDowngraded = true;
-                    c.downgradeCount = (c.downgradeCount || 0) + 1;
+                    c.downgradeCount = (c.downgradeCount || 0) + 1; 
                     Env.saveOverrides(c);
-
+                    
                     Config.gpu = false; Config.memory = false;
                     API.shutdownMemory();
                     log(`Downgrade L2`);
@@ -466,22 +470,22 @@
                     c.downgradeLevel = 1;
                     c.downgradeReason = { cls: clsDelta, load: loadDelta, t: Date.now(), level: 1 };
                     c.memory = false;
-                    c.downgradeCount = (c.downgradeCount || 0) + 1;
+                    c.downgradeCount = (c.downgradeCount || 0) + 1; 
                     Env.saveOverrides(c);
-
-                    Config.memory = false;
-                    API.shutdownMemory();
+                    
+                    Config.memory = false; 
+                    API.shutdownMemory(); 
                     log(`Downgrade L1`);
                     recoveryStreak = 0;
                 }
                 else if (currentLevel > 0 && clsDelta < TH.REC_CLS && loadDelta < TH.REC_LOAD) {
                     recoveryStreak++;
                     const requiredStreak = currentLevel === 1 ? 2 : 4;
-
+                    
                     if (recoveryStreak >= requiredStreak) {
                         const isQ = checkQuarantine(now);
                         if (c._restore) {
-                            if (isQ) c._restore.memory = false;
+                            if (isQ) c._restore.memory = false; 
                             Config.memory = !!c._restore.memory && !c._powerThrottled;
                             Config.gpu = !!c._restore.gpu;
                             Config.passive = !!c._restore.passive;
@@ -492,28 +496,28 @@
                         delete c.autoDowngraded;
                         delete c.downgradeReason;
                         Env.saveOverrides(c);
-
+                        
                         if (Config.memory) API.restartMemory();
                         log('Restored');
                         recoveryStreak = 0;
                     }
                 } else {
-                    recoveryStreak = 0;
+                    recoveryStreak = 0; 
                 }
-
+                
                 healthTimer = setTimeout(checkHealth, 5000);
             };
-
+            
             const startLoop = () => { if (!healthTimer) checkHealth(); };
             const stopLoop = () => { if (healthTimer) { clearTimeout(healthTimer); healthTimer = null; } };
 
             win.addEventListener('visibilitychange', () => {
-                if (document.hidden) { stopLoop(); commitLCP(); }
+                if (document.hidden) { stopLoop(); commitLCP(); } 
                 else { resetDeltas(); startLoop(); }
             });
             win.addEventListener('pagehide', (e) => {
                 stopLoop(); commitLCP();
-                if (!e.persisted) API.shutdownMemory();
+                if (!e.persisted) API.shutdownMemory(); 
             });
             win.addEventListener('pageshow', (e) => {
                 if (e.persisted) { resetDeltas(); startLoop(); API.restartMemory(); }
@@ -527,13 +531,13 @@
     // ==========================================
     class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // [Core 1] EventPassivator v3.8
+    // [Core 1] EventPassivator v3.7
     class EventPassivator extends BaseModule {
         init() {
             if (!Config.passive || win.__perfx_evt_patched) return;
             win.__perfx_evt_patched = true;
 
-            const evts = new Set(['wheel', 'mousewheel']);
+            const evts = new Set(['wheel', 'mousewheel']); 
             const needsPDCache = new WeakMap();
 
             const checkNeedsPD = (listener) => {
@@ -557,15 +561,15 @@
                 const origAdd = proto.addEventListener;
                 proto.addEventListener = function(type, listener, options) {
                     if (!listener) return origAdd.call(this, type, listener, options);
-
+                    
                     let finalOptions = options;
                     if (evts.has(type)) {
                         const isObj = typeof options === 'object' && options !== null;
                         if (!isObj || options.passive === undefined) {
                             if (!checkNeedsPD(listener)) {
                                 try {
-                                    finalOptions = isObj
-                                        ? { ...options, passive: true }
+                                    finalOptions = isObj 
+                                        ? { ...options, passive: true } 
                                         : { capture: options === true, passive: true };
                                 } catch (e) { finalOptions = options; }
                             }
@@ -631,7 +635,7 @@
             API.shutdownMemory = () => {
                 if (this.mutObs) { this.mutObs.disconnect(); this.mutObs = null; }
                 if (this.visObs) { this.visObs.disconnect(); this.visObs = null; }
-
+                
                 const restoreQueue = [...this.optimized];
                 this.optimized.clear();
                 this.removedQueue.clear();
@@ -650,16 +654,16 @@
 
             API.restartMemory = () => {
                 if (Config.memory) {
-                    this.startIO();
-                    this.startMO();
+                    this.startIO(); 
+                    this.startMO(); 
                 } else if (Config.gpu) {
                     this.startIO();
                 }
             };
 
-            this.startAll = () => {
+            this.startAll = () => { 
                 scheduler.request(() => {
-                    this.startIO();
+                    this.startIO(); 
                     this.startMO();
                 });
             };
@@ -700,7 +704,7 @@
             }
             this.optimized.delete(el);
         }
-
+        
         flushRemoved() {
             if (this.removedQueue.size === 0 || this.optimized.size === 0) return;
             for (const root of this.removedQueue) this.sweepRemovedSubtree(root);
@@ -722,16 +726,16 @@
             if (this.visObs) this.visObs.disconnect();
             if (!Config.memory && !Config.gpu) return;
 
-            this.obsCount = 0;
-            this.observed = new WeakSet();
-            const margin = DOM_MARGIN;
-
+            this.obsCount = 0; 
+            this.observed = new WeakSet(); 
+            const margin = DOM_MARGIN; 
+            
             this.visObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
                     if (!e.target.isConnected) return;
                     if (Config.gpu && e.target.tagName === 'CANVAS') {
                         e.target.style.visibility = e.isIntersecting ? 'visible' : 'hidden';
-                    }
+                    } 
                     else if (Config.memory && this.supportsCV) {
                         if (e.isIntersecting) this.restoreStyle(e.target);
                         else this.applyOptimization(e.target, e.boundingClientRect);
@@ -739,7 +743,7 @@
                 });
             }, { rootMargin: margin, threshold: 0.01 });
 
-            this.observeSafe = (el) => {
+            this.observeSafe = (el) => { 
                 if (el && this.obsCount < MAX_OBSERVERS_VAL && !this.observed.has(el)) {
                     this.visObs.observe(el);
                     this.observed.add(el);
@@ -748,9 +752,8 @@
             };
 
             if (Config.gpu) document.querySelectorAll('canvas').forEach(this.observeSafe);
-
+            
             if (Config.memory) {
-                // ✅ Capped Initial Scan
                 const list = document.querySelectorAll(FEED_SEL);
                 const limit = Math.min(list.length, MAX_OBSERVERS_VAL, INIT_SCAN_CAP);
                 for (let i = 0; i < limit; i++) this.observeSafe(list[i]);
@@ -764,7 +767,7 @@
                 return;
             }
             if (this.mutObs) this.mutObs.disconnect();
-
+            
             this.mutObs = new MutationObserver(ms => {
                 ms.forEach(m => {
                     if (this.obsCount < MAX_OBSERVERS_VAL) {
@@ -784,7 +787,7 @@
                         if (n.nodeType === 1) this.removedQueue.add(n);
                     });
                 });
-
+                
                 if (this.removedQueue.size > 0 && !this.gcTimer) {
                     this.gcTimer = scheduler.request(() => this.flushRemoved(), 200);
                 }
@@ -793,33 +796,30 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.3 (Context-Aware Lazy & Safe Preload)
+    // [Core 4] NetworkAssistant v3.4 (Queue Dedupe & Smart Video)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
 
             const getLCP = () => RuntimeConfig._lcp || S.get(LCP_KEY);
-            const batchQueue = new Set();
+            // ✅ Map-Based Queue for Dedupe
+            const batchQueue = new Map();
             let batchTimer = null;
             let isProtectionPhase = true;
-
-            // Route Shield Hook
+            
             win.addEventListener('perfx-route', () => {
-                isProtectionPhase = true;
-                setTimeout(() => isProtectionPhase = false, 3000);
+                isProtectionPhase = true; 
+                setTimeout(() => isProtectionPhase = false, PROTECT_MS); // Adaptive
             });
-
-            // Initial Protection
+            
             if (document.readyState === 'complete') isProtectionPhase = false;
-            else win.addEventListener('load', () => { setTimeout(() => isProtectionPhase = false, 3000); });
+            else win.addEventListener('load', () => { setTimeout(() => isProtectionPhase = false, PROTECT_MS); });
 
-            // ✅ Safe Observe Logic
-            const observing = new WeakSet();
             const nearSet = new WeakSet();
             const farSet = new WeakSet();
+            const observing = new WeakSet();
             let imgObsCount = 0;
-            const MAX_IMG_OBS = isMobile ? 250 : 800; // Strict Cap
-
+            
             const applyLazy = (img) => {
                 if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
                 img.setAttribute('loading', 'lazy');
@@ -829,27 +829,34 @@
             const vpObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
                     const el = e.target;
-
+                    
+                    // Video Logic
                     if (el.tagName === 'VIDEO') {
                         if (e.isIntersecting) {
                             el.setAttribute('preload', 'metadata');
                             vpObs.unobserve(el);
+                            observing.delete(el); // Allow re-observe if needed
+                        } else {
+                            // ✅ Aggressive offscreen block
+                            if (!el.hasAttribute('preload')) el.setAttribute('preload', 'none');
                         }
                         return;
                     }
-
+                    
+                    // Image Logic
                     if (e.isIntersecting) {
                         nearSet.add(el);
                     } else {
                         farSet.add(el);
-                        applyLazy(el); // Safe to apply lazy now
+                        applyLazy(el);
                     }
                     vpObs.unobserve(el);
+                    observing.delete(el);
                 });
             }, { rootMargin: "50% 0px" });
 
             const safeObserve = (el) => {
-                if (observing.has(el) || imgObsCount >= MAX_IMG_OBS) return;
+                if (observing.has(el) || imgObsCount >= MAX_IMG_OBS_VAL) return; // ✅ Use Global Cap
                 observing.add(el);
                 imgObsCount++;
                 vpObs.observe(el);
@@ -857,13 +864,10 @@
 
             const processVideo = (vid, fromMutation) => {
                 if (vid.hasAttribute('preload') || isVideoSite) return;
-                if (vid.autoplay || vid.muted) return; // Skip background videos
-
-                // Only optimize if low power or mobile
-                if (isLowPowerMode || isMobile) {
-                    vid.setAttribute('preload', 'none');
-                    safeObserve(vid);
-                }
+                
+                // If far or unknown, force none initially
+                vid.setAttribute('preload', 'none');
+                safeObserve(vid);
             };
 
             const processImg = (img, fromMutation) => {
@@ -875,48 +879,47 @@
                     if (cur === lcpUrl) {
                         img.setAttribute('loading', 'eager');
                         img.setAttribute('fetchpriority', 'high');
-                        // No observe needed
                         return;
                     }
                 }
 
-                // ✅ Context-Aware Strategy
-                // 1. Mutation (Late) images: Aggressive Lazy if protection over
                 if (fromMutation && !isProtectionPhase) {
-                    applyLazy(img);
+                    applyLazy(img); // Instant Lazy for late images
                     return;
                 }
 
-                // 2. Initial images: Wait for IO judgment (Safe)
-                // Skip if near/far already known
-                if (nearSet.has(img)) return;
+                // Initial load or protected phase -> Check Viewport
+                if (nearSet.has(img)) return; 
                 if (farSet.has(img)) {
                     applyLazy(img);
                     return;
                 }
-
+                
                 safeObserve(img);
             };
 
             const flushQueue = () => {
-                batchQueue.forEach(item => {
-                    if (item.node.tagName === 'VIDEO') processVideo(item.node, item.fromMutation);
-                    else processImg(item.node, item.fromMutation);
+                batchQueue.forEach((fromMutation, node) => {
+                    if (node.tagName === 'VIDEO') processVideo(node, fromMutation);
+                    else processImg(node, fromMutation);
                 });
                 batchQueue.clear();
                 batchTimer = null;
             };
 
             const scheduleNode = (node, fromMutation = false) => {
-                batchQueue.add({ node, fromMutation });
+                // ✅ Dedupe: Prefer true (mutation) if mixed
+                const current = batchQueue.get(node);
+                batchQueue.set(node, current || fromMutation);
+                
                 if (!batchTimer) batchTimer = scheduler.request(flushQueue, 200);
             };
 
-            const run = () => {
-                document.querySelectorAll('img').forEach(n => scheduleNode(n, false));
+            const run = () => { 
+                document.querySelectorAll('img').forEach(n => scheduleNode(n, false)); 
                 document.querySelectorAll('video').forEach(n => scheduleNode(n, false));
             };
-
+            
             if (document.readyState === 'loading') win.addEventListener('DOMContentLoaded', run);
             else run();
 
@@ -928,7 +931,7 @@
                     }
                 }));
             }).observe(document.documentElement, { childList: true, subtree: true });
-
+            
             win.addEventListener('pagehide', () => vpObs.disconnect());
         }
     }
@@ -939,7 +942,7 @@
             if (!isLowPowerMode) return;
             const MAP_DOMAINS = ['map.naver.com', 'map.kakao.com', 'dmap.daum.net'];
             if (hostEndsWithAny(hostname, MAP_DOMAINS) || (hostname.includes('google') && hostname.includes('map'))) return;
-            if (!isHeavyFeed) return;
+            if (!isHeavyFeed) return; 
 
             if (navigator.geolocation) {
                 const makeError = () => ({ code: 1, message: "Blocked by PerfX" });
@@ -955,9 +958,9 @@
 
     // Module Init
     [
-        new EventPassivator(),
-        new CodecOptimizer(),
-        new DomWatcher(),
+        new EventPassivator(), 
+        new CodecOptimizer(), 
+        new DomWatcher(), 
         new NetworkAssistant(),
         new HardwareGovernor()
     ].forEach(m => m.safeInit());
