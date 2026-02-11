@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.7 Jailbreak)
+// @name        Video_Image_Control (v130.8 Jailbreak+Optimize)
 // @namespace   https://com/
-// @version     130.7
-// @description v130.7: ShadowDOM 강제 개방, 속성 잠금(defineProperty) 무력화, ratechange 방어, Center-Focus 유지.
+// @version     130.8
+// @description v130.8: RemoveEventListener Fix, Startup Scan Fix, Overlay/Shadow Penetration, Expanded Lazy-Load Detect.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -128,7 +128,9 @@
             INTERVAL_IFRAME: 2000,
             INTERVAL_MAX: 15000,
             MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
-            MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading']
+            // [Updated] Expanded Lazy Detection
+            MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading',
+                             'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src']
         },
         UI: {
             MAX_Z: 2147483647,
@@ -142,12 +144,11 @@
     const hostMatches = (host, d) => host === d || host.endsWith('.' + d);
     const IS_LIVE_SITE = CONFIG.LIVE.SITES.some(d => hostMatches(location.hostname, d));
 
-    // --- [New] Hack: Unlock Restricted Properties (h5player logic) ---
-    // 일부 사이트(넷플릭스 등)가 defineProperty로 배속 변경을 막는 것을 방어
+    // --- Hack: Unlock Restricted Properties ---
     (function unlockRestrictedProperties() {
         const origDefineProperty = Object.defineProperty;
         const origDefineProperties = Object.defineProperties;
-        const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted'];
+        const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
 
         Object.defineProperty = function (obj, key, descriptor) {
             if (obj && (obj instanceof HTMLMediaElement || obj.HTMLMediaElement)) {
@@ -155,7 +156,6 @@
                     if (descriptor.configurable === false) descriptor.configurable = true;
                     if (descriptor.enumerable === false) descriptor.enumerable = true;
                     if (descriptor.writable === false) descriptor.writable = true;
-                    // descriptor.set = undefined; // Force default setter if needed
                 }
             }
             return origDefineProperty.call(this, obj, key, descriptor);
@@ -174,25 +174,59 @@
         };
     })();
 
-    // --- [New] Hack: Intercept Event Listeners (h5player logic) ---
-    // 사이트가 ratechange 이벤트를 통해 배속을 강제 원복하는 것을 방어
+    // --- [Updated] Hack: Intercept Event Listeners (Safe Remove) ---
     (function interceptRateChange() {
-        const origAddEventListener = HTMLMediaElement.prototype.addEventListener;
+        const origAdd = HTMLMediaElement.prototype.addEventListener;
+        const origRemove = HTMLMediaElement.prototype.removeEventListener;
+        const listenerMap = new WeakMap(); // el -> Map(original -> wrapped)
+
+        function getMap(el) {
+            let m = listenerMap.get(el);
+            if (!m) { m = new Map(); listenerMap.set(el, m); }
+            return m;
+        }
+
         HTMLMediaElement.prototype.addEventListener = function (type, listener, options) {
             if (type === 'ratechange' && typeof listener === 'function') {
-                const wrappedListener = function (e) {
-                    // VIC가 제어 중일 때(즉, 스크립트가 활성화된 상태) 사이트의 리스너가 배속을 건드리면 무시하거나 경고
-                    // 여기서는 안전하게 원본을 실행하되, 오류가 나면 무시하도록 래핑
-                    try {
-                        return listener.apply(this, arguments);
-                    } catch (err) {
-                        // ignore error
-                    }
-                };
-                return origAddEventListener.call(this, type, wrappedListener, options);
+                const map = getMap(this);
+                let wrapped = map.get(listener);
+                if (!wrapped) {
+                    wrapped = function (e) {
+                        try { return listener.apply(this, arguments); } catch (err) { }
+                    };
+                    map.set(listener, wrapped);
+                }
+                return origAdd.call(this, type, wrapped, options);
             }
-            return origAddEventListener.call(this, type, listener, options);
+            return origAdd.call(this, type, listener, options);
         };
+
+        HTMLMediaElement.prototype.removeEventListener = function (type, listener, options) {
+            if (type === 'ratechange' && typeof listener === 'function') {
+                const map = listenerMap.get(this);
+                const wrapped = map ? map.get(listener) : undefined;
+                if (wrapped) {
+                    return origRemove.call(this, type, wrapped, options);
+                }
+            }
+            return origRemove.call(this, type, listener, options);
+        };
+
+        // [New] Hook onratechange property setter
+        const desc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'onratechange');
+        if (desc && desc.set) {
+            Object.defineProperty(HTMLMediaElement.prototype, 'onratechange', {
+                configurable: true, enumerable: true,
+                get: desc.get,
+                set: function(fn) {
+                    if (typeof fn === 'function') {
+                        const wrapped = function() { try { return fn.apply(this, arguments); } catch {} };
+                        return desc.set.call(this, wrapped);
+                    }
+                    return desc.set.call(this, fn);
+                }
+            });
+        }
     })();
 
     // --- Base Helpers ---
@@ -206,7 +240,7 @@
     const debounce = (fn, wait) => { let t; return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
     const throttle = (fn, limit) => { let inThrottle; return function(...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
     const scheduleWork = (cb) => {
-        if (!_corePluginRef && dirtyRoots.size > 0) dirtyRoots.clear(); 
+        // [Fixed] Removed 'dirtyRoots.clear()' to prevent startup scan miss
         const wrapped = () => safeGuard(cb, 'scheduleWork');
         if (window.scheduler && window.scheduler.postTask) return window.scheduler.postTask(wrapped, { priority: 'user-visible' });
         if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 });
@@ -282,7 +316,7 @@
     let pendingScan = false;
     let _corePluginRef = null;
     let _lastFullScan = 0;
-    
+
     let _scanMicrotaskQueued = false;
     const _scanMicrotaskRoots = new Set();
     let _lastMicroTick = 0;
@@ -323,13 +357,13 @@
                     if (!_corePluginRef) return;
                     const roots = [..._scanMicrotaskRoots];
                     _scanMicrotaskRoots.clear();
-                    
+
                     if (roots.length > 0) {
                         for (const r of roots) safeGuard(() => _corePluginRef.scanSpecificRoot(r), 'scanSpecificRoot');
                     } else {
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
                     }
-                    
+
                     const now = performance.now();
                     if (now - _lastMicroTick > 120) {
                         _lastMicroTick = now;
@@ -409,14 +443,13 @@
                 const tag = this.tagName;
                 if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE') {
                     const len = name.length;
-                    if (len < 3 || len > 20) return res;
+                    if (len < 3 || len > 25) return res;
 
                     const n = name.toLowerCase();
                     const isSrc = n === 'src' || n === 'srcset' || n === 'poster';
-                    const isDataSrc = n === 'data-src' || n === 'data-original' || n === 'data-url' || 
-                                      n === 'data-video-src' || n === 'data-srcset' || n === 'data-poster';
+                    const isDataSrc = n.startsWith('data-src') || n.startsWith('data-url') || n === 'data-original' || n === 'data-poster' || n === 'data-bg' || n === 'data-background';
                     const isType = n === 'type' || n === 'loading';
-                    
+
                     if (isSrc || isDataSrc || isType) {
                         if (tag === 'SOURCE' && this.parentNode) scheduleScan(this.parentNode, true);
                         else scheduleScan(this, true);
@@ -572,7 +605,6 @@
                 window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
                 Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true, configurable: true });
                 Element.prototype.attachShadow = function (init) {
-                    // [H5Player Logic] Force open mode
                     if (init && init.mode === 'closed') {
                         init.mode = 'open';
                     }
@@ -618,7 +650,6 @@
             this.canvas.width = size; this.canvas.height = size;
             this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
             if(this.ctx) this.ctx.imageSmoothingEnabled = false;
-            // [Optimized] Pre-allocate histogram buffer
             this._hist = new Uint16Array(256);
         },
         start(video, settings) {
@@ -709,10 +740,8 @@
                 if (!this._hist) this._hist = new Uint16Array(256);
                 const hist = this._hist;
                 hist.fill(0);
-                
-                const totalValidPixels = size * size;
 
-                // [Enhanced] Crop Letterbox (Top/Bottom 10% skip)
+                const totalValidPixels = size * size;
                 const startRow = Math.floor(size * 0.1);
                 const endRow = Math.ceil(size * 0.9);
                 const startIndex = startRow * size * 4;
@@ -746,7 +775,6 @@
                 if (this.lastAvgLuma >= 0) {
                     const delta = Math.abs(currentLuma - this.lastAvgLuma);
                     this._highMotion = (delta > 0.08);
-                    // [Added] Scene Change Boost
                     if (delta > 0.15) {
                         this._userBoostUntil = performance.now() + 300;
                     }
@@ -816,7 +844,7 @@
                     const key = (this.targetVideo.currentSrc || this.targetVideo.src) + '|' + this.targetVideo.videoWidth + 'x' + this.targetVideo.videoHeight;
                     this.taintedCache.set(this.targetVideo, key);
                     this.taintedRetryCache.set(this.targetVideo, Date.now());
-                    
+
                     this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, this.targetVideo, true);
 
                     if (this.stateManager && this.stateManager.set) {
@@ -982,14 +1010,27 @@
                         if (now - last > 120) { this._lastImmediateScan.set(t, now); scheduleScan(t, true); }
                     }
                 }, CP(this._ac.signal)));
+                // [Updated] Enhanced interaction detection
                 document.addEventListener('pointerdown', (e) => {
-                    if(e.target) {
-                        const vid = e.target.closest('video');
-                        if (vid) {
-                            this.stateManager.set('media.lastInteractedVideo', { el: vid, ts: Date.now() });
-                        }
+                    const path = e.composedPath ? e.composedPath() : [];
+                    const vid = path.find(n => n && n.tagName === 'VIDEO') || (e.target && e.target.closest && e.target.closest('video'));
+                    if (vid) {
+                        this.stateManager.set('media.lastInteractedVideo', { el: vid, ts: Date.now() });
                     }
                 }, { capture: true, passive: true });
+
+                // [New] Handle fullscreen change to force best video
+                document.addEventListener('fullscreenchange', () => {
+                   const fsEl = document.fullscreenElement;
+                   if (fsEl) {
+                       const vid = (fsEl.tagName === 'VIDEO') ? fsEl : fsEl.querySelector('video');
+                       if (vid) {
+                           this.stateManager.set('media.currentlyVisibleMedia', vid);
+                           this.stateManager.set('media.lastInteractedVideo', { el: vid, ts: Date.now() });
+                       }
+                   }
+                }, P(this._ac.signal));
+
                 this.scheduleNextScan();
             }, 'CoreMedia pluginsInitialized'));
             this.subscribe('app.scriptActive', (active, old) => {
@@ -1000,10 +1041,10 @@
             if ('ResizeObserver' in window) {
                 this._resizeObs = new ResizeObserver(throttle(entries => {
                     let needed = false;
-                    for (const e of entries) { 
+                    for (const e of entries) {
                         const t = e.target;
                         if (t.tagName === 'VIDEO') needed = true;
-                        else if (t.tagName === 'IMG' && e.contentRect.height > 100) needed = true; 
+                        else if (t.tagName === 'IMG' && e.contentRect.height > 100) needed = true;
                     }
                     if (needed) scheduleScan(null);
                 }, 200));
@@ -1127,10 +1168,10 @@
                     entries.forEach(e => {
                         const pipEl = document.pictureInPictureElement;
                         const fsEl = document.fullscreenElement;
-                        const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && fsEl.contains(e.target));
+                        const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && (fsEl === e.target || fsEl.contains(e.target)));
                         if (visMap) visMap.set(e.target, isVisible);
                         this._intersectionRatios.set(e.target, e.intersectionRatio);
-                        
+
                         if (e.target.tagName === 'VIDEO') {
                             if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target);
                             sm.set('media.visibilityChange', { target: e.target, isVisible });
@@ -1147,6 +1188,8 @@
                         const cx = window.innerWidth / 2;
                         const cy = window.innerHeight / 2;
                         let centerEl = null;
+
+                        // [Updated] Optimized Center Element Detection
                         const stack = document.elementsFromPoint(cx, cy);
                         for (const el of stack) {
                             if (el && !el.closest('[data-vsc-internal]')) {
@@ -1159,17 +1202,18 @@
                              if (m.tagName === 'VIDEO') {
                                  const area = (m.clientWidth||0) * (m.clientHeight||0);
                                  let score = area;
-                                 
-                                 if (!m.paused) score *= 2.5; 
-                                 if (m.readyState >= 3) score *= 1.5; 
+
+                                 if (!m.paused) score *= 2.5;
+                                 if (m.readyState >= 3) score *= 1.5;
                                  if (!m.muted && m.volume > 0) score *= 1.2;
-                                 if (m.ended) score *= 0.5; 
+                                 if (m.ended) score *= 0.5;
                                  if (document.pictureInPictureElement === m) score *= 3.0;
-                                 
+                                 if (document.fullscreenElement && (document.fullscreenElement === m || document.fullscreenElement.contains(m))) score *= 4.0;
+
                                  if (m.loop && m.muted && m.autoplay && !m.controls) score *= 0.6;
 
                                  if (lastInteracted && lastInteracted.el === m && (Date.now() - lastInteracted.ts < 5000)) {
-                                     score *= 2.0;
+                                     score *= 2.5;
                                  }
 
                                  const ratio = this._intersectionRatios.get(m) || 0;
@@ -1185,7 +1229,7 @@
                                      const maxDist = Math.hypot(cx, cy) || 1;
                                      score *= (1.2 - Math.min(1.0, dist / maxDist));
                                  }
-                                 
+
                                  if (score > maxScore) { maxScore = score; bestCandidate = m; }
                              }
                         }
@@ -1220,7 +1264,7 @@
                 const vw = node.videoWidth || 0;
                 const vh = node.videoHeight || 0;
                 let sizeOk = (vw >= CONFIG.FILTER.MIN_VIDEO_SIZE || vh >= CONFIG.FILTER.MIN_VIDEO_SIZE);
-                
+
                 if (!sizeOk) {
                     const ow = node.offsetWidth || 0;
                     const oh = node.offsetHeight || 0;
@@ -1229,9 +1273,9 @@
 
                 const isPotential = (node.src || node.currentSrc || node.srcObject || node.querySelector('source') ||
                                      node.getAttribute('data-src') || node.getAttribute('data-video-src') || node.getAttribute('data-url'));
-                
+
                 const isPlayableHidden = !sizeOk && (node.duration > 0 || node.readyState >= 1);
-                
+
                 if (sizeOk || isPotential || isPlayableHidden) media.add(node);
              } else if (node.tagName === 'IMG') {
                 const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
@@ -1317,7 +1361,7 @@
                 try {
                     const doc = frame.contentDocument; if (!doc || !doc.body) return;
                     this.scanSpecificRoot(doc.body);
-                    
+
                     const prev = this._iframeInternalObservers.get(frame); if (prev && prev.doc === doc) return;
                     if (prev && prev.mo) { try { prev.mo.disconnect(); } catch {} }
                     const internalMo = new MutationObserver((mutations) => { burstRescan(); this._domDirty = true; });
@@ -1666,7 +1710,6 @@
                         const blurCoarse = createSvgElement('feGaussianBlur', { "data-vsc-id": "sharpen_blur_coarse", in: "sharpened_fine", stdDeviation: "0", result: "blur_coarse_out" });
                         const compCoarse = createSvgElement('feComposite', { "data-vsc-id": "sharpen_comp_coarse", operator: "arithmetic", in: "sharpened_fine", in2: "blur_coarse_out", k1: "0", k2: "1", k3: "0", k4: "0", result: "sharpened_final" });
 
-                        // [Fixed] Re-ordered filter chain: Grain comes *after* sharpening is done
                         filter.append(clarityTransfer, blurFine, compFine, blurCoarse, compCoarse);
 
                         let lastOut = "sharpened_final";
@@ -1948,7 +1991,6 @@
             this.subscribe('media.remoteImageCount', () => this.updateUIVisibility());
             this.subscribe('playback.currentRate', rate => {
                 this.updateActiveSpeedButton(rate);
-                // [Optimized] Suppress toast spam when live stream (PID) is running
                 if (!this.stateManager.get('liveStream.isRunning')) {
                     this.showToast(`${rate.toFixed(2)}x`);
                 }
@@ -2062,7 +2104,6 @@
             const tx = this.uiState.x || 0; const ty = this.uiState.y || 0;
             this.globalContainer.style.setProperty('--vsc-translate-x', `${tx}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${ty}px`);
 
-            // Apply basic variables to the container for external elements (like the trigger)
             const vars = {
                 '--vsc-bg-dark': 'rgba(0,0,0,0.7)', '--vsc-bg-btn': 'rgba(0,0,0,0.5)', '--vsc-bg-accent': 'rgba(52, 152, 219, 0.7)',
                 '--vsc-bg-warn': 'rgba(231, 76, 60, 0.9)', '--vsc-bg-active': 'rgba(76, 209, 55, 0.4)', '--vsc-text': 'white',
@@ -2117,7 +2158,6 @@
             if (enable) {
                 if (!this.gestureLayer) {
                     this.gestureLayer = document.createElement('div');
-                    // [Fixed] Add data-vsc-internal attribute so elementsFromPoint can ignore it
                     this.gestureLayer.setAttribute('data-vsc-internal', '1');
                     Object.assign(this.gestureLayer.style, { position: 'fixed', inset: '0', zIndex: CONFIG.UI.MAX_Z - 10, background: 'transparent', touchAction: 'manipulation' });
                     document.body.appendChild(this.gestureLayer);
