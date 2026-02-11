@@ -1,12 +1,13 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v79.4 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v80.0 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     79.4.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (No Stubs, Full Logic, Interactive Persistence, Smart Shield)
+// @version     80.0.0-KR-ULTRA-Infinity-Autonomous
+// @description [Milestone] 끝없는 최적화 + Autonomous (UI Safe Zone, Storage LRU, Live Collections, Status Dash)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
 // @grant       GM_registerMenuCommand
+// @grant       GM_notification
 // @license     MIT
 // @run-at      document-start
 // ==/UserScript==
@@ -16,11 +17,38 @@
 
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
 
-    // [Safe Storage Wrapper]
+    // [Constants]
+    const DAY = 86400000;
+    const WEEK = 7 * DAY;
+    
+    // [Safe Storage Wrapper with LRU]
     const S = {
         get(k) { try { return localStorage.getItem(k); } catch { return null; } },
-        set(k, v) { try { localStorage.setItem(k, v); } catch {} },
         remove(k) { try { localStorage.removeItem(k); } catch {} },
+        
+        // ✅ LRU Logic
+        set(k, v) { 
+            try { 
+                localStorage.setItem(k, v); 
+                this._trackKey(k);
+            } catch {} 
+        },
+        _trackKey(k) {
+            if (!k.startsWith('PerfX_LCP') && !k.startsWith('perfx-interactive')) return;
+            const idxKey = `PerfX_IDX_${win.location.hostname}`;
+            try {
+                let idx = JSON.parse(localStorage.getItem(idxKey) || '[]');
+                // Move to end (most recent)
+                idx = idx.filter(x => x !== k);
+                idx.push(k);
+                // Prune if > 50
+                while (idx.length > 50) {
+                    const old = idx.shift();
+                    localStorage.removeItem(old);
+                }
+                localStorage.setItem(idxKey, JSON.stringify(idx));
+            } catch {}
+        },
         clearPrefix(prefix) {
             try {
                 const toRemove = [];
@@ -50,7 +78,6 @@
         else win.addEventListener('DOMContentLoaded', cb, { once: true });
     };
     
-    // Bucket & Freshness
     const normSeg = (s) => {
         if (/^\d+$/.test(s)) return ':id';
         if (/^[0-9a-f-]{36}$/i.test(s)) return ':uuid';
@@ -74,7 +101,6 @@
         emit(name, detail) { win.dispatchEvent(new CustomEvent(name, { detail })); }
     };
 
-    // ✅ True Distance Helper
     const viewH = () => win.visualViewport?.height || win.innerHeight;
     const distToViewport = (r) => {
         if (!r) return -1; 
@@ -92,7 +118,7 @@
     
     const API = { 
         profile: () => {}, toggleConfig: () => {}, toggleSessionSafe: () => {},
-        shutdownMemory: () => {}, restartMemory: () => {}, resetAll: () => {} 
+        shutdownMemory: () => {}, restartMemory: () => {}, resetAll: () => {}, showStatus: () => {}
     };
 
     const scheduler = {
@@ -101,7 +127,6 @@
         raf: (cb) => win.requestAnimationFrame(cb)
     };
 
-    // ✅ Chunk Scan Utility
     const scanInChunks = (list, limit, step, fn) => {
         if (!list || typeof list.length !== 'number' || list.length === 0) return;
         let i = 0;
@@ -143,7 +168,7 @@
     // [Config & State]
     const hostname = win.location.hostname.toLowerCase();
     
-    // ✅ Dynamic Keys
+    // Dynamic Keys
     const getLcpKey = () => `PerfX_LCP_${hostname}:${getPathBucket()}`;
     const getInteractiveKey = () => `perfx-interactive:${hostname}:${getPathBucket()}`;
     
@@ -168,10 +193,10 @@
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // ✅ Global Helper for Interactive Logic
+    // Hoisted Helper
     const applyInteractiveMemory = () => {
         const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY));
-        if (fresh(isInteractiveStored, 86400000)) {
+        if (fresh(isInteractiveStored, DAY)) {
             log('Interactive Site Known: Starting Safe');
             RuntimeConfig = { ...RuntimeConfig, passive: false, memory: false, gpu: false };
             Object.assign(Config, { passive: false, memory: false, gpu: false });
@@ -210,7 +235,6 @@
 
             const sensitive = document.querySelector('input[type="password"], input[autocomplete="one-time-code"], form[action*="login"], form[action*="pay"]');
             if (sensitive && !sessionStorage.getItem(SESSION_OFF_KEY)) {
-                log('Sensitive Page Detected: Entering Safe Mode');
                 sessionStorage.setItem(SESSION_OFF_KEY, '1');
                 sessionStorage.setItem(INTENT_RELOAD, '1'); 
                 location.reload();
@@ -218,11 +242,14 @@
 
             const checkInteractive = () => {
                 const mapOrEditor = document.querySelector('.mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror');
-                const canvas = document.querySelector('canvas');
+                // ✅ Check up to 4 canvases
+                const canvases = document.getElementsByTagName('canvas');
                 let hugeCanvas = false;
-                if (canvas) {
-                    const r = canvas.getBoundingClientRect();
-                    if (r.width * r.height > (win.innerWidth * win.innerHeight * 0.4)) hugeCanvas = true;
+                for (let i = 0; i < Math.min(canvases.length, 4); i++) {
+                    const r = canvases[i].getBoundingClientRect();
+                    if (r.width * r.height > (win.innerWidth * win.innerHeight * 0.4)) {
+                        hugeCanvas = true; break;
+                    }
                 }
                 
                 if (mapOrEditor || hugeCanvas) {
@@ -259,7 +286,7 @@
         }
     } catch(e) {}
 
-    // Global Detection
+    // Global Detection & Flags
     const isMobile = win.matchMedia ? win.matchMedia('(pointer:coarse)').matches : /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isCritical = hostEndsWithAny(hostname, [...LISTS.BANKS_KR, ...LISTS.GOV_KR]) || LISTS.CRITICAL_SUB.test(hostname);
     const isLayoutSensitive = LISTS.LAYOUT_KEYWORDS.some(k => hostname.includes(k));
@@ -370,7 +397,7 @@
 
     const now = Date.now();
     if (!RuntimeConfig._sessionSafe) {
-        if ((RuntimeConfig.unstableTs || 0) < now - 7 * 86400000) {
+        if ((RuntimeConfig.unstableTs || 0) < now - WEEK) {
             RuntimeConfig.downgradeCount = 0;
         } else if ((RuntimeConfig.downgradeCount || 0) > 3) {
             log('Adaptive Learning: Starting Safe');
@@ -386,7 +413,6 @@
 
     const calculatedConfig = {
         codecMode: RuntimeConfig.codecMode ?? 'hard',
-        // ✅ Safe Default: !isLayoutSensitive
         passive: RuntimeConfig.passive ?? (!isLayoutSensitive),
         gpu: RuntimeConfig.gpu ?? (!isLayoutSensitive && !perfState.isLowPowerMode),
         memory: RuntimeConfig.memory ?? (!isLayoutSensitive && !isHeavyFeed),
@@ -425,9 +451,24 @@
              else sessionStorage.setItem(SESSION_OFF_KEY, '1');
              location.reload();
         },
+        // ✅ Safer Reset
         resetAll: () => {
-            ['PerfX_', 'perfx-'].forEach(prefix => S.clearPrefix(prefix));
+            ['PerfX_', 'perfx-', 'PerfX_IDX'].forEach(prefix => S.clearPrefix(prefix));
             location.reload();
+        },
+        // ✅ Status Dashboard
+        showStatus: () => {
+            const info = `
+            [PerfX v80.0] Status
+            ---------------------
+            URL: ${getPathBucket()}
+            Mode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}
+            Power: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'} (x${perfState.perfMultiplier.toFixed(2)})
+            Caps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}
+            Quarantine: ${Q_CACHE ? 'YES' : 'NO'}
+            Modules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}
+            `;
+            alert(info);
         }
     });
 
@@ -435,7 +476,7 @@
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
     
-    // ✅ Hero Inference
+    // ✅ Hero Inference (Chunked & Images Only)
     const detectHeroImage = () => {
         const imgs = document.images;
         if (!imgs.length) return;
@@ -490,7 +531,6 @@
             lastKey = nextKey;
             LCP_KEY = nextKey;
             
-            // ✅ Re-check Interactive Key
             INTERACTIVE_KEY = `perfx-interactive:${hostname}:${getPathBucket()}`;
             applyInteractiveMemory(); 
             
@@ -509,6 +549,8 @@
         const origRep = history.replaceState;
         history.replaceState = function() { origRep.apply(this, arguments); onRoute(); };
         win.addEventListener('popstate', onRoute);
+        // ✅ Hash Support
+        win.addEventListener('hashchange', onRoute);
         win.addEventListener('pageshow', (e) => { if(e.persisted) Bus.emit('perfx-route', { force: true }); });
     }
 
@@ -519,10 +561,10 @@
             GM_registerMenuCommand(`🚫 끄기 (영구)`, () => API.toggleConfig('disabled'));
             GM_registerMenuCommand(`⏸ 이번 세션만 끄기`, API.toggleSessionSafe);
             GM_registerMenuCommand(`🧹 설정/학습 초기화`, API.resetAll);
+            GM_registerMenuCommand(`📊 현재 상태 보기`, API.showStatus);
             GM_registerMenuCommand(`⚡ 모드: 울트라`, () => API.profile('ultra'));
             GM_registerMenuCommand(`⚖️ 모드: 균형`, () => API.profile('balanced'));
             GM_registerMenuCommand(`🛡️ 모드: 안전`, () => API.profile('safe'));
-            GM_registerMenuCommand(`🐞 디버그: ${debug ? 'ON' : 'OFF'}`, () => API.toggleConfig('debug'));
         }
     }
 
@@ -532,10 +574,10 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '79.4.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '80.0.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V27 (LCP Recorder & Smart Quarantine)
+    // 2. Autonomous V28 (LCP Recorder & Smart Quarantine)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !RuntimeConfig._sessionSafe) {
         try {
@@ -631,9 +673,7 @@
                                 if (Q_CACHE?.modules?.memory === false) c._restore.memory = false;
                                 if (Q_CACHE?.modules?.gpu === false) c._restore.gpu = false;
                             }
-                            Config.memory = !!c._restore.memory && !c._powerThrottled;
-                            Config.gpu = !!c._restore.gpu;
-                            Config.passive = !!c._restore.passive;
+                            Object.assign(Config, c._restore);
                             Object.assign(c, c._restore);
                             delete c._restore;
                         }
@@ -665,7 +705,7 @@
     // ==========================================
     class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // [Core 1] EventPassivator v4.5 (Full Impl)
+    // [Core 1] EventPassivator v5.0 (UI Safe Zone)
     class EventPassivator extends BaseModule {
         init() {
             if (win.__perfx_evt_patched) return;
@@ -690,6 +730,7 @@
                 return res;
             };
             
+            // ✅ Strict Top-Level Check
             const isTopLevelTarget = (t) => t === win || t === document || t === document.body || t === document.documentElement;
 
             const targets = [win.EventTarget && win.EventTarget.prototype].filter(Boolean);
@@ -699,14 +740,11 @@
                     if (!Config.passive || !passiveArmed) return origAdd.call(this, type, listener, options);
                     
                     if (type === 'wheel' || type === 'mousewheel' || type === 'touchmove') {
-                        if (!isTopLevelTarget(this) && this instanceof Element && this.closest && this.closest('.mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas')) {
-                            return origAdd.call(this, type, listener, options);
-                        }
+                        // ✅ UI Safe Zone: Only patch top-level
+                        if (!isTopLevelTarget(this)) return origAdd.call(this, type, listener, options);
                         
-                        // Mobile Conservative
-                        if (isMobile && type === 'touchmove' && options && options.capture) {
-                             return origAdd.call(this, type, listener, options);
-                        }
+                        // ✅ Mobile Touch Guard: Default to safe (skip touchmove)
+                        if (isMobile && type === 'touchmove') return origAdd.call(this, type, listener, options);
 
                         const isObj = typeof options === 'object' && options !== null;
                         if (!isObj || options.passive === undefined) {
@@ -724,12 +762,15 @@
         }
     }
 
-    // [Core 2] CodecOptimizer v2.4
+    // [Core 2] CodecOptimizer v2.5 (Low Power Only)
     class CodecOptimizer extends BaseModule {
         init() {
             if (Config.codecMode === 'off') return; 
             if (isVideoSite) return;
             
+            // ✅ Only Hard Block on Low Power
+            if (!perfState.isLowPowerMode && Config.codecMode === 'hard') Config.codecMode = 'soft';
+
             setTimeout(() => {
                 if (document.querySelector('video, source[type*="video"]') && Config.codecMode === 'hard') {
                     Config.codecMode = 'soft';
@@ -740,8 +781,8 @@
                 if (typeof t !== 'string') return false;
                 const v = t.toLowerCase();
                 if (Config.codecMode === 'hard') {
-                    if (perfState.isLowPowerMode) return v.includes('av01') || /vp9|vp09/.test(v);
-                    return false;
+                    // Only active if low power (checked in init)
+                    return v.includes('av01') || /vp9|vp09/.test(v);
                 }
                 if (Config.codecMode === 'soft') return v.includes('av01');
                 return false;
@@ -766,7 +807,7 @@
         }
     }
 
-    // [Core 3] DomWatcher v3.22 (Full Logic)
+    // [Core 3] DomWatcher v4.0 (Area Gate & Live Collection)
     class DomWatcher extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -779,7 +820,6 @@
             this.removedQueue = new Set();
             this.gcTimer = null;
 
-            // ✅ Full Implementation
             API.shutdownMemory = () => {
                 if (this.mutObs) { this.mutObs.disconnect(); this.mutObs = null; }
                 if (this.visObs) { this.visObs.disconnect(); this.visObs = null; }
@@ -813,13 +853,17 @@
 
         applyOptimization(el, rect) {
             if (this.styleMap.has(el)) return;
+            
+            // ✅ Area Gate: Skip small items
+            const area = rect.width * rect.height;
+            if (area < 3000) return; 
+
+            // Fast Tags
             const tn = el.tagName;
             if (tn === 'SCRIPT' || tn === 'STYLE' || tn === 'META' || tn === 'VIDEO' || tn === 'CANVAS' || tn === 'IFRAME' || tn === 'FORM') return;
             if (el.hasAttribute('aria-live') || el.isContentEditable) return;
             
-            if (!rect || rect.height < 50 || rect.width < 50) return;
-            
-            if (rect.width * rect.height > (win.innerWidth * win.innerHeight * 0.15)) {
+            if (area > (win.innerWidth * win.innerHeight * 0.15)) {
                 if (el.childElementCount > 6 && el.querySelector('video,canvas,iframe,form,[aria-live],[contenteditable]')) return;
             }
             
@@ -939,7 +983,7 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.19 (Full Logic)
+    // [Core 4] NetworkAssistant v4.0 (Live Collection & Tag Check)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -955,35 +999,6 @@
             let MAX_IMG = 0, MAX_VID = 0;
             let vpObs = null;
             let currentGen = 0;
-
-            const nearSet = new WeakMap();
-            const farSet = new WeakMap();
-
-            const decSlot = (el) => {
-                if (observing.has(el)) {
-                    observing.delete(el);
-                    distMap.delete(el);
-                    if (el.tagName === 'VIDEO') vidSlots = Math.max(0, vidSlots - 1);
-                    else imgSlots = Math.max(0, imgSlots - 1);
-                }
-            };
-
-            const setImgLazy = (img, setPriority = true) => {
-                if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
-                img.setAttribute('loading', 'lazy');
-                img.setAttribute('decoding', 'async');
-                if (setPriority) img.setAttribute('fetchpriority', 'low');
-            };
-
-            const applyLazy = (img, rect) => {
-                if (!rect) {
-                    // Zero-Layout Fallback
-                    setImgLazy(img);
-                    return;
-                }
-                if (rect.top < win.innerHeight + 200 && rect.bottom > -200) return;
-                setImgLazy(img);
-            };
 
             const updateCaps = () => {
                 const cap = perfState.MEDIA_CAP;
@@ -1032,7 +1047,7 @@
                             nearSet.set(el, currentGen);
                         } else { 
                             farSet.set(el, currentGen); 
-                            applyLazy(el, e.boundingClientRect);
+                            setImgLazy(el); 
                         }
                         vpObs.unobserve(el);
                         decSlot(el);
@@ -1041,7 +1056,6 @@
                 
                 observing.forEach(el => vpObs.observe(el));
                 
-                // Recalc
                 imgSlots = 0; vidSlots = 0;
                 observing.forEach(el => {
                     if (el.tagName === 'VIDEO') vidSlots++; else imgSlots++;
@@ -1073,7 +1087,6 @@
                 }
                 startProtection(e.detail?.force);
             });
-            // ✅ Guaranteed Boot
             onReady(() => { startProtection(true); rebuildObserver(); });
             
             Bus.on('visibilitychange', () => {
@@ -1085,6 +1098,25 @@
                     if (this.mo) this.mo.observe(document.documentElement, { childList: true, subtree: true });
                 }
             }, document);
+
+            const nearSet = new WeakMap();
+            const farSet = new WeakMap();
+            
+            const decSlot = (el) => {
+                if (observing.has(el)) {
+                    observing.delete(el);
+                    distMap.delete(el);
+                    if (el.tagName === 'VIDEO') vidSlots = Math.max(0, vidSlots - 1);
+                    else imgSlots = Math.max(0, imgSlots - 1);
+                }
+            };
+            
+            const setImgLazy = (img, setPriority = true) => {
+                if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
+                img.setAttribute('loading', 'lazy');
+                img.setAttribute('decoding', 'async');
+                if (setPriority) img.setAttribute('fetchpriority', 'low');
+            };
 
             const safeObserve = (el) => {
                 if (!vpObs) return; 
@@ -1144,6 +1176,7 @@
 
             const run = () => { 
                 rebuildObserver();
+                // ✅ Live Collection Scan
                 const imgs = document.getElementsByTagName('img');
                 const vids = document.getElementsByTagName('video');
                 scanInChunks(imgs, perfState.INIT_MEDIA_SCAN, perfState.SCAN_STEP, (n) => scheduleNode(n, false));
@@ -1153,19 +1186,27 @@
 
             this.mo = new MutationObserver(ms => {
                 ms.forEach(m => {
+                    if (m.addedNodes.length === 0) return; // Skip
                     m.addedNodes.forEach(n => {
                         if (n.tagName === 'IMG' || n.tagName === 'VIDEO') scheduleNode(n, true);
-                        else if (n.nodeType === 1 && n.querySelectorAll) {
-                            const list = n.querySelectorAll('img, video');
-                            scanInChunks(list, 300, perfState.SCAN_STEP, (child) => scheduleNode(child, true));
+                        else if (n.nodeType === 1) {
+                            // ✅ Tag Check First
+                            if (n.getElementsByTagName) {
+                                const i = n.getElementsByTagName('img');
+                                if (i.length) scanInChunks(i, 300, perfState.SCAN_STEP, (child) => scheduleNode(child, true));
+                                const v = n.getElementsByTagName('video');
+                                if (v.length) scanInChunks(v, 100, perfState.SCAN_STEP, (child) => scheduleNode(child, true));
+                            }
                         }
                     });
                     m.removedNodes.forEach(n => {
                         if (n.nodeType === 1) {
                             if (n.tagName === 'IMG' || n.tagName === 'VIDEO') decSlot(n);
-                            else if (n.querySelectorAll) {
-                                const list = n.querySelectorAll('img, video');
-                                scanInChunks(list, 300, perfState.SCAN_STEP, decSlot);
+                            else if (n.getElementsByTagName) {
+                                const i = n.getElementsByTagName('img');
+                                if(i.length) scanInChunks(i, 300, perfState.SCAN_STEP, decSlot);
+                                const v = n.getElementsByTagName('video');
+                                if(v.length) scanInChunks(v, 100, perfState.SCAN_STEP, decSlot);
                             }
                         }
                     });
