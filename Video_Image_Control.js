@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.14 BackgroundActive)
+// @name        Video_Image_Control (v130.15 InstantActive Fix)
 // @namespace   https://com/
-// @version     130.14
-// @description v130.14: Trigger toggles UI only (Script stays active). Blue indicator added.
+// @version     130.15
+// @description v130.15: Instant EV response (0.5s aggressive window), Anti-flicker reset, Fast UI update (100ms). Fixed startup race condition.
 // @match       *://*/*
 // @run-at      document-start
 // @grant       none
@@ -652,6 +652,7 @@
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0,
         hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null,
         _hist: null,
+        _evAggressiveUntil: 0, // NEW: Aggressive window for EV changes
 
         init(stateManager) {
             this.stateManager = stateManager;
@@ -688,10 +689,23 @@
             this.lastAvgLuma = -1; this._highMotion = false;
         },
         updateSettings(settings) {
+            const prev = this.currentSettings;
             this.currentSettings = { ...this.currentSettings, ...settings };
+
+            // Detect EV change or Auto toggle for immediate response
+            const now = performance.now();
+            const evChanged = settings && Object.prototype.hasOwnProperty.call(settings, 'targetLuma') && settings.targetLuma !== prev.targetLuma;
+            const aeTurnedOn = settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && settings.autoExposure && !prev.autoExposure;
+
             if (settings && (Object.prototype.hasOwnProperty.call(settings, 'targetLuma') || Object.prototype.hasOwnProperty.call(settings, 'autoExposure') || Object.prototype.hasOwnProperty.call(settings, 'clarity'))) {
                 this.frameSkipCounter = 999;
-                this._userBoostUntil = performance.now() + 800;
+                this._userBoostUntil = now + 1500;
+
+                if (evChanged || aeTurnedOn) {
+                    this._evAggressiveUntil = now + 500; // 0.5s aggressive window
+                    this.dynamicSkipThreshold = 0;
+                }
+
                 this.currentAdaptiveGamma = 1.0;
                 this.currentAdaptiveBright = 0;
                 this.currentClarityComp = 0;
@@ -701,6 +715,12 @@
                 this._lastShadowsAdj = 0;
                 this._lastHighlightsAdj = 0;
             }
+
+            // Disable aggressive if AE turned off
+            if (settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && !settings.autoExposure) {
+                this._evAggressiveUntil = 0;
+            }
+
             const isClarityActive = this.currentSettings.clarity > 0;
             const isAutoExposure = this.currentSettings.autoExposure;
             if ((isClarityActive || isAutoExposure) && !this.isRunning) {
@@ -733,11 +753,16 @@
             if (!this.ctx) return;
 
             const startTime = performance.now();
+            const aggressive = (this._evAggressiveUntil && startTime < this._evAggressiveUntil);
+            const userBoost = (this._userBoostUntil && startTime < this._userBoostUntil);
+
             const evValue = this.currentSettings.targetLuma || 0;
             const isAutoExp = this.currentSettings.autoExposure;
 
             let baseThreshold = this.hasRVFC ? 10 : 0;
             if (this._highMotion) baseThreshold = this.hasRVFC ? 6 : 3;
+            if (aggressive) baseThreshold = 0; // Force analysis during aggressive window
+
             const effectiveThreshold = baseThreshold + (this.dynamicSkipThreshold || 0);
             this.frameSkipCounter++;
             if (this.frameSkipCounter < effectiveThreshold) return;
@@ -832,9 +857,9 @@
                 }
 
                 const smooth = (curr, target) => {
+                    if (aggressive) return target; // Immediate application during aggressive window
                     const diff = target - curr;
-                    const userBoost = (this._userBoostUntil && startTime < this._userBoostUntil);
-                    let speed = userBoost ? 0.25 : (this._highMotion ? 0.05 : 0.1);
+                    let speed = userBoost ? 0.35 : (this._highMotion ? 0.05 : 0.1);
                     return Math.abs(diff) > 0.01 ? curr + diff * speed : curr;
                 };
 
@@ -1683,7 +1708,7 @@
     }
 
     class SvgFilterPlugin extends Plugin {
-        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0 }; this.throttledUpdate = null; this._rafId = null; this._imageRafId = null; this._mediaStateRafId = null; }
+        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.throttledUpdate = null; this._rafId = null; this._imageRafId = null; this._mediaStateRafId = null; }
         init(stateManager) {
             super.init(stateManager);
             const isMobile = this.stateManager.get('app.isMobile');
@@ -1700,6 +1725,21 @@
             });
             this.stateManager.filterManagers.video = this.filterManager; this.stateManager.filterManagers.image = this.imageFilterManager;
             this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
+
+            // NEW: Reset lastAutoParams when AE toggled or Target Luma changed to prevent flicker/gray screen
+            this.subscribe('videoFilter.autoExposure', (on, old) => {
+                if (on && !old) {
+                    this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 };
+                    this.applyAllVideoFilters();
+                }
+            });
+            this.subscribe('videoFilter.targetLuma', () => {
+                if (this.stateManager.get('videoFilter.autoExposure')) {
+                    this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 };
+                    this.applyAllVideoFilters();
+                }
+            });
+
             this.subscribe('imageFilter.level', (val) => {
                 this.applyAllImageFilters();
                 if (val > 0) {
@@ -1709,11 +1749,13 @@
             });
             this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this));
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates()); this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates()); this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
+
+            // Reduced throttle from 200ms to 100ms for faster UI response
             this.throttledUpdate = throttle((e) => {
                 const { autoParams } = e.detail; const vf = this.stateManager.get('videoFilter'); const needAutoApply = vf.autoExposure || (vf.clarity > 0);
                 const isChanged = Math.abs(this.lastAutoParams.gamma - autoParams.gamma) > 0.002 || Math.abs(this.lastAutoParams.bright - autoParams.bright) > 0.1 || Math.abs((this.lastAutoParams.clarityComp || 0) - (autoParams.clarityComp || 0)) > 0.1 || Math.abs((this.lastAutoParams.shadowsAdj || 0) - (autoParams.shadowsAdj || 0)) > 0.1 || Math.abs((this.lastAutoParams.highlightsAdj || 0) - (autoParams.highlightsAdj || 0)) > 0.1;
                 if (needAutoApply && isChanged) { this.lastAutoParams = autoParams; this.applyAllVideoFilters(); }
-            }, 200);
+            }, 100);
             document.addEventListener('vsc-smart-limit-update', this.throttledUpdate);
             if (this.stateManager.get('app.scriptActive')) { this.filterManager.init(); this.imageFilterManager.init(); this.applyAllVideoFilters(); this.applyAllImageFilters(); }
         }
@@ -2255,7 +2297,28 @@
         }
 
         onControlsVisibilityChange(isVisible) {
-            if (isVisible && !this.hostElement) { this.createControlsHost(); } if (this.hostElement) { this.hostElement.style.display = isVisible ? 'flex' : 'none'; } if (this.speedButtonsContainer) { const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO'); this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none'; } this.updateUIVisibility();
+            if (isVisible) {
+                // If global UI doesn't exist yet, try to create it safely
+                if (!this.globalContainer || !this.mainControlsContainer) {
+                    if (document.body) {
+                        this.createGlobalUI();
+                    } else {
+                        // Defer until DOMReady
+                        this.stateManager.set('ui.createRequested', true);
+                        return;
+                    }
+                }
+                // Only create the shadow host if the main container is ready
+                if (!this.hostElement && this.mainControlsContainer) {
+                    this.createControlsHost();
+                }
+            }
+            if (this.hostElement) { this.hostElement.style.display = isVisible ? 'flex' : 'none'; }
+            if (this.speedButtonsContainer) {
+                const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO');
+                this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none';
+            }
+            this.updateUIVisibility();
         }
         updateUIVisibility() {
             const controlsVisible = this.stateManager.get('ui.areControlsVisible');
@@ -2280,6 +2343,7 @@
         }
         updateActiveSpeedButton(rate) { if (this.speedButtons.length === 0) return; this.speedButtons.forEach(b => { const speed = parseFloat(b.dataset.speed); if (speed) { const isActive = Math.abs(speed - rate) < 0.01; if (isActive) { b.style.background = 'var(--vsc-bg-warn)'; b.style.boxShadow = '0 0 5px #e74c3c, 0 0 10px #e74c3c inset'; } else { b.style.background = 'var(--vsc-bg-accent)'; b.style.boxShadow = ''; } } }); }
         createControlsHost() {
+            if (!this.mainControlsContainer) return;
             this.hostElement = document.createElement('div'); this.hostElement.style.order = '2'; this.hostElement.id = 'vsc-ui-host';
             this.stateManager.set('ui.hostElement', this.hostElement);
             this.shadowRoot = this.hostElement.attachShadow({ mode: 'open' });
