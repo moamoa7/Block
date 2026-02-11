@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v77.3 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v77.4 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     77.3.0-KR-ULTRA-Infinity-Autonomous
-// @description [Infinity] 끝없는 최적화 + Autonomous (Async-Safe Lazy, Strict Quarantine, Mobile Caps)
+// @version     77.4.0-KR-ULTRA-Infinity-Autonomous
+// @description [Infinity] 끝없는 최적화 + Autonomous (Route Shield, Instant Lazy, Quarantine Cache)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -62,7 +62,13 @@
         try {
             if (!u || u.startsWith('data:')) return u;
             const url = new URL(u, win.location.href);
-            return url.origin + url.pathname; 
+            // ✅ Keep crucial CDN params (w, h, q)
+            const params = new URLSearchParams(url.search);
+            const keep = ['w', 'width', 'h', 'height', 'q', 'quality'];
+            const newParams = new URLSearchParams();
+            keep.forEach(k => { if(params.has(k)) newParams.set(k, params.get(k)); });
+            
+            return url.origin + url.pathname + (newParams.toString() ? '?' + newParams.toString() : ''); 
         } catch { return u; }
     };
 
@@ -153,8 +159,10 @@
     
     // ✅ Mobile Caps
     let MAX_OBSERVERS_VAL = 2000;
+    let MAX_IMG_OBS_VAL = 800; // Cap for image IO
     let DEEP_SCAN_LIMIT = 200;
     let DOM_MARGIN = '600px 0px';
+    let INIT_SCAN_CAP = 300;
 
     const applyPowerPolicy = () => {
         if (isLowPowerMode) {
@@ -180,12 +188,17 @@
         
         perfMultiplier = Math.max(0.6, Math.min(1.2, m));
         
+        // Caps Scaling
         MAX_OBSERVERS_VAL = Math.floor(2000 * perfMultiplier);
+        MAX_IMG_OBS_VAL = Math.floor(800 * perfMultiplier);
+        INIT_SCAN_CAP = Math.floor(300 * perfMultiplier);
         
         if (isMobile) {
             MAX_OBSERVERS_VAL = Math.min(MAX_OBSERVERS_VAL, 700);
-            DEEP_SCAN_LIMIT = 80; // ✅ Strict Cap
-            DOM_MARGIN = '300px 0px'; // ✅ Tighter Margin
+            MAX_IMG_OBS_VAL = Math.min(MAX_IMG_OBS_VAL, 250); // Strict
+            DEEP_SCAN_LIMIT = 80;
+            DOM_MARGIN = '300px 0px';
+            INIT_SCAN_CAP = 120;
         } else {
             DEEP_SCAN_LIMIT = 200;
             DOM_MARGIN = isLowPowerMode ? '400px 0px' : '600px 0px';
@@ -216,12 +229,24 @@
     // ==========================================
     // 1. Populate Config & API (Safe Init)
     // ==========================================
-    // Check Quarantine (24h Window)
+    // ✅ Quarantine Cache & Helper
     const Q_KEY = `perfx-quarantine:${hostname}`;
-    const qData = safeJsonParse(S.get(Q_KEY));
-    if (qData && Date.now() - qData.ts < 86400000) {
-        RuntimeConfig = { ...RuntimeConfig, ...qData.modules };
-        log('Quarantine Active:', qData.modules);
+    let Q_CACHE = null;
+    
+    const checkQuarantine = (now = Date.now()) => {
+        if (Q_CACHE && (now - Q_CACHE.ts) < 86400000) return Q_CACHE;
+        const q = safeJsonParse(S.get(Q_KEY));
+        if (q && (now - q.ts) < 86400000) {
+            Q_CACHE = q;
+            return q;
+        }
+        return null;
+    };
+
+    const qState = checkQuarantine();
+    if (qState) {
+        RuntimeConfig = { ...RuntimeConfig, ...qState.modules };
+        log('Quarantine Active:', qState.modules);
     }
 
     const calculatedConfig = {
@@ -238,7 +263,7 @@
     }
 
     Object.assign(Config, calculatedConfig);
-    applyPowerPolicy(); // ✅ Double Check
+    applyPowerPolicy(); 
     
     Object.assign(API, {
         profile: (mode) => {
@@ -250,7 +275,7 @@
             const p = presets[mode] || presets.balanced;
             const current = Env.getOverrides();
             cleanAutoFlags(current);
-            S.remove(Q_KEY); 
+            S.remove(Q_KEY); Q_CACHE = null;
             Env.saveOverrides({ ...current, ...p, disabled: false });
             win.location.reload();
         },
@@ -267,10 +292,18 @@
         }
     });
 
-    // SPA Route Listener (Atomic & Throttled)
+    // SPA Route Listener (Route Shield)
     let lastKey = LCP_KEY;
+    // ✅ Route Protection Timer
+    let routeProtectUntil = 0; 
+    
     const onRoute = () => {
         const nextKey = getLcpKey();
+        
+        // Reset Protection on Route Change
+        routeProtectUntil = Date.now() + 3000; // 3s Shield
+        win.dispatchEvent(new Event('perfx-route'));
+
         if (nextKey === lastKey) return; 
 
         if (RuntimeConfig._lcp) S.set(lastKey, RuntimeConfig._lcp);
@@ -280,11 +313,14 @@
         RuntimeConfig._lcp = S.get(LCP_KEY) || null;
     };
     
-    const origPush = history.pushState;
-    history.pushState = function() { origPush.apply(this, arguments); onRoute(); };
-    const origRep = history.replaceState;
-    history.replaceState = function() { origRep.apply(this, arguments); onRoute(); };
-    win.addEventListener('popstate', onRoute);
+    if (!win.__perfx_history_patched) {
+        win.__perfx_history_patched = true;
+        const origPush = history.pushState;
+        history.pushState = function() { origPush.apply(this, arguments); onRoute(); };
+        const origRep = history.replaceState;
+        history.replaceState = function() { origRep.apply(this, arguments); onRoute(); };
+        win.addEventListener('popstate', onRoute);
+    }
 
     if (typeof GM_registerMenuCommand !== 'undefined') {
         if (RuntimeConfig.disabled) {
@@ -306,10 +342,10 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '77.3.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '77.4.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V17 (LoAF & Strict Quarantine)
+    // 2. Autonomous V18 (LoAF, Quarantine Cache)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !isSafeMode) {
         try {
@@ -363,7 +399,7 @@
             if (useLoAF) {
                 new PerformanceObserver((list) => {
                     for (const e of list.getEntries()) {
-                        const blocking = Math.min(200, e.duration - 50); // Cap per frame
+                        const blocking = Math.min(200, e.duration - 50); 
                         if (blocking > 0) loadTotal += blocking;
                     }
                 }).observe({type: 'long-animation-frame', buffered: true});
@@ -390,20 +426,18 @@
                 const TH = getThresholds();
 
                 const now = Date.now();
-                const isQuarantined = () => {
-                    const q = safeJsonParse(S.get(Q_KEY));
-                    return q && (now - q.ts) < 86400000;
-                };
-
-                if (c.downgradeCount > 5 && !isQuarantined()) {
+                // Quarantine Check (Cached)
+                if (c.downgradeCount > 5 && !checkQuarantine(now)) {
                     const modules = { memory: false }; 
-                    S.set(Q_KEY, JSON.stringify({ ts: now, modules }));
+                    const qVal = { ts: now, modules };
+                    S.set(Q_KEY, JSON.stringify(qVal));
+                    Q_CACHE = qVal; // Update Cache
                     
                     c.downgradeCount = 0;
                     c.downgradeWindowTs = now;
-                    c.memory = false; // Sync config
-                    Env.saveOverrides(c);
                     Config.memory = false; 
+                    c.memory = false;
+                    Env.saveOverrides(c);
                     API.shutdownMemory();
                     log('Self-Quarantine Activated');
                     return; 
@@ -449,9 +483,11 @@
                     const requiredStreak = currentLevel === 1 ? 2 : 4;
                     
                     if (recoveryStreak >= requiredStreak) {
+                        // ✅ Check Quarantine before restoring memory
+                        const isQ = checkQuarantine(now);
+                        
                         if (c._restore) {
-                            // ✅ Strict Quarantine Check
-                            if (isQuarantined()) c._restore.memory = false; 
+                            if (isQ) c._restore.memory = false; // Block memory restore
 
                             Config.memory = !!c._restore.memory && !c._powerThrottled;
                             Config.gpu = !!c._restore.gpu;
@@ -498,13 +534,14 @@
     // ==========================================
     class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
-    // [Core 1] EventPassivator v3.6
+    // [Core 1] EventPassivator v3.7 (Safe Target)
     class EventPassivator extends BaseModule {
         init() {
             if (!Config.passive || win.__perfx_evt_patched) return;
             win.__perfx_evt_patched = true;
 
-            const evts = new Set(['touchstart', 'wheel', 'mousewheel']); 
+            // ✅ No Touchstart (Safe)
+            const evts = new Set(['wheel', 'mousewheel']); 
             const needsPDCache = new WeakMap();
 
             const checkNeedsPD = (listener) => {
@@ -528,13 +565,12 @@
                 const origAdd = proto.addEventListener;
                 proto.addEventListener = function(type, listener, options) {
                     if (!listener) return origAdd.call(this, type, listener, options);
-                    if (type === 'touchmove') return origAdd.call(this, type, listener, options);
-
+                    
                     let finalOptions = options;
                     if (evts.has(type)) {
                         const isObj = typeof options === 'object' && options !== null;
                         if (!isObj || options.passive === undefined) {
-                            if (type === 'touchstart' || !checkNeedsPD(listener)) {
+                            if (!checkNeedsPD(listener)) {
                                 try {
                                     finalOptions = isObj 
                                         ? { ...options, passive: true } 
@@ -585,7 +621,7 @@
         }
     }
 
-    // [Core 3] DomWatcher v3.8 (Mobile Caps & Capped Scan)
+    // [Core 3] DomWatcher v3.9 (Strict Cap & Init Batch)
     class DomWatcher extends BaseModule {
         init() {
             if (!Config.gpu && !Config.memory) return;
@@ -696,7 +732,7 @@
 
             this.obsCount = 0; 
             this.observed = new WeakSet(); 
-            const margin = DOM_MARGIN; // ✅ Uses computed margin
+            const margin = DOM_MARGIN; 
             
             this.visObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
@@ -721,10 +757,10 @@
 
             if (Config.gpu) document.querySelectorAll('canvas').forEach(this.observeSafe);
             
-            // ✅ Capped Initial Scan
             if (Config.memory) {
+                // ✅ Capped Initial Scan
                 const list = document.querySelectorAll(FEED_SEL);
-                const limit = Math.min(list.length, MAX_OBSERVERS_VAL, 300); // Max 300 init
+                const limit = Math.min(list.length, MAX_OBSERVERS_VAL, INIT_SCAN_CAP);
                 for (let i = 0; i < limit; i++) this.observeSafe(list[i]);
             }
         }
@@ -765,7 +801,7 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v3.0 (Async-Safe Viewport)
+    // [Core 4] NetworkAssistant v3.1 (Route Shield & Instant Lazy)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
@@ -778,9 +814,17 @@
             if (document.readyState === 'complete') isProtectionPhase = false;
             else win.addEventListener('load', () => { setTimeout(() => isProtectionPhase = false, 3000); });
 
-            // ✅ State-Based Viewport Guard
+            // ✅ Route Shield Hook
+            win.addEventListener('perfx-route', () => {
+                isProtectionPhase = true; // Re-enable protection
+                candidateCount = 0; // Reset counter
+                setTimeout(() => isProtectionPhase = false, 3000);
+            });
+
+            // ✅ Zero-Reflow Viewport Check
             const nearSet = new WeakSet();
             const farSet = new WeakSet();
+            let imgObsCount = 0;
             
             const applyLazy = (img) => {
                 if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
@@ -795,7 +839,6 @@
                         nearSet.add(img);
                     } else {
                         farSet.add(img);
-                        // Safe to apply lazy now
                         applyLazy(img);
                     }
                     vpObs.unobserve(img);
@@ -822,28 +865,35 @@
                     if (cur === lcpUrl) {
                         img.setAttribute('loading', 'eager');
                         img.setAttribute('fetchpriority', 'high');
-                        // No need to check viewport for LCP
                         vpObs.unobserve(img); 
                         return;
                     }
                 }
 
+                // Phase Protection
                 if (!lcpUrl && isProtectionPhase) {
                     if (isCandidate(img)) {
                         candidateCount++;
                         if (candidateCount <= 3) return; 
                     }
-                }
-                
-                // ✅ Check Viewport State
-                if (nearSet.has(img)) return; // Already near
-                if (farSet.has(img)) {
-                    applyLazy(img); // Already far
+                } else if (!isProtectionPhase) {
+                    // ✅ Instant Lazy: Late images are likely below fold
+                    applyLazy(img);
                     return;
                 }
                 
-                // Unknown state: Observe and wait. Do NOT force lazy yet.
-                vpObs.observe(img);
+                // State Check
+                if (nearSet.has(img)) return; 
+                if (farSet.has(img)) {
+                    applyLazy(img);
+                    return;
+                }
+                
+                // ✅ Cap Observer
+                if (imgObsCount < MAX_IMG_OBS_VAL) {
+                    vpObs.observe(img);
+                    imgObsCount++;
+                }
             };
 
             const flushQueue = () => {
@@ -870,7 +920,6 @@
                 }));
             }).observe(document.documentElement, { childList: true, subtree: true });
             
-            // Clean up
             win.addEventListener('pagehide', () => vpObs.disconnect());
         }
     }
