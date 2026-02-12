@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.45 Final_Strict_Detect)
+// @name        Video_Image_Control (Lite v130.46 Final_Stable_Fix)
 // @namespace   https://com/
-// @version     130.45
-// @description v130.45: UI only loads on Detection. No forced UI. Cloudflare Safe. Lazy-load supported.
+// @version     130.46
+// @description v130.46: Fix Engine start bug. Real Iframe visibility fix. CORS canvas reset. Safe optimization.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -21,6 +21,10 @@
 
     // [Safety] Cloudflare check
     if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
+
+    // [Fixed] 엔진 시작 가드 로직 분리 (실행 차단 버그 수정)
+    if (window.__VSC_BOOT_GUARD__) return;
+    Object.defineProperty(window, '__VSC_BOOT_GUARD__', { value: true, configurable: false, writable: false });
 
     const IS_TOP = window === window.top;
 
@@ -46,7 +50,13 @@
         return result;
     };
 
-    const hasRealVideo = () => {
+    // [Optimized] hasRealVideo 쿨다운 캐시 (빈번한 호출 방지)
+    let _hasVideoCache = { t: 0, v: false };
+    const hasRealVideoCached = () => {
+        const now = Date.now();
+        if (now - _hasVideoCache.t < 500) return _hasVideoCache.v;
+
+        let found = false;
         const vids = document.getElementsByTagName('video');
         for (const v of vids) {
             if (!v.isConnected) continue;
@@ -54,25 +64,28 @@
             const h = v.videoHeight || v.clientHeight || v.offsetHeight || 0;
             const hasSource = !!(v.currentSrc || v.src || v.srcObject || v.querySelector('source') ||
                                  v.getAttribute('data-src') || v.getAttribute('data-video-src') || v.getAttribute('data-url'));
-            if (hasSource || (w >= 80 && h >= 60)) return true;
+            if (hasSource || (w >= 80 && h >= 60)) { found = true; break; }
         }
-        const list = window._shadowDomList_;
-        if (list && list.length > 0) {
-            const cap = Math.min(list.length, 50);
-            for (let i = 0; i < cap; i++) {
-                const sr = list[i];
-                if (!sr) continue;
-                try {
-                    const v = sr.querySelector ? sr.querySelector('video') : null;
-                    if (v) {
-                        const w = v.videoWidth || v.clientWidth || 0;
-                        const h = v.videoHeight || v.clientHeight || 0;
-                        if ((w >= 80 && h >= 60) || v.src || v.currentSrc) return true;
-                    }
-                } catch(e) {}
+        if (!found) {
+            const list = window._shadowDomList_;
+            if (list && list.length > 0) {
+                const cap = Math.min(list.length, 50);
+                for (let i = 0; i < cap; i++) {
+                    const sr = list[i];
+                    if (!sr) continue;
+                    try {
+                        const v = sr.querySelector ? sr.querySelector('video') : null;
+                        if (v) {
+                            const w = v.videoWidth || v.clientWidth || 0;
+                            const h = v.videoHeight || v.clientHeight || 0;
+                            if ((w >= 80 && h >= 60) || v.src || v.currentSrc) { found = true; break; }
+                        }
+                    } catch(e) {}
+                }
             }
         }
-        return false;
+        _hasVideoCache = { t: now, v: found };
+        return found;
     };
 
     const looksLikePlayerHost = (el) => {
@@ -129,7 +142,8 @@
         if (_hooksActive || isSensitiveContext()) return;
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
         const isMediaEl = (o) => o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
-
+        
+        // [Fixed] 안전한 Hooking: 사이트 스크립트 충돌 시 원본 복구
         const safeDefineProperty = function (obj, key, descriptor) {
             if (isMediaEl(obj) && protectKeys.includes(key) && descriptor) {
                 const origDesc = descriptor;
@@ -174,9 +188,6 @@
             _shadowHookActive = false;
         }
     };
-
-    if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
-    Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
 
     // --- Utils & Constants ---
     const Utils = {
@@ -686,7 +697,7 @@
                     const boostFactor = Math.tanh(u);
                     const headroom = Math.max(0.0, 1.0 - p90);
                     const floor = Math.max(0.1, p10);
-
+                    
                     let error = 0;
                     if (evValue === 0) {
                         error = (0.5 - p50) * 0.5;
@@ -746,6 +757,13 @@
 
             } catch (e) {
                 if (e.name === 'SecurityError') {
+                    // [Fixed] CORS 에러 발생 시 Canvas 리셋 및 Taint 처리
+                    try {
+                        this.canvas.width = this.canvas.width;
+                        this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
+                        if (this.ctx) this.ctx.imageSmoothingEnabled = false;
+                    } catch {}
+                    
                     this.taintedResources.add(this.targetVideo);
                     const next = this._pickBestVideoNow();
                     if (next && next !== this.targetVideo && !this.taintedResources.has(next)) {
@@ -872,8 +890,8 @@
 
             const updateHooksState = () => {
                 const active = this.stateManager.get('app.scriptActive');
-                const hasActiveVideo = (this.stateManager.get('media.activeMedia')?.size || 0) > 0;
-                const hasVideo = hasActiveVideo || hasRealVideo();
+                // [Optimized] 캐시된 비디오 확인 함수 사용
+                const hasVideo = hasRealVideoCached() || (this.stateManager.get('media.activeMedia')?.size || 0) > 0;
                 if (active && hasVideo && !isSensitiveContext()) {
                     enableShadowHook();
                     enablePropertyHooks();
@@ -977,7 +995,7 @@
         }
         updateGlobalAttrObs(active) {
             if (!CONFIG.FLAGS.GLOBAL_ATTR_OBS) return;
-            // [Optimized] 비용 절감하면서 후보군 체크
+            // [Optimized] 활성 조건 완화 (탐지 실패 방지)
             const hasCandidates =
                 document.getElementsByTagName('video').length > 0 ||
                 document.getElementsByTagName('iframe').length > 0 ||
@@ -993,6 +1011,10 @@
                         const tag = t.nodeName;
                         if (tag === 'SOURCE') { scheduleScan(t.parentNode, true); dirty = true; }
                         else if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME') { scheduleScan(t, true); dirty = true; }
+                        // [Enhanced] 작은 서브트리만 querySelector 허용
+                        else if (t.childElementCount > 0 && t.childElementCount < 50 && t.querySelector) {
+                             if (t.querySelector('video, iframe, img, source')) { scheduleScan(t, true); dirty = true; }
+                        }
                     }
                     if (dirty) this._domDirty = true;
                 }, 150));
@@ -1041,7 +1063,6 @@
                 for (const img of curImages) { if (img && img.isConnected) next.add(img); else { this.detachImageListeners(img); changed = true; } }
                 if (changed) sm.set('media.activeImages', next);
             }
-            // [New] Iframe cleanup
             const curIframes = sm.get('media.activeIframes');
             if (curIframes && curIframes.size) {
                 let changed = false; const next = new Set();
@@ -1084,7 +1105,8 @@
                     if (!n || n.nodeType !== 1) return false;
                     const tag = n.nodeName;
                     if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE') return true;
-                    if (n.childElementCount > 0 && n.querySelector) {
+                    // [Optimized] querySelector 과다 호출 방지
+                    if (n.childElementCount > 0 && n.childElementCount < 50 && n.querySelector) {
                          return !!n.querySelector('video, iframe, img, source');
                     }
                     return false;
@@ -1143,18 +1165,24 @@
                     const visMap = sm.get('media.visibilityMap'); let needsUpdate = false;
                     entries.forEach(e => {
                         const pipEl = document.pictureInPictureElement;
-                        // [Optimized] Safari compat
                         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                         const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && (fsEl === e.target || fsEl.contains(e.target)));
                         if (visMap) visMap.set(e.target, isVisible);
                         this._intersectionRatios.set(e.target, e.intersectionRatio);
 
-                        if (e.target.tagName === 'VIDEO') {
+                        // [Fixed] Iframe visibility update
+                        if (e.target.tagName === 'IFRAME') {
+                            if (visMap) visMap.set(e.target, isVisible);
+                            sm.set('media.visibilityChange', { target: e.target, isVisible });
+                            // Iframe doesn't participate in 'best video' calculation for analysis, but visibility matters for filter
+                        }
+                        else if (e.target.tagName === 'VIDEO') {
                             if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target);
                             sm.set('media.visibilityChange', { target: e.target, isVisible });
                             needsUpdate = true;
                         }
                         else if (e.target.tagName === 'IMG') sm.set('media.visibilityChange', { target: e.target, isVisible });
+                        
                         if (!e.target.isConnected) { this.intersectionObserver.unobserve(e.target); this._visibleVideos.delete(e.target); }
                     });
                     if (needsUpdate && !document.hidden) {
@@ -1228,7 +1256,7 @@
                 }
             } else if (node.tagName === 'IFRAME') {
                 this._hookIframe(node);
-                iframes.add(node); // Track for CSS filter
+                iframes.add(node);
             }
             else if (node.tagName === 'SOURCE' && node.parentNode && node.parentNode.tagName === 'VIDEO') { media.add(node.parentNode); }
         }
@@ -1254,25 +1282,26 @@
                 if (el.isConnected && this.attachImageListeners(el)) { if (!currentImages.has(el)) { currentImages.add(el); imagesChanged = true; } }
             }
              for (const el of iframeSet) {
-                if (el.isConnected && this.attachImageListeners(el)) { if (!currentIframes.has(el)) { currentIframes.add(el); iframesChanged = true; } }
+                if (el.isConnected && this.attachIframeListeners(el)) { if (!currentIframes.has(el)) { currentIframes.add(el); iframesChanged = true; } }
             }
 
             if (mediaChanged) sm.set('media.activeMedia', currentMedia);
             if (imagesChanged) sm.set('media.activeImages', currentImages);
             if (iframesChanged) sm.set('media.activeIframes', currentIframes);
-
-            // [Fixed] UI 생성은 미디어 감지 시에만 요청
+            
             if ((mediaChanged || currentMedia.size > 0 || currentImages.size > 0) && !sm.get('ui.globalContainer')) { sm.set('ui.createRequested', true); }
         }
         _processAllElements(visited, scanShadow = true) {
             const { media, images, iframes } = this.findAllElements(document, 0, !scanShadow, visited);
             this._syncSet(media, 'media.activeMedia', this.attachMediaListeners.bind(this), this.detachMediaListeners.bind(this));
             this._syncSet(images, 'media.activeImages', this.attachImageListeners.bind(this), this.detachImageListeners.bind(this));
-
+             
              const activeSet = this.stateManager.get('media.activeIframes') || new Set();
              const nextActiveSet = new Set(iframes);
              let changed = false;
              for (const oldEl of activeSet) { if(oldEl && oldEl.isConnected) nextActiveSet.add(oldEl); else { changed = true; } }
+             for (const el of nextActiveSet) { if (this.attachIframeListeners(el)) { if(!activeSet.has(el)) changed = true; } }
+             
              if (changed || activeSet.size !== nextActiveSet.size) this.stateManager.set('media.activeIframes', nextActiveSet);
 
             const sm = this.stateManager;
@@ -1340,7 +1369,7 @@
                 // [Optimized] Shadow scan only at document level
                 const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0;
                 if (!document.querySelector('video, iframe, img, source') && !hasShadow) return { media, images, iframes };
-
+                
                 const docVideos = document.getElementsByTagName('video'); for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images, iframes);
                 if (wantImages) {
                     const docImages = document.images; for (let i = 0; i < docImages.length; i++) {
@@ -1356,7 +1385,7 @@
             if (root === document) { const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0; if (!media.size && !images.size && !hasShadow) return { media, images, iframes }; }
             if (root.nodeType === 1) this._checkAndAdd(root, media, images, iframes);
             if (visited.has(root)) return { media, images, iframes }; visited.add(root);
-
+            
             // [Optimized] Only recurse into shadow roots if explicitly requested (usually on full scan from document)
             if (!skipShadowScan && root === document) {
                 (window._shadowDomList_ || []).forEach(shadowRoot => {
@@ -1371,10 +1400,10 @@
                             shadowRoot[VSC_SR_MO] = smo;
                         } catch (e) { }
                     }
-                    try {
-                        const res = this.findAllElements(shadowRoot, depth + 1, true, visited);
-                        res.media.forEach(m => media.add(m));
-                        res.images.forEach(i => images.add(i));
+                    try { 
+                        const res = this.findAllElements(shadowRoot, depth + 1, true, visited); 
+                        res.media.forEach(m => media.add(m)); 
+                        res.images.forEach(i => images.add(i)); 
                         res.iframes.forEach(f => iframes.add(f));
                     } catch (e) { }
                 });
@@ -1461,6 +1490,18 @@
             return true;
         }
         detachImageListeners(image) { try { this.intersectionObserver.unobserve(image); } catch (e) { } this._observedImages.delete(image); if (this._resizeObs) this._resizeObs.unobserve(image); }
+        // [New] Dedicated iframe listener
+        attachIframeListeners(iframe) {
+            if (!iframe || !this.intersectionObserver) return false;
+            const visMap = this.stateManager.get('media.visibilityMap');
+            // Init visibility based on rect
+            const rect = iframe.getBoundingClientRect();
+            const isVisible = rect.width > 0 && rect.height > 0 && rect.top < innerHeight && rect.bottom > 0;
+            if (visMap) visMap.set(iframe, isVisible);
+            
+            try { this.intersectionObserver.observe(iframe); } catch(e) { return false; }
+            return true;
+        }
     }
 
     class SvgFilterPlugin extends Plugin {
@@ -1492,7 +1533,7 @@
             }, 100);
             document.addEventListener('vsc-smart-limit-update', this.throttledUpdate);
             if (this.stateManager.get('app.scriptActive')) { this.filterManager.init(); this.imageFilterManager.init(); this.applyAllVideoFilters(); this.applyAllImageFilters(); }
-
+            
             // [Fixed] 주기적 ShadowRoot 정리 (메모리 누수 방지)
             this._pruneTimer = setInterval(() => {
                 if (this.filterManager) this.filterManager.prune();
@@ -1504,15 +1545,15 @@
             class SvgFilterManager {
                 constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._lastValues = null; this._clarityTableCache = new Map(); }
                 isInitialized() { return this._isInitialized; } getSvgNode() { return this._svgNode; } getStyleNode() { return this._styleElement; }
-                init() { if (this._isInitialized) return; safeGuard(() => {
-                    const { svgNode, styleElement } = this._createElements();
-                    this._svgNode = svgNode; this._styleElement = styleElement;
+                init() { if (this._isInitialized) return; safeGuard(() => { 
+                    const { svgNode, styleElement } = this._createElements(); 
+                    this._svgNode = svgNode; this._styleElement = styleElement; 
                     // [Safety] Body check
                     const container = document.body || document.documentElement;
                     if (container) container.appendChild(svgNode);
-                    (document.head || document.documentElement).appendChild(styleElement);
-                    this._activeFilterRoots.add(this._svgNode);
-                    this._isInitialized = true;
+                    (document.head || document.documentElement).appendChild(styleElement); 
+                    this._activeFilterRoots.add(this._svgNode); 
+                    this._isInitialized = true; 
                 }, `${this.constructor.name}.init`); }
                 registerContext(svgElement) { this._activeFilterRoots.add(svgElement); }
                 // [Fixed] 죽은 ShadowRoot 정리 메소드
@@ -1652,14 +1693,14 @@
             const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
             const isVis = this.stateManager.get('media.visibilityMap').get(video); const isActive = scriptActive && isVis && shouldApply;
-
-            // [Enhanced] Iframe에 CSS filter 적용 (Cross-origin 제약 우회 시도)
+            
+            // [New] Iframe에 CSS Filter 적용 (Cross-Origin 지원)
             if (video.tagName === 'IFRAME') {
                 if (isActive) {
-                     const bright = (vf.brightness || 0) / 100;
-                     const contrast = (vf.contrastAdj || 1.0);
-                     const sat = (vf.saturation || 100) / 100;
-                     video.style.filter = `brightness(${1 + bright}) contrast(${contrast}) saturate(${sat})`;
+                    const bright = (vf.brightness || 0) / 100;
+                    const contrast = (vf.contrastAdj || 1.0);
+                    const sat = (vf.saturation || 100) / 100;
+                    video.style.filter = `brightness(${1 + bright}) contrast(${contrast}) saturate(${sat})`;
                 } else {
                     video.style.filter = '';
                 }
@@ -1697,9 +1738,8 @@
         constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; this.pressTimer = null; this._longPressTriggered = false; }
         init(stateManager) {
             super.init(stateManager);
-
-            // [Fixed] Top Window에서만 미디어 감지 시 UI 생성 요청 (Iframe은 미디어 감지 후 스스로 판단)
-            // 아래 라인은 삭제됨: if (IS_TOP) this.stateManager.set('ui.createRequested', true);
+            // [Fixed] UI 중복 등록 제거 및 초기화 수정
+            // CoreMediaPlugin에서 미디어가 발견되면 자동으로 ui.createRequested가 true가 됨
 
             const createUI = () => { if (this.globalContainer) return; this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); this.stateManager.set('ui.createRequested', false); };
             const onCreateRequested = () => { if (document.body) createUI(); else document.addEventListener('DOMContentLoaded', createUI, { once: true }); };
@@ -1783,6 +1823,7 @@
                 } else {
                     this.stateManager.set('app.scriptActive', true);
                     this.stateManager.set('ui.areControlsVisible', true);
+                    // [Enhanced] 3-step check for auto-hide
                     const check = (count) => {
                          const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || this.stateManager.get('media.activeImages').size > 0;
                          if (!hasMedia && this.stateManager.get('app.scriptActive')) {
