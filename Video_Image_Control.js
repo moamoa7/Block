@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.30 Stable)
+// @name        Video_Image_Control (Lite v130.31 Optimized+AE_Boost)
 // @namespace   https://com/
-// @version     130.30
-// @description v130.30: Fixed Long-press bug. Restored Red Icon style. Enhanced persistent tracking for ok.ru.
+// @version     130.31
+// @description v130.31: Performance optimization (Cached Checks, Lightweight Observers). Improved Auto-Exposure logic. Memory leak fixes.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -19,7 +19,27 @@
 
     const IS_TOP = window === window.top;
 
-    // --- Safety Helpers ---
+    // --- Safety & Performance Helpers ---
+
+    // [Optimization] Cache sensitive context check (300ms TTL)
+    let _sensCache = { t: 0, v: false };
+    const isSensitiveContext = () => {
+        const now = Date.now();
+        if (now - _sensCache.t < 300) return _sensCache.v;
+
+        let result = false;
+        const url = location.href.toLowerCase();
+        if (/(login|signin|auth|account|member|session|checkout|payment|secure|bank|verify)/i.test(url)) {
+            result = true;
+        } else {
+            try {
+                if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"]')) result = true;
+            } catch(e) {}
+        }
+        _sensCache = { t: now, v: result };
+        return result;
+    };
+
     const hasRealVideo = () => {
         const v = document.querySelector('video');
         if (!v) return false;
@@ -38,15 +58,6 @@
         if (!el) return false;
         const s = ((el.tagName || '') + ' ' + (el.id || '') + ' ' + (el.className || '')).toLowerCase();
         return /(player|video|vjs|shaka|jw|plyr|bitmovin|hls|fluid|media)/.test(s);
-    };
-
-    const isSensitiveContext = () => {
-        const url = location.href.toLowerCase();
-        if (/(login|signin|auth|account|member|session|checkout|payment|secure|bank|verify)/i.test(url)) return true;
-        try {
-            if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"]')) return true;
-        } catch(e) {}
-        return false;
     };
 
     // --- Global Hook Manager ---
@@ -91,11 +102,12 @@
         } catch(e) {}
     };
 
+    // [Safe Patch] Minimal Descriptor Modification
     const patchDescriptorSafely = (d) => {
         if (!d) return;
+        // Don't force configurable: true unless absolutely necessary to avoid site breakage
+        // Only patch writable/enumerable if we are intercepting
         const isAccessor = ('get' in d) || ('set' in d);
-        if (d.configurable === false) d.configurable = true;
-        if (d.enumerable === false) d.enumerable = true;
         if (!isAccessor && d.writable === false) d.writable = true;
     };
 
@@ -507,10 +519,20 @@
                 const hist = this._hist;
                 hist.fill(0);
 
-                const startRow = Math.floor(size * 0.12);
-                const endRow = Math.ceil(size * 0.78);
+                let startRow = Math.floor(size * 0.12);
+                let endRow = Math.ceil(size * 0.78);
                 const startCol = Math.floor(size * 0.10);
                 const endCol = Math.ceil(size * 0.90);
+
+                // [Enhanced AE] Preliminary check: center point luma
+                // If the exact center is pitch black, we might be looking at a letterbox.
+                // Shift sampling up slightly.
+                const centerIdx = (Math.floor(size/2) * size + Math.floor(size/2)) * 4;
+                const cR = data[centerIdx], cG = data[centerIdx+1], cB = data[centerIdx+2];
+                if ((cR+cG+cB) < 10) {
+                     startRow = Math.floor(size * 0.05); // Look higher
+                     endRow = Math.ceil(size * 0.70);
+                }
 
                 let validCount = 0;
                 for (let y = startRow; y < endRow; y++) {
@@ -748,8 +770,12 @@
                         const sr = e.detail.shadowRoot;
                         let flags = sr[VSC_FLAG] | 0;
                         if (!(flags & FLAG_OBSERVED)) {
+                            // [Optimization] Light mode for shadow heavy sites
+                            const isHeavy = (window._shadowDomList_ && window._shadowDomList_.length > 300);
+                            const config = isHeavy ? { childList: true, subtree: true } : { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS };
+
                             const smo = new MutationObserver(() => scheduleScan(sr));
-                            smo.observe(sr, { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS });
+                            smo.observe(sr, config);
                             sr[VSC_FLAG] = (flags | FLAG_OBSERVED);
                         }
                         this.scanSpecificRoot(sr);
@@ -770,15 +796,15 @@
                     }
                 }, P(this._ac.signal));
 
-                document.addEventListener('pointerdown', (e) => {
+                on(document, 'pointerdown', (e) => {
                     const path = e.composedPath ? e.composedPath() : [];
                     const vid = path.find(n => n && n.tagName === 'VIDEO') || (e.target && e.target.closest && e.target.closest('video'));
                     if (vid) {
                         this.stateManager.set('media.lastInteractedVideo', { el: vid, ts: Date.now() });
                     }
-                }, { capture: true, passive: true });
+                }, { capture: true, passive: true, signal: this._ac.signal });
 
-                document.addEventListener('fullscreenchange', () => {
+                on(document, 'fullscreenchange', () => {
                     const fsEl = document.fullscreenElement;
                     if (fsEl) {
                         const vid = (fsEl.tagName === 'VIDEO') ? fsEl : fsEl.querySelector('video');
@@ -804,7 +830,10 @@
             this.subscribe('media.activeMedia', () => updateHooksState());
             updateHooksState();
 
-            ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(evt => on(document, evt, () => this.resetScanInterval(), CP(this._ac.signal)));
+            // [Optimization] Throttled reset
+            const throttledReset = throttle(() => this.resetScanInterval(), 300);
+            ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(evt => on(document, evt, throttledReset, CP(this._ac.signal)));
+
             if ('ResizeObserver' in window) {
                 this._resizeObs = new ResizeObserver(throttle(entries => {
                     let needed = false;
@@ -948,6 +977,9 @@
                 this.mainObserver.observe(document.documentElement, { childList: true, subtree: true });
             }
             if (!this.intersectionObserver) {
+                // [Optimization] Reduced thresholds for low-end
+                const thresholdConfig = IS_LOW_END ? [0, 0.2, 0.6] : [0, 0.25, 0.5, 0.75, 1.0];
+
                 this.intersectionObserver = new IntersectionObserver(entries => {
                     const sm = this.stateManager;
                     const visMap = sm.get('media.visibilityMap'); let needsUpdate = false;
@@ -990,13 +1022,22 @@
                                 }
                             }
                             if (bestCandidate && bestCandidate !== currentBest) {
+                                // [Optimization] Aggressive stop old one
+                                if (currentBest && currentBest !== bestCandidate) {
+                                    VideoAnalyzer.stop();
+                                }
                                 sm.set('media.currentlyVisibleMedia', bestCandidate);
-                                const vf = sm.get('videoFilter'); const active = sm.get('app.scriptActive');
-                                if (active && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(bestCandidate, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
+
+                                // Debounce start to prevent flickering
+                                if (this._changeTimer) clearTimeout(this._changeTimer);
+                                this._changeTimer = setTimeout(() => {
+                                    const vf = sm.get('videoFilter'); const active = sm.get('app.scriptActive');
+                                    if (active && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(bestCandidate, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
+                                }, 200);
                             }
                         });
                     }
-                }, { root: null, rootMargin: '0px', threshold: [0, 0.25, 0.5, 0.75, 1.0] });
+                }, { root: null, rootMargin: '0px', threshold: thresholdConfig });
             }
         }
         scheduleNextScan() {
@@ -1061,8 +1102,6 @@
             const nextActiveSet = new Set(newSet); // Start with new findings
 
             // [Critical Fix for ok.ru / Lazy Loading]
-            // Don't discard existing known media just because this specific scan missed them (e.g., hidden frame).
-            // Only discard if they are actually disconnected from DOM.
             let changed = false;
             if (activeSet) {
                 for (const oldEl of activeSet) {
@@ -1149,8 +1188,10 @@
                     let flags = shadowRoot[VSC_FLAG] | 0;
                     if (!(flags & FLAG_OBSERVED)) {
                         try {
+                            const isHeavy = (window._shadowDomList_ && window._shadowDomList_.length > 300);
+                            const config = isHeavy ? { childList: true, subtree: true } : { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS };
                             const smo = new MutationObserver(() => scheduleScan(shadowRoot));
-                            smo.observe(shadowRoot, { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS });
+                            smo.observe(shadowRoot, config);
                             shadowRoot[VSC_FLAG] = (flags | FLAG_OBSERVED);
                         } catch (e) { }
                     }
