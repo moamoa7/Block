@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.34 AE_Master_Fixed)
+// @name        Video_Image_Control (Lite v130.34 Optimized)
 // @namespace   https://com/
 // @version     130.34
-// @description v130.34: Fixed detection miss (MutationObserver). Optimized TreeWalker (ShadowDOM). Enhanced AE stability (High-motion). Safe Shadow-hook.
+// @description v130.34: Crash fix (IdleCallback). Enhanced ShadowDOM detection. Optimized loop/queries. Smart AE & Filter logic.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -26,32 +26,47 @@
         if (now - _sensCache.t < 300) return _sensCache.v;
         let result = false;
         const url = location.href.toLowerCase();
-        if (/(login|signin|auth|account|member|session|checkout|payment|secure|bank|verify)/i.test(url)) result = true;
-        else { try { if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"]')) result = true; } catch(e) {} }
+        // [Optimized] 'secure' 키워드 제거 (오탐 방지), 실제 입력 폼 존재 여부 체크 강화
+        if (/(login|signin|auth|account|member|session|checkout|payment|bank|verify)/i.test(url)) result = true;
+        else {
+            try {
+                if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"]')) result = true;
+            } catch(e) {}
+        }
         _sensCache = { t: now, v: result };
         return result;
     };
 
+    // [Optimized] 불필요한 중복 쿼리 제거 및 Shadow DOM 일부 체크
     const hasRealVideo = () => {
-        const v = document.querySelector('video');
-        if (!v) return false;
-        if (v.isConnected && (v.videoWidth >= 120 || v.clientWidth >= 120)) return true;
         const videos = document.querySelectorAll('video');
         for (const vid of videos) {
             if (!vid.isConnected) continue;
+            // 크기 체크 (가로/세로 중 하나라도 만족하면 OK)
             if ((vid.videoWidth || vid.clientWidth || 0) >= 120 && (vid.videoHeight || vid.clientHeight || 0) >= 90) return true;
+        }
+        // [Enhanced] Open ShadowRoot 내부 비디오 체크 (최대 50개까지만 샘플링)
+        const list = window._shadowDomList_;
+        if (list && list.length > 0) {
+            const cap = Math.min(list.length, 50);
+            for (let i = 0; i < cap; i++) {
+                const sr = list[i];
+                if (!sr) continue;
+                const v = sr.querySelector ? sr.querySelector('video') : null;
+                if (v && (v.videoWidth || v.clientWidth || 0) >= 120 && (v.videoHeight || v.clientHeight || 0) >= 90) return true;
+            }
         }
         return false;
     };
 
-    // [Fixed] 오탐 방지를 위한 정규식 강화 (일반적인 'media', 'video' 클래스 제외)
+    // [Optimized] 정규식 통합 및 오탐 방지
     const looksLikePlayerHost = (el) => {
         if (!el) return false;
         const s = ((el.tagName || '') + ' ' + (el.id || '') + ' ' + (el.className || '')).toLowerCase();
         // 1. 확실한 라이브러리명
         if (/(vjs|shaka|jw|plyr|bitmovin|hls|fluid|mediaelement)/.test(s)) return true;
-        // 2. video/player 단어는 단독 혹은 구분자와 함께 쓰일 때만
-        return /(video|player)/.test(s) && /(^|[\-_])(video|player)([\-_]|$)/.test(s);
+        // 2. video/player 단어는 구분자와 함께 쓰일 때만
+        return /(^|[\-_])(video|player)([\-_]|$)/.test(s);
     };
 
     // --- Global Hook Manager ---
@@ -143,7 +158,7 @@
     const Utils = {
         clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
         safeInt: (v, d = 0) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; },
-        safeFloat: (v, d = 1.0) => { const n = parseFloat(v); return Number.isFinite(n) ? n : d; },
+        // [Optimized] safeFloat removed (unused)
         fastHash: (str) => {
             let h = 0x811c9dc5;
             for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
@@ -158,18 +173,24 @@
         isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host
     };
 
-    // [Optimized] TreeWalker with Time-Slicing (대량 노드 처리시 렉 방지 및 누락 방지)
+    // [Fixed] Helper for safe IdleCallback execution
+    const callIdle = (cb) => {
+        if (window.requestIdleCallback) return window.requestIdleCallback(cb, { timeout: 1000 });
+        return setTimeout(() => cb({ timeRemaining: () => 0, didTimeout: true }), 1);
+    };
+
+    // [Fixed & Optimized] TreeWalker with Time-Slicing & Safe Idle Call
     const collectOpenShadowRootsOnce = () => {
         const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
         const runChunk = (deadline) => {
             let count = 0;
             while (walker.nextNode()) {
-                if (deadline && deadline.timeRemaining() < 1) { // 시간이 부족하면 양보
-                    requestIdleCallback(runChunk);
+                if (deadline && typeof deadline.timeRemaining === 'function' && deadline.timeRemaining() < 1) {
+                    callIdle(runChunk);
                     return;
                 }
-                if (++count > 200) { // 200개마다 강제 양보 (deadline 미지원 브라우저 대응)
-                     (window.requestIdleCallback || setTimeout)(runChunk, 1);
+                if (++count > 200) {
+                     callIdle(runChunk);
                      return;
                 }
 
@@ -185,8 +206,7 @@
                 }
             }
         };
-        if (window.requestIdleCallback) window.requestIdleCallback(runChunk);
-        else setTimeout(() => runChunk(null), 50);
+        callIdle(runChunk);
     };
 
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
@@ -279,6 +299,7 @@
                 if (isSensitiveContext()) disableAllHooks();
                 if (dirtyRoots.size > 0) {
                     const now = Date.now();
+                    // [Optimized] Full scan cooldown
                     if (dirtyRoots.size > 40 && (now - _lastFullScanTime > 800)) {
                         dirtyRoots.clear(); _lastFullScanTime = now;
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
@@ -394,7 +415,7 @@
 
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null,
-        // [Cleanup] Removed unused caches
+        // [Optimized] Removed unused caches
         stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0 },
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0,
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0,
@@ -571,10 +592,8 @@
                 let minDelta = 999;
 
                 // [Enhanced AE] High-motion Guard
-                // 장면 전환 시 ROI 학습을 건너뛰고 중앙값 강제 사용 (깜빡임 방지)
                 if (this._highMotion) {
-                     bestRoi = rois[0]; // Force Center
-                     // Skip history update to avoid learning bad ROI
+                     bestRoi = rois[0];
                 } else {
                     rois.forEach((r, idx) => {
                         let sum = 0, count = 0;
@@ -776,7 +795,6 @@
                 if (e.persisted) return;
                 this.destroyAll();
             });
-            // [Fixed] BFCache Support
             window.addEventListener('pageshow', (e) => {
                  if (e.persisted) { try { disableAllHooks(); triggerBurstScan(250); } catch {} }
             });
@@ -879,8 +897,9 @@
                     }
                 }, { capture: true, passive: true, signal: this._ac.signal });
 
-                on(document, 'fullscreenchange', () => {
-                    const fsEl = document.fullscreenElement;
+                // [Enhanced] Safari support
+                const fsChange = () => {
+                    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                     if (fsEl) {
                         const vid = (fsEl.tagName === 'VIDEO') ? fsEl : fsEl.querySelector('video');
                         if (vid) {
@@ -888,7 +907,9 @@
                             this.stateManager.set('media.lastInteractedVideo', { el: vid, ts: Date.now() });
                         }
                     }
-                }, P(this._ac.signal));
+                };
+                on(document, 'fullscreenchange', fsChange, P(this._ac.signal));
+                on(document, 'webkitfullscreenchange', fsChange, P(this._ac.signal));
 
                 this.scheduleNextScan();
             }, 'CoreMedia pluginsInitialized'));
@@ -982,6 +1003,7 @@
             }
         }
         tick() {
+            // [Optimized] _domDirty fallback
             if (this._domDirty) { this._domDirty = false; scheduleScan(null); }
             this._cleanupDeadIframes();
             this._pruneDisconnected();
@@ -1005,23 +1027,21 @@
         ensureObservers() {
             if (!this.mainObserver) {
                 const dirtySet = new Set();
-                // [Optimized] Improved detection check
                 const mayContainMedia = (n) => {
                     if (!n || n.nodeType !== 1) return false;
                     const tag = n.nodeName;
                     if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE') return true;
-                    // Check children if querySelector is available
                     if (n.childElementCount > 0 && n.querySelector) {
                          return !!n.querySelector('video, iframe, img, source');
                     }
                     return false;
                 };
-                // [Fixed] Correctly handle dirty nodes instead of null scan
                 const flushDirty = debounce(() => {
                     if (dirtySet.size > 0) {
                         this._domDirty = true;
+                        // [Optimized] Directly pass dirty nodes
                         for (const n of dirtySet) scheduleScan(n);
-                        if (dirtySet.size > 50) scheduleScan(null); // Fallback for massive changes
+                        if (dirtySet.size > 50) scheduleScan(null);
                         dirtySet.clear();
                     }
                 }, 150);
@@ -1071,7 +1091,8 @@
                     const visMap = sm.get('media.visibilityMap'); let needsUpdate = false;
                     entries.forEach(e => {
                         const pipEl = document.pictureInPictureElement;
-                        const fsEl = document.fullscreenElement;
+                        // [Optimized] Safari compat
+                        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                         const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && (fsEl === e.target || fsEl.contains(e.target)));
                         if (visMap) visMap.set(e.target, isVisible);
                         this._intersectionRatios.set(e.target, e.intersectionRatio);
@@ -1087,20 +1108,25 @@
                     if (needsUpdate && !document.hidden) {
                         if (this._centerCalcTimer) clearTimeout(this._centerCalcTimer);
                         this._centerCalcTimer = setTimeout(() => {
+                            if (this._visibleVideos.size === 0) return;
                             const currentBest = sm.get('media.currentlyVisibleMedia');
                             const lastInteracted = sm.get('media.lastInteractedVideo');
                             let bestCandidate = null; let maxScore = -1;
                             const cx = window.innerWidth / 2; const cy = window.innerHeight / 2;
                             let centerEl = null;
-                            if (this._visibleVideos.size > 0) {
+
+                            // [Optimized] Skip expensive elementFromPoint if few videos
+                            if (this._visibleVideos.size > 1) {
                                 try { const stack = document.elementsFromPoint(cx, cy); for (const el of stack) { if (el && !el.closest('[data-vsc-internal]')) { centerEl = el; break; } } } catch {}
                             }
+
                             for (const m of this._visibleVideos) {
                                 if (m.tagName === 'VIDEO') {
                                     const area = (m.clientWidth || 0) * (m.clientHeight || 0); let score = area;
                                     if (!m.paused) score *= 2.5; if (m.readyState >= 3) score *= 1.5; if (!m.muted && m.volume > 0) score *= 1.2;
                                     if (m.ended) score *= 0.5; if (document.pictureInPictureElement === m) score *= 3.0;
-                                    if (document.fullscreenElement && (document.fullscreenElement === m || document.fullscreenElement.contains(m))) score *= 4.0;
+                                    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+                                    if (fsEl && (fsEl === m || fsEl.contains(m))) score *= 4.0;
                                     if (m.loop && m.muted && m.autoplay && !m.controls) score *= 0.6;
                                     if (m.controls) score *= 1.2;
 
@@ -1242,7 +1268,9 @@
             if (!root) return { media, images }; if (depth > CONFIG.SCAN.MAX_DEPTH) return { media, images };
             const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
             if (root === document) {
-                if (!document.querySelector('video, iframe, img, source')) return { media, images };
+                // [Optimized] Don't return early if shadow roots exist
+                const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0;
+                if (!document.querySelector('video, iframe, img, source') && !hasShadow) return { media, images };
                 const docVideos = document.getElementsByTagName('video'); for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images);
                 if (wantImages) {
                     const docImages = document.images; for (let i = 0; i < docImages.length; i++) {
@@ -1630,14 +1658,19 @@
                 } else {
                     this.stateManager.set('app.scriptActive', true);
                     this.stateManager.set('ui.areControlsVisible', true);
-                    setTimeout(() => {
-                        const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || this.stateManager.get('media.activeImages').size > 0;
-                        if (!hasMedia && this.stateManager.get('app.scriptActive')) {
-                             this.globalContainer.style.display = 'none';
-                             this.stateManager.set('app.scriptActive', false);
-                             this.stateManager.set('ui.areControlsVisible', false);
-                        }
-                    }, 300);
+                    // [Enhanced] 3-step check for auto-hide
+                    const check = (count) => {
+                         const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || this.stateManager.get('media.activeImages').size > 0;
+                         if (!hasMedia && this.stateManager.get('app.scriptActive')) {
+                             if (count > 0) setTimeout(() => check(count - 1), 500);
+                             else {
+                                 this.globalContainer.style.display = 'none';
+                                 this.stateManager.set('app.scriptActive', false);
+                                 this.stateManager.set('ui.areControlsVisible', false);
+                             }
+                         }
+                    };
+                    setTimeout(() => check(3), 300);
                 }
             });
 
