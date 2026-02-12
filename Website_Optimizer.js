@@ -20,37 +20,37 @@
     // [Constants]
     const DAY = 86400000;
     const WEEK = 7 * DAY;
-    
+
     // [Safe Storage Wrapper with True LRU]
     const S = {
-        get(k) { 
-            try { 
+        get(k) {
+            try {
                 const v = localStorage.getItem(k);
                 if (v !== null) this._trackKey(k); // ✅ Read Tracking
-                return v; 
-            } catch { return null; } 
+                return v;
+            } catch { return null; }
         },
-        set(k, v) { 
-            try { 
-                localStorage.setItem(k, v); 
+        set(k, v) {
+            try {
+                localStorage.setItem(k, v);
                 this._trackKey(k);
-            } catch {} 
+            } catch {}
         },
         remove(k) { try { localStorage.removeItem(k); } catch {} },
-        
+
         _trackKey(k) {
             if (!k.startsWith('PerfX_') && !k.startsWith('perfx-')) return;
-            if (k === 'PerfX_IDX') return; 
+            if (k === 'PerfX_IDX') return;
 
             const idxKey = 'PerfX_IDX';
             try {
                 let idx = JSON.parse(localStorage.getItem(idxKey) || '[]');
                 const limit = win.matchMedia('(pointer:coarse)').matches ? 50 : 100;
-                
+
                 // Move to end (Most Recently Used)
                 idx = idx.filter(x => x !== k);
                 idx.push(k);
-                
+
                 // Prune
                 while (idx.length > limit) {
                     const old = idx.shift();
@@ -59,7 +59,7 @@
                 localStorage.setItem(idxKey, JSON.stringify(idx));
             } catch {}
         },
-        
+
         clearPrefix(prefixes) {
             try {
                 const toRemove = [];
@@ -85,12 +85,12 @@
 
     const hostEndsWithAny = (h, list) => list.some(d => h === d || h.endsWith('.' + d));
     const safeJsonParse = (str) => { try { return JSON.parse(str) || {}; } catch { return {}; } };
-    
+
     const onReady = (cb) => {
         if (document.readyState !== 'loading') cb();
         else win.addEventListener('DOMContentLoaded', cb, { once: true });
     };
-    
+
     // Bucket & Freshness
     const normSeg = (s) => {
         if (/^\d+$/.test(s)) return ':id';
@@ -120,18 +120,18 @@
     const distToViewport = (r) => {
         if (!r) return -1; // -1 means Unknown (Keep it safe)
         const h = viewH();
-        if (r.bottom < 0) return -r.bottom; 
-        if (r.top > h) return r.top - h; 
-        return 0; 
+        if (r.bottom < 0) return -r.bottom;
+        if (r.top > h) return r.top - h;
+        return 0;
     };
-    
+
     // [Safe Init] Hoist Config/API
-    let Config = { 
-        codecMode: 'off', passive: false, gpu: false, memory: false, 
-        allowIframe: false, rtcGuard: true, downgradeLevel: 0 
+    let Config = {
+        codecMode: 'off', passive: false, gpu: false, memory: false,
+        allowIframe: false, rtcGuard: true, downgradeLevel: 0
     };
-    
-    const API = { 
+
+    const API = {
         profile: () => {}, toggleConfig: () => {}, toggleSessionSafe: () => {},
         shutdownMemory: () => {}, restartMemory: () => {}, resetAll: () => {}, showStatus: () => {}
     };
@@ -156,7 +156,7 @@
     };
 
     // [Config Helpers]
-    const SAN_KEYS = ['autoDowngraded', '_restore', 'downgradeReason']; 
+    const SAN_KEYS = ['autoDowngraded', '_restore', 'downgradeReason'];
     const sanitizeConfig = (o) => {
         const out = { ...o };
         for (const k of SAN_KEYS) delete out[k];
@@ -172,23 +172,23 @@
             const keep = ['w', 'width', 'h', 'height', 'q', 'quality', 'fmt', 'format'];
             const newParams = new URLSearchParams();
             keep.forEach(k => { if(params.has(k)) newParams.set(k, params.get(k)); });
-            return url.origin + url.pathname + (newParams.toString() ? '?' + newParams.toString() : ''); 
+            return url.origin + url.pathname + (newParams.toString() ? '?' + newParams.toString() : '');
         } catch { return u; }
     };
 
     // [Constants]
-    const FEED_SEL = '[role="feed"], .feed, .list, .timeline'; 
-    const ITEM_SEL = '[role="article"], .item, .post, li, article, section'; 
+    const FEED_SEL = '[role="feed"], .feed, .list, .timeline';
+    const ITEM_SEL = '[role="article"], .item, .post, li, article, section';
     const SUPPORTED_TYPES = new Set(typeof PerformanceObserver !== 'undefined' ? (PerformanceObserver.supportedEntryTypes || []) : []);
 
     // [Config & State]
     const hostname = win.location.hostname.toLowerCase();
-    
+
     // Dynamic Keys
     const getLcpKey = () => `PerfX_LCP_${hostname}:${getPathBucket()}`;
     const getInteractiveKey = () => `perfx-interactive:${hostname}:${getPathBucket()}`;
     const getProfileKey = () => `PerfX_PROFILE_${hostname}`;
-    
+
     let LCP_KEY = getLcpKey();
     let INTERACTIVE_KEY = getInteractiveKey();
 
@@ -198,7 +198,7 @@
     const Env = {
         storageKey: `PerfX_ULTRA_${hostname}`,
         getOverrides() { return safeJsonParse(S.get(this.storageKey)); },
-        saveOverrides(data) { 
+        saveOverrides(data) {
             const safeData = sanitizeConfig(data);
             S.set(this.storageKey, JSON.stringify(safeData));
             RuntimeConfig = { ...RuntimeConfig, ...data };
@@ -226,29 +226,29 @@
     const SESSION_OFF_KEY = `perfx-safe:${hostname}`;
     const INTENT_RELOAD = `perfx-intent-reload:${hostname}`;
     const INTENT_INTERACTIVE = `perfx-intent-interactive:${hostname}`;
-    
+
     try {
         if (new URLSearchParams(win.location.search).has('perfx-off')) sessionStorage.setItem(SESSION_OFF_KEY, '1');
-        
+
         const isIntent = sessionStorage.getItem(INTENT_RELOAD);
         if (isIntent) {
             sessionStorage.removeItem(INTENT_RELOAD);
         } else {
             const lastCrash = parseInt(S.get(CRASH_KEY) || '0');
             if (lastCrash >= 3) { sessionStorage.setItem(SESSION_OFF_KEY, '1'); S.set(CRASH_KEY, '0'); }
-            
+
             if (!sessionStorage.getItem(SESSION_OFF_KEY)) {
                 S.set(CRASH_KEY, lastCrash + 1);
                 if (win.requestIdleCallback) win.requestIdleCallback(() => S.remove(CRASH_KEY), { timeout: 10000 });
                 else win.addEventListener('load', () => setTimeout(() => S.remove(CRASH_KEY), 5000));
             }
         }
-        
+
         // Auto-Downgrade Profile Check
         const forcedProfile = safeJsonParse(S.get(getProfileKey()));
         if (fresh(forcedProfile, WEEK)) {
             log('Adaptive Profile: Balanced Mode Enforced');
-            RuntimeConfig = { ...RuntimeConfig, memory: false }; 
+            RuntimeConfig = { ...RuntimeConfig, memory: false };
         }
 
         applyInteractiveMemory();
@@ -261,7 +261,7 @@
             if (sensitive && !sessionStorage.getItem(SESSION_OFF_KEY)) {
                 log('Sensitive Page Detected: Entering Safe Mode');
                 sessionStorage.setItem(SESSION_OFF_KEY, '1');
-                sessionStorage.setItem(INTENT_RELOAD, '1'); 
+                sessionStorage.setItem(INTENT_RELOAD, '1');
                 location.reload();
             }
 
@@ -275,25 +275,25 @@
                         hugeCanvas = true; break;
                     }
                 }
-                
+
                 if (mapOrEditor || hugeCanvas) {
                     log('Interactive App Detected: Reloading Safe');
                     S.set(INTERACTIVE_KEY, JSON.stringify({ ts: Date.now() }));
-                    
+
                     if (!sessionStorage.getItem(INTENT_INTERACTIVE)) {
                         sessionStorage.setItem(INTENT_INTERACTIVE, '1');
                         sessionStorage.setItem(INTENT_RELOAD, '1');
                         location.reload();
                         return true;
                     }
-                    
+
                     Config.passive = false; Config.gpu = false; Config.rtcGuard = false;
                     if (Config.memory) { Config.memory = false; API.shutdownMemory(); }
                     return true;
                 }
                 return false;
             };
-            
+
             if (!sessionStorage.getItem(INTENT_INTERACTIVE)) {
                 if (!checkInteractive()) {
                     const mo = new MutationObserver(() => { if (checkInteractive()) mo.disconnect(); });
@@ -319,14 +319,14 @@
     const isSafeMode = isCritical || RuntimeConfig._sessionSafe;
 
     // [Power State]
-    const baseLowPower = (navigator.hardwareConcurrency ?? 4) < 4; 
-    
+    const baseLowPower = (navigator.hardwareConcurrency ?? 4) < 4;
+
     const perfState = {
         isLowPowerMode: baseLowPower,
         batteryLow: false,
         perfMultiplier: 1.0,
         DOM_CAP: 2000,
-        MEDIA_CAP: 800, 
+        MEDIA_CAP: 800,
         DOM_MARGIN: '600px 0px',
         NET_MARGIN: '50% 0px',
         INIT_DOM_SCAN: 300,
@@ -350,37 +350,37 @@
         const dm = navigator.deviceMemory || 4;
         const saveData = !!navigator.connection?.saveData;
         const net = navigator.connection?.effectiveType || '4g';
-        
-        perfState.isLowPowerMode = baseLowPower || saveData || perfState.batteryLow; 
-        
+
+        perfState.isLowPowerMode = baseLowPower || saveData || perfState.batteryLow;
+
         let m = (hc <= 4 || dm <= 4 || isMobile) ? 0.8 : 1.0;
         if (saveData) m *= 0.85;
         if (/2g|3g/.test(net)) m *= 0.85;
         if (perfState.isLowPowerMode && !saveData) m *= 0.85;
-        
+
         perfState.perfMultiplier = Math.max(0.6, Math.min(1.2, m));
         perfState.shouldAggressiveVideo = perfState.isLowPowerMode || isMobile || !!saveData;
-        
+
         perfState.DOM_CAP = Math.floor(2000 * perfState.perfMultiplier);
         perfState.MEDIA_CAP = Math.floor(800 * perfState.perfMultiplier);
         perfState.PROTECT_MS = isMobile ? 3500 : Math.floor(3000 / perfState.perfMultiplier);
-        
+
         if (isMobile) {
             perfState.DOM_CAP = Math.min(perfState.DOM_CAP, 1000);
-            perfState.MEDIA_CAP = Math.min(perfState.MEDIA_CAP, 180); 
+            perfState.MEDIA_CAP = Math.min(perfState.MEDIA_CAP, 180);
             perfState.DOM_MARGIN = '300px 0px';
             perfState.NET_MARGIN = `${Math.round(viewH() * 0.6)}px 0px`;
             perfState.INIT_DOM_SCAN = 120;
-            perfState.INIT_MEDIA_SCAN = 150; 
-            perfState.SCAN_STEP = 50; 
+            perfState.INIT_MEDIA_SCAN = 150;
+            perfState.SCAN_STEP = 50;
         } else {
             perfState.DOM_MARGIN = perfState.isLowPowerMode ? '400px 0px' : '600px 0px';
-            perfState.NET_MARGIN = '50% 0px'; 
+            perfState.NET_MARGIN = '50% 0px';
             perfState.INIT_DOM_SCAN = 400;
             perfState.INIT_MEDIA_SCAN = 800;
             perfState.SCAN_STEP = 100;
         }
-        
+
         perfState.DOM_CAP = Math.max(perfState.DOM_CAP, 200);
         perfState.MEDIA_CAP = Math.max(perfState.MEDIA_CAP, 100);
     };
@@ -399,19 +399,19 @@
             update(); b.addEventListener('levelchange', update); b.addEventListener('chargingchange', update);
         }).catch(() => {});
     }
-    
+
     let rzT = null;
     const triggerRefresh = () => refreshPerfState();
     win.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(triggerRefresh, 200); });
     navigator.connection?.addEventListener?.('change', refreshPerfState);
-    computeState(); 
+    computeState();
 
     // ==========================================
     // 1. Populate Config & API
     // ==========================================
     const Q_KEY = `perfx-quarantine:${hostname}`;
     let Q_CACHE = null;
-    
+
     const checkQuarantine = (now = Date.now()) => {
         if (Q_CACHE && (now - Q_CACHE.ts) < DAY) return Q_CACHE;
         const q = safeJsonParse(S.get(Q_KEY));
@@ -441,8 +441,8 @@
     }
 
     Object.assign(Config, calculatedConfig);
-    applyPowerPolicy(); 
-    
+    applyPowerPolicy();
+
     Object.assign(API, {
         profile: (mode) => {
             const presets = {
@@ -481,15 +481,15 @@
     // SPA Route Listener
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
-    
+
     // ✅ SPA Hero Inference (Chunked)
     const detectHeroImage = () => {
         const imgs = document.images;
         if (!imgs.length) return;
-        
+
         let i = 0, maxArea = 0, heroUrl = null;
         const limit = isMobile ? 60 : 120;
-        
+
         const step = () => {
             const end = Math.min(i + 20, imgs.length, limit);
             for (; i < end; i++) {
@@ -536,18 +536,18 @@
             persistLCP();
             lastKey = nextKey;
             LCP_KEY = nextKey;
-            
+
             INTERACTIVE_KEY = `perfx-interactive:${hostname}:${getPathBucket()}`;
-            applyInteractiveMemory(); 
-            
+            applyInteractiveMemory();
+
             RuntimeConfig._lcp = S.get(LCP_KEY) || null;
-            emitRoute(true); 
-            detectHeroImage(); 
+            emitRoute(true);
+            detectHeroImage();
         } else {
-            emitRoute(false); 
+            emitRoute(false);
         }
     };
-    
+
     if (!win.__perfx_history_patched) {
         win.__perfx_history_patched = true;
         const origPush = history.pushState;
@@ -586,10 +586,10 @@
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !RuntimeConfig._sessionSafe) {
         try {
-            let clsTotal = 0, loadTotal = 0; 
+            let clsTotal = 0, loadTotal = 0;
             let lastCls = 0, lastLoad = 0;
-            let recoveryStreak = 0; 
-            
+            let recoveryStreak = 0;
+
             if (SUPPORTED_TYPES.has('layout-shift')) { new PerformanceObserver((l)=> { for(const e of l.getEntries()) if(!e.hadRecentInput) clsTotal+=e.value; }).observe({type:'layout-shift',buffered:true}); }
             if (SUPPORTED_TYPES.has('longtask')) { new PerformanceObserver((l)=> { loadTotal+=l.getEntries().length; }).observe({type:'longtask',buffered:true}); }
 
@@ -638,23 +638,23 @@
                 // Quarantine
                 if (c.downgradeCount > 5 && !checkQuarantine(now)) {
                     const lastReason = c.downgradeReason || { cls: 1, load: 0 };
-                    const modules = (lastReason.load > lastReason.cls) 
+                    const modules = (lastReason.load > lastReason.cls)
                         ? { gpu: false, codecMode: hasVideo() ? 'soft' : c.codecMode, memory: false }
                         : { memory: false, passive: false };
-                    
+
                     const qVal = { ts: now, modules };
                     S.set(Q_KEY, JSON.stringify(qVal));
-                    Q_CACHE = qVal; 
-                    
-                    c.downgradeCount = 0; c.unstableTs = now; 
+                    Q_CACHE = qVal;
+
+                    c.downgradeCount = 0; c.unstableTs = now;
                     S.set(getProfileKey(), JSON.stringify({ ts: now })); // Auto-Downgrade Profile
                     Object.assign(c, modules); Object.assign(Config, modules);
                     Env.saveOverrides(c);
                     Bus.emit('perfx-config');
                     API.shutdownMemory();
-                    return; 
+                    return;
                 }
-                
+
                 // L2
                 if ((clsDelta > TH.L2_CLS || loadDelta > TH.L2_LOAD) && currentLevel < 2) {
                     if (!c._restore) c._restore = { ...Config };
@@ -690,16 +690,16 @@
                         recoveryStreak = 0;
                     }
                 } else {
-                    recoveryStreak = 0; 
+                    recoveryStreak = 0;
                 }
                 healthTimer = setTimeout(checkHealth, 5000);
             };
-            
+
             const startLoop = () => { if (!healthTimer) checkHealth(); };
             const stopLoop = () => { if (healthTimer) clearTimeout(healthTimer); healthTimer = null; };
-            Bus.on('visibilitychange', () => { 
+            Bus.on('visibilitychange', () => {
                 if (document.hidden) { stopLoop(); persistLCP(); }
-                else startLoop(); 
+                else startLoop();
             }, document);
             win.addEventListener('pagehide', persistLCP);
             startLoop();
@@ -759,7 +759,7 @@
                 needsPDCache.set(listener, res);
                 return res;
             };
-            
+
             const isTopLevelTarget = (t) => t === win || t === document || t === document.body || t === document.documentElement;
 
             const targets = [win.EventTarget && win.EventTarget.prototype].filter(Boolean);
@@ -767,18 +767,18 @@
                 const origAdd = proto.addEventListener;
                 proto.addEventListener = function(type, listener, options) {
                     if (!Config.passive || !passiveArmed) return origAdd.call(this, type, listener, options);
-                    
+
                     if (type === 'wheel' || type === 'mousewheel' || type === 'touchmove') {
                         if (!isTopLevelTarget(this) && this instanceof Element && this.closest && this.closest('.mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas')) {
                             return origAdd.call(this, type, listener, options);
                         }
-                        
+
                         if (isMobile && type === 'touchmove') return origAdd.call(this, type, listener, options);
 
                         const isObj = typeof options === 'object' && options !== null;
                         if (!isObj || options.passive === undefined) {
                             if (!checkNeedsPD(listener)) {
-                                try { 
+                                try {
                                     let finalOptions = isObj ? { ...options, passive: true } : { capture: options === true, passive: true };
                                     return origAdd.call(this, type, listener, finalOptions);
                                 } catch (e) {}
@@ -794,9 +794,9 @@
     // [Core 2] CodecOptimizer v2.6
     class CodecOptimizer extends BaseModule {
         init() {
-            if (Config.codecMode === 'off') return; 
+            if (Config.codecMode === 'off') return;
             if (isVideoSite) return;
-            
+
             if (!perfState.isLowPowerMode && Config.codecMode === 'hard') Config.codecMode = 'soft';
 
             setTimeout(() => {
@@ -860,16 +860,16 @@
                     };
                     processRestore();
                 }
-                if (Config.gpu) this.startIO(); 
+                if (Config.gpu) this.startIO();
             };
 
             API.restartMemory = () => {
-                if (Config.memory) { this.startIO(); this.startMO(); } 
+                if (Config.memory) { this.startIO(); this.startMO(); }
                 else if (Config.gpu) { this.startIO(); }
             };
 
             onReady(() => { if(Config.memory || Config.gpu) { this.startIO(); this.startMO(); } });
-            
+
             Bus.on('perfx-power-change', () => {
                 if (this.ioTimeout) clearTimeout(this.ioTimeout);
                 this.ioTimeout = setTimeout(() => this.startIO(), 1000);
@@ -883,9 +883,9 @@
             const tn = el.tagName;
             if (tn === 'SCRIPT' || tn === 'STYLE' || tn === 'META' || tn === 'VIDEO' || tn === 'CANVAS' || tn === 'IFRAME' || tn === 'FORM') return;
             if (el.hasAttribute('aria-live') || el.isContentEditable) return;
-            
+
             if (!rect || rect.height < 50 || rect.width < 50) return;
-            
+
             const area = rect.width * rect.height;
             if (isMobile && area < 2000) return;
             if (!isMobile && area < 3000) return;
@@ -893,7 +893,7 @@
             if (area > (win.innerWidth * win.innerHeight * 0.15)) {
                 if (el.childElementCount > 6 && el.querySelector('video,canvas,iframe,form,[aria-live],[contenteditable]')) return;
             }
-            
+
             const style = getComputedStyle(el);
             if (style.position === 'sticky' || style.position === 'fixed') return;
             if (/(auto|scroll)/.test(style.overflow + style.overflowY + style.overflowX)) return;
@@ -909,7 +909,7 @@
             const h = Math.min(2000, Math.ceil(rect.height));
             el.style.containIntrinsicSize = `${w}px ${h}px`;
             el.style.contentVisibility = 'auto';
-            el.style.contain = 'layout paint'; 
+            el.style.contain = 'layout paint';
         }
 
         restoreStyle(el) {
@@ -922,7 +922,7 @@
             }
             this.optimized.delete(el);
         }
-        
+
         flushRemoved() {
             if (this.removedQueue.size === 0) return;
             for (const root of this.removedQueue) this.sweepRemovedSubtree(root);
@@ -933,7 +933,7 @@
         sweepRemovedSubtree(root) {
             if (!root || root.nodeType !== 1) return;
             if (this.optimized.has(root)) this.restoreStyle(root);
-            
+
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
             while (walker.nextNode()) {
                 const el = walker.currentNode;
@@ -945,16 +945,16 @@
             if (this.visObs) this.visObs.disconnect();
             if (!Config.memory && !Config.gpu) return;
 
-            this.obsCount = 0; 
-            this.observed = new WeakSet(); 
-            const margin = perfState.DOM_MARGIN; 
-            
+            this.obsCount = 0;
+            this.observed = new WeakSet();
+            const margin = perfState.DOM_MARGIN;
+
             this.visObs = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
                     if (!e.target.isConnected) return;
                     if (Config.gpu && e.target.tagName === 'CANVAS') {
                         e.target.style.visibility = e.isIntersecting ? 'visible' : 'hidden';
-                    } 
+                    }
                     else if (Config.memory && this.supportsCV) {
                         if (e.isIntersecting) this.restoreStyle(e.target);
                         else this.applyOptimization(e.target, e.boundingClientRect);
@@ -962,7 +962,7 @@
                 });
             }, { rootMargin: margin, threshold: 0.01 });
 
-            this.observeSafe = (el) => { 
+            this.observeSafe = (el) => {
                 if (el && this.obsCount < perfState.DOM_CAP && !this.observed.has(el)) {
                     this.visObs.observe(el);
                     this.observed.add(el);
@@ -971,11 +971,11 @@
             };
 
             if (Config.gpu) document.querySelectorAll('canvas').forEach(this.observeSafe);
-            
+
             if (Config.memory) {
                 const root = document.querySelector(FEED_SEL) || document.body;
                 scanInChunks(root.children, perfState.INIT_DOM_SCAN, perfState.SCAN_STEP, this.observeSafe);
-                
+
                 if (root.tagName !== 'BODY') {
                     const items = root.querySelectorAll(ITEM_SEL);
                     scanInChunks(items, 50, perfState.SCAN_STEP, this.observeSafe);
@@ -986,16 +986,16 @@
         startMO() {
             if (!Config.memory) return;
             if (this.mutObs) this.mutObs.disconnect();
-            
+
             const target = document.querySelector(FEED_SEL) || document.body;
-            
+
             this.mutObs = new MutationObserver(ms => {
                 ms.forEach(m => {
                     if (this.obsCount < perfState.DOM_CAP) {
                         m.addedNodes.forEach(n => {
                             if (n.nodeType === 1) {
                                 if (['DIV','SECTION','ARTICLE','LI'].includes(n.tagName)) {
-                                    this.observeSafe(n); 
+                                    this.observeSafe(n);
                                     if (n.childElementCount > 0) {
                                         const list = n.querySelectorAll(ITEM_SEL);
                                         scanInChunks(list, 50, perfState.SCAN_STEP, this.observeSafe);
@@ -1024,12 +1024,16 @@
             // ✅ No TDZ: Declare first
             const nearSet = new WeakMap();
             const farSet = new WeakMap();
-            const distMap = new WeakMap(); 
-            const observing = new Set(); 
+            const distMap = new WeakMap();
+            const observing = new Set();
             let imgSlots = 0, vidSlots = 0;
             let MAX_IMG = 0, MAX_VID = 0;
             let vpObs = null;
             let currentGen = 0;
+
+            // [Fix] 누락된 변수 선언 추가 (Add Missing Declarations)
+            const batchQueue = new Map();
+            let batchTimer = null;
 
             const decSlot = (el) => {
                 if (observing.has(el)) {
@@ -1058,14 +1062,14 @@
                 MAX_IMG = Math.floor(cap * 0.85);
                 MAX_VID = Math.max(10, cap - MAX_IMG);
                 if (isMobile) MAX_VID = Math.min(MAX_VID, 6);
-                
+
                 if (observing.size > cap) {
                     const sorted = [...observing].sort((a, b) => {
-                        const dA = distMap.get(a) ?? -1; 
+                        const dA = distMap.get(a) ?? -1;
                         const dB = distMap.get(b) ?? -1;
-                        const vA = dA === -1 ? 0 : dA; 
+                        const vA = dA === -1 ? 0 : dA;
                         const vB = dB === -1 ? 0 : dB;
-                        return vB - vA; 
+                        return vB - vA;
                     });
                     const excess = observing.size - cap;
                     for (let i = 0; i < excess; i++) {
@@ -1079,7 +1083,7 @@
             const rebuildObserver = () => {
                 if (vpObs) vpObs.disconnect();
                 updateCaps();
-                
+
                 vpObs = new IntersectionObserver((entries) => {
                     entries.forEach(e => {
                         const el = e.target;
@@ -1095,20 +1099,20 @@
                             }
                             return;
                         }
-                        
+
                         if (e.isIntersecting) {
                             nearSet.set(el, currentGen);
-                        } else { 
-                            farSet.set(el, currentGen); 
+                        } else {
+                            farSet.set(el, currentGen);
                             applyLazy(el, e.boundingClientRect);
                         }
                         vpObs.unobserve(el);
                         decSlot(el);
                     });
                 }, { rootMargin: perfState.NET_MARGIN });
-                
+
                 observing.forEach(el => vpObs.observe(el));
-                
+
                 // Recalc
                 imgSlots = 0; vidSlots = 0;
                 observing.forEach(el => {
@@ -1137,13 +1141,13 @@
                 if (e.detail?.force) {
                     currentGen++;
                     observing.forEach(el => { try{vpObs.unobserve(el);}catch{} });
-                    observing.clear(); 
-                    rebuildObserver(); 
+                    observing.clear();
+                    rebuildObserver();
                 }
                 isProtectionPhase = startProtection(e.detail?.force);
             });
             onReady(() => { isProtectionPhase = startProtection(true); rebuildObserver(); });
-            
+
             Bus.on('visibilitychange', () => {
                 if (document.hidden) {
                     if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
@@ -1155,12 +1159,12 @@
             }, document);
 
             const safeObserve = (el) => {
-                if (!vpObs) return; 
+                if (!vpObs) return;
                 const isVid = el.tagName === 'VIDEO';
                 if (observing.has(el)) return;
                 if (isVid) { if (vidSlots >= MAX_VID) return; vidSlots++; }
                 else { if (imgSlots >= MAX_IMG) return; imgSlots++; }
-                
+
                 observing.add(el);
                 vpObs.observe(el);
             };
@@ -1183,13 +1187,13 @@
 
                 if (fromMutation && !isProtectionPhase) {
                     if (imgSlots < MAX_IMG) { safeObserve(img); return; }
-                    setImgLazy(img); 
+                    setImgLazy(img);
                     return;
                 }
 
-                if (nearSet.get(img) === currentGen) return; 
+                if (nearSet.get(img) === currentGen) return;
                 if (farSet.get(img) === currentGen) { setImgLazy(img); return; }
-                
+
                 safeObserve(img);
             };
 
@@ -1209,13 +1213,13 @@
             };
 
             const scheduleNode = (node, fromMutation = false) => {
-                ensureObs(); 
+                ensureObs();
                 const current = batchQueue.get(node);
                 batchQueue.set(node, current || fromMutation);
                 if (!batchTimer) batchTimer = scheduler.request(flushQueue, 200);
             };
 
-            const run = () => { 
+            const run = () => {
                 rebuildObserver();
                 const imgs = document.getElementsByTagName('img');
                 const vids = document.getElementsByTagName('video');
@@ -1252,9 +1256,9 @@
                 });
             });
             this.mo.observe(document.documentElement, { childList: true, subtree: true });
-            
-            win.addEventListener('pagehide', (e) => { 
-                if (!e.persisted && vpObs) vpObs.disconnect(); 
+
+            win.addEventListener('pagehide', (e) => {
+                if (!e.persisted && vpObs) vpObs.disconnect();
             });
         }
     }
@@ -1262,9 +1266,9 @@
     // Module Init
     [
         new WebRTCGuard(),
-        new EventPassivator(), 
-        new CodecOptimizer(), 
-        new DomWatcher(), 
+        new EventPassivator(),
+        new CodecOptimizer(),
+        new DomWatcher(),
         new NetworkAssistant()
     ].forEach(m => m.safeInit ? m.safeInit() : (m.init && m.init()));
 
