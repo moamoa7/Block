@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.42 Stable_Refined)
+// @name        Video_Image_Control (Lite v130.43 Final_Refined)
 // @namespace   https://com/
-// @version     130.42
-// @description v130.42: Fix UI duplicate/force-load. Safe Hooking. Individual CORS block. Iframe CSS-Filter support.
+// @version     130.43
+// @description v130.43: Fix CORS lock. Real Iframe filter support. Optimized Shadow scan. Smart AE logic.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -19,7 +19,7 @@
 (function () {
     'use strict';
 
-    // [Safety] Cloudflare 챌린지 페이지 등에서는 즉시 실행 중단
+    // [Safety] Cloudflare check
     if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
 
     const IS_TOP = window === window.top;
@@ -47,7 +47,6 @@
     };
 
     const hasRealVideo = () => {
-        // [Optimized] querySelectorAll 대신 getElementsByTagName 사용 (속도 향상)
         const vids = document.getElementsByTagName('video');
         for (const v of vids) {
             if (!v.isConnected) continue;
@@ -107,14 +106,12 @@
                 try {
                     if (this.id === 'vsc-ui-host') return shadowRoot;
                     if (shadowRoot && !window._shadowDomSet_.has(shadowRoot)) {
-                        if (init && init.mode === 'closed' && !looksLikePlayerHost(this)) {
-                        } else {
-                            window._shadowDomSet_.add(shadowRoot);
-                            window._shadowDomList_.push(shadowRoot);
-                            requestAnimationFrame(() => {
-                                document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } }));
-                            });
-                        }
+                         // Track all shadow roots for detection completeness
+                        window._shadowDomSet_.add(shadowRoot);
+                        window._shadowDomList_.push(shadowRoot);
+                        requestAnimationFrame(() => {
+                            document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } }));
+                        });
                     }
                 } catch (e) {}
                 return shadowRoot;
@@ -129,12 +126,12 @@
         if (!isAccessor && d.writable === false) d.writable = true;
     };
 
-    // [Fixed] 안전한 Hooking: 사이트 스크립트 충돌 시 원본 복구
     const enablePropertyHooks = () => {
         if (_hooksActive || isSensitiveContext()) return;
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
         const isMediaEl = (o) => o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
         
+        // [Fixed] Safe Hooking with Fallback
         const safeDefineProperty = function (obj, key, descriptor) {
             if (isMediaEl(obj) && protectKeys.includes(key) && descriptor) {
                 const origDesc = descriptor;
@@ -180,8 +177,9 @@
         }
     };
 
-    if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
-    Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
+    // [Refined] Combined initialization flag
+    if (window.hasOwnProperty('__VSC_ENGINE_STARTED')) return;
+    Object.defineProperty(window, '__VSC_ENGINE_STARTED', { value: true, writable: false });
 
     // --- Utils & Constants ---
     const Utils = {
@@ -267,7 +265,6 @@
         },
         SCAN: {
             INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000, MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
-            // [Enhanced] 탐지 속성 확장 (Lazy load 대응)
             MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video']
         },
         UI: { MAX_Z: 2147483647, DRAG_THRESHOLD: 5, HIDDEN_CLASS: 'vsc-hidden', SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2] }
@@ -322,7 +319,8 @@
                 if (isSensitiveContext()) disableAllHooks();
                 if (dirtyRoots.size > 0) {
                     const now = Date.now();
-                    if (dirtyRoots.size > 40 && (now - _lastFullScanTime > 1500)) {
+                    // [Optimized] Full scan threshold adjusted for stability
+                    if (dirtyRoots.size > (IS_LOW_END ? 60 : 40) && (now - _lastFullScanTime > 1500)) {
                         dirtyRoots.clear(); _lastFullScanTime = now;
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
                     }
@@ -340,7 +338,6 @@
         if (!isSensitiveContext()) {
             const origLoad = HTMLMediaElement.prototype.load;
             HTMLMediaElement.prototype.load = function (...args) {
-                // [Fixed] 로드 훅에서도 플러그인 유효성 및 민감 컨텍스트 재확인
                 try { if (_corePluginRef && !isSensitiveContext()) scheduleScan(this, true); } catch { }
                 return origLoad.apply(this, args);
             };
@@ -444,7 +441,7 @@
         hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null,
         _hist: null, _evAggressiveUntil: 0, _lbConf: 0, _aeBlockedUntil: 0, _roiP50History: [],
         _rois: [],
-        taintedResources: new WeakSet(), // [Fixed] 개별 비디오 CORS 차단용
+        taintedResources: new WeakSet(),
 
         init(stateManager) {
             this.stateManager = stateManager;
@@ -487,7 +484,6 @@
             const isClarityActive = this.currentSettings.clarity > 0;
             const isAutoExposure = this.currentSettings.autoExposure;
             if (!isClarityActive && !isAutoExposure) { if (this.isRunning) this.stop(); return; }
-            // [Fixed] 개별 비디오 차단 체크
             if (this.taintedResources.has(video)) {
                 this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, video, true);
                 return;
@@ -689,12 +685,20 @@
                 const evValue = this.currentSettings.targetLuma || 0;
                 const isAutoExp = this.currentSettings.autoExposure;
 
-                if (isAutoExp && evValue !== 0) {
+                // [Enhanced] Auto Exposure works even if targetLuma is 0
+                if (isAutoExp) {
                     const u = evValue / 20;
                     const boostFactor = Math.tanh(u);
                     const headroom = Math.max(0.0, 1.0 - p90);
                     const floor = Math.max(0.1, p10);
-                    let error = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
+                    // Bias towards 0.5 (middle grey) if targetLuma is 0
+                    let error = 0;
+                    if (evValue === 0) {
+                        error = (0.5 - p50) * 0.5;
+                    } else {
+                        error = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
+                    }
+
                     if (Math.abs(error) < 0.001) error = 0;
                     const correction = error * 5.0 * contrastFactor;
 
@@ -747,7 +751,6 @@
 
             } catch (e) {
                 if (e.name === 'SecurityError') {
-                    // [Fixed] 개별 비디오만 차단 리스트에 추가
                     this.taintedResources.add(this.targetVideo);
                     const next = this._pickBestVideoNow();
                     if (next && next !== this.targetVideo && !this.taintedResources.has(next)) {
@@ -779,7 +782,7 @@
 
             this.state = {
                 app: { isInitialized: false, isMobile, scriptActive: false },
-                media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
+                media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false, hideUntilReload: false },
@@ -1043,6 +1046,13 @@
                 for (const img of curImages) { if (img && img.isConnected) next.add(img); else { this.detachImageListeners(img); changed = true; } }
                 if (changed) sm.set('media.activeImages', next);
             }
+            // [New] Iframe cleanup
+            const curIframes = sm.get('media.activeIframes');
+            if (curIframes && curIframes.size) {
+                let changed = false; const next = new Set();
+                for (const iframe of curIframes) { if (iframe && iframe.isConnected) next.add(iframe); else { changed = true; } } // Iframe detach logic is simple
+                if (changed) sm.set('media.activeIframes', next);
+            }
         }
         tick() {
             if (this._domDirty) { this._domDirty = false; scheduleScan(null); }
@@ -1207,7 +1217,7 @@
         }
         resetScanInterval() { this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval; if (this.scanTimerId) { clearTimeout(this.scanTimerId); this.scheduleNextScan(); } }
         scanAndApply() { const visited = new WeakSet(); this._processAllElements(visited, !this._didInitialShadowFullScan); this._didInitialShadowFullScan = true; }
-        _checkAndAdd(node, media, images) {
+        _checkAndAdd(node, media, images, iframes) {
             if (node.tagName === 'VIDEO') {
                 const vw = node.videoWidth || 0; const vh = node.videoHeight || 0; let sizeOk = (vw >= CONFIG.FILTER.MIN_VIDEO_SIZE || vh >= CONFIG.FILTER.MIN_VIDEO_SIZE);
                 if (!sizeOk) { const ow = node.offsetWidth || 0; const oh = node.offsetHeight || 0; sizeOk = (ow >= CONFIG.FILTER.MIN_VIDEO_SIZE || oh >= CONFIG.FILTER.MIN_VIDEO_SIZE); }
@@ -1220,37 +1230,55 @@
                     const w = node.naturalWidth || node.offsetWidth || 0; const h = node.naturalHeight || node.offsetHeight || 0;
                     if ((w >= CONFIG.FILTER.MIN_IMAGE_SIZE && h >= CONFIG.FILTER.MIN_IMAGE_SIZE) || (w * h >= 200000)) images.add(node);
                 }
-            } else if (node.tagName === 'IFRAME') { this._hookIframe(node); }
+            } else if (node.tagName === 'IFRAME') {
+                this._hookIframe(node);
+                iframes.add(node); // Track for CSS filter
+            }
             else if (node.tagName === 'SOURCE' && node.parentNode && node.parentNode.tagName === 'VIDEO') { media.add(node.parentNode); }
         }
         scanSpecificRoot(root) {
             if (!root) return;
             if (root.nodeType === 1 && (root.tagName === 'VIDEO' || root.tagName === 'IMG')) {
-                const media = new Set(), images = new Set();
-                this._checkAndAdd(root, media, images);
-                this._applyToSets(media, images);
+                const media = new Set(), images = new Set(), iframes = new Set();
+                this._checkAndAdd(root, media, images, iframes);
+                this._applyToSets(media, images, iframes);
                 return;
             }
-            const visited = new WeakSet(); const { media, images } = this.findAllElements(root, 0, true, visited); this._applyToSets(media, images);
+            const visited = new WeakSet(); const { media, images, iframes } = this.findAllElements(root, 0, true, visited); this._applyToSets(media, images, iframes);
         }
-        _applyToSets(mediaSet, imageSet) {
+        _applyToSets(mediaSet, imageSet, iframeSet) {
             const sm = this.stateManager;
-            const currentMedia = new Set(sm.get('media.activeMedia')); const currentImages = new Set(sm.get('media.activeImages'));
-            let mediaChanged = false, imagesChanged = false;
+            const currentMedia = new Set(sm.get('media.activeMedia')); const currentImages = new Set(sm.get('media.activeImages')); const currentIframes = new Set(sm.get('media.activeIframes'));
+            let mediaChanged = false, imagesChanged = false, iframesChanged = false;
+
             for (const el of mediaSet) {
                 if (el.isConnected && this.attachMediaListeners(el)) { if (!currentMedia.has(el)) { currentMedia.add(el); mediaChanged = true; } }
             }
             for (const el of imageSet) {
                 if (el.isConnected && this.attachImageListeners(el)) { if (!currentImages.has(el)) { currentImages.add(el); imagesChanged = true; } }
             }
+             for (const el of iframeSet) {
+                 // Iframe listener is implicit via _hookIframe, just tracking for filter here
+                if (el.isConnected && this.attachImageListeners(el)) { if (!currentIframes.has(el)) { currentIframes.add(el); iframesChanged = true; } }
+            }
+
             if (mediaChanged) sm.set('media.activeMedia', currentMedia);
             if (imagesChanged) sm.set('media.activeImages', currentImages);
+            if (iframesChanged) sm.set('media.activeIframes', currentIframes);
+            
             if ((mediaChanged || currentMedia.size > 0 || currentImages.size > 0) && !sm.get('ui.globalContainer')) { sm.set('ui.createRequested', true); }
         }
         _processAllElements(visited, scanShadow = true) {
-            const { media, images } = this.findAllElements(document, 0, !scanShadow, visited);
+            const { media, images, iframes } = this.findAllElements(document, 0, !scanShadow, visited);
             this._syncSet(media, 'media.activeMedia', this.attachMediaListeners.bind(this), this.detachMediaListeners.bind(this));
             this._syncSet(images, 'media.activeImages', this.attachImageListeners.bind(this), this.detachImageListeners.bind(this));
+             // Manual sync for iframes
+             const activeSet = this.stateManager.get('media.activeIframes') || new Set();
+             const nextActiveSet = new Set(iframes);
+             let changed = false;
+             for (const oldEl of activeSet) { if(oldEl && oldEl.isConnected) nextActiveSet.add(oldEl); else { changed = true; } }
+             if (changed || activeSet.size !== nextActiveSet.size) this.stateManager.set('media.activeIframes', nextActiveSet);
+
             const sm = this.stateManager;
             if (!sm.get('ui.globalContainer')) { if (sm.get('media.activeMedia').size > 0 || sm.get('media.activeImages').size > 0) { sm.set('ui.createRequested', true); } }
         }
@@ -1309,29 +1337,32 @@
             attachInternalObserver();
         }
         findAllElements(root, depth, skipShadowScan, visited) {
-            const media = new Set(); const images = new Set();
-            if (!root) return { media, images }; if (depth > CONFIG.SCAN.MAX_DEPTH) return { media, images };
+            const media = new Set(); const images = new Set(); const iframes = new Set();
+            if (!root) return { media, images, iframes }; if (depth > CONFIG.SCAN.MAX_DEPTH) return { media, images, iframes };
             const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
             if (root === document) {
-                // [Optimized] Don't return early if shadow roots exist
+                // [Optimized] Shadow scan only at document level
                 const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0;
-                if (!document.querySelector('video, iframe, img, source') && !hasShadow) return { media, images };
-                const docVideos = document.getElementsByTagName('video'); for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images);
+                if (!document.querySelector('video, iframe, img, source') && !hasShadow) return { media, images, iframes };
+                
+                const docVideos = document.getElementsByTagName('video'); for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images, iframes);
                 if (wantImages) {
                     const docImages = document.images; for (let i = 0; i < docImages.length; i++) {
                         const img = docImages[i]; const w = img.naturalWidth || img.offsetWidth || 0; const h = img.naturalHeight || img.offsetHeight || 0;
                         if ((w >= CONFIG.FILTER.MIN_IMAGE_SIZE && h >= CONFIG.FILTER.MIN_IMAGE_SIZE) || (w * h >= 200000)) images.add(img);
                     }
                 }
-                const docIframes = document.getElementsByTagName('iframe'); for (let i = 0; i < docIframes.length; i++) this._hookIframe(docIframes[i]);
+                const docIframes = document.getElementsByTagName('iframe'); for (let i = 0; i < docIframes.length; i++) this._checkAndAdd(docIframes[i], media, images, iframes);
             } else {
                 const candidates = root.querySelectorAll(wantImages ? SEL.MEDIA : SEL.FILTER_TARGET);
-                candidates.forEach(el => this._checkAndAdd(el, media, images));
+                candidates.forEach(el => this._checkAndAdd(el, media, images, iframes));
             }
-            if (root === document) { const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0; if (!media.size && !images.size && !hasShadow) return { media, images }; }
-            if (root.nodeType === 1) this._checkAndAdd(root, media, images);
-            if (visited.has(root)) return { media, images }; visited.add(root);
-            if (!skipShadowScan) {
+            if (root === document) { const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0; if (!media.size && !images.size && !hasShadow) return { media, images, iframes }; }
+            if (root.nodeType === 1) this._checkAndAdd(root, media, images, iframes);
+            if (visited.has(root)) return { media, images, iframes }; visited.add(root);
+            
+            // [Optimized] Only recurse into shadow roots if explicitly requested (usually on full scan from document)
+            if (!skipShadowScan && root === document) {
                 (window._shadowDomList_ || []).forEach(shadowRoot => {
                     let flags = shadowRoot[VSC_FLAG] | 0;
                     if (!(flags & FLAG_OBSERVED)) {
@@ -1344,10 +1375,15 @@
                             shadowRoot[VSC_SR_MO] = smo;
                         } catch (e) { }
                     }
-                    try { const res = this.findAllElements(shadowRoot, depth + 1, true, visited); res.media.forEach(m => media.add(m)); res.images.forEach(i => images.add(i)); } catch (e) { }
+                    try { 
+                        const res = this.findAllElements(shadowRoot, depth + 1, true, visited); 
+                        res.media.forEach(m => media.add(m)); 
+                        res.images.forEach(i => images.add(i)); 
+                        res.iframes.forEach(f => iframes.add(f));
+                    } catch (e) { }
                 });
             }
-            return { media, images };
+            return { media, images, iframes };
         }
         attachMediaListeners(media) {
             const owner = media.getAttribute('data-vsc-controlled-by');
@@ -1388,8 +1424,15 @@
                 let triggered = false;
                 for (const m of mutations) {
                     if (m.type === 'attributes') {
-                        if (m.target === media && (m.attributeName === 'src' || m.attributeName === 'poster' || m.attributeName === 'data-src')) triggered = true;
-                        if (m.target.nodeName === 'SOURCE' && m.attributeName === 'src') triggered = true;
+                        // [Fixed] Clear taint on source change
+                        if (m.target === media && (m.attributeName === 'src' || m.attributeName === 'poster' || m.attributeName === 'data-src')) {
+                            VideoAnalyzer.taintedResources.delete(media);
+                            triggered = true;
+                        }
+                        if (m.target.nodeName === 'SOURCE' && m.attributeName === 'src') {
+                            VideoAnalyzer.taintedResources.delete(media);
+                            triggered = true;
+                        }
                     }
                 }
                 if (triggered) scheduleScan(media, true);
@@ -1413,7 +1456,8 @@
         }
         attachImageListeners(image) {
             if (!image || !this.intersectionObserver) return false;
-            if (this.stateManager.filterManagers.image) injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager);
+            // Iframe doesn't need SVG context
+            if (image.tagName !== 'IFRAME' && this.stateManager.filterManagers.image) injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager);
             const visMap = this.stateManager.get('media.visibilityMap'); if (visMap) visMap.set(image, false);
             if (!this._observedImages.has(image)) {
                 try { this.intersectionObserver.observe(image); this._observedImages.add(image); if (this._resizeObs) this._resizeObs.observe(image); } catch (e) { return false; }
@@ -1464,7 +1508,16 @@
             class SvgFilterManager {
                 constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._lastValues = null; this._clarityTableCache = new Map(); }
                 isInitialized() { return this._isInitialized; } getSvgNode() { return this._svgNode; } getStyleNode() { return this._styleElement; }
-                init() { if (this._isInitialized) return; safeGuard(() => { const { svgNode, styleElement } = this._createElements(); this._svgNode = svgNode; this._styleElement = styleElement; (document.head || document.documentElement).appendChild(styleElement); (document.body || document.documentElement).appendChild(svgNode); this._activeFilterRoots.add(this._svgNode); this._isInitialized = true; }, `${this.constructor.name}.init`); }
+                init() { if (this._isInitialized) return; safeGuard(() => { 
+                    const { svgNode, styleElement } = this._createElements(); 
+                    this._svgNode = svgNode; this._styleElement = styleElement; 
+                    // [Safety] Body check
+                    const container = document.body || document.documentElement;
+                    if (container) container.appendChild(svgNode);
+                    (document.head || document.documentElement).appendChild(styleElement); 
+                    this._activeFilterRoots.add(this._svgNode); 
+                    this._isInitialized = true; 
+                }, `${this.constructor.name}.init`); }
                 registerContext(svgElement) { this._activeFilterRoots.add(svgElement); }
                 // [Fixed] 죽은 ShadowRoot 정리 메소드
                 prune() {
@@ -1598,7 +1651,7 @@
             this.updateMediaFilterStates();
         }
         applyAllImageFilters() { if (this._imageRafId) return; this._imageRafId = requestAnimationFrame(() => { this._imageRafId = null; if (!this.imageFilterManager.isInitialized()) return; const active = this.stateManager.get('app.scriptActive'); const level = active ? this.stateManager.get('imageFilter.level') : 0; const colorTemp = active ? this.stateManager.get('imageFilter.colorTemp') : 0; const values = { sharpenLevel: level, colorTemp: colorTemp }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }); }
-        updateMediaFilterStates() { if (this._mediaStateRafId) return; this._mediaStateRafId = requestAnimationFrame(() => { this._mediaStateRafId = null; this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); }); }
+        updateMediaFilterStates() { if (this._mediaStateRafId) return; this._mediaStateRafId = requestAnimationFrame(() => { this._mediaStateRafId = null; this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); this.stateManager.get('media.activeIframes').forEach(iframe => { this._updateVideoFilterState(iframe); }); }); }
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
@@ -1788,6 +1841,7 @@
             this.updateUIVisibility();
         }
         updateUIVisibility() {
+            // [Fixed] 롱프레스 시 hideUntilReload가 true면 강제로 숨김 처리
             if (this.stateManager.get('ui.hideUntilReload')) {
                 if (this.globalContainer) this.globalContainer.style.display = 'none';
                 return;
