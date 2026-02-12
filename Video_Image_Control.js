@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.34 Optimized)
+// @name        Video_Image_Control (Lite v130.36 Optimized)
 // @namespace   https://com/
-// @version     130.34
-// @description v130.34: Crash fix (IdleCallback). Enhanced ShadowDOM detection. Optimized loop/queries. Smart AE & Filter logic.
+// @version     130.36
+// @description v130.36: Crash fix (IdleCallback). Enhanced ShadowDOM detection. Optimized loop/queries. Smart AE & Filter logic.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
