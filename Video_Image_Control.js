@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.36 Optimized)
+// @name        Video_Image_Control (Lite v130.37 Final_Optimized)
 // @namespace   https://com/
-// @version     130.36
-// @description v130.36: Crash fix (IdleCallback). Enhanced ShadowDOM detection. Optimized loop/queries. Smart AE & Filter logic.
+// @version     130.37
+// @description v130.37: Fixed UI glitch. Enhanced detection (src check). Safe Shadow-prune. Optimized loops.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -26,10 +26,15 @@
         if (now - _sensCache.t < 300) return _sensCache.v;
         let result = false;
         const url = location.href.toLowerCase();
-        // [Optimized] 'secure' 키워드 제거 (오탐 방지), 실제 입력 폼 존재 여부 체크 강화
-        if (/(login|signin|auth|account|member|session|checkout|payment|bank|verify)/i.test(url)) result = true;
-        else {
+        // [Fixed] URL 키워드 매칭 시, 실제 민감 입력 폼이 있는지 한 번 더 확인 (오탐 방지)
+        if (/(login|signin|auth|account|member|session|checkout|payment|bank|verify)/i.test(url)) {
             try {
+                if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"], input[name*="card"], input[autocomplete*="cc-"]')) {
+                    result = true;
+                }
+            } catch(e) {}
+        } else {
+             try {
                 if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"]')) result = true;
             } catch(e) {}
         }
@@ -37,15 +42,18 @@
         return result;
     };
 
-    // [Optimized] 불필요한 중복 쿼리 제거 및 Shadow DOM 일부 체크
+    // [Enhanced] 크기뿐만 아니라 소스 존재 여부도 확인 (초기 로딩/Lazy Load 대응)
     const hasRealVideo = () => {
-        const videos = document.querySelectorAll('video');
-        for (const vid of videos) {
-            if (!vid.isConnected) continue;
-            // 크기 체크 (가로/세로 중 하나라도 만족하면 OK)
-            if ((vid.videoWidth || vid.clientWidth || 0) >= 120 && (vid.videoHeight || vid.clientHeight || 0) >= 90) return true;
+        const videos = document.getElementsByTagName('video');
+        for (const v of videos) {
+            if (!v.isConnected) continue;
+            const w = v.videoWidth || v.clientWidth || v.offsetWidth || 0;
+            const h = v.videoHeight || v.clientHeight || v.offsetHeight || 0;
+            const hasSource = !!(v.currentSrc || v.src || v.srcObject || v.querySelector('source') ||
+                                 v.getAttribute('data-src') || v.getAttribute('data-video-src') || v.getAttribute('data-url'));
+            if (hasSource || (w >= 80 && h >= 60)) return true;
         }
-        // [Enhanced] Open ShadowRoot 내부 비디오 체크 (최대 50개까지만 샘플링)
+        // Shadow DOM 일부 체크
         const list = window._shadowDomList_;
         if (list && list.length > 0) {
             const cap = Math.min(list.length, 50);
@@ -53,19 +61,20 @@
                 const sr = list[i];
                 if (!sr) continue;
                 const v = sr.querySelector ? sr.querySelector('video') : null;
-                if (v && (v.videoWidth || v.clientWidth || 0) >= 120 && (v.videoHeight || v.clientHeight || 0) >= 90) return true;
+                if (v) {
+                    const w = v.videoWidth || v.clientWidth || 0;
+                    const h = v.videoHeight || v.clientHeight || 0;
+                    if ((w >= 80 && h >= 60) || v.src || v.currentSrc) return true;
+                }
             }
         }
         return false;
     };
 
-    // [Optimized] 정규식 통합 및 오탐 방지
     const looksLikePlayerHost = (el) => {
         if (!el) return false;
         const s = ((el.tagName || '') + ' ' + (el.id || '') + ' ' + (el.className || '')).toLowerCase();
-        // 1. 확실한 라이브러리명
         if (/(vjs|shaka|jw|plyr|bitmovin|hls|fluid|mediaelement)/.test(s)) return true;
-        // 2. video/player 단어는 구분자와 함께 쓰일 때만
         return /(^|[\-_])(video|player)([\-_]|$)/.test(s);
     };
 
@@ -158,7 +167,6 @@
     const Utils = {
         clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
         safeInt: (v, d = 0) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; },
-        // [Optimized] safeFloat removed (unused)
         fastHash: (str) => {
             let h = 0x811c9dc5;
             for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
@@ -173,13 +181,12 @@
         isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host
     };
 
-    // [Fixed] Helper for safe IdleCallback execution
+    // [Fixed] Helper for safe IdleCallback
     const callIdle = (cb) => {
         if (window.requestIdleCallback) return window.requestIdleCallback(cb, { timeout: 1000 });
         return setTimeout(() => cb({ timeRemaining: () => 0, didTimeout: true }), 1);
     };
 
-    // [Fixed & Optimized] TreeWalker with Time-Slicing & Safe Idle Call
     const collectOpenShadowRootsOnce = () => {
         const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
         const runChunk = (deadline) => {
@@ -299,8 +306,8 @@
                 if (isSensitiveContext()) disableAllHooks();
                 if (dirtyRoots.size > 0) {
                     const now = Date.now();
-                    // [Optimized] Full scan cooldown
-                    if (dirtyRoots.size > 40 && (now - _lastFullScanTime > 800)) {
+                    // [Optimized] Full scan cooldown 800ms -> 1500ms
+                    if (dirtyRoots.size > 40 && (now - _lastFullScanTime > 1500)) {
                         dirtyRoots.clear(); _lastFullScanTime = now;
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
                     }
@@ -415,7 +422,6 @@
 
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null,
-        // [Optimized] Removed unused caches
         stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0 },
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0,
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0,
@@ -753,11 +759,11 @@
 
             this.state = {
                 app: { isInitialized: false, isMobile, scriptActive: false },
-                site: { isLiveSite: false },
+                // [Cleaned] Unused site state removed
                 media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
-                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null, createRequested: false },
+                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false },
                 playback: { currentRate: 1.0, targetRate: 1.0 }
             };
         }
@@ -817,6 +823,7 @@
             this._isBackoffMode = false;
             this._backoffInterval = null;
             this._historyOrig = null;
+            this._lastShadowPrune = 0;
         }
         init(stateManager) {
             super.init(stateManager); _corePluginRef = this; VideoAnalyzer.init(stateManager);
@@ -1007,7 +1014,9 @@
             if (this._domDirty) { this._domDirty = false; scheduleScan(null); }
             this._cleanupDeadIframes();
             this._pruneDisconnected();
-            if (window._shadowDomList_) {
+            // [Optimized] Shadow list prune every 5s
+            if (window._shadowDomList_ && Date.now() - this._lastShadowPrune > 5000) {
+                this._lastShadowPrune = Date.now();
                 window._shadowDomList_ = window._shadowDomList_.filter(r => {
                     const alive = r && r.host && r.host.isConnected;
                     if (!alive && r?.[VSC_SR_MO]) { try { r[VSC_SR_MO].disconnect(); } catch {} r[VSC_SR_MO] = null; }
@@ -1658,7 +1667,6 @@
                 } else {
                     this.stateManager.set('app.scriptActive', true);
                     this.stateManager.set('ui.areControlsVisible', true);
-                    // [Enhanced] 3-step check for auto-hide
                     const check = (count) => {
                          const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || this.stateManager.get('media.activeImages').size > 0;
                          if (!hasMedia && this.stateManager.get('app.scriptActive')) {
@@ -1717,8 +1725,12 @@
             const activeMedia = this.stateManager.get('media.activeMedia') || new Set(); const activeImages = this.stateManager.get('media.activeImages') || new Set();
             const hasLocalVideo = [...activeMedia].some(m => m && m.tagName === 'VIDEO'); const hasLocalImage = activeImages.size > 0;
             const hasAnyVideo = hasLocalVideo; const hasAnyImage = hasLocalImage;
+            const hasAny = hasAnyVideo || hasAnyImage;
 
-            if (this.globalContainer) { this.globalContainer.style.display = 'flex'; }
+            // [Fixed] 미디어가 없는데도 UI가 보이는 버그 수정
+            if (this.globalContainer) {
+                this.globalContainer.style.display = (controlsVisible || hasAny) ? 'flex' : 'none';
+            }
             if (this.speedButtonsContainer) { this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none'; }
             if (!this.shadowRoot) return;
             const setVisible = (element, visible) => { if (element) element.classList.toggle(CONFIG.UI.HIDDEN_CLASS, !visible); };
@@ -1795,7 +1807,8 @@
                 if (cfg.type === 'sharp') {
                     cfg.items.forEach(it => {
                         const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = it.txt; b.dataset.presetKey = it.key;
-                        b.onclick = () => this.stateManager.batchSet('videoFilter', { level: it.l1, level2: it.l2, activeSharpPreset: it.key }); gridTable.appendChild(b);
+                        b.onclick = () => { this.stateManager.batchSet('videoFilter', { level: it.l1, level2: it.l2, activeSharpPreset: it.key }); };
+                        gridTable.appendChild(b);
                     });
                     const updateSharp = (k) => { gridTable.querySelectorAll(`button[data-preset-key]`).forEach(b => b.classList.toggle('active', b.dataset.presetKey === k)); };
                     this.subscribe('videoFilter.activeSharpPreset', updateSharp); updateSharp(this.stateManager.get('videoFilter.activeSharpPreset'));
