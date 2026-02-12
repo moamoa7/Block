@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.41 Smart_UI_Load)
+// @name        Video_Image_Control (Lite v130.42 Stable_Refined)
 // @namespace   https://com/
-// @version     130.41
-// @description v130.41: UI now only loads when media is DETECTED. Safe for Cloudflare (passive scan).
+// @version     130.42
+// @description v130.42: Fix UI duplicate/force-load. Safe Hooking. Individual CORS block. Iframe CSS-Filter support.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -47,6 +47,7 @@
     };
 
     const hasRealVideo = () => {
+        // [Optimized] querySelectorAll 대신 getElementsByTagName 사용 (속도 향상)
         const vids = document.getElementsByTagName('video');
         for (const v of vids) {
             if (!v.isConnected) continue;
@@ -128,23 +129,42 @@
         if (!isAccessor && d.writable === false) d.writable = true;
     };
 
+    // [Fixed] 안전한 Hooking: 사이트 스크립트 충돌 시 원본 복구
     const enablePropertyHooks = () => {
         if (_hooksActive || isSensitiveContext()) return;
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
         const isMediaEl = (o) => o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
+        
         const safeDefineProperty = function (obj, key, descriptor) {
-            if (isMediaEl(obj) && protectKeys.includes(key)) patchDescriptorSafely(descriptor);
+            if (isMediaEl(obj) && protectKeys.includes(key) && descriptor) {
+                const origDesc = descriptor;
+                const patched = { ...descriptor };
+                patchDescriptorSafely(patched);
+                try { return ORIGINALS.defineProperty.call(this, obj, key, patched); }
+                catch (e) { return ORIGINALS.defineProperty.call(this, obj, key, origDesc); }
+            }
             return ORIGINALS.defineProperty.call(this, obj, key, descriptor);
         };
-        Object.defineProperty = safeDefineProperty;
-        Object.defineProperties = function (obj, props) {
-            if (isMediaEl(obj)) {
-                for (const key in props) {
-                    if (protectKeys.includes(key) && props[key]) patchDescriptorSafely(props[key]);
+
+        const safeDefineProperties = function (obj, props) {
+             if (isMediaEl(obj) && props) {
+                const patchedProps = { ...props };
+                for (const k in patchedProps) {
+                    if (protectKeys.includes(k) && patchedProps[k]) {
+                        const orig = patchedProps[k];
+                        const patched = { ...orig };
+                        patchDescriptorSafely(patched);
+                        patchedProps[k] = patched;
+                    }
                 }
+                try { return ORIGINALS.defineProperties.call(this, obj, patchedProps); }
+                catch (e) { return ORIGINALS.defineProperties.call(this, obj, props); }
             }
             return ORIGINALS.defineProperties.call(this, obj, props);
         };
+
+        Object.defineProperty = safeDefineProperty;
+        Object.defineProperties = safeDefineProperties;
         _hooksActive = true;
     };
 
@@ -247,7 +267,8 @@
         },
         SCAN: {
             INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000, MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
-            MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src']
+            // [Enhanced] 탐지 속성 확장 (Lazy load 대응)
+            MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video']
         },
         UI: { MAX_Z: 2147483647, DRAG_THRESHOLD: 5, HIDDEN_CLASS: 'vsc-hidden', SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2] }
     };
@@ -319,7 +340,8 @@
         if (!isSensitiveContext()) {
             const origLoad = HTMLMediaElement.prototype.load;
             HTMLMediaElement.prototype.load = function (...args) {
-                try { scheduleScan(this, true); } catch { }
+                // [Fixed] 로드 훅에서도 플러그인 유효성 및 민감 컨텍스트 재확인
+                try { if (_corePluginRef && !isSensitiveContext()) scheduleScan(this, true); } catch { }
                 return origLoad.apply(this, args);
             };
         }
@@ -422,6 +444,7 @@
         hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null,
         _hist: null, _evAggressiveUntil: 0, _lbConf: 0, _aeBlockedUntil: 0, _roiP50History: [],
         _rois: [],
+        taintedResources: new WeakSet(), // [Fixed] 개별 비디오 CORS 차단용
 
         init(stateManager) {
             this.stateManager = stateManager;
@@ -464,7 +487,8 @@
             const isClarityActive = this.currentSettings.clarity > 0;
             const isAutoExposure = this.currentSettings.autoExposure;
             if (!isClarityActive && !isAutoExposure) { if (this.isRunning) this.stop(); return; }
-            if (this._aeBlockedUntil > Date.now() && this.targetVideo === video) {
+            // [Fixed] 개별 비디오 차단 체크
+            if (this.taintedResources.has(video)) {
                 this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, video, true);
                 return;
             }
@@ -537,7 +561,7 @@
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
             if (this.targetVideo.readyState < 2) return;
             if (!this.ctx) return;
-            if (this._aeBlockedUntil > Date.now()) return;
+            if (this.taintedResources.has(this.targetVideo)) return;
 
             const startTime = performance.now();
             const aggressive = (this._evAggressiveUntil && startTime < this._evAggressiveUntil);
@@ -723,9 +747,10 @@
 
             } catch (e) {
                 if (e.name === 'SecurityError') {
-                    this._aeBlockedUntil = Date.now() + 30000;
+                    // [Fixed] 개별 비디오만 차단 리스트에 추가
+                    this.taintedResources.add(this.targetVideo);
                     const next = this._pickBestVideoNow();
-                    if (next && next !== this.targetVideo) {
+                    if (next && next !== this.targetVideo && !this.taintedResources.has(next)) {
                          this.targetVideo = next;
                          this.hasRVFC = 'requestVideoFrameCallback' in next;
                          this._kickImmediateAnalyze();
@@ -847,11 +872,10 @@
                 this._mutationCounter = 0;
             }, 1000);
 
-            // [Fixed] Hooks 활성 조건 개선 (Iframe 내 비디오 탐지 보완)
             const updateHooksState = () => {
                 const active = this.stateManager.get('app.scriptActive');
                 const hasActiveVideo = (this.stateManager.get('media.activeMedia')?.size || 0) > 0;
-                const hasVideo = hasActiveVideo || hasRealVideo(); // activeMedia에 잡히면 무조건 활성
+                const hasVideo = hasActiveVideo || hasRealVideo(); 
                 if (active && hasVideo && !isSensitiveContext()) {
                     enableShadowHook();
                     enablePropertyHooks();
@@ -909,7 +933,6 @@
                     }
                 }, { capture: true, passive: true, signal: this._ac.signal });
 
-                // [Enhanced] Safari support
                 const fsChange = () => {
                     const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                     if (fsEl) {
@@ -956,7 +979,12 @@
         }
         updateGlobalAttrObs(active) {
             if (!CONFIG.FLAGS.GLOBAL_ATTR_OBS) return;
-            const hasCandidates = !!document.querySelector('video, iframe, source') || (Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0);
+            // [Optimized] 비용 절감하면서 후보군 체크
+            const hasCandidates =
+                document.getElementsByTagName('video').length > 0 ||
+                document.getElementsByTagName('iframe').length > 0 ||
+                document.getElementsByTagName('source').length > 0 ||
+                (Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0);
 
             if (active && !this._globalAttrObs && hasCandidates) {
                 this._globalAttrObs = new MutationObserver(throttle((ms) => {
@@ -1110,7 +1138,6 @@
                     const visMap = sm.get('media.visibilityMap'); let needsUpdate = false;
                     entries.forEach(e => {
                         const pipEl = document.pictureInPictureElement;
-                        // [Optimized] Safari compat
                         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                         const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && (fsEl === e.target || fsEl.contains(e.target)));
                         if (visMap) visMap.set(e.target, isVisible);
@@ -1425,14 +1452,14 @@
             }, 100);
             document.addEventListener('vsc-smart-limit-update', this.throttledUpdate);
             if (this.stateManager.get('app.scriptActive')) { this.filterManager.init(); this.imageFilterManager.init(); this.applyAllVideoFilters(); this.applyAllImageFilters(); }
-
+            
             // [Fixed] 주기적 ShadowRoot 정리 (메모리 누수 방지)
-            setInterval(() => {
+            this._pruneTimer = setInterval(() => {
                 if (this.filterManager) this.filterManager.prune();
                 if (this.imageFilterManager) this.imageFilterManager.prune();
             }, 10000);
         }
-        destroy() { super.destroy(); if (this.throttledUpdate) document.removeEventListener('vsc-smart-limit-update', this.throttledUpdate); if (this._rafId) cancelAnimationFrame(this._rafId); if (this._imageRafId) cancelAnimationFrame(this._imageRafId); if (this._mediaStateRafId) cancelAnimationFrame(this._mediaStateRafId); }
+        destroy() { super.destroy(); if (this.throttledUpdate) document.removeEventListener('vsc-smart-limit-update', this.throttledUpdate); if (this._rafId) cancelAnimationFrame(this._rafId); if (this._imageRafId) cancelAnimationFrame(this._imageRafId); if (this._mediaStateRafId) cancelAnimationFrame(this._mediaStateRafId); if (this._pruneTimer) { clearInterval(this._pruneTimer); this._pruneTimer = null; } }
         _createManager(options) {
             class SvgFilterManager {
                 constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._lastValues = null; this._clarityTableCache = new Map(); }
@@ -1576,6 +1603,20 @@
             const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
             const isVis = this.stateManager.get('media.visibilityMap').get(video); const isActive = scriptActive && isVis && shouldApply;
+            
+            // [Enhanced] Iframe에 CSS filter 적용 (Cross-origin 제약 우회 시도)
+            if (video.tagName === 'IFRAME') {
+                if (isActive) {
+                     const bright = (vf.brightness || 0) / 100;
+                     const contrast = (vf.contrastAdj || 1.0);
+                     const sat = (vf.saturation || 100) / 100;
+                     video.style.filter = `brightness(${1 + bright}) contrast(${contrast}) saturate(${sat})`;
+                } else {
+                    video.style.filter = '';
+                }
+                return;
+            }
+
             if (isActive) { if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform'; } else { if (video.style.willChange) video.style.willChange = ''; }
             video.classList.toggle('vsc-video-filter-active', isActive); if (vf.dither === 0) video.classList.add('no-grain'); else video.classList.remove('no-grain');
         }
@@ -1607,8 +1648,9 @@
         constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; this.pressTimer = null; this._longPressTriggered = false; }
         init(stateManager) {
             super.init(stateManager);
-            // [Fixed] Top Window에서만 기본 생성 요청, Iframe은 비디오 발견 시 생성
-            if (IS_TOP) this.stateManager.set('ui.createRequested', true);
+            
+            // [Fixed] Top Window에서만 미디어 감지 시 UI 생성 요청 (Iframe은 미디어 감지 후 스스로 판단)
+            // 아래 라인은 삭제됨: if (IS_TOP) this.stateManager.set('ui.createRequested', true);
 
             const createUI = () => { if (this.globalContainer) return; this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); this.stateManager.set('ui.createRequested', false); };
             const onCreateRequested = () => { if (document.body) createUI(); else document.addEventListener('DOMContentLoaded', createUI, { once: true }); };
@@ -1746,7 +1788,6 @@
             this.updateUIVisibility();
         }
         updateUIVisibility() {
-            // [Fixed] 롱프레스 시 hideUntilReload가 true면 강제로 숨김 처리
             if (this.stateManager.get('ui.hideUntilReload')) {
                 if (this.globalContainer) this.globalContainer.style.display = 'none';
                 return;
@@ -1943,8 +1984,6 @@
         pluginManager.register(new CoreMediaPlugin());
         pluginManager.register(new SvgFilterPlugin());
         pluginManager.register(new PlaybackControlPlugin());
-        // [Fixed] Iframe 내 중복 UI 생성 방지
-        if (IS_TOP) pluginManager.register(new UIPlugin());
         pluginManager.initAll();
     }
 
