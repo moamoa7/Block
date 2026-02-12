@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.31 Optimized+AE_Boost)
+// @name        Video_Image_Control (Lite v130.32 Stability+Quality)
 // @namespace   https://com/
-// @version     130.31
-// @description v130.31: Performance optimization (Cached Checks, Lightweight Observers). Improved Auto-Exposure logic. Memory leak fixes.
+// @version     130.32
+// @description v130.32: Fixed History API restoration. Enhanced Letterbox detection for AE. Optimized ShadowDOM/Event management.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -20,22 +20,14 @@
     const IS_TOP = window === window.top;
 
     // --- Safety & Performance Helpers ---
-
-    // [Optimization] Cache sensitive context check (300ms TTL)
     let _sensCache = { t: 0, v: false };
     const isSensitiveContext = () => {
         const now = Date.now();
         if (now - _sensCache.t < 300) return _sensCache.v;
-
         let result = false;
         const url = location.href.toLowerCase();
-        if (/(login|signin|auth|account|member|session|checkout|payment|secure|bank|verify)/i.test(url)) {
-            result = true;
-        } else {
-            try {
-                if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"]')) result = true;
-            } catch(e) {}
-        }
+        if (/(login|signin|auth|account|member|session|checkout|payment|secure|bank|verify)/i.test(url)) result = true;
+        else { try { if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"]')) result = true; } catch(e) {} }
         _sensCache = { t: now, v: result };
         return result;
     };
@@ -47,9 +39,7 @@
         const videos = document.querySelectorAll('video');
         for (const vid of videos) {
             if (!vid.isConnected) continue;
-            const w = vid.videoWidth || vid.clientWidth || 0;
-            const h = vid.videoHeight || vid.clientHeight || 0;
-            if (w >= 120 && h >= 90) return true;
+            if ((vid.videoWidth || vid.clientWidth || 0) >= 120 && (vid.videoHeight || vid.clientHeight || 0) >= 90) return true;
         }
         return false;
     };
@@ -69,12 +59,14 @@
 
     let _hooksActive = false;
     let _shadowHookActive = false;
+    const VSC_SR_MO = Symbol('vsc_sr_mo'); // Symbol for ShadowRoot Observer
 
     const enableShadowHook = () => {
         if (_shadowHookActive || isSensitiveContext()) return;
         try {
             window._shadowDomList_ = window._shadowDomList_ || [];
             window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
+            
             if (!Object.getOwnPropertyDescriptor(window, '_shadowDomList_')) {
                  Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true, configurable: true });
             }
@@ -102,11 +94,8 @@
         } catch(e) {}
     };
 
-    // [Safe Patch] Minimal Descriptor Modification
     const patchDescriptorSafely = (d) => {
         if (!d) return;
-        // Don't force configurable: true unless absolutely necessary to avoid site breakage
-        // Only patch writable/enumerable if we are intercepting
         const isAccessor = ('get' in d) || ('set' in d);
         if (!isAccessor && d.writable === false) d.writable = true;
     };
@@ -115,20 +104,15 @@
         if (_hooksActive || isSensitiveContext()) return;
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
         const isMediaEl = (o) => o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
-
         const safeDefineProperty = function (obj, key, descriptor) {
-            if (isMediaEl(obj) && protectKeys.includes(key)) {
-                patchDescriptorSafely(descriptor);
-            }
+            if (isMediaEl(obj) && protectKeys.includes(key)) patchDescriptorSafely(descriptor);
             return ORIGINALS.defineProperty.call(this, obj, key, descriptor);
         };
         Object.defineProperty = safeDefineProperty;
         Object.defineProperties = function (obj, props) {
             if (isMediaEl(obj)) {
                 for (const key in props) {
-                    if (protectKeys.includes(key) && props[key]) {
-                        patchDescriptorSafely(props[key]);
-                    }
+                    if (protectKeys.includes(key) && props[key]) patchDescriptorSafely(props[key]);
                 }
             }
             return ORIGINALS.defineProperties.call(this, obj, props);
@@ -155,7 +139,6 @@
     const Utils = {
         clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
         safeInt: (v, d = 0) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; },
-        safeFloat: (v, d = 1.0) => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? n : d; },
         fastHash: (str) => {
             let h = 0x811c9dc5;
             for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
@@ -172,13 +155,15 @@
 
     const collectOpenShadowRootsOnce = () => {
         window._shadowDomList_ = window._shadowDomList_ || [];
+        window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
         const list = window._shadowDomList_;
+        const set = window._shadowDomSet_;
         const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
         let count = 0;
         while (walker.nextNode()) {
             const el = walker.currentNode;
             const sr = el.shadowRoot;
-            if (sr && !list.includes(sr)) list.push(sr);
+            if (sr && !set.has(sr)) { set.add(sr); list.push(sr); }
             if (++count > 5000) break;
         }
     };
@@ -218,10 +203,7 @@
     };
 
     const log = (...args) => { if (CONFIG.DEBUG) console.log('[VSC]', ...args); };
-
-    const safeGuard = (fn, label = '') => {
-        try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); }
-    };
+    const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let t; return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
     const throttle = (fn, limit) => { let inThrottle; return function (...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
 
@@ -254,8 +236,13 @@
     };
 
     const scheduleScan = (rootOrNull, immediate = false) => {
-        if (Utils.isShadowRoot(rootOrNull) && window._shadowDomList_) {
-            if (!window._shadowDomList_.includes(rootOrNull)) window._shadowDomList_.push(rootOrNull);
+        if (Utils.isShadowRoot(rootOrNull)) {
+            window._shadowDomList_ = window._shadowDomList_ || [];
+            window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
+            if (!window._shadowDomSet_.has(rootOrNull)) {
+                window._shadowDomSet_.add(rootOrNull);
+                window._shadowDomList_.push(rootOrNull);
+            }
         }
         if (immediate && _corePluginRef) { safeGuard(() => { if (rootOrNull) _corePluginRef.scanSpecificRoot(rootOrNull); else _corePluginRef.scanAndApply(); }, 'immediateScan'); return; }
         if (rootOrNull) {
@@ -524,14 +511,18 @@
                 const startCol = Math.floor(size * 0.10);
                 const endCol = Math.ceil(size * 0.90);
 
-                // [Enhanced AE] Preliminary check: center point luma
-                // If the exact center is pitch black, we might be looking at a letterbox.
-                // Shift sampling up slightly.
-                const centerIdx = (Math.floor(size/2) * size + Math.floor(size/2)) * 4;
-                const cR = data[centerIdx], cG = data[centerIdx+1], cB = data[centerIdx+2];
-                if ((cR+cG+cB) < 10) {
-                     startRow = Math.floor(size * 0.05); // Look higher
-                     endRow = Math.ceil(size * 0.70);
+                // [Enhanced AE] Letterbox Detection (Check top/bottom rows)
+                // Sample a small strip at the top (5%) and bottom (95%)
+                let blackBars = false;
+                const topCheckRow = Math.floor(size * 0.05) * size * 4;
+                const botCheckRow = Math.floor(size * 0.95) * size * 4;
+                // Quick check middle pixel of top row
+                const midIdx = Math.floor(size/2) * 4;
+                if (data[topCheckRow + midIdx] < 15 && data[botCheckRow + midIdx] < 15) {
+                    // Likely letterbox, squeeze sampling area
+                    startRow = Math.floor(size * 0.20);
+                    endRow = Math.ceil(size * 0.80);
+                    blackBars = true;
                 }
 
                 let validCount = 0;
@@ -621,7 +612,9 @@
                     if (aggressive) return target;
                     const diff = target - curr;
                     let speed = (this._userBoostUntil && performance.now() < this._userBoostUntil) ? 0.35 : (this._highMotion ? 0.05 : 0.1);
-                    return Math.abs(diff) > 0.01 ? curr + diff * speed : curr;
+                    // Hysteresis
+                    if (Math.abs(diff) < 0.005) return curr; 
+                    return curr + diff * speed;
                 };
 
                 this.currentAdaptiveGamma = smooth(this.currentAdaptiveGamma || 1.0, targetAdaptiveGamma);
@@ -641,6 +634,16 @@
                     const key = (this.targetVideo.currentSrc || this.targetVideo.src) + '|' + this.targetVideo.videoWidth + 'x' + this.targetVideo.videoHeight;
                     this.taintedCache.set(this.targetVideo, key);
                     this.taintedRetryCache.set(this.targetVideo, Date.now());
+                    
+                    // [Security] Try to recover by picking another video
+                    const next = this._pickBestVideoNow();
+                    if (next && next !== this.targetVideo) {
+                         this.targetVideo = next;
+                         this.hasRVFC = 'requestVideoFrameCallback' in next;
+                         this._kickImmediateAnalyze();
+                         return;
+                    }
+
                     this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, this.targetVideo, true);
                     this.stop();
                 }
@@ -725,24 +728,25 @@
             this._mutationCounter = 0;
             this._isBackoffMode = false;
             this._backoffInterval = null;
+            this._historyOrig = null; // Store original History API
         }
         init(stateManager) {
             super.init(stateManager); _corePluginRef = this; VideoAnalyzer.init(stateManager);
 
-            // [Enhanced] SPA / History API Hook
-            const hookHistory = () => {
+            // [Fixed] History API Hook with Restoration
+            if (!this._historyOrig) {
+                this._historyOrig = { pushState: history.pushState, replaceState: history.replaceState };
                 ['pushState', 'replaceState'].forEach(fn => {
-                    const orig = history[fn];
+                    const orig = this._historyOrig[fn];
                     history[fn] = function (...args) {
                         const r = orig.apply(this, args);
                         try { triggerBurstScan(250); } catch { }
                         return r;
                     };
                 });
-                on(window, 'popstate', () => triggerBurstScan(250), P(this._ac.signal));
-                on(window, 'hashchange', () => triggerBurstScan(250), P(this._ac.signal));
-            };
-            hookHistory();
+            }
+            on(window, 'popstate', () => triggerBurstScan(250), P(this._ac.signal));
+            on(window, 'hashchange', () => triggerBurstScan(250), P(this._ac.signal));
 
             this._backoffInterval = setInterval(() => {
                 if (this._mutationCounter > 60) {
@@ -768,20 +772,24 @@
                     if (e.detail && e.detail.shadowRoot) {
                         this._domDirty = true;
                         const sr = e.detail.shadowRoot;
-                        let flags = sr[VSC_FLAG] | 0;
-                        if (!(flags & FLAG_OBSERVED)) {
-                            // [Optimization] Light mode for shadow heavy sites
+                        // [Optimization] Use VSC_SR_MO symbol for cleanup
+                        if (!sr[VSC_SR_MO]) {
                             const isHeavy = (window._shadowDomList_ && window._shadowDomList_.length > 300);
                             const config = isHeavy ? { childList: true, subtree: true } : { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS };
-
                             const smo = new MutationObserver(() => scheduleScan(sr));
                             smo.observe(sr, config);
-                            sr[VSC_FLAG] = (flags | FLAG_OBSERVED);
+                            sr[VSC_SR_MO] = smo;
                         }
                         this.scanSpecificRoot(sr);
                     }
                 }, P(this._ac.signal));
-                on(document, 'load', (e) => { if (e.target && e.target.tagName === 'IMG') scheduleScan(e.target, true); }, CP(this._ac.signal));
+                on(document, 'load', (e) => { 
+                    if (e.target && e.target.tagName === 'IMG') {
+                        // [Quality] Use decode if available
+                        if (e.target.decode) e.target.decode().then(() => scheduleScan(e.target, true)).catch(() => scheduleScan(e.target, true));
+                        else scheduleScan(e.target, true);
+                    }
+                }, CP(this._ac.signal));
                 MEDIA_EVENTS.forEach(evt => on(document, evt, (e) => {
                     const t = e.target;
                     if (t && t.tagName === 'VIDEO') {
@@ -829,11 +837,11 @@
 
             this.subscribe('media.activeMedia', () => updateHooksState());
             updateHooksState();
-
+            
             // [Optimization] Throttled reset
             const throttledReset = throttle(() => this.resetScanInterval(), 300);
             ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(evt => on(document, evt, throttledReset, CP(this._ac.signal)));
-
+            
             if ('ResizeObserver' in window) {
                 this._resizeObs = new ResizeObserver(throttle(entries => {
                     let needed = false;
@@ -849,7 +857,6 @@
         }
         updateGlobalAttrObs(active) {
             if (!CONFIG.FLAGS.GLOBAL_ATTR_OBS) return;
-            // [Optimized] Only enable if media exists
             if (active && !this._globalAttrObs && (hasRealVideo() || this.stateManager.get('media.activeMedia').size > 0)) {
                 this._globalAttrObs = new MutationObserver(throttle((ms) => {
                     let dirty = false;
@@ -881,6 +888,11 @@
         }
         destroy() {
             super.destroy(); _corePluginRef = null;
+            if (this._historyOrig) {
+                history.pushState = this._historyOrig.pushState;
+                history.replaceState = this._historyOrig.replaceState;
+                this._historyOrig = null;
+            }
             if (this.mainObserver) { this.mainObserver.disconnect(); this.mainObserver = null; }
             if (this.intersectionObserver) { this.intersectionObserver.disconnect(); this.intersectionObserver = null; }
             if (this.scanTimerId) { clearTimeout(this.scanTimerId); this.scanTimerId = null; }
@@ -904,13 +916,16 @@
             }
         }
         tick() {
-            if (this._domDirty) {
-                this._domDirty = false;
-                scheduleScan(null);
-            }
+            if (this._domDirty) { this._domDirty = false; scheduleScan(null); }
             this._cleanupDeadIframes();
             this._pruneDisconnected();
-            if (window._shadowDomList_) window._shadowDomList_ = window._shadowDomList_.filter(r => r && r.host && r.host.isConnected);
+            if (window._shadowDomList_) {
+                window._shadowDomList_ = window._shadowDomList_.filter(r => {
+                    const alive = r && r.host && r.host.isConnected;
+                    if (!alive && r?.[VSC_SR_MO]) { try { r[VSC_SR_MO].disconnect(); } catch {} r[VSC_SR_MO] = null; }
+                    return alive;
+                });
+            }
             const sm = this.stateManager;
             const activeMedia = sm.get('media.activeMedia'); const activeImages = sm.get('media.activeImages');
             const hasPotential = document.querySelector(SEL.FILTER_TARGET);
@@ -926,11 +941,12 @@
                 const dirtySet = new Set();
                 const mayContainMedia = (n) => {
                     if (!n || n.nodeType !== 1) return false;
-                    if (n.matches?.(SEL.MEDIA)) return true;
                     const tag = n.nodeName;
                     if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE') return true;
-                    if (n === document) return true;
-                    if (n.childElementCount > 0 && n.querySelector) return !!n.querySelector(SEL.MEDIA);
+                    // [Optimization] Avoid heavy querySelector on small nodes
+                    if (tag === 'DIV' || tag === 'SECTION' || tag === 'ARTICLE' || tag === 'MAIN') {
+                         if (n.childElementCount > 0 && n.querySelector) return !!n.querySelector(SEL.MEDIA);
+                    }
                     return false;
                 };
                 const flushDirty = debounce(() => {
@@ -944,9 +960,7 @@
                         for (const m of mutations) {
                              if (m.addedNodes.length > 0) {
                                  for (const n of m.addedNodes) {
-                                     if (n.nodeType === 1 && mayContainMedia(n)) {
-                                         critical = true; break;
-                                     }
+                                     if (n.nodeType === 1 && mayContainMedia(n)) { critical = true; break; }
                                  }
                              }
                              if (critical) break;
@@ -979,7 +993,7 @@
             if (!this.intersectionObserver) {
                 // [Optimization] Reduced thresholds for low-end
                 const thresholdConfig = IS_LOW_END ? [0, 0.2, 0.6] : [0, 0.25, 0.5, 0.75, 1.0];
-
+                
                 this.intersectionObserver = new IntersectionObserver(entries => {
                     const sm = this.stateManager;
                     const visMap = sm.get('media.visibilityMap'); let needsUpdate = false;
@@ -999,7 +1013,9 @@
                         if (!e.target.isConnected) { this.intersectionObserver.unobserve(e.target); this._visibleVideos.delete(e.target); }
                     });
                     if (needsUpdate && !document.hidden) {
-                        requestAnimationFrame(() => {
+                        // [Optimization] Throttle center calculation
+                        if (this._centerCalcTimer) clearTimeout(this._changeTimer);
+                        this._centerCalcTimer = setTimeout(() => {
                             const currentBest = sm.get('media.currentlyVisibleMedia');
                             const lastInteracted = sm.get('media.lastInteractedVideo');
                             let bestCandidate = null; let maxScore = -1;
@@ -1015,27 +1031,21 @@
                                     if (m.ended) score *= 0.5; if (document.pictureInPictureElement === m) score *= 3.0;
                                     if (document.fullscreenElement && (document.fullscreenElement === m || document.fullscreenElement.contains(m))) score *= 4.0;
                                     if (m.loop && m.muted && m.autoplay && !m.controls) score *= 0.6;
-                                    if (lastInteracted && lastInteracted.el === m && (Date.now() - lastInteracted.ts < 5000)) { score *= 2.5; }
+                                    // [Improved] Increase stickiness duration (30s)
+                                    if (lastInteracted && lastInteracted.el === m && (Date.now() - lastInteracted.ts < 30000)) { score *= 4.0; }
                                     const ratio = this._intersectionRatios.get(m) || 0; score *= (0.5 + ratio * 0.5);
                                     if (centerEl && (m === centerEl || m.contains(centerEl) || centerEl.contains(m))) { score *= 2.0; } else { const rect = m.getBoundingClientRect(); const mx = rect.left + rect.width / 2; const my = rect.top + rect.height / 2; const dist = Math.hypot(mx - cx, my - cy); const maxDist = Math.hypot(cx, cy) || 1; score *= (1.2 - Math.min(1.0, dist / maxDist)); }
                                     if (score > maxScore) { maxScore = score; bestCandidate = m; }
                                 }
                             }
                             if (bestCandidate && bestCandidate !== currentBest) {
-                                // [Optimization] Aggressive stop old one
-                                if (currentBest && currentBest !== bestCandidate) {
-                                    VideoAnalyzer.stop();
-                                }
+                                if (currentBest && currentBest !== bestCandidate) VideoAnalyzer.stop();
                                 sm.set('media.currentlyVisibleMedia', bestCandidate);
-
-                                // Debounce start to prevent flickering
-                                if (this._changeTimer) clearTimeout(this._changeTimer);
-                                this._changeTimer = setTimeout(() => {
-                                    const vf = sm.get('videoFilter'); const active = sm.get('app.scriptActive');
-                                    if (active && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(bestCandidate, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
-                                }, 200);
+                                
+                                const vf = sm.get('videoFilter'); const active = sm.get('app.scriptActive');
+                                if (active && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(bestCandidate, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
                             }
-                        });
+                        }, 150);
                     }
                 }, { root: null, rootMargin: '0px', threshold: thresholdConfig });
             }
@@ -1099,30 +1109,19 @@
         }
         _syncSet(newSet, stateKey, attachFn, detachFn) {
             const activeSet = this.stateManager.get(stateKey);
-            const nextActiveSet = new Set(newSet); // Start with new findings
-
-            // [Critical Fix for ok.ru / Lazy Loading]
+            const nextActiveSet = new Set(newSet);
             let changed = false;
             if (activeSet) {
                 for (const oldEl of activeSet) {
-                    if (oldEl && oldEl.isConnected) {
-                        nextActiveSet.add(oldEl); // Keep tracking
-                    } else {
-                        detachFn(oldEl); // Cleanup truly removed elements
-                        changed = true;
-                    }
+                    if (oldEl && oldEl.isConnected) { nextActiveSet.add(oldEl); } 
+                    else { detachFn(oldEl); changed = true; }
                 }
             }
-
-            // Now attach listeners to anything new or existing
             for (const el of nextActiveSet) {
                 if (el.isConnected) {
-                    if (attachFn(el)) {
-                        if (!activeSet || !activeSet.has(el)) changed = true;
-                    }
+                    if (attachFn(el)) { if (!activeSet || !activeSet.has(el)) changed = true; }
                 }
             }
-
             if (changed || (activeSet && activeSet.size !== nextActiveSet.size)) {
                 this.stateManager.set(stateKey, nextActiveSet);
             }
@@ -1193,6 +1192,7 @@
                             const smo = new MutationObserver(() => scheduleScan(shadowRoot));
                             smo.observe(shadowRoot, config);
                             shadowRoot[VSC_FLAG] = (flags | FLAG_OBSERVED);
+                            shadowRoot[VSC_SR_MO] = smo;
                         } catch (e) { }
                     }
                     try { const res = this.findAllElements(shadowRoot, depth + 1, true, visited); res.media.forEach(m => media.add(m)); res.images.forEach(i => images.add(i)); } catch (e) { }
@@ -1318,7 +1318,6 @@
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
                     const style = document.createElement('style'); style.id = styleId;
                     const cssContent = ` .${className} { filter: url(#${combinedFilterId}) !important; transform: translateZ(0); } .${className}.no-grain { filter: url(#${combinedFilterNoGrainId}) !important; } `;
-                    // [Safe Patch] Use textContent
                     style.textContent = cssContent;
                     const buildChain = (id, includeGrain) => {
                         const filter = createSvgElement('filter', { id: id, "color-interpolation-filters": "sRGB" });
@@ -1502,7 +1501,9 @@
                 #vsc-main-container { display: flex; flex-direction: row-reverse; align-items: flex-start; } #vsc-controls-container { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
                 .vsc-control-group { display: flex; align-items: center; justify-content: flex-end; position: relative; background: var(--vsc-bg-dark); border-radius: 8px; height: clamp(${isMobile ? '30px' : '32px'}, 6vmin, ${isMobile ? '40px' : '44px'}); width: clamp(${isMobile ? '30px' : '32px'}, 6vmin, ${isMobile ? '40px' : '44px'}); }
                 .vsc-btn { background: var(--vsc-bg-btn); color: var(--vsc-text); border-radius: 4px; border: none; padding: 6px 8px; cursor: pointer; white-space: nowrap; font-size: ${isMobile ? '13px' : '14px'}; transition: all 0.2s ease; }
-                .vsc-btn:hover { background: rgba(255,255,255,0.2); } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } .vsc-btn.active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; }
+                .vsc-btn:hover { background: rgba(255,255,255,0.2); } .vsc-btn:disabled { opacity: 0.5; cursor: not-allowed; } 
+                .vsc-btn.active, .vsc-btn.vsc-speed-active { box-shadow: 0 0 5px #3498db, 0 0 10px #3498db inset; border-color: #3498db; }
+                .vsc-btn.vsc-speed-active { background: var(--vsc-bg-warn) !important; box-shadow: 0 0 5px #e74c3c, 0 0 10px #e74c3c inset !important; border-color: #e74c3c; }
                 .vsc-btn-main { width: 100%; height: 100%; padding: 0; background: none; font-size: ${isMobile ? '18px' : '20px'}; display: flex; align-items: center; justify-content: center; }
                 .vsc-top-row { display: flex; gap: 8px; width: 100%; margin-bottom: 8px; flex-wrap: wrap; } .vsc-top-row .vsc-btn { flex: 1; } .vsc-btn-lg { font-size: ${isMobile ? '13px' : '14px'} !important; font-weight: bold; height: 36px; }
                 .vsc-submenu { display: none; flex-direction: column; position: fixed; top: 50%; transform: translateY(-50%); right: 100px; background: rgba(0,0,0,0.95); border-radius: 8px; padding: 10px; gap: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
@@ -1539,21 +1540,20 @@
             this.mainControlsContainer = document.createElement('div'); this.mainControlsContainer.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:5px;';
             this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡';
             Object.assign(this.triggerElement.style, { width: isMobile ? '42px' : '48px', height: isMobile ? '42px' : '48px', background: 'var(--vsc-bg-btn)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: isMobile ? '22px' : '24px', userSelect: 'none', touchAction: 'none', order: '1' });
-
+            
             this.triggerElement.addEventListener('click', (e) => {
-                if (this.wasDragged || this._longPressTriggered) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    this._longPressTriggered = false; // Reset for next interaction
-                    return;
+                if (this.wasDragged || this._longPressTriggered) { 
+                    e.stopPropagation(); e.preventDefault();
+                    this._longPressTriggered = false; 
+                    return; 
                 }
-                const isVisible = this.stateManager.get('ui.areControlsVisible');
+                const isVisible = this.stateManager.get('ui.areControlsVisible'); 
                 triggerBurstScan();
-                if (isVisible) {
-                    this.stateManager.set('ui.areControlsVisible', false);
-                } else {
-                    this.stateManager.set('app.scriptActive', true);
-                    this.stateManager.set('ui.areControlsVisible', true);
+                if (isVisible) { 
+                    this.stateManager.set('ui.areControlsVisible', false); 
+                } else { 
+                    this.stateManager.set('app.scriptActive', true); 
+                    this.stateManager.set('ui.areControlsVisible', true); 
                     setTimeout(() => {
                         const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || this.stateManager.get('media.activeImages').size > 0;
                         if (!hasMedia && this.stateManager.get('app.scriptActive')) {
@@ -1585,13 +1585,12 @@
         updateTriggerStyle() {
             if (!this.triggerElement) return;
             const isVisible = this.stateManager.get('ui.areControlsVisible');
-
-            if (isVisible) {
-                this.triggerElement.textContent = '🛑'; // Reverted to Stop Icon
-                this.triggerElement.style.backgroundColor = 'rgba(231, 76, 60, 0.9)'; // Reverted to Red
-            } else {
-                this.triggerElement.textContent = '⚡';
-                this.triggerElement.style.backgroundColor = 'var(--vsc-bg-btn)';
+            if (isVisible) { 
+                this.triggerElement.textContent = '🛑'; 
+                this.triggerElement.style.backgroundColor = 'rgba(231, 76, 60, 0.9)'; 
+            } else { 
+                this.triggerElement.textContent = '⚡'; 
+                this.triggerElement.style.backgroundColor = 'var(--vsc-bg-btn)'; 
             }
         }
 
@@ -1609,14 +1608,24 @@
             const activeMedia = this.stateManager.get('media.activeMedia') || new Set(); const activeImages = this.stateManager.get('media.activeImages') || new Set();
             const hasLocalVideo = [...activeMedia].some(m => m && m.tagName === 'VIDEO'); const hasLocalImage = activeImages.size > 0;
             const hasAnyVideo = hasLocalVideo; const hasAnyImage = hasLocalImage;
-
+            
             if (this.globalContainer) { this.globalContainer.style.display = 'flex'; }
             if (this.speedButtonsContainer) { this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none'; }
             if (!this.shadowRoot) return;
             const setVisible = (element, visible) => { if (element) element.classList.toggle(CONFIG.UI.HIDDEN_CLASS, !visible); };
             setVisible(this.uiElements.videoControls, hasAnyVideo); setVisible(this.uiElements.imageControls, hasAnyImage);
         }
-        updateActiveSpeedButton(rate) { if (this.speedButtons.length === 0) return; this.speedButtons.forEach(b => { const speed = parseFloat(b.dataset.speed); if (speed) { const isActive = Math.abs(speed - rate) < 0.01; if (isActive) { b.style.background = 'var(--vsc-bg-warn)'; b.style.boxShadow = '0 0 5px #e74c3c, 0 0 10px #e74c3c inset'; } else { b.style.background = 'var(--vsc-bg-accent)'; b.style.boxShadow = ''; } } }); }
+        updateActiveSpeedButton(rate) { 
+            if (this.speedButtons.length === 0) return; 
+            this.speedButtons.forEach(b => { 
+                const speed = parseFloat(b.dataset.speed); 
+                if (speed) { 
+                    const isActive = Math.abs(speed - rate) < 0.01; 
+                    b.classList.toggle('vsc-speed-active', isActive);
+                    if(!isActive) b.style.background = 'var(--vsc-bg-accent)';
+                } 
+            }); 
+        }
         createControlsHost() {
             if (!this.mainControlsContainer) return;
             this.hostElement = document.createElement('div'); this.hostElement.style.order = '2'; this.hostElement.id = 'vsc-ui-host';
@@ -1659,7 +1668,7 @@
             const topRow = document.createElement('div'); topRow.className = 'vsc-top-row';
             const createToggle = (label, key) => {
                 const btn = document.createElement('button'); btn.className = 'vsc-btn vsc-btn-lg'; btn.textContent = label;
-                const render = (v) => { btn.style.color = v ? 'var(--vsc-text-active)' : 'white'; btn.style.borderColor = v ? 'var(--vsc-text-active)' : ''; btn.style.boxShadow = v ? '0 0 8px var(--vsc-bg-active) inset' : ''; };
+                const render = (v) => { btn.classList.toggle('active', !!v); };
                 btn.onclick = () => this.stateManager.set(key, !this.stateManager.get(key)); this.subscribe(key, render); render(this.stateManager.get(key)); return btn;
             };
             const powerBtn = document.createElement('button'); powerBtn.className = 'vsc-btn vsc-btn-lg'; powerBtn.textContent = '⏸︎'; powerBtn.title = '전체 기능 끄기';
@@ -1687,7 +1696,7 @@
                         const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = it.txt; b.dataset.evVal = it.val;
                         b.onclick = () => { this.stateManager.batchSet('videoFilter', { targetLuma: it.val, autoExposure: true }); triggerBurstScan(); }; gridTable.appendChild(b);
                     });
-                    const updateEv = () => { const ae = this.stateManager.get('videoFilter.autoExposure'); const tv = this.stateManager.get('videoFilter.targetLuma'); gridTable.querySelectorAll(`button[data-ev-val]`).forEach(b => { const m = ae && (parseInt(b.dataset.evVal) === tv); b.style.color = m ? 'var(--vsc-text-accent)' : 'white'; b.style.boxShadow = m ? '0 0 5px var(--vsc-text-accent) inset' : ''; }); };
+                    const updateEv = () => { const ae = this.stateManager.get('videoFilter.autoExposure'); const tv = this.stateManager.get('videoFilter.targetLuma'); gridTable.querySelectorAll(`button[data-ev-val]`).forEach(b => { const m = ae && (parseInt(b.dataset.evVal) === tv); b.classList.toggle('active', m); }); };
                     this.subscribe('videoFilter.targetLuma', updateEv); this.subscribe('videoFilter.autoExposure', updateEv); updateEv();
                 }
             });
@@ -1717,57 +1726,56 @@
         }
         attachDragAndDrop() {
             let lastDragEnd = 0;
-            const onDragStart = (e) => {
-                if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-                this.isDragging = true; this.wasDragged = false;
-                this._longPressTriggered = false; // Reset flag
-                this.delta = { x: 0, y: 0 }; this.startPos = { x: e.clientX, y: e.clientY };
-                this.currentPos = { x: this.uiState.x, y: this.uiState.y };
-                this.globalContainer.style.transition = 'none';
-                try { this.triggerElement.setPointerCapture(e.pointerId); } catch(err){}
-                this.triggerElement.addEventListener('pointermove', onDragMove);
-                this.triggerElement.addEventListener('pointerup', onDragEnd);
+            const onDragStart = (e) => { 
+                if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) return; 
+                this.isDragging = true; this.wasDragged = false; 
+                this._longPressTriggered = false; 
+                this.delta = { x: 0, y: 0 }; this.startPos = { x: e.clientX, y: e.clientY }; 
+                this.currentPos = { x: this.uiState.x, y: this.uiState.y }; 
+                this.globalContainer.style.transition = 'none'; 
+                try { this.triggerElement.setPointerCapture(e.pointerId); } catch(err){} 
+                this.triggerElement.addEventListener('pointermove', onDragMove); 
+                this.triggerElement.addEventListener('pointerup', onDragEnd); 
                 this.triggerElement.addEventListener('pointercancel', onDragEnd);
-
-                // Long press to hide logic
+                
                 if (this.pressTimer) clearTimeout(this.pressTimer);
                 this.pressTimer = setTimeout(() => {
                     if (!this.wasDragged) {
-                        this._longPressTriggered = true; // Mark as handled by long press
+                        this._longPressTriggered = true; 
                         this.globalContainer.style.display = 'none';
                         this.stateManager.set('app.scriptActive', false);
                     }
                 }, 1000);
             };
             const updatePosition = () => { if (!this.isDragging || !this.globalContainer) return; const newX = this.currentPos.x + this.delta.x; const newY = this.currentPos.y + this.delta.y; this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`); this.animationFrameId = null; };
-            const onDragMove = (e) => {
-                if (!this.isDragging) return;
-                this.delta = { x: e.clientX - this.startPos.x, y: e.clientY - this.startPos.y };
-                if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI.DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI.DRAG_THRESHOLD)) {
-                    this.wasDragged = true;
+            const onDragMove = (e) => { 
+                if (!this.isDragging) return; 
+                this.delta = { x: e.clientX - this.startPos.x, y: e.clientY - this.startPos.y }; 
+                if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI.DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI.DRAG_THRESHOLD)) { 
+                    this.wasDragged = true; 
                     if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
-                }
-                if (this.wasDragged && this.animationFrameId === null) { this.animationFrameId = requestAnimationFrame(updatePosition); }
+                } 
+                if (this.wasDragged && this.animationFrameId === null) { this.animationFrameId = requestAnimationFrame(updatePosition); } 
             };
-            const onDragEnd = (e) => {
+            const onDragEnd = (e) => { 
                 if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
-                if (!this.isDragging) return;
-                if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; }
-                const dx = this.delta?.x || 0; const dy = this.delta?.y || 0;
-                if (this.wasDragged) {
-                    this.uiState.x += dx; this.uiState.y += dy;
-                    try { sessionStorage.setItem('vsc_ui_pos', JSON.stringify(this.uiState)); } catch { }
-                    lastDragEnd = Date.now();
-                }
-                this.isDragging = false; this.globalContainer.style.transition = '';
-                this.triggerElement.removeEventListener('pointermove', onDragMove);
-                this.triggerElement.removeEventListener('pointerup', onDragEnd);
-                this.triggerElement.removeEventListener('pointercancel', onDragEnd);
-                try { this.triggerElement.releasePointerCapture(e.pointerId); } catch(err){}
-                setTimeout(() => { this.wasDragged = false; }, 50);
+                if (!this.isDragging) return; 
+                if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; } 
+                const dx = this.delta?.x || 0; const dy = this.delta?.y || 0; 
+                if (this.wasDragged) { 
+                    this.uiState.x += dx; this.uiState.y += dy; 
+                    try { sessionStorage.setItem('vsc_ui_pos', JSON.stringify(this.uiState)); } catch { } 
+                    lastDragEnd = Date.now(); 
+                } 
+                this.isDragging = false; this.globalContainer.style.transition = ''; 
+                this.triggerElement.removeEventListener('pointermove', onDragMove); 
+                this.triggerElement.removeEventListener('pointerup', onDragEnd); 
+                this.triggerElement.removeEventListener('pointercancel', onDragEnd); 
+                try { this.triggerElement.releasePointerCapture(e.pointerId); } catch(err){} 
+                setTimeout(() => { this.wasDragged = false; }, 50); 
             };
-            this.triggerElement.addEventListener('pointerdown', onDragStart);
-            this.triggerElement.addEventListener('click', (e) => { if (Date.now() - lastDragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, { capture: true });
+            this.triggerElement.addEventListener('pointerdown', onDragStart); 
+            this.triggerElement.addEventListener('click', (e) => { if (Date.now() - lastDragEnd < 400 || this._longPressTriggered) { e.stopPropagation(); e.preventDefault(); } }, { capture: true });
         }
     }
 
