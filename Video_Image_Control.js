@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.43 Final_Refined)
+// @name        Video_Image_Control (Lite v130.45 Final_Strict_Detect)
 // @namespace   https://com/
-// @version     130.43
-// @description v130.43: Fix CORS lock. Real Iframe filter support. Optimized Shadow scan. Smart AE logic.
+// @version     130.45
+// @description v130.45: UI only loads on Detection. No forced UI. Cloudflare Safe. Lazy-load supported.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -106,12 +106,11 @@
                 try {
                     if (this.id === 'vsc-ui-host') return shadowRoot;
                     if (shadowRoot && !window._shadowDomSet_.has(shadowRoot)) {
-                         // Track all shadow roots for detection completeness
-                        window._shadowDomSet_.add(shadowRoot);
-                        window._shadowDomList_.push(shadowRoot);
-                        requestAnimationFrame(() => {
+                         window._shadowDomSet_.add(shadowRoot);
+                         window._shadowDomList_.push(shadowRoot);
+                         requestAnimationFrame(() => {
                             document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } }));
-                        });
+                         });
                     }
                 } catch (e) {}
                 return shadowRoot;
@@ -130,8 +129,7 @@
         if (_hooksActive || isSensitiveContext()) return;
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
         const isMediaEl = (o) => o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
-        
-        // [Fixed] Safe Hooking with Fallback
+
         const safeDefineProperty = function (obj, key, descriptor) {
             if (isMediaEl(obj) && protectKeys.includes(key) && descriptor) {
                 const origDesc = descriptor;
@@ -177,9 +175,8 @@
         }
     };
 
-    // [Refined] Combined initialization flag
-    if (window.hasOwnProperty('__VSC_ENGINE_STARTED')) return;
-    Object.defineProperty(window, '__VSC_ENGINE_STARTED', { value: true, writable: false });
+    if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
+    Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
 
     // --- Utils & Constants ---
     const Utils = {
@@ -319,7 +316,6 @@
                 if (isSensitiveContext()) disableAllHooks();
                 if (dirtyRoots.size > 0) {
                     const now = Date.now();
-                    // [Optimized] Full scan threshold adjusted for stability
                     if (dirtyRoots.size > (IS_LOW_END ? 60 : 40) && (now - _lastFullScanTime > 1500)) {
                         dirtyRoots.clear(); _lastFullScanTime = now;
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
@@ -685,13 +681,12 @@
                 const evValue = this.currentSettings.targetLuma || 0;
                 const isAutoExp = this.currentSettings.autoExposure;
 
-                // [Enhanced] Auto Exposure works even if targetLuma is 0
                 if (isAutoExp) {
                     const u = evValue / 20;
                     const boostFactor = Math.tanh(u);
                     const headroom = Math.max(0.0, 1.0 - p90);
                     const floor = Math.max(0.1, p10);
-                    // Bias towards 0.5 (middle grey) if targetLuma is 0
+
                     let error = 0;
                     if (evValue === 0) {
                         error = (0.5 - p50) * 0.5;
@@ -878,7 +873,7 @@
             const updateHooksState = () => {
                 const active = this.stateManager.get('app.scriptActive');
                 const hasActiveVideo = (this.stateManager.get('media.activeMedia')?.size || 0) > 0;
-                const hasVideo = hasActiveVideo || hasRealVideo(); 
+                const hasVideo = hasActiveVideo || hasRealVideo();
                 if (active && hasVideo && !isSensitiveContext()) {
                     enableShadowHook();
                     enablePropertyHooks();
@@ -1050,7 +1045,7 @@
             const curIframes = sm.get('media.activeIframes');
             if (curIframes && curIframes.size) {
                 let changed = false; const next = new Set();
-                for (const iframe of curIframes) { if (iframe && iframe.isConnected) next.add(iframe); else { changed = true; } } // Iframe detach logic is simple
+                for (const iframe of curIframes) { if (iframe && iframe.isConnected) next.add(iframe); else { changed = true; } }
                 if (changed) sm.set('media.activeIframes', next);
             }
         }
@@ -1148,6 +1143,7 @@
                     const visMap = sm.get('media.visibilityMap'); let needsUpdate = false;
                     entries.forEach(e => {
                         const pipEl = document.pictureInPictureElement;
+                        // [Optimized] Safari compat
                         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                         const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && (fsEl === e.target || fsEl.contains(e.target)));
                         if (visMap) visMap.set(e.target, isVisible);
@@ -1258,21 +1254,21 @@
                 if (el.isConnected && this.attachImageListeners(el)) { if (!currentImages.has(el)) { currentImages.add(el); imagesChanged = true; } }
             }
              for (const el of iframeSet) {
-                 // Iframe listener is implicit via _hookIframe, just tracking for filter here
                 if (el.isConnected && this.attachImageListeners(el)) { if (!currentIframes.has(el)) { currentIframes.add(el); iframesChanged = true; } }
             }
 
             if (mediaChanged) sm.set('media.activeMedia', currentMedia);
             if (imagesChanged) sm.set('media.activeImages', currentImages);
             if (iframesChanged) sm.set('media.activeIframes', currentIframes);
-            
+
+            // [Fixed] UI 생성은 미디어 감지 시에만 요청
             if ((mediaChanged || currentMedia.size > 0 || currentImages.size > 0) && !sm.get('ui.globalContainer')) { sm.set('ui.createRequested', true); }
         }
         _processAllElements(visited, scanShadow = true) {
             const { media, images, iframes } = this.findAllElements(document, 0, !scanShadow, visited);
             this._syncSet(media, 'media.activeMedia', this.attachMediaListeners.bind(this), this.detachMediaListeners.bind(this));
             this._syncSet(images, 'media.activeImages', this.attachImageListeners.bind(this), this.detachImageListeners.bind(this));
-             // Manual sync for iframes
+
              const activeSet = this.stateManager.get('media.activeIframes') || new Set();
              const nextActiveSet = new Set(iframes);
              let changed = false;
@@ -1344,7 +1340,7 @@
                 // [Optimized] Shadow scan only at document level
                 const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0;
                 if (!document.querySelector('video, iframe, img, source') && !hasShadow) return { media, images, iframes };
-                
+
                 const docVideos = document.getElementsByTagName('video'); for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images, iframes);
                 if (wantImages) {
                     const docImages = document.images; for (let i = 0; i < docImages.length; i++) {
@@ -1360,7 +1356,7 @@
             if (root === document) { const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0; if (!media.size && !images.size && !hasShadow) return { media, images, iframes }; }
             if (root.nodeType === 1) this._checkAndAdd(root, media, images, iframes);
             if (visited.has(root)) return { media, images, iframes }; visited.add(root);
-            
+
             // [Optimized] Only recurse into shadow roots if explicitly requested (usually on full scan from document)
             if (!skipShadowScan && root === document) {
                 (window._shadowDomList_ || []).forEach(shadowRoot => {
@@ -1375,10 +1371,10 @@
                             shadowRoot[VSC_SR_MO] = smo;
                         } catch (e) { }
                     }
-                    try { 
-                        const res = this.findAllElements(shadowRoot, depth + 1, true, visited); 
-                        res.media.forEach(m => media.add(m)); 
-                        res.images.forEach(i => images.add(i)); 
+                    try {
+                        const res = this.findAllElements(shadowRoot, depth + 1, true, visited);
+                        res.media.forEach(m => media.add(m));
+                        res.images.forEach(i => images.add(i));
                         res.iframes.forEach(f => iframes.add(f));
                     } catch (e) { }
                 });
@@ -1496,7 +1492,7 @@
             }, 100);
             document.addEventListener('vsc-smart-limit-update', this.throttledUpdate);
             if (this.stateManager.get('app.scriptActive')) { this.filterManager.init(); this.imageFilterManager.init(); this.applyAllVideoFilters(); this.applyAllImageFilters(); }
-            
+
             // [Fixed] 주기적 ShadowRoot 정리 (메모리 누수 방지)
             this._pruneTimer = setInterval(() => {
                 if (this.filterManager) this.filterManager.prune();
@@ -1508,15 +1504,15 @@
             class SvgFilterManager {
                 constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._lastValues = null; this._clarityTableCache = new Map(); }
                 isInitialized() { return this._isInitialized; } getSvgNode() { return this._svgNode; } getStyleNode() { return this._styleElement; }
-                init() { if (this._isInitialized) return; safeGuard(() => { 
-                    const { svgNode, styleElement } = this._createElements(); 
-                    this._svgNode = svgNode; this._styleElement = styleElement; 
+                init() { if (this._isInitialized) return; safeGuard(() => {
+                    const { svgNode, styleElement } = this._createElements();
+                    this._svgNode = svgNode; this._styleElement = styleElement;
                     // [Safety] Body check
                     const container = document.body || document.documentElement;
                     if (container) container.appendChild(svgNode);
-                    (document.head || document.documentElement).appendChild(styleElement); 
-                    this._activeFilterRoots.add(this._svgNode); 
-                    this._isInitialized = true; 
+                    (document.head || document.documentElement).appendChild(styleElement);
+                    this._activeFilterRoots.add(this._svgNode);
+                    this._isInitialized = true;
                 }, `${this.constructor.name}.init`); }
                 registerContext(svgElement) { this._activeFilterRoots.add(svgElement); }
                 // [Fixed] 죽은 ShadowRoot 정리 메소드
@@ -1656,7 +1652,7 @@
             const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
             const isVis = this.stateManager.get('media.visibilityMap').get(video); const isActive = scriptActive && isVis && shouldApply;
-            
+
             // [Enhanced] Iframe에 CSS filter 적용 (Cross-origin 제약 우회 시도)
             if (video.tagName === 'IFRAME') {
                 if (isActive) {
@@ -1701,7 +1697,7 @@
         constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; this.pressTimer = null; this._longPressTriggered = false; }
         init(stateManager) {
             super.init(stateManager);
-            
+
             // [Fixed] Top Window에서만 미디어 감지 시 UI 생성 요청 (Iframe은 미디어 감지 후 스스로 판단)
             // 아래 라인은 삭제됨: if (IS_TOP) this.stateManager.set('ui.createRequested', true);
 
@@ -2038,6 +2034,8 @@
         pluginManager.register(new CoreMediaPlugin());
         pluginManager.register(new SvgFilterPlugin());
         pluginManager.register(new PlaybackControlPlugin());
+        // [Fixed] Iframe 내 중복 UI 생성 방지
+        if (IS_TOP) pluginManager.register(new UIPlugin());
         pluginManager.initAll();
     }
 
