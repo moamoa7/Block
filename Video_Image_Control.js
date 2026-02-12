@@ -1,9 +1,17 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.18 TT-Safe)
+// @name        Video_Image_Control (v130.19 Safe-Mode)
 // @namespace   https://com/
-// @version     130.18
-// @description v130.18: Stability Patch + TrustedTypes Support for CSP Compatibility.
+// @version     130.19
+// @description v130.19: Cloudflare Turnstile/Recaptcha Compatibility Patch. (Safe Mode for Login/Captcha)
 // @match       *://*/*
+// @exclude     *://challenges.cloudflare.com/*
+// @exclude     *://*.cloudflare.com/*
+// @exclude     *://*.google.com/recaptcha/*
+// @exclude     *://*.hcaptcha.com/*
+// @exclude     *://*.arkoselabs.com/*
+// @exclude     *://accounts.google.com/*
+// @exclude     *://*.stripe.com/*
+// @exclude     *://*.paypal.com/*
 // @run-at      document-start
 // @grant       none
 // ==/UserScript==
@@ -11,6 +19,41 @@
 (function () {
     'use strict';
 
+    // =================================================================
+    // [Security Guard] 캡챠/로그인 위젯 보호를 위한 실행 제어
+    // =================================================================
+    const IS_TOP = window === window.top;
+    const LOC = location.href.toLowerCase();
+
+    // 1. Iframe 내부 실행 시, 보안 위젯(Captcha) 도메인이면 즉시 종료
+    if (!IS_TOP) {
+        if (LOC.includes('recaptcha') ||
+            LOC.includes('turnstile') ||
+            LOC.includes('hcaptcha') ||
+            LOC.includes('challenges') ||
+            LOC.includes('arkose') ||
+            LOC.includes('cdn-cgi')) {
+            return; // 스크립트 완전 종료
+        }
+    }
+
+    // 2. 민감한 페이지(로그인/결제/인증) 감지 -> Safe Mode 활성화
+    // 이 페이지들에서는 전역 프로토타입 변조(Object.defineProperty 등)를 수행하지 않음
+    const SENSITIVE_KEYWORDS = ['login', 'signin', 'auth', 'checkout', 'payment', 'bill', 'account', 'secure'];
+    const IS_SENSITIVE_CONTEXT = SENSITIVE_KEYWORDS.some(k => LOC.includes(k));
+
+    // 3. 캡챠 요소 존재 여부 확인 (DOM 로드 후 추가 체크용)
+    const hasCaptchaSignals = () => {
+        try {
+            if (document.querySelector('.cf-turnstile, iframe[src*="turnstile"], iframe[src*="recaptcha"], iframe[src*="hcaptcha"]')) return true;
+            if (window.turnstile || window.grecaptcha || window.hcaptcha) return true;
+        } catch(e) {}
+        return false;
+    };
+
+    // =================================================================
+    // [Initialization Check]
+    // =================================================================
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
 
@@ -41,21 +84,18 @@
 
     // --- Constants ---
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
-    
-    // [NEW] Trusted Types Policy Definition
-    // Nara Tools의 로직을 도입하여 CSP(보안 정책)가 엄격한 사이트에서도 HTML/CSS 주입 허용
+
+    // Trusted Types Policy (CSP Support)
     const ttPolicy = (window.trustedTypes && window.trustedTypes.createPolicy) ?
         window.trustedTypes.createPolicy('vsc-safe-policy-' + Math.random().toString(36).slice(2), { createHTML: s => s }) : { createHTML: s => s };
 
-    const VSC_HANDSHAKE_TOKEN = (window === window.top)
+    const VSC_HANDSHAKE_TOKEN = (IS_TOP)
         ? ((window.crypto && window.crypto.getRandomValues)
             ? Array.from(window.crypto.getRandomValues(new Uint32Array(4))).map(n => n.toString(16).padStart(8, '0')).join('')
             : Math.random().toString(36).slice(2))
         : null;
 
-    const IS_TOP = window === window.top;
     const SETTINGS_KEY = `vsc_settings_${location.hostname}`;
-
     const P = (signal) => ({ passive: true, signal });
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
@@ -79,14 +119,11 @@
     const IS_HIGH_END = DEVICE_RAM >= 8;
     const IS_LOW_END = DEVICE_RAM < 4;
 
-    const SHADOW_HOOK_SAFE_DENY = ['accounts.google.com', 'payments.google.com', 'stripe.com', 'paypal.com', 'apple.com'];
-    const IS_SHADOW_SAFE = !SHADOW_HOOK_SAFE_DENY.some(h => location.hostname === h || location.hostname.endsWith('.' + h));
-
     const CONFIG = {
         DEBUG: false,
         FLAGS: {
             HLS_BOOST: true,
-            SHADOW_HOOK: IS_SHADOW_SAFE,
+            SHADOW_HOOK: true, // 로직 내부에서 조건부 실행으로 변경됨
             LIVE_DELAY: true,
             GLOBAL_ATTR_OBS: true,
             FRAME_BRIDGE: true
@@ -149,8 +186,15 @@
     const hostMatches = (host, d) => host === d || host.endsWith('.' + d);
     const IS_LIVE_SITE = CONFIG.LIVE.SITES.some(d => hostMatches(location.hostname, d));
 
+    // =================================================================
+    // [Safe Hooking] 민감한 페이지에서는 위험한 후킹을 건너뜀
+    // =================================================================
+
     // --- Hack: Unlock Restricted Properties (Safer Scope) ---
     (function unlockRestrictedProperties() {
+        // [Safety Check]
+        if (IS_SENSITIVE_CONTEXT || hasCaptchaSignals()) return;
+
         const origDefineProperty = Object.defineProperty;
         const origDefineProperties = Object.defineProperties;
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
@@ -189,6 +233,7 @@
 
     // --- Hack: Play Hook ---
     (function hookPlayMethod() {
+        // Play hook is relatively safe, but wrap in try-catch just in case
         try {
             const origPlay = HTMLMediaElement.prototype.play;
             HTMLMediaElement.prototype.play = function (...args) {
@@ -202,6 +247,8 @@
 
     // --- Hack: Intercept Event Listeners ---
     (function interceptRateChange() {
+        if (IS_SENSITIVE_CONTEXT || hasCaptchaSignals()) return;
+
         const origAdd = HTMLMediaElement.prototype.addEventListener;
         const origRemove = HTMLMediaElement.prototype.removeEventListener;
         const listenerMap = new WeakMap();
@@ -438,6 +485,7 @@
     const VSC_ATTR_HOOKED = Symbol('vsc_attr_hooked');
 
     function hookProp(proto, prop, afterSet) {
+        if (IS_SENSITIVE_CONTEXT || hasCaptchaSignals()) return;
         try {
             const d = Object.getOwnPropertyDescriptor(proto, prop);
             if (!d || typeof d.set !== 'function') return;
@@ -465,6 +513,7 @@
     hookProp(HTMLSourceElement.prototype, 'srcset', function () { if (this.parentNode) scheduleScan(this.parentNode, true); });
 
     (function hookSetAttribute() {
+        if (IS_SENSITIVE_CONTEXT || hasCaptchaSignals()) return;
         if (Element.prototype.setAttribute[VSC_ATTR_HOOKED]) return;
         const origSetAttr = Element.prototype.setAttribute;
         const patchedSetAttr = function (name, value) {
@@ -494,11 +543,13 @@
     })();
 
     try {
-        const origLoad = HTMLMediaElement.prototype.load;
-        HTMLMediaElement.prototype.load = function (...args) {
-            try { scheduleScan(this, true); } catch { }
-            return origLoad.apply(this, args);
-        };
+        if (!IS_SENSITIVE_CONTEXT && !hasCaptchaSignals()) {
+            const origLoad = HTMLMediaElement.prototype.load;
+            HTMLMediaElement.prototype.load = function (...args) {
+                try { scheduleScan(this, true); } catch { }
+                return origLoad.apply(this, args);
+            };
+        }
     } catch { }
 
     // --- CSS Injection ---
@@ -596,7 +647,7 @@
     }
 
     // --- HLS Boost ---
-    if (CONFIG.FLAGS.HLS_BOOST) {
+    if (CONFIG.FLAGS.HLS_BOOST && !IS_SENSITIVE_CONTEXT) {
         (function patchHlsClass() {
             function isCtor(v) { return typeof v === 'function'; }
             function looksLikeHlsJs(H) { return !!(H && H.DefaultConfig && H.prototype && typeof H.prototype.loadSource === 'function'); }
@@ -627,25 +678,38 @@
     }
 
     // --- Shadow Hook (Aggressive + Force Open) ---
+    // [Modified] Added Safe-Guards for Turnstile/Captcha
     if (CONFIG.FLAGS.SHADOW_HOOK) {
         (function aggressiveShadowHook() {
+            if (IS_SENSITIVE_CONTEXT || hasCaptchaSignals()) return; // Skip if already detected
+
             if (window._hasAggressiveHook_) return;
             try {
                 window._shadowDomList_ = window._shadowDomList_ || [];
                 window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
                 Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true, configurable: true });
+
                 Element.prototype.attachShadow = function (init) {
+                    // [Patch] Turnstile/Security Check
+                    try {
+                        const cls = (this.className || '').toString().toLowerCase();
+                        const id = (this.id || '').toString().toLowerCase();
+                        if (cls.includes('turnstile') || id.includes('turnstile') || cls.includes('stripe') || id.includes('stripe') ||
+                            cls.includes('recaptcha') || id.includes('recaptcha') || cls.includes('g-recaptcha') ||
+                            cls.includes('cloudflare') || cls.includes('challenge') || cls.includes('hcaptcha') || cls.includes('arkose')) {
+                            // Do NOT modify mode for security elements
+                            return originalAttachShadow.call(this, init);
+                        }
+                    } catch (e) {}
+
                     if (init && init.mode === 'closed') {
                         init.mode = 'open';
                     }
                     const shadowRoot = originalAttachShadow.call(this, init);
                     try {
-                        const cls = (this.className || '').toString().toLowerCase();
                         const id = (this.id || '').toString().toLowerCase();
                         if (id === 'vsc-ui-host') return shadowRoot;
-                        if (cls.includes('turnstile') || id.includes('turnstile') || cls.includes('stripe') || id.includes('stripe') ||
-                            cls.includes('recaptcha') || id.includes('recaptcha') || cls.includes('g-recaptcha') ||
-                            cls.includes('cloudflare') || cls.includes('challenge') || cls.includes('hcaptcha') || cls.includes('arkose')) return shadowRoot;
+
                         if (!window._shadowDomSet_.has(shadowRoot)) {
                             window._shadowDomSet_.add(shadowRoot);
                             const list = window._shadowDomList_;
@@ -1121,7 +1185,7 @@
         }
         init(stateManager) {
             super.init(stateManager); _corePluginRef = this; VideoAnalyzer.init(stateManager);
-            
+
             this._backoffInterval = setInterval(() => {
                 if (this._mutationCounter > 60) {
                     if (!this._isBackoffMode) { this._isBackoffMode = true; log("Backoff Mode ON"); }
@@ -1154,7 +1218,7 @@
                         if (now - last > 120) { this._lastImmediateScan.set(t, now); scheduleScan(t, true); }
                     }
                 }, CP(this._ac.signal)));
-                
+
                 on(document, 'vsc-media-played', (e) => {
                     if (e.detail && e.detail.target) {
                         this.stateManager.set('media.lastInteractedVideo', { el: e.detail.target, ts: Date.now() });
@@ -1786,7 +1850,7 @@
                         const childToken = (window.crypto && window.crypto.getRandomValues)
                             ? Array.from(window.crypto.getRandomValues(new Uint32Array(4))).map(n => n.toString(16).padStart(8, '0')).join('')
                             : Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-                        
+
                         this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0, token: childToken, origin: e.origin });
                         const snapshot = {
                             playback: { targetRate: this.stateManager.get('playback.targetRate') },
@@ -1851,7 +1915,7 @@
             });
             this.stateManager.filterManagers.video = this.filterManager; this.stateManager.filterManagers.image = this.imageFilterManager;
             this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
-            
+
             this.subscribe('videoFilter.autoExposure', (on, old) => {
                 if (on && !old) {
                     this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 };
@@ -1874,7 +1938,7 @@
             });
             this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this));
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates()); this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates()); this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
-            
+
             this.throttledUpdate = throttle((e) => {
                 const { autoParams } = e.detail; const vf = this.stateManager.get('videoFilter'); const needAutoApply = vf.autoExposure || (vf.clarity > 0);
                 const isChanged = Math.abs(this.lastAutoParams.gamma - autoParams.gamma) > 0.002 || Math.abs(this.lastAutoParams.bright - autoParams.bright) > 0.1 || Math.abs((this.lastAutoParams.clarityComp || 0) - (autoParams.clarityComp || 0)) > 0.1 || Math.abs((this.lastAutoParams.shadowsAdj || 0) - (autoParams.shadowsAdj || 0)) > 0.1 || Math.abs((this.lastAutoParams.highlightsAdj || 0) - (autoParams.highlightsAdj || 0)) > 0.1;
@@ -1898,8 +1962,7 @@
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
                     const style = document.createElement('style');
                     style.id = styleId;
-                    
-                    // [Applied TT] Using createHTML for innerHTML assignment on style
+
                     const cssContent = `
                         .${className} { filter: url(#${combinedFilterId}) !important; transform: translateZ(0); }
                         .${className}.no-grain { filter: url(#${combinedFilterNoGrainId}) !important; }
@@ -2470,8 +2533,7 @@
             this.stateManager.set('ui.hostElement', this.hostElement);
             this.shadowRoot = this.hostElement.attachShadow({ mode: 'open' });
             this.stateManager.set('ui.shadowRoot', this.shadowRoot);
-            const styleEl = document.createElement('style'); 
-            // [Applied TT] Use TrustedHTML wrapper for styles
+            const styleEl = document.createElement('style');
             styleEl.innerHTML = ttPolicy.createHTML(this.getStyles());
             this.shadowRoot.appendChild(styleEl);
             this.renderAllControls();
@@ -2537,7 +2599,7 @@
             const gridTable = document.createElement('div'); gridTable.className = 'vsc-align-grid';
 
             const PRESET_CONFIG = [
-                { type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 5, l2: 5 }, { txt: 'M', key: 'sharpM', l1: 10, l2: 10 }, { txt: 'L', key: 'sharpL', l1: 15, l2: 15 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] },
+                { type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 8, l2: 3 }, { txt: 'M', key: 'sharpM', l1: 15, l2: 6 }, { txt: 'L', key: 'sharpL', l1: 25, l2: 10 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] },
                 { type: 'ev', label: '노출', items: [-15, -10, -5, 5, 10, 15].map(v => ({ txt: (v > 0 ? '+' : '') + v, val: v })) }
             ];
 
