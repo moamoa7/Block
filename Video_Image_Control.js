@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.38 Final_Stable)
+// @name        Video_Image_Control (Lite v130.39 Final_Stable)
 // @namespace   https://com/
-// @version     130.38
-// @description v130.38: Enhanced lazy-load detection. Auto-recover hooks on context change. Optimized DOM queries.
+// @version     130.39
+// @description v130.39: Fixed Shadow-DOM compat. UI state sync fix. Optimized Analyzer GC. Enhanced iframe detection.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -26,6 +26,7 @@
         if (now - _sensCache.t < 300) return _sensCache.v;
         let result = false;
         const url = location.href.toLowerCase();
+        // URL 키워드 + 실제 입력 폼 존재 여부 확인 (오탐 방지)
         if (/(login|signin|auth|account|member|session|checkout|payment|bank|verify)/i.test(url)) {
             try {
                 if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"], input[name*="card"], input[autocomplete*="cc-"]')) {
@@ -41,7 +42,6 @@
         return result;
     };
 
-    // [Optimized] DOM 쿼리 최소화 및 소스 체크 강화
     const hasRealVideo = () => {
         const vids = document.getElementsByTagName('video');
         for (const v of vids) {
@@ -52,18 +52,21 @@
                                  v.getAttribute('data-src') || v.getAttribute('data-video-src') || v.getAttribute('data-url'));
             if (hasSource || (w >= 80 && h >= 60)) return true;
         }
+        // Shadow DOM 내부 체크 (최대 50개 샘플링)
         const list = window._shadowDomList_;
         if (list && list.length > 0) {
             const cap = Math.min(list.length, 50);
             for (let i = 0; i < cap; i++) {
                 const sr = list[i];
                 if (!sr) continue;
-                const v = sr.querySelector ? sr.querySelector('video') : null;
-                if (v) {
-                    const w = v.videoWidth || v.clientWidth || 0;
-                    const h = v.videoHeight || v.clientHeight || 0;
-                    if ((w >= 80 && h >= 60) || v.src || v.currentSrc) return true;
-                }
+                try {
+                    const v = sr.querySelector ? sr.querySelector('video') : null;
+                    if (v) {
+                        const w = v.videoWidth || v.clientWidth || 0;
+                        const h = v.videoHeight || v.clientHeight || 0;
+                        if ((w >= 80 && h >= 60) || v.src || v.currentSrc) return true;
+                    }
+                } catch(e) {}
             }
         }
         return false;
@@ -97,16 +100,13 @@
                  Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true, configurable: true });
             }
             Element.prototype.attachShadow = function (init) {
-                let newInit = init;
-                if (init && init.mode === 'closed') {
-                    if (looksLikePlayerHost(this)) {
-                        try { newInit = Object.assign({}, init, { mode: 'open' }); } catch (e) { newInit = init; }
-                    }
-                }
-                const shadowRoot = ORIGINALS.attachShadow.call(this, newInit);
+                // [Fixed] closed -> open 강제 변환 제거 (사이트 호환성 보장)
+                // 대신 생성된 shadowRoot를 캡처하여 내부 로직에서 접근 가능하게 함
+                const shadowRoot = ORIGINALS.attachShadow.call(this, init);
                 try {
                     if (this.id === 'vsc-ui-host') return shadowRoot;
-                    if (!window._shadowDomSet_.has(shadowRoot)) {
+                    // ShadowRoot가 null이 아닌 경우에만 추적 (closed 모드는 브라우저가 null 리턴 가능)
+                    if (shadowRoot && !window._shadowDomSet_.has(shadowRoot)) {
                         window._shadowDomSet_.add(shadowRoot);
                         window._shadowDomList_.push(shadowRoot);
                     }
@@ -303,7 +303,6 @@
                 if (isSensitiveContext()) disableAllHooks();
                 if (dirtyRoots.size > 0) {
                     const now = Date.now();
-                    // [Optimized] Full scan cooldown
                     if (dirtyRoots.size > 40 && (now - _lastFullScanTime > 1500)) {
                         dirtyRoots.clear(); _lastFullScanTime = now;
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
@@ -424,6 +423,7 @@
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0,
         hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null,
         _hist: null, _evAggressiveUntil: 0, _lbConf: 0, _aeBlockedUntil: 0, _roiP50History: [],
+        _rois: [], // [Optimized] Reusable ROI array
 
         init(stateManager) {
             this.stateManager = stateManager;
@@ -585,20 +585,21 @@
                 const baseH = isLetterbox ? Math.floor(H * 0.6) : Math.floor(H * 0.7);
                 const baseY = isLetterbox ? Math.floor(H * 0.2) : Math.floor(H * 0.15);
 
-                const rois = [
-                    { id: 0, y: baseY, h: baseH }, // Center
-                    { id: 1, y: Math.max(0, baseY - Math.floor(H * 0.08)), h: baseH }, // Higher
-                    { id: 2, y: Math.min(H - baseH, baseY + Math.floor(H * 0.08)), h: baseH } // Lower
-                ];
+                // [Optimized] GC reduction via array reuse
+                if (this._rois.length !== 3) {
+                    this._rois = [{ id: 0 }, { id: 1 }, { id: 2 }];
+                }
+                this._rois[0].y = baseY; this._rois[0].h = baseH;
+                this._rois[1].y = Math.max(0, baseY - Math.floor(H * 0.08)); this._rois[1].h = baseH;
+                this._rois[2].y = Math.min(H - baseH, baseY + Math.floor(H * 0.08)); this._rois[2].h = baseH;
 
-                let bestRoi = rois[0];
+                let bestRoi = this._rois[0];
                 let minDelta = 999;
 
-                // [Enhanced AE] High-motion Guard
                 if (this._highMotion) {
-                     bestRoi = rois[0];
+                     bestRoi = this._rois[0];
                 } else {
-                    rois.forEach((r, idx) => {
+                    this._rois.forEach((r, idx) => {
                         let sum = 0, count = 0;
                         const startY = r.y, endY = r.y + r.h;
                         for(let y=startY; y<endY; y+=2) {
@@ -759,7 +760,7 @@
                 media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
-                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false },
+                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false, hideUntilReload: false },
                 playback: { currentRate: 1.0, targetRate: 1.0 }
             };
         }
@@ -849,12 +850,16 @@
                 this._mutationCounter = 0;
             }, 1000);
 
+            // [Fixed] Hooks activation logic: Check activeMedia size OR hasRealVideo to catch iframes
             const updateHooksState = () => {
-                if (this.stateManager.get('app.scriptActive') && hasRealVideo() && !isSensitiveContext()) {
+                const active = this.stateManager.get('app.scriptActive');
+                const hasActiveVideo = (this.stateManager.get('media.activeMedia')?.size || 0) > 0;
+                const hasVideo = hasActiveVideo || hasRealVideo();
+                if (active && hasVideo && !isSensitiveContext()) {
                     enableShadowHook();
                     enablePropertyHooks();
                 } else {
-                    if (!this.stateManager.get('app.scriptActive')) disableAllHooks();
+                    if (!active) disableAllHooks();
                 }
             };
             this._updateHooksState = updateHooksState;
@@ -954,7 +959,7 @@
         }
         updateGlobalAttrObs(active) {
             if (!CONFIG.FLAGS.GLOBAL_ATTR_OBS) return;
-            // [Enhanced] 활성 조건 완화 (탐지 실패 방지)
+            // [Enhanced] Activate if any media candidate exists (even if not verified video)
             const hasCandidates = !!document.querySelector('video, iframe, source') || (Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0);
 
             if (active && !this._globalAttrObs && hasCandidates) {
@@ -1017,6 +1022,7 @@
         }
         tick() {
             if (this._domDirty) { this._domDirty = false; scheduleScan(null); }
+            // [Fixed] Sensitive context check on tick (Recover hooks if context changes)
             const nowSens = isSensitiveContext();
             if (this._lastSensitive !== nowSens) {
                 this._lastSensitive = nowSens;
@@ -1034,7 +1040,6 @@
             }
             const sm = this.stateManager;
             const activeMedia = sm.get('media.activeMedia'); const activeImages = sm.get('media.activeImages');
-            // [Optimized] 비용 절감
             const hasPotential = document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0 || (sm.get('ui.areControlsVisible') && document.images.length > 0);
 
             if ((activeMedia && activeMedia.size > 0) || (activeImages && activeImages.size > 0) || hasPotential) {
@@ -1728,6 +1733,12 @@
             this.updateUIVisibility();
         }
         updateUIVisibility() {
+            // [Fixed] 롱프레스 시 hideUntilReload가 true면 강제로 숨김 처리
+            if (this.stateManager.get('ui.hideUntilReload')) {
+                if (this.globalContainer) this.globalContainer.style.display = 'none';
+                return;
+            }
+
             const controlsVisible = this.stateManager.get('ui.areControlsVisible');
             const activeMedia = this.stateManager.get('media.activeMedia') || new Set(); const activeImages = this.stateManager.get('media.activeImages') || new Set();
             const hasLocalVideo = [...activeMedia].some(m => m && m.tagName === 'VIDEO'); const hasLocalImage = activeImages.size > 0;
@@ -1870,8 +1881,11 @@
                 this.pressTimer = setTimeout(() => {
                     if (!this.wasDragged) {
                         this._longPressTriggered = true;
-                        this.globalContainer.style.display = 'none';
+                        // [Fixed] 롱프레스 시 hideUntilReload 상태 활성화하여 updateUIVisibility 차단
+                        this.stateManager.set('ui.areControlsVisible', false);
                         this.stateManager.set('app.scriptActive', false);
+                        this.stateManager.set('ui.hideUntilReload', true);
+                        this.globalContainer.style.display = 'none';
                     }
                 }, 1000);
             };
