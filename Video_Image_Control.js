@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.37 Final_Optimized)
+// @name        Video_Image_Control (Lite v130.38 Final_Stable)
 // @namespace   https://com/
-// @version     130.37
-// @description v130.37: Fixed UI glitch. Enhanced detection (src check). Safe Shadow-prune. Optimized loops.
+// @version     130.38
+// @description v130.38: Enhanced lazy-load detection. Auto-recover hooks on context change. Optimized DOM queries.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -26,7 +26,6 @@
         if (now - _sensCache.t < 300) return _sensCache.v;
         let result = false;
         const url = location.href.toLowerCase();
-        // [Fixed] URL 키워드 매칭 시, 실제 민감 입력 폼이 있는지 한 번 더 확인 (오탐 방지)
         if (/(login|signin|auth|account|member|session|checkout|payment|bank|verify)/i.test(url)) {
             try {
                 if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"], input[name*="card"], input[autocomplete*="cc-"]')) {
@@ -42,10 +41,10 @@
         return result;
     };
 
-    // [Enhanced] 크기뿐만 아니라 소스 존재 여부도 확인 (초기 로딩/Lazy Load 대응)
+    // [Optimized] DOM 쿼리 최소화 및 소스 체크 강화
     const hasRealVideo = () => {
-        const videos = document.getElementsByTagName('video');
-        for (const v of videos) {
+        const vids = document.getElementsByTagName('video');
+        for (const v of vids) {
             if (!v.isConnected) continue;
             const w = v.videoWidth || v.clientWidth || v.offsetWidth || 0;
             const h = v.videoHeight || v.clientHeight || v.offsetHeight || 0;
@@ -53,7 +52,6 @@
                                  v.getAttribute('data-src') || v.getAttribute('data-video-src') || v.getAttribute('data-url'));
             if (hasSource || (w >= 80 && h >= 60)) return true;
         }
-        // Shadow DOM 일부 체크
         const list = window._shadowDomList_;
         if (list && list.length > 0) {
             const cap = Math.min(list.length, 50);
@@ -181,7 +179,6 @@
         isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host
     };
 
-    // [Fixed] Helper for safe IdleCallback
     const callIdle = (cb) => {
         if (window.requestIdleCallback) return window.requestIdleCallback(cb, { timeout: 1000 });
         return setTimeout(() => cb({ timeRemaining: () => 0, didTimeout: true }), 1);
@@ -306,7 +303,7 @@
                 if (isSensitiveContext()) disableAllHooks();
                 if (dirtyRoots.size > 0) {
                     const now = Date.now();
-                    // [Optimized] Full scan cooldown 800ms -> 1500ms
+                    // [Optimized] Full scan cooldown
                     if (dirtyRoots.size > 40 && (now - _lastFullScanTime > 1500)) {
                         dirtyRoots.clear(); _lastFullScanTime = now;
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
@@ -759,7 +756,6 @@
 
             this.state = {
                 app: { isInitialized: false, isMobile, scriptActive: false },
-                // [Cleaned] Unused site state removed
                 media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
@@ -824,6 +820,8 @@
             this._backoffInterval = null;
             this._historyOrig = null;
             this._lastShadowPrune = 0;
+            this._lastSensitive = null;
+            this._updateHooksState = null;
         }
         init(stateManager) {
             super.init(stateManager); _corePluginRef = this; VideoAnalyzer.init(stateManager);
@@ -859,6 +857,7 @@
                     if (!this.stateManager.get('app.scriptActive')) disableAllHooks();
                 }
             };
+            this._updateHooksState = updateHooksState;
 
             this.subscribe('app.pluginsInitialized', () => safeGuard(() => {
                 this.ensureObservers(); this.scanAndApply(); this.runStartupBoost();
@@ -877,9 +876,13 @@
                     }
                 }, P(this._ac.signal));
                 on(document, 'load', (e) => {
-                    if (e.target && e.target.tagName === 'IMG') {
-                        if (e.target.decode) e.target.decode().then(() => scheduleScan(e.target, true)).catch(() => scheduleScan(e.target, true));
-                        else scheduleScan(e.target, true);
+                    const t = e.target;
+                    if (t && t.tagName === 'IMG') {
+                        const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
+                        if (wantImages) {
+                            if (t.decode) t.decode().then(() => scheduleScan(t, true)).catch(() => scheduleScan(t, true));
+                            else scheduleScan(t, true);
+                        }
                     }
                 }, CP(this._ac.signal));
                 MEDIA_EVENTS.forEach(evt => on(document, evt, (e) => {
@@ -951,7 +954,10 @@
         }
         updateGlobalAttrObs(active) {
             if (!CONFIG.FLAGS.GLOBAL_ATTR_OBS) return;
-            if (active && !this._globalAttrObs && (hasRealVideo() || this.stateManager.get('media.activeMedia').size > 0)) {
+            // [Enhanced] 활성 조건 완화 (탐지 실패 방지)
+            const hasCandidates = !!document.querySelector('video, iframe, source') || (Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0);
+
+            if (active && !this._globalAttrObs && hasCandidates) {
                 this._globalAttrObs = new MutationObserver(throttle((ms) => {
                     let dirty = false;
                     for (const m of ms) {
@@ -1010,11 +1016,14 @@
             }
         }
         tick() {
-            // [Optimized] _domDirty fallback
             if (this._domDirty) { this._domDirty = false; scheduleScan(null); }
+            const nowSens = isSensitiveContext();
+            if (this._lastSensitive !== nowSens) {
+                this._lastSensitive = nowSens;
+                try { this._updateHooksState?.(); } catch {}
+            }
             this._cleanupDeadIframes();
             this._pruneDisconnected();
-            // [Optimized] Shadow list prune every 5s
             if (window._shadowDomList_ && Date.now() - this._lastShadowPrune > 5000) {
                 this._lastShadowPrune = Date.now();
                 window._shadowDomList_ = window._shadowDomList_.filter(r => {
@@ -1025,7 +1034,9 @@
             }
             const sm = this.stateManager;
             const activeMedia = sm.get('media.activeMedia'); const activeImages = sm.get('media.activeImages');
-            const hasPotential = document.querySelector(SEL.FILTER_TARGET);
+            // [Optimized] 비용 절감
+            const hasPotential = document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0 || (sm.get('ui.areControlsVisible') && document.images.length > 0);
+
             if ((activeMedia && activeMedia.size > 0) || (activeImages && activeImages.size > 0) || hasPotential) {
                 this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval;
             } else {
@@ -1048,7 +1059,6 @@
                 const flushDirty = debounce(() => {
                     if (dirtySet.size > 0) {
                         this._domDirty = true;
-                        // [Optimized] Directly pass dirty nodes
                         for (const n of dirtySet) scheduleScan(n);
                         if (dirtySet.size > 50) scheduleScan(null);
                         dirtySet.clear();
@@ -1100,7 +1110,6 @@
                     const visMap = sm.get('media.visibilityMap'); let needsUpdate = false;
                     entries.forEach(e => {
                         const pipEl = document.pictureInPictureElement;
-                        // [Optimized] Safari compat
                         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                         const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && (fsEl === e.target || fsEl.contains(e.target)));
                         if (visMap) visMap.set(e.target, isVisible);
@@ -1124,7 +1133,6 @@
                             const cx = window.innerWidth / 2; const cy = window.innerHeight / 2;
                             let centerEl = null;
 
-                            // [Optimized] Skip expensive elementFromPoint if few videos
                             if (this._visibleVideos.size > 1) {
                                 try { const stack = document.elementsFromPoint(cx, cy); for (const el of stack) { if (el && !el.closest('[data-vsc-internal]')) { centerEl = el; break; } } } catch {}
                             }
@@ -1277,7 +1285,6 @@
             if (!root) return { media, images }; if (depth > CONFIG.SCAN.MAX_DEPTH) return { media, images };
             const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
             if (root === document) {
-                // [Optimized] Don't return early if shadow roots exist
                 const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0;
                 if (!document.querySelector('video, iframe, img, source') && !hasShadow) return { media, images };
                 const docVideos = document.getElementsByTagName('video'); for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images);
@@ -1727,7 +1734,6 @@
             const hasAnyVideo = hasLocalVideo; const hasAnyImage = hasLocalImage;
             const hasAny = hasAnyVideo || hasAnyImage;
 
-            // [Fixed] 미디어가 없는데도 UI가 보이는 버그 수정
             if (this.globalContainer) {
                 this.globalContainer.style.display = (controlsVisible || hasAny) ? 'flex' : 'none';
             }
