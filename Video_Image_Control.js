@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v130.26 Complete)
+// @name        Video_Image_Control (Lite v130.26)
 // @namespace   https://com/
 // @version     130.26
-// @description v130.26: Fixed Missing UI. Safety-First Logic (Hooks OFF by default).
+// @description v130.26 Lite: Fixed Missing UI. Safety-First Logic. Removed complex modules.
 // @match       *://*/*
 // @exclude     *://challenges.cloudflare.com/*
 // @exclude     *://*.cloudflare.com/*
@@ -23,8 +23,6 @@
     'use strict';
 
     const IS_TOP = window === window.top;
-
-    if (location.pathname.startsWith('/cdn-cgi/') || location.pathname.includes('/challenge-platform/')) return;
 
     // --- Safety Helpers ---
     const hasRealVideo = () => {
@@ -77,8 +75,8 @@
                 try {
                     const cls = (this.className || '').toString().toLowerCase();
                     const id = (this.id || '').toString().toLowerCase();
-                    if (cls.includes('turnstile') || id.includes('turnstile') || cls.includes('stripe') ||
-                        cls.includes('recaptcha') || cls.includes('cloudflare') || cls.includes('challenge')) {
+                    // Removed Cloudflare specific checks, relying on generic safety
+                    if (cls.includes('turnstile') || id.includes('turnstile') || cls.includes('stripe') || cls.includes('recaptcha')) {
                         return ORIGINALS.attachShadow.call(this, init);
                     }
                 } catch (e) {}
@@ -164,13 +162,7 @@
             const s = String(val);
             if (el.getAttribute(name) !== s) el.setAttribute(name, s);
         },
-        isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host,
-        isLiveStream: (video) => {
-            if (!video) return false;
-            if (video.duration === Infinity) return true;
-            if (typeof video.liveLatency === 'number' && video.liveLatency > 0) return true;
-            return false;
-        }
+        isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host
     };
 
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
@@ -194,8 +186,7 @@
 
     const CONFIG = {
         DEBUG: false,
-        FLAGS: { HLS_BOOST: true, LIVE_DELAY: true, GLOBAL_ATTR_OBS: true, FRAME_BRIDGE: true },
-        HLS: { MAX_BUFFER: IS_HIGH_END ? 240 : (IS_LOW_END ? 30 : 120), BACK_BUFFER: IS_HIGH_END ? 120 : (IS_LOW_END ? 15 : 60) },
+        FLAGS: { GLOBAL_ATTR_OBS: true },
         FILTER: {
             VIDEO_DEFAULT_LEVEL: 15, VIDEO_DEFAULT_LEVEL2: 15, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
@@ -203,14 +194,6 @@
             MOBILE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
             DESKTOP_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
-        },
-        LIVE: {
-            DELAY_INTERVAL_NORMAL: 1000, DELAY_INTERVAL_STABLE: 3000, STABLE_THRESHOLD: 100, STABLE_COUNT: 5,
-            PID: { KP: 0.0002, KI: 0.00001, KD: 0.0001 }, MIN_RATE: 1.0, MAX_RATE: 1.025, EMA_ALPHA: 0.2, MIN_BUFFER_HEALTH: 1.0,
-            JUMP_INTERVAL: 6000, JUMP_THRESHOLD: 1.0,
-            SITES: ['tv.naver.com', 'play.sooplive.co.kr', 'chzzk.naver.com', 'twitch.tv', 'kick.com', 'ok.ru', 'bigo.tv', 'pandalive.co.kr', 'chaturbate.com', 'stripchat.com', 'xhamsterlive.com', 'myavlive.com'],
-            TARGET_DELAYS: { "play.sooplive.co.kr": 2500, "chzzk.naver.com": 2500, "ok.ru": 2500 },
-            DEFAULT_TARGET_DELAY: 3000,
         },
         SCAN: {
             INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000, MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
@@ -220,8 +203,6 @@
     };
 
     const log = (...args) => { if (CONFIG.DEBUG) console.log('[VSC]', ...args); };
-    const hostMatches = (host, d) => host === d || host.endsWith('.' + d);
-    const IS_LIVE_SITE = CONFIG.LIVE.SITES.some(d => hostMatches(location.hostname, d));
 
     const safeGuard = (fn, label = '') => {
         try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); }
@@ -243,33 +224,7 @@
         return setTimeout(wrapped, 1);
     };
 
-    class GestureManager {
-        constructor(element, handlers) {
-            this.el = element; this.handlers = handlers; this.lastTap = { time: 0, x: 0, y: 0 }; this.tapTimeout = null; this.startPointer = null; this.activePointerId = null; this.ac = new AbortController();
-            const opts = { signal: this.ac.signal, passive: false };
-            try {
-                this.el.addEventListener('pointerdown', this.onDown.bind(this), opts);
-                this.el.addEventListener('pointerup', this.onUp.bind(this), opts);
-                this.el.addEventListener('pointermove', this.onMove.bind(this), opts);
-                this.el.addEventListener('pointercancel', this.onCancel.bind(this), opts);
-            } catch(e) {}
-        }
-        onDown(e) { if (e.pointerType === 'mouse' && e.button !== 0) return; this.startPointer = { x: e.clientX, y: e.clientY, time: Date.now() }; this.activePointerId = e.pointerId; try { this.el.setPointerCapture(e.pointerId); } catch (err) { } }
-        onMove(e) { if (!this.startPointer) return; const dy = e.clientY - this.startPointer.y; const dx = Math.abs(e.clientX - this.startPointer.x); if (dy > 60 && dx < 40 && this.handlers.onSwipeDown) { this.handlers.onSwipeDown(); this.reset(e); } }
-        onUp(e) {
-            if (!this.startPointer) return; const dt = Date.now() - this.startPointer.time; const dist = Math.hypot(e.clientX - this.startPointer.x, e.clientY - this.startPointer.y); try { this.el.releasePointerCapture(e.pointerId); } catch (err) { }
-            if (dist > 20 || dt > 300) { this.reset(e); return; }
-            const now = Date.now(); const timeSinceLast = now - this.lastTap.time; const distFromLast = Math.hypot(e.clientX - this.lastTap.x, e.clientY - this.lastTap.y);
-            this.startPointer = null; this.activePointerId = null;
-            if (timeSinceLast < 300 && distFromLast < 50) { clearTimeout(this.tapTimeout); this.lastTap = { time: 0, x: 0, y: 0 }; if (e.cancelable) e.preventDefault(); e.stopPropagation(); const rect = this.el.getBoundingClientRect(); const xRatio = (e.clientX - rect.left) / rect.width; this.handlers.onDoubleTap?.(xRatio, e); } else { this.lastTap = { time: now, x: e.clientX, y: e.clientY }; this.tapTimeout = setTimeout(() => { this.handlers.onSingleTap?.(e); }, 300); }
-        }
-        onCancel(e) { this.reset(e); }
-        reset(e) { this.startPointer = null; if (e && this.activePointerId != null) { try { this.el.releasePointerCapture(this.activePointerId); } catch (err) { } } this.activePointerId = null; }
-        destroy() { this.ac.abort(); clearTimeout(this.tapTimeout); }
-    }
-
     const dirtyRoots = new Set();
-    const _immCooldown = new WeakMap();
     let pendingScan = false;
     let _corePluginRef = null;
     let _scanRaf = null;
@@ -404,36 +359,6 @@
                 } catch (e) { }
             }
         }
-    }
-
-    if (CONFIG.FLAGS.HLS_BOOST && IS_LIVE_SITE && !isSensitiveContext()) {
-        (function patchHlsClass() {
-            function isCtor(v) { return typeof v === 'function'; }
-            function looksLikeHlsJs(H) { return !!(H && H.DefaultConfig && H.prototype && typeof H.prototype.loadSource === 'function'); }
-            function protectGlobal(name, value) { try { const d = Object.getOwnPropertyDescriptor(window, name); if (d && !d.configurable) return; Object.defineProperty(window, name, { value, writable: true, configurable: true, enumerable: false }); } catch (e) { } }
-            function makePatchedHls(OriginalHls) {
-                if (!OriginalHls || OriginalHls.__VSC_PATCHED__ || !isCtor(OriginalHls)) return OriginalHls;
-                if (!looksLikeHlsJs(OriginalHls)) return OriginalHls;
-                const overrides = { maxBufferLength: CONFIG.HLS.MAX_BUFFER, backBufferLength: CONFIG.HLS.BACK_BUFFER, maxMaxBufferLength: CONFIG.HLS.MAX_BUFFER * 2, startFragPrefetch: true };
-                try { if (OriginalHls.DefaultConfig) Object.assign(OriginalHls.DefaultConfig, overrides); } catch { }
-                class PatchedHls extends OriginalHls {
-                    constructor(userConfig = {}) {
-                        try {
-                            const enforced = Object.assign({}, overrides, userConfig);
-                            enforced.maxBufferLength = Math.max(enforced.maxBufferLength || 0, CONFIG.HLS.MAX_BUFFER);
-                            enforced.backBufferLength = Math.max(enforced.backBufferLength || 0, CONFIG.HLS.BACK_BUFFER);
-                            super(enforced);
-                        } catch (e) { super(userConfig); }
-                    }
-                }
-                Object.getOwnPropertyNames(OriginalHls).forEach((name) => { if (['length', 'prototype', 'name', 'DefaultConfig'].includes(name)) return; try { Object.defineProperty(PatchedHls, name, Object.getOwnPropertyDescriptor(OriginalHls, name)); } catch { } });
-                Object.defineProperty(PatchedHls, 'DefaultConfig', { get() { return OriginalHls.DefaultConfig; }, set(v) { OriginalHls.DefaultConfig = v; } });
-                Object.defineProperty(PatchedHls, '__VSC_PATCHED__', { value: true });
-                return PatchedHls;
-            }
-            if ('Hls' in window && isCtor(window.Hls)) { protectGlobal('Hls', makePatchedHls(window.Hls)); }
-            else { let _hlsStorage = undefined; Object.defineProperty(window, 'Hls', { configurable: true, enumerable: false, get() { return _hlsStorage; }, set(v) { if (!isCtor(v)) { _hlsStorage = v; return; } _hlsStorage = makePatchedHls(v); } }); }
-        })();
     }
 
     const VideoAnalyzer = {
@@ -707,13 +632,12 @@
 
             this.state = {
                 app: { isInitialized: false, isMobile, scriptActive: false },
-                site: { isLiveSite: IS_LIVE_SITE },
-                media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null, remoteVideoCount: 0, remoteImageCount: 0 },
+                site: { isLiveSite: false },
+                media: { activeMedia: new Set(), activeImages: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
-                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null, createRequested: false, gestureMode: false },
-                playback: { currentRate: 1.0, targetRate: 1.0, isLive: false, jumpToLiveRequested: 0 },
-                liveStream: { delayInfo: null, isRunning: false, resetRequested: null, isPinned: false }
+                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, lastUrl: location.href, warningMessage: null, createRequested: false },
+                playback: { currentRate: 1.0, targetRate: 1.0 }
             };
 
             if (this._canPersist) {
@@ -741,7 +665,6 @@
                         }
                         if (parsed.playback) this.state.playback.targetRate = parsed.playback.targetRate || 1.0;
                         if (parsed.app) { if (parsed.app.scriptActive) this.state.app.scriptActive = true; }
-                        if (parsed.ui) { if (parsed.ui.gestureMode) this.state.ui.gestureMode = true; }
                     }
                 } catch (e) { }
             }
@@ -758,7 +681,7 @@
             if (!Object.is(oldValue, value)) {
                 obj[finalKey] = value;
                 this.notify(key, value, oldValue);
-                const isSaveTarget = ['videoFilter', 'playback.targetRate', 'app.scriptActive', 'ui.areControlsVisible', 'ui.gestureMode'].some(k => key.startsWith(k));
+                const isSaveTarget = ['videoFilter', 'playback.targetRate', 'app.scriptActive', 'ui.areControlsVisible'].some(k => key.startsWith(k));
                 if (isSaveTarget) this._scheduleSave();
             }
         }
@@ -786,7 +709,7 @@
                         },
                         playback: { targetRate: this.state.playback.targetRate },
                         app: { scriptActive: this.state.app.scriptActive },
-                        ui: { areControlsVisible: this.state.ui.areControlsVisible, gestureMode: this.state.ui.gestureMode }
+                        ui: { areControlsVisible: this.state.ui.areControlsVisible }
                     };
                     localStorage.setItem(SETTINGS_KEY, JSON.stringify(toSave));
                 } catch (e) { }
@@ -1255,7 +1178,6 @@
             on(media, 'play', updateRate, P(signal)); on(media, 'ratechange', updateRate, P(signal));
             const enforceRate = throttle(() => {
                 if (!this.stateManager.get('app.scriptActive')) return;
-                if (this.stateManager.get('liveStream.isRunning')) return;
                 const target = this.stateManager.get('playback.targetRate');
                 if (Math.abs((media.playbackRate || 1) - target) > 0.01) { try { media.playbackRate = target; } catch { } }
             }, 250);
@@ -1309,54 +1231,6 @@
             return true;
         }
         detachImageListeners(image) { try { this.intersectionObserver.unobserve(image); } catch (e) { } this._observedImages.delete(image); if (this._resizeObs) this._resizeObs.unobserve(image); }
-    }
-
-    class FrameBridgePlugin extends Plugin {
-        constructor() { super('FrameBridge'); this._children = new Map(); this._pruneTimer = null; this._heartbeatTimer = null; }
-        init(stateManager) {
-            super.init(stateManager); if (!CONFIG.FLAGS.FRAME_BRIDGE) return;
-            window.addEventListener('message', (e) => this.onMessage(e), { signal: this._ac.signal });
-            if (!IS_TOP) { window.addEventListener('pagehide', () => { try { window.top.postMessage({ type: 'VSC_BYE', id: VSC_INSTANCE_ID }, '*'); } catch { } }, { signal: this._ac.signal }); }
-            if (IS_TOP) { this._pruneTimer = setInterval(() => this.pruneRemote(), 10000); } else {
-                try { window.top.postMessage({ type: 'VSC_HELLO', id: VSC_INSTANCE_ID }, '*'); } catch { }
-                this.subscribe('media.activeMedia', (set) => this.reportStatus()); this.subscribe('media.activeImages', (set) => this.reportStatus());
-                setTimeout(() => this.reportStatus(), 500); this._heartbeatTimer = setInterval(() => { this.reportStatus(); }, 10000);
-            }
-            this.subscribe('playback.targetRate', (rate) => { if (IS_TOP) this.broadcast({ type: 'VSC_CMD', key: 'playback.targetRate', value: rate }); });
-            this.subscribe('videoFilter.*', (key, val) => { if (IS_TOP) this.broadcast({ type: 'VSC_CMD', key, value: val }); });
-            this.subscribe('app.scriptActive', (active) => { if (IS_TOP) this.broadcast({ type: 'VSC_CMD', key: 'app.scriptActive', value: active }); });
-        }
-        pruneRemote() { const now = Date.now(); for (const [win, rec] of this._children) { if (!rec || (now - rec.ts) > 120000) this._children.delete(win); } this.recalcRemoteCounts(); }
-        recalcRemoteCounts() { let v = 0, i = 0; for (const [, rec] of this._children) { v += (rec.video | 0); i += (rec.img | 0); } this.stateManager.set('media.remoteVideoCount', v); this.stateManager.set('media.remoteImageCount', i); }
-        reportStatus() { const mSet = this.stateManager.get('media.activeMedia'); const iSet = this.stateManager.get('media.activeImages'); try { window.top.postMessage({ type: 'VSC_REPORT', count: (mSet ? mSet.size : 0), imgCount: (iSet ? iSet.size : 0), id: VSC_INSTANCE_ID }, '*'); } catch { } }
-        broadcast(msg) { for (const [win, rec] of this._children) { const payload = { ...msg, from: VSC_INSTANCE_ID }; try { win.postMessage(payload, rec.origin !== 'null' ? rec.origin : '*'); } catch { } } }
-        onMessage(e) {
-            const d = e.data; if (!d || typeof d !== 'object') return;
-            if (IS_TOP) {
-                if (d.type === 'VSC_HELLO' && d.id) {
-                    if (!e.source || typeof e.source.postMessage !== 'function') return;
-                    this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0, origin: e.origin });
-                    const snapshot = { playback: { targetRate: this.stateManager.get('playback.targetRate') }, videoFilter: this.stateManager.get('videoFilter'), imageFilter: this.stateManager.get('imageFilter'), app: { scriptActive: this.stateManager.get('app.scriptActive') }, ui: { areControlsVisible: this.stateManager.get('ui.areControlsVisible') }, };
-                    try { e.source.postMessage({ type: 'VSC_INIT', snapshot }, e.origin !== 'null' ? e.origin : '*'); } catch { } return;
-                }
-                if (d.type === 'VSC_REPORT' && d.id) {
-                    if (!e.source || typeof e.source.postMessage !== 'function') return;
-                    if (!this._children.has(e.source)) {
-                        this._children.set(e.source, { id: d.id, ts: Date.now(), video: 0, img: 0, origin: e.origin });
-                        const snapshot = { playback: { targetRate: this.stateManager.get('playback.targetRate') }, videoFilter: this.stateManager.get('videoFilter'), imageFilter: this.stateManager.get('imageFilter'), app: { scriptActive: this.stateManager.get('app.scriptActive') }, ui: { areControlsVisible: this.stateManager.get('ui.areControlsVisible') }, };
-                        try { e.source.postMessage({ type: 'VSC_INIT', snapshot }, e.origin !== 'null' ? e.origin : '*'); } catch { }
-                    }
-                    const rec = this._children.get(e.source); rec.ts = Date.now(); rec.video = (d.count | 0); rec.img = (d.imgCount | 0); this.recalcRemoteCounts(); return;
-                }
-                if (d.type === 'VSC_BYE' && d.id) { this._children.delete(e.source); this.recalcRemoteCounts(); return; }
-            } else {
-                if (d.type === 'VSC_INIT' && d.snapshot) {
-                    const s = d.snapshot; if (s.playback) this.stateManager.set('playback.targetRate', s.playback.targetRate); if (s.app) this.stateManager.set('app.scriptActive', s.app.scriptActive); if (s.ui) this.stateManager.set('ui.areControlsVisible', s.ui.areControlsVisible); if (s.videoFilter) this.stateManager.batchSet('videoFilter', s.videoFilter); if (s.imageFilter) this.stateManager.batchSet('imageFilter', s.imageFilter); return;
-                }
-                if (d.type === 'VSC_CMD') { if (d.key) this.stateManager.set(d.key, d.value); }
-            }
-        }
-        destroy() { super.destroy(); if (this._pruneTimer) clearInterval(this._pruneTimer); if (this._heartbeatTimer) clearInterval(this._heartbeatTimer); }
     }
 
     class SvgFilterPlugin extends Plugin {
@@ -1551,57 +1425,8 @@
         }
     }
 
-    class LiveStreamPlugin extends Plugin {
-        constructor() { super('LiveStream'); this.video = null; this.avgDelay = null; this.intervalId = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.LIVE.DELAY_INTERVAL_NORMAL; }
-        init(stateManager) {
-            super.init(stateManager); if (!CONFIG.FLAGS.LIVE_DELAY) return;
-            this.subscribe('liveStream.isRunning', (running) => { if (running) this.start(); else this.stop(); });
-            this.subscribe('app.scriptActive', (active) => { if (active && IS_LIVE_SITE) this.stateManager.set('liveStream.isRunning', true); else this.stateManager.set('liveStream.isRunning', false); });
-            this.subscribe('playback.jumpToLiveRequested', () => this.seekToLiveEdge());
-            this.subscribe('liveStream.resetRequested', () => { if (this.stateManager.get('liveStream.isRunning')) { this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; log('Live stream delay meter reset.'); } });
-            if (this.stateManager.get('app.scriptActive')) { if (IS_LIVE_SITE) this.stateManager.set('liveStream.isRunning', true); }
-        }
-        destroy() { super.destroy(); this.stop(); }
-        switchInterval(newInterval) { if (this.currentInterval === newInterval) return; clearInterval(this.intervalId); this.currentInterval = newInterval; this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval); }
-        findVideo() { const visibleVideos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO' && this.stateManager.get('media.visibilityMap').get(m)); if (visibleVideos.length === 0) return null; return visibleVideos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0]; }
-        calculateDelay(v) {
-            if (!v) return null; if (typeof v.liveLatency === 'number' && v.liveLatency > 0) return v.liveLatency * 1000;
-            if (v.buffered && v.buffered.length > 0) { try { const end = v.buffered.end(v.buffered.length - 1); if (v.currentTime > end) return 0; return Math.max(0, (end - v.currentTime) * 1000); } catch { return null; } } return null;
-        }
-        getSmoothPlaybackRate(currentDelay, targetDelay) { const error = currentDelay - targetDelay; this.pidIntegral += error; this.pidIntegral = Math.max(-50000, Math.min(50000, this.pidIntegral)); const derivative = error - this.lastError; this.lastError = error; let rateChange = CONFIG.LIVE.PID.KP * error + CONFIG.LIVE.PID.KI * this.pidIntegral + CONFIG.LIVE.PID.KD * derivative; return Math.max(CONFIG.LIVE.MIN_RATE, Math.min(1 + rateChange, CONFIG.LIVE.MAX_RATE)); }
-        checkAndAdjust() {
-            if (!this.stateManager.get('app.scriptActive')) return; if (document.hidden) return; if (Math.abs(this.stateManager.get('playback.targetRate') - 1.0) > 0.01) return;
-            this.video = this.findVideo(); if (!this.video) return;
-            if (!this.stateManager.get('liveStream.isRunning') && Utils.isLiveStream(this.video)) { this.stateManager.set('liveStream.isRunning', true); }
-            const rawDelay = this.calculateDelay(this.video); if (rawDelay === null) { this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: null, rate: this.video.playbackRate }); return; }
-            this.avgDelay = this.avgDelay === null ? rawDelay : CONFIG.LIVE.EMA_ALPHA * rawDelay + (1 - CONFIG.LIVE.EMA_ALPHA) * this.avgDelay; this.stateManager.set('liveStream.delayInfo', { avg: this.avgDelay, raw: rawDelay, rate: this.video.playbackRate });
-            const targetDelay = CONFIG.LIVE.TARGET_DELAYS[location.hostname] || CONFIG.LIVE.DEFAULT_TARGET_DELAY; const error = this.avgDelay - targetDelay;
-            if (Math.abs(error) < CONFIG.LIVE.STABLE_THRESHOLD) this.consecutiveStableChecks++; else { this.consecutiveStableChecks = 0; if (this.isStable) { this.isStable = false; this.switchInterval(CONFIG.LIVE.DELAY_INTERVAL_NORMAL); } }
-            if (this.consecutiveStableChecks >= CONFIG.LIVE.STABLE_COUNT && !this.isStable) { this.isStable = true; this.switchInterval(CONFIG.LIVE.DELAY_INTERVAL_STABLE); }
-            let newRate; const bufferHealth = (this.video.buffered && this.video.buffered.length) ? (this.video.buffered.end(this.video.buffered.length - 1) - this.video.currentTime) : 10;
-            if ((this.avgDelay !== null && this.avgDelay <= targetDelay) || bufferHealth < CONFIG.LIVE.MIN_BUFFER_HEALTH) { newRate = 1.0; this.pidIntegral = 0; this.lastError = 0; } else { newRate = this.getSmoothPlaybackRate(this.avgDelay, targetDelay); }
-            if (Math.abs(this.video.playbackRate - newRate) > 0.001) { this.video.playbackRate = newRate; }
-            const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child'); if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { const isLiveNow = this.avgDelay !== null && this.avgDelay < (CONFIG.LIVE.DEFAULT_TARGET_DELAY + 500); liveJumpBtn.style.boxShadow = isLiveNow ? '0 0 8px 2px #ff0000' : '0 0 8px 2px #808080'; }
-        }
-        start() { if (this.intervalId) return; setTimeout(() => { this.stateManager.set('liveStream.delayInfo', { raw: null, avg: null, rate: 1.0 }); }, 0); this.intervalId = setInterval(() => this.checkAndAdjust(), this.currentInterval); }
-        stop() { if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; } const liveJumpBtn = this.stateManager.get('ui.globalContainer')?.querySelector('#vsc-speed-buttons-container button:last-child'); if (liveJumpBtn && liveJumpBtn.title.includes('실시간')) { liveJumpBtn.style.boxShadow = ''; } this.stateManager.set('liveStream.delayInfo', null); this.video = null; this.avgDelay = null; this.pidIntegral = 0; this.lastError = 0; this.consecutiveStableChecks = 0; this.isStable = false; this.currentInterval = CONFIG.LIVE.DELAY_INTERVAL_NORMAL; }
-        seekToLiveEdge() { const videos = Array.from(this.stateManager.get('media.activeMedia')).filter(m => m.tagName === 'VIDEO'); if (videos.length === 0) return; const targetDelay = CONFIG.LIVE.TARGET_DELAYS[location.hostname] || CONFIG.LIVE.DEFAULT_TARGET_DELAY; videos.forEach(v => { try { const seekableEnd = (v.seekable && v.seekable.length > 0) ? v.seekable.end(v.seekable.length - 1) : Infinity; const bufferedEnd = (v.buffered && v.buffered.length > 0) ? v.buffered.end(v.buffered.length - 1) : 0; const liveEdge = Math.min(seekableEnd, bufferedEnd); if (!isFinite(liveEdge)) return; const delayMs = (liveEdge - v.currentTime) * 1000; if (delayMs <= targetDelay) return; if (!v._lastLiveJump) v._lastLiveJump = 0; if (Date.now() - v._lastLiveJump < CONFIG.LIVE.JUMP_INTERVAL) return; if (liveEdge - v.currentTime < CONFIG.LIVE.JUMP_THRESHOLD) return; v._lastLiveJump = Date.now(); v.currentTime = liveEdge - 0.5; if (v.paused) v.play().catch(console.warn); } catch (e) { log('seekToLiveEdge error:', e); } }); }
-    }
-
-    class NavigationPlugin extends Plugin {
-        constructor(pluginManager) { super('Navigation'); this.pluginManager = pluginManager; this.spaNavigationHandler = debounce(this.handleNavigation.bind(this), 100); }
-        init(stateManager) {
-            super.init(stateManager);
-            const WRAPPED = Symbol.for('vsc_history_wrapped'); if (history[WRAPPED]) return; history[WRAPPED] = true;
-            const wrapHistory = (type) => { const orig = history[type]; return (...args) => { const rv = orig.apply(history, args); this.spaNavigationHandler(); return rv; }; };
-            history.pushState = wrapHistory('pushState'); history.replaceState = wrapHistory('replaceState'); window.addEventListener('popstate', this.spaNavigationHandler);
-        }
-        destroy() { super.destroy(); window.removeEventListener('popstate', this.spaNavigationHandler); }
-        handleNavigation() { const currentUrl = location.href; if (currentUrl === this.stateManager.get('ui.lastUrl')) return; this.stateManager.set('ui.lastUrl', currentUrl); log('SPA Navigation Detected.'); triggerBurstScan(); }
-    }
-
     class UIPlugin extends Plugin {
-        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.delayMeterEl = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.gestureLayer = null; this.gestureManager = null; this.toastEl = null; }
+        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; }
         init(stateManager) {
             super.init(stateManager);
             const createUI = () => { if (this.globalContainer) return; this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); this.stateManager.set('ui.createRequested', false); };
@@ -1610,24 +1435,19 @@
             this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
             this.subscribe('media.activeMedia', () => this.updateUIVisibility());
             this.subscribe('media.activeImages', () => this.updateUIVisibility());
-            this.subscribe('media.remoteVideoCount', () => this.updateUIVisibility());
-            this.subscribe('media.remoteImageCount', () => this.updateUIVisibility());
             this.subscribe('playback.currentRate', rate => {
                 this.updateActiveSpeedButton(rate);
-                if (!this.stateManager.get('liveStream.isRunning')) { this.showToast(`${rate.toFixed(2)}x`); }
+                this.showToast(`${rate.toFixed(2)}x`);
             });
-            this.subscribe('ui.gestureMode', enabled => this.toggleGestureLayer(enabled));
-            if (CONFIG.FLAGS.LIVE_DELAY) { this.subscribe('liveStream.delayInfo', info => this.updateDelayMeter(info)); this.subscribe('liveStream.isPinned', () => this.updateDelayMeterVisibility()); }
             this.subscribe('ui.warningMessage', msg => this.showToast(msg));
-            this.subscribe('ui.areControlsVisible', () => { this.updateDelayMeterVisibility(); this.updateTriggerStyle(); });
+            this.subscribe('ui.areControlsVisible', () => { this.updateTriggerStyle(); });
             this.subscribe('app.scriptActive', () => this.updateTriggerStyle());
-            this.updateDelayMeter(this.stateManager.get('liveStream.delayInfo'));
             const vscMessage = sessionStorage.getItem('vsc_message'); if (vscMessage) { this.showToast(vscMessage); sessionStorage.removeItem('vsc_message'); }
             this.boundFullscreenChange = () => { const fullscreenRoot = document.fullscreenElement || document.body; if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) { fullscreenRoot.appendChild(this.globalContainer); } };
             document.addEventListener('fullscreenchange', this.boundFullscreenChange);
             const savedPos = sessionStorage.getItem('vsc_ui_pos'); if (savedPos) { try { const p = JSON.parse(savedPos); this.uiState = p; } catch { } }
         }
-        destroy() { super.destroy(); if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; } if (this.delayMeterEl) { this.delayMeterEl.remove(); this.delayMeterEl = null; } if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange); if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate); if (this.gestureManager) this.gestureManager.destroy(); }
+        destroy() { super.destroy(); if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; } if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange); if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate); }
 
         getStyles() {
             const isMobile = this.stateManager.get('app.isMobile');
@@ -1661,28 +1481,6 @@
             }
         }
 
-        updateDelayMeterVisibility() {
-            if (this.delayMeterEl) {
-                const controlsVisible = this.stateManager.get('ui.areControlsVisible'); const isPinned = this.stateManager.get('liveStream.isPinned');
-                this.delayMeterEl.style.display = (controlsVisible || isPinned) ? 'flex' : 'none';
-            }
-        }
-        updateDelayMeter(info) {
-            if (!CONFIG.FLAGS.LIVE_DELAY) return;
-            if (!info && this.delayMeterEl && !this.stateManager.get('liveStream.isPinned')) { this.delayMeterEl.remove(); this.delayMeterEl = null; return; }
-            if (info && !this.delayMeterEl && document.body) {
-                this.delayMeterEl = document.createElement('div'); Object.assign(this.delayMeterEl.style, { position: 'fixed', bottom: '100px', right: '10px', zIndex: CONFIG.UI.MAX_Z - 1, background: 'rgba(0,0,0,.7)', color: '#fff', padding: '5px 10px', borderRadius: '5px', fontFamily: 'monospace', fontSize: '10pt', pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: '10px' });
-                const textSpan = document.createElement('span'); const pinBtn = document.createElement('button'); pinBtn.textContent = '📌'; pinBtn.title = '항상 표시'; Object.assign(pinBtn.style, { background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '12px', padding: '0 2px' });
-                pinBtn.onclick = () => { const cur = this.stateManager.get('liveStream.isPinned'); this.stateManager.set('liveStream.isPinned', !cur); pinBtn.style.color = !cur ? '#f39c12' : '#fff'; };
-                const refreshBtn = document.createElement('button'); refreshBtn.textContent = '🔄'; refreshBtn.title = '딜레이 측정 초기화'; Object.assign(refreshBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
-                refreshBtn.onclick = () => { this.stateManager.set('liveStream.resetRequested', Date.now()); if (textSpan) { textSpan.textContent = '딜레이 리셋 중...'; } };
-                const closeBtn = document.createElement('button'); closeBtn.textContent = '✖'; closeBtn.title = '닫기'; Object.assign(closeBtn.style, { background: 'none', border: '1px solid white', color: 'white', borderRadius: '3px', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' });
-                closeBtn.onclick = () => { this.stateManager.set('liveStream.isRunning', false); this.stateManager.set('liveStream.isPinned', false); };
-                this.delayMeterEl.append(pinBtn, textSpan, refreshBtn, closeBtn); document.body.appendChild(this.delayMeterEl); this.updateDelayMeterVisibility();
-            }
-            if (this.delayMeterEl) { const textSpan = this.delayMeterEl.querySelector('span'); if (textSpan) { if (info && info.raw === null && info.avg === null) { textSpan.textContent = '딜레이 측정 중...'; } else if (info) { textSpan.textContent = `딜레이: ${info.avg?.toFixed(0) || 'N/A'}ms / 현재: ${info.raw?.toFixed(0) || 'N/A'}ms / 배속: ${info.rate?.toFixed(3) || 'N/A'}x`; } } }
-        }
-
         createGlobalUI() {
             const isMobile = this.stateManager.get('app.isMobile');
             this.globalContainer = document.createElement('div');
@@ -1714,30 +1512,7 @@
                 btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
                 this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn);
             });
-            if (IS_LIVE_SITE) {
-                const liveJumpBtn = document.createElement('button'); liveJumpBtn.textContent = '⚡'; liveJumpBtn.title = '실시간'; liveJumpBtn.className = 'vsc-btn';
-                Object.assign(liveJumpBtn.style, { width: isMobile ? '42px' : '46px', height: isMobile ? '42px' : '46px', borderRadius: '50%', fontSize: '18px' });
-                liveJumpBtn.onclick = () => this.stateManager.set('playback.jumpToLiveRequested', Date.now());
-                this.speedButtonsContainer.appendChild(liveJumpBtn);
-            }
             this.updateUIVisibility(); this.updateTriggerStyle();
-            if (this.stateManager.get('ui.gestureMode')) this.toggleGestureLayer(true);
-        }
-
-        toggleGestureLayer(enable) {
-            if (enable) {
-                if (!this.gestureLayer) {
-                    this.gestureLayer = document.createElement('div'); this.gestureLayer.setAttribute('data-vsc-internal', '1');
-                    Object.assign(this.gestureLayer.style, { position: 'fixed', inset: '0', zIndex: CONFIG.UI.MAX_Z - 10, background: 'transparent', touchAction: 'manipulation' });
-                    document.body.appendChild(this.gestureLayer);
-                    this.gestureManager = new GestureManager(this.gestureLayer, {
-                        onDoubleTap: (xRatio) => { const v = this.stateManager.get('media.currentlyVisibleMedia'); if (!v || v.tagName !== 'VIDEO') return; if (xRatio < 0.35) { v.currentTime -= 10; this.showToast('⏪ -10s'); } else if (xRatio > 0.65) { v.currentTime += 10; this.showToast('⏩ +10s'); } else { v.paused ? v.play() : v.pause(); this.showToast(v.paused ? '⏸ Pause' : '▶ Play'); } },
-                        onSingleTap: () => { const cur = this.stateManager.get('ui.areControlsVisible'); if (!cur) { this.stateManager.set('app.scriptActive', true); this.stateManager.set('ui.areControlsVisible', true); } else { this.stateManager.set('ui.areControlsVisible', false); } },
-                        onSwipeDown: () => { this.stateManager.set('ui.areControlsVisible', false); }
-                    });
-                }
-                this.gestureLayer.style.display = 'block'; this.showToast('Hand Gestures ON');
-            } else { if (this.gestureLayer) this.gestureLayer.style.display = 'none'; this.showToast('Hand Gestures OFF'); }
         }
 
         updateTriggerStyle() {
@@ -1759,9 +1534,8 @@
         updateUIVisibility() {
             const controlsVisible = this.stateManager.get('ui.areControlsVisible');
             const activeMedia = this.stateManager.get('media.activeMedia') || new Set(); const activeImages = this.stateManager.get('media.activeImages') || new Set();
-            const remoteVideo = this.stateManager.get('media.remoteVideoCount') || 0; const remoteImage = this.stateManager.get('media.remoteImageCount') || 0;
             const hasLocalVideo = [...activeMedia].some(m => m && m.tagName === 'VIDEO'); const hasLocalImage = activeImages.size > 0;
-            const hasAnyVideo = hasLocalVideo || remoteVideo > 0; const hasAnyImage = hasLocalImage || remoteImage > 0;
+            const hasAnyVideo = hasLocalVideo; const hasAnyImage = hasLocalImage;
             if (this.globalContainer) { this.globalContainer.style.display = (hasAnyVideo || hasAnyImage) ? 'flex' : 'none'; }
             if (this.speedButtonsContainer) { this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none'; }
             if (!this.shadowRoot) return;
@@ -1816,7 +1590,7 @@
             const powerBtn = document.createElement('button'); powerBtn.className = 'vsc-btn vsc-btn-lg'; powerBtn.textContent = '⏸︎'; powerBtn.title = '전체 기능 끄기';
             Object.assign(powerBtn.style, { width: '40px', flex: '0 0 40px', color: '#e74c3c' });
             powerBtn.onclick = () => { this.stateManager.set('app.scriptActive', false); this.stateManager.set('ui.areControlsVisible', false); this.showToast('Script OFF'); };
-            topRow.append(powerBtn); topRow.append(createToggle('📸 자동', 'videoFilter.autoExposure')); topRow.append(createToggle('🖐 제스처', 'ui.gestureMode'));
+            topRow.append(powerBtn); topRow.append(createToggle('📸 자동', 'videoFilter.autoExposure'));
             const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn vsc-btn-lg'; videoResetBtn.textContent = '↺'; videoResetBtn.title = '필터 초기화';
             Object.assign(videoResetBtn.style, { width: '40px', flex: '0 0 40px' });
             videoResetBtn.onclick = () => { this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, clarity: 0, autoExposure: false, targetLuma: 0, highlights: 0, shadows: 0, gamma: 1.0, saturation: 100, contrastAdj: 1.0, dither: 0, colorTemp: 0 }); };
@@ -1883,12 +1657,9 @@
         const pluginManager = new PluginManager(stateManager);
         window.vscPluginManager = pluginManager;
         pluginManager.register(new UIPlugin());
-        if (IS_TOP) pluginManager.register(new NavigationPlugin(pluginManager));
         pluginManager.register(new CoreMediaPlugin());
-        if (CONFIG.FLAGS.FRAME_BRIDGE) pluginManager.register(new FrameBridgePlugin());
         pluginManager.register(new SvgFilterPlugin());
         pluginManager.register(new PlaybackControlPlugin());
-        if (CONFIG.FLAGS.LIVE_DELAY) pluginManager.register(new LiveStreamPlugin());
         pluginManager.initAll();
     }
 
