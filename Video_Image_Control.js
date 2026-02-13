@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.63 Final_Fixed_AlwaysOn)
+// @name        Video_Image_Control (Lite v130.67 Final_Shadow_Fix)
 // @namespace   https://com/
-// @version     130.63
-// @description v130.63: Fix ReferenceError, Force UI Creation, Smart Escalation.
+// @version     130.67
+// @description v130.67: Fix "Chicken-Egg" ShadowDOM issue, Early Hook Injection.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -19,50 +19,174 @@
 (function () {
     'use strict';
 
-    // [Safety] Cloudflare check
+    // 1. Boot Guard
     if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
-
     if (window.__VSC_BOOT_GUARD__) return;
     Object.defineProperty(window, '__VSC_BOOT_GUARD__', { value: true, configurable: false, writable: false });
 
     const IS_TOP = window === window.top;
     const VSC_DEBUG = false;
-
-    // ✅ [Fix 1] Declare Global Reference for CorePlugin to prevent ReferenceError
     let _corePluginRef = null;
 
-    // --- Helpers ---
-    const debounce = (fn, wait) => {
-        let t; return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); };
+    // 2. Constants & Configuration
+    const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
+
+    // Device detection
+    const DEVICE_RAM = navigator.deviceMemory || 4;
+    const IS_HIGH_END = DEVICE_RAM >= 8;
+    const IS_LOW_END = DEVICE_RAM < 4;
+
+    const CONFIG = {
+        DEBUG: false,
+        FLAGS: { GLOBAL_ATTR_OBS: true },
+        FILTER: {
+            VIDEO_DEFAULT_LEVEL: 15, VIDEO_DEFAULT_LEVEL2: 6, IMAGE_DEFAULT_LEVEL: 15,
+            DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
+            DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0, MIN_VIDEO_SIZE: 50, MIN_IMAGE_SIZE: 200,
+            MOBILE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
+            DESKTOP_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
+            IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
+        },
+        SCAN: {
+            INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000,
+            MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
+            MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video', 'data-video-url', 'data-stream-url', 'data-player-src', 'data-m3u8', 'data-mpd', 'href']
+        },
+        UI: { MAX_Z: 2147483647, DRAG_THRESHOLD: 5, HIDDEN_CLASS: 'vsc-hidden', SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2] }
     };
 
-    const throttle = (fn, limit) => {
-        let inThrottle; return function (...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } };
+    const SEL = { MEDIA: 'video, img, iframe, canvas, source', FILTER_TARGET: 'video, img, iframe, canvas' };
+    const VSC_FLAG = Symbol('vsc_flags');
+    const FLAG_OBSERVED = 1, FLAG_VIDEO_INJ = 2, FLAG_IMAGE_INJ = 4;
+
+    const Utils = {
+        clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
+        safeInt: (v, d = 0) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; },
+        fastHash: (str) => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16); },
+        setAttr: (el, name, val) => { if (!el) return; if (val == null) { if (el.hasAttribute(name)) el.removeAttribute(name); return; } const s = String(val); if (el.getAttribute(name) !== s) el.setAttribute(name, s); },
+        isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host
     };
 
+    // --- Core Helpers ---
+    const log = (...args) => { if (CONFIG.DEBUG) console.log('[VSC]', ...args); };
+    const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
+    const debounce = (fn, wait) => { let t; return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
+    const throttle = (fn, limit) => { let inThrottle; return function (...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
     const scheduleWork = (cb) => {
-        const wrapped = (deadline) => { try { cb(deadline); } catch (e) { if (VSC_DEBUG) console.error(e); } };
+        const wrapped = (deadline) => { try { cb(deadline); } catch (e) { if (CONFIG.DEBUG) console.error(e); } };
         if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 });
         return setTimeout(() => wrapped({ timeRemaining: () => 1, didTimeout: true }), 1);
     };
+    const P = (signal) => ({ passive: true, signal });
+    const CP = (signal) => ({ capture: true, passive: true, signal });
+    const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
 
-    // --- Safety & Performance Helpers ---
+    // --- Shadow DOM & Detection Logic ---
+    const dirtyRoots = new Set();
+    let pendingScan = false;
+    let _scanRaf = null;
+    let _lastFullScanTime = 0;
+
+    const registerShadowRoot = (sr) => {
+        if (!sr) return;
+        window._shadowDomList_ = window._shadowDomList_ || [];
+        window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
+        if (!window._shadowDomSet_.has(sr)) {
+            window._shadowDomSet_.add(sr);
+            window._shadowDomList_.push(sr);
+            // Notify core plugin if active
+            if (_corePluginRef) _corePluginRef.scanSpecificRoot(sr);
+        }
+    };
+
+    // ✅ [PATCH 1] Collect already-open ShadowRoots once
+    let _didCollectOpenSR = false;
+    function collectOpenShadowRootsOnce(limit = 5000) {
+        if (_didCollectOpenSR) return;
+        _didCollectOpenSR = true;
+        const run = () => {
+            try {
+                if (!document.documentElement) return;
+                const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
+                let n, i = 0;
+                while ((n = walker.nextNode()) && i < limit) {
+                    if (n.shadowRoot) registerShadowRoot(n.shadowRoot);
+                    i++;
+                }
+            } catch (e) {}
+        };
+        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run, { once: true });
+        else run();
+    }
+
+    const isGoodScanRoot = (n) => {
+        if (!n || n.nodeType !== 1 || !n.isConnected) return false;
+        const tag = n.nodeName;
+        if (tag === 'HTML' || tag === 'BODY' || tag === 'HEAD') return false;
+        if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'CANVAS') return true;
+        if (n.childElementCount > 0 && n.querySelector) return !!n.querySelector(SEL.FILTER_TARGET);
+        return false;
+    };
+
+    const scheduleScan = (rootOrNull, immediate = false) => {
+        if (Utils.isShadowRoot(rootOrNull)) registerShadowRoot(rootOrNull);
+
+        if (immediate && _corePluginRef) {
+            safeGuard(() => {
+                if (rootOrNull) _corePluginRef.scanSpecificRoot(rootOrNull);
+                else _corePluginRef.scanAndApply();
+            }, 'immediateScan');
+            return;
+        }
+
+        if (rootOrNull) {
+             if (Utils.isShadowRoot(rootOrNull)) { if (rootOrNull.host && rootOrNull.host.isConnected) dirtyRoots.add(rootOrNull); }
+             else if (rootOrNull.isConnected) {
+                 const tag = rootOrNull.nodeName;
+                 if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'CANVAS') dirtyRoots.add(rootOrNull);
+                 else if (isGoodScanRoot(rootOrNull)) dirtyRoots.add(rootOrNull);
+             }
+        }
+        if (_scanRaf) return;
+        _scanRaf = requestAnimationFrame(() => {
+            _scanRaf = null; if (pendingScan) return; pendingScan = true;
+            scheduleWork(() => {
+                pendingScan = false;
+                if (!_corePluginRef) return;
+                // No need to disable hooks here, separate management
+                if (dirtyRoots.size > 0) {
+                    const now = Date.now();
+                    if (dirtyRoots.size > (IS_LOW_END ? 60 : 40) && (now - _lastFullScanTime > 1500)) {
+                        dirtyRoots.clear(); _lastFullScanTime = now;
+                        safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
+                    }
+                    else {
+                        const roots = [...dirtyRoots]; dirtyRoots.clear();
+                        for (const r of roots) if (r.isConnected || (Utils.isShadowRoot(r) && r.host && r.host.isConnected)) safeGuard(() => _corePluginRef.scanSpecificRoot(r), 'scanSpecificRoot');
+                    }
+                }
+                safeGuard(() => _corePluginRef.tick(), 'tick');
+            });
+        });
+    };
+
+    const triggerBurstScan = (delay = 200) => {
+        if(_corePluginRef) {
+            _corePluginRef.resetScanInterval();
+            scheduleScan(null, true);
+            [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d));
+        }
+    };
+
     let _sensCache = { t: 0, v: false };
     const isSensitiveContext = () => {
+        if (!document.documentElement) return false;
         const now = Date.now();
         if (now - _sensCache.t < 300) return _sensCache.v;
         let result = false;
         const url = location.href.toLowerCase();
         if (/(login|signin|auth|account|member|session|checkout|payment|bank|verify)/i.test(url)) {
-            try {
-                if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"], input[name*="card"], input[autocomplete*="cc-"]')) {
-                    result = true;
-                }
-            } catch(e) {}
-        } else {
-             try {
-                if (document.querySelector('input[type="password"], input[name*="otp"], input[autocomplete="one-time-code"]')) result = true;
-            } catch(e) {}
+            try { if (document.querySelector('input[type="password"], input[name*="otp"]')) result = true; } catch(e) {}
         }
         _sensCache = { t: now, v: result };
         return result;
@@ -72,28 +196,22 @@
     const hasRealVideoCached = () => {
         const now = Date.now();
         if (now - _hasVideoCache.t < 500) return _hasVideoCache.v;
-
         let found = false;
         const isValid = (el) => {
             if (!el) return false;
-            return !!el.src || !!el.currentSrc || el.tagName === 'IFRAME' || (el.offsetWidth > 0 && el.offsetHeight > 0);
+            if (el.tagName === 'IFRAME' || el.tagName === 'CANVAS') return true;
+            return !!el.src || !!el.currentSrc || (el.offsetWidth > 0 && el.offsetHeight > 0) || !!el.getAttribute('data-src');
         };
-
-        const vids = document.getElementsByTagName('video');
-        for (const v of vids) {
-            if (!v.isConnected) continue;
-            if (isValid(v)) { found = true; break; }
-        }
-
+        const vids = document.querySelectorAll('video');
+        for (const v of vids) { if (v.isConnected && isValid(v)) { found = true; break; } }
         if (!found && document.querySelector('iframe')) found = true;
-
         if (!found && window._shadowDomList_) {
             const cap = Math.min(window._shadowDomList_.length, 50);
             for (let i = 0; i < cap; i++) {
                 const sr = window._shadowDomList_[i];
                 if (!sr) continue;
                 try {
-                    const v = sr.querySelector ? sr.querySelector('video') : null;
+                    const v = sr.querySelector ? sr.querySelector('video, iframe, canvas') : null;
                     if (v && isValid(v)) { found = true; break; }
                 } catch(e) {}
             }
@@ -102,55 +220,16 @@
         return found;
     };
 
-    const registerShadowRoot = (sr) => {
-        if (!sr) return;
-        window._shadowDomList_ = window._shadowDomList_ || [];
-        window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
-        if (!window._shadowDomSet_.has(sr)) {
-            window._shadowDomSet_.add(sr);
-            window._shadowDomList_.push(sr);
-            // Trigger scan for new shadow root immediately
-            if (_corePluginRef) {
-                _corePluginRef.scanSpecificRoot(sr);
-            }
-        }
-    };
-
-    const collectOpenShadowRootsOnce = () => {
-        const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
-        const runChunk = (deadline) => {
-            let count = 0;
-            while (walker.nextNode()) {
-                if (deadline && typeof deadline.timeRemaining === 'function' && deadline.timeRemaining() < 1) {
-                    scheduleWork(runChunk);
-                    return;
-                }
-                if (++count > 200) {
-                     scheduleWork(runChunk);
-                     return;
-                }
-
-                const el = walker.currentNode;
-                const sr = el.shadowRoot;
-                if (sr) registerShadowRoot(sr);
-            }
-        };
-        scheduleWork(runChunk);
-    };
-
-    // --- Global Hook Manager ---
+    // --- Hook Logic ---
     const ORIGINALS = {
         defineProperty: Object.defineProperty,
         defineProperties: Object.defineProperties,
         attachShadow: Element.prototype.attachShadow,
         mediaLoad: HTMLMediaElement.prototype.load,
     };
-
-    // [Global] Inline Style Backup for Safe Restore
     const _prevInlineStyle = new WeakMap();
     const _realmSheetCache = new WeakMap();
     const _shadowRootCache = new WeakMap();
-
     let _hooksActive = false;
     let _shadowHookActive = false;
     const VSC_SR_MO = Symbol('vsc_sr_mo');
@@ -160,7 +239,6 @@
         try {
             window._shadowDomList_ = window._shadowDomList_ || [];
             window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
-
             if (!Object.getOwnPropertyDescriptor(window, '_shadowDomList_')) {
                  Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true, configurable: true });
             }
@@ -181,179 +259,49 @@
         } catch(e) {}
     };
 
-    const patchDescriptorSafely = (d) => {
-        if (!d) return;
-        const isAccessor = ('get' in d) || ('set' in d);
-        if (!isAccessor && d.writable === false) d.writable = true;
-    };
+    // ✅ [PATCH 2] Enable Shadow hook early so we can SEE players living in Shadow DOM
+    safeGuard(() => {
+        if (!isSensitiveContext()) {
+            enableShadowHook();
+            collectOpenShadowRootsOnce();
+        }
+    }, "earlyShadowHook");
 
+    const patchDescriptorSafely = (d) => { if (!d) return; const isAccessor = ('get' in d) || ('set' in d); if (!isAccessor && d.writable === false) d.writable = true; };
     const enablePropertyHooks = () => {
         if (_hooksActive || isSensitiveContext()) return;
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
         const isMediaEl = (o) => o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
-
         const safeDefineProperty = function (obj, key, descriptor) {
             if (isMediaEl(obj) && protectKeys.includes(key) && descriptor) {
-                const patched = { ...descriptor };
-                patchDescriptorSafely(patched);
-                try { return ORIGINALS.defineProperty.call(this, obj, key, patched); }
-                catch (e) { return ORIGINALS.defineProperty.call(this, obj, key, descriptor); }
+                const patched = { ...descriptor }; patchDescriptorSafely(patched);
+                try { return ORIGINALS.defineProperty.call(this, obj, key, patched); } catch (e) { return ORIGINALS.defineProperty.call(this, obj, key, descriptor); }
             }
             return ORIGINALS.defineProperty.call(this, obj, key, descriptor);
         };
-
         const safeDefineProperties = function (obj, props) {
              if (isMediaEl(obj) && props) {
                 const patchedProps = { ...props };
                 for (const k in patchedProps) {
                     if (protectKeys.includes(k) && patchedProps[k]) {
-                        const patched = { ...patchedProps[k] };
-                        patchDescriptorSafely(patched);
-                        patchedProps[k] = patched;
+                        const patched = { ...patchedProps[k] }; patchDescriptorSafely(patched); patchedProps[k] = patched;
                     }
                 }
-                try { return ORIGINALS.defineProperties.call(this, obj, patchedProps); }
-                catch (e) { return ORIGINALS.defineProperties.call(this, obj, props); }
+                try { return ORIGINALS.defineProperties.call(this, obj, patchedProps); } catch (e) { return ORIGINALS.defineProperties.call(this, obj, props); }
             }
             return ORIGINALS.defineProperties.call(this, obj, props);
         };
-
-        Object.defineProperty = safeDefineProperty;
-        Object.defineProperties = safeDefineProperties;
+        Object.defineProperty = safeDefineProperty; Object.defineProperties = safeDefineProperties;
         _hooksActive = true;
     };
-
     const disableAllHooks = () => {
-        if (_hooksActive) {
-            Object.defineProperty = ORIGINALS.defineProperty;
-            Object.defineProperties = ORIGINALS.defineProperties;
-            _hooksActive = false;
-        }
-        if (_shadowHookActive) {
-            Element.prototype.attachShadow = ORIGINALS.attachShadow;
-            _shadowHookActive = false;
-        }
+        if (_hooksActive) { Object.defineProperty = ORIGINALS.defineProperty; Object.defineProperties = ORIGINALS.defineProperties; _hooksActive = false; }
+        // Note: Shadow hook is usually not disabled once enabled to prevent inconsistency
         HTMLMediaElement.prototype.load = ORIGINALS.mediaLoad;
     };
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
     Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
-
-    // --- Utils & Constants ---
-    const Utils = {
-        clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
-        safeInt: (v, d = 0) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; },
-        fastHash: (str) => {
-            let h = 0x811c9dc5;
-            for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
-            return (h >>> 0).toString(16);
-        },
-        setAttr: (el, name, val) => {
-            if (!el) return;
-            if (val == null) { if (el.hasAttribute(name)) el.removeAttribute(name); return; }
-            const s = String(val);
-            if (el.getAttribute(name) !== s) el.setAttribute(name, s);
-        },
-        isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host
-    };
-
-    const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
-    const P = (signal) => ({ passive: true, signal });
-    const CP = (signal) => ({ capture: true, passive: true, signal });
-    const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
-
-    const SEL = { MEDIA: 'video, img, iframe, source', FILTER_TARGET: 'video, img, iframe' };
-    const MEDIA_EVENTS = ['loadedmetadata', 'loadstart', 'emptied', 'durationchange', 'loadeddata', 'canplay', 'canplaythrough', 'playing', 'waiting', 'stalled'];
-    const VSC_FLAG = Symbol('vsc_flags');
-    const FLAG_OBSERVED = 1;
-    const FLAG_VIDEO_INJ = 2;
-    const FLAG_IMAGE_INJ = 4;
-
-    const DEVICE_RAM = navigator.deviceMemory || 4;
-    const IS_HIGH_END = DEVICE_RAM >= 8;
-    const IS_LOW_END = DEVICE_RAM < 4;
-
-    const CONFIG = {
-        DEBUG: false,
-        FLAGS: { GLOBAL_ATTR_OBS: true },
-        FILTER: {
-            VIDEO_DEFAULT_LEVEL: 15, VIDEO_DEFAULT_LEVEL2: 6, IMAGE_DEFAULT_LEVEL: 15,
-            DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
-            DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0, MIN_VIDEO_SIZE: 50, MIN_IMAGE_SIZE: 200,
-            MOBILE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
-            DESKTOP_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
-            IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
-        },
-        SCAN: {
-            INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000, MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
-            MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video', 'data-video-url', 'data-stream-url', 'data-player-src', 'data-m3u8', 'data-mpd', 'href']
-        },
-        UI: { MAX_Z: 2147483647, DRAG_THRESHOLD: 5, HIDDEN_CLASS: 'vsc-hidden', SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2] }
-    };
-
-    const log = (...args) => { if (CONFIG.DEBUG) console.log('[VSC]', ...args); };
-    const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
-
-    const triggerBurstScan = (delay = 200) => {
-        if(_corePluginRef) {
-            _corePluginRef.resetScanInterval();
-            scheduleScan(null, true);
-            [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d));
-        }
-    };
-
-    const dirtyRoots = new Set();
-    let pendingScan = false;
-    let _scanRaf = null;
-    let _lastFullScanTime = 0;
-
-    const isGoodScanRoot = (n) => {
-        if (!n || n.nodeType !== 1 || !n.isConnected) return false;
-        const tag = n.nodeName;
-        if (tag === 'HTML' || tag === 'BODY' || tag === 'HEAD') return false;
-        if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME') return true;
-        if (n.childElementCount > 0 && n.querySelector) return !!n.querySelector(SEL.FILTER_TARGET);
-        return false;
-    };
-
-    const scheduleScan = (rootOrNull, immediate = false) => {
-        if (Utils.isShadowRoot(rootOrNull)) registerShadowRoot(rootOrNull);
-
-        if (immediate && _corePluginRef) {
-            safeGuard(() => {
-                if (rootOrNull) _corePluginRef.scanSpecificRoot(rootOrNull);
-                else _corePluginRef.scanAndApply();
-            }, 'immediateScan');
-            return;
-        }
-
-        if (rootOrNull) {
-             if (Utils.isShadowRoot(rootOrNull)) { if (rootOrNull.host && rootOrNull.host.isConnected) dirtyRoots.add(rootOrNull); }
-             else if (rootOrNull.isConnected) { const tag = rootOrNull.nodeName; if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME') dirtyRoots.add(rootOrNull); else if (isGoodScanRoot(rootOrNull)) dirtyRoots.add(rootOrNull); }
-        }
-        if (_scanRaf) return;
-        _scanRaf = requestAnimationFrame(() => {
-            _scanRaf = null; if (pendingScan) return; pendingScan = true;
-            scheduleWork(() => {
-                pendingScan = false;
-                if (!_corePluginRef) return;
-
-                if (isSensitiveContext()) disableAllHooks();
-                if (dirtyRoots.size > 0) {
-                    const now = Date.now();
-                    if (dirtyRoots.size > (IS_LOW_END ? 60 : 40) && (now - _lastFullScanTime > 1500)) {
-                        dirtyRoots.clear(); _lastFullScanTime = now;
-                        safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
-                    }
-                    else {
-                        const roots = [...dirtyRoots]; dirtyRoots.clear();
-                        for (const r of roots) if (r.isConnected || (Utils.isShadowRoot(r) && r.host && r.host.isConnected)) safeGuard(() => _corePluginRef.scanSpecificRoot(r), 'scanSpecificRoot');
-                    }
-                }
-                safeGuard(() => _corePluginRef.tick(), 'tick');
-            });
-        });
-    };
 
     try {
         if (!isSensitiveContext()) {
@@ -457,6 +405,48 @@
                 root[VSC_FLAG] = (flags | mask);
                 if (root.host) root.host.setAttribute(attr, 'true');
             } catch (e) { }
+        }
+    }
+
+    // --- State Manager ---
+    class StateManager {
+        constructor() {
+            this.state = {}; this.listeners = {}; this.filterManagers = { video: null, image: null };
+        }
+        init() {
+            const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+            const videoDefaults = isMobile ? CONFIG.FILTER.MOBILE_SETTINGS : CONFIG.FILTER.DESKTOP_SETTINGS;
+            const safeInt = Utils.safeInt;
+
+            this.state = {
+                app: { isInitialized: false, isMobile, scriptActive: false },
+                media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
+                videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
+                imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
+                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false, hideUntilReload: false },
+                playback: { currentRate: 1.0, targetRate: 1.0 }
+            };
+        }
+        get(key) { return key.split('.').reduce((o, i) => (o ? o[i] : undefined), this.state); }
+        set(key, value) {
+            const keys = key.split('.'); let obj = this.state;
+            for (let i = 0; i < keys.length - 1; i++) {
+                if (obj === undefined) return;
+                obj = obj[keys[i]];
+            }
+            const finalKey = keys[keys.length - 1]; if (obj === undefined) return;
+            const oldValue = obj[finalKey];
+            if (!Object.is(oldValue, value)) {
+                obj[finalKey] = value;
+                this.notify(key, value, oldValue);
+            }
+        }
+        batchSet(prefix, obj) { for (const [k, v] of Object.entries(obj)) this.set(`${prefix}.${k}`, v); }
+        subscribe(key, callback) { if (!this.listeners[key]) this.listeners[key] = []; this.listeners[key].push(callback); return () => { this.listeners[key] = this.listeners[key].filter(cb => cb !== callback); }; }
+        notify(key, newValue, oldValue) {
+            if (this.listeners[key]) this.listeners[key].forEach(callback => callback(newValue, oldValue));
+            let currentKey = key;
+            while (currentKey.includes('.')) { const prefix = currentKey.substring(0, currentKey.lastIndexOf('.')); const wildcardKey = `${prefix}.*`; if (this.listeners[wildcardKey]) this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue)); currentKey = prefix; }
         }
     }
 
@@ -608,20 +598,20 @@
                 let topBlack = 0, botBlack = 0;
                 const totalBandPixels = bandH * size;
 
-                for (let y = 0; y < bandH; y++) {
-                    for (let x = 0; x < size; x++) {
+                for (let y = 0; y < bandH; y+=2) {
+                    for (let x = 0; x < size; x+=2) {
                         const i = (y * size + x) * 4;
                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
                     }
                 }
-                for (let y = size - bandH; y < size; y++) {
-                    for (let x = 0; x < size; x++) {
+                for (let y = size - bandH; y < size; y+=2) {
+                    for (let x = 0; x < size; x+=2) {
                         const i = (y * size + x) * 4;
                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
                     }
                 }
-                const topRatio = topBlack / totalBandPixels;
-                const botRatio = botBlack / totalBandPixels;
+                const topRatio = topBlack / (totalBandPixels/4);
+                const botRatio = botBlack / (totalBandPixels/4);
                 const barsNow = (topRatio > 0.65 && botRatio > 0.65);
                 this._lbConf = Utils.clamp((this._lbConf || 0) * 0.9 + (barsNow ? 0.12 : -0.08), 0, 1);
                 const isLetterbox = this._lbConf > 0.6;
@@ -666,9 +656,9 @@
 
                 let validCount = 0;
                 const finalStartY = bestRoi.y, finalEndY = bestRoi.y + bestRoi.h;
-                for (let y = finalStartY; y < finalEndY; y++) {
+                for (let y = finalStartY; y < finalEndY; y+=2) {
                     const rowOffset = y * size * 4;
-                    for (let x = 4; x < size - 4; x++) {
+                    for (let x = 4; x < size - 4; x+=2) {
                         const i = rowOffset + x * 4;
                         const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
                         hist[luma]++;
@@ -720,7 +710,7 @@
 
                     let error = 0;
                     if (evValue === 0) {
-                        error = (0.38 - p50) * 0.35; // Lower gain
+                        error = (0.38 - p50) * 0.35;
                     } else {
                         error = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
                     }
@@ -777,6 +767,7 @@
 
             } catch (e) {
                 if (e.name === 'SecurityError') {
+                    // [Safety] Stop analysis if tainted and no alternative found (prevent infinite loop)
                     try {
                         this.canvas.width = this.canvas.width;
                         this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
@@ -791,6 +782,7 @@
                          this._kickImmediateAnalyze();
                          return;
                     }
+                    this.stop(); // ✅ Stop loop
                     this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, this.targetVideo, true);
                 }
             }
@@ -803,64 +795,19 @@
         }
     };
 
-    class StateManager {
-        constructor() {
-            this.state = {}; this.listeners = {}; this.filterManagers = { video: null, image: null };
-        }
-        init() {
-            const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-            const videoDefaults = isMobile ? CONFIG.FILTER.MOBILE_SETTINGS : CONFIG.FILTER.DESKTOP_SETTINGS;
-            const safeInt = Utils.safeInt;
-
-            this.state = {
-                app: { isInitialized: false, isMobile, scriptActive: false },
-                media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
-                videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
-                imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
-                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false, hideUntilReload: false },
-                playback: { currentRate: 1.0, targetRate: 1.0 }
-            };
-        }
-        get(key) { return key.split('.').reduce((o, i) => (o ? o[i] : undefined), this.state); }
-        set(key, value) {
-            const keys = key.split('.'); let obj = this.state;
-            for (let i = 0; i < keys.length - 1; i++) {
-                if (obj === undefined) return;
-                obj = obj[keys[i]];
-            }
-            const finalKey = keys[keys.length - 1]; if (obj === undefined) return;
-            const oldValue = obj[finalKey];
-            if (!Object.is(oldValue, value)) {
-                obj[finalKey] = value;
-                this.notify(key, value, oldValue);
-            }
-        }
-        batchSet(prefix, obj) { for (const [k, v] of Object.entries(obj)) this.set(`${prefix}.${k}`, v); }
-        subscribe(key, callback) { if (!this.listeners[key]) this.listeners[key] = []; this.listeners[key].push(callback); return () => { this.listeners[key] = this.listeners[key].filter(cb => cb !== callback); }; }
-        notify(key, newValue, oldValue) {
-            if (this.listeners[key]) this.listeners[key].forEach(callback => callback(newValue, oldValue));
-            let currentKey = key;
-            while (currentKey.includes('.')) { const prefix = currentKey.substring(0, currentKey.lastIndexOf('.')); const wildcardKey = `${prefix}.*`; if (this.listeners[wildcardKey]) this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue)); currentKey = prefix; }
-        }
-    }
-
     class Plugin { constructor(name) { this.name = name; this.stateManager = null; this.subscriptions = []; this._ac = new AbortController(); } init(stateManager) { this.stateManager = stateManager; } destroy() { this.subscriptions.forEach(unsubscribe => unsubscribe()); this.subscriptions = []; this._ac.abort(); } subscribe(key, callback) { this.subscriptions.push(this.stateManager.subscribe(key, callback)); } }
     class PluginManager {
         constructor(stateManager) { this.plugins = []; this.stateManager = stateManager; }
         register(plugin) { this.plugins.push(plugin); }
         initAll() {
-            this.stateManager.init(); this.plugins.forEach(plugin => safeGuard(() => plugin.init(this.stateManager), `Plugin ${plugin.name} init`));
-            this.stateManager.set('app.isInitialized', true); this.stateManager.set('app.pluginsInitialized', true);
-            window.addEventListener('pagehide', (e) => {
-                if (e.persisted) return;
-                this.destroyAll();
-            });
-            window.addEventListener('pageshow', (e) => {
-                 if (e.persisted) { try { disableAllHooks(); triggerBurstScan(250); } catch {} }
-            });
-            document.addEventListener('visibilitychange', () => { if (document.hidden) VideoAnalyzer.stop(); else { const best = this.stateManager.get('media.currentlyVisibleMedia'); const vf = this.stateManager.get('videoFilter'); if (best && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(best, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma }); } });
+            this.stateManager.init();
+            this.plugins.forEach(p => p.init(this.stateManager));
+            this.stateManager.set('app.isInitialized', true);
+            // ✅ CRITICAL FIX: Trigger plugin initialization cycle
+            this.stateManager.set('app.pluginsInitialized', true);
+            window.addEventListener('pagehide', (e) => { if (!e.persisted) this.destroyAll(); });
         }
-        destroyAll() { this.plugins.forEach(plugin => safeGuard(() => plugin.destroy(), `Plugin ${plugin.name} destroy`)); this.stateManager.set('app.isInitialized', false); }
+        destroyAll() { this.plugins.forEach(p => p.destroy()); }
     }
 
     class CoreMediaPlugin extends Plugin {
@@ -878,6 +825,7 @@
             this._backoffInterval = null;
             this._historyOrig = null;
             this._lastShadowPrune = 0;
+            this._lastAttrObsProbe = 0;
             this._lastSensitive = null;
             this._updateHooksState = null;
         }
@@ -911,8 +859,13 @@
                 const active = this.stateManager.get('app.scriptActive');
                 const hasActiveVideo = (this.stateManager.get('media.activeMedia')?.size || 0) > 0;
                 const hasVideo = hasActiveVideo || hasRealVideoCached();
-                if (active && hasVideo && !isSensitiveContext()) {
+
+                // ✅ [PATCH 2] Enable Shadow hook early so we can SEE players living in Shadow DOM
+                if (!isSensitiveContext()) {
                     enableShadowHook();
+                }
+
+                if (active && hasVideo && !isSensitiveContext()) {
                     enablePropertyHooks();
                 } else {
                     if (!active) disableAllHooks();
@@ -1109,6 +1062,15 @@
                     return alive;
                 });
             }
+            // [Safety] Re-enable Global Observer if lost
+            if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) {
+                const now = Date.now();
+                if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) {
+                    this._lastAttrObsProbe = now;
+                    this.updateGlobalAttrObs(true);
+                }
+            }
+
             const sm = this.stateManager;
             const activeMedia = sm.get('media.activeMedia'); const activeImages = sm.get('media.activeImages');
             const hasPotential = document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0 || (sm.get('ui.areControlsVisible') && document.images.length > 0);
@@ -1126,9 +1088,9 @@
                 const mayContainMedia = (n) => {
                     if (!n || n.nodeType !== 1) return false;
                     const tag = n.nodeName;
-                    if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE') return true;
+                    if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE' || tag === 'CANVAS') return true;
                     if (n.childElementCount > 0 && n.querySelector) {
-                         return !!n.querySelector('video, iframe, img, source');
+                         return !!n.querySelector('video, iframe, img, source, canvas');
                     }
                     return false;
                 };
@@ -1201,8 +1163,8 @@
                         if (visMap) visMap.set(e.target, isVisible);
                         this._intersectionRatios.set(e.target, e.intersectionRatio);
 
-                        // [Fixed] Iframe visibility update for filters
-                        if (e.target.tagName === 'IFRAME') {
+                        // [Fixed] Iframe/Canvas visibility update
+                        if (e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS') {
                             if (visMap) visMap.set(e.target, isVisible);
                             sm.set('media.visibilityChange', { target: e.target, isVisible });
                         }
@@ -1303,6 +1265,8 @@
             } else if (node.tagName === 'IFRAME') {
                 this._hookIframe(node);
                 iframes.add(node);
+            } else if (node.tagName === 'CANVAS') {
+                iframes.add(node);
             }
             else if (node.tagName === 'SOURCE' && node.parentNode && node.parentNode.tagName === 'VIDEO') { media.add(node.parentNode); }
         }
@@ -1379,7 +1343,7 @@
                     const internal = this._iframeInternalObservers.get(frame);
                     if (internal && internal.mo) { try { internal.mo.disconnect(); } catch { } }
                     this._iframeInternalObservers.delete(frame);
-                    try { frame.removeEventListener('load', frame._vscOnLoad, { capture: false }); } catch { }
+                    try { frame.removeEventListener('load', frame._vscOnLoad, { passive: true }); } catch { }
                 }
             }
         }
@@ -1402,7 +1366,7 @@
                 } catch { }
             };
             const onLoad = () => { burstRescan(); attachInternalObserver(); }; frame._vscOnLoad = onLoad;
-            try { frame.addEventListener('load', onLoad, P(this._ac.signal)); } catch (e) { }
+            try { frame.addEventListener('load', onLoad, { passive: true }); } catch (e) { }
             const mo = new MutationObserver((ms) => { if (!frame.isConnected) return; for (const m of ms) if (m.type === 'attributes') { burstRescan(); this._domDirty = true; break; } });
             try { mo.observe(frame, { attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS }); this._iframeObservers.set(frame, mo); } catch { }
             attachInternalObserver();
@@ -1414,7 +1378,7 @@
             if (root === document) {
                 // [Optimized] Shadow scan only at document level
                 const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0;
-                if (!document.querySelector('video, iframe, img, source') && !hasShadow) return { media, images, iframes };
+                if (!document.querySelector('video, iframe, canvas, img, source') && !hasShadow) return { media, images, iframes };
 
                 const docVideos = document.getElementsByTagName('video'); for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images, iframes);
                 if (wantImages) {
@@ -1424,6 +1388,7 @@
                     }
                 }
                 const docIframes = document.getElementsByTagName('iframe'); for (let i = 0; i < docIframes.length; i++) this._checkAndAdd(docIframes[i], media, images, iframes);
+                const docCanvas = document.getElementsByTagName('canvas'); for (let i = 0; i < docCanvas.length; i++) this._checkAndAdd(docCanvas[i], media, images, iframes);
             } else {
                 const candidates = root.querySelectorAll(wantImages ? SEL.MEDIA : SEL.FILTER_TARGET);
                 candidates.forEach(el => this._checkAndAdd(el, media, images, iframes));
@@ -1491,11 +1456,14 @@
                 }
             };
             on(media, 'playing', onPlaying, P(signal));
+
+            // [Fixed] Reset tainted status on src change
+            on(media, 'loadedmetadata', () => VideoAnalyzer.taintedResources.delete(media), P(signal));
+
             const attrMo = new MutationObserver((mutations) => {
                 let triggered = false;
                 for (const m of mutations) {
                     if (m.type === 'attributes') {
-                        // [Fixed] Clear taint on source change
                         if (m.target === media && (m.attributeName === 'src' || m.attributeName === 'poster' || m.attributeName === 'data-src')) {
                             VideoAnalyzer.taintedResources.delete(media);
                             triggered = true;
@@ -1789,7 +1757,7 @@
 
             // [Smart Escalation] Class -> Inline !important fallback
             const filterId = this.filterManager._options.settings.SHARPEN_ID + '_combined_filter';
-            const filterCss = `url(#${filterId})`;
+            const filterCss = `url("#${filterId}")`; // Added Quotes for WebKit safety
 
             if (isActive) {
                 // 1. Try Class
@@ -1971,7 +1939,31 @@
                 btn.onclick = () => this.stateManager.set('playback.targetRate', speed);
                 this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn);
             });
-            this.updateUIVisibility(); this.updateTriggerStyle();
+
+            // ✅ [Restored Clean Mode: Ghost UI until detected]
+            this.startBootGate();
+        }
+
+        startBootGate() {
+            this.globalContainer.style.display = 'none'; // Initially hidden
+            let checks = 0;
+            // First pass check
+            const check = () => {
+                checks++;
+                const hasMedia = this.stateManager.get('media.activeMedia').size > 0 ||
+                                 this.stateManager.get('media.activeIframes').size > 0 ||
+                                 hasRealVideoCached();
+
+                if (hasMedia) {
+                    this.globalContainer.style.display = 'flex'; // Show when detected
+                } else if (checks < 30) { // Keep checking for 15s
+                     setTimeout(check, 500);
+                } else {
+                    // Final hide if nothing found
+                    this.globalContainer.style.display = 'none';
+                }
+            };
+            check();
         }
 
         updateTriggerStyle() {
@@ -2020,8 +2012,12 @@
             const hasAny = hasAnyVideo || hasLocalImage;
 
             if (this.globalContainer) {
-                // [Force Visible] Icon always visible regardless of detection
-                this.globalContainer.style.display = 'flex';
+                // If controls are actively ON, force show. Otherwise respect detection.
+                if (controlsVisible || hasAny) {
+                    this.globalContainer.style.display = 'flex';
+                } else {
+                   // Keep hidden if nothing found yet (BootGate handles initial check)
+                }
             }
             if (this.speedButtonsContainer) { this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none'; }
             if (!this.shadowRoot) return;
