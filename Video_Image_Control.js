@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.49 Final_AE_Tuned)
+// @name        Video_Image_Control (Lite v130.58 Final_AE_Tuned)
 // @namespace   https://com/
-// @version     130.49
-// @description v130.49: Fix AE Over-bright at 0. Restore Iframe UI (Smart Detection). Cloudflare Safe.
+// @version     130.58
+// @description v130.58: Fix SyntaxError (Duplicate debounce), Smart Escalation.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -26,8 +26,9 @@
     Object.defineProperty(window, '__VSC_BOOT_GUARD__', { value: true, configurable: false, writable: false });
 
     const IS_TOP = window === window.top;
+    const VSC_DEBUG = false;
 
-    // --- Safety & Performance Helpers ---
+    // --- Helpers ---
     let _sensCache = { t: 0, v: false };
     const isSensitiveContext = () => {
         const now = Date.now();
@@ -65,20 +66,20 @@
             if (hasSource || (w >= 80 && h >= 60)) { found = true; break; }
         }
         if (!found) {
-            const list = window._shadowDomList_;
-            if (list && list.length > 0) {
-                const cap = Math.min(list.length, 50);
-                for (let i = 0; i < cap; i++) {
-                    const sr = list[i];
-                    if (!sr) continue;
-                    try {
-                        const v = sr.querySelector ? sr.querySelector('video') : null;
-                        if (v) {
-                            const w = v.videoWidth || v.clientWidth || 0;
-                            const h = v.videoHeight || v.clientHeight || 0;
-                            if ((w >= 80 && h >= 60) || v.src || v.currentSrc) { found = true; break; }
-                        }
-                    } catch(e) {}
+            // Check Iframes
+            if (document.querySelector('iframe')) found = true;
+            // Check Shadow DOMs
+            if (!found) {
+                const list = window._shadowDomList_;
+                if (list && list.length > 0) {
+                    const cap = Math.min(list.length, 50);
+                    for (let i = 0; i < cap; i++) {
+                        const sr = list[i];
+                        if (!sr) continue;
+                        try {
+                            if (sr.querySelector && (sr.querySelector('video') || sr.querySelector('iframe'))) { found = true; break; }
+                        } catch(e) {}
+                    }
                 }
             }
         }
@@ -93,6 +94,10 @@
         if (!window._shadowDomSet_.has(sr)) {
             window._shadowDomSet_.add(sr);
             window._shadowDomList_.push(sr);
+            if (window.vscPluginManager) {
+                const core = window.vscPluginManager.plugins.find(p => p.name === 'CoreMedia');
+                if (core) core.scanSpecificRoot(sr);
+            }
         }
     };
 
@@ -101,7 +106,11 @@
         defineProperty: Object.defineProperty,
         defineProperties: Object.defineProperties,
         attachShadow: Element.prototype.attachShadow,
+        mediaLoad: HTMLMediaElement.prototype.load,
     };
+
+    // ✅ [Global] Inline Style Backup for Safe Restore
+    const _prevInlineStyle = new WeakMap();
 
     let _hooksActive = false;
     let _shadowHookActive = false;
@@ -187,6 +196,7 @@
             Element.prototype.attachShadow = ORIGINALS.attachShadow;
             _shadowHookActive = false;
         }
+        HTMLMediaElement.prototype.load = ORIGINALS.mediaLoad;
     };
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
@@ -212,7 +222,7 @@
 
     const scheduleWork = (cb) => {
         const wrapped = (deadline) => {
-            try { cb(deadline); } catch (e) { if (CONFIG.DEBUG) console.error(e); }
+            try { cb(deadline); } catch (e) { if (VSC_DEBUG) console.error(e); }
         };
         if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 });
         return setTimeout(() => wrapped({ timeRemaining: () => 1, didTimeout: true }), 1);
@@ -269,7 +279,7 @@
         },
         SCAN: {
             INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000, MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
-            MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video']
+            MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video', 'data-video-url', 'data-stream-url', 'data-player-src', 'data-m3u8', 'data-mpd', 'href']
         },
         UI: { MAX_Z: 2147483647, DRAG_THRESHOLD: 5, HIDDEN_CLASS: 'vsc-hidden', SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2] }
     };
@@ -359,6 +369,7 @@
         else doc.addEventListener('DOMContentLoaded', () => { if (doc.body) cb(); else setTimeout(cb, 100); }, { once: true });
     }
 
+    // [Fixed] Optimized & Active Context Injection
     function injectFiltersIntoContext(element, manager, stateManager) {
         if (!manager || !manager.isInitialized() || !stateManager) return;
         let root = element.getRootNode();
@@ -373,9 +384,18 @@
         if (ownerDoc === document && root === document) return;
         const type = (manager === stateManager.filterManagers.video) ? 'video' : 'image';
         const attr = `data-vsc-filters-injected-${type}`;
+        
+        // Fast Check
+        const styleId = manager.getStyleNode().id;
+        const svgId = manager.getSvgNode().id;
+
         if (Utils.isShadowRoot(root)) {
-            if (root.host && root.host.hasAttribute(attr)) return;
-        } else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) return;
+            if (root.host && root.host.hasAttribute(attr)) {
+                if (root.getElementById(styleId)) return;
+            }
+        } else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) {
+             if (ownerDoc.getElementById(styleId)) return;
+        }
 
         const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode();
         if (!svgNode || !styleNode) return;
@@ -390,8 +410,7 @@
                 } catch (e) { }
             }
             if (!appended) {
-                const styleId = styleEl.id;
-                if (!targetRoot.querySelector(`#${styleId}`)) {
+                if (!targetRoot.querySelector(`#${styleEl.id}`)) {
                     const container = (targetRoot === ownerDoc) ? targetRoot.head : targetRoot;
                     if (container) container.appendChild(styleEl.cloneNode(true));
                 }
@@ -400,32 +419,32 @@
 
         if (ownerDoc !== document) {
             if (!ownerDoc.body) { whenDocReady(ownerDoc, () => injectFiltersIntoContext(element, manager, stateManager)); return; }
-            if (ownerDoc.body && ownerDoc.head && !ownerDoc.documentElement.hasAttribute(attr)) {
+            if (!ownerDoc.getElementById(svgNode.id)) {
                 const clonedSvg = svgNode.cloneNode(true);
                 ownerDoc.body.appendChild(clonedSvg);
-                const view = ownerDoc.defaultView;
-                const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
-                safelyAppendStyle(ownerDoc, styleNode, sharedSheet);
                 manager.registerContext(clonedSvg);
-                ownerDoc.documentElement.setAttribute(attr, 'true');
-                return;
             }
+            const view = ownerDoc.defaultView;
+            const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
+            safelyAppendStyle(ownerDoc, styleNode, sharedSheet);
+            ownerDoc.documentElement.setAttribute(attr, 'true');
+            return;
         }
         if (Utils.isShadowRoot(root)) {
             let flags = (root[VSC_FLAG] | 0);
             const mask = type === 'video' ? FLAG_VIDEO_INJ : FLAG_IMAGE_INJ;
-            if (!(flags & mask)) {
-                try {
-                    const clonedSvg = svgNode.cloneNode(true);
-                    const view = root.ownerDocument ? root.ownerDocument.defaultView : (root.host ? root.host.ownerDocument.defaultView : null);
-                    const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
-                    safelyAppendStyle(root, styleNode, sharedSheet);
-                    root.appendChild(clonedSvg);
-                    manager.registerContext(clonedSvg);
-                    root[VSC_FLAG] = (flags | mask);
-                    if (root.host) root.host.setAttribute(attr, 'true');
-                } catch (e) { }
-            }
+            try {
+                if (!root.getElementById(svgNode.id)) {
+                     const clonedSvg = svgNode.cloneNode(true);
+                     root.appendChild(clonedSvg);
+                     manager.registerContext(clonedSvg);
+                }
+                const view = root.ownerDocument ? root.ownerDocument.defaultView : (root.host ? root.host.ownerDocument.defaultView : null);
+                const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
+                safelyAppendStyle(root, styleNode, sharedSheet);
+                root[VSC_FLAG] = (flags | mask);
+                if (root.host) root.host.setAttribute(attr, 'true');
+            } catch (e) { }
         }
     }
 
@@ -681,7 +700,6 @@
                 const evValue = this.currentSettings.targetLuma || 0;
                 const isAutoExp = this.currentSettings.autoExposure;
 
-                // [Tuned] Auto Exposure Tuning (Lower target for 0 to prevent washout)
                 if (isAutoExp) {
                     const u = evValue / 20;
                     const boostFactor = Math.tanh(u);
@@ -690,8 +708,7 @@
 
                     let error = 0;
                     if (evValue === 0) {
-                        // [Tuned] Target 0.38 instead of 0.5 for neutral look
-                        error = (0.38 - p50) * 0.35; // Lower gain (0.5 -> 0.35)
+                        error = (0.38 - p50) * 0.35; // Lower gain
                     } else {
                         error = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
                     }
@@ -748,7 +765,6 @@
 
             } catch (e) {
                 if (e.name === 'SecurityError') {
-                    // [Fixed] CORS Canvas Reset
                     try {
                         this.canvas.width = this.canvas.width;
                         this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
@@ -831,17 +847,6 @@
                  if (e.persisted) { try { disableAllHooks(); triggerBurstScan(250); } catch {} }
             });
             document.addEventListener('visibilitychange', () => { if (document.hidden) VideoAnalyzer.stop(); else { const best = this.stateManager.get('media.currentlyVisibleMedia'); const vf = this.stateManager.get('videoFilter'); if (best && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(best, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma }); } });
-
-            // [Fixed] 민감 상태 변경 감지 보완
-            ['pushState', 'replaceState', 'popstate', 'hashchange'].forEach(evt => window.addEventListener(evt, () => {
-                 setTimeout(() => {
-                     const active = this.stateManager.get('app.scriptActive');
-                     const hasVideo = hasRealVideoCached() || (this.stateManager.get('media.activeMedia')?.size || 0) > 0;
-                     if (active && hasVideo && !isSensitiveContext()) {
-                         enableShadowHook(); enablePropertyHooks();
-                     } else if (!active) disableAllHooks();
-                 }, 300);
-            }));
         }
         destroyAll() { this.plugins.forEach(plugin => safeGuard(() => plugin.destroy(), `Plugin ${plugin.name} destroy`)); this.stateManager.set('app.isInitialized', false); }
     }
@@ -1083,7 +1088,8 @@
             }
             this._cleanupDeadIframes();
             this._pruneDisconnected();
-            if (window._shadowDomList_ && Date.now() - this._lastShadowPrune > 5000) {
+            // [Optimized] Pruning interval increased to 15000ms
+            if (window._shadowDomList_ && Date.now() - this._lastShadowPrune > 15000) {
                 this._lastShadowPrune = Date.now();
                 window._shadowDomList_ = window._shadowDomList_.filter(r => {
                     const alive = r && r.host && r.host.isConnected;
@@ -1259,8 +1265,20 @@
         scanAndApply() { const visited = new WeakSet(); this._processAllElements(visited, !this._didInitialShadowFullScan); this._didInitialShadowFullScan = true; }
         _checkAndAdd(node, media, images, iframes) {
             if (node.tagName === 'VIDEO') {
-                const vw = node.videoWidth || 0; const vh = node.videoHeight || 0; let sizeOk = (vw >= CONFIG.FILTER.MIN_VIDEO_SIZE || vh >= CONFIG.FILTER.MIN_VIDEO_SIZE);
-                if (!sizeOk) { const ow = node.offsetWidth || 0; const oh = node.offsetHeight || 0; sizeOk = (ow >= CONFIG.FILTER.MIN_VIDEO_SIZE || oh >= CONFIG.FILTER.MIN_VIDEO_SIZE); }
+                const vw = node.videoWidth || 0;
+                const vh = node.videoHeight || 0;
+                // [Fixed] Also check clientWidth/Height for ok.ru
+                const cw = node.clientWidth || 0;
+                const ch = node.clientHeight || 0;
+
+                let sizeOk = (vw >= CONFIG.FILTER.MIN_VIDEO_SIZE || vh >= CONFIG.FILTER.MIN_VIDEO_SIZE) ||
+                             (cw >= CONFIG.FILTER.MIN_VIDEO_SIZE || ch >= CONFIG.FILTER.MIN_VIDEO_SIZE);
+
+                if (!sizeOk) {
+                    const ow = node.offsetWidth || 0;
+                    const oh = node.offsetHeight || 0;
+                    sizeOk = (ow >= CONFIG.FILTER.MIN_VIDEO_SIZE || oh >= CONFIG.FILTER.MIN_VIDEO_SIZE);
+                }
                 const isPotential = (node.src || node.currentSrc || node.srcObject || node.querySelector('source') || node.getAttribute('data-src') || node.getAttribute('data-video-src') || node.getAttribute('data-url'));
                 const isPlayableHidden = !sizeOk && (node.duration > 0 || node.readyState >= 1);
                 if (sizeOk || isPotential || isPlayableHidden) media.add(node);
@@ -1509,6 +1527,12 @@
         // [New] Dedicated iframe listener
         attachIframeListeners(iframe) {
             if (!iframe || !this.intersectionObserver) return false;
+
+            // [PATCH] Inject SVG filter context for iframes (ShadowDOM support)
+            if (this.stateManager.filterManagers.video) {
+                injectFiltersIntoContext(iframe, this.stateManager.filterManagers.video, this.stateManager);
+            }
+
             const visMap = this.stateManager.get('media.visibilityMap');
             // Init visibility based on rect
             const rect = iframe.getBoundingClientRect();
@@ -1557,6 +1581,38 @@
             }, 10000);
         }
         destroy() { super.destroy(); if (this.throttledUpdate) document.removeEventListener('vsc-smart-limit-update', this.throttledUpdate); if (this._rafId) cancelAnimationFrame(this._rafId); if (this._imageRafId) cancelAnimationFrame(this._imageRafId); if (this._mediaStateRafId) cancelAnimationFrame(this._mediaStateRafId); if (this._pruneTimer) { clearInterval(this._pruneTimer); this._pruneTimer = null; } }
+
+        // ✅ [Smart Escalation: Class -> Inline fallback]
+        setInlineFilter(el, filterCss) {
+            if (!_prevInlineStyle.has(el)) {
+                _prevInlineStyle.set(el, {
+                    filter: el.style.filter || '',
+                    webkitFilter: el.style.webkitFilter || '',
+                    transform: el.style.transform || ''
+                });
+            }
+            el.style.setProperty('filter', filterCss, 'important');
+            el.style.setProperty('-webkit-filter', filterCss, 'important');
+            el.style.setProperty('transform', 'translateZ(0)', 'important');
+            el.dataset.vscInlineFilter = '1';
+        }
+
+        restoreInlineFilter(el) {
+            if (el.dataset.vscInlineFilter !== '1') return; // 내가 건드린 것만 복구
+            const prev = _prevInlineStyle.get(el);
+            if (prev) {
+                el.style.filter = prev.filter;
+                el.style.webkitFilter = prev.webkitFilter;
+                el.style.transform = prev.transform;
+                _prevInlineStyle.delete(el);
+            } else {
+                el.style.removeProperty('filter');
+                el.style.removeProperty('-webkit-filter');
+                el.style.removeProperty('transform');
+            }
+            delete el.dataset.vscInlineFilter;
+        }
+
         _createManager(options) {
             class SvgFilterManager {
                 constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._lastValues = null; this._clarityTableCache = new Map(); }
@@ -1710,30 +1766,49 @@
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
             const isVis = this.stateManager.get('media.visibilityMap').get(video); const isActive = scriptActive && isVis && shouldApply;
 
-            // [New] Iframe에 CSS Filter 적용 (Cross-Origin 지원 + 색온도/감마 흉내)
-            if (video.tagName === 'IFRAME') {
-                if (isActive) {
-                    const bright = (vf.brightness || 0) / 100;
-                    const contrast = (vf.contrastAdj || 1.0);
-                    const sat = (vf.saturation || 100) / 100;
-                    const ct = vf.colorTemp || 0;
-                    const hue = ct * 0.6; // 색온도 흉내 (hue)
-                    const sep = Math.min(0.25, Math.abs(ct) / 100); // 색온도 흉내 (sepia)
-
-                    video.style.filter = `brightness(${1 + bright}) contrast(${contrast}) saturate(${sat}) hue-rotate(${hue}deg) sepia(${sep})`;
-                } else {
-                    video.style.filter = '';
-                }
-                return;
+            // [PATCH] Active Injection: Force inject filters if active (robust against DOM resets)
+            if (isActive) {
+                injectFiltersIntoContext(video, this.filterManager, this.stateManager);
+                if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform';
+            } else {
+                if (video.style.willChange) video.style.willChange = '';
             }
 
-            if (isActive) { if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform'; } else { if (video.style.willChange) video.style.willChange = ''; }
-            video.classList.toggle('vsc-video-filter-active', isActive); if (vf.dither === 0) video.classList.add('no-grain'); else video.classList.remove('no-grain');
+            // [Smart Escalation] Class -> Inline !important fallback
+            const filterId = this.filterManager._options.settings.SHARPEN_ID + '_combined_filter';
+            const filterCss = `url(#${filterId})`;
+
+            if (isActive) {
+                // 1. Try Class
+                video.classList.add('vsc-video-filter-active');
+
+                // 2. Check if it worked
+                const cs = window.getComputedStyle(video);
+                const currentFilter = (cs.filter || '') + (cs.webkitFilter || '');
+
+                if (!currentFilter.includes(filterId)) {
+                    // 3. Escalate to Inline if class failed
+                    this.setInlineFilter(video, filterCss);
+                } else {
+                    // 4. De-escalate (Clean up inline if class works)
+                    this.restoreInlineFilter(video);
+                }
+            } else {
+                video.classList.remove('vsc-video-filter-active');
+                this.restoreInlineFilter(video);
+            }
+
+            if (vf.dither === 0) video.classList.add('no-grain');
+            else video.classList.remove('no-grain');
         }
         _updateImageFilterState(image) {
             const scriptActive = this.stateManager.get('app.scriptActive'); if (!scriptActive) { image.classList.remove('vsc-image-filter-active'); return; }
             const level = this.stateManager.get('imageFilter.level'); const colorTemp = this.stateManager.get('imageFilter.colorTemp');
             const shouldApply = level > 0 || colorTemp !== 0; const isVis = this.stateManager.get('media.visibilityMap').get(image); const isActive = isVis && shouldApply;
+            
+            // [PATCH] Active Injection for Images
+            if (isActive) injectFiltersIntoContext(image, this.imageFilterManager, this.stateManager);
+
             image.classList.toggle('vsc-image-filter-active', isActive);
         }
     }
@@ -1759,16 +1834,13 @@
         init(stateManager) {
             super.init(stateManager);
 
-            // [Fixed] Top Window에서만 미디어 감지 시 UI 생성 요청 (Iframe은 미디어 감지 후 스스로 판단)
-            // 아래 라인은 삭제됨: if (IS_TOP) this.stateManager.set('ui.createRequested', true);
-
             const createUI = () => { if (this.globalContainer) return; this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); this.stateManager.set('ui.createRequested', false); };
             const onCreateRequested = () => { if (document.body) createUI(); else document.addEventListener('DOMContentLoaded', createUI, { once: true }); };
             this.subscribe('ui.createRequested', (req) => { if (req) onCreateRequested(); }); if (this.stateManager.get('ui.createRequested')) onCreateRequested();
             this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
             this.subscribe('media.activeMedia', () => this.updateUIVisibility());
             this.subscribe('media.activeImages', () => this.updateUIVisibility());
-            this.subscribe('media.activeIframes', () => this.updateUIVisibility()); // [Fixed] Iframe only case support
+            this.subscribe('media.activeIframes', () => this.updateUIVisibility());
             this.subscribe('playback.currentRate', rate => {
                 this.updateActiveSpeedButton(rate);
                 this.showToast(`${rate.toFixed(2)}x`);
@@ -1845,18 +1917,29 @@
                 } else {
                     this.stateManager.set('app.scriptActive', true);
                     this.stateManager.set('ui.areControlsVisible', true);
-                    const check = (count) => {
-                         const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || this.stateManager.get('media.activeImages').size > 0 || this.stateManager.get('media.activeIframes').size > 0;
-                         if (!hasMedia && this.stateManager.get('app.scriptActive')) {
-                             if (count > 0) setTimeout(() => check(count - 1), 500);
-                             else {
-                                 this.globalContainer.style.display = 'none';
-                                 this.stateManager.set('app.scriptActive', false);
-                                 this.stateManager.set('ui.areControlsVisible', false);
-                             }
-                         }
+                    // ✅ No Auto-OFF Logic (Retry only)
+                    const ensureMediaSoon = (count) => {
+                        const sm = this.stateManager;
+                        if (!sm.get('app.scriptActive')) return;
+
+                        const hasMediaState =
+                            sm.get('media.activeMedia').size > 0 ||
+                            sm.get('media.activeImages').size > 0 ||
+                            sm.get('media.activeIframes').size > 0;
+
+                        const hasMediaDom =
+                            !!document.querySelector('video, iframe') || hasRealVideoCached();
+
+                        if (hasMediaState || hasMediaDom) return;
+
+                        if (count > 0) {
+                            triggerBurstScan(250);
+                            setTimeout(() => ensureMediaSoon(count - 1), 900);
+                        } else {
+                            this.showToast('미디어를 아직 못 찾았어요 (로딩 지연/iframe/CORS일 수 있음)');
+                        }
                     };
-                    setTimeout(() => check(3), 300);
+                    setTimeout(() => ensureMediaSoon(10), 500);
                 }
             });
 
@@ -1895,7 +1978,15 @@
                 if (!this.hostElement && this.mainControlsContainer) { this.createControlsHost(); }
             }
             if (this.hostElement) { this.hostElement.style.display = isVisible ? 'flex' : 'none'; }
-            if (this.speedButtonsContainer) { const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m.tagName === 'VIDEO'); this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none'; }
+            if (this.speedButtonsContainer) {
+                // [Fixed] Generic Check for Video Presence to prevent flickering
+                const hasVideo =
+                    [...this.stateManager.get('media.activeMedia')].some(m => m && m.tagName === 'VIDEO') ||
+                    !!document.querySelector('video, iframe') ||
+                    hasRealVideoCached();
+
+                this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none';
+            }
             this.updateUIVisibility();
         }
         updateUIVisibility() {
@@ -1908,7 +1999,10 @@
             const controlsVisible = this.stateManager.get('ui.areControlsVisible');
             const activeMedia = this.stateManager.get('media.activeMedia') || new Set(); const activeImages = this.stateManager.get('media.activeImages') || new Set(); const activeIframes = this.stateManager.get('media.activeIframes') || new Set();
             const hasLocalVideo = [...activeMedia].some(m => m && m.tagName === 'VIDEO'); const hasLocalImage = activeImages.size > 0; const hasIframe = activeIframes.size > 0;
-            const hasAnyVideo = hasLocalVideo || hasIframe;
+
+            // [Fixed] Robust check for updateUIVisibility as well
+            const hasDomVideo = !!document.querySelector('video, iframe') || hasRealVideoCached();
+            const hasAnyVideo = hasLocalVideo || hasIframe || hasDomVideo;
             const hasAny = hasAnyVideo || hasLocalImage;
 
             if (this.globalContainer) {
@@ -2096,8 +2190,7 @@
         pluginManager.register(new CoreMediaPlugin());
         pluginManager.register(new SvgFilterPlugin());
         pluginManager.register(new PlaybackControlPlugin());
-        // [Fixed] Iframe 내 중복 UI 생성 방지
-        if (IS_TOP) pluginManager.register(new UIPlugin());
+        // [Fixed] Removed duplicate UIPlugin registration for IS_TOP
         pluginManager.initAll();
     }
 
