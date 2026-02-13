@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.73 Optimized)
+// @name        Video_Image_Control (Lite v130.74 Stable)
 // @namespace   https://com/
-// @version     130.73
-// @description v130.73: Optimized VideoAnalyzer (Lazy Init, Safe Loop), Enhanced Best Video Picker, Performance Tuning.
+// @version     130.74
+// @description v130.74: Fixed Worker Race, Enhanced AE Logic, Mobile Optimization, Safe State Injection.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -97,16 +97,17 @@
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
 
-    // --- Worker Logic String (Lazy Init) ---
+    // --- Worker Logic String (Reuse Array, Frame ID) ---
     const WORKER_CODE = `
+        const hist = new Uint16Array(256);
         self.onmessage = function(e) {
-            const { data, width, height, type, bandH, step } = e.data;
+            const { fid, vid, data, width, type, bandH, step } = e.data;
             if (type === 'analyze') {
+                hist.fill(0);
                 const size = width;
                 const blackTh = 18;
                 let topBlack = 0, botBlack = 0;
 
-                // Top Band
                 for (let y = 0; y < bandH; y += step) {
                     for (let x = 0; x < size; x += step) {
                         const i = (y * size + x) * 4;
@@ -114,7 +115,6 @@
                     }
                 }
 
-                // Bottom Band
                 const botBandH = Math.floor(bandH * 0.8);
                 for (let y = size - botBandH; y < size; y += step) {
                     for (let x = 0; x < size; x += step) {
@@ -130,9 +130,7 @@
                 const botRatio = pixelCountBot > 0 ? botBlack / pixelCountBot : 0;
                 const barsNow = (topRatio > 0.65 && botRatio > 0.65);
 
-                const hist = new Uint16Array(256);
                 let validCount = 0;
-
                 const startY = barsNow ? Math.floor(size * 0.15) : 0;
                 const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
 
@@ -163,7 +161,7 @@
                 if (p50 < 0) p50 = 0.5;
                 if (p90 < 0) p90 = 0.9;
 
-                self.postMessage({ type: 'result', p10, p50, p90, barsNow });
+                self.postMessage({ type: 'result', fid, vid, p10, p50, p90, barsNow });
             }
         };
     `;
@@ -573,23 +571,28 @@
         _worker: null,
         _workerUrl: null,
         _rvfcCb: null,
+        _frameId: 0,
+        _videoIds: new WeakMap(),
+        _lowMotionFrames: 0,
+
+        ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
 
         init(stateManager) {
-            this.stateManager = stateManager;
+            this.ensureStateManager(stateManager);
             if (!this.canvas) {
                 if (typeof OffscreenCanvas !== 'undefined') {
                     this.canvas = new OffscreenCanvas(32, 32);
                 } else {
                     this.canvas = document.createElement('canvas');
                 }
-                const size = IS_HIGH_END ? 48 : (IS_LOW_END ? 16 : 24);
+                const size = (IS_LOW_END && !IS_HIGH_END) ? 24 : (IS_HIGH_END ? 48 : 24);
                 this.canvas.width = size; this.canvas.height = size;
             }
             if (!this.ctx) {
                 this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
                 if (this.ctx) this.ctx.imageSmoothingEnabled = false;
             }
-            // Lazy Worker Init: Created only when enabled
+            // Lazy Worker Init
             if (!this._worker && !this._workerUrl) {
                 try {
                     const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
@@ -602,11 +605,15 @@
             }
             this._roiP50History = [];
         },
+        _getVideoId(v) {
+            if (!this._videoIds.has(v)) this._videoIds.set(v, Math.random().toString(36).slice(2));
+            return this._videoIds.get(v);
+        },
         _handleWorkerMessage(e) {
-            const { type, p10, p50, p90, barsNow } = e.data;
-            if (type === 'result') {
-                this._processAnalysisResult(p10, p50, p90, barsNow);
-            }
+            const { type, fid, vid, p10, p50, p90, barsNow } = e.data;
+            if (type !== 'result' || !this.targetVideo) return;
+            if (vid !== this._getVideoId(this.targetVideo)) return;
+            this._processAnalysisResult(p10, p50, p90, barsNow);
         },
         _analyzeFallback(imageData, width, height, bandH, step) {
              const data = imageData.data;
@@ -674,7 +681,6 @@
             let v = sm ? sm.get('media.currentlyVisibleMedia') : null;
             if (v && v.isConnected && v.tagName === 'VIDEO') return v;
 
-            // Robust fallback: Pick largest visible video
             const candidates = document.querySelectorAll('video');
             let best = null, maxScore = -1;
             for(let i=0; i<candidates.length; i++) {
@@ -709,7 +715,6 @@
             if (this.isRunning && this.targetVideo === video) return;
             this.targetVideo = video;
             this.hasRVFC = 'requestVideoFrameCallback' in this.targetVideo;
-            // Ensure worker is ready (lazy init check)
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
             this.isRunning = true;
             this._roiP50History = [];
@@ -717,7 +722,6 @@
         },
         stop() {
             this.isRunning = false;
-            // Safe RVFC cancel
             if (this.hasRVFC && this.targetVideo && this.handle) {
                 try { this.targetVideo.cancelVideoFrameCallback(this.handle); } catch { }
             }
@@ -765,7 +769,6 @@
         loop() {
             if (!this.isRunning || !this.targetVideo) return;
             if (this.hasRVFC) {
-                // Optimized Safe Loop
                 if (!this._rvfcCb) {
                     this._rvfcCb = () => {
                         if (!this.isRunning || !this.targetVideo) return;
@@ -792,6 +795,9 @@
             if (!this.ctx) return;
             if (this.taintedResources.has(this.targetVideo)) return;
 
+            // Stable Scene Check
+            if (this._lowMotionFrames > 60 && (this.frameSkipCounter % 5 !== 0)) return;
+
             const startTime = performance.now();
             const aggressive = (this._evAggressiveUntil && startTime < this._evAggressiveUntil);
 
@@ -809,15 +815,19 @@
                 this.ctx.drawImage(this.targetVideo, 0, 0, size, size);
                 const imageData = this.ctx.getImageData(0, 0, size, size);
 
-                const step = IS_LOW_END ? 3 : 2;
+                const step = (IS_LOW_END && size > 20) ? 3 : (IS_LOW_END ? 2 : (IS_HIGH_END ? 2 : 2));
                 const bandH = Math.max(1, Math.floor(size * 0.10));
+
+                const fid = ++this._frameId;
+                const vid = this._getVideoId(this.targetVideo);
 
                 if (this._worker) {
                      this._worker.postMessage({
                         type: 'analyze',
+                        fid: fid,
+                        vid: vid,
                         data: imageData.data,
                         width: size,
-                        height: size,
                         bandH: bandH,
                         step: step
                     }, [imageData.data.buffer]);
@@ -865,6 +875,10 @@
             const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
+
+                // Low Motion Detection
+                if (delta < 0.003) this._lowMotionFrames++; else this._lowMotionFrames = 0;
+
                 if (this._highMotion) {
                     if (delta < 0.06) this._highMotion = false;
                 } else {
@@ -891,28 +905,34 @@
                 const floor = Math.max(0.1, p10);
 
                 const spread = (p90 - p10);
-                let baseTarget = 0.35;
-                if (p50m < 0.18) baseTarget = 0.38;
+                let baseTarget = IS_MOBILE ? 0.38 : 0.35;
+                if (p50m < 0.18) baseTarget += 0.02;
 
                 const targetMid = Utils.clamp(baseTarget + (spread < 0.15 ? 0.03 : -0.02), 0.30, 0.40);
 
-                let error = 0;
-                if (evValue === 0) {
-                    error = (targetMid - p50m) * 0.35;
-                } else {
-                    error = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
-                }
+                // Enhanced Mixed Error Calculation
+                const baseErr = (targetMid - p50m) * 0.35;
+                const userErr = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
+                const error = baseErr + userErr;
 
-                if (Math.abs(error) < 0.001) error = 0;
                 const correction = error * 5.0 * contrastFactor;
 
                 if (correction > 0) {
+                    // Highlight Clipping Guard
+                    const hiClip = Math.max(0, p90 - 0.93);
+                    const hiGuard = 1 - Utils.clamp(hiClip / 0.07, 0, 1);
+                    const corr = correction * hiGuard;
+
                     const safeGammaBoost = (p90 > 0.9) ? 0.4 : 0.8;
-                    targetAdaptiveGamma += correction * safeGammaBoost;
-                    targetAdaptiveBright += correction * 4;
-                    if (!isHighContrast) targetShadowsAdj += correction * 5;
+                    targetAdaptiveGamma += corr * safeGammaBoost;
+                    targetAdaptiveBright += corr * 4;
+                    if (!isHighContrast) targetShadowsAdj += corr * 5;
                 } else {
-                    const absCorr = Math.abs(correction);
+                    // Shadow Crushing Guard
+                    const loClip = Math.max(0, 0.05 - p10);
+                    const loGuard = 1 - Utils.clamp(loClip / 0.05, 0, 1);
+                    const absCorr = Math.abs(correction) * loGuard;
+
                     const safeGammaCut = (p10 < 0.1) ? 0.3 : 0.6;
                     targetAdaptiveGamma -= absCorr * safeGammaCut;
                     targetAdaptiveBright -= absCorr * 3;
@@ -1093,8 +1113,7 @@
         }
         init(stateManager) {
             super.init(stateManager); _corePluginRef = this;
-            // Removed direct VideoAnalyzer.init to support lazy loading
-            // VideoAnalyzer.init(stateManager); will be called when start() is triggered
+            VideoAnalyzer.ensureStateManager(stateManager);
 
             if (!this._historyOrig) {
                 this._historyOrig = { pushState: history.pushState, replaceState: history.replaceState };
@@ -1982,6 +2001,7 @@
                         if (sharpenLevel !== undefined) {
                             let strCoarse = 0; let strFine = 0;
                             if (isImage) { strFine = Math.min(4.0, sharpenLevel * 0.12); strCoarse = 0; } else { strCoarse = Math.min(3.0, sharpenLevel * 0.05); strFine = (values.level2 !== undefined) ? Math.min(3.0, values.level2 * 0.06) : 0; }
+                            if (IS_MOBILE) strFine *= 0.8; // Mobile Optimization
                             const sCurve = (x) => x * x * (3 - 2 * x); const fineProgress = Math.min(1, strFine / 3.0); const fineSigma = 0.5 - (sCurve(fineProgress) * 0.3); const fineK = sCurve(fineProgress) * 3.5; const coarseProgress = Math.min(1, strCoarse / 3.0); const coarseSigma = 1.5 - (sCurve(coarseProgress) * 0.8); const coarseK = sCurve(coarseProgress) * 2.0; const safeFineK = Math.min(6.0, fineK); const safeCoarseK = Math.min(4.0, coarseK);
                             if (strFine <= 0.01) { cache.blurFine.forEach(el => Utils.setAttr(el, 'stdDeviation', "0")); cache.compFine.forEach(el => { Utils.setAttr(el, 'k2', "1"); Utils.setAttr(el, 'k3', "0"); }); } else { cache.blurFine.forEach(el => Utils.setAttr(el, 'stdDeviation', fineSigma.toFixed(2))); cache.compFine.forEach(el => { Utils.setAttr(el, 'k2', (1 + safeFineK).toFixed(3)); Utils.setAttr(el, 'k3', (-safeFineK).toFixed(3)); }); }
                             if (strCoarse <= 0.01) { cache.blurCoarse.forEach(el => Utils.setAttr(el, 'stdDeviation', "0")); cache.compCoarse.forEach(el => { Utils.setAttr(el, 'k2', "1"); Utils.setAttr(el, 'k3', "0"); }); } else { cache.blurCoarse.forEach(el => Utils.setAttr(el, 'stdDeviation', coarseSigma.toFixed(2))); cache.compCoarse.forEach(el => { Utils.setAttr(el, 'k2', (1 + safeCoarseK).toFixed(3)); Utils.setAttr(el, 'k3', (-safeCoarseK).toFixed(3)); }); }
@@ -2426,12 +2446,23 @@
                 this.isDragging = true; this.wasDragged = false;
                 this._longPressTriggered = false;
                 this.delta = { x: 0, y: 0 }; this.startPos = { x: e.clientX, y: e.clientY };
+                if (e.type === 'touchstart') { this.startPos = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
                 this.currentPos = { x: this.uiState.x, y: this.uiState.y };
                 this.globalContainer.style.transition = 'none';
                 try { this.triggerElement.setPointerCapture(e.pointerId); } catch(err){}
-                this.triggerElement.addEventListener('pointermove', onDragMove);
-                this.triggerElement.addEventListener('pointerup', onDragEnd);
-                this.triggerElement.addEventListener('pointercancel', onDragEnd);
+
+                if (e.type === 'pointerdown') {
+                    this.triggerElement.addEventListener('pointermove', onDragMove);
+                    this.triggerElement.addEventListener('pointerup', onDragEnd);
+                    this.triggerElement.addEventListener('pointercancel', onDragEnd);
+                } else if (e.type === 'touchstart') {
+                    document.addEventListener('touchmove', onDragMove, { passive: false });
+                    document.addEventListener('touchend', onDragEnd);
+                    document.addEventListener('touchcancel', onDragEnd);
+                } else {
+                    document.addEventListener('mousemove', onDragMove);
+                    document.addEventListener('mouseup', onDragEnd);
+                }
 
                 if (this.pressTimer) clearTimeout(this.pressTimer);
                 this.pressTimer = setTimeout(() => {
@@ -2447,7 +2478,10 @@
             const updatePosition = () => { if (!this.isDragging || !this.globalContainer) return; const newX = this.currentPos.x + this.delta.x; const newY = this.currentPos.y + this.delta.y; this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`); this.animationFrameId = null; };
             const onDragMove = (e) => {
                 if (!this.isDragging) return;
-                this.delta = { x: e.clientX - this.startPos.x, y: e.clientY - this.startPos.y };
+                let cx = e.clientX, cy = e.clientY;
+                if (e.type === 'touchmove') { cx = e.touches[0].clientX; cy = e.touches[0].clientY; e.preventDefault(); }
+
+                this.delta = { x: cx - this.startPos.x, y: cy - this.startPos.y };
                 if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI.DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI.DRAG_THRESHOLD)) {
                     this.wasDragged = true;
                     if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
@@ -2465,13 +2499,27 @@
                     lastDragEnd = Date.now();
                 }
                 this.isDragging = false; this.globalContainer.style.transition = '';
+
                 this.triggerElement.removeEventListener('pointermove', onDragMove);
                 this.triggerElement.removeEventListener('pointerup', onDragEnd);
                 this.triggerElement.removeEventListener('pointercancel', onDragEnd);
+                document.removeEventListener('mousemove', onDragMove);
+                document.removeEventListener('mouseup', onDragEnd);
+                document.removeEventListener('touchmove', onDragMove);
+                document.removeEventListener('touchend', onDragEnd);
+                document.removeEventListener('touchcancel', onDragEnd);
+
                 try { this.triggerElement.releasePointerCapture(e.pointerId); } catch(err){}
                 setTimeout(() => { this.wasDragged = false; }, 50);
             };
-            this.triggerElement.addEventListener('pointerdown', onDragStart);
+
+            if (window.PointerEvent) {
+                this.triggerElement.addEventListener('pointerdown', onDragStart);
+            } else {
+                this.triggerElement.addEventListener('mousedown', onDragStart);
+                this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
+            }
+
             this.triggerElement.addEventListener('click', (e) => { if (Date.now() - lastDragEnd < 400 || this._longPressTriggered) { e.stopPropagation(); e.preventDefault(); } }, { capture: true });
         }
     }
