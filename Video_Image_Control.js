@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.58 Final_AE_Tuned)
+// @name        Video_Image_Control (Lite v130.63 Final_Fixed_AlwaysOn)
 // @namespace   https://com/
-// @version     130.58
-// @description v130.58: Fix SyntaxError (Duplicate debounce), Smart Escalation.
+// @version     130.63
+// @description v130.63: Fix ReferenceError, Force UI Creation, Smart Escalation.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -28,7 +28,25 @@
     const IS_TOP = window === window.top;
     const VSC_DEBUG = false;
 
+    // ✅ [Fix 1] Declare Global Reference for CorePlugin to prevent ReferenceError
+    let _corePluginRef = null;
+
     // --- Helpers ---
+    const debounce = (fn, wait) => {
+        let t; return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); };
+    };
+
+    const throttle = (fn, limit) => {
+        let inThrottle; return function (...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } };
+    };
+
+    const scheduleWork = (cb) => {
+        const wrapped = (deadline) => { try { cb(deadline); } catch (e) { if (VSC_DEBUG) console.error(e); } };
+        if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 });
+        return setTimeout(() => wrapped({ timeRemaining: () => 1, didTimeout: true }), 1);
+    };
+
+    // --- Safety & Performance Helpers ---
     let _sensCache = { t: 0, v: false };
     const isSensitiveContext = () => {
         const now = Date.now();
@@ -56,31 +74,28 @@
         if (now - _hasVideoCache.t < 500) return _hasVideoCache.v;
 
         let found = false;
+        const isValid = (el) => {
+            if (!el) return false;
+            return !!el.src || !!el.currentSrc || el.tagName === 'IFRAME' || (el.offsetWidth > 0 && el.offsetHeight > 0);
+        };
+
         const vids = document.getElementsByTagName('video');
         for (const v of vids) {
             if (!v.isConnected) continue;
-            const w = v.videoWidth || v.clientWidth || v.offsetWidth || 0;
-            const h = v.videoHeight || v.clientHeight || v.offsetHeight || 0;
-            const hasSource = !!(v.currentSrc || v.src || v.srcObject || v.querySelector('source') ||
-                                 v.getAttribute('data-src') || v.getAttribute('data-video-src') || v.getAttribute('data-url'));
-            if (hasSource || (w >= 80 && h >= 60)) { found = true; break; }
+            if (isValid(v)) { found = true; break; }
         }
-        if (!found) {
-            // Check Iframes
-            if (document.querySelector('iframe')) found = true;
-            // Check Shadow DOMs
-            if (!found) {
-                const list = window._shadowDomList_;
-                if (list && list.length > 0) {
-                    const cap = Math.min(list.length, 50);
-                    for (let i = 0; i < cap; i++) {
-                        const sr = list[i];
-                        if (!sr) continue;
-                        try {
-                            if (sr.querySelector && (sr.querySelector('video') || sr.querySelector('iframe'))) { found = true; break; }
-                        } catch(e) {}
-                    }
-                }
+
+        if (!found && document.querySelector('iframe')) found = true;
+
+        if (!found && window._shadowDomList_) {
+            const cap = Math.min(window._shadowDomList_.length, 50);
+            for (let i = 0; i < cap; i++) {
+                const sr = window._shadowDomList_[i];
+                if (!sr) continue;
+                try {
+                    const v = sr.querySelector ? sr.querySelector('video') : null;
+                    if (v && isValid(v)) { found = true; break; }
+                } catch(e) {}
             }
         }
         _hasVideoCache = { t: now, v: found };
@@ -94,11 +109,33 @@
         if (!window._shadowDomSet_.has(sr)) {
             window._shadowDomSet_.add(sr);
             window._shadowDomList_.push(sr);
-            if (window.vscPluginManager) {
-                const core = window.vscPluginManager.plugins.find(p => p.name === 'CoreMedia');
-                if (core) core.scanSpecificRoot(sr);
+            // Trigger scan for new shadow root immediately
+            if (_corePluginRef) {
+                _corePluginRef.scanSpecificRoot(sr);
             }
         }
+    };
+
+    const collectOpenShadowRootsOnce = () => {
+        const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
+        const runChunk = (deadline) => {
+            let count = 0;
+            while (walker.nextNode()) {
+                if (deadline && typeof deadline.timeRemaining === 'function' && deadline.timeRemaining() < 1) {
+                    scheduleWork(runChunk);
+                    return;
+                }
+                if (++count > 200) {
+                     scheduleWork(runChunk);
+                     return;
+                }
+
+                const el = walker.currentNode;
+                const sr = el.shadowRoot;
+                if (sr) registerShadowRoot(sr);
+            }
+        };
+        scheduleWork(runChunk);
     };
 
     // --- Global Hook Manager ---
@@ -109,8 +146,10 @@
         mediaLoad: HTMLMediaElement.prototype.load,
     };
 
-    // ✅ [Global] Inline Style Backup for Safe Restore
+    // [Global] Inline Style Backup for Safe Restore
     const _prevInlineStyle = new WeakMap();
+    const _realmSheetCache = new WeakMap();
+    const _shadowRootCache = new WeakMap();
 
     let _hooksActive = false;
     let _shadowHookActive = false;
@@ -155,11 +194,10 @@
 
         const safeDefineProperty = function (obj, key, descriptor) {
             if (isMediaEl(obj) && protectKeys.includes(key) && descriptor) {
-                const origDesc = descriptor;
                 const patched = { ...descriptor };
                 patchDescriptorSafely(patched);
                 try { return ORIGINALS.defineProperty.call(this, obj, key, patched); }
-                catch (e) { return ORIGINALS.defineProperty.call(this, obj, key, origDesc); }
+                catch (e) { return ORIGINALS.defineProperty.call(this, obj, key, descriptor); }
             }
             return ORIGINALS.defineProperty.call(this, obj, key, descriptor);
         };
@@ -169,8 +207,7 @@
                 const patchedProps = { ...props };
                 for (const k in patchedProps) {
                     if (protectKeys.includes(k) && patchedProps[k]) {
-                        const orig = patchedProps[k];
-                        const patched = { ...orig };
+                        const patched = { ...patchedProps[k] };
                         patchDescriptorSafely(patched);
                         patchedProps[k] = patched;
                     }
@@ -220,36 +257,6 @@
         isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host
     };
 
-    const scheduleWork = (cb) => {
-        const wrapped = (deadline) => {
-            try { cb(deadline); } catch (e) { if (VSC_DEBUG) console.error(e); }
-        };
-        if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 });
-        return setTimeout(() => wrapped({ timeRemaining: () => 1, didTimeout: true }), 1);
-    };
-
-    const collectOpenShadowRootsOnce = () => {
-        const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
-        const runChunk = (deadline) => {
-            let count = 0;
-            while (walker.nextNode()) {
-                if (deadline && typeof deadline.timeRemaining === 'function' && deadline.timeRemaining() < 1) {
-                    scheduleWork(runChunk);
-                    return;
-                }
-                if (++count > 200) {
-                     scheduleWork(runChunk);
-                     return;
-                }
-
-                const el = walker.currentNode;
-                const sr = el.shadowRoot;
-                if (sr) registerShadowRoot(sr);
-            }
-        };
-        scheduleWork(runChunk);
-    };
-
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
     const P = (signal) => ({ passive: true, signal });
     const CP = (signal) => ({ capture: true, passive: true, signal });
@@ -286,20 +293,19 @@
 
     const log = (...args) => { if (CONFIG.DEBUG) console.log('[VSC]', ...args); };
     const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
-    const debounce = (fn, wait) => { let t; return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
-    const throttle = (fn, limit) => { let inThrottle; return function (...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
 
     const triggerBurstScan = (delay = 200) => {
-        if(!_corePluginRef) return;
-        _corePluginRef.resetScanInterval();
-        scheduleScan(null, true);
-        [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d));
+        if(_corePluginRef) {
+            _corePluginRef.resetScanInterval();
+            scheduleScan(null, true);
+            [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d));
+        }
     };
 
     const dirtyRoots = new Set();
     let pendingScan = false;
-    let _corePluginRef = null;
     let _scanRaf = null;
+    let _lastFullScanTime = 0;
 
     const isGoodScanRoot = (n) => {
         if (!n || n.nodeType !== 1 || !n.isConnected) return false;
@@ -310,10 +316,17 @@
         return false;
     };
 
-    let _lastFullScanTime = 0;
     const scheduleScan = (rootOrNull, immediate = false) => {
         if (Utils.isShadowRoot(rootOrNull)) registerShadowRoot(rootOrNull);
-        if (immediate && _corePluginRef) { safeGuard(() => { if (rootOrNull) _corePluginRef.scanSpecificRoot(rootOrNull); else _corePluginRef.scanAndApply(); }, 'immediateScan'); return; }
+
+        if (immediate && _corePluginRef) {
+            safeGuard(() => {
+                if (rootOrNull) _corePluginRef.scanSpecificRoot(rootOrNull);
+                else _corePluginRef.scanAndApply();
+            }, 'immediateScan');
+            return;
+        }
+
         if (rootOrNull) {
              if (Utils.isShadowRoot(rootOrNull)) { if (rootOrNull.host && rootOrNull.host.isConnected) dirtyRoots.add(rootOrNull); }
              else if (rootOrNull.isConnected) { const tag = rootOrNull.nodeName; if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME') dirtyRoots.add(rootOrNull); else if (isGoodScanRoot(rootOrNull)) dirtyRoots.add(rootOrNull); }
@@ -322,7 +335,9 @@
         _scanRaf = requestAnimationFrame(() => {
             _scanRaf = null; if (pendingScan) return; pendingScan = true;
             scheduleWork(() => {
-                pendingScan = false; if (!_corePluginRef) return;
+                pendingScan = false;
+                if (!_corePluginRef) return;
+
                 if (isSensitiveContext()) disableAllHooks();
                 if (dirtyRoots.size > 0) {
                     const now = Date.now();
@@ -350,9 +365,6 @@
         }
     } catch { }
 
-    const _realmSheetCache = new WeakMap();
-    const _shadowRootCache = new WeakMap();
-
     function getSharedStyleSheetForView(view, cssText) {
         if (!view || !view.CSSStyleSheet) return null;
         let map = _realmSheetCache.get(view);
@@ -369,7 +381,7 @@
         else doc.addEventListener('DOMContentLoaded', () => { if (doc.body) cb(); else setTimeout(cb, 100); }, { once: true });
     }
 
-    // [Fixed] Optimized & Active Context Injection
+    // --- Global Context Injection ---
     function injectFiltersIntoContext(element, manager, stateManager) {
         if (!manager || !manager.isInitialized() || !stateManager) return;
         let root = element.getRootNode();
@@ -384,10 +396,10 @@
         if (ownerDoc === document && root === document) return;
         const type = (manager === stateManager.filterManagers.video) ? 'video' : 'image';
         const attr = `data-vsc-filters-injected-${type}`;
-        
-        // Fast Check
+
         const styleId = manager.getStyleNode().id;
         const svgId = manager.getSvgNode().id;
+        const targetRoot = (root instanceof ShadowRoot) ? root : document.head;
 
         if (Utils.isShadowRoot(root)) {
             if (root.host && root.host.hasAttribute(attr)) {
@@ -1550,6 +1562,8 @@
             super.init(stateManager); const isMobile = this.stateManager.get('app.isMobile');
             this.filterManager = this._createManager({ settings: isMobile ? CONFIG.FILTER.MOBILE_SETTINGS : CONFIG.FILTER.DESKTOP_SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', className: 'vsc-video-filter-active', isImage: false });
             this.imageFilterManager = this._createManager({ settings: CONFIG.FILTER.IMAGE_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', className: 'vsc-image-filter-active', isImage: true });
+            this.filterManager.init(); this.imageFilterManager.init();
+            this.stateManager.filterManagers.video = this.filterManager; this.stateManager.filterManagers.image = this.imageFilterManager;
             this.subscribe('app.scriptActive', (active) => {
                 if (active) {
                     this.filterManager.init(); this.imageFilterManager.init();
@@ -1559,7 +1573,6 @@
                     this.applyAllVideoFilters(); this.applyAllImageFilters();
                 } else { this.applyAllVideoFilters(); this.applyAllImageFilters(); }
             });
-            this.stateManager.filterManagers.video = this.filterManager; this.stateManager.filterManagers.image = this.imageFilterManager;
             this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
             this.subscribe('videoFilter.autoExposure', (on, old) => { if (on && !old) { this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.applyAllVideoFilters(); } });
             this.subscribe('videoFilter.targetLuma', () => { if (this.stateManager.get('videoFilter.autoExposure')) { this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.applyAllVideoFilters(); } });
@@ -1805,7 +1818,7 @@
             const scriptActive = this.stateManager.get('app.scriptActive'); if (!scriptActive) { image.classList.remove('vsc-image-filter-active'); return; }
             const level = this.stateManager.get('imageFilter.level'); const colorTemp = this.stateManager.get('imageFilter.colorTemp');
             const shouldApply = level > 0 || colorTemp !== 0; const isVis = this.stateManager.get('media.visibilityMap').get(image); const isActive = isVis && shouldApply;
-            
+
             // [PATCH] Active Injection for Images
             if (isActive) injectFiltersIntoContext(image, this.imageFilterManager, this.stateManager);
 
@@ -1899,7 +1912,7 @@
             this.globalContainer.style.setProperty('--vsc-translate-x', `${tx}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${ty}px`);
             const vars = { '--vsc-bg-dark': 'rgba(0,0,0,0.7)', '--vsc-bg-btn': 'rgba(0,0,0,0.5)', '--vsc-bg-accent': 'rgba(52, 152, 219, 0.7)', '--vsc-bg-warn': 'rgba(231, 76, 60, 0.9)', '--vsc-bg-active': 'rgba(76, 209, 55, 0.4)', '--vsc-text': 'white', '--vsc-text-accent': '#f39c12', '--vsc-text-active': '#4cd137', '--vsc-border': '#555' };
             for (const [k, v] of Object.entries(vars)) this.globalContainer.style.setProperty(k, v);
-            Object.assign(this.globalContainer.style, { position: 'fixed', top: '50%', right: '1vmin', zIndex: CONFIG.UI.MAX_Z, transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))', display: 'none', alignItems: 'flex-start', gap: '5px' });
+            Object.assign(this.globalContainer.style, { position: 'fixed', top: '50%', right: '1vmin', zIndex: CONFIG.UI.MAX_Z, transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))', display: 'flex', alignItems: 'flex-start', gap: '5px' }); // [Fixed] Force flex
             this.mainControlsContainer = document.createElement('div'); this.mainControlsContainer.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:5px;';
             this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡';
             Object.assign(this.triggerElement.style, { width: isMobile ? '42px' : '48px', height: isMobile ? '42px' : '48px', background: 'var(--vsc-bg-btn)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: isMobile ? '22px' : '24px', userSelect: 'none', touchAction: 'none', order: '1' });
@@ -1927,6 +1940,7 @@
                             sm.get('media.activeImages').size > 0 ||
                             sm.get('media.activeIframes').size > 0;
 
+                        // Check DOM directly (generic fallback)
                         const hasMediaDom =
                             !!document.querySelector('video, iframe') || hasRealVideoCached();
 
@@ -1945,7 +1959,7 @@
 
             const rescanTrigger = document.createElement('div'); rescanTrigger.textContent = '↻';
             Object.assign(rescanTrigger.style, { width: '34px', height: '34px', background: 'var(--vsc-bg-btn)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', marginTop: '5px', order: '3' });
-            rescanTrigger.addEventListener('click', () => { if (_corePluginRef) { _corePluginRef.resetScanInterval(); _corePluginRef.scanAndApply(); } });
+            rescanTrigger.addEventListener('click', () => { if (window.vscPluginManager) { const core = window.vscPluginManager.plugins.find(p => p.name === 'CoreMedia'); if(core) { core.resetScanInterval(); core.scanAndApply(); } } });
             this.speedButtonsContainer = document.createElement('div'); this.speedButtonsContainer.id = 'vsc-speed-buttons-container'; this.speedButtonsContainer.style.cssText = 'display:none; flex-direction:column; gap:5px;';
             this.attachDragAndDrop();
             this.mainControlsContainer.append(this.triggerElement, rescanTrigger);
@@ -2006,7 +2020,8 @@
             const hasAny = hasAnyVideo || hasLocalImage;
 
             if (this.globalContainer) {
-                this.globalContainer.style.display = (controlsVisible || hasAny) ? 'flex' : 'none';
+                // [Force Visible] Icon always visible regardless of detection
+                this.globalContainer.style.display = 'flex';
             }
             if (this.speedButtonsContainer) { this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none'; }
             if (!this.shadowRoot) return;
