@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.72 Fix)
+// @name        Video_Image_Control (Lite v130.73 Optimized)
 // @namespace   https://com/
-// @version     130.72
-// @description v130.72: Fixed Worker Histogram, Added Median P50, Optimized AE/Canvas, Audio Boost Slider, CSP Fallback.
+// @version     130.73
+// @description v130.73: Optimized VideoAnalyzer (Lazy Init, Safe Loop), Enhanced Best Video Picker, Performance Tuning.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -48,13 +48,13 @@
             VIDEO_DEFAULT_LEVEL: 15, VIDEO_DEFAULT_LEVEL2: 6, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
-            MIN_VIDEO_SIZE: 50, MIN_IMAGE_SIZE: IS_MOBILE ? 160 : 200, // Fix 4C: Lower limit for mobile
+            MIN_VIDEO_SIZE: 50, MIN_IMAGE_SIZE: IS_MOBILE ? 160 : 200,
             MOBILE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
             DESKTOP_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
         },
         AUDIO: {
-            THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25 // Fix 3B: Removed unused BOOST_DB
+            THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25
         },
         SCAN: {
             INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000,
@@ -97,10 +97,8 @@
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
 
-    // --- Worker Logic (Inline Blob) ---
-    // Fix 1A: p10/p50/p90 initialization to -1
-    // Fix 6(4): Bottom band threshold logic tweaked
-    const workerBlob = new Blob([`
+    // --- Worker Logic String (Lazy Init) ---
+    const WORKER_CODE = `
         self.onmessage = function(e) {
             const { data, width, height, type, bandH, step } = e.data;
             if (type === 'analyze') {
@@ -116,7 +114,7 @@
                     }
                 }
 
-                // Bottom Band (Fix 6-4: Reduced slightly to avoid subs collision)
+                // Bottom Band
                 const botBandH = Math.floor(bandH * 0.8);
                 for (let y = size - botBandH; y < size; y += step) {
                     for (let x = 0; x < size; x += step) {
@@ -147,7 +145,7 @@
                     }
                 }
 
-                let p10 = -1, p50 = -1, p90 = -1; // Fix 1A: Init to -1
+                let p10 = -1, p50 = -1, p90 = -1;
                 if (validCount > 0) {
                     let sum = 0;
                     const t10 = validCount * 0.10;
@@ -161,7 +159,6 @@
                     }
                 }
 
-                // Fallback if still -1
                 if (p10 < 0) p10 = 0.1;
                 if (p50 < 0) p50 = 0.5;
                 if (p90 < 0) p90 = 0.9;
@@ -169,8 +166,7 @@
                 self.postMessage({ type: 'result', p10, p50, p90, barsNow });
             }
         };
-    `], { type: 'application/javascript' });
-    const workerUrl = URL.createObjectURL(workerBlob);
+    `;
 
     // --- Shadow DOM & Detection Logic ---
     const dirtyRoots = new Set();
@@ -278,9 +274,10 @@
          setTimeout(() => { _sensitiveLockUntil = 0; }, 1000);
     }
 
+    const SENSITIVE_KEYWORDS = ['login', 'signin', 'auth', 'account', 'member', 'session', 'checkout', 'payment', 'bank', 'verify', 'secure'];
     const isSensitiveUrl = () => {
         const url = location.href.toLowerCase();
-        return /(login|signin|auth|account|member|session|checkout|payment|bank|verify|secure)/i.test(url);
+        return SENSITIVE_KEYWORDS.some(kw => url.includes(kw));
     };
 
     const isSensitiveContext = () => {
@@ -536,7 +533,7 @@
                 media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
-                audio: { enabled: false, boost: 6 }, // Fix 3B: Default 6dB
+                audio: { enabled: false, boost: 6 },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false, hideUntilReload: false },
                 playback: { currentRate: 1.0, targetRate: 1.0 }
             };
@@ -574,6 +571,8 @@
         _roiP50History: [],
         taintedResources: new WeakSet(),
         _worker: null,
+        _workerUrl: null,
+        _rvfcCb: null,
 
         init(stateManager) {
             this.stateManager = stateManager;
@@ -583,7 +582,6 @@
                 } else {
                     this.canvas = document.createElement('canvas');
                 }
-                // Fix 2A: Lower canvas size for mid/low tier
                 const size = IS_HIGH_END ? 48 : (IS_LOW_END ? 16 : 24);
                 this.canvas.width = size; this.canvas.height = size;
             }
@@ -591,16 +589,18 @@
                 this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
                 if (this.ctx) this.ctx.imageSmoothingEnabled = false;
             }
-            if (!this._worker) {
-                // Fix 4A: Worker Fallback Logic
+            // Lazy Worker Init: Created only when enabled
+            if (!this._worker && !this._workerUrl) {
                 try {
-                    this._worker = new Worker(workerUrl);
+                    const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
+                    this._workerUrl = URL.createObjectURL(blob);
+                    this._worker = new Worker(this._workerUrl);
                     this._worker.onmessage = this._handleWorkerMessage.bind(this);
                 } catch (e) {
                     this._worker = null;
                 }
             }
-            this._roiP50History = []; // Reset history
+            this._roiP50History = [];
         },
         _handleWorkerMessage(e) {
             const { type, p10, p50, p90, barsNow } = e.data;
@@ -608,7 +608,6 @@
                 this._processAnalysisResult(p10, p50, p90, barsNow);
             }
         },
-        // Fix 4A: Main Thread Fallback for AE
         _analyzeFallback(imageData, width, height, bandH, step) {
              const data = imageData.data;
              const size = width;
@@ -674,7 +673,20 @@
             const sm = this.stateManager;
             let v = sm ? sm.get('media.currentlyVisibleMedia') : null;
             if (v && v.isConnected && v.tagName === 'VIDEO') return v;
-            return document.querySelector('video');
+
+            // Robust fallback: Pick largest visible video
+            const candidates = document.querySelectorAll('video');
+            let best = null, maxScore = -1;
+            for(let i=0; i<candidates.length; i++) {
+                const c = candidates[i];
+                if (!c.isConnected) continue;
+                const rect = c.getBoundingClientRect();
+                if (rect.width > 10 && rect.height > 10) {
+                    const score = rect.width * rect.height;
+                    if (score > maxScore) { maxScore = score; best = c; }
+                }
+            }
+            return best;
         },
         _kickImmediateAnalyze() {
             const run = () => { try { if (!this.targetVideo || !this.ctx) return; this.processFrame(true); } catch {} };
@@ -697,14 +709,18 @@
             if (this.isRunning && this.targetVideo === video) return;
             this.targetVideo = video;
             this.hasRVFC = 'requestVideoFrameCallback' in this.targetVideo;
-            if (!this.canvas) this.init(this.stateManager);
+            // Ensure worker is ready (lazy init check)
+            if (!this._worker && !this._workerUrl) this.init(this.stateManager);
             this.isRunning = true;
-            this._roiP50History = []; // Fix 6(5): Reset P50 history on start
+            this._roiP50History = [];
             this.loop();
         },
         stop() {
             this.isRunning = false;
-            if (this.handle && this.targetVideo && this.hasRVFC) { try { this.targetVideo.cancelVideoFrameCallback(this.handle); } catch { } }
+            // Safe RVFC cancel
+            if (this.hasRVFC && this.targetVideo && this.handle) {
+                try { this.targetVideo.cancelVideoFrameCallback(this.handle); } catch { }
+            }
             this.handle = null; this.targetVideo = null; this.frameSkipCounter = 0;
             this.lastAvgLuma = -1; this._highMotion = false;
             this._roiP50History = [];
@@ -747,15 +763,18 @@
             }
         },
         loop() {
-            // Fix 1B: Guard against execution after stop
             if (!this.isRunning || !this.targetVideo) return;
-            const cb = () => {
-                if (!this.isRunning || !this.targetVideo) return;
-                try { this.processFrame(); } catch (e) { if (CONFIG.DEBUG) console.warn(e); }
-                this.loop();
-            };
-            if (this.hasRVFC) this.handle = this.targetVideo.requestVideoFrameCallback(cb);
-            else {
+            if (this.hasRVFC) {
+                // Optimized Safe Loop
+                if (!this._rvfcCb) {
+                    this._rvfcCb = () => {
+                        if (!this.isRunning || !this.targetVideo) return;
+                        try { this.processFrame(); } catch (e) { if (CONFIG.DEBUG) console.warn(e); }
+                        this.handle = this.targetVideo.requestVideoFrameCallback(this._rvfcCb);
+                    };
+                }
+                this.handle = this.targetVideo.requestVideoFrameCallback(this._rvfcCb);
+            } else {
                 this.processFrame();
                 const delay = (this.targetVideo.paused || document.hidden) ? 500 : (this.dynamicSkipThreshold > 5 ? 150 : 80);
                 setTimeout(() => this.loop(), delay);
@@ -803,7 +822,6 @@
                         step: step
                     }, [imageData.data.buffer]);
                 } else {
-                    // Fallback execution
                     this._analyzeFallback(imageData, size, size, bandH, step);
                 }
 
@@ -834,7 +852,6 @@
         _processAnalysisResult(p10, p50, p90, barsNow) {
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
 
-            // Fix 6(5): Median Filter for P50
             this._roiP50History.push(p50);
             if (this._roiP50History.length > 5) this._roiP50History.shift();
             const sortedP50 = [...this._roiP50History].sort((a,b) => a - b);
@@ -874,7 +891,6 @@
                 const floor = Math.max(0.1, p10);
 
                 const spread = (p90 - p10);
-                // Fix 6(3): Spread based targetMid
                 let baseTarget = 0.35;
                 if (p50m < 0.18) baseTarget = 0.38;
 
@@ -903,11 +919,9 @@
                     if (!isHighContrast) targetHighlightsAdj += absCorr * 10;
                 }
 
-                // Fix 6(2): Clamp Ranges reduced
                 targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -30, 30);
                 targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.7, 1.7);
 
-                // Aggressive window override
                 if (aggressive && (p10 < 0.05 || p90 > 0.95)) {
                     targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -40, 40);
                 }
@@ -922,7 +936,6 @@
                 const maxLumaFactor = (isAutoExp && evValue < 0) ? 0.5 : 0.7;
                 const lumaFactor = Math.max(0.2, maxLumaFactor - p50m);
                 let dampener = isAutoExp ? (evValue < 0 ? 0.4 : 0.6) : 1.0;
-                // Fix 6(6): Reduce clarityComp if very dark
                 if (p10 < 0.06 && p90 < 0.5) dampener *= 0.5;
 
                 targetClarityComp = Math.min(10, (intensity * 10) * lumaFactor * dampener);
@@ -957,7 +970,6 @@
         }
     };
 
-    // [Fix: Order] Class Plugin must be defined before AudioController
     class Plugin { constructor(name) { this.name = name; this.stateManager = null; this.subscriptions = []; this._ac = new AbortController(); } init(stateManager) { this.stateManager = stateManager; } destroy() { this.subscriptions.forEach(unsubscribe => unsubscribe()); this.subscriptions = []; this._ac.abort(); } subscribe(key, callback) { this.subscriptions.push(this.stateManager.subscribe(key, callback)); } }
 
     class PluginManager {
@@ -973,7 +985,6 @@
         destroyAll() { this.plugins.forEach(p => p.destroy()); }
     }
 
-    // --- Audio Controller ---
     class AudioController extends Plugin {
         constructor() {
             super('Audio');
@@ -1039,7 +1050,6 @@
                 const boost = Math.pow(10, this.stateManager.get('audio.boost') / 20);
                 this.gain.gain.value = boost;
 
-                // Fix 7: Safe disconnect logic
                 try { this.source.disconnect(); } catch (e) {}
                 this.source.connect(this.compressor);
                 this.compressor.connect(this.gain);
@@ -1082,7 +1092,9 @@
             this._updateHooksState = null;
         }
         init(stateManager) {
-            super.init(stateManager); _corePluginRef = this; VideoAnalyzer.init(stateManager);
+            super.init(stateManager); _corePluginRef = this;
+            // Removed direct VideoAnalyzer.init to support lazy loading
+            // VideoAnalyzer.init(stateManager); will be called when start() is triggered
 
             if (!this._historyOrig) {
                 this._historyOrig = { pushState: history.pushState, replaceState: history.replaceState };
@@ -1230,7 +1242,6 @@
             const aeActive = sm.get('videoFilter.autoExposure') || sm.get('videoFilter.clarity') > 0;
             const hasMedia = hasRealVideoCached() || sm.get('media.activeImages').size > 0;
 
-            // Fix 2C: Tighten global attr logic
             const shouldRun = active && (controlsVisible || aeActive) && (hasMedia || aeActive);
 
             if (shouldRun && !this._globalAttrObs) {
@@ -1268,11 +1279,13 @@
         destroy() {
             super.destroy(); _corePluginRef = null;
 
-            // Fix 1C: Clean up Worker
             if (VideoAnalyzer._worker) {
                 VideoAnalyzer._worker.terminate();
                 VideoAnalyzer._worker = null;
-                URL.revokeObjectURL(workerUrl);
+            }
+            if (VideoAnalyzer._workerUrl) {
+                URL.revokeObjectURL(VideoAnalyzer._workerUrl);
+                VideoAnalyzer._workerUrl = null;
             }
 
             if (this._historyOrig) {
@@ -1425,7 +1438,6 @@
                     const visMap = sm.get('media.visibilityMap');
                     let needsUpdate = false;
 
-                    // Fix 2B: Reduce set frequency
                     let lastVisTarget = null, lastVisState = false;
 
                     entries.forEach(e => {
@@ -1437,7 +1449,6 @@
 
                         if (e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS') {
                             if (visMap) visMap.set(e.target, isVisible);
-                            // Simple batching: last one wins for state, but individual map updated
                             lastVisTarget = e.target; lastVisState = isVisible;
                         }
                         else if (e.target.tagName === 'VIDEO') {
@@ -1533,7 +1544,6 @@
                 const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
                 if (wantImages) {
                     const w = node.naturalWidth || node.offsetWidth || 0; const h = node.naturalHeight || node.offsetHeight || 0;
-                    // Fix 4C: Updated logic from CONFIG
                     if ((w >= CONFIG.FILTER.MIN_IMAGE_SIZE && h >= CONFIG.FILTER.MIN_IMAGE_SIZE) || (w * h >= 200000)) images.add(node);
                 }
             } else if (node.tagName === 'IFRAME') {
@@ -1657,7 +1667,6 @@
                 if (wantImages) {
                     const docImages = document.images; for (let i = 0; i < docImages.length; i++) {
                         const img = docImages[i]; const w = img.naturalWidth || img.offsetWidth || 0; const h = img.naturalHeight || img.offsetHeight || 0;
-                        // Fix 4C
                         if ((w >= CONFIG.FILTER.MIN_IMAGE_SIZE && h >= CONFIG.FILTER.MIN_IMAGE_SIZE) || (w * h >= 200000)) images.add(img);
                     }
                 }
@@ -1732,7 +1741,6 @@
 
             on(media, 'loadedmetadata', () => VideoAnalyzer.taintedResources.delete(media), P(signal));
 
-            // Fix 4B: CORS Reset on other events
             const resetTaint = () => { if (VideoAnalyzer.taintedResources.has(media)) VideoAnalyzer.taintedResources.delete(media); };
             on(media, 'canplay', resetTaint, P(signal));
 
@@ -2137,7 +2145,6 @@
                 .vsc-col { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-bottom: 10px; border-bottom: 1px solid var(--vsc-border); padding-bottom: 6px; } .vsc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; } .vsc-hr { height: 1px; background: var(--vsc-border); width: 100%; margin: 4px 0; }
                 .slider-control { display: flex; flex-direction: column; gap: 4px; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '13px' : '14px'}; color: var(--vsc-text); } input[type=range] { width: 100%; margin: 0; cursor: pointer; }
                 .vsc-monitor { font-size: 11px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; } .vsc-monitor.warn { color: #e74c3c; font-weight: bold; }
-                /* UI styles moved to CSS */
                 .vsc-trigger { width: ${isMobile ? '42px' : '48px'}; height: ${isMobile ? '42px' : '48px'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: ${isMobile ? '22px' : '24px'}; user-select: none; touch-action: none; order: 1; transition: background 0.3s; }
                 .vsc-rescan { width: 34px; height: 34px; background: var(--vsc-bg-btn); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; margin-top: 5px; order: 3; }
                 #vsc-global-container { position: fixed; top: 50%; right: 1vmin; z-index: ${CONFIG.UI.MAX_Z}; transform: translateY(-50%) translate(var(--vsc-translate-x, 0), var(--vsc-translate-y, 0)); display: flex; align-items: flex-start; gap: 5px; }
@@ -2356,7 +2363,6 @@
             powerBtn.onclick = () => { this.stateManager.set('app.scriptActive', false); this.stateManager.set('ui.areControlsVisible', false); this.showToast('Script OFF'); };
             topRow.append(powerBtn); topRow.append(createToggle('📸 자동', 'videoFilter.autoExposure'));
 
-            // Audio Toggle
             topRow.append(createToggle('🔊 부스트', 'audio.enabled'));
 
             const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn vsc-btn-lg'; videoResetBtn.textContent = '↺'; videoResetBtn.title = '필터 초기화';
@@ -2364,7 +2370,7 @@
             videoResetBtn.onclick = () => { this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, clarity: 0, autoExposure: false, targetLuma: 0, highlights: 0, shadows: 0, gamma: 1.0, saturation: 100, contrastAdj: 1.0, dither: 0, colorTemp: 0 }); this.stateManager.set('audio.enabled', false); this.stateManager.set('audio.boost', 6); this.showToast('필터 및 오디오 초기화됨'); };
             topRow.append(videoResetBtn);
             const gridTable = document.createElement('div'); gridTable.className = 'vsc-align-grid';
-            const PRESET_CONFIG = [{ type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 8, l2: 3 }, { txt: 'M', key: 'sharpM', l1: 15, l2: 6 }, { txt: 'L', key: 'sharpL', l1: 25, l2: 10 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] }, { type: 'ev', label: '노출', items: [-10, -5, 0, 5, 10, 15].map(v => ({ txt: (v > 0 ? '+' : '') + v, val: v })) }];
+            const PRESET_CONFIG = [{ type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 8, l2: 3 }, { txt: 'M', key: 'sharpM', l1: 15, l2: 6 }, { txt: 'L', key: 'sharpL', l1: 25, l2: 10 }, { txt: 'XL', key: 'sharpXL', l1: 35, l2: 15 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] }, { type: 'ev', label: '노출', items: [-10, -5, 0, 5, 10, 15].map(v => ({ txt: (v > 0 ? '+' : '') + v, val: v })) }];
             PRESET_CONFIG.forEach(cfg => {
                 const label = document.createElement('div'); label.className = 'vsc-label'; label.textContent = cfg.label; gridTable.appendChild(label);
                 if (cfg.type === 'sharp') {
@@ -2392,7 +2398,6 @@
             const grid = document.createElement('div'); grid.className = 'vsc-grid';
             SLIDER_CONFIG.slice(1).forEach(cfg => { grid.appendChild(this._createSlider(cfg.label, cfg.id, cfg.min, cfg.max, cfg.step, cfg.key, cfg.unit, cfg.fmt).control); });
 
-            // Fix 7: Added Audio Boost Slider to UI
             grid.appendChild(this._createSlider('오디오증폭', 'a-boost', 0, 12, 1, 'audio.boost', 'dB', v => `+${v}`).control);
 
             videoSubMenu.appendChild(grid); return videoSubMenu;
